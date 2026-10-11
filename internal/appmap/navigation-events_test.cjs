@@ -127,6 +127,8 @@ test('ANL-V0-044: URLs are redacted before they reach disk', () => {
   assert.equal(redactURL('http://h/#!/home?%2574oken=sekret1&a=1'), 'http://h/#!/home?%2574oken=REDACTED&a=1');
   assert.equal(redactURL('http://h/#/r%3Fsession%3D9'), 'http://h/#/r?session=REDACTED');
   assert.equal(redactURL('http://h/#/r?q=%zz'), 'REDACTED');
+  assert.equal(redactURL('http://h/#!/%68ome?x=1'), 'http://h/#!/%68ome?x=1');
+  assert.equal(redactURL('http://h/#!/home?x=%41'), 'http://h/#!/home?x=%41');
   assert.equal(redactURL('http://h/items/7#tab'), 'http://h/items/7#tab');
 });
 
@@ -169,6 +171,21 @@ test('ANL-V0-043: a second page, too many events, an oversized URL or document w
   await long.rec.runBeforeCloseBrowserContext(l.context);
   assert.ok(!fs.existsSync(path.join(long.dir, 'long.json')));
   assert.match(long.warnings[0], /long not written/);
+
+  // A committed URL over 4096 bytes is withheld even when redaction would shorten it.
+  const shrunk = harness('shrunk');
+  const r = await shrunk.open();
+  navigate(r.page, 'http://h/home?token=' + 't'.repeat(5000));
+  await shrunk.rec.runBeforeCloseBrowserContext(r.context);
+  assert.ok(!fs.existsSync(path.join(shrunk.dir, 'shrunk.json')));
+  assert.match(shrunk.warnings[0], /shrunk not written/);
+
+  // So is a redirect hop over 4096 bytes.
+  const hop = harness('hop');
+  const o = await hop.open();
+  navigate(o.page, 'http://h/home', ['http://h/old?code=' + 'c'.repeat(5000)]);
+  await hop.rec.runBeforeCloseBrowserContext(o.context);
+  assert.ok(!fs.existsSync(path.join(hop.dir, 'hop.json')));
 });
 
 test('ANL-V0-037/038: outside a test nothing is recorded; outputDir is required', async () => {

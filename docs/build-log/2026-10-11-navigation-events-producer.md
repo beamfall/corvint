@@ -77,6 +77,18 @@ were not re-reviewed, because the lane allows at most three review rounds.
 - **Tests.** The Go differential test covers each case above, plus non-ASCII queries and fragments.
 - **Live check.** A live rerun was byte-identical to the fixtures.
 
+## Review round 4 repairs
+
+Round 4 was run by the orchestrator and confirmed the round-3 repairs.
+
+- **Fragment preservation.** A fragment that redaction leaves unchanged now keeps its original
+  bytes, as Go's escaped fragment does. Before, `#!/%68ome?x=1` became `#!/home?x=1`, which broke
+  observe's literal route match.
+- **URL length.** Committed URLs and redirect hops are now bounded before redaction, as well as
+  after. Before, a 5020-byte `?token=` URL was written once redaction shortened it, although the
+  trace reader rejects that URL.
+- **Tests.** The Node and Go differential tests cover both cases.
+
 ## Overhead
 
 The run was 80 tests (`--repeat-each=40`, one worker) on a loaded shared host, three runs each:

@@ -136,7 +136,12 @@ func TestANLV0044ProducerRedactionMatchesObserve(t *testing.T) {
 		"http://h/p?q=%FF&b=3",
 		"http://h/a%zz?x=1",
 		"http://h/caf\u00e9?q=\u00e9#/r\u00e9?x=\u00e9&code=sekret11",
+		"http://h/#!/%68ome?x=1",
+		"http://h/#!/home?x=%41",
+		"http://h/#!/%68ome?b=2&a=1",
 	}
+	// Unchanged fragments keep their encoding, which observe's literal route match depends on.
+	unchanged := map[string]bool{"http://h/#!/%68ome?x=1": true, "http://h/#!/home?x=%41": true, "http://h/#!/%68ome?b=2&a=1": true}
 	in, _ := json.Marshal(raws)
 	script := `const {redactURL} = require('./navigation-events.cjs'); console.log(JSON.stringify(JSON.parse(process.argv[1]).map(redactURL)))`
 	out, err := exec.Command("node", "-e", script, string(in)).CombinedOutput()
@@ -148,6 +153,9 @@ func TestANLV0044ProducerRedactionMatchesObserve(t *testing.T) {
 		t.Fatalf("producer output %s: %v", out, err)
 	}
 	for i, raw := range raws {
+		if unchanged[raw] && produced[i] != raw {
+			t.Errorf("%s: unchanged fragment rewritten as %s", raw, produced[i])
+		}
 		if strings.Contains(produced[i], "sekret") {
 			t.Errorf("%s: secret written as %s", raw, produced[i])
 		}

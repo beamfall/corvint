@@ -295,7 +295,8 @@ are URL templates, not component source files. This slice makes neither missing 
   event per commit where the trace shows only the last. (proposed; issue #814)
 - `ANL-V0-043`: A test attempt that opens a second page (a popup or another context), closes a
   second browser context after its first, records more
-  than 4096 events, commits a URL longer than 4096 bytes, or whose document would exceed the 4 MiB
+  than 4096 events, commits a URL or redirect hop longer than 4096 bytes as committed (the
+  ANL-V0-022 bound, checked before redaction) or after redaction, or whose document would exceed the 4 MiB
   reporter file limit gets no document: the producer removes
   any earlier file for that test and writes one stderr line naming the test and reason, mirroring the
   ANL-V0-022 refusals instead of truncating. (proposed; issue #814)
@@ -306,8 +307,9 @@ are URL templates, not component source files. This slice makes neither missing 
   credentials are dropped; in the URL's query a pair holding `;` or a bad escape is dropped, and a
   value whose decoded name is secret-shaped or whose decoded value looks opaque becomes `REDACTED`.
   A hash-route query is decoded once with the fragment, then redacted the same way, except that any
-  bad pair replaces the whole fragment query with `_=REDACTED`; such a fragment is rewritten so one
-  unescape returns it. A bad escape in the path or fragment makes the whole URL `REDACTED`.
+  bad pair replaces the whole fragment query with `_=REDACTED`; a fragment this changes is rewritten
+  so one unescape returns it, and an unchanged fragment keeps its original bytes, as Go's escaped
+  fragment does. A bad escape in the path or fragment makes the whole URL `REDACTED`.
   `observe`'s redaction of the written URL then equals its redaction of the committed URL.
   (proposed; issue #814)
 - `ANL-V0-045`: Its cost is one in-process listener call per Playwright call, two page event

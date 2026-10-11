@@ -338,9 +338,9 @@ ANL-V0-040	docs/specs/application-navigation-ledger-v0.md	279	Each URL commit of
 ANL-V0-041	docs/specs/application-navigation-ledger-v0.md	286	When the committed document's main-frame navigation request was reached through
 ANL-V0-042	docs/specs/application-navigation-ledger-v0.md	290	On the same run, `observe` over the producer's file yields the same visits and
 ANL-V0-043	docs/specs/application-navigation-ledger-v0.md	296	A test attempt that opens a second page (a popup or another context), closes a
-ANL-V0-044	docs/specs/application-navigation-ledger-v0.md	302	The producer reads only main-frame URLs, navigation request redirect chains and
-ANL-V0-045	docs/specs/application-navigation-ledger-v0.md	313	Its cost is one in-process listener call per Playwright call, two page event
-ANL-V0-046	docs/specs/application-navigation-ledger-v0.md	319	The runner process (where Playwright has not set `TEST_WORKER_INDEX`) loads the
+ANL-V0-044	docs/specs/application-navigation-ledger-v0.md	303	The producer reads only main-frame URLs, navigation request redirect chains and
+ANL-V0-045	docs/specs/application-navigation-ledger-v0.md	315	Its cost is one in-process listener call per Playwright call, two page event
+ANL-V0-046	docs/specs/application-navigation-ledger-v0.md	321	The runner process (where Playwright has not set `TEST_WORKER_INDEX`) loads the
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,

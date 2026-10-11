@@ -102,6 +102,8 @@ function redactURL(raw) {
     if (fq < 0) return url + '#' + fragment;
     const query = redactQuery(decoded.slice(fq + 1), true);
     const rewritten = decoded.slice(0, fq + 1) + (query === null ? '_=' + redacted : query);
+    // Like Go's EscapedFragment, an unchanged fragment keeps its original encoding byte for byte.
+    if (rewritten === decoded) return url + '#' + fragment;
     return url + '#' + escapeFragment(Buffer.from(rewritten, 'latin1'));
   } catch {
     return redacted; // url.Parse refuses a bad escape, so observe reads the whole URL as REDACTED
@@ -166,8 +168,11 @@ function createRecorder({outputDir, currentTest, warn = () => {}}) {
     const add = [first, ...hops.slice(1).map(u => ({kind: 'redirect', url: u}))];
     if (hops.length) add.push({kind: 'redirect', url});
     for (const ev of add) {
+      // The committed URL is bounded before redaction, as the trace zip reader bounds it, and the
+      // written URL after it.
+      const committedBytes = Buffer.byteLength(ev.url);
       ev.url = redactURL(ev.url);
-      if (Buffer.byteLength(ev.url) > maxURLBytes || s.events.length >= maxEvents) {
+      if (committedBytes > maxURLBytes || Buffer.byteLength(ev.url) > maxURLBytes || s.events.length >= maxEvents) {
         s.overflow = true;
         return;
       }
