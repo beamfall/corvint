@@ -5815,7 +5815,10 @@ the same caller bound; nothing else inherits it. Contention itself is not reduce
 Failure modes: a long wait holds a registered preparation slot for up to its bound and can delay
 later registrations to their own bound, as for CAL-V0-111. Writer-checkpoint refresh and the
 recovery probe keep the default lock options, as they already do for `release`. A changed request
-ID after a timeout is a new request, as before.
+ID after a timeout is a new request, as before. The no-write guarantee covers the timed-out acquisition
+only: a claim or pool acquire whose automatic health preparation committed and whose later
+acquisition then times out reports `retryable:false` under CAL-V0-078/CAL-V0-215, and callers MUST
+honour that flag rather than assume every `LOCK_TIMEOUT` is safe to resubmit.
 
 Acceptance evidence: `TestCALV0216_LockWaitAdmissionVerbs` (`internal/tasks/cli`) checks the value
 refusals without a write, help usage and note, a `LOCK_TIMEOUT` at the caller's one-second bound for
