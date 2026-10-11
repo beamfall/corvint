@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/groupreap"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
 
@@ -180,8 +181,14 @@ func TestPinnedGradleManifestFIFORefusedBeforeExecution(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The manifest is pinned only through Config, so the refusal comes from the
-	// pinned-file reader rather than the source input inventory.
-	if !strings.HasPrefix(result.Error, "config: nonregular file refused") {
+	// pinned-file reader rather than the source input inventory. Gradle requires
+	// detached-daemon retirement (TRE-V0-043), so a platform without it refuses
+	// first and never opens the manifest either.
+	want := "config: nonregular file refused"
+	if !groupreap.RetirementSupported {
+		want = "detached descendant retirement unsupported on this platform"
+	}
+	if !strings.HasPrefix(result.Error, want) {
 		t.Fatalf("manifest refusal not retained: %q", result.Error)
 	}
 	if _, err = os.Stat(r.ReportDir); !os.IsNotExist(err) {

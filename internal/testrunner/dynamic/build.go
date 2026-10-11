@@ -237,6 +237,15 @@ func Build(r tr.Request) (tr.Invocation, error) {
 		if r.Project != "" {
 			add("--url", r.Project)
 		}
+		// Target, when present, is the exact native skip-tag set: one argv
+		// element after --skipTags, so the variadic option cannot absorb
+		// another argument (TRE-V0-044).
+		if r.Target != "" {
+			if err := storybookSkipTags(r.Target); err != nil {
+				return tr.Invocation{}, err
+			}
+			add("--skipTags", r.Target)
+		}
 	}
 	for _, p := range v.ReportPaths {
 		if filepath.IsAbs(p) || filepath.Clean(p) != p || p == ".." || strings.HasPrefix(p, "../") {
@@ -244,4 +253,25 @@ func Build(r tr.Request) (tr.Invocation, error) {
 		}
 	}
 	return v, nil
+}
+
+var storybookTag = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
+
+// storybookSkipTags admits a closed comma-separated list of 1..16 distinct
+// Storybook tags. test-runner 0.26.0 joins and re-splits the list on commas
+// and trims spaces, so commas, spaces and option-like values are refused
+// rather than reinterpreted (TRE-V0-044).
+func storybookSkipTags(list string) error {
+	tags := strings.Split(list, ",")
+	if len(tags) > 16 {
+		return fmt.Errorf("legacy Storybook skip tags: at most 16 tags")
+	}
+	seen := map[string]bool{}
+	for _, tag := range tags {
+		if !storybookTag.MatchString(tag) || seen[tag] {
+			return fmt.Errorf("legacy Storybook skip tags require distinct literal tags")
+		}
+		seen[tag] = true
+	}
+	return nil
 }

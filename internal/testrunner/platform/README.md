@@ -44,6 +44,14 @@ fully package-qualified class and method with a non-uppercase package prefix;
 Gradle's uppercase simple-class shortcuts can otherwise match multiple packages. Project plugins and
 other task/configuration code remain trusted local dependencies. Any reported
 retry extension or duplicate identity refuses until a retry profile is qualified.
+Gradle runs `--offline --no-daemon` with `--gradle-user-home` fixed beneath the
+fresh executor HOME, so the account's `~/.gradle` properties, init scripts,
+caches and daemon registry are never read or written; external module
+dependencies therefore cannot resolve and test libraries must be project-local
+pinned files. The plan sets detached-descendant retirement, so the forked
+single-use daemon and test worker are retired by ancestry on timeout and
+interruption, and Gradle is refused where retirement is unproven (everything
+except Darwin). Broad `gradle --stop` is never issued (TRE-V0-042, TRE-V0-043).
 
 Maven requires the project's pinned `pom.xml`, pinned Java and optionally a pinned
 settings XML in Reporter. The POM must set Surefire `reportsDirectory` to
