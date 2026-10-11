@@ -1,5 +1,8 @@
 # V1-0408: experimental review hunk order
 
+This entry records the original run. Later P2a/P2b findings and their repair evidence are
+retained in [the follow-up entry](2026-10-10-review-hunk-order-p2-repairs.md).
+
 Intent: proposed, pending owner acceptance (V1-0408). FPK-V0-053..056 extend
 `docs/specs/falsifiable-packet-v0.md`; no owner acceptance or decision is recorded.
 
@@ -84,3 +87,75 @@ on uncertain source joins and evidence bindings. Runtime tuning, account usage,
 billed tokens and cache telemetry are NOT_OBSERVED in the available tools; no
 savings or spend-enforcement claim is made. Temporary command receipts/logs are
 under `/private/tmp/claude-501/v1-0408-*`, not product state.
+# V1-0408: P2a/P2b review repairs
+
+Base: `1f5fedd18aa4c9785b5d75aea76498ab988c4dba`. Intent remains proposed and
+delivery experimental under FPK-V0-053..056; these repairs do not promote the slice.
+The original run is retained in `2026-10-10-review-hunk-order.md`.
+
+P2a: the original parser accepted unquoted whitespace paths followed by valid
+human attestations as definite human authorship. `TestAuthorshipPathQuoting`
+reproduced `AIAuthored=no` for unquoted spaces, tabs and carriage returns before
+the repair. Such paths now invalidate the note and report unknown. Quoted paths
+with spaces or escaped tabs/newlines still support explicit human attribution;
+malformed quotes and empty quoted paths remain unknown. Requiring an attestation
+for every path also rejects an unquoted newline split into two path lines before
+a human record, following the same upstream standard already pinned in the spec.
+Independent review found that other leading whitespace could still yield definite
+human authorship. The repair now rejects unquoted leading Unicode whitespace;
+vertical-tab, form-feed and nonbreaking-space fixtures cover that finding. The
+same reviewer inspected this delta and reported no remaining material findings.
+
+P2b: the earlier ranking fixtures did not isolate Unwitnessed. The new
+`TestRankUnwitnessedIsOnlyDiscriminatingFactor` fixes authorship and coverage at
+yes for all three hunks, with UNPROVEN/NOT_RUN/hunk-witnessed CLOSED obligations
+yielding yes/unknown/no. Path and input order oppose that priority. Temporarily
+omitting Unwitnessed from both comparator tuples failed the intended order
+assertion: `[a-closed.go b-not-run.go c-unproven.go]`, values `[no unknown yes]`.
+The production comparator was restored byte for byte before final checks.
+The mutation receipt is `/private/tmp/v1-0408-repair-unwitnessed-mutant.log`;
+the pre-repair parser failures are `/private/tmp/v1-0408-repair-regression-before.log`.
+
+Verification: the pre-change `go test ./internal/revieworder` passed, and both
+new focused tests passed after the repair. Final `go test ./internal/revieworder`
+passed after the review repair; its receipt is
+`/private/tmp/v1-0408-repair-package-test.log`. The final doc suite exited zero:
+`spec-requirements-check`, `requirement-definitions-check`, `traceability-tests-check`,
+`decision-numbers-check`, `line-citations-check`, `error-code-ownership-check`,
+`unbounded-readers-check`, `use-case-receipts-check` and `use-case-receipts-test`.
+All 18 receipts were current and all five receipt regression cases passed. The
+final receipt is `/private/tmp/v1-0408-repair-doc-gates-final.log`; the earlier
+passing run before the review delta remains at `/private/tmp/v1-0408-repair-doc-gates.log`.
+`git diff --check` passed. Rollback reverts the parser changes and new fixtures;
+there is no wire/CLI or persistent-state change.
+
+The doc gates ran on a shared, sparse scratch checkout at the exact base,
+`/private/tmp/v1-0408-repair-doc-check`, with `.taskman` excluded from checkout and
+only the task-owned source/spec/log inputs staged. This preserves the original
+worktree's protected Git index and store. The prior Darwin `mktemp` PATH wrapper
+was reused without changing product scripts. Requirement locators were regenerated
+there and copied back. Source/spec/test/locator hashes are frozen in
+`/private/tmp/v1-0408-repair-verified-inputs.json`; this final evidence-note update
+changes no source/spec/test input or doc-gate semantic input.
+
+Corvint routes used: authority-start query and pre-change affected receipt retained
+at `/private/tmp/v1-0408-repair-{context,affected-before}.json`. The query's first
+result did not own this slice and omitted four ranked results; the supplied paths
+and owning spec provided bounded fallback. Empty-diff affected advice selected no
+tests and retained language-frontier uncertainty. Core remains 1.0.0-rc.3 build
+407; Tasks remains 0.0.0-tcp01-unverified+build.407. Both official updater checks
+failed `process-after-start-failed: descendant snapshot unavailable`, so freshness
+is UNKNOWN. Index refresh failed writing the shared Git metadata outside this
+sandbox; no verification bypass or downgrade was attempted.
+Post-change affected advice includes `internal/revieworder` and retains broad
+language/build-variant and unowned-documentation frontiers; it is retained at
+`/private/tmp/v1-0408-repair-affected-after.json`, not claimed as coverage proof.
+
+Routing: one builder and one bounded independent native reviewer, using inherited
+session model/effort for this local correctness repair. Minions tools were not
+available. No nested delegation or runtime tuning was needed.
+
+Post-commit CEM/OCM/sealing remains NOT_PRODUCED because the owner forbids commits.
+The repository-wide gate remains NOT_RUN under the explicit focused scope.
+No `.taskman` writes, commit, push or publication is authorized for this repair.
+Runtime tuning, account usage, billed tokens and cache telemetry remain NOT_OBSERVED.

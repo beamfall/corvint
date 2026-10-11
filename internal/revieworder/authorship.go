@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/Beamfall/corvint/internal/gitnotes"
 )
@@ -41,11 +42,17 @@ func readNote(note *Note, target string) ([]attribution, string) {
 	}
 	records := []attribution{}
 	path := ""
+	// Every file needs an attestation; otherwise a split, unquoted newline
+	// could silently replace its path before the following human record.
+	pathNeedsAttestation := false
 	for _, line := range strings.Split(log, "\n") {
 		if line == "" {
 			continue
 		}
 		if !strings.HasPrefix(line, " ") {
+			if pathNeedsAttestation {
+				return nil, "git-ai-note-malformed-path"
+			}
 			path = line
 			if strings.HasPrefix(path, "\"") {
 				var err error
@@ -53,7 +60,13 @@ func readNote(note *Note, target string) ([]attribution, string) {
 				if err != nil {
 					return nil, "git-ai-note-malformed-path"
 				}
+			} else if strings.TrimLeftFunc(path, unicode.IsSpace) != path || strings.ContainsAny(path, " \t\r\"") {
+				return nil, "git-ai-note-malformed-path"
 			}
+			if path == "" {
+				return nil, "git-ai-note-malformed-path"
+			}
+			pathNeedsAttestation = true
 			continue
 		}
 		if !strings.HasPrefix(line, "  ") {
@@ -93,6 +106,10 @@ func readNote(note *Note, target string) ([]attribution, string) {
 			}
 			records = append(records, attribution{path, start, end, value})
 		}
+		pathNeedsAttestation = false
+	}
+	if pathNeedsAttestation {
+		return nil, "git-ai-note-malformed-path"
 	}
 	return records, ""
 }

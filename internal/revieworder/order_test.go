@@ -90,6 +90,87 @@ func TestRankHunksWithCitedFactors(t *testing.T) {
 	}
 }
 
+// FPK-V0-053, FPK-V0-055: only Unwitnessed distinguishes these factors;
+// path and input order oppose its yes > unknown > no priority.
+func TestRankUnwitnessedIsOnlyDiscriminatingFactor(t *testing.T) {
+	in := input()
+	h, mapped := in.Hunks[0], in.CEM.Map.Hunks[0]
+	in.Hunks, in.CEM.Map.Hunks, in.Witness.Obligations = nil, nil, nil
+	log := ""
+	for _, tc := range []struct {
+		path    string
+		verdict witness.Verdict
+	}{
+		{"a-closed.go", witness.Closed},
+		{"b-not-run.go", witness.NotRun},
+		{"c-unproven.go", witness.Unproven},
+	} {
+		h.ID, h.DisplayPath = tc.path, tc.path
+		mapped.ID, mapped.Path = h.ID, h.DisplayPath
+		in.Hunks = append(in.Hunks, h)
+		in.CEM.Map.Hunks = append(in.CEM.Map.Hunks, mapped)
+		log += tc.path + "\n  9f8e7d6c5b4a3210 2\n"
+		obligation := witness.Obligation{ID: "change:" + tc.path, Kind: witness.KindChange, Path: tc.path, Verdict: tc.verdict}
+		if tc.verdict == witness.Closed {
+			obligation.Witnesses = []witness.Witness{{HunkID: h.ID, Closing: true}}
+		}
+		in.Witness.Obligations = append(in.Witness.Obligations, obligation)
+	}
+	in.Note = note(log)
+	rows := Rank(in)
+	got := []string{}
+	values := []Value{}
+	for _, row := range rows {
+		if row.AIAuthored.Value != Yes || row.Uncovered.Value != Yes {
+			t.Fatalf("other factors must tie: %+v", row)
+		}
+		got = append(got, row.Path)
+		values = append(values, row.Unwitnessed.Value)
+	}
+	if !reflect.DeepEqual(got, []string{"c-unproven.go", "b-not-run.go", "a-closed.go"}) ||
+		!reflect.DeepEqual(values, []Value{Yes, Unknown, No}) {
+		t.Fatalf("Unwitnessed priority: paths %v, values %v", got, values)
+	}
+}
+
+// FPK-V0-054: ambiguous path syntax cannot establish human authorship even
+// when the following attestation has a valid human metadata record.
+func TestAuthorshipPathQuoting(t *testing.T) {
+	for _, tc := range []struct {
+		name, path, line string
+		want             Value
+	}{
+		{"unquoted-space", "my app.go", "my app.go", Unknown},
+		{"quoted-space", "my app.go", `"my app.go"`, No},
+		{"unquoted-tab", "my\tapp.go", "my\tapp.go", Unknown},
+		{"quoted-tab", "my\tapp.go", `"my\tapp.go"`, No},
+		{"unquoted-newline", "app.go", "my\napp.go", Unknown},
+		{"quoted-newline", "my\napp.go", `"my\napp.go"`, No},
+		{"unclosed-quote", `"my app.go`, `"my app.go`, Unknown},
+		{"trailing-junk", `"my app.go"junk`, `"my app.go"junk`, Unknown},
+		{"empty-quoted-path", "", `""`, Unknown},
+		{"leading-tab", "\tapp.go", "\tapp.go", Unknown},
+		{"leading-vertical-tab", "\vapp.go", "\vapp.go", Unknown},
+		{"leading-form-feed", "\fapp.go", "\fapp.go", Unknown},
+		{"leading-nonbreaking-space", "\u00a0app.go", "\u00a0app.go", Unknown},
+		{"unmatched-trailing-quote", `app.go"`, `app.go"`, Unknown},
+		{"unquoted-carriage-return", "app.go\r", "app.go\r", Unknown},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			in := input()
+			in.Hunks[0].DisplayPath = tc.path
+			in.Note = note(tc.line + "\n  h_31dce776f88375 2\n")
+			got := Rank(in)[0].AIAuthored
+			if got.Value != tc.want {
+				t.Fatalf("got %+v, want %s", got, tc.want)
+			}
+			if tc.want == Unknown && got.Citation.Detail == "" {
+				t.Fatal("unknown path lacks a reason")
+			}
+		})
+	}
+}
+
 // FPK-V0-054: absent provenance is not human provenance; notes name actual
 // added lines, not context lines, and huge foreign ranges remain intervals.
 func TestAuthorshipUnknownAndExplicitLineAttestations(t *testing.T) {
