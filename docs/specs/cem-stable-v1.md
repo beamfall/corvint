@@ -227,3 +227,48 @@ one owning specification. A code reports a bounded check and never upgrades auth
 | repository | `unsupported-patch-inventory` | Exit 2 (`UNSUPPORTED`); a create destination lacks an authenticated base-entry proof, so absence is not inferred |
 | artifacts | `artifact-unavailable`, `artifact-resource-limit` | Exit 2 (`UNSUPPORTED`); declared artifact bytes could not be obtained within bounds, which asserts no mismatch |
 | artifacts | `artifact-changed-during-verification`, `artifact-digest-mismatch` | Exit 1 (`REJECT` issue codes); the bytes were read and changed between the two passes or differ from the declared digest |
+
+## Portable stable routing (V1-0632 S4)
+
+Status: proposed. Native work: V1-0632, migration rows C04 and C19 of
+`protocol/cem-1.0/stable/MIGRATION.json`. The independent portable consumer `interop/cem01-go`
+keeps its `cem/0.1` default and its `ci` report schema. It now recognizes an exact `cem/1.0` map
+and names the stable command, and an example CI branch runs that command only on explicit opt-in.
+
+- `CEM-V1-PSR-001`: The default `verify` path refuses a strictly parsed JSON object whose exact
+  `spec` member is the string `cem/1.0` with the invalid code `unsupported-spec` (exit 1). The
+  refusal comes before the patch is read and before any `cem/0.1` structural check, so a stable map
+  is never reported as a malformed `cem/0.1` map.
+- `CEM-V1-PSR-002`: `ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
+  `use-verify-stable-canonical`. The 14 fixed `cem-ci-report/0` members, the `profile` value
+  `cem/0.1` and the verdict-to-exit map (CEM-PILOT-021/022) are unchanged.
+- `CEM-V1-PSR-003`: Only that exact case changes. A duplicate, non-string, differently cased,
+  padded or candidate `spec`, malformed JSON, invalid UTF-8, an unpaired surrogate, trailing data
+  and every `cem/0.x` map keep their earlier code, bytes and goldens. Frozen protocol packets are
+  not edited.
+- `CEM-V1-PSR-004`: `examples/cem/verify-portable.sh` runs `verify-stable-canonical` only when
+  `CEM_PROFILE=cem/1.0` is set with an absolute existing `CEM_ARTIFACTS` directory. It reads the
+  committed map as Git object data only when the head tree's single entry at exactly
+  `CEM_MAP_PATH` is a regular blob, and propagates the verifier's stdout and exit unchanged. Bad
+  input, a directory selector or tree entry, an unknown profile or a digest mismatch exits 2 before
+  the verifier runs, an absent map exits 3 and an absent head commit exits 5. On the qualified
+  runtime tuple the sealed S0e change is accepted and a tampered artifact is rejected at the
+  artifact stage; on any other runtime the verifier's own runtime refusal passes through. Acceptance is integrity only and never replaces the
+  native completion gate. Nothing switches an existing default workflow to this branch.
+
+Failure modes: a host whose Go toolchain differs from the frozen stable runtime tuple gets
+`UNSUPPORTED` `unsupported-structural-runtime` (exit 2) from the stable branch, and the example
+passes it through. A map path with characters outside the portable path set is refused before Git
+is read. The case-insensitive `cem/0.1` header decoding is unchanged, so `{"SPEC":"cem/1.0"}` keeps
+its earlier `version-shape` result.
+
+Rollback: revert the peek in `interop/cem01-go/cem.go`, the route code in `ci.go`, and the
+`CEM_PROFILE` branch and recipe hint in `examples/cem/**`. No packet, golden, history or native
+state changes.
+
+| Requirement | Implementation | Tests |
+| --- | --- | --- |
+| CEM-V1-PSR-001 | `interop/cem01-go/cem.go` `decodeMap`, `declaresStableSpec` | `TestDefaultPathRefusesStableSpec` |
+| CEM-V1-PSR-002 | `interop/cem01-go/ci.go` `ciMapHeader`, `ciStableRouteCode` | `TestCIRoutesStableSpecToStableVerifier` |
+| CEM-V1-PSR-003 | `interop/cem01-go/cem.go` `declaresStableSpec` | `TestDefaultPathKeepsOtherProfileRefusals`; the existing interop golden and packet suites |
+| CEM-V1-PSR-004 | `examples/cem/verify-portable.sh`, `examples/cem/recipes/ci-verify.sh` | `TestExampleStableBranchVerifies` (go1.27.1 only), `TestExampleStableBranchRuntimeRefusal` (other runtimes), `TestExampleStableBranchRefusals`; `script/cem-recipes_test.sh` case `c-stable` |

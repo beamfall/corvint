@@ -46,6 +46,9 @@ Verification proves structural integrity and drift status, never semantic suppor
 `ci` is the portable CI verifier (`CEM-PILOT-020`..`023`): it derives the patch from two declared
 commits, reads the map from the head tree, and prints one `cem-ci-report/0` line with exit 0 to 5.
 It leaves `verify` unchanged. The pinned, network-denied runbook is `examples/cem/README.md`.
+An exact `cem/1.0` map is not verified on either path: `verify` refuses it with `unsupported-spec`,
+and `ci` reports `unsupported-profile` (exit 4) with code `use-verify-stable-canonical`, which names
+the stable command to run instead (`CEM-V1-PSR-001`..`003`).
 
 ```console
 $ go run . ci --repository /absolute/repository --base BASE_OID --head HEAD_OID \

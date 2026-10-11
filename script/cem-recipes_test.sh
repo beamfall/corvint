@@ -197,6 +197,16 @@ git -C "$ci" add .corvint/change.cem.json
 git -C "$ci" commit -qm 'cem/0.2 evidence'
 run c-unsupported ci-verify.sh "${pins[@]}" CEM_HEAD_SHA="$(git -C "$ci" rev-parse HEAD)"
 expect 4 'outcome=unsupported-profile exit=4'
+expect 4 'recovery=unsupported-profile: this verifier reads cem/0.1 only'
+
+# A cem/1.0 map is routed to the explicit stable branch of verify-portable.sh (CEM-V1-PSR-004).
+git -C "$ci" reset -q --hard "$ci_change"
+mkdir -p "$ci/.corvint"
+printf '{"spec":"cem/1.0"}\n' > "$ci/.corvint/change.cem.json"
+git -C "$ci" add .corvint/change.cem.json
+git -C "$ci" commit -qm 'cem/1.0 evidence'
+run c-stable ci-verify.sh "${pins[@]}" CEM_HEAD_SHA="$(git -C "$ci" rev-parse HEAD)"
+expect 4 'recovery=unsupported-profile: cem/1.0 map; rerun verify-portable.sh with CEM_PROFILE=cem/1.0'
 
 # A verifier whose digest differs from the pin is never executed.
 printf '#!/bin/sh\n: > "%s/ran"\n' "$test_root" > "$test_root/impostor"

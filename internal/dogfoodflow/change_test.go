@@ -486,7 +486,11 @@ func TestChangeDCWV0041NamesCitationRowFix(t *testing.T) {
 func TestLocalOutcomeTracePathLimitKeepsAdmissionReason(t *testing.T) {
 	for _, code := range []string{"trace-path-limit-exceeded", "admitted-path-limit", "record-failed"} {
 		t.Run(code, func(t *testing.T) {
-			root := t.TempDir()
+			// The aggregate writer refuses symlinked ancestors; macOS TMPDIR has one.
+			root, err := filepath.EvalSymlinks(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
 			called := false
 			c := &change{flow: flow{ctx: context.Background(), root: root}, evidence: root,
 				options: ChangeOptions{Verify: "go test ./...", Outcome: "passed", Steps: Runner{Run: func(_ context.Context, _ string, args []string, _, stderr io.Writer) int {
