@@ -35,24 +35,10 @@ func ImpactSyntax(index *Index, paths []string, limit int) (map[string]any, erro
 // impact compiles the path impact receipt and also returns its omitted-caller
 // disclosures, so EvalImpact can carry them through its budget compilation.
 func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[string]any, []string, error) {
-	if limit < 1 || limit > maxLimit {
-		return nil, nil, &Error{Message: fmt.Sprintf("limit must be an integer from 1 to %d", maxLimit)}
+	cleaned, err := cleanImpactRequest(paths, limit)
+	if err != nil {
+		return nil, nil, err
 	}
-	if len(paths) == 0 {
-		return nil, nil, &Error{Message: "impact paths must be a non-empty list"}
-	}
-	if len(paths) > maxImpactPaths {
-		return nil, nil, &Error{Message: fmt.Sprintf("impact paths exceed %d-path bound", maxImpactPaths)}
-	}
-	cleanedSet := make(map[string]struct{}, len(paths))
-	for _, value := range paths {
-		cleaned, err := cleanImpactPath(value)
-		if err != nil {
-			return nil, nil, err
-		}
-		cleanedSet[cleaned] = struct{}{}
-	}
-	cleaned := keys(cleanedSet)
 	// Decision 0015: only rule (a) resolves through the Go module path, so
 	// the slash-qualified module is a precondition for `.go` paths alone;
 	// `.py` and web paths are admitted in any Git repository, as the oracle
