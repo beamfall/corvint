@@ -1,7 +1,7 @@
 # Dogfood plan and trace caps — V1-0394 / V1-1107
 
-Intent remains proposed, pending owner acceptance: DCW-V0-035..036 in
-`docs/specs/daily-change-evidence-workflow-v0.md`. No decision or bound increase.
+Intent: accepted, decision 0510: DCW-V0-035..036 in
+`docs/specs/daily-change-evidence-workflow-v0.md`. No bound increase.
 The coordinator separates citation/OCM-link row overflow from malformed plans and prints
 limit=256 with the observed rows. Current, stored and changed-path admission trace lists name their 200-path overflow
 and observed distinct count. Existing codes for other invalid input remain unchanged.

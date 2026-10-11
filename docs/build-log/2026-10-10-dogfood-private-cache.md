@@ -1,7 +1,7 @@
 # Dogfood wrapper cache selection (V1-0693)
 
 Intent: `DCW-V0-038` in `docs/specs/daily-change-evidence-workflow-v0.md` is
-proposed, pending owner acceptance (V1-0693). No owner acceptance or decision is recorded.
+accepted, decision 0510.
 Base: `29e1f653486fca13216606683d3a5c2b05cacd36`.
 
 The wrappers now select the first nonempty `CORVINT_GOCACHE`, caller `GOCACHE`,

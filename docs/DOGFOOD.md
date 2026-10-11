@@ -512,7 +512,7 @@ do not truncate the trace or omit changed paths.
 
 ### Staged binding of one oversized commit
 
-Proposed, pending owner acceptance (V1-1107; `DCW-V0-037`). The normal coordinator supports one
+Accepted, decision 0510 (V1-1107; `DCW-V0-037`). The normal coordinator supports one
 commit with more than 256 hunks when its trace path lists and OCM-link plan still fit their
 independent bounds. These stages cite one unchanged canonical patch, with no implicit citations.
 The retroactive `script/dogfood-bind-range.sh` route requires every unknown hunk named in one
@@ -799,7 +799,7 @@ admitted integration; the candidate alone does not complete an existing ticket o
 
 The wrappers select the first nonempty `CORVINT_GOCACHE`, caller `GOCACHE`, then
 `/tmp/corvint-go-build-cache` for every build, including both check verifiers and the check
-inside seal (`DCW-V0-038`, proposed, pending owner acceptance (V1-0693)). For a private cache,
+inside seal (`DCW-V0-038`, accepted, decision 0510). For a private cache,
 use `CORVINT_GOCACHE=/absolute/private/cache make dogfood-check BASE=$BASE`, or
 `make dogfood-check BASE=$BASE CORVINT_GOCACHE=/absolute/private/cache`; the Make targets
 pass that value through. `GOCACHE=/absolute/private/cache` alone also works with Make or

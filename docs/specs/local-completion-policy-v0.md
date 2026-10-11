@@ -313,7 +313,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   unsorted or duplicated intents array printed only the bare code. Rollback: revert the change; no
   code, exit class or persisted state changes.
 
-- `LCP-V0-020`: proposed, pending owner acceptance (V1-0243). Every `dogfood status`
+- `LCP-V0-020`: accepted, decision 0510. Every `dogfood status`
   and `dogfood finish` evaluation MUST carry nonempty `nextActions` or a stable
   `noActionReason`, including when Frontier authority is `UNAVAILABLE` with
   `frontier-authority-unavailable`. Active incomplete evaluations retain the eligible

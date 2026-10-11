@@ -1054,10 +1054,10 @@ DCW-V0-030	docs/specs/daily-change-evidence-workflow-v0.md	254	(proposed 2026-09
 DCW-V0-031	docs/specs/daily-change-evidence-workflow-v0.md	263	(proposed 2026-09-25, V1-0316, not accepted) After its steps run, `dogfood chang
 DCW-V0-032	docs/specs/daily-change-evidence-workflow-v0.md	274	(accepted 2026-10-04, decision 0430; V1-0743) An empty `DOGFOOD_CITATIONS` file
 DCW-V0-033	docs/specs/daily-change-evidence-workflow-v0.md	296	(accepted by decision 0441; V1-0940) This amends the stdout
-DCW-V0-035	docs/specs/daily-change-evidence-workflow-v0.md	318	(proposed, pending owner acceptance (V1-0394)) The coordinator
-DCW-V0-036	docs/specs/daily-change-evidence-workflow-v0.md	323	(proposed, pending owner acceptance (V1-0394)) Trace recording, changed-path adm
-DCW-V0-037	docs/specs/daily-change-evidence-workflow-v0.md	331	(proposed, pending owner acceptance (V1-1107)) `docs/DOGFOOD.md`
-DCW-V0-038	docs/specs/daily-change-evidence-workflow-v0.md	339	proposed, pending owner acceptance (V1-0693). Every build in Corvint's
+DCW-V0-035	docs/specs/daily-change-evidence-workflow-v0.md	318	(accepted, decision 0510) The coordinator
+DCW-V0-036	docs/specs/daily-change-evidence-workflow-v0.md	323	(accepted, decision 0510) Trace recording, changed-path admission and
+DCW-V0-037	docs/specs/daily-change-evidence-workflow-v0.md	331	(accepted, decision 0510) `docs/DOGFOOD.md`
+DCW-V0-038	docs/specs/daily-change-evidence-workflow-v0.md	339	accepted, decision 0510. Every build in Corvint's
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -1854,7 +1854,7 @@ LCP-V0-015	docs/specs/local-completion-policy-v0.md	280	A selected check MUST NO
 LCP-V0-016	docs/specs/local-completion-policy-v0.md	283	(accepted by decision 0439; V1-0881; no GitHub issue)
 LCP-V0-017	docs/specs/local-completion-policy-v0.md	296	(accepted, decision 0465; V1-1012) The top-level `ok` of a `corvint-local-comple
 LCP-V0-018	docs/specs/local-completion-policy-v0.md	306	(accepted, decision 0472; V1-1043) A `dogfood begin` plan refusal of `invalid-in
-LCP-V0-020	docs/specs/local-completion-policy-v0.md	316	proposed, pending owner acceptance (V1-0243). Every `dogfood status`
+LCP-V0-020	docs/specs/local-completion-policy-v0.md	316	accepted, decision 0510. Every `dogfood status`
 LEC-V0-001	docs/specs/lsp-editor-context-v0.md	25	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper
 LEC-V0-002	docs/specs/lsp-editor-context-v0.md	26	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively
 LEC-V0-003	docs/specs/lsp-editor-context-v0.md	27	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result
