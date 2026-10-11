@@ -180,6 +180,11 @@ func ParseMap(data []byte) (*Map, error) {
 	if !present {
 		return nil, cemcode.New(cemcode.MissingField, "spec is required")
 	}
+	if spec.Kind == KindString && spec.Str == StableSpec {
+		// CEM-V1-018: a stable map is refused here with a pointer to its reader,
+		// never as malformed 0.x input; every other refusal keeps its message.
+		return nil, cemcode.New(cemcode.UnsupportedSpec, "%s is read only by the stable verifier (cem status or cem verify with --artifacts); this command accepts %q, %q, or %q", StableSpec, Spec01, Spec02, Spec03)
+	}
 	if spec.Kind != KindString || (spec.Str != Spec01 && !Canonical(spec.Str)) {
 		return nil, cemcode.New(cemcode.UnsupportedSpec, "spec must be %q, %q, or %q", Spec01, Spec02, Spec03)
 	}

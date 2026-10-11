@@ -27,6 +27,10 @@ type ReadOptions struct {
 	Format       string // report only: empty/markdown publishes; json is read-only
 	OCMPath      string // optional explicitly supplied obligation map
 	ReadOCM      ReviewOCMReader
+	// ArtifactRoot is the explicit absolute artifact root a cem/1.0 status or
+	// verify passes to the stable verifier (CEM-V1-017); a 0.x map refuses it.
+	ArtifactRoot   string
+	ArtifactsGiven bool // whether --artifacts appeared at all
 }
 
 // ActionReportPreview renders the report without publishing it: the
@@ -43,11 +47,23 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 	if options.Format != "" && options.Format != "markdown" && options.Format != "json" {
 		return nil, invalidArguments("report format must be markdown or json")
 	}
-	raw, document, err := s.readMapInput(options.MapPath)
+	raw, err := s.readMapBytes(options.MapPath)
 	if err != nil {
 		return nil, err
 	}
+	document, err := wire.ParseMap(raw)
+	if err != nil {
+		// CEM-V1-019: only an exact cem/1.0 root that the 0.x parser refused
+		// reaches the stable reader; every other refusal is returned unchanged.
+		if cemcode.CodeOf(err) == cemcode.UnsupportedSpec && wire.DeclaresStable(raw) {
+			return s.readStable(ctx, action, raw, options)
+		}
+		return nil, err
+	}
 	// Stage 3: profile-forbidden arguments.
+	if options.ArtifactsGiven {
+		return nil, invalidArguments("%s %s does not accept --artifacts", document.Spec, action)
+	}
 	if wire.Canonical(document.Spec) && options.PatchGiven {
 		return nil, invalidArguments("%s %s does not accept --patch", document.Spec, action)
 	}

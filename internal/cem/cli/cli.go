@@ -57,7 +57,9 @@ type cemAction struct {
 	mutex   *mutexGroup
 }
 
-var readArguments = []string{"--map", "--patch", "--target", "--expected-base", "--max-unknown", "--max-mechanical"}
+// readArguments are shared by status and verify. --artifacts is the explicit
+// absolute artifact root only a cem/1.0 map accepts (CEM-V1-017, CEM-V1-018).
+var readArguments = []string{"--map", "--patch", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--artifacts"}
 
 var cemActions = map[string]cemAction{
 	"begin": {
@@ -349,6 +351,11 @@ func RunWithOCM(ctx context.Context, root string, arguments []string, stdout, st
 		emitCEMError(stderr, cemcode.New("output-failed", "cannot write CEM output"))
 		return 2
 	}
+	// CEM-V1-017: a stable read exits with the verifier's own code (0 accept,
+	// 1 reject, 2 refusal), never one re-derived from the envelope.
+	if stable, isStable := envelope["stableVerification"].(workflow.StableVerification); isStable {
+		return stable.Exit
+	}
 	if envelope["ok"] != true {
 		return 1
 	}
@@ -462,7 +469,8 @@ func dispatchCEMWithOCM(ctx context.Context, root string, arguments []string, re
 			PatchGiven: flags.present["--patch"], ExpectedBase: flags.values["--expected-base"],
 			Target: flags.values["--target"], Output: flags.values["--output"],
 			Format: flags.values["--format"], OCMPath: flags.values["--ocm"], ReadOCM: reader,
-			Limits: workflow.PolicyLimits{MaxUnknown: maxUnknown, MaxMechanical: maxMechanical},
+			Limits:       workflow.PolicyLimits{MaxUnknown: maxUnknown, MaxMechanical: maxMechanical},
+			ArtifactRoot: flags.values["--artifacts"], ArtifactsGiven: flags.present["--artifacts"],
 		})
 	}
 	return nil, invalidChoice("cem_command", action, cemActionOrder)

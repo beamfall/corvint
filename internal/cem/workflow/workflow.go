@@ -403,13 +403,7 @@ func driftRows(document *wire.Map, outcome *verify.Outcome) []any {
 // readMapInput reads and validates a root-relative CEM map without following
 // symlinks.
 func (s *Session) readMapInput(relative string) ([]byte, *wire.Map, error) {
-	if relative == "" {
-		return nil, nil, invalidArguments("--map is required")
-	}
-	if filepath.IsAbs(relative) {
-		return nil, nil, invalidArguments("map path must be repository-relative")
-	}
-	raw, err := s.workRoot.ReadBounded(relative, wire.MaxMapBytes, cemcode.MapUnavailable)
+	raw, err := s.readMapBytes(relative)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -418,6 +412,17 @@ func (s *Session) readMapInput(relative string) ([]byte, *wire.Map, error) {
 		return nil, nil, err
 	}
 	return raw, document, nil
+}
+
+// readMapBytes reads one bounded repository-relative map without parsing it.
+func (s *Session) readMapBytes(relative string) ([]byte, error) {
+	if relative == "" {
+		return nil, invalidArguments("--map is required")
+	}
+	if filepath.IsAbs(relative) {
+		return nil, invalidArguments("map path must be repository-relative")
+	}
+	return s.workRoot.ReadBounded(relative, wire.MaxMapBytes, cemcode.MapUnavailable)
 }
 
 // resolveHunk resolves a one-based worklist ordinal or a full derived hunk ID.

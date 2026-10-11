@@ -6,7 +6,7 @@ Delivery status: planned
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed/planned; no stable delivery or promotion.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`); qualification remains bounded.
 - Blocked on: stable wire/consumer integration, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -144,7 +144,7 @@ manufactured, non-executed fixtures. All evidence is experimental self-use.
 | CEM-V1-001, 011..013 | Typed stable construction, exact six-role graph, full witness retention, native/portable result equality | Complete public corpus, supported repository/runtime envelopes and all consumer migration |
 | CEM-V1-002 | Pure native wire binding plus separately pinned historical Tasks verification | Current applicability, receipt journal authority and semantic adequacy |
 | CEM-V1-003..005 | Exact actual runner/source/report bytes and native outcome preservation | Inventory completeness, execution-at-commit and criterion discrimination |
-| CEM-V1-007, 014 | Optional companion producer and explicit stable verification | Core workflow/report, OCM/frontier/obligation, companion and completion consumers |
+| CEM-V1-007, 014 | Optional companion producer, explicit stable verification and the hidden Core status/verify read (`CEM-V1-017..019`) | Core report/MCP preview, other Core workflow, OCM/frontier/obligation, companion and completion consumers |
 | CEM-V1-008..010 | Original defaults/packets unchanged and optional operation removable | External adoption/outcomes and release/promotion gates |
 
 The current stable verifier admits the experimental
@@ -204,3 +204,33 @@ one owning specification. A code reports a bounded check and never upgrades auth
 | repository | `unsupported-patch-inventory` | Exit 2 (`UNSUPPORTED`); a create destination lacks an authenticated base-entry proof, so absence is not inferred |
 | artifacts | `artifact-unavailable`, `artifact-resource-limit` | Exit 2 (`UNSUPPORTED`); declared artifact bytes could not be obtained within bounds, which asserts no mismatch |
 | artifacts | `artifact-changed-during-verification`, `artifact-digest-mismatch` | Exit 1 (`REJECT` issue codes); the bytes were read and changed between the two passes or differ from the declared digest |
+
+## Core stable read (V1-0632 S1)
+
+Status: proposed. This is the first consumer-migration slice of `CEM-V1-007`. It
+adds no producer, no default, no help entry and no stable promotion; the read stays
+hidden like `cem verify-stable` until the owner decides help visibility.
+
+- `CEM-V1-017`: Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stable verifier over the session repository with the independently supplied `--expected-base`, `--target` and an explicit absolute `--artifacts` root. The envelope MUST embed the complete, unmodified 21-field result as `stableVerification` and the command MUST exit with the verifier's own code (0 accept, 1 reject, 2 refusal). It MUST NOT synthesize a 0.x `verification`, counts, worklist, policy issues or `ready-for-ci`; status names the outcome `accepted`, `rejected` or `unsupported`. Core MUST NOT open or pre-read the repository before the verifier's own metadata admission.
+- `CEM-V1-018`: A stable read MUST refuse `--patch` and policy ceilings with `invalid-arguments`, and every other Core workflow read of a `cem/1.0` map (`cem report` and the report preview) with `unsupported-spec` naming the stable read, until its own slice lands. The MCP projection of that refusal remains the earlier `cem-map-invalid` until the S2 slice migrates it. A 0.x map MUST refuse `--artifacts` with `invalid-arguments` after its map parses. Every 0.x parser refusal of an exact `cem/1.0` root MUST name the stable read rather than report malformed 0.x input.
+- `CEM-V1-019`: 0.x reads MUST keep their arguments, precedence, output bytes and exit codes. The stable route MUST be chosen only after the 0.x parser refuses a bounded JSON object whose `spec` is exactly `cem/1.0`; the experimental candidate and every other spec keep their existing code and message, and malformed JSON keeps its earlier failure.
+
+Failure modes: an omitted `--artifacts` is the verifier's `authority-arguments` /
+`artifacts-required` refusal, never a Core default. A runtime or repository the
+verifier does not support is its explicit `UNSUPPORTED` result. The only 0.x change
+is that `--artifacts` on a 0.x read is now a stage-3 `invalid-arguments` refusal
+after the map read instead of an argument-parser refusal; both exit 2 with no
+output. Rollback removes the route and the flag; no 0.x byte, map or packet changes.
+
+### Core stable read traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-017 | `TestCoreStableReadMatchesVerifyStable` | Core verify and status equal `cem verify-stable` (all 21 fields, exit); the public sealed positive is ACCEPT/EXACT on Go 1.27.1 |
+| CEM-V1-017 | `TestCoreStableReadKeepsVerifierExit` | Missing `--artifacts` exits 2 (`artifacts-required`); an altered artifact exits 1 (`artifact-digest-mismatch`) |
+| CEM-V1-018 | `TestCoreStableReadExplicitRefusals` | Report, report preview, `--patch` and policy ceilings refuse before verification (CLI exit 2) |
+| CEM-V1-018 | `TestCoreStableReadRefusesArtifactsFor0x` | A parseable `cem/0.3` map refuses `--artifacts` before base/target checks |
+| CEM-V1-018 | `TestParseMapStableRefusalNamesStableRead` | The 0.x parser names the stable read for an exact `cem/1.0` root |
+| CEM-V1-019 | `TestCoreStableRead0xRefusalsUnchanged` | Candidate, other, padded and numeric specs keep the 0.x refusal through Core |
+| CEM-V1-019 | `TestParseMapOtherSpecRefusalUnchanged` | Parser text unchanged for every non-stable spec |
+| CEM-V1-019 | `TestDeclaresStable` | Route selection is exact, bounded and object-rooted |
