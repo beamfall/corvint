@@ -2955,6 +2955,39 @@ rewrites. For each rewrite, the oracle side must be `"reason":"changed path carr
 the candidate side must be the same `KIND:ID` behind the fixture's importing-test carrier. The
 `SUMMARY` line moves from `known-divergences=28` to `known-divergences=30`.
 
+### DR-0043 — harness `stop`: the candidate's frontier carries the `AHI-054` cause
+
+- **Status:** ADJUDICATED 2026-10-11 — intentional Go extension / known-divergent under proposed
+  `AHI-054` (`docs/specs/agent-harness-integration-v0.md`, pending owner acceptance, ticket V1-1157,
+  GitHub #785). The disagreement is **EXPECTED and MUST NOT be reported as a failure**
+  (`GPK-V0-033`). No oracle was reconstructed (`GOC-V0-002`).
+- **Command:** `harness event` (one case, `harness-stop`). **Discovered:** 2026-10-11, by design,
+  when the V1-1157 change added the member.
+
+**Divergence.** `AHI-054` adds one fixed member to the `stop` event's `frontier` object:
+`"cause":"no-accepted-closing-authority"`. It says why `frontier-authority-unavailable` holds. The
+oracle predates the member. Nothing else in the receipt moves: `receiptId` excludes the frontier,
+the degradation list is unchanged, and the non-`stop` events carry no frontier.
+
+**Observed bytes.** The candidate stdout is 873 bytes against the frozen 833 (`f2e487f6…`). The 40
+added bytes are exactly `"cause":"no-accepted-closing-authority",` at the opening of the frontier.
+The frontier lies outside the counted packet and `harness-stop` has no `packet_bytes`, so no byte
+count is reconciled.
+
+**Adjudication: intentional Go extension (known-divergent, no repair).** The member is additive
+and the profile stays `corvint-harness-event/0`, following the `TOL-V0-001` additive precedent.
+`src/` is retired (decision 0088), and `GOC-V0-002` forbids re-authoring the frozen expectation
+from the candidate.
+
+**Scope of the repair.** One `knownDivergence` on `harness-stop` with one stdout rewrite, beside
+its `DR-0038` identity rename. `validFrontierCauseDivergence`
+(`conformance/cli-parity-v0/manifest.go`) pins the case to `harness`, register `DR-0043`, clause
+`AHI-054`, no stderr rewrite, and exactly the rewrite
+`"frontier":{"cause":"no-accepted-closing-authority","reason":` to `"frontier":{"reason":`. Like
+the identity rename, the runner applies it outside the `packet_bytes` reconciliation and refuses a
+stop receipt in which the declared opening does not occur exactly once. The `SUMMARY` line moves
+from `known-divergences=30` to `known-divergences=31`.
+
 ## Typed verification extension (issue 408, accepted 2026-09-30)
 
 `LTPM-V0-013`/`LTPM-V0-014` add repeatable `record --verify-argv-json` and a closed schema-2

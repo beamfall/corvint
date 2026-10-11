@@ -135,6 +135,8 @@ func testGPKV0002ManifestReplay(t *testing.T) {
 		"PASS-WITH-KNOWN-DIVERGENCE harness-file-change register=DR-0023 clause=GPK-V0-063 rewrites=1",
 		"PASS-WITH-IDENTITY-RENAME harness-file-change register=DR-0038 clause=CRB-DEC-002 rewrites=1",
 		"PASS-WITH-IDENTITY-RENAME harness-session-start register=DR-0038 clause=CRB-DEC-002 rewrites=1",
+		"PASS-WITH-KNOWN-DIVERGENCE harness-stop register=DR-0043 clause=AHI-054 rewrites=1",
+		"PASS-WITH-IDENTITY-RENAME harness-stop register=DR-0038 clause=CRB-DEC-002 rewrites=1",
 		// Decision 0308: the frozen oracle inputs address `.atlas/` and
 		// `.context-atlas/`; these rows are named, never scored, and never PASS.
 		"RETIRED cem-prepare-create decision=0308 reason=",
@@ -153,7 +155,7 @@ func testGPKV0002ManifestReplay(t *testing.T) {
 		"PASS query-authority-start-limit-51\n",
 		"PASS-WITH-KNOWN-DIVERGENCE query-authority-start-non-ascii register=DR-0023 clause=GPK-V0-063 rewrites=1",
 		"PASS-WITH-KNOWN-DIVERGENCE query-repository-non-ascii register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"SUMMARY parity=104 retired=29 identity-renames=10 accepted-divergences=3 known-divergences=30 location-normalizations=1 structural-fields=0 unsupported-refusals=1 retired-refusals=2 full-gpk-v0-005=PARTIAL detached-descendants=NOT_RUN\n",
+		"SUMMARY parity=104 retired=29 identity-renames=10 accepted-divergences=3 known-divergences=31 location-normalizations=1 structural-fields=0 unsupported-refusals=1 retired-refusals=2 full-gpk-v0-005=PARTIAL detached-descendants=NOT_RUN\n",
 	} {
 		if !strings.Contains(output.String(), line) {
 			t.Fatalf("replay output missing %q:\n%s", line, &output)
@@ -1271,5 +1273,46 @@ func TestCompareManifestExpectationReportsTimeoutBeforeStdoutDigestMismatch(t *t
 	want := "FAIL timeout-precedence timedOut: candidate=true manifest=false"
 	if err == nil || err.Error() != want {
 		t.Fatalf("error=%q want=%q", err, want)
+	}
+}
+
+// TestAHI054FrontierCauseDivergenceIsPinnedAndOutOfPacket checks DR-0043: only the exact
+// frontier-opening rewrite on a harness case is admitted, and the native comparison refuses a
+// stop receipt that lacks the declared cause instead of passing it silently.
+func TestAHI054FrontierCauseDivergenceIsPinnedAndOutOfPacket(t *testing.T) {
+	item := parityCase{
+		ID: "harness-stop", Argv: []string{"harness", "event"}, Mutation: "none",
+		KnownDivergence: &knownDivergence{
+			Register: "DR-0043", Clause: "AHI-054", Reason: "frontier cause",
+			Rewrites: []divergenceRewrite{{Candidate: frontierCauseCandidate, Oracle: frontierCauseOracle}},
+		},
+	}
+	if !validKnownDivergence(item) || !outOfPacketKnownDivergence(item) {
+		t.Fatal("the pinned DR-0043 declaration was not admitted")
+	}
+	for name, mutate := range map[string]func(*parityCase){
+		"register": func(c *parityCase) { c.KnownDivergence.Register = "DR-0042" },
+		"clause":   func(c *parityCase) { c.KnownDivergence.Clause = "AHI-053" },
+		"argv":     func(c *parityCase) { c.Argv = []string{"impact"} },
+		"stderr": func(c *parityCase) {
+			c.KnownDivergence.StderrRewrites = []divergenceRewrite{{Candidate: "a", Oracle: "b"}}
+		},
+		"candidate": func(c *parityCase) {
+			c.KnownDivergence.Rewrites = []divergenceRewrite{{Candidate: `"frontier":{"cause":"no-verified-cem","reason":`, Oracle: frontierCauseOracle}}
+		},
+	} {
+		changed := item
+		divergence := *item.KnownDivergence
+		changed.KnownDivergence = &divergence
+		mutate(&changed)
+		if validKnownDivergence(changed) {
+			t.Fatalf("%s: an altered DR-0043 declaration was admitted", name)
+		}
+	}
+	missing := executionEvidence{}
+	missing.Process.Stdout = []byte(`{"frontier":{"reason":"frontier-authority-unavailable"}}` + "\n")
+	if err := compareNativeManifestExpectation(item, missing); err == nil ||
+		!strings.Contains(err.Error(), "declared frontier cause must occur exactly once") {
+		t.Fatalf("a stop receipt without the declared cause was not refused: %v", err)
 	}
 }

@@ -428,6 +428,19 @@ func compareNativeManifestExpectation(item parityCase, actual executionEvidence)
 		}
 		actual.Process.Stdout = bytes.Replace(actual.Process.Stdout, []byte(rewrite.Candidate), []byte(rewrite.Oracle), 1)
 	}
+	if outOfPacketKnownDivergence(item) {
+		// DR-0043: the stop frontier lies outside the counted packet, so its rewrite moves no
+		// packet_bytes; it is applied here, once, and the declaration is then spent.
+		if !validKnownDivergence(item) {
+			return errors.New("invalid known native divergence")
+		}
+		rewrite := item.KnownDivergence.Rewrites[0]
+		if bytes.Count(actual.Process.Stdout, []byte(rewrite.Candidate)) != 1 {
+			return fmt.Errorf("FAIL %s known divergence: declared frontier cause must occur exactly once", item.ID)
+		}
+		actual.Process.Stdout = bytes.Replace(actual.Process.Stdout, []byte(rewrite.Candidate), []byte(rewrite.Oracle), 1)
+		item.KnownDivergence = nil
+	}
 	if rewrites := declaredStdoutRewrites(item); len(rewrites) > 0 {
 		member, count, err := packetBytesValue(actual.Process.Stdout)
 		if err != nil {
