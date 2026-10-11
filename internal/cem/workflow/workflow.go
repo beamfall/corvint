@@ -38,6 +38,7 @@ type Session struct {
 	workRoot   *publish.Root
 	repository *gitauth.Repository
 	gitRoot    *publish.Root
+	commonDir  string // common Git directory, protected from external report output
 	// stableRepository is the caller-named root a stable read admits; nil
 	// means root (see SetStableRepository).
 	stableRepository *string
@@ -73,7 +74,29 @@ func (s *Session) openRepository() error {
 	if err != nil {
 		return err
 	}
-	s.repository, s.gitRoot = repository, gitRoot
+	s.repository, s.gitRoot, s.commonDir = repository, gitRoot, repository.CommonDir
+	return nil
+}
+
+// openPublicationDirectories locates the worktree's Git directories for report
+// publication only: it validates the primary/reciprocal worktree boundary but
+// not the 0.x object admission (alternates, attributes), so a repository the
+// stable verifier refused still has a checkable output path (CEM-V1-035). If
+// the directories cannot be located, no output path can be checked and the
+// caller must publish nothing.
+func (s *Session) openPublicationDirectories() error {
+	if s.gitRoot != nil {
+		return nil
+	}
+	gitDir, commonDir, err := gitauth.WorktreeDirectories(s.root)
+	if err != nil {
+		return err
+	}
+	gitRoot, err := publish.OpenRoot(gitDir)
+	if err != nil {
+		return err
+	}
+	s.gitRoot, s.commonDir = gitRoot, commonDir
 	return nil
 }
 

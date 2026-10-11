@@ -96,7 +96,7 @@ var cemActions = map[string]cemAction{
 	"verify": {arguments: readArguments, required: []string{"--map"}},
 	"status": {arguments: readArguments, required: []string{"--map"}},
 	"report": {
-		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--format", "--ocm"},
+		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--format", "--ocm", "--artifacts"},
 		required:  []string{"--map"},
 		choices:   map[string][]string{"--format": {"markdown", "json"}},
 	},
@@ -479,6 +479,7 @@ func dispatchCEMWithOCM(ctx context.Context, root, callerRoot string, arguments 
 			PatchGiven: flags.present["--patch"], ExpectedBase: flags.values["--expected-base"],
 			Target: flags.values["--target"], Output: flags.values["--output"],
 			Format: flags.values["--format"], OCMPath: flags.values["--ocm"], ReadOCM: reader,
+			OCMGiven:     flags.present["--ocm"],
 			Limits:       workflow.PolicyLimits{MaxUnknown: maxUnknown, MaxMechanical: maxMechanical},
 			ArtifactRoot: flags.values["--artifacts"], ArtifactsGiven: flags.present["--artifacts"],
 		})
