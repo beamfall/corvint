@@ -336,3 +336,46 @@ func TestCompileRefsReadHonoursContext(t *testing.T) {
 		}
 	})
 }
+
+func TestCompileShallowCheckCancellationKeepsGitUnavailable(t *testing.T) {
+	t.Run("UCL1142-V0-004 cancelled shallow probe is git-unavailable", func(t *testing.T) {
+		root, base := repoTest(t)
+		real, e := exec.LookPath("git")
+		if e != nil {
+			t.Skip("git unavailable")
+		}
+		shim := t.TempDir()
+		marker := filepath.Join(shim, "entered")
+		script := "#!/bin/sh\nfor a in \"$@\"; do if [ \"$a\" = --is-shallow-repository ]; then : > '" + marker + "'; sleep 30; exit 1; fi; done\nexec '" + real + "' \"$@\"\n"
+		if e := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o700); e != nil {
+			t.Fatal(e)
+		}
+		t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		done := make(chan error, 1)
+		go func() {
+			_, e := Compile(ctx, Request{Root: root, From: base, To: base})
+			done <- e
+		}()
+		deadline := time.Now().Add(30 * time.Second)
+		for {
+			if _, e := os.Stat(marker); e == nil {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("shallow probe never started")
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		cancel()
+		select {
+		case e := <-done:
+			if e == nil || e.Error() != "changes-git-unavailable" {
+				t.Fatalf("error=%v", e)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatal("Compile outlived its context")
+		}
+	})
+}

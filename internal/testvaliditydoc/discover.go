@@ -202,7 +202,7 @@ func headRevision(worktree *os.Root) string {
 		return object
 	}
 	name, ok := strings.CutPrefix(strings.TrimSpace(head), "ref: ")
-	if !ok || !strings.HasPrefix(name, "refs/") || !filepath.IsLocal(name) || strings.ContainsAny(name, "\\\x00") {
+	if !ok || !strings.HasPrefix(name, "refs/") || !validRefName(name) {
 		return ""
 	}
 	loose, err := readGitFile(worktree, ".git/"+name)
@@ -230,6 +230,25 @@ func headRevision(worktree *os.Root) string {
 func readGitFile(worktree *os.Root, name string) (string, error) {
 	data, err := ReadFileBounded(worktree, name, 1<<20)
 	return string(data), err
+}
+
+// validRefName applies the git check-ref-format rules relevant to a full
+// refs/ name; anything else is treated as malformed (unknown).
+func validRefName(name string) bool {
+	if len(name) > 255 || strings.HasSuffix(name, ".") || strings.Contains(name, "..") || strings.Contains(name, "@{") || strings.Contains(name, "//") {
+		return false
+	}
+	for _, c := range name {
+		if c < 0x21 || c == 0x7f || strings.ContainsRune("~^:?*[\\", c) {
+			return false
+		}
+	}
+	for _, part := range strings.Split(name, "/") {
+		if part == "" || strings.HasPrefix(part, ".") || strings.HasSuffix(part, ".lock") {
+			return false
+		}
+	}
+	return true
 }
 
 func isObjectID(value string) bool {
