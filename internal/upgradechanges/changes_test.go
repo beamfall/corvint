@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -367,6 +368,31 @@ func TestCompileRefsReadHonoursContext(t *testing.T) {
 				t.Fatalf("goroutines=%d, baseline %d: refs reader leaked", runtime.NumGoroutine(), baseline)
 			}
 			time.Sleep(10 * time.Millisecond)
+		}
+	})
+	t.Run("V1-1155 cancellation cleanup survives delayed callback dispatch", func(t *testing.T) {
+		old := openRefsFile
+		defer func() { openRefsFile = old }()
+		for i := 0; i < 200; i++ {
+			stalled := &stalledRefs{entered: make(chan struct{}), closed: make(chan struct{}), released: make(chan struct{})}
+			openRefsFile = func(string) (io.ReadCloser, error) { return stalled, nil }
+			ctx, cancel := context.WithCancel(context.Background())
+			result := make(chan error, 1)
+			go func() {
+				_, _, e := readRefsContext(ctx, "/unused")
+				result <- e
+			}()
+			<-stalled.entered
+			cancel()
+			if e := <-result; !errors.Is(e, context.Canceled) {
+				t.Fatalf("iteration %d error=%v", i, e)
+			}
+			select {
+			case <-stalled.released:
+			case <-time.After(5 * time.Second):
+				stalled.Close()
+				t.Fatalf("iteration %d: cancellation did not close the stalled descriptor", i)
+			}
 		}
 	})
 	t.Run("V1-1155 a completed read closes its descriptor", func(t *testing.T) {

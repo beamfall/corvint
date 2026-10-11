@@ -601,7 +601,9 @@ func readRefsContext(ctx context.Context, path string) ([]byte, bool, error) {
 			_ = open.Close()
 		}
 	})
-	defer stop()
+	// stop runs only after a completed read. On cancellation the callback stays
+	// armed: ctx.Done can close before the callback is dispatched, and stopping
+	// it then would leave the descriptor open and its reader stalled.
 	done := make(chan refsRead, 1)
 	openFile := openRefsFile
 	go func() {
@@ -620,6 +622,9 @@ func readRefsContext(ctx context.Context, path string) ([]byte, bool, error) {
 		open = file
 		mu.Unlock()
 		raw, err := io.ReadAll(io.LimitReader(file, maxFileBytes+1))
+		mu.Lock()
+		open = nil
+		mu.Unlock()
 		_ = file.Close()
 		if len(raw) > maxFileBytes {
 			done <- refsRead{raw[:maxFileBytes], true, err}
@@ -629,6 +634,7 @@ func readRefsContext(ctx context.Context, path string) ([]byte, bool, error) {
 	}()
 	select {
 	case r := <-done:
+		stop()
 		return r.data, r.cut, r.err
 	case <-ctx.Done():
 		return nil, false, ctx.Err()
