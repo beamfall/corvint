@@ -111,6 +111,13 @@ validation is deferred to the integrated release boundary, not replaced by focus
 | FDM-V0-004..005 | `internal/doccorpus/apply_pair.go`, `cmd/corvint/flows_docs.go` | `TestMaintenancePairRecovery`, `TestMaintenancePairPostPublishRecheck`, `TestFlowDocMaintenanceCLIGuards`, `TestFlowDocMaintenanceCompiled`, `TestFlowDocMaintenanceEncodingBounds`, `TestFlowDocMaintenanceReceiptRoundTrip` |
 | FDM-V0-006..007 | `internal/appflows/docs_maintain.go` | `TestFlowDocMaintenanceLifecycle`, `TestFlowDocMaintenanceCompiled` |
 
+V1-0660 adds test evidence for existing requirements without changing intent or behavior:
+`TestMaintenancePairPostPublishParentRecheck` exercises missing and replaced parents after
+publication (FDM-V0-004); `TestFlowDocMaintenanceReceiptIntegrity` checks independently altered
+receipt fields and canonical bytes (FDM-V0-003 and FDM-V0-005). The isolated mutation outcomes,
+including redundant clauses that cannot independently authorize an invalid receipt, are retained
+in [the mutation record](../build-log/2026-10-10-mutation-doccorpus-apply-pair.md).
+
 Rollback removes the additive command/profile and keeps existing immediate generation. Retain
 receipts and recovery files as evidence; explicitly restore reviewed prior bytes if needed. Promote
 only after the bounded acceptance path and independent review pass and the owner accepts this
