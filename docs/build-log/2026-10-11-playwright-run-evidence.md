@@ -1,4 +1,4 @@
-# V1-1230 Playwright run stability
+# V1-1230 Playwright run stability and V1-1229 run compare
 
 Date: 2026-10-11. Base: `8b659142492966161ca82d1f5ff8f503fec1c504`.
 Scope: new experimental `PWR-V0` requirements, proposed and pending owner acceptance; no decisions,
@@ -24,3 +24,14 @@ non-unix opener. Real-suite qualification against an adopter's reports is `NOT_R
 reporter omits fixture timings, cleanup and passing `expect` calls, so these stay `NOT_OBSERVED`.
 Root help needed 61 bytes trimmed from existing one-line descriptions to stay within the 4096-byte
 CCF-V1-009 bound.
+
+## Compare design (V1-1229)
+
+`corvint runs compare` reuses the same reader and identity. Assertion origin comes only from the
+error location the reporter gives: the test's own file, any other file, or none. The reporter cannot
+tell a page object from a helper or a fixture, so all three are reported as one `SUPPORT` origin. A
+support-only difference keeps the test `SAME` and is reported as a support difference. This lets a
+page-object refactor reach `PARITY` while the difference stays visible. Undeclared identity inputs
+do not block a verdict; they are reported as the unknown `IDENTITY_INPUTS_NOT_DECLARED`. Declared
+config digests that differ give `INCOMPARABLE`. An unreadable report still emits a document
+(`INCOMPARABLE`, `REPORT_UNREADABLE`) rather than refusing, so a pipeline always receives a verdict.

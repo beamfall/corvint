@@ -318,14 +318,15 @@ func (r *reader) assertion(testFile string, e jsonError) Assertion {
 }
 
 // relative maps an error location under config.rootDir to the rootDir-relative slash path spec
-// files use; any other path is kept as reported.
+// files use; any other path is kept as reported after the secret screen.
 func (r *reader) relative(file string) string {
 	file = filepath.ToSlash(file)
 	root := strings.TrimSuffix(filepath.ToSlash(r.root), "/")
 	if root != "" && strings.HasPrefix(file, root+"/") {
 		return path.Clean(strings.TrimPrefix(file, root+"/"))
 	}
-	return path.Clean(file)
+	screened, _ := secretscreen.Screen(path.Clean(file))
+	return screened
 }
 
 // FirstLine is the screened first non-empty line of an error message: ANSI escapes removed, the

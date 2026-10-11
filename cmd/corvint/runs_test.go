@@ -114,3 +114,59 @@ func TestRunsStabilityCLI(t *testing.T) {
 		}
 	})
 }
+
+func TestRunsCompareCLI(t *testing.T) {
+	dir := t.TempDir()
+	writeRunsReports(t, dir, map[string]string{"base1.json": runsReport("passed", runsDeclared), "base2.json": runsReport("passed", runsDeclared),
+		"same.json": runsReport("passed", runsDeclared), "fail.json": runsReport("failed", runsDeclared)})
+	compare := func(t *testing.T, args ...string) (int, map[string]any, string) {
+		t.Helper()
+		var out, errb bytes.Buffer
+		code := run(append([]string{"--root", dir, "runs", "compare"}, args...), strings.NewReader(""), &out, &errb)
+		doc := map[string]any{}
+		if out.Len() > 0 {
+			if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return code, doc, errb.String()
+	}
+	t.Run("PWR-V0-010 help and verdicts end to end", func(t *testing.T) {
+		var out, errb bytes.Buffer
+		if code := run([]string{"runs", "--help"}, strings.NewReader(""), &out, &errb); code != 0 || !strings.Contains(out.String(), "runs compare --baseline") || !strings.Contains(out.String(), "INCOMPARABLE") {
+			t.Fatalf("help: code=%d", code)
+		}
+		before, _ := os.ReadDir(dir)
+		for _, c := range []struct {
+			args    []string
+			verdict string
+		}{
+			{[]string{"--baseline", "base1.json,base2.json", "--candidate", "same.json"}, "PARITY"},
+			{[]string{"--baseline", "base1.json", "--candidate", "fail.json"}, "DIVERGED"},
+			{[]string{"--baseline", "base1.json", "--candidate", "absent.json"}, "INCOMPARABLE"},
+		} {
+			code, doc, diag := compare(t, c.args...)
+			if code != 0 || diag != "" || doc["profile"] != "corvint-runs-compare/0" || doc["verdict"] != c.verdict {
+				t.Fatalf("%q: code=%d doc=%v diag=%q", c.args, code, doc, diag)
+			}
+		}
+		_, doc, _ := compare(t, "--baseline", "base1.json", "--candidate", "absent.json")
+		problems, _ := doc["problems"].([]any)
+		if len(problems) != 1 || problems[0].(map[string]any)["reason"] != "REPORT_UNREADABLE" || problems[0].(map[string]any)["side"] != "candidate" {
+			t.Fatalf("problems = %v", doc["problems"])
+		}
+		after, _ := os.ReadDir(dir)
+		if len(after) != len(before) {
+			t.Fatalf("compare wrote into the report directory")
+		}
+	})
+	t.Run("PWR-V0-010 refusals", func(t *testing.T) {
+		for _, args := range [][]string{{}, {"--baseline", "base1.json"}, {"--candidate", "same.json"}, {"--baseline", "base1.json", "--candidate", "same.json", "extra"},
+			{"--baseline", ",", "--candidate", "same.json"}, {"--baseline", "base1.json", "--candidate", "same.json", "--token=do-not-echo"}} {
+			code, doc, diag := compare(t, args...)
+			if code != 2 || len(doc) != 0 || !strings.Contains(diag, `"code":"runs-invalid-arguments"`) || strings.Contains(diag, "do-not-echo") {
+				t.Errorf("%q: code=%d doc=%v diag=%q", args, code, doc, diag)
+			}
+		}
+	})
+}
