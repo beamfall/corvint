@@ -16,15 +16,13 @@ format paragraph are amended only to defer to it. No decision file.
   report. Playwright 1.63 (`_grepTitleWithTags`, `test.tags`, JSON reporter; read from the package
   source, no live run) puts only explicit tags in the grep title, while the report's tags also
   carry the `@\S+` runs of titles and split describe/config tags on whitespace. So the title runs
-  are removed from the reported tags; an exclusion that rests on the remaining explicit tags is
-  only unverified (Codex round 1 found both the title-tag and whitespace-tag counterexamples).
-  Grep-side exclusion with no explicit tag assumes no describe/config tag is `@` alone or has
-  whitespace right after `@`, which leaves no trace in the listing. A pattern that can neither match a space
-  nor anchor to the whole title matches the joined title exactly when it matches one part, so
-  evaluation is per part and avoids reproducing the exact separator layout.
-- A static, partwise-evaluable pattern explains an omission only when it excludes every listed
-  case of the file; anything else that is evaluable still refuses, with a message naming grep.
-- A dynamic or non-partwise pattern cannot be decided, so the pair is kept and recorded in the new
+  are removed from the reported tags (Codex round 1 found the title-tag and whitespace-tag
+  counterexamples). Codex round 2 showed a describe tag `@ smoke` is not reported at all yet
+  appears in the grep title, so no negative `grep` decision is provable from a listing.
+- An omission is explained only when `grepInvert` matches a title part of every case, which hidden
+  tag text cannot undo. An evaluable grep that matches a listed title still refuses the listing.
+- Every other exclusion (dynamic or non-partwise pattern, grep matching no title, exclusion via
+  reported tags) keeps the pair and records it in the new
   optional `unverifiedUnits` member, which a `MATCHED` plan surfaces as the `EXECUTION` unknown
   `playwright:discovery-omission-unverified`. A dynamic grep also leaves the existing config-syntax
   unknown, so the plan stays `STATIC_UNRESOLVED`.

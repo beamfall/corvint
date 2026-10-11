@@ -31,8 +31,9 @@ type PlaywrightDiscovery struct {
 	SourceDigest string                    `json:"sourceDigest"`
 	Units        []PlaywrightDiscoveryUnit `json:"units"`
 	// UnverifiedUnits, present only when nonempty, lists the units the listing omitted that the
-	// producer kept because the project's grep or grepInvert is not statically evaluable, so the
-	// omission was not cross-checked against the listing (TJAA-V0-021). Each is also in Units.
+	// producer kept because the project's grep or grepInvert may exclude every case of the file but
+	// the listing cannot prove it: the pattern is not statically evaluable, or the exclusion rests on
+	// tags the listing reports only in part (TJAA-V0-021). Each is also in Units.
 	UnverifiedUnits []PlaywrightDiscoveryUnit `json:"unverifiedUnits,omitzero"`
 }
 
@@ -74,7 +75,7 @@ func SelectPlaywright(root, configPath, revision string, dirty []string, receipt
 		// cross-check, so a run of such a unit may find no case. It stays visible (TJAA-V0-021).
 		plan.Unknown = canonicalPlaywrightUnknowns(append(plan.Unknown, PlaywrightUnknown{
 			Axis: PlaywrightAxisExecution, Reason: PlaywrightUnknownDiscoveryOmission,
-			Detail: fmt.Sprintf("%d discovery unit(s) omitted by the listing under a project grep/grepInvert that is not statically evaluable, first project %q test %s", len(unverified), unverified[0].Project, unverified[0].Test),
+			Detail: fmt.Sprintf("%d discovery unit(s) omitted by the listing under a project grep/grepInvert exclusion the listing cannot verify, first project %q test %s", len(unverified), unverified[0].Project, unverified[0].Test),
 		}))
 	}
 	if plan.Discovery.State != "MATCHED" {

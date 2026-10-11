@@ -97,24 +97,45 @@ func TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021(t *testing.T) {
 		{Project: "alt-b", Test: "e2e/plain.spec.ts"}, {Project: "alt-b", Test: "e2e/tagged.spec.ts"},
 		{Project: "main", Test: "e2e/plain.spec.ts"}, {Project: "main", Test: "e2e/tagged.spec.ts"},
 	}
-	t.Run("GitHub #790 three-project repro is explained by static grep", func(t *testing.T) {
+	plainUnverified := []PlaywrightDiscoveryUnit{{Project: "alt-a", Test: "e2e/plain.spec.ts"}, {Project: "alt-b", Test: "e2e/plain.spec.ts"}}
+	// A grep that matches no listed title is a negative decision a hidden describe or config tag
+	// (one Playwright reports only in part, or not at all) could reverse, so the GitHub #790 pairs
+	// are kept but unverified (Codex review round 2).
+	t.Run("GitHub #790 three-project repro is accepted with unverified grep omissions", func(t *testing.T) {
 		root := grepFixture(t, grepRepro)
 		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, grepPlaywrightListing(t, root, "e2e", grepReproCases()))
 		if err != nil {
-			t.Fatalf("grep-explained listing refused: %v", err)
+			t.Fatalf("grep-filtered listing refused: %v", err)
 		}
 		receipt := decodeGrepReceipt(t, raw)
-		if !slices.Equal(receipt.Units, allUnits) || receipt.UnverifiedUnits != nil || strings.Contains(string(raw), "unverifiedUnits") {
+		if !slices.Equal(receipt.Units, allUnits) || !slices.Equal(receipt.UnverifiedUnits, plainUnverified) {
 			t.Fatalf("receipt: %s", raw)
 		}
 		plan, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, nil, raw)
-		if err != nil || plan.Discovery.State != "MATCHED" {
+		if err != nil || plan.Discovery.State != "MATCHED" || !slices.ContainsFunc(plan.Unknown, func(unknown PlaywrightUnknown) bool {
+			return unknown.Axis == PlaywrightAxisExecution && unknown.Reason == PlaywrightUnknownDiscoveryOmission && strings.Contains(unknown.Detail, `2 discovery unit(s)`)
+		}) {
 			t.Fatalf("plan: %+v %v", plan, err)
 		}
-		for _, unknown := range plan.Unknown {
-			if unknown.Reason == PlaywrightUnknownDiscoveryOmission {
-				t.Fatalf("explained omission reported unverified: %+v", plan.Unknown)
-			}
+	})
+	t.Run("grepInvert matching every listed title explains the omission", func(t *testing.T) {
+		root := grepFixture(t, "{ name: 'main', grepInvert: /@tagged/ }, { name: 'other' }")
+		cases := []grepListCase{
+			{file: "plain.spec.ts", title: "plain", projects: []string{"main", "other"}},
+			{file: "tagged.spec.ts", title: "x @tagged", tags: []string{"tagged"}, projects: []string{"other"}},
+			{file: "tagged.spec.ts", title: "y", describes: []string{"@tagged suite"}, tags: []string{"tagged"}, projects: []string{"other"}},
+		}
+		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, grepPlaywrightListing(t, root, "e2e", cases))
+		if err != nil {
+			t.Fatalf("grepInvert-explained listing refused: %v", err)
+		}
+		want := []PlaywrightDiscoveryUnit{{Project: "main", Test: "e2e/plain.spec.ts"}, {Project: "main", Test: "e2e/tagged.spec.ts"}, {Project: "other", Test: "e2e/plain.spec.ts"}, {Project: "other", Test: "e2e/tagged.spec.ts"}}
+		if receipt := decodeGrepReceipt(t, raw); !slices.Equal(receipt.Units, want) || strings.Contains(string(raw), "unverifiedUnits") {
+			t.Fatalf("receipt: %s", raw)
+		}
+		plan, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, nil, raw)
+		if err != nil || plan.Discovery.State != "MATCHED" || slices.ContainsFunc(plan.Unknown, func(unknown PlaywrightUnknown) bool { return unknown.Reason == PlaywrightUnknownDiscoveryOmission }) {
+			t.Fatalf("plan: %+v %v", plan, err)
 		}
 	})
 	t.Run("array grep and a describe title and tag in the title", func(t *testing.T) {
@@ -126,8 +147,15 @@ func TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021(t *testing.T) {
 		if err != nil {
 			t.Fatalf("array grep listing refused: %v", err)
 		}
-		if receipt := decodeGrepReceipt(t, raw); !slices.Equal(receipt.Units, allUnits) || receipt.UnverifiedUnits != nil {
+		if receipt := decodeGrepReceipt(t, raw); !slices.Equal(receipt.Units, allUnits) || !slices.Equal(receipt.UnverifiedUnits, plainUnverified[1:]) {
 			t.Fatalf("receipt: %s", raw)
+		}
+	})
+	t.Run("array grep element matching a listed title refuses the omission", func(t *testing.T) {
+		root := grepFixture(t, "{ name: 'main', grepInvert: /@tagged/ }, { name: 'alt-a', grep: [/@tagged/, /plain/] }, { name: 'alt-b', grep: /@tagged/ }")
+		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, grepPlaywrightListing(t, root, "e2e", grepReproCases()))
+		if err == nil || raw != nil || !strings.Contains(err.Error(), `project "alt-a" test e2e/plain.spec.ts`) {
+			t.Fatalf("stale listing stamped: raw=%s err=%v", raw, err)
 		}
 	})
 	// Codex review round 1: Playwright appends only explicit tags to the grep title; a title tag
@@ -200,15 +228,21 @@ func TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021(t *testing.T) {
 			t.Fatalf("dynamic grep plan claimed bounded: %+v %v", plan, err)
 		}
 	})
-	for _, grep := range []string{`/^alt-a @tagged/`, `/x @tagged/`, `/[^ ]@tagged/`, `/\W@tagged/`, `/tagged$/`} {
-		t.Run("static grep outside the partwise model is unverified "+grep, func(t *testing.T) {
-			root := grepFixture(t, "{ name: 'main', grepInvert: /@tagged/ }, { name: 'alt-a', grep: "+grep+" }, { name: 'alt-b', grep: /@tagged/ }")
-			raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, grepPlaywrightListing(t, root, "e2e", grepReproCases()))
+	// The same omission the "grepInvert matching every listed title" case explains becomes
+	// unverified when the pattern is outside the partwise model.
+	for _, invert := range []string{`/^main @tagged/`, `/x @tagged/`, `/[^ ]?@tagged/`, `/\W@tagged/`, `/tagged$/`} {
+		t.Run("static grepInvert outside the partwise model is unverified "+invert, func(t *testing.T) {
+			root := grepFixture(t, "{ name: 'main', grepInvert: "+invert+" }, { name: 'other' }")
+			cases := []grepListCase{
+				{file: "plain.spec.ts", title: "plain", projects: []string{"main", "other"}},
+				{file: "tagged.spec.ts", title: "x @tagged", tags: []string{"tagged"}, projects: []string{"other"}},
+			}
+			raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, grepPlaywrightListing(t, root, "e2e", cases))
 			if err != nil {
 				t.Fatalf("listing refused: %v", err)
 			}
 			receipt := decodeGrepReceipt(t, raw)
-			if !slices.Equal(receipt.UnverifiedUnits, []PlaywrightDiscoveryUnit{{Project: "alt-a", Test: "e2e/plain.spec.ts"}}) {
+			if !slices.Equal(receipt.UnverifiedUnits, []PlaywrightDiscoveryUnit{{Project: "main", Test: "e2e/tagged.spec.ts"}}) {
 				t.Fatalf("receipt: %s", raw)
 			}
 			plan, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, nil, raw)
@@ -216,7 +250,7 @@ func TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021(t *testing.T) {
 				t.Fatalf("plan: %+v %v", plan, err)
 			}
 			if !slices.ContainsFunc(plan.Unknown, func(unknown PlaywrightUnknown) bool {
-				return unknown.Reason == PlaywrightUnknownDiscoveryOmission && strings.Contains(unknown.Detail, `"alt-a"`)
+				return unknown.Reason == PlaywrightUnknownDiscoveryOmission && strings.Contains(unknown.Detail, `"main"`)
 			}) {
 				t.Fatalf("missing omission unknown: %+v", plan.Unknown)
 			}

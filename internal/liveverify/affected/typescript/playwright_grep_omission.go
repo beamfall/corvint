@@ -41,18 +41,17 @@ type playwrightListCase struct {
 // title joins, with single spaces, the project name, the file suite title, the config tags, each
 // describe title and its explicit tags, the test title and the test's explicit tags. The listing
 // shows the titles exactly but not the explicit tags: it reports each case's tags as the `@\S+`
-// runs of the config tags, describe titles and tags and test title, then the test's own tags. So
-// the runs of the titles are removed from the reported tags, and what remains is the explicit tags,
-// exact only when no config or describe tag contains whitespace. A case is excluded for certain
-// when grepInvert matches a title part. With no explicit tag left, it is excluded when grep does
-// not match the title parts; this assumes no config or describe tag is `@` alone or has whitespace
-// right after `@`, which leaves no trace in the listing. With explicit tags, an exclusion that
-// depends on them is unverified, because a whitespace-containing tag is reported only in part.
-// The omission is explained when every case is excluded for certain; unverified when a declared
-// pattern is not evaluable here, a title part is outside the matcher model, or a case's exclusion
-// is unverified; otherwise, including a file with no listed case, it is unexplained. A case
-// filtered out of every project is not listed; under the caller-declared listing it is excluded
-// for this project too.
+// runs of the config tags, describe titles and tags and test title, then the test's own tags, so a
+// config or describe tag containing whitespace is reported only in part and one that is `@` alone
+// or has whitespace right after `@` not at all. A case is therefore excluded for certain only when
+// grepInvert matches a title part, which no hidden text can undo. Otherwise the reported tags, less
+// the runs of the titles, stand in for the explicit tags: a case they keep is unexplained, and a
+// case they exclude is unverified, because hidden tag text could still match grep or fail to
+// match grepInvert. The omission is explained when every case is excluded for certain; unverified
+// when a declared pattern is not evaluable here, a title part is outside the matcher model, or a
+// case's exclusion is unverified; otherwise, including a file with no listed case, it is
+// unexplained. A case filtered out of every project is not listed; under the caller-declared
+// listing it is excluded for this project too.
 func classifyPlaywrightGrepOmission(project PlaywrightProject, cases []playwrightListCase) playwrightOmission {
 	grep, grepOK := playwrightTitleMatchers(project.hasGrep, project.Grep)
 	invert, invertOK := playwrightTitleMatchers(project.hasGrepInvert, project.GrepInvert)
@@ -65,26 +64,19 @@ func classifyPlaywrightGrepOmission(project PlaywrightProject, cases []playwrigh
 	fold := playwrightTitleMatchersFold(grep, invert)
 	verdict := playwrightOmissionExplained
 	for _, listCase := range cases {
-		if len(listCase.titles) == 0 {
-			return playwrightOmissionUnverified
-		}
 		parts := append([]string{project.Name}, listCase.titles...)
-		for _, part := range append(slices.Clone(parts), listCase.tags...) {
-			if playwrightOutsideBMP(part) || fold && strings.ContainsAny(part, "\u017f\u212a") {
-				return playwrightOmissionUnverified
-			}
+		if len(listCase.titles) == 0 || slices.ContainsFunc(append(slices.Clone(parts), listCase.tags...), func(part string) bool {
+			return playwrightOutsideBMP(part) || fold && strings.ContainsAny(part, "\u017f\u212a")
+		}) {
+			verdict = playwrightOmissionUnverified // outside the matcher model; a later case may still be kept
+			continue
 		}
 		if project.hasGrepInvert && playwrightTitleMatch(invert, parts) {
 			continue
 		}
 		explicit, ok := playwrightExplicitTags(listCase.tags, playwrightTitleTags(strings.Join(listCase.titles[1:], " ")))
 		if !ok {
-			return playwrightOmissionUnverified
-		}
-		if len(explicit) == 0 {
-			if !project.hasGrep || playwrightTitleMatch(grep, parts) {
-				return playwrightOmissionUnexplained
-			}
+			verdict = playwrightOmissionUnverified
 			continue
 		}
 		tokens := append(parts, explicit...)

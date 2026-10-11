@@ -301,23 +301,25 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   Playwright's grep title joins, with single spaces, the project name, the file suite title, the
   config tags, each describe title and its explicit tags, the test title and the test's explicit
   tags. The listing shows the titles exactly but reports tags only as the `@\S+` runs of the config
-  tags, describe titles and tags and test title, followed by the test's own tags; removing the runs
-  of the titles leaves the explicit tags, exact only when no config or describe tag contains
-  whitespace.
+  tags, describe titles and tags and test title, followed by the test's own tags, so a config or
+  describe tag containing whitespace is reported only in part and one that is `@` alone or has
+  whitespace right after `@` not at all.
   (a) When each declared value is a static regular-expression literal, or an array of them, that is
   evaluable part by part (static under `TJAA-V0-019`, flags only `i`, `m` and `s`, an ASCII body
   under `i`, and no `.`, `^`, `$`, literal space, `\D`, `\W`, negated class, class containing a
   character at or below U+0020 or a range starting at `\t`, `\n`, `\r`, `\f` or `\v`), so it matches
   the joined title exactly when it matches one of its parts, a case is excluded for certain when
-  `grepInvert` matches the project name or a title (file suite, describe or test), or, when no
-  explicit tag remains, when `grep` (any array element) matches none of them. The producer MUST accept the omission and emit the
-  pair as a unit when every case is excluded for certain. This assumes no config or describe tag
-  is `@` alone or has whitespace right after `@`, which leaves no trace in the listing.
-  (b) When a declared value is not evaluable that way (dynamic, a non-literal, or a construct
-  outside (a)), a title part or tag is outside the Basic Multilingual Plane or holds U+017F or
-  U+212A under `i`, the reported tags lack a title's `@` run, or a case is excluded only once its
-  explicit tags are counted as whole parts, the producer MUST emit the pair as a unit and also list
-  it in the optional sorted `unverifiedUnits` member of the receipt.
+  `grepInvert` matches the project name or a title (file suite, describe or test), which no hidden
+  tag text can undo. The producer MUST accept the omission and emit the pair as a unit when every
+  case is excluded for certain.
+  (b) Otherwise the reported tags, less the `@\S+` runs of the titles, stand in for the explicit
+  tags. When a declared value is not evaluable as in (a) (dynamic, a non-literal, or a construct
+  outside (a)), or when every case not excluded for certain is excluded by those parts (`grepInvert`
+  matches one, or `grep`, any array element, matches none), or is outside the matcher model (a part
+  outside the Basic Multilingual Plane or holding U+017F or U+212A under `i`, or reported tags
+  lacking a title's `@` run), the producer MUST emit the pair as a unit and also list it in the
+  optional sorted `unverifiedUnits` member of the receipt: hidden tag text could still match
+  `grep` or fail to match `grepInvert`, so a negative `grep` decision is never verified.
   (c) Otherwise, including a file the listing names under no project, it MUST refuse as
   `TJAA-V0-019` does, the message stating that the project's grep/grepInvert does not exclude every
   listed case of that file. A project without `grep` or `grepInvert` keeps the `TJAA-V0-019`
@@ -328,9 +330,8 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   `MATCHED` receipt carries `unverifiedUnits`, the plan MUST add the `EXECUTION` unknown
   `playwright:discovery-omission-unverified` naming the count and first unit. A case filtered out of
   every project is absent from the listing, so it cannot be checked; under the caller-declared
-  listing it is excluded for that project too. A case the explicit tags would keep is refused
-  under (c) even though a partially reported tag could hide text that excludes it, because refusal
-  is the conservative outcome. The per-test listing producer and a top-level `grep` are unchanged.
+  listing it is excluded for that project too. A case the reported parts keep is refused under (c)
+  even though hidden tag text could exclude it, because refusal is the conservative outcome. The per-test listing producer and a top-level `grep` are unchanged.
 
 ## Opt-in Playwright project profile
 
