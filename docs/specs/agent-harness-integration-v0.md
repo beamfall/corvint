@@ -72,6 +72,14 @@ the host through that legacy profile. Accepted decision 0009 option 2 separately
 local completion policy in `local-completion-policy-v0.md`; its new envelope and native Stop policy
 do not reinterpret this Frontier result.
 
+For the Claude Code and Codex native plugin paths, `--adapter-version` and the receipt's
+`adapter.adapterVersion` carry the adapter wire-format version `0.1.0`, named
+`adapterWireVersion` in `cmd/corvint/host_adapter.go`. This is independent of the shipped plugin
+package version. The local completion reader admits that same wire value for both hosts; the
+legacy Claude harness event also sends it. V1-0444 clarifies the existing AHI-001 transport
+contract without changing the flag, JSON key, value, receipt bytes, or admitted tuples. Pi's
+separate exact extension tuple remains governed by AHI-024.
+
 ## Requirements
 
 - `AHI-001`: Every adapter MUST consume and produce the transport-neutral Corvint request, receipt,
@@ -1284,6 +1292,10 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 `withSnapshotRemediation`; no stored state or wire field changes.
 
 ## Traceability
+
+For AHI-001, `TestAHI001AdapterWireVersion` in `cmd/corvint/local_completion_event_test.go`
+pins the literal `0.1.0`, both native plugin producers and local completion reader acceptance,
+and rejection of package versions as wire versions (V1-0444).
 
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
