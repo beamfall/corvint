@@ -1,6 +1,6 @@
 # Gate ledger partial package passes (V1-0245)
 
-Intent: GL-V0-002 and GL-V0-009 amendments are proposed, pending owner acceptance
+Intent: GL-V0-002 and GL-V0-009 amendments are accepted, decision 0511
 (V1-0245). A resolved batch failure must retain individually proven passes keyed on
 the existing content and bound proofs, while failed packages remain runnable.
 

@@ -5,7 +5,7 @@ Date: 2026-09-21
 Requirement prefix: `GL-V0`
 Intent status: accepted (owner instruction 2026-09-21)
 Delivery status: implemented
-Amendment status: GL-V0-002 and GL-V0-009 proposed, pending owner acceptance (V1-0245)
+Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 8 and its Verify block, the owner
 instruction of 2026-09-21 that Corvint manage which gate work is already proven so parallel agents
 stop repeating a full gate each, `go-only-cutover-v0.md` GOC-V0-010 for the receipt the gate
@@ -17,7 +17,7 @@ per-package key (GL-V0-009).
 - Claim: `make gate` skips a step, or one resolved package, only when this user recorded a pass for byte-identical inputs, from any worktree, never narrowing a step.
 - Status: accepted (owner instruction 2026-09-21; GL-V0-009 decision 0352) / implemented
 - Exists: `tools/gate-ledger` (`run`, `go-test`, `plan`), the `ledger/STEP` targets in `Makefile`, `gate-affected-select -unresolved` and `-bounds`, `tools/gate-ledger/main_test.go`, the ledger-off branch of `script/gate-receipt_test.sh`.
-- Blocked on: owner acceptance of V1-0245 amendments. The unresolved packages (`cmd/corvint` among them) rerun on any tree change; narrowing them is the affected tier's job, not this ledger's. Resolved packages key per package across worktrees (GL-V0-009).
+- Blocked on: nothing (V1-0245 amendments accepted, decision 0511). The unresolved packages (`cmd/corvint` among them) rerun on any tree change; narrowing them is the affected tier's job, not this ledger's. Resolved packages key per package across worktrees (GL-V0-009).
 - Read next: Requirements; Non-goals; Trust boundary, limits, and failure modes; Unresolved.
 
 ## Human intent and scope
@@ -62,7 +62,7 @@ therefore come from something keyed on content, not from Go's cache.
   host, user, or time, so that one recorded pass serves every worktree of this user. Every step's
   scope MUST include the gate's own tooling (`Makefile`, `go.mod`, `go.sum`, `script/`, `tools/`),
   so a change to how a step runs is a change to its inputs.
-- `GL-V0-002`: (proposed, pending owner acceptance (V1-0245)) A whole-step record MUST be
+- `GL-V0-002`: (accepted, decision 0511) A whole-step record MUST be
   written only after that step exits zero. Resolved Go packages MUST instead be recorded individually
   after the batch exits, including on nonzero exit, only when a complete, valid `go test -json`
   stream proves a package-level pass with no test/package failure or build failure for that package.
@@ -117,7 +117,7 @@ therefore come from something keyed on content, not from Go's cache.
 - `GL-V0-008`: Two runs of one key at once MUST execute the step once: the second MUST wait on a
   per-key lock and read the record the first wrote. A lock the tool cannot take MUST make the
   step run without recording.
-- `GL-V0-009`: (proposed, pending owner acceptance (V1-0245)) A resolved package MUST run under its own key, step `go-test-package`, derived as
+- `GL-V0-009`: (accepted, decision 0511) A resolved package MUST run under its own key, step `go-test-package`, derived as
   GL-V0-001 derives every key from the package's import path and a digest of the worktree entries
   in its proven bound together with the gate tooling. The bound MUST be the union of every file
   `go list -deps -test` compiles or embeds into the package's test binary within the module and
