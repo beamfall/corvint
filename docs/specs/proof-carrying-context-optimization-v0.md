@@ -181,5 +181,5 @@ local dogfood and held-out evaluation.
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | `PCCO-V0-001..014` | not started | observation authority, frozen corpus, hostile manifest vectors, three-baseline held-out trial |
-| `PCCO-V0-015..017` (proposed, not accepted) | `benchmarks/daily-loop-v0/harness.py` with the sealed `preregistration.json` and `corpus.json` | run results and receipts under `benchmarks/daily-loop-v0/runs/` and `receipts/`; `docs/BUILD-LOG.md` V1-0012 entry |
+| `PCCO-V0-015..017` (proposed, not accepted) | `benchmarks/daily-loop-v0/harness.py` with the sealed `preregistration.json` and `corpus.json` | run results and receipts under `benchmarks/daily-loop-v0/runs/` and `receipts/`; `docs/BUILD-LOG.md` V1-0012 entry; run-001 provenance: `benchmarks/daily-loop-v0/receipts/run-001/PROVENANCE.md`, decision 0332 (`docs/decisions/0332-verified-local-workflow-scope-2026-09-22.md`) and `docs/specs/daily-change-evidence-workflow-v0.md` |
 | `PCCO-V0-015..017` (proposed, not accepted) | `benchmarks/daily-loop-v1/harness.py`, unsealed; `run` refuses until `preregistration.json` and `preregistration.sha256` are committed | none yet; `docs/build-log/2026-09-27-v1-0382-daily-loop-v1-harness.md` |

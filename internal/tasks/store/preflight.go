@@ -158,11 +158,10 @@ func PreflightGates(ctx context.Context, root, commit string, defs []*intent.Gat
 		}
 		env, _ := gateEnvironment(def.Env)
 		out := &cappedOutput{}
+		// execute's reapGate kills the group while the exited gate is
+		// unreaped, so a descendant it left running cannot outlive it, and
+		// no group signal follows the reap (PGO-V0-009).
 		run := execute(ctx, def, wt, env, out)
-		// execute stops watching the group once the gate exits, so a
-		// descendant it left running would outlive it and every later
-		// gate, interrupt and the worktree removal.
-		killGateGroup(run.group)
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}

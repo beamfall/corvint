@@ -9,6 +9,7 @@
 package swift
 
 import (
+	"context"
 	"io/fs"
 	"path"
 	"regexp"
@@ -65,8 +66,8 @@ func (Language) Name() string { return "swift" }
 func (Language) Owns(relative string) bool { return strings.HasSuffix(relative, ".swift") }
 
 // Units observes every statically resolvable SwiftPM and Xcode target.
-func (Language) Units(root string) (affected.Result, error) {
-	return Language{}.UnitsSource(affected.DiskSource(root))
+func (Language) Units(ctx context.Context, root string) (affected.Result, error) {
+	return Language{}.UnitsSource(affected.DiskSourceContext(ctx, root))
 }
 
 // UnitsSource reads only the explicitly supplied source universe.

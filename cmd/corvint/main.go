@@ -1587,6 +1587,9 @@ func pythonJSONString(value string) string {
 }
 
 func main() {
+	if os.Getenv(snapshotRefreshWorkerEnv) == "1" {
+		os.Exit(runSnapshotRefreshWorker(os.Args[1:], snapshotRefreshWallBound))
+	}
 	// Startup-only owned-group verification precedes signal goroutines, Git
 	// resolution and every ordinary Core entrypoint.
 	if len(os.Args) > 1 && os.Args[1] == "dogfood-outcome-worker" {

@@ -23,7 +23,7 @@ The Apache-2.0 boundary is exactly:
 - `protocol/**` for future vendor-neutral protocol/spec/schema material;
 - `conformance/**`;
 - `interop/**`;
-- `examples/**`;
+- `examples/**` (until 2026-10-10; removed by the amendment of that date below);
 - `docs/CHANGE-EVIDENCE-MAP.md`;
 - `docs/CEM-CI.md`;
 - `docs/cem-0.1.schema.json`;
@@ -93,3 +93,25 @@ list above is unchanged, and it is not extended to `cmd/**`.
 
 Rollback: revert this amendment and the `LICENSING.md` section together. Rights already granted
 under Apache-2.0 stay granted.
+
+## Amendment (2026-10-10): examples move to AGPL-3.0
+
+The owner moved `examples/**` out of the Apache-2.0 boundary (decision 0504). Asked in chat on
+2026-10-10 which Apache-2.0 islands to keep, the owner chose "Examples AGPL, protocol Apache"; decision 0504
+quotes the owner's reason. From the commit that
+records decision 0504, `examples/**` is part of the AGPL-3.0-or-later product layer, every
+non-Markdown file there carries `SPDX-License-Identifier: AGPL-3.0-or-later`, and `LICENSING.md` no
+longer lists the path. `make license-headers-check` fails on an Apache-2.0 notice under
+`examples/**`.
+
+`protocol/**` stays Apache-2.0 and remains the only place a new Apache-2.0 file may enter. This
+amendment changes no other path: `conformance/**`, `interop/**`, the listed `docs/` schema and
+protocol files, and the frontier file exception keep their terms.
+
+Copies of `examples/**` already published under Apache-2.0 keep those terms; this amendment does not
+withdraw rights already granted. Every commit under `examples/**` up to this amendment was authored
+by the owner.
+
+Rollback: revert this amendment, decision 0504, the `LICENSING.md` change, the `examples/**` SPDX
+headers and the header check together. Rights already granted under AGPL-3.0-or-later for the
+intervening commits stay granted.

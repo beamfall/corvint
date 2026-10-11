@@ -572,12 +572,15 @@ func pruneEvidence(document *wire.Map) {
 
 var lockMap = (*publish.Root).Lock
 
-// lockedMapInput reads the input once for unchanged map-validation precedence,
-// then locks the effective output and re-reads the input under it. The caller
-// must release the lock.
+// lockedMapInput locks in-place updates before their first read, so a valid
+// concurrent publication cannot trip the safe reader's identity check. Separate
+// outputs retain input-validation precedence. The caller must release the lock.
 func (s *Session) lockedMapInput(inputRelative, outputRelative string) (*wire.Map, func(), error) {
-	if _, _, err := s.readMapInput(inputRelative); err != nil {
-		return nil, nil, err
+	inPlace := outputRelative == "" || strings.EqualFold(outputRelative, inputRelative) // case-aliased names alias on case-insensitive volumes
+	if !inPlace || inputRelative == "" || filepath.IsAbs(inputRelative) {
+		if _, _, err := s.readMapInput(inputRelative); err != nil {
+			return nil, nil, err
+		}
 	}
 	effectiveOutput, err := mapOutputRelative(inputRelative, outputRelative)
 	if err != nil {
@@ -585,6 +588,11 @@ func (s *Session) lockedMapInput(inputRelative, outputRelative string) (*wire.Ma
 	}
 	unlock, err := lockMap(s.workRoot, effectiveOutput)
 	if err != nil {
+		// Preserve read refusals (including unsafe ancestors) over publication
+		// errors without admitting an unlocked read on the successful path.
+		if _, _, readErr := s.readMapInput(inputRelative); readErr != nil {
+			return nil, nil, readErr
+		}
 		return nil, nil, err
 	}
 	_, document, err := s.readMapInput(inputRelative)

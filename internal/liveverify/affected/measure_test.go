@@ -34,7 +34,7 @@ func buildRepositoryGraph(t *testing.T) (*affected.Graph, time.Duration) {
 	t.Helper()
 	root := repositoryRoot(t)
 	start := time.Now()
-	graph, err := affected.Build(root, golang.New(), python.New())
+	graph, err := affected.Build(context.Background(), root, golang.New(), python.New())
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -236,7 +236,7 @@ func selectedContains(plan affected.Plan, unitID string) bool {
 // the test the specification's own traceability table pairs with the module.
 func TestPythonSelectionNarrowsARealCorpus(t *testing.T) {
 	root := repositoryRoot(t)
-	graph, err := affected.Build(root, python.New())
+	graph, err := affected.Build(context.Background(), root, python.New())
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}

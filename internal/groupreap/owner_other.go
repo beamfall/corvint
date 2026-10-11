@@ -20,3 +20,7 @@ func defaultPrimitives() Primitives {
 		Reap:       func(*exec.Cmd) error { return ErrOwnerUnavailable },
 	}
 }
+
+// residueProof is WaitResidue's pre-reap observation, which this platform
+// never reaches: it has no waitid exit observation.
+var residueProof = func(leader int) (Probe, error) { return defaultPrimitives().QuietProof(leader) }

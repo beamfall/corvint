@@ -95,6 +95,9 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 	}
 	if err != nil {
 		if result.Lifecycle != "" {
+			if len(result.NextActions) == 0 && result.NoActionReason == "" {
+				result.NoActionReason = "evaluation-unavailable"
+			}
 			_ = emit(stdout, map[string]any{"ok": false, "profile": "corvint-local-completion/0", "tool": "dogfood-" + args[0], "policy": result})
 		}
 		return emitLocalCompletionFailure(stderr, err.Error())
@@ -196,6 +199,9 @@ func runTransportAdaptedRecovery(ctx context.Context, root, key string, flags ma
 	result, provenance, err := localcompletion.FinishAggregateRecovery(ctx, root, key, raw, localCompletionPublicCommand)
 	if err != nil {
 		if result.Lifecycle != "" {
+			if len(result.NextActions) == 0 && result.NoActionReason == "" {
+				result.NoActionReason = "evaluation-unavailable"
+			}
 			_ = emit(stdout, map[string]any{"ok": false, "profile": "corvint-local-completion/0", "tool": "dogfood-finish", "policy": result, "transportAdaptedRecovery": provenance})
 		}
 		return emitLocalCompletionFailure(stderr, err.Error())

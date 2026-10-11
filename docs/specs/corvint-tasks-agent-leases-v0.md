@@ -128,6 +128,7 @@ one.
 | V1-1045 | CAL-V0-205 | Accepted (decision 0471): `pool confirm-safe` takes the CAL-V0-116 writer-checkpoint route, so with a bound writer checkpoint it no longer decodes the whole receipt journal under the preparation gate; every decline keeps the complete route; focused tests and a synthetic measurement |
 | Read facets | CAL-V0-206..209 | Accepted (decision 0476): `--facets` adds a bounded facet-count summary over the whole match set to `ticket search`, `ticket list` and `roadmap`; `--count` returns only that summary; `release readiness` adds member counts and milestone drift and skips the source observation without a candidate; focused tests and a real-store read measurement |
 | V1-1118 | CAL-V0-211 | Accepted (decision 0499): a fresh `ticket set-effects` or claim warns `EXACT_KEY_NAMES_DIRECTORY`, naming the key and the key with `/`, for each PATH key without a trailing `/` that names a directory in the tree; it refuses nothing; focused tests |
+| V1-1125 | CAL-V0-214 | accepted, decision 0513: fresh `ticket create` and `ticket refine` transactions carry the same advisory exact-directory PATH key warning as CAL-V0-211; replays add none; effects remain unchanged; focused tests |
 | V1-1081 | CAL-V0-017 (amended) | Proposed: `complete` also accepts a commit reachable from the intent branch's configured remote-tracking upstream when the local branch is behind; never fetches or moves a ref; an unintegrated commit refuses `STALE_TREE` plus `COMMIT_NOT_INTEGRATED`; focused tests |
 | V1-0853 | CAL-V0-105 | Dispatcher replans with the tickets its work state holds deferred `WORK_STATE_HELD` outside the selection window; UNKNOWN, NONE and no reader keep today's window; focused tests |
 | V1-0772 | CAL-V0-086 | Supervised stage worktree path recorded as PathText (4096 bytes), refused before mutation when longer; an unproved stage drain ends the role `SURVIVORS` instead of `FINISHED`; drain re-probes `EPERM`; bounded watcher read tolerance; focused tests |
@@ -942,7 +943,8 @@ derived from the installed CLI source and is not live-qualified; see
 - `CAL-V0-057`: An ended worker made progress exactly when the key's durable fingerprint changed.
   The fingerprint covers ticket status, revision and work state, plus attempts with a candidate,
   gates, reviews or a durable phase; for lanes, the member state, holder and attempt. Progress
-  clears backoff. An `UNKNOWN` work state is never progress and never unparks a key. No progress MUST
+  in a finished session clears backoff. An `UNKNOWN` work state is never progress and never
+  unparks a key. No progress MUST
   start a cooldown, and after `parkAfter` consecutive runs MUST
   park the key and emit `needs-owner`. A parked key resumes when its fingerprint changes or on an
   operator unpark request. While any role has an `escalate` ladder, the ledger MUST keep, per
@@ -957,6 +959,12 @@ derived from the installed CLI source and is not live-qualified; see
   only by a launch after an operator unpark, because a state change that unparks the key resets the
   streak. Records are
   dropped for tickets absent from the observation and, with no ladder configured, entirely.
+  Amendment **accepted, decision 0514**: a known fingerprint change
+  between sessions MUST reset both the ladder streak and the backoff's `NoProgress` count,
+  including during cooldown. A cooling key MUST retain its cooldown deadline; parking thereafter
+  MUST require `parkAfter` new finished sessions without progress after that reset. A sticky role
+  MUST keep its reached tier. While a key has a worker, a fingerprint change MUST NOT reset
+  its ladder or backoff through between-session accounting; the finished session accounts it.
   A `RETRY_EXHAUSTED` plan entry MUST NOT be readmitted by the dispatcher.
   It emits `needs-owner` naming `ticket reopen` (CAL-V0-043), because readmission is owner
   authority.
@@ -5640,6 +5648,12 @@ still fails closed otherwise.
   attempt state is refused `FENCED` with `prior program owner not proved stopped`. The
   replacement then holds the stopped attempt and may answer, resume, drain or cancel it.
 
+- `CAL-V0-212`: (accepted, decision 0502; V1-0628) The top-level `help` usage MUST NOT
+  advertise `--target` or `--expected-revision` for `ticket create`, which refuses both
+  (CAL-V0-051). It MUST list `ticket create` on its own usage line that names the optional payload
+  `localToken` as the way to choose the queue-local ID, and MUST list the target-taking `ticket`
+  mutations separately. No ID grammar, collision rule, alias or wire change.
+
 The non-cancelling `NO_EXEC` settlements (stage admission refused, prelaunch preparation failed)
 are intended not to cancel: a dispatched attempt stops into `WAITING` with the reason as its
 question and keeps its claim and reservation, and the owner is released so the operator answers,
@@ -5685,9 +5699,25 @@ claim reserved it without saying so. The amendment warns and reports; it refuses
   outcome, stored effects and reserved scope MUST be those it produces without this amendment.
   `EXACT_KEY_NAMES_DIRECTORY` is a warning prefix, not a result code.
 
+- `CAL-V0-214`: (accepted, decision 0513) When `corvint-tasks ticket create`
+  or `ticket refine` commits a fresh transaction (not a replay, no-change or refusal), the
+  command MUST add the CAL-V0-211 `EXACT_KEY_NAMES_DIRECTORY` warning for each distinct exact
+  directory key in its effects' `touchPaths` or `PATH` resources, whatever their coverage.
+  CREATE checks its committed payload effects; REFINE checks the effects in its committed
+  ticket post, which REFINE cannot change. The checked effects MUST belong to that transaction,
+  even when another mutation changes effects before writer-lock acquisition or after the commit.
+  Both check the tree of `HEAD` in the caller's checkout. This also applies to each fresh
+  transaction in `ticket refine --batch`. Warning text, key order, deduplication,
+  file/absent/trailing-`/` exclusions and unreadable-tree behavior MUST match CAL-V0-211.
+  Warnings MUST remain advisory: items, codes, outcome, receipts and stored tickets MUST be
+  those produced without the warning; no key may be rewritten or refused. Replays MUST add
+  no such warning and MUST leave the stored ticket unchanged.
+
 Non-goals: rewriting or refusing the key; changing the CAL-V0-021 key rule or the CAL-V0-024
-refusal; warning at `ticket create`, `ticket refine`, `widen`, `submit` or a replay; reading any
+refusal; warning at `widen`, `submit` or a replay; reading any
 tree other than the one named above.
+The CAL-V0-214 extension (accepted, decision 0513) governs warnings at `ticket create` and `ticket refine`;
+it does not change the accepted CAL-V0-211 command behavior.
 
 Failure modes: `set-effects` reads the caller's `HEAD`, which can differ from the base a later
 claim uses, so a key can warn at one and not the other; the warning is advisory and the committed
@@ -5852,7 +5882,7 @@ The `SECRET_DETECTED` and `PROVENANCE_UNVERIFIED` detail codes (76 codes) are am
 | Store edited outside corvint-tasks during an import (`git pull`, an editor) | Batches after the first check only the head and the files they post | A ticket the batch posts refuses `INTENT_DIVERGED` and a moved head refuses `SNAPSHOT_MOVED`; other drift is not seen until the next command audits the store (CAL-V0-018) |
 | Re-import after cutover | Foreign export disagrees with the published records | `import` refuses the whole export and writes nothing |
 | Non-fixture queue before execution cutover | Agents try to claim | `claim` and `claim --next` refuse `BLOCKED` `CUTOVER_MISSING` and `plan preview` plans every ticket `BLOCKED` until `cutover --execution` records a passing qualification run; ticket writes still work |
-| Writer killed between its first staged artifact and its head | Staging slots stay behind with no `staging/active.json` | Unlocked journal audits and `export` wait out the slots for at most two seconds (CTS-V0-008), then refuse `MALFORMED` `unassigned stage slot` until the next writer; an audit made under the writer lock (such as reconcile's) refuses them at once. Every ticket, lease and administrative write, and `gate run` before it runs a gate, first removes the orphan slots under the writer lock and redoes a receipt already linked in (CAL-V0-019). Barrier and reconcile writes do not recover: another writer must run first. Slots beside a `staging/active.json` descriptor are active staging, which stays refused `UNSUPPORTED` |
+| Writer killed between its first staged artifact and its head | Staging slots stay behind with no `staging/active.json` | Unlocked journal audits and `export` wait out the slots for at most two seconds (CTS-V0-008), then refuse `MALFORMED` `unassigned stage slot` until the next writer; an audit made under the writer lock (such as reconcile's) refuses them at once. Every ticket, lease and administrative write, and `gate run` before it runs a gate, first removes the orphan slots under the writer lock and redoes a receipt already linked in (CAL-V0-019). Barrier writes also remove orphan slots through `redoPendingFor` before their locked lookup (CAL-V0-019; `internal/tasks/store/barrier.go`, `internal/tasks/store/redo.go`; `TestCALV0019_BarrierRemovesOrphanStage`). Reconcile does not clear them before its locked lookup and refuses immediately (CTS-V0-008; `internal/tasks/store/reconcile.go`; `TestCTSV0008_LockedReconcileRefusesOrphanSlotWithoutWaiting`); a recovering writer must run first. Slots beside a `staging/active.json` descriptor are active staging, which stays refused `UNSUPPORTED` |
 | Derived scope misses a file the agent needs | Agent edits outside its scope | `submit` refuses `OUT_OF_SCOPE`; the agent `widen`s, or releases and reclaims with `--scope` |
 | Two disjoint scopes interfere semantically | Each passes alone, the merge breaks | Gates run at the exact rebased candidate tree before `complete` (CAL-V0-016, CAL-V0-017) |
 | Context index absent or stale | No derivation | The scope is `WHOLE_REPOSITORY`, which serializes that claim as today |
@@ -5998,7 +6028,7 @@ and removes the new configuration members.
 | CAL-V0-054 | `TestCALV0054_RosterIsDeterministicAndCapped`, `TestCALV0054_RosterStatePredicatesAndLanes`, `TestCALV0054_RosterTierCapsWaitWithoutDowngrade`, `TestCALV0054_TierCapPrecedesPressureBudget` (`internal/tasks/dispatch`) |
 | CAL-V0-055 | `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`); live OpenCode run in `docs/build-log/2026-10-01-tasks-continuous-dispatch.md`; live Claude Code and Codex runs in `docs/build-log/2026-10-01-tasks-dispatch-claude-code.md` and `docs/build-log/2026-10-01-tasks-dispatch-codex.md` |
 | CAL-V0-056 | `TestCALV0056_CancelledHealingStopsNextWrite`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
-| CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`, `TestCALV0057_StickyTierAndOperatorUnparkKeepStreak`, `TestCALV0057_ProgressOutsideSessionResetsLadder`, `TestCALV0057_NoLadderKeepsLegacyLedger`, `TestCALV0057_LedgerEscalationIsBounded` (`internal/tasks/dispatch`); `TestCALV0057_DispatchStatusShowsTierAndStreak` (`internal/tasks/cli`); live model-host qualification NOT_RUN |
+| CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`, `TestCALV0057_StickyTierAndOperatorUnparkKeepStreak`, `TestCALV0057_ProgressOutsideSessionResetsLadder`, `TestCALV0057_ProgressDuringSessionKeepsAccounting`, `TestCALV0057_StickyTierAfterProgressOutsideSession`, `TestCALV0057_CooldownProgressRequiresFreshParkingEvidence`, `TestCALV0057_NoLadderKeepsLegacyLedger`, `TestCALV0057_LedgerEscalationIsBounded` (`internal/tasks/dispatch`); `TestCALV0057_DispatchStatusShowsTierAndStreak` (`internal/tasks/cli`); V1-0726 cooldown accounting amendment proposed, pending owner acceptance; live model-host qualification NOT_RUN |
 | CAL-V0-058 | Event assertions in `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0058_SummaryReadsHostFinalText`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`, `TestCALV0058_EventLogRotatesOnceAt16MiB` (`internal/tasks/dispatch`) and `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
 | CAL-V0-068 | `TestCALV0068_RosterPressurePrecedence`, `TestCALV0068_HeldRespectsStaticCaps`, `TestCALV0068_ConfigValidation`, `TestCALV0068_DispatcherThrottlesNewLaunchesOnly`, `TestCALV0068_RestartKeepsLevelAndDisableClears`, `TestCALV0068_LedgerPressureRecordValidated`, `TestIssue497_PressureHysteresis`, `TestIssue497_UnknownRetainsLevel`, `TestIssue497_NormalizesHostCPU`, `TestIssue497_MixedMetricTransitions`, `TestIssue497_NonExemptBudget`, `TestIssue497_InvalidConfig`, `TestIssue497_SampleParsing`, `TestIssue497_BoundedFileReads`, `TestIssue497_CommandFixture`, `TestIssue497_CommandLifecycle`, `TestIssue497_LiveSampler` (`internal/tasks/dispatch`); `TestCALV0068_DispatchStatusPressure` (`internal/tasks/cli`); live Linux sampling NOT_RUN |
 | CAL-V0-109 | `TestCALV0109_StickySwapWithNormalPressureReleases`, `TestCALV0109_KernelMemoryLevelMapping`, `TestCALV0109_DarwinSysctlParsing`, `TestCALV0110_LedgerReasonAndMemoryLevelValidated`, `TestIssue497_LiveSampler` (`internal/tasks/dispatch`); live macOS dispatcher under memory pressure NOT_RUN |
@@ -6139,6 +6169,7 @@ and removes the new configuration members.
 | CAL-V0-209 | `TestCALV0208_ReadinessMemberCountsAndMilestoneDrift` (`internal/tasks/cli`; the fixture is not a Git repository, so a source observation would fail) |
 | CAL-V0-210 | `TestCALV0074_NoExecCrashTakeover` (`internal/tasks/store`) |
 | CAL-V0-211 | `TestCALV0211_ClaimWarnsOnExactDirectoryKey`, `TestCALV0211_ExactDirectoryKeyWarnings` (`internal/tasks/store`); `TestCALV0211_SetEffectsWarnsOnExactDirectoryKey` (`internal/tasks/cli`) |
+| CAL-V0-214 | `internal/tasks/cli/mutate.go`, `internal/tasks/cli/mutate_batch.go`, shared `internal/tasks/store/directory_keys.go`, both store mutation writer routes; `TestCALV0214_CreateAndRefineWarnOnExactDirectoryKey` (`internal/tasks/cli`), `TestCALV0214_CommittedEffectsStayBoundToTransaction` (`internal/tasks/store`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance

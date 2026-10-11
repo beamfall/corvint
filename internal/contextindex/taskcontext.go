@@ -2581,9 +2581,33 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 		},
 		"results": results,
 	}
+	if exclusions := taskContextExclusions(compiler.index); exclusions != nil {
+		packet["exclusions"] = exclusions
+	}
 	compiler.recencyCoverage(packet["coverage"].(map[string]any), rows)
 	compiler.lexicalCoverage(packet["coverage"].(map[string]any), rows, limit)
 	return packet
+}
+
+// TCP-V0-065 discloses corpus gaps separately from ranked evidence. Sort a
+// copy so deterministic sampling never changes the index shared by readers.
+func taskContextExclusions(index *Index) map[string]any {
+	count := len(index.Exclusions) + index.UnsupportedSuffixCount
+	if count == 0 {
+		return nil
+	}
+	ordered := slices.Clone(index.Exclusions)
+	slices.SortFunc(ordered, func(left, right Exclusion) int {
+		if order := strings.Compare(left.Path, right.Path); order != 0 {
+			return order
+		}
+		return strings.Compare(left.Reason, right.Reason)
+	})
+	samples := make([]any, 0, min(len(ordered), maxExclusionSamples))
+	for _, exclusion := range ordered[:min(len(ordered), maxExclusionSamples)] {
+		samples = append(samples, map[string]any{"path": exclusion.Path, "reason": exclusion.Reason})
+	}
+	return map[string]any{"count": count, "samples": samples}
 }
 
 // rowAction says what to do with the file for this task, one sentence per

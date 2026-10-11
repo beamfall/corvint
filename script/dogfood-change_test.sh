@@ -868,7 +868,7 @@ printf 'docs/specs/intent-a.md\tTEST-A-001\t1\tscript/a_test.go\ttest:TestA\r\n'
 printf 'docs/specs/intent-a.md\tTEST-A-001\t1\tscript/a_test.go\n' > "$test_root/links-invalid/fields.tsv"
 printf 'docs/specs/intent-a.md\tTEST-A-001\t1,,2\tscript/a_test.go\ttest:TestA\n' > "$test_root/links-invalid/empty-item.tsv"
 for _ in $(seq 257); do cat "$test_root/links-invalid/unlisted.tsv"; done |
-  sed 's/intent-c/intent-a/' > "$test_root/links-invalid/rows.tsv"
+  sed 's/intent-c/intent-a/' > "$test_root/links-rows.tsv"
 : > "$test_root/links-empty.tsv"
 (
   cd "$links_repo"
@@ -917,6 +917,11 @@ for _ in $(seq 257); do cat "$test_root/links-invalid/unlisted.tsv"; done |
     links_output=$("${links_env[@]}" DOGFOOD_OCM_LINKS="$plan" script/dogfood-change.sh "$base" 2>&1) && exit 1
     rg -q '^  ocm-links: invalid-ocm-link-plan$' <<< "$links_output"
   done
+  # DCW-V0-035: more than 256 rows is its own refusal, naming the limit and the observed count.
+  links_output=$("${links_env[@]}" DOGFOOD_OCM_LINKS="$test_root/links-rows.tsv" \
+    script/dogfood-change.sh "$base" 2>&1) && exit 1
+  rg -q '^  ocm-links: ocm-link-plan-row-limit-exceeded$' <<< "$links_output"
+  rg -q '^    fix: DOGFOOD_OCM_LINKS row limit=256 observed=257;' <<< "$links_output"
   links_output=$("${links_env[@]}" DOGFOOD_OCM_LINKS="$test_root/links-empty.tsv" \
     script/dogfood-change.sh "$base" 2>&1) && exit 1
   rg -q '^  ocm-links: empty-ocm-link-plan$' <<< "$links_output"

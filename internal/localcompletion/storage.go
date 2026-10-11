@@ -457,6 +457,20 @@ type snapshot struct {
 }
 
 func (repo *repository) snapshot(ctx context.Context) (snapshot, error) {
+	return repo.snapshotWithContent(ctx, true)
+}
+
+// driftSnapshot resolves identity and cleanliness without listing unused content.
+func (repo *repository) driftSnapshot(ctx context.Context) (snapshot, error) {
+	return repo.snapshotWithContent(ctx, false)
+}
+
+func (repo *repository) clean(ctx context.Context) (bool, error) {
+	status, err := repo.git(ctx, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+	return len(status) == 0, err
+}
+
+func (repo *repository) snapshotWithContent(ctx context.Context, content bool) (snapshot, error) {
 	var snap snapshot
 	if err := repo.refreshAuthority(); err != nil {
 		return snap, err
@@ -471,11 +485,10 @@ func (repo *repository) snapshot(ctx context.Context) (snapshot, error) {
 		return snap, err
 	}
 	snap.tree = strings.TrimSpace(string(tree))
-	status, err := repo.git(ctx, "status", "--porcelain=v1", "-z", "--untracked-files=all")
-	if err != nil {
+	snap.clean, err = repo.clean(ctx)
+	if err != nil || !content {
 		return snap, err
 	}
-	snap.clean = len(status) == 0
 	listing, err := repo.git(ctx, "ls-tree", "-rz", target)
 	if err != nil {
 		return snap, err
@@ -1236,7 +1249,24 @@ func strictLegacyAdmission(stdout, stderr []byte, status int) bool {
 		Error string `json:"error"`
 		OK    bool   `json:"ok"`
 	}
-	return strictJSON(stderr, &refusal, 64<<10) == nil && refusal.Code == "admitted-path-limit" && !refusal.OK && refusal.Error == "changed_paths exceeds 200 paths"
+	if strictJSON(stderr, &refusal, 64<<10) != nil || refusal.OK {
+		return false
+	}
+	if refusal.Code == "admitted-path-limit" {
+		return refusal.Error == "changed_paths exceeds 200 paths"
+	}
+	if refusal.Code != "trace-path-limit-exceeded" {
+		return false
+	}
+	// Accept only the exact changed-path overflow; opened/stored-path failures
+	// cannot authorize the aggregate changed-path fallback.
+	const prefix = "trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed="
+	if !strings.HasPrefix(refusal.Error, prefix) || !strings.HasSuffix(refusal.Error, ")") {
+		return false
+	}
+	count := strings.TrimSuffix(strings.TrimPrefix(refusal.Error, prefix), ")")
+	observed, err := strconv.Atoi(count)
+	return err == nil && observed > 200 && observed <= 200_000 && strconv.Itoa(observed) == count
 }
 
 func (repo *repository) captureLegacyAdmission(attempt dogfoodflow.LegacyRecordAttempt) (*aggregateLegacyCapture, error) {

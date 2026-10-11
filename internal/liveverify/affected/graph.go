@@ -1,6 +1,7 @@
 package affected
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	json "encoding/json/v2"
@@ -82,7 +83,7 @@ func BuildFS(source fs.FS, languages ...Language) (*Graph, error) {
 		return nil, ErrInvalidLanguage
 	}
 	reader := FSSource(source)
-	return build(languages, func(language Language) (Result, error) {
+	return build(context.Background(), languages, func(language Language) (Result, error) {
 		explicit, ok := language.(SourceLanguage)
 		if !ok {
 			return Result{}, fmt.Errorf("%w: no source reader for %s", ErrInvalidLanguage, language.Name())
@@ -95,12 +96,27 @@ func BuildFS(source fs.FS, languages ...Language) (*Graph, error) {
 	})
 }
 
-func Build(root string, languages ...Language) (*Graph, error) {
-	defer holdWalks(root)()
-	return build(languages, func(language Language) (Result, error) { return language.Units(root) })
+func Build(ctx context.Context, root string, languages ...Language) (*Graph, error) {
+	reader := DiskSourceContext(ctx, root)
+	return build(ctx, languages, func(language Language) (Result, error) {
+		if err := ctx.Err(); err != nil {
+			return Result{}, err
+		}
+		var result Result
+		var err error
+		if explicit, ok := language.(SourceLanguage); ok {
+			result, err = explicit.UnitsSource(reader)
+		} else {
+			result, err = language.Units(ctx, root)
+		}
+		if cancelled := ctx.Err(); cancelled != nil {
+			return Result{}, cancelled
+		}
+		return result, err
+	})
 }
 
-func build(languages []Language, observe func(Language) (Result, error)) (*Graph, error) {
+func build(ctx context.Context, languages []Language, observe func(Language) (Result, error)) (*Graph, error) {
 	if len(languages) == 0 {
 		return nil, fmt.Errorf("%w: no language plugins", ErrInvalidLanguage)
 	}
@@ -116,6 +132,9 @@ func build(languages []Language, observe func(Language) (Result, error)) (*Graph
 	seenLanguage := make(map[string]bool, len(languages))
 	frontier := make(map[string]bool)
 	for _, language := range languages {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		name := language.Name()
 		if name == "" || seenLanguage[name] {
 			return nil, fmt.Errorf("%w: language name %q", ErrInvalidLanguage, name)
@@ -128,7 +147,7 @@ func build(languages []Language, observe func(Language) (Result, error)) (*Graph
 			return nil, fmt.Errorf("language %s: %w", name, err)
 		}
 		own := make(map[string]bool)
-		if err := graph.admit(name, result, own); err != nil {
+		if err := graph.admit(ctx, name, result, own); err != nil {
 			return nil, err
 		}
 		graph.frontierBy[name] = sortedKeys(own)
@@ -143,11 +162,14 @@ func build(languages []Language, observe func(Language) (Result, error)) (*Graph
 	if err != nil {
 		return nil, err
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	graph.digest = digest
 	return graph, nil
 }
 
-func (graph *Graph) admit(namespace string, result Result, frontier map[string]bool) error {
+func (graph *Graph) admit(ctx context.Context, namespace string, result Result, frontier map[string]bool) error {
 	for _, reason := range result.Frontier {
 		if reason == "" {
 			return fmt.Errorf("%w: empty frontier reason from %s", ErrInvalidLanguage, namespace)
@@ -155,6 +177,9 @@ func (graph *Graph) admit(namespace string, result Result, frontier map[string]b
 		frontier[reason] = true
 	}
 	for _, unit := range result.Units {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if err := validUnit(unit, namespace); err != nil {
 			return fmt.Errorf("language %s unit %q: %w", namespace, unit.ID, err)
 		}

@@ -2,6 +2,7 @@ package golang_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"os/exec"
@@ -37,7 +38,7 @@ func TestSourceParsedEdgesCoverEveryEdgeTheToolchainReports(t *testing.T) {
 	if len(truth) < 50 {
 		t.Fatalf("ground truth too small: %d packages", len(truth))
 	}
-	result, err := golang.New().Units(root)
+	result, err := golang.New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatalf("units: %v", err)
 	}

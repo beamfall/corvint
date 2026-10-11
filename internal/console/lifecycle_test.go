@@ -47,35 +47,46 @@ func ownedFixture(t *testing.T, mode string) (string, string) {
 // writing its pidfile under host contention.
 func waitChild(t *testing.T, path string) int {
 	t.Helper()
-	pid, _ := waitChildOrRunner(t, path, nil)
+	pid, _, _ := waitChildOrRunner(t, path, nil)
 	return pid
 }
 
-// waitChildOrRunner returns pid 0 with the runner's error when the runner
-// joins before the fixture publishes its descendant, distinguishing a runner
-// that ended the fixture during shell startup from a stuck fork.
-func waitChildOrRunner(t *testing.T, path string, done <-chan error) (int, error) {
+// waitChildOrRunner returns the published descendant, and the runner's error
+// with joined set when the runner has already joined. A runner that joins
+// between a pidfile poll and the next one is not early: the pidfile is read
+// once more after the join, so a fixture that published its descendant and
+// exited within one poll interval still reports it. pid 0 with joined set
+// means the runner ended the fixture during shell startup, not a stuck fork.
+func waitChildOrRunner(t *testing.T, path string, done <-chan error) (pid int, runErr error, joined bool) {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
 	var lastErr error
 	for time.Now().Before(deadline) {
-		raw, err := os.ReadFile(path)
-		if err == nil {
-			pid, _ := strconv.Atoi(strings.TrimSpace(string(raw)))
-			if pid > 0 {
-				return pid, nil
-			}
-		} else {
+		pid, err := readChildPID(path)
+		if pid > 0 {
+			return pid, nil, false
+		}
+		if err != nil {
 			lastErr = err
 		}
 		select {
 		case runErr := <-done:
-			return 0, runErr
+			pid, _ := readChildPID(path)
+			return pid, runErr, true
 		case <-time.After(5 * time.Millisecond):
 		}
 	}
 	t.Fatalf("child not started within 10s: last pidfile read error=%v", lastErr)
-	return 0, nil
+	return 0, nil, false
+}
+
+func readChildPID(path string) (int, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	pid, _ := strconv.Atoi(strings.TrimSpace(string(raw)))
+	return pid, nil
 }
 
 // assertChildGone is likewise a hang detector: five seconds bounds a stuck
@@ -124,7 +135,7 @@ func TestConsoleProcessLifecycle(t *testing.T) {
 				defer cancel()
 				done := make(chan error, 1)
 				go func() { _, _, err := runTool(ctx, filepath.Dir(binary), nil, timeout, 1024, binary); done <- err }()
-				pid, runErr := waitChildOrRunner(t, path, done)
+				pid, runErr, joined := waitChildOrRunner(t, path, done)
 				if pid == 0 && mode == "timeout" && boundaryFailure(runErr) && timeout < 16*time.Second {
 					timeout *= 2
 					continue
@@ -137,6 +148,11 @@ func TestConsoleProcessLifecycle(t *testing.T) {
 						t.Fatal("child was not live before cancellation")
 					}
 					cancel()
+				}
+				if joined {
+					// The runner joined after the fixture published its
+					// descendant; replay its result for the checks below.
+					done <- runErr
 				}
 				select {
 				case err := <-done:

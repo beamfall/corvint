@@ -530,3 +530,88 @@ func TestDCWV0034VerificationCommandValidationBounds(t *testing.T) {
 		}
 	}
 }
+
+// DCW-V0-036: current and stored lists retain the inclusive bound and observed count.
+func TestTracePathLimitDiagnostic(t *testing.T) {
+	for _, label := range []string{"opened_paths", "changed_paths"} {
+		paths := make([]string, 201)
+		tracked := map[string]struct{}{}
+		for i := range paths {
+			paths[i] = fmt.Sprintf("p/%03d.go", i)
+			tracked[paths[i]] = struct{}{}
+		}
+		if label == "changed_paths" {
+			for _, count := range []int{200, 201} {
+				_, err := AdmissibleCurrentPaths(paths[:count], paths[:count])
+				if count == 200 {
+					if err != nil {
+						t.Fatal(err)
+					}
+					continue
+				}
+				if err == nil || err.Error() != "trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed=201)" || AdmissionFailureReason(err) != "admitted-path-limit" || PathLimitFailureReason(fmt.Errorf("wrapped: %w", err)) != "trace-path-limit-exceeded" {
+					t.Fatalf("admission: %v", err)
+				}
+			}
+		}
+		for _, stored := range []bool{false, true} {
+			for _, count := range []int{200, 201} {
+				var err error
+				if stored {
+					_, err = normalizeStoredPaths(paths[:count], label)
+				} else {
+					_, err = normalizeCurrentPaths(paths[:count], label, testRevision, tracked)
+				}
+				if count == 200 {
+					if err != nil {
+						t.Fatal(err)
+					}
+					continue
+				}
+				want := fmt.Sprintf("trace-path-limit-exceeded: %s exceeds 200 paths (limit=200 observed=201)", label)
+				if err == nil || err.Error() != want || PathLimitFailureReason(fmt.Errorf("wrapped: %w", err)) != "trace-path-limit-exceeded" {
+					t.Fatalf("stored=%v: %v, want %s", stored, err, want)
+				}
+			}
+		}
+	}
+}
+
+func TestTracePathLimitCodeExcludesOtherFailures(t *testing.T) {
+	paths := make([]string, 513)
+	for i := range paths {
+		paths[i] = fmt.Sprintf("p/%03d.go", i)
+	}
+	_, err := AdmissibleAggregateCurrentPaths(paths, paths)
+	if AdmissionFailureReason(err) != "aggregate-admitted-limit" || PathLimitFailureReason(err) != "" {
+		t.Fatalf("aggregate: %v", err)
+	}
+	if PathLimitFailureReason(fmt.Errorf("trace-path-limit-exceeded: arbitrary prose")) != "" {
+		t.Fatal("classified untyped prose")
+	}
+}
+
+// DCW-V0-036: schema-v2/v3 validation preserves the public path code and list name.
+func TestTypedStoredTracePathLimitCode(t *testing.T) {
+	paths := make([]string, 201)
+	for i := range paths {
+		paths[i] = fmt.Sprintf("p/%03d.go", i)
+	}
+	for _, schema := range []int{SchemaVersionV2, SchemaVersionV3} {
+		for _, label := range []string{"opened_paths", "changed_paths"} {
+			record := Record{SchemaVersion: schema, Revision: testRevision, Task: "boundary", Outcome: "passed", OpenedPaths: []string{}, ChangedPaths: []string{}, TypedVerification: []VerificationEntry{}}
+			if schema == SchemaVersionV3 {
+				record.Producer = ProducerCLI
+			}
+			if label == "opened_paths" {
+				record.OpenedPaths = paths
+			} else {
+				record.ChangedPaths = paths
+			}
+			err := validateTypedRecord(record, testRevision)
+			if PathLimitFailureReason(err) != "trace-path-limit-exceeded" || !strings.Contains(err.Error(), label+" exceeds 200 paths (limit=200 observed=201)") {
+				t.Fatalf("schema=%d list=%s: %v", schema, label, err)
+			}
+		}
+	}
+}

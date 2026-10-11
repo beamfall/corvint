@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116)
+Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116)/experimental
+- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -71,6 +71,14 @@ no-op and never blocks unrelated coding. Until a separately accepted closing aut
 the host through that legacy profile. Accepted decision 0009 option 2 separately permits the opt-in
 local completion policy in `local-completion-policy-v0.md`; its new envelope and native Stop policy
 do not reinterpret this Frontier result.
+
+For the Claude Code and Codex native plugin paths, `--adapter-version` and the receipt's
+`adapter.adapterVersion` carry the adapter wire-format version `0.1.0`, named
+`adapterWireVersion` in `cmd/corvint/host_adapter.go`. This is independent of the shipped plugin
+package version. The local completion reader admits that same wire value for both hosts; the
+legacy Claude harness event also sends it. V1-0444 clarifies the existing AHI-001 transport
+contract without changing the flag, JSON key, value, receipt bytes, or admitted tuples. Pi's
+separate exact extension tuple remains governed by AHI-024.
 
 ## Requirements
 
@@ -255,7 +263,8 @@ do not reinterpret this Frontier result.
   `integrations/opencode/package.json`) MUST advance whenever that package's shipped content changes since its
   version was last bumped. Shipped content is every tracked path under the package directory except its version
   files and `README.md`, so a shipped file added later is covered; opencode's own published `files` list defines
-  its set instead. This is distinct from `AHI-010`'s per-release compatibility publication: a host that
+  its set instead, including `mcp.example.json` and all paths under `skills`
+  (clarification accepted, decision 0514). This is distinct from `AHI-010`'s per-release compatibility publication: a host that
   caches an installed package by version (observed for Claude Code, `docs/build-log/2026-09-10.md`) never re-stages
   changed content under an unchanged version, so a stale version number silently withholds a fix or feature from an
   already-installed host. The Codex package's build-metadata suffix (`0.1.0+codex.<timestamp>`) advances by refreshing
@@ -518,6 +527,13 @@ do not reinterpret this Frontier result.
   names the host version the pin hooks are registered for, that their verdict reaches the user
   only, and that this packet is the model-facing rehydration and, on a host without the compaction
   events, the only one.
+- `AHI-053`: accepted, decision 0517 (V1-1128). Amendment to `AHI-031`
+  and the no-writer wording of `AHI-029`: stale Claude/Codex notices retain their frame, code,
+  channels and exact manual argv but may report a background refresh started, already running,
+  disabled or failed to start under `IDX-SNAP-V0-031` through `IDX-SNAP-V0-036`. The current event
+  remains fail-open and never claims completion. Only the separately exec'd index writer and
+  its coordination lock are admitted; ordinary reads remain non-mutating. Rollback is
+  `CORVINT_INDEX_AUTO_REFRESH=0` or reverting this experimental amendment.
 - `AHI-031`: (accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
   matches the tree and the automatic `dogfood event` read falls back to its in-memory build
   (`IDX-SNAP-V0-012`), an event whose deadline then expires MUST report
@@ -972,6 +988,54 @@ do not reinterpret this Frontier result.
   callers report as a Git start failure.
   Rollback: revert `internal/groupreap/live.go`, the `StartLive` call sites and the `KillLive`
   call in `exitProcess`. Children again outlive an exiting adapter until their own deadline.
+- `AHI-049`: (accepted by decision 0477, amended by decision 0479; V1-1040, V1-1055) Every Setpgid or Setsid spawner reachable from a point where an
+  adapter abandons running work and exits (the `AHI-017` watchdog's `recoveredHostAdapterOutput`,
+  the `LCP-V0-008` `dogfoodEvent` deadline, and `piAdapterResult`) MUST record the group it leads
+  for the `AHI-048` exit kill, or be documented as unreachable from those points. The inventory
+  is the table in `docs/build-log/2026-10-09-v1-1040-adapter-exit-procgroup-registry.md` and MUST
+  be redone when a new spawner or a new abandon point is added. `internal/procgroup` `Run`, which
+  `captureSourceHandoff` reaches through `sourceGit`, records its own group with
+  `groupreap.StartLive` and releases it with `groupreap.ReleaseLive` after its last pre-reap group
+  signal and before it allows the reap, so the exit kill stays one pre-reap group signal and no
+  numeric group signal follows the reap. A failed exit observation (for example ECHILD after
+  another reaper) releases the record at once, and `Run` then sends no group signal or probe
+  and reports the cleanup as unproved. (V1-1055) `Run` proves the group's quiescence before that
+  release, while the exited leader is held unreaped and its PID pins the group ID, with
+  `groupreap.HeldGroupQuiet` (the `PGO-V0-006` Linux /proc proof, or Darwin signal 0 confirmed by a
+  zombie-only process table); after the release no numeric group operation, signal 0 included,
+  targets the group ID. Every numeric group signal, probe and proof of `Run` is decided under the
+  same lock as the release, so none follows it on any path, including the waitid goroutine's
+  release after a foreign reap. Such reaping stays unsupported (`AHI-050`): between the foreign reap
+  and that release the group ID is not pinned. An exit not observed by the shutdown deadline, a
+  proof failure, or a live member at the deadline reports the cleanup as unproved. A `JoinAncestorProcessGroup` run leads no
+  group and is not recorded; its observed exit is its quiescence. In an owned worker, the `xcrun --find git` lookup of `internal/gitstatus` stays in the
+  worker's group (`AHI-048`).
+  Acceptance: `TestAHI049ExitProcessKillsProcgroupGroup` runs `exitProcess` in a helper process
+  while a `procgroup.Run` child and its sleeping member are live, and requires both gone; it fails
+  before this change. `TestAHI049RunReleasesGroupBeforeReap` requires `Run` to release the record
+  exactly once while the leader is still unreaped.
+  `TestAHI049FailedExitObservationSendsNoGroupSignal` requires release before `BeforeStop`, no
+  group signal, and unproved cleanup after an injected ECHILD. `TestAHI048LookupKeepsOwnedWorkerGroup` covers
+  the owned-worker lookup. `TestV11055NoNumericGroupProbeAfterReap` requires no numeric group
+  operation after the release while a killed sleeping member is proved gone; it fails before
+  V1-1055. `TestV11055QuiescenceProvedWhileLeaderHeld` requires every proof while the leader is
+  unreaped and a failed proof to leave the cleanup unproved.
+  `TestV11055NoGroupOperationAfterConcurrentRelease` reaps the leader from another goroutine during
+  timeout cleanup and requires no numeric group operation after the resulting release, with the
+  cleanup unproved; it fails on the first V1-1055 revision.
+  Non-goals: other binaries (`corvint-go-test-provider`, `tools/*`, `conformance/*`, interop
+  runners), which never run `exitProcess`; spawners linked into `corvint` but unreachable from an
+  abandon point (`workContain`, `doccompiler`, `taskman` reads, `liveverify/mutate`,
+  `groupreap.RunContainedRetiring`) are listed and left unrecorded. The native hook's host
+  watchdog is a host `SIGKILL`, not an abandon point.
+  Failure modes: the inventory comes from a static VTA call graph with the string-dispatched
+  `runContext` edges narrowed by hand, so a dynamic dispatch it misses can hide a reachable
+  spawner. A `Run` start refused after the exit kill reports the process start failure with
+  `groupreap.ErrExiting`. The quiescence proof of `procgroup` runs before the reap (V1-1055). An observation that fails after `Run`'s post-`BeforeStop` poll can
+  still meet that run's own termination signal.
+  Rollback: revert the `StartLive` and `ReleaseLive` calls in `internal/procgroup` and
+  `groupreap.ReleaseLive`; `procgroup` children again outlive an exiting adapter until their own
+  timeout.
 - `AHI-050`: (accepted by decision 0474; V1-0371) The OpenCode and Gemini adapters MUST send a numeric process-group
   signal to their owned group only while the group's leader is unreaped. For Node, an unrecorded
   `exitCode` and `signalCode` is that proof only when read outside libuv's reap batch: libuv reaps
@@ -1123,6 +1187,10 @@ store. A passing MCP smoke test alone cannot promote a platform to fully support
 
 ## Limits, failure policy, and non-goals
 
+Accepted, decision 0517 (V1-1128; `AHI-053`): failed or disabled background refresh
+retains the stale code and manual argv. A started notice is not completion; later child failures
+remain stale on the next event. No daemon, synchronous hook build or authority is introduced.
+
 - Lifecycle input is at most 131,072 bytes; task text is at most 2,000 Unicode characters and
   16,384 UTF-8 bytes; path and evidence arrays contain at most 256 entries; the output budget is at
   least 4,096 bytes and bounds the complete response, not merely its nested Corvint packet. Native
@@ -1169,7 +1237,7 @@ there, which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:958@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
+| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:962@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
 | `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:119@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
 | `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:88@5fbc4775` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
@@ -1261,6 +1329,11 @@ format needs migration.
 
 ## Rollout, rollback, and promotion
 
+Accepted, decision 0517 (V1-1128; `AHI-053`): `CORVINT_INDEX_AUTO_REFRESH=0` restores
+manual-only notices for new events. Revert the amendment to restore the prior implementation;
+an already started child retains its finite bound. Owner acceptance and live qualification remain
+separate from fixture evidence.
+
 1. Ship the shared lifecycle adapter and native packages as `FALLBACK` developer previews.
 2. Pin and publish host-version/OS conformance results independently per surface.
 3. Add an accepted harness execution authority and closing Frontier profile; rerun all stop and
@@ -1284,6 +1357,10 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 
 ## Traceability
 
+For AHI-001, `TestAHI001AdapterWireVersion` in `cmd/corvint/local_completion_event_test.go`
+pins the literal `0.1.0`, both native plugin producers and local completion reader acceptance,
+and rejection of package versions as wire versions (V1-0444).
+
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
 | `AHI-001`, `003`, `005`, `014` | shared `corvint harness event` core and `internal/projectpath` | canonical receipt, bounds, privacy, revision, and event fixtures; `TestHostAdapterAbsentPathContainment` and `TestRelativeAliasesAndUncertainty` cover `AHI-014` path containment, and the `integrations/host-adapters.test.mjs` test `AHI-014 Gemini classifies changed paths on resolved symlinks like internal/projectpath` under `TestHostAdapterJavaScriptHosts` covers the Gemini hook's symlink resolution; `TestClaudeAdapterForkSessionStartIsResume` covers the Claude `fork` start source; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` drives the Claude `SessionStart(source=compact)` hook entrypoint over a mixed dirty worktree and requires the tracked impact, the untracked count and `compaction-untracked-paths-not-rehydratable` from the receipt's own snapshot; `TestQualifiedLifecycleCompactSessionStartRehydratesDirtyPaths` requires the same for the qualified profile under FULL and FALLBACK and refuses a reordered, extra or dropped code; `TestAHI014EventExpectationsAreHostConsistent` (`conformance/harness-event-v0/host_schema_test.go`) pins each `common-logical-interaction.json` event's closed host set and requires every present host's golden `expected` object to be byte-identical, so a per-host field or host-membership mutation of that fixture fails here |
@@ -1295,6 +1372,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-044` | `cmd/corvint/host_exit.go` (`adapterStdout`, `hookStdout`, `exitProcess`), `cmd/corvint/signals_unix.go` `notifyBrokenPipe`, `internal/gitstatus/scratch.go`, `integrations/gemini-cli/hooks/corvint-hook.mjs` | `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (every shipped Claude Code and Codex hook × seven faults: exit 0, named cause, spawn cap, no shell, no writes outside live ledgers), `internal/gitstatus/scratch_test.go` (`TestAHI044ScratchRemovedAtClose`, `TestAHI044ScratchCloseRacesReads`) and the AHI-044 Gemini case under `TestHostAdapterJavaScriptHosts` |
 | `AHI-045`–`AHI-047` (accepted by decision 0441; V1-0939, V1-0942) | `cmd/corvint/host_adapter_projection.go` (`hookContextProjection`, `hookCompaction`, `claudeSubagent`, `claudeSessionGuidance`, `withHookContextSuffix`), `renderAdapterResult` and both adapters in `cmd/corvint/host_adapter.go`, `recordDeliveredPacket`, `conformance/host-lifecycle-v1` | `cmd/corvint/host_adapter_projection_test.go` (`TestAHI046HookContextProjectionSilenceRule`, `TestAHI046SilentProjectionRendersNothing`, `TestAHI047GuidanceIsMainThreadSessionStartOnly`, `TestAHI046CodexPromptSilenceAndProjection`); `TestClaudeNativeDogfoodLifecycle` subtests for the first blocked Stop, the anchored prompt, the silent anchorless prompt and main-thread versus `agent_id` SessionStart; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (projected compaction results equal the receipt's); the silent-prompt case of `TestClaudeAdapterUnplannedReadCallSites`; `conformance/host-lifecycle-v1` projection case |
 | `AHI-048` (proposed; V1-0734) | `internal/groupreap/live.go` (`StartLive`, `KillLive`), the release in `groupreap.Wait`, `groupreap.Drain` and the `Owner` reap, `StartLive` in `internal/gokernel/repository.go`, `Drain` in `internal/contextindex/git_execution.go`, `internal/cem/gitrun`, `internal/gitstatus/executable.go`; `cmd/corvint/host_exit.go` `exitProcess` | `cmd/corvint/host_exit_unix_test.go::TestAHI048ExitProcessKillsLiveChildGroups`; `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (slow-Git outlive bound, `failOpenOutliveBound`); `internal/gitstatus/executable_unix_test.go::TestAHI048LookupKeepsOwnedWorkerGroup`; `internal/groupreap/live_unix_test.go` (`TestAHI048KillLiveRetiresRecordedGroups`, `TestAHI048StartLiveRecordsOnlyOwnGroups`, `TestAHI048WaitAndOwnerReleaseBeforeReap`, `TestAHI048DrainKeepsGroupRecordedUntilReap`, `TestAHI048ConcurrentStartsReleasesAndKill`) |
+| `AHI-049` (accepted by decision 0477, amended by decision 0479; V1-1040, V1-1055) | `internal/procgroup/process_posix.go` (`startProcessCommand`, `releaseProcessCommand`), the release before the reap in `internal/procgroup/process.go` `run`, `internal/groupreap/live.go` `ReleaseLive`; V1-1055 pre-reap `proveProcessGroupQuiescent`, the `groupOwnership` lock of `internal/procgroup/process.go` and `internal/groupreap/owner_waitid.go` `HeldGroupQuiet` | `cmd/corvint/host_exit_unix_test.go::TestAHI049ExitProcessKillsProcgroupGroup`; `internal/procgroup/process_posix_test.go` (`TestAHI049RunReleasesGroupBeforeReap`, `TestAHI049FailedExitObservationSendsNoGroupSignal`, `TestV11055NoNumericGroupProbeAfterReap`, `TestV11055QuiescenceProvedWhileLeaderHeld`, `TestV11055NoGroupOperationAfterConcurrentRelease`); `internal/gitstatus/executable_unix_test.go::TestAHI048LookupKeepsOwnedWorkerGroup` |
 | `AHI-050` (accepted by decision 0474; V1-0371) | `requestGroupTermination`, `terminatePendingGroups`, `signalGroup`, `holdUnreaped`, `cleanupConfirmed` and `groupGone` in `integrations/opencode/src/runtime.js`; `terminateGroup`, `signalGroup`, `holdUnreaped` and `cleanupConfirmed` and the bounded `settle` in `integrations/gemini-cli/hooks/corvint-hook.mjs` | `integrations/host-adapters.test.mjs` under `TestHostAdapterJavaScriptHosts`: `V1-0371 <host> timeout and cancellation kill a TERM-ignoring descendant before the leader is reaped`, `V1-0371 <host> normal exit with a surviving descendant reports unconfirmed cleanup, never success`, `V1-0371 <host> timeout names a failed group kill instead of the timeout`, for `opencode` and `gemini`; `V1-0371 OpenCode never signals a leader reaped in the same batch as a sibling exit`, `V1-0371 Gemini never signals a leader reaped in the same batch as a sibling exit`, `V1-0371 Gemini completes with unconfirmed cleanup when a descendant keeps the leader's stdout open`, `V1-0371 Gemini exits after reporting a leader whose group kill failed`, `V1-0371 OpenCode concurrent cancellations share one SIGTERM grace` |
 | `AHI-051` (proposed; V1-1070, V1-1071) | `integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json`, `hooks/hooks.json`, `skills/*/SKILL.md`, `integrations/claude-code/.claude-plugin/marketplace.json` | `integrations/host-adapters.test.mjs` (`AHI-051 Claude Code plugin presents complete metadata, plain status messages and read-only skills`); `claude plugin validate`; `conformance/host-lifecycle-v1` discovery case |
 | `AHI-036`–`AHI-041` | `integrations/opencode/src/workbench.js`, `workbench-tui.tsx`, `session-metrics.js`, `task-metrics.js`, `qualification.js`, and inspector RPC | `integrations/opencode/workbench.test.mjs`, focused AHI-036 task-detail receipt test in `task-metrics.test.mjs`, and stock OpenCode 2 terminal witness; exact-package AHI-032 qualification remains separate |
@@ -1305,6 +1383,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-029` | both compaction events | `TestAHI029ClaudeCompactionHooksMutateNothing` (byte-size snapshot of the whole fixture including `.git` is unchanged across a pin and its verification); `TestAdapterDegradationAdmitsCompactionEventsAndCodes` (every compaction degradation is admitted to the SOL-V0-010 ledger on both events) |
 | `AHI-030` | `cmd/corvint/host_adapter_compaction.go` (`compactSessionDisclosure`), Claude branch of `runClaudeAdapter` | `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (compact `SessionStart` additionalContext begins with the disclosure) |
 | `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`, `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`, `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); V1-0286 amendment (accepted, decision 0422): `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
+| AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |
 | `AHI-011`, `015` | embedded `internal/gokernel/host-schema.json` admission table and shared lifecycle command | schema/admission tests plus one host-keyed golden fixture per admitted host |
 | `AHI-002`, `006..010` | four native packages and release matrix | install/uninstall, lifecycle, degradation, and version fixtures; for `AHI-010`, the `integrations/host-adapters.test.mjs` test under `TestHostAdapterJavaScriptHosts` binding each `integrations/compatibility.json` row to its shipped declaration and its row's adapter version to the package manifest version, and asserting `globalDegradations` disjoint from `receiptDegradationPolicy.recognised`; for the owned-group cleanup governed by `AHI-050` (accepted by decision 0474, superseding the earlier `AHI-009` kill text), the `V1-0371` OpenCode and Gemini timeout-and-cancellation, normal-exit, failed-kill, same-batch, inherited-pipe and shared-grace tests in that file, whose `orphan-hang` and `orphan-valid` fixture descendant ignores SIGTERM and closes its stdio |
@@ -1312,7 +1391,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-017` | `cmd/corvint/host_adapter.go` declared-kill table and watchdog; `integrations/gemini-cli/hooks/corvint-hook.mjs` derived budget | `TestAHI017AdapterHostKillMatchesDeclaredHooks` (which also fails on a matcherless `FileChanged` group), `TestAHI017HostAdapterWatchdogDegradesBeforeHostKill`, `TestHostAdapterPanicDegradesInsteadOfBlocking`, and the two `AHI-017` Gemini tests in `integrations/host-adapters.test.mjs` under `TestHostAdapterJavaScriptHosts` |
 | `AHI-018` | `integrations/gemini-cli/hooks/corvint-hook.mjs` argument parser and the `host-adapters.test.mjs` fixture harness | the `AHI-017` Gemini declared-kill test, which pins the shipped command to carry no override, under `TestHostAdapterJavaScriptHosts` |
 | `AHI-019` | `cmd/corvint/host_adapter.go` (`postToolChangeOutOfRoot`, `invokeLegacyClaudeEvent`, `claudeReceiptOutput`, `claudeDegradationsRecognised`, `renderAdapterResult`) | `TestClaudeAdapterRoutineReceiptAndExpectedDegradationCarryNoNotice` asserts no output for an out-of-root Edit target and a `PostToolUse` additionalContext receipt with no `systemMessage` for an in-root one; `TestAdapterSilentAbstentionsAreLedgered` requires the out-of-root Write target's `{}` output and its `post-tool-path-not-project-relative` ledger row (V1-0746); `TestAHI019ClaudePostToolReceiptNamesEveryDegradation` drives a realistic Edit `PostToolUse` payload through the hook entrypoint and requires the receipt's degradation codes in that additionalContext; `TestAHI019ClaudeReceiptRefusesUnrecognisedDegradation` calls `claudeReceiptOutput` with an unrecognised code and requires the named `corvint-degradations-unrecognised` fault `systemMessage` without the code; `TestAHI019CodexWholeReceiptRefusesUnrecognisedDegradation` and `TestAHI019ClaudeDogfoodEnvelopeRefusesUnrecognisedDegradation` call `renderAdapterResult` with an unrecognised code and require exactly the Codex and Claude Code fault output, which carries no code, and the Codex test also requires that fault for a string, object, or `null` `degradations` value |
-| `AHI-020` | the four host package manifests listed in the requirement body | `script/check-host-package-versions.sh` (`make host-package-versions-check`) compares, per package, the last commit that changed a version field against the last commit that changed any other shipped file, by Git ancestry between the two commits rather than by committer-second timestamp (two distinct commits, such as either side of a rebase, can share a committer second); `script/check-host-package-versions_test.sh` proves it fails on a content-only change, passes after a version bump, and fails on a newly added shipped file with no bump, and its fifth case proves a bump and a later content change sharing one committer second still fails; CI's `doc-gates` job (`.github/workflows/ci.yml`, full-history checkout) runs both on every pull request, merge-queue entry and main push (V1-0782), not only in the nightly `make gate` |
+| `AHI-020` | the four host package manifests listed in the requirement body | `script/check-host-package-versions.sh` (`make host-package-versions-check`) compares, per package, the last commit that changed a version field against the last commit that changed any other shipped file, by Git ancestry between the two commits rather than by committer-second timestamp (two distinct commits, such as either side of a rebase, can share a committer second); `script/check-host-package-versions_test.sh` proves it fails on a content-only change, passes after a version bump, and fails on a newly added shipped file with no bump, its fifth case proves a bump and a later content change sharing one committer second still fails, and its OpenCode cases cover skills-only additions, MCP-example edits, subsequent bumps and unpublished-file exclusions (V1-0452); CI's `doc-gates` job (`.github/workflows/ci.yml`, full-history checkout) runs both on every pull request, merge-queue entry and main push (V1-0782), not only in the nightly `make gate` |
 | `AHI-021` | `cmd/corvint/host_adapter.go` (`claudeExpectedDegradation`, `claudeDegradedOutput`, `renderClaudeContext`) | `TestClaudeAdapterRoutineReceiptAndExpectedDegradationCarryNoNotice` asserts `prompt-over-query-bound` is `UserPromptSubmit` additionalContext with no `systemMessage`; `TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice` asserts an expired dogfood event deadline is `UserPromptSubmit` additionalContext with no `systemMessage`; `TestClaudeAdapterFaultKeepsNotice` asserts a `missing-session-identity` fault inside a repository keeps its `systemMessage`; `TestClaudeAdapterNotARepositoryIsSilent` asserts Claude `session-start`, Edit and Write `post-tool`, and Codex `SessionStart` outside a Git repository emit nothing and create no `.corvint` (decision 0178) |
 | `AHI-022` | `integrations/gemini-cli/hooks/corvint-hook.mjs` (`EXPECTED_DEGRADATIONS`, `degradation`, `successOutput`); `integrations/opencode/src/index.js` (`report`, `record`, `CHANGED_TARGETS`, `afterTool`, `EVENT_HANDLERS`, `MAX_FILE_CHANGE_PATHS`, `queueFileChange`, `drainFileChanges`); `integrations/opencode/src/runtime.js` (`receiptIdentity`); `internal/gokernel/harness.go` (`takeAdapterCodes`) | under `TestHostAdapterJavaScriptHosts`, the `integrations/host-adapters.test.mjs` tests `AHI-022 Gemini routine receipt and expected degradation carry no notice`, `AHI-022 Gemini fault keeps notice`, `AHI-022 decision 0178 Gemini outside a Git repository emits and invokes nothing`, `AHI-022 OpenCode routine receipt goes to the info log and a fault keeps its warning` (including the structured suffix refusal), `AHI-022 decision 0378 OpenCode outside a Git repository registers and invokes nothing`, `AHI-022 decision 0378 OpenCode repository detection follows subdirectories, symlinks and linked worktrees`, `AHI-022 decision 0379 OpenCode lifecycle against the real binary writes nothing to the terminal` (the real `cmd/corvint` build, which pins the `invalid-arguments` non-repository refusal the permissive fixture cannot), `AHI-022 V1-0746 OpenCode names the path cap and an out-of-project path at info level` (including the `adapterCodes` each carries), `SOL-V0-010 AHI-022 V1-0767 OpenCode path abstentions reach the self-observation ledger against the real binary`, `AHI-022 V1-0773 OpenCode file-change of 101 to 256 paths stays within Core's impact bound against the real binary`, and `AHI-022 OpenCode serializes a burst of file-change subprocesses`; `CRB-V0-010 CRB-V0-011 OpenCode loaded plugin keeps exact aliases, option precedence, session isolation, payload bounds and repeat-stop suppression` covers the `execute.after` changed-path mapping and the `app.version` host version |
 | `AHI-023` | `cmd/corvint/host_adapter.go` (`claudeHostVersion`, `dogfoodHostVersions`); `cmd/corvint/local_completion_event.go` (`dogfoodDegradations`) | `TestClaudeAdapterReceiptOmitsHostVersionUnknown` asserts a Claude Code receipt carries `unreported-by-hook-api` and only `frontier-authority-unavailable`, while codex keeps `host-version-unknown`; `TestDogfoodEventReadOnlyEnrolledStopAndPrompt` renders a codex `host-version-unknown` envelope through `renderAdapterResult` and requires framed additionalContext, so the recognised code is not refused; the `integrations/host-adapters.test.mjs` AHI-023 test under `TestHostAdapterJavaScriptHosts` asserts the Claude Code plugin's `compatibility.json` discloses `host-version-unreported-by-hook-api` and the Codex plugin's discloses `host-version-unknown` |

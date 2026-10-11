@@ -1,6 +1,7 @@
 package dotnet
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"slices"
@@ -30,7 +31,7 @@ func TestUnitsDetectsEverySupportedFrameworkAndProducesRunnableFilters(t *testin
 	write(t, root, "Tests/NUnitTests.cs", "namespace Example;\n[TestFixture] public class NUnitTests { [Test] public void TestCase() {} [TestCase(1)] public void RowCase(int value) {} [TestCaseSource(nameof(Cases))] public void SourceCase(int value) {} }\n")
 	write(t, root, "Tests/MSTests.cs", "namespace Example;\n[TestClass] public class MSTests { [TestMethod] public void MethodCase() {} [DataTestMethod] public void DataCase() {} }\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +72,7 @@ func TestProjectReferencesSelectTheDependentTestClosure(t *testing.T) {
 	write(t, root, "Solo/Solo.csproj", `<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><IsTestProject>true</IsTestProject></PropertyGroup><ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" /><PackageReference Include="NUnit" /><PackageReference Include="NUnit3TestAdapter" /></ItemGroup></Project>`)
 	write(t, root, "Solo/SoloTests.cs", "namespace Solo; public class SoloTests { [Test] public void Alone() {} }\n")
 
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +98,7 @@ func TestAmbiguousAndDynamicDiscoveryRaiseFrontiers(t *testing.T) {
 	write(t, root, "Tests/EscapedNamespaceTests.cs", "namespace @class; public class EscapedNamespaceTests { [Test] public void Works() {} }\n")
 	write(t, root, "Tests/Login.feature", "Feature: Login\n  Scenario: success\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +118,7 @@ func TestMissingVSTestSdkRaisesRunnerFrontier(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "Tests/Tests.csproj", `<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><IsTestProject>true</IsTestProject></PropertyGroup><ItemGroup><PackageReference Include="xunit" /><PackageReference Include="xunit.runner.visualstudio" /></ItemGroup></Project>`)
 	write(t, root, "Tests/Tests.cs", "namespace Tests; public class Tests { [Fact] public void Works() {} }\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +133,7 @@ func TestTestProjectWithoutRecognizedFrameworkWidensScope(t *testing.T) {
 	write(t, root, "Lib/Calc.cs", "namespace Lib; public static class Calc { public static int Add(int a, int b) => a + b; }\n")
 	write(t, root, "Tests/Tests.csproj", `<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" /><PackageReference Include="xunit.core" /><PackageReference Include="xunit.runner.visualstudio" /><ProjectReference Include="..\Lib\Lib.csproj" /></ItemGroup></Project>`)
 	write(t, root, "Tests/CalcTests.cs", "namespace Tests; public class CalcTests { [Fact] public void Adds() {} }\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +147,7 @@ func TestAttributesWithoutProjectEvidenceAreNotClaimedAsTests(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "App/App.csproj", `<Project Sdk="Microsoft.NET.Sdk" />`)
 	write(t, root, "App/Fact.cs", "namespace App; public class FactAttribute : System.Attribute {} public class Example { [Fact] public void Ordinary() {} }\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +178,7 @@ func TestNonCSharpProjectReferencingCSharpWidensInsteadOfExcluding(t *testing.T)
 		write(t, root, "Tests/Tests."+extension, `<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><IsTestProject>true</IsTestProject></PropertyGroup><ItemGroup><PackageReference Include="xunit" /><PackageReference Include="Microsoft.NET.Test.Sdk" /><ProjectReference Include="../Core/Core.csproj" /></ItemGroup></Project>`)
 		write(t, root, "Tests/Tests.fs", "module Tests\n")
 
-		graph, err := affected.Build(root, New())
+		graph, err := affected.Build(context.Background(), root, New())
 		if err != nil {
 			t.Fatal(err)
 		}

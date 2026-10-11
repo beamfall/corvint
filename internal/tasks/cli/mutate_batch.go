@@ -78,7 +78,15 @@ func refineBatchCommand(env Env, cmd []string, flags mutateFlags) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	return batchResult(cmd, flags.requestID, issued, targets, report)
+	res := batchResult(cmd, flags.requestID, issued, targets, report)
+	for _, entry := range report.Entries {
+		if entry.Report != nil && entry.Report.Kind == "Transaction" && entry.Report.Outcome.Outcome == mutation.OutcomeCompleted {
+			if entry.Report.MutationEffects != nil {
+				res.Warnings = append(res.Warnings, store.EffectsDirectoryKeyWarnings(env.Cwd, "HEAD", *entry.Report.MutationEffects)...)
+			}
+		}
+	}
+	return res
 }
 
 // batchEnvelopes reads and validates the whole batch and returns one

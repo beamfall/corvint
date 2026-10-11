@@ -20,6 +20,10 @@ func signalLiveGroup(int, syscall.Signal) error { return nil }
 // Wait reaps a started command; this platform has no process groups to signal.
 func Wait(command *exec.Cmd) error { return command.Wait() }
 
+// WaitResidue reaps a started command and reports no residue: this platform
+// has no process groups.
+func WaitResidue(command *exec.Cmd) (bool, error) { return false, command.Wait() }
+
 func wait(command *exec.Cmd, exited func()) error {
 	err := command.Wait()
 	if exited != nil {

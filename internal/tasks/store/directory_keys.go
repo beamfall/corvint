@@ -7,8 +7,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
 )
 
 // WarningExactDirectoryKey prefixes the CAL-V0-211 warning, so a caller can
@@ -74,6 +76,23 @@ func effectsPathKeys(e ticket.Effects) []string {
 // keys effects e declare, read against rev in the checkout at root.
 func EffectsDirectoryKeyWarnings(root, rev string, e ticket.Effects) []string {
 	return ExactDirectoryKeyWarnings(root, rev, effectsPathKeys(e))
+}
+
+// retainMutationEffects keeps the committed post's effects for CAL-V0-214
+// without consulting a pre-lock inventory or a subsequently changed ticket.
+// An unavailable post only drops the advisory warning.
+func retainMutationEffects(report *Report, operation string, plan *transaction.Plan, local string) {
+	if operation != mutation.OpCreate && operation != mutation.OpRefine && operation != mutation.OpSetEffects {
+		return
+	}
+	for _, a := range plan.Artifacts() {
+		if a.Role == "POST" && a.Target == "intent/tickets/"+local+".json" {
+			if rec, err := ticket.Decode(a.Data); err == nil {
+				report.MutationEffects = &rec.Effects
+			}
+			return
+		}
+	}
 }
 
 // scopeDirectoryKeyWarnings is ExactDirectoryKeyWarnings for the PATH keys

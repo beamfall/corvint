@@ -20,6 +20,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
@@ -146,6 +147,11 @@ func heartbeatAfter(t *testing.T, root, attemptID string, after time.Time) {
 // while the command runs outside its process group; a successor attaches,
 // waits, and reads the recorded outcome and the bounded output.
 func TestATRV0008_DetachedRunSurvivesItsLauncher(t *testing.T) {
+	// The fixture disables patience; this live-writer qualification needs
+	// the production CTS-V0-006/CTS-V0-009 read budget.
+	oldPatience := snapshot.DefaultPatience
+	snapshot.DefaultPatience = 2 * time.Second
+	t.Cleanup(func() { snapshot.DefaultPatience = oldPatience })
 	root, a := attemptStore(t)
 	detachedEnv(t)
 	t.Setenv("CORVINT_TEST_RUN_SEGMENT", "64")

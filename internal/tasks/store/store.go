@@ -77,6 +77,10 @@ type Report struct {
 	// learns its own id here and nowhere else.
 	Ticket  string
 	Release string
+	// MutationEffects are the committed CREATE, REFINE or SET_EFFECTS post's
+	// effects for advisory warnings (CAL-V0-214), nil on replay or refusal.
+	// They are retained under the writer lock, never reloaded from a later head.
+	MutationEffects *ticket.Effects
 	// OldPolicySha256 and NewPolicySha256 are the policy digests a committed
 	// PolicyUpdate replaced and wrote; the receipt's pre/post entries carry
 	// the same values.

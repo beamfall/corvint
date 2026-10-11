@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Recipe 2: prepare a change-evidence review for base..HEAD. Composes the public commands the
 # Corvint dogfood loop runs (docs/DOGFOOD.md): `corvint cem prepare`, strict `cem status`,
 # `cem report`, and the advisory `corvint review --base`.

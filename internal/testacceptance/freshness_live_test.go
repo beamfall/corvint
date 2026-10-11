@@ -49,6 +49,9 @@ else {const body=await get(url),serverImports=JSON.parse(await get(new URL('/imp
 // Helpers use the same consumer and falsifier executors as the companion.
 // The staged native attestor observes the service and kernel, never stdin pins.
 func TestMain(m *testing.M) {
+	if tempScopeHelper() {
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "attest" {
 		acceptanceAttest()
 		return
@@ -134,9 +137,14 @@ func acceptanceHook(role string) {
 		os.Exit(2)
 	}
 	cfg.Freshness.Mutation = &d
-	// Remove the generic executor's private role/HOME before the bounded provider.
+	// Remove role/HOME while preserving the validated scoped transport root.
+	environment := SafeEnvironment()
+	if root := os.Getenv("TMPDIR"); root != "/tmp" && safeTempRoot(root, true) {
+		environment[3] = "TMPDIR=" + root
+		cfg.ScopedTempOutput = true
+	}
 	os.Clearenv()
-	for _, v := range SafeEnvironment() {
+	for _, v := range environment {
 		parts := strings.SplitN(v, "=", 2)
 		os.Setenv(parts[0], parts[1])
 	}

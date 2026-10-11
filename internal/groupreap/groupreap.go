@@ -5,9 +5,12 @@ package groupreap
 
 import "os/exec"
 
-// Run is exec.Cmd.Run with the leader reaped by Wait.
+// Run is exec.Cmd.Run with the leader reaped by Wait. It starts through
+// StartLive, so a group the command leads is recorded for KillLive until
+// Wait's pre-reap release (AHI-048, PGO-V0-009), and a start after KillLive
+// is refused with ErrExiting.
 func Run(command *exec.Cmd) error {
-	if err := command.Start(); err != nil {
+	if err := liveGroups.start(command); err != nil {
 		return err
 	}
 	return Wait(command)

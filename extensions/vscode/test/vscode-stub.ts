@@ -1,6 +1,6 @@
 /**
  * A minimal in-process stand-in for the `vscode` module, covering only the
- * API surface liveTests.ts touches. Importing this file before any module
+ * API surface used by controller and presentation tests. Importing this file before any module
  * that imports `vscode` resolves that import to the stub; no VS Code or
  * Electron process is ever started.
  */
@@ -19,6 +19,7 @@ export const stub = {
   items: new Map<string, { id: string }>(),
   diagnostics: new Map<string, unknown[]>(),
   trusted: true,
+  documentOpenCalls: [] as unknown[],
 };
 
 const api = {
@@ -40,6 +41,10 @@ const api = {
     createDiagnosticCollection: () => ({ set: (uri: { fsPath: string }, values: unknown[]) => stub.diagnostics.set(uri.fsPath, values), clear: () => stub.diagnostics.clear(), dispose: () => undefined }),
   },
   workspace: {
+    openTextDocument: async (uri: unknown) => {
+      stub.documentOpenCalls.push(uri);
+      throw new Error("Unexpected document open");
+    },
     get isTrusted() { return stub.trusted; },
     getConfiguration: (namespace: string) => ({
       get: (key: string, fallback: unknown) => {
@@ -57,14 +62,34 @@ const api = {
       },
     }),
   },
-  Uri: { file: (fsPath: string) => ({ fsPath, scheme: "file" }) },
-  DiagnosticSeverity: { Error: 0 },
+  window: {
+    visibleTextEditors: [],
+    createTextEditorDecorationType: () => ({ dispose: () => undefined }),
+  },
+  EventEmitter: class {
+    event = (): void => undefined;
+    fire(): void {}
+    dispose(): void {}
+  },
+  ThemeColor: class {},
+  OverviewRulerLane: { Right: 4 },
+  Uri: { file: (fsPath: string) => ({ fsPath, scheme: "file", toString: () => `file://${fsPath}` }) },
+  DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2 },
   TestRunRequest: class {},
   TestMessage: class {
     constructor(readonly message: string) {}
   },
-  Range: class {},
-  Diagnostic: class {},
+  Range: class {
+    readonly start: { line: number; character: number };
+    readonly end: { line: number; character: number };
+    constructor(startLine: number, startCharacter: number, endLine: number, endCharacter: number) {
+      this.start = { line: startLine, character: startCharacter };
+      this.end = { line: endLine, character: endCharacter };
+    }
+  },
+  Diagnostic: class {
+    constructor(readonly range: unknown, readonly message: string, readonly severity: number) {}
+  },
 };
 
 const STUB_ID = "corvint-vscode-test-stub";

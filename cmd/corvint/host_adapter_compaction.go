@@ -71,7 +71,7 @@ func runClaudeCompactionEvent(ctx context.Context, root, event string, normalize
 	}
 	block, reason := compactionBlockFor(ctx, root, normalized)
 	if reason != "" {
-		return withSnapshotRemediation(root, event, reason, degradedAdapterOutput(reason))
+		return withSnapshotRemediation(ctx, root, event, reason, degradedAdapterOutput(reason))
 	}
 	return map[string]any{adapterPlainStdoutKey: compactionPinInstruction + compactionPinLine(block)}
 }
@@ -96,7 +96,7 @@ func runClaudePostCompact(ctx context.Context, root string, normalized, payload 
 	}
 	block, reason := compactionBlockFor(ctx, root, normalized)
 	if reason != "" {
-		return withSnapshotRemediation(root, "post-compact", reason, degradedAdapterOutput(reason))
+		return withSnapshotRemediation(ctx, root, "post-compact", reason, degradedAdapterOutput(reason))
 	}
 	return map[string]any{adapterPlainStdoutKey: compactionReportLine(pin, missing, block)}
 }

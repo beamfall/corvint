@@ -1,6 +1,7 @@
 package typescript
 
 import (
+	"context"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -23,7 +24,7 @@ func TestMochaLiteralEvidenceAndUnknowns(t *testing.T) {
 			root := t.TempDir()
 			write(t, root, "package.json", tc.manifest)
 			write(t, root, "tests/a.test.js", tc.body)
-			got, e := New().Units(root)
+			got, e := New().Units(context.Background(), root)
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -44,7 +45,7 @@ func TestMochaConfigsAlwaysRetainDiscoveryFrontier(t *testing.T) {
 			name := ".mocharc." + ext
 			write(t, root, name, "{}")
 			write(t, root, "tests/a.test.js", `describe("a",()=>{})`)
-			got, e := New().Units(root)
+			got, e := New().Units(context.Background(), root)
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -52,7 +53,7 @@ func TestMochaConfigsAlwaysRetainDiscoveryFrontier(t *testing.T) {
 				t.Fatal(got)
 			}
 			assertFrontier(t, got, FrontierConfig)
-			graph, e := affected.Build(root, New())
+			graph, e := affected.Build(context.Background(), root, New())
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -65,7 +66,7 @@ func TestMochaConfigsAlwaysRetainDiscoveryFrontier(t *testing.T) {
 	write(t, root, ".mocharc.json", "{}")
 	write(t, root, "jest.config.js", "module.exports={}")
 	write(t, root, "tests/a.test.js", `describe("a",()=>{})`)
-	got, e := New().Units(root)
+	got, e := New().Units(context.Background(), root)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -79,7 +80,7 @@ func TestMochaTypeScriptRetainsRuntimeFlags(t *testing.T) {
 	for _, ext := range []string{"ts", "tsx"} {
 		root := t.TempDir()
 		write(t, root, "tests/a.test."+ext, `import {it} from "mocha"`)
-		got, e := New().Units(root)
+		got, e := New().Units(context.Background(), root)
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -91,7 +92,7 @@ func TestMochaNestedYAMLConfigurationIsRecognized(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "e2e/.mocharc.yaml", "spec: other/**")
 	write(t, root, "e2e/a.test.js", `describe("a",()=>{})`)
-	got, e := New().Units(root)
+	got, e := New().Units(context.Background(), root)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -107,7 +108,7 @@ func TestMochaSourceSelectionRetainsUnrelatedExclusion(t *testing.T) {
 	write(t, root, "src/a.cjs", "module.exports=1")
 	write(t, root, "tests/a.test.cjs", `const {it}=require("mocha");require("../src/a.cjs")`)
 	write(t, root, "tests/b.test.cjs", `const {it}=require("mocha")`)
-	graph, e := affected.Build(root, New())
+	graph, e := affected.Build(context.Background(), root, New())
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -134,7 +135,7 @@ func TestMochaCompetingImportAndConfigurationRetainsEdges(t *testing.T) {
 				write(t, root, c, "module.exports={}")
 			}
 			write(t, root, "tests/a.test.js", tc.body)
-			result, e := New().Units(root)
+			result, e := New().Units(context.Background(), root)
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -143,7 +144,7 @@ func TestMochaCompetingImportAndConfigurationRetainsEdges(t *testing.T) {
 			if unit.ID != unitID(runnerUnknown, "tests/a.test.js") {
 				t.Fatal(unit)
 			}
-			graph, e := affected.Build(root, New())
+			graph, e := affected.Build(context.Background(), root, New())
 			if e != nil {
 				t.Fatal(e)
 			}

@@ -57,8 +57,19 @@ func runTerminal(ctx context.Context, path string) error {
 		return e
 	}
 	slave.Close()
-	waited := make(chan struct{})
-	go func() { _, _ = child.Wait(); close(waited) }()
+	// The child is reaped only after the deferred cleanup, so every group
+	// (and SIGWINCH) signal is sent while its PID is pinned (V1-1047). A
+	// failed exit observation (for example ECHILD after another reaper
+	// collected the child) unpins the PID, and no signal follows it.
+	exited, reapAllowed, waited := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var observeErr error
+	go func() {
+		observeErr = observeTerminalExit(child.Pid)
+		close(exited)
+		<-reapAllowed
+		_, _ = child.Wait()
+		close(waited)
+	}()
 	copied := make(chan struct{})
 	go func() { _, _ = io.Copy(os.Stdout, master); close(copied) }()
 	commands := make(chan Object)
@@ -79,15 +90,30 @@ func runTerminal(ctx context.Context, path string) error {
 			}
 		}
 	}()
-	defer func() {
-		_ = syscall.Kill(-child.Pid, syscall.SIGTERM)
+	pinned := func() bool {
 		select {
-		case <-waited:
-		case <-time.After(2 * time.Second):
-			_ = syscall.Kill(-child.Pid, syscall.SIGKILL)
-			<-waited
+		case <-exited:
+			return observeErr == nil
+		default:
+			return true
 		}
-		_ = syscall.Kill(-child.Pid, syscall.SIGKILL)
+	}
+	signal := func(pid int, sig syscall.Signal) {
+		if pinned() {
+			_ = terminalSignal(pid, sig)
+		}
+	}
+	defer func() {
+		signal(-child.Pid, syscall.SIGTERM)
+		select {
+		case <-exited:
+		case <-time.After(2 * time.Second):
+			signal(-child.Pid, syscall.SIGKILL)
+			<-exited
+		}
+		signal(-child.Pid, syscall.SIGKILL)
+		close(reapAllowed)
+		<-waited
 		master.Close()
 		<-copied
 		cancel()
@@ -98,7 +124,7 @@ func runTerminal(ctx context.Context, path string) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-waited:
+		case <-exited:
 			return nil
 		case v, ok := <-commands:
 			if !ok || truth(v["stop"]) {
@@ -113,8 +139,38 @@ func runTerminal(ctx context.Context, path string) error {
 				if e = resize(int(number(dims[0])), int(number(dims[1]))); e != nil {
 					return e
 				}
-				_ = syscall.Kill(child.Pid, syscall.SIGWINCH)
+				signal(child.Pid, syscall.SIGWINCH)
 			}
+		}
+	}
+}
+
+// terminalSignal is syscall.Kill; tests check that every signal precedes the
+// child's reap. observeTerminalExit is exitedUnreaped; tests inject a failed
+// observation.
+var (
+	terminalSignal      = syscall.Kill
+	observeTerminalExit = exitedUnreaped
+)
+
+// exitedUnreaped blocks until the process exits and leaves it unreaped
+// (waitid WEXITED|WNOWAIT). Darwin's waitid also reports a trapped, stopped
+// or continued child despite WEXITED (golang/go#19314): si_code 4..6 is not
+// an exit and is polled past, as internal/groupreap does.
+func exitedUnreaped(pid int) error {
+	for {
+		var info [128]byte
+		_, _, errno := syscall.Syscall6(syscall.SYS_WAITID, uintptr(1), uintptr(pid),
+			uintptr(unsafe.Pointer(&info[0])), uintptr(syscall.WEXITED|syscall.WNOWAIT), 0, 0)
+		if errno == 0 {
+			if code := *(*int32)(unsafe.Pointer(&info[8])); code < 4 || code > 6 {
+				return nil
+			}
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+		if errno != syscall.EINTR {
+			return errno
 		}
 	}
 }

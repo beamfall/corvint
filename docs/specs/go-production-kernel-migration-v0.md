@@ -737,10 +737,10 @@ which is the whole of what the row asserts.
 ### Licensing, rollout, dogfood, and retirement
 
 - `GPK-V0-020`: The migration MUST NOT alter `LICENSE`, `LICENSING.md`, `PROVENANCE.md`, or the
-  path-based split-license boundary. New production Go paths are AGPL-3.0-or-later per
-  `LICENSING.md`; `conformance/**`, `interop/**`, examples, schemas, and listed protocol docs keep
-  plain Apache-2.0. Binary archives carry the exact applicable notices. Commercial Corvint Pulse
-  terms and legal conclusions are separate owner/legal decisions, not inferred from Go.
+  path-based split-license boundary. New production Go paths and `examples/**` (decision 0504) are
+  AGPL-3.0-or-later per `LICENSING.md`; `conformance/**`, `interop/**`, schemas, and listed protocol
+  docs keep plain Apache-2.0. Binary archives carry the exact applicable notices. Commercial Corvint
+  Pulse terms and legal conclusions are separate owner/legal decisions, not inferred from Go.
 - `GPK-V0-021`: Corvint self-dogfood MUST first use the candidate to orient to this migration, run its
   supported context/harness operations, preserve a private measurement receipt, and compare exact
   outputs with Python. Once CEM/OCM are ported, the final committed Go migration diff MUST be
@@ -1611,3 +1611,54 @@ missed the importer, and nothing was disclosed.
   which FAILS without the whole-segment rule and, on the disclosure count, with a rule that
   accepts only `/`. Rollback: restore the leading-dot test in `Resolve` and
   `buildWebImportGraph`; no index, snapshot, receipt or trace changes.
+
+## Amendment accepted by decision 0516: wider symbols lead a standing record packet
+
+- `GPK-V0-083`: (accepted, decision 0516 (V1-0266)) For this experimental
+  amendment to `GPK-V0-066`, a confident symbol whose support width strictly exceeds
+  every competitive record and each of the two admitted document slots leads a standing
+  record/document packet. Width counts words of the query as written, using the
+  `GPK-V0-039` support measure, rather than ranking scores or expanded stem counts.
+  Compare against the whole competitive record universe before the result limit cuts it.
+  Place qualifying symbols once per rendered identity (`kind:id`), keeping the first in
+  confident-selection order, including that candidate's support for the
+  omitted-competing-record check. A discarded duplicate's vocabulary cannot cover
+  an omitted record on behalf of the emitted symbol. Retain the records, documents,
+  feature-implementation symbols and learned paths in their existing order behind them,
+  without repeating a placed symbol already carried in the packet. An empty record/document
+  packet places no symbol and retains the existing confident fallback.
+  Judge the relevance floor and `GPK-V0-066` substitution on the original emitted packet,
+  with its original support index, before placing wider symbols: proposed placement cannot
+  rescue unsupported records or change a substituted or withdrawn packet. Only after that
+  judgment may placed symbols add support for the existing omitted-competing-record check.
+  An active nearest-negative-claim abstention blocks placement: the original result order,
+  support index, limit/budget omissions and unknown frontier remain byte-identical, even
+  when confident symbols are strictly wider. Lexical support cannot answer a capability
+  override contradicted by project claims. Merely carrying nearest claims does not block
+  placement when that abstention is inactive. Record-score ties behind a placed symbol do
+  not alone request widening; omitted competing readings retain their existing abstention
+  rules. With no strictly wider symbol the packet stays byte-identical. This amendment does not accept or
+  rewrite `GPK-V0-066`'s existing intent.
+
+Acceptance evidence: a synthetic adopter-shaped fixture at limit 10 contains one-word
+plugin feature records, a two-word decision that independently clears the floor, and
+`PluginTrustRoots`/`NewModelLoader` symbols with wider support. The symbols lead the records
+in their own order. Equal/wider records or documents keep precedence; empty, substituted
+and withdrawn packets retain their prior behavior, and a carried symbol is emitted once.
+Distinct line-based candidates rendering the same symbol ID occupy only one result slot.
+At limit 1, same-named methods with disjoint additional vocabulary retain the first
+method's evidence and support: an omitted record supported only by the discarded
+method still requires `omitted-competing-record` abstention and `NEEDS_WIDENING`.
+A synthetic negative-claim fixture preserves its complete packet at limits 5 and 10,
+including a critical scenario that wider symbols would evict at limit 5. A positive control
+with the same nearest claim but no capability override still places the wider symbols.
+All seven frozen adopter retrieval cases must match the base evaluation byte-for-byte
+except latency and engine revision, including selectors/order, empty missing lists and metrics.
+Non-goals: score tuning, relaxed confidence admission, floor changes, new packet fields,
+learning changes, and accepted intent or broader retrieval promotion.
+Rollback: remove the wider-symbol placement in `evalQuery` and restore the prior analyzer
+schema/audit pins together; existing snapshots are derived state and require no store migration.
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| `GPK-V0-083` (accepted, decision 0516 (V1-0266)) | wider-support placement in `internal/contextindex/eval_query.go` | `TestEvalQueryPrecedenceFollowsSupport`, `TestEvalQueryWiderSymbolsAtLimitTen`, `TestEvalLeadWithSymbolsPreservesPacket`, `TestEvalLeadWithSymbolsDeduplicatesRenderedIdentity`, `TestEvalQueryDuplicateSymbolSupportPreservesOmittedRecordAbstention`, `TestEvalQueryWiderSymbolsPreserveNegativeClaimAbstention`, `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`, `TestEvalQueryRelevanceFloor`, and `docs/build-log/2026-10-10-query-wider-symbol-precedence.md`, `docs/build-log/2026-10-10-query-negative-claim-placement.md`, `docs/build-log/2026-10-10-query-promoted-symbol-deduplication.md` and `docs/build-log/2026-10-10-query-promoted-symbol-support.md` |

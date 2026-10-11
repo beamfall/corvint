@@ -1,6 +1,7 @@
 package rust
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,7 +28,7 @@ func TestLanguageOwnsOnlyRustSource(t *testing.T) {
 
 func TestWorkspacePackagesFormAddressableDependencyUnits(t *testing.T) {
 	root := workspaceFixture(t)
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +69,7 @@ func TestTestFormsAndDoctestsAreTestAnchors(t *testing.T) {
 	write(t, root, "src/template.rs", "const TEMPLATE: &str = r#\"\n//! ```rust\n//! phantom();\n//! ```\n\"#;\n")
 	write(t, root, "tests/browser.rs", "mod common;\n")
 	write(t, root, "tests/common/mod.rs", "pub fn setup() {}\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +90,7 @@ func TestTildeFencedDoctestIsATestAnchor(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "Cargo.toml", "[package]\nname = \"tilde\"\nversion = \"0.1.0\"\n")
 	write(t, root, "src/lib.rs", "/// ~~~\n/// assert_eq!(2 + 2, 4);\n/// ~~~\npub fn value() {}\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +123,7 @@ func TestFencedDoctestLanguageAndClosingFence(t *testing.T) {
 		write(t, root, "src/"+name+".rs", "/// ```"+info+"\n/// not Rust\n/// ```\npub fn value() {}\n")
 	}
 	write(t, root, "src/quad_text.rs", "/// ````text\n/// ~~~~\n/// ```\n/// ```rust\n/// phantom();\n/// ```\n/// ````\npub fn value() {}\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +140,7 @@ func TestIndentedDoctestIsATestAnchor(t *testing.T) {
 	write(t, root, "Cargo.toml", "[package]\nname = \"indented\"\nversion = \"0.1.0\"\n")
 	write(t, root, "src/lib.rs", "/// Adds numbers.\n///\n///     assert_eq!(2 + 2, 4);\npub fn value() {}\n")
 	write(t, root, "src/block.rs", "/**\n *\tassert_eq!(2 + 2, 4);\n */\npub fn block() {}\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +155,7 @@ func TestIndentedTextOutsideACodeBlockIsNotADoctest(t *testing.T) {
 	write(t, root, "Cargo.toml", "[package]\nname = \"prose\"\nversion = \"0.1.0\"\n")
 	write(t, root, "src/paragraph.rs", "/// Adds\n///     numbers.\npub fn paragraph() {}\n")
 	write(t, root, "src/fenced.rs", "/// ```text\n///\n///     not rust\npub fn fenced() {}\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +169,7 @@ func TestDoctestFalseLeavesDocumentationAsSource(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "Cargo.toml", "[package]\nname = \"no-doc\"\nversion = \"0.1.0\"\n[lib]\ndoctest = false\n")
 	write(t, root, "src/lib.rs", "/// ```rust\n/// no_doc::call();\n/// ```\npub fn call() {}\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +186,7 @@ func TestFrameworkBoundariesWidenInsteadOfClaimingCoverage(t *testing.T) {
 	write(t, root, "tests/web.rs", "#[tokio::test]\nasync fn browser() {}\n")
 	write(t, root, "features/login.feature", "Feature: login\n  Scenario: success\n")
 	write(t, root, ".config/nextest.toml", "[profile.default]\nretries = 1\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +194,7 @@ func TestFrameworkBoundariesWidenInsteadOfClaimingCoverage(t *testing.T) {
 	if !equal(result.Frontier, want) {
 		t.Fatalf("frontier=%v want=%v", result.Frontier, want)
 	}
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +210,7 @@ func TestGeneratedAndConditionalTestsRaiseFrontiers(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "Cargo.toml", "[package]\nname = \"dynamic\"\nversion = \"0.1.0\"\n")
 	write(t, root, "src/lib.rs", "#[cfg(feature = \"slow\")]\nmod slow;\ninclude!(concat!(env!(\"OUT_DIR\"), \"/tests.rs\"));\nparameterized_test!(case);\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +228,7 @@ func TestAliasedAttributesAndArbitraryMacrosCannotLookExcluded(t *testing.T) {
 	write(t, root, "Cargo.toml", "[package]\nname = \"generated\"\nversion = \"0.1.0\"\n")
 	write(t, root, "src/aliased.rs", "use tokio::test as case;\n#[case]\nasync fn aliased() {}\n")
 	write(t, root, "src/cases.rs", "use generator::*;\nmake_cases! { one, two }\nvec![1, 2];\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +245,7 @@ func TestLifetimeBeforeApostropheDoesNotHideInlineTests(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "Cargo.toml", "[package]\nname = \"message\"\nversion = \"0.1.0\"\n")
 	write(t, root, "src/lib.rs", "pub const MSG: &'static str = \"can't parse\";\npub const QUOTE: char = '\\'';\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn works() {}\n}\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +258,7 @@ func TestLiteralStringsParseAndMalformedManifestWidens(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "Cargo.toml", "[package]\nname = 'literal-name'\nversion = '0.1.0'\nthis is not an assignment\n")
 	write(t, root, "src/lib.rs", "#[test]\nfn works() {}\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +275,7 @@ func TestNonDefaultCargoTestTargetsRaiseAFrontier(t *testing.T) {
 	write(t, root, "Cargo.toml", "[package]\nname = \"targets\"\nversion = \"0.1.0\"\n[lib]\ntest = false\n")
 	write(t, root, "src/lib.rs", "#[test]\nfn disabled_by_manifest() {}\n")
 	write(t, root, "examples/demo.rs", "#[test]\nfn example_test() {}\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +295,7 @@ func TestRenamedAndWorkspaceDependenciesResolve(t *testing.T) {
 	write(t, root, "core/src/lib.rs", "pub fn core() {}\n")
 	write(t, root, "app/Cargo.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n[dependencies]\nalias.workspace = true\n")
 	write(t, root, "app/src/lib.rs", "#[test]\nfn app() {}\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,7 +314,7 @@ func TestWorkspaceWordInsideDependencyPathIsNotInherited(t *testing.T) {
 	write(t, root, "other/src/lib.rs", "pub fn other() {}\n")
 	write(t, root, "app/Cargo.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n[dependencies]\ncore = { path = \"../workspace/core\" }\n")
 	write(t, root, "app/tests/app.rs", "#[test]\nfn works() {}\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,7 +332,7 @@ func TestLegacyProjectTableIsAPackage(t *testing.T) {
 	write(t, root, "crates/foo/src/lib.rs", "pub fn foo() {}\n")
 	write(t, root, "crates/bar/Cargo.toml", "[package]\nname = \"bar\"\nversion = \"0.1.0\"\n[dependencies]\nfoo = { path = \"../foo\" }\n")
 	write(t, root, "crates/bar/tests/bar.rs", "#[test]\nfn works() {}\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -349,7 +350,7 @@ func TestPackageWordInsideDependencyValueIsNotARename(t *testing.T) {
 	write(t, root, "packages/util/src/lib.rs", "pub fn util() {}\n")
 	write(t, root, "app/Cargo.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n[dependencies]\ncore = { path = \"../packages/core\", version = \"0.1\" }\nutil = { path = \"../packages/util\", package = \"util-lib\" }\n")
 	write(t, root, "app/src/lib.rs", "#[test]\nfn app() {}\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +368,7 @@ func TestUnderscoreDependencyTablesFormEdges(t *testing.T) {
 	write(t, root, "codegen/src/lib.rs", "pub fn generate() {}\n")
 	write(t, root, "app/Cargo.toml", "[package]\nname = \"app\"\nversion = \"0.1.0\"\n[dev_dependencies]\ncore = { path = \"../core\" }\n[target.x86_64-unknown-linux-gnu.build_dependencies]\ncodegen = { path = \"../codegen\" }\n")
 	write(t, root, "app/src/lib.rs", "#[test]\nfn app() {}\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -383,7 +384,7 @@ func TestRepeatedExplicitTestTargetsAreNotManifestUncertainty(t *testing.T) {
 	write(t, root, "src/lib.rs", "pub fn value() {}\n")
 	write(t, root, "checks/first.rs", "fn helper() {}\n")
 	write(t, root, "checks/second.rs", "fn helper() {}\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -399,7 +400,7 @@ func TestStandardDerivesDoNotImplyGeneratedTests(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "Cargo.toml", "[package]\nname = \"derive\"\nversion = \"0.1.0\"\n")
 	write(t, root, "src/lib.rs", "#[derive(Clone, Debug, PartialEq)]\npub struct Value;\n#[test]\nfn value() {}\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -408,7 +409,7 @@ func TestStandardDerivesDoNotImplyGeneratedTests(t *testing.T) {
 	}
 	write(t, root, "src/custom.rs", "#[derive(serde::Serialize)]\npub struct Custom;\n")
 	write(t, root, "src/shadowed.rs", "use generator::*;\n#[derive(Clone)]\npub struct Shadowed;\n")
-	result, err = New().Units(root)
+	result, err = New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -421,7 +422,7 @@ func TestDuplicateOrdinaryManifestTablesWiden(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "Cargo.toml", "[package]\nname = \"duplicate\"\n[package]\nversion = \"0.1.0\"\n")
 	write(t, root, "src/lib.rs", "pub fn value() {}\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -436,7 +437,7 @@ func TestInheritedFrameworkDependenciesAndNestedNextestAreDetected(t *testing.T)
 	write(t, root, "browser/Cargo.toml", "[package]\nname = \"browser\"\nversion = \"0.1.0\"\n[dev-dependencies]\nwebdriver = { workspace = true }\nbdd = { workspace = true }\n")
 	write(t, root, "browser/src/lib.rs", "/// ```\n/// browser::check();\n/// ```\npub fn check() {}\n")
 	write(t, root, "browser/.config/nextest.toml", "[profile.default]\nretries = 1\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}

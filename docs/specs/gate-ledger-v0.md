@@ -5,6 +5,7 @@ Date: 2026-09-21
 Requirement prefix: `GL-V0`
 Intent status: accepted (owner instruction 2026-09-21)
 Delivery status: implemented
+Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 8 and its Verify block, the owner
 instruction of 2026-09-21 that Corvint manage which gate work is already proven so parallel agents
 stop repeating a full gate each, `go-only-cutover-v0.md` GOC-V0-010 for the receipt the gate
@@ -16,7 +17,7 @@ per-package key (GL-V0-009).
 - Claim: `make gate` skips a step, or one resolved package, only when this user recorded a pass for byte-identical inputs, from any worktree, never narrowing a step.
 - Status: accepted (owner instruction 2026-09-21; GL-V0-009 decision 0352) / implemented
 - Exists: `tools/gate-ledger` (`run`, `go-test`, `plan`), the `ledger/STEP` targets in `Makefile`, `gate-affected-select -unresolved` and `-bounds`, `tools/gate-ledger/main_test.go`, the ledger-off branch of `script/gate-receipt_test.sh`.
-- Blocked on: nothing. The unresolved packages (`cmd/corvint` among them) rerun on any tree change; narrowing them is the affected tier's job, not this ledger's. Resolved packages key per package across worktrees (GL-V0-009).
+- Blocked on: nothing (V1-0245 amendments accepted, decision 0511). The unresolved packages (`cmd/corvint` among them) rerun on any tree change; narrowing them is the affected tier's job, not this ledger's. Resolved packages key per package across worktrees (GL-V0-009).
 - Read next: Requirements; Non-goals; Trust boundary, limits, and failure modes; Unresolved.
 
 ## Human intent and scope
@@ -61,9 +62,27 @@ therefore come from something keyed on content, not from Go's cache.
   host, user, or time, so that one recorded pass serves every worktree of this user. Every step's
   scope MUST include the gate's own tooling (`Makefile`, `go.mod`, `go.sum`, `script/`, `tools/`),
   so a change to how a step runs is a change to its inputs.
-- `GL-V0-002`: Only a step that exits zero MUST be recorded, after it exits. The ledger MUST pass
-  the step's exit status and output through unchanged, MUST NOT run a step's command differently
-  on a miss than `make STEP` runs it, and MUST NOT record on the failure path.
+- `GL-V0-002`: (accepted, decision 0511) A whole-step record MUST be
+  written only after that step exits zero. Resolved Go packages MUST instead be recorded individually
+  after the batch exits, including on nonzero exit, only when a complete, valid `go test -json`
+  stream proves a package-level pass with no test/package failure or build failure for that package.
+  Every requested package MUST have a start and exactly one terminal package outcome; malformed,
+  truncated, missing or contradictory outcomes (including unfinished ordinary tests or duplicate JSON
+  fields) MUST refuse all package records from that batch. Every defined test2json/build event field,
+  when present, MUST have its defined JSON type, including RFC3339 string `Time`, numeric `Elapsed`,
+  and string `FailedBuild`; null or malformed typed fields MUST refuse all batch records. A non-empty
+  `FailedBuild` MUST mark the event's `Package` failed, even when `FailedBuild` names a dependency; a subsequent
+  package pass MUST refuse all batch records. Benchmark pass, skip or fail terminals MUST match a
+  preceding run by exact name or, for benchmarks only, by removing a trailing numeric CPU suffix.
+  Previously seen benchmark run names MUST remain eligible for repeated terminals without another
+  run, with any failure remaining sticky. Exact run names MUST take precedence over CPU suffix matching. Benchmark
+  runs MAY close with a `bench` event or the package terminal without individual test terminals;
+  benchmark events MUST NOT close ordinary tests. Events MUST be bounded to 1 MiB and
+  simultaneously active tests and benchmarks and remembered benchmark run names to 100000 each per
+  package; exceeding any bound MUST refuse records.
+  The ledger MUST pass the exit status through and forward decoded output and build diagnostics;
+  JSON outcome capture is the only change to execution on a resolved-package miss. Failed packages
+  MUST NOT be recorded. Unresolved packages retain whole-step recording.
 - `GL-V0-003`: A step without a declared input scope MUST run and MUST NOT be recorded. A step
   declared `never` MUST always run; `go-archive-gate` is `never`, because GOC-V0-010 binds its
   witness to the HEAD the receipt names, which is not content the ledger keys on. A step declared
@@ -98,7 +117,7 @@ therefore come from something keyed on content, not from Go's cache.
 - `GL-V0-008`: Two runs of one key at once MUST execute the step once: the second MUST wait on a
   per-key lock and read the record the first wrote. A lock the tool cannot take MUST make the
   step run without recording.
-- `GL-V0-009`: A resolved package MUST run under its own key, step `go-test-package`, derived as
+- `GL-V0-009`: (accepted, decision 0511) A resolved package MUST run under its own key, step `go-test-package`, derived as
   GL-V0-001 derives every key from the package's import path and a digest of the worktree entries
   in its proven bound together with the gate tooling. The bound MUST be the union of every file
   `go list -deps -test` compiles or embeds into the package's test binary within the module and
@@ -112,8 +131,10 @@ therefore come from something keyed on content, not from Go's cache.
   same `go test` invocation and MUST NOT be recorded; when the bounds cannot be computed at all,
   every resolved package MUST run through Go's test cache unrecorded, as before this requirement.
   Resolved packages without a recorded pass MUST run in one `go test` invocation with the flags
-  `make go-test` uses, each under its per-key lock (GL-V0-008), and each MUST be recorded only
-  when that invocation exits zero. The record format MUST stay additive: `bound` is an optional
+  `make go-test` uses plus `-json` for outcome capture, each under its per-key lock (GL-V0-008).
+  Each proven pass MUST be recorded independently under GL-V0-002, even if another package fails.
+  An identical-input rerun MUST run only packages without a recorded pass and the unresolved set
+  unless its whole-tree pass already exists. The record format MUST stay additive: `bound` is an optional
   field, and records without it keep matching.
 
 ## Non-goals and simpler baseline
@@ -147,7 +168,7 @@ account. Records stay out of every product path under `GL-V0-006`.
 | Failure | Behavior |
 |---|---|
 | No recorded pass for the key | run, record on exit zero (GL-V0-001, GL-V0-002) |
-| The step exits non-zero | pass the status through, no record (GL-V0-002) |
+| The step exits non-zero | pass the status through, no whole-step record; resolved package passes may record (GL-V0-002) |
 | The step has no declared scope, or is `never` | run, no record (GL-V0-003) |
 | skip-worktree or assume-unchanged entry, ignored compiled `.go`, git failure | run, no record (GL-V0-005) |
 | Ledger directory absent, shared, symlinked, or another user's | run, no record (GL-V0-006) |
@@ -155,7 +176,8 @@ account. Records stay out of every product path under `GL-V0-006`.
 | Partition unavailable for `go-test` | every package with `-count=1` under the tree key (GL-V0-004) |
 | Bounds unavailable for `go-test` (selector, `go list`, module path or digest failing) | resolved packages through Go's test cache, no record (GL-V0-009) |
 | A resolved package's bound cannot be proven | runs in the resolved batch, no record (GL-V0-009) |
-| One package of the resolved batch fails | the unresolved packages still run; status through, no package of the batch recorded (GL-V0-002, GL-V0-004, GL-V0-009) |
+| One package of the resolved batch fails | the unresolved packages still run; status through, record only individually proven passes (GL-V0-002, GL-V0-004, GL-V0-009) |
+| Malformed or partial resolved JSON stream | forward output and status, no package records (GL-V0-002) |
 | Per-key lock unavailable | run, no record (GL-V0-008) |
 | `CORVINT_GATE_LEDGER=off` | every step runs as `make STEP`, nothing printed by the ledger (GL-V0-007) |
 
@@ -185,7 +207,7 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 | Requirement | Evidence |
 |---|---|
 | GL-V0-001 | `TestRunStepSkipsOnlyRecordedIdenticalInputs`: a rerun on identical content hits, a change outside the scope still hits, a change inside the scope runs; `TestRunStepRecordsFromLinkedWorktree`: a pass recorded in a `git worktree add` checkout hits from the main worktree; `TestWorktreeDigestIgnoresCachedStat`: same-size restored-time edits miss even with a newer index; `TestWorktreeDigestPreservesMembershipAndPaths`: tracked/ignored/staged/intent-to-add membership, executable/symlink modes and NUL-safe paths; `TestWorktreeDigestWithoutIndex`: unborn worktree |
-| GL-V0-002 | the same test: a step exiting 3 returns 3 and records nothing |
+| GL-V0-002 | `TestRunStepSkipsOnlyRecordedIdenticalInputs`: a step exiting 3 returns 3 and records nothing; `TestGoTestPartialPassRerun`: a failed package never records, passed packages hit on a same-tree rerun while failed and unresolved packages run; `TestPackageOutcomesRefusesIncomplete`: partial, malformed and contradictory streams refuse records; `TestPackageOutcomesRefusesUnfinishedTestsAtTerminal`: unfinished ordinary tests at package pass, fail or skip refuse all batch records even alongside benchmarks; `TestPackageOutcomesAcceptsBenchmarkRuns`: framed benchmarks and subbenchmarks close at package termination, and bench events close benchmark runs; `TestPackageOutcomesBenchmarkFailure`: benchmark failure never records that package; `TestPackageOutcomesRepeatedBenchmarkTerminals`: repeated terminals without another run preserve unrelated passes and cannot undo a benchmark failure; `TestPackageOutcomesRefusesMalformedFieldTypes`: malformed types and nulls refuse all records; `TestPackageOutcomesAcceptsTypedFields`: valid timing, build and metadata fields are accepted; `TestPackageOutcomesAcceptsNonTerminalEvents`: Go metadata and benchmark output do not terminate ordinary tests or packages; `TestRunPackagesRefusesPartialOutput`: refusal reaches the record-writing boundary |
 | GL-V0-003 | the same test: an undeclared step runs and records nothing; `plan` reports `go-archive-gate: always runs` |
 | GL-V0-004 | `TestGoTestFallsBackToOneUncachedRun`: the fallback passes `-count=1 ./...` and hits on an identical tree; `TestGoTestRunsUnresolvedAfterResolvedFailure`: a resolved batch exiting 3 still runs and records the unresolved packages, and the step exits 3; `TestUnresolvedPackagesListsRootLocators`: the partition's input; measured partition on this repository in `../BUILD-LOG.md` |
 | GL-V0-005 | `TestRunStepRefusesWhatItCannotDigest`: skip-worktree, assume-unchanged and an ignored `build/build.go` run and record nothing; `TestWorktreeDigestImportFailureRunsWithoutRecord`: private import failure runs without recording and removes the private index/lock |
@@ -199,7 +221,7 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | GL-V0-001 | `key`, `inputs`, `worktreeDigest`, `tooling`, `scopes` in `tools/gate-ledger/main.go` | `TestRunStepSkipsOnlyRecordedIdenticalInputs`; `TestRunStepRecordsFromLinkedWorktree` |
-| GL-V0-002 | `runStep`, `execute` | `TestRunStepSkipsOnlyRecordedIdenticalInputs` |
+| GL-V0-002 | `runStep`, `runPackages`, `packageOutcomes`, `execute` | `TestRunStepSkipsOnlyRecordedIdenticalInputs`; `TestGoTestPartialPassRerun`; `TestPackageOutcomesRefusesIncomplete`; `TestPackageOutcomesRefusesUnfinishedTestsAtTerminal`; `TestPackageOutcomesAcceptsBenchmarkRuns`; `TestPackageOutcomesBenchmarkFailure`; `TestPackageOutcomesRepeatedBenchmarkTerminals`; `TestPackageOutcomesRefusesUnmatchedBenchmarkTerminals`; `TestPackageOutcomesRefusesFailedBuildPass`; `TestPackageOutcomesRefusesMalformedFieldTypes`; `TestPackageOutcomesAcceptsTypedFields`; `TestRunPackagesRefusesPartialOutput` |
 | GL-V0-003 | `scopes`, `key` | `TestRunStepSkipsOnlyRecordedIdenticalInputs` |
 | GL-V0-004 | `goTest`, `partition`; `unresolvedPackages` in `tools/gate-affected-select/main.go`; `GO_TEST_FLAGS` and `ledger/go-test` in `Makefile` | `TestGoTestFallsBackToOneUncachedRun`; `TestGoTestRunsUnresolvedAfterResolvedFailure`; `TestUnresolvedPackagesListsRootLocators` |
 | GL-V0-005 | `worktreeDigest`, `hasFlaggedEntry`, `compiledIgnored` | `TestRunStepRefusesWhatItCannotDigest` |

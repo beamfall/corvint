@@ -16,7 +16,7 @@ expectations; its Python oracle was retired by decision 0088), `docs/decisions/0
 ## Agent digest
 - Claim: `corvint prove` embeds the unchanged query packet and attaches a mechanical falsifier and PASS/FAIL/NOT_RUN verdict beside every evidence row.
 - Status: accepted (decision 0052)/experimental
-- Exists: `cmd/corvint/prove.go` and its test files, `internal/liveverify/pyresolve`, `internal/liveverify/jsresolve`, `internal/liveverify/mutate`, `internal/liveverify/pymutate`, `internal/attest`, help topic `prove`; `cmd/corvint/prove_trust.go` (FPK-V0-032 trust class, proposed); `cmd/corvint/prove_bundle.go` (FPK-V0-041 to FPK-V0-049 failure bundles, proposed).
+- Exists: `cmd/corvint/prove.go` and its test files, `internal/liveverify/pyresolve`, `internal/liveverify/jsresolve`, `internal/liveverify/mutate`, `internal/liveverify/pymutate`, `internal/attest`, help topic `prove`; `cmd/corvint/prove_trust.go` (FPK-V0-032 trust class, proposed); `cmd/corvint/prove_bundle.go` (FPK-V0-041 to FPK-V0-049 failure bundles, proposed). V1-0408: `internal/revieworder` is a pure experimental library projection, with no CLI; FPK-V0-053..056 are accepted, decision 0515.
 - Blocked on: the 19-of-20 second-checkout witness replay gate, a falsification rate over time, and the three-arm trial in the bet.
 - Read next: Requirements; Non-goals and authority; Failure modes.
 
@@ -112,10 +112,10 @@ above stands with that substitution.
   reader to emit identical bytes on a hit and a miss, so the implementation exposes the package-level
   `var loadSnapshot = contextindex.LoadSnapshot` and its deferred sibling `loadSnapshotDeferred = contextindex.LoadSnapshotDeferred`
   (`cmd/corvint/index_snapshot.go:19-22@8984cf3b`), and the observed sibling `loadSnapshotObserved = contextindex.LoadSnapshotObserved`
-  (`cmd/corvint/index_snapshot.go:237-239@097dbc58`, `LCP-V0-016`). The deferred seam's one call is `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:73-74@5959c784`). The
+  (`cmd/corvint/index_snapshot.go:241-243@097dbc58`, `LCP-V0-016`). The deferred seam's one call is `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:73-74@5959c784`). The
   snapshot seams' seven current production call sites are `snapshotIndex` (`cmd/corvint/index_snapshot.go:59-60@123f0830`) and batch (`cmd/corvint/batch.go:149@dbef447a`),
   answerability (`cmd/corvint/answerability.go:94-95@6278a445`) and surprise (`cmd/corvint/surprise.go:118-119@6278a445`),
-  context lookup (`cmd/corvint/context_lookup.go:75-79@9f1de421`) and local completion events (`cmd/corvint/local_completion_event.go:399-408@3ebad936`),
+  context lookup (`cmd/corvint/context_lookup.go:75-79@9f1de421`) and local completion events (`cmd/corvint/local_completion_event.go:408-417@3ebad936`),
   and the experimental host adapter (`cmd/corvint/host_adapter_experimental.go:44-49@b6d4dd7c`). The task-context path instead uses its separate
   `loadContextSnapshot` seam (`cmd/corvint/taskcontext.go:319-326@73708428`), backed by `LoadContextSnapshotDeferred` and the private loader (`internal/contextindex/observed_build.go:42-49@d916a414`).
   The `cmd/corvint` seam does not cover `LoadEventSnapshot` or `ProbeSnapshot`, called directly by the harness and index paths (`cmd/corvint/harness_context.go:33-35@44bd361a`, `cmd/corvint/index_snapshot.go:119-120@9a7d60f2`); the harness calls `LoadEventSnapshotDeferred` there too.
@@ -823,7 +823,7 @@ above stands with that substitution.
   The implementation exposes the package-level `var loadSnapshot = contextindex.LoadSnapshot` and
   `loadSnapshotDeferred = contextindex.LoadSnapshotDeferred`
   (`cmd/corvint/index_snapshot.go:19-22@8984cf3b`) and `loadSnapshotObserved = contextindex.LoadSnapshotObserved`
-  (`cmd/corvint/index_snapshot.go:237-239@097dbc58`), the dogfood event's zero-spawn seam
+  (`cmd/corvint/index_snapshot.go:241-243@097dbc58`), the dogfood event's zero-spawn seam
   (`LCP-V0-016`). The one call through the deferred seam is
   `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:73-74@5959c784`). The seven current production calls through the snapshot seams are
   `snapshotIndex` (`cmd/corvint/index_snapshot.go:59-60@123f0830`), batch
@@ -831,7 +831,7 @@ above stands with that substitution.
   (`cmd/corvint/answerability.go:94-95@6278a445`), surprise
   (`cmd/corvint/surprise.go:118-119@6278a445`), context lookup
   (`cmd/corvint/context_lookup.go:75-79@9f1de421`), local completion events through the observed
-  seam (`cmd/corvint/local_completion_event.go:399-408@3ebad936`), and the experimental host adapter
+  seam (`cmd/corvint/local_completion_event.go:408-417@3ebad936`), and the experimental host adapter
   (`cmd/corvint/host_adapter_experimental.go:44-49@b6d4dd7c`). The task-context path does not use
   that seam: it supplies `loadContextSnapshot` to `compileTaskContext`
   (`cmd/corvint/taskcontext.go:216-218@ccb78c62`), with that variable bound to
@@ -1343,6 +1343,62 @@ decision 0353, with the `cem discriminate` hunk witness governed by `TCQ-V0-055.
 prove-only prototype, and its `Report.Survivors` export is additive. FPK-V0-028's own row shape,
 its experimental label, and its 19-of-20 replay acceptance are unchanged and remain `NOT_RUN`.
 
+- `FPK-V0-053`: (accepted, decision 0515; experimental)
+  A pure, read-only library projection MUST return every supplied parsed patch hunk ranked
+  lexicographically by AI-authored, unwitnessed, then uncovered. Each factor MUST have a value
+  in `{yes,no,unknown}` and a citation identifying its source, revision, object/digest, path and
+  hunk where applicable, or an explicit missing/ambiguous/stale-input reason. For each factor,
+  `yes` precedes `unknown`, which precedes `no`. Ties MUST use path, new-range start/count,
+  old-range start/count, hunk ID, then original input ordinal, all ascending. Factors describe
+  review priority, never authority, correctness, test success or promotion.
+- `FPK-V0-054`: (accepted, decision 0515; experimental)
+  Authorship MUST be derived only from already-read, target-commit-bound `refs/notes/ai`
+  authorship/3.0.0 note bytes with a pinned note blob. For added hunk lines, a recognized
+  prompt/session attestation on at least one added line means AI-authored `yes`;
+  only explicit human attestations with a matching metadata human record on every
+  added line mean `no`. Missing notes, malformed/oversized notes and deletion-only hunks mean
+  `unknown`. Paths containing spaces, tabs or newlines MUST be double-quoted; malformed or
+  ambiguous path lines (including unquoted leading whitespace), empty quoted paths and paths
+  without attestations MUST make the note unknown, even with a following valid human attestation.
+  Omitted lines, unrecognized records and conflicting human/AI attestations mean
+  unknown line authorship; when no other line establishes AI authorship, the factor MUST be
+  `unknown`, otherwise its citation MUST disclose the remaining line uncertainty.
+  Notes remain untrusted `repository-history`, never project authority; commit
+  trailers and file listings alone MUST NOT infer line authorship. A real committed fixture
+  without a Git AI note MUST report unknown authorship.
+- `FPK-V0-055`: (accepted, decision 0515; experimental)
+  The unwitnessed factor MUST cite a matching CHANGE path obligation in an already-read
+  `corvint-witness/0` report bound to the exact base/target commits. `UNPROVEN` means `yes`;
+  `CLOSED` means `no` only with a closing witness attached to this hunk; `NOT_RUN`, missing,
+  ambiguous or mismatched reports mean `unknown`. This is obligation closure, not an exercising
+  test. The uncovered factor MUST use a caller-verified CEM bound to the same base/target and
+  patch digest, with exactly one matching hunk and its explicit coverage witness. It is `yes`
+  if any AI-attested added line lacks observed coverage, or, when no AI lines are known, if
+  any added line lacks it; it is `no` only when all those lines are covered. Missing coverage,
+  deletion-only hunks, invalid bindings and ambiguous hunk mappings mean `unknown`. Coverage
+  remains a caller-reported observation and cannot close an independent witness obligation.
+- `FPK-V0-056`: (accepted, decision 0515; experimental)
+  The projection MUST take already-read inputs, perform no filesystem, Git, network, trace or
+  test-execution operations, and leave caller inputs unchanged. It MUST retain unknowns even
+  when another factor is known. The prototype owns no CLI/wire change or persistent state.
+
+V1-0408 implementation plan and limits (accepted, decision 0515):
+`internal/revieworder` owns the experimental pure join over `internal/cem/patch`,
+`internal/cem/wire`, `internal/witness`, and Git AI note bytes. Parsing follows the upstream [authorship/3.0.0 standard](https://github.com/git-ai-project/git-ai/blob/0670e7ef27590af0e8ff5409267f3f4b09b8fcb4/specs/git_ai_standard_v3.0.0.md)
+fetched on 2026-10-10: bare legacy prompt hashes, session/trace keys and known-human keys
+require matching metadata records. Parsing is bounded by
+`gitnotes.MaxNoteBytes`; no per-line expansion of foreign note ranges is needed. The caller
+supplies already-read immutable inputs and CEM verification; this library does not verify Git
+objects or execute tests. A path-level witness cannot prove a line was exercised. The existing
+file-only provenance row is insufficient to rank lines, so the join consumes the original note
+bytes rather than treating an absent row as human authorship. Failures remain per-factor unknowns.
+Missing witness and CEM inputs use the factor-detail reasons `witness-not-supplied` and
+`cem-not-supplied`, respectively; these are projection reasons, not CLI failures.
+Acceptance uses deterministic ranking, source-binding, conflicting/missing-input and nonmutation
+unit fixtures, plus a real missing-note commit. Rollback removes the new internal package and
+its tests; existing provenance, witness, CEM and command behavior are unchanged. Owner acceptance
+remains unresolved and is required before promotion; local tests establish only this prototype.
+
 ## Simpler baseline and why it is insufficient
 
 Re-reading the cited file from the index and comparing hashes would be cheaper, but it would check
@@ -1590,6 +1646,10 @@ which is the whole of what the row asserts.
 | FPK-V0-050 | experimental prototype: `parseProveCEMArguments` (`--attest-cem-v1`), `proveOptions.attestCEMV1`, `attestFlagRefusal`, `cemAttestation.v1`, `cemAttestation.statement`, `cemAttestationInput`, `attestProof` (`cmd/corvint`), `helpBooleanFlags` | `TestProveCEMAttestCEMV1EmitsTheV1Predicate` (first line equal to the `--attest-cem` first line, unsigned second line equal to `CEMStatementV1`, signed second line `VERIFIED` as `cem/v1` with `baseRevision` and `patchSha256`), `TestProveCEMAttestCEMV1RefusesInvalidArguments` (value, repeat, with `--attest-cem`, outside CEM mode); `TestProveCEMAttestOutputIsUnchangedWithoutAttestCEM` still passes |
 | FPK-V0-051 | no code: documentation only | the comparison table under Non-goals, each source pinned to the revision fetched on 2026-09-23; `TestIntotoReadsTheDigestPinnedCorvintCEMAttestation` still pins the unchanged fixture sha256 |
 | FPK-V0-052 | `hermeticGitCommand` at every Git read in `prove.go`, `prove_bundle.go`, `prove_checkpoint.go`, `affected.go`, and `host_adapter_compaction.go` | `TestProveGitReadsNeverRunRepositoryFSMonitor` (its control shows plain `git status` runs the program), `TestProveGitReadsIgnoreReplaceObjects`, `TestAffectedBaseRangeIgnoresReplaceObjects`, `TestCompactionPinVerifiesFromSubdirectoryRoot` |
+| FPK-V0-053 | experimental `revieworder.Rank` (`internal/revieworder/order.go`), accepted, decision 0515 | `TestRankHunksWithCitedFactors`, `TestRankUnwitnessedIsOnlyDiscriminatingFactor` (equal authorship/coverage, opposing path/input order; omission mutation must fail), `TestRankDeterministicAndDoesNotMutateInputs` |
+| FPK-V0-054 | experimental `readNote`, `lineAuthor`, `authorship` (`internal/revieworder`), accepted, decision 0515 | `TestAuthorshipUnknownAndExplicitLineAttestations`, `TestAuthorshipPathQuoting` (malformed/unquoted paths stay unknown despite valid human records; quoted spaces/tabs/newlines remain supported), `TestCommitWithoutGitAINoteReportsUnknownAuthorship` |
+| FPK-V0-055 | experimental `witnessing`, `coverage` (`internal/revieworder/order.go`), accepted, decision 0515 | `TestWitnessAndCoverageUnknownsRemainIndependent`, `TestRankUnwitnessedIsOnlyDiscriminatingFactor`, `TestCoverageTargetsAIAddedLines` |
+| FPK-V0-056 | experimental `revieworder.Rank`, accepted, decision 0515 | `TestRankDeterministicAndDoesNotMutateInputs`, `TestCommitWithoutGitAINoteReportsUnknownAuthorship` |
 | FPK-V0-037 | experimental prototype: `gitnotes.Anchor`, `requireCleanMap`, `committedPointer`, `writeNote` (`internal/gitnotes/anchor.go`) | `TestAnchorWritesAVerifiedPointerAndReadsItBack` (stored note equals the pointer with an independently computed SHA-256, receipt `mutates: true`, re-anchor `written: false`), `TestAnchorRefusesAnUncommittedDirtyOrMissingMap` (untracked, modified, staged, absent, loose blob deleted, and different-note cases each refused by code with the notes ref unmoved) |
 | FPK-V0-038 | experimental prototype: `gitnotes.Provenance`, `anchorRow`, `pointerState` (`internal/gitnotes/provenance.go`) | `TestAnchorWritesAVerifiedPointerAndReadsItBack` (read back `verified`, every ref unchanged by provenance, a forged digest `digest-mismatch`), `TestCEMAnchorAndProvenanceInteropThroughTheCLI` (`mutates: false`, `for-each-ref` unchanged) |
 | FPK-V0-039 | experimental prototype: `aiNoteRow`, `trailerRows`, `boundedText` (`internal/gitnotes/provenance.go`) | `TestProvenanceReadsForeignNotesAndTrailersAsUntrustedHistory` (hand-written `authorship/3.0.0` note and a commit with both trailers: distinct kinds, `repository-history`, derived class never `project-authority`, 256-byte bound, control character stripped, `truncated`, malformed note without foreign text), `TestGitNotesFetchesNothing` (no `net` package in the dependency closure), `TestCEMAnchorAndProvenanceInteropThroughTheCLI` |

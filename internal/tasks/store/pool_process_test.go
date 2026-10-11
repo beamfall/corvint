@@ -343,6 +343,20 @@ func PSRTestFirstCleanupProbe(t *testing.T, marker string) *int {
 		return original(ctx, argv...)
 	}
 	t.Cleanup(func() { poolProbe = original })
+	// The group is SIGKILLed before the leader's reap (V1-1036), so once the
+	// killed child has also been collected the CAL-V0-188 ESRCH fast path
+	// would skip the listing this test fails. Answer the post-reap signal 0
+	// as Darwin does for a zombie-only group (EPERM); signal 0 sends nothing.
+	originalSignal := poolGroupSignal
+	poolGroupSignal = func(pid int, signal syscall.Signal) error {
+		if signal == 0 {
+			if _, e := os.Stat(marker); e == nil {
+				return syscall.EPERM
+			}
+		}
+		return originalSignal(pid, signal)
+	}
+	t.Cleanup(func() { poolGroupSignal = originalSignal })
 	return calls
 }
 func TestPSRSignalTiming(t *testing.T) {

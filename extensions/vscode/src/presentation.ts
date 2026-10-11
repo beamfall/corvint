@@ -172,25 +172,14 @@ export class CorvintPresentation implements vscode.Disposable {
         }
         continue;
       }
-      let document: vscode.TextDocument;
-      try {
-        document = await vscode.workspace.openTextDocument(uri);
-      } catch {
-        if (generation !== this.generation) {
-          return undefined;
-        }
+      if (!Number.isSafeInteger(evidence.line) || evidence.line < 1) {
         continue;
-      }
-      if (generation !== this.generation) {
-        return undefined;
       }
       const line = evidence.line - 1;
-      if (line < 0 || line >= document.lineCount) {
-        continue;
-      }
       const key = uri.toString();
       const bucket = byUri.get(key) ?? { uri, diagnostics: [], ranges: { evidence: [], candidate: [], unknown: [] } };
-      const range = document.lineAt(line).range;
+      // VS Code clamps this whole-line range to document bounds without loading the file here.
+      const range = new vscode.Range(line, 0, line, Number.MAX_SAFE_INTEGER);
       if (rangeCount < 2_000) {
         bucket.ranges[decorationClass(evidence.resultState)].push(range);
         rangeCount += 1;
