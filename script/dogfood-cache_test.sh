@@ -12,7 +12,7 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 mkdir -p "$root/repo/script" "$root/bin"
-/bin/cp -f "$source_root"/script/dogfood-{change,check,seal}.sh "$root/repo/script/"
+/bin/cp -f "$source_root"/script/dogfood-{change,check,seal,batch-check}.sh "$root/repo/script/"
 /bin/cp -f "$source_root/Makefile" "$root/repo/"
 printf 'test-version\n' > "$root/repo/VERSION"
 printf 'base-source\n' > "$root/repo/source-marker"
@@ -61,7 +61,7 @@ for route in direct make; do
     [[ $selection != both ]] || export GOCACHE="$root/caller cache"
     [[ $selection != empty-corvint && $selection != empty-all ]] || export CORVINT_GOCACHE=
     [[ $selection != empty-all ]] || export GOCACHE=
-    for action in change check seal; do
+    for action in change check seal batch-check; do
       : > "$TEST_BUILD_LOG"; : > "$TEST_FLOW_LOG"
       status=0
       if [[ $route == direct ]]; then
@@ -90,6 +90,9 @@ for route in direct make; do
       if [[ $action == change ]]; then
         [[ $count == 1 ]] || exit 1
         rg -q "^dogfood change --corvint-bin .* $base$" "$TEST_FLOW_LOG" || exit 1
+      elif [[ $action == batch-check ]]; then
+        [[ $count == 1 ]] || exit 1
+        rg -q "^dogfood batch-check --verifier .* $base$" "$TEST_FLOW_LOG" || exit 1
       else
         [[ $count == 2 ]] || exit 1
         rg -q "^dogfood check --base-verifier .* --tree-verifier .* $base$" "$TEST_FLOW_LOG" || exit 1
