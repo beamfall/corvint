@@ -1,0 +1,135 @@
+{
+  "profile": "cem-03-operation/1",
+  "status": "proposed",
+  "requirements": [
+    "CEM-SM-011",
+    "CEM-SM-016",
+    "CEM-SM-017"
+  ],
+  "operation": "verify-03",
+  "argv": [
+    "verify-03",
+    "--repository",
+    "<absolute repository path>",
+    "--map",
+    "<absolute map path>",
+    "--expected-base",
+    "<full lowercase commit OID>",
+    "--target",
+    "<full lowercase commit OID>"
+  ],
+  "argvRule": "An empty or missing --repository/--map is stage arguments, invalid-arguments. A missing --expected-base or --target is not an argv error: it reaches authority-arguments after the wire stage. An unreadable map is stage input, map-unavailable.",
+  "resultProfile": "cem-03-verification/1",
+  "resultKeys": [
+    "profile",
+    "spec",
+    "outcome",
+    "accept",
+    "stage",
+    "code",
+    "issueCodes",
+    "assurance",
+    "expectedBase",
+    "targetRevision",
+    "mapSha256",
+    "patchSha256",
+    "drift",
+    "hunks",
+    "counts",
+    "runtime",
+    "repositoryEnvelope"
+  ],
+  "repositoryEnvelope": "primary-clean-config-bounded/1",
+  "exit": {
+    "0": "ACCEPT at stage complete; accept true; code null; issueCodes empty.",
+    "1": "Verification-class REJECT (stages binding, verification, drift); accept false; code null; one code in issueCodes.",
+    "2": "Wire REJECT (code set, accept false) or any operational UNSUPPORTED (code set, accept null, assurance null)."
+  },
+  "stages": [
+    {
+      "stage": "wire",
+      "class": "REJECT exit 2",
+      "codes": [
+        "invalid-json",
+        "invalid-field",
+        "missing-field",
+        "unknown-field",
+        "unsupported-spec",
+        "invalid-excluded-path"
+      ],
+      "rule": "Strict JSON before shape; spec before the key-set check. Counts and witness hunks are reported from a successful decode onward."
+    },
+    {
+      "stage": "authority-arguments",
+      "class": "UNSUPPORTED exit 2",
+      "codes": [
+        "expected-base-required",
+        "target-required",
+        "invalid-arguments"
+      ]
+    },
+    {
+      "stage": "runtime",
+      "class": "UNSUPPORTED exit 2",
+      "codes": [
+        "unsupported-structural-runtime",
+        "unsupported-process-containment"
+      ],
+      "rule": "A structural reason with runtime.Version() other than go1.27.1 refuses with structuralQualification UNSUPPORTED; otherwise a structural map reports EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS and a nonstructural map NOT_REQUIRED. Windows refuses process containment."
+    },
+    {
+      "stage": "repository",
+      "class": "UNSUPPORTED exit 2",
+      "codes": [
+        "unsupported-object-alternates",
+        "unsupported-repository-envelope",
+        "git-read-failed",
+        "repository-object-unavailable",
+        "unsupported-resource-limit",
+        "git-timeout",
+        "verification-timeout",
+        "git-diff-failed",
+        "unsupported-tree-mode",
+        "unsupported-patch-inventory"
+      ],
+      "rule": "Repository, snapshot, blob and canonical-diff failures keep their inherited operational codes; the listed set is the inherited repository class, not a claim that every code is covered by a vector."
+    },
+    {
+      "stage": "binding",
+      "class": "REJECT exit 1",
+      "codes": [
+        "base-revision-mismatch",
+        "excluded-path-not-file",
+        "excluded-artifact-mismatch"
+      ],
+      "rule": "Base sidecar absent or 100644 is allowed; target sidecar absent or an exact 100644 copy of the raw input bytes is allowed."
+    },
+    {
+      "stage": "verification",
+      "class": "REJECT exit 1",
+      "codes": [
+        "patch-digest-mismatch",
+        "invalid-field",
+        "unsupported-tree-mode",
+        "diff-metadata-mismatch",
+        "evidence-unavailable",
+        "fabricated-evidence-id",
+        "unproven-mechanical"
+      ],
+      "rule": "Patch digest before hunk mapping before evidence before basis and mechanical proof. An unsupported mode in the parsed canonical patch is a verification issue, not a repository refusal. Inherited public patch-parser codes from the parsed canonical patch are verification issues too."
+    },
+    {
+      "stage": "drift",
+      "class": "REJECT exit 1",
+      "codes": [
+        "evidence-drift"
+      ],
+      "rule": "stable and relocated accept; stale, ambiguous and deleted refuse. Every record is retained in ascending evidence ID order."
+    }
+  ],
+  "nonClaims": [
+    "No witness establishes test execution, adequacy, semantic correctness or completion authority.",
+    "primary-clean-config-bounded/1 is a limited envelope, not native equivalence.",
+    "Descendant process retirement is NOT_QUALIFIED."
+  ]
+}
