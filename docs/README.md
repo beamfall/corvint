@@ -11,6 +11,8 @@ guidance from historical records.
 - [Agent evidence routes](AGENT-ROUTES.md) — bounded routes from a task to original evidence.
 - [Change Evidence Map](CHANGE-EVIDENCE-MAP.md) and [CEM in CI](CEM-CI.md) — change-evidence
   format and integration.
+- [Triggered automation](AUTOMATION.md#session-hooks-frontier-authority-unavailable) — session-hook
+  degradation guidance, including adopters without CEM/OCM artifacts.
 - [MCP server](MCP-SERVER.md), [integration ecosystem](EXTENSION-ECOSYSTEM.md), and
   [Beamfall integration](BEAMFALL-INTEGRATION.md) — integration contracts and current limits.
 - [External evidence providers](EXTERNAL-EVIDENCE-PROVIDERS.md) — the provider record format,
