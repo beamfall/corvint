@@ -3093,16 +3093,16 @@ TRE-V0-027	docs/specs/test-runner-execution-v0.md	678	The MTP profiles MUST refu
 TRE-V0-028	docs/specs/test-runner-execution-v0.md	705	The companion MUST refuse a request, plan or tools document that
 TRE-V0-029	docs/specs/test-runner-execution-v0.md	735	SwiftPM XCTest execution evidence MUST come only from the
 TRE-V0-030	docs/specs/test-runner-execution-v0.md	743	A plan whose invocation sets `retireDetachedDescendants` MUST,
-TRE-V0-031	docs/specs/test-runner-execution-v0.md	804	The `jasmine` profile MUST execute one independently pinned Jasmine CLI entry po
-TRE-V0-032	docs/specs/test-runner-execution-v0.md	818	The parser MUST accept exactly the `corvint-jasmine/0` record with its started a
-TRE-V0-033	docs/specs/test-runner-execution-v0.md	831	When selectors are present, every reported spec file MUST be one of the
+TRE-V0-031	docs/specs/test-runner-execution-v0.md	814	The `jasmine` profile MUST execute one independently pinned Jasmine CLI entry po
+TRE-V0-032	docs/specs/test-runner-execution-v0.md	828	The parser MUST accept exactly the `corvint-jasmine/0` record with its started a
+TRE-V0-033	docs/specs/test-runner-execution-v0.md	841	When selectors are present, every reported spec file MUST be one of the
 TRE-V0-034	docs/specs/test-runner-execution-v0.md	556	The Unix executor MUST run every phase through `groupreap.RunContained`
 TRE-V0-036	docs/specs/test-runner-execution-v0.md	112	`boost-test-junit` MUST execute the pinned test executable with
 TRE-V0-037	docs/specs/test-runner-execution-v0.md	127	The dedicated parser MUST accept exactly one `boost-junit.xml`
 TRE-V0-038	docs/specs/test-runner-execution-v0.md	138	A row without an outcome is `PASSED`; `skipped` is `SKIPPED`; a
 TRE-V0-039	docs/specs/test-runner-execution-v0.md	157	Maintained tests MUST replay the actual Boost 1.92.0 JUnit
-TRE-V0-040	docs/specs/test-runner-execution-v0.md	860	A receipt phase MUST record `exitCode` as the native exit
-TRE-V0-041	docs/specs/test-runner-execution-v0.md	870	Runner plan and receipt decoders (`DecodeDocument` and the CEM
+TRE-V0-040	docs/specs/test-runner-execution-v0.md	870	A receipt phase MUST record `exitCode` as the native exit
+TRE-V0-041	docs/specs/test-runner-execution-v0.md	880	Runner plan and receipt decoders (`DecodeDocument` and the CEM
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	81	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	86	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO
 TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	108	The key MUST NOT include a filesystem path, host, user, clock time, worker count
