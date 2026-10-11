@@ -958,7 +958,7 @@ derived from the installed CLI source and is not live-qualified; see
   only by a launch after an operator unpark, because a state change that unparks the key resets the
   streak. Records are
   dropped for tickets absent from the observation and, with no ladder configured, entirely.
-  Amendment **proposed, pending owner acceptance (V1-0726)**: a known fingerprint change
+  Amendment **accepted, decision 0514**: a known fingerprint change
   between sessions MUST reset both the ladder streak and the backoff's `NoProgress` count,
   including during cooldown. A cooling key MUST retain its cooldown deadline; parking thereafter
   MUST require `parkAfter` new finished sessions without progress after that reset. A sticky role

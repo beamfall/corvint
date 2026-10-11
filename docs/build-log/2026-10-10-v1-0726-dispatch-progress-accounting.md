@@ -1,7 +1,7 @@
 # V1-0726 — Dispatch progress accounting
 
 Base: `32bfc85a44fd82b5793c7e30b2231200e16c025a` (`origin/main` at task start).
-Intent: CAL-V0-057 cooldown amendment **proposed, pending owner acceptance (V1-0726)**.
+Intent: CAL-V0-057 cooldown amendment **accepted, decision 0514**.
 No new requirement ID or decision file is allocated. The existing busy guard and sticky-tier
 implementation were present; LOW-A remained reproducible. The activity-path case already rejected
 the configuration, but had no named subtest or specific refusal assertion.

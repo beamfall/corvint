@@ -438,8 +438,8 @@ and container qualification; full fallback remains available.
   the go tool runs a package's tests only against that package. Every other plugin may keep tests in
   the unit itself or in units that depend on it, so its changed unit has none when no unit it
   reaches through the graph, itself included, declares a test. An untested unit that only depends
-  on a change, or is not reached, raises nothing. Amendment (proposed, pending owner acceptance
-  (V1-0211)): the separate Playwright profile explicitly excludes an unreached changed helper
+  on a change, or is not reached, raises nothing. Amendment (accepted, decision 0514;
+  V1-0211): the separate Playwright profile explicitly excludes an unreached changed helper
   from selection under TJAA-V0-013. With matched discovery and otherwise resolved selection it
   retains `BOUNDED`, `fallback=NONE`, and nothing selected for that helper: a full E2E suite cannot
   exercise it. The shared plan still reports `NO_SELECTABLE_TEST`; other Playwright unknowns and

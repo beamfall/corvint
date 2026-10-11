@@ -11,7 +11,7 @@ matches all five OpenCode manifest entries; Pi's existing list already covers al
 No package content, version manifest, decision file or task-store data changes.
 
 AHI-020 retains its ID and adds only the named-path clarification, marked
-**proposed, pending owner acceptance (V1-0452)**. Its traceability row names the regression
+**accepted, decision 0514**. Its traceability row names the regression
 coverage. No new requirement ID is allocated. Broader manifest parsing is outside this repair;
 future published-list edits must keep the explicit gate paths aligned. Rollback is to revert
 this patch, restoring the known missed-bump gap.

@@ -264,7 +264,7 @@ separate exact extension tuple remains governed by AHI-024.
   version was last bumped. Shipped content is every tracked path under the package directory except its version
   files and `README.md`, so a shipped file added later is covered; opencode's own published `files` list defines
   its set instead, including `mcp.example.json` and all paths under `skills`
-  (clarification proposed, pending owner acceptance (V1-0452)). This is distinct from `AHI-010`'s per-release compatibility publication: a host that
+  (clarification accepted, decision 0514). This is distinct from `AHI-010`'s per-release compatibility publication: a host that
   caches an installed package by version (observed for Claude Code, `docs/build-log/2026-09-10.md`) never re-stages
   changed content under an unchanged version, so a stale version number silently withholds a fix or feature from an
   already-installed host. The Codex package's build-metadata suffix (`0.1.0+codex.<timestamp>`) advances by refreshing

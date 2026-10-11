@@ -482,7 +482,7 @@ This subsection fixes the S4 wire shape. It adds no requirement and no root verb
 
 ### Navigation map
 
-- `AFU-V1-025`: (amendment proposed, pending owner acceptance (V1-0281)) `corvint flows navigate` MUST derive an `application-navigation-map/0` from flow
+- `AFU-V1-025`: (amendment accepted, decision 0514) `corvint flows navigate` MUST derive an `application-navigation-map/0` from flow
   intents and run evidence. It contains states (a route template or API operation, with a stable state
   ID), transitions (action, locator, preconditions, a readiness condition to wait for, expected
   observations, effect class, and any declared recovery transition), and each transition's verified
@@ -533,7 +533,7 @@ This subsection fixes the S5 wire shape. It adds no requirement and no root verb
   `verified` only when a variation that lists it has every required evidence pair verified; a step
   with no navigation entry has no state or locator. Step verification is evidence-only; the additive,
   optional `review_state` (`stale`, `unreviewed`, `inferred` or `reviewed`) separately reports supporting
-  link review under the proposed AFU-V1-025 amendment (V1-0281), including in packet recovery steps.
+  link review under the AFU-V1-025 amendment (V1-0281; accepted, decision 0514), including in packet recovery steps.
   Existing schema identities and `verification` values are unchanged. A precondition flow that is not declared or that
   closes a cycle refuses the map.
 - Packet: `--goal` writes `application-navigation-packet/0` with `goal`, `max_effect`, the referenced
@@ -729,7 +729,7 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-022 | `TestAFUV1022EveryFallbackCodeYieldsFullSuite` (one subtest per closed code), `TestAFUV1040SelectionCorpusReport` (global-path cases) |
 | AFU-V1-023 | `TestAFUV1020ExclusionProofsPerBasis`, `TestAFUV1040SelectionCorpusReport` (per-basis counts, both notes) |
 | AFU-V1-024 | `TestAFUV1024StrictAndCoverageBytesUnchanged` (goldens captured before S4), `TestAFUV1024E2ESafeRefusesMalformedInput`, `TestAffectedSelectionArguments` |
-| AFU-V1-025 | `TestAFUV1025NavigationMapGolden` (`navigate.golden.json`: states, readiness, expected outcomes, recovery, verified and unverified steps, credentials by fixture ID, read-only), `TestAFUV1025PreconditionFlowsResolve`; proposed V1-0281 amendment: `TestAFUV1025StepReviewState`, `TestAFUV1025PacketReviewState`, `TestAFUV1039AcceptanceFixture` |
+| AFU-V1-025 | `TestAFUV1025NavigationMapGolden` (`navigate.golden.json`: states, readiness, expected outcomes, recovery, verified and unverified steps, credentials by fixture ID, read-only), `TestAFUV1025PreconditionFlowsResolve`; V1-0281 amendment (accepted, decision 0514): `TestAFUV1025StepReviewState`, `TestAFUV1025PacketReviewState`, `TestAFUV1039AcceptanceFixture` |
 | AFU-V1-026 | `TestAFUV1026LocatorsOnlyFromIntent` (no locator for an unmapped step; traffic with page text refused), `TestAFUV1026NavigationLocatorShapes` |
 | AFU-V1-027 | `TestAFUV1027EffectClasses` (raised by observed `POST`, never lowered, undeclared), `TestAFUV1027EffectRaisedNeverLowered` |
 | AFU-V1-028 | `TestAFUV1028PacketRequiresGrant` (`navigate-checkout.golden.json`), `TestAFUV1028ScriptedAgentCompletesGoals` (a scripted agent completes each mapped fixture goal from the packet alone, including a recovery, performs no write under the default `read`, and cannot run an unmapped goal), `TestAFUV1028PacketBound` |

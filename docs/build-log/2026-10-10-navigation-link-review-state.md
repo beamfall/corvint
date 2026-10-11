@@ -1,6 +1,6 @@
 # V1-0281: navigation exposes supporting link review
 
-Intent: AFU-V1-025 amendment proposed, pending owner acceptance (V1-0281).
+Intent: AFU-V1-025 amendment accepted, decision 0514.
 The baseline acceptance fixture marked `profile/save-name` verified even though its source
 link was stale and its flow incomplete. Navigation now carries an additive optional
 `review_state` beside the existing test-evidence `verification`, including packet recovery
@@ -67,8 +67,8 @@ Verification (all Go commands used `GOTOOLCHAIN=local`,
 - `git diff --check`: PASS. No exhaustive gate or full package sweep ran.
 
 Final local outcome: patch and requested focused verification complete; independent review clean.
-Owner acceptance of the proposed amendment, real-index staging and post-commit dogfood sealing
-remain outstanding under the stated task/sandbox limits. Final check output is retained in
+Owner acceptance is decision 0514. Real-index staging and post-commit dogfood sealing
+remained outstanding under the stated task/sandbox limits. Final check output is retained in
 `/private/tmp/v1-0281-unit-final.log`, `/private/tmp/v1-0281-cli.log`,
 `/private/tmp/v1-0281-doc-gates-final.log`, `/private/tmp/v1-0281-doc-gates-retry.log`, and
 `/private/tmp/v1-0281-receipts-test-final.log`.

@@ -112,7 +112,7 @@ AFU-V1-021	docs/specs/application-flow-understanding-v1.md	424	An `observed` cov
 AFU-V1-022	docs/specs/application-flow-understanding-v1.md	432	No test may be omitted when any changed path is a global path. When narrowing is
 AFU-V1-023	docs/specs/application-flow-understanding-v1.md	438	Every omitted test MUST appear with its exclusion proof and basis in the result,
 AFU-V1-024	docs/specs/application-flow-understanding-v1.md	442	The profile is an additive value of the frozen `--selection-profile` option. The
-AFU-V1-025	docs/specs/application-flow-understanding-v1.md	485	(amendment proposed, pending owner acceptance (V1-0281)) `corvint flows navigate
+AFU-V1-025	docs/specs/application-flow-understanding-v1.md	485	(amendment accepted, decision 0514) `corvint flows navigate` MUST derive an `app
 AFU-V1-026	docs/specs/application-flow-understanding-v1.md	497	Locators MUST come from the flow intent or test source: an accessible role and n
 AFU-V1-027	docs/specs/application-flow-understanding-v1.md	499	Every transition MUST carry an effect class. A declared class MAY be raised by
 AFU-V1-028	docs/specs/application-flow-understanding-v1.md	502	`flows navigate --goal FLOW_ID` MUST return a bounded packet: the ordered steps,

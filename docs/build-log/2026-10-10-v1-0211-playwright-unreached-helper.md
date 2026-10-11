@@ -1,6 +1,6 @@
 # V1-0211: Playwright unreached helper selection boundary
 
-Intent: proposed, pending owner acceptance (V1-0211).
+Intent: accepted, decision 0514.
 Base: `32bfc85a44fd82b5793c7e30b2231200e16c025a` (HEAD and local origin/main).
 
 The existing shared selector reports `NO_SELECTABLE_TEST` for a changed non-Go
