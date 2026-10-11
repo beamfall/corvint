@@ -131,8 +131,12 @@ snapshot the worktree, or claim that revision-only context is complete.
   honour it. Every other verb, every `prove` mode (path, `--task`, `--cem`, `--checkpoint`) and
   `feature` MUST exit 2 with a typed diagnostic and no success document, without writing
   repository state. Most verbs report `invalid-arguments`; verbs with their own input contract
-  keep their existing code (`work` emits its `ERROR` result document). A test enumerates the
-  dispatched verbs, so a new verb is checked without a list edit. Rollback: remove the test.
+  keep their existing code (`work` emits its `ERROR` result document). The fail-open `adapter`
+  verb exits 0 by contract, so it refuses through its degraded `unsupported-hook-event` output
+  instead; `adapter codex` now degrades on any trailing argument as `adapter claude-code` already
+  did. The test runs each verb in a valid form with and without the flag and requires the flag to
+  cause the refusal; a dispatched verb missing from its form table fails the test until a form is
+  added. Rollback: revert the `adapter codex` argument check and remove the test.
 
 ## V1-1141 scope and acceptance
 
@@ -216,4 +220,4 @@ Go receipt and its query, impact, prove, and harness regressions.
 | `DIRTY-CACHE-013` | `internal/contextindex/snapshot.go`, `internal/gitstatus/status.go` | `TestLinkedWorktreesShareOneCleanSnapshot`, `TestConcurrentWorktreeWritersPublishCompleteSnapshotsByRename`, `TestSharedSnapshotStoreKeepsTheEntryBoundAcrossWorktrees`, `TestSnapshotStoreBoundScalesByWorktreeUpToTheCap`, `TestWriteSnapshotDoesNotRewriteMatchingGitIgnore`, `TestSnapshotStoreFallsBackToTheWorktreeWhenTheCommonDirectoryIsUnresolved`, `TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory`, `TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory` |
 | `DIRTY-CACHE-014` | `internal/contextindex/receipt.go`, `internal/contextindex/impact_freshness.go` | `TestImpactMixedWarning`, `TestImpactMixedWarningBudget`, `TestImpactMixedCLIReadOnly` |
 | `DIRTY-CACHE-015` | `cmd/corvint/main.go`, `internal/contextindex/impact_freshness.go` | `TestImpactRequireCleanCLI`, `TestImpactRequireCleanArguments`, `TestImpactRequireCleanBudget`, `TestImpactRequireCleanValidatesRequest` |
-| `DIRTY-CACHE-016` | `cmd/corvint/prove_options.go`, `topLevelCommands` in `cmd/corvint/main.go` | `TestRequireCleanHonouredOrRefusedByEveryCommand`, `TestProveRefusesRequireClean` |
+| `DIRTY-CACHE-016` | `cmd/corvint/prove_options.go`, `hostAdapterOutput` in `cmd/corvint/host_adapter.go`, `topLevelCommands` in `cmd/corvint/main.go` | `TestRequireCleanHonouredOrRefusedByEveryCommand`, `TestProveRefusesRequireClean` |

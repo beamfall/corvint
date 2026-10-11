@@ -151,6 +151,11 @@ func hostAdapterOutput(ctx context.Context, arguments []string, stdin io.Reader)
 	}
 	switch arguments[0] {
 	case "codex":
+		// Like claude-code, an unexpected trailing argument degrades instead
+		// of being ignored (DIRTY-CACHE-016).
+		if len(arguments) != 1 {
+			return degradedAdapterOutput("unsupported-hook-event")
+		}
 		return runCodexAdapter(ctx, payload)
 	case "claude-code":
 		if len(arguments) != 2 {
