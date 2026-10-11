@@ -422,6 +422,15 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   provider's canonical encoding, admits the witness step's arguments, and checks every flag of the
   producer step against the provider's `e2e` flags. Status: (accepted, decision
   0519; V1-1196; GitHub #794).
+- `DCP-V1-055`: `discover-playwright` applies the `TJAA-V0-021` grep/grepInvert omission rules of
+  `affected` Playwright discovery to the same listing. When a selected (project, file) pair is missing
+  and its project declares `grep` or `grepInvert`, the producer reads that file's listed cases. It
+  accepts the omission whether it is explained or unverified. An accepted omission has no listed
+  execution and adds none: the record holds only listed executions, so a registered test the omission
+  may hide is not discovered, and is not invented. An unexplained omission still refuses under
+  `DCP-V1-048`. A focused test runs the GitHub #790 three-project repro through the listed-tests
+  producer, and checks that an unexplained omission refuses. Status: (proposed, pending owner
+  acceptance; V1-1231; GitHub #800).
 
 ## Input and authority boundary
 

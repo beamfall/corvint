@@ -26,7 +26,9 @@ type PlaywrightListedTest struct {
 // `playwright test --list --reporter=json` report for configPath, under the same refusals as
 // PlaywrightDiscoveryFromList: errors, filtering, sharding, a foreign config, paths outside
 // root, and a listing whose project/file pairs differ from the pairs the config selects in the
-// current sources, including the skipped-directory and static-membership refusals. When
+// current sources, including the skipped-directory and static-membership refusals. A selected
+// pair the listing omits is accepted under the same grep/grepInvert rules (TJAA-V0-021), whether
+// explained or unverified; it has no listed execution, so it adds none. When
 // revisionPaths is not nil it holds the repository-relative regular-file paths of the pinned
 // revision the caller binds, and a pair the config selects among them must be listed too. Each
 // execution keeps Playwright's test ID, repository-relative file, line, column, project and
@@ -48,10 +50,11 @@ func PlaywrightListedTests(root, configPath string, listing []byte, revisionPath
 		seen[test.ID] = true
 	}
 	units := map[PlaywrightDiscoveryUnit]bool{}
-	for _, test := range tests {
-		units[PlaywrightDiscoveryUnit{Project: test.Project, Test: test.Path}] = true
+	cases := map[string][]playwrightListCase{}
+	if err := collectPlaywrightListUnits(realRoot, report.Config.RootDir, "", nil, report.Suites, 0, units, cases); err != nil {
+		return nil, err
 	}
-	if _, _, _, err := observePlaywrightListMembership(root, configPath, units, revisionPaths, nil); err != nil {
+	if _, _, _, err := observePlaywrightListMembership(root, configPath, units, revisionPaths, cases); err != nil {
 		return nil, err
 	}
 	sort.Slice(tests, func(i, j int) bool {

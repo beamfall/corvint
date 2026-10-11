@@ -322,3 +322,67 @@ func TestPlaywrightTitleTags_TJAA_V0_021(t *testing.T) {
 		}
 	}
 }
+
+// locatedGrepListing reshapes a grepPlaywrightListing report as Playwright reports projects: one
+// spec per project, each with its own test ID and the location PlaywrightListedTests requires
+// (line is the spec's 1-based order within its file).
+func locatedGrepListing(t *testing.T, raw []byte) []byte {
+	t.Helper()
+	var report map[string]any
+	if err := json.Unmarshal(raw, &report); err != nil {
+		t.Fatal(err)
+	}
+	var walk func(suites []any, line *int)
+	walk = func(suites []any, line *int) {
+		for _, item := range suites {
+			suite := item.(map[string]any)
+			specs := []any{}
+			for _, item := range suite["specs"].([]any) {
+				spec := item.(map[string]any)
+				*line++
+				for _, test := range spec["tests"].([]any) {
+					project := test.(map[string]any)["projectName"].(string)
+					specs = append(specs, map[string]any{
+						"id": spec["file"].(string) + "#" + spec["title"].(string) + "#" + project, "title": spec["title"], "file": spec["file"],
+						"tags": spec["tags"], "line": *line, "column": 1, "tests": []any{test},
+					})
+				}
+			}
+			suite["specs"] = specs
+			walk(suite["suites"].([]any), line)
+		}
+	}
+	for _, suite := range report["suites"].([]any) {
+		line := 0
+		walk([]any{suite}, &line)
+	}
+	located, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return located
+}
+
+// GitHub #800: the listed-tests entry point behind `docs corpus discover-playwright` applies the
+// same grep/grepInvert omission rules as discovery, so a grep-split listing yields its listed
+// executions instead of a missing-pair refusal, and an unexplained omission still refuses.
+func TestPlaywrightListedTestsGrepOmission_TJAA_V0_021(t *testing.T) {
+	root := grepFixture(t, grepRepro)
+	tests, err := PlaywrightListedTests(root, "playwright.config.ts", locatedGrepListing(t, grepPlaywrightListing(t, root, "e2e", grepReproCases())), nil)
+	if err != nil {
+		t.Fatalf("grep-split listing refused: %v", err)
+	}
+	got := []string{}
+	for _, test := range tests {
+		got = append(got, test.Project+" "+test.Path+" "+test.Title)
+	}
+	want := []string{"main e2e/plain.spec.ts plain", "alt-a e2e/tagged.spec.ts x @tagged", "alt-b e2e/tagged.spec.ts x @tagged", "main e2e/tagged.spec.ts y"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("executions = %q, want %q", got, want)
+	}
+	cases := grepReproCases()
+	cases[0].projects = []string{"alt-a", "alt-b"} // main's grepInvert keeps `plain`, so its omission is unexplained
+	if _, err := PlaywrightListedTests(root, "playwright.config.ts", locatedGrepListing(t, grepPlaywrightListing(t, root, "e2e", cases)), nil); err == nil || !strings.Contains(err.Error(), `omits project "main"`) {
+		t.Fatalf("unexplained omission accepted: %v", err)
+	}
+}
