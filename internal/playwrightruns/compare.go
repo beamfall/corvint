@@ -66,6 +66,10 @@ type ReportFacts struct {
 	ResultDurationMS   int64    `json:"resultDurationMS"`
 	FixtureDurations   string   `json:"fixtureDurations"`
 	Cleanup            string   `json:"cleanup"`
+	// Shard and RepeatEach appear only when the report declares a shard or a repeatEach above 1
+	// (PWR-V0-014, PWR-V0-020).
+	Shard      *Shard         `json:"shard,omitempty"`
+	RepeatEach map[string]int `json:"repeatEach,omitempty"`
 }
 
 // Problem names one report that could not be admitted.
@@ -81,7 +85,8 @@ type OutcomeCount struct {
 	Count   int    `json:"count"`
 }
 
-// SideTest is one test's evidence on one side over that side's N reports (PWR-V0-006, PWR-V0-009).
+// SideTest is one test's evidence on one side over that side's N observations: one per logical run,
+// or repeatEach per run that declares it (PWR-V0-006, PWR-V0-009, PWR-V0-014).
 type SideTest struct {
 	Reports          int            `json:"reports"`
 	Outcomes         []OutcomeCount `json:"outcomes"`
@@ -119,19 +124,23 @@ type CompareReport struct {
 	Unknowns []string                 `json:"unknowns"`
 	Problems []Problem                `json:"problems"`
 	Reports  map[string][]ReportFacts `json:"reports"`
-	Tests    []CompareEntry           `json:"tests"`
-	Summary  CompareSummary           `json:"summary"`
+	// ShardSets lists each side's shard sets; absent when no admitted report is a shard.
+	ShardSets map[string][]ShardSet `json:"shardSets,omitempty"`
+	Tests     []CompareEntry        `json:"tests"`
+	Summary   CompareSummary        `json:"summary"`
 }
 
 // Compare matches tests by identity across baseline and candidate report sets and returns one
 // verdict (PWR-V0-008): INCOMPARABLE with every applicable reason when the sets cannot be shown to
 // be comparable, otherwise DIVERGED when any test is CHANGED, MISSING or NEW, otherwise PARITY.
-// Per-test entries are computed whenever every report was admitted.
+// Per-test entries are computed whenever every report was admitted and every shard set is complete.
+// Each side's shard reports are grouped into logical runs first (PWR-V0-016 to PWR-V0-020).
 func Compare(baseline, candidate []Loaded) CompareReport {
 	report := CompareReport{Profile: CompareProfile, Reasons: []string{}, Unknowns: []string{}, Problems: []Problem{},
 		Reports: map[string][]ReportFacts{SideBaseline: {}, SideCandidate: {}}, Tests: []CompareEntry{}}
 	reasons := map[string]bool{}
 	sides := map[string][]*Run{}
+	positions := map[string][]int{}
 	for _, side := range []struct {
 		name   string
 		loaded []Loaded
@@ -147,6 +156,7 @@ func Compare(baseline, candidate []Loaded) CompareReport {
 				continue
 			}
 			sides[side.name] = append(sides[side.name], l.Run)
+			positions[side.name] = append(positions[side.name], i+1)
 			report.Reports[side.name] = append(report.Reports[side.name], facts(i+1, l.Run))
 		}
 		if len(side.loaded) == 0 {
@@ -154,11 +164,33 @@ func Compare(baseline, candidate []Loaded) CompareReport {
 			reasons[ReasonNoTests] = true
 		}
 	}
+	refused := false
+	for _, side := range []string{SideBaseline, SideCandidate} {
+		logical, sets := logicalRuns(sides[side], positions[side])
+		sides[side] = nil
+		for _, run := range logical {
+			if run.refusal == "" {
+				sides[side] = append(sides[side], run.Run)
+			}
+		}
+		for _, set := range sets {
+			if report.ShardSets == nil {
+				report.ShardSets = map[string][]ShardSet{SideBaseline: {}, SideCandidate: {}}
+			}
+			report.ShardSets[side] = append(report.ShardSets[side], set)
+			if set.Reason != "" {
+				refused = true
+				reasons[set.Reason] = true
+				report.Problems = append(report.Problems, Problem{Side: side, Report: set.Run, Reason: set.Reason})
+			}
+		}
+	}
 	if len(sides[SideBaseline])+len(sides[SideCandidate]) > 0 {
 		comparability(sides, reasons, &report)
 	}
-	// Test rows are withheld unless every report was admitted on both sides.
-	if reasons[ReasonReportUnreadable] || len(sides[SideBaseline]) == 0 || len(sides[SideCandidate]) == 0 {
+	// Test rows are withheld unless every report was admitted, and every shard set complete, on
+	// both sides.
+	if reasons[ReasonReportUnreadable] || refused || len(sides[SideBaseline]) == 0 || len(sides[SideCandidate]) == 0 {
 		return finish(report, reasons)
 	}
 	entries(sides, &report)
@@ -180,7 +212,7 @@ func Compare(baseline, candidate []Loaded) CompareReport {
 	return finish(report, reasons)
 }
 
-var incomparableReasons = []string{ReasonReportUnreadable, ReasonVersionDiffers, ReasonProjectsDiffer, ReasonConfigDiffers,
+var incomparableReasons = []string{ReasonReportUnreadable, ReasonShardInputsUndeclared, ReasonShardSetIncomplete, ReasonShardDuplicate, ReasonVersionDiffers, ReasonProjectsDiffer, ReasonConfigDiffers,
 	ReasonInputsDifferInSide, ReasonReportHasErrors, ReasonNoTests, ReasonAmbiguous, ReasonInterrupted}
 
 func hasIncomparable(reasons map[string]bool) bool {
@@ -238,6 +270,7 @@ func facts(index int, run *Run) ReportFacts {
 		}
 	}
 	sort.Ints(f.WorkerIndexes)
+	f.Shard, f.RepeatEach = run.Shard, presentedRepeatEach(run)
 	return f
 }
 
@@ -297,11 +330,13 @@ func comparability(sides map[string][]*Run, reasons map[string]bool, report *Com
 	}
 }
 
-// entries matches tests by identity and classifies each (PWR-V0-006, PWR-V0-007).
+// entries matches tests by identity and classifies each (PWR-V0-006, PWR-V0-007). Each logical
+// run contributes one observation slot per declared repeat of the test's project, filled in repeat
+// order, so N repeats in one report count as N single-repeat reports (PWR-V0-014).
 func entries(sides map[string][]*Run, report *CompareReport) {
 	ids := map[string]Identity{}
 	ambiguous := map[string]bool{}
-	per := map[string]map[string][]*Test{SideBaseline: {}, SideCandidate: {}}
+	per := map[string]map[string][][]*Test{SideBaseline: {}, SideCandidate: {}}
 	for side, runs := range sides {
 		for i, run := range runs {
 			for key := range run.Ambiguous {
@@ -312,9 +347,9 @@ func entries(sides map[string][]*Run, report *CompareReport) {
 				key := t.Key()
 				ids[key] = t.Identity
 				if per[side][key] == nil {
-					per[side][key] = make([]*Test, len(runs))
+					per[side][key] = make([][]*Test, len(runs))
 				}
-				per[side][key][i] = t
+				per[side][key][i] = append(per[side][key][i], t)
 			}
 		}
 	}
@@ -333,8 +368,8 @@ func entries(sides map[string][]*Run, report *CompareReport) {
 			continue
 		}
 		base, cand := per[SideBaseline][k], per[SideCandidate][k]
-		e.Baseline = sideTest(base, len(sides[SideBaseline]))
-		e.Candidate = sideTest(cand, len(sides[SideCandidate]))
+		e.Baseline = sideTest(slots(sides[SideBaseline], base, ids[k].Project))
+		e.Candidate = sideTest(slots(sides[SideCandidate], cand, ids[k].Project))
 		switch {
 		case cand == nil:
 			e.Verdict = Missing
@@ -375,12 +410,30 @@ func screenAssertions(st *SideTest) {
 	}
 }
 
-// sideTest summarizes one test over one side's n reports; a report without the test counts as the
-// outcome "absent", and a test no report has is n absent.
-func sideTest(tests []*Test, n int) *SideTest {
-	if tests == nil {
-		tests = make([]*Test, n)
+// slots lays one test's occurrences out over a side's observation slots: per logical run, as many
+// slots as the run declares repeats for the project, the unfilled ones nil (absent). An ambiguous
+// identity never reaches here, so a run never holds more occurrences than slots.
+func slots(runs []*Run, occurrences [][]*Test, project string) []*Test {
+	out := []*Test{}
+	for i, run := range runs {
+		var got []*Test
+		if occurrences != nil {
+			got = occurrences[i]
+		}
+		for r := 0; r < run.repeats(project); r++ {
+			if r < len(got) {
+				out = append(out, got[r])
+			} else {
+				out = append(out, nil)
+			}
+		}
 	}
+	return out
+}
+
+// sideTest summarizes one test over one side's observation slots; a slot without the test counts as
+// the outcome "absent", and a test no report has is all absent.
+func sideTest(tests []*Test) *SideTest {
 	st := &SideTest{Reports: len(tests), Outcomes: []OutcomeCount{}, FailedAssertions: []Assertion{}}
 	counts := map[string]int{}
 	seen := map[Assertion]bool{}

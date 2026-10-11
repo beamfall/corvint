@@ -4,12 +4,13 @@ Owner: Russell Lewis
 Date: 2026-10-11
 Intent status: accepted (decision 0520; V1-1230, V1-1229)
 Delivery status: experimental
-Authoritative inputs: V1-1230 / GitHub #798 and V1-1229 / GitHub #797 owner requests; AGENTS.md invariants 1, 2, 4, 7 and 8.
+Authoritative inputs: V1-1230 / GitHub #798 and V1-1229 / GitHub #797 owner requests; GitHub
+#809 (repeat-each) and #810 (shards) for PWR-V0-011..023; AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: A read-only reader of Playwright JSON reports classifies per-test outcome stability across runs and behaviour parity between baseline and candidate runs.
 - Status: accepted (decision 0520; V1-1230, V1-1229)/experimental
-- Exists: `internal/playwrightruns` and the experimental `corvint runs stability` and `corvint runs compare` commands.
+- Exists: `internal/playwrightruns` and the experimental `corvint runs stability` and `corvint runs compare` commands; each `--repeat-each` repeat is one observation, and shard reports merge into one logical run only as a complete set, else `SHARD_SET_INCOMPLETE`, `SHARD_DUPLICATE` or `SHARD_INPUTS_NOT_DECLARED` (PWR-V0-011..023).
 - Blocked on: owner acceptance; fixture durations, cleanup and passing assertions are not in the JSON reporter output.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
 
@@ -106,6 +107,52 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   Invalid arguments refuse with `runs-invalid-arguments` and an output failure with
   `runs-output-unavailable`, exiting 2 without echoing argument values. Topic help MUST document the
   verdicts, reasons and `NOT_OBSERVED` facts.
+- `PWR-V0-011`: The reader MUST read `config.projects[].repeatEach` and, for a project whose
+  config entries all declare one value above 1, treat each spec entry of a test as one repeat,
+  numbered from 0 in report order (the JSON reporter carries no repeat index). Stability counts each
+  repeat as one observation of its logical run, so one `--repeat-each 3` report with outcomes
+  `{passed, failed, passed}` is `INTERMITTENT` and is never `BELOW_THRESHOLD` at `--min-runs 3`.
+- `PWR-V0-012`: A test identity that occurs more than once in a logical run stays
+  `IDENTITY_AMBIGUOUS` (compare `AMBIGUOUS`) unless every occurrence has one spec location and the
+  count equals the project's declared `repeatEach`. A single occurrence is one plain observation.
+- `PWR-V0-013`: Stability output MUST add `repeatEach` to a run summary and `repeats[]` (the repeat
+  index of each observation, parallel to `runs[]`) to an entry only when a repeat-each run
+  contributes, and `shard` to a run summary only when the report declares one; all are omitted
+  otherwise.
+- `PWR-V0-014`: Compare MUST lay each test out over observation slots: per admitted logical run, as
+  many slots as the run declares repeats for the test's project, an unfilled slot counting as
+  `absent`. N repeats in one report then give the same `k/N` as N single-repeat reports. Report
+  facts add `repeatEach` and `shard` only when declared.
+- `PWR-V0-015`: Unsharded single-repeat inputs MUST produce stability and compare documents
+  byte-identical to the output before `PWR-V0-011`, pinned by goldens taken at
+  `645304a2fb71065f9061d8d8d866600d703e84c6`.
+- `PWR-V0-016`: A report declaring `config.shard` MUST have `1 <= current <= total` (else
+  `REPORT_NOT_PLAYWRIGHT_JSON`). Shard reports group into one logical run by shard total, Playwright
+  version, declared `applicationRevision` and `configDigest`, and `repeatEach` declaration; reports
+  that differ in any of these are never merged. A logical run is indexed by its first report's
+  position; a report without `config.shard` is its own logical run.
+- `PWR-V0-017`: A shard set is admitted only when shards 1..total are each present exactly once at
+  declared inputs. Otherwise it is refused, in this precedence, with `SHARD_INPUTS_NOT_DECLARED`,
+  `SHARD_SET_INCOMPLETE` or `SHARD_DUPLICATE`, and `shardSets[]` lists every set with its reports,
+  shard indexes, status, reason, `missing` and `duplicate` indexes.
+- `PWR-V0-018`: An admitted set is read as one run: tests concatenated in shard order, projects and
+  declared test-file blobs united (differing blobs stay a conflict), workers and report errors
+  summed, and repeats resolved over the whole set, so the same test in two shards is ambiguous
+  unless `repeatEach` explains it.
+- `PWR-V0-019`: Stability MUST count an admitted set as one run, giving the same entries as one
+  unsharded report of the same tests; every test of a refused set is `INSUFFICIENT` with the set's
+  refusal reason and never pools.
+- `PWR-V0-020`: Compare MUST treat an admitted set as one report of its side. A refused set adds its
+  reason, in the fixed order after `REPORT_UNREADABLE`, and a problem naming the side and logical run;
+  the verdict is `INCOMPARABLE` and test rows are withheld, never `PARITY`.
+- `PWR-V0-021`: Sharding and repeat-each MUST compose: Playwright shards repeat instances, so a
+  sharded `--repeat-each` run is resolved over its merged set, and shards that declare different
+  `repeatEach` fall in different groups and are refused as incomplete.
+- `PWR-V0-022`: `merge-reports` JSON output (no `config.shard`, projects listed once per merged shard)
+  MUST read as one unsharded run with the same stability and compare entries as the unsharded report.
+- `PWR-V0-023`: `corvint runs` topic help MUST document repeat observations, shard sets, the three
+  shard refusals and the `shardSets[]` and `repeats[]` fields, and both commands MUST carry them end to
+  end without writing.
 
 ## Boundaries and failure modes
 
@@ -113,6 +160,12 @@ Non-goals: running Playwright, fetching reports, reading HTML/blob/JUnit reporte
 input, receipts as identity input, inferring identity from Git, feeding obligation outcomes from
 the expected-fail flag, telling page objects, helpers and fixtures apart, and counting passing
 assertions. Those remain `NOT_RUN` until a later requirement.
+
+Shard and repeat limits: two complete shard sets at the same inputs form one group with every shard
+duplicated and are refused as `SHARD_DUPLICATE` (pass them as one run each through `--repeat-each`
+or `merge-reports`); repeat order is report order; a set with undeclared inputs is refused rather
+than grouped on Playwright version alone; `merge-reports` merges metadata shallowly, so its identity
+inputs are whatever the shard reports shared.
 
 Failure modes: a report that declares false identity inputs pools runs that differ; the verdict is
 only as good as the declaration, and the reader cannot verify it. An interrupted, ambiguous or
@@ -139,6 +192,13 @@ Identical runs compare as `PARITY`; a changed test-file assertion is `DIVERGED`;
 Playwright version, config digest or project set, or a missing report, is `INCOMPARABLE`; a
 support-only assertion difference stays `SAME` and is reported as a support difference.
 
+Repeat-each and shard reports produced by `@playwright/test` 1.61.1 and sanitized
+(`internal/playwrightruns/testdata/runs`, provenance in the 2026-10-11 runs build-log entry): one
+`--repeat-each 3` report is `INTERMITTENT` with `repeats [0,1,2]`; three shards and `merge-reports`
+output equal one unsharded run; two of three shards is `SHARD_SET_INCOMPLETE` naming shard 3; a
+rerun shard is `SHARD_DUPLICATE`; a shard at another application revision is not merged; a test in
+two shards is ambiguous; a sharded `--repeat-each 2` run is `INTERMITTENT` with `k/N` 1/2.
+
 ## Delivery
 
 | Requirement | Implementation | Focused evidence | Status |
@@ -153,5 +213,18 @@ support-only assertion difference stays `SAME` and is reported as a support diff
 | PWR-V0-008 | `internal/playwrightruns` | `TestCompareVerdicts`, `TestReaderAndCompareEdgeCases`, `TestRunsCompareCLI` | experimental |
 | PWR-V0-009 | `internal/playwrightruns` | `TestCompareVerdicts`, `TestReaderAndCompareEdgeCases` | experimental |
 | PWR-V0-010 | `cmd/corvint/runs.go` | `TestRunsCompareCLI` | experimental |
+| PWR-V0-011 | `internal/playwrightruns` | `TestRepeatEachIsObservations`, `TestRunsRepeatAndShardCLI` | proposed/experimental |
+| PWR-V0-012 | `internal/playwrightruns` | `TestRepeatCountMismatchAmbiguous` | proposed/experimental |
+| PWR-V0-013 | `internal/playwrightruns` | `TestRepeatEachIsObservations` | proposed/experimental |
+| PWR-V0-014 | `internal/playwrightruns` | `TestCompareRepeatsMatchSingleReports`, `TestRunsRepeatAndShardCLI` | proposed/experimental |
+| PWR-V0-015 | `internal/playwrightruns` | `TestSingleRepeatOutputByteIdentical` | proposed/experimental |
+| PWR-V0-016 | `internal/playwrightruns` | `TestShardDeclarationValidated`, `TestShardSetRefusals`, `TestCompleteShardSetMatchesWholeRun` | proposed/experimental |
+| PWR-V0-017 | `internal/playwrightruns` | `TestShardSetRefusals`, `TestRunsRepeatAndShardCLI` | proposed/experimental |
+| PWR-V0-018 | `internal/playwrightruns` | `TestShardOverlapAmbiguous` | proposed/experimental |
+| PWR-V0-019 | `internal/playwrightruns` | `TestCompleteShardSetMatchesWholeRun`, `TestShardSetRefusals`, `TestRunsRepeatAndShardCLI` | proposed/experimental |
+| PWR-V0-020 | `internal/playwrightruns` | `TestCompleteShardSetMatchesWholeRun`, `TestShardSetRefusals`, `TestRunsRepeatAndShardCLI` | proposed/experimental |
+| PWR-V0-021 | `internal/playwrightruns` | `TestShardedRepeatEachComposes` | proposed/experimental |
+| PWR-V0-022 | `internal/playwrightruns` | `TestCompleteShardSetMatchesWholeRun` | proposed/experimental |
+| PWR-V0-023 | `cmd/corvint/runs.go` | `TestRunsRepeatAndShardCLI` | proposed/experimental |
 
 Repository-wide gate is `NOT_RUN` in this scoped lane.

@@ -2660,16 +2660,29 @@ PWP-V3-004	docs/specs/playwright-external-provider-v0.md	189	Every `/3` attempt 
 PWP-V3-005	docs/specs/playwright-external-provider-v0.md	190	The reporter emits `attemptDetails` only under `/3`; the provider validates the
 PWP-V3-006	docs/specs/playwright-external-provider-v0.md	191	`/3` is non-promotable until the changed reporter completes the live matrix of `
 PWP-V3-007	docs/specs/playwright-external-provider-v0.md	423	The `/3` exact project identity permits an explicitly observed empty project nam
-PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	29	One shared reader MUST read an explicit Playwright json-reporter file read-only
-PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	43	Runs pool only at identical identity inputs: the Playwright version plus the
-PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	50	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes
-PWR-V0-004	docs/specs/playwright-run-evidence-v0.md	59	An `INTERMITTENT` pool whose test is expected to fail (`expectedStatus` `failed`
-PWR-V0-005	docs/specs/playwright-run-evidence-v0.md	63	`corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-
-PWR-V0-006	docs/specs/playwright-run-evidence-v0.md	72	`Compare(baseline, candidate)` MUST match tests by the `PWR-V0-001` identity acr
-PWR-V0-007	docs/specs/playwright-run-evidence-v0.md	82	A failed assertion's origin MUST come only from its reported location: `TEST_FIL
-PWR-V0-008	docs/specs/playwright-run-evidence-v0.md	89	The overall verdict MUST be `INCOMPARABLE` with every applicable reason, in the
-PWR-V0-009	docs/specs/playwright-run-evidence-v0.md	99	Each admitted report MUST be listed per side with its position, SHA-256, Playwri
-PWR-V0-010	docs/specs/playwright-run-evidence-v0.md	103	`corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,
+PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	30	One shared reader MUST read an explicit Playwright json-reporter file read-only
+PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	44	Runs pool only at identical identity inputs: the Playwright version plus the
+PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	51	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes
+PWR-V0-004	docs/specs/playwright-run-evidence-v0.md	60	An `INTERMITTENT` pool whose test is expected to fail (`expectedStatus` `failed`
+PWR-V0-005	docs/specs/playwright-run-evidence-v0.md	64	`corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-
+PWR-V0-006	docs/specs/playwright-run-evidence-v0.md	73	`Compare(baseline, candidate)` MUST match tests by the `PWR-V0-001` identity acr
+PWR-V0-007	docs/specs/playwright-run-evidence-v0.md	83	A failed assertion's origin MUST come only from its reported location: `TEST_FIL
+PWR-V0-008	docs/specs/playwright-run-evidence-v0.md	90	The overall verdict MUST be `INCOMPARABLE` with every applicable reason, in the
+PWR-V0-009	docs/specs/playwright-run-evidence-v0.md	100	Each admitted report MUST be listed per side with its position, SHA-256, Playwri
+PWR-V0-010	docs/specs/playwright-run-evidence-v0.md	104	`corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,
+PWR-V0-011	docs/specs/playwright-run-evidence-v0.md	110	The reader MUST read `config.projects[].repeatEach` and, for a project whose
+PWR-V0-012	docs/specs/playwright-run-evidence-v0.md	115	A test identity that occurs more than once in a logical run stays
+PWR-V0-013	docs/specs/playwright-run-evidence-v0.md	118	Stability output MUST add `repeatEach` to a run summary and `repeats[]` (the rep
+PWR-V0-014	docs/specs/playwright-run-evidence-v0.md	122	Compare MUST lay each test out over observation slots: per admitted logical run,
+PWR-V0-015	docs/specs/playwright-run-evidence-v0.md	126	Unsharded single-repeat inputs MUST produce stability and compare documents
+PWR-V0-016	docs/specs/playwright-run-evidence-v0.md	129	A report declaring `config.shard` MUST have `1 <= current <= total` (else
+PWR-V0-017	docs/specs/playwright-run-evidence-v0.md	134	A shard set is admitted only when shards 1..total are each present exactly once
+PWR-V0-018	docs/specs/playwright-run-evidence-v0.md	138	An admitted set is read as one run: tests concatenated in shard order, projects
+PWR-V0-019	docs/specs/playwright-run-evidence-v0.md	142	Stability MUST count an admitted set as one run, giving the same entries as one
+PWR-V0-020	docs/specs/playwright-run-evidence-v0.md	145	Compare MUST treat an admitted set as one report of its side. A refused set adds
+PWR-V0-021	docs/specs/playwright-run-evidence-v0.md	148	Sharding and repeat-each MUST compose: Playwright shards repeat instances, so a
+PWR-V0-022	docs/specs/playwright-run-evidence-v0.md	151	`merge-reports` JSON output (no `config.shard`, projects listed once per merged
+PWR-V0-023	docs/specs/playwright-run-evidence-v0.md	153	`corvint runs` topic help MUST document repeat observations, shard sets, the thr
 PWV-V0-001	docs/specs/pi-workflow-v0.md	36	Pi MUST preserve original native Core receipt objects, output and exit status, i
 PWV-V0-002	docs/specs/pi-workflow-v0.md	37	Core read tools MUST use closed operation and argument sets for query, context,
 PWV-V0-003	docs/specs/pi-workflow-v0.md	38	Each command MUST use bounded argv-only local execution, one owned POSIX process
