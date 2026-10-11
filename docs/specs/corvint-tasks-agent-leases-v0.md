@@ -5640,6 +5640,12 @@ still fails closed otherwise.
   attempt state is refused `FENCED` with `prior program owner not proved stopped`. The
   replacement then holds the stopped attempt and may answer, resume, drain or cancel it.
 
+- `CAL-V0-212`: (accepted, decision 0502; V1-0628) The top-level `help` usage MUST NOT
+  advertise `--target` or `--expected-revision` for `ticket create`, which refuses both
+  (CAL-V0-051). It MUST list `ticket create` on its own usage line that names the optional payload
+  `localToken` as the way to choose the queue-local ID, and MUST list the target-taking `ticket`
+  mutations separately. No ID grammar, collision rule, alias or wire change.
+
 The non-cancelling `NO_EXEC` settlements (stage admission refused, prelaunch preparation failed)
 are intended not to cancel: a dispatched attempt stops into `WAITING` with the reason as its
 question and keeps its claim and reservation, and the owner is released so the operator answers,
