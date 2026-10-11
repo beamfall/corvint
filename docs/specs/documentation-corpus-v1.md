@@ -432,8 +432,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   execution carries. An unexplained omission still refuses, as does a selected file at the source
   revision that the listing omits and the working tree lacks. A focused test runs the GitHub #790
   three-project repro through the listed-tests producer with the revision's paths, and checks both
-  refusals. Status: (proposed, pending owner
-  acceptance; V1-1231; GitHub #800).
+  refusals. Status: (accepted, decision
+  0520; V1-1231; GitHub #800).
 
 ## Input and authority boundary
 
