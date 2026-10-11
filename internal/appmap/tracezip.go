@@ -124,6 +124,9 @@ func LoadTraceZip(name, testKey string) (NavigationEvents, []byte, error) {
 			if phase == "before" {
 				beforeURL[call] = s.FrameURL
 			}
+			if s.FrameURL == "" || len(s.FrameURL) > 4096 {
+				return none, nil, bad("trace zip snapshot URL must be 1 to 4096 bytes")
+			}
 			if s.FrameURL == cur {
 				continue
 			}
@@ -131,9 +134,6 @@ func LoadTraceZip(name, testKey string) (NavigationEvents, []byte, error) {
 			cur = s.FrameURL
 			if strings.HasPrefix(s.FrameURL, "about:") {
 				continue
-			}
-			if s.FrameURL == "" || len(s.FrameURL) > 4096 {
-				return none, nil, bad("trace zip snapshot URL must be 1 to 4096 bytes")
 			}
 			ev := NavigationEvent{Kind: "navigate", URL: s.FrameURL}
 			if b, ok := beforeURL[call]; ok && (phase == "input" || phase == "after") && b == prev {

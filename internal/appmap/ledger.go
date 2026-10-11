@@ -103,6 +103,32 @@ func ledgerIdentity(from, to Step) LedgerEdge {
 
 const MaxLedgerObservations = 16
 
+// observedTraceConsistent is true when the trace has the shape Observe emits: visits in sequence,
+// one edge per adjacent visit pair whose endpoints are those visits' screens, resolved exactly when
+// both visits resolve to map screens, with a trigger from the closed vocabulary.
+func observedTraceConsistent(m *Map, tr ObservedTrace) bool {
+	if !validTestKey(tr.TestKey) || tr.Visits == nil || tr.Edges == nil {
+		return false
+	}
+	for i, v := range tr.Visits {
+		if v.Seq != i || (v.Status == StatusResolved) != (v.Screen != "") || (v.Screen != "" && m.screen(v.Screen) == nil) {
+			return false
+		}
+	}
+	if len(tr.Edges) != max(len(tr.Visits)-1, 0) {
+		return false
+	}
+	for i, e := range tr.Edges {
+		a, b := tr.Visits[i], tr.Visits[i+1]
+		resolved := a.Status == StatusResolved && b.Status == StatusResolved
+		if e.FromSeq != i || e.ToSeq != i+1 || e.From != a.Screen || e.To != b.Screen || (e.Status == StatusResolved) != resolved ||
+			(e.Trigger != StatusUnknown && !typedTrigger(e.Trigger)) {
+			return false
+		}
+	}
+	return true
+}
+
 // LoadObservations refuses more than MaxLedgerObservations names before reading any file.
 func LoadObservations(m *Map, names []string) ([]*Observation, error) {
 	if len(names) > MaxLedgerObservations {
@@ -135,6 +161,11 @@ func LoadObservation(m *Map, name string) (*Observation, error) {
 	}
 	for _, n := range obs.Omitted {
 		if n != 0 {
+			return nil, bad
+		}
+	}
+	for _, tr := range obs.Traces {
+		if !observedTraceConsistent(m, tr) {
 			return nil, bad
 		}
 	}

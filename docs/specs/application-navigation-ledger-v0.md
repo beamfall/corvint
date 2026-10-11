@@ -145,7 +145,9 @@ are URL templates, not component source files. This slice makes neither missing 
 - `ANL-V0-023`: `edges --observation FILE` (repeatable, at most 16) feeds observed navigation edges
   into the ledger only when named; no read command applies observations implicitly or writes them.
   A file must be a complete `application-navigation-observation/0` document of at most 4 MiB built
-  from the same app and map digest, with no omitted visit or edge and an intact digest, else exit 2.
+  from the same app and map digest, with no omitted visit or edge, an intact digest, and each trace in the shape `observe` emits
+  (visits in sequence over map screens, one edge per adjacent visit pair naming those visits'
+  screens, resolved exactly when both visits are, with a typed or `UNKNOWN` trigger), else exit 2.
   Each resolved observed edge binds its trace's test key to every ledger edge with the same from and
   to screens whose trigger is `UNKNOWN` or equals the observed trigger (so an `UNKNOWN` observation
   never binds a typed edge), exactly as a declared `proves` would, but never creates an outcome: the

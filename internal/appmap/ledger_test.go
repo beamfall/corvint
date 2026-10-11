@@ -192,6 +192,13 @@ func sealedObservation(t *testing.T, m *Map, rev string, key string, edges ...Ob
 	t.Helper()
 	obs := Observation{Schema: ObservationSchema, App: m.App, Revision: rev, MapDigest: m.Digest, Authority: AuthorityLearned,
 		Traces: []ObservedTrace{{TestKey: key, TraceDigest: "d", Visits: []ObservedVisit{}, Edges: edges}}, Omitted: map[string]int{"visits": 0, "edges": 0}}
+	// The visits are the edges' resolved endpoints, as Observe emits them.
+	for i, e := range edges {
+		if i == 0 {
+			obs.Traces[0].Visits = append(obs.Traces[0].Visits, ObservedVisit{Seq: 0, URL: "https://x.test/", Screen: e.From, Status: StatusResolved})
+		}
+		obs.Traces[0].Visits = append(obs.Traces[0].Visits, ObservedVisit{Seq: i + 1, URL: "https://x.test/", Screen: e.To, Status: StatusResolved})
+	}
 	complete, _ := json.Marshal(obs)
 	obs.Digest = digest(complete)
 	raw, _ := json.Marshal(obs)
@@ -200,6 +207,21 @@ func sealedObservation(t *testing.T, m *Map, rev string, key string, edges ...Ob
 		t.Fatal(err)
 	}
 	return &obs, name
+}
+
+// resealed edits a sealed observation and recomputes its digest, so only consistency can refuse it.
+func resealed(t *testing.T, raw []byte, edit func(*Observation)) string {
+	t.Helper()
+	var o Observation
+	if err := json.Unmarshal(raw, &o); err != nil {
+		t.Fatal(err)
+	}
+	edit(&o)
+	o.Digest = ""
+	complete, _ := json.Marshal(o)
+	o.Digest = digest(complete)
+	out, _ := json.Marshal(o)
+	return string(out)
 }
 
 func observedLedger(t *testing.T, m *Map, v *Verification, obs []*Observation, o Options, require ...string) (EdgeLedger, bool) {
@@ -223,7 +245,23 @@ func TestANLV0023ObservedEdgesFeedLedger(t *testing.T) {
 	key := r.Tests[0].ID
 	v := verification(t, m, []string{writeReceipt(t, r)})
 	crossing := ObservedEdge{FromSeq: 0, ToSeq: 1, From: row.From, To: row.To, Trigger: "click", Status: StatusResolved}
-	stray := ObservedEdge{FromSeq: 1, ToSeq: 2, From: row.To, To: "screen:nowhere", Trigger: "click", Status: StatusResolved}
+	// stray crosses from row.To to a map screen no ledger edge reaches from it.
+	full, _, _ := readLedger(t, m, nil, nil, Options{Root: root, Full: true})
+	nowhere := ""
+	for _, sc := range m.Screens {
+		hit := false
+		for _, e := range full.Edges {
+			hit = hit || (e.From == row.To && e.To == sc.ID)
+		}
+		if !hit {
+			nowhere = sc.ID
+			break
+		}
+	}
+	if nowhere == "" {
+		t.Fatal("fixture has no unreached screen")
+	}
+	stray := ObservedEdge{FromSeq: 1, ToSeq: 2, From: row.To, To: nowhere, Trigger: "click", Status: StatusResolved}
 	obs, name := sealedObservation(t, m, rev, key, crossing, stray)
 	loaded, err := LoadObservation(m, name)
 	if err != nil || loaded.Digest != obs.Digest {
@@ -280,9 +318,12 @@ func TestANLV0023ObservedEdgesFeedLedger(t *testing.T) {
 	// Tampered, trimmed and foreign observations refuse.
 	raw, _ := os.ReadFile(name)
 	for label, body := range map[string]string{
-		"tampered": strings.Replace(string(raw), `"click"`, `"goto"`, 1),
-		"trimmed":  strings.Replace(string(raw), `"edges":0`, `"edges":1`, 1),
-		"foreign":  strings.Replace(string(raw), m.Digest, "sha256:other", 1),
+		"tampered":            strings.Replace(string(raw), `"click"`, `"goto"`, 1),
+		"trimmed":             strings.Replace(string(raw), `"edges":0`, `"edges":1`, 1),
+		"foreign":             strings.Replace(string(raw), m.Digest, "sha256:other", 1),
+		"no visits":           resealed(t, raw, func(o *Observation) { o.Traces[0].Visits = []ObservedVisit{} }),
+		"edge off its visits": resealed(t, raw, func(o *Observation) { o.Traces[0].Edges[0].To = nowhere }),
+		"unmapped screen":     resealed(t, raw, func(o *Observation) { o.Traces[0].Visits[2].Screen = "screen:nowhere" }),
 	} {
 		p := filepath.Join(t.TempDir(), "o.json")
 		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {

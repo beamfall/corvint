@@ -91,6 +91,7 @@ func TestANLV0022TraceZip(t *testing.T) {
 		"no snapshots": {"trace.trace": traceLines(before("call@1", "goto", ""))},
 		"bad record":   {"trace.trace": body + "{not json\n"},
 		"null record":  {"trace.trace": body + "null\n"},
+		"no url":       {"trace.trace": `{"type":"frame-snapshot","snapshot":{"pageId":"p","isMainFrame":true}}` + "\n"},
 	}
 	for name, entries := range refuse {
 		if _, _, err := LoadTraceZip(traceZip(t, entries), "k"); err == nil {
