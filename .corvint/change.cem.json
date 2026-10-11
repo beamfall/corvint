@@ -1,0 +1,69 @@
+{
+  "baseRevision": "363c8b9c755cdfc112944648a4a69e78ce704984",
+  "evidence": [],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:ca16445daa8359901e8ce1a705e4974864b094173ec1bb9bddd79ab3e0b89b9d",
+      "newRange": {
+        "count": 7,
+        "start": 66
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 66
+      },
+      "path": "docs/build-log/2026-10-10-ci-eight-shards.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:5daaf962dbfdef6a2fd5ce8f75e76020bcc6ac25f5b9a028eb822abd1aee9b3c",
+      "newRange": {
+        "count": 31,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/decisions/0500-afp-v0-041-eight-shard-slice-default-accepted-2026-10-10.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:3cd5ff33178d9ec908d3e5169de3ef2d017d2ecf5f65b476a4c8acbbf469eb3f",
+      "newRange": {
+        "count": 6,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 5,
+        "start": 1
+      },
+      "path": "docs/decisions/README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:512b240571baa0c51f4557a140d098b065d8dc6a5acc5f7725a3ea6f34429854",
+      "newRange": {
+        "count": 7,
+        "start": 561
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 561
+      },
+      "path": "docs/specs/affected-plan-v0.md",
+      "reason": "no-evidence"
+    }
+  ],
+  "patchSha256": "36dced6afedb22594338f119523e58a82920c443369a83b91abdebd0e0c8835e",
+  "spec": "cem/0.2"
+}
