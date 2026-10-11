@@ -1081,6 +1081,7 @@ DCP-V1-049	docs/specs/documentation-corpus-v1.md	376	`corvint docs corpus witnes
 DCP-V1-050	docs/specs/documentation-corpus-v1.md	383	A witness is produced only when the qualified receipt test with the registered I
 DCP-V1-051	docs/specs/documentation-corpus-v1.md	397	Every other registered test stays unwitnessed with exactly one named reason and
 DCP-V1-052	docs/specs/documentation-corpus-v1.md	406	Missing or untrustworthy shared evidence yields uncertainty for every test, neve
+DCP-V1-053	docs/specs/documentation-corpus-v1.md	412	`corvint docs --help`, which `docs corpus witness-playwright --help` prints, nam
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide
@@ -2042,20 +2043,21 @@ LPCV-V0-053	docs/specs/live-proof-carrying-verification-v0.md	338	`corvint [--ro
 LPCV-V0-054	docs/specs/live-proof-carrying-verification-v0.md	356	a discovered document's freshness MUST be bound to the worktree as it is now,
 LPCV-V0-055	docs/specs/live-proof-carrying-verification-v0.md	373	producer retention (decision 0218) MUST be opt-in and bounded.
 LPCV-V0-056	docs/specs/live-proof-carrying-verification-v0.md	397	(accepted by decision 0448; V1-0976) discovery MUST say why it yields no
-LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	634	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi
-LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	646	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright
-LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	656	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the
-LPCV-V0-060	docs/specs/live-proof-carrying-verification-v0.md	667	(accepted (decision 0458; V1-1024; GitHub #682)) Faults are installed by a Corvi
-LPCV-V0-061	docs/specs/live-proof-carrying-verification-v0.md	675	(accepted (decision 0458; V1-1024; GitHub #682)) Network fault derivation. The w
-LPCV-V0-062	docs/specs/live-proof-carrying-verification-v0.md	696	(accepted (decision 0458; V1-1024; GitHub #682)) DOM fault derivation applies wh
-LPCV-V0-063	docs/specs/live-proof-carrying-verification-v0.md	708	(accepted (decision 0458; V1-1024; GitHub #682)) Single-step pass rule: each fau
-LPCV-V0-064	docs/specs/live-proof-carrying-verification-v0.md	730	(accepted (decision 0458; V1-1024; GitHub #682)) `--all-steps` performs the base
-LPCV-V0-065	docs/specs/live-proof-carrying-verification-v0.md	744	(accepted (decision 0458; V1-1024; GitHub #682)) negate emits one closed canonic
-LPCV-V0-066	docs/specs/live-proof-carrying-verification-v0.md	765	(accepted (decision 0458; V1-1024; GitHub #682)) The common `binding` records th
-LPCV-V0-067	docs/specs/live-proof-carrying-verification-v0.md	782	(accepted (decision 0458; V1-1024; GitHub #682)) Retention is atomic and confine
-LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	791	(accepted (decision 0458; V1-1024; GitHub #682)) This requirement covers project
-LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	809	(accepted (decision 0458; V1-1024; GitHub #682)) Safety. negate runs the user's
-LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	821	(accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnost
+LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	635	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi
+LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	647	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright
+LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	657	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the
+LPCV-V0-060	docs/specs/live-proof-carrying-verification-v0.md	668	(accepted (decision 0458; V1-1024; GitHub #682)) Faults are installed by a Corvi
+LPCV-V0-061	docs/specs/live-proof-carrying-verification-v0.md	676	(accepted (decision 0458; V1-1024; GitHub #682)) Network fault derivation. The w
+LPCV-V0-062	docs/specs/live-proof-carrying-verification-v0.md	697	(accepted (decision 0458; V1-1024; GitHub #682)) DOM fault derivation applies wh
+LPCV-V0-063	docs/specs/live-proof-carrying-verification-v0.md	709	(accepted (decision 0458; V1-1024; GitHub #682)) Single-step pass rule: each fau
+LPCV-V0-064	docs/specs/live-proof-carrying-verification-v0.md	731	(accepted (decision 0458; V1-1024; GitHub #682)) `--all-steps` performs the base
+LPCV-V0-065	docs/specs/live-proof-carrying-verification-v0.md	745	(accepted (decision 0458; V1-1024; GitHub #682)) negate emits one closed canonic
+LPCV-V0-066	docs/specs/live-proof-carrying-verification-v0.md	766	(accepted (decision 0458; V1-1024; GitHub #682)) The common `binding` records th
+LPCV-V0-067	docs/specs/live-proof-carrying-verification-v0.md	783	(accepted (decision 0458; V1-1024; GitHub #682)) Retention is atomic and confine
+LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	792	(accepted (decision 0458; V1-1024; GitHub #682)) This requirement covers project
+LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	810	(accepted (decision 0458; V1-1024; GitHub #682)) Safety. negate runs the user's
+LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	829	(accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnost
+LPCV-V0-071	docs/specs/live-proof-carrying-verification-v0.md	822	`corvint-js-test-provider --help`, `-h`, `-help` and `help` MUST exit 0 and prin
 LPCVD-V0-001	docs/specs/live-proof-carrying-verification-v0.md	416	(accepted, decision 0518; V1-1140) Extend
 LPCVD-V0-002	docs/specs/live-proof-carrying-verification-v0.md	426	(accepted, decision 0518; V1-1140) Extend the closed
 LPCVD-V0-003	docs/specs/live-proof-carrying-verification-v0.md	449	(accepted, decision 0518; V1-1140) Discovery MUST expose

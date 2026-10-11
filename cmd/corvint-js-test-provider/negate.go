@@ -72,8 +72,10 @@ func parseNegate(args []string) (jstestprovider.NegateConfig, error) {
 			return jstestprovider.NegateConfig{}, &jstestprovider.NegateRefusal{Code: jstestprovider.NegateModeUnsupported, Message: "--" + name + " is not composed with negate"}
 		}
 	}
-	fs := flag.NewFlagSet("negate", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := newSubcommandFlags("negate", flag.ContinueOnError)
+	if usageSink == nil {
+		fs.SetOutput(io.Discard)
+	}
 	root := fs.String("root", "", "test repository worktree root")
 	spec := fs.String("spec", "", "worktree-relative spec file")
 	test := fs.String("test", "", "exact full test title (describe titles and test title joined by \" > \")")

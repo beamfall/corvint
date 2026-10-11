@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/jstestprovider"
 )
 
 // playwrightCorpusRepository commits the generic Playwright project of the doccorpus fixture
@@ -105,4 +106,60 @@ func TestDocsCorpusPlaywrightProducersCLI(t *testing.T) {
 			t.Fatalf("%d %q %s", code, out, stderr)
 		}
 	})
+}
+
+// DCP-V1-053: the docs help names corvint-js-test-provider e2e --external-server as the qualified
+// receipt producer, and its end-to-end example runs: the provider's canonical stdout encoding
+// (jstestprovider.EncodeQualified, the bytes e2e --external-server prints and --retain keeps) is
+// accepted unchanged by discover-playwright --receipt, and witness-playwright takes the receipt
+// as a named request input. The witness join itself is TestPlaywrightWitnessImporter's.
+func TestDocsHelpNamesPlaywrightReceiptProducer(t *testing.T) {
+	for _, want := range []string{"DCP-V1-053", "corvint-js-test-provider e2e\n--external-server", ".corvint/test-evidence/", "Managed-server e2e output is not a qualified receipt", "names a\nREQUEST.json input, not a file", "commit the receipt bytes unchanged"} {
+		if !strings.Contains(docsHelp, want) {
+			t.Errorf("docs help omits %q", want)
+		}
+	}
+	root, migration := playwrightCorpusRepository(t)
+	config, _ := os.ReadFile(filepath.Join(root, "playwright.config.ts"))
+	spec, _ := os.ReadFile(filepath.Join(root, "e2e", "items.spec.ts"))
+	adopted := strings.Repeat("a", 64)
+	receipt, err := jstestprovider.EncodeQualified(jstestprovider.Receipt{
+		Profile: jstestprovider.ExternalProfile, Kind: "e2e",
+		Identity: jstestprovider.Identity{ConfigFile: root + "/playwright.config.ts", ConfigDigest: doccorpus.Digest(config), TestFileDigests: map[string]string{root + "/e2e/items.spec.ts": doccorpus.Digest(spec)}, RunnerName: "playwright", RunnerVersion: "1.63.0", NodeVersion: "v22.23.2"},
+		External: &jstestprovider.ExternalLifecycle{Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown", DeclaredAppIdentity: "web"},
+		Tests:    []jstestprovider.TestOutcome{{ID: adopted, Name: "lists items", FullName: " > alpha > items.spec.ts > items > lists items", State: "passed", Anchor: &jstestprovider.Anchor{File: root + "/e2e/items.spec.ts", Line: 7}, Project: &jstestprovider.ProjectIdentity{Name: "alpha"}, Attempts: []jstestprovider.Attempt{{State: "passed", Retry: 0}}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, "evidence/receipt.json", string(receipt))
+	ran := map[string]bool{}
+	for _, line := range strings.Split(docsHelp, "\n") {
+		fields := strings.Fields(line)
+		if !strings.HasPrefix(line, "    corvint docs corpus ") {
+			continue
+		}
+		if n := len(fields); n > 2 && fields[n-2] == ">" {
+			fields = fields[:n-2]
+		}
+		code, out, stderr := corpusCLI(t, root, fields[1:]...)
+		switch fields[3] {
+		case "discover-playwright":
+			listing, _ := os.ReadFile(filepath.Join(root, "evidence", "list.json"))
+			want, err := doccorpus.BuildPlaywrightDiscovery(context.Background(), doccorpus.PlaywrightDiscoveryInput{Root: root, Migration: migration, ConfigPath: "playwright.config.ts", Listing: listing, Receipt: receipt})
+			if code != 0 || err != nil || out != string(want) || !strings.Contains(out, adopted) {
+				t.Fatalf("example discover-playwright: %d %v %s\n%s", code, err, stderr, out)
+			}
+		case "witness-playwright":
+			// The example's request is the caller's; absent here, the read refuses only after
+			// every argument was admitted.
+			if code != 2 || !strings.Contains(stderr, "corpus-input-unavailable") {
+				t.Fatalf("example witness-playwright arguments refused: %d %s", code, stderr)
+			}
+		}
+		ran[fields[3]] = true
+	}
+	if !ran["discover-playwright"] || !ran["witness-playwright"] {
+		t.Fatalf("help example lacks the discovery or witness step: %v", ran)
+	}
 }
