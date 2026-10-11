@@ -164,6 +164,8 @@ what any packet says.
   `corvint --root ROOT index --if-stale` outside the hook under an owned foreground/supervised
   process lifetime with deadline and interruption cleanup. That writer retains
   `IDX-SNAP-V0-011`; no hook outcome asserts that a persistent refresh completed.
+  Superseded in part by decision 0517: for the stale-snapshot hook path only, the no-automatic-refresh /
+  no-detached-child clause is replaced by `IDX-SNAP-V0-031` through `IDX-SNAP-V0-036`.
   Amendment authority: owner's 2026-09-08 cross-host lifecycle repair and every-child cleanup
   instruction; independent Gate A; partial supersession of decision 0049 item 3 only.
   (accepted amendment 2026-09-26, decision 0422; V1-0286) After it
@@ -690,21 +692,21 @@ fallback. Rollback: delete `internal/contextindex/snapshot_mapping.go` and the `
 and `lease` fields, restore `retainedPack`/`retainPack`/`retainedSectioned`/`retainSectioned` and
 `viewStrings` in `eventTables`; eviction then drops references without unmapping again.
 
-### Proposed (2026-10-10, V1-1128, pending owner acceptance): hook-triggered background refresh
+### Accepted (2026-10-10, V1-1128, decision 0517): hook-triggered background refresh
 
-This experimental amendment proposes superseding only the no-automatic-refresh / no-detached-child
-clause of `IDX-SNAP-V0-012` once accepted. The accepted clause remains recorded above; this build
-is not owner acceptance. Human intent: after a commit or main move, the owner wants stale hook
+This experimental amendment supersedes only the no-automatic-refresh / no-detached-child
+clause of `IDX-SNAP-V0-012` (decision 0517). The rest of that clause remains recorded above; delivery
+stays experimental. Human intent: after a commit or main move, the owner wants stale hook
 snapshots refreshed automatically without a manual warmup.
 
-- `IDX-SNAP-V0-031`: proposed, pending owner acceptance (V1-1128). On the existing stale-snapshot
+- `IDX-SNAP-V0-031`: accepted, decision 0517. On the existing stale-snapshot
   outcome, Claude Code and Codex adapters MAY start a separately exec'd copy of `os.Executable`
   with `--root ROOT index --if-stale`. Invariant 4 admission is limited to this explicit writer
   (`IDX-SNAP-V0-011`) and its coordination lock: the hook's evidence read remains non-mutating;
   neither ordinary reads nor fresh hook events acquire a writer. Lock and timing metadata never
   feed ranking, evidence or authority. Existing writer ignore maintenance and eviction remain
   writer-owned. This is an experimental proposal, not a new general read-command write exception.
-- `IDX-SNAP-V0-032`: proposed, pending owner acceptance (V1-1128). A nonblocking flock on one
+- `IDX-SNAP-V0-032`: accepted, decision 0517. A nonblocking flock on one
   `refresh.lock` in the shared snapshot store admits at most one background writer across its
   trees and linked worktrees. This stronger-than-per-tree bound limits host load without extra
   Git observations. The descriptor passes to the child; metadata records PID and start time.
@@ -715,7 +717,7 @@ snapshots refreshed automatically without a manual warmup.
   relative to a pinned directory descriptor with O_NOFOLLOW|O_DIRECTORY, and open the lock leaf
   with O_NOFOLLOW|O_NONBLOCK. A component swapped for a symlink cannot redirect lock creation
   or metadata writes; linked leaves, hardlinks and non-regular lock files are refused.
-- `IDX-SNAP-V0-033`: proposed, pending owner acceptance (V1-1128). The child owns a new session,
+- `IDX-SNAP-V0-033`: accepted, decision 0517. The child owns a new session,
   redirects all standard streams to `/dev/null`, uses nice priority at least +10 and GOMAXPROCS=1,
   cancels work at 55 seconds and kills its process group at a hard 60-second wall bound. It
   refuses to build if lowering priority is denied; a started notice still acknowledges only spawn.
@@ -732,17 +734,17 @@ snapshots refreshed automatically without a manual warmup.
   Invariant 7 admits one finite child, no daemon, restart loop or supervisor. Under the V1-1120
   HLQ load envelope, scheduling can still exhaust a hook deadline: no latency/FULL qualification
   or safe load threshold is inferred. Busy stores skip spawning; later events may retry.
-- `IDX-SNAP-V0-034`: proposed, pending owner acceptance (V1-1128). Publication, disk bounds and
+- `IDX-SNAP-V0-034`: accepted, decision 0517. Publication, disk bounds and
   eviction remain `IDX-SNAP-V0-001`, `IDX-SNAP-V0-007`, `IDX-SNAP-V0-025` and `IDX-SNAP-V0-027`.
   Killing or expiring a writer publishes no partial snapshot. Complete files already renamed
   remain valid. Abandoned temporaries remain unreadable as snapshots and the next writer sweeps
   them at the existing ten-minute cutoff; no extra background sweeper is admitted.
-- `IDX-SNAP-V0-035`: proposed, pending owner acceptance (V1-1128). `CORVINT_INDEX_AUTO_REFRESH=0`
+- `IDX-SNAP-V0-035`: accepted, decision 0517. `CORVINT_INDEX_AUTO_REFRESH=0`
   disables the spawn and retains the manual notice. Spawn failure, missing executable, unwritable
   or read-only store, lock refusal and unsupported platform all fail open with the existing stale
   code and exact manual argv. Notices distinguish started, already running, disabled and failed
   starts; started never means completed. There is no new configuration machinery or git hook install.
-- `IDX-SNAP-V0-036`: proposed, pending owner acceptance (V1-1128). Acceptance requires a real
+- `IDX-SNAP-V0-036`: accepted, decision 0517. Acceptance requires a real
   commit-then-event regression whose next event consumes the completed snapshot, concurrent
   single-flight and stale-lock recovery, opt-out and failed-start checks, a slow-child hook-bound
   check, and killed/expired-writer checks including stale temporary sweep and descendant retirement.
@@ -751,7 +753,7 @@ snapshots refreshed automatically without a manual warmup.
 
 ## Non-goals and authority
 
-Proposed, pending owner acceptance (V1-1128): the adapter-only writer/lock exception in
+Accepted, decision 0517 (V1-1128): the adapter-only writer/lock exception in
 `IDX-SNAP-V0-031` through `IDX-SNAP-V0-036` admits no daemon, git-hook installer, synchronous
 hook build, supervision or new ranking/evidence authority. Ordinary read verbs keep the baseline.
 
@@ -771,7 +773,7 @@ path.
 
 ## Failure modes
 
-Proposed, pending owner acceptance (V1-1128; IDX-SNAP-V0-031 through IDX-SNAP-V0-036): a missing
+Accepted, decision 0517 (V1-1128; IDX-SNAP-V0-031 through IDX-SNAP-V0-036): a missing
 executable, spawn error, linked/unwritable lock or read-only store keeps the stale fail-open notice
 and manual argv. A busy writer produces an already-running notice; killed/expired children leave
 no partial published snapshot, release flock automatically and retain only stale metadata or
@@ -846,7 +848,7 @@ unpublished temporaries until retry/sweep. A tree moving again can still miss on
 
 ## Acceptance evidence
 
-Proposed, pending owner acceptance (V1-1128; `IDX-SNAP-V0-031` through `IDX-SNAP-V0-036`):
+Accepted, decision 0517 (V1-1128; `IDX-SNAP-V0-031` through `IDX-SNAP-V0-036`):
 `TestSnapshotRefreshCommitThenEvent` witnesses both adapters consuming the refreshed snapshot;
 the single-flight, stale-lock, opt-out/failure, slow-child and interruption tests below cover the
 bounded lifecycle. The interruption fixture asserts a snapshot miss before fault injection and
@@ -906,7 +908,7 @@ legacy store exists (`docs/build-log/2026-10-07-legacy-index-store-sweep.md`).
 
 ## Rollback
 
-Proposed, pending owner acceptance (V1-1128): set `CORVINT_INDEX_AUTO_REFRESH=0`; an already
+Accepted, decision 0517 (V1-1128): set `CORVINT_INDEX_AUTO_REFRESH=0`; an already
 started child remains bounded and exits. Reverting the amendment and its implementation restores
 manual refresh argv behavior. An empty `refresh.lock` is inert; do not unlink a live flock inode.
 
@@ -952,9 +954,9 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-025 | `WriteSnapshot`, `liveWorktreeTrees`, `evictSnapshots`, `evictAnalyzerPacks`, `runIndex`, `evictedSnapshotsPayload` | `TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst`, `TestLiveWorktreeTreesNamesEveryLiveHead`, `TestIndexKeepsALinkedWorktreesSnapshotAndItsPromptReusesIt`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
 | IDX-SNAP-V0-027 | `sweepLegacyStore`, `WriteSnapshot`, `runIndex`, `legacyLeftPayload` | `TestIndexWriteSweepsTheSupersededWorktreeStore`, `TestIndexWriteLeavesUnrecognisedLegacyEntries`, `TestIndexReceiptNamesTheSweptLegacyStore` |
 | IDX-SNAP-V0-026 | `openingObservationWithTree`, `cancelledByListing`, `buildEvidenceFrom`, `buildStableFrom` | `TestBuildRefusesSourceCountBeforeStatusFinishesOrBlobsRead` (darwin/linux shim: 200,001-entry listing refused before the shimmed status finishes and with no `cat-file` spawn); `TestBuildReportsAnIndependentStatusFailureOverAnOverLimitListing` (shimmed status fails on its own before the over-limit listing: the status failure is reported, no `cat-file`); `TestBuildRefusesCarriedOpeningObservationErrors` (carried identity or status error refused, no index); `TestStandaloneStatusKeepsAnIndependentFailureCancelledDuringCleanup` (`contextCancellation`: a status failure classified when it happened keeps its own error when the scan context is cancelled during `StatusIn`'s deferred cleanup) |
-| IDX-SNAP-V0-031 (proposed, pending owner acceptance (V1-1128)) | `startSnapshotRefresh`, `runSnapshotRefreshWorker` | `TestSnapshotRefreshCommitThenEvent` |
-| IDX-SNAP-V0-032 (proposed, pending owner acceptance (V1-1128)) | `AcquireSnapshotRefreshLock`, `ValidateSnapshotRefreshLock` | `TestSnapshotRefreshSingleFlight`, `TestSnapshotRefreshStaleLock`, `TestSnapshotRefreshLockDirectorySwap`, `TestSnapshotRefreshLockConcurrentCreate` |
-| IDX-SNAP-V0-033 (proposed, pending owner acceptance (V1-1128)) | `runSnapshotRefreshWorker` | `TestSnapshotRefreshSlowChild`, `TestSnapshotRefreshInterrupted`, `TestSnapshotRefreshEffectivePriority`, `TestSnapshotRefreshPriorityDenied` |
-| IDX-SNAP-V0-034 (proposed, pending owner acceptance (V1-1128)) | `runIndex`, `WriteSnapshot` | `TestSnapshotRefreshInterrupted`, `TestEvictSnapshotsRemovesStaleTemporaries` |
-| IDX-SNAP-V0-035 (proposed, pending owner acceptance (V1-1128)) | `snapshotRemediation` | `TestSnapshotRefreshDisabledAndFailures` |
-| IDX-SNAP-V0-036 (proposed, pending owner acceptance (V1-1128)) | refresh regression matrix | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshSingleFlight`, `TestSnapshotRefreshInterrupted` |
+| IDX-SNAP-V0-031 (accepted, decision 0517) | `startSnapshotRefresh`, `runSnapshotRefreshWorker` | `TestSnapshotRefreshCommitThenEvent` |
+| IDX-SNAP-V0-032 (accepted, decision 0517) | `AcquireSnapshotRefreshLock`, `ValidateSnapshotRefreshLock` | `TestSnapshotRefreshSingleFlight`, `TestSnapshotRefreshStaleLock`, `TestSnapshotRefreshLockDirectorySwap`, `TestSnapshotRefreshLockConcurrentCreate` |
+| IDX-SNAP-V0-033 (accepted, decision 0517) | `runSnapshotRefreshWorker` | `TestSnapshotRefreshSlowChild`, `TestSnapshotRefreshInterrupted`, `TestSnapshotRefreshEffectivePriority`, `TestSnapshotRefreshPriorityDenied` |
+| IDX-SNAP-V0-034 (accepted, decision 0517) | `runIndex`, `WriteSnapshot` | `TestSnapshotRefreshInterrupted`, `TestEvictSnapshotsRemovesStaleTemporaries` |
+| IDX-SNAP-V0-035 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshDisabledAndFailures` |
+| IDX-SNAP-V0-036 (accepted, decision 0517) | refresh regression matrix | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshSingleFlight`, `TestSnapshotRefreshInterrupted` |

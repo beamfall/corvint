@@ -1,7 +1,7 @@
-# V1-1128: proposed bounded hook background index refresh
+# V1-1128: accepted bounded hook background index refresh
 
-Intent is proposed, pending owner acceptance (V1-1128): IDX-SNAP-V0-031 through
-IDX-SNAP-V0-036 and AHI-053. Delivery is experimental. No decision file or acceptance claim.
+Intent: accepted, decision 0517 (V1-1128): IDX-SNAP-V0-031 through
+IDX-SNAP-V0-036 and AHI-053. Delivery is experimental.
 
 Plan: specify first, retain the existing writer, transfer a shared-store nonblocking flock to
 one detached finite child, then exercise real fixture commits, concurrency and interruption.
@@ -81,7 +81,7 @@ weakening the harness. Ticket filing was not attempted because this task forbids
 
 ## Remaining closeout
 
-Owner acceptance of IDX-SNAP-V0-031 through IDX-SNAP-V0-036 and AHI-053 is pending. Real nice
+Owner acceptance of IDX-SNAP-V0-031 through IDX-SNAP-V0-036 and AHI-053 is recorded in decision 0517. Real nice
 priority and live-host/Linux qualification are NOT_OBSERVED; this sandbox denies Setpriority,
 so production refuses to build here rather than silently running at full priority. Forced
 SIGKILL of only the worker PID leaves the documented descendant residual; signal its group.
