@@ -25,6 +25,10 @@ or it used at least 1% of the wall time since the baseline. The ledger format is
 `taskman-dispatch-state` version move); after a restart every child is new, so an adopted worker
 gets a full idle timeout before it can be stopped IDLE (review round 1).
 
+`supervise` now observes every worker's tree and activity in one pass and stops workers in a
+second pass (review round 4): before, a stop blocking for its kill grace delayed a later worker's
+`/proc` sample while its baseline kept the tick's start time, understating its CPU share.
+
 The 1% share is fixed rather than configured. Measuring from the last activity rather than per
 tick keeps counter rounding from counting a low-CPU helper busy on every tick: after the first
 window the share converges to the helper's real rate.

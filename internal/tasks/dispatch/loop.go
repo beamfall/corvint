@@ -631,7 +631,14 @@ func (d *Dispatcher) supervise() []*Worker {
 			delete(d.childCPU, id)
 		}
 	}
-	var ended []*Worker
+	// Every tree and its activity are observed before any stop, so a stop
+	// that blocks cannot age the CPU samples taken for a later worker
+	// (CAL-V0-218).
+	type observed struct {
+		w      *Worker
+		exempt map[int]string
+	}
+	var seen []observed
 	for _, w := range d.ledger.Workers {
 		select {
 		case code := <-d.exits[w.ID]:
@@ -643,12 +650,16 @@ func (d *Dispatcher) supervise() []*Worker {
 			d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: fmt.Sprintf("could not observe the process tree of %s; keeping it as recorded: %v", w.ID, err)})
 			continue
 		}
-		cfg := d.launchConfig(w)
-		role := cfg.roleNamed(w.Role)
-		host := cfg.Hosts[w.Host]
-		if d.active(w, procs, host, now) {
+		if d.active(w, procs, d.launchConfig(w).Hosts[w.Host], now) {
 			w.LastActive = now
 		}
+		seen = append(seen, observed{w, exempt})
+	}
+	var ended []*Worker
+	for _, o := range seen {
+		w, exempt := o.w, o.exempt
+		cfg := d.launchConfig(w)
+		role := cfg.roleNamed(w.Role)
 		reason := ""
 		switch {
 		case len(w.Members) == 0:

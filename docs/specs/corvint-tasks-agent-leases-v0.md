@@ -5727,8 +5727,10 @@ one dispatcher recorded no IDLE stop in about 670 stops, and a hung session ran 
   that exists but meets none of those conditions MUST NOT keep the worker active. At the first
   observation (a new launch, or every adopted worker after a restart) no member is in a
   baseline, so every non-ignored child counts busy once and an adopted worker gets a full idle
-  timeout of CPU observation. Log growth, activity paths, the leader exclusion, `idleIgnore`,
-  the idle and wall timeouts and the stop procedure are unchanged.
+  timeout of CPU observation. A tick MUST observe every worker's tree and activity before it
+  stops any worker, so a stop that blocks for its grace cannot age a later worker's CPU sample.
+  Log growth, activity paths, the leader exclusion, `idleIgnore`, the idle and wall timeouts and
+  the stop procedure are unchanged.
 
 Non-goals: a configurable CPU share; per-host or per-role process classes; reading process state
 other than the CPU time already in the table; persisting the baseline (no ledger format change);
@@ -5745,12 +5747,13 @@ unparsable CPU time, and a counter below its baseline (a reused PID), count busy
 
 Acceptance evidence: `TestCALV0218_ParseCPUTime`, `TestCALV0218_ParseProcStatCPU`,
 `TestCALV0218_BusyChildNeedsWorkNotPresence`,
-`TestCALV0218_ActiveBaselineFollowsActivity` and `TestCALV0218_SleepingChildDoesNotBlockIdleStop`
+`TestCALV0218_ActiveBaselineFollowsActivity`, `TestCALV0218_SleepingChildDoesNotBlockIdleStop` and
+`TestCALV0218_ActivityObservedBeforeBlockingStops`
 (`internal/tasks/dispatch`, run with `-race`); `docs/build-log/2026-10-11-v1-1195-idle-busy-child.md`.
 
 Rollback: revert the CPU column and parsers in `internal/tasks/dispatch/process_unix.go`, the
 `preciseCPU` files (`childcpu_linux.go`, `childcpu_darwin.go`, the `process_other.go` stub), the
-baseline in `internal/tasks/dispatch/loop.go`, the tests and this amendment. No ledger, receipt or
+baseline and the observe-then-stop split of `supervise` in `internal/tasks/dispatch/loop.go`, the tests and this amendment. No ledger, receipt or
 store state depends on the baseline.
 
 ## Amendments to TCP-00
@@ -6189,7 +6192,7 @@ and removes the new configuration members.
 | CAL-V0-209 | `TestCALV0208_ReadinessMemberCountsAndMilestoneDrift` (`internal/tasks/cli`; the fixture is not a Git repository, so a source observation would fail) |
 | CAL-V0-210 | `TestCALV0074_NoExecCrashTakeover` (`internal/tasks/store`) |
 | CAL-V0-211 | `TestCALV0211_ClaimWarnsOnExactDirectoryKey`, `TestCALV0211_ExactDirectoryKeyWarnings` (`internal/tasks/store`); `TestCALV0211_SetEffectsWarnsOnExactDirectoryKey` (`internal/tasks/cli`) |
-| CAL-V0-218 | `TestCALV0218_ParseCPUTime`, `TestCALV0218_ParseProcStatCPU`, `TestCALV0218_BusyChildNeedsWorkNotPresence`, `TestCALV0218_ActiveBaselineFollowsActivity`, `TestCALV0218_SleepingChildDoesNotBlockIdleStop` (`internal/tasks/dispatch`) |
+| CAL-V0-218 | `TestCALV0218_ParseCPUTime`, `TestCALV0218_ParseProcStatCPU`, `TestCALV0218_BusyChildNeedsWorkNotPresence`, `TestCALV0218_ActiveBaselineFollowsActivity`, `TestCALV0218_SleepingChildDoesNotBlockIdleStop`, `TestCALV0218_ActivityObservedBeforeBlockingStops` (`internal/tasks/dispatch`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance

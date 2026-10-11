@@ -192,3 +192,51 @@ func TestCALV0218_ParseProcStatCPU(t *testing.T) {
 		}
 	}
 }
+
+// Review round 4: every worker's activity is observed before any stop, so a
+// stop that blocks for its grace cannot age a later worker's CPU sample.
+func TestCALV0218_ActivityObservedBeforeBlockingStops(t *testing.T) {
+	c := testConfig(t, `trap '' TERM; sleep 300 & wait`)
+	c.Backoff.CooldownSeconds = 3600
+	q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1), ticket("t2", "P1", 2)}}}
+	d, err := Open("prog", c, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	ctx := context.Background()
+	if err := d.Tick(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if d.Running() != 2 {
+		t.Fatalf("running %d, want 2", d.Running())
+	}
+	for _, w := range d.ledger.Workers {
+		pid := w.PID
+		t.Cleanup(func() { syscall.Kill(-pid, syscall.SIGKILL) })
+	}
+	time.Sleep(200 * time.Millisecond) // let both shells install the trap
+	first := d.ledger.Workers[0]
+	first.State, first.KillReason = "KILLING", "WALL"
+	defer func(f func(map[int]proc, []int)) { refineChildCPU = f }(refineChildCPU)
+	var calls []time.Time
+	refineChildCPU = func(procs map[int]proc, pids []int) {
+		calls = append(calls, time.Now())
+		preciseCPU(procs, pids)
+	}
+	start := time.Now()
+	if err := d.Tick(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if took := time.Since(start); took < 900*time.Millisecond {
+		t.Fatalf("the stop took %v; the TERM-ignoring tree should hold it for the 1s grace", took)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("activity observed %d times, want once per worker", len(calls))
+	}
+	for i, at := range calls {
+		if at.Sub(start) > 500*time.Millisecond {
+			t.Fatalf("worker %d's activity was observed %v into the tick, after the blocking stop", i, at.Sub(start))
+		}
+	}
+}
