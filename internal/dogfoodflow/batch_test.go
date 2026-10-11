@@ -86,7 +86,18 @@ func (r *batchRepo) batch(tips ...string) {
 func (r *batchRepo) check() (int, string, string) {
 	r.t.Helper()
 	r.args = nil
-	verifier := Runner{Path: "/never-executed/corvint", Run: func(_ context.Context, _ string, args []string, stdout, _ io.Writer) int {
+	var stdout, stderr bytes.Buffer
+	code, err := BatchCheck(context.Background(), BatchCheckOptions{Root: r.root, Base: r.base, Verifier: r.verifier()}, &stdout, &stderr)
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	return code, stdout.String(), stderr.String()
+}
+
+// verifier is the fake constituent verifier: canonical ready-for-ci output of
+// the base and bind it is asked about, unless status or output say otherwise.
+func (r *batchRepo) verifier() Runner {
+	return Runner{Path: "/never-executed/corvint", Run: func(_ context.Context, _ string, args []string, stdout, _ io.Writer) int {
 		r.args = append(r.args, args)
 		base, bind := args[5], args[7]
 		if r.output != nil {
@@ -98,12 +109,57 @@ func (r *batchRepo) check() (int, string, string) {
 			`"verification":{"assurance":"canonical","baseRevision":"%s","targetRevision":"%s","valid":true}}`+"\n", r.status == 0, state, base, bind)
 		return r.status
 	}}
-	var stdout, stderr bytes.Buffer
-	code, err := BatchCheck(context.Background(), BatchCheckOptions{Root: r.root, Base: r.base, Verifier: verifier}, &stdout, &stderr)
+}
+
+// admit runs dogfood change's sealed-CEM admission (DCW-V0-042) for
+// base..HEAD with the fake verifier.
+func (r *batchRepo) admit(base string) (int, string) {
+	r.t.Helper()
+	var stderr bytes.Buffer
+	c := &change{flow: flow{ctx: context.Background(), prefix: "dogfood-change", root: r.root, stderr: &stderr}, options: ChangeOptions{Steps: r.verifier()}}
+	c.base, c.target = base, testGit(r.t, r.root, "rev-parse", "HEAD")
+	code, err := boundary(c.ctx, func() int { c.admitSealedCEMs(); return 0 }, func() {})
 	if err != nil {
 		r.t.Fatal(err)
 	}
-	return code, stdout.String(), stderr.String()
+	return code, stderr.String()
+}
+
+// DCW-V0-042: dogfood change admits merged sealed changes that re-verify and
+// refuses any other file under .corvint/changes/, naming each path.
+func TestChangeDCWV0042AdmitsOnlyVerifiableSealedCEMs(t *testing.T) {
+	repo := newBatchRepo(t)
+	bindA, sealA := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
+	bindB, sealB := repo.lane("lane-b", "b.txt", "b1\nB2\nb3\n", "")
+	repo.batch(sealA, sealB)
+	code, stderr := repo.admit(repo.base)
+	for _, bind := range []string{bindA, bindB} {
+		if code != 0 || !strings.Contains(stderr, "dogfood-change: NOTE sealed-cem-merged bind="+bind+" base="+repo.base+" bootstrapUnknown=0\n") {
+			t.Fatalf("admit exit=%d stderr=%q", code, stderr)
+		}
+	}
+	if len(repo.args) != 2 {
+		t.Fatalf("verifier runs %v", repo.args)
+	}
+	repo.status = 1
+	if code, stderr = repo.admit(repo.base); code != 2 || !strings.HasPrefix(stderr, "dogfood-change: REFUSE sealed-cem-in-change\n  .corvint/changes/") ||
+		!strings.Contains(stderr, ": constituent-cem-policy bind=") {
+		t.Fatalf("unverified exit=%d stderr=%q", code, stderr)
+	}
+	repo.status = 0
+	repo.write(".corvint/changes/"+bindA+".cem.json", "{}\n")
+	repo.write(".corvint/changes/notes.json", "{}\n")
+	repo.commit("edit sealed evidence")
+	code, stderr = repo.admit(sealA)
+	for _, want := range []string{
+		"  .corvint/changes/" + bindA + ".cem.json: sealed-cem-modified status=M\n",
+		"  .corvint/changes/notes.json: unrecognized-sealed-cem\n",
+		"  fix: for a merge batch of sealed changes, run corvint dogfood batch-check " + sealA + " instead of rebinding it (DCW-V0-039)\n",
+	} {
+		if code != 2 || !strings.Contains(stderr, want) {
+			t.Fatalf("modified exit=%d stderr=%q; want %q", code, stderr, want)
+		}
+	}
 }
 
 // objects lists the loose objects and packs, which a read-only check must

@@ -184,7 +184,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Unsupported | intent without exactly one `## Requirements` heading | `ocm-prepare-001: invalid-requirements-section`, `ocm-aggregate: intent-scope-drift` | NOT_OBSERVED |
 | Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
 | Rewritten | amend or rebase after a recorded pass | `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
-| Sealed | check on the seal commit, or a change containing a seal | `REFUSE sealed-cem-in-change` | `REFUSE sealed-head` |
+| Sealed | check on the seal commit, or a change containing a modified or unverifiable seal | `REFUSE sealed-cem-in-change`, one line per refused path | `REFUSE sealed-head` |
 
 Test-claim linkage through `DOGFOOD_OCM_LINKS` needs a Go test that names the requirement ID. It was
 observed for V1-0142 by replaying the sealed LAC-V0-032 change: `ocm-link-001` PRODUCED and the
@@ -316,8 +316,12 @@ which does nothing but rename `.corvint/change.cem.json` to
 `.corvint/changes/<bind-commit>.cem.json`. The CEM is bound and checked at the fixed `cem/0.2`
 path, and the seal moves it out of that one shared tracked path, so two open branches never edit
 the same file (decision 0319). A sealed HEAD is refused by `dogfood-check` (`sealed-head`); check
-its parent instead. `dogfood-change` refuses a change whose `BASE_SHA..HEAD` adds a sealed CEM
-(`sealed-cem-in-change`): to rework a sealed branch, revert or drop the seal commit first.
+its parent instead. A branch that merged or stacked on sealed changes binds against its own,
+unmoved `BASE_SHA`: `dogfood-change` re-verifies each sealed CEM `BASE_SHA..HEAD` adds against its
+own base and bind commit, as `dogfood batch-check` does, prints `NOTE sealed-cem-merged` for each,
+and the plan cites each sealed file's hunk like any other. A modified, deleted, misnamed, drifted or
+unverifiable sealed CEM still refuses `sealed-cem-in-change`, naming each path and its reason
+(`DCW-V0-042`, proposed).
 
 Run `make gate` before the first `dogfood-change` or after the sidecar commit, not between them. Its
 archive step requires a clean worktree (`conformance/release-artifact-v0/archive_run.go:422-424`),
@@ -827,7 +831,8 @@ they do not create execution authority, close a Frontier, or qualify the native 
 - `DOGFOOD-013`: a checked change's CEM leaves the shared tracked path only through `dogfood-seal`,
   which commits after a passing check and only renames `.corvint/change.cem.json` to
   `.corvint/changes/<bind-commit>.cem.json`; a sealed HEAD is refused by final checking and a change
-  that adds a sealed CEM is refused by `dogfood-change`. A seal that would drop a CEM `BASE` tracks
+  that adds a sealed CEM is refused by `dogfood-change` unless each re-verifies as an unmodified
+  sealed change (amended by `DCW-V0-042`, proposed). A seal that would drop a CEM `BASE` tracks
   and no `.corvint/changes/` file keeps is refused `unarchived-base-cem`.
 - `DOGFOOD-014`: final checking counts a seal commit as bound by its parent and, when the base has no
   CEM, takes the previous binding from the parent of the newest seal reachable from the base.

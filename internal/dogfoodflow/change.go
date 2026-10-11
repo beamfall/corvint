@@ -117,12 +117,7 @@ func (c *change) run() int {
 	c.runTmp = runTmp
 	c.citationStage = ".corvint/.cem-citations." + filepath.Base(runTmp) + ".json"
 	c.resolveAnchor()
-	if c.gitValue("diff", "--name-only", c.base, c.target, "--", ".corvint/changes") != "" {
-		c.say("dogfood-change: REFUSE sealed-cem-in-change\n")
-		c.say("  BASE..HEAD adds a sealed CEM; revert or drop the seal commit, then rebind\n")
-		c.say("  fix: for a merge batch of sealed changes, run corvint dogfood batch-check %s instead of rebinding it (DCW-V0-039)\n", c.base)
-		c.exit(2)
-	}
+	c.admitSealedCEMs()
 	// Query and impact run after the change, so they are coordination-time
 	// receipts; the agent's prechange-*.json receipts are never written here (DCW-V0-026).
 	c.coordinationQuery(task)
@@ -154,6 +149,53 @@ func (c *change) run() int {
 	c.rows = append(c.rows, c.localOutcome(task))
 	c.renderReport()
 	return c.reportFailures()
+}
+
+// admitSealedCEMs admits the sealed CEMs BASE..HEAD adds only as unmodified,
+// verifiable sealed changes the branch merged or stacked on (DCW-V0-042):
+// each is re-verified against its own base and bind commit exactly as
+// batch-check verifies a constituent. Any other added, modified or deleted
+// file under .corvint/changes/ refuses sealed-cem-in-change before a step runs.
+func (c *change) admitSealedCEMs() {
+	changed := nonEmpty(strings.Split(c.gitValue("diff", "--no-renames", "--name-status", c.base, c.target, "--", ".corvint/changes"), "\n"))
+	if len(changed) == 0 {
+		return
+	}
+	refusals := []string{}
+	if len(changed) > batchConstituentLimit {
+		refusals = append(refusals, fmt.Sprintf("sealed CEMs=%d exceed %d", len(changed), batchConstituentLimit))
+		changed = nil
+	}
+	notes := []string{}
+	for _, line := range changed {
+		state, path, _ := strings.Cut(line, "\t")
+		match := sealedCEMPath.FindStringSubmatch(path)
+		switch {
+		case match == nil:
+			refusals = append(refusals, path+": unrecognized-sealed-cem")
+		case state != "A":
+			refusals = append(refusals, path+": sealed-cem-modified status="+state)
+		default:
+			result := c.verifySealedCEM(c.options.Steps, c.target, match[1])
+			if result.failure != "" {
+				refusals = append(refusals, path+": "+result.failure+" "+result.detail)
+				continue
+			}
+			notes = append(notes, fmt.Sprintf("bind=%s base=%s bootstrapUnknown=%d", match[1], result.base, len(result.bootstrap)))
+		}
+	}
+	if len(refusals) > 0 {
+		c.say("dogfood-change: REFUSE sealed-cem-in-change\n")
+		for _, refusal := range refusals {
+			c.say("  %s\n", refusal)
+		}
+		c.say("  BASE..HEAD adds a sealed CEM that is not an unmodified, verifiable sealed change; restore it from its bind commit, or revert or drop the seal commit, then rebind\n")
+		c.say("  fix: for a merge batch of sealed changes, run corvint dogfood batch-check %s instead of rebinding it (DCW-V0-039)\n", c.base)
+		c.exit(2)
+	}
+	for _, note := range notes {
+		c.say("dogfood-change: NOTE sealed-cem-merged %s\n", note)
+	}
 }
 
 // clearStepEnvelopes removes the previous run's "<step>.stderr" files, so a step
