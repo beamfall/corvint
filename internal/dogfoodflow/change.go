@@ -1233,11 +1233,12 @@ func (c *change) reportFailures() int {
 			break
 		}
 	}
-	// Amending or rebasing after a recorded pass strands that trace; query and
-	// the recorder then refuse every later run with this message.
+	// Amending or rebasing after a recorded pass strands that trace, as does
+	// another lane's run in this worktree; query and the recorder then refuse
+	// every later run with this message.
 	stranded := []byte(`"error": "local trace store contains unreachable revision: `)
 	if bytes.Contains(query, stranded) || bytes.Contains(readFile(c.evidence+"/local-outcome.stderr"), stranded) {
-		c.say("  local trace store: a recorded trace names a commit no longer reachable from HEAD; restore that commit as an ancestor, or retire the trace with corvint migrate-traces --dry-run then --apply --plan-digest DIGEST (LTPM-V0-012); add new commits instead of amending or rebasing (docs/DOGFOOD.md \"Daily adopter path\")\n")
+		c.say("  local trace store: a recorded trace names a commit no longer reachable from HEAD; restore that commit as an ancestor, or retire the trace with corvint migrate-traces --dry-run then --apply --plan-digest DIGEST (LTPM-V0-012); add new commits instead of amending or rebasing (docs/DOGFOOD.md \"Daily adopter path\"); the store belongs to this worktree, so run each lane in its own worktree (git worktree add) or clone rather than switching branches here (DCW-V0-044)\n")
 	}
 	c.say("  full report: %s\n", c.path(".corvint/dogfood-report.json"))
 	return 1

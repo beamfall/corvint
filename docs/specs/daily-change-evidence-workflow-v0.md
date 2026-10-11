@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 proposed, pending owner acceptance (V1-1151, V1-1171); DCW-V0-042 proposed, pending owner acceptance (V1-1219); DCW-V0-043 proposed, pending owner acceptance (V1-1198)
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 proposed, pending owner acceptance (V1-1151, V1-1171); DCW-V0-042 proposed, pending owner acceptance (V1-1219); DCW-V0-043 proposed, pending owner acceptance (V1-1198); DCW-V0-044 proposed, pending owner acceptance (V1-1209)
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 proposed, pending owner acceptance (V1-1151, V1-1171); DCW-V0-042 proposed, pending owner acceptance (V1-1219); DCW-V0-043 proposed, pending owner acceptance (V1-1198); experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 proposed, pending owner acceptance (V1-1151, V1-1171); DCW-V0-042 proposed, pending owner acceptance (V1-1219); DCW-V0-043 proposed, pending owner acceptance (V1-1198); DCW-V0-044 proposed, pending owner acceptance (V1-1209); experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -463,6 +463,20 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Reason: the w4 batch merge (#789) left an unsealed `.corvint/change.cem.json` tracked on `main`,
   and every later `dogfood-seal` refused `unarchived-base-cem` only after the change was bound and
   checked (V1-1198).
+- `DCW-V0-044`: (proposed 2026-10-11, pending owner acceptance (V1-1209)) The daily loop's local
+  trace store (`.context-corvint/traces/`), its evidence directory (`<git-dir>/corvint/`) and its
+  operation lock MUST belong to one worktree, so `dogfood change`, `dogfood check` and
+  `dogfood seal` run in two `git worktree add` worktrees of one repository at the same time without
+  either refusing and without writing the primary worktree's store. When a recorded trace names a
+  commit `HEAD` cannot reach, the `local trace store:` line MUST also name this recovery: run each
+  lane in its own worktree or clone rather than switching branches in one. `docs/DOGFOOD.md` MUST
+  say that lanes sharing a repository each use their own worktree or clone.
+  Non-goals: one trace store shared or keyed per branch within a worktree, which would change the
+  local trace contract (`LTPM-V0`); sharing traces across worktrees.
+  Failure modes: a second lane run in the first lane's worktree still refuses
+  `unsupported-query-trace-state`, now naming the per-lane worktree.
+  Reason: lanes that took turns in one working directory found the second lane's check refused by
+  the first lane's traces (V1-1209, w6 lane report of 2026-10-11).
 
 ## Code vocabulary
 
@@ -620,6 +634,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-041` (proposed, V1-1171) | `internal/dogfoodflow/change.go` `fixHints`; `docs/DOGFOOD.md` (the `DOGFOOD_CITATIONS` input row and the citation-plan paragraph of section 4); `TestChangeDCWV0041NamesCitationRowFix`; `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (a code and a spec citation on one hunk, an unregistered relation and a path absent at `BASE` each name their fix) | implemented; not accepted |
 | `DCW-V0-042` (proposed, V1-1219) | `internal/dogfoodflow/change.go` `admitSealedCEMs`, `internal/dogfoodflow/batch.go` `verifySealedCEM` (shared with batch-check); `TestChangeDCWV0042AdmitsOnlyVerifiableSealedCEMs` (two merged seals admitted with one verifier run each; an unverified seal, a modified seal and a misnamed file each refuse with their path and reason and the batch-check `fix:` line); `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary, real verifier: a drifted merged seal refuses with a clean worktree, and the merged two-lane batch binds, checks and seals against the unmoved `BASE`, citing both sealed files' hunks) | implemented; not accepted; reproduced before the fix by the same fixture, whose rebind of the valid merged batch refused `sealed-cem-in-change` at `6c38c6c4a` |
 | `DCW-V0-043` (proposed, V1-1198) | `internal/dogfoodflow/flow.go` `inheritedCEM`, `internal/dogfoodflow/change.go` `requireArchivedBaseCEM` and `admitSealedCEMs`, `internal/dogfoodflow/check.go` `seal`, `script/dogfood-seal.sh`, `internal/dogfoodflow/batch.go` `sealedConstituents`, `verifyCoverage` and `archivesInherited`; `TestChangeDCWV0043RefusesUnarchivedInheritedCEM` (the refusal's exact command, run through `sh`, commits only the archive, after which the change is admitted with the note and no verifier run), `TestChangeDCWV0043IgnoresRepositoriesThatNeverSealed`, `TestSealRefusesToDropAnUnarchivedBaseCEM` and the V1-0137 case of `script/dogfood-change_test.sh` (the seal `fix:` line), `TestBatchCheckDCWV0043AcceptsTheInheritedArchive` (an archive inside one lane's range and a standalone rename archive commit before another lane's bind both pass; a lane that drops the CEM unarchived fails `unsealed-cem-at-head`), `TestBatchCheckDCWV0039RefusesDriftedEvidence` (an unsealed sidecar on a batch fails before merge) | implemented; not accepted; reproduced before the fix: at `a2f0fef4f` the change was bound and checked and only `dogfood-seal` refused, naming no command |
+| `DCW-V0-044` (proposed, V1-1209) | `internal/trace/store.go` (store under the worktree root), `internal/dogfoodflow/change.go`, `check.go` and `flow.go` (`--absolute-git-dir` evidence and lock), `internal/dogfoodflow/change.go` stranded-trace hint; `docs/DOGFOOD.md` step 5 and the batch steps; `TestDogfoodDCWV0044WorktreeLanesRunConcurrently` (built binary: two worktrees start each of change, bind, check and seal together and all pass with their own stores and clean worktrees, the primary worktree's store never written; lane B's work run in lane A's worktree refuses with the per-lane hint) | implemented; not accepted; the concurrent passes already held at `696dbdbf6`, where the shared-worktree refusal lacked the hint, so the defect was the undocumented one-worktree-per-lane rule |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
@@ -655,6 +670,8 @@ of the whole range.
 Roll back `DCW-V0-043` by reverting its change: `dogfood change` again binds over an unarchived
 `BASE` CEM and only `dogfood seal` refuses, and batch-check again counts the inherited archive as
 an unverifiable constituent; no report, map or sealed CEM format changes.
+Roll back `DCW-V0-044` by reverting its change: the stranded-trace line loses its worktree
+clause and the docs again say only "own clone"; no store, report or map format changes.
 Roll back `DCW-V0-039..041` by reverting their change: `batch-check`, its wrapper and make
 target disappear and the `fix:` lines return to their former text; no report, map, receipt or
 sealed CEM format changes, and batch-check writes nothing, so no evidence needs migrating.

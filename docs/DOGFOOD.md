@@ -113,7 +113,11 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `local-outcome: record-failed`, both reading `local trace store contains unreachable revision`).
    If that commit is gone for good, `corvint migrate-traces --dry-run` lists it in
    `stranded_revisions`, and `corvint migrate-traces --apply --plan-digest DIGEST` moves the trace,
-   byte-preserved, to `.context-corvint/legacy-traces/` (LTPM-V0-012).
+   byte-preserved, to `.context-corvint/legacy-traces/` (LTPM-V0-012). The trace store, the
+   `<git-dir>/corvint/` evidence and the operation lock belong to one worktree: lanes that share a
+   repository each run in their own `git worktree add` worktree or clone, and can then change,
+   check and seal at the same time; switching one worktree between lanes strands the first lane's
+   traces the same way (`DCW-V0-044`, proposed).
 6. Run `make dogfood-change BASE=$BASE` again. Expected: no output but non-blocking `NOTE` lines
    (section 1), exit 0, and
    `.corvint/dogfood-report.json` contains `"complete": true`. An uncited hunk instead leaves
@@ -188,7 +192,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Unsupported | run from a subdirectory of the worktree (reproduced for V1-0236) | `REFUSE not-repository-root` (exit 2) | `REFUSE not-repository-root` (exit 2) |
 | Unsupported | intent without exactly one `## Requirements` heading | `ocm-prepare-001: invalid-requirements-section`, `ocm-aggregate: intent-scope-drift` | NOT_OBSERVED |
 | Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
-| Rewritten | amend or rebase after a recorded pass | `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
+| Rewritten | amend or rebase after a recorded pass, or another lane run in the same worktree | `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
 | Sealed | check on the seal commit, or a change containing a modified or unverifiable seal | `REFUSE sealed-cem-in-change`, one line per refused path | `REFUSE sealed-head` |
 
 Test-claim linkage through `DOGFOOD_OCM_LINKS` needs a Go test that names the requirement ID. It was
@@ -400,8 +404,9 @@ sealed-cem-in-change` print a `fix:` line naming this path; `intent-scope-drift`
 `ocm-prepare` or `ocm-status` row above it, which carries that `git-budget-exceeded` fix
 (`DCW-V0-040`). The limits are not raised. Instead (`DCW-V0-039`, proposed):
 
-1. Bind, check and seal each change with this loop on its own branch, in its own clone (the local
-   trace store of one change refuses another's unreachable commits), against its own base.
+1. Bind, check and seal each change with this loop on its own branch, in its own worktree or clone
+   (the local trace store of one change refuses another's unreachable commits), against its own
+   base; the lanes may run at the same time (`DCW-V0-044`).
 2. Merge the sealed branches into the batch branch one at a time, two parents per merge. Resolve a
    conflict with `git merge -X ours` or `-X theirs`; commit any other edit to the batch, such as an
    orchestrator's index or decision update or a hand-merged file, as its own sealed change on a
