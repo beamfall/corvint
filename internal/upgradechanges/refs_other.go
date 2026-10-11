@@ -2,8 +2,11 @@
 
 package upgradechanges
 
-import "errors"
+import (
+	"errors"
+	"os"
+)
 
-func readRefs(string) ([]byte, bool, error) {
-	return nil, false, errors.New("changes-refs-unavailable")
+func openRefs(string) (*os.File, error) {
+	return nil, errors.New("changes-refs-unavailable")
 }

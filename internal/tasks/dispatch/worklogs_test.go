@@ -125,13 +125,13 @@ func TestCALV0143_CappedOutputCountsAsActivity(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "stdout.log"), []byte(burst), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if !d.active(w, map[int]proc{}, Host{}) {
+	if !d.active(w, map[int]proc{}, Host{}, time.Now()) {
 		t.Fatal("a burst that was then cut did not count as activity")
 	}
 	if w.LogBytes != 0 {
 		t.Fatalf("recorded log bytes %d, want the size after the cut", w.LogBytes)
 	}
-	if d.active(w, map[int]proc{}, Host{}) {
+	if d.active(w, map[int]proc{}, Host{}, time.Now()) {
 		t.Fatal("an unchanged log counted as activity")
 	}
 }

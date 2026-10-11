@@ -12,7 +12,33 @@ const (
 	ObligationsMaxPrefixBytes = 16
 	// ObligationsMaxIDDigits bounds the decimal suffix of an id (TOL-V0-003).
 	ObligationsMaxIDDigits = 6
+	// ObligationsMaxAliasBytes bounds an adopter alias (TOL-V0-034).
+	ObligationsMaxAliasBytes = 64
 )
+
+// ObligationAliasByte reports whether c is in the alias alphabet
+// [A-Za-z0-9._:-] (TOL-V0-034).
+func ObligationAliasByte(c byte) bool {
+	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '.' || c == '_' || c == ':' || c == '-'
+}
+
+// ParseObligationAlias validates an adopter alias: 1..64 bytes of
+// [A-Za-z0-9._:-] that start and end with a letter or digit (TOL-V0-034).
+func ParseObligationAlias(where, s string) (string, error) {
+	if s == "" || len(s) > ObligationsMaxAliasBytes {
+		return "", Errorf(CodeMalformed, where, "obligation alias must be 1..%d bytes", ObligationsMaxAliasBytes)
+	}
+	alnum := func(c byte) bool { return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' }
+	for i := 0; i < len(s); i++ {
+		if !ObligationAliasByte(s[i]) {
+			return "", Errorf(CodeMalformed, where, "obligation alias must match [A-Za-z0-9][A-Za-z0-9._:-]*")
+		}
+	}
+	if !alnum(s[0]) || !alnum(s[len(s)-1]) {
+		return "", Errorf(CodeMalformed, where, "obligation alias must start and end with a letter or digit")
+	}
+	return s, nil
+}
 
 // ParseObligationPrefix validates a ledger prefix: 1..16 bytes of [A-Z0-9]
 // starting with a letter (TOL-V0-001).

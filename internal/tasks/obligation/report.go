@@ -226,14 +226,14 @@ func errorMessage(raw json.RawMessage) string {
 // (TOL-V0-022). exp says the match is an expected-fail obligation, failed
 // that its own step (or, for a title id, the result) failed, and msg is the
 // failure message.
-func expectedFailMatch(m match, exp, failed bool, msg, desc, title, prefix string) match {
+func expectedFailMatch(m match, exp, failed bool, msg, desc, title string, n Names) match {
 	switch {
 	case !exp:
 		m.kind = kindMixed
 	case failed:
 		m.kind = kindDefect
-		allowed := DefectIDs(desc, prefix)
-		m.defect = firstOf(definedDefects(DefectIDs(msg, prefix), allowed), DefectIDs(title, prefix), allowed)
+		allowed := n.DefectIDs(desc)
+		m.defect = firstOf(definedDefects(n.DefectIDs(msg), allowed), n.DefectIDs(title), allowed)
 		m.errMsg = Excerpt(msg)
 	}
 	return m
@@ -265,11 +265,11 @@ func firstOf(lists ...[]string) string {
 	return ""
 }
 
-// collect returns every retry-0 match of an id carrying prefix, by id
-// (TOL-V0-010). Results of tests whose expectedStatus is not `passed` and
+// collect returns every retry-0 match of an obligation that n names, by
+// native id (TOL-V0-010, TOL-V0-036). Results of tests whose expectedStatus is not `passed` and
 // results with status timedOut, interrupted or skipped never pass. A match
 // in an expected-failure test is classified by TOL-V0-022 and never passes.
-func (r *Report) collect(prefix string) map[string][]match {
+func (r *Report) collect(n Names) map[string][]match {
 	out := map[string][]match{}
 	var walk func(s jsonSuite, describes []string, top bool)
 	walk = func(s jsonSuite, describes []string, top bool) {
@@ -292,15 +292,15 @@ func (r *Report) collect(prefix string) map[string][]match {
 						resMsg = res.Error.Message
 					}
 					for _, title := range titlePath {
-						for _, id := range FindIDs(title, prefix) {
+						for _, id := range n.Find(title) {
 							m := match{file: sp.File, passed: eligible && !xfail && res.Status == "passed",
 								m: ticket.ObligationMatch{TestID: testID, TitlePath: titlePath, StepPath: []string{}}}
 							if !m.passed {
 								m.failMsg = resMsg
 							}
 							if xfail {
-								exp := SaysExpectedFail(title) || len(DefectIDs(desc, prefix)) > 0 || len(DefectIDs(title, prefix)) > 0
-								m = expectedFailMatch(m, exp, res.Status == "failed", resMsg, desc, title, prefix)
+								exp := SaysExpectedFail(title) || len(n.DefectIDs(desc)) > 0 || len(n.DefectIDs(title)) > 0
+								m = expectedFailMatch(m, exp, res.Status == "failed", resMsg, desc, title, n)
 							}
 							out[id] = append(out[id], m)
 						}
@@ -310,7 +310,7 @@ func (r *Report) collect(prefix string) map[string][]match {
 						for _, st := range list {
 							stepPath := append(append([]string{}, parents...), st.Title)
 							failed := len(st.Error) != 0 && string(st.Error) != "null"
-							for _, id := range FindIDs(st.Title, prefix) {
+							for _, id := range n.Find(st.Title) {
 								title := st.Title
 								m := match{file: sp.File, passed: eligible && !xfail && ran && !failed,
 									m: ticket.ObligationMatch{TestID: testID, TitlePath: titlePath, StepTitle: &title, StepPath: stepPath}}
@@ -325,9 +325,9 @@ func (r *Report) collect(prefix string) map[string][]match {
 									if failed {
 										msg = errorMessage(st.Error)
 									}
-									named := definedDefects(DefectIDs(msg, prefix), DefectIDs(desc, prefix))
+									named := definedDefects(n.DefectIDs(msg), n.DefectIDs(desc))
 									exp := SaysExpectedFail(st.Title) || (failed && len(named) > 0)
-									m = expectedFailMatch(m, exp, failed, msg, desc, st.Title, prefix)
+									m = expectedFailMatch(m, exp, failed, msg, desc, st.Title, n)
 								}
 								out[id] = append(out[id], m)
 							}
@@ -369,10 +369,10 @@ func (r *Report) repoPath(repoRoot, file string) string {
 }
 
 // SourcePaths returns the sorted repository paths of every passing match of
-// a prefix id, which the caller reads at the declared commit.
-func (r *Report) SourcePaths(prefix, repoRoot string) []string {
+// an obligation n names, which the caller reads at the declared commit.
+func (r *Report) SourcePaths(n Names, repoRoot string) []string {
 	seen := map[string]bool{}
-	for _, ms := range r.collect(prefix) {
+	for _, ms := range r.collect(n) {
 		for _, m := range ms {
 			if p := r.repoPath(repoRoot, m.file); m.passed && p != "" {
 				seen[p] = true
@@ -445,7 +445,8 @@ func Classify(r *Report, l *ticket.ObligationLedger, repoRoot string, src Source
 		subset[id] = true
 	}
 	inSubset := func(id string) bool { return ids == nil || subset[id] }
-	found := r.collect(l.Prefix)
+	names := NamesOf(l)
+	found := r.collect(names)
 	for id, ms := range found {
 		e := l.Entry(id)
 		if e == nil {
@@ -493,7 +494,7 @@ func Classify(r *Report, l *ticket.ObligationLedger, repoRoot string, src Source
 			}
 			continue
 		}
-		bound, reason := bindMatches(r, repoRoot, src, id, ms)
+		bound, reason := bindMatches(r, repoRoot, src, names, id, ms)
 		if reason != "" {
 			res.Unbound = append(res.Unbound, UnboundID{ID: id, Reason: reason})
 			continue
@@ -536,9 +537,10 @@ func Classify(r *Report, l *ticket.ObligationLedger, repoRoot string, src Source
 	return res, nil
 }
 
-// bindMatches source-binds every match of id and returns the distinct
-// matches in canonical order, or the first unbound reason.
-func bindMatches(r *Report, repoRoot string, src Source, id string, ms []match) ([]ticket.ObligationMatch, string) {
+// bindMatches source-binds every match of id, by its native id or alias,
+// and returns the distinct matches in canonical order, or the first unbound
+// reason.
+func bindMatches(r *Report, repoRoot string, src Source, n Names, id string, ms []match) ([]ticket.ObligationMatch, string) {
 	var out []ticket.ObligationMatch
 	seen := map[string]bool{}
 	for _, m := range ms {
@@ -548,7 +550,7 @@ func bindMatches(r *Report, repoRoot string, src Source, id string, ms []match) 
 			return nil, UnboundOutside
 		case !src.Present[p]:
 			return nil, UnboundAbsent
-		case !ContainsID(src.Content[p], id):
+		case !n.Contains(src.Content[p], id):
 			return nil, UnboundNoID
 		}
 		bound := m.m

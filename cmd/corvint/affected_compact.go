@@ -29,6 +29,7 @@ type affectedCompactReceipt struct {
 	Range    affectedRange         `json:"range"`
 	Revision string                `json:"revision"`
 	Tool     string                `json:"tool"`
+	Warning  string                `json:"warning,omitempty"`
 }
 
 // affectedCompactPlan keeps every plan member except that each selection
@@ -47,11 +48,12 @@ type affectedCompactPlan struct {
 // advisory Go command names provider.go.packages instead of repeating the
 // package list (AFP-V0-038).
 type affectedCompactAdvice struct {
-	Checks        []affectedCompactCheck `json:"checks"`
-	Note          string                 `json:"note"`
-	Status        string                 `json:"status"`
-	TestSelection map[string]any         `json:"test_selection,omitempty"`
-	Unknown       []string               `json:"unknown"`
+	Checks        []affectedCompactCheck  `json:"checks"`
+	Note          string                  `json:"note"`
+	Status        string                  `json:"status"`
+	TestSelection map[string]any          `json:"test_selection,omitempty"`
+	AppNavigation []affectedAppNavigation `json:"app_navigation,omitempty"`
+	Unknown       []string                `json:"unknown"`
 }
 
 // affectedCompactCheck is an advice check. When Arguments is set, the
@@ -127,6 +129,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		Range:    full.Range,
 		Revision: full.Revision,
 		Tool:     full.Tool,
+		Warning:  full.Warning,
 	}, nil
 }
 
@@ -176,5 +179,5 @@ func compactAffectedAdvice(advice affectedAdvice, packages []string) affectedCom
 		}
 		checks = append(checks, compact)
 	}
-	return affectedCompactAdvice{Checks: checks, Note: advice.Note, Status: advice.Status, TestSelection: advice.TestSelection, Unknown: advice.Unknown}
+	return affectedCompactAdvice{Checks: checks, Note: advice.Note, Status: advice.Status, TestSelection: advice.TestSelection, AppNavigation: advice.AppNavigation, Unknown: advice.Unknown}
 }

@@ -131,6 +131,11 @@ case declarations are admitted across eight distinct divergence classes. This in
 - `DR-0042` / `GPK-V0-075` (2 cases: `impact-python-module` and `impact-python-nomodule`) — two
   stdout rewrites per case that name `tests/test_engine.py`, the importing test carrying the
   `feature:a-first` and `scenario:z-last` markers, where the oracle says the changed path carries them.
+- `DR-0043` / `AHI-054` (1 case: `harness-stop`; an intentional additive Go extension, not a
+  `python-defect`) — one stdout rewrite that removes the fixed
+  `"cause":"no-accepted-closing-authority"` member from the opening of the stop frontier. The
+  frontier lies outside the counted packet, so the runner applies it without `packet_bytes`
+  reconciliation, as it does the `DR-0038` identity rename.
 
 A case may also declare `exclusionCountDivergence`, a separate field that composes with
 `knownDivergence` and follows the same rewrite and `packet_bytes` rules below. Twenty case

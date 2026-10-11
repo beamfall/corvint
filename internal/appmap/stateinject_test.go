@@ -1168,3 +1168,36 @@ func TestAMAPV0070DirectoryStarEnum(t *testing.T) {
 		t.Fatalf("hop not named: %q", got)
 	}
 }
+
+// AMAP-V0-072 (V1-1170): a failed hop belongs to its own lookup. Two constants injected into one
+// router function: the first reads an ambiguous star re-export and records its hop; the second, an
+// object literal registration read at a member it lacks, fails for its own reason and must not
+// carry the first lookup's hop as its detail.
+func TestAMAPV0072FailedHopDoesNotLeakBetweenLookups(t *testing.T) {
+	const decl, index, copy = "app/setup/routes/routes.constants.ts", "app/setup/routes/index.ts", "app/setup/routes/copy.ts"
+	enum := "export enum SectionTable { REPORTS = 'ledger', HOME = 'home' }\n"
+	reg := "import { SectionTable } from './routes';\nangular.module('core')\n  .constant('SectionNames', SectionTable)\n  .constant('OtherNames', { HOME: 'home' });\n"
+	router := "const R = ($stateProvider, SectionNames, OtherNames) => {\n  $stateProvider.state(SectionNames.REPORTS, { url: 'ledger' });\n  $stateProvider.state(OtherNames.MISSING, { url: '/o' });\n};\n"
+	files := map[string]string{diRegAt: reg, decl: enum, copy: enum,
+		index: "export * from './routes.constants';\nexport * from './copy';\n"}
+	_, _, m, err := injectRepo(t, `["app/setup"]`, router, files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	details := map[string]string{}
+	reasons := map[string]string{}
+	for _, u := range m.Unknowns {
+		if u.Kind == "di-constant" {
+			details[u.Ref], reasons[u.Ref] = u.Detail, u.Reason
+		}
+	}
+	if details["SectionNames"] != "ambiguous-reexport:"+copy+","+decl {
+		t.Fatalf("first lookup hop %q (%+v)", details["SectionNames"], m.Unknowns)
+	}
+	if reasons["OtherNames"] == "" {
+		t.Fatalf("second lookup not reported: %+v", m.Unknowns)
+	}
+	if details["OtherNames"] != "" {
+		t.Fatalf("second lookup (%s) carries a stale hop %q", reasons["OtherNames"], details["OtherNames"])
+	}
+}

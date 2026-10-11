@@ -42,8 +42,8 @@ that actually holds the degradation in place:
 `degradations := []any{"frontier-authority-unavailable"}` at `internal/gokernel/harness.go:439@a4869098`,
 appended unconditionally to **every** event — `session-start`, `user-prompt`, `file-change`,
 `post-tool`, `stop`, `session-end` alike — and the `stop` response's frontier block at
-`internal/gokernel/harness.go:479-483@e567ed2d` is a hardcoded constant map
-(`reason: "frontier-authority-unavailable"`, `shouldContinue: false`, `state: "UNAVAILABLE"`).
+`internal/gokernel/harness.go:479-484@2b736681` is a hardcoded constant map
+(fixed `cause` per `AHI-054`, `reason: "frontier-authority-unavailable"`, `shouldContinue: false`, `state: "UNAVAILABLE"`).
 
 A Frontier command surface does exist and is wired to real Git-backed adapters
 (`cmd/corvint/frontier.go`, `cmd/corvint/frontier_adapters.go:24-29`, which binds
@@ -198,7 +198,7 @@ applies unchanged, with `frontier/0` read as `frontier/1`.
   actually read it.
 - `CF-V1-020`: **accepting this profile does not remove `frontier-authority-unavailable` from any
   receipt.** The literal at `internal/gokernel/harness.go:439@a4869098` is unconditional and the `stop` block
-  at `:478-484@2d42b7c2` is a constant; neither consults `internal/frontier`. The degradation is honest today
+  at `:478-485@59378491` is a constant; neither consults `internal/frontier`. The degradation is honest today
   and remains honest after acceptance. Removing it requires, in order: (a) an accepted
   `harness-execution-attested-v0` root, without which `INTENT_TEST` never closes; (b) a way for a
   stop lifecycle point to obtain the `CF-V0-001` inputs (Q4); (c) the wiring itself; and (d) the

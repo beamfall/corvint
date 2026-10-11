@@ -211,14 +211,24 @@ func (a *ObligationReceiptAudit) bind(rc *snapshot.Receipt, prior obligationTick
 	if !bytes.Equal(post, raw) {
 		return a.fail(rc, "the posted ticket is not the replayed record")
 	}
-	return a.sourcePresence(rc, q)
+	names := obligation.NamesOf(nil)
+	if pre.ObligationsRef != nil && q.Witness != nil && q.Witness.Source == ticket.ObligationSourceReport {
+		// Aliases are fixed at seed (TOL-V0-034), so the preceding ledger
+		// carries every alias a witness can name.
+		l, err := ticket.FoldObligationChain(pre.TicketID, *pre.ObligationsRef, func(d wire.Digest) ([]byte, error) { return events[d], nil })
+		if err != nil {
+			return a.fail(rc, "preceding ledger chain: %v", err)
+		}
+		names = obligation.NamesOf(l)
+	}
+	return a.sourcePresence(rc, q, names)
 }
 
 // sourcePresence re-checks TOL-V0-012 for a report witness: every retained
 // match's path is a blob at the event's commit that holds the id as a whole
-// token. A DECLARED witness checks shape, commit and grant only: replay has
+// token, by its native id or its alias (TOL-V0-036). A DECLARED witness checks shape, commit and grant only: replay has
 // checked the shape and grant, and here its commit must exist.
-func (a *ObligationReceiptAudit) sourcePresence(rc *snapshot.Receipt, q *ticket.ObligationRequest) error {
+func (a *ObligationReceiptAudit) sourcePresence(rc *snapshot.Receipt, q *ticket.ObligationRequest, names obligation.Names) error {
 	if a.Source == nil || q.Operation != ticket.OpObligationsWitness {
 		return nil
 	}
@@ -258,7 +268,7 @@ func (a *ObligationReceiptAudit) sourcePresence(rc *snapshot.Receipt, q *ticket.
 	}
 	for _, c := range w.Credits {
 		for _, m := range c.Matches {
-			if !present[m.Path] || !obligation.ContainsID(content[m.Path], c.ID) {
+			if !present[m.Path] || !names.Contains(content[m.Path], c.ID) {
 				return a.fail(rc, "credited id %s is not in %s at %s", c.ID, m.Path, w.Commit)
 			}
 		}

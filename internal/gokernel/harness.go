@@ -477,6 +477,7 @@ func HandleEventContext(ctx context.Context, request EventRequest) (map[string]a
 	}
 	if request.Event == "stop" {
 		response["frontier"] = map[string]any{
+			"cause":          FrontierCauseNoClosingAuthority,
 			"reason":         "frontier-authority-unavailable",
 			"shouldContinue": false,
 			"state":          "UNAVAILABLE",
@@ -746,3 +747,8 @@ type SharedIndexedContext func(ctx context.Context, root, event string, normaliz
 // It reads no repository state, so the bracket runs it beside its closing
 // observation rather than inside the read stage.
 type IndexedBlock func() (map[string]any, error)
+
+// FrontierCauseNoClosingAuthority is the stop frontier's fixed cause (AHI-054): no separately
+// accepted closing authority exists, whatever CEM or OCM artifacts are present. The event never
+// consults a CEM, an OCM or `corvint frontier`, so this is the only cause it can state.
+const FrontierCauseNoClosingAuthority = "no-accepted-closing-authority"

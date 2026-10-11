@@ -223,7 +223,7 @@ func doctorStoreFindings(rc *readCtx, scan *doctorScan) ([]doctorFinding, error)
 	src := journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}
 	doctorScanReceipts(src, rc.snap.Head.LastSeq.Uint64(), scan)
 	var out []doctorFinding
-	out = append(out, doctorNoProgress(scan)...)
+	out = append(out, doctorNoProgress(scan, doctorHandoffCandidate(rc))...)
 	out = append(out, doctorRepeatRefusal(doctorGateReader(src), scan)...)
 	out = append(out, doctorSlowLane(scan)...)
 	out = append(out, doctorSetupOnly(rc, scan)...)
@@ -358,12 +358,32 @@ func doctorEndings(scan *doctorScan) (map[string][]doctorEnded, []string) {
 	return out, order
 }
 
-// doctorNoProgress applies the CAL-V0-102 no-progress test to each ticket's
-// newest ended generations (TQD-V0-005).
-func doctorNoProgress(scan *doctorScan) []doctorFinding {
+// doctorHandoffCandidate reports whether a ticket can still be in a hand-off
+// loop: its current audited record is not COMPLETED, ARCHIVED or HELD
+// (TQD-V0-013). A ticket absent from the inventory stays a candidate.
+func doctorHandoffCandidate(rc *readCtx) func(string) bool {
+	return func(id string) bool {
+		rec, ok := rc.store.Inventory.Get(id)
+		if !ok {
+			return true
+		}
+		switch rec.Status {
+		case ticket.StatusCompleted, ticket.StatusArchived, ticket.StatusHeld:
+			return false
+		}
+		return true
+	}
+}
+
+// doctorNoProgress applies the CAL-V0-102 no-progress test to each candidate
+// ticket's newest ended generations (TQD-V0-005, TQD-V0-013).
+func doctorNoProgress(scan *doctorScan, candidate func(string) bool) []doctorFinding {
 	endings, order := doctorEndings(scan)
 	var out []doctorFinding
 	for _, t := range order {
+		if !candidate(t) {
+			continue
+		}
 		gens := endings[t]
 		verdicts := make([]bool, len(gens))
 		var tree *string

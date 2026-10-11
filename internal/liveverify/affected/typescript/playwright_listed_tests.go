@@ -51,7 +51,7 @@ func PlaywrightListedTests(root, configPath string, listing []byte, revisionPath
 	for _, test := range tests {
 		units[PlaywrightDiscoveryUnit{Project: test.Project, Test: test.Path}] = true
 	}
-	if _, _, err := observePlaywrightListMembership(root, configPath, units, revisionPaths); err != nil {
+	if _, _, _, err := observePlaywrightListMembership(root, configPath, units, revisionPaths, nil); err != nil {
 		return nil, err
 	}
 	sort.Slice(tests, func(i, j int) bool {

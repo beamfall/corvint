@@ -142,7 +142,7 @@ func main() {
 	context := map[string]any{"state": "READY"}
 	response := map[string]any{"adapter": adapter, "context": context, "degradations": config.Codes, "event": event, "ok": true, "profile": "corvint-harness-event/0", "repository": repository, "support": "FALLBACK"}
 	if event == "stop" {
-		response["frontier"] = map[string]any{"reason": "frontier-authority-unavailable", "shouldContinue": false, "state": "UNAVAILABLE"}
+		response["frontier"] = map[string]any{"cause": "no-accepted-closing-authority", "reason": "frontier-authority-unavailable", "shouldContinue": false, "state": "UNAVAILABLE"}
 	}
 	// Core keeps adapterCodes out of the receipt basis (SOL-V0-010, V1-0767).
 	basisInput := map[string]any{}
@@ -155,6 +155,11 @@ func main() {
 	digest := sha256.Sum256(basis)
 	response["receiptId"] = "harness-receipt:sha256:" + hex.EncodeToString(digest[:])
 	switch config.Mode {
+	case "legacy-frontier":
+		// A /0 stop receipt from before AHI-054: its frontier has no cause member.
+		if frontier, ok := response["frontier"].(map[string]any); ok {
+			delete(frontier, "cause")
+		}
 	case "digest":
 		response["receiptId"] = "harness-receipt:sha256:" + strings.Repeat("f", 64)
 	case "event":

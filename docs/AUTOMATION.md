@@ -306,9 +306,10 @@ notice is not removing the degradation or acquiring authority.
 
 ### Not delivered by this guidance
 
-The degradation payload is still a list of strings. A machine-readable per-degradation `reason`
-that distinguishes artifact absence from unavailable authority is **not implemented**. The existing
-Stop `frontier.reason` merely repeats the same generic code; it is not that missing explanation.
-An adopter acknowledge/suppress option is also **not implemented**. These remain unmet parts of
-V1-1143 for separate follow-up; this documentation ships neither feature and adds no new authority,
-wire contract, or numbered requirement.
+The degradation payload is still a list of strings, and no per-degradation `reason` distinguishes
+artifact absence from unavailable authority. The Stop receipt's `frontier.reason` repeats the generic
+code; `AHI-054` (decision 0519, V1-1157) adds the fixed `frontier.cause`
+`no-accepted-closing-authority`, which says why the degradation holds but never diagnoses a missing
+or unverified CEM. An adopter acknowledge/suppress option is **not implemented**: the owner declined
+it in decision 0519, because missing evidence stays visible. This guidance (V1-1143) adds no new
+authority, wire contract, or numbered requirement.

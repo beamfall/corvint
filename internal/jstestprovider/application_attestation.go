@@ -315,6 +315,15 @@ func applicationAttestationUnknown(receipt *ApplicationAttestationReceipt) bool 
 	return len(compareApplicationAttestations(receipt.Before.Attestation, receipt.After.Attestation)) != 0
 }
 
+// ObserveTestRepositoryAtStart returns the test repository identity of dir
+// before a basic (unprofiled) run, or nil when Git cannot name it. A dirty
+// worktree still yields its identity with DirtyState "dirty"; the revision is
+// what a consumer compares with HEAD to claim revision staleness (V1-1156).
+func ObserveTestRepositoryAtStart(ctx context.Context, dir string) *ApplicationRepositoryIdentity {
+	identity, _ := observeTestRepository(ctx, dir)
+	return identity
+}
+
 func observeTestRepository(ctx context.Context, dir string) (*ApplicationRepositoryIdentity, string) {
 	top, failure := gitObservation(ctx, dir, "rev-parse", "--show-toplevel")
 	if failure != "" {

@@ -86,7 +86,7 @@ its finding is that the action is not currently available.
 - **The harness does not consult Frontier at all.** `internal/gokernel/harness.go` contains no import
   of `internal/frontier`; the degradation is the literal `degradations := []any{
   "frontier-authority-unavailable"}` at `internal/gokernel/harness.go:439@a4869098`, appended to **every**
-  event, and the `stop` block at `:479-483@e567ed2d` is a hardcoded constant map. This matters here: even an
+  event, and the `stop` block at `:479-484@2b736681` is a hardcoded constant map. This matters here: even an
   accepted closing relation would not change one byte of a harness receipt until that wiring exists.
 
 ## Definitions

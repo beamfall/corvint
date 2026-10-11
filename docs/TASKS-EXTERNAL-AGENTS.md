@@ -622,7 +622,7 @@ results do not. Branch on that boolean instead of matching codes. It is true onl
 is one of the following codes, and then the same command with the same `--request-id` can succeed after a
 bounded backoff:
 
-- `RESOURCE_EXHAUSTED` (proposed CAL-V0-215, pending owner acceptance): process or system
+- `RESOURCE_EXHAUSTED` (CAL-V0-215, accepted in decision 0519): process or system
   descriptor exhaustion (`EMFILE`/`ENFILE`); retry the identical request with the same request ID
   after bounded backoff when descriptor pressure clears. An explicit `retryable:false` still
   wins after a program or an unfinished committed step. Tasks does not raise `RLIMIT_NOFILE`.
@@ -684,7 +684,8 @@ debt, clean handoff preserves it and policy updates change the bound without era
 TQD-V0-001..012, GitHub #715). It scans at most 4096 receipts from the last 7 days and reports
 `summary` (free and total pool lanes, running sessions, completions in 24 hours, alerts) and
 `findings`, each with `kind`, `source`, `who`, `detail`, `remedy`, `firstSeen`, `ageSeconds` and
-`evidenceSeqs`. Built-in kinds are NO_PROGRESS_HANDOFF (three trailing no-progress hand-offs),
+`evidenceSeqs`. Built-in kinds are NO_PROGRESS_HANDOFF (three trailing no-progress hand-offs on a
+ticket that is not COMPLETED, ARCHIVED or HELD; TQD-V0-013, accepted in decision 0519, GitHub #791),
 REPEAT_REFUSAL (one candidate tree returned or failed three times), SLOW_LANE_RECOVERY (an
 allocation entered cleanup three times), SETUP_ONLY_PROOF (a recent completion that witnessed no
 core obligation) and FALSE_IDLE (a stale or lease-expired holder whose detached run supervisor

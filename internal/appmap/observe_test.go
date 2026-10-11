@@ -42,7 +42,7 @@ func TestANLV0006Observe(t *testing.T) {
 		{Kind: "navigate", URL: "https://x.test/items/7/edit", Action: &NavigationAction{Kind: "click", Selector: "#edit"}},
 		{Kind: "navigate", URL: "https://x.test/dup"},
 		{Kind: "navigate", URL: "https://x.test/nowhere"},
-		{Kind: "navigate", URL: "https://x.test/home", Action: &NavigationAction{Kind: "press"}},
+		{Kind: "navigate", URL: "https://x.test/home", Action: &NavigationAction{Kind: "hover"}},
 	}}
 	obs, _ := observeOnce(t, m, d, Options{})
 	tr := obs.Traces[0]
@@ -128,5 +128,44 @@ func TestANLV0008InputsAndBudget(t *testing.T) {
 	write("c.zip", "PK")
 	if _, _, err := LoadNavigationEvents(dir); err == nil {
 		t.Fatal("zip accepted")
+	}
+}
+
+// ANL-V0-021: observed action kinds map to typed triggers; an annotation is echoed as a declared
+// trigger and never replaces UNKNOWN; an annotation outside the vocabulary is refused.
+func TestANLV0021TypedTriggersAndAnnotations(t *testing.T) {
+	m := observeMap("")
+	nav := func(kind, url string) NavigationEvent {
+		return NavigationEvent{Kind: "navigate", URL: "https://x.test" + url, Action: &NavigationAction{Kind: kind}}
+	}
+	d := NavigationEvents{Schema: NavigationEventsSchema, TestKey: "t", Events: []NavigationEvent{
+		nav("goto", "/login"), nav("press", "/home"), nav("goBack", "/login"), nav("goForward", "/home"),
+		nav("reload", "/home"), nav("submit", "/login"), nav("fill", "/home"),
+		{Kind: "navigate", URL: "https://x.test/login", Annotation: &NavigationAnnotation{Trigger: "form submit"}},
+		{Kind: "navigate", URL: "https://x.test/home", Action: &NavigationAction{Kind: "press"}, Annotation: &NavigationAnnotation{Trigger: "form submit"}},
+	}}
+	obs, _ := observeOnce(t, m, d, Options{})
+	want := []string{"key press", "history back", "history forward", "reload", "form submit", StatusUnknown, StatusUnknown, "key press"}
+	for i, e := range obs.Traces[0].Edges {
+		if e.Trigger != want[i] {
+			t.Fatalf("edge %d trigger %q want %q", i, e.Trigger, want[i])
+		}
+	}
+	if e := obs.Traces[0].Edges[6]; e.DeclaredTrigger != "form submit" || e.Trigger != StatusUnknown {
+		t.Fatal("annotation replaced the observed trigger", e)
+	}
+	dir := t.TempDir()
+	f := filepath.Join(dir, "a.json")
+	for body, ok := range map[string]bool{
+		`{"schema":"` + NavigationEventsSchema + `","test_key":"k","events":[{"kind":"navigate","url":"/home","annotation":{"trigger":"reload"}}]}`:  true,
+		`{"schema":"` + NavigationEventsSchema + `","test_key":"k","events":[{"kind":"navigate","url":"/home","annotation":{"trigger":"UNKNOWN"}}]}`: false,
+		`{"schema":"` + NavigationEventsSchema + `","test_key":"k","events":[{"kind":"navigate","url":"/home","annotation":{"trigger":"tap"}}]}`:     false,
+	} {
+		if err := os.WriteFile(f, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := LoadNavigationEvents(f); (err == nil) != ok {
+			t.Fatal(body, err)
+		}
 	}
 }

@@ -20,6 +20,8 @@ var dogfoodFlowOptions = map[string]map[string]bool{
 	"change": {"--corvint-bin": true},
 	"check":  {"--base-verifier": true, "--tree-verifier": true, "--override-verifier": true},
 	"seal":   {"--base-verifier": true, "--tree-verifier": true, "--override-verifier": true},
+	// batch-check is read-only and verifies sealed constituents (DCW-V0-039).
+	"batch-check": {"--verifier": true},
 }
 
 func dogfoodFlowArguments(action string, args []string) (map[string]string, string, error) {
@@ -55,7 +57,7 @@ func dogfoodFlowArguments(action string, args []string) (map[string]string, stri
 	return flags, positional[0], nil
 }
 
-// runDogfoodFlow runs `dogfood change|check|seal BASE` with this executable
+// runDogfoodFlow runs `dogfood change|check|seal|batch-check BASE` with this executable
 // unless an option names another one, reading the DOGFOOD_* inputs the
 // make targets have always taken.
 func runDogfoodFlow(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
@@ -117,6 +119,9 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 			Outcome: os.Getenv("DOGFOOD_OUTCOME"), IntentsFile: os.Getenv("DOGFOOD_INTENTS_FILE"),
 			Citations: os.Getenv("DOGFOOD_CITATIONS"), OCMLinks: os.Getenv("DOGFOOD_OCM_LINKS"),
 		}, stderr)
+	}
+	if action == "batch-check" {
+		return dogfoodflow.BatchCheck(ctx, dogfoodflow.BatchCheckOptions{Root: root, Base: base, Verifier: runner("--verifier")}, stdout, stderr)
 	}
 	options := dogfoodflow.CheckOptions{
 		Root: root, Base: base, BaseVerifier: runner("--base-verifier"), TreeVerifier: runner("--tree-verifier"),

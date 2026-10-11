@@ -750,7 +750,13 @@ remain NOT_OBSERVED.
   SIGKILL, so unrelated, pre-phase, zombie and reused identities are never
   signalled. An unreadable identity or owner token is uncertainty, never proof
   of exit or non-ownership, and a failed later scan still kills processes
-  already stopped. Owned processes that cannot be signalled (foreign uid,
+  already stopped. A token read refused while the identity still reads as
+  alive MUST be retried for a bounded nominal wait (1 s per identity, 2 s per
+  retirement call, polled every 5 ms) before it is retained as a problem,
+  because Darwin refuses `KERN_PROCARGS2` for an exiting or not yet executed
+  process while `kern.proc.pid` still reports it alive; an identity that
+  persists past that bound is still retained as a problem (amended, accepted in
+  decision 0519, V1-1152). Owned processes that cannot be signalled (foreign uid,
   refused stop, unreadable identity) or survive SIGKILL, and an unconverged,
   failed or unbounded scan, MUST be
   retained as `unretired` or `problems` in the execution's `retirement` and MUST
@@ -769,7 +775,7 @@ remain NOT_OBSERVED.
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
 | TRE-V0-029 | `platform/xctest.go`; `TestSwiftPMXUnitSkipLossCannotSatisfyExecution`, `tcq` `TestSwiftPMXUnitRowsStayUnkeyed`, opt-in `TestSwiftPMXCTestLiveThreeOutcomes` | Actual `swiftpm-xunit-parallel.xml` and shared-executor `swift-xctest-three.txt` fixtures; live three-outcome run through `/usr/bin/swift`, exit 1, complete PASSED/FAILED(ASSERTION)/SKIPPED |
-| TRE-V0-030 | `internal/groupreap/retire*.go`, `execute_unix.go`, `platform/xctest.go`; `TestRetirerProvesOwnershipBeforeSignalling`, `TestRetirerReportsUnconvergedForkStorm`, `TestRetirerKeepsReadFailuresAsUncertainty`, `TestRetirerRetiresDetachedDescendants`, `TestExecuteRetiresDetachedDescendants`, `TestExecuteRetirementAdmission`, `TestExecuteRefusesUnprovenRetirement`, `TestRetirementFailureHidesPassingObservation`, `TestHistoricalPlanByteIdentity`, `corvint-test-runner` `TestPreRetirementXCTestPlanRefusedForExecution`, `TestRetirementSurvivesLaterExecutionFailure`, opt-in `TestSwiftPMXCTestLiveDetachedTeardown` | Live `/usr/bin/swift` `ProofTests.Hang/testHang`: without retirement the detached xctest and Foundation `/bin/sleep` helper survive the group kill; with it both are retired by ancestry on timeout and on interruption. Batch F integration with `TRE-V0-034` (live rerun, Darwin arm64): the unflagged run leaves no survivors and no retirement report, and the flagged runs still report both by ancestry |
+| TRE-V0-030 | `internal/groupreap/retire*.go`, `execute_unix.go`, `platform/xctest.go`; `TestRetirerProvesOwnershipBeforeSignalling`, `TestRetirerReportsUnconvergedForkStorm`, `TestRetirerKeepsReadFailuresAsUncertainty`, `TestRetirerWaitsOutRefusedTokenReads`, `TestRetirerRetiresDetachedDescendants`, `TestExecuteRetiresDetachedDescendants`, `TestExecuteRetirementAdmission`, `TestExecuteRefusesUnprovenRetirement`, `TestRetirementFailureHidesPassingObservation`, `TestHistoricalPlanByteIdentity`, `corvint-test-runner` `TestPreRetirementXCTestPlanRefusedForExecution`, `TestRetirementSurvivesLaterExecutionFailure`, opt-in `TestSwiftPMXCTestLiveDetachedTeardown` | Live `/usr/bin/swift` `ProofTests.Hang/testHang`: without retirement the detached xctest and Foundation `/bin/sleep` helper survive the group kill; with it both are retired by ancestry on timeout and on interruption. Batch F integration with `TRE-V0-034` (live rerun, Darwin arm64): the unflagged run leaves no survivors and no retirement report, and the flagged runs still report both by ancestry |
 
 Recorded limits. The shared executor admits only a regular-file executable, so
 the live witness uses the `/usr/bin/swift` shim; the toolchain `swift` symlink is
@@ -782,7 +788,11 @@ Retirement limits. PID reuse is possible only between the final identity
 check and the signal. Processes started through launchd or XPC, and
 non-descendants that scrub the owner token, are NOT_OBSERVED and not retired.
 Linux and other platforms refuse the flag rather than claim cleanup. The group
-kill remains containment only; `retirement` is the durable cleanup record.
+kill remains containment only; `retirement` is the durable cleanup record. An
+unrelated same-uid process that stays unreadable for the whole token wait adds
+up to 1 s to that retirement call (2 s for all such identities together) and is
+still retained as a problem; the measured Darwin exit window was under 10 ms
+idle and up to about 120 ms under fork and CPU load (V1-1152).
 
 Rollback removes the two fixtures, their tests and this section. The
 `swift-xctest` profile and historical plan and receipt bytes are unchanged.

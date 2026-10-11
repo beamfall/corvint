@@ -46,6 +46,29 @@ var errNotQualified = errors.New("keep-reporters not qualified")
 // runE2EReceipt is the e2e entry point; tests replace it with a fake runner.
 var runE2EReceipt = jstestprovider.RunE2E
 
+// observeTestRepositoryAtStart names the test repository before a retained
+// one-shot run; tests replace it with a fake observer.
+var observeTestRepositoryAtStart = jstestprovider.ObserveTestRepositoryAtStart
+
+// observeRetainedStart observes the test repository only when the document is
+// retained, so a non-retained stdout document is unchanged (V1-1156).
+func observeRetainedStart(ctx context.Context, retain bool, dir string) *jstestprovider.ApplicationRepositoryIdentity {
+	if !retain {
+		return nil
+	}
+	return observeTestRepositoryAtStart(ctx, dir)
+}
+
+// withRetainedRevision records the start identity in a basic (unprofiled)
+// receipt that does not already carry one. Profiled receipts keep their own
+// codec rules, and an unavailable observation leaves the revision unknown.
+func withRetainedRevision(receipt jstestprovider.Receipt, start *jstestprovider.ApplicationRepositoryIdentity) jstestprovider.Receipt {
+	if start != nil && receipt.Profile == "" && receipt.TestRepositoryAtStart == nil {
+		receipt.TestRepositoryAtStart = start
+	}
+	return receipt
+}
+
 type stringList []string
 
 func (s *stringList) String() string { return fmt.Sprintf("%v", []string(*s)) }
@@ -66,13 +89,64 @@ type testProjection struct {
 	Projection testvalidity.Projection       `json:"projection"`
 }
 
+const providerUsage = `Usage: corvint-js-test-provider SUBCOMMAND [flags]
+
+Subcommands:
+  unit                    run the bound Vitest adapter and print the receipt document
+  e2e                     run the bound Playwright adapter and print the receipt document;
+                          with --external-server the document is the canonical qualified
+                          receipt that test-validity --receipt, docs corpus discover-playwright
+                          --receipt and a witness-playwright receipt input accept
+  qualify-keep-reporters  takes the e2e flags with --external-server (no --keep-reporters,
+                          --keep-reporters-qualification or watch); prints the keep-reporters
+                          qualification record (PWP-V0-015)
+  negate                  generate step-level negative controls for one Playwright test (LPCV-V0-057)
+  help, -h, --help        print this usage and exit 0
+
+--retain also writes the printed document, byte for byte, under .corvint/test-evidence of the
+enclosing Git worktree (LPCV-V0-055). The flags of each subcommand follow.
+`
+
+// usageSink, while printUsage runs, receives each subcommand's flag defaults instead of the
+// subcommand parsing its arguments (LPCV-V0-071).
+var usageSink io.Writer
+
+// newSubcommandFlags is the subcommand flag set, or a non-exiting one writing to usageSink.
+func newSubcommandFlags(name string, handling flag.ErrorHandling) *flag.FlagSet {
+	if usageSink == nil {
+		return flag.NewFlagSet(name, handling)
+	}
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(usageSink)
+	return fs
+}
+
+// printUsage writes the subcommand summary and the flags of every subcommand that has its own;
+// qualify-keep-reporters takes the e2e flags (LPCV-V0-071). It runs no test.
+func printUsage(w io.Writer) {
+	fmt.Fprint(w, providerUsage)
+	usageSink = w
+	defer func() { usageSink = nil }()
+	for _, show := range []func(){
+		func() { _, _, _ = parseUnitConfig([]string{"-h"}) },
+		func() { _ = runE2EMode("e2e", []string{"-h"}) },
+		func() { _, _ = parseNegate([]string{"-h"}) },
+	} {
+		fmt.Fprintln(w)
+		show()
+	}
+}
+
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|e2e|negate|qualify-keep-reporters> [flags]")
+		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|e2e|negate|qualify-keep-reporters> [flags]; corvint-js-test-provider --help for details")
 		os.Exit(2)
 	}
 	var err error
 	switch os.Args[1] {
+	case "help", "-h", "-help", "--help":
+		printUsage(os.Stdout)
+		return
 	case "unit":
 		err = runUnit(os.Args[2:])
 	case "e2e":
@@ -123,7 +197,7 @@ func resolvePath(p string) (string, error) {
 // "." default (or any relative value) satisfies procgroup's requirement that
 // Spec.Dir be absolute. The bool reports --retain.
 func parseUnitConfig(args []string) (jstestprovider.UnitConfig, bool, error) {
-	fs := flag.NewFlagSet("unit", flag.ExitOnError)
+	fs := newSubcommandFlags("unit", flag.ExitOnError)
 	configureWatchHelp(fs)
 	dir := fs.String("dir", ".", "working directory to run the unit command in (resolved to an absolute path)")
 	configFile := fs.String("config", "", "vitest config file path")
@@ -131,7 +205,7 @@ func parseUnitConfig(args []string) (jstestprovider.UnitConfig, bool, error) {
 	lockfile := fs.String("lockfile", "", "lockfile path")
 	runnerVersion := fs.String("runner-version", "", "pinned vitest version")
 	timeout := fs.Duration("timeout", 5*time.Minute, "bound on the unit run")
-	retain := fs.Bool("retain", false, "also retain the document under .corvint/test-evidence of the enclosing Git worktree")
+	retain := fs.Bool("retain", false, "also retain the document under .corvint/test-evidence of the enclosing Git worktree; a basic receipt then records the test repository start revision")
 	var testFiles stringList
 	var envKeys stringList
 	fs.Var(&testFiles, "test-file", "a test file to bind identity to (repeatable)")
@@ -187,11 +261,12 @@ func runUnit(args []string) error {
 		return runUnitWatch(ctx, cfg, retain, watch, os.Stdout, os.Stderr)
 	}
 
+	start := observeRetainedStart(ctx, retain, cfg.Dir)
 	receipt, err := jstestprovider.RunUnit(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	return emit(os.Stdout, os.Stderr, receipt, retainFrom(retain, cfg.Dir))
+	return emit(os.Stdout, os.Stderr, withRetainedRevision(receipt, start), retainFrom(retain, cfg.Dir))
 }
 
 func runE2E(args []string) error {
@@ -210,7 +285,7 @@ func runE2EMode(mode string, args []string) error {
 		return err
 	}
 	args = filtered
-	fs := flag.NewFlagSet(mode, flag.ExitOnError)
+	fs := newSubcommandFlags(mode, flag.ExitOnError)
 	configureWatchHelp(fs)
 	dir := fs.String("dir", ".", "working directory to run server and test commands in (resolved to an absolute path)")
 	configFile := fs.String("config", "", "playwright config file path")
@@ -230,7 +305,7 @@ func runE2EMode(mode string, args []string) error {
 	serverReadyURL := fs.String("server-ready-url", "", "URL polled until it answers with status < 500")
 	serverReadyTimeout := fs.Duration("server-ready-timeout", 15*time.Second, "bound on waiting for server readiness")
 	timeout := fs.Duration("timeout", 5*time.Minute, "bound on the playwright test command")
-	retain := fs.Bool("retain", false, "also retain the document under .corvint/test-evidence of the enclosing Git worktree")
+	retain := fs.Bool("retain", false, "also retain the document under .corvint/test-evidence of the enclosing Git worktree; a basic receipt then records the test repository start revision")
 	var testFiles stringList
 	var envKeys stringList
 	var serverArgv stringList
@@ -333,11 +408,12 @@ func runE2EMode(mode string, args []string) error {
 		}
 		return runE2EWatch(ctx, cfg, *retain, watch, os.Stdout, os.Stderr)
 	}
+	start := observeRetainedStart(ctx, *retain, resolvedDir)
 	receipt, err := runE2EReceipt(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	return emit(os.Stdout, os.Stderr, receipt, retainFrom(*retain, resolvedDir))
+	return emit(os.Stdout, os.Stderr, withRetainedRevision(receipt, start), retainFrom(*retain, resolvedDir))
 }
 
 // readKeepReportersQualification reads and strictly decodes a qualified

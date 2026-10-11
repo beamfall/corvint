@@ -48,6 +48,7 @@ type affectedReceipt struct {
 	Range    affectedRange    `json:"range"`
 	Revision string           `json:"revision"`
 	Tool     string           `json:"tool"`
+	Warning  string           `json:"warning,omitempty"`
 }
 
 // affectedRange records the committed half of the dirty set (AFP-V0-010).
@@ -73,9 +74,14 @@ type affectedInvocation struct {
 	// PlaywrightList is set only by `affected discovery`: the Playwright JSON listing converted
 	// into a playwright-discovery/0 receipt (TJAA-V0-019).
 	PlaywrightList string
+	// AppmapImpacts are application-map-impact/0 report files routed into advice (ANL-V0-031).
+	AppmapImpacts []string
 	// Full selects the affected-plan/0 wire: every exclusion and every
 	// selected test file (AFP-V0-035).
 	Full bool
+	// RequireClean refuses to plan over a worktree with any status entry
+	// (AFP-V0-045).
+	RequireClean bool
 }
 
 type playwrightAffectedReceipt struct {
@@ -87,6 +93,7 @@ type playwrightAffectedReceipt struct {
 	Range    affectedRange             `json:"range"`
 	Revision string                    `json:"revision"`
 	Tool     string                    `json:"tool"`
+	Warning  string                    `json:"warning,omitempty"`
 }
 
 type affectedProvider struct {
@@ -112,7 +119,9 @@ type affectedAdvice struct {
 	Note          string          `json:"note"`
 	Status        string          `json:"status"`
 	TestSelection map[string]any  `json:"test_selection,omitempty"`
-	Unknown       []string        `json:"unknown"`
+	// AppNavigation is present only when --appmap-impact was named (ANL-V0-031).
+	AppNavigation []affectedAppNavigation `json:"app_navigation,omitempty"`
+	Unknown       []string                `json:"unknown"`
 }
 
 type affectedCheck struct {
@@ -189,7 +198,7 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 
 // affectedOptionNames are the flags `affected` accepts, each taking one value
 // as `--flag VALUE` or `--flag=VALUE`.
-var affectedOptionNames = map[string]bool{"--snapshot": true, "--base": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--selection-profile": true}
+var affectedOptionNames = map[string]bool{"--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--selection-profile": true}
 
 // parseAffectedOptions reads the flags after `affected`. `--base` must
 // already be a full object id: a ref name is resolved by the caller, never
@@ -208,6 +217,14 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 				return affectedInvocation{}, argumentError("--full may be given once")
 			}
 			invocation.Full = true
+			index++
+			continue
+		}
+		if rest[index] == "--require-clean" || strings.HasPrefix(rest[index], "--require-clean=") {
+			if invocation.RequireClean || rest[index] != "--require-clean" {
+				return affectedInvocation{}, argumentError("argument --require-clean: does not accept a value or repetition")
+			}
+			invocation.RequireClean = true
 			index++
 			continue
 		}
@@ -233,6 +250,8 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			}
 		case "--base":
 			err = setAffectedBase(&invocation, &baseSet, value)
+		case "--appmap-impact":
+			err = addAffectedAppmapImpact(&invocation, value)
 		case "--provider", "--provider-command":
 			err = addAffectedProvider(&invocation, name, value)
 		case "--repository":
@@ -254,6 +273,12 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if invocation.Snapshot != "" && (invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightDiscovery != "") {
 		return affectedInvocation{}, argumentError("--snapshot cannot be combined with --base, --provider or --playwright-discovery")
+	}
+	if invocation.Snapshot != "" && invocation.RequireClean {
+		return affectedInvocation{}, argumentError("--require-clean cannot be combined with --snapshot, which never reads the worktree")
+	}
+	if len(invocation.AppmapImpacts) != 0 && (invocation.Base == "" || invocation.Snapshot != "" || invocation.PlaywrightConfig != "") {
+		return affectedInvocation{}, argumentError("--appmap-impact requires --base and cannot be combined with --snapshot or --playwright-config")
 	}
 	if len(invocation.Providers) == 0 && (len(invocation.Checkouts) != 0 || invocation.SelectionProfile != "") {
 		return affectedInvocation{}, argumentError("--repository and --selection-profile require --provider")
@@ -431,6 +456,9 @@ func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocatio
 	if err != nil {
 		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 	}
+	if invocation.RequireClean && len(dirty) != 0 {
+		return playwrightAffectedReceipt{}, affectedMixedWorktreeRefusal(revision, len(dirty))
+	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
 	if err != nil {
 		return playwrightAffectedReceipt{}, err
@@ -461,6 +489,7 @@ func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocatio
 	return playwrightAffectedReceipt{
 		Mutates: false, OK: true, Plan: plan, Profile: typescript.PlaywrightProfile,
 		Range: affectedRange{Base: invocation.Base, Paths: committed}, Revision: revision, Tool: "affected",
+		Warning: affectedMixedWarning(revision, dirty, committed),
 	}, nil
 }
 
@@ -578,6 +607,9 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 	if err != nil {
 		return affectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 	}
+	if invocation.RequireClean && len(dirty) != 0 {
+		return affectedReceipt{}, affectedMixedWorktreeRefusal(revision, len(dirty))
+	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
 	if err != nil {
 		return affectedReceipt{}, err
@@ -614,6 +646,9 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 		}
 		advice.TestSelection = extevidence.Selection(ctx, root, revision, invocation.Providers, invocation.Checkouts, input)
 	}
+	if err := affectedAppNavigations(invocation, revision, dirty, &advice); err != nil {
+		return affectedReceipt{}, err
+	}
 	return affectedReceipt{
 		Advice:   advice,
 		Mutates:  false,
@@ -624,6 +659,7 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 		Range:    affectedRange{Base: invocation.Base, Paths: committed},
 		Revision: revision,
 		Tool:     "affected",
+		Warning:  affectedMixedWarning(revision, dirty, committed),
 	}, nil
 }
 

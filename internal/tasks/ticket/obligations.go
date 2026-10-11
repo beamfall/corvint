@@ -52,6 +52,10 @@ const (
 	// TOL-V0-024: a report witness refused because its run's post-check
 	// failed.
 	ObligationPostCheckDetail = "OBLIGATION_POST_CHECK_FAILED:"
+	// TOL-V0-035: a seeded alias that repeats another alias, or that holds
+	// a native id of the ledger prefix as a whole token.
+	ObligationAliasDuplicateDetail = "OBLIGATION_ALIAS_DUPLICATE:"
+	ObligationAliasCollisionDetail = "OBLIGATION_ALIAS_COLLISION:"
 )
 
 // ObligationStates is the closed entry state set (TOL-V0-003).
@@ -199,6 +203,19 @@ func ReadObligationID(r *wire.Reader) string {
 		return ""
 	}
 	if _, err := wire.ParseObligationID(r.Where(), s); err != nil {
+		r.Fail(wire.CodeOf(err), "%v", err)
+		return ""
+	}
+	return s
+}
+
+// readObligationAlias reads one adopter alias (TOL-V0-034).
+func readObligationAlias(r *wire.Reader) string {
+	s := r.String()
+	if r.Err() != nil {
+		return ""
+	}
+	if _, err := wire.ParseObligationAlias(r.Where(), s); err != nil {
 		r.Fail(wire.CodeOf(err), "%v", err)
 		return ""
 	}
@@ -381,9 +398,11 @@ func ReadObligationEvidence(r *wire.Reader) *ObligationEvidence {
 	return e
 }
 
-// ObligationEntry is one folded ledger entry (TOL-V0-003).
+// ObligationEntry is one folded ledger entry (TOL-V0-003). Alias is the
+// optional adopter alias fixed at seed (TOL-V0-034), "" when absent.
 type ObligationEntry struct {
 	ID            string
+	Alias         string
 	Title         string
 	Core          bool
 	State         string
@@ -399,17 +418,24 @@ func (e ObligationEntry) Value() wire.Value {
 	if e.Evidence != nil {
 		ev = e.Evidence.Value()
 	}
-	return noteObject("id", wire.String(e.ID), "title", wire.String(e.Title), "core", wire.Bool(e.Core), "state", wire.String(e.State),
+	v := noteObject("id", wire.String(e.ID), "title", wire.String(e.Title), "core", wire.Bool(e.Core), "state", wire.String(e.State),
 		"reason", wire.StringOrNull(e.Reason), "evidence", ev, "updatedAt", wire.String(string(e.UpdatedAt)),
 		"updatedBy", noteObject("id", wire.String(e.UpdatedByID), "role", wire.String(e.UpdatedByRole)))
+	if e.Alias != "" {
+		v.Obj.Set("alias", wire.String(e.Alias))
+	}
+	return v
 }
 
 // ReadObligationEntry reads one closed entry and checks that evidence is
 // present exactly when the state is WITNESSED.
 func ReadObligationEntry(r *wire.Reader) *ObligationEntry {
-	r.Closed("id", "title", "core", "state", "reason", "evidence", "updatedAt", "updatedBy")
+	r.Closed(wire.OptionalKeys(r.Value(), []string{"id", "title", "core", "state", "reason", "evidence", "updatedAt", "updatedBy"}, "alias")...)
 	e := &ObligationEntry{ID: ReadObligationID(r.Field("id")), Title: readNonblank(r.Field("title"), MaxObligationTitleBytes), Core: r.Field("core").Bool(),
 		State: r.Field("state").Enum(ObligationStates...), UpdatedAt: r.Field("updatedAt").Timestamp()}
+	if wire.Has(r.Value(), "alias") {
+		e.Alias = readObligationAlias(r.Field("alias"))
+	}
 	e.Reason = r.Field("reason").StringOrNull(func(x *wire.Reader) string { return readNonblank(x, MaxObligationReasonBytes) })
 	if ev := r.Field("evidence"); !ev.IsNull() {
 		e.Evidence = ReadObligationEvidence(ev)
@@ -428,9 +454,11 @@ func ReadObligationEntry(r *wire.Reader) *ObligationEntry {
 	return e
 }
 
-// ObligationSeedItem is one seeded obligation {id, title, core}.
+// ObligationSeedItem is one seeded obligation {id, alias?, title, core}.
+// Alias is the optional adopter alias (TOL-V0-034), "" when absent.
 type ObligationSeedItem struct {
 	ID    string
+	Alias string
 	Title string
 	Core  bool
 }
@@ -444,7 +472,11 @@ type ObligationSeedPayload struct {
 func (p ObligationSeedPayload) Value() wire.Value {
 	vs := make([]wire.Value, 0, len(p.Obligations))
 	for _, o := range p.Obligations {
-		vs = append(vs, noteObject("id", wire.String(o.ID), "title", wire.String(o.Title), "core", wire.Bool(o.Core)))
+		v := noteObject("id", wire.String(o.ID), "title", wire.String(o.Title), "core", wire.Bool(o.Core))
+		if o.Alias != "" {
+			v.Obj.Set("alias", wire.String(o.Alias))
+		}
+		vs = append(vs, v)
 	}
 	return noteObject("prefix", wire.String(p.Prefix), "obligations", wire.Array(vs...))
 }
@@ -455,8 +487,11 @@ func ReadObligationSeedPayload(r *wire.Reader) *ObligationSeedPayload {
 	r.Closed("prefix", "obligations")
 	p := &ObligationSeedPayload{Prefix: readObligationPrefix(r.Field("prefix"))}
 	readIDKeyed(r.Field("obligations"), wire.ObligationsMaxEntries, "obligations", func(it *wire.Reader) string {
-		it.Closed("id", "title", "core")
+		it.Closed(wire.OptionalKeys(it.Value(), []string{"id", "title", "core"}, "alias")...)
 		o := ObligationSeedItem{ID: ReadObligationID(it.Field("id")), Title: readNonblank(it.Field("title"), MaxObligationTitleBytes), Core: it.Field("core").Bool()}
+		if wire.Has(it.Value(), "alias") {
+			o.Alias = readObligationAlias(it.Field("alias"))
+		}
 		if it.Err() == nil && ObligationIDPrefix(o.ID) != p.Prefix {
 			it.Field("id").Fail(wire.CodeMalformed, "obligation id %q does not carry prefix %s", o.ID, p.Prefix)
 		}
@@ -809,6 +844,56 @@ func (l *ObligationLedger) Counts() ObligationCounts {
 	return c
 }
 
+// admitAlias refuses an alias that another entry already carries, or that
+// holds a native id of the ledger prefix as a whole token (TOL-V0-035).
+func (l *ObligationLedger) admitAlias(alias string) error {
+	for _, e := range l.Entries {
+		if e.Alias == alias {
+			return wire.Errorf(wire.CodeDuplicateID, "/request/payload/obligations", "%s alias %s is already carried by %s", ObligationAliasDuplicateDetail, alias, e.ID)
+		}
+	}
+	if nativeIDIn(alias, l.Prefix) {
+		return wire.Errorf(wire.CodeDuplicateID, "/request/payload/obligations", "%s alias %s holds a native %s id", ObligationAliasCollisionDetail, alias, l.Prefix)
+	}
+	return nil
+}
+
+// nativeIDIn reports whether s holds a valid id of prefix as a whole token
+// bounded by a byte outside [A-Za-z0-9-] (the TOL-V0-010 rule).
+func nativeIDIn(s, prefix string) bool {
+	idByte := func(c byte) bool {
+		return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-'
+	}
+	for i := 0; i < len(s); {
+		if !idByte(s[i]) {
+			i++
+			continue
+		}
+		j := i
+		for j < len(s) && idByte(s[j]) {
+			j++
+		}
+		if p, err := wire.ParseObligationID("id", s[i:j]); err == nil && p == prefix {
+			return true
+		}
+		i = j
+	}
+	return false
+}
+
+// Aliases maps each alias of the ledger to its native id (TOL-V0-034).
+func (l *ObligationLedger) Aliases() map[string]string {
+	out := map[string]string{}
+	if l != nil {
+		for _, e := range l.Entries {
+			if e.Alias != "" {
+				out[e.Alias] = e.ID
+			}
+		}
+	}
+	return out
+}
+
 // EntriesValue encodes the folded entries.
 func (l *ObligationLedger) EntriesValue() wire.Value {
 	vs := []wire.Value{}
@@ -856,7 +941,12 @@ func ApplyObligationEvent(l *ObligationLedger, ev *ObligationEvent, eventSha256 
 			if out.Entry(o.ID) != nil {
 				return nil, wire.Errorf(wire.CodeDuplicateID, "/request/payload/obligations", "obligation %s is already in the ledger", o.ID)
 			}
-			e := ObligationEntry{ID: o.ID, Title: o.Title, Core: o.Core, State: ObligationOpen}
+			if o.Alias != "" {
+				if err := out.admitAlias(o.Alias); err != nil {
+					return nil, err
+				}
+			}
+			e := ObligationEntry{ID: o.ID, Alias: o.Alias, Title: o.Title, Core: o.Core, State: ObligationOpen}
 			stamp(&e)
 			out.Entries = append(out.Entries, e)
 		}

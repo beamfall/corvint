@@ -21,10 +21,17 @@ const (
 	OwnerAncestry = "ANCESTRY"
 	OwnerToken    = "TOKEN"
 
-	retireRounds     = 32
-	retireEnvReads   = 4096
-	retireTokenTries = 5
-	retirePoll       = 3 * time.Second
+	retireRounds   = 32
+	retireEnvReads = 4096
+	retirePoll     = 3 * time.Second
+	// A token read is retried while the identity persists, for at most
+	// retireTokenWait per identity and retireTokenBudget per Retire call,
+	// counted in nominal sleep time. Darwin refuses KERN_PROCARGS2 for an
+	// exiting process while kern.proc.pid still reports it alive and not a
+	// zombie; that window was measured at up to ~120 ms under host load.
+	retireTokenPoll   = 5 * time.Millisecond
+	retireTokenWait   = time.Second
+	retireTokenBudget = 2 * time.Second
 )
 
 // RetiredProcess is one owned process identity: pid plus kernel start time.
@@ -88,6 +95,11 @@ type Retirer struct {
 	leaderID string
 	seen     map[string]*tracked
 	problems []string
+	// tokenWaited is the nominal time this Retire call has spent waiting for
+	// refused token reads, in total and per identity; a later scan in the
+	// same call cannot wait for the same identity again.
+	tokenWaited time.Duration
+	tokenWaits  map[string]time.Duration
 }
 
 // NewRetirer reserves a fresh token; it refuses where retirement is unproven.
@@ -129,6 +141,7 @@ func (r *Retirer) Leader(pid int) {
 func (r *Retirer) Retire() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.tokenWaited, r.tokenWaits = 0, map[string]time.Duration{}
 	leaderAlive := false
 	if r.leader != 0 {
 		row, alive, err := r.p.identity(r.leader)
@@ -247,14 +260,17 @@ func (r *Retirer) owned(rows []procRow, leaderAlive bool) int {
 }
 
 // token reads row's owner token. A process between fork and exec, or exiting,
-// briefly has no readable arguments, so a failed read is retried while the
-// identity persists; an error is returned only for a persisting identity.
+// has no readable arguments while its identity still reads as alive, so a
+// failed read is retried while the identity persists, for at most
+// retireTokenWait per identity and retireTokenBudget per Retire call. An
+// error is returned only for an identity that persists past that bound; it is
+// retained as a problem by the caller, never read as exit or non-ownership.
 func (r *Retirer) token(row procRow) (bool, error) {
 	probe := &tracked{RetiredProcess: RetiredProcess{PID: row.pid, Start: row.start()}}
-	var err error
-	for attempt := 0; attempt < retireTokenTries; attempt++ {
-		var ok bool
-		if ok, err = r.p.environ(row.pid, r.entry); err == nil {
+	key := fmt.Sprintf("%d/%s", row.pid, row.start())
+	for {
+		ok, err := r.p.environ(row.pid, r.entry)
+		if err == nil {
 			return ok, nil
 		}
 		alive, cerr := r.check(probe)
@@ -264,9 +280,13 @@ func (r *Retirer) token(row procRow) (bool, error) {
 		if !alive {
 			return false, nil
 		}
-		r.p.sleep(2 * time.Millisecond)
+		if r.tokenWaits[key] >= retireTokenWait || r.tokenWaited >= retireTokenBudget {
+			return false, err
+		}
+		r.p.sleep(retireTokenPoll)
+		r.tokenWaits[key] += retireTokenPoll
+		r.tokenWaited += retireTokenPoll
 	}
-	return false, err
 }
 
 func descends(byPID map[int]procRow, row procRow, leader int) bool {

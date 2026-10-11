@@ -209,8 +209,20 @@ func TestPSRSweepStderrIsNotStdout(t *testing.T) {
 	}
 	p := psrPools(t, s)
 	if len(p.Entries) != 1 || !strings.Contains(p.Entries[0].Reason, "STDOUT_MISMATCH") {
-		t.Fatal(p)
+		// V1-1153: name the phase class so a host-load TIMEOUT is told apart
+		// from a verify-phase product failure.
+		t.Fatalf("entries=%d pool=%s", len(p.Entries), psrEntryStates(p))
 	}
+}
+
+// psrEntryStates renders each pool entry's state and sweep reason for failure
+// messages without the opaque struct dump.
+func psrEntryStates(p *snapshot.PoolState) string {
+	states := make([]string, 0, len(p.Entries))
+	for _, en := range p.Entries {
+		states = append(states, fmt.Sprintf("%s/%s=%s(%q)", en.PoolID, en.MemberID, en.State, en.Reason))
+	}
+	return "[" + strings.Join(states, " ") + "]"
 }
 
 func TestPSRAmbiguousResponseReconciliation(t *testing.T) {
@@ -243,7 +255,8 @@ func TestPSRAmbiguousResponseReconciliation(t *testing.T) {
 					t.Fatalf("readback failure path: %+v %v %d", out, e, calls)
 				}
 			} else if e != nil || out.Pending || len(out.Result) == 0 || calls != 1 {
-				t.Fatalf("bounded reconciliation: %+v %v %d", out, e, calls)
+				// V1-1153: the pool entry's class and reason classify the failure.
+				t.Fatalf("bounded reconciliation: pending=%v result=%d calls=%d err=%v pool=%s", out.Pending, len(out.Result), calls, e, psrEntryStates(psrPools(t, s)))
 			}
 			if raw, _ := os.ReadFile(marker); string(raw) != "x" {
 				t.Fatal("command not reached once", string(raw))

@@ -611,8 +611,8 @@ const packetBytesPrefix = `"packet_bytes":`
 // validKnownDivergence closes the stdout-divergence admission to the eight
 // adjudicated `python-defect` entries that have one (DR-0007, DR-0008, DR-0009,
 // DR-0015, DR-0016, DR-0017, DR-0025, DR-0035, over nine cases) plus the two
-// intentional Go extensions DR-0039 and DR-0040 (one case each) and the
-// intentional divergence DR-0041 (two cases), and to exactly
+// intentional Go extensions DR-0039, DR-0040 and DR-0043 (one case each), the
+// intentional divergence DR-0041 (two cases) and DR-0042, and to exactly
 // the byte regions each one's clause produces. Nothing else may be declared away, and
 // every rewrite's candidate side is the form the clause names rather than bytes
 // read off the candidate.
@@ -651,8 +651,39 @@ func validKnownDivergence(item parityCase) bool {
 		return validCEMActionDivergence(item)
 	case "cem-begin-unreadable-patch", "cem-unreadable-map":
 		return validReadFailureCodeDivergence(item)
+	case "harness-stop":
+		return validFrontierCauseDivergence(item)
 	}
 	return false
+}
+
+// frontierCauseCandidate and frontierCauseOracle bound the one region `DR-0043` moves: the
+// opening of the harness `stop` frontier object, where the candidate adds the fixed `cause`
+// member `AHI-054` authors ahead of the oracle's `reason`.
+const (
+	frontierCauseCandidate = `"frontier":{"cause":"no-accepted-closing-authority","reason":`
+	frontierCauseOracle    = `"frontier":{"reason":`
+)
+
+// validFrontierCauseDivergence pins `DR-0043` to the harness `stop` case: one stdout rewrite,
+// no stderr rewrite, and exactly the frontier opening above. The frontier lies outside the
+// counted packet, so the rewrite is applied without `packet_bytes` reconciliation
+// (`outOfPacketKnownDivergence`).
+func validFrontierCauseDivergence(item parityCase) bool {
+	divergence := item.KnownDivergence
+	if item.Argv[0] != "harness" || divergence.Register != "DR-0043" || divergence.Clause != "AHI-054" {
+		return false
+	}
+	if len(divergence.Rewrites) != 1 || len(divergence.StderrRewrites) != 0 {
+		return false
+	}
+	return divergence.Rewrites[0].Candidate == frontierCauseCandidate && divergence.Rewrites[0].Oracle == frontierCauseOracle
+}
+
+// outOfPacketKnownDivergence reports a known divergence whose stdout rewrite lies outside the
+// counted packet, so the runner applies it directly instead of reconciling `packet_bytes`.
+func outOfPacketKnownDivergence(item parityCase) bool {
+	return item.KnownDivergence != nil && item.ID == "harness-stop" && item.KnownDivergence.Register == "DR-0043"
 }
 
 // cemActionChoices is the `cem` action list the candidate's invalid-subcommand

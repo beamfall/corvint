@@ -7,6 +7,7 @@ import (
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -29,6 +30,11 @@ type PlaywrightDiscovery struct {
 	Revision     string                    `json:"revision"`
 	SourceDigest string                    `json:"sourceDigest"`
 	Units        []PlaywrightDiscoveryUnit `json:"units"`
+	// UnverifiedUnits, present only when nonempty, lists the units the listing omitted that the
+	// producer kept because the project's grep or grepInvert may exclude every case of the file but
+	// the listing cannot prove it: the pattern is not statically evaluable, or the exclusion rests on
+	// tags the listing reports only in part (TJAA-V0-021). Each is also in Units.
+	UnverifiedUnits []PlaywrightDiscoveryUnit `json:"unverifiedUnits,omitzero"`
 }
 
 type PlaywrightDiscoverySummary struct {
@@ -62,7 +68,16 @@ func SelectPlaywright(root, configPath, revision string, dirty []string, receipt
 	if err != nil {
 		return PlaywrightPlan{}, err
 	}
-	plan.Discovery = reconcilePlaywrightDiscovery(plan, revision, receipt)
+	var unverified []PlaywrightDiscoveryUnit
+	plan.Discovery, unverified = reconcilePlaywrightDiscovery(plan, revision, receipt)
+	if plan.Discovery.State == "MATCHED" && len(unverified) != 0 {
+		// The units are the config's file membership either way; what is missing is the listing's
+		// cross-check, so a run of such a unit may find no case. It stays visible (TJAA-V0-021).
+		plan.Unknown = canonicalPlaywrightUnknowns(append(plan.Unknown, PlaywrightUnknown{
+			Axis: PlaywrightAxisExecution, Reason: PlaywrightUnknownDiscoveryOmission,
+			Detail: fmt.Sprintf("%d discovery unit(s) omitted by the listing under a project grep/grepInvert exclusion the listing cannot verify, first project %q test %s", len(unverified), unverified[0].Project, unverified[0].Test),
+		}))
+	}
 	if plan.Discovery.State != "MATCHED" {
 		plan.Scope = affected.ScopeUnknown
 		plan.Fallback = PlaywrightFallbackFullSuite
@@ -74,10 +89,12 @@ func SelectPlaywright(root, configPath, revision string, dirty []string, receipt
 	return plan, nil
 }
 
-func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []byte) PlaywrightDiscoverySummary {
+// reconcilePlaywrightDiscovery returns the discovery summary and, for a decoded receipt, its
+// unverified units.
+func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []byte) (PlaywrightDiscoverySummary, []PlaywrightDiscoveryUnit) {
 	summary := PlaywrightDiscoverySummary{State: "MISSING", OnlyInReceipt: []PlaywrightDiscoveryUnit{}, OnlyInStatic: []PlaywrightDiscoveryUnit{}}
 	if len(raw) == 0 {
-		return summary
+		return summary, nil
 	}
 	sum := sha256.Sum256(raw)
 	summary.InputSHA256 = hex.EncodeToString(sum[:])
@@ -85,11 +102,11 @@ func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []by
 	receipt, malformed := decodePlaywrightDiscovery(raw)
 	if malformed != nil {
 		summary.Reason, summary.Detail = malformed.reason, malformed.detail
-		return summary
+		return summary, nil
 	}
 	summary.State = "BINDING_MISMATCH"
 	if receipt.Revision != revision || receipt.Config != plan.Config || receipt.SourceDigest != plan.SourceDigest {
-		return summary
+		return summary, nil
 	}
 	static := map[PlaywrightDiscoveryUnit]bool{}
 	for _, unit := range plan.Selected {
@@ -111,15 +128,15 @@ func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []by
 	summary.State = "STATIC_UNRESOLVED"
 	for _, unknown := range plan.Unknown {
 		if strings.HasPrefix(unknown.Reason, "playwright:") && unknown.Reason != PlaywrightUnknownDynamicSource && unknown.Axis == PlaywrightAxisSelection {
-			return summary
+			return summary, receipt.UnverifiedUnits
 		}
 	}
 	summary.State = "UNIVERSE_MISMATCH"
 	if len(summary.OnlyInStatic) != 0 || len(summary.OnlyInReceipt) != 0 {
-		return summary
+		return summary, receipt.UnverifiedUnits
 	}
 	summary.State = "MATCHED"
-	return summary
+	return summary, receipt.UnverifiedUnits
 }
 
 // VerifyPlaywrightDiscovery decodes a canonical receipt and binds it to revision, the config bytes
@@ -226,7 +243,25 @@ func invalidPlaywrightDiscoveryField(receipt PlaywrightDiscovery) string {
 			return fmt.Sprintf("units[%d]: not strictly after units[%d] by (project, test)", index, index-1)
 		}
 	}
+	if receipt.UnverifiedUnits != nil && len(receipt.UnverifiedUnits) == 0 {
+		return "unverifiedUnits: omit the member when empty"
+	}
+	for index, unit := range receipt.UnverifiedUnits {
+		if _, found := slices.BinarySearchFunc(receipt.Units, unit, compareDiscoveryUnits); !found {
+			return fmt.Sprintf("unverifiedUnits[%d]: not one of units", index)
+		}
+		if index > 0 && !discoveryUnitLess(receipt.UnverifiedUnits[index-1], unit) {
+			return fmt.Sprintf("unverifiedUnits[%d]: not strictly after unverifiedUnits[%d] by (project, test)", index, index-1)
+		}
+	}
 	return ""
+}
+
+func compareDiscoveryUnits(a, b PlaywrightDiscoveryUnit) int {
+	if a.Project != b.Project {
+		return strings.Compare(a.Project, b.Project)
+	}
+	return strings.Compare(a.Test, b.Test)
 }
 
 func discoveryUnitLess(a, b PlaywrightDiscoveryUnit) bool {

@@ -18,7 +18,7 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test receipt-bundle-verify-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test cem-verify-pr-test cem-recipes-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test
+.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test receipt-bundle-verify-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-batch-check dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test cem-verify-pr-test cem-recipes-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -371,6 +371,10 @@ dogfood-check:
 dogfood-seal:
 	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-seal.sh "$(BASE)"
+
+dogfood-batch-check:
+	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-batch-check.sh "$(BASE)"
 
 dogfood-bind-range:
 	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }

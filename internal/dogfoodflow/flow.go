@@ -144,11 +144,14 @@ func (f *flow) say(format string, values ...any) {
 
 // git runs one Git read in the repository under Core's sanitized Git
 // environment, with no credential helper and no transport, and returns its
-// stdout and exit status; its stderr reaches the caller unless quiet.
+// stdout and exit status; its stderr reaches the caller unless quiet. As in
+// Core's hardened reader, a repository-configured fsmonitor hook or untracked
+// cache never runs or writes.
 func (f *flow) git(quiet bool, args ...string) (string, int) {
 	f.checkpoint()
 	var stdout bytes.Buffer
-	command := exec.CommandContext(f.ctx, "git", append([]string{"-C", f.root, "-c", "credential.helper="}, args...)...)
+	command := exec.CommandContext(f.ctx, "git", append([]string{"--no-optional-locks", "-C", f.root, "-c", "credential.helper=",
+		"-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false"}, args...)...)
 	command.Env = gokernel.SanitizedGitEnvironment()
 	command.Stdout = &stdout
 	if !quiet {
