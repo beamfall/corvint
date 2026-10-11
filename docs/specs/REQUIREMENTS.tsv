@@ -195,9 +195,10 @@ AHI-045	docs/specs/agent-harness-integration-v0.md	890	(accepted by decision 044
 AHI-046	docs/specs/agent-harness-integration-v0.md	913	(accepted by decision 0441; V1-0942) Outside a main-thread
 AHI-047	docs/specs/agent-harness-integration-v0.md	923	(accepted by decision 0441; V1-0939) The Claude Code trusted
 AHI-048	docs/specs/agent-harness-integration-v0.md	939	(proposed; V1-0734) When an adapter process exits through `exitProcess`, includi
-AHI-050	docs/specs/agent-harness-integration-v0.md	975	(accepted by decision 0474; V1-0371) The OpenCode and Gemini adapters MUST send
-AHI-051	docs/specs/agent-harness-integration-v0.md	1028	(proposed; V1-1070, V1-1071) The Claude Code plugin MUST present itself with
-AHI-052	docs/specs/agent-harness-integration-v0.md	1054	(accepted, decision 0497; V1-1116; amends `AHI-050` for OpenCode only) When
+AHI-049	docs/specs/agent-harness-integration-v0.md	975	(accepted by decision 0477, amended by decision 0479; V1-1040, V1-1055) Every Se
+AHI-050	docs/specs/agent-harness-integration-v0.md	1023	(accepted by decision 0474; V1-0371) The OpenCode and Gemini adapters MUST send
+AHI-051	docs/specs/agent-harness-integration-v0.md	1076	(proposed; V1-1070, V1-1071) The Claude Code plugin MUST present itself with
+AHI-052	docs/specs/agent-harness-integration-v0.md	1102	(accepted, decision 0497; V1-1116; amends `AHI-050` for OpenCode only) When
 ALO-V0-001	docs/specs/aggregate-local-outcome-v0.md	43	Activation MUST require the explicit enrolled aggregate selector and exact bound
 ALO-V0-002	docs/specs/aggregate-local-outcome-v0.md	45	Legacy trace, learning, ranking, public fixtures and ordinary /0 behavior MUST
 ALO-V0-003	docs/specs/aggregate-local-outcome-v0.md	47	Candidate and admitted sets MUST use the complete pinned current context-index
@@ -838,10 +839,10 @@ CRB-V0-019	docs/specs/corvint-rebrand-v0.md	126	The current core companion write
 CRR-V0-001	docs/specs/compat-replay-runner-v0.md	50	Descriptor validation, fail-closed before any launch.
 CRR-V0-002	docs/specs/compat-replay-runner-v0.md	133	Environment allow-list, reconciled with the mandatory determinism variables.
 CRR-V0-003	docs/specs/compat-replay-runner-v0.md	144	Process-group containment, its regression, its limit, and its required change.
-CRR-V0-004	docs/specs/compat-replay-runner-v0.md	330	Byte-exact comparison. Per `CTR-V0-002` the runner MUST run three repetitions pe
-CRR-V0-005	docs/specs/compat-replay-runner-v0.md	338	Bounded IO and bounded time, refused rather than truncated or overrun.
-CRR-V0-006	docs/specs/compat-replay-runner-v0.md	375	Four separate vocabularies, none derived from another.
-CRR-V0-007	docs/specs/compat-replay-runner-v0.md	608	Unexecuted, interrupted and unobserved cases stay distinct.
+CRR-V0-004	docs/specs/compat-replay-runner-v0.md	334	Byte-exact comparison. Per `CTR-V0-002` the runner MUST run three repetitions pe
+CRR-V0-005	docs/specs/compat-replay-runner-v0.md	342	Bounded IO and bounded time, refused rather than truncated or overrun.
+CRR-V0-006	docs/specs/compat-replay-runner-v0.md	379	Four separate vocabularies, none derived from another.
+CRR-V0-007	docs/specs/compat-replay-runner-v0.md	612	Unexecuted, interrupted and unobserved cases stay distinct.
 CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	42	Unit and selection. One change is one non-merge Beamfall commit `C`, and its lan
 CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	52	Pairing. Every change runs in both arms; the estimate is within-change. The arm
 CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	55	Withheld-patch construction. The presented patch `P(C)` contains only the source
@@ -2274,6 +2275,7 @@ PGO-V0-005	docs/specs/process-group-owner-v0.md	36	Preserve existing Wait/Run an
 PGO-V0-006	docs/specs/process-group-owner-v0.md	37	On Linux, where signal 0 succeeds for a group whose only members are zombies (in
 PGO-V0-007	docs/specs/process-group-owner-v0.md	38	Proposed (V1-0608). `RunContained` runs a command as a group leader like `Run` a
 PGO-V0-008	docs/specs/process-group-owner-v0.md	39	Proposed (V1-0373, V1-0652). Where waitid is available (Darwin and Linux), no le
+PGO-V0-009	docs/specs/process-group-owner-v0.md	40	(accepted, decision 0492; V1-1036, V1-1047, V1-1050, V1-1056) Where waitid is av
 PLE-V0-001	docs/specs/protected-local-execution-v0.md	27	The optional `corvint-protected-execution/0` profile MUST preserve all legacy pr
 PLE-V0-002	docs/specs/protected-local-execution-v0.md	28	A protected immutable release and independently admitted root/policy MUST bind t
 PLE-V0-003	docs/specs/protected-local-execution-v0.md	29	Ingestion MUST bound and independently bind expected Git base/target/tree, CEM,

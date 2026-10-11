@@ -114,10 +114,11 @@ func RunContained(command *exec.Cmd) (Containment, error) {
 // RunContainedRetiring is RunContained with r also retiring the phase's
 // token- or ancestry-owned processes (TRE-V0-030) once the leader exits and
 // before it is reaped, ahead of the structural escaped-descendant pass. A nil
-// r is RunContained.
+// r is RunContained. The group is recorded for KillLive from the start until
+// after its last pre-reap signal, and released before the reap (PGO-V0-009).
 func RunContainedRetiring(command *exec.Cmd, r *Retirer) (Containment, error) {
 	containLeader(command)
-	if err := command.Start(); err != nil {
+	if err := liveGroups.start(command); err != nil {
 		return Containment{}, err
 	}
 	leader := command.Process.Pid
@@ -156,6 +157,7 @@ func RunContainedRetiring(command *exec.Cmd, r *Retirer) (Containment, error) {
 		// Without the unreaped leader nothing is provably owned: retire no
 		// escaped descendant, and send no group signal, because the leader
 		// may already be reaped and its group ID reused (V1-0652).
+		liveGroups.release(leader)
 		err := command.Wait()
 		if r != nil {
 			r.Retire()
@@ -195,6 +197,7 @@ func RunContainedRetiring(command *exec.Cmd, r *Retirer) (Containment, error) {
 		r.Retire()
 	}
 	_ = signalGroup(-leader, syscall.SIGKILL)
+	liveGroups.release(leader)
 	// Orphans are retired before Wait: one holding the command's inherited
 	// output pipes would otherwise keep Wait's copy goroutines open.
 	orphans, orphanErr := retireSampledOrphans(seen, c.Retired)

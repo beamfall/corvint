@@ -17,21 +17,22 @@ func (containment *childContainment) wait(command *exec.Cmd, childContext contex
 	reapAllowed := make(chan struct{})
 	done := make(chan error, 1)
 	go func() {
-		exitObserved <- waitProcessExitUnreaped(command.Process.Pid)
+		exitObserved <- observeLeaderExit(command.Process.Pid)
 		<-reapAllowed
 		done <- command.Wait()
 	}()
+	observation := &leaderObservation{result: exitObserved}
 
-	var observationErr error
-	exitObservationCompleted := false
 	timedOutOrCancelled := false
 	select {
-	case observationErr = <-exitObserved:
-		exitObservationCompleted = true
+	case observation.err = <-exitObserved:
+		observation.completed = true
 	case <-childContext.Done():
 		timedOutOrCancelled = true
 	}
 
+	exitObservationCompleted := observation.completed
+	observationErr := observation.err
 	observationFailed := exitObservationCompleted && observationErr != nil
 	executableStable := true
 	if exitObservationCompleted && observationErr == nil && !timedOutOrCancelled {
@@ -42,11 +43,15 @@ func (containment *childContainment) wait(command *exec.Cmd, childContext contex
 	cleanupProven := true
 	if cleanupRequired {
 		closeReader(stdin)
-		cleanupProven = containment.stopAndProveDarwin(cleanupDeadline)
+		// A failed observation (for example ECHILD) unpins the group ID, so
+		// stopAndProveDarwin sends nothing and cleanup stays unproved (V1-1050).
+		cleanupProven = containment.stopAndProveDarwin(cleanupDeadline, observation.pinned)
 	}
-	if !exitObservationCompleted {
-		observationErr = <-exitObserved
+	if !observation.completed {
+		observation.err = <-exitObserved
+		observation.completed = true
 	}
+	observationErr = observation.err
 	close(reapAllowed)
 	waitErr := <-done
 	if timedOutOrCancelled || observationErr != nil {
@@ -104,27 +109,37 @@ func waitidStateChangeOnly(info [128]byte) bool {
 	return code >= 4 && code <= 6
 }
 
-func (containment *childContainment) stopAndProveDarwin(grace time.Duration) bool {
-	if containment.pid <= 0 {
+// stopAndProveDarwin stops the group while the leader is pinned unreaped and
+// sends nothing, not even a signal-0 probe, once pinned reports a failed exit
+// observation (V1-1050, PGO-V0-009): pinned is checked before every probe and
+// every signal.
+func (containment *childContainment) stopAndProveDarwin(grace time.Duration, pinned func() bool) bool {
+	if containment.pid <= 0 || !pinned() {
 		return false
 	}
 	containment.terminate()
 	until := time.Now().Add(grace)
-	for darwinGroupHasLiveMembers(containment.pid) && time.Now().Before(until) {
+	for {
+		if !pinned() {
+			return false
+		}
+		if !darwinGroupHasLiveMembers(containment.pid) {
+			return pinned()
+		}
+		if time.Now().After(until) {
+			if !pinned() {
+				return false
+			}
+			// SIGKILL has no second grace window: this loop is proof of
+			// quiescence, not another timeout.
+			containment.force()
+		}
 		time.Sleep(time.Millisecond)
 	}
-	if darwinGroupHasLiveMembers(containment.pid) {
-		containment.force()
-		for darwinGroupHasLiveMembers(containment.pid) {
-			containment.force()
-			time.Sleep(time.Millisecond)
-		}
-	}
-	return true
 }
 
 func darwinGroupHasLiveMembers(pid int) bool {
-	err := syscall.Kill(-pid, 0)
+	err := groupSignal(-pid, 0)
 	if errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.ESRCH) {
 		return false
 	}

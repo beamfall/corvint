@@ -69,3 +69,32 @@ func TestWaitProcessExitUnreapedIgnoresStoppedChild(t *testing.T) {
 		t.Fatalf("Wait status = %v, want killed by SIGKILL", exitErr.ProcessState)
 	}
 }
+
+// PGO-V0-009: an exit observation that fails while the group is being stopped
+// (pinned turns false) ends every probe and signal. The grace loop used to
+// probe the numeric group with signal 0 until the grace ran out without
+// re-checking pinned.
+func TestPGOV0009DarwinStopSendsNothingOnceUnpinned(t *testing.T) {
+	previous := groupSignal
+	t.Cleanup(func() { groupSignal = previous })
+	unpinned, afterUnpin, probes := false, 0, 0
+	groupSignal = func(pid int, signal syscall.Signal) error {
+		if unpinned {
+			afterUnpin++
+			return nil
+		}
+		if signal == 0 {
+			probes++
+			// The exit observation fails during the second probe.
+			unpinned = probes == 2
+		}
+		return nil
+	}
+	containment := &childContainment{pid: 4242}
+	if containment.stopAndProveDarwin(200*time.Millisecond, func() bool { return !unpinned }) {
+		t.Fatal("cleanup proven after the exit observation failed")
+	}
+	if afterUnpin != 0 {
+		t.Fatalf("%d group signals sent after the exit observation failed", afterUnpin)
+	}
+}
