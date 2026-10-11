@@ -670,6 +670,8 @@ func (o *packageOutcomes) Write(data []byte) (int, error) {
 // single-digit hours, comma fractions and out-of-range timezone offsets.
 var eventTimeSyntax = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$`)
 
+var benchmarkCPUSuffix = regexp.MustCompile(`-[1-9][0-9]*$`)
+
 // encoding/json otherwise permits duplicate keys with last-wins semantics,
 // which could erase a fail action. Require one object with unique field names.
 // Defined fields may be omitted, but must not be null: unmarshaling null into
@@ -758,6 +760,9 @@ func (o *packageOutcomes) event(line []byte) {
 		o.invalid = true
 		return
 	}
+	if e.FailedBuild != "" {
+		p.failed = true
+	}
 	if e.Action == "start" && e.Test == "" {
 		if p.started {
 			o.invalid = true
@@ -777,10 +782,16 @@ func (o *packageOutcomes) event(line []byte) {
 			}
 			p.tests[e.Test] = true
 		case "pass", "skip", "fail":
-			if !p.tests[e.Test] {
+			test := e.Test
+			// Go can add a CPU suffix to a benchmark terminal after an
+			// unsuffixed run. Prefer exact names, including subbenchmark names.
+			if !p.tests[test] && strings.HasPrefix(test, "Benchmark") {
+				test = benchmarkCPUSuffix.ReplaceAllString(test, "")
+			}
+			if !p.tests[test] {
 				o.invalid = true
 			}
-			delete(p.tests, e.Test)
+			delete(p.tests, test)
 		case "pause", "cont":
 			if !p.tests[e.Test] {
 				o.invalid = true

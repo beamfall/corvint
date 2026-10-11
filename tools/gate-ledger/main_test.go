@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -660,17 +661,68 @@ func TestPackageOutcomesAcceptsBenchmarkRuns(t *testing.T) {
 // GL-V0-002: benchmark failure remains a failure, even though a package
 // terminal may close benchmark runs that have no individual terminal.
 func TestPackageOutcomesBenchmarkFailure(t *testing.T) {
-	var out bytes.Buffer
-	o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
-	_, _ = o.Write([]byte(`{"Action":"start","Package":"good"}
+	for _, names := range [][2]string{
+		{"BenchmarkBad", "BenchmarkBad"},
+		{"BenchmarkBad", "BenchmarkBad-3"},
+		{"BenchmarkBad/sub", "BenchmarkBad/sub-3"},
+		{"BenchmarkBad/sub-3", "BenchmarkBad/sub-3"},
+	} {
+		t.Run(names[0]+"/"+names[1], func(t *testing.T) {
+			var out bytes.Buffer
+			o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
+			_, _ = o.Write([]byte(fmt.Sprintf(`{"Action":"start","Package":"good"}
 {"Action":"pass","Package":"good"}
 {"Action":"start","Package":"bad"}
-{"Action":"run","Package":"bad","Test":"BenchmarkBad"}
-{"Action":"fail","Package":"bad","Test":"BenchmarkBad"}
+{"Action":"run","Package":"bad","Test":%q}
+{"Action":"fail","Package":"bad","Test":%q}
 {"Action":"fail","Package":"bad"}
-`))
-	if got := o.passes(); len(got) != 2 || !got["good"] || got["bad"] {
-		t.Fatalf("passes %v", got)
+`, names[0], names[1])))
+			if got := o.passes(); len(got) != 2 || !got["good"] || got["bad"] {
+				t.Fatalf("passes %v", got)
+			}
+		})
+	}
+}
+
+// GL-V0-002: CPU suffix matching is limited to benchmarks with a preceding run.
+func TestPackageOutcomesRefusesUnmatchedBenchmarkTerminals(t *testing.T) {
+	for _, names := range [][2]string{
+		{"TestBad", "TestBad-3"},
+		{"BenchmarkBad", "BenchmarkBad-cpu"},
+		{"BenchmarkBad", "BenchmarkOther-3"},
+		{"BenchmarkBad/sub", "BenchmarkBad-3"},
+	} {
+		t.Run(names[1], func(t *testing.T) {
+			o := newPackageOutcomes([]packageKey{{pkg: "bad"}}, io.Discard)
+			_, _ = fmt.Fprintf(o, "{\"Action\":\"start\",\"Package\":\"bad\"}\n{\"Action\":\"run\",\"Package\":\"bad\",\"Test\":%q}\n{\"Action\":\"fail\",\"Package\":\"bad\",\"Test\":%q}\n{\"Action\":\"fail\",\"Package\":\"bad\"}\n", names[0], names[1])
+			if got := o.passes(); got != nil {
+				t.Fatalf("unmatched terminal admitted records: %v", got)
+			}
+		})
+	}
+}
+
+// GL-V0-002: FailedBuild contradicts a package pass, including when a dependency
+// failed or the field appeared on an earlier event.
+func TestPackageOutcomesRefusesFailedBuildPass(t *testing.T) {
+	for _, action := range []string{"start", "output", "pass"} {
+		t.Run(action, func(t *testing.T) {
+			o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, io.Discard)
+			stream := `{"Action":"start","Package":"good"}
+{"Action":"pass","Package":"good"}
+`
+			if action != "start" {
+				stream += "{\"Action\":\"start\",\"Package\":\"bad\"}\n"
+			}
+			stream += fmt.Sprintf("{\"Action\":%q,\"Package\":\"bad\",\"FailedBuild\":\"dependency\"}\n", action)
+			if action != "pass" {
+				stream += "{\"Action\":\"pass\",\"Package\":\"bad\"}\n"
+			}
+			_, _ = o.Write([]byte(stream))
+			if got := o.passes(); got != nil {
+				t.Fatalf("FailedBuild followed by pass admitted records: %v", got)
+			}
+		})
 	}
 }
 
@@ -716,7 +768,7 @@ func TestPackageOutcomesAcceptsTypedFields(t *testing.T) {
 	o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
 	_, _ = o.Write([]byte(`{"Time":"2026-10-10T10:00:00.123456789Z","Action":"start","Package":"good"}
 {"Action":"output","Package":"good","Output":"ok\n","OutputType":"frame","Key":"owner","Value":"fixture","Path":"package.log"}
-{"Action":"pass","Package":"good","Elapsed":1.5}
+{"Action":"pass","Package":"good","Elapsed":1.5,"FailedBuild":""}
 {"Action":"start","Package":"bad"}
 {"Action":"build-fail","ImportPath":"bad"}
 {"Time":"2026-10-10T10:00:01-04:00","Action":"fail","Package":"bad","Elapsed":0,"FailedBuild":"dependency"}
