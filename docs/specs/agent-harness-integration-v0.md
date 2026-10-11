@@ -527,6 +527,13 @@ separate exact extension tuple remains governed by AHI-024.
   names the host version the pin hooks are registered for, that their verdict reaches the user
   only, and that this packet is the model-facing rehydration and, on a host without the compaction
   events, the only one.
+- `AHI-053`: accepted, decision 0517 (V1-1128). Amendment to `AHI-031`
+  and the no-writer wording of `AHI-029`: stale Claude/Codex notices retain their frame, code,
+  channels and exact manual argv but may report a background refresh started, already running,
+  disabled or failed to start under `IDX-SNAP-V0-031` through `IDX-SNAP-V0-036`. The current event
+  remains fail-open and never claims completion. Only the separately exec'd index writer and
+  its coordination lock are admitted; ordinary reads remain non-mutating. Rollback is
+  `CORVINT_INDEX_AUTO_REFRESH=0` or reverting this experimental amendment.
 - `AHI-031`: (accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
   matches the tree and the automatic `dogfood event` read falls back to its in-memory build
   (`IDX-SNAP-V0-012`), an event whose deadline then expires MUST report
@@ -1180,6 +1187,10 @@ store. A passing MCP smoke test alone cannot promote a platform to fully support
 
 ## Limits, failure policy, and non-goals
 
+Accepted, decision 0517 (V1-1128; `AHI-053`): failed or disabled background refresh
+retains the stale code and manual argv. A started notice is not completion; later child failures
+remain stale on the next event. No daemon, synchronous hook build or authority is introduced.
+
 - Lifecycle input is at most 131,072 bytes; task text is at most 2,000 Unicode characters and
   16,384 UTF-8 bytes; path and evidence arrays contain at most 256 entries; the output budget is at
   least 4,096 bytes and bounds the complete response, not merely its nested Corvint packet. Native
@@ -1226,7 +1237,7 @@ there, which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:958@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
+| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:962@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
 | `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:119@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
 | `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:88@5fbc4775` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
@@ -1318,6 +1329,11 @@ format needs migration.
 
 ## Rollout, rollback, and promotion
 
+Accepted, decision 0517 (V1-1128; `AHI-053`): `CORVINT_INDEX_AUTO_REFRESH=0` restores
+manual-only notices for new events. Revert the amendment to restore the prior implementation;
+an already started child retains its finite bound. Owner acceptance and live qualification remain
+separate from fixture evidence.
+
 1. Ship the shared lifecycle adapter and native packages as `FALLBACK` developer previews.
 2. Pin and publish host-version/OS conformance results independently per surface.
 3. Add an accepted harness execution authority and closing Frontier profile; rerun all stop and
@@ -1367,6 +1383,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-029` | both compaction events | `TestAHI029ClaudeCompactionHooksMutateNothing` (byte-size snapshot of the whole fixture including `.git` is unchanged across a pin and its verification); `TestAdapterDegradationAdmitsCompactionEventsAndCodes` (every compaction degradation is admitted to the SOL-V0-010 ledger on both events) |
 | `AHI-030` | `cmd/corvint/host_adapter_compaction.go` (`compactSessionDisclosure`), Claude branch of `runClaudeAdapter` | `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (compact `SessionStart` additionalContext begins with the disclosure) |
 | `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`, `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`, `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); V1-0286 amendment (accepted, decision 0422): `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
+| AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |
 | `AHI-011`, `015` | embedded `internal/gokernel/host-schema.json` admission table and shared lifecycle command | schema/admission tests plus one host-keyed golden fixture per admitted host |
 | `AHI-002`, `006..010` | four native packages and release matrix | install/uninstall, lifecycle, degradation, and version fixtures; for `AHI-010`, the `integrations/host-adapters.test.mjs` test under `TestHostAdapterJavaScriptHosts` binding each `integrations/compatibility.json` row to its shipped declaration and its row's adapter version to the package manifest version, and asserting `globalDegradations` disjoint from `receiptDegradationPolicy.recognised`; for the owned-group cleanup governed by `AHI-050` (accepted by decision 0474, superseding the earlier `AHI-009` kill text), the `V1-0371` OpenCode and Gemini timeout-and-cancellation, normal-exit, failed-kill, same-batch, inherited-pipe and shared-grace tests in that file, whose `orphan-hang` and `orphan-valid` fixture descendant ignores SIGTERM and closes its stdio |
