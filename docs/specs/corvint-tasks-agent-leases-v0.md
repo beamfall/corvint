@@ -5717,15 +5717,16 @@ one dispatcher recorded no IDLE stop in about 670 stops, and a hung session ran 
 - `CAL-V0-218`: (proposed, pending owner acceptance (V1-1195)) Amends what CAL-V0-056 counts as
   a busy child. Each tick the dispatcher MUST read every member's cumulative CPU time with the
   process table. It MUST keep, per worker and only in memory, a baseline of each non-ignored
-  non-leader member's CPU time by start identity, taken at the worker's first observation by
-  this dispatcher process and again at every tick on which the worker is active. A non-leader
-  member whose command is not in the host's `idleIgnore` is busy only when it is absent from the
-  baseline, its CPU time is unreadable, or the CPU time it used since the baseline is at least
-  1% of the wall time since the baseline. A member that exists but does not meet one of those
-  conditions MUST NOT keep the worker active. The first observation (a new launch, or every
-  adopted worker after a restart) MUST take the baseline without counting any child busy. Log
-  growth, activity paths, the leader exclusion, `idleIgnore`, the idle and wall timeouts and
-  the stop procedure are unchanged.
+  non-leader member's CPU time by PID and start identity, taken at the worker's first
+  observation by this dispatcher process and again at every tick on which the worker is active.
+  A non-leader member whose command is not in the host's `idleIgnore` is busy only when it is
+  absent from the baseline, its CPU time is unreadable or below its baseline value, or the CPU
+  time it used since the baseline is at least 1% of the wall time since the baseline. A member
+  that exists but meets none of those conditions MUST NOT keep the worker active. At the first
+  observation (a new launch, or every adopted worker after a restart) no member is in a
+  baseline, so every non-ignored child counts busy once and an adopted worker gets a full idle
+  timeout of CPU observation. Log growth, activity paths, the leader exclusion, `idleIgnore`,
+  the idle and wall timeouts and the stop procedure are unchanged.
 
 Non-goals: a configurable CPU share; per-host or per-role process classes; reading process state
 other than the CPU time already in the table; persisting the baseline (no ledger format change);
@@ -5736,8 +5737,9 @@ for longer than `idleSeconds` with no log output is now stopped IDLE; such a rol
 `idleSeconds` or an activity path. A helper that uses at least 1% CPU while the session hangs still
 keeps the worker until `wallSeconds`; list it in `idleIgnore`. Linux reports CPU time in whole
 seconds, so shortly after a baseline one second of rounding can count a low-CPU helper busy once and
-delay the stop by up to one more idle timeout. A restart retakes the baseline, so CPU used before it
-is not counted. An unparsable CPU time counts busy, as before.
+delay the stop by up to one more idle timeout. A restart retakes the baseline and counts each child
+busy once, so a hung worker with helpers is stopped up to one idle timeout after the restart. An
+unparsable CPU time, and a counter below its baseline (a reused PID), count busy.
 
 Acceptance evidence: `TestCALV0218_ParseCPUTime`, `TestCALV0218_BusyChildNeedsWorkNotPresence`,
 `TestCALV0218_ActiveBaselineFollowsActivity` and `TestCALV0218_SleepingChildDoesNotBlockIdleStop`

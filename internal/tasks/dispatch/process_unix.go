@@ -79,11 +79,15 @@ func parseCPUTime(s string) (time.Duration, bool) {
 	if len(parts) < 2 || len(parts) > 3 {
 		return 0, false
 	}
-	sec, err := strconv.ParseFloat(parts[len(parts)-1], 64)
-	if err != nil || sec < 0 || sec >= 60 {
+	last := parts[len(parts)-1]
+	if last == "" || last[0] < '0' || last[0] > '9' {
 		return 0, false
 	}
-	total := time.Duration(sec * float64(time.Second))
+	// ParseDuration reads the fraction exactly, without float rounding.
+	total, err := time.ParseDuration(last + "s")
+	if err != nil || total >= time.Minute {
+		return 0, false
+	}
 	for i, unit := range []time.Duration{time.Minute, time.Hour}[:len(parts)-1] {
 		n, err := strconv.Atoi(parts[len(parts)-2-i])
 		if err != nil || n < 0 {
@@ -386,9 +390,9 @@ func killTree(w *Worker, grace time.Duration, exempt map[int]string) (bool, erro
 
 // busyChild reports a non-leader member whose command is not ignored and
 // that shows work since the baseline (CAL-V0-218): it is absent from the
-// baseline, its CPU time is unreadable, or the CPU time it used since the
-// baseline reaches 1/idleCPUDivisor of the wall time since then. A member
-// that merely exists, sleeping, is not busy.
+// baseline, its CPU time is unreadable or went backwards, or the CPU time
+// it used since the baseline reaches 1/idleCPUDivisor of the wall time
+// since then. A member that merely exists, sleeping, is not busy.
 func busyChild(w *Worker, procs map[int]proc, ignore []string, base childCPU, now time.Time) bool {
 	elapsed := now.Sub(base.at)
 	for _, m := range w.Members {
@@ -396,24 +400,29 @@ func busyChild(w *Worker, procs map[int]proc, ignore []string, base childCPU, no
 		if m.PID == w.PID || contains(ignore, p.comm) {
 			continue
 		}
-		was, ok := base.cpu[m.Identity]
+		was, ok := base.cpu[childKey(m)]
 		if !ok || !p.cpuKnown {
 			return true
 		}
-		if used := p.cpu - was; used > 0 && used*idleCPUDivisor >= elapsed {
+		// A counter below the baseline belongs to another process.
+		if used := p.cpu - was; used < 0 || used > 0 && used*idleCPUDivisor >= elapsed {
 			return true
 		}
 	}
 	return false
 }
 
+// childKey names one member in a baseline: Linux start identities omit the
+// PID, so children started in the same clock tick share one.
+func childKey(m Proc) string { return strconv.Itoa(m.PID) + "/" + m.Identity }
+
 // childSample records the CPU time of each non-leader member whose command
-// is not ignored, by start identity, as a CAL-V0-218 baseline.
+// is not ignored, by PID and start identity, as a CAL-V0-218 baseline.
 func childSample(w *Worker, procs map[int]proc, ignore []string, now time.Time) childCPU {
 	base := childCPU{at: now, cpu: map[string]time.Duration{}}
 	for _, m := range w.Members {
 		if p, ok := procs[m.PID]; ok && p.cpuKnown && m.PID != w.PID && !contains(ignore, p.comm) {
-			base.cpu[m.Identity] = p.cpu
+			base.cpu[childKey(m)] = p.cpu
 		}
 	}
 	return base

@@ -16,9 +16,11 @@ running to `wallSeconds`.
 The process table read adds the cumulative CPU time column (`time=`, parsed in both the Darwin
 `mm:ss.cc` form, whose minutes keep counting past 59, and the Linux `[dd-]hh:mm:ss` form). The
 dispatcher keeps an in-memory baseline per worker, retaken at the first observation and at every
-active tick. A non-ignored child is busy only when it is new since the baseline, its CPU time is
-unreadable, or it used at least 1% of the wall time since the baseline. The ledger format is
-unchanged (no `taskman-dispatch-state` version move), so a restart retakes the baseline.
+active tick, keyed by PID and start identity (Linux identities omit the PID). A non-ignored child
+is busy only when it is new since the baseline, its CPU time is unreadable or below the baseline,
+or it used at least 1% of the wall time since the baseline. The ledger format is unchanged (no
+`taskman-dispatch-state` version move); after a restart every child is new, so an adopted worker
+gets a full idle timeout before it can be stopped IDLE (review round 1).
 
 The 1% share is fixed rather than configured. Measuring from the last activity rather than per
 tick keeps Linux's one-second CPU resolution from counting a low-CPU helper busy on every bump:

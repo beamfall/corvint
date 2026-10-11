@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -20,12 +21,13 @@ func TestCALV0218_ParseCPUTime(t *testing.T) {
 		"2-01:00:00":  49 * time.Hour,
 		"12:34":       12*time.Minute + 34*time.Second,
 		"3-0:00:00.5": 72*time.Hour + 500*time.Millisecond,
+		"0:02.01":     2010 * time.Millisecond, // exact, no float rounding
 	} {
 		if got, ok := parseCPUTime(in); !ok || got != want {
 			t.Errorf("parseCPUTime(%q) = %v, %v; want %v", in, got, ok, want)
 		}
 	}
-	for _, bad := range []string{"", "7", "x:00", "1:60", "1:2:3:4", "-1:00", "a-00:00:01", "1:-1:00"} {
+	for _, bad := range []string{"", "7", "x:00", "1:60", "1:2:3:4", "-1:00", "a-00:00:01", "1:-1:00", "0:-1", "0:+1", "0:1e1", "0:"} {
 		if _, ok := parseCPUTime(bad); ok {
 			t.Errorf("parseCPUTime(%q) parsed", bad)
 		}
@@ -33,12 +35,12 @@ func TestCALV0218_ParseCPUTime(t *testing.T) {
 }
 
 // A non-ignored child is busy only when it is new since the baseline, its
-// CPU time is unreadable, or it used at least 1% of the elapsed wall time;
-// a sleeping helper that merely exists is not (issue 793).
+// CPU time is unreadable or went backwards, or it used at least 1% of the
+// elapsed wall time; a sleeping helper that merely exists is not (issue 793).
 func TestCALV0218_BusyChildNeedsWorkNotPresence(t *testing.T) {
 	t0 := time.Unix(1_000_000, 0)
 	w := &Worker{PID: 10, Members: []Proc{{PID: 10, Identity: "leader"}, {PID: 11, Identity: "mcp"}}}
-	base := childCPU{at: t0, cpu: map[string]time.Duration{"mcp": 2 * time.Second}}
+	base := childCPU{at: t0, cpu: map[string]time.Duration{"11/mcp": 2 * time.Second}}
 	at := func(cpu time.Duration, known bool, comm string) map[int]proc {
 		return map[int]proc{
 			10: {pid: 10, comm: "agent", cpu: time.Hour, cpuKnown: true},
@@ -57,6 +59,7 @@ func TestCALV0218_BusyChildNeedsWorkNotPresence(t *testing.T) {
 		{"no CPU at all", at(2*time.Second, true, "node"), nil, base, false},
 		{"child at 1% or more", at(2*time.Second+9*time.Second, true, "node"), nil, base, true},
 		{"unreadable CPU time", at(0, false, "node"), nil, base, true},
+		{"CPU time below the baseline", at(time.Second, true, "node"), nil, base, true},
 		{"child absent from the baseline", at(2*time.Second, true, "node"), nil, childCPU{at: t0, cpu: map[string]time.Duration{}}, true},
 		{"ignored command", at(time.Hour, true, "node"), []string{"node"}, base, false},
 	}
@@ -65,6 +68,17 @@ func TestCALV0218_BusyChildNeedsWorkNotPresence(t *testing.T) {
 			t.Errorf("%s: busyChild = %v, want %v", c.name, got, c.want)
 		}
 	}
+	// Linux start identities omit the PID: two children started in the same
+	// tick keep separate baselines, so neither looks busy while both sleep.
+	twins := &Worker{PID: 10, Members: []Proc{{PID: 10, Identity: "leader"}, {PID: 11, Identity: "tick"}, {PID: 12, Identity: "tick"}}}
+	procs := map[int]proc{
+		10: {pid: 10, comm: "agent", cpuKnown: true},
+		11: {pid: 11, comm: "node", cpu: 2 * time.Second, cpuKnown: true},
+		12: {pid: 12, comm: "node", cpuKnown: true},
+	}
+	if b := childSample(twins, procs, nil, t0); busyChild(twins, procs, nil, b, later) {
+		t.Error("two sleeping children sharing a start identity counted busy")
+	}
 	// The leader's own CPU never counts, however much it used.
 	solo := &Worker{PID: 10, Members: []Proc{{PID: 10, Identity: "leader"}}}
 	if busyChild(solo, at(0, true, "node"), nil, childCPU{at: t0}, later) {
@@ -72,9 +86,10 @@ func TestCALV0218_BusyChildNeedsWorkNotPresence(t *testing.T) {
 	}
 }
 
-// The first observation takes a baseline without counting children busy;
-// later activity retakes it, so the CPU share is measured from the last
-// activity.
+// The first observation (a launch or an adoption after a restart) takes a
+// baseline and counts each non-ignored child busy, since none is in a
+// baseline yet; later activity retakes it, so the CPU share is measured from
+// the last activity.
 func TestCALV0218_ActiveBaselineFollowsActivity(t *testing.T) {
 	d, err := Open("prog", testConfig(t, "exit 0"), &fakeQueue{}, io.Discard)
 	if err != nil {
@@ -90,8 +105,12 @@ func TestCALV0218_ActiveBaselineFollowsActivity(t *testing.T) {
 		return map[int]proc{10: {pid: 10, comm: "agent", cpuKnown: true}, 11: {pid: 11, comm: "node", cpu: cpu, cpuKnown: true}}
 	}
 	t0 := time.Unix(1_000_000, 0)
-	if d.active(w, procs(time.Second), Host{}, t0) {
-		t.Fatal("the first observation counted a child busy")
+	if !d.active(w, procs(time.Second), Host{}, t0) {
+		t.Fatal("the first observation did not count its child busy")
+	}
+	leader := &Worker{ID: "solo", PID: 10, Members: []Proc{{PID: 10, Identity: "leader"}}}
+	if d.active(leader, procs(0), Host{}, t0) {
+		t.Fatal("the first observation of a lone leader counted as activity")
 	}
 	if d.active(w, procs(time.Second+100*time.Millisecond), Host{}, t0.Add(60*time.Second)) {
 		t.Fatal("0.17% child CPU counted as busy")
@@ -128,6 +147,8 @@ func TestCALV0218_SleepingChildDoesNotBlockIdleStop(t *testing.T) {
 		t.Fatalf("running %d, want 1", d.Running())
 	}
 	w := d.ledger.Workers[0]
+	leader := w.PID
+	t.Cleanup(func() { syscall.Kill(-leader, syscall.SIGKILL) }) // Close keeps workers running
 	for i := 0; i < 100 && len(w.Members) < 2; i++ {
 		time.Sleep(20 * time.Millisecond)
 		if err := d.Tick(ctx); err != nil {
@@ -137,7 +158,6 @@ func TestCALV0218_SleepingChildDoesNotBlockIdleStop(t *testing.T) {
 	if len(w.Members) < 2 {
 		t.Fatalf("tree has %d members, want the leader and its sleeping child", len(w.Members))
 	}
-	leader := w.PID
 	// One more tick so the child is in the baseline.
 	if err := d.Tick(ctx); err != nil {
 		t.Fatal(err)

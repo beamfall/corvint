@@ -103,7 +103,7 @@ type Dispatcher struct {
 	// childCPU keeps, by worker ID, the CAL-V0-218 child CPU baseline taken
 	// at the worker's last activity or first observation by this process.
 	// It is never persisted: after a restart the first tick takes a new
-	// baseline and counts no child as busy.
+	// baseline and counts every non-ignored child busy.
 	childCPU map[string]childCPU
 	// idle is armed by a full tick that changed nothing, and idleLease is
 	// the earliest future lease expiry the current tick observed
@@ -698,7 +698,7 @@ var killText = map[string]string{
 const idleCPUDivisor = 100
 
 // childCPU is a worker's CAL-V0-218 baseline: when it was taken and each
-// non-ignored child's cumulative CPU time then, by start identity.
+// non-ignored child's cumulative CPU time then, by childKey.
 type childCPU struct {
 	at  time.Time
 	cpu map[string]time.Duration
@@ -731,8 +731,10 @@ func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host, now time.Time
 			w.ActivityMtime = st.ModTime()
 		}
 	}
+	// Without a baseline (a new launch, or every adopted worker after a
+	// restart) each non-ignored child is new, so it counts busy once.
 	base, seen := d.childCPU[w.ID]
-	if seen && !busy {
+	if !busy {
 		busy = busyChild(w, procs, h.IdleIgnore, base, now)
 	}
 	if busy || !seen {
