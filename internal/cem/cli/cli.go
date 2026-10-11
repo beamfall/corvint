@@ -479,6 +479,7 @@ func dispatchCEMWithOCM(ctx context.Context, root, callerRoot string, arguments 
 			PatchGiven: flags.present["--patch"], ExpectedBase: flags.values["--expected-base"],
 			Target: flags.values["--target"], Output: flags.values["--output"],
 			Format: flags.values["--format"], OCMPath: flags.values["--ocm"], ReadOCM: reader,
+			OCMGiven:     flags.present["--ocm"],
 			Limits:       workflow.PolicyLimits{MaxUnknown: maxUnknown, MaxMechanical: maxMechanical},
 			ArtifactRoot: flags.values["--artifacts"], ArtifactsGiven: flags.present["--artifacts"],
 		})

@@ -26,6 +26,7 @@ type ReadOptions struct {
 	Output       string // report only
 	Format       string // report only: empty/markdown publishes; json is read-only
 	OCMPath      string // optional explicitly supplied obligation map
+	OCMGiven     bool   // whether --ocm appeared at all, even empty
 	ReadOCM      ReviewOCMReader
 	// ArtifactRoot is the explicit absolute artifact root a cem/1.0 status or
 	// verify passes to the stable verifier (CEM-V1-017); a 0.x map refuses it.
@@ -345,7 +346,7 @@ func (s *Session) externalReportOutput(output string) (*publish.Root, string, er
 	if err != nil {
 		return nil, "", err
 	}
-	protected := []string{s.workRoot.Path(), s.gitRoot.Path(), s.repository.CommonDir}
+	protected := []string{s.workRoot.Path(), s.gitRoot.Path(), s.commonDir}
 	if withinAny(root.Path(), protected) {
 		return nil, "", invalidArguments("an absolute --output must lie outside the repository and its Git directory; name a location inside them repository-relative")
 	}

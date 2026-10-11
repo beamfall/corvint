@@ -69,7 +69,7 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	if options.Limits.MaxUnknown != nil || options.Limits.MaxMechanical != nil {
 		return nil, stableRefusal{invalidArguments("%s %s does not accept policy ceilings", wire.StableSpec, action)}
 	}
-	if report && options.OCMPath != "" {
+	if report && (options.OCMGiven || options.OCMPath != "") {
 		return nil, stableRefusal{invalidArguments("%s %s does not accept --ocm", wire.StableSpec, action)}
 	}
 	repository := s.stableRepository
@@ -105,8 +105,9 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 
 // stableReport completes a stable report envelope. JSON adds the review
 // projection; a preview adds the Markdown; a published report writes the same
-// Markdown for every verifier outcome, opening the repository only after the
-// verifier has run (CEM-V1-034, CEM-V1-035).
+// Markdown for every verifier outcome, locating the Git directories only after
+// the verifier has run and without the 0.x object admission (CEM-V1-034,
+// CEM-V1-035).
 func (s *Session) stableReport(action string, result verify.StableResult, envelope map[string]any, options ReadOptions) (map[string]any, error) {
 	envelope["tool"] = "cem-report"
 	projection, err := stableReviewProjection(result)
@@ -126,7 +127,7 @@ func (s *Session) stableReport(action string, result verify.StableResult, envelo
 		envelope["markdown"] = markdown
 		return envelope, nil
 	}
-	if err := s.openRepository(); err != nil {
+	if err := s.openPublicationDirectories(); err != nil {
 		return nil, err
 	}
 	outputRoot, outputRelative, err := s.reportOutput(options)

@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 )
 
@@ -179,8 +180,106 @@ func TestCoreStableReportPublishesMarkdown(t *testing.T) {
 	}
 }
 
+// dropStructuralHunks rewrites the fixture map without its structural
+// mechanical hunks, so every Go release reaches repository admission instead
+// of the verifier's structural runtime refusal.
+func dropStructuralHunks(t *testing.T, repo string) {
+	t.Helper()
+	path := filepath.Join(repo, "change.cem.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := wire.ParseStable(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kept := document.Change.Hunks[:0]
+	for _, hunk := range document.Change.Hunks {
+		if hunk.Disposition != "mechanical" || !wire.StructuralReasons[hunk.Reason] {
+			kept = append(kept, hunk)
+		}
+	}
+	document.Change.Hunks = kept
+	if data, err = wire.EncodeStable(document); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// CEM-V1-035: Markdown publication does not depend on the 0.x repository
+// admission. A repository the verifier refuses at stage repository (object
+// alternates) still publishes its UNSUPPORTED review to the default and to a
+// safe external output. When the worktree's Git directories cannot be located,
+// no output path can be checked, so publication fails closed with nothing
+// written while JSON still carries the verifier's result.
+func TestCoreStableReportPublishesRepositoryRefusals(t *testing.T) {
+	f := materializeStableRead(t)
+	dropStructuralHunks(t, f.repo)
+	alternates := filepath.Join(f.repo, ".git", "objects", "info", "alternates")
+	if err := os.MkdirAll(filepath.Dir(alternates), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(alternates, []byte(filepath.Join(t.TempDir(), "objects")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wantExit, want := runVerifyStable(t, f, f.artifacts)
+	if want["outcome"] != "UNSUPPORTED" || want["stage"] != "repository" || want["code"] != "unsupported-object-alternates" {
+		t.Fatalf("fixture does not reach the alternates refusal: %v %v %v", want["outcome"], want["stage"], want["code"])
+	}
+	external, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	external = filepath.Join(external, "review.md")
+	for _, c := range []struct{ output, path string }{
+		{"", filepath.Join(f.repo, ".git", "corvint", "cem-review.md")},
+		{external, external},
+	} {
+		arguments := coreStableArguments("report", f, f.artifacts)
+		if c.output != "" {
+			arguments = append(arguments, "--output", c.output)
+		}
+		exit, envelope, refusal := runCoreRead(t, f.repo, arguments...)
+		if refusal != nil {
+			t.Fatalf("--output %q: report refused instead of publishing: %v", c.output, refusal)
+		}
+		requireStableReportEnvelope(t, "report", exit, wantExit, envelope, want, []string{"ok", "mutates", "tool", "report", "recordSetSha256", "stableVerification"})
+		written, err := os.ReadFile(c.path)
+		if err != nil || envelope["report"] != c.path {
+			t.Fatalf("--output %q: report %v not published at %s: %v", c.output, envelope["report"], c.path, err)
+		}
+		if !strings.Contains(string(written), "- Outcome: `UNSUPPORTED`\n") || !strings.Contains(string(written), "- Code: `unsupported-object-alternates`\n") {
+			t.Errorf("published report does not carry the repository refusal:\n%s", written)
+		}
+	}
+
+	g := materializeStableRead(t)
+	dropStructuralHunks(t, g.repo)
+	if err := os.Rename(filepath.Join(g.repo, ".git"), filepath.Join(g.repo, "moved.git")); err != nil {
+		t.Fatal(err)
+	}
+	wantExit, want = runVerifyStable(t, g, g.artifacts)
+	if want["stage"] != "repository" {
+		t.Fatalf("fixture without a Git directory reached stage %v", want["stage"])
+	}
+	exit, envelope, _ := runCoreRead(t, g.repo, append(coreStableArguments("report", g, g.artifacts), "--format", "json")...)
+	requireStableReportEnvelope(t, "json", exit, wantExit, envelope, want, []string{"ok", "mutates", "tool", "review", "stableVerification"})
+	exit, envelope, refusal := runCoreRead(t, g.repo, append(coreStableArguments("report", g, g.artifacts), "--output", external+".closed")...)
+	if exit != 2 || envelope != nil || refusal["code"] != cemcode.RepositoryObjectUnavailable {
+		t.Fatalf("unlocatable Git directory = exit %d envelope %v refusal %v, want exit 2 %s", exit, envelope, refusal, cemcode.RepositoryObjectUnavailable)
+	}
+	if _, err := os.Stat(external + ".closed"); !os.IsNotExist(err) {
+		t.Fatalf("a fail-closed report published: %v", err)
+	}
+}
+
 // CEM-V1-036: a stable report refuses --ocm, --patch, policy ceilings and an
-// output that names the map, with exit 2 and nothing published; the refusals
+// output that names the map, with exit 2 and nothing published. A supplied flag
+// is refused even when its value is empty; the `--flag=` spelling is not a CEM
+// argument and is refused by the argument parser. The refusals
 // before the verifier are marked as stable refusals, and 0.x refusals are not.
 func TestCoreStableReportRefusals(t *testing.T) {
 	f := materializeStableRead(t)
@@ -195,7 +294,13 @@ func TestCoreStableReportRefusals(t *testing.T) {
 		message   string
 	}{
 		{"ocm", report("--ocm", "map.ocm.json"), cemcode.InvalidArguments, "cem/1.0 report does not accept --ocm"},
+		{"empty ocm", report("--ocm", ""), cemcode.InvalidArguments, "cem/1.0 report does not accept --ocm"},
+		{"ocm=", report("--ocm="), cemcode.InvalidArguments, "unrecognized arguments: --ocm="},
+		{"json empty ocm", report("--format", "json", "--ocm", ""), cemcode.InvalidArguments, "cem/1.0 report does not accept --ocm"},
 		{"patch", report("--patch", "x.patch"), cemcode.InvalidArguments, "cem/1.0 report does not accept --patch"},
+		{"empty patch", report("--patch", ""), cemcode.InvalidArguments, "cem/1.0 report does not accept --patch"},
+		{"patch=", report("--patch="), cemcode.InvalidArguments, "unrecognized arguments: --patch="},
+		{"empty ceiling", report("--max-unknown", ""), cemcode.InvalidArguments, "--max-unknown must be a non-negative integer"},
 		{"ceiling", report("--max-unknown", "0"), cemcode.InvalidArguments, "cem/1.0 report does not accept policy ceilings"},
 		{"json ceiling", report("--format", "json", "--max-mechanical", "1"), cemcode.InvalidArguments, "cem/1.0 report does not accept policy ceilings"},
 		{"output names map", report("--output", "change.cem.json"), cemcode.InvalidArguments, "report and map paths must differ"},
