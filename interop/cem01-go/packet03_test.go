@@ -1014,6 +1014,9 @@ func TestCEMSM014PacketReproducible(t *testing.T) {
 			t.Fatal(err)
 		}
 		for p, b := range out.files {
+			if len(b) == 0 {
+				continue // see packet03Untracked
+			}
 			if err := os.WriteFile(filepath.Join(dir, p), b, 0o644); err != nil {
 				t.Fatal(err)
 			}
@@ -1035,10 +1038,22 @@ func TestCEMSM014PacketReproducible(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != len(out.files) {
-		t.Fatalf("maps directory has %d files, generator has %d", len(entries), len(out.files))
+	tracked := 0
+	for _, b := range out.files {
+		if len(b) > 0 {
+			tracked++
+		}
+	}
+	if len(entries) != tracked {
+		t.Fatalf("maps directory has %d files, generator has %d non-empty", len(entries), tracked)
 	}
 	for p, want := range out.files {
+		if len(want) == 0 {
+			if _, err := os.Lstat(filepath.Join(dir, p)); !os.IsNotExist(err) {
+				t.Fatalf("%s is a zero-byte artifact and must stay untracked: %v", p, err)
+			}
+			continue
+		}
 		got, err := os.ReadFile(filepath.Join(dir, p))
 		if err != nil || !bytes.Equal(got, want) {
 			t.Fatalf("%s differs from the generator: %v", p, err)
@@ -1047,6 +1062,12 @@ func TestCEMSM014PacketReproducible(t *testing.T) {
 }
 
 // --- portable consumer ---------------------------------------------------------
+
+// packet03Untracked is the SHA-256 of zero bytes. A pinned artifact with this
+// digest is not tracked, because a Git diff that creates an empty file has no
+// file headers and CEM cannot bind it (V1-0609). Consumers rebuild it as zero
+// bytes from the manifest pin.
+const packet03Untracked = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 func readPacket03(t *testing.T) (packetManifest03, func(string) []byte) {
 	t.Helper()
@@ -1067,6 +1088,9 @@ func readPacket03(t *testing.T) (packetManifest03, func(string) []byte) {
 	artifacts := map[string][]byte{}
 	for p, want := range m.ArtifactSHA256 {
 		b, err := os.ReadFile(filepath.Join(dir, p))
+		if os.IsNotExist(err) && want == packet03Untracked {
+			b, err = []byte{}, nil
+		}
 		if err != nil {
 			t.Fatal(err)
 		}

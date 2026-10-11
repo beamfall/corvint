@@ -24,6 +24,9 @@ import (
 
 const portable03ManifestSHA256 = "9bb8393fba698fd5a65b502f49f5cf4bf4656bba09daa66ff817107224ca3931"
 
+// portable03Untracked is the SHA-256 of zero bytes; such artifacts are rebuilt, not read.
+const portable03Untracked = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
 type portable03File struct {
 	Path, Mode, ContentFile, Object string
 	Content                         *string
@@ -87,7 +90,15 @@ func TestCEMSM016NativePortable03Vectors(t *testing.T) {
 	}
 	artifacts := map[string][]byte{}
 	for path, want := range manifest.ArtifactSHA256 {
-		data := portableRead(t, filepath.Join(kit, path))
+		var data []byte
+		if want == portable03Untracked {
+			// Zero-byte artifacts are untracked; the manifest pin is the evidence (V1-0609).
+			if _, err := os.Lstat(filepath.Join(kit, path)); !os.IsNotExist(err) {
+				t.Fatalf("artifact %s is zero bytes and must stay untracked: %v", path, err)
+			}
+		} else {
+			data = portableRead(t, filepath.Join(kit, path))
+		}
 		if got := fmt.Sprintf("%x", sha256.Sum256(data)); got != want {
 			t.Fatalf("artifact %s digest = %s, want %s", path, got, want)
 		}

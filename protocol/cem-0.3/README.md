@@ -12,7 +12,7 @@ It changes no `cem/0.1` or `cem/0.2` bytes. The 0.2 packet in `protocol/cem-0.2`
 | `OPERATION.json` | `verify-03` process ABI: argv, exit classes, stage order and code placement. |
 | `WP1-OBSERVED.json` | The observed WP1 canonical-diff recipe the algorithm text names, SHA-256 `78df41faf9736520eb3b3724fc77abd88554ae243257d3b7c1d30e8f68e43630`. A byte copy of `protocol/cem-1.0/stable/inherited/WP1-OBSERVED.json`. |
 | `vectors/manifest.json` | 221 cases, 3 repositories, 165 commits and the full pinned result for each case. |
-| `vectors/maps/*.json` | One raw map per case, pinned by SHA-256 in `artifactSha256`. |
+| `vectors/maps/*.json` | One raw map per case, pinned by SHA-256 in `artifactSha256`. A map pinned to the SHA-256 of zero bytes (`json-empty`) is not tracked, because CEM cannot bind the creation of an empty file; consumers rebuild it as zero bytes from the pin. |
 
 `vectors/manifest.json` is SHA-256
 `9bb8393fba698fd5a65b502f49f5cf4bf4656bba09daa66ff817107224ca3931`, pinned separately by both
