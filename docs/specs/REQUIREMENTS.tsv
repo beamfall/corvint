@@ -818,6 +818,10 @@ CEM-V1-013	docs/specs/cem-stable-v1.md	60	Never translate candidate spec labels 
 CEM-V1-014	docs/specs/cem-stable-v1.md	61	Inventory every existing consumer's profile and migration disposition. An unsupp
 CEM-V1-015	docs/specs/cem-stable-v1.md	71	Candidate assembly MUST require independently supplied immutable base and target
 CEM-V1-016	docs/specs/cem-stable-v1.md	72	Assembly MUST compare each declared runner source input with its self-hashed imm
+CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	215	The default `verify` path refuses a strictly parsed JSON object whose exact
+CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	219	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
+CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	222	Only that exact case changes. A duplicate, non-string, differently cased,
+CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	226	`examples/cem/verify-portable.sh` runs `verify-stable-canonical` only when
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and

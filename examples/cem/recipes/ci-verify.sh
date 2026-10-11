@@ -40,6 +40,11 @@ if [ "$status" -eq 124 ]; then
 fi
 if [ "$status" -gt 5 ]; then status=2; fi
 [ -n "$verdict" ] || status=2
+advice=${recovery[$status]}
+# A cem/1.0 map is routed to the explicit stable branch, never verified here (CEM-V1-PSR-004).
+if [ "$status" -eq 4 ] && grep -q '"code":"use-verify-stable-canonical"' "$recipe_out/verify.out"; then
+  advice='unsupported-profile: cem/1.0 map; rerun verify-portable.sh with CEM_PROFILE=cem/1.0 and CEM_ARTIFACTS'
+fi
 printf 'outcome=%s exit=%s recovery=%s out=%s\n' "${verdict:-operational}" "$status" \
-  "${recovery[$status]}" "$recipe_out"
+  "$advice" "$recipe_out"
 exit "$status"

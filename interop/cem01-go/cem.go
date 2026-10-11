@@ -264,8 +264,12 @@ func verify(a cliArgs) ([]driftItem, *cemError) {
 var errSizeLimit = errors.New("size limit")
 
 // decodeMap runs every structural check verify applies to the map bytes before it reads the patch.
+// An exact cem/1.0 map is refused as unsupported before those checks (CEM-V1-PSR-001).
 func decodeMap(mapBytes []byte) (cemMap, *cemError) {
 	var m cemMap
+	if declaresStableSpec(mapBytes) {
+		return m, invalid("unsupported-spec")
+	}
 	if err := strictDecode(mapBytes, &m); err != nil {
 		return m, invalid("invalid-json")
 	}
@@ -273,6 +277,18 @@ func decodeMap(mapBytes []byte) (cemMap, *cemError) {
 		return m, invalid("version-shape")
 	}
 	return m, validateMapShape(&m)
+}
+
+// declaresStableSpec reports a strictly parsed JSON object whose exact "spec" member is the JSON
+// string cem/1.0. It reads nothing else, so every other input keeps its earlier decode result
+// (CEM-V1-PSR-003).
+func declaresStableSpec(raw []byte) bool {
+	var root map[string]json.RawMessage
+	if strictJSON(raw) != nil || json.Unmarshal(raw, &root) != nil {
+		return false
+	}
+	var spec string
+	return json.Unmarshal(root["spec"], &spec) == nil && spec == stableSpec
 }
 
 var errNotRegular = errors.New("not a stable regular file")

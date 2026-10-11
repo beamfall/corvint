@@ -21,6 +21,9 @@ const (
 	// each at most about 1.3 KiB: a 512-byte path that JSON escaping can at most double, fixed-size
 	// identifiers, digests and spans. 4096 items stay below 5.5 MiB (CEM-PILOT-021).
 	maxCIReportBytes = 6 << 20
+	// ciStableRouteCode is the unsupported-profile code for an exact cem/1.0 map. It names the
+	// portable stable verify command that reads that profile (CEM-V1-PSR-002).
+	ciStableRouteCode = "use-verify-stable-canonical"
 )
 
 // ciExit is the exit status of each verdict (CEM-PILOT-022).
@@ -194,8 +197,12 @@ func (v *verifier) ciMapBlob(head, mapPath string) ([]byte, *ciFailure) {
 
 // ciMapHeader classifies an unsupported profile, then applies verify's structural checks, and only
 // then compares the map base with the declared base, so a malformed map is rejected rather than
-// reported as a repository mismatch.
+// reported as a repository mismatch. An exact cem/1.0 map is unsupported with a code naming the
+// stable verify command (CEM-V1-PSR-002).
 func ciMapHeader(mapBytes []byte, base string) *ciFailure {
+	if declaresStableSpec(mapBytes) {
+		return &ciFailure{verdict: "unsupported-profile", code: ciStableRouteCode}
+	}
 	if unsupportedSpec(mapBytes) {
 		return &ciFailure{verdict: "unsupported-profile", code: "unsupported-profile"}
 	}
