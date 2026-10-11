@@ -374,17 +374,18 @@ func TestAMAPV0078ReactSameFileRouteArray(t *testing.T) {
 		}
 	}
 	for src, want := range map[string]string{
-		"import { routes } from './routes';\ncreateBrowserRouter(routes);":                                           "imported-react-routes",
-		"import routes from './routes';\ncreateBrowserRouter(routes);":                                               "imported-react-routes",
-		"const routes = [{id: 'a', path: '/a'}];\nroutes.push({id: 'b', path: '/b'});\ncreateBrowserRouter(routes);": "computed-react-routes",
-		"let routes = [{id: 'a', path: '/a'}];\ncreateBrowserRouter(routes);":                                        "computed-react-routes",
-		"const routes = [{id: 'a', path: '/a'}].concat(more);\ncreateBrowserRouter(routes);":                         "computed-react-routes",
-		"function f() { const routes = [{id: 'a', path: '/a'}]; return createBrowserRouter(routes) }":                "computed-react-routes",
-		"const routes = [{id: 'a', path: '/a'}];\nconst routes = [];\ncreateBrowserRouter(routes);":                  "computed-react-routes",
-		"const routes = [{id: 'a', path: '/a'}];\nextend(routes);\ncreateBrowserRouter(routes);":                     "computed-react-routes",
-		"const routes = [{id: 'a', path: '/a'}]\n  .concat(more)\ncreateBrowserRouter(routes)":                       "computed-react-routes",
-		"const routes = [{id: 'a', path: '/a'}];\nconst x = `${routes.pop()}`;\ncreateBrowserRouter(routes);":        "computed-react-routes",
-		"const routes = [{id: 'a', path: '/a'}];\nrout\\u0065s.length = 0;\ncreateBrowserRouter(routes);":            "computed-react-routes",
+		"import { routes } from './routes';\ncreateBrowserRouter(routes);":                                                         "imported-react-routes",
+		"import routes from './routes';\ncreateBrowserRouter(routes);":                                                             "imported-react-routes",
+		"const routes = [{id: 'a', path: '/a'}];\nroutes.push({id: 'b', path: '/b'});\ncreateBrowserRouter(routes);":               "computed-react-routes",
+		"let routes = [{id: 'a', path: '/a'}];\ncreateBrowserRouter(routes);":                                                      "computed-react-routes",
+		"const routes = [{id: 'a', path: '/a'}].concat(more);\ncreateBrowserRouter(routes);":                                       "computed-react-routes",
+		"function f() { const routes = [{id: 'a', path: '/a'}]; return createBrowserRouter(routes) }":                              "computed-react-routes",
+		"const routes = [{id: 'a', path: '/a'}];\nconst routes = [];\ncreateBrowserRouter(routes);":                                "computed-react-routes",
+		"const routes = [{id: 'a', path: '/a'}];\nextend(routes);\ncreateBrowserRouter(routes);":                                   "computed-react-routes",
+		"const routes = [{id: 'a', path: '/a'}]\n  .concat(more)\ncreateBrowserRouter(routes)":                                     "computed-react-routes",
+		"const routes = [{id: 'a', path: '/a'}];\nconst x = `${routes.pop()}`;\ncreateBrowserRouter(routes);":                      "computed-react-routes",
+		"const routes = [{id: 'a', path: '/a'}];\nrout\\u0065s.length = 0;\ncreateBrowserRouter(routes);":                          "computed-react-routes",
+		"const routes = [{id: 'a', path: '/a'}];\nconst alias = [...routes];\nalias[0].path = '/b';\ncreateBrowserRouter(routes);": "computed-react-routes",
 		"createBrowserRouter(routes);": "non-literal-react-routes",
 	} {
 		states, u := parseReactRouter(blobEntry{path: "routes.tsx"}, []byte(src))

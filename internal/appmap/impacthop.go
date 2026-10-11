@@ -119,8 +119,8 @@ func (g *referenceGraph) references(name, target string) ([]int, bool) {
 			}
 			i += from
 			from = i + len(token)
-			if i > 0 && (hopNameByte(text[i-1]) || text[i-1] == '.') || from < len(text) && hopNameByte(text[from]) {
-				continue // part of a longer name
+			if i > 0 && hopNameByte(text[i-1]) || from < len(text) && hopNameByte(text[from]) {
+				continue // part of a longer name; a property `x.token` is a mention like any other
 			}
 			ls := strings.LastIndexByte(text[:i], '\n') + 1
 			le := strings.IndexByte(text[i:], '\n')
@@ -130,7 +130,7 @@ func (g *referenceGraph) references(name, target string) ([]int, bool) {
 				le += i
 			}
 			q, end := hopLiteralAround(text[ls:le], i-ls)
-			if q < 0 || strings.Count(text[:ls], "`")%2 == 1 || hopInComment(text, ls, ls+q) || !resolvesTo(text[ls+q+1:ls+end], name, target) {
+			if q < 0 || hopInTemplate(text[:ls]) || hopInComment(text, ls, ls+q) || !resolvesTo(text[ls+q+1:ls+end], name, target) {
 				return nil, false
 			}
 			set[strings.Count(text[:i], "\n")+1] = true
@@ -144,10 +144,45 @@ func (g *referenceGraph) references(name, target string) ([]int, bool) {
 	return lines, true
 }
 
+// hopInTemplate reports whether a line starting after prefix may sit inside a multi-line template
+// literal: it scans quotes with escapes (single and double quotes end at a line break) and `//`
+// and `/*` comments, and answers true when a backtick is still open. A stray backtick (in a regex
+// or HTML text) can only make it refuse more.
+func hopInTemplate(prefix string) bool {
+	quote, line, block := byte(0), false, false
+	for k := 0; k < len(prefix); k++ {
+		c := prefix[k]
+		switch {
+		case line:
+			line = c != '\n'
+		case block:
+			if c == '*' && k+1 < len(prefix) && prefix[k+1] == '/' {
+				block, k = false, k+1
+			}
+		case quote != 0:
+			switch {
+			case c == '\\':
+				k++
+			case c == quote:
+				quote = 0
+			case c == '\n' && quote != '`':
+				quote = 0
+			}
+		case c == '/' && k+1 < len(prefix) && prefix[k+1] == '/':
+			line, k = true, k+1
+		case c == '/' && k+1 < len(prefix) && prefix[k+1] == '*':
+			block, k = true, k+1
+		case c == '\'' || c == '"' || c == '`':
+			quote = c
+		}
+	}
+	return quote == '`'
+}
+
 // hopLiteralAround scans one line for quoted literals, honouring backslash escapes, and returns the
 // opening and closing quote offsets of the literal holding offset at, or -1 when none does
-// (including a literal left open at the end of the line). A caller refuses a line that an odd
-// number of earlier backticks may place inside a multi-line template.
+// (including a literal left open at the end of the line). A caller refuses a line hopInTemplate
+// places inside a multi-line template.
 func hopLiteralAround(line string, at int) (int, int) {
 	open := -1
 	for k := 0; k < len(line); k++ {

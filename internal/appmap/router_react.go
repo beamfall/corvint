@@ -268,7 +268,7 @@ func reactRoutesBinding(ts []token, use int) (jsValue, string) {
 			}
 			continue
 		}
-		if j == use || t.kind != tokIdent || t.text != name || j > 0 && next(ts, j-1, ".") {
+		if j == use || t.kind != tokIdent || t.text != name || j > 0 && next(ts, j-1, ".") && !(j > 1 && next(ts, j-2, ".")) {
 			continue
 		}
 		if reactImported(ts, j) {

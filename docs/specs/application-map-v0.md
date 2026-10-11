@@ -556,7 +556,7 @@ V1-1061; GitHub #705).
 - `AMAP-V0-078`: `createBrowserRouter(NAME)` MUST compile the literal array bound by the one
   top-level `const NAME = [...]` (optionally typed `: Type` or `: Type[]`) in the same router file,
   exactly as the inline array would compile (AMAP-V0-043/044 apply to its contents), only when NAME
-  appears nowhere else in the file except the router call and as a property after `.`. A NAME bound by an `import` MUST
+  appears nowhere else in the file except the router call and as a property after `.` (a `...` spread is another use). A NAME bound by an `import` MUST
   stay UNKNOWN as `imported-react-routes` (no other file is read); any other declaration, assignment,
   mutation, call argument, non-top-level or trailing-expression binding (anything after the literal other than `;` or a
   statement starting on a later line), or any file holding a `${}` template substitution or a `\` escape outside a literal, MUST stay UNKNOWN as
