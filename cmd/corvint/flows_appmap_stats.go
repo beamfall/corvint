@@ -23,8 +23,13 @@ func runFlowsAppmapStats(ctx context.Context, root string, args []string, out io
 	budget := f.Int("budget", 0, "byte budget")
 	full := f.Bool("full", false, "raise cap to 1 MiB")
 	minResolved := f.Float64("min-resolved", -1, "exit 1 when resolved screens fall below this percentage")
-	if f.Parse(args) != nil || *mapFile == "" || f.NArg() != 0 || *minResolved > 100 {
+	if f.Parse(args) != nil || *mapFile == "" || f.NArg() != 0 {
 		return errors.New("flows appmap stats requires --map FILE, optional --budget N or --full, and --min-resolved PCT (0..100)")
+	}
+	gated := false
+	f.Visit(func(fl *flag.Flag) { gated = gated || fl.Name == "min-resolved" })
+	if gated && !(*minResolved >= 0 && *minResolved <= 100) { // also refuses NaN
+		return errors.New("flows appmap stats: --min-resolved must be a number from 0 to 100")
 	}
 	m, err := appmap.LoadMap(*mapFile)
 	if err != nil {
@@ -37,7 +42,7 @@ func runFlowsAppmapStats(ctx context.Context, root string, args []string, out io
 	if _, err = out.Write(data); err != nil {
 		return err
 	}
-	if sum := appmap.Stats(m); *minResolved >= 0 && sum.ResolvedPercent() < *minResolved {
+	if sum := appmap.Stats(m); gated && sum.ResolvedPercent() < *minResolved {
 		return &gateFailure{fmt.Sprintf("flows appmap stats: resolved %.2f%% (%d of %d screens) is below --min-resolved %.2f; dominant unknown reasons: %s",
 			sum.ResolvedPercent(), sum.Resolved, sum.Total, *minResolved, strings.Join(sum.Dominant, ", "))}
 	}

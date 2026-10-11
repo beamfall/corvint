@@ -89,7 +89,7 @@ func TestStatsCLI(t *testing.T) {
 	} else if code != 1 || out == "" || !strings.Contains(diag, "dominant unknown reasons") {
 		t.Fatalf("gate: %d %q %s", code, out, diag)
 	}
-	for _, flags := range [][]string{{"--min-resolved", "101"}, {"--budget", "1"}, {"extra"}} {
+	for _, flags := range [][]string{{"--min-resolved", "101"}, {"--min-resolved", "-1"}, {"--min-resolved", "NaN"}, {"--budget", "1"}, {"extra"}} {
 		if code, out, _ = runFlowsCLI(root, append([]string{"appmap", "stats", "--map", filename}, flags...)...); code != 2 || out != "" {
 			t.Fatalf("admitted %v: %d", flags, code)
 		}
