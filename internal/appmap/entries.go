@@ -208,10 +208,11 @@ func provenPaths(rows []entryView, l *EdgeLedger) {
 	}
 	adj := map[string][]hop{}
 	for _, e := range l.Edges {
-		if e.Status != EdgeProven || e.Evidence == nil || e.Evidence.Verification.Receipt == nil || e.From == e.To || !fresh[e.From] || !fresh[e.To] {
+		test, ok := provenBy(e)
+		if !ok || e.From == e.To || !fresh[e.From] || !fresh[e.To] {
 			continue
 		}
-		adj[e.From] = append(adj[e.From], hop{e.To, e.Evidence.Verification.Receipt.TestKey})
+		adj[e.From] = append(adj[e.From], hop{e.To, test})
 	}
 	for k := range adj {
 		hops := adj[k]

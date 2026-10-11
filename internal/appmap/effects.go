@@ -25,13 +25,60 @@ var (
 		"allTextContents allInnerTexts boundingBox url title hover focus scrollIntoViewIfNeeded")
 	effectStateCalls = wordSet("fill type pressSequentially press check uncheck setChecked selectOption " +
 		"setInputFiles clear dragTo dragAndDrop submit setItem removeItem addCookies clearCookies fetch")
-	effectHTTPVerbs   = wordSet("get post put patch delete head fetch")
-	effectClicks      = wordSet("click dblclick tap")
-	effectPureRoots   = wordSet("JSON Math Object Array Number String console Promise Date")
+	effectHTTPVerbs = wordSet("get post put patch delete head fetch")
+	effectClicks    = wordSet("click dblclick tap")
+	// effectPureMembers admits only ROOT.member calls that cannot mutate application state; any
+	// other member of these roots (Object.assign, Object.defineProperty, ...) is unknown.
+	effectPureMembers = map[string]map[string]bool{
+		"JSON":    wordSet("stringify parse"),
+		"Math":    wordSet("abs ceil floor round trunc max min pow sqrt random sign"),
+		"Number":  wordSet("isNaN isFinite isInteger parseFloat parseInt"),
+		"String":  wordSet("fromCharCode raw"),
+		"Object":  wordSet("keys values entries fromEntries is"),
+		"Array":   wordSet("isArray from of"),
+		"Promise": wordSet("all allSettled race any resolve reject"),
+		"Date":    wordSet("now parse UTC"),
+		"console": wordSet("log info warn error debug"),
+	}
 	effectPureBare    = wordSet("expect test it describe String Number Boolean parseInt parseFloat encodeURIComponent decodeURIComponent encodeURI Symbol")
 	effectKeywords    = wordSet("if for while switch catch return typeof function await async super with void yield in of do else")
 	effectPureClasses = wordSet("Date URL URLSearchParams RegExp Error Map Set Array Promise")
 )
+
+// assignmentAt reports whether the '=' at toks[q] assigns (plain or compound) rather than compares
+// or starts an arrow, and returns the index of the assigned target's last token.
+func assignmentAt(toks []token, q int) (int, bool) {
+	if q <= 0 || !isPunct(toks[q], "=") {
+		return 0, false
+	}
+	if q+1 < len(toks) && toks[q+1].glued && (toks[q+1].text == "=" || toks[q+1].text == ">") {
+		return 0, false
+	}
+	if toks[q].glued && strings.Contains("=!<>", toks[q-1].text) {
+		return 0, false
+	}
+	k := q - 1
+	for k > 0 && toks[k].kind == tokPunct && toks[k+1].glued && strings.Contains("+-*/%&|^?", toks[k].text) {
+		k--
+	}
+	return k, true
+}
+
+// memberTarget reports whether an assignment target ending at toks[k] is a member (`a.b`, `a[k]`).
+func memberTarget(toks []token, k int) bool {
+	return isPunct(toks[k], "]") || toks[k].kind == tokIdent && k > 0 && isPunct(toks[k-1], ".")
+}
+
+// targetRoot walks a member target ending at toks[k] back to its root identifier, or -1.
+func targetRoot(toks []token, k int) int {
+	for k >= 0 && toks[k].kind == tokIdent && k > 1 && isPunct(toks[k-1], ".") {
+		k -= 2
+	}
+	if k < 0 || toks[k].kind != tokIdent || (k > 0 && isPunct(toks[k-1], ".")) {
+		return -1
+	}
+	return k
+}
 
 func wordSet(s string) map[string]bool {
 	out := map[string]bool{}
@@ -108,6 +155,14 @@ func (r *effectReader) toks(path string) []token {
 	return t
 }
 
+// whole anchors the complete test file: an effect also depends on the file's imports, instance
+// bindings and other members, so any change to it leaves the effect not fresh.
+func (r *effectReader) whole(path string) Anchor {
+	a := r.b.files[path].Anchor
+	data := r.b.sources[path]
+	return spanOf(blobEntry{repo: a.Repo, path: path, oid: a.Blob}, data, 1, strings.Count(string(data), "\n")+1)
+}
+
 // instances binds each `NAME = new CLASS(` in a spec to the test file CLASS resolves to; a name
 // bound to two files maps to "" (ambiguous).
 func instances(toks []token, classes map[string]string) map[string]string {
@@ -126,6 +181,25 @@ func instances(toks []token, classes map[string]string) map[string]string {
 		}
 		out[toks[k].text] = target
 	}
+	// Any other assignment to a bound name or one of its members, such as `home = other` or
+	// `home.open = fn`, makes the binding ambiguous.
+	for q := range toks {
+		k, ok := assignmentAt(toks, q)
+		if !ok {
+			continue
+		}
+		root := targetRoot(toks, k)
+		if root < 0 {
+			continue
+		}
+		if _, bound := out[toks[root].text]; !bound {
+			continue
+		}
+		construct := root == k && q+2 < len(toks) && toks[q+1].text == "new" && classes[toks[q+2].text] == out[toks[root].text]
+		if !construct {
+			out[toks[root].text] = ""
+		}
+	}
 	return out
 }
 
@@ -140,6 +214,19 @@ func (r *effectReader) span(path string, toks []token, from, to int, inst map[st
 		t := toks[i]
 		if t.kind == tokTemplate && t.subst && (t.unsure || strings.Contains(t.code, "(")) {
 			out.join(effectAt(EffectUnknown, path, t.line, "template-substitution"))
+			continue
+		}
+		if k, ok := assignmentAt(toks, i); ok && memberTarget(toks, k) {
+			out.join(effectAt(EffectUnknown, path, t.line, "member-assignment"))
+			continue
+		}
+		if t.kind == tokIdent && t.text == "delete" && !property(toks, i) {
+			out.join(effectAt(EffectUnknown, path, t.line, "delete"))
+			continue
+		}
+		// A computed or optional invocation (`a[k](...)`, `f?.(...)`, `g()(...)`) is not read.
+		if isPunct(t, "(") && i > 0 && (isPunct(toks[i-1], "]") || isPunct(toks[i-1], ".") || isPunct(toks[i-1], ")")) {
+			out.join(effectAt(EffectUnknown, path, t.line, "computed-call"))
 			continue
 		}
 		if t.kind != tokIdent || !next(toks, i+1, "(") {
@@ -256,7 +343,7 @@ func (r *effectReader) call(path string, toks []token, i int, inst map[string]st
 	switch {
 	case root.name == "expect" && (m == "soft" || m == "poll" || (len(m) > 2 && strings.HasPrefix(m, "to") && m[2] >= 'A' && m[2] <= 'Z')):
 		return nav
-	case effectPureRoots[root.name] && !root.call && len(segs) == 2:
+	case !root.call && len(segs) == 2 && effectPureMembers[root.name][m]:
 		return nav
 	case root.name == "test" && m == "step" && len(segs) == 2:
 		return nav
@@ -312,8 +399,7 @@ func (r *effectReader) method(path, name string, depth int, callPath string, cal
 		}
 	}
 	e := r.span(path, toks, from, to, nil, nil, path, depth)
-	a := r.b.files[path].Anchor
-	e.join(stepEffect{kind: EffectNavigation, from: []Anchor{spanOf(blobEntry{repo: a.Repo, path: path, oid: a.Blob}, r.b.sources[path], found.start, found.end)}})
+	e.join(stepEffect{kind: EffectNavigation, from: []Anchor{r.whole(path)}})
 	r.memo[key] = &e
 	return e
 }

@@ -130,10 +130,10 @@ func Prefixes(ctx context.Context, m *Map, l *EdgeLedger, f *PrefixFacts, o Opti
 	if l != nil {
 		rep.LedgerDigest = l.Digest
 		for _, r := range l.Edges {
-			if r.Status == EdgeProven && r.Evidence != nil && r.Evidence.Verification.Receipt != nil {
+			if test, ok := provenBy(r); ok {
 				k := prefixEdgeID(r.From, r.To)
-				if cur, ok := proven[k]; !ok || r.Evidence.Verification.Receipt.TestKey < cur {
-					proven[k] = r.Evidence.Verification.Receipt.TestKey
+				if cur, seen := proven[k]; !seen || test < cur {
+					proven[k] = test
 				}
 			}
 		}
@@ -160,7 +160,9 @@ func Prefixes(ctx context.Context, m *Map, l *EdgeLedger, f *PrefixFacts, o Opti
 		if len(edges) == 0 {
 			continue
 		}
-		abstain := func(reason string) { rep.Abstained = append(rep.Abstained, PrefixAbstention{Test: tf.Path, Reason: reason}) }
+		abstain := func(reason string) {
+			rep.Abstained = append(rep.Abstained, PrefixAbstention{Test: tf.Path, Reason: reason})
+		}
 		if tf.Join != StatusResolved {
 			abstain("join-unknown")
 			continue

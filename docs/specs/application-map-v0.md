@@ -587,12 +587,13 @@ V1-1061; GitHub #705).
   AMAP-V0-056 waits for.
   Status: proposed, pending owner acceptance (V1-1168).
 - `AMAP-V0-081`: With a ledger, each row's `proven_path` MUST be the shortest screen sequence from
-  a `deep-linkable` entry to that screen that crosses only ledger edges with status PROVEN and a
-  receipt test key, with `proven_by` listing one test key per edge. Ties go to the lower entry
+  a `deep-linkable` entry to that screen that crosses only ledger edges with status PROVEN whose
+  evidence is VERIFIED by a receipt with a valid test key, with `proven_by` listing one test key per edge. Ties go to the lower entry
   screen ID, then the lower next screen ID, then the lower test key. A deep-linkable screen reads
   `path_status: "ENTRY"` (`static-deep-link`) with itself as the path; a reached screen reads
   PROVEN (`ledger-edges`); any other screen reads `NOT_OBSERVED` (`no-proven-path-from-entry`) with
-  an empty path. Unproven, receipt-less and self-loop ledger edges never contribute.
+  an empty path. Unproven, contradicted, receipt-less, empty-key and self-loop ledger edges never
+  contribute.
   Status: proposed, pending owner acceptance (V1-1168).
 - `AMAP-V0-082`: A path MUST NOT start at, end at or cross a screen whose entry verification is not
   `STATIC_ONLY` at the evaluated revision; such a row reads `path_status: "UNKNOWN"`

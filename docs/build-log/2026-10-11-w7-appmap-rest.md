@@ -17,3 +17,8 @@ Branch `claude/w7-appmap-rest`, from `claude/w6-appmap-impact` (31fb799d8).
 Limits: test-id and raw-selector clicks stay unknown (only `getByRole('link')` is navigation);
 property-bound locators, inherited methods and spec-local helpers are not followed. Entry loading
 itself stays STATIC_ONLY. All new requirements are proposed, pending owner acceptance.
+
+Independent review round 1 (Codex, FAIL) found five fail-open paths, all fixed: computed and
+optional invocations, `Object.assign` through a root whitelist, reassigned page-object bindings,
+member-span freshness that missed import changes (steps now cite whole files), and contradicted or
+empty-key receipts counting as proven edges.

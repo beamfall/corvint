@@ -90,6 +90,13 @@ func TestANLV0035StepEffects(t *testing.T) {
 		"rawclick":  {"await page.click('a.sheets');", EffectUnknown, "e2e/specs/rawclick.spec.ts:7", "click"},
 		"template":  {"await page.goto(`/x/${slug()}`);", EffectUnknown, "e2e/specs/template.spec.ts:7", "template-substitution"},
 		"unhandled": {"await page.keyboard.insertText('x');", EffectUnknown, "e2e/specs/unhandled.spec.ts:7", "insertText"},
+		"optional":  {"await fetch?.('/api');", EffectUnknown, "e2e/specs/optional.spec.ts:7", "computed-call"},
+		"computed":  {"await localStorage['setItem']('a', 'b');", EffectUnknown, "e2e/specs/computed.spec.ts:7", "computed-call"},
+		"assign":    {"Object.assign(localStorage, {a: 'b'});", EffectUnknown, "e2e/specs/assign.spec.ts:7", "assign"},
+		"member":    {"localStorage.token = 'x'; await home.openSheets();", EffectUnknown, "e2e/specs/member.spec.ts:7", "member-assignment"},
+		"delete":    {"delete localStorage.token;", EffectUnknown, "e2e/specs/delete.spec.ts:7", "delete"},
+		"rebind":    {"await home.openSheets(); home = other;", EffectUnknown, "e2e/specs/rebind.spec.ts:7", "openSheets"},
+		"pure":      {"await Promise.all([home.openSheets()]); JSON.stringify({a: 1 == 1});", EffectNavigation, "", ""},
 	}
 	for name, c := range cases {
 		writeFile(t, root, "e2e/specs/"+name+".spec.ts", effectSpec(c.step))
@@ -111,7 +118,8 @@ func TestANLV0035StepEffects(t *testing.T) {
 		}
 	}
 	nav := stepEdges(m, "e2e/specs/nav.spec.ts")[0]
-	if len(nav.EffectFrom) != 1 || nav.EffectFrom[0].Path != "e2e/pages/home.page.ts" || nav.EffectFrom[0].Start != 14 {
+	// The whole spec and page-object files are cited: imports and bindings decide the methods read.
+	if len(nav.EffectFrom) != 2 || nav.EffectFrom[0].Path != "e2e/specs/nav.spec.ts" || nav.EffectFrom[1].Path != "e2e/pages/home.page.ts" || nav.EffectFrom[1].Start != 1 {
 		t.Fatalf("nav anchors: %+v", nav.EffectFrom)
 	}
 	click := stepEdges(m, "e2e/specs/teesheet-click.spec.ts")
@@ -179,5 +187,14 @@ func TestANLV0036PrefixesUseStepEffects(t *testing.T) {
 	stale := runPrefixes(t, f, &moved, nil, Options{Revision: changed})
 	if len(stale.Flagged) != 0 || reasonFor(stale, "e2e/specs/nav.spec.ts") != "step-effect-not-fresh" {
 		t.Fatalf("%+v", stale)
+	}
+	// An import-only change outside every step span also leaves the derived effect not fresh.
+	writeFile(t, root, "e2e/pages/home.page.ts", effectHomePage)
+	writeFile(t, root, "e2e/pages/home2.page.ts", strings.Replace(effectHomePage, "await this.page.waitForLoadState();", "await this.page.getByLabel('Club').fill('1');", 1))
+	writeFile(t, root, "e2e/specs/nav.spec.ts", strings.Replace(effectSpec("await home.openSheets();"), "'../pages/home.page'", "'../pages/home2.page'", 1))
+	imported := *l
+	imported.Revision = commitAll(t, root, "import changed")
+	if r := runPrefixes(t, f, &imported, nil, Options{Revision: imported.Revision}); len(r.Flagged) != 0 || reasonFor(r, "e2e/specs/nav.spec.ts") != "step-effect-not-fresh" {
+		t.Fatalf("%+v", r)
 	}
 }

@@ -83,6 +83,16 @@ type edgeOccurrence struct {
 	from, to Step
 }
 
+// provenBy returns the test key of a PROVEN ledger row whose crossing is VERIFIED by a receipt
+// with a valid test key; any other row proves nothing.
+func provenBy(r LedgerEdge) (string, bool) {
+	if r.Status != EdgeProven || r.Evidence == nil || r.Evidence.Verification.Status != Verified || r.Evidence.Verification.Receipt == nil {
+		return "", false
+	}
+	key := r.Evidence.Verification.Receipt.TestKey
+	return key, validTestKey(key)
+}
+
 func ledgerIdentity(from, to Step) LedgerEdge {
 	trigger := to.Action
 	switch trigger {

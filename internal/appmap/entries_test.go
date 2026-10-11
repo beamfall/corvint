@@ -251,6 +251,9 @@ func TestAMAPV0080EntriesLedgerPaths(t *testing.T) {
 	unproven.Status = EdgeUnproven
 	noReceipt := provenEdge(m, "home", "params", "t-params")
 	noReceipt.Evidence.Verification.Receipt = nil
+	contradicted := provenEdge(m, "home", "redirect", "t-redirect")
+	contradicted.Evidence.Verification.Status = Contradicted
+	emptyKey := provenEdge(m, "home", "base", "")
 	l := entriesLedger(m,
 		provenEdge(m, "home", "guard", "t-z"),
 		provenEdge(m, "home", "guard", "t-g"),
@@ -258,7 +261,7 @@ func TestAMAPV0080EntriesLedgerPaths(t *testing.T) {
 		provenEdge(m, "home", "base.child", "t-b"),
 		provenEdge(m, "base.child", "base.absolute", "t-ba"),
 		provenEdge(m, "base.absolute", "guard.child", "t-long"),
-		unproven, noReceipt)
+		unproven, noReceipt, contradicted, emptyKey)
 	run := func(l *EdgeLedger, o Options) ([]entryView, string, error) {
 		o.Root, o.Full = root, true
 		raw, err := ProjectEntries(context.Background(), m, l, o)
@@ -296,6 +299,7 @@ func TestAMAPV0080EntriesLedgerPaths(t *testing.T) {
 		"hook":          {PathNotObserved, nil, nil},
 		"params":        {PathNotObserved, nil, nil},
 		"base":          {PathNotObserved, nil, nil},
+		"redirect":      {PathNotObserved, nil, nil},
 	}
 	for _, row := range rows {
 		w, ok := want[row.State]
