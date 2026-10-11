@@ -27,11 +27,18 @@ Evidence:
 
 - Each constituent was reviewed, bound and sealed on its own branch; its sealed CEM is carried
   under `.corvint/changes/`.
-- On the batch head, the doc gates, `script/repin-use-case-receipts.sh --check` and the Go tests
-  of every package the batch changes pass.
-- Change evidence for the batch binds only this integration record, with the base at the last
-  constituent merge. A base at main would include the constituents' sealed CEMs, which
-  `dogfood-change` refuses (`sealed-cem-in-change`).
+- On the batch head, the doc gates and `script/repin-use-case-receipts.sh --check` pass. The Go
+  tests of every package the batch changes pass, under a host load average near 54:
+  `internal/groupreap` and `internal/tasks/intent` each failed one timing test on the first run
+  and passed on rerun, and `cmd/corvint` hit its 30-minute timeout, so only its failed and
+  timed-out tests (`TestDogfoodEventSpawnsOneBracket`, `TestWorkFinalCheck*`,
+  `TestAHI044HookAdaptersFailOpen`) were rerun, and passed.
+- Merging #749 with main broke the build of `internal/tasks/store` tests: #749 removed
+  `killGateGroup`, which `pool_output_bound_test.go` (CAL-V0-033, from main) still called in its
+  cleanup. The Unix-only fixture now sends the same `SIGKILL` to its own group directly, as the
+  other test cleanups do.
+- Change evidence is not bound on this branch: the owner moved the rebind to the w4 batch, which
+  lands this branch together with the other open PRs.
 
-Limits: `make gate`, the full `./...` suite, and the rest of the 235 packages that
+Limits: `make gate`, the full `./...` suite, a complete `cmd/corvint` run, and the rest of the 235 packages that
 `corvint affected` selected are NOT_RUN. Merge-commit conflict resolutions are not bound by a CEM.
