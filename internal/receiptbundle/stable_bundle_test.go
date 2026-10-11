@@ -748,42 +748,61 @@ func TestWriteStableRefusesASwappedBundleDirectory(t *testing.T) {
 
 // CEM-V1-063: a declared file rewritten in place after its own re-read, while
 // another file is re-read, is refused by the final walk's comparison of
-// identity, size and modification time.
+// identity, size, modification time and change time, including when the
+// rewrite keeps the length and restores the modification time.
 func TestReadStableRefusesAFileRewrittenAfterItsReread(t *testing.T) {
 	f := newStableFixture(t)
 	bundle, err := CollectStable(f.mapBytes, f.base, f.target, f.artifacts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := writeStableAt(t, filepath.Join(f.dir, "rewritten"), bundle)
-	calls := map[string]int{}
-	reread, rewritten := "", false
-	stableReadHook = func(name string) {
-		calls[name]++
-		if calls[name] != 2 || rewritten {
-			return
-		}
-		if reread == "" {
-			reread = name // re-read completes before the next hook call
-			return
-		}
-		rewritten = true
-		path := filepath.Join(dir, reread)
-		data, err := os.ReadFile(path)
-		if err == nil {
-			data[0] ^= 1
-			err = os.WriteFile(path, data, 0o600)
-		}
-		if err == nil {
-			later := time.Now().Add(time.Hour)
-			err = os.Chtimes(path, later, later)
-		}
-		if err != nil {
-			t.Error(err)
-		}
-	}
-	defer func() { stableReadHook = nil }()
-	if _, err := ReadStable(dir); stableCode(err) != CodeStableEntryEscaping || !rewritten {
-		t.Fatalf("file rewritten after its re-read: %v (rewritten %v)", err, rewritten)
+	for i, c := range []struct {
+		name    string
+		restore bool // set the original modification time back after the rewrite
+	}{
+		{"modification time moved", false},
+		{"modification time restored", true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := writeStableAt(t, filepath.Join(f.dir, "rewritten", strconv.Itoa(i)), bundle)
+			calls := map[string]int{}
+			reread, rewritten := "", false
+			stableReadHook = func(name string) {
+				calls[name]++
+				if calls[name] != 2 || rewritten {
+					return
+				}
+				if reread == "" {
+					reread = name // its re-read completes before the next hook call
+					return
+				}
+				rewritten = true
+				path := filepath.Join(dir, reread)
+				info, err := os.Stat(path)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				data, err := os.ReadFile(path)
+				if err == nil {
+					data[0] ^= 1
+					err = os.WriteFile(path, data, 0o600)
+				}
+				when := info.ModTime()
+				if !c.restore {
+					when = when.Add(time.Hour)
+				}
+				if err == nil {
+					err = os.Chtimes(path, when, when)
+				}
+				if err != nil {
+					t.Error(err)
+				}
+			}
+			defer func() { stableReadHook = nil }()
+			if _, err := ReadStable(dir); stableCode(err) != CodeStableEntryEscaping || !rewritten {
+				t.Fatalf("file rewritten after its re-read: %v (rewritten %v)", err, rewritten)
+			}
+		})
 	}
 }

@@ -390,12 +390,11 @@ func ReadStable(dir string) (*StableBundle, error) {
 	if len(files) != len(filesAfter) || !maps.EqualFunc(dirs, dirsAfter, os.SameFile) {
 		return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
 	}
-	// Each file must still be the one its re-read saw, with the same size and
-	// modification time, so a file rewritten in place after its re-read is
-	// refused as well.
+	// Each file must still be the one its re-read saw, with the same size,
+	// modification time and inode change time, so a file rewritten in place
+	// after its re-read is refused even when its modification time is restored.
 	for name, after := range filesAfter {
-		seen, ok := reread[name]
-		if !ok || !os.SameFile(seen, after) || seen.Size() != after.Size() || !seen.ModTime().Equal(after.ModTime()) {
+		if seen, ok := reread[name]; !ok || !sameFileState(seen, after) {
 			return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
 		}
 	}
@@ -405,6 +404,15 @@ func ReadStable(dir string) (*StableBundle, error) {
 		return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
 	}
 	return bundle, nil
+}
+
+// sameFileState reports whether two states of a file have the same identity,
+// size, modification time and change time; a missing change time is unequal.
+func sameFileState(a, b os.FileInfo) bool {
+	aChange, aOK := changeTime(a)
+	bChange, bOK := changeTime(b)
+	return os.SameFile(a, b) && a.Size() == b.Size() && a.ModTime().Equal(b.ModTime()) &&
+		aOK && bOK && aChange.Equal(bChange)
 }
 
 // readStableProbe reads the map only to select the export route, with the
