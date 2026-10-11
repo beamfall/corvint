@@ -10,6 +10,24 @@ import (
 
 type forbiddenHelpReader struct{ reads int }
 
+// The supported basis relation table in docs/CHANGE-EVIDENCE-MAP.md governs these values.
+func TestCEMCiteHelpListsRelations(t *testing.T) {
+	reader := &forbiddenHelpReader{}
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"--root", "/definitely/not/a/repository", "cem", "cite", "--help"}, reader, &stdout, &stderr)
+	if code != 0 || stderr.Len() != 0 || reader.reads != 0 {
+		t.Fatalf("exit=%d stderr=%q reads=%d", code, &stderr, reader.reads)
+	}
+	for _, text := range []string{
+		"--relation accepts: call-site, decision, dependency, implementation,\n           incident, specification, test-claim.",
+		"docs/CHANGE-EVIDENCE-MAP.md#supported",
+	} {
+		if !strings.Contains(stdout.String(), text) {
+			t.Fatalf("cem cite help missing %q", text)
+		}
+	}
+}
+
 func TestLanePlanRetired(t *testing.T) {
 	t.Run("WQO-V0-045 retired command is not a WQO alias", func(t *testing.T) {
 		if _, known := publicHelpTopic("lane-plan"); known || strings.Contains(rootHelp, "lane-plan") {
