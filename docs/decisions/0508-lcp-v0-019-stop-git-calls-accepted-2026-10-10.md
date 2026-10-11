@@ -1,7 +1,8 @@
 # Decision 0508 — Dogfood stop reuses immutable facts accepted
 
 Date: 2026-10-10. Status: accepted by the owner. Authority: owner approval in chat, 2026-10-10
-("acceptance is given").
+("acceptance is given"), confirmed by the owner's answer in chat, 2026-10-11 UTC ("Those 8 PRs,
+finish them").
 
 ## Context
 
@@ -14,7 +15,8 @@ changes from "proposed, pending owner acceptance" to "accepted, decision 0508".
 
 ## Limits
 
-The evidence is the tests named in docs/build-log/2026-10-10-v1-1124-stop-git-calls.md. Live qualification and `make gate` are `NOT_RUN`.
+The evidence is the tests named in docs/build-log/2026-10-10-v1-1124-stop-git-calls.md. Live qualification and `make gate` are `NOT_RUN`. This decision is not a standing rule for other
+requirements.
 
 ## Rollback
 
