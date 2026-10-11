@@ -6205,8 +6205,8 @@ and removes the new configuration members.
 | CAL-V0-210 | `TestCALV0074_NoExecCrashTakeover` (`internal/tasks/store`) |
 | CAL-V0-211 | `TestCALV0211_ClaimWarnsOnExactDirectoryKey`, `TestCALV0211_ExactDirectoryKeyWarnings` (`internal/tasks/store`); `TestCALV0211_SetEffectsWarnsOnExactDirectoryKey` (`internal/tasks/cli`) |
 | CAL-V0-214 | `internal/tasks/cli/mutate.go`, `internal/tasks/cli/mutate_batch.go`, shared `internal/tasks/store/directory_keys.go`, both store mutation writer routes; `TestCALV0214_CreateAndRefineWarnOnExactDirectoryKey` (`internal/tasks/cli`), `TestCALV0214_CommittedEffectsStayBoundToTransaction` (`internal/tasks/store`) |
-| CAL-V0-219 | `TestCALV0219_ChangeGuardBoundedDescriptors`, `TestCALV0219_ChangeGuardManyDirectoriesAdmitted` (`internal/tasks/authority`) |
-| CAL-V0-220 | `TestCALV0220_NativeDescriptorBound` (`internal/tasks/journal`) |
+| CAL-V0-219 | `TestCALV0219_ChangeGuardBoundedDescriptors`, `TestCALV0219_ChangeGuardManyDirectoriesAdmitted`, `TestCALV0219_ChangeGuardBudgetIsProcessWide` (`internal/tasks/authority`) |
+| CAL-V0-220 | `TestCALV0220_NativeDescriptorBound`, `TestCALV0220_RevisitedParentReusesPin` (`internal/tasks/journal`) |
 | CAL-V0-221 | `TestCALV0221_CompleteRouteBoundedDescriptors` (`internal/tasks/store`); `docs/build-log/2026-10-10-v1-0906-bounded-fds.md` |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 

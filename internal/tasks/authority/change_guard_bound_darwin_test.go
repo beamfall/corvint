@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 )
 
 func guardFDCount(t *testing.T) int {
@@ -80,5 +82,48 @@ func TestCALV0219_ChangeGuardManyDirectoriesAdmitted(t *testing.T) {
 	}
 	if got := guardFDCount(t); got != before {
 		t.Fatalf("leaked: %d -> %d", before, got)
+	}
+}
+
+// CAL-V0-219: the 16-descriptor file budget is process-wide, not per guard, and
+// closing a guard returns its share to the next one.
+func TestCALV0219_ChangeGuardBudgetIsProcessWide(t *testing.T) {
+	prior := watchedFileDescriptors.Load()
+	repo := func() *intent.Repository {
+		r, file := guardRepo(t)
+		for i := 0; i < 40; i++ {
+			if err := os.WriteFile(filepath.Join(filepath.Dir(file), fmt.Sprintf("%02d", i)), []byte("x"), 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return r
+	}
+	open := func(r *intent.Repository) (*ChangeGuard, *vnodeWatch) {
+		g, err := WatchChanges(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return g, g.watch.(*vnodeWatch)
+	}
+	ra, rb := repo(), repo()
+	a, wa := open(ra)
+	b, wb := open(rb)
+	if total := watchedFileDescriptors.Load(); total > 16 || wa.budgeted+wb.budgeted > 16 || wb.budgeted >= 16 {
+		t.Fatalf("budget per guard: a=%d b=%d total=%d", wa.budgeted, wb.budgeted, total)
+	}
+	if err := a.Close(); err != nil {
+		t.Fatal(err)
+	}
+	c, wc := open(ra)
+	if wc.budgeted == 0 || wc.budgeted+wb.budgeted > 16 {
+		t.Fatalf("released budget not reused: b=%d c=%d", wb.budgeted, wc.budgeted)
+	}
+	for _, g := range []*ChangeGuard{b, c} {
+		if err := g.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := watchedFileDescriptors.Load(); got != prior {
+		t.Fatalf("counter leaked: %d -> %d", prior, got)
 	}
 }
