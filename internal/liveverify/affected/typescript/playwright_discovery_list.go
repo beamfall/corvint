@@ -61,9 +61,9 @@ type playwrightListSuite struct {
 // rewrites it to the repository-relative path the static profile uses. It refuses a listing
 // that reports errors, was filtered or sharded, names another config, or names a test outside
 // root. A (project, file) pair the config selects but the listing omits is accepted only when the
-// project declares grep or grepInvert: it becomes a unit when the static pattern excludes every
-// listed case of that file, or a unit recorded in unverifiedUnits when the pattern is not
-// statically evaluable (TJAA-V0-021). The listing stays caller-declared evidence: the producer
+// project declares grep or grepInvert: it becomes a unit when a static grepInvert matches a title
+// part of every listed case of that file, or a unit also recorded in unverifiedUnits when the
+// exclusion cannot be proven from the listing (TJAA-V0-021). The listing stays caller-declared evidence: the producer
 // cannot prove it was taken from the bytes it binds.
 func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []byte) ([]byte, error) {
 	if !playwrightHex(revision, 40) && !playwrightHex(revision, 64) {

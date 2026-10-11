@@ -7,9 +7,10 @@ import (
 )
 
 // playwrightGrepOmissions holds the selected (project, file) pairs a listing omits that the
-// project's grep or grepInvert accounts for (TJAA-V0-021): explained pairs, which the static pattern
-// excludes for every listed case of the file, and unverified pairs, whose pattern is not statically
-// evaluable.
+// project's grep or grepInvert accounts for (TJAA-V0-021): explained pairs, where a static
+// grepInvert matches a title part of every listed case of the file, and unverified pairs, whose
+// exclusion rests on a pattern that is not statically evaluable, on grep matching no title, or on
+// tags the listing reports only in part.
 type playwrightGrepOmissions struct {
 	explained, unverified []PlaywrightDiscoveryUnit
 }
