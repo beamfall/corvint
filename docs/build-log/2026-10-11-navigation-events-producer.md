@@ -108,13 +108,17 @@ Round 5 (`gpt-6.1-sol`, read-only) found one P2.
   visit, and requires at least one `home` visit. The Node tests cover the withheld routes. The live
   rerun produced files byte-identical to the `live-events` fixtures.
 
-## Review round 6 repair (review cap reached)
+## Review round 6 repair
 
 Round 6 confirmed the round-5 repairs and found one P2. The unparseable-URL fallback also dropped
 the query's `?`. That `?` decides whether observe's hash prefix applies: `http://h/?x=1#!/home?q=%zz`
 resolves `/` from the trace but `/home` from `http://h/#!/home?%`. The fallback now keeps the `?`.
-The new differential cases fail against the round-5 producer and pass with this repair. Round 6
-was the last round under the extended cap, so this repair has not been independently reviewed.
+The new differential cases fail against the round-5 producer and pass with this repair. The
+orchestrator granted one more round: round 7 (`gpt-6.1-sol`, read-only) found no P0–P3 findings and
+passed. It compared 31,389 routes across malformed paths and fragments, `#` and `#!` routes, main-query
+variants and `%3F` without a difference. ANL-V0-037..046 were then accepted under the owner's
+standing auto-accept (2026-10-11). Round 7 did not run the Go tests or a fresh browser run, which
+need filesystem writes; the lane ran both.
 
 ## Overhead
 
