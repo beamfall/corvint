@@ -16,7 +16,7 @@ import (
 )
 
 // LCP-V0-019: the enrolled Stop keeps both repository observations and private
-// policy reads, but lists content and proves ancestry only once.
+// policy reads, but lists content only once.
 func TestEnrolledStopSpawnsBoundedGit(t *testing.T) {
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("no sh for the git shim")
@@ -38,8 +38,8 @@ func TestEnrolledStopSpawnsBoundedGit(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("LCP-V0-019 enrolled Stop Git trace:\n%s", trace)
-	if got := spawns(); got != 21 {
-		t.Fatalf("LCP-V0-019: enrolled Stop spawned %d Git processes, want 21", got)
+	if got := spawns(); got != 22 {
+		t.Fatalf("LCP-V0-019: enrolled Stop spawned %d Git processes, want 22", got)
 	}
 	if !bytes.Contains(stdout.Bytes(), []byte(`"decision":"block"`)) || !bytes.Contains(stdout.Bytes(), []byte(`"lifecycle":"active"`)) {
 		t.Fatalf("enrolled incomplete Stop result changed: %s", stdout.String())
@@ -63,12 +63,12 @@ func TestDogfoodEventObservedMismatchFallsBack(t *testing.T) {
 		name, target, tree string
 		wantCalls          int
 	}{
-		{"match", target, tree, 3},
+		{"match", target, tree, 4},
 		{"target mismatch", tree, tree, 8},
 		{"tree mismatch", target, target, 8},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if got := observed.Matches(test.target, test.tree); got != (test.wantCalls == 3) {
+			if got := observed.Matches(test.target, test.tree); got != (test.wantCalls == 4) {
 				t.Fatalf("Matches = %v", got)
 			}
 			got, err := localEventReevaluate(ctx, root, key, observed, gokernel.Repository{CommitRevision: test.target, TreeRevision: test.tree})

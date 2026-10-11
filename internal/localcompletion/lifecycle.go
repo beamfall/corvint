@@ -166,9 +166,8 @@ func Begin(ctx context.Context, root, key string, raw []byte) (Evaluation, error
 // Observed contains immutable repository facts from a completed evaluation.
 // Its zero value cannot match a repository observation.
 type Observed struct {
-	target, tree, content, base string
-	root, gitDir, commonDir     string
-	baseAncestor                bool
+	target, tree, content   string
+	root, gitDir, commonDir string
 }
 
 // Matches proves that the caller's closing observation names the evaluated content.
@@ -191,7 +190,7 @@ func EvaluateObserved(ctx context.Context, root, key string) (Evaluation, Observ
 // EvaluateAgainst re-reads every private policy input and checks Git status before
 // and after. The caller must first prove observed.Matches against its closing
 // repository observation. An absent or cross-repository observation falls back
-// to full evaluation; a changed plan base gets a fresh ancestry probe.
+// to full evaluation; ancestry is always re-proved.
 func EvaluateAgainst(ctx context.Context, root, key string, observed Observed) (Evaluation, error) {
 	return evaluateRead(ctx, root, key, &observed, nil)
 }
@@ -239,14 +238,9 @@ func (repo *repository) evaluateObserved(ctx context.Context, saved *state, pinn
 	result.Target = snap.target
 	// finish diffs base against HEAD as two trees, so ancestry must still hold
 	// here too: HEAD can move to unrelated history after begin already checked it.
-	if pinned != nil && pinned.base == saved.Plan.Base {
-		if !pinned.baseAncestor {
-			err = errors.New("base-not-ancestor-of-target")
-		}
-	} else {
-		err = repo.requireBaseAncestor(ctx, saved.Plan.Base, snap.target)
-	}
-	baseAncestor := err == nil
+	// Ancestry depends on mutable shallow/graft metadata, so it is re-proved
+	// on every read rather than reused from the observation.
+	err = repo.requireBaseAncestor(ctx, saved.Plan.Base, snap.target)
 	if err != nil {
 		if err.Error() != "base-not-ancestor-of-target" {
 			return result, err
@@ -339,7 +333,6 @@ func (repo *repository) evaluateObserved(ctx context.Context, saved *state, pinn
 	}
 	if observed != nil {
 		*observed = Observed{target: snap.target, tree: snap.tree, content: snap.content,
-			base: saved.Plan.Base, baseAncestor: baseAncestor,
 			root: repo.auth.Root, gitDir: repo.auth.GitDir, commonDir: repo.auth.CommonDir}
 	}
 	return result, nil

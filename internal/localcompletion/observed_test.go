@@ -138,7 +138,7 @@ func TestEvaluateAgainstDirtyAndDrift(t *testing.T) {
 	}
 }
 
-// LCP-V0-019: a different enrollment base requires its own ancestry proof.
+// LCP-V0-019: ancestry is re-proved even when the base is unchanged.
 func TestEvaluateAgainstChangedBase(t *testing.T) {
 	ctx := context.Background()
 	root, key, plan := fixture(t, []string{"true"})
