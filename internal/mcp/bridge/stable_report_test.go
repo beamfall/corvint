@@ -216,8 +216,9 @@ func TestCEMReportToolRefusesArtifactsFor0xMap(t *testing.T) {
 
 // MCPV0-036, CEM-V1-017: the server resolves --root for its 0.x reads, but a
 // cem/1.0 report is admitted against the root exactly as the caller named it,
-// so a symlinked alias reproduces `cem verify-stable --repository <alias>`
-// instead of passing admission through the resolved root.
+// byte for byte: each accepted spelling (the real root and a symlinked alias)
+// reproduces `cem verify-stable --repository <same string>`, and the server
+// refuses every unclean or relative spelling at start.
 func TestCEMReportToolAdmitsTheCallerNamedRoot(t *testing.T) {
 	if runtimeUnsupported() {
 		t.Skip("CEM Git reads are qualified only on Darwin and Linux")
@@ -255,20 +256,14 @@ func TestCEMReportToolAdmitsTheCallerNamedRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := strings.TrimSpace(string(gitOutput(t, root, "rev-parse", "HEAD")))
-	// The server never cleans the caller's root: an unclean or relative
-	// --root is refused at start, so no form reaches admission differently
-	// from `cem verify-stable --repository <same string>`.
-	for _, unclean := range []string{alias + "/../" + filepath.Base(alias), alias + "/", alias + "/.", "relative/repo", "./repo"} {
-		if registry, newErr := NewTaskReview(unclean); newErr == nil || newErr.Code != "invalid-root" {
-			t.Fatalf("--root %q = %v %v, want invalid-root", unclean, registry, newErr)
+	// The server judges --root byte for byte and accepts only an absolute,
+	// clean root: every other S1 spelling is refused at start, so no form
+	// reaches admission differently from `cem verify-stable --repository
+	// <same string>`.
+	for _, refused := range []string{alias + "/../" + filepath.Base(root), root + "/", "./" + filepath.Base(root), filepath.Base(root), "./alias"} {
+		if registry, newErr := NewTaskReview(refused); newErr == nil || newErr.Code != "invalid-root" {
+			t.Fatalf("--root %q = %v %v, want invalid-root", refused, registry, newErr)
 		}
-	}
-	registry, newErr := NewTaskReview(alias)
-	if newErr != nil {
-		t.Fatal(newErr)
-	}
-	if registry.root != root || registry.callerRoot != alias {
-		t.Fatalf("registry root = %q caller %q, want the resolved %q and the caller's %q", registry.root, registry.callerRoot, root, alias)
 	}
 	stable := func(repository string) any {
 		result, _ := verify.Stable(context.Background(), data, verify.StableOptions{
@@ -281,20 +276,28 @@ func TestCEMReportToolAdmitsTheCallerNamedRoot(t *testing.T) {
 		}
 		return value
 	}
-	viaAlias, viaRoot := stable(alias), stable(root)
-	if reflect.DeepEqual(viaAlias, viaRoot) {
-		t.Fatalf("fixture does not discriminate the alias: %v", viaAlias)
+	if reflect.DeepEqual(stable(alias), stable(root)) {
+		t.Fatalf("fixture does not discriminate the alias: %v", stable(alias))
 	}
-	result, callErr := registry.Call(context.Background(), ToolCEMReport, []byte(`{"map":"change.cem.json","artifacts":"artifacts","expectedBase":"`+base+`","target":"`+base+`"}`))
-	if callErr != nil {
-		t.Fatal(callErr)
-	}
-	encoded, _ := json.Marshal(result.Receipt["stableVerification"])
-	var got any
-	if err := json.Unmarshal(encoded, &got); err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(got, viaAlias) {
-		t.Fatalf("report through the alias = %v\nwant verify-stable --repository <alias> = %v", got, viaAlias)
+	for _, accepted := range []string{root, alias} {
+		registry, newErr := NewTaskReview(accepted)
+		if newErr != nil {
+			t.Fatal(newErr)
+		}
+		if registry.root != root || registry.callerRoot != accepted {
+			t.Fatalf("registry root = %q caller %q, want the resolved %q and the caller's %q", registry.root, registry.callerRoot, root, accepted)
+		}
+		result, callErr := registry.Call(context.Background(), ToolCEMReport, []byte(`{"map":"change.cem.json","artifacts":"artifacts","expectedBase":"`+base+`","target":"`+base+`"}`))
+		if callErr != nil {
+			t.Fatal(callErr)
+		}
+		encoded, _ := json.Marshal(result.Receipt["stableVerification"])
+		var got any
+		if err := json.Unmarshal(encoded, &got); err != nil {
+			t.Fatal(err)
+		}
+		if want := stable(accepted); !reflect.DeepEqual(got, want) {
+			t.Fatalf("report through --root %s = %v\nwant verify-stable --repository %s = %v", accepted, got, accepted, want)
+		}
 	}
 }

@@ -341,9 +341,9 @@ func RunWithOCM(ctx context.Context, root string, arguments []string, stdout, st
 
 // RunWithCallerRoot is RunWithOCM for an entry point that normalized the root
 // it was given. Every 0.x command reads root; a cem/1.0 status or verify passes
-// callerRoot, the absolute root exactly as the caller named it, to stable
-// admission, which refuses a symlinked root as `cem verify-stable` does
-// (CEM-V1-017).
+// callerRoot, the root byte for byte as the caller named it, to stable
+// admission, which judges it exactly as `cem verify-stable --repository` judges
+// the same string (CEM-V1-017).
 func RunWithCallerRoot(ctx context.Context, root, callerRoot string, arguments []string, stdout, stderr io.Writer, reader workflow.ReviewOCMReader) int {
 	envelope, err := dispatchCEMWithOCM(ctx, root, callerRoot, arguments, reader)
 	if err != nil {

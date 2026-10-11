@@ -30,11 +30,11 @@ func (v StableVerification) MarshalJSON() ([]byte, error) {
 // the 0.x ready-for-ci, invalid or incomplete states (CEM-V1-017).
 var stableStates = map[string]string{"ACCEPT": "accepted", "REJECT": "rejected", "UNSUPPORTED": "unsupported"}
 
-// SetStableRepository records the absolute repository root exactly as the
-// caller named it, before any entry-point symlink resolution of the session
-// root. Only a stable read uses it: stable admission refuses a symlinked root
-// or ancestor, so it must judge the caller's path, never a resolved one
-// (CEM-V1-017). An empty path keeps the session root.
+// SetStableRepository records the repository root byte for byte as the caller
+// named it, before any entry-point tilde expansion, absolutization, cleaning or
+// symlink resolution of the session root. Only a stable read uses it: it must
+// judge the caller's path exactly as `cem verify-stable --repository` judges the
+// same string (CEM-V1-017). An empty path keeps the session root.
 func (s *Session) SetStableRepository(path string) { s.stableRepository = path }
 
 // stableRefusal marks a refusal Core issues for an exact cem/1.0 map before the
@@ -76,10 +76,19 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	if repository == "" {
 		repository = s.root
 	}
-	result, exit := verify.Stable(ctx, raw, verify.StableOptions{
+	stableOptions := verify.StableOptions{
 		Repository: repository, ExpectedBase: options.ExpectedBase,
 		Target: options.Target, ArtifactRoot: options.ArtifactRoot,
-	})
+	}
+	var result verify.StableResult
+	var exit int
+	if filepath.IsAbs(repository) {
+		result, exit = verify.Stable(ctx, raw, stableOptions)
+	} else {
+		// `cem verify-stable` refuses a relative --repository before it reads the map.
+		result = verify.NewStableResult(stableOptions)
+		exit = result.Refuse("arguments", "invalid-arguments", false)
+	}
 	envelope := map[string]any{
 		"ok": exit == 0, "mutates": false, "tool": "cem-" + action,
 		"stableVerification": StableVerification{Result: result, Exit: exit},

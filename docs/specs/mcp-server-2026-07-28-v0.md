@@ -513,7 +513,7 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
   argument under the same closed repository-relative path rule as `map`, resolved under the root
   exactly as the caller named it at start and passed to the CEM read as its artifact root. A
   `cem/1.0` map is admitted against that caller-named root, never the symlink-resolved root the
-  0.x reads use, so a symlinked `--root` is refused as `cem verify-stable --repository` refuses it. A canonical `cem/0.2` or `cem/0.3`
+  0.x reads use, byte for byte, so a symlinked `--root` is refused as `cem verify-stable --repository` refuses it. The server accepts only an absolute, clean `--root`; every other spelling is refused at start as `invalid-root`. A canonical `cem/0.2` or `cem/0.3`
   map given `artifacts` fails as `cem-map-unsupported`. A `cem/1.0` map yields a READY receipt whose
   `stableVerification` is the stable verifier's complete result for the same map, revisions and
   artifact root, unchanged, with the `cem/1.0` review Markdown and `recordSetSha256`; it never carries

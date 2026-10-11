@@ -150,42 +150,54 @@ func runCEMStableEntry(t *testing.T, args ...string) (int, map[string]any) {
 	return code, document
 }
 
-// CEM-V1-017: stable admission receives the root exactly as the caller named
-// it. Through a symlinked alias, Core status and verify reproduce
-// `cem verify-stable --repository <alias>` (complete result and exit); through
-// the real root both pass admission. Parsing the argv resolves the alias for
-// 0.x reads only.
+// CEM-V1-017: stable admission judges the --root value byte for byte, as
+// `cem verify-stable --repository` judges the same string. For every spelling of
+// the root (absolute or relative, clean or not, through the alias or the real
+// directory) Core status and verify reproduce verify-stable's complete result
+// and exit. Parsing the argv resolves the root for 0.x reads only.
 func TestCEMStableReadKeepsCallerRoot(t *testing.T) {
 	f := materializeCEMStableRoot(t)
-	stages := map[string]any{}
-	for _, root := range []string{f.repo, f.alias} {
-		wantExit, want := runCEMStableEntry(t, "cem", "verify-stable", "--repository", root,
+	t.Chdir(filepath.Dir(f.repo))
+	for _, c := range []struct{ root, stage string }{
+		{f.repo, ""},
+		{f.alias, "repository"},
+		{f.alias + "/../repo", "repository"},
+		{f.repo + "/", "repository"},
+		{"./repo", "arguments"},
+		{"repo", "arguments"},
+		{"./alias", "arguments"},
+	} {
+		wantExit, want := runCEMStableEntry(t, "cem", "verify-stable", "--repository", c.root,
 			"--map", filepath.Join(f.repo, "change.cem.json"), "--expected-base", f.expectedBase,
 			"--target", f.target, "--artifacts", f.artifacts)
-		stages[root] = want["stage"]
+		stage, _ := want["stage"].(string)
+		if c.stage != stage && (c.stage != "" || stage == "arguments" || stage == "repository" || stage == "runtime") {
+			t.Fatalf("fixture does not discriminate %q: verify-stable stage %q, want %q", c.root, stage, c.stage)
+		}
 		for _, action := range []string{"verify", "status"} {
-			exit, envelope := runCEMStableEntry(t, "--root", root, "cem", action, "--map", "change.cem.json",
+			exit, envelope := runCEMStableEntry(t, "--root", c.root, "cem", action, "--map", "change.cem.json",
 				"--expected-base", f.expectedBase, "--target", f.target, "--artifacts", f.artifacts)
 			if exit != wantExit || !reflect.DeepEqual(envelope["stableVerification"], want) {
 				t.Errorf("--root %s cem %s = exit %d %v\nverify-stable --repository %s = exit %d %v",
-					root, action, exit, envelope["stableVerification"], root, wantExit, want)
+					c.root, action, exit, envelope["stableVerification"], c.root, wantExit, want)
 			}
 		}
 	}
-	if stages[f.alias] != "repository" || stages[f.repo] == "repository" || stages[f.repo] == "runtime" {
-		t.Fatalf("fixture does not discriminate the alias: real root stage %v, alias stage %v", stages[f.repo], stages[f.alias])
-	}
 }
 
-// CEM-V1-019: a 0.x read through the same alias keeps Core's symlink-resolved
-// root, so its output bytes are unchanged by the stable caller-root route.
+// CEM-V1-019: a 0.x read through the same root spellings keeps Core's
+// tilde-expanded, absolute, cleaned and symlink-resolved root, so its output
+// bytes are unchanged by the stable caller-root route.
 func TestCEMLegacyReadKeepsResolvedRoot(t *testing.T) {
 	f := materializeCEMStableRoot(t)
+	t.Chdir(filepath.Dir(f.repo))
 	cemWrite(t, f.repo, "legacy.cem.json", `{"spec":"cem/0.2","baseRevision":"`+f.expectedBase+`",`+
 		`"patchSha256":"`+strings.Repeat("0", 64)+`","excludedPath":".corvint/change.cem.json","evidence":[],"hunks":[]}`)
-	exit, envelope := runCEMStableEntry(t, "--root", f.alias, "cem", "status", "--map", "legacy.cem.json",
-		"--expected-base", f.expectedBase, "--target", f.target)
-	if exit != 1 || envelope["map"] != filepath.Join(f.repo, "legacy.cem.json") || envelope["state"] != "invalid" {
-		t.Fatalf("0.x status through the alias = exit %d map %v state %v", exit, envelope["map"], envelope["state"])
+	for _, root := range []string{f.alias, f.alias + "/../repo", f.repo + "/", "./alias", "repo"} {
+		exit, envelope := runCEMStableEntry(t, "--root", root, "cem", "status", "--map", "legacy.cem.json",
+			"--expected-base", f.expectedBase, "--target", f.target)
+		if exit != 1 || envelope["map"] != filepath.Join(f.repo, "legacy.cem.json") || envelope["state"] != "invalid" {
+			t.Errorf("0.x status through --root %s = exit %d map %v state %v", root, exit, envelope["map"], envelope["state"])
+		}
 	}
 }

@@ -1418,8 +1418,10 @@ func emitContextPayload(stdout, stderr io.Writer, tool string, contextReceipt ma
 	return 0
 }
 
-// parseCEMInvocation detects `[--root PATH] cem ...`. root is symlink-resolved for 0.x
-// reads; callerRoot is only lexical, as stable admission must judge it (CEM-V1-017).
+// parseCEMInvocation detects `[--root PATH] cem ...`. root is normalized and
+// symlink-resolved for 0.x reads. callerRoot is the --root value byte for byte
+// (else the working directory): stable admission judges it exactly as
+// `cem verify-stable --repository` judges the same string (CEM-V1-017).
 func parseCEMInvocation(arguments []string) (root, callerRoot string, rest []string, isCEM bool, err error) {
 	index := 0
 	for index < len(arguments) && (arguments[index] == "--root" || strings.HasPrefix(arguments[index], "--root=")) {
@@ -1446,9 +1448,7 @@ func parseCEMInvocation(arguments []string) (root, callerRoot string, rest []str
 		}
 		return workingDirectory, workingDirectory, arguments[index+1:], true, nil
 	}
-	if callerRoot, err = normalizeQueryRoot(root); err != nil {
-		return "", "", nil, true, err
-	}
+	callerRoot = root
 	if root, err = normalizeRoot(root); err != nil {
 		return "", "", nil, true, err
 	}
