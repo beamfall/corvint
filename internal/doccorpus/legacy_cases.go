@@ -446,12 +446,10 @@ func parseTestRailJSON(data []byte) ([]legacyCase, error) {
 		}
 		if hasSuite {
 			name, ok := suites[suiteID]
-			if !ok && len(export.Suites) > 0 {
+			if !ok {
 				return nil, fail("legacy case " + id + " names an unknown suite")
 			}
-			if ok {
-				names = append([]string{name}, names...)
-			}
+			names = append([]string{name}, names...)
 		}
 		steps := []LegacyCaseStep{}
 		if raw.Steps != "" || raw.Expected != "" {
@@ -607,6 +605,8 @@ func normalizeLegacyCase(id, title string, path []string, preconditions string, 
 
 // stripLegacyHTML removes tags, comments and script/style bodies, decodes
 // entities and collapses whitespace. A `<` that does not open a tag is text.
+// A tag ends at the first `>` outside a quoted attribute value; an
+// unterminated tag, comment or script/style body drops the rest of the text.
 func stripLegacyHTML(s string) string {
 	var b strings.Builder
 	lower := strings.ToLower(s)
@@ -625,23 +625,46 @@ func stripLegacyHTML(s string) string {
 			b.WriteByte(' ')
 			continue
 		}
-		end := strings.IndexByte(s[i:], '>')
+		end := tagEnd(s[i:])
 		if end < 0 {
 			break
 		}
 		for _, raw := range []string{"script", "style"} {
 			if strings.HasPrefix(lower[i+1:], raw) {
-				if close := strings.Index(lower[i:], "</"+raw); close >= 0 {
-					if stop := strings.IndexByte(s[i+close:], '>'); stop >= 0 {
-						end = close + stop
-					}
+				close := strings.Index(lower[i+end:], "</"+raw)
+				if close < 0 {
+					return collapseSpace(html.UnescapeString(b.String()))
 				}
+				stop := tagEnd(s[i+end+close:])
+				if stop < 0 {
+					return collapseSpace(html.UnescapeString(b.String()))
+				}
+				end += close + stop
 			}
 		}
 		i += end + 1
 		b.WriteByte(' ')
 	}
 	return collapseSpace(html.UnescapeString(b.String()))
+}
+
+// tagEnd is the offset of the `>` that closes the tag opening s, skipping
+// quoted attribute values, or -1 when the tag is unterminated.
+func tagEnd(s string) int {
+	var quote byte
+	for i := 1; i < len(s); i++ {
+		switch c := s[i]; {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			}
+		case c == '"' || c == '\'':
+			quote = c
+		case c == '>':
+			return i
+		}
+	}
+	return -1
 }
 
 func collapseSpace(s string) string { return strings.Join(strings.Fields(s), " ") }

@@ -3,8 +3,8 @@ package cli
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
-	"os"
 	"path"
 
 	"github.com/Beamfall/corvint/internal/tasks/obligation"
@@ -108,10 +108,14 @@ func sourceReviewValue(env Env, l *ticket.ObligationLedger, casesFile string) (w
 // Git can be asked for.
 func legacySpecPath(p string) bool { return repoRelative(p) && path.Clean(p) == p }
 
-// readBoundedFile reads at most max bytes of the file a flag names,
-// refusing a larger or unreadable one.
+// readBoundedFile reads at most max bytes of the regular file a flag names,
+// refusing a larger or unreadable one. A symlink, FIFO, device or directory
+// is refused before it is opened, and the open never blocks (openRegular).
 func readBoundedFile(flag, file string, max int) ([]byte, error) {
-	f, err := os.Open(file)
+	f, _, err := openRegular(file)
+	if errors.Is(err, errNotRegular) {
+		return nil, wire.Errorf(wire.CodeMalformed, flag, "the %s file is not a regular file", flag)
+	}
 	if err != nil {
 		return nil, wire.Errorf(wire.CodeMissingEvidence, flag, "the %s file is unreadable", flag)
 	}

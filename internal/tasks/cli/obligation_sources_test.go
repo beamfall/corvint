@@ -198,9 +198,19 @@ func TestTOLV0042_StaleSourcesListed(t *testing.T) {
 	if !fixture.SameTree(state, fixture.TreeSnapshot(t, r.StateDir)) {
 		t.Fatal("show or plan wrote state")
 	}
-	bad := filepath.Join(t.TempDir(), "bad.json")
-	fixture.Write(t, bad, []byte(`{"schema":"corvint-legacy-cases/0","cases":[]}`))
-	if x := atm(t, r.Root, nil, "ticket", "obligations", "show", "--target", id, "--legacy-cases", bad); x.res.Outcome == wire.OutcomeOK {
-		t.Fatalf("another schema accepted: %s", x.stdout)
+	// Another schema, trailing data after the record and a repeated member
+	// are each refused rather than read one way (TOL-V0-043).
+	b64 := strings.Repeat("b", 64)
+	for name, raw := range map[string]string{
+		"another schema":  `{"schema":"corvint-legacy-cases/0","cases":[]}`,
+		"trailing data":   `{"schema":"corvint-legacy-cases/1","cases":[]} {"schema":"x"}`,
+		"repeated digest": `{"schema":"corvint-legacy-cases/1","cases":[{"legacy":{"id":"C7"},"digest":"` + b64 + `","digest":"` + digestA + `"}]}`,
+		"repeated schema": `{"schema":"corvint-legacy-cases/1","schema":"corvint-legacy-cases/1","cases":[]}`,
+	} {
+		bad := filepath.Join(t.TempDir(), "bad.json")
+		fixture.Write(t, bad, []byte(raw))
+		if x := atm(t, r.Root, nil, "ticket", "obligations", "show", "--target", id, "--legacy-cases", bad); x.res.Outcome == wire.OutcomeOK {
+			t.Fatalf("%s accepted: %s", name, x.stdout)
+		}
 	}
 }

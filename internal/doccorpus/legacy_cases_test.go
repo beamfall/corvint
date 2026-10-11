@@ -125,8 +125,18 @@ func TestImportLegacyCasesFullStripsHTML(t *testing.T) {
 	if bytes.Contains(data, []byte("alert")) || bytes.Contains(data, []byte("<")) && bytes.Contains(data, []byte("<li>")) {
 		t.Fatalf("HTML survived: %s", data)
 	}
-	if got := stripLegacyHTML("a < b &amp;&amp; <!-- note --> c<br/>d"); got != "a < b && c d" {
-		t.Fatalf("strip: %q", got)
+	for in, want := range map[string]string{
+		"a < b &amp;&amp; <!-- note --> c<br/>d":       "a < b && c d",
+		`<a title="x > y" data-q='1>2'>Click</a> here`: "Click here",
+		"keep <script>LEAK":                            "keep",
+		"keep <STYLE type=\"text/css\">LEAK</style":    "keep",
+		"a<script>x = '</b>'</script>b":                "a b",
+		"keep <b title=\"unterminated>LEAK":            "keep",
+		"open <!-- LEAK":                               "open",
+	} {
+		if got := stripLegacyHTML(in); got != want {
+			t.Errorf("strip %q: %q, want %q", in, got, want)
+		}
 	}
 }
 
@@ -221,18 +231,19 @@ func TestSearchLegacyCasesReceipt(t *testing.T) {
 // bad options are named refusals.
 func TestLegacyCasesRefusals(t *testing.T) {
 	for name, tc := range map[string]struct{ format, content, data, query string }{
-		"format":          {"xlsx", "", legacyCSVFixture, ""},
-		"content":         {LegacyFormatCSV, "steps", legacyCSVFixture, ""},
-		"not json":        {LegacyFormatTestRailJSON, "", "[]", ""},
-		"unknown section": {LegacyFormatTestRailJSON, "", `{"suites":[],"sections":[],"cases":[{"id":1,"title":"x","section_id":9}]}`, ""},
-		"unknown suite":   {LegacyFormatTestRailJSON, "", `{"suites":[{"id":1,"name":"s"}],"sections":[],"cases":[{"id":1,"title":"x","suite_id":2}]}`, ""},
-		"cycle":           {LegacyFormatTestRailJSON, "", `{"sections":[{"id":1,"suite_id":0,"parent_id":2,"name":"a"},{"id":2,"suite_id":0,"parent_id":1,"name":"b"}],"cases":[{"id":1,"title":"x","section_id":1}]}`, ""},
-		"duplicate id":    {LegacyFormatCSV, "", "ID,Title\nC1,a\n1,b\n", ""},
-		"bad id":          {LegacyFormatCSV, "", "ID,Title\nC01,a\n", ""},
-		"no title":        {LegacyFormatCSV, "", "ID,Title\nC1, \n", ""},
-		"no columns":      {LegacyFormatCSV, "", "Name\nx\n", ""},
-		"empty":           {LegacyFormatCSV, "", "ID,Title\n", ""},
-		"empty query":     {LegacyFormatCSV, "", legacyCSVFixture, " - "},
+		"format":           {"xlsx", "", legacyCSVFixture, ""},
+		"content":          {LegacyFormatCSV, "steps", legacyCSVFixture, ""},
+		"not json":         {LegacyFormatTestRailJSON, "", "[]", ""},
+		"unknown section":  {LegacyFormatTestRailJSON, "", `{"suites":[],"sections":[],"cases":[{"id":1,"title":"x","section_id":9}]}`, ""},
+		"unknown suite":    {LegacyFormatTestRailJSON, "", `{"suites":[{"id":1,"name":"s"}],"sections":[],"cases":[{"id":1,"title":"x","suite_id":2}]}`, ""},
+		"suite, no suites": {LegacyFormatTestRailJSON, "", `{"suites":[],"sections":[],"cases":[{"id":1,"title":"x","suite_id":9}]}`, ""},
+		"cycle":            {LegacyFormatTestRailJSON, "", `{"sections":[{"id":1,"suite_id":0,"parent_id":2,"name":"a"},{"id":2,"suite_id":0,"parent_id":1,"name":"b"}],"cases":[{"id":1,"title":"x","section_id":1}]}`, ""},
+		"duplicate id":     {LegacyFormatCSV, "", "ID,Title\nC1,a\n1,b\n", ""},
+		"bad id":           {LegacyFormatCSV, "", "ID,Title\nC01,a\n", ""},
+		"no title":         {LegacyFormatCSV, "", "ID,Title\nC1, \n", ""},
+		"no columns":       {LegacyFormatCSV, "", "Name\nx\n", ""},
+		"empty":            {LegacyFormatCSV, "", "ID,Title\n", ""},
+		"empty query":      {LegacyFormatCSV, "", legacyCSVFixture, " - "},
 	} {
 		t.Run(name, func(t *testing.T) {
 			var err error

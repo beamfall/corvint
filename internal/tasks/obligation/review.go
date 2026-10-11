@@ -1,8 +1,7 @@
 package obligation
 
 import (
-	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"regexp"
 	"sort"
 
@@ -70,7 +69,8 @@ var lowerHex64 = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 // ReadLegacyCaseDigests reads the case ID to case digest map of a
 // corvint-legacy-cases/1 record (TOL-V0-043). It reads only schema,
-// cases[].legacy.id and cases[].digest, and refuses another schema, a
+// cases[].legacy.id and cases[].digest, and refuses a document that is not
+// exactly one JSON value, a repeated object member, another schema, a
 // missing or malformed digest, and a repeated case ID.
 func ReadLegacyCaseDigests(raw []byte) (map[string]string, error) {
 	if len(raw) > MaxLegacyCasesBytes {
@@ -85,9 +85,9 @@ func ReadLegacyCaseDigests(raw []byte) (map[string]string, error) {
 			Digest string `json:"digest"`
 		} `json:"cases"`
 	}
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	if err := dec.Decode(&doc); err != nil {
-		return nil, wire.Errorf(wire.CodeMalformed, "--legacy-cases", "the legacy-cases record is not JSON")
+	// json/v2 refuses duplicate member names and trailing data by default.
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, wire.Errorf(wire.CodeMalformed, "--legacy-cases", "the legacy-cases record is not one JSON document without repeated members")
 	}
 	if doc.Schema != LegacyCasesSchema {
 		return nil, wire.Errorf(wire.CodeMalformed, "/schema", "the legacy-cases record is not %s", LegacyCasesSchema)
