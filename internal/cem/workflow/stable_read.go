@@ -28,6 +28,13 @@ func (v StableVerification) MarshalJSON() ([]byte, error) {
 // the 0.x ready-for-ci, invalid or incomplete states (CEM-V1-017).
 var stableStates = map[string]string{"ACCEPT": "accepted", "REJECT": "rejected", "UNSUPPORTED": "unsupported"}
 
+// SetStableRepository records the absolute repository root exactly as the
+// caller named it, before any entry-point symlink resolution of the session
+// root. Only a stable read uses it: stable admission refuses a symlinked root
+// or ancestor, so it must judge the caller's path, never a resolved one
+// (CEM-V1-017). An empty path keeps the session root.
+func (s *Session) SetStableRepository(path string) { s.stableRepository = path }
+
 // readStable runs a Core status or verify over an exact cem/1.0 map through the
 // stable verifier. Core adds no 0.x verification, counts or worklist and opens
 // no repository first: the verifier performs its own metadata admission before
@@ -42,8 +49,12 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	if options.Limits.MaxUnknown != nil || options.Limits.MaxMechanical != nil {
 		return nil, invalidArguments("%s %s does not accept policy ceilings", wire.StableSpec, action)
 	}
+	repository := s.stableRepository
+	if repository == "" {
+		repository = s.root
+	}
 	result, exit := verify.Stable(ctx, raw, verify.StableOptions{
-		Repository: s.root, ExpectedBase: options.ExpectedBase,
+		Repository: repository, ExpectedBase: options.ExpectedBase,
 		Target: options.Target, ArtifactRoot: options.ArtifactRoot,
 	})
 	envelope := map[string]any{

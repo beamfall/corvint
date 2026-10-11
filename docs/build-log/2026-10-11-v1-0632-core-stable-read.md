@@ -46,8 +46,10 @@ build log.
   - When the 0.x parser refuses an exact stable root, `readStable` handles status and verify.
   - It refuses report and report preview with `unsupported-spec`.
   - It refuses `--patch` and policy ceilings with `invalid-arguments`.
-  - It calls `verify.Stable` on the session root with no Core `openRepository`, because
-    the stable admission forbids any configuration pre-read.
+  - It calls `verify.Stable` with no Core `openRepository`, because the stable
+    admission forbids any configuration pre-read.
+  - `verify.Stable` gets the repository root exactly as the caller named it, not the
+    session root. See the review repair below.
   - It embeds the complete result as `stableVerification`.
   - Status adds `map` and `state`, which is `accepted`, `rejected` or `unsupported`.
     The read never produces 0.x verification, counts, worklist, policy issues or
@@ -57,6 +59,21 @@ build log.
 - `cem status` and `cem verify` accept `--artifacts`. `RunWithOCM` exits with the
   verifier's own code: 0 for ACCEPT, 1 for REJECT, 2 for a refusal.
 - The read is hidden: `cmd/corvint` help and receipts are unchanged.
+- Review repair (Codex review of `5871c380a`, P2):
+  - The bug: `parseCEMInvocation` resolved `--root` symlinks with `normalizeRoot`
+    before the session opened. `--root <symlinked alias> cem status|verify` could
+    therefore pass stable admission and ACCEPT. Over the same alias, `cem verify-stable
+    --repository` refuses with `repository-object-unavailable` and exit 2, as
+    `REPOSITORY-ENVELOPE.md` requires.
+  - The fix: `parseCEMInvocation` now also returns the root as the caller named it,
+    with only the existing lexical `--root` phase `normalizeQueryRoot` (tilde
+    expansion and `filepath.Abs`) applied. The edit is line-neutral in `main.go`, so
+    no spec line citation moves.
+  - `cemcli.RunWithCallerRoot` gives that root to the session with
+    `Session.SetStableRepository`, and `readStable` admits it. `RunWithOCM` keeps its
+    signature and passes the same root for both.
+  - Every 0.x command still reads the symlink-resolved root.
+  - `CEM-V1-017` and `CEM-V1-019` now state this, and two traceability rows were added.
 
 ## Evidence
 
@@ -94,6 +111,18 @@ build log.
       `TestCEM|TestRootHelp|TestHelp|TestStable`. They include
       `TestCEMSeamsDependOnlyOnStdlibAndGit`, `TestCEMHelpSurfaces` and
       `TestCEMEndToEndAndGoldenEnvelope`.
+- Review repair, through the real `runContext` argv entry:
+  - Fixture: the public packet repository, a symlinked alias, and the sealed positive
+    without its structural mechanical hunk. That variant reaches repository admission
+    on any Go release.
+  - `TestCEMStableReadKeepsCallerRoot` failed on `5871c380a` under Go 1.27.2.
+    Through the alias, Core gave REJECT with exit 1, while `verify-stable` gave the
+    stage-`repository` refusal with exit 2.
+  - After the repair it passes on Go 1.27.2 and Go 1.27.1. Core status and verify
+    equal `verify-stable` on all fields and the exit for both the alias and the real
+    root, and only the real root passes admission.
+  - The guard `TestCEMLegacyReadKeepsResolvedRoot` passes before and after. A 0.x
+    status through the alias still reports the resolved map path.
 - Doc gates pass with `rc=0`: `spec-requirements`, `requirement-definitions`,
   `traceability-tests`, `decision-numbers`, `line-citations`, `unbounded-readers`,
   `use-case-receipts` (18 current) and `go-format`.
@@ -111,7 +140,8 @@ build log.
   - Linux and Go 1.24.13 runs of the new tests. The tests compare against
     `verify-stable`, so they hold on any runtime, but ACCEPT and REJECT are asserted
     only on the Go release named by the public case.
-  - Independent review.
+  - A second independent review of the repair. The first, a Codex review, found the
+    P2 repaired here.
   - The dogfood CEM bind and seal, which are left to the integrating lane.
 - The MCP projection of the stable refusal is still `cem-map-invalid` until S2.
   Report and markdown have no stable rendering yet.
