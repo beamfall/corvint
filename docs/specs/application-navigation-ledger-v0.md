@@ -170,7 +170,10 @@ are URL templates, not component source files. This slice makes neither missing 
   stored as `effect` on the edge. A call on a page-object instance (`NAME = new CLASS(` or
   `NAME: TYPE = new CLASS(`, CLASS imported from a test file; a name bound to two files, or
   assigned, member-assigned or destructured anywhere else in the spec, is not followed) reads that
-  file's one class member of that name, following `this.m()` calls up to 8 deep. The step is `state-effect` when any call fills, types, presses, checks, selects, uploads,
+  file's one class member of that name, following `this.m()` calls up to 8 deep. Constructing a
+  page-object class, in the step or at either construction that bounds it, reads everything the
+  construction runs: that file's tokens outside its recognized non-constructor methods. A page
+  object may assign its own fields (`this.NAME = ...`) when NAME is not one of its members. The step is `state-effect` when any call fills, types, presses, checks, selects, uploads,
   clears, drags or submits; issues a request (`fetch(`, or an HTTP verb on a `request` receiver);
   or writes storage or cookies (`setItem`, `removeItem`, `addCookies`, `clearCookies`). Otherwise
   it is `unknown` when any call is not provable: a navigation, wait, read or click whose receiver is
@@ -180,7 +183,8 @@ are URL templates, not component source files. This slice makes neither missing 
   (optionally narrowed by `first`, `last` or `nth`), `evaluate`, `route`,
   any unlisted method or bare helper (on `JSON`, `Math`, `Number`, `String`, `Object`, `Array`,
   `Promise`, `Date` and `console` only listed non-mutating members are admitted), a computed,
-  optional, chained, generic (`f<T>(`) or tagged-template invocation or receiver, an assignment,
+  optional, non-null asserted (`f!(`), chained, generic (`f<T>(`) or tagged-template invocation or
+  receiver, an assignment,
   increment or decrement of a member, `delete`, a missing, duplicated or recursive member, a
   template substitution that may call, assign, update or delete, or source the lexer cannot bound.
   Otherwise it is `navigation-only`: navigation (`goto`, `reload`, `goBack`, `goForward`), waits,

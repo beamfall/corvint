@@ -55,6 +55,18 @@ export class TeeSheetPage {
 }
 `
 
+// effectResetPage's constructor issues a request: constructing it is a state effect.
+const effectResetPage = `import { Page } from '@playwright/test';
+
+export class ResetWorkflow {
+  readonly ready: Promise<unknown>;
+
+  constructor(private readonly page: Page) {
+    this.ready = page.request.post('/api/reset');
+  }
+}
+`
+
 func effectSpec(step string) string {
 	return "import { test, expect } from '@playwright/test';\nimport { HomePage } from '../pages/home.page';\nimport { TeeSheetPage } from '../pages/teesheet.page';\n\n" +
 		"test('steps', async ({ page, request }) => {\n  const home = new HomePage(page);\n  " + step + "\n  const sheet: TeeSheetPage = new TeeSheetPage(page);\n  await sheet.backHome();\n  const again = new HomePage(page);\n});\n"
@@ -110,12 +122,18 @@ func TestANLV0035StepEffects(t *testing.T) {
 		"otherroot": {"await api.goto('/x');", EffectUnknown, "e2e/specs/otherroot.spec.ts:7", "goto"},
 		"rebound":   {"page = other; await page.goto('/x');", EffectUnknown, "e2e/specs/rebound.spec.ts:7", "goto"},
 		"role":      {"await page.getByRole('link' && 'button').click();", EffectUnknown, "e2e/specs/role.spec.ts:7", "click"},
+		"nonnull":   {"await home.search!('x');", EffectUnknown, "e2e/specs/nonnull.spec.ts:7", "computed-call"},
+		"bang":      {"await helper!();", EffectUnknown, "e2e/specs/bang.spec.ts:7", "computed-call"},
 		"query":     {"await page.goto(`/x/${slug}?tab=a`);", EffectNavigation, "", ""},
 		"pure":      {"await Promise.all([home.openSheets()]); JSON.stringify({a: 1 == 1});", EffectNavigation, "", ""},
 	}
 	for name, c := range cases {
 		writeFile(t, root, "e2e/specs/"+name+".spec.ts", effectSpec(c.step))
 	}
+	writeFile(t, root, "e2e/pages/reset.page.ts", effectResetPage)
+	writeFile(t, root, "e2e/specs/ctor.spec.ts", strings.Replace(effectSpec("await new ResetWorkflow(page).ready;"),
+		"import { TeeSheetPage }", "import { ResetWorkflow } from '../pages/reset.page';\nimport { TeeSheetPage }", 1))
+	cases["ctor"] = struct{ step, effect, ref, call string }{"", EffectState, "e2e/pages/reset.page.ts:7", "post"}
 	rev := commitAll(t, root, "effects")
 	m := build(t, root, rev)
 	for name, c := range cases {
@@ -127,14 +145,15 @@ func TestANLV0035StepEffects(t *testing.T) {
 		if first.Effect != c.effect || first.EffectRef != c.ref || first.EffectCall != c.call {
 			t.Errorf("%s: got %s %s %s", name, first.Effect, first.EffectRef, first.EffectCall)
 		}
-		// sheet.backHome() reaches goBack through a private helper and reads an assertion.
-		if back.Effect != EffectNavigation || len(back.EffectFrom) != 2 {
+		// sheet.backHome() reaches goBack through a private helper and reads an assertion; both
+		// constructions bounding the step are read.
+		if back.Effect != EffectNavigation || len(back.EffectFrom) != 3 {
 			t.Errorf("%s back: %+v", name, back)
 		}
 	}
 	nav := stepEdges(m, "e2e/specs/nav.spec.ts")[0]
 	// The whole spec and page-object files are cited: imports and bindings decide the methods read.
-	if len(nav.EffectFrom) != 2 || nav.EffectFrom[0].Path != "e2e/specs/nav.spec.ts" || nav.EffectFrom[1].Path != "e2e/pages/home.page.ts" || nav.EffectFrom[1].Start != 1 {
+	if len(nav.EffectFrom) != 3 || nav.EffectFrom[0].Path != "e2e/specs/nav.spec.ts" || nav.EffectFrom[1].Path != "e2e/pages/home.page.ts" || nav.EffectFrom[1].Start != 1 || nav.EffectFrom[2].Path != "e2e/pages/teesheet.page.ts" {
 		t.Fatalf("nav anchors: %+v", nav.EffectFrom)
 	}
 	click := stepEdges(m, "e2e/specs/teesheet-click.spec.ts")

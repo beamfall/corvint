@@ -41,7 +41,7 @@ var (
 		"console": wordSet("log info warn error debug"),
 	}
 	effectPureBare    = wordSet("expect test it describe String Number Boolean parseInt parseFloat encodeURIComponent decodeURIComponent encodeURI Symbol")
-	effectKeywords    = wordSet("if for while switch catch return typeof function await async super with void yield in of do else")
+	effectKeywords    = wordSet("if for while switch catch return typeof function await async super with void yield in of do else constructor")
 	effectPureClasses = wordSet("Date URL URLSearchParams RegExp Error Map Set Array Promise")
 )
 
@@ -346,6 +346,11 @@ func (r *effectReader) span(path string, toks []token, from, to int, inst map[st
 			continue
 		}
 		if k, ok := assignmentAt(toks, i); ok && memberTarget(toks, k) {
+			// A page object may set its own fields (`this.page = page`); a field named like one of
+			// its methods could replace that method, and `this.page` is checked by pageBound.
+			if self != "" && k > 1 && isPunct(toks[k-1], ".") && toks[k-2].text == "this" && !(k > 2 && isPunct(toks[k-3], ".")) && !r.hasMember(self, toks[k].text) {
+				continue
+			}
 			out.join(effectAt(EffectUnknown, path, t.line, "member-assignment"))
 			continue
 		}
@@ -353,7 +358,12 @@ func (r *effectReader) span(path string, toks []token, from, to int, inst map[st
 			out.join(effectAt(EffectUnknown, path, t.line, "delete"))
 			continue
 		}
-		// A computed or optional invocation (`a[k](...)`, `f?.(...)`, `g()(...)`) is not read.
+		// A computed, optional or non-null asserted invocation (`a[k](...)`, `f?.(...)`, `g()(...)`,
+		// `f!(...)`) is not read.
+		if isPunct(t, "(") && i > 1 && isPunct(toks[i-1], "!") && (toks[i-2].kind == tokIdent && !effectKeywords[toks[i-2].text] || isPunct(toks[i-2], ")") || isPunct(toks[i-2], "]")) {
+			out.join(effectAt(EffectUnknown, path, t.line, "computed-call"))
+			continue
+		}
 		if isPunct(t, "(") && i > 0 && (isPunct(toks[i-1], "]") || isPunct(toks[i-1], ".") || isPunct(toks[i-1], ")")) {
 			out.join(effectAt(EffectUnknown, path, t.line, "computed-call"))
 			continue
@@ -367,7 +377,9 @@ func (r *effectReader) span(path string, toks []token, from, to int, inst map[st
 			continue
 		}
 		if i > 0 && toks[i-1].kind == tokIdent && toks[i-1].text == "new" {
-			if !effectPureClasses[t.text] && classes[t.text] == "" {
+			if target := classes[t.text]; target != "" {
+				out.join(r.construct(target, depth+1, path, t.line))
+			} else if !effectPureClasses[t.text] {
 				out.join(effectAt(EffectUnknown, path, t.line, t.text))
 			}
 			continue
@@ -497,6 +509,61 @@ func (r *effectReader) call(path string, toks []token, i int, inst map[string]st
 		return nav
 	}
 	return effectAt(EffectUnknown, path, line, m)
+}
+
+// hasMember reports whether the test file at path declares a class member named name.
+func (r *effectReader) hasMember(path, name string) bool {
+	for _, m := range r.b.facts[path].methods {
+		if m.name == name {
+			return true
+		}
+	}
+	return false
+}
+
+// construct classifies what constructing the page-object class in the test file at path runs:
+// every token outside its recognized non-constructor methods (the constructor, field initializers
+// and any module code), so an effect a construction may perform is never omitted.
+func (r *effectReader) construct(path string, depth int, callPath string, callLine int) stepEffect {
+	if depth > maxImportHops || r.b.files[path] == nil {
+		return effectAt(EffectUnknown, callPath, callLine, "new")
+	}
+	key := path + "#new"
+	if e, ok := r.memo[key]; ok {
+		if e == nil {
+			return effectAt(EffectUnknown, callPath, callLine, "new")
+		}
+		return *e
+	}
+	r.memo[key] = nil
+	methods := r.b.facts[path].methods
+	inMethod := func(line int) bool {
+		for _, m := range methods {
+			if m.member && m.name != "constructor" && line >= m.start && line <= m.end {
+				return true
+			}
+		}
+		return false
+	}
+	toks := r.toks(path)
+	e := stepEffect{kind: EffectNavigation, from: []Anchor{r.whole(path)}}
+	for a := 0; a < len(toks); {
+		if inMethod(toks[a].line) {
+			a++
+			continue
+		}
+		z := a
+		for z < len(toks) && !inMethod(toks[z].line) {
+			z++
+		}
+		e.join(r.span(path, toks, a-1, z, nil, nil, path, depth))
+		a = z
+	}
+	if len(toks) > 0 && toks[0].unsure {
+		e.join(effectAt(EffectUnknown, path, 1, "unbounded-source"))
+	}
+	r.memo[key] = &e
+	return e
 }
 
 // method classifies the body of the one class member named name in the test file at path,

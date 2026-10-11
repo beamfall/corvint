@@ -597,6 +597,10 @@ func (b *builder) sequence(tf *TestFile) {
 		// The whole spec is cited: its imports and instance bindings decide which methods are read.
 		eff := stepEffect{kind: EffectNavigation, from: []Anchor{spanOf(e, b.sources[tf.Path], 1, strings.Count(string(b.sources[tf.Path]), "\n")+1)}}
 		eff.join(b.effects.span(tf.Path, toks, uses[i-1].at, uses[i].at, inst, classes, "", 0))
+		// Both constructions that bound the step run their page objects' constructors.
+		for _, u := range []use{uses[i-1], uses[i]} {
+			eff.join(b.effects.construct(classes[toks[u.at].text], 1, tf.Path, u.line))
+		}
 		edge := Edge{From: uses[i-1].screen, To: uses[i].screen, Basis: "test-sequence", Source: tf.ID, Anchor: anchor,
 			Effect: eff.kind, EffectFrom: eff.from}
 		if eff.kind != EffectNavigation {
