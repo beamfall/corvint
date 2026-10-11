@@ -77,10 +77,10 @@ remain `NOT_RUN` and are not a prerequisite for this locally testable experiment
 
 | Requirement | Implementation | Focused evidence | Status |
 |---|---|---|---|
-| UCL1142-V0-001 | `internal/upgradechanges` | `TestCompileRangeAndRefs`, `TestCompileRefusals`, `TestCompileGitConfiguration` | experimental |
+| UCL1142-V0-001 | `internal/upgradechanges` | `TestCompileRangeAndRefs`, `TestCompileRefusals`, `TestCompileGitConfiguration`, `TestCompileRefusesShallowCheckout` | experimental |
 | UCL1142-V0-002 | `internal/upgradechanges` | `TestCompileRangeAndRefs` | experimental |
 | UCL1142-V0-003 | `internal/upgradechanges` | `TestCompileRangeAndRefs`, `TestCompileUnsafeRefs`, `TestReadRefsRejectsFIFO` | experimental |
-| UCL1142-V0-004 | `internal/upgradechanges` | `TestCompileBounds`, `TestCompileRangeAndRefs`, `TestCompileGitConfiguration`, `TestCappedOutput`, `TestCompileReferenceAndIssueCaps` | experimental |
+| UCL1142-V0-004 | `internal/upgradechanges` | `TestCompileBounds`, `TestCompileRangeAndRefs`, `TestCompileGitConfiguration`, `TestCappedOutput`, `TestCompileReferenceAndIssueCaps`, `TestCompileRefsReadHonoursContext` | experimental |
 | UCL1142-V0-005 | `cmd/corvint/changes.go`, `docs/INSTALL.md` | `TestChangesCLI` | experimental |
 
 Acceptance requires the focused fixtures, CLI tests, documentation gates and independent review.

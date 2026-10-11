@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func gitTest(t *testing.T, root string, args ...string) string {
@@ -280,6 +281,51 @@ func TestCompileReferenceAndIssueCaps(t *testing.T) {
 		_, err = Compile(context.Background(), Request{root, base, to, make([]string, maxFiles+1)})
 		if err == nil || err.Error() != "changes-invalid-arguments" {
 			t.Fatalf("file cap: %v", err)
+		}
+	})
+}
+
+func TestCompileRefusesShallowCheckout(t *testing.T) {
+	t.Run("UCL1142-V0-001 shallow history refusal", func(t *testing.T) {
+		root, base := repoTest(t)
+		mergeTest(t, root, "topic", "Closes #7", "Merge pull request #9 from x/topic")
+		shallow := filepath.Join(t.TempDir(), "shallow")
+		gitTest(t, root, "clone", "-q", "--depth", "1", "file://"+root, shallow)
+		head := gitTest(t, shallow, "rev-parse", "HEAD")
+		if _, e := Compile(context.Background(), Request{Root: shallow, From: head, To: head}); e == nil || e.Error() != "changes-range-unavailable" {
+			t.Fatalf("shallow checkout accepted: %v", e)
+		}
+		if _, e := Compile(context.Background(), Request{Root: root, From: base, To: base}); e != nil {
+			t.Fatalf("complete checkout refused: %v", e)
+		}
+	})
+}
+
+func TestCompileRefsReadHonoursContext(t *testing.T) {
+	t.Run("UCL1142-V0-004 stalled refs read ends at the deadline", func(t *testing.T) {
+		root, base := repoTest(t)
+		if e := os.WriteFile(filepath.Join(root, "notes.txt"), []byte("holds #7\n"), 0o600); e != nil {
+			t.Fatal(e)
+		}
+		release := make(chan struct{})
+		defer close(release)
+		old := readRefsFile
+		readRefsFile = func(string) ([]byte, bool, error) { <-release; return nil, false, nil }
+		defer func() { readRefsFile = old }()
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+		done := make(chan error, 1)
+		go func() {
+			_, e := Compile(ctx, Request{Root: root, From: base, To: base, Files: []string{"notes.txt"}})
+			done <- e
+		}()
+		select {
+		case e := <-done:
+			if e == nil {
+				t.Fatal("stalled read accepted")
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("Compile outlived its context")
 		}
 	})
 }

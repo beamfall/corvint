@@ -158,9 +158,11 @@ func Discover(root string) (Document, error) {
 		discovery.ReceiptAge = ReceiptAge{Basis: "retained-file-mtime", Since: item.info.ModTime().UTC().Format(time.RFC3339Nano)}
 		discovery.Abstention = runtimeAbstention(input)
 		document := JoinStepNegation(applyFreshness(Project(input), binding), input, root)
-		if document.Run.Freshness.State == testvalidity.FreshnessStale {
+		revision := receiptRevision(input)
+		if head := headRevision(worktree); document.Run.Freshness.State == testvalidity.FreshnessStale ||
+			(revision != AbstentionUnknown && head != "" && head != revision) {
 			abstention := producerAbstention(AbstentionStaleEvidence)
-			abstention.ReceiptRevision = receiptRevision(input)
+			abstention.ReceiptRevision = revision
 			if discovery.Abstention != nil {
 				abstention.Observed = discovery.Abstention.Observed
 			}
@@ -174,6 +176,57 @@ func Discover(root string) (Document, error) {
 	}
 	discovery.Abstention = producerAbstention(reason)
 	return withDiscovery(Unsupported(), discovery), nil
+}
+
+// headRevision resolves HEAD to an object ID by reading .git files inside the
+// worktree root, starting no process. A linked worktree (.git is a file), a
+// symlink, an oversized file or any unresolved ref yields "" (unknown), which
+// never produces a staleness claim.
+func headRevision(worktree *os.Root) string {
+	head := readSmall(worktree, ".git/HEAD")
+	if object := strings.TrimSpace(head); isObjectID(object) {
+		return object
+	}
+	name, ok := strings.CutPrefix(strings.TrimSpace(head), "ref: ")
+	if !ok || !strings.HasPrefix(name, "refs/") || strings.Contains(name, "..") || strings.ContainsAny(name, "\\\x00") {
+		return ""
+	}
+	if object := strings.TrimSpace(readSmall(worktree, ".git/"+name)); isObjectID(object) {
+		return object
+	}
+	for _, line := range strings.Split(readSmall(worktree, ".git/packed-refs"), "\n") {
+		if object, ref, ok := strings.Cut(line, " "); ok && ref == name && isObjectID(object) {
+			return object
+		}
+	}
+	return ""
+}
+
+func isObjectID(value string) bool {
+	if len(value) != 40 && len(value) != 64 {
+		return false
+	}
+	for _, c := range value {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+// readSmall reads at most 1 MiB of a regular file confined to the root; any
+// failure yields "".
+func readSmall(worktree *os.Root, name string) string {
+	file, err := worktree.Open(name)
+	if err != nil {
+		return ""
+	}
+	defer file.Close()
+	if info, err := file.Stat(); err != nil || !info.Mode().IsRegular() {
+		return ""
+	}
+	raw, _ := io.ReadAll(io.LimitReader(file, 1<<20))
+	return string(raw)
 }
 
 // receiptRevision echoes only the retained test-repository identity at run start.

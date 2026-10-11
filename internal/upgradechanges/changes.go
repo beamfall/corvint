@@ -346,7 +346,7 @@ func Compile(ctx context.Context, req Request) (Report, error) {
 		if err != nil || len(path) > 4096 {
 			return r, errors.New("changes-refs-unavailable")
 		}
-		data, cut, e := readRefs(path)
+		data, cut, e := readRefsContext(ctx, path)
 		if e != nil {
 			return r, errors.New("changes-refs-unavailable")
 		}
@@ -402,4 +402,34 @@ func Compile(ctx context.Context, req Request) (Report, error) {
 		return r, errors.New("changes-git-unavailable")
 	}
 	return r, nil
+}
+
+// readRefsFile is replaceable so a test can model a stalled filesystem.
+var readRefsFile = readRefs
+
+type refsRead struct {
+	data []byte
+	cut  bool
+	err  error
+}
+
+// readRefsContext returns when ctx ends even if the underlying read is stalled
+// (for example a regular file on an unresponsive remote filesystem). The
+// abandoned read goroutine holds only its descriptor until the process exits.
+func readRefsContext(ctx context.Context, path string) ([]byte, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, false, err
+	}
+	done := make(chan refsRead, 1)
+	read := readRefsFile
+	go func() {
+		data, cut, err := read(path)
+		done <- refsRead{data, cut, err}
+	}()
+	select {
+	case r := <-done:
+		return r.data, r.cut, r.err
+	case <-ctx.Done():
+		return nil, false, ctx.Err()
+	}
 }

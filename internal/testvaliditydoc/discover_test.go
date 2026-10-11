@@ -401,3 +401,56 @@ func TestDiscoverRetainedRevision(t *testing.T) {
 		})
 	}
 }
+
+// LPCVD-V0-004: a receipt whose retained test-repository revision differs from
+// the worktree HEAD reports stale-evidence even when every bound file is
+// unchanged; an unresolved or equal HEAD never does.
+func TestDiscoverRetainedRevisionDiffersFromHead(t *testing.T) {
+	retained := strings.Repeat("a", 40)
+	other := strings.Repeat("b", 40)
+	cases := []struct {
+		name  string
+		files map[string]string
+		stale bool
+	}{
+		{"detached other", map[string]string{".git/HEAD": other + "\n"}, true},
+		{"detached equal", map[string]string{".git/HEAD": retained + "\n"}, false},
+		{"loose ref other", map[string]string{".git/HEAD": "ref: refs/heads/main\n", ".git/refs/heads/main": other + "\n"}, true},
+		{"packed ref other", map[string]string{".git/HEAD": "ref: refs/heads/main\n", ".git/packed-refs": "# pack-refs\n" + other + " refs/heads/main\n"}, true},
+		{"packed ref equal", map[string]string{".git/HEAD": "ref: refs/heads/main\n", ".git/packed-refs": retained + " refs/heads/main\n"}, false},
+		{"unresolved ref", map[string]string{".git/HEAD": "ref: refs/heads/main\n"}, false},
+		{"escaping ref", map[string]string{".git/HEAD": "ref: refs/../../x\n"}, false},
+		{"no git", nil, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := discoveryRoot(t)
+			input, err := Decode([]byte(boundReceipt(t, root, "adds")))
+			if err != nil {
+				t.Fatal(err)
+			}
+			receipt := *input.js
+			receipt.Profile = jstestprovider.AttestedExternalProfile
+			receipt.Identity.RunnerVersion = "1.63.0"
+			receipt.Identity.NodeVersion = "v24.11.0"
+			receipt.TestRepositoryAtStart = &jstestprovider.ApplicationRepositoryIdentity{Revision: retained}
+			receipt.TestRepositoryAtPublish = &jstestprovider.ApplicationRepositoryIdentity{Revision: retained}
+			data, err := jstestprovider.EncodeQualified(receipt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeAt(t, evidencePath(root, "run.json"), string(data), time.Unix(1, 0))
+			for name, body := range tc.files {
+				writeAt(t, filepath.Join(root, filepath.FromSlash(name)), body, time.Unix(1, 0))
+			}
+			got := discover(t, root).Discovery.Abstention
+			if tc.stale {
+				if got == nil || got.Reason != AbstentionStaleEvidence || got.ReceiptRevision != retained {
+					t.Fatalf("abstention=%+v", got)
+				}
+			} else if got != nil && got.Reason == AbstentionStaleEvidence {
+				t.Fatalf("unexpected stale: %+v", got)
+			}
+		})
+	}
+}

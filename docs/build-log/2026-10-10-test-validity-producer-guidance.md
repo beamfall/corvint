@@ -2,8 +2,8 @@
 
 Intent: proposed, pending owner acceptance (V1-1140; GitHub #782).
 Base: `55aa6bb9f1e9d8db81f8185b5d185fc8c1bbc821`, branch `codex/w5-docs`.
-Delivery: experimental bounded slice; ticket acceptance remains partial for
-revision-only staleness. No decision file, commit, publication or ticket-store write.
+Delivery: experimental bounded slice; revision-only staleness is covered by
+`LPCVD-V0-004` (HEAD read from `.git` files, no process). No decision file, commit, publication or ticket-store write.
 
 ## Contract and implementation
 
@@ -25,7 +25,7 @@ UTC modification timestamp, rather than a ticking duration. Missing age is
 `NOT_OBSERVED`. This is retention age metadata, not authenticated execution time
 (`internal/testvaliditydoc/discover.go:121@485e4c00`).
 
-`LPCVD-V0-001..003` are proposed requirements in the owning spec with one Delivery
+`LPCVD-V0-001..004` are proposed requirements in the owning spec with one Delivery
 row per requirement. The distinct prefix was absent from `origin/main`; its
 highest existing LPCV ID was 070, and `git ls-remote origin
 'refs/heads/codex/w5-*'` returned no matching published branches. REQUIREMENTS.tsv
@@ -62,7 +62,7 @@ versions (`conformance/mcp-test-validity-v0/blackbox_test.go:159@c9455054`).
 One independent native reviewer found missing E2E flags, discarded optional
 revision evidence, and missing stale/runtime precedence coverage. All three were
 repaired; the bounded repair review passed with no remaining implementation
-findings. It confirmed the revision-only acceptance gap below. The inherited
+findings. It confirmed the revision-only acceptance gap, since closed by `LPCVD-V0-004`. The inherited
 builder/reviewer model was retained for this bounded change; live effort and
 account/billing telemetry were `NOT_OBSERVED`.
 
@@ -97,10 +97,9 @@ smoke with `descendant snapshot unavailable`; available releases/freshness remai
 UNKNOWN, and no installation occurred. Filing tooling failures is held for the
 coordinator because this task explicitly prohibits ticket-store writes.
 
-Revision-only current-worktree changes remain undetected by the existing bounded
-file-digest freshness check. Admitted basic JS/Go receipts also lack repository
-revisions; attested receipts only sometimes retain them. Completing this acceptance
-condition needs a separately scoped, read-only current-revision binding; it is not
-proved by this patch. Qualification lookup likewise stays NOT_OBSERVED. Receipt
+`LPCVD-V0-004` compares a valid retained `testRepositoryAtStart.revision` with HEAD
+(read from `.git/HEAD`, loose ref, `packed-refs`; no process). Admitted basic JS/Go
+receipts retain no revision, so they stay on digest freshness; a linked worktree
+or unresolved HEAD makes no staleness claim. Qualification lookup likewise stays NOT_OBSERVED. Receipt
 age is exposed as a stable mtime origin for the client to subtract from its clock,
 not a numeric elapsed duration. Ticket closure remains with the coordinator.

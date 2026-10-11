@@ -1964,23 +1964,24 @@ LPCV-V0-053	docs/specs/live-proof-carrying-verification-v0.md	338	`corvint [--ro
 LPCV-V0-054	docs/specs/live-proof-carrying-verification-v0.md	356	a discovered document's freshness MUST be bound to the worktree as it is now,
 LPCV-V0-055	docs/specs/live-proof-carrying-verification-v0.md	373	producer retention (decision 0218) MUST be opt-in and bounded.
 LPCV-V0-056	docs/specs/live-proof-carrying-verification-v0.md	397	(accepted by decision 0448; V1-0976) discovery MUST say why it yields no
-LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	622	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi
-LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	634	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright
-LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	644	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the
-LPCV-V0-060	docs/specs/live-proof-carrying-verification-v0.md	655	(accepted (decision 0458; V1-1024; GitHub #682)) Faults are installed by a Corvi
-LPCV-V0-061	docs/specs/live-proof-carrying-verification-v0.md	663	(accepted (decision 0458; V1-1024; GitHub #682)) Network fault derivation. The w
-LPCV-V0-062	docs/specs/live-proof-carrying-verification-v0.md	684	(accepted (decision 0458; V1-1024; GitHub #682)) DOM fault derivation applies wh
-LPCV-V0-063	docs/specs/live-proof-carrying-verification-v0.md	696	(accepted (decision 0458; V1-1024; GitHub #682)) Single-step pass rule: each fau
-LPCV-V0-064	docs/specs/live-proof-carrying-verification-v0.md	718	(accepted (decision 0458; V1-1024; GitHub #682)) `--all-steps` performs the base
-LPCV-V0-065	docs/specs/live-proof-carrying-verification-v0.md	732	(accepted (decision 0458; V1-1024; GitHub #682)) negate emits one closed canonic
-LPCV-V0-066	docs/specs/live-proof-carrying-verification-v0.md	753	(accepted (decision 0458; V1-1024; GitHub #682)) The common `binding` records th
-LPCV-V0-067	docs/specs/live-proof-carrying-verification-v0.md	770	(accepted (decision 0458; V1-1024; GitHub #682)) Retention is atomic and confine
-LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	779	(accepted (decision 0458; V1-1024; GitHub #682)) This requirement covers project
-LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	797	(accepted (decision 0458; V1-1024; GitHub #682)) Safety. negate runs the user's
-LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	809	(accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnost
+LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	632	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi
+LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	644	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright
+LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	654	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the
+LPCV-V0-060	docs/specs/live-proof-carrying-verification-v0.md	665	(accepted (decision 0458; V1-1024; GitHub #682)) Faults are installed by a Corvi
+LPCV-V0-061	docs/specs/live-proof-carrying-verification-v0.md	673	(accepted (decision 0458; V1-1024; GitHub #682)) Network fault derivation. The w
+LPCV-V0-062	docs/specs/live-proof-carrying-verification-v0.md	694	(accepted (decision 0458; V1-1024; GitHub #682)) DOM fault derivation applies wh
+LPCV-V0-063	docs/specs/live-proof-carrying-verification-v0.md	706	(accepted (decision 0458; V1-1024; GitHub #682)) Single-step pass rule: each fau
+LPCV-V0-064	docs/specs/live-proof-carrying-verification-v0.md	728	(accepted (decision 0458; V1-1024; GitHub #682)) `--all-steps` performs the base
+LPCV-V0-065	docs/specs/live-proof-carrying-verification-v0.md	742	(accepted (decision 0458; V1-1024; GitHub #682)) negate emits one closed canonic
+LPCV-V0-066	docs/specs/live-proof-carrying-verification-v0.md	763	(accepted (decision 0458; V1-1024; GitHub #682)) The common `binding` records th
+LPCV-V0-067	docs/specs/live-proof-carrying-verification-v0.md	780	(accepted (decision 0458; V1-1024; GitHub #682)) Retention is atomic and confine
+LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	789	(accepted (decision 0458; V1-1024; GitHub #682)) This requirement covers project
+LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	807	(accepted (decision 0458; V1-1024; GitHub #682)) Safety. negate runs the user's
+LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	819	(accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnost
 LPCVD-V0-001	docs/specs/live-proof-carrying-verification-v0.md	416	(proposed, pending owner acceptance (V1-1140)) Extend
 LPCVD-V0-002	docs/specs/live-proof-carrying-verification-v0.md	426	(proposed, pending owner acceptance (V1-1140)) Extend the closed
-LPCVD-V0-003	docs/specs/live-proof-carrying-verification-v0.md	438	(proposed, pending owner acceptance (V1-1140)) Discovery MUST expose
+LPCVD-V0-003	docs/specs/live-proof-carrying-verification-v0.md	447	(proposed, pending owner acceptance (V1-1140)) Discovery MUST expose
+LPCVD-V0-004	docs/specs/live-proof-carrying-verification-v0.md	438	(proposed, pending owner acceptance (V1-1140)) When the selected
 LQP-V0-001	docs/specs/lsp-quality-platform-v0.md	44	Each consumer MUST select an explicit, versioned profile and report the exact su
 LQP-V0-002	docs/specs/lsp-quality-platform-v0.md	45	Agent CLI and MCP MUST remain off by default for upstream semantic work and keep
 LQP-V0-003	docs/specs/lsp-quality-platform-v0.md	46	The shared engine MUST distinguish immutable Git identity `(repository/root, obj

@@ -177,7 +177,7 @@ persisted state, schema or client configuration needs migration.
 
 ## Proposed discovery guidance amendment (V1-1140)
 
-`LPCVD-V0-001..003` in the owning live-proof-carrying-verification spec are
+`LPCVD-V0-001..004` in the owning live-proof-carrying-verification spec are
 proposed, pending owner acceptance (V1-1140). `MTV-V0-009` exposes those same
 shared discovery fields byte-for-byte: abstention `producers` (inert command
 and `qualification: "NOT_OBSERVED"`), `expectedEvidencePath`, and, for stale
