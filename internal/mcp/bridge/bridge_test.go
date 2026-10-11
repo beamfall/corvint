@@ -173,7 +173,7 @@ func TestCallRejectsUnknownDuplicateAndHostileArgumentsBeforeRepositoryWork(t *t
 		t.Error("invalid arguments reached context compilation")
 		return nil, nil, errors.New("unexpected context compilation")
 	}
-	registry.operations.cemReport = func(context.Context, string, workflow.ReadOptions) (map[string]any, error) {
+	registry.operations.cemReport = func(context.Context, string, string, workflow.ReadOptions) (map[string]any, error) {
 		t.Error("invalid arguments reached the CEM read")
 		return nil, errors.New("unexpected CEM read")
 	}

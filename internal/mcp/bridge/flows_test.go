@@ -302,8 +302,8 @@ func TestMCPCEMReportRefusesAMissingCitedBlobWithAValidMapWithoutFetching(t *tes
 			cemCode := ""
 			operations := registry.operations
 			report := operations.cemReport
-			operations.cemReport = func(ctx context.Context, root string, options workflow.ReadOptions) (map[string]any, error) {
-				receipt, err := report(ctx, root, options)
+			operations.cemReport = func(ctx context.Context, root, callerRoot string, options workflow.ReadOptions) (map[string]any, error) {
+				receipt, err := report(ctx, root, callerRoot, options)
 				cemCode = cemcode.CodeOf(err)
 				return receipt, err
 			}

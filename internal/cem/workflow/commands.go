@@ -57,6 +57,20 @@ func (s *Session) Begin(ctx context.Context, options BeginOptions) (map[string]a
 	}
 	document := buildCandidate(wire.Spec01, base, patchBytes, parsed)
 	encoded := encodeMap(document)
+	// CEM-V1-031: the non-mutating preflight refuses a stable destination before
+	// the lock creates anything; the output lock then spans the strict probe and
+	// publication, so no Core writer lands between them.
+	if s.stableAt(options.Output) {
+		return nil, stableMutationRefusal("begin", options.Output)
+	}
+	unlock, err := lockMap(s.workRoot, options.Output)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	if err := s.refuseStableDestination("begin", options.Output); err != nil {
+		return nil, err
+	}
 	if err := publish.Publish(publish.Output{Root: s.workRoot, Relative: options.Output, Data: encoded}); err != nil {
 		return nil, err
 	}
@@ -156,12 +170,21 @@ func (s *Session) Prepare(ctx context.Context, options PrepareOptions) (map[stri
 	}
 	// The map lock spans resume inspection through publication, so an
 	// interrupted pair's backup is restored before the map counts as missing
-	// and no concurrent cite or mark lands between read and replace.
+	// and no concurrent cite or mark lands between read and replace. A stable
+	// sidecar or backup is refused first, before the lock or recovery touches
+	// either, and again under the lock before recovery or resume cleanup
+	// (CEM-V1-030); resumeCandidate re-checks the sidecar strictly.
+	if err := s.preflightStableSidecar(); err != nil {
+		return nil, err
+	}
 	unlock, err := s.workRoot.Lock(wire.ExcludedCEMPath)
 	if err != nil {
 		return nil, err
 	}
 	defer unlock()
+	if err := s.preflightStableSidecar(); err != nil {
+		return nil, err
+	}
 	if err := s.workRoot.RecoverPairBackup(wire.ExcludedCEMPath); err != nil {
 		return nil, err
 	}
@@ -242,10 +265,17 @@ func (s *Session) resumeCandidate(ctx context.Context, base string, patchBytes [
 	}
 	raw, err := s.workRoot.ReadBounded(wire.ExcludedCEMPath, wire.MaxMapBytes, cemcode.MapUnavailable)
 	if err != nil {
-		if replace {
-			return false, nil, nil
+		if !replace {
+			return false, nil, err
 		}
-		return false, nil, err
+		// CEM-V1-030: --replace regenerates only a sidecar whose spec resolves
+		// to something other than cem/1.0; unreadable bytes may be stable.
+		return false, nil, s.refuseStableDestination("prepare", wire.ExcludedCEMPath)
+	}
+	// CEM-V1-030: a stable sidecar is neither resumed nor replaced, so even an
+	// explicit --replace never downgrades it to a Core cem/0.x candidate.
+	if wire.DeclaresStable(raw) {
+		return false, nil, stableMutationRefusal("prepare", wire.ExcludedCEMPath)
 	}
 	if replace {
 		return false, nil, nil
@@ -282,7 +312,7 @@ type CiteOptions struct {
 // Cite compiles the requested span into the normative byte span and records
 // the typed evidence reference, preserving the input profile.
 func (s *Session) Cite(ctx context.Context, options CiteOptions) (map[string]any, error) {
-	document, unlock, err := s.lockedMapInput(options.MapPath, options.Output)
+	document, unlock, err := s.lockedMapInput("cite", options.MapPath, options.Output)
 	if err != nil {
 		return nil, err
 	}
@@ -514,7 +544,7 @@ type MarkOptions struct {
 // is additive (CEM-SM-006): a structural reason on a canonical map declares
 // cem/0.3, the vocabulary the map now uses; a cem/0.1 map cannot carry one.
 func (s *Session) Mark(ctx context.Context, options MarkOptions) (map[string]any, error) {
-	document, unlock, err := s.lockedMapInput(options.MapPath, options.Output)
+	document, unlock, err := s.lockedMapInput("mark", options.MapPath, options.Output)
 	if err != nil {
 		return nil, err
 	}
@@ -575,10 +605,11 @@ var lockMap = (*publish.Root).Lock
 // lockedMapInput locks in-place updates before their first read, so a valid
 // concurrent publication cannot trip the safe reader's identity check. Separate
 // outputs retain input-validation precedence. The caller must release the lock.
-func (s *Session) lockedMapInput(inputRelative, outputRelative string) (*wire.Map, func(), error) {
+// tool names the Core mutator in its stable refusals (CEM-V1-031).
+func (s *Session) lockedMapInput(tool, inputRelative, outputRelative string) (*wire.Map, func(), error) {
 	inPlace := outputRelative == "" || strings.EqualFold(outputRelative, inputRelative) // case-aliased names alias on case-insensitive volumes
 	if !inPlace || inputRelative == "" || filepath.IsAbs(inputRelative) {
-		if _, _, err := s.readMapInput(inputRelative); err != nil {
+		if _, err := s.readMutableMap(tool, inputRelative); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -586,21 +617,136 @@ func (s *Session) lockedMapInput(inputRelative, outputRelative string) (*wire.Ma
 	if err != nil {
 		return nil, nil, err
 	}
+	// The non-mutating preflight refuses a stable input or destination before
+	// the lock creates its sibling file; the locked reads below re-check both.
+	for _, relative := range []string{inputRelative, effectiveOutput} {
+		if s.stableAt(relative) {
+			return nil, nil, stableMutationRefusal(tool, relative)
+		}
+	}
 	unlock, err := lockMap(s.workRoot, effectiveOutput)
 	if err != nil {
 		// Preserve read refusals (including unsafe ancestors) over publication
 		// errors without admitting an unlocked read on the successful path.
-		if _, _, readErr := s.readMapInput(inputRelative); readErr != nil {
+		if _, readErr := s.readMutableMap(tool, inputRelative); readErr != nil {
 			return nil, nil, readErr
 		}
 		return nil, nil, err
 	}
-	_, document, err := s.readMapInput(inputRelative)
+	document, err := s.readMutableMap(tool, inputRelative)
+	if err == nil && effectiveOutput != inputRelative {
+		// The output lock is held, so no Core writer changes it before
+		// publication; a case variant is checked too, since it may not alias.
+		err = s.refuseStableDestination(tool, effectiveOutput)
+	}
 	if err != nil {
 		unlock()
 		return nil, nil, err
 	}
 	return document, unlock, nil
+}
+
+// readMutableMap reads a mutator's input map. A cem/1.0 map, which the 0.x
+// parser refuses, is refused as one Core does not mutate rather than as
+// malformed 0.x input; every other refusal is returned unchanged (CEM-V1-031).
+func (s *Session) readMutableMap(tool, relative string) (*wire.Map, error) {
+	raw, err := s.readMapBytes(relative)
+	if err != nil {
+		return nil, err
+	}
+	document, err := wire.ParseMap(raw)
+	if err != nil {
+		if cemcode.CodeOf(err) == cemcode.UnsupportedSpec && wire.DeclaresStable(raw) {
+			return nil, stableMutationRefusal(tool, relative)
+		}
+		return nil, err
+	}
+	return document, nil
+}
+
+// refuseStableDestination is the strict probe a caller runs while it holds the
+// output's lock (CEM-V1-030, CEM-V1-031). Only an absent path, a path that is
+// not a regular file (publication replaces the entry, never a link target),
+// or a regular file over the map bound (which DeclaresStable never selects)
+// resolves without reading. A regular file must be read and must not declare
+// cem/1.0: one whose bytes cannot be read is refused, since it may be stable.
+func (s *Session) refuseStableDestination(tool, relative string) error {
+	return s.refuseStableEntry(tool, relative, "replace")
+}
+
+// refuseStableEntry is the strict probe shared by destinations and
+// interrupted-publication backups; action names what the tool would otherwise
+// do to the entry.
+func (s *Session) refuseStableEntry(tool, relative, action string) error {
+	info, err := os.Lstat(filepath.Join(s.workRoot.Path(), filepath.FromSlash(relative)))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err == nil && (!info.Mode().IsRegular() || info.Size() > wire.MaxMapBytes) {
+		return nil
+	}
+	var raw []byte
+	if err == nil {
+		raw, err = s.workRoot.ReadBounded(relative, wire.MaxMapBytes, cemcode.MapUnavailable)
+	}
+	if err != nil {
+		return cemcode.New(cemcode.MapUnavailable,
+			"existing %s cannot be read to resolve its spec, so Core cem %s does not %s it: it may be a %s map; make it readable or remove it",
+			relative, tool, action, wire.StableSpec)
+	}
+	if wire.DeclaresStable(raw) {
+		return stableMutationRefusal(tool, relative)
+	}
+	return nil
+}
+
+// stableAt is the non-mutating preflight: it reports whether readable bytes at
+// relative declare cem/1.0, before any lock, directory or backup recovery
+// touches the file system. Read failures are left to the locked strict probe.
+func (s *Session) stableAt(relative string) bool {
+	if relative == "" || filepath.IsAbs(relative) {
+		return false
+	}
+	raw, err := s.workRoot.ReadBounded(relative, wire.MaxMapBytes, cemcode.MapUnavailable)
+	return err == nil && wire.DeclaresStable(raw)
+}
+
+// preflightStableSidecar refuses prepare before it locks the sidecar or
+// restores an interrupted-publication backup when the sidecar, or a backup
+// that recovery would restore or resume cleanup would remove, declares
+// cem/1.0 (CEM-V1-030). A recognized backup gets the strict probe: one whose
+// bytes cannot be read is refused too, since it may be stable. Backup names
+// follow publish.RecoverPairBackup: "<map>.bak-" plus sixteen lowercase hex
+// digits, regular files only.
+func (s *Session) preflightStableSidecar() error {
+	if s.stableAt(wire.ExcludedCEMPath) {
+		return stableMutationRefusal("prepare", wire.ExcludedCEMPath)
+	}
+	directory := path.Dir(wire.ExcludedCEMPath)
+	entries, err := os.ReadDir(filepath.Join(s.workRoot.Path(), filepath.FromSlash(directory)))
+	if err != nil {
+		return nil
+	}
+	prefix := path.Base(wire.ExcludedCEMPath) + ".bak-"
+	for _, entry := range entries {
+		suffix, found := strings.CutPrefix(entry.Name(), prefix)
+		if !found || len(suffix) != 16 || strings.Trim(suffix, "0123456789abcdef") != "" || !entry.Type().IsRegular() {
+			continue
+		}
+		if err := s.refuseStableEntry("prepare", path.Join(directory, entry.Name()), "restore or remove"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// stableMutationRefusal is the explicit refusal of a Core mutation of a stable
+// map. Core mutators produce only cem/0.x; the stable producer is the separate
+// candidate assembler, and the Core read is status or verify (CEM-V1-017).
+func stableMutationRefusal(tool, relative string) error {
+	return cemcode.New(cemcode.UnsupportedSpec,
+		"%s is a %s map, which Core cem %s does not mutate or replace: Core mutators produce only cem/0.x; read it with cem status or cem verify and --artifacts",
+		relative, wire.StableSpec, tool)
 }
 
 func (s *Session) writeMap(document *wire.Map, inputRelative, outputRelative string) (string, error) {

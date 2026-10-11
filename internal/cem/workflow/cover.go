@@ -34,7 +34,7 @@ func (s *Session) Cover(ctx context.Context, options CoverOptions) (map[string]a
 	if err := wire.ValidateTestRun(options.TestRun); err != nil {
 		return nil, invalidArguments("--test-run %s", strings.TrimPrefix(err.Error(), "coverage "))
 	}
-	document, unlock, err := s.lockedMapInput(options.MapPath, options.Output)
+	document, unlock, err := s.lockedMapInput("cover", options.MapPath, options.Output)
 	if err != nil {
 		return nil, err
 	}

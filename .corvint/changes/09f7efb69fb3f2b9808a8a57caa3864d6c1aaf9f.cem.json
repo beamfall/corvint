@@ -1,0 +1,2220 @@
+{
+  "baseRevision": "0d7bd456b732ee9d60cbb863b26dc6bebc5a9e90",
+  "evidence": [
+    {
+      "blobOid": "326ad86be195b68a54b109c232d9d4f242f086ef",
+      "id": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+      "path": "docs/specs/cem-stable-v1.md",
+      "span": {
+        "end": 3090,
+        "start": 2059
+      },
+      "spanSha256": "be729f5214a0cdb0a341d93f9f2174ae0889003d0e1a4950e48866bb164d406b"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e290e76e3021bdd6c877f5491aefc534ff4e2283d207453014b8187a155d3584",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/hunk-new-range-wrong.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c62b21dfbfefd099d2e3e90cdf12e0c33af4968ac2f8fc6edeb9d1df32aebdac",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/hunk-old-range-wrong.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:10d41534cc8ff207bb6dcdf821ad0fe28997a348aea698177c060a755881ef9b",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/hunk-path-512-bytes.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d4fb8b77789980aa37f4ff90bbb8de262a4037dcc3e047b7384fd5d1bb08e024",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/hunk-path-513-bytes.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:718b3ead1e2836ce71d6675a11288895fdbc1c66955464d0fdfefad9253aebc5",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/hunk-path-wrong.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9e180479b8c02abf20b3e031a8c2292e49a9bea94ccdf4587470068545af94e8",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/hunk-range-start-zero.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fb8cf9eaaf7e1e1856b154be6f4398b885975c068be58fdcaa8bf9a5277ba567",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/hunk-supported-reason-other.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7348c7799e6461b02083d357732464bbf6e4e8f53450bcbe2e5b60c40064b0cf",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/hunk-supported-without-basis.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f0d25582d14e5cc78daa7984045e03e7180b87a7040e6a346027e1beed1fcd1d",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/hunk-unknown-key.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c0fb4e47ff235334d2121ca3f6a7628678f01a65c12fed05ac22b71b81a18f11",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/hunk-unknown-structural-reason.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f48af09e33b0dc228e7d67293ac8854d8687233a5a6b527eaaa31a7f029223bc",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-array-root.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:39a2328965005062fb3f01a89e6f2fe4a15794a86f85de5a78a5c00a9c957973",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-at-map-limit.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b24d201cc15e8b52d5a90bdf5615d1e4baad5ac6b4ee10ea96527389271f6325",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-boolean-integer.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:883565301017e5756356dcab9dcbfee4e451387789c6fb2fa9bcb3f335b34053",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-byte-order-mark.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e2023247d96490c2f5bbedfbf75385df4bfd7ab5bfdb8d1f3d32d5eda190704f",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-depth-62.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:847e467ee2cedafcf1b96d6ce94efbd143c79ad7a19abe9ae2df6772779cd201",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-depth-63.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8c9cd8aa98334dc523ebc4441d969a98249b789e01d72d887884152449b9dd3c",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-depth-64.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e8ec052c2b6036db6ac576da2f0caf509da0591c763fe87353f69172869e09bc",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-depth-65.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0d295b9fb5c3f70deb3ee40aa5036e619988b84c5ccd7214b2b1aef1322eed38",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-duplicate-escaped-key.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:203184f7d13280932e8c77478b6bb239f8d41c13e3c3a4ab0b7a0e4c2710f28c",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-duplicate-nested-key.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d29e544d4e3b6dccd243984ecd5d456824e0e0158e6ebac1d0c3a5dfcf874353",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-duplicate-top-level-key.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0c047f21df9be3b27cda087fcffeb118c0a3f3287baecc1e34a43cd8cf80a79c",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-exponent.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ae6c895658821fcb4c1108b79abdcc5efb5a43516640fc1f8bfa75cbaeef89a1",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-float.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3bd45efaf342e9d05b3e1bd1f9ecd9a4b3da20e77fdc287829799b80bb6406da",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-integer-above-max.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:073e965b270a4fc1a0d4ff6f925796054b4a08be25d9437d363af70fc3c2a905",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-invalid-utf8.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a5573d5b113f8fc0f1541fa01a9f39a382d3a1e264a3f9605461bbcf2f8d548a",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-leading-zero.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1916b0d008acf6e92021c3d8f6a1769126a4fa75badfae79d4f70a7a354d4843",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-negative-zero.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:469d7e06e9e4adfd1cdc4e37467398bcd8eaf34520935a7734c499e60a826560",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-null-root.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e1392447721765e442a686ddfe74cd51a13f89982eeee60cc6f1ba91cd9c3e66",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-string-integer.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bd4deebbd16a8641de30f214b33b9570950624cebb041c909c0b788f0dceb954",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-string-root.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:48ae239ea10267a16b8649e8ffbfac7ba82dac4357c453c18c2fa701d1f222e8",
+      "newRange": {
+        "count": 3,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-surrounding-whitespace.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8cc91cdad051c3cb827a5c6a3e5a1ac7ea5657668f2b78841fe50e1e9e8fa6cf",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-trailing-value.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:db44a2ce01786e615e4d7eb326af09421495b6adbbf94695acfc94d0296325ee",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/json-unpaired-surrogate.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5c2f246f9e6803e68c4e1a1095fc79c5dcef99802d99f522e5de32de95a259e4",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/key-missing-evidence.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e638acba3998bb4b6a6e8edc731f9466c812287bb4f09afdd8018769ca2d695d",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/key-missing-spec.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7a208939c829822b310f5e1875f7abbc99b1c8b44b539061cc5a67eb49f2260c",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/key-unknown-top-level.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d7ee75b0e149b00f19d67c2882abe7222b05b8010911d2132bca00cc23042d58",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/mode-change-executable-bit.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6829594d81612199713855ab3ea37015620dc3518d5558d531a53c006664f60d",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-create-structural.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b09e314398d80bb4de2aab62b9fe46967df8f576f0bab2b108ce39521c1321bc",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-delete-structural.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6a172df59940d0dc9333ad9e17c065ba78c8686a3566280f9c72baa616873734",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-formatter-claimed-rename.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:44fbc1ffe8194baa026bb44aba8199c0bf64a2f215bdc50c380da5af7b747d0c",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-formatter-invalid-base.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cee0055b3653dcf26146bd5847b04f8853481bdbfca0f6d6eb9cd0aab201641d",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-formatter-semantic.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:110ef43d9254d2f15c904f0646d94b9388169f4bc42df141ef7acc79c71dfa8c",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-import-alias.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:eeb36202a143b1dfd70f232cc98e932175c2971e8d1475b09d50d8514d9d6755",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-import-claimed-move.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:75b85a8a5a294e814449bdb328c395b0b4f366350c974d4a6ac6f2d8eeacb81d",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-import-comment-edit.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:12ab0d732f6a850533ba910b7ba8a9d14244a8bd0a1007e018be2fa7ea1ea467",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-import-semantic.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:38fd72fbb3df0110a99c839bb3a29731e3ecd90fca85e6a1ce61f55059f1faef",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-move-claimed-rename.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d1ace45270883c5d0d0bbfa6dc7cd9b90f28ba7a47012502c49b87e07dc3b307",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-move-init.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b2349bfd13491a14f911834a94a02e2853e7c9423e594a29f2a9843640a18b40",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-move-semantic.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:10cbd10663f0a8db4270b5f47312f68a1daeaa8f5fb306614108b0af0d8129e4",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-move-vars.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cdf430158a8f024841c2692a73122595fbdb6b957915f209b4d70d2ff175014c",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-rename-claimed-formatter-only.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7c8e0865e57588f7afb9c3e80c1a641e044553f7d3347f9dee73a3343f53eb1b",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-rename-claimed-import-reorder.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9c2542f6596411ac71c5ee6f6e622368791b1eedd21461ffb8b8ddaaf9e3aa4a",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-rename-claimed-move.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9403bbb804854d5849d35030b9ac69510a4ddc7d7aa6f194bbc38328ace1d8a5",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-rename-composite-key.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:889df821705810d0947a62cb581661bd161b8e3f669a497d955540b5c9e5e5a5",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-rename-directive.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c23e6ae2ac2dc6a2eb787b7f20b49f8943a038e306cddfe7dccce57647bfa5aa",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-rename-existing.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:798b463a063004b4a78c5747a2c41cb1260ce12b2946fa5221d31e7e65d54480",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-rename-exported.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bd1424764a6b0b395510d4b351a8589102a3e6b1734e9a5777b178656c2e51cf",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-rename-field.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:17899057ff6fe9a1864b495b4e1f41d6dd669f352c417e7848ab1c2787a0bb88",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-rename-method.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d22fedf07d3e223727657ded71919dc9f1de609597ced497ec8af720249a1b4b",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-rename-package.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:137fdf16764d9049ccd271a3d50168ff3b26f04d64c422a1b22f589e2a98a5a1",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-rename-partial-comment.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:df39c99659042750b388b5521d69d9d1af85720c16652a78ab869f9a7428884c",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-rename-selector.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3b1a07fed658e5626bcb1a9e1cf33ad579413f7eaa334bb10218515d41b90f7e",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-rename-two-pairs.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:721287e4d93c46ed772a569651cabf5d9e08869af9940450ba2cb40aa566a6ba",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-semantic-claimed-rename.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:274243afd2aabc7ccdb0ed87494332ec51e59859a826d3d31522542f179d3a46",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-semantic-claimed-whitespace-only.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:828003c06f22d29537d1fde202873ffef78f892d6523a93eb333aac2ef80c49a",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-sibling-semantic-claimed-rename.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:eadd5f9d534d67aef5cae1c848664981fecf0e5ecd3bbee9eb345331c1ccf57e",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-whitespace-claimed-line-ending-only.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3aa76a6f2fda1a6a7a3b9826c426c2ebe6091930f6dff14adaf85011f9902cda",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/near-miss-whitespace-text-claimed-formatter-only.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:950f4767860828f550e5199206a4f8e110e559c766a97e8d45f35a713eae0d3c",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/patch-digest-mismatch.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bb4702172140075b922cd2178479668f72efe2a08fe0e240a97fd51108054a53",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/patch-digest-short.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e52b044b8530bc982f28aa385077d0aa30662b9e0fb3788f21979689dec36b3b",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-formatter-overlaps-import-reorder.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:904ddf00a2a4bedc3e975ddf3722a605bf2e4f46435abacedb3fd15e258fd477",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-formatter-txt.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3823aa31239a6e8ded4172ee25dc2d5058509dc2e31bd1bd8dd82c21e94794c2",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-formatter.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8c20551ed980a7a6bd95f074e02a3078e3f549655c1bda67331633f667496237",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-import-reorder.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0179d59525a4d062d5accaae17de15c07e3bc81fba44e7953f1160a671b9d0da",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-line-ending-overlaps-whitespace-only.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:49f7550c1c676da04f95d538944552c5b1053ebb10411ebf4c2927892ce9c57f",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-line-ending.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f5aae34875d66c3997bf77559396ebc43a21a540804d212c7eb692dfd2921c40",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-move-functions.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:29f05454ffda0f7bd9146b59612ebe3734e64f38889a17a4ceea1d6b62c3aab7",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-move-types.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a581918c7e1c7ce792df71f858250cd88e58f5071080e1a018abf4d973837bbc",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-rename-comment.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c2d448d3a20c14f31d8e4665cedcdb5a8e2c2966c8b7e28b744a95f06be948db",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-rename-label.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:925ee784bb4e322641ad10baf96817fcde9a3d7da0d8c953b4b9fa3227199783",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-rename-local.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a779e45da269b7766d33527e242780d22b73546ffca98a69ffa149137a4e856e",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-rename-param.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1a60a8c44bc520dce7d359584e43c771ed287b78c31da1f69f821f5c4ca977de",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-rename-receiver.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2a445d31e86a14f222705da5db9639e3b6d50a3c112bb9e593593b963a3ccfe9",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-rename-sha256.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cf917041ddb1601283ec5bfdd76c31fbc3aba72eb7a0a07a25181e47a9ed446a",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-rename-sibling.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5417d1b4f4b5e3342fb6c98114a34f84fc1f025b12d529ec881d246e69bba156",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/positive-whitespace.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:63fee35cdcbb2434ee2ec89984d42cd9b0336b1ac7ffdaa4a4af703f05c8fc74",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/runtime-gate-not-required-for-nonstructural.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:07e583fbdfac712db4563a15d497fd1c9e10b526c66f9b27adbefcd54e2579fe",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-base-executable.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a1ce452ec15bc86715d85871689f3113a708e7f70fd402b98e1a6275242e9e9a",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-base-gitlink.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:659e6c23f103c697880a6d7ad9d0186e670a9cafd64c6e027fb57c8f49f6c213",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-base-historical-target-absent.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f97df48893c715ce3a20f7826337660722a6b82e167397e7fbdb5e1a94cd1d1f",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-base-historical-target-exact.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:41aba8a741e947570868112b191ae5a5fff9a0bb9bfc730b55e460ca6ecd1600",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-base-symlink.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fb7d3f3480277ca66e0183e2df5de896f281f706f14fdf1943969e8bacf83308",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-base-tree.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b96b0a4313c08a519874d0a117c6f5f4684af152720303d74accde58be59c49e",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-target-exact-structural.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b8adf55b70e343d60e6092a052cc3246679400a36b62ff6631e7308c2b1a9db8",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-target-exact-witness.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1f3691b48b776c4d5b7b292c0d5ec6ed088672410ace48cfb89064b228eea6c4",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-target-exact.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:48f2b58107b2e99f1dd51dfc673541d22c46082788d8ee798e46398b823de8e7",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-target-executable.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:28423f4df3d8af24369b1fef3790a451c206f7be49c6f41e615220ca176b0ec4",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-target-gitlink.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cdf3597ec216ea54e85ca177ab1c070a08278e1b89d7a7ae267f9f4468c45003",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-target-historical-0.2.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:56648e5eb22971910721261402ae033ff018414dff1d32770564ecd230a3228c",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-target-symlink.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bd0f8d7347077858a2b3ff082e86bb18745dd143aae0e6e16438c545c8a8ddda",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-target-trailing-newline.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:115591d5fad89352a47b72f08b1cda4cff63a7c40514fcc93895ae13ebad9cf3",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/sidecar-target-tree.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:dc6963dd0d4a1608bc502966799bcb78afd38c26a2efb7db310c8ae9f72ca72f",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/spec-0.2.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c211fa97117af2129f5c4bff05a8564a77c2712c15ba94e4f50f8d60a4e5d4a0",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/spec-0.4.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:15aa8859fea4ee3a15fa3ba29e19f905b6dbf635eb45ac9b9f6cfd04eb464c68",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/spec-1.0.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7d570d3451d9f4b3e87ef4b86f235a7f4e8b8b81b025e1eaa696a4221b00147f",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/symlink-target-change.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d329cb2776305bf93ec5e9e2e7a1d9a9ba74b1b5da295cfa54d5aaee1d93bbf7",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/witness-both.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9052079d0223e861cf79a0175dbb16ecd19396167a38eeaef7740bdc7e5edfa0",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/witness-not-in-hunk-identity.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6468e3d3a384885141235f53c08f6d5cf234426cbf4afc140397719b67d159de",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/witness-on-mechanical-hunk.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:569167a0b5b72763243b13b8ce063b6e08df2d4bf0347913a164677732cf00b5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:57421896445585b30c4d108a02f451cb3fff94a7bdf2d072375bb990037384e9",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "protocol/cem-0.3/vectors/maps/witness-on-supported-hunk.json",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "494a8506a44ebe9abdb1aea5e6b667da90884b81ecce240d8b0d58f5680b8e6a",
+  "spec": "cem/0.2"
+}
