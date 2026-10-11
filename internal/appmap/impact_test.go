@@ -115,3 +115,80 @@ func TestANLV0016UnknownForcesFullSuite(t *testing.T) {
 		t.Fatalf("%+v", small)
 	}
 }
+
+// ANL-V0-032: a changed template or component the map does not anchor is walked through the
+// string literals that name it up to the router span that references it; a mention the walk
+// cannot resolve, or a file nothing references, keeps the path unknown.
+func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	routes, err := os.ReadFile(filepath.Join(root, "app/routes.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := "var shell = require('./shell/shell.html');\n" + string(routes)
+	src = strings.Replace(src, "url: '/settings'", "url: '/settings',\n      templateUrl: 'app/clubs/settings.html'", 1)
+	src = strings.Replace(src, "url: '/members'\n    })\n    .state('members2'", "url: '/members',\n      controller: require('./members/list.component')\n    })\n    .state('members2'", 1)
+	files := map[string]string{
+		"app/routes.js":                 src,
+		"app/shell/shell.html":          "<nav></nav>\n",
+		"app/clubs/settings.html":       "<form></form>\n",
+		"app/members/list.component.js": "module.exports = { templateUrl: './row.html' };\n",
+		"app/members/row.html":          "<tr></tr>\n",
+		"app/shared/badge.html":         "<b></b>\n",
+		"app/shared/badge.js":           "// renders badge.html\nmodule.exports = { templateUrl: './badge.html' };\n",
+		"app/lonely.js":                 "module.exports = './orphan.html';\n",
+		"app/orphan.html":               "<i></i>\n",
+	}
+	for p, body := range files {
+		dst := filepath.Join(root, p)
+		if err = os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err = os.WriteFile(dst, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rev := commitAll(t, root, "templates")
+	f := prefixFixture{m: build(t, root, rev), root: root, rev: rev}
+	settings, members := screenID("admin", "app.clubs.settings"), screenID("admin", "app.clubs.members")
+	bases := func(r ImpactReport) map[string]string {
+		got := map[string]string{}
+		for _, s := range r.Screens {
+			got[s.ID] = s.Basis
+		}
+		return got
+	}
+	impactCommit(t, f, map[string]string{"app/clubs/settings.html": "<form>v2</form>\n"})
+	r := impactRun(t, f, nil, rev, Options{})
+	if got := bases(r); r.Verdict != VerdictTargeted || len(got) != 1 || got[settings] != "template-reference:app/routes.js" {
+		t.Fatalf("template in a state span: %+v", r)
+	}
+	impactCommit(t, f, map[string]string{"app/members/row.html": "<tr>v2</tr>\n"})
+	r = impactRun(t, f, nil, rev, Options{})
+	if got := bases(r); r.Verdict != VerdictTargeted || len(got) != 2 || got[members] != "template-reference:app/routes.js" {
+		t.Fatalf("template through a component: %+v", r)
+	}
+	impactCommit(t, f, map[string]string{"app/shared/badge.html": "<b>v2</b>\n"})
+	r = impactRun(t, f, nil, rev, Options{})
+	if r.Verdict != VerdictFullSuite || len(r.Unknown) != 1 || r.Unknown[0].Path != "app/shared/badge.html" || r.Unknown[0].Reason != "unresolved-reference" {
+		t.Fatalf("unresolved mention narrowed: %+v", r)
+	}
+	head := gitTest(t, root, "rev-parse", "HEAD")
+	impactCommit(t, f, map[string]string{"app/orphan.html": "<i>v2</i>\n"})
+	r = impactRun(t, f, nil, head, Options{})
+	if r.Verdict != VerdictFullSuite || len(r.Unknown) != 1 || r.Unknown[0].Reason != "unmapped-path" {
+		t.Fatalf("unbound root narrowed: %+v", r)
+	}
+	head = gitTest(t, root, "rev-parse", "HEAD")
+	impactCommit(t, f, map[string]string{"app/shell/shell.html": "<nav>v2</nav>\n"})
+	r = impactRun(t, f, nil, head, Options{})
+	anchored := 0
+	for _, s := range f.m.Screens {
+		if s.Anchor.Path == "app/routes.js" && s.Anchor.Repo == "" {
+			anchored++
+		}
+	}
+	if r.Verdict != VerdictTargeted || len(r.Screens) < anchored || anchored < 5 {
+		t.Fatalf("reference outside every span did not widen to the file (%d anchored): %+v", anchored, r)
+	}
+}

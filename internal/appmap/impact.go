@@ -65,8 +65,10 @@ var impactUIExtensions = map[string]bool{".html": true, ".htm": true, ".ts": tru
 
 // Impact maps the paths changed between base and the evaluated revision onto screens (router
 // anchors and their lineage descendants, attributed test files and flow anchors), the edges
-// touching them and the tests that cross those edges. A changed UI path the map cannot place is
-// listed as unknown and forces full-suite-required (ANL-V0-015, ANL-V0-016).
+// touching them and the tests that cross those edges. A changed UI path the map does not place is
+// walked through the literal references to it up to router anchors and test files (ANL-V0-032);
+// one the walk cannot prove is listed as unknown and forces full-suite-required (ANL-V0-015,
+// ANL-V0-016).
 func Impact(ctx context.Context, m *Map, l *EdgeLedger, base string, o Options) ([]byte, error) {
 	cap, err := o.budget(DefaultFlowBudget)
 	if err != nil {
@@ -120,6 +122,7 @@ func Impact(ctx context.Context, m *Map, l *EdgeLedger, base string, o Options) 
 		}
 	}
 	specs := map[string]bool{}
+	unplaced := []string{}
 	for _, p := range changed {
 		placed := false
 		if p == m.Manifest.Path && m.Manifest.Repo == "" {
@@ -167,9 +170,31 @@ func Impact(ctx context.Context, m *Map, l *EdgeLedger, base string, o Options) 
 		switch {
 		case placed:
 		case impactUIExtensions[strings.ToLower(path.Ext(p))]:
-			rep.Unknown = append(rep.Unknown, ImpactUnknown{Path: p, Reason: "unmapped-path"})
+			unplaced = append(unplaced, p)
 		default:
 			rep.Ignored++
+		}
+	}
+	if len(unplaced) > 0 {
+		g, unread := loadReferenceGraph(r, headOID)
+		for _, p := range unplaced {
+			targets, why := []hopTarget(nil), unread
+			if g != nil {
+				targets, why = templateHop(m, g, p)
+			}
+			if why != "" {
+				rep.Unknown = append(rep.Unknown, ImpactUnknown{Path: p, Reason: why})
+				continue
+			}
+			for _, t := range targets {
+				for _, id := range t.screens {
+					direct[id] = append(direct[id], p)
+					touch(id, p, "template-reference:"+t.via)
+				}
+				for _, f := range t.specs {
+					specs[f] = true
+				}
+			}
 		}
 	}
 	for i := range m.Screens {

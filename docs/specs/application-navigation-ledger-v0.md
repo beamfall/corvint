@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1167, V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1162, V1-1167, V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -117,8 +117,9 @@ are URL templates, not component source files. This slice makes neither missing 
 - `ANL-V0-016`: A changed UI path (html, script, style or template extension) that no map element
   places is listed as unknown (`unmapped-path`, or `manifest-changed` for the manifest) and forces the
   verdict `full-suite-required` for the app; otherwise the verdict is `targeted` or
-  `no-navigation-impact`. The map binds no template or component files, so template changes are
-  unknown until a component binding exists. The report is deterministic, byte-capped with omitted
+  `no-navigation-impact`. The map binds no template or component files itself; ANL-V0-032 places
+  the ones its reference hop can prove (this amendment proposed, pending owner acceptance (V1-1162)).
+  The report is deterministic, byte-capped with omitted
   counts that never drop the verdict, digested, learned, read-only and offline; an unresolvable
   base or revision fails closed. (proposed, pending owner acceptance (V1-1137))
 - `ANL-V0-031`: `corvint affected --base FULL_COMMIT_ID --appmap-impact REPORT` (repeatable up to 16,
@@ -134,6 +135,19 @@ are URL templates, not component source files. This slice makes neither missing 
   `APP_NAVIGATION_FULL_SUITE_REQUIRED: APP: REASONS`. The member is advisory: it never adds to or
   removes from `advice.checks`, the plan or the provider projection, so no selection is narrowed.
   This amends the AFP-V0-009 advice member set, also proposed. (proposed, pending owner acceptance (V1-1167))
+- `ANL-V0-032`: A changed UI path no map element places is walked through the tracked UI-extension
+  files at the evaluated revision (at most 20000 files, 1 MiB each, 32 MiB in all, 64 walked nodes).
+  A file references the path when the path's token (a script's stem, an index file's directory, any
+  other file's base name) occurs inside one quoted string literal on that line that resolves to it
+  (relative to the referrer for `./` and `../`, repository-relative otherwise, with script
+  extensions and `/index.*` tried; no `${`). A walk ends at a router file anchoring screens, which
+  selects the screens whose anchor spans hold its reference lines (every screen of the file when a
+  reference lies outside all spans or the file's blob differs from the anchored one), or at a map test
+  file, which selects its screen and spec. Selected screens carry `template-reference:<file>` and
+  their lineage descendants. Any mention that is not such a literal (`unresolved-reference`), a walked
+  file nothing references (`unmapped-path`) or an exceeded bound (`reference-graph-bound`) keeps the
+  path unknown, so the hop can widen a selection but never narrows the verdict. (proposed, pending
+  owner acceptance (V1-1162))
 
 ## Wire and limits
 
@@ -181,6 +195,7 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-015 | `internal/appmap/impact.go`, `cmd/corvint/flows_appmap_impact.go` | `TestANLV0015RouterChangeReachesDescendants`, `TestANLV0015ImpactCLI` |
 | ANL-V0-016 | `internal/appmap/impact.go` | `TestANLV0016UnknownForcesFullSuite` |
 | ANL-V0-031 | `internal/appmap/impact.go`, `cmd/corvint/affected_appmap.go` | `TestANLV0031AffectedRoutesImpactVerdict` |
+| ANL-V0-032 | `internal/appmap/impacthop.go`, `internal/appmap/impact.go` | `TestANLV0032TemplateHopPlacesReferencedFiles` |
 
 ## Follow-ups and promotion
 
