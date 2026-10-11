@@ -22,6 +22,10 @@ const platformSupported = true
 type proc struct {
 	pid, ppid, pgid int
 	comm            string
+	// cpu is the process's cumulative CPU time; cpuKnown is false when
+	// the table's value could not be parsed (CAL-V0-218).
+	cpu      time.Duration
+	cpuKnown bool
 }
 
 // lockExclusive takes the program's single-dispatcher lock without waiting.
@@ -35,14 +39,14 @@ func observeProcs() (map[int]proc, error) {
 	if _, err := os.Stat(ps); err != nil {
 		ps = "/usr/bin/ps" // Linux without a merged /usr
 	}
-	raw, err := exec.Command(ps, "-axo", "pid=,ppid=,pgid=,stat=,comm=").Output()
+	raw, err := exec.Command(ps, "-axo", "pid=,ppid=,pgid=,stat=,time=,comm=").Output()
 	if err != nil {
 		return nil, err
 	}
 	out := map[int]proc{}
 	for _, line := range strings.Split(string(raw), "\n") {
 		f := strings.Fields(line)
-		if len(f) < 5 || strings.HasPrefix(f[3], "Z") {
+		if len(f) < 6 || strings.HasPrefix(f[3], "Z") {
 			continue
 		}
 		var p proc
@@ -53,10 +57,69 @@ func observeProcs() (map[int]proc, error) {
 		if e1 != nil || e2 != nil || e3 != nil {
 			return nil, fmt.Errorf("unparsable process row %q", line)
 		}
-		p.comm = filepath.Base(strings.Join(f[4:], " "))
+		p.cpu, p.cpuKnown = parseCPUTime(f[4])
+		p.comm = filepath.Base(strings.Join(f[5:], " "))
 		out[p.pid] = p
 	}
 	return out, nil
+}
+
+// parseCPUTime parses a ps cumulative CPU time, [[dd-]hh:]mm:ss[.ff] as
+// Darwin and Linux print it.
+func parseCPUTime(s string) (time.Duration, bool) {
+	days := 0
+	if i := strings.IndexByte(s, '-'); i >= 0 {
+		n, err := strconv.Atoi(s[:i])
+		if err != nil || n < 0 {
+			return 0, false
+		}
+		days, s = n, s[i+1:]
+	}
+	parts := strings.Split(s, ":")
+	if len(parts) < 2 || len(parts) > 3 {
+		return 0, false
+	}
+	last := parts[len(parts)-1]
+	if last == "" || last[0] < '0' || last[0] > '9' {
+		return 0, false
+	}
+	// ParseDuration reads the fraction exactly, without float rounding.
+	total, err := time.ParseDuration(last + "s")
+	if err != nil || total >= time.Minute {
+		return 0, false
+	}
+	for i, unit := range []time.Duration{time.Minute, time.Hour}[:len(parts)-1] {
+		n, err := strconv.Atoi(parts[len(parts)-2-i])
+		if err != nil || n < 0 {
+			return 0, false
+		}
+		total += time.Duration(n) * unit
+	}
+	return total + time.Duration(days)*24*time.Hour, true
+}
+
+// userHZ is the Linux USER_HZ that /proc reports CPU ticks in; it is 100 on
+// every architecture this module builds for.
+const userHZ = 100
+
+// parseProcStatCPU reads utime+stime (fields 14 and 15) from a Linux
+// /proc/<pid>/stat line. The command name may hold spaces and parentheses,
+// so fields are counted after its last closing parenthesis.
+func parseProcStatCPU(s string) (time.Duration, bool) {
+	i := strings.LastIndexByte(s, ')')
+	if i < 0 {
+		return 0, false
+	}
+	f := strings.Fields(s[i+1:]) // f[0] is field 3, the state
+	if len(f) < 13 {
+		return 0, false
+	}
+	user, e1 := strconv.ParseUint(f[11], 10, 32)
+	sys, e2 := strconv.ParseUint(f[12], 10, 32)
+	if e1 != nil || e2 != nil {
+		return 0, false
+	}
+	return time.Duration(user+sys) * (time.Second / userHZ), true
 }
 
 // processIdentity reads the tree's start identities; tests replace it to
@@ -357,14 +420,44 @@ func killTree(w *Worker, grace time.Duration, exempt map[int]string) (bool, erro
 	}
 }
 
-// busyChild reports a running non-leader member whose command is not ignored.
-func busyChild(w *Worker, procs map[int]proc, ignore []string) bool {
+// busyChild reports a non-leader member whose command is not ignored and
+// that shows work since the baseline (CAL-V0-218): it is absent from the
+// baseline, its CPU time is unreadable or went backwards, or the CPU time
+// it used since the baseline reaches 1/idleCPUDivisor of the wall time
+// since then. A member that merely exists, sleeping, is not busy.
+func busyChild(w *Worker, procs map[int]proc, ignore []string, base childCPU, now time.Time) bool {
+	elapsed := now.Sub(base.at)
 	for _, m := range w.Members {
-		if m.PID != w.PID && !contains(ignore, procs[m.PID].comm) {
+		p := procs[m.PID]
+		if m.PID == w.PID || contains(ignore, p.comm) {
+			continue
+		}
+		was, ok := base.cpu[childKey(m)]
+		if !ok || !p.cpuKnown {
+			return true
+		}
+		// A counter below the baseline belongs to another process.
+		if used := p.cpu - was; used < 0 || used > 0 && used*idleCPUDivisor >= elapsed {
 			return true
 		}
 	}
 	return false
+}
+
+// childKey names one member in a baseline: Linux start identities omit the
+// PID, so children started in the same clock tick share one.
+func childKey(m Proc) string { return strconv.Itoa(m.PID) + "/" + m.Identity }
+
+// childSample records the CPU time of each non-leader member whose command
+// is not ignored, by PID and start identity, as a CAL-V0-218 baseline.
+func childSample(w *Worker, procs map[int]proc, ignore []string, now time.Time) childCPU {
+	base := childCPU{at: now, cpu: map[string]time.Duration{}}
+	for _, m := range w.Members {
+		if p, ok := procs[m.PID]; ok && p.cpuKnown && m.PID != w.PID && !contains(ignore, p.comm) {
+			base.cpu[childKey(m)] = p.cpu
+		}
+	}
+	return base
 }
 
 // openReaderMarker refuses symlinks and cannot block on a raced FIFO.
