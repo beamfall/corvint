@@ -568,10 +568,11 @@ or a non-impact receipt.
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.
 
 Usage:
-  corvint [--root PATH] affected [--full]
+  corvint [--root PATH] affected [--full] [--require-clean]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
-  corvint [--root PATH] affected [--full] --base FULL_COMMIT_ID
+  corvint [--root PATH] affected [--full] [--require-clean]
+          --base FULL_COMMIT_ID
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
   corvint [--root PATH] affected discovery --playwright-config PATH
@@ -610,6 +611,13 @@ in this bounded snapshot profile; existing profiles are unchanged.
 both paths) to the worktree dirty set, so a branch is selected as a whole; the
 receipt's range member records the base and exactly the committed paths that
 joined. The base must be a full commit id present in the repository.
+When a committed range path is not in the worktree dirty set and the worktree
+is dirty, the receipt carries a top-level warning naming HEAD and the dirty
+count: the plan mixes that commit with mutable worktree content.
+
+--require-clean (experimental; not with --snapshot) refuses with exit 2 and
+unsupported-affected-mixed-worktree when the worktree status has any entry,
+before the range diff, graph walk or provider; a clean worktree is unchanged.
 
 advice reads the repository's own declarations - a Makefile gate target and the
 AGENTS.md Verify block - and lists them as mandatory checks, followed by one

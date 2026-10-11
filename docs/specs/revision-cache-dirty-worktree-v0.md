@@ -136,10 +136,11 @@ strict abstention, clean strict parity, minimum packet budget and unchanged repo
 No overlay or mutable source authority is introduced. The warning is additive for affected path
 receipts; exact-byte consumers must admit it. Rollback removes the warning and flag together.
 
-`affected` is a follow-up assessment, not covered here: `cmd/corvint/affected.go` builds a separate
-mutable-worktree graph and selects the dirty set plus optional range paths; it does not use the
-immutable path-impact compiler or accept explicit requested paths. A strict affected policy needs
-its own AFP contract, including snapshot and range semantics, rather than reusing this warning.
+`affected` is not covered here: `cmd/corvint/affected.go` builds a separate mutable-worktree graph
+and selects the dirty set plus optional range paths; it does not use the immutable path-impact
+compiler or accept explicit requested paths. Its own contract is `AFP-V0-044` (a warning when a
+`--base` range path lies outside a non-empty dirty set) and `AFP-V0-045` (`--require-clean` as a
+typed refusal), both proposed, pending owner acceptance (V1-1141).
 
 ## Trust, failures, and compatibility
 

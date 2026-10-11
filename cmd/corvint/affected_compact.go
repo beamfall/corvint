@@ -29,6 +29,7 @@ type affectedCompactReceipt struct {
 	Range    affectedRange         `json:"range"`
 	Revision string                `json:"revision"`
 	Tool     string                `json:"tool"`
+	Warning  string                `json:"warning,omitempty"`
 }
 
 // affectedCompactPlan keeps every plan member except that each selection
@@ -127,6 +128,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		Range:    full.Range,
 		Revision: full.Revision,
 		Tool:     full.Tool,
+		Warning:  full.Warning,
 	}, nil
 }
 

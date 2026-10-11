@@ -48,6 +48,7 @@ type affectedReceipt struct {
 	Range    affectedRange    `json:"range"`
 	Revision string           `json:"revision"`
 	Tool     string           `json:"tool"`
+	Warning  string           `json:"warning,omitempty"`
 }
 
 // affectedRange records the committed half of the dirty set (AFP-V0-010).
@@ -76,6 +77,9 @@ type affectedInvocation struct {
 	// Full selects the affected-plan/0 wire: every exclusion and every
 	// selected test file (AFP-V0-035).
 	Full bool
+	// RequireClean refuses to plan over a worktree with any status entry
+	// (AFP-V0-045).
+	RequireClean bool
 }
 
 type playwrightAffectedReceipt struct {
@@ -87,6 +91,7 @@ type playwrightAffectedReceipt struct {
 	Range    affectedRange             `json:"range"`
 	Revision string                    `json:"revision"`
 	Tool     string                    `json:"tool"`
+	Warning  string                    `json:"warning,omitempty"`
 }
 
 type affectedProvider struct {
@@ -211,6 +216,14 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			index++
 			continue
 		}
+		if rest[index] == "--require-clean" || strings.HasPrefix(rest[index], "--require-clean=") {
+			if invocation.RequireClean || rest[index] != "--require-clean" {
+				return affectedInvocation{}, argumentError("argument --require-clean: does not accept a value or repetition")
+			}
+			invocation.RequireClean = true
+			index++
+			continue
+		}
 		name, value, inline := strings.Cut(rest[index], "=")
 		if !affectedOptionNames[name] {
 			return affectedInvocation{}, argumentError("unrecognized arguments: " + rest[index])
@@ -254,6 +267,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if invocation.Snapshot != "" && (invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightDiscovery != "") {
 		return affectedInvocation{}, argumentError("--snapshot cannot be combined with --base, --provider or --playwright-discovery")
+	}
+	if invocation.Snapshot != "" && invocation.RequireClean {
+		return affectedInvocation{}, argumentError("--require-clean cannot be combined with --snapshot, which never reads the worktree")
 	}
 	if len(invocation.Providers) == 0 && (len(invocation.Checkouts) != 0 || invocation.SelectionProfile != "") {
 		return affectedInvocation{}, argumentError("--repository and --selection-profile require --provider")
@@ -431,6 +447,9 @@ func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocatio
 	if err != nil {
 		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 	}
+	if invocation.RequireClean && len(dirty) != 0 {
+		return playwrightAffectedReceipt{}, affectedMixedWorktreeRefusal(revision, len(dirty))
+	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
 	if err != nil {
 		return playwrightAffectedReceipt{}, err
@@ -461,6 +480,7 @@ func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocatio
 	return playwrightAffectedReceipt{
 		Mutates: false, OK: true, Plan: plan, Profile: typescript.PlaywrightProfile,
 		Range: affectedRange{Base: invocation.Base, Paths: committed}, Revision: revision, Tool: "affected",
+		Warning: affectedMixedWarning(revision, dirty, committed),
 	}, nil
 }
 
@@ -578,6 +598,9 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 	if err != nil {
 		return affectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 	}
+	if invocation.RequireClean && len(dirty) != 0 {
+		return affectedReceipt{}, affectedMixedWorktreeRefusal(revision, len(dirty))
+	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
 	if err != nil {
 		return affectedReceipt{}, err
@@ -624,6 +647,7 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 		Range:    affectedRange{Base: invocation.Base, Paths: committed},
 		Revision: revision,
 		Tool:     "affected",
+		Warning:  affectedMixedWarning(revision, dirty, committed),
 	}, nil
 }
 
