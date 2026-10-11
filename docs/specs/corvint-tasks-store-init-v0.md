@@ -124,6 +124,16 @@ drains, the import-map writer, and writing or changing the foreign export.
   remove a slot; a killed writer's orphan slots stay refused until the next writer removes them
   (CAL-V0-019).
 
+- `CTS-V0-009`: (accepted, decision 0513) The initial journal-backed
+  head read of `run --attach` (ATR-V0-008, ATR-V0-011) MUST wait out a live writer's
+  receipt-link-before-head-rename window using the same bounded pending-writer read protocol
+  as CTS-V0-006: 25 ms backoff doubling to 400 ms, with the shared two-second patience budget.
+  When the writer finishes within that budget, attach MUST continue against the settled head.
+  A redo still pending after the budget MUST refuse with attach's unchanged `ERROR`/`REDO_PENDING`,
+  naming the wait and stating that the read is retryable. Attach MUST NOT write, lock, redo
+  the receipt, or extend the budget; non-transient failures remain immediate. This journal
+  patience applies even with `--wait 0`, which bounds waiting for the run, not its head read.
+
 ## Import export and batching
 
 The export (profile `corvint-tasks-import/0`, at most `MaxIntentTreeBytes`) is JSON lines, each
@@ -243,6 +253,16 @@ held the lock for the whole two seconds. Rollback sets `StageSlotPatience` to ze
 `internal/tasks/snapshot/stage_slot_wait.go`, which restores the immediate refusal in both readers
 and makes the writer-locked mode a no-op; no state format, code or envelope changes.
 
+CTS-V0-009 (accepted, decision 0513) requires a deterministic attach test
+that holds a simulated writer after receipt link-in, proves `REDO_PENDING`, and completes the
+head rename from the reader's pause hook. A second test leaves the redo pending through the
+patience budget and checks the unchanged refusal and retryable warning. Both tests check that
+attach writes no state, accounting separately for the simulated writer's head rename. The
+loaded qualification is 100 race-enabled repetitions of
+`TestATRV0008_DetachedRunSurvivesItsLauncher` with `GOMAXPROCS=3`; exact counts belong in the
+V1-1126 build-log entry. Rollback restores the single immediate head probe in attach; no state
+format or wire code changes.
+
 ## Traceability
 
 | Requirement | Implementation | Evidence |
@@ -254,4 +274,5 @@ and makes the writer-locked mode a no-op; no state format, code or envelope chan
 | CTS-V0-005 | `docs/TASKS-EXTERNAL-AGENTS.md`, `internal/tasks/cli/testdata/external-agents/`, CLI help | TestExternalAgentTemplatesRequireQualification |
 | CTS-V0-006 | `internal/tasks/snapshot/probe.go` (`Reader.Read`, `Reader.Patience`, `DefaultPatience`, `readBackoff`, `afterWait`), `internal/tasks/fixture/fixture.go` (`init`, `ApplyReceipt`) | TestCTSV0006_ReadWaitsForInFlightWriter, TestCTSV0006_ReadReportsPendingAfterPatience, TestCTSV0006_MovedReadsPauseBetweenAttempts, TestCTSV0006_ReadVerbsWaitForWriterToApplyReceipt, TestCTSV0006_ReadVerbsUnderConcurrentWriter; unchanged attempt counts: TestTMV0008_AS36_ReadRetriesThenSnapshotMoved, TestTMV0008_AS07_ReadsLeaveStoreByteIdentical |
 | CTS-V0-007 | `internal/tasks/importer/importer.go` (`record`) | TestCTSV0007_ReimportKeepsRefinedPoolAndRoles |
+| CTS-V0-009 | `internal/tasks/cli/attempt_detach.go` (`attemptAttach`), `internal/tasks/snapshot/probe.go` (`Reader.Read`) | TestCTSV0009_AttachWaitsForReceiptLinkBeforeHeadRename, TestCTSV0009_AttachReportsPendingAfterPatience; loaded qualification: TestATRV0008_DetachedRunSurvivesItsLauncher |
 | CTS-V0-008 | `internal/tasks/snapshot/stage_slot_wait.go` (`StageSlotWait`), `internal/tasks/journal/stage_read.go` (`readStage`, `slotsInFlight`), `internal/tasks/journal/audit.go` (`audit`, `Reader.WriterLocked`, `stageSleep`), `internal/tasks/store/guards.go` (`lockedJournalReader`) and its writer-locked call sites, `internal/tasks/archive/stage_read.go` (`readStage`, `slotsInFlight`, `readArchive`) | TestCTSV0008_StageSlotWaitBackoffAndBudget, TestCTSV0008_AuditWaitsForWriterHeldStageSlot, TestCTSV0008_OrphanStageSlotStillMalformedAfterBoundedWait, TestCTSV0008_UnassignedSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_WriterLockedAuditRefusesOrphanSlotWithoutPause, TestCTSV0008_MovedObservationsAndSpentWaitCompose, TestCTSV0008_LockedReconcileRefusesOrphanSlotWithoutWaiting, TestCTSV0008_ArchiveWaitsForWriterHeldStageSlot, TestCTSV0008_ArchiveOrphanSlotMalformedAfterBoundedWait, TestCTSV0008_ArchiveSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_ArchiveMovedAttemptsAndSpentWaitCompose, TestCTSV0008_ArchiveStagePauseLeavesPatienceForPending; unchanged refusal order: TestCALV0114_DivergentProjectionRefusalIsDeterministic |

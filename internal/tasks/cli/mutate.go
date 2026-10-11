@@ -333,10 +333,8 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 		if w := unboundedEffectsWarning(store0, operation, payload, report.Ticket); w != "" {
 			res.Warnings = append(res.Warnings, w)
 		}
-		if operation == mutation.OpSetEffects {
-			if e, ok := mutation.PayloadEffects(operation, payload); ok {
-				res.Warnings = append(res.Warnings, store.EffectsDirectoryKeyWarnings(env.Cwd, "HEAD", e)...)
-			}
+		if report.MutationEffects != nil {
+			res.Warnings = append(res.Warnings, store.EffectsDirectoryKeyWarnings(env.Cwd, "HEAD", *report.MutationEffects)...)
 		}
 	}
 	if operation == mutation.OpCompleteManual && report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
