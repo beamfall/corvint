@@ -412,7 +412,11 @@ keeps its layout and bytes. The route stays hidden like the S1 read: help is unc
   artifacts directory (`stable-bundle-entry-escaping`), bytes that differ from the declared digest
   or length (`stable-bundle-entry-digest`), or a manifest that is not exact or disagrees with the
   map (`stable-bundle-manifest`). `VerifyStable` MUST also refuse a bundle that records another base
-  or target than the caller supplies (`stable-bundle-revision`). The Go API (`CollectStable`,
+  or target than the caller supplies (`stable-bundle-revision`). `WriteStable` MUST refuse a bundle
+  that is not exactly its map's declared closure (base, order, role, path, bytes) before creating
+  anything, and MUST write only inside the new bundle directory. Readers MUST open entries without
+  following a final symlink or blocking on a substituted FIFO, and MUST read directories in bounded
+  batches so a tree over the entry bound is refused before it is held in memory. The Go API (`CollectStable`,
   `WriteStable`, `ReadStable`, `VerifyStable`) is the reusable read/write surface for later
   attestation, Git-notes and example-CI consumers.
 - `CEM-V1-064`: A stable export MUST refuse `--witness` with `invalid-arguments` before
@@ -437,9 +441,12 @@ changes.
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-060 | `TestStableExportRelocatesWithSameVerification` | The export envelope's result equals `verify.Stable` over the source (ACCEPT/EXACT on Go 1.27.1 and 1.27.2) |
-| CEM-V1-060 | `TestStableExportPublishesNothingForARefusedSource` | Stale base and tampered artifact (REJECT, exit 1), omitted artifact (UNSUPPORTED, exit 2), no artifact root and relative root (exit 2) return the verifier result with no bundle written |
+| CEM-V1-060 | `TestStableExportPublishesNothingForARefusedSource` | Stale base and tampered artifact (REJECT, exit 1), omitted artifact (UNSUPPORTED, exit 2), no artifact root and relative root (exit 2) return the verifier result with no bundle written; each absolute-root result equals `verify.Stable` over the same inputs |
 | CEM-V1-061 | `TestStableExportRelocatesWithSameVerification` | Map bytes equal the sealed bytes; all six roles, including the snapshot-head receipt, are exact copies; the manifest digest is reported |
 | CEM-V1-062 | `TestStableExportRelocatesWithSameVerification`, `TestCEMExportStableBundleRelocates` | After `os.Rename` to another parent, `VerifyStable` and `cem verify-stable` over the moved bundle equal the source result and exit |
 | CEM-V1-062 | `TestStableBundleKeepsNestedPathsAcrossRoots` | Nested declared artifact paths keep their paths and digests across a move |
 | CEM-V1-063 | `TestStableBundleRefusesIncompleteOrTamperedEntries` | Tampered snapshot-head or map byte, omitted artifact or map, extra file, extra directory, symlinked artifact or artifacts directory, inexact or extended manifest, and another target each refuse with their code (exit 2) |
+| CEM-V1-063 | `TestWriteStableRefusesAnAlteredClosure` | An escaping or duplicated path, a relabelled or omitted role, altered bytes and another base refuse before anything is created; the output parent stays empty |
+| CEM-V1-063 | `TestReadStableRefusesAnOversizedTree`, `TestStableEntryOpenDoesNotBlockOnAFIFO` | A tree over 4,096 entries refuses; opening a FIFO entry returns at once and the read refuses it |
+| CEM-V1-060 | `TestCEMExportStableKeepsCallerRoot` | For the alias, `<alias>/../repo`, `<repo>/`, `./repo`, `repo`, `./alias` and `--repo`, `cem export --root` equals `cem verify-stable --repository` on the same string (complete result, exit) and publishes nothing |
 | CEM-V1-064 | `TestStableExportArgumentRefusals` | `--witness` and an in-worktree output refuse with nothing written; a 0.x export refuses `--artifacts` |

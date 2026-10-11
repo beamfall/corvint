@@ -16,6 +16,7 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -476,6 +477,14 @@ func TestStableExportPublishesNothingForARefusedSource(t *testing.T) {
 			if envelope["ok"] != false || verification.Exit != c.exit || verification.Result.Outcome != c.outcome {
 				t.Fatalf("envelope %#v", envelope)
 			}
+			if filepath.IsAbs(options.Repository) {
+				want, exit := verify.Stable(context.Background(), f.mapBytes, verify.StableOptions{
+					Repository: options.Repository, ExpectedBase: options.ExpectedBase, Target: options.Target, ArtifactRoot: options.Artifacts,
+				})
+				if exit != verification.Exit || !reflect.DeepEqual(want, verification.Result) {
+					t.Fatalf("export result differs from verify.Stable over the same inputs")
+				}
+			}
 			if _, err := os.Lstat(output); !errors.Is(err, os.ErrNotExist) {
 				t.Fatalf("a refused export published %s", output)
 			}
@@ -518,5 +527,67 @@ func TestStableExportArgumentRefusals(t *testing.T) {
 	})
 	if stableCode(err) != cemcode.InvalidArguments {
 		t.Fatalf("0.x --artifacts: %v", err)
+	}
+}
+
+// CEM-V1-061, CEM-V1-063: WriteStable writes only the map's exact declared
+// closure; an altered path, role or byte is refused before anything is
+// created, so the output parent stays empty.
+func TestWriteStableRefusesAnAlteredClosure(t *testing.T) {
+	f := newStableFixture(t)
+	for _, c := range []struct {
+		name, code string
+		alter      func(b *StableBundle)
+	}{
+		{"escaping path", CodeStableManifest, func(b *StableBundle) {
+			b.Artifacts[0].Path = "../../leaked"
+			b.Artifacts = append(b.Artifacts, b.Artifacts[0])
+		}},
+		{"relabelled role", CodeStableManifest, func(b *StableBundle) { b.Artifacts[0].Kind = b.Artifacts[1].Kind }},
+		{"omitted role", CodeStableManifest, func(b *StableBundle) { b.Artifacts = b.Artifacts[1:] }},
+		{"altered bytes", CodeStableEntryDigest, func(b *StableBundle) { b.Artifacts[0].data = append(b.Artifacts[0].Bytes(), ' ') }},
+		{"other base", CodeStableManifest, func(b *StableBundle) { b.Base = f.target }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			bundle, err := CollectStable(f.mapBytes, f.base, f.target, f.artifacts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			c.alter(bundle)
+			dir := t.TempDir()
+			parent, err := os.OpenRoot(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer parent.Close()
+			if err := WriteStable(parent, "bundle", bundle); stableCode(err) != c.code {
+				t.Fatalf("got %v, want %s", err, c.code)
+			}
+			if entries, err := os.ReadDir(dir); err != nil || len(entries) != 0 {
+				t.Fatalf("a refused write left %d entries", len(entries))
+			}
+		})
+	}
+}
+
+// CEM-V1-063: a bundle holding more entries than the walk bound is refused.
+func TestReadStableRefusesAnOversizedTree(t *testing.T) {
+	f := newStableFixture(t)
+	bundle, err := CollectStable(f.mapBytes, f.base, f.target, f.artifacts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := writeStableAt(t, filepath.Join(f.dir, "oversized"), bundle)
+	spare := filepath.Join(dir, "spare")
+	if err := os.Mkdir(spare, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for i := range maxStableEntries {
+		if err := os.WriteFile(filepath.Join(spare, strconv.Itoa(i)), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := ReadStable(dir); stableCode(err) != CodeStableEntryUnused || !strings.Contains(err.Error(), "more than") {
+		t.Fatalf("oversized tree: %v", err)
 	}
 }
