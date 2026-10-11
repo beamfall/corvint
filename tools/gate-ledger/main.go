@@ -619,6 +619,7 @@ type packageOutcome struct {
 	started, failed bool
 	terminal        string
 	tests           map[string]bool
+	benchmarks      map[string]bool
 }
 
 type packageOutcomes struct {
@@ -631,7 +632,7 @@ type packageOutcomes struct {
 func newPackageOutcomes(packages []packageKey, stdout io.Writer) *packageOutcomes {
 	o := &packageOutcomes{packages: map[string]*packageOutcome{}, stdout: stdout}
 	for _, p := range packages {
-		o.packages[p.pkg] = &packageOutcome{tests: map[string]bool{}}
+		o.packages[p.pkg] = &packageOutcome{tests: map[string]bool{}, benchmarks: map[string]bool{}}
 	}
 	return o
 }
@@ -781,14 +782,22 @@ func (o *packageOutcomes) event(line []byte) {
 				o.invalid = true
 			}
 			p.tests[e.Test] = true
+			if strings.HasPrefix(e.Test, "Benchmark") {
+				if !p.benchmarks[e.Test] && len(p.benchmarks) >= 100000 {
+					o.invalid = true
+				}
+				p.benchmarks[e.Test] = true
+			}
 		case "pass", "skip", "fail":
 			test := e.Test
 			// Go can add a CPU suffix to a benchmark terminal after an
 			// unsuffixed run. Prefer exact names, including subbenchmark names.
-			if !p.tests[test] && strings.HasPrefix(test, "Benchmark") {
+			// Repeated benchmark terminals under -count may have no new run.
+			// Remember run names so they remain valid after the active run closes.
+			if !p.tests[test] && !p.benchmarks[test] && strings.HasPrefix(test, "Benchmark") {
 				test = benchmarkCPUSuffix.ReplaceAllString(test, "")
 			}
-			if !p.tests[test] {
+			if !p.tests[test] && !p.benchmarks[test] {
 				o.invalid = true
 			}
 			delete(p.tests, test)

@@ -684,6 +684,41 @@ func TestPackageOutcomesBenchmarkFailure(t *testing.T) {
 	}
 }
 
+// GL-V0-002: repeated benchmark terminals under -count=2 need no new run,
+// preserve unrelated package passes, and never undo an earlier failure.
+func TestPackageOutcomesRepeatedBenchmarkTerminals(t *testing.T) {
+	for _, names := range [][2]string{
+		{"BenchmarkBad", "BenchmarkBad"},
+		{"BenchmarkBad", "BenchmarkBad-3"},
+		{"BenchmarkBad/sub", "BenchmarkBad/sub-3"},
+		{"BenchmarkBad/sub-3", "BenchmarkBad/sub-3"},
+	} {
+		for _, repeat := range []string{"fail", "pass", "skip"} {
+			for _, terminal := range []string{"fail", "pass"} {
+				t.Run(names[0]+"/"+names[1]+"/"+repeat+"/"+terminal, func(t *testing.T) {
+					o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, io.Discard)
+					_, _ = fmt.Fprintf(o, `{"Action":"start","Package":"good"}
+{"Action":"pass","Package":"good"}
+{"Action":"start","Package":"bad"}
+{"Action":"run","Package":"bad","Test":%q}
+{"Action":"fail","Package":"bad","Test":%q}
+{"Action":%q,"Package":"bad","Test":%q}
+{"Action":%q,"Package":"bad"}
+`, names[0], names[1], repeat, names[1], terminal)
+					got := o.passes()
+					if terminal == "pass" {
+						if got != nil {
+							t.Fatalf("failed benchmark admitted package pass: %v", got)
+						}
+					} else if len(got) != 2 || !got["good"] || got["bad"] {
+						t.Fatalf("repeated %s lost unrelated pass or admitted failure: %v", repeat, got)
+					}
+				})
+			}
+		}
+	}
+}
+
 // GL-V0-002: CPU suffix matching is limited to benchmarks with a preceding run.
 func TestPackageOutcomesRefusesUnmatchedBenchmarkTerminals(t *testing.T) {
 	for _, names := range [][2]string{
