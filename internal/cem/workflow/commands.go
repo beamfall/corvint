@@ -576,7 +576,7 @@ var lockMap = (*publish.Root).Lock
 // concurrent publication cannot trip the safe reader's identity check. Separate
 // outputs retain input-validation precedence. The caller must release the lock.
 func (s *Session) lockedMapInput(inputRelative, outputRelative string) (*wire.Map, func(), error) {
-	inPlace := outputRelative == "" || outputRelative == inputRelative
+	inPlace := outputRelative == "" || strings.EqualFold(outputRelative, inputRelative) // case-aliased names alias on case-insensitive volumes
 	if !inPlace || inputRelative == "" || filepath.IsAbs(inputRelative) {
 		if _, _, err := s.readMapInput(inputRelative); err != nil {
 			return nil, nil, err
