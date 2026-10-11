@@ -19,7 +19,7 @@ const (
 // ObligationAliasByte reports whether c is in the alias alphabet
 // [A-Za-z0-9._:-] (TOL-V0-034).
 func ObligationAliasByte(c byte) bool {
-	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '.' || c == ':' || c == '-'
+	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '.' || c == '_' || c == ':' || c == '-'
 }
 
 // ParseObligationAlias validates an adopter alias: 1..64 bytes of

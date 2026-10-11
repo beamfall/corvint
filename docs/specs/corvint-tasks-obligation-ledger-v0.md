@@ -496,9 +496,9 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   the native id does, and every result MUST be keyed to the native id. Status: proposed, pending
   owner acceptance (V1-1177; GitHub #792).
   - An alias matches as a whole token: a maximal run of `[A-Za-z0-9_.:-]` equal to the alias once
-    its trailing `.` and `:` bytes are dropped. `_` is not admitted in an alias but still extends
-    the run, so an alias never matches inside an identifier. `M001:`, `M001.` and `[M001]` name
-    `M001`; `M001-login`, `M001_extra`, `xM001`, `M001.1` and `a.M001` do not.
+    its trailing `.` and `:` bytes are dropped, so an alias never matches inside an identifier.
+    `M001:`, `M001.` and `[M001]` name `M001`; `M001-login`, `M001_extra`, `xM001`, `M001.1`
+    and `a.M001` do not.
   - Crediting (TOL-V0-010/011), the source presence check and its audit (TOL-V0-012/013) accept
     the native id or the alias in the spec file at `--commit`. The witness event, the credit lists,
     the evidence and the batch summary carry native ids only, so an alias never reaches a recorded

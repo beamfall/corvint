@@ -23,8 +23,8 @@ changes.
 - `internal/tasks/obligation/names.go` resolves a native id or an alias to the native id. The
   report reader, the expected-fail rules, preflight, the batch causes and the source presence check
   and its audit use it. An alias matches as a maximal `[A-Za-z0-9_.:-]` run, with trailing `.` and
-  `:` dropped. `_` extends the run but is not admitted in an alias, so `M001_extra` never names
-  `M001` (review round 1). Alias spans are masked before defect-id scanning.
+  `:` dropped, so `M001_extra` never names `M001` (review round 1 found `_` missing from the
+  alphabet). Alias spans are masked before defect-id scanning.
 - The receipt audit folds the chain before the audited witness to learn its aliases.
 - `set`, `--ids` and plan documents stay native-id only.
 

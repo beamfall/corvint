@@ -16,6 +16,7 @@ const aliasSpec = `import { test } from '@playwright/test';
 test.describe('rows', () => {
   test('M001: login works', async () => {
     await test.step('ABC-12.V4 export', async () => {});
+    await test.step('login_v2 flow', async () => {});
   });
 
   test('M002-legacy, xM002, M002_x and M002.1', async () => {});
@@ -31,7 +32,8 @@ const aliasSeed = `{"prefix":"AC","obligations":[` +
 	`{"id":"AC-2","alias":"ABC-12.V4","title":"export","core":false},` +
 	`{"id":"AC-3","alias":"M002","title":"legacy","core":false},` +
 	`{"id":"AC-4","alias":"FLOW-7-register-auth","title":"register","core":false},` +
-	`{"id":"AC-5","title":"no alias","core":false}]}`
+	`{"id":"AC-5","title":"no alias","core":false},` +
+	`{"id":"AC-8","alias":"login_v2","title":"underscore","core":false}]}`
 
 // entryAliases maps each folded entry id to its alias, "-" when the entry
 // has no alias member.
@@ -55,13 +57,13 @@ func entryAliases(v wire.Value) map[string]string {
 func TestTOLV0034_SeedWithAliases(t *testing.T) {
 	r, id, _ := preflightRepo(t, aliasSpec, aliasSeed)
 	got := entryAliases(obligationsShow(t, r.Root, id))
-	want := map[string]string{"AC-1": "M001", "AC-2": "ABC-12.V4", "AC-3": "M002", "AC-4": "FLOW-7-register-auth", "AC-5": "-"}
+	want := map[string]string{"AC-1": "M001", "AC-2": "ABC-12.V4", "AC-3": "M002", "AC-4": "FLOW-7-register-auth", "AC-5": "-", "AC-8": "login_v2"}
 	for k, v := range want {
 		if got[k] != v {
 			t.Fatalf("aliases %v, want %v", got, want)
 		}
 	}
-	bad := []string{"M003.", "-M003", "M 003", "M003_x", strings.Repeat("M", 65)}
+	bad := []string{"M003.", "-M003", "M 003", "M003/x", strings.Repeat("M", 65)}
 	for i, alias := range bad {
 		rev := obligationRevision(t, r.Root, id)
 		x := atm(t, r.Root, nil, "ticket", "obligations", "seed", "--target", id, "--expected-revision", rev,
@@ -141,19 +143,19 @@ func TestTOLV0036_WitnessCreditsByAliasKeyedToNativeID(t *testing.T) {
 		t.Fatalf("expected-fail alias: %s", y.stdout)
 	}
 	report := writeReport(t, t.TempDir(), r.Root, pwVersion,
-		pwSpec{Title: "M001: login works", ID: "s1", File: spec, Tests: []pwTest{passed("chromium", step("ABC-12.V4 export", false))}},
+		pwSpec{Title: "M001: login works", ID: "s1", File: spec, Tests: []pwTest{passed("chromium", step("ABC-12.V4 export", false), step("login_v2 flow", false))}},
 		pwSpec{Title: "M002-legacy, xM002, M002_x and M002.1", ID: "s2", File: spec, Tests: []pwTest{passed("chromium")}})
 	x := atm(t, r.Root, nil, witnessArgs(id, "w-alias", obligationRevision(t, r.Root, id), head, "--from-playwright-report", report)...)
 	if x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "written").Bool {
 		t.Fatalf("witness: %s", x.stdout)
 	}
 	item := x.res.Items[0]
-	if strList(item, "credited") != "AC-1,AC-2" || strList(item, "unmatched") != "AC-3,AC-4,AC-5" || strList(item, "unknown") != "" || strList(item, "unbound") != "" {
+	if strList(item, "credited") != "AC-1,AC-2,AC-8" || strList(item, "unmatched") != "AC-3,AC-4,AC-5" || strList(item, "unknown") != "" || strList(item, "unbound") != "" {
 		t.Fatalf("lists: %s", wire.Encode(item))
 	}
 	v := obligationsShow(t, r.Root, id)
 	st := entryStates(v)
-	if st["AC-1"] != "WITNESSED" || st["AC-2"] != "WITNESSED" || st["AC-3"] != "OPEN" {
+	if st["AC-1"] != "WITNESSED" || st["AC-2"] != "WITNESSED" || st["AC-8"] != "WITNESSED" || st["AC-3"] != "OPEN" {
 		t.Fatalf("states %v", st)
 	}
 	for _, e := range field(v, "entries").Arr {

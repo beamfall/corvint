@@ -32,13 +32,6 @@ func NamesOf(l *ticket.ObligationLedger) Names {
 	return n
 }
 
-// tokenByte reports whether c continues an alias token: the alias alphabet
-// [A-Za-z0-9.:-] or `_`, so an alias never matches inside an identifier
-// such as `M001_extra` although `_` is not admitted in an alias.
-func tokenByte(c byte) bool {
-	return wire.ObligationAliasByte(c) || c == '_'
-}
-
 // aliasSpans calls each with the native id and byte span of every alias in
 // s that occurs as a whole token: a maximal run of [A-Za-z0-9._:-] equal to
 // the alias once trailing `.` and `:` bytes are dropped (TOL-V0-036).
@@ -47,12 +40,12 @@ func (n Names) aliasSpans(s string, each func(id string, at, end int)) {
 		return
 	}
 	for i := 0; i < len(s); {
-		if !tokenByte(s[i]) {
+		if !wire.ObligationAliasByte(s[i]) {
 			i++
 			continue
 		}
 		j := i
-		for j < len(s) && tokenByte(s[j]) {
+		for j < len(s) && wire.ObligationAliasByte(s[j]) {
 			j++
 		}
 		end := j
@@ -105,7 +98,7 @@ func (n Names) Contains(content []byte, id string) bool {
 		for end < len(content) && (content[end] == '.' || content[end] == ':') {
 			end++
 		}
-		if (at == 0 || !tokenByte(content[at-1])) && (end == len(content) || !tokenByte(content[end])) {
+		if (at == 0 || !wire.ObligationAliasByte(content[at-1])) && (end == len(content) || !wire.ObligationAliasByte(content[end])) {
 			return true
 		}
 		i = at + 1
@@ -129,7 +122,7 @@ func (n Names) DefectIDs(s string) []string {
 }
 
 // contractAlias matches a `<contract>:<token>` annotation whose token is a
-// maximal run of token bytes; contractAliases keeps the tokens that are
+// maximal run of the alias alphabet; contractAliases keeps the tokens that are
 // aliases.
 var contractAlias = regexp.MustCompile(`(?:^|[^A-Za-z0-9_.\-])[A-Za-z][A-Za-z0-9_.\-]{0,63}:([A-Za-z0-9_][A-Za-z0-9_.:\-]*)`)
 
