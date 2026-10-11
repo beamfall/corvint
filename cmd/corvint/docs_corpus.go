@@ -12,10 +12,10 @@ import (
 )
 
 type corpusOptions struct {
-	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement string
-	playwright                                                                                                        playwrightCorpusOptions
-	apply, check                                                                                                      bool
-	limit, offset                                                                                                     int
+	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement, runner string
+	playwright                                                                                                                playwrightCorpusOptions
+	apply, check                                                                                                              bool
+	limit, offset                                                                                                             int
 }
 
 func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
@@ -36,7 +36,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		return o, true, argumentError("docs corpus requires an operation")
 	}
 	o.op = args[pos+2]
-	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem}
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner}
 	o.playwright.addFlags(flags)
 	seen := map[string]bool{}
 	for i := pos + 3; i < len(args); i++ {
@@ -91,6 +91,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		"behavior-provider":   "--input",
 		"discover-playwright": "--migration --config --playwright-list --receipt",
 		"witness-playwright":  "--input --receipt-input --report",
+		"discover-legacy":     "--runner --revision --path --input",
 		"maintain":            "--artifact --page --apply", "cem": "--artifact --cem --id",
 		"info": "--artifact --limit", "validate": "--artifact --limit", "search": "--artifact --query --limit",
 		"get": "--artifact --id --limit", "trace": "--artifact --id --limit", "related": "--artifact --id --limit",
@@ -118,6 +119,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		"behavior-provider":   {o.input},
 		"discover-playwright": {o.playwright.migration, o.playwright.config, o.playwright.listing},
 		"witness-playwright":  {o.input, o.playwright.receiptInput, o.playwright.report},
+		"discover-legacy":     {o.runner, o.revision, o.path},
 		"search":              {o.artifact, o.query}, "locate": {o.artifact, o.path}, "get": {o.artifact, o.id}, "trace": {o.artifact, o.id}, "related": {o.artifact, o.id}, "journey": {o.artifact, o.id}, "stability": {o.artifact, o.id},
 	}
 	if kind := doccorpus.OperationInput(o.op); kind == "query" {
@@ -141,8 +143,8 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	return o, true, err
 }
 
-// errCorpusCheckRefused marks a behavior-adapter check report that lists
-// refusals; the report is still the command output.
+// errCorpusCheckRefused marks a behavior-adapter check report, or a legacy inventory whose
+// crosswalk refused a reviewed mapping, that lists refusals; the report is still the command output.
 var errCorpusCheckRefused = errors.New("behavior adapter check refused")
 
 func runCorpus(ctx context.Context, o corpusOptions, stdout, stderr io.Writer) int {
@@ -220,6 +222,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	}
 	if o.op == "discover-playwright" || o.op == "witness-playwright" {
 		return compilePlaywrightCorpus(ctx, o)
+	}
+	if o.op == "discover-legacy" {
+		return compileLegacyCorpus(ctx, o)
 	}
 	if o.op == "behavior-provider" {
 		raw, err := doccorpus.ReadFile(o.root, o.input)
