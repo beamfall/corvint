@@ -128,7 +128,7 @@ one.
 | V1-1045 | CAL-V0-205 | Accepted (decision 0471): `pool confirm-safe` takes the CAL-V0-116 writer-checkpoint route, so with a bound writer checkpoint it no longer decodes the whole receipt journal under the preparation gate; every decline keeps the complete route; focused tests and a synthetic measurement |
 | Read facets | CAL-V0-206..209 | Accepted (decision 0476): `--facets` adds a bounded facet-count summary over the whole match set to `ticket search`, `ticket list` and `roadmap`; `--count` returns only that summary; `release readiness` adds member counts and milestone drift and skips the source observation without a candidate; focused tests and a real-store read measurement |
 | V1-1118 | CAL-V0-211 | Accepted (decision 0499): a fresh `ticket set-effects` or claim warns `EXACT_KEY_NAMES_DIRECTORY`, naming the key and the key with `/`, for each PATH key without a trailing `/` that names a directory in the tree; it refuses nothing; focused tests |
-| V1-1125 | CAL-V0-214 | Proposed, pending owner acceptance (V1-1125): fresh `ticket create` and `ticket refine` transactions carry the same advisory exact-directory PATH key warning as CAL-V0-211; replays add none; effects remain unchanged; focused tests |
+| V1-1125 | CAL-V0-214 | accepted, decision 0513: fresh `ticket create` and `ticket refine` transactions carry the same advisory exact-directory PATH key warning as CAL-V0-211; replays add none; effects remain unchanged; focused tests |
 | V1-1081 | CAL-V0-017 (amended) | Proposed: `complete` also accepts a commit reachable from the intent branch's configured remote-tracking upstream when the local branch is behind; never fetches or moves a ref; an unintegrated commit refuses `STALE_TREE` plus `COMMIT_NOT_INTEGRATED`; focused tests |
 | V1-0853 | CAL-V0-105 | Dispatcher replans with the tickets its work state holds deferred `WORK_STATE_HELD` outside the selection window; UNKNOWN, NONE and no reader keep today's window; focused tests |
 | V1-0772 | CAL-V0-086 | Supervised stage worktree path recorded as PathText (4096 bytes), refused before mutation when longer; an unproved stage drain ends the role `SURVIVORS` instead of `FINISHED`; drain re-probes `EPERM`; bounded watcher read tolerance; focused tests |
@@ -5686,7 +5686,7 @@ claim reserved it without saying so. The amendment warns and reports; it refuses
   outcome, stored effects and reserved scope MUST be those it produces without this amendment.
   `EXACT_KEY_NAMES_DIRECTORY` is a warning prefix, not a result code.
 
-- `CAL-V0-214`: (proposed, pending owner acceptance (V1-1125)) When `corvint-tasks ticket create`
+- `CAL-V0-214`: (accepted, decision 0513) When `corvint-tasks ticket create`
   or `ticket refine` commits a fresh transaction (not a replay, no-change or refusal), the
   command MUST add the CAL-V0-211 `EXACT_KEY_NAMES_DIRECTORY` warning for each distinct exact
   directory key in its effects' `touchPaths` or `PATH` resources, whatever their coverage.
@@ -5703,7 +5703,7 @@ claim reserved it without saying so. The amendment warns and reports; it refuses
 Non-goals: rewriting or refusing the key; changing the CAL-V0-021 key rule or the CAL-V0-024
 refusal; warning at `widen`, `submit` or a replay; reading any
 tree other than the one named above.
-The proposed CAL-V0-214 extension governs warnings at `ticket create` and `ticket refine`;
+The CAL-V0-214 extension (accepted, decision 0513) governs warnings at `ticket create` and `ticket refine`;
 it does not change the accepted CAL-V0-211 command behavior.
 
 Failure modes: `set-effects` reads the caller's `HEAD`, which can differ from the base a later

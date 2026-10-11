@@ -580,7 +580,7 @@ CAL-V0-208	docs/specs/corvint-tasks-agent-leases-v0.md	5590	(accepted, decision 
 CAL-V0-209	docs/specs/corvint-tasks-agent-leases-v0.md	5598	(accepted, decision 0476) `release readiness` for a release without a candidate
 CAL-V0-210	docs/specs/corvint-tasks-agent-leases-v0.md	5632	(accepted (decision 0473; V1-0795)) A program transition that changes the owner
 CAL-V0-211	docs/specs/corvint-tasks-agent-leases-v0.md	5674	(accepted, decision 0499; V1-1118) When `corvint-tasks ticket set-effects` commi
-CAL-V0-214	docs/specs/corvint-tasks-agent-leases-v0.md	5689	(proposed, pending owner acceptance (V1-1125)) When `corvint-tasks ticket create
+CAL-V0-214	docs/specs/corvint-tasks-agent-leases-v0.md	5689	(accepted, decision 0513) When `corvint-tasks ticket create`
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
@@ -875,7 +875,7 @@ CTS-V0-005	docs/specs/corvint-tasks-store-init-v0.md	83	The external-agent setup
 CTS-V0-006	docs/specs/corvint-tasks-store-init-v0.md	88	(requested 2026-10-01, issue 433) A journal-backed read (`withStore` verbs and
 CTS-V0-007	docs/specs/corvint-tasks-store-init-v0.md	102	(proposed (V1-0759)) A re-import that writes the next revision of an `IMPORT` re
 CTS-V0-008	docs/specs/corvint-tasks-store-init-v0.md	107	(accepted, decision 0490; V1-0825) A native writer holds staging slots `staging/
-CTS-V0-009	docs/specs/corvint-tasks-store-init-v0.md	127	(proposed, pending owner acceptance (V1-1126)) The initial journal-backed
+CTS-V0-009	docs/specs/corvint-tasks-store-init-v0.md	127	(accepted, decision 0513) The initial journal-backed
 CTW-V0-001	docs/specs/corvint-tasks-intent-worktree-v0.md	41	The intent root is the checkout whose `.taskman/` is the intent projection. Ever
 CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	47	When the primary worktree's HEAD does not name the intent branch from
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	54	The intent branch and queue ID used for routing are read from the primary worktr

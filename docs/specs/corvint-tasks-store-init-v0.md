@@ -124,7 +124,7 @@ drains, the import-map writer, and writing or changing the foreign export.
   remove a slot; a killed writer's orphan slots stay refused until the next writer removes them
   (CAL-V0-019).
 
-- `CTS-V0-009`: (proposed, pending owner acceptance (V1-1126)) The initial journal-backed
+- `CTS-V0-009`: (accepted, decision 0513) The initial journal-backed
   head read of `run --attach` (ATR-V0-008, ATR-V0-011) MUST wait out a live writer's
   receipt-link-before-head-rename window using the same bounded pending-writer read protocol
   as CTS-V0-006: 25 ms backoff doubling to 400 ms, with the shared two-second patience budget.
@@ -253,7 +253,7 @@ held the lock for the whole two seconds. Rollback sets `StageSlotPatience` to ze
 `internal/tasks/snapshot/stage_slot_wait.go`, which restores the immediate refusal in both readers
 and makes the writer-locked mode a no-op; no state format, code or envelope changes.
 
-CTS-V0-009 (proposed, pending owner acceptance (V1-1126)) requires a deterministic attach test
+CTS-V0-009 (accepted, decision 0513) requires a deterministic attach test
 that holds a simulated writer after receipt link-in, proves `REDO_PENDING`, and completes the
 head rename from the reader's pause hook. A second test leaves the redo pending through the
 patience budget and checks the unchanged refusal and retryable warning. Both tests check that

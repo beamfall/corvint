@@ -2,10 +2,10 @@
 
 ## Intent and scope
 
-CAL-V0-214 in `docs/specs/corvint-tasks-agent-leases-v0.md` is **proposed, pending owner
-acceptance (V1-1125)**. It extends the advisory CAL-V0-211 warning to fresh CREATE and REFINE
+CAL-V0-214 in `docs/specs/corvint-tasks-agent-leases-v0.md` is **accepted, decision 0513
+(V1-1125)**. It extends the advisory CAL-V0-211 warning to fresh CREATE and REFINE
 transactions, including fresh batch-refine entries. CAL-V0-211's non-goals now point to this
-proposal for create/refine; its accepted set-effects and claim behavior is preserved. No decision
+requirement for create/refine; its accepted set-effects and claim behavior is preserved. No decision
 file or acceptance declaration is added.
 
 The earliest proof is the real CLI/store regression using a committed Git directory. CREATE uses
@@ -105,4 +105,4 @@ Committed CEM/OCM binding, dogfood check/seal, live-store qualification, publica
 ticket completion are NOT_PRODUCED/NOT_RUN: the owner explicitly requested an uncommitted builder
 patch and no `.taskman` writes. The task store is untouched, including friction filing. Frozen
 retrieval/learning evaluations and process-lifecycle qualification are not applicable to this
-advisory CLI extension. Integration and owner acceptance remain outside this builder result.
+advisory CLI extension. Owner acceptance is decision 0513; integration remained outside this builder result.

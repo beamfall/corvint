@@ -1,8 +1,8 @@
 # V1-1126: attach waits for a pending writer
 
-CTS-V0-009 in `docs/specs/corvint-tasks-store-init-v0.md` is **proposed, pending owner
-acceptance (V1-1126)**, cross-referencing CTS-V0-006 and ATR-V0-008/011. No owner acceptance
-or decision is inferred. The starting commit is `71b2eb8fc3e56a9df368b8be8227bf5ad125f8c9`.
+CTS-V0-009 in `docs/specs/corvint-tasks-store-init-v0.md` is **accepted, decision 0513
+(V1-1126)**, cross-referencing CTS-V0-006 and ATR-V0-008/011. Owner acceptance
+is decision 0513. The starting commit is `71b2eb8fc3e56a9df368b8be8227bf5ad125f8c9`.
 The bounded plan was to prove the existing attach fixture, replace only the bare head probe
 with the existing pending-writer reader, exercise its publish and timeout boundaries, then
 run the requested qualification and doc gates. Builder/reviewer used the inherited Codex
