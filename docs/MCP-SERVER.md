@@ -70,7 +70,7 @@ $ /absolute/path/to/corvint-mcp --root /absolute/path/to/repository --tool-profi
 | Tool | Arguments | Meaning |
 |---|---|---|
 | `corvint.context` | `{"task":"TASK","subject":"relative/path","limit":20}` | The `corvint context` task-context packet at the bound revision; `subject` and `limit` (1–50) are optional |
-| `corvint.cem.report` | `{"map":"relative/change.cem.json","expectedBase":"FULL_OID","target":"FULL_OID"}` | The `corvint cem report` reviewer report as a preview that writes nothing; optional `maxUnknown`/`maxMechanical` |
+| `corvint.cem.report` | `{"map":"relative/change.cem.json","expectedBase":"FULL_OID","target":"FULL_OID"}` | The `corvint cem report` reviewer report as a preview that writes nothing; optional `maxUnknown`/`maxMechanical` (0.x maps) and `artifacts` (a repository-relative artifact directory for a `cem/1.0` map, whose receipt embeds the stable verifier result) |
 
 The only accepted value is `task-review`, given once, as two separate arguments. Any other value,
 a repeated selector, `--tool-profile=task-review`, or the selector with `--version` exits 2 before

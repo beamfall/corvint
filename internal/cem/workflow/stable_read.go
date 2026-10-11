@@ -3,9 +3,11 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/publish"
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
@@ -28,19 +30,40 @@ func (v StableVerification) MarshalJSON() ([]byte, error) {
 // the 0.x ready-for-ci, invalid or incomplete states (CEM-V1-017).
 var stableStates = map[string]string{"ACCEPT": "accepted", "REJECT": "rejected", "UNSUPPORTED": "unsupported"}
 
-// readStable runs a Core status or verify over an exact cem/1.0 map through the
-// stable verifier. Core adds no 0.x verification, counts or worklist and opens
-// no repository first: the verifier performs its own metadata admission before
-// any Git process runs (CEM-V1-017, CEM-V1-018).
+// stableRefusal marks a refusal Core issues for an exact cem/1.0 map before the
+// stable verifier runs. It keeps the wrapped code and message, and lets a
+// projection such as the MCP bridge name it apart from a malformed 0.x map
+// (CEM-V1-031, MCPV0-037).
+type stableRefusal struct{ error }
+
+func (r stableRefusal) Unwrap() error { return r.error }
+
+// IsStableRefusal reports whether a read refused an exact cem/1.0 map before
+// its stable verifier ran.
+func IsStableRefusal(err error) bool {
+	var refusal stableRefusal
+	return errors.As(err, &refusal)
+}
+
+// readStable runs a Core status, verify or report over an exact cem/1.0 map
+// through the stable verifier. Core adds no 0.x verification, counts or
+// worklist and opens no repository first: the verifier performs its own
+// metadata admission before any Git process runs (CEM-V1-017, CEM-V1-018). A
+// report embeds the complete result beside a review projection derived only
+// from it (CEM-V1-029, CEM-V1-030).
 func (s *Session) readStable(ctx context.Context, action string, raw []byte, options ReadOptions) (map[string]any, error) {
-	if action != "status" && action != "verify" {
-		return nil, cemcode.New(cemcode.UnsupportedSpec, "%s %s is not implemented; read it with cem status or cem verify and --artifacts", wire.StableSpec, action)
+	report := action == "report" || action == ActionReportPreview
+	if action != "status" && action != "verify" && !report {
+		return nil, stableRefusal{cemcode.New(cemcode.UnsupportedSpec, "%s %s is not implemented; read it with cem status, cem verify or cem report and --artifacts", wire.StableSpec, action)}
 	}
 	if options.PatchGiven {
-		return nil, invalidArguments("%s %s does not accept --patch", wire.StableSpec, action)
+		return nil, stableRefusal{invalidArguments("%s %s does not accept --patch", wire.StableSpec, action)}
 	}
 	if options.Limits.MaxUnknown != nil || options.Limits.MaxMechanical != nil {
-		return nil, invalidArguments("%s %s does not accept policy ceilings", wire.StableSpec, action)
+		return nil, stableRefusal{invalidArguments("%s %s does not accept policy ceilings", wire.StableSpec, action)}
+	}
+	if report && options.OCMPath != "" {
+		return nil, stableRefusal{invalidArguments("%s %s does not accept --ocm", wire.StableSpec, action)}
 	}
 	result, exit := verify.Stable(ctx, raw, verify.StableOptions{
 		Repository: s.root, ExpectedBase: options.ExpectedBase,
@@ -50,9 +73,50 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 		"ok": exit == 0, "mutates": false, "tool": "cem-" + action,
 		"stableVerification": StableVerification{Result: result, Exit: exit},
 	}
-	if action == "status" {
+	switch action {
+	case "status":
 		envelope["map"] = filepath.Join(s.workRoot.Path(), filepath.FromSlash(options.MapPath))
 		envelope["state"] = stableStates[result.Outcome]
+	case "report", ActionReportPreview:
+		return s.stableReport(action, result, envelope, options)
 	}
+	return envelope, nil
+}
+
+// stableReport completes a stable report envelope. JSON adds the review
+// projection; a preview adds the Markdown; a published report writes the same
+// Markdown for every verifier outcome, opening the repository only after the
+// verifier has run (CEM-V1-029, CEM-V1-030).
+func (s *Session) stableReport(action string, result verify.StableResult, envelope map[string]any, options ReadOptions) (map[string]any, error) {
+	envelope["tool"] = "cem-report"
+	projection, err := stableReviewProjection(result)
+	if err != nil {
+		return nil, err
+	}
+	if action == "report" && options.Format == "json" {
+		envelope["review"] = projection
+		return envelope, nil
+	}
+	markdown := renderStableReport(result, projection)
+	if len(markdown) > maxReportBytes {
+		return nil, invalidArguments("report exceeds %d bytes", maxReportBytes)
+	}
+	envelope["recordSetSha256"] = projection["recordSetSha256"]
+	if action == ActionReportPreview {
+		envelope["markdown"] = markdown
+		return envelope, nil
+	}
+	if err := s.openRepository(); err != nil {
+		return nil, err
+	}
+	outputRoot, outputRelative, err := s.reportOutput(options)
+	if err != nil {
+		return nil, err
+	}
+	if err := publish.Publish(publish.Output{Root: outputRoot, Relative: outputRelative, Data: []byte(markdown)}); err != nil {
+		return nil, err
+	}
+	envelope["mutates"] = true
+	envelope["report"] = filepath.Join(outputRoot.Path(), filepath.FromSlash(outputRelative))
 	return envelope, nil
 }

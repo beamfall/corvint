@@ -96,7 +96,7 @@ var cemActions = map[string]cemAction{
 	"verify": {arguments: readArguments, required: []string{"--map"}},
 	"status": {arguments: readArguments, required: []string{"--map"}},
 	"report": {
-		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--format", "--ocm"},
+		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--format", "--ocm", "--artifacts"},
 		required:  []string{"--map"},
 		choices:   map[string][]string{"--format": {"markdown", "json"}},
 	},

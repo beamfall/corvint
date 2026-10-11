@@ -271,9 +271,8 @@ func TestCoreStableReadKeepsVerifierExit(t *testing.T) {
 	}
 }
 
-// CEM-V1-018: a stable map refuses the 0.x-only inputs and the commands that do
-// not read it yet, and a 0.x map refuses --artifacts, all before any verifier
-// or Git work and with exit 2.
+// CEM-V1-018: a stable map refuses the 0.x-only inputs, and a 0.x map refuses
+// --artifacts, all before any verifier or Git work and with exit 2.
 func TestCoreStableReadExplicitRefusals(t *testing.T) {
 	f := materializeStableRead(t)
 	stable := func(action string, extra ...string) []string {
@@ -289,7 +288,6 @@ func TestCoreStableReadExplicitRefusals(t *testing.T) {
 		code      string
 		message   string
 	}{
-		{"report", []string{"report", "--map", "change.cem.json", "--expected-base", f.expectedBase, "--target", f.target, "--format", "json"}, cemcode.UnsupportedSpec, "cem/1.0 report is not implemented"},
 		{"verify patch", stable("verify", "--patch", "x.patch"), cemcode.InvalidArguments, "cem/1.0 verify does not accept --patch"},
 		{"status patch", stable("status", "--patch", "x.patch"), cemcode.InvalidArguments, "cem/1.0 status does not accept --patch"},
 		{"verify ceiling", stable("verify", "--max-unknown", "0"), cemcode.InvalidArguments, "cem/1.0 verify does not accept policy ceilings"},
@@ -305,13 +303,14 @@ func TestCoreStableReadExplicitRefusals(t *testing.T) {
 			}
 		})
 	}
-	// The MCP report preview reads through the same workflow refusal.
+	// The MCP report preview reads through the same workflow refusal; cem
+	// report itself is read since V1-0632 S2 (CEM-V1-029..031).
 	session, err := workflow.Open(f.repo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = session.Read(context.Background(), workflow.ActionReportPreview, workflow.ReadOptions{MapPath: "change.cem.json", ExpectedBase: f.expectedBase, Target: f.target})
-	if cemcode.CodeOf(err) != cemcode.UnsupportedSpec || !strings.Contains(err.Error(), "cem/1.0 report-preview is not implemented") {
+	_, err = session.Read(context.Background(), workflow.ActionReportPreview, workflow.ReadOptions{MapPath: "change.cem.json", PatchGiven: true, ExpectedBase: f.expectedBase, Target: f.target})
+	if cemcode.CodeOf(err) != cemcode.InvalidArguments || !strings.Contains(err.Error(), "cem/1.0 report-preview does not accept --patch") {
 		t.Fatalf("report preview refusal = %v", err)
 	}
 	// A 0.x map never takes --artifacts; the refusal follows the map read, so a
