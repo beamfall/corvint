@@ -81,8 +81,8 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   otherwise `SAME`.
 - `PWR-V0-007`: A failed assertion's origin MUST come only from its reported location: `TEST_FILE`
   when it is the test's own file, `SUPPORT` for any other file (a page object, helper or fixture), and
-  `UNKNOWN` without a location. The matcher is the complete `expect(...)` matcher identifier in the error text (custom matchers
-  included),
+  `UNKNOWN` without a location. The matcher is the complete `expect(...)` matcher identifier in the error text (custom and Unicode
+  matcher names included),
   including any `not`, `resolves` or `rejects` modifiers (for example `resolves.not.toHaveText`), or
   empty. A difference only in `SUPPORT` assertions keeps the test `SAME`, sets `supportDifference`,
   and is counted in `summary.supportDifferences` and the reason `SUPPORT_ASSERTIONS_DIFFER`.

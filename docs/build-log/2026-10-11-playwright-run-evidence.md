@@ -58,3 +58,9 @@ Round 3 found two gaps, both fixed with tests. The matcher regex now keeps the c
 so a custom `toHaveHTTPStatus2` no longer truncates to the same name as `toHaveHTTPStatus3`.
 Conflicting blob spellings are kept beside the normalized inputs, so two runs with different
 conflicts still give `INPUTS_DIFFER_WITHIN_SIDE`.
+
+## Review round 4
+
+Round 4 found that matcher names with non-ASCII letters were truncated. The regex now follows
+JavaScript identifier classes (ID_Start then ID_Continue), and a `toHaveRésumé` versus
+`toHaveRôle` regression test covers it.

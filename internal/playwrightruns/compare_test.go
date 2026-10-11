@@ -193,6 +193,10 @@ func TestReaderAndCompareEdgeCases(t *testing.T) {
 		if e := onlyEntry(t, r); e.Verdict != Changed || e.Baseline.FailedAssertions[0].Matcher != "toHaveHTTPStatus2" {
 			t.Fatalf("custom matcher = %+v", e)
 		}
+		r = Compare(loaded(t, custom("toHaveRésumé")), loaded(t, custom("toHaveRôle")))
+		if e := onlyEntry(t, r); e.Verdict != Changed || e.Baseline.FailedAssertions[0].Matcher != "toHaveRésumé" {
+			t.Fatalf("unicode matcher = %+v", e)
+		}
 	})
 	t.Run("PWR-V0-002 conflicting blob spellings are not resolved", func(t *testing.T) {
 		conflicting := identity("app-7", "cfg-1", map[string]string{"cart.spec.ts": "1111", "./cart.spec.ts": "2222"})
