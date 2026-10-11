@@ -39,3 +39,42 @@ func TestLoadInputRefusesOverBoundBlobBeforeBody(t *testing.T) {
 		}
 	})
 }
+
+func TestLocalInputPathRuleNamesTheBrokenRule(t *testing.T) {
+	t.Run("DCP-V1-054 V1-1226 reader refusals name the rule without widening admission", func(t *testing.T) {
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "input.json"), []byte("{}"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		for value, rule := range map[string]string{
+			"":                   "got an empty path",
+			"/abs/input.json":    "got an absolute path",
+			"..":                 "got a parent traversal",
+			"../input.json":      "got a parent traversal",
+			".":                  "got the root itself",
+			"./input.json":       "got a non-canonical path",
+			"a//input.json":      "got a non-canonical path",
+			"a/../input.json":    "got a non-canonical path",
+			"input.json/":        "got a non-canonical path",
+			"a\\input.json":      "got a backslash or control character",
+			"input.json\n":       "got a backslash or control character",
+			string([]byte{0xff}): "got a path that is not UTF-8",
+		} {
+			if got := LocalInputPathRule(value); got != rule {
+				t.Errorf("LocalInputPathRule(%q) = %q, want %q", value, got, rule)
+			}
+			_, err := ReadFile(root, value)
+			var refusal *Error
+			want := "invalid local input path: input paths must be canonical and relative to the input root (" + rule + ")"
+			if !errors.As(err, &refusal) || refusal.Code != "corpus-refused" || refusal.Message != want {
+				t.Errorf("ReadFile(%q) = %v, want corpus-refused %q", value, err, want)
+			}
+		}
+		if rule := LocalInputPathRule("input.json"); rule != "" {
+			t.Fatalf("canonical relative path refused: %s", rule)
+		}
+		if data, err := ReadFile(root, "input.json"); err != nil || string(data) != "{}" {
+			t.Fatalf("canonical relative path not read: %q %v", data, err)
+		}
+	})
+}

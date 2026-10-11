@@ -644,6 +644,22 @@ gap; explicitly requesting an unavailable provider implementation fails the buil
 
 `corpus-refused` covers malformed/canonical/digest/closure/authority/span/bound failures.
 `corpus-input-unavailable` covers missing, unsafe or oversized local inputs.
+
+- `DCP-V1-054`: Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
+  `--input`, `--previous`, `--cem`, `--retirement`, `--migration`, `--playwright-list`, `--receipt`,
+  `--report`) is a canonical path relative to `--root` that sits under it: not empty, no leading
+  `/`, no `..` component, no `.`, `./`, `//` or trailing `/`, no backslash or control character. A
+  path that breaks the rule is refused before any read with the unchanged code `corpus-refused`
+  and error shape, and the message names the flag and the broken rule, for example
+  `--migration: local input paths must be canonical and relative to --root (got an absolute
+  path)`; the rule is one of an absolute path, a parent traversal, the root itself, a
+  non-canonical path, an empty or over-1024-byte path, a non-UTF-8 path, or a backslash or control
+  character. The bounded reader's own refusal keeps the prefix `invalid local input path` and
+  names the same rule. `corvint docs --help` states the root-relative rule for these flags. What
+  the reader admits is unchanged; absolute paths stay refused. Acceptance:
+  `TestDocsCorpusLocalInputPathRefusals`, `TestDocsCorpusHelpStatesRootRelativeInputs` and
+  `TestLocalInputPathRuleNamesTheBrokenRule`. Status: (proposed, pending owner acceptance
+  (V1-1226); GitHub #796).
 `corpus-provider-unavailable` covers undeclared or unsupported provider implementations.
 `corpus-invalid-revision` covers an unsupported immutable source revision.
 The separate MCP startup uses `corpus-unavailable` when its configured corpus cannot be opened;

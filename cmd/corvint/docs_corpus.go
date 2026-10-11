@@ -173,7 +173,29 @@ func emitCorpusError(w io.Writer, err error) {
 	}
 	emitError(w, err)
 }
+
+// corpusInputPathError names the first local-input flag whose path the bounded reader would refuse
+// and the rule it breaks (DCP-V1-054). The code stays corpus-refused; what the reader admits is unchanged.
+func corpusInputPathError(o corpusOptions) error {
+	inputs := []struct{ flag, value string }{
+		{"--manifest", o.manifest}, {"--artifact", o.artifact}, {"--input", o.input}, {"--previous", o.previous},
+		{"--cem", o.cem}, {"--retirement", o.retirement}, {"--migration", o.playwright.migration},
+		{"--playwright-list", o.playwright.listing}, {"--receipt", o.playwright.receipt}, {"--report", o.playwright.report},
+	}
+	for _, input := range inputs {
+		if input.value == "" {
+			continue
+		}
+		if rule := doccorpus.LocalInputPathRule(input.value); rule != "" {
+			return &doccorpus.Error{Code: "corpus-refused", Message: input.flag + ": local input paths must be canonical and relative to --root (" + rule + ")"}
+		}
+	}
+	return nil
+}
 func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
+	if err := corpusInputPathError(o); err != nil {
+		return nil, err
+	}
 	if o.op == "manifest" {
 		m, err := doccorpus.Inventory(ctx, o.root, o.revision, o.scope, o.timestamp)
 		if err != nil {
