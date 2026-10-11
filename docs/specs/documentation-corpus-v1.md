@@ -654,8 +654,8 @@ gap; explicitly requesting an unavailable provider implementation fails the buil
   rule, for example `--migration: local input paths must be canonical and relative to --root (got
   an absolute path)`; the rule is one of an absolute path, a parent traversal, the root itself, a
   non-canonical path, an over-1024-byte path, a non-UTF-8 path, or a backslash, NUL, tab, CR or LF.
-  Empty values keep their existing handling: an empty required option is an argument error and an
-  empty optional one counts as omitted. The bounded reader's own refusal keeps the prefix `invalid
+  Empty values keep their existing handling: an empty or whitespace-only required option is an
+  argument error and an empty optional one counts as omitted. The bounded reader's own refusal keeps the prefix `invalid
   local input path` and names the same rule, including `got an empty path`. `corvint docs --help`
   states the root-relative rule for these flags. What the reader admits is unchanged; absolute paths
   stay refused. Acceptance: `TestDocsCorpusLocalInputPathRefusals`,

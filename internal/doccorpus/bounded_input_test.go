@@ -48,18 +48,19 @@ func TestLocalInputPathRuleNamesTheBrokenRule(t *testing.T) {
 			t.Fatal(err)
 		}
 		for value, rule := range map[string]string{
-			"":                   "got an empty path",
-			"/abs/input.json":    "got an absolute path",
-			"..":                 "got a parent traversal",
-			"../input.json":      "got a parent traversal",
-			".":                  "got the root itself",
-			"./input.json":       "got a non-canonical path",
-			"a//input.json":      "got a non-canonical path",
-			"a/../input.json":    "got a non-canonical path",
-			"input.json/":        "got a non-canonical path",
-			"a\\input.json":      "got a backslash, NUL, tab, CR or LF",
-			"input.json\n":       "got a backslash, NUL, tab, CR or LF",
-			string([]byte{0xff}): "got a path that is not UTF-8",
+			"":                        "got an empty path",
+			"/abs/input.json":         "got an absolute path",
+			"..":                      "got a parent traversal",
+			"../input.json":           "got a parent traversal",
+			".":                       "got the root itself",
+			"./input.json":            "got a non-canonical path",
+			"a//input.json":           "got a non-canonical path",
+			"a/../input.json":         "got a non-canonical path",
+			"input.json/":             "got a non-canonical path",
+			"a\\input.json":           "got a backslash, NUL, tab, CR or LF",
+			"input.json\n":            "got a backslash, NUL, tab, CR or LF",
+			string([]byte{0xff}):      "got a path that is not UTF-8",
+			strings.Repeat("a", 1025): "got a path over 1024 bytes",
 		} {
 			if got := LocalInputPathRule(value); got != rule {
 				t.Errorf("LocalInputPathRule(%q) = %q, want %q", value, got, rule)

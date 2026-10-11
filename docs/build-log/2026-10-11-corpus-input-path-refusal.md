@@ -16,7 +16,8 @@ MCP bridge and companions, keeps the `invalid local input path` prefix and adds 
 `corvint docs --help` lists the root-relative flags. `--page`, `--config` and `--receipt-input`
 are excluded: the first two already have their own validation and messages, and the last names
 a request input, not a file. Empty values keep their existing handling (argument error when
-required, omitted when optional); review round 1 asked for that to be stated, not changed.
+required or whitespace-only, omitted when optional); review rounds 1 and 2 had it stated, not
+changed.
 
 Non-goal: admitting absolute paths. That would widen the bounded reader's authority boundary.
 Rollback: revert this change; no stored state or wire field changes.
