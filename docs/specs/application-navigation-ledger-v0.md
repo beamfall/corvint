@@ -140,11 +140,10 @@ are URL templates, not component source files. This slice makes neither missing 
   A file references the path when every occurrence of the path's token (a script's stem, an index
   file's directory or `index`, any other file's base name; a property `x.token` counts) lies inside
   one quoted string literal on its line that resolves to it (relative to the referrer for `./` and
-  `../`, repository-relative otherwise, with script extensions and `/index.*` tried; no `${`). In a
-  `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` or `.cjs` file the JavaScript lexer must confirm that literal
-  (a lexer doubt refuses every mention); in any other file a line at or after a backtick, or after a
-  `//`, `/*`, `<!--`, `{{!--` or `{{!` comment
-  marker that could still be open, refuses. A walk ends at a router file anchoring screens, which
+  `../`, repository-relative otherwise, with script extensions and `/index.*` tried; no `${`), in a
+  `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` or `.cjs` file whose JavaScript lexing has no doubt, as a
+  string literal the lexer itself delimits. A mention in any other file (markup, styles, `.vue` or
+  `.svelte` components) proves nothing and refuses. A walk ends at a router file anchoring screens, which
   selects the screens whose anchor spans hold its reference lines (every screen of the file when a
   reference lies outside all spans or the file's blob differs from the anchored one), or at a map test
   file selecting a screen or spec (a test file selecting neither is walked through). Selected screens carry `template-reference:<file>` and

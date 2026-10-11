@@ -105,9 +105,9 @@ func resolvesTo(literal, referrer, target string) bool {
 }
 
 // references finds every mention of a token of target in the file at name. It returns the sorted
-// 1-based lines of mentions that sit inside one string literal (delimited on its line, escapes
-// honoured, not in a comment) resolving to target, and false when any mention does not (a
-// computed, aliased, escaped or ambiguous reference the hop cannot prove).
+// 1-based lines of mentions that sit inside one string literal of a lexed script file resolving to
+// target, and false when any mention does not (a computed, aliased, commented, markup or ambiguous
+// reference the hop cannot prove).
 func (g *referenceGraph) references(name, target string) ([]int, bool) {
 	text := string(g.files[name])
 	code, lexed := hopLexed(name, text)
@@ -134,11 +134,8 @@ func (g *referenceGraph) references(name, target string) ([]int, bool) {
 			if q < 0 || !resolvesTo(text[ls+q+1:ls+end], name, target) {
 				return nil, false
 			}
-			if lexed && (code == "" || !hopLexedLiteral(text, code, ls+q, ls+end)) {
-				return nil, false
-			}
-			if !lexed && (strings.Contains(text[:le], "`") || hopInComment(text, ls, ls+q)) {
-				return nil, false
+			if !lexed || code == "" || !hopLexedLiteral(text, code, ls+q, ls+end) {
+				return nil, false // only the JavaScript lexer can confirm a literal; markup is not read
 			}
 			set[strings.Count(text[:i], "\n")+1] = true
 		}
@@ -153,7 +150,8 @@ func (g *referenceGraph) references(name, target string) ([]int, bool) {
 
 // hopLexed lexes a plain script file (not .vue or .svelte, which mix markup) with the JavaScript
 // lexer. It returns the source with comment, regex and literal bodies blanked, or "" when the lexer
-// cannot be sure it placed every literal; lexed is false for a file the lexer does not read.
+// cannot be sure it placed every literal; lexed is false for a file the lexer does not read, whose
+// mentions (markup, styles, single-file components) therefore never prove a reference.
 func hopLexed(name, text string) (string, bool) {
 	switch strings.ToLower(path.Ext(name)) {
 	case ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs":
@@ -180,9 +178,7 @@ func hopLexedLiteral(text, code string, open, end int) bool {
 
 // hopLiteralAround scans one line for quoted literals, honouring backslash escapes, and returns the
 // opening and closing quote offsets of the literal holding offset at, or -1 when none does
-// (including a literal left open at the end of the line). In a script file the lexer then confirms
-// the pair; in any other file a line at or after a backtick, or after an open comment marker,
-// refuses.
+// (including a literal left open at the end of the line). The lexer then confirms the pair.
 func hopLiteralAround(line string, at int) (int, int) {
 	open := -1
 	for k := 0; k < len(line); k++ {
@@ -200,23 +196,6 @@ func hopLiteralAround(line string, at int) (int, int) {
 		}
 	}
 	return -1, -1
-}
-
-// hopInComment reports whether the quote at q may sit in a comment: a `//` earlier on its line,
-// or a `/*`, `<!--`, `{{!--` or `{{!` opened before it and not closed by its own closer. String
-// contents are not excluded, so a comment marker inside a literal also counts: the check may
-// refuse a real reference, never accept a commented one.
-func hopInComment(text string, ls, q int) bool {
-	if strings.Contains(text[ls:q], "//") {
-		return true
-	}
-	before := text[:q]
-	for _, c := range [][2]string{{"/*", "*/"}, {"<!--", "-->"}, {"{{!--", "--}}"}, {"{{!", "}}"}} {
-		if o := strings.LastIndex(before, c[0]); o >= 0 && !strings.Contains(before[o+len(c[0]):], c[1]) {
-			return true
-		}
-	}
-	return false
 }
 
 // templateHop walks the referrers of an unplaced UI path up to router anchors and map test files.

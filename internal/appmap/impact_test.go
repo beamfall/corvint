@@ -200,7 +200,7 @@ func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
 	if r.Verdict != VerdictFullSuite || len(r.Unknown) != 1 || r.Unknown[0].Reason != "unmapped-path" {
 		t.Fatalf("unbound root narrowed: %+v", r)
 	}
-	// Commented and escaped mentions, an import cycle, and an index file one referrer reaches by
+	// Commented, escaped and markup mentions, an import cycle, and an index file one referrer reaches by
 	// directory while another names ./index (any bare `index` word elsewhere is unresolved).
 	for p, c := range map[string][2]string{
 		"app/ghost/ghost.html":  {"unresolved-reference", "<p>v2</p>\n"},
