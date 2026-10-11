@@ -3597,5 +3597,20 @@
       "internal/upgradechanges",
       "cmd/corvint"
     ]
+  },
+  {
+    "path": "docs/specs/playwright-run-evidence-v0.md",
+    "title": "Playwright Run Evidence V0",
+    "reqPrefix": "PWR-V0",
+    "intent": "proposed, pending owner acceptance (V1-1230)",
+    "delivery": "experimental",
+    "claim": "A read-only reader of Playwright JSON reports classifies each test's outcome stability across runs at identical declared identity inputs.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/playwrightruns",
+      "cmd/corvint"
+    ]
   }
 ]

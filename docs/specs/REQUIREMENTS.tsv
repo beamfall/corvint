@@ -2619,6 +2619,11 @@ PWP-V3-004	docs/specs/playwright-external-provider-v0.md	189	Every `/3` attempt 
 PWP-V3-005	docs/specs/playwright-external-provider-v0.md	190	The reporter emits `attemptDetails` only under `/3`; the provider validates the
 PWP-V3-006	docs/specs/playwright-external-provider-v0.md	191	`/3` is non-promotable until the changed reporter completes the live matrix of `
 PWP-V3-007	docs/specs/playwright-external-provider-v0.md	423	The `/3` exact project identity permits an explicitly observed empty project nam
+PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	28	One shared reader MUST read an explicit Playwright json-reporter file read-only
+PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	38	Runs pool only at identical identity inputs: the Playwright version plus the
+PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	43	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes
+PWR-V0-004	docs/specs/playwright-run-evidence-v0.md	49	An `INTERMITTENT` pool whose test is expected to fail (`expectedStatus` `failed`
+PWR-V0-005	docs/specs/playwright-run-evidence-v0.md	53	`corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-
 PWV-V0-001	docs/specs/pi-workflow-v0.md	36	Pi MUST preserve original native Core receipt objects, output and exit status, i
 PWV-V0-002	docs/specs/pi-workflow-v0.md	37	Core read tools MUST use closed operation and argument sets for query, context,
 PWV-V0-003	docs/specs/pi-workflow-v0.md	38	Each command MUST use bounded argv-only local execution, one owned POSIX process

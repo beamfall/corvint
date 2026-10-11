@@ -177,6 +177,8 @@ func helpText(topic string) string {
 		return stepHelp
 	case "changes":
 		return changesHelp
+	case "runs":
+		return runsHelp
 	case "breakage":
 		return breakageHelp
 	case "necessity":
@@ -248,12 +250,13 @@ Commands:
   feature  bounded feature context
   eval  evaluate a frozen corpus
   context  task-context packet: files to read
-  impact  path, untracked-file or range impact
+  impact  path, untracked or range impact
   breakage  cross-repository API relations
   changes  offline upgrade checklist
-  harness event  one agent-harness lifecycle event
+  runs  Playwright run verdicts
+  harness event  one agent lifecycle event
   adapter  one native host adapter
-  dogfood  local evidence workflow; change, check, seal
+  dogfood  change, check, seal evidence
   dogfood-ocm  verify dogfood OCM maps
   cem  Change Evidence Map producer/verifier
   ocm  Obligation Closure Map producer/verifier
@@ -266,13 +269,13 @@ Commands:
   features  inferred feature candidates
   overview  immutable repository guidance
   review  range advice and branch overlaps
-  affected  affected-test plan for the worktree
+  affected  affected-test plan
   flows  application flows and assertions
   obligations  CEM external-obligations sidecar
   prove  query packet with falsifier verdicts
   prove-observe  record prove verdict counts
   index  write the index snapshot
-  batch  many query, context, impact requests
+  batch  batched query, context, impact
   work  queue observation or shadow wave
   docs  source-derived documentation
   depsource  cite pinned Go module source
@@ -292,7 +295,7 @@ Commands:
 
 Global options:
   --root PATH  Repository root (default: current directory).
-  --version    Print the Corvint version and build number.
+  --version    Print the version and build number.
   --help       Print this help on stdout and exit 0.
 
 ` + commandMaturityHelp + `Support boundary:
@@ -1291,7 +1294,8 @@ const commandMaturityHelp = `Command maturity:
     calibrate (OCL-V0), witness (AGW-V0), test-validity (MTV-V0),
     test-plan (TCN-V0), features (RGV-V0), overview (RGV-V0), review (RGV-V0),
     migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0),
-    breakage (BKM-V0), step (ASS-V0), delta (DLT-V0), changes (UCL1142-V0)
+    breakage (BKM-V0), step (ASS-V0), delta (DLT-V0), changes (UCL1142-V0),
+    runs (PWR-V0)
 
 `
 
