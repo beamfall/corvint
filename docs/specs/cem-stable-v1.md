@@ -6,7 +6,7 @@ Delivery status: planned
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed/planned; no stable delivery or promotion.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`); explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`); qualification remains bounded.
 - Blocked on: stable wire/consumer integration, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -234,3 +234,37 @@ output. Rollback removes the route and the flag; no 0.x byte, map or packet chan
 | CEM-V1-019 | `TestCoreStableRead0xRefusalsUnchanged` | Candidate, other, padded and numeric specs keep the 0.x refusal through Core |
 | CEM-V1-019 | `TestParseMapOtherSpecRefusalUnchanged` | Parser text unchanged for every non-stable spec |
 | CEM-V1-019 | `TestDeclaresStable` | Route selection is exact, bounded and object-rooted |
+
+## Core stable mutator refusals (V1-0632 S3)
+
+Status: proposed. This slice keeps the Core mutators `cem/0.x` producers: the
+optional candidate assembler stays the only stable producer until the stable wire
+is frozen (`CEM-V1-007`). It adds no producer, default, help entry or promotion.
+The requirement IDs start at 030 so that slices proposed in parallel do not collide;
+integration may renumber them.
+
+- `CEM-V1-030`: Core `cem prepare` MUST refuse an existing map at the fixed sidecar path whose bytes declare exactly `cem/1.0` with `unsupported-spec`, with or without `--replace`. It MUST leave the map, the patch cache and any backup unchanged, and MUST NOT resume, downgrade or overwrite a stable sidecar.
+- `CEM-V1-031`: Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `cem/1.0` input map with `unsupported-spec` naming the command and the stable read, in place or with `--output`, and write nothing. Every Core map writer (`begin`, `cite`, `mark`, `cover`, `discriminate`) MUST refuse an output destination whose existing bytes declare exactly `cem/1.0`, leaving it unchanged. The check runs under the output lock that Core mutators already take.
+- `CEM-V1-032`: The daily bind loop MUST read no hunks from a map declaring `cem/1.0`, so such a map never counts as cited and never binds a citation plan. `dogfood batch-check` MUST refuse a sealed `cem/1.0` constituent with `constituent-cem-stable-unsupported` before any verifier run, never as `constituent-cem-invalid`.
+- `CEM-V1-033`: Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem/0.x` input, the experimental candidate and every other spec MUST keep the earlier arguments, precedence, output bytes, refusal codes and messages, including the `prepare` `map-unavailable` refusal and an explicit `--replace` regeneration of a non-stable existing map.
+
+Failure modes: a stable sidecar the 0.x workflow used to report as "not a valid
+CEM document; pass --replace" now refuses as `unsupported-spec`, so `--replace` is
+no longer suggested for it. A destination that cannot be read, or that is over the
+map bound, is left to publication and its existing refusals; such a file is not a
+valid stable map. A non-Core writer can still replace the destination after the
+check, because the output lock binds only Core writers. Rollback removes the
+checks; no 0.x byte, map or packet changes.
+
+### Core stable mutator refusal traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-030 | `TestPrepareRefusesStableSidecar` | The public sealed positive map at the sidecar path is refused with and without `--replace`; its bytes are unchanged and no patch cache is published |
+| CEM-V1-031 | `TestMutatorsRefuseStableInput` | cite, mark, cover and discriminate refuse a `cem/1.0` input in place and with `--output`; no output is written |
+| CEM-V1-031 | `TestMutatorsRefuseStableDestination` | Each mutator, and `cem begin`, refuses a stable `--output` destination; before this slice, cite overwrote it with `cem/0.2` |
+| CEM-V1-032 | `TestMapHunksRefusesStableMap` | `mapHunks` and `citedHunks` read no hunks from the stable map, which a loose decode counted as two |
+| CEM-V1-032 | `TestBatchCheckRefusesStableConstituent` | A sealed `cem/1.0` constituent fails `constituent-cem-stable-unsupported` with its recovery line, and the verifier never runs |
+| CEM-V1-033 | `TestPrepareNonStableExistingMapUnchanged` | Candidate, padded and other specs keep the `map-unavailable` refusal and guidance; `--replace` still regenerates them |
+| CEM-V1-033 | `TestMutatorsWriteNonStableDestination` | Candidate, truncated and non-JSON destinations are still replaced by the 0.x map |
+| CEM-V1-033 | `TestMapHunksRefusesStableMap` | Padded, candidate, 0.2 and numeric specs keep the layout-agnostic decode |

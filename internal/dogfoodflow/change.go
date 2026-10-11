@@ -720,8 +720,14 @@ func (c *change) ordinalsMoved(plan []byte, hunks []map[string]string) bool {
 
 // mapHunks decodes the disposition, id and path of each hunk of a map in map
 // order, whatever its JSON layout, so a compact map reads like the indent-2 one
-// cem prepare writes. A map that does not decode has no hunks.
+// cem prepare writes. A map that does not decode has no hunks, and neither has
+// a cem/1.0 map: its hunks are not Core 0.x hunks, and the bind loop never
+// cites, counts or binds a plan to them (CEM-V1-032).
 func mapHunks(data []byte) []map[string]string {
+	hunks := []map[string]string{}
+	if wire.DeclaresStable(data) {
+		return hunks
+	}
 	var decoded struct {
 		Hunks []struct {
 			Disposition string `json:"disposition"`
@@ -729,7 +735,6 @@ func mapHunks(data []byte) []map[string]string {
 			Path        string `json:"path"`
 		} `json:"hunks"`
 	}
-	hunks := []map[string]string{}
 	if json.Unmarshal(data, &decoded) != nil {
 		return hunks
 	}

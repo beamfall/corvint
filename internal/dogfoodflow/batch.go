@@ -50,6 +50,8 @@ var batchRecovery = map[string]string{
 	"unbound-commits":          "bind each listed commit through a sealed change: commit it on its own branch, run dogfood-change, dogfood-check and dogfood-seal there with BASE=<its parent>, and merge that branch instead",
 	"merge-resolution-unbound": "redo the merge with git merge -X ours (or -X theirs) so its tree is derivable, then commit the manual resolution as its own sealed change",
 	"octopus-merge-unbound":    "merge one branch at a time so each merge tree is derivable from two parents",
+	// A sealed cem/1.0 map is refused by its own code (CEM-V1-032).
+	"constituent-cem-stable-unsupported": "the sealed CEM is a cem/1.0 map, which batch-check does not verify; it covers only Core cem/0.2 or cem/0.3 sealed changes, so rebind and reseal that change with the normal loop, then remerge it",
 }
 
 type batch struct {
@@ -259,6 +261,12 @@ func (b *batch) verifyConstituent(bind string) {
 		return
 	}
 	data, status := b.git(true, "cat-file", "blob", sealedBlob)
+	// CEM-V1-032: a stable map is refused by its declared spec before the
+	// loose 0.x decode, so it is never reported as a malformed 0.x map.
+	if status == 0 && wire.DeclaresStable([]byte(data)) {
+		b.failure("constituent-cem-stable-unsupported", "bind="+bind)
+		return
+	}
 	var cem sealedMap
 	if status != 0 || json.Unmarshal([]byte(data), &cem) != nil || !wire.Canonical(cem.Spec) || !fullRevision.MatchString(cem.BaseRevision) ||
 		!b.gitSucceeds("merge-base", "--is-ancestor", cem.BaseRevision, bind) {
