@@ -1,7 +1,7 @@
 # V1-0266: wider symbols lead a standing query packet
 
 Base: `71b2eb8fc3e56a9df368b8be8227bf5ad125f8c9` (current `origin/main`).
-Intent: `GPK-V0-083` is **proposed, pending owner acceptance (V1-0266)**.
+Intent: `GPK-V0-083` is **accepted, decision 0516** (V1-0266).
 Implementation remains experimental; no decision file or owner acceptance is produced.
 The maximum generated GPK requirement was 082; open PRs 749–759 were checked on
 2026-10-10 and contained no later GPK reservation. Historical non-main commit

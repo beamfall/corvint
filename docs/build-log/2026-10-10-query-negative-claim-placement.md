@@ -1,7 +1,7 @@
 # V1-0266 follow-up: preserve the nearest-negative-claim packet
 
 Base: `5453a900378d350679fea03c7fad292e5e8087cc` (the initial port in this worktree).
-Intent: `GPK-V0-083` remains **proposed, pending owner acceptance (V1-0266)**.
+Intent: `GPK-V0-083` is **accepted, decision 0516** (V1-0266).
 No new requirement ID, decision, owner acceptance, promotion or ticket completion is produced.
 This entry supersedes the initial port's unrun adopter-evaluation claim with measured evidence.
 

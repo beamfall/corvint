@@ -1,7 +1,7 @@
 # V1-0266 review round 3: retain promoted symbol support with its evidence
 
 Base: `8f16969557041c6480feeaa27326627c876adb5f` (merged V1-0266 + V1-0315).
-Intent: `GPK-V0-083` remains **proposed, pending owner acceptance (V1-0266)**.
+Intent: `GPK-V0-083` is **accepted, decision 0516** (V1-0266).
 No new requirement ID, decision, owner acceptance, promotion or ticket completion is produced.
 
 ## Finding and minimal repair

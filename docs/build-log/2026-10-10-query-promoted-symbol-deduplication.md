@@ -1,7 +1,7 @@
 # V1-0266 review round 1: deduplicate promoted symbol identities
 
 Base: `0791c3d0d8efc2f08b7b24743e8088e27b575ce8`.
-Intent: `GPK-V0-083` remains **proposed, pending owner acceptance (V1-0266)**.
+Intent: `GPK-V0-083` is **accepted, decision 0516** (V1-0266).
 No new requirement ID, decision, owner acceptance, promotion or ticket completion is produced.
 
 ## Finding and minimal repair

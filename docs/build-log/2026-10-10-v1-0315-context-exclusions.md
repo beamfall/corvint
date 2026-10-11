@@ -1,8 +1,8 @@
 # V1-0315 — task-context exclusion disclosure
 
 Date: 2026-10-10. Intent: TCP-V0-065 and the TCP-V0-006 amendment are
-**proposed, pending owner acceptance (V1-0315)**. Delivery: experimental local
-implementation; passing tests do not accept intent. No decision record is created.
+**accepted, decision 0516** (V1-0315). Delivery: experimental local
+implementation; passing tests alone did not accept intent.
 
 ## Contract and evidence
 
