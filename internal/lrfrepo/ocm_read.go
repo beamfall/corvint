@@ -137,7 +137,7 @@ func readOCMBytes(ctx context.Context, inputRoot *publish.Root, ocmRaw, cemRaw [
 	}
 	cem, err := wire.ParseMap(cemRaw)
 	if err != nil {
-		return finishOCMFailure(result, "invalid-cem", "CEM is invalid"), nil
+		return invalidOrStableCEM(result, cemRaw)
 	}
 	if cem.Spec == wire.Spec02 {
 		if !options.ExpectedBaseGiven {
@@ -526,4 +526,14 @@ func unreadableExistingMap(root string, options PrepareOptions, err error) error
 		return nil
 	}
 	return ocmInputFailure(root, options.MapPath, err, "OCM map", maxOCMBytes)
+}
+
+// invalidOrStableCEM reports a CEM that the 0.x parser refused. A stable map
+// is an unsupported profile here, never an invalid-cem verdict; its OCM is read
+// only by VerifyStableUniverse (CEM-V1-058).
+func invalidOrStableCEM(result *OCMReadResult, cemRaw []byte) (*OCMReadResult, error) {
+	if wire.DeclaresStable(cemRaw) {
+		return nil, cemcode.New(cemcode.UnsupportedSpec, "OCM read verification accepts cem/0.1 or cem/0.2; cem/1.0 is admitted only by the stable universe verification")
+	}
+	return finishOCMFailure(result, "invalid-cem", "CEM is invalid"), nil
 }

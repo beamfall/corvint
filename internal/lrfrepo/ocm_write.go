@@ -300,9 +300,9 @@ func PrepareOCM(ctx context.Context, root string, options PrepareOptions) (*Prep
 	if err != nil {
 		return nil, err
 	}
-	cemRaw, err := readRootInput(inputRoot, options.CEMPath, wire.MaxMapBytes, cemcode.MapUnavailable)
+	cemRaw, err := readLegacyCEMInput(inputRoot, options.CEMPath)
 	if err != nil {
-		return nil, ocmInputFailure(inputRoot.Path(), options.CEMPath, err, "CEM map", wire.MaxMapBytes)
+		return nil, legacyCEMInputFailure(inputRoot.Path(), options.CEMPath, err)
 	}
 	if sameInputFile(inputRoot.Path(), options.MapPath, options.CEMPath) {
 		return nil, &Error{Code: "output-path-conflict", Message: "OCM and CEM map paths must differ"}
@@ -1028,4 +1028,28 @@ func sortedCopy(values []string) []string {
 	result := append([]string(nil), values...)
 	sort.Strings(result)
 	return result
+}
+
+// errStableOCMPrepare refuses a cem/1.0 change as an OCM prepare input: the
+// stable change view is read-only, so no OCM writer may derive a document from
+// it (CEM-V1-058).
+var errStableOCMPrepare = cemcode.New(cemcode.UnsupportedSpec, "ocm prepare accepts cem/0.1 or cem/0.2; a cem/1.0 change is read only by the stable universe verification")
+
+// readLegacyCEMInput reads the OCM prepare CEM input and refuses a cem/1.0
+// map before anything is written.
+func readLegacyCEMInput(inputRoot *publish.Root, requested string) ([]byte, error) {
+	cemRaw, err := readRootInput(inputRoot, requested, wire.MaxMapBytes, cemcode.MapUnavailable)
+	if err == nil && wire.DeclaresStable(cemRaw) {
+		return nil, errStableOCMPrepare
+	}
+	return cemRaw, err
+}
+
+// legacyCEMInputFailure keeps the stable refusal and the earlier read failure
+// messages unchanged.
+func legacyCEMInputFailure(root, requested string, err error) error {
+	if err == errStableOCMPrepare {
+		return err
+	}
+	return ocmInputFailure(root, requested, err, "CEM map", wire.MaxMapBytes)
 }
