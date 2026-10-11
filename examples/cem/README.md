@@ -77,7 +77,7 @@ cem01-go ci --repository <base checkout> --base <base sha> --head <head sha> \
 | 1 | `rejected` | The map or the patch failed a structural check, or cited evidence drifted unsafely. |
 | 2 | `operational` | Invalid invocation or an I/O failure. Also the script's exit before the verifier runs (bad input, digest mismatch); then there is one `cem-ci:` line on stderr and no report. |
 | 3 | `missing-evidence` | No map at the map path (`map-absent`), or a valid map that leaves hunks `unknown` (`unknown-hunks`). |
-| 4 | `unsupported-profile` | The map declares a `spec` other than `cem/0.1`. |
+| 4 | `unsupported-profile` | The map declares a `spec` other than `cem/0.1`. For a `cem/1.0` map the `code` is `use-verify-stable-canonical`: use the stable branch below. |
 | 5 | `repository-mismatch` | A declared commit is not in the repository, or the map's `baseRevision` is not the declared base. |
 
 A structurally valid map ranks unsafe drift (1) before unknown hunks (3). A `cem/0.1` map that
@@ -101,12 +101,33 @@ The report is one line of JSON with the schema `cem-ci-report/0` and exactly the
 path, status, target blob ID and target span), and `limits`. It holds digests, paths, spans and verdicts and never source
 or diff text. It is deterministic for the same inputs and never exceeds 6 MiB.
 
+## 4. Stable `cem/1.0` maps (explicit opt-in)
+
+The default path above never verifies a `cem/1.0` map. Select the stable branch explicitly:
+
+```sh
+CEM_PROFILE=cem/1.0 CEM_ARTIFACTS=/abs/path/to/artifacts \
+CEM_REPOSITORY="$PWD/base" CEM_BASE_SHA=<base sha> CEM_HEAD_SHA=<head sha> \
+CEM_VERIFIER="$RUNNER_TEMP/cem-bin/cem01-go" CEM_VERIFIER_SHA256=<pinned sha256> \
+  sh examples/cem/verify-portable.sh
+```
+
+The script reads the committed map at `CEM_HEAD_SHA:CEM_MAP_PATH` as Git object data, then runs the
+pinned verifier's `verify-stable-canonical` against the base, the head and the artifact root. Its
+standard output is the one-line `cem-stable-verification/1` result, and its exit is the verifier's:
+0 accept, 1 reject, 2 unsupported. Bad input, a missing or relative `CEM_ARTIFACTS`, an unknown
+`CEM_PROFILE` or a digest mismatch exits 2 before the verifier runs. An absent map exits 3, and an
+absent head commit exits 5. Acceptance is structural and reference integrity only. A completion
+claim still needs the native Tasks gate, and nothing switches an existing workflow to this branch
+automatically (`CEM-V1-PSR-004`).
+
 ## Limits
 
 - The check is structural. An `accepted` verdict does not prove that cited evidence supports
   the change (`limits` says so in every report).
 - Paths and digests can still be sensitive. Treat the report as repository-private.
-- Only `cem/0.1` maps are supported. `cem/0.2` needs `verify-pr.sh` and a `corvint` executable.
+- The default path supports only `cem/0.1` maps. `cem/0.2` needs `verify-pr.sh` and a `corvint`
+  executable; `cem/1.0` needs the explicit stable branch in section 4.
 - A change that adds, edits or deletes a binary file, or changes only a file mode, cannot be
   bound: `corvint cem prepare` refuses the whole change with `binary-patch` or `malformed-patch`.
   Bind a base-to-target range that holds no such change (`CEM-PILOT-001`).
