@@ -100,6 +100,11 @@ type Dispatcher struct {
 	// process decided and has not signalled yet; only those may be kept. It
 	// is never persisted, so a stop found in the ledger always completes.
 	unsignalled map[string]bool
+	// childCPU keeps, by worker ID, the CAL-V0-218 child CPU baseline taken
+	// at the worker's last activity or first observation by this process.
+	// It is never persisted: after a restart the first tick takes a new
+	// baseline and counts no child as busy.
+	childCPU map[string]childCPU
 	// idle is armed by a full tick that changed nothing, and idleLease is
 	// the earliest future lease expiry the current tick observed
 	// (CAL-V0-139).
@@ -617,6 +622,15 @@ func (d *Dispatcher) supervise() []*Worker {
 		return nil
 	}
 	now := d.Now()
+	live := map[string]bool{}
+	for _, w := range d.ledger.Workers {
+		live[w.ID] = true
+	}
+	for id := range d.childCPU {
+		if !live[id] {
+			delete(d.childCPU, id)
+		}
+	}
 	var ended []*Worker
 	for _, w := range d.ledger.Workers {
 		select {
@@ -632,7 +646,7 @@ func (d *Dispatcher) supervise() []*Worker {
 		cfg := d.launchConfig(w)
 		role := cfg.roleNamed(w.Role)
 		host := cfg.Hosts[w.Host]
-		if d.active(w, procs, host) {
+		if d.active(w, procs, host, now) {
 			w.LastActive = now
 		}
 		reason := ""
@@ -671,16 +685,28 @@ func (d *Dispatcher) supervise() []*Worker {
 }
 
 var killText = map[string]string{
-	"IDLE":     "no session activity and no running tool process within the idle timeout",
+	"IDLE":     "no session activity and no busy tool process within the idle timeout",
 	"WALL":     "the wall-clock cap was reached",
 	"ORPHANED": "the worker exited but left processes behind",
 	// CAL-V0-191: set by heal after it reaps the worker's expired attempt.
 	"LEASE_EXPIRED": "its attempt's lease expired beyond the grace and was reaped",
 }
 
-// active reports output growth, an activity path advancing, or a running
-// tool process since the previous tick.
-func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host) bool {
+// idleCPUDivisor sets the CAL-V0-218 busy share: a child is busy when the
+// CPU time it used since the baseline is at least 1/idleCPUDivisor (1%) of
+// the wall time since then.
+const idleCPUDivisor = 100
+
+// childCPU is a worker's CAL-V0-218 baseline: when it was taken and each
+// non-ignored child's cumulative CPU time then, by start identity.
+type childCPU struct {
+	at  time.Time
+	cpu map[string]time.Duration
+}
+
+// active reports output growth or an activity path advancing since the
+// previous tick, or a busy tool process since the last activity (CAL-V0-218).
+func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host, now time.Time) bool {
 	dir := d.workerDir(w.ID)
 	size := workerLogBytes(dir)
 	busy := size != w.LogBytes
@@ -705,7 +731,17 @@ func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host) bool {
 			w.ActivityMtime = st.ModTime()
 		}
 	}
-	return busy || busyChild(w, procs, h.IdleIgnore)
+	base, seen := d.childCPU[w.ID]
+	if seen && !busy {
+		busy = busyChild(w, procs, h.IdleIgnore, base, now)
+	}
+	if busy || !seen {
+		if d.childCPU == nil {
+			d.childCPU = map[string]childCPU{}
+		}
+		d.childCPU[w.ID] = childSample(w, procs, h.IdleIgnore, now)
+	}
+	return busy
 }
 
 // heal hands off the live attempts of ended workers and reaps expired
