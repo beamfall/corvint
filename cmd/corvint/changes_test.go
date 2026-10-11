@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -17,7 +18,12 @@ func TestChangesCLI(t *testing.T) {
 				t.Fatalf("%v: %d %s %s", args, code, &out, &err)
 			}
 		}
-		root := t.TempDir()
+		// The issue-state reader refuses symlinked path components, so the
+		// fixture root is canonical (macOS temporary paths cross /var).
+		root, e := filepath.EvalSymlinks(t.TempDir())
+		if e != nil {
+			t.Fatal(e)
+		}
 		git := func(args ...string) string {
 			t.Helper()
 			c := exec.Command("git", append([]string{"-C", root}, args...)...)

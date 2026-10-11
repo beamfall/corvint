@@ -59,7 +59,7 @@ the checkout or contacting a service. This is evidence to review, not permission
   regular-file, 1 MiB reader and decoded as one JSON array of objects, each with a positive integer
   `number` and a `state` of `OPEN` or `CLOSED` (case-insensitive), the shape `gh issue list --state
   all --json number,state` produces. Other members are ignored and never emitted. More than 4096
-  rows, a malformed or truncated document, an invalid row, conflicting states for one number, or an
+  rows, a malformed, `null` or truncated document, an invalid row, conflicting states for one number, or an
   unreadable/unsafe path refuse with `changes-issue-state-unavailable`. Corvint MUST NOT query
   GitHub or any network service. Each issue row and hint carries `github_state`: the supplied
   state, or `NOT_OBSERVED` when no file is given or the number is absent. A hint whose supplied
@@ -72,8 +72,9 @@ the checkout or contacting a service. This is evidence to review, not permission
   sorted and `--`-prefixed, flag names that appear on added lines and on no removed line of the
   local diff from the merge's first parent to the merge, restricted to non-test `cmd/corvint/*.go`
   files: names declared through the standard `flag` package by string literal and `"--name"` /
-  `"--name="` literals. Git runs with no external diff, textconv, color, rename detection or
-  configured prefix/relative path. The diff is bounded to 256 KiB per PR within the 4 MiB total, and
+  `"--name="` literals. Git runs in forced text mode with no external diff, textconv, color, rename
+  detection or configured prefix/relative path; quoted header paths are decoded, and a binary patch or
+  undecodable path is treated as over a bound. The diff is bounded to 256 KiB per PR within the 4 MiB total, and
   at most 64 names; over a bound, `new_flags` is empty, `new_flags_basis` is `NOT_OBSERVED` and the
   report is `truncated`. Otherwise `new_flags_basis` is `cmd-corvint-go-source-diff`. This is a
   source-literal heuristic, not a verified CLI surface diff; `new_commands` stays `NOT_OBSERVED`.

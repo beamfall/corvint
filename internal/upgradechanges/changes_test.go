@@ -506,6 +506,27 @@ func TestCompileNewFlags(t *testing.T) {
 			t.Fatalf("wire: %s", b)
 		}
 	})
+	t.Run("UCL1142-V0-007 quoted and spaced paths and working-tree attributes", func(t *testing.T) {
+		root, _ := repoTest(t)
+		from := gitTest(t, root, "rev-parse", "HEAD")
+		gitTest(t, root, "checkout", "-q", "-b", "names")
+		commitFile(t, root, "cmd/corvint/space name.go", "package main\n\nfunc s() { f.Bool(\"spaced\", false, \"\") }\n", "spaced")
+		commitFile(t, root, "cmd/corvint/caf\u00e9.go", "package main\n\nfunc q() { f.Bool(\"quoted\", false, \"\") }\n", "quoted")
+		commitFile(t, root, "cmd/corvint/tab\tname.go", "package main\n\nfunc u() { f.Bool(\"tabbed\", false, \"\") }\n", "tabbed")
+		gitTest(t, root, "checkout", "-q", "main")
+		gitTest(t, root, "merge", "-q", "--no-ff", "names", "-m", "Merge pull request #7 from fixture/names")
+		to := gitTest(t, root, "rev-parse", "HEAD")
+		want := []string{"--quoted", "--spaced", "--tabbed"}
+		for _, attributes := range []string{"", "cmd/corvint/*.go -diff\n", "cmd/corvint/*.go binary\n"} {
+			if e := os.WriteFile(filepath.Join(root, ".gitattributes"), []byte(attributes), 0o600); e != nil {
+				t.Fatal(e)
+			}
+			r, e := Compile(context.Background(), Request{Root: root, From: from, To: to})
+			if e != nil || len(r.PRs) != 1 || r.PRs[0].FlagsBasis != "cmd-corvint-go-source-diff" || !reflect.DeepEqual(r.PRs[0].NewFlags, want) {
+				t.Fatalf("attributes %q: %+v %v", attributes, r, e)
+			}
+		}
+	})
 	t.Run("UCL1142-V0-007 a diff over its bound is NOT_OBSERVED and truncated", func(t *testing.T) {
 		root, _ := repoTest(t)
 		from := gitTest(t, root, "rev-parse", "HEAD")
@@ -586,11 +607,15 @@ func TestCompileIssueStateFile(t *testing.T) {
 			write("missing-state.json", `[{"number":12}]`),
 			write("conflict.json", `[{"number":12,"state":"OPEN"},{"number":12,"state":"CLOSED"}]`),
 			write("object.json", `{"number":12,"state":"OPEN"}`),
+			write("null.json", " null\n"),
 			"link.json", "absent.json",
 		} {
 			if _, e := Compile(context.Background(), Request{Root: root, From: from, To: to, IssueStateFile: name}); e == nil || e.Error() != "changes-issue-state-unavailable" {
 				t.Fatalf("%s: %v", name, e)
 			}
+		}
+		if _, e := Compile(context.Background(), Request{Root: root, From: from, To: to, IssueStateFile: write("empty.json", "[]")}); e != nil {
+			t.Fatalf("empty array: %v", e)
 		}
 	})
 }

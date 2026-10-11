@@ -459,7 +459,7 @@ func Compile(ctx context.Context, req Request) (Report, error) {
 // also removes is a move, not a new flag. Partial diff output is NOT_OBSERVED,
 // never a complete empty list.
 func (g *gitReader) newFlags(parent, merge string) ([]string, string, error) {
-	raw, cut, err := g.read(maxFlagDiff, "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", "--no-relative",
+	raw, cut, err := g.read(maxFlagDiff, "diff", "--text", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", "--no-relative",
 		"--unified=0", "--src-prefix=a/", "--dst-prefix=b/", parent, merge, "--", "cmd/corvint")
 	if err != nil {
 		return nil, "", err
@@ -473,12 +473,21 @@ func (g *gitReader) newFlags(parent, merge string) ([]string, string, error) {
 		switch {
 		case strings.HasPrefix(line, "diff --git "):
 			oldSource, newSource, inHunk = false, false, false
+		case !inHunk && (strings.HasPrefix(line, "Binary files ") || line == "GIT binary patch"):
+			// --text should prevent this; any binary patch is unparsed evidence.
+			return []string{}, notObserved, nil
 		case !inHunk && strings.HasPrefix(line, "--- "):
-			name, ok := strings.CutPrefix(line, "--- a/")
-			oldSource = ok && flagSourceFile(name)
+			name, ok := patchPath(line[4:], "a/")
+			if !ok {
+				return []string{}, notObserved, nil
+			}
+			oldSource = flagSourceFile(name)
 		case !inHunk && strings.HasPrefix(line, "+++ "):
-			name, ok := strings.CutPrefix(line, "+++ b/")
-			newSource = ok && flagSourceFile(name)
+			name, ok := patchPath(line[4:], "b/")
+			if !ok {
+				return []string{}, notObserved, nil
+			}
+			newSource = flagSourceFile(name)
 		case strings.HasPrefix(line, "@@"):
 			inHunk = true
 		case inHunk && newSource && strings.HasPrefix(line, "+"):
@@ -498,6 +507,26 @@ func (g *gitReader) newFlags(parent, merge string) ([]string, string, error) {
 		return []string{}, notObserved, nil
 	}
 	return flags, flagSourceBasis, nil
+}
+
+// patchPath decodes one ---/+++ header path: /dev/null, a plain path with an
+// optional trailing tab (Git adds one when the name has a space), or a C-quoted
+// path. It reports false only for a header it cannot decode, so the caller
+// abstains instead of silently skipping a source file.
+func patchPath(header, prefix string) (string, bool) {
+	header = strings.TrimSuffix(header, "\t")
+	if header == "/dev/null" {
+		return "", true
+	}
+	if strings.HasPrefix(header, `"`) {
+		unquoted, err := strconv.Unquote(header)
+		if err != nil {
+			return "", false
+		}
+		header = unquoted
+	}
+	name, ok := strings.CutPrefix(header, prefix)
+	return name, ok
 }
 
 func flagSourceFile(name string) bool {
@@ -543,7 +572,7 @@ func readIssueStates(ctx context.Context, root, name string) (map[int64]string, 
 		return nil, refuse
 	}
 	var rows []map[string]json.RawMessage
-	if json.Unmarshal(data, &rows) != nil || len(rows) > maxRows*4 {
+	if json.Unmarshal(data, &rows) != nil || rows == nil || len(rows) > maxRows*4 {
 		return nil, refuse
 	}
 	states := map[int64]string{}
