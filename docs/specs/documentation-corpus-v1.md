@@ -445,9 +445,12 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   no stdin and inspect no repository (`GPK-V0-059`), and follow the `GPK-V0-062`/`GPK-V0-064` help
   scan: `--help` after admitted options and values is still help. The parser and the help topics
   read one operation table (`cmd/corvint/docs_corpus_help.go`), so help cannot name an option the
-  parser refuses. An unknown operation is not a help topic: `docs corpus NAME --help` keeps the
-  `unsupported corpus operation` refusal. Non-goal: `corvint help docs corpus OPERATION` is not a
-  topic. Acceptance: `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags`.
+  parser refuses. An unknown operation is not a help topic: `docs corpus NAME --help` falls through
+  to the corpus parser with its refusal order unchanged. The parser checks each option before the
+  operation, so `--help` is refused first as `unsupported corpus option` (`invalid-arguments`, exit
+  2). Non-goal: `corvint help docs corpus OPERATION` is not a topic. Acceptance:
+  `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags`,
+  `TestDocsCorpusOperationFlagMatrix`.
   Rollback: remove the corpus help topics; `docs corpus ... --help` prints `docs` help again.
   Status: proposed (GitHub #805), not accepted.
 - `DCP-V1-057`: `corvint help TOPIC` with an unknown topic stays the `invalid-arguments` refusal,
@@ -768,7 +771,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-046..048 | `internal/doccorpus/behavior_playwright_discovery.go`, `internal/liveverify/affected/typescript/playwright_listed_tests.go`, `playwright_discovery_list.go`, `cmd/corvint/docs_corpus_playwright.go` | `TestPlaywrightDiscoveryProducerRoundTrip`, `TestPlaywrightDiscoveryProducerRefusals`, `TestPlaywrightListedTestsMultiProject`, `TestDocsCorpusPlaywrightProducersCLI` |
 | DCP-V1-049..052 | `internal/doccorpus/behavior_playwright_witness.go`, `cmd/corvint/docs_corpus_playwright.go` | `TestPlaywrightWitnessImporter`, `TestDocsCorpusPlaywrightProducersCLI` |
 | DCP-V1-053 | `cmd/corvint/docs.go`, `cmd/corvint-js-test-provider/main.go` | `TestDocsHelpNamesPlaywrightReceiptProducer`, `TestDocsHelpProducerExampleUsesE2EFlags` |
-| DCP-V1-056 | `cmd/corvint/docs_corpus_help.go`, `cmd/corvint/docs_corpus.go`, `cmd/corvint/help.go` | `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags` |
+| DCP-V1-056 | `cmd/corvint/docs_corpus_help.go`, `cmd/corvint/docs_corpus.go`, `cmd/corvint/help.go` | `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags`, `TestDocsCorpusOperationFlagMatrix` |
 | DCP-V1-057 | `cmd/corvint/help.go` | `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 

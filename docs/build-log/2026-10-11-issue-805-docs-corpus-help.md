@@ -34,3 +34,12 @@ Spec: `DCP-V1-056` and `DCP-V1-057` are proposed, and `DCP-V1-053` is amended to
 Before the change, `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags` and
 `TestUnknownHelpTopicListsValidTopics` failed against a0e56f3c1. After it, they pass with the
 existing help, corpus and Playwright CLI tests.
+
+Review round 1 added two checks. `TestDocsCorpusOperationFlagMatrix` takes a literal expectation set
+of admitted and required options for all 29 operations, written from the a0e56f3c1 parser. It checks
+that every documented option is accepted, every other option is refused, every required option is
+enforced, and refusals keep their order. The test passes against the a0e56f3c1 parser, with its
+files restored temporarily, and against this change. `TestDocsCorpusOperationHelpPrintsFlags` now
+also compares each usage line with the same literal set. It also pins
+`docs corpus NAME --help` for an unknown operation, which keeps the preserved
+`unsupported corpus option` refusal.

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -83,6 +84,19 @@ func TestDocsCorpusOperationHelpPrintsFlags(t *testing.T) {
 		if got := corpusHelpRun(t, "docs", "corpus", op, "-h"); got != help {
 			t.Fatalf("%s -h differs from --help", op)
 		}
+		// The usage line names exactly the literal admitted options, required ones unbracketed.
+		usage, _, _ := strings.Cut(strings.SplitN(help, "corvint [--root PATH] docs corpus "+op+" ", 2)[1], "\n")
+		var required, optional []string
+		for _, token := range strings.Fields(usage) {
+			if flag, bracketed := strings.CutPrefix(token, "["); bracketed && strings.HasPrefix(flag, "--") {
+				optional = append(optional, strings.TrimSuffix(flag, "]"))
+			} else if strings.HasPrefix(token, "--") {
+				required = append(required, token)
+			}
+		}
+		if want := corpusFlagExpectations[op]; !slices.Equal(required, want.required) || !slices.Equal(optional, want.optional) {
+			t.Errorf("%s usage options = %q %q, want %q %q", op, required, optional, want.required, want.optional)
+		}
 		for _, flag := range cases[op] {
 			if !strings.Contains(help, flag+" ") {
 				t.Errorf("%s help omits %s", op, flag)
@@ -96,6 +110,13 @@ func TestDocsCorpusOperationHelpPrintsFlags(t *testing.T) {
 				t.Errorf("%s help root-relative line = %q, want %q", op, line, want)
 			}
 		}
+	}
+	// An unknown operation is not a help topic; the parser refuses its --help first as an option.
+	reader := &forbiddenHelpReader{}
+	var stdout, stderr bytes.Buffer
+	if exit := run([]string{"docs", "corpus", "nope", "--help"}, reader, &stdout, &stderr); exit != 2 || stdout.Len() != 0 ||
+		stderr.String() != "{\"code\": \"invalid-arguments\", \"error\": \"unsupported corpus option\", \"ok\": false}\n" {
+		t.Errorf("unknown operation --help: exit=%d stdout=%q stderr=%q", exit, &stdout, &stderr)
 	}
 	witness := corpusHelpRun(t, "docs", "corpus", "witness-playwright", "--help")
 	if !strings.Contains(witness, "names a\nREQUEST.json input, not a file") || !strings.Contains(witness, "corvint-js-test-provider e2e") {
