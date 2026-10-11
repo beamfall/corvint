@@ -67,9 +67,13 @@ therefore come from something keyed on content, not from Go's cache.
   after the batch exits, including on nonzero exit, only when a complete, valid `go test -json`
   stream proves a package-level pass with no test/package failure or build failure for that package.
   Every requested package MUST have a start and exactly one terminal package outcome; malformed,
-  truncated, missing or contradictory outcomes (including unfinished tests or duplicate JSON
-  fields) MUST refuse all package records from that batch. Events MUST be bounded to 1 MiB and
-  simultaneously active tests to 100000 per package; exceeding either bound MUST refuse records.
+  truncated, missing or contradictory outcomes (including unfinished ordinary tests or duplicate JSON
+  fields) MUST refuse all package records from that batch. Every defined test2json/build event field,
+  when present, MUST have its defined JSON type, including RFC3339 string `Time`, numeric `Elapsed`,
+  and string `FailedBuild`; null or malformed typed fields MUST refuse all batch records. Benchmark
+  runs MAY close with a `bench` event or the package terminal without individual test terminals;
+  benchmark events MUST NOT close ordinary tests. Events MUST be bounded to 1 MiB and
+  simultaneously active tests and benchmarks to 100000 per package; exceeding either bound MUST refuse records.
   The ledger MUST pass the exit status through and forward decoded output and build diagnostics;
   JSON outcome capture is the only change to execution on a resolved-package miss. Failed packages
   MUST NOT be recorded. Unresolved packages retain whole-step recording.
@@ -197,7 +201,7 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 | Requirement | Evidence |
 |---|---|
 | GL-V0-001 | `TestRunStepSkipsOnlyRecordedIdenticalInputs`: a rerun on identical content hits, a change outside the scope still hits, a change inside the scope runs; `TestRunStepRecordsFromLinkedWorktree`: a pass recorded in a `git worktree add` checkout hits from the main worktree; `TestWorktreeDigestIgnoresCachedStat`: same-size restored-time edits miss even with a newer index; `TestWorktreeDigestPreservesMembershipAndPaths`: tracked/ignored/staged/intent-to-add membership, executable/symlink modes and NUL-safe paths; `TestWorktreeDigestWithoutIndex`: unborn worktree |
-| GL-V0-002 | `TestRunStepSkipsOnlyRecordedIdenticalInputs`: a step exiting 3 returns 3 and records nothing; `TestGoTestPartialPassRerun`: a failed package never records, passed packages hit on a same-tree rerun while failed and unresolved packages run; `TestPackageOutcomesRefusesIncomplete`: partial, malformed and contradictory streams refuse records; `TestPackageOutcomesRefusesUnfinishedTestsAtTerminal`: unfinished tests at package pass, fail or skip refuse all batch records; `TestPackageOutcomesAcceptsNonTerminalEvents`: Go attr, artifacts and bench events preserve test/package state and output; `TestRunPackagesRefusesPartialOutput`: refusal reaches the record-writing boundary |
+| GL-V0-002 | `TestRunStepSkipsOnlyRecordedIdenticalInputs`: a step exiting 3 returns 3 and records nothing; `TestGoTestPartialPassRerun`: a failed package never records, passed packages hit on a same-tree rerun while failed and unresolved packages run; `TestPackageOutcomesRefusesIncomplete`: partial, malformed and contradictory streams refuse records; `TestPackageOutcomesRefusesUnfinishedTestsAtTerminal`: unfinished ordinary tests at package pass, fail or skip refuse all batch records even alongside benchmarks; `TestPackageOutcomesAcceptsBenchmarkRuns`: framed benchmarks and subbenchmarks close at package termination, and bench events close benchmark runs; `TestPackageOutcomesBenchmarkFailure`: benchmark failure never records that package; `TestPackageOutcomesRefusesMalformedFieldTypes`: malformed types and nulls refuse all records; `TestPackageOutcomesAcceptsTypedFields`: valid timing, build and metadata fields are accepted; `TestPackageOutcomesAcceptsNonTerminalEvents`: Go metadata and benchmark output do not terminate ordinary tests or packages; `TestRunPackagesRefusesPartialOutput`: refusal reaches the record-writing boundary |
 | GL-V0-003 | the same test: an undeclared step runs and records nothing; `plan` reports `go-archive-gate: always runs` |
 | GL-V0-004 | `TestGoTestFallsBackToOneUncachedRun`: the fallback passes `-count=1 ./...` and hits on an identical tree; `TestGoTestRunsUnresolvedAfterResolvedFailure`: a resolved batch exiting 3 still runs and records the unresolved packages, and the step exits 3; `TestUnresolvedPackagesListsRootLocators`: the partition's input; measured partition on this repository in `../BUILD-LOG.md` |
 | GL-V0-005 | `TestRunStepRefusesWhatItCannotDigest`: skip-worktree, assume-unchanged and an ignored `build/build.go` run and record nothing; `TestWorktreeDigestImportFailureRunsWithoutRecord`: private import failure runs without recording and removes the private index/lock |
@@ -211,7 +215,7 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | GL-V0-001 | `key`, `inputs`, `worktreeDigest`, `tooling`, `scopes` in `tools/gate-ledger/main.go` | `TestRunStepSkipsOnlyRecordedIdenticalInputs`; `TestRunStepRecordsFromLinkedWorktree` |
-| GL-V0-002 | `runStep`, `runPackages`, `packageOutcomes`, `execute` | `TestRunStepSkipsOnlyRecordedIdenticalInputs`; `TestGoTestPartialPassRerun`; `TestPackageOutcomesRefusesIncomplete`; `TestRunPackagesRefusesPartialOutput` |
+| GL-V0-002 | `runStep`, `runPackages`, `packageOutcomes`, `execute` | `TestRunStepSkipsOnlyRecordedIdenticalInputs`; `TestGoTestPartialPassRerun`; `TestPackageOutcomesRefusesIncomplete`; `TestPackageOutcomesRefusesUnfinishedTestsAtTerminal`; `TestPackageOutcomesAcceptsBenchmarkRuns`; `TestPackageOutcomesBenchmarkFailure`; `TestPackageOutcomesRefusesMalformedFieldTypes`; `TestPackageOutcomesAcceptsTypedFields`; `TestRunPackagesRefusesPartialOutput` |
 | GL-V0-003 | `scopes`, `key` | `TestRunStepSkipsOnlyRecordedIdenticalInputs` |
 | GL-V0-004 | `goTest`, `partition`; `unresolvedPackages` in `tools/gate-affected-select/main.go`; `GO_TEST_FLAGS` and `ledger/go-test` in `Makefile` | `TestGoTestFallsBackToOneUncachedRun`; `TestGoTestRunsUnresolvedAfterResolvedFailure`; `TestUnresolvedPackagesListsRootLocators` |
 | GL-V0-005 | `worktreeDigest`, `hasFlaggedEntry`, `compiledIgnored` | `TestRunStepRefusesWhatItCannotDigest` |

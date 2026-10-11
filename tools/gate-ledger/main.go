@@ -30,9 +30,11 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 const (
@@ -664,8 +666,14 @@ func (o *packageOutcomes) Write(data []byte) (int, error) {
 	return n, nil
 }
 
+// time.Time checks calendar validity, but Go's RFC3339 parser also accepts
+// single-digit hours, comma fractions and out-of-range timezone offsets.
+var eventTimeSyntax = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$`)
+
 // encoding/json otherwise permits duplicate keys with last-wins semantics,
 // which could erase a fail action. Require one object with unique field names.
+// Defined fields may be omitted, but must not be null: unmarshaling null into
+// a string, number or time.Time would otherwise silently accept it.
 func uniqueEventFields(line []byte) bool {
 	d := json.NewDecoder(bytes.NewReader(line))
 	first, err := d.Token()
@@ -679,8 +687,17 @@ func uniqueEventFields(line []byte) bool {
 			return false
 		}
 		name, ok := token.(string)
-		// Field names are case-insensitive in encoding/json.
-		name = strings.ToLower(name)
+		// Match encoding/json's Unicode folding, including long s and Kelvin
+		// sign aliases; plain ToLower would miss duplicates and null fields.
+		name = strings.Map(func(r rune) rune {
+			for {
+				next := unicode.SimpleFold(r)
+				if next <= r {
+					return next
+				}
+				r = next
+			}
+		}, name)
 		if !ok || seen[name] {
 			return false
 		}
@@ -688,6 +705,18 @@ func uniqueEventFields(line []byte) bool {
 		var value json.RawMessage
 		if d.Decode(&value) != nil {
 			return false
+		}
+		switch name {
+		case "TIME", "ACTION", "PACKAGE", "IMPORTPATH", "TEST", "ELAPSED", "OUTPUT", "OUTPUTTYPE", "FAILEDBUILD", "KEY", "VALUE", "PATH":
+			if bytes.Equal(value, []byte("null")) {
+				return false
+			}
+			if name == "TIME" {
+				var timestamp string
+				if json.Unmarshal(value, &timestamp) != nil || !eventTimeSyntax.MatchString(timestamp) {
+					return false
+				}
+			}
 		}
 	}
 	if _, err := d.Token(); err != nil {
@@ -698,7 +727,12 @@ func uniqueEventFields(line []byte) bool {
 }
 
 func (o *packageOutcomes) event(line []byte) {
-	var e struct{ Action, Package, ImportPath, Test, Output string }
+	var e struct {
+		Time                                      time.Time
+		Elapsed                                   float64
+		Action, Package, ImportPath, Test, Output string
+		OutputType, FailedBuild, Key, Value, Path string
+	}
 	if !uniqueEventFields(line) || json.Unmarshal(line, &e) != nil {
 		o.invalid = true
 		_, _ = o.stdout.Write(line)
@@ -751,6 +785,12 @@ func (o *packageOutcomes) event(line []byte) {
 			if !p.tests[e.Test] {
 				o.invalid = true
 			}
+		case "bench":
+			// Bench reports may have no preceding run. They close benchmark
+			// runs only; they cannot close an unfinished ordinary test.
+			if strings.HasPrefix(e.Test, "Benchmark") {
+				delete(p.tests, e.Test)
+			}
 		}
 	}
 	switch e.Action {
@@ -767,7 +807,15 @@ func (o *packageOutcomes) event(line []byte) {
 		}
 		if e.Test == "" {
 			p.terminal = e.Action
-			if len(p.tests) != 0 || (e.Action == "pass" && p.failed) {
+			// Framed benchmarks (including subbenchmarks) may emit run and
+			// output with no individual terminal. The package outcome closes
+			// those runs; ordinary tests still require their own terminal.
+			for test := range p.tests {
+				if !strings.HasPrefix(test, "Benchmark") {
+					o.invalid = true
+				}
+			}
+			if e.Action == "pass" && p.failed {
 				o.invalid = true
 			}
 		}

@@ -550,6 +550,7 @@ func TestPackageOutcomesRefusesIncomplete(t *testing.T) {
 		"empty":                    "",
 		"unfinished test":          start + `{"Action":"run","Package":"good","Test":"TestOpen"}` + "\n" + pass,
 		"duplicate action":         start + `{"Action":"fail","Action":"pass","Package":"good"}` + "\n",
+		"unicode duplicate test":   start + `{"Action":"run","Package":"good","Test":"TestOpen","Teſt":"BenchmarkOpen"}` + "\n" + pass,
 		"build failure after pass": start + pass + `{"Action":"build-fail","ImportPath":"good"}` + "\n",
 		"missing package":          start + pass,
 		"truncated":                start + strings.TrimSpace(pass),
@@ -609,12 +610,119 @@ func TestPackageOutcomesRefusesUnfinishedTestsAtTerminal(t *testing.T) {
 {"Action":"pass","Package":"good"}
 {"Action":"start","Package":"bad"}
 {"Action":"run","Package":"bad","Test":"TestOpen"}
+{"Action":"run","Package":"bad","Test":"BenchmarkOpen"}
+{"Action":"bench","Package":"bad","Test":"TestOpen"}
 ` + fmt.Sprintf("{\"Action\":%q,\"Package\":\"bad\"}\n", terminal)
 			_, _ = o.Write([]byte(stream))
 			if got := o.passes(); got != nil {
 				t.Fatalf("unfinished test at package %s admitted records: %v", terminal, got)
 			}
 		})
+	}
+}
+
+// GL-V0-002: framed benchmark runs, including subbenchmarks, need not emit
+// individual terminals before the package outcome (Go's framebig.json).
+func TestPackageOutcomesAcceptsBenchmarkRuns(t *testing.T) {
+	for name, events := range map[string]string{
+		"framed": `{"Action":"run","Package":"good","Test":"BenchmarkIndex"}
+{"Action":"output","Package":"good","Test":"BenchmarkIndex","Output":"=== RUN   BenchmarkIndex\n","OutputType":"frame"}
+{"Action":"output","Package":"good","Test":"BenchmarkIndex","Output":"BenchmarkIndex-16\t1\t4.697 ns/op\n"}
+{"Action":"run","Package":"good","Test":"BenchmarkIndexAnyASCII"}
+{"Action":"run","Package":"good","Test":"BenchmarkIndexAnyASCII/1:1"}
+{"Action":"output","Package":"good","Test":"BenchmarkIndexAnyASCII/1:1","Output":"BenchmarkIndexAnyASCII/1:1-16\t1\t5.592 ns/op\n"}
+`,
+		"bench terminal": `{"Action":"run","Package":"good","Test":"BenchmarkGood"}
+{"Action":"bench","Package":"good","Test":"BenchmarkGood"}
+{"Action":"run","Package":"good","Test":"BenchmarkGood"}
+{"Action":"bench","Package":"good","Test":"BenchmarkGood"}
+`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			var out bytes.Buffer
+			o := newPackageOutcomes([]packageKey{{pkg: "good"}}, &out)
+			stream := `{"Action":"start","Package":"good"}
+{"Action":"run","Package":"good","Test":"TestGood"}
+{"Action":"pass","Package":"good","Test":"TestGood"}
+` + events + `{"Action":"pass","Package":"good"}` + "\n"
+			for len(stream) > 0 {
+				n := min(17, len(stream))
+				_, _ = o.Write([]byte(stream[:n]))
+				stream = stream[n:]
+			}
+			if got := o.passes(); len(got) != 1 || !got["good"] {
+				t.Fatalf("benchmark stream refused: %v, output %q", got, out.String())
+			}
+		})
+	}
+}
+
+// GL-V0-002: benchmark failure remains a failure, even though a package
+// terminal may close benchmark runs that have no individual terminal.
+func TestPackageOutcomesBenchmarkFailure(t *testing.T) {
+	var out bytes.Buffer
+	o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
+	_, _ = o.Write([]byte(`{"Action":"start","Package":"good"}
+{"Action":"pass","Package":"good"}
+{"Action":"start","Package":"bad"}
+{"Action":"run","Package":"bad","Test":"BenchmarkBad"}
+{"Action":"fail","Package":"bad","Test":"BenchmarkBad"}
+{"Action":"fail","Package":"bad"}
+`))
+	if got := o.passes(); len(got) != 2 || !got["good"] || got["bad"] {
+		t.Fatalf("passes %v", got)
+	}
+}
+
+// GL-V0-002: every defined event field has its JSON type checked, even when
+// the field is not needed for package lifecycle tracking. One bad event refuses
+// the whole batch, including packages that already passed.
+func TestPackageOutcomesRefusesMalformedFieldTypes(t *testing.T) {
+	fields := []string{"Time", "Action", "Package", "ImportPath", "Test", "Output", "OutputType", "FailedBuild", "Key", "Value", "Path", "Elapsed", "Teſt", "Elapſed", "Key"}
+	for _, field := range fields {
+		values := []string{`null`, `true`, `{}`, `[]`}
+		if field == "Elapsed" || field == "Elapſed" {
+			values = append(values, `"invalid"`)
+		} else {
+			values = append(values, `42`)
+			if field == "Time" {
+				values = append(values, `"invalid"`, `"2026-10-10T1:00:00Z"`, `"2026-10-10T10:00:00,1Z"`, `"2026-10-10T10:00:00+24:00"`, `"2026-10-10T10:00:00-04:60"`)
+			}
+		}
+		for _, value := range values {
+			t.Run(field+"/"+value, func(t *testing.T) {
+				var out bytes.Buffer
+				o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
+				// A build event exercises the same decoder before its early return.
+				event := fmt.Sprintf("{\"Action\":\"build-output\",\"ImportPath\":\"bad\",%q:%s}\n", field, value)
+				if field == "Action" || field == "ImportPath" {
+					event = fmt.Sprintf("{%q:%s}\n", field, value)
+				}
+				stream := `{"Action":"start","Package":"good"}
+{"Action":"pass","Package":"good"}
+{"Action":"start","Package":"bad"}
+` + event + `{"Action":"pass","Package":"bad"}` + "\n"
+				_, _ = o.Write([]byte(stream))
+				if got := o.passes(); got != nil {
+					t.Fatalf("malformed %s admitted records: %v", field, got)
+				}
+			})
+		}
+	}
+}
+
+func TestPackageOutcomesAcceptsTypedFields(t *testing.T) {
+	var out bytes.Buffer
+	o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
+	_, _ = o.Write([]byte(`{"Time":"2026-10-10T10:00:00.123456789Z","Action":"start","Package":"good"}
+{"Action":"output","Package":"good","Output":"ok\n","OutputType":"frame","Key":"owner","Value":"fixture","Path":"package.log"}
+{"Action":"pass","Package":"good","Elapsed":1.5}
+{"Action":"start","Package":"bad"}
+{"Action":"build-fail","ImportPath":"bad"}
+{"Time":"2026-10-10T10:00:01-04:00","Action":"fail","Package":"bad","Elapsed":0,"FailedBuild":"dependency"}
+`))
+	if got := o.passes(); len(got) != 2 || !got["good"] || got["bad"] || out.String() != "ok\n" {
+		t.Fatalf("passes %v, output %q", got, out.String())
 	}
 }
 
@@ -644,7 +752,9 @@ func TestPackageOutcomesAcceptsNonTerminalEvents(t *testing.T) {
 
 // GL-V0-002: stream refusal also reaches the record-writing boundary.
 func TestRunPackagesRefusesPartialOutput(t *testing.T) {
-	for _, ending := range []string{"", "garbled\n"} {
+	for _, ending := range []string{"", "garbled\n", `{"Action":"start","Package":"bad"}
+{"Action":"pass","Package":"bad","Elapsed":"invalid"}
+`} {
 		t.Run(fmt.Sprintf("ending-%q", ending), func(t *testing.T) {
 			fixtureRepository(t)
 			var out bytes.Buffer
