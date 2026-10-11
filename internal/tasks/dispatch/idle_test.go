@@ -180,3 +180,11 @@ func TestSuperviseWithoutWorkersReadsNoProcessTable(t *testing.T) {
 		t.Fatalf("an empty worker set read the process table %d times", reads)
 	}
 }
+
+// CAL-V0-217: the idle safety-net full read is 15 minutes unless a test
+// shortens it.
+func TestCALV0217_SafetyNetIsFifteenMinutes(t *testing.T) {
+	if idleFullEvery != 15*time.Minute {
+		t.Fatalf("idleFullEvery = %v, want 15m", idleFullEvery)
+	}
+}

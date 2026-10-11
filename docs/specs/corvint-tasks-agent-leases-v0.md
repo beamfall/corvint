@@ -128,6 +128,7 @@ one.
 | V1-1045 | CAL-V0-205 | Accepted (decision 0471): `pool confirm-safe` takes the CAL-V0-116 writer-checkpoint route, so with a bound writer checkpoint it no longer decodes the whole receipt journal under the preparation gate; every decline keeps the complete route; focused tests and a synthetic measurement |
 | Read facets | CAL-V0-206..209 | Accepted (decision 0476): `--facets` adds a bounded facet-count summary over the whole match set to `ticket search`, `ticket list` and `roadmap`; `--count` returns only that summary; `release readiness` adds member counts and milestone drift and skips the source observation without a candidate; focused tests and a real-store read measurement |
 | V1-1118 | CAL-V0-211 | Accepted (decision 0499): a fresh `ticket set-effects` or claim warns `EXACT_KEY_NAMES_DIRECTORY`, naming the key and the key with `/`, for each PATH key without a trailing `/` that names a directory in the tree; it refuses nothing; focused tests |
+| V1-0913 | CAL-V0-217 | Proposed, pending owner acceptance (V1-0913): the CAL-V0-139 idle safety-net full read moves from 60 seconds to 15 minutes; focused test |
 | V1-1081 | CAL-V0-017 (amended) | Proposed: `complete` also accepts a commit reachable from the intent branch's configured remote-tracking upstream when the local branch is behind; never fetches or moves a ref; an unintegrated commit refuses `STALE_TREE` plus `COMMIT_NOT_INTEGRATED`; focused tests |
 | V1-0853 | CAL-V0-105 | Dispatcher replans with the tickets its work state holds deferred `WORK_STATE_HELD` outside the selection window; UNKNOWN, NONE and no reader keep today's window; focused tests |
 | V1-0772 | CAL-V0-086 | Supervised stage worktree path recorded as PathText (4096 bytes), refused before mutation when longer; an unproved stage drain ends the role `SURVIVORS` instead of `FINISHED`; drain re-probes `EPERM`; bounded watcher read tolerance; focused tests |
@@ -4071,7 +4072,7 @@ essential. These requirements are accepted by decision 0439.
   uncertain launch, and its configuration names no work-state reader or pressure signal. The
   witness MUST cover the journal head, barrier and `VERSION` bytes, the state and receipt
   directories and every top-level intent entry; a witness error reads in full. A skipped tick MUST
-  give way to a full tick at the earliest of 60 seconds after the last full read, an observed lease
+  give way to a full tick at the earliest of the safety-net interval after the last full read (60 seconds as accepted; 15 minutes under CAL-V0-217, proposed), an observed lease
   expiry, a recorded cooldown, a scheduled pool sweep and the time a tracked lane member episode
   reaches an enabled lane's `minAgeSeconds` (CAL-V0-129), and whenever the clock is behind the
   armed tick. A deadline that falls after a full tick started and at or before it settles MUST
@@ -5703,6 +5704,28 @@ Rollback: revert `internal/tasks/store/directory_keys.go`, the `ScopeWarnings` r
 its two result call sites, the tests and this amendment. No payload, receipt, journal record or
 store state depends on the warning.
 
+- `CAL-V0-217`: (proposed, pending owner acceptance, V1-0913) Amends CAL-V0-139. The safety-net interval
+  after which a skipped tick MUST give way to a full tick is 15 minutes after the last full read,
+  not 60 seconds. Every other CAL-V0-139 trigger (witness change, pending operator request,
+  configuration change, observed lease expiry, recorded cooldown, scheduled pool sweep, lane
+  minimum age, a clock behind the armed tick, any witness error) is unchanged and still reads in
+  full at once. The witness continues to cover only the top-level intent entries, so a ticket
+  file rewritten in place without a journal write and without a change to the tickets directory
+  entry is seen only by the safety net, up to 15 minutes late; the store's own writers go through
+  the journal and are seen at the next tick.
+
+Non-goals: event-driven wake-up; a configurable interval; changing the witness inputs.
+
+Failure modes: an out-of-band in-place edit of a ticket file is acted on up to 15 minutes late
+instead of 60 seconds; every in-store write path is unaffected.
+
+Acceptance evidence: `TestCALV0217_SafetyNetIsFifteenMinutes` and the unchanged
+`TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges` (`internal/tasks/dispatch`); measured idle
+CPU recorded in `docs/build-log/2026-10-10-v1-0913-idle-safety-net.md`.
+
+Rollback: restore `idleFullEvery` to 60 seconds in `internal/tasks/dispatch/idle.go` and drop this
+requirement.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -6138,6 +6161,7 @@ and removes the new configuration members.
 | CAL-V0-208 | `TestCALV0208_ReadinessMemberCountsAndMilestoneDrift` (`internal/tasks/cli`) |
 | CAL-V0-209 | `TestCALV0208_ReadinessMemberCountsAndMilestoneDrift` (`internal/tasks/cli`; the fixture is not a Git repository, so a source observation would fail) |
 | CAL-V0-210 | `TestCALV0074_NoExecCrashTakeover` (`internal/tasks/store`) |
+| CAL-V0-217 | `TestCALV0217_SafetyNetIsFifteenMinutes` (`internal/tasks/dispatch`) |
 | CAL-V0-211 | `TestCALV0211_ClaimWarnsOnExactDirectoryKey`, `TestCALV0211_ExactDirectoryKeyWarnings` (`internal/tasks/store`); `TestCALV0211_SetEffectsWarnsOnExactDirectoryKey` (`internal/tasks/cli`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
