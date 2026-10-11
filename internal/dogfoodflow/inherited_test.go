@@ -1,7 +1,11 @@
 package dogfoodflow
 
 import (
+	"bytes"
+	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -66,6 +70,29 @@ func TestChangeDCWV0043RefusesUnarchivedInheritedCEM(t *testing.T) {
 	}
 }
 
+// DCW-V0-042, DCW-V0-043: the full command refuses before it clears the
+// previous run's step evidence, so the refusal destroys nothing.
+func TestChangeDCWV0043RefusalKeepsPreviousEvidence(t *testing.T) {
+	repo, _ := newInheritedRepo(t)
+	repo.write("a.txt", "a1\nA2\na3\n")
+	repo.commit("work")
+	previous := filepath.Join(repo.root, ".git", "corvint", "coordination-query.stderr")
+	if err := os.MkdirAll(filepath.Dir(previous), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(previous, []byte("previous run\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	var stderr bytes.Buffer
+	code, err := Change(context.Background(), ChangeOptions{Root: repo.root, Base: repo.base, Steps: repo.verifier()}, &stderr)
+	if err != nil || code != 2 || !strings.HasPrefix(stderr.String(), "dogfood-change: REFUSE unarchived-base-cem\n") {
+		t.Fatalf("exit=%d err=%v stderr=%q", code, err, stderr.String())
+	}
+	if data, err := os.ReadFile(previous); err != nil || string(data) != "previous run\n" {
+		t.Fatalf("previous evidence lost: %q %v", data, err)
+	}
+}
+
 // DCW-V0-043: a repository that never sealed keeps rebinding its tracked CEM
 // in place.
 func TestChangeDCWV0043IgnoresRepositoriesThatNeverSealed(t *testing.T) {
@@ -118,5 +145,27 @@ func TestBatchCheckDCWV0043AcceptsTheInheritedArchive(t *testing.T) {
 	repo.commit("drop the inherited CEM")
 	if code, _, stderr = repo.check(); code != 1 || !strings.Contains(stderr, "FAIL unsealed-cem-at-head count=1\n") {
 		t.Fatalf("dropped exit=%d stderr=%s", code, stderr)
+	}
+}
+
+// DCW-V0-043: once BASE itself keeps the inherited CEM's archive, a later
+// sealed lane that replaces the sidecar passes batch-check.
+func TestBatchCheckDCWV0043AcceptsAnArchiveAlreadyAtBase(t *testing.T) {
+	repo, writer := newInheritedRepo(t)
+	_, stderr := repo.admit(repo.base)
+	repo.archive(stderr)
+	repo.base = testGit(t, repo.root, "rev-parse", "HEAD")
+	testGit(t, repo.root, "checkout", "-q", "-b", "lane", repo.base)
+	repo.write("a.txt", "a1\nA2\na3\n")
+	repo.commit("work lane")
+	repo.write(".corvint/change.cem.json", `{"spec": "cem/0.2", "baseRevision": "`+repo.base+`", "hunks": []}`+"\n")
+	bind := repo.commit("chore: bind change evidence")
+	testGit(t, repo.root, "mv", ".corvint/change.cem.json", ".corvint/changes/"+bind+".cem.json")
+	seal := repo.commit("chore: seal change evidence")
+	repo.batch(seal)
+	code, stdout, stderr := repo.check()
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "NOTE inherited-cem-archived NOT_REVERIFIED path=.corvint/changes/"+writer+".cem.json\n") ||
+		!strings.HasSuffix(stdout, "PASS constituents=1 commits=4\n") || len(repo.args) != 1 {
+		t.Fatalf("exit=%d stdout=%s stderr=%s verifier=%v", code, stdout, stderr, repo.args)
 	}
 }

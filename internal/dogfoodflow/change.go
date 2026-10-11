@@ -105,6 +105,11 @@ func (c *change) run() int {
 	if task == "" {
 		task = "Dogfood change from " + c.base[:12] + " to HEAD"
 	}
+	// The sealed-CEM admissions refuse before the previous run's evidence is
+	// cleared, so a refusal keeps it (DCW-V0-042, DCW-V0-043).
+	inherited := c.inheritedCEM()
+	c.admitSealedCEMs(inherited)
+	c.requireArchivedBaseCEM(inherited)
 	c.evidence = c.gitDir + "/corvint"
 	_ = os.MkdirAll(c.evidence, 0o777)
 	_ = os.MkdirAll(c.path(".corvint"), 0o777)
@@ -117,9 +122,6 @@ func (c *change) run() int {
 	c.runTmp = runTmp
 	c.citationStage = ".corvint/.cem-citations." + filepath.Base(runTmp) + ".json"
 	c.resolveAnchor()
-	inherited := c.inheritedCEM()
-	c.admitSealedCEMs(inherited)
-	c.requireArchivedBaseCEM(inherited)
 	// Query and impact run after the change, so they are coordination-time
 	// receipts; the agent's prechange-*.json receipts are never written here (DCW-V0-026).
 	c.coordinationQuery(task)

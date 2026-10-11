@@ -137,6 +137,8 @@ func (b *batch) run() int {
 		b.exit(2)
 	}
 	b.inherited = b.inheritedCEM()
+	// HEAD may keep the archive from BASE itself or from a commit in range.
+	b.archived = b.archives(b.inherited, b.target)
 	sealed := b.sealedConstituents()
 	if len(sealed) > batchConstituentLimit {
 		b.say("%s: REFUSE constituents-exceed-%d constituents=%d\n", b.prefix, batchConstituentLimit, len(sealed))
@@ -196,10 +198,9 @@ func (b *batch) sealedConstituents() []string {
 			b.failure("unrecognized-sealed-cem", path)
 		case state != "A":
 			b.failure("sealed-cem-modified", path+" status="+state)
-		case path == b.inherited.path && b.archives(b.inherited, b.target):
+		case path == b.inherited.path && b.archived:
 			// BASE's own inherited CEM, archived: bytes BASE already tracks,
 			// not a constituent (DCW-V0-043).
-			b.archived = true
 		default:
 			binds = append(binds, match[1])
 			b.constituents[match[1]] = true
