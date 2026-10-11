@@ -124,6 +124,7 @@ func TestANLV0035StepEffects(t *testing.T) {
 		"role":      {"await page.getByRole('link' && 'button').click();", EffectUnknown, "e2e/specs/role.spec.ts:7", "click"},
 		"nonnull":   {"await home.search!('x');", EffectUnknown, "e2e/specs/nonnull.spec.ts:7", "computed-call"},
 		"bang":      {"await helper!();", EffectUnknown, "e2e/specs/bang.spec.ts:7", "computed-call"},
+		"hover":     {"await page.hover('a.sheets');", EffectUnknown, "e2e/specs/hover.spec.ts:7", "hover"},
 		"query":     {"await page.goto(`/x/${slug}?tab=a`);", EffectNavigation, "", ""},
 		"pure":      {"await Promise.all([home.openSheets()]); JSON.stringify({a: 1 == 1});", EffectNavigation, "", ""},
 	}
@@ -134,6 +135,17 @@ func TestANLV0035StepEffects(t *testing.T) {
 	writeFile(t, root, "e2e/specs/ctor.spec.ts", strings.Replace(effectSpec("await new ResetWorkflow(page).ready;"),
 		"import { TeeSheetPage }", "import { ResetWorkflow } from '../pages/reset.page';\nimport { TeeSheetPage }", 1))
 	cases["ctor"] = struct{ step, effect, ref, call string }{"", EffectState, "e2e/pages/reset.page.ts:7", "post"}
+	// A class that extends another or declares an accessor runs code this reader does not follow.
+	writeFile(t, root, "e2e/pages/child.page.ts", "import { Page } from '@playwright/test';\nimport { BasePage } from './base.page';\n\nexport class ChildPage extends BasePage {\n  async open() {\n    await this.page.reload();\n  }\n}\n")
+	writeFile(t, root, "e2e/pages/gate.page.ts", "import { Page } from '@playwright/test';\n\nexport class GatePage {\n  constructor(private readonly page: Page) {}\n\n  set ready(v: boolean) {\n    localStorage.setItem('ready', String(v));\n  }\n}\n")
+	for name, class := range map[string]string{"child": "ChildPage", "gate": "GatePage"} {
+		writeFile(t, root, "e2e/specs/"+name+".spec.ts", strings.Replace(effectSpec("new "+class+"(page);"),
+			"import { TeeSheetPage }", "import { "+class+" } from '../pages/"+name+".page';\nimport { TeeSheetPage }", 1))
+	}
+	cases["child"] = struct{ step, effect, ref, call string }{"", EffectUnknown, "e2e/specs/child.spec.ts:8", "extends"}
+	cases["gate"] = struct{ step, effect, ref, call string }{"", EffectUnknown, "e2e/specs/gate.spec.ts:8", "accessor"}
+	writeFile(t, root, "e2e/specs/args.spec.ts", strings.Replace(effectSpec("await home.openSheets();"),
+		"const again = new HomePage(page);", "const again = new HomePage(page, await request.post('/api/reset'));", 1))
 	rev := commitAll(t, root, "effects")
 	m := build(t, root, rev)
 	for name, c := range cases {
@@ -155,6 +167,10 @@ func TestANLV0035StepEffects(t *testing.T) {
 	// The whole spec and page-object files are cited: imports and bindings decide the methods read.
 	if len(nav.EffectFrom) != 3 || nav.EffectFrom[0].Path != "e2e/specs/nav.spec.ts" || nav.EffectFrom[1].Path != "e2e/pages/home.page.ts" || nav.EffectFrom[1].Start != 1 || nav.EffectFrom[2].Path != "e2e/pages/teesheet.page.ts" {
 		t.Fatalf("nav anchors: %+v", nav.EffectFrom)
+	}
+	// The closing construction's own arguments run in the step that ends at it.
+	if back := stepEdges(m, "e2e/specs/args.spec.ts")[1]; back.Effect != EffectState || back.EffectRef != "e2e/specs/args.spec.ts:10" || back.EffectCall != "post" {
+		t.Fatalf("closing construction arguments: %+v", back)
 	}
 	click := stepEdges(m, "e2e/specs/teesheet-click.spec.ts")
 	if len(click) != 1 || click[0].Effect != EffectUnknown || click[0].EffectCall != "click" {

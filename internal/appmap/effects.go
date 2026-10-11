@@ -22,7 +22,7 @@ var (
 		"waitForTimeout waitFor waitForResponse waitForRequest getByTestId getByRole getByLabel getByPlaceholder " +
 		"getByAltText getByTitle getByText locator frameLocator first last nth filter and or textContent innerText " +
 		"innerHTML inputValue getAttribute isVisible isHidden isEnabled isDisabled isChecked isEditable count all " +
-		"allTextContents allInnerTexts boundingBox url title hover focus scrollIntoViewIfNeeded")
+		"allTextContents allInnerTexts boundingBox url title")
 	effectStateCalls = wordSet("fill type pressSequentially press check uncheck setChecked selectOption " +
 		"setInputFiles clear dragTo dragAndDrop submit setItem removeItem addCookies clearCookies fetch")
 	effectHTTPVerbs = wordSet("get post put patch delete head fetch")
@@ -219,10 +219,37 @@ type effectReader struct {
 	tokens map[string][]token
 	memo   map[string]*stepEffect
 	pages  map[string]bool
+	plain  map[string]string
 }
 
 func newEffectReader(b *builder) *effectReader {
-	return &effectReader{b: b, tokens: map[string][]token{}, memo: map[string]*stepEffect{}, pages: map[string]bool{}}
+	return &effectReader{b: b, tokens: map[string][]token{}, memo: map[string]*stepEffect{}, pages: map[string]bool{}, plain: map[string]string{}}
+}
+
+// opaque names why a page-object file's members cannot be read from the file alone: a class that
+// extends another inherits members, constructors and accessors this reader does not follow, and
+// an accessor runs code on a plain property read or write. It returns "" for a plain file.
+func (r *effectReader) opaque(path string) string {
+	if why, seen := r.plain[path]; seen {
+		return why
+	}
+	why := ""
+	toks := r.toks(path)
+	for k, t := range toks {
+		if t.kind != tokIdent || property(toks, k) {
+			continue
+		}
+		if t.text == "extends" {
+			why = "extends"
+			break
+		}
+		if (t.text == "get" || t.text == "set") && k+2 < len(toks) && toks[k+1].kind == tokIdent && next(toks, k+2, "(") {
+			why = "accessor"
+			break
+		}
+	}
+	r.plain[path] = why
+	return why
 }
 
 // pageBound reports whether the file at path leaves `page` and `this.page` as the Playwright page
@@ -348,7 +375,7 @@ func (r *effectReader) span(path string, toks []token, from, to int, inst map[st
 		if k, ok := assignmentAt(toks, i); ok && memberTarget(toks, k) {
 			// A page object may set its own fields (`this.page = page`); a field named like one of
 			// its methods could replace that method, and `this.page` is checked by pageBound.
-			if self != "" && k > 1 && isPunct(toks[k-1], ".") && toks[k-2].text == "this" && !(k > 2 && isPunct(toks[k-3], ".")) && !r.hasMember(self, toks[k].text) {
+			if self != "" && r.opaque(self) == "" && k > 1 && isPunct(toks[k-1], ".") && toks[k-2].text == "this" && !(k > 2 && isPunct(toks[k-3], ".")) && !r.hasMember(self, toks[k].text) {
 				continue
 			}
 			out.join(effectAt(EffectUnknown, path, t.line, "member-assignment"))
@@ -528,6 +555,9 @@ func (r *effectReader) construct(path string, depth int, callPath string, callLi
 	if depth > maxImportHops || r.b.files[path] == nil {
 		return effectAt(EffectUnknown, callPath, callLine, "new")
 	}
+	if why := r.opaque(path); why != "" {
+		return effectAt(EffectUnknown, callPath, callLine, why)
+	}
 	key := path + "#new"
 	if e, ok := r.memo[key]; ok {
 		if e == nil {
@@ -572,6 +602,9 @@ func (r *effectReader) construct(path string, depth int, callPath string, callLi
 func (r *effectReader) method(path, name string, depth int, callPath string, callLine int) stepEffect {
 	if depth > maxImportHops {
 		return effectAt(EffectUnknown, callPath, callLine, name)
+	}
+	if why := r.opaque(path); why != "" {
+		return effectAt(EffectUnknown, callPath, callLine, why)
 	}
 	key := path + "#" + name
 	if e, ok := r.memo[key]; ok {

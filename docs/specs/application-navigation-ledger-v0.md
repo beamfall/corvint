@@ -172,8 +172,11 @@ are URL templates, not component source files. This slice makes neither missing 
   assigned, member-assigned or destructured anywhere else in the spec, is not followed) reads that
   file's one class member of that name, following `this.m()` calls up to 8 deep. Constructing a
   page-object class, in the step or at either construction that bounds it, reads everything the
-  construction runs: that file's tokens outside its recognized non-constructor methods. A page
-  object may assign its own fields (`this.NAME = ...`) when NAME is not one of its members. The step is `state-effect` when any call fills, types, presses, checks, selects, uploads,
+  construction runs: that file's tokens outside its recognized non-constructor methods, plus the
+  closing construction's arguments. A page-object file whose class `extends` another or declares a
+  `get`/`set` accessor is not read: its methods and constructions are `unknown` (`extends`,
+  `accessor`). A page object may assign its own fields (`this.NAME = ...`) when NAME is not one of
+  its members. The step is `state-effect` when any call fills, types, presses, checks, selects, uploads,
   clears, drags or submits; issues a request (`fetch(`, or an HTTP verb on a `request` receiver);
   or writes storage or cookies (`setItem`, `removeItem`, `addCookies`, `clearCookies`). Otherwise
   it is `unknown` when any call is not provable: a navigation, wait, read or click whose receiver is
@@ -188,7 +191,8 @@ are URL templates, not component source files. This slice makes neither missing 
   increment or decrement of a member, `delete`, a missing, duplicated or recursive member, a
   template substitution that may call, assign, update or delete, or source the lexer cannot bound.
   Otherwise it is `navigation-only`: navigation (`goto`, `reload`, `goBack`, `goForward`), waits,
-  locator construction, reads and `expect` assertions only. A non-navigation step records the
+  locator construction, reads and `expect` assertions only; `hover`, `focus` and scrolling can run
+  application handlers and are `unknown`. A non-navigation step records the
   deciding call's `effect_ref` (`PATH:LINE`) and `effect_call`; every step records whole-file anchors
   (`effect_from`) for the spec and each page-object file read, since imports, bindings and other
   members decide which methods are read. Other edges and older maps carry none of these fields.
