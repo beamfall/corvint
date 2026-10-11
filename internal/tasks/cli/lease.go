@@ -63,8 +63,17 @@ var leaseValueFlags = map[string]bool{
 	"--lock-wait": true, "--lease-expires-at": true,
 }
 
-// lockWaitVerbs are the lease commands that take the CAL-V0-111 --lock-wait.
-var lockWaitVerbs = map[string]bool{"release": true, "attempt heartbeat": true}
+// lockWaitVerbs are the lease commands that take the CAL-V0-111 --lock-wait:
+// release and attempt heartbeat, and (proposed CAL-V0-216) the other
+// preparation-admitted agent writes.
+var lockWaitVerbs = map[string]bool{
+	"release": true, "attempt heartbeat": true,
+	"claim": true, "renew": true, "submit": true,
+	"pool acquire": true, "pool confirm-safe": true, "pool release": true,
+}
+
+// lockWaitRefusal names every lockWaitVerbs command for a misplaced --lock-wait.
+const lockWaitRefusal = "--lock-wait belongs to release, attempt heartbeat, claim, renew, submit, pool acquire, pool confirm-safe and pool release"
 
 // parseLockWait reads one CAL-V0-111 --lock-wait value: whole seconds in
 // canonical decimal, from 1 to authority.MaxCallerLockWait.
@@ -249,7 +258,7 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	var lockWait time.Duration
 	if value, supplied := parsed.values["--lock-wait"]; supplied {
 		if !lockWaitVerbs[name] {
-			return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--lock-wait belongs to release and attempt heartbeat"))
+			return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", lockWaitRefusal))
 		}
 		if lockWait, err = parseLockWait(value); err != nil {
 			return fail(err)

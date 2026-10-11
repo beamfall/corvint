@@ -105,7 +105,7 @@ func fullCommandHelp(cmd []string) *wire.Result {
 		o.Set("handoffReasonCodes", wire.Strings(snapshot.HandoffReasons))
 		o.Set("handoffRefusalCodes", wire.Strings([]string{wire.CodeFenced, wire.CodeStaleTicket, wire.CodeStalePolicy, wire.CodeTicketState, wire.CodeMissingEvidence, wire.CodeMalformed}))
 	}
-	if name == "release" || name == "attempt heartbeat" {
+	if lockWaitVerbs[name] {
 		o.Set("lockWait", wire.String(lockWaitHelp))
 	}
 	if name == "policy update" {
@@ -184,8 +184,8 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 
-// lockWaitHelp documents the CAL-V0-111 --lock-wait of release and attempt
-// heartbeat.
+// lockWaitHelp documents the CAL-V0-111 --lock-wait of every lockWaitVerbs
+// command (proposed CAL-V0-216 adds the other preparation-admitted writes).
 const lockWaitHelp = "--lock-wait SECONDS (whole seconds, 1..300; anything else refuses MALFORMED) waits up to that long for preparation admission and the store lock instead of the default 30 seconds, for this command only. It is not part of the request: after LOCK_TIMEOUT, resubmit the same request ID with the same arguments; that commits once or replays the committed receipt."
 
 // Usage is the single help inventory for each command's supported inputs.
@@ -220,15 +220,15 @@ var commandUsage = map[string]string{
 	"release list":       "corvint-tasks release list",
 	"release show":       "corvint-tasks release show RELEASE",
 	"release readiness":  "corvint-tasks release readiness RELEASE",
-	"claim":              "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--repo ALIAS=ROOT]... [--timing] [--role ROLE]",
-	"renew":              "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--timing] [--role ROLE]",
+	"claim":              "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--repo ALIAS=ROOT]... [--timing] [--lock-wait SECONDS] [--role ROLE]",
+	"renew":              "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--timing] [--lock-wait SECONDS] [--role ROLE]",
 	"release":            "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--handoff-to STAGE [--handoff-reason CODE]] [--lane-untouched] [--timing] [--lock-wait SECONDS] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
 	"reap":               "corvint-tasks reap --request-id ID [--attempt ID --generation G [--lease-expires-at T]] [--role ROLE]",
 	"widen":              "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--role ROLE]",
 	"attempt heartbeat":  "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--timing] [--lock-wait SECONDS] [--role ROLE]",
 	"attempt show":       "corvint-tasks attempt show <attemptId> [--summary | --fields KEY[.SUB],...]",
 	"plan preview":       "corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--selected-only] [--summary | --fields KEY[.SUB],...]",
-	"submit":             "corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID [--role ROLE]",
+	"submit":             "corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID [--lock-wait SECONDS] [--role ROLE]",
 	"gate run":           "corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR] [--role ROLE]",
 	"complete":           "corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID [--role ROLE]",
 	"health":             "corvint-tasks health --member ID [--stage STAGE] --request-id ID [--role ROLE]",
@@ -237,9 +237,9 @@ var commandUsage = map[string]string{
 	"pool sweep":         "corvint-tasks pool sweep --request-id ID --timeout-seconds N [--member ID] [--role OWNER|OPERATOR]",
 	"pool cleanup":       "corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID [--role ROLE]",
 	"pool recover":       "corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID [--role ROLE]",
-	"pool confirm-safe":  "corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID [--role ROLE]",
-	"pool acquire":       "corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--exclude-member ID]... [--exclude-authors[=all]] [--role ROLE]",
-	"pool release":       "corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID [--role ROLE]",
+	"pool confirm-safe":  "corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID [--lock-wait SECONDS] [--role ROLE]",
+	"pool acquire":       "corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--exclude-member ID]... [--exclude-authors[=all]] [--lock-wait SECONDS] [--role ROLE]",
+	"pool release":       "corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID [--lock-wait SECONDS] [--role ROLE]",
 	"lane-leader":        "corvint-tasks lane-leader --directory DIR --capsule FILE",
 	"pending":            "corvint-tasks pending",
 	"program show":       "corvint-tasks program show",

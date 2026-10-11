@@ -65,8 +65,8 @@ func lockTimedOut(t *testing.T, x run, elapsed time.Duration, wait time.Duration
 	}
 }
 
-// TestCALV0111_LockWaitFlag: only release and attempt heartbeat accept
-// --lock-wait, its value is whole seconds from 1 to the documented maximum,
+// TestCALV0111_LockWaitFlag: verbs outside the CAL-V0-111/CAL-V0-216 set
+// refuse --lock-wait, its value is whole seconds from 1 to the documented maximum,
 // every refusal is MALFORMED without a write, and help lists it.
 func TestCALV0111_LockWaitFlag(t *testing.T) {
 	root, repo, _, attempt, generation := lockWaitStore(t)
@@ -90,12 +90,12 @@ func TestCALV0111_LockWaitFlag(t *testing.T) {
 		}
 	}
 	for _, args := range [][]string{
-		{"renew", "--attempt", attempt, "--generation", generation, "--request-id", "renew-flag", "--lock-wait", "5"},
-		{"claim", "--next", "--holder", "h", "--request-id", "claim-flag", "--lock-wait", "5"},
+		{"widen", "--attempt", attempt, "--generation", generation, "--request-id", "widen-flag", "--whole-repository", "--lock-wait", "5"},
+		{"complete", "--attempt", attempt, "--generation", generation, "--request-id", "complete-flag", "--commit", strings.Repeat("0", 40), "--lock-wait", "5"},
 		{"reap", "--request-id", "reap-flag", "--lock-wait", "5"},
 	} {
 		x := atm(t, root, nil, args...)
-		if x.code == 0 || !hasCode(x.res, wire.CodeMalformed) || !strings.Contains(string(x.stdout), "--lock-wait belongs to release and attempt heartbeat") {
+		if x.code == 0 || !hasCode(x.res, wire.CodeMalformed) || !strings.Contains(string(x.stdout), "--lock-wait belongs to release, attempt heartbeat, claim, renew, submit, pool acquire, pool confirm-safe and pool release") {
 			t.Fatalf("%v: %s", args, x.stdout)
 		}
 	}
