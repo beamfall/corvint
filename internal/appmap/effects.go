@@ -27,6 +27,8 @@ var (
 		"setInputFiles clear dragTo dragAndDrop submit setItem removeItem addCookies clearCookies fetch")
 	effectHTTPVerbs = wordSet("get post put patch delete head fetch")
 	effectClicks    = wordSet("click dblclick tap")
+	// effectCallbackMatchers are the expect matchers that call the function under test.
+	effectCallbackMatchers = wordSet("toPass toThrow toThrowError")
 	// effectPureMembers admits only ROOT.member calls that cannot mutate application state; any
 	// other member of these roots (Object.assign, Object.defineProperty, ...) is unknown.
 	effectPureMembers = map[string]map[string]bool{
@@ -513,12 +515,27 @@ func (r *effectReader) call(path string, toks []token, i int, inst map[string]st
 			return effectAt(EffectState, path, line, m)
 		}
 	}
+	// test.step, expect.poll and the toPass / toThrow matchers run a callback; it is read only when
+	// it is written in place, so its body lies in the classified span.
 	switch {
-	case root.name == "expect" && (m == "soft" || m == "poll" || (len(m) > 2 && strings.HasPrefix(m, "to") && m[2] >= 'A' && m[2] <= 'Z')):
+	case root.name == "test" && m == "step" && len(segs) == 2:
+		if inlineCallback(toks, i+1, 1) {
+			return nav
+		}
+		return effectAt(EffectUnknown, path, line, "callback")
+	case root.name == "expect" && m == "poll":
+		if inlineCallback(toks, i+1, 0) {
+			return nav
+		}
+		return effectAt(EffectUnknown, path, line, "callback")
+	case root.name == "expect" && effectCallbackMatchers[m]:
+		if s := segs[len(segs)-2]; s.call && inlineCallback(toks, s.at+1, 0) {
+			return nav
+		}
+		return effectAt(EffectUnknown, path, line, "callback")
+	case root.name == "expect" && (m == "soft" || (len(m) > 2 && strings.HasPrefix(m, "to") && m[2] >= 'A' && m[2] <= 'Z')):
 		return nav
 	case !root.call && len(segs) == 2 && effectPureMembers[root.name][m]:
-		return nav
-	case root.name == "test" && m == "step" && len(segs) == 2:
 		return nav
 	case effectStateCalls[m]:
 		return effectAt(EffectState, path, line, m)
@@ -536,6 +553,54 @@ func (r *effectReader) call(path string, toks []token, i int, inst map[string]st
 		return nav
 	}
 	return effectAt(EffectUnknown, path, line, m)
+}
+
+// inlineCallback reports whether argument arg (from 0) of the call whose '(' is toks[open] is a
+// function written in place: `function`, or an arrow with a parenthesized or single parameter,
+// optionally async. A named callback's body lies outside the span, so it is never admitted.
+func inlineCallback(toks []token, open, arg int) bool {
+	k := open + 1
+	for ; arg > 0; arg-- {
+		k = skipValue(toks, k)
+		if k >= len(toks) || !isPunct(toks[k], ",") {
+			return false
+		}
+		k++
+	}
+	if k < len(toks) && toks[k].kind == tokIdent && toks[k].text == "async" {
+		k++
+	}
+	switch {
+	case k >= len(toks):
+		return false
+	case toks[k].kind == tokIdent && toks[k].text == "function":
+		return true
+	case isPunct(toks[k], "("):
+		k = closeParen(toks, k) + 1
+	case toks[k].kind == tokIdent:
+		k++
+	default:
+		return false
+	}
+	return k+1 < len(toks) && isPunct(toks[k], "=") && toks[k+1].glued && isPunct(toks[k+1], ">")
+}
+
+// defaultParameter reports whether the one-line method header ending before toks[body] (on line
+// start) gives a parameter a default or holds a template substitution: a default runs when the
+// method is called, but the header is not part of the classified body.
+func defaultParameter(toks []token, body, start int) bool {
+	k := body
+	for k > 0 && toks[k-1].line == start {
+		k--
+	}
+	for ; k < body && !isPunct(toks[k], "("); k++ {
+	}
+	for ; k < body; k++ {
+		if toks[k].subst || isPunct(toks[k], "=") && !(k+1 < len(toks) && toks[k+1].glued && isPunct(toks[k+1], ">")) {
+			return true
+		}
+	}
+	return false
 }
 
 // hasMember reports whether the test file at path declares a class member named name.
@@ -636,6 +701,11 @@ func (r *effectReader) method(path, name string, depth int, callPath string, cal
 			to = k
 			break
 		}
+	}
+	if defaultParameter(toks, from, found.start) {
+		e := effectAt(EffectUnknown, path, found.start, "default-parameter")
+		r.memo[key] = &e
+		return e
 	}
 	e := r.span(path, toks, from, to, nil, nil, path, depth)
 	e.join(stepEffect{kind: EffectNavigation, from: []Anchor{r.whole(path)}})

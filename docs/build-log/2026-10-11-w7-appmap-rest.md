@@ -22,3 +22,11 @@ Independent review round 1 (Codex, FAIL) found five fail-open paths, all fixed: 
 optional invocations, `Object.assign` through a root whitelist, reassigned page-object bindings,
 member-span freshness that missed import changes (steps now cite whole files), and contradicted or
 empty-key receipts counting as proven edges.
+
+Rounds 2 to 5 (Codex, each FAIL) drove further fail-closed repairs, each with a regression case:
+generic, tagged-template and non-null calls; destructuring and compound assignment; template
+substitutions that assign or update; navigation receivers other than the Playwright page; inexact
+`'link'` roles; constructors, inherited classes, accessors and closing-construction arguments;
+hover, focus and scrolling; named `test.step`, `expect.poll`, `toPass` and `toThrow` callbacks; and
+method headers with default parameters. The review cap was reached at round 5; its findings are
+fixed but not re-reviewed.

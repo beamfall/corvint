@@ -36,6 +36,10 @@ export class HomePage {
     const gateway = this.page;
     await gateway.reload();
   }
+
+  async openWith(label = ` + "`${seedTeam()}`" + `) {
+    await this.page.reload();
+  }
 }
 `
 
@@ -125,6 +129,11 @@ func TestANLV0035StepEffects(t *testing.T) {
 		"nonnull":   {"await home.search!('x');", EffectUnknown, "e2e/specs/nonnull.spec.ts:7", "computed-call"},
 		"bang":      {"await helper!();", EffectUnknown, "e2e/specs/bang.spec.ts:7", "computed-call"},
 		"hover":     {"await page.hover('a.sheets');", EffectUnknown, "e2e/specs/hover.spec.ts:7", "hover"},
+		"default":   {"await home.openWith();", EffectUnknown, "e2e/pages/home.page.ts:32", "default-parameter"},
+		"stepnamed": {"await test.step('reset', reset);", EffectUnknown, "e2e/specs/stepnamed.spec.ts:7", "callback"},
+		"pollnamed": {"await expect.poll(check).toBe(1);", EffectUnknown, "e2e/specs/pollnamed.spec.ts:7", "callback"},
+		"passnamed": {"await expect(check).toPass();", EffectUnknown, "e2e/specs/passnamed.spec.ts:7", "callback"},
+		"inline":    {"await test.step('open', async () => { await home.openSheets(); }); await expect.poll(async () => page.url()).toBe('/'); await expect(() => { JSON.parse('1'); }).toPass();", EffectNavigation, "", ""},
 		"query":     {"await page.goto(`/x/${slug}?tab=a`);", EffectNavigation, "", ""},
 		"pure":      {"await Promise.all([home.openSheets()]); JSON.stringify({a: 1 == 1});", EffectNavigation, "", ""},
 	}
