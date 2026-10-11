@@ -581,6 +581,8 @@ Usage:
           [--repository ID=DIR ...] [--selection-profile strict|coverage]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider FILE
           --selection-profile e2e-safe [--playwright-discovery FILE]
+  corvint [--root PATH] affected [--full] --base FULL_COMMIT_ID
+          --appmap-impact REPORT [--appmap-impact REPORT ...]
 
 The command reads the Git worktree status, builds the multi-language unit graph
 from source text, and writes one affected-plan/1 document to stdout: the
@@ -656,6 +658,14 @@ the change, and omits a test only with a reviewed-links or coverage exclusion
 proof. A global path change, missing or mismatched discovery, an inventory gap,
 or any unproven exclusion yields the full relevant suite with closed e2e-*
 codes. The strict and coverage profiles are unchanged.
+
+--appmap-impact (up to 16, one per app, experimental ANL-V0-031) reads a complete
+application-map-impact/0 report built for --base at HEAD and adds the learned
+advice.app_navigation member: per app the reported and effective verdict, the
+reasons and the spec files. Uncommitted paths, unknown paths or a spec list over
+64 make the effective verdict full-suite-required, which also adds an
+APP_NAVIGATION_FULL_SUITE_REQUIRED unknown. It never removes a check or changes
+the plan; a trimmed, tampered or mismatched report refuses.
 
 --provider-command ARGV_JSON runs one local provider command and reads its
 stdout as a record, exactly as impact does (EEP-TR): a JSON array of strings

@@ -1,0 +1,146 @@
+package main
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// ANL-V0-031: `corvint affected --appmap-impact` routes the navigation verdict into advice as a
+// learned, advisory member: full-suite-required stays explicit (also an advice.unknown line), a
+// targeted verdict lists spec files without changing checks, uncommitted paths the report cannot
+// cover fail closed, and a report for another range, app duplicate or tampered content refuses.
+func TestANLV0031AffectedRoutesImpactVerdict(t *testing.T) {
+	root := appmapCLIRepo(t)
+	code, mapJSON, diag := runFlowsCLI(root, "appmap", "build", "--manifest", "appmap.json")
+	if code != 0 {
+		t.Fatal(diag)
+	}
+	dir := t.TempDir()
+	mapFile := filepath.Join(dir, "map.json")
+	if err := os.WriteFile(mapFile, []byte(mapJSON), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	commit := func(rel, text string) string {
+		if err := os.WriteFile(filepath.Join(root, rel), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		affectedGit(t, root, "add", "-A")
+		affectedGit(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", rel)
+		return strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	}
+	impact := func(name string) string {
+		code, out, diag := runFlowsCLI(root, "appmap", "impact", "--map", mapFile, "--base", base, "--full")
+		if code != 0 {
+			t.Fatal(diag)
+		}
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(out), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	advice := func(receipt map[string]any) (map[string]any, []any) {
+		a := receipt["advice"].(map[string]any)
+		navs, _ := a["app_navigation"].([]any)
+		if len(navs) != 1 {
+			t.Fatalf("app_navigation %v", a)
+		}
+		return navs[0].(map[string]any), a["unknown"].([]any)
+	}
+	hasUnknown := func(unknown []any, want string) bool {
+		for _, u := range unknown {
+			if strings.HasPrefix(u.(string), want) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// A router change: targeted, spec files listed, checks untouched, no full-suite line.
+	routes, err := os.ReadFile(filepath.Join(root, "app", "routes.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	commit("app/routes.js", string(routes)+"\n")
+	targeted := impact("targeted.json")
+	plain, _, stderr, code := runAffectedCLI(t, root, "--base", base)
+	if code != 0 {
+		t.Fatal(stderr)
+	}
+	receipt, _, stderr, code := runAffectedCLI(t, root, "--base", base, "--appmap-impact", targeted)
+	if code != 0 {
+		t.Fatal(stderr)
+	}
+	nav, unknown := advice(receipt)
+	if nav["verdict"] != "targeted" || nav["reported_verdict"] != "targeted" || nav["authority"] != "learned" || len(nav["spec_files"].([]any)) == 0 || hasUnknown(unknown, affectedAppNavigationUnknown) {
+		t.Fatalf("targeted %v %v", nav, unknown)
+	}
+	if !equalJSON(t, plain["advice"].(map[string]any)["checks"], receipt["advice"].(map[string]any)["checks"]) || !equalJSON(t, plain["plan"], receipt["plan"]) {
+		t.Fatal("the impact verdict changed checks or the plan")
+	}
+
+	// Uncommitted paths the report never saw: fail closed to full-suite-required.
+	if err := os.WriteFile(filepath.Join(root, "notes.txt"), []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	receipt, _, stderr, code = runAffectedCLI(t, root, "--base", base, "--appmap-impact", targeted)
+	if code != 0 {
+		t.Fatal(stderr)
+	}
+	if nav, unknown = advice(receipt); nav["verdict"] != "full-suite-required" || nav["reported_verdict"] != "targeted" || !hasUnknown(unknown, affectedAppNavigationUnknown+": admin: worktree-not-covered") {
+		t.Fatalf("worktree %v %v", nav, unknown)
+	}
+	if err := os.Remove(filepath.Join(root, "notes.txt")); err != nil {
+		t.Fatal(err)
+	}
+
+	// An unmapped template: the report's full-suite-required verdict stays explicit.
+	commit("club.html", "<p></p>\n")
+	full := impact("full.json")
+	receipt, _, stderr, code = runAffectedCLI(t, root, "--base", base, "--appmap-impact", full)
+	if code != 0 {
+		t.Fatal(stderr)
+	}
+	if nav, unknown = advice(receipt); nav["verdict"] != "full-suite-required" || !hasUnknown(unknown, affectedAppNavigationUnknown+": admin: impact-unknown-paths") {
+		t.Fatalf("full %v %v", nav, unknown)
+	}
+
+	// Refusals: a report for an older HEAD, a duplicate app, a tampered verdict, no --base.
+	if _, _, _, code = runAffectedCLI(t, root, "--base", base, "--appmap-impact", targeted); code == 0 {
+		t.Fatal("a report for another HEAD was accepted")
+	}
+	if _, _, _, code = runAffectedCLI(t, root, "--base", base, "--appmap-impact", full, "--appmap-impact", full); code == 0 {
+		t.Fatal("a duplicate app was accepted")
+	}
+	raw, err := os.ReadFile(full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered := filepath.Join(dir, "tampered.json")
+	if err := os.WriteFile(tampered, []byte(strings.Replace(string(raw), `"full-suite-required"`, `"targeted"`, 1)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, code = runAffectedCLI(t, root, "--base", base, "--appmap-impact", tampered); code == 0 {
+		t.Fatal("a tampered report was accepted")
+	}
+	if _, _, _, code = runAffectedCLI(t, root, "--appmap-impact", full); code == 0 {
+		t.Fatal("--appmap-impact without --base was accepted")
+	}
+}
+
+func equalJSON(t *testing.T, a, b any) bool {
+	t.Helper()
+	x, err := json.Marshal(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	y, err := json.Marshal(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(x) == string(y)
+}

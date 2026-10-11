@@ -1,6 +1,7 @@
 package appmap
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"path"
@@ -314,4 +315,40 @@ func primaryTestFile(m *Map, file string) bool {
 		}
 	}
 	return false
+}
+
+// LoadImpactReport reads one complete application-map-impact/0 report for a consumer such as
+// `corvint affected` (ANL-V0-031): a bounded regular file, strictly decoded, untrimmed, whose
+// verdict follows from its own lists and whose digest matches its content. Anything else refuses.
+func LoadImpactReport(name string) (*ImpactReport, error) {
+	raw, err := readReceipt(name)
+	if err != nil {
+		return nil, verifyError("appmap-invalid-query", "--appmap-impact must name a regular JSON file of at most 4 MiB")
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	var r ImpactReport
+	if dec.Decode(&r) != nil || dec.More() || r.Schema != ImpactSchema || r.App == "" || r.Base == "" || r.Head == "" {
+		return nil, verifyError("appmap-invalid-query", "invalid application-map-impact/0 report")
+	}
+	for _, n := range r.Omitted {
+		if n != 0 {
+			return nil, verifyError("appmap-invalid-query", "the impact report is trimmed; rebuild it with --full")
+		}
+	}
+	want := VerdictNoNavigation
+	switch {
+	case len(r.Unknown) > 0:
+		want = VerdictFullSuite
+	case len(r.Screens) > 0:
+		want = VerdictTargeted
+	}
+	got := r.Digest
+	r.Digest = ""
+	complete, err := json.Marshal(r)
+	if err != nil || r.Verdict != want || got != digest(complete) {
+		return nil, verifyError("appmap-invalid-query", "the impact report does not match its digest or verdict")
+	}
+	r.Digest = got
+	return &r, nil
 }

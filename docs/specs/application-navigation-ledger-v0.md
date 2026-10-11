@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1167, V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -121,6 +121,19 @@ are URL templates, not component source files. This slice makes neither missing 
   unknown until a component binding exists. The report is deterministic, byte-capped with omitted
   counts that never drop the verdict, digested, learned, read-only and offline; an unresolvable
   base or revision fails closed. (proposed, pending owner acceptance (V1-1137))
+- `ANL-V0-031`: `corvint affected --base FULL_COMMIT_ID --appmap-impact REPORT` (repeatable up to 16,
+  one report per app; refused without `--base` or with `--snapshot` or `--playwright-config`) reads
+  each complete `application-map-impact/0` report (a bounded regular file, strictly decoded, with no
+  omitted rows, a verdict that follows from its own lists and a matching digest; otherwise refused) whose
+  `base` is `--base` and whose `head` is the receipt revision, and adds `advice.app_navigation`: per
+  app, sorted, the learned authority, impact and map digests, `reported_verdict`, `screens` count,
+  `spec_files` and the effective `verdict` with its `reasons`. The effective verdict is
+  `full-suite-required` when the report lists unknown paths (`impact-unknown-paths`), the worktree
+  has uncommitted paths the report cannot cover (`worktree-not-covered`) or the spec list exceeds 64
+  (`spec-files-over-bound`); each such app also adds the `advice.unknown` line
+  `APP_NAVIGATION_FULL_SUITE_REQUIRED: APP: REASONS`. The member is advisory: it never adds to or
+  removes from `advice.checks`, the plan or the provider projection, so no selection is narrowed.
+  This amends the AFP-V0-009 advice member set, also proposed. (proposed, pending owner acceptance (V1-1167))
 
 ## Wire and limits
 
@@ -167,6 +180,7 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-014 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0012GroupsSharedPageState`, `TestANLV0014PageStateCLI` |
 | ANL-V0-015 | `internal/appmap/impact.go`, `cmd/corvint/flows_appmap_impact.go` | `TestANLV0015RouterChangeReachesDescendants`, `TestANLV0015ImpactCLI` |
 | ANL-V0-016 | `internal/appmap/impact.go` | `TestANLV0016UnknownForcesFullSuite` |
+| ANL-V0-031 | `internal/appmap/impact.go`, `cmd/corvint/affected_appmap.go` | `TestANLV0031AffectedRoutesImpactVerdict` |
 
 ## Follow-ups and promotion
 

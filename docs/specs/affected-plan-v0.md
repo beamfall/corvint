@@ -144,7 +144,7 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   stays an ordinary edge.
 - **AFP-V0-009:** (accepted 2026-09-04 by decision 0052) The receipt MUST carry an `advice` member with exactly the
   members `status="PLAN_ONLY"`, `checks`, `unknown`, and `note`, plus `test_selection` only when
-  `--provider` is given (ETS-V0-002, `docs/specs/external-test-selection-v0.md`). Each `checks` entry has exactly
+  `--provider` is given (ETS-V0-002, `docs/specs/external-test-selection-v0.md`), and `app_navigation` only when `--appmap-impact` is given (ANL-V0-031; this amendment proposed, pending owner acceptance (V1-1167)). Each `checks` entry has exactly
   `command`, `kind` (`mandatory` or `advisory`), `reason` (one sentence), and `source` (a repository
   path or `affected-plan`). A `mandatory` entry MUST come only from a repository-owned declaration
   read from the working tree at the root: a `gate:` target in `Makefile` yields `make gate`, and a

@@ -73,6 +73,8 @@ type affectedInvocation struct {
 	// PlaywrightList is set only by `affected discovery`: the Playwright JSON listing converted
 	// into a playwright-discovery/0 receipt (TJAA-V0-019).
 	PlaywrightList string
+	// AppmapImpacts are application-map-impact/0 report files routed into advice (ANL-V0-031).
+	AppmapImpacts []string
 	// Full selects the affected-plan/0 wire: every exclusion and every
 	// selected test file (AFP-V0-035).
 	Full bool
@@ -112,7 +114,9 @@ type affectedAdvice struct {
 	Note          string          `json:"note"`
 	Status        string          `json:"status"`
 	TestSelection map[string]any  `json:"test_selection,omitempty"`
-	Unknown       []string        `json:"unknown"`
+	// AppNavigation is present only when --appmap-impact was named (ANL-V0-031).
+	AppNavigation []affectedAppNavigation `json:"app_navigation,omitempty"`
+	Unknown       []string                `json:"unknown"`
 }
 
 type affectedCheck struct {
@@ -189,7 +193,7 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 
 // affectedOptionNames are the flags `affected` accepts, each taking one value
 // as `--flag VALUE` or `--flag=VALUE`.
-var affectedOptionNames = map[string]bool{"--snapshot": true, "--base": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--selection-profile": true}
+var affectedOptionNames = map[string]bool{"--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--selection-profile": true}
 
 // parseAffectedOptions reads the flags after `affected`. `--base` must
 // already be a full object id: a ref name is resolved by the caller, never
@@ -233,6 +237,8 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			}
 		case "--base":
 			err = setAffectedBase(&invocation, &baseSet, value)
+		case "--appmap-impact":
+			err = addAffectedAppmapImpact(&invocation, value)
 		case "--provider", "--provider-command":
 			err = addAffectedProvider(&invocation, name, value)
 		case "--repository":
@@ -254,6 +260,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if invocation.Snapshot != "" && (invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightDiscovery != "") {
 		return affectedInvocation{}, argumentError("--snapshot cannot be combined with --base, --provider or --playwright-discovery")
+	}
+	if len(invocation.AppmapImpacts) != 0 && (invocation.Base == "" || invocation.Snapshot != "" || invocation.PlaywrightConfig != "") {
+		return affectedInvocation{}, argumentError("--appmap-impact requires --base and cannot be combined with --snapshot or --playwright-config")
 	}
 	if len(invocation.Providers) == 0 && (len(invocation.Checkouts) != 0 || invocation.SelectionProfile != "") {
 		return affectedInvocation{}, argumentError("--repository and --selection-profile require --provider")
@@ -613,6 +622,9 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 			return affected.DirtyPaths(ctx, gitExecutable, dir)
 		}
 		advice.TestSelection = extevidence.Selection(ctx, root, revision, invocation.Providers, invocation.Checkouts, input)
+	}
+	if err := affectedAppNavigations(invocation, revision, dirty, &advice); err != nil {
+		return affectedReceipt{}, err
 	}
 	return affectedReceipt{
 		Advice:   advice,
