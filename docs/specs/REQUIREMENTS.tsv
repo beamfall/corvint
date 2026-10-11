@@ -290,6 +290,7 @@ AMAP-V0-072	docs/specs/application-map-v0.md	538	A `di-constant` unknown with re
 AMAP-V0-075	docs/specs/application-map-v0.md	545	A manifest `tests.root` of exactly `"."` MUST be accepted and name the whole
 AMAP-V0-076	docs/specs/application-map-v0.md	549	With `tests.root` `"."` and an aliased test repository, dirty-root detection MUS
 AMAP-V0-077	docs/specs/application-map-v0.md	553	A manifest whose `tests.root` is not `"."` MUST compile to the same bytes and wi
+AMAP-V0-078	docs/specs/application-map-v0.md	556	`createBrowserRouter(NAME)` MUST compile the literal array bound by the one
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read
@@ -316,10 +317,14 @@ ANL-V0-013	docs/specs/application-navigation-ledger-v0.md	102	A variation joins 
 ANL-V0-014	docs/specs/application-navigation-ledger-v0.md	106	The report (`test-page-state-groups/0`) is deterministic, sorted, independent of
 ANL-V0-015	docs/specs/application-navigation-ledger-v0.md	110	`flows appmap impact --map FILE --base COMMIT [--ledger FILE]` prints
 ANL-V0-016	docs/specs/application-navigation-ledger-v0.md	118	A changed UI path (html, script, style or template extension) that no map elemen
-ANL-V0-021	docs/specs/application-navigation-ledger-v0.md	126	Observed triggers are typed from the triggering action's kind: `goto`, `click`,
-ANL-V0-022	docs/specs/application-navigation-ledger-v0.md	133	`observe --trace FILE.zip --test-key KEY` reads one Playwright trace zip (a regu
-ANL-V0-023	docs/specs/application-navigation-ledger-v0.md	146	`edges --observation FILE` (repeatable, at most 16) feeds observed navigation ed
-ANL-V0-024	docs/specs/application-navigation-ledger-v0.md	163	An edge cannot be proven only by the test it is used to select. An edge a declar
+ANL-V0-021	docs/specs/application-navigation-ledger-v0.md	127	Observed triggers are typed from the triggering action's kind: `goto`, `click`,
+ANL-V0-022	docs/specs/application-navigation-ledger-v0.md	134	`observe --trace FILE.zip --test-key KEY` reads one Playwright trace zip (a regu
+ANL-V0-023	docs/specs/application-navigation-ledger-v0.md	147	`edges --observation FILE` (repeatable, at most 16) feeds observed navigation ed
+ANL-V0-024	docs/specs/application-navigation-ledger-v0.md	164	An edge cannot be proven only by the test it is used to select. An edge a declar
+ANL-V0-031	docs/specs/application-navigation-ledger-v0.md	170	`corvint affected --base FULL_COMMIT_ID --appmap-impact REPORT` (repeatable up t
+ANL-V0-032	docs/specs/application-navigation-ledger-v0.md	183	A changed UI path no map element places is walked through the tracked UI-extensi
+ANL-V0-033	docs/specs/application-navigation-ledger-v0.md	199	`test-plan page-state --input FILE --check --baseline FILE` (the two flags only
+ANL-V0-034	docs/specs/application-navigation-ledger-v0.md	206	Several `--appmap-impact` reports may name one app when each comes from a differ
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,

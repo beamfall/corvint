@@ -1,8 +1,10 @@
 package appmap
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"path"
 	"sort"
 	"strings"
@@ -64,8 +66,10 @@ var impactUIExtensions = map[string]bool{".html": true, ".htm": true, ".ts": tru
 
 // Impact maps the paths changed between base and the evaluated revision onto screens (router
 // anchors and their lineage descendants, attributed test files and flow anchors), the edges
-// touching them and the tests that cross those edges. A changed UI path the map cannot place is
-// listed as unknown and forces full-suite-required (ANL-V0-015, ANL-V0-016).
+// touching them and the tests that cross those edges. A changed UI path the map does not place is
+// walked through the literal references to it up to router anchors and test files (ANL-V0-032);
+// one the walk cannot prove is listed as unknown and forces full-suite-required (ANL-V0-015,
+// ANL-V0-016).
 func Impact(ctx context.Context, m *Map, l *EdgeLedger, base string, o Options) ([]byte, error) {
 	cap, err := o.budget(DefaultFlowBudget)
 	if err != nil {
@@ -119,6 +123,7 @@ func Impact(ctx context.Context, m *Map, l *EdgeLedger, base string, o Options) 
 		}
 	}
 	specs := map[string]bool{}
+	unplaced := []string{}
 	for _, p := range changed {
 		placed := false
 		if p == m.Manifest.Path && m.Manifest.Repo == "" {
@@ -166,9 +171,31 @@ func Impact(ctx context.Context, m *Map, l *EdgeLedger, base string, o Options) 
 		switch {
 		case placed:
 		case impactUIExtensions[strings.ToLower(path.Ext(p))]:
-			rep.Unknown = append(rep.Unknown, ImpactUnknown{Path: p, Reason: "unmapped-path"})
+			unplaced = append(unplaced, p)
 		default:
 			rep.Ignored++
+		}
+	}
+	if len(unplaced) > 0 {
+		g, unread := loadReferenceGraph(r, headOID)
+		for _, p := range unplaced {
+			targets, why := []hopTarget(nil), unread
+			if g != nil {
+				targets, why = templateHop(m, g, p)
+			}
+			if why != "" {
+				rep.Unknown = append(rep.Unknown, ImpactUnknown{Path: p, Reason: why})
+				continue
+			}
+			for _, t := range targets {
+				for _, id := range t.screens {
+					direct[id] = append(direct[id], p)
+					touch(id, p, "template-reference:"+t.via)
+				}
+				for _, f := range t.specs {
+					specs[f] = true
+				}
+			}
 		}
 	}
 	for i := range m.Screens {
@@ -314,4 +341,40 @@ func primaryTestFile(m *Map, file string) bool {
 		}
 	}
 	return false
+}
+
+// LoadImpactReport reads one complete application-map-impact/0 report for a consumer such as
+// `corvint affected` (ANL-V0-031): a bounded regular file, strictly decoded, untrimmed, whose
+// verdict follows from its own lists and whose digest matches its content. Anything else refuses.
+func LoadImpactReport(name string) (*ImpactReport, error) {
+	raw, err := readReceipt(name)
+	if err != nil {
+		return nil, verifyError("appmap-invalid-query", "--appmap-impact must name a regular JSON file of at most 4 MiB")
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	var r ImpactReport
+	if dec.Decode(&r) != nil || dec.Decode(new(json.RawMessage)) != io.EOF || r.Schema != ImpactSchema || r.Authority != AuthorityLearned || r.App == "" || r.Base == "" || r.Head == "" {
+		return nil, verifyError("appmap-invalid-query", "invalid application-map-impact/0 report")
+	}
+	for _, n := range r.Omitted {
+		if n != 0 {
+			return nil, verifyError("appmap-invalid-query", "the impact report is trimmed; rebuild it with --full")
+		}
+	}
+	want := VerdictNoNavigation
+	switch {
+	case len(r.Unknown) > 0:
+		want = VerdictFullSuite
+	case len(r.Screens) > 0:
+		want = VerdictTargeted
+	}
+	got := r.Digest
+	r.Digest = ""
+	complete, err := json.Marshal(r)
+	if err != nil || r.Verdict != want || got != digest(complete) {
+		return nil, verifyError("appmap-invalid-query", "the impact report does not match its digest or verdict")
+	}
+	r.Digest = got
+	return &r, nil
 }

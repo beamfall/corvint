@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: accepted (decision 0518)
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); V1-1159; V1-1160; V1-1161; V1-1165; `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1162, V1-1163, V1-1166, V1-1167, V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); V1-1159; V1-1160; V1-1161; V1-1165; `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -118,8 +118,9 @@ are URL templates, not component source files. This slice makes neither missing 
 - `ANL-V0-016`: A changed UI path (html, script, style or template extension) that no map element
   places is listed as unknown (`unmapped-path`, or `manifest-changed` for the manifest) and forces the
   verdict `full-suite-required` for the app; otherwise the verdict is `targeted` or
-  `no-navigation-impact`. The map binds no template or component files, so template changes are
-  unknown until a component binding exists. The report is deterministic, byte-capped with omitted
+  `no-navigation-impact`. The map binds no template or component files itself; ANL-V0-032 places
+  the ones its reference hop can prove (this amendment proposed, pending owner acceptance (V1-1162)).
+  The report is deterministic, byte-capped with omitted
   counts that never drop the verdict, digested, learned, read-only and offline; an unresolvable
   base or revision fails closed. (accepted, decision 0518; V1-1137)
 
@@ -166,6 +167,48 @@ are URL templates, not component source files. This slice makes neither missing 
   that assuming test; otherwise the edge is listed unsatisfied with exit 1 although its row stays
   `PROVEN`. A `--require` carries no test identity and keeps the ANL-V0-004 verdict.
   (proposed, pending owner acceptance (V1-1165))
+- `ANL-V0-031`: `corvint affected --base FULL_COMMIT_ID --appmap-impact REPORT` (repeatable up to 16,
+  one report per map (ANL-V0-034); refused without `--base` or with `--snapshot` or `--playwright-config`) reads
+  each complete `application-map-impact/0` report (a bounded regular file, strictly decoded with nothing after it, `authority` `learned`, no
+  omitted rows, a verdict that follows from its own lists and a matching digest; otherwise refused) whose
+  `base` is `--base` and whose `head` is the receipt revision, and adds `advice.app_navigation`: per
+  app, sorted, the learned authority, sorted `impact_digests` and `map_digests`, `reported_verdict`, `screens` count,
+  `spec_files` and the effective `verdict` with its `reasons`. The effective verdict is
+  `full-suite-required` when the report lists unknown paths (`impact-unknown-paths`), the worktree
+  has uncommitted paths the report cannot cover (`worktree-not-covered`) or the spec list exceeds 64
+  (`spec-files-over-bound`); each such app also adds the `advice.unknown` line
+  `APP_NAVIGATION_FULL_SUITE_REQUIRED: APP: REASONS`. The member is advisory: it never adds to or
+  removes from `advice.checks`, the plan or the provider projection, so no selection is narrowed.
+  This amends the AFP-V0-009 advice member set, also proposed. (proposed, pending owner acceptance (V1-1167))
+- `ANL-V0-032`: A changed UI path no map element places is walked through the tracked UI-extension
+  files at the evaluated revision (at most 20000 files, 1 MiB each, 32 MiB in all, 64 walked nodes).
+  A file references the path when every occurrence of the path's token (a script's stem, an index
+  file's directory or `index`, any other file's base name; a property `x.token` counts) lies inside
+  one quoted string literal on its line that resolves to it (relative to the referrer for `./` and
+  `../`, repository-relative otherwise, with script extensions and `/index.*` tried; no `${`), in a
+  `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` or `.cjs` file whose JavaScript lexing has no doubt, as a
+  string literal the lexer itself delimits. A mention in any other file (markup, styles, `.vue` or
+  `.svelte` components) proves nothing and refuses. A walk ends at a router file anchoring screens, which
+  selects the screens whose anchor spans hold its reference lines (every screen of the file when a
+  reference lies outside all spans or the file's blob differs from the anchored one), or at a map test
+  file selecting a screen or spec (a test file selecting neither is walked through). Selected screens carry `template-reference:<file>` and
+  their lineage descendants. Any mention that is not such a literal (`unresolved-reference`), a walked
+  file nothing references or that reaches no terminal (an import cycle, `unmapped-path`) or an exceeded bound (`reference-graph-bound`) keeps the
+  path unknown, so the hop can widen a selection but never narrows the verdict. (proposed, pending
+  owner acceptance (V1-1162))
+- `ANL-V0-033`: `test-plan page-state --input FILE --check --baseline FILE` (the two flags only
+  together) reads the baseline as a `test-page-state-groups/0` report (a bounded regular file,
+  strictly decoded with nothing after it, with a digest matching its content; otherwise exit 2), prints the fresh report and
+  exits 1 (`test-plan-mismatch`) when, by group key, a group was added, removed or changed in any
+  member, or a blocked variation was added, removed or changed its reason, naming each set (at most
+  eight IDs each, with the remaining count). An input edit that leaves every group and block
+  unchanged is not drift. (proposed, pending owner acceptance (V1-1166))
+- `ANL-V0-034`: Several `--appmap-impact` reports may name one app when each comes from a different
+  map (two reports of one app and map digest refuse). They aggregate into one `app_navigation` row:
+  both digest lists, the count of distinct screen IDs, the union of spec files, and the most
+  conservative reported verdict (`full-suite-required` over `targeted` over `no-navigation-impact`);
+  any report with unknown paths gives `impact-unknown-paths`. An unknown in one map is never cleared
+  by another map placing the path. (proposed, pending owner acceptance (V1-1163))
 
 ## Wire and limits
 
@@ -216,6 +259,10 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-022 | `internal/appmap/tracezip.go`, `cmd/corvint/flows_appmap_observe.go` | `TestANLV0022TraceZip`, `TestANLV0006ObserveCLI` |
 | ANL-V0-023 | `internal/appmap/ledger.go`, `cmd/corvint/flows_appmap_edges.go` | `TestANLV0023ObservedEdgesFeedLedger`, `TestANLV0023EdgesObservationCLI` |
 | ANL-V0-024 | `internal/appmap/ledger.go` | `TestANLV0024SelfProofExcluded`, `TestANLV0004EdgesCLI` |
+| ANL-V0-031 | `internal/appmap/impact.go`, `cmd/corvint/affected_appmap.go` | `TestANLV0031AffectedRoutesImpactVerdict` |
+| ANL-V0-032 | `internal/appmap/impacthop.go`, `internal/appmap/impact.go` | `TestANLV0032TemplateHopPlacesReferencedFiles` |
+| ANL-V0-033 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0033PageStateDrift` |
+| ANL-V0-034 | `cmd/corvint/affected_appmap.go` | `TestANLV0034AffectedAggregatesMapsPerApp` |
 
 ## Follow-ups and promotion
 
