@@ -73,7 +73,7 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
 
 ## Requirements
 
-- `DCG-V0-001`: proposed, pending owner acceptance (V1-0178). The gate MUST check every backticked citation in `docs/specs/*.md`,
+- `DCG-V0-001`: accepted, decision 0506. The gate MUST check every backticked citation in `docs/specs/*.md`,
   `docs/agent-memory/*.md`, `docs/decisions/*.md`, and the current-contract documents `README.md`,
   `docs/DOGFOOD.md`, `docs/AGENT-ROUTES.md`, `docs/SELF-DEVELOPMENT.md`, `docs/SPEC-TOOLCHAIN-INTEGRATION.md`, and `conformance/*/README.md` (one directory
   below `conformance/`, so a dated results README beneath it is not scanned), covering the forms `dir/file.ext:N`, `dir/file.ext:N-M`,

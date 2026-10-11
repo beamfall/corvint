@@ -72,12 +72,12 @@ No requirement below diverges from the implementation.
   under `docs/specs/` matching `*.md`, not from a worktree directory listing, so that an untracked
   file contributes no row and a tracked file deleted from the worktree alone still contributes its
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
-- `SRG-V0-002`: proposed, pending owner acceptance (V1-0524). The generator MUST recognise a requirement id as a token matching an uppercase
+- `SRG-V0-002`: accepted, decision 0506. The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
   digits, bounded by word boundaries (`script/gen-spec-requirements.sh:91`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
-- `SRG-V0-003`: proposed, pending owner acceptance (V1-0524). The generator MUST classify each occurrence of an id into exactly one of three
+- `SRG-V0-003`: accepted, decision 0506. The generator MUST classify each occurrence of an id into exactly one of three
   ranks: rank 0 when the line begins with the id, optionally preceded by a list bullet and
   optionally wrapped in bold or backticks, and followed either by a period and whitespace or by a
   colon; rank 1 when the line begins with a table cell holding the id; rank 2 otherwise. It MUST

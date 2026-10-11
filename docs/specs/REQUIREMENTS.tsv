@@ -933,7 +933,7 @@ CWT-V0-011	docs/specs/confidently-wrong-trial-v0.md	161	Held-out import. `cw-tri
 CWT-V0-012	docs/specs/confidently-wrong-trial-v0.md	169	Unseen set generation. `cw-trial generate --repo DIR --name OWNER/NAME --since
 CWT-V0-013	docs/specs/confidently-wrong-trial-v0.md	190	Retrieval-native metrics (decision 0034). Beside the agent's outcome, each
 CWT-V0-014	docs/specs/confidently-wrong-trial-v0.md	211	Invocation lifecycle (proposed). On Darwin and Linux, `runCommand`
-DCG-V0-001	docs/specs/documentation-citation-gate-v0.md	76	proposed, pending owner acceptance (V1-0178). The gate MUST check every backtick
+DCG-V0-001	docs/specs/documentation-citation-gate-v0.md	76	accepted, decision 0506. The gate MUST check every backticked citation in `docs/
 DCG-V0-002	docs/specs/documentation-citation-gate-v0.md	88	For every checked citation the gate MUST fail when the named file is not tracked
 DCG-V0-003	docs/specs/documentation-citation-gate-v0.md	93	The gate MUST additionally fail when a cited line is blank or contains only
 DCG-V0-004	docs/specs/documentation-citation-gate-v0.md	96	A bare continuation MUST resolve only to an anchor its own paragraph states: the
@@ -2821,8 +2821,8 @@ SOP-V0-010	docs/specs/stable-operations-v0.md	117	`SECURITY.md` MUST state the p
 SOP-V0-011	docs/specs/stable-operations-v0.md	120	`docs/RELEASE-NOTES.md` is the changelog. Each published release MUST have an en
 SOP-V0-012	docs/specs/stable-operations-v0.md	123	`docs/RELEASE-RUNBOOK.md` MUST be an ordered list of exact commands from a clean
 SRG-V0-001	docs/specs/spec-requirement-index-generator-v0.md	71	The generator MUST derive its input set from the paths Git reports as tracked
-SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	75	proposed, pending owner acceptance (V1-0524). The generator MUST recognise a req
-SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	80	proposed, pending owner acceptance (V1-0524). The generator MUST classify each o
+SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	75	accepted, decision 0506. The generator MUST recognise a requirement id as a toke
+SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	80	accepted, decision 0506. The generator MUST classify each occurrence of an id in
 SRG-V0-004	docs/specs/spec-requirement-index-generator-v0.md	89	Among retained occurrences of one id the generator MUST select exactly one
 SRG-V0-005	docs/specs/spec-requirement-index-generator-v0.md	93	For a rank 0 winner the generator MUST strip the leading bullet, emphasis,
 SRG-V0-006	docs/specs/spec-requirement-index-generator-v0.md	98	The generator MUST write to stdout a single header line `id`, `file`, `line`,

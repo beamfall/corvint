@@ -6,7 +6,7 @@ shared evidence record and the generated requirement index.
 
 ## Contracts and implementation
 
-- V1-0524: SRG-V0-002 and SRG-V0-003 are **proposed, pending owner acceptance (V1-0524)**.
+- V1-0524: SRG-V0-002 and SRG-V0-003 are **accepted, decision 0506**.
   Corpus inspection found 3,317 bullet definitions, 32 table winners, and one unmarked winner:
   the wrapped prose `SHA-256`. Unmarked definitions now require a paragraph boundary; marked
   definitions, table fallback, token syntax, ranking, staged reads and deterministic ordering
@@ -19,7 +19,7 @@ shared evidence record and the generated requirement index.
   barrier slot removal, so `TestCALV0019_BarrierRemovesOrphanStage` now checks it after proving a
   working initialized barrier cycle and the injected orphan/absent-descriptor preconditions.
   `TestCTSV0008_LockedReconcileRefusesOrphanSlotWithoutWaiting` supplies the contrasting witness.
-- V1-0178: DCG-V0-001 is **proposed, pending owner acceptance (V1-0178)**. The checker names skipped
+- V1-0178: DCG-V0-001 is **accepted, decision 0506**. The checker names skipped
   basename citations on stderr; it preserves exit status, findings, continuation anchors and the
   unpinned ceiling. Case 22 checks passing, failing and root-basename behavior. The integration
   assessment now cites the full OCM section/prefix/ID grammar, distinguishes implemented
