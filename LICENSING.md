@@ -20,7 +20,6 @@ condition. The full text is in `LICENSE-APACHE-2.0`.
 - `protocol/**`
 - `conformance/**`
 - `interop/**`
-- `examples/**`
 - `docs/CHANGE-EVIDENCE-MAP.md`
 - `docs/CEM-CI.md`
 - `docs/cem-0.1.schema.json`
@@ -28,15 +27,23 @@ condition. The full text is in `LICENSE-APACHE-2.0`.
 - `docs/lrf-0.schema.json`
 - `docs/tcq-0.schema.json`
 
-These are the vendor-neutral protocol descriptions, schemas, conformance material, example
-integrations, and independent implementation probes. Anyone may use them to add Corvint-compatible
-support to an agent, IDE, CI system, context engine, or commercial product under ordinary
-Apache-2.0 terms, including in proprietary software, without the AGPL obligations above ever
-attaching.
+These are the vendor-neutral protocol descriptions, schemas, conformance material, and independent
+implementation probes. Anyone may use them to add Corvint-compatible support to an agent, IDE, CI
+system, context engine, or commercial product under ordinary Apache-2.0 terms, including in
+proprietary software, without the AGPL obligations above ever attaching.
 
 `protocol/**` is the canonical home for future vendor-neutral protocol, specification, and schema
 material. A new Apache-2.0 file must be placed there; extending the boundary to any other path
 requires an explicit amendment to `docs/decisions/0002-future-publication-transition.md`.
+
+### Examples are AGPL-3.0
+
+`examples/**` is part of the AGPL-3.0 product layer. The owner moved it out of the Apache-2.0 layer
+on 2026-10-10 (decision 0504), and decision 0002 records the change as an amendment. Every
+non-Markdown file under `examples/**` carries `SPDX-License-Identifier: AGPL-3.0-or-later`, and
+`make license-headers-check` fails when a file there carries an Apache-2.0 notice or lacks that
+identifier. Copies of `examples/**` already published under Apache-2.0 keep those terms; the
+change applies from the commit that records decision 0504 forward.
 
 ### Owner-approved file exceptions
 

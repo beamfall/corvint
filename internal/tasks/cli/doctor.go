@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
@@ -754,6 +755,16 @@ type doctorPluginItem struct {
 	Remedy *string `json:"remedy"`
 }
 
+// doctorPluginRun runs a plugin as the leader of its own process group,
+// recorded for the exit kill, and SIGKILLs the group while the exited leader
+// is still unreaped, so no descendant outlives the doctor and no group signal
+// follows the reap (TQD-V0-010, PGO-V0-009). The timeout cancels by
+// signalling the leader only; its exit triggers that pre-reap group kill.
+func doctorPluginRun(c *exec.Cmd) error {
+	groupreap.Contain(c)
+	return groupreap.Run(c)
+}
+
 func doctorRunPlugin(path, name, cwd string) []doctorFinding {
 	ctx, cancel := context.WithTimeout(context.Background(), doctorPluginTimeout)
 	defer cancel()
@@ -762,10 +773,8 @@ func doctorRunPlugin(path, name, cwd string) []doctorFinding {
 	c.Stdin = nil
 	out := &doctorLimited{max: doctorPluginOutput}
 	c.Stdout = out
-	doctorPluginGroup(c)
 	c.WaitDelay = time.Second
-	err := c.Run()
-	doctorPluginReap(c)
+	err := doctorPluginRun(c)
 	switch {
 	case ctx.Err() != nil:
 		return []doctorFinding{doctorPluginFailed(name, fmt.Sprintf("timed out after %s", doctorPluginTimeout))}

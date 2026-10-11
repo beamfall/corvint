@@ -309,4 +309,29 @@ case $output in
 *) fail "an unstaged edit to a scanned document was not named beside the failure: $output" ;;
 esac
 
+# 22. DCG-V0-001: skipped basenames are visible without affecting pass/fail.
+cite 'demo.go:999'
+output=$(run) || fail "a skipped basename changed a passing result"
+case $output in
+*'docs/agent-memory/fixture.md:3: skipped `demo.go:999`: basename is not tracked at repository root'*) ;;
+*) fail "skipped basename was not explained: $output" ;;
+esac
+# A tracked root basename still receives the normal checks, with no skip note.
+printf '%s\n' '# Root' > "$test_root/ROOT.md"
+stage ROOT.md
+cite 'ROOT.md:999'
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "a tracked root basename was skipped: $output"
+case $output in *'skipped `ROOT.md:999`'*) fail "checked root basename reported skipped" ;; esac
+# Notes also leave existing failures intact.
+cite 'demo.go:999` and `internal/demo/demo.go:999'
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "skip note changed a failing result: $output"
+case $output in
+*'skipped `demo.go:999`'*'1 citation(s) do not resolve'*) ;;
+*) fail "skip note or existing failure missing: $output" ;;
+esac
+
 echo "check-line-citations_test.sh: ok"

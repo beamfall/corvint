@@ -4,6 +4,8 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -435,6 +437,25 @@ func TestTQDV0006_OldGateResultsAreNotRecentRefusals(t *testing.T) {
 	}, "tree")
 	if len(seqs) != 1 || fmt.Sprint(seqs[0]) != "[31 32 33]" || !first[0].Equal(at.Add(31*time.Minute)) {
 		t.Fatalf("results added to a pre-existing attempt: %v %v", seqs, first)
+	}
+}
+
+// PGO-V0-009: the plugin's timeout cancellation sends no group signal once
+// the leader is reaped: it signals the leader through os.Process, which
+// refuses a reaped leader, where a numeric group SIGKILL could reach a group
+// that reused the ID.
+func TestPGOV0009DoctorPluginCancelSendsNoSignalAfterTheReap(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	c := exec.CommandContext(ctx, "/bin/sh", "-c", "exit 0")
+	if err := cli.DoctorPluginRunForTest(c); err != nil {
+		t.Fatal(err)
+	}
+	if c.SysProcAttr == nil || !c.SysProcAttr.Setpgid {
+		t.Fatal("the plugin does not lead its own process group")
+	}
+	if err := c.Cancel(); !errors.Is(err, os.ErrProcessDone) {
+		t.Fatalf("cancel after the reap = %v, want os.ErrProcessDone", err)
 	}
 }
 

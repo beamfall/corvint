@@ -287,3 +287,29 @@ func TestTMV0009_AS11_ChangedBarrierAfterReceiptStopsBeforeHead(t *testing.T) {
 		t.Fatalf("staging: %v %v", entries, readErr)
 	}
 }
+
+// CAL-V0-019: barrier writes clear orphan slots before their locked journal lookup.
+func TestCALV0019_BarrierRemovesOrphanStage(t *testing.T) {
+	t.Parallel()
+	repo, _ := initialized(t)
+	// Establish a valid fixture and successful barrier path before injecting the slot.
+	changeBarrier(t, repo, transaction.Pause, "pause-before-orphan")
+	slot := filepath.Join(repo.StateDir, "staging", "a00")
+	fixture.Write(t, slot, []byte("orphan"))
+	if _, err := os.Stat(slot); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(repo.StateDir, "staging", "active.json")); !os.IsNotExist(err) {
+		t.Fatalf("fixture has an active stage: %v", err)
+	}
+	report := changeBarrier(t, repo, transaction.Unpause, "unpause-after-orphan")
+	if _, err := os.Stat(slot); !os.IsNotExist(err) {
+		t.Fatalf("barrier did not remove orphan slot: %v", err)
+	}
+	if report.Receipt == "" {
+		t.Fatalf("barrier did not publish unpause: %+v", report)
+	}
+	if _, err := os.Stat(filepath.Join(repo.StateDir, "barrier.json")); !os.IsNotExist(err) {
+		t.Fatalf("barrier was not removed: %v", err)
+	}
+}

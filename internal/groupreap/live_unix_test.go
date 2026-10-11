@@ -436,3 +436,86 @@ func awaitGateWaiters(timeout time.Duration) (release, start bool) {
 		time.Sleep(time.Millisecond)
 	}
 }
+
+// PGO-V0-009 (V1-1056): Run, RunRetiring and RunContained record the group
+// they start for KillLive while the leader runs, and release it before the
+// reap, so an exiting adapter that reaches them retires the group and never
+// names a reaped leader's group.
+func TestPGOV0009RunFamilyRecordsGroupUntilPreReapRelease(t *testing.T) {
+	runs := map[string]func(*exec.Cmd) error{
+		"Run": Run,
+		"RunContained": func(command *exec.Cmd) error {
+			_, err := RunContained(command)
+			return err
+		},
+	}
+	// The Retirer is Darwin-only; elsewhere RunRetiring is not reachable
+	// with a non-nil Retirer.
+	if retirer, err := NewRetirer(); err == nil {
+		runs["RunRetiring"] = func(command *exec.Cmd) error { return RunRetiring(command, retirer) }
+	} else if runtime.GOOS == "darwin" {
+		t.Fatal(err)
+	}
+	for name, run := range runs {
+		t.Run(name, func(t *testing.T) {
+			read, write, err := os.Pipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer read.Close()
+			command := exec.Command("/bin/sh", "-c", "echo $$; read line; exit 0")
+			command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+			stdin, err := command.StdinPipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			command.Stdout = write
+			// The pre-reap group SIGKILL is the reap boundary: the group
+			// must still be recorded there and released before the reap.
+			var leader atomic.Int64
+			var recordedAtKill atomic.Bool
+			previous := signalGroup
+			t.Cleanup(func() { signalGroup = previous })
+			signalGroup = func(processID int, signal syscall.Signal) error {
+				if pid := int(leader.Load()); pid > 0 && processID == -pid && signal == syscall.SIGKILL {
+					recordedAtKill.Store(recordedAtKill.Load() || liveGroups.recorded(pid))
+				}
+				return previous(processID, signal)
+			}
+			done := make(chan error, 1)
+			go func() { done <- run(command) }()
+			line, err := bufio.NewReader(read).ReadString('\n')
+			if err != nil {
+				t.Fatal(err)
+			}
+			pid, err := strconv.Atoi(strings.TrimSpace(line))
+			if err != nil {
+				t.Fatal(err)
+			}
+			leader.Store(int64(pid))
+			// The child can print before Start returns and the group is
+			// recorded; wait for the registration, bounded.
+			recorded := false
+			for deadline := time.Now().Add(10 * time.Second); !recorded && time.Now().Before(deadline); {
+				if recorded = liveGroups.recorded(pid); !recorded {
+					time.Sleep(time.Millisecond)
+				}
+			}
+			stdin.Close()
+			err = <-done
+			write.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !recorded {
+				t.Fatalf("%s did not record the group its leader %d started", name, pid)
+			}
+			if !recordedAtKill.Load() {
+				t.Fatalf("%s released leader %d's group before the pre-reap group SIGKILL", name, pid)
+			}
+			if liveGroups.recorded(pid) {
+				t.Fatalf("%s reaped leader %d without releasing its group", name, pid)
+			}
+		})
+	}
+}

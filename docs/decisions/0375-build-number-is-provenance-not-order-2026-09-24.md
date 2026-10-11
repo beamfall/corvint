@@ -30,7 +30,7 @@ Neither defect is reachable by a consumer today. Every citing consumer checks th
 shape or exact equality, never order:
 `conformance/release-artifact-v0/smoke.go:26@1bcee6df` and `internal/releasecandidate/candidate.go:252@ffe1e5e9`
 require an exact expected banner; `internal/releasecandidate/install.go:109@0a2f615a` and
-`cmd/corvint/work_executable_binding.go:73@d5b9289a` check the manifest/generated-binding shape;
+`cmd/corvint/work_executable_binding.go:75@d5b9289a` check the manifest/generated-binding shape;
 `extensions/vscode/src/executable.ts:13@29803a42` and `internal/companionrelease/core_smoke.go:52@d62aa33e` match a
 `(build N)` regex/prefix with no comparison across builds; `script/dogfood-check.sh:27@a5af256a` matches the
 expected version's exact banner. `docs/specs/vscode-extension-v0.md:164@2ced530d` already states "the build

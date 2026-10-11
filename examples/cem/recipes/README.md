@@ -4,7 +4,7 @@ Three ordinary Bash scripts that compose existing Corvint commands for one commi
 `BASE..HEAD`. They add no workflow language, scheduler, service or new Corvint verb. The
 requirements are `CEM-PILOT-024`..`027` in
 [`docs/specs/cem-pilot-kit.md`](../../../docs/specs/cem-pilot-kit.md). Like everything under
-`examples/**`, these files are Apache-2.0 ([`LICENSING.md`](../../../LICENSING.md)).
+`examples/**`, these files are AGPL-3.0-or-later ([`LICENSING.md`](../../../LICENSING.md)).
 
 | Recipe | Script | Status |
 | --- | --- | --- |

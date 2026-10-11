@@ -5640,6 +5640,12 @@ still fails closed otherwise.
   attempt state is refused `FENCED` with `prior program owner not proved stopped`. The
   replacement then holds the stopped attempt and may answer, resume, drain or cancel it.
 
+- `CAL-V0-212`: (accepted, decision 0502; V1-0628) The top-level `help` usage MUST NOT
+  advertise `--target` or `--expected-revision` for `ticket create`, which refuses both
+  (CAL-V0-051). It MUST list `ticket create` on its own usage line that names the optional payload
+  `localToken` as the way to choose the queue-local ID, and MUST list the target-taking `ticket`
+  mutations separately. No ID grammar, collision rule, alias or wire change.
+
 The non-cancelling `NO_EXEC` settlements (stage admission refused, prelaunch preparation failed)
 are intended not to cancel: a dispatched attempt stops into `WAITING` with the reason as its
 question and keeps its claim and reservation, and the owner is released so the operator answers,
@@ -5852,7 +5858,7 @@ The `SECRET_DETECTED` and `PROVENANCE_UNVERIFIED` detail codes (76 codes) are am
 | Store edited outside corvint-tasks during an import (`git pull`, an editor) | Batches after the first check only the head and the files they post | A ticket the batch posts refuses `INTENT_DIVERGED` and a moved head refuses `SNAPSHOT_MOVED`; other drift is not seen until the next command audits the store (CAL-V0-018) |
 | Re-import after cutover | Foreign export disagrees with the published records | `import` refuses the whole export and writes nothing |
 | Non-fixture queue before execution cutover | Agents try to claim | `claim` and `claim --next` refuse `BLOCKED` `CUTOVER_MISSING` and `plan preview` plans every ticket `BLOCKED` until `cutover --execution` records a passing qualification run; ticket writes still work |
-| Writer killed between its first staged artifact and its head | Staging slots stay behind with no `staging/active.json` | Unlocked journal audits and `export` wait out the slots for at most two seconds (CTS-V0-008), then refuse `MALFORMED` `unassigned stage slot` until the next writer; an audit made under the writer lock (such as reconcile's) refuses them at once. Every ticket, lease and administrative write, and `gate run` before it runs a gate, first removes the orphan slots under the writer lock and redoes a receipt already linked in (CAL-V0-019). Barrier and reconcile writes do not recover: another writer must run first. Slots beside a `staging/active.json` descriptor are active staging, which stays refused `UNSUPPORTED` |
+| Writer killed between its first staged artifact and its head | Staging slots stay behind with no `staging/active.json` | Unlocked journal audits and `export` wait out the slots for at most two seconds (CTS-V0-008), then refuse `MALFORMED` `unassigned stage slot` until the next writer; an audit made under the writer lock (such as reconcile's) refuses them at once. Every ticket, lease and administrative write, and `gate run` before it runs a gate, first removes the orphan slots under the writer lock and redoes a receipt already linked in (CAL-V0-019). Barrier writes also remove orphan slots through `redoPendingFor` before their locked lookup (CAL-V0-019; `internal/tasks/store/barrier.go`, `internal/tasks/store/redo.go`; `TestCALV0019_BarrierRemovesOrphanStage`). Reconcile does not clear them before its locked lookup and refuses immediately (CTS-V0-008; `internal/tasks/store/reconcile.go`; `TestCTSV0008_LockedReconcileRefusesOrphanSlotWithoutWaiting`); a recovering writer must run first. Slots beside a `staging/active.json` descriptor are active staging, which stays refused `UNSUPPORTED` |
 | Derived scope misses a file the agent needs | Agent edits outside its scope | `submit` refuses `OUT_OF_SCOPE`; the agent `widen`s, or releases and reclaims with `--scope` |
 | Two disjoint scopes interfere semantically | Each passes alone, the merge breaks | Gates run at the exact rebased candidate tree before `complete` (CAL-V0-016, CAL-V0-017) |
 | Context index absent or stale | No derivation | The scope is `WHOLE_REPOSITORY`, which serializes that claim as today |

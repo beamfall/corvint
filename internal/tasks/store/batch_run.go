@@ -29,14 +29,14 @@ func (r BatchCommandRun) Passed() bool { return r.Class == "EXIT" && r.ExitCode 
 
 // RunBatchCommand runs argv in dir with exactly env, under the lease
 // runner's process containment, timeout and output cap. Its process group
-// is killed after it exits, so a descendant cannot outlive it, and when ctx
-// ends (the caller's interrupt).
+// is killed when ctx ends (the caller's interrupt) and, where waitid allows,
+// once it exits and before it is reaped, so a descendant cannot outlive it
+// and no group signal follows the reap (V1-1047, PGO-V0-009).
 func RunBatchCommand(ctx context.Context, argv []string, dir string, env []string, timeoutSeconds int) BatchCommandRun {
 	def := &intent.GateDefinition{GateID: "batch", Kind: "COMMAND", Argv: argv, Cwd: "WORKTREE",
 		TimeoutSeconds: wire.CountOf(int64(timeoutSeconds))}
 	out := &cappedOutput{}
 	run := execute(ctx, def, dir, env, out)
-	killGateGroup(run.group)
 	r := BatchCommandRun{Class: run.class, Output: bytes.Clone(out.buf.Bytes())}
 	if run.exitCode != nil {
 		r.ExitCode = string(*run.exitCode)
