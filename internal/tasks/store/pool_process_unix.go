@@ -57,12 +57,14 @@ func poolGroupLiveContext(ctx context.Context, pid int) (bool, error) {
 	return false, nil
 }
 
+const maxPoolCommandOutput = 64 * wire.KiB // CAL-V0-033; sweep has its separate MaxPoolSweepOutput.
+
 // Trusted commands are confined to an owned process group. Detached processes
 // are outside this qualification; uncertain exit/pipe cleanup never admits.
 // A non-nil guard runs immediately before Start; its failure starts nothing
 // and records SOURCE_CHANGED (PSR-V0-012).
 func executePoolGuarded(ctx context.Context, def *intent.PoolCommand, root string, env []string, guard func() error) (class string, clean bool, digest wire.Digest) {
-	out := &cappedOutput{}
+	out := &cappedOutput{max: maxPoolCommandOutput}
 	cmd := exec.Command(def.Argv[0], def.Argv[1:]...)
 	cmd.Dir = root
 	cmd.Env = env
