@@ -10,7 +10,7 @@ Authoritative inputs: `docs/CHANGE-EVIDENCE-MAP.md`, `docs/specs/cem-0.2-canonic
 ## Agent digest
 - Claim: CEM 0.3 adds Go rename, move, import-reorder and formatter-only mechanical reasons that the verifier re-proves from the base blob and patch alone.
 - Status: proposed/experimental (tickets V1-0087 and V1-0614, decisions 0338 and 0521)
-- Exists: `internal/cem/verify/structural.go`, `internal/cem/wire/map.go`, `internal/cem/workflow/commands.go`; the proposed portable packet `protocol/cem-0.3` (211 cases, `CEM-SM-011`..`CEM-SM-018`, decision 0521; native and portable agree on all 211) and its generator `interop/cem01-go/packet03_test.go`.
+- Exists: `internal/cem/verify/structural.go`, `internal/cem/wire/map.go`, `internal/cem/workflow/commands.go`; the proposed portable packet `protocol/cem-0.3` (221 cases, `CEM-SM-011`..`CEM-SM-018`, decision 0521; native and portable agree on all 221) and its generator `interop/cem01-go/packet03_test.go`.
 - Blocked on: Go 1.24 structural parity, independent external consumption (`CEM-V1-008`), owner acceptance of the packet, and frontier/dashboard profile acceptance.
 - Read next: `cem-0.2-canonical-binding.md`, `../CHANGE-EVIDENCE-MAP.md`.
 
@@ -147,7 +147,7 @@ and not as a `docs/cem-*.schema.json` file.
 | workflow end to end | `prepare`, `mark import-reorder`, commit, `status` | spec `cem/0.3`, valid, one mechanical hunk |
 | workflow wrong class | `mark rename` on an import reorder | `valid:false`, `unproven-mechanical` |
 | profile gating | 0.3 accepts, 0.2 and 0.1 refuse structural reasons | `invalid-field` |
-| portable packet | `protocol/cem-0.3/vectors` (211 cases) through `verify-03` and native single-profile `status` | pinned result per case; native equals its projection on all 211 |
+| portable packet | `protocol/cem-0.3/vectors` (221 cases) through `verify-03` and native single-profile `status` | pinned result per case; native equals its projection on all 221 |
 | config ceiling | sha1 repository with a `[gc]` config section | portable UNSUPPORTED `unsupported-repository-envelope` |
 | runtime gate | structural cases on a non-go1.27.1 runtime | UNSUPPORTED `unsupported-structural-runtime`, exit 2 |
 

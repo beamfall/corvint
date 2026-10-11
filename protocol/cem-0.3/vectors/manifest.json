@@ -8366,6 +8366,606 @@
       }
     },
     {
+      "name": "discriminates-description-512-bytes",
+      "category": "witness",
+      "requirements": [
+        "CEM-SM-013"
+      ],
+      "repository": "sha1",
+      "base": "semantic/base",
+      "target": "semantic/target",
+      "map": "vectors/maps/discriminates-description-512-bytes.json",
+      "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+      "targetArgument": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+      "declared": {
+        "outcome": "ACCEPT",
+        "stage": "complete",
+        "code": null,
+        "issueCodes": []
+      },
+      "exit": 0,
+      "structuralRuntimeGated": false,
+      "result": {
+        "profile": "cem-03-verification/1",
+        "spec": "cem/0.3",
+        "outcome": "ACCEPT",
+        "accept": true,
+        "stage": "complete",
+        "code": null,
+        "issueCodes": [],
+        "assurance": "canonical",
+        "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+        "targetRevision": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+        "mapSha256": "83efa2433c184318070b7688f3f4b8c17586bdfeb1da2338ab1ab34682f8426a",
+        "patchSha256": "eed002d72649ccbcaa444a16316eba2225a67dd7ee39cf930c02ea93a8bc5794",
+        "drift": [],
+        "hunks": [
+          {
+            "id": "hunk:sha256:a1a9f8c035708e50d360170dfe13afb0ad22bdc7d27e417e59a87b2853723154",
+            "discriminates": {
+              "treeRevision": "1111111111111111111111111111111111111111",
+              "selectionSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "mutants": 3,
+              "killed": 1,
+              "survived": 1,
+              "survivors": [
+                {
+                  "operator": "constant",
+                  "line": 6,
+                  "description": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+                }
+              ],
+              "bounds": {
+                "maxHunks": 1,
+                "maxMutants": 8,
+                "wallTimeSeconds": 60
+              },
+              "state": "survived",
+              "detail": ""
+            }
+          }
+        ],
+        "counts": {
+          "mechanical": 0,
+          "supported": 0,
+          "unknown": 1
+        },
+        "runtime": {
+          "goVersion": "go1.27.1",
+          "structuralQualification": "NOT_REQUIRED"
+        },
+        "repositoryEnvelope": "primary-clean-config-bounded/1"
+      },
+      "native": {
+        "kind": "valid"
+      }
+    },
+    {
+      "name": "discriminates-description-513-bytes",
+      "category": "witness",
+      "requirements": [
+        "CEM-SM-013"
+      ],
+      "repository": "sha1",
+      "base": "semantic/base",
+      "target": "semantic/target",
+      "map": "vectors/maps/discriminates-description-513-bytes.json",
+      "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+      "targetArgument": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+      "declared": {
+        "outcome": "REJECT",
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": []
+      },
+      "exit": 2,
+      "structuralRuntimeGated": false,
+      "result": {
+        "profile": "cem-03-verification/1",
+        "spec": "cem/0.3",
+        "outcome": "REJECT",
+        "accept": false,
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": [],
+        "assurance": null,
+        "expectedBase": null,
+        "targetRevision": null,
+        "mapSha256": "73a997b103805f2c245cf1654a9aa87234352e2d64854fde0124ded5a38a8a2f",
+        "patchSha256": null,
+        "drift": [],
+        "hunks": [],
+        "counts": {
+          "mechanical": 0,
+          "supported": 0,
+          "unknown": 0
+        },
+        "runtime": {
+          "goVersion": "go1.27.1",
+          "structuralQualification": "NOT_REQUIRED"
+        },
+        "repositoryEnvelope": "primary-clean-config-bounded/1"
+      },
+      "native": {
+        "kind": "error",
+        "code": "invalid-field"
+      }
+    },
+    {
+      "name": "discriminates-description-256-two-byte-runes",
+      "category": "witness",
+      "requirements": [
+        "CEM-SM-013"
+      ],
+      "repository": "sha1",
+      "base": "semantic/base",
+      "target": "semantic/target",
+      "map": "vectors/maps/discriminates-description-256-two-byte-runes.json",
+      "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+      "targetArgument": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+      "declared": {
+        "outcome": "ACCEPT",
+        "stage": "complete",
+        "code": null,
+        "issueCodes": []
+      },
+      "exit": 0,
+      "structuralRuntimeGated": false,
+      "result": {
+        "profile": "cem-03-verification/1",
+        "spec": "cem/0.3",
+        "outcome": "ACCEPT",
+        "accept": true,
+        "stage": "complete",
+        "code": null,
+        "issueCodes": [],
+        "assurance": "canonical",
+        "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+        "targetRevision": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+        "mapSha256": "97f699b35b9fb221fbccde0b37f756acddc508f8878a0c8a1b24281ea3f8409b",
+        "patchSha256": "eed002d72649ccbcaa444a16316eba2225a67dd7ee39cf930c02ea93a8bc5794",
+        "drift": [],
+        "hunks": [
+          {
+            "id": "hunk:sha256:a1a9f8c035708e50d360170dfe13afb0ad22bdc7d27e417e59a87b2853723154",
+            "discriminates": {
+              "treeRevision": "1111111111111111111111111111111111111111",
+              "selectionSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "mutants": 3,
+              "killed": 1,
+              "survived": 1,
+              "survivors": [
+                {
+                  "operator": "constant",
+                  "line": 6,
+                  "description": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+                }
+              ],
+              "bounds": {
+                "maxHunks": 1,
+                "maxMutants": 8,
+                "wallTimeSeconds": 60
+              },
+              "state": "survived",
+              "detail": ""
+            }
+          }
+        ],
+        "counts": {
+          "mechanical": 0,
+          "supported": 0,
+          "unknown": 1
+        },
+        "runtime": {
+          "goVersion": "go1.27.1",
+          "structuralQualification": "NOT_REQUIRED"
+        },
+        "repositoryEnvelope": "primary-clean-config-bounded/1"
+      },
+      "native": {
+        "kind": "valid"
+      }
+    },
+    {
+      "name": "discriminates-description-257-two-byte-runes",
+      "category": "witness",
+      "requirements": [
+        "CEM-SM-013"
+      ],
+      "repository": "sha1",
+      "base": "semantic/base",
+      "target": "semantic/target",
+      "map": "vectors/maps/discriminates-description-257-two-byte-runes.json",
+      "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+      "targetArgument": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+      "declared": {
+        "outcome": "REJECT",
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": []
+      },
+      "exit": 2,
+      "structuralRuntimeGated": false,
+      "result": {
+        "profile": "cem-03-verification/1",
+        "spec": "cem/0.3",
+        "outcome": "REJECT",
+        "accept": false,
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": [],
+        "assurance": null,
+        "expectedBase": null,
+        "targetRevision": null,
+        "mapSha256": "526d7ff763eeb00ac6d69f2f746ee04256fcb7ac709c8a609f346e46990e1611",
+        "patchSha256": null,
+        "drift": [],
+        "hunks": [],
+        "counts": {
+          "mechanical": 0,
+          "supported": 0,
+          "unknown": 0
+        },
+        "runtime": {
+          "goVersion": "go1.27.1",
+          "structuralQualification": "NOT_REQUIRED"
+        },
+        "repositoryEnvelope": "primary-clean-config-bounded/1"
+      },
+      "native": {
+        "kind": "error",
+        "code": "invalid-field"
+      }
+    },
+    {
+      "name": "discriminates-description-control",
+      "category": "witness",
+      "requirements": [
+        "CEM-SM-013"
+      ],
+      "repository": "sha1",
+      "base": "semantic/base",
+      "target": "semantic/target",
+      "map": "vectors/maps/discriminates-description-control.json",
+      "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+      "targetArgument": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+      "declared": {
+        "outcome": "REJECT",
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": []
+      },
+      "exit": 2,
+      "structuralRuntimeGated": false,
+      "result": {
+        "profile": "cem-03-verification/1",
+        "spec": "cem/0.3",
+        "outcome": "REJECT",
+        "accept": false,
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": [],
+        "assurance": null,
+        "expectedBase": null,
+        "targetRevision": null,
+        "mapSha256": "65d1f855b8ed29a2bf9830338dba8f2fe6a2bf0ba200e835c0d1caf60407872c",
+        "patchSha256": null,
+        "drift": [],
+        "hunks": [],
+        "counts": {
+          "mechanical": 0,
+          "supported": 0,
+          "unknown": 0
+        },
+        "runtime": {
+          "goVersion": "go1.27.1",
+          "structuralQualification": "NOT_REQUIRED"
+        },
+        "repositoryEnvelope": "primary-clean-config-bounded/1"
+      },
+      "native": {
+        "kind": "error",
+        "code": "invalid-field"
+      }
+    },
+    {
+      "name": "discriminates-description-del",
+      "category": "witness",
+      "requirements": [
+        "CEM-SM-013"
+      ],
+      "repository": "sha1",
+      "base": "semantic/base",
+      "target": "semantic/target",
+      "map": "vectors/maps/discriminates-description-del.json",
+      "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+      "targetArgument": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+      "declared": {
+        "outcome": "REJECT",
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": []
+      },
+      "exit": 2,
+      "structuralRuntimeGated": false,
+      "result": {
+        "profile": "cem-03-verification/1",
+        "spec": "cem/0.3",
+        "outcome": "REJECT",
+        "accept": false,
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": [],
+        "assurance": null,
+        "expectedBase": null,
+        "targetRevision": null,
+        "mapSha256": "a5cdcb303a2660203dd6c54d264a3868dc607b95fae517d9f775ccc6a620d944",
+        "patchSha256": null,
+        "drift": [],
+        "hunks": [],
+        "counts": {
+          "mechanical": 0,
+          "supported": 0,
+          "unknown": 0
+        },
+        "runtime": {
+          "goVersion": "go1.27.1",
+          "structuralQualification": "NOT_REQUIRED"
+        },
+        "repositoryEnvelope": "primary-clean-config-bounded/1"
+      },
+      "native": {
+        "kind": "error",
+        "code": "invalid-field"
+      }
+    },
+    {
+      "name": "discriminates-operator-32-two-byte-runes",
+      "category": "witness",
+      "requirements": [
+        "CEM-SM-013"
+      ],
+      "repository": "sha1",
+      "base": "semantic/base",
+      "target": "semantic/target",
+      "map": "vectors/maps/discriminates-operator-32-two-byte-runes.json",
+      "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+      "targetArgument": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+      "declared": {
+        "outcome": "ACCEPT",
+        "stage": "complete",
+        "code": null,
+        "issueCodes": []
+      },
+      "exit": 0,
+      "structuralRuntimeGated": false,
+      "result": {
+        "profile": "cem-03-verification/1",
+        "spec": "cem/0.3",
+        "outcome": "ACCEPT",
+        "accept": true,
+        "stage": "complete",
+        "code": null,
+        "issueCodes": [],
+        "assurance": "canonical",
+        "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+        "targetRevision": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+        "mapSha256": "cd732c4ec10bf328d7940549f6f9ca3548a6ffec42d50393efd3035e669471f4",
+        "patchSha256": "eed002d72649ccbcaa444a16316eba2225a67dd7ee39cf930c02ea93a8bc5794",
+        "drift": [],
+        "hunks": [
+          {
+            "id": "hunk:sha256:a1a9f8c035708e50d360170dfe13afb0ad22bdc7d27e417e59a87b2853723154",
+            "discriminates": {
+              "treeRevision": "1111111111111111111111111111111111111111",
+              "selectionSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "mutants": 3,
+              "killed": 1,
+              "survived": 1,
+              "survivors": [
+                {
+                  "operator": "éééééééééééééééééééééééééééééééé",
+                  "line": 6,
+                  "description": "return value replaced"
+                }
+              ],
+              "bounds": {
+                "maxHunks": 1,
+                "maxMutants": 8,
+                "wallTimeSeconds": 60
+              },
+              "state": "survived",
+              "detail": ""
+            }
+          }
+        ],
+        "counts": {
+          "mechanical": 0,
+          "supported": 0,
+          "unknown": 1
+        },
+        "runtime": {
+          "goVersion": "go1.27.1",
+          "structuralQualification": "NOT_REQUIRED"
+        },
+        "repositoryEnvelope": "primary-clean-config-bounded/1"
+      },
+      "native": {
+        "kind": "valid"
+      }
+    },
+    {
+      "name": "discriminates-operator-33-two-byte-runes",
+      "category": "witness",
+      "requirements": [
+        "CEM-SM-013"
+      ],
+      "repository": "sha1",
+      "base": "semantic/base",
+      "target": "semantic/target",
+      "map": "vectors/maps/discriminates-operator-33-two-byte-runes.json",
+      "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+      "targetArgument": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+      "declared": {
+        "outcome": "REJECT",
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": []
+      },
+      "exit": 2,
+      "structuralRuntimeGated": false,
+      "result": {
+        "profile": "cem-03-verification/1",
+        "spec": "cem/0.3",
+        "outcome": "REJECT",
+        "accept": false,
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": [],
+        "assurance": null,
+        "expectedBase": null,
+        "targetRevision": null,
+        "mapSha256": "2fed1506f68415d70f7ef6ae787394e06a6b8c1497381ed6166357c417d90f22",
+        "patchSha256": null,
+        "drift": [],
+        "hunks": [],
+        "counts": {
+          "mechanical": 0,
+          "supported": 0,
+          "unknown": 0
+        },
+        "runtime": {
+          "goVersion": "go1.27.1",
+          "structuralQualification": "NOT_REQUIRED"
+        },
+        "repositoryEnvelope": "primary-clean-config-bounded/1"
+      },
+      "native": {
+        "kind": "error",
+        "code": "invalid-field"
+      }
+    },
+    {
+      "name": "discriminates-detail-256-two-byte-runes",
+      "category": "witness",
+      "requirements": [
+        "CEM-SM-013"
+      ],
+      "repository": "sha1",
+      "base": "semantic/base",
+      "target": "semantic/target",
+      "map": "vectors/maps/discriminates-detail-256-two-byte-runes.json",
+      "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+      "targetArgument": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+      "declared": {
+        "outcome": "ACCEPT",
+        "stage": "complete",
+        "code": null,
+        "issueCodes": []
+      },
+      "exit": 0,
+      "structuralRuntimeGated": false,
+      "result": {
+        "profile": "cem-03-verification/1",
+        "spec": "cem/0.3",
+        "outcome": "ACCEPT",
+        "accept": true,
+        "stage": "complete",
+        "code": null,
+        "issueCodes": [],
+        "assurance": "canonical",
+        "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+        "targetRevision": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+        "mapSha256": "7644471a054d4bf3f4c68c9b17ec2c656ee71d55236886cd8570f8a9653d9e90",
+        "patchSha256": "eed002d72649ccbcaa444a16316eba2225a67dd7ee39cf930c02ea93a8bc5794",
+        "drift": [],
+        "hunks": [
+          {
+            "id": "hunk:sha256:a1a9f8c035708e50d360170dfe13afb0ad22bdc7d27e417e59a87b2853723154",
+            "discriminates": {
+              "treeRevision": "1111111111111111111111111111111111111111",
+              "selectionSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "mutants": 2,
+              "killed": 2,
+              "survived": 0,
+              "survivors": [],
+              "bounds": {
+                "maxHunks": 1,
+                "maxMutants": 8,
+                "wallTimeSeconds": 60
+              },
+              "state": "discriminates",
+              "detail": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+            }
+          }
+        ],
+        "counts": {
+          "mechanical": 0,
+          "supported": 0,
+          "unknown": 1
+        },
+        "runtime": {
+          "goVersion": "go1.27.1",
+          "structuralQualification": "NOT_REQUIRED"
+        },
+        "repositoryEnvelope": "primary-clean-config-bounded/1"
+      },
+      "native": {
+        "kind": "valid"
+      }
+    },
+    {
+      "name": "discriminates-detail-257-two-byte-runes",
+      "category": "witness",
+      "requirements": [
+        "CEM-SM-013"
+      ],
+      "repository": "sha1",
+      "base": "semantic/base",
+      "target": "semantic/target",
+      "map": "vectors/maps/discriminates-detail-257-two-byte-runes.json",
+      "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+      "targetArgument": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+      "declared": {
+        "outcome": "REJECT",
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": []
+      },
+      "exit": 2,
+      "structuralRuntimeGated": false,
+      "result": {
+        "profile": "cem-03-verification/1",
+        "spec": "cem/0.3",
+        "outcome": "REJECT",
+        "accept": false,
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": [],
+        "assurance": null,
+        "expectedBase": null,
+        "targetRevision": null,
+        "mapSha256": "bb7aa4d1281495e67466ba4347637db12350d937a7e563241d51c6de4f7db80d",
+        "patchSha256": null,
+        "drift": [],
+        "hunks": [],
+        "counts": {
+          "mechanical": 0,
+          "supported": 0,
+          "unknown": 0
+        },
+        "runtime": {
+          "goVersion": "go1.27.1",
+          "structuralQualification": "NOT_REQUIRED"
+        },
+        "repositoryEnvelope": "primary-clean-config-bounded/1"
+      },
+      "native": {
+        "kind": "error",
+        "code": "invalid-field"
+      }
+    },
+    {
       "name": "discriminates-tree-short",
       "category": "witness",
       "requirements": [
@@ -12574,7 +13174,7 @@
         "assurance": null,
         "expectedBase": null,
         "targetRevision": null,
-        "mapSha256": "580d25388f6ecd113e72e828edc458a3e0fe4400f1a9ca91da9b086638e904ad",
+        "mapSha256": "ac5650c8c15194fda514ff1771453ecf54920e9b28cd9c6c0502f4f02559f467",
         "patchSha256": null,
         "drift": [],
         "hunks": [],
@@ -15150,7 +15750,15 @@
     "vectors/maps/coverage-whole-hunk.json": "c5569d29c5baaa18315ae92728cacf2801afdc619ed92112135bc1a4ee0e8984",
     "vectors/maps/coverage-zero-count.json": "e5222446127222423598b6c761517166e360dada8d321d1690bcb2b3c578e220",
     "vectors/maps/discriminates-bounds-zero.json": "9482e01c42efe3a3c5db7a60166f124e4ff8ed05ed93627b9bd86e8c9b474ecf",
+    "vectors/maps/discriminates-description-256-two-byte-runes.json": "97f699b35b9fb221fbccde0b37f756acddc508f8878a0c8a1b24281ea3f8409b",
+    "vectors/maps/discriminates-description-257-two-byte-runes.json": "526d7ff763eeb00ac6d69f2f746ee04256fcb7ac709c8a609f346e46990e1611",
+    "vectors/maps/discriminates-description-512-bytes.json": "83efa2433c184318070b7688f3f4b8c17586bdfeb1da2338ab1ab34682f8426a",
+    "vectors/maps/discriminates-description-513-bytes.json": "73a997b103805f2c245cf1654a9aa87234352e2d64854fde0124ded5a38a8a2f",
+    "vectors/maps/discriminates-description-control.json": "65d1f855b8ed29a2bf9830338dba8f2fe6a2bf0ba200e835c0d1caf60407872c",
+    "vectors/maps/discriminates-description-del.json": "a5cdcb303a2660203dd6c54d264a3868dc607b95fae517d9f775ccc6a620d944",
     "vectors/maps/discriminates-description-empty.json": "b03b73880f57ff673259436c2d28c61f915850d5b328d2a364bf6814ed5eaf6b",
+    "vectors/maps/discriminates-detail-256-two-byte-runes.json": "7644471a054d4bf3f4c68c9b17ec2c656ee71d55236886cd8570f8a9653d9e90",
+    "vectors/maps/discriminates-detail-257-two-byte-runes.json": "bb7aa4d1281495e67466ba4347637db12350d937a7e563241d51c6de4f7db80d",
     "vectors/maps/discriminates-detail-512-bytes.json": "ab4064a334a9fed768ae510f10818932c0619e4255d9d2b80625be5849ab6471",
     "vectors/maps/discriminates-detail-513-bytes.json": "fa0cb33449486e4bbb51484d2c6b36f875c69f99c78c8c6042d28aa7976e38e9",
     "vectors/maps/discriminates-detail-control.json": "eb12cd386880467781c9b4fe0ffbb6d2a7ed8457af4dfb7035ee19578f5f8fef",
@@ -15161,6 +15769,8 @@
     "vectors/maps/discriminates-not-run-with-mutants.json": "f645bfa888b220bdfc68eebc5564eb3d91ba7fada986ca5d1d4801e1fb25f250",
     "vectors/maps/discriminates-not-run.json": "b7af182a294968d73394ecc5ad2d68e86f720a0f245216b7e93aae3495641227",
     "vectors/maps/discriminates-null.json": "48465e7a3b5a690e863d57d59d88f65287ace04f736cf1676d0e858d4598f071",
+    "vectors/maps/discriminates-operator-32-two-byte-runes.json": "cd732c4ec10bf328d7940549f6f9ca3548a6ffec42d50393efd3035e669471f4",
+    "vectors/maps/discriminates-operator-33-two-byte-runes.json": "2fed1506f68415d70f7ef6ae787394e06a6b8c1497381ed6166357c417d90f22",
     "vectors/maps/discriminates-operator-64-bytes.json": "951f7475b820d519a1b0e655f2d4ff74d12f8b25306889091a5be56eab514428",
     "vectors/maps/discriminates-operator-65-bytes.json": "c89389bc81ad1d810da5a5d33eeafe8119215e8469d6b0a1603de7cb2ec2ccb2",
     "vectors/maps/discriminates-operator-empty.json": "f9922a1312902da24d101889003b6e1dc42c3b912ef51822bc9752ba04358b86",
@@ -15219,7 +15829,7 @@
     "vectors/maps/json-depth-63.json": "ce1c1177ac154086657f6a520290edf4a2ba8caf2aebd8b33c0c93ae997cd8f4",
     "vectors/maps/json-depth-64.json": "7fb2616c98eca571860734ddabb056e0f6b240f6a16ef0695ac595c83839fdcf",
     "vectors/maps/json-depth-65.json": "2d719f0711342e911511c8c9227e44f7400d3fb22c578b32bdc42ac5df4b86b1",
-    "vectors/maps/json-duplicate-escaped-key.json": "580d25388f6ecd113e72e828edc458a3e0fe4400f1a9ca91da9b086638e904ad",
+    "vectors/maps/json-duplicate-escaped-key.json": "ac5650c8c15194fda514ff1771453ecf54920e9b28cd9c6c0502f4f02559f467",
     "vectors/maps/json-duplicate-nested-key.json": "fd213feb8bd2b0140dc9b5799d895819c5c1c9a095e11570713d83944ff4b81b",
     "vectors/maps/json-duplicate-top-level-key.json": "580d25388f6ecd113e72e828edc458a3e0fe4400f1a9ca91da9b086638e904ad",
     "vectors/maps/json-empty.json": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",

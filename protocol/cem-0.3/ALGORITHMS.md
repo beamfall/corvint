@@ -6,7 +6,7 @@ accepted, and not independently consumed. The body below is carried verbatim fro
 preparation draft (`protocol/cem-1.0/stable/inherited/ALGORITHMS.md`). Where it says "draft",
 "scratch" or `NOT_PRODUCED`, this status section governs: the fixtures are now materialized as
 exact SHA-1/SHA-256 commits in `vectors/manifest.json`. The 17 native/portable divergences the
-body says block P0 are resolved: native and portable agree exactly on all 211 cases. Decision 0521
+body says block P0 are resolved: native and portable agree exactly on all 221 cases. Decision 0521
 records each disposition. The rules below make those dispositions explicit.
 
 * Rename comments are strict. Every comment that is not a directive must equal its whole-word
@@ -70,10 +70,12 @@ grafts, text conversion, hooks, filters, prompts and network fetch. Validate pri
 reciprocal linked worktrees; reject alternates. Missing objects stay unavailable.
 
 Derive the whole-repository canonical patch with the exact observed WP1 diff recipe in
-WP1-OBSERVED.json, substituting only authenticated administrative directory/base/target and
-the repository-format empty-tree OID; the captured SHA-1 empty-tree literal must not be
-used for SHA-256 repositories. Validate object-format counterpart before qualification. Excluding
-only the literal root sidecar. Neither caller patch nor map path may select another exclusion.
+`WP1-OBSERVED.json` in this directory (SHA-256
+`78df41faf9736520eb3b3724fc77abd88554ae243257d3b7c1d30e8f68e43630`), substituting only
+authenticated administrative directory/base/target and the repository-format empty-tree OID;
+the captured SHA-1 empty-tree literal must not be used for SHA-256 repositories. Validate
+object-format counterpart before qualification. Excluding only the literal root sidecar.
+Neither caller patch nor map path may select another exclusion.
 Hash that exact patch, require map patch digest equality, parse every hunk and prove its base
 simulation. Retain all evidence drift records in ascending evidence ID order. Stable/relocated
 accept; stale/ambiguous/deleted refuse. Unknown hunks are valid mapping states; this operation

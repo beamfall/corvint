@@ -10,11 +10,12 @@ It changes no `cem/0.1` or `cem/0.2` bytes. The 0.2 packet in `protocol/cem-0.2`
 | `ALGORITHMS.md` | Algorithm text: strict wire, sidecar distinction, structural predicates, witnesses, result stages. |
 | `cem-0.3.schema.json` | Shape schema. Passing it is never sufficient; the algorithm text governs. |
 | `OPERATION.json` | `verify-03` process ABI: argv, exit classes, stage order and code placement. |
-| `vectors/manifest.json` | 211 cases, 3 repositories, 165 commits and the full pinned result for each case. |
+| `WP1-OBSERVED.json` | The observed WP1 canonical-diff recipe the algorithm text names, SHA-256 `78df41faf9736520eb3b3724fc77abd88554ae243257d3b7c1d30e8f68e43630`. A byte copy of `protocol/cem-1.0/stable/inherited/WP1-OBSERVED.json`. |
+| `vectors/manifest.json` | 221 cases, 3 repositories, 165 commits and the full pinned result for each case. |
 | `vectors/maps/*.json` | One raw map per case, pinned by SHA-256 in `artifactSha256`. |
 
 `vectors/manifest.json` is SHA-256
-`cbb9b85e8d9085e1343a4b6e32e1047c62265154266da48f8d8889db3a58818e`, pinned separately by both
+`9bb8393fba698fd5a65b502f49f5cf4bf4656bba09daa66ff817107224ca3931`, pinned separately by both
 consumers. Each consumer must check the manifest digest and every artifact before execution.
 
 ## Reconstruction
@@ -48,7 +49,7 @@ fall back to a byte proof. Nonstructural cases keep their pinned result on every
 | Category | Cases | Scope |
 |---|---:|---|
 | structural | 47 | Literal positives for every structural reason, declared overlaps, semantic near-misses and cross-class claims. |
-| witness | 59 | Coverage and discriminates shape, byte and character boundaries, arithmetic, state rules, retention, and exclusion from hunk identity. |
+| witness | 69 | Coverage and discriminates shape, byte and character boundaries (testRun, operator, description and detail, with two-byte runes), arithmetic, state rules, retention, and exclusion from hunk identity. |
 | wire | 45 | Strict JSON lexemes, duplicate keys, depth 62..65, roots, key sets, spec dispatch and a map of exactly 4 MiB. |
 | identity | 31 | SHA-1/SHA-256 baselines, patch digest, hunk and evidence identity, basis rules and tree modes. |
 | sidecar | 15 | Base and target sidecar kinds, exact raw bytes, and a historical 0.2 sidecar. |
@@ -64,7 +65,7 @@ object IDs, patch digests, identities and the pinned result bytes.
 Each case's `native` member is the outcome the native status verifier must reach: `valid`, `issue`
 with the first issue code, or `error` with the error code. It is the projection of the portable
 result, and the native consumer reads every case through the single-profile verifier
-(`CEM-SM-018`). All 211 cases agree exactly; no case declares a divergence. Decision 0521 records
+(`CEM-SM-018`). All 221 cases agree exactly; no case declares a divergence. Decision 0521 records
 how the 17 earlier divergences were disposed of.
 
 The portable repository envelope `primary-clean-config-bounded/1` is a declared implementation

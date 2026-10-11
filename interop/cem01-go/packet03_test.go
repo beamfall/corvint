@@ -33,8 +33,8 @@ const (
 	packet03Author    = "Portable Proof <proof@example.invalid>"
 	packet03Date      = "2026-01-01T00:00:00Z"
 	packet03Epoch     = "1767225600 +0000"
-	packet03Manifest  = "cbb9b85e8d9085e1343a4b6e32e1047c62265154266da48f8d8889db3a58818e"
-	packet03CaseCount = 211
+	packet03Manifest  = "9bb8393fba698fd5a65b502f49f5cf4bf4656bba09daa66ff817107224ca3931"
+	packet03CaseCount = 221
 )
 
 // --- declared fixtures ---------------------------------------------------------
@@ -335,6 +335,23 @@ func cases03() []case03 {
 		s["description"] = ""
 		d["mutants"], d["killed"], d["survived"], d["state"], d["survivors"] = 3, 1, 1, "survived", []any{s}
 	}))
+	survivorText := func(name, want, field, value string) {
+		witness(name, want, discEdit03(func(d map[string]any) {
+			s := survivor03Value()
+			s[field] = value
+			d["mutants"], d["killed"], d["survived"], d["state"], d["survivors"] = 3, 1, 1, "survived", []any{s}
+		}))
+	}
+	survivorText("discriminates-description-512-bytes", accept, "description", strings.Repeat("s", 512))
+	survivorText("discriminates-description-513-bytes", wire("invalid-field"), "description", strings.Repeat("s", 513))
+	survivorText("discriminates-description-256-two-byte-runes", accept, "description", strings.Repeat("é", 256))
+	survivorText("discriminates-description-257-two-byte-runes", wire("invalid-field"), "description", strings.Repeat("é", 257))
+	survivorText("discriminates-description-control", wire("invalid-field"), "description", "line\nbreak")
+	survivorText("discriminates-description-del", wire("invalid-field"), "description", "mutant\u007f")
+	survivorText("discriminates-operator-32-two-byte-runes", accept, "operator", strings.Repeat("é", 32))
+	survivorText("discriminates-operator-33-two-byte-runes", wire("invalid-field"), "operator", strings.Repeat("é", 33))
+	witness("discriminates-detail-256-two-byte-runes", accept, discEdit03(func(d map[string]any) { d["detail"] = strings.Repeat("é", 256) }))
+	witness("discriminates-detail-257-two-byte-runes", wire("invalid-field"), discEdit03(func(d map[string]any) { d["detail"] = strings.Repeat("é", 257) }))
 	witness("discriminates-tree-short", wire("invalid-field"), discEdit03(func(d map[string]any) { d["treeRevision"] = strings.Repeat("1", 39) }))
 	witness("discriminates-selection-uppercase", wire("invalid-field"), discEdit03(func(d map[string]any) { d["selectionSha256"] = strings.Repeat("B", 64) }))
 	witness("discriminates-not-run-with-mutants", wire("invalid-field"), discEdit03(func(d map[string]any) { d["state"] = "not-run" }))
@@ -493,7 +510,7 @@ func cases03() []case03 {
 	w("json-unpaired-surrogate", wire("invalid-json"), replace03(`"unknown"`, `"unknown\ud800"`))
 	w("json-duplicate-top-level-key", wire("invalid-json"), replace03(`,"spec":"cem/0.3"}`, `,"spec":"cem/0.3","spec":"cem/0.3"}`))
 	w("json-duplicate-nested-key", wire("invalid-json"), replace03(`"reason":"no-evidence"`, `"reason":"no-evidence","reason":"no-evidence"`))
-	w("json-duplicate-escaped-key", wire("invalid-json"), replace03(`,"spec":"cem/0.3"}`, `,"spec":"cem/0.3","spec":"cem/0.3"}`))
+	w("json-duplicate-escaped-key", wire("invalid-json"), replace03(`,"spec":"cem/0.3"}`, `,"spec":"cem/0.3","\u0073pec":"cem/0.3"}`))
 	w("json-trailing-value", wire("invalid-json"), func(raw []byte, _ *ctx03) []byte { return append(append([]byte{}, raw...), []byte(" {}")...) })
 	w("json-surrounding-whitespace", accept, func(raw []byte, _ *ctx03) []byte { return append(append([]byte(" \n"), raw...), []byte("\n\t ")...) })
 	w("json-at-map-limit", accept, func(raw []byte, _ *ctx03) []byte {
@@ -1193,5 +1210,76 @@ func TestCEMSM016PortableConfigCeiling(t *testing.T) {
 	r, exit := run03(context.Background(), repos[c.Repository], raw, c.ExpectedBase, c.TargetArgument)
 	if exit != 2 || r.Outcome != "UNSUPPORTED" || r.Stage != "repository" || r.Code == nil || *r.Code != "unsupported-repository-envelope" {
 		t.Fatalf("config section: exit %d %s/%s/%v", exit, r.Outcome, r.Stage, r.Code)
+	}
+}
+
+// packet03WP1SHA256 pins the observed WP1 canonical-diff recipe the packet
+// carries, so a consumer reproduces patch bytes from the packet alone.
+const packet03WP1SHA256 = "78df41faf9736520eb3b3724fc77abd88554ae243257d3b7c1d30e8f68e43630"
+
+func TestCEMSM011PacketCarriesDiffRecipe(t *testing.T) {
+	recipe, err := os.ReadFile(filepath.Join(packet03Dir, "WP1-OBSERVED.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := shaHex(recipe); got != packet03WP1SHA256 {
+		t.Fatalf("WP1-OBSERVED.json digest %s, want %s", got, packet03WP1SHA256)
+	}
+	source, err := os.ReadFile(filepath.Join(packet03Dir, "..", "cem-1.0", "stable", "inherited", "WP1-OBSERVED.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(recipe, source) {
+		t.Fatal("packet WP1-OBSERVED.json differs from the inherited cem-1.0 copy")
+	}
+	for _, doc := range []string{"ALGORITHMS.md", "README.md"} {
+		text, err := os.ReadFile(filepath.Join(packet03Dir, doc))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(text, []byte(packet03WP1SHA256)) {
+			t.Fatalf("%s does not pin WP1-OBSERVED.json by SHA-256", doc)
+		}
+	}
+}
+
+// TestCEMSM011EscapedDuplicateKey requires the escaped duplicate-key vector to
+// spell the duplicate with a JSON escape, so duplicate detection must run on
+// decoded names rather than raw bytes.
+func TestCEMSM011EscapedDuplicateKey(t *testing.T) {
+	m, read := readPacket03(t)
+	maps := map[string][]byte{}
+	for _, c := range m.Cases {
+		maps[c.Name] = read(strings.TrimPrefix(c.Map, "vectors/"))
+	}
+	escaped, plain := maps["json-duplicate-escaped-key"], maps["json-duplicate-top-level-key"]
+	if escaped == nil || plain == nil || bytes.Equal(escaped, plain) || !bytes.Contains(escaped, []byte(`"spec"`)) {
+		t.Fatal("json-duplicate-escaped-key does not spell its duplicate key with an escape")
+	}
+}
+
+// TestCEMSM013TextBoundaryCases requires the byte and character boundaries of
+// the discriminates survivor and detail text in the packet (CEM-SM-013).
+func TestCEMSM013TextBoundaryCases(t *testing.T) {
+	m, _ := readPacket03(t)
+	got := map[string]string{}
+	for _, c := range m.Cases {
+		got[c.Name] = c.Declared.Outcome
+	}
+	for name, outcome := range map[string]string{
+		"discriminates-description-512-bytes":          "ACCEPT",
+		"discriminates-description-513-bytes":          "REJECT",
+		"discriminates-description-256-two-byte-runes": "ACCEPT",
+		"discriminates-description-257-two-byte-runes": "REJECT",
+		"discriminates-description-control":            "REJECT",
+		"discriminates-description-del":                "REJECT",
+		"discriminates-detail-256-two-byte-runes":      "ACCEPT",
+		"discriminates-detail-257-two-byte-runes":      "REJECT",
+		"discriminates-operator-32-two-byte-runes":     "ACCEPT",
+		"discriminates-operator-33-two-byte-runes":     "REJECT",
+	} {
+		if got[name] != outcome {
+			t.Errorf("packet case %s: outcome %q, want %q", name, got[name], outcome)
+		}
 	}
 }

@@ -22,7 +22,7 @@ import (
 // case must agree exactly with the portable declared result: no per-case
 // divergence is admitted.
 
-const portable03ManifestSHA256 = "cbb9b85e8d9085e1343a4b6e32e1047c62265154266da48f8d8889db3a58818e"
+const portable03ManifestSHA256 = "9bb8393fba698fd5a65b502f49f5cf4bf4656bba09daa66ff817107224ca3931"
 
 type portable03File struct {
 	Path, Mode, ContentFile, Object string
@@ -82,7 +82,7 @@ func TestCEMSM016NativePortable03Vectors(t *testing.T) {
 	if err := json.Unmarshal(raw, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if manifest.Spec != "cem/0.3" || len(manifest.Cases) != 211 || len(manifest.ArtifactSHA256) != 211 {
+	if manifest.Spec != "cem/0.3" || len(manifest.Cases) != 221 || len(manifest.ArtifactSHA256) != 221 {
 		t.Fatal("cem-0.3 vector matrix changed")
 	}
 	artifacts := map[string][]byte{}
