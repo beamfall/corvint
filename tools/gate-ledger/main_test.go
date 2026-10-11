@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -451,7 +452,7 @@ func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
 	}
 	root := packageRepository(t, files)
 	log := filepath.Join(t.TempDir(), "ARGS")
-	args := []string{"go-test", "--", "sh", "-c", `echo "$@" >> "$0"`, log}
+	args := []string{"go-test", "--", "sh", "-c", `echo "$@" >> "$0"; for pkg in "$@"; do case "$pkg" in -*) continue;; esac; printf '{"Action":"start","Package":"%s"}\n{"Action":"pass","Package":"%s"}\n' "$pkg" "$pkg"; done`, log}
 	packageLines := func(out string) string {
 		var lines []string
 		for _, line := range strings.Split(out, "\n") {
@@ -495,5 +496,364 @@ func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
 	write(t, root, "docs/decisions/0001.md", "one, edited\n")
 	if _, out := ledgerRun(t, args...); strings.Contains(out, "RUN go-test-package example.com/fixture/") {
 		t.Fatalf("edit outside the bounds of core, dep and reader: %q", out)
+	}
+}
+
+// GL-V0-002/009: actual Go JSON, package keys and unresolved whole-tree
+// misses compose correctly on a same-tree retry after a failed batch.
+func TestGoTestPartialPassRerun(t *testing.T) {
+	for name, bad := range map[string]string{
+		"test failure":  "package bad\nimport \"testing\"\nfunc TestBad(t *testing.T) { t.Fatal(\"expected failure\") }\n",
+		"build failure": "package bad\nimport \"testing\"\nfunc TestBad(t *testing.T) { missingSymbol() }\n",
+	} {
+		t.Run(name, func(t *testing.T) { testGoTestPartialPassRerun(t, bad) })
+	}
+}
+
+func testGoTestPartialPassRerun(t *testing.T, bad string) {
+	packageRepository(t, map[string]string{
+		"tools/gate-affected-select/main_test.go": "package main\nimport \"testing\"\nfunc TestSelector(t *testing.T) {}\n",
+		"go.mod":            "module example.com/fixture\n\ngo 1.27\n",
+		"main_test.go":      "package main\nimport \"testing\"\nfunc TestRoot(t *testing.T) {}\n",
+		"good/good_test.go": "package good\nimport \"testing\"\nfunc TestGood(t *testing.T) {}\n",
+		"bad/bad_test.go":   bad,
+		"wd/wd_test.go":     "package wd\nimport (\"testing\"; \"os\")\nfunc TestWd(t *testing.T) { os.Getwd(); t.Fatal(\"unresolved failure\") }\n",
+	})
+	args := []string{"go-test", "--", "go", "test", "-timeout", "30s"}
+	code, out := ledgerRun(t, args...)
+	if code != 1 || !strings.Contains(out, "RECORD go-test-package example.com/fixture/good ") || strings.Contains(out, "RECORD go-test-package example.com/fixture/bad ") || strings.Contains(out, "RECORD go-test-unresolved") {
+		t.Fatalf("first failed batch: code %d, %s", code, out)
+	}
+	keyed, reason := open(&bytes.Buffer{}, &bytes.Buffer{}).packageKeys([]string{"example.com/fixture/bad"})
+	if reason != "" || len(keyed) != 1 || keyed[0].reason != "" {
+		t.Fatalf("bad package key unavailable: %q, %+v", reason, keyed)
+	}
+	if _, hit := open(&bytes.Buffer{}, &bytes.Buffer{}).lookup(keyed[0].key); hit {
+		t.Fatal("failed package recorded")
+	}
+	code, out = ledgerRun(t, args...)
+	if code != 1 || !strings.Contains(out, "HIT go-test-package example.com/fixture/good ") || !strings.Contains(out, "RUN go-test-package example.com/fixture/bad:") || !strings.Contains(out, "RUN go-test-unresolved:") {
+		t.Fatalf("same-tree rerun: code %d, %s", code, out)
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "RUN go-test-package") && !strings.Contains(line, "example.com/fixture/bad:") {
+			t.Fatalf("passed package repeated: %s", line)
+		}
+	}
+}
+
+// GL-V0-002: a package pass alone is insufficient if any requested outcome
+// is missing, contradictory, malformed or truncated, even on exit zero.
+func TestPackageOutcomesRefusesIncomplete(t *testing.T) {
+	start := `{"Action":"start","Package":"good"}` + "\n"
+	pass := `{"Action":"pass","Package":"good"}` + "\n"
+	for name, stream := range map[string]string{
+		"empty":                    "",
+		"unfinished test":          start + `{"Action":"run","Package":"good","Test":"TestOpen"}` + "\n" + pass,
+		"duplicate action":         start + `{"Action":"fail","Action":"pass","Package":"good"}` + "\n",
+		"unicode duplicate test":   start + `{"Action":"run","Package":"good","Test":"TestOpen","Teſt":"BenchmarkOpen"}` + "\n" + pass,
+		"build failure after pass": start + pass + `{"Action":"build-fail","ImportPath":"good"}` + "\n",
+		"missing package":          start + pass,
+		"truncated":                start + strings.TrimSpace(pass),
+		"malformed":                start + pass + "garbled\n",
+		"missing start":            pass,
+		"test failure then pass":   start + `{"Action":"fail","Package":"good","Test":"TestBad"}` + "\n" + pass,
+		"duplicate terminal":       start + pass + pass,
+		"build failure then pass":  start + `{"Action":"build-fail","ImportPath":"good"}` + "\n" + pass,
+		"oversize":                 start + strings.Repeat("x", (1<<20)+1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			pkgs := []packageKey{{pkg: "good"}}
+			if name == "missing package" {
+				pkgs = append(pkgs, packageKey{pkg: "bad"})
+			}
+			var out bytes.Buffer
+			o := newPackageOutcomes(pkgs, &out)
+			// Exercise arbitrary pipe-write boundaries, not only whole lines.
+			for len(stream) > 0 {
+				n := min(17, len(stream))
+				_, _ = o.Write([]byte(stream[:n]))
+				stream = stream[n:]
+			}
+			if got := o.passes(); got != nil {
+				t.Fatalf("invalid stream admitted: %v", got)
+			}
+		})
+	}
+}
+
+func TestPackageOutcomesPassAndFailure(t *testing.T) {
+	var out bytes.Buffer
+	o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
+	stream := `{"Action":"start","Package":"good"}
+{"Action":"start","Package":"bad"}
+{"Action":"output","Package":"good","Output":"ok output\n"}
+{"Action":"pass","Package":"good"}
+{"Action":"build-output","ImportPath":"bad","Output":"build diagnostic\n"}
+{"Action":"build-fail","ImportPath":"bad"}
+{"Action":"fail","Package":"bad"}
+`
+	_, _ = o.Write([]byte(stream))
+	passes := o.passes()
+	if !passes["good"] || passes["bad"] || out.String() != "ok output\nbuild diagnostic\n" {
+		t.Fatalf("passes %v, output %q", passes, out.String())
+	}
+}
+
+// GL-V0-002: every package terminal must close its tests, even when another
+// package has passed and would otherwise be eligible for recording.
+func TestPackageOutcomesRefusesUnfinishedTestsAtTerminal(t *testing.T) {
+	for _, terminal := range []string{"pass", "fail", "skip"} {
+		t.Run(terminal, func(t *testing.T) {
+			var out bytes.Buffer
+			o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
+			stream := `{"Action":"start","Package":"good"}
+{"Action":"pass","Package":"good"}
+{"Action":"start","Package":"bad"}
+{"Action":"run","Package":"bad","Test":"TestOpen"}
+{"Action":"run","Package":"bad","Test":"BenchmarkOpen"}
+{"Action":"bench","Package":"bad","Test":"TestOpen"}
+` + fmt.Sprintf("{\"Action\":%q,\"Package\":\"bad\"}\n", terminal)
+			_, _ = o.Write([]byte(stream))
+			if got := o.passes(); got != nil {
+				t.Fatalf("unfinished test at package %s admitted records: %v", terminal, got)
+			}
+		})
+	}
+}
+
+// GL-V0-002: framed benchmark runs, including subbenchmarks, need not emit
+// individual terminals before the package outcome (Go's framebig.json).
+func TestPackageOutcomesAcceptsBenchmarkRuns(t *testing.T) {
+	for name, events := range map[string]string{
+		"framed": `{"Action":"run","Package":"good","Test":"BenchmarkIndex"}
+{"Action":"output","Package":"good","Test":"BenchmarkIndex","Output":"=== RUN   BenchmarkIndex\n","OutputType":"frame"}
+{"Action":"output","Package":"good","Test":"BenchmarkIndex","Output":"BenchmarkIndex-16\t1\t4.697 ns/op\n"}
+{"Action":"run","Package":"good","Test":"BenchmarkIndexAnyASCII"}
+{"Action":"run","Package":"good","Test":"BenchmarkIndexAnyASCII/1:1"}
+{"Action":"output","Package":"good","Test":"BenchmarkIndexAnyASCII/1:1","Output":"BenchmarkIndexAnyASCII/1:1-16\t1\t5.592 ns/op\n"}
+`,
+		"bench terminal": `{"Action":"run","Package":"good","Test":"BenchmarkGood"}
+{"Action":"bench","Package":"good","Test":"BenchmarkGood"}
+{"Action":"run","Package":"good","Test":"BenchmarkGood"}
+{"Action":"bench","Package":"good","Test":"BenchmarkGood"}
+`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			var out bytes.Buffer
+			o := newPackageOutcomes([]packageKey{{pkg: "good"}}, &out)
+			stream := `{"Action":"start","Package":"good"}
+{"Action":"run","Package":"good","Test":"TestGood"}
+{"Action":"pass","Package":"good","Test":"TestGood"}
+` + events + `{"Action":"pass","Package":"good"}` + "\n"
+			for len(stream) > 0 {
+				n := min(17, len(stream))
+				_, _ = o.Write([]byte(stream[:n]))
+				stream = stream[n:]
+			}
+			if got := o.passes(); len(got) != 1 || !got["good"] {
+				t.Fatalf("benchmark stream refused: %v, output %q", got, out.String())
+			}
+		})
+	}
+}
+
+// GL-V0-002: benchmark failure remains a failure, even though a package
+// terminal may close benchmark runs that have no individual terminal.
+func TestPackageOutcomesBenchmarkFailure(t *testing.T) {
+	for _, names := range [][2]string{
+		{"BenchmarkBad", "BenchmarkBad"},
+		{"BenchmarkBad", "BenchmarkBad-3"},
+		{"BenchmarkBad/sub", "BenchmarkBad/sub-3"},
+		{"BenchmarkBad/sub-3", "BenchmarkBad/sub-3"},
+	} {
+		t.Run(names[0]+"/"+names[1], func(t *testing.T) {
+			var out bytes.Buffer
+			o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
+			_, _ = o.Write([]byte(fmt.Sprintf(`{"Action":"start","Package":"good"}
+{"Action":"pass","Package":"good"}
+{"Action":"start","Package":"bad"}
+{"Action":"run","Package":"bad","Test":%q}
+{"Action":"fail","Package":"bad","Test":%q}
+{"Action":"fail","Package":"bad"}
+`, names[0], names[1])))
+			if got := o.passes(); len(got) != 2 || !got["good"] || got["bad"] {
+				t.Fatalf("passes %v", got)
+			}
+		})
+	}
+}
+
+// GL-V0-002: repeated benchmark terminals under -count=2 need no new run,
+// preserve unrelated package passes, and never undo an earlier failure.
+func TestPackageOutcomesRepeatedBenchmarkTerminals(t *testing.T) {
+	for _, names := range [][2]string{
+		{"BenchmarkBad", "BenchmarkBad"},
+		{"BenchmarkBad", "BenchmarkBad-3"},
+		{"BenchmarkBad/sub", "BenchmarkBad/sub-3"},
+		{"BenchmarkBad/sub-3", "BenchmarkBad/sub-3"},
+	} {
+		for _, repeat := range []string{"fail", "pass", "skip"} {
+			for _, terminal := range []string{"fail", "pass"} {
+				t.Run(names[0]+"/"+names[1]+"/"+repeat+"/"+terminal, func(t *testing.T) {
+					o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, io.Discard)
+					_, _ = fmt.Fprintf(o, `{"Action":"start","Package":"good"}
+{"Action":"pass","Package":"good"}
+{"Action":"start","Package":"bad"}
+{"Action":"run","Package":"bad","Test":%q}
+{"Action":"fail","Package":"bad","Test":%q}
+{"Action":%q,"Package":"bad","Test":%q}
+{"Action":%q,"Package":"bad"}
+`, names[0], names[1], repeat, names[1], terminal)
+					got := o.passes()
+					if terminal == "pass" {
+						if got != nil {
+							t.Fatalf("failed benchmark admitted package pass: %v", got)
+						}
+					} else if len(got) != 2 || !got["good"] || got["bad"] {
+						t.Fatalf("repeated %s lost unrelated pass or admitted failure: %v", repeat, got)
+					}
+				})
+			}
+		}
+	}
+}
+
+// GL-V0-002: CPU suffix matching is limited to benchmarks with a preceding run.
+func TestPackageOutcomesRefusesUnmatchedBenchmarkTerminals(t *testing.T) {
+	for _, names := range [][2]string{
+		{"TestBad", "TestBad-3"},
+		{"BenchmarkBad", "BenchmarkBad-cpu"},
+		{"BenchmarkBad", "BenchmarkOther-3"},
+		{"BenchmarkBad/sub", "BenchmarkBad-3"},
+	} {
+		t.Run(names[1], func(t *testing.T) {
+			o := newPackageOutcomes([]packageKey{{pkg: "bad"}}, io.Discard)
+			_, _ = fmt.Fprintf(o, "{\"Action\":\"start\",\"Package\":\"bad\"}\n{\"Action\":\"run\",\"Package\":\"bad\",\"Test\":%q}\n{\"Action\":\"fail\",\"Package\":\"bad\",\"Test\":%q}\n{\"Action\":\"fail\",\"Package\":\"bad\"}\n", names[0], names[1])
+			if got := o.passes(); got != nil {
+				t.Fatalf("unmatched terminal admitted records: %v", got)
+			}
+		})
+	}
+}
+
+// GL-V0-002: FailedBuild contradicts a package pass, including when a dependency
+// failed or the field appeared on an earlier event.
+func TestPackageOutcomesRefusesFailedBuildPass(t *testing.T) {
+	for _, action := range []string{"start", "output", "pass"} {
+		t.Run(action, func(t *testing.T) {
+			o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, io.Discard)
+			stream := `{"Action":"start","Package":"good"}
+{"Action":"pass","Package":"good"}
+`
+			if action != "start" {
+				stream += "{\"Action\":\"start\",\"Package\":\"bad\"}\n"
+			}
+			stream += fmt.Sprintf("{\"Action\":%q,\"Package\":\"bad\",\"FailedBuild\":\"dependency\"}\n", action)
+			if action != "pass" {
+				stream += "{\"Action\":\"pass\",\"Package\":\"bad\"}\n"
+			}
+			_, _ = o.Write([]byte(stream))
+			if got := o.passes(); got != nil {
+				t.Fatalf("FailedBuild followed by pass admitted records: %v", got)
+			}
+		})
+	}
+}
+
+// GL-V0-002: every defined event field has its JSON type checked, even when
+// the field is not needed for package lifecycle tracking. One bad event refuses
+// the whole batch, including packages that already passed.
+func TestPackageOutcomesRefusesMalformedFieldTypes(t *testing.T) {
+	fields := []string{"Time", "Action", "Package", "ImportPath", "Test", "Output", "OutputType", "FailedBuild", "Key", "Value", "Path", "Elapsed", "Teſt", "Elapſed", "Key"}
+	for _, field := range fields {
+		values := []string{`null`, `true`, `{}`, `[]`}
+		if field == "Elapsed" || field == "Elapſed" {
+			values = append(values, `"invalid"`)
+		} else {
+			values = append(values, `42`)
+			if field == "Time" {
+				values = append(values, `"invalid"`, `"2026-10-10T1:00:00Z"`, `"2026-10-10T10:00:00,1Z"`, `"2026-10-10T10:00:00+24:00"`, `"2026-10-10T10:00:00-04:60"`)
+			}
+		}
+		for _, value := range values {
+			t.Run(field+"/"+value, func(t *testing.T) {
+				var out bytes.Buffer
+				o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
+				// A build event exercises the same decoder before its early return.
+				event := fmt.Sprintf("{\"Action\":\"build-output\",\"ImportPath\":\"bad\",%q:%s}\n", field, value)
+				if field == "Action" || field == "ImportPath" {
+					event = fmt.Sprintf("{%q:%s}\n", field, value)
+				}
+				stream := `{"Action":"start","Package":"good"}
+{"Action":"pass","Package":"good"}
+{"Action":"start","Package":"bad"}
+` + event + `{"Action":"pass","Package":"bad"}` + "\n"
+				_, _ = o.Write([]byte(stream))
+				if got := o.passes(); got != nil {
+					t.Fatalf("malformed %s admitted records: %v", field, got)
+				}
+			})
+		}
+	}
+}
+
+func TestPackageOutcomesAcceptsTypedFields(t *testing.T) {
+	var out bytes.Buffer
+	o := newPackageOutcomes([]packageKey{{pkg: "good"}, {pkg: "bad"}}, &out)
+	_, _ = o.Write([]byte(`{"Time":"2026-10-10T10:00:00.123456789Z","Action":"start","Package":"good"}
+{"Action":"output","Package":"good","Output":"ok\n","OutputType":"frame","Key":"owner","Value":"fixture","Path":"package.log"}
+{"Action":"pass","Package":"good","Elapsed":1.5,"FailedBuild":""}
+{"Action":"start","Package":"bad"}
+{"Action":"build-fail","ImportPath":"bad"}
+{"Time":"2026-10-10T10:00:01-04:00","Action":"fail","Package":"bad","Elapsed":0,"FailedBuild":"dependency"}
+`))
+	if got := o.passes(); len(got) != 2 || !got["good"] || got["bad"] || out.String() != "ok\n" {
+		t.Fatalf("passes %v, output %q", got, out.String())
+	}
+}
+
+// GL-V0-002: Go's metadata and benchmark events do not terminate tests or
+// packages, and their output remains visible.
+func TestPackageOutcomesAcceptsNonTerminalEvents(t *testing.T) {
+	var out bytes.Buffer
+	o := newPackageOutcomes([]packageKey{{pkg: "good"}}, &out)
+	stream := `{"Action":"start","Package":"good"}
+{"Action":"attr","Package":"good","Key":"owner","Value":"fixture"}
+{"Action":"artifacts","Package":"good","Path":"package.log"}
+{"Action":"run","Package":"good","Test":"TestGood"}
+{"Action":"attr","Package":"good","Test":"TestGood","Key":"owner","Value":"fixture"}
+{"Action":"artifacts","Package":"good","Test":"TestGood","Path":"test.log"}
+{"Action":"output","Package":"good","Test":"TestGood","Output":"test output\n"}
+{"Action":"pass","Package":"good","Test":"TestGood"}
+{"Action":"output","Package":"good","Test":"BenchmarkGood","Output":"benchmark output\n"}
+{"Action":"bench","Package":"good","Test":"BenchmarkGood"}
+{"Action":"pass","Package":"good"}
+`
+	_, _ = o.Write([]byte(stream))
+	passes := o.passes()
+	if len(passes) != 1 || !passes["good"] || out.String() != "test output\nbenchmark output\n" {
+		t.Fatalf("passes %v, output %q", passes, out.String())
+	}
+}
+
+// GL-V0-002: stream refusal also reaches the record-writing boundary.
+func TestRunPackagesRefusesPartialOutput(t *testing.T) {
+	for _, ending := range []string{"", "garbled\n", `{"Action":"start","Package":"bad"}
+{"Action":"pass","Package":"bad","Elapsed":"invalid"}
+`} {
+		t.Run(fmt.Sprintf("ending-%q", ending), func(t *testing.T) {
+			fixtureRepository(t)
+			var out bytes.Buffer
+			l := open(&out, &out)
+			keyed := []packageKey{{pkg: "good", key: strings.Repeat("a", 64), bound: "fixture"}, {pkg: "bad", key: strings.Repeat("b", 64), bound: "fixture"}}
+			command := []string{"sh", "-c", `printf '%s\n' '{"Action":"start","Package":"good"}' '{"Action":"pass","Package":"good"}'; printf '%s' "$0"`, ending}
+			if code := l.runPackages(keyed, command); code != 0 {
+				t.Fatalf("status %d", code)
+			}
+			if records(t) != 0 {
+				t.Fatalf("partial output recorded: %s", out.String())
+			}
+		})
 	}
 }

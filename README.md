@@ -581,8 +581,8 @@ may require Python 3 and their declared external tools. See [native regression o
 ## License
 
 Corvint is free software under the **GNU Affero General Public License v3.0 or later**. The portable
-protocol descriptions, schemas, conformance material, examples, and interop implementations are
+protocol descriptions, schemas, conformance material, and interop implementations are
 **Apache-2.0** instead, so anyone can implement the standard, including in proprietary software,
-without the copyleft attaching. See [LICENSING.md](LICENSING.md) for the exact path boundary,
-[LICENSE](LICENSE) for the AGPL text, [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0) for the Apache text,
-and [PROVENANCE.md](PROVENANCE.md).
+without the copyleft attaching. The examples under `examples/` are AGPL-3.0-or-later. See
+[LICENSING.md](LICENSING.md) for the exact path boundary, [LICENSE](LICENSE) for the AGPL text,
+[LICENSE-APACHE-2.0](LICENSE-APACHE-2.0) for the Apache text, and [PROVENANCE.md](PROVENANCE.md).

@@ -143,6 +143,9 @@ func dogfoodRecordPayload(result tracerecordrepo.DogfoodResult) map[string]any {
 }
 
 func emitDogfoodRecordError(stderr io.Writer, reason string, err error) {
+	if public := trace.PathLimitFailureReason(err); public != "" {
+		reason = public
+	}
 	if reason == "" {
 		reason = "dogfood-record-failed"
 	}

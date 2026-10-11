@@ -184,3 +184,81 @@ func TestMaintenancePairPostPublishRecheck(t *testing.T) {
 		t.Fatalf("competitor lost %q", raw)
 	}
 }
+
+// FDM-V0-004: change the first parent only after both pre-capture checks have
+// passed. Identical visible bytes must not hide a different parent inode.
+func TestMaintenancePairPostPublishParentRecheck(t *testing.T) {
+	for _, kind := range []string{"missing", "replaced"} {
+		t.Run(kind, func(t *testing.T) {
+			root := t.TempDir()
+			parent := filepath.Join(root, "docs")
+			held := filepath.Join(root, "held-docs")
+			if err := os.Mkdir(parent, 0700); err != nil {
+				t.Fatal(err)
+			}
+			files := [2]MaintenanceFile{{Path: "docs/a", Before: []byte("old-a"), Next: []byte("new-a")}, {Path: "b", Before: []byte("old-b"), Next: []byte("new-b")}}
+			for _, f := range files {
+				if err := os.WriteFile(filepath.Join(root, f.Path), f.Before, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			assertBytes := func(name string, want []byte) {
+				t.Helper()
+				raw, err := os.ReadFile(name)
+				if err != nil || string(raw) != string(want) {
+					t.Fatalf("%s: got %q, %v; want %q", name, raw, err, want)
+				}
+			}
+			injected := false
+			states, err := publishMaintenancePair(context.Background(), root, files, nil, func(stage string, i int) {
+				if stage != "before-publish" || i != 1 {
+					return
+				}
+				assertBytes(filepath.Join(parent, "a"), files[0].Next)
+				if err := os.Rename(parent, held); err != nil {
+					t.Fatal(err)
+				}
+				if kind == "replaced" {
+					if err := os.Mkdir(parent, 0700); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(filepath.Join(parent, "a"), files[0].Next, 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				injected = true
+			})
+			if !injected || err == nil || !strings.Contains(err.Error(), "maintenance parent changed after publication") {
+				t.Fatalf("parent recheck: injected=%v states=%+v error=%v", injected, states, err)
+			}
+			if len(states) != 2 || !states[0].Published || !states[1].Published {
+				t.Fatalf("did not reach the final recheck: %+v", states)
+			}
+			// The injection moved the first recovery path with its parent. Neither
+			// original may be lost, and cleanup must remove stages in pinned parents.
+			assertBytes(filepath.Join(held, "a"), files[0].Next)
+			assertBytes(filepath.Join(root, "b"), files[1].Next)
+			for i, state := range states {
+				if state.Recovery == "" {
+					t.Fatalf("missing recovery: %+v", state)
+				}
+				name := filepath.Join(root, state.Recovery)
+				if i == 0 {
+					name = filepath.Join(held, filepath.Base(state.Recovery))
+				}
+				assertBytes(name, files[i].Before)
+			}
+			for _, dir := range []string{root, held} {
+				names, err := filepath.Glob(filepath.Join(dir, ".corvint-flow-stage-*"))
+				if err != nil || len(names) != 0 {
+					t.Fatalf("stage cleanup: %v, %v", names, err)
+				}
+			}
+			if kind == "replaced" {
+				assertBytes(filepath.Join(parent, "a"), files[0].Next)
+			} else if _, err := os.Lstat(parent); !os.IsNotExist(err) {
+				t.Fatalf("missing parent recreated: %v", err)
+			}
+		})
+	}
+}

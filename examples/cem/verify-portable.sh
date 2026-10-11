@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Verify a checked-in cem/0.1 sidecar with the portable, digest-pinned verifier
 # (interop/cem01-go `ci`), without executing repository or map content.
 #

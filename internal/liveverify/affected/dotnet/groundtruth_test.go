@@ -1,6 +1,7 @@
 package dotnet_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -27,7 +28,7 @@ func TestRealRepositoryDiscoveryMatchesRunnerAddressableMethods(t *testing.T) {
 	if err != nil || want < 1 {
 		t.Fatal("CORVINT_DOTNET_EXPECT_METHODS must be a positive integer")
 	}
-	result, err := dotnet.New().Units(root)
+	result, err := dotnet.New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}

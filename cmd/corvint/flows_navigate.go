@@ -19,7 +19,8 @@ Navigation usage:
 navigate writes application-navigation-map/0 from the intents' navigation blocks at
 HEAD: states, and per step its locator, readiness condition, input fixture ID,
 expected outcomes, effect class and verified state. Observed application-flow-traffic/0
-records raise a declared read to write-irreversible and never lower a class; an
+records (at most 256 files and 8,192 records total; excess is
+navigation-bound-exceeded) raise a declared read to write-irreversible and never lower a class; an
 undeclared class is write-irreversible. --goal writes application-navigation-packet/0:
 the precondition flows then the goal in run order, each step above --max-effect
 (read, write-reversible, write-irreversible or external-side-effect; default read)
@@ -29,7 +30,7 @@ marked requires-grant. It writes nothing to the repository.
 func runFlowsNavigate(ctx context.Context, root string, args []string, out io.Writer) error {
 	f, dir, evidence, registry := flowQueryFlags("flows navigate")
 	traffic := &[]string{}
-	f.Func("traffic", "application-flow-traffic/0 JSONL file", func(s string) error {
+	f.Func("traffic", "application-flow-traffic/0 JSONL file (at most 256 files)", func(s string) error {
 		*traffic = append(*traffic, s)
 		return nil
 	})

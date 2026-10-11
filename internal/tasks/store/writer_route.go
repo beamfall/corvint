@@ -142,6 +142,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 	}
 	if receipt.TicketID != nil {
 		report.Ticket = receipt.TicketID.Raw
+		retainMutationEffects(report, env.Operation, result.Plan, receipt.TicketID.Local)
 	}
 	if advanceWriterCheckpoint(repo, w) {
 		*refresh = true

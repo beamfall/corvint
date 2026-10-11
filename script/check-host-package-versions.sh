@@ -135,7 +135,9 @@ check_package opencode \
     -- \
     integrations/opencode/src \
     integrations/opencode/README.md \
-    integrations/opencode/opencode.example.json
+    integrations/opencode/opencode.example.json \
+    integrations/opencode/mcp.example.json \
+    integrations/opencode/skills
 
 
 check_package pi \

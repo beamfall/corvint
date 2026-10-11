@@ -8,6 +8,7 @@
 package python
 
 import (
+	"context"
 	"path"
 	"sort"
 	"strings"
@@ -48,8 +49,8 @@ func (Language) Name() string { return "python" }
 func (Language) Owns(relative string) bool { return strings.HasSuffix(relative, ".py") }
 
 // Units observes every Python module in the repository rooted at root.
-func (language Language) Units(root string) (affected.Result, error) {
-	return language.UnitsSource(affected.DiskSource(root))
+func (language Language) Units(ctx context.Context, root string) (affected.Result, error) {
+	return language.UnitsSource(affected.DiskSourceContext(ctx, root))
 }
 
 // UnitsSource reads only the explicitly supplied source universe.

@@ -73,7 +73,7 @@ func FlowImpactAt(ctx context.Context, root string, set IntentSet, base string) 
 	if err != nil {
 		return nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 	}
-	graph, err := affected.Build(root, languages.All()...)
+	graph, err := affected.Build(ctx, root, languages.All()...)
 	if err != nil {
 		return nil, err
 	}

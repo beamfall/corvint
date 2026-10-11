@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/dogfoodocm"
+	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/localcompletion"
 )
 
@@ -181,8 +182,17 @@ func TestLocalCompletionRealEvidenceWorkflow(t *testing.T) {
 		if !result.Satisfied || result.Lifecycle != "satisfied" {
 			t.Fatalf("not satisfied: %#v", result)
 		}
-		if len(result.NextActions) != 0 {
-			t.Fatalf("satisfied enrollment suggests more work: %v", result.NextActions)
+		if len(result.NextActions) != 0 || result.NoActionReason != "workflow-satisfied" {
+			t.Fatalf("LCP-V0-020 satisfied reason: %#v", result)
+		}
+		for _, action := range []string{"status", "finish"} {
+			code, stdout, stderr := runCLI(t, "--root", root, "dogfood", action, "--session-key", key)
+			var document struct {
+				Policy localcompletion.Evaluation `json:"policy"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &document); err != nil || code != 0 || document.Policy.NoActionReason != "workflow-satisfied" || len(document.Policy.NextActions) != 0 {
+				t.Fatalf("LCP-V0-020 satisfied %s: exit=%d stdout=%s stderr=%s err=%v", action, code, stdout, stderr, err)
+			}
 		}
 		assertLocalCompletionUnassessed(t, root, base, result.Target)
 		outcome := filepath.Join(root, ".git/corvint/local-outcome.json")
@@ -387,5 +397,87 @@ func TestDogfoodBeginPlanIntentRefusalNamesTheRule(t *testing.T) {
 				t.Fatalf("%s: message %q lacks %q", tc.name, envelope.Error.Message, want)
 			}
 		}
+	}
+}
+
+// LCP-V0-020: unavailable Frontier authority does not erase workflow guidance.
+func TestLocalCompletionFrontierUnavailableNextActionOrReason(t *testing.T) {
+	root, key := handoffRepository(t)
+	for _, lifecycle := range []string{"active", "inactive", "cancelled"} {
+		t.Run(lifecycle, func(t *testing.T) {
+			session, reason := key, ""
+			if lifecycle == "inactive" {
+				session, reason = localcompletion.HashSession("unenrolled"), "enrollment-inactive"
+			} else if lifecycle == "cancelled" {
+				if _, err := localcompletion.Cancel(context.Background(), root, key); err != nil {
+					t.Fatal(err)
+				}
+				reason = "enrollment-cancelled"
+			}
+			evaluation, err := localcompletion.Evaluate(context.Background(), root, session)
+			if err != nil {
+				t.Fatal(err)
+			}
+			event := dogfoodEventEnvelope(options{event: "session-start"}, map[string]any{}, gokernel.Repository{}, evaluation)
+			frontier := event["frontier"].(map[string]any)
+			if frontier["state"] != "UNAVAILABLE" || frontier["reason"] != "frontier-authority-unavailable" {
+				t.Fatalf("frontier=%v", frontier)
+			}
+			for _, action := range []string{"status", "finish"} {
+				code, stdout, stderr := runCLI(t, "--root", root, "dogfood", action, "--session-key", session)
+				if action == "finish" && lifecycle != "active" {
+					var failure struct {
+						Code string `json:"code"`
+					}
+					if err := json.Unmarshal([]byte(stderr), &failure); err != nil || code != 2 || failure.Code == "" || stdout != "" {
+						t.Fatalf("named refusal: exit=%d stdout=%s stderr=%s err=%v", code, stdout, stderr, err)
+					}
+					continue
+				}
+				var document struct {
+					Policy localcompletion.Evaluation `json:"policy"`
+				}
+				if err := json.Unmarshal([]byte(stdout), &document); err != nil {
+					t.Fatal(err)
+				}
+				got := document.Policy
+				wantExit := 0
+				if action == "finish" {
+					wantExit = 1
+				}
+				if code != wantExit || got.Lifecycle != lifecycle || got.NoActionReason != reason || (reason == "") != (len(got.NextActions) > 0) {
+					t.Fatalf("%s: exit=%d policy=%#v stderr=%s", action, code, got, stderr)
+				}
+				if reason == "" && strings.Join(got.NextActions[0], " ") != "corvint dogfood verify --session-key "+session+" --check check" {
+					t.Fatalf("keyed action: %v", got.NextActions)
+				}
+			}
+		})
+	}
+}
+
+// LCP-V0-020: pin the additive field without the all-mode enumeration registry.
+func TestLocalCompletionInactiveStatusGolden(t *testing.T) {
+	document := runCoreMode(t, func(t *testing.T) []string {
+		return []string{"--root", impactCLIRepository(t), "dogfood", "status", "--session-key", strings.Repeat("a", 64)}
+	}, 0)
+	compareCoreGolden(t, "$", readCoreGolden(t, filepath.Join("testdata", "core-freeze", "dogfood-status-retained-outcome.json")), document)
+}
+
+// LCP-V0-020: a snapshot failure still explains why a partial policy has no action.
+func TestLocalCompletionUnavailableEvaluationReason(t *testing.T) {
+	root, key := handoffRepository(t)
+	if result, err := localcompletion.Evaluate(context.Background(), root, key); err != nil || len(result.NextActions) == 0 {
+		t.Fatalf("fixture must evaluate before injection: %#v %v", result, err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var stdout, stderr strings.Builder
+	code := runLocalCompletion(ctx, root, []string{"status", "--session-key", key}, strings.NewReader(""), &stdout, &stderr)
+	var document struct {
+		Policy localcompletion.Evaluation `json:"policy"`
+	}
+	if err := json.Unmarshal([]byte(stdout.String()), &document); err != nil || code != 2 || document.Policy.Lifecycle != "active" || len(document.Policy.NextActions) != 0 || document.Policy.NoActionReason != "evaluation-unavailable" || stderr.Len() == 0 {
+		t.Fatalf("partial evaluation: exit=%d stdout=%s stderr=%s err=%v", code, &stdout, &stderr, err)
 	}
 }

@@ -73,7 +73,7 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
 
 ## Requirements
 
-- `DCG-V0-001`: The gate MUST check every backticked citation in `docs/specs/*.md`,
+- `DCG-V0-001`: accepted, decision 0506. The gate MUST check every backticked citation in `docs/specs/*.md`,
   `docs/agent-memory/*.md`, `docs/decisions/*.md`, and the current-contract documents `README.md`,
   `docs/DOGFOOD.md`, `docs/AGENT-ROUTES.md`, `docs/SELF-DEVELOPMENT.md`, `docs/SPEC-TOOLCHAIN-INTEGRATION.md`, and `conformance/*/README.md` (one directory
   below `conformance/`, so a dated results README beneath it is not scanned), covering the forms `dir/file.ext:N`, `dir/file.ext:N-M`,
@@ -82,7 +82,9 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   continuation. A root basename names exactly one path, so it MUST be checked as that full path and
   MUST anchor its paragraph as a full-path citation does, including where `docs/specs` holds a file
   of the same name (`README.md`). Any other bare basename, such as `prove.go:767`, MUST NOT be
-  checked, because its directory is a reading of the prose and not of the token.
+  checked, because its directory is a reading of the prose and not of the token. The gate MUST
+  report each such skipped basename citation on stderr with its document, line, token and
+  reason, without changing exit status, findings, anchor resolution or the unpinned count.
 - `DCG-V0-002`: For every checked citation the gate MUST fail when the named file is not tracked,
   when any cited line number exceeds the file's line count or is `0` (lines are 1-based), and when a
   range `N-M` has `M` below `N`. All three are absolute failures reported with the citing document, its line, and the token.
@@ -272,6 +274,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-018 | test case 18, an unpinned citation in a new document failing despite an unstaged allowlist edit, then passing once pinned; decision 0176's one-time scope-widening admission of decision 0158, 30 unpinned citations, is manual evidence recorded in that decision, not a fixture case |
 | DCG-V0-019 | decision 0105's `Makefile@3c41cad3` conversion, verified by inspection of the citation-token regex (every alternative requires a trailing `:digit`, so a suffix-less `path@hash` never matches) and by `line-citations-check` passing with that citation present |
 | DCG-V0-020 | `line-citation-drift-waivers.txt`'s decision 0170 rows (pre-existing) and decision 0158 rows (added by decision 0176); `line-citations-check` passing with all 5 rows present |
+| DCG-V0-001 (V1-0178 amendment) | test case 22, skipped-basename notes preserve passing and failing results and do not exempt tracked root basenames |
 | DCG-V0-021 | test case 21, an unstaged edit to a cited file passing with a note naming it, an unstaged file the gate never read left unnamed, and the note gone once the edit is staged |
 
 ## Traceability

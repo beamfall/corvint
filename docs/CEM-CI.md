@@ -20,6 +20,10 @@ Copy these two files into the protected/default branch of the adopting repositor
 - [`../examples/cem/github-actions.yml`](../examples/cem/github-actions.yml), normally
   as `.github/workflows/cem.yml`.
 
+Both files are AGPL-3.0-or-later, like everything under `examples/**` since decision 0504; a copy
+keeps those terms and its SPDX header. Copies taken before that decision keep the Apache-2.0 terms
+they were published under. The `interop/cem01-go` verifier below remains Apache-2.0.
+
 The workflow intentionally checks out the **base** separately from the PR head. It runs
 the verifier script and checked-in executable only from the base checkout; the head checkout
 is treated as Git object and map data. This avoids the common mistake of executing a

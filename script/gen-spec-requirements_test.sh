@@ -75,4 +75,37 @@ want=$(printf '\303\251%.0s' $(seq 1 80))
 actual=$(run | grep '^GAMMA-V0-001	' | cut -f4)
 test "$actual" = "$want" || fail "a multibyte title was not truncated to 80 characters: $actual"
 
+# 5. SRG-V0-002/003: token syntax is not a definition boundary. Plain definitions
+# start paragraphs; marked definitions and table rows retain their existing ranks.
+cat > "$test_root/docs/specs/boundary.md" <<'SPEC'
+PLAIN-001. A plain definition at the start of the file.
+The acceptance evidence restores the exact old
+SHA-256. Negative checksum cases are fixtures.
+The next wrapped sentence mentions
+WRAP-001: another prose token, even with a colon.
+  INDENT-001. An indented continuation is prose too.
+- `MARK-001`: A marked definition immediately after prose.
+* **BOLD-001.** A bold bullet definition.
+`CODE-001`: A backtick definition.
+**BOLD-002:** A bold definition.
+
+PLAIN-002: A plain definition at a paragraph boundary.
+| TABLE-001 | table fallback |
+| MARK-001 | table must not displace its definition |
+- SHORT-01: Wrong suffix length.
+- LONG-0001: Wrong suffix length.
+SPEC
+stage docs/specs/boundary.md
+actual=$(run)
+for id in SHA-256 WRAP-001 INDENT-001 SHORT-01 LONG-0001; do
+  if printf '%s\n' "$actual" | grep -q "^$id[[:space:]]"; then
+    fail "prose or invalid token indexed: $id"
+  fi
+done
+for id in PLAIN-001 PLAIN-002 MARK-001 BOLD-001 BOLD-002 CODE-001 TABLE-001; do
+  printf '%s\n' "$actual" | grep -q "^$id[[:space:]]" || fail "definition lost: $id"
+done
+printf '%s\n' "$actual" | grep '^MARK-001' | grep -q 'A marked definition' || fail "table displaced definition"
+test "$(run)" = "$actual" || fail "regeneration was not deterministic"
+
 printf 'ok\n'

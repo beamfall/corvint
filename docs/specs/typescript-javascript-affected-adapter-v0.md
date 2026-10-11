@@ -132,6 +132,15 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   and teardown unit. Literal `globalSetup`/`globalTeardown` paths MUST attach their transitive source
   dependencies to the config so hook/helper changes select every configured test. Missing or computed
   hook paths MUST widen. No unknown may remove a unit.
+  Amendment (accepted, decision 0514): a changed helper that no Playwright
+  spec reaches is an explicit bounded exclusion from this profile's selection, not a selection
+  unknown. With matched discovery and otherwise resolved selection, the plan MUST retain
+  `scope=BOUNDED`, `fallback=NONE`, and no selected unit for that helper; reached helpers still
+  select their specs and project relations as above. The shared plan's `NO_SELECTABLE_TEST`
+  (AFP-V0-020) MUST NOT by itself widen this profile: running the full E2E suite cannot exercise
+  an unreached helper. This exclusion adds no helper row to `excluded` (which describes test
+  project/file pairs), does not claim the helper is tested, and does not suppress other selection
+  unknowns, execution unknowns, or TJAA-V0-015 discovery fallback.
 - `TJAA-V0-014`: Project grep/tag and metadata inputs are identity, not file-exclusion authority.
   This static profile MUST NOT exclude a file merely because its cases cannot be proven to match a
   project grep. Runtime feature flags and externally managed application state are execution-axis
@@ -446,6 +455,7 @@ check for every `use` value, remove `affected discovery` and its producer, and d
 | `TJAA-V0-005` | `TestTemplateSubstitutionRequireBuildsDependencyEdge`, `TestMultilineJSXQuoteAmbiguityRaisesFrontier`, `TestSameLineJSXApostropheAmbiguityRaisesFrontier`, `TestStandaloneJSXApostrophesRaiseFrontier`, `TestJSXTextCannotImitateALiteralOpeningContext`, `TestKeywordEndingJSXTextCannotHideRequireWithoutBraces`, `TestJSXAttributeAndExpressionStringsRemainParsed`, `TestOrdinaryTSXStringsAndJSXExpressionLiteralsRemainParsed`, `TestWorkspacePackageImportReachesTheImportingTest_V1_0283`, and import-resolution focused tests in `internal/liveverify/affected/typescript/` | experimental |
 | `TJAA-V0-009` | `internal/liveverify/affected/conformance_test.go` TypeScript seam case | experimental |
 | `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
+| `TJAA-V0-013` bounded helper exclusion (V1-0211) | `TestPlaywrightUnreachedHelperBoundedExclusion_V1_0211` in `internal/liveverify/affected/typescript/playwright_test.go` | accepted, decision 0514; synthetic matched discovery |
 | `TJAA-V0-014..017` fixture qualification | `internal/liveverify/affected/typescript/playwright_qualification_test.go`, `testdata/playwright-qualification.tsv` | synthetic fixture evidence; runtime promotion excluded |
 | `TJAA-V0-012..017` example-app shape | `TestPlaywrightExampleAppQualification`, `TestPlaywrightGlobalUseInheritance`, `TestPlaywrightAliasResolutionBoundaries` in `internal/liveverify/affected/typescript/playwright_example_app_test.go` | synthetic global-use, alias and hook closure; exact consumer `NOT_OBSERVED` |
 | `TJAA-V0-018` (accepted, decision 0483) | `TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065`, `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightUseValueUnicodeLineTerminator_V1_1065`, `TestPlaywrightStaticValueNestingIsBounded_V1_1065`, `TestPlaywrightUseValueNestedTemplate_V1_1065`, `TestPlaywrightMemberReadRoots_GH709Round8` in `playwright_example_app_test.go`; `TestPlaywrightSlashStartsRegex` in `playwright_test.go`; `TestUnicodeLineTerminatorsEndCommentsAndLines`, `TestNestedTemplateLiteralsKeepContent` in `typescript_test.go`; `TestPlaywrightScannersSkipNestedTemplates` in `playwright_test.go`; `TestPlaywrightPureExpression`, `TestPlaywrightPureExpressionScopedMemberReads` in `playwright_pure_test.go`; `TestQualifiedReporterIdentityKeysMatchStaticProfile` in `internal/jstestprovider/identity_keys_test.go` | experimental |

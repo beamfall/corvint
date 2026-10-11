@@ -256,7 +256,7 @@ func TestDogfoodRecordNativeLegacyPathLimit(t *testing.T) {
 			before := traceTreeSnapshot(t, root)
 			result := execute(t, candidateCommand(dogfoodRecordArguments(root, base, target)...))
 			if n == 201 {
-				if result.exit != 2 || len(result.stdout) != 0 || !bytes.Contains(result.stderr, []byte(`"code": "admitted-path-limit"`)) {
+				if result.exit != 2 || len(result.stdout) != 0 || !bytes.Contains(result.stderr, []byte(`"code": "trace-path-limit-exceeded"`)) {
 					t.Fatalf("native 201 result=%#v", result)
 				}
 				if after := traceTreeSnapshot(t, root); !reflect.DeepEqual(before, after) {

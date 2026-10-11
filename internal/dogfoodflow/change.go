@@ -48,6 +48,7 @@ type change struct {
 	citationStageOwned   bool
 	citationCount        int
 	citationFailedRow    int
+	linkObservedRows     int
 	citedOver            bool
 	intentPublishTmp     string
 	mapKeepTmp           string
@@ -321,7 +322,12 @@ func (c *change) localOutcome(task string) step {
 		return step{"local-outcome", "NOT_PRODUCED", "aggregate-publication-failed"}
 	}
 	if status != 0 {
-		return step{"local-outcome", "NOT_PRODUCED", failureReason(readFile(errorFile), status)}
+		reason := failureReason(readFile(errorFile), status)
+		// Keep the legacy aggregate fallback classification separate from the public CLI code.
+		if reason == "trace-path-limit-exceeded" {
+			reason = "admitted-path-limit"
+		}
+		return step{"local-outcome", "NOT_PRODUCED", reason}
 	}
 	c.localOutcomeSHA, _ = fileSHA256(output)
 	switch allCaptures(recordState, readFile(output)) {
@@ -442,6 +448,8 @@ func (c *change) citeStep() {
 		mismatch = c.citationPlanMismatch(plan)
 	}
 	switch {
+	case !valid && c.citationCount > 256:
+		status, reason = "NOT_PRODUCED", "citation-plan-row-limit-exceeded"
 	case !valid:
 		status, reason = "NOT_PRODUCED", "invalid-citation-plan"
 	case mismatch != "":
@@ -776,7 +784,12 @@ func (c *change) loadOCMLinkPlan() {
 		return
 	}
 	rows := bytes.Count(plan, []byte("\n"))
-	if len(plan) > maxPlanBytes || rows > 256 || plan[len(plan)-1] != '\n' || hasForbiddenControl(plan) || !c.linkRowsValid(plan) {
+	c.linkObservedRows = rows
+	if len(plan) <= maxPlanBytes && rows > 256 {
+		c.addStep("ocm-links", "NOT_PRODUCED", "ocm-link-plan-row-limit-exceeded")
+		return
+	}
+	if len(plan) > maxPlanBytes || plan[len(plan)-1] != '\n' || hasForbiddenControl(plan) || !c.linkRowsValid(plan) {
 		c.addStep("ocm-links", "NOT_PRODUCED", "invalid-ocm-link-plan")
 		return
 	}
@@ -1018,6 +1031,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:citation-plan-not-provided", "set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json"},
 	{"cem-cite:citation-plan-unavailable", "DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves"},
 	{"cem-cite:empty-citation-plan", "DOGFOOD_CITATIONS names an empty file but .corvint/change.cem.json still has unknown hunks; write one row per unknown hunk, or unset DOGFOOD_CITATIONS to prepare the map without citing"},
+	{"cem-cite:citation-plan-row-limit-exceeded", "DOGFOOD_CITATIONS row limit=256 observed={citationRows}; use explicit staged plans of at most 256 rows on the same CEM (docs/DOGFOOD.md Staged binding of one oversized commit)"},
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows"},
 	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE"},
 	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged"},
@@ -1031,6 +1045,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-status:not-ready", "read verification.issues and policyIssues in {evidence}/cem-status.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk"},
 	{"ocm-links:ocm-link-plan-unavailable", "DOGFOOD_OCM_LINKS must be the path of a TSV file of INTENT<TAB>REQUIREMENT<TAB>HUNKS<TAB>TEST_PATH<TAB>CLAIMS rows, not the rows themselves"},
 	{"ocm-links:empty-ocm-link-plan", "DOGFOOD_OCM_LINKS names an empty file; add at least one row, or unset DOGFOOD_OCM_LINKS so every requirement stays unassessed"},
+	{"ocm-links:ocm-link-plan-row-limit-exceeded", "DOGFOOD_OCM_LINKS row limit=256 observed={linkRows}; combine cited hunk selectors for the same requirement in one row, or split the change into separately bound commits"},
 	{"ocm-links:invalid-ocm-link-plan", "each DOGFOOD_OCM_LINKS row is INTENT<TAB>REQUIREMENT<TAB>HUNK[,HUNK...]<TAB>TEST_PATH<TAB>CLAIM[,CLAIM...], LF-terminated, at most 256 rows, and INTENT is listed in DOGFOOD_INTENTS_FILE"},
 	{"ocm-link-*:ocm-map-not-prepared", "the map for this row's intent did not prepare, so the row was not linked; fix that intent's ocm-prepare row above, then rerun corvint dogfood change {base}"},
 	{"ocm-link-*", "read {evidence}/{step}.stderr: each linked hunk must be cited in the committed sidecar, and each claim a test case or t.Run name at HEAD containing the exact requirement ID; otherwise delete the DOGFOOD_OCM_LINKS row so the requirement stays unassessed"},
@@ -1054,7 +1069,7 @@ func (c *change) fixHint(row step) string {
 			matched = len(value) >= len(prefix)+len(suffix) && strings.HasPrefix(value, prefix) && strings.HasSuffix(value, suffix)
 		}
 		if matched {
-			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{row}", strconv.Itoa(c.citationFailedRow)).Replace(entry.hint)
+			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{row}", strconv.Itoa(c.citationFailedRow), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows)).Replace(entry.hint)
 		}
 	}
 	return ""

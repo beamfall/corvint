@@ -31,10 +31,11 @@ if [[ -n $corvint_bin_set ]]; then
   [[ $corvint_bin != */* || $corvint_bin == /* ]] || corvint_bin="$PWD/$corvint_bin"
   override=(--override-verifier "$corvint_bin")
 fi
+go_cache=${CORVINT_GOCACHE:-${GOCACHE:-/tmp/corvint-go-build-cache}}
 tree_bin="$evidence/corvint"
 base_bin="$evidence/corvint-base"
 mkdir -p "$evidence" || exit 2
-if ! GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local \
+if ! GOCACHE="$go_cache" GOTOOLCHAIN=local \
   go build -o "$tree_bin" -trimpath ./cmd/corvint 2> /dev/null; then
   printf 'dogfood-check: REFUSE current-tree-corvint-build-failed\n' >&2
   exit 2
@@ -45,7 +46,7 @@ if ! git -C "$repo" archive --format=tar "$base" | tar -xf - -C "$base_tree"; th
   printf 'dogfood-check: REFUSE base-verifier-source-unavailable\n' >&2
   exit 2
 fi
-if ! (cd "$base_tree" && GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local \
+if ! (cd "$base_tree" && GOCACHE="$go_cache" GOTOOLCHAIN=local \
   go build -o "$base_bin" -trimpath ./cmd/corvint 2> /dev/null); then
   printf 'dogfood-check: REFUSE base-corvint-build-failed\n' >&2
   exit 2
