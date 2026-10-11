@@ -632,8 +632,8 @@ func stripLegacyHTML(s string) string {
 			break
 		}
 		for _, raw := range []string{"script", "style"} {
-			if hasASCIIPrefixFold(s[i+1:], raw) {
-				close := indexASCIIFold(s[i+end:], "</"+raw)
+			if hasTagName(s[i+1:], raw) {
+				close := indexCloseTag(s[i+end:], raw)
 				if close < 0 {
 					return collapseSpace(html.UnescapeString(b.String()))
 				}
@@ -668,11 +668,27 @@ func hasASCIIPrefixFold(s, p string) bool {
 	return true
 }
 
-// indexASCIIFold is the byte offset in s of the lower-case ASCII p,
-// ignoring ASCII case only, or -1.
-func indexASCIIFold(s, p string) int {
-	for i := 0; i+len(p) <= len(s); i++ {
-		if hasASCIIPrefixFold(s[i:], p) {
+// hasTagName reports whether s starts with the complete tag name, so
+// `script` matches `script>` or `script type=...` but not `scripture`.
+func hasTagName(s, name string) bool {
+	if !hasASCIIPrefixFold(s, name) {
+		return false
+	}
+	if len(s) == len(name) {
+		return true
+	}
+	switch s[len(name)] {
+	case '>', '/', ' ', '\t', '\n', '\r', '\f':
+		return true
+	}
+	return false
+}
+
+// indexCloseTag is the byte offset in s of the first `</name` closing tag
+// with a complete name, or -1.
+func indexCloseTag(s, name string) int {
+	for i := 0; i+2 <= len(s); i++ {
+		if s[i] == '<' && s[i+1] == '/' && hasTagName(s[i+2:], name) {
 			return i
 		}
 	}

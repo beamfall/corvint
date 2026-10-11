@@ -33,7 +33,10 @@ Limits:
   quoted attribute value, and an unterminated tag, comment or `script`/`style` body drops the rest
   of the field (independent review round 1). Tag names match ASCII case-insensitively on the
   original bytes, so a non-ASCII letter whose lower case changes length cannot shift offsets
-  (round 2).
+  (round 2). Tag names match whole, so `</scripture>` does not close a script body and
+  `<style-guide>` keeps its text (round 3). Independent review ran three rounds, each ending
+  `FAIL` on P2 findings. The round-3 fix has regression tests but no fourth review, so these
+  requirements stay proposed.
 - Expected results are not searched.
 - Imported anchors carry no repository revision, so a behavior registry does not admit them until
   the caller binds them to a commit.

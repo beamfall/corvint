@@ -136,6 +136,9 @@ func TestImportLegacyCasesFullStripsHTML(t *testing.T) {
 		"\u212a<script>LEAK</script>ok":                "\u212a ok",
 		strings.Repeat("\u212a", 20) + "<b>x</b>":      strings.Repeat("\u212a", 20) + " x",
 		"\u0130<SCRIPT>LEAK</Script>ok":                "\u0130 ok",
+		"a<script>x</scripture>LEAK</script >b":        "a b",
+		"<style-guide>refund</style-guide>":            "refund",
+		"<script\ttype=x>LEAK</SCRIPT\n>ok":            "ok",
 	} {
 		if got := stripLegacyHTML(in); got != want {
 			t.Errorf("strip %q: %q, want %q", in, got, want)

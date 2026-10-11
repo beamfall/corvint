@@ -455,9 +455,10 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
 - `DCP-V1-072`: Preconditions, steps and expected results have HTML stripped before use: tags and
   comments are removed, `script` and `style` bodies are dropped, entities are decoded and whitespace
   is collapsed. A tag ends at the first `>` outside a quoted attribute value, and tag names match
-  ASCII case-insensitively on the original bytes. An unterminated tag, comment or `script`/`style`
-  body drops the rest of the field. A `<` that does not open a tag is kept as text. Titles and path
-  elements are entity-decoded and whitespace-collapsed. Status: proposed (GitHub #812).
+  whole and ASCII case-insensitively on the original bytes (`scripture` is not `script`). An
+  unterminated tag, comment or `script`/`style` body drops the rest of the field. A `<` that does
+  not open a tag is kept as text. Titles and path elements are entity-decoded and
+  whitespace-collapsed. Status: proposed (GitHub #812).
 - `DCP-V1-073`: `--content` is `ids-paths-titles` (default) or `full`. Under `ids-paths-titles`, no
   precondition, step or expected-result text appears in any import or search output. Each case
   still carries a `digest`, the sha256 of its full stripped and bounded content, so a step edit
