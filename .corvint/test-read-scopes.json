@@ -302,7 +302,24 @@
     "internal/tcq": [
       "internal/testrunner/platform/testdata/native-report-fixtures.json"
     ],
-    "internal/testacceptance": [],
+    "internal/testacceptance": [
+      "cmd/corvint-tests-accept/",
+      "go.mod",
+      "go.sum",
+      "internal/behaviorfalsify/",
+      "internal/cem/cemcode/",
+      "internal/cem/gitrun/",
+      "internal/cem/wire/",
+      "internal/groupreap/",
+      "internal/jstestprovider/",
+      "internal/liveverify/mutate/",
+      "internal/procgroup/",
+      "internal/runhygiene/",
+      "internal/secretscreen/",
+      "internal/stepnegation/",
+      "internal/tcq/",
+      "internal/testvalidity/"
+    ],
     "internal/testevidence": [],
     "internal/testplan": [
       "internal/appmap/testdata/"
