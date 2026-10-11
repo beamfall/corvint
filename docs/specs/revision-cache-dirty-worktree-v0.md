@@ -131,9 +131,10 @@ snapshot the worktree, or claim that revision-only context is complete.
   honour it. Every other verb, every `prove` mode (path, `--task`, `--cem`, `--checkpoint`) and
   `feature` MUST exit 2 with a typed diagnostic and no success document, without writing
   repository state. Most verbs report `invalid-arguments`; verbs with their own input contract
-  keep their existing code (`work` emits its `ERROR` result document). The fail-open `adapter`
-  verb exits 0 by contract, so it refuses through its degraded `unsupported-hook-event` output
-  instead; `adapter codex` now degrades on any trailing argument as `adapter claude-code` already
+  keep their existing code (`work` emits its `ERROR` result document). The fail-open host hook
+  forms `adapter codex` and `adapter claude-code <event>` exit 0 by contract, so they refuse
+  through their degraded `unsupported-hook-event` output instead (other `adapter` subcommands keep
+  their own refusal); `adapter codex` now degrades on any trailing argument as `adapter claude-code` already
   did. The test runs each verb in a valid form with and without the flag and requires the flag to
   cause the refusal; a dispatched verb missing from its form table fails the test until a form is
   added. Rollback: revert the `adapter codex` argument check and remove the test.
