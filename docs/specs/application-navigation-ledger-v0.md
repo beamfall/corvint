@@ -302,12 +302,14 @@ are URL templates, not component source files. This slice makes neither missing 
 - `ANL-V0-044`: The producer reads only main-frame URLs, navigation request redirect chains and each
   call's protocol method and selector. It never records typed or filled values, other call
   parameters, page content, headers or bodies. Before an event URL is kept it applies the ANL-V0-007
-  redaction as `observe` parses the URL: URL credentials are dropped; a query pair holding `;` or
-  an undecodable escape is dropped, as Go's query parser drops it; a value whose decoded name is
-  secret-shaped or whose decoded value looks opaque becomes `REDACTED`. A hash-route query is
-  decoded once first, as the fragment is, and a fragment with escapes is rewritten with only `%`
-  escaped; an undecodable fragment makes the whole URL `REDACTED`. `observe`'s own redaction of the
-  written URL then equals its redaction of the committed URL. (proposed; issue #814)
+  redaction as `observe` parses the URL (byte-wise unescaping, Unicode simple case folding): URL
+  credentials are dropped; in the URL's query a pair holding `;` or a bad escape is dropped, and a
+  value whose decoded name is secret-shaped or whose decoded value looks opaque becomes `REDACTED`.
+  A hash-route query is decoded once with the fragment, then redacted the same way, except that any
+  bad pair replaces the whole fragment query with `_=REDACTED`; such a fragment is rewritten so one
+  unescape returns it. A bad escape in the path or fragment makes the whole URL `REDACTED`.
+  `observe`'s redaction of the written URL then equals its redaction of the committed URL.
+  (proposed; issue #814)
 - `ANL-V0-045`: Its cost is one in-process listener call per Playwright call, two page event
   listeners and one small file write per test; it opens no network, process or browser. A written
   or withheld attempt keeps only its retry and page count, not its events. The

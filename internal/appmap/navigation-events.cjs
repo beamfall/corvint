@@ -23,30 +23,47 @@ const methodPattern = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
 const testKeyPattern = /^[^\s\p{Cc}]{1,256}$/u;
 
 // The ANL-V0-007 redaction observe applies, applied before writing so no secret-shaped query value
-// or URL credential is persisted (ANL-V0-044). It mirrors Go's url.ParseQuery: a pair holding ';' or
-// an undecodable escape is dropped, and a hash-route query is decoded once before its pairs are,
-// as url.Parse decodes the fragment. Only redacted values and dropped pairs change the URL.
-const secretKey = /token|secret|passw|pwd|auth|session|sig|key|code|credential|bearer|jwt|cookie/i;
+// or URL credential is persisted (ANL-V0-044). It mirrors how observe's Go code parses the URL:
+// byte-wise unescaping, Unicode simple case folding, url.Query dropping a pair holding ';' or a bad
+// escape, a hash-route query decoded once with the fragment and replaced by `_=REDACTED` when any of
+// its pairs is bad, and a URL url.Parse refuses read as REDACTED.
+const secretKey = /token|secret|passw|pwd|auth|session|sig|key|code|credential|bearer|jwt|cookie/iu;
 const opaqueValue = /^[A-Za-z0-9_\-+/=.]{24,}$/;
 const redacted = 'REDACTED';
+const isHex = b => (b >= 0x30 && b <= 0x39) || (b >= 0x41 && b <= 0x46) || (b >= 0x61 && b <= 0x66);
 
-function decodeQueryPart(v) {
-  return decodeURIComponent(v.replace(/\+/g, ' '));
+// unescape decodes %XX escapes byte-wise like Go's url unescaping; a bad escape throws.
+function unescape(bytes, plusIsSpace) {
+  const out = [];
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i];
+    if (b === 0x25) {
+      if (i + 2 >= bytes.length || !isHex(bytes[i + 1]) || !isHex(bytes[i + 2])) throw new Error('bad escape');
+      out.push(parseInt(String.fromCharCode(bytes[i + 1], bytes[i + 2]), 16));
+      i += 2;
+    } else {
+      out.push(plusIsSpace && b === 0x2b ? 0x20 : b);
+    }
+  }
+  return Buffer.from(out);
 }
 
-function redactQuery(query) {
+// redactQuery redacts a query given as a binary string (one char per byte). It returns null when
+// a pair holds ';' or a bad escape and strict is set; otherwise such a pair is dropped.
+function redactQuery(query, strict) {
   const kept = [];
   for (const pair of query.split('&')) {
     if (pair === '') continue;
-    if (pair.includes(';')) continue;
     const eq = pair.indexOf('=');
     const k = eq < 0 ? pair : pair.slice(0, eq);
     const v = eq < 0 ? '' : pair.slice(eq + 1);
     let key, value;
     try {
-      key = decodeQueryPart(k);
-      value = decodeQueryPart(v);
+      if (pair.includes(';')) throw new Error('semicolon');
+      key = unescape(Buffer.from(k, 'latin1'), true).toString('utf8');
+      value = unescape(Buffer.from(v, 'latin1'), true).toString('utf8');
     } catch {
+      if (strict) return null;
       continue;
     }
     kept.push(secretKey.test(key) || opaqueValue.test(value) ? k + '=' + redacted : pair);
@@ -54,30 +71,41 @@ function redactQuery(query) {
   return kept.join('&');
 }
 
+// escapeFragment writes fragment bytes so that one unescape returns exactly them.
+function escapeFragment(bytes) {
+  let out = '';
+  for (const b of bytes) {
+    out += b === 0x25 || b < 0x21 || b >= 0x7f ? '%' + b.toString(16).toUpperCase().padStart(2, '0') : String.fromCharCode(b);
+  }
+  return out;
+}
+
+// redactRawQuery redacts the URL's own query, keeping every other byte (url.Query semantics).
+function redactRawQuery(query) {
+  return Buffer.from(redactQuery(Buffer.from(query, 'utf8').toString('latin1'), false), 'latin1').toString('utf8');
+}
+
 function redactURL(raw) {
   let url = raw.replace(/^([A-Za-z][A-Za-z0-9+.-]*:\/\/)[^/?#]*@/, '$1');
   const hash = url.indexOf('#');
-  let fragment = hash < 0 ? null : url.slice(hash + 1);
+  const fragment = hash < 0 ? null : url.slice(hash + 1);
   if (hash >= 0) url = url.slice(0, hash);
   const q = url.indexOf('?');
-  if (q >= 0) url = url.slice(0, q + 1) + redactQuery(url.slice(q + 1));
-  if (fragment !== null && fragment.includes('%')) {
-    let decoded;
-    try {
-      decoded = decodeURIComponent(fragment);
-    } catch {
-      return redacted; // url.Parse refuses the escape, so observe reads the whole URL as REDACTED
+  try {
+    unescape(Buffer.from(q < 0 ? url : url.slice(0, q), 'utf8'), false); // url.Parse checks the path
+    if (fragment === null) {
+      return q < 0 ? url : url.slice(0, q + 1) + redactRawQuery(url.slice(q + 1));
     }
-    if (decoded.includes('?')) {
-      // Escape only '%' so observe's single fragment decode recovers exactly this redacted text.
-      const fq = decoded.indexOf('?');
-      fragment = (decoded.slice(0, fq + 1) + redactQuery(decoded.slice(fq + 1))).replace(/%/g, '%25');
-    }
-  } else if (fragment !== null && fragment.includes('?')) {
-    const fq = fragment.indexOf('?');
-    fragment = fragment.slice(0, fq + 1) + redactQuery(fragment.slice(fq + 1));
+    const decoded = unescape(Buffer.from(fragment, 'utf8'), false).toString('latin1');
+    if (q >= 0) url = url.slice(0, q + 1) + redactRawQuery(url.slice(q + 1));
+    const fq = decoded.indexOf('?');
+    if (fq < 0) return url + '#' + fragment;
+    const query = redactQuery(decoded.slice(fq + 1), true);
+    const rewritten = decoded.slice(0, fq + 1) + (query === null ? '_=' + redacted : query);
+    return url + '#' + escapeFragment(Buffer.from(rewritten, 'latin1'));
+  } catch {
+    return redacted; // url.Parse refuses a bad escape, so observe reads the whole URL as REDACTED
   }
-  return fragment === null ? url : url + '#' + fragment;
 }
 
 // clearPrevious removes earlier producer documents (and interrupted temporary files) directly in

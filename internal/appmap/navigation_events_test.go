@@ -128,6 +128,14 @@ func TestANLV0044ProducerRedactionMatchesObserve(t *testing.T) {
 		"http://h/#/r?q=%zz&token=sekret7",
 		"http://h/items/7#tab",
 		"http://h/search?q=hello+world&page=2",
+		"http://h/p?to%E2%84%AAen=sekret8&x=%C3%A9",
+		"http://h/#!/home?%C5%BFecret=sekret9",
+		"http://h/#!/home?tab=1;ignored=2&token=sekret10",
+		"http://h/#!/home?q=%25zz&b=3",
+		"http://h/#!/home?q=%FF&b=3",
+		"http://h/p?q=%FF&b=3",
+		"http://h/a%zz?x=1",
+		"http://h/caf\u00e9?q=\u00e9#/r\u00e9?x=\u00e9&code=sekret11",
 	}
 	in, _ := json.Marshal(raws)
 	script := `const {redactURL} = require('./navigation-events.cjs'); console.log(JSON.stringify(JSON.parse(process.argv[1]).map(redactURL)))`

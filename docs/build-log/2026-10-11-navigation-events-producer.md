@@ -64,6 +64,19 @@ Codex round 1 failed the change; each repair was checked live on the same suite.
 - **Live rerun.** After round 2, a retain-on-failure run wrote both documents byte-identical to
   the fixtures. The `Browser.close()` test still wrote its redacted document.
 
+## Review round 3 repairs (after the review cap)
+
+Codex round 3 failed the change on three points, and all three are repaired here. These repairs
+were not re-reviewed, because the lane allows at most three review rounds.
+
+- **Secret-name matching.** The secret-name pattern now uses Unicode case folding (`/iu`), as Go's
+  `(?i)` does. Before this, a Kelvin-sign `toKen` key was not matched.
+- **Unescaping.** Unescaping is now byte-wise, like Go's, so `%FF` is accepted.
+- **Bad pairs in a hash-route query.** Any bad pair now replaces the whole fragment query with
+  `_=REDACTED`, as observe does.
+- **Tests.** The Go differential test covers each case above, plus non-ASCII queries and fragments.
+- **Live check.** A live rerun was byte-identical to the fixtures.
+
 ## Overhead
 
 The run was 80 tests (`--repeat-each=40`, one worker) on a loaded shared host, three runs each:
