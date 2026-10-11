@@ -1363,9 +1363,18 @@ off/on reports recorded in `docs/BUILD-LOG.md` under V1-0099.
 `internal/contextindex/authority_screen_test.go` (TCP-V0-055..057, experimental:
 `TestHiddenUnicodeClassesAreExactlyTheSpecSets`, `TestScreenHiddenUnicodeReportsCountClassesAndFirstSite`,
 `TestTaskContextDowngradesAGoverningFileHidingUnicode`, `TestTaskContextKeepsACleanGoverningFileAuthoritative`,
-`TestTaskContextDowngradesASpecMentionedRowHidingUnicode`, `TestTaskContextReportsAGoverningFileTheWorkingTreeModifies`,
+`TestTaskContextDowngradesASpecMentionedRowHidingUnicode`,
+`TestTaskContextScreensContentRoutedByCleanInstructions`, `TestTaskContextOrdersScreenedReservationsEndToEnd`,
+`TestTaskContextReportsAGoverningFileTheWorkingTreeModifies`,
 `TestScreenPathDowngradesAnUnreadableRow`, `TestCEMGoverningInstructionRuleMatchesThePacket`); every
 existing packet golden is unchanged (TCP-V0-058).
+
+V1-0658 adds regression evidence for the existing experimental TCP-V0-055/056 contract,
+without changing its requirements or owner-acceptance status. A clean governing file routes to
+a poisoned target; a separate packet witness places clean reservations before poisoned ones.
+Individual deletion-mutation outcomes are recorded in
+[the mutation evidence](../build-log/2026-10-10-mutation-authority-screen.md); ordinary passing
+tests alone do not establish mutation adequacy.
 
 `internal/contextindex/taskcontext_documentation_test.go` (TCP-V0-013 as amended, TCP-V0-059..061,
 experimental): `TestTaskContextDocumentationCompetesByStrength` reproduces the V1-0859 class on a
@@ -1550,7 +1559,7 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-053 | `script/qualify-lsp.py` | required live compiled CLI/MCP module and workspace qualification |
 | TCP-V0-054 | `lspevidence.Attach`, `extevidence.InlineTaskSection`, `addPathRelations` | `TestTaskPathRelationsSubjectBeforeBound`, `TestInlineTaskSectionBoundRootSubject`; public development witnesses and live CLI/MCP parity |
 | TCP-V0-055 | `hiddenUnicodeClass`, `screenHiddenUnicode`, `screenPath` (`internal/contextindex/authority_screen.go`) | `TestHiddenUnicodeClassesAreExactlyTheSpecSets`, `TestScreenHiddenUnicodeReportsCountClassesAndFirstSite`, `TestScreenPathDowngradesAnUnreadableRow` |
-| TCP-V0-056 | `screenAuthority`, `demoteScreened`, `authorityTrust`, `screenedAction`, `withAuthorityWarnings`, `governanceRefusalReason`; `reservedRows`, `instructionRoutedRows`, `governanceRows`, `governanceRefused`, `addGovernance` | `TestTaskContextDowngradesAGoverningFileHidingUnicode`, `TestTaskContextKeepsACleanGoverningFileAuthoritative`, `TestTaskContextDowngradesASpecMentionedRowHidingUnicode` |
+| TCP-V0-056 | `screenAuthority`, `demoteScreened`, `authorityTrust`, `screenedAction`, `withAuthorityWarnings`, `governanceRefusalReason`; `reservedRows`, `instructionRoutedRows`, `governanceRows`, `governanceRefused`, `addGovernance` | `TestTaskContextDowngradesAGoverningFileHidingUnicode`, `TestTaskContextKeepsACleanGoverningFileAuthoritative`, `TestTaskContextDowngradesASpecMentionedRowHidingUnicode`, `TestTaskContextScreensContentRoutedByCleanInstructions`, `TestTaskContextOrdersScreenedReservationsEndToEnd` |
 | TCP-V0-057 | `screenPath` (`Index.DirtyPaths`); `workflow.GoverningInstructionPath` | `TestTaskContextReportsAGoverningFileTheWorkingTreeModifies`, `TestCEMGoverningInstructionRuleMatchesThePacket` |
 | TCP-V0-058 | `withAuthorityWarnings` (members only on downgraded rows) | `TestTaskContextKeepsACleanGoverningFileAuthoritative`, `TestTaskContextWireIsAdditiveForAnOldConsumer` |
 | TCP-V0-059 | `lexicalRows` (`contextDocumentationShare`, `contextDocumentationQuota`, `lexicalDocumentation`, `heldPaths`, `reservedPositions`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextDocumentationCompetesByStrength`, `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (the gate) |
