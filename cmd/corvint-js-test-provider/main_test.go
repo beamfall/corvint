@@ -253,3 +253,37 @@ func TestEmitRetainsStdoutBytesPrunesAndRefusesSymlink(t *testing.T) {
 		t.Fatalf("a refused retention wrote through the symlink: %d entries", len(after))
 	}
 }
+
+// LPCVD-V0-005 (V1-1156): a retained basic receipt carries the start identity;
+// a non-retained run is not observed, and profiled or already-identified
+// receipts are left to their own codec rules.
+func TestRetainedBasicReceiptCarriesStartRevision(t *testing.T) {
+	saved := observeTestRepositoryAtStart
+	t.Cleanup(func() { observeTestRepositoryAtStart = saved })
+	start := &jstestprovider.ApplicationRepositoryIdentity{Revision: strings.Repeat("a", 40), DirtyState: "clean"}
+	calls := 0
+	observeTestRepositoryAtStart = func(context.Context, string) *jstestprovider.ApplicationRepositoryIdentity {
+		calls++
+		return start
+	}
+	if got := observeRetainedStart(context.Background(), false, "/x"); got != nil || calls != 0 {
+		t.Fatalf("non-retained run observed: %+v calls=%d", got, calls)
+	}
+	observed := observeRetainedStart(context.Background(), true, "/x")
+	if observed != start || calls != 1 {
+		t.Fatalf("retained run observed=%+v calls=%d", observed, calls)
+	}
+	if got := withRetainedRevision(jstestprovider.Receipt{Kind: "unit"}, observed); got.TestRepositoryAtStart != start {
+		t.Fatalf("basic receipt=%+v", got.TestRepositoryAtStart)
+	}
+	if got := withRetainedRevision(jstestprovider.Receipt{Kind: "unit"}, nil); got.TestRepositoryAtStart != nil {
+		t.Fatalf("unavailable observation produced %+v", got.TestRepositoryAtStart)
+	}
+	if got := withRetainedRevision(jstestprovider.Receipt{Kind: "e2e", Profile: jstestprovider.ExternalProfile}, observed); got.TestRepositoryAtStart != nil {
+		t.Fatalf("profiled receipt changed: %+v", got.TestRepositoryAtStart)
+	}
+	own := &jstestprovider.ApplicationRepositoryIdentity{Revision: strings.Repeat("b", 40)}
+	if got := withRetainedRevision(jstestprovider.Receipt{Kind: "unit", TestRepositoryAtStart: own}, observed); got.TestRepositoryAtStart != own {
+		t.Fatalf("existing identity replaced: %+v", got.TestRepositoryAtStart)
+	}
+}

@@ -471,6 +471,27 @@ func TestDiscoverRetainedRevisionDiffersFromHead(t *testing.T) {
 	}
 }
 
+// LPCVD-V0-005 (V1-1156): a basic (unprofiled) retained JS receipt that
+// carries its start revision supports the same HEAD staleness claim.
+func TestDiscoverBasicReceiptRetainedRevision(t *testing.T) {
+	retained := strings.Repeat("a", 40)
+	other := strings.Repeat("b", 40)
+	for _, tc := range []struct {
+		name  string
+		head  string
+		stale bool
+	}{{"other", other, true}, {"equal", retained, false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := discoveryRoot(t)
+			document := boundReceipt(t, root, "adds")
+			document = strings.Replace(document, `{"receipt":{"kind":"unit",`, `{"receipt":{"kind":"unit","testRepositoryAtStart":{"rootCommit":"`+other+`","revision":"`+retained+`","tree":"`+other+`","dirtyState":"clean"},`, 1)
+			writeAt(t, evidencePath(root, "run.json"), document, time.Unix(1, 0))
+			writeAt(t, filepath.Join(root, ".git", "HEAD"), tc.head+"\n", time.Unix(1, 0))
+			assertHeadClaim(t, root, tc.stale, retained)
+		})
+	}
+}
+
 func TestDiscoverHeadReadRefusesSymlinksAndSpecialFiles(t *testing.T) {
 	retained := strings.Repeat("a", 40)
 	other := strings.Repeat("b", 40)
