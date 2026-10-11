@@ -91,6 +91,8 @@ func TestCALV0218_BusyChildNeedsWorkNotPresence(t *testing.T) {
 // baseline yet; later activity retakes it, so the CPU share is measured from
 // the last activity.
 func TestCALV0218_ActiveBaselineFollowsActivity(t *testing.T) {
+	defer func(f func(map[int]proc, []int)) { refineChildCPU = f }(refineChildCPU)
+	refineChildCPU = func(map[int]proc, []int) {} // keep the synthetic CPU times on Linux
 	d, err := Open("prog", testConfig(t, "exit 0"), &fakeQueue{}, io.Discard)
 	if err != nil {
 		t.Fatal(err)

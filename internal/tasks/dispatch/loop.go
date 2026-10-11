@@ -697,6 +697,10 @@ var killText = map[string]string{
 // the wall time since then.
 const idleCPUDivisor = 100
 
+// refineChildCPU reads the counted children's precise CPU times; tests
+// replace it to keep synthetic process tables.
+var refineChildCPU = preciseCPU
+
 // childCPU is a worker's CAL-V0-218 baseline: when it was taken and each
 // non-ignored child's cumulative CPU time then, by childKey.
 type childCPU struct {
@@ -740,7 +744,7 @@ func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host, now time.Time
 			pids = append(pids, m.PID)
 		}
 	}
-	preciseCPU(procs, pids)
+	refineChildCPU(procs, pids)
 	if !busy {
 		busy = busyChild(w, procs, h.IdleIgnore, base, now)
 	}
