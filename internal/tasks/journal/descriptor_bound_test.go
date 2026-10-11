@@ -10,9 +10,9 @@ import (
 	"testing"
 )
 
-// CAL-V0-219: a scan keeps at most one duplicate pinned descriptor and reads
-// past 511 parents successfully, keeping each root's identity binding.
-func TestCALV0219_NativeDescriptorBound(t *testing.T) {
+// CAL-V0-220: a scan holds a root and a pin per parent directory, independent of
+// file count, reads past 511 parents, and releases everything on close.
+func TestCALV0220_NativeDescriptorBound(t *testing.T) {
 	base, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -45,11 +45,17 @@ func TestCALV0219_NativeDescriptorBound(t *testing.T) {
 		if err != nil || string(raw) != "x" {
 			t.Fatalf("read %d: %q %v", i, raw, err)
 		}
-		if len(s.dirs) > 1 {
-			t.Fatalf("%d read pins", len(s.dirs))
-		}
 	}
-	if got := count() - before; got > 520 {
+	// Descriptors are one root and one pin per parent: bounded by directory
+	// count, and a revisited parent reuses its pin (CAL-V0-070).
+	if len(s.roots) > 514 || len(s.dirs) > 513 {
+		t.Fatalf("%d roots, %d pins", len(s.roots), len(s.dirs))
+	}
+	held := count()
+	if raw, err := s.Read("0/x", 1); err != nil || string(raw) != "x" || count() != held {
+		t.Fatalf("revisit: %q %v descriptors %d -> %d", raw, err, held, count())
+	}
+	if got := count() - before; got > 2*513+8 {
 		t.Fatalf("retained descriptor count: %d", got)
 	}
 	if err := s.close(); err != nil {

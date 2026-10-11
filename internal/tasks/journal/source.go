@@ -72,8 +72,8 @@ func (n Native) List(p string, max int) (out Listing, err error) {
 
 // nativeRead lives for exactly one audit attempt. It retains every listed
 // no-follow parent; file reads never reopen the original absolute parent.
-// One read parent at a time is additionally pinned for no-follow openat reads.
-// Roots stay pinned for identity safety; roots are bounded by directory count, not receipts (CAL-V0-219).
+// Each read parent is also pinned once as a descriptor, so a file read is one
+// no-follow openat beneath it (CAL-V0-070).
 type nativeRead struct {
 	native   Native
 	roots    map[string]*os.Root
@@ -289,14 +289,6 @@ func (s *nativeRead) open(dir string, root *os.Root, name string) (*os.File, err
 	}
 	d := s.dirs[dir]
 	if d == nil {
-		// Keep roots, not duplicate descriptors, for the audit lifetime.
-		// Closing a duplicate never changes the directory inode a later read uses.
-		for p, old := range s.dirs {
-			delete(s.dirs, p)
-			if err := s.closed(nil, closeReadFile(old)); err != nil {
-				return nil, err
-			}
-		}
 		var e error
 		if d, e = safeopen.PinDir(root); e != nil {
 			return nil, e

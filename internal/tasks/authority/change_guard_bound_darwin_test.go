@@ -18,8 +18,8 @@ func guardFDCount(t *testing.T) int {
 	return len(entries)
 }
 
-// CAL-V0-218: high RLIMIT values must not turn receipt count into open FDs.
-func TestCALV0218_ChangeGuardBoundedDescriptors(t *testing.T) {
+// CAL-V0-219: high RLIMIT values must not turn receipt count into open FDs.
+func TestCALV0219_ChangeGuardBoundedDescriptors(t *testing.T) {
 	for _, n := range []int{100, 3000} {
 		t.Run(fmt.Sprint(n), func(t *testing.T) {
 			repo, file := guardRepo(t)
@@ -55,9 +55,9 @@ func TestCALV0218_ChangeGuardBoundedDescriptors(t *testing.T) {
 	}
 }
 
-// CAL-V0-218: a store with more than 512 directories is admitted, and closing
+// CAL-V0-219: a store with more than 512 directories is admitted, and closing
 // the guard releases every descriptor.
-func TestCALV0218_ChangeGuardManyDirectoriesAdmitted(t *testing.T) {
+func TestCALV0219_ChangeGuardManyDirectoriesAdmitted(t *testing.T) {
 	repo, _ := guardRepo(t)
 	for i := 0; i < 513; i++ {
 		if err := os.Mkdir(filepath.Join(repo.StateDir, fmt.Sprint(i)), 0700); err != nil {

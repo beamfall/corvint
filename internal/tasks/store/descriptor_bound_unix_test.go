@@ -31,10 +31,10 @@ func descriptorCount() (int, error) {
 	return len(entries), err
 }
 
-// CAL-V0-220: exercise the complete route's actual merged observation and its
+// CAL-V0-221: exercise the complete route's actual merged observation and its
 // forced no-watch fallback. Large qualification is opt-in; the default pair
 // still catches the old RLIMIT-dependent watch on ordinary development runs.
-func TestCALV0220_CompleteRouteBoundedDescriptors(t *testing.T) {
+func TestCALV0221_CompleteRouteBoundedDescriptors(t *testing.T) {
 	sizes := []int{100, 2100}
 	if os.Getenv("CORVINT_V10906_LARGE") == "1" {
 		sizes = []int{1000, 100000}
@@ -90,6 +90,15 @@ func TestCALV0220_CompleteRouteBoundedDescriptors(t *testing.T) {
 			historyWrite(t, filepath.Join(repo.StateDir, "head.json"), wire.EncodeFile(fixture.HeadValue(repo.PrimaryWorktree, head.LastSeq.Uint64(), *head.LastReceiptSha256, head.Generation.Uint64(), head.InitSha256)))
 			if head.LastSeq.Uint64() != uint64(size) {
 				t.Fatalf("fixture head %s, want %d", head.LastSeq, size)
+			}
+			dirs := 0
+			if err := filepath.WalkDir(repo.StateDir, func(_ string, d os.DirEntry, err error) error {
+				if err == nil && d.IsDir() {
+					dirs++
+				}
+				return err
+			}); err != nil {
+				t.Fatal(err)
 			}
 			reader := lockedJournalReader(repo, head)
 			// Prove canonical fixture validity before forcing the fallback.
@@ -175,8 +184,8 @@ func TestCALV0220_CompleteRouteBoundedDescriptors(t *testing.T) {
 						t.Fatalf("descriptor leak: %d -> %d", before, after)
 					}
 					delta := int(peak.Load()) - before
-					if delta > 1056 {
-						t.Fatalf("descriptor bound: %d", delta)
+					if delta > 4*dirs+64 {
+						t.Fatalf("descriptor bound: %d with %d directories", delta, dirs)
 					}
 					peaks = append(peaks, int(peak.Load()))
 					t.Logf("receipts=%d fallback=%v run=%d baseline=%d sampled_peak=%d delta=%d load=%s", size, fallback, run+1, before, peak.Load(), delta, strings.TrimSpace(string(load)))
