@@ -11,7 +11,7 @@ V1-0809. Existing status entries, including decision 0488, were preserved by ins
 README/INDEX status mirrors were updated for spec-index consistency, and REQUIREMENTS.tsv
 was regenerated from a scratch Git index containing the edited spec.
 
-Delivery remains experimental. AFP-V0-028..030 are not implemented; traceability names
+Accepted by decision 0509 (2026-10-10). Delivery remains experimental. AFP-V0-028..030 are not implemented; traceability names
 planned tests, with hosted qualification, queue behavior, cost and timing evidence
 `NOT_OBSERVED`. Historical qualification remains optional evidence for this profile.
 No hosted run, workflow change, commit, push or ticket-store write was performed.
