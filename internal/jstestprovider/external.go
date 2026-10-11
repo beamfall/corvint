@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -523,8 +524,8 @@ func bindQualifiedReport(r *Receipt, report qualifiedReport) error {
 		if !knownState(t.State) {
 			return errors.New("test-state-unknown")
 		}
-		if report.Files[t.Anchor.File] == "" || report.Files[t.Anchor.File] != r.Identity.TestFileDigests[t.Anchor.File] {
-			return errors.New("test-file-unbound")
+		if !anchorFileBound(r.Identity, report, t.Anchor.File) {
+			return unboundAnchorFiles(r.Identity, report, r.Tests)
 		}
 		t.Project.ConfigDigest = r.Identity.ConfigDigest
 		var use any
@@ -539,6 +540,50 @@ func bindQualifiedReport(r *Receipt, report qualifiedReport) error {
 		seen[t.ID] = true
 	}
 	return nil
+}
+
+// externalMaxUnboundNamed bounds how many unbound anchor files the
+// test-file-unbound detail names (PWP-V0-019).
+const externalMaxUnboundNamed = 8
+
+func anchorFileBound(identity Identity, report qualifiedReport, file string) bool {
+	return report.Files[file] != "" && report.Files[file] == identity.TestFileDigests[file]
+}
+
+// unboundAnchorFiles names every distinct reported anchor file that is not
+// bound, with its cause, so a run whose Playwright project dependencies
+// (setup projects) report results for files the caller did not pass with
+// --test-file says which files to bind (PWP-V0-019). It never binds them.
+func unboundAnchorFiles(identity Identity, report qualifiedReport, tests []TestOutcome) error {
+	causes := map[string]string{}
+	for _, t := range tests {
+		if t.Anchor == nil || anchorFileBound(identity, report, t.Anchor.File) {
+			continue
+		}
+		file := t.Anchor.File
+		switch {
+		case identity.TestFileDigests[file] == "":
+			causes[file] = "not passed with --test-file"
+		case report.Files[file] == "":
+			causes[file] = "not digested by the reporter"
+		default:
+			causes[file] = "reporter digest differs from the --test-file digest"
+		}
+	}
+	files := make([]string, 0, len(causes))
+	for file := range causes {
+		files = append(files, file)
+	}
+	slices.Sort(files)
+	named := make([]string, 0, externalMaxUnboundNamed+1)
+	for i, file := range files {
+		if i == externalMaxUnboundNamed {
+			named = append(named, fmt.Sprintf("+%d more", len(files)-i))
+			break
+		}
+		named = append(named, fmt.Sprintf("%s (%s)", file, causes[file]))
+	}
+	return fmt.Errorf("test-file-unbound: %s", strings.Join(named, "; "))
 }
 
 func knownState(s ExecutionState) bool {
