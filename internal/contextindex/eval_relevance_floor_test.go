@@ -2,6 +2,7 @@ package contextindex
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -293,6 +294,289 @@ func TestEvalQueryLimitOmittingCompetingRecordNeedsWidening(t *testing.T) {
 		abstention := packet["abstention"].(map[string]any)
 		if len(results) != tc.wantResultsLen || results[0]["id"] != "access-request-grant" || packet["state"] != tc.state || abstention["reason"] != tc.reason || abstention["active"] != tc.active {
 			t.Fatalf("limit %d: state=%v abstention=%v results=%v, want %s/%s", tc.limit, packet["state"], abstention, results, tc.state, tc.reason)
+		}
+	}
+}
+
+// GPK-V0-083 (proposed, pending owner acceptance (V1-0266)). At a limit wide enough to hold a decision that clears
+// the floor, the record packet passes GPK-V0-039, so GPK-V0-066 never
+// substitutes the symbols: on the accepted contract the one-word features
+// precede the wide symbol and their tied scores ask for widening. A symbol
+// wider than every record and document now leads: the symbol resting on three
+// query words, then the records and the decision in their own class order,
+// and the packet is READY. A record at least as wide as every symbol keeps
+// precedence.
+func TestEvalQueryPrecedenceFollowsSupport(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "config", "user.email", "corvint@example.test")
+	testGit(t, root, "config", "user.name", "Corvint Test")
+	writeTestFile(t, root, ".gitignore", ".context-corvint/\n")
+	writeTestFile(t, root, "go.mod", "module example.test/precedence\n\ngo 1.27.0\n")
+	writeTestFile(t, root, "testing/features.yaml", "features:\n"+
+		"  - id: plugin-music\n    area: plugins\n    summary: Music library.\n    adr: []\n    applies: [server]\n    status: shipped\n"+
+		"  - id: plugin-podcasts\n    area: plugins\n    summary: Podcast feeds.\n    adr: []\n    applies: [server]\n    status: shipped\n"+
+		"  - id: plugin-filmtv\n    area: plugins\n    summary: Film and TV.\n    adr: []\n    applies: [server]\n    status: shipped\n")
+	writeTestFile(t, root, "testing/scenarios.yaml", "scenarios: []\n")
+	writeTestFile(t, root, "docs/adr/0170-signed-registry.md", "# Plugin trust registry\n\nStatus: accepted\n\nTrust roots come from the signed registry.\n")
+	writeTestFile(t, root, "internal/plugin/trust.go", "package plugin\n\ntype PluginTrustRoots struct{}\n")
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "seed")
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct {
+		name, query string
+		want        []string
+	}{
+		{"wider symbol leads", "validate plugin trust roots at model loader construction", []string{
+			"internal/plugin/trust.go:PluginTrustRoots", "plugin-filmtv", "plugin-music", "plugin-podcasts", "docs/adr/0170-signed-registry.md",
+		}},
+		{"record at least as wide keeps precedence", "podcast feeds plugin", []string{"plugin-podcasts"}},
+		{"equally wide document keeps precedence", "plugin trust", []string{"plugin-filmtv", "plugin-music", "plugin-podcasts", "docs/adr/0170-signed-registry.md"}},
+		{"wider document keeps precedence", "plugin trust registry", []string{"plugin-filmtv", "plugin-music", "plugin-podcasts", "docs/adr/0170-signed-registry.md"}},
+	} {
+		packet, err := EvalQuery(context.Background(), index, tc.query, 10, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results := mapsFromAny(packet["results"])
+		abstention := packet["abstention"].(map[string]any)
+		got := make([]string, 0, len(results))
+		for _, result := range results {
+			got = append(got, stringValue(result["id"]))
+		}
+		if (packet["state"] != "READY" && (tc.name == "wider symbol leads" || tc.name == "record at least as wide keeps precedence")) || abstention["reason"] != "none" || len(got) < len(tc.want) || !reflect.DeepEqual(got[:len(tc.want)], tc.want) {
+			t.Fatalf("%s: state=%v abstention=%v results=%v, want READY leading with %v", tc.name, packet["state"], abstention, got, tc.want)
+		}
+	}
+}
+
+// GPK-V0-083 (proposed, pending owner acceptance (V1-0266)). The adopter-shaped
+// packet stands on a two-word decision at limit 10, despite five feature records
+// matching just "plugin". Both multi-term code symbols must precede them.
+func TestEvalQueryWiderSymbolsAtLimitTen(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "config", "user.email", "corvint@example.test")
+	testGit(t, root, "config", "user.name", "Corvint Test")
+	writeTestFile(t, root, ".gitignore", ".context-corvint/\n")
+	writeTestFile(t, root, "go.mod", "module example.test/widersymbols\n\ngo 1.27.0\n")
+	features := "features:\n"
+	for _, name := range []string{"music", "podcasts", "filmtv", "books", "radio"} {
+		features += "  - id: plugin-" + name + "\n    area: plugins\n    summary: Entertainment.\n    adr: []\n    applies: [server]\n    status: shipped\n"
+	}
+	writeTestFile(t, root, "testing/features.yaml", features)
+	writeTestFile(t, root, "testing/scenarios.yaml", "scenarios: []\n")
+	writeTestFile(t, root, "docs/adr/0170-signed-registry.md", "# Plugin trust registry\n\nStatus: accepted\n\nTrust roots come from the signed registry.\n")
+	writeTestFile(t, root, "internal/plugin/trust.go", "package plugin\n\ntype PluginTrustRoots struct {\n Validate bool\n Model string\n Loader string\n Construction string\n}\n\nfunc NewModelLoader(roots PluginTrustRoots) bool { return roots.Validate }\n")
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "seed")
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, query := range []string{
+		"validate plugin trust roots at model loader construction",
+		"plugin trust roots validation during model loader construction",
+		"model loader construction must validate plugin trust roots",
+		"validate trust roots when constructing the plugin model loader",
+	} {
+		t.Run(query, func(t *testing.T) {
+			intent := evalInferIntent(query)
+			ordered := evalOrderedTerms(query)
+			queryTerms := evalRelevanceTerms(terms(query), intent)
+			records, _ := evalRankRecords(index, query, queryTerms, ordered, intent)
+			if len(records) != 5 {
+				t.Fatalf("fixture has %d matching records, want 5", len(records))
+			}
+			for _, record := range records {
+				if evalSupportWidth(record.support, ordered) != 1 {
+					t.Fatalf("fixture record %s score=%d support=%v, want one word", record.id, record.score, record.support)
+				}
+			}
+			packet, err := EvalQuery(context.Background(), index, query, 10, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			results := mapsFromAny(packet["results"])
+			want := map[string]bool{
+				"internal/plugin/trust.go:PluginTrustRoots": false,
+				"internal/plugin/trust.go:NewModelLoader":   false,
+			}
+			for _, result := range results[:min(2, len(results))] {
+				id := stringValue(result["id"])
+				if _, exists := want[id]; !exists || want[id] {
+					t.Fatalf("leading results=%v, want both code symbols once", results)
+				}
+				want[id] = true
+			}
+			for id, present := range want {
+				count := 0
+				for _, result := range results {
+					if result["id"] == id {
+						count++
+					}
+				}
+				if !present || count != 1 {
+					t.Fatalf("symbol %s present=%v count=%d, want once in the leading pair", id, present, count)
+				}
+			}
+			if len(results) < 8 || results[2]["kind"] != "feature" || packet["state"] != "READY" {
+				t.Fatalf("standing packet lost its records or state: %v", packet)
+			}
+		})
+	}
+}
+
+// GPK-V0-083 (proposed, pending owner acceptance (V1-0266)). Placement keeps
+// the original packet untouched when empty, and removes only duplicate symbols.
+func TestEvalLeadWithSymbolsPreservesPacket(t *testing.T) {
+	symbol := map[string]any{"kind": "symbol", "id": "same-id", "score": 300}
+	feature := map[string]any{"kind": "feature", "id": "same-id", "score": 705}
+	carried := map[string]any{"kind": "symbol", "id": "same-id", "score": 900}
+	results := []map[string]any{feature, carried}
+	unchanged := evalLeadWithSymbols(nil, results, make(map[string]map[string]struct{}))
+	if &unchanged[0] != &results[0] || !reflect.DeepEqual(unchanged, results) {
+		t.Fatal("placement without wider symbols changed the packet")
+	}
+	got := evalLeadWithSymbols([]evalSymbolCandidate{{result: symbol}}, results, make(map[string]map[string]struct{}))
+	if !reflect.DeepEqual(got, []map[string]any{symbol, feature}) || !reflect.DeepEqual(results, []map[string]any{feature, carried}) {
+		t.Fatalf("placement=%v original=%v, want scored symbol then feature without mutation", got, results)
+	}
+}
+
+// GPK-V0-083 (proposed, pending owner acceptance (V1-0266)). Same-named methods
+// on different receivers have distinct line-based candidate IDs but render one
+// path:name identity. Keep the first, leaving the next result slot for evidence.
+func TestEvalLeadWithSymbolsDeduplicatesRenderedIdentity(t *testing.T) {
+	first := map[string]any{"kind": "symbol", "id": "internal/plugin/trust.go:Validate", "line": 10}
+	second := map[string]any{"kind": "symbol", "id": "internal/plugin/trust.go:Validate", "line": 20}
+	feature := map[string]any{"kind": "feature", "id": "internal/plugin/trust.go:Validate"}
+	document := map[string]any{"kind": "document", "id": "docs/trust.md"}
+	wider := []evalSymbolCandidate{
+		{id: "internal/plugin/trust.go:Validate:10", result: first},
+		{id: "internal/plugin/trust.go:Validate:20", result: second},
+	}
+	results := []map[string]any{feature, second, document}
+	got := evalLeadWithSymbols(wider, results, make(map[string]map[string]struct{}))
+	want := []map[string]any{first, feature, document}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("placement=%v, want first symbol then original evidence once: %v", got, want)
+	}
+	if !reflect.DeepEqual(results, []map[string]any{feature, second, document}) {
+		t.Fatalf("placement mutated the original packet: %v", results)
+	}
+}
+
+// GPK-V0-083 (proposed, pending owner acceptance (V1-0266)). A duplicate's
+// support cannot cover an omitted record for the first method's emitted evidence.
+func TestEvalQueryDuplicateSymbolSupportPreservesOmittedRecordAbstention(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "config", "user.email", "corvint@example.test")
+	testGit(t, root, "config", "user.name", "Corvint Test")
+	writeTestFile(t, root, ".gitignore", ".context-corvint/\n")
+	writeTestFile(t, root, "go.mod", "module example.test/duplicatesupport\n\ngo 1.27.0\n")
+	writeTestFile(t, root, "testing/features.yaml", "features:\n"+
+		"  - id: validate-cache\n    area: validation\n    summary: Validate cache.\n    adr: []\n    applies: [server]\n    status: shipped\n"+
+		"  - id: beta-delta\n    area: beta\n    summary: Beta delta.\n    adr: []\n    applies: [server]\n    status: shipped\n")
+	writeTestFile(t, root, "testing/scenarios.yaml", "scenarios: []\n")
+	// Separate context windows; candidate IDs sort line 47 before line 6.
+	writeTestFile(t, root, "internal/cache/cache.go", "package cache\n\ntype First struct{}\ntype Second struct{}\n\nfunc (Second) Validate(beta, delta bool) bool { return beta && delta }\n"+
+		strings.Repeat("\n", 40)+"func (First) Validate(alpha, gamma bool) bool { return alpha && gamma }\n")
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "seed")
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := "validate cache alpha gamma beta delta"
+	intent := evalInferIntent(query)
+	queryTerms := evalRelevanceTerms(terms(query), intent)
+	ordered := evalOrderedTerms(query)
+	symbols, frequency := evalRankSymbols(index, query, queryTerms, intent)
+	confident := evalConfidentSymbols(index, symbols, frequency, query, queryTerms, evalConfidentCeiling)
+	if len(confident) != 2 || evalResultIdentity(confident[0].result) != evalResultIdentity(confident[1].result) ||
+		!reflect.DeepEqual(confident[0].support, intersectionSet([]string{"validate", "cache", "alpha", "gamma"})) ||
+		!reflect.DeepEqual(confident[1].support, intersectionSet([]string{"validate", "cache", "beta", "delta"})) {
+		t.Fatalf("fixture must retain first/duplicate support separately: %+v", confident)
+	}
+	records, _ := evalRankRecords(index, query, queryTerms, ordered, intent)
+	if len(records) != 2 || records[0].id != "validate-cache" || records[1].id != "beta-delta" ||
+		records[1].score*5 < records[0].score*3 ||
+		!reflect.DeepEqual(records[1].support, intersectionSet([]string{"beta", "delta"})) {
+		t.Fatalf("fixture must admit an omitted competing beta/delta record: %+v", records)
+	}
+	packet, err := EvalQuery(context.Background(), index, query, 1, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	results := mapsFromAny(packet["results"])
+	if len(results) != 1 || !reflect.DeepEqual(results[0], confident[0].result) {
+		t.Fatalf("want only first method's evidence: %v", results)
+	}
+	abstention := packet["abstention"].(map[string]any)
+	if packet["state"] != "NEEDS_WIDENING" || abstention["active"] != true || abstention["reason"] != "omitted-competing-record" {
+		t.Fatalf("discarded duplicate covered the omitted record: state=%v abstention=%v", packet["state"], abstention)
+	}
+}
+
+// GPK-V0-083 (proposed, pending owner acceptance (V1-0266)). Wider lexical
+// matches are not answers to an override contradicted by project claims. At
+// limit 5 their placement would evict the critical scenario and its adjacent
+// store invariant; a wider limit must preserve the same negative-claim order.
+func TestEvalQueryWiderSymbolsPreserveNegativeClaimAbstention(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "config", "user.email", "corvint@example.test")
+	testGit(t, root, "config", "user.name", "Corvint Test")
+	writeTestFile(t, root, ".gitignore", ".context-corvint/\n")
+	writeTestFile(t, root, "go.mod", "module example.test/negativeplacement\n\ngo 1.27.0\n")
+	writeTestFile(t, root, "testing/features.yaml", "features:\n"+
+		"  - id: media-delete\n    area: deletion\n    summary: Delete media.\n    adr: []\n    applies: [server]\n    status: shipped\n"+
+		"  - id: trash-review\n    area: deletion\n    summary: Trash retention.\n    adr: []\n    applies: [server]\n    status: shipped\n")
+	writeTestFile(t, root, "testing/scenarios.yaml", "scenarios:\n"+
+		"  - id: audited-delete-bypass\n    area: deletion\n    summary: Cannot bypass delete audit.\n    features: []\n    applies: [server]\n    status: shipped\n"+
+		"  - id: store-invariants\n    area: deletion\n    summary: Store media delete retention.\n    features: []\n    applies: [server]\n    status: shipped\n")
+	writeTestFile(t, root, "docs/adr/0051-retention.md", "# Trash retention\n\nStatus: accepted\n\nRetention audit rules.\n")
+	writeTestFile(t, root, "internal/store/trash.go", "package store\n\ntype TrashRetention struct {\n Hard bool\n Delete bool\n Media bool\n Immediately bool\n Bypassing bool\n}\n\nfunc TrashMedia(retention TrashRetention) bool { return retention.Delete }\n\nfunc TrashMediaAt(retention TrashRetention) bool { return retention.Media }\n")
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "seed")
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, query := range []string{
+		"hard delete media immediately bypassing trash retention store audit",
+		"hard delete media trash retention store audit",
+	} {
+		for _, limit := range []int{5, 10} {
+			packet, err := EvalQuery(context.Background(), index, query, limit, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			results := mapsFromAny(packet["results"])
+			abstention := packet["abstention"].(map[string]any)
+			if len(mapsFromAny(abstention["nearest_claims"])) == 0 {
+				t.Fatalf("fixture lost its negative claim: %v", packet)
+			}
+			if !strings.Contains(query, "immediately") {
+				if len(results) == 0 || results[0]["kind"] != "symbol" || abstention["reason"] == "nearest-negative-claim" || limit == 10 && (abstention["reason"] != "none" || packet["state"] != "READY") {
+					t.Fatalf("inactive nearest claim blocked placement at limit %d: %v", limit, packet)
+				}
+				continue
+			}
+			got := make([]string, 0, len(results))
+			for _, result := range results {
+				got = append(got, evalResultIdentity(result))
+			}
+			want := []string{"feature:media-delete", "feature:trash-review", "scenario:store-invariants", "scenario:audited-delete-bypass", "decision:docs/adr/0051-retention.md"}
+			if packet["state"] != "NEEDS_WIDENING" || abstention["reason"] != "nearest-negative-claim" || abstention["active"] != true || len(got) < len(want) || !reflect.DeepEqual(got[:len(want)], want) {
+				t.Fatalf("limit %d: state=%v abstention=%v selectors=%v, want original negative-claim packet %v", limit, packet["state"], abstention, got, want)
+			}
 		}
 	}
 }
