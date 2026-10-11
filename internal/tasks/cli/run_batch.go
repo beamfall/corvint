@@ -877,7 +877,7 @@ func firstNonEmpty(s ...string) string {
 // classifyBatch recomputes the witness classification from the ledger
 // before the write and assigns each obligation its TOL-V0-029 cause.
 func classifyBatch(j *runJob, rep *obligation.Report, l *ticket.ObligationLedger, sources map[string][]byte, ids []string, written bool, refusal string) (*obligation.Result, []obligation.Cause, error) {
-	paths := rep.SourcePaths(l.Prefix, j.root)
+	paths := rep.SourcePaths(obligation.NamesOf(l), j.root)
 	_, present, content, err := store.FilesAtCommit(j.root, j.commit, paths)
 	if err != nil {
 		return nil, nil, err
@@ -886,7 +886,7 @@ func classifyBatch(j *runJob, rep *obligation.Report, l *ticket.ObligationLedger
 	if err != nil {
 		return nil, nil, err
 	}
-	return res, obligation.BatchCauses(rep, l, res, j.root, obligation.NamedTests(sources, l.Prefix), ids, written, refusal), nil
+	return res, obligation.BatchCauses(rep, l, res, j.root, obligation.NamedTests(sources, obligation.NamesOf(l)), ids, written, refusal), nil
 }
 
 func batchItem(s batchSummary, file string, sum wire.Digest) *wire.Object {
