@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -444,48 +444,48 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   continues the previous case's separated steps. Each case is joined with its suite and its section
   chain, root first, into one path. The output is `corvint-legacy-cases/1`, which names the source
   format, path, sha256 and case count, is deterministic, and is sorted by case ID. The command writes
-  nothing and contacts no service. Status: proposed (GitHub #812).
+  nothing and contacts no service. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
 - `DCP-V1-071`: Every imported case is a `BehaviorLegacyCase` in the existing legacy inventory shape,
   keyed by its case ID normalized to `C` plus 1..10 digits. `suite` is the path joined by ` > `,
   `case` is the title, `state` is `manual`, and fixtures, roles and criteria are empty with no
   runtime. Its evidence anchor names the export path and sha256, the region `case:<ID>`, the case
   digest as the span digest, authority `external-provider` and kind `imported`. The anchor has no
   repository or revision, so a behavior registry does not admit it until the caller binds it to a
-  committed revision; the record states that limit. Status: proposed (GitHub #812).
+  committed revision; the record states that limit. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
 - `DCP-V1-072`: Preconditions, steps and expected results have HTML stripped before use: tags and
   comments are removed, `script` and `style` bodies are dropped, entities are decoded and whitespace
   is collapsed. A tag ends at the first `>` outside a quoted attribute value, and tag names match
   whole and ASCII case-insensitively on the original bytes (`scripture` is not `script`). An
   unterminated tag, comment or `script`/`style` body drops the rest of the field. A `<` that does
   not open a tag is kept as text. Titles and path elements are entity-decoded and
-  whitespace-collapsed. Status: proposed (GitHub #812).
+  whitespace-collapsed. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
 - `DCP-V1-073`: `--content` is `ids-paths-titles` (default) or `full`. Under `ids-paths-titles`, no
   precondition, step or expected-result text appears in any import or search output. Each case
   still carries a `digest`, the sha256 of its full stripped and bounded content, so a step edit
   changes the digest. `full` adds the stripped preconditions and steps and sets `local_only: true`,
-  and its limitations say to keep the record out of commits. Status: proposed (GitHub #812).
+  and its limitations say to keep the record out of commits. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
 - `DCP-V1-074`: Oversized fields are bounded, never silently truncated. A title over 1024 bytes, a
   path element over 512, preconditions over 8 KiB, step content or expected result over 4 KiB, or
   more than 64 steps is cut at a UTF-8 boundary. The case's `bounded` list then names the field,
   its stripped size and the bytes or steps kept. A path deeper than 32 sections is refused.
-  Status: proposed (GitHub #812).
+  Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
 - `DCP-V1-075`: `corvint docs corpus search-cases --format F --input EXPORT --query TEXT [--limit
   1..256]` searches the bounded, stripped title, suite/section path, preconditions and step content
   of every case. A case matches when every query word (a lowercase run of letters or digits, 1..32
   words, at most 1024 bytes) is a prefix of a word in one of those fields. A result is the case
   ID, path, title and the fields that matched, and never step or expected-result text. Results are
   sorted by case ID and truncated to the limit, with the full match count in `total`. A case whose
-  feature words appear only in its section path is found. Status: proposed (GitHub #812).
+  feature words appear only in its section path is found. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
 - `DCP-V1-076`: Every search result is the auditable receipt `corvint-legacy-case-search/1`. It
   holds the query, its words, the match rule, the searched fields, the searched source (format, path,
   sha256 and case count), `state` `found` or `none-found`, and the cases whose searched text was
   bounded. A `none-found` therefore states what was searched and what was not read. Expected results
-  are not searched, and the receipt says so. Status: proposed (GitHub #812).
+  are not searched, and the receipt says so. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
 - `DCP-V1-077`: The separate `corvint-corpus-mcp`, started with `--legacy-cases`, lists the read-only
   tool `corvint.docs_search_cases` with the closed arguments `format`, `input`, `query` and
   `limit`. The tool returns the CLI's exact `search-cases` bytes framed as untrusted repository
   data, with the receipt as structured content. Without the flag, the tool list is unchanged.
-  Status: proposed (GitHub #812).
+  Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
 - `DCP-V1-078`: Each of the following is refused with `corpus-refused` and no partial output:
   - an unknown format or content policy;
   - a malformed document;
@@ -497,11 +497,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   - a query without words.
 
   An option that does not apply to the operation is an argument error. A non-canonical input path
-  keeps the `DCP-V1-054` refusal. Status: proposed (GitHub #812).
+  keeps the `DCP-V1-054` refusal. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
 - `DCP-V1-079`: Manual legacy cases never count as runtime parity. `manual` joins `executable` and
   `disabled` as an admitted legacy state. A legacy case that is not `executable` has no runtime
   baseline, so a contract mapped to it reports the `legacy-runtime-unknown` gap and no runtime
-  parity. Every import record states `runtime_parity: false`. Status: proposed (GitHub #812).
+  parity. Every import record states `runtime_parity: false`. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
 
 ## Input and authority boundary
 

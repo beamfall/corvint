@@ -35,8 +35,11 @@ Limits:
   original bytes, so a non-ASCII letter whose lower case changes length cannot shift offsets
   (round 2). Tag names match whole, so `</scripture>` does not close a script body and
   `<style-guide>` keeps its text (round 3). Independent review ran three rounds, each ending
-  `FAIL` on P2 findings. The round-3 fix has regression tests but no fourth review, so these
-  requirements stay proposed.
+  `FAIL` on P2 findings. The orchestrator's fourth round on the round-3 fix ended
+  `FINAL-VERDICT: PASS` with no P0-P2 finding. DCP-V1-070..079 and TOL-V0-037..046 were then
+  accepted under the owner's standing auto-accept (2026-10-11). Its one P3 is fixed: TOL-V0-037
+  now names `LIMIT_EXCEEDED` for more than 16 sources, the code the codec and the sibling array
+  bounds return.
 - Expected results are not searched.
 - Imported anchors carry no repository revision, so a behavior registry does not admit them until
   the caller binds them to a commit.

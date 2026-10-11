@@ -28,8 +28,8 @@ func tolSources(t *testing.T, sources string) (*ticket.ObligationEntry, error) {
 // TestTOLV0037_ReviewSourceCodec: an entry's optional sources list holds
 // closed {kind, ref, digest} review sources and {kind: none, query,
 // searched, at} empty searches, round-trips byte for byte, and refuses an
-// unknown kind, a key of the other shape, a bad digest, an empty or
-// oversized list and an unsorted searched set.
+// unknown kind, a key of the other shape, a bad digest, an empty list and an
+// unsorted searched set, and refuses a list over 16 LIMIT_EXCEEDED.
 func TestTOLV0037_ReviewSourceCodec(t *testing.T) {
 	d := strings.Repeat("d", 64)
 	good := `[{"digest":"` + d + `","kind":"legacy-case","ref":"C7"},{"digest":"` + d + `","kind":"legacy-spec","ref":"specs/old/login.md"},` +
@@ -54,9 +54,11 @@ func TestTOLV0037_ReviewSourceCodec(t *testing.T) {
 	for i := range many {
 		many[i] = `{"digest":"` + d + `","kind":"legacy-case","ref":"C1"}`
 	}
+	if _, err := tolSources(t, `[`+strings.Join(many, ",")+`]`); wire.CodeOf(err) != wire.CodeLimitExceeded {
+		t.Fatalf("seventeen sources: want LIMIT_EXCEEDED, got %v", err)
+	}
 	for name, s := range map[string]string{
 		"empty list":        `[]`,
-		"seventeen":         `[` + strings.Join(many, ",") + `]`,
 		"unknown kind":      `[{"digest":"` + d + `","kind":"jira","ref":"C7"}]`,
 		"no kind":           `[{"digest":"` + d + `","ref":"C7"}]`,
 		"query on a case":   `[{"digest":"` + d + `","kind":"legacy-case","query":"x","ref":"C7"}]`,
