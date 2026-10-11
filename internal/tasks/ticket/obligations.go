@@ -42,6 +42,18 @@ const (
 	ObligationSourceReport   = "PLAYWRIGHT_REPORT"
 	ObligationSourceDeclared = "DECLARED"
 
+	// Review-source kinds of an entry's optional sources list (TOL-V0-037).
+	// They name what a reviewer read, not witness evidence.
+	ObligationReviewLegacyCase = "legacy-case"
+	ObligationReviewLegacySpec = "legacy-spec"
+	ObligationReviewManualCase = "manual-case"
+	ObligationReviewNone       = "none"
+
+	MaxObligationSources          = 16
+	MaxObligationSourceRefBytes   = 256
+	MaxObligationSourceQueryBytes = 1024
+	MaxObligationSourceSearched   = 32
+
 	// Stable refusal detail prefixes (TOL-V0-002, 007, 009, 013).
 	ObligationUnknownDetail        = "OBLIGATION_UNKNOWN:"
 	ObligationCreditMismatchDetail = "OBLIGATION_CREDIT_MISMATCH:"
@@ -398,8 +410,83 @@ func ReadObligationEvidence(r *wire.Reader) *ObligationEvidence {
 	return e
 }
 
+// ObligationReviewSource is one element of an entry's optional review
+// sources (TOL-V0-037): a reviewed legacy case, legacy spec or manual case
+// {kind, ref, digest}, or a recorded empty search {kind: none, query,
+// searched, at}. It records what a reviewer read; it is never witness
+// evidence and never changes an entry's state.
+type ObligationReviewSource struct {
+	Kind     string
+	Ref      string
+	Digest   wire.Digest
+	Query    string
+	Searched []string
+	At       wire.Timestamp
+}
+
+func (s ObligationReviewSource) Value() wire.Value {
+	if s.Kind == ObligationReviewNone {
+		searched := make([]wire.Value, 0, len(s.Searched))
+		for _, id := range s.Searched {
+			searched = append(searched, wire.String(id))
+		}
+		return noteObject("kind", wire.String(s.Kind), "query", wire.String(s.Query), "searched", wire.Array(searched...), "at", wire.String(string(s.At)))
+	}
+	return noteObject("kind", wire.String(s.Kind), "ref", wire.String(s.Ref), "digest", wire.String(string(s.Digest)))
+}
+
+func obligationSourcesValue(sources []ObligationReviewSource) wire.Value {
+	vs := make([]wire.Value, 0, len(sources))
+	for _, s := range sources {
+		vs = append(vs, s.Value())
+	}
+	return wire.Array(vs...)
+}
+
+// readObligationSources reads 1..16 closed review sources in order. The
+// codec admits an empty query or searched set; requireSourceReview is
+// enforced by preflight (TOL-V0-040), so existing ledgers stay readable.
+func readObligationSources(r *wire.Reader) []ObligationReviewSource {
+	items := r.Array(MaxObligationSources, true)
+	if r.Err() != nil {
+		return nil
+	}
+	if len(items) == 0 {
+		r.Fail(wire.CodeMalformed, "sources needs at least one entry")
+		return nil
+	}
+	out := make([]ObligationReviewSource, 0, len(items))
+	for _, it := range items {
+		var s ObligationReviewSource
+		if it.Value().Kind == wire.KindObject && wire.Has(it.Value(), "kind") {
+			s.Kind = it.Field("kind").Enum(ObligationReviewLegacyCase, ObligationReviewLegacySpec, ObligationReviewManualCase, ObligationReviewNone)
+		} else {
+			it.Closed("kind")
+		}
+		if it.Err() != nil {
+			return nil
+		}
+		if s.Kind == ObligationReviewNone {
+			it.Closed("kind", "query", "searched", "at")
+			s.Query = it.Field("query").Prose(0, MaxObligationSourceQueryBytes)
+			s.Searched = it.Field("searched").Strings(MaxObligationSourceSearched, false, func(x *wire.Reader) string { return readNonblank(x, MaxObligationSourceRefBytes) })
+			s.At = it.Field("at").Timestamp()
+		} else {
+			it.Closed("kind", "ref", "digest")
+			s.Ref = readNonblank(it.Field("ref"), MaxObligationSourceRefBytes)
+			s.Digest = it.Field("digest").Digest()
+		}
+		if it.Err() != nil {
+			return nil
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
 // ObligationEntry is one folded ledger entry (TOL-V0-003). Alias is the
 // optional adopter alias fixed at seed (TOL-V0-034), "" when absent.
+// Sources is the optional review-source list (TOL-V0-037), nil when absent.
 type ObligationEntry struct {
 	ID            string
 	Alias         string
@@ -408,6 +495,7 @@ type ObligationEntry struct {
 	State         string
 	Reason        *string
 	Evidence      *ObligationEvidence
+	Sources       []ObligationReviewSource
 	UpdatedAt     wire.Timestamp
 	UpdatedByID   string
 	UpdatedByRole string
@@ -424,17 +512,23 @@ func (e ObligationEntry) Value() wire.Value {
 	if e.Alias != "" {
 		v.Obj.Set("alias", wire.String(e.Alias))
 	}
+	if e.Sources != nil {
+		v.Obj.Set("sources", obligationSourcesValue(e.Sources))
+	}
 	return v
 }
 
 // ReadObligationEntry reads one closed entry and checks that evidence is
 // present exactly when the state is WITNESSED.
 func ReadObligationEntry(r *wire.Reader) *ObligationEntry {
-	r.Closed(wire.OptionalKeys(r.Value(), []string{"id", "title", "core", "state", "reason", "evidence", "updatedAt", "updatedBy"}, "alias")...)
+	r.Closed(wire.OptionalKeys(r.Value(), []string{"id", "title", "core", "state", "reason", "evidence", "updatedAt", "updatedBy"}, "alias", "sources")...)
 	e := &ObligationEntry{ID: ReadObligationID(r.Field("id")), Title: readNonblank(r.Field("title"), MaxObligationTitleBytes), Core: r.Field("core").Bool(),
 		State: r.Field("state").Enum(ObligationStates...), UpdatedAt: r.Field("updatedAt").Timestamp()}
 	if wire.Has(r.Value(), "alias") {
 		e.Alias = readObligationAlias(r.Field("alias"))
+	}
+	if wire.Has(r.Value(), "sources") {
+		e.Sources = readObligationSources(r.Field("sources"))
 	}
 	e.Reason = r.Field("reason").StringOrNull(func(x *wire.Reader) string { return readNonblank(x, MaxObligationReasonBytes) })
 	if ev := r.Field("evidence"); !ev.IsNull() {
@@ -501,12 +595,14 @@ func ReadObligationSeedPayload(r *wire.Reader) *ObligationSeedPayload {
 	return p
 }
 
-// ObligationChange is one OBLIGATIONS_SET change (TOL-V0-007).
+// ObligationChange is one OBLIGATIONS_SET change (TOL-V0-007). Sources,
+// when non-nil, replaces the entry's review sources (TOL-V0-038).
 type ObligationChange struct {
-	ID     string
-	State  *string
-	Core   *bool
-	Reason string
+	ID      string
+	State   *string
+	Core    *bool
+	Reason  string
+	Sources []ObligationReviewSource
 }
 
 // ObligationSetPayload is the OBLIGATIONS_SET payload.
@@ -519,19 +615,23 @@ func (p ObligationSetPayload) Value() wire.Value {
 		if c.Core != nil {
 			core = wire.Bool(*c.Core)
 		}
-		vs = append(vs, noteObject("id", wire.String(c.ID), "state", wire.StringOrNull(c.State), "core", core, "reason", wire.String(c.Reason)))
+		v := noteObject("id", wire.String(c.ID), "state", wire.StringOrNull(c.State), "core", core, "reason", wire.String(c.Reason))
+		if c.Sources != nil {
+			v.Obj.Set("sources", obligationSourcesValue(c.Sources))
+		}
+		vs = append(vs, v)
 	}
 	return noteObject("changes", wire.Array(vs...))
 }
 
 // ReadObligationSetPayload reads {changes}: 1..64 sorted unique changes,
-// each naming a state or a core flag and a required reason. WITNESSED is
-// not a settable state.
+// each naming a state, a core flag or review sources, and a required
+// reason. WITNESSED is not a settable state.
 func ReadObligationSetPayload(r *wire.Reader) *ObligationSetPayload {
 	r.Closed("changes")
 	p := &ObligationSetPayload{}
 	readIDKeyed(r.Field("changes"), MaxObligationChanges, "changes", func(it *wire.Reader) string {
-		it.Closed("id", "state", "core", "reason")
+		it.Closed(wire.OptionalKeys(it.Value(), []string{"id", "state", "core", "reason"}, "sources")...)
 		c := ObligationChange{ID: ReadObligationID(it.Field("id")), Reason: readNonblank(it.Field("reason"), MaxObligationReasonBytes)}
 		c.State = it.Field("state").StringOrNull(func(x *wire.Reader) string {
 			return x.Enum(ObligationOpen, ObligationDefect, ObligationBlocked, ObligationDeferred)
@@ -540,8 +640,11 @@ func ReadObligationSetPayload(r *wire.Reader) *ObligationSetPayload {
 			b := core.Bool()
 			c.Core = &b
 		}
-		if it.Err() == nil && c.State == nil && c.Core == nil {
-			it.Fail(wire.CodeMalformed, "a change names a state, a core flag or both")
+		if wire.Has(it.Value(), "sources") {
+			c.Sources = readObligationSources(it.Field("sources"))
+		}
+		if it.Err() == nil && c.State == nil && c.Core == nil && c.Sources == nil {
+			it.Fail(wire.CodeMalformed, "a change names a state, a core flag, review sources or a combination")
 		}
 		p.Changes = append(p.Changes, c)
 		return c.ID
@@ -968,6 +1071,9 @@ func ApplyObligationEvent(l *ObligationLedger, ev *ObligationEvent, eventSha256 
 			}
 			if c.Core != nil {
 				e.Core = *c.Core
+			}
+			if c.Sources != nil {
+				e.Sources = c.Sources
 			}
 			reason := c.Reason
 			e.Reason = &reason

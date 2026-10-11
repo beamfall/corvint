@@ -8,7 +8,8 @@ import (
 
 // corpusFlagExpectation is one operation's admitted options, written out literally from the
 // parser at a0e56f3c1 (its allowed and required maps) rather than read from corpusOperations, so
-// the shared table cannot vouch for itself.
+// the shared table cannot vouch for itself. import-cases and search-cases come from the
+// claude/issues-812-813-legacy-cases parser (DCP-V1-070..079), which predates the table.
 type corpusFlagExpectation struct{ required, optional []string }
 
 var corpusReadOptional = []string{"--limit", "--offset", "--retirement"}
@@ -23,6 +24,8 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"behavior-provider":   {required: []string{"--input"}},
 	"discover-playwright": {required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
 	"witness-playwright":  {required: []string{"--input", "--receipt-input", "--report"}},
+	"import-cases":        {required: []string{"--format", "--input"}, optional: []string{"--content"}},
+	"search-cases":        {required: []string{"--format", "--input", "--query"}, optional: []string{"--limit"}},
 	"info":                {required: []string{"--artifact"}, optional: corpusReadOptional},
 	"validate":            {required: []string{"--artifact"}, optional: corpusReadOptional},
 	"inventory":           {required: []string{"--artifact"}, optional: corpusReadOptional},
@@ -47,7 +50,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
 	"--cem", "--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement"}
+	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content"}
 
 func corpusFlagArgs(flag string) []string {
 	switch flag {

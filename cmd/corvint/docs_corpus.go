@@ -14,6 +14,7 @@ import (
 type corpusOptions struct {
 	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement string
 	playwright                                                                                                        playwrightCorpusOptions
+	legacyCases                                                                                                       legacyCasesCorpusOptions
 	apply, check                                                                                                      bool
 	limit, offset                                                                                                     int
 }
@@ -22,6 +23,7 @@ type corpusOptions struct {
 func (o *corpusOptions) stringFlags() map[string]*string {
 	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem}
 	o.playwright.addFlags(flags)
+	o.legacyCases.addFlags(flags)
 	return flags
 }
 
@@ -186,6 +188,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	}
 	if o.op == "discover-playwright" || o.op == "witness-playwright" {
 		return compilePlaywrightCorpus(ctx, o)
+	}
+	if o.op == "import-cases" || o.op == "search-cases" {
+		return compileLegacyCasesCorpus(o)
 	}
 	if o.op == "behavior-provider" {
 		raw, err := doccorpus.ReadFile(o.root, o.input)
