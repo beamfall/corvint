@@ -2,6 +2,7 @@ package groupreap
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"syscall"
@@ -240,7 +241,12 @@ func TestRetirerWaitsOutRefusedTokenReads(t *testing.T) {
 			t.Fatalf("exited or readable identity retained as a problem: %v", got.Problems)
 		}
 	}
-	if slept < retireTokenWait || slept > retireTokenBudget {
-		t.Fatalf("token wait %v outside [%v, %v]", slept, retireTokenWait, retireTokenBudget)
+	// 106 waited three polls and 107 two before the per-identity bound was
+	// spent on 108 once; the second scan may not wait for 108 again.
+	if want := retireTokenWait + 5*retireTokenPoll; slept != want || slept > retireTokenBudget {
+		t.Fatalf("token wait %v, want %v within %v", slept, want, retireTokenBudget)
+	}
+	if waited := r.tokenWaits[fmt.Sprintf("108/%s", f.rows[108].start())]; waited != retireTokenWait {
+		t.Fatalf("per-identity wait %v, want %v", waited, retireTokenWait)
 	}
 }

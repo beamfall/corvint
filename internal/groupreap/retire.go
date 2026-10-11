@@ -96,8 +96,10 @@ type Retirer struct {
 	seen     map[string]*tracked
 	problems []string
 	// tokenWaited is the nominal time this Retire call has spent waiting for
-	// refused token reads; it bounds the whole call, not just one identity.
+	// refused token reads, in total and per identity; a later scan in the
+	// same call cannot wait for the same identity again.
 	tokenWaited time.Duration
+	tokenWaits  map[string]time.Duration
 }
 
 // NewRetirer reserves a fresh token; it refuses where retirement is unproven.
@@ -139,7 +141,7 @@ func (r *Retirer) Leader(pid int) {
 func (r *Retirer) Retire() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.tokenWaited = 0
+	r.tokenWaited, r.tokenWaits = 0, map[string]time.Duration{}
 	leaderAlive := false
 	if r.leader != 0 {
 		row, alive, err := r.p.identity(r.leader)
@@ -265,10 +267,10 @@ func (r *Retirer) owned(rows []procRow, leaderAlive bool) int {
 // retained as a problem by the caller, never read as exit or non-ownership.
 func (r *Retirer) token(row procRow) (bool, error) {
 	probe := &tracked{RetiredProcess: RetiredProcess{PID: row.pid, Start: row.start()}}
-	var err error
-	for waited := time.Duration(0); ; waited += retireTokenPoll {
-		var ok bool
-		if ok, err = r.p.environ(row.pid, r.entry); err == nil {
+	key := fmt.Sprintf("%d/%s", row.pid, row.start())
+	for {
+		ok, err := r.p.environ(row.pid, r.entry)
+		if err == nil {
 			return ok, nil
 		}
 		alive, cerr := r.check(probe)
@@ -278,10 +280,11 @@ func (r *Retirer) token(row procRow) (bool, error) {
 		if !alive {
 			return false, nil
 		}
-		if waited >= retireTokenWait || r.tokenWaited >= retireTokenBudget {
+		if r.tokenWaits[key] >= retireTokenWait || r.tokenWaited >= retireTokenBudget {
 			return false, err
 		}
 		r.p.sleep(retireTokenPoll)
+		r.tokenWaits[key] += retireTokenPoll
 		r.tokenWaited += retireTokenPoll
 	}
 }
