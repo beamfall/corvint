@@ -890,6 +890,9 @@ Actions:
            then run the returned verification action against HEAD.
   cite     Compile a byte or one-based line span of base evidence into the
            normative span and attach it to one hunk with a typed relation.
+           --relation accepts: call-site, decision, dependency, implementation,
+           incident, specification, test-claim.
+           Normative definitions: docs/CHANGE-EVIDENCE-MAP.md#supported.
   mark     Record an explicit unknown or byte-verifiable mechanical disposition.
   status   Local completion check; verify is the equivalent machine/CI surface;
            report renders the optional human view. All three verify identically.
