@@ -61,9 +61,9 @@ AFP-V0-024	docs/specs/affected-plan-v0.md	692	(owner-directed, proposed, 2026-10
 AFP-V0-025	docs/specs/affected-plan-v0.md	718	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
 AFP-V0-026	docs/specs/affected-plan-v0.md	753	(accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04;
 AFP-V0-027	docs/specs/affected-plan-v0.md	778	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
-AFP-V0-028	docs/specs/affected-plan-v0.md	791	(accepted (decision 0431)) Queue-backstopped narrowing SHALL apply only to
-AFP-V0-029	docs/specs/affected-plan-v0.md	824	(accepted (decision 0431)) Every PR run computing a trusted selection SHALL
-AFP-V0-030	docs/specs/affected-plan-v0.md	849	(accepted (decision 0431)) PR runs SHALL return to FULL with reason
+AFP-V0-028	docs/specs/affected-plan-v0.md	791	(accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHAL
+AFP-V0-029	docs/specs/affected-plan-v0.md	824	(accepted, decision 0509; intent decision 0431) Every PR run computing a trusted
+AFP-V0-030	docs/specs/affected-plan-v0.md	849	(accepted, decision 0509; intent decision 0431) PR runs SHALL return to FULL wit
 AFP-V0-031	docs/specs/affected-plan-v0.md	866	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
 AFP-V0-032	docs/specs/affected-plan-v0.md	904	(accepted by decision 0438; V1-0865) Only a declaration path that
 AFP-V0-033	docs/specs/affected-plan-v0.md	913	(accepted by decision 0438; V1-0868) Every `units` directory of
