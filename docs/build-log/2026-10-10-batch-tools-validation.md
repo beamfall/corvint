@@ -4,8 +4,8 @@
 
 Base: `2145af619f68698dbb1c097369e29d589e623f7d` (`origin/main` at handoff).
 One existing builder worktree; no commits, pushes, decision files or Tasks-store writes.
-AFP-V0-043 is proposed, pending owner acceptance (V1-1110).
-DCW-V0-034 is proposed, pending owner acceptance (V1-1123); accepted DCW-V0-014
+AFP-V0-043 is accepted, decision 0505.
+DCW-V0-034 is accepted, decision 0505; accepted DCW-V0-014
 is referenced unchanged. V1-0257 adds evidence for the existing MCPV0-028 enum,
 with no new requirement. The builder retained its existing model/effort for these
 bounded fixes; an independent native reviewer used the same model/effort.
