@@ -167,11 +167,9 @@ func TestAFUV1039AcceptanceFixture(t *testing.T) {
 			t.Errorf("navigate %s/%s: %s", step[0], step[1], tr.Verification)
 		}
 	}
-	// Current behavior, pinned: step verification is evidence-only, so profile's save-name step is
-	// verified although its source link is stale and the flow is incomplete. The stale link shows only in
-	// the flow status, gaps and the docs claim. returns has no evidence, so its step is unverified.
-	if tr := navTransition(t, out, "profile", "save-name"); tr.Verification != "verified" {
-		t.Errorf("navigate profile/save-name: %s", tr.Verification)
+	// AFU-V1-025: run evidence stays verified, while step-level review exposes the stale link.
+	if tr := navTransition(t, out, "profile", "save-name"); tr.Verification != "verified" || tr.ReviewState != appflows.ReviewStale {
+		t.Errorf("navigate profile/save-name: %+v", tr)
 	}
 	if tr := navTransition(t, out, "returns", "request-return"); tr.Verification != "unverified" {
 		t.Errorf("navigate returns/request-return: %s", tr.Verification)
@@ -180,6 +178,12 @@ func TestAFUV1039AcceptanceFixture(t *testing.T) {
 		p := decodePacket(t, acceptanceCLI(t, root, nil, "navigate", "--flows", "flows", "--evidence", evidence, "--goal", goal))
 		if len(p.Flows) != 1 || p.Flows[0].Status != "incomplete" {
 			t.Errorf("navigate --goal %s: %+v", goal, p.Flows)
+		}
+		if goal == "profile" {
+			i := slices.IndexFunc(p.Steps, func(tr appflows.Transition) bool { return tr.StepID == "save-name" })
+			if i < 0 || p.Steps[i].Verification != "verified" || p.Steps[i].ReviewState != appflows.ReviewStale {
+				t.Errorf("navigate --goal profile lost stale link review: %+v", p.Steps)
+			}
 		}
 	}
 
