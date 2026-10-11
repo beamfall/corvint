@@ -6,7 +6,7 @@ Delivery status: planned
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed/planned; no stable delivery or promotion.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`) and explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (proposed `CEM-V1-060..064`) and explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`); qualification remains bounded.
 - Blocked on: stable wire/consumer integration, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -145,7 +145,7 @@ manufactured, non-executed fixtures. All evidence is experimental self-use.
 | CEM-V1-001, 011..013 | Typed stable construction, exact six-role graph, full witness retention, native/portable result equality | Complete public corpus, supported repository/runtime envelopes and all consumer migration |
 | CEM-V1-002 | Pure native wire binding plus separately pinned historical Tasks verification | Current applicability, receipt journal authority and semantic adequacy |
 | CEM-V1-003..005 | Exact actual runner/source/report bytes and native outcome preservation | Inventory completeness, execution-at-commit and criterion discrimination |
-| CEM-V1-007, 014 | Optional companion producer, explicit stable verification, the hidden Core status/verify read (`CEM-V1-017..019`) and the Core report/MCP preview (`CEM-V1-034..036`) | Other Core workflow, OCM/frontier/obligation, companion and completion consumers |
+| CEM-V1-007, 014 | Optional companion producer, explicit stable verification, the hidden Core status/verify read (`CEM-V1-017..019`) the Core report/MCP preview (`CEM-V1-034..036`) and the Core stable bundle export (`CEM-V1-060..064`) | Other Core workflow, OCM/frontier/obligation, companion and completion consumers |
 | CEM-V1-008..010 | Original defaults/packets unchanged and optional operation removable | External adoption/outcomes and release/promotion gates |
 
 The current stable verifier admits the experimental
@@ -383,3 +383,63 @@ state changes.
 | CEM-V1-PSR-002 | `interop/cem01-go/ci.go` `ciMapHeader`, `ciStableRouteCode` | `TestCIRoutesStableSpecToStableVerifier` |
 | CEM-V1-PSR-003 | `interop/cem01-go/cem.go` `declaresStableSpec` | `TestDefaultPathKeepsOtherProfileRefusals`; the existing interop golden and packet suites |
 | CEM-V1-PSR-004 | `examples/cem/verify-portable.sh`, `examples/cem/recipes/ci-verify.sh` | `TestExampleStableBranchVerifies` (admitted structural tuples go1.27.1 and go1.27.2), `TestExampleStableBranchRuntimeRefusal` (other runtimes), `TestExampleStableBranchRefusals`; `script/cem-recipes_test.sh` case `c-stable` |
+
+## Core stable bundle export (V1-0632 S5b)
+
+Status: proposed. Native work: V1-0632, migration row C10 of
+`protocol/cem-1.0/stable/MIGRATION.json`. `cem export` over an exact `cem/1.0` map now writes a
+relocatable stable bundle instead of refusing; the `corvint-receipt-bundle/0` export of a 0.x map
+keeps its layout and bytes. The route stays hidden like the S1 read: help is unchanged.
+
+- `CEM-V1-060`: Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first run
+  the stable verifier over the caller-named root byte for byte, as `CEM-V1-017` does, with
+  `--artifacts` as its artifact root. Unless that result is ACCEPT (exit 0) it MUST return the
+  verifier's complete result and exit as `stableVerification` with `ok: false` and write nothing.
+- `CEM-V1-061`: An accepted export MUST write a new directory outside the worktree (the 0.x output
+  rule) with profile `corvint-cem-stable-bundle/1`: `cem.json` holding the exact map bytes,
+  `artifacts/<declared path>` holding the exact bytes of every artifact the map declares (all six
+  roles, including the snapshot-head receipt), and a canonical one-line `manifest.json` written last
+  that records the profile, spec, base, target and each file's path, digest and byte length. Every
+  artifact is re-read and must match its declared digest; the map is never rewritten, relabelled
+  or reduced.
+- `CEM-V1-062`: The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem
+  verify-stable --map <dir>/cem.json --artifacts <dir>/artifacts`, over a moved bundle MUST
+  reproduce the source's complete 21-field result and exit. Export MUST verify the written bundle
+  the same way and remove it, with `publish-failed`, unless that result equals the source result.
+- `CEM-V1-063`: `ReadStable` MUST refuse a bundle with a missing declared file
+  (`stable-bundle-entry-missing`), a file or directory nothing declares
+  (`stable-bundle-entry-unused`), a symlink or other non-regular entry anywhere, including the
+  artifacts directory (`stable-bundle-entry-escaping`), bytes that differ from the declared digest
+  or length (`stable-bundle-entry-digest`), or a manifest that is not exact or disagrees with the
+  map (`stable-bundle-manifest`). `VerifyStable` MUST also refuse a bundle that records another base
+  or target than the caller supplies (`stable-bundle-revision`). The Go API (`CollectStable`,
+  `WriteStable`, `ReadStable`, `VerifyStable`) is the reusable read/write surface for later
+  attestation, Git-notes and example-CI consumers.
+- `CEM-V1-064`: A stable export MUST refuse `--witness` with `invalid-arguments` before
+  verification, and an output inside the worktree with `bundle-output-refused` after verification;
+  neither writes anything. A 0.x export MUST refuse `--artifacts` with `invalid-arguments`. 0.x
+  export arguments, manifest, receipts and bytes are otherwise unchanged.
+
+Failure modes: a stale base, tampered or omitted artifact, missing `--artifacts` or unsupported
+runtime is the verifier's own REJECT or UNSUPPORTED result, carried unchanged with nothing
+written. Closure checks over a received bundle run through the Go API or through `cem
+verify-stable` (which checks every declared artifact but not unused entries); no CLI import verb is
+added. Witness, dogfood and gate receipts are not carried in a stable bundle. The only 0.x change
+is that `--artifacts` on a 0.x export is an `invalid-arguments` refusal instead of an
+argument-parser refusal; both exit 2 with nothing written.
+
+Rollback: remove the stable branch in `receiptbundle.Export`, `stable_bundle.go`, the new
+`Options` fields and the `--artifacts` export flag. No 0.x byte, map, packet or stored bundle
+changes.
+
+### Core stable bundle export traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-060 | `TestStableExportRelocatesWithSameVerification` | The export envelope's result equals `verify.Stable` over the source (ACCEPT/EXACT on Go 1.27.1 and 1.27.2) |
+| CEM-V1-060 | `TestStableExportPublishesNothingForARefusedSource` | Stale base and tampered artifact (REJECT, exit 1), omitted artifact (UNSUPPORTED, exit 2), no artifact root and relative root (exit 2) return the verifier result with no bundle written |
+| CEM-V1-061 | `TestStableExportRelocatesWithSameVerification` | Map bytes equal the sealed bytes; all six roles, including the snapshot-head receipt, are exact copies; the manifest digest is reported |
+| CEM-V1-062 | `TestStableExportRelocatesWithSameVerification`, `TestCEMExportStableBundleRelocates` | After `os.Rename` to another parent, `VerifyStable` and `cem verify-stable` over the moved bundle equal the source result and exit |
+| CEM-V1-062 | `TestStableBundleKeepsNestedPathsAcrossRoots` | Nested declared artifact paths keep their paths and digests across a move |
+| CEM-V1-063 | `TestStableBundleRefusesIncompleteOrTamperedEntries` | Tampered snapshot-head or map byte, omitted artifact or map, extra file, extra directory, symlinked artifact or artifacts directory, inexact or extended manifest, and another target each refuse with their code (exit 2) |
+| CEM-V1-064 | `TestStableExportArgumentRefusals` | `--witness` and an in-worktree output refuse with nothing written; a 0.x export refuses `--artifacts` |

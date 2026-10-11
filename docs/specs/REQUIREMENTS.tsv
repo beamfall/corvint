@@ -837,6 +837,11 @@ CEM-V1-034	docs/specs/cem-stable-v1.md	319	Core `cem report --format json` over 
 CEM-V1-035	docs/specs/cem-stable-v1.md	320	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
 CEM-V1-036	docs/specs/cem-stable-v1.md	321	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
 CEM-V1-050	docs/specs/cem-stable-v1.md	199	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable
+CEM-V1-060	docs/specs/cem-stable-v1.md	394	Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first ru
+CEM-V1-061	docs/specs/cem-stable-v1.md	398	An accepted export MUST write a new directory outside the worktree (the 0.x outp
+CEM-V1-062	docs/specs/cem-stable-v1.md	405	The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem
+CEM-V1-063	docs/specs/cem-stable-v1.md	409	`ReadStable` MUST refuse a bundle with a missing declared file
+CEM-V1-064	docs/specs/cem-stable-v1.md	418	A stable export MUST refuse `--witness` with `invalid-arguments` before
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	349	The default `verify` path refuses a strictly parsed JSON object whose exact
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	353	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	356	Only that exact case changes. A duplicate, non-string, differently cased,
