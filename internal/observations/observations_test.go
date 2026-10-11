@@ -1042,3 +1042,30 @@ func TestRenderTalliesAdapterDegradations(t *testing.T) {
 		t.Fatalf("digest\n%s\nwant\n%s", output.String(), want)
 	}
 }
+
+// DCW-V0-035, SOL-V0-008: both plan row-limit refusals survive the writer boundary.
+func TestDogfoodPlanRowLimitObservationsPersist(t *testing.T) {
+	for _, row := range []Event{
+		{Kind: "dogfood-step", Step: "cem-cite", Status: "NOT_PRODUCED", Reason: "citation-plan-row-limit-exceeded"},
+		{Kind: "dogfood-step", Step: "ocm-links", Status: "NOT_PRODUCED", Reason: "ocm-link-plan-row-limit-exceeded"},
+	} {
+		t.Run(row.Reason, func(t *testing.T) {
+			root := t.TempDir()
+			writeIgnore(t, root)
+			if err := Append(root, row); err != nil {
+				t.Fatal(err)
+			}
+			data, err := os.ReadFile(filepath.Join(root, ".corvint", "self-observations.jsonl"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got Event
+			if err := json.Unmarshal(data, &got); err != nil {
+				t.Fatal(err)
+			}
+			if got.Kind != row.Kind || got.Step != row.Step || got.Status != row.Status || got.Reason != row.Reason {
+				t.Fatalf("got=%+v want=%+v", got, row)
+			}
+		})
+	}
+}

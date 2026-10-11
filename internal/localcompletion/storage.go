@@ -1249,7 +1249,24 @@ func strictLegacyAdmission(stdout, stderr []byte, status int) bool {
 		Error string `json:"error"`
 		OK    bool   `json:"ok"`
 	}
-	return strictJSON(stderr, &refusal, 64<<10) == nil && refusal.Code == "admitted-path-limit" && !refusal.OK && refusal.Error == "changed_paths exceeds 200 paths"
+	if strictJSON(stderr, &refusal, 64<<10) != nil || refusal.OK {
+		return false
+	}
+	if refusal.Code == "admitted-path-limit" {
+		return refusal.Error == "changed_paths exceeds 200 paths"
+	}
+	if refusal.Code != "trace-path-limit-exceeded" {
+		return false
+	}
+	// Accept only the exact changed-path overflow; opened/stored-path failures
+	// cannot authorize the aggregate changed-path fallback.
+	const prefix = "trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed="
+	if !strings.HasPrefix(refusal.Error, prefix) || !strings.HasSuffix(refusal.Error, ")") {
+		return false
+	}
+	count := strings.TrimSuffix(strings.TrimPrefix(refusal.Error, prefix), ")")
+	observed, err := strconv.Atoi(count)
+	return err == nil && observed > 200 && observed <= 200_000 && strconv.Itoa(observed) == count
 }
 
 func (repo *repository) captureLegacyAdmission(attempt dogfoodflow.LegacyRecordAttempt) (*aggregateLegacyCapture, error) {

@@ -467,3 +467,31 @@ func TestAggregateReportClosedVersionAndWhitespace(t *testing.T) {
 		})
 	}
 }
+
+// DCW-V0-036: the public recorder code retains the internal aggregate fallback classification.
+func TestLocalOutcomeTracePathLimitKeepsAdmissionReason(t *testing.T) {
+	for _, code := range []string{"trace-path-limit-exceeded", "admitted-path-limit", "record-failed"} {
+		t.Run(code, func(t *testing.T) {
+			root := t.TempDir()
+			called := false
+			c := &change{flow: flow{ctx: context.Background(), root: root}, evidence: root,
+				options: ChangeOptions{Verify: "go test ./...", Outcome: "passed", Steps: Runner{Run: func(_ context.Context, _ string, args []string, _, stderr io.Writer) int {
+					if args[0] != "dogfood-record" {
+						t.Fatalf("unexpected command %v", args)
+					}
+					called = true
+					fmt.Fprintf(stderr, "{\"code\":%q,\"error\":\"overflow\",\"ok\":false}\n", code)
+					return 2
+				}}},
+			}
+			row := c.localOutcome("boundary")
+			want := code
+			if code == "trace-path-limit-exceeded" {
+				want = "admitted-path-limit"
+			}
+			if !called || row != (step{"local-outcome", "NOT_PRODUCED", want}) {
+				t.Fatalf("row=%+v called=%v", row, called)
+			}
+		})
+	}
+}

@@ -2095,3 +2095,37 @@ func TestAggregateExpectedOldMatchesActiveReservation(t *testing.T) {
 		}
 	}
 }
+
+// DCW-V0-036: the new public overflow code preserves strict legacy fallback admission.
+func TestAggregateLegacyAdmissionAcceptsPublicTracePathLimit(t *testing.T) {
+	for _, count := range []int{201, 512} {
+		raw := []byte(fmt.Sprintf(`{"code":"trace-path-limit-exceeded","error":"trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed=%d)","ok":false}`, count))
+		if !strictLegacyAdmission(nil, raw, 2) {
+			t.Fatalf("refused public wire: %s", raw)
+		}
+		if strictLegacyAdmission([]byte("x"), raw, 2) || strictLegacyAdmission(nil, raw, 1) {
+			t.Fatal("admitted wrong streams or exit")
+		}
+	}
+	for _, message := range []string{
+		"trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed=200)",
+		"trace-path-limit-exceeded: opened_paths exceeds 200 paths (limit=200 observed=201)",
+		"trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed=0201)",
+		"trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed=201) trailing",
+		"trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed=200001)",
+	} {
+		raw := []byte(fmt.Sprintf(`{"code":"trace-path-limit-exceeded","error":%q,"ok":false}`, message))
+		if strictLegacyAdmission(nil, raw, 2) {
+			t.Fatalf("admitted invalid overflow: %s", raw)
+		}
+	}
+	for _, raw := range []string{
+		`{"code":"trace-path-limit-exceeded","error":"trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed=201)","ok":true}`,
+		`{"code":"trace-path-limit-exceeded","error":"trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed=201)","ok":false,"extra":1}`,
+		`{"code":"trace-path-limit-exceeded","error":"trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed=201)","ok":false,"ok":false}`,
+	} {
+		if strictLegacyAdmission(nil, []byte(raw), 2) {
+			t.Fatalf("admitted invalid wire: %s", raw)
+		}
+	}
+}

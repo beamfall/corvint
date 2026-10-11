@@ -1,8 +1,8 @@
 BASE ?= main
+DOGFOOD_GOCACHE := $(or $(CORVINT_GOCACHE),$(GOCACHE),/tmp/corvint-go-build-cache)
 CORVINT_GOCACHE ?= /tmp/corvint-go-build-cache
 CORVINT_BIN ?= corvint
 .DEFAULT_GOAL := gate
-
 # GO_TEST_TIMEOUT is the per-package hang detector, not a performance budget (decision 0082).
 # cmd/corvint measured 596.0s against Go's former implicit 10m package deadline. Frozen replay
 # has a separate 9m context covering cold candidate build and replay; the 30m package deadline
@@ -362,15 +362,15 @@ core-n1-replay:
 
 dogfood-change:
 	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
-	@script/dogfood-change.sh "$(BASE)"
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-change.sh "$(BASE)"
 
 dogfood-check:
 	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
-	@script/dogfood-check.sh "$(BASE)"
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-check.sh "$(BASE)"
 
 dogfood-seal:
 	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
-	@script/dogfood-seal.sh "$(BASE)"
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-seal.sh "$(BASE)"
 
 dogfood-bind-range:
 	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
