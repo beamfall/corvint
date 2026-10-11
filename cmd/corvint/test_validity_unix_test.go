@@ -147,13 +147,14 @@ func TestTestValidityDiscoverSelectsProducerRetainedDocument(t *testing.T) {
 	}
 }
 
-// LPCV-V0-056 / MTV-V0-009: the typed no-evidence reason is the same bytes on
+// LPCVD-V0-001..003 / LPCV-V0-056 / MTV-V0-009: the typed no-evidence reason is the same bytes on
 // the CLI and the MCP discovery surface.
 func TestTestValidityDiscoveryAbstentionMatchesMCPDocument(t *testing.T) {
 	t.Parallel()
 	for name, want := range map[string]string{
-		"":                 `"abstention":{"reason":"no-retained-evidence","requires":"retained-producer-run"}`,
-		`{"unknown":true}`: `"abstention":{"reason":"retained-evidence-unusable","requires":"retained-producer-run"}`,
+		"":                 `"reason":"no-retained-evidence"`,
+		`{"unknown":true}`: `"reason":"retained-evidence-unusable"`,
+		`{"profile":"corvint-go-live-session-event/0","state":"stale","identity":"abc","sequence":1,"scope":[],"detail":"","projection":{},"testProjections":[],"testProjectionsOmitted":0}`: `"reason":"stale-evidence"`,
 	} {
 		root, err := filepath.EvalSymlinks(t.TempDir())
 		if err != nil {
@@ -189,7 +190,7 @@ func TestTestValidityDiscoveryAbstentionMatchesMCPDocument(t *testing.T) {
 		}
 		cli, cliErr := gokernel.CanonicalJSON(cliDocument)
 		mcp, mcpErr := gokernel.CanonicalJSON(structured["document"])
-		if cliErr != nil || mcpErr != nil || !bytes.Equal(cli, mcp) || !bytes.Contains(mcp, []byte(want)) {
+		if cliErr != nil || mcpErr != nil || !bytes.Equal(cli, mcp) || !bytes.Contains(mcp, []byte(want)) || !bytes.Contains(mcp, []byte(`"expectedEvidencePath":".corvint/test-evidence"`)) || !bytes.Contains(mcp, []byte(`corvint-go-test-provider session --retain`)) {
 			t.Fatalf("cli=%s\nmcp=%s", cli, mcp)
 		}
 	}

@@ -3564,5 +3564,20 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/upgrade-checklist-v0.md",
+    "title": "Upgrade Checklist V0",
+    "reqPrefix": "UCL1142-V0",
+    "intent": "proposed, pending owner acceptance (V1-1142)",
+    "delivery": "experimental",
+    "claim": "An offline upgrade checklist maps local merge evidence to issue references in adopter workaround files.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/upgradechanges",
+      "cmd/corvint"
+    ]
   }
 ]

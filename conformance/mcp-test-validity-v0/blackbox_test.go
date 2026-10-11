@@ -76,18 +76,21 @@ type vector struct {
 	Generated   map[string]string `json:"generated"`
 	Arguments   map[string]any    `json:"arguments"`
 	Expect      struct {
-		RPCError     int               `json:"rpcError"`
-		IsError      bool              `json:"isError"`
-		Code         string            `json:"code"`
-		Source       string            `json:"source"`
-		Kind         string            `json:"kind"`
-		Tier         string            `json:"tier"`
-		Promotable   *bool             `json:"promotable"`
-		Receipt      any               `json:"receipt"`
-		RunAxes      string            `json:"runAxes"`
-		RunReason    string            `json:"runReason"`
-		RunExecution string            `json:"runExecution"`
-		Tests        []testExpectation `json:"tests"`
+		AbstentionReason string            `json:"abstentionReason"`
+		ReceiptAgeBasis  string            `json:"receiptAgeBasis"`
+		ReceiptRevision  string            `json:"receiptRevision"`
+		RPCError         int               `json:"rpcError"`
+		IsError          bool              `json:"isError"`
+		Code             string            `json:"code"`
+		Source           string            `json:"source"`
+		Kind             string            `json:"kind"`
+		Tier             string            `json:"tier"`
+		Promotable       *bool             `json:"promotable"`
+		Receipt          any               `json:"receipt"`
+		RunAxes          string            `json:"runAxes"`
+		RunReason        string            `json:"runReason"`
+		RunExecution     string            `json:"runExecution"`
+		Tests            []testExpectation `json:"tests"`
 	} `json:"expect"`
 }
 
@@ -155,36 +158,33 @@ func TestVectorsAndReadOnly(t *testing.T) {
 }
 func vectorsAndReadOnly(t *testing.T, version string) {
 	cases := loadManifest(t)
-	root := fixtureRepository(t)
-	outside := filepath.Join(t.TempDir(), "outside.json")
-	writeFile(t, outside, `{"receipt":{"kind":"unit","tests":[]}}`)
-	for _, item := range cases.Vectors {
-		prepare(t, root, outside, item)
-	}
-	before := treeDigest(t, root)
-	client := startServer(t, root, "--protocol-version", version)
-	defer client.close(t)
-	meta := requestMeta()
-	if version == "2025-11-25" {
-		initialized := client.call(t, 0, "initialize", map[string]any{"protocolVersion": version, "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "conformance", "version": "test"}})
-		if initialized["error"] != nil {
-			t.Fatal(initialized)
-		}
-		if _, err := io.WriteString(client.stdin, `{"jsonrpc":"2.0","method":"notifications/initialized"}`+"\n"); err != nil {
-			t.Fatal(err)
-		}
-		meta = map[string]any{}
-	}
 	for index, item := range cases.Vectors {
 		t.Run(item.ID, func(t *testing.T) {
-			response := client.call(t, 100+index, "tools/call", map[string]any{
-				"_meta": meta, "name": cases.Tools[0], "arguments": item.Arguments,
-			})
+			// Each vector owns its evidence directory, including the absent-evidence case.
+			root := fixtureRepository(t)
+			outside := filepath.Join(t.TempDir(), "outside.json")
+			writeFile(t, outside, `{"receipt":{"kind":"unit","tests":[]}}`)
+			prepare(t, root, outside, item)
+			before := treeDigest(t, root)
+			client := startServer(t, root, "--protocol-version", version)
+			defer client.close(t)
+			meta := requestMeta()
+			if version == "2025-11-25" {
+				initialized := client.call(t, 0, "initialize", map[string]any{"protocolVersion": version, "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "conformance", "version": "test"}})
+				if initialized["error"] != nil {
+					t.Fatal(initialized)
+				}
+				if _, err := io.WriteString(client.stdin, `{"jsonrpc":"2.0","method":"notifications/initialized"}`+"\n"); err != nil {
+					t.Fatal(err)
+				}
+				meta = map[string]any{}
+			}
+			response := client.call(t, 100+index, "tools/call", map[string]any{"_meta": meta, "name": cases.Tools[0], "arguments": item.Arguments})
 			checkVector(t, item, response)
+			if after := treeDigest(t, root); after != before {
+				t.Fatalf("repository changed: before=%s after=%s", before, after)
+			}
 		})
-	}
-	if after := treeDigest(t, root); after != before {
-		t.Fatalf("repository changed: before=%s after=%s", before, after)
 	}
 }
 
@@ -254,6 +254,37 @@ func checkVector(t *testing.T, item vector, response map[string]any) {
 	if structured["mutates"] != false || !reflect.DeepEqual(structured["receipt"], item.Expect.Receipt) ||
 		document["schema"] != "corvint-test-validity/0" || document["source"] != item.Expect.Source {
 		t.Fatalf("structured=%v", structured)
+	}
+	if item.Expect.AbstentionReason != "" {
+		discovery := document["discovery"].(map[string]any)
+		abstention := discovery["abstention"].(map[string]any)
+		if abstention["reason"] != item.Expect.AbstentionReason || abstention["requires"] != "retained-producer-run" || abstention["expectedEvidencePath"] != ".corvint/test-evidence" {
+			t.Fatalf("abstention=%v", abstention)
+		}
+		producers := abstention["producers"].([]any)
+		if len(producers) != 3 {
+			t.Fatalf("producers=%v", producers)
+		}
+		for i, prefix := range []string{"corvint-js-test-provider unit --retain", "corvint-js-test-provider e2e --retain", "corvint-go-test-provider session --retain --experimental --trusted-local --foreground --authority-bundle"} {
+			hint := producers[i].(map[string]any)
+			if !strings.HasPrefix(hint["command"].(string), prefix) || hint["qualification"] != "NOT_OBSERVED" {
+				t.Fatalf("producer=%v", hint)
+			}
+		}
+		if item.Expect.ReceiptRevision != "" && abstention["receiptRevision"] != item.Expect.ReceiptRevision {
+			t.Fatalf("revision=%v", abstention)
+		}
+		age := discovery["receiptAge"].(map[string]any)
+		if age["basis"] != item.Expect.ReceiptAgeBasis {
+			t.Fatalf("age=%v", age)
+		}
+		if item.Expect.ReceiptAgeBasis == "retained-file-mtime" {
+			if _, err := time.Parse(time.RFC3339Nano, age["since"].(string)); err != nil {
+				t.Fatalf("age=%v: %v", age, err)
+			}
+		} else if _, ok := age["since"]; ok {
+			t.Fatalf("unobserved age has timestamp: %v", age)
+		}
 	}
 	if item.Expect.Kind != "" && document["kind"] != item.Expect.Kind {
 		t.Fatalf("kind=%v", document["kind"])

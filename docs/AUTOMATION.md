@@ -228,3 +228,87 @@ so its exit code is not a gate; `dogfood-check` hits the V1-0182 limitation (scr
 `make` reports as 2); and no step changed the clone's worktree, `.corvint/` files or Git-directory
 entries. Building `corvint` writes only to the work directory and the Go build cache outside the
 clone.
+
+## Session hooks: `frontier-authority-unavailable`
+
+For an adopter that does not produce Change Evidence Map (CEM) or Obligation Coverage Map (OCM)
+artifacts, this degradation is **expected and benign by itself**, not a fault or a
+misconfiguration. It means the hook cannot claim Frontier authority; it does not mean the query
+failed, tests failed, or the adopter must enable another component. Other errors and missing
+evidence must still be investigated separately.
+
+**Current behavior, verified 2026-10-10 (V1-1143; related V1-0869 and V1-0243):** every successful
+`harness event` receipt starts with this literal string in `degradations`, regardless of whether
+CEM/OCM artifacts exist (`internal/gokernel/harness.go:439@a4869098`). The harness does not consult
+`internal/frontier`. Stop emits a fixed `UNAVAILABLE` frontier with `shouldContinue: false`
+(`internal/gokernel/harness.go:478-483@23c0a748`); this is an abstention, not proof that the change
+is complete. The code is also admitted by the observations ledger and host adapter vocabularies
+(`internal/observations/observations.go:40-47@493847da`,
+`cmd/corvint/host_adapter.go:724-733@c1243f78`). Repeated appearances are not evidence of repeated
+failures, and adding artifacts does not remove this message.
+
+### What the artifacts enable, and what remains unavailable
+
+A CEM binds a committed base-to-target patch to cited evidence. An OCM binds a pinned owning
+specification's obligations to that CEM's hunks and selected test claims. The explicit
+`corvint frontier` command composes verified CEM/OCM inputs with lexical relevance and test-claim
+qualification into a bounded, Git-pinned advisory review queue. Without those inputs, that
+change-and-intent-specific queue cannot be assessed; it remains unknown, not an empty or closed
+frontier. Normal context queries and impact reads do not require adopting that workflow.
+
+**No CEM/OCM producer establishes execution authority.** The current `frontier/0` profile leaves
+linked test obligations open because test evidence is caller-reported
+(`docs/specs/change-frontier-v0.md:40-48@9a2ff71f`). Closing authority would require an accepted
+execution-attestation root and profile, plus harness integration; that is not an adopter setup
+option today. Accepted [decision 0009](decisions/0009-harness-authority-boundary.md) retains the
+local boundary and permits a separate non-authority workflow policy, not Frontier closure
+(`docs/decisions/0009-harness-authority-boundary.md:32-36@5685d76e`).
+
+### Minimum path to an advisory Frontier report
+
+No action is needed merely to keep using the hooks. If the adopter wants a change-evidence
+review queue, the minimum inputs and steps are:
+
+1. Select a committed change, its full immutable base and target commit IDs, and an existing
+   owning spec in the supported OCM requirements format. Keep all maps on that same base/target;
+   missing declared intent remains unassessed.
+2. Follow [CEM preparation](DOGFOOD.md#4-produce-the-cem): `corvint cem prepare`, cite evidence or
+   honestly mark unknown hunks, commit the CEM sidecar, and verify it against the final target.
+   Preparation alone does not prove complete evidence. These are explicit authoring operations,
+   not work performed by a read command or session hook.
+3. Follow [OCM preparation](DOGFOOD.md#5-close-every-owning-spec-obligation): `corvint ocm prepare`
+   for each owning spec, link supported hunks and test claims, retain unknown/unassessed obligations,
+   and inspect `ocm status`. OCM artifacts stay local and outside their own mapped patch.
+4. Run the read-only preview for each scope, using the verified maps and their exact pins:
+
+   ```sh
+   corvint frontier --cem CEM_PATH --ocm OCM_PATH \
+     --expected-base FULL_BASE_SHA --target FULL_TARGET_SHA --json
+   ```
+
+   Inspect the report, including every unknown and required action. Exit 1 can mean a valid open
+   frontier, not an invocation fault. Neither valid input nor passing tests grants authority or
+   changes the unconditional hook degradation. Keep the project's required checks and review.
+
+### Causes and remedies
+
+| Observation | Meaning | Action |
+|---|---|---|
+| Only `frontier-authority-unavailable`, no CEM/OCM workflow | Expected capability limitation; the code does not diagnose artifact absence. | Continue normal use. Adopt the advisory workflow above only if useful. |
+| The same code after preparing valid CEM/OCM artifacts | Expected: the hook does not consult Frontier, and caller-reported evidence cannot establish authority. | Inspect the explicit Frontier report; do not regenerate artifacts to silence the hook. |
+| Explicit `frontier` invocation refuses missing, stale or mismatched inputs | A separate evidence/input problem, not diagnosed by this generic hook code. | Check its error, map paths and exact base/target/intent pins; explicitly regenerate affected artifacts if needed. Do not treat missing evidence as success. |
+| Other codes, such as `corvint-event-rejected:dogfood-event-index-snapshot-stale` | A separate hook failure with its own remediation. | Follow that code's diagnostic; do not dismiss it because the Frontier code is benign. |
+| Repeated visible notices | Host output policy or installed adapter version can affect presentation. | Compare the installed adapter with [decision 0161](decisions/0161-claude-adapter-quiet-notices-2026-09-12.md). Current Claude routine post-tool receipts use model-visible additionalContext; genuine faults retain a notice. This is not a user suppression setting. |
+
+The Claude routine receipt path preserves the degradation codes in additionalContext
+(`cmd/corvint/host_adapter.go:709-721@78ff0af5`). Presentation differs by host and event; quieting a
+notice is not removing the degradation or acquiring authority.
+
+### Not delivered by this guidance
+
+The degradation payload is still a list of strings. A machine-readable per-degradation `reason`
+that distinguishes artifact absence from unavailable authority is **not implemented**. The existing
+Stop `frontier.reason` merely repeats the same generic code; it is not that missing explanation.
+An adopter acknowledge/suppress option is also **not implemented**. These remain unmet parts of
+V1-1143 for separate follow-up; this documentation ships neither feature and adds no new authority,
+wire contract, or numbered requirement.
