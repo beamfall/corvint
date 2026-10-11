@@ -9,6 +9,7 @@ import (
 
 // rawState is one literal router declaration, before shared hierarchy resolution.
 type rawState struct {
+	entry              *EntryDeclaration
 	splatNonEmpty      bool
 	name               string
 	parent             string
@@ -81,6 +82,7 @@ func parseRouter(e blobEntry, data []byte, lookup constLookup) ([]rawState, []Un
 			continue
 		}
 		readConfig(&s, config, lookup)
+		s.entry = readEntryDeclaration(config)
 		states = append(states, s)
 	}
 	return states, unknowns
@@ -291,7 +293,7 @@ func resolveScreens(app string, raws []rawState) ([]Screen, []Unknown) {
 	index := map[string]int{}
 	for _, n := range names {
 		s, r := byName[n], compute(n)
-		sc := Screen{ID: screenID(app, n), State: n, Status: r.status, Reason: r.reason, Parent: s.parent, Abstract: s.abstract, SplatNonEmpty: s.splatNonEmpty,
+		sc := Screen{Entry: s.entry, ID: screenID(app, n), State: n, Status: r.status, Reason: r.reason, Parent: s.parent, Abstract: s.abstract, SplatNonEmpty: s.splatNonEmpty,
 			Params: []string{}, Query: []string{}, Permissions: []string{}, Flags: []string{}, Anchor: s.anchor,
 			PageObjects: []string{}, Workflows: []string{}, Scenarios: []string{}, Specs: []Attribution{}, Flows: []string{},
 			Steps: []string{}, Preconditions: []Requirement{}}

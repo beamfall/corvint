@@ -20,7 +20,7 @@ one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are proposed, pending owner acceptance (V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are proposed, pending owner acceptance (V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are proposed, pending owner acceptance (V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -445,6 +445,58 @@ V1-1061; GitHub #705).
   coverage. Tests MUST assert UNKNOWN without guessed resolved screens for dynamic constructs.
   Status: proposed, pending owner acceptance (V1-1131).
 
+- `AMAP-V0-050`: `flows appmap entries --map FILE` MUST emit a deterministic static
+  `application-map-entries/0` projection with one row per retained screen, its entry URL template,
+  required path parameters, parent parameters, permission/flag guard, and last verified revision.
+  Static analysis MUST leave `last_verified_revision` empty and identify its basis as `static-only`.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-051`: Classification MUST be one of `deep-linkable`, `requires-parent-params`,
+  `abstract`, `guarded(permission/flag)`, or `UNKNOWN`. Precedence is unresolved/ambiguous,
+  abstract, unsupported entry constraints, guarded, parent parameters, then deep-linkable.
+  Deep-linkable means a static candidate with its required parameters, never proof of loading.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-052`: Required parameters MUST be the sorted unique union of path parameters on the
+  screen and its ancestors, including parent parameters absent from an absolute child URL.
+  Query parameters MUST be projected separately without claiming they are required. No fixture
+  values, role or data state may be invented; arbitrary `params` configuration remains UNKNOWN.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-053`: UI-router declarations MUST retain optional entry metadata distinguishing
+  an explicit URL from a URL-less state and identifying nonempty/dynamic resolves, transition
+  hooks, redirects and unsupported parameter configuration. Those constraints, dynamic guard
+  metadata, missing/cyclic lineage and unresolved parents MUST yield UNKNOWN with reasons.
+  Empty literal resolve/params objects add no constraint. Constraints inherit through ancestors.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-054`: Entry results MUST carry the map revision/digest and evaluated revision.
+  Freshness MUST check the manifest and complete blobs of the screen's lineage (including name
+  and parent bindings), conservatively invalidating on any change to those files. Unknown or
+  aliased evidence MUST NOT be upgraded to fresh. Reads inspect committed Git content only.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-055`: A changed template, guard, ancestor or manifest MUST make the projected
+  classification UNKNOWN and verification `UNVERIFIED_AT_HEAD`; unchanged evidence is
+  `STATIC_ONLY`, unavailable evidence is `UNKNOWN`. No static check may populate a runtime
+  last verified revision or emit VERIFIED. Rebuilding is the recovery path for stale entries.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-056`: The projection MUST retain `proven_path` as an empty list with status UNKNOWN
+  and reason `no-proven-edge-evidence` until a revision-bound edge-proof consumer is implemented.
+  Existing `flow-step` and `test-sequence` edges MUST NOT be treated as PROVEN execution.
+  Shortest PROVEN paths and edge-ledger receipt integration are explicitly deferred.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-057`: Entries MUST use the existing bounded map loader and projection renderer,
+  default 6144 bytes, `--budget` 256..65536 or exclusive `--full` capped at 1 MiB, with omitted
+  entry counts. Output order MUST be screen ID order; a head that cannot fit MUST refuse.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-058`: Old maps without entry metadata MUST remain readable and project UNKNOWN
+  (`entry-metadata-unavailable`) for otherwise routable screens. Other dialects stay UNKNOWN
+  until they supply equivalent entry constraints. Existing projections keep their contracts;
+  the optional metadata participates in the map digest. No new error codes are introduced.
+  Status: proposed, pending owner acceptance (V1-1136).
+- `AMAP-V0-059`: This slice MUST remain static and read-only: it MUST NOT visit URLs or run
+  application code. Runtime flags MUST refuse. A future opt-in trusted-local runtime proposal
+  MUST require declared fixture/session and read-effect entries, refuse every other effect,
+  and bind loads/redirect/error receipts to revision and entry identity before ledger use.
+  Runtime execution and its receipt format remain deferred, not implemented by this slice.
+  Status: proposed, pending owner acceptance (V1-1136).
+
 ## Wire contract
 
 `corvint flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]...
@@ -725,3 +777,23 @@ evaluation, Rails custom inflections/engines, runtime route mutation, imported r
 adopter qualification are excluded. Dynamic route sets remain UNKNOWN. No network or interpreter
 is invoked by the builder. Model routing: current builder for bounded parser work, independent
 review for fail-closed and evidence-boundary mistakes; spend telemetry is NOT_OBSERVED.
+
+## Static entries slice (V1-1136)
+
+Owner input: issue #778 as supplied for this build. Implementation is experimental; numbered
+requirements above remain proposed. The smallest baseline reads the existing map without launching
+the adopter. `entries --map FILE [--revision REV] [--budget N | --full]` adds a separate projection;
+UI-router screens carry optional `entry` declaration metadata. Existing maps remain loadable by the
+new reader; older closed readers require rebuilding with their matching producer. No migration
+or runtime receipt is supplied. Rollback removes this projection and optional metadata, then
+rebuilds maps. No edge-ledger, test-plan or change-impact behavior is changed.
+
+| Requirement | Implementation | Focused evidence |
+| --- | --- | --- |
+| AMAP-V0-050, AMAP-V0-051, AMAP-V0-052, AMAP-V0-053 | `internal/appmap/entries.go`, `internal/appmap/router.go` | `TestEntriesClassification` |
+| AMAP-V0-054, AMAP-V0-055 | `internal/appmap/entries.go` | `TestEntriesRevisionBinding` |
+| AMAP-V0-056, AMAP-V0-058 | `internal/appmap/entries.go` | `TestEntriesLegacyAndUnprovenEdges` |
+| AMAP-V0-057, AMAP-V0-059 | `cmd/corvint/flows_appmap_entries.go` | `TestEntriesCLI`, `TestEntriesBudget` |
+
+Promotion needs owner acceptance; runtime verification, shortest PROVEN paths, non-UI-router entry
+metadata, dynamic resolves/params interpretation and adopter-scale qualification remain deferred.

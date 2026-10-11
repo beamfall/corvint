@@ -120,6 +120,8 @@ type RootPin struct {
 
 // Screen is one router state: a node of the screen graph (AMAP-V0-002, AMAP-V0-003, AMAP-V0-006).
 type Screen struct {
+	// Entry records static entry constraints; absent in older maps (AMAP-V0-053/058).
+	Entry *EntryDeclaration `json:"entry,omitempty"`
 	// SplatNonEmpty preserves Rails required-glob semantics while sharing collision keys (AMAP-V0-046).
 	SplatNonEmpty   bool     `json:"splat_nonempty,omitempty"`
 	ID              string   `json:"id"`

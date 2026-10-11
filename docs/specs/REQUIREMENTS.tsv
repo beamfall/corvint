@@ -260,6 +260,16 @@ AMAP-V0-045	docs/specs/application-map-v0.md	424	Optional manifest `router_globs
 AMAP-V0-046	docs/specs/application-map-v0.md	431	All dialects MUST use shared normalized parameter and template collision keys;
 AMAP-V0-047	docs/specs/application-map-v0.md	437	Coverage discovery MUST read only bounded Git tree metadata (at most 20000
 AMAP-V0-048	docs/specs/application-map-v0.md	443	Focused committed fixtures MUST demonstrate mixed-dialect build, URL lookup,
+AMAP-V0-050	docs/specs/application-map-v0.md	448	`flows appmap entries --map FILE` MUST emit a deterministic static
+AMAP-V0-051	docs/specs/application-map-v0.md	453	Classification MUST be one of `deep-linkable`, `requires-parent-params`,
+AMAP-V0-052	docs/specs/application-map-v0.md	458	Required parameters MUST be the sorted unique union of path parameters on the
+AMAP-V0-053	docs/specs/application-map-v0.md	463	UI-router declarations MUST retain optional entry metadata distinguishing
+AMAP-V0-054	docs/specs/application-map-v0.md	469	Entry results MUST carry the map revision/digest and evaluated revision.
+AMAP-V0-055	docs/specs/application-map-v0.md	474	A changed template, guard, ancestor or manifest MUST make the projected
+AMAP-V0-056	docs/specs/application-map-v0.md	479	The projection MUST retain `proven_path` as an empty list with status UNKNOWN
+AMAP-V0-057	docs/specs/application-map-v0.md	484	Entries MUST use the existing bounded map loader and projection renderer,
+AMAP-V0-058	docs/specs/application-map-v0.md	488	Old maps without entry metadata MUST remain readable and project UNKNOWN
+AMAP-V0-059	docs/specs/application-map-v0.md	493	This slice MUST remain static and read-only: it MUST NOT visit URLs or run
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read
