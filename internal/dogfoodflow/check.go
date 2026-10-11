@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/dogfoodoperation"
+	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
 // CheckOptions are the inputs of `corvint dogfood check` and `dogfood seal`.
@@ -119,7 +120,11 @@ func (c *check) seal() int {
 	}
 	if replaced := c.unarchivedBaseCEM(bind); replaced != "" {
 		c.say("%s: REFUSE unarchived-base-cem\n", c.prefix)
-		c.say("  BASE tracks .corvint/change.cem.json (bound at %s) that this change replaced and no .corvint/changes/ file keeps; archive it in a commit on the base branch, then restart this change on that commit\n", replaced)
+		c.say("  BASE tracks .corvint/change.cem.json (bound at %s) that this change replaced and no .corvint/changes/ file keeps\n", replaced)
+		if inherited := c.inheritedCEM(); inherited.path != "" {
+			c.say("  fix: %s\n", inherited.archiveRecovery())
+			c.say("  then rerun dogfood-change, bind, dogfood-check and dogfood-seal with the same BASE (DCW-V0-043)\n")
+		}
 		c.exit(2)
 	}
 	sealed := ".corvint/changes/" + bind + ".cem.json"
@@ -225,8 +230,17 @@ func (c *check) requireCleanChange() {
 	if diffStatus > 1 {
 		c.exit(2)
 	}
-	worktree := c.gitValue("status", "--porcelain", "--untracked-files=all")
-	if worktree != "" {
+	// Core's hardened probe reads status against private metadata and refuses
+	// a configuration that could run a repository-owned filter or hook, which
+	// a plain git status would run (DCW-V0-045).
+	repository, err := gokernel.ProbeRepositoryContext(c.ctx, c.root)
+	c.checkpoint()
+	if err != nil {
+		c.say("dogfood-check: REFUSE worktree-status-unavailable\n  %s\n", oneLine(err.Error()))
+		c.say("  fix: remove the repository configuration the reason names, or run dogfood check in a plain clone (git clone --no-hardlinks)\n")
+		c.exit(2)
+	}
+	if repository.DirtyPathCount != 0 {
 		refusal := "dirty-worktree"
 		if diffStatus == 0 {
 			refusal = "uncommitted-change-not-in-base-target"
