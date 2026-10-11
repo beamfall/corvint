@@ -108,6 +108,14 @@ Round 5 (`gpt-6.1-sol`, read-only) found one P2.
   visit, and requires at least one `home` visit. The Node tests cover the withheld routes. The live
   rerun produced files byte-identical to the `live-events` fixtures.
 
+## Review round 6 repair (review cap reached)
+
+Round 6 confirmed the round-5 repairs and found one P2. The unparseable-URL fallback also dropped
+the query's `?`. That `?` decides whether observe's hash prefix applies: `http://h/?x=1#!/home?q=%zz`
+resolves `/` from the trace but `/home` from `http://h/#!/home?%`. The fallback now keeps the `?`.
+The new differential cases fail against the round-5 producer and pass with this repair. Round 6
+was the last round under the extended cap, so this repair has not been independently reviewed.
+
 ## Overhead
 
 The run was 80 tests (`--repeat-each=40`, one worker) on a loaded shared host, three runs each:

@@ -114,9 +114,11 @@ function redactURL(raw) {
     // url.Parse refuses a bad escape, so observe writes the visit as REDACTED but still matches the
     // screen on the raw path and hash route. Only those bytes are kept, and a trailing bad escape
     // keeps the URL unparseable; a route with an encoded '?' may hold query bytes and is withheld.
-    if (fragment === null) return path;
+    // An emptied query keeps its '?', which decides whether the hash prefix applies.
+    const base = q < 0 ? path : path + '?';
+    if (fragment === null) return base;
     const route = fragment.slice(0, fragment.search(/[?#]|$/));
-    return /%3f/i.test(route) ? null : path + '#' + route + '?%';
+    return /%3f/i.test(route) ? null : base + '#' + route + '?%';
   }
 }
 

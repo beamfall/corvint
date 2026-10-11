@@ -130,7 +130,8 @@ test('ANL-V0-044: URLs are redacted before they reach disk', () => {
   assert.equal(redactURL('http://h/#/r%3Fsession%3D9'), null);
   // An unparseable URL keeps only the path and hash route observe matches on, and stays unparseable.
   assert.equal(redactURL('http://h/#/r?q=%zz&token=zz'), 'http://h/#/r?%');
-  assert.equal(redactURL('http://u:p@h/a%zz?token=zz#/r?x=1'), 'http://h/a%zz#/r?%');
+  assert.equal(redactURL('http://u:p@h/a%zz?token=zz#/r?x=1'), 'http://h/a%zz?#/r?%');
+  assert.equal(redactURL('http://h/?x=1#!/home?q=%zz'), 'http://h/?#!/home?%');
   assert.equal(redactURL('http://h/#/r%3Ftoken%3Dzz%zz'), null);
   assert.equal(redactURL('http://h/#!/%68ome?x=1'), 'http://h/#!/%68ome?x=1');
   assert.equal(redactURL('http://h/#!/home?x=%41'), 'http://h/#!/home?x=%41');

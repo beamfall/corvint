@@ -313,8 +313,9 @@ are URL templates, not component source files. This slice makes neither missing 
   `?` is not its first literal `?` cannot keep its bytes, and the attempt is withheld with a
   warning. When `observe` cannot parse the URL (a bad escape in the path or fragment), it writes
   the visit as `REDACTED` but matches the screen on the raw path and hash route, so the producer
-  keeps only the path and the hash route up to its first `?` or `#`, followed by `?%` so the URL
-  stays unparseable; such a route holding an encoded `?` is withheld. `observe` then decodes the
+  keeps only the path, the query's `?` if present, and the hash route up to its first `?` or `#`,
+  followed by `?%` so the URL stays unparseable; such a route holding an encoded `?` is withheld.
+  `observe` then decodes the
   same URL from the written URL as from the committed URL and resolves the same screen and status.
   (proposed; issue #814)
 - `ANL-V0-045`: Its cost is one in-process listener call per Playwright call, two page event

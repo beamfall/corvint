@@ -144,6 +144,8 @@ func TestANLV0044ProducerRedactionMatchesObserve(t *testing.T) {
 		"http://h/#!/%68ome?q=%zz",
 		"http://h/#!/home?q=%zz&token=sekret14",
 		"http://u:p@h/a%zz?token=sekret15#!/home?x=1",
+		"http://h/?x=1#!/home?q=%zz&token=sekret17",
+		"http://h/?#!/home?q=%zz",
 		"http://h/#/r%3Fsession%3Dsekret6&b=%2526",
 		"http://h/#/r%3Ftoken%3Dsekret16%zz",
 	}
