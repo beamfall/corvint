@@ -51,7 +51,9 @@ func GroupByPageState(in *Input) ([]byte, error) {
 			r.Blocked = append(r.Blocked, PageStateBlocked{VariationID: v.ID, Reason: reason})
 			continue
 		}
-		key := strings.Join([]string{*v.App, *v.Screen, *v.Setup, *v.User, *v.Org, strings.Join(v.Requires, "\x00")}, "\x1f")
+		requiresJSON, _ := json.Marshal(v.Requires)
+		requires := string(requiresJSON)
+		key := strings.Join([]string{*v.App, *v.Screen, *v.Setup, *v.User, *v.Org, requires}, "\x1f")
 		sum := sha256.Sum256([]byte(key))
 		id := "pagestate:" + hex.EncodeToString(sum[:8])
 		g := groups[id]

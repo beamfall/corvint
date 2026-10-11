@@ -71,9 +71,6 @@ func Impact(ctx context.Context, m *Map, l *EdgeLedger, base string, o Options) 
 	if err != nil {
 		return nil, err
 	}
-	if err := checkLedgerBinding(m, l); err != nil {
-		return nil, err
-	}
 	r := repo{ctx: ctx, root: o.Root}
 	head := o.Revision
 	if head == "" {
@@ -82,6 +79,9 @@ func Impact(ctx context.Context, m *Map, l *EdgeLedger, base string, o Options) 
 	headOID, err := r.resolve(head)
 	if err != nil {
 		return nil, verifyError("appmap-invalid-query", "evaluated revision is not a commit")
+	}
+	if err = checkLedgerBinding(m, l, headOID); err != nil {
+		return nil, err
 	}
 	baseOID, err := r.resolve(base)
 	if err != nil {
@@ -143,7 +143,7 @@ func Impact(ctx context.Context, m *Map, l *EdgeLedger, base string, o Options) 
 			}
 		}
 		for _, f := range m.Files {
-			if f.Path == p {
+			if f.Path == p && f.Anchor.Repo == "" {
 				placed = true
 				if f.Screen != "" {
 					touch(f.Screen, p, "test-file")
@@ -289,10 +289,19 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-// checkLedgerBinding refuses a ledger built from another app or map digest (a nil ledger passes).
-func checkLedgerBinding(m *Map, l *EdgeLedger) error {
-	if l != nil && (l.App != m.App || l.MapDigest != m.Digest) {
-		return verifyError("appmap-invalid-query", "the edge ledger was not built from this map")
+// checkLedgerBinding refuses a ledger from another app, map digest or evaluated revision, or one
+// trimmed to a byte cap (a nil ledger passes).
+func checkLedgerBinding(m *Map, l *EdgeLedger, evaluated string) error {
+	if l == nil {
+		return nil
+	}
+	if l.App != m.App || l.MapDigest != m.Digest || l.Revision != evaluated {
+		return verifyError("appmap-invalid-query", "the edge ledger was not built from this map at the evaluated revision")
+	}
+	for _, n := range l.Omitted {
+		if n > 0 {
+			return verifyError("appmap-invalid-query", "the edge ledger is trimmed; rebuild it with --full")
+		}
 	}
 	return nil
 }

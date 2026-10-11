@@ -198,7 +198,7 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 			}
 			sort.Strings(ordered)
 			for _, key := range ordered {
-				if keyUncertain(v, key) {
+				if keyUncertain(e, key) {
 					blocked = true
 				}
 				// Isolate one test key while sharing the RVN freshness cache and receipt admission.
@@ -343,8 +343,8 @@ func crossingTestKey(c EdgeCrossing) string {
 
 // keyUncertain is true when any receipt outcome for key is not a conclusive pass or failure at a
 // resolvable application revision: a pass elsewhere does not launder it (ANL-V0-003).
-func keyUncertain(v *Verification, key string) bool {
-	for _, in := range v.receipts {
+func keyUncertain(e *verifier, key string) bool {
+	for _, in := range e.v.receipts {
 		for _, t := range in.r.Tests {
 			if t.ID != key {
 				continue
@@ -357,7 +357,7 @@ func keyUncertain(v *Verification, key string) bool {
 			default:
 				return true
 			}
-			if rev, _ := jstestprovider.QualifiedApplicationRevision(in.r, t); !commitOID.MatchString(rev) {
+			if rev, _ := jstestprovider.QualifiedApplicationRevision(in.r, t); !commitOID.MatchString(rev) || e.anchorsAt(rev, nil).evaluated != rev {
 				return true
 			}
 		}

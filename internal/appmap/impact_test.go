@@ -57,6 +57,7 @@ func TestANLV0015RouterChangeReachesDescendants(t *testing.T) {
 	}
 	impactCommit(t, f, map[string]string{"router/parent.ts": "export {}\n", "notes.md": "x\n"})
 	l := provenLedger(f, [2]string{f.a, f.b})
+	l.Revision = gitTest(t, f.root, "rev-parse", "HEAD")
 	l.Edges[0].Status = "UNVERIFIED_AT_HEAD"
 	r := impactRun(t, f, l, base, Options{})
 	if r.Verdict != VerdictTargeted || r.Ignored != 1 || len(r.Unknown) != 0 {

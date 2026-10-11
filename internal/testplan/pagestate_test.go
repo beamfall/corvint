@@ -35,6 +35,14 @@ func TestANLV0012GroupsSharedPageState(t *testing.T) {
 	}
 }
 
+// ANL-V0-012: a fact value containing the old key delimiter cannot alias a different fact set.
+func TestANLV0012RequiredSetsStayDistinct(t *testing.T) {
+	r := pageState(t, variation("a", set("requires", []any{"a=1", "b=2"})), variation("b", set("requires", []any{"a=1\u0000b=2"})))
+	if len(r.Groups) != 0 {
+		t.Fatalf("%+v", r.Groups)
+	}
+}
+
 // ANL-V0-013: destructive, state-changing, requirement-differing and anchor-missing variations are
 // never merged into a group.
 func TestANLV0013BlocksAndSeparates(t *testing.T) {

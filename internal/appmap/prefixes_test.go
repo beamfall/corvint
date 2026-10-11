@@ -10,7 +10,7 @@ import (
 
 type prefixFixture struct {
 	m          *Map
-	root       string
+	root, rev  string
 	a, b, c, d string
 }
 
@@ -27,7 +27,7 @@ func prefixSetup(t *testing.T) prefixFixture {
 	if len(ids) < 4 {
 		t.Fatal("fixture too small", ids)
 	}
-	f := prefixFixture{m: m, root: root, a: ids[0], b: ids[1], c: ids[2], d: ids[3]}
+	f := prefixFixture{m: m, root: root, rev: rev, a: ids[0], b: ids[1], c: ids[2], d: ids[3]}
 	add := func(id, path string, chain ...string) {
 		m.Files = append(m.Files, TestFile{ID: id, Path: path, Role: roleSpec, Join: StatusResolved})
 		for i := 1; i < len(chain); i++ {
@@ -42,7 +42,7 @@ func prefixSetup(t *testing.T) prefixFixture {
 }
 
 func provenLedger(f prefixFixture, pairs ...[2]string) *EdgeLedger {
-	l := &EdgeLedger{Schema: EdgeLedgerSchema, App: f.m.App, MapDigest: f.m.Digest, Digest: "sha256:l"}
+	l := &EdgeLedger{Schema: EdgeLedgerSchema, App: f.m.App, Revision: f.rev, MapDigest: f.m.Digest, Digest: "sha256:l"}
 	for _, p := range pairs {
 		sv := StepVerification{Status: Verified, Receipt: &ReceiptRef{TestKey: "login-test"}}
 		l.Edges = append(l.Edges, LedgerEdge{From: p[0], To: p[1], Status: EdgeProven, Evidence: &EdgeCrossing{Verification: sv}})
@@ -116,10 +116,30 @@ func TestANLV0011StaleEntryAndBudget(t *testing.T) {
 	f := prefixSetup(t)
 	facts := &PrefixFacts{Schema: PrefixFactsSchema, Tests: []PrefixFact{{Path: "e2e/specs/long.spec.ts", ReadOnlyEdges: []string{prefixEdgeID(f.a, f.b), prefixEdgeID(f.b, f.c)}}}}
 	l := provenLedger(f, [2]string{f.a, f.b}, [2]string{f.b, f.c})
-	stale := runPrefixes(t, f, l, facts, Options{Revision: "0000000000000000000000000000000000000000"})
+	for _, s := range f.m.Screens {
+		file := filepath.Join(f.root, s.Anchor.Path)
+		body, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = os.WriteFile(file, append([]byte("// shifted\n"), body...), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	commitAll(t, f.root, "shift")
+	if _, err := Prefixes(context.Background(), f.m, l, facts, Options{Root: f.root}); err == nil {
+		t.Fatal("ledger from an older revision accepted")
+	}
+	fresh := *l
+	fresh.Revision = gitTest(t, f.root, "rev-parse", "HEAD")
+	l = &fresh
+	stale := runPrefixes(t, f, l, facts, Options{})
 	if len(stale.Flagged) != 0 || reasonFor(stale, "e2e/specs/long.spec.ts") != "entry-template-not-fresh" {
 		t.Fatalf("%+v", stale)
 	}
+	f = prefixSetup(t)
+	facts = &PrefixFacts{Schema: PrefixFactsSchema, Tests: []PrefixFact{{Path: "e2e/specs/long.spec.ts", ReadOnlyEdges: []string{prefixEdgeID(f.a, f.b), prefixEdgeID(f.b, f.c)}}}}
+	l = provenLedger(f, [2]string{f.a, f.b}, [2]string{f.b, f.c})
 	full := runPrefixes(t, f, l, facts, Options{})
 	small := runPrefixes(t, f, l, facts, Options{Budget: 512})
 	if small.Digest != full.Digest || small.Omitted["abstained"]+small.Omitted["flagged"] == 0 {

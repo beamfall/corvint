@@ -90,7 +90,7 @@ are URL templates, not component source files. This slice makes neither missing 
   deep-linkable (`entry-not-deep-linkable`) or not FRESH (`entry-template-not-fresh`), or saves
   nothing (`nothing-to-save`, a one-edge chain). (proposed, pending owner acceptance (V1-1134))
 - `ANL-V0-011`: The report is deterministic with a digest of the complete report, byte-capped with
-  omitted counts, learned authority, read-only and offline. A ledger not built from the map (app or map digest) is refused. With `--check` the command exits 1
+  omitted counts, learned authority, read-only and offline. A ledger not built from the map (app, map digest, evaluated revision) or trimmed to its byte cap is refused. With `--check` the command exits 1
   (`test-plan-mismatch`) when a flagged test is absent from `--baseline` or any flagged row was trimmed by the byte cap (an earlier report; any flag
   fails without one), and 2 on invalid input. (proposed, pending owner acceptance (V1-1134))
 - `ANL-V0-012`: `test-plan page-state --input FILE` reads one `test-consolidation-input/0` document and
@@ -113,7 +113,7 @@ are URL templates, not component source files. This slice makes neither missing 
   anchor selects its screens (`test-attribution`, `test-file`, `flow-anchor`). The report lists the
   edges touching selected screens (with ledger status, `flipped` for `UNVERIFIED_AT_HEAD` and the
   cheapest re-proving test), the redundant crossing test keys and the attributed spec files; without
-  a ledger the map's edges are listed as `NOT_IN_LEDGER`; a ledger not built from the map is refused. (proposed, pending owner acceptance (V1-1137))
+  a ledger the map's edges are listed as `NOT_IN_LEDGER`; a ledger not built from the map at the evaluated revision, or trimmed, is refused. (proposed, pending owner acceptance (V1-1137))
 - `ANL-V0-016`: A changed UI path (html, script, style or template extension) that no map element
   places is listed as unknown (`unmapped-path`, or `manifest-changed` for the manifest) and forces the
   verdict `full-suite-required` for the app; otherwise the verdict is `targeted` or
@@ -162,7 +162,7 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-009 | `internal/appmap/prefixes.go` | `TestANLV0009FlagsProvenPrefix` |
 | ANL-V0-010 | `internal/appmap/prefixes.go` | `TestANLV0010NeverFlagsTargetsOrChanges`, `TestANLV0010RefusesDuplicateFactsAndForeignLedger` |
 | ANL-V0-011 | `internal/appmap/prefixes.go`, `cmd/corvint/test_plan_prefixes.go` | `TestANLV0011StaleEntryAndBudget`, `TestANLV0011PrefixesCLI` |
-| ANL-V0-012 | `internal/testplan/pagestate.go` | `TestANLV0012GroupsSharedPageState` |
+| ANL-V0-012 | `internal/testplan/pagestate.go` | `TestANLV0012GroupsSharedPageState`, `TestANLV0012RequiredSetsStayDistinct` |
 | ANL-V0-013 | `internal/testplan/pagestate.go` | `TestANLV0013BlocksAndSeparates` |
 | ANL-V0-014 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0012GroupsSharedPageState`, `TestANLV0014PageStateCLI` |
 | ANL-V0-015 | `internal/appmap/impact.go`, `cmd/corvint/flows_appmap_impact.go` | `TestANLV0015RouterChangeReachesDescendants`, `TestANLV0015ImpactCLI` |

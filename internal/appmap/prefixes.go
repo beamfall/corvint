@@ -102,9 +102,6 @@ func Prefixes(ctx context.Context, m *Map, l *EdgeLedger, f *PrefixFacts, o Opti
 	if err != nil {
 		return nil, err
 	}
-	if err := checkLedgerBinding(m, l); err != nil {
-		return nil, err
-	}
 	p := newProjection(ctx, m, o)
 	for i := range m.Screens {
 		for _, a := range m.lineage(&m.Screens[i]) {
@@ -112,8 +109,11 @@ func Prefixes(ctx context.Context, m *Map, l *EdgeLedger, f *PrefixFacts, o Opti
 		}
 	}
 	p.check()
+	if err := checkLedgerBinding(m, l, p.fresh.evaluated); err != nil {
+		return nil, err
+	}
 	proven := map[string]string{}
-	rep := PrefixReport{Schema: PrefixesSchema, App: m.App, Revision: m.Revision, MapDigest: m.Digest, Authority: AuthorityLearned, Flagged: []FlaggedPrefix{}, Abstained: []PrefixAbstention{}, Omitted: map[string]int{"flagged": 0, "abstained": 0}}
+	rep := PrefixReport{Schema: PrefixesSchema, App: m.App, Revision: p.fresh.evaluated, MapDigest: m.Digest, Authority: AuthorityLearned, Flagged: []FlaggedPrefix{}, Abstained: []PrefixAbstention{}, Omitted: map[string]int{"flagged": 0, "abstained": 0}}
 	if l != nil {
 		rep.LedgerDigest = l.Digest
 		for _, r := range l.Edges {
