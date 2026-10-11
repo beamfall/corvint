@@ -837,6 +837,16 @@ CEM-V1-034	docs/specs/cem-stable-v1.md	319	Core `cem report --format json` over 
 CEM-V1-035	docs/specs/cem-stable-v1.md	320	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
 CEM-V1-036	docs/specs/cem-stable-v1.md	321	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
 CEM-V1-050	docs/specs/cem-stable-v1.md	199	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable
+CEM-V1-070	docs/specs/cem-stable-v1.md	396	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the
+CEM-V1-071	docs/specs/cem-stable-v1.md	397	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v
+CEM-V1-072	docs/specs/cem-stable-v1.md	398	A report built over a stable source MUST take profile `corvint-witness-stable/0`
+CEM-V1-073	docs/specs/cem-stable-v1.md	399	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`
+CEM-V1-074	docs/specs/cem-stable-v1.md	400	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a
+CEM-V1-075	docs/specs/cem-stable-v1.md	401	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab
+CEM-V1-076	docs/specs/cem-stable-v1.md	402	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and
+CEM-V1-077	docs/specs/cem-stable-v1.md	403	The console chain pane MUST admit `cem/1.0` in its closed profile registry only
+CEM-V1-078	docs/specs/cem-stable-v1.md	404	Each criterion binding, runner receipt (with its execution authority, source bin
+CEM-V1-079	docs/specs/cem-stable-v1.md	405	The registry stays closed: an unsupported profile, a near-stable spec, an unknow
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	349	The default `verify` path refuses a strictly parsed JSON object whose exact
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	353	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	356	Only that exact case changes. A duplicate, non-string, differently cased,

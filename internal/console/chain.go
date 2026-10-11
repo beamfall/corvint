@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/trace"
 )
 
@@ -51,7 +52,7 @@ var (
 	// (docs/specs/ocm-v0-dogfood.md, Wire profile). It is used only to show
 	// the clause an obligation already names, never to find a requirement.
 	requirementLine = regexp.MustCompile("^- (?:`([A-Z][A-Z0-9-]{2,31}-[0-9]{3})`:[ ]|\\*\\*([A-Z][A-Z0-9-]{2,31}-[0-9]{3})[.:]\\*\\*[ ])")
-	cemProfiles     = map[string]bool{"cem/0.1": true, "cem/0.2": true, "cem/0.3": true}
+	cemProfiles     = map[string]bool{"cem/0.1": true, "cem/0.2": true, "cem/0.3": true, wire.StableSpec: true}
 )
 
 type wireSpan struct {
@@ -296,6 +297,9 @@ func (w Worktree) ReadChain(ctx context.Context, commit, change string) *Chain {
 	chain.Base, chain.Profile = document.BaseRevision, document.Spec
 	reader := &objects{worktree: w, ctx: ctx, read: map[string]objectRead{}}
 	chain.Binding = w.changeBinding(ctx, chain)
+	if chain.Profile == wire.StableSpec {
+		chain.Binding = append(chain.Binding, stableEdges(chain)...)
+	}
 	chain.Hunks = hunkEdges(chain, document, reader)
 	bound, artifacts := readOCMs(w.Root, change, sha256Hex(chain.Sealed.Text))
 	chain.Artifacts = artifacts
@@ -323,6 +327,11 @@ func decodeSealed(sealed *Blob) (wireCEM, error) {
 	}
 	if !cemProfiles[document.Spec] {
 		return document, errors.New(GapUnsupported + ": the sealed map states profile " + strconv.Quote(document.Spec) + ", which this pane does not read")
+	}
+	if document.Spec == wire.StableSpec {
+		if _, err := admitStable(sealed.Text); err != nil {
+			return document, err
+		}
 	}
 	return document, nil
 }

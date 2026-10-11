@@ -129,6 +129,9 @@ type Source struct {
 	Hunks      int    `json:"hunks"`
 	Basis      int    `json:"basis"`
 	Unattached int    `json:"unattached"`
+	// Stable is present only for an exact cem/1.0 map, so a 0.x report keeps
+	// its bytes (CEM-V1-070).
+	Stable *StableBinding `json:"stable,omitempty"`
 }
 
 // Precondition names something that must exist before the report could claim
@@ -216,6 +219,10 @@ type Options struct {
 	Base string
 	// CEMPath overrides the in-repository Change Evidence Map location.
 	CEMPath string
+	// StableArtifacts is the absolute artifact root the stable verifier reads
+	// for an exact cem/1.0 map. Without it a stable map is UNSUPPORTED and no
+	// citation is applied (CEM-V1-071).
+	StableArtifacts string
 }
 
 // Compile builds the report for base..index.CommitRevision. It only reads: no
@@ -257,6 +264,9 @@ func Compile(ctx context.Context, index *contextindex.Index, options Options) (*
 		Sources:        []Source{source},
 		Obligations:    obligations,
 		PacketCoverage: append(admission.packets, closure.packets...),
+	}
+	if source.Stable != nil {
+		report.Profile = StableProfile
 	}
 	report.Summary = summarize(obligations)
 	report.Preconditions = preconditions(report)
@@ -554,6 +564,9 @@ func readCEMSource(ctx context.Context, budget *gitrun.Budget, index *contextind
 			source.Status, source.Detail = "INVALID", err.Error()
 		}
 		return source, nil
+	}
+	if wire.DeclaresStable(raw) {
+		return readStableSource(ctx, source, raw, index, options)
 	}
 	document, err := wire.ParseMap(raw)
 	if err != nil {
