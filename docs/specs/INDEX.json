@@ -844,7 +844,7 @@
     "path": "docs/specs/corvint-tasks-doctor-v0.md",
     "title": "Corvint Tasks doctor V0",
     "reqPrefix": "TQD-V0",
-    "intent": "accepted (decision 0481; GitHub #715; TQD-V0-001..012)",
+    "intent": "accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013)",
     "delivery": "experimental",
     "claim": "`corvint-tasks doctor` names stuck-queue patterns from journal, pool and attempt data plus bounded plugins; `doctor --line` prints a cached status line.",
     "dependsOn": [

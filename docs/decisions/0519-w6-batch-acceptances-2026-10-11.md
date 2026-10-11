@@ -68,8 +68,10 @@ requirement that was proposed before this batch stays proposed.
 
 ## Limits
 
-Delivery stays experimental. Live adopter qualification, Linux and the load envelopes the lane
-build-log entries record remain NOT_OBSERVED. The acceptance admits no ranking, evidence or authority
+Delivery stays experimental. Live adopter qualification and Linux remain NOT_OBSERVED. V1-0906
+keeps its retained Darwin evidence (five runs each at 1,000 and 100,000 receipts, with measured
+descriptor peaks and one-minute load bands, in `docs/build-log/2026-10-10-v1-0906-bounded-fds.md`);
+load envelopes outside the bands the lane build-log entries record remain NOT_OBSERVED. The acceptance admits no ranking, evidence or authority
 input beyond what the accepted text states. The standing auto-accept covers only lane-proposed
 requirements after review. It never covers classifier-blocked actions, releases, tags, manual
 merges, force-pushes, remote-branch deletion or installs.
