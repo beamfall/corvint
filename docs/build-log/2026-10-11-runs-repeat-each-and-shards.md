@@ -59,6 +59,9 @@ repeats without a reported spec line counted as one location (now ambiguous); de
 and repeat counts were unbounded (now 1024, `REPORT_BOUND_EXCEEDED`, and compare no longer
 allocates absent slots). The reviewer also filed V1-1248 to V1-1250 for these findings in the
 native queue from its read-only run; this lane wrote no tickets.
+Round 2 (`/private/tmp/claude-501/w13-runs-codex-r2.log`): FINAL-VERDICT PASS, with one P3 (help
+overstated the ambiguity rules for single occurrences and cross-shard repeats), fixed in the help.
+PWR-V0-011..023 are then accepted under the owner's standing auto-accept (2026-10-11).
 
 ## Evidence
 

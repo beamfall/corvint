@@ -5,7 +5,8 @@ Date: 2026-10-11
 Intent status: accepted (decision 0520; V1-1230, V1-1229)
 Delivery status: experimental
 Authoritative inputs: V1-1230 / GitHub #798 and V1-1229 / GitHub #797 owner requests; GitHub
-#809 (repeat-each) and #810 (shards) for PWR-V0-011..023; AGENTS.md invariants 1, 2, 4, 7 and 8.
+#809 (repeat-each) and #810 (shards) for PWR-V0-011..023, agent-drafted and accepted under the
+owner's standing auto-accept (2026-10-11) after independent review; AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: A read-only reader of Playwright JSON reports classifies per-test outcome stability across runs and behaviour parity between baseline and candidate runs.
@@ -215,18 +216,18 @@ two shards is ambiguous; a sharded `--repeat-each 2` run is `INTERMITTENT` with 
 | PWR-V0-008 | `internal/playwrightruns` | `TestCompareVerdicts`, `TestReaderAndCompareEdgeCases`, `TestRunsCompareCLI` | experimental |
 | PWR-V0-009 | `internal/playwrightruns` | `TestCompareVerdicts`, `TestReaderAndCompareEdgeCases` | experimental |
 | PWR-V0-010 | `cmd/corvint/runs.go` | `TestRunsCompareCLI` | experimental |
-| PWR-V0-011 | `internal/playwrightruns` | `TestRepeatEachIsObservations`, `TestRunsRepeatAndShardCLI` | proposed/experimental |
-| PWR-V0-012 | `internal/playwrightruns` | `TestRepeatCountMismatchAmbiguous` | proposed/experimental |
-| PWR-V0-013 | `internal/playwrightruns` | `TestRepeatEachIsObservations` | proposed/experimental |
-| PWR-V0-014 | `internal/playwrightruns` | `TestCompareRepeatsMatchSingleReports`, `TestRunsRepeatAndShardCLI` | proposed/experimental |
-| PWR-V0-015 | `internal/playwrightruns` | `TestSingleRepeatOutputByteIdentical` | proposed/experimental |
-| PWR-V0-016 | `internal/playwrightruns` | `TestShardDeclarationValidated`, `TestShardSetRefusals`, `TestCompleteShardSetMatchesWholeRun` | proposed/experimental |
-| PWR-V0-017 | `internal/playwrightruns` | `TestShardSetRefusals`, `TestRunsRepeatAndShardCLI` | proposed/experimental |
-| PWR-V0-018 | `internal/playwrightruns` | `TestShardOverlapAmbiguous` | proposed/experimental |
-| PWR-V0-019 | `internal/playwrightruns` | `TestCompleteShardSetMatchesWholeRun`, `TestShardSetRefusals`, `TestRunsRepeatAndShardCLI` | proposed/experimental |
-| PWR-V0-020 | `internal/playwrightruns` | `TestCompleteShardSetMatchesWholeRun`, `TestShardSetRefusals`, `TestRunsRepeatAndShardCLI` | proposed/experimental |
-| PWR-V0-021 | `internal/playwrightruns` | `TestShardedRepeatEachComposes` | proposed/experimental |
-| PWR-V0-022 | `internal/playwrightruns` | `TestCompleteShardSetMatchesWholeRun` | proposed/experimental |
-| PWR-V0-023 | `cmd/corvint/runs.go` | `TestRunsRepeatAndShardCLI` | proposed/experimental |
+| PWR-V0-011 | `internal/playwrightruns` | `TestRepeatEachIsObservations`, `TestRunsRepeatAndShardCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-012 | `internal/playwrightruns` | `TestRepeatCountMismatchAmbiguous` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-013 | `internal/playwrightruns` | `TestRepeatEachIsObservations` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-014 | `internal/playwrightruns` | `TestCompareRepeatsMatchSingleReports`, `TestRunsRepeatAndShardCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-015 | `internal/playwrightruns` | `TestSingleRepeatOutputByteIdentical` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-016 | `internal/playwrightruns` | `TestShardDeclarationValidated`, `TestShardSetRefusals`, `TestCompleteShardSetMatchesWholeRun` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-017 | `internal/playwrightruns` | `TestShardSetRefusals`, `TestRunsRepeatAndShardCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-018 | `internal/playwrightruns` | `TestShardOverlapAmbiguous` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-019 | `internal/playwrightruns` | `TestCompleteShardSetMatchesWholeRun`, `TestShardSetRefusals`, `TestRunsRepeatAndShardCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-020 | `internal/playwrightruns` | `TestCompleteShardSetMatchesWholeRun`, `TestShardSetRefusals`, `TestRunsRepeatAndShardCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-021 | `internal/playwrightruns` | `TestShardedRepeatEachComposes` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-022 | `internal/playwrightruns` | `TestCompleteShardSetMatchesWholeRun` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-023 | `cmd/corvint/runs.go` | `TestRunsRepeatAndShardCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 
 Repository-wide gate is `NOT_RUN` in this scoped lane.
