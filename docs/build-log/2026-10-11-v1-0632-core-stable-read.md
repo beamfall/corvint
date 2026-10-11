@@ -65,10 +65,18 @@ build log.
     therefore pass stable admission and ACCEPT. Over the same alias, `cem verify-stable
     --repository` refuses with `repository-object-unavailable` and exit 2, as
     `REPOSITORY-ENVELOPE.md` requires.
-  - The fix: `parseCEMInvocation` now also returns the root as the caller named it,
-    with only the existing lexical `--root` phase `normalizeQueryRoot` (tilde
-    expansion and `filepath.Abs`) applied. The edit is line-neutral in `main.go`, so
-    no spec line citation moves.
+  - The fix: `parseCEMInvocation` now also returns the `--root` value byte for byte,
+    or the working directory when `--root` is absent. The edit is line-neutral in
+    `main.go`, so no spec line citation moves.
+  - The second Codex review (of `753789330`, P2) found that the first repair still
+    applied `filepath.Abs`, which cleans `..`: `--root <alias>/../repo` passed
+    admission while `cem verify-stable --repository <alias>/../repo` refuses it.
+  - `verify-stable` judges `--repository` byte for byte. Its argument check refuses a
+    relative path at stage `arguments` with `invalid-arguments`, exit 2, before it
+    reads the map. Stable admission refuses an absolute path that `filepath.Clean`
+    would change, at stage `repository`. Core now applies no tilde expansion,
+    absolutization or cleaning to the stable root. `readStable` refuses a relative
+    root with the same `arguments` result that `verify-stable` builds.
   - `cemcli.RunWithCallerRoot` gives that root to the session with
     `Session.SetStableRepository`, and `readStable` admits it. `RunWithOCM` keeps its
     signature and passes the same root for both.
@@ -118,11 +126,17 @@ build log.
   - `TestCEMStableReadKeepsCallerRoot` failed on `5871c380a` under Go 1.27.2.
     Through the alias, Core gave REJECT with exit 1, while `verify-stable` gave the
     stage-`repository` refusal with exit 2.
-  - After the repair it passes on Go 1.27.2 and Go 1.27.1. Core status and verify
-    equal `verify-stable` on all fields and the exit for both the alias and the real
-    root, and only the real root passes admission.
-  - The guard `TestCEMLegacyReadKeepsResolvedRoot` passes before and after. A 0.x
-    status through the alias still reports the resolved map path.
+  - The test then grew to seven `--root` spellings: the real root, the alias,
+    `<alias>/../repo`, `<repo>/`, `./repo`, `repo` and `./alias`. On `753789330`
+    under Go 1.27.2 the last five failed. Core gave REJECT with exit 1 (exit 2 at
+    stage `repository` for `./alias`), while `verify-stable` refused at stage
+    `repository` or `arguments`.
+  - After the second repair all seven pass on Go 1.27.2 and Go 1.27.1. Core status
+    and verify equal `verify-stable --repository <same string>` on all fields and
+    the exit, and only the real root passes admission.
+  - The guard `TestCEMLegacyReadKeepsResolvedRoot` passes before and after both
+    repairs. A 0.x status through the alias, `<alias>/../repo`, `<repo>/`, `./alias`
+    and `repo` still reports the cleaned, resolved map path.
 - Doc gates pass with `rc=0`: `spec-requirements`, `requirement-definitions`,
   `traceability-tests`, `decision-numbers`, `line-citations`, `unbounded-readers`,
   `use-case-receipts` (18 current) and `go-format`.
@@ -140,8 +154,11 @@ build log.
   - Linux and Go 1.24.13 runs of the new tests. The tests compare against
     `verify-stable`, so they hold on any runtime, but ACCEPT and REJECT are asserted
     only on the Go release named by the public case.
-  - A second independent review of the repair. The first, a Codex review, found the
-    P2 repaired here.
+  - An independent review of the second repair. Two Codex reviews found the P2s
+    repaired here.
+- A cem/1.0 Core read now refuses a relative `--root`, or one with a trailing slash
+  or `..`, as `verify-stable` refuses that `--repository`. With no `--root` it uses
+  the working directory. 0.x reads still normalize the root.
   - The dogfood CEM bind and seal, which are left to the integrating lane.
 - The MCP projection of the stable refusal is still `cem-map-invalid` until S2.
   Report and markdown have no stable rendering yet.
