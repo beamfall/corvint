@@ -193,9 +193,11 @@ func TestReaderAndCompareEdgeCases(t *testing.T) {
 		if e := onlyEntry(t, r); e.Verdict != Changed || e.Baseline.FailedAssertions[0].Matcher != "toHaveHTTPStatus2" {
 			t.Fatalf("custom matcher = %+v", e)
 		}
-		r = Compare(loaded(t, custom("toHaveRésumé")), loaded(t, custom("toHaveRôle")))
-		if e := onlyEntry(t, r); e.Verdict != Changed || e.Baseline.FailedAssertions[0].Matcher != "toHaveRésumé" {
-			t.Fatalf("unicode matcher = %+v", e)
+		for _, pair := range [][2]string{{"toHaveRésumé", "toHaveRôle"}, {"toHave·Résumé", "toHave·Rôle"}, {"toHave$a", "toHave$b"}} {
+			r = Compare(loaded(t, custom(pair[0])), loaded(t, custom(pair[1])))
+			if e := onlyEntry(t, r); e.Verdict != Changed || e.Baseline.FailedAssertions[0].Matcher != pair[0] {
+				t.Fatalf("matcher %q = %+v", pair[0], e)
+			}
 		}
 	})
 	t.Run("PWR-V0-002 conflicting blob spellings are not resolved", func(t *testing.T) {

@@ -175,8 +175,8 @@ var (
 	// matcherCall finds the expect matcher a Playwright assertion message names, such as
 	// `expect(locator).toHaveText(expected)`, `expect(received).not.toBe(expected)` or
 	// `expect(received).rejects.toThrow()`; promise and negation modifiers stay part of the name, and
-	// the name is a complete JavaScript identifier (ID_Start then ID_Continue), Unicode included.
-	matcherCall = regexp.MustCompile(`expect(?:\.soft|\.poll)?\((?:[^()]|\([^()]*\))*\)\.((?:(?:not|resolves|rejects)\.)*[\p{L}\p{Nl}_$][\p{L}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}$\x{200C}\x{200D}]*)`)
+	// the name runs to the next space, dot or parenthesis, so any JavaScript identifier stays whole.
+	matcherCall = regexp.MustCompile(`expect(?:\.soft|\.poll)?\((?:[^()]|\([^()]*\))*\)\.((?:(?:not|resolves|rejects)\.)*[^\s().]+)`)
 )
 
 // ReadFile reads and parses one report. Only a regular file is read, without blocking on a FIFO,

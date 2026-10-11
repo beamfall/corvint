@@ -64,3 +64,6 @@ conflicts still give `INPUTS_DIFFER_WITHIN_SIDE`.
 Round 4 found that matcher names with non-ASCII letters were truncated. The regex now follows
 JavaScript identifier classes (ID_Start then ID_Continue), and a `toHaveRésumé` versus
 `toHaveRôle` regression test covers it.
+Round 5 found that `·` (U+00B7, an ID_Continue character) still truncated matcher names. Listing
+identifier characters is open-ended, so the matcher name now runs up to the next space, dot or
+parenthesis instead.
