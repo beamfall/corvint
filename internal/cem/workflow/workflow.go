@@ -39,9 +39,9 @@ type Session struct {
 	repository *gitauth.Repository
 	gitRoot    *publish.Root
 	commonDir  string // common Git directory, protected from external report output
-	// stableRepository is the caller-named root a stable read admits; empty
+	// stableRepository is the caller-named root a stable read admits; nil
 	// means root (see SetStableRepository).
-	stableRepository string
+	stableRepository *string
 }
 
 // Open validates the worktree root as a publication root only. Repository

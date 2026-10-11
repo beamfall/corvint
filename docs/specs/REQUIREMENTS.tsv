@@ -815,9 +815,9 @@ CEM-V1-016	docs/specs/cem-stable-v1.md	72	Assembly MUST compare each declared ru
 CEM-V1-017	docs/specs/cem-stable-v1.md	214	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab
 CEM-V1-018	docs/specs/cem-stable-v1.md	215	A stable read MUST refuse `--patch` and policy ceilings with `invalid-arguments`
 CEM-V1-019	docs/specs/cem-stable-v1.md	216	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b
-CEM-V1-034	docs/specs/cem-stable-v1.md	247	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
-CEM-V1-035	docs/specs/cem-stable-v1.md	248	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
-CEM-V1-036	docs/specs/cem-stable-v1.md	249	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
+CEM-V1-034	docs/specs/cem-stable-v1.md	248	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
+CEM-V1-035	docs/specs/cem-stable-v1.md	249	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
+CEM-V1-036	docs/specs/cem-stable-v1.md	250	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and

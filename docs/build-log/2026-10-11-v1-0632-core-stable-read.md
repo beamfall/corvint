@@ -77,6 +77,26 @@ build log.
     would change, at stage `repository`. Core now applies no tilde expansion,
     absolutization or cleaning to the stable root. `readStable` refuses a relative
     root with the same `arguments` result that `verify-stable` builds.
+  - The third Codex review (of `41427384f`, P2) found that an explicitly empty
+    `--root` (`--root ""` or `--root=`) still took the omitted-root branch. Core then
+    admitted the working directory, while `verify-stable --repository ""` refuses at
+    stage `arguments`.
+  - `parseCEMInvocation` now tells an omitted `--root` (no `--root` token consumed)
+    from an empty one. Only an omitted `--root` gives the stable route the working
+    directory. An empty one stays empty, and `readStable` refuses it as a non-absolute
+    root. `Session.stableRepository` became a `*string`, so an empty value set by the
+    entry point stays distinct from an unset one (nil keeps the session root).
+  - 0.x behaviour for an empty `--root` is unchanged. It is the working directory from
+    `os.Getwd`, exactly as for an omitted `--root`. The session root keeps that
+    unresolved path, and the reported map path is symlink-resolved by the
+    publication root. The extended legacy guard pins this.
+  - The fourth Codex review (of `78175cfba`, P2) found that option-shaped roots
+    diverged. `verify-stable --repository --repo ...` stops parsing at a value that
+    begins with `--` and refuses with null `expectedBase` and `targetRevision`, while
+    Core's arguments refusal for `--root=--repo` kept both. `readStable` now builds
+    that refusal from the repository alone when the root begins with `--`. Parity
+    assumes `--repository` is named first, as in the reviewer's command and the
+    equality table. A `-x` root never stopped that parse and already matched.
   - `cemcli.RunWithCallerRoot` gives that root to the session with
     `Session.SetStableRepository`, and `readStable` admits it. `RunWithOCM` keeps its
     signature and passes the same root for both.
@@ -131,12 +151,28 @@ build log.
     under Go 1.27.2 the last five failed. Core gave REJECT with exit 1 (exit 2 at
     stage `repository` for `./alias`), while `verify-stable` refused at stage
     `repository` or `arguments`.
-  - After the second repair all seven pass on Go 1.27.2 and Go 1.27.1. Core status
-    and verify equal `verify-stable --repository <same string>` on all fields and
-    the exit, and only the real root passes admission.
-  - The guard `TestCEMLegacyReadKeepsResolvedRoot` passes before and after both
-    repairs. A 0.x status through the alias, `<alias>/../repo`, `<repo>/`, `./alias`
-    and `repo` still reports the cleaned, resolved map path.
+  - After the second repair all seven pass on Go 1.27.2 and Go 1.27.1.
+  - The table then gained `--root ""`, `--root=` (both run in the repository) and an
+    omitted `--root`. On `41427384f` under Go 1.27.2 the four empty-root runs (verify
+    and status) failed. Core gave REJECT with exit 1, while `verify-stable
+    --repository ""` refused at stage `arguments` with exit 2. The omitted-root row
+    passed.
+  - After the third repair all ten rows pass on Go 1.27.2 and Go 1.27.1. Core status
+    and verify equal `verify-stable --repository <same string>` on all fields and the
+    exit, and the omitted root equals `--repository <working directory>`. Only the
+    real and omitted roots pass admission.
+  - Before the fourth repair (on `78175cfba`), the `--root=--repo` and
+    `--root=--map` rows failed for verify and status: both exit 2, but Core kept
+    `expectedBase` and `targetRevision`. The `--root=-x` row passed. After it, all
+    thirteen rows pass.
+  - `TestCEMStableReadDefaultsToSessionRoot` covers the unset-repository fallback
+    directly. It passes on `78175cfba`, where that fallback already existed. Pointing
+    the fallback at the resolved work root made it fail (REJECT exit 1 against the
+    `repository` refusal, exit 2), so it discriminates.
+  - The guard `TestCEMLegacyReadKeepsResolvedRoot` passes before and after every
+    repair. A 0.x status through the alias, `<alias>/../repo`, `<repo>/`, `./alias`
+    and `repo`, and with an empty or omitted `--root` in the aliased working
+    directory, still reports the cleaned, resolved map path.
 - Doc gates pass with `rc=0`: `spec-requirements`, `requirement-definitions`,
   `traceability-tests`, `decision-numbers`, `line-citations`, `unbounded-readers`,
   `use-case-receipts` (18 current) and `go-format`.
@@ -154,11 +190,12 @@ build log.
   - Linux and Go 1.24.13 runs of the new tests. The tests compare against
     `verify-stable`, so they hold on any runtime, but ACCEPT and REJECT are asserted
     only on the Go release named by the public case.
-  - An independent review of the second repair. Two Codex reviews found the P2s
+  - An independent review of the fourth repair. Four Codex reviews found the P2s
     repaired here.
-- A cem/1.0 Core read now refuses a relative `--root`, or one with a trailing slash
-  or `..`, as `verify-stable` refuses that `--repository`. With no `--root` it uses
-  the working directory. 0.x reads still normalize the root.
+- A cem/1.0 Core read now refuses a relative or empty `--root`, or one with a
+  trailing slash or `..`, as `verify-stable` refuses that `--repository`. A root
+  beginning with `--` is refused without `expectedBase` or `targetRevision`. With no
+  `--root` it uses the working directory. 0.x reads still normalize the root.
   - The dogfood CEM bind and seal, which are left to the integrating lane.
 - The MCP projection of the stable refusal is still `cem-map-invalid` until S2.
   Report and markdown have no stable rendering yet.
