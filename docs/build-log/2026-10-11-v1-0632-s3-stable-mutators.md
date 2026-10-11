@@ -90,6 +90,11 @@ fixed, with a regression test that fails against `8c040a90d`:
     `5871c380a`, and this slice does not touch `internal/cem/verify`.
   - `go test ./cmd/corvint -run 'TestCEM|TestDogfood'`: `ok`.
   - `go vet` of `internal/cem/...`, `internal/dogfoodflow` and `cmd/corvint`: clean.
+- After the review fixes and the merge of S1 review head `41427384f` (merge
+  `2b93ab436`), the same commands also cover `internal/observations`. Every package
+  is `ok`, except the same Go 1.27.2 runtime-tuple failure of
+  `TestStableS0ELinkedControl` in `internal/cem/verify`. `cmd/corvint` filtered is
+  `ok` and vet is clean.
 - Doc gates: `spec-requirements`, `requirement-definitions`, `traceability-tests`,
   `decision-numbers`, `line-citations`, `unbounded-readers`, `use-case-receipts` and
   `go-format`.
