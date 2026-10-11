@@ -2,6 +2,7 @@
 
 | Decision | Status | Summary |
 |---|---|---|
+| [`0508-lcp-v0-019-stop-git-calls-accepted-2026-10-10.md`](0508-lcp-v0-019-stop-git-calls-accepted-2026-10-10.md) | accepted (owner approval in chat, 2026-10-10) | Accepts `LCP-V0-019` as written. |
 | [`0499-cal-v0-211-exact-directory-key-warning-accepted-2026-10-10.md`](0499-cal-v0-211-exact-directory-key-warning-accepted-2026-10-10.md) | accepted (owner approval in chat, 2026-10-10) | `CAL-V0-211` accepted: a fresh `set-effects` or claim warns `EXACT_KEY_NAMES_DIRECTORY` for each exact `PATH` key naming a directory in the base tree, refusing nothing (V1-1118). |
 | [`0496-afp-v0-042-windows-test-vet-accepted-2026-10-10.md`](0496-afp-v0-042-windows-test-vet-accepted-2026-10-10.md) | accepted (owner approval in chat, 2026-10-10) | `AFP-V0-042` accepted: the required `go-static` CI job runs `GOOS=windows go vet` over the root and `interop/cem01-go` modules so a test file that does not type-check for Windows fails before merge; skipped only on a pull request that provably changes no Go source or module file. |
 | [`0498-hlq-v1-010-failed-report-retention-accepted-2026-10-10.md`](0498-hlq-v1-010-failed-report-retention-accepted-2026-10-10.md) | accepted (owner approval in chat, 2026-10-10) | `HLQ-V1-010` accepted: with `--failed-reports DIR` the HLQ runner keeps a bounded 0600 copy of any run with a non-PASS case or hook retry, never replacing a file (V1-1121). |

@@ -9,7 +9,7 @@ Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-
 ## Agent digest
 - Claim: Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.
 - Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)/implemented
-- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; pending owner acceptance).
+- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508).
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -313,7 +313,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   unsorted or duplicated intents array printed only the bare code. Rollback: revert the change; no
   code, exit class or persisted state changes.
 
-- `LCP-V0-019`: (proposed, pending owner acceptance (V1-1124)) An enrolled dogfood event
+- `LCP-V0-019`: (accepted, decision 0508) An enrolled dogfood event
   MUST pin repository identity once for policy evaluation. Its re-read of every private policy
   state and artifact input MUST reuse the first evaluation's immutable target, tree, content
   digest only when the closing observation matches that target and tree.
