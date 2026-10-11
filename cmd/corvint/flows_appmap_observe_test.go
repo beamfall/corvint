@@ -34,12 +34,12 @@ func TestANLV0006ObserveCLI(t *testing.T) {
 		}
 	}
 	trace := filepath.Join(dir, "t.json")
-	body := `{"schema":"playwright-navigation-events/0","test_key":"k","events":[{"kind":"navigate","url":"https://x.test/` + tpl + `?token=abc"},{"kind":"navigate","url":"https://x.test/nowhere/at/all"}]}`
+	body := `{"schema":"playwright-navigation-events/0","test_key":"k","events":[{"kind":"navigate","url":"https://x.test/` + tpl + `?token=zz-secret-zz"},{"kind":"navigate","url":"https://x.test/nowhere/at/all"}]}`
 	if err := os.WriteFile(trace, []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
 	code, out, diag = runFlowsCLI(root, "appmap", "observe", "--map", mapFile, "--trace", trace)
-	if code != 0 || strings.Contains(out, "abc") || !strings.Contains(out, "unmapped-url") || !strings.Contains(out, "application-navigation-observation/0") {
+	if code != 0 || strings.Contains(out, "zz-secret-zz") || !strings.Contains(out, "unmapped-url") || !strings.Contains(out, "application-navigation-observation/0") {
 		t.Fatal(code, out, diag)
 	}
 	if code, _, _ = runFlowsCLI(root, "appmap", "observe", "--map", mapFile); code == 0 {
