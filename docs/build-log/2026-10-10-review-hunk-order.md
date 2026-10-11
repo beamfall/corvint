@@ -3,8 +3,8 @@
 This entry records the original run. Later P2a/P2b findings and their repair evidence are
 retained in the appended repair section below.
 
-Intent: proposed, pending owner acceptance (V1-0408). FPK-V0-053..056 extend
-`docs/specs/falsifiable-packet-v0.md`; no owner acceptance or decision is recorded.
+Intent: accepted, decision 0515. FPK-V0-053..056 extend
+`docs/specs/falsifiable-packet-v0.md`; delivery remains experimental.
 
 The smallest useful slice is `internal/revieworder.Rank`, a pure projection over
 already-read parsed hunks, original Git AI note bytes, a witness report and a
@@ -89,7 +89,7 @@ savings or spend-enforcement claim is made. Temporary command receipts/logs are
 under `/private/tmp/claude-501/v1-0408-*`, not product state.
 # V1-0408: P2a/P2b review repairs
 
-Base: `1f5fedd18aa4c9785b5d75aea76498ab988c4dba`. Intent remains proposed and
+Base: `1f5fedd18aa4c9785b5d75aea76498ab988c4dba`. Intent is accepted (decision 0515) and
 delivery experimental under FPK-V0-053..056; these repairs do not promote the slice.
 The original run is retained in `2026-10-10-review-hunk-order.md`.
 
