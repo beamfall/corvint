@@ -49,6 +49,7 @@ var requireCleanRefusalForms = map[string]struct {
 	"breakage": {args: []string{"breakage"}},
 	"step":     {args: []string{"step", "snapshot", "--declaration", "a.json", "--host", "b.json"}},
 	"delta":    {args: []string{"delta", "--base", "HEAD", "--head", "HEAD"}},
+	"changes":  {args: []string{"changes", "--from", "HEAD", "--to", "HEAD"}},
 }
 
 // requireCleanParseWitness covers verbs whose CLI diagnostic names no argv
