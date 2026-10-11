@@ -24,6 +24,13 @@ Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap find --map FILE --text TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
 
+Navigation edge ledger (experimental, ANL-V0):
+  corvint [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV]
+      [--declarations FILE] [--require EDGE_ID]... [--budget N | --full]
+Single-map declared adjacency ledger; UNKNOWN triggers retain missing interaction evidence.
+The JSON sidecar declares tests with test_key, proves and assumes edge lists. Unproven
+requirements exit 1; invalid inputs exit 2. No browser runs and no repository files change.
+
 build compiles application-map/0 from the manifest's router definitions, flow intents and
 test suite read at REV (default HEAD) and writes it to stdout. A manifest whose tests name
 "repo": ALIAS reads them from the root --repo binds to ALIAS, at its HEAD commit, which the
@@ -46,9 +53,12 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, edges or plan")
 	}
 	verb, args := args[0], args[1:]
+	if verb == "edges" {
+		return runFlowsAppmapEdges(ctx, root, args, out)
+	}
 	f := flag.NewFlagSet("flows appmap "+verb, flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	revision := f.String("revision", "", "revision to compile or to check anchors against")
@@ -91,7 +101,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, edges or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")
