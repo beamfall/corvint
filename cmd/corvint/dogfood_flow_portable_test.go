@@ -375,13 +375,73 @@ func TestDogfoodChangeNamesVerifySyntaxRemediation(t *testing.T) {
 	}
 	fix := "\n  local-outcome: unsupported-verify-syntax\n    fix: each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax; write -run TestName instead of -run '^TestName$'\n"
 	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_OUTCOME=passed", "DOGFOOD_VERIFY_FILE=" + verify}
-	// The recorder refuses an uncommitted sidecar before it reads the commands.
+	// Bind the sidecar to verify the post-commit refusal as well.
 	run.exec(t, root, inputs, "dogfood", "change", base)
 	cemGit(t, root, "add", ".corvint/change.cem.json")
 	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
 	code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
 	if code != 1 || !strings.Contains(stderr, fix) {
 		t.Fatalf("verify syntax exit=%d stderr=%s", code, stderr)
+	}
+}
+
+// DCW-V0-034, V1-1123: syntax is refused on the first pass while the
+// prepared sidecar is still uncommitted, then with the same reason after binding.
+func TestDogfoodChangeDCWV0034VerifySyntaxBeforeBinding(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	verify := filepath.Join(t.TempDir(), "verify")
+	command := "go test ./fixture -run '^(A|B)$'"
+	if err := os.WriteFile(verify, []byte(command+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_OUTCOME=passed", "DOGFOOD_VERIFY_FILE=" + verify}
+	head := cemGit(t, root, "rev-parse", "HEAD")
+	assertRefusal := func() {
+		t.Helper()
+		code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
+		for _, want := range []string{"local-outcome: unsupported-verify-syntax", command, "ASCII letters, digits", "_./:@=+, - only"} {
+			if code != 1 || !strings.Contains(stderr, want) {
+				t.Fatalf("exit=%d missing %q: %s", code, want, stderr)
+			}
+		}
+	}
+	assertRefusal()
+	if got := cemGit(t, root, "rev-parse", "HEAD"); got != head {
+		t.Fatal("pre-commit pass changed HEAD")
+	}
+	if status := cemGit(t, root, "status", "--porcelain", "--untracked-files=all"); !strings.Contains(status, "?? .corvint/change.cem.json") {
+		t.Fatalf("sidecar was not uncommitted: %s", status)
+	}
+	cemGit(t, root, "add", ".corvint/change.cem.json")
+	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
+	assertRefusal()
+}
+
+// DCW-V0-034: a clean file reaches the recorder on both passes.
+func TestDogfoodChangeDCWV0034CleanVerifyFile(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	verify := filepath.Join(t.TempDir(), "verify")
+	if err := os.WriteFile(verify, []byte("go test ./fixture -run TestAnswer\n\n go vet ./fixture \n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_OUTCOME=passed", "DOGFOOD_VERIFY_FILE=" + verify}
+	code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
+	if code != 1 || !strings.Contains(stderr, "local-outcome: record-index-failed") {
+		t.Fatalf("first pass exit=%d stderr=%s", code, stderr)
+	}
+	cemGit(t, root, "add", ".corvint/change.cem.json")
+	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
+	_, _, stderr = run.exec(t, root, inputs, "dogfood", "change", base)
+	if strings.Contains(stderr, "local-outcome:") {
+		t.Fatalf("clean file refused: %s", stderr)
+	}
+	raw, err := os.ReadFile(filepath.Join(root, ".git/corvint/local-outcome.json"))
+	if err != nil || !strings.Contains(string(raw), `"state":"recorded"`) {
+		t.Fatalf("outcome=%s err=%v", raw, err)
 	}
 }
 
@@ -397,7 +457,7 @@ func TestDogfoodChangeNamesVerifyLengthRemediation(t *testing.T) {
 		t.Fatal(err)
 	}
 	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_OUTCOME=passed", "DOGFOOD_VERIFY_FILE=" + verify}
-	// The recorder refuses an uncommitted sidecar before it reads the commands.
+	// Bind the sidecar to verify the post-commit refusal as well.
 	run.exec(t, root, inputs, "dogfood", "change", base)
 	cemGit(t, root, "add", ".corvint/change.cem.json")
 	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")

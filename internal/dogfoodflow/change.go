@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/dogfoodoperation"
+	"github.com/Beamfall/corvint/internal/trace"
 	"github.com/Beamfall/corvint/internal/tracerecordrepo"
 	"io"
 	"os"
@@ -299,6 +300,21 @@ func (c *change) localOutcome(task string) step {
 	}
 	output := c.evidence + "/local-outcome.json"
 	errorFile := c.evidence + "/local-outcome.stderr"
+	commands := make([]string, 0, len(verify)/2)
+	for i := 1; i < len(verify); i += 2 {
+		commands = append(commands, verify[i])
+	}
+	if err := trace.ValidateVerificationCommands(commands); err != nil {
+		if writePrivate(errorFile, []byte(err.Error()+"\n")) != nil {
+			return step{"local-outcome", "NOT_PRODUCED", "aggregate-publication-failed"}
+		}
+		fmt.Fprintln(c.stderr, err)
+		reason := trace.VerificationFailureReason(err)
+		if reason == "" {
+			reason = "record-failed"
+		}
+		return step{"local-outcome", "NOT_PRODUCED", reason}
+	}
 	args := append([]string{"dogfood-record", "--base", c.base, "--target", c.target, "--task", task}, verify...)
 	status, captureErr := c.recordWithClosedStages(append(args, "--outcome", c.options.Outcome), output, errorFile)
 	if captureErr != nil {
@@ -324,7 +340,7 @@ const maxVerifyFileBytes = 65536
 var recordState = regexp.MustCompile(`^.*"state":"([a-z-]*)".*$`)
 
 // verifyArguments passes one --verify per line that is not blank; the recorder
-// applies its own bounds to each command.
+// and localOutcome share command validation before recorder invocation.
 func verifyArguments(data []byte) []string {
 	args := []string{}
 	for _, line := range textLines(data) {
