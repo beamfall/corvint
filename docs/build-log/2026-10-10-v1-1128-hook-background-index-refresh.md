@@ -94,3 +94,63 @@ Raw local logs: /tmp/v1-1128-focused-final.log, /tmp/v1-1128-doc-gates-final.log
 /tmp/v1-1128-refresh-tests.log, /tmp/v1-1128-diagnostic.log and /tmp/v1-1128-refresh-final.log;
 the corrected targeted interruption run is /tmp/v1-1128-interrupt-fixed.log.
 
+
+## Repair follow-up: analyzer audit and citation drift
+
+The follow-up started at clean HEAD a4723a0961849aec96b2a8ea9fcd6be953ffdbef;
+the integrator had already committed the preceding slice. No commit, real-index staging,
+publication, decision-file creation or Tasks write is authorized in this follow-up.
+
+`TestAnalyzerSchemaInputs` hashes every production source in `internal/contextindex`, so the new
+`refresh_lock_unix.go` changed the audited input digest. The lock adds no extraction or encoding
+behavior, so the integrator kept `analyzerSchemaID` at `corvint-analyzer/113` and repinned only the
+audit SHA-256 to f73a4f609aa0689405466139f27549d7daee70d9f5cb6c42e1294427e4688013, following the
+precedent of merge 73c12536 ("analyzer schema stays /111, audit SHA repinned"). Existing analyzer
+packs stay valid. A builder round had proposed a /114 bump; it was reverted because it would
+invalidate every opt-in analyzer pack for a non-analyzer change.
+
+Read every cited span and surrounding claim before using check-line-citations.sh --hash.
+The unchanged content anchors now point to workProductionFixture at line 234, adapter overflow
+at line 962, the observed snapshot seam at lines 241-243 (two citations), and build at line
+1646. The fixture's copying cost in decision 0082 is now explicitly historical: current code
+seeds once and clones per test. No production dispatch/layout changed to maintain old line
+numbers, so main.go's use-case receipts require no new repin in this follow-up.
+
+The integrator reports the broader focused cmd/corvint race matrix passed outside the sandbox,
+including real niceness. That supersedes the prior sandbox-only niceness observation for the
+reported run; live-host/Linux qualification and other original limits remain separate.
+Corvint query and affected were used again; the latter retains broad Go selection and
+language/frontier unknowns. The explicit requested focused checks govern. Snapshot refresh
+still fails writing the external common Git directory. Official Core/Tasks checks still fail
+version smoke with descendant snapshot unavailable, leaving available versions UNKNOWN
+(installed Core rc.3/build 407 and Tasks unverified/build.407). No verification bypass or
+installation occurred. Account usage remains NOT_OBSERVED; no usage tool is exposed here.
+
+Follow-up verification (GOTOOLCHAIN=local, TMPDIR=/private/tmp/claude-501/gotmp,
+GOMAXPROCS=3):
+
+- `go test -count=1 ./internal/contextindex -run 'AnalyzerSchema|Snapshot|Refresh'`:
+  PASS. The unchanged schema and the repinned input digest are checked.
+- `go test -count=1 -race ./cmd/corvint -run 'SnapshotRefresh|StaleSnapshot'`:
+  PASS, 34.762 seconds, no race report. The existing test-only denied-niceness
+  substitution remains; the integrator's outside-sandbox result is separate evidence.
+- `go vet ./internal/contextindex ./cmd/corvint`: PASS.
+- `make -s spec-requirements`: PASS, no REQUIREMENTS.tsv delta.
+- `make -s spec-requirements-check requirement-definitions-check traceability-tests-check
+  decision-numbers-check line-citations-check error-code-ownership-check
+  unbounded-readers-check use-case-receipts-check`: PASS against a disposable candidate
+  index populated from the working-tree edits, with private scratch objects and read-only
+  access to existing repository objects. The index-sensitive gates therefore covered the
+  repairs. The real index's SHA-256 remained unchanged. Scratch index/objects were removed.
+- `make -s use-case-receipts-test`: PASS, all five cases, with ordinary Git environment
+  because these tests create independent fixture repositories.
+- `sh script/repin-use-case-receipts.sh --check`: PASS, all 18 receipts current.
+- Direct source/diff review and `git diff --check`: PASS. This follow-up changes only the audit
+  pin and documentation; the lock/process implementation is unchanged. The existing writable-mktemp wrapper was reused for doc gates.
+
+Logs: /private/tmp/v1-1128-repair-contextindex.log,
+/private/tmp/v1-1128-repair-race.log, /private/tmp/v1-1128-repair-vet.log,
+/private/tmp/v1-1128-repair-doc-gates.log. The bounded requested repairs have no remaining test
+failure. The integrator still needs to stage the seven follow-up files and rerun the real-index
+citation gate; this builder leaves all seven unstaged. Original acceptance, integration and
+native completion obligations are unchanged and were not claimed complete.
