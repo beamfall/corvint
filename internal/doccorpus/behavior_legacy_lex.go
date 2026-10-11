@@ -321,7 +321,10 @@ func legacyEscape(rest string, value *strings.Builder) (int, bool) {
 		return 11, true
 	default:
 		r, size := utf8.DecodeRuneInString(rest)
-		value.WriteRune(r)
+		if r != '\u2028' && r != '\u2029' {
+			// A backslash before a line or paragraph separator is a line continuation.
+			value.WriteRune(r)
+		}
 		return size, true
 	}
 	return 1, true
@@ -352,6 +355,12 @@ func (l *legacyLexer) template(start int) (int, string, []legacyToken, bool, boo
 			}
 			inner = append(inner, tokens...)
 			i = end
+		case src[i] == '\r':
+			// A template's cooked value normalizes CR and CRLF line terminators to LF.
+			value.WriteByte('\n')
+			if i+1 < len(src) && src[i+1] == '\n' {
+				i++
+			}
 		default:
 			value.WriteByte(src[i])
 		}
@@ -411,15 +420,33 @@ func legacyMatchBrackets(tokens []legacyToken) ([]int, bool) {
 
 // legacyCanonical joins tokens[lo:hi] without layout: a space only separates two word tokens or
 // two operators, so reformatting never changes the text or its digest while any literal, name or
-// operator change does.
+// operator change does. A line break where a restricted production makes ASI insert a semicolon
+// (after return, break, continue or yield, or before ++ or --) is written as that semicolon.
 func legacyCanonical(tokens []legacyToken, lo, hi int) string {
 	var out strings.Builder
 	operator := func(token legacyToken) bool { return token.kind == 'p' && !legacySeparators[token.text] }
 	for i := lo; i < hi; i++ {
+		if i > lo && tokens[i].line > tokens[i-1].line && legacyRestrictedBreak(tokens, i) {
+			out.WriteByte(';')
+			out.WriteString(tokens[i].raw)
+			continue
+		}
 		if i > lo && (tokens[i].kind != 'p' && tokens[i-1].kind != 'p' || operator(tokens[i]) && operator(tokens[i-1])) {
 			out.WriteByte(' ')
 		}
 		out.WriteString(tokens[i].raw)
 	}
 	return out.String()
+}
+
+// legacyRestrictedBreak reports whether a line break before tokens[i] ends a restricted production.
+func legacyRestrictedBreak(tokens []legacyToken, i int) bool {
+	previous := tokens[i-1]
+	if previous.kind == 'i' && (i < 2 || tokens[i-2].kind != 'p' || tokens[i-2].text != "." && tokens[i-2].text != "?.") {
+		switch previous.text {
+		case "return", "break", "continue", "yield":
+			return true
+		}
+	}
+	return tokens[i].kind == 'p' && (tokens[i].text == "++" || tokens[i].text == "--")
 }

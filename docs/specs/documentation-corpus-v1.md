@@ -464,8 +464,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   string value is unquoted; no argument is `(no expected value)`; anything else is the layout-free
   canonical token text. An assertion the reader cannot turn into one tuple (a `should` callback, a
   computed matcher, a nested helper, a chain that continues after the first matcher such as
-  `.and.equal(...)` or `['and']`, a Cypress `.and(...)` not chained from a `.should(...)`, or an
-  assertion inside a template substitution) is listed under `unknown` as
+  `.and.equal(...)` or `['and']`, a Cypress `.and(...)` not chained from a `.should(...)`, a matcher
+  reached through a computed member such as `['should']`, a `.contains` whose second argument is
+  neither a literal nor a plain options object, an assertion inside a function the case defines
+  but does not pass directly as a call argument, or an assertion or Cypress `.contains`/`.and`
+  inside a template substitution) is listed under `unknown` as
   `unparsed-assertion` or `should-callback` with its case and anchor; it is never dropped, and a
   case with no static assertion has a `no-static-assertion` unknown. Status: (proposed/experimental; GitHub #811).
 - `DCP-V1-063`: Preconditions are content-bound references. Every top-level call statement in an
@@ -482,7 +485,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   inline callback, a call nested in a conditional, loop or callback, a non-statement call, or a
   recorded call that passes a callback or template substitution) gives every case under it a
   `hook-not-static` unknown. A hook at file root or in a dynamic scope is an unknown, not a
-  precondition, and every case under it also has a `hook-not-static` unknown. Status: (proposed/experimental; GitHub #811).
+  precondition, and every case under it also has a `hook-not-static` unknown, as does every case in
+  a scope with a hook call inside a template substitution. Canonical text writes a line break that
+  ends a restricted production (after `return`, `break`, `continue` or `yield`, or before `++` or
+  `--`) as the `;` ASI inserts; a backslash before U+2028 or U+2029 is a line continuation and a
+  template's CR or CRLF cooks to LF. Status: (proposed/experimental; GitHub #811).
 - `DCP-V1-064`: The record is pinned and deterministic: it names the repository identity and the
   full revision, reads only Git objects (never the working tree), writes nothing, and repeated runs
   on the same inputs give identical bytes. Status: (proposed/experimental; GitHub #811).

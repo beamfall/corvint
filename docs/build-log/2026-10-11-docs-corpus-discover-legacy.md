@@ -80,3 +80,18 @@ callback or template substitution, and a root or dynamic hook, give cases `hook-
 root or dynamic hooks no longer contribute preconditions; the first of repeated titles also gets
 `duplicate-title`; duplicate registry mappings are refused; and body preconditions inside
 template substitutions are recorded with a `nested-precondition` unknown.
+
+## Review round 3
+
+Codex round 3 (the last review the lane allows) failed with seven P2 findings
+(`/private/tmp/claude-501/w13-legacy-codex-r3.log`). All seven were fixed after the review with
+regressions in `TestLegacyDiscoveryStaticEdgeCases` and `TestLegacyLexerCanonicalAndEscapes`: a
+hook call inside a template substitution gives every case in its scope `hook-not-static`; Cypress
+`.contains`/`.and` inside a template substitution and matchers reached through a computed member
+(`['should']`, `cy['contains']`) are `unparsed-assertion` unknowns; a `.contains` whose second
+argument is neither a literal nor a plain options object is an unknown instead of a guessed tuple;
+an assertion inside a function the case defines but does not pass directly as a call argument is
+an unknown, not a criterion; canonical text writes an ASI restricted-production line break as `;`
+so `return\n1` and `return 1` digest differently; and a backslash before U+2028/U+2029 is a line
+continuation while template CR/CRLF cooks to LF. These fixes have no independent re-review, so the
+verdict stays FAIL and DCP-V1-060..069 remain proposed/experimental, not accepted.

@@ -552,6 +552,26 @@ describe('conditional hook', () => {
 });
 `
 
+var legacyRoundThreeSuite = `describe('round three', () => {
+  const hook = ` + "`${beforeEach(() => { cy.task('seed', 'T') })}`" + `;
+  it('template cypress', () => {
+    const s = ` + "`${cy.contains('hello')}`" + `;
+    cy.get('.a').should('be.visible');
+  });
+  it('computed member', () => {
+    cy.get('.x')['should']('be.visible');
+    cy['contains']('hi');
+  });
+  it('wrapped options', () => { cy.contains('hello', ({ matchCase: false })); });
+  it('literal content', () => { cy.contains('.sel', 'hello'); });
+  it('helpers', () => {
+    const check = () => expect(value).toBe(1);
+    function other() { expect(w).toBe(2); }
+    items.forEach((x) => expect(x).toBe(3));
+  });
+});
+`
+
 // TestLegacyDiscoveryStaticEdgeCases pins the static reader's handling of syntax it must not
 // misread: regex/division context, string escapes, template substitutions, chained matchers,
 // precondition order and nesting, and hooks it cannot bind (DCP-V1-061..063, DCP-V1-068).
@@ -565,6 +585,7 @@ func TestLegacyDiscoveryStaticEdgeCases(t *testing.T) {
 	legacyWrite(t, root, "e2e/more.cy.js", legacyMoreSuite)
 	legacyWrite(t, root, "e2e/root.cy.js", "beforeEach(() => { cy.visit('/root') })\ndescribe('rooted', () => {\n  it('under a root hook', () => { cy.get('.r').should('be.visible') })\n})\n")
 	legacyWrite(t, root, "e2e/brace.cy.js", "it('brace', () => { if (a) {} /it('x', () => {})/.test(b); });\n")
+	legacyWrite(t, root, "e2e/three.cy.js", legacyRoundThreeSuite)
 	git(t, root, "add", ".")
 	git(t, root, "commit", "-qm", "edge")
 	revision := git(t, root, "rev-parse", "HEAD")
@@ -656,6 +677,42 @@ func TestLegacyDiscoveryStaticEdgeCases(t *testing.T) {
 			t.Fatalf("template precondition: %v %v", asi.Fixtures, reasons("asi two"))
 		}
 	})
+	t.Run("DCP-V1-062 DCP-V1-063 computed members, template hooks, wrapped options and helpers stay unknown", func(t *testing.T) {
+		details := func(name string) []string {
+			id, out := legacyCaseNamed(t, inventory, name).ID, []string{}
+			for _, unknown := range inventory.Unknown {
+				if unknown.Case == id && unknown.Reason == "unparsed-assertion" {
+					out = append(out, unknown.Detail)
+				}
+			}
+			return out
+		}
+		for _, name := range []string{"template cypress", "computed member", "wrapped options", "literal content", "helpers"} {
+			if !slices.Contains(legacyUnknownReasons(inventory, legacyCaseNamed(t, inventory, name).ID), "hook-not-static") {
+				t.Fatalf("%s did not inherit the template hook doubt: %v", name, legacyUnknownReasons(inventory, legacyCaseNamed(t, inventory, name).ID))
+			}
+		}
+		if got := details("template cypress"); len(got) != 1 || !strings.Contains(got[0], "template substitution") {
+			t.Fatalf("template cypress: %q", got)
+		}
+		if got := details("computed member"); len(got) != 2 || !strings.Contains(got[0], "computed member") || !strings.Contains(got[1], "computed member") {
+			t.Fatalf("computed member: %q", got)
+		}
+		wrapped := legacyCaseNamed(t, inventory, "wrapped options")
+		if got := details("wrapped options"); len(wrapped.Criteria) != 0 || len(got) != 1 || !strings.Contains(got[0], "not static") {
+			t.Fatalf("wrapped options: %+v %q", wrapped.Criteria, got)
+		}
+		if literal := legacyCaseNamed(t, inventory, "literal content"); len(literal.Criteria) != 1 || literal.Criteria[0].Value != "hello" {
+			t.Fatalf("literal content: %+v", literal.Criteria)
+		}
+		helpers := legacyCaseNamed(t, inventory, "helpers")
+		if tuples := legacyEdgeTuples(helpers); !slices.Equal(tuples, []string{"toBe|x|3"}) {
+			t.Fatalf("helper tuples: %q", tuples)
+		}
+		if got := details("helpers"); len(got) != 2 || !strings.Contains(got[0], "does not visibly call") || !strings.Contains(got[1], "does not visibly call") {
+			t.Fatalf("helper unknowns: %q", got)
+		}
+	})
 }
 
 // TestLegacyLexerCanonicalAndEscapes pins operator boundaries in canonical text and the decoding
@@ -673,6 +730,20 @@ func TestLegacyLexerCanonicalAndEscapes(t *testing.T) {
 	}
 	if a, b := canonical("seed( x+ ++y )"), canonical("seed(x + ++ y)"); a != b {
 		t.Fatalf("layout changed canonical text: %q / %q", a, b)
+	}
+	if a, b := canonical("return\n1"), canonical("return 1"); a == b {
+		t.Fatalf("an ASI-terminated return shares canonical text %q", a)
+	}
+	if a, b := canonical("a\n++b"), canonical("a++b"); a == b {
+		t.Fatalf("an ASI-separated prefix increment shares canonical text %q", a)
+	}
+	if a, b := canonical("return  x"), canonical("return x"); a != b {
+		t.Fatalf("layout changed a return: %q / %q", a, b)
+	}
+	for src, want := range map[string]string{"'a\\\u2028b'": "ab", "'a\\\u2029b'": "ab", "`a\r\nb\rc`": "a\nb\nc"} {
+		if tokens, _, ok := lexLegacy(src); !ok || len(tokens) != 1 || tokens[0].text != want {
+			t.Fatalf("line terminator in %q: %v %+v", src, ok, tokens)
+		}
 	}
 	tokens, _, ok := lexLegacy(`'\uD83D\uDE00'`)
 	if !ok || len(tokens) != 1 || tokens[0].text != "\U0001F600" {

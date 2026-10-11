@@ -99,8 +99,10 @@ var (
 		"cy.task": "setup", "cy.exec": "setup", "cy.fixture": "setup",
 	}
 	legacyAssertionWord = words("expect expectAsync assert should")
-	legacyEachHook      = words("beforeEach setup")
-	legacyConditional   = words("if for while switch try do catch else")
+	// legacyTemplateAssertionWord adds the Cypress chain words that are assertions only as members.
+	legacyTemplateAssertionWord = words("expect expectAsync assert should contains and")
+	legacyEachHook              = words("beforeEach setup")
+	legacyConditional           = words("if for while switch try do catch else")
 )
 
 const legacyNoValue = "(no expected value)"
@@ -461,6 +463,24 @@ func (p *legacyProducer) scope(f *legacyFile, lo, hi int, s legacyScope, root bo
 	}
 	inner := s
 	inner.all, inner.each, inner.uncertain = slices.Clone(s.all), slices.Clone(s.each), slices.Clone(s.uncertain)
+	for i := lo; i < hi; i++ {
+		if f.tokens[i].kind != 't' {
+			continue
+		}
+		runner, hook := false, false
+		for _, callee := range legacySubCalls(f.tokens[i].sub) {
+			name, _, _ := strings.Cut(callee, ".")
+			runner = runner || p.runner.suites[name] || p.runner.cases[name] || p.runner.hooks[name]
+			hook = hook || p.runner.hooks[name]
+		}
+		if runner {
+			p.unknown(f, "", "runner-call-in-template", "a runner call inside a template substitution is not inventoried", f.tokens[i].line, f.tokens[i].line)
+		}
+		if hook {
+			// A hook registered from a substitution still runs before the cases in this scope.
+			inner.uncertain = append(inner.uncertain, "a hook call inside a template substitution is not inventoried")
+		}
+	}
 	for _, c := range calls {
 		if !p.runner.hooks[c.name] {
 			continue
@@ -502,14 +522,6 @@ func (p *legacyProducer) scope(f *legacyFile, lo, hi int, s legacyScope, root bo
 			p.suite(f, c, inner)
 		case p.runner.cases[c.name]:
 			p.testCase(f, c, inner)
-		}
-	}
-	for i := lo; i < hi; i++ {
-		if f.tokens[i].kind == 't' && slices.ContainsFunc(legacySubCalls(f.tokens[i].sub), func(callee string) bool {
-			name, _, _ := strings.Cut(callee, ".")
-			return p.runner.suites[name] || p.runner.cases[name] || p.runner.hooks[name]
-		}) {
-			p.unknown(f, "", "runner-call-in-template", "a runner call inside a template substitution is not inventoried", f.tokens[i].line, f.tokens[i].line)
 		}
 	}
 }
@@ -1027,15 +1039,23 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 			switch {
 			case len(args) == 0:
 				continue
-			case len(args) == 1 || legacyPunct(t, args[1].lo, "{"):
+			case len(args) == 1 || len(args) == 2 && legacyPunct(t, args[1].lo, "{") && f.match[args[1].lo] == args[1].hi-1:
 				tuples = append(tuples, legacyTuple{at: i, from: root, to: f.match[i+1], matcher: "contains", locator: prefix, value: legacyValue(f, i+1, 0, 1)})
+			case args[1].hi-args[1].lo != 1 || !strings.ContainsRune("snr", rune(t[args[1].lo].kind)) && (t[args[1].lo].kind != 't' || len(t[args[1].lo].sub) > 0):
+				// The second argument is neither a literal content nor a plain options object, so
+				// which argument is the selector is not static.
+				p.unknown(f, caseID, "unparsed-assertion", "a contains call whose arguments are not static: "+legacyBounded(legacyCanonical(t, root, f.match[i+1]+1)), t[root].line, t[f.match[i+1]].line)
+				consumed[i] = true
 			default:
 				tuples = append(tuples, legacyTuple{at: i, from: root, to: f.match[i+1], matcher: "contains", locator: prefix + " " + legacyCanonical(t, args[0].lo, args[0].hi), value: legacyValue(f, i+1, 1, 1)})
 			}
 		}
 	}
 	for i := r.lo; i < r.hi; i++ {
-		if t[i].kind == 't' && legacySubWords(t[i].sub, legacyAssertionWord) {
+		if t[i].kind == 's' && legacyPunct(t, i-1, "[") && legacyPunct(t, i+1, "]") && legacyTemplateAssertionWord[t[i].text] {
+			p.unknown(f, caseID, "unparsed-assertion", "an assertion reached through a computed member: "+legacyBounded(legacyCanonical(t, max(i-6, r.lo), min(i+8, r.hi))), t[i].line, t[i].line)
+		}
+		if t[i].kind == 't' && legacySubWords(t[i].sub, legacyTemplateAssertionWord) {
 			p.unknown(f, caseID, "unparsed-assertion", "an assertion inside a template substitution: "+legacyBounded(t[i].raw), t[i].line, t[i].line)
 		}
 		cypressAnd := t[i].kind == 'i' && t[i].text == "and" && legacyChained(t, i) && legacyPunct(t, i+1, "(")
@@ -1044,8 +1064,13 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 		}
 	}
 	sort.SliceStable(tuples, func(i, j int) bool { return tuples[i].at < tuples[j].at })
+	helpers := legacyHelperSpans(f, r)
 	criteria := []BehaviorLegacyCriterion{}
 	for _, tuple := range tuples {
+		if slices.ContainsFunc(helpers, func(h legacyRange) bool { return h.lo <= tuple.at && tuple.at < h.hi }) {
+			p.unknown(f, caseID, "unparsed-assertion", "an assertion inside a function the case does not visibly call: "+legacyBounded(legacyCanonical(t, tuple.from, tuple.to+1)), t[tuple.from].line, t[tuple.to].line)
+			continue
+		}
 		if !textOK(tuple.matcher) || !textOK(tuple.locator) || !textOK(tuple.value) {
 			p.unknown(f, caseID, "unparsed-assertion", legacyCanonical(t, tuple.from, tuple.to+1), t[tuple.from].line, t[tuple.to].line)
 			continue
@@ -1058,4 +1083,58 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 		criteria = append(criteria, BehaviorLegacyCriterion{ID: "c" + strconv.Itoa(len(criteria)+1), Evidence: evidence, Matcher: tuple.matcher, Locator: tuple.locator, Value: tuple.value})
 	}
 	return criteria
+}
+
+// legacyHelperSpans returns the token ranges of functions defined in r that are not passed
+// directly as a call argument: a named or assigned helper may never run, so an assertion inside
+// it is not a criterion of the case.
+func legacyHelperSpans(f *legacyFile, r legacyRange) []legacyRange {
+	t := f.tokens
+	spans := []legacyRange{}
+	for k := r.lo; k < r.hi; k++ {
+		head, end := -1, -1
+		switch {
+		case t[k].kind == 'i' && t[k].text == "function" && !legacyChained(t, k):
+			head = k
+			open := k + 1
+			for open < r.hi && !legacyPunct(t, open, "(") {
+				open++
+			}
+			if open < r.hi && legacyPunct(t, f.match[open]+1, "{") {
+				end = f.match[f.match[open]+1]
+			}
+		case legacyPunct(t, k, "=>"):
+			head = k - 1
+			if legacyPunct(t, head, ")") {
+				head = f.match[head]
+			}
+			if legacyPunct(t, k+1, "{") {
+				end = f.match[k+1]
+				break
+			}
+			j := k + 1
+			for ; j < r.hi; j++ {
+				if t[j].kind == 'p' && (t[j].text == "(" || t[j].text == "[" || t[j].text == "{") {
+					j = f.match[j]
+					continue
+				}
+				if t[j].kind == 'p' && (t[j].text == ")" || t[j].text == "]" || t[j].text == "}" || t[j].text == ";" || t[j].text == ",") ||
+					j > k+1 && t[j].line > t[j-1].line && legacyStatementStart(f, j, r.lo) {
+					break
+				}
+			}
+			end = j - 1
+		}
+		if head < r.lo || end < k {
+			continue
+		}
+		if head > r.lo && t[head-1].kind == 'i' && t[head-1].text == "async" {
+			head--
+		}
+		if head > r.lo && (legacyPunct(t, head-1, "(") || legacyPunct(t, head-1, ",")) {
+			continue
+		}
+		spans = append(spans, legacyRange{lo: k, hi: end + 1})
+	}
+	return spans
 }
