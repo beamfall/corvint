@@ -10,6 +10,12 @@ if ! command -v rg >/dev/null 2>&1; then
 fi
 
 source_root=$(cd "$(dirname "$0")/.." && pwd)
+
+# The reviewer documentation must name the OCM map path the loop writes (V1-0176).
+rg -qF 'corvint ocm report --map .corvint/change.ocm.001.json' "$source_root/docs/DOGFOOD.md" || {
+  printf 'dogfood-change_test: docs/DOGFOOD.md does not name .corvint/change.ocm.001.json\n' >&2
+  exit 1
+}
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-dogfood-change-test.XXXXXX")
 active_runner=
 active_descendant=
