@@ -388,7 +388,8 @@ state changes.
 ---
 ## OCM/LRF stable admission (V1-0632 S5a)
 
-Status: proposed. Native work: V1-0632, migration row C05 of
+Status: accepted under the owner's standing auto-accept (2026-10-11), after independent review
+(Codex round 2 PASS). Native work: V1-0632, migration row C05 of
 `protocol/cem-1.0/stable/MIGRATION.json`. This slice adds the owning internal
 admission that the stable TCQ/frontier, obligation and dashboard consumers (C06..C09, C17)
 build on. It adds no CLI route, producer, default, help entry or promotion, and it does
@@ -443,9 +444,12 @@ not relabel the frozen `lrf/0` profile.
 - `CEM-V1-059`: A stable universe verification is a read. It MUST NOT change the repository HEAD,
   index or worktree status, the artifact files or the caller's input bytes.
 
-Failure modes: a host whose Go toolchain is outside the frozen structural runtime tuples gets the
-verifier's `UNSUPPORTED` `unsupported-structural-runtime` refusal. A map whose target does not
-commit the exact sidecar is refused by the verifier's sidecar binding. There is no stable LRF
+Failure modes: when the change has structural mechanical hunks, a host whose Go toolchain is
+outside the frozen structural runtime tuples gets the verifier's `UNSUPPORTED`
+`unsupported-structural-runtime` refusal; the admission's own fixture has none, so this is not
+exercised here. A map whose target commits a different sidecar is refused by the verifier's sidecar
+binding. A target that commits no sidecar can still be accepted by the verifier (`ABSENT`); the
+admission itself then refuses with `excluded-artifact-mismatch`. There is no stable LRF
 result: evaluating the projected request needs an accepted stable LRF profile.
 
 Rollback: remove `VerifyStableUniverse`, `StableUniverse`, `StableRefusal` and

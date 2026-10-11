@@ -837,15 +837,15 @@ CEM-V1-034	docs/specs/cem-stable-v1.md	320	Core `cem report --format json` over 
 CEM-V1-035	docs/specs/cem-stable-v1.md	321	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
 CEM-V1-036	docs/specs/cem-stable-v1.md	322	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
 CEM-V1-050	docs/specs/cem-stable-v1.md	200	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable
-CEM-V1-051	docs/specs/cem-stable-v1.md	397	`lrfrepo.VerifyStableUniverse` MUST admit a map whose bytes declare exactly
-CEM-V1-052	docs/specs/cem-stable-v1.md	407	The repository root, expected base, target and artifact root are explicit, with
-CEM-V1-053	docs/specs/cem-stable-v1.md	413	The OCM MUST bind the exact original stable map digest, the accepted target and
-CEM-V1-054	docs/specs/cem-stable-v1.md	417	The projection is read-only. It never exposes a legacy `*wire.Map` or any 0.x
-CEM-V1-055	docs/specs/cem-stable-v1.md	421	`lrf/0` stays frozen. `lrf.Evaluate` MUST keep refusing a `cem/1.0` context with
-CEM-V1-056	docs/specs/cem-stable-v1.md	427	A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1
-CEM-V1-057	docs/specs/cem-stable-v1.md	435	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in
-CEM-V1-058	docs/specs/cem-stable-v1.md	438	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,
-CEM-V1-059	docs/specs/cem-stable-v1.md	443	A stable universe verification is a read. It MUST NOT change the repository HEAD
+CEM-V1-051	docs/specs/cem-stable-v1.md	398	`lrfrepo.VerifyStableUniverse` MUST admit a map whose bytes declare exactly
+CEM-V1-052	docs/specs/cem-stable-v1.md	408	The repository root, expected base, target and artifact root are explicit, with
+CEM-V1-053	docs/specs/cem-stable-v1.md	414	The OCM MUST bind the exact original stable map digest, the accepted target and
+CEM-V1-054	docs/specs/cem-stable-v1.md	418	The projection is read-only. It never exposes a legacy `*wire.Map` or any 0.x
+CEM-V1-055	docs/specs/cem-stable-v1.md	422	`lrf/0` stays frozen. `lrf.Evaluate` MUST keep refusing a `cem/1.0` context with
+CEM-V1-056	docs/specs/cem-stable-v1.md	428	A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1
+CEM-V1-057	docs/specs/cem-stable-v1.md	436	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in
+CEM-V1-058	docs/specs/cem-stable-v1.md	439	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,
+CEM-V1-059	docs/specs/cem-stable-v1.md	444	A stable universe verification is a read. It MUST NOT change the repository HEAD
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	350	The default `verify` path refuses a strictly parsed JSON object whose exact
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	354	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	357	Only that exact case changes. A duplicate, non-string, differently cased,
