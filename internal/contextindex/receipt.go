@@ -69,6 +69,9 @@ func receipt(index *Index, mode string, request map[string]any, rawResults []map
 		"exclusions":   map[string]any{"count": len(index.Exclusions) + index.UnsupportedSuffixCount, "samples": exclusionSamples},
 		"verification": verification(index, rawResults),
 	}
+	if mode == "impact" && impactRequestOutsideDirtySet(index, request) {
+		result["warning"] = mixedImpactWarning(index)
+	}
 	// Both keys appear only when there is something to report, so a receipt
 	// over a repository that parses and extracts cleanly stays byte-identical
 	// to one built before either field existed. A structurally always-zero key

@@ -108,6 +108,39 @@ snapshot the worktree, or claim that revision-only context is complete.
   and evicted as before. Rollback: restore the worktree-joined store path; the shared directory is
   disposable derived state.
 
+- `DIRTY-CACHE-014`: **proposed, pending owner acceptance (V1-1141)**. A normal
+  path-impact receipt over a MIXED root MUST include a top-level `warning` string when the
+  normalized requested paths are not a subset of the complete captured dirty-path set. The
+  warning MUST name the bound HEAD commit (not the tree OID), the dirty-path count, and the
+  exclusion of mutable content. It MUST survive packet budgeting and be included in packet-byte
+  accounting. Clean roots and requests entirely within the dirty set retain their existing
+  receipt shape; freshness uncertainty remains. Missing commit identity MUST be named UNKNOWN,
+  never inferred from a tree OID. This applies to default and non-Go syntax path profiles.
+- `DIRTY-CACHE-015`: **proposed, pending owner acceptance (V1-1141)**. Path impact
+  MUST accept the experimental boolean `--require-clean`. On any captured MIXED root it MUST
+  return `state=NEEDS_WIDENING`, `abstention.active=true`, reason `mixed-worktree`, empty `results`,
+  and a warning naming the bound commit and dirty count, even when every requested path is dirty.
+  It MUST abstain before impact ranking or external-provider execution. A clean root retains
+  ordinary behavior. The flag rejects values, repetition, `--base`, and
+  `--working-tree-untracked`; ordinary argument validation and read-only behavior remain.
+  Structured abstention exits 0 (the existing context-receipt exit contract); invalid arguments
+  exit 2. Ignored paths remain UNOBSERVED. This adds no index, trace, or repository writes.
+
+## V1-1141 scope and acceptance
+
+Intent for DIRTY-CACHE-014..015 is proposed, pending owner acceptance (V1-1141); implementation
+remains experimental. The user job is recognizing that a clean requested path in a dirty checkout
+is answered against a committed revision. The baseline is freshness metadata alone. Verify clean,
+all-dirty, partial-overlap, disjoint, renamed, normalized and untracked dirty-path cases; verify
+strict abstention, clean strict parity, minimum packet budget and unchanged repository bytes.
+No overlay or mutable source authority is introduced. The warning is additive for affected path
+receipts; exact-byte consumers must admit it. Rollback removes the warning and flag together.
+
+`affected` is a follow-up assessment, not covered here: `cmd/corvint/affected.go` builds a separate
+mutable-worktree graph and selects the dirty set plus optional range paths; it does not use the
+immutable path-impact compiler or accept explicit requested paths. A strict affected policy needs
+its own AFP contract, including snapshot and range semantics, rather than reusing this warning.
+
 ## Trust, failures, and compatibility
 
 The Git tree is the sole content authority. Live status contributes freshness metadata only. A path
@@ -171,3 +204,5 @@ Go receipt and its query, impact, prove, and harness regressions.
 | `DIRTY-CACHE-011` | candidate: `src/context_corvint_index.py` | SHA-1/SHA-256 clean/dirty cold, memory, disk, corruption, receipt-identity, and unsupported-format regressions |
 | `DIRTY-CACHE-012` | candidate: `internal/worktreeimpact/compiler.go` | `TestWorktreeImpactFreshnessScopeIsDistinctFromDirtyCacheReuse` |
 | `DIRTY-CACHE-013` | `internal/contextindex/snapshot.go`, `internal/gitstatus/status.go` | `TestLinkedWorktreesShareOneCleanSnapshot`, `TestConcurrentWorktreeWritersPublishCompleteSnapshotsByRename`, `TestSharedSnapshotStoreKeepsTheEntryBoundAcrossWorktrees`, `TestSnapshotStoreBoundScalesByWorktreeUpToTheCap`, `TestWriteSnapshotDoesNotRewriteMatchingGitIgnore`, `TestSnapshotStoreFallsBackToTheWorktreeWhenTheCommonDirectoryIsUnresolved`, `TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory`, `TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory` |
+| `DIRTY-CACHE-014` | `internal/contextindex/receipt.go`, `internal/contextindex/impact_freshness.go` | `TestImpactMixedWarning`, `TestImpactMixedWarningBudget`, `TestImpactMixedCLIReadOnly` |
+| `DIRTY-CACHE-015` | `cmd/corvint/main.go`, `internal/contextindex/impact_freshness.go` | `TestImpactRequireCleanCLI`, `TestImpactRequireCleanArguments`, `TestImpactRequireCleanBudget`, `TestImpactRequireCleanValidatesRequest` |

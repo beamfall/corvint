@@ -342,3 +342,36 @@ func TestMMRV0006StatusReportsEveryBinding(t *testing.T) {
 		t.Fatalf("per-root binding before=%#v after=%#v", before, after)
 	}
 }
+
+// MMR-V0-003 and MMR-V0-007 (V1-1139): two linked worktrees of one repository
+// declared as two aliases are distinct roots, and a call naming each returns
+// that worktree's own commit, with the worktree state echoed in the result.
+func TestMMRV0007LinkedWorktreesBindTheirOwnCommit(t *testing.T) {
+	skipUnqualifiedStatus(t)
+	main := makeHostileRepository(t, "core")
+	linked := filepath.Join(filepath.Clean(t.TempDir()), "lane")
+	if output, err := exec.Command("git", "-C", main, "worktree", "add", "-q", "-b", "lane", linked).CombinedOutput(); err != nil {
+		t.Fatalf("git worktree add: %v: %s", err, output)
+	}
+	linked, err := filepath.EvalSymlinks(linked)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if output, err := exec.Command("git", "-C", linked, "commit", "-q", "--allow-empty", "-m", "lane").CombinedOutput(); err != nil {
+		t.Fatalf("git commit: %v: %s", err, output)
+	}
+	responses := multiRootSession(t, []string{"--root", "main=" + main, "--root", "lane=" + linked},
+		toolCall(1, "corvint.status", map[string]any{"repository": "main"}),
+		toolCall(2, "corvint.status", map[string]any{"repository": "lane"}),
+	)
+	for id, want := range map[string]string{"1": headRevision(t, main), "2": headRevision(t, linked)} {
+		structured := responses[id]["result"].(map[string]any)["structuredContent"].(map[string]any)
+		repository := structured["repository"].(map[string]any)
+		if repository["commitRevision"] != want || repository["worktreeState"] == nil {
+			t.Fatalf("call %s repository=%#v want %s", id, repository, want)
+		}
+	}
+	if headRevision(t, main) == headRevision(t, linked) {
+		t.Fatal("fixture worktrees share a commit")
+	}
+}

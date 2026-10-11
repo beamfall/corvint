@@ -1132,6 +1132,8 @@ DIRTY-CACHE-010	docs/specs/revision-cache-dirty-worktree-v0.md	63	the implementa
 DIRTY-CACHE-011	docs/specs/revision-cache-dirty-worktree-v0.md	69	each index build MUST resolve the repository storage object format and exact
 DIRTY-CACHE-012	docs/specs/revision-cache-dirty-worktree-v0.md	76	the separate `working-tree-untracked` impact authority profile (`GPK-V0-029`)
 DIRTY-CACHE-013	docs/specs/revision-cache-dirty-worktree-v0.md	83	the native disk snapshot store (`index-snapshot-v0`) MUST live at
+DIRTY-CACHE-014	docs/specs/revision-cache-dirty-worktree-v0.md	111	**proposed, pending owner acceptance (V1-1141)**. A normal
+DIRTY-CACHE-015	docs/specs/revision-cache-dirty-worktree-v0.md	119	**proposed, pending owner acceptance (V1-1141)**. Path impact
 DLT-V0-001	docs/specs/immutable-delta-v0.md	27	Delta MUST bind full lowercase base/head commit OIDs, head tree, complete
 DLT-V0-002	docs/specs/immutable-delta-v0.md	30	The affected graph MUST read every participating provider's source, config,
 DLT-V0-003	docs/specs/immutable-delta-v0.md	34	Git blob bodies MUST be admitted before allocation by expected OID/type/size,

@@ -167,6 +167,7 @@ optional tools, upgrades and removal.
 | `corvint query --task "change session revocation" --budget-bytes 8000` | Find task evidence within a byte budget |
 | `corvint context --task "change session revocation" --subject src/session.py` | Build a packet around a tracked subject |
 | `corvint impact src/session.py` | Inspect the likely impact of a tracked path |
+| `corvint impact --require-clean src/session.py` | Abstain on a MIXED checkout; otherwise inspect the tracked path |
 | `corvint affected` | Plan Go test packages for the dirty worktree; run none |
 | `corvint prove --task "change session revocation"` | Produce a falsifiable packet with freshness and uncertainty |
 | `corvint overview` / `corvint features` | Inspect a clean repository overview or inferred feature candidates |

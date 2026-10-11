@@ -1011,7 +1011,7 @@ const impactHelp = `Compile experimental impact evidence for index-admitted path
 Usage:
   corvint [--root PATH] impact [--limit N] [--provider FILE]...
     [--provider-command ARGV_JSON]... [--provider-mcp ARGV_JSON]... [--repository ID=DIR]...
-    [--language-profile non-go-syntax-v0] PATH...
+    [--language-profile non-go-syntax-v0] [--require-clean] PATH...
   corvint [--root PATH] impact --working-tree-untracked [--limit N] PATH...
   corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N]
     [--range-profile expanded-256]
@@ -1033,7 +1033,8 @@ Language capabilities (syntax evidence, never complete runtime impact):
   The non-go-syntax-v0 profile always reports dynamic-dispatch unknowns;
   unsupported constructs remain unknown even without a lexical dynamic token.
 
-Default path receipts retain their immutable historical shape. Select
+Path receipts over MIXED roots warn with the bound commit and dirty count when
+requested paths are not all dirty. Mutable content remains excluded. Select
 --language-profile non-go-syntax-v0 for versioned structured non-Go unknowns.
 Non-Go range receipts and MCP paths name that experimental profile automatically.
 The path selector cannot be combined with --base or --working-tree-untracked.
@@ -1042,6 +1043,10 @@ MCP admits the Go/Ruby/JS/TS suffixes above for path requests only.
 
 Options:
   --limit N                  Maximum results (default: 10; range: 1-50).
+  --require-clean            Experimental: on MIXED path impact, emit an empty
+                             NEEDS_WIDENING receipt (exit 0), with reason mixed-worktree.
+                             Does not run external providers when abstaining.
+                             Unavailable with --base or --working-tree-untracked.
   --working-tree-untracked   Explicitly select the separate revision-absent
                              nested-.go evidence profile. It accepts no value;
                              untracked-path impact is implemented for .go files only,

@@ -55,6 +55,7 @@ type options struct {
 	impactLimit     int
 	impactBudget    *int
 	impactWorktree  bool
+	requireClean    bool
 	impactBase      string
 	impactBaseSet   bool
 	impactProfile   string
@@ -339,6 +340,14 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 			result.impactBudget = &budget
 			continue
 		}
+		if !positionalOnly && name == "--require-clean" {
+			if inline || result.requireClean {
+				return result, argumentError("argument --require-clean: does not accept a value or repetition")
+			}
+			result.requireClean = true
+			index++
+			continue
+		}
 		if !positionalOnly && name == "--working-tree-untracked" {
 			if inline || result.impactWorktree {
 				return result, argumentError("argument --working-tree-untracked: does not accept a value or repetition")
@@ -478,6 +487,9 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 	}
 	if len(result.impactCheckouts) != 0 && len(result.impactProviders) == 0 {
 		return result, argumentError("--repository requires --provider")
+	}
+	if result.requireClean && (result.impactBaseSet || result.impactWorktree) {
+		return result, argumentError("--require-clean is available only for path impact, not --base or --working-tree-untracked")
 	}
 	if result.impactBudget != nil && (result.impactBaseSet || result.impactWorktree) {
 		return result, impactBudgetOptionRefusal()
@@ -1200,6 +1212,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		compute := func(index *contextindex.Index) (map[string]any, error) {
 			if options.command == "feature" {
 				return contextindex.FeatureBudget(index, options.featureID, options.featureLimit, options.featureBudget)
+			}
+			if options.requireClean && len(index.DirtyPaths) != 0 {
+				return contextindex.ImpactCleanAbstention(index, options.impactPaths, options.impactLimit, impactBudget(options.impactPaths, options.impactBudget))
 			}
 			if options.impactWorktree {
 				return worktreeimpact.Compile(ctx, index, options.impactRawPaths, options.impactLimit)
