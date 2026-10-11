@@ -37,7 +37,9 @@ and every grep-filtered pair counted as missing.
 
 `TestPlaywrightListedTestsCasesMatchExecutions_TJAA_V0_021` checks two more refusals. In the first, a
 nested suite names a file that the execution walker does not attribute. In the second, a spec with no
-executions would otherwise explain a `grepInvert` omission.
+executions would otherwise explain a `grepInvert` omission. A third check covers round 3's finding.
+There, a top-level suite has no `file` but has a title. Case titles follow every enclosing suite's
+title, as discovery builds them, so that title is not read as the file title.
 
 Without the fix, the test reproduces the issue's refusal text exactly.
 

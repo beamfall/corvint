@@ -419,6 +419,15 @@ func TestPlaywrightListedTestsCasesMatchExecutions_TJAA_V0_021(t *testing.T) {
 			t.Fatalf("empty spec explained the omission: %v", err)
 		}
 	})
+	t.Run("case titles follow every enclosing suite, not file inheritance", func(t *testing.T) {
+		root := grepFixture(t, "{ name: 'main', grep: /plain/ }, { name: 'other' }")
+		raw := listing(root, `[{"title":"@file.spec.ts","specs":[{"id":"plain-other","file":"plain.spec.ts","title":"plain","tags":[],"line":1,"column":1,"tests":[{"projectName":"other"}]}],"suites":[]},`+
+			`{"title":"tagged.spec.ts","file":"tagged.spec.ts","specs":[{"id":"tagged-main","title":"plain x","tags":[],"line":1,"column":1,"tests":[{"projectName":"main"}]},`+
+			`{"id":"tagged-other","title":"plain x","tags":[],"line":2,"column":1,"tests":[{"projectName":"other"}]}],"suites":[]}]`)
+		if _, err := PlaywrightListedTests(root, "playwright.config.ts", raw, revision); err == nil || !strings.Contains(err.Error(), `omits project "main" test e2e/plain.spec.ts`) {
+			t.Fatalf("a file-less suite title was read as the file title: %v", err)
+		}
+	})
 }
 
 func jsonString(value string) string {

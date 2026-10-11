@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 	"unicode/utf8"
 )
@@ -40,7 +41,7 @@ func PlaywrightListedTests(root, configPath string, listing []byte, revisionPath
 	}
 	tests := []PlaywrightListedTest{}
 	cases := map[string][]playwrightListCase{}
-	if err := collectPlaywrightListedTests(realRoot, report.Config.RootDir, "", "", nil, report.Suites, 0, &tests, cases); err != nil {
+	if err := collectPlaywrightListedTests(realRoot, report.Config.RootDir, "", nil, nil, report.Suites, 0, &tests, cases); err != nil {
 		return nil, err
 	}
 	seen := map[string]bool{}
@@ -78,15 +79,17 @@ func PlaywrightListedTests(root, configPath string, listing []byte, revisionPath
 
 // collectPlaywrightListedTests appends each listed execution to tests and, for the grep omission
 // rules (TJAA-V0-021), each spec that has an execution to cases under its file, so membership is
-// checked against exactly the files and cases it returns. fileTitle is the file suite's title.
-func collectPlaywrightListedTests(realRoot, rootDir, file, fileTitle string, describe []string, suites []playwrightListSuite, depth int, tests *[]PlaywrightListedTest, cases map[string][]playwrightListCase) error {
+// checked against exactly the files and cases it returns. caseTitles is the title path the grep
+// rules match: every enclosing suite's title, as discovery builds it, independent of file inheritance.
+func collectPlaywrightListedTests(realRoot, rootDir, file string, caseTitles, describe []string, suites []playwrightListSuite, depth int, tests *[]PlaywrightListedTest, cases map[string][]playwrightListCase) error {
 	if depth > playwrightListMaxDepth {
 		return errors.New("playwright listing suites nest too deeply")
 	}
 	for _, suite := range suites {
-		suiteFile, suiteFileTitle, titles := file, fileTitle, describe
+		suiteFile, titles := file, describe
+		suiteCaseTitles := append(slices.Clip(caseTitles), suite.Title)
 		if suite.File != "" && depth == 0 {
-			suiteFile, suiteFileTitle = suite.File, suite.Title
+			suiteFile = suite.File
 		} else if suite.Title != "" {
 			titles = append(append([]string{}, describe...), suite.Title)
 		}
@@ -112,14 +115,14 @@ func collectPlaywrightListedTests(realRoot, rootDir, file, fileTitle string, des
 				*tests = append(*tests, PlaywrightListedTest{ID: spec.ID, Path: path, Line: spec.Line, Column: spec.Column, Project: *entry.ProjectName, Title: spec.Title, Describe: titles})
 			}
 			if len(spec.Tests) != 0 {
-				listCase := playwrightListCase{titles: append(append([]string{suiteFileTitle}, titles...), spec.Title)}
+				listCase := playwrightListCase{titles: append(slices.Clone(suiteCaseTitles), spec.Title)}
 				for _, tag := range spec.Tags {
 					listCase.tags = append(listCase.tags, "@"+tag)
 				}
 				cases[path] = append(cases[path], listCase)
 			}
 		}
-		if err := collectPlaywrightListedTests(realRoot, rootDir, suiteFile, suiteFileTitle, titles, suite.Suites, depth+1, tests, cases); err != nil {
+		if err := collectPlaywrightListedTests(realRoot, rootDir, suiteFile, suiteCaseTitles, titles, suite.Suites, depth+1, tests, cases); err != nil {
 			return err
 		}
 	}
