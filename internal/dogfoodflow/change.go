@@ -117,7 +117,9 @@ func (c *change) run() int {
 	c.runTmp = runTmp
 	c.citationStage = ".corvint/.cem-citations." + filepath.Base(runTmp) + ".json"
 	c.resolveAnchor()
-	c.admitSealedCEMs()
+	inherited := c.inheritedCEM()
+	c.admitSealedCEMs(inherited)
+	c.requireArchivedBaseCEM(inherited)
 	// Query and impact run after the change, so they are coordination-time
 	// receipts; the agent's prechange-*.json receipts are never written here (DCW-V0-026).
 	c.coordinationQuery(task)
@@ -156,7 +158,9 @@ func (c *change) run() int {
 // each is re-verified against its own base and bind commit exactly as
 // batch-check verifies a constituent. Any other added, modified or deleted
 // file under .corvint/changes/ refuses sealed-cem-in-change before a step runs.
-func (c *change) admitSealedCEMs() {
+// The archive of BASE's own inherited CEM is admitted without re-verification:
+// it keeps bytes BASE already tracks (DCW-V0-043).
+func (c *change) admitSealedCEMs(inherited inheritedCEM) {
 	changed := nonEmpty(strings.Split(c.gitValue("diff", "--no-renames", "--name-status", c.base, c.target, "--", ".corvint/changes"), "\n"))
 	if len(changed) == 0 {
 		return
@@ -175,13 +179,15 @@ func (c *change) admitSealedCEMs() {
 			refusals = append(refusals, path+": unrecognized-sealed-cem")
 		case state != "A":
 			refusals = append(refusals, path+": sealed-cem-modified status="+state)
+		case path == inherited.path && c.archives(inherited, c.target):
+			notes = append(notes, "inherited-cem-archived NOT_REVERIFIED path="+path)
 		default:
 			result := c.verifySealedCEM(c.options.Steps, c.target, match[1])
 			if result.failure != "" {
 				refusals = append(refusals, path+": "+result.failure+" "+result.detail)
 				continue
 			}
-			notes = append(notes, fmt.Sprintf("bind=%s base=%s bootstrapUnknown=%d", match[1], result.base, len(result.bootstrap)))
+			notes = append(notes, fmt.Sprintf("sealed-cem-merged bind=%s base=%s bootstrapUnknown=%d", match[1], result.base, len(result.bootstrap)))
 		}
 	}
 	if len(refusals) > 0 {
@@ -194,8 +200,32 @@ func (c *change) admitSealedCEMs() {
 		c.exit(2)
 	}
 	for _, note := range notes {
-		c.say("dogfood-change: NOTE sealed-cem-merged %s\n", note)
+		c.say("dogfood-change: NOTE %s\n", note)
 	}
+}
+
+// requireArchivedBaseCEM refuses, before any step runs, a change in a
+// repository that seals while BASE still tracks an unsealed CEM that HEAD
+// keeps under no .corvint/changes/ file: the change replaces that CEM, and
+// dogfood seal would refuse unarchived-base-cem only after the whole loop
+// (DCW-V0-027, DCW-V0-043). A repository that never sealed is unaffected.
+func (c *change) requireArchivedBaseCEM(inherited inheritedCEM) {
+	if inherited.blob == "" || c.gitValue("ls-tree", c.base, "--", ".corvint/changes") == "" {
+		return
+	}
+	archived := c.gitValue("ls-tree", "-r", c.target, "--", ".corvint/changes")
+	if strings.Contains(archived, " "+inherited.blob+"\t") {
+		return
+	}
+	c.say("dogfood-change: REFUSE unarchived-base-cem\n")
+	c.say("  BASE tracks an unsealed .corvint/change.cem.json (last written by %s) that no .corvint/changes/ file at HEAD keeps; this change replaces it, so dogfood-seal would refuse\n", inherited.writer)
+	if inherited.path != "" {
+		c.say("  fix: %s\n", inherited.archiveRecovery())
+	} else {
+		c.say("  fix: archive BASE's .corvint/change.cem.json (blob %s) under .corvint/changes/<the commit that bound it>.cem.json in its own commit\n", inherited.blob)
+	}
+	c.say("  then rerun dogfood-change with the same BASE; the plan cites the archived file's hunk (DCW-V0-043)\n")
+	c.exit(2)
 }
 
 // clearStepEnvelopes removes the previous run's "<step>.stderr" files, so a step

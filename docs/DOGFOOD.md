@@ -82,8 +82,13 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    with `excluded-artifact-mismatch` (in `<git-dir>/corvint/cem-status.json` it is a
    `verification.issues` code, not a policy issue). The final seal removes the shared path, so
    `dogfood-seal` refuses `unarchived-base-cem` while no `.corvint/changes/` file keeps the blob
-   `BASE` tracked: archive that earlier CEM in a commit on the base branch and restart the change
-   on that commit (`DCW-V0-027`).
+   `BASE` tracked (`DCW-V0-027`). In a repository that already seals, `dogfood-change` refuses the
+   same code before any step runs, and both refusals print, as their `fix:` line, the exact command
+   that commits that blob as the inherited archive `.corvint/changes/<writer>.cem.json` (`<writer>`
+   is the commit that last wrote the shared path) and nothing else; run it on the change branch and
+   rerun with the same `BASE`. The archive is admitted with
+   `NOTE inherited-cem-archived NOT_REVERIFIED`, cited by the plan like any other hunk, and accepted
+   by `dogfood batch-check` (`DCW-V0-043`, proposed).
 4. Write the citation plan from the prepared map. The hunk count is
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
@@ -420,6 +425,11 @@ merge that relied on one fails. Each failure prints `FAIL <reason> count=N`, the
 listed commits, paths or binds, and one `fix:` line; it exits 1. A dirty worktree, an empty range,
 a range over 1,024 commits or more than 256 sealed changes refuses with exit 2; split the range
 by checking out a piece's last commit and using the previous piece's last commit as `BASE`.
+A batch whose head tracks a `.corvint/change.cem.json` that `BASE` does not track with the same
+blob fails `unsealed-cem-at-head`, so a bound but unsealed change is caught before the merge.
+When `BASE` itself tracks an unsealed CEM, the inherited archive above (`DCW-V0-043`) is no
+constituent: a lane that adds it, or a lone commit that renames the shared path to it, is covered,
+and the head may then drop the shared path.
 
 A `PASS` keeps these limits visible as `NOTE` lines: OCM and the local outcome of each change are
 not reverified (each change's own check already did), the merged changes' interaction is not

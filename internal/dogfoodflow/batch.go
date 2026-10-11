@@ -65,6 +65,8 @@ type batch struct {
 	order        []string
 	derived      map[string]int
 	bootstrap    int
+	inherited    inheritedCEM
+	archived     bool
 }
 
 // BatchCheck verifies a merge batch whose every change is already bound and
@@ -134,13 +136,15 @@ func (b *batch) run() int {
 		b.say("  fix: split the batch: check out each piece's last commit detached and run batch-check with BASE=<the previous piece's last commit>\n")
 		b.exit(2)
 	}
+	b.inherited = b.inheritedCEM()
 	sealed := b.sealedConstituents()
 	if len(sealed) > batchConstituentLimit {
 		b.say("%s: REFUSE constituents-exceed-%d constituents=%d\n", b.prefix, batchConstituentLimit, len(sealed))
 		b.say("  fix: split the batch: check out each piece's last commit detached and run batch-check with BASE=<the previous piece's last commit>\n")
 		b.exit(2)
 	}
-	if b.gitRevision(b.base+":.corvint/change.cem.json") != b.gitRevision(b.target+":.corvint/change.cem.json") {
+	// HEAD keeps BASE's unsealed CEM in place or archives it (DCW-V0-043).
+	if head := b.gitRevision(b.target + ":.corvint/change.cem.json"); head != b.inherited.blob && (head != "" || !b.archived) {
 		b.failure("unsealed-cem-at-head", ".corvint/change.cem.json")
 	}
 	for _, bind := range sealed {
@@ -192,6 +196,10 @@ func (b *batch) sealedConstituents() []string {
 			b.failure("unrecognized-sealed-cem", path)
 		case state != "A":
 			b.failure("sealed-cem-modified", path+" status="+state)
+		case path == b.inherited.path && b.archives(b.inherited, b.target):
+			// BASE's own inherited CEM, archived: bytes BASE already tracks,
+			// not a constituent (DCW-V0-043).
+			b.archived = true
 		default:
 			binds = append(binds, match[1])
 			b.constituents[match[1]] = true
@@ -346,7 +354,7 @@ func (b *batch) verifyCoverage() {
 		case len(parents) == 0:
 			b.failure("unbound-commits", commit)
 		case len(parents) == 1:
-			if !b.constituents[parents[0]] || !b.isSealCommit(commit) {
+			if (!b.constituents[parents[0]] || !b.isSealCommit(commit)) && !b.archivesInherited(parents[0], commit) {
 				b.failure("unbound-commits", commit)
 			}
 		case len(parents) > 2:
@@ -355,6 +363,19 @@ func (b *batch) verifyCoverage() {
 			b.deriveMerge(commit, parents[0], parents[1])
 		}
 	}
+}
+
+// archivesInherited reports a commit that only archives BASE's inherited CEM
+// at its sealed path, by adding that file or renaming the unchanged sidecar
+// there (DCW-V0-043).
+func (b *batch) archivesInherited(parent, commit string) bool {
+	if !b.archived {
+		return false
+	}
+	changed, _ := b.git(false, "diff-tree", "-r", "-M", "--no-commit-id", "--name-status", parent, commit)
+	changed = chomp(changed)
+	return (changed == "A\t"+b.inherited.path || changed == "R100\t.corvint/change.cem.json\t"+b.inherited.path) &&
+		b.archives(b.inherited, commit)
 }
 
 // deriveMerge accepts a merge whose tree Git reproduces from its two parents
@@ -456,6 +477,9 @@ func (b *batch) finish(commits, constituents int) int {
 	verifier := "unavailable"
 	if digest, err := fileSHA256(b.options.Verifier.Path); err == nil {
 		verifier = "sha256:" + digest
+	}
+	if b.archived {
+		b.print("%s: NOTE inherited-cem-archived NOT_REVERIFIED path=%s\n", b.prefix, b.inherited.path)
 	}
 	b.print("%s: NOTE ocm NOT_REVERIFIED sealed-constituent\n", b.prefix)
 	b.print("%s: NOTE composition NOT_OBSERVED merged-change-interaction\n", b.prefix)

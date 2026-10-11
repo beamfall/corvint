@@ -227,6 +227,39 @@ func (f *flow) isSealCommit(commit string) bool {
 	return chomp(renamed) == "R100\t.corvint/change.cem.json\t.corvint/changes/"+parent+".cem.json"
 }
 
+// inheritedCEM is the unsealed .corvint/change.cem.json BASE tracks, if any:
+// its blob, the commit that last wrote it, and the sealed path that archives
+// it under that commit's name (DCW-V0-043). path is empty when no commit
+// reachable from BASE wrote it.
+type inheritedCEM struct{ blob, writer, path string }
+
+func (f *flow) inheritedCEM() inheritedCEM {
+	blob := f.gitRevision(f.base + ":.corvint/change.cem.json")
+	if blob == "" {
+		return inheritedCEM{}
+	}
+	writer, _ := f.git(true, "log", "-1", "--format=%H", f.base, "--", ".corvint/change.cem.json")
+	inherited := inheritedCEM{blob: blob, writer: chomp(writer)}
+	if fullRevision.MatchString(inherited.writer) {
+		inherited.path = ".corvint/changes/" + inherited.writer + ".cem.json"
+	}
+	return inherited
+}
+
+// archives reports whether target keeps the inherited CEM's blob at its
+// sealed path.
+func (f *flow) archives(inherited inheritedCEM, target string) bool {
+	return inherited.path != "" && f.gitRevision(target+":"+inherited.path) == inherited.blob
+}
+
+// archiveRecovery is the exact command that archives the inherited CEM in its
+// own commit, byte for byte, whatever the worktree's sidecar now holds.
+func (inherited inheritedCEM) archiveRecovery() string {
+	path := inherited.path
+	return fmt.Sprintf("mkdir -p .corvint/changes && git cat-file blob %s > %s && git add %s && git commit -q -m \"chore: archive inherited change evidence\" -- %s",
+		inherited.blob, path, path, path)
+}
+
 var codePattern = regexp.MustCompile(`^.*"code"[[:space:]]*:[[:space:]]*"([A-Za-z0-9_-]*)".*$`)
 
 // failureReason names a failed step by the first "code" its stderr reports.

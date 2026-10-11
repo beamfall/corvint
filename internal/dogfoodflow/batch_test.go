@@ -111,14 +111,19 @@ func (r *batchRepo) verifier() Runner {
 	}}
 }
 
-// admit runs dogfood change's sealed-CEM admission (DCW-V0-042) for
-// base..HEAD with the fake verifier.
+// admit runs dogfood change's sealed-CEM admission and inherited-CEM check
+// (DCW-V0-042, DCW-V0-043) for base..HEAD with the fake verifier.
 func (r *batchRepo) admit(base string) (int, string) {
 	r.t.Helper()
 	var stderr bytes.Buffer
 	c := &change{flow: flow{ctx: context.Background(), prefix: "dogfood-change", root: r.root, stderr: &stderr}, options: ChangeOptions{Steps: r.verifier()}}
 	c.base, c.target = base, testGit(r.t, r.root, "rev-parse", "HEAD")
-	code, err := boundary(c.ctx, func() int { c.admitSealedCEMs(); return 0 }, func() {})
+	code, err := boundary(c.ctx, func() int {
+		inherited := c.inheritedCEM()
+		c.admitSealedCEMs(inherited)
+		c.requireArchivedBaseCEM(inherited)
+		return 0
+	}, func() {})
 	if err != nil {
 		r.t.Fatal(err)
 	}

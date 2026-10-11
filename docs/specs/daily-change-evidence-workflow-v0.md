@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 proposed, pending owner acceptance (V1-1151, V1-1171); DCW-V0-042 proposed, pending owner acceptance (V1-1219)
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 proposed, pending owner acceptance (V1-1151, V1-1171); DCW-V0-042 proposed, pending owner acceptance (V1-1219); DCW-V0-043 proposed, pending owner acceptance (V1-1198)
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 proposed, pending owner acceptance (V1-1151, V1-1171); DCW-V0-042 proposed, pending owner acceptance (V1-1219); experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 proposed, pending owner acceptance (V1-1151, V1-1171); DCW-V0-042 proposed, pending owner acceptance (V1-1219); DCW-V0-043 proposed, pending owner acceptance (V1-1198); experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -439,6 +439,30 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   one change still fails on its own budget and names `batch-check`.
   Reason: lanes that merged another lane's sealed CEM could bind only by moving `BASE` to the
   merge commit (V1-1219, w6 lane report of 2026-10-11).
+- `DCW-V0-043`: (proposed 2026-10-11, pending owner acceptance (V1-1198)) The inherited archive of
+  a `BASE` is `.corvint/changes/<writer>.cem.json` holding exactly the blob `BASE` tracks at
+  `.corvint/change.cem.json`, `<writer>` being the last commit that wrote that path. In a
+  repository that seals (`BASE` tracks at least one file under `.corvint/changes/`), when `BASE`
+  tracks `.corvint/change.cem.json` and no `.corvint/changes/` file at `HEAD` has its blob,
+  `dogfood change` MUST refuse `unarchived-base-cem` (exit 2, before any step runs or any file is
+  written), naming `<writer>` and, as its `fix:` line, the exact command that commits the
+  inherited archive and nothing else; `dogfood seal`'s `DCW-V0-027` refusal MUST print the same
+  command. `dogfood change` MUST admit an added inherited archive without reverifying it and print
+  `NOTE inherited-cem-archived NOT_REVERIFIED path=<path>`. `dogfood batch-check` MUST treat it as
+  no constituent, MUST accept `HEAD` dropping `.corvint/change.cem.json` when `HEAD` keeps the
+  inherited archive (this amends `DCW-V0-039` (a)), MUST count as covered a single-parent commit
+  whose only change adds the inherited archive or renames `.corvint/change.cem.json` to it (this
+  amends `DCW-V0-039` (c)), and MUST print the same note. A batch whose `HEAD` tracks a
+  `.corvint/change.cem.json` that `BASE` does not track with the same blob still fails
+  `unsealed-cem-at-head` before it is merged.
+  Non-goals: preventing a plain `git merge` outside the loop; sealing or reverifying the inherited
+  CEM, which the loop never checked; changing the rename-only seal commit.
+  Failure modes: an archive with another blob or name is not the inherited archive and is refused
+  as a sealed CEM (`DCW-V0-042`); a lane that deletes the inherited CEM without archiving it fails
+  `unsealed-cem-at-head`; a repository that never sealed keeps rebinding its tracked CEM in place.
+  Reason: the w4 batch merge (#789) left an unsealed `.corvint/change.cem.json` tracked on `main`,
+  and every later `dogfood-seal` refused `unarchived-base-cem` only after the change was bound and
+  checked (V1-1198).
 
 ## Code vocabulary
 
@@ -496,12 +520,16 @@ Base anchoring, refused by every subverb:
 - `sealed-cem-in-change`: `BASE..HEAD` adds, modifies or deletes a file under `.corvint/changes/`
   that is not an unmodified sealed change re-verified against its own base and bind commit; each
   refused path is printed with its `DCW-V0-039` reason (`DCW-V0-042`, proposed).
+- `unarchived-base-cem`: in a repository that seals, `BASE` tracks an unsealed
+  `.corvint/change.cem.json` that no `.corvint/changes/` file at `HEAD` keeps; the `fix:` line is
+  the exact command that commits its inherited archive (`DCW-V0-043`, proposed).
 
 `dogfood seal`:
 
 - `nothing-to-seal`: the bind commit at `HEAD` does not track `.corvint/change.cem.json`.
 - `unarchived-base-cem`: sealing would drop a CEM `BASE` tracks that no `.corvint/changes/` file
-  keeps (`DCW-V0-027`, proposed).
+  keeps (`DCW-V0-027`, proposed); the `fix:` line is the inherited-archive command (`DCW-V0-043`,
+  proposed).
 
 `dogfood batch-check` (`DCW-V0-039`, proposed): refusals `base-unavailable`,
 `base-not-ancestor-of-head`, `dirty-worktree`, `empty-range`, `range-exceeds-1024-commits`,
@@ -591,6 +619,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-040` (proposed, V1-1151) | `internal/dogfoodflow/change.go` `fixHints` and the sealed-CEM refusal; `TestChangeDCWV0040NamesBatchRecoveryForOversizedChanges` (each hint matched by step and reason); `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary: rebinding a batch with a drifted sealed CEM refuses `sealed-cem-in-change` and names batch-check, worktree clean); `TestBatchCheckDCWV0040NamesUnboundContentAndRecovery` (batch-check's own `fix:` lines) | implemented; not accepted; a real over-budget or over-200-path refusal is not reproduced by a test |
 | `DCW-V0-041` (proposed, V1-1171) | `internal/dogfoodflow/change.go` `fixHints`; `docs/DOGFOOD.md` (the `DOGFOOD_CITATIONS` input row and the citation-plan paragraph of section 4); `TestChangeDCWV0041NamesCitationRowFix`; `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (a code and a spec citation on one hunk, an unregistered relation and a path absent at `BASE` each name their fix) | implemented; not accepted |
 | `DCW-V0-042` (proposed, V1-1219) | `internal/dogfoodflow/change.go` `admitSealedCEMs`, `internal/dogfoodflow/batch.go` `verifySealedCEM` (shared with batch-check); `TestChangeDCWV0042AdmitsOnlyVerifiableSealedCEMs` (two merged seals admitted with one verifier run each; an unverified seal, a modified seal and a misnamed file each refuse with their path and reason and the batch-check `fix:` line); `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary, real verifier: a drifted merged seal refuses with a clean worktree, and the merged two-lane batch binds, checks and seals against the unmoved `BASE`, citing both sealed files' hunks) | implemented; not accepted; reproduced before the fix by the same fixture, whose rebind of the valid merged batch refused `sealed-cem-in-change` at `6c38c6c4a` |
+| `DCW-V0-043` (proposed, V1-1198) | `internal/dogfoodflow/flow.go` `inheritedCEM`, `internal/dogfoodflow/change.go` `requireArchivedBaseCEM` and `admitSealedCEMs`, `internal/dogfoodflow/check.go` `seal`, `script/dogfood-seal.sh`, `internal/dogfoodflow/batch.go` `sealedConstituents`, `verifyCoverage` and `archivesInherited`; `TestChangeDCWV0043RefusesUnarchivedInheritedCEM` (the refusal's exact command, run through `sh`, commits only the archive, after which the change is admitted with the note and no verifier run), `TestChangeDCWV0043IgnoresRepositoriesThatNeverSealed`, `TestSealRefusesToDropAnUnarchivedBaseCEM` and the V1-0137 case of `script/dogfood-change_test.sh` (the seal `fix:` line), `TestBatchCheckDCWV0043AcceptsTheInheritedArchive` (an archive inside one lane's range and a standalone rename archive commit before another lane's bind both pass; a lane that drops the CEM unarchived fails `unsealed-cem-at-head`), `TestBatchCheckDCWV0039RefusesDriftedEvidence` (an unsealed sidecar on a batch fails before merge) | implemented; not accepted; reproduced before the fix: at `a2f0fef4f` the change was bound and checked and only `dogfood-seal` refused, naming no command |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
@@ -623,6 +652,9 @@ capture format changes.
 Roll back `DCW-V0-042` by reverting its change: a range that adds any sealed CEM refuses
 `sealed-cem-in-change` again; a CEM bound under it stays verifiable, since it is an ordinary map
 of the whole range.
+Roll back `DCW-V0-043` by reverting its change: `dogfood change` again binds over an unarchived
+`BASE` CEM and only `dogfood seal` refuses, and batch-check again counts the inherited archive as
+an unverifiable constituent; no report, map or sealed CEM format changes.
 Roll back `DCW-V0-039..041` by reverting their change: `batch-check`, its wrapper and make
 target disappear and the `fix:` lines return to their former text; no report, map, receipt or
 sealed CEM format changes, and batch-check writes nothing, so no evidence needs migrating.

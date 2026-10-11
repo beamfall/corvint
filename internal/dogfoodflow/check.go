@@ -119,7 +119,11 @@ func (c *check) seal() int {
 	}
 	if replaced := c.unarchivedBaseCEM(bind); replaced != "" {
 		c.say("%s: REFUSE unarchived-base-cem\n", c.prefix)
-		c.say("  BASE tracks .corvint/change.cem.json (bound at %s) that this change replaced and no .corvint/changes/ file keeps; archive it in a commit on the base branch, then restart this change on that commit\n", replaced)
+		c.say("  BASE tracks .corvint/change.cem.json (bound at %s) that this change replaced and no .corvint/changes/ file keeps\n", replaced)
+		if inherited := c.inheritedCEM(); inherited.path != "" {
+			c.say("  fix: %s\n", inherited.archiveRecovery())
+			c.say("  then rerun dogfood-change, bind, dogfood-check and dogfood-seal with the same BASE (DCW-V0-043)\n")
+		}
 		c.exit(2)
 	}
 	sealed := ".corvint/changes/" + bind + ".cem.json"
