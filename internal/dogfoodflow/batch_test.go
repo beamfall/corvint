@@ -165,6 +165,17 @@ func TestChangeDCWV0042AdmitsOnlyVerifiableSealedCEMs(t *testing.T) {
 			t.Fatalf("modified exit=%d stderr=%q; want %q", code, stderr, want)
 		}
 	}
+	// More added sealed files than a batch admits refuse by count, unverified.
+	overflow := testGit(t, repo.root, "rev-parse", "HEAD")
+	for i := 0; i <= batchConstituentLimit; i++ {
+		repo.write(fmt.Sprintf(".corvint/changes/%040x.cem.json", i), "{}\n")
+	}
+	repo.commit("too many sealed files")
+	repo.args = nil
+	if code, stderr = repo.admit(overflow); code != 2 || len(repo.args) != 0 ||
+		!strings.HasPrefix(stderr, fmt.Sprintf("dogfood-change: REFUSE sealed-cem-in-change\n  sealed CEMs=%d exceed %d\n", batchConstituentLimit+1, batchConstituentLimit)) {
+		t.Fatalf("overflow exit=%d verifier=%v stderr=%q", code, repo.args, stderr)
+	}
 }
 
 // objects lists the loose objects and packs, which a read-only check must
