@@ -504,7 +504,8 @@ func TestUnknownHelpTopicIsConventionalError(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	exit := run([]string{"help", "not-a-command"}, reader, &stdout, &stderr)
 	if exit != 2 || stdout.Len() != 0 || reader.reads != 0 ||
-		stderr.String() != "{\"code\": \"invalid-arguments\", \"error\": \"unknown help topic\", \"ok\": false}\n" {
+		!strings.HasPrefix(stderr.String(), "{\"code\": \"invalid-arguments\", \"error\": \"unknown help topic: 'not-a-command' (choose from 'init', ") ||
+		!strings.HasSuffix(stderr.String(), "'docs maintain')\", \"ok\": false}\n") {
 		t.Fatalf("exit=%d stdout=%q stderr=%q reads=%d", exit, &stdout, &stderr, reader.reads)
 	}
 }
