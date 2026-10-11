@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -686,7 +686,7 @@ gap; explicitly requesting an unavailable provider implementation fails the buil
   states the root-relative rule for these flags. What the reader admits is unchanged; absolute paths
   stay refused. Acceptance: `TestDocsCorpusLocalInputPathRefusals`,
   `TestDocsCorpusHelpStatesRootRelativeInputs` and `TestLocalInputPathRuleNamesTheBrokenRule`.
-  Status: (proposed, pending owner acceptance (V1-1226); GitHub #796).
+  Status: (accepted, decision 0520; V1-1226; GitHub #796).
 `corpus-provider-unavailable` covers undeclared or unsupported provider implementations.
 `corpus-invalid-revision` covers an unsupported immutable source revision.
 The separate MCP startup uses `corpus-unavailable` when its configured corpus cannot be opened;
