@@ -30,6 +30,11 @@ func TestDocsCorpusLocalInputPathRefusals(t *testing.T) {
 		{"non-canonical migration", "--migration", "got a non-canonical path", discover("--migration", "evidence/./migration.json")},
 		{"inner parent listing", "--playwright-list", "got a non-canonical path", discover("--playwright-list", "evidence/../evidence/list.json")},
 		{"absolute artifact", "--artifact", "got an absolute path", []string{"docs", "corpus", "info", "--artifact=" + filepath.Join(root, "corpus.json")}},
+		{"absolute manifest", "--manifest", "got an absolute path", []string{"docs", "corpus", "build", "--manifest", filepath.Join(root, "corpus-input.json")}},
+		{"absolute adapter input", "--input", "got an absolute path", []string{"docs", "corpus", "behavior-adapter", "--input", filepath.Join(root, "request.json")}},
+		{"parent adapter previous", "--previous", "got a parent traversal", []string{"docs", "corpus", "behavior-adapter", "--input", "request.json", "--previous", "../result.json"}},
+		{"absolute cem", "--cem", "got an absolute path", []string{"docs", "corpus", "cem", "--artifact", "corpus.json", "--cem", filepath.Join(root, "change.cem.json")}},
+		{"root retirement", "--retirement", "got the root itself", []string{"docs", "corpus", "info", "--artifact", "corpus.json", "--retirement", "."}},
 		{"absolute witness report", "--report", "got an absolute path", []string{"docs", "corpus", "witness-playwright", "--input", "evidence/request.json", "--receipt-input", "receipt", "--report", filepath.Join(root, "evidence", "report.json")}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

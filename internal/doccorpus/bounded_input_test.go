@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
@@ -56,8 +57,8 @@ func TestLocalInputPathRuleNamesTheBrokenRule(t *testing.T) {
 			"a//input.json":      "got a non-canonical path",
 			"a/../input.json":    "got a non-canonical path",
 			"input.json/":        "got a non-canonical path",
-			"a\\input.json":      "got a backslash or control character",
-			"input.json\n":       "got a backslash or control character",
+			"a\\input.json":      "got a backslash, NUL, tab, CR or LF",
+			"input.json\n":       "got a backslash, NUL, tab, CR or LF",
 			string([]byte{0xff}): "got a path that is not UTF-8",
 		} {
 			if got := LocalInputPathRule(value); got != rule {
@@ -70,8 +71,10 @@ func TestLocalInputPathRuleNamesTheBrokenRule(t *testing.T) {
 				t.Errorf("ReadFile(%q) = %v, want corpus-refused %q", value, err, want)
 			}
 		}
-		if rule := LocalInputPathRule("input.json"); rule != "" {
-			t.Fatalf("canonical relative path refused: %s", rule)
+		for _, value := range []string{"input.json", "a/b.json", strings.Repeat("a", 1024)} {
+			if rule := LocalInputPathRule(value); rule != "" {
+				t.Fatalf("canonical relative path %q refused: %s", value, rule)
+			}
 		}
 		if data, err := ReadFile(root, "input.json"); err != nil || string(data) != "{}" {
 			t.Fatalf("canonical relative path not read: %q %v", data, err)

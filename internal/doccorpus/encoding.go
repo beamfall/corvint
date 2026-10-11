@@ -58,7 +58,7 @@ func LocalInputPathRule(value string) string {
 	case !utf8.ValidString(value):
 		return "got a path that is not UTF-8"
 	case strings.ContainsAny(value, "\\\x00\r\n\t"):
-		return "got a backslash or control character"
+		return "got a backslash, NUL, tab, CR or LF"
 	case strings.HasPrefix(value, "/"):
 		return "got an absolute path"
 	case value == ".." || strings.HasPrefix(value, "../"):
