@@ -412,3 +412,20 @@ func TestAFPV0041CommittedSlicesAreAdmitted(t *testing.T) {
 		t.Fatal("one shard must not split")
 	}
 }
+
+// TestAFPSourceGoVersionsAdmitted proves a cost table and a slice file are usable
+// from either admitted source toolchain and refused from any other (decision 0522).
+func TestAFPSourceGoVersionsAdmitted(t *testing.T) {
+	costs := costsFile(map[string]int64{"example.org/a": 1000})
+	slices := slicesFile(map[string]fixtureSplit{"example.org/split": {named: [][]string{{"TestA"}}, ms: []int64{1, 1}}})
+	for version, want := range map[string]bool{"go1.27.1": true, "go1.27.2": true, "go1.27.3": false, "go1.26.0": false} {
+		c := bytes.Replace(costs, []byte(`"go1.27.1"`), []byte(`"`+version+`"`), 1)
+		if _, ok := Costs(c); ok != want {
+			t.Errorf("cost table from %s usable=%t, want %t", version, ok, want)
+		}
+		s := bytes.Replace(slices, []byte(`"go1.27.1"`), []byte(`"`+version+`"`), 1)
+		if ok := SliceFileUsable(s); ok != want {
+			t.Errorf("slice file from %s usable=%t, want %t", version, ok, want)
+		}
+	}
+}

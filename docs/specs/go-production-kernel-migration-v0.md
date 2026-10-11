@@ -659,9 +659,9 @@ which is the whole of what the row asserts.
   `TestGitignoreLegacyMigrationContinuity` and `TestTraceGitignoreFinishThenChangeCheckSeal`.
   Accepted by `docs/decisions/0050-copy-range-evidence-and-record-admission-2026-09-04.md`.
 - `GPK-V0-018`: Public Go artifacts MUST be `CGO_ENABLED=0`, built from one exact clean Git commit
-  with Go 1.27.1. The root `go.mod` MUST contain exact `go 1.27.1`; an equal `toolchain` directive
+  with Go 1.27.2. The root `go.mod` MUST contain exact `go 1.27.2`; an equal `toolchain` directive
   MUST be omitted because Go 1.27 normalizes it away. Every build, test, conformance, benchmark, and release-evidence command MUST run with
-  `GOTOOLCHAIN=local`, verify that the selected local toolchain is exactly `go1.27.1`, and fail
+  `GOTOOLCHAIN=local`, verify that the selected local toolchain is exactly `go1.27.2`, and fail
   rather than download or select another toolchain. Release gates remain offline, use `-trimpath`,
   reproducible version metadata, and no undeclared runtime dependency. Cutover reports MUST distinguish executable availability from capability support: on Darwin and Linux, Go admits Genesis inventory and secure local trace storage, and Python can load its POSIX trace substrate;
   on Windows, the Python CLI is unavailable because its entry point unconditionally reaches the module-level `fcntl` import, while Go has platform fallback source but Genesis inventory and secure local trace storage are unavailable and the current read-only query profile also refuses, so the Windows release gate remains unmet;

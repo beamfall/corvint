@@ -128,11 +128,11 @@ trap 'interrupted 130' INT
 trap 'interrupted 143' TERM
 mkdir "$parent/home" "$parent/tmp" "$parent/gotmp" "$parent/gocache"
 export HOME="$parent/home" TMPDIR="$parent/tmp" GOTMPDIR="$parent/gotmp" GOCACHE="$parent/gocache" GOENV=off GOFLAGS=-mod=readonly GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local
-[ "$(go env GOVERSION)" = go1.27.1 ] || { echo "public-release-check: need go1.27.1" >&2; exit 1; }
+[ "$(go env GOVERSION)" = go1.27.2 ] || { echo "public-release-check: need go1.27.2" >&2; exit 1; }
 checker="$parent/corvint-public-release-check"
 run_owned /bin/sh -c 'cd "$1" && exec go build -o "$2" ./cmd/corvint-public-release-check' sh "$root" "$checker"
 metadata=$(go version -m "$checker")
-grep -Fq 'go1.27.1' <<<"$metadata"
+grep -Fq 'go1.27.2' <<<"$metadata"
 grep -Fq "vcs.revision=$CORVINT_RELEASE_COMMIT" <<<"$metadata"
 grep -Fq 'vcs.modified=false' <<<"$metadata"
 [ "$(git -C "$root" rev-parse --verify 'HEAD^{commit}')" = "$CORVINT_RELEASE_COMMIT" ]

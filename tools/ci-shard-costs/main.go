@@ -45,6 +45,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -368,10 +369,16 @@ func combine(o *outcomes, shards int, allowPath, slicesPath string) (map[string]
 	return observed, nil
 }
 
+// sourceGoVersion is the toolchain recorded as the table's source goVersion.
+// refresh runs under the toolchain that measured the source run, so it records
+// its own runtime version rather than a constant; the partition admits only
+// its pinned version, and any other toolchain is refused (decision 0522).
+var sourceGoVersion = runtime.Version()
+
 func encode(observed map[string]int64, revision, runURL string) ([]byte, error) {
 	raw, err := json.MarshalIndent(map[string]any{
 		"profile":      "corvint-ci-package-costs/0",
-		"source":       map[string]string{"revision": revision, "runURL": runURL, "goVersion": "go1.27.1"},
+		"source":       map[string]string{"revision": revision, "runURL": runURL, "goVersion": sourceGoVersion},
 		"milliseconds": observed,
 	}, "", "  ")
 	if err != nil {
@@ -379,7 +386,7 @@ func encode(observed map[string]int64, revision, runURL string) ([]byte, error) 
 	}
 	raw = append(raw, '\n')
 	if _, ok := cishards.Costs(raw); !ok {
-		return nil, errors.New("refused: the partition would reject this table (check --revision, --run-url and package times)")
+		return nil, fmt.Errorf("refused: the partition would reject this table (check --revision, --run-url, package times and the source toolchain %s)", sourceGoVersion)
 	}
 	return raw, nil
 }

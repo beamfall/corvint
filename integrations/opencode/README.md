@@ -167,7 +167,7 @@ remove the checkout only when it is no longer needed.
 ## Qualify this installation
 
 From a clean, committed Corvint checkout, run the first-party command below. It requires Git,
-Node.js 20 or later, Go 1.27.1, the real Corvint executable, and the actual
+Node.js 20 or later, Go 1.27.2, the real Corvint executable, and the actual
 OpenCode 2.0.18 or later 2.0.x executable on macOS or Linux. If `opencode2` is a shell launcher, pass the
 executable it launches; the command rejects shell launchers rather than recording the wrong image.
 

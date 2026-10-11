@@ -190,7 +190,8 @@
       "protocol/cem-1.0/maps/",
       "protocol/cem-1.0/patches/",
       "protocol/cem-1.0/repository/",
-      "protocol/cem-1.0/stable/repository-envelope-packet/"
+      "protocol/cem-1.0/stable/repository-envelope-packet/",
+      "protocol/cem-1.0/structural-tuples/"
     ],
     "internal/cem/wire": [
       "conformance/cem-0.1/",

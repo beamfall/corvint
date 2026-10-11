@@ -80,6 +80,11 @@ type estimates struct {
 	Milliseconds map[string]int64 `json:"milliseconds"`
 }
 
+// SourceGoVersions are the toolchains a cost table or slice file may record as
+// its source: go1.27.1 keeps the retained tables valid, and go1.27.2 is the
+// pinned toolchain whose hosted runs refresh them (decision 0522).
+var SourceGoVersions = map[string]bool{"go1.27.1": true, "go1.27.2": true}
+
 func weights(raw []byte) (map[string]int64, int64, bool) {
 	if len(raw) > 1<<20 {
 		return nil, 0, false
@@ -87,7 +92,7 @@ func weights(raw []byte) (map[string]int64, int64, bool) {
 	var e estimates
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
-	if d.Decode(&e) != nil || d.Decode(new(any)) != io.EOF || e.Profile != "corvint-ci-package-costs/0" || e.Source.GoVersion != "go1.27.1" || len(e.Source.Revision) != 40 || len(e.Milliseconds) == 0 || len(e.Milliseconds) > MaxPackages {
+	if d.Decode(&e) != nil || d.Decode(new(any)) != io.EOF || e.Profile != "corvint-ci-package-costs/0" || !SourceGoVersions[e.Source.GoVersion] || len(e.Source.Revision) != 40 || len(e.Milliseconds) == 0 || len(e.Milliseconds) > MaxPackages {
 		return nil, 0, false
 	}
 	if _, err := hex.DecodeString(e.Source.Revision); err != nil {

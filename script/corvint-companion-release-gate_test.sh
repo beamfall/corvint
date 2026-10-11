@@ -29,7 +29,7 @@ cp "$source_root/script/corvint-companion-release-gate" "$corvint/script/"
 real_git=$(command -v git)
 cat >"$fake/go" <<'EOF'
 #!/bin/sh
-if [ "$1" = env ] && [ "$2" = GOVERSION ]; then printf '%s\n' go1.27.1; exit 0; fi
+if [ "$1" = env ] && [ "$2" = GOVERSION ]; then printf '%s\n' go1.27.2; exit 0; fi
 if [ "$1" = run ]; then
   [ -z "${CORVINT_WRAPPER_IGNORE_TERM:-}" ] || trap '' TERM
   printf '%s\n' "$@" >"$CORVINT_WRAPPER_ARGS"
