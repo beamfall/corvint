@@ -404,3 +404,75 @@ func TestAMAPV0078ReactSameFileRouteArray(t *testing.T) {
 		}
 	}
 }
+
+// AMAP-V0-079: an imported createBrowserRouter array is read through one literal named-import hop
+// at the same revision; every other import form, a computed module array and a second hop stay
+// UNKNOWN, and a change to the router or the module leaves derived screens not FRESH.
+func TestAMAPV0079ReactImportedRouteArray(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	writeFile(t, root, "src/router.tsx", "import { createBrowserRouter } from 'react-router-dom';\nimport { appRoutes as routes } from './routes';\nexport const router = createBrowserRouter(routes);\n")
+	writeFile(t, root, "src/routes.ts", "export const appRoutes: RouteObject[] = [{id: 'home', path: '/home'}, {id: 'docs', path: '/docs', children: [{id: 'page', path: ':slug'}]}];\n")
+	dialectManifest(t, root, []RouterFile{{Path: "src/router.tsx", Dialect: DialectReact}}, nil)
+	rev := commitAll(t, root, "imported routes")
+	m := build(t, root, rev)
+	page := screenByID(t, m, "page")
+	if page.Status != StatusResolved || page.Template != "/docs/{slug}" || page.Anchor.Path != "src/routes.ts" || len(page.NameFrom) != 1 || page.NameFrom[0].Path != "src/router.tsx" {
+		t.Fatalf("imported: %+v", page)
+	}
+	writeFile(t, root, "src/router.tsx", "import { createBrowserRouter } from 'react-router-dom';\nimport { appRoutes as routes } from './routes';\n// moved\nexport const router = createBrowserRouter(routes);\n")
+	changed := commitAll(t, root, "router changed")
+	if got := LineageFreshness(context.Background(), root, changed, m, []string{page.ID})[page.ID]; got == Fresh {
+		t.Fatalf("router change left the imported screen %s", got)
+	}
+	writeFile(t, root, "src/routes.tsx", "export const appRoutes = [];\n")
+	rev = commitAll(t, root, "ambiguous module")
+	if m = build(t, root, rev); !hasUnknown(m, "router", "src/router.tsx:4", "ambiguous-react-routes-import") {
+		t.Fatal(m.Unknowns)
+	}
+	writeFile(t, root, "src/router.tsx", "import { appRoutes } from './missing';\ncreateBrowserRouter(appRoutes);\n")
+	rev = commitAll(t, root, "missing module")
+	if m = build(t, root, rev); !hasUnknown(m, "router", "src/router.tsx:2", "unresolved-react-routes-import") {
+		t.Fatal(m.Unknowns)
+	}
+
+	module := func(src string) reactImporter {
+		return func(spec string) (blobEntry, []byte, string) {
+			return blobEntry{path: "routes.ts"}, []byte(src), ""
+		}
+	}
+	router := "import { appRoutes } from './routes';\ncreateBrowserRouter(appRoutes);"
+	states, u := parseReactRouterWith(blobEntry{path: "router.tsx"}, []byte(router), module("export const appRoutes = [{id: 'home', path: '/home'}];"))
+	if screens := dialectScreens(t, states, u); screens["home"].Template != "/home" {
+		t.Fatalf("%+v", screens)
+	}
+	for name, c := range map[string]struct{ router, module, want string }{
+		"default import":     {"import appRoutes from './routes';\ncreateBrowserRouter(appRoutes);", "export const appRoutes = [{id: 'a', path: '/a'}];", "imported-react-routes"},
+		"namespace import":   {"import * as appRoutes from './routes';\ncreateBrowserRouter(appRoutes);", "export const appRoutes = [{id: 'a', path: '/a'}];", "imported-react-routes"},
+		"type import":        {"import { type appRoutes } from './routes';\ncreateBrowserRouter(appRoutes);", "export const appRoutes = [{id: 'a', path: '/a'}];", "imported-react-routes"},
+		"package import":     {"import { appRoutes } from 'routes-pkg';\ncreateBrowserRouter(appRoutes);", "export const appRoutes = [{id: 'a', path: '/a'}];", "imported-react-routes"},
+		"import and const":   {"import { appRoutes } from './routes';\nconst appRoutes = [];\ncreateBrowserRouter(appRoutes);", "export const appRoutes = [{id: 'a', path: '/a'}];", "computed-react-routes"},
+		"mutated in router":  {"import { appRoutes } from './routes';\nappRoutes.push({id: 'b', path: '/b'});\ncreateBrowserRouter(appRoutes);", "export const appRoutes = [{id: 'a', path: '/a'}];", "computed-react-routes"},
+		"mutated in module":  {router, "export const appRoutes = [{id: 'a', path: '/a'}];\nappRoutes.push({id: 'b', path: '/b'});", "computed-react-routes"},
+		"not exported":       {router, "const appRoutes = [{id: 'a', path: '/a'}];", "computed-react-routes"},
+		"second hop":         {router, "import { appRoutes } from './more';\nexport { appRoutes };", "imported-react-routes"},
+		"computed module":    {router, "export const appRoutes = base.concat([{id: 'a', path: '/a'}]);", "computed-react-routes"},
+		"missing in module":  {router, "export const other = [{id: 'a', path: '/a'}];", "non-literal-react-routes"},
+		"dynamic module":     {router, "export const appRoutes = [{id: 'a', path: flag ? '/a' : '/b'}];", "dynamic-route-context"},
+		"conditional module": {router, "export const appRoutes = [{id: 'a', path: '/a'}];\nif (flag) { console.log(1) }", "dynamic-route-context"},
+	} {
+		states, u := parseReactRouterWith(blobEntry{path: "router.tsx"}, []byte(c.router), module(c.module))
+		screens, more := resolveScreens("test", states)
+		for _, s := range screens {
+			if s.Status == StatusResolved {
+				t.Fatalf("%s guessed %+v", name, s)
+			}
+		}
+		got := " "
+		for _, x := range append(u, more...) {
+			got += x.Reason + " "
+		}
+		if !strings.Contains(got, " "+c.want+" ") {
+			t.Fatalf("%s: reasons %q want %s", name, got, c.want)
+		}
+	}
+}

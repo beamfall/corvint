@@ -39,6 +39,32 @@ func TestEntriesCLI(t *testing.T) {
 			t.Fatalf("cap: %s", out)
 		}
 	}
+	// AMAP-V0-080: a ledger built from this map is accepted; a missing or unbound one refuses.
+	code, out, diag = runFlowsCLI(root, "appmap", "edges", "--map", filename, "--full")
+	ledger := filepath.Join(t.TempDir(), "ledger.json")
+	if code != 0 || os.WriteFile(ledger, []byte(out), 0600) != nil {
+		t.Fatalf("edges: %d %s", code, diag)
+	}
+	code, out, diag = runFlowsCLI(root, "appmap", "entries", "--map", filename, "--ledger", ledger, "--full")
+	if code != 0 || !strings.Contains(out, `"basis":"static-entries+edge-ledger"`) || !strings.Contains(out, `"path_status":"NOT_OBSERVED"`) {
+		t.Fatalf("ledger entries: %d %s %s", code, diag, out)
+	}
+	unbound := filepath.Join(t.TempDir(), "unbound.json")
+	raw, _ := os.ReadFile(ledger)
+	var doc map[string]any
+	if json.Unmarshal(raw, &doc) != nil {
+		t.Fatal("ledger json")
+	}
+	doc["map_digest"] = "sha256:other"
+	raw, _ = json.Marshal(doc)
+	if err := os.WriteFile(unbound, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range []string{ledger + "missing", unbound} {
+		if code, out, _ = runFlowsCLI(root, "appmap", "entries", "--map", filename, "--ledger", l); code != 2 || out != "" {
+			t.Fatalf("admitted ledger %s: %d %s", l, code, out)
+		}
+	}
 	for _, flags := range [][]string{{"--runtime"}, {"--trusted-local"}, {"--receipt", "absent"}, {"--budget", "1"}, {"--budget", "4096", "--full"}, {"extra"}} {
 		code, out, _ = runFlowsCLI(root, append([]string{"appmap", "entries", "--map", filename}, flags...)...)
 		if code != 2 || out != "" {
