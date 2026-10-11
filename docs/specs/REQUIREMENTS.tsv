@@ -266,6 +266,9 @@ ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	33	Reuse RVN verificat
 ANL-V0-003	docs/specs/application-navigation-ledger-v0.md	41	Deduplicate crossings by test key; choose the proven test with fewest declared
 ANL-V0-004	docs/specs/application-navigation-ledger-v0.md	45	Accept a closed JSON sidecar with tests declaring `proves` and `assumes` edge
 ANL-V0-005	docs/specs/application-navigation-ledger-v0.md	50	Emit deterministic `application-edge-ledger/0` JSON with evaluated revision,
+ANL-V0-006	docs/specs/application-navigation-ledger-v0.md	55	`corvint flows appmap observe --map FILE --trace FILE|DIR [--revision REV]`
+ANL-V0-007	docs/specs/application-navigation-ledger-v0.md	66	Observation output MUST NOT contain URL userinfo, query values (including those
+ANL-V0-008	docs/specs/application-navigation-ledger-v0.md	70	Observation output is deterministic with a digest of the complete observation,
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,

@@ -82,3 +82,13 @@ anchor coverage; multi-map per-app aggregation; test costs beyond declared flow 
 test-plan integration; live receipt qualification on the adopter's suite. These remain proposals,
 not completed acceptance claims. The ticket stays open for owner acceptance and the remaining
 acceptance scope; this builder supplies only the requested smallest useful end-to-end slice.
+
+## V1-1133 / #775: navigation observation (ANL-V0-006..008)
+
+Slice: reporter JSON only (`playwright-navigation-events/0`), resolved with the existing
+`screenIndex.urlMatches` (hash prefix aware). Output is a separate learned document, so static nodes
+cannot change. Redaction is name-and-shape based (secret-shaped names, 24+ character opaque values,
+userinfo, action input values). Follow-ups: read Playwright trace zips directly (action metadata and
+locators), feed observed edges into the edge ledger as PROVEN evidence, and verify `--receipt`
+bindings against observed crossings. Builder rule change (owner, 2026-10-11): this and later tickets
+were hand-built; Codex ran only as reviewer.

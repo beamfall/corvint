@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: owner request V1-1132, issue #774; `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775); `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -52,6 +52,24 @@ are URL templates, not component source files. This slice makes neither missing 
   projection with omitted counts. Trimming never changes coverage or assumption verdict. Use
   AMAP budget rules, safe bounded receipt/sidecar reads and no writes, browser or network.
   (proposed, pending owner acceptance (V1-1132))
+- `ANL-V0-006`: `corvint flows appmap observe --map FILE --trace FILE|DIR [--revision REV]`
+  reads closed `playwright-navigation-events/0` reporter JSON (`test_key`, ordered `events` of kind
+  `navigate` or `redirect`, each with a URL and an optional triggering action with kind and selector;
+  at most 64 files of 4 MiB and 4096 events each) and prints `application-navigation-observation/0`:
+  per trace the ordered visits resolved through the map's URL lookup (hash prefix aware), and one
+  observed edge per consecutive pair with trigger `goto`, `click`, `redirect`, `form submit` or
+  `UNKNOWN`. A URL matching several screens reads UNKNOWN with sorted candidates; one matching none
+  reads `unmapped-url`; an edge with an unresolved endpoint reads UNKNOWN. Observations are learned
+  overlay facts carrying the trace digest and app revision and never add or change a static map
+  node or edge. Playwright trace zips are refused in this slice.
+  (proposed, pending owner acceptance (V1-1133))
+- `ANL-V0-007`: Observation output MUST NOT contain URL userinfo, query values (including those
+  inside a hash-route fragment) whose name is secret-shaped or whose value is opaque (24 or more
+  token characters), or any action input value; such values print `REDACTED` or are dropped.
+  (proposed, pending owner acceptance (V1-1133))
+- `ANL-V0-008`: Observation output is deterministic with a digest of the complete observation,
+  byte-capped by AMAP budget rules with omitted visit and edge counts that never alter the digest,
+  read-only and offline. (proposed, pending owner acceptance (V1-1133))
 
 ## Wire and limits
 
@@ -87,6 +105,9 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-003 | `internal/appmap/ledger.go` | `TestANLV0003Redundancy` |
 | ANL-V0-004 | `cmd/corvint/flows_appmap_edges.go` | `TestANLV0004EdgesCLI` |
 | ANL-V0-005 | `internal/appmap/ledger.go` | `TestANLV0005Budgets` |
+| ANL-V0-006 | `internal/appmap/observe.go`, `cmd/corvint/flows_appmap_observe.go` | `TestANLV0006Observe`, `TestANLV0006HashRouted`, `TestANLV0006ObserveCLI` |
+| ANL-V0-007 | `internal/appmap/observe.go` | `TestANLV0007Redaction` |
+| ANL-V0-008 | `internal/appmap/observe.go` | `TestANLV0008InputsAndBudget` |
 
 ## Follow-ups and promotion
 

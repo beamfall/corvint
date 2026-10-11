@@ -31,6 +31,13 @@ Single-map declared adjacency ledger; UNKNOWN triggers retain missing interactio
 The JSON sidecar declares tests with test_key, proves and assumes edge lists. Unproven
 requirements exit 1; invalid inputs exit 2. No browser runs and no repository files change.
 
+Navigation observation (experimental, ANL-V0):
+  corvint flows appmap observe --map FILE --trace FILE|DIR [--revision REV] [--budget N | --full]
+Reads playwright-navigation-events/0 reporter JSON (trace zips are refused) and prints
+application-navigation-observation/0: ordered screen visits resolved through the map, observed
+edges with their triggering action, redirects, UNKNOWN joins with candidates and unmapped-url.
+Secret-shaped query values and typed input values are redacted. Learned overlay facts only.
+
 build compiles application-map/0 from the manifest's router definitions, flow intents and
 test suite read at REV (default HEAD) and writes it to stdout. A manifest whose tests name
 "repo": ALIAS reads them from the root --repo binds to ALIAS, at its HEAD commit, which the
@@ -53,11 +60,14 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, edges or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, edges, observe or plan")
 	}
 	verb, args := args[0], args[1:]
 	if verb == "edges" {
 		return runFlowsAppmapEdges(ctx, root, args, out)
+	}
+	if verb == "observe" {
+		return runFlowsAppmapObserve(args, out)
 	}
 	f := flag.NewFlagSet("flows appmap "+verb, flag.ContinueOnError)
 	f.SetOutput(io.Discard)
@@ -101,7 +111,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, edges or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, edges, observe or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")
