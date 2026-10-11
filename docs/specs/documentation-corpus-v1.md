@@ -427,9 +427,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   and its project declares `grep` or `grepInvert`, the producer reads that file's listed cases. It
   accepts the omission whether it is explained or unverified. An accepted omission has no listed
   execution and adds none: the record holds only listed executions, so a registered test the omission
-  may hide is not discovered, and is not invented. An unexplained omission still refuses under
-  `DCP-V1-048`. A focused test runs the GitHub #790 three-project repro through the listed-tests
-  producer, and checks that an unexplained omission refuses. Status: (proposed, pending owner
+  may hide is not discovered, and is not invented. The source-revision membership check accepts the
+  same omissions. An unexplained omission still refuses, as does a selected file at the source
+  revision that the listing omits and the working tree lacks. A focused test runs the GitHub #790
+  three-project repro through the listed-tests producer with the revision's paths, and checks both
+  refusals. Status: (proposed, pending owner
   acceptance; V1-1231; GitHub #800).
 
 ## Input and authority boundary

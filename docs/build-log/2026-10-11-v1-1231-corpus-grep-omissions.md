@@ -15,7 +15,11 @@ and every grep-filtered pair counted as missing.
   `collectPlaywrightListUnits`, and passes the cases.
 - An omission the rules explain, or leave unverified, is accepted. It adds no execution, because the
   corpus record lists only executions the listing shows.
-- An unexplained omission still refuses.
+- Corpus discovery always passes the pinned revision's paths. The source-revision membership check
+  (`checkPlaywrightRevisionMembership`) refused the same pairs again without classifying them. It now
+  skips pairs the working-tree check accepted and tolerates a dynamic grep as that check does. Codex
+  review round 1 found this.
+- An unexplained omission still refuses, as does a revision-only test file.
 - `DCP-V1-055` records the rule (proposed).
 
 ## Evidence
@@ -25,7 +29,8 @@ and every grep-filtered pair counted as missing.
 - It runs the #790 three-project repro through `PlaywrightListedTests`.
 - The fixture is reshaped to Playwright's real one-spec-per-project form, with IDs and locations.
 - It expects the four listed executions.
-- It checks that an unexplained omission refuses.
+- It passes the revision's paths, as corpus discovery does.
+- It checks that an unexplained omission refuses, and that a revision-only test file refuses.
 
 Without the fix, the test reproduces the issue's refusal text exactly.
 

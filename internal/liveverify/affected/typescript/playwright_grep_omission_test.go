@@ -368,7 +368,11 @@ func locatedGrepListing(t *testing.T, raw []byte) []byte {
 // executions instead of a missing-pair refusal, and an unexplained omission still refuses.
 func TestPlaywrightListedTestsGrepOmission_TJAA_V0_021(t *testing.T) {
 	root := grepFixture(t, grepRepro)
-	tests, err := PlaywrightListedTests(root, "playwright.config.ts", locatedGrepListing(t, grepPlaywrightListing(t, root, "e2e", grepReproCases())), nil)
+	listing := locatedGrepListing(t, grepPlaywrightListing(t, root, "e2e", grepReproCases()))
+	// Corpus discovery always passes the pinned revision's paths; its revision check must accept
+	// the same grep omissions (Codex review round 1).
+	revision := []string{"e2e/plain.spec.ts", "e2e/tagged.spec.ts", "playwright.config.ts"}
+	tests, err := PlaywrightListedTests(root, "playwright.config.ts", listing, revision)
 	if err != nil {
 		t.Fatalf("grep-split listing refused: %v", err)
 	}
@@ -379,6 +383,9 @@ func TestPlaywrightListedTestsGrepOmission_TJAA_V0_021(t *testing.T) {
 	want := []string{"main e2e/plain.spec.ts plain", "alt-a e2e/tagged.spec.ts x @tagged", "alt-b e2e/tagged.spec.ts x @tagged", "main e2e/tagged.spec.ts y"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("executions = %q, want %q", got, want)
+	}
+	if _, err := PlaywrightListedTests(root, "playwright.config.ts", listing, append(revision, "e2e/gone.spec.ts")); err == nil || !strings.Contains(err.Error(), "at the source revision") {
+		t.Fatalf("revision-only test file accepted: %v", err)
 	}
 	cases := grepReproCases()
 	cases[0].projects = []string{"alt-a", "alt-b"} // main's grepInvert keeps `plain`, so its omission is unexplained
