@@ -499,3 +499,34 @@ func TestAggregateCurrentPathAdmissionPolicyParity(t *testing.T) {
 		}
 	}
 }
+
+// DCW-V0-034: early validation shares recorder normalization and limits.
+func TestDCWV0034VerificationCommandValidationBounds(t *testing.T) {
+	for name, commands := range map[string][]string{
+		"valid":           {" go test ./fixture -run TestAnswer ", "go vet ./fixture"},
+		"at-length-bound": {strings.Repeat("A", MaxCommandCharacters)},
+		"duplicates":      make([]string, MaxVerificationCommands+1),
+	} {
+		if name == "duplicates" {
+			for i := range commands {
+				commands[i] = "go test ./fixture"
+			}
+		}
+		if err := ValidateVerificationCommands(commands); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	tooMany := make([]string, MaxVerificationCommands+1)
+	for i := range tooMany {
+		tooMany[i] = fmt.Sprintf("go test ./fixture%d", i)
+	}
+	for name, commands := range map[string][]string{
+		"syntax": {"go test -run '^(A|B)$'"},
+		"length": {strings.Repeat("A", MaxCommandCharacters+1)},
+		"count":  tooMany,
+	} {
+		if err := ValidateVerificationCommands(commands); err == nil {
+			t.Errorf("%s admitted", name)
+		}
+	}
+}
