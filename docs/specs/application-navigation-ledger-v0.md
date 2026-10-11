@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: accepted (decision 0518)
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); V1-1159; V1-1160; V1-1161; V1-1165; `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -34,7 +34,8 @@ are URL templates, not component source files. This slice makes neither missing 
   including sidecar declarations. Both endpoints must verify against the same receipt and app
   revision to prove a crossing. Report PROVEN, UNVERIFIED_AT_HEAD, CONTRADICTED or UNPROVEN;
   per-key evaluated unknowns and unplaced failures block proof; a key with no supplied receipt
-  does not block another key's proof. Check both router lineages and the flow
+  does not block another key's proof; a verified crossing for that key at any revision not observed
+  reads `observation-revision-mismatch` and blocks. Check both router lineages and the flow
   anchor at evaluated and receipt revisions; a changed flow selector or router URL template
   demotes placed evidence. Keep learned authority and receipt/test/flow/step references.
   (accepted, decision 0518; V1-1132)
@@ -60,11 +61,11 @@ are URL templates, not component source files. This slice makes neither missing 
   per trace the ordered visits resolved through the map's URL lookup (hash prefix aware), and one
   observed edge per consecutive pair with trigger `goto`, `click`, `redirect`, `form submit` or
   `UNKNOWN`; `goto`, `click` or `form submit` (an action of kind `submit`) only when the event's
-  action says so, so an event without action metadata or with another action, including a key press,
-  reads `UNKNOWN`. A URL matching several screens reads UNKNOWN with sorted candidates; one matching none
+  action says so, so an event without action metadata or with an action outside the typed-trigger
+  vocabulary of `ANL-V0-021` reads `UNKNOWN`. A URL matching several screens reads UNKNOWN with sorted candidates; one matching none
   reads `unmapped-url`; an edge with an unresolved endpoint reads UNKNOWN. Observations are learned
   overlay facts carrying the trace digest and app revision and never add or change a static map
-  node or edge. Playwright trace zips are refused in this slice.
+  node or edge. A Playwright trace zip is read only as `ANL-V0-022` states; a directory holding one is refused.
   (accepted, decision 0518; V1-1133)
 - `ANL-V0-007`: Observation output MUST NOT contain URL userinfo, query values (including those
   inside a hash-route fragment) whose name is secret-shaped or whose value is opaque (24 or more
@@ -122,10 +123,54 @@ are URL templates, not component source files. This slice makes neither missing 
   counts that never drop the verdict, digested, learned, read-only and offline; an unresolvable
   base or revision fails closed. (accepted, decision 0518; V1-1137)
 
+- `ANL-V0-021`: Observed triggers are typed from the triggering action's kind: `goto`, `click`,
+  `submit` (`form submit`), `press` (`key press`), `goBack` (`history back`), `goForward`
+  (`history forward`) and `reload` (`reload`); a `redirect` event reads `redirect`; any other kind
+  or no action reads `UNKNOWN`. An event may carry `annotation: {"trigger": T}` with T from that
+  typed vocabulary (not `UNKNOWN`); it prints as the edge's `declared_trigger`, never sets or
+  replaces `trigger`, and an annotation outside the vocabulary is refused with exit 2. Amends the
+  ANL-V0-006 action list. (proposed, pending owner acceptance (V1-1161))
+- `ANL-V0-022`: `observe --trace FILE.zip --test-key KEY` reads one Playwright trace zip (a regular,
+  unsymlinked file of at most 64 MiB whose central-directory record signatures number at most
+  65536, counted before the directory is built) in memory without extracting anything
+  to disk. Exactly one root entry named `trace.trace` or `N-trace.trace` is decompressed, streamed
+  as NDJSON within 64 MiB and 16 MiB per record; nested, `..` or other entries are never opened as
+  the trace, and two context traces, an invalid record (including one without a `type`), more than one page with main-frame
+  snapshots, no main-frame snapshot, or more than 4096 navigations refuse with exit 2. Each change of
+  the main-frame snapshot URL (ignoring `about:` URLs) is one `navigate` event; it carries the
+  action (`before` record method and selector, never its other parameters) only when the change lies
+  between that action's `before` snapshot and its `input` or `after` snapshot, so any other change
+  reads `UNKNOWN`. Intermediate redirect hops are invisible to snapshots and are not claimed. The
+  trace digest is the archive digest; the test key is the caller's, since the archive carries none.
+  `--test-key` is refused without a zip. (proposed, pending owner acceptance (V1-1159))
+- `ANL-V0-023`: `edges --observation FILE` (repeatable, at most 16) feeds observed navigation edges
+  into the ledger only when named; no read command applies observations implicitly or writes them.
+  A file must be a complete `application-navigation-observation/0` document of at most 4 MiB built
+  from the same app and map digest, with no omitted visit or edge, an intact digest, and each trace in the shape `observe` emits
+  (visits in sequence over map screens, one edge per adjacent visit pair naming those visits'
+  screens, resolved exactly when both visits are, with a typed or `UNKNOWN` trigger), else exit 2.
+  Each resolved observed edge binds its trace's test key to every ledger edge with the same from and
+  to screens whose trigger is `UNKNOWN` or equals the observed trigger (so an `UNKNOWN` observation
+  never binds a typed edge), exactly as a declared `proves` would, but never creates an outcome: the
+  key proves the edge only through ANL-V0-002 verification of its outcomes whose application
+  revision equals an observation revision or does not resolve in the repository; its outcomes
+  placed at other resolved commits
+  are not read for that crossing, for proof or for ANL-V0-003 uncertainty, so a key with none reads `no-receipt-outcome` and, like an absent declared receipt, does
+  not block another key's proof. At most 16 files are named; a 17th refuses before any is read.
+  The ledger lists the observation digests, each row's `observed_by` test keys and the count of
+  resolved observed edges matching no ledger edge (`observed_unmatched`); the static map is
+  unchanged. (proposed, pending owner acceptance (V1-1160))
+- `ANL-V0-024`: An edge cannot be proven only by the test it is used to select. An edge a declared
+  test assumes is satisfied only when it is proven and the full ledger's provers (the evidence test
+  key plus every redundant crosser, read before any budget trimming) include a test key other than
+  that assuming test; otherwise the edge is listed unsatisfied with exit 1 although its row stays
+  `PROVEN`. A `--require` carries no test identity and keeps the ANL-V0-004 verdict.
+  (proposed, pending owner acceptance (V1-1165))
+
 ## Wire and limits
 
 `corvint flows appmap edges --map FILE [--receipt FILE]... [--revision REV]
-[--declarations FILE] [--require EDGE_ID]... [--budget N | --full]`
+[--declarations FILE] [--require EDGE_ID]... [--observation FILE]... [--budget N | --full]`
 
 Sidecar: `{"schema":"application-edge-declarations/0","tests":[{"test_key":"KEY",
 "proves":["edge:HEX"],"assumes":["edge:HEX"]}]}`. At most 64 test declarations, 64 IDs per
@@ -167,10 +212,15 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-014 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0012GroupsSharedPageState`, `TestANLV0014PageStateCLI` |
 | ANL-V0-015 | `internal/appmap/impact.go`, `cmd/corvint/flows_appmap_impact.go` | `TestANLV0015RouterChangeReachesDescendants`, `TestANLV0015ImpactCLI` |
 | ANL-V0-016 | `internal/appmap/impact.go` | `TestANLV0016UnknownForcesFullSuite` |
+| ANL-V0-021 | `internal/appmap/observe.go` | `TestANLV0021TypedTriggersAndAnnotations` |
+| ANL-V0-022 | `internal/appmap/tracezip.go`, `cmd/corvint/flows_appmap_observe.go` | `TestANLV0022TraceZip`, `TestANLV0006ObserveCLI` |
+| ANL-V0-023 | `internal/appmap/ledger.go`, `cmd/corvint/flows_appmap_edges.go` | `TestANLV0023ObservedEdgesFeedLedger`, `TestANLV0023EdgesObservationCLI` |
+| ANL-V0-024 | `internal/appmap/ledger.go` | `TestANLV0024SelfProofExcluded`, `TestANLV0004EdgesCLI` |
 
 ## Follow-ups and promotion
 
-Proposed follow-ups: typed trigger declarations and spec annotation parsing; component/template
+Proposed follow-ups: typed trigger declarations in map flow steps and spec annotation parsing
+(ANL-V0-021 types observed triggers and reporter annotations only); component/template
 file and page-object anchors absent from AMAP; multi-map per-app aggregation; costs beyond declared
 step counts; test-plan integration; live adopter qualification. UNKNOWN trigger is not a typed
 trigger acceptance claim. Promotion needs owner acceptance plus demonstrated useful reuse on an

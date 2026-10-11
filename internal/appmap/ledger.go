@@ -62,6 +62,7 @@ type LedgerEdge struct {
 	Evidence          *EdgeCrossing `json:"evidence,omitempty"`
 	RedundantCrossers []string      `json:"redundant-crossers"`
 	RedundantCount    int           `json:"redundant_count"`
+	ObservedBy        []string      `json:"observed_by,omitempty"`
 }
 type EdgeLedger struct {
 	Schema       string         `json:"schema"`
@@ -73,6 +74,8 @@ type EdgeLedger struct {
 	Total        int            `json:"total"`
 	Proven       int            `json:"proven"`
 	UnknownPairs int            `json:"unknown_pairs"`
+	Observations []string       `json:"observations,omitempty"`
+	Unmatched    int            `json:"observed_unmatched,omitempty"`
 	Satisfied    bool           `json:"satisfied"`
 	Unsatisfied  []string       `json:"unsatisfied"`
 	Omitted      map[string]int `json:"omitted"`
@@ -98,9 +101,93 @@ func ledgerIdentity(from, to Step) LedgerEdge {
 	return LedgerEdge{ID: "edge:" + digest(b), From: from.Screen, To: to.Screen, Trigger: trigger, Selector: selector, Status: EdgeUnproven, RedundantCrossers: []string{}}
 }
 
+const MaxLedgerObservations = 16
+
+// observedTraceConsistent is true when the trace has the shape Observe emits: visits in sequence,
+// one edge per adjacent visit pair whose endpoints are those visits' screens, resolved exactly when
+// both visits resolve to map screens, with a trigger from the closed vocabulary.
+func observedTraceConsistent(m *Map, tr ObservedTrace) bool {
+	if !validTestKey(tr.TestKey) || tr.Visits == nil || tr.Edges == nil {
+		return false
+	}
+	for i, v := range tr.Visits {
+		if v.Seq != i || (v.Status == StatusResolved) != (v.Screen != "") || (v.Screen != "" && m.screen(v.Screen) == nil) {
+			return false
+		}
+	}
+	if len(tr.Edges) != max(len(tr.Visits)-1, 0) {
+		return false
+	}
+	for i, e := range tr.Edges {
+		a, b := tr.Visits[i], tr.Visits[i+1]
+		resolved := a.Status == StatusResolved && b.Status == StatusResolved
+		if e.FromSeq != i || e.ToSeq != i+1 || e.From != a.Screen || e.To != b.Screen || (e.Status == StatusResolved) != resolved ||
+			(e.Trigger != StatusUnknown && !typedTrigger(e.Trigger)) {
+			return false
+		}
+	}
+	return true
+}
+
+// LoadObservations refuses more than MaxLedgerObservations names before reading any file.
+func LoadObservations(m *Map, names []string) ([]*Observation, error) {
+	if len(names) > MaxLedgerObservations {
+		return nil, verifyError("appmap-invalid-query", "at most %d --observation", MaxLedgerObservations)
+	}
+	var out []*Observation
+	for _, name := range names {
+		obs, err := LoadObservation(m, name)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, obs)
+	}
+	return out, nil
+}
+
+// LoadObservation reads one complete application-navigation-observation/0 document built from m:
+// same app and map digest, nothing omitted and an intact digest (ANL-V0-023).
+func LoadObservation(m *Map, name string) (*Observation, error) {
+	bad := verifyError("appmap-invalid-query", "--observation must name an untrimmed application-navigation-observation/0 file of at most 4 MiB built from --map")
+	raw, ok := readRegular(name, 4<<20)
+	if !ok {
+		return nil, bad
+	}
+	var obs Observation
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if dec.Decode(&obs) != nil || dec.Decode(new(any)) != io.EOF || obs.Schema != ObservationSchema || obs.App != m.App || obs.MapDigest != m.Digest || obs.Traces == nil {
+		return nil, bad
+	}
+	for _, n := range obs.Omitted {
+		if n != 0 {
+			return nil, bad
+		}
+	}
+	for _, tr := range obs.Traces {
+		if !observedTraceConsistent(m, tr) {
+			return nil, bad
+		}
+	}
+	check := obs
+	check.Digest = ""
+	complete, _ := json.Marshal(check)
+	if digest(complete) != obs.Digest {
+		return nil, bad
+	}
+	return &obs, nil
+}
+
 // ProjectEdges returns a capped projection and the full-ledger assumption verdict. It does not
 // mutate the map or verification input. All run qualification is delegated to RVN (ANL-V0-002).
 func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarations, required []string, o Options) ([]byte, bool, error) {
+	return ProjectObservedEdges(ctx, m, v, d, nil, required, o)
+}
+
+// ProjectObservedEdges is ProjectEdges with navigation observations: an observed crossing binds its
+// test key to the matching ledger edge, like a declared proves, and still needs a qualified receipt
+// at the observation's revision to prove it (ANL-V0-023).
+func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarations, observations []*Observation, required []string, o Options) ([]byte, bool, error) {
 	cap, err := o.budget(DefaultFlowBudget)
 	if err != nil {
 		return nil, false, err
@@ -134,6 +221,7 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 	}
 	proves := map[string][]string{}
 	needs := map[string]bool{}
+	assumers := map[string][]string{}
 	for _, id := range required {
 		needs[id] = true
 	}
@@ -153,9 +241,46 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 			}
 			for _, id := range t.Assumes {
 				needs[id] = true
+				assumers[id] = append(assumers[id], t.TestKey)
 			}
 		}
 	}
+	if len(observations) > MaxLedgerObservations {
+		return nil, false, verifyError("appmap-invalid-query", "at most %d --observation", MaxLedgerObservations)
+	}
+	// observedAt[edge][key] holds the revisions at which key's trace crossed the edge.
+	observedAt := map[string]map[string]map[string]bool{}
+	for _, obs := range observations {
+		if obs == nil || obs.App != m.App || obs.MapDigest != m.Digest {
+			return nil, false, verifyError("appmap-invalid-query", "observation not built from --map")
+		}
+		ledger.Observations = append(ledger.Observations, obs.Digest)
+		for _, tr := range obs.Traces {
+			for _, oe := range tr.Edges {
+				if oe.Status != StatusResolved {
+					continue
+				}
+				matched := false
+				for id, row := range rows {
+					if row.From != oe.From || row.To != oe.To || (row.Trigger != StatusUnknown && row.Trigger != oe.Trigger) {
+						continue
+					}
+					matched = true
+					if observedAt[id] == nil {
+						observedAt[id] = map[string]map[string]bool{}
+					}
+					if observedAt[id][tr.TestKey] == nil {
+						observedAt[id][tr.TestKey] = map[string]bool{}
+					}
+					observedAt[id][tr.TestKey][obs.Revision] = true
+				}
+				if !matched {
+					ledger.Unmatched++
+				}
+			}
+		}
+	}
+	sort.Strings(ledger.Observations)
 	for id := range needs {
 		if len(id) != 69 || id[:5] != "edge:" {
 			return nil, false, verifyError("appmap-invalid-query", "edge IDs must be edge:SHA256")
@@ -186,7 +311,15 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 					keys[k] = true
 				}
 			}
+			declared := map[string]bool{}
+			for k := range keys {
+				declared[k] = true
+			}
 			for _, k := range proves[id] {
+				keys[k] = true
+				declared[k] = true
+			}
+			for k := range observedAt[id] {
 				keys[k] = true
 			}
 			if len(keys) > 256 {
@@ -198,13 +331,19 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 			}
 			sort.Strings(ordered)
 			for _, key := range ordered {
-				if keyUncertain(e, key, append(append(e.m.stepAnchors(occ.from), e.m.stepAnchors(occ.to)...), occ.flow.Anchor)) {
-					blocked = true
-				}
+				anchors := append(append(e.m.stepAnchors(occ.from), e.m.stepAnchors(occ.to)...), occ.flow.Anchor)
 				// Isolate one test key while sharing the RVN freshness cache and receipt admission.
 				single := &Verification{receipts: v.receipts, binds: map[string][]string{}}
+				if !declared[key] {
+					// An observation-only key is read only from its outcomes at an observed
+					// revision; outcomes elsewhere are not evidence about this crossing.
+					single.receipts = receiptsAt(e, v.receipts, key, observedAt[id][key], anchors)
+				}
 				ve := *e
 				ve.v = single
+				if keyUncertain(&ve, key, anchors) {
+					blocked = true
+				}
 				a, b := occ.from, occ.to
 				a.Tests = []string{key}
 				b.Tests = []string{key}
@@ -231,6 +370,12 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 					sv = bv
 				case av.Revision != bv.Revision || av.Receipt == nil || bv.Receipt == nil || *av.Receipt != *bv.Receipt:
 					sv = StepVerification{Status: Unverified, Reason: "crossing-evidence-mismatch", Authority: AuthorityLearned}
+					blocked = true
+				}
+				if !declared[key] && sv.Status != Unverified && !observedAt[id][key][sv.Revision] {
+					// An observation-only binding proves nothing unless the receipt ran at the
+					// revision the trace was observed at.
+					sv = StepVerification{Status: Unverified, Reason: "observation-revision-mismatch", Authority: AuthorityLearned}
 					blocked = true
 				}
 				if sv.Status != Unverified {
@@ -279,6 +424,10 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 				break
 			}
 		}
+		for k := range observedAt[id] {
+			row.ObservedBy = append(row.ObservedBy, k)
+		}
+		sort.Strings(row.ObservedBy)
 		if row.Status == EdgeProven {
 			ledger.Proven++
 			seen := map[string]bool{row.Evidence.Verification.Receipt.TestKey: true}
@@ -297,7 +446,7 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 	}
 	ledger.Total = len(ledger.Edges)
 	for id := range needs {
-		if rows[id].Status != EdgeProven {
+		if rows[id].Status != EdgeProven || selfProvenOnly(rows[id], assumers[id]) {
 			ledger.Unsatisfied = append(ledger.Unsatisfied, id)
 		}
 	}
@@ -332,6 +481,49 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 		}
 		return nil, false, budgetError("edge ledger header exceeds --budget")
 	}
+}
+
+// receiptsAt keeps the receipts holding an outcome for key at one of the revisions or at a
+// revision that does not resolve in the repository: only an outcome placed at another resolved
+// commit is set aside, so uncertainty that might be at an observed revision still blocks.
+func receiptsAt(e *verifier, receipts []receiptInput, key string, revisions map[string]bool, anchors []Anchor) []receiptInput {
+	var kept []receiptInput
+	for _, in := range receipts {
+		for _, t := range in.r.Tests {
+			if t.ID != key {
+				continue
+			}
+			rev, _ := jstestprovider.QualifiedApplicationRevision(in.r, t)
+			if revisions[rev] || !commitOID.MatchString(rev) || e.anchorsAt(rev, anchors).evaluated != rev {
+				kept = append(kept, in)
+				break
+			}
+		}
+	}
+	return kept
+}
+
+// selfProvenOnly is true when some test assumes a proven edge that no other test proves: an
+// edge cannot be proven only by the test it is used to select (ANL-V0-024). The prover set is the
+// full ledger's, read before any budget trimming.
+func selfProvenOnly(row LedgerEdge, assumedBy []string) bool {
+	if row.Evidence == nil || row.Evidence.Verification.Receipt == nil {
+		return false
+	}
+	provers := append([]string{row.Evidence.Verification.Receipt.TestKey}, row.RedundantCrossers...)
+	for _, t := range assumedBy {
+		other := false
+		for _, k := range provers {
+			if k != t {
+				other = true
+				break
+			}
+		}
+		if !other {
+			return true
+		}
+	}
+	return false
 }
 
 func crossingTestKey(c EdgeCrossing) string {

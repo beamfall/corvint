@@ -28,10 +28,12 @@ Application map usage (experimental, AMAP-V0):
 
 Navigation edge ledger (experimental, ANL-V0):
   corvint [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV]
-      [--declarations FILE] [--require EDGE_ID]... [--budget N | --full]
+      [--declarations FILE] [--require EDGE_ID]... [--observation FILE]... [--budget N | --full]
 Single-map declared adjacency ledger; UNKNOWN triggers retain missing interaction evidence.
-The JSON sidecar declares tests with test_key, proves and assumes edge lists. Unproven
-requirements exit 1; invalid inputs exit 2. No browser runs and no repository files change.
+The JSON sidecar declares tests with test_key, proves and assumes edge lists. --observation
+(observe output) binds each observed crossing's test key to the matching edge; a receipt at the
+observed revision still has to prove it. An assumed edge whose only prover is the assuming
+test is unsatisfied. Unproven requirements exit 1; invalid inputs exit 2. No browser runs and no repository files change.
 
 Navigation impact (experimental, ANL-V0):
   corvint [--root PATH] flows appmap impact --map FILE --base COMMIT [--ledger FILE]
@@ -42,10 +44,13 @@ unplaceable UI path (templates are not bound by the map) lists as unknown and th
 full-suite-required. Learned, read-only, offline.
 
 Navigation observation (experimental, ANL-V0):
-  corvint flows appmap observe --map FILE --trace FILE|DIR [--revision REV] [--budget N | --full]
-Reads playwright-navigation-events/0 reporter JSON (trace zips are refused) and prints
+  corvint flows appmap observe --map FILE --trace FILE|DIR|ZIP [--test-key KEY] [--revision REV]
+      [--budget N | --full]
+Reads playwright-navigation-events/0 reporter JSON, or one Playwright trace zip in memory (with
+--test-key; navigations from main-frame snapshot URLs, never extracted to disk), and prints
 application-navigation-observation/0: ordered screen visits resolved through the map, observed
-edges with their triggering action, redirects, UNKNOWN joins with candidates and unmapped-url.
+edges with their typed trigger (goto, click, form submit, key press, history back/forward, reload,
+redirect, else UNKNOWN) and any annotated declared_trigger, UNKNOWN joins and unmapped-url.
 Secret-shaped query values and typed input values are redacted. Learned overlay facts only.
 
 build compiles application-map/0 from the manifest's router definitions, flow intents and
