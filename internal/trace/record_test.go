@@ -518,7 +518,7 @@ func TestTracePathLimitDiagnostic(t *testing.T) {
 					}
 					continue
 				}
-				if err == nil || err.Error() != "trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed=201)" || AdmissionFailureReason(err) != "admitted-path-limit" {
+				if err == nil || err.Error() != "trace-path-limit-exceeded: changed_paths exceeds 200 paths (limit=200 observed=201)" || AdmissionFailureReason(err) != "admitted-path-limit" || PathLimitFailureReason(fmt.Errorf("wrapped: %w", err)) != "trace-path-limit-exceeded" {
 					t.Fatalf("admission: %v", err)
 				}
 			}
@@ -538,9 +538,48 @@ func TestTracePathLimitDiagnostic(t *testing.T) {
 					continue
 				}
 				want := fmt.Sprintf("trace-path-limit-exceeded: %s exceeds 200 paths (limit=200 observed=201)", label)
-				if err == nil || err.Error() != want {
+				if err == nil || err.Error() != want || PathLimitFailureReason(fmt.Errorf("wrapped: %w", err)) != "trace-path-limit-exceeded" {
 					t.Fatalf("stored=%v: %v, want %s", stored, err, want)
 				}
+			}
+		}
+	}
+}
+
+func TestTracePathLimitCodeExcludesOtherFailures(t *testing.T) {
+	paths := make([]string, 513)
+	for i := range paths {
+		paths[i] = fmt.Sprintf("p/%03d.go", i)
+	}
+	_, err := AdmissibleAggregateCurrentPaths(paths, paths)
+	if AdmissionFailureReason(err) != "aggregate-admitted-limit" || PathLimitFailureReason(err) != "" {
+		t.Fatalf("aggregate: %v", err)
+	}
+	if PathLimitFailureReason(fmt.Errorf("trace-path-limit-exceeded: arbitrary prose")) != "" {
+		t.Fatal("classified untyped prose")
+	}
+}
+
+// DCW-V0-036: schema-v2/v3 validation preserves the public path code and list name.
+func TestTypedStoredTracePathLimitCode(t *testing.T) {
+	paths := make([]string, 201)
+	for i := range paths {
+		paths[i] = fmt.Sprintf("p/%03d.go", i)
+	}
+	for _, schema := range []int{SchemaVersionV2, SchemaVersionV3} {
+		for _, label := range []string{"opened_paths", "changed_paths"} {
+			record := Record{SchemaVersion: schema, Revision: testRevision, Task: "boundary", Outcome: "passed", OpenedPaths: []string{}, ChangedPaths: []string{}, TypedVerification: []VerificationEntry{}}
+			if schema == SchemaVersionV3 {
+				record.Producer = ProducerCLI
+			}
+			if label == "opened_paths" {
+				record.OpenedPaths = paths
+			} else {
+				record.ChangedPaths = paths
+			}
+			err := validateTypedRecord(record, testRevision)
+			if PathLimitFailureReason(err) != "trace-path-limit-exceeded" || !strings.Contains(err.Error(), label+" exceeds 200 paths (limit=200 observed=201)") {
+				t.Fatalf("schema=%d list=%s: %v", schema, label, err)
 			}
 		}
 	}

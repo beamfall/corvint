@@ -1053,8 +1053,8 @@ DCW-V0-032	docs/specs/daily-change-evidence-workflow-v0.md	274	(accepted 2026-10
 DCW-V0-033	docs/specs/daily-change-evidence-workflow-v0.md	296	(accepted by decision 0441; V1-0940) This amends the stdout
 DCW-V0-035	docs/specs/daily-change-evidence-workflow-v0.md	318	(proposed, pending owner acceptance (V1-0394)) The coordinator
 DCW-V0-036	docs/specs/daily-change-evidence-workflow-v0.md	323	(proposed, pending owner acceptance (V1-0394)) Trace recording, changed-path adm
-DCW-V0-037	docs/specs/daily-change-evidence-workflow-v0.md	327	(proposed, pending owner acceptance (V1-1107)) `docs/DOGFOOD.md`
-DCW-V0-038	docs/specs/daily-change-evidence-workflow-v0.md	335	proposed, pending owner acceptance (V1-0693). Every build in Corvint's
+DCW-V0-037	docs/specs/daily-change-evidence-workflow-v0.md	331	(proposed, pending owner acceptance (V1-1107)) `docs/DOGFOOD.md`
+DCW-V0-038	docs/specs/daily-change-evidence-workflow-v0.md	339	proposed, pending owner acceptance (V1-0693). Every build in Corvint's
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -2050,12 +2050,12 @@ LTPM-V0-007	docs/specs/local-trace-producer-migration-v0.md	86	Apply MUST then s
 LTPM-V0-008	docs/specs/local-trace-producer-migration-v0.md	90	Source, existing target, lock, and quarantine files MUST use descriptor-relative
 LTPM-V0-009	docs/specs/local-trace-producer-migration-v0.md	101	Apply is resumable rather than globally atomic. Interruption MAY leave verified
 LTPM-V0-010	docs/specs/local-trace-producer-migration-v0.md	105	Query, impact, dashboard acquisition, and ordinary trace reads MUST never invoke
-LTPM-V0-011	docs/specs/local-trace-producer-migration-v0.md	254	public `record` semantics MUST remain unchanged. `--changed` is required
-LTPM-V0-012	docs/specs/local-trace-producer-migration-v0.md	365	(accepted by the owner 2026-09-27; V1-0144) After an amend or rebase, a trace
+LTPM-V0-011	docs/specs/local-trace-producer-migration-v0.md	256	public `record` semantics MUST remain unchanged. `--changed` is required
+LTPM-V0-012	docs/specs/local-trace-producer-migration-v0.md	367	(accepted by the owner 2026-09-27; V1-0144) After an amend or rebase, a trace
 LTPM-V0-013	docs/specs/local-trace-producer-migration-v0.md	115	`record` MUST accept repeatable `--verify-argv-json JSON_ARRAY` (including the
 LTPM-V0-014	docs/specs/local-trace-producer-migration-v0.md	133	All ordinary trace consumers MUST admit validated mixed v1/v2 revision files
-LTPM-V0-015	docs/specs/local-trace-producer-migration-v0.md	405	(owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026
-LTPM-V0-016	docs/specs/local-trace-producer-migration-v0.md	453	(owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026
+LTPM-V0-015	docs/specs/local-trace-producer-migration-v0.md	407	(owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026
+LTPM-V0-016	docs/specs/local-trace-producer-migration-v0.md	455	(owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026
 MCPV0-001	docs/specs/mcp-server-2026-07-28-v0.md	107	The executable MUST run as `corvint-mcp --root ABSOLUTE_ROOT`. It owns exactly o
 MCPV0-002	docs/specs/mcp-server-2026-07-28-v0.md	122	P0 transport is stdio only. Each message is one UTF-8 JSON object followed by LF
 MCPV0-003	docs/specs/mcp-server-2026-07-28-v0.md	128	The decoder MUST reject invalid UTF-8, invalid JSON, duplicate object names at a

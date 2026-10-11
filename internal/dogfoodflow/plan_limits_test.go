@@ -3,6 +3,7 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"github.com/Beamfall/corvint/internal/observations"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,6 +55,17 @@ func TestPlanRowLimits(t *testing.T) {
 				}
 				if len(c.rows) != 1 || c.rows[0].reason != code {
 					t.Fatalf("steps=%+v", c.rows)
+				}
+				if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".corvint/\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				row := c.rows[0]
+				if err := observations.Append(root, observations.Event{Kind: "dogfood-step", Step: row.name, Status: row.status, Reason: row.reason}); err != nil {
+					t.Fatalf("emitted row lost at observation boundary: %v", err)
+				}
+				data, err := os.ReadFile(filepath.Join(root, ".corvint/self-observations.jsonl"))
+				if err != nil || !bytes.Contains(data, []byte(code)) {
+					t.Fatalf("observation=%s err=%v", data, err)
 				}
 				hint := c.fixHint(c.rows[0])
 				if !strings.Contains(hint, "limit=256 observed=257") {

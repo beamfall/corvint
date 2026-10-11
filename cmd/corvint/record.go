@@ -197,9 +197,14 @@ func recordMap(record trace.Record) map[string]any {
 
 // emitRecordError renders a trace-record refusal. A verification-command
 // refusal carries its bounded reason as code (LTPM-V0-011), so the SOL-V0-007
-// boundary can record it; every other refusal keeps the code-free envelope.
+// boundary can record it. Path overflow exposes DCW-V0-036; other refusals keep
+// the code-free envelope.
 func emitRecordError(stderr io.Writer, err error) {
-	if reason := trace.VerificationFailureReason(err); reason != "" {
+	reason := trace.PathLimitFailureReason(err)
+	if reason == "" {
+		reason = trace.VerificationFailureReason(err)
+	}
+	if reason != "" {
 		_, _ = fmt.Fprintf(stderr, "{\"code\": %s, \"error\": %s, \"ok\": false}\n", pythonJSONString(reason), pythonJSONString(err.Error()))
 		return
 	}

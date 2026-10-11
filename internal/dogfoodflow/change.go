@@ -306,7 +306,12 @@ func (c *change) localOutcome(task string) step {
 		return step{"local-outcome", "NOT_PRODUCED", "aggregate-publication-failed"}
 	}
 	if status != 0 {
-		return step{"local-outcome", "NOT_PRODUCED", failureReason(readFile(errorFile), status)}
+		reason := failureReason(readFile(errorFile), status)
+		// Keep the legacy aggregate fallback classification separate from the public CLI code.
+		if reason == "trace-path-limit-exceeded" {
+			reason = "admitted-path-limit"
+		}
+		return step{"local-outcome", "NOT_PRODUCED", reason}
 	}
 	c.localOutcomeSHA, _ = fileSHA256(output)
 	switch allCaptures(recordState, readFile(output)) {

@@ -323,6 +323,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
 - `DCW-V0-036`: (proposed, pending owner acceptance (V1-0394)) Trace recording, changed-path admission and
   stored-path validation MUST refuse more than 200 distinct normalized paths per path list
   with `trace-path-limit-exceeded`, the path-list name, limit 200 and observed count.
+  The `record` and `dogfood-record` JSON refusal envelopes MUST expose
+  `trace-path-limit-exceeded` as their public `code`, including stored-path overflow.
+  The internal `admitted-path-limit` classification MUST remain available to changed-path
+  admission and aggregate fallback consumers; it MUST NOT replace the public code.
   Exactly 200 valid paths MUST remain admissible; no truncation may hide the excess.
 - `DCW-V0-037`: (proposed, pending owner acceptance (V1-1107)) `docs/DOGFOOD.md`
   MUST give exact staged coordinator steps for one commit with more than 256 cited hunks:
@@ -461,8 +465,8 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 
 | Requirement | Focused evidence | Status |
 |---|---|---|
-| `DCW-V0-035` | `TestPlanRowLimits` in `internal/dogfoodflow/plan_limits_test.go`: 256/257 rows, distinct codes and fix counts | proposed |
-| `DCW-V0-036` | `TestTracePathLimitDiagnostic` in `internal/trace/record_test.go`: current/stored lists at 200/201 | proposed |
+| `DCW-V0-035` | `TestPlanRowLimits` in `internal/dogfoodflow/plan_limits_test.go`; `TestDogfoodPlanRowLimitObservationsPersist` in `internal/observations/observations_test.go`: 256/257 rows, distinct codes and fix counts | proposed |
+| `DCW-V0-036` | `TestTracePathLimitDiagnostic` in `internal/trace/record_test.go`: typed current/stored lists at 200/201; `TestRecordTracePathLimitPublicCode`, `TestRecordStoredTracePathLimitPublicCode`, `TestDogfoodRecordNativeLegacyPathLimit`: public JSON code; `TestTypedStoredTracePathLimitCode`: stored schema-v2/v3 cause; `TestLocalOutcomeTracePathLimitKeepsAdmissionReason`, `TestAggregateLegacyAdmissionAcceptsPublicTracePathLimit`: internal fallback classification | proposed |
 | `DCW-V0-037` | `TestDogfoodSingleCommitStagedCitationPlans` in `cmd/corvint/dogfood_staged_test.go`: real binary, 279 hunks, staged plans and final check | proposed |
 
 ## Compatibility and rollback

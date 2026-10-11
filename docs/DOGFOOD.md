@@ -501,7 +501,10 @@ A citation plan over 256 rows refuses `citation-plan-row-limit-exceeded`; an OCM
 256 rows refuses `ocm-link-plan-row-limit-exceeded`. Their fix text includes `limit=256` and the
 observed row count. Trace path lists independently admit at most 200 distinct normalized paths
 per list (`opened_paths` and `changed_paths`); excess refuses `trace-path-limit-exceeded` with
-`limit=200` and the observed count. Citation staging does not relax trace or OCM-link limits.
+`limit=200` and the observed count. Both `record` and `dogfood-record` expose this as
+their JSON refusal `code`, including stored-path overflow; internal admission and aggregate
+fallback consumers retain the `admitted-path-limit` classification.
+Citation staging does not relax trace or OCM-link limits.
 For OCM links, one requirement row can explicitly list multiple cited hunks and claims; if more
 than 256 requirement rows are necessary, split the implementation into separately bound commits.
 For a change needing more than 200 trace paths, use separately bound commits of at most 200 paths;

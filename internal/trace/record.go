@@ -331,7 +331,7 @@ func safeTextWithMatcher(value, label string, maximum int, containsSecret func(s
 func normalizeCurrentPaths(values []string, label, treeRevision string, tracked map[string]struct{}) ([]string, error) {
 	paths := sortedUnique(values)
 	if len(paths) > MaxTracePaths {
-		return nil, fmt.Errorf("trace-path-limit-exceeded: %s exceeds %d paths (limit=%d observed=%d)", label, MaxTracePaths, MaxTracePaths, len(paths))
+		return nil, pathLimitFailure(label, len(paths))
 	}
 	for _, value := range paths {
 		admission, err := classifyCurrentPath(value, label, tracked)
@@ -375,9 +375,35 @@ func admissibleCurrentPaths(values, trackedPaths []string, candidateLimit, admit
 		}
 	}
 	if len(admitted) > admittedLimit {
+		if admittedLimit == MaxTracePaths {
+			return nil, admissionFailure(admittedReason, pathLimitFailure("changed_paths", len(admitted)))
+		}
 		return nil, admissionFailure(admittedReason, fmt.Errorf("trace-path-limit-exceeded: changed_paths exceeds %d paths (limit=%d observed=%d)", admittedLimit, admittedLimit, len(admitted)))
 	}
 	return admitted, nil
+}
+
+type pathLimitError struct {
+	label    string
+	observed int
+}
+
+func (err *pathLimitError) Error() string {
+	return fmt.Sprintf("trace-path-limit-exceeded: %s exceeds %d paths (limit=%d observed=%d)", err.label, MaxTracePaths, MaxTracePaths, err.observed)
+}
+
+func pathLimitFailure(label string, observed int) error {
+	return &pathLimitError{label: label, observed: observed}
+}
+
+// PathLimitFailureReason returns the public code for the 200-path trace bound,
+// including wrapped admission and stored-record errors. Other bounds have no code here.
+func PathLimitFailureReason(err error) string {
+	var limit *pathLimitError
+	if errors.As(err, &limit) {
+		return "trace-path-limit-exceeded"
+	}
+	return ""
 }
 
 type admissionError struct {
@@ -456,7 +482,7 @@ func normalizeStoredPaths(values []string, label string) ([]string, error) {
 func normalizePathsWithMatcher(values []string, label string, containsSecret func(string) bool) ([]string, error) {
 	values = sortedUnique(values)
 	if len(values) > MaxTracePaths {
-		return nil, fmt.Errorf("trace-path-limit-exceeded: %s exceeds %d paths (limit=%d observed=%d)", label, MaxTracePaths, MaxTracePaths, len(values))
+		return nil, pathLimitFailure(label, len(values))
 	}
 	for _, value := range values {
 		admission, err := classifyPath(value, label, nil, containsSecret)
