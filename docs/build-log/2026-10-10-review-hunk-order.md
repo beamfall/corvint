@@ -1,7 +1,7 @@
 # V1-0408: experimental review hunk order
 
 This entry records the original run. Later P2a/P2b findings and their repair evidence are
-retained in [the follow-up entry](2026-10-10-review-hunk-order-p2-repairs.md).
+retained in the appended repair section below.
 
 Intent: proposed, pending owner acceptance (V1-0408). FPK-V0-053..056 extend
 `docs/specs/falsifiable-packet-v0.md`; no owner acceptance or decision is recorded.
