@@ -100,6 +100,19 @@ func TestAffectedPlaywrightDiscoveryFallback(t *testing.T) {
 
 func runPlaywrightAffectedCLI(t *testing.T, root string) []byte {
 	t.Helper()
+	discovery := writePlaywrightDiscoveryFile(t, root)
+	var stdout, stderr bytes.Buffer
+	code := runContext(t.Context(), []string{"--root", root, "affected", "--playwright-config", "playwright.config.ts", "--playwright-discovery", discovery}, strings.NewReader(""), &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit=%d stderr=%s", code, stderr.String())
+	}
+	return stdout.Bytes()
+}
+
+// writePlaywrightDiscoveryFile writes a discovery receipt for the HEAD of the
+// two-project fixture and returns its path.
+func writePlaywrightDiscoveryFile(t *testing.T, root string) string {
+	t.Helper()
 	config, err := os.ReadFile(filepath.Join(root, "playwright.config.ts"))
 	if err != nil {
 		t.Fatal(err)
@@ -117,12 +130,7 @@ func runPlaywrightAffectedCLI(t *testing.T, root string) []byte {
 	if err := os.WriteFile(discovery, body, 0600); err != nil {
 		t.Fatal(err)
 	}
-	var stdout, stderr bytes.Buffer
-	code := runContext(t.Context(), []string{"--root", root, "affected", "--playwright-config", "playwright.config.ts", "--playwright-discovery", discovery}, strings.NewReader(""), &stdout, &stderr)
-	if code != 0 {
-		t.Fatalf("exit=%d stderr=%s", code, stderr.String())
-	}
-	return stdout.Bytes()
+	return discovery
 }
 
 func writePlaywrightCLIFile(t *testing.T, root, relative, body string) {

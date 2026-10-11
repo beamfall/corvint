@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	json "encoding/json/v2"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,5 +101,80 @@ func TestAffectedRequireClean(t *testing.T) {
 	}
 	if !strings.Contains(affectedHelp, "--require-clean") || !strings.Contains(affectedHelp, "unsupported-affected-mixed-worktree") {
 		t.Fatal("affected help omits --require-clean")
+	}
+}
+
+// playwrightFreshnessFixture is the committed two-project Playwright fixture.
+func playwrightFreshnessFixture(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	writePlaywrightCLIFile(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
+	writePlaywrightCLIFile(t, root, "playwright.config.ts", `
+import { defineConfig } from "@playwright/test"
+export default defineConfig({
+  projects: [
+    { name: "angular", grep: /@angular/, use: { browserName: "chromium" } },
+    { name: "react", grep: /@react/, use: { browserName: "chromium" } },
+  ],
+})
+`)
+	writePlaywrightCLIFile(t, root, "src/page.ts", `export const page = "page"`)
+	writePlaywrightCLIFile(t, root, "src/other.ts", `export const other = "other"`)
+	writePlaywrightCLIFile(t, root, "tests/page.spec.ts", `import { test } from "@playwright/test"; import { page } from "../src/page"; test("@angular @react page", () => page)`)
+	affectedGit(t, root, "init", "-q")
+	affectedGit(t, root, "config", "user.email", "corvint@example.test")
+	affectedGit(t, root, "config", "user.name", "Corvint Test")
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "fixture")
+	return root
+}
+
+func runPlaywrightFreshnessCLI(t *testing.T, root, discovery string, extra ...string) ([]byte, string, int) {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	arguments := append([]string{"--root", root, "affected", "--playwright-config", "playwright.config.ts", "--playwright-discovery", discovery}, extra...)
+	code := runContext(t.Context(), arguments, strings.NewReader(""), &stdout, &stderr)
+	return stdout.Bytes(), stderr.String(), code
+}
+
+// AFP-V0-044/045 on the Playwright receipt: --require-clean keeps a clean
+// receipt byte-identical and refuses a dirty worktree, and a --base range path
+// outside the dirty set carries the MIXED warning.
+func TestAffectedPlaywrightFreshness(t *testing.T) {
+	t.Parallel()
+	root := playwrightFreshnessFixture(t)
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	writePlaywrightCLIFile(t, root, "src/page.ts", `export const page = "committed"`)
+	affectedGit(t, root, "commit", "-qam", "edit page")
+	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	discovery := writePlaywrightDiscoveryFile(t, root)
+
+	ordinary, stderr, code := runPlaywrightFreshnessCLI(t, root, discovery, "--base", base)
+	strict, strictStderr, strictCode := runPlaywrightFreshnessCLI(t, root, discovery, "--base", base, "--require-clean")
+	if code != 0 || strictCode != 0 || !bytes.Equal(ordinary, strict) || bytes.Contains(ordinary, []byte(`"warning"`)) {
+		t.Fatalf("clean receipt: exit=%d/%d stderr=%s/%s\n%s\n%s", code, strictCode, stderr, strictStderr, ordinary, strict)
+	}
+
+	writePlaywrightCLIFile(t, root, "src/other.ts", `export const other = "MUTABLE_CANARY"`)
+	before := treeDigest(t, root)
+	raw, stderr, code := runPlaywrightFreshnessCLI(t, root, discovery, "--base", base, "--require-clean")
+	if code != 2 || len(raw) != 0 || !strings.Contains(stderr, "unsupported-affected-mixed-worktree") || !strings.Contains(stderr, head) || !strings.Contains(stderr, "1 dirty worktree paths") {
+		t.Fatalf("dirty strict: exit=%d stdout=%s stderr=%s", code, raw, stderr)
+	}
+	if treeDigest(t, root) != before {
+		t.Fatal("refusal wrote repository state")
+	}
+
+	raw, stderr, code = runPlaywrightFreshnessCLI(t, root, discovery, "--base", base)
+	var receipt map[string]any
+	if code != 0 || json.Unmarshal(raw, &receipt) != nil {
+		t.Fatalf("mixed: exit=%d stderr=%s", code, stderr)
+	}
+	warning, _ := receipt["warning"].(string)
+	if !strings.Contains(warning, head) || !strings.Contains(warning, "1 dirty worktree paths") || bytes.Contains(raw, []byte("MUTABLE_CANARY")) {
+		t.Fatalf("mixed warning=%q receipt=%s", warning, raw)
+	}
+	if raw, _, code := runPlaywrightFreshnessCLI(t, root, discovery); code != 0 || bytes.Contains(raw, []byte(`"warning"`)) {
+		t.Fatalf("worktree-only Playwright form warned: exit=%d %s", code, raw)
 	}
 }
