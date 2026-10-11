@@ -181,6 +181,31 @@ func TestObserveTestRepositoryIgnoresAmbientGitRedirects(t *testing.T) {
 	}
 }
 
+// LPCVD-V0-005 (V1-1156): the exported start observer names HEAD of the test
+// repository, keeps a dirty worktree's identity, and is nil outside Git.
+func TestObserveTestRepositoryAtStart(t *testing.T) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository := initAttestationGitRepository(t, git, "basic")
+	head := gitTestOutput(t, git, repository, "rev-parse", "HEAD")
+	observed := ObserveTestRepositoryAtStart(context.Background(), repository)
+	if observed == nil || observed.Revision != head || observed.DirtyState != "clean" {
+		t.Fatalf("observed=%+v head=%s", observed, head)
+	}
+	if err := os.WriteFile(filepath.Join(repository, "untracked.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	observed = ObserveTestRepositoryAtStart(context.Background(), repository)
+	if observed == nil || observed.Revision != head || observed.DirtyState != "dirty" || observed.DirtyDigest == "" {
+		t.Fatalf("dirty observed=%+v", observed)
+	}
+	if observed := ObserveTestRepositoryAtStart(context.Background(), t.TempDir()); observed != nil {
+		t.Fatalf("non-repository observed=%+v", observed)
+	}
+}
+
 func TestQualifiedProfilesRejectMixedIdentityShapes(t *testing.T) {
 	legacy := qualifiedFixture(t)
 	attested := qualifiedAttestedFixture(t)

@@ -4,13 +4,16 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -76,7 +79,7 @@ func TestCompileRangeAndRefs(t *testing.T) {
 			t.Fatal(e)
 		}
 		before := treeBytes(t, root)
-		req := Request{root, from, to, []string{"holds  notes.txt"}}
+		req := Request{Root: root, From: from, To: to, Files: []string{"holds  notes.txt"}}
 		r, e := Compile(context.Background(), req)
 		if e != nil {
 			t.Fatal(e)
@@ -157,7 +160,7 @@ func TestCompileUnsafeRefs(t *testing.T) {
 			t.Fatal(e)
 		}
 		for _, path := range []string{"link", "dirlink/file", ".", "missing"} {
-			_, e := Compile(context.Background(), Request{root, base, base, []string{path}})
+			_, e := Compile(context.Background(), Request{Root: root, From: base, To: base, Files: []string{path}})
 			if e == nil || e.Error() != "changes-refs-unavailable" {
 				t.Fatalf("%s: %v", path, e)
 			}
@@ -172,7 +175,7 @@ func TestCompileBounds(t *testing.T) {
 		if e := os.WriteFile(filepath.Join(root, "refs"), []byte(content), 0600); e != nil {
 			t.Fatal(e)
 		}
-		r, e := Compile(context.Background(), Request{root, base, to, []string{"refs"}})
+		r, e := Compile(context.Background(), Request{Root: root, From: base, To: to, Files: []string{"refs"}})
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -271,14 +274,14 @@ func TestCompileReferenceAndIssueCaps(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(root, "refs"), []byte(strings.Repeat("#9999 ", maxRefs)+"#1\n"), 0600); err != nil {
 			t.Fatal(err)
 		}
-		r, err := Compile(context.Background(), Request{root, base, to, []string{"refs"}})
+		r, err := Compile(context.Background(), Request{Root: root, From: base, To: to, Files: []string{"refs"}})
 		if err != nil {
 			t.Fatal(err)
 		}
 		if !r.Truncated || len(r.Issues) != maxRows || len(r.Hints) != 0 {
 			t.Fatalf("truncated=%v issues=%d hints=%d", r.Truncated, len(r.Issues), len(r.Hints))
 		}
-		_, err = Compile(context.Background(), Request{root, base, to, make([]string, maxFiles+1)})
+		_, err = Compile(context.Background(), Request{Root: root, From: base, To: to, Files: make([]string, maxFiles+1)})
 		if err == nil || err.Error() != "changes-invalid-arguments" {
 			t.Fatalf("file cap: %v", err)
 		}
@@ -301,18 +304,36 @@ func TestCompileRefusesShallowCheckout(t *testing.T) {
 	})
 }
 
+// stalledRefs models a descriptor whose read blocks until it is closed.
+type stalledRefs struct {
+	entered, closed, released chan struct{}
+	once                      sync.Once
+}
+
+func (s *stalledRefs) Read([]byte) (int, error) {
+	close(s.entered)
+	<-s.closed
+	close(s.released)
+	return 0, os.ErrClosed
+}
+
+func (s *stalledRefs) Close() error {
+	s.once.Do(func() { close(s.closed) })
+	return nil
+}
+
 func TestCompileRefsReadHonoursContext(t *testing.T) {
-	t.Run("UCL1142-V0-004 stalled refs read ends at the deadline", func(t *testing.T) {
+	t.Run("UCL1142-V0-004 V1-1155 stalled refs read ends at the deadline and releases its reader", func(t *testing.T) {
 		root, base := repoTest(t)
 		if e := os.WriteFile(filepath.Join(root, "notes.txt"), []byte("holds #7\n"), 0o600); e != nil {
 			t.Fatal(e)
 		}
-		release := make(chan struct{})
-		defer close(release)
-		entered := make(chan struct{})
-		old := readRefsFile
-		readRefsFile = func(string) ([]byte, bool, error) { close(entered); <-release; return nil, false, nil }
-		defer func() { readRefsFile = old }()
+		stalled := &stalledRefs{entered: make(chan struct{}), closed: make(chan struct{}), released: make(chan struct{})}
+		defer stalled.Close()
+		old := openRefsFile
+		openRefsFile = func(string) (io.ReadCloser, error) { return stalled, nil }
+		defer func() { openRefsFile = old }()
+		baseline := runtime.NumGoroutine()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		done := make(chan error, 1)
@@ -321,7 +342,7 @@ func TestCompileRefsReadHonoursContext(t *testing.T) {
 			done <- e
 		}()
 		select {
-		case <-entered:
+		case <-stalled.entered:
 		case <-time.After(30 * time.Second):
 			t.Fatal("reader never entered")
 		}
@@ -334,7 +355,68 @@ func TestCompileRefsReadHonoursContext(t *testing.T) {
 		case <-time.After(5 * time.Second):
 			t.Fatal("Compile outlived its context")
 		}
+		// Cancellation closed the descriptor; the stalled read returned without
+		// any further release from the test.
+		select {
+		case <-stalled.released:
+		case <-time.After(5 * time.Second):
+			t.Fatal("stalled read goroutine was not released by cancellation")
+		}
+		deadline := time.Now().Add(5 * time.Second)
+		for runtime.NumGoroutine() > baseline {
+			if time.Now().After(deadline) {
+				t.Fatalf("goroutines=%d, baseline %d: refs reader leaked", runtime.NumGoroutine(), baseline)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
 	})
+	t.Run("V1-1155 cancellation cleanup survives delayed callback dispatch", func(t *testing.T) {
+		old := openRefsFile
+		defer func() { openRefsFile = old }()
+		for i := 0; i < 200; i++ {
+			stalled := &stalledRefs{entered: make(chan struct{}), closed: make(chan struct{}), released: make(chan struct{})}
+			openRefsFile = func(string) (io.ReadCloser, error) { return stalled, nil }
+			ctx, cancel := context.WithCancel(context.Background())
+			result := make(chan error, 1)
+			go func() {
+				_, _, e := readRefsContext(ctx, "/unused")
+				result <- e
+			}()
+			<-stalled.entered
+			cancel()
+			if e := <-result; !errors.Is(e, context.Canceled) {
+				t.Fatalf("iteration %d error=%v", i, e)
+			}
+			select {
+			case <-stalled.released:
+			case <-time.After(5 * time.Second):
+				stalled.Close()
+				t.Fatalf("iteration %d: cancellation did not close the stalled descriptor", i)
+			}
+		}
+	})
+	t.Run("V1-1155 a completed read closes its descriptor", func(t *testing.T) {
+		closed := false
+		old := openRefsFile
+		openRefsFile = func(string) (io.ReadCloser, error) {
+			return closeRecorder{strings.NewReader("holds #7\n"), &closed}, nil
+		}
+		defer func() { openRefsFile = old }()
+		data, cut, err := readRefsContext(context.Background(), "/unused")
+		if err != nil || cut || string(data) != "holds #7\n" || !closed {
+			t.Fatalf("data=%q cut=%v err=%v closed=%v", data, cut, err, closed)
+		}
+	})
+}
+
+type closeRecorder struct {
+	io.Reader
+	closed *bool
+}
+
+func (c closeRecorder) Close() error {
+	*c.closed = true
+	return nil
 }
 
 func TestCompileShallowCheckCancellationKeepsGitUnavailable(t *testing.T) {
@@ -376,6 +458,165 @@ func TestCompileShallowCheckCancellationKeepsGitUnavailable(t *testing.T) {
 			}
 		case <-time.After(10 * time.Second):
 			t.Fatal("Compile outlived its context")
+		}
+	})
+}
+
+func commitFile(t *testing.T, root, name, content, message string) {
+	t.Helper()
+	path := filepath.Join(root, name)
+	if e := os.MkdirAll(filepath.Dir(path), 0o700); e != nil {
+		t.Fatal(e)
+	}
+	if e := os.WriteFile(path, []byte(content), 0o600); e != nil {
+		t.Fatal(e)
+	}
+	gitTest(t, root, "add", "--", name)
+	gitTest(t, root, "commit", "-q", "-m", message)
+}
+
+func TestCompileNewFlags(t *testing.T) {
+	t.Run("UCL1142-V0-007 per-PR new flags from the local source diff", func(t *testing.T) {
+		root, _ := repoTest(t)
+		commitFile(t, root, "cmd/corvint/old.go", "package main\n\nfunc old() { f.Bool(\"moved\", false, \"\") }\n", "seed")
+		from := gitTest(t, root, "rev-parse", "HEAD")
+		gitTest(t, root, "checkout", "-q", "-b", "flags")
+		commitFile(t, root, "cmd/corvint/new.go", "package main\n\nfunc add() {\n\tf.Bool(\"dry-run\", false, \"\")\n\tf.StringVar(&x, \"out-file\", \"\", \"\")\n\tf.Bool(\"snake_name\", false, \"\")\n\tf.StringVar(&y, \"dotted.name\", \"\", \"\")\n\tswitch a {\n\tcase \"--host\", \"--limit=\":\n\t}\n}\n", "Add flags\n\nCloses #3")
+		commitFile(t, root, "cmd/corvint/new_test.go", "package main\n\nfunc t() { f.Bool(\"test-only\", false, \"\") }\n", "test flag")
+		commitFile(t, root, "cmd/corvint/testdata/x.go", "package x\n\nfunc t() { f.Bool(\"fixture-only\", false, \"\") }\n", "fixture flag")
+		commitFile(t, root, "internal/other.go", "package other\n\nfunc t() { f.Bool(\"elsewhere\", false, \"\") }\n", "other flag")
+		gitTest(t, root, "rm", "-q", "cmd/corvint/old.go")
+		commitFile(t, root, "cmd/corvint/moved.go", "package main\n\nfunc old() { f.Bool(\"moved\", false, \"\") }\n", "move flag")
+		gitTest(t, root, "checkout", "-q", "main")
+		gitTest(t, root, "merge", "-q", "--no-ff", "flags", "-m", "Merge pull request #4 from fixture/flags")
+		to := mergeTest(t, root, "none", "No flags", "Merge pull request #5 from fixture/none")
+		r, e := Compile(context.Background(), Request{Root: root, From: from, To: to})
+		if e != nil || len(r.PRs) != 2 || r.Truncated {
+			t.Fatalf("report: %+v %v", r, e)
+		}
+		want := []string{"--dotted.name", "--dry-run", "--host", "--limit", "--out-file", "--snake_name"}
+		if r.PRs[0].FlagsBasis != "cmd-corvint-go-source-diff" || !reflect.DeepEqual(r.PRs[0].NewFlags, want) || r.PRs[0].Commands != "NOT_OBSERVED" {
+			t.Fatalf("flags PR: %+v", r.PRs[0])
+		}
+		if r.PRs[1].FlagsBasis != "cmd-corvint-go-source-diff" || len(r.PRs[1].NewFlags) != 0 || r.PRs[1].NewFlags == nil {
+			t.Fatalf("empty PR: %+v", r.PRs[1])
+		}
+		b, _ := json.Marshal(r.PRs[1])
+		if !strings.Contains(string(b), `"new_flags_basis":"cmd-corvint-go-source-diff","new_flags":[],"new_commands":"NOT_OBSERVED"`) {
+			t.Fatalf("wire: %s", b)
+		}
+	})
+	t.Run("UCL1142-V0-007 quoted and spaced paths and working-tree attributes", func(t *testing.T) {
+		root, _ := repoTest(t)
+		from := gitTest(t, root, "rev-parse", "HEAD")
+		gitTest(t, root, "checkout", "-q", "-b", "names")
+		commitFile(t, root, "cmd/corvint/space name.go", "package main\n\nfunc s() { f.Bool(\"spaced\", false, \"\") }\n", "spaced")
+		commitFile(t, root, "cmd/corvint/caf\u00e9.go", "package main\n\nfunc q() { f.Bool(\"quoted\", false, \"\") }\n", "quoted")
+		commitFile(t, root, "cmd/corvint/tab\tname.go", "package main\n\nfunc u() { f.Bool(\"tabbed\", false, \"\") }\n", "tabbed")
+		gitTest(t, root, "checkout", "-q", "main")
+		gitTest(t, root, "merge", "-q", "--no-ff", "names", "-m", "Merge pull request #7 from fixture/names")
+		to := gitTest(t, root, "rev-parse", "HEAD")
+		want := []string{"--quoted", "--spaced", "--tabbed"}
+		for _, attributes := range []string{"", "cmd/corvint/*.go -diff\n", "cmd/corvint/*.go binary\n"} {
+			if e := os.WriteFile(filepath.Join(root, ".gitattributes"), []byte(attributes), 0o600); e != nil {
+				t.Fatal(e)
+			}
+			r, e := Compile(context.Background(), Request{Root: root, From: from, To: to})
+			if e != nil || len(r.PRs) != 1 || r.PRs[0].FlagsBasis != "cmd-corvint-go-source-diff" || !reflect.DeepEqual(r.PRs[0].NewFlags, want) {
+				t.Fatalf("attributes %q: %+v %v", attributes, r, e)
+			}
+		}
+	})
+	t.Run("UCL1142-V0-007 a diff over its bound is NOT_OBSERVED and truncated", func(t *testing.T) {
+		root, _ := repoTest(t)
+		from := gitTest(t, root, "rev-parse", "HEAD")
+		gitTest(t, root, "checkout", "-q", "-b", "big")
+		commitFile(t, root, "cmd/corvint/big.go", "package main\n\n// "+strings.Repeat("x", maxFlagDiff)+"\nfunc b() { f.Bool(\"late\", false, \"\") }\n", "big")
+		gitTest(t, root, "checkout", "-q", "main")
+		gitTest(t, root, "merge", "-q", "--no-ff", "big", "-m", "Merge pull request #6 from fixture/big")
+		to := gitTest(t, root, "rev-parse", "HEAD")
+		r, e := Compile(context.Background(), Request{Root: root, From: from, To: to})
+		if e != nil || len(r.PRs) != 1 || !r.Truncated || r.PRs[0].FlagsBasis != "NOT_OBSERVED" || len(r.PRs[0].NewFlags) != 0 {
+			t.Fatalf("bounded: %+v %v", r, e)
+		}
+	})
+}
+
+func TestCompileIssueStateFile(t *testing.T) {
+	root, _ := repoTest(t)
+	from := gitTest(t, root, "rev-parse", "HEAD")
+	to := mergeTest(t, root, "fix", "Fixes #12\nCloses #14\nRefs #15", "Merge pull request #20 from fixture/fix")
+	if e := os.WriteFile(filepath.Join(root, "holds.txt"), []byte("#12\n#14\n"), 0o600); e != nil {
+		t.Fatal(e)
+	}
+	write := func(name, body string) string {
+		if e := os.WriteFile(filepath.Join(root, name), []byte(body), 0o600); e != nil {
+			t.Fatal(e)
+		}
+		return name
+	}
+	t.Run("UCL1142-V0-006 operator-supplied state annotates issues and hints", func(t *testing.T) {
+		state := write("issues.json", `[{"number":12,"state":"OPEN","title":"secret=never-emit"},{"number":14,"state":"CLOSED"},{"number":99,"state":"closed"}]`)
+		before := treeBytes(t, root)
+		r, e := Compile(context.Background(), Request{Root: root, From: from, To: to, Files: []string{"holds.txt"}, IssueStateFile: state})
+		if e != nil || len(r.Issues) != 3 || len(r.Hints) != 2 {
+			t.Fatalf("report: %+v %v", r, e)
+		}
+		got := map[int64]string{}
+		for _, issue := range r.Issues {
+			got[issue.Number] = issue.GitHubState
+		}
+		if !reflect.DeepEqual(got, map[int64]string{12: "OPEN", 14: "CLOSED", 15: "NOT_OBSERVED"}) {
+			t.Fatalf("states: %v", got)
+		}
+		if r.Hints[0].Issue != 12 || r.Hints[0].GitHubState != "OPEN" || r.Hints[0].Message == "workaround may be removable" {
+			t.Fatalf("open hint: %+v", r.Hints[0])
+		}
+		if r.Hints[1].Issue != 14 || r.Hints[1].GitHubState != "CLOSED" || r.Hints[1].Message != "workaround may be removable" {
+			t.Fatalf("closed hint: %+v", r.Hints[1])
+		}
+		b, _ := json.Marshal(r)
+		if strings.Contains(string(b), "never-emit") || !strings.Contains(string(b), "operator-supplied file, not verified by Corvint") || !strings.Contains(string(b), "reopen/revert semantics: NOT_OBSERVED") {
+			t.Fatalf("wire: %s", b)
+		}
+		if !reflect.DeepEqual(before, treeBytes(t, root)) {
+			t.Fatal("read mutated checkout")
+		}
+	})
+	t.Run("UCL1142-V0-006 without a file every state stays NOT_OBSERVED", func(t *testing.T) {
+		r, e := Compile(context.Background(), Request{Root: root, From: from, To: to, Files: []string{"holds.txt"}})
+		if e != nil {
+			t.Fatal(e)
+		}
+		for _, issue := range r.Issues {
+			if issue.GitHubState != "NOT_OBSERVED" {
+				t.Fatalf("invented state: %+v", issue)
+			}
+		}
+		if r.Unknowns[0] != "GitHub issue state: NOT_OBSERVED" || r.Hints[0].Message != "workaround may be removable" {
+			t.Fatalf("report: %+v", r)
+		}
+	})
+	t.Run("UCL1142-V0-006 malformed, conflicting, unsafe or missing files refuse", func(t *testing.T) {
+		if e := os.Symlink("issues.json", filepath.Join(root, "link.json")); e != nil {
+			t.Fatal(e)
+		}
+		for _, name := range []string{
+			write("bad-state.json", `[{"number":12,"state":"MERGED"}]`),
+			write("bad-number.json", `[{"number":-1,"state":"OPEN"}]`),
+			write("missing-state.json", `[{"number":12}]`),
+			write("conflict.json", `[{"number":12,"state":"OPEN"},{"number":12,"state":"CLOSED"}]`),
+			write("object.json", `{"number":12,"state":"OPEN"}`),
+			write("null.json", " null\n"),
+			write("duplicate-member.json", `[{"number":12,"state":"OPEN","state":"CLOSED"}]`),
+			"link.json", "absent.json",
+		} {
+			if _, e := Compile(context.Background(), Request{Root: root, From: from, To: to, IssueStateFile: name}); e == nil || e.Error() != "changes-issue-state-unavailable" {
+				t.Fatalf("%s: %v", name, e)
+			}
+		}
+		if _, e := Compile(context.Background(), Request{Root: root, From: from, To: to, IssueStateFile: write("empty.json", "[]")}); e != nil {
+			t.Fatalf("empty array: %v", e)
 		}
 	})
 }

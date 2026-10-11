@@ -46,6 +46,29 @@ var errNotQualified = errors.New("keep-reporters not qualified")
 // runE2EReceipt is the e2e entry point; tests replace it with a fake runner.
 var runE2EReceipt = jstestprovider.RunE2E
 
+// observeTestRepositoryAtStart names the test repository before a retained
+// one-shot run; tests replace it with a fake observer.
+var observeTestRepositoryAtStart = jstestprovider.ObserveTestRepositoryAtStart
+
+// observeRetainedStart observes the test repository only when the document is
+// retained, so a non-retained stdout document is unchanged (V1-1156).
+func observeRetainedStart(ctx context.Context, retain bool, dir string) *jstestprovider.ApplicationRepositoryIdentity {
+	if !retain {
+		return nil
+	}
+	return observeTestRepositoryAtStart(ctx, dir)
+}
+
+// withRetainedRevision records the start identity in a basic (unprofiled)
+// receipt that does not already carry one. Profiled receipts keep their own
+// codec rules, and an unavailable observation leaves the revision unknown.
+func withRetainedRevision(receipt jstestprovider.Receipt, start *jstestprovider.ApplicationRepositoryIdentity) jstestprovider.Receipt {
+	if start != nil && receipt.Profile == "" && receipt.TestRepositoryAtStart == nil {
+		receipt.TestRepositoryAtStart = start
+	}
+	return receipt
+}
+
 type stringList []string
 
 func (s *stringList) String() string { return fmt.Sprintf("%v", []string(*s)) }
@@ -182,7 +205,7 @@ func parseUnitConfig(args []string) (jstestprovider.UnitConfig, bool, error) {
 	lockfile := fs.String("lockfile", "", "lockfile path")
 	runnerVersion := fs.String("runner-version", "", "pinned vitest version")
 	timeout := fs.Duration("timeout", 5*time.Minute, "bound on the unit run")
-	retain := fs.Bool("retain", false, "also retain the document under .corvint/test-evidence of the enclosing Git worktree")
+	retain := fs.Bool("retain", false, "also retain the document under .corvint/test-evidence of the enclosing Git worktree; a basic receipt then records the test repository start revision")
 	var testFiles stringList
 	var envKeys stringList
 	fs.Var(&testFiles, "test-file", "a test file to bind identity to (repeatable)")
@@ -238,11 +261,12 @@ func runUnit(args []string) error {
 		return runUnitWatch(ctx, cfg, retain, watch, os.Stdout, os.Stderr)
 	}
 
+	start := observeRetainedStart(ctx, retain, cfg.Dir)
 	receipt, err := jstestprovider.RunUnit(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	return emit(os.Stdout, os.Stderr, receipt, retainFrom(retain, cfg.Dir))
+	return emit(os.Stdout, os.Stderr, withRetainedRevision(receipt, start), retainFrom(retain, cfg.Dir))
 }
 
 func runE2E(args []string) error {
@@ -281,7 +305,7 @@ func runE2EMode(mode string, args []string) error {
 	serverReadyURL := fs.String("server-ready-url", "", "URL polled until it answers with status < 500")
 	serverReadyTimeout := fs.Duration("server-ready-timeout", 15*time.Second, "bound on waiting for server readiness")
 	timeout := fs.Duration("timeout", 5*time.Minute, "bound on the playwright test command")
-	retain := fs.Bool("retain", false, "also retain the document under .corvint/test-evidence of the enclosing Git worktree")
+	retain := fs.Bool("retain", false, "also retain the document under .corvint/test-evidence of the enclosing Git worktree; a basic receipt then records the test repository start revision")
 	var testFiles stringList
 	var envKeys stringList
 	var serverArgv stringList
@@ -384,11 +408,12 @@ func runE2EMode(mode string, args []string) error {
 		}
 		return runE2EWatch(ctx, cfg, *retain, watch, os.Stdout, os.Stderr)
 	}
+	start := observeRetainedStart(ctx, *retain, resolvedDir)
 	receipt, err := runE2EReceipt(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	return emit(os.Stdout, os.Stderr, receipt, retainFrom(*retain, resolvedDir))
+	return emit(os.Stdout, os.Stderr, withRetainedRevision(receipt, start), retainFrom(*retain, resolvedDir))
 }
 
 // readKeepReportersQualification reads and strictly decodes a qualified

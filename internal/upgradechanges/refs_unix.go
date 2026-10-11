@@ -4,7 +4,6 @@ package upgradechanges
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"syscall"
@@ -12,13 +11,13 @@ import (
 
 // Traverse held directory descriptors with openat. O_NOFOLLOW applies to every
 // caller-supplied component; os.Root confinement alone permits in-root symlinks.
-func readRefs(path string) ([]byte, bool, error) {
+// The caller owns the returned regular file and reads it within its bound.
+func openRefs(path string) (*os.File, error) {
 	fd, err := syscall.Open("/", syscall.O_RDONLY|syscall.O_DIRECTORY|syscall.O_CLOEXEC, 0)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	current := os.NewFile(uintptr(fd), "/")
-	defer func() { current.Close() }()
 	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
 	for i, part := range parts {
 		flags := syscall.O_RDONLY | syscall.O_NOFOLLOW | syscall.O_NONBLOCK | syscall.O_CLOEXEC
@@ -27,18 +26,16 @@ func readRefs(path string) ([]byte, bool, error) {
 		}
 		fd, e := openRefAt(current.Fd(), part, flags)
 		if e != nil {
-			return nil, false, e
+			current.Close()
+			return nil, e
 		}
 		current.Close()
 		current = os.NewFile(uintptr(fd), part)
 	}
 	stat, err := current.Stat()
 	if err != nil || !stat.Mode().IsRegular() {
-		return nil, false, fmt.Errorf("regular file required")
+		current.Close()
+		return nil, fmt.Errorf("regular file required")
 	}
-	raw, err := io.ReadAll(io.LimitReader(current, maxFileBytes+1))
-	if len(raw) > maxFileBytes {
-		return raw[:maxFileBytes], true, err
-	}
-	return raw, false, err
+	return current, nil
 }
