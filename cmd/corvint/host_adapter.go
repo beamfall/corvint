@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	adapterVersion       = "0.1.0"
+	adapterWireVersion   = "0.1.0" // Claude Code/Codex event wire format, independent of plugin releases.
 	adapterInputLimit    = 8 * 1024 * 1024
 	adapterOutputLimit   = 8000
 	untrustedDataPrefix  = repoenvelope.Prefix
@@ -573,7 +573,7 @@ func invokeDogfoodEvent(ctx context.Context, root, host, event string, input map
 	if err != nil {
 		return nil, "invalid-input"
 	}
-	args := []string{"--host", host, "--host-version", dogfoodHostVersions[host], "--surface", "plugin", "--adapter-version", adapterVersion, "--event", event, "--input", "-", "--budget-bytes", fmt.Sprint(budget)}
+	args := []string{"--host", host, "--host-version", dogfoodHostVersions[host], "--surface", "plugin", "--adapter-version", adapterWireVersion, "--event", event, "--input", "-", "--budget-bytes", fmt.Sprint(budget)}
 	var stdout bytes.Buffer
 	var stderr adapterErrorTail
 	if status := runLocalCompletionEvent(ctx, root, args, bytes.NewReader(raw), &stdout, &stderr); status != 0 {
@@ -666,7 +666,7 @@ func claudeGuidance(root, key string) string {
 
 func invokeLegacyClaudeEvent(ctx context.Context, root, event string, input map[string]any, silent bool) map[string]any {
 	raw, _ := json.Marshal(input)
-	args := []string{"--root", root, "harness", "event", "--host", "claude-code", "--host-version", claudeHostVersion, "--surface", "plugin", "--adapter-version", adapterVersion, "--event", event, "--input", "-", "--budget-bytes", "8000"}
+	args := []string{"--root", root, "harness", "event", "--host", "claude-code", "--host-version", claudeHostVersion, "--surface", "plugin", "--adapter-version", adapterWireVersion, "--event", event, "--input", "-", "--budget-bytes", "8000"}
 	var stdout bytes.Buffer
 	var stderr adapterErrorTail
 	if runContext(ctx, args, bytes.NewReader(raw), &stdout, &stderr) != 0 {
