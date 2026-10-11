@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/verify"
@@ -32,8 +33,9 @@ var stableStates = map[string]string{"ACCEPT": "accepted", "REJECT": "rejected",
 // named it, before any entry-point tilde expansion, absolutization, cleaning or
 // symlink resolution of the session root. Only a stable read uses it: it must
 // judge the caller's path exactly as `cem verify-stable --repository` judges the
-// same string (CEM-V1-017). An empty path keeps the session root.
-func (s *Session) SetStableRepository(path string) { s.stableRepository = path }
+// same string (CEM-V1-017), so an empty path is kept and refused. A session
+// whose entry point never sets it admits the session root.
+func (s *Session) SetStableRepository(path string) { s.stableRepository = &path }
 
 // readStable runs a Core status or verify over an exact cem/1.0 map through the
 // stable verifier. Core adds no 0.x verification, counts or worklist and opens
@@ -49,9 +51,9 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	if options.Limits.MaxUnknown != nil || options.Limits.MaxMechanical != nil {
 		return nil, invalidArguments("%s %s does not accept policy ceilings", wire.StableSpec, action)
 	}
-	repository := s.stableRepository
-	if repository == "" {
-		repository = s.root
+	repository := s.root
+	if s.stableRepository != nil {
+		repository = *s.stableRepository
 	}
 	stableOptions := verify.StableOptions{
 		Repository: repository, ExpectedBase: options.ExpectedBase,
@@ -62,7 +64,12 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	if filepath.IsAbs(repository) {
 		result, exit = verify.Stable(ctx, raw, stableOptions)
 	} else {
-		// `cem verify-stable` refuses a relative --repository before it reads the map.
+		// `cem verify-stable` refuses a relative or empty --repository before it
+		// reads the map. Named first, a value beginning with "--" also stops its
+		// argument parse, so that refusal keeps no other supplied value.
+		if strings.HasPrefix(repository, "--") {
+			stableOptions = verify.StableOptions{Repository: repository}
+		}
 		result = verify.NewStableResult(stableOptions)
 		exit = result.Refuse("arguments", "invalid-arguments", false)
 	}

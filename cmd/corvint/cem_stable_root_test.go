@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/zlib"
+	"context"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/base64"
@@ -17,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cem/workflow"
 )
 
 // cemStablePacket is the public S0E repository-envelope packet.
@@ -153,51 +155,122 @@ func runCEMStableEntry(t *testing.T, args ...string) (int, map[string]any) {
 // CEM-V1-017: stable admission judges the --root value byte for byte, as
 // `cem verify-stable --repository` judges the same string. For every spelling of
 // the root (absolute or relative, clean or not, through the alias or the real
-// directory) Core status and verify reproduce verify-stable's complete result
-// and exit. Parsing the argv resolves the root for 0.x reads only.
+// directory, or explicitly empty) Core status and verify reproduce
+// verify-stable's complete result and exit; an omitted --root is the working
+// directory. Parsing the argv resolves the root for 0.x reads only.
 func TestCEMStableReadKeepsCallerRoot(t *testing.T) {
 	f := materializeCEMStableRoot(t)
-	t.Chdir(filepath.Dir(f.repo))
-	for _, c := range []struct{ root, stage string }{
-		{f.repo, ""},
-		{f.alias, "repository"},
-		{f.alias + "/../repo", "repository"},
-		{f.repo + "/", "repository"},
-		{"./repo", "arguments"},
-		{"repo", "arguments"},
-		{"./alias", "arguments"},
+	base := filepath.Dir(f.repo)
+	// Option-shaped directory names: verify-stable stops parsing at a value that
+	// begins with "--", so its refusal keeps no expectedBase or targetRevision.
+	for _, name := range []string{"--repo", "-x", "--map"} {
+		if err := os.Symlink(f.repo, filepath.Join(base, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, c := range []struct {
+		dir        string
+		core       []string
+		repository string
+		stage      string
+	}{
+		{base, []string{"--root", f.repo}, f.repo, ""},
+		{base, []string{"--root", f.alias}, f.alias, "repository"},
+		{base, []string{"--root", f.alias + "/../repo"}, f.alias + "/../repo", "repository"},
+		{base, []string{"--root", f.repo + "/"}, f.repo + "/", "repository"},
+		{base, []string{"--root", "./repo"}, "./repo", "arguments"},
+		{base, []string{"--root", "repo"}, "repo", "arguments"},
+		{base, []string{"--root", "./alias"}, "./alias", "arguments"},
+		{f.repo, []string{"--root", ""}, "", "arguments"},
+		{f.repo, []string{"--root="}, "", "arguments"},
+		{f.repo, nil, f.repo, ""},
+		{base, []string{"--root=--repo"}, "--repo", "arguments"},
+		{base, []string{"--root=-x"}, "-x", "arguments"},
+		{base, []string{"--root=--map"}, "--map", "arguments"},
 	} {
-		wantExit, want := runCEMStableEntry(t, "cem", "verify-stable", "--repository", c.root,
+		t.Chdir(c.dir)
+		wantExit, want := runCEMStableEntry(t, "cem", "verify-stable", "--repository", c.repository,
 			"--map", filepath.Join(f.repo, "change.cem.json"), "--expected-base", f.expectedBase,
 			"--target", f.target, "--artifacts", f.artifacts)
 		stage, _ := want["stage"].(string)
 		if c.stage != stage && (c.stage != "" || stage == "arguments" || stage == "repository" || stage == "runtime") {
-			t.Fatalf("fixture does not discriminate %q: verify-stable stage %q, want %q", c.root, stage, c.stage)
+			t.Fatalf("fixture does not discriminate %q: verify-stable stage %q, want %q", c.core, stage, c.stage)
 		}
 		for _, action := range []string{"verify", "status"} {
-			exit, envelope := runCEMStableEntry(t, "--root", c.root, "cem", action, "--map", "change.cem.json",
+			args := append(append([]string{}, c.core...), "cem", action, "--map", "change.cem.json",
 				"--expected-base", f.expectedBase, "--target", f.target, "--artifacts", f.artifacts)
+			exit, envelope := runCEMStableEntry(t, args...)
 			if exit != wantExit || !reflect.DeepEqual(envelope["stableVerification"], want) {
-				t.Errorf("--root %s cem %s = exit %d %v\nverify-stable --repository %s = exit %d %v",
-					c.root, action, exit, envelope["stableVerification"], c.root, wantExit, want)
+				t.Errorf("%q cem %s in %s = exit %d %v\nverify-stable --repository %q = exit %d %v",
+					c.core, action, c.dir, exit, envelope["stableVerification"], c.repository, wantExit, want)
 			}
 		}
 	}
 }
 
-// CEM-V1-019: a 0.x read through the same root spellings keeps Core's
-// tilde-expanded, absolute, cleaned and symlink-resolved root, so its output
-// bytes are unchanged by the stable caller-root route.
+// CEM-V1-017: a workflow session whose entry point never names a stable
+// repository admits its own root exactly as verify-stable judges that path, so
+// an aliased session root is refused at stage repository, not resolved.
+func TestCEMStableReadDefaultsToSessionRoot(t *testing.T) {
+	f := materializeCEMStableRoot(t)
+	wantExit, want := runCEMStableEntry(t, "cem", "verify-stable", "--repository", f.alias,
+		"--map", filepath.Join(f.repo, "change.cem.json"), "--expected-base", f.expectedBase,
+		"--target", f.target, "--artifacts", f.artifacts)
+	if want["stage"] != "repository" {
+		t.Fatalf("fixture does not discriminate the alias: verify-stable stage %v", want["stage"])
+	}
+	session, err := workflow.Open(f.alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope, err := session.Read(context.Background(), "verify", workflow.ReadOptions{MapPath: "change.cem.json",
+		ExpectedBase: f.expectedBase, Target: f.target, ArtifactRoot: f.artifacts, ArtifactsGiven: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stable, _ := envelope["stableVerification"].(workflow.StableVerification)
+	encoded, err := json.Marshal(stable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(encoded, &got); err != nil {
+		t.Fatal(err)
+	}
+	if stable.Exit != wantExit || !reflect.DeepEqual(got, want) {
+		t.Fatalf("default session root = exit %d %v\nverify-stable --repository %s = exit %d %v", stable.Exit, got, f.alias, wantExit, want)
+	}
+}
+
+// CEM-V1-019: a 0.x read through the same root spellings keeps Core's root:
+// normalized and symlink-resolved when --root names a path, and the working
+// directory when --root is explicitly empty, exactly as when it is omitted. Each
+// reports the symlink-resolved map path, so 0.x output bytes are unchanged by the
+// stable caller-root route.
 func TestCEMLegacyReadKeepsResolvedRoot(t *testing.T) {
 	f := materializeCEMStableRoot(t)
-	t.Chdir(filepath.Dir(f.repo))
+	base := filepath.Dir(f.repo)
 	cemWrite(t, f.repo, "legacy.cem.json", `{"spec":"cem/0.2","baseRevision":"`+f.expectedBase+`",`+
 		`"patchSha256":"`+strings.Repeat("0", 64)+`","excludedPath":".corvint/change.cem.json","evidence":[],"hunks":[]}`)
-	for _, root := range []string{f.alias, f.alias + "/../repo", f.repo + "/", "./alias", "repo"} {
-		exit, envelope := runCEMStableEntry(t, "--root", root, "cem", "status", "--map", "legacy.cem.json",
+	for _, c := range []struct {
+		dir  string
+		core []string
+	}{
+		{base, []string{"--root", f.alias}},
+		{base, []string{"--root", f.alias + "/../repo"}},
+		{base, []string{"--root", f.repo + "/"}},
+		{base, []string{"--root", "./alias"}},
+		{base, []string{"--root", "repo"}},
+		{f.alias, []string{"--root", ""}},
+		{f.alias, []string{"--root="}},
+		{f.alias, nil},
+	} {
+		t.Chdir(c.dir)
+		args := append(append([]string{}, c.core...), "cem", "status", "--map", "legacy.cem.json",
 			"--expected-base", f.expectedBase, "--target", f.target)
+		exit, envelope := runCEMStableEntry(t, args...)
 		if exit != 1 || envelope["map"] != filepath.Join(f.repo, "legacy.cem.json") || envelope["state"] != "invalid" {
-			t.Errorf("0.x status through --root %s = exit %d map %v state %v", root, exit, envelope["map"], envelope["state"])
+			t.Errorf("0.x status %q in %s = exit %d map %v state %v", c.core, c.dir, exit, envelope["map"], envelope["state"])
 		}
 	}
 }
