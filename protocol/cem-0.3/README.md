@@ -39,8 +39,10 @@ consumer's toolchain.
 ## Runtime gate
 
 The 44 cases with `structuralRuntimeGated` claim a structural reason. Their pinned results are
-qualified only on `qualifiedRuntime` `go1.27.1`, with `structuralQualification`
-`EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS`. On any other runtime, a conforming consumer must instead
+generated on `qualifiedRuntime` `go1.27.1`, with `structuralQualification`
+`EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS`, and hold, apart from `runtime.goVersion`, on every admitted
+structural tuple: `go1.27.1`, and `go1.27.2` under decision 0522 (`CEM-V1-050`). On any other
+runtime, a conforming consumer must instead
 return UNSUPPORTED at stage `runtime`, code `unsupported-structural-runtime`, exit 2. It must not
 fall back to a byte proof. Nonstructural cases keep their pinned result on every runtime.
 

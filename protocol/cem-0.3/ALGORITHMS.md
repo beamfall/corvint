@@ -114,7 +114,8 @@ Token comparisons include comments and automatic semicolons by kind/literal, nev
   overlaps import reorder where gofmt sorts imports. No semantic-equivalence claim follows.
 
 These predicates have a toolchain dependency. P0 initially permits structural proof only when
-runtime.Version is exactly `go1.27.1`. The scratch prototype emits
+runtime.Version is exactly `go1.27.1`; decision 0522 later admits `go1.27.2` as a second
+structural tuple (`CEM-V1-050`). The scratch prototype emits
 `EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS`; admission as qualified still requires that tuple
 to pass the frozen new corpus. Other
 runtime versions—including devel labels, suffix variants and Go 1.24—return operational

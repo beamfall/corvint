@@ -79,7 +79,7 @@
         "unsupported-structural-runtime",
         "unsupported-process-containment"
       ],
-      "rule": "A structural reason with runtime.Version() other than go1.27.1 refuses with structuralQualification UNSUPPORTED; otherwise a structural map reports EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS and a nonstructural map NOT_REQUIRED. Windows refuses process containment."
+      "rule": "A structural reason with runtime.Version() outside the admitted structural tuples (go1.27.1, and go1.27.2 under decision 0522) refuses with structuralQualification UNSUPPORTED; otherwise a structural map reports EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS and a nonstructural map NOT_REQUIRED. Windows refuses process containment."
     },
     {
       "stage": "repository",

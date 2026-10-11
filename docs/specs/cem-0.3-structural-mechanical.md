@@ -104,7 +104,8 @@ and the canonical patch. A reason the consumer cannot reproduce fails verificati
   per-case divergence is admitted. The portable repository envelope
   `primary-clean-config-bounded/1` is a declared implementation ceiling, tested only on the
   portable side and not a packet case.
-- `CEM-SM-017`: On any runtime other than the qualified `go1.27.1`, a case that claims a
+- `CEM-SM-017`: On any runtime outside the admitted structural tuples (`go1.27.1`, the packet's
+  qualified runtime, and `go1.27.2` under decision 0522 and `CEM-V1-050`), a case that claims a
   structural reason MUST yield UNSUPPORTED at stage `runtime` with
   `unsupported-structural-runtime` and exit 2, never a byte-proof fallback. Every other case MUST
   keep its pinned result on every runtime.
@@ -149,7 +150,7 @@ and not as a `docs/cem-*.schema.json` file.
 | profile gating | 0.3 accepts, 0.2 and 0.1 refuse structural reasons | `invalid-field` |
 | portable packet | `protocol/cem-0.3/vectors` (221 cases) through `verify-03` and native single-profile `status` | pinned result per case; native equals its projection on all 221 |
 | config ceiling | sha1 repository with a `[gc]` config section | portable UNSUPPORTED `unsupported-repository-envelope` |
-| runtime gate | structural cases on a non-go1.27.1 runtime | UNSUPPORTED `unsupported-structural-runtime`, exit 2 |
+| runtime gate | structural cases on a runtime that is not an admitted structural tuple | UNSUPPORTED `unsupported-structural-runtime`, exit 2 |
 
 ## Rollout, rollback and compatibility
 
@@ -179,7 +180,7 @@ are widened under their own specs.
 | `CEM-SM-014` | `generatePacket03` | `TestCEMSM014PacketReproducible` |
 | `CEM-SM-015` | `cases03` sidecar rows | `TestCEMSM014PacketReproducible`, `TestCEMSM016PortablePacketConformance` |
 | `CEM-SM-016` | `verify-03` (`decode03`, `run03`), `portable03Projection` | `TestCEMSM016PortablePacketConformance`, `TestCEMSM016NativePortable03Vectors`, `TestCEMSM016PortableConfigCeiling`, `TestCEMSM014PacketReproducible` |
-| `CEM-SM-017` | `run03` runtime stage | `TestCEMSM016PortablePacketConformance` (go1.27.1 pinned results; go1.27.2 refusal run, build log 2026-10-11) |
+| `CEM-SM-017` | `run03` runtime stage | `TestCEMSM016PortablePacketConformance` (go1.27.1 pinned results; pre-0522 go1.27.2 refusal run, build log 2026-10-11; reproduced on admitted go1.27.2, build log 2026-10-11 cem03 tuple admission) |
 | `CEM-SM-018` | `internal/cem/wire/map.go` `ParseMapSpec`, `internal/cem/workflow/read.go` `ReadOptions.SingleSpec` | `TestCEMSM016NativePortable03Vectors` (cases `spec-0.2`, `argument-wire-precedes-missing-base`, `argument-uppercase-target`, `argument-width-mismatch`) |
 
 ## Unresolved decisions

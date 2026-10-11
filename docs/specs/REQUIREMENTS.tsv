@@ -808,8 +808,8 @@ CEM-SM-013	docs/specs/cem-0.3-structural-mechanical.md	89	The packet MUST includ
 CEM-SM-014	docs/specs/cem-0.3-structural-mechanical.md	92	A checked-in generator MUST regenerate the packet byte for byte from its declare
 CEM-SM-015	docs/specs/cem-0.3-structural-mechanical.md	95	The packet MUST distinguish the sidecar at each side:
 CEM-SM-016	docs/specs/cem-0.3-structural-mechanical.md	100	For every case, the standalone `verify-03` process MUST reproduce the pinned
-CEM-SM-017	docs/specs/cem-0.3-structural-mechanical.md	107	On any runtime other than the qualified `go1.27.1`, a case that claims a
-CEM-SM-018	docs/specs/cem-0.3-structural-mechanical.md	111	The native reader MUST offer a single-profile mode (`ReadOptions.SingleSpec`).
+CEM-SM-017	docs/specs/cem-0.3-structural-mechanical.md	107	On any runtime outside the admitted structural tuples (`go1.27.1`, the packet's
+CEM-SM-018	docs/specs/cem-0.3-structural-mechanical.md	112	The native reader MUST offer a single-profile mode (`ReadOptions.SingleSpec`).
 CEM-V1-001	docs/specs/cem-stable-v1.md	26	Preserve canonical Git base/target/hunk binding and closed versioned decoding. K
 CEM-V1-002	docs/specs/cem-stable-v1.md	27	Bind criterion references to canonical native ticket identity, acceptance revisi
 CEM-V1-003	docs/specs/cem-stable-v1.md	28	Reference bounded runner receipts by digest, with exact runner/profile, admitted
