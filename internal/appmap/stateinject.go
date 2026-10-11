@@ -728,6 +728,7 @@ func (t *constTable) injected(own *constFile, local, member string, tok int) (st
 	r := regs[0]
 	var v, why string
 	var at []Anchor
+	t.hop = "" // a hop belongs to this lookup only
 	switch {
 	case r.bad:
 		why = "unreadable-registration"
