@@ -47,7 +47,7 @@ func TestEnrolledStopSpawnsBoundedGit(t *testing.T) {
 }
 
 // LCP-V0-019: the event's actual re-read dispatch falls back when either part
-// of the closing identity mismatches; matching facts save six Git processes.
+// of the closing identity mismatches; matching facts save four Git processes.
 func TestDogfoodEventObservedMismatchFallsBack(t *testing.T) {
 	root, key := handoffRepository(t)
 	ctx := context.Background()
