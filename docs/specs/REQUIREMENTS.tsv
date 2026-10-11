@@ -2115,6 +2115,7 @@ MMR-V0-005	docs/specs/mcp-multi-root-v0.md	60	(accepted by decision 0441; V1-093
 MMR-V0-006	docs/specs/mcp-multi-root-v0.md	68	(accepted by decision 0441; V1-0938) `corvint.status` with no arguments
 MMR-V0-007	docs/specs/mcp-multi-root-v0.md	78	(accepted by decision 0441; V1-0938) Every result MUST bind to its own
 MMR-V0-008	docs/specs/mcp-multi-root-v0.md	84	(accepted by decision 0441; V1-0938) Per-root resident state MUST be only
+MMR-V0-009	docs/specs/mcp-multi-root-v0.md	90	(proposed, pending owner acceptance (V1-1173); GitHub #781) At startup,
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	38	The profile MUST be served by the separate executable `corvint-test-validity-mcp
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	47	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two
 MTV-V0-003	docs/specs/mcp-test-validity-profile-v0.md	54	Receipt location contract. The only receipt source MUST be the caller's `receipt

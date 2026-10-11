@@ -2107,7 +2107,7 @@
     "path": "docs/specs/mcp-multi-root-v0.md",
     "title": "MCP multi-root profile V0",
     "reqPrefix": "MMR-V0",
-    "intent": "accepted (decision 0441)",
+    "intent": "accepted (decision 0441); MMR-V0-009 proposed, pending owner acceptance (V1-1173)",
     "delivery": "experimental",
     "claim": "One corvint-mcp process serves up to 32 operator-declared repositories, each named by an alias that every repository-scoped tool call must select.",
     "dependsOn": [
