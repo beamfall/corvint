@@ -1,11 +1,47 @@
 {
   "baseRevision": "363c8b9c755cdfc112944648a4a69e78ce704984",
-  "evidence": [],
+  "evidence": [
+    {
+      "blobOid": "385f65901d89aeb27cf62c59ddfb8180139a3019",
+      "id": "evidence:sha256:ad6394472b335f54dcb07e36d94da2853dad992d4a434ff9b7a5fb1f705d6697",
+      "path": "docs/build-log/2026-10-10-ci-eight-shards.md",
+      "span": {
+        "end": 4474,
+        "start": 3687
+      },
+      "spanSha256": "8d4b659102da4e6fa9cf261e700119393666bdcafcd6fbcd12980bb1fc99d913"
+    },
+    {
+      "blobOid": "031336e36d1f62c7a5673464662b824b2f396dc8",
+      "id": "evidence:sha256:d54d1a89696d06d5a6c99d63ae239624b2723b4ea96cc6008bd39ad4421d772d",
+      "path": "docs/specs/affected-plan-v0.md",
+      "span": {
+        "end": 53114,
+        "start": 52291
+      },
+      "spanSha256": "308ca0c5ceeede7d71ddf2efdac20eb9f97a3e4691e0c14a61617443ceaf0324"
+    },
+    {
+      "blobOid": "acd5f90a2e6e6576bebb902030e95f4e8fc0d8d3",
+      "id": "evidence:sha256:38016dfea4b50be8a696e79b692a9d7a985bebe6274356f1aab94f1b567e6011",
+      "path": "docs/decisions/README.md",
+      "span": {
+        "end": 26,
+        "start": 0
+      },
+      "spanSha256": "a7611e052b4dab3fb261931f25fa1bd7225a3e8f75b41e5405557ee5189b8975"
+    }
+  ],
   "excludedPath": ".corvint/change.cem.json",
   "hunks": [
     {
-      "basis": [],
-      "disposition": "unknown",
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad6394472b335f54dcb07e36d94da2853dad992d4a434ff9b7a5fb1f705d6697",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
       "id": "hunk:sha256:ca16445daa8359901e8ce1a705e4974864b094173ec1bb9bddd79ab3e0b89b9d",
       "newRange": {
         "count": 7,
@@ -16,11 +52,16 @@
         "start": 66
       },
       "path": "docs/build-log/2026-10-10-ci-eight-shards.md",
-      "reason": "no-evidence"
+      "reason": "evidence-backed"
     },
     {
-      "basis": [],
-      "disposition": "unknown",
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d54d1a89696d06d5a6c99d63ae239624b2723b4ea96cc6008bd39ad4421d772d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
       "id": "hunk:sha256:5daaf962dbfdef6a2fd5ce8f75e76020bcc6ac25f5b9a028eb822abd1aee9b3c",
       "newRange": {
         "count": 31,
@@ -31,11 +72,16 @@
         "start": 0
       },
       "path": "docs/decisions/0500-afp-v0-041-eight-shard-slice-default-accepted-2026-10-10.md",
-      "reason": "no-evidence"
+      "reason": "evidence-backed"
     },
     {
-      "basis": [],
-      "disposition": "unknown",
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:38016dfea4b50be8a696e79b692a9d7a985bebe6274356f1aab94f1b567e6011",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
       "id": "hunk:sha256:3cd5ff33178d9ec908d3e5169de3ef2d017d2ecf5f65b476a4c8acbbf469eb3f",
       "newRange": {
         "count": 6,
@@ -46,11 +92,16 @@
         "start": 1
       },
       "path": "docs/decisions/README.md",
-      "reason": "no-evidence"
+      "reason": "evidence-backed"
     },
     {
-      "basis": [],
-      "disposition": "unknown",
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d54d1a89696d06d5a6c99d63ae239624b2723b4ea96cc6008bd39ad4421d772d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
       "id": "hunk:sha256:512b240571baa0c51f4557a140d098b065d8dc6a5acc5f7725a3ea6f34429854",
       "newRange": {
         "count": 7,
@@ -61,7 +112,7 @@
         "start": 561
       },
       "path": "docs/specs/affected-plan-v0.md",
-      "reason": "no-evidence"
+      "reason": "evidence-backed"
     }
   ],
   "patchSha256": "36dced6afedb22594338f119523e58a82920c443369a83b91abdebd0e0c8835e",
