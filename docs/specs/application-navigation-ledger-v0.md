@@ -143,7 +143,7 @@ are URL templates, not component source files. This slice makes neither missing 
   `../`, repository-relative otherwise, with script extensions and `/index.*` tried; no `${`). In a
   `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` or `.cjs` file the JavaScript lexer must confirm that literal
   (a lexer doubt refuses every mention); in any other file a line at or after a backtick, or after a
-  `//`, `/*`, `<!--` or `{{!` comment
+  `//`, `/*`, `<!--`, `{{!--` or `{{!` comment
   marker that could still be open, refuses. A walk ends at a router file anchoring screens, which
   selects the screens whose anchor spans hold its reference lines (every screen of the file when a
   reference lies outside all spans or the file's blob differs from the anchored one), or at a map test

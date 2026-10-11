@@ -203,15 +203,15 @@ func hopLiteralAround(line string, at int) (int, int) {
 }
 
 // hopInComment reports whether the quote at q may sit in a comment: a `//` earlier on its line,
-// or a `/*`, `<!--` or `{{!` opened before it and not closed. String contents are not excluded, so
-// a comment marker inside a literal also counts: the check may refuse a real reference, never
-// accept a commented one.
+// or a `/*`, `<!--`, `{{!--` or `{{!` opened before it and not closed by its own closer. String
+// contents are not excluded, so a comment marker inside a literal also counts: the check may
+// refuse a real reference, never accept a commented one.
 func hopInComment(text string, ls, q int) bool {
 	if strings.Contains(text[ls:q], "//") {
 		return true
 	}
 	before := text[:q]
-	for _, c := range [][2]string{{"/*", "*/"}, {"<!--", "-->"}, {"{{!", "}}"}} {
+	for _, c := range [][2]string{{"/*", "*/"}, {"<!--", "-->"}, {"{{!--", "--}}"}, {"{{!", "}}"}} {
 		if o := strings.LastIndex(before, c[0]); o >= 0 && !strings.Contains(before[o+len(c[0]):], c[1]) {
 			return true
 		}
