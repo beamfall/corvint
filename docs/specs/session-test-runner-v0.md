@@ -206,14 +206,15 @@ Promotion from experimental requires the parity report, 20 merged PRs through th
 CI call site with complete forward rows and no trip, and median and p90 PR wall time and
 runner-minutes per merged PR measured before and after, retained in a build-log entry. Unavailable
 hosted measurements stay `NOT_OBSERVED`. Balanced placement is promoted separately. Locally it
-qualifies only by measured wall time of executed runs against universe placement over the same
-frozen pairs. In CI it qualifies only after an accepted AFP-V0-028 amendment defines an executed
+qualifies only if executed runs over the same frozen pairs, with the same shard count, lower the
+p90 of the slowest shard's wall time by at least 20% against universe placement, with every
+execution unit placed once; otherwise it stays unpromoted. In CI it qualifies only after an accepted AFP-V0-028 amendment defines an executed
 comparison, and only if that lowers p90 narrowed-PR wall time over 20 PRs. Computed placement
 estimates never count as observed timing.
 
 Kill criteria: an unexplained parity difference that cannot be fixed; any queue `MISS` caused by the
-runner rather than the selector; or balanced placement failing its wall-time bar, which removes
-balanced placement only.
+runner rather than the selector; or balanced placement failing the local 20% bar or the CI p90 bar
+above, which removes balanced placement only.
 
 ## Rollout and rollback
 
