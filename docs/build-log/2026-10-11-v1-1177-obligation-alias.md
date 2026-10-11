@@ -22,8 +22,9 @@ changes.
   TOL-V0-010 whole token. That reuses closed codes with detail prefixes (resolved decision 7).
 - `internal/tasks/obligation/names.go` resolves a native id or an alias to the native id. The
   report reader, the expected-fail rules, preflight, the batch causes and the source presence check
-  and its audit use it. An alias matches as a maximal `[A-Za-z0-9._:-]` run, with trailing `.` and
-  `:` dropped. Alias spans are masked before defect-id scanning.
+  and its audit use it. An alias matches as a maximal `[A-Za-z0-9_.:-]` run, with trailing `.` and
+  `:` dropped. `_` extends the run but is not admitted in an alias, so `M001_extra` never names
+  `M001` (review round 1). Alias spans are masked before defect-id scanning.
 - The receipt audit folds the chain before the audited witness to learn its aliases.
 - `set`, `--ids` and plan documents stay native-id only.
 

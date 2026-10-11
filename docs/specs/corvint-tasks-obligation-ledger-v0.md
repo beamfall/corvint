@@ -495,9 +495,10 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   a `test.step` title, a spec source or a fail description, an alias MUST name its entry exactly as
   the native id does, and every result MUST be keyed to the native id. Status: proposed, pending
   owner acceptance (V1-1177; GitHub #792).
-  - An alias matches as a whole token: a maximal run of `[A-Za-z0-9._:-]` equal to the alias once
-    its trailing `.` and `:` bytes are dropped. `M001:`, `M001.` and `[M001]` name `M001`;
-    `M001-login`, `xM001`, `M001.1` and `a.M001` do not.
+  - An alias matches as a whole token: a maximal run of `[A-Za-z0-9_.:-]` equal to the alias once
+    its trailing `.` and `:` bytes are dropped. `_` is not admitted in an alias but still extends
+    the run, so an alias never matches inside an identifier. `M001:`, `M001.` and `[M001]` name
+    `M001`; `M001-login`, `M001_extra`, `xM001`, `M001.1` and `a.M001` do not.
   - Crediting (TOL-V0-010/011), the source presence check and its audit (TOL-V0-012/013) accept
     the native id or the alias in the spec file at `--commit`. The witness event, the credit lists,
     the evidence and the batch summary carry native ids only, so an alias never reaches a recorded
@@ -505,8 +506,9 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   - The expected-fail rules (TOL-V0-022/023) mask every alias span before looking for defect ids,
     so an alias shaped like a defect id (`ABC-12.V4`) never names defect `ABC-12`.
   - Preflight (TOL-V0-025) and the batch causes (TOL-V0-029) count a test, describe or `test.step`
-    title naming the alias, and a `<contract>:<alias>` annotation in a string literal, as naming
-    the obligation.
+    title naming the alias as naming the obligation. Preflight alone also counts a
+    `<contract>:<alias>` annotation in a string literal, exactly as it counts `<contract>:<id>`;
+    the batch causes read titles only, for native ids and aliases alike.
   - The receipt audit folds the ledger chain before the audited witness to learn its aliases, so
     an alias-bound match audits `CONSISTENT` from stored content alone.
 

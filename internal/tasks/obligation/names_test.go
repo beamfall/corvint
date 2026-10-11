@@ -24,6 +24,7 @@ func TestTOLV0036_AliasWholeToken(t *testing.T) {
 		"ends with M001.":           {"AC-1"},
 		"M001-login":                nil,
 		"xM001 M001x M001.1 a.M001": nil,
+		"M001_extra _M001":          nil,
 		"ABC-12.V4 export":          {"AC-2"},
 		"ABC-12 export":             nil,
 		"see login:M7 now":          {"AC-3"},
@@ -43,6 +44,7 @@ func TestTOLV0036_AliasWholeToken(t *testing.T) {
 		{"test('M001: x')", "AC-1", true},
 		{"test('xM001')", "AC-1", false},
 		{"test('M001-x')", "AC-1", false},
+		{"test('M001_x')", "AC-1", false},
 		{"AC-1", "AC-1", true},
 		{"x ABC-12.V4. y", "AC-2", true},
 		{"ABC-12.V4x", "AC-2", false},
@@ -72,7 +74,7 @@ func TestTOLV0036_AliasMasksDefectIDs(t *testing.T) {
 // alias-named titles and steps.
 func TestTOLV0036_ContractAliasAndNamedTests(t *testing.T) {
 	n := NamesOf(aliasLedger())
-	if got := n.contractAliases("rows:M001 and flows:ABC-12.V4. and x:M001x"); !reflect.DeepEqual(got, []string{"AC-1", "AC-2"}) {
+	if got := n.contractAliases("rows:M001 and flows:ABC-12.V4. and x:M001x and y:M001_z"); !reflect.DeepEqual(got, []string{"AC-1", "AC-2"}) {
 		t.Fatalf("contractAliases = %v", got)
 	}
 	src := "import { test } from '@playwright/test';\n" +

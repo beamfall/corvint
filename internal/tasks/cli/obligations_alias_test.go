@@ -18,7 +18,7 @@ test.describe('rows', () => {
     await test.step('ABC-12.V4 export', async () => {});
   });
 
-  test('M002-legacy, xM002 and M002.1', async () => {});
+  test('M002-legacy, xM002, M002_x and M002.1', async () => {});
 
   test('contract witnesses', async () => {
     await expectContract('rows:FLOW-7-register-auth');
@@ -112,7 +112,7 @@ func TestTOLV0035_AliasDuplicateAndCollision(t *testing.T) {
 
 // TestTOLV0036_PreflightMatchesAliases: preflight counts an alias as naming
 // its obligation in a test title, a test.step title and a contract
-// annotation, but never inside a longer token (M002-legacy, xM002, M002.1).
+// annotation, but never inside a longer token (M002-legacy, xM002, M002_x, M002.1).
 func TestTOLV0036_PreflightMatchesAliases(t *testing.T) {
 	r, id, head := preflightRepo(t, aliasSpec, aliasSeed)
 	x := atm(t, r.Root, nil, "preflight", id, "--commit", head)
@@ -142,7 +142,7 @@ func TestTOLV0036_WitnessCreditsByAliasKeyedToNativeID(t *testing.T) {
 	}
 	report := writeReport(t, t.TempDir(), r.Root, pwVersion,
 		pwSpec{Title: "M001: login works", ID: "s1", File: spec, Tests: []pwTest{passed("chromium", step("ABC-12.V4 export", false))}},
-		pwSpec{Title: "M002-legacy, xM002 and M002.1", ID: "s2", File: spec, Tests: []pwTest{passed("chromium")}})
+		pwSpec{Title: "M002-legacy, xM002, M002_x and M002.1", ID: "s2", File: spec, Tests: []pwTest{passed("chromium")}})
 	x := atm(t, r.Root, nil, witnessArgs(id, "w-alias", obligationRevision(t, r.Root, id), head, "--from-playwright-report", report)...)
 	if x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "written").Bool {
 		t.Fatalf("witness: %s", x.stdout)
