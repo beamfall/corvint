@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); V1-1159; V1-1160; V1-1161; `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); V1-1159; V1-1160; V1-1161; V1-1165; `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -153,6 +153,12 @@ are URL templates, not component source files. This slice makes neither missing 
   The ledger lists the observation digests, each row's `observed_by` test keys and the count of
   resolved observed edges matching no ledger edge (`observed_unmatched`); the static map is
   unchanged. (proposed, pending owner acceptance (V1-1160))
+- `ANL-V0-024`: An edge cannot be proven only by the test it is used to select. An edge a declared
+  test assumes is satisfied only when it is proven and the full ledger's provers (the evidence test
+  key plus every redundant crosser, read before any budget trimming) include a test key other than
+  that assuming test; otherwise the edge is listed unsatisfied with exit 1 although its row stays
+  `PROVEN`. A `--require` carries no test identity and keeps the ANL-V0-004 verdict.
+  (proposed, pending owner acceptance (V1-1165))
 
 ## Wire and limits
 
@@ -202,6 +208,7 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-021 | `internal/appmap/observe.go` | `TestANLV0021TypedTriggersAndAnnotations` |
 | ANL-V0-022 | `internal/appmap/tracezip.go`, `cmd/corvint/flows_appmap_observe.go` | `TestANLV0022TraceZip`, `TestANLV0006ObserveCLI` |
 | ANL-V0-023 | `internal/appmap/ledger.go`, `cmd/corvint/flows_appmap_edges.go` | `TestANLV0023ObservedEdgesFeedLedger`, `TestANLV0023EdgesObservationCLI` |
+| ANL-V0-024 | `internal/appmap/ledger.go` | `TestANLV0024SelfProofExcluded`, `TestANLV0004EdgesCLI` |
 
 ## Follow-ups and promotion
 

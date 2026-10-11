@@ -277,3 +277,38 @@ func TestANLV0023ObservedEdgesFeedLedger(t *testing.T) {
 		}
 	}
 }
+
+// ANL-V0-024: an edge assumed by a test is satisfied only when some other test proves it; trimming
+// redundant crossers out of the projection does not change that verdict.
+func TestANLV0024SelfProofExcluded(t *testing.T) {
+	root, rev, m, _, row := ledgerFixture(t)
+	r := pwpReceipt(t, rev, js.StatePassed, js.StatePassed)
+	v := verification(t, m, []string{writeReceipt(t, r)})
+	k0, k1 := r.Tests[0].ID, r.Tests[1].ID
+	decl := func(tests ...EdgeDeclaration) *EdgeDeclarations {
+		return &EdgeDeclarations{Schema: EdgeDeclarationsSchema, Tests: tests}
+	}
+	self := decl(EdgeDeclaration{TestKey: k0, Proves: []string{row.ID}, Assumes: []string{row.ID}})
+	l, _, ok := readLedger(t, m, v, self, Options{Root: root, Full: true})
+	if ok || l.Satisfied || edgeRow(t, l, row.ID).Status != EdgeProven || len(l.Unsatisfied) != 1 || l.Unsatisfied[0] != row.ID {
+		t.Fatalf("self-proof satisfied: %+v", l)
+	}
+	cases := map[string]*EdgeDeclarations{
+		"another prover":  decl(EdgeDeclaration{TestKey: k0, Proves: []string{row.ID}, Assumes: []string{row.ID}}, EdgeDeclaration{TestKey: k1, Proves: []string{row.ID}}),
+		"another assumer": decl(EdgeDeclaration{TestKey: k0, Proves: []string{row.ID}}, EdgeDeclaration{TestKey: k1, Assumes: []string{row.ID}}),
+	}
+	for name, d := range cases {
+		full, _, ok := readLedger(t, m, v, d, Options{Root: root, Full: true})
+		if !ok || !full.Satisfied {
+			t.Fatalf("%s: %+v", name, full)
+		}
+		small, bounded, ok := readLedger(t, m, v, d, Options{Root: root, Budget: 700})
+		if !ok || !small.Satisfied || small.Digest != full.Digest || len(bounded) > 700 {
+			t.Fatalf("%s trimmed: %s", name, bounded)
+		}
+	}
+	// --require has no test identity and keeps the plain proven verdict.
+	if l, _, ok := readLedger(t, m, v, edgeBindings(row.ID, k0), Options{Root: root, Full: true}, row.ID); !ok || !l.Satisfied {
+		t.Fatal(l)
+	}
+}

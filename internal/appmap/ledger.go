@@ -174,6 +174,7 @@ func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeD
 	}
 	proves := map[string][]string{}
 	needs := map[string]bool{}
+	assumers := map[string][]string{}
 	for _, id := range required {
 		needs[id] = true
 	}
@@ -193,6 +194,7 @@ func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeD
 			}
 			for _, id := range t.Assumes {
 				needs[id] = true
+				assumers[id] = append(assumers[id], t.TestKey)
 			}
 		}
 	}
@@ -390,7 +392,7 @@ func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeD
 	}
 	ledger.Total = len(ledger.Edges)
 	for id := range needs {
-		if rows[id].Status != EdgeProven {
+		if rows[id].Status != EdgeProven || selfProvenOnly(rows[id], assumers[id]) {
 			ledger.Unsatisfied = append(ledger.Unsatisfied, id)
 		}
 	}
@@ -425,6 +427,29 @@ func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeD
 		}
 		return nil, false, budgetError("edge ledger header exceeds --budget")
 	}
+}
+
+// selfProvenOnly is true when some test assumes a proven edge that no other test proves: an
+// edge cannot be proven only by the test it is used to select (ANL-V0-024). The prover set is the
+// full ledger's, read before any budget trimming.
+func selfProvenOnly(row LedgerEdge, assumedBy []string) bool {
+	if row.Evidence == nil || row.Evidence.Verification.Receipt == nil {
+		return false
+	}
+	provers := append([]string{row.Evidence.Verification.Receipt.TestKey}, row.RedundantCrossers...)
+	for _, t := range assumedBy {
+		other := false
+		for _, k := range provers {
+			if k != t {
+				other = true
+				break
+			}
+		}
+		if !other {
+			return true
+		}
+	}
+	return false
 }
 
 func crossingTestKey(c EdgeCrossing) string {

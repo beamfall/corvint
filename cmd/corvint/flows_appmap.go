@@ -30,8 +30,8 @@ Navigation edge ledger (experimental, ANL-V0):
 Single-map declared adjacency ledger; UNKNOWN triggers retain missing interaction evidence.
 The JSON sidecar declares tests with test_key, proves and assumes edge lists. --observation
 (observe output) binds each observed crossing's test key to the matching edge; a receipt at the
-observed revision still has to prove it. Unproven
-requirements exit 1; invalid inputs exit 2. No browser runs and no repository files change.
+observed revision still has to prove it. An assumed edge whose only prover is the assuming
+test is unsatisfied. Unproven requirements exit 1; invalid inputs exit 2. No browser runs and no repository files change.
 
 Navigation impact (experimental, ANL-V0):
   corvint [--root PATH] flows appmap impact --map FILE --base COMMIT [--ledger FILE]

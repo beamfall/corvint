@@ -44,7 +44,19 @@ func TestANLV0004EdgesCLI(t *testing.T) {
 	}
 	receipt, key := rvnReceipt(t, m.Revision)
 	declarations := filepath.Join(t.TempDir(), "declarations.json")
+	// ANL-V0-024: the only prover assuming the edge it selects on is self-proof, so unsatisfied.
 	data, _ := json.Marshal(appmap.EdgeDeclarations{Schema: appmap.EdgeDeclarationsSchema, Tests: []appmap.EdgeDeclaration{{TestKey: key, Proves: []string{id}, Assumes: []string{id}}}})
+	if err := os.WriteFile(declarations, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, diag = runFlowsCLI(root, append(base, "--receipt", receipt, "--declarations", declarations)...)
+	if code != 1 {
+		t.Fatalf("self-proof %d %s %s", code, out, diag)
+	}
+	if err := json.Unmarshal([]byte(out), &ledger); err != nil || ledger.Proven != 1 || ledger.Satisfied || len(ledger.Unsatisfied) != 1 || ledger.Unsatisfied[0] != id {
+		t.Fatal(out, err)
+	}
+	data, _ = json.Marshal(appmap.EdgeDeclarations{Schema: appmap.EdgeDeclarationsSchema, Tests: []appmap.EdgeDeclaration{{TestKey: key, Proves: []string{id}}, {TestKey: "spec.ts:other", Assumes: []string{id}}}})
 	if err := os.WriteFile(declarations, data, 0600); err != nil {
 		t.Fatal(err)
 	}
