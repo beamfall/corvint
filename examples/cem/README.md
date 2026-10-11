@@ -121,7 +121,7 @@ mismatch exits 2 before the verifier runs. An absent map exits 3, and an
 absent head commit exits 5. Acceptance is structural and reference integrity only. A completion
 claim still needs the native Tasks gate, and nothing switches an existing workflow to this branch
 automatically (`CEM-V1-PSR-004`). The stable verifier accepts structural hunks only on its qualified
-Go runtime tuple (currently `go1.27.1`); a verifier built with another Go version returns
+Go runtime tuples (currently `go1.27.1` and `go1.27.2`); a verifier built with another Go version returns
 `UNSUPPORTED` `unsupported-structural-runtime`, which the script passes through.
 
 ## Limits
