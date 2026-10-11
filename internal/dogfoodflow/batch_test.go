@@ -318,17 +318,23 @@ func TestBatchCheckDCWV0039RequiresCanonicalVerification(t *testing.T) {
 	repo = newBatchRepo(t)
 	bind, seal = repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
 	repo.batch(seal)
-	canonical := func(state, assurance, target string) string {
-		return `{"ok":true,"state":"` + state + `","tool":"cem-status","verification":{"assurance":"` + assurance +
+	counts := `"counts":{"supported":1,"total":1,"unknown":0},`
+	canonical := func(state, assurance, target, counts string) string {
+		return `{` + counts + `"ok":true,"state":"` + state + `","tool":"cem-status","verification":{"assurance":"` + assurance +
 			`","baseRevision":"` + repo.base + `","targetRevision":"` + target + `","valid":true}}` + "\n"
+	}
+	// Control: the complete canonical response passes.
+	repo.output = func(string, string) string { return canonical("ready-for-ci", "canonical", bind, counts) }
+	if code, stdout, stderr := repo.check(); code != 0 || !strings.Contains(stdout, " hunks=1 supported=1 unknown=0 ") {
+		t.Fatalf("control exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	for name, output := range map[string]string{
 		"empty":        "",
 		"malformed":    "not json\n",
-		"incomplete":   canonical("incomplete", "canonical", bind),
-		"structural":   canonical("ready-for-ci", "structural", bind),
-		"other-target": canonical("ready-for-ci", "canonical", repo.base),
-		"no-counts":    canonical("ready-for-ci", "canonical", bind),
+		"incomplete":   canonical("incomplete", "canonical", bind, counts),
+		"structural":   canonical("ready-for-ci", "structural", bind, counts),
+		"other-target": canonical("ready-for-ci", "canonical", repo.base, counts),
+		"no-counts":    canonical("ready-for-ci", "canonical", bind, ""),
 	} {
 		repo.output = func(string, string) string { return output }
 		code, stdout, stderr := repo.check()
