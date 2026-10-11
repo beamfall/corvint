@@ -78,7 +78,10 @@ func BuildRoots(ctx context.Context, root, manifestPath, revision string, roots 
 		return nil, err
 	}
 	// A declared directory absent at the revision would silently drop its files from the join.
-	dirs := append([]string{m.Tests.Root}, m.Tests.Specs...)
+	dirs := append([]string{}, m.Tests.Specs...)
+	if m.Tests.Root != "." {
+		dirs = append([]string{m.Tests.Root}, dirs...) // "." is the repository itself (AMAP-V0-075)
+	}
 	dirs = append(append(append(dirs, m.Tests.PageObjects...), m.Tests.Workflows...), m.Tests.Scenarios...)
 	if m.Flows != "" && m.Tests.Repo == "" {
 		dirs = append(dirs, m.Flows)
@@ -98,6 +101,11 @@ func BuildRoots(ctx context.Context, root, manifestPath, revision string, roots 
 	}
 	if o := aliased[m.Tests.Repo]; o != nil {
 		o.inputs["tests"] = []string{m.Tests.Root}
+		if m.Tests.Root == "." {
+			// A whole-repository root reads only the declared directories, so only they can be dirty (AMAP-V0-076).
+			t := m.Tests
+			o.inputs["tests"] = append(append(append(append([]string{}, t.Specs...), t.PageObjects...), t.Workflows...), t.Scenarios...)
+		}
 	}
 	b := &builder{m: m, rev: rev, out: &Map{Schema: MapSchema, App: m.App, Revision: rev, HashPrefix: m.HashPrefix, Manifest: wholeFile(me, raw),
 		Edges: []Edge{}, Flows: []Flow{}, Files: []TestFile{}, Unknowns: []Unknown{}}}

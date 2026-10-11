@@ -279,6 +279,9 @@ AMAP-V0-065	docs/specs/application-map-v0.md	523	The report is a measure of the 
 AMAP-V0-070	docs/specs/application-map-v0.md	527	An injected `.constant(...)` table imported through a directory specifier that
 AMAP-V0-071	docs/specs/application-map-v0.md	533	When several star exports of a barrel declare the imported name, the name MUST
 AMAP-V0-072	docs/specs/application-map-v0.md	538	A `di-constant` unknown with reason `not-read-whole` MUST carry `detail` naming
+AMAP-V0-075	docs/specs/application-map-v0.md	545	A manifest `tests.root` of exactly `"."` MUST be accepted and name the whole
+AMAP-V0-076	docs/specs/application-map-v0.md	549	With `tests.root` `"."` and an aliased test repository, dirty-root detection MUS
+AMAP-V0-077	docs/specs/application-map-v0.md	553	A manifest whose `tests.root` is not `"."` MUST compile to the same bytes and wi
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read

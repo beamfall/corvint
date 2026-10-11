@@ -336,3 +336,40 @@ func TestAMAPV0017RootPathKeepsTrailingSpace(t *testing.T) {
 		t.Fatalf("root with a trailing space refused: %v", err)
 	}
 }
+
+// AMAP-V0-075 AMAP-V0-076: tests.root "." is the whole (aliased) test repository: the join equals
+// the one under a narrower root, and dirty-root detection looks only at the declared directories.
+func TestAMAPV0075WholeRepositoryRoot(t *testing.T) {
+	app, _, e2e, _ := twoRoots(t, false)
+	raw, _ := os.ReadFile(filepath.Join(app, "appmap.json"))
+	if !strings.Contains(string(raw), `"root": "e2e"`) {
+		t.Fatal("fixture manifest root changed")
+	}
+	narrow, err := BuildRoots(context.Background(), app, "appmap.json", "HEAD", Roots{Repos: map[string]string{"e2e": e2e}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, app, "appmap.json", strings.Replace(string(raw), `"root": "e2e"`, `"root": "."`, 1))
+	appRev := commitAll(t, app, "whole root")
+	roots := Roots{Repos: map[string]string{"e2e": e2e}}
+	whole, err := BuildRoots(context.Background(), app, "appmap.json", appRev, roots)
+	if err != nil {
+		t.Fatalf("root \".\" refused: %v", err)
+	}
+	if !reflect.DeepEqual(whole.Files, narrow.Files) || !reflect.DeepEqual(whole.Screens, narrow.Screens) || len(whole.Files) == 0 {
+		t.Fatal("whole-repository root changed the join")
+	}
+	writeFile(t, e2e, "notes/unrelated.txt", "untracked and unrelated\n")
+	if _, err = BuildRoots(context.Background(), app, "appmap.json", appRev, roots); err != nil {
+		t.Fatalf("unrelated untracked file refused: %v", err)
+	}
+	writeFile(t, e2e, "e2e/specs/new.spec.ts", "export {};\n")
+	if _, err = BuildRoots(context.Background(), app, "appmap.json", appRev, roots); codeOf(err) != "appmap-root-dirty" {
+		t.Fatalf("declared directory change admitted: %v", err)
+	}
+	for _, bad := range []string{`"root": ""`, `"root": ".."`, `"root": "./"`} {
+		if _, err = decodeManifest([]byte(strings.Replace(string(raw), `"root": "e2e"`, bad, 1))); err == nil {
+			t.Errorf("admitted %s", bad)
+		}
+	}
+}
