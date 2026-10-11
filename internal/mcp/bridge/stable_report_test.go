@@ -255,12 +255,20 @@ func TestCEMReportToolAdmitsTheCallerNamedRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := strings.TrimSpace(string(gitOutput(t, root, "rev-parse", "HEAD")))
+	// The server never cleans the caller's root: an unclean or relative
+	// --root is refused at start, so no form reaches admission differently
+	// from `cem verify-stable --repository <same string>`.
+	for _, unclean := range []string{alias + "/../" + filepath.Base(alias), alias + "/", alias + "/.", "relative/repo", "./repo"} {
+		if registry, newErr := NewTaskReview(unclean); newErr == nil || newErr.Code != "invalid-root" {
+			t.Fatalf("--root %q = %v %v, want invalid-root", unclean, registry, newErr)
+		}
+	}
 	registry, newErr := NewTaskReview(alias)
 	if newErr != nil {
 		t.Fatal(newErr)
 	}
-	if registry.root != root {
-		t.Fatalf("registry root = %q, want the resolved %q", registry.root, root)
+	if registry.root != root || registry.callerRoot != alias {
+		t.Fatalf("registry root = %q caller %q, want the resolved %q and the caller's %q", registry.root, registry.callerRoot, root, alias)
 	}
 	stable := func(repository string) any {
 		result, _ := verify.Stable(context.Background(), data, verify.StableOptions{
