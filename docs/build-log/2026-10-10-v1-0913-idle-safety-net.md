@@ -16,8 +16,9 @@ The first report estimated 0.46 CPU-s/min for a per-entry `lstat` witness at 10,
 wrong: `cli/dispatch_witness.go` stats only the top-level `.taskman` entries (the tickets directory
 mtime already is the directory-level witness), so the proposal to replace it is already how it
 behaves and nothing was changed there. The remaining idle cost is the full read every safety-net
-interval (2.4 to 3.4 CPU-s per read at 10,000 tickets, build log 2026-10-06), about 3 per minute at
-60 s against about 0.2 per minute at 15 min.
+interval. The 2026-10-06 build log puts the dispatcher's full-read tick at about 1.5 CPU-s (reads
+of `queue status`/`ticket show` cost 2.4 to 3.4), so roughly 1.5 CPU-s/min at 60 s against about
+0.1 at 15 min. These are estimates from recorded costs, not measurements.
 
 ## Not run
 

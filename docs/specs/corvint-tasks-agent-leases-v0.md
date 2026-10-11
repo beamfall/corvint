@@ -5720,8 +5720,9 @@ Failure modes: an out-of-band in-place edit of a ticket file is acted on up to 1
 instead of 60 seconds; every in-store write path is unaffected.
 
 Acceptance evidence: `TestCALV0217_SafetyNetIsFifteenMinutes` and the unchanged
-`TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges` (`internal/tasks/dispatch`); measured idle
-CPU recorded in `docs/build-log/2026-10-10-v1-0913-idle-safety-net.md`.
+`TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges` (`internal/tasks/dispatch`); an idle CPU
+estimate (not a measurement; the 10,000-ticket idle profile is `NOT_RUN`) in
+`docs/build-log/2026-10-10-v1-0913-idle-safety-net.md`.
 
 Rollback: restore `idleFullEvery` to 60 seconds in `internal/tasks/dispatch/idle.go` and drop this
 requirement.
