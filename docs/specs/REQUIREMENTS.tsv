@@ -518,7 +518,7 @@ CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	589	`claim`, `renew`, `at
 CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1463	`store.Mutate` MUST take its request lookup and its canonical intent records fro
 CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1862	The optional policy `supervision` object MAY carry `repositories`, a closed obje
 CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1880	After `implement`, each repository with changes MUST receive a candidate commit
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	6466	`corvint-tasks ticket create --template` MUST return, in one
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	6506	`corvint-tasks ticket create --template` MUST return, in one
 CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	2042	The optional policy `supervision` object MAY carry `host`, whose admitted
 CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2125	A `claude-code` stage MUST invoke the pinned executable with the prompt on
 CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2259	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be
@@ -545,7 +545,7 @@ CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2944	A policy MAY carry t
 CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2978	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes
 CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3102	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a
 CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3158	When the dispatcher has a work-state reader, a ticket MUST count as held exactly
-CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	6651	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa
+CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	6691	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa
 CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3199	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici
 CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3245	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio
 CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1363	On macOS the memory signal MUST be the kernel memory-pressure level
@@ -622,7 +622,7 @@ CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4790	(accepted by decisio
 CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4801	(accepted by decision 0447; V1-0966) The dispatcher MUST count, per
 CAL-V0-186	docs/specs/corvint-tasks-agent-leases-v0.md	5104	(proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh
 CAL-V0-187	docs/specs/corvint-tasks-agent-leases-v0.md	4893	proposed (V1-0980; GitHub #668) A build writing `taskman-dispatch-state/3` MUST
-CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	6718	(proposed; V1-0989) Before listing processes, the owned process-group check afte
+CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	6758	(proposed; V1-0989) Before listing processes, the owned process-group check afte
 CAL-V0-189	docs/specs/corvint-tasks-agent-leases-v0.md	4945	(proposed; V1-0915; GitHub #641) Single intent read in the writer audit. A
 CAL-V0-190	docs/specs/corvint-tasks-agent-leases-v0.md	4958	(proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.
 CAL-V0-191	docs/specs/corvint-tasks-agent-leases-v0.md	5141	(proposed; V1-1016) A role MAY carry `expiredLeaseGraceSeconds`, an integer
@@ -645,13 +645,16 @@ CAL-V0-207	docs/specs/corvint-tasks-agent-leases-v0.md	5598	(accepted, decision 
 CAL-V0-208	docs/specs/corvint-tasks-agent-leases-v0.md	5603	(accepted, decision 0476) The `release readiness` item MUST add `memberCounts` a
 CAL-V0-209	docs/specs/corvint-tasks-agent-leases-v0.md	5611	(accepted, decision 0476) `release readiness` for a release without a candidate
 CAL-V0-210	docs/specs/corvint-tasks-agent-leases-v0.md	5645	(accepted (decision 0473; V1-0795)) A program transition that changes the owner
-CAL-V0-211	docs/specs/corvint-tasks-agent-leases-v0.md	5693	(accepted, decision 0499; V1-1118) When `corvint-tasks ticket set-effects` commi
+CAL-V0-211	docs/specs/corvint-tasks-agent-leases-v0.md	5730	(accepted, decision 0499; V1-1118) When `corvint-tasks ticket set-effects` commi
 CAL-V0-212	docs/specs/corvint-tasks-agent-leases-v0.md	5657	(accepted, decision 0502; V1-0628) The top-level `help` usage MUST NOT
-CAL-V0-214	docs/specs/corvint-tasks-agent-leases-v0.md	5708	(accepted, decision 0513) When `corvint-tasks ticket create`
-CAL-V0-215	docs/specs/corvint-tasks-agent-leases-v0.md	5773	(accepted, decision 0519 (V1-1129)) The shared Tasks error classifier
-CAL-V0-216	docs/specs/corvint-tasks-agent-leases-v0.md	5851	(accepted, decision 0518; V1-1130) `claim`, `renew`, `submit`,
-CAL-V0-217	docs/specs/corvint-tasks-agent-leases-v0.md	5742	(accepted, decision 0518; V1-0913) Amends CAL-V0-139. The safety-net interval
-CAL-V0-218	docs/specs/corvint-tasks-agent-leases-v0.md	5900	(accepted, decision 0519 (V1-1195)) Amends what CAL-V0-056 counts as
+CAL-V0-214	docs/specs/corvint-tasks-agent-leases-v0.md	5745	(accepted, decision 0513) When `corvint-tasks ticket create`
+CAL-V0-215	docs/specs/corvint-tasks-agent-leases-v0.md	5810	(accepted, decision 0519 (V1-1129)) The shared Tasks error classifier
+CAL-V0-216	docs/specs/corvint-tasks-agent-leases-v0.md	5888	(accepted, decision 0518; V1-1130) `claim`, `renew`, `submit`,
+CAL-V0-217	docs/specs/corvint-tasks-agent-leases-v0.md	5779	(accepted, decision 0518; V1-0913) Amends CAL-V0-139. The safety-net interval
+CAL-V0-218	docs/specs/corvint-tasks-agent-leases-v0.md	5937	(accepted, decision 0519 (V1-1195)) Amends what CAL-V0-056 counts as
+CAL-V0-219	docs/specs/corvint-tasks-agent-leases-v0.md	5693	(accepted, decision 0519 (V1-0906)) Change observation on Darwin
+CAL-V0-220	docs/specs/corvint-tasks-agent-leases-v0.md	5701	(accepted, decision 0519 (V1-0906)) Characterization: a native journal
+CAL-V0-221	docs/specs/corvint-tasks-agent-leases-v0.md	5707	(accepted, decision 0519 (V1-0906)) Regression evidence shall bound
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla

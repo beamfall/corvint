@@ -8,12 +8,13 @@ below.
 
 ## Context
 
-The w6 batch lands twelve lane branches on top of the w5 batch (pull request #795): tasks-doctor
-(V1-1176), flakes (V1-1152..V1-1154), obligation-alias (V1-1177), playwright-grep (V1-1175),
-witness-help (V1-1196), harness-reason (V1-1157), impact (V1-1141, V1-1173, V1-1174), docs
-(V1-1155, V1-1156, V1-1158), appmap-nav (V1-1159..V1-1161, V1-1165), appmap-impact (V1-1162,
-V1-1163, V1-1166, V1-1167, V1-1169, V1-1170), dispatch-idle (V1-1195) and dogfood (V1-1151,
-V1-1171). Each lane wrote its new or amended requirements as "proposed, pending owner acceptance".
+The w6 batch lands twelve w6 lane branches and the V1-0906 branch on top of the w5 batch (pull
+request #795): tasks-doctor (V1-1176), flakes (V1-1152..V1-1154), obligation-alias (V1-1177),
+playwright-grep (V1-1175), witness-help (V1-1196), harness-reason (V1-1157), impact (V1-1141,
+V1-1173, V1-1174), docs (V1-1155, V1-1156, V1-1158), appmap-nav (V1-1159..V1-1161, V1-1165),
+appmap-impact (V1-1162, V1-1163, V1-1166, V1-1167, V1-1169, V1-1170), dispatch-idle (V1-1195),
+dogfood (V1-1151, V1-1171) and `codex/v1-0906-bounded-fds` (V1-0906). Each lane wrote its new or
+amended requirements as "proposed, pending owner acceptance".
 `CAL-V0-215` (V1-1129) came with the w5 batch and stayed proposed there (decision 0518). AGENTS.md
 invariant 8 keeps acceptance human-owned; the standing auto-accept is that human acceptance.
 
@@ -41,8 +42,8 @@ the spec text carried by this batch:
   `ANL-V0-034` (V1-1167, V1-1162, V1-1166, V1-1163) and the `ANL-V0-016` amendment (V1-1162) in
   `docs/specs/application-navigation-ledger-v0.md`.
 - `AMAP-V0-078` (V1-1169) in `docs/specs/application-map-v0.md`.
-- `CAL-V0-218` (V1-1195), and `CAL-V0-215` with its A28 amendment (V1-1129), in
-  `docs/specs/corvint-tasks-agent-leases-v0.md`.
+- `CAL-V0-218` (V1-1195), `CAL-V0-219` through `CAL-V0-221` (V1-0906), and `CAL-V0-215` with its
+  A28 amendment (V1-1129), in `docs/specs/corvint-tasks-agent-leases-v0.md`.
 - `DCW-V0-039` and `DCW-V0-040` (V1-1151) and `DCW-V0-041` (V1-1171) in
   `docs/specs/daily-change-evidence-workflow-v0.md`.
 - `DCP-V1-053` (V1-1196) in `docs/specs/documentation-corpus-v1.md`.
@@ -61,9 +62,9 @@ Two owner-delegated orchestrator decisions are recorded here:
   evidence stays visible (product invariant 2, `AHI-019`, `AHI-022`). Only the `cause` field is
   accepted, as `AHI-054` states.
 
-The V1-0906 requirements are not part of this batch, because that lane was not pushed with a seal
-when the batch was assembled, and stay proposed. Every other requirement that was proposed before
-this batch also stays proposed.
+The owner approved removing the 512-directory descriptor admission caps of the first V1-0906 draft
+(2026-10-11); `CAL-V0-219` records that no directory-count admission cap applies. Every other
+requirement that was proposed before this batch stays proposed.
 
 ## Limits
 

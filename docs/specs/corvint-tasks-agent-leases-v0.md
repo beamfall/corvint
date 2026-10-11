@@ -5682,6 +5682,43 @@ Rollback: revert the takeover admission in `internal/tasks/transaction/program.g
 store recovery in `internal/tasks/store/program.go`, the test and this amendment. Stores are
 unchanged: the transition writes the existing program record shape.
 
+### V1-0906 bounded descriptors
+
+Status: accepted (decision 0519; V1-0906); implemented with focused tests. Human-owned
+input: ticket V1-0906 asks that open descriptors on the complete mutation route and its fallback
+stay independent of receipt count. The 512-directory admission caps of the first draft were removed
+with owner approval on 2026-10-11 (decision 0519): directory count alone no longer refuses a store; operating-system
+descriptor exhaustion and the existing traversal bounds still refuse.
+
+- `CAL-V0-219`: (accepted, decision 0519 (V1-0906)) Change observation on Darwin
+  (`internal/tasks/authority/change_guard_darwin.go`) shall hold at most 16 regular-file vnode
+  descriptors process-wide, one kqueue descriptor per live guard, and one vnode descriptor per
+  watched directory; directory descriptors scale with directory count, never with receipt count.
+  Linux retains one inotify descriptor. Regular files beyond the budget keep the existing stat
+  sweep and locked event-check semantics, directory event coverage is never dropped, and no
+  additional directory-count admission cap applies (descriptor exhaustion and existing traversal
+  bounds still refuse).
+- `CAL-V0-220`: (accepted, decision 0519 (V1-0906)) Characterization: a native journal
+  audit keeps the accepted CAL-V0-070 item 3 strategy, one identity-pinned root per listed parent
+  directory and one pinned read descriptor per read parent per audit attempt, with a revisited
+  parent reusing its pin. Its descriptors are therefore bounded by directory count, not receipt
+  count, and are all released on close. Complete mutation observation and its no-watch fallback
+  preserve canonical outcomes and refusal codes.
+- `CAL-V0-221`: (accepted, decision 0519 (V1-0906)) Regression evidence shall bound
+  descriptors at two synthetic receipt counts on complete mutation observation and forced no-watch
+  fallback, by a bound scaled to the store's directory count. The qualification records five runs at
+  100,000 receipts, the median sampled peak open descriptors, sampling limits and host load band.
+  Sampled peaks must stay within the directory-scaled bound and must not grow with receipt count
+  at a fixed directory count; unrelated process descriptors and concurrent operations are outside
+  this per-operation bound.
+
+These requirements change change-guard descriptor admission only; the journal reader is unchanged
+from CAL-V0-070. Idle CPU, journal formats, checkpoint validity and the existing outside-writer
+in-place race bound are unchanged. Acceptance uses temporary stores, focused race tests and the
+existing refusal/identity suite; see `docs/build-log/2026-10-10-v1-0906-bounded-fds.md`. Rollback
+reverts the 16-descriptor ceiling in `defaultVnodeFileBudget` and the tests, restoring the
+half-soft-limit budget and its exhaustion risk at high `RLIMIT_NOFILE`.
+
 ### V1-1118 exact PATH key naming a directory (proposed)
 
 Status: proposed; experimental implementation with focused tests, not accepted. Human-owned input:
@@ -6384,6 +6421,9 @@ and removes the new configuration members.
 | CAL-V0-211 | `TestCALV0211_ClaimWarnsOnExactDirectoryKey`, `TestCALV0211_ExactDirectoryKeyWarnings` (`internal/tasks/store`); `TestCALV0211_SetEffectsWarnsOnExactDirectoryKey` (`internal/tasks/cli`) |
 | CAL-V0-214 | `internal/tasks/cli/mutate.go`, `internal/tasks/cli/mutate_batch.go`, shared `internal/tasks/store/directory_keys.go`, both store mutation writer routes; `TestCALV0214_CreateAndRefineWarnOnExactDirectoryKey` (`internal/tasks/cli`), `TestCALV0214_CommittedEffectsStayBoundToTransaction` (`internal/tasks/store`) |
 | CAL-V0-218 | `TestCALV0218_ParseCPUTime`, `TestCALV0218_ParseProcStatCPU`, `TestCALV0218_BusyChildNeedsWorkNotPresence`, `TestCALV0218_ActiveBaselineFollowsActivity`, `TestCALV0218_SleepingChildDoesNotBlockIdleStop`, `TestCALV0218_ActivityObservedBeforeBlockingStops` (`internal/tasks/dispatch`) |
+| CAL-V0-219 | `TestCALV0219_ChangeGuardBoundedDescriptors`, `TestCALV0219_ChangeGuardManyDirectoriesAdmitted`, `TestCALV0219_ChangeGuardBudgetIsProcessWide` (`internal/tasks/authority`) |
+| CAL-V0-220 | `TestCALV0220_NativeDescriptorBound`, `TestCALV0220_RevisitedParentReusesPin` (`internal/tasks/journal`) |
+| CAL-V0-221 | `TestCALV0221_CompleteRouteBoundedDescriptors` (`internal/tasks/store`); `docs/build-log/2026-10-10-v1-0906-bounded-fds.md` |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance
