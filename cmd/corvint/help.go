@@ -253,7 +253,7 @@ Commands:
   impact  path, untracked or range impact
   breakage  cross-repository API relations
   changes  offline upgrade checklist
-  runs  Playwright run verdicts
+  runs  Playwright verdicts
   harness event  one agent lifecycle event
   adapter  one native host adapter
   dogfood  evidence: change, check, seal, batch-check
