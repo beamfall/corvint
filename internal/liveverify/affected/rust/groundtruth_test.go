@@ -1,6 +1,7 @@
 package rust
 
 import (
+	"context"
 	"os"
 	"strconv"
 	"testing"
@@ -18,7 +19,7 @@ func TestRealRepositoryDirectTestsCovered(t *testing.T) {
 		t.Skip("CORVINT_RUST_GROUND_TRUTH_ROOT is unset")
 	}
 	expected := expectedCount(t, "CORVINT_RUST_GROUND_TRUTH_DIRECT_TESTS")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatalf("units: %v", err)
 	}

@@ -507,10 +507,10 @@ After the 0.4.0 tag, deliver these V5 emitters in order:
 1. **P9 — “What shipped” narrator:** HDC's first emitter. Regenerate the 0.4.0 release notes from
    merged CEM and OCM, then diff them against the hand-written file; every discrepancy is a narrator
    defect or a drift finding.
-2. **P4 — PR check adapter:** keep the CI wrapper under `examples/**` or `protocol/**`, preserving the
-   Apache-2.0 boundary. Accept after 20 Corvint PRs carry the advisory check with bounded report bytes,
-   zero network calls from the digest-pinned binary, and an independent consumer reproduces report
-   bytes toward AT-17. Published digest-pinned 0.4.0 binaries are a hard dependency.
+2. **P4 — PR check adapter:** keep the CI wrapper under `examples/**` (AGPL-3.0-or-later since
+   decision 0504) or `protocol/**` (Apache-2.0). Accept after 20 Corvint PRs carry the advisory
+   check with bounded report bytes, zero network calls from the digest-pinned binary, and an
+   independent consumer reproduces report bytes toward AT-17. Published digest-pinned 0.4.0 binaries are a hard dependency.
 
 - The staging reference slice now includes `docs/CHANGE-EVIDENCE-MAP.md`, the `cem/0.1` schema,
   deterministic conformance vectors, strict local verifier, and `begin`/`cite`/`mark`/`verify`

@@ -59,6 +59,8 @@ var (
 	runSegmentBytes int64 = 8 << 20
 	// runPoll separates an attach's record reads while it waits.
 	runPoll = time.Second
+	// attachReadSleep is the pending-writer pause; tests finish a held publish here.
+	attachReadSleep = time.Sleep
 	// detachExecutable names the program and leading arguments that run this
 	// binary's CLI; tests replace it with the test binary's helper.
 	detachExecutable = func() (string, []string, error) {
@@ -720,7 +722,8 @@ func attemptAttach(env Env, args []string) int {
 	if err != nil {
 		return emit(env.Stdout, errorResult(cmd, err))
 	}
-	observed, err := snapshot.Probe(repo.StateDir)
+	rd := snapshot.Reader{StateDir: repo.StateDir, Sleep: attachReadSleep}
+	observed, err := rd.Read(func(*snapshot.Snapshot) error { return nil })
 	if err != nil {
 		return emit(env.Stdout, errorResult(cmd, err))
 	}

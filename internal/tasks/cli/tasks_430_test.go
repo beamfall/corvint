@@ -63,3 +63,26 @@ func TestCALV0051_CreateHelpAndMeaningfulIDs(t *testing.T) {
 		}
 	})
 }
+
+func TestCALV0212_TopLevelHelpCreateUsage(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	h := handoffCLI(t, root, "help")
+	if h.code != 0 {
+		t.Fatalf("help: %s", h.stdout)
+	}
+	var create, targeted bool
+	for _, u := range field(h.res.Items[0], "usage").Arr {
+		line := u.Str
+		switch {
+		case strings.HasPrefix(line, "corvint-tasks ticket create --request-id"):
+			create = strings.Contains(line, "localToken") && !strings.Contains(line, "--target TICKET") && !strings.Contains(line, "--expected-revision")
+		case strings.HasPrefix(line, "corvint-tasks ticket <refine"):
+			targeted = strings.Contains(line, "--target") && strings.Contains(line, "--expected-revision") && !strings.Contains(line, "create")
+		case strings.Contains(line, "ticket <mutation>") && strings.Contains(line, "--target"):
+			t.Fatalf("generic mutation usage still advertises --target for CREATE: %s", line)
+		}
+	}
+	if !create || !targeted {
+		t.Fatalf("top-level usage: create=%v targeted=%v", create, targeted)
+	}
+}

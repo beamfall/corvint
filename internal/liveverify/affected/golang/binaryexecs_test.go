@@ -1,6 +1,7 @@
 package golang_test
 
 import (
+	"context"
 	"reflect"
 	"slices"
 	"testing"
@@ -43,7 +44,7 @@ func binaryExecRepository(t *testing.T, declaration string) string {
 // dirty path reaches the command's build, and not on a change elsewhere.
 func TestBinaryExecConsumerIsSelectedWithTheCommandsBuild_AFPV0037(t *testing.T) {
 	root := binaryExecRepository(t, `{"profile":"corvint-test-binary-execs/0","packages":{"runner":["cmd/tool"]}}`)
-	result, err := golang.New().Units(root)
+	result, err := golang.New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +67,7 @@ func TestBinaryExecConsumerIsSelectedWithTheCommandsBuild_AFPV0037(t *testing.T)
 	if !reflect.DeepEqual(execs, want) {
 		t.Fatalf("execs = %v, want %v", execs, want)
 	}
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +121,7 @@ func TestInvalidBinaryExecDeclarationDeclaresNothing_AFPV0037(t *testing.T) {
 		"malformed":        `{`,
 	} {
 		t.Run(name, func(t *testing.T) {
-			result, err := golang.New().Units(binaryExecRepository(t, declaration))
+			result, err := golang.New().Units(context.Background(), binaryExecRepository(t, declaration))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -142,7 +143,7 @@ func TestInvalidBinaryExecDeclarationDeclaresNothing_AFPV0037(t *testing.T) {
 		})
 	}
 	t.Run("missing", func(t *testing.T) {
-		result, err := golang.New().Units(binaryExecRepository(t, ""))
+		result, err := golang.New().Units(context.Background(), binaryExecRepository(t, ""))
 		if err != nil {
 			t.Fatal(err)
 		}

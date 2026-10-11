@@ -1,6 +1,7 @@
 package kotlin
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -64,7 +65,7 @@ func TestAbstractJUnitBaseRaisesInheritedDiscoveryFrontier(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "build.gradle.kts", "plugins { kotlin(\"jvm\") version \"2.2.0\" }\n")
 	write(t, root, "src/test/kotlin/example/BaseTest.kt", "import org.junit.jupiter.api.Test\nabstract class BaseTest { @Test fun inherited() = Unit }\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +78,7 @@ func TestAbstractKotestBaseRaisesInheritedDiscoveryFrontier(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "build.gradle.kts", "plugins { kotlin(\"jvm\") version \"2.2.0\" }\n")
 	write(t, root, "src/test/kotlin/example/BaseSpec.kt", "import io.kotest.core.spec.style.FunSpec\nabstract class BaseSpec : FunSpec({ })\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +91,7 @@ func TestAbstractKotestBaseInMixedFileRaisesFrontier(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "build.gradle.kts", "plugins { kotlin(\"jvm\") version \"2.2.0\" }\n")
 	write(t, root, "src/test/kotlin/example/BaseSpec.kt", "import io.kotest.core.spec.style.FunSpec\nabstract class BaseSpec : FunSpec({ })\nclass Helper\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +104,7 @@ func TestUnknownInheritedTestRaisesFrontierRatherThanDisappearing(t *testing.T) 
 	root := t.TempDir()
 	write(t, root, "build.gradle.kts", "plugins { kotlin(\"jvm\") version \"2.2.0\" }\n")
 	write(t, root, "src/test/kotlin/example/Payments.kt", "package example\nclass Payments : ExternalSpec()\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +174,7 @@ func TestApostropheInBacktickedNameDoesNotHideQualifiedReference(t *testing.T) {
 	write(t, root, "settings.gradle.kts", "rootProject.name = \"fixture\"\n")
 	write(t, root, "src/main/kotlin/example/util/Helper.kt", "package example.util\nobject Helper { fun go() = Unit }\n")
 	write(t, root, "src/test/kotlin/example/app/AppTest.kt", "package example.app\nimport org.junit.jupiter.api.Test\nclass AppTest { @Test fun `it's fine`() = example.util.Helper.go() // it's\n}\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +204,7 @@ func TestUnitsSelectsStaticDependencyClosure(t *testing.T) {
 	write(t, root, "solo/src/main/kotlin/solo/Solo.kt", "package solo\nclass Solo\n")
 	write(t, root, "solo/src/test/kotlin/solo/SoloTest.kt", junit("solo", "SoloTest", "solo.Solo"))
 
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,7 +231,7 @@ func TestJavaSiblingSourceWidensCrossLanguageDependency(t *testing.T) {
 	write(t, root, "core/src/main/kotlin/com/ex/core/Calc.kt", "package com.ex.core\nclass Calc\n")
 	write(t, root, "core/src/main/java/com/ex/bridge/Bridge.java", "package com.ex.bridge;\nimport com.ex.core.Calc;\nclass Bridge { Calc calc; }\n")
 	write(t, root, "app/src/test/kotlin/com/ex/app/AppTest.kt", "package com.ex.app\nimport com.ex.bridge.Bridge\nimport org.junit.jupiter.api.Test\nclass AppTest { @Test fun works() = Unit }\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +250,7 @@ func TestSamePackageAndWildcardImportsAreConservativeEdges(t *testing.T) {
 	write(t, root, "src/main/kotlin/example/Core.kt", "package example\nclass Core\n")
 	write(t, root, "src/main/kotlin/example/Peer.kt", "package example\nclass Peer(val core: Core)\n")
 	write(t, root, "src/test/kotlin/check/PeerTest.kt", "package check\nimport example.*\nimport org.junit.jupiter.api.Test\nclass PeerTest { @Test fun works() = Unit }\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +275,7 @@ func TestByteOrderMarkAndTabHeadersKeepSamePackageEdges(t *testing.T) {
 			write(t, root, "build.gradle.kts", "plugins { kotlin(\"jvm\") version \"2.2.0\" }\n")
 			write(t, root, "src/main/kotlin/example/Core.kt", "package example\nclass Core\n")
 			write(t, root, "src/test/kotlin/example/PeerTest.kt", header+"\nimport org.junit.jupiter.api.Test\nclass PeerTest { @Test fun works() = Unit }\n")
-			graph, err := affected.Build(root, New())
+			graph, err := affected.Build(context.Background(), root, New())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -292,7 +293,7 @@ func TestStarImportOfAnEnumResolvesToItsDeclaration(t *testing.T) {
 	write(t, root, "src/main/kotlin/example/model/Status.kt", "package example.model\nenum class Status { ACTIVE, CLOSED }\n")
 	write(t, root, "src/main/kotlin/example/model/Other.kt", "package example.model\nclass Other\n")
 	write(t, root, "src/test/kotlin/check/StatusTest.kt", "package check\nimport example.model.Status.*\nimport org.junit.jupiter.api.Test\nclass StatusTest { @Test fun works() { println(ACTIVE) } }\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -307,7 +308,7 @@ func TestImportOfAnUnparsedTopLevelSymbolFallsBackToItsPackage(t *testing.T) {
 	write(t, root, "build.gradle.kts", "plugins { kotlin(\"jvm\") version \"2.2.0\" }\n")
 	write(t, root, "src/main/kotlin/example/Extensions.kt", "package example\nfun <T> List<T>.special() = size\n")
 	write(t, root, "src/test/kotlin/check/ExtensionTest.kt", "package check\nimport example.special\nimport org.junit.jupiter.api.Test\nclass ExtensionTest { @Test fun works() = Unit }\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +324,7 @@ func TestTopLevelDeclarationDoesNotShadowASameNamedSubpackage(t *testing.T) {
 	write(t, root, "src/main/kotlin/example/Top.kt", "package example\nval model = 1\n")
 	write(t, root, "src/main/kotlin/example/model/Extensions.kt", "package example.model\nfun <T> List<T>.special() = size\n")
 	write(t, root, "src/test/kotlin/check/ExtensionTest.kt", "package check\nimport example.model.special\nimport org.junit.jupiter.api.Test\nclass ExtensionTest { @Test fun works() = Unit }\n")
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -341,7 +342,7 @@ func TestRunnerIdentityDistinguishesLocalInstrumentationAndRobolectric(t *testin
 	write(t, root, "settings.gradle.kts", "rootProject.name = \"fixture\"\n")
 	write(t, root, "app/src/test/kotlin/example/LocalTest.kt", junit("example", "LocalTest", "org.robolectric.Robolectric"))
 	write(t, root, "app/src/androidTest/kotlin/example/DeviceTest.kt", junit("example", "DeviceTest", "androidx.test.espresso.Espresso"))
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -388,7 +389,7 @@ func TestMultipleRunnableClassesRaiseAddressFrontier(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "build.gradle.kts", "plugins { kotlin(\"jvm\") version \"2.2.0\" }\n")
 	write(t, root, "src/test/kotlin/example/Pair.kt", "package example\nimport org.junit.jupiter.api.Test\nclass FirstTest { @Test fun first() = Unit }\nclass SecondTest { @Test fun second() = Unit }\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,7 +403,7 @@ func TestDynamicAndUnresolvedDiscoveryRaiseFrontier(t *testing.T) {
 	write(t, root, "build.gradle.kts", "plugins { kotlin(\"jvm\") version \"2.2.0\" }\n")
 	write(t, root, "src/test/kotlin/example/GeneratedTest.kt", "package example\nimport org.junit.jupiter.api.TestFactory\nclass GeneratedTest { @TestFactory fun generated() = Class.forName(\"example.Case\") }\n")
 	write(t, root, "src/customTest/kotlin/example/InheritedSpec.kt", "package example\nclass InheritedSpec : ExternalSpec()\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,7 +429,7 @@ func TestCustomTestSourceSetHasNoInventedTask(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "build.gradle.kts", "plugins { kotlin(\"jvm\") version \"2.2.0\" }\n")
 	write(t, root, "src/testIntegration/kotlin/example/IntegrationTest.kt", junit("example", "IntegrationTest", "example.Subject"))
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -446,7 +447,7 @@ func TestCustomGradleProjectDirectoryDoesNotInventATarget(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "settings.gradle.kts", "include(\":app\")\nproject(\":app\").projectDir = file(\"modules/mobile\")\n")
 	write(t, root, "modules/mobile/src/test/kotlin/example/MappedTest.kt", junit("example", "MappedTest", "example.Subject"))
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -464,7 +465,7 @@ func TestBuildConfigurationChangeReachesEveryTest(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "build.gradle.kts", "plugins { kotlin(\"jvm\") version \"2.2.0\" }\n")
 	write(t, root, "src/test/kotlin/example/ExampleTest.kt", junit("example", "ExampleTest", "example.Subject"))
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -479,7 +480,7 @@ func TestBuildLogicChangeReachesEveryTest(t *testing.T) {
 	write(t, root, "settings.gradle.kts", "rootProject.name = \"fixture\"\n")
 	write(t, root, "buildSrc/src/main/kotlin/TestConvention.kt", "class TestConvention\n")
 	write(t, root, "app/src/test/kotlin/example/ExampleTest.kt", junit("example", "ExampleTest", "example.Subject"))
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -494,7 +495,7 @@ func TestAppliedKotlinGradleScriptReachesEveryTest(t *testing.T) {
 	write(t, root, "settings.gradle.kts", "rootProject.name = \"fixture\"\n")
 	write(t, root, "gradle/test-conventions.gradle.kts", "tasks.withType<Test>().configureEach { }\n")
 	write(t, root, "app/src/test/kotlin/example/ExampleTest.kt", junit("example", "ExampleTest", "example.Subject"))
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -509,7 +510,7 @@ func TestRealRepositoryGroundTruth(t *testing.T) {
 	if root == "" {
 		t.Skip("CORVINT_KOTLIN_GROUNDTRUTH_ROOT is not set")
 	}
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -575,7 +576,7 @@ testapps/controller/src/test/java/androidx/media3/testapp/controller/MediaIntToS
 		return
 	}
 	assertRevision(t, negativeRoot, "ee9082a4f5477b3c87885ee8abe33f0a63bbe0d2")
-	negative, err := New().Units(negativeRoot)
+	negative, err := New().Units(context.Background(), negativeRoot)
 	if err != nil {
 		t.Fatal(err)
 	}

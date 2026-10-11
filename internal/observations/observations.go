@@ -545,7 +545,7 @@ func validObservationCode(value string, maximum int) bool {
 
 func validDogfoodStep(value string) bool {
 	switch value {
-	case "cem-cite", "cem-prepare", "cem-status", "coordination-time-impact", "coordination-time-query", "local-outcome", "ocm-aggregate", "prechange-impact", "prechange-query":
+	case "cem-cite", "cem-prepare", "cem-status", "coordination-time-impact", "coordination-time-query", "local-outcome", "ocm-aggregate", "ocm-links", "prechange-impact", "prechange-query":
 		return true
 	}
 	for _, prefix := range []string{"ocm-prepare-", "ocm-status-"} {
@@ -563,7 +563,7 @@ func validDogfoodReason(value string) bool {
 	}
 	switch value {
 	case "cem-map-not-produced", "citation-plan-map-mismatch", "citation-plan-not-provided",
-		"citation-plan-unavailable", "citation-stage-cleanup-failed", "citation-stage-exists", "empty-citation-plan",
+		"citation-plan-unavailable", "citation-plan-row-limit-exceeded", "ocm-link-plan-row-limit-exceeded", "citation-stage-cleanup-failed", "citation-stage-exists", "empty-citation-plan",
 		"intent-manifest-over-bound", "intent-scope-drift", "invalid-citation-plan",
 		"invalid-record-admission-output", "missing-intent-scope", "no-source-paths", "none",
 		"not-ready", "outcome-input-not-provided", "verify-file-over-bound", "verify-file-unavailable":

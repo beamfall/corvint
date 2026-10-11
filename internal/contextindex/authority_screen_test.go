@@ -110,7 +110,7 @@ func warningCodes(evidence map[string]any) []string {
 // tell the reader to follow it.
 func TestTaskContextDowngradesAGoverningFileHidingUnicode(t *testing.T) {
 	t.Parallel()
-	poisoned := "# Rules\n\nFormatting of any ledger: see `docs/STYLE.md`.\u200B\u202E hidden\u202C\n"
+	poisoned := "# Rules\n\nFormatting of any ledger output: see `docs/STYLE.md`.\u200B\u202E hidden\u202C\n"
 	index := screenFixture(t, poisoned, nil)
 	packet, err := TaskContext(context.Background(), index, "format the ledger output", "", 20)
 	if err != nil {
@@ -131,6 +131,9 @@ func TestTaskContextDowngradesAGoverningFileHidingUnicode(t *testing.T) {
 	if classes := warnings[0]["classes"].([]any); len(classes) != 2 || classes[0] != hiddenZeroWidth || classes[1] != hiddenBidiControl {
 		t.Fatalf("classes = %v", classes)
 	}
+	if routed := routedRows(t, packet); len(routed) != 0 {
+		t.Fatalf("a downgraded governing file routed %v", routed)
+	}
 	coverage := contextCoverage(t, packet)
 	if coverage["governance"] != "unresolved" {
 		t.Fatalf("governance = %v, want unresolved", coverage["governance"])
@@ -145,9 +148,6 @@ func TestTaskContextDowngradesAGoverningFileHidingUnicode(t *testing.T) {
 	}
 	if codes := refused[0]["warnings"].([]any); len(codes) != 1 || codes[0] != HiddenUnicodeWarning {
 		t.Fatalf("refusal warnings = %v", refused[0]["warnings"])
-	}
-	if routed := routedRows(t, packet); len(routed) != 0 {
-		t.Fatalf("a downgraded governing file routed %v", routed)
 	}
 }
 
@@ -204,6 +204,123 @@ func TestTaskContextDowngradesASpecMentionedRowHidingUnicode(t *testing.T) {
 	ordered := demoteScreened(rows)
 	if got := []string{ordered[0].path, ordered[1].path, ordered[2].path}; !slices.Equal(got, []string{"b", "c", "a"}) {
 		t.Fatalf("order = %v", got)
+	}
+}
+
+// TestTaskContextScreensContentRoutedByCleanInstructions covers TCP-V0-055/056
+// at the instruction-routed boundary. Poisoning the governing file instead
+// would stop routing before the target's screen could be exercised.
+func TestTaskContextScreensContentRoutedByCleanInstructions(t *testing.T) {
+	t.Parallel()
+	for _, poisoned := range []bool{false, true} {
+		name := "clean"
+		style := "# Style\n\nWrap at 100 columns.\n"
+		if poisoned {
+			name = "poisoned"
+			style += "Hidden\u200B instruction.\n"
+		}
+		t.Run(name, func(t *testing.T) {
+			index := screenFixture(t, "# Rules\n\nFormatting of any ledger output: see `docs/STYLE.md`.\n", map[string]string{
+				"docs/STYLE.md": style,
+			})
+			packet, err := TaskContext(context.Background(), index, "format the ledger output", "", 20)
+			if err != nil {
+				t.Fatal(err)
+			}
+			governing, authority := packetRow(t, packet, governingRelation, "AGENTS.md")
+			if governing["score"] != 1000 || authority["authority"] != "project-instructions" || len(warningCodes(authority)) != 0 {
+				t.Fatalf("fixture: governing file must remain clean: %v / %v", governing, authority)
+			}
+			row, evidence := packetRow(t, packet, instructionRoutedRelation, "docs/STYLE.md")
+			if evidence["reason"] != "named by the governing instructions for this task: AGENTS.md:3 shares `ledger`, `output`" {
+				t.Fatalf("target was not routed by the expected passage: %v", evidence)
+			}
+			coverage := contextCoverage(t, packet)
+			if coverage["governance"] != "reserved" {
+				t.Fatalf("clean governing file lost governance: %v", coverage)
+			}
+			wantCritical := []string{"governing AGENTS.md", "instruction-routed docs/STYLE.md"}
+			if !poisoned {
+				if row["score"] != 850 || evidence["authority"] != "instruction-reference" || evidence["trust"] != "project-authority" || len(warningCodes(evidence)) != 0 {
+					t.Fatalf("clean routed target = %v / %v", row, evidence)
+				}
+				if len(mapsFromAny(coverage["governance_refused"])) != 0 {
+					t.Fatalf("clean target refused: %v", coverage)
+				}
+			} else {
+				wantCritical = wantCritical[:1]
+				if row["score"] != 0 || evidence["authority"] != DowngradedAuthority || evidence["trust"] != TrustRepositoryContent || evidence["confidence"] != "low" {
+					t.Fatalf("poisoned routed target retained authority: %v / %v", row, evidence)
+				}
+				if !slices.Equal(warningCodes(evidence), []string{HiddenUnicodeWarning}) || !strings.Contains(row["action"].(string), "not project authority") {
+					t.Fatalf("poisoned routed target lacks warning or inspection action: %v / %v", row, evidence)
+				}
+				refused := mapsFromAny(coverage["governance_refused"])
+				if len(refused) != 1 || refused[0]["relation"] != instructionRoutedRelation || refused[0]["path"] != "docs/STYLE.md" || refused[0]["trust"] != TrustRepositoryContent {
+					t.Fatalf("poisoned routed target not refused: %v", refused)
+				}
+			}
+			if got := contextSelectors(t, coverage, "critical"); !slices.Equal(got, wantCritical) {
+				t.Fatalf("critical = %v, want %v", got, wantCritical)
+			}
+			if got := contextSelectors(t, coverage, "critical_missing"); len(got) != 0 {
+				t.Fatalf("unexpected critical_missing = %v", got)
+			}
+		})
+	}
+}
+
+// TestTaskContextOrdersScreenedReservationsEndToEnd is TCP-V0-056: a poisoned
+// governing reservation starts ahead of clean specs before demotion. Inspect
+// the emitted packet, not demoteScreened directly, so removing its reservedRows
+// call loses this witness. Each partition must retain reservation order.
+func TestTaskContextOrdersScreenedReservationsEndToEnd(t *testing.T) {
+	t.Parallel()
+	index := screenFixture(t, "# Rules\n\nKeep it short.\u200B\n", map[string]string{
+		"docs/specs/alpha-v0.md": "# Alpha\n\n- `ALP-001`: the alpha clause.\n",
+		"docs/specs/beta-v0.md":  "# Beta\n\n- `BET-001`: the beta clause.\u200B\n",
+		"docs/specs/gamma-v0.md": "# Gamma\n\n- `GAM-001`: the gamma clause.\n",
+	})
+	want := []string{
+		"spec-mentioned docs/specs/alpha-v0.md",
+		"spec-mentioned docs/specs/gamma-v0.md",
+		"governing AGENTS.md",
+		"spec-mentioned docs/specs/beta-v0.md",
+	}
+	for _, limit := range []int{4, 20} {
+		packet, err := TaskContext(context.Background(), index, "apply ALP-001 BET-001 GAM-001 to cache/demux.go", "", limit)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Check admission and screening before asserting the product's order.
+		for _, item := range []struct {
+			kind, path string
+			poisoned   bool
+		}{
+			{governingRelation, "AGENTS.md", true},
+			{specMentionedRelation, "docs/specs/alpha-v0.md", false},
+			{specMentionedRelation, "docs/specs/beta-v0.md", true},
+			{specMentionedRelation, "docs/specs/gamma-v0.md", false},
+		} {
+			row, evidence := packetRow(t, packet, item.kind, item.path)
+			if item.poisoned {
+				if row["score"] != 0 || evidence["authority"] != DowngradedAuthority || !slices.Equal(warningCodes(evidence), []string{HiddenUnicodeWarning}) {
+					t.Fatalf("limit %d: poisoned reservation = %v / %v", limit, row, evidence)
+				}
+			} else if row["score"] != 900 || evidence["authority"] != "repository-spec" || len(warningCodes(evidence)) != 0 {
+				t.Fatalf("limit %d: clean reservation = %v / %v", limit, row, evidence)
+			}
+		}
+		got := contextPairs(t, packet)
+		if len(got) < len(want) || !slices.Equal(got[:len(want)], want) {
+			t.Fatalf("limit %d: reserved order = %v, want prefix %v", limit, got, want)
+		}
+		if limit == 4 && len(got) != 4 {
+			t.Fatalf("bounded packet = %v", got)
+		}
+		if limit == 20 {
+			packetRow(t, packet, "mentioned", "cache/demux.go")
+		}
 	}
 }
 

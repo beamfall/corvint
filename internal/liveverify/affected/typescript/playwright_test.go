@@ -44,6 +44,54 @@ func TestPlaywrightProjectSelectionBindsVariantsAndSetupRelations(t *testing.T) 
 	}
 }
 
+// TJAA-V0-013 and AFP-V0-020: an unreached helper is a bounded exclusion;
+// it neither widens the suite nor removes selections for a reached helper.
+func TestPlaywrightUnreachedHelperBoundedExclusion_V1_0211(t *testing.T) {
+	root := playwrightFixture(t)
+	write(t, root, "tests/pages/unreached.ts", `export const unused = () => "unused"`)
+	receipt := discoveryFixtureBytes(t, root, smallDiscoveryUnits())
+	reached := []string{
+		"typescript:playwright:angular:tests/login.spec.ts",
+		"typescript:playwright:chromium:tests/login.spec.ts",
+		"typescript:playwright:cleanup:tests/global.teardown.ts",
+		"typescript:playwright:react:tests/login.spec.ts",
+		"typescript:playwright:setup:tests/global.setup.ts",
+	}
+	for _, tc := range []struct {
+		name  string
+		dirty []string
+		want  []string
+	}{
+		{name: "unreached", dirty: []string{"tests/pages/unreached.ts"}},
+		{name: "reached", dirty: []string{"tests/pages/login.ts"}, want: reached},
+		{name: "mixed", dirty: []string{"tests/pages/login.ts", "tests/pages/unreached.ts"}, want: reached},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			plan, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, tc.dirty, receipt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if plan.Discovery.State != "MATCHED" || plan.Scope != affected.ScopeBounded || plan.Fallback != PlaywrightFallbackNone || len(plan.FallbackArgv) != 0 {
+				t.Fatalf("unexpected selection fallback: %+v", plan)
+			}
+			if got := playwrightSelectionIDs(plan); !slices.Equal(got, tc.want) {
+				t.Fatalf("selected=%v want=%v", got, tc.want)
+			}
+			if len(plan.Excluded) != len(smallDiscoveryUnits())-len(tc.want) {
+				t.Fatalf("excluded=%v", plan.Excluded)
+			}
+			for _, unknown := range plan.Unknown {
+				if unknown.Axis == PlaywrightAxisSelection {
+					t.Fatalf("unexpected selection unknown: %+v", unknown)
+				}
+			}
+			if !hasPlaywrightUnknown(plan, PlaywrightAxisExecution, PlaywrightUnknownExternalApplication) {
+				t.Fatalf("execution unknown missing: %v", plan.Unknown)
+			}
+		})
+	}
+}
+
 func TestPlaywrightSetupAndConfigChangesWidenThroughDeclaredRelations(t *testing.T) {
 	root := playwrightFixture(t)
 	setup, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/global.setup.ts"})

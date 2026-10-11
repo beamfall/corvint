@@ -193,7 +193,13 @@ func lifecycleDeadlineContext() context.Context {
 // adapterEnvContext supplies the adapter's process-boundary variables from env alone, so a
 // test neither calls t.Setenv nor sees the process environment.
 func adapterEnvContext(parent context.Context, env map[string]string) context.Context {
-	return context.WithValue(parent, adapterEnvKey{}, runtimeenv.Lookup(func(name string) (string, bool) { value, present := env[name]; return value, present }))
+	return context.WithValue(parent, adapterEnvKey{}, runtimeenv.Lookup(func(name string) (string, bool) {
+		value, present := env[name]
+		if name == "CORVINT_INDEX_AUTO_REFRESH" && !present {
+			return "0", true
+		}
+		return value, present
+	}))
 }
 
 func runClaudeAdapterTest(ctx context.Context, t *testing.T, root, event string, payload map[string]any) map[string]any {

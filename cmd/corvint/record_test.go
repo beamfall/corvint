@@ -2,7 +2,10 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/trace"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -423,4 +426,129 @@ exec %s "$@"
 
 func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
+}
+
+// DCW-V0-036: both public record path lists expose the overflow code without writing a trace.
+func TestRecordTracePathLimitPublicCode(t *testing.T) {
+	for _, flag := range []string{"--opened", "--changed"} {
+		for _, count := range []int{200, 201} {
+			t.Run(fmt.Sprintf("%s/%d", flag, count), func(t *testing.T) {
+				root := newRecordFixtureAt(t, filepath.Join(t.TempDir(), "repository"))
+				paths := make([]string, count)
+				for i := range paths {
+					paths[i] = fmt.Sprintf("source/f%04d.go", i)
+					writeDogfoodChange(t, root, paths[i], fmt.Sprintf("package source\nconst V%d = %d\n", i, i))
+				}
+				commitDogfoodChange(t, root, "record path boundary")
+				before := traceTreeSnapshot(t, root)
+				args := []string{"--root", root, "record", "--task", "path boundary", "--verify", "go test ./...", "--outcome", "passed"}
+				if flag == "--opened" {
+					args = append(args, "--changed", paths[0])
+				}
+				for _, path := range paths {
+					args = append(args, flag, path)
+				}
+				result := execute(t, candidateCommand(args...))
+				if count == 200 {
+					if result.exit != 0 || len(result.stderr) != 0 {
+						t.Fatalf("boundary result=%#v", result)
+					}
+					return
+				}
+				var refusal struct {
+					Code  string
+					Error string
+					OK    bool
+				}
+				if err := json.Unmarshal(result.stderr, &refusal); err != nil {
+					t.Fatal(err)
+				}
+				if result.exit != 2 || len(result.stdout) != 0 || refusal.OK || refusal.Code != "trace-path-limit-exceeded" || !strings.Contains(refusal.Error, "limit=200 observed=201") {
+					t.Fatalf("overflow result=%#v", result)
+				}
+				if after := traceTreeSnapshot(t, root); !reflect.DeepEqual(before, after) {
+					t.Fatal("overflow changed trace store")
+				}
+			})
+		}
+	}
+}
+
+// DCW-V0-036: stored overflow reaches both CLI envelopes without changing the store.
+func TestRecordStoredTracePathLimitPublicCode(t *testing.T) {
+	for _, schema := range []int{1, 3} {
+		for _, label := range []string{"opened_paths", "changed_paths"} {
+			t.Run(fmt.Sprintf("%d/%s", schema, label), func(t *testing.T) {
+				root := newRecordFixtureAt(t, filepath.Join(t.TempDir(), "repository"))
+				paths := make([]string, 201)
+				for i := range paths {
+					paths[i] = fmt.Sprintf("source/f%04d.go", i)
+					writeDogfoodChange(t, root, paths[i], fmt.Sprintf("package source\nconst V%d = %d\n", i, i))
+				}
+				commitDogfoodChange(t, root, "stored path fixture")
+				base := recordRevision(t, root)
+				writeDogfoodChange(t, root, paths[0], "package source\nconst V0 = 999\n")
+				commitDogfoodChange(t, root, "one admitted path")
+				target := recordRevision(t, root)
+				record, err := trace.NewRecord(trace.Input{Producer: trace.ProducerCLI, Revision: target, TreeRevision: target, Task: "stored boundary", ChangedPaths: paths[:200], Outcome: "passed"}, paths)
+				if err != nil {
+					t.Fatal(err)
+				}
+				encoded, err := trace.Encode(record)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var row map[string]any
+				if err := json.Unmarshal(encoded, &row); err != nil {
+					t.Fatal(err)
+				}
+				if schema == 1 {
+					delete(row, "producer")
+					delete(row, "trace_id")
+					row["schema_version"] = 1
+					canonical, err := json.Marshal(row)
+					if err != nil {
+						t.Fatal(err)
+					}
+					row["trace_id"] = fmt.Sprintf("%x", sha256.Sum256(canonical))
+					encoded, err = json.Marshal(row)
+					if err != nil {
+						t.Fatal(err)
+					}
+					encoded = append(encoded, '\n')
+				}
+				if _, err := trace.DecodeStore(encoded, target, paths); err != nil {
+					t.Fatalf("fixture: %v", err)
+				}
+				row[label] = paths
+				corrupt, err := json.Marshal(row)
+				if err != nil {
+					t.Fatal(err)
+				}
+				corrupt = append(corrupt, '\n')
+				if _, err := trace.DecodeStore(corrupt, target, paths); trace.PathLimitFailureReason(err) != "trace-path-limit-exceeded" {
+					t.Fatalf("injection missed path bound: %v", err)
+				}
+				writeRecordStore(t, root, corrupt)
+				before := traceTreeSnapshot(t, root)
+				for _, args := range [][]string{recordArguments(root, "stored overflow", "passed"), dogfoodRecordArguments(root, base, target)} {
+					result := execute(t, candidateCommand(args...))
+					var refusal struct {
+						Code  string
+						Error string
+						OK    bool
+					}
+					if err := json.Unmarshal(result.stderr, &refusal); err != nil {
+						t.Fatal(err)
+					}
+					if result.exit != 2 || len(result.stdout) != 0 || refusal.OK || refusal.Code != "trace-path-limit-exceeded" || !strings.Contains(refusal.Error, label+" exceeds 200 paths (limit=200 observed=201)") {
+						t.Fatalf("result=%#v", result)
+					}
+					if after := traceTreeSnapshot(t, root); !reflect.DeepEqual(before, after) {
+						t.Fatal("stored overflow changed trace store")
+					}
+				}
+			})
+		}
+	}
 }

@@ -325,8 +325,17 @@ func validateTypedRecord(record Record, revision string) error {
 	if err != nil || task != record.Task {
 		return fail("invalid or noncanonical task")
 	}
-	for _, paths := range [][]string{record.OpenedPaths, record.ChangedPaths} {
-		normalized, err := normalizePaths(paths, "trace paths")
+	for _, list := range []struct {
+		label string
+		paths []string
+	}{
+		{"opened_paths", record.OpenedPaths}, {"changed_paths", record.ChangedPaths},
+	} {
+		paths := list.paths
+		normalized, err := normalizePaths(paths, list.label)
+		if PathLimitFailureReason(err) != "" {
+			return fmt.Errorf("%w: %w", fail("invalid or noncanonical paths"), err)
+		}
 		if err != nil || paths == nil || !equalStrings(normalized, paths) {
 			return fail("invalid or noncanonical paths")
 		}

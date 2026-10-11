@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // ladderConfig is testConfig with a model-rendering host and an escalating
@@ -53,6 +54,7 @@ func TestCALV0052_EscalationConfigRefusesUnsupportedModels(t *testing.T) {
 		},
 		"model only in activity path": func(c *Config) {
 			c.Hosts["sh"] = Host{Argv: c.Hosts["sh"].Argv[:1], ActivityPaths: []string{"/tmp/{model}"}}
+			c.Roles[0].Escalate = nil
 		},
 		"lane ladder": func(c *Config) {
 			c.Roles[0].Match, c.Roles[0].Lane = nil, &Lane{Pool: "p"}
@@ -65,12 +67,21 @@ func TestCALV0052_EscalationConfigRefusesUnsupportedModels(t *testing.T) {
 		},
 	}
 	for name, f := range mutate {
-		c := ladderConfig(t)
-		f(c)
-		raw, _ := json.Marshal(c)
-		if _, err := DecodeConfig(raw); err == nil {
-			t.Errorf("%s: accepted", name)
-		}
+		t.Run(name, func(t *testing.T) {
+			c := ladderConfig(t)
+			f(c)
+			raw, err := json.Marshal(c)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = DecodeConfig(raw)
+			if err == nil {
+				t.Fatal("unsupported model configuration accepted")
+			}
+			if name == "model only in activity path" && !strings.Contains(err.Error(), "unsupported model configuration") {
+				t.Fatalf("wrong refusal for activity-only model: %v", err)
+			}
+		})
 	}
 	raw = append(raw[:len(raw)-1], []byte(`,"roles":[{"name":"impl","host":"sh","cap":2,"match":{},"prompt":"p","idleSeconds":30,"wallSeconds":60,"model":"A","escalate":[{"after":1,"model":"B","extra":1}]}]}`)...)
 	if _, err := DecodeConfig(raw); err == nil {
@@ -343,6 +354,121 @@ func TestCALV0057_ProgressOutsideSessionResetsLadder(t *testing.T) {
 			t.Fatalf("streak kept after progress during cooldown: %+v", e)
 		}
 	})
+}
+
+// CAL-V0-057: a recorded worker owns accounting until finish, even when
+// the observation changes. No process timing is needed to exercise busy().
+func TestCALV0057_ProgressDuringSessionKeepsAccounting(t *testing.T) {
+	c := ladderConfig(t)
+	q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
+	d, err := Open("prog", c, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	const key = "ticket:a:q:t1"
+	e := &EscalationState{Streak: 2, Tiers: map[string]int{"impl": 2}}
+	b := &BackoffState{NoProgress: 2, Fingerprint: Fingerprint(&q.obs, key)}
+	d.ledger.Escalation = map[string]*EscalationState{key: e}
+	d.ledger.Backoff[key] = b
+	w := &Worker{ID: "active", Key: key, Ticket: key, Role: "impl", Tier: 2, Model: "C", Fingerprint: b.Fingerprint, Started: d.Now()}
+	d.ledger.Workers = []*Worker{w}
+	q.obs.Tickets[0].Revision = "2"
+	d.unpark(&q.obs)
+	if got := d.ledger.Escalation[key]; got == nil || got.Streak != 2 || got.Tiers["impl"] != 2 {
+		t.Fatalf("busy key lost its session accounting: %+v", got)
+	}
+	if got := d.ledger.Backoff[key]; got == nil || got.NoProgress != 2 || got.Fingerprint != w.Fingerprint {
+		t.Fatalf("busy key lost its backoff accounting: %+v", got)
+	}
+	d.finish(&q.obs, []*Worker{w}, nil, nil)
+	if d.Running() != 0 || d.ledger.Escalation[key] != nil || d.ledger.Backoff[key] != nil {
+		t.Fatalf("finished progress did not reset accounting: %+v %+v", d.ledger.Escalation[key], d.ledger.Backoff[key])
+	}
+}
+
+// CAL-V0-057: the durable tier of a sticky role survives progress outside
+// a session, whether the key was parked or cooling down.
+func TestCALV0057_StickyTierAfterProgressOutsideSession(t *testing.T) {
+	for _, state := range []string{"cooldown", "parked"} {
+		t.Run(state, func(t *testing.T) {
+			c := ladderConfig(t)
+			no := false
+			c.Roles[0].DeescalateOnProgress = &no
+			q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
+			d, err := Open("prog", c, q, io.Discard)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer d.Close()
+			const key = "ticket:a:q:t1"
+			d.ledger.Escalation = map[string]*EscalationState{key: {Streak: 2, Tiers: map[string]int{"impl": 2}}}
+			d.ledger.Backoff[key] = &BackoffState{NoProgress: 2, Parked: state == "parked", Fingerprint: Fingerprint(&q.obs, key), CooldownUntil: d.Now().Add(time.Hour)}
+			q.obs.Tickets[0].Revision = "2"
+			d.unpark(&q.obs)
+			e := d.ledger.Escalation[key]
+			if e == nil || e.Streak != 0 || e.Tiers["impl"] != 2 || LaunchTier(&c.Roles[0], e) != 2 || c.Roles[0].ModelAt(LaunchTier(&c.Roles[0], e)) != "C" {
+				t.Fatalf("sticky tier lost on between-session progress: %+v", e)
+			}
+		})
+	}
+}
+
+// CAL-V0-057, proposed V1-0726 amendment: cooldown progress resets the
+// evidence needed to park, while preserving the deadline before a new run.
+func TestCALV0057_CooldownProgressRequiresFreshParkingEvidence(t *testing.T) {
+	c := ladderConfig(t)
+	c.Backoff.ParkAfter, c.Backoff.CooldownSeconds = 2, 3600
+	q := &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}
+	d, err := Open("prog", c, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	const key = "ticket:a:q:t1"
+	now := time.Now()
+	d.Now = func() time.Time { return now }
+	deadline := now.Add(time.Hour)
+	d.ledger.Escalation = map[string]*EscalationState{key: {Streak: 1, Tiers: map[string]int{"impl": 1}}}
+	d.ledger.Backoff[key] = &BackoffState{NoProgress: 1, Fingerprint: Fingerprint(&q.obs, key), CooldownUntil: deadline}
+	// Neither an unchanged observation nor an UNKNOWN one is progress.
+	d.unpark(&q.obs)
+	q.obs.Tickets[0].Revision, q.obs.Tickets[0].State = "2", StateUnknown
+	d.unpark(&q.obs)
+	if d.ledger.Escalation[key].Streak != 1 || d.ledger.Backoff[key].NoProgress != 1 {
+		t.Fatal("fixture history reset without known progress")
+	}
+	q.obs.Tickets[0].State = StateNone
+	d.unpark(&q.obs)
+	if d.ledger.Escalation[key] != nil {
+		t.Fatalf("progress did not reset the ladder: %+v", d.ledger.Escalation[key])
+	}
+	b := d.ledger.Backoff[key]
+	if b == nil || b.NoProgress != 0 || b.Parked || !b.CooldownUntil.Equal(deadline) {
+		t.Fatalf("progress must reset parking evidence and keep cooldown: %+v", b)
+	}
+	d.launchRoster(context.Background(), &q.obs)
+	if d.Running() != 0 {
+		t.Fatal("progress bypassed the cooldown")
+	}
+	now = deadline.Add(time.Second)
+	for i, model := range []string{"A", "B"} {
+		tier := LaunchTier(&c.Roles[0], d.ledger.Escalation[key])
+		if got := c.Roles[0].ModelAt(tier); got != model {
+			t.Fatalf("post-reset model = %q, want %q", got, model)
+		}
+		w := &Worker{ID: model, Key: key, Ticket: key, Role: "impl", Tier: tier, Model: model, Fingerprint: Fingerprint(&q.obs, key), Started: now}
+		d.ledger.Workers = []*Worker{w}
+		d.finish(&q.obs, []*Worker{w}, nil, nil)
+		b = d.ledger.Backoff[key]
+		if b == nil || b.NoProgress != i+1 || b.Parked != (i == 1) {
+			t.Fatalf("parking must count only post-reset sessions: %+v", b)
+		}
+		now = b.CooldownUntil.Add(time.Second)
+	}
+	if got := eventsOf(t, d, "parked"); len(got) != 1 {
+		t.Fatalf("parking decisions = %+v, want one after two fresh sessions", got)
+	}
 }
 
 func readModelWait(t *testing.T, c *Config, d *Dispatcher) string {

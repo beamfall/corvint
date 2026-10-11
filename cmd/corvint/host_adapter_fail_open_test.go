@@ -299,7 +299,7 @@ func runFailOpenCase(t *testing.T, binary, realGit string, invocation failOpenIn
 	defer cancel()
 	command := exec.CommandContext(ctx, binary, invocation.argv...)
 	command.Dir = repository
-	command.Env = []string{"PATH=" + shims, "HOME=" + home, "TMPDIR=" + temporary, "SHELL=" + filepath.Join(shims, "zsh"), "CLAUDE_PROJECT_DIR=" + repository, "GIT_CONFIG_NOSYSTEM=1"}
+	command.Env = []string{"CORVINT_INDEX_AUTO_REFRESH=0", "PATH=" + shims, "HOME=" + home, "TMPDIR=" + temporary, "SHELL=" + filepath.Join(shims, "zsh"), "CLAUDE_PROJECT_DIR=" + repository, "GIT_CONFIG_NOSYSTEM=1"}
 	var stdout, stderr bytes.Buffer
 	command.Stderr = &stderr
 	stdinReader, stdinWriter, err := os.Pipe()

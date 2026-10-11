@@ -1235,7 +1235,8 @@ type UnparkRequest struct {
 
 // unpark treats a known state change of a backed-off key with no worker as
 // progress made outside a session: it resets the key's ladder and releases
-// the key when parked. It also consumes operator unpark requests, which
+// the key when parked, or resets its parking count while keeping cooldown.
+// It also consumes operator unpark requests, which
 // release a key without resetting its ladder.
 func (d *Dispatcher) unpark(obs *Observation) {
 	keys := make([]string, 0, len(d.ledger.Backoff))
@@ -1252,6 +1253,9 @@ func (d *Dispatcher) unpark(obs *Observation) {
 		if b.Parked {
 			delete(d.ledger.Backoff, k)
 			d.emit(Event{Kind: "unparked", Ticket: ticketOf(k), Message: fmt.Sprintf("unparked %s because its state changed", d.keyText(k))})
+		} else {
+			// CAL-V0-057: only sessions after this progress may park the key.
+			b.NoProgress = 0
 		}
 	}
 	entries, err := os.ReadDir(filepath.Join(d.dir, "requests"))

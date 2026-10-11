@@ -1,6 +1,7 @@
 package ruby
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -38,7 +39,7 @@ func TestUnitsDetectsConcurrentFrameworksAndRunnerIdentities(t *testing.T) {
 	write(t, root, "tools/standalone_spec.rb", "require \"minitest/autorun\"\ndescribe \"standalone\" do\n  it \"works\" do\n  end\nend\n")
 	write(t, root, "tools/standalone_test.rb", "require \"minitest/autorun\"\nclass StandaloneTest < Minitest::Test\n  def test_value\n  end\nend\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +78,7 @@ func TestFrameworkDetectionIgnoresCommentAndHeredocExamples(t *testing.T) {
 	write(t, root, "lib/percent_documentation.rb", "EXAMPLE = %q!\nRSpec.describe Example do\n  it { true }\nend\n!\n")
 	write(t, root, "spec/spec_helper.rb", "require \"rspec/core\"\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +105,7 @@ func TestStandaloneMinitestClassAndSpecDSLAreRunnableFiles(t *testing.T) {
 	write(t, root, "minispec/spec_helper.rb", "require \"minitest/autorun\"\n")
 	write(t, root, "minispec/widget_spec.rb", "require_relative \"spec_helper\"\nrequire \"widget\"\ndescribe Widget do\n  it \"works\" do\n  end\nend\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +114,7 @@ func TestStandaloneMinitestClassAndSpecDSLAreRunnableFiles(t *testing.T) {
 			t.Fatalf("%s is not a runnable test unit", id)
 		}
 	}
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +139,7 @@ func TestLoadsResolveOnlyUniqueRepositoryTargets(t *testing.T) {
 	write(t, root, "spec/relative_spec.rb", "require \"relative\"\nRSpec.describe \"relative\" do\n  it { expect(true).to be(true) }\nend\n")
 	write(t, root, "spec/ambiguous_spec.rb", "require \"core\"\nRSpec.describe \"ambiguous\" do\n  it { expect(true).to be(true) }\nend\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +185,7 @@ func TestUnknownDiscoverySurfacesNeverBecomeSilentExclusions(t *testing.T) {
 	write(t, root, "generated.rb", "Class.new(Minitest::Test) do\n  [1, 2].each { |value| define_method(\"test_#{value}\") {} }\nend\n")
 	write(t, root, "generated_examples.rb", "RSpec.describe \"generated\" do\n  3.times do\n    it(\"works\") {}\n  end\n  cases.each_with_index { |value, index| public_send(:it, value) {} }\nend\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +204,7 @@ func TestUnknownDiscoverySurfacesNeverBecomeSilentExclusions(t *testing.T) {
 			t.Fatalf("Cucumber feature was silently claimed: %+v", unit)
 		}
 	}
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +224,7 @@ func TestHelperFrameworkHintsIgnoreCommentsAndSurfaceConflicts(t *testing.T) {
 	write(t, root, "support/minitest_setup.rb", "require \"minitest/autorun\"\n")
 	write(t, root, "spec/indirect_spec.rb", "require_relative \"indirect_helper\"\ndescribe \"indirect\" do\n  it { true }\nend\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +245,7 @@ func TestRailsLayoutDoesNotOverrideExplicitTestUnitRunner(t *testing.T) {
 	write(t, root, "test/legacy_test.rb", "require \"test/unit\"\nclass LegacyTest < Test::Unit::TestCase\n  def test_value\n  end\nend\n")
 	write(t, root, "checks/standalone.rb", "require \"minitest/autorun\"\ndescribe \"standalone\" do\n  it { true }\nend\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +263,7 @@ func TestHelperInferenceFollowsRepositoryLibAliases(t *testing.T) {
 	write(t, root, "lib/support/rspec_setup.rb", "require \"rspec/core\"\n")
 	write(t, root, "spec/unusual_test.rb", "require \"spec_helper\"\ndescribe \"unusual\" do\n  it { true }\nend\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -278,7 +279,7 @@ func TestLoadPathRequireReachesRunnableHelper(t *testing.T) {
 	write(t, root, "test/test_helper.rb", "require \"minitest/autorun\"\nrequire \"widget\"\nclass WidgetTestCase < Minitest::Test\nend\n")
 	write(t, root, "test/gadget_test.rb", "require \"test_helper\"\nrequire \"gadget\"\nclass GadgetTest < WidgetTestCase\n  def test_builds\n  end\nend\n")
 
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +296,7 @@ func TestRakeTestTaskLiteralLoadPathResolvesRequire(t *testing.T) {
 	write(t, root, "lib/other.rb", "class Other\nend\n")
 	write(t, root, "test/gadget_test.rb", "require 'minitest/autorun'\nrequire 'gadget'\nrequire 'other'\nclass GadgetTest < Minitest::Test\n  def test_builds\n  end\nend\n")
 
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +313,7 @@ func TestRakeTestTaskDynamicLoadPathRaisesFrontier(t *testing.T) {
 	write(t, root, "lib/other.rb", "class Other\nend\n")
 	write(t, root, "test/gadget_test.rb", "require 'minitest/autorun'\nrequire 'gadget'\nrequire 'other'\nclass GadgetTest < Minitest::Test\n  def test_builds\n  end\nend\n")
 
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +335,7 @@ end
 	write(t, root, "lib/other.rb", "class Other\nend\n")
 	write(t, root, "test/gadget_test.rb", "require 'minitest/autorun'\nrequire 'gadget'\nrequire 'other'\nclass GadgetTest < Minitest::Test\n  def test_builds\n  end\nend\n")
 
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -351,7 +352,7 @@ func TestPostfixLiteralLoadIndependentlyWidensScope(t *testing.T) {
 	write(t, root, "lib/core.rb", "VALUE = 1\n")
 	write(t, root, "lib/postfix.rb", "require \"./lib/core\" if enabled\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,7 +370,7 @@ func TestRailsHelperKeepsRSpecRunnerAndNestedRailsWidensScope(t *testing.T) {
 	write(t, root, "engines/shop/spec/rails_helper.rb", "require \"config/environment\"\nRSpec.configure do |config|\nend\n")
 	write(t, root, "engines/shop/spec/system/checkout_spec.rb", "require \"rails_helper\"\nRSpec.context \"checkout\" do\n  it { true }\nend\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -387,7 +388,7 @@ func TestParenthesizedAutoloadAndImportedGeneratedTestsWidenScope(t *testing.T) 
 	write(t, root, "spec/generated_spec.rb", "require_relative \"../support/generated_cases\"\nRSpec.describe \"generated\" do\n  it { true }\nend\n")
 	write(t, root, "lib/loader.rb", "autoload(:Widget, \"widget\")\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,7 +403,7 @@ func TestReflectionDrivenLoopHasIndependentUnknownRegression(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "checks/generated.rb", "cases.each_with_index do |value, index|\n  public_send(:test, value) { index }\nend\n")
 
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -438,7 +439,7 @@ func TestRealRepositoryDiscoveryMatchesConventionalFiles(t *testing.T) {
 			actual[relative] = true
 		}
 	}
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -531,7 +532,7 @@ func TestHelperDeclaringOnlyATestBaseClassStaysSource(t *testing.T) {
 	write(t, root, "test/test_helper.rb", "require \"minitest/autorun\"\nrequire \"widget\"\nclass WidgetTestCase < Minitest::Test\nend\n")
 	write(t, root, "test/widget_test.rb", "require \"test_helper\"\nclass WidgetTest < WidgetTestCase\n  def test_builds\n  end\nend\n")
 
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -541,7 +542,7 @@ func TestHelperDeclaringOnlyATestBaseClassStaysSource(t *testing.T) {
 	}
 	declared := t.TempDir()
 	write(t, declared, "test/declared_helper.rb", "class HelperTest < ActiveSupport::TestCase\n  test \"runs\" do\n  end\nend\n")
-	graph, err = affected.Build(declared, New())
+	graph, err = affected.Build(context.Background(), declared, New())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,6 +1,7 @@
 package typescript
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -138,7 +139,7 @@ func TestMochaActualSelectionQualification(t *testing.T) {
 			git("add", ".")
 			git("commit", "-m", "changed source")
 			target := git("rev-parse", "HEAD")
-			graph, e := affected.Build(root, New())
+			graph, e := affected.Build(context.Background(), root, New())
 			if e != nil {
 				t.Fatal(e)
 			}

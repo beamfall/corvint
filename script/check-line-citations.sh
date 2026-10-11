@@ -340,6 +340,7 @@ for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
                     check($doc, $line_number, $token, $name, $pin, $1, $3, @extra);
                     next;
                 }
+                print STDERR "line citations: note: $doc:$line_number: skipped $token: basename is not tracked at repository root; use a repository-relative path\n";
                 $current = $name =~ /\.md$/ && $tracked{"docs/specs/$name"} ? "docs/specs/$name" : undef;
                 next;
             }

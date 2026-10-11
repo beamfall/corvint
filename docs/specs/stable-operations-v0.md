@@ -44,7 +44,7 @@ Measured on 2026-09-22, darwin arm64, Go 1.27.1, at the introducing commit:
   reports `fresh`. The rebuilt file is the same size but not byte-identical to the first build (460
   differing bytes under `cmp -l`), so the recovery contract is packet identity, not snapshot identity.
 - The version string is the `PUB-V0-001` tuple constant `version` in `cmd/corvint/main.go` and the build
-  stamp is `var build = "0"` (`cmd/corvint/main.go:1643@e7212353`), set by `-ldflags -X main.build=N`.
+  stamp is `var build = "0"` (`cmd/corvint/main.go:1646@e7212353`), set by `-ldflags -X main.build=N`.
 - The archive producer writes `corvint_<goos>_<goarch>.tar.gz` for four targets, `SHA256SUMS` and
   `verification-report.json` (`release-artifact-integrity-v0.md`); the installer refuses a case-fold
   alias of an existing store entry (`internal/releasecandidate/operations.go:180@1161e39d`).
@@ -199,7 +199,7 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | bounded-output | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:189@0595c93c` |
 | time | `internal/procgroup` | `internal/procgroup/process_test.go:52@028e61d3`, `internal/procgroup/process_test.go:62@704c3abb` |
 | time | `internal/contextindex` | `internal/contextindex/local_completion_context_test.go:193@1bcaa713` |
-| interruption-cleanup | `internal/procgroup` | `internal/procgroup/process_test.go:519@9aa96910`, `internal/procgroup/process_test.go:95@0a8f0be2`, `internal/procgroup/process_hook_test.go:13@f0458815` |
+| interruption-cleanup | `internal/procgroup` | `internal/procgroup/process_test.go:460@9aa96910`, `internal/procgroup/process_test.go:95@0a8f0be2`, `internal/procgroup/process_hook_test.go:13@f0458815` |
 | interruption-cleanup | `internal/releasecandidate` | `internal/releasecandidate/operations_posix_test.go:18@d8182271`, `internal/releasecandidate/operations_test.go:238@eab69ef3` |
 | interruption-cleanup | `internal/contextindex` | `internal/contextindex/fifo_unix_test.go:36@5098dd43` |
 | interruption-cleanup | `internal/trace` | `internal/trace/store_test.go:498@139a1f88` |

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Recipe 3: verify portable change evidence in CI with the digest-pinned verifier. Runs
 # examples/cem/verify-portable.sh (CEM-PILOT-020..023) under a wall-clock bound, keeps its
 # cem-ci-report/0 line, and names the recovery for a non-accepted verdict. It needs no hosted

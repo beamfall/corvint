@@ -423,6 +423,10 @@ func externalCommand(c E2EConfig, scratch string) (string, []string, string, err
 		prelude += c.negation.prelude(quoted)
 	}
 	config := "const imported = require(" + quoted(c.ConfigFile) + ");\nconst original = imported.default || imported;\nconst base = " + quoted(filepath.Dir(c.ConfigFile)) + ";\nconst resolve = value => require('node:path').resolve(base, value);\nconst modulePath = value => Array.isArray(value) ? value.map(modulePath) : typeof value === 'string' ? require.resolve(value, {paths:[base]}) : value;\nconst paths = object => { const result = {...object}; for (const key of ['testDir', 'outputDir', 'snapshotDir', 'tsconfig']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\n" + prelude + "module.exports = {...paths(original), testDir: original.testDir ? resolve(original.testDir) : base, globalSetup: modulePath(original.globalSetup), globalTeardown: modulePath(original.globalTeardown), projects: original.projects?.map(paths), webServer: undefined, reporter: [[" + quoted(reporterPath) + ", {output:" + quoted(reportPath) + ", sensitiveInputPolicy:" + string(policy) + attemptOption + "}]" + kept + "]};\n"
+	if c.ScopedTempOutput {
+		output := quoted(filepath.Join(scratch, "output"))
+		config += "module.exports.outputDir = " + output + ";\nfor (const project of module.exports.projects || []) project.outputDir = " + output + ";\n"
+	}
 	if c.negation != nil {
 		config += c.negation.override(quoted)
 	}

@@ -1,11 +1,11 @@
 #!/bin/sh
 set -eu
 
-# Five cases, on a fixture repository shaped like the gemini-cli host package (the simplest of
-# the four, one version file): the commit that adds the package passes (it bumps and ships in
-# the same commit), a later commit that changes shipped content without touching the version
+# AHI-020: fixture histories for Gemini CLI, Pi and OpenCode. The commit that adds a package
+# passes (it bumps and ships in the same commit), a later commit that changes content without
+# touching the version
 # field fails and names the package, and a subsequent commit that bumps the version field
-# passes again. The other three packages have no files in this fixture, so their checks report
+# passes again. Packages with no files in this fixture report
 # "no shipped files tracked" and skip, exercising that path too.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
@@ -135,4 +135,37 @@ for module in process core tasks operations cockpit workflow; do
     commit "bump Pi after $module" "2026-01-01T02:0${i}:00"
     output=$(run) || fail "Pi bump did not clear $module: $output"
 done
-printf 'check-host-package-versions_test: 11 cases passed\n' 
+
+# AHI-020 / V1-0452: OpenCode's explicit shipped set must cover its package.json files list,
+# including a skills-only addition and an mcp.example.json-only edit.
+mkdir -p "$test_root/integrations/opencode/src"
+cat >"$test_root/integrations/opencode/package.json" <<'EOF'
+{"version":"0.1.0","files":["src","README.md","opencode.example.json","mcp.example.json","skills"]}
+EOF
+printf 'entry\n' >"$test_root/integrations/opencode/src/index.ts"
+printf '{}\n' >"$test_root/integrations/opencode/mcp.example.json"
+commit "introduce OpenCode fixture" 2026-01-02T00:00:00
+output=$(run) || fail "OpenCode introduction did not pass: $output"
+i=0
+for shipped in skills/added/SKILL.md mcp.example.json; do
+    i=$((i + 1))
+    mkdir -p "$test_root/integrations/opencode/$(dirname "$shipped")"
+    printf 'changed shipped content\n' >"$test_root/integrations/opencode/$shipped"
+    commit "change OpenCode $shipped without bump" "2026-01-02T00:${i}0:00"
+    if output=$(run); then fail "OpenCode $shipped shipped without a bump"; fi
+    case $output in
+        *'opencode: integrations/opencode/package.json last bumped'*) ;;
+        *) fail "OpenCode failure not named: $output" ;;
+    esac
+    jq --arg version "0.1.$i" '.version = $version' \
+        "$test_root/integrations/opencode/package.json" >"$test_root/package.json.tmp"
+    mv "$test_root/package.json.tmp" "$test_root/integrations/opencode/package.json"
+    commit "bump OpenCode after $shipped" "2026-01-02T00:${i}1:00"
+    output=$(run) || fail "OpenCode bump did not clear $shipped: $output"
+done
+
+# Files outside the published list do not require a package bump.
+printf 'development-only test\n' >"$test_root/integrations/opencode/fixture.test.ts"
+commit "change unpublished OpenCode test only" 2026-01-02T01:00:00
+output=$(run) || fail "unpublished OpenCode change failed the gate: $output"
+printf 'check-host-package-versions_test: 14 cases passed\n'

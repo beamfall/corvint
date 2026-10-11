@@ -6,6 +6,7 @@
     "intentPointers": [],
     "intents": [],
     "lifecycle": "inactive",
+    "noActionReason": "enrollment-inactive",
     "satisfied": false,
     "unmet": []
   },

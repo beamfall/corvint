@@ -54,6 +54,7 @@ type Evaluation struct {
 	ReportSetDigest string             `json:"reportSetDigest,omitempty"`
 	Reports         []string           `json:"reports,omitempty"`
 	NextActions     [][]string         `json:"nextActions,omitempty"`
+	NoActionReason  string             `json:"noActionReason,omitempty"`
 	Checks          []CheckObservation `json:"checks,omitempty"`
 	Plan            *Plan              `json:"plan,omitempty"`
 	Evidence        []EvidenceWorklist `json:"evidence,omitempty"`

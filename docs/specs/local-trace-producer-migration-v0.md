@@ -174,8 +174,10 @@ only after exact-byte verification.
 The producer and `dogfood-record` coordination emit the kebab-case reasons below (decision 0100).
 Each row cites the first emitting site and states only the condition checked there.
 `internal/trace` attaches the first six to the returned error; `internal/tracerecordrepo` carries
-each as the dogfood failure reason, which `corvint dogfood-record` writes as `code` on stderr with
-exit 2.
+each as the dogfood failure reason. `corvint dogfood-record` writes the reason as `code` on
+stderr with exit 2, except that the internal `admitted-path-limit` classification exposes
+`trace-path-limit-exceeded` publicly under `DCW-V0-036`. Internal admission and aggregate
+fallback consumers retain `admitted-path-limit`.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
@@ -183,13 +185,13 @@ exit 2.
 | `candidate-limit` | `internal/trace/record.go:358@bd1c5902` | `AdmissibleCurrentPaths` received more than 200,000 unique changed-path candidates |
 | `changed-path-acquisition-failed` | `internal/tracerecordrepo/adapter.go:105@f49f60cd` | listing the base-to-target changed paths failed |
 | `changed-path-admission-failed` | `internal/tracerecordrepo/adapter.go:111@69bd23b7` | `trace.AdmissibleCurrentPaths` failed with an error `trace.AdmissionFailureReason` maps to no reason |
-| `dogfood-record-failed` | `cmd/corvint/dogfood_record.go:147@d0afa17b` | the stderr `code` written when the dogfood-record error carries an empty reason |
+| `dogfood-record-failed` | `cmd/corvint/dogfood_record.go:150@d0afa17b` | the stderr `code` written when the dogfood-record error carries an empty reason |
 | `invalid-base-revision` | `internal/tracerecordrepo/adapter.go:94@8006b57c` | the base argument does not resolve to a commit |
-| `malformed-path` | `internal/trace/record.go:487@c94787ea` | a path is empty or `pythonString` rejects it (its value cannot be decoded as Python string units); also at `internal/trace/record.go:504@c94787ea`, a normalized, unforbidden path that is tracked (or any stored-row path) breaks the `corvint-dashboard-trace-path-witness/0` lexical profile: more than 4,096 bytes, not valid UTF-8 (an encoded surrogate), a Unicode control, a backslash, or an ASCII-letter-colon prefix (decision 0235) |
+| `malformed-path` | `internal/trace/record.go:513@c94787ea` | a path is empty or `pythonString` rejects it (its value cannot be decoded as Python string units); also at `internal/trace/record.go:530@c94787ea`, a normalized, unforbidden path that is tracked (or any stored-row path) breaks the `corvint-dashboard-trace-path-witness/0` lexical profile: more than 4,096 bytes, not valid UTF-8 (an encoded surrogate), a Unicode control, a backslash, or an ASCII-letter-colon prefix (decision 0235) |
 | `record-failed` | `internal/tracerecordrepo/adapter.go:162@0416b61a` | the stability check or recording failed for a reason that is neither repository drift nor a verification reason |
 | `record-index-failed` | `internal/tracerecordrepo/adapter.go:90@a87e1e48` | building the record index and tracked set failed |
-| `secret-shaped-path` | `internal/trace/record.go:490@ba12231a` | a path matches the secret screen |
-| `unnormalized-path` | `internal/trace/record.go:493@5e4376e2` | a path is absolute, contains `//`, is not `path.Clean`-equal to itself, or has a `..` part |
+| `secret-shaped-path` | `internal/trace/record.go:516@ba12231a` | a path matches the secret screen |
+| `unnormalized-path` | `internal/trace/record.go:519@5e4376e2` | a path is absolute, contains `//`, is not `path.Clean`-equal to itself, or has a `..` part |
 | `unsupported-verify-syntax` | `internal/trace/record.go:271@e427c406` | a verification command is empty or contains a byte outside ASCII letters, digits, and `_./:@=+, -` |
 
 ## Acceptance matrix

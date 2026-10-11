@@ -1,6 +1,7 @@
 package swift
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -45,7 +46,7 @@ final class LegacyTests: XCTestCase { func testCore() {} }
 import Testing
 @Test func coreWorks() { #expect(true) }
 `)
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +83,7 @@ let package = Package(name: "Fixture", targets: [
 	write(t, root, "Nested/Code/Live.swift", "public struct Live {}\n")
 	write(t, root, "Nested/Code/Generated/Omitted.swift", "public struct Omitted {}\n")
 	write(t, root, "Nested/Checks/LibraryTests.swift", "import XCTest\n@testable import Library\nfinal class LibraryTests: XCTestCase { func testLive() {} }\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +151,7 @@ final class DynamicTests: XCTestCase {
     override class var defaultTestSuite: XCTestSuite { XCTestSuite(name: "generated") }
 }
 `)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +165,7 @@ final class DynamicTests: XCTestCase {
 import PackageDescription
 let package = Package(name: "Fixture", targets: [.testTarget(name: "CoreTests")])
 `)
-	result, err = New().Units(root)
+	result, err = New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +177,7 @@ let package = Package(name: "Fixture", targets: [.testTarget(name: "CoreTests")]
 import Testing
 @Test(arguments: runtimeArguments()) func generated(value: Int) {}
 `)
-	result, err = New().Units(root)
+	result, err = New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +189,7 @@ import Testing
 import Testing
 @Testing.Test(arguments: [1], runtimeArguments()) func generated(value: Int) {}
 `)
-	result, err = New().Units(root)
+	result, err = New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +201,7 @@ import Testing
 import Testing
 @Test(arguments: [1, 2, 3]) func literal(value: Int) {}
 `)
-	result, err = New().Units(root)
+	result, err = New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +213,7 @@ import Testing
 import Testing
 @Test(arguments: [1, 2], [3, 4]) func literalPair(left: Int, right: Int) {}
 `)
-	result, err = New().Units(root)
+	result, err = New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +230,7 @@ func TestXcodeUnitAndUITestTargetsStaySeparatelyAddressable(t *testing.T) {
 	write(t, root, "Fixture.xcodeproj/project.pbxproj", pbxFixture)
 	write(t, root, "Fixture.xcodeproj/xcshareddata/xcschemes/Core.xcscheme", schemeFixture("BBBBBBBBBBBBBBBBBBBBBBBB"))
 	write(t, root, "Fixture.xcodeproj/xcshareddata/xcschemes/UI.xcscheme", schemeFixture("CCCCCCCCCCCCCCCCCCCCCCCC"))
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,7 +259,7 @@ func TestXcodeTestWithoutSharedSchemeIsUnknown(t *testing.T) {
 	write(t, root, "UITests/AppUITests.swift", "import XCTest\nfinal class AppUITests: XCTestCase {}\n")
 	write(t, root, "Fixture.xcodeproj/project.pbxproj", pbxFixture)
 	write(t, root, "Fixture.xcodeproj/xcshareddata/xcschemes/Core.xcscheme", strings.ReplaceAll(schemeFixture("BBBBBBBBBBBBBBBBBBBBBBBB"), `skipped="NO"`, `skipped="YES"`))
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +275,7 @@ func TestXcodeDoesNotGuessAUniqueBasenameOutsideItsGroup(t *testing.T) {
 	write(t, root, "UITests/AppUITests.swift", "import XCTest\nfinal class AppUITests: XCTestCase { func testLaunch() {} }\n")
 	body := strings.ReplaceAll(pbxFixture, "path = App;", "path = MissingApp;")
 	write(t, root, "Fixture.xcodeproj/project.pbxproj", body)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +296,7 @@ func TestXcodeRejectsAGroupDetachedFromTheProjectMainGroup(t *testing.T) {
 	write(t, root, "UITests/AppUITests.swift", "import XCTest\nfinal class AppUITests: XCTestCase { func testLaunch() {} }\n")
 	body := strings.Replace(pbxFixture, "mainGroup = 444444444444444444444444;", "mainGroup = 411111111111111111111111;", 1)
 	write(t, root, "Fixture.xcodeproj/project.pbxproj", body)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +317,7 @@ func TestXCUITestRequiresAnApplicationHostDependency(t *testing.T) {
 	write(t, root, "UITests/AppUITests.swift", "import XCTest\nfinal class AppUITests: XCTestCase { func testLaunch() {} }\n")
 	body := strings.ReplaceAll(pbxFixture, "com.apple.product-type.application", "com.apple.product-type.framework")
 	write(t, root, "Fixture.xcodeproj/project.pbxproj", body)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,7 +334,7 @@ func TestXcodeTestShellPhaseMakesGeneratedDiscoveryUnknown(t *testing.T) {
 	body := strings.Replace(pbxFixture, "333333333333333333333333 = {isa = PBXSourcesBuildPhase;", "555555555555555555555555 = {isa = PBXShellScriptBuildPhase; shellScript = generate; };\n333333333333333333333333 = {isa = PBXSourcesBuildPhase;", 1)
 	body = strings.Replace(body, "buildPhases = (322222222222222222222222,);", "buildPhases = (322222222222222222222222, 555555555555555555555555,);", 1)
 	write(t, root, "Fixture.xcodeproj/project.pbxproj", body)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -351,7 +352,7 @@ func TestXcodeTestDependencyShellPhaseMakesGeneratedDiscoveryUnknown(t *testing.
 	body = strings.Replace(body, "buildPhases = (311111111111111111111111,);", "buildPhases = (311111111111111111111111, 555555555555555555555555,);", 1)
 	body = strings.Replace(body, "dependencies = ();\nname = CoreTests;", "dependencies = (DDDDDDDDDDDDDDDDDDDDDDDD,);\nname = CoreTests;", 1)
 	write(t, root, "Fixture.xcodeproj/project.pbxproj", body)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,7 +370,7 @@ let package = Package(name: "Fixture", targets: [.target(name: "Core")])
 	write(t, root, "Sources/Core/Core.swift", "public struct Core {}\n")
 	write(t, root, ".maestro/login.yaml", "appId: example.app\n---\n- launchApp\n")
 	write(t, root, "package.json", `{"devDependencies":{"appium":"latest"}}`)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -391,14 +392,14 @@ let package = Package(name: "Fixture", targets: [.target(name: "Core", path: "Ap
 `)
 	write(t, root, "App/Core.swift", "public struct Core {}\n")
 	write(t, root, "Fixture.xcodeproj/project.pbxproj", pbxFixture)
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !contains(result.Frontier, FrontierOverlappingMembership) {
 		t.Fatalf("frontier=%v", result.Frontier)
 	}
-	if _, err := affected.Build(root, New()); err != nil {
+	if _, err := affected.Build(context.Background(), root, New()); err != nil {
 		t.Fatalf("overlap must widen, not fail graph admission: %v", err)
 	}
 }
@@ -408,7 +409,7 @@ func TestRealSwiftRepositoryObservation(t *testing.T) {
 	if root == "" {
 		t.Skip("CORVINT_SWIFT_REAL_REPO is not set")
 	}
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}

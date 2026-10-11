@@ -146,6 +146,10 @@ func runIndex(ctx context.Context, invocation indexInvocation, stdout, stderr io
 		return 2
 	}
 	buildCost := time.Since(started)
+	if err := ctx.Err(); err != nil {
+		emitError(stderr, err)
+		return 2
+	}
 	receipt, err := contextindex.WriteSnapshot(index)
 	if err != nil {
 		emitError(stderr, err)

@@ -1,6 +1,7 @@
 package affected
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 // Source is one explicit source universe. A disk source retains the existing
 // live APIs; an FS source reads exclusively from its supplied filesystem.
 type Source struct {
+	ctx   context.Context
 	root  string
 	fsys  fs.FS
 	mu    sync.Mutex
@@ -24,7 +26,18 @@ type Source struct {
 }
 
 func DiskSource(root string) *Source { return &Source{root: root} }
-func FSSource(source fs.FS) *Source  { return &Source{fsys: source, walks: map[string]*sharedWalk{}} }
+
+// DiskSourceContext scopes both cancellation and cached walks to this reader.
+func DiskSourceContext(ctx context.Context, root string) *Source {
+	return &Source{root: root, ctx: ctx, walks: map[string]*sharedWalk{}}
+}
+func (s *Source) cancelled() error {
+	if s != nil && s.ctx != nil {
+		return s.ctx.Err()
+	}
+	return nil
+}
+func FSSource(source fs.FS) *Source { return &Source{fsys: source, walks: map[string]*sharedWalk{}} }
 
 // Err retains the first immutable read failure, including failures a provider ignores.
 // Missing optional paths and successful walk control signals are not failures.
@@ -45,11 +58,14 @@ func (s *Source) Files(accept func(string) bool) ([]string, error) {
 	return files, err
 }
 func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (filesOut []string, boundedOut bool, errOut error) {
+	if err := s.cancelled(); err != nil {
+		return nil, false, err
+	}
 	defer func() { s.retain(errOut) }()
 	if s == nil {
 		return nil, false, ErrInvalidLanguage
 	}
-	if s.fsys == nil {
+	if s.fsys == nil && s.ctx == nil {
 		return SourceFilesIncluding(s.root, accept, included...)
 	}
 	key := strings.Join(included, "\x00")
@@ -60,12 +76,21 @@ func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (f
 		s.walks[key] = shared
 	}
 	s.mu.Unlock()
-	shared.once.Do(func() { shared.files, shared.bounded, shared.err = walkSourceFS(s.fsys, acceptEveryName, included) })
+	shared.once.Do(func() {
+		if s.fsys == nil {
+			shared.files, shared.bounded, shared.err = walkSourceFilesContext(s.ctx, s.root, acceptEveryName, included)
+		} else {
+			shared.files, shared.bounded, shared.err = walkSourceFS(s.fsys, acceptEveryName, included)
+		}
+	})
 	if shared.err != nil {
 		return nil, false, shared.err
 	}
 	files := make([]string, 0, len(shared.files))
 	for _, relative := range shared.files {
+		if err := s.cancelled(); err != nil {
+			return nil, false, err
+		}
 		if accept(path.Base(relative)) {
 			files = append(files, relative)
 		}
@@ -78,6 +103,9 @@ func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (f
 func (s *Source) ConcurrentReads() bool { return s != nil && s.fsys == nil }
 
 func (s *Source) Read(relative string) (bodyOut []byte, errOut error) {
+	if err := s.cancelled(); err != nil {
+		return nil, err
+	}
 	defer func() { s.retain(errOut) }()
 	if s == nil {
 		return nil, ErrInvalidLanguage
@@ -114,6 +142,9 @@ func (s *Source) Read(relative string) (bodyOut []byte, errOut error) {
 // immutable backend to Stat or Open, either of which may allocate its body.
 // An opaque filesystem cannot establish that admission bound and is refused.
 func (s *Source) ReadBounded(relative string, limit int) (bodyOut []byte, errOut error) {
+	if err := s.cancelled(); err != nil {
+		return nil, err
+	}
 	defer func() { s.retain(errOut) }()
 	if s == nil {
 		return nil, ErrInvalidLanguage
@@ -184,6 +215,9 @@ func (s *Source) ReadBounded(relative string, limit int) (bodyOut []byte, errOut
 }
 
 func (s *Source) Stat(relative string) (infoOut fs.FileInfo, errOut error) {
+	if err := s.cancelled(); err != nil {
+		return nil, err
+	}
 	defer func() { s.retain(errOut) }()
 	if s == nil || !fs.ValidPath(relative) {
 		return nil, ErrInvalidUnit
@@ -201,6 +235,9 @@ func (s *Source) Stat(relative string) (infoOut fs.FileInfo, errOut error) {
 	return os.Stat(filepath.Join(s.root, filepath.FromSlash(relative)))
 }
 func (s *Source) Lstat(relative string) (infoOut fs.FileInfo, errOut error) {
+	if err := s.cancelled(); err != nil {
+		return nil, err
+	}
 	defer func() { s.retain(errOut) }()
 	if s == nil || !fs.ValidPath(relative) {
 		return nil, ErrInvalidUnit
@@ -218,6 +255,9 @@ func (s *Source) Lstat(relative string) (infoOut fs.FileInfo, errOut error) {
 	return os.Lstat(filepath.Join(s.root, filepath.FromSlash(relative)))
 }
 func (s *Source) Walk(relative string, visit fs.WalkDirFunc) (errOut error) {
+	if err := s.cancelled(); err != nil {
+		return err
+	}
 	defer func() { s.retain(errOut) }()
 	if s == nil || !fs.ValidPath(relative) {
 		return ErrInvalidUnit
@@ -236,7 +276,12 @@ func (s *Source) Walk(relative string, visit fs.WalkDirFunc) (errOut error) {
 			return visit(current, entry, err)
 		})
 	}
-	return filepath.WalkDir(filepath.Join(s.root, filepath.FromSlash(relative)), visit)
+	return filepath.WalkDir(filepath.Join(s.root, filepath.FromSlash(relative)), func(current string, entry fs.DirEntry, err error) error {
+		if cancelled := s.cancelled(); cancelled != nil {
+			return cancelled
+		}
+		return visit(current, entry, err)
+	})
 }
 
 func walkSourceFS(source fs.FS, accept func(name string) bool, includedDirectories []string) ([]string, bool, error) {

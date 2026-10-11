@@ -3,7 +3,6 @@
 package procgroup
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -16,18 +15,35 @@ import (
 
 func descendantSnapshot(ctx context.Context) (map[int]ObservedProcess, error) {
 	command := exec.CommandContext(ctx, "/bin/ps", "-axo", "pid=,ppid=,lstart=,stat=")
+	return descendantSnapshotCommand(command)
+}
+
+// descendantSnapshotCommand accepts an unstarted command for controlled fixtures.
+// Production always supplies /bin/ps with the original arguments above.
+func descendantSnapshotCommand(command *exec.Cmd) (map[int]ObservedProcess, error) {
 	command.Env = []string{"LC_ALL=C", "TZ=UTC"}
 	command.WaitDelay = 100 * time.Millisecond
 	capture := newProcessCapture(4<<20, make(chan struct{}, 1), OverflowFail)
 	command.Stdout = capture
-	var stderr bytes.Buffer
-	command.Stderr = &stderr
-	if err := command.Run(); err != nil {
-		return nil, errors.New("descendant snapshot unavailable")
-	}
+	// Drain excess diagnostics so a noisy ps does not block on a full pipe.
+	// Overflow still invalidates the entire snapshot, even on command failure.
+	stderr := newProcessCapture(16<<10, nil, OverflowTruncate)
+	command.Stderr = stderr
+	runErr := command.Run() // Wait joins both output-copy goroutines.
 	data, overflow := capture.result()
+	_, stderrOverflow := stderr.result()
+	var failure error
+	if runErr != nil {
+		failure = errors.New("descendant snapshot unavailable")
+	}
 	if overflow {
-		return nil, errors.New("descendant snapshot exceeds bound")
+		failure = errors.Join(failure, errors.New("descendant snapshot exceeds bound"))
+	}
+	if stderrOverflow {
+		failure = errors.Join(failure, errors.New("descendant snapshot stderr exceeds bound"))
+	}
+	if failure != nil {
+		return nil, failure
 	}
 	return parseDescendantSnapshot(data)
 }

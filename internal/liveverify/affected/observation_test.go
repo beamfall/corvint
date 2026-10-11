@@ -74,7 +74,7 @@ func observationRepository(t *testing.T) (string, string) {
 // second source of truth rather than removed one.
 func TestPublishedObservationAndOwnCaptureProduceTheSamePlan(t *testing.T) {
 	gitExecutable, root := observationRepository(t)
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
