@@ -4,10 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -158,5 +164,109 @@ func assertToolError(t *testing.T, client *stdioClient, id int, tool string, arg
 	if result["isError"] != true || !reflect.DeepEqual(result["structuredContent"], want) || len(content) != 1 ||
 		!reflect.DeepEqual(object(t, content[0]), map[string]any{"type": "text", "text": canonicalJSON(want)}) {
 		t.Fatalf("%s tool error=%s want %s", tool, canonicalJSON(result), canonicalJSON(want))
+	}
+}
+
+// V1-0257: compare independently maintained reasonClass sources, rather than
+// checking each one against another copy of the enum in its own package.
+func TestReasonClassSourcesAgree(t *testing.T) {
+	root := moduleRoot(t)
+	parse := func(path string) *ast.File {
+		t.Helper()
+		file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(root, path), nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return file
+	}
+	constants := map[string]string{}
+	ast.Inspect(parse("internal/gitstatus/status.go"), func(node ast.Node) bool {
+		spec, ok := node.(*ast.ValueSpec)
+		if !ok {
+			return true
+		}
+		kind, ok := spec.Type.(*ast.Ident)
+		if !ok || kind.Name != "reasonClass" {
+			return true
+		}
+		if len(spec.Names) != 1 || len(spec.Values) != 1 {
+			t.Fatal("unexpected reasonClass declaration")
+		}
+		literal, ok := spec.Values[0].(*ast.BasicLit)
+		if !ok || literal.Kind != token.STRING {
+			t.Fatal("reasonClass is not a string constant")
+		}
+		value, err := strconv.Unquote(literal.Value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		constants[spec.Names[0].Name] = value
+		return true
+	})
+	want := make([]string, 0, len(constants))
+	for _, value := range constants {
+		want = append(want, value)
+	}
+	slices.Sort(want)
+	if len(want) == 0 {
+		t.Fatal("no gitstatus reasonClass constants found")
+	}
+	compare := func(source string, values []string) {
+		t.Helper()
+		got := append([]string(nil), values...)
+		slices.Sort(got)
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s reasonClasses=%v; gitstatus=%v", source, got, want)
+		}
+	}
+	compare("conformance Go inventory", reasonClasses)
+	raw, err := os.ReadFile(filepath.Join(root, "conformance/mcp-2026-07-28/cases-reason-class.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		ReasonClasses []string `json:"reasonClasses"`
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	compare("conformance JSON", manifest.ReasonClasses)
+
+	raw, err = os.ReadFile(filepath.Join(root, "docs/specs/mcp-server-2026-07-28-v0.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	clause := regexp.MustCompile("(?m)^- \x60MCPV0-028\x60: \x60reasonClass\x60 MUST be one of the closed values ([^.]+)[.]").FindSubmatch(raw)
+	if len(clause) != 2 {
+		t.Fatal("MCPV0-028 closed enum clause not found")
+	}
+	values := []string{}
+	for _, match := range regexp.MustCompile("\x60([^\x60]+)\x60").FindAllSubmatch(clause[1], -1) {
+		values = append(values, string(match[1]))
+	}
+	compare("MCPV0-028 spec", values)
+
+	fallback := ""
+	ast.Inspect(parse("cmd/corvint-mcp/main.go"), func(node ast.Node) bool {
+		spec, ok := node.(*ast.ValueSpec)
+		if !ok || len(spec.Names) != 1 || spec.Names[0].Name != "unclassified" {
+			return true
+		}
+		if len(spec.Values) != 1 {
+			t.Fatal("unexpected MCP fallback declaration")
+		}
+		literal, ok := spec.Values[0].(*ast.BasicLit)
+		if !ok || literal.Kind != token.STRING {
+			t.Fatal("MCP fallback is not a string constant")
+		}
+		var err error
+		fallback, err = strconv.Unquote(literal.Value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return true
+	})
+	if fallback == "" || fallback != constants["classUnclassified"] {
+		t.Errorf("MCP fallback=%q; gitstatus classUnclassified=%q", fallback, constants["classUnclassified"])
 	}
 }

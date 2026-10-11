@@ -821,6 +821,20 @@ printf 'file gate\n\ngo vet ./...\n' > "$test_root/verify.txt"
   verify_env=(env CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/verify-corvint.log"
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt"
     DOGFOOD_OUTCOME=passed)
+  # DCW-V0-034 / V1-1123: reject syntax before the first sidecar bind,
+  # naming the command, and never invoke the fake recorder for that refusal.
+  printf '%s\n' "go test ./fixture -run '^(A|B)$'" > "$test_root/verify-invalid.txt"
+  verify_syntax_status=0
+  verify_syntax_output=$("${verify_env[@]}" DOGFOOD_VERIFY_FILE="$test_root/verify-invalid.txt" \
+    script/dogfood-change.sh "$base" 2>&1) || verify_syntax_status=$?
+  test "$verify_syntax_status" = 1
+  rg -Fq 'local-outcome: unsupported-verify-syntax' <<< "$verify_syntax_output"
+  rg -Fq "go test ./fixture -run '^(A|B)$'" <<< "$verify_syntax_output"
+  rg -Fq 'ASCII letters, digits and _./:@=+, - only' <<< "$verify_syntax_output"
+  if rg -q '^dogfood-record ' "$test_root/verify-corvint.log"; then
+    printf '%s\n' 'unsupported verification reached recorder' >&2
+    exit 1
+  fi
   # The recorder logs its argv, then refuses the uncommitted sidecar of this first pass.
   "${verify_env[@]}" DOGFOOD_VERIFY=$'test gate\n\nsecond check' script/dogfood-change.sh "$base" 2>/dev/null || :
   rg -qF -- '--verify test gate --verify second check --outcome passed' "$test_root/verify-corvint.log"
