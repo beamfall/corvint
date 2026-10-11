@@ -630,8 +630,8 @@ bounded backoff:
   nothing was locked or written. This is the `ERROR` a renew or heartbeat reports under heavy
   concurrency while the lease is still FRESH; retry it before `expiresAt`. `release` and
   `attempt heartbeat` take `--lock-wait SECONDS` (whole seconds, 1..300) to wait longer than the
-  default 30 seconds for that command only (CAL-V0-111); proposed CAL-V0-216 (pending owner
-  acceptance) adds it to `claim`, `renew`, `submit`, `pool acquire`, `pool confirm-safe` and
+  default 30 seconds for that command only (CAL-V0-111); CAL-V0-216 (accepted, decision
+  0518) adds it to `claim`, `renew`, `submit`, `pool acquire`, `pool confirm-safe` and
   `pool release`. The wait is not part of the request, so
   resubmitting a timed-out `HANDOFF` release with the same request ID commits once or replays the
   committed receipt, still without a retry charge (CAL-V0-112). A plain release is never turned

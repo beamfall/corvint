@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-10
-Intent status: proposed, pending owner acceptance (V1-1142)
+Intent status: accepted (decision 0518; V1-1142)
 Delivery status: experimental
 Authoritative inputs: V1-1142 / GitHub #784 owner request; AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: An offline upgrade checklist maps local merge evidence to issue references in adopter workaround files.
-- Status: proposed, pending owner acceptance (V1-1142)/experimental
+- Status: accepted (decision 0518; V1-1142)/experimental
 - Exists: `internal/upgradechanges` and the experimental `corvint changes` command.
-- Blocked on: Owner acceptance; GitHub issue state and per-PR command changes are not observed.
+- Blocked on: GitHub issue state and per-PR command changes are not observed.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
 
 ## User and verified baseline
@@ -69,7 +69,8 @@ evidence, never a complete empty result. Missing objects in shallow/partial clon
 Keep compilation in `internal/upgradechanges`, CLI parsing in its own file and root dispatch/help
 edits minimal. This additive experimental profile changes no Core profile or persisted format.
 Rollback removes its dispatch, help and package; no data migration. Changed grammar/bounds require
-spec and test changes together. Owner acceptance is required before promotion; kill the slice if
+spec and test changes together. Intent is accepted (decision 0518); promotion beyond
+experimental needs owner approval; kill the slice if
 the local fixture cannot reproduce hints safely and deterministically. External adoption outcomes
 remain `NOT_RUN` and are not a prerequisite for this locally testable experimental slice.
 

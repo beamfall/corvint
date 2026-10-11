@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682)
+Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140)
 Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
@@ -10,7 +10,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 
 ## Agent digest
 - Claim: Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.
-- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN
+- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN
 - Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered.
 - Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; their strength join stays gated off until the `LPCV-V0-070` live matrix is retained on a qualified tuple.
 - Read next: User and measurable job; Competitive and novelty boundary; V0 system boundary.
@@ -413,7 +413,7 @@ repository policy may consume a complete receipt, but Corvint does not invent or
   `no-retained-evidence`.
 
 
-- `LPCVD-V0-001`: (proposed, pending owner acceptance (V1-1140)) Extend
+- `LPCVD-V0-001`: (accepted, decision 0518; V1-1140) Extend
   the `LPCV-V0-056` contract: every discovery abstention with `source: "none"` MUST name inert
   `producers` command templates and `expectedEvidencePath: ".corvint/test-evidence"`.
   Templates MUST name the actual JavaScript `unit`/`e2e --retain` and Go
@@ -423,7 +423,7 @@ repository policy may consume a complete receipt, but Corvint does not invent or
   require caller substitution. Each hint's `qualification` MUST be `NOT_OBSERVED`:
   this bounded reader has no authoritative host qualification lookup. No executable
   lookup, process launch, network call or filesystem write is permitted.
-- `LPCVD-V0-002`: (proposed, pending owner acceptance (V1-1140)) Extend the closed
+- `LPCVD-V0-002`: (accepted, decision 0518; V1-1140) Extend the closed
   `LPCV-V0-056` reason vocabulary with `stale-evidence`, using the existing
   `retained-producer-run` requires value. A selected document whose recomputed run
   freshness is `STALE` MUST carry that abstention, taking precedence over a runtime
@@ -435,7 +435,7 @@ repository policy may consume a complete receipt, but Corvint does not invent or
   test repository's identity. Do not guess a revision from filenames. The stale
   abstention carries the same producer guidance as missing evidence. `LPCVD-V0-004`
   adds the revision comparison.
-- `LPCVD-V0-004`: (proposed, pending owner acceptance (V1-1140)) When the selected
+- `LPCVD-V0-004`: (accepted, decision 0518; V1-1140) When the selected
   receipt retains a valid `testRepositoryAtStart.revision` and the worktree's HEAD
   object ID resolves, a difference MUST yield the `LPCVD-V0-002` `stale-evidence`
   abstention with that `receiptRevision`, even if every bound file digest is
@@ -446,7 +446,7 @@ repository policy may consume a complete receipt, but Corvint does not invent or
   absent). A linked worktree, an unresolved or malformed
   ref (including an invalid git ref name), or an unknown receipt revision MUST NOT produce a staleness claim; it stays
   as `LPCVD-V0-002` already classifies it. The freshness axis is unchanged.
-- `LPCVD-V0-003`: (proposed, pending owner acceptance (V1-1140)) Discovery MUST expose
+- `LPCVD-V0-003`: (accepted, decision 0518; V1-1140) Discovery MUST expose
   `receiptAge: {basis, since?}`. With a selected decodable receipt, `basis` is
   `retained-file-mtime` and `since` is its UTC RFC3339Nano modification timestamp:
   the age origin of the newest usable receipt within the existing bounded search,
@@ -606,10 +606,10 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-054` discovered freshness is bound to current digests | delivered at experimental tier; Go events stay preview and never `CURRENT` | `TestDiscoverUnmatchedIdentityIsNeverCurrent` (changed and removed test file `STALE`, outside-worktree path and Go session `UNKNOWN`, stale Go session `STALE`, each with its reason) and `TestDiscoverSelectsNewestRetainedEvidence` (matched digest `CURRENT`); package and app-build digests are not recomputed, so they are `UNKNOWN` by construction, not measured. |
 | `LPCV-V0-055` opt-in bounded atomic producer retention | delivered at experimental tier (decision 0218); no real-provider Electron run and no qualified Go session matrix has retained evidence (`NOT_RUN`) | `cmd/corvint-js-test-provider`'s `TestEmitRetainsStdoutBytesPrunesAndRefusesSymlink` and `cmd/corvint-go-test-provider`'s `TestSessionRetainsCompletedEventBytesPrunesAndRefusesSymlink` (retained bytes equal stdout, 32 kept, a foreign entry untouched, a symlinked `.corvint` refused with stdout still emitted); `internal/testevidence`'s `TestRetainReportsDocumentItsPruneRemoved` (a document named behind 32 own names is pruned and reported as a failure) and `TestRetainPrunesCrashLeftoverTemporaries` (225 own temporaries named below the oldest kept document are removed, a newer and a foreign temporary kept); `cmd/corvint`'s `TestTestValidityDiscoverSelectsProducerRetainedDocument` (a retained document is the one `test-validity --discover` selects, `CURRENT`).; the VS Code extension passes the flag only behind `corvint.liveTests.retainEvidence` (decision 0230, `VSC-V0-070`), unit-tested, with no Electron run. |
 | `LPCV-V0-056` typed discovery abstention reason | accepted by decision 0448 (V1-0976, issue #665); experimental tier | `internal/testvaliditydoc`'s `TestDiscoverAbstentionReasons` (missing location, no `*.json`, only undecodable entries, unqualified and unobserved Node tuple, qualified tuple and plain unit receipt without abstention) and `TestDiscoverAbstentionWithholdsUnboundedObservedVersion`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument` (CLI and MCP byte-equal); live control `PWP-V0-009 unqualified-node-control-abstains` in `TestQualifiedPlaywrightLive`. |
-| `LPCVD-V0-001` missing producer guidance | proposed, pending owner acceptance (V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverProducerGuidance`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vectors `discover-no-evidence-guidance` and `discover-unusable-guidance`. |
-| `LPCVD-V0-002` stale abstention | proposed, pending owner acceptance (V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverStaleEvidenceGuidance` and `TestDiscoverRetainedRevision`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vector `discover-stale-guidance`. |
-| `LPCVD-V0-003` receipt age origin | proposed, pending owner acceptance (V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverReceiptAge`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` checks the age origin and unchanged repository. Elapsed duration and authenticated execution time are not asserted. |
-| `LPCVD-V0-004` retained revision differs from HEAD | proposed, pending owner acceptance (V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverRetainedRevisionDiffersFromHead` (detached, loose, packed, equal, malformed-loose, invalid-ref-name, oversized, unresolved, escaping and absent HEAD) and `TestDiscoverHeadReadRefusesSymlinksAndSpecialFiles`. |
+| `LPCVD-V0-001` missing producer guidance | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverProducerGuidance`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vectors `discover-no-evidence-guidance` and `discover-unusable-guidance`. |
+| `LPCVD-V0-002` stale abstention | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverStaleEvidenceGuidance` and `TestDiscoverRetainedRevision`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vector `discover-stale-guidance`. |
+| `LPCVD-V0-003` receipt age origin | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverReceiptAge`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` checks the age origin and unchanged repository. Elapsed duration and authenticated execution time are not asserted. |
+| `LPCVD-V0-004` retained revision differs from HEAD | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverRetainedRevisionDiffersFromHead` (detached, loose, packed, equal, malformed-loose, invalid-ref-name, oversized, unresolved, escaping and absent HEAD) and `TestDiscoverHeadReadRefusesSymlinksAndSpecialFiles`. |
 | `LPCV-V0-057..070` step-level negative controls by fault injection | accepted (decision 0458; V1-1024, GitHub #682); `LPCV-V0-057..069` implemented at experimental tier with focused tests; the `LPCV-V0-068` join is compiled but gated off (`stepNegationJoinQualified`); `LPCV-V0-070` qualification `NOT_RUN` | `internal/stepnegation`'s `TestParseTraceRecoversStepTreeAndInventory`, `TestDeriveNetworkAndDOMReasons`, `TestEvaluateSingleRule`, `TestResolveSingleOrder`, `TestJointPlanAndAttribution`, `TestDocumentCodecIsClosedAndCanonical`, `TestAggregateOverInventory`, `TestRetentionMergeLockAndConfinement` and `TestRetentionStaysOutOfGitStatus` (derivation, pass rule, codec, aggregate, retention); `internal/jstestprovider`'s `TestAdmitNegateRefusesBeforeAnyRun`, `TestSelectTestRequiresExactlyOne`, `TestNegationOverlayForcesControlledConfig` and `TestBaselineFailureClassification`; `cmd/corvint-js-test-provider`'s `TestParseNegateRefusals` and `TestRunNegateWritesDocumentOrClosedRefusal`; `cmd/corvint`'s `TestNegateExecsProviderPrintsAndRetains`, `TestNegateRefusalsAndBusyEvidence` (including the implementation refusal `negate-provider-failed` for a provider that cannot start, exits without a closed refusal document, overruns 4 MiB or names a different test identity; no numbered requirement owns it yet) and `TestNegateLocksScreenedTitle`; `internal/testvaliditydoc`'s `TestStepNegationJoinGatedOffIsByteIdentical` and `TestStepNegationJoinConditions` (join). `TestNegateLiveDiagnostic` ran the synthetic matrix with Playwright 1.63.0 on unqualified Node v22.23.3 and is diagnostic only; the `LPCV-V0-070` qualified-tuple matrix, owner sample comparison and cost measurement are `NOT_RUN`, so no result joins the strength axis. |
 
 ## Step-level negative controls by fault injection (accepted, decision 0458; V1-1024; GitHub #682)
@@ -875,7 +875,7 @@ Open owner questions:
 
 ## Discovery guidance rollout and rollback (V1-1140)
 
-The proposed `LPCVD-V0-001..004` amendment is an additive experimental consumer
+The accepted (decision 0518) `LPCVD-V0-001..004` amendment is an additive experimental consumer
 change for the adopter. It does not accept new producer formats or qualify a host.
 It supersedes only the `LPCV-V0-056` no-abstention rule for stale selected inputs.
 Rollback removes these discovery-only fields and the stale abstention, restoring

@@ -64,7 +64,7 @@ var leaseValueFlags = map[string]bool{
 }
 
 // lockWaitVerbs are the lease commands that take the CAL-V0-111 --lock-wait:
-// release and attempt heartbeat, and (proposed CAL-V0-216) the other
+// release and attempt heartbeat, and (CAL-V0-216) the other
 // preparation-admitted agent writes.
 var lockWaitVerbs = map[string]bool{
 	"release": true, "attempt heartbeat": true,

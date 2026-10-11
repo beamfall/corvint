@@ -1,13 +1,13 @@
 # Revision Cache on Dirty Worktrees V0
 
 Owner: Russell Lewis
-Intent status: proposed
+Intent status: proposed; DIRTY-CACHE-014..015 accepted (decision 0518; V1-1141)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/ARCHITECTURE.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: Dirty checkouts may reuse the immutable HEAD index only with explicit worktree exclusion and freshness uncertainty.
-- Status: proposed/experimental
+- Status: proposed; DIRTY-CACHE-014..015 accepted (decision 0518; V1-1141)/experimental
 - Exists: immutable-HEAD cache reuse with explicit dirty-worktree freshness and uncertainty.
 - Blocked on: promotion evidence and kill-criteria measurements; mutable content remains outside authority.
 - Read next: User and measurable job; Requirements; Evidence and kill criteria.
@@ -108,7 +108,7 @@ snapshot the worktree, or claim that revision-only context is complete.
   and evicted as before. Rollback: restore the worktree-joined store path; the shared directory is
   disposable derived state.
 
-- `DIRTY-CACHE-014`: **proposed, pending owner acceptance (V1-1141)**. A normal
+- `DIRTY-CACHE-014`: **accepted, decision 0518 (V1-1141)**. A normal
   path-impact receipt over a MIXED root MUST include a top-level `warning` string when the
   normalized requested paths are not a subset of the complete captured dirty-path set. The
   warning MUST name the bound HEAD commit (not the tree OID), the dirty-path count, and the
@@ -116,7 +116,7 @@ snapshot the worktree, or claim that revision-only context is complete.
   accounting. Clean roots and requests entirely within the dirty set retain their existing
   receipt shape; freshness uncertainty remains. Missing commit identity MUST be named UNKNOWN,
   never inferred from a tree OID. This applies to default and non-Go syntax path profiles.
-- `DIRTY-CACHE-015`: **proposed, pending owner acceptance (V1-1141)**. Path impact
+- `DIRTY-CACHE-015`: **accepted, decision 0518 (V1-1141)**. Path impact
   MUST accept the experimental boolean `--require-clean`. On any captured MIXED root it MUST
   return `state=NEEDS_WIDENING`, `abstention.active=true`, reason `mixed-worktree`, empty `results`,
   and a warning naming the bound commit and dirty count, even when every requested path is dirty.
@@ -128,7 +128,7 @@ snapshot the worktree, or claim that revision-only context is complete.
 
 ## V1-1141 scope and acceptance
 
-Intent for DIRTY-CACHE-014..015 is proposed, pending owner acceptance (V1-1141); implementation
+Intent for DIRTY-CACHE-014..015 is accepted (decision 0518; V1-1141); implementation
 remains experimental. The user job is recognizing that a clean requested path in a dirty checkout
 is answered against a committed revision. The baseline is freshness metadata alone. Verify clean,
 all-dirty, partial-overlap, disjoint, renamed, normalized and untracked dirty-path cases; verify

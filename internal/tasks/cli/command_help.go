@@ -185,7 +185,7 @@ func fullCommandHelp(cmd []string) *wire.Result {
 }
 
 // lockWaitHelp documents the CAL-V0-111 --lock-wait of every lockWaitVerbs
-// command (proposed CAL-V0-216 adds the other preparation-admitted writes).
+// command (CAL-V0-216, decision 0518, adds the other preparation-admitted writes).
 const lockWaitHelp = "--lock-wait SECONDS (whole seconds, 1..300; anything else refuses MALFORMED) waits up to that long for preparation admission and the store lock instead of the default 30 seconds, for this command only. It is not part of the request: after LOCK_TIMEOUT, resubmit the same request ID with the same arguments; that commits once or replays the committed receipt."
 
 // Usage is the single help inventory for each command's supported inputs.

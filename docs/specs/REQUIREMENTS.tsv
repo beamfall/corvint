@@ -637,8 +637,8 @@ CAL-V0-211	docs/specs/corvint-tasks-agent-leases-v0.md	5692	(accepted, decision 
 CAL-V0-212	docs/specs/corvint-tasks-agent-leases-v0.md	5656	(accepted, decision 0502; V1-0628) The top-level `help` usage MUST NOT
 CAL-V0-214	docs/specs/corvint-tasks-agent-leases-v0.md	5707	(accepted, decision 0513) When `corvint-tasks ticket create`
 CAL-V0-215	docs/specs/corvint-tasks-agent-leases-v0.md	5772	(proposed, pending owner acceptance (V1-1129)) The shared Tasks error classifier
-CAL-V0-216	docs/specs/corvint-tasks-agent-leases-v0.md	5850	(proposed, pending owner acceptance (V1-1130)) `claim`, `renew`, `submit`,
-CAL-V0-217	docs/specs/corvint-tasks-agent-leases-v0.md	5741	(proposed, pending owner acceptance, V1-0913) Amends CAL-V0-139. The safety-net
+CAL-V0-216	docs/specs/corvint-tasks-agent-leases-v0.md	5850	(accepted, decision 0518; V1-1130) `claim`, `renew`, `submit`,
+CAL-V0-217	docs/specs/corvint-tasks-agent-leases-v0.md	5741	(accepted, decision 0518; V1-0913) Amends CAL-V0-139. The safety-net interval
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla
@@ -1132,8 +1132,8 @@ DIRTY-CACHE-010	docs/specs/revision-cache-dirty-worktree-v0.md	63	the implementa
 DIRTY-CACHE-011	docs/specs/revision-cache-dirty-worktree-v0.md	69	each index build MUST resolve the repository storage object format and exact
 DIRTY-CACHE-012	docs/specs/revision-cache-dirty-worktree-v0.md	76	the separate `working-tree-untracked` impact authority profile (`GPK-V0-029`)
 DIRTY-CACHE-013	docs/specs/revision-cache-dirty-worktree-v0.md	83	the native disk snapshot store (`index-snapshot-v0`) MUST live at
-DIRTY-CACHE-014	docs/specs/revision-cache-dirty-worktree-v0.md	111	**proposed, pending owner acceptance (V1-1141)**. A normal
-DIRTY-CACHE-015	docs/specs/revision-cache-dirty-worktree-v0.md	119	**proposed, pending owner acceptance (V1-1141)**. Path impact
+DIRTY-CACHE-014	docs/specs/revision-cache-dirty-worktree-v0.md	111	**accepted, decision 0518 (V1-1141)**. A normal
+DIRTY-CACHE-015	docs/specs/revision-cache-dirty-worktree-v0.md	119	**accepted, decision 0518 (V1-1141)**. Path impact
 DLT-V0-001	docs/specs/immutable-delta-v0.md	27	Delta MUST bind full lowercase base/head commit OIDs, head tree, complete
 DLT-V0-002	docs/specs/immutable-delta-v0.md	30	The affected graph MUST read every participating provider's source, config,
 DLT-V0-003	docs/specs/immutable-delta-v0.md	34	Git blob bodies MUST be admitted before allocation by expected OID/type/size,
@@ -2056,10 +2056,10 @@ LPCV-V0-067	docs/specs/live-proof-carrying-verification-v0.md	782	(accepted (dec
 LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	791	(accepted (decision 0458; V1-1024; GitHub #682)) This requirement covers project
 LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	809	(accepted (decision 0458; V1-1024; GitHub #682)) Safety. negate runs the user's
 LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	821	(accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnost
-LPCVD-V0-001	docs/specs/live-proof-carrying-verification-v0.md	416	(proposed, pending owner acceptance (V1-1140)) Extend
-LPCVD-V0-002	docs/specs/live-proof-carrying-verification-v0.md	426	(proposed, pending owner acceptance (V1-1140)) Extend the closed
-LPCVD-V0-003	docs/specs/live-proof-carrying-verification-v0.md	449	(proposed, pending owner acceptance (V1-1140)) Discovery MUST expose
-LPCVD-V0-004	docs/specs/live-proof-carrying-verification-v0.md	438	(proposed, pending owner acceptance (V1-1140)) When the selected
+LPCVD-V0-001	docs/specs/live-proof-carrying-verification-v0.md	416	(accepted, decision 0518; V1-1140) Extend
+LPCVD-V0-002	docs/specs/live-proof-carrying-verification-v0.md	426	(accepted, decision 0518; V1-1140) Extend the closed
+LPCVD-V0-003	docs/specs/live-proof-carrying-verification-v0.md	449	(accepted, decision 0518; V1-1140) Discovery MUST expose
+LPCVD-V0-004	docs/specs/live-proof-carrying-verification-v0.md	438	(accepted, decision 0518; V1-1140) When the selected
 LQP-V0-001	docs/specs/lsp-quality-platform-v0.md	44	Each consumer MUST select an explicit, versioned profile and report the exact su
 LQP-V0-002	docs/specs/lsp-quality-platform-v0.md	45	Agent CLI and MCP MUST remain off by default for upstream semantic work and keep
 LQP-V0-003	docs/specs/lsp-quality-platform-v0.md	46	The shared engine MUST distinguish immutable Git identity `(repository/root, obj

@@ -175,16 +175,16 @@ persisted state, schema or client configuration needs migration.
 | `MTV-V0-008` | `conformance/mcp-test-validity-v0/cases.json` | `TestVectorsAndReadOnly` |
 | `MTV-V0-009` | `testvaliditybridge.Registry.discover`, `decodeArguments`; `testvaliditydoc.Discover` | `TestTestValidityDiscoveryMatchesMCPDocument` (`cmd/corvint`, CLI and MCP documents canonically byte-equal); `TestToolCatalogueIsExactlyOneReadOnlyTool` (two schema members); vectors `discover-retained-evidence` and `discover-with-receipt-refused` in `TestVectorsAndReadOnly` |
 
-## Proposed discovery guidance amendment (V1-1140)
+## Discovery guidance amendment (V1-1140)
 
 `LPCVD-V0-001..004` in the owning live-proof-carrying-verification spec are
-proposed, pending owner acceptance (V1-1140). `MTV-V0-009` exposes those same
+accepted (decision 0518; V1-1140). `MTV-V0-009` exposes those same
 shared discovery fields byte-for-byte: abstention `producers` (inert command
 and `qualification: "NOT_OBSERVED"`), `expectedEvidencePath`, and, for stale
 selected evidence, `receiptRevision` (the bounded retained test-repository revision
 at run start, otherwise `UNKNOWN`). The closed reason vocabulary
 is `no-retained-evidence`, `retained-evidence-unusable`,
-`runtime-tuple-unqualified`, `UNKNOWN`, plus proposed `stale-evidence`;
+`runtime-tuple-unqualified`, `UNKNOWN`, plus `stale-evidence`;
 requires stays `retained-producer-run`, `qualified-runtime-tuple`, or `UNKNOWN`.
 `discovery.receiptAge` carries `basis: "retained-file-mtime"` and UTC `since`
 for the newest selected decodable receipt, otherwise `basis: "NOT_OBSERVED"`.

@@ -24,7 +24,7 @@ Refs alone is unknown. JSON includes truncation and NOT_OBSERVED issue state,
 reopen/revert semantics and per-PR new flags/commands. Review every hint.
 Refusals: changes-invalid-arguments, changes-build-unavailable,
 changes-range-unavailable, changes-git-unavailable, changes-refs-unavailable.
-Contract: docs/specs/upgrade-checklist-v0.md (proposed, V1-1142).
+Contract: docs/specs/upgrade-checklist-v0.md (accepted, decision 0518; V1-1142).
 `
 
 func changesInvocation(args []string) (string, []string, bool) {
