@@ -1,0 +1,142 @@
+'use strict';
+// ANL-V0-037..044: drives the navigation-events producer with synthetic Playwright instrumentation
+// callbacks and page events. Node built-ins only; no Playwright install is needed.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const {EventEmitter} = require('node:events');
+const {createRecorder, install} = require('./navigation-events.cjs');
+
+class Frame { constructor() { this.href = 'about:blank'; } url() { return this.href; } }
+class Page extends EventEmitter { constructor() { super(); this.main = new Frame(); } mainFrame() { return this.main; } }
+class Context extends EventEmitter { pages() { return []; } }
+class Request {
+  constructor(page, url, from) { this.page = page; this.href = url; this.from = from; }
+  url() { return this.href; }
+  redirectedFrom() { return this.from || null; }
+  isNavigationRequest() { return true; }
+  frame() { return this.page.mainFrame(); }
+}
+
+// navigate emits the document request chain (each HTTP hop, then the final URL) and the commit.
+function navigate(page, url, hops = [], frame = page.mainFrame()) {
+  let req = null;
+  for (const u of [...hops, url]) {
+    req = new Request(page, u.split('#')[0], req);
+    page.emit('request', req);
+  }
+  frame.href = url;
+  page.emit('framenavigated', frame);
+}
+
+function sameDocument(page, url) {
+  page.mainFrame().href = url;
+  page.emit('framenavigated', page.mainFrame());
+}
+
+function harness(testId = 'synthetic-walk', retry = 0) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-nav-'));
+  const warnings = [];
+  const current = {testId, retry};
+  const rec = createRecorder({outputDir: dir, currentTest: () => current, warn: m => warnings.push(m)});
+  const call = async (method, params, fn) => {
+    const data = {};
+    rec.onApiCallBegin(data, {type: 'Frame', method, params});
+    try { await fn?.(); } finally { rec.onApiCallEnd(data); }
+  };
+  const open = async () => {
+    const context = new Context();
+    await rec.runAfterCreateBrowserContext(context);
+    const page = new Page();
+    context.emit('page', page);
+    return {context, page};
+  };
+  const read = id => fs.readFileSync(path.join(dir, (id || testId) + '.json'), 'utf8');
+  return {dir, rec, call, open, read, warnings, current};
+}
+
+test('ANL-V0-039..041: a walk writes the closed document byte-for-byte', async () => {
+  const h = harness();
+  const {context, page} = await h.open();
+  const base = 'http://127.0.0.1:4817';
+  await h.call('goto', {url: base + '/login?token=zz'}, () => navigate(page, base + '/login?token=zz'));
+  await h.call('fill', {selector: '#user', value: 'typed-secret'});
+  await h.call('click', {selector: '#enter'}, () => navigate(page, base + '/home'));
+  await h.call('click', {selector: '#item'}, () => { navigate(page, base + '/items/7'); sameDocument(page, base + '/items/7#tab'); });
+  await h.call('goBack', {}, () => navigate(page, base + '/home'));
+  await h.call('__waitInfo__', {}, () => navigate(page, base + '/login'));
+  const child = new Frame();
+  navigate(page, base + '/frame', [], child);
+  await h.call('reload', {}, () => navigate(page, base + '/login'));
+  await h.call('goto', {url: base + '/old'}, () => navigate(page, base + '/home#top', [base + '/old', base + '/older']));
+  await h.call('click', {selector: 'x'.repeat(1025)}, () => navigate(page, base + '/items/8'));
+  await h.rec.runBeforeCloseBrowserContext(context);
+  const golden = fs.readFileSync(path.join(__dirname, 'testdata/navigation-events/synthetic.json'), 'utf8');
+  assert.equal(h.read(), golden);
+  assert.ok(!h.read().includes('typed-secret'));
+  assert.deepEqual(h.warnings, []);
+});
+
+test('ANL-V0-038: listener state is per attempt; a retry replaces the earlier file', async () => {
+  const h = harness('k', 0);
+  let {context, page} = await h.open();
+  await h.call('goto', {}, () => navigate(page, 'https://x.test/a'));
+  await h.rec.runBeforeCloseBrowserContext(context);
+  h.current.retry = 1;
+  ({context, page} = await h.open());
+  await h.call('goto', {}, () => navigate(page, 'https://x.test/b'));
+  await h.rec.runBeforeCloseBrowserContext(context);
+  assert.equal(JSON.parse(h.read('k')).events.map(e => e.url).join(), 'https://x.test/b');
+});
+
+test('ANL-V0-043: a second page, too many events or an oversized URL withholds the document', async () => {
+  const h = harness('two-pages');
+  const {context, page} = await h.open();
+  await h.call('goto', {}, () => navigate(page, 'https://x.test/a'));
+  context.emit('page', new Page());
+  await h.rec.runBeforeCloseBrowserContext(context);
+  assert.ok(!fs.existsSync(path.join(h.dir, 'two-pages.json')));
+  assert.match(h.warnings[0], /two-pages not written: more than one page/);
+
+  const big = harness('big');
+  const b = await big.open();
+  for (let i = 0; i <= 4096; i++) navigate(b.page, 'https://x.test/p' + i);
+  await big.rec.runBeforeCloseBrowserContext(b.context);
+  assert.ok(!fs.existsSync(path.join(big.dir, 'big.json')));
+
+  const long = harness('long');
+  const l = await long.open();
+  navigate(l.page, 'https://x.test/' + 'a'.repeat(4096));
+  await long.rec.runBeforeCloseBrowserContext(l.context);
+  assert.ok(!fs.existsSync(path.join(long.dir, 'long.json')));
+  assert.match(long.warnings[0], /long not written/);
+});
+
+test('ANL-V0-037/038: outside a test nothing is recorded; outputDir is required', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-nav-'));
+  const rec = createRecorder({outputDir: dir, currentTest: () => null});
+  const context = new Context();
+  await rec.runAfterCreateBrowserContext(context);
+  await rec.runBeforeCloseBrowserContext(context);
+  assert.deepEqual(fs.readdirSync(dir), []);
+  assert.throws(() => createRecorder({currentTest: () => null}), /outputDir is required/);
+});
+
+test('ANL-V0-038: without a resolvable Playwright install warns once and records nothing', () => {
+  const cwd = process.cwd();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-nav-'));
+  const write = process.stderr.write;
+  let seen = '';
+  process.chdir(dir);
+  process.stderr.write = chunk => { seen += chunk; return true; };
+  try {
+    install({outputDir: 'out'});
+  } finally {
+    process.stderr.write = write;
+    process.chdir(cwd);
+  }
+  assert.match(seen, /Playwright not found/);
+  assert.ok(!fs.existsSync(path.join(dir, 'out')));
+});

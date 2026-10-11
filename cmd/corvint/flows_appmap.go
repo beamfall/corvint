@@ -52,6 +52,9 @@ application-navigation-observation/0: ordered screen visits resolved through the
 edges with their typed trigger (goto, click, form submit, key press, history back/forward, reload,
 redirect, else UNKNOWN) and any annotated declared_trigger, UNKNOWN joins and unmapped-url.
 Secret-shaped query values and typed input values are redacted. Learned overlay facts only.
+internal/appmap/navigation-events.cjs writes that JSON per test, with any trace setting, from one
+line in playwright.config: require('<corvint>/internal/appmap/navigation-events.cjs')
+.install({outputDir: 'DIR'}); then pass --trace DIR.
 
 build compiles application-map/0 from the manifest's router definitions, flow intents and
 test suite read at REV (default HEAD) and writes it to stdout. Router dialects are
