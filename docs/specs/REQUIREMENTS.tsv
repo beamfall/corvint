@@ -2869,7 +2869,7 @@ TCP-V0-002	docs/specs/task-context-packet-v0.md	52	The invocation is `corvint [-
 TCP-V0-003	docs/specs/task-context-packet-v0.md	58	Results are files. Each result row carries `kind`, `id` (the path), `score`,
 TCP-V0-004	docs/specs/task-context-packet-v0.md	76	The slots run in this order and each is capped at three rows before the lexical
 TCP-V0-005	docs/specs/task-context-packet-v0.md	152	The subject is never a result. It is carried under `subject` with its path and a
-TCP-V0-006	docs/specs/task-context-packet-v0.md	159	`state` is `READY` when at least one result exists and `NO_CANDIDATES` otherwise
+TCP-V0-006	docs/specs/task-context-packet-v0.md	159	(amendment proposed, pending owner acceptance (V1-0315)) `state` is `READY` when
 TCP-V0-007	docs/specs/task-context-packet-v0.md	170	Output is canonical JSON (`gokernel.CanonicalJSON`), byte-identical over an
 TCP-V0-008	docs/specs/task-context-packet-v0.md	173	(A) The governing generator establishes applicability independently of vocabular
 TCP-V0-009	docs/specs/task-context-packet-v0.md	194	(A) The implementation MUST build a definition-owner resolver; no existing helpe
@@ -2928,6 +2928,7 @@ TCP-V0-061	docs/specs/task-context-packet-v0.md	1024	(proposed 2026-10-06, V1-08
 TCP-V0-062	docs/specs/task-context-packet-v0.md	1047	(proposed (V1-0993), 2026-10-07; experimental) When `--task` is absent, exactly
 TCP-V0-063	docs/specs/task-context-packet-v0.md	1058	(proposed 2026-10-08, V1-0859 and V1-0431; experimental) A lexical hit whose pat
 TCP-V0-064	docs/specs/task-context-packet-v0.md	1082	(accepted 2026-10-08, decision 0470; V1-0485; experimental) `TaskContext` observ
+TCP-V0-065	docs/specs/task-context-packet-v0.md	1093	(proposed, pending owner acceptance (V1-0315); experimental) A task-context
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul
