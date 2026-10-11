@@ -14,6 +14,7 @@ package golang
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -106,8 +107,8 @@ func (Language) Owns(relative string) bool {
 
 // Units observes every Go package in the repository rooted at root: the root
 // module alone, or every module a root go.work lists.
-func (language Language) Units(root string) (affected.Result, error) {
-	return language.UnitsSource(affected.DiskSource(root))
+func (language Language) Units(ctx context.Context, root string) (affected.Result, error) {
+	return language.UnitsSource(affected.DiskSourceContext(ctx, root))
 }
 
 // UnitsSource reads only the explicitly supplied source universe.

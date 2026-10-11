@@ -2,6 +2,7 @@ package typescript
 
 import (
 	"bytes"
+	"context"
 	"slices"
 	"strings"
 	"testing"
@@ -42,7 +43,7 @@ func TestPlaywrightExampleAppQualification(t *testing.T) {
 				t.Fatal("receipt bytes differ")
 			}
 		}
-		shared, err := New().Units(root)
+		shared, err := New().Units(context.Background(), root)
 		if err != nil || !slices.Contains(shared.Frontier, FrontierPathAlias) {
 			t.Fatal("general adapter alias boundary changed", err)
 		}

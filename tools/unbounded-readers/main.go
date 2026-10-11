@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"flag"
@@ -92,7 +93,7 @@ func run(root string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "unbounded-readers:", err)
 		return 2
 	}
-	graph, err := affected.Build(root, languages.All()...)
+	graph, err := affected.Build(context.Background(), root, languages.All()...)
 	if err != nil {
 		fmt.Fprintln(stderr, "unbounded-readers:", err)
 		return 2

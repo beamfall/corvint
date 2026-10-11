@@ -9,6 +9,7 @@
 package kotlin
 
 import (
+	"context"
 	"path"
 	"sort"
 	"strings"
@@ -93,8 +94,8 @@ type buildLayout struct {
 }
 
 // Units observes every Kotlin source and resolves static first-party imports.
-func (language Language) Units(root string) (affected.Result, error) {
-	return language.UnitsSource(affected.DiskSource(root))
+func (language Language) Units(ctx context.Context, root string) (affected.Result, error) {
+	return language.UnitsSource(affected.DiskSourceContext(ctx, root))
 }
 
 // UnitsSource reads only the explicitly supplied source universe.

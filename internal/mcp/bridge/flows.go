@@ -37,9 +37,8 @@ var flowsTools = map[string]bool{ToolFlowsCoverage: true, ToolFlowsMap: true, To
 // effectClasses is the closed maxEffect ladder of `flows navigate --max-effect`.
 var effectClasses = []string{appflows.EffectRead, appflows.EffectWriteReversible, appflows.EffectWriteIrreversible, appflows.EffectExternal}
 
-// flowsImpactSerial runs one flows impact at a time, probes included. affected.Build shares a
-// root's file walk among the Builds that overlap in time, so an impact that overlapped another could
-// reuse a walk taken before its own first probe. In this process no other tool calls Build.
+// flowsImpactSerial runs one flows impact at a time, probes included, to keep
+// each mutable-worktree observation between its own repository probes.
 var flowsImpactSerial sync.Mutex
 
 // flowsSchemas are the receipt schemas each flows tool may return.

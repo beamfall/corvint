@@ -502,6 +502,16 @@ This subsection fixes the S4 wire shape. It adds no requirement and no root verb
   `external-side-effect` transition unless the target origin is listed as disposable in the
   repository-owned `origins.json` in the flows directory.
 
+- `AFU-V1-057`: (accepted, decision 0512) Navigation traffic
+  input MUST accept at most 256 filenames, counting repeated filenames and empty files.
+  More filenames MUST fail before opening any traffic file with `navigation-bound-exceeded`.
+  The shared 8,192-record bound remains unchanged; refusals emit no navigation output.
+- `AFU-V1-058`: (accepted, decision 0512) Navigation MUST index traffic
+  once by the exact flow/step pair, preserving record order within each pair. Traffic attribution
+  and filtering MUST take O(R + S) work and O(R) auxiliary space for R records and S steps,
+  rather than scanning or cloning all R records for every step. Existing admitted map and packet
+  output MUST remain byte-identical, including effects, grants and verification state.
+
 ### Navigation wire contract
 
 This subsection fixes the S5 wire shape. It adds no requirement and no root verb.
@@ -515,7 +525,9 @@ This subsection fixes the S5 wire shape. It adds no requirement and no root verb
   (`GET`, `HEAD`, `OPTIONS`, `POST`, `PUT`, `PATCH` or `DELETE`) and a `path` template, which are its
   state, and a declared `read` on a method other than `GET`, `HEAD` or `OPTIONS` is refused.
 - Traffic: `--traffic FILE` (repeatable) names `application-flow-traffic/0` JSONL records (`flow_id`,
-  `step_id`, `method`, `form_submit`) read with the flow-input discipline; with no locator or text
+  `step_id`, `method`, `form_submit`) read with the flow-input discipline; the proposed
+  AFU-V1-057 limit is 256 filenames (duplicates and empty files count), refused before any
+  traffic file is opened with `navigation-bound-exceeded`; with no locator or text
   field, a record can only raise a class. A `method` other than `GET`, or `form_submit` true, raises a
   declared `read` to `write-irreversible` (`effect_basis` `observed-traffic`); an absent `effect` is
   `write-irreversible` (`undeclared`); other declared classes stand (`declared`).
@@ -608,6 +620,14 @@ paths, and `--page` and `--claims` differ.
   used for the byte comparison. A failing check exits 2 with `flow-docs-check-failed`.
 
 ### MCP companion surface
+
+- `AFU-V1-059`: accepted, decision 0512. Impact graph construction MUST
+  accept the caller context and propagate it through every supported language adapter. Repository
+  walks MUST check cancellation at every directory-entry callback, including opted-in skipped
+  directories; source reads and cached-file filtering MUST check before each operation. Cancellation
+  MUST return the context error with no partial graph. Walk caches MUST be scoped to one build so
+  concurrent callers cannot reuse another caller's cancelled walk. A filesystem syscall or one
+  bounded source parse already in progress may finish before the next check.
 
 - `AFU-V1-034`: `corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
   `corvint.flows.gaps`, `corvint.flows.impact` and `corvint.flows.navigate`, following the
@@ -718,6 +738,8 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-022 | `TestAFUV1022EveryFallbackCodeYieldsFullSuite` (one subtest per closed code), `TestAFUV1040SelectionCorpusReport` (global-path cases) |
 | AFU-V1-023 | `TestAFUV1020ExclusionProofsPerBasis`, `TestAFUV1040SelectionCorpusReport` (per-basis counts, both notes) |
 | AFU-V1-024 | `TestAFUV1024StrictAndCoverageBytesUnchanged` (goldens captured before S4), `TestAFUV1024E2ESafeRefusesMalformedInput`, `TestAffectedSelectionArguments` |
+| AFU-V1-057 | `TestAFUV1057TrafficFileBound`, `TestAFUV1057TrafficRecordBound`, `TestAFUV1057TrafficFileBoundCLI` |
+| AFU-V1-058 | `TestAFUV1058TrafficIndexParity`, existing navigation map and packet goldens; `internal/appflows/navigate.go` builds one exact-pair index |
 | AFU-V1-025 | `TestAFUV1025NavigationMapGolden` (`navigate.golden.json`: states, readiness, expected outcomes, recovery, verified and unverified steps, credentials by fixture ID, read-only), `TestAFUV1025PreconditionFlowsResolve` |
 | AFU-V1-026 | `TestAFUV1026LocatorsOnlyFromIntent` (no locator for an unmapped step; traffic with page text refused), `TestAFUV1026NavigationLocatorShapes` |
 | AFU-V1-027 | `TestAFUV1027EffectClasses` (raised by observed `POST`, never lowered, undeclared), `TestAFUV1027EffectRaisedNeverLowered` |
@@ -728,6 +750,7 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-032 | `TestAFUV1032DocsCheckDrift` (a lost `PROVEN` and a hand-edited page fail; the check is read-only), `TestAFUV1032WaiverExpiry` (unexpired, expired and malformed waivers), `TestAFUV1032WaiverExpiryBoundary` (expired on its expiry date), `TestAFUV1032WaiverKeepsUnrenderedClaim` (a waived claim that is no longer rendered keeps its committed form) |
 | AFU-V1-033 | `TestAFUV1033AnchoredMarkdown` (a changed unanchored document passes, an unknown anchor fails the check and refuses the render), `TestAFUV1033AnchorParsing`, `TestAFUV1032DocsCheckDrift` (the coverage row and the anchored claim's lost `PROVEN`), `TestAFUV1033NonRegularMarkdownSkipped` (a symlinked `.md` is unanchored, not a failure) |
 | AFU-V1-034 | `TestAFUV1034FlowsToolProfile` (golden default and task-review `tools/list` bytes without the selector, the four tools read-only under it, unknown, empty, duplicate and mixed selectors refused, flows tools `-32602` under the other profiles), `TestAFUV1034FlowsToolsMatchCLIVerbs` (each tool's receipt equals its CLI verb's output on the shop and navigation fixtures, the CLI's argument refusals are `-32602`, a verb refusal is `flows-refused`), `TestAFUV1034CommittedFlowsReadNeverFetchesAPromisorObject` (V1-0349: a missing intent blob in a blob:none clone is refused with no fetch, also through a Git that drops `GIT_NO_LAZY_FETCH`), `TestSanitizedGitEnvironmentRefusesAPromisorFetch` (the shared environment's empty `GIT_ALLOW_PROTOCOL` alone refuses the fetch); `TestAFUV1034FlowsCompiledConformance`, `TestAFUV1034FlowsOfficialSchema` run the compiled process on both protocols and the pinned official schema |
+| AFU-V1-059 | `TestAFUV1059BuildCancellation`, `TestAFUV1059SourceWalkCancellation`, `TestAFUV1059AdaptersCancel`, `TestAFUV1059FlowsImpactCancelledMidWalk` |
 | AFU-V1-035 | `TestAFUV1035FlowsTextStaysInsideEnvelope` (a hostile navigation step string returns only between the envelope prefix and suffix, with no `structuredContent`) |
 | AFU-V1-036 | `TestAFUV1036DocsReplaceConfined`, `TestAFUV1036DocsGitPathRefused`, `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1RecordGitPathRefused`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
 | AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete`, `TestAFUV1FlowsCLIIngest`, `TestAFUV1ReadRunEvidenceDiscipline` |
@@ -789,6 +812,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-041, AFU-V1-042 | implemented: `internal/appflows/runregistry.go`, `internal/appflows/query_stability.go`, `cmd/corvint/flows.go` (`flows stability` and query qualification) |
 | AFU-V1-011..014, 038 | implemented (014 accepted observer gap; see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
+| AFU-V1-059 | accepted, decision 0512: `internal/liveverify/affected/graph.go`, `source.go`, `walk.go`, the eight language adapters, `internal/appflows/impact.go` and its CLI/MCP callers |
 | AFU-V1-034..035 | implemented and locally qualified: `internal/mcp/bridge/flows.go`, `bridge.go`, `cmd/corvint-mcp/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
 
 ## Unresolved decisions and promotion or kill criteria

@@ -16,7 +16,7 @@ import (
 
 func TestPackagesUnderBuildOutputDirectoryNamesAreSelected(t *testing.T) {
 	root := fixtureRoot(t, "directory-names")
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestIncludedDirectoryWalkBoundWidensInsteadOfRefusing_AFPV0008(t *testing.T
 		}
 	}
 
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatalf("included directory bound refused graph: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestIncludedDirectoryWalkBoundWidensInsteadOfRefusing_AFPV0008(t *testing.T
 }
 
 func TestNoGoRepositoryProducesNoUnitsOrFrontier(t *testing.T) {
-	result, err := golang.New().Units(fixtureRoot(t, "no-go"))
+	result, err := golang.New().Units(context.Background(), fixtureRoot(t, "no-go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340(t *testing.T) {
 	if err := os.Remove(deletedPath); err != nil {
 		t.Fatal(err)
 	}
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func TestTestdataIsFixtureDataNotAPackage_AFPV0008(t *testing.T) {
 		"pkg/testdata/module/fixture.go": "package fixture\n",
 		"testdata/top/top.go":            "package top\n",
 	})
-	result, err := golang.New().Units(root)
+	result, err := golang.New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +183,7 @@ func TestTestdataIsFixtureDataNotAPackage_AFPV0008(t *testing.T) {
 	if len(result.Frontier) != 0 {
 		t.Fatalf("frontier=%v", result.Frontier)
 	}
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,14 +208,14 @@ func TestWorkspaceModuleBelowTestdataIsObserved_AFPV0008(t *testing.T) {
 		"testdata/ws/ws.go":         "package ws\n",
 		"testdata/ws/testdata/x.go": "package x\n",
 	})
-	result, err := golang.New().Units(root)
+	result, err := golang.New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(result.Units) != 1 || result.Units[0].ID != "go:example.test/ws" {
 		t.Fatalf("units=%+v", result.Units)
 	}
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +245,7 @@ func TestPathLiteralSelectsItsReaderPackage_AFPV0021(t *testing.T) {
 		"user/user.go":      "package user\n\nimport _ \"example.test/m/pkg\"\n",
 		"user/user_test.go": "package user\n",
 	})
-	result, err := golang.New().Units(root)
+	result, err := golang.New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +262,7 @@ func TestPathLiteralSelectsItsReaderPackage_AFPV0021(t *testing.T) {
 	if !found {
 		t.Fatalf("no pkg unit in %v", result.Units)
 	}
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +293,7 @@ func TestPathTokenBoundNamesThePackage(t *testing.T) {
 		"core/core.go":      "package core\n",
 		"core/core_test.go": "package core\n",
 	})
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,7 +315,7 @@ func TestUnlexableSourceIsAFrontierOutsideIgnoredDirectories(t *testing.T) {
 	for file, raised := range cases {
 		root := t.TempDir()
 		writeFiles(t, root, map[string]string{"go.mod": "module example.test/m\n", file: unlexable})
-		result, err := golang.New().Units(root)
+		result, err := golang.New().Units(context.Background(), root)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -356,7 +356,7 @@ func TestTestOnlyImportSelectsTheTestUserButNotItsImporters(t *testing.T) {
 		"deeper/d.go":      "package deeper\n\nimport _ \"example.test/m/real\"\n",
 		"deeper/d_test.go": "package deeper\n",
 	})
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -403,7 +403,7 @@ func TestDirectoryShapedLiteralNamesNoPath(t *testing.T) {
 		"internal/store/s.go":     "package store\n",
 		"internal/store/rows.txt": "rows\n",
 	})
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -437,7 +437,7 @@ func TestUnownedDirtyPathSelectsItsPackageAndImporters_V1_0340(t *testing.T) {
 		"other/other.go":              "package other\n",
 		"other/other_test.go":         "package other\n",
 	})
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -491,7 +491,7 @@ func TestUnboundedReaderIsSelectedOnAnyChange_V1_0230(t *testing.T) {
 		"plain/plain.go":            "package plain\n",
 		"plain/plain_test.go":       "package plain\n",
 	})
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -531,7 +531,7 @@ func TestChangeEvidenceReadersAreNarrowed_V1_0230(t *testing.T) {
 		"split/split.go":            "package split\n\nfunc Sidecar(root string) string { return root + \"/.cor\" + \"vint/change.cem.json\" }\n",
 		"split/split_test.go":       "package split\n",
 	})
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -563,7 +563,7 @@ func TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289(t *testing.T) {
 		"plain/plain.go":          "package plain\n",
 		"plain/plain_test.go":     "package plain\n",
 	})
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}

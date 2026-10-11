@@ -1,6 +1,7 @@
 package typescript
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	json "encoding/json/v2"
@@ -115,7 +116,7 @@ type observedTypeScript struct {
 
 func (observedTypeScript) Name() string              { return "typescript" }
 func (observedTypeScript) Owns(relative string) bool { return New().Owns(relative) }
-func (language observedTypeScript) Units(string) (affected.Result, error) {
+func (language observedTypeScript) Units(context.Context, string) (affected.Result, error) {
 	return language.result, nil
 }
 
@@ -155,7 +156,7 @@ func selectPlaywrightStatic(root, configPath string, dirty []string) (Playwright
 			filtered.Frontier = append(filtered.Frontier, reason)
 		}
 	}
-	graph, err := affected.Build(root, observedTypeScript{result: filtered})
+	graph, err := affected.Build(context.Background(), root, observedTypeScript{result: filtered})
 	if err != nil {
 		return PlaywrightPlan{}, err
 	}

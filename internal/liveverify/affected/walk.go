@@ -1,6 +1,7 @@
 package affected
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -135,6 +136,16 @@ func acceptEveryName(string) bool { return true }
 
 // walkSourceFiles is one traversal of root for SourceFilesIncluding.
 func walkSourceFiles(root string, accept func(name string) bool, includedDirectories []string) ([]string, bool, error) {
+	return walkSourceFilesContext(context.Background(), root, accept, includedDirectories)
+}
+
+func walkSourceFilesContext(ctx context.Context, root string, accept func(name string) bool, includedDirectories []string) ([]string, bool, error) {
+	if root == "" || !filepath.IsAbs(root) {
+		return nil, false, fmt.Errorf("%w: root %q is not absolute", ErrInvalidLanguage, root)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, false, err
+	}
 	included := make(map[string]bool, len(includedDirectories))
 	for _, name := range includedDirectories {
 		included[name] = true
@@ -164,6 +175,9 @@ func walkSourceFiles(root string, accept func(name string) bool, includedDirecto
 		includedEntries := 1
 		subtreeBounded := false
 		err := filepath.WalkDir(includedRoot, func(current string, entry fs.DirEntry, err error) error {
+			if cancelled := ctx.Err(); cancelled != nil {
+				return cancelled
+			}
 			if err != nil {
 				return fmt.Errorf("%w: %s", ErrWalkUnreadable, current)
 			}
@@ -202,6 +216,9 @@ func walkSourceFiles(root string, accept func(name string) bool, includedDirecto
 		return subtreeBounded, err
 	}
 	err := filepath.WalkDir(root, func(current string, entry fs.DirEntry, err error) error {
+		if cancelled := ctx.Err(); cancelled != nil {
+			return cancelled
+		}
 		if err != nil {
 			// A subtree the walk cannot read would silently narrow the unit
 			// set while Select still reported BOUNDED scope; refuse instead.
