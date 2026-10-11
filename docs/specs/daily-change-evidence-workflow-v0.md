@@ -363,6 +363,8 @@ Base anchoring, refused by every subverb:
   `unsupported-impact-repository` or `unsupported-impact-path` envelope (`DCW-V0-025`).
 - `citation-plan-not-provided`, `citation-plan-unavailable`, `invalid-citation-plan`: no citation
   plan was given, its path is not a regular file, or its rows are malformed.
+- `citation-plan-row-limit-exceeded`: the citation plan has more than 256 rows; the fix text names
+  the limit and observed count (`DCW-V0-035`, proposed, V1-0394).
 - `empty-citation-plan`, `intent-manifest-over-bound`, `verify-file-over-bound`: the citation plan
   is empty while the map still owes a hunk, or the intents or verify file exceeds its bound
   (`DCW-V0-032`, accepted).
@@ -372,7 +374,9 @@ Base anchoring, refused by every subverb:
   so nothing is cited; a map left by an earlier run is never cited (proposed 2026-09-25, V1-0228,
   not accepted).
 - `ocm-link-plan-unavailable`, `empty-ocm-link-plan`, `invalid-ocm-link-plan`: the
-  `DOGFOOD_OCM_LINKS` plan is missing, empty, or malformed or over 256 rows.
+  `DOGFOOD_OCM_LINKS` plan is missing, empty, or malformed.
+- `ocm-link-plan-row-limit-exceeded`: the `DOGFOOD_OCM_LINKS` plan has more than 256 rows; the fix
+  text names the limit and observed count (`DCW-V0-035`, proposed, V1-0394).
 - `ocm-map-not-prepared`: the `ocm-link-NNN` row's intent map did not prepare, so the row was not
   run (`DCW-V0-028`, proposed).
 - `no-intent-declared`: the change declared no intent (`DCW-V0-024`); the `ocm-prepare`,
