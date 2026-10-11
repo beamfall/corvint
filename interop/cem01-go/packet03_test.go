@@ -1132,7 +1132,10 @@ func TestCEMSM016PortablePacketConformance(t *testing.T) {
 		t.Fatal(err)
 	}
 	mapDir := t.TempDir()
-	qualified := runtime.Version() == m.QualifiedRuntime
+	// The packet pins its qualified runtime; every structural tuple admitted
+	// after it (decision 0522, CEM-V1-050) reproduces the same results once
+	// runtime.goVersion is set aside, so only an unadmitted runtime refuses.
+	qualified := runtime.Version() == m.QualifiedRuntime || structuralRuntimeAdmitted(runtime.Version())
 	for _, c := range m.Cases {
 		t.Run(c.Name, func(t *testing.T) {
 			mapPath := filepath.Join(mapDir, c.Name+".json")
