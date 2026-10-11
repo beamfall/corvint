@@ -20,7 +20,7 @@ one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are proposed, pending owner acceptance (V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are proposed, pending owner acceptance (V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are proposed, pending owner acceptance (V1-1138); a map-only qualification report with a resolved-percent gate. AMAP-V0-070..072 are proposed, pending owner acceptance (V1-1144); star-export ambiguity paths and a named failed hop. AMAP-V0-075..077 are proposed, pending owner acceptance (V1-1145); `tests.root: "."` for an aliased test repository with declared-directory dirty detection. AMAP-V0-078 is proposed, pending owner acceptance (V1-1169); a same-file `const` React route array only.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are proposed, pending owner acceptance (V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are proposed, pending owner acceptance (V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are proposed, pending owner acceptance (V1-1138); a map-only qualification report with a resolved-percent gate. AMAP-V0-070..072 are proposed, pending owner acceptance (V1-1144); star-export ambiguity paths and a named failed hop. AMAP-V0-075..077 are proposed, pending owner acceptance (V1-1145); `tests.root: "."` for an aliased test repository with declared-directory dirty detection. AMAP-V0-078 is proposed, pending owner acceptance (V1-1169); a same-file `const` React route array only. AMAP-V0-079 is proposed, pending owner acceptance (V1-1220); an imported React route array read through one literal named-import hop.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -560,8 +560,24 @@ V1-1061; GitHub #705).
   stay UNKNOWN as `imported-react-routes` (no other file is read); any other declaration, assignment,
   mutation, call argument, non-top-level or trailing-expression binding (anything after the literal other than `;` or a
   statement starting on a later line), or any file holding a `${}` template substitution or a `\` escape outside a literal, MUST stay UNKNOWN as
-  `computed-react-routes`. Rails computed route arrays and imported React arrays are not read.
+  `computed-react-routes`. Rails computed route arrays are not read; an imported React array is
+  read only as AMAP-V0-079 states.
   Status: proposed, pending owner acceptance (V1-1169).
+- `AMAP-V0-079`: When NAME in `createBrowserRouter(NAME)` is bound only by one named import
+  `import { NAME } from 'SPEC'` or `import { ORIGINAL as NAME } from 'SPEC'` whose literal SPEC
+  starts with `./` or `../`, the builder MUST read the one module SPEC names at the build revision
+  (SPEC itself when it ends in `.ts`, `.tsx`, `.js` or `.jsx`, otherwise exactly one of SPEC plus
+  those extensions or `SPEC/index` plus them) and compile the array its one top-level
+  `export const ORIGINAL = [...]` binds under the AMAP-V0-078 rules, which apply to the module as
+  they apply to the router file (any other use of ORIGINAL there stays `computed-react-routes`).
+  Exactly one hop is read: an import of ORIGINAL in the module stays `imported-react-routes`, as do
+  default, namespace, `type`, `default as` and package or aliased specifiers. No candidate reads
+  `unresolved-react-routes-import` and more than one reads `ambiguous-react-routes-import`; a
+  conditional, logical, loop or `.map` construct in the module makes its states
+  `dynamic-route-context`. Derived states are anchored to the module, unnamed ones named
+  `react:<module-path>:<ordinal>`, and carry the router file as a `name_from` anchor so a change to
+  either file leaves them not FRESH. The read module counts toward the 64 router-file bound.
+  Status: proposed, pending owner acceptance (V1-1220).
 
 ## Wire contract
 
@@ -620,7 +636,8 @@ V1-1131 adds `router-not-declared`, `unsupported-rails-syntax`, `unsupported-rai
 `non-literal-react-route`, `non-literal-react-children`, `lazy-route`, `non-literal-path`,
 `non-literal-index`, `invalid-index-route`, `invalid-absolute-child`, `unsupported-react-option`,
 `dynamic-route-context`, `router-depth-exceeded` and `unsupported-route-pattern`; V1-1169 adds
-`imported-react-routes` and `computed-react-routes` (AMAP-V0-078). Unknown helper
+`imported-react-routes` and `computed-react-routes` (AMAP-V0-078); V1-1220 adds
+`unresolved-react-routes-import` and `ambiguous-react-routes-import` (AMAP-V0-079). Unknown helper
 names also reuse `non-literal-name`; blocked descendants reuse `unresolved-parent`. Unsupported
 Ruby block structure invalidates the file's extracted states. React root conditionals invalidate
 its states, while JSX quote entities/escapes and unrepresentable optional/partial parameter
@@ -742,6 +759,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-047 | `TestAMAPV0047Bounds` |
 | AMAP-V0-048 | `TestAMAPV0048DialectCLI` |
 | AMAP-V0-078 | `TestAMAPV0078ReactSameFileRouteArray` |
+| AMAP-V0-079 | `TestAMAPV0079ReactImportedRouteArray` |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
 `cmd/corvint/flows_appmap.go`, `internal/rootalias` (AMAP-V0-017). Build logs:

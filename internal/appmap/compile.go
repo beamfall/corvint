@@ -210,7 +210,7 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 		case DialectRails:
 			states, unknowns, err = readRailsRouter(r, b.rev, e, data[e.oid], &remainingRouters)
 		case DialectReact:
-			states, unknowns = parseReactRouter(e, data[e.oid])
+			states, unknowns, err = readReactRouter(r, b.rev, e, data[e.oid], &remainingRouters)
 		default:
 			states, unknowns = parseRouter(e, data[e.oid], consts.forRouter(e, data[e.oid]))
 		}
