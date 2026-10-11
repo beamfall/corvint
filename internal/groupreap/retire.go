@@ -326,12 +326,13 @@ func (r *Retirer) Result() Retirement {
 }
 
 // RunRetiring is Run with r retiring owned detached descendants after the
-// leader exits and before it is reaped. A nil r is plain Run.
+// leader exits and before it is reaped. A nil r is plain Run. Like Run, it
+// records the group for KillLive until the pre-reap release (PGO-V0-009).
 func RunRetiring(command *exec.Cmd, r *Retirer) error {
 	if r == nil {
 		return Run(command)
 	}
-	if err := command.Start(); err != nil {
+	if err := liveGroups.start(command); err != nil {
 		return err
 	}
 	r.Leader(command.Process.Pid)

@@ -23,6 +23,40 @@ func dogfoodEventArguments(event string) []string {
 	return []string{"--host", "codex", "--host-version", "unknown", "--surface", "plugin", "--adapter-version", "0.1.0", "--event", event, "--input", "-", "--budget-bytes", "8000"}
 }
 
+// AHI-001: package releases do not change the native plugin event wire version.
+func TestAHI001AdapterWireVersion(t *testing.T) {
+	t.Parallel()
+	if adapterWireVersion != "0.1.0" {
+		t.Fatalf("adapter wire version = %q, want 0.1.0", adapterWireVersion)
+	}
+	root := queryCLIRepository(t)
+	ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+	for _, host := range []string{"claude-code", "codex"} {
+		t.Run(host, func(t *testing.T) {
+			exact := options{host: host, hostVersion: dogfoodHostVersions[host], surface: "plugin", adapterVersion: "0.1.0"}
+			if !dogfoodEventHostAdmitted(exact) {
+				t.Fatal("existing wire version refused")
+			}
+			for _, version := range []string{"", "0.1.4", "0.2.3", "0.3.1", "0.2.4"} {
+				wrong := exact
+				wrong.adapterVersion = version
+				if dogfoodEventHostAdmitted(wrong) {
+					t.Fatalf("non-wire version %q admitted", version)
+				}
+			}
+			// Exercise the producer, argument parser, reader, and serialized receipt together.
+			result, reason := invokeDogfoodEvent(ctx, root, host, "stop", map[string]any{}, 8000)
+			if reason != "" {
+				t.Fatalf("native plugin event refused: %s", reason)
+			}
+			want := map[string]any{"host": host, "hostVersion": dogfoodHostVersions[host], "surface": "plugin", "adapterVersion": "0.1.0"}
+			if result["profile"] != "corvint-dogfood-event/0" || !reflect.DeepEqual(result["adapter"], want) {
+				t.Fatalf("wire receipt changed: %#v", result)
+			}
+		})
+	}
+}
+
 func TestDogfoodEventStopLifecycle(t *testing.T) {
 	t.Parallel()
 	t.Run("LCP-V0-008 stop", func(t *testing.T) {

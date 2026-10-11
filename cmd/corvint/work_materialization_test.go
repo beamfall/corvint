@@ -193,6 +193,7 @@ func workCaptureSlot(t *testing.T) {
 func TestMain(m *testing.M) {
 	executable, _ := os.Executable()
 	if !exactNativeHookEnvironment(os.Environ(), nativeHookEnvironment(executable)) {
+		os.Setenv("CORVINT_INDEX_AUTO_REFRESH", "0")
 		os.Setenv("GIT_CONFIG_PARAMETERS", "'maintenance.auto'='false' 'gc.auto'='0'")
 	}
 	code := m.Run()

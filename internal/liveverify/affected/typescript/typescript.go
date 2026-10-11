@@ -11,6 +11,7 @@ package typescript
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"path"
 	"regexp"
@@ -102,8 +103,8 @@ type packageScope struct {
 
 // Units observes every owned module and every supported test runner that can
 // be identified without executing repository code.
-func (language Language) Units(root string) (affected.Result, error) {
-	return language.UnitsSource(affected.DiskSource(root))
+func (language Language) Units(ctx context.Context, root string) (affected.Result, error) {
+	return language.UnitsSource(affected.DiskSourceContext(ctx, root))
 }
 
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {

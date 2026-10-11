@@ -53,6 +53,12 @@ func importViolation(rel, path string) string {
 	if (rel == "internal/tasks/service/descendants_linux.go" || rel == "internal/tasks/service/descendants_linux_test.go") && path == modulePrefix+"internal/groupreap" {
 		return ""
 	}
+	// The PGO-V0-009 pre-reap group kill (decision 0397's PGO-V0-009 addendum,
+	// proposed and pending owner acceptance) admits only the doctor plugin
+	// runner and the store's lease-gate and pool reap files.
+	if (rel == "internal/tasks/cli/doctor.go" || rel == "internal/tasks/store/gate_reap_waitid.go" || rel == "internal/tasks/store/pool_process_unix.go") && path == modulePrefix+"internal/groupreap" {
+		return ""
+	}
 	// The know-how write's secret screen (decision 0397's V1-0955 addendum)
 	// admits only the mutation step file and its test.
 	if (rel == "internal/tasks/mutation/know_how.go" || rel == "internal/tasks/mutation/know_how_test.go") && path == modulePrefix+"internal/secretscreen" {
@@ -115,6 +121,11 @@ func TestImportViolationControls(t *testing.T) {
 		{"internal/tasks/cli/attempt_run_test.go", modulePrefix + "internal/contextindex"},
 		{"internal/tasks/service/helper.go", modulePrefix + "internal/groupreap"},
 		{"internal/tasks/service/descendants_linux.go", modulePrefix + "internal/gitstatus"},
+		{"internal/tasks/cli/doctor_unix.go", modulePrefix + "internal/groupreap"},
+		{"internal/tasks/store/gate_reap_nowaitid.go", modulePrefix + "internal/groupreap"},
+		{"internal/tasks/store/lease_gate.go", modulePrefix + "internal/groupreap"},
+		{"internal/tasks/cli/doctor.go", modulePrefix + "internal/gitstatus"},
+		{"internal/tasks/store/pool_process_unix.go", modulePrefix + "internal/contextindex"},
 		{"internal/tasks/mutation/apply.go", modulePrefix + "internal/secretscreen"},
 		{"internal/tasks/cli/know_how.go", modulePrefix + "internal/secretscreen"},
 		{"internal/tasks/mutation/know_how.go", modulePrefix + "internal/gitstatus"},
@@ -145,6 +156,9 @@ func TestImportViolationControls(t *testing.T) {
 		{"internal/tasks/mutation/know_how_test.go", modulePrefix + "internal/secretscreen"},
 		{"internal/tasks/store/know_how_symbols.go", modulePrefix + "internal/contextindex"},
 		{"internal/tasks/obligation/expected_fail.go", modulePrefix + "internal/secretscreen"},
+		{"internal/tasks/cli/doctor.go", modulePrefix + "internal/groupreap"},
+		{"internal/tasks/store/gate_reap_waitid.go", modulePrefix + "internal/groupreap"},
+		{"internal/tasks/store/pool_process_unix.go", modulePrefix + "internal/groupreap"},
 	} {
 		if got := importViolation(c.rel, c.path); got != "" {
 			t.Errorf("accepted Core edge refused: %s", got)

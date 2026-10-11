@@ -8,6 +8,7 @@
 package dotnet
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"path"
@@ -75,8 +76,8 @@ func Address(id string) (project, filter string, ok bool) {
 }
 
 // Units observes C# compilation projects and statically discoverable tests.
-func (Language) Units(root string) (affected.Result, error) {
-	return Language{}.UnitsSource(affected.DiskSource(root))
+func (Language) Units(ctx context.Context, root string) (affected.Result, error) {
+	return Language{}.UnitsSource(affected.DiskSourceContext(ctx, root))
 }
 
 // UnitsSource reads only the explicitly supplied source universe.

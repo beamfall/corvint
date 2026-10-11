@@ -12,6 +12,7 @@
 package affected
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"unicode/utf8"
@@ -105,7 +106,7 @@ type Language interface {
 	// plugin is responsible for. A dirty path owned by no plugin widens scope.
 	Owns(path string) bool
 	// Units observes the repository rooted at the absolute path root.
-	Units(root string) (Result, error)
+	Units(ctx context.Context, root string) (Result, error)
 }
 
 // PathReader is implemented by a plugin that records path tokens, so that its

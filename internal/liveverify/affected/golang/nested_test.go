@@ -1,6 +1,7 @@
 package golang_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -49,7 +50,7 @@ func nestedEvidence(t *testing.T, root string) map[string]string {
 
 func hasNestedFrontier(t *testing.T, root string) bool {
 	t.Helper()
-	result, err := golang.New().Units(root)
+	result, err := golang.New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatalf("units: %v", err)
 	}
@@ -100,7 +101,7 @@ func TestIndependentNestedModulesCloseTheFrontier_V1_0867(t *testing.T) {
 	if got := nestedEvidence(t, root); !reflect.DeepEqual(got, want) {
 		t.Fatalf("evidence = %q, want both nested manifests read and closed", got)
 	}
-	graph, err := affected.Build(root, golang.New())
+	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}

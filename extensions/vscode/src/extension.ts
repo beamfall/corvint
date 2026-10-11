@@ -737,9 +737,12 @@ function supportedExecutionPlatform(): boolean {
   return process.platform === "darwin" || process.platform === "linux";
 }
 
-function inertError(error: unknown): string {
+export function inertError(error: unknown): string {
   if (error instanceof ProcessFailure) {
-    return `${failureCode(error)}: local Corvint process failed`;
+    const firstLine = new TextDecoder("utf-8", { fatal: false }).decode(error.stderr)
+      .split(/\r\n|[\r\n]/u).find((line) => line.trim().length > 0);
+    const detail = firstLine === undefined ? "local Corvint process failed" : display(firstLine, 200);
+    return `${failureCode(error)}: ${detail}`;
   }
   if (error instanceof McpFailure) {
     return display(`${mcpFailureCode(error)}: ${error.message}`, 500);

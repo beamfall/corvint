@@ -1,6 +1,7 @@
 package typescript
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	json "encoding/json/v2"
@@ -115,7 +116,7 @@ type observedTypeScript struct {
 
 func (observedTypeScript) Name() string              { return "typescript" }
 func (observedTypeScript) Owns(relative string) bool { return New().Owns(relative) }
-func (language observedTypeScript) Units(string) (affected.Result, error) {
+func (language observedTypeScript) Units(context.Context, string) (affected.Result, error) {
 	return language.result, nil
 }
 
@@ -155,7 +156,7 @@ func selectPlaywrightStatic(root, configPath string, dirty []string) (Playwright
 			filtered.Frontier = append(filtered.Frontier, reason)
 		}
 	}
-	graph, err := affected.Build(root, observedTypeScript{result: filtered})
+	graph, err := affected.Build(context.Background(), root, observedTypeScript{result: filtered})
 	if err != nil {
 		return PlaywrightPlan{}, err
 	}
@@ -1578,8 +1579,8 @@ func containsString(values []string, want string) bool {
 }
 
 // A changed helper no spec reaches is NO_SELECTABLE_TEST in the shared plan.
-// Only the graph's other unknowns widen the Playwright plan, which does not yet
-// name that helper; ticket V1-0211 decides how it reports one (AFP-V0-020).
+// TJAA-V0-013 explicitly excludes it from Playwright selection: a full E2E suite
+// cannot exercise it. Only other graph unknowns widen this profile (AFP-V0-020).
 func graphFrontierUnresolved(base affected.Plan) bool {
 	for _, unknown := range base.Unknown {
 		if unknown.Reason != affected.UnknownNoSelectableTest {

@@ -13,19 +13,19 @@ import (
 // output overflow kills everything it spawned.
 func containGate(cmd *exec.Cmd) { cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true} }
 
+// signalGateGroup is syscall.Kill; tests observe the store's own group
+// signals.
+var signalGateGroup = syscall.Kill
+
+// killGate SIGKILLs a bounded post-gate command's group. Its only caller
+// signals before that command is reaped (startBounded), so the group id
+// still names that command's group. No store path signals a gate's group
+// after execute has reaped its leader: reapGate sweeps the group while the
+// exited leader is unreaped where waitid allows, and elsewhere no group
+// signal is sent (V1-1047, PGO-V0-009).
 func killGate(cmd *exec.Cmd) {
 	if cmd.Process != nil {
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	}
-}
-
-// killGateGroup kills what remains of a gate's process group after the
-// gate itself has exited, such as a descendant it left running in the
-// background. A group with a live member keeps its id, so the id cannot
-// name another group while the descendant survives.
-func killGateGroup(group int) {
-	if group > 0 {
-		_ = syscall.Kill(-group, syscall.SIGKILL)
+		_ = signalGateGroup(-cmd.Process.Pid, syscall.SIGKILL)
 	}
 }
 

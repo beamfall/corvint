@@ -415,3 +415,35 @@ func TestAFUV1028ScriptedAgentCompletesGoals(t *testing.T) {
 		t.Fatalf("unmapped goal ran %d steps: %v", done, err)
 	}
 }
+
+// AFU-V1-057: excess filenames return the named refusal with no output; admitted empty
+// files preserve map and packet bytes (AFU-V1-058).
+func TestAFUV1057TrafficFileBoundCLI(t *testing.T) {
+	fx := newNavFixture(t)
+	empty := filepath.Join(t.TempDir(), "empty.jsonl")
+	if err := os.WriteFile(empty, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, goal := range []string{"", "checkout"} {
+		args := []string{"navigate", "--flows", "flows"}
+		if goal != "" {
+			args = append(args, "--goal", goal)
+		}
+		code, want, stderr := runFlowsCLI(fx.root, args...)
+		if code != 0 {
+			t.Fatalf("baseline: %d %s", code, stderr)
+		}
+		for range 256 {
+			args = append(args, "--traffic", empty)
+		}
+		code, got, stderr := runFlowsCLI(fx.root, args...)
+		if code != 0 || got != want {
+			t.Fatalf("boundary changed output: %d %s", code, stderr)
+		}
+		args = append(args, "--traffic", filepath.Join(t.TempDir(), "missing.jsonl"))
+		code, got, stderr = runFlowsCLI(fx.root, args...)
+		if code != 2 || got != "" || !strings.Contains(stderr, "navigation-bound-exceeded") {
+			t.Fatalf("excess files: %d %s %s", code, got, stderr)
+		}
+	}
+}

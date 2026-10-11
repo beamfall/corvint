@@ -11,14 +11,11 @@ import (
 
 func workContain(command *exec.Cmd) {}
 func workKillGroup(command *exec.Cmd) {
-	workTerminateGroup(command)
-}
-func workTerminateGroup(command *exec.Cmd) bool {
 	if command.Process != nil {
-		return command.Process.Kill() == nil
+		_ = command.Process.Kill()
 	}
-	return false
 }
+func workStop(command *exec.Cmd) { workKillGroup(command) }
 func workOpenExecutable(path string) (*os.File, error) {
 	return nil, errors.New("unsupported executable platform")
 }

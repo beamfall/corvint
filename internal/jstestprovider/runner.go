@@ -205,6 +205,9 @@ func errString(err error) string {
 // evidence/ipr-08-runner-selection.md section 6, item 1) and the roadmap
 // acceptance line requiring proven descendant cleanup.
 type E2EConfig struct {
+	// ScopedTempOutput keeps native generated output in provider-owned scratch.
+	// It does not admit caller-controlled runner options or paths.
+	ScopedTempOutput bool
 	Config
 	Freshness              *FreshnessConfig
 	ObserveDescendants     bool

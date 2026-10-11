@@ -8,6 +8,7 @@
 package ruby
 
 import (
+	"context"
 	"path"
 	"regexp"
 	"sort"
@@ -102,8 +103,8 @@ type loadRef struct {
 }
 
 // Units observes every Ruby file in the repository rooted at root.
-func (language Language) Units(root string) (affected.Result, error) {
-	return language.UnitsSource(affected.DiskSource(root))
+func (language Language) Units(ctx context.Context, root string) (affected.Result, error) {
+	return language.UnitsSource(affected.DiskSourceContext(ctx, root))
 }
 
 // UnitsSource reads only the explicitly supplied source universe.

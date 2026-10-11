@@ -112,7 +112,7 @@ func (b *processBuffer) Write(p []byte) (int, error) {
 // lifetime, so one overrun anywhere in that many probes sets observationErr
 // and fails the run. The larger value costs nothing in the cleanup path, where
 // the caller's context binds first -- procgroup allows BeforeStop and
-// AfterStart min(1s, ShutdownTimeout/2), internal/procgroup/process.go:291 --
+// AfterStart min(1s, ShutdownTimeout/2), internal/procgroup/process.go:332 --
 // and stop cancels the monitor before joining it, so an in-flight probe ends
 // on cancellation.
 const processProbeBudget = 2 * time.Second

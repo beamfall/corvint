@@ -1,6 +1,7 @@
 package appflows
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"maps"
@@ -160,6 +161,117 @@ func TestFlowDocMaintenanceReceiptRoundTrip(t *testing.T) {
 	again, err := ApplyDocMaintenance(context.Background(), root, o, repeated.Digest)
 	if err != nil || string(again) != string(receipt) {
 		t.Fatalf("repeat changed: %v", err)
+	}
+}
+
+// FDM-V0-003, FDM-V0-005: reseal each altered field so the digest mismatch
+// cannot mask its own integrity guard. Every case starts with a usable receipt.
+func TestFlowDocMaintenanceReceiptIntegrity(t *testing.T) {
+	for _, kind := range []string{"schema", "profile", "digest-format", "digest-mismatch", "canonical-bytes", "revision", "tree", "proposal", "ownership", "historical-provenance", "recorded", "unknown"} {
+		t.Run(kind, func(t *testing.T) {
+			root := intentRepo(t)
+			o := DocMaintenanceOptions{Flows: "flows", Docs: DocOptions{Page: "generated.md", Claims: "generated.json"}}
+			proposal, err := PreviewDocMaintenance(context.Background(), root, o)
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, err := ApplyDocMaintenance(context.Background(), root, o, proposal.Digest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var receipt DocMaintenanceReceipt
+			if err := Decode(raw, &receipt); err != nil {
+				t.Fatal(err)
+			}
+			canonical, err := doccorpus.Encode(receipt)
+			if err != nil || !bytes.Equal(raw, canonical) {
+				t.Fatalf("fixture is not canonical: %v", err)
+			}
+			writeRaw(t, root, "receipt.json", raw)
+			commitAll(t, root, "valid maintenance receipt")
+			o.Receipt = "receipt.json"
+			if p, err := PreviewDocMaintenance(context.Background(), root, o); err != nil || !p.Noop {
+				t.Fatalf("baseline receipt rejected: %+v %v", p, err)
+			}
+			switch kind {
+			case "schema":
+				receipt.Schema = "flow-doc-maintenance/invalid"
+			case "profile":
+				receipt.Profile = "invalid-template/0"
+			case "revision":
+				receipt.Revision = "invalid-revision"
+			case "tree":
+				receipt.Tree = "invalid-tree"
+			case "proposal":
+				receipt.Proposal = "invalid-proposal"
+			case "ownership":
+				receipt.Ownership = "authenticated"
+			case "historical-provenance":
+				receipt.HistoricalProvenance = "PROVEN"
+			case "recorded":
+				receipt.HistoricalProvenance = "RECORDED"
+			case "unknown":
+				receipt.HistoricalProvenance = "UNKNOWN"
+			}
+			raw, err = encodeMaintenanceReceipt(receipt)
+			if err != nil {
+				t.Fatalf("altered fixture cannot encode: %v", err)
+			}
+			if err := Decode(raw, &receipt); err != nil {
+				t.Fatal(err)
+			}
+			switch kind {
+			case "digest-format", "digest-mismatch":
+				if kind == "digest-format" {
+					receipt.Digest = "invalid-digest"
+				} else {
+					// Keep valid SHA-256 syntax and guarantee a different digest.
+					replacement := "0"
+					if receipt.Digest[0] == '0' {
+						replacement = "1"
+					}
+					receipt.Digest = replacement + receipt.Digest[1:]
+				}
+				raw, err = doccorpus.Encode(receipt)
+				if err != nil {
+					t.Fatal(err)
+				}
+			case "canonical-bytes":
+				raw = append(raw, '\n')
+			}
+			if err := Decode(raw, new(DocMaintenanceReceipt)); err != nil {
+				t.Fatalf("fixture fails before integrity validation: %v", err)
+			}
+			writeRaw(t, root, o.Receipt, raw)
+			if !bytes.Equal(raw, canonical) {
+				commitAll(t, root, "receipt integrity fixture "+kind)
+			}
+			before := treeSnapshot(t, root)
+			p, err := PreviewDocMaintenance(context.Background(), root, o)
+			valid := kind == "recorded" || kind == "unknown"
+			if valid {
+				if err != nil || !p.Noop {
+					t.Fatalf("valid provenance rejected: %+v %v", p, err)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), "invalid maintenance receipt integrity or profile") {
+				t.Fatalf("integrity guard not reached: %+v %v", p, err)
+			}
+			if valid {
+				result, err := ApplyDocMaintenance(context.Background(), root, o, p.Digest)
+				if err != nil || !bytes.Equal(result, raw) {
+					t.Fatalf("valid receipt changed: %v", err)
+				}
+			} else {
+				// Use a syntactically valid proposal to reach receipt validation in apply.
+				result, err := ApplyDocMaintenance(context.Background(), root, o, proposal.Digest)
+				if err == nil || len(result) != 0 || !strings.Contains(err.Error(), "invalid maintenance receipt integrity or profile") {
+					t.Fatalf("invalid receipt authorized apply: %s %v", result, err)
+				}
+			}
+			if !maps.Equal(before, treeSnapshot(t, root)) {
+				t.Fatal("receipt validation changed the filesystem")
+			}
+		})
 	}
 }
 

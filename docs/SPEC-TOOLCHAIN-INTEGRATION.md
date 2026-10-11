@@ -70,9 +70,11 @@ cannot carry a verification obligation, so a SpecKit integration can only ever b
 Corvint reads its `specs/NNN-slug/spec.md` output. That is still worth doing, but it is an import, not
 a contract.
 
-Neither tool emits an identifier matching Corvint's requirement grammar
-(`^- \`[A-Z][A-Z0-9-]{2,31}-[0-9]{3}\`: `, `internal/lrfrepo/ocm.go:37@13c45269`), so an ID-mapping layer
-is unavoidable in both cases.
+The current OCM reader requires exactly one `## Requirements` section and line prefixes
+`- ` followed by a backticked ID and `: `, or `- **` followed by an ID and `:** ` or `.** `.
+The ID itself matches `^[A-Z][A-Z0-9-]{2,31}-[0-9]{3}$`
+(`internal/lrfrepo/ocm.go:37@13c45269`, `internal/lrfrepo/ocm.go:560-596@2154db4c`).
+An adapter must map native identifiers and definition lines into that complete grammar.
 
 ## The three constraints any integration must respect
 
@@ -95,15 +97,17 @@ Corvint can already gate almost everything: hermetic pinned-toolchain builds, by
 reproducibility, differential parity against an independent oracle, live test execution with three
 independent verdict axes. Those are shipped and running in CI.
 
-What does not exist is the **closing decision**. `corvint frontier` is unimplemented, and the harness
-`stop` event returns `frontier.state: UNAVAILABLE` and "cannot continue or block the host"
-(`docs/specs/agent-harness-integration-v0.md:69-71@3208c7de`). Everything downstream of it is a solved
-problem; that one gate is the whole bet.
+`corvint frontier` is implemented as a deterministic, read-only review queue; the owning spec
+still labels its delivery experimental and candidate-only
+(`docs/specs/change-frontier-v0.md:10-22@8addad40`). The missing integration is a qualified
+host closing decision: the harness `stop` event reports `frontier.state: UNAVAILABLE` and
+cannot continue or block the host (`docs/specs/agent-harness-integration-v0.md:69-71@3208c7de`).
+The implemented advisory queue does not supply that host authority.
 
 ## Staged adoption
 
 1. **Observe only.** Wire an OpenSpec change to a pinned intent scope; emit a read-only frontier
-   report on agent-authored PRs. Block nothing. `verified-absence-frontier-v0.md:135-153` already
+   report on agent-authored PRs. Block nothing. `docs/specs/verified-absence-frontier-v0.md:149-165@00c1286c` already
    preregisters this experiment's success and kill thresholds — reuse them rather than inventing new
    ones.
 2. **First real gate: build and parity, not tests.** Already runs in CI, and its soundness is
@@ -111,14 +115,15 @@ problem; that one gate is the whole bet.
 3. **Live verification with honest axes.** Publish `PASSED|FAILED|INCOMPLETE`,
    `BOUNDED|UNKNOWN`, and `CURRENT|STALE` separately; let nothing collapse them. Early runs will
    legitimately show `PASSED + UNKNOWN`.
-4. **Close the loop.** Implement `corvint frontier` and give `stop` a real blocking verdict. This is
+4. **Close the loop.** Integrate the existing `corvint frontier` queue with a qualified host
+   closing decision before giving `stop` a blocking verdict. This is
    the first stage that can stop an agent, and it should not ship before step 1's signal gates pass.
 
 ## Modelling debt to clear first
 
 `authorityClass` currently carries four incompatible value sets — in the MCP bridge
 (`internal/mcp/bridge/bridge.go:939@87b754dd`), in the frontier spec
-(`change-frontier-v0.md:217`), as a lowercase constant in LRF (`internal/lrf/types.go:12@fc816169`), and as a
+(`docs/specs/change-frontier-v0.md:249-250@20d8f7d1`), as a lowercase constant in LRF (`internal/lrf/types.go:12@fc816169`), and as a
 seven-value lattice in the dashboard spec. The ordering between them is asserted per context and
 defined globally nowhere. Any spec-toolchain integration adds a fifth. One ordered lattice, one
 casing, one owner — before the adapter, not after.

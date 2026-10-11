@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -75,7 +76,7 @@ func TestPoolOutputBoundRetiresGroup(t *testing.T) {
 			return
 		}
 		if group, err := strconv.Atoi(fields[0]); err == nil && group > 1 {
-			killGateGroup(group)
+			_ = syscall.Kill(-group, syscall.SIGKILL)
 		}
 	})
 	def := &intent.PoolCommand{Argv: []string{"/bin/sh", "-c", `sleep 60 & child=$!; echo "$$ $child" > "$1"; cat "$2"; wait "$child"`, "sh", pids, path}, TimeoutSeconds: "5"}

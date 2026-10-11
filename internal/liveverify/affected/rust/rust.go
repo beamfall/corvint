@@ -9,6 +9,7 @@
 package rust
 
 import (
+	"context"
 	"path"
 	"regexp"
 	"sort"
@@ -96,8 +97,8 @@ func (Language) Name() string { return "rust" }
 func (Language) Owns(relative string) bool { return strings.HasSuffix(relative, ".rs") }
 
 // Units observes every Cargo package in the repository rooted at root.
-func (Language) Units(root string) (affected.Result, error) {
-	return Language{}.UnitsSource(affected.DiskSource(root))
+func (Language) Units(ctx context.Context, root string) (affected.Result, error) {
+	return Language{}.UnitsSource(affected.DiskSourceContext(ctx, root))
 }
 
 // UnitsSource reads only the explicitly supplied source universe.

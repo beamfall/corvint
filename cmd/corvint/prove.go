@@ -665,7 +665,7 @@ func affectedTestRows(ctx context.Context, gitExecutable string, options options
 	if err != nil {
 		return nil, nil, err
 	}
-	graph, err := affected.Build(options.root, affectedLanguages()...)
+	graph, err := affected.Build(ctx, options.root, affectedLanguages()...)
 	if err != nil {
 		return nil, nil, &gokernel.Error{Code: "unsupported-prove-affected", Message: "the affected-plan graph could not be built: " + err.Error()}
 	}

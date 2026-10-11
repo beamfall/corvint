@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"bytes"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -271,5 +272,94 @@ func TestCALV0211_SetEffectsWarnsOnExactDirectoryKey(t *testing.T) {
 	}
 	if w := exactDirectoryKeys(claim); len(w) != 2 || !strings.Contains(w[0], "PATH key lib ") || !strings.Contains(w[1], "PATH key src ") {
 		t.Fatalf("claim warnings = %q", w)
+	}
+}
+
+// TestCALV0214_CreateAndRefineWarnOnExactDirectoryKey covers the advisory
+// warning on fresh CREATE and REFINE (including batch entries), without
+// rewriting effects or warning on replay (V1-1125).
+func TestCALV0214_CreateAndRefineWarnOnExactDirectoryKey(t *testing.T) {
+	for _, tc := range []struct {
+		name, effects string
+		warn          bool
+	}{
+		{"touch-directory", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":["src"]}`, true},
+		{"resource-directory", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[{"class":"PATH","key":"src"}],"touchPaths":[]}`, true},
+		{"duplicate-directory", `{"coverage":"UNKNOWN","externalUnbounded":true,"resources":[{"class":"PATH","key":"src"}],"touchPaths":["src"]}`, true},
+		{"files", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[{"class":"PATH","key":"src/a.go"}],"touchPaths":["src/a.go"]}`, false},
+		{"trailing-slash", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[{"class":"PATH","key":"src/"}],"touchPaths":["src/"]}`, false},
+		{"absent-and-non-path", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[{"class":"DATABASE","key":"src"},{"class":"PATH","key":"absent"}],"touchPaths":["absent"]}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := serialFallbackStore(t)
+			git(t, root, "init", "-q", "-b", "main")
+			fixture.Write(t, filepath.Join(root, "src", "a.go"), []byte("a"))
+			git(t, root, "add", "src")
+			git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base")
+			check := func(x run, replay bool) {
+				t.Helper()
+				if x.res.Outcome != wire.OutcomeOK || len(x.res.Codes) != 0 {
+					t.Fatalf("mutation: %s", x.stdout)
+				}
+				want := 0
+				if tc.warn && !replay {
+					want = 1
+				}
+				w := exactDirectoryKeys(x)
+				if len(w) != want || (want == 1 && (!strings.HasPrefix(w[0], "EXACT_KEY_NAMES_DIRECTORY: PATH key src ") || !strings.HasSuffix(w[0], "use src/ to cover them"))) {
+					t.Fatalf("warnings = %q, want %d", w, want)
+				}
+			}
+			id, created := effectsTicket(t, root, "keys", "P2", tc.effects)
+			check(created, false)
+			if field(created.res.Items[0], "replayed").Bool {
+				t.Fatal("create was not fresh")
+			}
+			record := func() wire.Value {
+				t.Helper()
+				x := atm(t, root, nil, "ticket", "show", id)
+				if x.res.Outcome != wire.OutcomeOK {
+					t.Fatalf("show: %s", x.stdout)
+				}
+				rec := field(x.res.Items[0], "record")
+				if got := string(wire.Encode(field(rec, "effects"))); got != tc.effects {
+					t.Fatalf("stored effects = %s, want %s", got, tc.effects)
+				}
+				return rec
+			}
+			before := wire.Encode(record())
+			_, replay := effectsTicket(t, root, "keys", "P2", tc.effects)
+			check(replay, true)
+			if !field(replay.res.Items[0], "replayed").Bool || !bytes.Equal(before, wire.Encode(record())) {
+				t.Fatal("create replay changed the stored ticket or did not replay")
+			}
+			for _, batch := range []bool{false, true} {
+				args := []string{"ticket", "refine", "--request-id", "refine-keys", "--target", id, "--expected-revision", "1",
+					"--issued-at", "2026-10-10T12:00:00Z", "--payload", `{"title":"refined"}`}
+				if batch {
+					args = []string{"ticket", "refine", "--batch", "--request-id", "batch-keys", "--issued-at", "2026-10-10T12:01:00Z",
+						"--payload", `[{"target":"` + id + `","expectedRevision":"2","payload":{"title":"batch refined"}}]`}
+				}
+				fresh := atm(t, root, nil, args...)
+				check(fresh, false)
+				entry := fresh.res.Items[0]
+				if batch {
+					entry = field(entry, "entries").Arr[0]
+				}
+				if field(entry, "outcome").Str != "COMPLETED" || field(entry, "replayed").Bool {
+					t.Fatalf("refine was not a fresh transaction: %s", fresh.stdout)
+				}
+				before = wire.Encode(record())
+				again := atm(t, root, nil, args...)
+				check(again, true)
+				entry = again.res.Items[0]
+				if batch {
+					entry = field(entry, "entries").Arr[0]
+				}
+				if !field(entry, "replayed").Bool || !bytes.Equal(before, wire.Encode(record())) {
+					t.Fatalf("refine replay changed the stored ticket or did not replay: %s", again.stdout)
+				}
+			}
+		})
 	}
 }

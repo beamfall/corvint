@@ -507,7 +507,7 @@ func reviewGuidance(ctx context.Context, s *genesis.GuidanceSnapshot, in guidanc
 		if err := review.setAffected(full); err != nil {
 			return nil, err
 		}
-	} else if full, err := snapshotReviewAffected(s, in, paths); err != nil {
+	} else if full, err := snapshotReviewAffected(ctx, s, in, paths); err != nil {
 		return nil, err
 	} else if err := review.setAffected(full); err != nil {
 		return nil, err
@@ -642,7 +642,7 @@ func guidanceAffectedFallback(base string) string {
 
 // snapshotReviewAffected plans over the complete immutable snapshot materialized
 // in private scratch; the scratch is removed before a successful return.
-func snapshotReviewAffected(s *genesis.GuidanceSnapshot, in guidanceInvocation, paths []string) (receipt affectedReceipt, resultErr error) {
+func snapshotReviewAffected(ctx context.Context, s *genesis.GuidanceSnapshot, in guidanceInvocation, paths []string) (receipt affectedReceipt, resultErr error) {
 	scratch, err := s.Materialize()
 	if err != nil {
 		return affectedReceipt{}, err
@@ -657,7 +657,7 @@ func snapshotReviewAffected(s *genesis.GuidanceSnapshot, in guidanceInvocation, 
 			receipt = affectedReceipt{}
 		}
 	}()
-	graph, err := affected.Build(scratch, affectedLanguages()...)
+	graph, err := affected.Build(ctx, scratch, affectedLanguages()...)
 	if err != nil {
 		return affectedReceipt{}, err
 	}

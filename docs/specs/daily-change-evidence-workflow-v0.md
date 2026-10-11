@@ -324,6 +324,34 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   remediation without changing that accepted requirement. Clean verification files
   MUST retain existing recorder behavior. Non-goal: accepting shell syntax or executing
   these commands. Rollback: revert early validation; recorder admission remains intact.
+- `DCW-V0-035`: (accepted, decision 0510) The coordinator
+  MUST refuse more than 256 LF-terminated citation rows as `citation-plan-row-limit-exceeded`
+  and more than 256 OCM-link rows as `ocm-link-plan-row-limit-exceeded`, separately from
+  malformed-plan refusals. Each refusal's fix text MUST name the bound, limit and observed
+  row count; exactly 256 valid rows MUST remain admissible. No bound is raised.
+- `DCW-V0-036`: (accepted, decision 0510) Trace recording, changed-path admission and
+  stored-path validation MUST refuse more than 200 distinct normalized paths per path list
+  with `trace-path-limit-exceeded`, the path-list name, limit 200 and observed count.
+  The `record` and `dogfood-record` JSON refusal envelopes MUST expose
+  `trace-path-limit-exceeded` as their public `code`, including stored-path overflow.
+  The internal `admitted-path-limit` classification MUST remain available to changed-path
+  admission and aggregate fallback consumers; it MUST NOT replace the public code.
+  Exactly 200 valid paths MUST remain admissible; no truncation may hide the excess.
+- `DCW-V0-037`: (accepted, decision 0510) `docs/DOGFOOD.md`
+  MUST give exact staged coordinator steps for one commit with more than 256 cited hunks:
+  retain one base/patch and CEM, apply explicit plans of at most 256 rows, name every remaining
+  unknown hunk in the last plan, commit only the fully cited sidecar, and rerun/check the same
+  base. A 279-hunk fixture MUST finish with supported=279 and unknown=0. Retroactive range
+  tooling MUST NOT be advertised as staging one oversized commit. Trace and OCM-link bounds
+  remain independent; missing intent or evidence MUST stay unknown.
+
+- `DCW-V0-038`: accepted, decision 0510. Every build in Corvint's
+  dogfood wrappers MUST select the first nonempty cache from `CORVINT_GOCACHE`, caller
+  `GOCACHE`, then `/tmp/corvint-go-build-cache`: change's current-tree build and check's
+  current-tree and archived-base verifier builds, including check invoked by seal.
+  The Make targets MUST pass a selected `CORVINT_GOCACHE` (including a command-line value)
+  and preserve caller `GOCACHE` as the fallback. Cache selection MUST NOT alter verifier
+  source/version identity, strict checks or refusal behavior, or clean unrelated caches.
 
 - `DCW-V0-039`: (proposed 2026-10-11, pending owner acceptance (V1-1151)) `corvint dogfood
   batch-check [--verifier PATH] BASE` (and `make dogfood-batch-check BASE=<sha>`) MUST check a
@@ -410,6 +438,8 @@ Base anchoring, refused by every subverb:
   `unsupported-impact-repository` or `unsupported-impact-path` envelope (`DCW-V0-025`).
 - `citation-plan-not-provided`, `citation-plan-unavailable`, `invalid-citation-plan`: no citation
   plan was given, its path is not a regular file, or its rows are malformed.
+- `citation-plan-row-limit-exceeded`: the citation plan has more than 256 rows; the fix text names
+  the limit and observed count (`DCW-V0-035`, accepted, decision 0510).
 - `empty-citation-plan`, `intent-manifest-over-bound`, `verify-file-over-bound`: the citation plan
   is empty while the map still owes a hunk, or the intents or verify file exceeds its bound
   (`DCW-V0-032`, accepted).
@@ -419,7 +449,9 @@ Base anchoring, refused by every subverb:
   so nothing is cited; a map left by an earlier run is never cited (proposed 2026-09-25, V1-0228,
   not accepted).
 - `ocm-link-plan-unavailable`, `empty-ocm-link-plan`, `invalid-ocm-link-plan`: the
-  `DOGFOOD_OCM_LINKS` plan is missing, empty, or malformed or over 256 rows.
+  `DOGFOOD_OCM_LINKS` plan is missing, empty, or malformed.
+- `ocm-link-plan-row-limit-exceeded`: the `DOGFOOD_OCM_LINKS` plan has more than 256 rows; the fix
+  text names the limit and observed count (`DCW-V0-035`, accepted, decision 0510).
 - `ocm-map-not-prepared`: the `ocm-link-NNN` row's intent map did not prepare, so the row was not
   run (`DCW-V0-028`, proposed).
 - `no-intent-declared`: the change declared no intent (`DCW-V0-024`); the `ocm-prepare`,
@@ -511,12 +543,13 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-009..010` | native platform and installed exact-host evidence required | NOT_QUALIFIED |
 | `DCW-V0-011..012` | portfolio, gate and candidate evidence required | NOT_QUALIFIED |
 | `DCW-V0-016` (proposed) | `internal/dogfoodflow/change.go` `packetCoverage` (formerly `script/dogfood-change.sh` `packet_coverage_entry`); `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed`; reader: `TestConsoleDogfoodPacketCoverage`; real run recorded in the V1-0200 build-log entry | implemented; not accepted |
-| `DCW-V0-013..015` | `docs/DOGFOOD.md` "Daily adopter path"; `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed` (the repo phase's uncommitted-sidecar pass and `assert_cited_uncommitted`); `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` (real recorder refuses the untracked sidecar of a first pass with every input); `internal/dogfoodflow/change.go` `fixHints`; `TestDogfoodChangeNamesVerifySyntaxRemediation` (V1-0354: a verification line with `^` and `$` is refused `unsupported-verify-syntax` with a `fix:` line naming the admitted syntax); `TestDogfoodChangeNamesVerifyLengthRemediation` (V1-0435: a verification line over 512 characters is refused `record-failed` with a `fix:` line naming `local-outcome.stderr` and both recorder bounds); scratch reproductions recorded in the V1-0010 build-log entry; `TestFlowGitIgnoresAmbientConfigurationAndReplaceRefs` (V1-0362) | implemented; the SIGINT interrupt and reviewer leg NOT_OBSERVED |
+| `DCW-V0-013..015` | `docs/DOGFOOD.md` "Daily adopter path"; `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed` (the repo phase's uncommitted-sidecar pass and `assert_cited_uncommitted`); `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` (real recorder refuses the untracked sidecar of a first pass with every input); `internal/dogfoodflow/change.go` `fixHints`; `TestDogfoodChangeNamesVerifySyntaxRemediation` (V1-0354: a verification line with `^` and `$` is refused `unsupported-verify-syntax` with a `fix:` line naming the admitted syntax); `TestDogfoodChangeNamesVerifyLengthRemediation` (V1-0435: a verification line over 512 characters is refused `record-failed` with a `fix:` line naming `local-outcome.stderr` and both recorder bounds); `TestDogfoodDCWLinksSurviveRebind` (V1-0147: built-binary producer links all three obligations to test claims, refuses stale evidence after a content commit, and restores links by replaying the saved plan after CEM rebinding; structural linkage only, not full clause adequacy); scratch reproductions recorded in the V1-0010 build-log entry; `TestFlowGitIgnoresAmbientConfigurationAndReplaceRefs` (V1-0362) | implemented; the SIGINT interrupt and reviewer leg NOT_OBSERVED |
 | `DCW-V0-017` | `docs/DOGFOOD.md` step 11; the reviewer case in `script/dogfood-change_test.sh`; the V1-0182 build-log entry | implemented; reviewer-side verifier agreement is out of scope by design |
 | `DCW-V0-018` | `script/dogfood-change_test.sh` link phase: no plan, exact argv and order, plan digest, partial refusal across rows and intents, and unlisted-intent, CRLF, field-count, empty-item, over-256-row, empty and absent plans; the replay of the sealed LAC-V0-032 change recorded in the V1-0142 build-log entry | implemented; a link on a change delivered through this loop NOT_OBSERVED |
 | `DCW-V0-019` | `internal/dogfoodflow/change.go` `citationPlanMatchesMap` (formerly `script/dogfood-change.sh` `citation_plan_matches_map`); `script/dogfood-change_test.sh` cases `stale-nine-of-ten`, `stale-ten-of-nine`, `bootstrap-omitted`, `other-omitted`, `noncanonical-ordinal`, `split-over-row-limit` and `bootstrap-escaped`, and the transient-prepare case asserting `cem-map-not-produced`; `script/dogfood-bind-range_test.sh` (bind-range mismatch, V1-0228); `TestDogfoodReasonAdmitsCitationPlanMapMismatch`; `TestDogfoodReasonAdmitsCitationStageRefusals`; `TestMapHunksReadsAnyJSONLayout` (a compact map binds like the indent-2 one, V1-0383); `TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations` (built binary: a corrected plan joins the earlier citation and prints the delete line; after the delete only the corrected citation remains); `keepMapEncoding` and `TestDogfoodChangeKeepsTheEncodingOfACommittedMapItCitesNothingInto` (built binary: a committed compact map survives a rerun byte-identical, the worktree stays clean and check passes; the rerun exits 1 without the fix, V1-0386) | implemented; observed live on a 22-hunk map at base 34e798b: a 1-row plan refused, a 22-row plan cited all 22 |
 | `DCW-V0-020..021`, `DCW-V0-023` | `internal/dogfoodflow`; `cmd/corvint/dogfood_flow.go`; `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` (built binary only, in a Go repository with no `script/`, `VERSION` or `cmd/corvint`, with `PATH` resolving `corvint` to a failing impostor and `CORVINT_BIN` naming a missing file: change, bind, change, check, nested-root refusal, seal) | implemented; foreign-repository portability shown by that fixture only; a real non-Corvint repository NOT_OBSERVED; output parity with the former scripts is shown only for the strings and statuses `script/dogfood-change_test.sh` and `script/dogfood-bind-range_test.sh` assert, and exits 129, 130 and 143 are NOT_OBSERVED by a test |
 | `DCW-V0-022` | `script/dogfood-change_test.sh` (through the wrappers over a built driver) and `script/dogfood-bind-range_test.sh`, run in Corvint's tree | implemented; in-tree evidence only |
+| `DCW-V0-038` (accepted, decision 0510) | `script/dogfood-change.sh`, `script/dogfood-check.sh`, `Makefile`; `script/dogfood-cache_test.sh` tests every build role through direct wrappers and Make, precedence/empty fallback, archived-base source and trimpath parity, override version refusal and build failures | local stubbed build-environment evidence; real cache writes and prior containment NOT_OBSERVED |
 | `DCW-V0-025` | `internal/dogfoodflow/change.go` `prechangeImpact` and `failing`, `internal/dogfoodflow/check.go` `checkContextAbstention`, `internal/dogfoodflow/flow.go` `impactAbstentions`; `TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot` (built binary, real refusals: a repository with no Go module and a module-root Go change each complete with their own reason, check and seal); the DCW-V0-025 cases of `script/dogfood-change_test.sh` (both codes complete and check through the wrappers; each invalid shape reports its exact reason, `context-abstention-invalid`, `exit-7` or `unsupported-impact-path-suffix`; change and check print the NOTE line for all three codes) | implemented; accepted with the `GOC-V0-009` and `ERI-V0-006` amendments (decision 0388); a real Beamfall change NOT_OBSERVED |
 | `DCW-V0-026` | `internal/dogfoodflow/change.go` `run` and `prechangeImpact`, `internal/dogfoodflow/check.go` `checkContextAbstention`, `internal/localcompletion/finish.go` `terminalPaths`, `internal/observations/observations.go` `validDogfoodStep`; `TestChangeKeepsAgentPrechangeReceipts` | implemented; owner acceptance pending |
 | `DCW-V0-027` (proposed) | `internal/dogfoodflow/check.go` `unarchivedBaseCEM`, `script/dogfood-seal.sh`; `TestSealRefusesToDropAnUnarchivedBaseCEM`; the V1-0137 case of `script/dogfood-change_test.sh` | implemented; not accepted |
@@ -531,6 +564,12 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-040` (proposed, V1-1151) | `internal/dogfoodflow/change.go` `fixHints` and the sealed-CEM refusal; `TestChangeDCWV0040NamesBatchRecoveryForOversizedChanges` (each hint matched by step and reason); `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary: rebinding the merged batch refuses `sealed-cem-in-change` and names batch-check, worktree clean); `TestBatchCheckDCWV0040NamesUnboundContentAndRecovery` (batch-check's own `fix:` lines) | implemented; not accepted; a real over-budget or over-200-path refusal is not reproduced by a test |
 | `DCW-V0-041` (proposed, V1-1171) | `internal/dogfoodflow/change.go` `fixHints`; `docs/DOGFOOD.md` (the `DOGFOOD_CITATIONS` input row and the citation-plan paragraph of section 4); `TestChangeDCWV0041NamesCitationRowFix`; `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (a code and a spec citation on one hunk, an unregistered relation and a path absent at `BASE` each name their fix) | implemented; not accepted |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
+
+| Requirement | Focused evidence | Status |
+|---|---|---|
+| `DCW-V0-035` | `TestPlanRowLimits` in `internal/dogfoodflow/plan_limits_test.go`; `TestDogfoodPlanRowLimitObservationsPersist` in `internal/observations/observations_test.go`: 256/257 rows, distinct codes and fix counts | proposed |
+| `DCW-V0-036` | `TestTracePathLimitDiagnostic` in `internal/trace/record_test.go`: typed current/stored lists at 200/201; `TestRecordTracePathLimitPublicCode`, `TestRecordStoredTracePathLimitPublicCode`, `TestDogfoodRecordNativeLegacyPathLimit`: public JSON code; `TestTypedStoredTracePathLimitCode`: stored schema-v2/v3 cause; `TestLocalOutcomeTracePathLimitKeepsAdmissionReason`, `TestAggregateLegacyAdmissionAcceptsPublicTracePathLimit`: internal fallback classification | proposed |
+| `DCW-V0-037` | `TestDogfoodSingleCommitStagedCitationPlans` in `cmd/corvint/dogfood_staged_test.go`: real binary, 279 hunks, staged plans and final check | accepted, decision 0510 |
 
 ## Compatibility and rollback
 

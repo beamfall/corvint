@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -260,3 +261,7 @@ func SetDoctorCacheHookForTest(hook func(stage string)) func() {
 // DoctorPluginNamesForTest lists the plugins doctor --plugins would run
 // from dir (TQD-V0-010).
 func DoctorPluginNamesForTest(dir string) ([]string, error) { return doctorPluginNames(dir) }
+
+// DoctorPluginRunForTest runs c as doctor runs a plugin (TQD-V0-010,
+// PGO-V0-009).
+func DoctorPluginRunForTest(c *exec.Cmd) error { return doctorPluginRun(c) }

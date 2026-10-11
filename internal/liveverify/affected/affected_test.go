@@ -1,6 +1,7 @@
 package affected
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -32,7 +33,7 @@ func (language fake) Owns(path string) bool {
 	return strings.HasSuffix(path, "."+language.name)
 }
 
-func (language fake) Units(string) (Result, error) {
+func (language fake) Units(context.Context, string) (Result, error) {
 	return Result{Units: language.units, Frontier: language.frontier}, language.err
 }
 
@@ -88,7 +89,7 @@ func TestBuildRejectsUnitsThatBreakTheSeamContract(t *testing.T) {
 	}
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {
-			if _, err := Build(t.TempDir(), testCase.language); !errors.Is(err, testCase.want) {
+			if _, err := Build(context.Background(), t.TempDir(), testCase.language); !errors.Is(err, testCase.want) {
 				t.Fatalf("err=%v want=%v", err, testCase.want)
 			}
 		})
@@ -96,10 +97,10 @@ func TestBuildRejectsUnitsThatBreakTheSeamContract(t *testing.T) {
 }
 
 func TestBuildRejectsDuplicateLanguageNames(t *testing.T) {
-	if _, err := Build(t.TempDir(), fake{name: "x"}, fake{name: "x"}); !errors.Is(err, ErrInvalidLanguage) {
+	if _, err := Build(context.Background(), t.TempDir(), fake{name: "x"}, fake{name: "x"}); !errors.Is(err, ErrInvalidLanguage) {
 		t.Fatalf("err=%v", err)
 	}
-	if _, err := Build(t.TempDir()); !errors.Is(err, ErrInvalidLanguage) {
+	if _, err := Build(context.Background(), t.TempDir()); !errors.Is(err, ErrInvalidLanguage) {
 		t.Fatalf("err=%v", err)
 	}
 }
@@ -116,8 +117,12 @@ func (language walking) Name() string { return language.name }
 
 func (language walking) Owns(string) bool { return false }
 
-func (language walking) Units(root string) (Result, error) {
-	files, err := SourceFiles(root, language.accept)
+func (language walking) Units(ctx context.Context, root string) (Result, error) {
+	return language.UnitsSource(DiskSourceContext(ctx, root))
+}
+
+func (language walking) UnitsSource(root *Source) (Result, error) {
+	files, err := root.Files(language.accept)
 	*language.listed = files
 	if language.after != nil {
 		language.after()
@@ -137,7 +142,7 @@ func TestBuildPluginsShareOneWalkOfTheTree(t *testing.T) {
 	text := func(name string) bool { return strings.HasSuffix(name, ".txt") }
 	markdown := func(name string) bool { return strings.HasSuffix(name, ".md") }
 	var first, second, third []string
-	if _, err := Build(root,
+	if _, err := Build(context.Background(), root,
 		walking{name: "p", accept: text, listed: &first, after: func() { write("b.txt") }},
 		walking{name: "q", accept: text, listed: &second},
 		walking{name: "r", accept: markdown, listed: &third},
@@ -151,13 +156,13 @@ func TestBuildPluginsShareOneWalkOfTheTree(t *testing.T) {
 	if err != nil || strings.Join(outside, ",") != "a.txt,b.txt" {
 		t.Fatalf("a walk after Build must see the tree as it is: %v %v", outside, err)
 	}
-	if _, err := Build(root, walking{name: "p", accept: text, listed: &first}); err != nil || strings.Join(first, ",") != "a.txt,b.txt" {
+	if _, err := Build(context.Background(), root, walking{name: "p", accept: text, listed: &first}); err != nil || strings.Join(first, ",") != "a.txt,b.txt" {
 		t.Fatalf("a later Build must walk again: %v %v", first, err)
 	}
 }
 
 func TestSelectTraversesUntestedUnitsWithoutSelectingThem(t *testing.T) {
-	graph, err := Build(t.TempDir(), chain())
+	graph, err := Build(context.Background(), t.TempDir(), chain())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +192,7 @@ func TestSelectNamesChangedUntestedGoPackageAsUnknownScope(t *testing.T) {
 		{ID: "go:dependent", Sources: []string{"dependent/dependent.go"}, Imports: []string{"go:changed"}},
 		{ID: "go:idle", Sources: []string{"idle/idle.go"}},
 	}}
-	graph, err := Build(t.TempDir(), language)
+	graph, err := Build(context.Background(), t.TempDir(), language)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +207,7 @@ func TestSelectNamesChangedUntestedGoPackageAsUnknownScope(t *testing.T) {
 }
 
 func TestSelectGivesTheShortestWitnessChain(t *testing.T) {
-	graph, err := Build(t.TempDir(), chain())
+	graph, err := Build(context.Background(), t.TempDir(), chain())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,7 +238,7 @@ func TestSelectOrdersByDistanceThenSharedDirectoryThenUnitID(t *testing.T) {
 		{ID: "x:far", Sources: []string{"pkg/core/far.x"}, Tests: []string{"pkg/core/far_test.x"}, Imports: []string{"x:a-docs"}},
 		{ID: "x:pkg-user", Sources: []string{"pkg/core/sub/user.x"}, Tests: []string{"pkg/core/sub/user_test.x"}, Imports: []string{"x:core"}},
 	}}
-	graph, err := Build(t.TempDir(), language)
+	graph, err := Build(context.Background(), t.TempDir(), language)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +266,7 @@ func TestSelectOrdersByDistanceThenSharedDirectoryThenUnitID(t *testing.T) {
 }
 
 func TestSelectOnATestFileNamesADirectTestWitness(t *testing.T) {
-	graph, err := Build(t.TempDir(), chain())
+	graph, err := Build(context.Background(), t.TempDir(), chain())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +292,7 @@ func TestGoTestOnlyChangeSelectsItsPackageButNotItsImporters_V1_0984(t *testing.
 		{ID: "go:reader", Sources: []string{"reader/reader.go"}, Tests: []string{"reader/reader_test.go"}, UnboundedReads: "runtime.Caller"},
 		{ID: "go:solo", Sources: []string{"solo/solo.go"}, Tests: []string{"solo/solo_test.go"}},
 	}}
-	graph, err := Build(t.TempDir(), language)
+	graph, err := Build(context.Background(), t.TempDir(), language)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +341,7 @@ func TestGoTestOnlyChangeSelectsItsPackageButNotItsImporters_V1_0984(t *testing.
 		}
 	}
 
-	other, err := Build(t.TempDir(), chain())
+	other, err := Build(context.Background(), t.TempDir(), chain())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -347,7 +352,7 @@ func TestGoTestOnlyChangeSelectsItsPackageButNotItsImporters_V1_0984(t *testing.
 }
 
 func TestSelectWithNoDirtyPathsSelectsNothingAndExcludesEverything(t *testing.T) {
-	graph, err := Build(t.TempDir(), chain())
+	graph, err := Build(context.Background(), t.TempDir(), chain())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,7 +371,7 @@ func TestSelectWithNoDirtyPathsSelectsNothingAndExcludesEverything(t *testing.T)
 func TestLanguageFrontierWidensEveryPlanFromThatGraph(t *testing.T) {
 	language := chain()
 	language.frontier = []string{"x:dynamic-dispatch"}
-	graph, err := Build(t.TempDir(), language)
+	graph, err := Build(context.Background(), t.TempDir(), language)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,7 +418,7 @@ func TestFrontierBearsOnlyOnThePlansItTakesPartIn_V1_0289(t *testing.T) {
 		{[]Language{x, y, z}, []string{"app.y"}, "UNKNOWN [z:hidden]"},
 	}
 	for _, tc := range cases {
-		graph, err := Build(t.TempDir(), tc.languages...)
+		graph, err := Build(context.Background(), t.TempDir(), tc.languages...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -439,7 +444,7 @@ func readerPlan(t *testing.T, solo, mid []string, bounded bool, dirty ...string)
 	language.units[3].PathTokens = solo
 	language.units[3].PathTokensBounded = bounded
 	other := fake{name: "y", units: []Unit{{ID: "y:ui", Sources: []string{"assets/logo.y"}, Tests: []string{"assets/logo_test.y"}}}}
-	graph, err := Build(t.TempDir(), language, other)
+	graph, err := Build(context.Background(), t.TempDir(), language, other)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -508,13 +513,13 @@ func TestBoundedPathTokensAreUnknownOnlyWhenAMatchIsAttempted(t *testing.T) {
 }
 
 func TestGraphDigestChangesWithEveryObservedInput(t *testing.T) {
-	base, err := Build(t.TempDir(), chain())
+	base, err := Build(context.Background(), t.TempDir(), chain())
 	if err != nil {
 		t.Fatal(err)
 	}
 	withFrontier := chain()
 	withFrontier.frontier = []string{"x:dynamic-dispatch"}
-	widened, err := Build(t.TempDir(), withFrontier)
+	widened, err := Build(context.Background(), t.TempDir(), withFrontier)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -523,7 +528,7 @@ func TestGraphDigestChangesWithEveryObservedInput(t *testing.T) {
 	}
 	withEdge := chain()
 	withEdge.units[3].Imports = []string{"x:core"}
-	edged, err := Build(t.TempDir(), withEdge)
+	edged, err := Build(context.Background(), t.TempDir(), withEdge)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -536,7 +541,7 @@ func TestGraphDigestChangesWithEveryObservedInput(t *testing.T) {
 // documented derivation (AFP-V0-005): SHA-256 over the domain tag followed by
 // the canonical projection, which names every Unit field and no other.
 func TestGraphDigestIsTheDomainTaggedProjection_V1_0299(t *testing.T) {
-	graph, err := Build(t.TempDir(), chain())
+	graph, err := Build(context.Background(), t.TempDir(), chain())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -559,7 +564,7 @@ func TestGraphDigestIsTheDomainTaggedProjection_V1_0299(t *testing.T) {
 	scoped := chain()
 	scoped.units[3].ReadScoped = true
 	scoped.units[3].ReadScope = []string{"docs/"}
-	declared, err := Build(t.TempDir(), scoped)
+	declared, err := Build(context.Background(), t.TempDir(), scoped)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -631,7 +636,7 @@ func TestUnionMergesAnUnsavedBufferIntoTheDirtySet(t *testing.T) {
 // That equivalence is the whole point of the overlay: the editor need not
 // write to disk for the plan to be correct.
 func TestOverlayOnlyPathSelectsTheSameUnitsAsASavedEdit(t *testing.T) {
-	graph, err := Build(t.TempDir(), chain())
+	graph, err := Build(context.Background(), t.TempDir(), chain())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -711,7 +716,7 @@ func TestReachedUnitIDsIncludeDeclaredReadScopeReaders(t *testing.T) {
 	scoped := chain()
 	scoped.units[3].ReadScoped = true
 	scoped.units[3].ReadScope = []string{"docs/"}
-	graph, err := Build(t.TempDir(), scoped)
+	graph, err := Build(context.Background(), t.TempDir(), scoped)
 	if err != nil {
 		t.Fatal(err)
 	}

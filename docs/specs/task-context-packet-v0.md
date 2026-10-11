@@ -18,7 +18,7 @@ evidence row), `docs/decisions/0369-context-recency-blame-opt-in-2026-09-23.md` 
 
 ## Agent digest
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
-- Status: proposed/experimental
+- Status: proposed/experimental; TCP-V0-065 and the TCP-V0-006 amendment are accepted, decision 0516 (V1-0315). The bounded top-level `exclusions` member reports corpus gaps without changing ranking.
 - Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366); `cmd/corvint/context_lsp.go` and `internal/lspprovider` (TCP-V0-043..046 opt-in gopls `external` member under `CORVINT_CONTEXT_LSP=gopls`, experimental, decision 0371); `internal/contextindex/authority_screen.go` (TCP-V0-055..058 hidden-Unicode and self-modified-authority screen of reserved rows, experimental, V1-0414).
 - Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012 and of TCP-V0-047 (instruction-routed rows, V1-0186; idf floor and fenced-block rule, V1-0205 and V1-0206), which are implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go` and `internal/contextindex/taskcontext_routed_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it. TCP-V0-048..050 (opt-in reciprocal rank fusion in place of the corroboration count, decision 0377, ticket V1-0219) are specified and not implemented. The 2026-10-06 amendment of TCP-V0-013 and TCP-V0-059..061 (merged documentation order, strength score, omission uncertainty; V1-0859, V1-0431) is tuned on the rc.2 cases and the 2026-10-06 replay of five merged pull requests of this repository, and awaits held-out validation on a newly frozen repository (`docs/build-log/2026-10-06-v1-0859-orientation-misses.md`). TCP-V0-063 (record-data gate, V1-0859 and V1-0431, 2026-10-08) is proposed on the same development evidence and awaits the same validation (`docs/build-log/2026-10-08-v1-0431-0859-orientation-ranking.md`).
 - Read next: [Go LSP usage](../LSP.md), Explicit Go semantic integration; Requirements; Non-goals; Failure modes.
@@ -156,10 +156,10 @@ it must read, each with the relation that admitted it, without naming the task's
   its suffix is not admitted for indexing -- `subject.evidence_gap` names why instead; exactly one
   of `blob_hash` and `evidence_gap` is present, never neither and never both (AGENTS.md
   invariant 2: a subject the index could not read must say so, not look like one it could).
-- `TCP-V0-006`: `state` is `READY` when at least one result exists and `NO_CANDIDATES` otherwise;
+- `TCP-V0-006`: (amendment accepted, decision 0516 (V1-0315)) `state` is `READY` when at least one result exists and `NO_CANDIDATES` otherwise;
   `coverage` reports the candidates admitted across slots, the results included, and the results
-  omitted by the limit. The packet carries no exclusion or unparsed-path samples: nothing in it
-  can be mistaken for a result that is not one. (A) TCP-V0-011 adds sample-free `coverage` members; this ban and the two `state` values are
+  omitted by the limit. Unparsed-path samples remain absent; TCP-V0-065 adds a separate bounded
+  exclusion disclosure whose samples are gaps, never result rows. (A) TCP-V0-011 adds sample-free `coverage` members; the two `state` values are
   unchanged. Its `critical` and `critical_missing` are exhaustive over a bounded reserved set (at most fifty `governing` plus three `spec-mentioned`
   plus two `instruction-routed` rows), so they state completely what was reserved and what did not fit rather than sampling a larger unshown population.
   Accepted amendment (AT-07, decision 0052): `included_results`, `omitted_results`, `candidates` and
@@ -1090,6 +1090,27 @@ same way. Experimental: implemented in `internal/contextindex/authority_screen.g
   joined. The slot generators between two adjacent boundaries run to completion, so the retirement
   bound is the work between adjacent checks, not a constant; that worst case is not measured. An uncancelled request keeps its packet bytes.
 
+- `TCP-V0-065`: (accepted, decision 0516 (V1-0315); experimental) A task-context
+  packet with index exclusions carries a top-level `exclusions` object, separate from `results`
+  and `coverage`. Its `count` is the number of recorded index exclusion rows plus the index's
+  unsupported-suffix count, matching the impact receipt's population. Its `samples` is an array
+  of at most ten recorded exclusions, ordered by display path then reason, each with exactly
+  `path` and `reason`. Non-UTF-8 tracked paths retain IDX-SNAP-V0-024's UTF-8 display form and
+  `unsafe-or-non-utf8-path` reason, even when the task names neither that path nor a subject.
+  Unsupported-suffix exclusions contribute to the count but have no recorded row to sample;
+  the count can exceed the sample length. This is corpus-wide uncertainty about evidence the
+  index did not read, not an assertion that every excluded path is relevant to this task or that
+  the sample is exhaustive. Skipped non-blob entries and unparsed sources are outside this
+  population. When both exclusion counts are zero, the member is absent and packet bytes remain
+  identical. The disclosure is deterministic across repeated reads and snapshot reloads, does
+  not mutate the index, and changes no ranking, admission, result, coverage, state, limit or
+  schema version. It is additive for consumers that ignore unknown top-level members.
+  Acceptance evidence uses a committed Latin-1 tracked-path fixture without naming the excluded
+  path, both eager and snapshot-backed reads, more than ten constructed exclusions, a suffix-only
+  exclusion, old-consumer decoding, and frozen no-exclusion packet bytes. Rollback removes this
+  optional member and its assembly only; no index or snapshot migration is needed. Owner
+  acceptance remains unresolved regardless of passing local tests.
+
 ## Non-goals and authority
 
 Forward imports of the subject, cross-directory definition-to-reference edges, and re-export
@@ -1363,9 +1384,18 @@ off/on reports recorded in `docs/BUILD-LOG.md` under V1-0099.
 `internal/contextindex/authority_screen_test.go` (TCP-V0-055..057, experimental:
 `TestHiddenUnicodeClassesAreExactlyTheSpecSets`, `TestScreenHiddenUnicodeReportsCountClassesAndFirstSite`,
 `TestTaskContextDowngradesAGoverningFileHidingUnicode`, `TestTaskContextKeepsACleanGoverningFileAuthoritative`,
-`TestTaskContextDowngradesASpecMentionedRowHidingUnicode`, `TestTaskContextReportsAGoverningFileTheWorkingTreeModifies`,
+`TestTaskContextDowngradesASpecMentionedRowHidingUnicode`,
+`TestTaskContextScreensContentRoutedByCleanInstructions`, `TestTaskContextOrdersScreenedReservationsEndToEnd`,
+`TestTaskContextReportsAGoverningFileTheWorkingTreeModifies`,
 `TestScreenPathDowngradesAnUnreadableRow`, `TestCEMGoverningInstructionRuleMatchesThePacket`); every
 existing packet golden is unchanged (TCP-V0-058).
+
+V1-0658 adds regression evidence for the existing experimental TCP-V0-055/056 contract,
+without changing its requirements or owner-acceptance status. A clean governing file routes to
+a poisoned target; a separate packet witness places clean reservations before poisoned ones.
+Individual deletion-mutation outcomes are recorded in
+[the mutation evidence](../build-log/2026-10-10-mutation-authority-screen.md); ordinary passing
+tests alone do not establish mutation adequacy.
 
 `internal/contextindex/taskcontext_documentation_test.go` (TCP-V0-013 as amended, TCP-V0-059..061,
 experimental): `TestTaskContextDocumentationCompetesByStrength` reproduces the V1-0859 class on a
@@ -1550,7 +1580,7 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-053 | `script/qualify-lsp.py` | required live compiled CLI/MCP module and workspace qualification |
 | TCP-V0-054 | `lspevidence.Attach`, `extevidence.InlineTaskSection`, `addPathRelations` | `TestTaskPathRelationsSubjectBeforeBound`, `TestInlineTaskSectionBoundRootSubject`; public development witnesses and live CLI/MCP parity |
 | TCP-V0-055 | `hiddenUnicodeClass`, `screenHiddenUnicode`, `screenPath` (`internal/contextindex/authority_screen.go`) | `TestHiddenUnicodeClassesAreExactlyTheSpecSets`, `TestScreenHiddenUnicodeReportsCountClassesAndFirstSite`, `TestScreenPathDowngradesAnUnreadableRow` |
-| TCP-V0-056 | `screenAuthority`, `demoteScreened`, `authorityTrust`, `screenedAction`, `withAuthorityWarnings`, `governanceRefusalReason`; `reservedRows`, `instructionRoutedRows`, `governanceRows`, `governanceRefused`, `addGovernance` | `TestTaskContextDowngradesAGoverningFileHidingUnicode`, `TestTaskContextKeepsACleanGoverningFileAuthoritative`, `TestTaskContextDowngradesASpecMentionedRowHidingUnicode` |
+| TCP-V0-056 | `screenAuthority`, `demoteScreened`, `authorityTrust`, `screenedAction`, `withAuthorityWarnings`, `governanceRefusalReason`; `reservedRows`, `instructionRoutedRows`, `governanceRows`, `governanceRefused`, `addGovernance` | `TestTaskContextDowngradesAGoverningFileHidingUnicode`, `TestTaskContextKeepsACleanGoverningFileAuthoritative`, `TestTaskContextDowngradesASpecMentionedRowHidingUnicode`, `TestTaskContextScreensContentRoutedByCleanInstructions`, `TestTaskContextOrdersScreenedReservationsEndToEnd` |
 | TCP-V0-057 | `screenPath` (`Index.DirtyPaths`); `workflow.GoverningInstructionPath` | `TestTaskContextReportsAGoverningFileTheWorkingTreeModifies`, `TestCEMGoverningInstructionRuleMatchesThePacket` |
 | TCP-V0-058 | `withAuthorityWarnings` (members only on downgraded rows) | `TestTaskContextKeepsACleanGoverningFileAuthoritative`, `TestTaskContextWireIsAdditiveForAnOldConsumer` |
 | TCP-V0-059 | `lexicalRows` (`contextDocumentationShare`, `contextDocumentationQuota`, `lexicalDocumentation`, `heldPaths`, `reservedPositions`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextDocumentationCompetesByStrength`, `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (the gate) |
@@ -1559,3 +1589,4 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-063 | `isRecordDataSuffix`, `lexicalRows` (`contextRecordDataQuota`, `lexicalData`, `lexicalRecords`), `lexicalCoverage` (`lexicalCode`), `recencyLexical` (`internal/contextindex/recency.go`) | `TestTaskContextRecordDataIsGatedLikeDocumentation`, `TestTaskContextRecencyKeepsTheRecordDataGate`, `TestIsRecordDataSuffix` |
 | TCP-V0-062 | `parseTaskContextInvocation` (`contextPositionalTaskRefusal`); `runCorpusIntegration` query | `TestTaskContextPositionalTaskMatchesTheFlagBytes` (positional form, byte parity with `--task`), `TestTaskContextRefusesAmbiguousPositionalTasks` (both forms, two positionals, neither form unchanged) |
 | TCP-V0-064 | `taskContext` (final guard, `join`), `stopped` (compile boundaries, `lexicalHits` per term, `lexicalRows`) | `TestTaskContextCancellationNeverReturnsAPacket`, `TestTaskContextPreCancelledRequestReturnsCancellation` |
+| TCP-V0-006 amendment / TCP-V0-065 (accepted, decision 0516 (V1-0315)) | `taskContextCompiler.packet`, `taskContextExclusions` | `TestTaskContextDisclosesNonUTF8Exclusions`, `TestTaskContextExclusionsAreBoundedAndAdditive`, `TestTaskContextExclusionsAbsentKeepsFrozenBytes`, `TestTaskContextExclusionsCountUnsupportedSuffixes` |

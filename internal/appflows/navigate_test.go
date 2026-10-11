@@ -2,8 +2,13 @@ package appflows
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -37,6 +42,96 @@ func codeOf(err error) string {
 		return coded.Code
 	}
 	return ""
+}
+
+// AFU-V1-025: link review is step-scoped, conservative, and independent of test verification.
+func TestAFUV1025StepReviewState(t *testing.T) {
+	f := navSample("checkout")
+	entry := f.Navigation.Steps[1]
+	cases := []struct {
+		name  string
+		links []EvaluatedLink
+		want  string
+	}{
+		{"no links", nil, ""},
+		{"unrelated step", []EvaluatedLink{{From: "open", ReviewState: ReviewStale}}, ""},
+		{"direct stale", []EvaluatedLink{{From: "pay", ReviewState: ReviewStale}}, ReviewStale},
+		{"variation unreviewed", []EvaluatedLink{{From: "checkout.happy", ReviewState: ReviewUnreviewed}}, ReviewUnreviewed},
+		{"outcome stale", []EvaluatedLink{{From: "paid", ReviewState: ReviewStale}}, ReviewStale},
+		{"inferred only", []EvaluatedLink{{From: "pay", ReviewState: ReviewInferred}}, ReviewInferred},
+		{"reviewed plus inferred", []EvaluatedLink{{From: "pay", ReviewState: ReviewInferred}, {From: "paid", ReviewState: ReviewReviewed}}, ReviewReviewed},
+		{"unreviewed before reviewed", []EvaluatedLink{{From: "pay", ReviewState: ReviewUnreviewed}, {From: "paid", ReviewState: ReviewReviewed}}, ReviewUnreviewed},
+		{"stale wins", []EvaluatedLink{{From: "pay", ReviewState: ReviewUnreviewed}, {From: "paid", ReviewState: ReviewStale}}, ReviewStale},
+	}
+	for _, state := range []string{ReviewNotAncestor, ReviewNotIntentChange, ReviewAnchorUnknown, ReviewLinkNotAtAnchor, ReviewEvidenceUnavailable, ReviewTargetUnpinned} {
+		cases = append(cases, struct {
+			name  string
+			links []EvaluatedLink
+			want  string
+		}{state, []EvaluatedLink{{From: "pay", ReviewState: state}}, ReviewUnreviewed})
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := stepReviewState(f, "pay", entry, tc.links); got != tc.want {
+				t.Fatalf("review state = %q, want %q", got, tc.want)
+			}
+			// Aggregation does not depend on link declaration order.
+			for i, j := 0, len(tc.links)-1; i < j; i, j = i+1, j-1 {
+				tc.links[i], tc.links[j] = tc.links[j], tc.links[i]
+			}
+			if got := stepReviewState(f, "pay", entry, tc.links); got != tc.want {
+				t.Fatalf("reversed review state = %q, want %q", got, tc.want)
+			}
+		})
+	}
+	// A variation's outcome supports the step even when navigation expect is empty.
+	if got := stepReviewState(f, "open", f.Navigation.Steps[0], []EvaluatedLink{{From: "paid", ReviewState: ReviewStale}}); got != ReviewStale {
+		t.Fatalf("variation-only outcome review = %q", got)
+	}
+	// Expected outcomes remain supporting links even outside a variation.
+	f.Variations = nil
+	if got := stepReviewState(f, "pay", entry, []EvaluatedLink{{From: "paid", ReviewState: ReviewUnreviewed}}); got != ReviewUnreviewed {
+		t.Fatalf("navigation outcome review = %q", got)
+	}
+	// Old packets still decode and an absent review result adds no wire member.
+	var old Transition
+	if err := json.Unmarshal([]byte(`{"flow_id":"checkout","step_id":"pay","verification":"verified"}`), &old); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(old)
+	if err != nil || strings.Contains(string(raw), "review_state") || old.Verification != "verified" {
+		t.Fatalf("optional field compatibility: %s %v", raw, err)
+	}
+}
+
+// AFU-V1-025: packets carry unreviewed step, variation and recovery links without granting trust.
+func TestAFUV1025PacketReviewState(t *testing.T) {
+	f := navSample("checkout")
+	f.Steps = append(f.Steps, FlowStep{StepID: "recover", Action: "dismiss error"})
+	f.Navigation.Steps[1].Recovery = "recover"
+	f.Navigation.Steps = append(f.Navigation.Steps, NavStep{StepID: "recover", State: "/cart", Locator: NavLocator{TestID: "dismiss"}, Expect: []string{}, Effect: EffectRead})
+	f.Links = append(f.Links, FlowLink{From: "recover", Basis: "declared", Target: LinkTarget{Type: "source", Path: "app.js", StartLine: 1, EndLine: 1}})
+	root := navRepo(t, f)
+	set, err := LoadIntentsAt(context.Background(), root, "flows", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := FlowNavigationPacket(context.Background(), root, set, nil, nil, "checkout", EffectRead, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packet NavigationPacket
+	if err := json.Unmarshal(raw, &packet); err != nil {
+		t.Fatal(err)
+	}
+	if len(packet.Steps) != 2 || len(packet.Recovery) != 1 {
+		t.Fatalf("packet shape: %+v", packet)
+	}
+	for _, step := range append(packet.Steps, packet.Recovery...) {
+		if step.ReviewState != ReviewUnreviewed || step.Verification != "unverified" {
+			t.Errorf("step review: %+v", step)
+		}
+	}
 }
 
 // AFU-V1-025: a precondition flow that is not declared, or that closes a cycle, refuses the map.
@@ -233,5 +328,87 @@ func TestAFUV1029ObserverRefusesNonDisposableOrigin(t *testing.T) {
 		if _, err := LoadOriginsAt(ctx, root, "flows", "HEAD"); err == nil {
 			t.Errorf("origins.json %s accepted", body)
 		}
+	}
+}
+
+// AFU-V1-057: duplicates and empty files count; refusal precedes even an invalid first file.
+func TestAFUV1057TrafficFileBound(t *testing.T) {
+	empty := filepath.Join(t.TempDir(), "empty.jsonl")
+	if err := os.WriteFile(empty, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, count := range []int{0, maxTrafficFiles - 1, maxTrafficFiles} {
+		files := make([]string, count)
+		for i := range files {
+			files[i] = empty
+		}
+		got, err := ReadTraffic(files)
+		if err != nil || len(got) != 0 {
+			t.Fatalf("%d files: %v %v", count, got, err)
+		}
+	}
+	files := make([]string, maxTrafficFiles+1)
+	for i := range files {
+		files[i] = empty
+	}
+	files[0] = filepath.Join(t.TempDir(), "missing.jsonl")
+	got, err := ReadTraffic(files)
+	if got != nil || codeOf(err) != "navigation-bound-exceeded" || !strings.Contains(err.Error(), "traffic files") {
+		t.Fatalf("file count must refuse before reading: %v %v", got, err)
+	}
+}
+
+// AFU-V1-057: the shared 8,192-record limit remains inclusive across multiple files.
+func TestAFUV1057TrafficRecordBound(t *testing.T) {
+	root := t.TempDir()
+	line := `{"schema":"application-flow-traffic/0","flow_id":"checkout","step_id":"open","method":"GET","form_submit":false}` + "\n"
+	first, last := filepath.Join(root, "first.jsonl"), filepath.Join(root, "last.jsonl")
+	if err := os.WriteFile(first, []byte(strings.Repeat(line, maxRunRecords-1)), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(last, []byte(line), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ReadTraffic([]string{first, last})
+	if err != nil || len(got) != maxRunRecords {
+		t.Fatalf("record boundary: %d %v", len(got), err)
+	}
+	got, err = ReadTraffic([]string{first, last, last})
+	if got != nil || codeOf(err) != "navigation-bound-exceeded" {
+		t.Fatalf("excess records: %v %v", got, err)
+	}
+}
+
+// AFU-V1-058: exact-pair indexing matches the old filter and does not alter caller records.
+func TestAFUV1058TrafficIndexParity(t *testing.T) {
+	traffic := []TrafficRecord{
+		{FlowID: "checkout", StepID: "open", Method: "GET"},
+		{FlowID: "other", StepID: "open", Method: "POST"},
+		{FlowID: "checkout", StepID: "pay", Method: "POST"},
+		{FlowID: "checkout", StepID: "open", Method: "GET", FormSubmit: true},
+		{FlowID: "checkout", StepID: "open", Method: "POST"},
+		{FlowID: "unknown", StepID: "unknown", Method: "POST"},
+	}
+	before := slices.Clone(traffic)
+	index := indexTraffic(traffic)
+	for _, id := range []string{"checkout", "other", "unknown", "absent"} {
+		intent := navSample(id)
+		got := flowTransitions(intent, nil, nil, index, head{})
+		for i, step := range intent.Steps {
+			observed := slices.DeleteFunc(slices.Clone(traffic), func(r TrafficRecord) bool { return r.FlowID != id || r.StepID != step.StepID })
+			if !slices.Equal(index[trafficStep{id, step.StepID}], observed) {
+				t.Fatalf("pair %s/%s lost order or isolation", id, step.StepID)
+			}
+			want := transition(intent, step, intent.Navigation.Steps[i], observed, false)
+			if !reflect.DeepEqual(got[i], want) {
+				t.Fatalf("pair %s/%s: got %+v want %+v", id, step.StepID, got[i], want)
+			}
+		}
+	}
+	if !slices.Equal(traffic, before) {
+		t.Fatal("caller traffic mutated")
+	}
+	if len(indexTraffic(nil)) != 0 {
+		t.Fatal("empty traffic indexed")
 	}
 }

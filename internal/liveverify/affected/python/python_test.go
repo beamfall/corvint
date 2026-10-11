@@ -1,6 +1,7 @@
 package python
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -136,11 +137,11 @@ func TestUnitsGivesEachFileOneIdentity(t *testing.T) {
 	write(t, root, "src/a.py", "VALUE = 1\n")
 	write(t, root, "src/b.py", "from a import VALUE\n")
 	write(t, root, "tests/test_b.py", "from b import VALUE\n")
-	result, err := New().Units(root)
+	result, err := New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	graph, err := affected.Build(root, New())
+	graph, err := affected.Build(context.Background(), root, New())
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
