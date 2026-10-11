@@ -19,4 +19,4 @@ The evidence is the gate-ledger tests named in `docs/build-log/2026-10-10-gate-l
 
 ## Rollback
 
-Revert this decision and return the two amendment status texts to proposed. To withdraw the behavior, also revert the per-package recording of PR #764 so a failed batch records nothing again, then regenerate `docs/specs/REQUIREMENTS.tsv`. Ledger records already written stay valid under the earlier text; no migration is needed.
+Revert this decision and return the two amendment status texts to proposed. To withdraw the behavior, also revert the per-package recording of PR #764 so a failed batch records nothing again, then regenerate `docs/specs/REQUIREMENTS.tsv`. The record format stays additive (GL-V0-009); no migration is defined.
