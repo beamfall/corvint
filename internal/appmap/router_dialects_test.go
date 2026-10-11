@@ -359,3 +359,44 @@ func TestAMAPV0046SplatEmptySemantics(t *testing.T) {
 		t.Fatal(why)
 	}
 }
+
+// AMAP-V0-078: a route array bound once by a top-level const in the router file compiles like an
+// inline one; an imported, reassigned, mutated or otherwise used binding stays UNKNOWN by name.
+func TestAMAPV0078ReactSameFileRouteArray(t *testing.T) {
+	for _, src := range []string{
+		"const routes = [{id: 'home', path: '/home'}, {id: 'docs', path: '/docs', children: [{id: 'page', path: ':slug'}]}];\nexport const router = createBrowserRouter(routes);",
+		"import { createBrowserRouter } from 'react-router-dom'\nexport const routes: RouteObject[] = [{id: 'home', path: '/home'}, {id: 'docs', path: '/docs', children: [{id: 'page', path: ':slug'}]}]\nconst router = createBrowserRouter(routes)",
+	} {
+		states, u := parseReactRouter(blobEntry{path: "routes.tsx"}, []byte(src))
+		screens := dialectScreens(t, states, u)
+		if screens["home"].Template != "/home" || screens["page"].Template != "/docs/{slug}" {
+			t.Fatalf("%q: %+v", src, screens)
+		}
+	}
+	for src, want := range map[string]string{
+		"import { routes } from './routes';\ncreateBrowserRouter(routes);":                                           "imported-react-routes",
+		"import routes from './routes';\ncreateBrowserRouter(routes);":                                               "imported-react-routes",
+		"const routes = [{id: 'a', path: '/a'}];\nroutes.push({id: 'b', path: '/b'});\ncreateBrowserRouter(routes);": "computed-react-routes",
+		"let routes = [{id: 'a', path: '/a'}];\ncreateBrowserRouter(routes);":                                        "computed-react-routes",
+		"const routes = [{id: 'a', path: '/a'}].concat(more);\ncreateBrowserRouter(routes);":                         "computed-react-routes",
+		"function f() { const routes = [{id: 'a', path: '/a'}]; return createBrowserRouter(routes) }":                "computed-react-routes",
+		"const routes = [{id: 'a', path: '/a'}];\nconst routes = [];\ncreateBrowserRouter(routes);":                  "computed-react-routes",
+		"const routes = [{id: 'a', path: '/a'}];\nextend(routes);\ncreateBrowserRouter(routes);":                     "computed-react-routes",
+		"createBrowserRouter(routes);": "non-literal-react-routes",
+	} {
+		states, u := parseReactRouter(blobEntry{path: "routes.tsx"}, []byte(src))
+		screens, more := resolveScreens("test", states)
+		for _, s := range screens {
+			if s.Status == StatusResolved {
+				t.Fatalf("%q guessed %+v", src, s)
+			}
+		}
+		got := ""
+		for _, x := range append(u, more...) {
+			got += x.Reason + " "
+		}
+		if !strings.Contains(got, want) {
+			t.Fatalf("%q: reasons %q want %s", src, got, want)
+		}
+	}
+}
