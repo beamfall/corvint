@@ -1,0 +1,136 @@
+{
+  "config": {
+    "argv": [
+      "/usr/local/bin/node",
+      "/work/node_modules/playwright/cli.js",
+      "test",
+      "--config=pw.config.js",
+      "--shard=2/3",
+      "--reporter=json"
+    ],
+    "configFile": "/work/pw.config.js",
+    "rootDir": "/work/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "corvintRunIdentity": {
+        "applicationRevision": "app-1",
+        "configDigest": "cfg-1",
+        "testFileBlobs": {
+          "a.spec.js": "blob-a",
+          "b.spec.js": "blob-b",
+          "c.spec.js": "blob-c"
+        }
+      },
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/work/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "corvintRunIdentity": {
+            "applicationRevision": "app-1",
+            "configDigest": "cfg-1",
+            "testFileBlobs": {
+              "a.spec.js": "blob-a",
+              "b.spec.js": "blob-b",
+              "c.spec.js": "blob-c"
+            }
+          },
+          "actualWorkers": 1
+        },
+        "id": "node",
+        "name": "node",
+        "testDir": "/work/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": {
+      "current": 2,
+      "total": 3
+    },
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "b.spec.js",
+      "file": "b.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "checkout",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "node",
+              "projectName": "node",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T22:39:38.392Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "003f4a38eb4c6bfb7c9a-db60a1bc73c904194067",
+          "file": "b.spec.js",
+          "line": 2,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-11T22:39:38.054Z",
+    "duration": 377.93499999999995,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
