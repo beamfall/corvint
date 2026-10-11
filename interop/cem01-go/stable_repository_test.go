@@ -849,16 +849,115 @@ type s0eFullCase struct {
 	InputFixture   string         `json:"inputFixture"`
 }
 
-// s0eFrozenTuple is the structural runtime tuple the frozen S0E packet
-// records and runStableCanonical supports (stable_repository.go). The packet
-// is digest-pinned evidence, so a different toolchain marks the dependent
-// cases NOT_RUN instead of rewriting them (decision 0522).
+// s0eFrozenTuple is the structural runtime tuple the frozen S0E packet records.
 const s0eFrozenTuple = "go1.27.1"
 
-func s0eRequireFrozenTuple(t *testing.T) {
+// s0eRequireBoundTuple marks the test NOT_RUN unless the running toolchain is
+// the frozen packet's tuple or a later admitted tuple whose sealed
+// protocol/cem-1.0/structural-tuples/<version> packet binds this packet's exact
+// bytes (decision 0522, CEM-V1-050). The frozen packet is never rewritten.
+func s0eRequireBoundTuple(t *testing.T) {
 	t.Helper()
-	if runtime.Version() != s0eFrozenTuple {
-		t.Skipf("NOT_RUN: frozen S0E packet records the %s structural tuple; running %s", s0eFrozenTuple, runtime.Version())
+	if runtime.Version() == s0eFrozenTuple {
+		return
+	}
+	if reason := s0eTupleBinding(t, runtime.Version()); reason != "" {
+		t.Skipf("NOT_RUN: frozen S0E packet records the %s structural tuple; running %s: %s", s0eFrozenTuple, runtime.Version(), reason)
+	}
+}
+
+// s0eExpect returns want with a recorded go1.27.1 runtime.goVersion bound to
+// the running tuple, the only substitution a tuple packet admits. Callers have
+// passed s0eRequireBoundTuple.
+func s0eExpect(want map[string]any) map[string]any {
+	field, _ := want["runtime"].(map[string]any)
+	if v, _ := field["goVersion"].(string); v != s0eFrozenTuple || runtime.Version() == s0eFrozenTuple {
+		return want
+	}
+	bound := make(map[string]any, len(want))
+	for k, v := range want {
+		bound[k] = v
+	}
+	substituted := make(map[string]any, len(field))
+	for k, v := range field {
+		substituted[k] = v
+	}
+	substituted["goVersion"] = runtime.Version()
+	bound["runtime"] = substituted
+	return bound
+}
+
+// s0eTupleBinding checks the sealed packet admitting version against the
+// validated S0E packet and returns why it does not bind, or "".
+func s0eTupleBinding(t *testing.T, version string) string {
+	t.Helper()
+	p := s0ePacket(t)
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		return "cannot locate stable_repository_test.go"
+	}
+	dir := filepath.Join(filepath.Dir(file), "..", "..", "protocol", "cem-1.0", "structural-tuples", version)
+	if _, err := os.Stat(filepath.Join(dir, "manifest.json")); err != nil {
+		return "no sealed structural-tuple packet for " + version
+	}
+	if err := s0eValidatePacket(dir); err != nil {
+		return "tuple packet: " + err.Error()
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
+	if err != nil || !bytes.Contains(raw, []byte(`"path": "TUPLE.json"`)) {
+		return "tuple manifest does not seal TUPLE.json"
+	}
+	var tuple struct {
+		Profile          string `json:"profile"`
+		Tuple            string `json:"tuple"`
+		PredecessorTuple string `json:"predecessorTuple"`
+		Inherited        struct {
+			Packet         string            `json:"packet"`
+			ManifestSha256 string            `json:"manifestSha256"`
+			Files          map[string]string `json:"files"`
+		} `json:"inherited"`
+		Substitution struct {
+			Field, From, To string
+		} `json:"substitution"`
+	}
+	raw, _ = os.ReadFile(filepath.Join(dir, "TUPLE.json"))
+	if err := json.Unmarshal(raw, &tuple); err != nil {
+		return "TUPLE.json: " + err.Error()
+	}
+	if tuple.Profile != "cem-structural-tuple-admission/1" || tuple.Tuple != version || tuple.PredecessorTuple != s0eFrozenTuple || tuple.Inherited.Packet != "repository-envelope-packet" ||
+		tuple.Substitution.Field != "expectedResult.runtime.goVersion" || tuple.Substitution.From != s0eFrozenTuple || tuple.Substitution.To != version || len(tuple.Inherited.Files) == 0 {
+		return "TUPLE.json does not admit " + version + " over the S0E packet"
+	}
+	if b, err := os.ReadFile(filepath.Join(p, "manifest.json")); err != nil || shaHex(b) != tuple.Inherited.ManifestSha256 {
+		return "the S0E packet manifest is not the one the tuple packet binds"
+	}
+	for name, want := range tuple.Inherited.Files {
+		if b, err := os.ReadFile(filepath.Join(p, filepath.FromSlash(name))); err != nil || shaHex(b) != want {
+			return "S0E packet file " + name + " is not the one the tuple packet binds"
+		}
+	}
+	return ""
+}
+
+// TestCEMV1050StructuralTupleAdmission proves the portable structural runtime
+// gate admits exactly go1.27.1 and go1.27.2, and that every later admitted
+// tuple has a sealed packet binding the frozen S0E packet (decision 0522).
+func TestCEMV1050StructuralTupleAdmission(t *testing.T) {
+	for version, want := range map[string]bool{"go1.27.1": true, "go1.27.2": true, "go1.27.3": false, "go1.27.0": false, "go1.24.13": false} {
+		if got := structuralRuntimeAdmitted(version); got != want {
+			t.Errorf("structuralRuntimeAdmitted(%q) = %t, want %t", version, got, want)
+		}
+	}
+	for version := range structuralTuples {
+		if version == s0eFrozenTuple {
+			continue
+		}
+		if reason := s0eTupleBinding(t, version); reason != "" {
+			t.Fatalf("%s: %s", version, reason)
+		}
+	}
+	if s0eTupleBinding(t, "go1.27.3") == "" {
+		t.Fatal("an unadmitted toolchain bound the S0E packet")
 	}
 }
 
@@ -878,7 +977,7 @@ func TestStableCanonicalFullResults(t *testing.T) {
 				t.Skipf("case %d runs only under %s", id, map[bool]string{true: "go1.24.13", false: s0eFrozenTuple}[id == 21 || id == 22])
 			}
 			if !go124 {
-				s0eRequireFrozenTuple(t)
+				s0eRequireBoundTuple(t)
 			}
 			if !stableOwnerSupported() {
 				t.Skip("process containment is not qualified on " + runtime.GOOS)
@@ -887,7 +986,7 @@ func TestStableCanonicalFullResults(t *testing.T) {
 			s0eSetups[id](r)
 			got, code := runStableCanonical(r.ctx, r.repo, r.raw, s0eBase, r.target, r.artifacts, r.hooks)
 			rec := s0eRecord{ID: id, Name: c.ID, Mode: r.mode, ExpectedExit: c.ExpectedExit, ActualExit: code, Note: strings.Join(r.notes, "; ")}
-			rec.FirstDifferingKey = s0eCompare(got, code, c.ExpectedResult, c.ExpectedExit)
+			rec.FirstDifferingKey = s0eCompare(got, code, s0eExpect(c.ExpectedResult), c.ExpectedExit)
 			for _, f := range r.after {
 				if msg := f(); msg != "" {
 					rec.FirstDifferingKey = "postcondition"
@@ -910,7 +1009,7 @@ func TestStableCanonicalLinkedControl(t *testing.T) {
 	if !stableOwnerSupported() {
 		t.Skip("process containment is not qualified on " + runtime.GOOS)
 	}
-	s0eRequireFrozenTuple(t)
+	s0eRequireBoundTuple(t)
 	r := newS0eRun(t)
 	r.linked()
 	if _, e := stableAdmit(r.repo, nil); e != nil {
@@ -978,7 +1077,7 @@ func TestStableCanonicalLedgers(t *testing.T) {
 			if !stableOwnerSupported() {
 				t.Skip("process containment is not qualified on " + runtime.GOOS)
 			}
-			s0eRequireFrozenTuple(t)
+			s0eRequireBoundTuple(t)
 			r := newS0eRun(t)
 			switch l.ID {
 			case "positive-sidecar-absent":
@@ -1064,7 +1163,7 @@ func TestStableCanonicalEnvelopeCells(t *testing.T) {
 			if !stableOwnerSupported() {
 				t.Skip("process containment is not qualified on " + runtime.GOOS)
 			}
-			s0eRequireFrozenTuple(t)
+			s0eRequireBoundTuple(t)
 			files := s0eFixtures(t)
 			B := s0eTemp(t)
 			R := filepath.Join(B, "repo")
@@ -1223,7 +1322,7 @@ func TestStableCanonicalEnvelopeCells(t *testing.T) {
 			if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
 				rec.FirstDifferingKey = "stdout-json"
 			} else {
-				rec.FirstDifferingKey = s0eCompare(got, code, c.ExpectedResult, c.ExpectedExit)
+				rec.FirstDifferingKey = s0eCompare(got, code, s0eExpect(c.ExpectedResult), c.ExpectedExit)
 			}
 			if b, err := os.ReadFile(fired); err == nil {
 				rec.FirstDifferingKey = "sentinel-executed"

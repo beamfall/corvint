@@ -5,9 +5,11 @@ import (
 	"compress/zlib"
 	"context"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,6 +44,92 @@ type s0ePacket struct {
 	cases   []s0eCase
 	records map[string][]byte
 	maps    map[string][]byte
+}
+
+// s0eTupleRoot holds one sealed packet per structural tuple admitted after the
+// frozen S0E packet's go1.27.1 (decision 0522, CEM-V1-050).
+const s0eTupleRoot = "protocol/cem-1.0/structural-tuples"
+
+// s0eTuple is the binding part of a structural-tuple packet's TUPLE.json.
+type s0eTuple struct {
+	Profile          string `json:"profile"`
+	Tuple            string `json:"tuple"`
+	PredecessorTuple string `json:"predecessorTuple"`
+	Inherited        struct {
+		Packet         string            `json:"packet"`
+		ManifestSha256 string            `json:"manifestSha256"`
+		Files          map[string]string `json:"files"`
+	} `json:"inherited"`
+	Substitution struct {
+		Field string `json:"field"`
+		From  string `json:"from"`
+		To    string `json:"to"`
+	} `json:"substitution"`
+}
+
+// s0eStructuralTuple loads the sealed packet admitting version and checks that
+// it binds this exact S0E packet. It returns a reason when there is no such
+// packet or any byte or binding differs.
+func s0eStructuralTuple(packet *s0ePacket, version string) (s0eTuple, string) {
+	var tuple s0eTuple
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		return tuple, "cannot resolve the test file path"
+	}
+	dir := filepath.Join(filepath.Dir(file), "..", "..", "..", filepath.FromSlash(s0eTupleRoot), version)
+	sum := func(path string) (string, int, error) {
+		data, err := os.ReadFile(path)
+		digest := sha256.Sum256(data)
+		return hex.EncodeToString(digest[:]), len(data), err
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
+	if err != nil {
+		return tuple, "no sealed structural-tuple packet for " + version
+	}
+	var manifest struct {
+		Files []struct {
+			Path   string `json:"path"`
+			Sha256 string `json:"sha256"`
+			Bytes  int    `json:"bytes"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		return tuple, "tuple manifest: " + err.Error()
+	}
+	listed := false
+	for _, f := range manifest.Files {
+		if strings.Contains(f.Path, "..") || filepath.IsAbs(f.Path) {
+			return tuple, "tuple manifest path escapes the packet: " + f.Path
+		}
+		digest, size, err := sum(filepath.Join(dir, filepath.FromSlash(f.Path)))
+		if err != nil || digest != f.Sha256 || size != f.Bytes {
+			return tuple, "tuple packet file differs from its manifest: " + f.Path
+		}
+		listed = listed || f.Path == "TUPLE.json"
+	}
+	if !listed {
+		return tuple, "tuple manifest does not seal TUPLE.json"
+	}
+	raw, _ = os.ReadFile(filepath.Join(dir, "TUPLE.json"))
+	if err := json.Unmarshal(raw, &tuple); err != nil {
+		return tuple, "TUPLE.json: " + err.Error()
+	}
+	if tuple.Profile != "cem-structural-tuple-admission/1" || tuple.Tuple != version || tuple.Inherited.Packet != "repository-envelope-packet" ||
+		tuple.Substitution.Field != "expectedResult.runtime.goVersion" || tuple.Substitution.From != tuple.PredecessorTuple || tuple.Substitution.To != version {
+		return tuple, "TUPLE.json does not admit " + version + " over the S0E packet"
+	}
+	if digest, _, err := sum(filepath.Join(packet.root, "manifest.json")); err != nil || digest != tuple.Inherited.ManifestSha256 {
+		return tuple, "the S0E packet manifest is not the one the tuple packet binds"
+	}
+	for name, want := range tuple.Inherited.Files {
+		if digest, _, err := sum(filepath.Join(packet.root, filepath.FromSlash(name))); err != nil || digest != want {
+			return tuple, fmt.Sprintf("S0E packet file %s is not the one the tuple packet binds", name)
+		}
+	}
+	if len(tuple.Inherited.Files) == 0 {
+		return tuple, "TUPLE.json binds no S0E packet file"
+	}
+	return tuple, ""
 }
 
 func loadS0EPacket(t *testing.T) *s0ePacket {
@@ -298,5 +386,33 @@ func TestStableRepositoryRejectsCreateOverAuthenticatedEmptyBaseTree(t *testing.
 	result, exit := Stable(context.Background(), raw, StableOptions{Repository: repo, ExpectedBase: base, Target: target, ArtifactRoot: artifacts})
 	if exit != 1 || result.Outcome != "REJECT" || result.Stage != "verification" || len(result.IssueCodes) != 1 || result.IssueCodes[0] != cemcode.InvalidField || result.Axes["changeIntegrity"] != "FAILED" {
 		t.Fatalf("Stable exit=%d result=%s, want REJECT verification invalid-field with failed integrity", exit, stableResultDebug(result))
+	}
+}
+
+// TestCEMV1050StructuralTupleAdmission proves the structural runtime gate
+// admits exactly go1.27.1 and go1.27.2, and that every tuple admitted after
+// the S0E prototype tuple has a sealed packet binding the exact frozen S0E
+// packet bytes (decision 0522, CEM-V1-050).
+func TestCEMV1050StructuralTupleAdmission(t *testing.T) {
+	for version, want := range map[string]bool{"go1.27.1": true, "go1.27.2": true, "go1.27.3": false, "go1.27.0": false, "go1.24.13": false, "devel go1.28-abc": false} {
+		if got := structuralRuntimeAdmitted(version); got != want {
+			t.Errorf("structuralRuntimeAdmitted(%q) = %t, want %t", version, got, want)
+		}
+	}
+	packet := loadS0EPacket(t)
+	for version := range structuralTuples {
+		if version == "go1.27.1" {
+			continue
+		}
+		tuple, reason := s0eStructuralTuple(packet, version)
+		if reason != "" {
+			t.Fatalf("%s: %s", version, reason)
+		}
+		if !structuralTuples[tuple.PredecessorTuple] {
+			t.Errorf("%s: predecessor %s is not admitted", version, tuple.PredecessorTuple)
+		}
+	}
+	if _, reason := s0eStructuralTuple(packet, "go1.27.3"); reason == "" {
+		t.Fatal("an unadmitted toolchain bound the S0E packet")
 	}
 }

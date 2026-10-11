@@ -50,6 +50,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-005 | Existing experimental criterion lifecycle retains three killed controls under its own reviewed oracle contract | Cross-language criterion discrimination is not established by runner failures or candidate links |
 | CEM-V1-007, 014..016 | Additive native and portable candidate verification plus the optional `internal/cemcandidate` producer and `cmd/corvint-cem-candidate`; byte-compatible runner envelope extraction; actual same-target assembly and independent `/private/tmp/cem10-build/cem-next/review1.json` PASS | Existing producer/report/OCM/frontier/companion consumer migrations and their compatibility inventory remain open |
 | CEM-V1-008..010 | Historical defaults and packets retained; optional-profile rollback defined | Independent external consumer, matched external outcomes and terminal release/promotion evidence remain open |
+| CEM-V1-050 | `structuralRuntimeAdmitted` in `internal/cem/verify/stable.go` and `interop/cem01-go/cem.go`; sealed `protocol/cem-1.0/structural-tuples/go1.27.2/`; `TestCEMV1050StructuralTupleAdmission` (native and portable); S0E, linked-control, ledger and cell tests bound through the tuple packet | Linux and Windows hosts, CI-hosted go1.27.2 runs and the full structural corpus remain NOT_RUN |
 
 ## First portable candidate build contract
 
@@ -187,6 +188,28 @@ checkouts. Rollback disables the new optional operation and preserves earlier
 command defaults, candidate assembly, native task history and historical packet
 bytes. Independent producer implementation review and root source admission remain
 separate steps.
+
+## Structural runtime tuples
+
+The structural mechanical proof (`cem-0.3-structural-mechanical.md`) depends on the exact Go
+release's `go/parser`, `go/scanner`, `go/ast`, `go/token` and `go/format` (`go/printer`) behaviour, so
+the stable verifier admits it only on an exact qualified tuple and otherwise refuses with
+`unsupported-structural-runtime`.
+
+- `CEM-V1-050`: The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable
+  verifiers MUST admit structural mechanical proof only on an exact listed Go release: `go1.27.1`,
+  the tuple the frozen S0E packet records, and `go1.27.2` (decision 0522). Every other release,
+  including later patch releases, MUST keep refusing with `unsupported-structural-runtime` and no
+  weakened fallback. A tuple admitted after `go1.27.1` MUST carry its own sealed packet under
+  `protocol/cem-1.0/structural-tuples/<version>/` that binds the frozen
+  `repository-envelope-packet` manifest and result files by SHA-256, records the stdlib source and
+  behavioural byte-identity comparison against its predecessor, and admits exactly one
+  substitution: `expectedResult.runtime.goVersion` from the predecessor to the new tuple. The
+  frozen packet is never rewritten. Tests run the S0E cases, linked control, ledgers and envelope
+  cells on an admitted tuple only through that binding and report NOT_RUN otherwise.
+  Qualification stays `EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS`; admitting a tuple does not complete
+  the full corpus. Rollback removes the tuple from both lists and its packet; the frozen packet and
+  `go1.27.1` behaviour are unchanged.
 
 ## Stable verification result codes
 

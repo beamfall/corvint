@@ -518,7 +518,9 @@ and container qualification; full fallback remains available.
   `go test -json` package outcomes of one complete hosted run, recording that run and its revision;
   a failed or repeated package outcome, logs that lack a package the current table lists (unless
   the operator states the removal), or a table the partition would reject, SHALL refuse the
-  refresh and leave the table unchanged. `tools/ci-shard-costs check` SHALL report each package whose observed time differs from
+  refresh and leave the table unchanged. The table records the toolchain refresh runs under as
+  its source `goVersion`; the partition admits `go1.27.1` and `go1.27.2` (decision 0522), so
+  refresh under any other toolchain refuses. `tools/ci-shard-costs check` SHALL report each package whose observed time differs from
   its entry by more than the stated factor (default 2, ignoring differences under 10s), each
   executed package the table lacks, and each entry the run did not execute. The check is advisory
   operator evidence: it never changes membership and is not a CI gate.
@@ -552,8 +554,8 @@ and container qualification; full fallback remains available.
   nothing.
   (3) Unusable input SHALL keep packages whole and never drop a test. A file-level failure keeps
   every package whole: an allow-list or slice file that is not exactly its closed profile (unknown
-  members, trailing data, over 1 MiB), or a source other than a 40-hex revision, `go1.27.1` and a
-  run of this repository. A package-level failure keeps that package whole: a package outside the
+  members, trailing data, over 1 MiB), or a source other than a 40-hex revision, `go1.27.1` or
+  `go1.27.2` (decision 0522; generate records its own toolchain) and a run of this repository. A package-level failure keeps that package whole: a package outside the
   runtime universe or the allow-list, a cost outside 1..3,000,000 ms, an invalid, repeated or
   unsorted name, or a pattern over 64 KiB (half of Linux `MAX_ARG_STRLEN`) or that does not
   compile. Invalid package costs keep the AFP-V0-022 lexical round-robin and split nothing.

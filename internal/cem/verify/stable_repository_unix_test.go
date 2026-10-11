@@ -499,7 +499,7 @@ func TestStableS0EPublicCases(t *testing.T) {
 	}
 	for _, c := range packet.cases {
 		t.Run(c.ID, func(t *testing.T) {
-			skipS0EOtherRuntime(t, c)
+			c := s0eBindRuntime(t, packet, c)
 			result, exit, run := runS0E(t, packet, c, s0eRecipes[c.ID])
 			ok := requireS0EResult(t, c, result, exit)
 			if want, bound := s0eLedger[c.ID]; bound && run.attempted != want {
@@ -518,16 +518,40 @@ func TestStableS0EPublicCases(t *testing.T) {
 	}
 }
 
-// skipS0EOtherRuntime marks a frozen public case NOT_RUN when its recorded
-// runtime goVersion differs from the running toolchain: the packet is
-// digest-pinned evidence and is never rewritten (decision 0522).
-func skipS0EOtherRuntime(t *testing.T, c s0eCase) {
+// s0eBindRuntime returns the case with its expected runtime bound to the
+// running toolchain, or marks it NOT_RUN. A case recording the running
+// toolchain runs as published. A go1.27.1 case runs on a later admitted tuple
+// only through that tuple's sealed packet, which binds this packet's exact
+// bytes and substitutes nothing but expectedResult.runtime.goVersion
+// (decision 0522, CEM-V1-050). The frozen packet is never rewritten.
+func s0eBindRuntime(t *testing.T, packet *s0ePacket, c s0eCase) s0eCase {
 	t.Helper()
 	runtimeField, _ := c.ExpectedResult["runtime"].(map[string]any)
-	if version, _ := runtimeField["goVersion"].(string); version != runtime.Version() {
-		t.Logf("S0E-CASE %s NOT_RUN requires %s, running %s", c.ID, version, runtime.Version())
-		t.Skipf("NOT_RUN: case requires %s", version)
+	recorded, _ := runtimeField["goVersion"].(string)
+	running := runtime.Version()
+	if recorded == running {
+		return c
 	}
+	tuple, reason := s0eStructuralTuple(packet, running)
+	if reason == "" && recorded != tuple.PredecessorTuple {
+		reason = "the tuple packet substitutes only " + tuple.PredecessorTuple
+	}
+	if reason != "" {
+		t.Logf("S0E-CASE %s NOT_RUN requires %s, running %s: %s", c.ID, recorded, running, reason)
+		t.Skipf("NOT_RUN: case requires %s (%s)", recorded, reason)
+	}
+	bound := make(map[string]any, len(c.ExpectedResult))
+	for key, value := range c.ExpectedResult {
+		bound[key] = value
+	}
+	substituted := make(map[string]any, len(runtimeField))
+	for key, value := range runtimeField {
+		substituted[key] = value
+	}
+	substituted["goVersion"] = running
+	bound["runtime"] = substituted
+	c.ExpectedResult = bound
+	return c
 }
 
 // TestStableS0ELinkedControl proves that topology T-LINKED with no injection
@@ -537,7 +561,7 @@ func TestStableS0ELinkedControl(t *testing.T) {
 	packet := loadS0EPacket(t)
 	requireStableLifecyclePlatform(t)
 	c := packet.find(t, "normal-exit-lingering-descendant-contained")
-	skipS0EOtherRuntime(t, c)
+	c = s0eBindRuntime(t, packet, c)
 	result, exit, run := runS0E(t, packet, c, func(r *s0eRun) { r.linked() })
 	if requireS0EResult(t, c, result, exit) && run.attempted != s0eSealedOps {
 		t.Errorf("attempted logical operations = %d, want %d", run.attempted, s0eSealedOps)

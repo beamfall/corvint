@@ -24,9 +24,9 @@ func write(t *testing.T, name, body string) string {
 }
 
 // AFP-V0-022: costs come from retained hosted package outcomes, with the source recorded.
-// partitionGoVersion is the source toolchain the retained partition admits
-// (.github/cishards, decision 0522). Tests refresh as that toolchain unless
-// they exercise another one.
+// partitionGoVersion is the source toolchain the fixture tables record; the
+// partition admits it and go1.27.2 (.github/cishards, decision 0522). Tests
+// refresh as that toolchain unless they exercise another one.
 const partitionGoVersion = "go1.27.1"
 
 func TestMain(m *testing.M) {
@@ -35,26 +35,33 @@ func TestMain(m *testing.M) {
 }
 
 // TestAFPV0022RefreshRecordsTheSourceToolchain proves refresh records the
-// toolchain it runs under and refuses, without writing, one the partition does
-// not admit.
+// toolchain it runs under, succeeds under each admitted one (go1.27.1 and the
+// pinned go1.27.2), and refuses, without writing, one the partition does not
+// admit.
 func TestAFPV0022RefreshRecordsTheSourceToolchain(t *testing.T) {
 	logs := write(t, "raw.log", passed("example.org/a", "0.5"))
-	table := filepath.Join(t.TempDir(), "costs.json")
-	sourceGoVersion = "go1.27.99"
 	t.Cleanup(func() { sourceGoVersion = partitionGoVersion })
-	args := []string{"--table", table, "--shards", "1", "--revision", revision, "--run-url", runURL, logs}
-	if code, err := run("refresh", args, nil); code != 2 || err == nil || !strings.Contains(err.Error(), "source toolchain go1.27.99") {
+	refresh := func(version string) (string, int, error) {
+		table := filepath.Join(t.TempDir(), "costs.json")
+		sourceGoVersion = version
+		code, err := run("refresh", []string{"--table", table, "--shards", "1", "--revision", revision, "--run-url", runURL, logs}, nil)
+		return table, code, err
+	}
+	table, code, err := refresh("go1.27.99")
+	if code != 2 || err == nil || !strings.Contains(err.Error(), "source toolchain go1.27.99") {
 		t.Fatalf("unadmitted toolchain: code=%d err=%v", code, err)
 	}
 	if _, err := os.Stat(table); !os.IsNotExist(err) {
 		t.Fatalf("refused refresh wrote the table: %v", err)
 	}
-	sourceGoVersion = partitionGoVersion
-	if code, err := run("refresh", args, nil); code != 0 || err != nil {
-		t.Fatalf("admitted toolchain: code=%d err=%v", code, err)
-	}
-	if got, _ := os.ReadFile(table); !strings.Contains(string(got), `"goVersion": "`+partitionGoVersion+`"`) {
-		t.Fatalf("source goVersion not recorded:\n%s", got)
+	for _, version := range []string{"go1.27.1", "go1.27.2"} {
+		table, code, err := refresh(version)
+		if code != 0 || err != nil {
+			t.Fatalf("admitted toolchain %s: code=%d err=%v", version, code, err)
+		}
+		if got, _ := os.ReadFile(table); !strings.Contains(string(got), `"goVersion": "`+version+`"`) {
+			t.Fatalf("source goVersion %s not recorded:\n%s", version, got)
+		}
 	}
 }
 
