@@ -163,7 +163,39 @@ func Begin(ctx context.Context, root, key string, raw []byte) (Evaluation, error
 	return repo.evaluate(ctx, saved)
 }
 
+// Observed contains immutable repository facts from a completed evaluation.
+// Its zero value cannot match a repository observation.
+type Observed struct {
+	target, tree, content   string
+	root, gitDir, commonDir string
+}
+
+// Matches proves that the caller's closing observation names the evaluated content.
+func (observed Observed) Matches(target, tree string) bool {
+	return observed.target != "" && observed.tree != "" && observed.target == target && observed.tree == tree
+}
+
 func Evaluate(ctx context.Context, root, key string) (Evaluation, error) {
+	result, _, err := EvaluateObserved(ctx, root, key)
+	return result, err
+}
+
+// EvaluateObserved evaluates policy and returns the immutable facts it proved.
+func EvaluateObserved(ctx context.Context, root, key string) (Evaluation, Observed, error) {
+	var observed Observed
+	result, err := evaluateRead(ctx, root, key, nil, &observed)
+	return result, observed, err
+}
+
+// EvaluateAgainst re-reads every private policy input and checks Git status before
+// and after. The caller must first prove observed.Matches against its closing
+// repository observation. An absent or cross-repository observation falls back
+// to full evaluation; ancestry is always re-proved.
+func EvaluateAgainst(ctx context.Context, root, key string, observed Observed) (Evaluation, error) {
+	return evaluateRead(ctx, root, key, &observed, nil)
+}
+
+func evaluateRead(ctx context.Context, root, key string, pinned, observed *Observed) (Evaluation, error) {
 	repo, err := open(root, key)
 	if err != nil {
 		return Evaluation{}, err
@@ -175,22 +207,41 @@ func Evaluate(ctx context.Context, root, key string) (Evaluation, error) {
 	if err != nil {
 		return Evaluation{}, err
 	}
-	return repo.evaluate(ctx, saved)
+	if pinned != nil && (!pinned.Matches(pinned.target, pinned.tree) || pinned.root != repo.auth.Root || pinned.gitDir != repo.auth.GitDir || pinned.commonDir != repo.auth.CommonDir) {
+		pinned = nil
+	}
+	return repo.evaluateObserved(ctx, saved, pinned, observed)
 }
 
 func (repo *repository) evaluate(ctx context.Context, saved *state) (Evaluation, error) {
+	return repo.evaluateObserved(ctx, saved, nil, nil)
+}
+
+func (repo *repository) evaluateObserved(ctx context.Context, saved *state, pinned, observed *Observed) (Evaluation, error) {
 	result := Evaluation{Lifecycle: saved.Lifecycle, Unmet: []string{}, Base: saved.Plan.Base, PlanDigest: saved.PlanDigest, Intents: saved.Plan.Intents, IntentPointers: saved.IntentPointers, Plan: &saved.Plan}
 	if saved.Lifecycle == "cancelled" {
 		return result, nil
 	}
-	snap, err := repo.snapshot(ctx)
+	var snap snapshot
+	var err error
+	if pinned == nil {
+		snap, err = repo.snapshot(ctx)
+	} else {
+		snap = snapshot{target: pinned.target, tree: pinned.tree, content: pinned.content}
+		if err = repo.refreshAuthority(); err == nil {
+			snap.clean, err = repo.clean(ctx)
+		}
+	}
 	if err != nil {
 		return result, err
 	}
 	result.Target = snap.target
 	// finish diffs base against HEAD as two trees, so ancestry must still hold
 	// here too: HEAD can move to unrelated history after begin already checked it.
-	if err = repo.requireBaseAncestor(ctx, saved.Plan.Base, snap.target); err != nil {
+	// Ancestry depends on mutable shallow/graft metadata, so it is re-proved
+	// on every read rather than reused from the observation.
+	err = repo.requireBaseAncestor(ctx, saved.Plan.Base, snap.target)
+	if err != nil {
 		if err.Error() != "base-not-ancestor-of-target" {
 			return result, err
 		}
@@ -245,7 +296,19 @@ func (repo *repository) evaluate(ctx context.Context, saved *state) (Evaluation,
 		result.Unmet = append(result.Unmet, "final-check-required")
 	}
 	result.Satisfied = saved.Lifecycle == "satisfied" && len(result.Unmet) == 0
-	end, err := repo.snapshot(ctx)
+	var end snapshot
+	if pinned == nil {
+		end, err = repo.driftSnapshot(ctx)
+	} else {
+		end = snap
+		// A moved HEAD with an identical tree stays clean, so re-resolve the commit.
+		if err = repo.refreshAuthority(); err == nil {
+			end.clean, err = repo.clean(ctx)
+		}
+		if err == nil {
+			end.target, err = repo.auth.Resolve(ctx, "HEAD")
+		}
+	}
 	if err != nil {
 		return Evaluation{}, err
 	}
@@ -267,6 +330,10 @@ func (repo *repository) evaluate(ctx context.Context, saved *state) (Evaluation,
 				result.NextActions[0] = append(result.NextActions[0], "--aggregate-outcome-profile", saved.AggregateOutcome.Profile)
 			}
 		}
+	}
+	if observed != nil {
+		*observed = Observed{target: snap.target, tree: snap.tree, content: snap.content,
+			root: repo.auth.Root, gitDir: repo.auth.GitDir, commonDir: repo.auth.CommonDir}
 	}
 	return result, nil
 }
@@ -397,7 +464,7 @@ func Verify(ctx context.Context, root, key, checkID string) (Evaluation, error) 
 	}
 	result := procgroup.Run(ctx, procgroup.Spec{Argv: repo.executionArgv(saved, *selected), Dir: repo.auth.Root, Env: os.Environ(), Timeout: time.Duration(selected.TimeoutSeconds) * time.Second, OutputLimit: maxLogBytes, StderrLimit: maxLogBytes})
 	observed := observation{CheckID: checkID, CheckDigest: repo.executionDigest(saved, *selected), Target: before.target, Tree: before.tree, ContentDigest: before.content, Clean: true, Exit: strconv.Itoa(result.ExitStatus), TimedOut: result.TimedOut, Cancelled: result.Cancelled, Overflow: result.OutputOverflow}
-	after, afterErr := repo.snapshot(ctx)
+	after, afterErr := repo.driftSnapshot(ctx)
 	observed.Clean = afterErr == nil && after.clean && before.target == after.target && before.tree == after.tree
 	observed.Passed = observed.Clean && result.Err == nil && result.ExitObserved && result.ExitStatus == 0 && result.WaitCompleted && result.PipesDrained && result.OwnedProcessGroupCleanup && !result.OutputOverflow
 	if secretscreen.MatchString(string(result.Stdout)) || secretscreen.MatchString(string(result.Stderr)) {
