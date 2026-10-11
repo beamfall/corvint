@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/zlib"
+	"context"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/base64"
@@ -17,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cem/workflow"
 )
 
 // cemStablePacket is the public S0E repository-envelope packet.
@@ -159,6 +161,13 @@ func runCEMStableEntry(t *testing.T, args ...string) (int, map[string]any) {
 func TestCEMStableReadKeepsCallerRoot(t *testing.T) {
 	f := materializeCEMStableRoot(t)
 	base := filepath.Dir(f.repo)
+	// Option-shaped directory names: verify-stable stops parsing at a value that
+	// begins with "--", so its refusal keeps no expectedBase or targetRevision.
+	for _, name := range []string{"--repo", "-x", "--map"} {
+		if err := os.Symlink(f.repo, filepath.Join(base, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
 	for _, c := range []struct {
 		dir        string
 		core       []string
@@ -175,6 +184,9 @@ func TestCEMStableReadKeepsCallerRoot(t *testing.T) {
 		{f.repo, []string{"--root", ""}, "", "arguments"},
 		{f.repo, []string{"--root="}, "", "arguments"},
 		{f.repo, nil, f.repo, ""},
+		{base, []string{"--root=--repo"}, "--repo", "arguments"},
+		{base, []string{"--root=-x"}, "-x", "arguments"},
+		{base, []string{"--root=--map"}, "--map", "arguments"},
 	} {
 		t.Chdir(c.dir)
 		wantExit, want := runCEMStableEntry(t, "cem", "verify-stable", "--repository", c.repository,
@@ -193,6 +205,40 @@ func TestCEMStableReadKeepsCallerRoot(t *testing.T) {
 					c.core, action, c.dir, exit, envelope["stableVerification"], c.repository, wantExit, want)
 			}
 		}
+	}
+}
+
+// CEM-V1-017: a workflow session whose entry point never names a stable
+// repository admits its own root exactly as verify-stable judges that path, so
+// an aliased session root is refused at stage repository, not resolved.
+func TestCEMStableReadDefaultsToSessionRoot(t *testing.T) {
+	f := materializeCEMStableRoot(t)
+	wantExit, want := runCEMStableEntry(t, "cem", "verify-stable", "--repository", f.alias,
+		"--map", filepath.Join(f.repo, "change.cem.json"), "--expected-base", f.expectedBase,
+		"--target", f.target, "--artifacts", f.artifacts)
+	if want["stage"] != "repository" {
+		t.Fatalf("fixture does not discriminate the alias: verify-stable stage %v", want["stage"])
+	}
+	session, err := workflow.Open(f.alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope, err := session.Read(context.Background(), "verify", workflow.ReadOptions{MapPath: "change.cem.json",
+		ExpectedBase: f.expectedBase, Target: f.target, ArtifactRoot: f.artifacts, ArtifactsGiven: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stable, _ := envelope["stableVerification"].(workflow.StableVerification)
+	encoded, err := json.Marshal(stable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(encoded, &got); err != nil {
+		t.Fatal(err)
+	}
+	if stable.Exit != wantExit || !reflect.DeepEqual(got, want) {
+		t.Fatalf("default session root = exit %d %v\nverify-stable --repository %s = exit %d %v", stable.Exit, got, f.alias, wantExit, want)
 	}
 }
 

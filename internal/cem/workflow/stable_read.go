@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/verify"
@@ -64,7 +65,11 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 		result, exit = verify.Stable(ctx, raw, stableOptions)
 	} else {
 		// `cem verify-stable` refuses a relative or empty --repository before it
-		// reads the map.
+		// reads the map. Named first, a value beginning with "--" also stops its
+		// argument parse, so that refusal keeps no other supplied value.
+		if strings.HasPrefix(repository, "--") {
+			stableOptions = verify.StableOptions{Repository: repository}
+		}
 		result = verify.NewStableResult(stableOptions)
 		exit = result.Refuse("arguments", "invalid-arguments", false)
 	}
