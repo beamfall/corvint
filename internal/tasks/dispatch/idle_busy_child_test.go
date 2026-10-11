@@ -215,7 +215,18 @@ func TestCALV0218_ActivityObservedBeforeBlockingStops(t *testing.T) {
 		pid := w.PID
 		t.Cleanup(func() { syscall.Kill(-pid, syscall.SIGKILL) })
 	}
-	time.Sleep(200 * time.Millisecond) // let both shells install the trap
+	// The trap is set before the sleep starts, so a sleeping child proves it.
+	for i := 0; i < 100 && (len(d.ledger.Workers[0].Members) < 2 || len(d.ledger.Workers[1].Members) < 2); i++ {
+		time.Sleep(20 * time.Millisecond)
+		if err := d.Tick(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, w := range d.ledger.Workers {
+		if len(w.Members) < 2 {
+			t.Fatalf("worker %s has %d members, want the shell and its sleeping child", w.ID, len(w.Members))
+		}
+	}
 	first := d.ledger.Workers[0]
 	first.State, first.KillReason = "KILLING", "WALL"
 	defer func(f func(map[int]proc, []int)) { refineChildCPU = f }(refineChildCPU)
@@ -228,15 +239,17 @@ func TestCALV0218_ActivityObservedBeforeBlockingStops(t *testing.T) {
 	if err := d.Tick(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if took := time.Since(start); took < 900*time.Millisecond {
+	end := time.Now()
+	if took := end.Sub(start); took < 900*time.Millisecond {
 		t.Fatalf("the stop took %v; the TERM-ignoring tree should hold it for the 1s grace", took)
 	}
 	if len(calls) != 2 {
 		t.Fatalf("activity observed %d times, want once per worker", len(calls))
 	}
+	// Measured back from the tick's end, so load before the stop only adds margin.
 	for i, at := range calls {
-		if at.Sub(start) > 500*time.Millisecond {
-			t.Fatalf("worker %d's activity was observed %v into the tick, after the blocking stop", i, at.Sub(start))
+		if end.Sub(at) < 500*time.Millisecond {
+			t.Fatalf("worker %d's activity was observed %v before the tick ended, after the blocking stop", i, end.Sub(at))
 		}
 	}
 }
