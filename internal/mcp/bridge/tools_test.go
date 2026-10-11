@@ -204,7 +204,7 @@ func TestNewToolsAbstainOverTheBridgeBudget(t *testing.T) {
 			WorktreeState: "clean", DirtyPathsSHA: strings.Repeat("c", 64),
 		}, nil
 	}
-	operations.cemReport = func(context.Context, string, workflow.ReadOptions) (map[string]any, error) {
+	operations.cemReport = func(context.Context, string, string, workflow.ReadOptions) (map[string]any, error) {
 		return map[string]any{"tool": "cem-report", "mutates": false, "markdown": oversized}, nil
 	}
 	registry = registryWithOperations(registry, operations)
@@ -238,7 +238,7 @@ func TestCEMReportToolAbstainsWhenTheCheckoutMoves(t *testing.T) {
 			ObjectFormat: "sha1", ProfileID: "generic", WorktreeState: "clean", DirtyPathsSHA: strings.Repeat("c", 64),
 		}, nil
 	}
-	operations.cemReport = func(context.Context, string, workflow.ReadOptions) (map[string]any, error) {
+	operations.cemReport = func(context.Context, string, string, workflow.ReadOptions) (map[string]any, error) {
 		return map[string]any{"tool": "cem-report", "mutates": false, "markdown": "report"}, nil
 	}
 	registry = registryWithOperations(registry, operations)
@@ -248,7 +248,7 @@ func TestCEMReportToolAbstainsWhenTheCheckoutMoves(t *testing.T) {
 	if callErr != nil || result.State != "ABSTAINED" || result.Abstention.Reason != "REPOSITORY_STATE_UNSTABLE" {
 		t.Fatalf("moved checkout result=%#v error=%#v", result, callErr)
 	}
-	operations.cemReport = func(context.Context, string, workflow.ReadOptions) (map[string]any, error) {
+	operations.cemReport = func(context.Context, string, string, workflow.ReadOptions) (map[string]any, error) {
 		return nil, errors.New("unregistered")
 	}
 	registry = registryWithOperations(registry, operations)

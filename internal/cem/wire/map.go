@@ -165,7 +165,14 @@ func fieldError(format string, args ...any) *cemcode.Error {
 // ParseMap reads and validates one CEM wire document with the frozen stage-2
 // precedence: JSON errors, root object and spec, missing required fields,
 // unknown fields, then field values in normative wire order.
-func ParseMap(data []byte) (*Map, error) {
+func ParseMap(data []byte) (*Map, error) { return parseMap(data, "") }
+
+// ParseMapSpec is ParseMap for a single-profile operation: any spec other
+// than exactly want refuses unsupported-spec at the same precedence, before
+// the key-set check (CEM-SM-018).
+func ParseMapSpec(data []byte, want string) (*Map, error) { return parseMap(data, want) }
+
+func parseMap(data []byte, want string) (*Map, error) {
 	if len(data) > MaxMapBytes {
 		return nil, cemcode.New(cemcode.MapUnavailable, "map exceeds %d bytes", MaxMapBytes)
 	}
@@ -180,8 +187,16 @@ func ParseMap(data []byte) (*Map, error) {
 	if !present {
 		return nil, cemcode.New(cemcode.MissingField, "spec is required")
 	}
+	if spec.Kind == KindString && spec.Str == StableSpec {
+		// CEM-V1-018: a stable map is refused here with a pointer to its reader,
+		// never as malformed 0.x input; every other refusal keeps its message.
+		return nil, cemcode.New(cemcode.UnsupportedSpec, "%s is read only by the stable verifier (cem status or cem verify with --artifacts); this command accepts %q, %q, or %q", StableSpec, Spec01, Spec02, Spec03)
+	}
 	if spec.Kind != KindString || (spec.Str != Spec01 && !Canonical(spec.Str)) {
 		return nil, cemcode.New(cemcode.UnsupportedSpec, "spec must be %q, %q, or %q", Spec01, Spec02, Spec03)
+	}
+	if want != "" && spec.Str != want {
+		return nil, cemcode.New(cemcode.UnsupportedSpec, "spec must be %q", want)
 	}
 	required := []string{"spec", "baseRevision", "patchSha256", "evidence", "hunks"}
 	if Canonical(spec.Str) {

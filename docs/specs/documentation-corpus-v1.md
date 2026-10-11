@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -409,8 +409,9 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   file or runner version (`report-foreign-config`) leaves all tests unwitnessed with that reason. The
   bundle states the fallback `full-relevant-suite` and its limitations. Status: (accepted, decision
   0489; V1-1083; GitHub #717).
-- `DCP-V1-053`: `corvint docs --help`, which `docs corpus witness-playwright --help` prints, names
-  the qualified receipt producer: the stdout of `corvint-js-test-provider e2e --external-server` is
+- `DCP-V1-053`: `corvint docs --help`, and the `docs corpus discover-playwright --help` and
+  `docs corpus witness-playwright --help` topics (amended by `DCP-V1-056`), name the qualified
+  receipt producer: the stdout of `corvint-js-test-provider e2e --external-server` is
   the canonical qualified Playwright receipt, and `--retain` writes the same bytes under
   `.corvint/test-evidence/`. Managed-server `e2e` output is not a qualified receipt.
   `discover-playwright --receipt` reads that file unchanged. `witness-playwright --receipt-input`
@@ -434,6 +435,31 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   three-project repro through the listed-tests producer with the revision's paths, and checks both
   refusals. Status: (accepted, decision
   0520; V1-1231; GitHub #800).
+- `DCP-V1-056`: `corvint help docs corpus` and `corvint docs corpus --help` (or `-h`) print one
+  corpus help topic, not the generic `docs` orientation: it lists every operation the corpus parser
+  admits, one per line with a one-line purpose, and points at `corvint docs corpus OPERATION --help`.
+  `corvint docs corpus OPERATION --help` prints that operation's own usage, each option it admits
+  with its required or optional form and a one-line description, and a `Relative to --root:` line
+  naming exactly the `DCP-V1-054` local input options that operation admits; the two Playwright
+  operations also print the `DCP-V1-053` receipt guidance. Both forms exit 0 with empty stderr, read
+  no stdin and inspect no repository (`GPK-V0-059`), and follow the `GPK-V0-062`/`GPK-V0-064` help
+  scan: `--help` after admitted options and values is still help. The parser and the help topics
+  read one operation table (`cmd/corvint/docs_corpus_help.go`), so help cannot name an option the
+  parser refuses. An unknown operation is not a help topic: `docs corpus NAME --help` falls through
+  to the corpus parser with its refusal order unchanged. The parser checks each option before the
+  operation, so `--help` is refused first as `unsupported corpus option` (`invalid-arguments`, exit
+  2). Non-goal: `corvint help docs corpus OPERATION` is not a topic. Acceptance:
+  `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags`,
+  `TestDocsCorpusOperationFlagMatrix`.
+  Rollback: remove the corpus help topics; `docs corpus ... --help` prints `docs` help again.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #805).
+- `DCP-V1-057`: `corvint help TOPIC` with an unknown topic stays the `invalid-arguments` refusal,
+  exit 2, empty stdout, with the existing envelope members. Its message follows the argparse
+  invalid-choice convention: `unknown help topic: 'TOPIC' (choose from ...)` lists every
+  `topLevelCommands` verb in order, then the nested topics `harness event`, `docs corpus`,
+  `docs flows` and `docs maintain`, each of which `corvint help` accepts. Acceptance:
+  `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError`. Status: accepted
+  under the owner's standing auto-accept (2026-10-11; GitHub #805).
 
 ## Input and authority boundary
 
@@ -745,6 +771,8 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-046..048 | `internal/doccorpus/behavior_playwright_discovery.go`, `internal/liveverify/affected/typescript/playwright_listed_tests.go`, `playwright_discovery_list.go`, `cmd/corvint/docs_corpus_playwright.go` | `TestPlaywrightDiscoveryProducerRoundTrip`, `TestPlaywrightDiscoveryProducerRefusals`, `TestPlaywrightListedTestsMultiProject`, `TestDocsCorpusPlaywrightProducersCLI` |
 | DCP-V1-049..052 | `internal/doccorpus/behavior_playwright_witness.go`, `cmd/corvint/docs_corpus_playwright.go` | `TestPlaywrightWitnessImporter`, `TestDocsCorpusPlaywrightProducersCLI` |
 | DCP-V1-053 | `cmd/corvint/docs.go`, `cmd/corvint-js-test-provider/main.go` | `TestDocsHelpNamesPlaywrightReceiptProducer`, `TestDocsHelpProducerExampleUsesE2EFlags` |
+| DCP-V1-056 | `cmd/corvint/docs_corpus_help.go`, `cmd/corvint/docs_corpus.go`, `cmd/corvint/help.go` | `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags`, `TestDocsCorpusOperationFlagMatrix` |
+| DCP-V1-057 | `cmd/corvint/help.go` | `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions

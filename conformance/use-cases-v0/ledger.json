@@ -188,7 +188,7 @@
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/implementation.json",
-          "sha256": "ca6cee5d683bba602b21c385e48f138e75d3d4d6ef99137bba80d74d1420e187"
+          "sha256": "695d2958ed41fba7832984bf60ef11980af9eee9e3bcac2ad15f6fe5091d9c45"
         },
         "sealed-benchmark": {
           "path": "benchmarks/daily-loop-v0/receipts/run-002/UC-TASK-ORIENTATION.json",
@@ -221,7 +221,7 @@
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/implementation.json",
-          "sha256": "6b9cc997f6c2127f5b343e047edfae9a2724a597a2483ca04a5c142cb5fd7872"
+          "sha256": "0bca34046b98ab756f03f53e23a6b558090350fd1cb28a4d3f92bf889b718539"
         },
         "sealed-benchmark": {
           "path": "benchmarks/daily-loop-v0/receipts/run-002/UC-CHANGE-CONSEQUENCE.json",
@@ -254,7 +254,7 @@
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/implementation.json",
-          "sha256": "89b71788949ba39d9a6e6d4202746df6955ff571c0967856c7f05473b4add480"
+          "sha256": "f68c3bad8f1fec0635b0bc8bc54f567009eee68301806d84a09307d129b4491c"
         },
         "sealed-benchmark": {
           "path": "benchmarks/daily-loop-v0/receipts/run-002/UC-EVIDENCE-CARRYING-COMPLETION.json",

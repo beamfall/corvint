@@ -26,7 +26,19 @@ type ReadOptions struct {
 	Output       string // report only
 	Format       string // report only: empty/markdown publishes; json is read-only
 	OCMPath      string // optional explicitly supplied obligation map
+	OCMGiven     bool   // whether --ocm appeared at all, even empty
 	ReadOCM      ReviewOCMReader
+	// ArtifactRoot is the explicit absolute artifact root a cem/1.0 status or
+	// verify passes to the stable verifier (CEM-V1-017); a 0.x map refuses it.
+	ArtifactRoot   string
+	ArtifactsGiven bool // whether --artifacts appeared at all
+	// SingleSpec, when set, runs the single-profile operation for exactly
+	// that spec (CEM-SM-018): any other spec refuses unsupported-spec at the
+	// wire stage, and the independent base and target must be full lowercase
+	// commit OIDs of one width, else invalid-arguments. Empty keeps the
+	// multi-version reader, which admits symbolic revisions such as HEAD.
+	// A cem/1.0 map never reaches the stable reader under SingleSpec.
+	SingleSpec string
 }
 
 // ActionReportPreview renders the report without publishing it: the
@@ -43,11 +55,24 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 	if options.Format != "" && options.Format != "markdown" && options.Format != "json" {
 		return nil, invalidArguments("report format must be markdown or json")
 	}
-	raw, document, err := s.readMapInput(options.MapPath)
+	raw, err := s.readMapBytes(options.MapPath)
 	if err != nil {
 		return nil, err
 	}
+	document, err := wire.ParseMapSpec(raw, options.SingleSpec)
+	if err != nil {
+		// CEM-V1-019: only an exact cem/1.0 root that the 0.x parser refused
+		// reaches the stable reader; every other refusal, and every refusal of
+		// a single-profile read (CEM-SM-018), is returned unchanged.
+		if options.SingleSpec == "" && cemcode.CodeOf(err) == cemcode.UnsupportedSpec && wire.DeclaresStable(raw) {
+			return s.readStable(ctx, action, raw, options)
+		}
+		return nil, err
+	}
 	// Stage 3: profile-forbidden arguments.
+	if options.ArtifactsGiven {
+		return nil, invalidArguments("%s %s does not accept --artifacts", document.Spec, action)
+	}
 	if wire.Canonical(document.Spec) && options.PatchGiven {
 		return nil, invalidArguments("%s %s does not accept --patch", document.Spec, action)
 	}
@@ -64,6 +89,10 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 		if options.Target == "" {
 			return nil, cemcode.New(cemcode.TargetRequired, "%s %s requires --target", document.Spec, action)
 		}
+	}
+	if options.SingleSpec != "" && (!wire.IsGitOid(options.ExpectedBase) || !wire.IsGitOid(options.Target) ||
+		len(options.ExpectedBase) != len(options.Target)) {
+		return nil, invalidArguments("%s %s requires full lowercase base and target commit OIDs of one width", document.Spec, action)
 	}
 	// Stages 5–6: repository validation, after every stage-2/3/4 judgment.
 	if err := s.openRepository(); err != nil {
@@ -251,30 +280,9 @@ func (s *Session) readLegacyPatch(options ReadOptions) (string, []byte, patchEnv
 const reportWarning = "Paths and content-derived identifiers or digests can disclose repository information. Keep this report local unless the repository owner approves sharing it."
 
 func (s *Session) renderReport(document *wire.Map, verification, counts map[string]any, work, policy []any, envelope patchEnvelope, options ReadOptions, projection map[string]any) (map[string]any, error) {
-	outputRoot, outputRelative := s.gitRoot, defaultReportRelative
-	if filepath.IsAbs(options.Output) {
-		root, relative, err := s.externalReportOutput(options.Output)
-		if err != nil {
-			return nil, err
-		}
-		outputRoot, outputRelative = root, relative
-	} else if options.Output != "" {
-		outputRoot, outputRelative = s.workRoot, options.Output
-	}
-	// Fold case: on a case-insensitive volume a case variant names the map.
-	if outputRoot == s.workRoot && strings.EqualFold(outputRelative, options.MapPath) {
-		return nil, invalidArguments("report and map paths must differ")
-	}
-	if outputRoot == s.workRoot {
-		if err := checkMapSidecarAliasing(options.MapPath, outputRelative); err != nil {
-			return nil, err
-		}
-	}
-	// Folding misses the volume's own aliases (NFD/NFC, locale folds): compare
-	// the existing output's file identity with the map's.
-	if sameFile(filepath.Join(outputRoot.Path(), filepath.FromSlash(outputRelative)),
-		filepath.Join(s.workRoot.Path(), filepath.FromSlash(options.MapPath))) {
-		return nil, invalidArguments("report and map paths must differ")
+	outputRoot, outputRelative, err := s.reportOutput(options)
+	if err != nil {
+		return nil, err
 	}
 	if options.OCMPath != "" {
 		ocmInput := filepath.FromSlash(options.OCMPath)
@@ -310,6 +318,37 @@ func (s *Session) renderReport(document *wire.Map, verification, counts map[stri
 	return result, nil
 }
 
+// reportOutput resolves where a published report goes and refuses an output
+// that names the map or its sidecar. Both report profiles share it.
+func (s *Session) reportOutput(options ReadOptions) (*publish.Root, string, error) {
+	outputRoot, outputRelative := s.gitRoot, defaultReportRelative
+	if filepath.IsAbs(options.Output) {
+		root, relative, err := s.externalReportOutput(options.Output)
+		if err != nil {
+			return nil, "", err
+		}
+		outputRoot, outputRelative = root, relative
+	} else if options.Output != "" {
+		outputRoot, outputRelative = s.workRoot, options.Output
+	}
+	// Fold case: on a case-insensitive volume a case variant names the map.
+	if outputRoot == s.workRoot && strings.EqualFold(outputRelative, options.MapPath) {
+		return nil, "", invalidArguments("report and map paths must differ")
+	}
+	if outputRoot == s.workRoot {
+		if err := checkMapSidecarAliasing(options.MapPath, outputRelative); err != nil {
+			return nil, "", err
+		}
+	}
+	// Folding misses the volume's own aliases (NFD/NFC, locale folds): compare
+	// the existing output's file identity with the map's.
+	if sameFile(filepath.Join(outputRoot.Path(), filepath.FromSlash(outputRelative)),
+		filepath.Join(s.workRoot.Path(), filepath.FromSlash(options.MapPath))) {
+		return nil, "", invalidArguments("report and map paths must differ")
+	}
+	return outputRoot, outputRelative, nil
+}
+
 // externalReportOutput admits an absolute report path whose existing parent directory lies
 // outside the worktree and the Git directories. A location inside them must be named
 // repository-relative, so the metadata and map-aliasing checks apply to it.
@@ -319,7 +358,7 @@ func (s *Session) externalReportOutput(output string) (*publish.Root, string, er
 	if err != nil {
 		return nil, "", err
 	}
-	protected := []string{s.workRoot.Path(), s.gitRoot.Path(), s.repository.CommonDir}
+	protected := []string{s.workRoot.Path(), s.gitRoot.Path(), s.commonDir}
 	if withinAny(root.Path(), protected) {
 		return nil, "", invalidArguments("an absolute --output must lie outside the repository and its Git directory; name a location inside them repository-relative")
 	}

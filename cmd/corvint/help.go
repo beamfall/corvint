@@ -50,22 +50,53 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 	directTopic := ""
 	if len(rest) == 2 && rest[0] == "help" {
 		directTopic, _ = publicHelpTopic(rest[1])
+	} else if len(rest) == 3 && rest[0] == "help" {
+		directTopic = nestedHelpTopic(rest[1], rest[2])
 	}
 	switch {
 	case len(rest) > 0 && (rest[0] == "--help" || rest[0] == "-h"), len(rest) == 1 && rest[0] == "help":
 		return "root", true, nil
 	case directTopic != "":
 		return directTopic, true, nil
-	case len(rest) == 3 && rest[0] == "help" && rest[1] == "harness" && rest[2] == "event":
-		return "harness-event", true, nil
 	case len(rest) > 0 && rest[0] == "help":
-		return "", true, argumentError("unknown help topic")
+		return "", true, unknownHelpTopic(rest[1:])
 	}
 	topic := commandHelpTopic(rest)
 	if topic == "" || !helpFlagRequested(rest[1:], topic) {
 		return "", false, nil
 	}
 	return topic, true, nil
+}
+
+// nestedHelpTopics are the two-word `corvint help COMMAND SUBCOMMAND` topics, in the order the
+// unknown-topic refusal lists them (DCP-V1-057).
+var nestedHelpTopics = [][2]string{
+	{"harness event", "harness-event"},
+	{"docs corpus", "docs-corpus"},
+	{"docs flows", "docs-flows"},
+	{"docs maintain", "docs-maintain"},
+}
+
+func nestedHelpTopic(command, subcommand string) string {
+	for _, nested := range nestedHelpTopics {
+		if nested[0] == command+" "+subcommand {
+			return nested[1]
+		}
+	}
+	return ""
+}
+
+// unknownHelpTopic refuses `corvint help TOPIC` with argparse's invalid-choice convention, naming
+// every valid topic: each public command, then each nested topic (DCP-V1-057).
+func unknownHelpTopic(topic []string) error {
+	quoted := make([]string, 0, len(topLevelCommands)+len(nestedHelpTopics))
+	for _, command := range topLevelCommands {
+		quoted = append(quoted, "'"+command+"'")
+	}
+	for _, nested := range nestedHelpTopics {
+		quoted = append(quoted, "'"+nested[0]+"'")
+	}
+	return argumentError("unknown help topic: '" + strings.Join(topic, " ") + "' (choose from " + strings.Join(quoted, ", ") + ")")
 }
 
 // commandHelpTopic names the help topic of a public command invocation, or "" when the command is
@@ -83,6 +114,8 @@ func commandHelpTopic(rest []string) string {
 		return "docs-flows"
 	case len(rest) > 1 && rest[0] == "docs" && rest[1] == "maintain":
 		return "docs-maintain"
+	case len(rest) > 1 && rest[0] == "docs" && rest[1] == "corpus":
+		return corpusHelpTopic(rest[2:])
 	case nested && len(rest) > 1 && rest[1] != "--help" && rest[1] != "-h" && !choices[rest[1]]:
 		return ""
 	}
@@ -130,7 +163,12 @@ func publicHelpTopic(command string) (string, bool) {
 }
 
 func helpText(topic string) string {
+	if operation, ok := strings.CutPrefix(topic, "docs-corpus-"); ok {
+		return docsCorpusOperationHelp(operation)
+	}
 	switch topic {
+	case "docs-corpus":
+		return docsCorpusHelp()
 	case "docs":
 		return docsHelp + "\n" + docsMaintainHelp + "\n" + docsFlowsHelp
 	case "docs-flows":

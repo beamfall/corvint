@@ -200,7 +200,9 @@
       "protocol/cem-1.0/maps/"
     ],
     "internal/cem/workflow": [
-      "protocol/cem-0.2/"
+      "protocol/cem-0.2/",
+      "protocol/cem-0.3/",
+      "protocol/cem-1.0/stable/repository-envelope-packet/"
     ],
     "internal/cemcandidate": [
       "protocol/cem-1.0/"
@@ -229,7 +231,9 @@
       "examples/documentation-corpus/"
     ],
     "internal/docviews": [],
-    "internal/dogfoodflow": [],
+    "internal/dogfoodflow": [
+      "protocol/cem-1.0/stable/repository-envelope-packet/"
+    ],
     "internal/extevidence": [
       "cmd/corvint-remote-provider/",
       "examples/evidence-provider/",
@@ -259,7 +263,9 @@
       "docs/specs/"
     ],
     "internal/lspevidence": [],
-    "internal/mcp/bridge": [],
+    "internal/mcp/bridge": [
+      "protocol/cem-1.0/stable/repository-envelope-packet/"
+    ],
     "internal/mcp/corpusbridge": [],
     "internal/mcp/testvaliditybridge": [
       "internal/testvaliditydoc/"
