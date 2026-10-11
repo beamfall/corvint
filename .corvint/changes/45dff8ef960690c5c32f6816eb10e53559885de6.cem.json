@@ -1,0 +1,40 @@
+{
+  "baseRevision": "e57c093121920e7e5604f5e3227aa1d3320e3ddf",
+  "evidence": [
+    {
+      "blobOid": "08ed51c138b6157b6112375d30f0b8617b573a06",
+      "id": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3780,
+        "start": 3294
+      },
+      "spanSha256": "a5ef358e5716557d5f42d57c7271d3289afdc8ff20143da2026e5fd075f876f4"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:9ba8eaf06f25e4b7e59aa40ee94ad4be326de5a9119422001fd1fbd8d7354dc3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:878f5430d3a5d7cbf35d5835610923d68de168d25349cf9f16ea4c4cf5952a28",
+      "newRange": {
+        "count": 7,
+        "start": 50
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 50
+      },
+      "path": "cmd/corvint/require_clean_commands_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "df707abaa731b453d466f935e91e95e3ecac0071c1a31f71658dbf950395b51b",
+  "spec": "cem/0.2"
+}

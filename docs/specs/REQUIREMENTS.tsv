@@ -291,6 +291,10 @@ AMAP-V0-075	docs/specs/application-map-v0.md	545	A manifest `tests.root` of exac
 AMAP-V0-076	docs/specs/application-map-v0.md	549	With `tests.root` `"."` and an aliased test repository, dirty-root detection MUS
 AMAP-V0-077	docs/specs/application-map-v0.md	553	A manifest whose `tests.root` is not `"."` MUST compile to the same bytes and wi
 AMAP-V0-078	docs/specs/application-map-v0.md	556	`createBrowserRouter(NAME)` MUST compile the literal array bound by the one
+AMAP-V0-079	docs/specs/application-map-v0.md	566	When NAME in `createBrowserRouter(NAME)` is bound only by one named import
+AMAP-V0-080	docs/specs/application-map-v0.md	581	`flows appmap entries` MUST accept an optional `--ledger FILE` naming an
+AMAP-V0-081	docs/specs/application-map-v0.md	589	With a ledger, each row's `proven_path` MUST be the shortest screen sequence fro
+AMAP-V0-082	docs/specs/application-map-v0.md	598	A path MUST NOT start at, end at or cross a screen whose entry verification is n
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read
@@ -311,20 +315,22 @@ ANL-V0-007	docs/specs/application-navigation-ledger-v0.md	70	Observation output 
 ANL-V0-008	docs/specs/application-navigation-ledger-v0.md	74	Observation output is deterministic with a digest of the complete observation,
 ANL-V0-009	docs/specs/application-navigation-ledger-v0.md	77	`corvint test-plan prefixes --map FILE [--ledger FILE] [--facts FILE]` derives,
 ANL-V0-010	docs/specs/application-navigation-ledger-v0.md	86	A spec abstains with a reason, never flags, when its join is UNKNOWN
-ANL-V0-011	docs/specs/application-navigation-ledger-v0.md	93	The report is deterministic with a digest of the complete report, byte-capped wi
-ANL-V0-012	docs/specs/application-navigation-ledger-v0.md	97	`test-plan page-state --input FILE` reads one `test-consolidation-input/0` docum
-ANL-V0-013	docs/specs/application-navigation-ledger-v0.md	102	A variation joins no group and is listed as blocked with a reason when any ancho
-ANL-V0-014	docs/specs/application-navigation-ledger-v0.md	106	The report (`test-page-state-groups/0`) is deterministic, sorted, independent of
-ANL-V0-015	docs/specs/application-navigation-ledger-v0.md	110	`flows appmap impact --map FILE --base COMMIT [--ledger FILE]` prints
-ANL-V0-016	docs/specs/application-navigation-ledger-v0.md	118	A changed UI path (html, script, style or template extension) that no map elemen
-ANL-V0-021	docs/specs/application-navigation-ledger-v0.md	127	Observed triggers are typed from the triggering action's kind: `goto`, `click`,
-ANL-V0-022	docs/specs/application-navigation-ledger-v0.md	134	`observe --trace FILE.zip --test-key KEY` reads one Playwright trace zip (a regu
-ANL-V0-023	docs/specs/application-navigation-ledger-v0.md	147	`edges --observation FILE` (repeatable, at most 16) feeds observed navigation ed
-ANL-V0-024	docs/specs/application-navigation-ledger-v0.md	164	An edge cannot be proven only by the test it is used to select. An edge a declar
-ANL-V0-031	docs/specs/application-navigation-ledger-v0.md	170	`corvint affected --base FULL_COMMIT_ID --appmap-impact REPORT` (repeatable up t
-ANL-V0-032	docs/specs/application-navigation-ledger-v0.md	183	A changed UI path no map element places is walked through the tracked UI-extensi
-ANL-V0-033	docs/specs/application-navigation-ledger-v0.md	199	`test-plan page-state --input FILE --check --baseline FILE` (the two flags only
-ANL-V0-034	docs/specs/application-navigation-ledger-v0.md	206	Several `--appmap-impact` reports may name one app when each comes from a differ
+ANL-V0-011	docs/specs/application-navigation-ledger-v0.md	94	The report is deterministic with a digest of the complete report, byte-capped wi
+ANL-V0-012	docs/specs/application-navigation-ledger-v0.md	98	`test-plan page-state --input FILE` reads one `test-consolidation-input/0` docum
+ANL-V0-013	docs/specs/application-navigation-ledger-v0.md	103	A variation joins no group and is listed as blocked with a reason when any ancho
+ANL-V0-014	docs/specs/application-navigation-ledger-v0.md	107	The report (`test-page-state-groups/0`) is deterministic, sorted, independent of
+ANL-V0-015	docs/specs/application-navigation-ledger-v0.md	111	`flows appmap impact --map FILE --base COMMIT [--ledger FILE]` prints
+ANL-V0-016	docs/specs/application-navigation-ledger-v0.md	119	A changed UI path (html, script, style or template extension) that no map elemen
+ANL-V0-021	docs/specs/application-navigation-ledger-v0.md	128	Observed triggers are typed from the triggering action's kind: `goto`, `click`,
+ANL-V0-022	docs/specs/application-navigation-ledger-v0.md	135	`observe --trace FILE.zip --test-key KEY` reads one Playwright trace zip (a regu
+ANL-V0-023	docs/specs/application-navigation-ledger-v0.md	148	`edges --observation FILE` (repeatable, at most 16) feeds observed navigation ed
+ANL-V0-024	docs/specs/application-navigation-ledger-v0.md	165	An edge cannot be proven only by the test it is used to select. An edge a declar
+ANL-V0-031	docs/specs/application-navigation-ledger-v0.md	171	`corvint affected --base FULL_COMMIT_ID --appmap-impact REPORT` (repeatable up t
+ANL-V0-032	docs/specs/application-navigation-ledger-v0.md	184	A changed UI path no map element places is walked through the tracked UI-extensi
+ANL-V0-033	docs/specs/application-navigation-ledger-v0.md	200	`test-plan page-state --input FILE --check --baseline FILE` (the two flags only
+ANL-V0-034	docs/specs/application-navigation-ledger-v0.md	207	Several `--appmap-impact` reports may name one app when each comes from a differ
+ANL-V0-035	docs/specs/application-navigation-ledger-v0.md	213	`flows appmap build` classifies every `test-sequence` edge (AMAP-V0-008) by stat
+ANL-V0-036	docs/specs/application-navigation-ledger-v0.md	249	`test-plan prefixes` treats a derived `navigation-only` step as read-only withou
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
@@ -822,6 +828,10 @@ CEM-V1-033	docs/specs/cem-stable-v1.md	252	Selection is by the exact declared sp
 CEM-V1-034	docs/specs/cem-stable-v1.md	296	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
 CEM-V1-035	docs/specs/cem-stable-v1.md	297	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
 CEM-V1-036	docs/specs/cem-stable-v1.md	298	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
+CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	326	The default `verify` path refuses a strictly parsed JSON object whose exact
+CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	330	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
+CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	333	Only that exact case changes. A duplicate, non-string, differently cased,
+CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	337	`examples/cem/verify-portable.sh` runs `verify-stable-canonical` only when
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and
@@ -1108,6 +1118,8 @@ DCP-V1-050	docs/specs/documentation-corpus-v1.md	383	A witness is produced only 
 DCP-V1-051	docs/specs/documentation-corpus-v1.md	397	Every other registered test stays unwitnessed with exactly one named reason and
 DCP-V1-052	docs/specs/documentation-corpus-v1.md	406	Missing or untrustworthy shared evidence yields uncertainty for every test, neve
 DCP-V1-053	docs/specs/documentation-corpus-v1.md	412	`corvint docs --help`, which `docs corpus witness-playwright --help` prints, nam
+DCP-V1-054	docs/specs/documentation-corpus-v1.md	674	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
+DCP-V1-055	docs/specs/documentation-corpus-v1.md	425	`discover-playwright` applies the `TJAA-V0-021` grep/grepInvert omission rules o
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide
@@ -1149,6 +1161,10 @@ DCW-V0-038	docs/specs/daily-change-evidence-workflow-v0.md	348	accepted, decisio
 DCW-V0-039	docs/specs/daily-change-evidence-workflow-v0.md	356	(accepted, decision 0519 (V1-1151)) `corvint dogfood
 DCW-V0-040	docs/specs/daily-change-evidence-workflow-v0.md	406	(accepted, decision 0519 (V1-1151)) When `dogfood change`
 DCW-V0-041	docs/specs/daily-change-evidence-workflow-v0.md	414	(accepted, decision 0519 (V1-1171)) A citation plan row MAY
+DCW-V0-042	docs/specs/daily-change-evidence-workflow-v0.md	421	(accepted 2026-10-11, decision 0520; V1-1219) `dogfood change` MUST
+DCW-V0-043	docs/specs/daily-change-evidence-workflow-v0.md	444	(accepted 2026-10-11, decision 0520; V1-1198) The inherited archive of
+DCW-V0-044	docs/specs/daily-change-evidence-workflow-v0.md	468	(accepted 2026-10-11, decision 0520; V1-1209) The daily loop's local
+DCW-V0-045	docs/specs/daily-change-evidence-workflow-v0.md	482	(accepted 2026-10-11, decision 0520; V1-1207) `dogfood check`'s
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -2655,6 +2671,16 @@ PWP-V3-004	docs/specs/playwright-external-provider-v0.md	189	Every `/3` attempt 
 PWP-V3-005	docs/specs/playwright-external-provider-v0.md	190	The reporter emits `attemptDetails` only under `/3`; the provider validates the
 PWP-V3-006	docs/specs/playwright-external-provider-v0.md	191	`/3` is non-promotable until the changed reporter completes the live matrix of `
 PWP-V3-007	docs/specs/playwright-external-provider-v0.md	423	The `/3` exact project identity permits an explicitly observed empty project nam
+PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	29	One shared reader MUST read an explicit Playwright json-reporter file read-only
+PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	43	Runs pool only at identical identity inputs: the Playwright version plus the
+PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	50	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes
+PWR-V0-004	docs/specs/playwright-run-evidence-v0.md	59	An `INTERMITTENT` pool whose test is expected to fail (`expectedStatus` `failed`
+PWR-V0-005	docs/specs/playwright-run-evidence-v0.md	63	`corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-
+PWR-V0-006	docs/specs/playwright-run-evidence-v0.md	72	`Compare(baseline, candidate)` MUST match tests by the `PWR-V0-001` identity acr
+PWR-V0-007	docs/specs/playwright-run-evidence-v0.md	82	A failed assertion's origin MUST come only from its reported location: `TEST_FIL
+PWR-V0-008	docs/specs/playwright-run-evidence-v0.md	89	The overall verdict MUST be `INCOMPARABLE` with every applicable reason, in the
+PWR-V0-009	docs/specs/playwright-run-evidence-v0.md	99	Each admitted report MUST be listed per side with its position, SHA-256, Playwri
+PWR-V0-010	docs/specs/playwright-run-evidence-v0.md	103	`corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,
 PWV-V0-001	docs/specs/pi-workflow-v0.md	36	Pi MUST preserve original native Core receipt objects, output and exit status, i
 PWV-V0-002	docs/specs/pi-workflow-v0.md	37	Core read tools MUST use closed operation and argument sets for query, context,
 PWV-V0-003	docs/specs/pi-workflow-v0.md	38	Each command MUST use bounded argv-only local execution, one owned POSIX process
@@ -3230,6 +3256,9 @@ TRE-V0-038	docs/specs/test-runner-execution-v0.md	138	A row without an outcome i
 TRE-V0-039	docs/specs/test-runner-execution-v0.md	157	Maintained tests MUST replay the actual Boost 1.92.0 JUnit
 TRE-V0-040	docs/specs/test-runner-execution-v0.md	870	A receipt phase MUST record `exitCode` as the native exit
 TRE-V0-041	docs/specs/test-runner-execution-v0.md	880	Runner plan and receipt decoders (`DecodeDocument` and the CEM
+TRE-V0-042	docs/specs/test-runner-execution-v0.md	925	The `gradle-junit` profile MUST pass `--gradle-user-home`
+TRE-V0-043	docs/specs/test-runner-execution-v0.md	936	New `gradle-junit` plans MUST set `retireDetachedDescendants`
+TRE-V0-044	docs/specs/test-runner-execution-v0.md	982	For `storybook-test-runner`, an empty `Target` MUST leave the
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	81	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	86	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO
 TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	108	The key MUST NOT include a filesystem path, host, user, clock time, worker count

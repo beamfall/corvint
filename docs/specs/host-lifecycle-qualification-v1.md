@@ -258,6 +258,12 @@ session expired). The `PreCompact`/`PostCompact` hooks therefore remain statical
   (process start + 2 s declared kill − 400 ms reserve − 100 ms grace). An expiry there is named
   `dogfood-event-index-snapshot-stale`, or `adapter-host-kill-deadline` when the watchdog fires
   first; both are time bounds under `HLQ-V1-009`, so a recurrence is now retried and named.
+  RC3 bound (2026-10-10, `docs/build-log/2026-10-10-v1-0397-upgrade-sessionstart-nonrepro.md`):
+  200 runs of the upgrade case on the RC3 source (Claude Code 2.1.293, adapter 0.3.1) at sampled
+  one-minute loads 52–258.7 on 12 CPUs (39 runs inside the historical 81–109 window) all passed
+  with zero SessionStart time-bound retries. The failure is not reproduced; its cause stays UNKNOWN
+  and the historical tuple was not rerun. This is the recorded host-load bound for RC3, not a
+  safe threshold or proof of absence.
 - V1-0844: on the `1.0.0-rc.2` candidate `da78c157` (build 358, load average about 245 on 12
   CPUs) the Claude Code frontier case reported `enrolled incomplete Stop returned decision <nil>`;
   three reruns passed and the hook output was discarded. Proven from code and

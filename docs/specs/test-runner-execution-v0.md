@@ -913,3 +913,93 @@ CEM wire parser is unchanged.
 Rollback removes `StructuralBytes`, `CheckReceipt` and the two call sites.
 Killed-run receipts then refuse again as `invalid-json`; no other receipt or
 plan byte, digest or decode result changes.
+
+## Gradle per-run user home and daemon ownership (experimental)
+
+Java derives `user.home` from the account database, not `HOME`, so the fresh
+executor HOME did not scope Gradle: every `gradle-junit` run read the
+account's `~/.gradle` properties, init scripts and caches and registered its
+single-use daemon in the shared daemon registry (V1-0622). Gradle 9.6.1 with
+OpenJDK 17.0.20.1 on macOS 26.6.2 arm64 is the only observed tuple.
+
+- `TRE-V0-042`: The `gradle-junit` profile MUST pass `--gradle-user-home`
+  fixed at `<ReportDir>/.home/.gradle`, beneath the executor's fresh private
+  HOME, together with `--offline` and `--no-daemon`. Its argv MUST NOT carry
+  `--daemon`, `--stop`, `--status`, `--foreground`, `--continuous`, any
+  `-Dorg.gradle.daemon*` or `-Dgradle.user.home` member, and its environment
+  only `JAVA_HOME`. The account's Gradle user home, its credentials, init
+  scripts, caches and daemon registry are therefore never an input or output of
+  a run. External module dependencies cannot resolve offline in an empty home,
+  so test libraries MUST be project-local pinned `InputFiles`; their names and
+  digests are the library provenance retained by the plan. Status: proposed
+  (V1-0622).
+- `TRE-V0-043`: New `gradle-junit` plans MUST set `retireDetachedDescendants`
+  (`TRE-V0-030`), so the forked single-use daemon and its test worker, which
+  leave the client's process group, are retired by ancestry on timeout,
+  interruption and leader exit, with every survivor retained as `unretired` or
+  a problem. Cleanup MUST NOT issue `gradle --stop`, `killall` or any
+  registry-wide or name-based signal, so ambient daemons, including those of
+  the account home, are untouched. Historical plans and receipts keep their
+  bytes and identities. A plan whose invocation is exactly the historical
+  `gradle-junit` form (the rebuilt one without the flag and without the
+  `--gradle-user-home` pair) MUST be refused for new execution with the
+  diagnosis `plan predates per-run Gradle user home; re-plan it`; any other
+  difference keeps the generic profile-mismatch refusal. Execution is refused before launch where retirement is unproven.
+  Status: proposed (V1-0622).
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-042 | `platform/jvm_build.go` `gradleUserHome`; `TestGradlePerRunUserHomeAndDaemonOwnership`, opt-in `TestGradleLiveOwnership` | Failing before the change (no `--gradle-user-home`, no retirement). Live run: every scenario creates `<ReportDir>/.home/.gradle/daemon`; no new entry in the account daemon directory came from these runs |
+| TRE-V0-043 | `platform/jvm_build.go`; `corvint-test-runner` `admittedInvocation` `preIsolationGradle`; `TestPreIsolationGradlePlanRefusedForExecution`, `TestPinnedGradleManifestFIFORefusedBeforeExecution`, opt-in `TestGradleLiveOwnership` | Live: pass/fail/`@Disabled` give exit 1, complete `proof.ProofTest#passes()` PASSED, `#fails()` FAILED, `#skipped()` SKIPPED; a no-match filter gives exit 1 with no report; a 90 s timeout and an interruption after test-body readiness each give exit `-1`, incomplete, and two processes retired by `ANCESTRY` with no `unretired` entry and no recorded test-body ancestor alive; a scoped ambient sentinel daemon survived all runs |
+
+Failure modes. A project whose build needs a remote repository fails offline
+in the empty home; that is retained as a native setup failure, not resolved
+from the shared cache. Settings or init code under the project remain trusted
+local dependencies (`TRE-V0-004`).
+
+Non-goals. A shared read-only dependency cache (`GRADLE_RO_DEP_CACHE`), wrapper
+distribution download, configuration cache and build cache are not admitted.
+
+Recorded limits. Linux and every non-Darwin platform now refuse `gradle-junit`
+execution because `TRE-V0-030` retirement is unproven there. This known limit
+is accepted for now; Linux retirement is a separate follow-up, and Linux live
+qualification is NOT_OBSERVED. Gradle processes started outside the run's
+ancestry (for example by a toolchain provisioning service) are not retired.
+
+Rollback removes `gradleUserHome`, the four argv members and the flag from
+`buildJVMProject`, plus these tests. Plans made before rollback would then be refused
+as not matching the rebuilt profile; historical receipts still bind.
+
+## Storybook test-runner skip tags (experimental)
+
+The legacy `storybook-test-runner` profile accepted a non-empty `Target` and
+silently ignored it, so a caller's skip selection was lost (V1-0612). The
+native `--skipTags` option of `@storybook/test-runner` 0.26.0 is a runner
+option, not forwarded to Jest; it sets `STORYBOOK_SKIP_TAGS`, which the runner
+splits on `,` and which overrides configured `tags.skip`, and it turns each
+matching story into a skipped Jest test.
+
+- `TRE-V0-044`: For `storybook-test-runner`, an empty `Target` MUST leave the
+  historical argv byte-identical. A non-empty `Target` MUST be a
+  comma-separated list of 1..16 distinct tags, each matching
+  `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`, and MUST be appended as exactly one final
+  `--skipTags <Target>` pair after any `--url`. Any other value, including
+  option-like, empty, duplicated, whitespace, path, shell or non-ASCII members,
+  MUST be refused before a plan exists, so no argv is injected and skip
+  semantics are never silently omitted. Status: proposed (V1-0612).
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-044 | `dynamic/build.go` `storybookSkipTags`; `TestStorybookSkipTagsFixedArgv` | Failing before the change (base argv had no `--skipTags`); option semantics read from the 0.26.0 package source |
+
+Recorded limits. The real Storybook 10.6.1, test-runner 0.26.0 and Jest 30.5.2
+tuple was not rerun: its earlier qualification tree was removed and a reinstall
+needs a network download. The existing collection failure (`module.register`
+unsupported while loading optional `.storybook/test-runner` config) remains,
+so the profile's compatibility qualification stays BLOCKED, and pass, failure,
+tagged-skip, report-inventory and browser-descendant cleanup are NOT_OBSERVED.
+Include and exclude tags are not admitted.
+
+Rollback removes `storybookSkipTags` and the `--skipTags` append. A plan with a
+non-empty `Target` would then rebuild without the pair and be refused as not
+matching the profile; empty-`Target` plans are unchanged.

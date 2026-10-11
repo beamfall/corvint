@@ -105,6 +105,11 @@ func (c *change) run() int {
 	if task == "" {
 		task = "Dogfood change from " + c.base[:12] + " to HEAD"
 	}
+	// The sealed-CEM admissions refuse before the previous run's evidence is
+	// cleared, so a refusal keeps it (DCW-V0-042, DCW-V0-043).
+	inherited := c.inheritedCEM()
+	c.admitSealedCEMs(inherited)
+	c.requireArchivedBaseCEM(inherited)
 	c.evidence = c.gitDir + "/corvint"
 	_ = os.MkdirAll(c.evidence, 0o777)
 	_ = os.MkdirAll(c.path(".corvint"), 0o777)
@@ -117,12 +122,6 @@ func (c *change) run() int {
 	c.runTmp = runTmp
 	c.citationStage = ".corvint/.cem-citations." + filepath.Base(runTmp) + ".json"
 	c.resolveAnchor()
-	if c.gitValue("diff", "--name-only", c.base, c.target, "--", ".corvint/changes") != "" {
-		c.say("dogfood-change: REFUSE sealed-cem-in-change\n")
-		c.say("  BASE..HEAD adds a sealed CEM; revert or drop the seal commit, then rebind\n")
-		c.say("  fix: for a merge batch of sealed changes, run corvint dogfood batch-check %s instead of rebinding it (DCW-V0-039)\n", c.base)
-		c.exit(2)
-	}
 	// Query and impact run after the change, so they are coordination-time
 	// receipts; the agent's prechange-*.json receipts are never written here (DCW-V0-026).
 	c.coordinationQuery(task)
@@ -154,6 +153,81 @@ func (c *change) run() int {
 	c.rows = append(c.rows, c.localOutcome(task))
 	c.renderReport()
 	return c.reportFailures()
+}
+
+// admitSealedCEMs admits the sealed CEMs BASE..HEAD adds only as unmodified,
+// verifiable sealed changes the branch merged or stacked on (DCW-V0-042):
+// each is re-verified against its own base and bind commit exactly as
+// batch-check verifies a constituent. Any other added, modified or deleted
+// file under .corvint/changes/ refuses sealed-cem-in-change before a step runs.
+// The archive of BASE's own inherited CEM is admitted without re-verification:
+// it keeps bytes BASE already tracks (DCW-V0-043).
+func (c *change) admitSealedCEMs(inherited inheritedCEM) {
+	changed := nonEmpty(strings.Split(c.gitValue("diff", "--no-renames", "--name-status", c.base, c.target, "--", ".corvint/changes"), "\n"))
+	if len(changed) == 0 {
+		return
+	}
+	refusals := []string{}
+	if len(changed) > batchConstituentLimit {
+		refusals = append(refusals, fmt.Sprintf("sealed CEMs=%d exceed %d", len(changed), batchConstituentLimit))
+		changed = nil
+	}
+	notes := []string{}
+	for _, line := range changed {
+		state, path, _ := strings.Cut(line, "\t")
+		match := sealedCEMPath.FindStringSubmatch(path)
+		switch {
+		case match == nil:
+			refusals = append(refusals, path+": unrecognized-sealed-cem")
+		case state != "A":
+			refusals = append(refusals, path+": sealed-cem-modified status="+state)
+		case path == inherited.path && c.archives(inherited, c.target):
+			notes = append(notes, "inherited-cem-archived NOT_REVERIFIED path="+path)
+		default:
+			result := c.verifySealedCEM(c.options.Steps, c.target, match[1])
+			if result.failure != "" {
+				refusals = append(refusals, path+": "+result.failure+" "+result.detail)
+				continue
+			}
+			notes = append(notes, fmt.Sprintf("sealed-cem-merged bind=%s base=%s bootstrapUnknown=%d", match[1], result.base, len(result.bootstrap)))
+		}
+	}
+	if len(refusals) > 0 {
+		c.say("dogfood-change: REFUSE sealed-cem-in-change\n")
+		for _, refusal := range refusals {
+			c.say("  %s\n", refusal)
+		}
+		c.say("  BASE..HEAD adds a sealed CEM that is not an unmodified, verifiable sealed change; restore it from its bind commit, or revert or drop the seal commit, then rebind\n")
+		c.say("  fix: for a merge batch of sealed changes, run corvint dogfood batch-check %s instead of rebinding it (DCW-V0-039)\n", c.base)
+		c.exit(2)
+	}
+	for _, note := range notes {
+		c.say("dogfood-change: NOTE %s\n", note)
+	}
+}
+
+// requireArchivedBaseCEM refuses, before any step runs, a change in a
+// repository that seals while BASE still tracks an unsealed CEM that HEAD
+// keeps under no .corvint/changes/ file: the change replaces that CEM, and
+// dogfood seal would refuse unarchived-base-cem only after the whole loop
+// (DCW-V0-027, DCW-V0-043). A repository that never sealed is unaffected.
+func (c *change) requireArchivedBaseCEM(inherited inheritedCEM) {
+	if inherited.blob == "" || c.gitValue("ls-tree", c.base, "--", ".corvint/changes") == "" {
+		return
+	}
+	archived := c.gitValue("ls-tree", "-r", c.target, "--", ".corvint/changes")
+	if strings.Contains(archived, " "+inherited.blob+"\t") {
+		return
+	}
+	c.say("dogfood-change: REFUSE unarchived-base-cem\n")
+	c.say("  BASE tracks an unsealed .corvint/change.cem.json (last written by %s) that no .corvint/changes/ file at HEAD keeps; this change replaces it, so dogfood-seal would refuse\n", inherited.writer)
+	if inherited.path != "" {
+		c.say("  fix: %s\n", inherited.archiveRecovery())
+	} else {
+		c.say("  fix: archive BASE's .corvint/change.cem.json (blob %s) under .corvint/changes/<the commit that bound it>.cem.json in its own commit\n", inherited.blob)
+	}
+	c.say("  then rerun dogfood-change with the same BASE; the plan cites the archived file's hunk (DCW-V0-043)\n")
+	c.exit(2)
 }
 
 // clearStepEnvelopes removes the previous run's "<step>.stderr" files, so a step
@@ -1182,11 +1256,12 @@ func (c *change) reportFailures() int {
 			break
 		}
 	}
-	// Amending or rebasing after a recorded pass strands that trace; query and
-	// the recorder then refuse every later run with this message.
+	// Amending or rebasing after a recorded pass strands that trace, as does
+	// another lane's run in this worktree; query and the recorder then refuse
+	// every later run with this message.
 	stranded := []byte(`"error": "local trace store contains unreachable revision: `)
 	if bytes.Contains(query, stranded) || bytes.Contains(readFile(c.evidence+"/local-outcome.stderr"), stranded) {
-		c.say("  local trace store: a recorded trace names a commit no longer reachable from HEAD; restore that commit as an ancestor, or retire the trace with corvint migrate-traces --dry-run then --apply --plan-digest DIGEST (LTPM-V0-012); add new commits instead of amending or rebasing (docs/DOGFOOD.md \"Daily adopter path\")\n")
+		c.say("  local trace store: a recorded trace names a commit no longer reachable from HEAD; restore that commit as an ancestor, or retire the trace with corvint migrate-traces --dry-run then --apply --plan-digest DIGEST (LTPM-V0-012); add new commits instead of amending or rebasing (docs/DOGFOOD.md \"Daily adopter path\"); the store belongs to this worktree, so run each lane in its own worktree (git worktree add) or clone rather than switching branches here (DCW-V0-044)\n")
 	}
 	c.say("  full report: %s\n", c.path(".corvint/dogfood-report.json"))
 	return 1

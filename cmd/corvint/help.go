@@ -177,6 +177,8 @@ func helpText(topic string) string {
 		return stepHelp
 	case "changes":
 		return changesHelp
+	case "runs":
+		return runsHelp
 	case "breakage":
 		return breakageHelp
 	case "necessity":
@@ -248,10 +250,11 @@ Commands:
   feature  bounded feature context
   eval  evaluate a frozen corpus
   context  task-context packet: files to read
-  impact  path, untracked-file or range impact
+  impact  path, untracked or range impact
   breakage  cross-repository API relations
   changes  offline upgrade checklist
-  harness event  one agent-harness lifecycle event
+  runs  Playwright verdicts
+  harness event  one agent lifecycle event
   adapter  one native host adapter
   dogfood  evidence: change, check, seal, batch-check
   dogfood-ocm  verify dogfood OCM maps
@@ -266,13 +269,13 @@ Commands:
   features  inferred feature candidates
   overview  immutable repository guidance
   review  range advice and branch overlaps
-  affected  affected-test plan for the worktree
+  affected  affected-test plan
   flows  application flows and assertions
   obligations  CEM external-obligations sidecar
   prove  query packet with falsifier verdicts
   prove-observe  record prove verdict counts
   index  write the index snapshot
-  batch  many query, context, impact requests
+  batch  batched query, context, impact
   work  queue observation or shadow wave
   docs  source-derived documentation
   depsource  cite pinned Go module source
@@ -292,7 +295,7 @@ Commands:
 
 Global options:
   --root PATH  Repository root (default: current directory).
-  --version    Print the Corvint version and build number.
+  --version    Print the version and build number.
   --help       Print this help on stdout and exit 0.
 
 ` + commandMaturityHelp + `Support boundary:
@@ -1282,14 +1285,16 @@ test-plan-header-missing, and 2 on invalid arguments or input, with no stdout.
 The command reads only its named files and Git, runs no test and never writes.
 Experimental.
 
-Prefix lint (ANL-V0-009..011):
+Prefix lint (ANL-V0-009..011, ANL-V0-035..036):
   corvint [--root PATH] test-plan prefixes --map FILE [--ledger FILE] [--facts FILE]
       [--check [--baseline FILE]] [--revision REV] [--budget N | --full]
 Flags specs whose test-sequence prefix (two or more screen transitions) only crosses edges the
 --ledger (application-edge-ledger/0) proves and ends on a fresh deep-linkable screen, with the
 replacement goto and saved steps. --facts (test-prefix-facts/0) declares read-only, mutating and
-assertion-target edges per spec; undeclared effects abstain. --check exits 1 when a flagged test is
-not in --baseline. Learned, read-only, offline.
+assertion-target edges per spec; undeclared effects abstain. A step the map classifies from
+page-object source is read-only only when navigation-only and fresh; state-effect and unknown steps
+abstain and the sidecar cannot upgrade them. --check exits 1 when a flagged test is not in
+--baseline. Learned, read-only, offline.
 
 Page-state grouping (ANL-V0-012..014, ANL-V0-033):
   corvint [--root PATH] test-plan page-state --input FILE [--check --baseline FILE]
@@ -1315,7 +1320,8 @@ const commandMaturityHelp = `Command maturity:
     calibrate (OCL-V0), witness (AGW-V0), test-validity (MTV-V0),
     test-plan (TCN-V0), features (RGV-V0), overview (RGV-V0), review (RGV-V0),
     migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0),
-    breakage (BKM-V0), step (ASS-V0), delta (DLT-V0), changes (UCL1142-V0)
+    breakage (BKM-V0), step (ASS-V0), delta (DLT-V0), changes (UCL1142-V0),
+    runs (PWR-V0)
 
 `
 
