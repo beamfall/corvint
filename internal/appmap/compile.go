@@ -162,6 +162,7 @@ type builder struct {
 	binds   map[string][]contextindex.WebImportBinding
 	sources map[string][]byte
 	order   []string
+	effects *effectReader
 }
 
 func (b *builder) unknown(u Unknown) { b.out.Unknowns = append(b.out.Unknowns, u) }
@@ -568,8 +569,8 @@ func (b *builder) sequence(tf *TestFile) {
 		}
 	}
 	type use struct {
-		screen string
-		line   int
+		screen   string
+		line, at int
 	}
 	uses := []use{}
 	for _, n := range b.facts[tf.Path].news {
@@ -580,12 +581,26 @@ func (b *builder) sequence(tf *TestFile) {
 		if len(uses) > 0 && uses[len(uses)-1].screen == b.files[target].Screen {
 			continue
 		}
-		uses = append(uses, use{b.files[target].Screen, n.line})
+		uses = append(uses, use{b.files[target].Screen, n.line, n.at})
+	}
+	if len(uses) < 2 {
+		return
 	}
 	e := blobEntry{repo: tf.Anchor.Repo, path: tf.Path, oid: tf.Anchor.Blob}
+	if b.effects == nil {
+		b.effects = newEffectReader(b)
+	}
+	toks := b.effects.toks(tf.Path)
+	inst := instances(toks, classes)
 	for i := 1; i < len(uses); i++ {
 		anchor := spanOf(e, b.sources[tf.Path], uses[i-1].line, uses[i].line)
-		b.out.Edges = append(b.out.Edges, Edge{From: uses[i-1].screen, To: uses[i].screen, Basis: "test-sequence", Source: tf.ID, Anchor: anchor})
+		eff := b.effects.span(tf.Path, toks, uses[i-1].at, uses[i].at, inst, classes, "", 0)
+		edge := Edge{From: uses[i-1].screen, To: uses[i].screen, Basis: "test-sequence", Source: tf.ID, Anchor: anchor,
+			Effect: eff.kind, EffectFrom: eff.from}
+		if eff.kind != EffectNavigation {
+			edge.EffectRef, edge.EffectCall = eff.ref, eff.call
+		}
+		b.out.Edges = append(b.out.Edges, edge)
 	}
 }
 

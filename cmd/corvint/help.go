@@ -1261,14 +1261,16 @@ test-plan-header-missing, and 2 on invalid arguments or input, with no stdout.
 The command reads only its named files and Git, runs no test and never writes.
 Experimental.
 
-Prefix lint (ANL-V0-009..011):
+Prefix lint (ANL-V0-009..011, ANL-V0-035..036):
   corvint [--root PATH] test-plan prefixes --map FILE [--ledger FILE] [--facts FILE]
       [--check [--baseline FILE]] [--revision REV] [--budget N | --full]
 Flags specs whose test-sequence prefix (two or more screen transitions) only crosses edges the
 --ledger (application-edge-ledger/0) proves and ends on a fresh deep-linkable screen, with the
 replacement goto and saved steps. --facts (test-prefix-facts/0) declares read-only, mutating and
-assertion-target edges per spec; undeclared effects abstain. --check exits 1 when a flagged test is
-not in --baseline. Learned, read-only, offline.
+assertion-target edges per spec; undeclared effects abstain. A step the map classifies from
+page-object source is read-only only when navigation-only and fresh; state-effect and unknown steps
+abstain and the sidecar cannot upgrade them. --check exits 1 when a flagged test is not in
+--baseline. Learned, read-only, offline.
 
 Page-state grouping (ANL-V0-012..014, ANL-V0-033):
   corvint [--root PATH] test-plan page-state --input FILE [--check --baseline FILE]

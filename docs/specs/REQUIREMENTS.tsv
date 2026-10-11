@@ -304,16 +304,18 @@ ANL-V0-007	docs/specs/application-navigation-ledger-v0.md	69	Observation output 
 ANL-V0-008	docs/specs/application-navigation-ledger-v0.md	73	Observation output is deterministic with a digest of the complete observation,
 ANL-V0-009	docs/specs/application-navigation-ledger-v0.md	76	`corvint test-plan prefixes --map FILE [--ledger FILE] [--facts FILE]` derives,
 ANL-V0-010	docs/specs/application-navigation-ledger-v0.md	85	A spec abstains with a reason, never flags, when its join is UNKNOWN
-ANL-V0-011	docs/specs/application-navigation-ledger-v0.md	92	The report is deterministic with a digest of the complete report, byte-capped wi
-ANL-V0-012	docs/specs/application-navigation-ledger-v0.md	96	`test-plan page-state --input FILE` reads one `test-consolidation-input/0` docum
-ANL-V0-013	docs/specs/application-navigation-ledger-v0.md	101	A variation joins no group and is listed as blocked with a reason when any ancho
-ANL-V0-014	docs/specs/application-navigation-ledger-v0.md	105	The report (`test-page-state-groups/0`) is deterministic, sorted, independent of
-ANL-V0-015	docs/specs/application-navigation-ledger-v0.md	109	`flows appmap impact --map FILE --base COMMIT [--ledger FILE]` prints
-ANL-V0-016	docs/specs/application-navigation-ledger-v0.md	117	A changed UI path (html, script, style or template extension) that no map elemen
-ANL-V0-031	docs/specs/application-navigation-ledger-v0.md	125	`corvint affected --base FULL_COMMIT_ID --appmap-impact REPORT` (repeatable up t
-ANL-V0-032	docs/specs/application-navigation-ledger-v0.md	138	A changed UI path no map element places is walked through the tracked UI-extensi
-ANL-V0-033	docs/specs/application-navigation-ledger-v0.md	154	`test-plan page-state --input FILE --check --baseline FILE` (the two flags only
-ANL-V0-034	docs/specs/application-navigation-ledger-v0.md	161	Several `--appmap-impact` reports may name one app when each comes from a differ
+ANL-V0-011	docs/specs/application-navigation-ledger-v0.md	93	The report is deterministic with a digest of the complete report, byte-capped wi
+ANL-V0-012	docs/specs/application-navigation-ledger-v0.md	97	`test-plan page-state --input FILE` reads one `test-consolidation-input/0` docum
+ANL-V0-013	docs/specs/application-navigation-ledger-v0.md	102	A variation joins no group and is listed as blocked with a reason when any ancho
+ANL-V0-014	docs/specs/application-navigation-ledger-v0.md	106	The report (`test-page-state-groups/0`) is deterministic, sorted, independent of
+ANL-V0-015	docs/specs/application-navigation-ledger-v0.md	110	`flows appmap impact --map FILE --base COMMIT [--ledger FILE]` prints
+ANL-V0-016	docs/specs/application-navigation-ledger-v0.md	118	A changed UI path (html, script, style or template extension) that no map elemen
+ANL-V0-031	docs/specs/application-navigation-ledger-v0.md	126	`corvint affected --base FULL_COMMIT_ID --appmap-impact REPORT` (repeatable up t
+ANL-V0-032	docs/specs/application-navigation-ledger-v0.md	139	A changed UI path no map element places is walked through the tracked UI-extensi
+ANL-V0-033	docs/specs/application-navigation-ledger-v0.md	155	`test-plan page-state --input FILE --check --baseline FILE` (the two flags only
+ANL-V0-034	docs/specs/application-navigation-ledger-v0.md	162	Several `--appmap-impact` reports may name one app when each comes from a differ
+ANL-V0-035	docs/specs/application-navigation-ledger-v0.md	168	`flows appmap build` classifies every `test-sequence` edge (AMAP-V0-008) by stat
+ANL-V0-036	docs/specs/application-navigation-ledger-v0.md	185	`test-plan prefixes` treats a derived `navigation-only` step as read-only withou
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,

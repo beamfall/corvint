@@ -80,6 +80,11 @@ type FlaggedPrefix struct {
 type PrefixAbstention struct {
 	Test   string `json:"test"`
 	Reason string `json:"reason"`
+	// Edge, Ref and Call name the step and the call that decided a derived-effect abstention
+	// (ANL-V0-036); absent for the other reasons.
+	Edge string `json:"edge,omitempty"`
+	Ref  string `json:"ref,omitempty"`
+	Call string `json:"call,omitempty"`
 }
 type PrefixReport struct {
 	Schema       string             `json:"schema"`
@@ -106,6 +111,14 @@ func Prefixes(ctx context.Context, m *Map, l *EdgeLedger, f *PrefixFacts, o Opti
 	for i := range m.Screens {
 		for _, a := range m.lineage(&m.Screens[i]) {
 			p.cite(a)
+		}
+	}
+	for _, e := range m.Edges {
+		if e.Basis == "test-sequence" && e.Effect != "" {
+			p.cite(e.Anchor)
+			for _, a := range e.EffectFrom {
+				p.cite(a)
+			}
 		}
 	}
 	p.check()
@@ -147,7 +160,7 @@ func Prefixes(ctx context.Context, m *Map, l *EdgeLedger, f *PrefixFacts, o Opti
 		if len(edges) == 0 {
 			continue
 		}
-		abstain := func(reason string) { rep.Abstained = append(rep.Abstained, PrefixAbstention{tf.Path, reason}) }
+		abstain := func(reason string) { rep.Abstained = append(rep.Abstained, PrefixAbstention{Test: tf.Path, Reason: reason}) }
 		if tf.Join != StatusResolved {
 			abstain("join-unknown")
 			continue
@@ -172,15 +185,31 @@ func Prefixes(ctx context.Context, m *Map, l *EdgeLedger, f *PrefixFacts, o Opti
 			}
 			return false
 		}
-		reason := ""
+		reason, step := "", PrefixAbstention{}
 		by := make([]string, len(ids))
 		for i, id := range ids {
+			// A derived effect (ANL-V0-035) governs its step: the sidecar may add an assertion or
+			// mutation but never upgrades a state-effect or unknown step to read-only (ANL-V0-036).
+			e := edges[i]
+			derived := func(r string) {
+				if reason == "" {
+					reason, step = r, PrefixAbstention{Edge: id, Ref: e.EffectRef, Call: e.EffectCall}
+				}
+			}
 			switch {
 			case in(fact.AssertionEdges, id):
-				reason = "assertion-target"
+				reason, step = "assertion-target", PrefixAbstention{}
 			case in(fact.MutatingEdges, id):
-				reason = "state-change"
-			case !in(fact.ReadOnlyEdges, id) && reason == "":
+				reason, step = "state-change", PrefixAbstention{}
+			case e.Effect == EffectState:
+				derived("step-state-effect")
+			case e.Effect == EffectUnknown:
+				derived("step-effect-unknown")
+			case e.Effect != "" && e.Effect != EffectNavigation:
+				derived("step-effect-unknown")
+			case e.Effect == EffectNavigation && p.worst(append([]Anchor{e.Anchor}, e.EffectFrom...)) != Fresh:
+				derived("step-effect-not-fresh")
+			case e.Effect == "" && !in(fact.ReadOnlyEdges, id) && reason == "":
 				reason = "effects-unknown"
 			case proven[id] == "" && reason == "":
 				reason = "edge-not-proven"
@@ -200,7 +229,8 @@ func Prefixes(ctx context.Context, m *Map, l *EdgeLedger, f *PrefixFacts, o Opti
 			reason = "nothing-to-save"
 		}
 		if reason != "" {
-			abstain(reason)
+			step.Test, step.Reason = tf.Path, reason
+			rep.Abstained = append(rep.Abstained, step)
 			continue
 		}
 		fp := FlaggedPrefix{Test: tf.Path, PrefixEdges: ids, ProvenBy: by, EntryScreen: last.ID, EntryTemplate: m.url(last), Params: append([]string{}, last.Params...), SavedSteps: len(ids) - 1, SharedWith: []string{}}
