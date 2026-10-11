@@ -418,10 +418,14 @@ keeps its layout and bytes. The route stays hidden like the S1 read: help is unc
   created directory whose name no longer holds that same real directory, whose opened root is
   another directory, or that is not empty; its cleanup MUST remove, without recursion and through
   the opened directory, only the files and directories the bundle declares, and then the name only
-  while it still holds that directory. Readers MUST open entries without following a final symlink
+  while it still holds that directory. The writer's threat model excludes a concurrent process with
+  write access to the output parent directory: against such a process it guarantees only that it
+  never writes outside the directory it bound and never follows a swapped symlink (see the remaining
+  limits below). Readers MUST open entries without following a final symlink
   or blocking on a substituted FIFO, MUST recheck each name, re-read every declared file against
   the digest it was admitted with, then walk the whole tree again comparing names, kinds and
-  directory identities and check that the caller's path still names the opened directory, so a
+  directory identities, and each file's identity, size and modification time with the state its
+  re-read opened, and check that the caller's path still names the opened directory, so a
   bundle changed during the read (including the bundle or an ancestor directory swapped for a
   symlink) is refused, and MUST read directories in
   bounded batches so a tree over the entry bound is refused before it is held in memory. The Go API (`CollectStable`,
@@ -441,6 +445,13 @@ added. Witness, dogfood and gate receipts are not carried in a stable bundle. Th
 is that `--artifacts` on a 0.x export is an `invalid-arguments` refusal instead of an
 argument-parser refusal; both exit 2 with nothing written.
 
+Remaining writer limits (out of scope under `CEM-V1-063`'s threat model; evidence: Codex round 6,
+`/private/tmp/claude-501/s5b/codex-r6.log`): a concurrent process with write access to the output
+parent can (1) move an empty directory of its own into the output name between `Mkdir` and the
+writer's identity capture, which the writer then adopts and fills, and removes on a later failed
+write; and (2) create a file at a declared path inside the bound directory after it is opened, so
+the exclusive write fails and cleanup, which removes every declared path, removes that file.
+
 Rollback: remove the stable branch in `receiptbundle.Export`, `stable_bundle.go`, the new
 `Options` fields and the `--artifacts` export flag. No 0.x byte, map, packet or stored bundle
 changes.
@@ -458,6 +469,7 @@ changes.
 | CEM-V1-063 | `TestWriteStableRefusesAnAlteredClosure` | An escaping path, a duplicated path (each with the artifact count kept), an added artifact, a relabelled or omitted role, altered bytes and another base refuse before anything is created; the output parent stays empty |
 | CEM-V1-063 | `TestReadStableRefusesAnOversizedTree`, `TestStableEntryOpenDoesNotBlockOnAFIFO` | A tree over 4,096 entries refuses; opening a FIFO entry returns at once and the read refuses it |
 | CEM-V1-063 | `TestReadStableRefusesABundleChangedDuringTheRead` | Between an entry's check and its open, swapping it for an in-root symlink to an undeclared sibling with the same bytes, rewriting an already-read `cem.json`, adding a file, or, during the re-reads, moving `artifacts` or the bundle itself aside and replacing it with a symlink to it, refuses as `stable-bundle-entry-escaping` |
+| CEM-V1-063 | `TestReadStableRefusesAFileRewrittenAfterItsReread` | A declared file rewritten in place after its own re-read, while another file is re-read, refuses as `stable-bundle-entry-escaping` |
 | CEM-V1-063 | `TestWriteStableRefusesASwappedBundleDirectory` | A created bundle directory replaced before its identity check by a non-empty sibling, or before its open by a symlink to that sibling or by another real directory, refuses as `publish-failed` with no file written or removed; a write failing after `cem.json` removes the bundle it started |
 | CEM-V1-060 | `TestCEMExportStableKeepsCallerRoot` | For the alias, `<alias>/../repo`, `<repo>/`, `./repo`, `repo`, `./alias` and `--repo`, `cem export --root` equals `cem verify-stable --repository` on the same string (complete result, exit) and publishes nothing |
 | CEM-V1-064 | `TestStableExportArgumentRefusals` | `--witness` and an in-worktree output refuse with nothing written; a 0.x export refuses `--artifacts` |

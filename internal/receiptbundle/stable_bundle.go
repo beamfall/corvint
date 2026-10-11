@@ -371,12 +371,14 @@ func ReadStable(dir string) (*StableBundle, error) {
 		return nil, err
 	}
 	// Every declared file is read again, so one rewritten after its own read
-	// is refused too.
+	// is refused too; the state each re-read saw is kept for the final walk.
+	reread := map[string]os.FileInfo{}
 	for name, want := range readFiles {
-		data, err := readRootFile(root, filepath.FromSlash(name), want.bound)
+		data, state, err := readRootFileState(root, filepath.FromSlash(name), want.bound)
 		if err != nil || digest(data) != want.sha256 {
 			return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
 		}
+		reread[name] = state
 	}
 	// A second walk after every read, including the re-reads, refuses a tree
 	// that changed meanwhile: an entry or an ancestor directory swapped for a
@@ -385,8 +387,17 @@ func ReadStable(dir string) (*StableBundle, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !maps.Equal(files, filesAfter) || !maps.EqualFunc(dirs, dirsAfter, os.SameFile) {
+	if len(files) != len(filesAfter) || !maps.EqualFunc(dirs, dirsAfter, os.SameFile) {
 		return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
+	}
+	// Each file must still be the one its re-read saw, with the same size and
+	// modification time, so a file rewritten in place after its re-read is
+	// refused as well.
+	for name, after := range filesAfter {
+		seen, ok := reread[name]
+		if !ok || !os.SameFile(seen, after) || seen.Size() != after.Size() || !seen.ModTime().Equal(after.ModTime()) {
+			return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
+		}
 	}
 	// The caller's path must still name the opened directory itself, not a
 	// symlink to it or to a moved copy.
@@ -408,11 +419,11 @@ func readStableProbe(dir, name string) ([]byte, error) {
 }
 
 // walkStable lists every regular file and directory under the bundle root by
-// slash path, with each directory's identity, reading each directory
+// slash path, with each entry's Lstat state, reading each directory
 // incrementally so an oversized tree is refused before it is held in memory,
 // and refusing any other entry kind.
-func walkStable(root *os.Root) (map[string]bool, map[string]os.FileInfo, error) {
-	files, dirs := map[string]bool{}, map[string]os.FileInfo{".": nil}
+func walkStable(root *os.Root) (map[string]os.FileInfo, map[string]os.FileInfo, error) {
+	files, dirs := map[string]os.FileInfo{}, map[string]os.FileInfo{".": nil}
 	pending := []string{"."}
 	for len(pending) > 0 {
 		dir := pending[len(pending)-1]
@@ -426,7 +437,11 @@ func walkStable(root *os.Root) (map[string]bool, map[string]os.FileInfo, error) 
 			name := path.Join(dir, entry.Name())
 			switch {
 			case entry.Type().IsRegular():
-				files[name] = true
+				info, err := entry.Info()
+				if err != nil || !info.Mode().IsRegular() {
+					return nil, nil, stableRefusal(CodeStableEntryEscaping, "bundle entry %s changed while it was listed", name)
+				}
+				files[name] = info
 			case entry.IsDir():
 				dirs[name] = nil
 				pending = append(pending, name)
@@ -472,8 +487,8 @@ func readStableDir(root *os.Root, dir string, room int) ([]fs.DirEntry, os.FileI
 
 // readDeclared reads one declared file the walk listed; a declared file the
 // walk did not list as a regular file is missing.
-func readDeclared(root *os.Root, files map[string]bool, name string, bound int) ([]byte, error) {
-	if !files[name] {
+func readDeclared(root *os.Root, files map[string]os.FileInfo, name string, bound int) ([]byte, error) {
+	if _, ok := files[name]; !ok {
 		return nil, stableRefusal(CodeStableEntryMissing, "bundle has no regular file %s", name)
 	}
 	data, err := readRootFile(root, filepath.FromSlash(name), bound)
@@ -485,7 +500,7 @@ func readDeclared(root *os.Root, files map[string]bool, name string, bound int) 
 
 // unusedEntries refuses every file nothing declares and every directory that
 // is not "." or an ancestor of a declared file.
-func unusedEntries(files map[string]bool, dirs map[string]os.FileInfo, declared map[string]bool) error {
+func unusedEntries(files, dirs map[string]os.FileInfo, declared map[string]bool) error {
 	needed := map[string]bool{".": true, StableArtifactDir: true}
 	for name := range declared {
 		for dir := path.Dir(name); dir != "."; dir = path.Dir(dir) {
@@ -516,24 +531,31 @@ var stableReadHook func(name string)
 // blocking on a substituted FIFO, and refuses anything but the same regular
 // file of at most bound bytes.
 func readRootFile(root *os.Root, name string, bound int) ([]byte, error) {
+	data, _, err := readRootFileState(root, name, bound)
+	return data, err
+}
+
+// readRootFileState is readRootFile that also returns the opened file's state
+// (identity, size, modification time) as it was before its bytes were read.
+func readRootFileState(root *os.Root, name string, bound int) ([]byte, os.FileInfo, error) {
 	info, err := root.Lstat(name)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if !info.Mode().IsRegular() || info.Size() > int64(bound) {
-		return nil, errors.New("not a bounded regular file")
+		return nil, nil, errors.New("not a bounded regular file")
 	}
 	if stableReadHook != nil {
 		stableReadHook(name)
 	}
 	file, err := openStableEntry(root, name)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer file.Close()
 	opened, err := file.Stat()
 	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(info, opened) {
-		return nil, errors.New("file changed while opened")
+		return nil, nil, errors.New("file changed while opened")
 	}
 	data, err := io.ReadAll(io.LimitReader(file, int64(bound)+1))
 	if err == nil && len(data) > bound {
@@ -544,7 +566,7 @@ func readRootFile(root *os.Root, name string, bound int) ([]byte, error) {
 	if named, lstatErr := root.Lstat(name); err == nil && (lstatErr != nil || !named.Mode().IsRegular() || !os.SameFile(info, named)) {
 		err = errors.New("file changed while read")
 	}
-	return data, err
+	return data, opened, err
 }
 
 // VerifyStable reads the bundle at dir (ReadStable) and runs the stable

@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/verify"
@@ -742,5 +743,47 @@ func TestWriteStableRefusesASwappedBundleDirectory(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// CEM-V1-063: a declared file rewritten in place after its own re-read, while
+// another file is re-read, is refused by the final walk's comparison of
+// identity, size and modification time.
+func TestReadStableRefusesAFileRewrittenAfterItsReread(t *testing.T) {
+	f := newStableFixture(t)
+	bundle, err := CollectStable(f.mapBytes, f.base, f.target, f.artifacts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := writeStableAt(t, filepath.Join(f.dir, "rewritten"), bundle)
+	calls := map[string]int{}
+	reread, rewritten := "", false
+	stableReadHook = func(name string) {
+		calls[name]++
+		if calls[name] != 2 || rewritten {
+			return
+		}
+		if reread == "" {
+			reread = name // re-read completes before the next hook call
+			return
+		}
+		rewritten = true
+		path := filepath.Join(dir, reread)
+		data, err := os.ReadFile(path)
+		if err == nil {
+			data[0] ^= 1
+			err = os.WriteFile(path, data, 0o600)
+		}
+		if err == nil {
+			later := time.Now().Add(time.Hour)
+			err = os.Chtimes(path, later, later)
+		}
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	defer func() { stableReadHook = nil }()
+	if _, err := ReadStable(dir); stableCode(err) != CodeStableEntryEscaping || !rewritten {
+		t.Fatalf("file rewritten after its re-read: %v (rewritten %v)", err, rewritten)
 	}
 }
