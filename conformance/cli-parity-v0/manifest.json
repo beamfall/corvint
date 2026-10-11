@@ -76,7 +76,7 @@
     {
       "command": "harness",
       "status": "PASS",
-      "reason": "all six lifecycle events, both compact rehydration shapes, six argument and input negatives, two hostile bounds, and one non-ASCII stdout case replay byte-exactly with no qualification. The non-ASCII case proves Python-compatible escaping for BMP characters and an astral surrogate pair. One further user-prompt row, harness-user-prompt-out-of-scope, is deliberately known-divergent under DR-0008 / GPK-V0-039: it is the case that discriminates the relevance floor, which no unqualified row could. The index-backed events (file-change, and a compact start with tracked dirty paths) inherit the Go impact profile: outside a slash-qualified Go module with changed paths in a non-root package, Go refuses where Python answers, so the fixture stays inside that profile and widening it is W4"
+      "reason": "all six lifecycle events, both compact rehydration shapes, six argument and input negatives, two hostile bounds, and one non-ASCII stdout case replay byte-exactly with no qualification. The non-ASCII case proves Python-compatible escaping for BMP characters and an astral surrogate pair. One further user-prompt row, harness-user-prompt-out-of-scope, is deliberately known-divergent under DR-0008 / GPK-V0-039: it is the case that discriminates the relevance floor, which no unqualified row could. The harness-stop row is known-divergent under DR-0043 / AHI-054 by exactly the additive frontier cause member. The index-backed events (file-change, and a compact start with tracked dirty paths) inherit the Go impact profile: outside a slash-qualified Go module with changed paths in a non-root package, Go refuses where Python answers, so the fixture stays inside that profile and widening it is W4"
     },
     {
       "command": "impact",
@@ -3041,6 +3041,17 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 0,
       "mutation": "none",
+      "knownDivergence": {
+        "register": "DR-0043",
+        "clause": "AHI-054",
+        "rewrites": [
+          {
+            "candidate": "\"frontier\":{\"cause\":\"no-accepted-closing-authority\",\"reason\":",
+            "oracle": "\"frontier\":{\"reason\":"
+          }
+        ],
+        "reason": "AHI-054 (proposed, V1-1157): the stop frontier adds the fixed cause member ahead of reason; the frontier lies outside the counted packet, so packet_bytes is unchanged"
+      },
       "identityRenameDivergence": {
         "register": "DR-0038",
         "clause": "CRB-DEC-002",

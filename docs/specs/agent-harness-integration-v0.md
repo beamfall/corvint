@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116)
+Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 proposed (V1-1157)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116)/experimental
+- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 proposed (V1-1157)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -1148,6 +1148,43 @@ separate exact extension tuple remains governed by AHI-024.
   `confirmCleanup`, `probeGroup` and `groupProbe`, and remove the two tests. OpenCode again completes
   100 ms after the request and reads a zombie-only group as unconfirmed.
 
+- `AHI-054`: (proposed, pending owner acceptance (V1-1157); GitHub #785) The
+  `corvint-harness-event/0` `stop` receipt's `frontier` object gains an optional member, `cause`,
+  beside its unchanged `reason`, `shouldContinue` and `state`. On the wire the member is optional: a
+  `/0` stop receipt without it, as every Core before this change emits, stays conforming, and
+  consumers MUST accept its absence. This Core MUST emit it on every `stop` receipt, with the value
+  `no-accepted-closing-authority`. `reason` keeps naming the degradation code,
+  `frontier-authority-unavailable`; `cause` says why it holds: no separately accepted closing
+  authority exists. The value is fixed. The event never
+  consults a CEM, an OCM or `corvint frontier`, so it MUST NOT name a cause it did not observe, such as
+  a missing or unverified CEM, and a committed `.corvint/change.cem.json` leaves the value unchanged.
+  The member is additive: the profile stays `corvint-harness-event/0` (the `TOL-V0-001` additive
+  precedent), the `frontier-authority-unavailable` degradation stays in every receipt, and the receipt
+  basis, and so `receiptId`, still excludes the frontier. Consumers MUST tolerate the member, and,
+  because the degradation is expected rather than a fault (`AHI-021`, `AHI-022`), MUST NOT render it as
+  a user-visible notice. The frozen `harness-stop` parity row records the extra member as `DR-0043`.
+  Non-goals: no adopter acknowledge, suppress or hide flow for frontier items; the owner declined it
+  on 2026-10-11 (V1-1157), because missing evidence stays visible (product invariant 2, `AHI-019`,
+  `AHI-022`) and the degradation remains in every receipt. No cause on the non-`stop` events, on
+  `corvint-dogfood-event/0`, on the Pi workflow profile or on the qualified lifecycle; no
+  documentation-link member; no change to `shouldContinue`, `state` or the degradation list.
+  Failure modes: a strict consumer that compares the whole frontier object to a fixed value rejects
+  the new member; the shipped Gemini CLI and OpenCode consumers read only `state` and
+  `shouldContinue`. A consumer that renders every frontier member would surface an expected
+  degradation, which `AHI-021`/`AHI-022` forbid.
+  Acceptance: `internal/gokernel/harness_test.go::TestAHI054StopFrontierCarriesFixedCause` (exact
+  frontier with and without a committed CEM, degradation kept, no frontier on the other events);
+  `conformance/cli-parity-v0` `TestGPKV0002ManifestReplay` reporting
+  `PASS-WITH-KNOWN-DIVERGENCE harness-stop register=DR-0043 clause=AHI-054 rewrites=1` and
+  `TestAHI054FrontierCauseDivergenceIsPinnedAndOutOfPacket`; the Gemini CLI and OpenCode stop cases
+  in `integrations/host-adapters.test.mjs` under `TestHostAdapterJavaScriptHosts`, whose fixture
+  core emits the member, and `AHI-054 stop receipts with and without the frontier cause are accepted
+  and the cause is never rendered` there (fixture modes `valid` and `legacy-frontier`).
+  Rollback: remove the `cause` member and `FrontierCauseNoClosingAuthority` from
+  `internal/gokernel/harness.go`, the fixture member and `legacy-frontier` mode and its test, the
+  `DR-0043` declaration, validator and runner branch, and the register entry; the frozen row passes
+  again unchanged. No store, ledger or receipt identity changes.
+
 ## Native platform profiles
 
 | Platform | Embedded host-admission key | Maintained Corvint package | Native surfaces | Stability rule |
@@ -1384,6 +1421,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-030` | `cmd/corvint/host_adapter_compaction.go` (`compactSessionDisclosure`), Claude branch of `runClaudeAdapter` | `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (compact `SessionStart` additionalContext begins with the disclosure) |
 | `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`, `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`, `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); V1-0286 amendment (accepted, decision 0422): `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
+| `AHI-054` (proposed; V1-1157) | `internal/gokernel/harness.go` `HandleEvent` stop frontier, `FrontierCauseNoClosingAuthority`; `conformance/cli-parity-v0` `validFrontierCauseDivergence`, `outOfPacketKnownDivergence`; `integrations/testfixture/main.go` | `TestAHI054StopFrontierCarriesFixedCause`, `TestAHI054FrontierCauseDivergenceIsPinnedAndOutOfPacket`, `TestGPKV0002ManifestReplay` (`DR-0043`), Gemini CLI and OpenCode stop cases and the `AHI-054` with-and-without-cause case under `TestHostAdapterJavaScriptHosts` |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |
 | `AHI-011`, `015` | embedded `internal/gokernel/host-schema.json` admission table and shared lifecycle command | schema/admission tests plus one host-keyed golden fixture per admitted host |
 | `AHI-002`, `006..010` | four native packages and release matrix | install/uninstall, lifecycle, degradation, and version fixtures; for `AHI-010`, the `integrations/host-adapters.test.mjs` test under `TestHostAdapterJavaScriptHosts` binding each `integrations/compatibility.json` row to its shipped declaration and its row's adapter version to the package manifest version, and asserting `globalDegradations` disjoint from `receiptDegradationPolicy.recognised`; for the owned-group cleanup governed by `AHI-050` (accepted by decision 0474, superseding the earlier `AHI-009` kill text), the `V1-0371` OpenCode and Gemini timeout-and-cancellation, normal-exit, failed-kill, same-batch, inherited-pipe and shared-grace tests in that file, whose `orphan-hang` and `orphan-valid` fixture descendant ignores SIGTERM and closes its stdio |

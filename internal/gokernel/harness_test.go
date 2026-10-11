@@ -266,6 +266,57 @@ func TestReceiptRecomputesFromNormalizedInputAndExactRepository(t *testing.T) {
 	}
 }
 
+// TestAHI054StopFrontierCarriesFixedCause pins the additive `cause` member: the stop frontier
+// names the absent closing authority whether or not change-evidence artifacts exist, keeps its
+// legacy members, and every event still lists the degradation itself (AHI-054, V1-1157).
+func TestAHI054StopFrontierCarriesFixedCause(t *testing.T) {
+	root := testRepository(t)
+	want := map[string]any{
+		"cause":          "no-accepted-closing-authority",
+		"reason":         "frontier-authority-unavailable",
+		"shouldContinue": false,
+		"state":          "UNAVAILABLE",
+	}
+	check := func(label string) {
+		t.Helper()
+		result, err := HandleEvent(request(root, "stop", `{}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		encoded, _ := CanonicalJSON(result["frontier"])
+		wantEncoded, _ := CanonicalJSON(want)
+		if !bytes.Equal(encoded, wantEncoded) {
+			t.Fatalf("%s: frontier = %s, want %s", label, encoded, wantEncoded)
+		}
+		if !slices.Contains(result["degradations"].([]any), any("frontier-authority-unavailable")) {
+			t.Fatalf("%s: degradation dropped: %#v", label, result["degradations"])
+		}
+	}
+	check("no artifacts")
+	cem := filepath.Join(root, ".corvint", "change.cem.json")
+	if err := os.MkdirAll(filepath.Dir(cem), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cem, []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, root, "add", "-f", ".corvint/change.cem.json")
+	runGit(t, root, "commit", "-q", "-m", "cem")
+	check("committed cem")
+	for _, event := range []string{"session-start", "post-tool", "session-end"} {
+		result, err := HandleEvent(request(root, event, `{}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, present := result["frontier"]; present {
+			t.Fatalf("%s carries a frontier: %#v", event, result["frontier"])
+		}
+		if !slices.Contains(result["degradations"].([]any), any("frontier-authority-unavailable")) {
+			t.Fatalf("%s dropped the degradation: %#v", event, result["degradations"])
+		}
+	}
+}
+
 func TestUnsupportedIndexEventsFailBeforeRepositoryWork(t *testing.T) {
 	missingRoot := filepath.Join(t.TempDir(), "missing")
 	for _, test := range []struct{ event, input string }{

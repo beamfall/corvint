@@ -167,6 +167,13 @@ test('AHI-017 Gemini degrades without spawning Corvint when the host kill leaves
  assert.equal(output.continue,true);assert.match(output.hookSpecificOutput.additionalContext,/host-kill-budget-exhausted/);assert.deepEqual(f.captured(),[])
 })
 const geminiWrite=root=>({tool_name:'write_file',tool_input:{file_path:join(root,'src/parser.py')},tool_response:{success:true}})
+test('AHI-054 stop receipts with and without the frontier cause are accepted and the cause is never rendered',async t=>{
+ for(const mode of ['valid','legacy-frontier']){
+  const f=fixture(t,mode),gemini=(await f.gemini('stop')).output
+  assert.deepEqual(gemini,{continue:true,suppressOutput:false},mode);assert.ok(!JSON.stringify(gemini).includes('no-accepted-closing-authority'),mode)
+  const open=await f.runOpen(request(f.root,'stop'));assert.equal(open.ok,true,`${mode}: ${JSON.stringify(open)}`)
+ }
+})
 test('AHI-022 Gemini routine receipt and expected degradation carry no notice',async t=>{
  const f=fixture(t),tool=(await f.gemini('after-tool',geminiWrite(f.root))).output
  assert.equal(tool.systemMessage,undefined);assert.equal(tool.hookSpecificOutput.hookEventName,'AfterTool')
