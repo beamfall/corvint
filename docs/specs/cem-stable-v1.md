@@ -398,8 +398,12 @@ not relabel the frozen `lrf/0` profile.
   `cem/1.0` only after the complete stable verifier (`verify.Stable`) accepts those exact original
   bytes. It returns a `StableUniverse` whose `Spec` is `cem/1.0`, whose `MapSHA256` is the
   SHA-256 of the exact original bytes, and whose `Verification` is the complete accepted verifier
-  result, unmodified. It MUST re-derive the canonical patch at the accepted base and target and
-  require its digest to equal both the verifier's and the map's `patchSha256`.
+  result, unmodified. The verifier MUST report the exact committed sidecar (`EXACT`); an `ABSENT`
+  sidecar refuses with `excluded-artifact-mismatch`. The admission MUST re-derive the canonical patch
+  at the accepted base and target, and require its digest to equal both the verifier's and the
+  map's `patchSha256`. The OCM phase runs inside one retained stable repository boundary. At the
+  end, the admission MUST revalidate that boundary and run the verifier again, and MUST require a
+  result byte-identical to the first.
 - `CEM-V1-052`: The repository root, expected base, target and artifact root are explicit, with no
   default and no Git-only fallback. A missing or non-absolute argument is the verifier's own
   `authority-arguments` refusal (`expected-base-required`, `target-required`,
@@ -418,11 +422,14 @@ not relabel the frozen `lrf/0` profile.
   `unsupported-lrf-context`. `lrf.ValidateStableRequest` is the owning stable request admission. It
   applies every frozen request check and admits only a `cem/1.0` context with canonical-derived
   patch identity, a target and a complete OCM binding. Any other spec, including a relabeled
-  context, refuses with `unsupported-lrf-context`. It evaluates nothing.
+  context, and a context without the OCM binding refuse with `unsupported-lrf-context`. It
+  evaluates nothing.
 - `CEM-V1-056`: A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1),
   and a missing one its UNSUPPORTED refusal (`artifact-unavailable`). A stable map other than the
   committed exact sidecar, a stale target or base, an OCM bound to another map digest or target, and
-  an OCM missing an obligation also refuse. Every refusal returns no universe, so no consumer can
+  an OCM missing an obligation also refuse. So does an artifact or repository-root change made after
+  the first verification: the second verification refuses or differs, or the boundary is no longer
+  valid. Every refusal returns no universe, so no consumer can
   derive a closed or empty frontier from it. A verifier refusal is returned as `StableRefusal`, which
   retains the full result and exit; `lrfrepo.CodeOf` reports its code.
 - `CEM-V1-057`: Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in
@@ -454,8 +461,9 @@ changes.
 | CEM-V1-052 | `TestCEMV1052StableUniverseAuthorityArguments` | Six artifact checks; `NOT_OBSERVED` authority axes; a missing artifact root, base, target or root is the verifier's `authority-arguments` refusal (exit 2) |
 | CEM-V1-053 | `TestCEMV1053StableUniverseRetainsUnsatisfiedObligations` | `OCM-TEST-001` linked to the supported hunk; `OCM-TEST-002` stays `unknown`/`unassessed` |
 | CEM-V1-054 | `TestCEMV1054StableUniverseReadOnlyDocument` | `Document` keeps criteria, receipts, links and artifacts; edits to returned copies never reach the universe |
-| CEM-V1-055 | `TestCEMV1055StableLRFRequestAdmission` | `lrf.Evaluate` refuses the stable request; the stable admission refuses a `cem/0.2`, relabeled or target-less request |
-| CEM-V1-056 | `TestCEMV1056StableUniverseRefusesStaleOrTamperedInput` | Tampered artifact REJECT (exit 1, result retained); missing artifact `artifact-unavailable`; swapped map `excluded-artifact-mismatch`; OCM `cem-map-digest-mismatch`/`target-mismatch`; stale target and base; truncated OCM |
+| CEM-V1-055 | `TestCEMV1055StableLRFRequestAdmission` | `lrf.Evaluate` refuses the stable request; the stable admission refuses a `cem/0.2`, relabeled, target-less or OCM-unbound request |
+| CEM-V1-056 | `TestCEMV1056StableUniverseRefusesStaleOrTamperedInput` | Tampered artifact REJECT (exit 1, result retained); missing artifact `artifact-unavailable`; swapped map `excluded-artifact-mismatch`; OCM `cem-map-digest-mismatch`/`target-mismatch`; an absent sidecar with a rebound OCM and a stale caller target `excluded-artifact-mismatch`; stale base; truncated OCM |
+| CEM-V1-056 | `TestCEMV1056StableUniverseRevalidatesAfterOCMPhase` | An artifact changed after the OCM phase is the second verification's REJECT; a root replaced by a symlink is `repository-object-unavailable`; restored inputs admit again |
 | CEM-V1-057 | `TestCEMV1057StableUniverseProfileSwapsRefuse` | `cem/0.2` and relabeled maps refuse in the stable route; `cem/1.0` refuses in `VerifyUniverse` |
 | CEM-V1-058 | `TestCEMV1058LegacyOCMLRFAdmissionUnchanged` | The `cem/0.2` universe and `lrf.Evaluate` still accept; `ReadOCM`, `PrepareOCM` and `LinkOCM` (map unchanged) and `Evaluate` refuse `cem/1.0` with `unsupported-spec`; existing `internal/lrfrepo`, `conformance/ocm-v0`, frontier, TCQ and CLI LRF/OCM suites pass |
 | CEM-V1-059 | `TestCEMV1059StableUniverseReadDoesNotMutate` | HEAD, porcelain status, artifact bytes and input bytes are unchanged after an accepted read |

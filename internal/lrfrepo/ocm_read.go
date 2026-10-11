@@ -537,3 +537,11 @@ func invalidOrStableCEM(result *OCMReadResult, cemRaw []byte) (*OCMReadResult, e
 	}
 	return finishOCMFailure(result, "invalid-cem", "CEM is invalid"), nil
 }
+
+// sameStableResult reports whether two stable verifier results encode to the
+// same bytes, so a repeated verification observed exactly the same state.
+func sameStableResult(first, second verify.StableResult) bool {
+	a, errA := json.Marshal(first)
+	b, errB := json.Marshal(second)
+	return errA == nil && errB == nil && bytes.Equal(a, b)
+}

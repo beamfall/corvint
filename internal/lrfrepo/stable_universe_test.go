@@ -397,6 +397,13 @@ func TestCEMV1055StableLRFRequestAdmission(t *testing.T) {
 	if err := lrf.ValidateStableRequest(missingTarget); CodeOf(err) != "unsupported-lrf-context" {
 		t.Fatalf("stable admission accepted a context without target: %v", err)
 	}
+	unbound := universe.LRFRequest
+	unbound.Context.OCMSpec, unbound.Context.OCMMapSHA256, unbound.Context.IntentPath = nil, nil, nil
+	unbound.Context.IntentBlobOID, unbound.Context.IntentStart, unbound.Context.IntentEnd = nil, nil, nil
+	unbound.Context.IntentSpanSHA256, unbound.Obligations = nil, nil
+	if err := lrf.ValidateStableRequest(unbound); CodeOf(err) != "unsupported-lrf-context" {
+		t.Fatalf("stable admission accepted a context without an OCM binding: %v", err)
+	}
 }
 
 // TestCEMV1056StableUniverseRefusesStaleOrTamperedInput (CEM-V1-056): stale, swapped or tampered inputs refuse and keep their evidence.
@@ -438,15 +445,24 @@ func TestCEMV1056StableUniverseRefusesStaleOrTamperedInput(t *testing.T) {
 	universe, err = VerifyStableUniverse(ctx, swapped, rebindOCM(t, f.legacyOCM, f.target, stableDigestHex(swapped)), f.options())
 	requireStableRefusal(t, universe, err, "REJECT", cemcode.ExcludedArtifactMismatch)
 
+	// A target without the committed sidecar, with an otherwise correctly
+	// rebound OCM: the verifier accepts it as ABSENT, the admission does not.
+	absent := f.options()
+	absent.Target = f.legacyTarget
+	universe, err = VerifyStableUniverse(ctx, f.stable, rebindOCM(t, f.legacyOCM, f.legacyTarget, stableDigestHex(f.stable)), absent)
+	requireNoUniverse(t, universe, err, cemcode.ExcludedArtifactMismatch)
+
 	// The OCM still bound to another map digest, or to a stale target.
 	universe, err = VerifyStableUniverse(ctx, f.stable, rebindOCM(t, f.legacyOCM, f.target, stableDigestHex(f.legacyCEM)), f.options())
 	requireNoUniverse(t, universe, err, "cem-map-digest-mismatch")
 	universe, err = VerifyStableUniverse(ctx, f.stable, rebindOCM(t, f.legacyOCM, f.legacyTarget, stableDigestHex(f.stable)), f.options())
 	requireNoUniverse(t, universe, err, "target-mismatch")
+	// A stale caller target, which predates the sidecar, refuses before the
+	// OCM is read.
 	stale := f.options()
 	stale.Target = f.legacyTarget
 	universe, err = VerifyStableUniverse(ctx, f.stable, f.stableOCM, stale)
-	requireNoUniverse(t, universe, err, "target-mismatch")
+	requireNoUniverse(t, universe, err, cemcode.ExcludedArtifactMismatch)
 
 	// A stale expected base refuses inside the verifier.
 	stale = f.options()
@@ -571,5 +587,57 @@ func TestCEMV1059StableUniverseReadDoesNotMutate(t *testing.T) {
 		if err != nil || !bytes.Equal(now, data) {
 			t.Fatalf("verification changed artifact %s", path)
 		}
+	}
+}
+
+// TestCEMV1056StableUniverseRevalidatesAfterOCMPhase (CEM-V1-056): a change to
+// the artifacts or the repository root after the first verification refuses.
+func TestCEMV1056StableUniverseRevalidatesAfterOCMPhase(t *testing.T) {
+	f := makeStableUniverseFixture(t)
+	ctx := context.Background()
+	t.Cleanup(func() { afterStableUniversePhase = func() {} })
+
+	artifact := filepath.Join(f.artifacts, filepath.FromSlash(f.artifactPaths[0]))
+	original, err := os.ReadFile(artifact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterStableUniversePhase = func() { writeOCMPrepareFile(t, f.artifacts, f.artifactPaths[0], `{"fixture":"late"}`+"\n") }
+	universe, err := VerifyStableUniverse(ctx, f.stable, f.stableOCM, f.options())
+	refusal := requireStableRefusal(t, universe, err, "REJECT", "artifact-digest-mismatch")
+	if refusal.Exit != 1 || refusal.Result.Stage != "artifacts" {
+		t.Fatalf("late artifact change: exit=%d stage=%s", refusal.Exit, refusal.Result.Stage)
+	}
+	if err := os.WriteFile(artifact, original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	moved := f.root + ".moved"
+	afterStableUniversePhase = func() {
+		if err := os.Rename(f.root, moved); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(moved, f.root); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() {
+		if info, err := os.Lstat(f.root); err == nil && info.Mode()&os.ModeSymlink != 0 {
+			_ = os.Remove(f.root)
+			_ = os.Rename(moved, f.root)
+		}
+	})
+	universe, err = VerifyStableUniverse(ctx, f.stable, f.stableOCM, f.options())
+	requireNoUniverse(t, universe, err, cemcode.RepositoryObjectUnavailable)
+
+	afterStableUniversePhase = func() {}
+	if err := os.Remove(f.root); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(moved, f.root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := VerifyStableUniverse(ctx, f.stable, f.stableOCM, f.options()); err != nil {
+		t.Fatalf("restored inputs no longer admit: %v", err)
 	}
 }

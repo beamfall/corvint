@@ -249,8 +249,7 @@ func contextAdmission(admit []func(Context) error) func(Context) error {
 // ValidateStableRequest is the owning LRF admission of one verified cem/1.0
 // change projection (CEM-V1-055). It applies every frozen request check, but
 // admits only the stable context row: cem/1.0, canonical-derived patch, full
-// target, the excluded sidecar path and either no OCM or a complete OCM
-// binding. It evaluates nothing. lrf/0 stays frozen: Evaluate still refuses a
+// target, the excluded sidecar path and a complete OCM binding. It evaluates nothing. lrf/0 stays frozen: Evaluate still refuses a
 // cem/1.0 context as unsupported-lrf-context, so no lrf/0 result can carry a
 // stable map.
 func ValidateStableRequest(request Request) error {
@@ -259,11 +258,16 @@ func ValidateStableRequest(request Request) error {
 
 // validateStableContext admits exactly the stable row through the same
 // canonical-derived checks as cem/0.2. A cem/0.1 context, which the shared
-// checks would otherwise admit, and every other profile are unsupported here.
+// checks would otherwise admit, every other profile and a context without a
+// complete OCM binding are unsupported here.
 func validateStableContext(context Context) error {
 	err := validateContextSpec(context, wire.StableSpec)
 	if err == nil && context.CEMSpec != wire.StableSpec {
 		return unsupported("stable LRF context requires cem/1.0")
+	}
+	if err == nil && context.OCMSpec == nil {
+		// The shared checks keep the OCM all-or-none; the stable row needs it.
+		return unsupported("stable LRF context requires a complete OCM binding")
 	}
 	return err
 }

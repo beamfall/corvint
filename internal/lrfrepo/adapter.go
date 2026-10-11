@@ -347,13 +347,18 @@ func (e *StableRefusal) Unwrap() error {
 //     unsupported-spec; a stable map is never reduced to a 0.x reading);
 //  2. runs the complete stable verifier over the exact original bytes with
 //     the explicit base, target and artifact root, and refuses with the full
-//     result unless it accepted;
-//  3. re-derives the canonical patch at the accepted revisions and requires
+//     result unless it accepted with the exact committed sidecar;
+//  3. opens the repository under the stable envelope and retains that
+//     boundary for the whole OCM phase;
+//  4. re-derives the canonical patch at the accepted revisions and requires
 //     its digest to equal the accepted stable patch digest;
-//  4. verifies the OCM against the exact original map digest, the same target
+//  5. verifies the OCM against the exact original map digest, the same target
 //     and patch, the pinned intent scope, its claims and its obligations;
-//  5. projects the stable LRF request and admits it through
-//     lrf.ValidateStableRequest.
+//  6. projects the stable LRF request and admits it through
+//     lrf.ValidateStableRequest;
+//  7. revalidates the retained boundary and runs the stable verifier again,
+//     requiring a result identical to the first, so the repository and
+//     artifacts it authenticated are still the ones the OCM phase read.
 //
 // Every refusal returns no universe, so nothing downstream can derive a closed
 // or empty frontier from a stale, swapped or incomplete input (CEM-V1-056).
@@ -361,14 +366,48 @@ func VerifyStableUniverse(ctx context.Context, cemRaw, ocmRaw []byte, options St
 	if !wire.DeclaresStable(cemRaw) {
 		return nil, cemcode.New(cemcode.UnsupportedSpec, "stable universe verification accepts cem/1.0 only")
 	}
+	result, err := acceptedStable(ctx, cemRaw, options)
+	if err != nil {
+		return nil, err
+	}
+	if result.Sidecar != "EXACT" {
+		return nil, cemcode.New(cemcode.ExcludedArtifactMismatch, "stable OCM/LRF admission requires the exact committed sidecar at the target; sidecar is %s", result.Sidecar)
+	}
+	universe, err := stableUniversePhase(ctx, cemRaw, ocmRaw, options, result)
+	if err != nil {
+		return nil, err
+	}
+	again, err := acceptedStable(ctx, cemRaw, options)
+	if err != nil {
+		return nil, err
+	}
+	if !sameStableResult(result, again) {
+		return nil, cemcode.New(cemcode.RepositoryObjectUnavailable, "stable verification changed during OCM/LRF admission")
+	}
+	return universe, nil
+}
+
+// acceptedStable runs the stable verifier and returns its result only when it
+// accepted; any other result is a StableRefusal that keeps it whole.
+func acceptedStable(ctx context.Context, cemRaw []byte, options StableUniverseOptions) (verify.StableResult, error) {
 	result, exit := verify.Stable(ctx, cemRaw, verify.StableOptions{
 		Repository: options.Root, ExpectedBase: options.ExpectedBase,
 		Target: options.Target, ArtifactRoot: options.ArtifactRoot,
 	})
 	if exit != 0 || result.Accept == nil || !*result.Accept || result.Outcome != "ACCEPT" ||
 		result.TargetRevision == nil || result.PatchSha256 == nil || result.MapSha256 == nil {
-		return nil, &StableRefusal{Result: result, Exit: exit}
+		return result, &StableRefusal{Result: result, Exit: exit}
 	}
+	return result, nil
+}
+
+// afterStableUniversePhase runs between the OCM phase and the terminal
+// revalidation. It is a test seam only and does nothing in production.
+var afterStableUniversePhase = func() {}
+
+// stableUniversePhase verifies the OCM and projects the request inside one
+// retained stable repository boundary, which it revalidates before returning.
+func stableUniversePhase(ctx context.Context, cemRaw, ocmRaw []byte, options StableUniverseOptions, result verify.StableResult) (*StableUniverse, error) {
 	document, err := wire.ParseStable(cemRaw)
 	if err != nil {
 		return nil, err
@@ -377,11 +416,16 @@ func VerifyStableUniverse(ctx context.Context, cemRaw, ocmRaw []byte, options St
 	if base != options.ExpectedBase || *result.MapSha256 != document.StableOriginalDigest() {
 		return nil, cemcode.New(cemcode.InvalidArguments, "stable verification binding differs from the requested base or map")
 	}
-	repository, err := gitauth.Open(options.Root, gitrun.NewDefaultBudget())
+	repository, boundary, err := gitauth.OpenStable(options.Root, gitrun.NewDefaultBudget(), nil)
 	if err != nil {
 		return nil, err
 	}
-	defer repository.BeginObjectSession()()
+	defer boundary.Close()
+	if err := boundary.Validate(); err != nil {
+		return nil, err
+	}
+	release := repository.BeginObjectSession()
+	defer release()
 	patchBytes, err := repository.CanonicalDiff(ctx, base, target)
 	if err != nil {
 		return nil, err
@@ -411,6 +455,10 @@ func VerifyStableUniverse(ctx context.Context, cemRaw, ocmRaw []byte, options St
 	}
 	format, err := objectFormat(ctx, repository)
 	if err != nil {
+		return nil, err
+	}
+	afterStableUniversePhase()
+	if err := boundary.Validate(); err != nil {
 		return nil, err
 	}
 	return &StableUniverse{
