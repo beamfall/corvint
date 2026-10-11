@@ -3134,6 +3134,11 @@ TTG-V0-007	docs/specs/traceability-test-gate-v0.md	73	The gate MUST evaluate eve
 TTG-V0-008	docs/specs/traceability-test-gate-v0.md	76	The gate MUST print a single summary line of the form "traceability tests: N
 TTG-V0-009	docs/specs/traceability-test-gate-v0.md	79	When one or more names fail TTG-V0-005, the gate MUST print a header line follow
 TTG-V0-010	docs/specs/traceability-test-gate-v0.md	82	The gate MUST be wired as the `traceability-tests-check` `make` target and MUST
+UCL1142-V0-001	docs/specs/upgrade-checklist-v0.md	26	`corvint [--root SOURCE] changes --from SHA --to SHA` MUST resolve hexadecimal
+UCL1142-V0-002	docs/specs/upgrade-checklist-v0.md	31	The deterministic range MUST use first-parent commits in FROM..TO. Only merge
+UCL1142-V0-003	docs/specs/upgrade-checklist-v0.md	39	Repeatable `--refs-file FILE` MUST scan explicit regular files relative to SOURC
+UCL1142-V0-004	docs/specs/upgrade-checklist-v0.md	44	Output MUST be one deterministic compact JSON document with profile
+UCL1142-V0-005	docs/specs/upgrade-checklist-v0.md	52	Root and topic help MUST mark the command experimental and document the workflow
 UCV0-001	docs/specs/use-case-conformance-v0.md	99	The canonical ledger MUST contain exactly one row for every governed job named a
 UCV0-002	docs/specs/use-case-conformance-v0.md	101	Status MUST be exactly `specified`, `experimental`, or `verified`. Claim MUST be
 UCV0-003	docs/specs/use-case-conformance-v0.md	104	The promotion evidence classes are exactly `contract`, `implementation`,

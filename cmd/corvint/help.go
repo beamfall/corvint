@@ -175,6 +175,8 @@ func helpText(topic string) string {
 		return flowsHelp
 	case "step":
 		return stepHelp
+	case "changes":
+		return changesHelp
 	case "breakage":
 		return breakageHelp
 	case "necessity":
@@ -248,6 +250,7 @@ Commands:
   context  task-context packet: files to read
   impact  path, untracked-file or range impact
   breakage  cross-repository API relations
+  changes  offline upgrade checklist
   harness event  one agent-harness lifecycle event
   adapter  one native host adapter
   dogfood  local evidence workflow; change, check, seal
@@ -1268,7 +1271,7 @@ const commandMaturityHelp = `Command maturity:
     calibrate (OCL-V0), witness (AGW-V0), test-validity (MTV-V0),
     test-plan (TCN-V0), features (RGV-V0), overview (RGV-V0), review (RGV-V0),
     migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0),
-    breakage (BKM-V0), step (ASS-V0), delta (DLT-V0)
+    breakage (BKM-V0), step (ASS-V0), delta (DLT-V0), changes (UCL1142-V0)
 
 `
 

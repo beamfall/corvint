@@ -423,3 +423,22 @@ non-empty and is compared to the packet that release builds from a cold index an
 line per step and a final `SUMMARY status=PASS|FAIL` line; it does not qualify a future release,
 every supported platform, or restoration of arbitrary ticket-store data. See the
 [release runbook](RELEASE-RUNBOOK.md) and [security/support boundaries](SECURITY.md).
+
+## Experimental offline upgrade checklist
+
+In the Corvint source checkout, compare the commit IDs recorded for two installed builds:
+
+```sh
+corvint --root /path/to/corvint changes --from OLD_BUILD_SHA --to NEW_BUILD_SHA \
+  --refs-file /path/to/adopter/workarounds.md --refs-file /path/to/adopter/holds.txt
+```
+
+The read-only command never fetches. Its bounded JSON lists first-parent merge PRs and local
+Closes/Fixes/Resolves/Refs issue evidence. Explicit closure evidence can produce a
+"workaround may be removable" hint with file, line and closing PR; inspect the fix before removing
+anything. Refs alone is unknown. Repeat explicit regular files; globs and symlinks are unsupported
+(file scanning is supported on macOS/Linux). `truncated: true` means the checklist is incomplete.
+Unavailable build objects produce `changes-build-unavailable`; use a checkout already containing
+both commits. GitHub issue state, reopen/revert semantics, closures before the range and per-PR
+new flags/commands are not observed. See the proposed
+[Upgrade Checklist V0](specs/upgrade-checklist-v0.md) contract (V1-1142).
