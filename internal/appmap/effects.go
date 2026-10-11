@@ -54,19 +54,97 @@ func assignmentAt(toks []token, q int) (int, bool) {
 	if q+1 < len(toks) && toks[q+1].glued && (toks[q+1].text == "=" || toks[q+1].text == ">") {
 		return 0, false
 	}
-	if toks[q].glued && strings.Contains("=!<>", toks[q-1].text) {
-		return 0, false
-	}
-	k := q - 1
-	for k > 0 && toks[k].kind == tokPunct && toks[k+1].glued && strings.Contains("+-*/%&|^?", toks[k].text) {
+	k, op := q-1, ""
+	for k > 0 && toks[k].kind == tokPunct && toks[k+1].glued && strings.Contains("+-*/%&|^?<>=!", toks[k].text) {
+		op = toks[k].text + op
 		k--
 	}
-	return k, true
+	switch op {
+	case "", "+", "-", "*", "/", "%", "**", "&", "|", "^", "&&", "||", "??", "<<", ">>", ">>>":
+		return k, true
+	}
+	return 0, false // a comparison: <=, >=, ==, !=, ===, !==
 }
 
 // memberTarget reports whether an assignment target ending at toks[k] is a member (`a.b`, `a[k]`).
 func memberTarget(toks []token, k int) bool {
 	return isPunct(toks[k], "]") || toks[k].kind == tokIdent && k > 0 && isPunct(toks[k-1], ".")
+}
+
+// targetNames returns the identifier tokens an assignment target ending at toks[k] may rebind:
+// the root of a member target, or every identifier inside a destructuring pattern or computed key.
+// ok is false when the target cannot be bounded.
+func targetNames(toks []token, k int) ([]int, bool) {
+	if isPunct(toks[k], "]") || isPunct(toks[k], "}") || isPunct(toks[k], ")") {
+		o := openBracket(toks, k)
+		if o < 0 {
+			return nil, false
+		}
+		out := []int{}
+		for j := o + 1; j < k; j++ {
+			if toks[j].kind == tokIdent {
+				out = append(out, j)
+			}
+		}
+		if isPunct(toks[k], "]") && o > 0 && (toks[o-1].kind == tokIdent || isPunct(toks[o-1], "]") || isPunct(toks[o-1], ")")) {
+			more, ok := targetNames(toks, o-1)
+			return append(out, more...), ok
+		}
+		return out, true
+	}
+	if r := targetRoot(toks, k); r >= 0 {
+		return []int{r}, true
+	}
+	return nil, false
+}
+
+// openBracket returns the index of the bracket of any kind that opens the one closing at toks[i],
+// or -1.
+func openBracket(toks []token, i int) int {
+	depth := 0
+	for j := i; j >= 0; j-- {
+		if toks[j].kind != tokPunct {
+			continue
+		}
+		switch toks[j].text {
+		case ")", "]", "}":
+			depth++
+		case "(", "[", "{":
+			depth--
+			if depth == 0 {
+				return j
+			}
+		}
+	}
+	return -1
+}
+
+// substUnsafe reports whether any ${} substitution in a template's code may call, assign, update
+// or delete: such a template is not read as a value.
+func substUnsafe(code string) bool {
+	for i := 0; i+1 < len(code); i++ {
+		if code[i] != '$' || code[i+1] != '{' {
+			continue
+		}
+		depth, j := 1, i+2
+		for ; j < len(code) && depth > 0; j++ {
+			switch code[j] {
+			case '{':
+				depth++
+			case '}':
+				depth--
+			}
+		}
+		if depth != 0 {
+			return true
+		}
+		body := code[i+2 : j-1]
+		if strings.ContainsAny(body, "(=`") || strings.Contains(body, "++") || strings.Contains(body, "--") || strings.Contains(body, "delete") {
+			return true
+		}
+		i = j - 1
+	}
+	return false
 }
 
 // targetRoot walks a member target ending at toks[k] back to its root identifier, or -1.
@@ -140,10 +218,42 @@ type effectReader struct {
 	b      *builder
 	tokens map[string][]token
 	memo   map[string]*stepEffect
+	pages  map[string]bool
 }
 
 func newEffectReader(b *builder) *effectReader {
-	return &effectReader{b: b, tokens: map[string][]token{}, memo: map[string]*stepEffect{}}
+	return &effectReader{b: b, tokens: map[string][]token{}, memo: map[string]*stepEffect{}, pages: map[string]bool{}}
+}
+
+// pageBound reports whether the file at path leaves `page` and `this.page` as the Playwright page
+// it receives: no assignment rebinds `page`, and `this.page` is assigned only `page` itself.
+func (r *effectReader) pageBound(path string, toks []token) bool {
+	if ok, seen := r.pages[path]; seen {
+		return ok
+	}
+	ok := true
+	for q := range toks {
+		k, assign := assignmentAt(toks, q)
+		if !assign {
+			continue
+		}
+		names, bounded := targetNames(toks, k)
+		if !bounded {
+			ok = false
+			break
+		}
+		for _, n := range names {
+			if toks[n].text == "page" && !property(toks, n) {
+				ok = false
+			}
+		}
+		thisPage := toks[k].text == "page" && k > 1 && isPunct(toks[k-1], ".") && toks[k-2].text == "this" && !(k > 2 && isPunct(toks[k-3], "."))
+		if thisPage && !(q+1 < len(toks) && toks[q+1].text == "page" && toks[q+1].kind == tokIdent && (q+2 >= len(toks) || next(toks, q+2, ";", "}") || toks[q+2].line > toks[q+1].line)) {
+			ok = false
+		}
+	}
+	r.pages[path] = ok
+	return ok
 }
 
 func (r *effectReader) toks(path string) []token {
@@ -183,21 +293,27 @@ func instances(toks []token, classes map[string]string) map[string]string {
 	}
 	// Any other assignment to a bound name or one of its members, such as `home = other` or
 	// `home.open = fn`, makes the binding ambiguous.
+	// A destructuring or unbounded target makes every name it may rebind ambiguous.
 	for q := range toks {
 		k, ok := assignmentAt(toks, q)
 		if !ok {
 			continue
 		}
-		root := targetRoot(toks, k)
-		if root < 0 {
+		names, bounded := targetNames(toks, k)
+		if !bounded {
+			for name := range out {
+				out[name] = ""
+			}
 			continue
 		}
-		if _, bound := out[toks[root].text]; !bound {
-			continue
-		}
-		construct := root == k && q+2 < len(toks) && toks[q+1].text == "new" && classes[toks[q+2].text] == out[toks[root].text]
-		if !construct {
-			out[toks[root].text] = ""
+		for _, root := range names {
+			if _, bound := out[toks[root].text]; !bound || property(toks, root) {
+				continue
+			}
+			construct := root == k && q+2 < len(toks) && toks[q+1].text == "new" && classes[toks[q+2].text] == out[toks[root].text]
+			if !construct {
+				out[toks[root].text] = ""
+			}
 		}
 	}
 	return out
@@ -212,8 +328,21 @@ func (r *effectReader) span(path string, toks []token, from, to int, inst map[st
 	}
 	for i := from + 1; i < to && i < len(toks); i++ {
 		t := toks[i]
-		if t.kind == tokTemplate && t.subst && (t.unsure || strings.Contains(t.code, "(")) {
+		if t.kind == tokTemplate && t.subst && (t.unsure || substUnsafe(t.code)) {
 			out.join(effectAt(EffectUnknown, path, t.line, "template-substitution"))
+			continue
+		}
+		// A tagged template (`` tag`x` ``) calls its tag.
+		if t.kind == tokTemplate && i > 0 && (toks[i-1].kind == tokIdent && !effectKeywords[toks[i-1].text] && toks[i-1].text != "case" && toks[i-1].text != "throw" || isPunct(toks[i-1], ")") || isPunct(toks[i-1], "]")) {
+			out.join(effectAt(EffectUnknown, path, t.line, "tagged-template"))
+			continue
+		}
+		// An increment or decrement of a member (`a.b++`, `--a[k]`) mutates it.
+		if (isPunct(t, "+") || isPunct(t, "-")) && i+1 < len(toks) && toks[i+1].glued && toks[i+1].text == t.text {
+			if (i > 0 && memberTarget(toks, i-1)) || (i+3 < len(toks) && toks[i+2].kind == tokIdent && next(toks, i+3, ".", "[")) {
+				out.join(effectAt(EffectUnknown, path, t.line, "member-update"))
+			}
+			i++
 			continue
 		}
 		if k, ok := assignmentAt(toks, i); ok && memberTarget(toks, k) {
@@ -227,6 +356,11 @@ func (r *effectReader) span(path string, toks []token, from, to int, inst map[st
 		// A computed or optional invocation (`a[k](...)`, `f?.(...)`, `g()(...)`) is not read.
 		if isPunct(t, "(") && i > 0 && (isPunct(toks[i-1], "]") || isPunct(toks[i-1], ".") || isPunct(toks[i-1], ")")) {
 			out.join(effectAt(EffectUnknown, path, t.line, "computed-call"))
+			continue
+		}
+		// A call with type arguments (`f<T>(...)`) is not read; `=> (` is an arrow body.
+		if isPunct(t, "(") && i > 1 && isPunct(toks[i-1], ">") && !(toks[i-1].glued && isPunct(toks[i-2], "=")) {
+			out.join(effectAt(EffectUnknown, path, t.line, "generic-call"))
 			continue
 		}
 		if t.kind != tokIdent || !next(toks, i+1, "(") {
@@ -304,7 +438,7 @@ func linkTarget(toks []token, segs []chainSeg) bool {
 		return false
 	}
 	at := segs[k].at
-	return at+2 < len(toks) && literal(toks[at+2]) && toks[at+2].text == "link"
+	return at+3 < len(toks) && literal(toks[at+2]) && toks[at+2].text == "link" && next(toks, at+3, ",", ")")
 }
 
 func (r *effectReader) call(path string, toks []token, i int, inst map[string]string, self string, depth int) stepEffect {
@@ -349,11 +483,16 @@ func (r *effectReader) call(path string, toks []token, i int, inst map[string]st
 		return nav
 	case effectStateCalls[m]:
 		return effectAt(EffectState, path, line, m)
+	}
+	// Navigation, waits and reads count only on the Playwright page itself: `page` in a spec, or
+	// `page` / `this.page` in a page object, in a file that never rebinds them.
+	onPage := !root.call && (root.name == "page" || self != "" && root.name == "this" && len(segs) > 2 && segs[1].name == "page" && !segs[1].call)
+	switch {
+	case !onPage || !r.pageBound(path, toks):
 	case effectClicks[m]:
 		if linkTarget(toks, segs) {
 			return nav
 		}
-		return effectAt(EffectUnknown, path, line, m)
 	case effectNavigationCalls[m]:
 		return nav
 	}

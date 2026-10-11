@@ -169,17 +169,20 @@ are URL templates, not component source files. This slice makes neither missing 
   analysis of the spec tokens strictly between the two page-object constructions the edge joins,
   stored as `effect` on the edge. A call on a page-object instance (`NAME = new CLASS(` or
   `NAME: TYPE = new CLASS(`, CLASS imported from a test file; a name bound to two files, or
-  assigned or member-assigned anywhere else in the spec, is not followed) reads that file's one class member of that name, following `this.m()` calls up to 8
-  deep. The step is `state-effect` when any call fills, types, presses, checks, selects, uploads,
+  assigned, member-assigned or destructured anywhere else in the spec, is not followed) reads that
+  file's one class member of that name, following `this.m()` calls up to 8 deep. The step is `state-effect` when any call fills, types, presses, checks, selects, uploads,
   clears, drags or submits; issues a request (`fetch(`, or an HTTP verb on a `request` receiver);
   or writes storage or cookies (`setItem`, `removeItem`, `addCookies`, `clearCookies`). Otherwise
-  it is `unknown` when any call is not provable: a click, double-click or tap whose receiver is not
-  `getByRole('link', ...)` (optionally narrowed by `first`, `last` or `nth`), `evaluate`, `route`,
+  it is `unknown` when any call is not provable: a navigation, wait, read or click whose receiver is
+  not the Playwright page itself (`page`, or `this.page` in a page object, in a file that never
+  rebinds `page` and assigns `this.page` only `page`), a click, double-click or tap whose receiver
+  is not `getByRole('link', ...)` with exactly the literal `'link'` as its first argument
+  (optionally narrowed by `first`, `last` or `nth`), `evaluate`, `route`,
   any unlisted method or bare helper (on `JSON`, `Math`, `Number`, `String`, `Object`, `Array`,
   `Promise`, `Date` and `console` only listed non-mutating members are admitted), a computed,
-  optional or chained invocation or receiver, an assignment to a member, `delete`, a missing,
-  duplicated or recursive member, a template substitution containing a call, or source the lexer
-  cannot bound.
+  optional, chained, generic (`f<T>(`) or tagged-template invocation or receiver, an assignment,
+  increment or decrement of a member, `delete`, a missing, duplicated or recursive member, a
+  template substitution that may call, assign, update or delete, or source the lexer cannot bound.
   Otherwise it is `navigation-only`: navigation (`goto`, `reload`, `goBack`, `goForward`), waits,
   locator construction, reads and `expect` assertions only. A non-navigation step records the
   deciding call's `effect_ref` (`PATH:LINE`) and `effect_call`; every step records whole-file anchors

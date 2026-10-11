@@ -31,6 +31,11 @@ export class HomePage {
   async loop() {
     await this.loop();
   }
+
+  async save() {
+    const gateway = this.page;
+    await gateway.reload();
+  }
 }
 `
 
@@ -96,6 +101,16 @@ func TestANLV0035StepEffects(t *testing.T) {
 		"member":    {"localStorage.token = 'x'; await home.openSheets();", EffectUnknown, "e2e/specs/member.spec.ts:7", "member-assignment"},
 		"delete":    {"delete localStorage.token;", EffectUnknown, "e2e/specs/delete.spec.ts:7", "delete"},
 		"rebind":    {"await home.openSheets(); home = other;", EffectUnknown, "e2e/specs/rebind.spec.ts:7", "openSheets"},
+		"generic":   {"await home.search<string>('x');", EffectUnknown, "e2e/specs/generic.spec.ts:7", "generic-call"},
+		"tagged":    {"mutate`value`;", EffectUnknown, "e2e/specs/tagged.spec.ts:7", "tagged-template"},
+		"destruct":  {"({home} = replacement); await home.openSheets();", EffectUnknown, "e2e/specs/destruct.spec.ts:7", "openSheets"},
+		"substset":  {"await page.goto(`/x/${localStorage.token = 'x'}`);", EffectUnknown, "e2e/specs/substset.spec.ts:7", "template-substitution"},
+		"increment": {"localStorage.counter++;", EffectUnknown, "e2e/specs/increment.spec.ts:7", "member-update"},
+		"receiver":  {"await home.save();", EffectUnknown, "e2e/pages/home.page.ts:29", "reload"},
+		"otherroot": {"await api.goto('/x');", EffectUnknown, "e2e/specs/otherroot.spec.ts:7", "goto"},
+		"rebound":   {"page = other; await page.goto('/x');", EffectUnknown, "e2e/specs/rebound.spec.ts:7", "goto"},
+		"role":      {"await page.getByRole('link' && 'button').click();", EffectUnknown, "e2e/specs/role.spec.ts:7", "click"},
+		"query":     {"await page.goto(`/x/${slug}?tab=a`);", EffectNavigation, "", ""},
 		"pure":      {"await Promise.all([home.openSheets()]); JSON.stringify({a: 1 == 1});", EffectNavigation, "", ""},
 	}
 	for name, c := range cases {
