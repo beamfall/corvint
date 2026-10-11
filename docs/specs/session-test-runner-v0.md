@@ -33,9 +33,10 @@ Verified state at `645304a2fb71065f9061d8d8d866600d703e84c6`:
   (`script/gate-affected.sh`, AFP-V0-011/012) locally, and `tools/corvint-pr-tests` with
   `tools/gate-affected-select` (AFP-V0-013) in CI. Both run Go only.
 - `.github/workflows/ci.yml` runs eight `go-product-shard` jobs. Its trusted tool pins are empty,
-  so every PR runs the full suite today. When pinned, each shard would intersect its selection with
-  the AFP-V0-022 complete-universe partition, leaving shards idle when the selection clusters, so
-  full and narrowed shards cannot omit a package. `tools/corvint-pr-tests` places whole packages
+  so the race-test invocation never narrows today; it is skipped only in the `DOCS` and `REUSE`
+  modes, and a `ci:batched` constituent (AFP-V0-027) skips the shard jobs. When pinned, each
+  shard would intersect its selection with the AFP-V0-022 complete-universe partition, leaving
+  shards idle when the selection clusters, so full and narrowed shards cannot omit a package. `tools/corvint-pr-tests` places whole packages
   and refuses sharded execution while AFP-V0-041 slices are active, as they are for
   `internal/tasks/store`.
 - `.github/cishards` already places packages by advisory cost and splits allowed packages into
@@ -99,10 +100,12 @@ of every requirement below and the binding gate until this spec is promoted.
 - `STR-V0-009`: `corvint test verify-shards --manifest PATH RECEIPT...` SHALL read the expected run
   from the STR-V0-018 manifest, never from the receipts. It reports `PASS` only when there is
   exactly one receipt for each shard index `0..N-1` of the manifest's shard count, empty shards
-  included; every receipt carries the manifest digest and source identity; the union of executed
+  included; every receipt carries the manifest digest and source identity and records result
+  `PASS`; the union of executed
   execution units equals the manifest's with none twice; every execution unit has exactly one
   passing terminal outcome; and every adapter invocation exited zero. A missing, extra, duplicate
-  or foreign receipt, or an execution unit without an outcome, is `INCOMPLETE`; any failed, timed
+  or foreign receipt, a receipt whose result is `INCOMPLETE` (drift, cancellation or an exceeded
+  bound), or an execution unit without an outcome, is `INCOMPLETE`; any failed, timed
   out or build-failed outcome, or any nonzero exit, is `FAIL`. Both exit nonzero, `INCOMPLETE`
   taking precedence in the report. A CI required check SHALL depend on this fan-in, not on
   per-shard exits alone, and an unsharded run applies the same rules to its single receipt.
@@ -130,8 +133,10 @@ of every requirement below and the binding gate until this spec is promoted.
 - `STR-V0-014`: A hangup, interrupt or termination SHALL kill every owned process group, exit
   nonzero and write an `INCOMPLETE` receipt; it MUST NOT start the fallback.
 - `STR-V0-015`: The run SHALL be bounded: the plan's existing walk and status bounds, at most 4096
-  execution units, the receipt bound, the runner's native per-unit timeout unchanged (for Go,
-  `-timeout` from the Makefile `GO_TEST_TIMEOUT`, a per-package hang detector), and a separate
+  execution units, the receipt bound, the runner's native per-unit timeout unchanged from the
+  profile's current call site (for Go, a per-package hang detector: the Makefile `GO_TEST_TIMEOUT`
+  locally, and the `50m` that `tools/corvint-pr-tests` and the full CI branch pass in CI), and a
+  separate
   total wall-clock budget per adapter invocation from the repository declaration (for Go, default
   70 minutes, the current `tools/corvint-pr-tests` budget). Exceeding a bound yields `INCOMPLETE`
   and nonzero, never a narrower run.
@@ -188,7 +193,8 @@ Testing matrix (all `NOT_RUN` until implementation):
 - balanced placement places every execution unit once for 1 to 16 shards, a split package's
   catch-all slice included;
 - `verify-shards` reports `INCOMPLETE` for a dropped, duplicated, extra or foreign-digest receipt
-  and a missing empty-shard receipt, and `FAIL` for a failed outcome or nonzero exit with every
+  and a missing empty-shard receipt, and for a shard that recorded `INCOMPLETE` after drift while
+  its outcomes all passed with zero exits, and `FAIL` for a failed outcome or nonzero exit with every
   digest correct;
 - editing an already-dirty file between planning and launch, or during the run, yields drift;
 - planning failure runs the declared full scope, and with no declaration is `INCOMPLETE`;
@@ -199,8 +205,11 @@ Testing matrix (all `NOT_RUN` until implementation):
 Promotion from experimental requires the parity report, 20 merged PRs through the queue on the new
 CI call site with complete forward rows and no trip, and median and p90 PR wall time and
 runner-minutes per merged PR measured before and after, retained in a build-log entry. Unavailable
-hosted measurements stay `NOT_OBSERVED`. Balanced placement is promoted separately, only if it
-lowers p90 narrowed-PR wall time over those 20 PRs.
+hosted measurements stay `NOT_OBSERVED`. Balanced placement is promoted separately. Locally it
+qualifies only by measured wall time of executed runs against universe placement over the same
+frozen pairs. In CI it qualifies only after an accepted AFP-V0-028 amendment defines an executed
+comparison, and only if that lowers p90 narrowed-PR wall time over 20 PRs. Computed placement
+estimates never count as observed timing.
 
 Kill criteria: an unexplained parity difference that cannot be fixed; any queue `MISS` caused by the
 runner rather than the selector; or balanced placement failing its wall-time bar, which removes
