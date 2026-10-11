@@ -556,8 +556,10 @@ func (r *effectReader) call(path string, toks []token, i int, inst map[string]st
 }
 
 // inlineCallback reports whether argument arg (from 0) of the call whose '(' is toks[open] is a
-// function written in place: `function`, or an arrow with a parenthesized or single parameter,
-// optionally async. A named callback's body lies outside the span, so it is never admitted.
+// function written in place: a `function` expression that is the whole argument, or an arrow with
+// a parenthesized or single parameter, optionally async. An arrow's body runs to the argument's
+// end, but a `function` expression can be an operand (`function() {} && reset`), so its extent
+// must end the argument. A named callback's body lies outside the span, so it is never admitted.
 func inlineCallback(toks []token, open, arg int) bool {
 	k := open + 1
 	for ; arg > 0; arg-- {
@@ -574,7 +576,7 @@ func inlineCallback(toks []token, open, arg int) bool {
 	case k >= len(toks):
 		return false
 	case toks[k].kind == tokIdent && toks[k].text == "function":
-		return true
+		return functionExpressionArgument(toks, k)
 	case isPunct(toks[k], "("):
 		k = closeParen(toks, k) + 1
 	case toks[k].kind == tokIdent:
@@ -583,6 +585,24 @@ func inlineCallback(toks []token, open, arg int) bool {
 		return false
 	}
 	return k+1 < len(toks) && isPunct(toks[k], "=") && toks[k+1].glued && isPunct(toks[k+1], ">")
+}
+
+// functionExpressionArgument reports whether the `function` expression at toks[k] (an optional
+// name, a parameter list and a body) is the whole call argument: the next token ends it.
+func functionExpressionArgument(toks []token, k int) bool {
+	k++
+	if k < len(toks) && toks[k].kind == tokIdent {
+		k++
+	}
+	if k >= len(toks) || !isPunct(toks[k], "(") {
+		return false
+	}
+	k = closeParen(toks, k) + 1
+	if k >= len(toks) || !isPunct(toks[k], "{") {
+		return false
+	}
+	k = closeParen(toks, k) + 1
+	return k < len(toks) && (isPunct(toks[k], ",") || isPunct(toks[k], ")"))
 }
 
 // defaultParameter reports whether the one-line method header ending before toks[body] (on line

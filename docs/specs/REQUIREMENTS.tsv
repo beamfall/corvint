@@ -318,7 +318,7 @@ ANL-V0-032	docs/specs/application-navigation-ledger-v0.md	139	A changed UI path 
 ANL-V0-033	docs/specs/application-navigation-ledger-v0.md	155	`test-plan page-state --input FILE --check --baseline FILE` (the two flags only
 ANL-V0-034	docs/specs/application-navigation-ledger-v0.md	162	Several `--appmap-impact` reports may name one app when each comes from a differ
 ANL-V0-035	docs/specs/application-navigation-ledger-v0.md	168	`flows appmap build` classifies every `test-sequence` edge (AMAP-V0-008) by stat
-ANL-V0-036	docs/specs/application-navigation-ledger-v0.md	203	`test-plan prefixes` treats a derived `navigation-only` step as read-only withou
+ANL-V0-036	docs/specs/application-navigation-ledger-v0.md	204	`test-plan prefixes` treats a derived `navigation-only` step as read-only withou
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,

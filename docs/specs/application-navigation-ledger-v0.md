@@ -191,7 +191,8 @@ are URL templates, not component source files. This slice makes neither missing 
   increment or decrement of a member, `delete`, a missing, duplicated or recursive member, a
   member whose one-line header gives a parameter a default or holds a template substitution
   (`default-parameter`), a `test.step`, `expect.poll`, `toPass`, `toThrow` or `toThrowError`
-  whose callback is not a function written in place (`callback`), a template substitution that
+  whose callback argument is not wholly a function written in place, so `function() {} && reset`
+  is not one (`callback`), a template substitution that
   may call, assign, update or delete, or source the lexer cannot bound.
   Otherwise it is `navigation-only`: navigation (`goto`, `reload`, `goBack`, `goForward`), waits,
   locator construction, reads and `expect` assertions only; `hover`, `focus` and scrolling can run

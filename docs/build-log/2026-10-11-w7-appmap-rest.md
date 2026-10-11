@@ -28,5 +28,8 @@ generic, tagged-template and non-null calls; destructuring and compound assignme
 substitutions that assign or update; navigation receivers other than the Playwright page; inexact
 `'link'` roles; constructors, inherited classes, accessors and closing-construction arguments;
 hover, focus and scrolling; named `test.step`, `expect.poll`, `toPass` and `toThrow` callbacks; and
-method headers with default parameters. The review cap was reached at round 5; its findings are
-fixed but not re-reviewed.
+method headers with default parameters. Round 6 (FAIL) found that a `function` expression was
+admitted as an inline callback by its first token, so `function() {} && reset` passed a named
+callback. The expression must now be the whole argument. Regression cases cover `test.step`,
+`expect.poll`, `toPass`, `toThrow` and `toThrowError`. A named function expression already abstains
+earlier, as a call to its name.
