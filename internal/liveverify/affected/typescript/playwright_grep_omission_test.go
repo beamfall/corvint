@@ -120,13 +120,43 @@ func TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021(t *testing.T) {
 	t.Run("array grep and a describe title and tag in the title", func(t *testing.T) {
 		root := grepFixture(t, "{ name: 'main', grepInvert: [/@tagged/, /@slow/] }, { name: 'alt-a', grep: [/@tagged/, /suite-x/i] }, { name: 'alt-b', grep: /@tagged/ }")
 		cases := grepReproCases()
-		cases[1] = grepListCase{file: "tagged.spec.ts", title: "x", describes: []string{"Suite-X"}, tags: []string{"tagged"}, projects: []string{"alt-a", "alt-b"}}
+		cases[1] = grepListCase{file: "tagged.spec.ts", title: "x @tagged", describes: []string{"Suite-X"}, tags: []string{"tagged"}, projects: []string{"alt-a", "alt-b"}}
 		cases = append(cases, grepListCase{file: "plain.spec.ts", title: "p", describes: []string{"suite-x"}, projects: []string{"alt-a", "main"}})
 		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, grepPlaywrightListing(t, root, "e2e", cases))
 		if err != nil {
 			t.Fatalf("array grep listing refused: %v", err)
 		}
 		if receipt := decodeGrepReceipt(t, raw); !slices.Equal(receipt.Units, allUnits) || receipt.UnverifiedUnits != nil {
+			t.Fatalf("receipt: %s", raw)
+		}
+	})
+	// Codex review round 1: Playwright appends only explicit tags to the grep title; a title tag
+	// stays inside its title, so `a@tagged` gives no standalone `@tagged` part and /\B@tagged/ does
+	// not match it.
+	t.Run("title-derived tag is not a separate grep-title part", func(t *testing.T) {
+		root := grepFixture(t, "{ name: 'main', grepInvert: /\\B@tagged/ }, { name: 'alt-a', grep: /@tagged/ }, { name: 'alt-b', grep: /@tagged/ }")
+		cases := grepReproCases()
+		cases[2] = grepListCase{file: "tagged.spec.ts", title: "a@tagged", tags: []string{"tagged"}, projects: []string{"alt-a", "alt-b"}}
+		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, grepPlaywrightListing(t, root, "e2e", cases))
+		if err == nil || raw != nil || !strings.Contains(err.Error(), `project "main" test e2e/tagged.spec.ts`) {
+			t.Fatalf("omission explained by a reconstructed tag part: raw=%s err=%v", raw, err)
+		}
+	})
+	// Codex review round 1: an explicit describe tag such as '@foo bar' is reported only as `foo`,
+	// so an exclusion that rests on explicit tags cannot be verified from the listing.
+	t.Run("exclusion resting on explicit tags is unverified", func(t *testing.T) {
+		root := grepFixture(t, grepRepro)
+		cases := []grepListCase{
+			{file: "plain.spec.ts", title: "plain", tags: []string{"foo"}, projects: []string{"main"}},
+			{file: "tagged.spec.ts", title: "x", tags: []string{"tagged"}, projects: []string{"alt-a", "alt-b"}},
+		}
+		raw, err := PlaywrightDiscoveryFromList(root, "playwright.config.ts", discoveryFixtureRevision, grepPlaywrightListing(t, root, "e2e", cases))
+		if err != nil {
+			t.Fatalf("listing refused: %v", err)
+		}
+		want := []PlaywrightDiscoveryUnit{{Project: "alt-a", Test: "e2e/plain.spec.ts"}, {Project: "alt-b", Test: "e2e/plain.spec.ts"}, {Project: "main", Test: "e2e/tagged.spec.ts"}}
+		receipt := decodeGrepReceipt(t, raw)
+		if !slices.Equal(receipt.Units, allUnits) || !slices.Equal(receipt.UnverifiedUnits, want) {
 			t.Fatalf("receipt: %s", raw)
 		}
 	})
@@ -242,6 +272,19 @@ func TestPlaywrightRegexBodyPartwise_TJAA_V0_021(t *testing.T) {
 	} {
 		if got := playwrightRegexBodyPartwise(body); got != want {
 			t.Errorf("playwrightRegexBodyPartwise(%q) = %v, want %v", body, got, want)
+		}
+	}
+}
+
+func TestPlaywrightTitleTags_TJAA_V0_021(t *testing.T) {
+	for title, want := range map[string][]string{
+		"x @tagged":        {"@tagged"},
+		"a@b@c d @ e @f g": {"@b@c", "@f"},
+		"@x @y @":          {"@x", "@y"},
+		"none":             {},
+	} {
+		if got := playwrightTitleTags(title); !slices.Equal(got, want) {
+			t.Errorf("playwrightTitleTags(%q) = %q, want %q", title, got, want)
 		}
 	}
 }

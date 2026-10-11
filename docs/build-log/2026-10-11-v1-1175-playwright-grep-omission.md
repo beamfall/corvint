@@ -12,9 +12,14 @@ format paragraph are amended only to defer to it. No decision file.
 
 - Grep is runtime case filtering (`TJAA-V0-014`), so a grep-explained pair stays a unit: the
   receipt still describes file membership and reconciles with static selection.
-- The producer rebuilds each listed case's grep title from the JSON report (project, file suite,
-  describe titles, test title, `@`-prefixed tags), as Playwright 1.63 `_grepTitleWithTags` builds it
-  (read from the package source; no live Playwright run). A pattern that can neither match a space
+- The producer reads each listed case's titles (file suite, describes, test) exactly from the JSON
+  report. Playwright 1.63 (`_grepTitleWithTags`, `test.tags`, JSON reporter; read from the package
+  source, no live run) puts only explicit tags in the grep title, while the report's tags also
+  carry the `@\S+` runs of titles and split describe/config tags on whitespace. So the title runs
+  are removed from the reported tags; an exclusion that rests on the remaining explicit tags is
+  only unverified (Codex round 1 found both the title-tag and whitespace-tag counterexamples).
+  Grep-side exclusion with no explicit tag assumes no describe/config tag is `@` alone or has
+  whitespace right after `@`, which leaves no trace in the listing. A pattern that can neither match a space
   nor anchor to the whole title matches the joined title exactly when it matches one part, so
   evaluation is per part and avoids reproducing the exact separator layout.
 - A static, partwise-evaluable pattern explains an omission only when it excludes every listed
@@ -29,7 +34,7 @@ format paragraph are amended only to defer to it. No decision file.
 - Per-unit argv for a grep-only (project, file) unit can report "No tests found" when run alone;
   excluding such units would change `TJAA-V0-014` and needs an owner decision.
 - The per-test listing producer (`playwright_listed_tests.go`) keeps the strict omission check.
-- A top-level `grep` remains outside the static subset; a tag containing whitespace is read as
-  the listing reports it.
+- A top-level `grep` remains outside the static subset. A case its explicit tags would keep is
+  refused, the conservative outcome, although a partially reported tag could hide excluding text.
 - Evidence is hand-built listings in `playwright_grep_omission_test.go`; a live Playwright
   listing of the issue layout is `NOT_RUN`.

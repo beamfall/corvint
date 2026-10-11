@@ -2,6 +2,7 @@ package typescript
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -28,36 +29,114 @@ type playwrightTitleMatcher struct {
 	fold bool
 }
 
+// playwrightListCase is one listed case of a file: titles holds the file suite title, each
+// describe title and the test title; tags holds the reported tags with their `@` restored.
+type playwrightListCase struct {
+	titles, tags []string
+}
+
 // classifyPlaywrightGrepOmission decides why a project that declares grep or grepInvert omits a
 // file whose listed cases (from any project) are cases. Playwright keeps a case in a project only
-// when its grep title, `project file describe... title tags...` joined by single spaces, does not
-// match grepInvert and matches grep (any element of an array). The omission is explained when
-// every listed case is excluded for this project; it is unverified when a declared pattern is not
-// evaluable here or a case title is outside the matcher model; otherwise, including a file with no
-// listed case, it is unexplained. A case filtered out of every project is not listed; under the
-// caller-declared listing it is excluded for this project too.
-func classifyPlaywrightGrepOmission(project PlaywrightProject, cases [][]string) playwrightOmission {
+// when its grep title does not match grepInvert and matches grep (any element of an array). That
+// title joins, with single spaces, the project name, the file suite title, the config tags, each
+// describe title and its explicit tags, the test title and the test's explicit tags. The listing
+// shows the titles exactly but not the explicit tags: it reports each case's tags as the `@\S+`
+// runs of the config tags, describe titles and tags and test title, then the test's own tags. So
+// the runs of the titles are removed from the reported tags, and what remains is the explicit tags,
+// exact only when no config or describe tag contains whitespace. A case is excluded for certain
+// when grepInvert matches a title part. With no explicit tag left, it is excluded when grep does
+// not match the title parts; this assumes no config or describe tag is `@` alone or has whitespace
+// right after `@`, which leaves no trace in the listing. With explicit tags, an exclusion that
+// depends on them is unverified, because a whitespace-containing tag is reported only in part.
+// The omission is explained when every case is excluded for certain; unverified when a declared
+// pattern is not evaluable here, a title part is outside the matcher model, or a case's exclusion
+// is unverified; otherwise, including a file with no listed case, it is unexplained. A case
+// filtered out of every project is not listed; under the caller-declared listing it is excluded
+// for this project too.
+func classifyPlaywrightGrepOmission(project PlaywrightProject, cases []playwrightListCase) playwrightOmission {
 	grep, grepOK := playwrightTitleMatchers(project.hasGrep, project.Grep)
 	invert, invertOK := playwrightTitleMatchers(project.hasGrepInvert, project.GrepInvert)
-	if !grepOK || !invertOK {
+	if !grepOK || !invertOK || len(cases) == 0 {
+		if len(cases) == 0 {
+			return playwrightOmissionUnexplained
+		}
 		return playwrightOmissionUnverified
 	}
-	if len(cases) == 0 {
-		return playwrightOmissionUnexplained
-	}
-	for _, tokens := range cases {
-		tokens = append([]string{project.Name}, tokens...)
-		for _, token := range tokens {
-			if playwrightOutsideBMP(token) || strings.ContainsAny(token, "ſK") && playwrightTitleMatchersFold(grep, invert) {
+	fold := playwrightTitleMatchersFold(grep, invert)
+	verdict := playwrightOmissionExplained
+	for _, listCase := range cases {
+		if len(listCase.titles) == 0 {
+			return playwrightOmissionUnverified
+		}
+		parts := append([]string{project.Name}, listCase.titles...)
+		for _, part := range append(slices.Clone(parts), listCase.tags...) {
+			if playwrightOutsideBMP(part) || fold && strings.ContainsAny(part, "\u017f\u212a") {
 				return playwrightOmissionUnverified
 			}
 		}
-		excluded := project.hasGrepInvert && playwrightTitleMatch(invert, tokens) || project.hasGrep && !playwrightTitleMatch(grep, tokens)
-		if !excluded {
+		if project.hasGrepInvert && playwrightTitleMatch(invert, parts) {
+			continue
+		}
+		explicit, ok := playwrightExplicitTags(listCase.tags, playwrightTitleTags(strings.Join(listCase.titles[1:], " ")))
+		if !ok {
+			return playwrightOmissionUnverified
+		}
+		if len(explicit) == 0 {
+			if !project.hasGrep || playwrightTitleMatch(grep, parts) {
+				return playwrightOmissionUnexplained
+			}
+			continue
+		}
+		tokens := append(parts, explicit...)
+		if !(project.hasGrepInvert && playwrightTitleMatch(invert, tokens) || project.hasGrep && !playwrightTitleMatch(grep, tokens)) {
 			return playwrightOmissionUnexplained
 		}
+		verdict = playwrightOmissionUnverified
 	}
-	return playwrightOmissionExplained
+	return verdict
+}
+
+// playwrightTitleTags returns the matches of JavaScript's /@[\S]+/g over title, as Playwright's
+// test.tags derives title tags: an `@` followed by the longest run of non-whitespace characters,
+// whitespace being JavaScript's \s set.
+func playwrightTitleTags(title string) []string {
+	tags := []string{}
+	runes := []rune(title)
+	for index := 0; index < len(runes); index++ {
+		if runes[index] != '@' || index+1 == len(runes) || playwrightJSSpace(runes[index+1]) {
+			continue
+		}
+		end := index + 1
+		for end < len(runes) && !playwrightJSSpace(runes[end]) {
+			end++
+		}
+		tags = append(tags, string(runes[index:end]))
+		index = end - 1
+	}
+	return tags
+}
+
+// playwrightJSSpace reports whether r is in JavaScript's \s set.
+func playwrightJSSpace(r rune) bool {
+	switch r {
+	case '\t', '\n', '\v', '\f', '\r', ' ', 0xa0, 0x1680, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff:
+		return true
+	}
+	return r >= 0x2000 && r <= 0x200a
+}
+
+// playwrightExplicitTags removes each title tag once from the reported tags, keeping the rest in
+// order; it reports false when a title tag is not among them, which a real listing never does.
+func playwrightExplicitTags(reported, titleTags []string) ([]string, bool) {
+	remaining := slices.Clone(reported)
+	for _, tag := range titleTags {
+		index := slices.Index(remaining, tag)
+		if index < 0 {
+			return nil, false
+		}
+		remaining = slices.Delete(remaining, index, index+1)
+	}
+	return remaining, true
 }
 
 // playwrightTitleMatchers compiles a declared grep or grepInvert value, one regular-expression

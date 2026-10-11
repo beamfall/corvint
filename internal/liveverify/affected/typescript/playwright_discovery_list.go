@@ -74,7 +74,7 @@ func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []by
 		return nil, err
 	}
 	seen := map[PlaywrightDiscoveryUnit]bool{}
-	cases := map[string][][]string{}
+	cases := map[string][]playwrightListCase{}
 	if err := collectPlaywrightListUnits(realRoot, report.Config.RootDir, "", nil, report.Suites, 0, seen, cases); err != nil {
 		return nil, err
 	}
@@ -156,10 +156,10 @@ func validatePlaywrightListing(root, configPath string, listing []byte) (playwri
 // project/file pairs against the pairs the config selects in the current sources (and, when
 // revisionPaths is not nil, among those repository-relative paths of a pinned revision), and
 // refuses when the sources changed during the check. It returns the config bytes and the
-// source digest it observed. When cases is not nil, it holds each listed file's grep-title tokens
-// and an omitted pair is classified against the project's grep/grepInvert instead of refused
+// source digest it observed. When cases is not nil, it holds each listed file's cases and an
+// omitted pair is classified against the project's grep/grepInvert instead of refused
 // outright (TJAA-V0-021); when cases is nil every omission is refused.
-func observePlaywrightListMembership(root, configPath string, listed map[PlaywrightDiscoveryUnit]bool, revisionPaths []string, cases map[string][][]string) ([]byte, string, playwrightGrepOmissions, error) {
+func observePlaywrightListMembership(root, configPath string, listed map[PlaywrightDiscoveryUnit]bool, revisionPaths []string, cases map[string][]playwrightListCase) ([]byte, string, playwrightGrepOmissions, error) {
 	none := playwrightGrepOmissions{}
 	sourceDigest, err := ObservePlaywrightSources(root, configPath)
 	if err != nil {
@@ -251,7 +251,7 @@ func checkPlaywrightRevisionMembership(root, configPath string, configBytes []by
 // one unnamed default project. A selected file the static profile cannot parse or read as UTF-8 is
 // refused too. When cases is not nil an omitted pair whose project declares grep or grepInvert is
 // classified by classifyPlaywrightGrepOmission (TJAA-V0-021) instead of refused.
-func checkPlaywrightListMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool, cases map[string][][]string) (playwrightGrepOmissions, error) {
+func checkPlaywrightListMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool, cases map[string][]playwrightListCase) (playwrightGrepOmissions, error) {
 	omissions := playwrightGrepOmissions{}
 	projects, globalTestDir, err := staticPlaywrightProjects(configPath, configBytes, cases != nil)
 	if err != nil {
@@ -455,9 +455,9 @@ func unfilteredPlaywrightArgv(argv []string) error {
 }
 
 // collectPlaywrightListUnits records every listed (project, file) pair in seen and, when cases is
-// not nil, each listed case's grep-title tokens without the project name under its file: the
-// enclosing suite titles (file, then describes), the spec title and each tag with its `@`.
-func collectPlaywrightListUnits(realRoot, rootDir, file string, titles []string, suites []playwrightListSuite, depth int, seen map[PlaywrightDiscoveryUnit]bool, cases map[string][][]string) error {
+// not nil, each listed case under its file: the enclosing suite titles (file, then describes) and
+// the spec title, and the reported tags with their `@` restored.
+func collectPlaywrightListUnits(realRoot, rootDir, file string, titles []string, suites []playwrightListSuite, depth int, seen map[PlaywrightDiscoveryUnit]bool, cases map[string][]playwrightListCase) error {
 	if depth > playwrightListMaxDepth {
 		return errors.New("playwright listing suites nest too deeply")
 	}
@@ -486,11 +486,11 @@ func collectPlaywrightListUnits(realRoot, rootDir, file string, titles []string,
 				seen[PlaywrightDiscoveryUnit{Project: *entry.ProjectName, Test: test}] = true
 			}
 			if cases != nil {
-				tokens := append(slices.Clone(suiteTitles), spec.Title)
+				listCase := playwrightListCase{titles: append(slices.Clone(suiteTitles), spec.Title)}
 				for _, tag := range spec.Tags {
-					tokens = append(tokens, "@"+tag)
+					listCase.tags = append(listCase.tags, "@"+tag)
 				}
-				cases[test] = append(cases[test], tokens)
+				cases[test] = append(cases[test], listCase)
 			}
 		}
 		if err := collectPlaywrightListUnits(realRoot, rootDir, suiteFile, suiteTitles, suite.Suites, depth+1, seen, cases); err != nil {
