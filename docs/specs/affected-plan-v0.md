@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); other AFP-V0 requirements proposed
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431); AFP-V0-013/014/016/017/022/026 amended (decision 0431); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,9 +11,9 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); other AFP-V0 requirements proposed/experimental
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431); AFP-V0-013/014/016/017/022/026 amended (decision 0431); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505/experimental
 - Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile, and AFP-V0-041 (accepted, decision 0488) lets the full run split an owner-allowed package into test slices across those shards; AFP-V0-023 lets a project-owned `.corvint/test-read-scopes.json` take a root-locating package off the rule (d) floor, enforced in full CI by the Landlock wrapper `.github/testconfine`.
-- Blocked on: the LPCV-V0 composer accepting or replacing this wire; genuine 200-row qualification and matching reviewed pins (AFP-V0-014/017); the 201-commit prerequisite is met at `adf8358220769b8d6724ad27d27625602b8a7c62`, but no campaign PASS is implied.
+- Blocked on: the LPCV-V0 composer accepting or replacing this wire; for queue-backed narrowing, AFP-V0-028/029 shadow admission, reviewed tool pins and merged V1-0760 (hosted enablement `NOT_OBSERVED`); the optional historical profile still requires genuine 200-row qualification and matching reviewed pins (AFP-V0-014/017), and its 201-commit prerequisite is met at `adf8358220769b8d6724ad27d27625602b8a7c62`, but no campaign PASS is implied.
 - Read next: Requirements; Non-goals and authority; Failure modes.
 
 ## Intent and scope
@@ -287,20 +287,24 @@ status bound), with `--base` once more for the base identity and once for the ra
 bounds), walks at most `affected.MaxWalkEntries` entries, reads at most
 `affected.MaxSourceBytes` per file, and executes nothing else. Every failure is fail-closed.
 
-- **AFP-V0-013:** (accepted by decision 0289) `tools/corvint-pr-tests` MUST execute only
+- **AFP-V0-013:** (accepted (decision 0431); amended by decision 0431; originally decision 0289) `tools/corvint-pr-tests` MUST execute only
   typed root-module Go package argv from a separately pinned trusted planner and the existing
   AFP-V0-012 selector outside the PR checkout. It MUST verify the exact captured merge commit,
   clean tree, event base as first parent and event head as second parent, with Git replacements
   disabled and grafts refused; validate receipt profile/base/revision and package grammar;
   recheck source before execution; and preserve planner/selector digests, audit, identities,
   fallback reason, exact argv and observed exit outside source. Advice strings MUST NOT execute.
-  Missing/malformed/stale qualification, unsupported tool/profile, planning failure or topology
-  drift MUST run the full root Go suite. Cancellation MUST exit nonzero and kill owned process
+  Unsupported tool/profile, planning failure or topology drift MUST run the full root Go suite.
+  Queue-backstopped PR narrowing SHALL follow AFP-V0-028, without requiring the historical
+  qualification artifact; missing/malformed/stale qualification still forces FULL for the
+  historical qualification profile. PR execution SHALL use the full branch's argv, environment,
+  AFP-V0-023 `test-confine` wrapper and cache policy, not the driver's closed replay environment. Cancellation MUST exit nonzero and kill owned process
   groups without starting fallback. Main/release, static/security/vet/format/build/interop and
   JavaScript/E2E checks MUST remain full. PR workflow permissions MUST be read-only, with no
   persisted credentials, secrets or pull_request_target execution. Initial empty trusted pins
   MUST stay visibly full-suite; local fixture PASS MUST NOT claim hosted or narrowed CI PASS.
-- **AFP-V0-014:** (accepted by decision 0289) PR narrowing MUST require a separately trusted,
+- **AFP-V0-014:** (accepted (decision 0431); amended by decision 0431; originally decision 0289) The optional
+  historical qualification profile MUST require a separately trusted,
   SHA256-pinned qualification artifact matching exact reviewed tool source/binaries, Go 1.27.1 (decision 0293),
   OS/architecture/release and C compiler identities, fixed `go test -json -p 1 -count=1 -race
   -timeout 50m` argv, closed `GOENV=off`, `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOWORK=off`, empty `GOFLAGS`,
@@ -313,7 +317,9 @@ bounds), walks at most `affected.MaxWalkEntries` entries, reads at most
   promotion, without automatic UNKNOWN waiver. Resume MUST validate exact frozen identities and
   raw hashes; measure one row before the remaining serial campaign. A wholly green corpus MUST
   retain its limited counterfactual evidence. Artifact/workflow pins MUST remain separate from
-  tool source and precede final release gate freeze. Clearing pins MUST restore full execution.
+  tool source and precede final release gate freeze. This artifact and campaign SHALL remain
+  optional evidence, not a precondition for AFP-V0-028 narrowing; nothing is deleted. Clearing
+  the trusted tool pin MUST restore full PR execution.
 
 ### Shared isolated container profile
 
@@ -355,7 +361,7 @@ and container qualification; full fallback remains available.
 
 ### Hosted control plane and qualification
 
-- **AFP-V0-016:** (accepted by decision 0320; ruleset and consent amended by decision 0390)
+- **AFP-V0-016:** (accepted (decision 0431); amended by decision 0431; originally decision 0320; ruleset and consent amended by decision 0390)
   `.github/workflows/ci-control-plane.yml` SHALL run
   on `workflow_run` after `CI`, never check out or execute PR code, and post the commit status
   `ci-control-plane` on the PR head: `failure` when a changed or renamed-from path is under
@@ -369,15 +375,21 @@ and container qualification; full fallback remains available.
   context=ci-control-plane -f description="admin reviewed .github change at <sha>"`). The
   latest status per context wins, so consent binds to that one SHA and is logged with its
   creator; `go-product` and `doc-gates` stay binding, so no merge happens while checks run; a
-  later push gets a fresh workflow `failure` and needs fresh consent.
-- **AFP-V0-017:** (accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
+  later push gets a fresh workflow `failure` and needs fresh consent. The `main` ruleset SHALL
+  also have an active `merge_queue` rule, merge method `MERGE`, maximum group size 1 and the
+  same three required checks reporting on queue commits (AFP-V0-026). Its status-check timeout
+  MUST exceed one full `CI` run. The trusted tool-source pin is a `.github/` change and requires
+  this admin consent on the exact head.
+- **AFP-V0-017:** (accepted (decision 0431); amended by decision 0431; originally decision 0320) The optional
+  historical evidence workflow `.github/workflows/pr-tests-qualification.yml`
   SHALL be `workflow_dispatch` only, with `contents: read` and no persisted credentials. It
   SHALL build the three trusted binaries from the dispatched `tool_source`, freeze the corpus
   ending at `corpus_end`, run each requested row (`1` or all 200) on its own fresh runner
   provisioned as `ci.yml`, and qualify only when every row job succeeded, with the frozen
   driver. Concurrent rows on separate runners satisfy AFP-V0-014's campaign only because every
   row identity must equal the frozen identity. It MUST NOT commit, pin, or publish anything
-  but workflow artifacts.
+  but workflow artifacts. It SHALL stay available and SHALL NOT be a precondition for
+  AFP-V0-028 queue-backstopped PR narrowing.
 - `AFP-V0-018`: (proposed) `corvint affected --playwright-config PATH` MUST emit the separate
   `playwright-affected/0` profile defined by `TJAA-V0-010..017`. It MUST accept `--base` with the
   same range semantics as `affected-plan/0`, MUST NOT be combined with external `--provider`, and
@@ -479,7 +491,8 @@ and container qualification; full fallback remains available.
 
 ### Complete-universe PR partition profile
 
-- **AFP-V0-022:** (owner-directed experimental profile, 2026-10-01; V1-0616/0617) Full CI SHALL
+- **AFP-V0-022:** (accepted (decision 0431); amended by decision 0431; owner-directed experimental profile,
+  2026-10-01; V1-0616/0617) Full CI SHALL
   partition every package from the complete runtime `go list ./...` universe exactly once across
   the matrix. Advisory bounded package costs may change placement, never membership; unknown
   packages use a positive estimate, and unavailable or invalid costs fall back to complete lexical
@@ -490,10 +503,13 @@ and container qualification; full fallback remains available.
   module directives; its digest and shard count SHALL be part of the AFP-V0-014 frozen identity.
   A driver/fallback partition digest mismatch SHALL fail the check rather than mix partitions.
   Historical shadow rows SHALL still execute one complete root invocation with all terminal
-  package outcomes; the 200-row qualification, exact event topology and mandatory full checks
-  remain required. Sharded container execution is unsupported. Promotion of selective hosted CI
-  remains blocked until genuine qualification and reviewed immutable pins; local fixtures and
-  timing simulations cannot establish hosted speedup. Rollback clears the selection pins and
+  package outcomes; exact event topology and mandatory full checks remain required, while the
+  200-row campaign is optional evidence for AFP-V0-028. Sharded container execution is unsupported.
+  Promotion of the queue-backstopped profile from experimental requires the first 20 narrowed
+  PRs to have complete forward rows and no trip, plus median and p90 PR wall time, runner-minutes
+  per merged PR and ready-to-merge time measured over at least 20 merged PRs before and after,
+  retained in a build-log entry. Unavailable measurements stay `NOT_OBSERVED`; local fixtures
+  and timing simulations cannot establish hosted speedup. Rollback clears the selection pins and
   reverts partition placement to the previous complete round-robin workflow.
   (V1-0714) The cost bytes SHALL be regenerated by `tools/ci-shard-costs refresh` from the terminal
   `go test -json` package outcomes of one complete hosted run, recording that run and its revision;
@@ -734,7 +750,7 @@ and container qualification; full fallback remains available.
   branch or a merge queue, which are repository settings outside this contract, closes
   those.
   Rollback removes the make step and the two workflow steps.
-- **AFP-V0-026:** (owner-directed, proposed, 2026-10-04; V1-0752) `.github/workflows/ci.yml`
+- **AFP-V0-026:** (accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04; V1-0752) `.github/workflows/ci.yml`
   SHALL also run on `merge_group` `checks_requested`, so a merge-queue entry reports the
   required `go-product` and `doc-gates` checks on the exact commit that becomes `main`. Such a
   run MUST be FULL: the documentation classifier (DCI-V0), the AFP-V0-013 driver, the
@@ -745,9 +761,9 @@ and container qualification; full fallback remains available.
   out or executes repository code. That status carries no consent of its own: a pull request
   enters the queue only after the AFP-V0-016 decision on its own head, and a queue commit
   holds only such pull requests on top of `main`. Limits: enabling the queue is the owner's
-  ruleset change and hosted queue behavior is `NOT_OBSERVED` until then; each merge runs the
-  suite on the queue commit and again on the `main` push unless the pull-request run tested
-  the same tree, because AFP-V0-024 admits only pull-request results; the pull-request run
+  ruleset change and hosted queue behavior is `NOT_OBSERVED` until then; V1-0760, which lets
+  the `main` push reuse the queue run of the identical commit, is a prerequisite for narrowing
+  (AFP-V0-028); a narrowed PR MUST NOT write an AFP-V0-024 tested-tree record; the pull-request run
   still tests a possibly stale merge, so only the queue run closes the AFP-V0-025 residual
   skews; the status is posted only after the whole `CI` run completes, so the queue's
   status-check timeout must exceed that run; the queue-entry precondition, the branch form
@@ -756,7 +772,7 @@ and container qualification; full fallback remains available.
   after its entry leaves the queue, so a pull request whose head is that commit shows it
   until its own `CI` run completes and AFP-V0-016 replaces it, which can admit only
   `.github/` content already consented to on a queued head. Rollback: disable the queue in the ruleset
-  first, then remove the trigger and the `merge-group` job; removing them while the queue is
+  only after restoring FULL PR runs (R1 below), then remove the trigger and the `merge-group` job; removing them while the queue is
   on leaves every entry waiting for checks that never report.
 
 - **AFP-V0-027:** (owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
@@ -772,6 +788,81 @@ and container qualification; full fallback remains available.
   the batching agent and nothing checks that a batch pull request actually contains the
   constituent; a mislabelled pull request is blocked, never merged untested. Rollback removes
   the job condition and the `go-product` message.
+- **AFP-V0-028:** (accepted (decision 0431)) Queue-backstopped narrowing SHALL apply only to
+  `pull_request` root Go race packages selected by the trusted AFP-V0-012 selector, intersected
+  with the existing AFP-V0-022 complete-universe shard partition. Empty intersections SHALL run
+  no Go test and retain their audit. Only the package set may differ: argv, environment,
+  AFP-V0-023 `test-confine` wrapper and cache policy SHALL match the full branch, not the driver's
+  historical closed replay environment. Missing or untrusted tools, planning or selector failure,
+  a `FALLBACK` verdict, topology or partition drift, a dirty root module definition and any
+  module-level Go frontier SHALL still force FULL. Three additional conditions SHALL force FULL:
+  the PR base is not `main`; a changed path is under `.github/`; or the API cannot read the
+  `main` branch rules or they lack an active `merge_queue` rule. Disabling the queue while
+  narrowing is armed SHALL therefore force FULL. `merge_group`, `main` push and release stay
+  FULL; static, vet, format, cross-build, interop, documentation and artifact checks stay full
+  on every event. AFP-V0-026 keeps DCI, the driver, order plan and AFP-V0-024 reuse off on
+  `merge_group`.
+  Scope `UNKNOWN` may narrow only when every `plan.unknown` entry belongs to this closed,
+  reviewed allowlist of classes already covered by AFP-V0-012 widening: `LANGUAGE_FRONTIER`
+  with a non-`go:` detail (fixture paths still attributed by rules (b) to (d));
+  `go:build-constraint-variants` and `go:nested-module-frontier` (the race job covers only
+  linux/amd64 root packages and cross-build/nested interop remain full); `UNOWNED_DIRTY_PATH`
+  attributed by rules (b), (c) and (d); and `NO_SELECTABLE_TEST` traversed to dependents
+  (AFP-V0-020). Every other reason or detail, including future additions, SHALL force FULL
+  until reviewed amendment of the allowlist.
+  Planner, selector and driver SHALL remain built outside the PR checkout from a reviewed
+  `main` commit pinned in `ci.yml`; changes to the pin require AFP-V0-016 exact-head admin
+  consent. Go version, Git and tool-digest drift SHALL force FULL. The SHA256 historical
+  qualification artifact and 200-row campaign SHALL NOT be prerequisites; AFP-V0-014/017
+  and the historical workflow remain optional evidence. V1-0760 MUST be merged and the
+  AFP-V0-029 shadow bar met before narrowing is enabled. A narrowed PR run MUST NOT write an
+  AFP-V0-024 tested-tree record. Selection remains non-authoritative (AFP-V0-004); exclusions
+  are deferred to the full queue run, which MUST pass before the commit reaches `main`.
+  Both `go-product` and step summaries SHALL say "selected packages passed: N of M; the full
+  suite runs in the merge queue", never "suite passed". Hosted behavior, net cost and batch
+  speedup remain `NOT_OBSERVED`; batch speedup is not claimed.
+- **AFP-V0-029:** (accepted (decision 0431)) Every PR run computing a trusted selection SHALL
+  retain S with tool source, plan and selection digests and shard partition digest. Every
+  `merge_group` shard SHALL retain bounded terminal `go test -json` package outcomes. A
+  default-branch `workflow_run` job, as in AFP-V0-016, SHALL build one row per queue run,
+  with only `actions: read` and `contents: read`, never executing repository code. S is the
+  selection of the latest successful PR run for the head entering the queue; F is every queue
+  package with fail, timeout, build failure or missing outcome. A miss is F minus S for a PR
+  whose PR-time run narrowed; F intersect S is `SELECTED_FAILED_IN_QUEUE` (base skew, flakiness
+  or environment difference), not a miss. Each failing package SHALL be rerun once on the
+  same queue commit; a pass is `FLAKY`, but the queue verdict remains failure. Missing or
+  unreadable inputs SHALL produce `INCOMPLETE`, neither clean nor a miss, including a missing
+  selection artifact at queue time.
+  The row SHALL be `corvint-pr-forward-row/0`, at most 64 KiB, named
+  `ci-forward-<CLEAN|FLAKY|MISS|INCOMPLETE>-pr<N>-<queue sha>`, with default artifact retention.
+  The class is the worst in the row: `MISS` if any missed package fails its rerun, `FLAKY`
+  if every missed package passes it. Rows SHALL NOT feed ranking, selection or learning;
+  their admission effect can only widen to FULL. Shadow SHALL first enable the queue,
+  full-event policy and rows with PR tests still FULL, computing and retaining S before the
+  full shard. Shadow PR runs SHALL produce rows from their same-commit complete outcomes.
+  Shadow is enabled only after a real PR has merged through the queue with `go-product`,
+  `doc-gates` and `ci-control-plane` reported on the queue commit, `main` equal to that commit
+  and `dogfood-check` reading its seal; until then it is `NOT_OBSERVED`.
+  Narrowing requires 20 complete shadow rows, at least 5 with failing packages, and none
+  with a miss other than `FLAKY`. Hosted queue branch form, `workflow_run` delivery,
+  branch-rules API and `main` reaching the tested queue commit remain assumed, `NOT_OBSERVED`.
+- **AFP-V0-030:** (accepted (decision 0431)) PR runs SHALL return to FULL with reason
+  `forward-qualification-tripped` when the latest 20 rows of the current epoch, counting
+  `INCOMPLETE` rows in the window, contain at least 2 `MISS` rows or at least 3 `INCOMPLETE`
+  rows. The PR job SHALL list artifact names as AFP-V0-024 does, without downloading them;
+  listing failure SHALL force FULL. The admin-settable repository variable
+  `CORVINT_PR_NARROWING=off` SHALL force FULL immediately and can only disable. A reviewer
+  classifying a single `MISS` as `CHANGE_CAUSED` SHALL set that variable; this classification
+  is human judgment, not information carried by an artifact name. Re-arming SHALL require a
+  reviewed `.github/` change advancing the `CORVINT_PR_FORWARD_EPOCH` pin, removing earlier
+  rows from the window, with a build-log entry naming the review. The queue fails and ejects
+  a missed PR before it reaches `main`; the switch protects PR-time green and queue throughput.
+  Rollback of AFP-V0-028..030 SHALL follow decision 0431: R1 sets
+  `CORVINT_PR_NARROWING=off` or clears `CORVINT_PR_TOOL_SOURCE`, restoring full PR race runs
+  while the queue remains and forward rows continue in shadow; R2, only after R1, removes
+  the `main` ruleset's `merge_queue` rule, restoring `pull_request` plus the three required
+  checks (the inert `merge_group` trigger may stay); R3 reverts the spec amendments and
+  requirements AFP-V0-028..030, restoring decisions 0289/0320's required AFP-V0-014 artifact.
 - **AFP-V0-031:** (accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
   frontier) The Go plugin SHALL decide the `go:nested-module-frontier` per unlisted module:
   it reads each such module's `go.mod` through the same `affected.Source` as every other input
@@ -1010,6 +1101,15 @@ and container qualification; full fallback remains available.
   test exits 1 while the native vet and Windows build pass; hosted behaviour is NOT_OBSERVED until
   the change's own CI runs. Rollback: delete the step and the `fetch-depth: 2` line.
 
+- `AFP-V0-043`: (accepted, decision 0505) Cost-table
+  `refresh` and plain `check` MUST validate each shard log against the completed-stream
+  standard of AFP-V0-040 before combining costs or writing the table: every non-blank
+  line is a valid event, every started package ends, and each log has a terminal package
+  outcome. Malformed lines, truncated final events and unfinished packages MUST refuse
+  with exit 2 and leave the table unchanged. Valid raw streams MUST retain the prior
+  non-strict observer's encoded table bytes. Non-goal: changing the legacy `observe`
+  helper's other callers. Rollback: revert the strict reader selection and its tests.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -1060,6 +1160,15 @@ than the declared shards, refuses the cost refresh and makes the drift report ab
 (AFP-V0-041 (8)). Shard logs that are not one per declared shard, or a shard log without any
 terminal package outcome, refuse slice generation and replay (AFP-V0-041 (5)).
 
+Queue-backstopped PR narrowing failure modes (decision 0431): absent queue rule or unreadable
+rules API, an allowlist miss or a new frontier force FULL; missing selection at queue time
+produces `INCOMPLETE`; a queue timeout shorter than `CI` fails entries. Disabling the queue
+forces FULL through AFP-V0-028. AFP-V0-026 retains the lingering control-plane status limit.
+Late failures eject PRs; rerun passes classify flakes without changing the queue failure.
+Artifact listing failure forces FULL; threshold trips and a reviewer-confirmed `CHANGE_CAUSED`
+miss disable narrowing as AFP-V0-030 requires. Hosted auto-merge command compatibility is
+`NOT_VERIFIED`, and net runner cost and ready-to-merge effects are `NOT_OBSERVED`.
+
 ## Acceptance evidence and traceability
 
 | Requirement | Implementation | Evidence |
@@ -1086,6 +1195,9 @@ terminal package outcome, refuse slice generation and replay (AFP-V0-041 (5)).
 | AFP-V0-031 | `nestedModules`, `observedReach`, `unknownDirectory`, `nestedModuleOpen`, `readManifest`, `workspaceAbove`, `replaceDirectoryOpen`, `repositoryDirectory`, `parseManifest`, `manifestLine`, `maxNestedManifestBytes`, `observeModules` in `internal/liveverify/affected/golang` | `TestIndependentNestedModulesCloseTheFrontier_V1_0867`, `TestNestedModuleThatCanReachTheRootKeepsTheFrontier_V1_0867`, `TestUnreadableOrUnparsableNestedManifestKeepsTheFrontier_V1_0867`, `TestNestedFrontierReadsTheSuppliedSource_V1_0867`; `TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath` and `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` over `testdata/workspace/stray`, which now requires a listed module; survey replay in `docs/build-log/2026-10-06-nested-module-frontier.md` (unchanged on this repository, because `tools/local-authority` requires the root) |
 | AFP-V0-032 | `readAdviceSource`, `mandatoryAffectedChecks` in `cmd/corvint/affected.go` | `TestAffectedAdviceUnreadableDeclarationSuppressesNoGate` (`cmd/corvint/affected_advice_unix_test.go`) |
 | AFP-V0-033 | `unreasoned` in `tools/unbounded-readers`; the `reasons` of `.corvint/unbounded-readers.json` | `TestAFPV0033EveryUnitNamesItsUnboundedRead` (a live or stale unit without a reason fails and is named; both failures are reported together); `TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord` (each addition carries its reason); `make unbounded-readers-check` passes with a reason for every unit; per-package container measurements in build log 2026-10-06-unbounded-reader-reasons |
+| AFP-V0-028 | Not implemented; planned queue rules and PR narrowing integration | `TestAFPV0028QueueBackstoppedNarrowing` (PLANNED): three new FULL conditions, UNKNOWN allowlist, trusted pins without historical artifact, partition/argv/environment/confinement/cache parity and summaries; hosted queue checks, main identity/seal and V1-0760 prerequisite `NOT_OBSERVED` |
+| AFP-V0-029 | Not implemented; planned retained selections, queue outcomes and default-branch forward-row job | `TestAFPV0029ForwardRowsAndShadowBar` (PLANNED): S/F classification, reruns, missing inputs, 64 KiB bound and 20/5 shadow bar; hosted shadow/queue rows and delivery `NOT_OBSERVED` |
+| AFP-V0-030 | Not implemented; planned artifact-name kill switch, repository variable and epoch pin | `TestAFPV0030KillSwitchAndEpoch` (PLANNED): latest-20 window, 2 MISS/3 INCOMPLETE thresholds, listing failure, off variable and reviewed epoch re-arm; hosted disable/re-arm and first 20 narrowed rows with no trip `NOT_OBSERVED`; before/after metrics `NOT_OBSERVED` |
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active with the decision 0320 settings; the decision 0390 settings (no bypass, `doc-gates` required) and the admin-status consent path NOT_VERIFIED until the owner applies them; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
@@ -1103,6 +1215,7 @@ terminal package outcome, refuse slice generation and replay (AFP-V0-041 (5)).
 | AFP-V0-040 | `check --advisory` (`report`, `observeStream`, `scan`, `checkEvent`, `findings`, `finding.misplaced`, `escape`) in `tools/ci-shard-costs`; the best-effort capture in the tests step and the shard-outcome retention step of `go-product-shard` and the `ci-shard-cost-drift` job in `.github/workflows/ci.yml` | `TestAFPV0040AdvisoryReportNeverFailsOnFindings`, `TestAFPV0040AdvisoryWarningsStayWithinTheStepLimit`, `TestAFPV0040AdvisoryAcceptsAFullEventStream`, `TestAFPV0040AdvisoryAbstainsOnPartialOrUnusableInput`; `actionlint`; `make ci-least-privilege-check`; local dry run of the job steps against run 38055182050 (build log 2026-10-10-ci-shard-drift-detection); hosted run `NOT_OBSERVED` |
 | AFP-V0-041 | `Slice`, `Shard`, `Allowed`, `SplitPackages`, `Splits`, `Plan`, `PlanFrom`, `profileNames` and `--slices` in `.github/cishards`; `.github/cishards/test-split-allow.json`, `.github/cishards/test-slices.json`; `refuseSlices` in `tools/corvint-pr-tests`; `tools/ci-test-slices`, with `inGroup` in its build-tagged `procgroup_unix.go` and `procgroup_other.go`; `outcomes`, `combine`, `--allow` and `--slices` in `tools/ci-shard-costs`; the full-run slice loop through `run_tests` in `.github/workflows/ci.yml` | `TestAFPV0041PlanEqualsPartitionWithoutSplits`, `TestAFPV0041SlicedPlanIsCompleteAndDeterministic`, `TestAFPV0041FallbackKeepsPackagesWhole`, `TestAFPV0041SlicesRunEveryTestExactlyOnce` (real `go test` over added, removed and renamed names, subtests, a parallel test, a fuzz seed and an example), `TestAFPV0041CommittedSlicesAreAdmitted`, `TestAFPIsolatedBuildIgnoresModuleRedirection` (`--slices`), `TestShardedDriverRefusesTestSlices_AFPV0041`, `TestAFPV0041GenerateSplitsOnlySlowListablePackages`, `TestAFPV0041GenerateRefusesUnboundInputs`, `TestAFPV0041GenerateEnumeratesOnlyTheRevision`, `TestAFPV0041ObserveRefusesIncompleteOrFailedLogs`, `TestAFPV0041InterruptRemovesTheCheckout`, `TestAFPV0041CancelStopsTheEnumerationGroup` (a fake `go` whose sleeping child ignores SIGINT), `TestAFPV0041ListParsing`, `TestAFPV0041SliceWithoutTimesSplitsByCount`, `TestAFPV0041MinMaxCutsIsOptimal`, `TestAFPV0041ReplayPredictsShardSums`, `TestAFPV0041RefreshCombinesTestSlices`, `TestAFPV0041AdvisoryCombinesTestSlices`; replay of hosted run 38055182050, a local run of both store slices, and a local run of the workflow's slice loop and capture whose streams `refresh` and `check --advisory` combine, in build log 2026-10-10-ci-test-level-shards; hosted sliced run, paired timing and per-slice overhead NOT_RUN; owner acceptance in decision 0488 |
 | AFP-V0-042 | the `Windows vet including test files (AFP-V0-042)` step and `fetch-depth: 2` of `go-static` in `.github/workflows/ci.yml` | `actionlint`; `make ci-least-privilege-check`; local fixture run (build log 2026-10-10-windows-test-vet); hosted run `NOT_OBSERVED` until this change's CI runs |
+| AFP-V0-043 | `run` strict per-log `observeStream` in `tools/ci-shard-costs/main.go` | `TestAFPV0043RefreshRefusesMalformedLine`, `TestAFPV0043RefreshRefusesTruncatedFinalEvent`, `TestAFPV0043RefreshRefusesUnfinishedPackage`, `TestAFPV0043RefreshRefusesEmptyShard`, `TestAFPV0043RefreshValidStreamByteParity` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
@@ -1125,7 +1238,9 @@ Protected workflow/ruleset status: **VERIFIED** (2026-09-19). The repository wor
 pins alone do not protect their own control plane; decision 0320 establishes the admission on the
 free plan with AFP-V0-016 and ruleset 23699808, whose settings and observed runs are recorded in
 `tools/corvint-pr-tests/README.md`. Decision 0390 removes the ruleset's bypass actor and adds
-`doc-gates`; that ruleset change is not yet observed. Keep pins empty until AFP-V0-017 produces a PASS.
+`doc-gates`; that ruleset change is not yet observed. For queue-backstopped PR narrowing,
+AFP-V0-028/029 replace the historical PASS prerequisite; hosted enablement is `NOT_OBSERVED`.
+The following closed runtime describes historical replay, not queue-backstopped PR execution.
 The runtime environment is an allowlist with exact recorded bytes, a fixed absolute Go PATH,
 `/usr/bin/cc`, `GOENV=off`, `LANG=C`, `LC_ALL=C`, `TZ=UTC`, and exclusively owned HOME/TMP/cache
 under `/tmp/corvint-pr-tests-runtime`. An existing runtime path is refused; owned runtime state is
@@ -1156,5 +1271,6 @@ The owner requested implementing a qualified README presentation path after PR #
 exception to AFP-V0-013/014's root race invocation. It requires trusted-base source, exact merge
 binding, a closed document scope, independently reviewed source-bound consumer qualification and
 retained documentation checks. All other mandatory checks and AFP-V0-016 control-plane acceptance
-remain. It does not alter this planner's UNKNOWN scope or enable general Go selection; that driver
-still needs the full AFP-V0-014 historical campaign. Missing or stale DCI qualification runs FULL.
+remain. (accepted (decision 0431); amended by decision 0431) It does not alter this planner's
+UNKNOWN scope or enable general Go selection; AFP-V0-028/029 govern queue-backstopped general
+Go narrowing without the historical campaign. Missing or stale DCI qualification runs FULL.

@@ -320,6 +320,9 @@ corvint cem report --map .corvint/change.cem.json \
 
 `prepare` resumes an identical valid candidate and refuses an outdated one unless `--replace` is explicit.
 `cite` and `mark` accept either the full derived hunk ID or the canonical one-based worklist ordinal.
+`corvint cem cite --help` lists the seven accepted `--relation` values and points to the
+normative [supported basis relation definitions](#supported). V1-0629 repairs discoverability
+without changing that vocabulary; `TestCEMCiteHelpListsRelations` checks the help output.
 When a citation selects base bytes from a path modified by the candidate patch, `cite` obtains the
 exact candidate patch from a `baseRevision`-to-`HEAD` canonical derivation or the per-worktree cache,
 validates it against `patchSha256`, applies that path's complete hunk group to the base blob with the
