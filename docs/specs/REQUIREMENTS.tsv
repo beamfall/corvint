@@ -3063,6 +3063,7 @@ TQD-V0-009	docs/specs/corvint-tasks-doctor-v0.md	47	FALSE_IDLE names a live atte
 TQD-V0-010	docs/specs/corvint-tasks-doctor-v0.md	48	Plugins run only when `--plugins DIR` names a directory. Discovery opens it with
 TQD-V0-011	docs/specs/corvint-tasks-doctor-v0.md	49	`doctor --refresh` writes the item, with profile `taskman-doctor-cache/0` and `r
 TQD-V0-012	docs/specs/corvint-tasks-doctor-v0.md	50	`doctor --line` reads only the cache, through the repository resolution walk to
+TQD-V0-013	docs/specs/corvint-tasks-doctor-v0.md	51	NO_PROGRESS_HANDOFF is not reported for a ticket whose current audited record ha
 TRE-V0-001	docs/specs/test-runner-execution-v0.md	26	Adapters MUST declare explicit runner/runtime/report profiles. Fixed invocation
 TRE-V0-002	docs/specs/test-runner-execution-v0.md	29	Inputs MUST identify the source snapshot, selectors, configuration, executable/t
 TRE-V0-003	docs/specs/test-runner-execution-v0.md	32	A bounded invocation MAY declare BUILD, DISCOVER, TEST and DECODE phases, each u

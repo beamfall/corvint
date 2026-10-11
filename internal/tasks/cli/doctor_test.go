@@ -122,6 +122,57 @@ func TestTQDV0005_NoProgressHandoff(t *testing.T) {
 	}
 }
 
+// TQD-V0-013 (GitHub #791): after the same three no-progress hand-offs, a
+// ticket whose current status is COMPLETED, HELD or ARCHIVED is not reported,
+// while an OPEN ticket still is.
+func TestTQDV0013_NoProgressSkipsCompletedHeldArchived(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	ids := map[string]string{}
+	for i, name := range []string{"open", "completed", "held", "archived"} {
+		id := planTicket(t, root, name, "P1", `["src/"]`)
+		ids[name] = id
+		for j := 0; j < 3; j++ {
+			n := fmt.Sprintf("%d-%d", i, j)
+			c := handoffCLI(t, root, "claim", id, "--holder", "w"+n, "--stage", "implement", "--request-id", "claim-"+n)
+			if c.res.Outcome != wire.OutcomeOK {
+				t.Fatalf("claim %s: %s", n, c.stdout)
+			}
+			a, g := field(c.res.Items[0], "attemptId").Str, field(c.res.Items[0], "generation").Str
+			if r := handoffCLI(t, root, "release", "--attempt", a, "--generation", g, "--reason", wire.CodeHandoff, "--evidence", "no-change", "--request-id", "release-"+n); r.res.Outcome != wire.OutcomeOK {
+				t.Fatalf("release %s: %s", n, r.stdout)
+			}
+		}
+	}
+	reported := func() map[string]bool {
+		t.Helper()
+		_, item := doctorOK(t, root)
+		out := map[string]bool{}
+		for _, f := range findingsOf(item, "NO_PROGRESS_HANDOFF") {
+			out[field(f, "who").Str] = true
+		}
+		return out
+	}
+	if got := reported(); len(got) != 4 {
+		t.Fatalf("before status changes: %v", got)
+	}
+	mutate := func(verb, id, payload string) {
+		t.Helper()
+		args := []string{"ticket", verb, "--target", id, "--expected-revision", obligationRevision(t, root, id), "--request-id", verb, "--payload", payload}
+		if x := atm(t, root, nil, args...); x.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("%v: %s", args, x.stdout)
+		}
+	}
+	mutate("complete-manual", ids["completed"], `{"evidence":[],"reason":"manual"}`)
+	mutate("hold", ids["held"], `{"holdId":"h1","reason":"wait"}`)
+	mutate("archive", ids["archived"], `{"reason":"obsolete"}`)
+	got := reported()
+	for name, want := range map[string]bool{"open": true, "completed": false, "held": false, "archived": false} {
+		if got[ids[name]] != want {
+			t.Fatalf("%s ticket reported=%v, want %v: %v", name, got[ids[name]], want, got)
+		}
+	}
+}
+
 // TQD-V0-006: the reviewer returns the same candidate tree three times.
 func TestTQDV0006_RepeatRefusal(t *testing.T) {
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))

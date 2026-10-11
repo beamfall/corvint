@@ -678,7 +678,8 @@ debt, clean handoff preserves it and policy updates change the bound without era
 TQD-V0-001..012, GitHub #715). It scans at most 4096 receipts from the last 7 days and reports
 `summary` (free and total pool lanes, running sessions, completions in 24 hours, alerts) and
 `findings`, each with `kind`, `source`, `who`, `detail`, `remedy`, `firstSeen`, `ageSeconds` and
-`evidenceSeqs`. Built-in kinds are NO_PROGRESS_HANDOFF (three trailing no-progress hand-offs),
+`evidenceSeqs`. Built-in kinds are NO_PROGRESS_HANDOFF (three trailing no-progress hand-offs on a
+ticket that is not COMPLETED, ARCHIVED or HELD; proposed TQD-V0-013, GitHub #791),
 REPEAT_REFUSAL (one candidate tree returned or failed three times), SLOW_LANE_RECOVERY (an
 allocation entered cleanup three times), SETUP_ONLY_PROOF (a recent completion that witnessed no
 core obligation) and FALSE_IDLE (a stale or lease-expired holder whose detached run supervisor
