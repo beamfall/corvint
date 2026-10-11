@@ -15,7 +15,7 @@ accepted TQD-V0-001..012 as written in decision 0481.
 
 ## Agent digest
 - Claim: `corvint-tasks doctor` names stuck-queue patterns from journal, pool and attempt data plus bounded plugins; `doctor --line` prints a cached status line.
-- Status: accepted (decision 0481; GitHub #715; TQD-V0-001..012); TQD-V0-013 (COMPLETED, ARCHIVED and HELD tickets are not NO_PROGRESS_HANDOFF) proposed, pending owner acceptance (V1-1176; GitHub #791); experimental source implementation with focused CLI tests.
+- Status: accepted (decision 0481; GitHub #715; TQD-V0-001..012); TQD-V0-013 (COMPLETED, ARCHIVED and HELD tickets are not NO_PROGRESS_HANDOFF) accepted (decision 0519; V1-1176; GitHub #791); experimental source implementation with focused CLI tests.
 - Exists: built-in NO_PROGRESS_HANDOFF, REPEAT_REFUSAL, SLOW_LANE_RECOVERY, SETUP_ONLY_PROOF and FALSE_IDLE (detached-run supervisors only) detectors; bounded plugins with PLUGIN_FAILED; `--refresh` atomic cache; `--line` lock-free cache read.
 - Blocked on: PREFLIGHT_FAILURE waits for #713's recorded preflight evidence; the dispatcher ledger is not read; the Linux process walk is unqualified.
 - Read next: Requirements; Detectors; Failure modes; Traceability.

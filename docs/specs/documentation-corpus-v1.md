@@ -420,8 +420,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `e2e` run, retained receipt, `discover-playwright --receipt`, `witness-playwright
   --receipt-input`). A focused test runs the example's discovery step on the fixture with the
   provider's canonical encoding, admits the witness step's arguments, and checks every flag of the
-  producer step against the provider's `e2e` flags. Status: (proposed, pending owner acceptance
-  (V1-1196); GitHub #794).
+  producer step against the provider's `e2e` flags. Status: (accepted, decision
+  0519; V1-1196; GitHub #794).
 
 ## Input and authority boundary
 
@@ -553,7 +553,7 @@ narrowing the listing would narrow the discovered denominator. The report digest
 bundle, not in the closed `corvint-behavior-run/1` wire, so the corpus compiler does not re-verify the
 report. A qualified receipt is required for witnessing and for identities that the adapter's receipt
 check accepts; its producer is `corvint-js-test-provider e2e --external-server`, and the chain from
-that run to `witness-playwright` is in the docs help (`DCP-V1-053`, proposed). Only a first-attempt pass is credited. Fixture tests use a real Playwright 1.63.0
+that run to `witness-playwright` is in the docs help (`DCP-V1-053`). Only a first-attempt pass is credited. Fixture tests use a real Playwright 1.63.0
 listing and report of a generic project with a synthetic qualified receipt; live browser execution
 by Corvint and external utility qualification remain `NOT_OBSERVED`.
 

@@ -30,7 +30,7 @@ new commands. Review every hint.
 Refusals: changes-invalid-arguments, changes-build-unavailable,
 changes-range-unavailable, changes-git-unavailable, changes-refs-unavailable,
 changes-issue-state-unavailable.
-Contract: docs/specs/upgrade-checklist-v0.md (accepted, decision 0518; V1-1142, V1-1158).
+Contract: docs/specs/upgrade-checklist-v0.md (accepted, decisions 0518 and 0519; V1-1142, V1-1158).
 `
 
 func changesInvocation(args []string) (string, []string, bool) {

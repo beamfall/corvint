@@ -389,7 +389,7 @@ merges many changes exceeds them and also drifts the intent scope
 `git-budget-exceeded` and `admitted-path-limit` refusals and `dogfood-change: REFUSE
 sealed-cem-in-change` print a `fix:` line naming this path; `intent-scope-drift` names the
 `ocm-prepare` or `ocm-status` row above it, which carries that `git-budget-exceeded` fix
-(`DCW-V0-040`). The limits are not raised. Instead (`DCW-V0-039`, proposed):
+(`DCW-V0-040`). The limits are not raised. Instead (`DCW-V0-039`):
 
 1. Bind, check and seal each change with this loop on its own branch, in its own clone (the local
    trace store of one change refuses another's unreachable commits), against its own base.
@@ -529,7 +529,7 @@ span, and relation. The relation is one of `call-site`, `decision`, `dependency`
 only a spec: cite the function a hunk edits or calls (`implementation`, `call-site`, `dependency`) or
 the test that pins its behavior (`test-claim`), and give one hunk several rows to cite both its code
 and its requirement, for example `3	internal/x/x.go	40:52	implementation` and
-`3	docs/specs/x.md	12:14	specification` (`DCW-V0-041`, proposed). A file the change itself adds
+`3	docs/specs/x.md	12:14	specification` (`DCW-V0-041`). A file the change itself adds
 cannot be its own evidence: it refuses `cem-cite: missing-evidence`, and an unregistered relation
 refuses `cem-cite: invalid-arguments`; both print a `fix:` line naming the plan row. A hunk no row
 cites stays `unknown` with reason `no-evidence`. A base evidence path means the producer reads the span from the CEM base tree;

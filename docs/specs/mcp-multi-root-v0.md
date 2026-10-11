@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-10-07
 Requirement prefix: `MMR-V0`
-Intent status: accepted (decision 0441); MMR-V0-009 proposed, pending owner acceptance (V1-1173)
+Intent status: accepted (decision 0441); MMR-V0-009 accepted (decision 0519; V1-1173)
 Delivery status: experimental
 Authoritative inputs: AGENTS.md invariants 2, 3, 4, 7 and 8; `mcp-server-2026-07-28-v0.md`
 `MCPV0-001`, `MCPV0-015`; native ticket `V1-0938`.
 
 ## Agent digest
 - Claim: One corvint-mcp process serves up to 32 operator-declared repositories, each named by an alias that every repository-scoped tool call must select.
-- Status: accepted (decision 0441); MMR-V0-009 proposed, pending owner acceptance (V1-1173) / experimental
+- Status: accepted (decision 0441); MMR-V0-009 accepted (decision 0519; V1-1173) / experimental
 - Exists: `cmd/corvint-mcp/roots.go`, `cmd/corvint-mcp/main.go` (`parseArguments`, `toolHandler.call`), `bridge.Registry.SharesRoot`; `cmd/corvint-mcp/worktree_notice.go`; tests in `cmd/corvint-mcp/roots_test.go`, `main_test.go` and `worktree_notice_test.go`.
 - Blocked on: owner acceptance; no qualified host run; `corvint-test-validity-mcp`, `corvint-docs-mcp` and `corvint-corpus-mcp` remain single-root.
 - Read next: Requirements; Bounded state and measurements.
@@ -87,7 +87,7 @@ into the tool catalogue.
   ceiling; the only cross-call retention is the existing process-wide snapshot mapping cache of 4
   pack plus 4 sectioned entries, independent of the root count. An idle server performs no background
   work. The status-all listing probes roots sequentially.
-- `MMR-V0-009`: (proposed, pending owner acceptance (V1-1173); GitHub #781) At startup,
+- `MMR-V0-009`: (accepted, decision 0519 (V1-1173); GitHub #781) At startup,
   after every root is pinned, `corvint-mcp` MUST read its own launch directory once (`os.Getwd`) and
   find its enclosing worktree, the nearest ancestor holding a `.git` directory or gitfile, without
   running Git. A binding is labelled exactly when that worktree is a different directory from the

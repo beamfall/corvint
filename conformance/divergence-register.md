@@ -2957,8 +2957,8 @@ the candidate side must be the same `KIND:ID` behind the fixture's importing-tes
 
 ### DR-0043 — harness `stop`: the candidate's frontier carries the `AHI-054` cause
 
-- **Status:** ADJUDICATED 2026-10-11 — intentional Go extension / known-divergent under proposed
-  `AHI-054` (`docs/specs/agent-harness-integration-v0.md`, pending owner acceptance, ticket V1-1157,
+- **Status:** ADJUDICATED 2026-10-11 — intentional Go extension / known-divergent under
+  `AHI-054` (`docs/specs/agent-harness-integration-v0.md`, accepted in decision 0519, ticket V1-1157,
   GitHub #785). The disagreement is **EXPECTED and MUST NOT be reported as a failure**
   (`GPK-V0-033`). No oracle was reconstructed (`GOC-V0-002`).
 - **Command:** `harness event` (one case, `harness-stop`). **Discovered:** 2026-10-11, by design,

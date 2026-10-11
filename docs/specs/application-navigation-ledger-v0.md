@@ -119,7 +119,7 @@ are URL templates, not component source files. This slice makes neither missing 
   places is listed as unknown (`unmapped-path`, or `manifest-changed` for the manifest) and forces the
   verdict `full-suite-required` for the app; otherwise the verdict is `targeted` or
   `no-navigation-impact`. The map binds no template or component files itself; ANL-V0-032 places
-  the ones its reference hop can prove (this amendment proposed, pending owner acceptance (V1-1162)).
+  the ones its reference hop can prove (this amendment accepted, decision 0519 (V1-1162)).
   The report is deterministic, byte-capped with omitted
   counts that never drop the verdict, digested, learned, read-only and offline; an unresolvable
   base or revision fails closed. (accepted, decision 0518; V1-1137)
@@ -130,7 +130,7 @@ are URL templates, not component source files. This slice makes neither missing 
   or no action reads `UNKNOWN`. An event may carry `annotation: {"trigger": T}` with T from that
   typed vocabulary (not `UNKNOWN`); it prints as the edge's `declared_trigger`, never sets or
   replaces `trigger`, and an annotation outside the vocabulary is refused with exit 2. Amends the
-  ANL-V0-006 action list. (proposed, pending owner acceptance (V1-1161))
+  ANL-V0-006 action list. (accepted, decision 0519 (V1-1161))
 - `ANL-V0-022`: `observe --trace FILE.zip --test-key KEY` reads one Playwright trace zip (a regular,
   unsymlinked file of at most 64 MiB whose central-directory record signatures number at most
   65536, counted before the directory is built) in memory without extracting anything
@@ -143,7 +143,7 @@ are URL templates, not component source files. This slice makes neither missing 
   between that action's `before` snapshot and its `input` or `after` snapshot, so any other change
   reads `UNKNOWN`. Intermediate redirect hops are invisible to snapshots and are not claimed. The
   trace digest is the archive digest; the test key is the caller's, since the archive carries none.
-  `--test-key` is refused without a zip. (proposed, pending owner acceptance (V1-1159))
+  `--test-key` is refused without a zip. (accepted, decision 0519 (V1-1159))
 - `ANL-V0-023`: `edges --observation FILE` (repeatable, at most 16) feeds observed navigation edges
   into the ledger only when named; no read command applies observations implicitly or writes them.
   A file must be a complete `application-navigation-observation/0` document of at most 4 MiB built
@@ -160,13 +160,13 @@ are URL templates, not component source files. This slice makes neither missing 
   not block another key's proof. At most 16 files are named; a 17th refuses before any is read.
   The ledger lists the observation digests, each row's `observed_by` test keys and the count of
   resolved observed edges matching no ledger edge (`observed_unmatched`); the static map is
-  unchanged. (proposed, pending owner acceptance (V1-1160))
+  unchanged. (accepted, decision 0519 (V1-1160))
 - `ANL-V0-024`: An edge cannot be proven only by the test it is used to select. An edge a declared
   test assumes is satisfied only when it is proven and the full ledger's provers (the evidence test
   key plus every redundant crosser, read before any budget trimming) include a test key other than
   that assuming test; otherwise the edge is listed unsatisfied with exit 1 although its row stays
   `PROVEN`. A `--require` carries no test identity and keeps the ANL-V0-004 verdict.
-  (proposed, pending owner acceptance (V1-1165))
+  (accepted, decision 0519 (V1-1165))
 - `ANL-V0-031`: `corvint affected --base FULL_COMMIT_ID --appmap-impact REPORT` (repeatable up to 16,
   one report per map (ANL-V0-034); refused without `--base` or with `--snapshot` or `--playwright-config`) reads
   each complete `application-map-impact/0` report (a bounded regular file, strictly decoded with nothing after it, `authority` `learned`, no
@@ -179,7 +179,7 @@ are URL templates, not component source files. This slice makes neither missing 
   (`spec-files-over-bound`); each such app also adds the `advice.unknown` line
   `APP_NAVIGATION_FULL_SUITE_REQUIRED: APP: REASONS`. The member is advisory: it never adds to or
   removes from `advice.checks`, the plan or the provider projection, so no selection is narrowed.
-  This amends the AFP-V0-009 advice member set, also proposed. (proposed, pending owner acceptance (V1-1167))
+  This amends the AFP-V0-009 advice member set, also accepted by decision 0519. (accepted, decision 0519 (V1-1167))
 - `ANL-V0-032`: A changed UI path no map element places is walked through the tracked UI-extension
   files at the evaluated revision (at most 20000 files, 1 MiB each, 32 MiB in all, 64 walked nodes).
   A file references the path when every occurrence of the path's token (a script's stem, an index
@@ -194,21 +194,21 @@ are URL templates, not component source files. This slice makes neither missing 
   file selecting a screen or spec (a test file selecting neither is walked through). Selected screens carry `template-reference:<file>` and
   their lineage descendants. Any mention that is not such a literal (`unresolved-reference`), a walked
   file nothing references or that reaches no terminal (an import cycle, `unmapped-path`) or an exceeded bound (`reference-graph-bound`) keeps the
-  path unknown, so the hop can widen a selection but never narrows the verdict. (proposed, pending
-  owner acceptance (V1-1162))
+  path unknown, so the hop can widen a selection but never narrows the verdict. (accepted, decision
+  0519 (V1-1162))
 - `ANL-V0-033`: `test-plan page-state --input FILE --check --baseline FILE` (the two flags only
   together) reads the baseline as a `test-page-state-groups/0` report (a bounded regular file,
   strictly decoded with nothing after it, with a digest matching its content; otherwise exit 2), prints the fresh report and
   exits 1 (`test-plan-mismatch`) when, by group key, a group was added, removed or changed in any
   member, or a blocked variation was added, removed or changed its reason, naming each set (at most
   eight IDs each, with the remaining count). An input edit that leaves every group and block
-  unchanged is not drift. (proposed, pending owner acceptance (V1-1166))
+  unchanged is not drift. (accepted, decision 0519 (V1-1166))
 - `ANL-V0-034`: Several `--appmap-impact` reports may name one app when each comes from a different
   map (two reports of one app and map digest refuse). They aggregate into one `app_navigation` row:
   both digest lists, the count of distinct screen IDs, the union of spec files, and the most
   conservative reported verdict (`full-suite-required` over `targeted` over `no-navigation-impact`);
   any report with unknown paths gives `impact-unknown-paths`. An unknown in one map is never cleared
-  by another map placing the path. (proposed, pending owner acceptance (V1-1163))
+  by another map placing the path. (accepted, decision 0519 (V1-1163))
 
 ## Wire and limits
 
