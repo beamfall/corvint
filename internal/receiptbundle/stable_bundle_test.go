@@ -539,7 +539,9 @@ func TestWriteStableRefusesAnAlteredClosure(t *testing.T) {
 		name, code string
 		alter      func(b *StableBundle)
 	}{
-		{"escaping path", CodeStableManifest, func(b *StableBundle) {
+		{"escaping path", CodeStableManifest, func(b *StableBundle) { b.Artifacts[0].Path = "../../leaked" }},
+		{"duplicated path", CodeStableManifest, func(b *StableBundle) { b.Artifacts[1].Path = b.Artifacts[0].Path }},
+		{"added artifact", CodeStableManifest, func(b *StableBundle) {
 			b.Artifacts[0].Path = "../../leaked"
 			b.Artifacts = append(b.Artifacts, b.Artifacts[0])
 		}},
@@ -589,5 +591,48 @@ func TestReadStableRefusesAnOversizedTree(t *testing.T) {
 	}
 	if _, err := ReadStable(dir); stableCode(err) != CodeStableEntryUnused || !strings.Contains(err.Error(), "more than") {
 		t.Fatalf("oversized tree: %v", err)
+	}
+}
+
+// CEM-V1-063: a bundle changed between an entry's check and its read is
+// refused: an entry swapped for an in-root symlink to an undeclared sibling
+// (whose bytes still match), or a file added after the walk.
+func TestReadStableRefusesABundleChangedDuringTheRead(t *testing.T) {
+	f := newStableFixture(t)
+	bundle, err := CollectStable(f.mapBytes, f.base, f.target, f.artifacts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(StableArtifactDir, bundle.Artifacts[0].Path)
+	for i, c := range []struct {
+		name   string
+		change func(dir string) error
+	}{
+		{"symlinked sibling", func(dir string) error {
+			if err := os.Rename(filepath.Join(dir, target), filepath.Join(dir, target+".moved")); err != nil {
+				return err
+			}
+			return os.Symlink(filepath.Base(target)+".moved", filepath.Join(dir, target))
+		}},
+		{"added file", func(dir string) error {
+			return os.WriteFile(filepath.Join(dir, StableArtifactDir, "late.json"), nil, 0o600)
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := writeStableAt(t, filepath.Join(f.dir, "changed", strconv.Itoa(i)), bundle)
+			changed := false
+			stableReadHook = func(name string) {
+				if name == target && !changed {
+					changed = true
+					if err := c.change(dir); err != nil {
+						t.Error(err)
+					}
+				}
+			}
+			defer func() { stableReadHook = nil }()
+			if _, err := ReadStable(dir); stableCode(err) != CodeStableEntryEscaping || !changed {
+				t.Fatalf("changed bundle: %v (changed %v)", err, changed)
+			}
+		})
 	}
 }

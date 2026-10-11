@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -261,7 +262,19 @@ func ReadStable(dir string) (*StableBundle, error) {
 	if !bytes.Equal(bundle.Manifest(), raw) {
 		return nil, stableRefusal(CodeStableManifest, "manifest is not in canonical form")
 	}
-	return bundle, unusedEntries(files, dirs, declared)
+	if err := unusedEntries(files, dirs, declared); err != nil {
+		return nil, err
+	}
+	// A second walk after every read refuses a tree that changed meanwhile,
+	// such as an entry swapped for a symlink to an undeclared sibling.
+	filesAfter, dirsAfter, err := walkStable(root)
+	if err != nil {
+		return nil, err
+	}
+	if !maps.Equal(files, filesAfter) || !maps.Equal(dirs, dirsAfter) {
+		return nil, stableRefusal(CodeStableEntryEscaping, "bundle changed while it was read")
+	}
+	return bundle, nil
 }
 
 // walkStable lists every regular file and directory under the bundle root by
@@ -362,6 +375,10 @@ func unusedEntries(files, dirs, declared map[string]bool) error {
 	return nil
 }
 
+// stableReadHook lets tests change a bundle between an entry's check and its
+// open; it is nil outside tests.
+var stableReadHook func(name string)
+
 // readRootFile reads name inside root without following a final symlink or
 // blocking on a substituted FIFO, and refuses anything but the same regular
 // file of at most bound bytes.
@@ -372,6 +389,9 @@ func readRootFile(root *os.Root, name string, bound int) ([]byte, error) {
 	}
 	if !info.Mode().IsRegular() || info.Size() > int64(bound) {
 		return nil, errors.New("not a bounded regular file")
+	}
+	if stableReadHook != nil {
+		stableReadHook(name)
 	}
 	file, err := openStableEntry(root, name)
 	if err != nil {
@@ -385,6 +405,11 @@ func readRootFile(root *os.Root, name string, bound int) ([]byte, error) {
 	data, err := io.ReadAll(io.LimitReader(file, int64(bound)+1))
 	if err == nil && len(data) > bound {
 		err = errors.New("file exceeds its bound")
+	}
+	// os.Root resolves an in-root symlink even under O_NOFOLLOW, so the name is
+	// checked again after the read: it must still be this same regular file.
+	if named, lstatErr := root.Lstat(name); err == nil && (lstatErr != nil || !named.Mode().IsRegular() || !os.SameFile(info, named)) {
+		err = errors.New("file changed while read")
 	}
 	return data, err
 }
