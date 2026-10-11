@@ -66,13 +66,64 @@ type testProjection struct {
 	Projection testvalidity.Projection       `json:"projection"`
 }
 
+const providerUsage = `Usage: corvint-js-test-provider SUBCOMMAND [flags]
+
+Subcommands:
+  unit                    run the bound Vitest adapter and print the receipt document
+  e2e                     run the bound Playwright adapter and print the receipt document;
+                          with --external-server the document is the canonical qualified
+                          receipt that test-validity --receipt, docs corpus discover-playwright
+                          --receipt and a witness-playwright receipt input accept
+  qualify-keep-reporters  takes the e2e flags with --external-server (no --keep-reporters,
+                          --keep-reporters-qualification or watch); prints the keep-reporters
+                          qualification record (PWP-V0-015)
+  negate                  generate step-level negative controls for one Playwright test (LPCV-V0-057)
+  help, -h, --help        print this usage and exit 0
+
+--retain also writes the printed document, byte for byte, under .corvint/test-evidence of the
+enclosing Git worktree (LPCV-V0-055). The flags of each subcommand follow.
+`
+
+// usageSink, while printUsage runs, receives each subcommand's flag defaults instead of the
+// subcommand parsing its arguments (LPCV-V0-071).
+var usageSink io.Writer
+
+// newSubcommandFlags is the subcommand flag set, or a non-exiting one writing to usageSink.
+func newSubcommandFlags(name string, handling flag.ErrorHandling) *flag.FlagSet {
+	if usageSink == nil {
+		return flag.NewFlagSet(name, handling)
+	}
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(usageSink)
+	return fs
+}
+
+// printUsage writes the subcommand summary and the flags of every subcommand that has its own;
+// qualify-keep-reporters takes the e2e flags (LPCV-V0-071). It runs no test.
+func printUsage(w io.Writer) {
+	fmt.Fprint(w, providerUsage)
+	usageSink = w
+	defer func() { usageSink = nil }()
+	for _, show := range []func(){
+		func() { _, _, _ = parseUnitConfig([]string{"-h"}) },
+		func() { _ = runE2EMode("e2e", []string{"-h"}) },
+		func() { _, _ = parseNegate([]string{"-h"}) },
+	} {
+		fmt.Fprintln(w)
+		show()
+	}
+}
+
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|e2e|negate|qualify-keep-reporters> [flags]")
+		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|e2e|negate|qualify-keep-reporters> [flags]; corvint-js-test-provider --help for details")
 		os.Exit(2)
 	}
 	var err error
 	switch os.Args[1] {
+	case "help", "-h", "-help", "--help":
+		printUsage(os.Stdout)
+		return
 	case "unit":
 		err = runUnit(os.Args[2:])
 	case "e2e":
@@ -123,7 +174,7 @@ func resolvePath(p string) (string, error) {
 // "." default (or any relative value) satisfies procgroup's requirement that
 // Spec.Dir be absolute. The bool reports --retain.
 func parseUnitConfig(args []string) (jstestprovider.UnitConfig, bool, error) {
-	fs := flag.NewFlagSet("unit", flag.ExitOnError)
+	fs := newSubcommandFlags("unit", flag.ExitOnError)
 	configureWatchHelp(fs)
 	dir := fs.String("dir", ".", "working directory to run the unit command in (resolved to an absolute path)")
 	configFile := fs.String("config", "", "vitest config file path")
@@ -210,7 +261,7 @@ func runE2EMode(mode string, args []string) error {
 		return err
 	}
 	args = filtered
-	fs := flag.NewFlagSet(mode, flag.ExitOnError)
+	fs := newSubcommandFlags(mode, flag.ExitOnError)
 	configureWatchHelp(fs)
 	dir := fs.String("dir", ".", "working directory to run server and test commands in (resolved to an absolute path)")
 	configFile := fs.String("config", "", "playwright config file path")

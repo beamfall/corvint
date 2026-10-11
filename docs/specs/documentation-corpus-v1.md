@@ -409,6 +409,19 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   file or runner version (`report-foreign-config`) leaves all tests unwitnessed with that reason. The
   bundle states the fallback `full-relevant-suite` and its limitations. Status: (accepted, decision
   0489; V1-1083; GitHub #717).
+- `DCP-V1-053`: `corvint docs --help`, which `docs corpus witness-playwright --help` prints, names
+  the qualified receipt producer: the stdout of `corvint-js-test-provider e2e --external-server` is
+  the canonical qualified Playwright receipt, and `--retain` writes the same bytes under
+  `.corvint/test-evidence/`. Managed-server `e2e` output is not a qualified receipt.
+  `discover-playwright --receipt` reads that file unchanged. `witness-playwright --receipt-input`
+  names a request input, not a file. The only conversion step is that the caller commits the
+  receipt bytes unchanged at a tracked path and adds them to the request as an observed
+  `external-provider` input with a full-file anchor. The help gives one end-to-end example (provider
+  `e2e` run, retained receipt, `discover-playwright --receipt`, `witness-playwright
+  --receipt-input`). A focused test runs the example's discovery step on the fixture with the
+  provider's canonical encoding, admits the witness step's arguments, and checks every flag of the
+  producer step against the provider's `e2e` flags. Status: (proposed, pending owner acceptance
+  (V1-1196); GitHub #794).
 
 ## Input and authority boundary
 
@@ -539,7 +552,8 @@ Limits: the listing, report and receipt are caller-declared; there is no `--proj
 narrowing the listing would narrow the discovered denominator. The report digest is retained in the
 bundle, not in the closed `corvint-behavior-run/1` wire, so the corpus compiler does not re-verify the
 report. A qualified receipt is required for witnessing and for identities that the adapter's receipt
-check accepts. Only a first-attempt pass is credited. Fixture tests use a real Playwright 1.63.0
+check accepts; its producer is `corvint-js-test-provider e2e --external-server`, and the chain from
+that run to `witness-playwright` is in the docs help (`DCP-V1-053`, proposed). Only a first-attempt pass is credited. Fixture tests use a real Playwright 1.63.0
 listing and report of a generic project with a synthetic qualified receipt; live browser execution
 by Corvint and external utility qualification remain `NOT_OBSERVED`.
 
@@ -701,6 +715,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-045 | `docs/DOCUMENTATION-CORPUS.md` | `TestBehaviorAdapterGuideMigrationExample` |
 | DCP-V1-046..048 | `internal/doccorpus/behavior_playwright_discovery.go`, `internal/liveverify/affected/typescript/playwright_listed_tests.go`, `playwright_discovery_list.go`, `cmd/corvint/docs_corpus_playwright.go` | `TestPlaywrightDiscoveryProducerRoundTrip`, `TestPlaywrightDiscoveryProducerRefusals`, `TestPlaywrightListedTestsMultiProject`, `TestDocsCorpusPlaywrightProducersCLI` |
 | DCP-V1-049..052 | `internal/doccorpus/behavior_playwright_witness.go`, `cmd/corvint/docs_corpus_playwright.go` | `TestPlaywrightWitnessImporter`, `TestDocsCorpusPlaywrightProducersCLI` |
+| DCP-V1-053 | `cmd/corvint/docs.go`, `cmd/corvint-js-test-provider/main.go` | `TestDocsHelpNamesPlaywrightReceiptProducer`, `TestDocsHelpProducerExampleUsesE2EFlags` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions

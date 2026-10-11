@@ -199,6 +199,20 @@ Native query/context/impact/affected/test-validity/work observe/propose-wave and
 status/verify/report accept --corpus=CORPUS.json. Generated evidence grants no task
 or test-selection authority. Read commands print bounded JSON and never collect tests.
 Guide: docs/DOCUMENTATION-CORPUS.md; contract: docs/specs/documentation-corpus-v1.md
+
+Playwright qualified receipt (DCP-V1-053): the producer is corvint-js-test-provider e2e
+--external-server. Its stdout is the canonical qualified receipt, and --retain writes the same
+bytes under .corvint/test-evidence/. Managed-server e2e output is not a qualified receipt.
+discover-playwright --receipt reads the file unchanged. witness-playwright --receipt-input names a
+REQUEST.json input, not a file. The one conversion step: commit the receipt bytes unchanged at a
+tracked path and add them as an observed external-provider request input with a full-file anchor.
+REPORT.json is a caller-run Playwright JSON report of the same config file and runner version.
+End-to-end example, run at the repository root:
+    corvint-js-test-provider e2e --external-server --server-ready-url http://127.0.0.1:3000 --app-identity web --config playwright.config.ts --runner-version 1.63.0 --test-file e2e/items.spec.ts --retain > evidence/receipt.json
+    corvint docs corpus discover-playwright --migration evidence/migration.json --config playwright.config.ts --playwright-list evidence/list.json --receipt evidence/receipt.json > evidence/discovery.json
+    git add evidence/receipt.json && git commit -m "retain playwright receipt"
+    corvint docs corpus witness-playwright --input evidence/request.json --receipt-input receipt --report evidence/report.json
+REQUEST.json names the committed receipt as input "receipt", beside the migration and discovery.
 `
 
 func parseTrustedNavArgs(options docsOptions, args []string) (docsOptions, error) {
