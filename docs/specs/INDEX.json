@@ -236,6 +236,24 @@
     ]
   },
   {
+    "path": "docs/specs/application-navigation-ledger-v0.md",
+    "title": "Application Navigation Ledger V0",
+    "reqPrefix": "ANL-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A revision-evaluated edge ledger reuses qualified receipts and fails closed on unproven assumptions.",
+    "dependsOn": [
+      "docs/specs/application-map-v0.md",
+      "docs/specs/run-verified-navigation-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/appmap",
+      "cmd/corvint"
+    ]
+  },
+  {
     "path": "docs/specs/application-map-v0.md",
     "title": "Application Map V0",
     "reqPrefix": "AMAP-V0",

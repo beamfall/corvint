@@ -266,6 +266,22 @@ AMSP-V0-007	docs/specs/application-map-scenario-planner-v0.md	126	Verification M
 AMSP-V0-008	docs/specs/application-map-scenario-planner-v0.md	149	With `draft`, the plan MUST include a Playwright skeleton that is guarded by
 AMSP-V0-009	docs/specs/application-map-scenario-planner-v0.md	171	The plan MUST fit `budget` bytes (256..65536, default 16384) or `full`
 AMSP-V0-010	docs/specs/application-map-scenario-planner-v0.md	177	The planner MUST be served by two surfaces:
+ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	27	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID
+ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	33	Reuse RVN verification for each common test key bound to both endpoint steps,
+ANL-V0-003	docs/specs/application-navigation-ledger-v0.md	41	Deduplicate crossings by test key; choose the proven test with fewest declared
+ANL-V0-004	docs/specs/application-navigation-ledger-v0.md	46	Accept a closed JSON sidecar with tests declaring `proves` and `assumes` edge
+ANL-V0-005	docs/specs/application-navigation-ledger-v0.md	51	Emit deterministic `application-edge-ledger/0` JSON with evaluated revision,
+ANL-V0-006	docs/specs/application-navigation-ledger-v0.md	56	`corvint flows appmap observe --map FILE --trace FILE|DIR [--revision REV]`
+ANL-V0-007	docs/specs/application-navigation-ledger-v0.md	69	Observation output MUST NOT contain URL userinfo, query values (including those
+ANL-V0-008	docs/specs/application-navigation-ledger-v0.md	73	Observation output is deterministic with a digest of the complete observation,
+ANL-V0-009	docs/specs/application-navigation-ledger-v0.md	76	`corvint test-plan prefixes --map FILE [--ledger FILE] [--facts FILE]` derives,
+ANL-V0-010	docs/specs/application-navigation-ledger-v0.md	85	A spec abstains with a reason, never flags, when its join is UNKNOWN
+ANL-V0-011	docs/specs/application-navigation-ledger-v0.md	92	The report is deterministic with a digest of the complete report, byte-capped wi
+ANL-V0-012	docs/specs/application-navigation-ledger-v0.md	96	`test-plan page-state --input FILE` reads one `test-consolidation-input/0` docum
+ANL-V0-013	docs/specs/application-navigation-ledger-v0.md	101	A variation joins no group and is listed as blocked with a reason when any ancho
+ANL-V0-014	docs/specs/application-navigation-ledger-v0.md	105	The report (`test-page-state-groups/0`) is deterministic, sorted, independent of
+ANL-V0-015	docs/specs/application-navigation-ledger-v0.md	109	`flows appmap impact --map FILE --base COMMIT [--ledger FILE]` prints
+ANL-V0-016	docs/specs/application-navigation-ledger-v0.md	117	A changed UI path (html, script, style or template extension) that no map elemen
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
