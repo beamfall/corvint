@@ -331,16 +331,17 @@ func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeD
 			}
 			sort.Strings(ordered)
 			for _, key := range ordered {
+				anchors := append(append(e.m.stepAnchors(occ.from), e.m.stepAnchors(occ.to)...), occ.flow.Anchor)
 				// Isolate one test key while sharing the RVN freshness cache and receipt admission.
 				single := &Verification{receipts: v.receipts, binds: map[string][]string{}}
 				if !declared[key] {
 					// An observation-only key is read only from its outcomes at an observed
 					// revision; outcomes elsewhere are not evidence about this crossing.
-					single.receipts = receiptsAt(v.receipts, key, observedAt[id][key])
+					single.receipts = receiptsAt(e, v.receipts, key, observedAt[id][key], anchors)
 				}
 				ve := *e
 				ve.v = single
-				if keyUncertain(&ve, key, append(append(e.m.stepAnchors(occ.from), e.m.stepAnchors(occ.to)...), occ.flow.Anchor)) {
+				if keyUncertain(&ve, key, anchors) {
 					blocked = true
 				}
 				a, b := occ.from, occ.to
@@ -482,14 +483,18 @@ func ProjectObservedEdges(ctx context.Context, m *Map, v *Verification, d *EdgeD
 	}
 }
 
-// receiptsAt keeps the receipts holding an outcome for key at one of the revisions or at no
-// resolvable revision: only an outcome placed at another commit is set aside, so uncertainty that
-// might be at an observed revision still blocks.
-func receiptsAt(receipts []receiptInput, key string, revisions map[string]bool) []receiptInput {
+// receiptsAt keeps the receipts holding an outcome for key at one of the revisions or at a
+// revision that does not resolve in the repository: only an outcome placed at another resolved
+// commit is set aside, so uncertainty that might be at an observed revision still blocks.
+func receiptsAt(e *verifier, receipts []receiptInput, key string, revisions map[string]bool, anchors []Anchor) []receiptInput {
 	var kept []receiptInput
 	for _, in := range receipts {
 		for _, t := range in.r.Tests {
-			if rev, _ := jstestprovider.QualifiedApplicationRevision(in.r, t); t.ID == key && (revisions[rev] || !commitOID.MatchString(rev)) {
+			if t.ID != key {
+				continue
+			}
+			rev, _ := jstestprovider.QualifiedApplicationRevision(in.r, t)
+			if revisions[rev] || !commitOID.MatchString(rev) || e.anchorsAt(rev, anchors).evaluated != rev {
 				kept = append(kept, in)
 				break
 			}

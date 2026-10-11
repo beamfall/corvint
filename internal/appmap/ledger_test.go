@@ -306,6 +306,15 @@ func TestANLV0023ObservedEdgesFeedLedger(t *testing.T) {
 	if l, ok = observedLedger(t, m, v3, []*Observation{loaded}, Options{Root: root, Full: true}, row.ID); !ok || edgeRow(t, l, row.ID).Status != EdgeProven {
 		t.Fatalf("skip elsewhere blocked: %+v", l)
 	}
+	// A skip at a well-formed but unresolvable revision may be at the observed one, so it blocks.
+	lost := pwpReceipt(t, strings.Repeat("0", 40), js.StateSkipped)
+	if lost.Tests[0].ID != key {
+		t.Fatal("fixture key differs for an unresolvable revision")
+	}
+	v5 := verification(t, m, []string{writeReceipt(t, r), writeReceipt(t, lost)})
+	if l, ok = observedLedger(t, m, v5, []*Observation{loaded}, Options{Root: root, Full: true}, row.ID); ok || edgeRow(t, l, row.ID).Status == EdgeProven {
+		t.Fatalf("unresolvable skip discarded: %+v", l)
+	}
 	v4 := verification(t, m, []string{writeReceipt(t, r2), writeReceipt(t, skipped)})
 	if l, ok = observedLedger(t, m, v4, []*Observation{at2}, Options{Root: root, Full: true}, row.ID); ok || edgeRow(t, l, row.ID).Status == EdgeProven {
 		t.Fatalf("skip at the observed revision did not block: %+v", l)
