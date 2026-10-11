@@ -212,8 +212,8 @@ func qualify(ctx context.Context, c Config) (failure error) {
 	if e != nil {
 		return e
 	}
-	if strings.TrimSpace(str(version["stdout"])) != "go1.27.1" {
-		return errors.New("Go 1.27.1 is required")
+	if strings.TrimSpace(str(version["stdout"])) != "go1.27.2" {
+		return errors.New("Go 1.27.2 is required")
 	}
 	focused, e := runCommand(ctx, c.Source, env, []string{"go", "test", "-json", "-count=1", "-timeout", "30m", "./cmd/corvint", "-run", "^TestHostAdapterJavaScript(Hosts|HarnessInterruption)$"}, run+"/focused", 30*time.Minute)
 	if e != nil {

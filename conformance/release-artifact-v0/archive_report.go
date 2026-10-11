@@ -103,7 +103,7 @@ func validateArchiveReport(report ArchiveReport) error {
 	if (report.Schema != archiveReportSchema && report.Schema != legacyArchiveReportSchema) || (report.Verdict != statusPass && report.Verdict != statusFail) {
 		return fmt.Errorf("invalid archive report schema or verdict")
 	}
-	if !gitObjectPattern.MatchString(report.Revision) || !gitObjectPattern.MatchString(report.Tree) || !digestPattern.MatchString(report.ManifestSHA256) || report.Toolchain != "go1.27.1" {
+	if !gitObjectPattern.MatchString(report.Revision) || !gitObjectPattern.MatchString(report.Tree) || !digestPattern.MatchString(report.ManifestSHA256) || report.Toolchain != "go1.27.2" {
 		return fmt.Errorf("invalid archive report immutable identity")
 	}
 	expected := []struct{ goos, goarch, binary, archive string }{

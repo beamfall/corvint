@@ -26,7 +26,7 @@ var emptyDigest = func() string {
 }()
 
 func TestCapabilityAndPlanPreimageBindingsRejectTampering(t *testing.T) {
-	providerBuildBody, _ := canonical(map[string]any{"executableRawSha256": zeroDigest, "goVersion": "go1.27.1"})
+	providerBuildBody, _ := canonical(map[string]any{"executableRawSha256": zeroDigest, "goVersion": "go1.27.2"})
 	providerBuild := bareDomainDigest("go-provider-build", "go-provider-build/0", providerBuildBody)
 	capability := map[string]any{
 		"goProtocol": "go1.27/test2json", "operations": []any{"execute"}, "profile": "go-live-capability/0",
@@ -61,7 +61,7 @@ func TestCapabilityAndPlanPreimageBindingsRejectTampering(t *testing.T) {
 	environmentID := bareDomainDigest("go-environment", "go-environment/0", environmentRaw)
 	toolchain := map[string]any{
 		"cgoEnabled": "0", "goarch": "amd64", "goenvSha256": zeroDigest, "goexeSha256": zeroDigest, "goos": "linux",
-		"gorootSha256": zeroDigest, "goversion": "go1.27.1", "invokedToolsSha256": zeroDigest,
+		"gorootSha256": zeroDigest, "goversion": "go1.27.2", "invokedToolsSha256": zeroDigest,
 		"pathSha256": zeroDigest, "toolDirSha256": zeroDigest,
 	}
 	toolchainRaw, _ := canonical(toolchain)

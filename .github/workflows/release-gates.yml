@@ -94,22 +94,22 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.27.1"
+          go-version: "1.27.2"
       - &provision
         name: Provision the host tools the product's fixed PATH resolves
         # Linux is ci.yml's go-product step, except that ci.yml pins a ripgrep release binary
         # (V1-1095) where this installs the apt package. macOS gets ripgrep from Homebrew, and
-        # proves that worksource.PlatformPath's darwin search path resolves go1.27.1 first.
+        # proves that worksource.PlatformPath's darwin search path resolves go1.27.2 first.
         run: |
           sudo rm -rf /usr/local/go
           sudo ln -s "$(go env GOROOT)" /usr/local/go
-          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.1"
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.2"
           if [ "$RUNNER_OS" = Linux ]; then
             sudo apt-get update -qq
             sudo apt-get install -y -qq --no-install-recommends ripgrep
           else
             HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install --quiet ripgrep
-            test "$(PATH=/opt/homebrew/bin:/usr/local/bin:/usr/local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin go env GOVERSION)" = "go1.27.1"
+            test "$(PATH=/opt/homebrew/bin:/usr/local/bin:/usr/local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin go env GOVERSION)" = "go1.27.2"
           fi
           git config --global user.name corvint-ci
           git config --global user.email corvint-ci@users.noreply.github.com

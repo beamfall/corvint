@@ -17,8 +17,8 @@ library and invokes only `go` and `git`.
 - **One exact clean commit.** The gate refuses a dirty worktree before building anything, and then
   re-proves the binding from inside each artifact: the embedded `vcs.revision` must equal `HEAD` and
   `vcs.modified` must be `false`. A binary whose provenance does not name the scanned commit fails.
-- **One exact toolchain.** `go env GOVERSION` must equal `go1.27.1` exactly, `go.mod` must carry the
-  exact `go 1.27.1` directive, and it must carry **zero** `toolchain` directives, because Go 1.27
+- **One exact toolchain.** `go env GOVERSION` must equal `go1.27.2` exactly, `go.mod` must carry the
+  exact `go 1.27.2` directive, and it must carry **zero** `toolchain` directives, because Go 1.27
   normalizes an equal directive away. Every `go` invocation the gate makes runs under
   `GOTOOLCHAIN=local`, so selecting or downloading another toolchain fails rather than succeeding
   silently.

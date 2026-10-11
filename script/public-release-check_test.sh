@@ -12,7 +12,7 @@ git -C "$corvint" add .; git -C "$corvint" commit -qm fixture
 commit=$(git -C "$corvint" rev-parse HEAD); tree=$(git -C "$corvint" rev-parse 'HEAD^{tree}')
 cat >"$fake/go" <<'EOF'
 #!/usr/bin/env bash
-if [ "$1" = env ]; then echo go1.27.1; exit 0; fi
+if [ "$1" = env ]; then echo go1.27.2; exit 0; fi
 if [ "$1" = build ]; then
   if [ -n "${CORVINT_WRAPPER_BUILD_FAIL:-}" ]; then
     perl -MPOSIX -e 'select undef,undef,undef,0.2; POSIX::setsid(); exec "/bin/sleep", "60"' &
@@ -37,7 +37,7 @@ INNER
   chmod +x "$out"; exit 0
 fi
 if [ "$1" = version ] && [ "$2" = -m ]; then
-  printf '%s\n' "$2: go1.27.1" "build vcs.revision=$CORVINT_RELEASE_COMMIT" "build vcs.modified=false"; exit 0
+  printf '%s\n' "$2: go1.27.2" "build vcs.revision=$CORVINT_RELEASE_COMMIT" "build vcs.modified=false"; exit 0
 fi
 exit 90
 EOF

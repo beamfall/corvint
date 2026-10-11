@@ -305,7 +305,7 @@ bounds), walks at most `affected.MaxWalkEntries` entries, reads at most
   MUST stay visibly full-suite; local fixture PASS MUST NOT claim hosted or narrowed CI PASS.
 - **AFP-V0-014:** (accepted (decision 0431); amended by decision 0431; originally decision 0289) The optional
   historical qualification profile MUST require a separately trusted,
-  SHA256-pinned qualification artifact matching exact reviewed tool source/binaries, Go 1.27.1 (decision 0293),
+  SHA256-pinned qualification artifact matching exact reviewed tool source/binaries, Go 1.27.2 (decision 0522; formerly 1.27.1 under decision 0293),
   OS/architecture/release and C compiler identities, fixed `go test -json -p 1 -count=1 -race
   -timeout 50m` argv, closed `GOENV=off`, `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOWORK=off`, empty `GOFLAGS`,
   `GOSUMDB=off`, `CGO_ENABLED=1`, owned build cache and empty read-only module cache. Freeze
@@ -330,7 +330,7 @@ boundary after planning. Qualification SHALL accept retained read-only rows sepa
 its writable output. Missing rows, altered pairs, profile mismatch or incomplete outcomes fail.
 
 The retained `corvint-pr-container/1` profile and its receipt reader remain exact Go 1.27.0.
-Current native execution requires Go 1.27.1 under decision 0293; current-source execution in the
+Current native execution requires Go 1.27.2 under decision 0522; current-source execution in the
 retained image is unqualified. The launcher delegates to separately supplied, hashed, read-only
 trusted binaries and their immutable source identity. Neither that boundary nor retained receipts
 qualifies a current-launcher/legacy-tools pairing. Migrating the image requires separate review and

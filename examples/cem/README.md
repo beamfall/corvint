@@ -28,7 +28,7 @@ GOTOOLCHAIN=local GOFLAGS= go list -m -json github.com/Beamfall/corvint/interop/
 Its `Version` is the `CEM_VERIFIER_VERSION` pin. The Go checksum database checks the module
 zip for that version at every later fetch.
 
-Compute the executable digest with Go 1.27.1, building exactly as the workflow does:
+Compute the executable digest with Go 1.27.2, building exactly as the workflow does:
 
 ```sh
 env -u GOBIN GOTOOLCHAIN=local GOFLAGS= GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \

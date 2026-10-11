@@ -350,7 +350,7 @@ func prepareTask(base string, t task, r resourceProfile, registry fixtureRegistr
 		return fail(errors.New("unequal build identities"))
 	}
 	b := t.Old.BuildIdentity
-	if b.GoVersion != "go1.27.1" || b.GOOS == "" || b.GOARCH == "" || (b.CGOEnabled != "0" && b.CGOEnabled != "1") || !contains(b.BuildFlags, "-trimpath") {
+	if b.GoVersion != "go1.27.2" || b.GOOS == "" || b.GOARCH == "" || (b.CGOEnabled != "0" && b.CGOEnabled != "1") || !contains(b.BuildFlags, "-trimpath") {
 		return fail(errors.New("invalid build identity"))
 	}
 	if !contains(t.Env, "TZ=UTC") || !contains(t.Env, "LC_ALL=C") {
