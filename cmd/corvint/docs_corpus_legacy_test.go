@@ -53,9 +53,10 @@ func TestDocsCorpusDiscoverLegacyCLI(t *testing.T) {
 			t.Fatalf("first case = %+v", total)
 		}
 		criterion := total.Criteria[0]
-		registry := doccorpus.BehaviorRegistry{Tests: []doccorpus.BehaviorTest{{ID: "e2e/cart.spec.ts:total", Title: "cart total", Criteria: []string{"total"}, Fixtures: total.Fixtures,
-			Assertions: []doccorpus.BehaviorAssertion{{ID: "a1", Criterion: "total", Matcher: criterion.Matcher, Locator: criterion.Locator, Value: "$11.00"}},
-			Legacy:     []doccorpus.BehaviorLegacyMapping{{Criterion: "total", LegacyCase: total.ID, LegacyCriterion: criterion.ID, Relation: "same"}}}}}
+		registry := doccorpus.BehaviorRegistry{Schema: 2, ContractID: "legacy-crosswalk", ContractSHA256: doccorpus.Digest([]byte("contract")), SourceRevision: revision, DocumentationRevision: revision,
+			Tests: []doccorpus.BehaviorTest{{ID: "e2e/cart.spec.ts:total", Title: "cart total", Criteria: []string{"total"}, Fixtures: total.Fixtures,
+				Assertions: []doccorpus.BehaviorAssertion{{ID: "a1", Criterion: "total", Matcher: criterion.Matcher, Locator: criterion.Locator, Value: "$11.00"}},
+				Legacy:     []doccorpus.BehaviorLegacyMapping{{Criterion: "total", LegacyCase: total.ID, LegacyCriterion: criterion.ID, Relation: "same", Review: doccorpus.Anchor{Kind: "review", Revision: revision}}}}}}
 		data, err := doccorpus.Encode(registry)
 		if err != nil {
 			t.Fatal(err)

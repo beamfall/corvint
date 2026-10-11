@@ -99,6 +99,8 @@ var (
 		"cy.task": "setup", "cy.exec": "setup", "cy.fixture": "setup",
 	}
 	legacyAssertionWord = words("expect expectAsync assert should")
+	legacyEachHook      = words("beforeEach setup")
+	legacyConditional   = words("if for while switch try do catch else")
 )
 
 const legacyNoValue = "(no expected value)"
@@ -110,9 +112,12 @@ type legacyFile struct {
 	match      []int
 }
 
+// legacyScope is what a suite passes to its children: its title path, the precondition
+// identities of its run-once (all) and per-case (each) hooks in execution order, and the hook
+// uncertainty every case under it inherits.
 type legacyScope struct {
 	titles                                   []string
-	hooks                                    []string
+	all, each, uncertain                     []string
 	disabled, focused, dynamic, dynamicTitle bool
 }
 
@@ -443,17 +448,10 @@ func (p *legacyProducer) scope(f *legacyFile, lo, hi int, s legacyScope, root bo
 			}
 		}
 	}
-	hooks := slices.Clone(s.hooks)
+	inner := s
+	inner.all, inner.each, inner.uncertain = slices.Clone(s.all), slices.Clone(s.each), slices.Clone(s.uncertain)
 	for _, c := range calls {
 		if !p.runner.hooks[c.name] {
-			continue
-		}
-		args := legacyArgs(f, c.open)
-		if len(args) == 0 {
-			continue
-		}
-		body, ok := legacyCallback(f, args[len(args)-1])
-		if !ok {
 			continue
 		}
 		line, end := f.tokens[c.start].line, f.tokens[c.close].line
@@ -462,25 +460,52 @@ func (p *legacyProducer) scope(f *legacyFile, lo, hi int, s legacyScope, root bo
 		}
 		if c.depth > 0 || s.dynamic {
 			p.unknown(f, "", "hook-in-dynamic-scope", c.name+" is nested in code the static reader does not evaluate", line, end)
+			inner.uncertain = append(inner.uncertain, c.name+" is nested in code the static reader does not evaluate")
 		}
-		hooks = append(hooks, p.preconditions(f, body, true)...)
+		args := legacyArgs(f, c.open)
+		if len(args) == 0 {
+			inner.uncertain = append(inner.uncertain, c.name+" has no callback")
+			continue
+		}
+		body, ok := legacyCallback(f, args[len(args)-1])
+		if !ok {
+			inner.uncertain = append(inner.uncertain, c.name+" callback is not an inline function: "+legacyBounded(legacyCanonical(f.tokens, args[len(args)-1].lo, args[len(args)-1].hi)))
+			continue
+		}
+		fixtures, doubts := p.hookPreconditions(f, body)
+		inner.uncertain = append(inner.uncertain, doubts...)
+		if legacyEachHook[c.name] {
+			inner.each = append(inner.each, fixtures...)
+		} else {
+			inner.all = append(inner.all, fixtures...)
+		}
 	}
 	for _, c := range calls {
 		switch {
 		case p.runner.suites[c.name]:
-			p.suite(f, c, s, hooks)
+			p.suite(f, c, inner)
 		case p.runner.cases[c.name]:
-			p.testCase(f, c, s, hooks)
+			p.testCase(f, c, inner)
+		}
+	}
+	for i := lo; i < hi; i++ {
+		if f.tokens[i].kind == 't' && slices.ContainsFunc(legacySubCalls(f.tokens[i].sub), func(callee string) bool {
+			name, _, _ := strings.Cut(callee, ".")
+			return p.runner.suites[name] || p.runner.cases[name] || p.runner.hooks[name]
+		}) {
+			p.unknown(f, "", "runner-call-in-template", "a runner call inside a template substitution is not inventoried", f.tokens[i].line, f.tokens[i].line)
 		}
 	}
 }
 
-func (p *legacyProducer) suite(f *legacyFile, c legacyCall, s legacyScope, hooks []string) {
+func (p *legacyProducer) suite(f *legacyFile, c legacyCall, s legacyScope) {
 	args := legacyArgs(f, c.open)
 	title, dynamic := legacyTitle(f, args)
 	child := legacyScope{
 		titles:       append(slices.Clone(s.titles), title),
-		hooks:        hooks,
+		all:          s.all,
+		each:         s.each,
+		uncertain:    s.uncertain,
 		disabled:     s.disabled || legacyDisabledCallee[c.name] || c.member == "skip",
 		focused:      s.focused || legacyFocusedCallee[c.name] || c.member == "only",
 		dynamic:      s.dynamic || c.depth > 0,
@@ -498,7 +523,7 @@ func (p *legacyProducer) suite(f *legacyFile, c legacyCall, s legacyScope, hooks
 	p.scope(f, body.lo, body.hi, child, false)
 }
 
-func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope, hooks []string) {
+func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope) {
 	t := f.tokens
 	args := legacyArgs(f, c.open)
 	title, dynamicTitle := legacyTitle(f, args)
@@ -537,7 +562,10 @@ func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope, ho
 	if dynamicTitle || s.dynamicTitle {
 		note("dynamic-title", "the title is computed at runtime: "+full)
 	}
-	fixtures := slices.Clone(hooks)
+	for _, doubt := range slices.Compact(slices.Sorted(slices.Values(s.uncertain))) {
+		note("hook-not-static", doubt)
+	}
+	fixtures := append(slices.Clone(s.all), s.each...)
 	var body legacyRange
 	hasBody := false
 	if len(args) < 2 {
@@ -546,7 +574,7 @@ func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope, ho
 		note("case-callback-not-static", "the case body is not an inline function: "+legacyCanonical(t, args[1].lo, args[1].hi))
 	}
 	if hasBody {
-		fixtures = append(fixtures, p.preconditions(f, body, false)...)
+		fixtures = append(fixtures, p.casePreconditions(f, id, body)...)
 		for i := body.lo; i < body.hi; i++ {
 			if p.name == "jasmine" && t[i].kind == 'i' && t[i].text == "pending" && !legacyChained(t, i) && legacyPunct(t, i+1, "(") {
 				legacy.State = "disabled"
@@ -557,8 +585,12 @@ func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope, ho
 		}
 		legacy.Criteria = p.assertions(f, id, body)
 	}
-	slices.Sort(fixtures)
-	legacy.Fixtures = slices.Compact(fixtures)
+	// Execution order is part of the precondition identity; a repeated call keeps its first place.
+	for _, fixture := range fixtures {
+		if !slices.Contains(legacy.Fixtures, fixture) {
+			legacy.Fixtures = append(legacy.Fixtures, fixture)
+		}
+	}
 	if len(legacy.Criteria) == 0 {
 		note("no-static-assertion", "no assertion tuple was extracted from the case")
 	}
@@ -598,51 +630,185 @@ func legacyChain(f *legacyFile, i, hi int) (int, string, int) {
 	return k, callee, open
 }
 
-// preconditions records the depth-0 calls of a hook body, and the visit, intercept and seed
-// commands of a case body, as content-bound precondition identities.
-func (p *legacyProducer) preconditions(f *legacyFile, r legacyRange, hook bool) []string {
+// record binds one precondition call chain tokens[i:end] by the digest of its canonical text.
+func (p *legacyProducer) record(f *legacyFile, i, end int, kind, callee string) (string, bool) {
 	t := f.tokens
-	fixtures := []string{}
+	text := legacyCanonical(t, i, end)
+	digest := Digest([]byte(text))
+	fixture := kind + ":" + callee + "@sha256:" + digest
+	if _, seen := p.pre[fixture]; !seen {
+		evidence, err := p.anchor(f, t[i].line, t[end-1].line, "static legacy "+p.name+" "+kind+" precondition")
+		if err != nil {
+			return "", false
+		}
+		p.pre[fixture] = LegacyPrecondition{Fixture: fixture, Kind: kind, Callee: callee, Text: text, SHA256: digest, Evidence: evidence}
+	}
+	return fixture, true
+}
+
+// legacyStatementStart reports whether token i begins a statement of the body starting at lo, so
+// a call there runs unconditionally whenever the body runs.
+func legacyStatementStart(t []legacyToken, i, lo int) bool {
+	if i > lo && t[i-1].kind == 'i' && (t[i-1].text == "await" || t[i-1].text == "void") {
+		i--
+	}
+	return i == lo || legacyPunct(t, i-1, ";") || legacyPunct(t, i-1, "}") || legacyPunct(t, i-1, "{")
+}
+
+// hookPreconditions records each top-level call statement of a hook body as a precondition.
+// Anything the reader cannot bind exactly (a conditional, a call nested outside a recorded
+// statement, code inside a template substitution, an unrecordable span) is returned as doubt,
+// which every case under the hook inherits as an unknown.
+func (p *legacyProducer) hookPreconditions(f *legacyFile, r legacyRange) ([]string, []string) {
+	t := f.tokens
+	fixtures, doubts := []string{}, []string{}
+	doubt := func(detail string) {
+		if !slices.Contains(doubts, detail) {
+			doubts = append(doubts, detail)
+		}
+	}
 	depth := 0
 	for i := r.lo; i < r.hi; i++ {
-		if t[i].kind == 'p' {
+		switch t[i].kind {
+		case 'p':
 			switch t[i].text {
 			case "(", "[", "{":
 				depth++
 			case ")", "]", "}":
 				depth--
+			case "&&", "||", "?", "&", "|":
+				if depth == 0 {
+					doubt("a hook statement is conditional: " + legacyBounded(legacyCanonical(t, max(r.lo, i-6), min(r.hi, i+6))))
+				}
 			}
 			continue
+		case 't':
+			if len(legacySubCalls(t[i].sub)) > 0 {
+				doubt("a hook calls code inside a template substitution")
+			}
+			continue
+		case 'i':
+		default:
+			continue
 		}
-		if depth != 0 || t[i].kind != 'i' || legacyChained(t, i) || legacyKeyword[t[i].text] {
+		if legacyConditional[t[i].text] {
+			doubt("a hook uses " + t[i].text + "; its preconditions may not run unconditionally")
+			continue
+		}
+		if legacyChained(t, i) || legacyKeyword[t[i].text] {
 			continue
 		}
 		end, callee, open := legacyChain(f, i, r.hi)
 		if open < 0 {
 			continue
 		}
-		kind := legacyPreconditionOf[callee]
-		if kind == "" && !hook {
+		if depth != 0 {
+			doubt("a hook call is nested in code the static reader does not evaluate: " + callee)
 			i = end - 1
 			continue
 		}
+		if !legacyStatementStart(t, i, r.lo) {
+			doubt("a hook call is not a statement of its own: " + callee)
+		}
+		kind := legacyPreconditionOf[callee]
 		if kind == "" {
 			kind = "setup"
 		}
-		text := legacyCanonical(t, i, end)
-		digest := Digest([]byte(text))
-		fixture := kind + ":" + callee + "@sha256:" + digest
-		if _, seen := p.pre[fixture]; !seen {
-			if evidence, err := p.anchor(f, t[i].line, t[end-1].line, "static legacy "+p.name+" "+kind+" precondition"); err == nil {
-				p.pre[fixture] = LegacyPrecondition{Fixture: fixture, Kind: kind, Callee: callee, Text: legacyBounded(text), SHA256: digest, Evidence: evidence}
-			}
-		}
-		if _, recorded := p.pre[fixture]; recorded {
+		if fixture, ok := p.record(f, i, end, kind, callee); ok {
 			fixtures = append(fixtures, fixture)
+		} else {
+			doubt("a hook precondition span cannot be anchored: " + callee)
 		}
 		i = end - 1
 	}
+	return fixtures, doubts
+}
+
+// casePreconditions records every visit, intercept and seed command of a case body at any depth.
+// One that is not an unconditional statement of the body, or that sits in a template
+// substitution, is still bound by digest but also makes the case uncertain.
+func (p *legacyProducer) casePreconditions(f *legacyFile, caseID string, r legacyRange) []string {
+	t := f.tokens
+	fixtures := []string{}
+	depth, conditional := 0, false
+	for i := r.lo; i < r.hi; i++ {
+		switch t[i].kind {
+		case 'p':
+			switch t[i].text {
+			case "(", "[", "{":
+				depth++
+			case ")", "]", "}":
+				depth--
+			case "&&", "||", "?", "&", "|":
+				conditional = conditional || depth == 0
+			}
+			continue
+		case 't':
+			for _, callee := range legacySubCalls(t[i].sub) {
+				if legacyPreconditionOf[callee] != "" {
+					p.unknown(f, caseID, "nested-precondition", callee+" inside a template substitution is not bound", t[i].line, t[i].line)
+				}
+			}
+			continue
+		case 'i':
+		default:
+			continue
+		}
+		if legacyConditional[t[i].text] {
+			conditional = true
+			continue
+		}
+		if legacyChained(t, i) || legacyKeyword[t[i].text] {
+			continue
+		}
+		end, callee, open := legacyChain(f, i, r.hi)
+		kind := legacyPreconditionOf[callee]
+		if open < 0 || kind == "" {
+			continue
+		}
+		fixture, ok := p.record(f, i, end, kind, callee)
+		if !ok {
+			p.unknown(f, caseID, "nested-precondition", callee+" span cannot be anchored", t[i].line, t[end-1].line)
+			continue
+		}
+		fixtures = append(fixtures, fixture)
+		if depth != 0 || conditional || !legacyStatementStart(t, i, r.lo) {
+			p.unknown(f, caseID, "nested-precondition", callee+" may not run unconditionally before the assertions", t[i].line, t[end-1].line)
+		}
+	}
 	return fixtures
+}
+
+// legacySubCalls lists the callees (member path up to the call) inside template substitution
+// tokens, including nested templates.
+func legacySubCalls(tokens []legacyToken) []string {
+	out := []string{}
+	for i := range tokens {
+		if tokens[i].kind == 't' {
+			out = append(out, legacySubCalls(tokens[i].sub)...)
+		}
+		if tokens[i].kind != 'i' || legacyChained(tokens, i) {
+			continue
+		}
+		callee, k := tokens[i].text, i+1
+		for k+1 < len(tokens) && (legacyPunct(tokens, k, ".") || legacyPunct(tokens, k, "?.")) && tokens[k+1].kind == 'i' {
+			callee, k = callee+"."+tokens[k+1].text, k+2
+		}
+		if legacyPunct(tokens, k, "(") {
+			out = append(out, callee)
+		}
+	}
+	return out
+}
+
+// legacySubWords reports whether template substitution tokens use one of names.
+func legacySubWords(tokens []legacyToken, names map[string]bool) bool {
+	for _, token := range tokens {
+		if token.kind == 'i' && names[token.text] || token.kind == 't' && legacySubWords(token.sub, names) {
+			return true
+		}
+	}
+	return false
 }
 
 // legacyVisitURL returns the static first argument of a visit call text.
@@ -731,6 +897,11 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 			for k+1 < r.hi && legacyPunct(t, k, ".") && t[k+1].kind == 'i' {
 				members, k = append(members, t[k+1].text), k+2
 				if legacyPunct(t, k, "(") {
+					if len(members) == 1 && members[0] == "withContext" {
+						// Jasmine's failure message is not part of the observable.
+						members, k = members[:0], f.match[k]+1
+						continue
+					}
 					call = k
 					break
 				}
@@ -741,6 +912,9 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 			end := k - 1
 			if call >= 0 {
 				end = f.match[call]
+				if next := end + 1; next+1 < r.hi && (legacyPunct(t, next, ".") || legacyPunct(t, next, "?.")) && t[next+1].kind == 'i' {
+					p.unknown(f, caseID, "unparsed-assertion", "a chained assertion continues after the first matcher: "+legacyBounded(legacyCanonical(t, i, min(next+12, r.hi))), t[i].line, t[min(next+12, r.hi)-1].line)
+				}
 			}
 			consumed[i] = true
 			tuples = append(tuples, legacyTuple{at: i, from: i, to: end, matcher: strings.Join(members, "."), locator: locator, value: legacyValue(f, call, 0, 0)})
@@ -804,6 +978,9 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 		}
 	}
 	for i := r.lo; i < r.hi; i++ {
+		if t[i].kind == 't' && legacySubWords(t[i].sub, legacyAssertionWord) {
+			p.unknown(f, caseID, "unparsed-assertion", "an assertion inside a template substitution: "+legacyBounded(t[i].raw), t[i].line, t[i].line)
+		}
 		if t[i].kind == 'i' && legacyAssertionWord[t[i].text] && !consumed[i] {
 			p.unknown(f, caseID, "unparsed-assertion", legacyCanonical(t, i, min(i+12, r.hi)), t[i].line, t[min(i+12, r.hi)-1].line)
 		}

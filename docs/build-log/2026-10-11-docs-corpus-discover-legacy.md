@@ -27,7 +27,8 @@ Design choices:
 
 Focused tests (go1.27.2, `-p 1 -count=1`): `TestLegacyDiscoveryInventory`,
 `TestLegacyDiscoveryDeterministicReadOnly`, `TestLegacyCrosswalk`,
-`TestLegacyPreconditionDigestCompileGap`, `TestLegacyDiscoveryRefusals` (`./internal/doccorpus`) and
+`TestLegacyPreconditionDigestCompileGap`, `TestLegacyDiscoveryRefusals`,
+`TestLegacyDiscoveryStaticEdgeCases` (`./internal/doccorpus`) and
 `TestDocsCorpusDiscoverLegacyCLI` plus the existing `Docs|Corpus|Help` tests (`./cmd/corvint`).
 The fixtures are a Jasmine suite (8 cases) and a Cypress/Mocha suite (5 cases, with `it.skip`,
 `context`, `it.only`, a `should` callback and a bare `.should`) under
@@ -46,6 +47,22 @@ The fixtures are a Jasmine suite (8 cases) and a Cypress/Mocha suite (5 cases, w
 - Assertions inside hooks only contribute to precondition digests, not to criteria.
 - JSX, decorators or other syntax the tokenizer cannot classify make the whole file a `lex-failed`
   unknown; no case is invented.
-- Only top-level calls of a hook body are preconditions; a call nested inside a conditional, loop
-  or callback in a hook is not recorded.
+- Only top-level call statements of a hook body are preconditions; a call nested inside a
+  conditional, loop or callback in a hook is not recorded, and every case under that hook carries a
+  `hook-not-static` unknown so it cannot reach `parity-candidate`.
+- A `/` directly after `}` is refused as `lex-failed` rather than classified, because its regex or
+  division reading depends on statement context the static reader does not track.
 - External utility on a real legacy suite is `NOT_OBSERVED`.
+
+## Review round 1
+
+Codex round 1 failed with nine P2 findings; all were fixed with regressions in
+`TestLegacyDiscoveryStaticEdgeCases`, `TestLegacyCrosswalk` and `TestLegacyDiscoveryInventory`:
+regex after `)` now follows the parenthesised keyword and `/` after `}` refuses the file; string
+escapes are decoded or refused; template substitutions are lexed so assertions and runner calls in
+them are reported; `withContext` is skipped and chained matcher continuations are unknowns; fixture
+identities keep execution order; nested body preconditions are recorded with a
+`nested-precondition` unknown; unbindable hooks propagate `hook-not-static` to every case beneath;
+precondition text is the full canonical text its digest covers; and the crosswalk validates the
+registry header and identities and requires a current mapping review, a declared target criterion
+and a reviewed target annotation before `parity-candidate`.

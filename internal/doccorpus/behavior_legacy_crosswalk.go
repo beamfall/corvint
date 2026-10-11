@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
 // LegacyCrosswalk is the generated join of a static legacy inventory and a behavior registry
@@ -56,6 +58,9 @@ func (p *legacyProducer) crosswalk(raw []byte) (*LegacyCrosswalk, bool, error) {
 	if len(registry.Tests) > MaxRecords || len(registry.Flows) > MaxRecords {
 		return nil, false, fail("crosswalk registry exceeds the record bound")
 	}
+	if err := legacyRegistryValid(registry); err != nil {
+		return nil, false, err
+	}
 	out := &LegacyCrosswalk{Status: "generated", RegistrySHA256: Digest(raw), Candidates: []LegacyCandidateSet{}, ReviewedChecks: []LegacyReviewedCheck{}}
 	for _, legacy := range p.inv.Legacy {
 		set := LegacyCandidateSet{LegacyCase: legacy.ID, Targets: []LegacyCandidate{}}
@@ -92,7 +97,7 @@ func (p *legacyProducer) crosswalk(raw []byte) (*LegacyCrosswalk, bool, error) {
 	refused := false
 	for _, test := range registry.Tests {
 		for _, mapping := range test.Legacy {
-			check := p.reviewedCheck(cases, test, mapping)
+			check := p.reviewedCheck(registry, cases, test, mapping)
 			refused = refused || check.Verdict == "refused"
 			out.ReviewedChecks = append(out.ReviewedChecks, check)
 		}
@@ -101,6 +106,37 @@ func (p *legacyProducer) crosswalk(raw []byte) (*LegacyCrosswalk, bool, error) {
 		return nil, false, fail("crosswalk reviewed mappings exceed the record bound")
 	}
 	return out, refused, nil
+}
+
+// legacyRegistryValid applies the behavior registry header and legacy mapping rules the compiler
+// enforces (schema 2, pinned revisions, unique test IDs, closed relations), so a crosswalk is never
+// computed against a registry the compiler would refuse.
+func legacyRegistryValid(r BehaviorRegistry) error {
+	if r.Schema != 2 || !textOK(r.ContractID) || !wire.IsSha256(r.ContractSHA256) || !wire.IsGitOid(r.SourceRevision) || !wire.IsGitOid(r.DocumentationRevision) {
+		return fail("crosswalk registry header is not a schema 2 behavior registry with pinned revisions")
+	}
+	ids := []string{}
+	for _, flow := range r.Flows {
+		ids = append(ids, "flow:"+flow.ID)
+		if !textOK(flow.ID) {
+			return fail("crosswalk registry has an invalid flow identity")
+		}
+	}
+	for _, test := range r.Tests {
+		ids = append(ids, "test:"+test.ID)
+		if !textOK(test.ID) || !uniqueIdentities(test.Fixtures) || !uniqueIdentities(test.Roles) || len(test.Legacy) > MaxRecords {
+			return fail("crosswalk registry has an invalid test identity or preconditions")
+		}
+		for _, mapping := range test.Legacy {
+			if !textOK(mapping.Criterion) || !textOK(mapping.LegacyCase) || !textOK(mapping.LegacyCriterion) || !words("same stronger new obsolete blocked")[mapping.Relation] {
+				return fail("crosswalk registry has an invalid legacy criterion mapping")
+			}
+		}
+	}
+	if !uniqueIdentities(ids) {
+		return fail("crosswalk registry has duplicate flow or test identities")
+	}
+	return nil
 }
 
 func legacyTitleWords(text string) map[string]bool {
@@ -182,7 +218,7 @@ func legacyFlowCandidate(title map[string]bool, visits []string, flow BehaviorFl
 // reviewedCheck compares one reviewed mapping with the fresh inventory. A same/stronger target
 // that no longer asserts the extracted legacy tuple is refused; any precondition, relation or
 // extraction difference is not parity.
-func (p *legacyProducer) reviewedCheck(cases map[string]BehaviorLegacyCase, test BehaviorTest, mapping BehaviorLegacyMapping) LegacyReviewedCheck {
+func (p *legacyProducer) reviewedCheck(registry BehaviorRegistry, cases map[string]BehaviorLegacyCase, test BehaviorTest, mapping BehaviorLegacyMapping) LegacyReviewedCheck {
 	check := LegacyReviewedCheck{Test: test.ID, Criterion: mapping.Criterion, LegacyCase: mapping.LegacyCase, LegacyCriterion: mapping.LegacyCriterion, Relation: mapping.Relation, Reasons: []string{}}
 	legacy, ok := cases[mapping.LegacyCase]
 	if !ok {
@@ -200,17 +236,30 @@ func (p *legacyProducer) reviewedCheck(cases map[string]BehaviorLegacyCase, test
 		return check
 	}
 	notParity := false
+	if !slices.Contains(test.Criteria, mapping.Criterion) {
+		notParity = true
+		check.Reasons = append(check.Reasons, "target-criterion-not-declared")
+	}
+	if mapping.Review.Kind != "review" || mapping.Review.Revision != registry.SourceRevision {
+		notParity = true
+		check.Reasons = append(check.Reasons, "mapping-review-missing-or-stale")
+	}
 	if mapping.Relation == "same" || mapping.Relation == "stronger" {
-		retained, differs := false, false
+		retained, reviewed, differs := false, false, false
 		for _, assertion := range test.Assertions {
 			if assertion.Criterion != mapping.Criterion {
 				continue
 			}
 			if assertion.Matcher == criterion.Matcher && assertion.Locator == criterion.Locator && assertion.Value == criterion.Value {
 				retained = true
+				reviewed = reviewed || behaviorAssertionValid(registry, test, assertion)
 			} else if assertion.Matcher == criterion.Matcher && assertion.Locator == criterion.Locator {
 				differs = true
 			}
+		}
+		if retained && !reviewed {
+			notParity = true
+			check.Reasons = append(check.Reasons, "target-assertion-not-reviewed")
 		}
 		if !retained {
 			check.Verdict = "refused"

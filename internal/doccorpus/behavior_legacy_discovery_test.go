@@ -227,13 +227,11 @@ func TestLegacyDiscoveryInventory(t *testing.T) {
 		}
 		total := legacyCaseNamed(t, inventory, "shows the cart total")
 		login := legacyCaseNamed(t, inventory, "redirects to login")
-		if len(total.Fixtures) != 3 || len(login.Fixtures) != 4 || !slices.IsSorted(login.Fixtures) {
+		// Execution order: run-once hooks, then per-case hooks, then the case body.
+		if len(total.Fixtures) != 3 || len(login.Fixtures) != 4 || !slices.Equal(login.Fixtures[:3], total.Fixtures) ||
+			!strings.HasPrefix(total.Fixtures[0], "setup:cy.task@") || !strings.HasPrefix(total.Fixtures[1], "intercept:cy.intercept@") ||
+			!strings.HasPrefix(total.Fixtures[2], "visit:cy.visit@") || !strings.HasPrefix(login.Fixtures[3], "visit:cy.visit@") {
 			t.Fatalf("fixtures: %v / %v", total.Fixtures, login.Fixtures)
-		}
-		for _, fixture := range total.Fixtures {
-			if !slices.Contains(login.Fixtures, fixture) {
-				t.Fatalf("nested case lost inherited hook %s", fixture)
-			}
 		}
 		jasmine, _, err := legacyInventory(t, root, "jasmine", revision, "e2e/jasmine/summary.spec.js", nil)
 		if err != nil {
@@ -270,16 +268,23 @@ func TestLegacyDiscoveryDeterministicReadOnly(t *testing.T) {
 	})
 }
 
+// legacyRegistry is a schema 2 registry whose one reviewed same mapping retains the legacy tuple
+// of "shows the cart total" with a reviewed annotation.
 func legacyRegistry(t *testing.T, inventory LegacyInventory, edit func(*BehaviorRegistry)) []byte {
 	t.Helper()
 	total := legacyCaseNamed(t, inventory, "shows the cart total")
 	c1 := total.Criteria[0]
+	revision := inventory.Revision
+	target := Anchor{Path: "e2e/cart.spec.ts", SHA256: Digest([]byte("cart spec"))}
+	review := Anchor{Kind: "review", Revision: revision, Path: target.Path, SHA256: target.SHA256}
 	registry := BehaviorRegistry{
-		Flows: []BehaviorFlow{{ID: "checkout-cart-total", RequiredPages: []string{"/checkout"}}, {ID: "account-settings", RequiredPages: []string{"/settings"}}},
+		Schema: 2, ContractID: "legacy-crosswalk", ContractSHA256: Digest([]byte("contract")), SourceRevision: revision, DocumentationRevision: revision,
+		Flows:     []BehaviorFlow{{ID: "checkout-cart-total", Criteria: []string{"total"}, RequiredPages: []string{"/checkout"}}, {ID: "account-settings", RequiredPages: []string{"/settings"}}},
+		Behaviors: []BehaviorSource{{ID: "cart-total", Evidence: Anchor{Revision: revision}, Flows: []string{"checkout-cart-total"}}},
 		Tests: []BehaviorTest{
-			{ID: "e2e/cart.spec.ts:cart total", Title: "cart total is shown", Criteria: []string{"total"}, Fixtures: slices.Clone(total.Fixtures),
-				Assertions: []BehaviorAssertion{{ID: "a1", Criterion: "total", Matcher: c1.Matcher, Locator: c1.Locator, Value: c1.Value}},
-				Legacy:     []BehaviorLegacyMapping{{Criterion: "total", LegacyCase: total.ID, LegacyCriterion: c1.ID, Relation: "same"}}},
+			{ID: "e2e/cart.spec.ts:cart total", Title: "cart total is shown", Evidence: target, Flows: []string{"checkout-cart-total"}, Criteria: []string{"total"}, Fixtures: slices.Clone(total.Fixtures),
+				Assertions: []BehaviorAssertion{{ID: "a1", Behavior: "cart-total", Criterion: "total", Annotation: review, Matcher: c1.Matcher, Locator: c1.Locator, Value: c1.Value}},
+				Legacy:     []BehaviorLegacyMapping{{Criterion: "total", LegacyCase: total.ID, LegacyCriterion: c1.ID, Relation: "same", Review: review}}},
 			{ID: "e2e/profile.spec.ts:profile", Title: "profile page renders", Criteria: []string{"profile"}},
 		},
 	}
@@ -313,7 +318,7 @@ func TestLegacyCrosswalk(t *testing.T) {
 		if cw == nil || cw.Status != "generated" || cw.RegistrySHA256 != Digest(registry) || len(cw.Candidates) != len(inventory.Legacy) {
 			t.Fatalf("crosswalk header: %+v", cw)
 		}
-		if bytes.Contains(first, []byte(`"legacy_criteria"`)) || bytes.Contains(first, []byte(`"review"`)) {
+		if bytes.Contains(first, []byte(`"legacy_criteria"`)) || bytes.Contains(first, []byte(`"review"`)) || bytes.Contains(first, []byte(`"reviewed_annotation"`)) {
 			t.Fatal("generated crosswalk emitted a reviewed legacy relation")
 		}
 		total := legacyCaseNamed(t, inventory, "shows the cart total")
@@ -368,6 +373,10 @@ func TestLegacyCrosswalk(t *testing.T) {
 			{func(r *BehaviorRegistry) { r.Tests[0].Legacy[0].LegacyCase = "legacy:gone" }, "unresolved", "legacy-case-not-discovered"},
 			{func(r *BehaviorRegistry) { r.Tests[0].Legacy[0].LegacyCriterion = "c99" }, "unresolved", "legacy-criterion-not-discovered"},
 			{func(r *BehaviorRegistry) { r.Tests[0].Roles = []string{"admin"} }, "not-parity", "roles-not-discovered"},
+			{func(r *BehaviorRegistry) { r.Tests[0].Legacy[0].Review = Anchor{} }, "not-parity", "mapping-review-missing-or-stale"},
+			{func(r *BehaviorRegistry) { r.Tests[0].Assertions[0].Annotation = Anchor{} }, "not-parity", "target-assertion-not-reviewed"},
+			{func(r *BehaviorRegistry) { r.Tests[0].Criteria = []string{"other"} }, "not-parity", "target-criterion-not-declared"},
+			{func(r *BehaviorRegistry) { slices.Reverse(r.Tests[0].Fixtures) }, "not-parity", "precondition-order-differs"},
 		} {
 			inventory, _, err := legacyInventory(t, root, "mocha", revision, "e2e/cypress", legacyRegistry(t, base, tc.edit))
 			if err != nil {
@@ -443,6 +452,9 @@ func TestLegacyDiscoveryRefusals(t *testing.T) {
 			{"missing path", "mocha", revision, "e2e/none", nil},
 			{"non-canonical path", "mocha", revision, "e2e/cypress/../cypress", nil},
 			{"open registry", "mocha", revision, "e2e/cypress", []byte(`{"tests":[],"extra":1}`)},
+			{"empty registry", "mocha", revision, "e2e/cypress", []byte(`{}`)},
+			{"schema 1 registry", "mocha", revision, "e2e/cypress", []byte(`{"schema":1,"contract_id":"c","contract_sha256":"` + Digest(nil) + `","source_revision":"` + revision + `","documentation_revision":"` + revision + `","discovery":{},"migration_manifest":{},"flows":[],"source_behaviors":[],"tests":[]}`)},
+			{"duplicate test registry", "mocha", revision, "e2e/cypress", []byte(`{"schema":2,"contract_id":"c","contract_sha256":"` + Digest(nil) + `","source_revision":"` + revision + `","documentation_revision":"` + revision + `","discovery":{},"migration_manifest":{},"flows":[],"source_behaviors":[],"tests":[{"id":"t","project":"","title":"","evidence":{},"flows":[],"criteria":[],"assertions":[]},{"id":"t","project":"","title":"","evidence":{},"flows":[],"criteria":[],"assertions":[]}]}`)},
 		} {
 			_, data, err := legacyInventory(t, root, tc.runner, tc.revision, tc.path, tc.registry)
 			var refusal *Error
@@ -469,6 +481,119 @@ func TestLegacyDiscoveryRefusals(t *testing.T) {
 		}
 		if len(inventory.Legacy) != 0 || !slices.Equal(reasons, []string{"e2e/broken/broken.spec.js lex-failed", "e2e/broken/empty.spec.js no-static-cases"}) {
 			t.Fatalf("file unknowns: %v", reasons)
+		}
+	})
+}
+
+func legacyEdgeTuples(legacy BehaviorLegacyCase) []string {
+	tuples := []string{}
+	for _, criterion := range legacy.Criteria {
+		tuples = append(tuples, criterion.Matcher+"|"+criterion.Locator+"|"+criterion.Value)
+	}
+	return tuples
+}
+
+var legacyEdgeSuite = `describe('edge', () => {
+  beforeEach(seedHelper);
+  it('regex after a condition', () => {
+    if (ready) /it('phantom', () => {})/.test(value);
+    expect(a).toBe('\x41\u0042\u{43}');
+  });
+  it('template and chains', () => {
+    const v = ` + "`${expect(x).toBe(1)}`" + `;
+    expect(y).withContext('why').toBe(2);
+    expect(z).to.equal(3).and.equal(4);
+  });
+  it('ordered preconditions', () => {
+    cy.visit('/before');
+    cy.task('seed', 'A');
+    cy.get('.ok').should('be.visible');
+  });
+  it('nested preconditions', () => {
+    cy.get('.x').then(() => { cy.task('seed', 'B'); });
+    cy.visit('/` + strings.Repeat("a", 300) + `');
+    cy.get('.ok').should('be.visible');
+  });
+});
+describe('conditional hook', () => {
+  beforeEach(() => { if (flag) { cy.task('seed', 'C'); } });
+  it('inherits the doubt', () => { cy.get('.ok').should('be.visible'); });
+});
+`
+
+// TestLegacyDiscoveryStaticEdgeCases pins the static reader's handling of syntax it must not
+// misread: regex/division context, string escapes, template substitutions, chained matchers,
+// precondition order and nesting, and hooks it cannot bind (DCP-V1-061..063, DCP-V1-068).
+func TestLegacyDiscoveryStaticEdgeCases(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q")
+	git(t, root, "config", "user.name", "Corpus test")
+	git(t, root, "config", "user.email", "corpus@example.invalid")
+	legacyWrite(t, root, "e2e/edge.cy.js", legacyEdgeSuite)
+	legacyWrite(t, root, "e2e/octal.cy.js", "it('octal', () => { expect(a).toBe('\\101'); });\n")
+	legacyWrite(t, root, "e2e/brace.cy.js", "it('brace', () => { if (a) {} /it('x', () => {})/.test(b); });\n")
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "edge")
+	revision := git(t, root, "rev-parse", "HEAD")
+	inventory, _, err := legacyInventory(t, root, "mocha", revision, "e2e", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("DCP-V1-061 DCP-V1-068 regex context and invalid escapes never invent cases", func(t *testing.T) {
+		names := []string{}
+		for _, legacy := range inventory.Legacy {
+			names = append(names, legacy.Case)
+		}
+		if !slices.Equal(names, []string{"regex after a condition", "template and chains", "ordered preconditions", "nested preconditions", "inherits the doubt"}) {
+			t.Fatalf("cases: %v", names)
+		}
+		failed := []string{}
+		for _, unknown := range inventory.Unknown {
+			if unknown.Reason == "lex-failed" {
+				failed = append(failed, unknown.Path)
+			}
+		}
+		if !slices.Equal(failed, []string{"e2e/brace.cy.js", "e2e/octal.cy.js"}) {
+			t.Fatalf("lex-failed files: %v", failed)
+		}
+		if tuples := legacyEdgeTuples(legacyCaseNamed(t, inventory, "regex after a condition")); !slices.Equal(tuples, []string{"toBe|a|ABC"}) {
+			t.Fatalf("escaped value: %q", tuples)
+		}
+	})
+	t.Run("DCP-V1-062 template substitutions and chained matchers are never dropped", func(t *testing.T) {
+		chains := legacyCaseNamed(t, inventory, "template and chains")
+		if tuples := legacyEdgeTuples(chains); !slices.Equal(tuples, []string{"toBe|y|2", "to.equal|z|3"}) {
+			t.Fatalf("chain tuples: %q", tuples)
+		}
+		details := []string{}
+		for _, unknown := range inventory.Unknown {
+			if unknown.Case == chains.ID && unknown.Reason == "unparsed-assertion" {
+				details = append(details, unknown.Detail)
+			}
+		}
+		slices.Sort(details)
+		if len(details) != 2 || !strings.Contains(details[0], "and.equal(4)") || !strings.Contains(details[1], "template substitution") {
+			t.Fatalf("unparsed: %q", details)
+		}
+	})
+	t.Run("DCP-V1-063 preconditions keep order, nesting doubt and full text", func(t *testing.T) {
+		ordered := legacyCaseNamed(t, inventory, "ordered preconditions")
+		if len(ordered.Fixtures) != 2 || !strings.HasPrefix(ordered.Fixtures[0], "visit:cy.visit@") || !strings.HasPrefix(ordered.Fixtures[1], "setup:cy.task@") {
+			t.Fatalf("order: %v", ordered.Fixtures)
+		}
+		nested := legacyCaseNamed(t, inventory, "nested preconditions")
+		if len(nested.Fixtures) != 2 || !strings.HasPrefix(nested.Fixtures[0], "setup:cy.task@") || !slices.Contains(legacyUnknownReasons(inventory, nested.ID), "nested-precondition") {
+			t.Fatalf("nested: %v %v", nested.Fixtures, legacyUnknownReasons(inventory, nested.ID))
+		}
+		for _, precondition := range inventory.Preconditions {
+			if precondition.SHA256 != Digest([]byte(precondition.Text)) {
+				t.Fatalf("text does not match digest: %+v", precondition)
+			}
+		}
+		for _, name := range []string{"regex after a condition", "inherits the doubt"} {
+			if !slices.Contains(legacyUnknownReasons(inventory, legacyCaseNamed(t, inventory, name).ID), "hook-not-static") {
+				t.Fatalf("%s did not inherit hook doubt: %v", name, legacyUnknownReasons(inventory, legacyCaseNamed(t, inventory, name).ID))
+			}
 		}
 	})
 }
