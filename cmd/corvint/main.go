@@ -1419,9 +1419,9 @@ func emitContextPayload(stdout, stderr io.Writer, tool string, contextReceipt ma
 }
 
 // parseCEMInvocation detects `[--root PATH] cem ...`. root is normalized and
-// symlink-resolved for 0.x reads. callerRoot is the --root value byte for byte
-// (else the working directory): stable admission judges it exactly as
-// `cem verify-stable --repository` judges the same string (CEM-V1-017).
+// symlink-resolved for 0.x reads; an empty --root is the working directory.
+// callerRoot is the --root value byte for byte, even empty, or the working
+// directory when --root is omitted, for stable admission (CEM-V1-017).
 func parseCEMInvocation(arguments []string) (root, callerRoot string, rest []string, isCEM bool, err error) {
 	index := 0
 	for index < len(arguments) && (arguments[index] == "--root" || strings.HasPrefix(arguments[index], "--root=")) {
@@ -1441,15 +1441,15 @@ func parseCEMInvocation(arguments []string) (root, callerRoot string, rest []str
 	if index >= len(arguments) || arguments[index] != "cem" {
 		return "", "", nil, false, nil
 	}
+	callerRoot = root
 	if root == "" {
-		workingDirectory, err := os.Getwd()
-		if err != nil {
+		if root, err = os.Getwd(); err != nil {
 			return "", "", nil, true, argumentError("cannot resolve current directory")
 		}
-		return workingDirectory, workingDirectory, arguments[index+1:], true, nil
-	}
-	callerRoot = root
-	if root, err = normalizeRoot(root); err != nil {
+		if index == 0 { // only an omitted --root names the working directory
+			callerRoot = root
+		}
+	} else if root, err = normalizeRoot(root); err != nil {
 		return "", "", nil, true, err
 	}
 	return root, callerRoot, arguments[index+1:], true, nil
