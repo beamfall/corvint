@@ -101,6 +101,12 @@ func TestANLV0016UnknownForcesFullSuite(t *testing.T) {
 	if r.Verdict != VerdictFullSuite || len(r.Unknown) != 1 || r.Unknown[0].Reason != "unmapped-path" {
 		t.Fatalf("%+v", r)
 	}
+	f.m.Screens[0].Specs = append(f.m.Screens[0].Specs, Attribution{File: "app/shared.ts", Basis: "import"})
+	f.m.Files = append(f.m.Files, TestFile{ID: "file:alias", Path: "app/shared.ts", Role: roleSpec, Anchor: Anchor{Repo: "tests"}})
+	impactCommit(t, f, map[string]string{"app/shared.ts": "export {}\n"})
+	if r = impactRun(t, f, nil, base, Options{}); len(r.Unknown) != 2 {
+		t.Fatalf("aliased-repo test file placed a primary-repo path: %+v", r)
+	}
 	if _, err := Impact(context.Background(), f.m, nil, "-bad", Options{Root: f.root}); err == nil {
 		t.Fatal("bad base accepted")
 	}

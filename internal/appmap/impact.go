@@ -135,7 +135,7 @@ func Impact(ctx context.Context, m *Map, l *EdgeLedger, base string, o Options) 
 				}
 			}
 			for _, a := range s.Specs {
-				if a.File == p || contains(a.Via, p) {
+				if (a.File == p || contains(a.Via, p)) && primaryTestFile(m, a.File) {
 					touch(s.ID, p, "test-attribution")
 					specs[a.File] = true
 					placed = true
@@ -304,4 +304,14 @@ func checkLedgerBinding(m *Map, l *EdgeLedger, evaluated string) error {
 		}
 	}
 	return nil
+}
+
+// primaryTestFile is true when file is an analysed test file of the --root repository itself.
+func primaryTestFile(m *Map, file string) bool {
+	for _, f := range m.Files {
+		if f.Path == file && f.Anchor.Repo == "" {
+			return true
+		}
+	}
+	return false
 }
