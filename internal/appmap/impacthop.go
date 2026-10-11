@@ -145,38 +145,10 @@ func (g *referenceGraph) references(name, target string) ([]int, bool) {
 }
 
 // hopInTemplate reports whether a line starting after prefix may sit inside a multi-line template
-// literal: it scans quotes with escapes (single and double quotes end at a line break) and `//`
-// and `/*` comments, and answers true when a backtick is still open. A stray backtick (in a regex
-// or HTML text) can only make it refuse more.
+// literal. Telling a template's backtick from one inside a regex, string or comment needs a full
+// lexer, so any earlier backtick counts: the hop refuses more, never accepts template text.
 func hopInTemplate(prefix string) bool {
-	quote, line, block := byte(0), false, false
-	for k := 0; k < len(prefix); k++ {
-		c := prefix[k]
-		switch {
-		case line:
-			line = c != '\n'
-		case block:
-			if c == '*' && k+1 < len(prefix) && prefix[k+1] == '/' {
-				block, k = false, k+1
-			}
-		case quote != 0:
-			switch {
-			case c == '\\':
-				k++
-			case c == quote:
-				quote = 0
-			case c == '\n' && quote != '`':
-				quote = 0
-			}
-		case c == '/' && k+1 < len(prefix) && prefix[k+1] == '/':
-			line, k = true, k+1
-		case c == '/' && k+1 < len(prefix) && prefix[k+1] == '*':
-			block, k = true, k+1
-		case c == '\'' || c == '"' || c == '`':
-			quote = c
-		}
-	}
-	return quote == '`'
+	return strings.Contains(prefix, "`")
 }
 
 // hopLiteralAround scans one line for quoted literals, honouring backslash escapes, and returns the

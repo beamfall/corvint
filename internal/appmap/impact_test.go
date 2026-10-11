@@ -129,7 +129,7 @@ func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := "var tpl = `escaped \\`\n'./tpl/tpl.html'\n`;\nvar names = {};\nvar dyn = require('./' + names.dyn);\nvar shell = require('./shell/shell.html');\nvar widgets = require('./widgets');\nvar label = \"prefix\\\"./esc/esc.html\";\n// was require('./ghost/ghost.html')\n/* or\n  './ghost/ghost2.html' */\n" + string(routes)
+	src := "var names = {};\nvar dyn = require('./' + names.dyn);\nvar shell = require('./shell/shell.html');\nvar widgets = require('./widgets');\nvar label = \"prefix\\\"./esc/esc.html\";\n// was require('./ghost/ghost.html')\n/* or\n  './ghost/ghost2.html' */\n" + string(routes)
 	src = strings.Replace(src, "url: '/settings'", "url: '/settings',\n      templateUrl: 'app/clubs/settings.html'", 1)
 	src = strings.Replace(src, "url: '/members'\n    })\n    .state('members2'", "url: '/members',\n      controller: require('./members/list.component')\n    })\n    .state('members2'", 1)
 	files := map[string]string{
@@ -148,6 +148,7 @@ func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
 		"app/cyc/beta.js":                  "module.exports = require('./alpha');\n",
 		"app/esc/esc.html":                 "<p></p>\n",
 		"app/tpl/tpl.html":                 "<p></p>\n",
+		"app/tplhost.js":                   "var rx = /\"/; var tpl = `\n'./tpl/tpl.html'\n`;\n",
 		"app/dyn.js":                       "module.exports = 1;\n",
 		"app/dynuser.js":                   "module.exports = require('./dyn');\n",
 		"app/helped/helped.html":           "<p></p>\n",

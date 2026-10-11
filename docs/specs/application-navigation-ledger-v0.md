@@ -139,7 +139,7 @@ are URL templates, not component source files. This slice makes neither missing 
   files at the evaluated revision (at most 20000 files, 1 MiB each, 32 MiB in all, 64 walked nodes).
   A file references the path when the path's token (a script's stem, an index file's directory or `index`,
   any other file's base name) occurs inside one quoted string literal delimited on that line (escapes
-  honoured; a line that an escape-aware scan of earlier quotes and comments places inside a multi-line
+  honoured; a line after any backtick of the file, which may sit inside a multi-line
   template refuses; a property `x.token` is a mention too) that resolves to it
   (relative to the referrer for `./` and `../`, repository-relative otherwise, with script
   extensions and `/index.*` tried; no `${`) and not after a `//`, `/*`, `<!--` or `{{!` comment
