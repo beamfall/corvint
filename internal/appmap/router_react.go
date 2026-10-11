@@ -35,7 +35,13 @@ func parseReactRouter(e blobEntry, data []byte) ([]rawState, []Unknown) {
 				p.unknown(ts[i].line, "non-literal-react-routes")
 				continue
 			}
-			if ts[i].text == "createBrowserRouter" {
+			if ts[i].text == "createBrowserRouter" && end == i+3 && ts[i+2].kind == tokIdent {
+				if v, why := reactRoutesBinding(ts, i+2); why != "" {
+					p.unknown(ts[i].line, why)
+				} else {
+					p.routes(v, "", "", 0)
+				}
+			} else if ts[i].text == "createBrowserRouter" {
 				v, after := parseValue(ts, i+2)
 				if after != end || v.kind != "array" {
 					p.unknown(ts[i].line, "non-literal-react-routes")
@@ -239,4 +245,83 @@ func reactJSX(ts []token, i, depth int) (jsValue, int, bool) {
 		i = after
 	}
 	return jsValue{}, i, false
+}
+
+// reactRoutesBinding resolves `createBrowserRouter(NAME)` to the one literal array a top-level
+// `const NAME = [...]` (optionally typed `: Type` or `: Type[]`) binds in the same file. Any other
+// use of NAME may compute or mutate the array and stays UNKNOWN (`computed-react-routes`); a NAME
+// bound by an import is not read across files (`imported-react-routes`); a file holding any template
+// substitution or an escaped identifier is not read either, since either could name NAME unseen
+// (AMAP-V0-078).
+func reactRoutesBinding(ts []token, use int) (jsValue, string) {
+	name, decl, depth := ts[use].text, -1, 0
+	for j, t := range ts {
+		if t.subst || t.kind == tokPunct && t.text == "\\" {
+			return jsValue{}, "computed-react-routes" // a ${} expression or escaped identifier could touch NAME unseen
+		}
+		if t.kind == tokPunct {
+			switch t.text {
+			case "{", "(", "[":
+				depth++
+			case "}", ")", "]":
+				depth--
+			}
+			continue
+		}
+		if j == use || t.kind != tokIdent || t.text != name || j > 0 && next(ts, j-1, ".") && !(j > 1 && next(ts, j-2, ".")) {
+			continue
+		}
+		if reactImported(ts, j) {
+			return jsValue{}, "imported-react-routes"
+		}
+		eq := j + 1
+		if next(ts, eq, ":") && eq+1 < len(ts) && ts[eq+1].kind == tokIdent {
+			eq += 2
+			if next(ts, eq, "[") && next(ts, eq+1, "]") {
+				eq += 2
+			}
+		}
+		if decl >= 0 || depth != 0 || j == 0 || ts[j-1].kind != tokIdent || ts[j-1].text != "const" || !next(ts, eq, "=") || next(ts, eq+1, "=", ">") {
+			return jsValue{}, "computed-react-routes"
+		}
+		decl = eq + 1
+	}
+	if decl < 0 {
+		return jsValue{}, "non-literal-react-routes"
+	}
+	v, after := parseValue(ts, decl)
+	if v.kind != "array" || after < len(ts) && !next(ts, after, ";") && !reactStatementStart(ts, after) {
+		return jsValue{}, "computed-react-routes"
+	}
+	return v, ""
+}
+
+// reactStatementStart reports whether the token after an array literal without `;` begins a new
+// statement: an identifier on a later line that cannot continue the expression. Anything else
+// (`.concat(...)`, `[`, `(`, an operator, `as`) may extend the array and is not read.
+func reactStatementStart(ts []token, k int) bool {
+	t := ts[k]
+	if t.kind != tokIdent || t.line == ts[k-1].line {
+		return false
+	}
+	switch t.text {
+	case "in", "instanceof", "as", "satisfies":
+		return false
+	}
+	return true
+}
+
+// reactImported reports whether the identifier at j sits in an `import ... from` clause.
+func reactImported(ts []token, j int) bool {
+	for k := j - 1; k >= 0; k-- {
+		t := ts[k]
+		switch {
+		case t.kind == tokIdent && t.text == "import":
+			return true
+		case t.kind == tokIdent || next(ts, k, ",", "{", "}", "*"):
+		default:
+			return false
+		}
+	}
+	return false
 }

@@ -10,7 +10,7 @@ Authoritative inputs: V1-1142 / GitHub #784 owner request; AGENTS.md invariants 
 - Claim: An offline upgrade checklist maps local merge evidence to issue references in adopter workaround files.
 - Status: accepted (decision 0518; V1-1142)/experimental
 - Exists: `internal/upgradechanges` and the experimental `corvint changes` command.
-- Blocked on: GitHub issue state and per-PR command changes are not observed.
+- Blocked on: GitHub issue state comes only from an operator-supplied file; per-PR command changes and reopen/revert semantics are not observed.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
 
 ## User and verified baseline
@@ -47,18 +47,45 @@ the checkout or contacting a service. This is evidence to review, not permission
   introduced commits per PR, 64 KiB per message, 4 MiB total Git output, 16 files of 1 MiB each,
   4096 scanned references per file, and 1024 issue/hint rows each. Any omitted evidence MUST set `truncated`; incomplete message
   bytes MUST NOT create closure evidence. A 30-second total deadline or Git failure refuses with
-  `changes-git-unavailable`; output failure refuses with `changes-output-unavailable`. No Git stderr, commit bodies or adopter text is reflected; summaries
+  `changes-git-unavailable`; output failure refuses with `changes-output-unavailable`. Cancellation or the deadline MUST close an open `--refs-file` descriptor so its reader is released rather than kept until process exit; only a read the kernel cannot interrupt may hold it until that system call returns (amendment proposed, pending owner acceptance (V1-1155)). No Git stderr, commit bodies or adopter text is reflected; summaries
   and paths use the existing secret screen; paths preserve whitespace. Summaries are limited to 240 bytes after screening.
 - `UCL1142-V0-005`: Root and topic help MUST mark the command experimental and document the workflow,
-  local evidence limits, explicit-file input, coded refusals and missing evidence. GitHub issue
-  state, reopen/revert semantics and per-PR new flags/commands MUST remain `NOT_OBSERVED`.
+  local evidence limits, explicit-file input, coded refusals and missing evidence. Reopen/revert
+  semantics and per-PR new commands MUST remain `NOT_OBSERVED`; GitHub issue state is
+  `NOT_OBSERVED` unless `UCL1142-V0-006` supplies it, and per-PR flags follow `UCL1142-V0-007`
+  (amendment proposed, pending owner acceptance (V1-1158)).
+- `UCL1142-V0-006`: (proposed, pending owner acceptance (V1-1158)) Optional `--issue-state-file FILE`
+  (at most once, relative to SOURCE or absolute) MUST be read with the `UCL1142-V0-003` no-follow,
+  regular-file, 1 MiB reader and decoded as one JSON array of objects, each with a positive integer
+  `number` and a `state` of `OPEN` or `CLOSED` (case-insensitive), the shape `gh issue list --state
+  all --json number,state` produces. Other members are ignored and never emitted. More than 4096
+  rows, a malformed, `null` or truncated document, an invalid row or repeated member, conflicting states for one number, or an
+  unreadable/unsafe path refuse with `changes-issue-state-unavailable`. Corvint MUST NOT query
+  GitHub or any network service. Each issue row and hint carries `github_state`: the supplied
+  state, or `NOT_OBSERVED` when no file is given or the number is absent. A hint whose supplied
+  state is `OPEN` MUST NOT say `workaround may be removable`; it says `closing evidence, but the
+  supplied issue state is OPEN; review`. The unknowns name the state as operator-supplied and not
+  verified by Corvint. The file is caller-reported evidence, never authority, and does not resolve
+  reopen/revert semantics or closures before FROM.
+- `UCL1142-V0-007`: (proposed, pending owner acceptance (V1-1158)) Each PR row MUST carry
+  `new_flags_basis`, `new_flags` and `new_commands` (replacing `new_flags_commands`). `new_flags` lists,
+  sorted and `--`-prefixed, flag names that appear on added lines and on no removed line of the
+  local diff from the merge's first parent to the merge, restricted to non-test `cmd/corvint/*.go`
+  files: names declared through the standard `flag` package by string literal and `"--name"` /
+  `"--name="` literals. Git runs in forced text mode with no external diff, textconv, color, rename
+  detection or configured prefix/relative path; quoted header paths are decoded, and a binary patch or
+  undecodable path is treated as over a bound. The diff is bounded to 256 KiB per PR within the 4 MiB total, and
+  at most 64 names; over a bound, `new_flags` is empty, `new_flags_basis` is `NOT_OBSERVED` and the
+  report is `truncated`. Otherwise `new_flags_basis` is `cmd-corvint-go-source-diff`. This is a
+  source-literal heuristic, not a verified CLI surface diff; `new_commands` stays `NOT_OBSERVED`.
 
 ## Boundaries and failure modes
 
 Git and the local filesystem are untrusted evidence, not authority. No shell evaluation, remote
 lookup, installed-tool mutation, timestamp or working-tree content enters the historical report.
 Only explicit file arguments are supported: glob expansion, directory recursion, GitHub API issue
-state, structured release metadata and flag/command diff are non-goals (`NOT_RUN`). A `Refs` mention
+lookup, structured release metadata and command diff are non-goals (`NOT_RUN`); issue state enters
+only through the `UCL1142-V0-006` operator file. A `Refs` mention
 does not prove closure. Reverts, reopened issues, cross-repository references, squash/rebase merges
 and closures before FROM are not resolved. Secret screening is heuristic, not a general detector
 for arbitrary sensitive prose; raw messages and adopter lines are withheld. A bound means partial
@@ -83,6 +110,8 @@ remain `NOT_RUN` and are not a prerequisite for this locally testable experiment
 | UCL1142-V0-003 | `internal/upgradechanges` | `TestCompileRangeAndRefs`, `TestCompileUnsafeRefs`, `TestReadRefsRejectsFIFO` | experimental |
 | UCL1142-V0-004 | `internal/upgradechanges` | `TestCompileBounds`, `TestCompileRangeAndRefs`, `TestCompileGitConfiguration`, `TestCappedOutput`, `TestCompileReferenceAndIssueCaps`, `TestCompileRefsReadHonoursContext`, `TestCompileShallowCheckCancellationKeepsGitUnavailable` | experimental |
 | UCL1142-V0-005 | `cmd/corvint/changes.go`, `docs/INSTALL.md` | `TestChangesCLI` | experimental |
+| UCL1142-V0-006 | `internal/upgradechanges` (`readIssueStates`), `cmd/corvint/changes.go` | `TestCompileIssueStateFile`, `TestChangesCLI` | proposed, pending owner acceptance (V1-1158); experimental |
+| UCL1142-V0-007 | `internal/upgradechanges` (`newFlags`) | `TestCompileNewFlags` | proposed, pending owner acceptance (V1-1158); experimental |
 
 Acceptance requires the focused fixtures, CLI tests, documentation gates and independent review.
 Repository-wide gate and final committed CEM/OCM seal are `NOT_RUN` in this no-commit builder scope.

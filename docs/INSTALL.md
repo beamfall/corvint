@@ -439,6 +439,17 @@ Closes/Fixes/Resolves/Refs issue evidence. Explicit closure evidence can produce
 anything. Refs alone is unknown. Repeat explicit regular files; globs and symlinks are unsupported
 (file scanning is supported on macOS/Linux). `truncated: true` means the checklist is incomplete.
 Unavailable build objects produce `changes-build-unavailable`; use a checkout already containing
-both commits. GitHub issue state, reopen/revert semantics, closures before the range and per-PR
-new flags/commands are not observed. See the proposed
-[Upgrade Checklist V0](specs/upgrade-checklist-v0.md) contract (V1-1142).
+both commits. Each PR row lists `new_flags` added by literal in non-test `cmd/corvint` Go source,
+computed from the local diff (a heuristic, not a verified CLI surface diff). Corvint never queries
+GitHub: to annotate issues with `github_state`, export the state yourself and pass the file:
+
+```sh
+gh issue list --repo beamfall/corvint --state all --limit 1000 --json number,state > issues.json
+corvint --root /path/to/corvint changes --from OLD_BUILD_SHA --to NEW_BUILD_SHA \
+  --refs-file /path/to/adopter/workarounds.md --issue-state-file /path/to/issues.json
+```
+
+A hint for an issue the file reports `OPEN` asks for review instead of suggesting removal.
+Without the file `github_state` is `NOT_OBSERVED`. Reopen/revert semantics, closures before the
+range and per-PR new commands are not observed. See the proposed
+[Upgrade Checklist V0](specs/upgrade-checklist-v0.md) contract (V1-1142, V1-1158).

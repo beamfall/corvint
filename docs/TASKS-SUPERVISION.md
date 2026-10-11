@@ -182,7 +182,9 @@ corvint-tasks dispatch unpark --program night --config dispatch.json --key ticke
 ```
 
 Each tick observes the queue, supervises workers (whole-tree kill on wall cap, idle timeout or an
-orphaned tree), hands off live attempts of ended workers, reaps expired leases, accounts progress,
+orphaned tree; a child process keeps a worker from the idle timeout only while it is new or uses
+at least 1% CPU since the last activity, so sleeping helpers such as MCP servers do not, CAL-V0-218,
+proposed), hands off live attempts of ended workers, reaps expired leases, accounts progress,
 and launches the roster. A refused hand-off is retried a bounded number of times with backoff and the
 attempt is reaped once its lease expires; only when both fail is it reported as `needs-owner`
 (`heal.exitRecovery`, default true; CAL-V0-104). With `heal.reap`, a worker that is still running

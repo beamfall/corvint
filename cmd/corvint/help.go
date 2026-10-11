@@ -253,7 +253,7 @@ Commands:
   changes  offline upgrade checklist
   harness event  one agent-harness lifecycle event
   adapter  one native host adapter
-  dogfood  local evidence workflow; change, check, seal
+  dogfood  local evidence workflow; change, check, seal, batch-check
   dogfood-ocm  verify dogfood OCM maps
   cem  Change Evidence Map producer/verifier
   ocm  Obligation Closure Map producer/verifier
@@ -585,6 +585,8 @@ Usage:
           [--repository ID=DIR ...] [--selection-profile strict|coverage]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider FILE
           --selection-profile e2e-safe [--playwright-discovery FILE]
+  corvint [--root PATH] affected [--full] --base FULL_COMMIT_ID
+          --appmap-impact REPORT [--appmap-impact REPORT ...]
 
 The command reads the Git worktree status, builds the multi-language unit graph
 from source text, and writes one affected-plan/1 document to stdout: the
@@ -667,6 +669,14 @@ the change, and omits a test only with a reviewed-links or coverage exclusion
 proof. A global path change, missing or mismatched discovery, an inventory gap,
 or any unproven exclusion yields the full relevant suite with closed e2e-*
 codes. The strict and coverage profiles are unchanged.
+
+--appmap-impact (up to 16, experimental ANL-V0-031, ANL-V0-034) reads complete
+application-map-impact/0 reports built for --base at HEAD and adds the learned
+advice.app_navigation member: per app (several maps aggregate) the reported and
+effective verdict, the reasons and the spec files. Uncommitted paths, unknown paths or a spec list over
+64 make the effective verdict full-suite-required, which also adds an
+APP_NAVIGATION_FULL_SUITE_REQUIRED unknown. It never removes a check or changes
+the plan; a trimmed, tampered or mismatched report refuses.
 
 --provider-command ARGV_JSON runs one local provider command and reads its
 stdout as a record, exactly as impact does (EEP-TR): a JSON array of strings
@@ -1181,6 +1191,7 @@ Usage:
     [--override-verifier PATH] BASE
   corvint [--root PATH] dogfood seal [--base-verifier PATH] [--tree-verifier PATH]
     [--override-verifier PATH] BASE
+  corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
 and optional allowCemSidecarOnlyReuse (false by default). Session keys are 64 hex
@@ -1216,6 +1227,10 @@ never builds or version-checks one. DOGFOOD_TASK, DOGFOOD_VERIFY,
 DOGFOOD_VERIFY_FILE, DOGFOOD_OUTCOME, DOGFOOD_INTENTS_FILE, DOGFOOD_CITATIONS,
 DOGFOOD_OCM_LINKS and DOGFOOD_EXCEPTION keep their script meanings. The root, the
 current directory unless --root names one, must be the worktree top level.
+
+batch-check is read-only. It checks that every commit in BASE..HEAD belongs to a
+sealed change the range adds, verifies each sealed CEM against its own base, and
+re-derives each merge result; it reports what it cannot prove (DCW-V0-039).
 `
 
 // rootPreambleValue reports whether arguments[index] may be consumed as the value of a bare `--root`
@@ -1276,11 +1291,12 @@ replacement goto and saved steps. --facts (test-prefix-facts/0) declares read-on
 assertion-target edges per spec; undeclared effects abstain. --check exits 1 when a flagged test is
 not in --baseline. Learned, read-only, offline.
 
-Page-state grouping (ANL-V0-012..014):
-  corvint [--root PATH] test-plan page-state --input FILE
+Page-state grouping (ANL-V0-012..014, ANL-V0-033):
+  corvint [--root PATH] test-plan page-state --input FILE [--check --baseline FILE]
 Groups non-destructive, state-preserving variations of one input that share app, screen, setup,
 user, org and required facts, so one visit can serve several assertions. Destructive, state-changing
-or anchor-missing variations are listed as blocked, never merged. Read-only, offline.
+or anchor-missing variations are listed as blocked, never merged. --check exits 1 when a group or
+blocked variation differs from the --baseline report. Read-only, offline.
 `
 
 // commandMaturityHelp is the root-help section that names the frozen Core verbs and labels every

@@ -132,6 +132,7 @@ one.
 | V1-1118 | CAL-V0-211 | Accepted (decision 0499): a fresh `ticket set-effects` or claim warns `EXACT_KEY_NAMES_DIRECTORY`, naming the key and the key with `/`, for each PATH key without a trailing `/` that names a directory in the tree; it refuses nothing; focused tests |
 | V1-1125 | CAL-V0-214 | accepted, decision 0513: fresh `ticket create` and `ticket refine` transactions carry the same advisory exact-directory PATH key warning as CAL-V0-211; replays add none; effects remain unchanged; focused tests |
 | V1-0913 | CAL-V0-217 | Accepted (decision 0518): the CAL-V0-139 idle safety-net full read moves from 60 seconds to 15 minutes; focused test |
+| V1-1195 | CAL-V0-218 | Proposed, pending owner acceptance (V1-1195): a non-ignored child keeps a dispatcher worker active only when it is new since the last activity, its CPU time is unreadable, or it used at least 1% of the wall time since then; a sleeping long-lived helper no longer blocks the IDLE stop (issue 793); focused tests |
 | V1-1081 | CAL-V0-017 (amended) | Proposed: `complete` also accepts a commit reachable from the intent branch's configured remote-tracking upstream when the local branch is behind; never fetches or moves a ref; an unintegrated commit refuses `STALE_TREE` plus `COMMIT_NOT_INTEGRATED`; focused tests |
 | V1-0853 | CAL-V0-105 | Dispatcher replans with the tickets its work state holds deferred `WORK_STATE_HELD` outside the selection window; UNKNOWN, NONE and no reader keep today's window; focused tests |
 | V1-0772 | CAL-V0-086 | Supervised stage worktree path recorded as PathText (4096 bytes), refused before mutation when longer; an unproved stage drain ends the role `SURVIVORS` instead of `FINISHED`; drain re-probes `EPERM`; bounded watcher read tolerance; focused tests |
@@ -5886,6 +5887,58 @@ Rollout/rollback: accepted by decision 0518. Revert the verb set, help lines, te
 section together; no store migration is needed and receipts never carry the wait. Live
 multi-agent contention qualification remains NOT_RUN.
 
+### V1-1195 busy child for the idle timeout (issue 793, proposed)
+
+Status: proposed, pending owner acceptance (V1-1195); experimental implementation with focused
+tests. Human-owned input: GitHub issue 793 and native ticket V1-1195. CAL-V0-056 stops a worker
+IDLE only when it shows no log growth, activity-path change or "non-ignored busy child" within the
+idle timeout, and the implementation counted every non-leader member whose command was not in
+`idleIgnore` as busy merely because it existed. Agent hosts keep long-lived helpers (an agent
+server child, MCP servers) in the tree, so `LastActive` advanced every tick and IDLE never fired:
+one dispatcher recorded no IDLE stop in about 670 stops, and a hung session ran to `wallSeconds`.
+
+- `CAL-V0-218`: (proposed, pending owner acceptance (V1-1195)) Amends what CAL-V0-056 counts as
+  a busy child. Each tick the dispatcher MUST read every member's cumulative CPU time with the
+  process table; on Linux, whose table prints whole seconds, each non-ignored non-leader
+  member's CPU time MUST instead be utime plus stime from `/proc/<pid>/stat` at USER_HZ 100, and
+  an unreadable stat makes it unreadable. It MUST keep, per worker and only in memory, a baseline of each non-ignored
+  non-leader member's CPU time by PID and start identity, taken at the worker's first
+  observation by this dispatcher process and again at every tick on which the worker is active.
+  A non-leader member whose command is not in the host's `idleIgnore` is busy only when it is
+  absent from the baseline, its CPU time is unreadable or below its baseline value, or the CPU
+  time it used since the baseline is at least 1% of the wall time since the baseline. A member
+  that exists but meets none of those conditions MUST NOT keep the worker active. At the first
+  observation (a new launch, or every adopted worker after a restart) no member is in a
+  baseline, so every non-ignored child counts busy once and an adopted worker gets a full idle
+  timeout of CPU observation. A tick MUST observe every worker's tree and activity before it
+  stops any worker, so a stop that blocks for its grace cannot age a later worker's CPU sample.
+  Log growth, activity paths, the leader exclusion, `idleIgnore`, the idle and wall timeouts and
+  the stop procedure are unchanged.
+
+Non-goals: a configurable CPU share; per-host or per-role process classes; reading process state
+other than the CPU time already in the table; persisting the baseline (no ledger format change);
+warning about permanently busy roles.
+
+Failure modes: a tool that waits silently (for example polling a remote service at under 1% CPU)
+for longer than `idleSeconds` with no log output is now stopped IDLE; such a role needs a longer
+`idleSeconds` or an activity path. A helper that uses at least 1% CPU while the session hangs still
+keeps the worker until `wallSeconds`; list it in `idleIgnore`. Linux CPU time has 10 ms resolution
+(USER_HZ 100), so a helper's first tick after a baseline can round up and delay the stop by up to one
+more idle timeout; a Linux build with another USER_HZ would scale the 1% share. A restart retakes the baseline and counts each child
+busy once, so a hung worker with helpers is stopped up to one idle timeout after the restart. An
+unparsable CPU time, and a counter below its baseline (a reused PID), count busy.
+
+Acceptance evidence: `TestCALV0218_ParseCPUTime`, `TestCALV0218_ParseProcStatCPU`,
+`TestCALV0218_BusyChildNeedsWorkNotPresence`,
+`TestCALV0218_ActiveBaselineFollowsActivity`, `TestCALV0218_SleepingChildDoesNotBlockIdleStop` and
+`TestCALV0218_ActivityObservedBeforeBlockingStops`
+(`internal/tasks/dispatch`, run with `-race`); `docs/build-log/2026-10-11-v1-1195-idle-busy-child.md`.
+
+Rollback: revert the CPU column and parsers in `internal/tasks/dispatch/process_unix.go`, the
+`preciseCPU` files (`childcpu_linux.go`, `childcpu_darwin.go`, the `process_other.go` stub), the
+baseline and the observe-then-stop split of `supervise` in `internal/tasks/dispatch/loop.go`, the tests and this amendment. No ledger, receipt or
+store state depends on the baseline.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -6330,6 +6383,7 @@ and removes the new configuration members.
 | CAL-V0-216 | `TestCALV0216_LockWaitAdmissionVerbs`, `TestCALV0111_LockWaitFlag` (`internal/tasks/cli`) |
 | CAL-V0-211 | `TestCALV0211_ClaimWarnsOnExactDirectoryKey`, `TestCALV0211_ExactDirectoryKeyWarnings` (`internal/tasks/store`); `TestCALV0211_SetEffectsWarnsOnExactDirectoryKey` (`internal/tasks/cli`) |
 | CAL-V0-214 | `internal/tasks/cli/mutate.go`, `internal/tasks/cli/mutate_batch.go`, shared `internal/tasks/store/directory_keys.go`, both store mutation writer routes; `TestCALV0214_CreateAndRefineWarnOnExactDirectoryKey` (`internal/tasks/cli`), `TestCALV0214_CommittedEffectsStayBoundToTransaction` (`internal/tasks/store`) |
+| CAL-V0-218 | `TestCALV0218_ParseCPUTime`, `TestCALV0218_ParseProcStatCPU`, `TestCALV0218_BusyChildNeedsWorkNotPresence`, `TestCALV0218_ActiveBaselineFollowsActivity`, `TestCALV0218_SleepingChildDoesNotBlockIdleStop`, `TestCALV0218_ActivityObservedBeforeBlockingStops` (`internal/tasks/dispatch`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance
