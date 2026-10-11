@@ -35,3 +35,11 @@ page-object refactor reach `PARITY` while the difference stays visible. Undeclar
 do not block a verdict; they are reported as the unknown `IDENTITY_INPUTS_NOT_DECLARED`. Declared
 config digests that differ give `INCOMPARABLE`. An unreadable report still emits a document
 (`INCOMPARABLE`, `REPORT_UNREADABLE`) rather than refusing, so a pipeline always receives a verdict.
+
+## Review round 1
+
+The independent review found eight gaps, all fixed in one follow-up commit with focused tests.
+A missing `projectName` is now refused. Backslash paths are normalized. Conflicting blob spellings
+abstain. Matcher modifiers are kept. Within-side inputs are compared in an order-independent way.
+`config.projects` is compared. An unreadable report no longer hides the other reasons. Emitted
+identities and inputs are secret-screened, while matching still uses the raw values.

@@ -30,18 +30,22 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   regular file opened non-blocking, at most 64 MiB, one JSON value with `config.version` and a
   `suites` array, at most 50 000 tests, 100 results per test and 16 errors per result) and refuse
   anything else with a named reason (`REPORT_UNREADABLE`, `REPORT_BOUND_EXCEEDED`,
-  `REPORT_NOT_PLAYWRIGHT_JSON`); unknown test or result statuses are refused, never mapped. A test's
-  stable identity is (project, file, title path), where the title path is the describe titles plus
-  the test title without the file suite. Two tests with one identity in one report are recorded as
-  ambiguous. First-error lines are the first non-empty line after ANSI removal, scrubbed by the
-  shared run-hygiene and secret screens, and limited to 240 bytes. An error location under
-  `config.rootDir` is made rootDir-relative; any other location is secret-screened. The reader
-  writes nothing and uses no network.
+  `REPORT_NOT_PLAYWRIGHT_JSON`); unknown test or result statuses and a test without `projectName`
+  are refused, never mapped. A test's stable identity is (project, file, title path), where the
+  title path is the describe titles plus the test title without the file suite. Two tests with one
+  identity in one report are recorded as ambiguous. First-error lines are the first non-empty line
+  after ANSI removal, scrubbed by the shared run-hygiene and secret screens, and limited to 240
+  bytes. Paths are read in either slash or backslash syntax and emitted as cleaned slash paths; an
+  error location under `config.rootDir` is made rootDir-relative. Every emitted identity part,
+  location, version and declared input is secret-screened, while matching and pooling use the
+  unscreened values so screening never merges two tests. The reader writes nothing and uses no
+  network.
 - `PWR-V0-002`: Runs pool only at identical identity inputs: the Playwright version plus the
   `applicationRevision`, `configDigest` and `testFileBlobs[file]` values the run declares under
   `config.metadata.corvintRunIdentity`. Nothing is inferred from paths, timestamps or report
   content; a report without the declaration, or a test whose file has no declared blob, yields
-  `IDENTITY_INPUT_MISSING`. A changed test file blob is a different pool.
+  `IDENTITY_INPUT_MISSING`, as does a file whose declared spellings (for example `a.spec.ts` and
+  `./a.spec.ts`) name different blobs. A changed test file blob is a different pool.
 - `PWR-V0-003`: `Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes
   differ or any run is Playwright-`flaky` (at any run count, listing the distinct first-error lines in
   run order); `DETERMINISTIC` only when at least `minRuns` (default 3, minimum 2, maximum 64) runs
@@ -71,19 +75,22 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   otherwise `SAME`.
 - `PWR-V0-007`: A failed assertion's origin MUST come only from its reported location: `TEST_FILE`
   when it is the test's own file, `SUPPORT` for any other file (a page object, helper or fixture), and
-  `UNKNOWN` without a location. The matcher is the `expect(...).matcher` name in the error text, or
+  `UNKNOWN` without a location. The matcher is the `expect(...)` matcher name in the error text,
+  including any `not`, `resolves` or `rejects` modifiers (for example `resolves.not.toHaveText`), or
   empty. A difference only in `SUPPORT` assertions keeps the test `SAME`, sets `supportDifference`,
   and is counted in `summary.supportDifferences` and the reason `SUPPORT_ASSERTIONS_DIFFER`.
 - `PWR-V0-008`: The overall verdict MUST be `INCOMPARABLE` with every applicable reason, in the fixed
   order `REPORT_UNREADABLE` (with a problem row naming side, 1-based report and the refusal reason;
-  no test rows), `PLAYWRIGHT_VERSION_DIFFERS`, `PROJECTS_DIFFER`, `CONFIG_DIFFERS` (every report
+  no test rows), `PLAYWRIGHT_VERSION_DIFFERS`, `PROJECTS_DIFFER` (the test projects or the configured `config.projects` names differ),
+  `CONFIG_DIFFERS` (every report
   declares a `configDigest` and they differ), `INPUTS_DIFFER_WITHIN_SIDE` (declared identity inputs
-  differ among one side's repeats), `REPORT_HAS_ERRORS` (top-level report errors), `NO_TESTS`,
-  `IDENTITY_AMBIGUOUS` and `RUN_INTERRUPTED`. Otherwise it is `DIVERGED` with `TESTS_CHANGED`,
+  differ among the declaring reports of one side, in any order), `REPORT_HAS_ERRORS` (top-level report errors), `NO_TESTS`,
+  `IDENTITY_AMBIGUOUS` and `RUN_INTERRUPTED`; an unreadable report does not suppress the reasons the
+  admitted reports show. Otherwise it is `DIVERGED` with `TESTS_CHANGED`,
   `TESTS_MISSING` or `TESTS_NEW`, or else `PARITY`. A report without the identity declaration adds
   the unknown `IDENTITY_INPUTS_NOT_DECLARED` instead of being treated as matching.
 - `PWR-V0-009`: Each admitted report MUST be listed per side with its position, SHA-256, Playwright
-  version, projects, whether identity inputs were declared, configured workers, the sorted distinct
+  version, test projects, configured projects, whether identity inputs were declared, configured workers, the sorted distinct
   worker indexes and the summed result duration. Fixture durations and cleanup outcomes MUST be
   `NOT_OBSERVED`, because the json reporter does not serialize them.
 - `PWR-V0-010`: `corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,FILE...]`
@@ -129,15 +136,15 @@ support-only assertion difference stays `SAME` and is reported as a support diff
 
 | Requirement | Implementation | Focused evidence | Status |
 |---|---|---|---|
-| PWR-V0-001 | `internal/playwrightruns` | `TestReaderIdentityAndHygiene`, `TestReadFileRefusesFIFO` | experimental |
-| PWR-V0-002 | `internal/playwrightruns` | `TestStabilityVerdicts` | experimental |
+| PWR-V0-001 | `internal/playwrightruns` | `TestReaderIdentityAndHygiene`, `TestReadFileRefusesFIFO`, `TestReaderAndCompareEdgeCases` | experimental |
+| PWR-V0-002 | `internal/playwrightruns` | `TestStabilityVerdicts`, `TestReaderAndCompareEdgeCases` | experimental |
 | PWR-V0-003 | `internal/playwrightruns` | `TestStabilityVerdicts`, `TestRunsStabilityCLI` | experimental |
 | PWR-V0-004 | `internal/playwrightruns` | `TestStabilityVerdicts` | experimental |
 | PWR-V0-005 | `cmd/corvint/runs.go` | `TestRunsStabilityCLI` | experimental |
 | PWR-V0-006 | `internal/playwrightruns` | `TestCompareVerdicts` | experimental |
-| PWR-V0-007 | `internal/playwrightruns` | `TestCompareVerdicts` | experimental |
-| PWR-V0-008 | `internal/playwrightruns` | `TestCompareVerdicts`, `TestRunsCompareCLI` | experimental |
-| PWR-V0-009 | `internal/playwrightruns` | `TestCompareVerdicts` | experimental |
+| PWR-V0-007 | `internal/playwrightruns` | `TestCompareVerdicts`, `TestReaderAndCompareEdgeCases` | experimental |
+| PWR-V0-008 | `internal/playwrightruns` | `TestCompareVerdicts`, `TestReaderAndCompareEdgeCases`, `TestRunsCompareCLI` | experimental |
+| PWR-V0-009 | `internal/playwrightruns` | `TestCompareVerdicts`, `TestReaderAndCompareEdgeCases` | experimental |
 | PWR-V0-010 | `cmd/corvint/runs.go` | `TestRunsCompareCLI` | experimental |
 
 Repository-wide gate is `NOT_RUN` in this scoped lane.

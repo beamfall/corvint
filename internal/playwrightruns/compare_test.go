@@ -1,7 +1,9 @@
 package playwrightruns
 
 import (
+	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -142,6 +144,88 @@ func TestCompareVerdicts(t *testing.T) {
 		same := Compare(loaded(t, reportJSON(t, "1.63.0", id, pass1), reportJSON(t, "1.63.0", id, pass1)), loaded(t, reportJSON(t, "1.63.0", candID, pass1)))
 		if same.Verdict != Parity {
 			t.Fatalf("2/2 versus 1/1 passed = %+v", same)
+		}
+	})
+}
+
+// mutate rewrites one generated report document through its decoded JSON form.
+func mutate(t *testing.T, raw []byte, edit func(doc map[string]any)) []byte {
+	t.Helper()
+	doc := map[string]any{}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	edit(doc)
+	out, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func TestReaderAndCompareEdgeCases(t *testing.T) {
+	id := identity("app-7", "cfg-1", blobsA)
+	t.Run("PWR-V0-001 a test without projectName is refused", func(t *testing.T) {
+		raw := mutate(t, reportJSON(t, "1.63.0", id, cartTest(false, pass())), func(doc map[string]any) {
+			test := doc["suites"].([]any)[0].(map[string]any)["suites"].([]any)[0].(map[string]any)["specs"].([]any)[0].(map[string]any)["tests"].([]any)[0].(map[string]any)
+			delete(test, "projectName")
+		})
+		if _, err := Parse(raw); err != ErrShape {
+			t.Fatalf("err = %v", err)
+		}
+	})
+	t.Run("PWR-V0-001 PWR-V0-007 report-syntax paths and assertion modifiers", func(t *testing.T) {
+		raw := mutate(t, reportJSON(t, "1.63.0", id,
+			cartTest(false, fail("Error: expect(page.locator('#a')).resolves.not.toHaveText(expected) failed", `C:\work\e2e\cart.spec.ts`, 9))), func(doc map[string]any) {
+			doc["config"].(map[string]any)["rootDir"] = `C:\work\e2e`
+		})
+		got := mustParse(t, raw).Tests[0].Results[0].Failures
+		want := []Assertion{{Origin: OriginTestFile, Matcher: "resolves.not.toHaveText", File: "cart.spec.ts", Line: 9}}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("failures = %+v", got)
+		}
+	})
+	t.Run("PWR-V0-002 conflicting blob spellings are not resolved", func(t *testing.T) {
+		conflicting := identity("app-7", "cfg-1", map[string]string{"cart.spec.ts": "1111", "./cart.spec.ts": "2222"})
+		runs := []*Run{mustParse(t, reportJSON(t, "1.63.0", conflicting, cartTest(false, pass()))), mustParse(t, reportJSON(t, "1.63.0", conflicting, cartTest(false, pass())))}
+		e := Stability(runs, 2).Tests
+		if len(e) != 1 || e[0].Verdict != Insufficient || e[0].Reason != ReasonInputsMissing {
+			t.Fatalf("entries = %+v", e)
+		}
+	})
+	t.Run("PWR-V0-001 identities are screened on output and never merged", func(t *testing.T) {
+		a, b := cartTest(false, pass()), cartTest(false, pass())
+		a.title, b.title = "login token=abc123", "login token=def456"
+		run := mustParse(t, reportJSON(t, "1.63.0", id, a, b))
+		entries := Stability([]*Run{run, run}, 2).Tests
+		if len(entries) != 2 {
+			t.Fatalf("entries = %+v", entries)
+		}
+		raw, _ := json.Marshal(entries)
+		cmp, _ := json.Marshal(Compare(loaded(t, reportJSON(t, "1.63.0", id, a, b)), loaded(t, reportJSON(t, "1.63.0", id, a, b))))
+		if strings.Contains(string(raw), "abc123") || strings.Contains(string(cmp), "def456") || strings.Count(string(cmp), `"verdict":"SAME"`) != 2 {
+			t.Fatalf("stability = %s compare = %s", raw, cmp)
+		}
+	})
+	t.Run("PWR-V0-008 every applicable reason is kept", func(t *testing.T) {
+		base := reportJSON(t, "1.63.0", id, cartTest(false, pass()))
+		r := Compare(loaded(t, base), append(loaded(t, reportJSON(t, "1.64.0", id, cartTest(false, pass()))), Loaded{Err: ErrUnreadable}))
+		if !reflect.DeepEqual(r.Reasons, []string{ReasonReportUnreadable, ReasonVersionDiffers}) || len(r.Tests) != 0 {
+			t.Fatalf("unreadable plus version = %+v", r)
+		}
+		otherCfg := identity("app-8", "cfg-1", blobsA)
+		undeclared := reportJSON(t, "1.63.0", nil, cartTest(false, pass()))
+		for _, order := range [][][]byte{{undeclared, base, reportJSON(t, "1.63.0", otherCfg, cartTest(false, pass()))}, {base, undeclared, reportJSON(t, "1.63.0", otherCfg, cartTest(false, pass()))}} {
+			if r := Compare(loaded(t, order...), loaded(t, base)); !reflect.DeepEqual(r.Reasons, []string{ReasonInputsDifferInSide}) {
+				t.Fatalf("within-side order: reasons = %v", r.Reasons)
+			}
+		}
+		configured := mutate(t, base, func(doc map[string]any) {
+			doc["config"].(map[string]any)["projects"] = []any{map[string]any{"name": "chromium"}, map[string]any{"name": "webkit"}}
+		})
+		r = Compare(loaded(t, base), loaded(t, configured))
+		if !reflect.DeepEqual(r.Reasons, []string{ReasonProjectsDiffer}) || !reflect.DeepEqual(r.Reports[SideCandidate][0].ConfiguredProjects, []string{"chromium", "webkit"}) {
+			t.Fatalf("configured projects = %+v", r)
 		}
 	})
 }

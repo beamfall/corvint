@@ -53,16 +53,17 @@ type Loaded struct {
 // ReportFacts are one report's identity and the resource facts the json reporter carries
 // (PWR-V0-009). Fixture durations and cleanup outcomes are not serialized by the reporter.
 type ReportFacts struct {
-	Report            int      `json:"report"`
-	Sha256            string   `json:"sha256"`
-	PlaywrightVersion string   `json:"playwrightVersion"`
-	Projects          []string `json:"projects"`
-	IdentityInputs    string   `json:"identityInputs"` // DECLARED | NOT_DECLARED
-	Workers           int      `json:"workers"`
-	WorkerIndexes     []int    `json:"workerIndexes"`
-	ResultDurationMS  int64    `json:"resultDurationMS"`
-	FixtureDurations  string   `json:"fixtureDurations"`
-	Cleanup           string   `json:"cleanup"`
+	Report             int      `json:"report"`
+	Sha256             string   `json:"sha256"`
+	PlaywrightVersion  string   `json:"playwrightVersion"`
+	Projects           []string `json:"projects"`
+	ConfiguredProjects []string `json:"configuredProjects"`
+	IdentityInputs     string   `json:"identityInputs"` // DECLARED | NOT_DECLARED
+	Workers            int      `json:"workers"`
+	WorkerIndexes      []int    `json:"workerIndexes"`
+	ResultDurationMS   int64    `json:"resultDurationMS"`
+	FixtureDurations   string   `json:"fixtureDurations"`
+	Cleanup            string   `json:"cleanup"`
 }
 
 // Problem names one report that could not be admitted.
@@ -150,10 +151,13 @@ func Compare(baseline, candidate []Loaded) CompareReport {
 			reasons[ReasonNoTests] = true
 		}
 	}
-	if reasons[ReasonReportUnreadable] || reasons[ReasonNoTests] {
+	if len(sides[SideBaseline])+len(sides[SideCandidate]) > 0 {
+		comparability(sides, reasons, &report)
+	}
+	// Test rows are withheld unless every report was admitted on both sides.
+	if reasons[ReasonReportUnreadable] || len(sides[SideBaseline]) == 0 || len(sides[SideCandidate]) == 0 {
 		return finish(report, reasons)
 	}
-	comparability(sides, reasons, &report)
 	entries(sides, &report)
 	if !hasIncomparable(reasons) {
 		s := report.Summary
@@ -209,10 +213,16 @@ func finish(report CompareReport, reasons map[string]bool) CompareReport {
 }
 
 func facts(index int, run *Run) ReportFacts {
-	f := ReportFacts{Report: index, Sha256: run.Sha256, PlaywrightVersion: run.Version, Projects: append([]string{}, run.Projects...),
+	f := ReportFacts{Report: index, Sha256: run.Sha256, PlaywrightVersion: screenText(run.Version), Projects: []string{}, ConfiguredProjects: []string{},
 		IdentityInputs: "NOT_DECLARED", Workers: run.Workers, WorkerIndexes: []int{}, FixtureDurations: NotObserved, Cleanup: NotObserved}
 	if run.InputsDeclared {
 		f.IdentityInputs = "DECLARED"
+	}
+	for _, p := range run.Projects {
+		f.Projects = append(f.Projects, screenText(p))
+	}
+	for _, p := range run.ConfiguredProjects {
+		f.ConfiguredProjects = append(f.ConfiguredProjects, screenText(p))
 	}
 	seen := map[int]bool{}
 	for _, t := range run.Tests {
@@ -238,7 +248,7 @@ func comparability(sides map[string][]*Run, reasons map[string]bool, report *Com
 		if run.Version != first.Version {
 			reasons[ReasonVersionDiffers] = true
 		}
-		if !reflect.DeepEqual(run.Projects, first.Projects) {
+		if !reflect.DeepEqual(run.Projects, first.Projects) || !reflect.DeepEqual(run.ConfiguredProjects, first.ConfiguredProjects) {
 			reasons[ReasonProjectsDiffer] = true
 		}
 		if run.ReportErrors > 0 {
@@ -264,10 +274,15 @@ func comparability(sides map[string][]*Run, reasons map[string]bool, report *Com
 		reasons[ReasonConfigDiffers] = true
 	}
 	for _, side := range []string{SideBaseline, SideCandidate} {
-		runs := sides[side]
-		for _, run := range runs {
-			if run.InputsDeclared && runs[0].InputsDeclared && !reflect.DeepEqual(run.Inputs, runs[0].Inputs) {
-				reasons[ReasonInputsDifferInSide] = true
+		var declared *Inputs
+		for _, run := range sides[side] {
+			if run.InputsDeclared {
+				if declared != nil && !reflect.DeepEqual(run.Inputs, *declared) {
+					reasons[ReasonInputsDifferInSide] = true
+				}
+				if declared == nil {
+					declared = &run.Inputs
+				}
 			}
 			if len(run.Tests) == 0 {
 				reasons[ReasonNoTests] = true
@@ -302,7 +317,7 @@ func entries(sides map[string][]*Run, report *CompareReport) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		e := CompareEntry{Identity: ids[k], Differences: []string{}}
+		e := CompareEntry{Identity: ids[k].presented(), Differences: []string{}}
 		base, cand := per[SideBaseline][k], per[SideCandidate][k]
 		if base != nil {
 			e.Baseline = sideTest(base)

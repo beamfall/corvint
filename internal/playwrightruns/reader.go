@@ -15,7 +15,6 @@ import (
 	"io"
 	"math"
 	"path"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -99,15 +98,16 @@ type Test struct {
 
 // Run is one admitted report.
 type Run struct {
-	Sha256         string
-	Version        string
-	Workers        int
-	Projects       []string // sorted distinct project names seen on tests
-	Inputs         Inputs
-	InputsDeclared bool
-	ReportErrors   int // top-level report errors, such as a spec file that failed to load
-	Tests          []Test
-	Ambiguous      map[string]bool // identity keys that occur more than once
+	Sha256             string
+	Version            string
+	Workers            int
+	Projects           []string // sorted distinct project names seen on tests
+	ConfiguredProjects []string // sorted distinct config.projects names
+	Inputs             Inputs
+	InputsDeclared     bool
+	ReportErrors       int // top-level report errors, such as a spec file that failed to load
+	Tests              []Test
+	Ambiguous          map[string]bool // identity keys that occur more than once
 }
 
 type jsonReport struct {
@@ -116,6 +116,9 @@ type jsonReport struct {
 		RootDir  string          `json:"rootDir"`
 		Workers  int             `json:"workers"`
 		Metadata json.RawMessage `json:"metadata"`
+		Projects []struct {
+			Name string `json:"name"`
+		} `json:"projects"`
 	} `json:"config"`
 	Errors []json.RawMessage `json:"errors"`
 	Suites *[]jsonSuite      `json:"suites"`
@@ -135,9 +138,9 @@ type jsonSpec struct {
 }
 
 type jsonTest struct {
-	ProjectName    string `json:"projectName"`
-	ExpectedStatus string `json:"expectedStatus"`
-	Status         string `json:"status"`
+	ProjectName    *string `json:"projectName"`
+	ExpectedStatus string  `json:"expectedStatus"`
+	Status         string  `json:"status"`
 	Annotations    []struct {
 		Type string `json:"type"`
 	} `json:"annotations"`
@@ -166,8 +169,9 @@ var (
 	testStatuses   = map[string]bool{"expected": true, "unexpected": true, "flaky": true, "skipped": true}
 	ansi           = regexp.MustCompile("\x1b\\[[0-9;]*[A-Za-z]")
 	// matcherCall finds the expect matcher a Playwright assertion message names, such as
-	// `expect(locator).toHaveText(expected)` or `expect(received).not.toBe(expected)`.
-	matcherCall = regexp.MustCompile(`expect(?:\.soft|\.poll)?\((?:[^()]|\([^()]*\))*\)\.((?:not\.)?[A-Za-z]+)`)
+	// `expect(locator).toHaveText(expected)`, `expect(received).not.toBe(expected)` or
+	// `expect(received).rejects.toThrow()`; promise and negation modifiers stay part of the name.
+	matcherCall = regexp.MustCompile(`expect(?:\.soft|\.poll)?\((?:[^()]|\([^()]*\))*\)\.((?:(?:not|resolves|rejects)\.)*[A-Za-z]+)`)
 )
 
 // ReadFile reads and parses one report. Only a regular file is read, without blocking on a FIFO,
@@ -210,6 +214,15 @@ func Parse(raw []byte) (*Run, error) {
 	run := &Run{Sha256: hex.EncodeToString(sum[:]), Version: doc.Config.Version, Workers: doc.Config.Workers,
 		ReportErrors: len(doc.Errors), Ambiguous: map[string]bool{}, Tests: []Test{}}
 	run.Inputs, run.InputsDeclared = declaredInputs(doc.Config.Metadata)
+	run.ConfiguredProjects = []string{}
+	configured := map[string]bool{}
+	for _, p := range doc.Config.Projects {
+		if !configured[p.Name] {
+			configured[p.Name] = true
+			run.ConfiguredProjects = append(run.ConfiguredProjects, p.Name)
+		}
+	}
+	sort.Strings(run.ConfiguredProjects)
 	r := reader{run: run, root: doc.Config.RootDir, seen: map[string]bool{}, projects: map[string]bool{}}
 	for _, s := range *doc.Suites {
 		if err := r.suite(s, nil, true); err != nil {
@@ -259,15 +272,15 @@ func (r *reader) test(file string, titles []string, t jsonTest) error {
 	if len(r.run.Tests) >= MaxTests || len(t.Results) > MaxResultsPerTest {
 		return ErrTooLarge
 	}
-	if file == "" || !testStatuses[t.Status] {
+	if file == "" || t.ProjectName == nil || !testStatuses[t.Status] {
 		return ErrShape
 	}
-	id := Identity{Project: t.ProjectName, File: path.Clean(filepath.ToSlash(file)), TitlePath: titles}
+	id := Identity{Project: *t.ProjectName, File: slashPath(file), TitlePath: titles}
 	if r.seen[id.Key()] {
 		r.run.Ambiguous[id.Key()] = true
 	}
 	r.seen[id.Key()] = true
-	r.projects[t.ProjectName] = true
+	r.projects[id.Project] = true
 	test := Test{Identity: id, Status: t.Status, ExpectedFail: t.ExpectedStatus == "failed", Results: []Result{}}
 	for _, a := range t.Annotations {
 		test.ExpectedFail = test.ExpectedFail || a.Type == "fail"
@@ -309,24 +322,45 @@ func (r *reader) assertion(testFile string, e jsonError) Assertion {
 	if e.Location == nil || e.Location.File == "" {
 		return a
 	}
-	a.File, a.Line = r.relative(e.Location.File), e.Location.Line
-	a.Origin = OriginSupport
-	if a.File == testFile {
+	file := r.relative(e.Location.File)
+	a.Origin, a.File, a.Line = OriginSupport, screenText(file), e.Location.Line
+	if file == testFile {
 		a.Origin = OriginTestFile
 	}
 	return a
 }
 
 // relative maps an error location under config.rootDir to the rootDir-relative slash path spec
-// files use; any other path is kept as reported after the secret screen.
+// files use; any other path is kept as reported.
 func (r *reader) relative(file string) string {
-	file = filepath.ToSlash(file)
-	root := strings.TrimSuffix(filepath.ToSlash(r.root), "/")
-	if root != "" && strings.HasPrefix(file, root+"/") {
+	file = slashPath(file)
+	root := strings.TrimSuffix(slashPath(r.root), "/")
+	if r.root != "" && strings.HasPrefix(file, root+"/") {
 		return path.Clean(strings.TrimPrefix(file, root+"/"))
 	}
-	screened, _ := secretscreen.Screen(path.Clean(file))
-	return screened
+	return file
+}
+
+// screenText applies the product secret screen to one emitted string.
+func screenText(s string) string {
+	out, _ := secretscreen.Screen(s)
+	return out
+}
+
+// presented is the identity as emitted: every part secret-screened. Pools and matches stay keyed
+// by the unscreened identity, so screening never merges two tests.
+func (i Identity) presented() Identity {
+	out := Identity{Project: screenText(i.Project), File: screenText(i.File), TitlePath: make([]string, len(i.TitlePath))}
+	for n, title := range i.TitlePath {
+		out.TitlePath[n] = screenText(title)
+	}
+	return out
+}
+
+// slashPath normalizes a reported path by the report's syntax rather than the reading host's:
+// a Windows-produced report uses backslashes, which filepath.ToSlash leaves alone on Unix.
+func slashPath(p string) string {
+	return path.Clean(strings.ReplaceAll(p, `\`, "/"))
 }
 
 // FirstLine is the screened first non-empty line of an error message: ANSI escapes removed, the
@@ -363,8 +397,18 @@ func declaredInputs(raw json.RawMessage) (Inputs, bool) {
 		return Inputs{TestFileBlobs: map[string]string{}}, false
 	}
 	in := Inputs{ApplicationRevision: meta.Identity.ApplicationRevision, ConfigDigest: meta.Identity.ConfigDigest, TestFileBlobs: map[string]string{}}
+	conflicted := map[string]bool{}
 	for file, blob := range meta.Identity.TestFileBlobs {
-		in.TestFileBlobs[path.Clean(filepath.ToSlash(file))] = blob
+		key := slashPath(file)
+		if prior, ok := in.TestFileBlobs[key]; ok && prior != blob {
+			conflicted[key] = true
+		}
+		in.TestFileBlobs[key] = blob
+	}
+	// Two spellings of one file that declare different blobs are ambiguous: the file's blob is
+	// dropped, so its tests abstain with IDENTITY_INPUT_MISSING (PWR-V0-002).
+	for key := range conflicted {
+		delete(in.TestFileBlobs, key)
 	}
 	return in, true
 }

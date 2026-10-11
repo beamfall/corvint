@@ -39,6 +39,15 @@ type PoolInputs struct {
 	TestFileBlob        string `json:"testFileBlob"`
 }
 
+// presented is the inputs as emitted, secret-screened; nil stays nil.
+func (in *PoolInputs) presented() *PoolInputs {
+	if in == nil {
+		return nil
+	}
+	return &PoolInputs{PlaywrightVersion: screenText(in.PlaywrightVersion), ApplicationRevision: screenText(in.ApplicationRevision),
+		ConfigDigest: screenText(in.ConfigDigest), TestFileBlob: screenText(in.TestFileBlob)}
+}
+
 // RunSummary names one admitted report by its 1-based argument position.
 type RunSummary struct {
 	Run               int    `json:"run"`
@@ -101,7 +110,7 @@ func Stability(runs []*Run, minRuns int) StabilityReport {
 		if run.InputsDeclared {
 			declared = "DECLARED"
 		}
-		report.Runs = append(report.Runs, RunSummary{Run: index, Sha256: run.Sha256, PlaywrightVersion: run.Version, IdentityInputs: declared})
+		report.Runs = append(report.Runs, RunSummary{Run: index, Sha256: run.Sha256, PlaywrightVersion: screenText(run.Version), IdentityInputs: declared})
 		for _, t := range run.Tests {
 			o := observation{run: index, outcome: outcomeOf(t), expectedFail: t.ExpectedFail}
 			for _, r := range t.Results {
@@ -115,7 +124,7 @@ func Stability(runs []*Run, minRuns int) StabilityReport {
 			key := t.Key() + "\x00" + reason + "\x00" + string(raw)
 			b := buckets[key]
 			if b == nil {
-				b = &bucket{entry: &StabilityEntry{Identity: t.Identity, Inputs: inputs, Reason: reason}}
+				b = &bucket{entry: &StabilityEntry{Identity: t.Identity.presented(), Inputs: inputs.presented(), Reason: reason}}
 				buckets[key] = b
 			}
 			b.obs = append(b.obs, o)
