@@ -269,7 +269,8 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   every file with an extension Playwright's default `testMatch` accepts
   (`.js`, `.ts`, `.jsx`, `.tsx`, `.mjs`, `.cjs`, `.mts`, `.cts` and their `x` forms), whether or not
   the static profile can parse or read them. It MUST refuse with `unsupported-playwright-discovery`
-  when any enumerated pair is missing from the listing (a stale or filtered listing), when the
+  when any enumerated pair is missing from the listing (a stale or filtered listing) and
+  `TJAA-V0-021` does not account for the omission, when the
   listing names a pair the config does not select (including a file absent from the current
   sources), when a selected file is one the static profile does not parse (such as `.mts` or
   `.cts`) or one it cannot read as bounded UTF-8 source, listed or not, when the config selects a
@@ -292,6 +293,37 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   name `corvint affected discovery`. Both members MUST be absent in every other state. An oversize
   regular discovery file MUST report `MALFORMED`, not `MISSING`; an absent, unreadable or non-regular
   file stays `MISSING`.
+- `TJAA-V0-021`: (proposed, pending owner acceptance (V1-1175); GitHub #790) A project `grep` or
+  `grepInvert` is per-case runtime filtering, not file membership, so a caller-run listing omits a
+  selected (project, file) pair when that project's filter drops every case of the file. When a
+  pair `TJAA-V0-019` enumerates is missing from the listing and its project declares `grep` or
+  `grepInvert`, the producer MUST reconstruct each case of that file the listing names under any
+  project as Playwright's grep title (the project name, the file suite title, each describe title,
+  the test title and each listed tag with its `@`, joined by single spaces) and:
+  (a) when each declared value is a static regular-expression literal, or an array of them, that is
+  evaluable part by part (static under `TJAA-V0-019`, flags only `i`, `m` and `s`, an ASCII body
+  under `i`, and no `.`, `^`, `$`, literal space, `\D`, `\W`, negated class, class containing a
+  character at or below U+0020 or a range starting at `\t`, `\n`, `\r`, `\f` or `\v`), so it matches
+  the joined title exactly when it matches one of its parts, it MUST accept the omission and emit
+  the pair as a unit only when, for every such case, `grepInvert` matches or `grep` (any array
+  element) does not match;
+  (b) when a declared value is not evaluable that way (dynamic, a non-literal, or a construct
+  outside (a)), or a title part is outside the Basic Multilingual Plane or holds U+017F or U+212A
+  under `i`, it MUST emit the pair as a unit and also list it in the optional sorted
+  `unverifiedUnits` member of the receipt;
+  (c) otherwise, including a file the listing names under no project, it MUST refuse as
+  `TJAA-V0-019` does, the message stating that the project's grep/grepInvert does not exclude every
+  listed case of that file. A project without `grep` or `grepInvert` keeps the `TJAA-V0-019`
+  refusal unchanged. A dynamic `grep` or `grepInvert` no longer refuses the listing, because only
+  case filtering depends on it; static selection still reports it as a config-syntax unknown, so the
+  plan stays `STATIC_UNRESOLVED`. A decoded receipt whose `unverifiedUnits` is present but empty,
+  unsorted, duplicated or not a subset of `units` is `MALFORMED` with `INVALID_FIELD`; when a
+  `MATCHED` receipt carries `unverifiedUnits`, the plan MUST add the `EXECUTION` unknown
+  `playwright:discovery-omission-unverified` naming the count and first unit. A case filtered out of
+  every project is absent from the listing, so it cannot be checked; under the caller-declared
+  listing it is excluded for that project too. A tag containing whitespace cannot be told apart
+  from title text and is read as the listing reports it. The per-test listing producer and a
+  top-level `grep` are unchanged.
 
 ## Opt-in Playwright project profile
 
@@ -309,7 +341,9 @@ abstains from runnable units.
 
 The canonical `playwright-discovery/0` object has exactly `config` (`path`, `sha256`), `profile`,
 `revision` (full lower-case Git object ID), `sourceDigest`, and `units` (objects with `project` and
-`test`, sorted by project then path). It describes the complete unfiltered configured listing,
+`test`, sorted by project then path), and optionally `unverifiedUnits`, a non-empty sorted subset
+of `units` whose listing omission a project grep explains only unverifiably (`TJAA-V0-021`,
+proposed). It describes the complete unfiltered configured listing,
 including dependencies and teardowns, not case execution counts. It is caller-declared discovery,
 not authenticated execution attestation. Corvint never executes Playwright or config to produce it;
 `corvint affected discovery` (`TJAA-V0-019`, accepted, decision 0483) only converts a caller-run
@@ -437,6 +471,10 @@ The issue 41 extension can instead be reverted independently: restore the opt-in
 The GitHub #709 extension (`TJAA-V0-018..020`) reverts independently: restore the static-literal
 check for every `use` value, remove `affected discovery` and its producer, and drop the MALFORMED
 `reason`/`detail` members; no persisted format or store is written.
+The GitHub #790 extension (`TJAA-V0-021`, proposed) reverts independently: refuse every
+listing omission again, treat a dynamic project grep as unresolved membership, and drop the optional
+`unverifiedUnits` member and the `playwright:discovery-omission-unverified` unknown; receipts that
+never carried the member are unchanged.
 
 ## Traceability
 
@@ -451,5 +489,6 @@ check for every `use` value, remove `affected discovery` and its producer, and d
 | `TJAA-V0-018` (accepted, decision 0483) | `TestPlaywrightDeviceSpreadBesideRuntimeUseValues_V1_1065`, `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightUseValueUnicodeLineTerminator_V1_1065`, `TestPlaywrightStaticValueNestingIsBounded_V1_1065`, `TestPlaywrightUseValueNestedTemplate_V1_1065`, `TestPlaywrightMemberReadRoots_GH709Round8` in `playwright_example_app_test.go`; `TestPlaywrightSlashStartsRegex` in `playwright_test.go`; `TestUnicodeLineTerminatorsEndCommentsAndLines`, `TestNestedTemplateLiteralsKeepContent` in `typescript_test.go`; `TestPlaywrightScannersSkipNestedTemplates` in `playwright_test.go`; `TestPlaywrightPureExpression`, `TestPlaywrightPureExpressionScopedMemberReads` in `playwright_pure_test.go`; `TestQualifiedReporterIdentityKeysMatchStaticProfile` in `internal/jstestprovider/identity_keys_test.go` | experimental |
 | `TJAA-V0-019` (accepted, decision 0483) | `TestPlaywrightDiscoveryFromListMultiProject_V1_1066`, `TestPlaywrightDiscoveryFromListRefusals_V1_1066`, `TestPlaywrightDiscoveryFromListMembership_V1_1066` in `playwright_discovery_list_test.go`; `TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive`, `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden`, `TestPlaywrightLineTerminatorPathWidensMembership`, `TestPlaywrightRegexBodyAllowlist`, `TestPlaywrightGlobAgreesWithBundledMinimatch` in `playwright_test.go` over a real Playwright 1.61.1 `--list --reporter=json` report (`testdata/playwright-list/multi-project.json`); `TestAffectedPlaywrightDiscoveryProducer_GH709` in `cmd/corvint/affected_playwright_test.go`; `TestAffectedPlaywrightDiscoveryStaleListing_GH709`, `TestAffectedPlaywrightDiscoveryHeadDriftAfterSources_GH709` in `cmd/corvint/affected_playwright_discovery_test.go` | experimental; one real listing shape |
 | `TJAA-V0-020` (accepted, decision 0483) | `TestPlaywrightDiscoveryMalformedReason_V1_1067` in `playwright_discovery_test.go`; `TestAffectedPlaywrightDiscoveryProducer_GH709` | experimental |
+| `TJAA-V0-021` (proposed, V1-1175) | `TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021` (GitHub #790 three-project repro, unexplained and no-grep refusals, dynamic and non-partwise grep, `unverifiedUnits` validation), `TestPlaywrightRegexBodyPartwise_TJAA_V0_021` in `playwright_grep_omission_test.go`; grep-title construction checked against Playwright 1.63 source, not a live run | experimental; hand-built listings, `NOT_RUN` live |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

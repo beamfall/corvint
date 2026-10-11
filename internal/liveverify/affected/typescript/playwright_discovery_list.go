@@ -41,11 +41,12 @@ type playwrightListSuite struct {
 	File  string `json:"file"`
 	Title string `json:"title"`
 	Specs []struct {
-		ID     string `json:"id"`
-		Title  string `json:"title"`
-		File   string `json:"file"`
-		Line   int    `json:"line"`
-		Column int    `json:"column"`
+		ID     string   `json:"id"`
+		Title  string   `json:"title"`
+		Tags   []string `json:"tags"`
+		File   string   `json:"file"`
+		Line   int      `json:"line"`
+		Column int      `json:"column"`
 		Tests  []struct {
 			ProjectName *string `json:"projectName"`
 		} `json:"tests"`
@@ -59,8 +60,11 @@ type playwrightListSuite struct {
 // digest (TJAA-V0-019). Playwright reports each spec file relative to its rootDir; the producer
 // rewrites it to the repository-relative path the static profile uses. It refuses a listing
 // that reports errors, was filtered or sharded, names another config, or names a test outside
-// root. The listing stays caller-declared evidence: the producer cannot prove it was taken from
-// the bytes it binds.
+// root. A (project, file) pair the config selects but the listing omits is accepted only when the
+// project declares grep or grepInvert: it becomes a unit when the static pattern excludes every
+// listed case of that file, or a unit recorded in unverifiedUnits when the pattern is not
+// statically evaluable (TJAA-V0-021). The listing stays caller-declared evidence: the producer
+// cannot prove it was taken from the bytes it binds.
 func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []byte) ([]byte, error) {
 	if !playwrightHex(revision, 40) && !playwrightHex(revision, 64) {
 		return nil, errors.New("revision is not a full lowercase object id")
@@ -70,22 +74,27 @@ func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []by
 		return nil, err
 	}
 	seen := map[PlaywrightDiscoveryUnit]bool{}
-	if err := collectPlaywrightListUnits(realRoot, report.Config.RootDir, "", report.Suites, 0, seen); err != nil {
+	cases := map[string][][]string{}
+	if err := collectPlaywrightListUnits(realRoot, report.Config.RootDir, "", nil, report.Suites, 0, seen, cases); err != nil {
 		return nil, err
 	}
-	units := make([]PlaywrightDiscoveryUnit, 0, len(seen))
-	for unit := range seen {
-		units = append(units, unit)
-	}
-	sort.Slice(units, func(i, j int) bool { return discoveryUnitLess(units[i], units[j]) })
-	configBytes, sourceDigest, err := observePlaywrightListMembership(root, configPath, seen, nil)
+	configBytes, sourceDigest, omissions, err := observePlaywrightListMembership(root, configPath, seen, nil, cases)
 	if err != nil {
 		return nil, err
 	}
+	units := make([]PlaywrightDiscoveryUnit, 0, len(seen)+len(omissions.explained)+len(omissions.unverified))
+	for unit := range seen {
+		units = append(units, unit)
+	}
+	units = append(append(units, omissions.explained...), omissions.unverified...)
+	sort.Slice(units, func(i, j int) bool { return discoveryUnitLess(units[i], units[j]) })
 	sum := sha256.Sum256(configBytes)
 	receipt := PlaywrightDiscovery{
 		Config: PlaywrightConfigIdentity{Path: configPath, SHA256: hex.EncodeToString(sum[:])}, Profile: "playwright-discovery/0",
 		Revision: revision, SourceDigest: sourceDigest, Units: units,
+	}
+	if len(omissions.unverified) != 0 {
+		receipt.UnverifiedUnits = omissions.unverified
 	}
 	raw, err := json.Marshal(receipt, json.Deterministic(true))
 	if err != nil {
@@ -147,39 +156,53 @@ func validatePlaywrightListing(root, configPath string, listing []byte) (playwri
 // project/file pairs against the pairs the config selects in the current sources (and, when
 // revisionPaths is not nil, among those repository-relative paths of a pinned revision), and
 // refuses when the sources changed during the check. It returns the config bytes and the
-// source digest it observed.
-func observePlaywrightListMembership(root, configPath string, listed map[PlaywrightDiscoveryUnit]bool, revisionPaths []string) ([]byte, string, error) {
+// source digest it observed. When cases is not nil, it holds each listed file's grep-title tokens
+// and an omitted pair is classified against the project's grep/grepInvert instead of refused
+// outright (TJAA-V0-021); when cases is nil every omission is refused.
+func observePlaywrightListMembership(root, configPath string, listed map[PlaywrightDiscoveryUnit]bool, revisionPaths []string, cases map[string][][]string) ([]byte, string, playwrightGrepOmissions, error) {
+	none := playwrightGrepOmissions{}
 	sourceDigest, err := ObservePlaywrightSources(root, configPath)
 	if err != nil {
-		return nil, "", err
+		return nil, "", none, err
 	}
 	configBytes, err := affected.ReadSource(root, configPath)
 	if err != nil || !utf8.Valid(configBytes) {
-		return nil, "", errors.New("playwright config is unreadable")
+		return nil, "", none, errors.New("playwright config is unreadable")
 	}
-	if err := checkPlaywrightListMembership(root, configPath, configBytes, listed); err != nil {
-		return nil, "", err
+	omissions, err := checkPlaywrightListMembership(root, configPath, configBytes, listed, cases)
+	if err != nil {
+		return nil, "", none, err
 	}
 	if revisionPaths != nil {
 		if err := checkPlaywrightRevisionMembership(root, configPath, configBytes, listed, revisionPaths); err != nil {
-			return nil, "", err
+			return nil, "", none, err
 		}
 	}
 	if after, err := ObservePlaywrightSources(root, configPath); err != nil || after != sourceDigest {
-		return nil, "", errors.New("playwright sources changed while the listing was checked")
+		return nil, "", none, errors.New("playwright sources changed while the listing was checked")
 	}
-	return configBytes, sourceDigest, nil
+	return configBytes, sourceDigest, omissions, nil
 }
 
 // staticPlaywrightProjects returns the projects whose test membership the static profile decides.
 // Only an unresolved browser identity, which does not decide file membership, is tolerated, and a
-// config without projects is Playwright's one unnamed default project.
-func staticPlaywrightProjects(configPath string, configBytes []byte) ([]PlaywrightProject, string, error) {
+// config without projects is Playwright's one unnamed default project. When dynamicGrep is true a
+// dynamic project grep or grepInvert, which is case identity rather than file membership, is
+// tolerated as well (TJAA-V0-021).
+func staticPlaywrightProjects(configPath string, configBytes []byte, dynamicGrep bool) ([]PlaywrightProject, string, error) {
 	projects, globalTestDir, unknown := parsePlaywrightConfig(configPath, string(configBytes))
+	grepDetails := map[string]bool{}
+	if dynamicGrep {
+		for _, project := range projects {
+			grepDetails[project.Name+" grep is dynamic"] = project.hasGrep && project.Grep == ""
+			grepDetails[project.Name+" grepInvert is dynamic"] = project.hasGrepInvert && project.GrepInvert == ""
+		}
+	}
 	implicit := false
 	for _, entry := range unknown {
 		switch {
 		case entry.Reason == PlaywrightUnknownBrowserIdentity:
+		case entry.Reason == PlaywrightUnknownConfigSyntax && grepDetails[entry.Detail]:
 		case entry.Reason == PlaywrightUnknownProjectSet && entry.Detail == "projects is absent" && len(projects) == 0:
 			implicit = true
 		default:
@@ -197,7 +220,7 @@ func staticPlaywrightProjects(configPath string, configBytes []byte) ([]Playwrig
 // but absent from the working tree the listing observed cannot shrink the denominator. Files below
 // a node_modules directory are not candidates, because Playwright never loads them.
 func checkPlaywrightRevisionMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool, revisionPaths []string) error {
-	projects, globalTestDir, err := staticPlaywrightProjects(configPath, configBytes)
+	projects, globalTestDir, err := staticPlaywrightProjects(configPath, configBytes, false)
 	if err != nil {
 		return err
 	}
@@ -226,36 +249,38 @@ func checkPlaywrightRevisionMembership(root, configPath string, configBytes []by
 // Membership that is not static is refused as well; only an unresolved browser identity, which
 // does not decide file membership, is tolerated, and a config without projects is Playwright's
 // one unnamed default project. A selected file the static profile cannot parse or read as UTF-8 is
-// refused too.
-func checkPlaywrightListMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool) error {
-	projects, globalTestDir, err := staticPlaywrightProjects(configPath, configBytes)
+// refused too. When cases is not nil an omitted pair whose project declares grep or grepInvert is
+// classified by classifyPlaywrightGrepOmission (TJAA-V0-021) instead of refused.
+func checkPlaywrightListMembership(root, configPath string, configBytes []byte, listed map[PlaywrightDiscoveryUnit]bool, cases map[string][][]string) (playwrightGrepOmissions, error) {
+	omissions := playwrightGrepOmissions{}
+	projects, globalTestDir, err := staticPlaywrightProjects(configPath, configBytes, cases != nil)
 	if err != nil {
-		return err
+		return omissions, err
 	}
 	if err := checkPlaywrightSkippedDirectories(root, configPath, projects, globalTestDir); err != nil {
-		return err
+		return omissions, err
 	}
 	// Candidates are found by path alone, so a test file the static profile cannot parse or read
 	// (.mts, .cts, non-UTF-8) still counts toward membership instead of disappearing from it.
 	candidates, err := affected.SourceFiles(root, playwrightLoadableName)
 	if err != nil {
-		return err
+		return omissions, err
 	}
 	if index := slices.IndexFunc(candidates, playwrightPathOutsideMatcherModel); index >= 0 {
-		return fmt.Errorf("candidate test path %q contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", candidates[index])
+		return omissions, fmt.Errorf("candidate test path %q contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", candidates[index])
 	}
 	selected := map[PlaywrightDiscoveryUnit]bool{}
 	readable := map[string]bool{}
 	for _, unit := range playwrightUnits(root, configPath, projects, globalTestDir, candidates) {
 		if !hasSourceExtension(unit.Test) {
-			return fmt.Errorf("the config selects project %q test %s, which the static profile does not parse; the listing's membership cannot be checked", unit.Project, unit.Test)
+			return omissions, fmt.Errorf("the config selects project %q test %s, which the static profile does not parse; the listing's membership cannot be checked", unit.Project, unit.Test)
 		}
 		if _, checked := readable[unit.Test]; !checked {
 			body, err := affected.ReadSource(root, unit.Test)
 			readable[unit.Test] = err == nil && utf8.Valid(body)
 		}
 		if !readable[unit.Test] {
-			return fmt.Errorf("the config selects project %q test %s, which the static profile cannot read as bounded UTF-8 source; the listing's membership cannot be checked", unit.Project, unit.Test)
+			return omissions, fmt.Errorf("the config selects project %q test %s, which the static profile cannot read as bounded UTF-8 source; the listing's membership cannot be checked", unit.Project, unit.Test)
 		}
 		selected[PlaywrightDiscoveryUnit{Project: unit.Project, Test: unit.Test}] = true
 	}
@@ -265,23 +290,44 @@ func checkPlaywrightListMembership(root, configPath string, configBytes []byte, 
 			extra = append(extra, unit)
 		}
 	}
+	byName := map[string]PlaywrightProject{}
+	for _, project := range projects {
+		byName[project.Name] = project
+	}
 	for unit := range selected {
-		if !listed[unit] {
-			missing = append(missing, unit)
+		if listed[unit] {
+			continue
 		}
+		if project := byName[unit.Project]; cases != nil && (project.hasGrep || project.hasGrepInvert) {
+			switch classifyPlaywrightGrepOmission(project, cases[unit.Test]) {
+			case playwrightOmissionExplained:
+				omissions.explained = append(omissions.explained, unit)
+				continue
+			case playwrightOmissionUnverified:
+				omissions.unverified = append(omissions.unverified, unit)
+				continue
+			}
+		}
+		missing = append(missing, unit)
 	}
 	less := func(values []PlaywrightDiscoveryUnit) func(i, j int) bool {
 		return func(i, j int) bool { return discoveryUnitLess(values[i], values[j]) }
 	}
 	sort.Slice(extra, less(extra))
 	sort.Slice(missing, less(missing))
+	sort.Slice(omissions.explained, less(omissions.explained))
+	sort.Slice(omissions.unverified, less(omissions.unverified))
 	if len(missing) != 0 {
-		return fmt.Errorf("playwright listing omits project %q test %s (%d pair(s) in all), which the config selects in the current sources; the listing is stale or filtered", missing[0].Project, missing[0].Test, len(missing))
+		grep := ""
+		if project := byName[missing[0].Project]; cases != nil && (project.hasGrep || project.hasGrepInvert) {
+			grep = ", and the project's grep/grepInvert does not exclude every listed case of that file"
+		}
+		return omissions, fmt.Errorf("playwright listing omits project %q test %s (%d pair(s) in all), which the config selects in the current sources%s; the listing is stale or filtered", missing[0].Project, missing[0].Test, len(missing), grep)
 	}
 	if len(extra) != 0 {
-		return fmt.Errorf("playwright listing names project %q test %s (%d pair(s) in all), which the config does not select in the current sources", extra[0].Project, extra[0].Test, len(extra))
+		return omissions, fmt.Errorf("playwright listing names project %q test %s (%d pair(s) in all), which the config does not select in the current sources", extra[0].Project, extra[0].Test, len(extra))
 	}
-	return nil
+	return omissions, nil
 }
 
 // checkPlaywrightSkippedDirectories refuses when the config selects a test file inside a directory
@@ -408,7 +454,10 @@ func unfilteredPlaywrightArgv(argv []string) error {
 	return nil
 }
 
-func collectPlaywrightListUnits(realRoot, rootDir, file string, suites []playwrightListSuite, depth int, seen map[PlaywrightDiscoveryUnit]bool) error {
+// collectPlaywrightListUnits records every listed (project, file) pair in seen and, when cases is
+// not nil, each listed case's grep-title tokens without the project name under its file: the
+// enclosing suite titles (file, then describes), the spec title and each tag with its `@`.
+func collectPlaywrightListUnits(realRoot, rootDir, file string, titles []string, suites []playwrightListSuite, depth int, seen map[PlaywrightDiscoveryUnit]bool, cases map[string][][]string) error {
 	if depth > playwrightListMaxDepth {
 		return errors.New("playwright listing suites nest too deeply")
 	}
@@ -417,6 +466,7 @@ func collectPlaywrightListUnits(realRoot, rootDir, file string, suites []playwri
 		if suite.File != "" {
 			suiteFile = suite.File
 		}
+		suiteTitles := append(slices.Clip(titles), suite.Title)
 		for _, spec := range suite.Specs {
 			specFile := suiteFile
 			if spec.File != "" {
@@ -435,8 +485,15 @@ func collectPlaywrightListUnits(realRoot, rootDir, file string, suites []playwri
 				}
 				seen[PlaywrightDiscoveryUnit{Project: *entry.ProjectName, Test: test}] = true
 			}
+			if cases != nil {
+				tokens := append(slices.Clone(suiteTitles), spec.Title)
+				for _, tag := range spec.Tags {
+					tokens = append(tokens, "@"+tag)
+				}
+				cases[test] = append(cases[test], tokens)
+			}
 		}
-		if err := collectPlaywrightListUnits(realRoot, rootDir, suiteFile, suite.Suites, depth+1, seen); err != nil {
+		if err := collectPlaywrightListUnits(realRoot, rootDir, suiteFile, suiteTitles, suite.Suites, depth+1, seen, cases); err != nil {
 			return err
 		}
 	}

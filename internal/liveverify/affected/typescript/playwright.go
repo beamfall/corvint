@@ -34,6 +34,7 @@ const (
 	PlaywrightUnknownBrowserIdentity     = "playwright:browser-identity-unresolved"
 	PlaywrightUnknownDynamicSource       = "playwright:dynamic-source-reachability"
 	PlaywrightUnknownExternalApplication = "playwright:external-application-state"
+	PlaywrightUnknownDiscoveryOmission   = "playwright:discovery-omission-unverified"
 )
 
 type PlaywrightConfigIdentity struct {
@@ -58,6 +59,9 @@ type PlaywrightProject struct {
 
 	matchers []playwrightMatcher
 	ignores  []playwrightMatcher
+	// hasGrep and hasGrepInvert record that the project declares the member, even when its
+	// value is dynamic and Grep or GrepInvert is therefore empty (TJAA-V0-021).
+	hasGrep, hasGrepInvert bool
 }
 
 type PlaywrightWitness struct {
@@ -579,6 +583,8 @@ func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir
 	}
 	project.Grep, unknown = playwrightStaticIdentity(name, "grep", properties, unknown)
 	project.GrepInvert, unknown = playwrightStaticIdentity(name, "grepInvert", properties, unknown)
+	_, project.hasGrep = properties["grep"]
+	_, project.hasGrepInvert = properties["grepInvert"]
 	if metadata, exists := properties["metadata"]; exists {
 		if !playwrightStaticValue(metadata) {
 			unknown = append(unknown, selectionUnknown(PlaywrightUnknownConfigSyntax, name+" metadata is dynamic"))
@@ -624,7 +630,20 @@ func playwrightStaticIdentity(project, member string, properties map[string]stri
 	if !exists {
 		return "", unknown
 	}
-	if _, ok := compilePlaywrightMatcher(raw); !ok {
+	static := false
+	if _, ok := compilePlaywrightMatcher(raw); ok {
+		static = true
+	} else if items, array := playwrightArrayItems(raw); array {
+		// An array of static matchers is static identity too: Playwright matches any of them.
+		static = true
+		for _, item := range items {
+			if _, ok := compilePlaywrightMatcher(item); !ok {
+				static = false
+				break
+			}
+		}
+	}
+	if !static {
 		return "", append(unknown, selectionUnknown(PlaywrightUnknownConfigSyntax, project+" "+member+" is dynamic"))
 	}
 	return strings.TrimSpace(raw), unknown
