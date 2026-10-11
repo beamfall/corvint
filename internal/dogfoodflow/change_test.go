@@ -467,3 +467,17 @@ func TestAggregateReportClosedVersionAndWhitespace(t *testing.T) {
 		})
 	}
 }
+
+// DCW-V0-041: a refused citation row names the plan row and what a row may
+// cite: any regular file at BASE, with one of the registered relations.
+func TestChangeDCWV0041NamesCitationRowFix(t *testing.T) {
+	c := &change{citationFailedRow: 3}
+	for reason, want := range map[string]string{
+		"invalid-arguments": "plan row 3: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim",
+		"missing-evidence":  "plan row 3 cites a path that is not a regular file at BASE; cite a source, test or spec file",
+	} {
+		if hint := c.fixHint(step{name: "cem-cite", reason: reason}); !strings.Contains(hint, want) {
+			t.Fatalf("%s hint %q", reason, hint)
+		}
+	}
+}
