@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"path"
 	"sort"
 	"strings"
@@ -353,7 +354,7 @@ func LoadImpactReport(name string) (*ImpactReport, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	var r ImpactReport
-	if dec.Decode(&r) != nil || dec.More() || r.Schema != ImpactSchema || r.App == "" || r.Base == "" || r.Head == "" {
+	if dec.Decode(&r) != nil || dec.Decode(new(json.RawMessage)) != io.EOF || r.Schema != ImpactSchema || r.Authority != AuthorityLearned || r.App == "" || r.Base == "" || r.Head == "" {
 		return nil, verifyError("appmap-invalid-query", "invalid application-map-impact/0 report")
 	}
 	for _, n := range r.Omitted {

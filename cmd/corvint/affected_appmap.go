@@ -73,7 +73,7 @@ func affectedAppNavigations(invocation affectedInvocation, revision string, work
 		maps[r.App+"\x00"+r.MapDigest] = true
 		a := apps[r.App]
 		if a == nil {
-			a = &appReports{nav: affectedAppNavigation{App: r.App, Authority: r.Authority, ReportedVerdict: appmap.VerdictNoNavigation}, screens: map[string]bool{}, specs: map[string]bool{}}
+			a = &appReports{nav: affectedAppNavigation{App: r.App, Authority: appmap.AuthorityLearned, ReportedVerdict: appmap.VerdictNoNavigation}, screens: map[string]bool{}, specs: map[string]bool{}}
 			apps[r.App] = a
 		}
 		a.nav.ImpactDigests = append(a.nav.ImpactDigests, r.Digest)

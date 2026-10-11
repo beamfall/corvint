@@ -124,7 +124,7 @@ are URL templates, not component source files. This slice makes neither missing 
   base or revision fails closed. (proposed, pending owner acceptance (V1-1137))
 - `ANL-V0-031`: `corvint affected --base FULL_COMMIT_ID --appmap-impact REPORT` (repeatable up to 16,
   one report per map (ANL-V0-034); refused without `--base` or with `--snapshot` or `--playwright-config`) reads
-  each complete `application-map-impact/0` report (a bounded regular file, strictly decoded, with no
+  each complete `application-map-impact/0` report (a bounded regular file, strictly decoded with nothing after it, `authority` `learned`, no
   omitted rows, a verdict that follows from its own lists and a matching digest; otherwise refused) whose
   `base` is `--base` and whose `head` is the receipt revision, and adds `advice.app_navigation`: per
   app, sorted, the learned authority, sorted `impact_digests` and `map_digests`, `reported_verdict`, `screens` count,
@@ -140,17 +140,18 @@ are URL templates, not component source files. This slice makes neither missing 
   A file references the path when the path's token (a script's stem, an index file's directory, any
   other file's base name) occurs inside one quoted string literal on that line that resolves to it
   (relative to the referrer for `./` and `../`, repository-relative otherwise, with script
-  extensions and `/index.*` tried; no `${`). A walk ends at a router file anchoring screens, which
+  extensions and `/index.*` tried; no `${`) and not after a `//`, `/*`, `<!--` or `{{!` comment
+  marker that could still be open. A walk ends at a router file anchoring screens, which
   selects the screens whose anchor spans hold its reference lines (every screen of the file when a
   reference lies outside all spans or the file's blob differs from the anchored one), or at a map test
   file, which selects its screen and spec. Selected screens carry `template-reference:<file>` and
   their lineage descendants. Any mention that is not such a literal (`unresolved-reference`), a walked
-  file nothing references (`unmapped-path`) or an exceeded bound (`reference-graph-bound`) keeps the
+  file nothing references or that reaches no terminal (an import cycle, `unmapped-path`) or an exceeded bound (`reference-graph-bound`) keeps the
   path unknown, so the hop can widen a selection but never narrows the verdict. (proposed, pending
   owner acceptance (V1-1162))
 - `ANL-V0-033`: `test-plan page-state --input FILE --check --baseline FILE` (the two flags only
   together) reads the baseline as a `test-page-state-groups/0` report (a bounded regular file,
-  strictly decoded, with a digest matching its content; otherwise exit 2), prints the fresh report and
+  strictly decoded with nothing after it, with a digest matching its content; otherwise exit 2), prints the fresh report and
   exits 1 (`test-plan-mismatch`) when, by group key, a group was added, removed or changed in any
   member, or a blocked variation was added, removed or changed its reason, naming each set (at most
   eight IDs each, with the remaining count). An input edit that leaves every group and block

@@ -85,7 +85,11 @@ func TestANLV0033PageStateDrift(t *testing.T) {
 	if err := os.WriteFile(tampered, []byte(strings.Replace(report, `"visits_saved":1`, `"visits_saved":2`, 1)), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	for _, args := range [][]string{{"--input", in, "--check", "--baseline", tampered}, {"--input", in, "--check"}, {"--input", in, "--baseline", base}, {"--input", in, "--check", "--baseline", in}} {
+	trailing := filepath.Join(dir, "trailing.json")
+	if err := os.WriteFile(trailing, []byte(strings.TrimRight(report, "\n")+"]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"--input", in, "--check", "--baseline", tampered}, {"--input", in, "--check", "--baseline", trailing}, {"--input", in, "--check"}, {"--input", in, "--baseline", base}, {"--input", in, "--check", "--baseline", in}} {
 		if c, _, _ = run(args...); c != 2 {
 			t.Fatalf("%v exit %d", args, c)
 		}

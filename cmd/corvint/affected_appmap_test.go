@@ -1,11 +1,16 @@
 package main
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/appmap"
 )
 
 // ANL-V0-031: `corvint affected --appmap-impact` routes the navigation verdict into advice as a
@@ -126,6 +131,30 @@ func TestANLV0031AffectedRoutesImpactVerdict(t *testing.T) {
 	}
 	if _, _, _, code = runAffectedCLI(t, root, "--base", base, "--appmap-impact", tampered); code == 0 {
 		t.Fatal("a tampered report was accepted")
+	}
+	// Trailing delimiters, or an authority other than learned under a recomputed digest, refuse.
+	var forged appmap.ImpactReport
+	if err = json.Unmarshal(raw, &forged); err != nil {
+		t.Fatal(err)
+	}
+	forged.Authority, forged.Digest = "owner", ""
+	body, err := json.Marshal(forged)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(body)
+	forged.Digest = hex.EncodeToString(sum[:])
+	if body, err = json.Marshal(forged); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range map[string][]byte{"trailing.json": append(bytes.TrimRight(raw, "\n"), '}'), "owner.json": body} {
+		bad := filepath.Join(dir, name)
+		if err = os.WriteFile(bad, content, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, _, code = runAffectedCLI(t, root, "--base", base, "--appmap-impact", bad); code == 0 {
+			t.Fatalf("%s was accepted", name)
+		}
 	}
 	if _, _, _, code = runAffectedCLI(t, root, "--appmap-impact", full); code == 0 {
 		t.Fatal("--appmap-impact without --base was accepted")

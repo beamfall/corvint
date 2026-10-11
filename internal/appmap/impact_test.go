@@ -125,7 +125,7 @@ func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := "var shell = require('./shell/shell.html');\n" + string(routes)
+	src := "var shell = require('./shell/shell.html');\n// was require('./ghost/ghost.html')\n/* or\n  './ghost/ghost2.html' */\n" + string(routes)
 	src = strings.Replace(src, "url: '/settings'", "url: '/settings',\n      templateUrl: 'app/clubs/settings.html'", 1)
 	src = strings.Replace(src, "url: '/members'\n    })\n    .state('members2'", "url: '/members',\n      controller: require('./members/list.component')\n    })\n    .state('members2'", 1)
 	files := map[string]string{
@@ -138,6 +138,10 @@ func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
 		"app/shared/badge.js":           "// renders badge.html\nmodule.exports = { templateUrl: './badge.html' };\n",
 		"app/lonely.js":                 "module.exports = './orphan.html';\n",
 		"app/orphan.html":               "<i></i>\n",
+		"app/ghost/ghost.html":          "<p></p>\n",
+		"app/ghost/ghost2.html":         "<p></p>\n",
+		"app/cyc/alpha.js":              "module.exports = require('./beta');\n",
+		"app/cyc/beta.js":               "module.exports = require('./alpha');\n",
 	}
 	for p, body := range files {
 		dst := filepath.Join(root, p)
@@ -178,6 +182,18 @@ func TestANLV0032TemplateHopPlacesReferencedFiles(t *testing.T) {
 	r = impactRun(t, f, nil, head, Options{})
 	if r.Verdict != VerdictFullSuite || len(r.Unknown) != 1 || r.Unknown[0].Reason != "unmapped-path" {
 		t.Fatalf("unbound root narrowed: %+v", r)
+	}
+	for p, reason := range map[string]string{"app/ghost/ghost.html": "unresolved-reference", "app/ghost/ghost2.html": "unresolved-reference", "app/cyc/alpha.js": "unmapped-path"} {
+		head = gitTest(t, root, "rev-parse", "HEAD")
+		body := "// v2\n"
+		if strings.HasSuffix(p, ".js") {
+			body = "module.exports = require('./beta'); // v2\n" // keeps the cycle
+		}
+		impactCommit(t, f, map[string]string{p: body})
+		r = impactRun(t, f, nil, head, Options{})
+		if r.Verdict != VerdictFullSuite || len(r.Unknown) != 1 || r.Unknown[0].Path != p || r.Unknown[0].Reason != reason {
+			t.Fatalf("%s (commented reference or import cycle) narrowed: %+v", p, r)
+		}
 	}
 	head = gitTest(t, root, "rev-parse", "HEAD")
 	impactCommit(t, f, map[string]string{"app/shell/shell.html": "<nav>v2</nav>\n"})

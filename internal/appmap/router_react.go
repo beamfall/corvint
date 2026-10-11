@@ -285,10 +285,25 @@ func reactRoutesBinding(ts []token, use int) (jsValue, string) {
 		return jsValue{}, "non-literal-react-routes"
 	}
 	v, after := parseValue(ts, decl)
-	if v.kind != "array" || after < len(ts) && !next(ts, after, ";") && ts[after].line == ts[after-1].line {
+	if v.kind != "array" || after < len(ts) && !next(ts, after, ";") && !reactStatementStart(ts, after) {
 		return jsValue{}, "computed-react-routes"
 	}
 	return v, ""
+}
+
+// reactStatementStart reports whether the token after an array literal without `;` begins a new
+// statement: an identifier on a later line that cannot continue the expression. Anything else
+// (`.concat(...)`, `[`, `(`, an operator, `as`) may extend the array and is not read.
+func reactStatementStart(ts []token, k int) bool {
+	t := ts[k]
+	if t.kind != tokIdent || t.line == ts[k-1].line {
+		return false
+	}
+	switch t.text {
+	case "in", "instanceof", "as", "satisfies":
+		return false
+	}
+	return true
 }
 
 // reactImported reports whether the identifier at j sits in an `import ... from` clause.

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"reflect"
 	"sort"
 	"strings"
@@ -129,7 +130,7 @@ func DecodePageStateReport(raw []byte) (*PageStateReport, error) {
 	if err := d.Decode(&r); err != nil {
 		return nil, invalidInput("page-state baseline is not a %s report", PageStateSchema)
 	}
-	if d.More() || r.Schema != PageStateSchema || r.Groups == nil || r.Blocked == nil {
+	if d.Decode(new(json.RawMessage)) != io.EOF || r.Schema != PageStateSchema || r.Groups == nil || r.Blocked == nil {
 		return nil, invalidInput("page-state baseline is not a %s report", PageStateSchema)
 	}
 	want := r.Digest

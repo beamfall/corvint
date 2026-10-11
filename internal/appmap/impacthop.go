@@ -133,11 +133,28 @@ func (g *referenceGraph) references(name, target string) ([]int, bool) {
 		}
 		q += ls
 		end := strings.IndexByte(text[i:le], text[q])
-		if end < 0 || !resolvesTo(text[q+1:i+end], name, target) {
+		if end < 0 || hopInComment(text, ls, q) || !resolvesTo(text[q+1:i+end], name, target) {
 			return nil, false
 		}
 		lines = append(lines, strings.Count(text[:i], "\n")+1)
 	}
+}
+
+// hopInComment reports whether the quote at q may sit in a comment: a `//` earlier on its line,
+// or a `/*`, `<!--` or `{{!` opened before it and not closed. String contents are not excluded, so
+// a comment marker inside a literal also counts: the check may refuse a real reference, never
+// accept a commented one.
+func hopInComment(text string, ls, q int) bool {
+	if strings.Contains(text[ls:q], "//") {
+		return true
+	}
+	before := text[:q]
+	for _, c := range [][2]string{{"/*", "*/"}, {"<!--", "-->"}, {"{{!", "}}"}} {
+		if o := strings.LastIndex(before, c[0]); o >= 0 && !strings.Contains(before[o+len(c[0]):], c[1]) {
+			return true
+		}
+	}
+	return false
 }
 
 // templateHop walks the referrers of an unplaced UI path up to router anchors and map test files.
@@ -157,6 +174,7 @@ func templateHop(m *Map, g *referenceGraph, start string) ([]hopTarget, string) 
 		}
 	}
 	targets, seen, queue := []hopTarget{}, map[string]bool{start: true}, []string{start}
+	reaches, up := map[string]bool{}, map[string][]string{}
 	for len(queue) > 0 {
 		cur := queue[0]
 		queue = queue[1:]
@@ -175,6 +193,7 @@ func templateHop(m *Map, g *referenceGraph, start string) ([]hopTarget, string) 
 			referrers++
 			if ss := anchored[name]; len(ss) > 0 {
 				targets = append(targets, hopTarget{screens: spanScreens(ss, lines, g.blobs[name]), via: name})
+				reaches[cur] = true
 				continue
 			}
 			if fs := tests[name]; len(fs) > 0 {
@@ -188,8 +207,10 @@ func templateHop(m *Map, g *referenceGraph, start string) ([]hopTarget, string) 
 					}
 				}
 				targets = append(targets, t)
+				reaches[cur] = true
 				continue
 			}
+			up[cur] = append(up[cur], name)
 			if !seen[name] {
 				if len(seen) >= hopMaxNodes {
 					return nil, "reference-graph-bound"
@@ -199,6 +220,27 @@ func templateHop(m *Map, g *referenceGraph, start string) ([]hopTarget, string) 
 			}
 		}
 		if referrers == 0 {
+			return nil, "unmapped-path"
+		}
+	}
+	// A file whose referrers only reference each other (an import cycle) never reaches a terminal;
+	// every walked file must reach one through its referrers or the path stays unknown.
+	for changed := true; changed; {
+		changed = false
+		for n := range seen {
+			if reaches[n] {
+				continue
+			}
+			for _, r := range up[n] {
+				if reaches[r] {
+					reaches[n], changed = true, true
+					break
+				}
+			}
+		}
+	}
+	for n := range seen {
+		if !reaches[n] {
 			return nil, "unmapped-path"
 		}
 	}
