@@ -322,3 +322,115 @@ func TestPlaywrightTitleTags_TJAA_V0_021(t *testing.T) {
 		}
 	}
 }
+
+// locatedGrepListing reshapes a grepPlaywrightListing report as Playwright reports projects: one
+// spec per project, each with its own test ID and the location PlaywrightListedTests requires
+// (line is the spec's 1-based order within its file).
+func locatedGrepListing(t *testing.T, raw []byte) []byte {
+	t.Helper()
+	var report map[string]any
+	if err := json.Unmarshal(raw, &report); err != nil {
+		t.Fatal(err)
+	}
+	var walk func(suites []any, line *int)
+	walk = func(suites []any, line *int) {
+		for _, item := range suites {
+			suite := item.(map[string]any)
+			specs := []any{}
+			for _, item := range suite["specs"].([]any) {
+				spec := item.(map[string]any)
+				*line++
+				for _, test := range spec["tests"].([]any) {
+					project := test.(map[string]any)["projectName"].(string)
+					specs = append(specs, map[string]any{
+						"id": spec["file"].(string) + "#" + spec["title"].(string) + "#" + project, "title": spec["title"], "file": spec["file"],
+						"tags": spec["tags"], "line": *line, "column": 1, "tests": []any{test},
+					})
+				}
+			}
+			suite["specs"] = specs
+			walk(suite["suites"].([]any), line)
+		}
+	}
+	for _, suite := range report["suites"].([]any) {
+		line := 0
+		walk([]any{suite}, &line)
+	}
+	located, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return located
+}
+
+// GitHub #800: the listed-tests entry point behind `docs corpus discover-playwright` applies the
+// same grep/grepInvert omission rules as discovery, so a grep-split listing yields its listed
+// executions instead of a missing-pair refusal, and an unexplained omission still refuses.
+func TestPlaywrightListedTestsGrepOmission_TJAA_V0_021(t *testing.T) {
+	root := grepFixture(t, grepRepro)
+	listing := locatedGrepListing(t, grepPlaywrightListing(t, root, "e2e", grepReproCases()))
+	// Corpus discovery always passes the pinned revision's paths; its revision check must accept
+	// the same grep omissions (Codex review round 1).
+	revision := []string{"e2e/plain.spec.ts", "e2e/tagged.spec.ts", "playwright.config.ts"}
+	tests, err := PlaywrightListedTests(root, "playwright.config.ts", listing, revision)
+	if err != nil {
+		t.Fatalf("grep-split listing refused: %v", err)
+	}
+	got := []string{}
+	for _, test := range tests {
+		got = append(got, test.Project+" "+test.Path+" "+test.Title)
+	}
+	want := []string{"main e2e/plain.spec.ts plain", "alt-a e2e/tagged.spec.ts x @tagged", "alt-b e2e/tagged.spec.ts x @tagged", "main e2e/tagged.spec.ts y"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("executions = %q, want %q", got, want)
+	}
+	if _, err := PlaywrightListedTests(root, "playwright.config.ts", listing, append(revision, "e2e/gone.spec.ts")); err == nil || !strings.Contains(err.Error(), "at the source revision") {
+		t.Fatalf("revision-only test file accepted: %v", err)
+	}
+	cases := grepReproCases()
+	cases[0].projects = []string{"alt-a", "alt-b"} // main's grepInvert keeps `plain`, so its omission is unexplained
+	if _, err := PlaywrightListedTests(root, "playwright.config.ts", locatedGrepListing(t, grepPlaywrightListing(t, root, "e2e", cases)), nil); err == nil || !strings.Contains(err.Error(), `omits project "main"`) {
+		t.Fatalf("unexplained omission accepted: %v", err)
+	}
+}
+
+// Codex review round 2 (GitHub #800): membership is checked against exactly the files and cases
+// PlaywrightListedTests returns, so a nested suite file the execution walker does not use cannot
+// stand in for the returned one, and a spec with no execution cannot explain an omission.
+func TestPlaywrightListedTestsCasesMatchExecutions_TJAA_V0_021(t *testing.T) {
+	listing := func(root string, suites string) []byte {
+		return []byte(`{"config":{"configFile":` + jsonString(filepath.Join(root, "playwright.config.ts")) + `,"rootDir":` + jsonString(filepath.Join(root, "e2e")) +
+			`,"shard":null,"argv":["/usr/local/bin/node","` + root + `/node_modules/.bin/playwright","test","--list","--reporter=json"]},"suites":` + suites + `,"errors":[]}`)
+	}
+	revision := []string{"e2e/plain.spec.ts", "e2e/tagged.spec.ts", "playwright.config.ts"}
+	t.Run("a nested suite file is not the returned execution's file", func(t *testing.T) {
+		root := grepFixture(t, "{ name: 'main', testIgnore: '**/plain.spec.ts' }")
+		raw := listing(root, `[{"title":"plain.spec.ts","file":"plain.spec.ts","specs":[],"suites":[{"title":"tagged.spec.ts","file":"tagged.spec.ts","specs":[`+
+			`{"id":"tagged-main","title":"x @tagged","tags":["tagged"],"line":1,"column":1,"tests":[{"projectName":"main"}]}],"suites":[]}]}]`)
+		if tests, err := PlaywrightListedTests(root, "playwright.config.ts", raw, revision); err == nil {
+			t.Fatalf("listing accepted with executions %+v", tests)
+		}
+	})
+	t.Run("a spec with no execution does not explain an omission", func(t *testing.T) {
+		root := grepFixture(t, "{ name: 'main', grepInvert: /@tagged/ }")
+		raw := listing(root, `[{"title":"plain.spec.ts","file":"plain.spec.ts","specs":[{"id":"plain-main","title":"plain","tags":[],"line":1,"column":1,"tests":[{"projectName":"main"}]}],"suites":[]},`+
+			`{"title":"tagged.spec.ts","file":"tagged.spec.ts","specs":[{"id":"tagged-none","title":"x @tagged","tags":["tagged"],"line":1,"column":1,"tests":[]}],"suites":[]}]`)
+		if _, err := PlaywrightListedTests(root, "playwright.config.ts", raw, revision); err == nil || !strings.Contains(err.Error(), `omits project "main" test e2e/tagged.spec.ts`) {
+			t.Fatalf("empty spec explained the omission: %v", err)
+		}
+	})
+	t.Run("case titles follow every enclosing suite, not file inheritance", func(t *testing.T) {
+		root := grepFixture(t, "{ name: 'main', grep: /plain/ }, { name: 'other' }")
+		raw := listing(root, `[{"title":"@file.spec.ts","specs":[{"id":"plain-other","file":"plain.spec.ts","title":"plain","tags":[],"line":1,"column":1,"tests":[{"projectName":"other"}]}],"suites":[]},`+
+			`{"title":"tagged.spec.ts","file":"tagged.spec.ts","specs":[{"id":"tagged-main","title":"plain x","tags":[],"line":1,"column":1,"tests":[{"projectName":"main"}]},`+
+			`{"id":"tagged-other","title":"plain x","tags":[],"line":2,"column":1,"tests":[{"projectName":"other"}]}],"suites":[]}]`)
+		if _, err := PlaywrightListedTests(root, "playwright.config.ts", raw, revision); err == nil || !strings.Contains(err.Error(), `omits project "main" test e2e/plain.spec.ts`) {
+			t.Fatalf("a file-less suite title was read as the file title: %v", err)
+		}
+	})
+}
+
+func jsonString(value string) string {
+	raw, _ := json.Marshal(value)
+	return string(raw)
+}
