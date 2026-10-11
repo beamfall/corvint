@@ -57,3 +57,12 @@ the `invalid-arguments` and `missing-evidence` refusals print a `fix:` line nami
   merge for index files such as `docs/decisions/README.md` would remove most hand resolutions.
 - Two lanes in one repository share `.context-corvint`, so the second lane's pass refuses
   `unsupported-query-trace-state`; lanes need separate clones.
+
+## Merge with main (DCW-V0-035..038)
+
+The batch-check wrapper now builds with the `DCW-V0-038` cache selection (`CORVINT_GOCACHE`,
+caller `GOCACHE`, then the shared default), and `make dogfood-batch-check` passes the selected
+cache. `script/dogfood-cache_test.sh` covers it through the direct wrapper and Make.
+`DCW-V0-040`'s recovery line still keys on the `local-outcome` row's internal
+`admitted-path-limit` reason, which `DCW-V0-036` keeps alongside the public
+`trace-path-limit-exceeded` code.

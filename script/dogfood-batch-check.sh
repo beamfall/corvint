@@ -10,6 +10,7 @@ export LC_ALL=C
 # Read the executable selection before Git, temporary files, or a selected executable can run.
 corvint_bin_set=${CORVINT_BIN+x}
 corvint_bin=${CORVINT_BIN-}
+go_cache=${CORVINT_GOCACHE:-${GOCACHE:-/tmp/corvint-go-build-cache}}
 
 base_arg=${1:?usage: dogfood-batch-check.sh BASE}
 repo=$(cd "$(dirname "$0")/.." && pwd)
@@ -22,7 +23,7 @@ if [[ -z $corvint_bin_set ]]; then
   build_dir=$(mktemp -d "${TMPDIR:-/tmp}/corvint-batch-check.XXXXXX") || exit 2
   trap 'rm -rf "$build_dir"' EXIT
   corvint_bin="$build_dir/corvint"
-  if ! (cd "$repo" && GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local \
+  if ! (cd "$repo" && GOCACHE="$go_cache" GOTOOLCHAIN=local \
     go build -o "$corvint_bin" -trimpath ./cmd/corvint 2> /dev/null); then
     printf 'dogfood-batch-check: REFUSE current-tree-corvint-build-failed\n' >&2
     exit 2

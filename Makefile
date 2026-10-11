@@ -374,7 +374,7 @@ dogfood-seal:
 
 dogfood-batch-check:
 	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
-	@script/dogfood-batch-check.sh "$(BASE)"
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-batch-check.sh "$(BASE)"
 
 dogfood-bind-range:
 	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
