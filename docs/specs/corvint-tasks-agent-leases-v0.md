@@ -943,7 +943,8 @@ derived from the installed CLI source and is not live-qualified; see
 - `CAL-V0-057`: An ended worker made progress exactly when the key's durable fingerprint changed.
   The fingerprint covers ticket status, revision and work state, plus attempts with a candidate,
   gates, reviews or a durable phase; for lanes, the member state, holder and attempt. Progress
-  clears backoff. An `UNKNOWN` work state is never progress and never unparks a key. No progress MUST
+  in a finished session clears backoff. An `UNKNOWN` work state is never progress and never
+  unparks a key. No progress MUST
   start a cooldown, and after `parkAfter` consecutive runs MUST
   park the key and emit `needs-owner`. A parked key resumes when its fingerprint changes or on an
   operator unpark request. While any role has an `escalate` ladder, the ledger MUST keep, per
@@ -958,6 +959,12 @@ derived from the installed CLI source and is not live-qualified; see
   only by a launch after an operator unpark, because a state change that unparks the key resets the
   streak. Records are
   dropped for tickets absent from the observation and, with no ladder configured, entirely.
+  Amendment **accepted, decision 0514**: a known fingerprint change
+  between sessions MUST reset both the ladder streak and the backoff's `NoProgress` count,
+  including during cooldown. A cooling key MUST retain its cooldown deadline; parking thereafter
+  MUST require `parkAfter` new finished sessions without progress after that reset. A sticky role
+  MUST keep its reached tier. While a key has a worker, a fingerprint change MUST NOT reset
+  its ladder or backoff through between-session accounting; the finished session accounts it.
   A `RETRY_EXHAUSTED` plan entry MUST NOT be readmitted by the dispatcher.
   It emits `needs-owner` naming `ticket reopen` (CAL-V0-043), because readmission is owner
   authority.
@@ -6021,7 +6028,7 @@ and removes the new configuration members.
 | CAL-V0-054 | `TestCALV0054_RosterIsDeterministicAndCapped`, `TestCALV0054_RosterStatePredicatesAndLanes`, `TestCALV0054_RosterTierCapsWaitWithoutDowngrade`, `TestCALV0054_TierCapPrecedesPressureBudget` (`internal/tasks/dispatch`) |
 | CAL-V0-055 | `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`); live OpenCode run in `docs/build-log/2026-10-01-tasks-continuous-dispatch.md`; live Claude Code and Codex runs in `docs/build-log/2026-10-01-tasks-dispatch-claude-code.md` and `docs/build-log/2026-10-01-tasks-dispatch-codex.md` |
 | CAL-V0-056 | `TestCALV0056_CancelledHealingStopsNextWrite`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
-| CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`, `TestCALV0057_StickyTierAndOperatorUnparkKeepStreak`, `TestCALV0057_ProgressOutsideSessionResetsLadder`, `TestCALV0057_NoLadderKeepsLegacyLedger`, `TestCALV0057_LedgerEscalationIsBounded` (`internal/tasks/dispatch`); `TestCALV0057_DispatchStatusShowsTierAndStreak` (`internal/tasks/cli`); live model-host qualification NOT_RUN |
+| CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`, `TestCALV0057_StickyTierAndOperatorUnparkKeepStreak`, `TestCALV0057_ProgressOutsideSessionResetsLadder`, `TestCALV0057_ProgressDuringSessionKeepsAccounting`, `TestCALV0057_StickyTierAfterProgressOutsideSession`, `TestCALV0057_CooldownProgressRequiresFreshParkingEvidence`, `TestCALV0057_NoLadderKeepsLegacyLedger`, `TestCALV0057_LedgerEscalationIsBounded` (`internal/tasks/dispatch`); `TestCALV0057_DispatchStatusShowsTierAndStreak` (`internal/tasks/cli`); V1-0726 cooldown accounting amendment proposed, pending owner acceptance; live model-host qualification NOT_RUN |
 | CAL-V0-058 | Event assertions in `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0058_SummaryReadsHostFinalText`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`, `TestCALV0058_EventLogRotatesOnceAt16MiB` (`internal/tasks/dispatch`) and `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
 | CAL-V0-068 | `TestCALV0068_RosterPressurePrecedence`, `TestCALV0068_HeldRespectsStaticCaps`, `TestCALV0068_ConfigValidation`, `TestCALV0068_DispatcherThrottlesNewLaunchesOnly`, `TestCALV0068_RestartKeepsLevelAndDisableClears`, `TestCALV0068_LedgerPressureRecordValidated`, `TestIssue497_PressureHysteresis`, `TestIssue497_UnknownRetainsLevel`, `TestIssue497_NormalizesHostCPU`, `TestIssue497_MixedMetricTransitions`, `TestIssue497_NonExemptBudget`, `TestIssue497_InvalidConfig`, `TestIssue497_SampleParsing`, `TestIssue497_BoundedFileReads`, `TestIssue497_CommandFixture`, `TestIssue497_CommandLifecycle`, `TestIssue497_LiveSampler` (`internal/tasks/dispatch`); `TestCALV0068_DispatchStatusPressure` (`internal/tasks/cli`); live Linux sampling NOT_RUN |
 | CAL-V0-109 | `TestCALV0109_StickySwapWithNormalPressureReleases`, `TestCALV0109_KernelMemoryLevelMapping`, `TestCALV0109_DarwinSysctlParsing`, `TestCALV0110_LedgerReasonAndMemoryLevelValidated`, `TestIssue497_LiveSampler` (`internal/tasks/dispatch`); live macOS dispatcher under memory pressure NOT_RUN |

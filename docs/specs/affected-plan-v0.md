@@ -438,10 +438,13 @@ and container qualification; full fallback remains available.
   the go tool runs a package's tests only against that package. Every other plugin may keep tests in
   the unit itself or in units that depend on it, so its changed unit has none when no unit it
   reaches through the graph, itself included, declares a test. An untested unit that only depends
-  on a change, or is not reached, raises nothing. The Playwright plan does not yet name such a
-  unit: it widens only on the shared graph's other unknowns, so a changed helper that no spec
-  reaches leaves it `BOUNDED` with nothing selected for that helper until ticket V1-0211 decides
-  how it reports one. Rollback restores the silent skip.
+  on a change, or is not reached, raises nothing. Amendment (accepted, decision 0514;
+  V1-0211): the separate Playwright profile explicitly excludes an unreached changed helper
+  from selection under TJAA-V0-013. With matched discovery and otherwise resolved selection it
+  retains `BOUNDED`, `fallback=NONE`, and nothing selected for that helper: a full E2E suite cannot
+  exercise it. The shared plan still reports `NO_SELECTABLE_TEST`; other Playwright unknowns and
+  discovery fallback remain unchanged. Rollback restores the silent skip in the shared plan;
+  reverting only this amendment restores the undecided Playwright contract, not runtime behavior.
 - `AFP-V0-021`: (accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) whether or not a
   plugin owns it and including a changed source file, MUST also select every unit not otherwise
   reached whose own files carry a path token naming it, with witness kind `PATH_LITERAL_READER`

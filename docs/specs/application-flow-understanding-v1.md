@@ -482,12 +482,18 @@ This subsection fixes the S4 wire shape. It adds no requirement and no root verb
 
 ### Navigation map
 
-- `AFU-V1-025`: `corvint flows navigate` MUST derive an `application-navigation-map/0` from flow
+- `AFU-V1-025`: (amendment accepted, decision 0514) `corvint flows navigate` MUST derive an `application-navigation-map/0` from flow
   intents and run evidence. It contains states (a route template or API operation, with a stable state
   ID), transitions (action, locator, preconditions, a readiness condition to wait for, expected
   observations, effect class, and any declared recovery transition), and each transition's verified
   state. Authentication and session setup are precondition flows that name credentials only by
-  fixture ID.
+  fixture ID. Map and packet transitions MUST separately carry the supporting links' aggregate
+  `review_state`, omitted when there are no supporting links. Supporting links originate at the
+  step, its navigation `expect` outcomes, or any variation listing the step and that variation's
+  outcomes. `stale` takes precedence over `unreviewed` (any non-reviewed, non-inferred review state),
+  then `inferred` (inferred links only), then `reviewed` (all non-inferred links reviewed).
+  Inferred links do not dilute reviewed links. Test-evidence `verification` remains independent;
+  neither a verified step nor an absent `review_state` asserts reviewed linkage or flow completeness.
 - `AFU-V1-026`: Locators MUST come from the flow intent or test source: an accessible role and name, a
   test ID, or an API method and path template. Text scraped from a live page is never served.
 - `AFU-V1-027`: Every transition MUST carry an effect class. A declared class MAY be raised by
@@ -537,8 +543,10 @@ This subsection fixes the S5 wire shape. It adds no requirement and no root verb
   `action`, `state`, `locator`, the flow's `preconditions`, `ready`, `input_fixture`, `expect` (the
   outcome records), `effect_class`, `effect_basis`, `recovery` and `verification`. A step is
   `verified` only when a variation that lists it has every required evidence pair verified; a step
-  with no navigation entry has no state or locator. Step verification is evidence-only: link review
-  state, such as `stale-link`, appears only in the flow `status`, `flows gaps` and docs claims. A precondition flow that is not declared or that
+  with no navigation entry has no state or locator. Step verification is evidence-only; the additive,
+  optional `review_state` (`stale`, `unreviewed`, `inferred` or `reviewed`) separately reports supporting
+  link review under the AFU-V1-025 amendment (V1-0281; accepted, decision 0514), including in packet recovery steps.
+  Existing schema identities and `verification` values are unchanged. A precondition flow that is not declared or that
   closes a cycle refuses the map.
 - Packet: `--goal` writes `application-navigation-packet/0` with `goal`, `max_effect`, the referenced
   `states`, `flows` (each with its `status`) and `steps`: the precondition flows depth first, each
@@ -546,6 +554,9 @@ This subsection fixes the S5 wire shape. It adds no requirement and no root verb
   `recovery`. Each step carries `grant` `granted`, or `requires-grant` with `grant_needed` when its
   class is above `max_effect`. More than 256 steps, or more than the 8,192 traffic records, is
   `navigation-bound-exceeded`. `--max-effect` without `--goal` is refused.
+  Consumers may decode older packets without `review_state`; absence does not attest review.
+  Execution's existing exact canonical-packet comparison still applies: saved packets from before
+  this additive field must be regenerated when their supporting links now produce review state.
 - Observer gate: `origins.json` in the flows directory is a closed `application-flow-origins/0`
   document with `disposable`, unique canonical `http` or `https` origins (`scheme://host[:port]`,
   lower case, no user, path, query or fragment), read at the evaluated commit, never the working
@@ -740,7 +751,7 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-024 | `TestAFUV1024StrictAndCoverageBytesUnchanged` (goldens captured before S4), `TestAFUV1024E2ESafeRefusesMalformedInput`, `TestAffectedSelectionArguments` |
 | AFU-V1-057 | `TestAFUV1057TrafficFileBound`, `TestAFUV1057TrafficRecordBound`, `TestAFUV1057TrafficFileBoundCLI` |
 | AFU-V1-058 | `TestAFUV1058TrafficIndexParity`, existing navigation map and packet goldens; `internal/appflows/navigate.go` builds one exact-pair index |
-| AFU-V1-025 | `TestAFUV1025NavigationMapGolden` (`navigate.golden.json`: states, readiness, expected outcomes, recovery, verified and unverified steps, credentials by fixture ID, read-only), `TestAFUV1025PreconditionFlowsResolve` |
+| AFU-V1-025 | `TestAFUV1025NavigationMapGolden` (`navigate.golden.json`: states, readiness, expected outcomes, recovery, verified and unverified steps, credentials by fixture ID, read-only), `TestAFUV1025PreconditionFlowsResolve`; V1-0281 amendment (accepted, decision 0514): `TestAFUV1025StepReviewState`, `TestAFUV1025PacketReviewState`, `TestAFUV1039AcceptanceFixture` |
 | AFU-V1-026 | `TestAFUV1026LocatorsOnlyFromIntent` (no locator for an unmapped step; traffic with page text refused), `TestAFUV1026NavigationLocatorShapes` |
 | AFU-V1-027 | `TestAFUV1027EffectClasses` (raised by observed `POST`, never lowered, undeclared), `TestAFUV1027EffectRaisedNeverLowered` |
 | AFU-V1-028 | `TestAFUV1028PacketRequiresGrant` (`navigate-checkout.golden.json`), `TestAFUV1028ScriptedAgentCompletesGoals` (a scripted agent completes each mapped fixture goal from the packet alone, including a recovery, performs no write under the default `read`, and cannot run an unmapped goal), `TestAFUV1028PacketBound` |

@@ -2,6 +2,7 @@ package appflows
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -41,6 +42,96 @@ func codeOf(err error) string {
 		return coded.Code
 	}
 	return ""
+}
+
+// AFU-V1-025: link review is step-scoped, conservative, and independent of test verification.
+func TestAFUV1025StepReviewState(t *testing.T) {
+	f := navSample("checkout")
+	entry := f.Navigation.Steps[1]
+	cases := []struct {
+		name  string
+		links []EvaluatedLink
+		want  string
+	}{
+		{"no links", nil, ""},
+		{"unrelated step", []EvaluatedLink{{From: "open", ReviewState: ReviewStale}}, ""},
+		{"direct stale", []EvaluatedLink{{From: "pay", ReviewState: ReviewStale}}, ReviewStale},
+		{"variation unreviewed", []EvaluatedLink{{From: "checkout.happy", ReviewState: ReviewUnreviewed}}, ReviewUnreviewed},
+		{"outcome stale", []EvaluatedLink{{From: "paid", ReviewState: ReviewStale}}, ReviewStale},
+		{"inferred only", []EvaluatedLink{{From: "pay", ReviewState: ReviewInferred}}, ReviewInferred},
+		{"reviewed plus inferred", []EvaluatedLink{{From: "pay", ReviewState: ReviewInferred}, {From: "paid", ReviewState: ReviewReviewed}}, ReviewReviewed},
+		{"unreviewed before reviewed", []EvaluatedLink{{From: "pay", ReviewState: ReviewUnreviewed}, {From: "paid", ReviewState: ReviewReviewed}}, ReviewUnreviewed},
+		{"stale wins", []EvaluatedLink{{From: "pay", ReviewState: ReviewUnreviewed}, {From: "paid", ReviewState: ReviewStale}}, ReviewStale},
+	}
+	for _, state := range []string{ReviewNotAncestor, ReviewNotIntentChange, ReviewAnchorUnknown, ReviewLinkNotAtAnchor, ReviewEvidenceUnavailable, ReviewTargetUnpinned} {
+		cases = append(cases, struct {
+			name  string
+			links []EvaluatedLink
+			want  string
+		}{state, []EvaluatedLink{{From: "pay", ReviewState: state}}, ReviewUnreviewed})
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := stepReviewState(f, "pay", entry, tc.links); got != tc.want {
+				t.Fatalf("review state = %q, want %q", got, tc.want)
+			}
+			// Aggregation does not depend on link declaration order.
+			for i, j := 0, len(tc.links)-1; i < j; i, j = i+1, j-1 {
+				tc.links[i], tc.links[j] = tc.links[j], tc.links[i]
+			}
+			if got := stepReviewState(f, "pay", entry, tc.links); got != tc.want {
+				t.Fatalf("reversed review state = %q, want %q", got, tc.want)
+			}
+		})
+	}
+	// A variation's outcome supports the step even when navigation expect is empty.
+	if got := stepReviewState(f, "open", f.Navigation.Steps[0], []EvaluatedLink{{From: "paid", ReviewState: ReviewStale}}); got != ReviewStale {
+		t.Fatalf("variation-only outcome review = %q", got)
+	}
+	// Expected outcomes remain supporting links even outside a variation.
+	f.Variations = nil
+	if got := stepReviewState(f, "pay", entry, []EvaluatedLink{{From: "paid", ReviewState: ReviewUnreviewed}}); got != ReviewUnreviewed {
+		t.Fatalf("navigation outcome review = %q", got)
+	}
+	// Old packets still decode and an absent review result adds no wire member.
+	var old Transition
+	if err := json.Unmarshal([]byte(`{"flow_id":"checkout","step_id":"pay","verification":"verified"}`), &old); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(old)
+	if err != nil || strings.Contains(string(raw), "review_state") || old.Verification != "verified" {
+		t.Fatalf("optional field compatibility: %s %v", raw, err)
+	}
+}
+
+// AFU-V1-025: packets carry unreviewed step, variation and recovery links without granting trust.
+func TestAFUV1025PacketReviewState(t *testing.T) {
+	f := navSample("checkout")
+	f.Steps = append(f.Steps, FlowStep{StepID: "recover", Action: "dismiss error"})
+	f.Navigation.Steps[1].Recovery = "recover"
+	f.Navigation.Steps = append(f.Navigation.Steps, NavStep{StepID: "recover", State: "/cart", Locator: NavLocator{TestID: "dismiss"}, Expect: []string{}, Effect: EffectRead})
+	f.Links = append(f.Links, FlowLink{From: "recover", Basis: "declared", Target: LinkTarget{Type: "source", Path: "app.js", StartLine: 1, EndLine: 1}})
+	root := navRepo(t, f)
+	set, err := LoadIntentsAt(context.Background(), root, "flows", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := FlowNavigationPacket(context.Background(), root, set, nil, nil, "checkout", EffectRead, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packet NavigationPacket
+	if err := json.Unmarshal(raw, &packet); err != nil {
+		t.Fatal(err)
+	}
+	if len(packet.Steps) != 2 || len(packet.Recovery) != 1 {
+		t.Fatalf("packet shape: %+v", packet)
+	}
+	for _, step := range append(packet.Steps, packet.Recovery...) {
+		if step.ReviewState != ReviewUnreviewed || step.Verification != "unverified" {
+			t.Errorf("step review: %+v", step)
+		}
+	}
 }
 
 // AFU-V1-025: a precondition flow that is not declared, or that closes a cycle, refuses the map.

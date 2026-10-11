@@ -179,7 +179,7 @@ func dogfoodEventHostAdmitted(options options) bool {
 		return options.hostVersion == "0.99.1" && options.surface == "extension" && options.adapterVersion == "0.3.2"
 	}
 	hostVersion, admitted := dogfoodHostVersions[options.host]
-	return admitted && options.surface == "plugin" && options.adapterVersion == "0.1.0" && options.hostVersion == hostVersion
+	return admitted && options.surface == "plugin" && options.adapterVersion == adapterWireVersion && options.hostVersion == hostVersion
 }
 
 func dogfoodUniqueOptions(args []string) bool {
