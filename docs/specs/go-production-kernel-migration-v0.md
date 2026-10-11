@@ -1628,9 +1628,13 @@ missed the importer, and nothing was disclosed.
   with its original support index, before placing wider symbols: proposed placement cannot
   rescue unsupported records or change a substituted or withdrawn packet. Only after that
   judgment may placed symbols add support for the existing omitted-competing-record check.
-  Record-score ties behind a placed symbol do not alone request widening; nearest negative
-  claims and omitted competing readings retain their existing abstention rules. With no
-  strictly wider symbol the packet stays byte-identical. This proposal does not accept or
+  An active nearest-negative-claim abstention blocks placement: the original result order,
+  support index, limit/budget omissions and unknown frontier remain byte-identical, even
+  when confident symbols are strictly wider. Lexical support cannot answer a capability
+  override contradicted by project claims. Merely carrying nearest claims does not block
+  placement when that abstention is inactive. Record-score ties behind a placed symbol do
+  not alone request widening; omitted competing readings retain their existing abstention
+  rules. With no strictly wider symbol the packet stays byte-identical. This proposal does not accept or
   rewrite `GPK-V0-066`'s existing intent.
 
 Acceptance evidence: a synthetic adopter-shaped fixture at limit 10 contains one-word
@@ -1638,7 +1642,11 @@ plugin feature records, a two-word decision that independently clears the floor,
 `PluginTrustRoots`/`NewModelLoader` symbols with wider support. The symbols lead the records
 in their own order. Equal/wider records or documents keep precedence; empty, substituted
 and withdrawn packets retain their prior behavior, and a carried symbol is emitted once.
-The orchestrator owns adopter before/after evaluation numbers; they are `NOT_RUN` here.
+A synthetic negative-claim fixture preserves its complete packet at limits 5 and 10,
+including a critical scenario that wider symbols would evict at limit 5. A positive control
+with the same nearest claim but no capability override still places the wider symbols.
+All seven frozen adopter retrieval cases must match the base evaluation byte-for-byte
+except latency and engine revision, including selectors/order, empty missing lists and metrics.
 Non-goals: score tuning, relaxed confidence admission, floor changes, new packet fields,
 learning changes, and accepted intent or broader retrieval promotion.
 Rollback: remove the wider-symbol placement in `evalQuery` and restore the prior analyzer
@@ -1646,4 +1654,4 @@ schema/audit pins together; existing snapshots are derived state and require no 
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| `GPK-V0-083` (proposed, pending owner acceptance (V1-0266)) | wider-support placement in `internal/contextindex/eval_query.go` | `TestEvalQueryPrecedenceFollowsSupport`, `TestEvalQueryWiderSymbolsAtLimitTen`, `TestEvalLeadWithSymbolsPreservesPacket`, `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`, `TestEvalQueryRelevanceFloor`, and `docs/build-log/2026-10-10-query-wider-symbol-precedence.md`; adopter evaluation remains orchestrator-owned |
+| `GPK-V0-083` (proposed, pending owner acceptance (V1-0266)) | wider-support placement in `internal/contextindex/eval_query.go` | `TestEvalQueryPrecedenceFollowsSupport`, `TestEvalQueryWiderSymbolsAtLimitTen`, `TestEvalLeadWithSymbolsPreservesPacket`, `TestEvalQueryWiderSymbolsPreserveNegativeClaimAbstention`, `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`, `TestEvalQueryRelevanceFloor`, and `docs/build-log/2026-10-10-query-wider-symbol-precedence.md` and `docs/build-log/2026-10-10-query-negative-claim-placement.md` |

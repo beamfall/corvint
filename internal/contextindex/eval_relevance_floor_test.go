@@ -447,3 +447,60 @@ func TestEvalLeadWithSymbolsPreservesPacket(t *testing.T) {
 		t.Fatalf("placement=%v original=%v, want scored symbol then feature without mutation", got, results)
 	}
 }
+
+// GPK-V0-083 (proposed, pending owner acceptance (V1-0266)). Wider lexical
+// matches are not answers to an override contradicted by project claims. At
+// limit 5 their placement would evict the critical scenario and its adjacent
+// store invariant; a wider limit must preserve the same negative-claim order.
+func TestEvalQueryWiderSymbolsPreserveNegativeClaimAbstention(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "config", "user.email", "corvint@example.test")
+	testGit(t, root, "config", "user.name", "Corvint Test")
+	writeTestFile(t, root, ".gitignore", ".context-corvint/\n")
+	writeTestFile(t, root, "go.mod", "module example.test/negativeplacement\n\ngo 1.27.0\n")
+	writeTestFile(t, root, "testing/features.yaml", "features:\n"+
+		"  - id: media-delete\n    area: deletion\n    summary: Delete media.\n    adr: []\n    applies: [server]\n    status: shipped\n"+
+		"  - id: trash-review\n    area: deletion\n    summary: Trash retention.\n    adr: []\n    applies: [server]\n    status: shipped\n")
+	writeTestFile(t, root, "testing/scenarios.yaml", "scenarios:\n"+
+		"  - id: audited-delete-bypass\n    area: deletion\n    summary: Cannot bypass delete audit.\n    features: []\n    applies: [server]\n    status: shipped\n"+
+		"  - id: store-invariants\n    area: deletion\n    summary: Store media delete retention.\n    features: []\n    applies: [server]\n    status: shipped\n")
+	writeTestFile(t, root, "docs/adr/0051-retention.md", "# Trash retention\n\nStatus: accepted\n\nRetention audit rules.\n")
+	writeTestFile(t, root, "internal/store/trash.go", "package store\n\ntype TrashRetention struct {\n Hard bool\n Delete bool\n Media bool\n Immediately bool\n Bypassing bool\n}\n\nfunc TrashMedia(retention TrashRetention) bool { return retention.Delete }\n\nfunc TrashMediaAt(retention TrashRetention) bool { return retention.Media }\n")
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "seed")
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, query := range []string{
+		"hard delete media immediately bypassing trash retention store audit",
+		"hard delete media trash retention store audit",
+	} {
+		for _, limit := range []int{5, 10} {
+			packet, err := EvalQuery(context.Background(), index, query, limit, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			results := mapsFromAny(packet["results"])
+			abstention := packet["abstention"].(map[string]any)
+			if len(mapsFromAny(abstention["nearest_claims"])) == 0 {
+				t.Fatalf("fixture lost its negative claim: %v", packet)
+			}
+			if !strings.Contains(query, "immediately") {
+				if len(results) == 0 || results[0]["kind"] != "symbol" || abstention["reason"] == "nearest-negative-claim" || limit == 10 && (abstention["reason"] != "none" || packet["state"] != "READY") {
+					t.Fatalf("inactive nearest claim blocked placement at limit %d: %v", limit, packet)
+				}
+				continue
+			}
+			got := make([]string, 0, len(results))
+			for _, result := range results {
+				got = append(got, evalResultIdentity(result))
+			}
+			want := []string{"feature:media-delete", "feature:trash-review", "scenario:store-invariants", "scenario:audited-delete-bypass", "decision:docs/adr/0051-retention.md"}
+			if packet["state"] != "NEEDS_WIDENING" || abstention["reason"] != "nearest-negative-claim" || abstention["active"] != true || len(got) < len(want) || !reflect.DeepEqual(got[:len(want)], want) {
+				t.Fatalf("limit %d: state=%v abstention=%v selectors=%v, want original negative-claim packet %v", limit, packet["state"], abstention, got, want)
+			}
+		}
+	}
+}

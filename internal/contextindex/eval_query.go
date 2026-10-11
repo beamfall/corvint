@@ -406,7 +406,13 @@ func evalQuery(ctx context.Context, index *Index, text string, limit int, budget
 	if belowFloor {
 		results = results[:0]
 	}
-	if !belowFloor && !substituted {
+	negativeClaims := evalNegativeClaims(competitive, queryTerms)
+	needsWidening := !belowFloor && len(negativeClaims) != 0 && !evalNegativeClaim(queryText) && evalCapabilityOverride(queryText)
+	// A nearest-negative-claim packet preserves evidence for an unknown
+	// frontier. Wider lexical matches cannot answer the contradicted override
+	// and must not displace the original claims at the result limit.
+	placedSymbols := !belowFloor && !substituted && !needsWidening && len(widerSymbols) != 0
+	if placedSymbols {
 		results = evalLeadWithSymbols(widerSymbols, results)
 		for _, candidate := range widerSymbols {
 			supportIndex[evalResultIdentity(candidate.result)] = candidate.support
@@ -417,13 +423,11 @@ func evalQuery(ctx context.Context, index *Index, text string, limit int, budget
 	// tied records lead it; records that GPK-V0-083 placed behind a wider
 	// symbol are not what the packet answers with.
 	state := ""
-	if len(widerSymbols) == 0 && len(records) > 1 && records[0].score == records[1].score {
+	if !placedSymbols && len(records) > 1 && records[0].score == records[1].score {
 		if _, exactFeature := index.Features[queryText]; !exactFeature {
 			state = "NEEDS_WIDENING"
 		}
 	}
-	negativeClaims := evalNegativeClaims(competitive, queryTerms)
-	needsWidening := !belowFloor && len(negativeClaims) != 0 && !evalNegativeClaim(queryText) && evalCapabilityOverride(queryText)
 	// GPK-V0-068. The records slice is nil once GPK-V0-066 substituted the
 	// symbol packet, so a withdrawn record cannot ask for widening.
 	omittedCompeting := len(records) != 0 && len(results) != 0 && evalOmitsCompetingRecord(admitted, results[:min(len(results), limit)], supportIndex, ordered)

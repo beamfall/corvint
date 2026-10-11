@@ -64,6 +64,8 @@ no task/trace store or wire migration is needed.
   that clears the floor, both `PluginTrustRoots` and `NewModelLoader`, and four task phrasings.
   Local fixture scores differ from the adopter's 705; score tuning is not part of the fix.
 - Adopter before/after evaluation numbers are orchestrator-owned and `NOT_RUN` here.
+  This records the initial port only; the subsequent frozen-evaluation regression and
+  repair are retained in [the follow-up entry](2026-10-10-query-negative-claim-placement.md).
   Repository-wide `make gate` and `./...` are `NOT_RUN`, explicitly excluded by the task.
 - No commits, pushes, publication, decision files or `.taskman` writes are authorized here.
 
