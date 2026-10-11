@@ -32,9 +32,12 @@ Verified state at `645304a2fb71065f9061d8d8d866600d703e84c6`:
 - Two drivers plan the same selection through different code: `make gate-affected`
   (`script/gate-affected.sh`, AFP-V0-011/012) locally, and `tools/corvint-pr-tests` with
   `tools/gate-affected-select` (AFP-V0-013) in CI. Both run Go only.
-- `.github/workflows/ci.yml` runs eight `go-product-shard` jobs. Each intersects its selection with
-  the AFP-V0-022 complete-universe partition, so a narrowed run leaves shards idle when the
-  selection clusters, and full and narrowed shards can never omit a package.
+- `.github/workflows/ci.yml` runs eight `go-product-shard` jobs. Its trusted tool pins are empty,
+  so every PR runs the full suite today. When pinned, each shard would intersect its selection with
+  the AFP-V0-022 complete-universe partition, leaving shards idle when the selection clusters, so
+  full and narrowed shards cannot omit a package. `tools/corvint-pr-tests` places whole packages
+  and refuses sharded execution while AFP-V0-041 slices are active, as they are for
+  `internal/tasks/store`.
 - `.github/cishards` already places packages by advisory cost and splits allowed packages into
   test-name slices (AFP-V0-041); placement never changes membership.
 - LPCV (decision 0047) specifies runtime providers with discovery, plan, execute and cancel, but is
@@ -47,19 +50,26 @@ of every requirement below and the binding gate until this spec is promoted.
 
 - `STR-V0-001`: `corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced]
   [--dry-run] [--receipt PATH]` SHALL plan in process through the same code and profile as
-  `corvint affected --base` and record that plan's graph and plan digests. It is an executing
+  `corvint affected --base` and record that plan's graph and plan digests and the STR-V0-017
+  source identity. It is an executing
   command, never classified as a read command: it MUST NOT write tracked files, the index, trace
   stores or the `.corvint/` ledgers, and writes only its receipt and runner-owned caches.
   `--dry-run` prints the run set, argv and verdict and executes nothing.
 - `STR-V0-002`: The run set SHALL be, per language, the union of the plan's selected units and the
-  AFP-V0-012 attribution for every dirty path. Advice strings MUST NOT execute. Repository-declared
+  AFP-V0-012 attribution for every dirty path, expanded into execution units. An execution unit is
+  a canonical (unit, slice) pair: slice `whole`, or one AFP-V0-041 slice, the catch-all included,
+  taken from the slice table in the run's inputs. A split unit is complete only when every one of
+  its expected slices is complete. Advice strings MUST NOT execute. Repository-declared
   mandatory checks (`advice.checks`) are reported as still required and never counted as run.
 - `STR-V0-003`: The command SHALL run the complete relevant suite (`FULL`), naming the reason as
   `corvint-test: FALLBACK <reason>`, under every AFP-V0-011 fallback condition, and also when a
   module-level frontier or any `plan.unknown` entry outside the AFP-V0-028 reviewed allowlist is
-  present. The fallback set is a pure function of the plan, so every host and every shard of one
-  run reaches the same verdict from the same inputs. `FULL` covers every language with selected or
-  unknown units, never only the languages that narrowed.
+  present. `FULL` covers every language with selected or unknown units, never only the languages
+  that narrowed. When no plan can be produced, `FULL` SHALL run every full-suite command the
+  repository declares (the Makefile `go-test` target and each declared language full command),
+  read independently of the planner; when that declaration cannot be read or names nothing, the
+  run is `INCOMPLETE` and exits nonzero. The verdict is a pure function of the plan, the declared
+  full scope and the source identity, so every host and shard reaches it from the same inputs.
 - `STR-V0-004`: Execution SHALL go through registered runner adapters, one per runner, each with a
   versioned capability manifest (the discover, plan, execute and cancel subset of LPCV-V0-021) and
   the exact runner version captured before execution. The first adapter is Go. A selected or
@@ -78,29 +88,38 @@ of every requirement below and the binding gate until this spec is promoted.
 - `STR-V0-007`: `--shard I/N` with `--placement universe` (the default) SHALL use the AFP-V0-022
   complete-universe partition intersected with the run set, unchanged. An empty intersection runs
   nothing and says so. Every shard records the partition digest; a digest mismatch fails the shard.
-- `STR-V0-008`: `--placement balanced` (experimental, off by default) SHALL partition the run set
-  itself by the advisory cost table and AFP-V0-041 test slices, so a narrowed run uses every shard.
-  Every unit SHALL be placed exactly once. Because membership then depends on the plan, every shard
-  of one run SHALL recompute and record the same plan digest and placement mode; a shard that cannot
-  reproduce the run's plan digest fails rather than falling back alone. `FULL` runs use the
-  complete-universe partition in either mode.
-- `STR-V0-009`: `corvint test verify-shards RECEIPT...` SHALL accept a sharded run only when every
-  shard receipt carries the same base, revision, plan digest, placement mode and partition digest,
-  the shard indexes are exactly `0..N-1`, the union of placed units equals the planned run set with
-  no unit twice, and every placed unit has one terminal outcome. Anything else is `INCOMPLETE` and
-  exits nonzero. A CI required check SHALL depend on this fan-in, not on per-shard exits alone.
-- `STR-V0-010`: Each run SHALL write one bounded `corvint-test-run/0` receipt (at most 1 MiB) with
-  tool version, base, revision, tree, plan and run-set digests, verdict (`NARROWED`, `FULL` with
-  reason, `NOTHING`, `INCOMPLETE`), placement mode, partition digest, shard index and count, and per
-  adapter the runner identity and version, exact argv, environment digest, exit, elapsed time and
-  per-unit terminal outcome. A narrowed run SHALL summarise as "selected units passed: N of M"
+- `STR-V0-008`: `--placement balanced` (experimental, off by default) SHALL partition the run
+  set's execution units themselves by the advisory cost table, so a narrowed run uses every shard.
+  Every execution unit SHALL be placed exactly once. Because membership then depends on the plan,
+  every shard of one run SHALL reproduce the same STR-V0-018 manifest digest; a shard that cannot
+  fails rather than falling back alone. `FULL` runs use the complete-universe partition in either
+  mode. Balanced placement MAY execute only in the local profile. In CI it SHALL only be computed
+  and retained beside the executing universe placement, because AFP-V0-028 requires the
+  complete-universe intersection; executing it in CI needs an accepted AFP-V0-028 amendment.
+- `STR-V0-009`: `corvint test verify-shards --manifest PATH RECEIPT...` SHALL read the expected run
+  from the STR-V0-018 manifest, never from the receipts. It reports `PASS` only when there is
+  exactly one receipt for each shard index `0..N-1` of the manifest's shard count, empty shards
+  included; every receipt carries the manifest digest and source identity; the union of executed
+  execution units equals the manifest's with none twice; every execution unit has exactly one
+  passing terminal outcome; and every adapter invocation exited zero. A missing, extra, duplicate
+  or foreign receipt, or an execution unit without an outcome, is `INCOMPLETE`; any failed, timed
+  out or build-failed outcome, or any nonzero exit, is `FAIL`. Both exit nonzero, `INCOMPLETE`
+  taking precedence in the report. A CI required check SHALL depend on this fan-in, not on
+  per-shard exits alone, and an unsharded run applies the same rules to its single receipt.
+- `STR-V0-010`: Each shard, including an empty one, SHALL write one bounded `corvint-test-run/0`
+  receipt (at most 1 MiB) with tool version, base, revision, source identity, plan and manifest
+  digests, scope (`NARROWED`, `FULL` with reason, `NOTHING`), result (`PASS`, `FAIL`,
+  `INCOMPLETE`), placement mode, partition digest, shard index and count, and per adapter the
+  runner identity and version, exact argv, environment digest, exit, elapsed time and per
+  execution unit terminal outcome. A narrowed run SHALL summarise as "selected units passed: N of M"
   and name where the full suite runs, never "suite passed".
 - `STR-V0-011`: Receipts are evidence only. They MUST NOT feed ranking, selection, learning or
   authority; a later CEM citation needs its own accepted requirement.
 - `STR-V0-012`: Local and CI SHALL run the same binary code path. The CI profile adds only
   admission: planner and runner built outside the PR checkout from the reviewed pinned source
   (AFP-V0-013/028), the merge-queue backstop and the forward-qualification trip and kill switch
-  (AFP-V0-029/030). Every AFP-V0-028 FULL condition still applies in CI. A local narrowed PASS
+  (AFP-V0-029/030). Every AFP-V0-028 FULL condition still applies in CI, and CI executes only
+  universe placement (STR-V0-008). A local narrowed PASS
   SHALL NOT be reported as a gate PASS; `make gate` and the required CI checks stay binding.
 - `STR-V0-013`: Neither `make gate-affected` nor `tools/corvint-pr-tests` SHALL switch to
   `corvint test` until a parity check over the 50 first-parent pairs of the AFP-V0-011 measurement
@@ -111,12 +130,24 @@ of every requirement below and the binding gate until this spec is promoted.
 - `STR-V0-014`: A hangup, interrupt or termination SHALL kill every owned process group, exit
   nonzero and write an `INCOMPLETE` receipt; it MUST NOT start the fallback.
 - `STR-V0-015`: The run SHALL be bounded: the plan's existing walk and status bounds, at most 4096
-  run-set units, the receipt bound, and a per-adapter wall-clock limit from the repository
-  declaration (default the Makefile `GO_TEST_TIMEOUT` for Go). Exceeding a bound yields
-  `INCOMPLETE` and nonzero, never a narrower run.
+  execution units, the receipt bound, the runner's native per-unit timeout unchanged (for Go,
+  `-timeout` from the Makefile `GO_TEST_TIMEOUT`, a per-package hang detector), and a separate
+  total wall-clock budget per adapter invocation from the repository declaration (for Go, default
+  70 minutes, the current `tools/corvint-pr-tests` budget). Exceeding a bound yields `INCOMPLETE`
+  and nonzero, never a narrower run.
 - `STR-V0-016`: Adapters execute repository code with the invoking user's authority. The local
   profile claims no containment or network denial. The CI profile keeps read-only workflow
   permissions, no persisted credentials or secrets, and no `pull_request_target` execution.
+- `STR-V0-017`: The source identity SHALL bind the bytes that execute: the HEAD commit and tree,
+  plus, for every dirty path, its SHA-256 or a deletion marker, captured before planning. The run
+  SHALL recompute it before each adapter launch and after the last one; any difference is drift,
+  and the shard is `INCOMPLETE`. In CI the AFP-V0-013 captured merge commit with a clean tree is
+  the source identity.
+- `STR-V0-018`: Before execution the command SHALL derive one canonical `corvint-test-manifest/0`
+  from the plan, declared full scope, slice table, cost table, source identity, placement mode and
+  shard count, holding the expanded execution units and their shard assignment, at most 1 MiB. Its
+  digest is recorded in every receipt. `--dry-run` writes it; in CI one job SHALL compute it and
+  pass it to every shard and to the fan-in, and each shard SHALL recompute and match it.
 
 ## Non-goals
 
@@ -134,8 +165,11 @@ of every requirement below and the binding gate until this spec is promoted.
 | Plan cannot be produced, base unresolved, module-level frontier, unallowed unknown | `FULL` with named reason |
 | Language with selected units but no adapter and no declared full command | `INCOMPLETE`, nonzero |
 | Runner version cannot be read | that adapter `INCOMPLETE`, nonzero |
-| Partition or plan digest differs across shards | shard fails; fan-in `INCOMPLETE` |
-| Missing shard receipt, duplicate unit, unit without terminal outcome | fan-in `INCOMPLETE` |
+| Partition, manifest or source identity differs across shards | shard fails; fan-in `INCOMPLETE` |
+| Worktree bytes change during the run | drift, shard `INCOMPLETE` |
+| Missing shard receipt, duplicate execution unit, unit without terminal outcome | fan-in `INCOMPLETE` |
+| Any failed outcome or nonzero adapter exit | `FAIL`, nonzero |
+| No plan and no readable declared full scope | `INCOMPLETE`, nonzero |
 | Bound exceeded | `INCOMPLETE`, nonzero |
 | Signal | owned groups killed, `INCOMPLETE`, no fallback |
 | CI admission fails (pins, queue rules, `.github/` change, trip, kill switch) | `FULL` |
@@ -151,8 +185,13 @@ Testing matrix (all `NOT_RUN` until implementation):
   `INCOMPLETE`), each asserting the exact receipt;
 - `--dry-run` executes no process other than Git;
 - universe placement equals the current `go-product-shard` membership for the same inputs;
-- balanced placement places every unit once for 1 to 16 shards, and `verify-shards` rejects a
-  dropped, duplicated or foreign-digest receipt;
+- balanced placement places every execution unit once for 1 to 16 shards, a split package's
+  catch-all slice included;
+- `verify-shards` reports `INCOMPLETE` for a dropped, duplicated, extra or foreign-digest receipt
+  and a missing empty-shard receipt, and `FAIL` for a failed outcome or nonzero exit with every
+  digest correct;
+- editing an already-dirty file between planning and launch, or during the run, yields drift;
+- planning failure runs the declared full scope, and with no declaration is `INCOMPLETE`;
 - a language without an adapter runs its declared full command, or is `INCOMPLETE`;
 - signal tests show killed groups and no fallback start;
 - the STR-V0-013 parity report over the frozen pairs and shadow rows.
@@ -172,7 +211,8 @@ balanced placement only.
 1. Go adapter, `--dry-run`, receipts and universe placement, used by hand alongside both drivers.
 2. Parity report (STR-V0-013); then `make gate-affected` calls `corvint test`.
 3. CI call site behind AFP-V0-016 consent with a new forward epoch; shadow first, as AFP-V0-029.
-4. Balanced placement in shadow: compute and retain it while universe placement executes.
+4. Balanced placement executes locally; in CI it is computed and retained while universe
+   placement executes, until an accepted AFP-V0-028 amendment says otherwise.
 5. Further adapters, each with its own fixture qualification, before its language may narrow.
 
 Rollback: restore the previous call site (`script/gate-affected.sh`, `tools/corvint-pr-tests`),
@@ -183,7 +223,7 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| STR-V0-001..016 | not started | `NOT_RUN` |
+| STR-V0-001..018 | not started | `NOT_RUN` |
 
 ## Open decisions
 
