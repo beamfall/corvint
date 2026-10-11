@@ -34,7 +34,8 @@ are URL templates, not component source files. This slice makes neither missing 
   including sidecar declarations. Both endpoints must verify against the same receipt and app
   revision to prove a crossing. Report PROVEN, UNVERIFIED_AT_HEAD, CONTRADICTED or UNPROVEN;
   per-key evaluated unknowns and unplaced failures block proof; a key with no supplied receipt
-  does not block another key's proof. Check both router lineages and the flow
+  does not block another key's proof; a verified crossing for that key at any revision not observed
+  reads `observation-revision-mismatch` and blocks. Check both router lineages and the flow
   anchor at evaluated and receipt revisions; a changed flow selector or router URL template
   demotes placed evidence. Keep learned authority and receipt/test/flow/step references.
   (proposed, pending owner acceptance (V1-1132))
