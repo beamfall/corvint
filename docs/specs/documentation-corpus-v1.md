@@ -445,37 +445,44 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   nothing. Status: (proposed/experimental; GitHub #811).
 - `DCP-V1-061`: Each statically named `it` (and its runner's aliases) under statically titled
   suites appears exactly once, with ID `legacy:<path>::<suite titles > case title>`, the title path
-  split into `suite` and `case`, and an anchor spanning the call. A repeated title path gets an
-  ordinal ` #n` suffix on every occurrence and a `duplicate-title` unknown. `xit`, `xdescribe`,
+  split into `suite` and `case`, and an anchor spanning the call. When a title path repeats in a
+  file, the first occurrence keeps the plain ID, each later one gets an ordinal ` #n` suffix
+  (n from 2), and every occurrence has a `duplicate-title` unknown. `xit`, `xdescribe`,
   `xcontext`, `xspecify`, `.skip`, a case without a callback, a jasmine `pending(` call and any
   case inside a disabled suite have state `disabled`; everything else is `executable`. A focused
   `fit`, `fdescribe` or `.only` case stays in the inventory with a `focused` unknown. A case inside
-  a dynamic scope (a loop, a callback that is not a suite) or with a non-static title is not
-  invented: it is a `case-in-dynamic-scope` or `dynamic-title` unknown. Status: (proposed/experimental; GitHub #811).
+  a dynamic scope (a loop, a callback that is not a suite, or a call that is not a statement of its
+  own, such as an unbraced `if` body or `flag && it(...)`, with automatic semicolon insertion
+  applied at line breaks) or with a non-static title is not invented: it is a
+  `case-in-dynamic-scope` or `dynamic-title` unknown. Status: (proposed/experimental; GitHub #811).
 - `DCP-V1-062`: Assertions in a case body become ordinal criteria `c1..cn` with matcher, locator
   and value tuples: `expect(subject).matcher(value)` and `expectAsync`, `assert(...)` and
   `assert.X(...)`, Cypress `.should(chainer, value)` and `.and(...)`, and a `cy`-rooted `.contains`.
   A leading Jasmine `withContext(...)` is skipped. String escapes are decoded (`\n`, `\xHH`, `\uHHHH`,
-  `\u{...}`, identity escapes); a legacy octal or malformed escape refuses the file. A single static
+  surrogate pairs, `\u{...}`, identity escapes); a legacy octal, malformed or lone-surrogate escape
+  refuses the file. A single static
   string value is unquoted; no argument is `(no expected value)`; anything else is the layout-free
   canonical token text. An assertion the reader cannot turn into one tuple (a `should` callback, a
   computed matcher, a nested helper, a chain that continues after the first matcher such as
-  `.and.equal(...)`, or an assertion inside a template substitution) is listed under `unknown` as
+  `.and.equal(...)` or `['and']`, a Cypress `.and(...)` not chained from a `.should(...)`, or an
+  assertion inside a template substitution) is listed under `unknown` as
   `unparsed-assertion` or `should-callback` with its case and anchor; it is never dropped, and a
   case with no static assertion has a `no-static-assertion` unknown. Status: (proposed/experimental; GitHub #811).
 - `DCP-V1-063`: Preconditions are content-bound references. Every top-level call statement in an
   enclosing `beforeEach`/`before` hook, and every `cy.visit`, `browser.get`, `browser.url`,
   `page.goto` (`visit`), `cy.intercept`, `cy.route` (`intercept`), `cy.task`, `cy.exec` or
   `cy.fixture` (`setup`) call in the case body, is one `preconditions` entry with kind, callee, the
-  full canonical call text, its SHA-256 and an anchor. The case's `fixtures` list holds
+  full canonical call text (layout-free: a space separates only two word tokens or two operators),
+  its SHA-256 and an anchor. The case's `fixtures` list holds
   `kind:callee@sha256:<digest>` in execution order: run-once (`before`/`beforeAll`) hooks outer to
   inner, then per-case hooks outer to inner, then the body in source order; a repeated identity
   keeps its first place. Any change to a seed name, URL, intercept argument or call order changes
   the list. A body precondition nested in a callback, conditional or template substitution is
   still recorded and adds a `nested-precondition` unknown. A hook the reader cannot fully bind (no
-  inline callback, a call nested in a conditional, loop or callback, or a non-statement call) gives
-  every case under it a `hook-not-static` unknown. A hook at file root or in a dynamic scope is an
-  unknown, not a precondition. Status: (proposed/experimental; GitHub #811).
+  inline callback, a call nested in a conditional, loop or callback, a non-statement call, or a
+  recorded call that passes a callback or template substitution) gives every case under it a
+  `hook-not-static` unknown. A hook at file root or in a dynamic scope is an unknown, not a
+  precondition, and every case under it also has a `hook-not-static` unknown. Status: (proposed/experimental; GitHub #811).
 - `DCP-V1-064`: The record is pinned and deterministic: it names the repository identity and the
   full revision, reads only Git objects (never the working tree), writes nothing, and repeated runs
   on the same inputs give identical bytes. Status: (proposed/experimental; GitHub #811).
@@ -504,7 +511,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   not a full commit ID, a non-canonical, absolute or parent-traversing `--path`, a path absent at
   the revision, a directory without test files, a non-regular blob, an open or malformed registry,
   a registry that is not a schema 2 registry with a pinned contract and full revisions or that has
-  invalid or duplicate flow, test, fixture, role or mapping identities, and an inventory over
+  invalid or duplicate flow, test, fixture, role or mapping identities (a mapping is identified by
+  its criterion, legacy case and legacy criterion), and an inventory over
   `MaxRecords`. A file the lexer cannot classify (for example JSX, invalid UTF-8, an unterminated
   literal, a legacy octal escape, a raw line break in a string or regex, or a `/` after `}` whose
   regex or division reading depends on statement context) is a `lex-failed` unknown, a file over `MaxBytes` is `file-over-bound`, and a
@@ -764,7 +772,8 @@ and every case under that hook carries a `hook-not-static` unknown instead.
 
 Acceptance: `TestLegacyDiscoveryInventory`, `TestLegacyDiscoveryDeterministicReadOnly`,
 `TestLegacyCrosswalk`, `TestLegacyPreconditionDigestCompileGap`, `TestLegacyDiscoveryRefusals`,
-`TestLegacyDiscoveryStaticEdgeCases` and `TestDocsCorpusDiscoverLegacyCLI`.
+`TestLegacyDiscoveryStaticEdgeCases`, `TestLegacyLexerCanonicalAndEscapes` and
+`TestDocsCorpusDiscoverLegacyCLI`.
 
 ## Failure modes
 
@@ -847,11 +856,11 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-053 | `cmd/corvint/docs.go`, `cmd/corvint-js-test-provider/main.go` | `TestDocsHelpNamesPlaywrightReceiptProducer`, `TestDocsHelpProducerExampleUsesE2EFlags` |
 | DCP-V1-060..061 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-060 DCP-V1-061`) |
 | DCP-V1-062 | `internal/doccorpus/behavior_legacy_discovery.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-062`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-062`) |
-| DCP-V1-063 | `internal/doccorpus/behavior_legacy_discovery.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-063`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-063`) |
+| DCP-V1-063 | `internal/doccorpus/behavior_legacy_discovery.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-063`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-063`), `TestLegacyLexerCanonicalAndEscapes` |
 | DCP-V1-064 | `internal/doccorpus/behavior_legacy_discovery.go` | `TestLegacyDiscoveryDeterministicReadOnly` |
 | DCP-V1-065..066 | `internal/doccorpus/behavior_legacy_crosswalk.go` | `TestLegacyCrosswalk` (`DCP-V1-065`, `DCP-V1-066`) |
 | DCP-V1-067 | `internal/doccorpus/behavior_legacy_crosswalk.go`, `behavior.go` | `TestLegacyCrosswalk` (`DCP-V1-067`), `TestLegacyPreconditionDigestCompileGap` |
-| DCP-V1-068 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go` | `TestLegacyDiscoveryRefusals`, `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-068`) |
+| DCP-V1-068 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go` | `TestLegacyDiscoveryRefusals`, `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-068`), `TestLegacyCrosswalk` (`DCP-V1-068`), `TestLegacyLexerCanonicalAndEscapes` |
 | DCP-V1-069 | `cmd/corvint/docs_corpus.go`, `docs_corpus_legacy.go`, `docs.go` | `TestDocsCorpusDiscoverLegacyCLI` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 

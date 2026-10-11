@@ -409,6 +409,12 @@ func TestLegacyCrosswalk(t *testing.T) {
 			t.Fatal("seed change altered tuples")
 		}
 	})
+	t.Run("DCP-V1-068 a duplicate legacy mapping is refused", func(t *testing.T) {
+		registry := legacyRegistry(t, base, func(r *BehaviorRegistry) { r.Tests[0].Legacy = append(r.Tests[0].Legacy, r.Tests[0].Legacy[0]) })
+		if _, _, err := legacyInventory(t, root, "mocha", revision, "e2e/cypress", registry); err == nil || !strings.Contains(err.Error(), "duplicate legacy criterion mapping") {
+			t.Fatalf("duplicate mapping accepted: %v", err)
+		}
+	})
 }
 
 // TestLegacyPreconditionDigestCompileGap shows the behavior compiler keeps a changed seed
@@ -493,6 +499,31 @@ func legacyEdgeTuples(legacy BehaviorLegacyCase) []string {
 	return tuples
 }
 
+var legacyMoreSuite = `describe('more', () => {
+  it('bare and', () => {
+    cy.get('.x').and('have.text', 'X');
+    cy.get('.y').should('be.visible');
+  });
+  it('computed continuation', () => {
+    expect(v).equal(1)['and']['equal'](2);
+  });
+  if (flag) it('conditional case', () => { expect(v).toBe(1); });
+  it('asi one', () => {
+    expect(a).toBe(1)
+  })
+  it('asi two', () => {
+    const s = ` + "`${cy.task('seed', 'T')}`" + `
+    expect(b).toBe(2)
+  })
+  it('twice', () => { expect(c).toBe(3); });
+  it('twice', () => { expect(c).toBe(4); });
+});
+describe('nested hook', () => {
+  beforeEach(() => { cy.then(() => { cy.task('seed', 'A') }) });
+  it('under a nested hook', () => { cy.get('.n').should('be.visible'); });
+});
+`
+
 var legacyEdgeSuite = `describe('edge', () => {
   beforeEach(seedHelper);
   it('regex after a condition', () => {
@@ -531,6 +562,8 @@ func TestLegacyDiscoveryStaticEdgeCases(t *testing.T) {
 	git(t, root, "config", "user.email", "corpus@example.invalid")
 	legacyWrite(t, root, "e2e/edge.cy.js", legacyEdgeSuite)
 	legacyWrite(t, root, "e2e/octal.cy.js", "it('octal', () => { expect(a).toBe('\\101'); });\n")
+	legacyWrite(t, root, "e2e/more.cy.js", legacyMoreSuite)
+	legacyWrite(t, root, "e2e/root.cy.js", "beforeEach(() => { cy.visit('/root') })\ndescribe('rooted', () => {\n  it('under a root hook', () => { cy.get('.r').should('be.visible') })\n})\n")
 	legacyWrite(t, root, "e2e/brace.cy.js", "it('brace', () => { if (a) {} /it('x', () => {})/.test(b); });\n")
 	git(t, root, "add", ".")
 	git(t, root, "commit", "-qm", "edge")
@@ -542,7 +575,9 @@ func TestLegacyDiscoveryStaticEdgeCases(t *testing.T) {
 	t.Run("DCP-V1-061 DCP-V1-068 regex context and invalid escapes never invent cases", func(t *testing.T) {
 		names := []string{}
 		for _, legacy := range inventory.Legacy {
-			names = append(names, legacy.Case)
+			if strings.HasPrefix(legacy.ID, "legacy:e2e/edge.cy.js::") {
+				names = append(names, legacy.Case)
+			}
 		}
 		if !slices.Equal(names, []string{"regex after a condition", "template and chains", "ordered preconditions", "nested preconditions", "inherits the doubt"}) {
 			t.Fatalf("cases: %v", names)
@@ -596,4 +631,56 @@ func TestLegacyDiscoveryStaticEdgeCases(t *testing.T) {
 			}
 		}
 	})
+	t.Run("DCP-V1-061 DCP-V1-062 statement context, chains and repeated titles stay uncertain", func(t *testing.T) {
+		reasons := func(name string) []string {
+			return legacyUnknownReasons(inventory, legacyCaseNamed(t, inventory, name).ID)
+		}
+		for name, want := range map[string]string{
+			"bare and": "unparsed-assertion", "computed continuation": "unparsed-assertion", "conditional case": "case-in-dynamic-scope",
+			"twice": "duplicate-title", "twice #2": "duplicate-title", "under a nested hook": "hook-not-static", "under a root hook": "hook-not-static",
+		} {
+			if !slices.Contains(reasons(name), want) {
+				t.Fatalf("%s: want %s, got %v", name, want, reasons(name))
+			}
+		}
+		for _, name := range []string{"asi one", "asi two"} {
+			if slices.Contains(reasons(name), "case-in-dynamic-scope") {
+				t.Fatalf("%s: a semicolon-free statement was treated as dynamic", name)
+			}
+		}
+		if rooted := legacyCaseNamed(t, inventory, "under a root hook"); len(rooted.Fixtures) != 0 {
+			t.Fatalf("a root hook became a precondition: %v", rooted.Fixtures)
+		}
+		asi := legacyCaseNamed(t, inventory, "asi two")
+		if len(asi.Fixtures) != 1 || !strings.HasPrefix(asi.Fixtures[0], "setup:cy.task@") || !slices.Contains(reasons("asi two"), "nested-precondition") {
+			t.Fatalf("template precondition: %v %v", asi.Fixtures, reasons("asi two"))
+		}
+	})
+}
+
+// TestLegacyLexerCanonicalAndEscapes pins operator boundaries in canonical text and the decoding
+// of surrogate escapes (DCP-V1-062, DCP-V1-063, DCP-V1-068).
+func TestLegacyLexerCanonicalAndEscapes(t *testing.T) {
+	canonical := func(src string) string {
+		tokens, _, ok := lexLegacy(src)
+		if !ok {
+			t.Fatalf("lex refused %q", src)
+		}
+		return legacyCanonical(tokens, 0, len(tokens))
+	}
+	if a, b := canonical("seed(x + ++y)"), canonical("seed(x++ + y)"); a == b {
+		t.Fatalf("distinct operators share canonical text %q", a)
+	}
+	if a, b := canonical("seed( x+ ++y )"), canonical("seed(x + ++ y)"); a != b {
+		t.Fatalf("layout changed canonical text: %q / %q", a, b)
+	}
+	tokens, _, ok := lexLegacy(`'\uD83D\uDE00'`)
+	if !ok || len(tokens) != 1 || tokens[0].text != "\U0001F600" {
+		t.Fatalf("surrogate pair: %v %+v", ok, tokens)
+	}
+	for _, src := range []string{`'\uD800'`, `'\uDC00\uD800'`, `'\u{D800}'`, `'\uD83Dx'`} {
+		if _, _, ok := lexLegacy(src); ok {
+			t.Fatalf("lone surrogate %s accepted", src)
+		}
+	}
 }

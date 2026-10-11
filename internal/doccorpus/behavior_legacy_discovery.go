@@ -138,6 +138,7 @@ type legacyProducer struct {
 	visits      map[string][]string
 	caseUnknown map[string]bool
 	ids         map[string]bool
+	duplicates  map[string]bool // case IDs whose full title repeats later in the file
 }
 
 // BuildLegacyInventory reads Jasmine or Mocha/Cypress test files from Git at a full commit and
@@ -169,7 +170,7 @@ func BuildLegacyInventory(ctx context.Context, input LegacyInventoryInput) ([]by
 		return nil, err
 	}
 	inventory := &LegacyInventory{Schema: LegacyInventorySchema, Status: "generated", Runner: input.Runner, Repository: repository, Revision: input.Revision, Path: input.Path, Legacy: []BehaviorLegacyCase{}, Preconditions: []LegacyPrecondition{}, Unknown: []LegacyUnknown{}, Limitations: legacyLimitations}
-	p := &legacyProducer{runner: runner, name: input.Runner, repository: repository, revision: input.Revision, inv: inventory, pre: map[string]LegacyPrecondition{}, visits: map[string][]string{}, caseUnknown: map[string]bool{}, ids: map[string]bool{}}
+	p := &legacyProducer{runner: runner, name: input.Runner, repository: repository, revision: input.Revision, inv: inventory, pre: map[string]LegacyPrecondition{}, visits: map[string][]string{}, caseUnknown: map[string]bool{}, ids: map[string]bool{}, duplicates: map[string]bool{}}
 	for _, current := range paths {
 		entry, ok, err := auth.LookupTreeEntry(ctx, input.Revision, current)
 		if err != nil {
@@ -319,6 +320,12 @@ func (p *legacyProducer) file(f *legacyFile) {
 	f.tokens, f.match = tokens, match
 	before := len(p.inv.Legacy)
 	p.scope(f, 0, len(tokens), legacyScope{}, true)
+	// The first of repeated titles keeps the unnumbered ID but is as ambiguous as the rest.
+	for _, legacy := range p.inv.Legacy[before:] {
+		if p.duplicates[legacy.ID] {
+			p.unknown(f, legacy.ID, "duplicate-title", "a later case in this file has the same full title; this first one keeps the unnumbered ID", legacy.Evidence.Start, legacy.Evidence.End)
+		}
+	}
 	if len(p.inv.Legacy) == before {
 		p.unknown(f, "", "no-static-cases", "no "+p.name+" case call was found in this test file", 0, 0)
 	}
@@ -435,6 +442,10 @@ func (p *legacyProducer) scope(f *legacyFile, lo, hi int, s legacyScope, root bo
 	for i := lo; i < hi; i++ {
 		if c, ok := p.apiCall(f, i); ok {
 			c.depth = depth
+			if !legacyStatementStart(f, i, lo) {
+				// An unbraced if/else/loop body or an operand (flag && it(...)) may not run.
+				c.depth++
+			}
 			calls = append(calls, c)
 			i = c.close
 			continue
@@ -455,12 +466,17 @@ func (p *legacyProducer) scope(f *legacyFile, lo, hi int, s legacyScope, root bo
 			continue
 		}
 		line, end := f.tokens[c.start].line, f.tokens[c.close].line
+		// A root or dynamic hook is an unknown, never a precondition, and every case under it
+		// inherits the doubt.
 		if root {
 			p.unknown(f, "", "root-level-hook", c.name+" outside any suite applies to every suite the runner loads", line, end)
+			inner.uncertain = append(inner.uncertain, c.name+" outside any suite applies to every suite the runner loads")
+			continue
 		}
 		if c.depth > 0 || s.dynamic {
 			p.unknown(f, "", "hook-in-dynamic-scope", c.name+" is nested in code the static reader does not evaluate", line, end)
 			inner.uncertain = append(inner.uncertain, c.name+" is nested in code the static reader does not evaluate")
+			continue
 		}
 		args := legacyArgs(f, c.open)
 		if len(args) == 0 {
@@ -535,6 +551,7 @@ func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope) {
 	base := "legacy:" + f.path + "::" + full
 	id, name, duplicate := base, title, 1
 	for p.ids[id] {
+		p.duplicates[base] = true
 		duplicate++
 		id, name = base+" #"+strconv.Itoa(duplicate), title+" #"+strconv.Itoa(duplicate)
 	}
@@ -574,7 +591,7 @@ func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope) {
 		note("case-callback-not-static", "the case body is not an inline function: "+legacyCanonical(t, args[1].lo, args[1].hi))
 	}
 	if hasBody {
-		fixtures = append(fixtures, p.casePreconditions(f, id, body)...)
+		fixtures = append(fixtures, p.casePreconditions(f, id, body, false)...)
 		for i := body.lo; i < body.hi; i++ {
 			if p.name == "jasmine" && t[i].kind == 'i' && t[i].text == "pending" && !legacyChained(t, i) && legacyPunct(t, i+1, "(") {
 				legacy.State = "disabled"
@@ -647,12 +664,31 @@ func (p *legacyProducer) record(f *legacyFile, i, end int, kind, callee string) 
 }
 
 // legacyStatementStart reports whether token i begins a statement of the body starting at lo, so
-// a call there runs unconditionally whenever the body runs.
-func legacyStatementStart(t []legacyToken, i, lo int) bool {
+// a call there runs unconditionally whenever the body runs. After a line break it applies
+// JavaScript's automatic semicolon insertion, except where the previous token still governs the
+// next statement: an if/for/while/with header, else, do, another keyword, or an operator.
+func legacyStatementStart(f *legacyFile, i, lo int) bool {
+	t := f.tokens
 	if i > lo && t[i-1].kind == 'i' && (t[i-1].text == "await" || t[i-1].text == "void") {
 		i--
 	}
-	return i == lo || legacyPunct(t, i-1, ";") || legacyPunct(t, i-1, "}") || legacyPunct(t, i-1, "{")
+	if i == lo || legacyPunct(t, i-1, ";") || legacyPunct(t, i-1, "}") || legacyPunct(t, i-1, "{") {
+		return true
+	}
+	previous := t[i-1]
+	if previous.line == t[i].line {
+		return false
+	}
+	switch {
+	case previous.kind == 'i':
+		return !legacyKeyword[previous.text]
+	case previous.kind != 'p':
+		return true
+	case previous.text == ")":
+		open := f.match[i-1]
+		return open < 1 || t[open-1].kind != 'i' || !legacyRegexAfterParen[t[open-1].text]
+	}
+	return previous.text == "]" || previous.text == "++" || previous.text == "--"
 }
 
 // hookPreconditions records each top-level call statement of a hook body as a precondition.
@@ -676,7 +712,7 @@ func (p *legacyProducer) hookPreconditions(f *legacyFile, r legacyRange) ([]stri
 				depth++
 			case ")", "]", "}":
 				depth--
-			case "&&", "||", "?", "&", "|":
+			case "&&", "||", "??", "?", "&&=", "||=", "??=":
 				if depth == 0 {
 					doubt("a hook statement is conditional: " + legacyBounded(legacyCanonical(t, max(r.lo, i-6), min(r.hi, i+6))))
 				}
@@ -707,8 +743,11 @@ func (p *legacyProducer) hookPreconditions(f *legacyFile, r legacyRange) ([]stri
 			i = end - 1
 			continue
 		}
-		if !legacyStatementStart(t, i, r.lo) {
+		if !legacyStatementStart(f, i, r.lo) {
 			doubt("a hook call is not a statement of its own: " + callee)
+		}
+		if legacyHiddenCode(t, i, end) {
+			doubt("a hook call passes code the static reader does not evaluate: " + callee)
 		}
 		kind := legacyPreconditionOf[callee]
 		if kind == "" {
@@ -726,8 +765,8 @@ func (p *legacyProducer) hookPreconditions(f *legacyFile, r legacyRange) ([]stri
 
 // casePreconditions records every visit, intercept and seed command of a case body at any depth.
 // One that is not an unconditional statement of the body, or that sits in a template
-// substitution, is still bound by digest but also makes the case uncertain.
-func (p *legacyProducer) casePreconditions(f *legacyFile, caseID string, r legacyRange) []string {
+// substitution (nested), is still bound by digest but also makes the case uncertain.
+func (p *legacyProducer) casePreconditions(f *legacyFile, caseID string, r legacyRange, nested bool) []string {
 	t := f.tokens
 	fixtures := []string{}
 	depth, conditional := 0, false
@@ -739,11 +778,17 @@ func (p *legacyProducer) casePreconditions(f *legacyFile, caseID string, r legac
 				depth++
 			case ")", "]", "}":
 				depth--
-			case "&&", "||", "?", "&", "|":
+			case "&&", "||", "??", "?", "&&=", "||=", "??=":
 				conditional = conditional || depth == 0
 			}
 			continue
 		case 't':
+			sub := &legacyFile{path: f.path, blob: f.blob, data: f.data, tokens: t[i].sub}
+			if match, ok := legacyMatchBrackets(sub.tokens); ok {
+				sub.match = match
+				fixtures = append(fixtures, p.casePreconditions(sub, caseID, legacyRange{0, len(sub.tokens)}, true)...)
+				continue
+			}
 			for _, callee := range legacySubCalls(t[i].sub) {
 				if legacyPreconditionOf[callee] != "" {
 					p.unknown(f, caseID, "nested-precondition", callee+" inside a template substitution is not bound", t[i].line, t[i].line)
@@ -772,11 +817,22 @@ func (p *legacyProducer) casePreconditions(f *legacyFile, caseID string, r legac
 			continue
 		}
 		fixtures = append(fixtures, fixture)
-		if depth != 0 || conditional || !legacyStatementStart(t, i, r.lo) {
+		if nested || depth != 0 || conditional || !legacyStatementStart(f, i, r.lo) {
 			p.unknown(f, caseID, "nested-precondition", callee+" may not run unconditionally before the assertions", t[i].line, t[end-1].line)
 		}
 	}
 	return fixtures
+}
+
+// legacyHiddenCode reports whether tokens[lo:hi] contain a callback or a call inside a template
+// substitution, whose effects a recorded call text binds but the static reader cannot order.
+func legacyHiddenCode(t []legacyToken, lo, hi int) bool {
+	for k := lo; k < hi; k++ {
+		if legacyPunct(t, k, "=>") || t[k].kind == 'i' && t[k].text == "function" || t[k].kind == 't' && len(legacySubCalls(t[k].sub)) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // legacySubCalls lists the callees (member path up to the call) inside template substitution
@@ -912,7 +968,7 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 			end := k - 1
 			if call >= 0 {
 				end = f.match[call]
-				if next := end + 1; next+1 < r.hi && (legacyPunct(t, next, ".") || legacyPunct(t, next, "?.")) && t[next+1].kind == 'i' {
+				if next := end + 1; next+1 < r.hi && ((legacyPunct(t, next, ".") || legacyPunct(t, next, "?.")) && t[next+1].kind == 'i' || legacyPunct(t, next, "[") || legacyPunct(t, next, "(")) {
 					p.unknown(f, caseID, "unparsed-assertion", "a chained assertion continues after the first matcher: "+legacyBounded(legacyCanonical(t, i, min(next+12, r.hi))), t[i].line, t[min(next+12, r.hi)-1].line)
 				}
 			}
@@ -958,6 +1014,7 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 				if !legacyPunct(t, next, ".") || next+2 >= r.hi || t[next+1].kind != 'i' || t[next+1].text != "and" || !legacyPunct(t, next+2, "(") {
 					break
 				}
+				consumed[next+1] = true
 				call = next + 2
 			}
 		case t[i].text == "contains" && legacyChained(t, i) && legacyPunct(t, i+1, "("):
@@ -981,7 +1038,8 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 		if t[i].kind == 't' && legacySubWords(t[i].sub, legacyAssertionWord) {
 			p.unknown(f, caseID, "unparsed-assertion", "an assertion inside a template substitution: "+legacyBounded(t[i].raw), t[i].line, t[i].line)
 		}
-		if t[i].kind == 'i' && legacyAssertionWord[t[i].text] && !consumed[i] {
+		cypressAnd := t[i].kind == 'i' && t[i].text == "and" && legacyChained(t, i) && legacyPunct(t, i+1, "(")
+		if t[i].kind == 'i' && (legacyAssertionWord[t[i].text] || cypressAnd) && !consumed[i] {
 			p.unknown(f, caseID, "unparsed-assertion", legacyCanonical(t, i, min(i+12, r.hi)), t[i].line, t[min(i+12, r.hi)-1].line)
 		}
 	}

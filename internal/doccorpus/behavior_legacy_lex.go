@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -22,6 +23,11 @@ type legacyToken struct {
 var (
 	legacyRegexAfterWord  = words("return typeof case do else in of new delete void throw instanceof yield await")
 	legacyRegexAfterParen = words("if while for with")
+	// legacyOperators are the multi-character punctuators, longest first, so operator boundaries
+	// survive tokenization ("x + ++y" and "x++ + y" stay distinct).
+	legacyOperators = strings.Fields(">>>= ... === !== **= <<= >>= >>> &&= ||= ??= => ?. == != <= >= && || ?? ++ -- += -= *= %= &= |= ^= ** << >>")
+	// legacySeparators are the punctuators canonical text joins without a space.
+	legacySeparators = words("( ) [ ] { } , ; . ?. ...")
 )
 
 // lexLegacy tokenizes src. It refuses (ok=false) invalid UTF-8, an unterminated literal or
@@ -143,7 +149,7 @@ func (l *legacyLexer) run(i int, sub bool) ([]legacyToken, int, bool) {
 				braces--
 			}
 			text := string(c)
-			for _, long := range []string{"...", "=>", "?."} {
+			for _, long := range legacyOperators {
 				if strings.HasPrefix(src[i:], long) {
 					text = long
 					break
@@ -183,7 +189,7 @@ func legacyRegexAllowed(tokens []legacyToken) (regex, known bool) {
 		switch last.text {
 		case "]":
 			return false, true
-		case "}":
+		case "}", "++", "--":
 			return false, false
 		case ")":
 			depth := 0
@@ -285,7 +291,7 @@ func legacyEscape(rest string, value *strings.Builder) (int, bool) {
 				return 0, false
 			}
 			r, ok := hex(rest[2:end])
-			if !ok {
+			if !ok || utf16.IsSurrogate(r) {
 				return 0, false
 			}
 			value.WriteRune(r)
@@ -298,8 +304,21 @@ func legacyEscape(rest string, value *strings.Builder) (int, bool) {
 		if !ok {
 			return 0, false
 		}
-		value.WriteRune(r)
-		return 5, true
+		if !utf16.IsSurrogate(r) {
+			value.WriteRune(r)
+			return 5, true
+		}
+		// Only a high surrogate followed by an escaped low surrogate is one character; a lone
+		// surrogate has no UTF-8 value and refuses the literal.
+		if r >= 0xDC00 || len(rest) < 11 || rest[5:7] != `\u` || strings.ContainsAny(rest[7:11], "+-") {
+			return 0, false
+		}
+		low, ok := hex(rest[7:11])
+		if !ok || low < 0xDC00 || low > 0xDFFF {
+			return 0, false
+		}
+		value.WriteRune(utf16.DecodeRune(r, low))
+		return 11, true
 	default:
 		r, size := utf8.DecodeRuneInString(rest)
 		value.WriteRune(r)
@@ -390,12 +409,14 @@ func legacyMatchBrackets(tokens []legacyToken) ([]int, bool) {
 	return match, len(stack) == 0
 }
 
-// legacyCanonical joins tokens[lo:hi] without layout: a space only separates two word tokens, so
-// reformatting never changes the text or its digest while any literal or name change does.
+// legacyCanonical joins tokens[lo:hi] without layout: a space only separates two word tokens or
+// two operators, so reformatting never changes the text or its digest while any literal, name or
+// operator change does.
 func legacyCanonical(tokens []legacyToken, lo, hi int) string {
 	var out strings.Builder
+	operator := func(token legacyToken) bool { return token.kind == 'p' && !legacySeparators[token.text] }
 	for i := lo; i < hi; i++ {
-		if i > lo && tokens[i].kind != 'p' && tokens[i-1].kind != 'p' {
+		if i > lo && (tokens[i].kind != 'p' && tokens[i-1].kind != 'p' || operator(tokens[i]) && operator(tokens[i-1])) {
 			out.WriteByte(' ')
 		}
 		out.WriteString(tokens[i].raw)

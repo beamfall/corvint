@@ -28,7 +28,7 @@ Design choices:
 Focused tests (go1.27.2, `-p 1 -count=1`): `TestLegacyDiscoveryInventory`,
 `TestLegacyDiscoveryDeterministicReadOnly`, `TestLegacyCrosswalk`,
 `TestLegacyPreconditionDigestCompileGap`, `TestLegacyDiscoveryRefusals`,
-`TestLegacyDiscoveryStaticEdgeCases` (`./internal/doccorpus`) and
+`TestLegacyDiscoveryStaticEdgeCases`, `TestLegacyLexerCanonicalAndEscapes` (`./internal/doccorpus`) and
 `TestDocsCorpusDiscoverLegacyCLI` plus the existing `Docs|Corpus|Help` tests (`./cmd/corvint`).
 The fixtures are a Jasmine suite (8 cases) and a Cypress/Mocha suite (5 cases, with `it.skip`,
 `context`, `it.only`, a `should` callback and a bare `.should`) under
@@ -66,3 +66,17 @@ identities keep execution order; nested body preconditions are recorded with a
 precondition text is the full canonical text its digest covers; and the crosswalk validates the
 registry header and identities and requires a current mapping review, a declared target criterion
 and a reviewed target annotation before `parity-candidate`.
+
+## Review round 2
+
+Codex round 2 failed with ten P2 findings, all fixed with regressions in
+`TestLegacyDiscoveryStaticEdgeCases`, `TestLegacyLexerCanonicalAndEscapes` and
+`TestLegacyCrosswalk`: multi-character operators are tokenized and canonical text separates
+adjacent operators, so `x + ++y` and `x++ + y` digest differently; surrogate pairs decode and lone
+surrogates refuse the file; an unchained Cypress `.and(...)` and an indexed or called matcher
+continuation are `unparsed-assertion` unknowns; a runner call that is not a statement of its own
+(with automatic semicolon insertion at line breaks) is dynamic; a recorded hook call that passes a
+callback or template substitution, and a root or dynamic hook, give cases `hook-not-static`, and
+root or dynamic hooks no longer contribute preconditions; the first of repeated titles also gets
+`duplicate-title`; duplicate registry mappings are refused; and body preconditions inside
+template substitutions are recorded with a `nested-precondition` unknown.

@@ -127,10 +127,16 @@ func legacyRegistryValid(r BehaviorRegistry) error {
 		if !textOK(test.ID) || !uniqueIdentities(test.Fixtures) || !uniqueIdentities(test.Roles) || len(test.Legacy) > MaxRecords {
 			return fail("crosswalk registry has an invalid test identity or preconditions")
 		}
+		keys := map[[3]string]bool{}
 		for _, mapping := range test.Legacy {
 			if !textOK(mapping.Criterion) || !textOK(mapping.LegacyCase) || !textOK(mapping.LegacyCriterion) || !words("same stronger new obsolete blocked")[mapping.Relation] {
 				return fail("crosswalk registry has an invalid legacy criterion mapping")
 			}
+			key := [3]string{mapping.Criterion, mapping.LegacyCase, mapping.LegacyCriterion}
+			if keys[key] {
+				return fail("crosswalk registry has a duplicate legacy criterion mapping")
+			}
+			keys[key] = true
 		}
 	}
 	if !uniqueIdentities(ids) {
