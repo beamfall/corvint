@@ -1,6 +1,6 @@
 # V1-0276: bounded navigation traffic and linear attribution
 
-Intent: AFU-V1-057 and AFU-V1-058 are **proposed, pending owner acceptance
+Intent: AFU-V1-057 and AFU-V1-058 are **accepted, decision 0512
 (V1-0276)** in `docs/specs/application-flow-understanding-v1.md`. Current remote
 `origin/main` and every open `beamfall/corvint` PR diff were checked before allocating
 057/058; no collisions were found. Baseline: `29e1f653486fca13216606683d3a5c2b05cacd36`.
@@ -76,5 +76,5 @@ writes or plugin manifest changes are part of this task.
 
 Rollback: revert the new file refusal and index in `internal/appflows/navigate.go`
 and its help/tests/proposed clauses, then regenerate REQUIREMENTS.tsv. No persistent
-product state or wire migration is involved. Owner acceptance, normal staging and
+product state or wire migration is involved. Owner acceptance is decision 0512. Normal staging and
 any later commit-bound dogfood/integration remain outside this uncommitted result.

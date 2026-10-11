@@ -2,7 +2,7 @@
 
 ## Intent and scope
 
-AFU-V1-059 and MCPV0-035 are proposed, pending owner acceptance (V1-0279).
+AFU-V1-059 and MCPV0-035 are accepted, decision 0512.
 The user requests cancellation of an active MCP impact graph walk, including all language
 adapters and callers. No wire schema changes, new error codes, decision files, publication,
 or task-store writes. origin/main and HEAD were identical at
@@ -110,6 +110,6 @@ GOTOOLCHAIN=local, TMPDIR=/private/tmp/claude-501/gotmp and GOMAXPROCS=3.
 - PASS: final diff whitespace/readback check. Actual HEAD remains the original base; the real
   index, task store and forbidden plugin manifest remain untouched. No commit or push performed.
 
-Local requested patch verification is complete. Proposed intent still needs owner acceptance;
+Local requested patch verification is complete. Owner acceptance is decision 0512;
 post-commit dogfood binding/sealing and native ticket completion remain outside this authorized
 uncommitted, no-store-write task. Official tool freshness and account telemetry remain unknown.

@@ -105,7 +105,7 @@ within 15 minutes.
   under an exclusive lock on the sibling `<effective-output-map>.lock` file, removed on release
   only while that path still names the held lock file; a non-empty file already at the lock path is
   someone's data, never a lock, and MUST refuse `publish-failed` without being removed;
-  (proposed, pending owner acceptance (V1-0665)) For in-place updates, including an explicit
+  (accepted, decision 0512) For in-place updates, including an explicit
   output equal to the input path, the lock MUST precede the first bounded map
   read: concurrent valid atomic replacements MUST serialize with all twelve marks succeeding
   and surviving. Safe-read identity, size, type, and no-follow checks MUST remain intact;

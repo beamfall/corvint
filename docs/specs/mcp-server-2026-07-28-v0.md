@@ -104,7 +104,7 @@ receipt, cache, and denial policy; the local source-content-free policy does not
 
 ## Requirements
 
-- `MCPV0-035`: proposed, pending owner acceptance (V1-0279). Cancellation of an active
+- `MCPV0-035`: accepted, decision 0512. Cancellation of an active
   `corvint.flows.impact` MUST stop its impact graph walk under AFU-V1-059 and return the
   existing `cancelled` failure without a ready receipt. A regression MUST cancel after the
   actual language walk begins and prove the call returns, under the race detector.

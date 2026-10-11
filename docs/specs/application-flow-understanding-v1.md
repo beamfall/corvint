@@ -502,11 +502,11 @@ This subsection fixes the S4 wire shape. It adds no requirement and no root verb
   `external-side-effect` transition unless the target origin is listed as disposable in the
   repository-owned `origins.json` in the flows directory.
 
-- `AFU-V1-057`: (proposed, pending owner acceptance (V1-0276)) Navigation traffic
+- `AFU-V1-057`: (accepted, decision 0512) Navigation traffic
   input MUST accept at most 256 filenames, counting repeated filenames and empty files.
   More filenames MUST fail before opening any traffic file with `navigation-bound-exceeded`.
   The shared 8,192-record bound remains unchanged; refusals emit no navigation output.
-- `AFU-V1-058`: (proposed, pending owner acceptance (V1-0276)) Navigation MUST index traffic
+- `AFU-V1-058`: (accepted, decision 0512) Navigation MUST index traffic
   once by the exact flow/step pair, preserving record order within each pair. Traffic attribution
   and filtering MUST take O(R + S) work and O(R) auxiliary space for R records and S steps,
   rather than scanning or cloning all R records for every step. Existing admitted map and packet
@@ -621,7 +621,7 @@ paths, and `--page` and `--claims` differ.
 
 ### MCP companion surface
 
-- `AFU-V1-059`: proposed, pending owner acceptance (V1-0279). Impact graph construction MUST
+- `AFU-V1-059`: accepted, decision 0512. Impact graph construction MUST
   accept the caller context and propagate it through every supported language adapter. Repository
   walks MUST check cancellation at every directory-entry callback, including opted-in skipped
   directories; source reads and cached-file filtering MUST check before each operation. Cancellation
@@ -812,7 +812,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-041, AFU-V1-042 | implemented: `internal/appflows/runregistry.go`, `internal/appflows/query_stability.go`, `cmd/corvint/flows.go` (`flows stability` and query qualification) |
 | AFU-V1-011..014, 038 | implemented (014 accepted observer gap; see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
-| AFU-V1-059 | proposed, pending owner acceptance (V1-0279): `internal/liveverify/affected/graph.go`, `source.go`, `walk.go`, the eight language adapters, `internal/appflows/impact.go` and its CLI/MCP callers |
+| AFU-V1-059 | accepted, decision 0512: `internal/liveverify/affected/graph.go`, `source.go`, `walk.go`, the eight language adapters, `internal/appflows/impact.go` and its CLI/MCP callers |
 | AFU-V1-034..035 | implemented and locally qualified: `internal/mcp/bridge/flows.go`, `bridge.go`, `cmd/corvint-mcp/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
 
 ## Unresolved decisions and promotion or kill criteria

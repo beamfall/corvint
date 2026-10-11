@@ -1,6 +1,6 @@
 # V1-0665: serialize in-place CEM reads before publication
 
-Intent: CEM-PILOT-013 amendment is proposed, pending owner acceptance (V1-0665).
+Intent: CEM-PILOT-013 amendment is accepted, decision 0512.
 The existing numbered requirement owns bounded safe reads and serialized map updates;
 origin/main and the open beamfall/corvint PR list were checked before amending it. No
 new requirement ID or decision file is introduced.
