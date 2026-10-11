@@ -1109,8 +1109,18 @@ DCP-V1-050	docs/specs/documentation-corpus-v1.md	383	A witness is produced only 
 DCP-V1-051	docs/specs/documentation-corpus-v1.md	397	Every other registered test stays unwitnessed with exactly one named reason and
 DCP-V1-052	docs/specs/documentation-corpus-v1.md	406	Missing or untrustworthy shared evidence yields uncertainty for every test, neve
 DCP-V1-053	docs/specs/documentation-corpus-v1.md	412	`corvint docs --help`, which `docs corpus witness-playwright --help` prints, nam
-DCP-V1-054	docs/specs/documentation-corpus-v1.md	674	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
+DCP-V1-054	docs/specs/documentation-corpus-v1.md	759	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
 DCP-V1-055	docs/specs/documentation-corpus-v1.md	425	`discover-playwright` applies the `TJAA-V0-021` grep/grepInvert omission rules o
+DCP-V1-070	docs/specs/documentation-corpus-v1.md	438	`corvint docs corpus import-cases --format testrail-json|csv --input EXPORT` rea
+DCP-V1-071	docs/specs/documentation-corpus-v1.md	448	Every imported case is a `BehaviorLegacyCase` in the existing legacy inventory s
+DCP-V1-072	docs/specs/documentation-corpus-v1.md	455	Preconditions, steps and expected results have HTML stripped before use: tags an
+DCP-V1-073	docs/specs/documentation-corpus-v1.md	459	`--content` is `ids-paths-titles` (default) or `full`. Under `ids-paths-titles`,
+DCP-V1-074	docs/specs/documentation-corpus-v1.md	464	Oversized fields are bounded, never silently truncated. A title over 1024 bytes,
+DCP-V1-075	docs/specs/documentation-corpus-v1.md	469	`corvint docs corpus search-cases --format F --input EXPORT --query TEXT [--limi
+DCP-V1-076	docs/specs/documentation-corpus-v1.md	476	Every search result is the auditable receipt `corvint-legacy-case-search/1`. It
+DCP-V1-077	docs/specs/documentation-corpus-v1.md	481	The separate `corvint-corpus-mcp`, started with `--legacy-cases`, lists the read
+DCP-V1-078	docs/specs/documentation-corpus-v1.md	486	Each of the following is refused with `corpus-refused` and no partial output:
+DCP-V1-079	docs/specs/documentation-corpus-v1.md	497	Manual legacy cases never count as runtime parity. `manual` joins `executable` a
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide

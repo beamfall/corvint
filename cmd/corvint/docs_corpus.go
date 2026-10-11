@@ -14,6 +14,7 @@ import (
 type corpusOptions struct {
 	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement string
 	playwright                                                                                                        playwrightCorpusOptions
+	legacyCases                                                                                                       legacyCasesCorpusOptions
 	apply, check                                                                                                      bool
 	limit, offset                                                                                                     int
 }
@@ -38,6 +39,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	o.op = args[pos+2]
 	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem}
 	o.playwright.addFlags(flags)
+	o.legacyCases.addFlags(flags)
 	seen := map[string]bool{}
 	for i := pos + 3; i < len(args); i++ {
 		flag, value, inline := strings.Cut(args[i], "=")
@@ -91,6 +93,8 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		"behavior-provider":   "--input",
 		"discover-playwright": "--migration --config --playwright-list --receipt",
 		"witness-playwright":  "--input --receipt-input --report",
+		"import-cases":        "--format --input --content",
+		"search-cases":        "--format --input --query --limit",
 		"maintain":            "--artifact --page --apply", "cem": "--artifact --cem --id",
 		"info": "--artifact --limit", "validate": "--artifact --limit", "search": "--artifact --query --limit",
 		"get": "--artifact --id --limit", "trace": "--artifact --id --limit", "related": "--artifact --id --limit",
@@ -101,7 +105,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	}
 	allowed["inventory"] = "--artifact --limit --offset"
 	valid, ok := allowed[o.op]
-	if strings.Contains(valid, "--limit") {
+	if strings.Contains(valid, "--limit") && o.op != "search-cases" {
 		valid += " --offset --retirement"
 	}
 	if !ok {
@@ -118,6 +122,8 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		"behavior-provider":   {o.input},
 		"discover-playwright": {o.playwright.migration, o.playwright.config, o.playwright.listing},
 		"witness-playwright":  {o.input, o.playwright.receiptInput, o.playwright.report},
+		"import-cases":        {o.legacyCases.format, o.input},
+		"search-cases":        {o.legacyCases.format, o.input, o.query},
 		"search":              {o.artifact, o.query}, "locate": {o.artifact, o.path}, "get": {o.artifact, o.id}, "trace": {o.artifact, o.id}, "related": {o.artifact, o.id}, "journey": {o.artifact, o.id}, "stability": {o.artifact, o.id},
 	}
 	if kind := doccorpus.OperationInput(o.op); kind == "query" {
@@ -220,6 +226,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	}
 	if o.op == "discover-playwright" || o.op == "witness-playwright" {
 		return compilePlaywrightCorpus(ctx, o)
+	}
+	if o.op == "import-cases" || o.op == "search-cases" {
+		return compileLegacyCasesCorpus(o)
 	}
 	if o.op == "behavior-provider" {
 		raw, err := doccorpus.ReadFile(o.root, o.input)
