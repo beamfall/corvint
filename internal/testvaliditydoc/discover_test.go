@@ -282,3 +282,122 @@ func TestDiscoverAbstentionWithholdsUnboundedObservedVersion(t *testing.T) {
 		}
 	}
 }
+
+// LPCVD-V0-001: absent, empty and unusable evidence all name real opt-in
+// producers; hints cannot claim the host is qualified or that a run occurred.
+func TestDiscoverProducerGuidance(t *testing.T) {
+	for _, body := range []string{"", "not JSON"} {
+		root := discoveryRoot(t)
+		if body != "" {
+			writeAt(t, evidencePath(root, "bad.json"), body, time.Unix(1, 0))
+		}
+		document := discover(t, root)
+		a := document.Discovery.Abstention
+		if document.Source != "none" || a == nil || a.ExpectedEvidencePath != EvidenceDirectory || len(a.Producers) != 3 {
+			t.Fatalf("missing guidance: %+v", a)
+		}
+		for i, prefix := range []string{"corvint-js-test-provider unit --retain", "corvint-js-test-provider e2e --retain", "corvint-go-test-provider session --retain --experimental --trusted-local --foreground --authority-bundle"} {
+			if !strings.HasPrefix(a.Producers[i].Command, prefix) || a.Producers[i].Qualification != "NOT_OBSERVED" {
+				t.Fatalf("producer=%+v", a.Producers[i])
+			}
+		}
+		for _, required := range []string{"--external-server", "--app-identity <application-identity>", "--server-ready-url <http-or-https-url>", "--config <playwright-config>", "--runner-version <playwright-version>", "--test-file <test-file>"} {
+			if !strings.Contains(a.Producers[1].Command, required) {
+				t.Fatalf("external producer missing %s: %+v", required, a.Producers[1])
+			}
+		}
+		if _, err := os.Stat(filepath.Join(root, ".git")); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("discovery unexpectedly created Git state: %v", err)
+		}
+		if body == "" {
+			if _, err := os.Stat(evidencePath(root, "")); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("discovery created evidence: %v", err)
+			}
+		}
+	}
+}
+
+// LPCVD-V0-002: stale is established by existing bound evidence, never
+// relabelled as absence. Missing repository revisions remain UNKNOWN.
+func TestDiscoverStaleEvidenceGuidance(t *testing.T) {
+	for _, kind := range []string{"javascript", "go-session"} {
+		t.Run(kind, func(t *testing.T) {
+			root := discoveryRoot(t)
+			body := boundReceipt(t, root, "adds")
+			if kind == "go-session" {
+				body = `{"profile":"corvint-go-live-session-event/0","state":"stale","identity":"abc","sequence":4,"scope":[],"detail":"","projection":{},"testProjections":[],"testProjectionsOmitted":0}`
+			}
+			writeAt(t, evidencePath(root, "run.json"), body, time.Unix(1, 0))
+			if kind == "javascript" {
+				if got := discover(t, root); got.Run.Freshness.State != testvalidity.FreshnessCurrent || got.Discovery.Abstention != nil {
+					t.Fatalf("fixture not current: %+v", got)
+				}
+				writeAt(t, filepath.Join(root, "src", "add.test.js"), "changed", time.Unix(2, 0))
+			}
+			got := discover(t, root)
+			a := got.Discovery.Abstention
+			if got.Source == "none" || got.Run.Freshness.State != testvalidity.FreshnessStale || a == nil || a.Reason != AbstentionStaleEvidence || a.Requires != RequiresRetainedProducerRun || a.ReceiptRevision != "UNKNOWN" || a.ExpectedEvidencePath != EvidenceDirectory || len(a.Producers) == 0 {
+				t.Fatalf("stale evidence=%+v abstention=%+v", got, a)
+			}
+		})
+	}
+}
+
+// LPCVD-V0-003: use only the newest decodable receipt's stable mtime age
+// origin, skipping malformed newer entries and exposing unknown when absent.
+func TestDiscoverReceiptAge(t *testing.T) {
+	root := discoveryRoot(t)
+	if got := discover(t, root).Discovery.ReceiptAge; got.Basis != "NOT_OBSERVED" || got.Since != "" {
+		t.Fatalf("absent age=%+v", got)
+	}
+	base := time.Unix(1_700_000_000, 123000000).UTC()
+	writeAt(t, evidencePath(root, "older.json"), `{"receipt":{"kind":"unit","tests":[]}}`, base.Add(-time.Hour))
+	writeAt(t, evidencePath(root, "newer.json"), `{"receipt":{"kind":"unit","tests":[]}}`, base)
+	writeAt(t, evidencePath(root, "broken.json"), `invalid`, base.Add(time.Hour))
+	got := discover(t, root).Discovery
+	if got.Evidence != EvidenceDirectory+"/newer.json" || got.ReceiptAge.Basis != "retained-file-mtime" || got.ReceiptAge.Since != base.Format(time.RFC3339Nano) || got.Skipped != 1 {
+		t.Fatalf("age=%+v", got)
+	}
+	if again := discover(t, root).Discovery.ReceiptAge; again != got.ReceiptAge {
+		t.Fatalf("age origin drifted: %+v %+v", got.ReceiptAge, again)
+	}
+}
+
+// LPCVD-V0-002: echo only the test-repository revision retained at run start,
+// never the application repository or an unbounded/untrusted revision string.
+func TestDiscoverRetainedRevision(t *testing.T) {
+	for _, revision := range []string{strings.Repeat("a", 40), strings.Repeat("b", 64), "", strings.Repeat("A", 40), "bad\nrevision"} {
+		t.Run(revision, func(t *testing.T) {
+			root := discoveryRoot(t)
+			input, err := Decode([]byte(boundReceipt(t, root, "adds")))
+			if err != nil {
+				t.Fatal(err)
+			}
+			receipt := *input.js
+			receipt.Profile = jstestprovider.AttestedExternalProfile
+			receipt.Identity.RunnerVersion = "1.63.0"
+			receipt.Identity.NodeVersion = "v24.11.0"
+			receipt.TestRepositoryAtStart = &jstestprovider.ApplicationRepositoryIdentity{Revision: revision}
+			receipt.TestRepositoryAtPublish = &jstestprovider.ApplicationRepositoryIdentity{Revision: strings.Repeat("c", 40)}
+			receipt.ApplicationAttestation = &jstestprovider.ApplicationAttestationReceipt{Before: &jstestprovider.ApplicationAttestationObservation{Attestation: jstestprovider.ApplicationAttestation{Repository: jstestprovider.ApplicationRepositoryIdentity{Revision: strings.Repeat("d", 40)}}}}
+			data, err := jstestprovider.EncodeQualified(receipt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeAt(t, evidencePath(root, "run.json"), string(data), time.Unix(1, 0))
+			before := discover(t, root)
+			if before.Source == "none" || before.Discovery.Freshness.State != testvalidity.FreshnessUnknown || before.Discovery.Abstention == nil || before.Discovery.Abstention.Reason != AbstentionRuntimeTupleUnqualified {
+				t.Fatalf("fixture not bound: %+v", before)
+			}
+			writeAt(t, filepath.Join(root, "src", "add.test.js"), "changed", time.Unix(2, 0))
+			got := discover(t, root).Discovery.Abstention
+			want := "UNKNOWN"
+			if revision == strings.Repeat("a", 40) || revision == strings.Repeat("b", 64) {
+				want = revision
+			}
+			if got == nil || got.Reason != AbstentionStaleEvidence || got.ReceiptRevision != want || got.Observed == nil || got.Observed.NodeVersion != "v24.11.0" || got.Observed.RunnerVersion != "1.63.0" {
+				t.Fatalf("revision=%q abstention=%+v", revision, got)
+			}
+		})
+	}
+}
