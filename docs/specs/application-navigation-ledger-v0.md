@@ -39,9 +39,10 @@ are URL templates, not component source files. This slice makes neither missing 
   demotes placed evidence. Keep learned authority and receipt/test/flow/step references.
   (proposed, pending owner acceptance (V1-1132))
 - `ANL-V0-003`: Deduplicate crossings by test key; choose the proven test with fewest declared
-  flow steps, breaking ties lexically. Print other proven test keys as redundant-crossers with
+  flow steps, breaking ties by test key, then lexically. Print other proven test keys as redundant-crossers with
   a total count. Compute single-app proven/total coverage. A placed contradiction outranks a
-  pass; unknown or stale evidence prevents promotion. (proposed, pending owner acceptance (V1-1132))
+  pass; unknown or stale evidence prevents promotion, and a skipped, unresolved-revision or
+  otherwise inconclusive outcome for a proving test key blocks it even beside a fresh pass. (proposed, pending owner acceptance (V1-1132))
 - `ANL-V0-004`: Accept a closed JSON sidecar with tests declaring `proves` and `assumes` edge
   IDs. Proves binds that test to both steps of each occurrence but never creates a passing
   outcome. Check the union of repeatable `--require` and all assumes against the full ledger;
@@ -58,7 +59,9 @@ are URL templates, not component source files. This slice makes neither missing 
   at most 64 files of 4 MiB and 4096 events each) and prints `application-navigation-observation/0`:
   per trace the ordered visits resolved through the map's URL lookup (hash prefix aware), and one
   observed edge per consecutive pair with trigger `goto`, `click`, `redirect`, `form submit` or
-  `UNKNOWN`. A URL matching several screens reads UNKNOWN with sorted candidates; one matching none
+  `UNKNOWN`; `goto`, `click` or `form submit` (an action of kind `submit`) only when the event's
+  action says so, so an event without action metadata or with another action, including a key press,
+  reads `UNKNOWN`. A URL matching several screens reads UNKNOWN with sorted candidates; one matching none
   reads `unmapped-url`; an edge with an unresolved endpoint reads UNKNOWN. Observations are learned
   overlay facts carrying the trace digest and app revision and never add or change a static map
   node or edge. Playwright trace zips are refused in this slice.
@@ -82,13 +85,13 @@ are URL templates, not component source files. This slice makes neither missing 
 - `ANL-V0-010`: A spec abstains with a reason, never flags, when its join is UNKNOWN
   (`join-unknown`), its chain is discontinuous (`sequence-discontinuous`), any prefix edge is declared an assertion target
   (`assertion-target`) or mutating (`state-change`) in the `--facts` sidecar
-  (`test-prefix-facts/0`, keyed `FROM_SCREEN>TO_SCREEN` per spec path), has no declared read-only
+  (`test-prefix-facts/0`, one entry per spec path; a duplicate path is refused; keyed `FROM_SCREEN>TO_SCREEN` per spec path), has no declared read-only
   effect (`effects-unknown`), is not proven (`edge-not-proven`), or ends on an entry that is not
   deep-linkable (`entry-not-deep-linkable`) or not FRESH (`entry-template-not-fresh`), or saves
   nothing (`nothing-to-save`, a one-edge chain). (proposed, pending owner acceptance (V1-1134))
 - `ANL-V0-011`: The report is deterministic with a digest of the complete report, byte-capped with
-  omitted counts, learned authority, read-only and offline. With `--check` the command exits 1
-  (`test-plan-mismatch`) when a flagged test is absent from `--baseline` (an earlier report; any flag
+  omitted counts, learned authority, read-only and offline. A ledger not built from the map (app or map digest) is refused. With `--check` the command exits 1
+  (`test-plan-mismatch`) when a flagged test is absent from `--baseline` or any flagged row was trimmed by the byte cap (an earlier report; any flag
   fails without one), and 2 on invalid input. (proposed, pending owner acceptance (V1-1134))
 - `ANL-V0-012`: `test-plan page-state --input FILE` reads one `test-consolidation-input/0` document and
   groups variations that share app, screen, setup, user, org and the exact required fact set. A group
@@ -98,7 +101,7 @@ are URL templates, not component source files. This slice makes neither missing 
 - `ANL-V0-013`: A variation joins no group and is listed as blocked with a reason when any anchor is
   missing (`anchor-missing:<members>`), it is destructive or its destructive flag is unknown
   (`destructive`), it declares changes (`changes-state`, so a post-change state is never merged with
-  a pre-change one) or it asserts nothing (`no-assertion`). (proposed, pending owner acceptance (V1-1135))
+  a pre-change one). (proposed, pending owner acceptance (V1-1135))
 - `ANL-V0-014`: The report (`test-page-state-groups/0`) is deterministic, sorted, independent of input
   order, carries the input digest and a digest of the report, is read-only and offline, and does not
   alter `consolidate` or `check`. Invalid input or use exits 2. (proposed, pending owner acceptance (V1-1135))
@@ -110,7 +113,7 @@ are URL templates, not component source files. This slice makes neither missing 
   anchor selects its screens (`test-attribution`, `test-file`, `flow-anchor`). The report lists the
   edges touching selected screens (with ledger status, `flipped` for `UNVERIFIED_AT_HEAD` and the
   cheapest re-proving test), the redundant crossing test keys and the attributed spec files; without
-  a ledger the map's edges are listed as `NOT_IN_LEDGER`. (proposed, pending owner acceptance (V1-1137))
+  a ledger the map's edges are listed as `NOT_IN_LEDGER`; a ledger not built from the map is refused. (proposed, pending owner acceptance (V1-1137))
 - `ANL-V0-016`: A changed UI path (html, script, style or template extension) that no map element
   places is listed as unknown (`unmapped-path`, or `manifest-changed` for the manifest) and forces the
   verdict `full-suite-required` for the app; otherwise the verdict is `targeted` or
@@ -150,14 +153,14 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | --- | --- | --- |
 | ANL-V0-001 | `internal/appmap/ledger.go` | `TestANLV0001Identity` |
 | ANL-V0-002 | `internal/appmap/ledger.go` | `TestANLV0002EvidenceAndDrift`, `TestANLV0002MixedEvidenceFailsClosed` |
-| ANL-V0-003 | `internal/appmap/ledger.go` | `TestANLV0003Redundancy` |
+| ANL-V0-003 | `internal/appmap/ledger.go` | `TestANLV0003Redundancy`, `TestANLV0003SameKeyUncertaintyBlocks` |
 | ANL-V0-004 | `cmd/corvint/flows_appmap_edges.go` | `TestANLV0004EdgesCLI` |
 | ANL-V0-005 | `internal/appmap/ledger.go` | `TestANLV0005Budgets` |
 | ANL-V0-006 | `internal/appmap/observe.go`, `cmd/corvint/flows_appmap_observe.go` | `TestANLV0006Observe`, `TestANLV0006HashRouted`, `TestANLV0006ObserveCLI` |
 | ANL-V0-007 | `internal/appmap/observe.go` | `TestANLV0007Redaction` |
 | ANL-V0-008 | `internal/appmap/observe.go` | `TestANLV0008InputsAndBudget` |
 | ANL-V0-009 | `internal/appmap/prefixes.go` | `TestANLV0009FlagsProvenPrefix` |
-| ANL-V0-010 | `internal/appmap/prefixes.go` | `TestANLV0010NeverFlagsTargetsOrChanges` |
+| ANL-V0-010 | `internal/appmap/prefixes.go` | `TestANLV0010NeverFlagsTargetsOrChanges`, `TestANLV0010RefusesDuplicateFactsAndForeignLedger` |
 | ANL-V0-011 | `internal/appmap/prefixes.go`, `cmd/corvint/test_plan_prefixes.go` | `TestANLV0011StaleEntryAndBudget`, `TestANLV0011PrefixesCLI` |
 | ANL-V0-012 | `internal/testplan/pagestate.go` | `TestANLV0012GroupsSharedPageState` |
 | ANL-V0-013 | `internal/testplan/pagestate.go` | `TestANLV0013BlocksAndSeparates` |

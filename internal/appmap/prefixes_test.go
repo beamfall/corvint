@@ -3,6 +3,8 @@ package appmap
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -40,7 +42,7 @@ func prefixSetup(t *testing.T) prefixFixture {
 }
 
 func provenLedger(f prefixFixture, pairs ...[2]string) *EdgeLedger {
-	l := &EdgeLedger{Schema: EdgeLedgerSchema, Digest: "sha256:l"}
+	l := &EdgeLedger{Schema: EdgeLedgerSchema, App: f.m.App, MapDigest: f.m.Digest, Digest: "sha256:l"}
 	for _, p := range pairs {
 		sv := StepVerification{Status: Verified, Receipt: &ReceiptRef{TestKey: "login-test"}}
 		l.Edges = append(l.Edges, LedgerEdge{From: p[0], To: p[1], Status: EdgeProven, Evidence: &EdgeCrossing{Verification: sv}})
@@ -122,5 +124,25 @@ func TestANLV0011StaleEntryAndBudget(t *testing.T) {
 	small := runPrefixes(t, f, l, facts, Options{Budget: 512})
 	if small.Digest != full.Digest || small.Omitted["abstained"]+small.Omitted["flagged"] == 0 {
 		t.Fatalf("%+v", small.Omitted)
+	}
+}
+
+// ANL-V0-010: duplicate facts for one test path are refused and a ledger from another map is
+// refused rather than trusted.
+func TestANLV0010RefusesDuplicateFactsAndForeignLedger(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "facts.json")
+	body := `{"schema":"` + PrefixFactsSchema + `","tests":[{"path":"a.spec.ts","mutating_edges":["x>y"]},{"path":"a.spec.ts","read_only_edges":["x>y"]}]}`
+	if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadPrefixFacts(p); err == nil {
+		t.Fatal("duplicate facts accepted")
+	}
+	f := prefixSetup(t)
+	l := provenLedger(f, [2]string{f.a, f.b})
+	l.MapDigest = "sha256:other"
+	if _, err := Prefixes(context.Background(), f.m, l, nil, Options{Root: f.root}); err == nil {
+		t.Fatal("foreign ledger accepted")
 	}
 }

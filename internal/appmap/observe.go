@@ -211,14 +211,14 @@ func Observe(m *Map, docs []NavigationEvents, raws [][]byte, revision string, o 
 			}
 			if n > 0 {
 				prev := tr.Visits[n-1]
-				e := ObservedEdge{FromSeq: n - 1, ToSeq: n, From: prev.Screen, To: v.Screen, Trigger: "goto", Status: StatusResolved}
+				e := ObservedEdge{FromSeq: n - 1, ToSeq: n, From: prev.Screen, To: v.Screen, Trigger: StatusUnknown, Status: StatusResolved}
 				if ev.Kind == "redirect" {
 					e.Trigger = "redirect"
 				} else if a := ev.Action; a != nil {
 					switch a.Kind {
 					case "click", "goto":
 						e.Trigger = a.Kind
-					case "submit", "press":
+					case "submit":
 						e.Trigger = "form submit"
 					default:
 						e.Trigger = StatusUnknown

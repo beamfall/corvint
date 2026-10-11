@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -73,6 +74,15 @@ func TestANLV0015RouterChangeReachesDescendants(t *testing.T) {
 	}
 	if len(r.SpecFiles) == 0 {
 		t.Fatal("no spec files for touched sequence edges")
+	}
+	for _, p := range r.SpecFiles {
+		if strings.HasPrefix(p, "file:") {
+			t.Fatal("element ID reported as a path", r.SpecFiles)
+		}
+	}
+	l.MapDigest = "sha256:other"
+	if _, err := Impact(context.Background(), f.m, l, base, Options{Root: f.root}); err == nil {
+		t.Fatal("foreign ledger accepted")
 	}
 }
 

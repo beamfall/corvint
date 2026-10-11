@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"io"
 	"sort"
+
+	"github.com/Beamfall/corvint/internal/jstestprovider"
 )
 
 const EdgeLedgerSchema = "application-edge-ledger/0"
@@ -196,6 +198,9 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 			}
 			sort.Strings(ordered)
 			for _, key := range ordered {
+				if keyUncertain(v, key) {
+					blocked = true
+				}
 				// Isolate one test key while sharing the RVN freshness cache and receipt admission.
 				single := &Verification{receipts: v.receipts, binds: map[string][]string{}}
 				ve := *e
@@ -247,6 +252,9 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 			a, b := all[i], all[j]
 			if a.Steps != b.Steps {
 				return a.Steps < b.Steps
+			}
+			if ka, kb := crossingTestKey(a), crossingTestKey(b); ka != kb {
+				return ka < kb
 			}
 			ab, _ := json.Marshal(a)
 			bb, _ := json.Marshal(b)
@@ -324,4 +332,35 @@ func ProjectEdges(ctx context.Context, m *Map, v *Verification, d *EdgeDeclarati
 		}
 		return nil, false, budgetError("edge ledger header exceeds --budget")
 	}
+}
+
+func crossingTestKey(c EdgeCrossing) string {
+	if c.Verification.Receipt != nil {
+		return c.Verification.Receipt.TestKey
+	}
+	return ""
+}
+
+// keyUncertain is true when any receipt outcome for key is not a conclusive pass or failure at a
+// resolvable application revision: a pass elsewhere does not launder it (ANL-V0-003).
+func keyUncertain(v *Verification, key string) bool {
+	for _, in := range v.receipts {
+		for _, t := range in.r.Tests {
+			if t.ID != key {
+				continue
+			}
+			if !jstestprovider.QualifiedReceiptBindingReady(in.r, t) {
+				return true
+			}
+			switch t.State {
+			case jstestprovider.StatePassed, jstestprovider.StateFailed, jstestprovider.StateTimedOut:
+			default:
+				return true
+			}
+			if rev, _ := jstestprovider.QualifiedApplicationRevision(in.r, t); !commitOID.MatchString(rev) {
+				return true
+			}
+		}
+	}
+	return false
 }

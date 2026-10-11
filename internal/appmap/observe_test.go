@@ -42,6 +42,7 @@ func TestANLV0006Observe(t *testing.T) {
 		{Kind: "navigate", URL: "https://x.test/items/7/edit", Action: &NavigationAction{Kind: "click", Selector: "#edit"}},
 		{Kind: "navigate", URL: "https://x.test/dup"},
 		{Kind: "navigate", URL: "https://x.test/nowhere"},
+		{Kind: "navigate", URL: "https://x.test/home", Action: &NavigationAction{Kind: "press"}},
 	}}
 	obs, _ := observeOnce(t, m, d, Options{})
 	tr := obs.Traces[0]
@@ -50,6 +51,9 @@ func TestANLV0006Observe(t *testing.T) {
 	}
 	if tr.Edges[0].Trigger != "redirect" || tr.Edges[1].Trigger != "click" || tr.Edges[1].Selector != "#go" {
 		t.Fatal(tr.Edges)
+	}
+	if tr.Edges[3].Trigger != StatusUnknown || tr.Edges[5].Trigger != StatusUnknown {
+		t.Fatal("trigger invented without action evidence", tr.Edges)
 	}
 	if v := tr.Visits[4]; v.Status != StatusUnknown || len(v.Candidates) != 2 {
 		t.Fatal(v)

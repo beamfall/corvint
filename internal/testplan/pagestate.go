@@ -101,8 +101,6 @@ func pageStateBlock(v Variation) string {
 		return "destructive"
 	case len(v.Changes) > 0:
 		return "changes-state"
-	case len(v.Assertion) == 0:
-		return "no-assertion"
 	}
 	return ""
 }

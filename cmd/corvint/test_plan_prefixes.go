@@ -70,6 +70,8 @@ func runTestPlanPrefixes(ctx context.Context, root string, arguments []string, s
 		for _, t := range r.Flagged {
 			fresh = fresh || !allowed[t.Test]
 		}
+		// Rows trimmed to the byte cap cannot be compared with the baseline: fail closed.
+		fresh = fresh || r.Omitted["flagged"] > 0
 		return data, fresh, nil
 	}
 	data, introduced, err := run()

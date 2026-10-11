@@ -40,10 +40,15 @@ func LoadPrefixFacts(name string) (*PrefixFacts, error) {
 	if dec.Decode(&f) != nil || dec.Decode(new(any)) != io.EOF || f.Schema != PrefixFactsSchema || len(f.Tests) > 4096 {
 		return nil, verifyError("appmap-invalid-query", "invalid prefix facts")
 	}
+	seen := map[string]bool{}
 	for _, t := range f.Tests {
 		if len(t.AssertionEdges)+len(t.MutatingEdges)+len(t.ReadOnlyEdges) > 256 {
 			return nil, verifyError("appmap-invalid-query", "at most 256 edge classifications per test")
 		}
+		if seen[t.Path] {
+			return nil, verifyError("appmap-invalid-query", "duplicate prefix facts for one test path")
+		}
+		seen[t.Path] = true
 	}
 	return &f, nil
 }
@@ -95,6 +100,9 @@ func prefixEdgeID(from, to string) string { return from + ">" + to }
 func Prefixes(ctx context.Context, m *Map, l *EdgeLedger, f *PrefixFacts, o Options) ([]byte, error) {
 	cap, err := o.budget(DefaultFlowBudget)
 	if err != nil {
+		return nil, err
+	}
+	if err := checkLedgerBinding(m, l); err != nil {
 		return nil, err
 	}
 	p := newProjection(ctx, m, o)

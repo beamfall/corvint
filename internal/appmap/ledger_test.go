@@ -170,3 +170,18 @@ func TestANLV0002MixedEvidenceFailsClosed(t *testing.T) {
 		t.Fatal("unresolved evidence accepted", l)
 	}
 }
+
+// ANL-V0-003: a skipped outcome for the proving test key blocks the proof even beside a fresh pass.
+func TestANLV0003SameKeyUncertaintyBlocks(t *testing.T) {
+	root, rev, m, _, row := ledgerFixture(t)
+	pass := pwpReceipt(t, rev, js.StatePassed, js.StatePassed)
+	skip := pwpReceipt(t, rev, js.StateSkipped, js.StateSkipped)
+	if pass.Tests[0].ID != skip.Tests[0].ID {
+		t.Skip("fixture receipts do not share a test key")
+	}
+	v := verification(t, m, []string{writeReceipt(t, pass), writeReceipt(t, skip)})
+	l, _, ok := readLedger(t, m, v, edgeBindings(row.ID, pass.Tests[0].ID, pass.Tests[1].ID), Options{Root: root, Full: true}, row.ID)
+	if ok || edgeRow(t, l, row.ID).Status == EdgeProven {
+		t.Fatal("same-key uncertainty laundered by a pass", l)
+	}
+}

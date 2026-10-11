@@ -71,6 +71,9 @@ func Impact(ctx context.Context, m *Map, l *EdgeLedger, base string, o Options) 
 	if err != nil {
 		return nil, err
 	}
+	if err := checkLedgerBinding(m, l); err != nil {
+		return nil, err
+	}
 	r := repo{ctx: ctx, root: o.Root}
 	head := o.Revision
 	if head == "" {
@@ -218,7 +221,11 @@ func Impact(ctx context.Context, m *Map, l *EdgeLedger, base string, o Options) 
 	}
 	for _, e := range m.Edges {
 		if e.Basis == "test-sequence" && (hit[e.From] != nil || hit[e.To] != nil) {
-			specs[e.Source] = true
+			for _, f := range m.Files {
+				if f.ID == e.Source && f.Role == roleSpec {
+					specs[f.Path] = true
+				}
+			}
 		}
 	}
 	sort.Slice(rep.Edges, func(i, j int) bool { return rep.Edges[i].ID < rep.Edges[j].ID })
@@ -280,4 +287,12 @@ func contains(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// checkLedgerBinding refuses a ledger built from another app or map digest (a nil ledger passes).
+func checkLedgerBinding(m *Map, l *EdgeLedger) error {
+	if l != nil && (l.App != m.App || l.MapDigest != m.Digest) {
+		return verifyError("appmap-invalid-query", "the edge ledger was not built from this map")
+	}
+	return nil
 }
