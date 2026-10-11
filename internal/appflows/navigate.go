@@ -116,6 +116,7 @@ type Transition struct {
 	EffectBasis   string        `json:"effect_basis"`
 	Recovery      string        `json:"recovery,omitempty"`
 	Verification  string        `json:"verification"`
+	ReviewState   string        `json:"review_state,omitempty"`
 	Grant         string        `json:"grant,omitempty"`
 	GrantNeeded   string        `json:"grant_needed,omitempty"`
 }
@@ -294,9 +295,43 @@ func flowTransitions(intent FlowIntent, links []EvaluatedLink, evidence []TestRu
 	out := []Transition{}
 	for _, s := range intent.Steps {
 		observed := slices.DeleteFunc(slices.Clone(traffic), func(r TrafficRecord) bool { return r.FlowID != intent.FlowID || r.StepID != s.StepID })
-		out = append(out, transition(intent, s, entries[s.StepID], observed, verified[s.StepID]))
+		t := transition(intent, s, entries[s.StepID], observed, verified[s.StepID])
+		t.ReviewState = stepReviewState(intent, s.StepID, entries[s.StepID], links)
+		out = append(out, t)
 	}
 	return out
+}
+
+// stepReviewState keeps link review separate from run-evidence verification (AFU-V1-025).
+func stepReviewState(intent FlowIntent, step string, entry NavStep, links []EvaluatedLink) string {
+	members := append([]string{step}, entry.Expect...)
+	for _, v := range intent.Variations {
+		if slices.Contains(v.Steps, step) {
+			members = append(members, v.VariationID)
+			members = append(members, v.Outcomes...)
+		}
+	}
+	state := ""
+	for _, l := range links {
+		if !slices.Contains(members, l.From) {
+			continue
+		}
+		switch l.ReviewState {
+		case ReviewStale:
+			return ReviewStale
+		case ReviewInferred:
+			if state == "" {
+				state = ReviewInferred
+			}
+		case ReviewReviewed:
+			if state == "" || state == ReviewInferred {
+				state = ReviewReviewed
+			}
+		default:
+			state = ReviewUnreviewed
+		}
+	}
+	return state
 }
 
 func transition(intent FlowIntent, s FlowStep, e NavStep, observed []TrafficRecord, verified bool) Transition {
