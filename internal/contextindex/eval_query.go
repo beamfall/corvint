@@ -413,10 +413,7 @@ func evalQuery(ctx context.Context, index *Index, text string, limit int, budget
 	// and must not displace the original claims at the result limit.
 	placedSymbols := !belowFloor && !substituted && !needsWidening && len(widerSymbols) != 0
 	if placedSymbols {
-		results = evalLeadWithSymbols(widerSymbols, results)
-		for _, candidate := range widerSymbols {
-			supportIndex[evalResultIdentity(candidate.result)] = candidate.support
-		}
+		results = evalLeadWithSymbols(widerSymbols, results, supportIndex)
 	}
 
 	// A record tie is a choice the packet leaves to the reader only where the
@@ -1676,8 +1673,9 @@ func evalStrongestSupport(results []map[string]any, index map[string]map[string]
 
 // evalLeadWithSymbols places the confident symbols wider than every record
 // and document ahead of a packet that stood on its own (GPK-V0-083); a placed
-// symbol the packet already held is not repeated.
-func evalLeadWithSymbols(wider []evalSymbolCandidate, results []map[string]any) []map[string]any {
+// symbol the packet already held is not repeated. Its support comes from the
+// same retained candidate as its evidence, never from a discarded duplicate.
+func evalLeadWithSymbols(wider []evalSymbolCandidate, results []map[string]any, supportIndex map[string]map[string]struct{}) []map[string]any {
 	if len(wider) == 0 {
 		return results
 	}
@@ -1689,6 +1687,7 @@ func evalLeadWithSymbols(wider []evalSymbolCandidate, results []map[string]any) 
 			continue
 		}
 		led = append(led, candidate.result)
+		supportIndex[identity] = candidate.support
 		placed[identity] = struct{}{}
 	}
 	for _, result := range results {

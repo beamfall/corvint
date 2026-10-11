@@ -1621,7 +1621,9 @@ missed the importer, and nothing was disclosed.
   `GPK-V0-039` support measure, rather than ranking scores or expanded stem counts.
   Compare against the whole competitive record universe before the result limit cuts it.
   Place qualifying symbols once per rendered identity (`kind:id`), keeping the first in
-  confident-selection order; retain the records, documents,
+  confident-selection order, including that candidate's support for the
+  omitted-competing-record check. A discarded duplicate's vocabulary cannot cover
+  an omitted record on behalf of the emitted symbol. Retain the records, documents,
   feature-implementation symbols and learned paths in their existing order behind them,
   without repeating a placed symbol already carried in the packet. An empty record/document
   packet places no symbol and retains the existing confident fallback.
@@ -1644,6 +1646,9 @@ plugin feature records, a two-word decision that independently clears the floor,
 in their own order. Equal/wider records or documents keep precedence; empty, substituted
 and withdrawn packets retain their prior behavior, and a carried symbol is emitted once.
 Distinct line-based candidates rendering the same symbol ID occupy only one result slot.
+At limit 1, same-named methods with disjoint additional vocabulary retain the first
+method's evidence and support: an omitted record supported only by the discarded
+method still requires `omitted-competing-record` abstention and `NEEDS_WIDENING`.
 A synthetic negative-claim fixture preserves its complete packet at limits 5 and 10,
 including a critical scenario that wider symbols would evict at limit 5. A positive control
 with the same nearest claim but no capability override still places the wider symbols.
@@ -1656,4 +1661,4 @@ schema/audit pins together; existing snapshots are derived state and require no 
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| `GPK-V0-083` (proposed, pending owner acceptance (V1-0266)) | wider-support placement in `internal/contextindex/eval_query.go` | `TestEvalQueryPrecedenceFollowsSupport`, `TestEvalQueryWiderSymbolsAtLimitTen`, `TestEvalLeadWithSymbolsPreservesPacket`, `TestEvalLeadWithSymbolsDeduplicatesRenderedIdentity`, `TestEvalQueryWiderSymbolsPreserveNegativeClaimAbstention`, `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`, `TestEvalQueryRelevanceFloor`, and `docs/build-log/2026-10-10-query-wider-symbol-precedence.md`, `docs/build-log/2026-10-10-query-negative-claim-placement.md` and `docs/build-log/2026-10-10-query-promoted-symbol-deduplication.md` |
+| `GPK-V0-083` (proposed, pending owner acceptance (V1-0266)) | wider-support placement in `internal/contextindex/eval_query.go` | `TestEvalQueryPrecedenceFollowsSupport`, `TestEvalQueryWiderSymbolsAtLimitTen`, `TestEvalLeadWithSymbolsPreservesPacket`, `TestEvalLeadWithSymbolsDeduplicatesRenderedIdentity`, `TestEvalQueryDuplicateSymbolSupportPreservesOmittedRecordAbstention`, `TestEvalQueryWiderSymbolsPreserveNegativeClaimAbstention`, `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`, `TestEvalQueryRelevanceFloor`, and `docs/build-log/2026-10-10-query-wider-symbol-precedence.md`, `docs/build-log/2026-10-10-query-negative-claim-placement.md`, `docs/build-log/2026-10-10-query-promoted-symbol-deduplication.md` and `docs/build-log/2026-10-10-query-promoted-symbol-support.md` |

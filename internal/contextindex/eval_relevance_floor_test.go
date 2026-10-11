@@ -438,11 +438,11 @@ func TestEvalLeadWithSymbolsPreservesPacket(t *testing.T) {
 	feature := map[string]any{"kind": "feature", "id": "same-id", "score": 705}
 	carried := map[string]any{"kind": "symbol", "id": "same-id", "score": 900}
 	results := []map[string]any{feature, carried}
-	unchanged := evalLeadWithSymbols(nil, results)
+	unchanged := evalLeadWithSymbols(nil, results, make(map[string]map[string]struct{}))
 	if &unchanged[0] != &results[0] || !reflect.DeepEqual(unchanged, results) {
 		t.Fatal("placement without wider symbols changed the packet")
 	}
-	got := evalLeadWithSymbols([]evalSymbolCandidate{{result: symbol}}, results)
+	got := evalLeadWithSymbols([]evalSymbolCandidate{{result: symbol}}, results, make(map[string]map[string]struct{}))
 	if !reflect.DeepEqual(got, []map[string]any{symbol, feature}) || !reflect.DeepEqual(results, []map[string]any{feature, carried}) {
 		t.Fatalf("placement=%v original=%v, want scored symbol then feature without mutation", got, results)
 	}
@@ -461,13 +461,66 @@ func TestEvalLeadWithSymbolsDeduplicatesRenderedIdentity(t *testing.T) {
 		{id: "internal/plugin/trust.go:Validate:20", result: second},
 	}
 	results := []map[string]any{feature, second, document}
-	got := evalLeadWithSymbols(wider, results)
+	got := evalLeadWithSymbols(wider, results, make(map[string]map[string]struct{}))
 	want := []map[string]any{first, feature, document}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("placement=%v, want first symbol then original evidence once: %v", got, want)
 	}
 	if !reflect.DeepEqual(results, []map[string]any{feature, second, document}) {
 		t.Fatalf("placement mutated the original packet: %v", results)
+	}
+}
+
+// GPK-V0-083 (proposed, pending owner acceptance (V1-0266)). A duplicate's
+// support cannot cover an omitted record for the first method's emitted evidence.
+func TestEvalQueryDuplicateSymbolSupportPreservesOmittedRecordAbstention(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "config", "user.email", "corvint@example.test")
+	testGit(t, root, "config", "user.name", "Corvint Test")
+	writeTestFile(t, root, ".gitignore", ".context-corvint/\n")
+	writeTestFile(t, root, "go.mod", "module example.test/duplicatesupport\n\ngo 1.27.0\n")
+	writeTestFile(t, root, "testing/features.yaml", "features:\n"+
+		"  - id: validate-cache\n    area: validation\n    summary: Validate cache.\n    adr: []\n    applies: [server]\n    status: shipped\n"+
+		"  - id: beta-delta\n    area: beta\n    summary: Beta delta.\n    adr: []\n    applies: [server]\n    status: shipped\n")
+	writeTestFile(t, root, "testing/scenarios.yaml", "scenarios: []\n")
+	// Separate context windows; candidate IDs sort line 47 before line 6.
+	writeTestFile(t, root, "internal/cache/cache.go", "package cache\n\ntype First struct{}\ntype Second struct{}\n\nfunc (Second) Validate(beta, delta bool) bool { return beta && delta }\n"+
+		strings.Repeat("\n", 40)+"func (First) Validate(alpha, gamma bool) bool { return alpha && gamma }\n")
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "seed")
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := "validate cache alpha gamma beta delta"
+	intent := evalInferIntent(query)
+	queryTerms := evalRelevanceTerms(terms(query), intent)
+	ordered := evalOrderedTerms(query)
+	symbols, frequency := evalRankSymbols(index, query, queryTerms, intent)
+	confident := evalConfidentSymbols(index, symbols, frequency, query, queryTerms, evalConfidentCeiling)
+	if len(confident) != 2 || evalResultIdentity(confident[0].result) != evalResultIdentity(confident[1].result) ||
+		!reflect.DeepEqual(confident[0].support, intersectionSet([]string{"validate", "cache", "alpha", "gamma"})) ||
+		!reflect.DeepEqual(confident[1].support, intersectionSet([]string{"validate", "cache", "beta", "delta"})) {
+		t.Fatalf("fixture must retain first/duplicate support separately: %+v", confident)
+	}
+	records, _ := evalRankRecords(index, query, queryTerms, ordered, intent)
+	if len(records) != 2 || records[0].id != "validate-cache" || records[1].id != "beta-delta" ||
+		records[1].score*5 < records[0].score*3 ||
+		!reflect.DeepEqual(records[1].support, intersectionSet([]string{"beta", "delta"})) {
+		t.Fatalf("fixture must admit an omitted competing beta/delta record: %+v", records)
+	}
+	packet, err := EvalQuery(context.Background(), index, query, 1, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	results := mapsFromAny(packet["results"])
+	if len(results) != 1 || !reflect.DeepEqual(results[0], confident[0].result) {
+		t.Fatalf("want only first method's evidence: %v", results)
+	}
+	abstention := packet["abstention"].(map[string]any)
+	if packet["state"] != "NEEDS_WIDENING" || abstention["active"] != true || abstention["reason"] != "omitted-competing-record" {
+		t.Fatalf("discarded duplicate covered the omitted record: state=%v abstention=%v", packet["state"], abstention)
 	}
 }
 
