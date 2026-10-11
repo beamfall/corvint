@@ -29,6 +29,33 @@ const stableReadPacket = "../../../protocol/cem-1.0/stable/repository-envelope-p
 
 const stableReadAcceptCase = "normal-exit-lingering-descendant-contained"
 
+// stableReadTupleRoot holds one sealed packet per structural tuple admitted
+// after the frozen packet's release (decision 0522, CEM-V1-050).
+const stableReadTupleRoot = "../../../protocol/cem-1.0/structural-tuples"
+
+// admittedAcceptGo returns the running release when its sealed tuple packet
+// substitutes exactly the frozen packet's goVersion, so the public ACCEPT
+// result holds there too; otherwise it returns the frozen release unchanged.
+func admittedAcceptGo(frozen string) string {
+	running := runtime.Version()
+	data, err := os.ReadFile(filepath.Join(stableReadTupleRoot, running, "TUPLE.json"))
+	if err != nil {
+		return frozen
+	}
+	var tuple struct {
+		Tuple            string `json:"tuple"`
+		PredecessorTuple string `json:"predecessorTuple"`
+		Substitution     struct {
+			Field, From, To string
+		} `json:"substitution"`
+	}
+	if json.Unmarshal(data, &tuple) != nil || tuple.Tuple != running || tuple.PredecessorTuple != frozen ||
+		tuple.Substitution.Field != "expectedResult.runtime.goVersion" || tuple.Substitution.From != frozen || tuple.Substitution.To != running {
+		return frozen
+	}
+	return running
+}
+
 type stableReadFixture struct {
 	repo, artifacts, mapPath string
 	expectedBase, target     string
@@ -70,6 +97,7 @@ func materializeStableRead(t *testing.T) stableReadFixture {
 	if fixture.expectedBase == "" || fixture.target == "" || fixture.acceptGo == "" {
 		t.Fatalf("public packet has no complete case %s", stableReadAcceptCase)
 	}
+	fixture.acceptGo = admittedAcceptGo(fixture.acceptGo)
 	base, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
