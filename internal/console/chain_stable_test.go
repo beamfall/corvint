@@ -96,6 +96,8 @@ func TestConsoleChainStableRegistry(t *testing.T) {
 		"invalid stable map":    strings.Replace(raw, `"executionAuthority": "CALLER_OBSERVED"`, `"executionAuthority": "VERIFIED"`, 1),
 		"unknown stable member": strings.Replace(raw, `"spec": "cem/1.0"`, `"spec": "cem/1.0", "extra": true`, 1),
 		"case-variant 0.x spec": strings.Replace(raw, `"spec": "cem/1.0"`, `"spec": "cem/1.0", "Spec": "cem/0.3"`, 1),
+		"duplicate 0.x spec":    strings.Replace(raw, `"spec": "cem/1.0"`, `"spec": "cem/1.0", "spec": "cem/0.3"`, 1),
+		"duplicate 1.0 spec":    `{"spec": "cem/1.0", "spec": "cem/0.3", "baseRevision": "` + strings.Repeat("a", 40) + `"}`,
 		"case-variant 1.0 spec": `{"spec": "cem/0.3", "Spec": "cem/1.0", "baseRevision": "` + strings.Repeat("a", 40) + `"}`,
 	} {
 		if text == raw {

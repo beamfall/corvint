@@ -41,8 +41,11 @@ func readStableSource(ctx context.Context, source Source, raw []byte, index *con
 	binding := &StableBinding{Profile: StableBindingProfile, CriterionSatisfaction: "NOT_OBSERVED",
 		Limits: append([]string(nil), stableWitnessLimits...)}
 	source.Stable = binding
+	// ParseStable may return a complete document beside a graph error; its
+	// counts are kept for the refusal, while admission below still requires
+	// parseErr == nil.
 	document, parseErr := wire.ParseStable(raw)
-	if parseErr == nil {
+	if document != nil {
 		source.Hunks = len(document.Change.Hunks)
 		for _, hunk := range document.Change.Hunks {
 			source.Basis += len(hunk.Basis)

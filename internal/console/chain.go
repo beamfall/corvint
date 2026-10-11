@@ -325,7 +325,7 @@ func decodeSealed(sealed *Blob) (wireCEM, error) {
 	if err := json.Unmarshal([]byte(sealed.Text), &document); err != nil {
 		return document, errors.New("the sealed map is not decodable JSON: " + err.Error())
 	}
-	if document.Spec == wire.StableSpec || wire.DeclaresStable([]byte(sealed.Text)) {
+	if document.Spec == wire.StableSpec || mentionsStable(sealed.Text) {
 		if _, err := admitStable(sealed.Text); err != nil {
 			return document, err
 		}

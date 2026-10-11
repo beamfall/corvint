@@ -1,8 +1,10 @@
 package console
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
@@ -33,6 +35,37 @@ var stableAxes = []struct{ name, state string }{
 	{"criterionDiscrimination", "NOT_OBSERVED"},
 	{"runnerExecution", "NOT_OBSERVED"},
 	{"authentication", "NOT_OBSERVED"},
+}
+
+// mentionsStable reports whether any top-level member whose name matches
+// "spec" case-insensitively (the members json.Unmarshal may read as Spec)
+// carries the string cem/1.0, or whether the document declares it exactly.
+// Such a document is admitted only through admitStable, so a duplicate or
+// case-variant member can never route a stable declaration to the 0.x reading.
+func mentionsStable(text string) bool {
+	if wire.DeclaresStable([]byte(text)) {
+		return true
+	}
+	decoder := json.NewDecoder(strings.NewReader(text))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return false
+	}
+	for decoder.More() {
+		token, err := decoder.Token()
+		if err != nil {
+			return false
+		}
+		name, _ := token.(string)
+		var value json.RawMessage
+		if err := decoder.Decode(&value); err != nil {
+			return false
+		}
+		var spec string
+		if strings.EqualFold(name, "spec") && json.Unmarshal(value, &spec) == nil && spec == wire.StableSpec {
+			return true
+		}
+	}
+	return false
 }
 
 // admitStable refuses a sealed map that declares cem/1.0 unless the strict
