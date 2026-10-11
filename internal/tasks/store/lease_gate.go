@@ -243,10 +243,11 @@ func atCandidate(worktree, candidate string, repos []snapshot.RepositoryRecord) 
 	return nil
 }
 
-// cappedOutput keeps the first MaxGateOutputBytes of the combined output and
-// kills the gate when it writes more.
+// cappedOutput keeps the first max bytes of combined output and kills the
+// process group on overflow. Zero max retains the executable gate's 16 MiB cap.
 type cappedOutput struct {
 	mu       sync.Mutex
+	max      int
 	buf      bytes.Buffer
 	overflow bool
 	kill     func()
@@ -255,7 +256,11 @@ type cappedOutput struct {
 func (c *cappedOutput) Write(p []byte) (int, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	room := wire.MaxGateOutputBytes - c.buf.Len()
+	max := c.max
+	if max == 0 {
+		max = wire.MaxGateOutputBytes
+	}
+	room := max - c.buf.Len()
 	if len(p) > room {
 		c.buf.Write(p[:room])
 		if !c.overflow {
