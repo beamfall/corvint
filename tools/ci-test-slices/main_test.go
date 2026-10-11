@@ -22,6 +22,44 @@ import (
 
 const runURL = "https://github.com/beamfall/corvint/actions/runs/1"
 
+// partitionGoVersion is the source toolchain the retained partition admits
+// (.github/cishards, decision 0522). Tests generate as that toolchain unless
+// they exercise another one.
+const partitionGoVersion = "go1.27.1"
+
+func TestMain(m *testing.M) {
+	sourceGoVersion = partitionGoVersion
+	os.Exit(m.Run())
+}
+
+// TestAFPV0041GenerateRecordsTheSourceToolchain proves generate records the
+// toolchain it runs under and refuses, before any checkout or write, one the
+// partition does not admit.
+func TestAFPV0041GenerateRecordsTheSourceToolchain(t *testing.T) {
+	logs := stream(t)
+	fakeList(t, map[string][]string{"example.org/big": {"TestA", "TestB"}})
+	root, head := repo(t, allowBig)
+	sourceGoVersion = "go1.27.99"
+	t.Cleanup(func() { sourceGoVersion = partitionGoVersion })
+	before, _ := os.ReadFile(filepath.Join(root, slicesPath))
+	a := append([]string{"--root", root, "--shards", "2", "--revision", head, "--run-url", runURL}, logs...)
+	if code, err := run(context.Background(), "generate", a, nil, &bytes.Buffer{}); code != 2 || err == nil || !strings.Contains(err.Error(), "source toolchain go1.27.99") {
+		t.Fatalf("unadmitted toolchain: code=%d err=%v", code, err)
+	}
+	if after, _ := os.ReadFile(filepath.Join(root, slicesPath)); !bytes.Equal(after, before) {
+		t.Fatal("refused generate changed the slice file")
+	}
+	sourceGoVersion = partitionGoVersion
+	if code, err := run(context.Background(), "generate", a, nil, &bytes.Buffer{}); code != 0 || err != nil {
+		t.Fatalf("admitted toolchain: code=%d err=%v", code, err)
+	}
+	raw, _ := os.ReadFile(filepath.Join(root, slicesPath))
+	var f sliceFile
+	if err := json.Unmarshal(raw, &f); err != nil || f.Source.GoVersion != partitionGoVersion {
+		t.Fatalf("recorded source goVersion %q err=%v", f.Source.GoVersion, err)
+	}
+}
+
 func write(t *testing.T, path, body string) string {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

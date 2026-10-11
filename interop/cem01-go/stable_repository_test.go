@@ -849,6 +849,19 @@ type s0eFullCase struct {
 	InputFixture   string         `json:"inputFixture"`
 }
 
+// s0eFrozenTuple is the structural runtime tuple the frozen S0E packet
+// records and runStableCanonical supports (stable_repository.go). The packet
+// is digest-pinned evidence, so a different toolchain marks the dependent
+// cases NOT_RUN instead of rewriting them (decision 0522).
+const s0eFrozenTuple = "go1.27.1"
+
+func s0eRequireFrozenTuple(t *testing.T) {
+	t.Helper()
+	if runtime.Version() != s0eFrozenTuple {
+		t.Skipf("NOT_RUN: frozen S0E packet records the %s structural tuple; running %s", s0eFrozenTuple, runtime.Version())
+	}
+}
+
 func TestStableCanonicalFullResults(t *testing.T) {
 	var doc struct {
 		Cases []s0eFullCase `json:"cases"`
@@ -862,7 +875,10 @@ func TestStableCanonicalFullResults(t *testing.T) {
 		id := i + 1
 		t.Run(fmt.Sprintf("%02d-%s", id, c.ID), func(t *testing.T) {
 			if (id == 21 || id == 22) != go124 {
-				t.Skipf("case %d runs only under %s", id, map[bool]string{true: "go1.24.13", false: "go1.27.1"}[id == 21 || id == 22])
+				t.Skipf("case %d runs only under %s", id, map[bool]string{true: "go1.24.13", false: s0eFrozenTuple}[id == 21 || id == 22])
+			}
+			if !go124 {
+				s0eRequireFrozenTuple(t)
 			}
 			if !stableOwnerSupported() {
 				t.Skip("process containment is not qualified on " + runtime.GOOS)
@@ -894,6 +910,7 @@ func TestStableCanonicalLinkedControl(t *testing.T) {
 	if !stableOwnerSupported() {
 		t.Skip("process containment is not qualified on " + runtime.GOOS)
 	}
+	s0eRequireFrozenTuple(t)
 	r := newS0eRun(t)
 	r.linked()
 	if _, e := stableAdmit(r.repo, nil); e != nil {
@@ -961,6 +978,7 @@ func TestStableCanonicalLedgers(t *testing.T) {
 			if !stableOwnerSupported() {
 				t.Skip("process containment is not qualified on " + runtime.GOOS)
 			}
+			s0eRequireFrozenTuple(t)
 			r := newS0eRun(t)
 			switch l.ID {
 			case "positive-sidecar-absent":
@@ -1046,6 +1064,7 @@ func TestStableCanonicalEnvelopeCells(t *testing.T) {
 			if !stableOwnerSupported() {
 				t.Skip("process containment is not qualified on " + runtime.GOOS)
 			}
+			s0eRequireFrozenTuple(t)
 			files := s0eFixtures(t)
 			B := s0eTemp(t)
 			R := filepath.Join(B, "repo")

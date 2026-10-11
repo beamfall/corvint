@@ -59,6 +59,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"syscall"
@@ -374,15 +375,21 @@ type sliceFile struct {
 	Packages map[string]split `json:"packages"`
 }
 
+// sourceGoVersion is the toolchain recorded as the slice file's source
+// goVersion: generate enumerates with the local toolchain, which must be the
+// one that measured the source run. The partition admits only its pinned
+// version, so any other toolchain is refused (decision 0522).
+var sourceGoVersion = runtime.Version()
+
 func generate(ctx context.Context, obs *observation, root, revision, runURL string, shards int, target time.Duration, notes io.Writer) (int, error) {
 	var f sliceFile
 	f.Profile = "corvint-ci-test-slices/0"
-	f.Source.Revision, f.Source.RunURL, f.Source.GoVersion = revision, runURL, "go1.27.1"
+	f.Source.Revision, f.Source.RunURL, f.Source.GoVersion = revision, runURL, sourceGoVersion
 	f.Packages = map[string]split{}
 	// The source is checked before any work and whatever splits, so an empty
 	// generation cannot write a file the partition would reject.
 	if raw, err := json.Marshal(f); err != nil || !cishards.SliceFileUsable(raw) {
-		return 2, errors.New("refused: the partition would reject this source (check --revision and --run-url)")
+		return 2, fmt.Errorf("refused: the partition would reject this source (check --revision, --run-url and the source toolchain %s)", sourceGoVersion)
 	}
 	dir, err := checkout(ctx, root, revision)
 	if err != nil {

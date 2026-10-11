@@ -499,11 +499,7 @@ func TestStableS0EPublicCases(t *testing.T) {
 	}
 	for _, c := range packet.cases {
 		t.Run(c.ID, func(t *testing.T) {
-			runtimeField, _ := c.ExpectedResult["runtime"].(map[string]any)
-			if version, _ := runtimeField["goVersion"].(string); version != runtime.Version() {
-				t.Logf("S0E-CASE %s NOT_RUN requires %s, running %s", c.ID, version, runtime.Version())
-				t.Skipf("NOT_RUN: case requires %s", version)
-			}
+			skipS0EOtherRuntime(t, c)
 			result, exit, run := runS0E(t, packet, c, s0eRecipes[c.ID])
 			ok := requireS0EResult(t, c, result, exit)
 			if want, bound := s0eLedger[c.ID]; bound && run.attempted != want {
@@ -522,6 +518,18 @@ func TestStableS0EPublicCases(t *testing.T) {
 	}
 }
 
+// skipS0EOtherRuntime marks a frozen public case NOT_RUN when its recorded
+// runtime goVersion differs from the running toolchain: the packet is
+// digest-pinned evidence and is never rewritten (decision 0522).
+func skipS0EOtherRuntime(t *testing.T, c s0eCase) {
+	t.Helper()
+	runtimeField, _ := c.ExpectedResult["runtime"].(map[string]any)
+	if version, _ := runtimeField["goVersion"].(string); version != runtime.Version() {
+		t.Logf("S0E-CASE %s NOT_RUN requires %s, running %s", c.ID, version, runtime.Version())
+		t.Skipf("NOT_RUN: case requires %s", version)
+	}
+}
+
 // TestStableS0ELinkedControl proves that topology T-LINKED with no injection
 // passes admission and verifies exactly like the primary repository, so each
 // T-LINKED case's injection is its only defect.
@@ -529,6 +537,7 @@ func TestStableS0ELinkedControl(t *testing.T) {
 	packet := loadS0EPacket(t)
 	requireStableLifecyclePlatform(t)
 	c := packet.find(t, "normal-exit-lingering-descendant-contained")
+	skipS0EOtherRuntime(t, c)
 	result, exit, run := runS0E(t, packet, c, func(r *s0eRun) { r.linked() })
 	if requireS0EResult(t, c, result, exit) && run.attempted != s0eSealedOps {
 		t.Errorf("attempted logical operations = %d, want %d", run.attempted, s0eSealedOps)
