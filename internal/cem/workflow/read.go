@@ -27,6 +27,12 @@ type ReadOptions struct {
 	Format       string // report only: empty/markdown publishes; json is read-only
 	OCMPath      string // optional explicitly supplied obligation map
 	ReadOCM      ReviewOCMReader
+	// SingleSpec, when set, runs the single-profile operation for exactly
+	// that spec (CEM-SM-018): any other spec refuses unsupported-spec at the
+	// wire stage, and the independent base and target must be full lowercase
+	// commit OIDs of one width, else invalid-arguments. Empty keeps the
+	// multi-version reader, which admits symbolic revisions such as HEAD.
+	SingleSpec string
 }
 
 // ActionReportPreview renders the report without publishing it: the
@@ -43,7 +49,7 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 	if options.Format != "" && options.Format != "markdown" && options.Format != "json" {
 		return nil, invalidArguments("report format must be markdown or json")
 	}
-	raw, document, err := s.readMapInput(options.MapPath)
+	raw, document, err := s.readMapInputSpec(options.MapPath, options.SingleSpec)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +70,10 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 		if options.Target == "" {
 			return nil, cemcode.New(cemcode.TargetRequired, "%s %s requires --target", document.Spec, action)
 		}
+	}
+	if options.SingleSpec != "" && (!wire.IsGitOid(options.ExpectedBase) || !wire.IsGitOid(options.Target) ||
+		len(options.ExpectedBase) != len(options.Target)) {
+		return nil, invalidArguments("%s %s requires full lowercase base and target commit OIDs of one width", document.Spec, action)
 	}
 	// Stages 5–6: repository validation, after every stage-2/3/4 judgment.
 	if err := s.openRepository(); err != nil {

@@ -1,12 +1,29 @@
 # Portable CEM 0.3 algorithms
 
-Status: proposed (`CEM-SM-011`..`CEM-SM-017`, decision 0521). This is the algorithm text for the
+Status: proposed (`CEM-SM-011`..`CEM-SM-018`, decision 0521). This is the algorithm text for the
 portable `cem/0.3` packet in this directory. It is not a frozen or stable profile, not owner
 accepted, and not independently consumed. The body below is carried verbatim from the earlier
 preparation draft (`protocol/cem-1.0/stable/inherited/ALGORITHMS.md`). Where it says "draft",
 "scratch" or `NOT_PRODUCED`, this status section governs: the fixtures are now materialized as
-exact SHA-1/SHA-256 commits in `vectors/manifest.json`, and the 17 native/portable divergences the
-body says block P0 are declared per case in that manifest and remain open.
+exact SHA-1/SHA-256 commits in `vectors/manifest.json`. The 17 native/portable divergences the
+body says block P0 are resolved: native and portable agree exactly on all 211 cases. Decision 0521
+records each disposition. The rules below make those dispositions explicit.
+
+* Rename comments are strict. Every comment that is not a directive must equal its whole-word
+  substitution image, so an unchanged comment that still names the source identifier is not a
+  proven rename. Every occurrence of the source identifier must also become the destination.
+* Map-local reference checks are wire checks with the native code names. A non-object root is
+  `not-an-object`. A duplicate evidence ID, unknown basis or duplicate basis pair is
+  `invalid-field`. A supported hunk with an empty basis is `unsupported-without-basis`. An
+  uncited evidence item is `orphan-evidence`. The wire admits a hunk range start of zero with a
+  nonzero count and an empty evidence span; verification refuses them as `invalid-field` and
+  `evidence-unavailable`.
+* A canonical patch hunk with no map entry is the verification issue `uncited-hunk`, checked
+  after every map hunk. An `old mode`/`new mode` line in the canonical patch is `malformed-patch`.
+* The native single-profile reader (`CEM-SM-018`) dispatches only `cem/0.3` and requires full
+  lowercase base and target OIDs of one width. The multi-version native reader is unchanged.
+* `primary-clean-config-bounded/1` is a declared portable implementation ceiling. A refusal
+  under it is operational UNSUPPORTED, is not a protocol rule and is not a packet case.
 
 Two conventions the body states briefly are pinned by vectors. Nesting N counts N arrays inside
 one extension member of the root object, so nesting 62/63 reaches `unknown-field` and 64/65 is
@@ -82,8 +99,9 @@ Token comparisons include comments and automatic semicolons by kind/literal, nev
 
 * Rename: all noncomment token changes must be one consistent unexported identifier pair;
   destination is absent from base and source is declared locally, including a named method receiver or statement label. Reject source use as a
-  selector, composite key, field, interface/concrete method or package name. Comments may
-  change only by whole-word substitution; go/line/export directives remain byte-identical.
+  selector, composite key, field, interface/concrete method or package name. Every non-directive
+  comment must equal its whole-word substitution image: an unchanged comment that still names
+  the source is not a proven rename. go/line/export directives remain byte-identical.
   This is FILE-LOCAL: sibling-file references may break compilation and are not inspected.
 * Move: top-level declaration token multiset is identical but order differs; outside tokens
   are identical; var/init declarations preserve their relative order. Const/type order may

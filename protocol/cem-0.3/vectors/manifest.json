@@ -22,11 +22,6 @@
       "name": "sha1-alternates",
       "objectFormat": "sha1",
       "envelope": "object-alternates"
-    },
-    {
-      "name": "sha1-config-section",
-      "objectFormat": "sha1",
-      "envelope": "config-section"
     }
   ],
   "commits": [
@@ -3089,68 +3084,6 @@
       ],
       "tree": "bdb07704a8933264ba6b183a906a21690d8c753f",
       "revision": "b93356c0f7b83ccc0fc6b6f01bc5929471bc2485"
-    },
-    {
-      "name": "semantic/base",
-      "repository": "sha1-config-section",
-      "message": "cem-0.3 vector semantic/base",
-      "files": [
-        {
-          "path": "app.go",
-          "mode": "100644",
-          "content": "package p\n\n// value returns one.\n// It is fixed.\nfunc value() int {\n\treturn 1\n}\n"
-        },
-        {
-          "path": "spec.txt",
-          "mode": "100644",
-          "content": "alpha rule\nbeta rule\ngamma rule\n"
-        }
-      ],
-      "tree": "2dc2f2bd13cb25626afddae5836b0eda51a69d5a",
-      "revision": "016af7ee8e162bc10d0f98dcd52b2319ac584c85"
-    },
-    {
-      "name": "semantic/target",
-      "repository": "sha1-config-section",
-      "message": "cem-0.3 vector semantic/target",
-      "files": [
-        {
-          "path": "app.go",
-          "mode": "100644",
-          "content": "package p\n\n// value returns one.\n// It is fixed.\nfunc value() int {\n\treturn 2\n}\n"
-        },
-        {
-          "path": "spec.txt",
-          "mode": "100644",
-          "content": "alpha rule\nbeta rule\ngamma rule\n"
-        }
-      ],
-      "tree": "a0dc9eeb82d94dcad5d538d9dcb491b5df38cb3d",
-      "revision": "cef3e87ac46d04009f761104ea01d263ac3b32b2"
-    },
-    {
-      "name": "semantic/other",
-      "repository": "sha1-config-section",
-      "message": "cem-0.3 vector semantic/other",
-      "files": [
-        {
-          "path": "app.go",
-          "mode": "100644",
-          "content": "package p\n\n// value returns one.\n// It is fixed.\nfunc value() int {\n\treturn 1\n}\n"
-        },
-        {
-          "path": "other.txt",
-          "mode": "100644",
-          "content": "other\n"
-        },
-        {
-          "path": "spec.txt",
-          "mode": "100644",
-          "content": "alpha rule\nbeta rule\ngamma rule\n"
-        }
-      ],
-      "tree": "bdb07704a8933264ba6b183a906a21690d8c753f",
-      "revision": "b93356c0f7b83ccc0fc6b6f01bc5929471bc2485"
     }
   ],
   "cases": [
@@ -4553,8 +4486,8 @@
         "repositoryEnvelope": "primary-clean-config-bounded/1"
       },
       "native": {
-        "kind": "valid",
-        "note": "native divergence: OPEN CEM-SM-007 ambiguity: native checks only changed comments; portable requires every comment to equal its whole-word substitution image"
+        "kind": "issue",
+        "code": "unproven-mechanical"
       }
     },
     {
@@ -10249,7 +10182,7 @@
         "stage": "verification",
         "code": null,
         "issueCodes": [
-          "invalid-field"
+          "uncited-hunk"
         ]
       },
       "exit": 1,
@@ -10262,7 +10195,7 @@
         "stage": "verification",
         "code": null,
         "issueCodes": [
-          "invalid-field"
+          "uncited-hunk"
         ],
         "assurance": "canonical",
         "expectedBase": "948809a65bc5ec60beb4f14dc4d50365396bfa25",
@@ -10288,8 +10221,7 @@
       },
       "native": {
         "kind": "issue",
-        "code": "uncited-hunk",
-        "note": "native divergence: native names an uncovered patch hunk uncited-hunk; portable reports invalid-field"
+        "code": "uncited-hunk"
       }
     },
     {
@@ -10725,38 +10657,30 @@
       "targetArgument": "25d35aa4598cca607d2d6da09415f702196ed06e",
       "declared": {
         "outcome": "REJECT",
-        "stage": "verification",
-        "code": null,
-        "issueCodes": [
-          "invalid-field"
-        ]
+        "stage": "wire",
+        "code": "orphan-evidence",
+        "issueCodes": []
       },
-      "exit": 1,
+      "exit": 2,
       "structuralRuntimeGated": false,
       "result": {
         "profile": "cem-03-verification/1",
         "spec": "cem/0.3",
         "outcome": "REJECT",
         "accept": false,
-        "stage": "verification",
-        "code": null,
-        "issueCodes": [
-          "invalid-field"
-        ],
-        "assurance": "canonical",
-        "expectedBase": "3b9c1e59698c3f1addd85363c360c483de9dafb5",
-        "targetRevision": "25d35aa4598cca607d2d6da09415f702196ed06e",
+        "stage": "wire",
+        "code": "orphan-evidence",
+        "issueCodes": [],
+        "assurance": null,
+        "expectedBase": null,
+        "targetRevision": null,
         "mapSha256": "caf14f8cc1ca53f1d982c28eec50601dcac3ed06a5737e8c567fde037b0ffe9a",
-        "patchSha256": "eed002d72649ccbcaa444a16316eba2225a67dd7ee39cf930c02ea93a8bc5794",
+        "patchSha256": null,
         "drift": [],
-        "hunks": [
-          {
-            "id": "hunk:sha256:a1a9f8c035708e50d360170dfe13afb0ad22bdc7d27e417e59a87b2853723154"
-          }
-        ],
+        "hunks": [],
         "counts": {
           "mechanical": 0,
-          "supported": 1,
+          "supported": 0,
           "unknown": 0
         },
         "runtime": {
@@ -10767,8 +10691,7 @@
       },
       "native": {
         "kind": "error",
-        "code": "orphan-evidence",
-        "note": "native divergence: native refuses uncited evidence while decoding; portable reports a verification issue"
+        "code": "orphan-evidence"
       }
     },
     {
@@ -10785,38 +10708,30 @@
       "targetArgument": "25d35aa4598cca607d2d6da09415f702196ed06e",
       "declared": {
         "outcome": "REJECT",
-        "stage": "verification",
-        "code": null,
-        "issueCodes": [
-          "invalid-field"
-        ]
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": []
       },
-      "exit": 1,
+      "exit": 2,
       "structuralRuntimeGated": false,
       "result": {
         "profile": "cem-03-verification/1",
         "spec": "cem/0.3",
         "outcome": "REJECT",
         "accept": false,
-        "stage": "verification",
-        "code": null,
-        "issueCodes": [
-          "invalid-field"
-        ],
-        "assurance": "canonical",
-        "expectedBase": "3b9c1e59698c3f1addd85363c360c483de9dafb5",
-        "targetRevision": "25d35aa4598cca607d2d6da09415f702196ed06e",
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": [],
+        "assurance": null,
+        "expectedBase": null,
+        "targetRevision": null,
         "mapSha256": "0630106d838da7d6abdc4480fb6f4136f21d6dd232a3d96a8875faaa970b94a1",
-        "patchSha256": "eed002d72649ccbcaa444a16316eba2225a67dd7ee39cf930c02ea93a8bc5794",
+        "patchSha256": null,
         "drift": [],
-        "hunks": [
-          {
-            "id": "hunk:sha256:a1a9f8c035708e50d360170dfe13afb0ad22bdc7d27e417e59a87b2853723154"
-          }
-        ],
+        "hunks": [],
         "counts": {
           "mechanical": 0,
-          "supported": 1,
+          "supported": 0,
           "unknown": 0
         },
         "runtime": {
@@ -10827,8 +10742,7 @@
       },
       "native": {
         "kind": "error",
-        "code": "invalid-field",
-        "note": "native divergence: native refuses duplicate evidence while decoding; portable reports a verification issue"
+        "code": "invalid-field"
       }
     },
     {
@@ -10845,38 +10759,30 @@
       "targetArgument": "25d35aa4598cca607d2d6da09415f702196ed06e",
       "declared": {
         "outcome": "REJECT",
-        "stage": "verification",
-        "code": null,
-        "issueCodes": [
-          "invalid-field"
-        ]
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": []
       },
-      "exit": 1,
+      "exit": 2,
       "structuralRuntimeGated": false,
       "result": {
         "profile": "cem-03-verification/1",
         "spec": "cem/0.3",
         "outcome": "REJECT",
         "accept": false,
-        "stage": "verification",
-        "code": null,
-        "issueCodes": [
-          "invalid-field"
-        ],
-        "assurance": "canonical",
-        "expectedBase": "3b9c1e59698c3f1addd85363c360c483de9dafb5",
-        "targetRevision": "25d35aa4598cca607d2d6da09415f702196ed06e",
+        "stage": "wire",
+        "code": "invalid-field",
+        "issueCodes": [],
+        "assurance": null,
+        "expectedBase": null,
+        "targetRevision": null,
         "mapSha256": "86bc6e139e750ec7e246107c68906a8c0f5cd50d15625ed4a85b62ca507eea86",
-        "patchSha256": "eed002d72649ccbcaa444a16316eba2225a67dd7ee39cf930c02ea93a8bc5794",
+        "patchSha256": null,
         "drift": [],
-        "hunks": [
-          {
-            "id": "hunk:sha256:a1a9f8c035708e50d360170dfe13afb0ad22bdc7d27e417e59a87b2853723154"
-          }
-        ],
+        "hunks": [],
         "counts": {
           "mechanical": 0,
-          "supported": 1,
+          "supported": 0,
           "unknown": 0
         },
         "runtime": {
@@ -10887,8 +10793,7 @@
       },
       "native": {
         "kind": "error",
-        "code": "invalid-field",
-        "note": "native divergence: native refuses a duplicate basis pair while decoding; portable reports a verification issue"
+        "code": "invalid-field"
       }
     },
     {
@@ -11025,7 +10930,7 @@
         "stage": "verification",
         "code": null,
         "issueCodes": [
-          "unsupported-tree-mode"
+          "malformed-patch"
         ]
       },
       "exit": 1,
@@ -11038,7 +10943,7 @@
         "stage": "verification",
         "code": null,
         "issueCodes": [
-          "unsupported-tree-mode"
+          "malformed-patch"
         ],
         "assurance": "canonical",
         "expectedBase": "bb28e84644cc3cc6aa5298f1ecf25b04b34f1b3b",
@@ -11061,7 +10966,7 @@
       "native": {
         "kind": "issue",
         "code": "malformed-patch",
-        "note": "an unsupported mode in the parsed canonical patch is an inherited verification issue (exit 1), not an operational repository refusal; native divergence: native patch parser names a mode-change hunk malformed-patch"
+        "note": "old/new mode metadata in the parsed canonical patch is the inherited native malformed-patch verification issue (exit 1), not an operational repository refusal"
       }
     },
     {
@@ -12795,6 +12700,60 @@
       }
     },
     {
+      "name": "json-at-map-limit",
+      "category": "wire",
+      "requirements": [
+        "CEM-SM-011"
+      ],
+      "repository": "sha1",
+      "base": "semantic/base",
+      "target": "semantic/target",
+      "map": "vectors/maps/json-at-map-limit.json",
+      "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+      "targetArgument": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+      "declared": {
+        "outcome": "ACCEPT",
+        "stage": "complete",
+        "code": null,
+        "issueCodes": []
+      },
+      "exit": 0,
+      "structuralRuntimeGated": false,
+      "result": {
+        "profile": "cem-03-verification/1",
+        "spec": "cem/0.3",
+        "outcome": "ACCEPT",
+        "accept": true,
+        "stage": "complete",
+        "code": null,
+        "issueCodes": [],
+        "assurance": "canonical",
+        "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+        "targetRevision": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
+        "mapSha256": "cbc3b9c20b6f483e6d320d89f40337b37aeca2099e295874daade9b47f021bd4",
+        "patchSha256": "eed002d72649ccbcaa444a16316eba2225a67dd7ee39cf930c02ea93a8bc5794",
+        "drift": [],
+        "hunks": [
+          {
+            "id": "hunk:sha256:a1a9f8c035708e50d360170dfe13afb0ad22bdc7d27e417e59a87b2853723154"
+          }
+        ],
+        "counts": {
+          "mechanical": 0,
+          "supported": 0,
+          "unknown": 1
+        },
+        "runtime": {
+          "goVersion": "go1.27.1",
+          "structuralQualification": "NOT_REQUIRED"
+        },
+        "repositoryEnvelope": "primary-clean-config-bounded/1"
+      },
+      "native": {
+        "kind": "valid"
+      }
+    },
+    {
       "name": "json-byte-order-mark",
       "category": "wire",
       "requirements": [
@@ -12911,7 +12870,7 @@
       "declared": {
         "outcome": "REJECT",
         "stage": "wire",
-        "code": "invalid-field",
+        "code": "not-an-object",
         "issueCodes": []
       },
       "exit": 2,
@@ -12922,7 +12881,7 @@
         "outcome": "REJECT",
         "accept": false,
         "stage": "wire",
-        "code": "invalid-field",
+        "code": "not-an-object",
         "issueCodes": [],
         "assurance": null,
         "expectedBase": null,
@@ -12944,8 +12903,7 @@
       },
       "native": {
         "kind": "error",
-        "code": "not-an-object",
-        "note": "native divergence: native names a non-object root not-an-object; portable reports invalid-field"
+        "code": "not-an-object"
       }
     },
     {
@@ -12963,7 +12921,7 @@
       "declared": {
         "outcome": "REJECT",
         "stage": "wire",
-        "code": "invalid-field",
+        "code": "not-an-object",
         "issueCodes": []
       },
       "exit": 2,
@@ -12974,7 +12932,7 @@
         "outcome": "REJECT",
         "accept": false,
         "stage": "wire",
-        "code": "invalid-field",
+        "code": "not-an-object",
         "issueCodes": [],
         "assurance": null,
         "expectedBase": null,
@@ -12996,8 +12954,7 @@
       },
       "native": {
         "kind": "error",
-        "code": "not-an-object",
-        "note": "native divergence: native names a non-object root not-an-object; portable reports invalid-field"
+        "code": "not-an-object"
       }
     },
     {
@@ -13015,7 +12972,7 @@
       "declared": {
         "outcome": "REJECT",
         "stage": "wire",
-        "code": "invalid-field",
+        "code": "not-an-object",
         "issueCodes": []
       },
       "exit": 2,
@@ -13026,7 +12983,7 @@
         "outcome": "REJECT",
         "accept": false,
         "stage": "wire",
-        "code": "invalid-field",
+        "code": "not-an-object",
         "issueCodes": [],
         "assurance": null,
         "expectedBase": null,
@@ -13048,8 +13005,7 @@
       },
       "native": {
         "kind": "error",
-        "code": "not-an-object",
-        "note": "native divergence: native names a non-object root not-an-object; portable reports invalid-field"
+        "code": "not-an-object"
       }
     },
     {
@@ -13813,8 +13769,8 @@
         "repositoryEnvelope": "primary-clean-config-bounded/1"
       },
       "native": {
-        "kind": "valid",
-        "note": "native divergence: native is a multi-version reader and accepts this body as cem/0.2; verify-03 is cem/0.3-only"
+        "kind": "error",
+        "code": "unsupported-spec"
       }
     },
     {
@@ -14247,31 +14203,39 @@
       "targetArgument": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
       "declared": {
         "outcome": "REJECT",
-        "stage": "wire",
-        "code": "invalid-field",
-        "issueCodes": []
+        "stage": "verification",
+        "code": null,
+        "issueCodes": [
+          "invalid-field"
+        ]
       },
-      "exit": 2,
+      "exit": 1,
       "structuralRuntimeGated": false,
       "result": {
         "profile": "cem-03-verification/1",
         "spec": "cem/0.3",
         "outcome": "REJECT",
         "accept": false,
-        "stage": "wire",
-        "code": "invalid-field",
-        "issueCodes": [],
-        "assurance": null,
-        "expectedBase": null,
-        "targetRevision": null,
+        "stage": "verification",
+        "code": null,
+        "issueCodes": [
+          "invalid-field"
+        ],
+        "assurance": "canonical",
+        "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
+        "targetRevision": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
         "mapSha256": "c533d6b944e9e18994a97814f9ee13790f6a74c87dc9f83d74274f06e1660189",
-        "patchSha256": null,
+        "patchSha256": "eed002d72649ccbcaa444a16316eba2225a67dd7ee39cf930c02ea93a8bc5794",
         "drift": [],
-        "hunks": [],
+        "hunks": [
+          {
+            "id": "hunk:sha256:a1a9f8c035708e50d360170dfe13afb0ad22bdc7d27e417e59a87b2853723154"
+          }
+        ],
         "counts": {
           "mechanical": 0,
           "supported": 0,
-          "unknown": 0
+          "unknown": 1
         },
         "runtime": {
           "goVersion": "go1.27.1",
@@ -14281,8 +14245,7 @@
       },
       "native": {
         "kind": "issue",
-        "code": "invalid-field",
-        "note": "native divergence: native defers a zero range start to hunk mapping; portable rejects it on the wire"
+        "code": "invalid-field"
       }
     },
     {
@@ -14453,7 +14416,7 @@
       "declared": {
         "outcome": "REJECT",
         "stage": "wire",
-        "code": "invalid-field",
+        "code": "unsupported-without-basis",
         "issueCodes": []
       },
       "exit": 2,
@@ -14464,7 +14427,7 @@
         "outcome": "REJECT",
         "accept": false,
         "stage": "wire",
-        "code": "invalid-field",
+        "code": "unsupported-without-basis",
         "issueCodes": [],
         "assurance": null,
         "expectedBase": null,
@@ -14486,8 +14449,7 @@
       },
       "native": {
         "kind": "error",
-        "code": "unsupported-without-basis",
-        "note": "native divergence: native names a supported hunk without basis unsupported-without-basis"
+        "code": "unsupported-without-basis"
       }
     },
     {
@@ -14606,30 +14568,38 @@
       "targetArgument": "25d35aa4598cca607d2d6da09415f702196ed06e",
       "declared": {
         "outcome": "REJECT",
-        "stage": "wire",
-        "code": "invalid-field",
-        "issueCodes": []
+        "stage": "verification",
+        "code": null,
+        "issueCodes": [
+          "evidence-unavailable"
+        ]
       },
-      "exit": 2,
+      "exit": 1,
       "structuralRuntimeGated": false,
       "result": {
         "profile": "cem-03-verification/1",
         "spec": "cem/0.3",
         "outcome": "REJECT",
         "accept": false,
-        "stage": "wire",
-        "code": "invalid-field",
-        "issueCodes": [],
-        "assurance": null,
-        "expectedBase": null,
-        "targetRevision": null,
+        "stage": "verification",
+        "code": null,
+        "issueCodes": [
+          "evidence-unavailable"
+        ],
+        "assurance": "canonical",
+        "expectedBase": "3b9c1e59698c3f1addd85363c360c483de9dafb5",
+        "targetRevision": "25d35aa4598cca607d2d6da09415f702196ed06e",
         "mapSha256": "448c95e2456d1b5b5fdbe735bb5dce8647d1be2818f352b14a07f714f2cfc55f",
-        "patchSha256": null,
+        "patchSha256": "eed002d72649ccbcaa444a16316eba2225a67dd7ee39cf930c02ea93a8bc5794",
         "drift": [],
-        "hunks": [],
+        "hunks": [
+          {
+            "id": "hunk:sha256:a1a9f8c035708e50d360170dfe13afb0ad22bdc7d27e417e59a87b2853723154"
+          }
+        ],
         "counts": {
           "mechanical": 0,
-          "supported": 0,
+          "supported": 1,
           "unknown": 0
         },
         "runtime": {
@@ -14640,8 +14610,7 @@
       },
       "native": {
         "kind": "issue",
-        "code": "evidence-unavailable",
-        "note": "native divergence: native resolves an empty span as unavailable evidence; portable rejects it on the wire"
+        "code": "evidence-unavailable"
       }
     },
     {
@@ -14856,8 +14825,8 @@
         "repositoryEnvelope": "primary-clean-config-bounded/1"
       },
       "native": {
-        "kind": "valid",
-        "note": "native divergence: native accepts an uppercase target OID; portable requires lowercase"
+        "kind": "error",
+        "code": "invalid-arguments"
       }
     },
     {
@@ -14912,8 +14881,7 @@
       },
       "native": {
         "kind": "error",
-        "code": "git-read-failed",
-        "note": "native divergence: native reaches Git with a wrong-width target; portable refuses the argument first"
+        "code": "invalid-arguments"
       }
     },
     {
@@ -15019,8 +14987,7 @@
       },
       "native": {
         "kind": "error",
-        "code": "expected-base-required",
-        "note": "native divergence: native checks authority arguments before decoding the map; portable decodes first"
+        "code": "unsupported-spec"
       }
     },
     {
@@ -15076,61 +15043,6 @@
       "native": {
         "kind": "error",
         "code": "unsupported-object-alternates"
-      }
-    },
-    {
-      "name": "envelope-config-section",
-      "category": "arguments",
-      "requirements": [
-        "CEM-SM-016"
-      ],
-      "repository": "sha1-config-section",
-      "base": "semantic/base",
-      "target": "semantic/target",
-      "map": "vectors/maps/envelope-config-section.json",
-      "expectedBase": "016af7ee8e162bc10d0f98dcd52b2319ac584c85",
-      "targetArgument": "cef3e87ac46d04009f761104ea01d263ac3b32b2",
-      "declared": {
-        "outcome": "UNSUPPORTED",
-        "stage": "repository",
-        "code": "unsupported-repository-envelope",
-        "issueCodes": []
-      },
-      "exit": 2,
-      "structuralRuntimeGated": false,
-      "result": {
-        "profile": "cem-03-verification/1",
-        "spec": "cem/0.3",
-        "outcome": "UNSUPPORTED",
-        "accept": null,
-        "stage": "repository",
-        "code": "unsupported-repository-envelope",
-        "issueCodes": [],
-        "assurance": null,
-        "expectedBase": null,
-        "targetRevision": null,
-        "mapSha256": "afc5d36cab0b3f1358edeef04280eed3166e616330d91b2b4b25005ca3c26616",
-        "patchSha256": null,
-        "drift": [],
-        "hunks": [
-          {
-            "id": "hunk:sha256:a1a9f8c035708e50d360170dfe13afb0ad22bdc7d27e417e59a87b2853723154"
-          }
-        ],
-        "counts": {
-          "mechanical": 0,
-          "supported": 0,
-          "unknown": 1
-        },
-        "runtime": {
-          "goVersion": "go1.27.1",
-          "structuralQualification": "NOT_REQUIRED"
-        },
-        "repositoryEnvelope": "primary-clean-config-bounded/1"
-      },
-      "native": {
-        "kind": "valid",
-        "note": "native divergence: native repository envelope is wider than portable primary-clean-config-bounded/1"
       }
     },
     {
@@ -15269,7 +15181,6 @@
     "vectors/maps/drift-relocated.json": "8d24474a084f715fe31db94200ba75b0f93ea90ba52c73d692c81c6a882839a3",
     "vectors/maps/drift-stable.json": "615655070d68f4f5ad838d08ca39a047490f64a68a00af865c7d9d5f480f34d5",
     "vectors/maps/drift-stale.json": "b97a27d9e94070904bec929054f68760610c62971d1f577221b21707904ff3f5",
-    "vectors/maps/envelope-config-section.json": "afc5d36cab0b3f1358edeef04280eed3166e616330d91b2b4b25005ca3c26616",
     "vectors/maps/envelope-object-alternates.json": "afc5d36cab0b3f1358edeef04280eed3166e616330d91b2b4b25005ca3c26616",
     "vectors/maps/evidence-blob-wrong.json": "2cab23bc932ea503c27b3e08874cbb337066489dcec5a01b8da5dc62fcc8947e",
     "vectors/maps/evidence-duplicate.json": "0630106d838da7d6abdc4480fb6f4136f21d6dd232a3d96a8875faaa970b94a1",
@@ -15301,6 +15212,7 @@
     "vectors/maps/hunk-unknown-key.json": "d460d7e9469d5062cd24206b1c3d92b5d8b45b76e67512c6f76266ee0bf84ce5",
     "vectors/maps/hunk-unknown-structural-reason.json": "97cf7fd1b7dd15126c14ed9fc1df7655c7757c52b1025779e7a5a2506f781bf1",
     "vectors/maps/json-array-root.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "vectors/maps/json-at-map-limit.json": "cbc3b9c20b6f483e6d320d89f40337b37aeca2099e295874daade9b47f021bd4",
     "vectors/maps/json-boolean-integer.json": "281e4481116f9f27adae06ce3700b74e07b7090b1780f299ac2609426d1c502c",
     "vectors/maps/json-byte-order-mark.json": "1e118978019b8df3caa2780d3954aff04b26326259a00e9e883ddaca2d858459",
     "vectors/maps/json-depth-62.json": "bccf5dc731d1cd68c77f6101ee2b2d9203484c148bf6a705864c7a2c42455048",

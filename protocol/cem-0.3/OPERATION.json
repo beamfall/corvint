@@ -51,13 +51,16 @@
       "class": "REJECT exit 2",
       "codes": [
         "invalid-json",
+        "not-an-object",
         "invalid-field",
         "missing-field",
         "unknown-field",
         "unsupported-spec",
-        "invalid-excluded-path"
+        "invalid-excluded-path",
+        "unsupported-without-basis",
+        "orphan-evidence"
       ],
-      "rule": "Strict JSON before shape; spec before the key-set check. Counts and witness hunks are reported from a successful decode onward."
+      "rule": "Strict JSON before shape; a non-object root is not-an-object; spec before the key-set check. Map-local references are wire checks, with native code names: a duplicate evidence ID, unknown basis or duplicate basis pair is invalid-field, a supported hunk without basis is unsupported-without-basis and an uncited evidence item is orphan-evidence. Counts and witness hunks are reported from a successful decode onward."
     },
     {
       "stage": "authority-arguments",
@@ -66,7 +69,8 @@
         "expected-base-required",
         "target-required",
         "invalid-arguments"
-      ]
+      ],
+      "rule": "Checked after a successful wire decode. Base and target must be full lowercase commit OIDs of one width; otherwise invalid-arguments."
     },
     {
       "stage": "runtime",
@@ -110,13 +114,15 @@
       "codes": [
         "patch-digest-mismatch",
         "invalid-field",
+        "uncited-hunk",
+        "malformed-patch",
         "unsupported-tree-mode",
         "diff-metadata-mismatch",
         "evidence-unavailable",
         "fabricated-evidence-id",
         "unproven-mechanical"
       ],
-      "rule": "Patch digest before hunk mapping before evidence before basis and mechanical proof. An unsupported mode in the parsed canonical patch is a verification issue, not a repository refusal. Inherited public patch-parser codes from the parsed canonical patch are verification issues too."
+      "rule": "Patch digest before hunk mapping before evidence before basis and mechanical proof. A map hunk absent from the canonical patch is invalid-field; a canonical patch hunk absent from the map is uncited-hunk, checked after every map hunk. An old/new mode line in the canonical patch is malformed-patch; another unsupported mode is unsupported-tree-mode; both are verification issues, not repository refusals. Inherited public patch-parser codes from the parsed canonical patch are verification issues too. An evidence span with start >= end or end beyond the blob is evidence-unavailable."
     },
     {
       "stage": "drift",

@@ -33,7 +33,7 @@ const (
 	packet03Author    = "Portable Proof <proof@example.invalid>"
 	packet03Date      = "2026-01-01T00:00:00Z"
 	packet03Epoch     = "1767225600 +0000"
-	packet03Manifest  = "927abb8e91566e79b62912793fc9d30495b8df951d6f1ad4f2ff16036905ef37"
+	packet03Manifest  = "cbb9b85e8d9085e1343a4b6e32e1047c62265154266da48f8d8889db3a58818e"
 	packet03CaseCount = 211
 )
 
@@ -394,7 +394,7 @@ func cases03() []case03 {
 		hunk03At(m, 0)["newRange"] = map[string]any{"start": maxWireInteger, "count": 1}
 		m["patchSha256"] = strings.Repeat("0", 64)
 	})
-	id("hunk-missing", "supported-two", verify("invalid-field"), func(m map[string]any, _ *ctx03) { m["hunks"] = m["hunks"].([]any)[:1] })
+	id("hunk-missing", "supported-two", verify("uncited-hunk"), func(m map[string]any, _ *ctx03) { m["hunks"] = m["hunks"].([]any)[:1] })
 	id("hunk-duplicate", "semantic", verify("invalid-field"), func(m map[string]any, _ *ctx03) {
 		m["hunks"] = []any{hunk03At(m, 0), hunk03At(m, 0)}
 	})
@@ -423,17 +423,17 @@ func cases03() []case03 {
 	id("evidence-path-absent", "supported", verify("evidence-unavailable"), func(m map[string]any, _ *ctx03) {
 		m["evidence"].([]any)[0].(map[string]any)["path"] = "absent.txt"
 	})
-	id("evidence-uncited", "supported", verify("invalid-field"), func(m map[string]any, x *ctx03) {
+	id("evidence-uncited", "supported", wire("orphan-evidence"), func(m map[string]any, x *ctx03) {
 		ev := m["evidence"].([]any)[0].(map[string]any)
 		data := []byte(spec03Txt)[11:20]
 		e := evidence{Path: "spec.txt", BlobOID: ev["blobOid"].(string), Span: span{11, 20}, SpanSHA256: shaHex(data)}
 		e.ID = "evidence:sha256:" + shaHex(canonicalEvidence(e))
 		m["evidence"] = append(m["evidence"].([]any), map[string]any{"id": e.ID, "path": e.Path, "blobOid": e.BlobOID, "span": map[string]any{"start": 11, "end": 20}, "spanSha256": e.SpanSHA256})
 	})
-	id("evidence-duplicate", "supported", verify("invalid-field"), func(m map[string]any, _ *ctx03) {
+	id("evidence-duplicate", "supported", wire("invalid-field"), func(m map[string]any, _ *ctx03) {
 		m["evidence"] = append(m["evidence"].([]any), m["evidence"].([]any)[0])
 	})
-	id("basis-duplicate-pair", "supported", verify("invalid-field"), func(m map[string]any, _ *ctx03) {
+	id("basis-duplicate-pair", "supported", wire("invalid-field"), func(m map[string]any, _ *ctx03) {
 		b := hunk03At(m, 0)["basis"].([]any)
 		hunk03At(m, 0)["basis"] = append(b, b[0])
 	})
@@ -444,8 +444,8 @@ func cases03() []case03 {
 	id("basis-unknown-evidence", "supported", wire("invalid-field"), func(m map[string]any, _ *ctx03) {
 		hunk03At(m, 0)["basis"].([]any)[0].(map[string]any)["evidenceId"] = "evidence:sha256:" + strings.Repeat("e", 64)
 	})
-	add(case03{name: "mode-change-executable-bit", category: "identity", fixture: "mode-only", reqs: []string{sm011}, want: verify("unsupported-tree-mode"),
-		note: "an unsupported mode in the parsed canonical patch is an inherited verification issue (exit 1), not an operational repository refusal"})
+	add(case03{name: "mode-change-executable-bit", category: "identity", fixture: "mode-only", reqs: []string{sm011}, want: verify("malformed-patch"),
+		note: "old/new mode metadata in the parsed canonical patch is the inherited native malformed-patch verification issue (exit 1), not an operational repository refusal"})
 	add(case03{name: "symlink-target-change", category: "identity", fixture: "symlink-change", reqs: []string{sm011}, want: verify("unsupported-tree-mode")})
 
 	// Drift (inherited; CEM-SM-011).
@@ -496,11 +496,14 @@ func cases03() []case03 {
 	w("json-duplicate-escaped-key", wire("invalid-json"), replace03(`,"spec":"cem/0.3"}`, `,"spec":"cem/0.3","spec":"cem/0.3"}`))
 	w("json-trailing-value", wire("invalid-json"), func(raw []byte, _ *ctx03) []byte { return append(append([]byte{}, raw...), []byte(" {}")...) })
 	w("json-surrounding-whitespace", accept, func(raw []byte, _ *ctx03) []byte { return append(append([]byte(" \n"), raw...), []byte("\n\t ")...) })
+	w("json-at-map-limit", accept, func(raw []byte, _ *ctx03) []byte {
+		return append(append([]byte{}, raw...), bytes.Repeat([]byte{' '}, maxJSONBytes-len(raw))...)
+	})
 	w("json-byte-order-mark", wire("invalid-json"), func(raw []byte, _ *ctx03) []byte { return append([]byte("\xef\xbb\xbf"), raw...) })
 	w("json-empty", wire("invalid-json"), constant(""))
-	w("json-array-root", wire("invalid-field"), constant("[]"))
-	w("json-null-root", wire("invalid-field"), constant("null"))
-	w("json-string-root", wire("invalid-field"), constant(`"cem/0.3"`))
+	w("json-array-root", wire("not-an-object"), constant("[]"))
+	w("json-null-root", wire("not-an-object"), constant("null"))
+	w("json-string-root", wire("not-an-object"), constant(`"cem/0.3"`))
 	w("json-float", wire("invalid-json"), replace03(`"start":3`, `"start":3.0`))
 	w("json-exponent", wire("invalid-json"), replace03(`"start":3`, `"start":3e0`))
 	w("json-negative-zero", wire("invalid-json"), replace03(`"start":3`, `"start":-0`))
@@ -524,7 +527,7 @@ func cases03() []case03 {
 	we("hunk-path-513-bytes", wire("invalid-field"), func(m map[string]any, _ *ctx03) { hunk03At(m, 0)["path"] = strings.Repeat("p", 513) })
 	we("hunk-path-512-bytes", verify("invalid-field"), func(m map[string]any, _ *ctx03) { hunk03At(m, 0)["path"] = strings.Repeat("p", 512) })
 	we("hunk-unknown-key", wire("unknown-field"), func(m map[string]any, _ *ctx03) { hunk03At(m, 0)["witness"] = map[string]any{} })
-	we("hunk-range-start-zero", wire("invalid-field"), func(m map[string]any, _ *ctx03) {
+	we("hunk-range-start-zero", verify("invalid-field"), func(m map[string]any, _ *ctx03) {
 		hunk03At(m, 0)["newRange"] = map[string]any{"start": 0, "count": 5}
 	})
 	we("hunk-disposition-other", wire("invalid-field"), func(m map[string]any, _ *ctx03) { hunk03At(m, 0)["disposition"] = "accepted" })
@@ -532,7 +535,7 @@ func cases03() []case03 {
 	we("hunk-mechanical-reason-other", wire("invalid-field"), func(m map[string]any, _ *ctx03) {
 		hunk03At(m, 0)["disposition"], hunk03At(m, 0)["reason"] = "mechanical", "comment-only"
 	})
-	add(case03{name: "hunk-supported-without-basis", category: "wire", fixture: "supported", reqs: []string{sm011}, want: wire("invalid-field"), edit: func(m map[string]any, _ *ctx03) {
+	add(case03{name: "hunk-supported-without-basis", category: "wire", fixture: "supported", reqs: []string{sm011}, want: wire("unsupported-without-basis"), edit: func(m map[string]any, _ *ctx03) {
 		hunk03At(m, 0)["basis"] = []any{}
 	}})
 	add(case03{name: "hunk-mechanical-with-basis", category: "wire", fixture: "supported", reqs: []string{sm011}, want: wire("invalid-field"), edit: func(m map[string]any, _ *ctx03) {
@@ -541,7 +544,7 @@ func cases03() []case03 {
 	add(case03{name: "hunk-supported-reason-other", category: "wire", fixture: "supported", reqs: []string{sm011}, want: wire("invalid-field"), edit: func(m map[string]any, _ *ctx03) {
 		hunk03At(m, 0)["reason"] = "no-evidence"
 	}})
-	add(case03{name: "evidence-span-empty", category: "wire", fixture: "supported", reqs: []string{sm011}, want: wire("invalid-field"), edit: func(m map[string]any, _ *ctx03) {
+	add(case03{name: "evidence-span-empty", category: "wire", fixture: "supported", reqs: []string{sm011}, want: verify("evidence-unavailable"), edit: func(m map[string]any, _ *ctx03) {
 		m["evidence"].([]any)[0].(map[string]any)["span"] = map[string]any{"start": 4, "end": 4}
 	}})
 	add(case03{name: "basis-relation-other", category: "wire", fixture: "supported", reqs: []string{sm011}, want: wire("invalid-field"), edit: func(m map[string]any, _ *ctx03) {
@@ -559,35 +562,10 @@ func cases03() []case03 {
 	arg("argument-target-absent", "UNSUPPORTED/repository/git-read-failed", func(x *ctx03) (string, string) { return x.base, strings.Repeat("0", 40) })
 	add(case03{name: "argument-wire-precedes-missing-base", category: "arguments", fixture: "semantic", reqs: []string{sm016}, raw: replace03(`"cem/0.3"`, `"cem/0.2"`), args: func(x *ctx03) (string, string) { return "", "" }, want: wire("unsupported-spec")})
 	add(case03{name: "envelope-object-alternates", category: "arguments", fixture: "semantic", repo: "sha1-alternates", reqs: []string{sm016}, want: "UNSUPPORTED/repository/unsupported-object-alternates"})
-	add(case03{name: "envelope-config-section", category: "arguments", fixture: "semantic", repo: "sha1-config-section", reqs: []string{sm016}, want: "UNSUPPORTED/repository/unsupported-repository-envelope"})
 	add(case03{name: "runtime-gate-not-required-for-nonstructural", category: "arguments", fixture: "whitespace", reqs: []string{sm017}, want: accept})
 
 	_ = sm017
 	return cs
-}
-
-// nativeDivergence03 declares, per case, where the native status verifier
-// (internal/cem/workflow) is observed to differ from the portable verify-03
-// result. Each entry is a recorded divergence for owner disposition, not a
-// claimed equivalence; the native consumer test enforces exactly these.
-var nativeDivergence03 = map[string][2]string{
-	"near-miss-rename-partial-comment":    {"valid", "OPEN CEM-SM-007 ambiguity: native checks only changed comments; portable requires every comment to equal its whole-word substitution image"},
-	"hunk-missing":                        {"issue:uncited-hunk", "native names an uncovered patch hunk uncited-hunk; portable reports invalid-field"},
-	"evidence-uncited":                    {"error:orphan-evidence", "native refuses uncited evidence while decoding; portable reports a verification issue"},
-	"evidence-duplicate":                  {"error:invalid-field", "native refuses duplicate evidence while decoding; portable reports a verification issue"},
-	"basis-duplicate-pair":                {"error:invalid-field", "native refuses a duplicate basis pair while decoding; portable reports a verification issue"},
-	"mode-change-executable-bit":          {"issue:malformed-patch", "native patch parser names a mode-change hunk malformed-patch"},
-	"json-array-root":                     {"error:not-an-object", "native names a non-object root not-an-object; portable reports invalid-field"},
-	"json-null-root":                      {"error:not-an-object", "native names a non-object root not-an-object; portable reports invalid-field"},
-	"json-string-root":                    {"error:not-an-object", "native names a non-object root not-an-object; portable reports invalid-field"},
-	"spec-0.2":                            {"valid", "native is a multi-version reader and accepts this body as cem/0.2; verify-03 is cem/0.3-only"},
-	"hunk-range-start-zero":               {"issue:invalid-field", "native defers a zero range start to hunk mapping; portable rejects it on the wire"},
-	"hunk-supported-without-basis":        {"error:unsupported-without-basis", "native names a supported hunk without basis unsupported-without-basis"},
-	"evidence-span-empty":                 {"issue:evidence-unavailable", "native resolves an empty span as unavailable evidence; portable rejects it on the wire"},
-	"argument-uppercase-target":           {"valid", "native accepts an uppercase target OID; portable requires lowercase"},
-	"argument-width-mismatch":             {"error:git-read-failed", "native reaches Git with a wrong-width target; portable refuses the argument first"},
-	"argument-wire-precedes-missing-base": {"error:expected-base-required", "native checks authority arguments before decoding the map; portable decodes first"},
-	"envelope-config-section":             {"valid", "native repository envelope is wider than portable primary-clean-config-bounded/1"},
 }
 
 // --- packet model --------------------------------------------------------------
@@ -700,18 +678,6 @@ func packet03ApplyEnvelope(t *testing.T, dir string, r packetRepository03) {
 		if err := os.WriteFile(filepath.Join(info, "alternates"), []byte(filepath.Join(dir, "absent-alternate")+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-	case "config-section":
-		f, err := os.OpenFile(filepath.Join(dir, ".git", "config"), os.O_APPEND|os.O_WRONLY, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, err = f.WriteString("[gc]\n\tauto = 0\n")
-		if e := f.Close(); err == nil {
-			err = e
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
 	default:
 		t.Fatalf("unknown envelope %q", r.Envelope)
 	}
@@ -789,7 +755,6 @@ func packet03Repositories() []packetRepository03 {
 		{"sha1", "sha1", "default"},
 		{"sha256", "sha256", "default"},
 		{"sha1-alternates", "sha1", "object-alternates"},
-		{"sha1-config-section", "sha1", "config-section"},
 	}
 }
 
@@ -876,10 +841,6 @@ func generatePacket03(t *testing.T) packet03Output {
 			return ""
 		}
 		return fmt.Sprintf("+sidecar-%x", sha256.Sum256([]byte(s.mode+"\x00"+s.data)))[:20]
-	}
-	divergences := map[string]bool{}
-	for name := range nativeDivergence03 {
-		divergences[name] = true
 	}
 	seen := map[string]bool{}
 	for _, c := range cases03() {
@@ -1005,18 +966,12 @@ func generatePacket03(t *testing.T) packet03Output {
 		if err != nil {
 			t.Fatal(err)
 		}
+		// Native agreement is exact (CEM-SM-016): the native expectation is
+		// always the projection of the portable result, never a declared divergence.
 		native := packet03DefaultNative(declared)
 		native.Note = c.note
-		if d, ok := nativeDivergence03[c.name]; ok {
-			kind, code, _ := strings.Cut(d[0], ":")
-			native = packetNative03{Kind: kind, Code: code, Note: strings.TrimPrefix(c.note+"; native divergence: "+d[1], "; ")}
-			delete(divergences, c.name)
-		}
 		manifest.Cases = append(manifest.Cases, packetCase03{Name: c.name, Category: c.category, Requirements: c.reqs, Repository: repo, Base: base.Name, Target: target.Name, Map: "vectors/" + mapFile,
 			ExpectedBase: eb, TargetArgument: tg, Declared: declared, Exit: exit, StructuralRuntimeGated: result.Runtime.StructuralQualification != "NOT_REQUIRED", Result: pinned, Native: native})
-	}
-	if len(divergences) != 0 {
-		t.Fatalf("native divergences name absent cases: %v", divergences)
 	}
 	raw, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
@@ -1198,5 +1153,45 @@ func TestCEMSM016PortablePacketConformance(t *testing.T) {
 				t.Fatalf("exit %d want %d\n got %s\nwant %s", exit, c.Exit, stdout.Bytes(), c.Result)
 			}
 		})
+	}
+}
+
+// TestCEMSM016PortableConfigCeiling keeps the portable repository envelope
+// ceiling (primary-clean-config-bounded/1) as a portable-only refusal. It is
+// a declared implementation ceiling, not a protocol rule, so it is not a
+// packet case the native verifier must reproduce (decision 0521).
+func TestCEMSM016PortableConfigCeiling(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("verify-03 refuses Windows process scope")
+	}
+	m, read := readPacket03(t)
+	repos := buildPacket03Repositories(t, m, read)
+	var c *packetCase03
+	for i := range m.Cases {
+		if m.Cases[i].Name == "runtime-gate-not-required-for-nonstructural" {
+			c = &m.Cases[i]
+		}
+	}
+	if c == nil || c.Repository != "sha1" || c.Exit != 0 {
+		t.Fatal("packet ceiling probe case changed")
+	}
+	raw := read(strings.TrimPrefix(c.Map, "vectors/"))
+	if r, exit := run03(context.Background(), repos[c.Repository], raw, c.ExpectedBase, c.TargetArgument); exit != 0 || r.Outcome != "ACCEPT" {
+		t.Fatalf("clean envelope: exit %d outcome %s", exit, r.Outcome)
+	}
+	f, err := os.OpenFile(filepath.Join(repos[c.Repository], ".git", "config"), os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.WriteString("[gc]\n\tauto = 0\n")
+	if e := f.Close(); err == nil {
+		err = e
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, exit := run03(context.Background(), repos[c.Repository], raw, c.ExpectedBase, c.TargetArgument)
+	if exit != 2 || r.Outcome != "UNSUPPORTED" || r.Stage != "repository" || r.Code == nil || *r.Code != "unsupported-repository-envelope" {
+		t.Fatalf("config section: exit %d %s/%s/%v", exit, r.Outcome, r.Stage, r.Code)
 	}
 }

@@ -793,16 +793,17 @@ CEM-SM-004	docs/specs/cem-0.3-structural-mechanical.md	50	For `move` the image M
 CEM-SM-005	docs/specs/cem-0.3-structural-mechanical.md	52	Any parse, scan, or format failure on the base or the image MUST refuse the
 CEM-SM-006	docs/specs/cem-0.3-structural-mechanical.md	54	`mark --disposition mechanical` with a structural reason MUST upgrade a `cem/0.2
 CEM-SM-007	docs/specs/cem-0.3-structural-mechanical.md	63	`rename` MUST hold only when the token streams differ by one identifier pair
-CEM-SM-008	docs/specs/cem-0.3-structural-mechanical.md	68	`move` MUST hold only when tokens outside top-level declarations are unchanged,
-CEM-SM-009	docs/specs/cem-0.3-structural-mechanical.md	71	`import-reorder` MUST hold only when the ordered import specs differ, their
-CEM-SM-010	docs/specs/cem-0.3-structural-mechanical.md	74	`formatter-only` MUST hold only when `go/format` renders the base and the image
-CEM-SM-011	docs/specs/cem-0.3-structural-mechanical.md	76	The portable packet `protocol/cem-0.3` (Apache-2.0) MUST contain the algorithm
-CEM-SM-012	docs/specs/cem-0.3-structural-mechanical.md	82	The packet MUST include a literal positive for each structural reason and each
-CEM-SM-013	docs/specs/cem-0.3-structural-mechanical.md	87	The packet MUST include coverage and discriminates witness cases at every
-CEM-SM-014	docs/specs/cem-0.3-structural-mechanical.md	90	A checked-in generator MUST regenerate the packet byte for byte from its declare
-CEM-SM-015	docs/specs/cem-0.3-structural-mechanical.md	94	The packet MUST distinguish the sidecar at each side:
-CEM-SM-016	docs/specs/cem-0.3-structural-mechanical.md	99	For every case, the standalone `verify-03` process MUST reproduce the pinned
-CEM-SM-017	docs/specs/cem-0.3-structural-mechanical.md	104	On any runtime other than the qualified `go1.27.1`, a case that claims a
+CEM-SM-008	docs/specs/cem-0.3-structural-mechanical.md	70	`move` MUST hold only when tokens outside top-level declarations are unchanged,
+CEM-SM-009	docs/specs/cem-0.3-structural-mechanical.md	73	`import-reorder` MUST hold only when the ordered import specs differ, their
+CEM-SM-010	docs/specs/cem-0.3-structural-mechanical.md	76	`formatter-only` MUST hold only when `go/format` renders the base and the image
+CEM-SM-011	docs/specs/cem-0.3-structural-mechanical.md	78	The portable packet `protocol/cem-0.3` (Apache-2.0) MUST contain the algorithm
+CEM-SM-012	docs/specs/cem-0.3-structural-mechanical.md	84	The packet MUST include a literal positive for each structural reason and each
+CEM-SM-013	docs/specs/cem-0.3-structural-mechanical.md	89	The packet MUST include coverage and discriminates witness cases at every
+CEM-SM-014	docs/specs/cem-0.3-structural-mechanical.md	92	A checked-in generator MUST regenerate the packet byte for byte from its declare
+CEM-SM-015	docs/specs/cem-0.3-structural-mechanical.md	95	The packet MUST distinguish the sidecar at each side:
+CEM-SM-016	docs/specs/cem-0.3-structural-mechanical.md	100	For every case, the standalone `verify-03` process MUST reproduce the pinned
+CEM-SM-017	docs/specs/cem-0.3-structural-mechanical.md	107	On any runtime other than the qualified `go1.27.1`, a case that claims a
+CEM-SM-018	docs/specs/cem-0.3-structural-mechanical.md	111	The native reader MUST offer a single-profile mode (`ReadOptions.SingleSpec`).
 CEM-V1-001	docs/specs/cem-stable-v1.md	26	Preserve canonical Git base/target/hunk binding and closed versioned decoding. K
 CEM-V1-002	docs/specs/cem-stable-v1.md	27	Bind criterion references to canonical native ticket identity, acceptance revisi
 CEM-V1-003	docs/specs/cem-stable-v1.md	28	Reference bounded runner receipts by digest, with exact runner/profile, admitted
