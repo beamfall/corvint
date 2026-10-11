@@ -178,3 +178,15 @@ func TestCALV0218_SleepingChildDoesNotBlockIdleStop(t *testing.T) {
 		t.Fatalf("no IDLE stop: events %v", kinds(t, d))
 	}
 }
+
+func TestCALV0218_ParseProcStatCPU(t *testing.T) {
+	line := "4242 (node (mcp) x) S 1 4242 4242 0 -1 4194560 100 0 0 0 237 13 0 0 20 0 11 0 99 1 2 3\n"
+	if got, ok := parseProcStatCPU(line); !ok || got != 2500*time.Millisecond {
+		t.Fatalf("parseProcStatCPU = %v, %v; want 2.5s", got, ok)
+	}
+	for _, bad := range []string{"", "4242 node S 1", "4242 (sh) S 1 2 3", "4242 (sh) S 1 4242 4242 0 -1 0 0 0 0 0 x 13 0"} {
+		if _, ok := parseProcStatCPU(bad); ok {
+			t.Errorf("parseProcStatCPU(%q) parsed", bad)
+		}
+	}
+}

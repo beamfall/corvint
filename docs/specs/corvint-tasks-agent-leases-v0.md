@@ -5716,7 +5716,9 @@ one dispatcher recorded no IDLE stop in about 670 stops, and a hung session ran 
 
 - `CAL-V0-218`: (proposed, pending owner acceptance (V1-1195)) Amends what CAL-V0-056 counts as
   a busy child. Each tick the dispatcher MUST read every member's cumulative CPU time with the
-  process table. It MUST keep, per worker and only in memory, a baseline of each non-ignored
+  process table; on Linux, whose table prints whole seconds, each non-ignored non-leader
+  member's CPU time MUST instead be utime plus stime from `/proc/<pid>/stat` at USER_HZ 100, and
+  an unreadable stat makes it unreadable. It MUST keep, per worker and only in memory, a baseline of each non-ignored
   non-leader member's CPU time by PID and start identity, taken at the worker's first
   observation by this dispatcher process and again at every tick on which the worker is active.
   A non-leader member whose command is not in the host's `idleIgnore` is busy only when it is
@@ -5735,17 +5737,19 @@ warning about permanently busy roles.
 Failure modes: a tool that waits silently (for example polling a remote service at under 1% CPU)
 for longer than `idleSeconds` with no log output is now stopped IDLE; such a role needs a longer
 `idleSeconds` or an activity path. A helper that uses at least 1% CPU while the session hangs still
-keeps the worker until `wallSeconds`; list it in `idleIgnore`. Linux reports CPU time in whole
-seconds, so shortly after a baseline one second of rounding can count a low-CPU helper busy once and
-delay the stop by up to one more idle timeout. A restart retakes the baseline and counts each child
+keeps the worker until `wallSeconds`; list it in `idleIgnore`. Linux CPU time has 10 ms resolution
+(USER_HZ 100), so a helper's first tick after a baseline can round up and delay the stop by up to one
+more idle timeout; a Linux build with another USER_HZ would scale the 1% share. A restart retakes the baseline and counts each child
 busy once, so a hung worker with helpers is stopped up to one idle timeout after the restart. An
 unparsable CPU time, and a counter below its baseline (a reused PID), count busy.
 
-Acceptance evidence: `TestCALV0218_ParseCPUTime`, `TestCALV0218_BusyChildNeedsWorkNotPresence`,
+Acceptance evidence: `TestCALV0218_ParseCPUTime`, `TestCALV0218_ParseProcStatCPU`,
+`TestCALV0218_BusyChildNeedsWorkNotPresence`,
 `TestCALV0218_ActiveBaselineFollowsActivity` and `TestCALV0218_SleepingChildDoesNotBlockIdleStop`
 (`internal/tasks/dispatch`, run with `-race`); `docs/build-log/2026-10-11-v1-1195-idle-busy-child.md`.
 
-Rollback: revert the CPU column and parser in `internal/tasks/dispatch/process_unix.go`, the
+Rollback: revert the CPU column and parsers in `internal/tasks/dispatch/process_unix.go`, the
+`preciseCPU` files (`childcpu_linux.go`, `childcpu_darwin.go`, the `process_other.go` stub), the
 baseline in `internal/tasks/dispatch/loop.go`, the tests and this amendment. No ledger, receipt or
 store state depends on the baseline.
 
@@ -6185,7 +6189,7 @@ and removes the new configuration members.
 | CAL-V0-209 | `TestCALV0208_ReadinessMemberCountsAndMilestoneDrift` (`internal/tasks/cli`; the fixture is not a Git repository, so a source observation would fail) |
 | CAL-V0-210 | `TestCALV0074_NoExecCrashTakeover` (`internal/tasks/store`) |
 | CAL-V0-211 | `TestCALV0211_ClaimWarnsOnExactDirectoryKey`, `TestCALV0211_ExactDirectoryKeyWarnings` (`internal/tasks/store`); `TestCALV0211_SetEffectsWarnsOnExactDirectoryKey` (`internal/tasks/cli`) |
-| CAL-V0-218 | `TestCALV0218_ParseCPUTime`, `TestCALV0218_BusyChildNeedsWorkNotPresence`, `TestCALV0218_ActiveBaselineFollowsActivity`, `TestCALV0218_SleepingChildDoesNotBlockIdleStop` (`internal/tasks/dispatch`) |
+| CAL-V0-218 | `TestCALV0218_ParseCPUTime`, `TestCALV0218_ParseProcStatCPU`, `TestCALV0218_BusyChildNeedsWorkNotPresence`, `TestCALV0218_ActiveBaselineFollowsActivity`, `TestCALV0218_SleepingChildDoesNotBlockIdleStop` (`internal/tasks/dispatch`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance

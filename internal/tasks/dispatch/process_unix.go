@@ -98,6 +98,30 @@ func parseCPUTime(s string) (time.Duration, bool) {
 	return total + time.Duration(days)*24*time.Hour, true
 }
 
+// userHZ is the Linux USER_HZ that /proc reports CPU ticks in; it is 100 on
+// every architecture this module builds for.
+const userHZ = 100
+
+// parseProcStatCPU reads utime+stime (fields 14 and 15) from a Linux
+// /proc/<pid>/stat line. The command name may hold spaces and parentheses,
+// so fields are counted after its last closing parenthesis.
+func parseProcStatCPU(s string) (time.Duration, bool) {
+	i := strings.LastIndexByte(s, ')')
+	if i < 0 {
+		return 0, false
+	}
+	f := strings.Fields(s[i+1:]) // f[0] is field 3, the state
+	if len(f) < 13 {
+		return 0, false
+	}
+	user, e1 := strconv.ParseUint(f[11], 10, 32)
+	sys, e2 := strconv.ParseUint(f[12], 10, 32)
+	if e1 != nil || e2 != nil {
+		return 0, false
+	}
+	return time.Duration(user+sys) * (time.Second / userHZ), true
+}
+
 // processIdentity reads the tree's start identities; tests replace it to
 // inject an unreadable process table.
 var processIdentity = supervisor.ProcessIdentity

@@ -30,6 +30,7 @@ func detachedSupervisor(pid int, identity string, leader int) bool { return fals
 func busyChild(w *Worker, procs map[int]proc, ignore []string, base childCPU, now time.Time) bool {
 	return false
 }
+func preciseCPU(procs map[int]proc, pids []int) {}
 func childSample(w *Worker, procs map[int]proc, ignore []string, now time.Time) childCPU {
 	return childCPU{at: now}
 }

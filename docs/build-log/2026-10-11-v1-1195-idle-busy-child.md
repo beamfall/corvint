@@ -14,7 +14,10 @@ running to `wallSeconds`.
 ## Change
 
 The process table read adds the cumulative CPU time column (`time=`, parsed in both the Darwin
-`mm:ss.cc` form, whose minutes keep counting past 59, and the Linux `[dd-]hh:mm:ss` form). The
+`mm:ss.cc` form, whose minutes keep counting past 59, and the Linux `[dd-]hh:mm:ss` form). Linux
+prints whole seconds, so for the children that count, the dispatcher reads utime+stime from
+`/proc/<pid>/stat` instead (USER_HZ 100, 10 ms; review round 2: with whole seconds a child at 2% CPU
+under a 30 second idle timeout could show no advance and be stopped). The
 dispatcher keeps an in-memory baseline per worker, retaken at the first observation and at every
 active tick, keyed by PID and start identity (Linux identities omit the PID). A non-ignored child
 is busy only when it is new since the baseline, its CPU time is unreadable or below the baseline,
@@ -23,12 +26,13 @@ or it used at least 1% of the wall time since the baseline. The ledger format is
 gets a full idle timeout before it can be stopped IDLE (review round 1).
 
 The 1% share is fixed rather than configured. Measuring from the last activity rather than per
-tick keeps Linux's one-second CPU resolution from counting a low-CPU helper busy on every bump:
-after the first window the share converges to the helper's real rate.
+tick keeps counter rounding from counting a low-CPU helper busy on every tick: after the first
+window the share converges to the helper's real rate.
 
 ## Evidence
 
 `TestCALV0218_SleepingChildDoesNotBlockIdleStop` launches a host `sleep 300 & wait` and fails on
 the previous `busyChild` (the leader survives) and passes with the change. Unit tests cover the
 parser, the busy-child conditions and the baseline following activity. Focused dispatch tests ran
-with `-race`. Live qualification against a real agent host with MCP servers is NOT_RUN.
+with `-race` on darwin/arm64; the Linux build and tests were compiled (`GOOS=linux go vet`) but
+not executed here, and `TestCALV0218_ParseProcStatCPU` covers the Linux stat parser on the host. Live qualification against a real agent host with MCP servers is NOT_RUN.

@@ -734,6 +734,13 @@ func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host, now time.Time
 	// Without a baseline (a new launch, or every adopted worker after a
 	// restart) each non-ignored child is new, so it counts busy once.
 	base, seen := d.childCPU[w.ID]
+	var pids []int
+	for _, m := range w.Members {
+		if m.PID != w.PID && !contains(h.IdleIgnore, procs[m.PID].comm) {
+			pids = append(pids, m.PID)
+		}
+	}
+	preciseCPU(procs, pids)
 	if !busy {
 		busy = busyChild(w, procs, h.IdleIgnore, base, now)
 	}
