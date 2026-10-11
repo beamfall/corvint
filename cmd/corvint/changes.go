@@ -30,7 +30,10 @@ Contract: docs/specs/upgrade-checklist-v0.md (accepted, decision 0518; V1-1142).
 func changesInvocation(args []string) (string, []string, bool) {
 	root := ""
 	for len(args) > 0 {
-		if args[0] == "--root" && len(args) > 1 {
+		if args[0] == "--root" {
+			if !rootPreambleValue(args, 1) {
+				return "", nil, false
+			}
 			root = args[1]
 			args = args[2:]
 			continue
