@@ -65,6 +65,8 @@ type batch struct {
 	order        []string
 	derived      map[string]int
 	bootstrap    int
+	inherited    inheritedCEM
+	archived     bool
 }
 
 // BatchCheck verifies a merge batch whose every change is already bound and
@@ -134,13 +136,17 @@ func (b *batch) run() int {
 		b.say("  fix: split the batch: check out each piece's last commit detached and run batch-check with BASE=<the previous piece's last commit>\n")
 		b.exit(2)
 	}
+	b.inherited = b.inheritedCEM()
+	// HEAD may keep the archive from BASE itself or from a commit in range.
+	b.archived = b.archives(b.inherited, b.target)
 	sealed := b.sealedConstituents()
 	if len(sealed) > batchConstituentLimit {
 		b.say("%s: REFUSE constituents-exceed-%d constituents=%d\n", b.prefix, batchConstituentLimit, len(sealed))
 		b.say("  fix: split the batch: check out each piece's last commit detached and run batch-check with BASE=<the previous piece's last commit>\n")
 		b.exit(2)
 	}
-	if b.gitRevision(b.base+":.corvint/change.cem.json") != b.gitRevision(b.target+":.corvint/change.cem.json") {
+	// HEAD keeps BASE's unsealed CEM in place or archives it (DCW-V0-043).
+	if head := b.gitRevision(b.target + ":.corvint/change.cem.json"); head != b.inherited.blob && (head != "" || !b.archived) {
 		b.failure("unsealed-cem-at-head", ".corvint/change.cem.json")
 	}
 	for _, bind := range sealed {
@@ -171,8 +177,8 @@ func oneLine(text string) string {
 	return strings.Join(strings.Fields(text), " ")
 }
 
-func (b *batch) gitRevision(spec string) string {
-	value, status := b.git(true, "rev-parse", "--verify", "-q", spec)
+func (f *flow) gitRevision(spec string) string {
+	value, status := f.git(true, "rev-parse", "--verify", "-q", spec)
 	if status != 0 {
 		return ""
 	}
@@ -192,6 +198,9 @@ func (b *batch) sealedConstituents() []string {
 			b.failure("unrecognized-sealed-cem", path)
 		case state != "A":
 			b.failure("sealed-cem-modified", path+" status="+state)
+		case path == b.inherited.path && b.archived:
+			// BASE's own inherited CEM, archived: bytes BASE already tracks,
+			// not a constituent (DCW-V0-043).
 		default:
 			binds = append(binds, match[1])
 			b.constituents[match[1]] = true
@@ -240,63 +249,88 @@ func (s cemStatus) proves(base, bind string) bool {
 		s.Verification.Assurance == "canonical" && s.Verification.BaseRevision == base && s.Verification.TargetRevision == bind
 }
 
-// verifyConstituent re-verifies one sealed CEM against its own base and bind
-// commit. The bootstrap allowance is the decision-0055 shape the bind loop
-// admitted: an unknown, no-evidence hunk adding a whole file absent at the
-// change's base. Each such path is printed; the OCM that admitted it is not
-// re-run. Only a canonical map is accepted: its verifier derives the patch from
-// the base and bind commits, whereas a cem/0.1 map verifies a cached patch
-// that need not equal the committed change.
-func (b *batch) verifyConstituent(bind string) {
+// sealedVerification is one sealed CEM re-verified against its own base and
+// bind commit; failure is empty when the verifier proved it.
+type sealedVerification struct {
+	failure   string
+	detail    string
+	base      string
+	bootstrap []string
+	observed  cemStatus
+	ran       bool
+}
+
+// verifySealedCEM re-verifies the sealed CEM of one bind commit that target
+// contains, for batch-check (DCW-V0-039) and for a change that merges sealed
+// changes (DCW-V0-042). The bootstrap allowance is the decision-0055 shape the
+// bind loop admitted: an unknown, no-evidence hunk adding a whole file absent
+// at the change's base. The OCM that admitted it is not re-run. Only a
+// canonical map is accepted: its verifier derives the patch from the base and
+// bind commits, whereas a cem/0.1 map verifies a cached patch that need not
+// equal the committed change.
+func (f *flow) verifySealedCEM(verifier Runner, target, bind string) sealedVerification {
 	path := ".corvint/changes/" + bind + ".cem.json"
-	if !b.gitSucceeds("merge-base", "--is-ancestor", bind, b.target) {
-		b.failure("constituent-not-merged", "bind="+bind)
-		return
+	result := sealedVerification{detail: "bind=" + bind}
+	if !f.gitSucceeds("merge-base", "--is-ancestor", bind, target) {
+		result.failure = "constituent-not-merged"
+		return result
 	}
-	sealedBlob := b.gitRevision(b.target + ":" + path)
-	if sealedBlob == "" || sealedBlob != b.gitRevision(bind+":.corvint/change.cem.json") {
-		b.failure("sealed-cem-drift", "bind="+bind)
-		return
+	sealedBlob := f.gitRevision(target + ":" + path)
+	if sealedBlob == "" || sealedBlob != f.gitRevision(bind+":.corvint/change.cem.json") {
+		result.failure = "sealed-cem-drift"
+		return result
 	}
-	data, status := b.git(true, "cat-file", "blob", sealedBlob)
+	data, status := f.git(true, "cat-file", "blob", sealedBlob)
 	var cem sealedMap
 	if status != 0 || json.Unmarshal([]byte(data), &cem) != nil || !wire.Canonical(cem.Spec) || !fullRevision.MatchString(cem.BaseRevision) ||
-		!b.gitSucceeds("merge-base", "--is-ancestor", cem.BaseRevision, bind) {
-		b.failure("constituent-cem-invalid", "bind="+bind)
-		return
+		!f.gitSucceeds("merge-base", "--is-ancestor", cem.BaseRevision, bind) {
+		result.failure = "constituent-cem-invalid"
+		return result
 	}
-	bootstrap := []string{}
+	result.base = cem.BaseRevision
 	for _, hunk := range cem.Hunks {
 		if hunk.Disposition == "unknown" && hunk.Reason == "no-evidence" && hunk.OldRange.Count == 0 &&
-			!b.gitSucceeds("cat-file", "-e", cem.BaseRevision+":"+hunk.Path) {
-			bootstrap = append(bootstrap, hunk.Path)
+			!f.gitSucceeds("cat-file", "-e", cem.BaseRevision+":"+hunk.Path) {
+			result.bootstrap = append(result.bootstrap, hunk.Path)
 		}
 	}
 	var stdout, stderr bytes.Buffer
-	code := b.options.Verifier.Run(b.ctx, b.root, []string{"cem", "status", "--map", path, "--expected-base", cem.BaseRevision,
-		"--target", bind, "--max-unknown", strconv.Itoa(len(bootstrap)), "--max-mechanical", "0"}, &stdout, &stderr)
-	b.checkpoint()
-	var observed cemStatus
-	parsed := json.Unmarshal(firstLine(stdout.Bytes()), &observed) == nil
-	if observed.State == "" {
-		observed.State = failureReason(stderr.Bytes(), code)
+	code := verifier.Run(f.ctx, f.root, []string{"cem", "status", "--map", path, "--expected-base", cem.BaseRevision,
+		"--target", bind, "--max-unknown", strconv.Itoa(len(result.bootstrap)), "--max-mechanical", "0"}, &stdout, &stderr)
+	f.checkpoint()
+	result.ran = true
+	parsed := json.Unmarshal(firstLine(stdout.Bytes()), &result.observed) == nil
+	if result.observed.State == "" {
+		result.observed.State = failureReason(stderr.Bytes(), code)
 	}
-	b.print("%s: CONSTITUENT bind=%s base=%s hunks=%s supported=%s unknown=%s bootstrapUnknown=%d state=%s\n",
-		b.prefix, bind, cem.BaseRevision, observedCount(observed.Counts.Total), observedCount(observed.Counts.Supported),
-		observedCount(observed.Counts.Unknown), len(bootstrap), observed.State)
-	for _, added := range bootstrap {
-		b.print("  bootstrap-unknown %s\n", added)
+	switch {
+	case code != 0:
+		result.failure, result.detail = "constituent-cem-policy", result.detail+" state="+result.observed.State
+	case !parsed || !result.observed.proves(cem.BaseRevision, bind):
+		result.failure, result.detail = "constituent-unverified", result.detail+" state="+result.observed.State
 	}
-	b.bootstrap += len(bootstrap)
-	if code != 0 {
-		b.failure("constituent-cem-policy", "bind="+bind+" state="+observed.State)
+	return result
+}
+
+// verifyConstituent re-verifies one sealed CEM of the batch and records the
+// commits its own range covers.
+func (b *batch) verifyConstituent(bind string) {
+	result := b.verifySealedCEM(b.options.Verifier, b.target, bind)
+	if result.ran {
+		observed := result.observed
+		b.print("%s: CONSTITUENT bind=%s base=%s hunks=%s supported=%s unknown=%s bootstrapUnknown=%d state=%s\n",
+			b.prefix, bind, result.base, observedCount(observed.Counts.Total), observedCount(observed.Counts.Supported),
+			observedCount(observed.Counts.Unknown), len(result.bootstrap), observed.State)
+		for _, added := range result.bootstrap {
+			b.print("  bootstrap-unknown %s\n", added)
+		}
+		b.bootstrap += len(result.bootstrap)
+	}
+	if result.failure != "" {
+		b.failure(result.failure, result.detail)
 		return
 	}
-	if !parsed || !observed.proves(cem.BaseRevision, bind) {
-		b.failure("constituent-unverified", "bind="+bind+" state="+observed.State)
-		return
-	}
-	covered := b.gitValue("rev-list", bind, "^"+cem.BaseRevision, "^"+b.base)
+	covered := b.gitValue("rev-list", bind, "^"+result.base, "^"+b.base)
 	for _, commit := range nonEmpty(strings.Split(covered, "\n")) {
 		b.covered[commit] = true
 	}
@@ -321,7 +355,7 @@ func (b *batch) verifyCoverage() {
 		case len(parents) == 0:
 			b.failure("unbound-commits", commit)
 		case len(parents) == 1:
-			if !b.constituents[parents[0]] || !b.isSealCommit(commit) {
+			if (!b.constituents[parents[0]] || !b.isSealCommit(commit)) && !b.archivesInherited(parents[0], commit) {
 				b.failure("unbound-commits", commit)
 			}
 		case len(parents) > 2:
@@ -330,6 +364,19 @@ func (b *batch) verifyCoverage() {
 			b.deriveMerge(commit, parents[0], parents[1])
 		}
 	}
+}
+
+// archivesInherited reports a commit that only archives BASE's inherited CEM
+// at its sealed path, by adding that file or renaming the unchanged sidecar
+// there (DCW-V0-043).
+func (b *batch) archivesInherited(parent, commit string) bool {
+	if !b.archived {
+		return false
+	}
+	changed, _ := b.git(false, "diff-tree", "-r", "-M", "--no-commit-id", "--name-status", parent, commit)
+	changed = chomp(changed)
+	return (changed == "A\t"+b.inherited.path || changed == "R100\t.corvint/change.cem.json\t"+b.inherited.path) &&
+		b.archives(b.inherited, commit)
 }
 
 // deriveMerge accepts a merge whose tree Git reproduces from its two parents
@@ -431,6 +478,9 @@ func (b *batch) finish(commits, constituents int) int {
 	verifier := "unavailable"
 	if digest, err := fileSHA256(b.options.Verifier.Path); err == nil {
 		verifier = "sha256:" + digest
+	}
+	if b.archived {
+		b.print("%s: NOTE inherited-cem-archived NOT_REVERIFIED path=%s\n", b.prefix, b.inherited.path)
 	}
 	b.print("%s: NOTE ocm NOT_REVERIFIED sealed-constituent\n", b.prefix)
 	b.print("%s: NOTE composition NOT_OBSERVED merged-change-interaction\n", b.prefix)

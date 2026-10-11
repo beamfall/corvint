@@ -21,7 +21,7 @@ Application map usage (experimental, AMAP-V0):
       [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
   corvint [--root PATH] flows appmap flow --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
       [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
-  corvint [--root PATH] flows appmap entries --map FILE [--budget N | --full] [--revision REV]
+  corvint [--root PATH] flows appmap entries --map FILE [--ledger FILE] [--budget N | --full] [--revision REV]
   corvint [--root PATH] flows appmap stats --map FILE [--budget N | --full] [--min-resolved PCT]
   corvint [--root PATH] flows appmap find --map FILE --text TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
@@ -70,7 +70,9 @@ these commands writes to the repository.
 
 Static entries (experimental, V1-1136): entries classifies UI-router entry candidates,
 parameters and guards; default cap 6144 bytes. It never visits a URL or verifies loading.
-Changed source reads UNVERIFIED_AT_HEAD. Runtime and PROVEN edge paths are deferred.
+Changed source reads UNVERIFIED_AT_HEAD. --ledger (application-edge-ledger/0 built from this map
+at the evaluated revision) adds each screen's shortest path of PROVEN ledger edges from a
+deep-linkable entry, with the proving test keys; a screen with none reads NOT_OBSERVED.
 
 Qualification report (experimental, V1-1138): stats reads only the map file and reports
 screens resolved/total, the top 5 unknown reasons with example anchors, test-join and

@@ -1,8 +1,12 @@
 package appmap
 
 import (
+	"errors"
 	"fmt"
+	"path"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
 type reactParser struct {
@@ -14,20 +18,99 @@ type reactParser struct {
 	anchor   Anchor
 }
 
+// reactImporter reads the module a relative import specifier names at the build revision for the
+// one import hop of AMAP-V0-079; why names the unknown reason when it cannot.
+type reactImporter func(spec string) (e blobEntry, data []byte, why string)
+
+// reactImportExtensions are the module files a relative specifier without an extension may name.
+var reactImportExtensions = []string{".ts", ".tsx", ".js", ".jsx"}
+
+// readReactRouter compiles one React router file, following an imported route array through one
+// literal named-import hop at the same revision (AMAP-V0-079). The read shares the router bound.
+func readReactRouter(r repo, rev string, e blobEntry, data []byte, remaining *int) ([]rawState, []Unknown, error) {
+	var hopErr error
+	imp := func(spec string) (blobEntry, []byte, string) {
+		base := path.Join(path.Dir(e.path), spec)
+		if !safeRelative(base) {
+			return blobEntry{}, nil, "unresolved-react-routes-import"
+		}
+		cands := []string{base}
+		if !containsString(reactImportExtensions, path.Ext(base)) {
+			cands = nil
+			for _, ext := range reactImportExtensions {
+				cands = append(cands, base+ext)
+			}
+			for _, ext := range reactImportExtensions {
+				cands = append(cands, base+"/index"+ext)
+			}
+		}
+		var found []blobEntry
+		var bodies [][]byte
+		for _, c := range cands {
+			if *remaining == 0 {
+				hopErr = bound("more than 64 router files including React route imports")
+				return blobEntry{}, nil, ""
+			}
+			fe, fd, err := r.readOne(rev, c, maxRouterBytes)
+			if err != nil {
+				var coded *gokernel.Error
+				if errors.As(err, &coded) && coded.Code == "appmap-bound-exceeded" {
+					hopErr = err
+					return blobEntry{}, nil, ""
+				}
+				continue
+			}
+			found, bodies = append(found, fe), append(bodies, fd)
+		}
+		switch len(found) {
+		case 0:
+			return blobEntry{}, nil, "unresolved-react-routes-import"
+		case 1:
+			*remaining--
+			return found[0], bodies[0], ""
+		}
+		return blobEntry{}, nil, "ambiguous-react-routes-import"
+	}
+	states, unknowns := parseReactRouterWith(e, data, imp)
+	if hopErr != nil {
+		return nil, nil, hopErr
+	}
+	return states, unknowns, nil
+}
+
+func containsString(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
 func parseReactRouter(e blobEntry, data []byte) ([]rawState, []Unknown) {
+	return parseReactRouterWith(e, data, nil)
+}
+
+// reactDynamic reports a conditional, logical, loop or `.map` construct anywhere in the file: one
+// could select or compute routes, so the file's states are not read as declared.
+func reactDynamic(ts []token) bool {
+	for i, t := range ts {
+		if next(ts, i, "?") || next(ts, i, "&") && next(ts, i+1, "&") || next(ts, i, "|") && next(ts, i+1, "|") || t.kind == tokIdent && (t.text == "if" || t.text == "switch" || t.text == "for" || t.text == "while" || t.text == "map" && i > 0 && next(ts, i-1, ".")) {
+			return true
+		}
+	}
+	return false
+}
+
+func parseReactRouterWith(e blobEntry, data []byte, imp reactImporter) ([]rawState, []Unknown) {
 	p := &reactParser{e: e, data: data, anchor: wholeFile(e, data)}
 	ts, ok := lexRoutes(string(data), false)
 	if !ok {
 		return nil, []Unknown{routerUnknown(e, 1, "unsupported-react-syntax")}
 	}
 	found := false
-	dynamicContext := false
+	dynamicContext := reactDynamic(ts)
 	for i := 0; i < len(ts); i++ {
-		t := ts[i]
-		if next(ts, i, "?") || next(ts, i, "&") && next(ts, i+1, "&") || next(ts, i, "|") && next(ts, i+1, "|") || t.kind == tokIdent && (t.text == "if" || t.text == "switch" || t.text == "for" || t.text == "while" || t.text == "map" && i > 0 && next(ts, i-1, ".")) {
-			dynamicContext = true
-		}
-
 		if ts[i].kind == tokIdent && (ts[i].text == "createBrowserRouter" || ts[i].text == "createRoutesFromElements") && next(ts, i+1, "(") {
 			found = true
 			end := closeParen(ts, i+1)
@@ -36,8 +119,10 @@ func parseReactRouter(e blobEntry, data []byte) ([]rawState, []Unknown) {
 				continue
 			}
 			if ts[i].text == "createBrowserRouter" && end == i+3 && ts[i+2].kind == tokIdent {
-				if v, why := reactRoutesBinding(ts, i+2); why != "" {
+				if v, ref, why := reactRoutesBinding(ts, ts[i+2].text, i+2, false); why != "" {
 					p.unknown(ts[i].line, why)
+				} else if ref != nil {
+					p.imported(ref, ts[i].line, imp)
 				} else {
 					p.routes(v, "", "", 0)
 				}
@@ -86,6 +171,85 @@ func parseReactRouter(e blobEntry, data []byte) ([]rawState, []Unknown) {
 
 func (p *reactParser) unknown(line int, reason string) {
 	p.unknowns = append(p.unknowns, routerUnknown(p.e, line, reason))
+}
+
+// imported compiles the array an `import { NAME } from './module'` binding names: the one top-level
+// `export const NAME = [...]` of that module, read whole at the same revision, exactly as a same-file
+// array (AMAP-V0-079). Its states are anchored to the declaring module and carry the router file as
+// a name_from anchor, so a change to either file leaves derived screens not FRESH. No further hop.
+func (p *reactParser) imported(ref *reactImportRef, line int, imp reactImporter) {
+	if imp == nil || !strings.HasPrefix(ref.spec, "./") && !strings.HasPrefix(ref.spec, "../") {
+		p.unknown(line, "imported-react-routes") // a package or aliased specifier is never resolved
+		return
+	}
+	te, td, why := imp(ref.spec)
+	if why != "" || td == nil {
+		if why != "" {
+			p.unknown(line, why)
+		}
+		return
+	}
+	q := &reactParser{e: te, data: td, anchor: wholeFile(te, td)}
+	ts, ok := lexRoutes(string(td), false)
+	if !ok {
+		p.unknown(line, "unsupported-react-syntax")
+		return
+	}
+	v, _, why := reactRoutesBinding(ts, ref.name, -1, true)
+	if why != "" {
+		q.unknown(1, why)
+		p.unknowns = append(p.unknowns, q.unknowns...)
+		p.unknown(line, "imported-react-routes")
+		return
+	}
+	q.routes(v, "", "", 0)
+	dynamic := reactDynamic(ts)
+	if dynamic {
+		q.unknown(1, "dynamic-route-context")
+	}
+	for i := range q.states {
+		q.states[i].nameFrom = append(q.states[i].nameFrom, p.anchor)
+		if dynamic {
+			q.states[i].reason = "dynamic-route-context"
+		}
+	}
+	p.states = append(p.states, q.states...)
+	p.unknowns = append(p.unknowns, q.unknowns...)
+}
+
+// reactImportRef is one named import binding: the module's exported name and its specifier.
+type reactImportRef struct{ name, spec string }
+
+// reactNamedImport reads the binding at j as `import { NAME } from 'spec'` or
+// `import { ORIGINAL as NAME } from 'spec'`; default, namespace, type and mixed imports read nil.
+func reactNamedImport(ts []token, j int) *reactImportRef {
+	k := j - 1
+	for k >= 0 && !(ts[k].kind == tokIdent && ts[k].text == "import") {
+		k--
+	}
+	if k < 0 || !next(ts, k+1, "{") {
+		return nil
+	}
+	cb := j + 1
+	for cb < len(ts) && !next(ts, cb, "}") {
+		cb++
+	}
+	if cb+2 >= len(ts) || ts[cb+1].kind != tokIdent || ts[cb+1].text != "from" || !literal(ts[cb+2]) {
+		return nil
+	}
+	name := ts[j].text
+	open := func(i int) bool { return next(ts, i, "{", ",") }
+	switch {
+	case open(j-1) && next(ts, j+1, "}", ","):
+	case j >= 3 && ts[j-1].kind == tokIdent && ts[j-1].text == "as" && ts[j-2].kind == tokIdent && open(j-3):
+		name = ts[j-2].text
+	default:
+		return nil
+	}
+	if name == "default" || name == "type" {
+		return nil
+	}
+	return &reactImportRef{name: name, spec: ts[cb+2].text}
 }
 
 func (p *reactParser) routes(v jsValue, parent, parentPath string, depth int) {
@@ -249,15 +413,18 @@ func reactJSX(ts []token, i, depth int) (jsValue, int, bool) {
 
 // reactRoutesBinding resolves `createBrowserRouter(NAME)` to the one literal array a top-level
 // `const NAME = [...]` (optionally typed `: Type` or `: Type[]`) binds in the same file. Any other
-// use of NAME may compute or mutate the array and stays UNKNOWN (`computed-react-routes`); a NAME
-// bound by an import is not read across files (`imported-react-routes`); a file holding any template
-// substitution or an escaped identifier is not read either, since either could name NAME unseen
-// (AMAP-V0-078).
-func reactRoutesBinding(ts []token, use int) (jsValue, string) {
-	name, decl, depth := ts[use].text, -1, 0
+// use of NAME may compute or mutate the array and stays UNKNOWN (`computed-react-routes`); a file
+// holding any template substitution or an escaped identifier is not read either, since either could
+// name NAME unseen (AMAP-V0-078). A NAME bound only by one literal named import returns the import
+// (AMAP-V0-079); any other import form stays `imported-react-routes`. With exported set the file is
+// the imported module: use is -1, the binding must be `export const NAME = [...]`, and an import of
+// NAME there is a second hop, never followed.
+func reactRoutesBinding(ts []token, name string, use int, exported bool) (jsValue, *reactImportRef, string) {
+	decl, depth := -1, 0
+	var ref *reactImportRef
 	for j, t := range ts {
 		if t.subst || t.kind == tokPunct && t.text == "\\" {
-			return jsValue{}, "computed-react-routes" // a ${} expression or escaped identifier could touch NAME unseen
+			return jsValue{}, nil, "computed-react-routes" // a ${} expression or escaped identifier could touch NAME unseen
 		}
 		if t.kind == tokPunct {
 			switch t.text {
@@ -272,7 +439,13 @@ func reactRoutesBinding(ts []token, use int) (jsValue, string) {
 			continue
 		}
 		if reactImported(ts, j) {
-			return jsValue{}, "imported-react-routes"
+			if exported || ref != nil || decl >= 0 {
+				return jsValue{}, nil, "imported-react-routes"
+			}
+			if ref = reactNamedImport(ts, j); ref == nil {
+				return jsValue{}, nil, "imported-react-routes"
+			}
+			continue
 		}
 		eq := j + 1
 		if next(ts, eq, ":") && eq+1 < len(ts) && ts[eq+1].kind == tokIdent {
@@ -281,19 +454,23 @@ func reactRoutesBinding(ts []token, use int) (jsValue, string) {
 				eq += 2
 			}
 		}
-		if decl >= 0 || depth != 0 || j == 0 || ts[j-1].kind != tokIdent || ts[j-1].text != "const" || !next(ts, eq, "=") || next(ts, eq+1, "=", ">") {
-			return jsValue{}, "computed-react-routes"
+		if ref != nil || decl >= 0 || depth != 0 || j == 0 || ts[j-1].kind != tokIdent || ts[j-1].text != "const" || !next(ts, eq, "=") || next(ts, eq+1, "=", ">") ||
+			exported && (j < 2 || ts[j-2].kind != tokIdent || ts[j-2].text != "export") {
+			return jsValue{}, nil, "computed-react-routes"
 		}
 		decl = eq + 1
 	}
+	if ref != nil {
+		return jsValue{}, ref, ""
+	}
 	if decl < 0 {
-		return jsValue{}, "non-literal-react-routes"
+		return jsValue{}, nil, "non-literal-react-routes"
 	}
 	v, after := parseValue(ts, decl)
 	if v.kind != "array" || after < len(ts) && !next(ts, after, ";") && !reactStatementStart(ts, after) {
-		return jsValue{}, "computed-react-routes"
+		return jsValue{}, nil, "computed-react-routes"
 	}
-	return v, ""
+	return v, nil, ""
 }
 
 // reactStatementStart reports whether the token after an array literal without `;` begins a new

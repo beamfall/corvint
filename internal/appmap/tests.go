@@ -62,11 +62,13 @@ type rawMethod struct {
 	name       string
 	start, end int
 	callable   bool
+	member     bool // declared directly in the class body
 }
 
 type rawNew struct {
 	class string
 	line  int
+	at    int // index of the class token in lexJS's token stream
 }
 
 var (
@@ -162,7 +164,7 @@ func readFacts(text string) fileFacts {
 			}
 		}
 		if t.text != "" && i > 0 && toks[i-1].kind == tokIdent && toks[i-1].text == "new" {
-			f.news = append(f.news, rawNew{class: t.text, line: t.line})
+			f.news = append(f.news, rawNew{class: t.text, line: t.line, at: i})
 		}
 	}
 	lines := strings.Split(code, "\n")
@@ -186,7 +188,7 @@ func readFacts(text string) fileFacts {
 			continue
 		}
 		if end := blockEnd(lines, n); end > n {
-			f.methods = append(f.methods, rawMethod{name: name, start: n + 1, end: end + 1, callable: member && callable(l, name)})
+			f.methods = append(f.methods, rawMethod{name: name, start: n + 1, end: end + 1, callable: member && callable(l, name), member: member})
 			lastEnd = max(lastEnd, end)
 		}
 	}

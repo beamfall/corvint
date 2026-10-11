@@ -37,7 +37,7 @@ func entriesFixture(t *testing.T) (string, *Map) {
 
 func entriesRows(t *testing.T, m *Map, o Options) ([]entryView, []byte) {
 	t.Helper()
-	raw, err := ProjectEntries(context.Background(), m, o)
+	raw, err := ProjectEntries(context.Background(), m, nil, o)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,8 +227,130 @@ func TestEntriesBudget(t *testing.T) {
 		t.Fatalf("budget: %s", raw)
 	}
 	for _, o := range []Options{{Budget: 255}, {Budget: 65537}, {Budget: 4096, Full: true}, {Budget: 256}} {
-		if _, err := ProjectEntries(context.Background(), m, o); err == nil {
+		if _, err := ProjectEntries(context.Background(), m, nil, o); err == nil {
 			t.Fatalf("admitted %+v", o)
+		}
+	}
+}
+
+func entriesLedger(m *Map, edges ...LedgerEdge) *EdgeLedger {
+	return &EdgeLedger{Schema: EdgeLedgerSchema, App: m.App, Revision: m.Revision, MapDigest: m.Digest, Digest: "sha256:ledger", Edges: edges}
+}
+
+func provenEdge(m *Map, from, to, test string) LedgerEdge {
+	sv := StepVerification{Status: Verified, Receipt: &ReceiptRef{TestKey: test}}
+	return LedgerEdge{From: screenID(m.App, from), To: screenID(m.App, to), Status: EdgeProven, Evidence: &EdgeCrossing{Verification: sv}}
+}
+
+// AMAP-V0-080 AMAP-V0-081 AMAP-V0-082: a bound ledger gives each screen its shortest path of
+// PROVEN, receipt-backed edges from a deep-linkable entry; other screens read NOT_OBSERVED, and
+// a stale screen or an unbound ledger never yields a path.
+func TestAMAPV0080EntriesLedgerPaths(t *testing.T) {
+	root, m := entriesFixture(t)
+	unproven := provenEdge(m, "home", "hook", "t-hook")
+	unproven.Status = EdgeUnproven
+	noReceipt := provenEdge(m, "home", "params", "t-params")
+	noReceipt.Evidence.Verification.Receipt = nil
+	contradicted := provenEdge(m, "home", "redirect", "t-redirect")
+	contradicted.Evidence.Verification.Status = Contradicted
+	emptyKey := provenEdge(m, "home", "base", "")
+	l := entriesLedger(m,
+		provenEdge(m, "home", "guard", "t-z"),
+		provenEdge(m, "home", "guard", "t-g"),
+		provenEdge(m, "guard", "guard.child", "t-gc"),
+		provenEdge(m, "home", "base.child", "t-b"),
+		provenEdge(m, "base.child", "base.absolute", "t-ba"),
+		provenEdge(m, "base.absolute", "guard.child", "t-long"),
+		unproven, noReceipt, contradicted, emptyKey)
+	run := func(l *EdgeLedger, o Options) ([]entryView, string, error) {
+		o.Root, o.Full = root, true
+		raw, err := ProjectEntries(context.Background(), m, l, o)
+		if err != nil {
+			return nil, "", err
+		}
+		var doc struct {
+			Basis        string      `json:"basis"`
+			LedgerDigest string      `json:"ledger_digest"`
+			Entries      []entryView `json:"entries"`
+		}
+		if err = json.Unmarshal(raw, &doc); err != nil {
+			t.Fatal(err)
+		}
+		if doc.Basis != "static-entries+edge-ledger" || doc.LedgerDigest != l.Digest {
+			t.Fatalf("head: %s", raw)
+		}
+		return doc.Entries, string(raw), nil
+	}
+	rows, raw, err := run(l, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := func(s string) string { return screenID(m.App, s) }
+	want := map[string]struct {
+		status string
+		path   []string
+		by     []string
+	}{
+		"home":          {PathEntry, []string{id("home")}, nil},
+		"empty":         {PathEntry, []string{id("empty")}, nil},
+		"guard":         {EdgeProven, []string{id("home"), id("guard")}, []string{"t-g"}},
+		"guard.child":   {EdgeProven, []string{id("home"), id("guard"), id("guard.child")}, []string{"t-g", "t-gc"}},
+		"base.absolute": {EdgeProven, []string{id("home"), id("base.child"), id("base.absolute")}, []string{"t-b", "t-ba"}},
+		"hook":          {PathNotObserved, nil, nil},
+		"params":        {PathNotObserved, nil, nil},
+		"base":          {PathNotObserved, nil, nil},
+		"redirect":      {PathNotObserved, nil, nil},
+	}
+	for _, row := range rows {
+		w, ok := want[row.State]
+		if !ok {
+			if row.State == "base.child" && row.PathStatus != EdgeProven {
+				t.Errorf("base.child: %+v", row)
+			}
+			continue
+		}
+		if row.PathStatus != w.status || strings.Join(row.ProvenPath, " ") != strings.Join(w.path, " ") || strings.Join(row.ProvenBy, " ") != strings.Join(w.by, " ") {
+			t.Errorf("%s: %+v", row.State, row)
+		}
+		if row.PathStatus == PathNotObserved && (row.PathReason != "no-proven-path-from-entry" || len(row.ProvenPath) != 0) {
+			t.Errorf("%s: %+v", row.State, row)
+		}
+		if row.Verification != "STATIC_ONLY" || row.LastVerifiedRevision != "" {
+			t.Errorf("ledger upgraded loading: %+v", row)
+		}
+		delete(want, row.State)
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing rows %v", want)
+	}
+	if _, again, _ := run(l, Options{}); again != raw {
+		t.Fatal("nondeterministic")
+	}
+	if _, plain := entriesRows(t, m, Options{Root: root, Full: true}); strings.Contains(string(plain), "proven_by") || strings.Contains(string(plain), "ledger_digest") {
+		t.Fatal("static projection changed without a ledger")
+	}
+	for name, bad := range map[string]func(*EdgeLedger){
+		"digest":   func(b *EdgeLedger) { b.MapDigest = "sha256:other" },
+		"app":      func(b *EdgeLedger) { b.App = "other" },
+		"revision": func(b *EdgeLedger) { b.Revision = strings.Repeat("0", 40) },
+		"trimmed":  func(b *EdgeLedger) { b.Omitted = map[string]int{"edges": 1} },
+	} {
+		b := *l
+		bad(&b)
+		if _, _, err := run(&b, Options{}); err == nil {
+			t.Errorf("%s: admitted an unbound ledger", name)
+		}
+	}
+	writeFile(t, root, "app/routes.js", strings.Replace(entryRoutes, "/home", "/landing", 1))
+	moved := *l
+	moved.Revision = commitAll(t, root, "template changed")
+	stale, _, err := run(&moved, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range stale {
+		if row.PathStatus != StatusUnknown || row.PathReason != "screen-source-not-fresh" || len(row.ProvenPath) != 0 {
+			t.Errorf("stale path: %+v", row)
 		}
 	}
 }

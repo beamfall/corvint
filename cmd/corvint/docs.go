@@ -195,6 +195,9 @@ Separate experimental corpus profile:
   corvint [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply]
 Read operations: info, validate, get/trace/related/journey/stability --id ID, locate --path PATH,
 coverage, gaps [--id ID]. Optional --limit 1..256. All require --artifact.
+Local input files (--manifest, --artifact, --input, --previous, --cem, --retirement, --migration,
+--playwright-list, --receipt, --report) are canonical paths relative to --root and must sit under
+it: no leading /, no .., no ./ or //. Absolute paths are refused (corpus-refused, naming the flag).
 Native query/context/impact/affected/test-validity/work observe/propose-wave and CEM
 status/verify/report accept --corpus=CORPUS.json. Generated evidence grants no task
 or test-selection authority. Read commands print bounded JSON and never collect tests.

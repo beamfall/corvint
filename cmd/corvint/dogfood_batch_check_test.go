@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -101,14 +102,7 @@ func TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations(t *testing.T) {
 		!strings.Contains(stdout, "CONSTITUENT bind="+bindB) || !strings.HasSuffix(stdout, "dogfood-batch-check: PASS constituents=2 commits=8\n") {
 		t.Fatalf("batch-check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
-	// DCW-V0-040: rebinding the batch as one change names batch-check instead.
-	if code, _, stderr := run.exec(t, root, nil, "dogfood", "change", base); code != 2 ||
-		!strings.Contains(stderr, "REFUSE sealed-cem-in-change\n") || !strings.Contains(stderr, "  fix: for a merge batch of sealed changes, run corvint dogfood batch-check "+base+" instead of rebinding it") {
-		t.Fatalf("rebind exit=%d stderr=%s", code, stderr)
-	}
-	if status := cemGit(t, root, "status", "--porcelain", "--untracked-files=all"); status != "" {
-		t.Fatalf("worktree after batch-check and refused rebind: %s", status)
-	}
+	merged := cemGit(t, root, "rev-parse", "HEAD")
 	cemWrite(t, root, "AGENTS.md", "# Fixture authority\nUse intent.md.\n")
 	cemGit(t, root, "commit", "-qam", "unbound fix-up")
 	fixup := cemGit(t, root, "rev-parse", "HEAD")
@@ -137,5 +131,53 @@ func TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations(t *testing.T) {
 	cemGit(t, root, "merge", "-q", "--no-ff", "--no-edit", sealForged)
 	if code, _, stderr = run.exec(t, root, nil, "dogfood", "batch-check", base); code != 1 || !strings.Contains(stderr, "FAIL constituent-cem-policy count=1\n  bind="+forged+" state=") {
 		t.Fatalf("forged constituent exit=%d stderr=%s", code, stderr)
+	}
+
+	// DCW-V0-042, DCW-V0-040: a sealed CEM that differs from its bind
+	// commit's map refuses sealed-cem-in-change and still names batch-check;
+	// nothing is written.
+	cemGit(t, root, "checkout", "-q", "-b", "drifted", merged)
+	sealedA := ".corvint/changes/" + bindA + ".cem.json"
+	cemWrite(t, root, sealedA, raw+"\n\n")
+	cemGit(t, root, "commit", "-qam", "drift lane A's sealed CEM")
+	if code, _, stderr := run.exec(t, root, nil, "dogfood", "change", base); code != 2 ||
+		!strings.Contains(stderr, "REFUSE sealed-cem-in-change\n  "+sealedA+": sealed-cem-drift bind="+bindA+"\n") ||
+		!strings.Contains(stderr, "  fix: for a merge batch of sealed changes, run corvint dogfood batch-check "+base+" instead of rebinding it") {
+		t.Fatalf("drifted rebind exit=%d stderr=%s", code, stderr)
+	}
+	if status := cemGit(t, root, "status", "--porcelain", "--untracked-files=all"); status != "" {
+		t.Fatalf("worktree after refused rebind: %s", status)
+	}
+
+	// DCW-V0-042: the merged batch itself binds, checks and seals against
+	// the original BASE: each merged sealed CEM is re-verified and admitted,
+	// and its file is one more hunk the plan cites.
+	cemGit(t, root, "checkout", "-q", "-b", "batch-bind", merged)
+	first, second := bindA, bindB
+	if second < first {
+		first, second = second, first
+	}
+	spec := "\tintent.md\t5:5\tspecification\n"
+	inputsDir = t.TempDir()
+	intents = filepath.Join(inputsDir, "intents")
+	if err := os.WriteFile(intents, []byte("intent.md\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	inputs := []string{"DOGFOOD_TASK=Batch.", "DOGFOOD_VERIFY=true", "DOGFOOD_OUTCOME=passed", "DOGFOOD_INTENTS_FILE=" + intents}
+	code, _, stderr = run.exec(t, root, inputs, "dogfood", "change", base)
+	for _, bind := range []string{first, second} {
+		if !strings.Contains(stderr, "dogfood-change: NOTE sealed-cem-merged bind="+bind+" base="+base+" bootstrapUnknown=0\n") {
+			t.Fatalf("merged batch pass exit=%d stderr=%s", code, stderr)
+		}
+	}
+	if err := os.Remove(filepath.Join(root, ".corvint/change.cem.json")); err != nil {
+		t.Fatal(err)
+	}
+	plan := "1" + spec + "2" + spec + "3\tfixture/fixture.go\t1:1\tdependency\n4\tfixture/fixture.go\t1:1\tdependency\n"
+	bindBatch := sealPortableLane(t, run, root, base, plan)
+	want := []string{".corvint/changes/" + first + ".cem.json", ".corvint/changes/" + second + ".cem.json", ".corvint/changes/" + bindBatch + ".cem.json"}
+	sort.Strings(want)
+	if sealed := cemGit(t, root, "ls-tree", "--name-only", "HEAD", ".corvint/changes/"); sealed != strings.Join(want, "\n") {
+		t.Fatalf("sealed CEMs after binding the batch: %s", sealed)
 	}
 }

@@ -82,8 +82,13 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    with `excluded-artifact-mismatch` (in `<git-dir>/corvint/cem-status.json` it is a
    `verification.issues` code, not a policy issue). The final seal removes the shared path, so
    `dogfood-seal` refuses `unarchived-base-cem` while no `.corvint/changes/` file keeps the blob
-   `BASE` tracked: archive that earlier CEM in a commit on the base branch and restart the change
-   on that commit (`DCW-V0-027`).
+   `BASE` tracked (`DCW-V0-027`). In a repository that already seals, `dogfood-change` refuses the
+   same code before any step runs, and both refusals print, as their `fix:` line, the exact command
+   that commits that blob as the inherited archive `.corvint/changes/<writer>.cem.json` (`<writer>`
+   is the commit that last wrote the shared path) and nothing else; run it on the change branch and
+   rerun with the same `BASE`. The archive is admitted with
+   `NOTE inherited-cem-archived NOT_REVERIFIED`, cited by the plan like any other hunk, and accepted
+   by `dogfood batch-check` (`DCW-V0-043`, proposed).
 4. Write the citation plan from the prepared map. The hunk count is
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
@@ -108,7 +113,11 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `local-outcome: record-failed`, both reading `local trace store contains unreachable revision`).
    If that commit is gone for good, `corvint migrate-traces --dry-run` lists it in
    `stranded_revisions`, and `corvint migrate-traces --apply --plan-digest DIGEST` moves the trace,
-   byte-preserved, to `.context-corvint/legacy-traces/` (LTPM-V0-012).
+   byte-preserved, to `.context-corvint/legacy-traces/` (LTPM-V0-012). The trace store, the
+   `<git-dir>/corvint/` evidence and the operation lock belong to one worktree: lanes that share a
+   repository each run in their own `git worktree add` worktree or clone, and can then change,
+   check and seal at the same time; switching one worktree between lanes strands the first lane's
+   traces the same way (`DCW-V0-044`, proposed).
 6. Run `make dogfood-change BASE=$BASE` again. Expected: no output but non-blocking `NOTE` lines
    (section 1), exit 0, and
    `.corvint/dogfood-report.json` contains `"complete": true`. An uncited hunk instead leaves
@@ -176,6 +185,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Class | Trigger | `dogfood-change` | `dogfood-check` |
 |---|---|---|---|
 | Dirty | modified tracked or untracked file after the change | runs; the recorder reports `local-outcome: record-index-failed` | `REFUSE dirty-worktree` (exit 2) with the required-order line |
+| Unsupported | repository-configured clean or process filter | NOT_OBSERVED | `REFUSE worktree-status-unavailable` (exit 2) with the reason and a `fix:` line; the filter never runs (`DCW-V0-045`) |
 | Stale | commit after the last `dogfood-change` | the rerun returns to step 3 until the sidecar is recommitted | `FAIL dogfood-report-drift`, `fix:` names another base or head |
 | Unknown | hunk not cited by `DOGFOOD_CITATIONS` | `cem-status: not-ready`; a nonempty plan also refuses `cem-cite: citation-plan-map-mismatch`, an empty one `cem-cite: empty-citation-plan` | `FAIL dogfood-report-drift`, `fix:` names an incomplete report |
 | Interrupted | `SIGTERM` during a run | exit 143, no report written, no citation stage left, sidecar unchanged | `FAIL dogfood-report-missing`, or `dogfood-report-drift` when an older report exists |
@@ -183,8 +193,8 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Unsupported | run from a subdirectory of the worktree (reproduced for V1-0236) | `REFUSE not-repository-root` (exit 2) | `REFUSE not-repository-root` (exit 2) |
 | Unsupported | intent without exactly one `## Requirements` heading | `ocm-prepare-001: invalid-requirements-section`, `ocm-aggregate: intent-scope-drift` | NOT_OBSERVED |
 | Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
-| Rewritten | amend or rebase after a recorded pass | `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
-| Sealed | check on the seal commit, or a change containing a seal | `REFUSE sealed-cem-in-change` | `REFUSE sealed-head` |
+| Rewritten | amend or rebase after a recorded pass, or another lane run in the same worktree | `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
+| Sealed | check on the seal commit, or a change containing a modified or unverifiable seal | `REFUSE sealed-cem-in-change`, one line per refused path | `REFUSE sealed-head` |
 
 Test-claim linkage through `DOGFOOD_OCM_LINKS` needs a Go test that names the requirement ID. It was
 observed for V1-0142 by replaying the sealed LAC-V0-032 change: `ocm-link-001` PRODUCED and the
@@ -316,8 +326,12 @@ which does nothing but rename `.corvint/change.cem.json` to
 `.corvint/changes/<bind-commit>.cem.json`. The CEM is bound and checked at the fixed `cem/0.2`
 path, and the seal moves it out of that one shared tracked path, so two open branches never edit
 the same file (decision 0319). A sealed HEAD is refused by `dogfood-check` (`sealed-head`); check
-its parent instead. `dogfood-change` refuses a change whose `BASE_SHA..HEAD` adds a sealed CEM
-(`sealed-cem-in-change`): to rework a sealed branch, revert or drop the seal commit first.
+its parent instead. A branch that merged or stacked on sealed changes binds against its own,
+unmoved `BASE_SHA`: `dogfood-change` re-verifies each sealed CEM `BASE_SHA..HEAD` adds against its
+own base and bind commit, as `dogfood batch-check` does, prints `NOTE sealed-cem-merged` for each,
+and the plan cites each sealed file's hunk like any other. A modified, deleted, misnamed, drifted or
+unverifiable sealed CEM still refuses `sealed-cem-in-change`, naming each path and its reason
+(`DCW-V0-042`, proposed).
 
 Run `make gate` before the first `dogfood-change` or after the sidecar commit, not between them. Its
 archive step requires a clean worktree (`conformance/release-artifact-v0/archive_run.go:422-424`),
@@ -391,8 +405,9 @@ sealed-cem-in-change` print a `fix:` line naming this path; `intent-scope-drift`
 `ocm-prepare` or `ocm-status` row above it, which carries that `git-budget-exceeded` fix
 (`DCW-V0-040`). The limits are not raised. Instead (`DCW-V0-039`):
 
-1. Bind, check and seal each change with this loop on its own branch, in its own clone (the local
-   trace store of one change refuses another's unreachable commits), against its own base.
+1. Bind, check and seal each change with this loop on its own branch, in its own worktree or clone
+   (the local trace store of one change refuses another's unreachable commits), against its own
+   base; the lanes may run at the same time (`DCW-V0-044`).
 2. Merge the sealed branches into the batch branch one at a time, two parents per merge. Resolve a
    conflict with `git merge -X ours` or `-X theirs`; commit any other edit to the batch, such as an
    orchestrator's index or decision update or a hand-merged file, as its own sealed change on a
@@ -416,6 +431,11 @@ merge that relied on one fails. Each failure prints `FAIL <reason> count=N`, the
 listed commits, paths or binds, and one `fix:` line; it exits 1. A dirty worktree, an empty range,
 a range over 1,024 commits or more than 256 sealed changes refuses with exit 2; split the range
 by checking out a piece's last commit and using the previous piece's last commit as `BASE`.
+A batch whose head tracks a `.corvint/change.cem.json` that `BASE` does not track with the same
+blob fails `unsealed-cem-at-head`, so a bound but unsealed change is caught before the merge.
+When `BASE` itself tracks an unsealed CEM, the inherited archive above (`DCW-V0-043`) is no
+constituent: a lane that adds it, or a lone commit that renames the shared path to it, is covered,
+and the head may then drop the shared path.
 
 A `PASS` keeps these limits visible as `NOTE` lines: OCM and the local outcome of each change are
 not reverified (each change's own check already did), the merged changes' interaction is not
@@ -827,7 +847,8 @@ they do not create execution authority, close a Frontier, or qualify the native 
 - `DOGFOOD-013`: a checked change's CEM leaves the shared tracked path only through `dogfood-seal`,
   which commits after a passing check and only renames `.corvint/change.cem.json` to
   `.corvint/changes/<bind-commit>.cem.json`; a sealed HEAD is refused by final checking and a change
-  that adds a sealed CEM is refused by `dogfood-change`. A seal that would drop a CEM `BASE` tracks
+  that adds a sealed CEM is refused by `dogfood-change` unless each re-verifies as an unmodified
+  sealed change (amended by `DCW-V0-042`, proposed). A seal that would drop a CEM `BASE` tracks
   and no `.corvint/changes/` file keeps is refused `unarchived-base-cem`.
 - `DOGFOOD-014`: final checking counts a seal commit as bound by its parent and, when the base has no
   CEM, takes the previous binding from the parent of the newest seal reachable from the base.
