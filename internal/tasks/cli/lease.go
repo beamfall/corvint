@@ -367,6 +367,7 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	// CAL-V0-107: say when the author exclusion rests on the caller's
 	// explicit members rather than on recorded ones.
 	res.Warnings = append(res.Warnings, report.AuthorExclusion.Notes()...)
+	res.Warnings = append(res.Warnings, report.ScopeWarnings...)
 	return res
 }
 
