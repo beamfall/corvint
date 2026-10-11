@@ -91,8 +91,9 @@ function redactURL(raw) {
   const fragment = hash < 0 ? null : url.slice(hash + 1);
   if (hash >= 0) url = url.slice(0, hash);
   const q = url.indexOf('?');
+  const path = q < 0 ? url : url.slice(0, q);
   try {
-    unescape(Buffer.from(q < 0 ? url : url.slice(0, q), 'utf8'), false); // url.Parse checks the path
+    unescape(Buffer.from(path, 'utf8'), false); // url.Parse checks the path
     if (fragment === null) {
       return q < 0 ? url : url.slice(0, q + 1) + redactRawQuery(url.slice(q + 1));
     }
@@ -104,9 +105,18 @@ function redactURL(raw) {
     const rewritten = decoded.slice(0, fq + 1) + (query === null ? '_=' + redacted : query);
     // Like Go's EscapedFragment, an unchanged fragment keeps its original encoding byte for byte.
     if (rewritten === decoded) return url + '#' + fragment;
-    return url + '#' + escapeFragment(Buffer.from(rewritten, 'latin1'));
+    // observe matches screens on the route's literal bytes, so only the query is re-escaped. A route
+    // whose first decoded '?' is not its first literal '?' cannot keep its bytes: null withholds it.
+    const rq = fragment.indexOf('?');
+    if (rq < 0 || unescape(Buffer.from(fragment.slice(0, rq), 'utf8'), false).toString('latin1') !== decoded.slice(0, fq)) return null;
+    return url + '#' + fragment.slice(0, rq + 1) + escapeFragment(Buffer.from(rewritten.slice(fq + 1), 'latin1'));
   } catch {
-    return redacted; // url.Parse refuses a bad escape, so observe reads the whole URL as REDACTED
+    // url.Parse refuses a bad escape, so observe writes the visit as REDACTED but still matches the
+    // screen on the raw path and hash route. Only those bytes are kept, and a trailing bad escape
+    // keeps the URL unparseable; a route with an encoded '?' may hold query bytes and is withheld.
+    if (fragment === null) return path;
+    const route = fragment.slice(0, fragment.search(/[?#]|$/));
+    return /%3f/i.test(route) ? null : path + '#' + route + '?%';
   }
 }
 
@@ -172,6 +182,10 @@ function createRecorder({outputDir, currentTest, warn = () => {}}) {
       // written URL after it.
       const committedBytes = Buffer.byteLength(ev.url);
       ev.url = redactURL(ev.url);
+      if (ev.url === null) {
+        s.opaque = true;
+        return;
+      }
       if (committedBytes > maxURLBytes || Buffer.byteLength(ev.url) > maxURLBytes || s.events.length >= maxEvents) {
         s.overflow = true;
         return;
@@ -200,12 +214,13 @@ function createRecorder({outputDir, currentTest, warn = () => {}}) {
     if (!s) return;
     const target = file(testId);
     if (s.closed) s.reopened = true; // a second context of this attempt closed after the first
-    const doc = s.pages > 1 || s.overflow || s.reopened ? '' : JSON.stringify({schema, test_key: testId, events: s.events}) + '\n';
+    const doc = s.pages > 1 || s.overflow || s.opaque || s.reopened ? '' : JSON.stringify({schema, test_key: testId, events: s.events}) + '\n';
     // Only the attempt's retry and page count outlive its write; the event buffer is released.
     s.events = [];
     s.closed = true;
     const reason = s.reopened ? 'more than one browser context' : s.pages > 1 ? 'more than one page'
       : s.overflow ? 'more than 4096 events or a URL over 4096 bytes'
+        : s.opaque ? "a hash route with an encoded '?' and a redacted query"
         : Buffer.byteLength(doc) > maxDocumentBytes ? 'document over 4 MiB' : '';
     if (reason) {
       fs.rmSync(target, {force: true});
@@ -243,7 +258,7 @@ function createRecorder({outputDir, currentTest, warn = () => {}}) {
       let s = tests.get(t.testId);
       if (!s || s.retry !== t.retry) {
         // A new attempt drops the earlier attempt's document before recording its own.
-        s = {retry: t.retry, events: [], pages: 0, overflow: false, last: ''};
+        s = {retry: t.retry, events: [], pages: 0, overflow: false, opaque: false, last: ''};
         tests.set(t.testId, s);
         fs.rmSync(file(t.testId), {force: true});
       }

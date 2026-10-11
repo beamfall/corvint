@@ -89,6 +89,25 @@ Round 4 was run by the orchestrator and confirmed the round-3 repairs.
   trace reader rejects that URL.
 - **Tests.** The Node and Go differential tests cover both cases.
 
+## Review round 5 repairs
+
+Round 5 (`gpt-6.1-sol`, read-only) found one P2.
+
+- **Route bytes under a redacted hash query.** A changed fragment was rebuilt from its decoded
+  bytes, so `#!/%68ome?token=x` became `#!/home?token=REDACTED`. Observe matches screens on the
+  literal route, so under a `/home` screen the trace left `/%68ome` unmapped while the producer
+  resolved it. The route now keeps its bytes up to the first literal `?`, and only the query is
+  re-escaped. A route holding an encoded `?` cannot do both and is withheld.
+- **Unparseable URLs (found while testing the repair).** The producer wrote `REDACTED` for a URL
+  with a bad path or fragment escape. Observe redacts that visit's URL but still matches its screen
+  on the raw route, so `#!/home?q=%zz` resolved `home` from the trace and `UNKNOWN` from the
+  producer. The producer now keeps the path and hash route, then appends `?%` so the URL stays
+  unparseable.
+- **Tests.** `TestANLV0044ProducerRedactionMatchesObserve` now compares the decoded URL. It also
+  runs both documents through `Observe` under a `#!` map, requires equal screen and status for each
+  visit, and requires at least one `home` visit. The Node tests cover the withheld routes. The live
+  rerun produced files byte-identical to the `live-events` fixtures.
+
 ## Overhead
 
 The run was 80 tests (`--repeat-each=40`, one worker) on a loaded shared host, three runs each:

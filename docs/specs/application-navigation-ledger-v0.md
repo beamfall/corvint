@@ -307,10 +307,15 @@ are URL templates, not component source files. This slice makes neither missing 
   credentials are dropped; in the URL's query a pair holding `;` or a bad escape is dropped, and a
   value whose decoded name is secret-shaped or whose decoded value looks opaque becomes `REDACTED`.
   A hash-route query is decoded once with the fragment, then redacted the same way, except that any
-  bad pair replaces the whole fragment query with `_=REDACTED`; a fragment this changes is rewritten
-  so one unescape returns it, and an unchanged fragment keeps its original bytes, as Go's escaped
-  fragment does. A bad escape in the path or fragment makes the whole URL `REDACTED`.
-  `observe`'s redaction of the written URL then equals its redaction of the committed URL.
+  bad pair replaces the whole fragment query with `_=REDACTED`. An unchanged fragment keeps its
+  original bytes, as Go's escaped fragment does; a changed one keeps its route bytes up to the first
+  literal `?` and rewrites only the query so one unescape returns it. A route whose first decoded
+  `?` is not its first literal `?` cannot keep its bytes, and the attempt is withheld with a
+  warning. When `observe` cannot parse the URL (a bad escape in the path or fragment), it writes
+  the visit as `REDACTED` but matches the screen on the raw path and hash route, so the producer
+  keeps only the path and the hash route up to its first `?` or `#`, followed by `?%` so the URL
+  stays unparseable; such a route holding an encoded `?` is withheld. `observe` then decodes the
+  same URL from the written URL as from the committed URL and resolves the same screen and status.
   (proposed; issue #814)
 - `ANL-V0-045`: Its cost is one in-process listener call per Playwright call, two page event
   listeners and one small file write per test; it opens no network, process or browser. A written

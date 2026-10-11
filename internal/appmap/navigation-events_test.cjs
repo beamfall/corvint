@@ -125,8 +125,13 @@ test('ANL-V0-044: URLs are redacted before they reach disk', () => {
   assert.equal(redactURL('http://h/#/r?session=9&q=1'), 'http://h/#/r?session=REDACTED&q=1');
   assert.equal(redactURL('http://h/p?a=1;token=zz&b=2&q=%zz'), 'http://h/p?b=2');
   assert.equal(redactURL('http://h/#!/home?%2574oken=sekret1&a=1'), 'http://h/#!/home?%2574oken=REDACTED&a=1');
-  assert.equal(redactURL('http://h/#/r%3Fsession%3D9'), 'http://h/#/r?session=REDACTED');
-  assert.equal(redactURL('http://h/#/r?q=%zz'), 'REDACTED');
+  // A redacted hash query keeps the route's literal bytes; an encoded '?' in the route cannot.
+  assert.equal(redactURL('http://h/#!/%68ome?token=sekret'), 'http://h/#!/%68ome?token=REDACTED');
+  assert.equal(redactURL('http://h/#/r%3Fsession%3D9'), null);
+  // An unparseable URL keeps only the path and hash route observe matches on, and stays unparseable.
+  assert.equal(redactURL('http://h/#/r?q=%zz&token=zz'), 'http://h/#/r?%');
+  assert.equal(redactURL('http://u:p@h/a%zz?token=zz#/r?x=1'), 'http://h/a%zz#/r?%');
+  assert.equal(redactURL('http://h/#/r%3Ftoken%3Dzz%zz'), null);
   assert.equal(redactURL('http://h/#!/%68ome?x=1'), 'http://h/#!/%68ome?x=1');
   assert.equal(redactURL('http://h/#!/home?x=%41'), 'http://h/#!/home?x=%41');
   assert.equal(redactURL('http://h/items/7#tab'), 'http://h/items/7#tab');
@@ -186,6 +191,14 @@ test('ANL-V0-043: a second page, too many events, an oversized URL or document w
   navigate(o.page, 'http://h/home', ['http://h/old?code=' + 'c'.repeat(5000)]);
   await hop.rec.runBeforeCloseBrowserContext(o.context);
   assert.ok(!fs.existsSync(path.join(hop.dir, 'hop.json')));
+
+  // So is a hash route whose redaction cannot keep its literal bytes.
+  const opaque = harness('opaque');
+  const q = await opaque.open();
+  navigate(q.page, 'http://h/#/r%3Fsession%3D9');
+  await opaque.rec.runBeforeCloseBrowserContext(q.context);
+  assert.ok(!fs.existsSync(path.join(opaque.dir, 'opaque.json')));
+  assert.match(opaque.warnings[0], /opaque not written: a hash route/);
 });
 
 test('ANL-V0-037/038: outside a test nothing is recorded; outputDir is required', async () => {
