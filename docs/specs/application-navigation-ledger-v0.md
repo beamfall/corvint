@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775); `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1133 (issue #775), V1-1134 (issue #776); `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -70,6 +70,26 @@ are URL templates, not component source files. This slice makes neither missing 
 - `ANL-V0-008`: Observation output is deterministic with a digest of the complete observation,
   byte-capped by AMAP budget rules with omitted visit and edge counts that never alter the digest,
   read-only and offline. (proposed, pending owner acceptance (V1-1133))
+- `ANL-V0-009`: `corvint test-plan prefixes --map FILE [--ledger FILE] [--facts FILE]` derives, per
+  spec with a resolved test join, the ordered chain of the map's `test-sequence` edges and flags the
+  spec when every edge of a chain of two or more edges is PROVEN in the `--ledger`
+  (`application-edge-ledger/0`, matched on from and to screen) and the chain ends on a screen that is
+  resolved, not abstract, has a template and whose lineage is FRESH at the evaluated revision. Each
+  flag prints `{test, prefix_edges, proven_by, entry_template, saved_steps}` plus the entry screen,
+  parameters, a `goto(template)` or session-fixture suggestion and the other flagged specs sharing the
+  first edge. `saved_steps` is the edge count minus one. Without a ledger nothing flags.
+  (proposed, pending owner acceptance (V1-1134))
+- `ANL-V0-010`: A spec abstains with a reason, never flags, when its join is UNKNOWN
+  (`join-unknown`), its chain is discontinuous (`sequence-discontinuous`), any prefix edge is declared an assertion target
+  (`assertion-target`) or mutating (`state-change`) in the `--facts` sidecar
+  (`test-prefix-facts/0`, keyed `FROM_SCREEN>TO_SCREEN` per spec path), has no declared read-only
+  effect (`effects-unknown`), is not proven (`edge-not-proven`), or ends on an entry that is not
+  deep-linkable (`entry-not-deep-linkable`) or not FRESH (`entry-template-not-fresh`), or saves
+  nothing (`nothing-to-save`, a one-edge chain). (proposed, pending owner acceptance (V1-1134))
+- `ANL-V0-011`: The report is deterministic with a digest of the complete report, byte-capped with
+  omitted counts, learned authority, read-only and offline. With `--check` the command exits 1
+  (`test-plan-mismatch`) when a flagged test is absent from `--baseline` (an earlier report; any flag
+  fails without one), and 2 on invalid input. (proposed, pending owner acceptance (V1-1134))
 
 ## Wire and limits
 
@@ -108,6 +128,9 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-006 | `internal/appmap/observe.go`, `cmd/corvint/flows_appmap_observe.go` | `TestANLV0006Observe`, `TestANLV0006HashRouted`, `TestANLV0006ObserveCLI` |
 | ANL-V0-007 | `internal/appmap/observe.go` | `TestANLV0007Redaction` |
 | ANL-V0-008 | `internal/appmap/observe.go` | `TestANLV0008InputsAndBudget` |
+| ANL-V0-009 | `internal/appmap/prefixes.go` | `TestANLV0009FlagsProvenPrefix` |
+| ANL-V0-010 | `internal/appmap/prefixes.go` | `TestANLV0010NeverFlagsTargetsOrChanges` |
+| ANL-V0-011 | `internal/appmap/prefixes.go`, `cmd/corvint/test_plan_prefixes.go` | `TestANLV0011StaleEntryAndBudget`, `TestANLV0011PrefixesCLI` |
 
 ## Follow-ups and promotion
 

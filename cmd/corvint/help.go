@@ -1250,6 +1250,15 @@ the plan is COMPLETE, 1 on test-plan-mismatch, test-plan-incomplete or
 test-plan-header-missing, and 2 on invalid arguments or input, with no stdout.
 The command reads only its named files and Git, runs no test and never writes.
 Experimental.
+
+Prefix lint (ANL-V0-009..011):
+  corvint [--root PATH] test-plan prefixes --map FILE [--ledger FILE] [--facts FILE]
+      [--check [--baseline FILE]] [--revision REV] [--budget N | --full]
+Flags specs whose test-sequence prefix (two or more screen transitions) only crosses edges the
+--ledger (application-edge-ledger/0) proves and ends on a fresh deep-linkable screen, with the
+replacement goto and saved steps. --facts (test-prefix-facts/0) declares read-only, mutating and
+assertion-target edges per spec; undeclared effects abstain. --check exits 1 when a flagged test is
+not in --baseline. Learned, read-only, offline.
 `
 
 // commandMaturityHelp is the root-help section that names the frozen Core verbs and labels every

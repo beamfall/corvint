@@ -92,3 +92,13 @@ userinfo, action input values). Follow-ups: read Playwright trace zips directly 
 locators), feed observed edges into the edge ledger as PROVEN evidence, and verify `--receipt`
 bindings against observed crossings. Builder rule change (owner, 2026-10-11): this and later tickets
 were hand-built; Codex ran only as reviewer.
+
+## V1-1134 / #776: prefix lint (ANL-V0-009..011)
+
+Slice: static `test-sequence` chains plus the edge ledger. The map records neither per-edge
+assertions nor write effects, so those come from an explicit `test-prefix-facts/0` sidecar and an
+undeclared effect abstains (fail closed); without facts the lint flags nothing. Ledger rows match
+test-sequence edges on from/to only because sequence edges carry no trigger. A proving test key may
+be the flagged spec itself (receipt keys are titles, spec paths are files); not excluded here.
+Follow-ups: derive read-only/mutating classes from page-object method effects, use observed traces
+(ANL-V0-006) as sequence input, and exclude self-proofs once receipts map to files.
