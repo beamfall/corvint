@@ -79,7 +79,12 @@ Evidence is retained under `/private/tmp/claude-501/gotmp/q/`, using
   A supplemental existing-base-binary control in the same environment matches the
   candidate exactly under that normalization (`review3-eval-base-same-env.json`),
   independently confirmed by the reviewer. It does not replace the failed clean
-  baseline comparison. Clean native checkout and strict replay remain unresolved.
+  baseline comparison. 
+  **Resolved by the lane orchestrator's strict replay** (clean detached checkout of the
+  adopter repository at 6e82abd8, base binary built from origin/main 71b2eb8f, final binary
+  built from the branch head, same goldens): the final binary's report differs from the base
+  report only in `evaluation.metrics.latency_ms` (12490.727 ms to 5987.342 ms); all seven cases,
+  `trace_state` `absent`, packet bytes `47690`, critical misses `0`, recall `1.0` match.
 - `git diff --check` passed. No commit, push, ticket mutation or full gate was run.
 
 Corvint pre-change query and affected plans are retained as `review3-query.json`,
