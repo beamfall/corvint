@@ -25,7 +25,10 @@ Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
 
 build compiles application-map/0 from the manifest's router definitions, flow intents and
-test suite read at REV (default HEAD) and writes it to stdout. A manifest whose tests name
+test suite read at REV (default HEAD) and writes it to stdout. Router dialects are
+ui-router-states/0, rails-routes/0 and react-router/0 (literal, experimental subsets).
+Optional manifest router_globs report matched files absent from routers as router-not-declared
+in app_coverage; this measures only the declared glob scope. A manifest whose tests name
 "repo": ALIAS reads them from the root --repo binds to ALIAS, at its HEAD commit, which the
 map pins; --manifest-repo reads the manifest from such a root. An undeclared alias, a root
 that is not a Git worktree, or uncommitted changes under what the map reads from it refuse.

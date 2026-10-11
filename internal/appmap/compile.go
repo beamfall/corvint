@@ -194,8 +194,21 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 		return err
 	}
 	raws := []rawState{}
-	for _, e := range ordered {
-		states, unknowns := parseRouter(e, data[e.oid], consts.forRouter(e, data[e.oid]))
+	remainingRouters := maxRouterFiles - len(ordered)
+	for i, e := range ordered {
+		var states []rawState
+		var unknowns []Unknown
+		switch b.m.Routers[i].Dialect {
+		case DialectRails:
+			states, unknowns, err = readRailsRouter(r, b.rev, e, data[e.oid], &remainingRouters)
+		case DialectReact:
+			states, unknowns = parseReactRouter(e, data[e.oid])
+		default:
+			states, unknowns = parseRouter(e, data[e.oid], consts.forRouter(e, data[e.oid]))
+		}
+		if err != nil {
+			return err
+		}
 		if err := consts.err(); err != nil {
 			return err
 		}
@@ -204,6 +217,9 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 		if len(raws) > maxStates {
 			return bound(fmt.Sprintf("more than %d router states", maxStates))
 		}
+	}
+	if err := b.routerCoverage(r); err != nil {
+		return err
 	}
 	b.out.Unknowns = append(b.out.Unknowns, consts.diag...)
 	screens, unknowns := resolveScreens(b.m.App, raws)

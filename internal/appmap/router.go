@@ -7,8 +7,9 @@ import (
 	"strings"
 )
 
-// rawState is one `.state(...)` declaration as written, before hierarchy resolution.
+// rawState is one literal router declaration, before shared hierarchy resolution.
 type rawState struct {
+	splatNonEmpty      bool
 	name               string
 	parent             string
 	parentSet          bool
@@ -161,13 +162,22 @@ var (
 	braceParam = regexp.MustCompile(`\{([A-Za-z_][A-Za-z0-9_]*)(?::[^{}]*)?\}`)
 	colonParam = regexp.MustCompile(`:([A-Za-z_][A-Za-z0-9_]*)`)
 	keyParam   = regexp.MustCompile(`\{[A-Za-z_][A-Za-z0-9_]*\}`)
+	splatParam = regexp.MustCompile(`\*([A-Za-z_][A-Za-z0-9_]*)?$`)
+	splatKey   = regexp.MustCompile(`\{\*[A-Za-z_][A-Za-z0-9_]*\}`)
 	slashes    = regexp.MustCompile(`/{2,}`)
 )
 
-// normalizeTemplate turns a ui-router path pattern into the map's template form: `:id`,
-// `{id}` and `{id:int}` become `{id}`, duplicate slashes collapse and a trailing slash drops.
+// normalizeTemplate shares parameter and terminal-splat spelling across router dialects:
+// `:id`, `{id}` and `{id:int}` become `{id}`; `*name` becomes `{*name}`. Duplicate
+// slashes collapse and a trailing slash drops.
 func normalizeTemplate(pattern string) (template string, params []string) {
-	t := braceParam.ReplaceAllString(pattern, "{$1}")
+	t := splatParam.ReplaceAllStringFunc(pattern, func(s string) string {
+		if s == "*" {
+			s = "*splat"
+		}
+		return "{" + s + "}"
+	})
+	t = braceParam.ReplaceAllString(t, "{$1}")
 	t = colonParam.ReplaceAllString(t, "{$1}")
 	if !strings.HasPrefix(t, "/") {
 		t = "/" + t
@@ -180,11 +190,16 @@ func normalizeTemplate(pattern string) (template string, params []string) {
 	for _, m := range keyParam.FindAllString(t, -1) {
 		params = append(params, m[1:len(m)-1])
 	}
+	for _, m := range splatKey.FindAllString(t, -1) {
+		params = append(params, m[2:len(m)-1])
+	}
 	return t, params
 }
 
 // templateKey erases parameter names, so templates that differ only in names compare equal.
-func templateKey(template string) string { return keyParam.ReplaceAllString(template, "{}") }
+func templateKey(template string) string {
+	return splatKey.ReplaceAllString(keyParam.ReplaceAllString(template, "{}"), "{*}")
+}
 
 // splitQuery separates a ui-router url's `?a&b` query declaration from its path.
 func splitQuery(url string) (string, []string) {
@@ -276,7 +291,7 @@ func resolveScreens(app string, raws []rawState) ([]Screen, []Unknown) {
 	index := map[string]int{}
 	for _, n := range names {
 		s, r := byName[n], compute(n)
-		sc := Screen{ID: screenID(app, n), State: n, Status: r.status, Reason: r.reason, Parent: s.parent, Abstract: s.abstract,
+		sc := Screen{ID: screenID(app, n), State: n, Status: r.status, Reason: r.reason, Parent: s.parent, Abstract: s.abstract, SplatNonEmpty: s.splatNonEmpty,
 			Params: []string{}, Query: []string{}, Permissions: []string{}, Flags: []string{}, Anchor: s.anchor,
 			PageObjects: []string{}, Workflows: []string{}, Scenarios: []string{}, Specs: []Attribution{}, Flows: []string{},
 			Steps: []string{}, Preconditions: []Requirement{}}
@@ -353,9 +368,11 @@ type screenIndex struct {
 	hashPrefix string
 	byKey      map[string][]string
 	bySegments map[int][]routable
+	splats     []routable
 }
 
 type routable struct {
+	nonempty bool
 	id       string
 	segments []string
 }
@@ -368,7 +385,11 @@ func newScreenIndex(hashPrefix string, screens []Screen) *screenIndex {
 		}
 		x.byKey[s.Key] = append(x.byKey[s.Key], s.ID)
 		segs := splitSegments(s.Key)
-		x.bySegments[len(segs)] = append(x.bySegments[len(segs)], routable{id: s.ID, segments: segs})
+		if len(segs) > 0 && segs[len(segs)-1] == "{*}" {
+			x.splats = append(x.splats, routable{id: s.ID, segments: segs[:len(segs)-1], nonempty: s.SplatNonEmpty})
+		} else {
+			x.bySegments[len(segs)] = append(x.bySegments[len(segs)], routable{id: s.ID, segments: segs})
+		}
 	}
 	return x
 }
@@ -461,6 +482,11 @@ func (x *screenIndex) urlMatches(raw string) ([]string, string) {
 	matches := []string{}
 	for _, r := range x.bySegments[len(segs)] {
 		if segmentsMatch(r.segments, segs) {
+			matches = append(matches, r.id)
+		}
+	}
+	for _, r := range x.splats {
+		if len(segs) >= len(r.segments) && (!r.nonempty || len(segs) > len(r.segments)) && segmentsMatch(r.segments, segs[:len(r.segments)]) {
 			matches = append(matches, r.id)
 		}
 	}

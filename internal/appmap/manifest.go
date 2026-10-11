@@ -44,9 +44,12 @@ func decodeManifest(raw []byte) (Manifest, error) {
 			return m, invalidManifest("router path %q is not a unique repository-relative path", r.Path)
 		}
 		seen[r.Path] = true
-		if r.Dialect != DialectUIRouter {
-			return m, invalidManifest("router %s: dialect must be %s", r.Path, DialectUIRouter)
+		if r.Dialect != DialectUIRouter && r.Dialect != DialectRails && r.Dialect != DialectReact {
+			return m, invalidManifest("router %s: unsupported dialect %s", r.Path, r.Dialect)
 		}
+	}
+	if err := validateRouterGlobs(m.RouterGlobs); err != nil {
+		return m, err
 	}
 	if m.Flows != "" && !safeRelative(m.Flows) {
 		return m, invalidManifest("manifest flows must be a repository-relative directory")
