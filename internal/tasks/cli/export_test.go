@@ -260,3 +260,13 @@ func SetDoctorCacheHookForTest(hook func(stage string)) func() {
 // DoctorPluginNamesForTest lists the plugins doctor --plugins would run
 // from dir (TQD-V0-010).
 func DoctorPluginNamesForTest(dir string) ([]string, error) { return doctorPluginNames(dir) }
+
+// ReadRunConfigForTest exercises classification without running a job.
+var ReadRunConfigForTest = readRunConfig
+
+// SetRunConfigOpenForTest injects a config open/read failure without descriptor pressure.
+func SetRunConfigOpenForTest(open func(string) (io.ReadCloser, error)) func() {
+	was := runConfigOpen
+	runConfigOpen = open
+	return func() { runConfigOpen = was }
+}

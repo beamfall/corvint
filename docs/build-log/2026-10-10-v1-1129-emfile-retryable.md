@@ -148,3 +148,90 @@ These supersede the sandbox-limited entries above.
 - `make -s spec-requirements` regenerated `REQUIREMENTS.tsv`; the listed doc gates and
   `script/repin-use-case-receipts.sh --check`: PASS. The spec delivery header, Agent digest, README row and
   `INDEX.json` carry the same V1-1129 status suffix.
+
+## Follow-up independent-review repairs
+
+The next independent review returned FAIL with two P2 findings. This repair is an
+uncommitted diff over `37c6cd449c8d2e46fc8f66e670b4779250ac80a1`; the earlier lane-driver
+passes above do not qualify these new paths. CAL-V0-215 remains **proposed, pending owner
+acceptance (V1-1129)**. No commit, push, `.taskman` write, decision file or RLIMIT change.
+
+- P2-1: `healthClaimWith` now applies the same receipt-present `Unretryable` safeguard as
+  explicit `PoolCommand`, before returning a preparation error. Automatic health for both
+  claim and pool acquire is covered. `TestCALV0215_AutomaticHealthExhaustion` exercises both
+  CLI verbs and both errnos, checking the encoded caller-visible retry flag. Its post-receipt
+  fault targets `pools.json` and proves exact receipt bytes are already on disk; the
+  pre-receipt control faults publication of the receipt and proves it is absent. The test
+  first initializes/audits the fixture and decodes a real CLI envelope, asserts the injected
+  path was reached, and separately checks the health program never ran.
+- P2-2: `readRunConfig` wraps only open/read failures with `%w`, leaving JSON decoding and
+  validation on `configErr`. `TestCALV0215_RunConfigResourceExhausted` uses a bounded open/read
+  seam for EMFILE and ENFILE, tests both run-batch and qualify envelopes, asserts errno
+  identity and reader closure, and compares the whole fixture filesystem with no results
+  directory created. The existing closed-config regression remains the parse-error control.
+- The additional sweep found `archive.verifyLimit`'s deferred source-error wrapper also
+  overwrote reader errno with MALFORMED on a read-only path. It now preserves the cause with
+  `%w`; framing/parse errors and the size-limit override keep their existing classification.
+  `TestCALV0215_ArchiveSourceExhausted` first proves a valid exported archive, injects each
+  errno at the initial read, header and final trailer, asserts the fault and original errno,
+  checks unchanged fixture bytes and retains a truncated-archive MALFORMED control.
+
+Deliberately unchanged sweep matches:
+
+- `archive/verify.go`'s local tar/header/body/trailer error wrappers: the shared deferred
+  source-error handler now supersedes every non-EOF source I/O failure, including errors
+  hidden by `tar` or `io.ReadFull`. Genuine truncation and framing errors stay MALFORMED.
+- `archive/cost.go:measureHeaderBytes`: tar writes to an in-memory counting writer, so the
+  error is header validation, not OS I/O.
+- `service/lifecycle.go:readProfile` and `facts`, `ticket/record.go`, `wire/reader.go`,
+  `mutation` timestamp/date wrappers, `snapshot` handoff validation and ticket obligation
+  decode/fold errors: all inspect already-read values; file-read errors return separately.
+- `cli/run_batch.go:readJobReport`: its MALFORMED branch specifically means `errNotRegular`.
+  Its OS read/open refusals are explicitly MISSING_EVIDENCE and occur after job creation;
+  they are outside this pre-write MALFORMED sweep and were not reclassified.
+
+Verification for this repair (GOTOOLCHAIN=local, TMPDIR=/private/tmp/claude-501/gotmp,
+GOMAXPROCS=3):
+
+- Existing CLI CALV0215 and archive bytes-plus-source-error baseline: PASS.
+- New config and archive regressions failed before the fixes with lost errno / MALFORMED,
+  as intended. Initial test compilation mistakes were corrected before collecting these
+  behavioral failures; they were not treated as fault-path evidence.
+- Focused CLI race run: PASS (24.443s), including CALV0215, CALV0078, closed configuration,
+  run-batch and qualification filters. Exact combined command is retained below.
+- `go test -count=1 -race -timeout 30m ./internal/tasks/store
+  -run '^TestCALV0215_AutomaticHealthExhaustion$'`: FAIL (12.373s package duration).
+  All eight cases initialized and reached automatic health preparation, but `/bin/ps`
+  was sandbox-denied before artifact publication (`armed=true`, `fired=0`). Neither the
+  pre-receipt nor post-receipt injection is locally verified. The orchestrator must run this
+  test outside the sandbox; no skip or passing claim masks the failure.
+- Focused archive race run: PASS (44.572s), including the new source-exhaustion regression,
+  bytes-plus-source-error, terminal I/O, framing/size bounds and existing archive controls.
+- Focused wire race run: PASS (2.167s), including classification and retry overrides.
+- `go vet ./internal/tasks/cli ./internal/tasks/store ./internal/tasks/archive`: PASS.
+- gofmt readback and `git diff --check`: PASS. The spec changes only clarify CAL-V0-215
+  boundaries and witnesses; its definition line and requirement IDs are unchanged.
+  No full gate or unstaged-index documentation qualification is claimed.
+- Independent read-only review of the production diff, regressions and sweep: PASS, no
+  confirmed correctness findings; reviewer did not run tests. It verified receipt marking
+  precedes the error return and the CLI honors it, config parsing stays distinct from I/O,
+  and the archive source handler retains the existing size-limit precedence.
+
+The focused race command:
+
+```sh
+go test -count=1 -race -timeout 30m ./internal/tasks/cli ./internal/tasks/archive ./internal/tasks/wire \
+  -run 'TestCALV0215_|TestCALV0078_|TestTOLV0028_RunConfigIsClosed|TestTOLV0029_|TestTOLV0030_|TestTOLV0032_QualifyVerdicts|TestTMV0022_AS09_|TestTMV0022_AS10_'
+```
+
+Current Corvint query and affected evidence is retained in `/tmp/v1-1129-review-*.json`.
+Query retained four omitted results and 51 withheld test-path candidates. Affected retained
+scope/language-frontier unknowns; the owner's focused-test instruction governs. Index refresh
+was attempted once and denied a write to the shared Git directory. Core remains
+1.0.0-rc.3 build 407 and Tasks 0.0.0-tcp01-unverified+build.407; both official updater checks
+failed the version smoke (`descendant snapshot unavailable`), so available-version freshness
+remains UNKNOWN. No update or workaround was attempted. Usage telemetry was unavailable.
+The parent model was retained for the bounded repair; the independent reviewer used
+GPT-6.1 Sol/medium for the known fault boundaries. Billing and live effort telemetry remain
+NOT_OBSERVED. No new native queue entries were written under the task's explicit restriction.
+Post-commit CEM binding/seal remains NOT_PRODUCED under the no-commit instruction.

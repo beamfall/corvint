@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"strings"
 
@@ -76,7 +77,7 @@ func verifyLimit(input io.Reader, limit uint64) (result *VerifyResult, retErr er
 	defer func() {
 		if bounded.sourceErr != nil {
 			result = nil
-			retErr = wire.Errorf(wire.CodeMalformed, "stream", "source read failed: %v", bounded.sourceErr)
+			retErr = fmt.Errorf("stream: source read failed: %w", bounded.sourceErr)
 		}
 		if bounded.exceeded {
 			result = nil

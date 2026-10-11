@@ -5737,10 +5737,13 @@ this amendment does not infer errno from error text or recode errors that discar
 A receipt link whose completion check fails after publication MUST carry `WithoutRetry`, even
 if the writer has not yet recorded the receipt name in its report. This conservative boundary
 may suppress a safe ordinary mutation retry; it avoids inviting an unfinished multi-step replay.
-Pool preparation, initial sweep ownership and supervised dispatch MUST record their non-retryable
+Pool preparation (including automatic health preparation for claim and pool acquire), initial
+sweep ownership and supervised dispatch MUST record their non-retryable
 fact even when the writer returns both a receipt name and an error. `run-batch` and `qualify`
 also forbid retry once their request directory exists, including an OpenRoot failure after mkdir,
-because an identical request cannot resume that directory.
+because an identical request cannot resume that directory. Configuration open/read failures before
+that directory exists and archive verification source-read failures preserve errno identity for
+the shared classifier; genuine configuration and archive parse errors remain `MALFORMED`.
 
 Non-goals and resource limits: do not raise soft `RLIMIT_NOFILE` at CLI startup. Raising a
 per-process limit cannot fix system-wide `ENFILE`, changes inherited limits for child programs,
@@ -5762,7 +5765,11 @@ mark precedence. `TestCALV0215_ReceiptLinkExhaustion` (`internal/tasks/authority
 `TestCALV0215_PoolAcquireResourceExhausted` (`internal/tasks/cli`) first proves
 its fixture and canonical encoding, reaches the injected pre-write snapshot failure for each
 errno, then checks the envelope and byte-identical store/journal. CLI marked-error and committed
-report cases verify false survives envelope encoding. Focused race tests, vet and documentation
+report cases verify false survives envelope encoding. `TestCALV0215_AutomaticHealthExhaustion`
+checks claim/acquire envelopes on both sides of the preparation receipt; its outside-sandbox
+execution remains pending. `TestCALV0215_RunConfigResourceExhausted` checks config open/read
+errors before results-directory creation, and `TestCALV0215_ArchiveSourceExhausted` checks
+source errors at tar boundaries and an unchanged filesystem. Focused race tests, vet and documentation
 gates are recorded in `docs/build-log/2026-10-10-v1-1129-emfile-retryable.md`.
 
 Rollout/rollback: owner acceptance is pending. Revert the classifier, retry entry, CLI routing,

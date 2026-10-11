@@ -76,6 +76,8 @@ const (
 var (
 	jobInterruptContext = interruptContext
 	jobLeaseCommand     = leaseCommand
+	// runConfigOpen permits deterministic open/read failures without changing RLIMIT.
+	runConfigOpen = func(file string) (io.ReadCloser, error) { return os.Open(file) }
 )
 
 var runRequestID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$`)
@@ -102,14 +104,14 @@ func configErr(f string, args ...any) error {
 // readRunConfig reads and checks the configuration file; it returns the
 // config and the digest of its bytes.
 func readRunConfig(file string) (*runConfig, wire.Digest, error) {
-	f, err := os.Open(file)
+	f, err := runConfigOpen(file)
 	if err != nil {
-		return nil, "", configErr("cannot read the configuration: %v", err)
+		return nil, "", fmt.Errorf("--config: cannot read the configuration: %w", err)
 	}
 	defer f.Close()
 	raw, err := io.ReadAll(io.LimitReader(f, maxRunConfigBytes+1))
 	if err != nil {
-		return nil, "", configErr("cannot read the configuration: %v", err)
+		return nil, "", fmt.Errorf("--config: cannot read the configuration: %w", err)
 	}
 	if len(raw) > maxRunConfigBytes {
 		return nil, "", wire.Errorf(wire.CodeLimitExceeded, "--config", "the configuration exceeds %d bytes", maxRunConfigBytes)

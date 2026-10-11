@@ -325,6 +325,11 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 			healthPrepareHook(member)
 		}
 		prepared, e := leaseOnce(WithClock(ctx, poolClock), repo, actor, prep, poolClock())
+		if prepared.Receipt != "" {
+			// Replay cannot finish automatic health after its receipt commits,
+			// including a later post/head failure (CAL-V0-215).
+			prepared.Unretryable = true
+		}
 		if e != nil {
 			return prepared, e
 		}

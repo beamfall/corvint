@@ -6,12 +6,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -173,6 +175,98 @@ func TestCALV0215_CommittedDispatchExhaustion(t *testing.T) {
 					t.Fatalf("reviewer ran after failed dispatch: %v", e)
 				}
 			})
+		}
+	}
+}
+
+// Automatic preparation shares the durable receipt boundary with explicit
+// health. Assert the real claim/acquire CLI result, including a pre-receipt control.
+func TestCALV0215_AutomaticHealthExhaustion(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	for _, errno := range []error{syscall.EMFILE, syscall.ENFILE} {
+		for _, verb := range []string{"claim", "acquire"} {
+			for _, committed := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/%s/committed=%v", verb, errno, committed), func(t *testing.T) {
+					s := newLeaseStore(t)
+					s.root = s.repo.PrimaryWorktree
+					gitRun(t, s.root, "init", "-q", "-b", "main")
+					gitRun(t, s.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "base")
+					marker := filepath.Join(t.TempDir(), "ran")
+					v := fixture.PolicyValue()
+					v.Obj.Set("policyVersion", str("3"))
+					v.Obj.Vals["budgets"].Obj.Set("requireEnforcedFields", wire.Array())
+					health := obj("argv", wire.Strings([]string{"/bin/sh", "-c", "printf x >> " + marker}), "cwd", str("REPOSITORY"), "env", wire.Array(), "timeoutSeconds", str("3"))
+					v.Obj.Set("pools", wire.Array(obj("id", str("db"), "members", wire.Strings([]string{"a"}), "memberConfig", obj("a", obj("health", health)))))
+					if rep, err := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("health-policy", "2", wire.EncodeFile(v)), now(t)); err != nil || rep.Outcome.Outcome != mutation.OutcomeCompleted {
+						t.Fatalf("fixture policy: %+v %v", rep, err)
+					}
+					id := s.ticket(t, "health")
+					args := []string{"claim", id, "--holder", "agent-1", "--stage", "implement", "--scope", "one"}
+					if verb == "acquire" {
+						claim := s.claim(t, "initial", id, 0, "one")
+						args = []string{"pool", "acquire", "--attempt", claim.AttemptID, "--generation", string(claim.Generation)}
+					}
+					args = append(args, "--pool", "db", "--request-id", "health-pressure")
+					auditOK(t, s.repo)
+					var baseline bytes.Buffer
+					cli.Run(cli.Env{Cwd: s.root, Args: []string{"receipt", "audit"}, Stdout: &baseline})
+					if res, err := wire.DecodeResult(baseline.Bytes()); err != nil || res.Outcome != wire.OutcomeOK {
+						t.Fatalf("fixture envelope: %s %v", baseline.Bytes(), err)
+					}
+					armed, fired := false, 0
+					var receipt transaction.Artifact
+					restoreHealth := store.SetHealthPrepareHookForTest(func(member string) {
+						if member != "a" {
+							t.Fatalf("member: %s", member)
+						}
+						armed = true
+					})
+					t.Cleanup(restoreHealth)
+					restore := store.SetPublishFaultForTest(func(a transaction.Artifact) error {
+						if !armed {
+							return nil
+						}
+						if a.Role == "RECEIPT" {
+							receipt = a
+						}
+						target := a.Role == "RECEIPT"
+						if committed {
+							target = a.Role == "POST" && a.Target == "pools.json"
+						}
+						if !target {
+							return nil
+						}
+						if receipt.Target == "" {
+							t.Fatal("fault did not reach receipt boundary")
+						}
+						raw, err := os.ReadFile(filepath.Join(s.repo.StateDir, receipt.Target))
+						if committed {
+							if err != nil || !bytes.Equal(raw, receipt.Data) {
+								t.Fatalf("receipt not durable: %v", err)
+							}
+						} else if !os.IsNotExist(err) {
+							t.Fatalf("pre-receipt fault found receipt: %v", err)
+						}
+						fired++
+						return &os.PathError{Op: "open", Path: a.Target, Err: errno}
+					})
+					t.Cleanup(restore)
+					var out bytes.Buffer
+					cli.Run(cli.Env{Cwd: s.root, Args: args, Stdout: &out})
+					restore()
+					restoreHealth()
+					res, err := wire.DecodeResult(out.Bytes())
+					if err != nil {
+						t.Fatalf("envelope: %s %v", out.Bytes(), err)
+					}
+					if !armed || fired != 1 || res.Outcome != wire.OutcomeError || len(res.Codes) != 1 || res.Codes[0] != wire.CodeResourceExhausted || !strings.Contains(out.String(), fmt.Sprintf(`"retryable":%v`, !committed)) {
+						t.Fatalf("armed=%v fired=%d result=%s", armed, fired, out.Bytes())
+					}
+					if _, err := os.Stat(marker); !os.IsNotExist(err) {
+						t.Fatalf("health program ran: %v", err)
+					}
+				})
+			}
 		}
 	}
 }
