@@ -43,3 +43,11 @@ A missing `projectName` is now refused. Backslash paths are normalized. Conflict
 abstain. Matcher modifiers are kept. Within-side inputs are compared in an order-independent way.
 `config.projects` is compared. An unreadable report no longer hides the other reasons. Emitted
 identities and inputs are secret-screened, while matching still uses the raw values.
+
+## Review round 2
+
+Round 2 found four more gaps, all fixed with focused tests. A skipped result the test did not
+expect (`expectedStatus` other than `skipped`) is now `notRun`. That is how Playwright records a
+test it never started. An ambiguous identity in compare gets an `AMBIGUOUS` row with no
+statistics, rather than a verdict built from an arbitrary observation. A side that lacks a test
+reports N `absent`. Assertion files are compared raw and screened only on output.

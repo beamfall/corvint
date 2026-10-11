@@ -28,16 +28,17 @@ config.metadata.corvintRunIdentity. Per pool: DETERMINISTIC (same outcome in
 at least --min-runs runs, default 3, minimum 2), INTERMITTENT (outcomes differ,
 or a run was flaky; differing first-error lines listed) or INSUFFICIENT with a
 reason (BELOW_THRESHOLD, IDENTITY_INPUT_MISSING, IDENTITY_AMBIGUOUS,
-RUN_INTERRUPTED, NOT_RUN). An intermittent test.fail() test is flagged
-EXPECTED_FAIL_NOT_DETERMINISTIC with the alternatives.
+RUN_INTERRUPTED, NOT_RUN for no result or an unexpected skip). An
+intermittent test.fail() test is flagged EXPECTED_FAIL_NOT_DETERMINISTIC with
+the alternatives.
 
 compare matches tests by the same identity across the baseline and candidate
 report sets (N repeats per side give k/N stability). Each test is SAME,
 CHANGED (outcome, retries, or failed assertions raised in the test file or
-without a location), MISSING or NEW; failed assertions raised in other files
-(page objects, helpers, fixtures) are listed separately as a support
-difference and do not change the verdict. The overall verdict is PARITY,
-DIVERGED or INCOMPARABLE with reasons (REPORT_UNREADABLE,
+without a location), MISSING, NEW or AMBIGUOUS (withheld); failed assertions
+raised in other files (page objects, helpers, fixtures) are listed separately
+as a support difference and do not change the verdict. The overall verdict is
+PARITY, DIVERGED or INCOMPARABLE with reasons (REPORT_UNREADABLE,
 PLAYWRIGHT_VERSION_DIFFERS, PROJECTS_DIFFER, CONFIG_DIFFERS,
 INPUTS_DIFFER_WITHIN_SIDE, REPORT_HAS_ERRORS, NO_TESTS, IDENTITY_AMBIGUOUS,
 RUN_INTERRUPTED). Per report it lists worker indexes and result durations;

@@ -92,6 +92,7 @@ type Result struct {
 type Test struct {
 	Identity
 	Status       string // Playwright aggregate: expected | unexpected | flaky | skipped
+	Executed     bool   // false when no result ran: none recorded, or a skip the test did not expect
 	ExpectedFail bool   // test.fail(): a "fail" annotation or expectedStatus "failed"
 	Results      []Result
 }
@@ -308,6 +309,9 @@ func (r *reader) test(file string, titles []string, t jsonTest) error {
 		}
 		test.Results = append(test.Results, out)
 	}
+	// Playwright records a test it never started (after a setup or serial-suite failure) as a
+	// skipped result while expectedStatus stays "passed"; only an expected skip is an outcome.
+	test.Executed = len(test.Results) > 0 && (test.Results[len(test.Results)-1].Status != "skipped" || t.ExpectedStatus == "skipped")
 	r.run.Tests = append(r.run.Tests, test)
 	return nil
 }
@@ -323,7 +327,7 @@ func (r *reader) assertion(testFile string, e jsonError) Assertion {
 		return a
 	}
 	file := r.relative(e.Location.File)
-	a.Origin, a.File, a.Line = OriginSupport, screenText(file), e.Location.Line
+	a.Origin, a.File, a.Line = OriginSupport, file, e.Location.Line
 	if file == testFile {
 		a.Origin = OriginTestFile
 	}

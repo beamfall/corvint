@@ -18,6 +18,8 @@ const (
 	Changed = "CHANGED"
 	Missing = "MISSING"
 	New     = "NEW"
+	// AmbiguousTest withholds a test whose identity occurs twice in one report (PWR-V0-006).
+	AmbiguousTest = "AMBIGUOUS"
 
 	SideBaseline  = "baseline"
 	SideCandidate = "candidate"
@@ -105,6 +107,7 @@ type CompareSummary struct {
 	Changed            int `json:"changed"`
 	Missing            int `json:"missing"`
 	New                int `json:"new"`
+	Ambiguous          int `json:"ambiguous"`
 	SupportDifferences int `json:"supportDifferences"`
 }
 
@@ -297,9 +300,13 @@ func comparability(sides map[string][]*Run, reasons map[string]bool, report *Com
 // entries matches tests by identity and classifies each (PWR-V0-006, PWR-V0-007).
 func entries(sides map[string][]*Run, report *CompareReport) {
 	ids := map[string]Identity{}
+	ambiguous := map[string]bool{}
 	per := map[string]map[string][]*Test{SideBaseline: {}, SideCandidate: {}}
 	for side, runs := range sides {
 		for i, run := range runs {
+			for key := range run.Ambiguous {
+				ambiguous[key] = true
+			}
 			for j := range run.Tests {
 				t := &run.Tests[j]
 				key := t.Key()
@@ -318,13 +325,16 @@ func entries(sides map[string][]*Run, report *CompareReport) {
 	sort.Strings(keys)
 	for _, k := range keys {
 		e := CompareEntry{Identity: ids[k].presented(), Differences: []string{}}
+		if ambiguous[k] {
+			// Which observation is "the" test is unknown, so no side statistics or verdict.
+			e.Verdict = AmbiguousTest
+			report.Summary.Ambiguous++
+			report.Tests = append(report.Tests, e)
+			continue
+		}
 		base, cand := per[SideBaseline][k], per[SideCandidate][k]
-		if base != nil {
-			e.Baseline = sideTest(base)
-		}
-		if cand != nil {
-			e.Candidate = sideTest(cand)
-		}
+		e.Baseline = sideTest(base, len(sides[SideBaseline]))
+		e.Candidate = sideTest(cand, len(sides[SideCandidate]))
 		switch {
 		case cand == nil:
 			e.Verdict = Missing
@@ -351,13 +361,26 @@ func entries(sides map[string][]*Run, report *CompareReport) {
 				}
 			}
 		}
+		screenAssertions(e.Baseline)
+		screenAssertions(e.Candidate)
 		report.Tests = append(report.Tests, e)
 	}
 }
 
-// sideTest summarizes one test over one side's reports; a report without the test counts as the
-// outcome "absent".
-func sideTest(tests []*Test) *SideTest {
+// screenAssertions secret-screens emitted assertion files after the raw ones were compared, so
+// redaction never hides a difference.
+func screenAssertions(st *SideTest) {
+	for i := range st.FailedAssertions {
+		st.FailedAssertions[i].File = screenText(st.FailedAssertions[i].File)
+	}
+}
+
+// sideTest summarizes one test over one side's n reports; a report without the test counts as the
+// outcome "absent", and a test no report has is n absent.
+func sideTest(tests []*Test, n int) *SideTest {
+	if tests == nil {
+		tests = make([]*Test, n)
+	}
 	st := &SideTest{Reports: len(tests), Outcomes: []OutcomeCount{}, FailedAssertions: []Assertion{}}
 	counts := map[string]int{}
 	seen := map[Assertion]bool{}

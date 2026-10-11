@@ -37,8 +37,8 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   after ANSI removal, scrubbed by the shared run-hygiene and secret screens, and limited to 240
   bytes. Paths are read in either slash or backslash syntax and emitted as cleaned slash paths; an
   error location under `config.rootDir` is made rootDir-relative. Every emitted identity part,
-  location, version and declared input is secret-screened, while matching and pooling use the
-  unscreened values so screening never merges two tests. The reader writes nothing and uses no
+  location, version and declared input is secret-screened, while matching, pooling and assertion
+  comparison use the unscreened values so screening never merges two tests or hides a difference. The reader writes nothing and uses no
   network.
 - `PWR-V0-002`: Runs pool only at identical identity inputs: the Playwright version plus the
   `applicationRevision`, `configDigest` and `testFileBlobs[file]` values the run declares under
@@ -51,7 +51,10 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   run order); `DETERMINISTIC` only when at least `minRuns` (default 3, minimum 2, maximum 64) runs
   share one outcome; otherwise `INSUFFICIENT` with `BELOW_THRESHOLD`. Unpoolable observations are
   `INSUFFICIENT` with `IDENTITY_INPUT_MISSING`, `IDENTITY_AMBIGUOUS`, `RUN_INTERRUPTED` or `NOT_RUN`,
-  and never contribute to any pool. A run's outcome is `flaky` or its last result status.
+  and never contribute to any pool. A run's outcome is `flaky`; `notRun` (and `NOT_RUN`) when the test
+  has no result or its last result is `skipped` while `expectedStatus` is not `skipped`, which is how
+  Playwright records a test it never started after a setup or serial-suite failure; otherwise its last
+  result status.
 - `PWR-V0-004`: An `INTERMITTENT` pool whose test is expected to fail (`expectedStatus` `failed` or a
   `fail` annotation) MUST carry the flag `EXPECTED_FAIL_NOT_DETERMINISTIC` and two suggestions:
   replace `test.fail()` with `test.fixme()` or `test.skip()` naming the defect id, or fix the varying
@@ -69,8 +72,10 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   the two report sets (1 to 64 reports per side). For each test and side it reports the report count
   N, the outcome histogram (a report without the test counts as `absent`), `k/N` stability (k is the
   most frequent outcome's count), the highest retry index and the distinct failed assertions
-  (origin, matcher, file, line) over every result. A test is `MISSING` when no candidate report has
-  it, `NEW` when no baseline report has it, `CHANGED` when the outcome histograms differ in outcomes
+  (origin, matcher, file, line) over every result. A side without the test still reports N
+  `absent`. A test whose identity is ambiguous in any report is `AMBIGUOUS`, with no side statistics
+  and no other verdict. Otherwise a test is `MISSING` when no candidate report has it, `NEW` when no
+  baseline report has it, `CHANGED` when the outcome histograms differ in outcomes
   or proportions, the highest retry differs, or the test-file or unknown-origin assertions differ, and
   otherwise `SAME`.
 - `PWR-V0-007`: A failed assertion's origin MUST come only from its reported location: `TEST_FILE`
@@ -138,10 +143,10 @@ support-only assertion difference stays `SAME` and is reported as a support diff
 |---|---|---|---|
 | PWR-V0-001 | `internal/playwrightruns` | `TestReaderIdentityAndHygiene`, `TestReadFileRefusesFIFO`, `TestReaderAndCompareEdgeCases` | experimental |
 | PWR-V0-002 | `internal/playwrightruns` | `TestStabilityVerdicts`, `TestReaderAndCompareEdgeCases` | experimental |
-| PWR-V0-003 | `internal/playwrightruns` | `TestStabilityVerdicts`, `TestRunsStabilityCLI` | experimental |
+| PWR-V0-003 | `internal/playwrightruns` | `TestStabilityVerdicts`, `TestRunsStabilityCLI`, `TestReaderAndCompareEdgeCases` | experimental |
 | PWR-V0-004 | `internal/playwrightruns` | `TestStabilityVerdicts` | experimental |
 | PWR-V0-005 | `cmd/corvint/runs.go` | `TestRunsStabilityCLI` | experimental |
-| PWR-V0-006 | `internal/playwrightruns` | `TestCompareVerdicts` | experimental |
+| PWR-V0-006 | `internal/playwrightruns` | `TestCompareVerdicts`, `TestReaderAndCompareEdgeCases` | experimental |
 | PWR-V0-007 | `internal/playwrightruns` | `TestCompareVerdicts`, `TestReaderAndCompareEdgeCases` | experimental |
 | PWR-V0-008 | `internal/playwrightruns` | `TestCompareVerdicts`, `TestReaderAndCompareEdgeCases`, `TestRunsCompareCLI` | experimental |
 | PWR-V0-009 | `internal/playwrightruns` | `TestCompareVerdicts`, `TestReaderAndCompareEdgeCases` | experimental |

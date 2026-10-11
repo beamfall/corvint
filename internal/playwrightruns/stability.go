@@ -158,7 +158,7 @@ func poolInputs(run *Run, t Test) (*PoolInputs, string) {
 	switch {
 	case run.Ambiguous[t.Key()]:
 		return nil, ReasonAmbiguous
-	case len(t.Results) == 0:
+	case !t.Executed:
 		return nil, ReasonNotRun
 	}
 	for _, r := range t.Results {
@@ -180,7 +180,7 @@ func outcomeOf(t Test) string {
 	if t.Status == "flaky" {
 		return "flaky"
 	}
-	if len(t.Results) == 0 {
+	if !t.Executed {
 		return "notRun"
 	}
 	return t.Results[len(t.Results)-1].Status

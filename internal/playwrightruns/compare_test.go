@@ -84,7 +84,9 @@ func TestCompareVerdicts(t *testing.T) {
 			t.Fatalf("report = %+v", r)
 		}
 		for _, e := range r.Tests {
-			if (e.Verdict == Missing) != (e.Candidate == nil) || (e.Verdict == New) != (e.Baseline == nil) {
+			absent := []OutcomeCount{{"absent", 1}}
+			if (e.Verdict == Missing) != reflect.DeepEqual(e.Candidate.Outcomes, absent) || (e.Verdict == New) != reflect.DeepEqual(e.Baseline.Outcomes, absent) ||
+				e.Candidate.Stability != "1/1" || e.Baseline.Stability != "1/1" {
 				t.Fatalf("entry = %+v", e)
 			}
 		}
@@ -226,6 +228,67 @@ func TestReaderAndCompareEdgeCases(t *testing.T) {
 		r = Compare(loaded(t, base), loaded(t, configured))
 		if !reflect.DeepEqual(r.Reasons, []string{ReasonProjectsDiffer}) || !reflect.DeepEqual(r.Reports[SideCandidate][0].ConfiguredProjects, []string{"chromium", "webkit"}) {
 			t.Fatalf("configured projects = %+v", r)
+		}
+	})
+	t.Run("PWR-V0-003 a skip the test did not expect is NOT_RUN, an expected skip is an outcome", func(t *testing.T) {
+		skipped := cartTest(false, fxResult{status: "skipped"})
+		skipped.status = "skipped"
+		notRun := reportJSON(t, "1.63.0", id, skipped)
+		intended := mutate(t, notRun, func(doc map[string]any) {
+			test := doc["suites"].([]any)[0].(map[string]any)["suites"].([]any)[0].(map[string]any)["specs"].([]any)[0].(map[string]any)["tests"].([]any)[0].(map[string]any)
+			test["expectedStatus"] = "skipped"
+		})
+		for _, c := range []struct {
+			raw             []byte
+			verdict, reason string
+		}{{notRun, Insufficient, ReasonNotRun}, {intended, Deterministic, ""}} {
+			e := Stability([]*Run{mustParse(t, c.raw), mustParse(t, c.raw), mustParse(t, c.raw)}, 3).Tests
+			if len(e) != 1 || e[0].Verdict != c.verdict || e[0].Reason != c.reason {
+				t.Fatalf("entries = %+v", e)
+			}
+		}
+		if e := onlyEntry(t, Compare(loaded(t, notRun), loaded(t, intended))); e.Verdict != Changed || e.Baseline.Outcomes[0].Outcome != "notRun" {
+			t.Fatalf("compare = %+v", e)
+		}
+	})
+	t.Run("PWR-V0-006 an ambiguous identity gets no verdict in either order", func(t *testing.T) {
+		failing := cartTest(false, fail("Error: expect(locator).toBeVisible() failed", fixtureRoot+"/cart.spec.ts", 9))
+		cand := loaded(t, reportJSON(t, "1.63.0", id, cartTest(false, pass())))
+		for _, order := range [][]fxTest{{cartTest(false, pass()), failing}, {failing, cartTest(false, pass())}} {
+			r := Compare(loaded(t, reportJSON(t, "1.63.0", id, order...)), cand)
+			e := onlyEntry(t, r)
+			if e.Verdict != AmbiguousTest || e.Baseline != nil || e.Candidate != nil || r.Summary != (CompareSummary{Ambiguous: 1}) ||
+				!reflect.DeepEqual(r.Reasons, []string{ReasonAmbiguous}) {
+				t.Fatalf("report = %+v", r)
+			}
+		}
+	})
+	t.Run("PWR-V0-001 PWR-V0-007 screening never hides a support difference or merges pools", func(t *testing.T) {
+		base := reportJSON(t, "1.63.0", id, cartTest(false, fail("Error: expect(locator).toBeVisible() failed", fixtureRoot+"/pages/token=abc123.ts", 20)))
+		cand := reportJSON(t, "1.63.0", id, cartTest(false, fail("Error: expect(locator).toBeVisible() failed", fixtureRoot+"/pages/token=def456.ts", 20)))
+		r := Compare(loaded(t, base), loaded(t, cand))
+		out, _ := json.Marshal(r)
+		if e := onlyEntry(t, r); !e.SupportDifference || !reflect.DeepEqual(r.Reasons, []string{ReasonSupportDiffers}) || strings.Contains(string(out), "abc123") || strings.Contains(string(out), "def456") {
+			t.Fatalf("compare = %s", out)
+		}
+		secret := cartTest(false, pass())
+		secret.project = "token=eee555"
+		runs := []*Run{}
+		for _, app := range []string{"token=aaa111", "token=ddd444"} {
+			declared := identity(app, "token=bbb222", map[string]string{"cart.spec.ts": "token=ccc333"})
+			runs = append(runs, mustParse(t, mutate(t, reportJSON(t, "1.63.0", declared, secret), func(doc map[string]any) {
+				doc["config"].(map[string]any)["version"] = "1.63.0 token=fff666"
+			})))
+		}
+		st := Stability(runs, 2)
+		raw, _ := json.Marshal(st)
+		if len(st.Tests) != 2 {
+			t.Fatalf("pools merged: %s", raw)
+		}
+		for _, s := range []string{"aaa111", "bbb222", "ccc333", "ddd444", "eee555", "fff666"} {
+			if strings.Contains(string(raw), s) {
+				t.Fatalf("%s kept: %s", s, raw)
+			}
 		}
 	})
 }
