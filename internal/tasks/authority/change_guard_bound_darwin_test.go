@@ -103,6 +103,7 @@ func TestCALV0219_ChangeGuardBudgetIsProcessWide(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		t.Cleanup(func() { _ = g.Close() }) // Close is idempotent; covers early Fatal
 		return g, g.watch.(*vnodeWatch)
 	}
 	ra, rb := repo(), repo()

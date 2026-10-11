@@ -5681,7 +5681,8 @@ unchanged: the transition writes the existing program record shape.
 Status: proposed, pending owner acceptance (V1-0906); implemented with focused tests. Human-owned
 input: ticket V1-0906 asks that open descriptors on the complete mutation route and its fallback
 stay independent of receipt count. The 512-directory admission caps of the first draft were removed
-with owner approval on 2026-10-11: a store with many directories is admitted, never refused.
+with owner approval on 2026-10-11: directory count alone no longer refuses a store; operating-system
+descriptor exhaustion and the existing traversal bounds still refuse.
 
 - `CAL-V0-219`: (proposed, pending owner acceptance (V1-0906)) Change observation on Darwin
   (`internal/tasks/authority/change_guard_darwin.go`) shall hold at most 16 regular-file vnode
@@ -5689,7 +5690,8 @@ with owner approval on 2026-10-11: a store with many directories is admitted, ne
   watched directory; directory descriptors scale with directory count, never with receipt count.
   Linux retains one inotify descriptor. Regular files beyond the budget keep the existing stat
   sweep and locked event-check semantics, directory event coverage is never dropped, and no
-  directory count is refused.
+  additional directory-count admission cap applies (descriptor exhaustion and existing traversal
+  bounds still refuse).
 - `CAL-V0-220`: (proposed, pending owner acceptance (V1-0906)) Characterization: a native journal
   audit keeps the accepted CAL-V0-070 item 3 strategy, one identity-pinned root per listed parent
   directory and one pinned read descriptor per read parent per audit attempt, with a revisited
