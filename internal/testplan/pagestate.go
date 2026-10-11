@@ -1,9 +1,12 @@
 package testplan
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 )
@@ -114,4 +117,84 @@ func appendUnique(list []string, s string) []string {
 		}
 	}
 	return append(list, s)
+}
+
+// DecodePageStateReport strictly reads an earlier page-state report as a drift baseline: the
+// schema, no unknown members or trailing data, and a digest that matches its own content
+// (ANL-V0-033).
+func DecodePageStateReport(raw []byte) (*PageStateReport, error) {
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.DisallowUnknownFields()
+	var r PageStateReport
+	if err := d.Decode(&r); err != nil {
+		return nil, invalidInput("page-state baseline is not a %s report", PageStateSchema)
+	}
+	if d.More() || r.Schema != PageStateSchema || r.Groups == nil || r.Blocked == nil {
+		return nil, invalidInput("page-state baseline is not a %s report", PageStateSchema)
+	}
+	want := r.Digest
+	r.Digest = ""
+	body, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+	sum := sha256.Sum256(body)
+	if want != "sha256:"+hex.EncodeToString(sum[:]) {
+		return nil, invalidInput("page-state baseline digest does not match its content")
+	}
+	r.Digest = want
+	return &r, nil
+}
+
+// PageStateDrift compares a fresh report with a baseline by group key and blocked variation. It
+// returns nil when they agree and a test-plan-mismatch naming the added, removed and changed
+// groups and the changed blocked variations otherwise. Input digests are not compared: an
+// input edit that leaves every group and block unchanged is not drift (ANL-V0-033).
+func PageStateDrift(baseline, current *PageStateReport) error {
+	old, now := map[string]PageStateGroup{}, map[string]PageStateGroup{}
+	for _, g := range baseline.Groups {
+		old[g.Key] = g
+	}
+	for _, g := range current.Groups {
+		now[g.Key] = g
+	}
+	var added, removed, changed []string
+	for k, g := range now {
+		if o, ok := old[k]; !ok {
+			added = append(added, k)
+		} else if !reflect.DeepEqual(o, g) {
+			changed = append(changed, k)
+		}
+	}
+	for k := range old {
+		if _, ok := now[k]; !ok {
+			removed = append(removed, k)
+		}
+	}
+	blocks := map[string]string{}
+	for _, b := range baseline.Blocked {
+		blocks[b.VariationID] = b.Reason
+	}
+	var blocked []string
+	for _, b := range current.Blocked {
+		if r, ok := blocks[b.VariationID]; !ok || r != b.Reason {
+			blocked = append(blocked, b.VariationID)
+		}
+		delete(blocks, b.VariationID)
+	}
+	for id := range blocks {
+		blocked = append(blocked, id)
+	}
+	if len(added)+len(removed)+len(changed)+len(blocked) == 0 {
+		return nil
+	}
+	list := func(name string, ids []string) string {
+		n := len(ids)
+		sort.Strings(ids)
+		if n > 8 {
+			ids = append(ids[:8:8], fmt.Sprintf("+%d more", n-8))
+		}
+		return fmt.Sprintf("%s %d [%s]", name, n, strings.Join(ids, ","))
+	}
+	return mismatch("page-state groups drifted from the baseline: %s; %s; %s; %s", list("added", added), list("removed", removed), list("changed", changed), list("blocked-changed", blocked))
 }

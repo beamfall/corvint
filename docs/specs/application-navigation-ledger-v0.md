@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-10
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: owner requests V1-1132 (issue #774), V1-1162, V1-1167, V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); `AGENTS.md`;
+Authoritative inputs: owner requests V1-1132 (issue #774), V1-1162, V1-1166, V1-1167, V1-1133 (issue #775), V1-1134 (issue #776), V1-1135 (issue #777), V1-1137 (issue #779); `AGENTS.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; AMAP-V0 and RVN-V0.
 
 ## Agent digest
@@ -148,6 +148,13 @@ are URL templates, not component source files. This slice makes neither missing 
   file nothing references (`unmapped-path`) or an exceeded bound (`reference-graph-bound`) keeps the
   path unknown, so the hop can widen a selection but never narrows the verdict. (proposed, pending
   owner acceptance (V1-1162))
+- `ANL-V0-033`: `test-plan page-state --input FILE --check --baseline FILE` (the two flags only
+  together) reads the baseline as a `test-page-state-groups/0` report (a bounded regular file,
+  strictly decoded, with a digest matching its content; otherwise exit 2), prints the fresh report and
+  exits 1 (`test-plan-mismatch`) when, by group key, a group was added, removed or changed in any
+  member, or a blocked variation was added, removed or changed its reason, naming each set (at most
+  eight IDs each, with the remaining count). An input edit that leaves every group and block
+  unchanged is not drift. (proposed, pending owner acceptance (V1-1166))
 
 ## Wire and limits
 
@@ -196,6 +203,7 @@ and files to roll back; no store or map-format migration. Keep requirement IDs s
 | ANL-V0-016 | `internal/appmap/impact.go` | `TestANLV0016UnknownForcesFullSuite` |
 | ANL-V0-031 | `internal/appmap/impact.go`, `cmd/corvint/affected_appmap.go` | `TestANLV0031AffectedRoutesImpactVerdict` |
 | ANL-V0-032 | `internal/appmap/impacthop.go`, `internal/appmap/impact.go` | `TestANLV0032TemplateHopPlacesReferencedFiles` |
+| ANL-V0-033 | `internal/testplan/pagestate.go`, `cmd/corvint/test_plan_pagestate.go` | `TestANLV0033PageStateDrift` |
 
 ## Follow-ups and promotion
 
