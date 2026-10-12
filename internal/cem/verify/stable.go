@@ -460,12 +460,12 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		exit = r.Refuse("repository", gitrun.ProcessContainment, true)
 		return r, exit
 	}
+	r.Citation = ComputeCitation(&change, parsed, spans)
 	budget.Notify("final-check")
 	if timedOut() {
 		exit = r.Refuse("verification", "verification-timeout", true)
 		return r, exit
 	}
-	r.Citation = ComputeCitation(&change, parsed, spans)
 	r.Outcome = "ACCEPT"
 	b := true
 	r.Accept = &b

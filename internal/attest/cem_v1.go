@@ -54,6 +54,7 @@ type predicateTypeHeader struct {
 var cemClaimParsers = map[string]func([]byte) (CEMVerification, error){
 	CEMPredicateType:   parseCEMStatement,
 	CEMPredicateTypeV1: parseCEMStatementV1,
+	CEMPredicateTypeV2: parseCEMStatementV2,
 }
 
 // CEMStatementV1 builds the canonical in-toto Statement v1 of FPK-V0-033: the
@@ -86,29 +87,14 @@ func CEMStatementV1(name string, cem []byte) ([]byte, error) {
 	return canonicalMarshal(statement)
 }
 
-// VerifyCEMPredicate is VerifyCEM for a statement of either CEMPredicateType
-// or CEMPredicateTypeV1, reporting which in PredicateType. For a v1 claim the
-// supplied bytes must also be a CEM whose baseRevision and patchSha256 equal
-// the signed ones.
+// VerifyCEMPredicate is VerifyCEM for a statement of CEMPredicateType,
+// CEMPredicateTypeV1 or CEMPredicateTypeV2, reporting which in PredicateType.
+// For a v1 claim the supplied bytes must also be a CEM whose baseRevision and
+// patchSha256 equal the signed ones; for a v2 claim, a cem/1.0 map whose
+// baseRevision and patchSha256 do. It checks no artifact or target; see
+// VerifyCEMPredicateWith.
 func VerifyCEMPredicate(envelope []byte, publicKey ed25519.PublicKey, cem []byte) (CEMVerification, error) {
-	payload, err := Verify(envelope, publicKey)
-	if err != nil {
-		return CEMVerification{}, err
-	}
-	var header predicateTypeHeader
-	if err := strictUnmarshal(payload, &header); err != nil {
-		return CEMVerification{}, fmt.Errorf("attest: parse CEM statement: %w", err)
-	}
-	parse := cemClaimParsers[header.PredicateType]
-	if parse == nil {
-		return CEMVerification{}, fmt.Errorf("attest: predicateType %q is not a CEM predicate", header.PredicateType)
-	}
-	claim, err := parse(payload)
-	if err != nil {
-		return CEMVerification{}, err
-	}
-	claim.PredicateType = header.PredicateType
-	return checkCEMBytes(claim, cem)
+	return VerifyCEMPredicateWith(envelope, publicKey, CEMCheck{Map: cem})
 }
 
 // parseCEMStatementV1 reads a verified payload whose predicateType is

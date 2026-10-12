@@ -120,12 +120,15 @@ var referenceLanguages = map[string]bool{".go": true, ".py": true, ".js": true, 
 // independent inputs the verifier demands, and the attestation request.
 // `attest` wraps the document as an in-toto Statement; `attestKey` names a
 // PKCS#8 Ed25519 PEM whose signature seals it in a DSSE envelope; `attestCEM`
-// adds the FPK-V0-031 CEM statement, `cem/v1` with `attestCEMV1` (FPK-V0-050).
-// `envelopePath` and `publicKeyPath` are the verify-cem mode inputs.
+// adds the FPK-V0-031 CEM statement, `cem/v1` with `attestCEMV1` (FPK-V0-050),
+// `cem/v2` over a stable map with `attestCEMV2` (CEM-V1-065), which alone reads
+// the absolute `artifacts` root. `envelopePath` and `publicKeyPath` are the
+// verify-cem mode inputs.
 type proveOptions struct {
-	mapPath, expectedBase, target, patch, attestKey string
-	checkpointPath, envelopePath, publicKeyPath     string
-	patchGiven, attest, attestCEM, attestCEMV1      bool
+	mapPath, expectedBase, target, patch, attestKey         string
+	checkpointPath, envelopePath, publicKeyPath             string
+	artifacts                                               string
+	patchGiven, attest, attestCEM, attestCEMV1, attestCEMV2 bool
 }
 
 // falsifierByAuthority is the closed assignment table. Authorities that cite
@@ -163,9 +166,11 @@ type proveReceipt struct {
 	State    string         `json:"state"`
 	Tool     string         `json:"tool"`
 
-	// subjects and mapBytes are off the wire: they feed attestProof only.
-	subjects []attest.Subject
-	mapBytes []byte
+	// subjects, mapBytes and cemTarget are off the wire: they feed attestProof
+	// only; cemTarget is set by the CEM-V1-065 stable path.
+	subjects  []attest.Subject
+	mapBytes  []byte
+	cemTarget attest.CEMTarget
 }
 
 type proveSummary struct {
@@ -394,7 +399,7 @@ func parseProveCEMArguments(rootArguments, rest []string) (options, error) {
 	seen := map[string]bool{}
 	for index := 0; index < len(rest); {
 		name, value, inline := strings.Cut(rest[index], "=")
-		if name == "--attest" || name == "--attest-cem" || name == "--attest-cem-v1" {
+		if name == "--attest" || attestCEMFlags[name] {
 			if inline {
 				return result, argumentError("argument " + name + ": ignored explicit argument " + value)
 			}
@@ -427,8 +432,12 @@ func parseProveCEMArguments(rootArguments, rest []string) (options, error) {
 		*field = value
 	}
 	result.prove.patchGiven = seen["--patch"]
-	result.prove.attestCEM, result.prove.attestCEMV1 = seen["--attest-cem"] || seen["--attest-cem-v1"], seen["--attest-cem-v1"]
+	result.prove.attestCEM = seen["--attest-cem"] || seen["--attest-cem-v1"] || seen["--attest-cem-v2"]
+	result.prove.attestCEMV1, result.prove.attestCEMV2 = seen["--attest-cem-v1"], seen["--attest-cem-v2"]
 	result.prove.attest = seen["--attest"] || seen["--attest-key"] || result.prove.attestCEM
+	if seen["--artifacts"] && !result.prove.attestCEMV2 {
+		return result, argumentError("argument --artifacts: requires --attest-cem-v2")
+	}
 	if result.prove.mapPath == "" {
 		return result, argumentError("argument --cem: expected one argument")
 	}
@@ -452,6 +461,8 @@ func proveCEMFlag(prove *proveOptions, name string) *string {
 		return &prove.patch
 	case "--attest-key":
 		return &prove.attestKey
+	case "--artifacts":
+		return &prove.artifacts
 	}
 	return nil
 }
@@ -475,7 +486,7 @@ func commandPositionAfterRoots(arguments []string) int {
 
 func runProve(ctx context.Context, options options, stdout, stderr io.Writer) int {
 	if options.proveMode == "verify-cem" {
-		return runVerifyCEMAttestation(options, stdout, stderr)
+		return runVerifyCEMAttestation(ctx, options, stdout, stderr)
 	}
 	receipt, err := compileProof(ctx, options)
 	if err != nil {
@@ -484,9 +495,10 @@ func runProve(ctx context.Context, options options, stdout, stderr io.Writer) in
 	}
 	var subjects []attest.Subject
 	var mapBytes []byte
+	var cemTarget attest.CEMTarget
 	if proof, ok := receipt.(proveReceipt); ok {
 		proof.Proof.Ledger = proveLedger(options.root)
-		subjects, mapBytes = proof.subjects, proof.mapBytes
+		subjects, mapBytes, cemTarget = proof.subjects, proof.mapBytes, proof.cemTarget
 		receipt = proof
 	}
 	encoded, err := gokernel.CanonicalJSON(receipt)
@@ -495,7 +507,7 @@ func runProve(ctx context.Context, options options, stdout, stderr io.Writer) in
 		return 2
 	}
 	if options.prove.attest {
-		encoded, err = attestProof(encoded, subjects, cemAttestationInput(options.prove, mapBytes), options.prove.attestKey)
+		encoded, err = attestProof(encoded, subjects, cemAttestationInput(options.prove, mapBytes, cemTarget), options.prove.attestKey)
 	}
 	if err != nil {
 		emitError(stderr, err)
@@ -823,6 +835,9 @@ func rangeChangedPaths(ctx context.Context, gitExecutable, root, base string) ([
 // worktree edit to the map itself is otherwise caught by the verifier's own
 // target-side sidecar comparison.
 func compileCEMProof(ctx context.Context, gitExecutable string, options options, dirtyBefore []string) (proveReceipt, error) {
+	if options.prove.attestCEMV2 {
+		return compileStableCEMProof(ctx, gitExecutable, options, dirtyBefore)
+	}
 	document, mapBytes, err := readProveMap(options.root, options.prove.mapPath)
 	if err != nil {
 		return proveReceipt{}, err

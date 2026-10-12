@@ -7494,7 +7494,7 @@ Decisions:
 
 - Every Git process that `index`, `query`, `context`, `impact` or `prove` starts for its reads now
   also carries an empty `GIT_ALLOW_PROTOCOL` (`internal/contextindex/git.go:141@cda398ae`,
-  `cmd/corvint/prove.go:1887@c88957fb`). It refuses every transport on any Git version and
+  `cmd/corvint/prove.go:1902@c88957fb`). It refuses every transport on any Git version and
   overrides `protocol.*.allow`, so a fetch Git starts anyway cannot reach the remote. None of these
   runners clones or fetches a local path, which would need the `file` transport.
 - `dogfood`'s read runner adds `GIT_NO_LAZY_FETCH=1` and the empty `GIT_ALLOW_PROTOCOL`

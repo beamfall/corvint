@@ -91,7 +91,9 @@ func (r *repository) requireCleanMap(ctx context.Context, mapPath string) error 
 }
 
 // committedPointer reads the map blob HEAD holds, requires it in the object
-// database and a valid CEM, and digests the exact bytes.
+// database and a valid CEM, and digests the exact bytes. A map declaring
+// exactly cem/1.0 is read by the stable parser and every other map by the 0.x
+// parser (CEM-V1-065), so the pointer of a stable map records spec cem/1.0.
 func (r *repository) committedPointer(ctx context.Context, head, mapPath string) (Pointer, error) {
 	out, err := r.git(ctx, 256, nil, "rev-parse", "--verify", "--end-of-options", head+":"+mapPath)
 	if err != nil {
@@ -102,7 +104,7 @@ func (r *repository) committedPointer(ctx context.Context, head, mapPath string)
 	if err != nil {
 		return Pointer{}, cemcode.New(CodeBlobUnavailable, "map blob %s is not in the object database", blob)
 	}
-	parsed, err := wire.ParseMap(data)
+	parsed, err := wire.ParseRouted(data)
 	if err != nil {
 		return Pointer{}, err
 	}

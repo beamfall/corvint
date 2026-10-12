@@ -6,7 +6,7 @@ Delivery status: planned
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed/planned; no stable delivery or promotion.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); qualification remains bounded.
 - Blocked on: stable wire/consumer integration, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -58,6 +58,8 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`; proof run in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` | V1-1265 added `citation` (CEM-V1-092) and `verdictSha256` (CEM-V1-066) through the tool |
 | CEM-V1-092 | `citation` member of `StableResult` (`internal/cem/verify/stable.go`) and `stableResult` (`interop/cem01-go/cem.go`, `stable_repository.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1092CitationOnlyOnAccept`, `TestCEMV1092SealedCasesCarryCitationOnlyOnAccept`, `TestCEMV1092RefuseAndRejectClearCitation` (native); `TestCEMV1092PortableCitationOnlyOnAccept`, `TestCEMV1082StableResultCarriesTheBlock`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file (case 21 derived natively on go1.27.2 with every other non-runtime key matching); ten envelope cells take `--cell-values` overrides |
 | CEM-V1-066 | `verdictSha256` member and `VerdictDigest` of `StableResult` (`internal/cem/verify/stable.go`, `stable_verdict.go`) and `stableResult` (`interop/cem01-go/cem.go`, `verdict.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1066SealedVerdictDigests`, `TestCEMV1066VerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066EveryOutcomeCarriesVerdictDigest` (native); `TestCEMV1066PortableSealedVerdictDigests`, `TestCEMV1066PortableVerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066PortableEveryOutcomeCarriesVerdictDigest`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file, computed from their sealed expectations; ten envelope cells take `--cell-values` overrides; no consumer reads the digest yet (decision 0525 step 8, V1-1283) |
+| CEM-V1-093..095 | `internal/cem/wire/stable_provenance.go`, `interop/cem01-go/stable_provenance.go`; `provenance`, `role`, `sha1Oid` in `protocol/cem-1.0/stable/stable.schema.json`; re-homed 0.1/0.3 text in `protocol/cem-1.0/stable/ALGORITHMS.md`; shared vectors `interop/cem01-go/testdata/stable-map-members/cases.json`; `TestCEMV1093*`, `TestCEMV1094*`, `TestCEMV1095*` in `internal/cem/wire` and `interop/cem01-go` | No converter emits `provenance` or `role` yet (V1-1275); `cem status --citation` role grouping is V1-1281; provenance OIDs are SHA-1 only; the sealed S0E packet copy of `stable.schema.json` is unchanged; stranger time NOT_OBSERVED |
+| CEM-V1-065 | `CEMStatementV2` and the v2 verifier in `internal/attest/cem_v2.go`; `prove --attest-cem-v2` and `--verify-cem-attestation --artifacts/--target` in `cmd/corvint/prove_attest_cem.go`; stable routing in `internal/cem/wire/route.go` and `internal/gitnotes/anchor.go`; `TestCEMV1065*` in `internal/attest`, `cmd/corvint` and `internal/gitnotes` | No verdict ledger; no signing producer or key management; v2 emission needs full-OID `--expected-base` and `--target` and an ACCEPT result; no independent consumer of `cem/v2` |
 
 ## First portable candidate build contract
 
@@ -463,6 +465,137 @@ Rollback: revert the `verdictSha256` regeneration (the packet files, both schema
 cells, the tuple packet and their manifests), the public `EXPECTED.json` members and stable
 manifest entries, `stable_verdict.go`, `interop/cem01-go/verdict.go` and the key-count changes in
 both consumers. No map changes; no consumer reads the digest yet.
+
+## Stable map provenance, producer-only members and role (V1-1265, decision 0525)
+
+Status: proposed. Decision 0525 §3 step 3 and §4. A converted map can say where it came from and
+why its change exists, and a producer without task or runner evidence has a closed list of members
+it emits empty.
+
+- `CEM-V1-093`: A stable map MAY carry `provenance`, a closed object with exactly the required
+  members `sourceSpec` (`cem/0.1`, `cem/0.2` or `cem/0.3`), `sourceBlobOid` (40 lowercase hex),
+  `sourceSha256` (64 lowercase hex), `bindCommit` (40 lowercase hex) and `converter` (matching
+  `^corvint-cem-convert/[0-9]+(\.[0-9]+)*$`). A native map omits it. A non-object value is
+  `invalid-field`; inside the object a missing member is `missing-field`, then an unknown member
+  `unknown-field`, then an invalid value `invalid-field`, in that member order. Root optional
+  members are validated after every required member and before the reference graph, `provenance`
+  before `role`. Provenance MUST NOT be read for authority, ranking, any result axis or verdict, and
+  the result MUST NOT echo it; it affects only the map bytes and so `mapSha256` and, through it, `verdictSha256`. The native and
+  portable consumers MUST refuse and accept the same documents with the same codes.
+- `CEM-V1-094`: The producer-only stable map members are exactly this closed list:
+  1. `criterionBindings`;
+  2. `runnerReceipts` (including a receipt's `authentication`);
+  3. `criterionLinks`;
+  4. `artifacts` (including `receipt-attestation` records).
+
+  A producer with no task or runner evidence, including the 0.x converter, MUST emit each as an
+  empty array, and both consumers MUST ACCEPT such a map with `referenceIntegrity`
+  `EMPTY_REFERENCE_SET` and every non-core axis `NOT_OBSERVED`. There is no "intent and scope"
+  member and no "structural witness" member: intent stays in project specs and tickets, and the
+  structural reasons are recomputed from Git. Hunk `coverage` and `discriminates` are not
+  producer-only; they are optional source witnesses carried unchanged when present, omitted when
+  absent and never synthesized.
+- `CEM-V1-095`: A stable map MAY carry `role`, a closed string enum of `change` (the meaning when
+  absent), `bind-chore` and `seal-chore`. Any other value is `invalid-field`. Role MUST NOT change a
+  verdict, tier or result axis, and the result MUST NOT echo it.
+
+Re-homing: `protocol/cem-1.0/stable/ALGORITHMS.md` now restates, in cem/1.0 vocabulary, the 0.1
+algorithms (strict JSON, paths, canonical identity JSON, evidence and hunk IDs, the patch profile
+and parser, base simulation, evidence and disposition checks, text mechanical reasons, limits and
+drift) and the 0.3 hunk vocabulary, structural reasons and witnesses, citing CEM-SM-001..010 in
+`docs/specs/cem-0.3-structural-mechanical.md` as references. It names the 13 `$defs` the stable
+schema restates from `inherited/cem-0.3.schema.json`. The `inherited/` copies are retained unchanged
+as historical provenance; `ALGORITHMS.md` is the 1.0-normative text and governs where they differ.
+The 0.1/0.2/0.3 requirement IDs keep their definitions in their own specs.
+
+Non-goals: no converter (V1-1275) and no reader grouping by role (`cem status --citation`,
+V1-1281); no "intent and scope" or "structural witness" member; no change to `RESULT.schema.json`,
+the stable result struct, the sealed S0E packet or any `inherited/` file; no SHA-256 repository
+form of the provenance OIDs.
+
+Failure modes: a malformed `provenance` or `role` is refused at the wire stage before any reference
+or Git check, so a map cannot reach a verdict through an ill-formed optional member; a provenance
+that names a source the repository does not hold is not checked, because provenance is never an
+input to authority; an all-empty map is accepted but reports `EMPTY_REFERENCE_SET`, never task or
+runner evidence it does not carry.
+
+Acceptance evidence:
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-093 | `TestCEMV1093StableMemberVectors`, `TestCEMV1093ProvenanceDecoded`, `TestCEMV1093SchemaMembers` (`internal/cem/wire`); `TestCEMV1093PortableStableMemberVectors` (`interop/cem01-go`) | 50 shared vectors in `interop/cem01-go/testdata/stable-map-members/cases.json` (10 accepts, 40 refusals including member and stage ordering) give the same code on both consumers; accepted maps round-trip losslessly through `EncodeStable`; schema members match the Go constants; build log `docs/build-log/2026-10-12-cem-stable-map-provenance.md` |
+| CEM-V1-094 | `TestCEMV1094ProducerOnlyEmpty` (`internal/cem/wire`); `TestCEMV1094ProducerOnlyEmptyVerifyAccept` (`internal/cem/wire`, through `internal/cem/verify`); `TestCEMV1094PortableProducerOnlyEmptyAccept` (`interop/cem01-go`) | An all-empty map over the neutral-criterion repository ACCEPTs on both consumers with `EMPTY_REFERENCE_SET`, change integrity VERIFIED and every non-core axis NOT_OBSERVED; adding `provenance` and `role` changes only `mapSha256` and, through it, `verdictSha256` |
+| CEM-V1-095 | `TestCEMV1095Role` (`internal/cem/wire`); `TestCEMV1095PortableRoleAndProvenanceDecoded` (`interop/cem01-go`) | Each role decodes and re-encodes unchanged on both consumers and an absent role is effective `change`; six role refusals are `invalid-field` on both consumers |
+
+Rollback: revert `stable_provenance.go` in `internal/cem/wire` and `interop/cem01-go`, the root
+key change in both decoders and `EncodeStable`, the `provenance`, `role` and `sha1Oid` definitions
+in `stable.schema.json`, the CEM-V1-093..095 and re-homed sections of `ALGORITHMS.md`, the README
+bullets and their manifest entries. A map without the optional members needs no migration; a map
+carrying either is refused `unknown-field` again after rollback.
+
+## `cem/v2` statement (V1-1265, decision 0523 P1)
+
+Status: proposed. Decision 0523 P1. A `cem/v1` statement signs only the map's bytes, its base and
+its patch, so a stable map's artifacts and the commit it was accepted at are not signed. `cem/v2`
+signs all three for a `cem/1.0` stable map. `cem/0` and `cem/v1` are unchanged.
+
+- `CEM-V1-065`: `internal/attest.CEMStatementV2(name, map, target)` MUST accept only bytes that
+  declare `cem/1.0` and parse as a stable map, and otherwise MUST return a canonical in-toto
+  Statement v1. Its `predicateType` is `https://corvint-context.dev/attestation/cem/v2`. Its
+  `subject` list is the map first (`{"digest":{"sha256":HEX},"name":NAME}` over the exact map
+  bytes), then one `{"digest":{"sha256":S},"name":P}` for each declared artifact, in map order,
+  where P and S are the artifact's declared `path` and `sha256`; subject names are unique. Its
+  `predicate` is exactly `{"baseRevision":B,"patchSha256":H,"target":{"gitCommit":C,"gitTree":T}}`,
+  with B and H the map's `change.baseRevision` and `change.patchSha256`, and C and T the full
+  lowercase commit and tree OIDs of the accepted target. A verifier MUST refuse a predicate with an
+  unknown, repeated or case-variant member, a missing target, or a malformed digest.
+  `corvint prove --cem MAP --expected-base OID --target OID [--artifacts ABS] --attest-cem-v2`
+  MUST refuse a `cem/0.x` map with `attest-cem-v2-requires-stable-map`. It runs the stable verifier
+  over the map, and MUST refuse any result that is not ACCEPT with a target revision, with
+  `attest-cem-v2-not-accepted`. Otherwise it prints the unchanged proof statement or envelope,
+  then the `cem/v2` statement or its DSSE envelope over the accepted target. `--attest-cem`,
+  `--attest-cem-v1` and `--attest-cem-v2` are mutually exclusive, and `--artifacts` requires
+  `--attest-cem-v2` (`invalid-arguments`). `prove --verify-cem-attestation ENVELOPE
+  --attest-public-key PEM --cem MAP [--artifacts ABS] [--target REV]` MUST refuse:
+  - map bytes that differ from the signed map subject, with `attest-cem-mismatch`;
+  - an artifact file whose digest is not its signed subject, or an artifact set that differs from
+    the signed artifact subjects, with `attest-cem-subject-mismatch`;
+  - a `--target` whose commit or tree is not the signed target, with `attest-cem-target-mismatch`.
+
+  The same two codes refuse `--artifacts` or `--target` given against a `cem/0` or `cem/v1`
+  envelope, which signs neither. A check that is not supplied is reported NOT_RUN in
+  `status`, `artifactsStatus` or `targetStatus`, never VERIFIED. `cem anchor` and `cem provenance`
+  MUST route a committed map that declares `cem/1.0` through the stable parser. The pointer records
+  `map_spec` `cem/1.0` and the map's sha256, the provenance read reports it verified, and the read
+  mutates nothing. A `cem/0.x` map's pointer bytes are unchanged.
+
+Non-goals: no verdict ledger and no stored verification result; `cem/v1` is not widened to stable
+maps; no signing producer, key management, transparency log or network step; no change to the
+stable map schema, `RESULT.schema.json` or the verifier; the target tree is not re-derived from the
+artifacts.
+
+Failure modes: a map re-issued over another receipt attestation has new bytes, so the old envelope
+refuses it with `attest-cem-mismatch`; the old map with a swapped artifact file is refused with
+`attest-cem-subject-mismatch`; a missing or unreadable artifact file is refused with the same
+code, never skipped; a rejected, unsupported or drifted stable verification emits no statement;
+a `--target` that does not resolve to a commit exits 2 with `unsupported-prove-revision`; a stable
+map that fails to parse is not anchored.
+
+Acceptance evidence:
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-065 | `TestCEMV1065StatementBytesAndSubjectOrder`, `TestCEMV1065VerifiesMapArtifactsAndTarget`, `TestCEMV1065RefusesSwappedReceiptArtifact`, `TestCEMV1065RefusesTargetThatIsNotTheSubject`, `TestCEMV1065PredicateIsClosed`, `TestCEMV1065V1UnchangedForStableMaps` (`internal/attest`) | Statement bytes and subject order over the public `receipt-authentication/` map; the receipt swap is refused under the old envelope both ways; a closed predicate; `cem/v1` still refuses a stable map |
+| CEM-V1-065 | `TestCEMV1065ProveEmitsAndVerifiesTheV2Statement`, `TestCEMV1065RefusesAReceiptSwapUnderTheOldEnvelope`, `TestCEMV1065RefusesATargetThatIsNotTheSubject`, `TestCEMV1065RefusesALegacyMap`, `TestCEMV1065RefusesConflictingFlags` (`cmd/corvint`) | `prove --attest-cem-v2` over the materialized public case emits four subjects and the accepted target, verifies VERIFIED on all three axes without mutation, and refuses the swap, a foreign target, a `cem/0.x` map and every flag conflict |
+| CEM-V1-065 | `TestCEMV1065AnchorStableMap`, `TestCEMV1065AnchorLegacyUnchanged` (`internal/gitnotes`) | A committed stable map anchors with `cem/1.0` and its sha256, and provenance reads it back verified without mutation; the `cem/0.x` pointer bytes are unchanged; walkthrough in `docs/build-log/2026-10-12-cem-v2-statement.md` |
+
+Rollback: revert `internal/attest/cem_v2.go`, the `V2` field and the v2 parser entry in
+`internal/attest`, `internal/cem/wire/route.go` and its use in `internal/gitnotes/anchor.go`, the
+`--attest-cem-v2` and `--artifacts` branches in `cmd/corvint/prove.go` and
+`cmd/corvint/prove_attest_cem.go`, the help lines and this section. No stored state was written in
+the new shape: `cem/0` and `cem/v1` bytes are unchanged. A stable-map anchor note already written
+stays readable as a plain note, and after rollback `cem provenance` reports its map as
+unsupported again.
 
 ## Stable verification result codes
 

@@ -40,3 +40,11 @@ ossf/tac issue 628 links the OpenFab draft `https://open-fab.ai/attestation/gene
 Delete the `--attest-cem-v1` branch, `attestCEMV1`, `cemAttestation.v1`, `attestFlagRefusal`,
 `cemAttestation.statement`, the help lines, the two FPK-V0-050 tests, FPK-V0-050, and FPK-V0-051. Restore the
 revision 22 UNCONFIRMED table. The `cem/0` emission and every `cem/v1` byte are unchanged either way.
+
+## Amendment 2026-10-12 (V1-1265)
+
+`prove --attest-cem-v2` emits `cem/v2` for a `cem/1.0` stable map. That statement adds the map's
+artifact subjects and the accepted target. `--attest-cem`, `--attest-cem-v1` and `--attest-cem-v2`
+are mutually exclusive. The `--attest-cem-v1` branch and every `cem/v1` byte are unchanged. The
+contract is CEM-V1-065 in the "`cem/v2` statement (V1-1265, decision 0523 P1)" section of
+`docs/specs/cem-stable-v1.md`.
