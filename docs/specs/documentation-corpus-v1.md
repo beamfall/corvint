@@ -480,9 +480,17 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `contains`, every precondition word (`task`, `request`, `intercept`, `fixture`, `visit`, `exec`,
   `route`, `goto`), every `cy`, `browser` or `page` chain and every runner suite, case or hook call
   that no extraction consumed adds an unknown (`unparsed-assertion`, `unparsed-command` or
-  `runner-call-in-case`); so does such a word as a computed string member, a `cy` reached as a
-  member, an optional (`?.`) or otherwise computed `cy`/`browser`/`page` chain, a bare `cy` value
-  and a template substitution naming one. A case with any unknown never reaches `parity-candidate`
+  `runner-call-in-case`); so does such a word as a string anywhere inside a bracket, an unbound
+  matcher member (`to` or a `toX...` name other than a built-in such as `toString`), a `cy`, or a
+  `browser`/`page` precondition, reached as a member, a precondition word reached through a
+  computed member or such a root, an optional (`?.`) or otherwise computed `cy`/`browser`/`page`
+  chain, a bare `cy` value, a runner function used as a value (`beforeEach.call(...)`) and a
+  template substitution naming one. A runner function so used at suite scope is a
+  `runner-reference-not-static` unknown, and a hook so used gives every case in that scope
+  `hook-not-static`. A method named by any keyword other than a statement header, or by a header
+  keyword inside an object literal, is unproven. A keyword used as a property name ends an
+  expression for the regex/division decision, and a numeric literal is scanned to its JavaScript
+  grammar; a literal followed directly by an identifier character refuses the file. A case with any unknown never reaches `parity-candidate`
   (`DCP-V1-066`). LF, CR, CRLF, U+2028 and U+2029 are each a line terminator: each ends a `//`
   comment, separates statements for ASI and counts as a JavaScript line break; anchor lines stay
   LF-delimited as for every corpus anchor. Status: (proposed/experimental; GitHub #811).
@@ -491,7 +499,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `page.goto` (`visit`), `cy.intercept`, `cy.route` (`intercept`), `cy.task`, `cy.exec` or
   `cy.fixture` (`setup`) call in the case body (a member named by one bracketed static
   identifier-name string, as in `cy['task']`, resolves to that member; any other computed member is
-  a `DCP-V1-062` residue unknown), is one `preconditions` entry with kind, callee, the
+  a `DCP-V1-062` residue unknown, and in a hook a `hook-not-static` doubt), is one `preconditions` entry with kind, callee, the
   full canonical call text (layout-free: a space separates only two word tokens or two operators),
   its SHA-256 and an anchor. The case's `fixtures` list holds
   `kind:callee@sha256:<digest>` in execution order: run-once (`before`/`beforeAll`) hooks outer to

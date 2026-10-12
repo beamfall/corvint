@@ -127,3 +127,36 @@ repaired by correct extraction: the formerly hidden assertion becomes a visible 
 Inventory output for the existing fixtures and edge suites was byte-compared with `65fee2174`.
 It is unchanged except that one duplicate computed-continuation unknown is gone; that case keeps
 its continuation unknown.
+
+## Review round 5 repairs
+
+Codex round 5 (`/private/tmp/claude-501/w13-legacy-codex-r5.log`) confirmed the four round-4
+repros fixed. It found eight P2 variants that still escaped the residue check:
+
+- a keyword property name (`obj.return / ...`) was read as starting a regex;
+- `1..should` was swallowed into a number;
+- `cy.task[method](...)` was recorded as `cy.task`;
+- a grouped computed name (`globalThis[('expect')]`) escaped;
+- a computed name inside a template escaped;
+- a member-qualified `browser`/`page` precondition escaped;
+- `beforeEach.call(...)` added no doubt;
+- keyword-named object methods (`{ return() {} }`) escaped the helper filter.
+
+The repairs:
+
+- A keyword after `.` ends an expression.
+- Numeric literals follow the JavaScript grammar, and an identifier directly after one refuses the
+  file.
+- A non-literal computed member makes the callee unresolved: no precondition in a case, a
+  `hook-not-static` doubt in a hook.
+- A watched string anywhere inside a bracket is an unknown.
+- Template substitutions are checked for watched strings and matcher names.
+- A member-qualified `browser`/`page` precondition, or a precondition word not reached through
+  plain members, is an unknown.
+- A runner function used as a value is `runner-reference-not-static` at suite scope (a hook gives
+  its cases `hook-not-static`) and `runner-call-in-case` in a body.
+- A keyword method name is unproven unless it is a statement header outside an object literal.
+
+A generic backstop now reports any unbound matcher member (`to`, `toX...` other than built-ins
+such as `toString`), whatever expression reached it. `TestLegacyResidueFailsClosed` gains one
+regression per variant. The byte comparison with `65fee2174` is unchanged from round 4.

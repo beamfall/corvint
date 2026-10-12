@@ -449,7 +449,18 @@ func legacyTitle(f *legacyFile, args []legacyRange) (string, bool) {
 func (p *legacyProducer) scope(f *legacyFile, lo, hi int, s legacyScope, root bool) {
 	calls := []legacyCall{}
 	depth := 0
+	refs := []string{}
 	for i := lo; i < hi; i++ {
+		if _, ok := p.apiCall(f, i); !ok && p.runnerReference(f.tokens, i) {
+			// beforeEach.call(...), it['only'](...), const h = beforeEach: a runner function used
+			// in a form the reader does not inventory. A hook so used may still run before every
+			// case here.
+			detail := f.tokens[i].text + " is used in a form the static reader does not inventory: " + legacyBounded(legacyCanonical(f.tokens, i, min(i+8, hi)))
+			p.unknown(f, "", "runner-reference-not-static", detail, f.tokens[i].line, f.tokens[min(i+8, hi)-1].line)
+			if p.runner.hooks[f.tokens[i].text] {
+				refs = append(refs, detail)
+			}
+		}
 		if c, ok := p.apiCall(f, i); ok {
 			c.depth = depth
 			if !legacyStatementStart(f, i, lo) {
@@ -470,7 +481,7 @@ func (p *legacyProducer) scope(f *legacyFile, lo, hi int, s legacyScope, root bo
 		}
 	}
 	inner := s
-	inner.all, inner.each, inner.uncertain = slices.Clone(s.all), slices.Clone(s.each), slices.Clone(s.uncertain)
+	inner.all, inner.each, inner.uncertain = slices.Clone(s.all), slices.Clone(s.each), append(slices.Clone(s.uncertain), refs...)
 	for i := lo; i < hi; i++ {
 		if f.tokens[i].kind != 't' {
 			continue
@@ -662,9 +673,14 @@ func legacyChain(f *legacyFile, i, hi int) (int, string, int) {
 			k = f.match[k] + 1
 		case legacyPunct(t, k, "["):
 			// Only a bracket holding exactly one static identifier-name string resolves
-			// (cy['task'] is cy.task); any other computed member leaves the callee unresolved.
-			if open < 0 && f.match[k] == k+2 && t[k+1].kind == 's' && legacyIdentifierName(t[k+1].text) {
+			// (cy['task'] is cy.task); any other non-literal computed member marks the callee
+			// unresolved ("[]"), so it is never a precondition kind.
+			switch {
+			case open >= 0:
+			case f.match[k] == k+2 && t[k+1].kind == 's' && legacyIdentifierName(t[k+1].text):
 				callee += "." + t[k+1].text
+			case f.match[k] != k+2 || t[k+1].kind != 's' && t[k+1].kind != 'n':
+				callee += "[]"
 			}
 			k = f.match[k] + 1
 		default:
@@ -782,6 +798,9 @@ func (p *legacyProducer) hookPreconditions(f *legacyFile, r legacyRange) ([]stri
 		}
 		if !legacyStatementStart(f, i, r.lo) {
 			doubt("a hook call is not a statement of its own: " + callee)
+		}
+		if strings.Contains(callee, "[]") {
+			doubt("a hook call reaches a computed member the static reader does not resolve: " + callee)
 		}
 		if legacyHiddenCode(t, i, end) {
 			doubt("a hook call passes code the static reader does not evaluate: " + callee)
@@ -902,14 +921,27 @@ func legacySubCalls(tokens []legacyToken) []string {
 	return out
 }
 
-// legacySubWords reports whether template substitution tokens use one of names.
-func legacySubWords(tokens []legacyToken, names map[string]bool) bool {
+// legacySubWords reports whether template substitution tokens use a name that match accepts, as
+// an identifier or as a string (a computed member such as globalThis['expect']).
+func legacySubWords(tokens []legacyToken, match func(string) bool) bool {
 	for _, token := range tokens {
-		if token.kind == 'i' && names[token.text] || token.kind == 't' && legacySubWords(token.sub, names) {
+		if (token.kind == 'i' || token.kind == 's') && match(token.text) || token.kind == 't' && legacySubWords(token.sub, match) {
 			return true
 		}
 	}
 	return false
+}
+
+// legacyStandardTo lists the built-in to* methods that are not assertion matchers.
+var legacyStandardTo = words("toString toFixed toPrecision toExponential toLowerCase toUpperCase toLocaleString toLocaleLowerCase toLocaleUpperCase toLocaleDateString toLocaleTimeString toISOString toUTCString toGMTString toDateString toTimeString toJSON toSorted toReversed toSpliced toWellFormed toArray")
+
+// legacyMatcherName reports whether a member name is an assertion matcher or chain word (chai's
+// to, Jasmine/Jest's toBe..., toEqual...), whatever expression it was reached from.
+func legacyMatcherName(name string) bool {
+	if name == "to" {
+		return true
+	}
+	return len(name) > 2 && strings.HasPrefix(name, "to") && name[2] >= 'A' && name[2] <= 'Z' && !legacyStandardTo[name]
 }
 
 // legacyVisitURL returns the static first argument of a visit call text.
@@ -1157,20 +1189,34 @@ func (p *legacyProducer) residue(f *legacyFile, caseID string, r legacyRange, co
 	}
 	// Computed members first, so a chain walk does not report the same bracket twice.
 	for i := r.lo; i < r.hi; i++ {
-		if t[i].kind == 's' && legacyPunct(t, i-1, "[") && legacyPunct(t, i+1, "]") && (legacyComputedWord[t[i].text] || t[i].text == "cy") && !consumed[i] {
-			kind := "an assertion"
-			if legacyPreconditionWord[t[i].text] || t[i].text == "cy" {
-				kind = "a command"
+		if legacyPunct(t, i, "[") {
+			// A watched name anywhere inside a bracket (['expect'], [('expect')], [c ? 'cy' : x])
+			// may select an assertion or command the extraction never saw.
+			kind, at := "", -1
+			for j := i + 1; j < f.match[i]; j++ {
+				if t[j].kind == 's' && (legacyComputedWord[t[j].text] || legacyResidueRoot[t[j].text]) && !consumed[j] {
+					if at < 0 {
+						at = j
+					}
+					if kind == "" || kind == "an assertion" {
+						kind = "an assertion"
+						if legacyPreconditionWord[t[j].text] || legacyResidueRoot[t[j].text] {
+							kind = "a command"
+						}
+					}
+					consumed[j] = true
+				}
 			}
-			p.unknown(f, caseID, "unparsed-assertion", kind+" reached through a computed member: "+legacyBounded(legacyCanonical(t, max(i-6, r.lo), min(i+8, r.hi))), t[i].line, t[i].line)
-			consumed[i] = true
+			if kind != "" {
+				p.unknown(f, caseID, "unparsed-assertion", kind+" reached through a computed member: "+legacyBounded(legacyCanonical(t, max(at-6, r.lo), min(at+8, r.hi))), t[i].line, t[f.match[i]].line)
+			}
 		}
 		if t[i].kind != 't' {
 			continue
 		}
-		if legacySubWords(t[i].sub, legacyTemplateAssertionWord) {
+		if legacySubWords(t[i].sub, func(w string) bool { return legacyTemplateAssertionWord[w] || legacyMatcherName(w) }) {
 			p.unknown(f, caseID, "unparsed-assertion", "an assertion inside a template substitution: "+legacyBounded(t[i].raw), t[i].line, t[i].line)
-		} else if legacySubWords(t[i].sub, legacyTemplateCommandWord) && !slices.ContainsFunc(legacySubCalls(t[i].sub), func(callee string) bool { return legacyPreconditionOf[callee] != "" }) {
+		} else if legacySubWords(t[i].sub, func(w string) bool { return legacyTemplateCommandWord[w] || legacyResidueRoot[w] }) && !slices.ContainsFunc(legacySubCalls(t[i].sub), func(callee string) bool { return legacyPreconditionOf[callee] != "" }) {
 			// A recorded precondition in a substitution already has its nested-precondition unknown.
 			p.unknown(f, caseID, "unparsed-command", "a command inside a template substitution: "+legacyBounded(t[i].raw), t[i].line, t[i].line)
 		}
@@ -1180,9 +1226,11 @@ func (p *legacyProducer) residue(f *legacyFile, caseID string, r legacyRange, co
 			continue
 		}
 		word := t[i].text
-		if word == "cy" && legacyChained(t, i) {
-			// cy reached as a member (window.cy) is not the case's own chain.
-			report("unparsed-command", i, "cy reached as a member is not resolved: ")
+		if legacyResidueRoot[word] && legacyChained(t, i) && (word == "cy" || legacyPunct(t, i+1, "[") ||
+			(legacyPunct(t, i+1, ".") || legacyPunct(t, i+1, "?.")) && i+2 < r.hi && t[i+2].kind == 'i' && legacyPreconditionOf[word+"."+t[i+2].text] != "") {
+			// cy, or a browser/page precondition, reached as a member (window.cy,
+			// globalThis.page.goto) is not the case's own chain.
+			report("unparsed-command", i, word+" reached as a member is not resolved: ")
 			continue
 		}
 		if legacyResidueRoot[word] && !legacyChained(t, i) {
@@ -1197,22 +1245,56 @@ func (p *legacyProducer) residue(f *legacyFile, caseID string, r legacyRange, co
 		switch {
 		case legacyAssertionWord[word] || word == "and" || word == "contains":
 			report("unparsed-assertion", i, "")
+		case legacyMatcherName(word) && legacyChained(t, i):
+			// A matcher whose subject the extraction did not bind ((0, expect)(a).toBe(1)).
+			report("unparsed-assertion", i, "a matcher the static reader did not bind: ")
 		case legacyPreconditionWord[word]:
 			if legacyChained(t, i) {
 				// A member of a cy/browser/page chain is judged by that chain's walk; a member of
-				// another plain object is not a runner precondition.
-				if root, ok := legacyChainRoot(f, i-1, r.lo); ok && t[root].kind == 'i' && !legacyKeyword[t[root].text] {
+				// another plain object reached only through plain members and calls is not a
+				// runner precondition.
+				if root, ok := legacyChainRoot(f, i-1, r.lo); ok && t[root].kind == 'i' && !legacyKeyword[t[root].text] &&
+					(legacyResidueRoot[t[root].text] && !legacyChained(t, root) || legacyPlainPath(f, root, i)) {
 					continue
 				}
 				report("unparsed-command", i, "a precondition command on a chain the static reader does not resolve: ")
 				continue
 			}
 			report("unparsed-command", i, "a precondition command the static reader does not bind: ")
-		case (p.runner.suites[word] || p.runner.cases[word] || p.runner.hooks[word]) && !legacyChained(t, i) &&
-			(legacyPunct(t, i+1, "(") || legacyPunct(t, i+1, ".") && i+2 < r.hi && (t[i+2].text == "skip" || t[i+2].text == "only")):
+		case p.runnerReference(t, i):
 			report("runner-call-in-case", i, "a runner call inside a case body is not inventoried: ")
 		}
 	}
+}
+
+// legacyPlainPath reports whether the member chain from root to the member at i passes only plain
+// non-runner-root members and calls: no computed member and no cy, browser or page segment.
+func legacyPlainPath(f *legacyFile, root, i int) bool {
+	t := f.tokens
+	for k := root + 1; k < i-1; {
+		switch {
+		case (legacyPunct(t, k, ".") || legacyPunct(t, k, "?.")) && t[k+1].kind == 'i' && !legacyResidueRoot[t[k+1].text]:
+			k += 2
+		case legacyPunct(t, k, "("):
+			k = f.match[k] + 1
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// runnerReference reports whether token i names a suite, case or hook of the runner as a value
+// (called, member-accessed, passed or aliased) rather than as a binding or property name.
+func (p *legacyProducer) runnerReference(t []legacyToken, i int) bool {
+	word := t[i].text
+	if t[i].kind != 'i' || !(p.runner.suites[word] || p.runner.cases[word] || p.runner.hooks[word]) || legacyChained(t, i) || legacyObjectKey(t, i) {
+		return false
+	}
+	if i > 0 && t[i-1].kind == 'i' && (t[i-1].text == "const" || t[i-1].text == "let" || t[i-1].text == "var" || t[i-1].text == "function" || t[i-1].text == "class") {
+		return false
+	}
+	return !legacyPunct(t, i+1, "=") && !legacyPunct(t, i+1, ":")
 }
 
 // legacyRootResidue walks a cy, browser or page chain rooted at i and returns why it is not fully
@@ -1355,8 +1437,24 @@ func legacyMethodName(t []legacyToken, k int) bool {
 	name := t[k-1]
 	switch {
 	case name.kind == 'i':
-		if legacyKeyword[name.text] {
+		if legacyChained(t, k-1) {
 			return false
+		}
+		if name.text == "function" {
+			// A function expression; the function branch judges it (and an object member named
+			// function is not a direct argument there).
+			return false
+		}
+		if legacyStatementHeader[name.text] {
+			// if/for/while/switch/catch/with (...) { is a statement unless it is a member of an
+			// object literal or follows a method modifier.
+			prev := k - 2
+			return prev >= 0 && (legacyPunct(t, prev, ",") || legacyPunct(t, prev, "*") || legacyPunct(t, prev, "{") && legacyObjectBrace(t, prev) ||
+				t[prev].kind == 'i' && (t[prev].text == "get" || t[prev].text == "set" || t[prev].text == "async" || t[prev].text == "static"))
+		}
+		if legacyKeyword[name.text] {
+			// No other keyword can head "kw (...) {", so it is a method name ({ return() {} }).
+			return true
 		}
 		if k >= 2 && t[k-2].kind == 'i' && t[k-2].text == "function" || k >= 3 && legacyPunct(t, k-2, "*") && t[k-3].kind == 'i' && t[k-3].text == "function" {
 			return false
@@ -1366,6 +1464,24 @@ func legacyMethodName(t []legacyToken, k int) bool {
 		return true
 	}
 	return name.kind == 'p' && name.text == "]"
+}
+
+// legacyStatementHeader lists the keywords that head a statement shaped like a method definition.
+var legacyStatementHeader = words("if for while switch catch with")
+
+// legacyObjectBrace reports whether the '{' at k opens an object literal rather than a block. A
+// brace after a header, an arrow, a block keyword or a statement boundary is a block; anything
+// else (after '(', ',', '=', ':', an operator or return) is read as an object, which errs toward
+// treating a member as an unproven method.
+func legacyObjectBrace(t []legacyToken, k int) bool {
+	if k < 1 {
+		return false
+	}
+	prev := t[k-1]
+	if prev.kind == 'p' {
+		return !(prev.text == ")" || prev.text == "=>" || prev.text == "{" || prev.text == "}" || prev.text == ";")
+	}
+	return !(prev.kind == 'i' && (prev.text == "else" || prev.text == "try" || prev.text == "finally" || prev.text == "do"))
 }
 
 // legacyDirectArgument reports whether tokens[head:end+1] is one whole argument of a call: its

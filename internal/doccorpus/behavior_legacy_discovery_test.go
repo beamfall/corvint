@@ -772,15 +772,22 @@ func TestLegacyResidueFailsClosed(t *testing.T) {
 	}
 	baseTuples := legacyTuples(legacyCaseNamed(t, base, "shows the cart total"))
 	// with commits the case "shows the cart total" with snippet appended to its body.
-	with := func(t *testing.T, snippet string) (LegacyInventory, BehaviorLegacyCase) {
+	edit := func(t *testing.T, old, replacement string) (LegacyInventory, BehaviorLegacyCase) {
 		t.Helper()
-		legacyWrite(t, root, "e2e/cypress/checkout.cy.js", strings.Replace(string(source), "    cy.contains('Pay now');\n", "    cy.contains('Pay now');\n    "+snippet+"\n", 1))
+		if !strings.Contains(string(source), old) {
+			t.Fatalf("fixture lacks %q", old)
+		}
+		legacyWrite(t, root, "e2e/cypress/checkout.cy.js", strings.Replace(string(source), old, replacement, 1))
 		git(t, root, "commit", "-qam", "residue")
 		inventory, _, err := legacyInventory(t, root, "mocha", git(t, root, "rev-parse", "HEAD"), "e2e/cypress", registry)
 		if err != nil {
-			t.Fatalf("%q: %v", snippet, err)
+			t.Fatalf("%q: %v", replacement, err)
 		}
 		return inventory, legacyCaseNamed(t, inventory, "shows the cart total")
+	}
+	with := func(t *testing.T, snippet string) (LegacyInventory, BehaviorLegacyCase) {
+		t.Helper()
+		return edit(t, "    cy.contains('Pay now');\n", "    cy.contains('Pay now');\n    "+snippet+"\n")
 	}
 	blocked := func(t *testing.T, snippet string, inventory LegacyInventory, legacy BehaviorLegacyCase) {
 		t.Helper()
@@ -793,7 +800,7 @@ func TestLegacyResidueFailsClosed(t *testing.T) {
 		}
 	}
 	t.Run("DCP-V1-062 every line terminator ends a comment and an ASI statement", func(t *testing.T) {
-		for _, terminator := range []string{"\r", " ", " ", "\r\n"} {
+		for _, terminator := range []string{"\r", "\u2028", "\u2029", "\r\n"} {
 			snippet := "// hidden" + terminator + "expect(v).toBe(9);"
 			_, legacy := with(t, snippet)
 			if tuples := legacyTuples(legacy); !slices.Contains(tuples, "c3 toBe | v | 9") || len(tuples) != len(baseTuples)+1 {
@@ -807,12 +814,18 @@ func TestLegacyResidueFailsClosed(t *testing.T) {
 			}
 			return legacyCanonical(tokens, 0, len(tokens))
 		}
-		for _, terminator := range []string{"\r", " ", " ", "\r\n"} {
+		for _, terminator := range []string{"\r", "\u2028", "\u2029", "\r\n"} {
 			if canonical("seed(() => { return"+terminator+"1 })") == canonical("seed(() => { return 1 })") {
 				t.Fatalf("return%q1 shares canonical text with return 1", terminator)
 			}
 		}
-		if _, _, ok := lexLegacy("a = /x /"); ok {
+		if tokens, _, ok := lexLegacy("1..should.equal(1)"); !ok || tokens[0].text != "1." || tokens[2].text != "should" {
+			t.Fatalf("number scan swallowed members: %v %+v", ok, tokens)
+		}
+		if _, _, ok := lexLegacy("1.toString()"); ok {
+			t.Fatal("an identifier directly after a number was accepted")
+		}
+		if _, _, ok := lexLegacy("a = /x\u2028/"); ok {
 			t.Fatal("a regex literal spanning U+2028 was accepted")
 		}
 	})
@@ -869,11 +882,45 @@ func TestLegacyResidueFailsClosed(t *testing.T) {
 			"cy.request('/api/reset');",
 			"const t = cy.task; t('seed');",
 			"window['cy'].get('x');",
+			"x['ex' + 'pect'](a).toBe(1);",
 			"window.cy.task('seed');",
 			"it('nested', () => {});",
 		} {
 			inventory, legacy := with(t, snippet)
 			blocked(t, snippet, inventory, legacy)
 		}
+	})
+	t.Run("DCP-V1-062 DCP-V1-063 round-5 variants fail closed", func(t *testing.T) {
+		// A keyword property name ends an expression, so this is division and the assertion runs.
+		if _, legacy := with(t, "obj.return / (expect(hidden).toBe(1), 2) / 2;"); !slices.Contains(legacyTuples(legacy), "c3 toBe | hidden | 1") {
+			t.Fatalf("keyword member hid an assertion: %q", legacyTuples(legacy))
+		}
+		for _, snippet := range []string{
+			"1..should.equal(1);",
+			"cy.task[method](null, 'seed', 'A');",
+			"globalThis[('expect')](hidden).toBe(1);",
+			"`${globalThis['expect'](hidden).toBe(1)}`;",
+			"globalThis.browser.get('/seed-A');",
+			"globalThis.page.goto('/seed-A');",
+		} {
+			inventory, legacy := with(t, snippet)
+			blocked(t, snippet, inventory, legacy)
+		}
+		for _, snippet := range []string{
+			"const helper = { return() { expect(hidden).toBe(1); } };",
+			"const helper = { if() { expect(hidden).toBe(1); } };",
+		} {
+			inventory, legacy := with(t, snippet)
+			if tuples := legacyTuples(legacy); !slices.Equal(tuples, baseTuples) {
+				t.Fatalf("%q: an uncalled method became a criterion: %q", snippet, tuples)
+			}
+			blocked(t, snippet, inventory, legacy)
+		}
+		hook := "  beforeEach.call(null, () => { cy.task('seed', 'A'); });\n"
+		inventory, legacy := edit(t, "describe('Checkout', () => {\n", "describe('Checkout', () => {\n"+hook)
+		if !slices.Contains(legacyUnknownReasons(inventory, legacy.ID), "hook-not-static") {
+			t.Fatalf("an uninventoried hook spelling left no doubt: %v", legacyUnknownReasons(inventory, legacy.ID))
+		}
+		blocked(t, hook, inventory, legacy)
 	})
 }

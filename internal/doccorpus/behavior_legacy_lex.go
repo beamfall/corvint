@@ -133,9 +133,9 @@ func (l *legacyLexer) run(i int, sub bool) ([]legacyToken, int, bool) {
 			tokens = append(tokens, legacyToken{kind: 'r', text: src[i:end], raw: src[i:end], line: l.line(i)})
 			i = end
 		case c >= '0' && c <= '9' || c == '.' && i+1 < len(src) && src[i+1] >= '0' && src[i+1] <= '9':
-			end := i + 1
-			for end < len(src) && (legacyWordByte(src[end]) || src[end] == '.') {
-				end++
+			end, ok := legacyNumber(src, i)
+			if !ok {
+				return nil, 0, false
 			}
 			tokens = append(tokens, legacyToken{kind: 'n', text: src[i:end], raw: src[i:end], line: l.line(i)})
 			i = end
@@ -214,6 +214,46 @@ func legacyLineStarts(src string) []int {
 	return starts
 }
 
+// legacyNumber scans one JavaScript numeric literal at start: a 0x/0o/0b integer, or digits with
+// at most one fraction and one exponent, each with optional _ separators and a BigInt n suffix.
+// A literal followed directly by an identifier character (1.toString, 3in) is a syntax error, so
+// the file is refused; 1..should keeps the second dot as a member access.
+func legacyNumber(src string, start int) (int, bool) {
+	i := start
+	digits := func(ok func(byte) bool) {
+		for i < len(src) && (ok(src[i]) || src[i] == '_') {
+			i++
+		}
+	}
+	decimal := func(c byte) bool { return c >= '0' && c <= '9' }
+	if src[i] == '0' && i+1 < len(src) && strings.ContainsRune("xXoObB", rune(src[i+1])) {
+		i += 2
+		digits(func(c byte) bool { return decimal(c) || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F' })
+	} else {
+		digits(decimal)
+		if i < len(src) && src[i] == '.' {
+			i++
+			digits(decimal)
+		}
+		if i < len(src) && (src[i] == 'e' || src[i] == 'E') {
+			i++
+			if i < len(src) && (src[i] == '+' || src[i] == '-') {
+				i++
+			}
+			digits(decimal)
+		}
+	}
+	if i < len(src) && src[i] == 'n' {
+		i++
+	}
+	if i < len(src) {
+		if r, _ := utf8.DecodeRuneInString(src[i:]); legacyWordByte(src[i]) || r == '\\' || r > unicode.MaxASCII && (unicode.IsLetter(r) || unicode.IsDigit(r)) {
+			return 0, false
+		}
+	}
+	return i, true
+}
+
 func legacyWordByte(c byte) bool {
 	return c == '_' || c == '$' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 }
@@ -252,7 +292,8 @@ func legacyRegexAllowed(tokens []legacyToken) (regex, known bool) {
 		}
 		return true, true
 	case 'i':
-		return legacyRegexAfterWord[last.text], true
+		// A keyword used as a property name (obj.return) ends an expression.
+		return legacyRegexAfterWord[last.text] && !legacyChained(tokens, len(tokens)-1), true
 	}
 	return false, true
 }
