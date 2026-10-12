@@ -173,3 +173,24 @@ func TestAFPV0033EveryUnitNamesItsUnboundedRead(t *testing.T) {
 		}
 	}
 }
+
+// TestAFPV0025FileLevelUnitsAreRecordedByTheirTestFile proves the V1-1301 rule:
+// two toolchain shell tests in one directory are two units, each recorded by its
+// own test file, so neither is reported as a second unit sharing a directory.
+func TestAFPV0025FileLevelUnitsAreRecordedByTheirTestFile(t *testing.T) {
+	const head = `{"profile":"corvint-unbounded-reader-set/0",`
+	record := head + `"units":["reader","script/a_test.sh","script/b_test.sh"],"reasons":{"reader":"calls os.Getwd","script/a_test.sh":"runs go","script/b_test.sh":"runs make"}}`
+	root := repository(t, record)
+	for name, content := range map[string]string{"script/a_test.sh": "go test ./cmd\n", "script/b_test.sh": "make check\n"} {
+		if err := os.MkdirAll(filepath.Join(root, "script"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(name)), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(root, &stdout, &stderr); code != 0 || !strings.Contains(stdout.String(), `"count": 3`) {
+		t.Fatalf("code=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+}

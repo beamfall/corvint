@@ -728,7 +728,9 @@ and container qualification; full fallback remains available.
   `{"profile":"corvint-unbounded-reader-set/0","units":[DIR...],"reasons":{DIR:REASON}}`, at
   most 64 KiB. `units` names, strictly ascending, the test directories of the admitted
   unbounded test units: units with tests that rule (d) selects on any dirty path because
-  neither a literal nor a declared read scope (AFP-V0-023) bounds their reads. `reasons`
+  neither a literal nor a declared read scope (AFP-V0-023) bounds their reads. A unit whose
+  identity is its single test file (a shell test, `NSA-V0-011`) is named by that file's path
+  instead of its directory (V1-1301). `reasons`
   records, for each of those directories (AFP-V0-033), why a package's reads cannot be declared.
   `tools/unbounded-readers` builds the same unit graph the planner builds and
   `make unbounded-readers-check`, a `doc-gates` and `make gate` step, MUST fail, naming the
