@@ -500,7 +500,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `.not`, ending in a known Jasmine matcher or chai method called with literal arguments or in a
   known chai property; a `cy` chain of known queries with literal arguments, optionally
   `.contains(<content>)` or `.contains(<selector>, <content>)`, then `.should('<chainer>',
-  <literals>)` and `.and(...)`, where every chainer word is a known chai or chai-jquery word and
+  <literals>)` and `.and(...)`, where every chainer word is a known chai or chai-jquery word, the
+  last word asserts (a chainer of language chains alone, such as `to.be`, is refused), and
   no `.and` or further `.should` follows a chainer that yields a new subject (`attr`, `prop`,
   `css`, `data`, `property`, `ownProperty`, `length`, ...); a `cy`, `browser` or `page`
   precondition call with literal arguments and an optional `.as('<name>')` (the only form

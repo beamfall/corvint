@@ -1023,6 +1023,17 @@ func TestLegacyResidueFailsClosed(t *testing.T) {
 		}
 		inventory, legacy := edit(t, "it('shows the cart total', () => {", "it('shows the cart total', async () => {")
 		blocked(t, "an async case callback", inventory, legacy)
+		// Round 8: a chainer or expect chain of language words alone asserts nothing.
+		for _, snippet := range []string{
+			"cy.url().should('to.be');",
+			"cy.get('a').should('be.visible').and('not.have');",
+			"cy.get('a').should('deep.nested.own');",
+			"expect(a).to.be;",
+			"expect(a).to.not.have;",
+		} {
+			inventory, legacy := with(t, snippet)
+			blocked(t, snippet, inventory, legacy)
+		}
 		// An unambiguous string value stays admitted.
 		inventory, legacy = with(t, "expect(label).toBe('Orders');")
 		if reasons := legacyUnknownReasons(inventory, legacy.ID); len(reasons) != 0 || inventory.Crosswalk.ReviewedChecks[0].Verdict != "parity-candidate" {

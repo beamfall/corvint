@@ -52,14 +52,17 @@ func legacyAmbiguousValue(f *legacyFile, args []legacyRange) bool {
 	return false
 }
 
-// legacyAllowChainer admits a should/and chainer built only from known, non-calling words.
+// legacyAllowChainer admits a should/and chainer built only from known, non-calling words whose
+// last word asserts. A chainer of language chains alone (to.be, not.have) asserts nothing, so a
+// criterion for it would be fabricated; like an expect chain, it is refused.
 func legacyAllowChainer(chainer string) bool {
-	for _, word := range strings.Split(chainer, ".") {
+	parts := strings.Split(chainer, ".")
+	for _, word := range parts {
 		if !legacyChaiChain[word] && !legacyChaiProperty[word] && !legacyChaiMethod[word] && !legacyCypressChainerWord[word] {
 			return false
 		}
 	}
-	return true
+	return !legacyChaiChain[parts[len(parts)-1]]
 }
 
 // allowStructure checks the runner structure of tokens[lo:hi]: only runner suite, case and hook

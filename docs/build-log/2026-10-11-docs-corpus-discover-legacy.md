@@ -243,3 +243,14 @@ design a new encoding; each refusal is an accepted limit in DCP-V1-062/063:
 `TestLegacyResidueFailsClosed` adds one regression per form, plus hook and case-callback
 variants. It also checks that an unambiguous string value is still admitted and that a compact
 over-bound case gets the new unknown.
+
+## Review round 8 repair
+
+Codex round 8 (`/private/tmp/claude-501/w13-legacy-codex-r8.log`) confirmed that the round-7
+repairs hold. It found one P2: a `should`/`and` chainer made only of chai language words, such as
+`cy.url().should('to.be')`, was admitted. Discovery emitted a criterion for an assertion that does
+not exist, which also suppressed `no-static-assertion`.
+
+The repair requires the last chainer word to be an assertion word and never a pure chain word, the
+rule `expect` chains already followed. `TestLegacyResidueFailsClosed` pins the repro, plus
+language-only `.and`, flag-only chainers and the matching `expect` forms.
