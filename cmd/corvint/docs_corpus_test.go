@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/stablefixture"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 )
@@ -506,4 +507,34 @@ func TestCorpusAdoptionCLIMCPPagination(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestV11305CorpusCEMRefusesStableMapWithFix (V1-1305, CEM-V1-163): the 0.x
+// `docs corpus cem` operation over a cem/1.0 map exits 2 with the closed code
+// unsupported-spec naming the stable operation and its binding flags, never
+// internal-error; the stable operation over the same map succeeds.
+func TestV11305CorpusCEMRefusesStableMapWithFix(t *testing.T) {
+	change := stablefixture.NewChange(t)
+	stable := change.Stable(t)
+	writeCorpusFixture(t, change.Root, change.Base, "docs/rule.txt")
+	if err := os.WriteFile(filepath.Join(change.Root, "stable.cem.json"), stable.Map, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, out, stderr := corpusCLI(t, change.Root, "docs", "corpus", "cem", "--artifact", "corpus.json", "--cem", "stable.cem.json")
+	if code != 2 || out != "" {
+		t.Fatalf("0.x cem over cem/1.0: exit %d out %q", code, out)
+	}
+	for _, want := range []string{"unsupported-spec", "docs corpus cem-stable", "--expected-base", "--target", "--stable-artifact-root"} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("refusal %q lacks %q", stderr, want)
+		}
+	}
+	if strings.Contains(stderr, "internal-error") {
+		t.Fatalf("refusal is internal: %q", stderr)
+	}
+	code, out, stderr = corpusCLI(t, change.Root, "docs", "corpus", "cem-stable", "--artifact", "corpus.json", "--cem", "stable.cem.json",
+		"--expected-base", change.Base, "--target", stable.Target, "--stable-artifact-root", stable.ArtifactRoot)
+	if code != 0 || stderr != "" || !strings.Contains(out, "corvint-corpus-cem-stable/1") {
+		t.Fatalf("named fix: exit %d stderr %q", code, stderr)
+	}
 }

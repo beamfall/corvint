@@ -200,7 +200,33 @@ func renderReviewProjection(projection map[string]any) string {
 	var out strings.Builder
 	out.WriteString("\n## Hunk review projection\n\n")
 	out.WriteString(fmt.Sprintf("- Record set SHA-256: `%s`\n- Map SHA-256: `%s`\n", projection["recordSetSha256"], projection["mapSha256"]))
-	ocm := projection["ocm"].(map[string]any)
+	writeOCMSummary(&out, projection["ocm"].(map[string]any))
+	out.WriteString("\nEach row describes the derived patch. Test execution is NOT_RUN; supplied witnesses and structural claims do not establish a current passing test.\n\n")
+	for _, entry := range projection["hunks"].([]any) {
+		row := entry.(map[string]any)
+		out.WriteString(fmt.Sprintf("- %v. %s %s: %s; reason %s\n", row["ordinal"], mdreport.CodeSpan(fmt.Sprint(row["path"])), mdreport.CodeSpan(fmt.Sprint(row["id"])), mdreport.CodeSpan(fmt.Sprint(row["disposition"])), mdreport.CodeSpan(fmt.Sprint(row["reason"]))))
+		out.WriteString("  - Line revision " + mdreport.CodeSpan(fmt.Sprint(row["lineRevision"])) + "; range " + mdreport.CodeSpan(fmt.Sprint(row["lineRange"])) + "\n")
+		if evidence, ok := row["evidence"].([]any); ok {
+			for _, item := range evidence {
+				basis := item.(map[string]any)
+				out.WriteString("  - Evidence " + mdreport.CodeSpan(fmt.Sprint(basis["id"])) + "; relation " + mdreport.CodeSpan(fmt.Sprint(basis["relation"])) + "; blob " + mdreport.CodeSpan(fmt.Sprint(basis["blobOid"])) + "; span digest " + mdreport.CodeSpan(fmt.Sprint(basis["spanSha256"])) + "; drift " + mdreport.CodeSpan(fmt.Sprint(basis["driftState"])) + "\n")
+			}
+		}
+		if observation, ok := row["testObservation"].(map[string]any); ok {
+			out.WriteString("  - Test observation " + mdreport.CodeSpan(fmt.Sprint(observation["state"])) + "; reason " + mdreport.CodeSpan(fmt.Sprint(observation["reason"])) + "; profile " + mdreport.CodeSpan(fmt.Sprint(observation["profileSha256"])) + "\n")
+		}
+		if witness, ok := row["discrimination"].(map[string]any); ok {
+			out.WriteString("  - Discrimination " + mdreport.CodeSpan(fmt.Sprint(witness["state"])) + "; detail " + mdreport.CodeSpan(fmt.Sprint(witness["detail"])) + "; tree " + mdreport.CodeSpan(fmt.Sprint(witness["treeRevision"])) + "; selection " + mdreport.CodeSpan(fmt.Sprint(witness["selectionSha256"])) + "\n")
+		}
+		writeRowObligations(&out, row)
+	}
+	writeUnmappedObligations(&out, projection)
+	return out.String()
+}
+
+// writeOCMSummary writes the OCM validity, state, issues and NOT_PRODUCED
+// reason lines a 0.x report, and a stable report with --ocm, render.
+func writeOCMSummary(out *strings.Builder, ocm map[string]any) {
 	if valid, found := ocm["valid"]; found {
 		out.WriteString("- OCM validity: " + mdreport.CodeSpan(fmt.Sprint(valid)) + "\n")
 	} else {
@@ -224,33 +250,25 @@ func renderReviewProjection(projection map[string]any) string {
 	if reason, _ := ocm["reason"].(string); reason != "" {
 		out.WriteString("- Obligations: NOT_PRODUCED " + mdreport.CodeSpan(reason) + "\n")
 	}
-	out.WriteString("\nEach row describes the derived patch. Test execution is NOT_RUN; supplied witnesses and structural claims do not establish a current passing test.\n\n")
-	for _, entry := range projection["hunks"].([]any) {
-		row := entry.(map[string]any)
-		out.WriteString(fmt.Sprintf("- %v. %s %s: %s; reason %s\n", row["ordinal"], mdreport.CodeSpan(fmt.Sprint(row["path"])), mdreport.CodeSpan(fmt.Sprint(row["id"])), mdreport.CodeSpan(fmt.Sprint(row["disposition"])), mdreport.CodeSpan(fmt.Sprint(row["reason"]))))
-		out.WriteString("  - Line revision " + mdreport.CodeSpan(fmt.Sprint(row["lineRevision"])) + "; range " + mdreport.CodeSpan(fmt.Sprint(row["lineRange"])) + "\n")
-		if evidence, ok := row["evidence"].([]any); ok {
-			for _, item := range evidence {
-				basis := item.(map[string]any)
-				out.WriteString("  - Evidence " + mdreport.CodeSpan(fmt.Sprint(basis["id"])) + "; relation " + mdreport.CodeSpan(fmt.Sprint(basis["relation"])) + "; blob " + mdreport.CodeSpan(fmt.Sprint(basis["blobOid"])) + "; span digest " + mdreport.CodeSpan(fmt.Sprint(basis["spanSha256"])) + "; drift " + mdreport.CodeSpan(fmt.Sprint(basis["driftState"])) + "\n")
-			}
-		}
-		if observation, ok := row["testObservation"].(map[string]any); ok {
-			out.WriteString("  - Test observation " + mdreport.CodeSpan(fmt.Sprint(observation["state"])) + "; reason " + mdreport.CodeSpan(fmt.Sprint(observation["reason"])) + "; profile " + mdreport.CodeSpan(fmt.Sprint(observation["profileSha256"])) + "\n")
-		}
-		if witness, ok := row["discrimination"].(map[string]any); ok {
-			out.WriteString("  - Discrimination " + mdreport.CodeSpan(fmt.Sprint(witness["state"])) + "; detail " + mdreport.CodeSpan(fmt.Sprint(witness["detail"])) + "; tree " + mdreport.CodeSpan(fmt.Sprint(witness["treeRevision"])) + "; selection " + mdreport.CodeSpan(fmt.Sprint(witness["selectionSha256"])) + "\n")
-		}
-		for _, item := range row["obligations"].([]any) {
-			obligation := item.(map[string]any)
-			out.WriteString("  - Obligation " + mdreport.CodeSpan(fmt.Sprint(obligation["id"])) + "\n")
-		}
+}
+
+// writeRowObligations writes one "Obligation" line per obligation joined to a
+// hunk row; a stable row without a supplied OCM carries none.
+func writeRowObligations(out *strings.Builder, row map[string]any) {
+	obligations, _ := row["obligations"].([]any)
+	for _, item := range obligations {
+		obligation := item.(map[string]any)
+		out.WriteString("  - Obligation " + mdreport.CodeSpan(fmt.Sprint(obligation["id"])) + "\n")
 	}
-	for _, item := range projection["unmappedObligations"].([]any) {
+}
+
+// writeUnmappedObligations writes the obligations no hunk links.
+func writeUnmappedObligations(out *strings.Builder, projection map[string]any) {
+	unmapped, _ := projection["unmappedObligations"].([]any)
+	for _, item := range unmapped {
 		obligation := item.(map[string]any)
 		out.WriteString("- Unmapped obligation " + mdreport.CodeSpan(fmt.Sprint(obligation["id"])) + ": " + mdreport.CodeSpan(fmt.Sprint(obligation["reason"])) + "\n")
 	}
-	return out.String()
 }
 
 // stableReviewNonClaims extend the 0.x non-claims with the stable axes.
@@ -403,7 +421,11 @@ func renderStableReport(result verify.StableResult, projection map[string]any) s
 	}
 	out.WriteString("\n## Hunk review projection\n\n")
 	out.WriteString("- Record set SHA-256: " + mdreport.CodeSpan(fmt.Sprint(projection["recordSetSha256"])) + "\n")
-	out.WriteString("- Obligations: NOT_PRODUCED `ocm-not-supplied`\n")
+	if _, supplied := projection["ocmValid"]; supplied {
+		writeOCMSummary(&out, projection["ocm"].(map[string]any))
+	} else {
+		out.WriteString("- Obligations: NOT_PRODUCED `ocm-not-supplied`\n")
+	}
 	out.WriteString("\nEach row describes a hunk the map declares; the outcome above says whether the verifier accepted it. Test execution is NOT_RUN; supplied witnesses and structural claims do not establish a current passing test.\n\n")
 	for _, entry := range projection["hunks"].([]any) {
 		row := entry.(map[string]any)
@@ -413,10 +435,51 @@ func renderStableReport(result verify.StableResult, projection map[string]any) s
 			out.WriteString("  - Evidence " + mdreport.CodeSpan(fmt.Sprint(basis["id"])) + "; relation " + mdreport.CodeSpan(fmt.Sprint(basis["relation"])) + "; drift " + mdreport.CodeSpan(fmt.Sprint(basis["driftState"])) + "\n")
 		}
 		out.WriteString("  - Coverage " + mdreport.CodeSpan(fmt.Sprint(row["coverageState"])) + "; discrimination " + mdreport.CodeSpan(fmt.Sprint(row["discriminationState"])) + "\n")
+		writeRowObligations(&out, row)
 	}
+	writeUnmappedObligations(&out, projection)
 	out.WriteString("\n## Non-claims\n\n")
 	for _, claim := range stableReviewNonClaims {
 		out.WriteString("- " + claim + "\n")
 	}
 	return out.String()
+}
+
+// applyStableOCM joins a supplied OCM projection onto a stable review exactly
+// as a 0.x review does: ocm and ocmValid, per-hunk obligations with their state
+// and reason, and unmappedObligations, then re-binds the record set digest. A
+// report without --ocm never calls it, so its projection is unchanged
+// (V1-1305).
+func applyStableOCM(projection, ocm map[string]any, verifier bool) {
+	valid := verifier && ocm["valid"] == true
+	obligations, _ := ocm["obligations"].([]any)
+	projection["ocm"] = ocm
+	projection["ocmValid"] = valid
+	for _, entry := range projection["hunks"].([]any) {
+		row := entry.(map[string]any)
+		id, _ := row["id"].(string)
+		linked := []any{}
+		if valid {
+			for _, item := range obligations {
+				obligation, _ := item.(map[string]any)
+				if containsReviewID(obligation["hunkIds"], id) {
+					linked = append(linked, obligation)
+				}
+			}
+		}
+		row["obligations"] = linked
+		row["obligationsState"], row["obligationsReason"] = ocm["state"], ocm["reason"]
+	}
+	unmapped := []any{}
+	if valid {
+		for _, item := range obligations {
+			obligation, _ := item.(map[string]any)
+			if obligation["disposition"] != "linked" {
+				unmapped = append(unmapped, obligation)
+			}
+		}
+	}
+	projection["unmappedObligations"] = unmapped
+	delete(projection, "recordSetSha256")
+	projection["recordSetSha256"] = reviewDigest(projection)
 }

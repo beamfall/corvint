@@ -631,3 +631,29 @@ authorize a separate docs-only normalization moving the accepted `ARTIFACT-GO-V0
 verbatim into `docs/specs/release-artifact-integrity-v0.md`'s sole `## Requirements` section while
 preserving decision 0010 authority and traceability. I understand and accept that the widened scope
 thereby also includes `ARTIFACT-V0-001..010`. Nothing else is newly accepted.”
+
+## 2026-10-12 addendum: OCM review over a `cem/1.0` report (V1-1305)
+
+This dated section adds no requirement and edits no requirement line. It records that a stable
+report can carry an OCM. Before this change, `corvint cem report` over an exact `cem/1.0` map
+refused every `--ocm` with `invalid-arguments`. `CEM-V1-036` in `docs/specs/cem-stable-v1.md` still
+says it does; amending that line is outside this lane and is left to its owner.
+
+- `cem report --map <cem/1.0> --expected-base B --target T --artifacts A --ocm <path>` now reads the
+  OCM inside the session root, bounded to 1 MiB, and verifies it through
+  `lrfrepo.VerifyStableUniverse`. That route is the stable admission: verifier `ACCEPT`, an `EXACT`
+  sidecar, and an OCM bound to the stable map's SHA-256 and target. The binary installs the reader;
+  the CEM seams stay standard library plus `internal/cem`.
+- The review keeps the 0.x OCM projection fields: `ocm` (`valid`, `state`, `mapSha256`,
+  `cemMapSha256`, `verification`, `testExecution`, `obligations`, `claims`, plus `intentScope`
+  and `targetRevision` when the OCM has them) and `ocmValid`. Each hunk row also gets
+  `obligations`, `obligationsState` and `obligationsReason`, and the review gets
+  `unmappedObligations`. The record-set digest covers the joined review. The envelope is `ok`
+  only when the verifier accepts and the OCM is valid.
+- A closed stable-admission refusal yields `valid: false`, `state: invalid` and one issue naming
+  its code, for example `cem-map-digest-mismatch` for an OCM still bound to the `cem/0.2` map. The
+  stable route never reports `policyIssues` or a `max-unknown` result, so the stable route cannot
+  produce `incomplete`. An entry point without a reader keeps obligations `NOT_PRODUCED` with
+  reason `ocm-verifier-unavailable` and is not `ok`.
+- A report without `--ocm` is unchanged byte for byte. An empty `--ocm` is still refused before
+  the verifier runs.

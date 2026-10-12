@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"path/filepath"
@@ -39,6 +41,16 @@ var stableStates = map[string]string{"ACCEPT": "accepted", "REJECT": "rejected",
 // whose entry point never sets it admits the session root.
 func (s *Session) SetStableRepository(path string) { s.stableRepository = &path }
 
+// StableOCMReader verifies supplied OCM bytes against an exact cem/1.0 map
+// through the owning adapter's stable admission and returns the same review
+// OCM projection a 0.x report carries (valid, state, verification, obligations,
+// claims). A closed refusal is a projection with valid false; only an
+// unexpected failure is an error (V1-1305).
+type StableOCMReader func(ctx context.Context, repository string, cemRaw, ocmRaw []byte, expectedBase, target, artifactRoot string) (map[string]any, error)
+
+// SetStableOCMReader installs the stable OCM verifier a report --ocm uses.
+func (s *Session) SetStableOCMReader(reader StableOCMReader) { s.stableOCM = reader }
+
 // stableRefusal marks a refusal Core issues for an exact cem/1.0 map before the
 // stable verifier runs. It keeps the wrapped code and message, and lets a
 // projection such as the MCP bridge name it apart from a malformed 0.x map
@@ -72,8 +84,8 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	if limited && action != "status" {
 		return nil, stableRefusal{invalidArguments("%s %s does not accept policy ceilings", wire.StableSpec, action)}
 	}
-	if report && (options.OCMGiven || options.OCMPath != "") {
-		return nil, stableRefusal{invalidArguments("%s %s does not accept --ocm", wire.StableSpec, action)}
+	if report && options.OCMGiven && options.OCMPath == "" {
+		return nil, stableRefusal{invalidArguments("%s %s does not accept --ocm with an empty path", wire.StableSpec, action)}
 	}
 	repository := s.root
 	if s.stableRepository != nil {
@@ -117,7 +129,7 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 			stablePolicy(envelope, raw, options.Limits, exit)
 		}
 	case "report", ActionReportPreview:
-		return s.stableReport(action, result, envelope, options)
+		return s.stableReport(ctx, action, repository, raw, result, envelope, options)
 	}
 	return envelope, nil
 }
@@ -145,11 +157,19 @@ func stablePolicy(envelope map[string]any, raw []byte, limits PolicyLimits, exit
 // Markdown for every verifier outcome, locating the Git directories only after
 // the verifier has run and without the 0.x object admission (CEM-V1-034,
 // CEM-V1-035).
-func (s *Session) stableReport(action string, result verify.StableResult, envelope map[string]any, options ReadOptions) (map[string]any, error) {
+func (s *Session) stableReport(ctx context.Context, action, repository string, raw []byte, result verify.StableResult, envelope map[string]any, options ReadOptions) (map[string]any, error) {
 	envelope["tool"] = "cem-report"
 	projection, err := stableReviewProjection(result)
 	if err != nil {
 		return nil, err
+	}
+	if options.OCMPath != "" {
+		ocm, err := s.stableReportOCM(ctx, repository, raw, options)
+		if err != nil {
+			return nil, err
+		}
+		applyStableOCM(projection, ocm, s.stableOCM != nil)
+		envelope["ok"] = envelope["ok"] == true && projection["ocmValid"] == true
 	}
 	if action == "report" && options.Format == "json" {
 		envelope["review"] = projection
@@ -196,4 +216,39 @@ func StableCitationClass(role string) map[string]any {
 		class = StableCitationClassChore
 	}
 	return map[string]any{"class": class, "role": role}
+}
+
+// maxStableOCMBytes bounds a supplied OCM exactly as the 0.x review reader does.
+const maxStableOCMBytes = 1 << 20
+
+// stableReportOCM reads a supplied OCM inside the session root and verifies it
+// through the installed stable reader against the exact map bytes, the caller's
+// binding and artifact root. Without a reader the obligations stay
+// NOT_PRODUCED with reason ocm-verifier-unavailable (V1-1305).
+func (s *Session) stableReportOCM(ctx context.Context, repository string, raw []byte, options ReadOptions) (map[string]any, error) {
+	relative := options.OCMPath
+	if filepath.IsAbs(relative) {
+		inside, err := filepath.Rel(s.workRoot.Path(), filepath.Clean(relative))
+		if err != nil || inside == "." || inside == ".." || filepath.IsAbs(inside) || strings.HasPrefix(inside, ".."+string(filepath.Separator)) {
+			return nil, invalidArguments("--ocm must remain inside repository root")
+		}
+		relative = filepath.ToSlash(inside)
+	}
+	if filepath.Clean(filepath.FromSlash(relative)) != filepath.FromSlash(relative) {
+		return nil, invalidArguments("--ocm must be normalized")
+	}
+	ocmRaw, err := s.workRoot.ReadBounded(relative, maxStableOCMBytes, cemcode.MapUnavailable)
+	if err != nil {
+		return nil, err
+	}
+	if s.stableOCM == nil {
+		return map[string]any{"state": "NOT_PRODUCED", "reason": "ocm-verifier-unavailable", "obligations": []any{}, "claims": []any{}}, nil
+	}
+	ocm, err := s.stableOCM(ctx, repository, append([]byte(nil), raw...), ocmRaw, options.ExpectedBase, options.Target, options.ArtifactRoot)
+	if err != nil {
+		return nil, err
+	}
+	ocmSum, cemSum := sha256.Sum256(ocmRaw), sha256.Sum256(raw)
+	ocm["mapSha256"], ocm["cemMapSha256"] = hex.EncodeToString(ocmSum[:]), hex.EncodeToString(cemSum[:])
+	return ocm, nil
 }

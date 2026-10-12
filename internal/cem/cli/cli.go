@@ -141,6 +141,11 @@ var GitNotes func(ctx context.Context, root, action string, values map[string]st
 // the same reason as GitNotes; cem/1.0 admits callerRoot (CEM-V1-060).
 var Export func(ctx context.Context, root, callerRoot string, values map[string]string) (map[string]any, error)
 
+// StableOCM verifies the OCM a cem/1.0 report supplies through the stable
+// universe admission (internal/lrfrepo); the binary installs it for the same
+// reason as GitNotes. Nil leaves stable obligations NOT_PRODUCED (V1-1305).
+var StableOCM workflow.StableOCMReader
+
 func quotedChoices(values []string) string {
 	quoted := make([]string, 0, len(values))
 	for _, value := range values {
@@ -430,6 +435,7 @@ func dispatchCEMWithOCM(ctx context.Context, root, callerRoot string, arguments 
 		return nil, err
 	}
 	session.SetStableRepository(callerRoot)
+	session.SetStableOCMReader(StableOCM)
 	switch action {
 	case "begin":
 		return session.Begin(ctx, workflow.BeginOptions{
