@@ -75,6 +75,13 @@ type Pair struct {
 	Head        string       `json:"head"`
 	Local       Plan         `json:"local"`
 	Target      string       `json:"target"`
+	// CIPlannedPackages is the selector's planned set; CI.Packages is the set
+	// the driver executes, which admission may widen to the universe.
+	CIPlannedPackages []string `json:"-"`
+	CIPlannedCount    int      `json:"ciPlannedPackageCount"`
+	Root              string   `json:"-"`
+	Universe          []string `json:"-"`
+	UniverseCount     int      `json:"universeCount"`
 }
 
 // Report is the deterministic parity report: no timestamps, sorted members.
@@ -186,8 +193,18 @@ func environment(o options, bin string) []string {
 	}
 }
 
+// confinePath is the -exec wrapper the ci profile is asked to use; the
+// CI driver has none (AFP-V0-028 confinement is the call site's).
+const confinePath = "/str-parity/test-confine"
+
+// ciGoEnv is the environment overlay corvint's ci profile sets besides
+// CORVINT_CONFINE_ROOT (internal/sessiontest ciGoEnv, AFP-V0-028). A ci
+// environment difference is explained only when corvint sets exactly these
+// plus the confine root and the driver's closed environment holds each one.
+var ciGoEnv = []string{"CGO_ENABLED=1", "GOFLAGS=", "GOPROXY=off", "GOSUMDB=off", "GOTOOLCHAIN=local", "GOWORK=off"}
+
 func comparePair(ctx context.Context, o options, clone, bin, record, target, base, head string, ordinal int) (Pair, error) {
-	pair := Pair{Base: base, Head: head, Target: target}
+	pair := Pair{Base: base, Head: head, Root: clone, Target: target}
 	if _, err := gitOut(ctx, clone, "checkout", "-q", "--detach", "--force", target); err != nil {
 		return pair, err
 	}
@@ -205,12 +222,12 @@ func comparePair(ctx context.Context, o options, clone, bin, record, target, bas
 		return pair, fmt.Errorf("go list: %w", err)
 	}
 	all := strings.Fields(universe)
+	pair.Universe, pair.UniverseCount = sortedCopy(all), len(all)
 	pair.CorvintLoc = corvintPlan(ctx, o, clone, env, base, "--profile", "local")
-	pair.CorvintCI = corvintPlan(ctx, o, clone, env, base, "--profile", "ci", "--confine", "/str-parity/test-confine")
+	pair.CorvintCI = corvintPlan(ctx, o, clone, env, base, "--profile", "ci", "--confine", confinePath)
 	pair.Local = localPlan(ctx, o, clone, env, record, base, all)
-	var ciPlanned string
-	pair.CI, ciPlanned = ciPlan(ctx, o, clone, env, base, head, target, ordinal, all)
-	pair.CIPlanned = ciPlanned
+	pair.CI, pair.CIPlanned, pair.CIPlannedPackages = ciPlan(ctx, o, clone, env, base, head, target, ordinal, all)
+	pair.CIPlannedCount = len(pair.CIPlannedPackages)
 	pair.Differences = compare(pair)
 	if status, _ := gitOut(ctx, clone, "status", "--porcelain=v1", "--untracked-files=all", "--ignored"); status != "" {
 		return pair, fmt.Errorf("a planner or driver changed the checkout: %s", status)
@@ -301,9 +318,10 @@ func localPlan(ctx context.Context, o options, clone string, env []string, recor
 	return plan
 }
 
-// ciPlan runs the CI driver over the merge and returns its effective plan and
-// the selector verdict it would have executed with a qualification pin.
-func ciPlan(ctx context.Context, o options, clone string, env []string, base, head, target string, ordinal int, universe []string) (Plan, string) {
+// ciPlan runs the CI driver over the merge and returns its executed plan, and
+// the selector verdict and package set it would have executed with a
+// qualification pin.
+func ciPlan(ctx context.Context, o options, clone string, env []string, base, head, target string, ordinal int, universe []string) (Plan, string, []string) {
 	out := filepath.Join(o.work, "ci", fmt.Sprintf("%03d", ordinal))
 	runtime := filepath.Join(o.work, "ci-runtime")
 	_ = os.RemoveAll(runtime)
@@ -324,7 +342,7 @@ func ciPlan(ctx context.Context, o options, clone string, env []string, base, he
 	}
 	if err != nil || code != 0 {
 		plan.Error, plan.Scope = fmt.Sprintf("exit %d: %s", code, firstLine(stderr)), "ERROR"
-		return plan, "ERROR"
+		return plan, "ERROR", nil
 	}
 	plan.Reason = execution.Selection.Reason
 	plan.Scope = "NARROWED"
@@ -344,22 +362,19 @@ func ciPlan(ctx context.Context, o options, clone string, env []string, base, he
 	if plan.Scope == "NARROWED" {
 		packages = execution.Selection.Packages
 	}
-	set := map[string]bool{}
-	for _, pkg := range packages {
-		set[pkg] = true
-	}
-	plan.Packages = sortedKeys(set)
+	executed := packageSet(execution.Args, universe)
+	plan.Packages = sortedKeys(executed)
 	plan.Count = len(plan.Packages)
-	plan.Argv = flagsOnly(execution.Args, packageSet(execution.Args, nil))
-	return plan, planned
+	plan.Argv = flagsOnly(execution.Args, executed)
+	return plan, planned, sortedCopy(packages)
 }
 
 // compare lists every disagreement between corvint test and the driver it
 // would replace, with its category.
 func compare(pair Pair) []Difference {
 	differences := []Difference{}
-	add := func(profile, field, detail string) {
-		differences = append(differences, Difference{Category: categorise(pair, profile, field, detail), Detail: detail, Field: field, Profile: profile})
+	add := func(profile, field, detail string, driverOnly ...string) {
+		differences = append(differences, Difference{Category: categorise(pair, profile, field, driverOnly), Detail: detail, Field: field, Profile: profile})
 	}
 	for _, side := range []struct {
 		profile         string
@@ -379,11 +394,16 @@ func compare(pair Pair) []Difference {
 			add(side.profile, "admission", fmt.Sprintf("driver plans %s and executes %s: %s", pair.CIPlanned, pair.CI.Scope, pair.CI.Reason))
 		}
 		driverPackages := side.driver.Packages
-		if side.profile == "ci" && pair.CIPlanned == "NOTHING" {
-			driverPackages = nil
+		if side.profile == "ci" {
+			driverPackages = pair.CIPlannedPackages
 		}
 		if only, missing := setDifference(side.corvint.Packages, driverPackages); len(only)+len(missing) != 0 {
-			add(side.profile, "packages", fmt.Sprintf("corvint only %d %s; driver only %d %s", len(only), clip(only), len(missing), clip(missing)))
+			add(side.profile, "packages", fmt.Sprintf("corvint only %d %s; driver only %d %s", len(only), clip(only), len(missing), clip(missing)), missing...)
+		}
+		if side.profile == "ci" && side.corvint.Error == "" && side.driver.Error == "" {
+			if only, missing := setDifference(side.corvint.Packages, side.driver.Packages); len(only)+len(missing) != 0 {
+				add(side.profile, "executed", fmt.Sprintf("driver executes %d packages: corvint only %d %s; driver only %d %s", side.driver.Count, len(only), clip(only), len(missing), clip(missing)), only...)
+			}
 		}
 		if side.corvint.Count != 0 && len(side.driver.Argv) != 0 && !equalStrings(side.corvint.Argv, side.driver.Argv) {
 			add(side.profile, "argv", fmt.Sprintf("corvint %v, driver %v", side.corvint.Argv, side.driver.Argv))
@@ -400,40 +420,47 @@ func compare(pair Pair) []Difference {
 
 // categorise names the explanation for one difference; the build-log entry
 // explains each category, and UNEXPLAINED marks one no rule recognises.
-func categorise(pair Pair, profile, field, detail string) string {
+// For "packages", extra holds the packages only the driver runs, which an
+// explained widening must not have; for "executed", the packages only corvint
+// runs, which an explained admission widening must not have.
+func categorise(pair Pair, profile, field string, extra []string) string {
 	corvint := pair.CorvintLoc
 	if profile == "ci" {
 		corvint = pair.CorvintCI
 	}
+	widened := corvint.Scope == "FULL" && strings.HasPrefix(corvint.Reason, "plan.unknown entry outside the AFP-V0-028 allowlist: ")
 	switch field {
 	case "error":
 		if strings.HasPrefix(corvint.Error, "INCOMPLETE: ") && undeclaredOnly(strings.TrimPrefix(corvint.Error, "INCOMPLETE: ")) && pair.Local.Error == "" && (profile == "local" || pair.CI.Error == "") {
 			return "str-v0-004-undeclared-language"
 		}
-	case "admission":
+	case "admission", "executed":
+		if field == "executed" && (len(extra) != 0 || !equalStrings(pair.CI.Packages, pair.Universe)) {
+			break
+		}
 		if strings.HasPrefix(pair.CI.Reason, "qualification unavailable: ") {
 			return "ci-admission-no-qualification"
 		}
-		if strings.HasPrefix(pair.CI.Reason, "selector: NOTHING") {
+		if strings.HasPrefix(pair.CI.Reason, "selector: NOTHING") && pair.CIPlanned == "NOTHING" {
 			return "ci-nothing-runs-full"
 		}
 	case "verdict":
-		if corvint.Scope == "FULL" && strings.HasPrefix(corvint.Reason, "plan.unknown entry outside the AFP-V0-028 allowlist: ") {
+		if widened {
 			return "str-v0-003-unknown-widening"
 		}
 	case "packages":
-		if corvint.Scope == "FULL" && strings.HasPrefix(corvint.Reason, "plan.unknown entry outside the AFP-V0-028 allowlist: ") {
+		if widened && len(extra) == 0 && equalStrings(corvint.Packages, pair.Universe) {
 			return "str-v0-003-unknown-widening"
 		}
 	case "argv":
 		if profile == "local" && equalStrings(withoutJSON(corvint.Argv), pair.Local.Argv) {
 			return "local-json-flag"
 		}
-		if profile == "ci" && equalStrings(withoutExec(corvint.Argv), pair.CI.Argv) {
+		if profile == "ci" && confinedOnce(corvint.Argv) && equalStrings(withoutExec(corvint.Argv), pair.CI.Argv) {
 			return "ci-exec-confine"
 		}
 	case "env":
-		if profile == "ci" && closedSuperset(corvint.Env, pair.CI.Env) {
+		if profile == "ci" && expectedCIEnv(corvint.Env, pair.CI.Env, pair.Root) {
 			return "ci-closed-environment"
 		}
 	case "declared":
@@ -442,20 +469,35 @@ func categorise(pair Pair, profile, field, detail string) string {
 	return "UNEXPLAINED"
 }
 
-// closedSuperset reports whether the CI driver's closed environment holds
-// every variable corvint sets except CORVINT_CONFINE_ROOT, which only the
-// AFP-V0-028 confined branch needs.
-func closedSuperset(corvint, driver []string) bool {
-	closed := map[string]bool{}
-	for _, entry := range driver {
-		closed[entry] = true
+// confinedOnce reports whether argv is `test -exec <confinePath> ...` with no
+// other -exec.
+func confinedOnce(argv []string) bool {
+	return len(argv) >= 3 && argv[0] == "test" && argv[1] == "-exec" && argv[2] == confinePath && !containsArg(argv[3:], "-exec")
+}
+
+// expectedCIEnv reports whether corvint's ci overlay is exactly ciGoEnv plus
+// CORVINT_CONFINE_ROOT=<root>, and the CI driver's closed environment holds
+// every ciGoEnv entry.
+func expectedCIEnv(corvint, driver []string, root string) bool {
+	want := append([]string{"CORVINT_CONFINE_ROOT=" + root}, ciGoEnv...)
+	if !equalStrings(sortedCopy(corvint), sortedCopy(want)) {
+		return false
 	}
-	for _, entry := range corvint {
-		if !closed[entry] && !strings.HasPrefix(entry, "CORVINT_CONFINE_ROOT=") {
+	for _, entry := range ciGoEnv {
+		if !containsArg(driver, entry) {
 			return false
 		}
 	}
 	return true
+}
+
+func containsArg(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 // undeclaredOnly reports whether every INCOMPLETE reason is a language with
