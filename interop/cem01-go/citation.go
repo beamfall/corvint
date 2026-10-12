@@ -143,7 +143,13 @@ func citationIDs(b []byte) (map[string]bool, []byte) {
 // optional spaces/tabs, then "- `ID`:".
 func citationDefined(span []byte) map[string]bool {
 	defined := map[string]bool{}
-	for _, line := range bytes.Split(span, []byte{'\n'}) {
+	for len(span) > 0 {
+		line := span
+		if k := bytes.IndexByte(span, '\n'); k >= 0 {
+			line, span = span[:k], span[k+1:]
+		} else {
+			span = nil
+		}
 		line = bytes.TrimLeft(line, " \t")
 		if !bytes.HasPrefix(line, []byte("- `")) {
 			continue

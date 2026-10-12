@@ -353,7 +353,9 @@ func checkEvidence(ctx context.Context, repository *gitauth.Repository, document
 			return nil, cemcode.New(cemcode.FabricatedEvidenceID,
 				"evidence ID for %q does not recompute", record.Path)
 		}
-		spans[record.ID] = spanBytes
+		// Keep a copy of the span only: a window into data would retain the
+		// whole blob for every record that cites it.
+		spans[record.ID] = append([]byte(nil), spanBytes...)
 	}
 	return spans, nil
 }

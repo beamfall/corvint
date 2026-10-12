@@ -120,6 +120,10 @@ var supportStopTerms = func() map[string]bool {
 // the patch, every span was read and bound, and every mechanical hunk was
 // re-proved by checkMechanical (the wire forbids bases on mechanical hunks).
 func ComputeCitation(document *wire.Map, parsed *patch.Patch, spans map[string][]byte) *Citation {
+	defined := map[string]map[string]bool{}
+	for evidenceID, span := range spans {
+		defined[evidenceID] = definedIDs(span)
+	}
 	derived := map[string]*patch.Hunk{}
 	for _, hunk := range parsed.Hunks {
 		derived[hunk.ID] = hunk
@@ -148,7 +152,7 @@ func ComputeCitation(document *wire.Map, parsed *patch.Patch, spans map[string][
 		default:
 			supported = append(supported, mapped)
 			ids := basisSet(mapped.Basis)
-			row.Anchors = facts[mapped.ID].anchors(ids, spans)
+			row.Anchors = facts[mapped.ID].anchors(ids, spans, defined)
 			row.Tier = TierCited
 			if len(row.Anchors) > 0 {
 				row.Tier = TierAnchored
@@ -213,7 +217,7 @@ func ComputeCitation(document *wire.Map, parsed *patch.Patch, spans map[string][
 			if strings.Join(ids, "\x00") != first {
 				citation.Invariant = false
 			}
-			if len(facts[mapped.ID].anchors(ids, spans)) > 0 {
+			if len(facts[mapped.ID].anchors(ids, spans, defined)) > 0 {
 				shifted++
 			}
 		}
@@ -276,14 +280,14 @@ func newHunkFacts(hunk *patch.Hunk) hunkFacts {
 }
 
 // anchors returns the sorted anchor kinds found against any of the spans.
-func (f hunkFacts) anchors(evidenceIDs []string, spans map[string][]byte) []string {
+func (f hunkFacts) anchors(evidenceIDs []string, spans map[string][]byte, defined map[string]map[string]bool) []string {
 	idAnchor, pathAnchor := false, false
 	base := f.path[strings.LastIndexByte(f.path, '/')+1:]
 	for _, evidenceID := range evidenceIDs {
 		span := spans[evidenceID]
 		if !idAnchor {
 			for _, id := range f.ids {
-				if definesID(span, id) {
+				if defined[evidenceID][id] {
 					idAnchor = true
 					break
 				}
@@ -303,16 +307,28 @@ func (f hunkFacts) anchors(evidenceIDs []string, spans map[string][]byte) []stri
 	return kinds
 }
 
-// definesID reports whether a span line, after optional leading spaces and
-// tabs, starts with "- `ID`:".
-func definesID(span []byte, id string) bool {
-	prefix := []byte("- `" + id + "`:")
-	for _, line := range bytes.Split(span, []byte{'\n'}) {
-		if bytes.HasPrefix(bytes.TrimLeft(line, " \t"), prefix) {
-			return true
+// definedIDs returns every ID a span defines with a line that, after optional
+// leading spaces and tabs, reads "- `ID`:". It scans the span once without
+// materialising its lines, so a large span costs no more than its bytes.
+func definedIDs(span []byte) map[string]bool {
+	defined := map[string]bool{}
+	for len(span) > 0 {
+		line := span
+		if k := bytes.IndexByte(span, '\n'); k >= 0 {
+			line, span = span[:k], span[k+1:]
+		} else {
+			span = nil
+		}
+		line = bytes.TrimLeft(line, " \t")
+		if !bytes.HasPrefix(line, []byte("- `")) {
+			continue
+		}
+		line = line[3:]
+		if k := bytes.IndexByte(line, '`'); k > 0 && k+1 < len(line) && line[k+1] == ':' {
+			defined[string(line[:k])] = true
 		}
 	}
-	return false
+	return defined
 }
 
 // idBoundary reports the bytes that may not touch a requirement ID token.
