@@ -176,9 +176,42 @@ func TestRunUnit_UnhandledErrorOutsideTestIsNotSilentlyGreen(t *testing.T) {
 // wait-not-completed case for the Playwright test process: a started run
 // whose wait did not complete is an infrastructure failure, never parsed.
 func TestE2EBoundaryFailure_WaitNotCompleted(t *testing.T) {
-	failure := e2eBoundaryFailure(procgroup.Observation{Started: true, Stdout: []byte("{}")})
+	failure := e2eBoundaryFailure(procgroup.Observation{Started: true, Stdout: []byte("{}")}, time.Minute)
 	if failure == nil || failure.Reason != "wait-not-completed" {
 		t.Fatalf("want wait-not-completed, got %+v", failure)
+	}
+}
+
+// TestBoundaryTimeoutNamesRunnerAndFlag pins PWP-V0-020: every timeout detail
+// names its own runner and the effective --timeout value, the external-server
+// path names Playwright rather than vitest, and every other external
+// classification (cancellation included) is the vitest classifier's.
+func TestBoundaryTimeoutNamesRunnerAndFlag(t *testing.T) {
+	timedOut := procgroup.Observation{Started: true, WaitCompleted: true, TimedOut: true}
+	for name, got := range map[string]*InfrastructureFailure{
+		"playwright test did not complete within the --timeout 7s bound":   externalBoundaryFailure(timedOut, 7*time.Second),
+		"playwright test did not complete within the --timeout 2m0s bound": e2eBoundaryFailure(timedOut, 2*time.Minute),
+		"vitest did not complete within the --timeout 5m0s bound":          unitBoundaryFailure(timedOut, "vitest", defaultTimeout),
+	} {
+		if got == nil || got.Reason != "timeout" || got.Detail != name {
+			t.Fatalf("want timeout %q, got %+v", name, got)
+		}
+	}
+	for _, obs := range []procgroup.Observation{
+		{Started: true, WaitCompleted: true, Cancelled: true},
+		{Started: true, WaitCompleted: true, Cancelled: true, TimedOut: true},
+		{Started: true, WaitCompleted: true, Cancelled: true, StdoutOverflow: true},
+		{Started: true, Cancelled: true},
+		{Cancelled: true, Err: errors.New("never started")},
+		{Started: true, WaitCompleted: true, OutputOverflow: true},
+		{Err: errors.New("never started")},
+		{Started: true},
+		{Started: true, WaitCompleted: true},
+	} {
+		external, unit := externalBoundaryFailure(obs, time.Second), unitBoundaryFailure(obs, "vitest", time.Second)
+		if (external == nil) != (unit == nil) || external != nil && (external.Reason != unit.Reason || external.Reason != "timeout" && external.Detail != unit.Detail) {
+			t.Fatalf("observation %+v: external %+v diverged from unit %+v", obs, external, unit)
+		}
 	}
 }
 
