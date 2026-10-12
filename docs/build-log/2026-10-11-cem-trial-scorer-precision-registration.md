@@ -49,3 +49,8 @@ below the repository root failed the Git history lookup, so both lookups now run
 Rescore skipped validating the registered profile, hypotheses, metric and alpha, so the shape
 check is now shared. A reused lane without a start could hide from the order check, so a
 non-errored lane without a start now makes the report invalid.
+
+Codex round 2 (FAIL) found two more P2 defects, both repaired with regression tests. A registered
+run could reuse or resume lanes run under another model or effort; it now refuses them. Rescore
+silently dropped an unknown key inside the carried registration; the record is now decoded
+strictly, so `score --report` refuses it.

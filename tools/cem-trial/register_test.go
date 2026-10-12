@@ -227,6 +227,28 @@ func TestReportRefusesARegistrationNewerThanItsFirstLane(t *testing.T) {
 			}
 		}
 	})
+	t.Run("CRT-V0-014/rescore refuses an unknown registration key", func(t *testing.T) {
+		document := registeredReport("2026-10-02T00:00:00Z", "2026-10-01T00:00:00Z")
+		path := filepath.Join(t.TempDir(), "report.json")
+		var stdout, stderr bytes.Buffer
+		if code := write(document, path, &stdout, &stderr); code != 0 {
+			t.Fatal(stderr.String())
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		edited := strings.Replace(string(data), `"primary_metric"`, `"secondary_metric": "spans", "primary_metric"`, 1)
+		if edited == string(data) {
+			t.Fatal("the report carries no registered primary_metric")
+		}
+		if err := os.WriteFile(path, []byte(edited), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := rescore([]string{"--report", path}); err == nil || !strings.Contains(err.Error(), "secondary_metric") {
+			t.Fatalf("rescore of an unknown registration key: %v", err)
+		}
+	})
 	t.Run("CRT-V0-014/no lane start observed", func(t *testing.T) {
 		document := registeredReport("", "2026-10-01T00:00:00Z")
 		finalize(document)
@@ -361,6 +383,24 @@ func TestRunChecksItsRegistration(t *testing.T) {
 	}
 	if document.Changes[0].GoldSpans == nil || document.Lanes[0].CitedNotGold.Paths == notObserved {
 		t.Fatalf("the run did not carry span gold or score precision: %+v %+v", document.Changes[0], document.Lanes[0].CitedNotGold)
+	}
+	// Lanes run under another effort may not enter a registered run, whether
+	// they come from --reuse or from a --resume checkpoint.
+	document.Effort = "low"
+	directory := t.TempDir()
+	stale := filepath.Join(directory, "stale.json")
+	output := filepath.Join(directory, "report.json")
+	for _, path := range []string{stale, checkpointPath(output)} {
+		var stdout, stderr bytes.Buffer
+		if code := write(document, path, &stdout, &stderr); code != 0 {
+			t.Fatal(stderr.String())
+		}
+	}
+	if _, _, err := runTrial(ctx, append(arguments("control", past), "--reuse", stale)); err == nil || !strings.Contains(err.Error(), "reuses only lanes run under") {
+		t.Fatalf("registered run reusing another effort's lanes: %v", err)
+	}
+	if _, _, err := runTrial(ctx, append(arguments("control", past), "--output", output, "--resume")); err == nil || !strings.Contains(err.Error(), "reuses only lanes run under") {
+		t.Fatalf("registered run resuming another effort's checkpoint: %v", err)
 	}
 	future := commitRegistration(t, "registration.json", validRegistration("heldout", notObserved, notObserved, 1), "2099-01-01T00:00:00Z")
 	document, _, err = runTrial(ctx, arguments("control", future))

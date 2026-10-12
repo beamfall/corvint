@@ -315,12 +315,15 @@ func runTrial(ctx context.Context, arguments []string) (*report, string, error) 
 	if err := checkRegistration(ctx, configuration, document); err != nil {
 		return nil, "", err
 	}
-	prior, err := loadReuse(configuration)
+	prior, err := loadReuse(configuration, document)
 	if err != nil {
 		return nil, "", err
 	}
 	if configuration.resume {
 		if checkpoint, err := loadReport(checkpointPath(configuration.output)); err == nil {
+			if err := registeredPrior(document, checkpoint, checkpointPath(configuration.output)); err != nil {
+				return nil, "", err
+			}
 			prior = prior.merge(checkpoint)
 		}
 	}
@@ -1310,7 +1313,7 @@ type reuseSource struct {
 	lanes    map[string]*lane
 }
 
-func loadReuse(configuration options) (*reuseSource, error) {
+func loadReuse(configuration options, run *report) (*reuseSource, error) {
 	if configuration.reuse == "" {
 		return nil, nil
 	}
@@ -1320,6 +1323,9 @@ func loadReuse(configuration options) (*reuseSource, error) {
 	}
 	if document.Profile != profile || document.Model != modelOrNot(configuration) {
 		return nil, fmt.Errorf("%s: a reused report must share the profile and model of this run", configuration.reuse)
+	}
+	if err := registeredPrior(run, document, configuration.reuse); err != nil {
+		return nil, err
 	}
 	return newReuseSource(document), nil
 }

@@ -74,6 +74,21 @@ type registrationRecord struct {
 
 var lowerHex64 = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
+// UnmarshalJSON decodes the record a report carries as strictly as
+// parseRegistration decodes the file, so `score --report` refuses a carried
+// registration with a key the closed object does not define (CRT-V0-014).
+func (record *registrationRecord) UnmarshalJSON(data []byte) error {
+	type plain registrationRecord
+	var value plain
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&value); err != nil {
+		return fmt.Errorf("registration record: %w", err)
+	}
+	*record = registrationRecord(value)
+	return nil
+}
+
 // parseRegistration decodes one registration object with no unknown field and
 // checks each field's shape.
 func parseRegistration(data []byte) (registration, error) {
@@ -250,6 +265,17 @@ func firstLaneStart(document *report) (time.Time, bool) {
 		}
 	}
 	return first, observed
+}
+
+// registeredPrior refuses, for a registered run, a reused or resumed report
+// whose lanes ran under another model or effort: its replies would enter a
+// report registered for this run's settings (CRT-V0-014).
+func registeredPrior(run, prior *report, path string) error {
+	if run.Registration == nil || (prior.Model == run.Model && prior.Effort == run.Effort) {
+		return nil
+	}
+	return fmt.Errorf("%s: a registered run reuses only lanes run under its model %q and effort %q, not %q and %q",
+		path, run.Model, run.Effort, prior.Model, prior.Effort)
 }
 
 // unstampedLanes counts lanes that did not error yet carry no readable start,
