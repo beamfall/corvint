@@ -78,6 +78,8 @@ var legacyLimitations = []string{
 	"helper and custom-command bodies, support files and fixture files are not followed; a precondition binds its call text by digest",
 	"roles are not inferred and are always empty",
 	"global support hooks and root-level hooks in other files are not seen",
+	"the closed-world allowlist over-refuses: a case using any helper call, Cypress action, declaration or other unlisted form is unknown, never parity",
+	"other cases' bodies, hooks of non-enclosing suites, getters on operand paths and custom matchers or commands overriding a known name are not proven; cross-test state needs the runtime baseline",
 	"the inventory and crosswalk are generated; neither creates a reviewed legacy_criteria relation",
 }
 
@@ -120,6 +122,7 @@ type legacyFile struct {
 	data       []byte
 	tokens     []legacyToken
 	match      []int
+	allowAt    int // the first token of the runner structure the allowlist refuses, or -1
 }
 
 // legacyScope is what a suite passes to its children: its title path, the precondition
@@ -129,6 +132,7 @@ type legacyScope struct {
 	titles                                   []string
 	all, each, uncertain                     []string
 	disabled, focused, dynamic, dynamicTitle bool
+	allowAt                                  int // 1 + the first token an enclosing hook body has outside the allowlist; 0 when none
 }
 
 type legacyCall struct {
@@ -328,6 +332,7 @@ func (p *legacyProducer) file(f *legacyFile) {
 		return
 	}
 	f.tokens, f.match = tokens, match
+	f.allowAt = p.allowStructure(f, 0, len(tokens))
 	before := len(p.inv.Legacy)
 	p.scope(f, 0, len(tokens), legacyScope{}, true)
 	// The first of repeated titles keeps the unnumbered ID but is as ambiguous as the rest.
@@ -504,6 +509,9 @@ func (p *legacyProducer) scope(f *legacyFile, lo, hi int, s legacyScope, root bo
 		if !p.runner.hooks[c.name] {
 			continue
 		}
+		if inner.allowAt == 0 {
+			inner.allowAt = p.allowHook(f, c)
+		}
 		line, end := f.tokens[c.start].line, f.tokens[c.close].line
 		// A root or dynamic hook is an unknown, never a precondition, and every case under it
 		// inherits the doubt.
@@ -557,6 +565,7 @@ func (p *legacyProducer) suite(f *legacyFile, c legacyCall, s legacyScope) {
 		focused:      s.focused || legacyFocusedCallee[c.name] || c.member == "only",
 		dynamic:      s.dynamic || c.depth > 0,
 		dynamicTitle: s.dynamicTitle || dynamic,
+		allowAt:      s.allowAt,
 	}
 	if len(args) < 2 {
 		return
@@ -621,6 +630,12 @@ func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope) {
 	} else if body, hasBody = legacyCallback(f, args[1]); !hasBody {
 		note("case-callback-not-static", "the case body is not an inline function: "+legacyCanonical(t, args[1].lo, args[1].hi))
 	}
+	keys := []int{}
+	if bad, region := p.allowCase(f, s, args, &keys); bad >= 0 {
+		bad = min(bad, len(t)-1)
+		detail := region + ": " + legacyBounded(t[bad].raw) + " is the first token outside the closed-world allowlist: " + legacyCanonical(t, max(0, bad-4), min(len(t), bad+8))
+		p.unknown(f, id, "not-allowlisted", detail, t[bad].line, t[bad].line)
+	}
 	if hasBody {
 		consumed := map[int]bool{}
 		fixtures = append(fixtures, p.casePreconditions(f, id, body, false, consumed)...)
@@ -634,6 +649,12 @@ func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope) {
 		}
 		legacy.Criteria = p.assertions(f, id, body, consumed)
 		p.residue(f, id, body, consumed)
+		for _, key := range keys {
+			if !consumed[key] {
+				// Defense in depth: an admitted form the extraction did not bind is still refused.
+				p.unknown(f, id, "not-allowlisted", "an admitted statement was not extracted: "+legacyBounded(legacyCanonical(t, key, min(body.hi, key+12))), t[key].line, t[key].line)
+			}
+		}
 	}
 	// Execution order is part of the precondition identity; a repeated call keeps its first place.
 	for _, fixture := range fixtures {

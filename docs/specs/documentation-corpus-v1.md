@@ -490,8 +490,29 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `hook-not-static`. A method named by any keyword other than a statement header, or by a header
   keyword inside an object literal, is unproven. A keyword used as a property name ends an
   expression for the regex/division decision, and a numeric literal is scanned to its JavaScript
-  grammar; a literal followed directly by an identifier character refuses the file. A case with any unknown never reaches `parity-candidate`
-  (`DCP-V1-066`). LF, CR, CRLF, U+2028 and U+2029 are each a line terminator: each ends a `//`
+  grammar; a literal followed directly by an identifier character refuses the file. The residue
+  check is a diagnostic; the verdict comes from a closed-world allowlist. A case is admitted only
+  when every token of the file structure (runner suite, case and hook calls with one static string
+  title and an anonymous, parameterless callback, separated by `;` or line breaks), of each
+  enclosing hook body and of its own callback and body belongs to a recognized statement form:
+  `expect(<operand>)`, optionally `.withContext(<literals>)`, a chain of known chai words and
+  `.not`, ending in a known Jasmine matcher or chai method called with literal arguments or in a
+  known chai property; a `cy` chain of known queries with literal arguments, optionally
+  `.contains(...)`, then `.should('<chainer>', <literals>)` and `.and(...)`; a `cy`, `browser` or
+  `page` precondition call with literal arguments and an optional `.as('<name>')` (the only form
+  admitted in a hook); an optional `await`; operands that are literals (strings without
+  substitution, numbers, `true`, `false`, `null`, arrays and plain objects of those) or plain
+  identifier member paths; and `;`, line breaks and comments. Anything else, including any other
+  call, a computed member, an escaped identifier, a regex-ambiguous `/`, an alias or declaration,
+  `.call`/`.apply`, a member-qualified runner name, a template substitution, an import or a
+  callback parameter, is a `not-allowlisted` unknown naming the first refused token and its region
+  (file structure, an enclosing hook, case callback or case body). An admitted statement whose key
+  token no extraction consumed is also `not-allowlisted`. Over-refusal is accepted: helper calls,
+  Cypress actions, `afterEach`, `done` callbacks and regex literals make a case unknown, never
+  parity. The allowlist does not prove what runs outside the case: other cases' bodies and hooks
+  of non-enclosing suites (cross-test state is a runtime-baseline question), getters on operand
+  paths, custom matchers or commands that override a known name, and support files. A case with
+  any unknown never reaches `parity-candidate` (`DCP-V1-066`). LF, CR, CRLF, U+2028 and U+2029 are each a line terminator: each ends a `//`
   comment, separates statements for ASI and counts as a JavaScript line break; anchor lines stay
   LF-delimited as for every corpus anchor. Status: (proposed/experimental; GitHub #811).
 - `DCP-V1-063`: Preconditions are content-bound references. Every top-level call statement in an
@@ -514,7 +535,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   a scope with a hook call inside a template substitution. Canonical text writes a line break that
   ends a restricted production (after `return`, `break`, `continue` or `yield`, or before `++` or
   `--`) as the `;` ASI inserts; a backslash before U+2028 or U+2029 is a line continuation and a
-  template's CR or CRLF cooks to LF. Status: (proposed/experimental; GitHub #811).
+  template's CR or CRLF cooks to LF. A case reaches `parity-candidate` only when every enclosing
+  hook body holds nothing but allowlisted precondition statements (`DCP-V1-062`); any other hook
+  statement, such as a helper call or a Cypress action, is a `not-allowlisted` unknown for every
+  case under it, so a precondition the reader cannot bind is never silently omitted from
+  `fixtures`. Status: (proposed/experimental; GitHub #811).
 - `DCP-V1-064`: The record is pinned and deterministic: it names the repository identity and the
   full revision, reads only Git objects (never the working tree), writes nothing, and repeated runs
   on the same inputs give identical bytes. Status: (proposed/experimental; GitHub #811).
@@ -798,9 +823,14 @@ writes every `legacy_criteria` relation, and the behavior compiler still needs a
 
 Limits: helper, custom-command, support and fixture bodies are not followed (a precondition binds
 its call text, not the seed file); roles are always empty; global support hooks and root-level
-hooks in other files are not seen; assertions inside hooks only contribute to precondition digests;
-a call nested inside a conditional, loop or callback in a hook is not recorded as a precondition,
-and every case under that hook carries a `hook-not-static` unknown instead.
+hooks in other files are not seen; an assertion or any statement other than an allowlisted
+precondition inside an enclosing hook makes every case under it `not-allowlisted`; a call nested
+inside a conditional, loop or callback in a hook is not recorded as a precondition, and every case
+under that hook carries a `hook-not-static` unknown instead. The closed-world allowlist
+(`DCP-V1-062`) over-refuses by design: a case that uses any helper call, Cypress action,
+declaration or other unlisted form is unknown, never parity. Other cases' bodies, hooks of
+non-enclosing suites, getters on operand paths and custom matchers or commands overriding a known
+name are not proven; cross-test state needs the runtime baseline.
 
 Acceptance: `TestLegacyDiscoveryInventory`, `TestLegacyDiscoveryDeterministicReadOnly`,
 `TestLegacyCrosswalk`, `TestLegacyPreconditionDigestCompileGap`, `TestLegacyDiscoveryRefusals`,
@@ -887,8 +917,8 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-049..052 | `internal/doccorpus/behavior_playwright_witness.go`, `cmd/corvint/docs_corpus_playwright.go` | `TestPlaywrightWitnessImporter`, `TestDocsCorpusPlaywrightProducersCLI` |
 | DCP-V1-053 | `cmd/corvint/docs.go`, `cmd/corvint-js-test-provider/main.go` | `TestDocsHelpNamesPlaywrightReceiptProducer`, `TestDocsHelpProducerExampleUsesE2EFlags` |
 | DCP-V1-060..061 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-060 DCP-V1-061`) |
-| DCP-V1-062 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-062`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-062`), `TestLegacyResidueFailsClosed` (`DCP-V1-062`) |
-| DCP-V1-063 | `internal/doccorpus/behavior_legacy_discovery.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-063`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-063`), `TestLegacyLexerCanonicalAndEscapes`, `TestLegacyResidueFailsClosed` (`DCP-V1-063`) |
+| DCP-V1-062 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go`, `behavior_legacy_allow.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-062`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-062`), `TestLegacyResidueFailsClosed` (`DCP-V1-062`) |
+| DCP-V1-063 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_allow.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-063`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-063`), `TestLegacyLexerCanonicalAndEscapes`, `TestLegacyResidueFailsClosed` (`DCP-V1-063`) |
 | DCP-V1-064 | `internal/doccorpus/behavior_legacy_discovery.go` | `TestLegacyDiscoveryDeterministicReadOnly` |
 | DCP-V1-065..066 | `internal/doccorpus/behavior_legacy_crosswalk.go` | `TestLegacyCrosswalk` (`DCP-V1-065`, `DCP-V1-066`) |
 | DCP-V1-067 | `internal/doccorpus/behavior_legacy_crosswalk.go`, `behavior.go` | `TestLegacyCrosswalk` (`DCP-V1-067`), `TestLegacyPreconditionDigestCompileGap` |

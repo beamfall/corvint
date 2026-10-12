@@ -160,3 +160,55 @@ The repairs:
 A generic backstop now reports any unbound matcher member (`to`, `toX...` other than built-ins
 such as `toString`), whatever expression reached it. `TestLegacyResidueFailsClosed` gains one
 regression per variant. The byte comparison with `65fee2174` is unchanged from round 4.
+
+## Review round 6 findings and closed-world allowlist
+
+Codex round 6 (`/private/tmp/claude-501/w13-legacy-codex-r6.log`) found seven P2 variants that
+still reached `parity-candidate`:
+
+- a regex read as division after a declared `of`;
+- an escaped identifier (`cy.task(...)`);
+- an indexed or non-identifier computed precondition member (`cy.task[0]`, `cy.task['x-y']`);
+- a computed matcher member (`['toBe']`);
+- a member-qualified or computed hook (`globalThis.beforeEach`, `globalThis['beforeEach']`);
+- an alias (`const p = page; p.goto(...)`);
+- an opaque helper call (`checkHidden()`).
+
+Each round had found new escapes from a blocklist, so the verdict was redesigned (coordinator
+decision). The residue check stays as a diagnostic. The verdict now comes from a closed-world
+allowlist in `behavior_legacy_allow.go`. A case is admitted only when every token of these regions
+belongs to a recognized statement form:
+
+- the file structure;
+- each enclosing hook body;
+- the case callback and body.
+
+The forms are:
+
+- `expect` chains of known matchers with literal arguments;
+- `cy` query chains ending in `should`/`and`/`contains`;
+- `cy`/`browser`/`page` precondition calls with literal arguments;
+- an optional `await`;
+- operands that are literals or plain member paths;
+- `;`, line breaks and comments.
+
+The first refused token gives one `not-allowlisted` unknown, which names its region. As defence in
+depth, the key token of every admitted statement must have been consumed by extraction.
+
+Over-refusal is accepted scope. Helper calls, Cypress actions, declarations, imports, `done`
+callbacks, `afterEach` and regex literals all make a case unknown. In the checked-in fixtures,
+`shows the cart total` stays `parity-candidate`.
+
+The allowlist does not prove the following. They are recorded as limitations in DCP-V1-062/063 and
+in the inventory:
+
+- other cases' bodies and the hooks of non-enclosing suites, since cross-test state is a
+  runtime-baseline question;
+- getters on operand paths;
+- custom matchers or commands that override a known name;
+- support files.
+
+`TestLegacyResidueFailsClosed` now requires `not-allowlisted` for every residue repro. It adds the
+seven round-6 repros and further hook, preamble and callback-parameter forms, plus positive checks
+for the admitted forms. `TestLegacyDiscoveryStaticEdgeCases` checks that every earlier-round edge
+case is refused. The exception is the root-hook case, which keeps `hook-not-static`.

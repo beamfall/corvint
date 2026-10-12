@@ -593,6 +593,19 @@ func TestLegacyDiscoveryStaticEdgeCases(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Run("DCP-V1-062 every earlier-round edge case is refused by the allowlist", func(t *testing.T) {
+		for _, legacy := range inventory.Legacy {
+			want := "not-allowlisted"
+			if strings.HasPrefix(legacy.ID, "legacy:e2e/root.cy.js::") {
+				// The root hook is an admitted precondition form; the case is unknown because a
+				// root hook applies to every suite the runner loads.
+				want = "hook-not-static"
+			}
+			if reasons := legacyUnknownReasons(inventory, legacy.ID); !slices.Contains(reasons, want) {
+				t.Fatalf("%s: want %s, got %v", legacy.ID, want, reasons)
+			}
+		}
+	})
 	t.Run("DCP-V1-061 DCP-V1-068 regex context and invalid escapes never invent cases", func(t *testing.T) {
 		names := []string{}
 		for _, legacy := range inventory.Legacy {
@@ -791,8 +804,8 @@ func TestLegacyResidueFailsClosed(t *testing.T) {
 	}
 	blocked := func(t *testing.T, snippet string, inventory LegacyInventory, legacy BehaviorLegacyCase) {
 		t.Helper()
-		if len(legacyUnknownReasons(inventory, legacy.ID)) == 0 {
-			t.Fatalf("%q: no unknown", snippet)
+		if !slices.Contains(legacyUnknownReasons(inventory, legacy.ID), "not-allowlisted") {
+			t.Fatalf("%q: the allowlist admitted it: %v", snippet, legacyUnknownReasons(inventory, legacy.ID))
 		}
 		check := inventory.Crosswalk.ReviewedChecks[0]
 		if check.Verdict == "parity-candidate" || !slices.Contains(check.Reasons, "legacy-case-has-unknowns") {
@@ -892,9 +905,12 @@ func TestLegacyResidueFailsClosed(t *testing.T) {
 	})
 	t.Run("DCP-V1-062 DCP-V1-063 round-5 variants fail closed", func(t *testing.T) {
 		// A keyword property name ends an expression, so this is division and the assertion runs.
-		if _, legacy := with(t, "obj.return / (expect(hidden).toBe(1), 2) / 2;"); !slices.Contains(legacyTuples(legacy), "c3 toBe | hidden | 1") {
+		snippet := "obj.return / (expect(hidden).toBe(1), 2) / 2;"
+		inventory, legacy := with(t, snippet)
+		if !slices.Contains(legacyTuples(legacy), "c3 toBe | hidden | 1") {
 			t.Fatalf("keyword member hid an assertion: %q", legacyTuples(legacy))
 		}
+		blocked(t, snippet, inventory, legacy)
 		for _, snippet := range []string{
 			"1..should.equal(1);",
 			"cy.task[method](null, 'seed', 'A');",
@@ -917,10 +933,57 @@ func TestLegacyResidueFailsClosed(t *testing.T) {
 			blocked(t, snippet, inventory, legacy)
 		}
 		hook := "  beforeEach.call(null, () => { cy.task('seed', 'A'); });\n"
-		inventory, legacy := edit(t, "describe('Checkout', () => {\n", "describe('Checkout', () => {\n"+hook)
+		inventory, legacy = edit(t, "describe('Checkout', () => {\n", "describe('Checkout', () => {\n"+hook)
 		if !slices.Contains(legacyUnknownReasons(inventory, legacy.ID), "hook-not-static") {
 			t.Fatalf("an uninventoried hook spelling left no doubt: %v", legacyUnknownReasons(inventory, legacy.ID))
 		}
 		blocked(t, hook, inventory, legacy)
+	})
+	t.Run("DCP-V1-062 DCP-V1-063 the closed-world allowlist refuses the round-6 variants", func(t *testing.T) {
+		for _, snippet := range []string{
+			"let of = 8; of / (expect(hidden).toBe(1), 2) / 2;",
+			"c\\u0079.task('seed', 'A');",
+			"cy.task[0]('seed', 'A');",
+			"cy.task['x-y']('seed', 'A');",
+			"globalThis['ex' + 'pect'](hidden)['toBe'](1);",
+			"const p = page; p.goto('/seed-A');",
+			"checkHidden(); expect(visible).toBe(2);",
+			"cy.visit('/a')\n(seed)('A');",
+			"cy.get('.n');",
+			"expect(hidden).toThrow();",
+			"expect(hidden).toBe;",
+			"expect(rows()).toBe(1);",
+			"cy.visit('/a', { onBeforeLoad: seed });",
+			"await\ncy.visit('/a');",
+		} {
+			inventory, legacy := with(t, snippet)
+			blocked(t, snippet, inventory, legacy)
+		}
+		for _, hook := range []string{
+			"  globalThis.beforeEach(() => { seed('A'); });\n",
+			"  globalThis['beforeEach'](() => { seed('A'); });\n",
+			"  beforeEach(() => { seed('A'); });\n",
+			"  afterEach(() => { expect(hidden).toBe(1); });\n",
+			"  context('other', (cy) => {});\n",
+		} {
+			inventory, legacy := edit(t, "describe('Checkout', () => {\n", "describe('Checkout', () => {\n"+hook)
+			blocked(t, hook, inventory, legacy)
+		}
+		for _, preamble := range []string{"import { seed } from './seed';\n", "seed('A');\n"} {
+			inventory, legacy := edit(t, "describe('Checkout', () => {\n", preamble+"describe('Checkout', () => {\n")
+			blocked(t, preamble, inventory, legacy)
+		}
+		inventory, legacy := edit(t, "it('shows the cart total', () => {", "it('shows the cart total', (done) => {")
+		blocked(t, "a case callback parameter", inventory, legacy)
+		// Admitted forms keep the case a parity candidate.
+		admitted := "expect(a.b).not.toBe(-1);\n    expect(c).to.be.true\n    cy.get('a').first().should('have.text', 'A').and('be.visible')"
+		inventory, legacy = with(t, admitted)
+		if reasons := legacyUnknownReasons(inventory, legacy.ID); len(reasons) != 0 || len(legacy.Criteria) != len(baseTuples)+4 || inventory.Crosswalk.ReviewedChecks[0].Verdict != "parity-candidate" {
+			t.Fatalf("admitted forms were refused: %v %q %+v", reasons, legacyTuples(legacy), inventory.Crosswalk.ReviewedChecks[0])
+		}
+		inventory, legacy = with(t, "cy.visit('/x', { timeout: 1000 });")
+		if reasons := legacyUnknownReasons(inventory, legacy.ID); len(reasons) != 0 || len(legacy.Fixtures) != len(base.Legacy[0].Fixtures)+1 {
+			t.Fatalf("an admitted precondition was refused: %v %v", reasons, legacy.Fixtures)
+		}
 	})
 }
