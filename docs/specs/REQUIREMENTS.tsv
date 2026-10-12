@@ -2747,7 +2747,7 @@ PWP-V0-016	docs/specs/playwright-external-provider-v0.md	95	(accepted (decision 
 PWP-V0-017	docs/specs/playwright-external-provider-v0.md	106	(accepted (decision 0461; V1-1028; GitHub #686)) The record is closed. It has ex
 PWP-V0-018	docs/specs/playwright-external-provider-v0.md	124	(accepted (decision 0461; V1-1028; GitHub #686)) Missing evidence never becomes
 PWP-V0-019	docs/specs/playwright-external-provider-v0.md	166	(accepted under the owner's standing auto-accept (2026-10-11); V1-1242; GitHub #
-PWP-V0-020	docs/specs/playwright-external-provider-v0.md	193	(proposed; GitHub #832) A runner process that exceeds its bound is the
+PWP-V0-020	docs/specs/playwright-external-provider-v0.md	193	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #832) A ru
 PWP-V1-001	docs/specs/playwright-external-provider-v0.md	208	`/1` is available only in external-server mode and requires a typed `corvint-app
 PWP-V1-002	docs/specs/playwright-external-provider-v0.md	209	The closed provider configuration binds the expected application root commit, re
 PWP-V1-003	docs/specs/playwright-external-provider-v0.md	210	Each closed canonical `corvint-application-attestation/0` observation binds the

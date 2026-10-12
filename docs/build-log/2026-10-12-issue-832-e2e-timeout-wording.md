@@ -9,7 +9,7 @@ fixed detail names `vitest`. No timeout detail named the bound an operator shoul
 
 ## Decision
 
-`PWP-V0-020` (proposed): every timeout detail reads
+`PWP-V0-020` (accepted under the owner's standing auto-accept (2026-10-11)): every timeout detail reads
 `<runner> did not complete within the --timeout <value> bound`, naming `playwright test` for both
 e2e paths and `vitest` for unit runs, with the effective bound (default included) in Go duration
 form. The external path keeps the Vitest classifier's order and its cancelled case through
