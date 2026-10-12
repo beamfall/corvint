@@ -6,7 +6,7 @@ Delivery status: planned
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed/planned; no stable delivery or promotion.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter, `corvint cem convert`, with provenance and full-corpus verdict-parity evidence (proposed `CEM-V1-096..105`); qualification remains bounded.
 - Blocked on: stable wire/consumer integration, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -58,7 +58,8 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`; proof run in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` | V1-1265 added `citation` (CEM-V1-092) and `verdictSha256` (CEM-V1-066) through the tool |
 | CEM-V1-092 | `citation` member of `StableResult` (`internal/cem/verify/stable.go`) and `stableResult` (`interop/cem01-go/cem.go`, `stable_repository.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1092CitationOnlyOnAccept`, `TestCEMV1092SealedCasesCarryCitationOnlyOnAccept`, `TestCEMV1092RefuseAndRejectClearCitation` (native); `TestCEMV1092PortableCitationOnlyOnAccept`, `TestCEMV1082StableResultCarriesTheBlock`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file (case 21 derived natively on go1.27.2 with every other non-runtime key matching); ten envelope cells take `--cell-values` overrides |
 | CEM-V1-066 | `verdictSha256` member and `VerdictDigest` of `StableResult` (`internal/cem/verify/stable.go`, `stable_verdict.go`) and `stableResult` (`interop/cem01-go/cem.go`, `verdict.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1066SealedVerdictDigests`, `TestCEMV1066VerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066EveryOutcomeCarriesVerdictDigest` (native); `TestCEMV1066PortableSealedVerdictDigests`, `TestCEMV1066PortableVerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066PortableEveryOutcomeCarriesVerdictDigest`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file, computed from their sealed expectations; ten envelope cells take `--cell-values` overrides; no consumer reads the digest yet (decision 0525 step 8, V1-1283) |
-| CEM-V1-093..095 | `internal/cem/wire/stable_provenance.go`, `interop/cem01-go/stable_provenance.go`; `provenance`, `role`, `sha1Oid` in `protocol/cem-1.0/stable/stable.schema.json`; re-homed 0.1/0.3 text in `protocol/cem-1.0/stable/ALGORITHMS.md`; shared vectors `interop/cem01-go/testdata/stable-map-members/cases.json`; `TestCEMV1093*`, `TestCEMV1094*`, `TestCEMV1095*` in `internal/cem/wire` and `interop/cem01-go` | No converter emits `provenance` or `role` yet (V1-1275); `cem status --citation` role grouping is `CEM-V1-106` (V1-1281); provenance OIDs are SHA-1 only; the sealed S0E packet copy of `stable.schema.json` is unchanged; stranger time NOT_OBSERVED |
+| CEM-V1-093..095 | `internal/cem/wire/stable_provenance.go`, `interop/cem01-go/stable_provenance.go`; `provenance`, `role`, `sha1Oid` in `protocol/cem-1.0/stable/stable.schema.json`; re-homed 0.1/0.3 text in `protocol/cem-1.0/stable/ALGORITHMS.md`; shared vectors `interop/cem01-go/testdata/stable-map-members/cases.json`; `TestCEMV1093*`, `TestCEMV1094*`, `TestCEMV1095*` in `internal/cem/wire` and `interop/cem01-go` | The V1-1275 converter (CEM-V1-096..105) emits `provenance` but never `role`; `cem status --citation` role grouping is `CEM-V1-106` (V1-1281); provenance OIDs are SHA-1 only; the sealed S0E packet copy of `stable.schema.json` is unchanged; stranger time NOT_OBSERVED |
+| CEM-V1-096..105 | `internal/cem/convert`, `internal/cem/cli/convert.go` (`corvint cem convert`), `tools/cem-convert-parity`; `TestCEMV1096*`..`TestCEMV1104*` in `internal/cem/convert`, `cmd/corvint`, `tools/cem-convert-parity` and `interop/cem01-go`; full-corpus parity `docs/build-log/evidence/v1-1275/` | Committed maps are not yet converted (V1-1276/V1-1277); direct verification at a bind commit is `REJECT excluded-artifact-mismatch` until §5 sealing; cem/0.1 out-of-band patch parity limit; f0fda542 native and portable partial drift lists differ on the resource-limit abort; removal with 0.x is V1-1278 |
 | CEM-V1-106 | `internal/cem/workflow/stable_read.go` `StableCitationClass` and the `status` branch of `readStable`; `TestCEMV1106StatusCitationClassGroupsChoreMaps` in `internal/cem/cli` | No producer writes `role` before the V1-1276 cutover, so every committed map reads class `change`; the portable consumer has no status envelope and is unchanged |
 | CEM-V1-065 | `CEMStatementV2` and the v2 verifier in `internal/attest/cem_v2.go`; `prove --attest-cem-v2` and `--verify-cem-attestation --artifacts/--target` in `cmd/corvint/prove_attest_cem.go`; stable routing in `internal/cem/wire/route.go` and `internal/gitnotes/anchor.go`; `TestCEMV1065*` in `internal/attest`, `cmd/corvint` and `internal/gitnotes` | No verdict ledger; no signing producer or key management; v2 emission needs full-OID `--expected-base` and `--target` and an ACCEPT result; no independent consumer of `cem/v2` |
 
@@ -509,8 +510,8 @@ schema restates from `inherited/cem-0.3.schema.json`. The `inherited/` copies ar
 as historical provenance; `ALGORITHMS.md` is the 1.0-normative text and governs where they differ.
 The 0.1/0.2/0.3 requirement IDs keep their definitions in their own specs.
 
-Non-goals: no converter (V1-1275); reader grouping by role is `CEM-V1-106` (`cem status
---citation`, V1-1281); no "intent and scope" or "structural witness" member; no change to `RESULT.schema.json`,
+Non-goals: no converter here (V1-1275 adds it as CEM-V1-096..105 below); reader grouping by role is `CEM-V1-106` (`cem status --citation`,
+V1-1281); no "intent and scope" or "structural witness" member; no change to `RESULT.schema.json`,
 the stable result struct, the sealed S0E packet or any `inherited/` file; no SHA-256 repository
 form of the provenance OIDs.
 
@@ -533,6 +534,127 @@ key change in both decoders and `EncodeStable`, the `provenance`, `role` and `sh
 in `stable.schema.json`, the CEM-V1-093..095 and re-homed sections of `ALGORITHMS.md`, the README
 bullets and their manifest entries. A map without the optional members needs no migration; a map
 carrying either is refused `unknown-field` again after rollback.
+
+## cem/0.x -> cem/1.0 converter (V1-1275, decision 0525 §4)
+
+Status: proposed. Decision 0525 §4 "Converter contract" and §5 "Sealed-map rule". The converter
+turns one committed cem/0.1, cem/0.2 or cem/0.3 map into the cem/1.0 map CEM-V1-093..095 shape,
+as a pure function of the source bytes and the bind commit, so that every committed map can move
+to cem/1.0 (V1-1276/V1-1277) without a verdict changing. It lives in `internal/cem/convert` and
+behind `corvint cem convert`.
+
+- `CEM-V1-096`: The converter input is the exact bytes of one map. A map that declares
+  `cem/1.0` is refused `convert-source-is-stable` before any other check. Otherwise the bytes are
+  read by the existing 0.x reader (`wire.ParseMap`), which accepts `cem/0.1`, `cem/0.2` and
+  `cem/0.3`; a wire refusal keeps that reader's own code (for example `invalid-json`,
+  `unknown-field`, `orphan-evidence`). A source with zero hunks is refused `convert-empty-hunks`,
+  because a stable map cannot carry an empty `hunks` array.
+- `CEM-V1-097`: The output is exactly the `wire.EncodeStable` bytes of this stable map, which
+  `ParseStable` accepts:
+  1. `spec` is `cem/1.0`;
+  2. `baseRevision`, `patchSha256`, `evidence` and `hunks` are the source values, carried member
+     for member. Hunk `disposition`, `reason`, `basis`, ranges and IDs are unchanged, and hunk
+     `coverage` and `discriminates` (cem/0.3) are carried unchanged when present and omitted when
+     absent, never synthesized;
+  3. `excludedPath` is the protocol literal `.corvint/change.cem.json` (a cem/0.1 source has no
+     such member; 0.2 and 0.3 sources already carry the same literal);
+  4. the CEM-V1-094 producer-only members `criterionBindings`, `runnerReceipts`, `criterionLinks`
+     and `artifacts` are empty arrays;
+  5. `provenance` is the CEM-V1-098 object;
+  6. `role` is omitted (effective `change`); grouping by role is V1-1281.
+
+  No tier, axis, reason or witness is computed: tiers stay consumer-computed. Nothing in the
+  output is read from Git.
+- `CEM-V1-098`: `provenance.sourceSpec` is the source `spec`; `sourceBlobOid` is the Git SHA-1
+  blob object name of the exact source bytes; `sourceSha256` is the lowercase hex SHA-256 of the
+  same bytes; `bindCommit` is the commit the source file name pins (`<40 lowercase
+  hex>.cem.json`), or the explicit `--bind-commit` value, which takes precedence; `converter` is
+  `corvint-cem-convert/1`. A missing or malformed bind commit is refused
+  `convert-bind-commit-unavailable`; the converter never guesses one.
+- `CEM-V1-099`: When a repository is given, the converter reads one Git object path: the blob the
+  bind commit holds at `.corvint/change.cem.json`. The report states the source binding as `EXACT`
+  (a regular file whose blob OID equals `sourceBlobOid`), `ABSENT` (the commit resolves but holds
+  no regular file there), `UNAVAILABLE` (the commit or its trees cannot be read), `MISMATCH` (a
+  different blob) or `NOT_CHECKED` (no repository). Only `MISMATCH` refuses
+  (`convert-source-binding-mismatch`); the output bytes are the same for every other state.
+- `CEM-V1-100`: Conversion is deterministic and idempotent at the byte level: converting the same
+  bytes with the same bind commit twice gives identical output, on any host and with or without a
+  repository. Converting the output again is refused `convert-source-is-stable`, never rewritten.
+- `CEM-V1-101`: The converter's own refusal codes are exactly `convert-source-is-stable`,
+  `convert-empty-hunks`, `convert-bind-commit-unavailable`, `convert-source-binding-mismatch` and
+  `convert-encode-refused` (the encoder refused the assembled map; not reachable from an accepted
+  source). A refusal emits no map bytes and no provenance.
+- `CEM-V1-102`: `corvint cem convert --map MAP (--output MAP | --in-place) [--bind-commit REV]
+  [--repository PATH]` takes absolute clean paths, converts one map and prints one closed
+  `corvint-cem-convert-report/1` JSON object: `profile`, `status` (`CONVERTED` or `REFUSED`),
+  `code`, `converter`, `sourceSpec`, `sourceBinding`, `provenance`, `hunkCount`, `evidenceCount`
+  and `outputSha256`. `--output` never replaces an existing file; `--in-place` replaces the source
+  through a sibling temporary file and one rename. Exit 0 is converted, 1 is a CEM-V1-096 or
+  CEM-V1-101 refusal, 2 is `invalid-arguments` (including a root option before `cem convert`),
+  `map-unavailable` (the map is missing, not a regular file or over the map size limit) or
+  `publish-failed` (the output could not be written).
+- `CEM-V1-103`: A map whose pinned objects are unavailable still converts from its bytes alone
+  (binding `UNAVAILABLE`, output identical to a reachable conversion). Verifying it gives an
+  explicit `UNSUPPORTED` result at the `repository` stage on both consumers, never a verdict; the
+  observed code is `git-read-failed`, the same code the 0.2 verifier gives the source.
+- `CEM-V1-104`: Verdict parity is measured per committed map at the substituted target T', the
+  bind commit's tree with only `.corvint/change.cem.json` replaced by the converted bytes, written
+  only into a scratch clone. The 0.x native verifier runs on the source at the bind commit; the
+  native stable verifier and `interop/cem01-go verify-stable-canonical` run on the converted map
+  at T' with the source `baseRevision` as the expected base. Compared: outcome, stage, the reason
+  or issue code (0.x repository codes mapped to their stable names), `changeIntegrity`, the
+  sorted drift list and the full per-hunk array (disposition, reason, basis, ranges, IDs and
+  witnesses). Excluded: `mapSha256`, `verdictSha256` and `citation`, which bind the map bytes and
+  so differ by construction; the reference, criterion, runner and artifact axes, which a 0.x
+  result does not have (CEM-V1-094 makes them `EMPTY_REFERENCE_SET` and `NOT_OBSERVED`). Each row
+  is classed `identical`, `empty-member-explained` (only a references/artifacts stage explains the
+  difference), `unavailable-objects`, `pre-existing-refusal` (both consumers repeat the source's
+  `UNSUPPORTED` code, stage and hunks), `NOT_OBSERVED` (the bind commit is absent from the clone)
+  or `different`. Recorded limits: direct verification at the bind commit itself is `REJECT
+  excluded-artifact-mismatch` on both consumers for every map, because the bind commit's sidecar
+  holds the 0.x bytes (§5 sealing replaces the sidecar, not the bind commit); and a cem/0.1 source
+  carries an out-of-band patch digest that the canonical diff does not reproduce, so its
+  conversion verifies as `REJECT` `patch-digest-mismatch`, the same result `verify.Exact` gives the
+  source with canonical-diff bytes. cem/1.0 has no out-of-band patch member; the committed corpus
+  holds no cem/0.1 map.
+- `CEM-V1-105`: The converter exists only to migrate cem/0.x maps. It is removed with the 0.x
+  readers by V1-1278; after that removal `corvint cem convert` is an unknown action and no
+  cem/1.0 producer depends on it.
+
+Non-goals: no producer-only evidence (criterion bindings, runner receipts, links, artifacts) is
+synthesized; no `role` is assigned; no tier, structural reason or witness is recomputed into the
+map; no rewrite of committed maps or bind commits (V1-1276/V1-1277 own the corpus migration and
+the §5 sealing commit); no cem/1.0 to 0.x converter; no SHA-256 repository form of the
+provenance OIDs; no change to either stable consumer.
+
+Failure modes: a 1.0 or malformed source, an empty hunk list or a missing bind commit is refused
+with a bounded code and no output; a sidecar that is a different blob at the bind commit refuses
+instead of attributing a map to the wrong commit; an unreadable repository never changes the
+output and never becomes a verdict; an existing `--output` file is never overwritten; a
+consumer-only divergence on a resource-limit abort (the partial drift list) is retained as a
+`nativePortableDiffer` row, not hidden by the class.
+
+Acceptance evidence:
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-096 | `TestCEMV1096ConvertAcceptsEachZeroDialect` (`internal/cem/convert`) | cem/0.1, cem/0.2 and cem/0.3 fixtures convert to their goldens under `internal/cem/convert/testdata/` |
+| CEM-V1-097 | `TestCEMV1097ConvertMemberMapping` (`internal/cem/convert`) | Carried members equal the source; producer-only members empty; `role` absent; 0.3 witnesses carried, absent witnesses not synthesized |
+| CEM-V1-098 | `TestCEMV1098ConvertProvenanceValues` (`internal/cem/convert`) | Each provenance member equals its derived value in the map and the report; the empty input gives Git's empty-blob OID; a file name pins only 40 lowercase hex |
+| CEM-V1-099 | `TestCEMV1099ConvertSourceBinding`, `TestCEMV1099ConvertGitReaderStates` (`internal/cem/convert`) | Five binding states over a fake reader and real repositories; only MISMATCH refuses; bytes equal across states |
+| CEM-V1-100 | `TestCEMV1100ConvertCorpusIdempotent`, `TestCEMV1100ConvertF0fda542` (`internal/cem/convert`) | All 603 committed maps convert twice to identical bytes and reconversion refuses `convert-source-is-stable`; the 877-hunk f0fda542 map converts |
+| CEM-V1-101 | `TestCEMV1101ConvertRefusalCodes` (`internal/cem/convert`) | Each reachable converter code from its trigger with no output or provenance; malformed JSON keeps the reader's `invalid-json` |
+| CEM-V1-102 | `TestCEMV1102CEMConvertCommand` (`cmd/corvint`) | Golden output, exits 0/1/2, no overwrite of an existing output, `--in-place` with `--repository`, unnamed bind refused, argument and missing-map refusals |
+| CEM-V1-103 | `TestCEMV1103ConvertUnavailableObjects` (`internal/cem/convert`); `TestCEMV1104PortableConvertedFixtures` (`interop/cem01-go`) | Empty repository: binding UNAVAILABLE, output equals golden, both consumers UNSUPPORTED `git-read-failed` as the 0.2 source |
+| CEM-V1-104 | `TestCEMV1104ConvertParityCEM03`, `TestCEMV1104ConvertParityCEM01` (`internal/cem/convert`); `TestCEMV1104PortableConvertedFixtures` (`interop/cem01-go`); `TestCEMV1104ConvertParitySample`, `TestCEMV1104ConvertParityClassify` (`tools/cem-convert-parity`) | Full corpus run `docs/build-log/evidence/v1-1275/` (603 rows: 602 `identical`, 1 `pre-existing-refusal`, 0 `different`, 0 `NOT_OBSERVED`); build log `docs/build-log/2026-10-12-cem-convert.md` |
+| CEM-V1-105 | None (removal plan) | V1-1278 removes `internal/cem/convert`, `tools/cem-convert-parity` and the `cem convert` action with the 0.x readers |
+
+Rollback: revert `internal/cem/convert`, `internal/cem/cli/convert.go`, the `convert` dispatch in
+`internal/cem/cli/stable.go`, the help lines in `cmd/corvint/help.go`,
+`tools/cem-convert-parity`, `interop/cem01-go/convert_fixture_test.go` and this section. No
+committed map, schema, consumer or sealed packet changes, so nothing needs migration back; a map
+already converted stays a valid cem/1.0 map, and its source bytes are recoverable from Git by
+`provenance.sourceBlobOid`.
 
 ## Status citation class (V1-1281)
 

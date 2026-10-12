@@ -955,6 +955,8 @@ Usage:
     --output DIR [--witness REPORT]
   corvint [--root PATH] cem verify-stable --repository PATH --map MAP
     --expected-base REV --target REV --artifacts DIR [--trusted-keys FILE]
+  corvint cem convert --map MAP (--output MAP | --in-place) [--bind-commit REV]
+    [--repository PATH]
 
 Actions:
   begin    Build a cem/0.1 candidate from exact out-of-band patch bytes.
@@ -1004,6 +1006,12 @@ Actions:
            authentication axis to VERIFIED (UNTRUSTED_KEY otherwise). A key
            the map or its artifacts carry is never trusted, and a valid
            signature never raises executionAtCommit.
+  convert  Convert one cem/0.1, cem/0.2 or cem/0.3 map to cem/1.0 with its
+           provenance member (decision 0525 §4) and print one
+           corvint-cem-convert-report/1 JSON report. Paths are absolute;
+           --bind-commit defaults to the <commit>.cem.json file name, and
+           --repository checks that the bind commit holds the source bytes.
+           A cem/1.0 input is refused.
 
 Verification options:
   --expected-base REV  Independent expected base. Required for cem/0.2.
