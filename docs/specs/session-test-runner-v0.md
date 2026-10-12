@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-10-11
 Requirement prefix: `STR-V0`
-Intent status: accepted (decision 0523; V1-0040)
+Intent status: accepted (decision 0524; V1-0040)
 Delivery status: not-started
 Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 2026-10-11);
 `docs/specs/affected-plan-v0.md` (AFP-V0-011..013, 022, 023, 028..030, 041);
@@ -12,7 +12,7 @@ Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 
 
 ## Agent digest
 - Claim: `corvint test` plans from the diff, runs only selected tests through runner adapters, shards deterministically, and falls back alike locally and in CI.
-- Status: accepted (decision 0523; V1-0040)/not-started
+- Status: accepted (decision 0524; V1-0040)/not-started
 - Exists: the pieces, under separate drivers: `corvint affected` (plan), `script/gate-affected.sh` (local driver), `tools/corvint-pr-tests` and `tools/gate-affected-select` (CI driver), `.github/cishards` (complete-universe partition and test slices), `cmd/corvint-go-test-provider` (experimental Go execute provider).
 - Blocked on: driver parity evidence (STR-V0-013) before either call site moves; AFP-V0-029 shadow bar for any CI narrowing, which this spec does not relax.
 - Read next: Requirements; Boundaries and failure modes; Rollout and rollback.

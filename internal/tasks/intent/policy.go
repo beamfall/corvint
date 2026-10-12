@@ -141,15 +141,24 @@ type Policy struct {
 
 // ObligationsPolicy is the TOL-V0-015 opt-in. WorkerWitness lets a WORKER
 // issue OBLIGATIONS_WITNESS from a Playwright report under the live attempt
-// generation it holds; it grants nothing else.
+// generation it holds; it grants nothing else. RequireSourceReview
+// (TOL-V0-040) makes preflight refuse an obligation whose review sources are
+// missing or record an unaudited empty search; it changes no ledger byte.
 type ObligationsPolicy struct {
-	WorkerWitness bool
+	WorkerWitness       bool
+	RequireSourceReview bool
 }
 
 // WorkerObligationWitness reports whether policy opts WORKER into the
 // report witness (TOL-V0-015). Absent or false keeps the default refusal.
 func (p *Policy) WorkerObligationWitness() bool {
 	return p.Obligations != nil && p.Obligations.WorkerWitness
+}
+
+// ObligationSourceReviewRequired reports whether policy opts into the
+// TOL-V0-040 source-review preflight. Absent or false keeps it off.
+func (p *Policy) ObligationSourceReviewRequired() bool {
+	return p != nil && p.Obligations != nil && p.Obligations.RequireSourceReview
 }
 
 // MilestonePolicy is the CAL-V0-195 opt-in. Required makes CREATE without a
@@ -481,8 +490,11 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	if wire.Has(v, "obligations") {
 		o := r.Field("obligations")
-		o.Closed("workerWitness")
+		o.Closed(wire.OptionalKeys(o.Value(), []string{"workerWitness"}, "requireSourceReview")...)
 		p.Obligations = &ObligationsPolicy{WorkerWitness: o.Field("workerWitness").Bool()}
+		if o.Err() == nil && wire.Has(o.Value(), "requireSourceReview") {
+			p.Obligations.RequireSourceReview = o.Field("requireSourceReview").Bool()
+		}
 		if err := r.Err(); err != nil {
 			return nil, err
 		}

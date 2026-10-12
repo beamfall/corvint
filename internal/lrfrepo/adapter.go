@@ -259,3 +259,221 @@ func sha256Hex(data []byte) string {
 
 func stringPointer(value string) *string { return &value }
 func intPointer(value int64) *int64      { return &value }
+
+// StableUniverseOptions are the explicit authority inputs of one stable
+// universe verification. Every field is required: there is no default
+// repository, revision or artifact root, and no Git-only fallback when the
+// artifact root is missing (CEM-V1-052).
+type StableUniverseOptions struct {
+	// Root is the absolute, lexically clean repository root.
+	Root         string
+	ExpectedBase string
+	Target       string
+	// ArtifactRoot is the absolute directory holding the map's referenced
+	// artifact bytes.
+	ArtifactRoot string
+}
+
+// StableUniverse is one accepted read-only verified cem/1.0 change projection
+// with its verified OCM obligations (CEM-V1-051). It is the C05 entry point
+// that the later stable consumers (TCQ/frontier, obligations, dashboards) build
+// on.
+//
+// It deliberately retains the complete stable identity: Spec is always
+// cem/1.0, MapSHA256 is the digest of the exact original map bytes (never an
+// encoder digest), and Verification is the full accepted stable verifier
+// result including its artifact checks and NOT_OBSERVED authority axes. It
+// never carries a legacy *wire.Map, so no 0.x writer or reduced serializer can
+// consume it (CEM-V1-054).
+type StableUniverse struct {
+	Spec           string
+	MapSHA256      string
+	Verification   verify.StableResult
+	BaseRevision   string
+	TargetRevision string
+	// ObjectFormat is the repository's own format, exactly "sha1" or "sha256".
+	ObjectFormat string
+	PatchSHA256  string
+	OCMSHA256    string
+	Intent       IntentScope
+	// Obligations are every verified OCM row in OCM order; unknown rows stay
+	// unknown with their reason (CEM-V1-053).
+	Obligations []Obligation
+	// LRFRequest is the stable projection admitted by lrf.ValidateStableRequest.
+	// lrf/0 is frozen and lrf.Evaluate refuses it; a consumer needs its own
+	// accepted stable LRF profile before it may evaluate this request.
+	LRFRequest   lrf.Request
+	PythonClaims []PythonClaimEvidence
+	original     []byte
+}
+
+// OriginalBytes returns a copy of the exact authenticated stable map bytes.
+func (u *StableUniverse) OriginalBytes() []byte { return append([]byte(nil), u.original...) }
+
+// Document re-parses the exact authenticated bytes into a fresh full stable
+// document, so a consumer that edits its copy cannot alter this universe.
+func (u *StableUniverse) Document() (*wire.StableMap, error) { return wire.ParseStable(u.original) }
+
+// StableRefusal is a stable verifier result that did not accept. It retains
+// the full result and exit status as evidence; it is never an accept.
+type StableRefusal struct {
+	Result verify.StableResult
+	Exit   int
+}
+
+// Code is the verifier refusal code, or the first REJECT issue code.
+func (e *StableRefusal) Code() string {
+	if e.Result.Code != nil {
+		return *e.Result.Code
+	}
+	if len(e.Result.IssueCodes) > 0 {
+		return e.Result.IssueCodes[0]
+	}
+	return "stable-verification-failed"
+}
+
+func (e *StableRefusal) Error() string {
+	return e.Code() + ": stable verification " + e.Result.Outcome + " at stage " + e.Result.Stage
+}
+
+// Unwrap exposes the refusal code to CodeOf as an adapter error.
+func (e *StableRefusal) Unwrap() error {
+	return &Error{Code: e.Code(), Message: "stable verification " + e.Result.Outcome + " at stage " + e.Result.Stage}
+}
+
+// VerifyStableUniverse is the explicit cem/1.0 OCM/LRF admission. In order it:
+//
+//  1. admits only a map that declares cem/1.0 (anything else is
+//     unsupported-spec; a stable map is never reduced to a 0.x reading);
+//  2. runs the complete stable verifier over the exact original bytes with
+//     the explicit base, target and artifact root, and refuses with the full
+//     result unless it accepted with the exact committed sidecar;
+//  3. opens the repository under the stable envelope and retains that
+//     boundary for the whole OCM phase;
+//  4. re-derives the canonical patch at the accepted revisions and requires
+//     its digest to equal the accepted stable patch digest;
+//  5. verifies the OCM against the exact original map digest, the same target
+//     and patch, the pinned intent scope, its claims and its obligations;
+//  6. projects the stable LRF request and admits it through
+//     lrf.ValidateStableRequest;
+//  7. revalidates the retained boundary and runs the stable verifier again,
+//     requiring a result identical to the first, so the repository and
+//     artifacts it authenticated are still the ones the OCM phase read.
+//
+// Every refusal returns no universe, so nothing downstream can derive a closed
+// or empty frontier from a stale, swapped or incomplete input (CEM-V1-056).
+func VerifyStableUniverse(ctx context.Context, cemRaw, ocmRaw []byte, options StableUniverseOptions) (*StableUniverse, error) {
+	if !wire.DeclaresStable(cemRaw) {
+		return nil, cemcode.New(cemcode.UnsupportedSpec, "stable universe verification accepts cem/1.0 only")
+	}
+	result, err := acceptedStable(ctx, cemRaw, options)
+	if err != nil {
+		return nil, err
+	}
+	if result.Sidecar != "EXACT" {
+		return nil, cemcode.New(cemcode.ExcludedArtifactMismatch, "stable OCM/LRF admission requires the exact committed sidecar at the target; sidecar is %s", result.Sidecar)
+	}
+	universe, err := stableUniversePhase(ctx, cemRaw, ocmRaw, options, result)
+	if err != nil {
+		return nil, err
+	}
+	again, err := acceptedStable(ctx, cemRaw, options)
+	if err != nil {
+		return nil, err
+	}
+	if !sameStableResult(result, again) {
+		return nil, cemcode.New(cemcode.RepositoryObjectUnavailable, "stable verification changed during OCM/LRF admission")
+	}
+	return universe, nil
+}
+
+// acceptedStable runs the stable verifier and returns its result only when it
+// accepted; any other result is a StableRefusal that keeps it whole.
+func acceptedStable(ctx context.Context, cemRaw []byte, options StableUniverseOptions) (verify.StableResult, error) {
+	result, exit := verify.Stable(ctx, cemRaw, verify.StableOptions{
+		Repository: options.Root, ExpectedBase: options.ExpectedBase,
+		Target: options.Target, ArtifactRoot: options.ArtifactRoot,
+	})
+	if exit != 0 || result.Accept == nil || !*result.Accept || result.Outcome != "ACCEPT" ||
+		result.TargetRevision == nil || result.PatchSha256 == nil || result.MapSha256 == nil {
+		return result, &StableRefusal{Result: result, Exit: exit}
+	}
+	return result, nil
+}
+
+// afterStableUniversePhase runs between the OCM phase and the terminal
+// revalidation. It is a test seam only and does nothing in production.
+var afterStableUniversePhase = func() {}
+
+// stableUniversePhase verifies the OCM and projects the request inside one
+// retained stable repository boundary, which it revalidates before returning.
+func stableUniversePhase(ctx context.Context, cemRaw, ocmRaw []byte, options StableUniverseOptions, result verify.StableResult) (*StableUniverse, error) {
+	document, err := wire.ParseStable(cemRaw)
+	if err != nil {
+		return nil, err
+	}
+	base, target := document.Change.BaseRevision, *result.TargetRevision
+	if base != options.ExpectedBase || *result.MapSha256 != document.StableOriginalDigest() {
+		return nil, cemcode.New(cemcode.InvalidArguments, "stable verification binding differs from the requested base or map")
+	}
+	repository, boundary, err := gitauth.OpenStable(options.Root, gitrun.NewDefaultBudget(), nil)
+	if err != nil {
+		return nil, err
+	}
+	defer boundary.Close()
+	if err := boundary.Validate(); err != nil {
+		return nil, err
+	}
+	release := repository.BeginObjectSession()
+	defer release()
+	patchBytes, err := repository.CanonicalDiff(ctx, base, target)
+	if err != nil {
+		return nil, err
+	}
+	if sha256Hex(patchBytes) != *result.PatchSha256 || sha256Hex(patchBytes) != document.Change.PatchSha256 {
+		return nil, cemcode.New(cemcode.PatchDigestMismatch, "re-derived stable patch does not match the accepted patchSha256")
+	}
+	// Private mechanics view for the shared OCM and projection steps; it is
+	// never returned and its spec stays cem/1.0.
+	change := wire.Map(document.Change)
+	excluded := wire.ExcludedCEMPath
+	verified := &verifiedCEM{base: base, target: target, patch: patchBytes, patchSource: "canonical-derived", excluded: &excluded}
+	parsed, err := parseOCM(ocmRaw)
+	if err != nil {
+		return nil, err
+	}
+	ocm, pythonClaims, err := verifyUniverseOCM(ctx, repository, &change, cemRaw, verified, parsed, ocmRaw, Options{ExpectedBase: base, Target: target})
+	if err != nil {
+		return nil, err
+	}
+	request, err := project(ctx, repository, &change, cemRaw, verified, ocm)
+	if err != nil {
+		return nil, err
+	}
+	if err := lrf.ValidateStableRequest(request); err != nil {
+		return nil, err
+	}
+	format, err := objectFormat(ctx, repository)
+	if err != nil {
+		return nil, err
+	}
+	afterStableUniversePhase()
+	if err := boundary.Validate(); err != nil {
+		return nil, err
+	}
+	return &StableUniverse{
+		Spec:           document.Change.Spec,
+		MapSHA256:      document.StableOriginalDigest(),
+		Verification:   result,
+		BaseRevision:   base,
+		TargetRevision: target,
+		ObjectFormat:   format,
+		PatchSHA256:    sha256Hex(patchBytes),
+		OCMSHA256:      ocm.mapSHA256,
+		Intent:         intentScope(ocm.intent),
+		Obligations:    obligationRows(parsed.obligations),
+		LRFRequest:     request,
+		PythonClaims:   pythonClaims,
+		original:       document.OriginalBytes(),
+	}, nil
+}

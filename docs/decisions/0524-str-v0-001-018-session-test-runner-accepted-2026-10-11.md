@@ -1,4 +1,4 @@
-# Decision 0523 — Session Test Runner V0 requirements accepted
+# Decision 0524 — Session Test Runner V0 requirements accepted
 
 Date: 2026-10-11. Status: accepted (owner instruction in chat, "auto accept it once codex passes",
 2026-10-11). Authority: repository owner.

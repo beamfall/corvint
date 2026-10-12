@@ -228,7 +228,9 @@
     "internal/doccompiler": [],
     "internal/doccorpus": [
       "docs/DOCUMENTATION-CORPUS.md",
-      "examples/documentation-corpus/"
+      "examples/documentation-corpus/",
+      "protocol/cem-1.0/stable/repository-envelope-packet/",
+      "protocol/cem-1.0/structural-tuples/"
     ],
     "internal/docviews": [],
     "internal/dogfoodflow": [
@@ -341,7 +343,10 @@
     "internal/testvaliditydoc": [],
     "internal/trace": [],
     "internal/unplannedread": [],
-    "internal/witness": [],
+    "internal/witness": [
+      "protocol/cem-1.0/stable/repository-envelope-packet/",
+      "protocol/cem-1.0/structural-tuples/"
+    ],
     "internal/worksource": [],
     "tools/beamfall-shadow": [
       "go.mod"
