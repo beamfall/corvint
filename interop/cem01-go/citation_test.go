@@ -459,7 +459,7 @@ func TestCEMV1082StableResultCarriesTheBlock(t *testing.T) {
 	accepted, _, _, block := f.run(t, f.stableMap(t, patch24Careful()))
 	b, _ := json.Marshal(accepted)
 	var obj map[string]json.RawMessage
-	if err := json.Unmarshal(b, &obj); err != nil || len(obj) != 22 || !bytes.Equal(obj["citation"], block) {
+	if err := json.Unmarshal(b, &obj); err != nil || len(obj) != 23 || !bytes.Equal(obj["citation"], block) {
 		t.Fatalf("accepted citation = %s, want %s", obj["citation"], block)
 	}
 }
@@ -498,7 +498,7 @@ func TestCEMV1092PortableCitationOnlyOnAccept(t *testing.T) {
 	} {
 		b, _ := json.Marshal(c.r)
 		var obj map[string]json.RawMessage
-		if err := json.Unmarshal(b, &obj); err != nil || len(obj) != 22 {
+		if err := json.Unmarshal(b, &obj); err != nil || len(obj) != 23 {
 			t.Fatalf("%s: result shape %s", c.name, b)
 		}
 		if c.r.Outcome != c.outcome || c.r.Stage != c.stage {

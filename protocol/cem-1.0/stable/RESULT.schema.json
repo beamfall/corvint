@@ -731,7 +731,8 @@
     "citation",
     "axes",
     "runtime",
-    "repositoryEnvelope"
+    "repositoryEnvelope",
+    "verdictSha256"
   ],
   "properties": {
     "profile": {
@@ -1253,6 +1254,10 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 128
+    },
+    "verdictSha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
     }
   }
 }

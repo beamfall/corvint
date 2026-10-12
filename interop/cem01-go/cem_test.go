@@ -1062,7 +1062,7 @@ func TestStableSeparateProfileAndArgumentPrecedence(t *testing.T) {
 	b, _ := json.Marshal(newStableResult("base", "target"))
 	var obj map[string]json.RawMessage
 	_ = json.Unmarshal(b, &obj)
-	if len(obj) != 22 {
+	if len(obj) != 23 {
 		t.Fatalf("result keys %d", len(obj))
 	}
 }
@@ -1175,7 +1175,7 @@ func TestStableSidecarFailureStates(t *testing.T) {
 				want, _ := json.Marshal(expected)
 				got, _ := json.Marshal(r)
 				if !bytes.Equal(want, got) {
-					t.Fatalf("full 22-key failure mismatch\nwant=%s\ngot=%s", want, got)
+					t.Fatalf("full 23-key failure mismatch\nwant=%s\ngot=%s", want, got)
 				}
 			}
 		})
