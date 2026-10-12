@@ -884,7 +884,7 @@ CEM-V1-092	docs/specs/cem-stable-v1.md	314	The `cem-stable-verification/1` membe
 CEM-V1-093	docs/specs/cem-stable-v1.md	476	A stable map MAY carry `provenance`, a closed object with exactly the required
 CEM-V1-094	docs/specs/cem-stable-v1.md	486	The producer-only stable map members are exactly this closed list:
 CEM-V1-095	docs/specs/cem-stable-v1.md	499	A stable map MAY carry `role`, a closed string enum of `change` (the meaning whe
-CEM-V1-096	docs/specs/cem-stable-v1.md	543	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) `cem sta
+CEM-V1-106	docs/specs/cem-stable-v1.md	543	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) `cem sta
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	770	The default `verify` path refuses a strictly parsed JSON object whose exact
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	774	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	777	Only that exact case changes. A duplicate, non-string, differently cased,

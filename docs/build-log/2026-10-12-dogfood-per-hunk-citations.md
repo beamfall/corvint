@@ -1,7 +1,7 @@
 # 2026-10-12 Dogfood per-hunk citations and a chore class for bind and seal maps (V1-1281)
 
 Branch `claude/v1-1281-citations` from `origin/main` 1f35e3da7. Requirements `DCW-V0-048` and
-`DCW-V0-049` in `docs/specs/daily-change-evidence-workflow-v0.md` and `CEM-V1-096` in
+`DCW-V0-049` in `docs/specs/daily-change-evidence-workflow-v0.md` and `CEM-V1-106` in
 `docs/specs/cem-stable-v1.md`, each accepted under the owner's standing auto-accept (2026-10-11).
 Input: the V1-1262 citation baseline (`2026-10-12-cem-citation-baseline-593-maps.md`).
 
@@ -28,7 +28,7 @@ be able to keep genuine bind and seal maps apart once the stable producer can ma
    writes `role` (`seal-chore` if a `.corvint/changes/` path is touched, else `bind-chore`)
    through the stable encoder before any cite; never on a `cem/0.x` map. `tools/cem-citation-baseline`
    reproduces the baseline rows and summary with a class per row and a summary per class.
-3. `CEM-V1-096`: `cem status --citation` on a `cem/1.0` map adds the envelope member
+3. `CEM-V1-106`: `cem status --citation` on a `cem/1.0` map adds the envelope member
    `citationClass` (`{"class": "change"|"chore", "role": ROLE}`) beside `stableVerification`,
    which stays identical to `cem verify-stable`.
 
@@ -66,7 +66,7 @@ be able to keep genuine bind and seal maps apart once the stable producer can ma
 - `TestMarkChoreRoleDCWV0049WritesStableRoleOnly`, `TestChangeDCWV0049MarksPreparedStableChoreMap`
   (`internal/dogfoodflow`); `TestBaselineDCWV0049SplitsRowsByCitationClass`,
   `TestBaselineRowKeepsThePythonEncoding` (`tools/cem-citation-baseline`).
-- `TestCEMV1096StatusCitationClassGroupsChoreMaps` (`internal/cem/cli`).
+- `TestCEMV1106StatusCitationClassGroupsChoreMaps` (`internal/cem/cli`).
 - Tool reproduction against the V1-1262 evidence (verification of the tool, not the criterion 3
   rerun): over the 604 maps now under `.corvint/changes/` the tool ran in 8m09s and exited 0. All
   593 baseline rows are identical to `evidence/v1-1262/citation-baseline-593-maps.jsonl` apart

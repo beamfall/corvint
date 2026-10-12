@@ -618,7 +618,7 @@ itself writes. Once `cem prepare` writes `cem/1.0`, `dogfood change` marks a cho
 map with the stable member `role`, `seal-chore` when a `.corvint/changes/` path is touched and
 `bind-chore` otherwise, and `cem status --citation` reports it as `citationClass`
 `{"class": "chore", ...}` beside the stable result, never inside it (`DCW-V0-049`,
-`CEM-V1-095`, `CEM-V1-096`); a change map has no role and is class `change`. A Core `cem/0.x`
+`CEM-V1-095`, `CEM-V1-106`); a change map has no role and is class `change`. A Core `cem/0.x`
 map never carries a role, and Core prepares `cem/0.2` today, so no committed map is marked yet.
 The stable producer cutover (V1-1276) must cite V1-1281 before it lands. To measure citation
 support with chore maps kept apart, run

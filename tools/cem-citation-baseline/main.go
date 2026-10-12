@@ -10,7 +10,7 @@
 //
 // and writes one JSON row per map to stdout, in the baseline row shape plus a
 // "class" member. A cem/1.0 map takes its class from the status envelope's
-// citationClass (CEM-V1-096); a 0.x map, which carries no role, is classed by
+// citationClass (CEM-V1-106); a 0.x map, which carries no role, is classed by
 // the paths of base..bind (dogfoodflow.ChoreRole, DCW-V0-048). A map whose
 // status carries no citation block is an error row and an ERR line on stderr.
 // --summary writes the aggregate for all maps and for each class.

@@ -8,12 +8,12 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
-// CEM-V1-096, DCW-V0-049: `cem status --citation` names a stable map's
+// CEM-V1-106, DCW-V0-049: `cem status --citation` names a stable map's
 // citation class beside the verifier result: a map with no role, or role
 // change, is class change, and a bind-chore or seal-chore map is class chore.
 // The result stays exactly what verify-stable reports and never echoes the
 // role, and the status without --citation keeps its envelope unchanged.
-func TestCEMV1096StatusCitationClassGroupsChoreMaps(t *testing.T) {
+func TestCEMV1106StatusCitationClassGroupsChoreMaps(t *testing.T) {
 	f := materializeStableRead(t)
 	status := func(citation bool) (int, map[string]any) {
 		t.Helper()

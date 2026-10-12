@@ -106,7 +106,7 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 		envelope["state"] = stableStates[result.Outcome]
 		// --citation names the map's citation class beside, never inside, the
 		// verifier result, so the result stays what verify-stable reports and
-		// never echoes the role (CEM-V1-095, CEM-V1-096).
+		// never echoes the role (CEM-V1-095, CEM-V1-106).
 		if options.Citation {
 			if document, _ := wire.ParseStable(raw); document != nil {
 				envelope["citationClass"] = StableCitationClass(document.EffectiveRole())
@@ -159,7 +159,7 @@ func (s *Session) stableReport(action string, result verify.StableResult, envelo
 
 // Stable citation classes group `cem status --citation` maps by role: a
 // bind-chore or seal-chore map records evidence of the bind loop itself, so
-// its citation shape is never read as a change's (CEM-V1-096, DCW-V0-049).
+// its citation shape is never read as a change's (CEM-V1-106, DCW-V0-049).
 const (
 	StableCitationClassChange = "change"
 	StableCitationClassChore  = "chore"
