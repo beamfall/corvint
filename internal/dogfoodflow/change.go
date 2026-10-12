@@ -68,6 +68,8 @@ type change struct {
 	linksReady           bool
 	linkPlanSHA          string
 	linkPlanRows         int
+	uniformHunks         int
+	uniformSpan          string
 }
 
 // Change runs the pre-change context, binding and status steps and writes
@@ -132,6 +134,7 @@ func (c *change) run() int {
 	c.cemPrepared = c.prepare("cem-prepare", c.evidence+"/cem-prepare.json", func(status int, stderr []byte, reason string) bool {
 		return status == 2 && outdatedCEMMaps[chomp(string(stderr))]
 	}, "cem", "prepare", "--base", c.base, "--target", c.target) == 0
+	c.markStableChoreMap()
 	// The manifest is frozen before citation so the plan check knows which
 	// base-absent intent hunks an author may deliberately leave uncited.
 	c.manifestReason = c.validateIntentManifest()
@@ -540,6 +543,8 @@ func (c *change) citeStep() {
 		status, reason = "NOT_PRODUCED", "invalid-citation-plan"
 	case mismatch != "":
 		status, reason = "NOT_PRODUCED", mismatch
+	case c.uniformPlan(plan):
+		status, reason = "NOT_PRODUCED", "citation-plan-uniform"
 	case c.citationCount > 1 && exists(c.path(c.citationStage)):
 		status, reason = "NOT_PRODUCED", "citation-stage-exists"
 	case c.prepareUnknownReasons(plan) != nil:
@@ -559,6 +564,22 @@ func (c *change) citeStep() {
 		status, reason = "NOT_PRODUCED", "citation-stage-cleanup-failed"
 	}
 	c.addStep("cem-cite", status, reason)
+}
+
+// uniformPlan reports, and keeps for the fix hint, a plan that cites one span
+// for every hunk of a non-chore change with more than one hunk; it is refused
+// before any cite runs (DCW-V0-048).
+func (c *change) uniformPlan(plan []byte) bool {
+	data, err := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
+	if err != nil {
+		return false
+	}
+	hunks, span, uniform := uniformCitation(plan, mapHunks(data))
+	if !uniform || c.choreRole() != "" {
+		return false
+	}
+	c.uniformHunks, c.uniformSpan = hunks, span
+	return true
 }
 
 // declaresStableMap reports a regular map, read at most the native map bound,
@@ -1299,6 +1320,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:citation-plan-row-limit-exceeded", "DOGFOOD_CITATIONS row limit=256 observed={citationRows}; use explicit staged plans of at most 256 rows on the same CEM (docs/DOGFOOD.md Staged binding of one oversized commit)"},
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)"},
 	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE, by a citation or by an ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE row"},
+	{"cem-cite:citation-plan-uniform", "the plan cites one span for every hunk: hunks={uniformHunks} span={uniformSpan}; cite, per hunk, the BASE lines that hunk depends on or implements (its caller, contract, test or spec section), or keep a hunk unknown with ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE; one span may serve several hunks, never every hunk of a multi-hunk non-chore change (DCW-V0-048)"},
 	{"cem-cite:unknown-reasons-not-recorded", "the unknown rows of DOGFOOD_CITATIONS could not be kept in {evidence}/cem-unknown-reasons.tsv (or its .next file): before citing (an occupied path, or notes over 16 MiB) nothing was cited; after citing the map has changed and earlier notes are kept; remove whatever occupies the path and rerun the same plan, which replays idempotently (DCW-V0-046)"},
 	{"cem-cite:invalid-arguments", "plan row {row}: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim, and START:END a line span of the cited file; any file present at BASE may be cited, code and tests as well as specs (DCW-V0-041)"},
 	{"cem-cite:missing-evidence", "plan row {row} cites a path that is not a regular file at BASE; cite a source, test or spec file that exists at BASE, since a file this change adds cannot be evidence for itself (DCW-V0-041)"},
@@ -1338,7 +1360,7 @@ func (c *change) fixHint(row step) string {
 			matched = len(value) >= len(prefix)+len(suffix) && strings.HasPrefix(value, prefix) && strings.HasSuffix(value, suffix)
 		}
 		if matched {
-			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{row}", strconv.Itoa(c.citationFailedRow), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows)).Replace(entry.hint)
+			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{row}", strconv.Itoa(c.citationFailedRow), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows), "{uniformHunks}", strconv.Itoa(c.uniformHunks), "{uniformSpan}", c.uniformSpan).Replace(entry.hint)
 		}
 	}
 	return ""

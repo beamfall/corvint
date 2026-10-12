@@ -104,6 +104,14 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	case "status":
 		envelope["map"] = filepath.Join(s.workRoot.Path(), filepath.FromSlash(options.MapPath))
 		envelope["state"] = stableStates[result.Outcome]
+		// --citation names the map's citation class beside, never inside, the
+		// verifier result, so the result stays what verify-stable reports and
+		// never echoes the role (CEM-V1-095, CEM-V1-106).
+		if options.Citation {
+			if document, _ := wire.ParseStable(raw); document != nil {
+				envelope["citationClass"] = StableCitationClass(document.EffectiveRole())
+			}
+		}
 	case "report", ActionReportPreview:
 		return s.stableReport(action, result, envelope, options)
 	}
@@ -147,4 +155,23 @@ func (s *Session) stableReport(action string, result verify.StableResult, envelo
 	envelope["mutates"] = true
 	envelope["report"] = filepath.Join(outputRoot.Path(), filepath.FromSlash(outputRelative))
 	return envelope, nil
+}
+
+// Stable citation classes group `cem status --citation` maps by role: a
+// bind-chore or seal-chore map records evidence of the bind loop itself, so
+// its citation shape is never read as a change's (CEM-V1-106, DCW-V0-049).
+const (
+	StableCitationClassChange = "change"
+	StableCitationClassChore  = "chore"
+)
+
+// StableCitationClass returns the status citationClass member for an
+// effective role: class "change" for the change role and "chore" for any
+// other, beside the role itself.
+func StableCitationClass(role string) map[string]any {
+	class := StableCitationClassChange
+	if role != wire.StableRoleChange {
+		class = StableCitationClassChore
+	}
+	return map[string]any{"class": class, "role": role}
 }
