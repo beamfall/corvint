@@ -1231,7 +1231,7 @@ DCP-V1-050	docs/specs/documentation-corpus-v1.md	383	A witness is produced only 
 DCP-V1-051	docs/specs/documentation-corpus-v1.md	397	Every other registered test stays unwitnessed with exactly one named reason and
 DCP-V1-052	docs/specs/documentation-corpus-v1.md	406	Missing or untrustworthy shared evidence yields uncertainty for every test, neve
 DCP-V1-053	docs/specs/documentation-corpus-v1.md	412	`corvint docs --help`, and the `docs corpus discover-playwright --help` and
-DCP-V1-054	docs/specs/documentation-corpus-v1.md	993	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
+DCP-V1-054	docs/specs/documentation-corpus-v1.md	1052	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
 DCP-V1-055	docs/specs/documentation-corpus-v1.md	426	`discover-playwright` applies the `TJAA-V0-021` grep/grepInvert omission rules o
 DCP-V1-056	docs/specs/documentation-corpus-v1.md	438	`corvint help docs corpus` and `corvint docs corpus --help` (or `-h`) print one
 DCP-V1-057	docs/specs/documentation-corpus-v1.md	457	`corvint help TOPIC` with an unknown topic stays the `invalid-arguments` refusal
@@ -1255,6 +1255,9 @@ DCP-V1-076	docs/specs/documentation-corpus-v1.md	680	Every search result is the 
 DCP-V1-077	docs/specs/documentation-corpus-v1.md	685	The separate `corvint-corpus-mcp`, started with `--legacy-cases`, lists the read
 DCP-V1-078	docs/specs/documentation-corpus-v1.md	690	Each of the following is refused with `corpus-refused` and no partial output:
 DCP-V1-079	docs/specs/documentation-corpus-v1.md	702	Manual legacy cases never count as runtime parity. `manual` joins `executable` a
+DCP-V1-080	docs/specs/documentation-corpus-v1.md	706	`corvint docs --help` and `corvint docs corpus witness-playwright --help` state
+DCP-V1-081	docs/specs/documentation-corpus-v1.md	722	`internal/doccorpus/behavior-events.cjs` is a Playwright fixture producer. It
+DCP-V1-082	docs/specs/documentation-corpus-v1.md	747	An unwitnessed test with an annotation-stage reason (`events-unobserved`,
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide

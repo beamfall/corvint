@@ -146,7 +146,14 @@ func measure(ctx context.Context, root, name string) row {
 	r.spec = head.Spec
 	rel, _ := filepath.Rel(root, name)
 	var out, errb bytes.Buffer
-	cli.Run(ctx, root, []string{"status", "--map", filepath.ToSlash(rel), "--expected-base", head.BaseRevision, "--target", stem, "--citation"}, &out, &errb)
+	args := []string{"status", "--map", filepath.ToSlash(rel), "--expected-base", head.BaseRevision, "--target", stem, "--citation"}
+	if head.Spec == wire.StableSpec {
+		// A cem/1.0 status requires an explicit absolute artifact root, which
+		// a producer map without artifacts never opens (CEM-V1-146,
+		// CEM-V1-147); root is already absolute.
+		args = append(args, "--artifacts", root)
+	}
+	cli.Run(ctx, root, args, &out, &errb)
 	var envelope map[string]any
 	if err := json.Unmarshal(out.Bytes(), &envelope); err != nil {
 		if err := json.Unmarshal(errb.Bytes(), &envelope); err != nil {

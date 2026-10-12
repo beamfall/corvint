@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -161,5 +162,38 @@ func TestDocsHelpNamesPlaywrightReceiptProducer(t *testing.T) {
 	}
 	if !ran["discover-playwright"] || !ran["witness-playwright"] {
 		t.Fatalf("help example lacks the discovery or witness step: %v", ran)
+	}
+}
+
+// DCP-V1-080: docs help and the witness-playwright topic state the annotation contract the
+// importer enforces: every annotation type, every event key, every kind and navigation value,
+// the missing-annotation order and the shipped producer. The lists come from the code, so the
+// help cannot drift from it silently.
+func TestDocsHelpNamesBehaviorAnnotationContract(t *testing.T) {
+	want := []string{"DCP-V1-080", "DCP-V1-081", "DCP-V1-082", "at most 4096 events", "exactly one, after the cleanup ran: passed",
+		"in the order events, cleanup, fixture, role", "internal/doccorpus/behavior-events.cjs", "Playwright behavior witness walkthrough",
+		doccorpus.PlaywrightEventAnnotation, doccorpus.PlaywrightCleanupAnnotation, doccorpus.PlaywrightFixtureAnnotation, doccorpus.PlaywrightRoleAnnotation,
+		"page | assertion | negative-control", "main-frame | frame | redirect | popup |\n                            setup"}
+	event := reflect.TypeFor[doccorpus.BehaviorEvent]()
+	for index := range event.NumField() {
+		want = append(want, event.Field(index).Tag.Get("json"))
+	}
+	for _, reason := range []string{"events-unobserved", "event-malformed", "cleanup-unobserved", "cleanup-failed", "fixture-role-mismatch"} {
+		want = append(want, reason)
+	}
+	topic := docsCorpusOperationHelp("witness-playwright")
+	for _, text := range want {
+		if !strings.Contains(docsHelp, text) || !strings.Contains(topic, text) {
+			t.Errorf("docs help or witness-playwright help omits %q", text)
+		}
+	}
+	if strings.Join(doccorpus.PlaywrightMissingAnnotationTypes, ", ") != "events, cleanup, fixture, role" {
+		t.Errorf("missing-annotation order %v differs from the help", doccorpus.PlaywrightMissingAnnotationTypes)
+	}
+	if strings.Contains(docsCorpusOperationHelp("discover-playwright"), "DCP-V1-080") {
+		t.Error("discover-playwright help carries the witness annotation contract")
+	}
+	if _, err := os.Stat(filepath.Join("..", "..", "internal", "doccorpus", "behavior-events.cjs")); err != nil {
+		t.Errorf("help names a producer that is not shipped: %v", err)
 	}
 }
