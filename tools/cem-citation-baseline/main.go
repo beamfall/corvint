@@ -11,13 +11,22 @@
 // and writes one JSON row per map to stdout, in the baseline row shape plus a
 // "class" member. A cem/1.0 map takes its class from the status envelope's
 // citationClass (CEM-V1-106); a 0.x map, which carries no role, is classed by
-// the paths of base..bind (dogfoodflow.ChoreRole, DCW-V0-048). A map whose
-// status carries no citation block is an error row and an ERR line on stderr.
-// --summary writes the aggregate for all maps and for each class.
+// the paths of base..bind (dogfoodflow.ChoreRole, DCW-V0-048). A cem/1.0 map
+// that the converter produced carries no role either (CEM-V1-097), so it keeps
+// its source's path class. A map whose status carries no citation block is an
+// error row and an ERR line on stderr. --summary writes the aggregate for all
+// maps and for each class.
+//
+// A cem/1.0 map is verified with --artifacts <absolute root> (CEM-V1-201).
+// --targets FILE names, per bind commit, the commit to verify the map at
+// ("<bind> <target>" lines, as cem-convert-parity --migrated writes them): a
+// converted map is verified at its CEM-V1-104 substituted target, because its
+// bind commit's excluded sidecar still holds the source bytes. A map absent
+// from FILE is verified at its bind commit.
 //
 // Usage:
 //
-//	cem-citation-baseline [--root DIR] [--maps DIR] [--summary FILE]
+//	cem-citation-baseline [--root DIR] [--maps DIR] [--summary FILE] [--targets FILE]
 package main
 
 import (
@@ -59,8 +68,14 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	root := flags.String("root", ".", "repository root")
 	maps := flags.String("maps", ".corvint/changes", "map directory, relative to --root")
 	summaryPath := flags.String("summary", "", "write the aggregate summary JSON to this file")
+	targetsPath := flags.String("targets", "", "file of \"<bind> <target>\" verification targets")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
-		fmt.Fprintln(stderr, "usage: cem-citation-baseline [--root DIR] [--maps DIR] [--summary FILE]")
+		fmt.Fprintln(stderr, "usage: cem-citation-baseline [--root DIR] [--maps DIR] [--summary FILE] [--targets FILE]")
+		return 2
+	}
+	targets, err := readTargets(*targetsPath)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
 		return 2
 	}
 	absRoot, err := filepath.Abs(*root)
@@ -76,7 +91,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	sort.Strings(names)
 	var rows []row
 	for _, name := range names {
-		r := measure(ctx, absRoot, name)
+		r := measure(ctx, absRoot, name, targets)
 		rows = append(rows, r)
 		fmt.Fprintln(stdout, pyJSON(r.fields(), -1, 0))
 		if r.citation == nil {
@@ -128,13 +143,38 @@ func readMap(name string) ([]byte, error) {
 	return raw, err
 }
 
-func measure(ctx context.Context, root, name string) row {
+// readTargets reads the optional "<bind> <target>" file into a map.
+func readTargets(path string) (map[string]string, error) {
+	targets := map[string]string{}
+	if path == "" {
+		return targets, nil
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	for i, line := range strings.Split(string(raw), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		if len(fields) != 2 {
+			return nil, fmt.Errorf("%s:%d: want \"<bind> <target>\"", path, i+1)
+		}
+		targets[fields[0]] = fields[1]
+	}
+	return targets, nil
+}
+
+func measure(ctx context.Context, root, name string, targets map[string]string) row {
 	stem := strings.TrimSuffix(filepath.Base(name), ".cem.json")
 	r := row{stem: stem, issues: []any{}}
 	raw, err := readMap(name)
 	var head struct {
-		Spec         string `json:"spec"`
-		BaseRevision string `json:"baseRevision"`
+		Spec         string          `json:"spec"`
+		BaseRevision string          `json:"baseRevision"`
+		Role         string          `json:"role"`
+		Provenance   json.RawMessage `json:"provenance"`
 	}
 	if err == nil {
 		err = json.Unmarshal(raw, &head)
@@ -146,7 +186,15 @@ func measure(ctx context.Context, root, name string) row {
 	r.spec = head.Spec
 	rel, _ := filepath.Rel(root, name)
 	var out, errb bytes.Buffer
-	cli.Run(ctx, root, []string{"status", "--map", filepath.ToSlash(rel), "--expected-base", head.BaseRevision, "--target", stem, "--citation"}, &out, &errb)
+	target := stem
+	if t, ok := targets[stem]; ok {
+		target = t
+	}
+	args := []string{"status", "--map", filepath.ToSlash(rel), "--expected-base", head.BaseRevision, "--target", target, "--citation"}
+	if head.Spec == wire.StableSpec {
+		args = append(args, "--artifacts", root)
+	}
+	cli.Run(ctx, root, args, &out, &errb)
 	var envelope map[string]any
 	if err := json.Unmarshal(out.Bytes(), &envelope); err != nil {
 		if err := json.Unmarshal(errb.Bytes(), &envelope); err != nil {
@@ -159,6 +207,12 @@ func measure(ctx context.Context, root, name string) row {
 		r.citation, _ = stable["citation"].(map[string]any)
 		if class, ok := envelope["citationClass"].(map[string]any); ok {
 			r.class, _ = class["class"].(string)
+		}
+		if head.Role == "" && len(head.Provenance) > 0 {
+			r.class, err = legacyClass(ctx, root, head.BaseRevision, stem)
+			if err != nil {
+				r.issues = append(r.issues, issue("class-unresolved", err.Error()))
+			}
 		}
 		if codes, ok := stable["issueCodes"].([]any); ok {
 			for _, code := range codes {
