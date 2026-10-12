@@ -238,7 +238,7 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-003 | `internal/sessiontest/plan.go`, `internal/sessiontest/declared.go` | TestSTRV0003BuildVerdicts, TestSTRV0003ReadDeclared, TestSTRV0003CLINoPlanRunsDeclaredScope, TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand |
 | STR-V0-004 | `internal/sessiontest/run.go` (Go adapter; declared `make <lang>-test` fallback) | TestSTRV0004ParseTestEvents, TestSTRV0004RunnerDiscoveryRefusals; no versioned LPCV-V0-021 capability manifest yet (partial) |
 | STR-V0-005 | `Invocations` in `run.go` | TestSTRV0006Invocations, TestSTRV0010CLIRunWritesReceipt |
-| STR-V0-006 | `Invocations`; `ReadDeclared` types the Makefile `go-test` recipe | TestSTRV0006Invocations, TestSTRV0003ReadDeclared |
+| STR-V0-006 | `Invocations`; `ReadDeclared` types the Makefile `go-test` recipe | TestSTRV0006Invocations, TestSTRV0003ReadDeclared, TestSTRV0006ReaderGrammar, TestSTRV0006RepositoryMakefileTypesGoTest, TestSTRV0006RepositoryMakefileDependsOnConditional |
 | STR-V0-007 | `placeGo` over `cishards.PlanFrom` | TestSTRV0007UniversePlacementEqualsCIPlan, TestSTRV0009CLIShardsAndVerify |
 | STR-V0-008 | refused as experimental and not implemented | `NOT_RUN`; TestSTRV0008CLIUsageRefusals covers only the refusal |
 | STR-V0-009 | `internal/sessiontest/verify.go`, `corvint test verify-shards` | TestSTRV0009VerifyShardsMatrix, TestSTRV0009CLIShardsAndVerify |

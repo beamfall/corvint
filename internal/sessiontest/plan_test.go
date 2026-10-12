@@ -481,6 +481,157 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 	}
 }
 
+// STR-V0-006: typing is exact by construction. Each case below is a
+// construct whose make or shell meaning differs from a naive reading
+// (review round 8 and the probes behind it); every one is untyped, or read
+// conservatively, never guessed.
+func TestSTRV0006ReaderGrammar(t *testing.T) {
+	write := func(t *testing.T, files map[string]string) string {
+		root := t.TempDir()
+		for name, body := range files {
+			if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return root
+	}
+	none := func(string) (string, bool) { return "", false }
+	recipe := "go-test:\n\tgo test $(F) ./...\n"
+	// 1. An inherited MAKECMDGOALS overrides the goals, so a conditional on
+	// it is not evaluated: both branches are read and the go-test and
+	// rust-test inside them are declared, never absent.
+	goals := func(name string) (string, bool) {
+		if name == "MAKECMDGOALS" {
+			return "other", true
+		}
+		return "", false
+	}
+	hidden := "ifeq ($(MAKECMDGOALS),other)\nlint:\n\ttrue\nelse\ngo-test:\n\tgo test ./...\nrust-test:\n\tcargo test\nendif\n"
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": hidden}), []string{"rust"}, goals); got.GoTest != GoTestUnparsed ||
+		!strings.Contains(got.GoTestNote, "MAKECMDGOALS") || !reflect.DeepEqual(got.Languages, []string{"rust"}) {
+		t.Errorf("inherited MAKECMDGOALS: %#v, want unparsed naming MAKECMDGOALS and languages [rust]", got)
+	}
+	// Without it the evaluator takes the else branch for `make go-test`.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": hidden}), []string{"rust"}, none); got.GoTest != GoTestUnparsed ||
+		!strings.Contains(got.GoTestNote, "under a conditional") || !reflect.DeepEqual(got.Languages, []string{"rust"}) {
+		t.Errorf("MAKECMDGOALS=go-test takes the else branch: %#v", got)
+	}
+	// 2. Trailing blanks in a value are significant: `$(F)-race` is two
+	// words, so the typed flags keep them apart.
+	trailing := ReadDeclared(write(t, map[string]string{"Makefile": "F = -tags=integration \ngo-test:\n\tgo test $(F)-race ./...\n"}), nil, none)
+	if trailing.GoTest != GoTestParsed || !reflect.DeepEqual(trailing.GoFlags, []string{"-tags=integration", "-race"}) {
+		t.Errorf("trailing blank in a value: %#v, want flags [-tags=integration -race]", trailing)
+	}
+	for body, note := range map[string]string{
+		// 2. A comment in a value is not stripped: the blank before `#`
+		// stays in the value, and `#` is outside the alphabet.
+		"F = -tags=integration # c\ngo-test:\n\tgo test $(F)-race ./...\n": "'#'",
+		// 3. `?=` on a make built-in keeps make's default (CC=cc), which
+		// this reader does not know.
+		"CC ?= clang\nF = -ldflags=-X,main.cc=$(CC)\n" + recipe: "undefined variable CC",
+		"LINK.o ?= x\nF = $(LINK.o)\n" + recipe:                 "not $(NAME) or ${NAME}",
+		"MAKE_X ?= -race\nF = $(MAKE_X)\n" + recipe:             "undefined variable MAKE_X",
+		// 4. A backslash-newline in a recipe reaches the shell, which
+		// joins the pieces without a blank.
+		"go-test:\n\tgo test -count=1\\\n\t  ./...\n": "backslash-newline",
+		// 4. An even number of backslashes is not a continuation.
+		"F = -race\\\\\n" + recipe: `'\\'`,
+		// 5. A non-ASCII blank is a byte of the word to the shell.
+		"F = -race -count=1\n" + recipe: "outside the typed alphabet",
+		"F = -race\r\n" + recipe:        `'\r'`,
+		// 6. Mismatched reference delimiters are an error to make.
+		"F = -race\ngo-test:\n\tgo test ${F) ./...\n": "not $(NAME) or ${NAME}",
+		"F = -race\ngo-test:\n\tgo test $(F} ./...\n": "not $(NAME) or ${NAME}",
+		"F = -race\ngo-test:\n\tgo test $F ./...\n":   "not a $(NAME) or ${NAME} reference",
+		// A directive is a whole word; make reads `ifeq(` as a rule-less
+		// line, and refuses text after else and a stray endef.
+		"ifeq(1,1)\nendif\n" + recipe:                          "line 1 is not a construct",
+		"ifeq (1,2)\nelse foo\nendif\n" + recipe:               "text after else",
+		"endef\n" + recipe:                                     "endef without define",
+		"F = -race\n.DEFAULT:\n\ttrue\n" + recipe:              ".DEFAULT rule",
+		"F = -race\n%-test:\n\tgo test -race ./...\n" + recipe: "pattern rule %-test",
+		// A `-`, `+` or doubled `@` prefix changes how make runs the line.
+		"go-test:\n\t-go test ./...\n":  "not `[NAME=VALUE...] go test FLAGS ./...`",
+		"go-test:\n\t@@go test ./...\n": "'@'",
+		"go-test:\n\t+go test ./...\n":  "'+'",
+	} {
+		got := ReadDeclared(write(t, map[string]string{"Makefile": body}), nil, none)
+		if got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, note) {
+			t.Errorf("%q: %s %q, want unparsed naming %q", body, got.GoTest, got.GoTestNote, note)
+		}
+	}
+	// A pattern rule alone answers `make go-test`, so go-test is declared
+	// (untyped) and a matching <lang>-test is declared.
+	pattern := ReadDeclared(write(t, map[string]string{"Makefile": "%-test:\n\tcargo test\n"}), []string{"rust"}, none)
+	if pattern.GoTest != GoTestUnparsed || !reflect.DeepEqual(pattern.Languages, []string{"rust"}) {
+		t.Errorf("pattern rule alone: %#v, want unparsed go-test and languages [rust]", pattern)
+	}
+	// make reads ./go-test as go-test.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "./go-test:\n\tgo test ./...\n"}), nil, none); got.GoTest != GoTestParsed {
+		t.Errorf("./go-test: %#v, want parsed", got)
+	}
+	// 7. make reads GNUmakefile before makefile before Makefile.
+	both := map[string]string{"GNUmakefile": "go-test:\n\tgo test -race ./...\n", "Makefile": "go-test:\n\tgo test ./...\n"}
+	if got := ReadDeclared(write(t, both), nil, none); got.GoTest != GoTestParsed || !reflect.DeepEqual(got.GoFlags, []string{"-race"}) {
+		t.Errorf("GNUmakefile beside Makefile: %#v, want the GNUmakefile's -race", got)
+	}
+	lower := write(t, map[string]string{"makefile": "go-test:\n\tgo test -short ./...\n"})
+	if err := os.WriteFile(filepath.Join(lower, "Makefile"), []byte("go-test:\n\tgo test ./...\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if body, err := os.ReadFile(filepath.Join(lower, "makefile")); err == nil && strings.Contains(string(body), "-short") {
+		// A case-sensitive filesystem keeps both; make reads makefile first.
+		if got := ReadDeclared(lower, nil, none); got.GoTest != GoTestParsed || !reflect.DeepEqual(got.GoFlags, []string{"-short"}) {
+			t.Errorf("makefile beside Makefile: %#v, want the makefile's -short", got)
+		}
+	}
+	// MAKEFLAGS and GNUMAKEFLAGS: only harmless words are typed; an option
+	// that changes what make reads or runs leaves go-test untyped and the
+	// scope incomplete.
+	for _, flags := range []string{"-R", "-f other.mk", "--eval=rust-test:", "n", "k --warn-undefined-variables", "-- F=-race"} {
+		for _, name := range []string{"MAKEFLAGS", "GNUMAKEFLAGS"} {
+			lookup := func(key string) (string, bool) { return flags, key == name }
+			got := ReadDeclared(write(t, map[string]string{"Makefile": "F = -race\n" + recipe}), nil, lookup)
+			if got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, name) || got.Unreadable == "" {
+				t.Errorf("%s=%q: %#v, want unparsed, incomplete, naming %s", name, flags, got, name)
+			}
+		}
+	}
+	for _, flags := range []string{"", "s", "-j8", "k --jobserver-auth=3,4", "--output-sync=line", "w"} {
+		lookup := func(key string) (string, bool) { return flags, key == "GNUMAKEFLAGS" }
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": "F = -race\n" + recipe}), nil, lookup); got.GoTest != GoTestParsed {
+			t.Errorf("GNUMAKEFLAGS=%q: %#v, want parsed", flags, got)
+		}
+	}
+}
+
+// STR-V0-006: the repository Makefile types go-test only because its
+// computed-target line (49-50) sits under a conditional the evaluator
+// proves false for `make go-test`; with that condition unknown the
+// reader reads line 50 and refuses to type.
+func TestSTRV0006RepositoryMakefileDependsOnConditional(t *testing.T) {
+	body, err := os.ReadFile(filepath.Join("..", "..", "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const condition = "ifneq ($(filter gate,$(or $(MAKECMDGOALS),gate)),)\n$(GATE_STEPS) $(addprefix ledger/,$(GATE_STEPS)): | gate-receipt-clear\n"
+	if strings.Count(string(body), condition) != 1 {
+		t.Fatalf("the Makefile no longer has the gate conditional once:\n%s", condition)
+	}
+	mutated := strings.Replace(string(body), condition, "ifneq ($(UNKNOWN),)\n$(GATE_STEPS) $(addprefix ledger/,$(GATE_STEPS)): | gate-receipt-clear\n", 1)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "Makefile"), []byte(mutated), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	none := func(string) (string, bool) { return "", false }
+	if got := ReadDeclared(root, nil, none); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "uses $") || got.Unreadable == "" {
+		t.Fatalf("mutated Makefile: %#v, want unparsed naming the computed target and an incomplete scope", got)
+	}
+	if got := ReadDeclared(filepath.Join("..", ".."), nil, none); got.GoTest != GoTestParsed {
+		t.Fatalf("unmutated Makefile: %#v, want parsed", got)
+	}
+}
+
 // STR-V0-006: the repository's own Makefile still types go-test; its
 // conditionals sit outside the go-test span and assign no Go variable.
 func TestSTRV0006RepositoryMakefileTypesGoTest(t *testing.T) {
