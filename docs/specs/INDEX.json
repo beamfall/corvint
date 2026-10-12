@@ -3619,7 +3619,7 @@
     "title": "Session Test Runner V0",
     "reqPrefix": "STR-V0",
     "intent": "accepted (decision 0524; V1-0040)",
-    "delivery": "not-started",
+    "delivery": "experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards)",
     "claim": "`corvint test` plans from the diff, runs only selected tests through runner adapters, shards deterministically, and falls back alike locally and in CI.",
     "dependsOn": [
       "docs/specs/affected-plan-v0.md",
@@ -3627,6 +3627,9 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "cmd/corvint",
+      "internal/sessiontest"
+    ]
   }
 ]

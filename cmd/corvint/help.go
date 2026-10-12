@@ -217,6 +217,8 @@ func helpText(topic string) string {
 		return changesHelp
 	case "runs":
 		return runsHelp
+	case "test":
+		return testHelp
 	case "breakage":
 		return breakageHelp
 	case "necessity":
@@ -292,6 +294,7 @@ Commands:
   breakage  cross-repository API relations
   changes  offline upgrade checklist
   runs  Playwright verdicts
+  test  affected tests
   harness event  one agent lifecycle event
   adapter  one native host adapter
   dogfood  evidence: change, check, seal, batch-check
@@ -342,11 +345,11 @@ Global options:
   init, adopt, query, impact, docs, harness, and lrf read without mutating
   repository or trace state. impact, feature, docs, harness event, ocm, lrf, cem,
   dogfood-ocm, witness, index, calibrate, frontier, and record best-effort append a
-  bounded row to the local self-observation ledger (.corvint/self-observations.jsonl)
+  bounded row to the self-observation ledger (.corvint/self-observations.jsonl)
   on an unsupported-* failure (harness event also on success); a ledger storage
-  failure never alters the response. cem begin, prepare, cite, and mark write local
+  failure never alters the response. cem begin, prepare, cite and mark write local
   CEM artifacts; cem report, ocm, record, migrate-traces --apply, index, and docs
-  flows and maintain write local state (detail in their COMMAND --help).
+  flows and maintain write local state (COMMAND --help).
 `
 
 const adapterHelp = `Run one bounded native host adapter.
@@ -1348,7 +1351,7 @@ const commandMaturityHelp = `Command maturity:
   Core (decision 0332; only the modes and profiles CCF-V1 lists are frozen):
     init, adopt, index, query, context, impact, affected, prove, cem, ocm,
     frontier, dogfood
-  Experimental, no stability promise; the owning spec prefix is in parentheses:
+  Experimental, no stability promise; owning spec in parentheses:
     feature (GPK-V0), eval (REC-V0), lrf (LRF-V0), record (LTPM-V0),
     migrate-traces (LTPM-V0), harness (AHI), work (WQO-V0), adapter (AHI),
     dogfood-ocm (OCM-V0), observations (SOL-V0), obligations (EFO-V0),
@@ -1359,7 +1362,7 @@ const commandMaturityHelp = `Command maturity:
     test-plan (TCN-V0), features (RGV-V0), overview (RGV-V0), review (RGV-V0),
     migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0),
     breakage (BKM-V0), step (ASS-V0), delta (DLT-V0), changes (UCL1142-V0),
-    runs (PWR-V0)
+    runs (PWR-V0), test (STR-V0)
 
 `
 

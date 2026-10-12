@@ -580,6 +580,10 @@ func readModulePath(root string) (string, error) {
 	return readModuleSourcePath(affected.DiskSource(root), ".")
 }
 
+// ReadModulePath is readModulePath: the root module path an attribution over
+// this graph's import paths needs (STR-V0-002).
+func ReadModulePath(root string) (string, error) { return readModulePath(root) }
+
 func readModuleSourcePath(root *affected.Source, directory string) (string, error) {
 	body, err := root.Read(path.Join(directory, "go.mod"))
 	if err != nil {

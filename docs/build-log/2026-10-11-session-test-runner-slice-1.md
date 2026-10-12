@@ -1,0 +1,98 @@
+# V1-0040 slice 1: experimental `corvint test` session test runner
+
+Date: 2026-10-11. Base: `136dfa483866558e67821c70c0680fc8965ed7eb` (spec commit on
+`claude/v1-0040-impl`). Scope: `docs/specs/session-test-runner-v0.md` STR-V0-001..007, 009..011,
+014, 015, 017, 018, with 004, 012 and 016 partial; STR-V0-008 and STR-V0-013 are `NOT_RUN`. The
+intent stays proposed; no call site (`script/gate-affected.sh`, `tools/corvint-pr-tests`, Makefile,
+workflows) changes, so the existing drivers remain the rollback.
+
+Contracts and decisions:
+
+- Planning: `corvint test` calls the same `compileAffectedGraph` as `corvint affected --base`
+  and the AFP-V0-012 attribution, now in `internal/gateselect` (moved from
+  `tools/gate-affected-select` without a behaviour change). `internal/sessiontest` owns the
+  manifest, receipt, Go adapter and fan-in. It is not called `testrunner` because that package
+  already exists.
+- Verdict: `FULL` for every attribution `FALLBACK`, for every `plan.unknown` entry outside the
+  AFP-V0-028 allowlist, for a selected package outside the Go universe, and when there is no
+  verdict. An allowlisted non-Go `LANGUAGE_FRONTIER` entry names a frontier category, not a unit,
+  so it does not require that language's declared command. This repository has six such entries
+  in every plan. A selected unit, or a `NO_SELECTABLE_TEST` unknown unit, in a language without
+  an adapter does require the command. Owner question below.
+- No plan: the declared full scope runs on shard 0, read independently of the planner: the
+  Makefile `go-test` target and each `<lang>-test` target for every registered language name. A
+  declaration that cannot be read or names nothing is `INCOMPLETE`.
+- FULL with a plan also runs every declared `<lang>-test` command, because a fallback such as a
+  deleted source file names only a path, not its language, and it covers every non-Go language
+  whose registered plugin owns a `plan.dirty` path (undeclared means `INCOMPLETE`). An unreadable
+  declaration under FULL is `INCOMPLETE`; so is a Makefile using `include` or `eval`, which can
+  declare targets this reader never sees.
+- The `ci` profile never runs `make go-test`: with no plan, or FULL with no Go universe, Go is
+  `INCOMPLETE`, because that target would drop the CI confinement, `-race` and environment.
+- Go recipe typing: the `go-test` recipe must be one line of the form
+  `[NAME=VALUE ...] go test FLAGS ./...`. Blank and comment lines do not end the recipe, so a
+  second command after one is still counted. It may use `$(VAR)`, `:=`, `=` and `?=`, where `?=`
+  leaves a variable the Makefile already assigned alone and otherwise prefers the invoking
+  environment over its own value, and `:=` expands immediately against the values assigned so
+  far (an immediate value that cannot be expanded is refused). A rule naming several targets
+  declares each one. A recipe that sets `PATH` is untyped, because the runner is resolved on
+  Corvint's own `PATH`. It may not set `-json`, `-run` or `-skip`, and may
+  not use shell metacharacters. Anything else leaves the recipe untyped, including export,
+  override, include, define, `.EXPORT_ALL_VARIABLES`, `+=`, `!=`, a variable assigned under a
+  conditional (directives are recognised after any leading blank and before a tab), a go-test rule under a conditional or with prerequisites, target-specific variables
+  or `::`, and a `%` pattern rule that matches go-test. A rule whose target is a `$(VAR)` expansion
+  is not evaluated (this repository's Makefile has one, under a goal conditional); that is a
+  retained limit, not a typed guarantee. An untyped recipe never narrows Go: a narrowed run is `INCOMPLETE`
+  and a `FULL` run calls `make go-test`. The local argv adds `-json` so outcomes can be attributed
+  to packages.
+- CI profile argv and environment are the full CI branch's: `-exec <confine> -p 1 -count=1 -race
+  -timeout 50m`, with `GOPROXY=off`, `GOSUMDB=off`, `GOWORK=off`, an empty `GOFLAGS`,
+  `CGO_ENABLED=1` and `CORVINT_CONFINE_ROOT`. The CI admission parts of STR-V0-012 belong to the
+  call site and are not here.
+- Placement: `cishards.PlanFrom` over the repository's `.github/cishards` files, or the embedded
+  defaults when they are absent, intersected with the run set. Split packages expand into their
+  slice units, including the catch-all slice. `cmd/corvint` now links `.github/cishards`.
+- Exit codes: 0 PASS, 1 FAIL, 2 usage, 3 INCOMPLETE, 128+n for a signal (HUP 129, INT 130, TERM
+  143). Both verify-shards and a single shard use 3 for missing evidence, so callers can tell it
+  apart from a failing test.
+- Writes: `--dry-run` writes only `--manifest PATH`. A run writes only its receipt, by default
+  `<git-dir>/corvint/test-run[.I].json`, which is neither the index nor a `.corvint/` ledger. A
+  supplied or default output path is refused before planning when it is tracked, under `.corvint/`, or in Git
+  metadata other than `<git-dir>/corvint/test-run[.I].json`. It is also refused when its leaf is a
+  symlink (the write replaces the entry, not the target) or when it is an unignored worktree file,
+  which would be a dirty path and change the bound source identity.
+- Source identity refuses a dirty directory (a submodule or nested repository), whose contents
+  it cannot bind; the run exits 2 before planning. Every shard rechecks the identity before it
+  finishes, including one that launched nothing.
+- Fan-in recomputes the source digest from the manifest's and each receipt's source identity and
+  checks the receipt revision, so a receipt cannot keep the digest string over other identities.
+- Process ownership: each adapter runs as its own process group. Cancel, a signal or the 70
+  minute budget kills the whole group. A platform without process groups runs nothing and is
+  `INCOMPLETE`.
+- Discovery: before any Go unit runs, the runner version is read and `go list ./...` must equal
+  the planned universe.
+
+Evidence:
+
+- Corvint `affected --base 645304a2` selected 112 packages; 5 had direct source changes.
+- Focused tests:
+  - `internal/sessiontest`
+  - `internal/gateselect`
+  - `tools/gate-affected-select`
+  - `internal/liveverify/affected/golang`
+  - `.github/cishards`
+  - `cmd/corvint` with `-run` over `TestSTRV00*` plus the help, require-clean, Core-freeze and
+    affected tests
+- On this repository, a dry run at the slice base was `FULL`, because of the
+  `UNINDEXED_SOURCE_PATH` entries the refactor leaves behind. Its universe equalled
+  `go list ./...` (326 packages), and the four `--shard I/4` manifests were byte-identical.
+
+Not run:
+
+- STR-V0-013 parity
+- balanced placement (STR-V0-008)
+- a hosted CI run
+- non-Go adapters
+
+To fit the new verb within the 4096-byte root-help bound (CCF-V1-009), three phrases in root
+help were shortened.
