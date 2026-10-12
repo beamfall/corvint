@@ -493,23 +493,34 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   grammar; a literal followed directly by an identifier character refuses the file. The residue
   check is a diagnostic; the verdict comes from a closed-world allowlist. A case is admitted only
   when every token of the file structure (runner suite, case and hook calls with one static string
-  title and an anonymous, parameterless callback, separated by `;` or line breaks), of each
+  title and an anonymous, parameterless, synchronous callback with a block body, separated by `;`
+  or line breaks), of each
   enclosing hook body and of its own callback and body belongs to a recognized statement form:
   `expect(<operand>)`, optionally `.withContext(<literals>)`, a chain of known chai words and
   `.not`, ending in a known Jasmine matcher or chai method called with literal arguments or in a
   known chai property; a `cy` chain of known queries with literal arguments, optionally
-  `.contains(...)`, then `.should('<chainer>', <literals>)` and `.and(...)`; a `cy`, `browser` or
-  `page` precondition call with literal arguments and an optional `.as('<name>')` (the only form
-  admitted in a hook); an optional `await`; operands that are literals (strings without
+  `.contains(<content>)` or `.contains(<selector>, <content>)`, then `.should('<chainer>',
+  <literals>)` and `.and(...)`, where every chainer word is a known chai or chai-jquery word and
+  no `.and` or further `.should` follows a chainer that yields a new subject (`attr`, `prop`,
+  `css`, `data`, `property`, `ownProperty`, `length`, ...); a `cy`, `browser` or `page`
+  precondition call with literal arguments and an optional `.as('<name>')` (the only form
+  admitted in a hook); operands that are literals (strings without
   substitution, numbers, `true`, `false`, `null`, arrays and plain objects of those) or plain
   identifier member paths; and `;`, line breaks and comments. Anything else, including any other
   call, a computed member, an escaped identifier, a regex-ambiguous `/`, an alias or declaration,
-  `.call`/`.apply`, a member-qualified runner name, a template substitution, an import or a
-  callback parameter, is a `not-allowlisted` unknown naming the first refused token and its region
+  `.call`/`.apply`, a member-qualified runner name, a template substitution, an import, a
+  callback parameter, `await`, an `async` or expression-bodied callback, a chainer that calls a
+  function (`throw`, `satisfy`, `change`, `increase`, `decrease`, `respondTo`) or any other
+  unlisted chainer word, a `contains` options argument, and a single string expected value whose
+  unquoted text could read as another literal's canonical text (it starts with a digit, `.`, `-`,
+  `+`, `[`, `{`, `(` or a quote, or with `true`, `false` or `null`), is a `not-allowlisted` unknown naming the first refused token and its region
   (file structure, an enclosing hook, case callback or case body). An admitted statement whose key
-  token no extraction consumed is also `not-allowlisted`. Over-refusal is accepted: helper calls,
-  Cypress actions, `afterEach`, `done` callbacks and regex literals make a case unknown, never
-  parity. The allowlist does not prove what runs outside the case: other cases' bodies and hooks
+  token no extraction consumed is also `not-allowlisted`. A case with more assertion tuples than
+  the registry's per-case criterion bound (4,096) has no criteria and a `criteria-over-bound`
+  unknown; its list is never truncated. Over-refusal is accepted: helper calls, Cypress actions,
+  `afterEach`, `done` and `async` callbacks, awaited Playwright or WebdriverIO calls, subject
+  changing continuations, `contains` options, ambiguous string values and regex literals make a
+  case unknown, never parity. The allowlist does not prove what runs outside the case: other cases' bodies and hooks
   of non-enclosing suites (cross-test state is a runtime-baseline question), getters on operand
   paths, custom matchers or commands that override a known name, and support files. A case with
   any unknown never reaches `parity-candidate` (`DCP-V1-066`). LF, CR, CRLF, U+2028 and U+2029 are each a line terminator: each ends a `//`
@@ -539,7 +550,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   hook body holds nothing but allowlisted precondition statements (`DCP-V1-062`); any other hook
   statement, such as a helper call or a Cypress action, is a `not-allowlisted` unknown for every
   case under it, so a precondition the reader cannot bind is never silently omitted from
-  `fixtures`. Status: (proposed/experimental; GitHub #811).
+  `fixtures`. An awaited precondition, or one in an `async` or expression-bodied hook or case, is
+  also `not-allowlisted`: the fixture identity does not record completion order. Status: (proposed/experimental; GitHub #811).
 - `DCP-V1-064`: The record is pinned and deterministic: it names the repository identity and the
   full revision, reads only Git objects (never the working tree), writes nothing, and repeated runs
   on the same inputs give identical bytes. Status: (proposed/experimental; GitHub #811).
@@ -828,7 +840,10 @@ precondition inside an enclosing hook makes every case under it `not-allowlisted
 inside a conditional, loop or callback in a hook is not recorded as a precondition, and every case
 under that hook carries a `hook-not-static` unknown instead. The closed-world allowlist
 (`DCP-V1-062`) over-refuses by design: a case that uses any helper call, Cypress action,
-declaration or other unlisted form is unknown, never parity. Other cases' bodies, hooks of
+declaration, `await`, `async` or expression-bodied callback, function-calling or subject-changing
+chainer continuation, `contains` option, ambiguous string value or other unlisted form is unknown,
+never parity, and a case over the 4,096-criterion bound is unknown rather than truncated. Other
+cases' bodies, hooks of
 non-enclosing suites, getters on operand paths and custom matchers or commands overriding a known
 name are not proven; cross-test state needs the runtime baseline.
 

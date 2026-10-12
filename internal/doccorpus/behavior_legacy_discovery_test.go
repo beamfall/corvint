@@ -986,4 +986,53 @@ func TestLegacyResidueFailsClosed(t *testing.T) {
 			t.Fatalf("an admitted precondition was refused: %v %v", reasons, legacy.Fixtures)
 		}
 	})
+	t.Run("DCP-V1-062 DCP-V1-063 the allowlist refuses the round-7 variants", func(t *testing.T) {
+		for _, snippet := range []string{
+			// A chainer that calls its subject, or any unlisted chainer word.
+			"cy.get('body').its('0.ownerDocument.defaultView.checkHidden').should('not.throw');",
+			"cy.get('a').should('satisfy', 1);",
+			"cy.get('a').should('change', 'x');",
+			"cy.get('a').should('increase', 'x');",
+			"cy.get('a').should('be.calledWith', 'x');",
+			// An options argument the criterion does not record.
+			"cy.contains('capital sentence', { matchCase: false });",
+			"cy.contains('a', 'Orders', { matchCase: false });",
+			// A continuation after a chainer that yields a new subject.
+			"cy.get('a').should('have.attr', 'href').and('eq', '/users');",
+			"cy.get('a').should('have.prop', 'value').should('eq', 'x');",
+			"cy.get('a').should('have.length', 2).and('be.visible');",
+			// A string value that reads like another literal's canonical text.
+			"expect(one).toBe('1');",
+			"expect(flag).toBe('true');",
+			"expect(nothing).toBe('(no expected value)');",
+			"cy.get('a').should('have.text', '[1]');",
+			"cy.contains('-1');",
+			// Completion order the source order does not show.
+			"await page.goto('/seed');",
+			"await cy.visit('/a');",
+		} {
+			inventory, legacy := with(t, snippet)
+			blocked(t, snippet, inventory, legacy)
+		}
+		for _, hook := range []string{
+			"  beforeEach(() => cy.visit('/x'));\n",
+			"  beforeEach(async () => { cy.visit('/x'); });\n",
+		} {
+			inventory, legacy := edit(t, "describe('Checkout', () => {\n", "describe('Checkout', () => {\n"+hook)
+			blocked(t, hook, inventory, legacy)
+		}
+		inventory, legacy := edit(t, "it('shows the cart total', () => {", "it('shows the cart total', async () => {")
+		blocked(t, "an async case callback", inventory, legacy)
+		// An unambiguous string value stays admitted.
+		inventory, legacy = with(t, "expect(label).toBe('Orders');")
+		if reasons := legacyUnknownReasons(inventory, legacy.ID); len(reasons) != 0 || inventory.Crosswalk.ReviewedChecks[0].Verdict != "parity-candidate" {
+			t.Fatalf("an unambiguous value was refused: %v %+v", reasons, inventory.Crosswalk.ReviewedChecks[0])
+		}
+		// A case over the registry's per-case criterion bound is unknown, never truncated. The
+		// statements are short enough for the case span to stay within the anchor bound.
+		inventory, legacy = with(t, strings.Repeat(strings.Repeat("expect(a).ok;", 64)+"\n", MaxRecords/64)+"expect(a).ok;")
+		if reasons := legacyUnknownReasons(inventory, legacy.ID); !slices.Contains(reasons, "criteria-over-bound") || len(legacy.Criteria) != 0 || inventory.Crosswalk.ReviewedChecks[0].Verdict == "parity-candidate" {
+			t.Fatalf("an over-bound case was not refused: %v %d %+v", reasons, len(legacy.Criteria), inventory.Crosswalk.ReviewedChecks[0])
+		}
+	})
 }

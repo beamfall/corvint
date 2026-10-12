@@ -1,5 +1,7 @@
 package doccorpus
 
+import "strings"
+
 // The closed-world allowlist (DCP-V1-062, DCP-V1-063) decides whether a legacy case can reach
 // parity-candidate. Every token on the case's static execution path (the file's top-level and
 // suite structure, the bodies of the hooks that enclose the case, and the case body) must belong
@@ -20,7 +22,45 @@ var (
 	// legacyCypressQuery lists the Cypress queries admitted before a should/contains assertion.
 	legacyCypressQuery = words("get find first last eq children parent parents closest siblings next prev filter not location url title hash its root focused")
 	legacyLiteralWord  = words("true false null")
+	// legacyCypressChainerWord lists the words a should/and chainer string may be built from: the
+	// chai words above and the chai-jquery state words. A chainer that calls a function (throw,
+	// satisfy, change, increase, decrease, respondTo) or any other word is refused.
+	legacyCypressChainerWord = words("text attr visible class value checked css disabled enabled hidden focused selected prop id html data descendants readonly focus")
+	// legacyCypressTransform lists the chainer words after which Cypress yields a new subject
+	// (have.attr, have.prop, have.property, ...). A should/and continuing such a chainer would assert
+	// on that new subject while the criterion names the original locator, so it is refused.
+	legacyCypressTransform = words("property ownProperty haveOwnProperty ownPropertyDescriptor attr prop css data length lengthOf")
 )
+
+// legacyAmbiguousValue reports whether a single string argument, which the criterion value
+// records unquoted, could read the same as the canonical text of other literal arguments (a
+// number, a negative number, true, false or null, an array or object, a quoted list, or the
+// no-value marker), so that toBe(1) and toBe('1') would share one tuple.
+func legacyAmbiguousValue(f *legacyFile, args []legacyRange) bool {
+	if len(args) != 1 || args[0].hi-args[0].lo != 1 || f.tokens[args[0].lo].kind != 's' {
+		return false
+	}
+	text := f.tokens[args[0].lo].text
+	if text == "" || strings.ContainsRune("0123456789.-+[{('\"`", rune(text[0])) {
+		return true
+	}
+	for _, word := range []string{"true", "false", "null"} {
+		if strings.HasPrefix(text, word) {
+			return true
+		}
+	}
+	return false
+}
+
+// legacyAllowChainer admits a should/and chainer built only from known, non-calling words.
+func legacyAllowChainer(chainer string) bool {
+	for _, word := range strings.Split(chainer, ".") {
+		if !legacyChaiChain[word] && !legacyChaiProperty[word] && !legacyChaiMethod[word] && !legacyCypressChainerWord[word] {
+			return false
+		}
+	}
+	return true
+}
 
 // allowStructure checks the runner structure of tokens[lo:hi]: only runner suite, case and hook
 // call statements with a static title and an inline callback, recursing into suite bodies, which
@@ -93,13 +133,15 @@ func legacyAllowTitle(f *legacyFile, r legacyRange) int {
 	return -1
 }
 
-// legacyPlainCallback returns the body of an anonymous, parameterless inline function spanning
-// exactly r: () => {...}, () => expression or function () {...}, optionally async. A name or a
-// parameter could shadow the names the allowlist trusts, so either is refused.
+// legacyPlainCallback returns the body of an anonymous, parameterless, synchronous inline
+// function with a block body spanning exactly r: () => {...} or function () {...}. A name or a
+// parameter could shadow the names the allowlist trusts; an async function or an expression body
+// can return a promise the runner awaits, so its completion order is not the source order. Each
+// is refused.
 func legacyPlainCallback(f *legacyFile, r legacyRange) (legacyRange, int) {
 	t, k := f.tokens, r.lo
 	if k < r.hi && t[k].kind == 'i' && t[k].text == "async" {
-		k++
+		return legacyRange{}, k
 	}
 	arrow := !(k < r.hi && t[k].kind == 'i' && t[k].text == "function")
 	if !arrow {
@@ -120,7 +162,7 @@ func legacyPlainCallback(f *legacyFile, r legacyRange) (legacyRange, int) {
 		if legacyPunct(t, k, "{") && f.match[k] == r.hi-1 {
 			return legacyRange{k + 1, r.hi - 1}, -1
 		}
-		return legacyRange{k, r.hi}, -1
+		return legacyRange{}, k
 	}
 	if !legacyPunct(t, k, "{") || f.match[k] != r.hi-1 {
 		return legacyRange{}, min(k, r.hi-1)
@@ -138,13 +180,6 @@ func (p *legacyProducer) allowBody(f *legacyFile, r legacyRange, hook bool, keys
 		if legacyPunct(t, k, ";") {
 			k++
 			continue
-		}
-		if t[k].kind == 'i' && t[k].text == "await" && k+1 < r.hi {
-			if t[k+1].nl {
-				// Outside an async function a line break makes await a separate statement.
-				return k
-			}
-			k++
 		}
 		end, bad := legacyAllowPrecondition(f, k, r.hi)
 		switch {
@@ -310,6 +345,9 @@ func legacyAllowExpect(f *legacyFile, k, hi int, keys *[]int) (int, int) {
 			if bad >= 0 {
 				return 0, bad
 			}
+			if legacyAmbiguousValue(f, legacyArgs(f, j)) {
+				return 0, j + 1
+			}
 			*keys = append(*keys, k)
 			return end, -1
 		}
@@ -327,16 +365,27 @@ func legacyAllowExpect(f *legacyFile, k, hi int, keys *[]int) (int, int) {
 
 func legacyAllowCypress(f *legacyFile, k, hi int, keys *[]int) (int, int) {
 	t := f.tokens
-	j, asserted, should := k+1, false, false
+	j, asserted, should, transformed := k+1, false, false, false
 	for legacyPunct(t, j, ".") && j+1 < hi && t[j+1].kind == 'i' {
 		word, name := t[j+1].text, j+1
 		switch {
 		case word == "should" || word == "and" && should:
+			if transformed {
+				// The previous chainer yielded a new subject the criterion locator does not name.
+				return 0, name
+			}
 			if !legacyPunct(t, j+2, "(") {
 				return 0, min(j+2, hi-1)
 			}
-			if args := legacyArgs(f, j+2); len(args) == 0 || args[0].hi-args[0].lo != 1 || t[args[0].lo].kind != 's' {
+			args := legacyArgs(f, j+2)
+			if len(args) == 0 || args[0].hi-args[0].lo != 1 || t[args[0].lo].kind != 's' || !legacyAllowChainer(t[args[0].lo].text) {
 				return 0, j + 3
+			}
+			if legacyAmbiguousValue(f, args[1:]) {
+				return 0, args[1].lo
+			}
+			for _, part := range strings.Split(t[args[0].lo].text, ".") {
+				transformed = transformed || legacyCypressTransform[part]
 			}
 			should = true
 		case should:
@@ -345,8 +394,14 @@ func legacyAllowCypress(f *legacyFile, k, hi int, keys *[]int) (int, int) {
 			if !legacyPunct(t, j+2, "(") {
 				return 0, min(j+2, hi-1)
 			}
-			if args := legacyArgs(f, j+2); len(args) == 0 || len(args) > 3 {
+			// Only contains(content) and contains(selector, content) are admitted: the criterion
+			// records no options argument.
+			args := legacyArgs(f, j+2)
+			if len(args) == 0 || len(args) > 2 || len(args) == 2 && legacyPunct(t, args[1].lo, "{") {
 				return 0, j + 2
+			}
+			if legacyAmbiguousValue(f, args[len(args)-1:]) {
+				return 0, args[len(args)-1].lo
 			}
 		case legacyCypressQuery[word]:
 		default:

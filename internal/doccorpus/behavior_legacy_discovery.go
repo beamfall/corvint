@@ -78,7 +78,7 @@ var legacyLimitations = []string{
 	"helper and custom-command bodies, support files and fixture files are not followed; a precondition binds its call text by digest",
 	"roles are not inferred and are always empty",
 	"global support hooks and root-level hooks in other files are not seen",
-	"the closed-world allowlist over-refuses: a case using any helper call, Cypress action, declaration or other unlisted form is unknown, never parity",
+	"the closed-world allowlist over-refuses: a case using any helper call, Cypress action, declaration, await, async or expression-bodied callback, function-calling or subject-changing chainer, contains option, ambiguous string value or other unlisted form is unknown, never parity",
 	"other cases' bodies, hooks of non-enclosing suites, getters on operand paths and custom matchers or commands overriding a known name are not proven; cross-test state needs the runtime baseline",
 	"the inventory and crosswalk are generated; neither creates a reviewed legacy_criteria relation",
 }
@@ -630,7 +630,7 @@ func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope) {
 	} else if body, hasBody = legacyCallback(f, args[1]); !hasBody {
 		note("case-callback-not-static", "the case body is not an inline function: "+legacyCanonical(t, args[1].lo, args[1].hi))
 	}
-	keys := []int{}
+	keys, overBound := []int{}, false
 	if bad, region := p.allowCase(f, s, args, &keys); bad >= 0 {
 		bad = min(bad, len(t)-1)
 		detail := region + ": " + legacyBounded(t[bad].raw) + " is the first token outside the closed-world allowlist: " + legacyCanonical(t, max(0, bad-4), min(len(t), bad+8))
@@ -648,6 +648,13 @@ func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope) {
 			}
 		}
 		legacy.Criteria = p.assertions(f, id, body, consumed)
+		if len(legacy.Criteria) > MaxRecords {
+			// A registry refuses a case over the criterion bound; a truncated list would claim a
+			// partial case, so none is emitted and the case is unknown.
+			note("criteria-over-bound", strconv.Itoa(len(legacy.Criteria))+" assertion tuples exceed the per-case bound of "+strconv.Itoa(MaxRecords))
+			legacy.Criteria = []BehaviorLegacyCriterion{}
+			overBound = true
+		}
 		p.residue(f, id, body, consumed)
 		for _, key := range keys {
 			if !consumed[key] {
@@ -662,7 +669,7 @@ func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope) {
 			legacy.Fixtures = append(legacy.Fixtures, fixture)
 		}
 	}
-	if len(legacy.Criteria) == 0 {
+	if len(legacy.Criteria) == 0 && !overBound {
 		note("no-static-assertion", "no assertion tuple was extracted from the case")
 	}
 	p.inv.Legacy = append(p.inv.Legacy, legacy)

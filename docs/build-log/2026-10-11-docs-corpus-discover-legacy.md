@@ -212,3 +212,34 @@ in the inventory:
 seven round-6 repros and further hook, preamble and callback-parameter forms, plus positive checks
 for the admitted forms. `TestLegacyDiscoveryStaticEdgeCases` checks that every earlier-round edge
 case is refused. The exception is the root-hook case, which keeps `hook-not-static`.
+
+## Review round 7 repairs
+
+Codex round 7 (`/private/tmp/claude-501/w13-legacy-codex-r7.log`) found no tokenizer escape from
+the allowlist. Instead it found six P2 forms that the allowlist admitted even though their criteria
+or fixtures did not describe what runs. The orchestrator decided to refuse each one rather than
+design a new encoding; each refusal is an accepted limit in DCP-V1-062/063:
+
+- **Function-calling chainers.** A `should`/`and` chainer that calls a function (`not.throw`
+  through `.its(...)`, `satisfy`, `change`, `increase`, `decrease`, `respondTo`) is refused. Every
+  chainer word must now be a known chai or chai-jquery word, and chainers cannot take a callback.
+- **`contains` options.** `contains` is admitted only as `(content)` or `(selector, content)`, so
+  an options argument the criterion would drop is refused.
+- **Subject-changing chainers.** After a chainer that yields a new subject (`attr`, `prop`, `css`,
+  `data`, `property`, `ownProperty`, `length`, ...), a following `.and` or `.should` is refused.
+  The criterion locator names only the original subject.
+- **Ambiguous string values.** The criterion value field stays as it is, with no wire change. A
+  single string value that could read as another literal's canonical text is refused instead:
+  - it starts with a digit, `.`, `-`, `+`, `[`, `{`, `(` or a quote;
+  - or it starts with `true`, `false` or `null`.
+
+  This removes `toBe(1)`/`toBe('1')` and the no-value marker collisions.
+- **Completion order.** `await` is refused, as are `async` and expression-bodied callbacks,
+  because completion order is not visible in the source. This makes awaited Playwright and
+  WebdriverIO cases unknown.
+- **Criterion bound.** A case over the registry's 4,096-criterion bound gets `criteria-over-bound`
+  and an empty criterion list, never a truncated one.
+
+`TestLegacyResidueFailsClosed` adds one regression per form, plus hook and case-callback
+variants. It also checks that an unambiguous string value is still admitted and that a compact
+over-bound case gets the new unknown.
