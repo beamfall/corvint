@@ -991,6 +991,7 @@ Verification options:
                        invocation supplying --patch fails invalid-arguments.
   --max-unknown N      Policy ceiling on unknown hunks.
   --max-mechanical N   Policy ceiling on mechanical hunks.
+  --citation           status/verify: add the cem/0.2+ citation support block.
 
 cem/0.2 verification requires --expected-base and --target, derives the
 canonical whole-repository patch itself excluding exactly

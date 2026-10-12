@@ -700,7 +700,7 @@ func TestCheckEvidenceAcceptsExecutableBlob(t *testing.T) {
 		Span:       span,
 		SpanSha256: spanSha256,
 	}}}
-	if err := checkEvidence(context.Background(), repository, document, base); err != nil {
+	if _, err := checkEvidence(context.Background(), repository, document, base); err != nil {
 		t.Fatalf("checkEvidence rejected a 100755 evidence blob: %v", err)
 	}
 }
