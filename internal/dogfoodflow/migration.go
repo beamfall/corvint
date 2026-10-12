@@ -1,38 +1,76 @@
 package dogfoodflow
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
-// cemMigrationCommit is the V1-1277 commit that rewrote every committed sealed
-// CEM to cem/1.0 in place (decision 0525 §3 step 6 and §5, DCW-V0-050). From it
-// on it is the seal baseline: a sealed CEM it rewrote must keep the bytes it
-// wrote. Tests point it at their own fixture commit.
-var cemMigrationCommit = "0b6f1bc245b44a8620c5e64f91e87f6d08da08d0"
+// cemMigrationCommits are the commits that rewrote committed sealed CEMs to
+// cem/1.0 in place (decision 0525 §3 step 6 and §5, DCW-V0-050): V1-1277's
+// migration commit and any follow-up migration commit that converts maps a
+// pre-cutover branch landed afterwards. Append each follow-up commit's full SHA
+// in the change that lands it. From each one on it is the seal baseline: a
+// sealed CEM it rewrote must keep the bytes it wrote. Tests point it at their
+// own fixture commits.
+var cemMigrationCommits = []string{
+	"0b6f1bc245b44a8620c5e64f91e87f6d08da08d0",
+}
+
+// migrationRewrite is one sealed CEM a migration commit rewrote in place.
+type migrationRewrite struct{ commit, before, after string }
 
 // migratedSeals lists the sealed CEM paths that BASE..HEAD modifies only
-// through the migration commit: that commit is in the range, BASE holds
-// exactly the bytes it rewrote, and HEAD holds exactly the bytes it wrote
-// (DCW-V0-050). It reads three listings, not one Git call per path.
-func (f *flow) migratedSeals(base, target string) map[string]bool {
-	if !f.migrationInRange(base, target) {
-		return nil
+// through a migration commit in the range: BASE holds exactly the bytes it
+// rewrote and HEAD holds exactly the bytes it wrote. It also returns each path
+// such a migration rewrote whose HEAD bytes are neither, for example a merge
+// that restores the pre-migration tree: those are refused
+// sealed-cem-migration-reverted even when the net BASE..HEAD diff hides them
+// (DCW-V0-050). It reads listings, not one Git call per path.
+func (f *flow) migratedSeals(base, target string) (map[string]bool, []string) {
+	rewrites := map[string][]migrationRewrite{}
+	for _, commit := range f.migrationsInRange(base, target) {
+		for path, rewrite := range f.migrationRewrites(commit) {
+			rewrites[path] = append(rewrites[path], rewrite)
+		}
 	}
-	raw, status := f.git(true, "diff-tree", "-r", "--raw", "--no-renames", "--no-abbrev", "--no-commit-id", cemMigrationCommit+"^", cemMigrationCommit, "--", ".corvint/changes")
-	if status != 0 {
-		return nil
+	if len(rewrites) == 0 {
+		return nil, nil
 	}
 	baseBlobs, targetBlobs := f.sealedBlobs(base), f.sealedBlobs(target)
-	admitted := map[string]bool{}
-	for _, line := range nonEmpty(strings.Split(raw, "\n")) {
-		meta, path, _ := strings.Cut(line, "\t")
-		fields := strings.Fields(meta)
-		if len(fields) != 5 || fields[4] != "M" || sealedCEMPath.FindStringSubmatch(path) == nil {
-			continue
+	admitted, reverted := map[string]bool{}, []string{}
+	for path, list := range rewrites {
+		wrote, fromBase := false, false
+		for _, rewrite := range list {
+			wrote = wrote || targetBlobs[path] == rewrite.after
+			fromBase = fromBase || baseBlobs[path] == rewrite.before
 		}
-		if before, after := fields[2], fields[3]; before != after && baseBlobs[path] == before && targetBlobs[path] == after {
+		switch {
+		case targetBlobs[path] != "" && !wrote:
+			reverted = append(reverted, path)
+		case wrote && fromBase:
 			admitted[path] = true
 		}
 	}
-	return admitted
+	sort.Strings(reverted)
+	return admitted, reverted
+}
+
+// migrationRewrites maps each sealed CEM path the migration commit modified to
+// its blobs before and after.
+func (f *flow) migrationRewrites(commit string) map[string]migrationRewrite {
+	raw, status := f.git(true, "diff-tree", "-r", "--raw", "--no-renames", "--no-abbrev", "--no-commit-id", commit+"^", commit, "--", ".corvint/changes")
+	if status != 0 {
+		return nil
+	}
+	rewrites := map[string]migrationRewrite{}
+	for _, line := range nonEmpty(strings.Split(raw, "\n")) {
+		meta, path, _ := strings.Cut(line, "\t")
+		fields := strings.Fields(meta)
+		if len(fields) == 5 && fields[4] == "M" && fields[2] != fields[3] && sealedCEMPath.FindStringSubmatch(path) != nil {
+			rewrites[path] = migrationRewrite{commit: commit, before: fields[2], after: fields[3]}
+		}
+	}
+	return rewrites
 }
 
 // sealedBlobs maps each regular file under .corvint/changes at rev to its blob.
@@ -51,33 +89,52 @@ func (f *flow) sealedBlobs(rev string) map[string]string {
 	return blobs
 }
 
-// migratedConstituent reports a sealed CEM that target holds as the migration
+// migratedConstituent reports a sealed CEM that target holds as a migration
 // commit's rewrite of its bind commit's sidecar. Its bind commit's excluded
 // sidecar still holds the source bytes, so the stable verifier cannot verify
 // the rewrite there (CEM-V1-104); the batch must be split at the migration
 // commit instead (DCW-V0-050).
 func (f *flow) migratedConstituent(target, path, bindBlob, sealedBlob string) bool {
-	if cemMigrationCommit == "" || bindBlob == "" || !f.gitSucceeds("merge-base", "--is-ancestor", cemMigrationCommit, target) {
+	if bindBlob == "" {
 		return false
 	}
-	before, after := f.migration(path)
-	return before == bindBlob && after == sealedBlob && before != after
+	for _, commit := range cemMigrationCommits {
+		if commit == "" || !f.gitSucceeds("merge-base", "--is-ancestor", commit, target) {
+			continue
+		}
+		before, after := f.gitRevision(commit+"^:"+path), f.gitRevision(commit+":"+path)
+		if before == bindBlob && after == sealedBlob && before != after {
+			return true
+		}
+	}
+	return false
 }
 
-func (f *flow) migrationInRange(base, target string) bool {
-	return cemMigrationCommit != "" && f.gitSucceeds("merge-base", "--is-ancestor", cemMigrationCommit, target) &&
-		!f.gitSucceeds("merge-base", "--is-ancestor", cemMigrationCommit, base)
+// migrationNote names the migration commits in base..target for a NOTE line.
+func (f *flow) migrationNote(base, target string) string {
+	return strings.Join(f.migrationsInRange(base, target), ",")
 }
 
-// migration returns the blobs of path before and after the migration commit.
-func (f *flow) migration(path string) (string, string) {
-	return f.gitRevision(cemMigrationCommit + "^:" + path), f.gitRevision(cemMigrationCommit + ":" + path)
+// migrationsInRange lists the migration commits in base..target.
+func (f *flow) migrationsInRange(base, target string) []string {
+	inRange := []string{}
+	for _, commit := range cemMigrationCommits {
+		if commit != "" && f.gitSucceeds("merge-base", "--is-ancestor", commit, target) &&
+			!f.gitSucceeds("merge-base", "--is-ancestor", commit, base) {
+			inRange = append(inRange, commit)
+		}
+	}
+	return inRange
 }
 
-// isMigrationCommit reports the migration commit itself when it only modifies
+// isMigrationCommit reports a migration commit itself when it only modifies
 // sealed CEM paths, which batch-check then counts as bound (DCW-V0-050).
 func (f *flow) isMigrationCommit(parent, commit string) bool {
-	if cemMigrationCommit == "" || commit != cemMigrationCommit {
+	listed := false
+	for _, migration := range cemMigrationCommits {
+		listed = listed || (migration != "" && migration == commit)
+	}
+	if !listed {
 		return false
 	}
 	changed, status := f.git(true, "diff-tree", "-r", "--no-renames", "--no-commit-id", "--name-status", parent, commit)

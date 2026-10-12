@@ -39,18 +39,19 @@ var sealedCEMPath = regexp.MustCompile(`^\.corvint/changes/([0-9a-f]{40})\.cem\.
 
 // batchRecovery names the documented recovery of each batch-check failure.
 var batchRecovery = map[string]string{
-	"sealed-cem-modified":      "a sealed CEM is immutable: restore it with git show BIND:.corvint/change.cem.json > .corvint/changes/BIND.cem.json and commit",
-	"sealed-cem-drift":         "restore the sealed file from its bind commit: git show BIND:.corvint/change.cem.json > .corvint/changes/BIND.cem.json and commit",
-	"unrecognized-sealed-cem":  "only .corvint/changes/<40-hex bind commit>.cem.json files are sealed CEMs; remove or rename the listed path",
-	"unsealed-cem-at-head":     "seal the bound change (make dogfood-seal) or restore BASE's .corvint/change.cem.json before the batch check",
-	"constituent-not-merged":   "a sealed CEM names a bind commit HEAD does not contain; merge that change's branch or drop the copied file",
-	"constituent-cem-invalid":  "the sealed CEM is unreadable or not a canonical cem/0.2, cem/0.3 or cem/1.0 map at its bind commit; rebind and reseal that change with the normal loop, then remerge it",
-	"constituent-unverified":   "the verifier did not report canonical ready-for-ci verification (cem/0.x) or stable ACCEPT (cem/1.0) of this bind and base; pass --verifier a corvint build of this tree (script/dogfood-batch-check.sh does) and rerun",
-	"constituent-migrated":     "the migration commit rewrote this sealed CEM after the batch's BASE added it; split the batch at the migration commit: batch-check up to its parent, then rerun with BASE=<the migration commit's parent>",
-	"constituent-cem-policy":   "rebind and reseal that change with the normal loop on its own branch (dogfood-change BASE=<its base>), then remerge it",
-	"unbound-commits":          "bind each listed commit through a sealed change: commit it on its own branch, run dogfood-change, dogfood-check and dogfood-seal there with BASE=<its parent>, and merge that branch instead",
-	"merge-resolution-unbound": "redo the merge with git merge -X ours (or -X theirs) so its tree is derivable, then commit the manual resolution as its own sealed change",
-	"octopus-merge-unbound":    "merge one branch at a time so each merge tree is derivable from two parents",
+	"sealed-cem-modified":           "a sealed CEM is immutable: restore it with git show BIND:.corvint/change.cem.json > .corvint/changes/BIND.cem.json and commit",
+	"sealed-cem-drift":              "restore the sealed file from its bind commit: git show BIND:.corvint/change.cem.json > .corvint/changes/BIND.cem.json and commit",
+	"unrecognized-sealed-cem":       "only .corvint/changes/<40-hex bind commit>.cem.json files are sealed CEMs; remove or rename the listed path",
+	"unsealed-cem-at-head":          "seal the bound change (make dogfood-seal) or restore BASE's .corvint/change.cem.json before the batch check",
+	"constituent-not-merged":        "a sealed CEM names a bind commit HEAD does not contain; merge that change's branch or drop the copied file",
+	"constituent-cem-invalid":       "the sealed CEM is unreadable or not a canonical cem/0.2, cem/0.3 or cem/1.0 map at its bind commit; rebind and reseal that change with the normal loop, then remerge it",
+	"constituent-unverified":        "the verifier did not report canonical ready-for-ci verification (cem/0.x) or stable ACCEPT (cem/1.0) of this bind and base; pass --verifier a corvint build of this tree (script/dogfood-batch-check.sh does) and rerun",
+	"sealed-cem-migration-reverted": "HEAD holds a sealed CEM a migration commit in the range rewrote, with bytes that commit did not write; restore the migration's bytes with git show <migration commit>:PATH > PATH and commit, or drop the merge that reverted it",
+	"constituent-migrated":          "the migration commit rewrote this sealed CEM after the batch's BASE added it; split the batch at the migration commit: batch-check up to its parent, then rerun with BASE=<the migration commit's parent>",
+	"constituent-cem-policy":        "rebind and reseal that change with the normal loop on its own branch (dogfood-change BASE=<its base>), then remerge it",
+	"unbound-commits":               "bind each listed commit through a sealed change: commit it on its own branch, run dogfood-change, dogfood-check and dogfood-seal there with BASE=<its parent>, and merge that branch instead",
+	"merge-resolution-unbound":      "redo the merge with git merge -X ours (or -X theirs) so its tree is derivable, then commit the manual resolution as its own sealed change",
+	"octopus-merge-unbound":         "merge one branch at a time so each merge tree is derivable from two parents",
 }
 
 type batch struct {
@@ -187,12 +188,16 @@ func (f *flow) gitRevision(spec string) string {
 }
 
 // sealedConstituents lists the bind commits whose sealed CEMs BASE..HEAD adds;
-// a sealed CEM BASE already had must be unchanged, or changed only by the
-// migration commit's rewrite (DCW-V0-050).
+// a sealed CEM BASE already had must be unchanged, or changed only by a
+// migration commit's rewrite, which HEAD must keep (DCW-V0-050).
 func (b *batch) sealedConstituents() []string {
 	changed := b.gitValue("diff", "--no-renames", "--name-status", b.base, b.target, "--", ".corvint/changes")
 	binds := []string{}
-	migrated, admitted := b.migratedSeals(b.base, b.target), 0
+	migrated, reverted := b.migratedSeals(b.base, b.target)
+	admitted := 0
+	for _, path := range reverted {
+		b.failure("sealed-cem-migration-reverted", path)
+	}
 	for _, line := range nonEmpty(strings.Split(changed, "\n")) {
 		state, path, _ := strings.Cut(line, "\t")
 		match := sealedCEMPath.FindStringSubmatch(path)
@@ -212,7 +217,7 @@ func (b *batch) sealedConstituents() []string {
 		}
 	}
 	if admitted > 0 {
-		b.print("%s: NOTE sealed-cem-migrated maps=%d commit=%s\n", b.prefix, admitted, cemMigrationCommit)
+		b.print("%s: NOTE sealed-cem-migrated maps=%d commit=%s\n", b.prefix, admitted, b.migrationNote(b.base, b.target))
 	}
 	sort.Strings(binds)
 	return binds
