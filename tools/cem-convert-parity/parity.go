@@ -255,7 +255,10 @@ func runOne(o Options, name string, reachable map[string]bool, work, artifacts s
 
 // migratedSource returns the provenance-named source blob of a committed
 // cem/1.0 map, or nil with no reason for a natively produced stable map that
-// carries no provenance. A nonempty reason fails the row.
+// carries no provenance. Such a map must be byte-identical to the sidecar its
+// bind commit tracks, the immutable evidence that it was bound with these
+// bytes; a migrated map with its provenance removed is not, and fails
+// native-bytes-not-bound. A nonempty reason fails the row.
 func migratedSource(ctx context.Context, repository, bind string, committed []byte, row *Row) ([]byte, string) {
 	if !wire.DeclaresStable(committed) {
 		return nil, "not-migrated"
@@ -267,6 +270,10 @@ func migratedSource(ctx context.Context, repository, bind string, committed []by
 	}
 	p := doc.Provenance
 	if p == nil {
+		var bound bytes.Buffer
+		if err := gitOut(ctx, repository, nil, nil, &bound, "cat-file", "blob", bind+":.corvint/change.cem.json"); err != nil || !bytes.Equal(bound.Bytes(), committed) {
+			return nil, "native-bytes-not-bound"
+		}
 		row.Committed = "stable-native"
 		return nil, ""
 	}

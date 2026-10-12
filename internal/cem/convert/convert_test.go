@@ -223,6 +223,10 @@ func TestCEMV1100ConvertCorpusIdempotent(t *testing.T) {
 					t.Fatalf("%s: committed bytes differ from the conversion of %s", e.Name(), p.SourceBlobOid)
 				}
 				migrated++
+			} else if bound := sourceBlob(t, dir, bind+":.corvint/change.cem.json"); !bytes.Equal(bound, src) {
+				// A natively produced stable map is the sidecar its bind
+				// commit tracks; a migrated map without provenance is not.
+				t.Fatalf("%s: stable map without provenance differs from its bind commit's sidecar", e.Name())
 			}
 			continue
 		}

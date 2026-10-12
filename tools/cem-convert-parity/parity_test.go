@@ -162,8 +162,9 @@ func TestCEMV1104ConvertParityClassify(t *testing.T) {
 }
 
 // TestCEMV1200MigratedSourceChecks pins the --migrated refusals: a map that is
-// still cem/0.x, a source blob absent from the repository, and committed bytes
-// that differ from the conversion of the provenance-named source blob.
+// still cem/0.x, a source blob absent from the repository, committed bytes
+// that differ from the conversion of the provenance-named source blob, and a
+// stable map without provenance whose bytes are not its bind commit's sidecar.
 func TestCEMV1200MigratedSourceChecks(t *testing.T) {
 	testdata := filepath.Join("..", "..", "internal", "cem", "convert", "testdata")
 	src, err := os.ReadFile(filepath.Join(testdata, "reachable-a79ab231.source.json"))
@@ -197,6 +198,38 @@ func TestCEMV1200MigratedSourceChecks(t *testing.T) {
 	got, reason := migratedSource(context.Background(), repo, bind, converted, &row)
 	if reason != "" || !bytes.Equal(got, src) {
 		t.Fatalf("present blob: reason %q equal %v", reason, bytes.Equal(got, src))
+	}
+	native, err := os.ReadFile(filepath.Join("..", "..", ".corvint", "changes", "860f59ea2858aa90e631a995b396af0191adc604.cem.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sidecar := func(data []byte) string {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(repo, ".corvint"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(repo, ".corvint", "change.cem.json"), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		for _, args := range [][]string{{"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "bind"}} {
+			if out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput(); err != nil {
+				t.Fatalf("git %v: %v: %s", args, err, out)
+			}
+		}
+		head, err := exec.Command("git", "-C", repo, "rev-parse", "HEAD").Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return strings.TrimSpace(string(head))
+	}
+	// A stable map without provenance whose bind commit tracks other bytes,
+	// as a migrated map with its provenance removed would be.
+	row = Row{}
+	if _, reason := migratedSource(context.Background(), repo, sidecar(src), native, &row); reason != "native-bytes-not-bound" || row.Committed != "" {
+		t.Fatalf("unbound native: reason %q committed %q", reason, row.Committed)
+	}
+	if _, reason := migratedSource(context.Background(), repo, sidecar(native), native, &row); reason != "" || row.Committed != "stable-native" {
+		t.Fatalf("bound native: reason %q committed %q", reason, row.Committed)
 	}
 	if b := targets([]Row{{Map: bind, SubstitutedTarget: "t"}, {Map: "x"}}); string(b) != bind+" t\n" {
 		t.Fatalf("targets = %q", b)
