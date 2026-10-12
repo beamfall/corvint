@@ -69,7 +69,8 @@ func TestClaudeNativeDogfoodLifecycle(t *testing.T) {
 		if evaluated["decision"] != "block" {
 			t.Fatalf("the enrolled Stop evaluation did not decide to block: %v", evaluated)
 		}
-		if _, decided := output["decision"]; decided || output["systemMessage"] != "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline; coding continues" {
+		notice, _ := output["systemMessage"].(string)
+		if _, decided := output["decision"]; decided || !strings.HasPrefix(notice, "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline; coding continues\n") {
 			t.Fatalf("expired enrolled Stop output %v", output)
 		}
 	})

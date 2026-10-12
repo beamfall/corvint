@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // compactionFixture is a committed module with one tracked dirty path and one untracked path,
@@ -258,5 +260,28 @@ func TestAHI029ClaudeCompactionHooksMutateNothing(t *testing.T) {
 	compactionHookStdout(t, ctx, root, "post-compact", map[string]any{"compact_summary": pinLine})
 	if after := snapshot(); !reflect.DeepEqual(before, after) {
 		t.Fatalf("compaction hooks changed the tree:\nbefore=%v\nafter=%v", before, after)
+	}
+}
+
+// AHI-055: an expired dogfood event deadline inside the compaction block read prints the frame
+// line and the deadline remediation as plain stdout on both compaction events (AHI-027).
+func TestClaudeCompactionDeadlineNamesRemediation(t *testing.T) {
+	root, ctx := compactionFixture(t)
+	tree := headTree(t, root)
+	pin := compactionPinProfile + " revision=" + tree + " tracked=2 untracked=1 paths=pkg/sample.go,pkg/gone.go elided=0"
+	for event, payload := range map[string]map[string]any{
+		"pre-compact":  {"session_id": "s", "trigger": "manual"},
+		"post-compact": {"session_id": "s", "trigger": "manual", "compact_summary": "Edited.\n" + pin},
+	} {
+		release := make(chan struct{})
+		expiring := context.WithValue(ctx, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 10 * time.Millisecond })
+		expiring = context.WithValue(expiring, dogfoodEventReadKey{}, func(context.Context, options, map[string]any) (map[string]any, error) {
+			<-release
+			return nil, errors.New("released")
+		})
+		output := runClaudeAdapterTest(expiring, t, root, event, payload)
+		close(release)
+		text, _ := output["systemMessage"].(string)
+		assertDeadlineRemediation(t, text, "Corvint FALLBACK degraded: "+claudeDeadlineReason+"; coding continues", root)
 	}
 }
