@@ -63,6 +63,17 @@ This change amends `DCW-V0-019` and adds `DCW-V0-046` to
   CI; one more unreasoned unknown: `constituent-cem-policy`), and the built-binary test runs the
   real `dogfood batch-check` after the seal.
 
+## Review round 3 (Codex, FAIL)
+
+- P2: a stage whose citation failed had already replaced the notes. Notes are now prepared before
+  the cite and replaced, by an owner-only file renamed over the path, only after the cite is
+  PRODUCED. An earlier note is kept only while the map records the same reason.
+- P2: earlier notes were read through a 4 MiB prefix and could be truncated. The notes file now
+  has a 16 MiB bound; an earlier file or a result over it refuses `unknown-reasons-not-recorded`
+  before anything is cited.
+- P2: a FIFO at the notes path blocked the read. Only a regular file is read; any other
+  non-directory entry is replaced.
+
 ## Choices
 
 - The existing `cem mark` verb is reused instead of adding a free-text reason to the CEM wire.

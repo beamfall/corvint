@@ -555,9 +555,10 @@ func TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned(t *testing.T) {
 		return values
 	}
 	var calls [][]string
+	failCite := false
 	steps := Runner{Path: "corvint", Run: func(_ context.Context, _ string, args []string, _, _ io.Writer) int {
 		calls = append(calls, append([]string{}, args...))
-		if len(args) < 2 || args[0] != "cem" {
+		if len(args) < 2 || args[0] != "cem" || failCite && args[1] == "cite" {
 			return 1
 		}
 		values := flags(args)
@@ -684,6 +685,20 @@ func TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned(t *testing.T) {
 		t.Errorf("resumed reasoned map: unknown reasons evidence = %q, %v; want the earlier notes", kept, err)
 	}
 
+	// A stage whose citation fails leaves the earlier notes as they were, so
+	// they keep matching the reasons the map records.
+	prepared.Hunks[1].Reason, prepared.Hunks[2].Reason = "insufficient-evidence", "conflicting-evidence"
+	failCite = true
+	got, _ = run("1\ta.txt\t1:1\tspecification\nhunk:b\tunknown\tconflicting-evidence\ta replacement note\n")
+	failCite = false
+	prepared.Hunks[1].Reason, prepared.Hunks[2].Reason = "no-evidence", "no-evidence"
+	if strings.Contains(got, `"status": "PRODUCED"`) {
+		t.Fatalf("failed citation stage: cem-cite = %s; want NOT_PRODUCED", got)
+	}
+	if kept, err := os.ReadFile(evidence); err != nil || string(kept) != notes {
+		t.Errorf("failed citation stage: unknown reasons evidence = %q, %v; want the earlier notes", kept, err)
+	}
+
 	// A fresh map that keeps no hunk unknown drops the notes.
 	got, _ = run("1\ta.txt\t1:1\tspecification\n2\ta.txt\t1:1\tspecification\n3\ta.txt\t1:1\tspecification\n")
 	if !strings.Contains(got, `"status": "PRODUCED"`) {
@@ -724,6 +739,42 @@ func TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned(t *testing.T) {
 	}
 	if limit := maxUnknown(observed); limit != "0" {
 		t.Errorf("occupied evidence path: cem status --max-unknown %s; want 0", limit)
+	}
+}
+
+// TestPrepareUnknownReasonsDCWV0046RefusesOverflow: notes over the bound are
+// refused before anything is cited, never truncated, and the file is kept.
+func TestPrepareUnknownReasonsDCWV0046RefusesOverflow(t *testing.T) {
+	root := t.TempDir()
+	c := &change{flow: flow{root: root}, evidence: root}
+	path := root + unknownReasons
+	for _, size := range []int{maxUnknownReasonBytes, maxUnknownReasonBytes + 1} {
+		previous := append(bytes.Repeat([]byte("x"), size-1), '\n')
+		if err := os.WriteFile(path, previous, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		err := c.prepareUnknownReasons(nil)
+		if (err != nil) != (size > maxUnknownReasonBytes) {
+			t.Errorf("%d-byte notes: prepare error = %v", size, err)
+		}
+		if info, statErr := os.Stat(path); statErr != nil || info.Size() != int64(size) {
+			t.Errorf("%d-byte notes: file after prepare = %v, %v; want it unchanged", size, info, statErr)
+		}
+	}
+	plan := []byte("1\tunknown\tinsufficient-evidence\t" + strings.Repeat("n", maxUnknownReasonBytes) + "\n")
+	if os.MkdirAll(filepath.Join(root, ".corvint"), 0o700) != nil ||
+		os.WriteFile(filepath.Join(root, ".corvint/change.cem.json"), []byte(`{"hunks":[{"id":"hunk:a","disposition":"unknown","reason":"no-evidence"}]}`), 0o600) != nil ||
+		os.Remove(path) != nil {
+		t.Fatal("cannot seed the map")
+	}
+	if err := c.prepareUnknownReasons(plan); err == nil {
+		t.Errorf("an over-bound plan note was prepared: %d bytes", len(c.unknownNotes))
+	}
+	if err := c.prepareUnknownReasons([]byte("1\tunknown\tinsufficient-evidence\tgenerated\n")); err != nil || string(c.unknownNotes) != "hunk:a\tinsufficient-evidence\tgenerated\n" {
+		t.Errorf("prepared notes = %q, %v", c.unknownNotes, err)
+	}
+	if _, err := os.Lstat(path); !os.IsNotExist(err) {
+		t.Errorf("prepare wrote %s before any citation: %v", path, err)
 	}
 }
 

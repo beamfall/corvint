@@ -58,6 +58,7 @@ type change struct {
 	queryAbstentionSHA   string
 	bootstrapUnknown     int
 	reasonedUnknown      int
+	unknownNotes         []byte
 	manifestValid        bool
 	manifestReason       string
 	noIntent             bool
@@ -541,7 +542,7 @@ func (c *change) citeStep() {
 		status, reason = "NOT_PRODUCED", mismatch
 	case c.citationCount > 1 && exists(c.path(c.citationStage)):
 		status, reason = "NOT_PRODUCED", "citation-stage-exists"
-	case c.recordUnknownReasons(plan) != nil:
+	case c.prepareUnknownReasons(plan) != nil:
 		status, reason = "NOT_PRODUCED", "unknown-reasons-not-recorded"
 	default:
 		c.recordCitationBinding(plan)
@@ -550,6 +551,9 @@ func (c *change) citeStep() {
 		status, reason = c.cite(plan, citeOutput)
 		c.citedOver = cited > 0 && status == "PRODUCED"
 		c.keepMapEncoding(before)
+		if status == "PRODUCED" && c.publishUnknownReasons() != nil {
+			status, reason = "NOT_PRODUCED", "unknown-reasons-not-recorded"
+		}
 	}
 	if c.cleanupCitationStage() != nil {
 		status, reason = "NOT_PRODUCED", "citation-stage-cleanup-failed"
@@ -722,29 +726,45 @@ func reasonedUnknownRow(fields []string) bool {
 	}) >= 0
 }
 
-// recordUnknownReasons keeps, privately in the evidence directory, one
-// HUNK_ID<TAB>REASON<TAB>NOTE line per hunk kept unknown with a reason, in map
-// order: the accepted plan's unknown rows, and the earlier lines of hunks the
-// prepared map still records as reasoned unknown that this plan does not
-// rename, so a staged plan keeps the notes of earlier stages. The map itself
-// records only the reason. Whatever was at the path is removed first, so the
-// file is created owner-only; an error leaves the plan uncited, since its notes
-// would not be retained.
-func (c *change) recordUnknownReasons(plan []byte) error {
-	data, _ := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
-	hunks := mapHunks(data)
-	notes := map[string]string{}
-	if previous, err := readPrefix(c.evidence+unknownReasons, maxPlanBytes); err == nil && isRegular(c.evidence+unknownReasons) && !isSymlink(c.evidence+unknownReasons) {
+// prepareUnknownReasons builds, before anything is cited, the private notes
+// file: one HUNK_ID<TAB>REASON<TAB>NOTE line per hunk kept unknown with a
+// reason, in map order. It holds the accepted plan's unknown rows and the
+// earlier lines of hunks the prepared map still records as unknown with the
+// same reason that this plan does not rename, so a staged plan keeps the notes
+// of earlier stages. The map itself records only the reason. Only a regular
+// file is read; an earlier file over the bound, a result over the bound or a
+// directory at the path refuses, since the notes could not be retained whole.
+func (c *change) prepareUnknownReasons(plan []byte) error {
+	c.unknownNotes = nil
+	path := c.evidence + unknownReasons
+	info, err := os.Lstat(path)
+	switch {
+	case err == nil && info.IsDir():
+		return errors.New("unknown reasons path is a directory")
+	case err != nil && !os.IsNotExist(err):
+		return err
+	}
+	notes := map[string][]string{}
+	if err == nil && info.Mode().IsRegular() {
+		previous, err := readPrefix(path, maxUnknownReasonBytes+1)
+		if err != nil {
+			return err
+		}
+		if len(previous) > maxUnknownReasonBytes {
+			return errors.New("unknown reasons exceed the bound")
+		}
 		for _, line := range textLines(previous) {
 			if fields := strings.SplitN(line, "\t", 3); len(fields) == 3 {
-				notes[fields[0]] = line
+				notes[fields[0]] = fields
 			}
 		}
 	}
+	data, _ := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
+	hunks := mapHunks(data)
 	kept := map[string]string{}
 	for _, hunk := range hunks {
-		if note, ok := notes[hunk["id"]]; ok && hunk["disposition"] == "unknown" && recordedUnknownReasons[hunk["reason"]] {
-			kept[hunk["id"]] = note
+		if note, ok := notes[hunk["id"]]; ok && hunk["disposition"] == "unknown" && recordedUnknownReasons[hunk["reason"]] && note[1] == hunk["reason"] {
+			kept[hunk["id"]] = strings.Join(note, "\t")
 		}
 	}
 	for _, line := range textLines(plan) {
@@ -758,16 +778,41 @@ func (c *change) recordUnknownReasons(plan []byte) error {
 		}
 		kept[id] = id + "\t" + fields[2] + "\t" + fields[3]
 	}
-	rows := []string{}
+	var notesFile strings.Builder
 	for _, hunk := range hunks {
 		if line, ok := kept[hunk["id"]]; ok {
-			rows = append(rows, line)
+			notesFile.WriteString(line + "\n")
 		}
 	}
-	if err := removeFile(c.evidence + unknownReasons); err != nil || len(rows) == 0 {
+	if notesFile.Len() > maxUnknownReasonBytes {
+		return errors.New("unknown reasons exceed the bound")
+	}
+	if notesFile.Len() > 0 {
+		c.unknownNotes = []byte(notesFile.String())
+	}
+	return nil
+}
+
+// publishUnknownReasons replaces the notes file only after the plan is cited,
+// so a refused or failed stage leaves the earlier notes as they were. The new
+// file is created owner-only beside the path and renamed over it; with no
+// notes the path is removed.
+func (c *change) publishUnknownReasons() error {
+	path := c.evidence + unknownReasons
+	if c.unknownNotes == nil {
+		return removeFile(path)
+	}
+	next := path + ".next"
+	if err := removeFile(next); err != nil {
 		return err
 	}
-	return writePrivate(c.evidence+unknownReasons, []byte(strings.Join(rows, "\n")+"\n"))
+	if err := writePrivate(next, c.unknownNotes); err != nil {
+		return errors.Join(err, removeFile(next))
+	}
+	if err := os.Rename(next, path); err != nil {
+		return errors.Join(err, removeFile(next))
+	}
+	return nil
 }
 
 const unknownReasons = "/cem-unknown-reasons.tsv"
@@ -805,6 +850,10 @@ func (f *flow) reasonedUnknowns(mapPath string, intents []string, bootstrap bool
 }
 
 const maxPlanBytes = 4194304
+
+// maxUnknownReasonBytes bounds the private notes file of DCW-V0-046, well
+// above one maximum-size plan; notes over it refuse rather than truncate.
+const maxUnknownReasonBytes = 4 * maxPlanBytes
 
 func nonEmptyFields(line string, count int) bool {
 	fields := strings.Split(line, "\t")

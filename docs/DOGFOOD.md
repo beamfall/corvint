@@ -559,7 +559,8 @@ cites stays `unknown` with reason `no-evidence`. A hunk that no base evidence su
 stay `unknown` on purpose: the row `HUNK<TAB>unknown<TAB>REASON<TAB>NOTE` runs `cem mark` with
 `REASON` (`insufficient-evidence` or `conflicting-evidence`), so the map and the sealed map record
 it, and keeps the hunk ID, reason and `NOTE` in `<git-dir>/corvint/cem-unknown-reasons.tsv`
-(notes from earlier staged plans are kept while their hunks stay reasoned unknown). Such a hunk
+(notes from earlier staged plans are kept while their hunks stay reasoned unknown, and the file
+changes only after a plan is cited). Such a hunk
 is admitted by `cem-status`, `dogfood check` and `dogfood batch-check` and counted in
 `unknownShare`; any other unknown row refuses `invalid-citation-plan` (`DCW-V0-046`). A base evidence path means the producer reads the span from the CEM base tree;
 it does not make base-only evidence admissible. The cited span must survive the change: cite base
