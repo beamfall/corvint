@@ -312,7 +312,7 @@ func runCodexAdapter(ctx context.Context, payload map[string]any) (hookOutput ma
 	kernel := experimentalKernelContext(ctx, event, root)
 	result, reason := invokeDogfoodEvent(ctx, root, "codex", event, normalized, adapterOutputLimit-promptBoundReserve(disclosure)-promptBoundReserve(kernel))
 	if reason != "" {
-		return withCodexSnapshotRemediation(ctx, root, reason, codexDegraded(eventName, reason))
+		return withDeadlineRemediation(root, reason, withCodexSnapshotRemediation(ctx, root, reason, codexDegraded(eventName, reason)))
 	}
 	return withHookContextSuffix(withPromptBoundDisclosure(renderAdapterResult("codex", eventName, event, root, normalized, result, false), disclosure), eventName, kernel)
 }
@@ -372,7 +372,7 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 	result, reason := invokeDogfoodEvent(ctx, root, "claude-code", event, normalized, budget)
 	if reason != "" {
 		refuse()
-		return withSnapshotRemediation(ctx, root, event, reason, claudeDegradedOutput(event, reason))
+		return withDeadlineRemediation(root, reason, withSnapshotRemediation(ctx, root, event, reason, claudeDegradedOutput(event, reason)))
 	}
 	output := renderAdapterResult("claude-code", claudeEventName(event), event, root, normalized, result, subagent)
 	stagePacket(ctx, refuse, func() { recordDeliveredPacket(root, event, normalized, result, output) })
@@ -833,6 +833,37 @@ func withCodexSnapshotRemediation(ctx context.Context, root, reason string, outp
 		return output
 	}
 	output["systemMessage"] = output["systemMessage"].(string) + snapshotRemediation(ctx, root)
+	return output
+}
+
+// claudeDeadlineReason is the dogfood event rejection for an expiry before any snapshot miss
+// (LCP-V0-008, AHI-031).
+const claudeDeadlineReason = "corvint-event-rejected:dogfood-event-deadline"
+
+// deadlineRemediation is the text a deadline notice carries after its frame (AHI-055). The hook
+// has no time left to measure the cause, so it names the usual causes as unmeasured.
+func deadlineRemediation(root string) string {
+	status, _ := json.Marshal([]string{"git", "-C", root, "status", "--short"})
+	return "\nCorvint's check for this event did not finish within the hook time limit, so this event got no Corvint context; coding continues." +
+		"\nThe usual causes are a very large set of uncommitted or staged changes in the project checkout, or heavy machine load; this notice did not measure either." +
+		"\nTo see the pending changes, run this read-only command outside the hook:\n" + string(status) +
+		"\nCommitting, stashing or unstaging unrelated changes, or waiting for load to drop, usually clears it."
+}
+
+// withDeadlineRemediation appends deadlineRemediation to every channel a Claude Code or Codex
+// dogfood-event-deadline notice already uses, after its unchanged frame (AHI-055).
+func withDeadlineRemediation(root, reason string, output map[string]any) map[string]any {
+	if reason != claudeDeadlineReason {
+		return output
+	}
+	if text, ok := output["systemMessage"].(string); ok {
+		output["systemMessage"] = text + deadlineRemediation(root)
+	}
+	if hook, ok := output["hookSpecificOutput"].(map[string]any); ok {
+		if text, ok := hook["additionalContext"].(string); ok {
+			hook["additionalContext"] = text + deadlineRemediation(root)
+		}
+	}
 	return output
 }
 

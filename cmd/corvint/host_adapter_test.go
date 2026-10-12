@@ -564,6 +564,66 @@ func TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice(t *testing.T) {
 	if output["systemMessage"] != nil || !strings.Contains(text, "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline;") {
 		t.Fatalf("deadline expiry showed a fault notice: %+v", output)
 	}
+	// AHI-055: the model-visible notice keeps its frame line and names the causes and next step.
+	assertDeadlineRemediation(t, text, "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline; coding continues", adapterGetenv(ctx, "CLAUDE_PROJECT_DIR"))
+	if hook["hookEventName"] != "UserPromptSubmit" || adapterDegradationReason(output) != claudeDeadlineReason {
+		t.Fatalf("deadline notice lost its event or ledger reason: %+v", output)
+	}
+}
+
+// assertDeadlineRemediation checks the AHI-055 text: the unchanged frame as the first line, the
+// plain-words cause and consequence, the unmeasured usual causes and the exact read-only argv.
+func assertDeadlineRemediation(t *testing.T, text, frame, root string) {
+	t.Helper()
+	status, _ := json.Marshal([]string{"git", "-C", root, "status", "--short"})
+	first, _, _ := strings.Cut(text, "\n")
+	for _, want := range []string{
+		"did not finish within the hook time limit",
+		"this event got no Corvint context; coding continues",
+		"very large set of uncommitted or staged changes",
+		"heavy machine load; this notice did not measure either",
+		"read-only command outside the hook:\n" + string(status) + "\n",
+		"waiting for load to drop",
+	} {
+		if first != frame || !strings.Contains(text, want) {
+			t.Fatalf("deadline notice lacks %q after frame %q: %q", want, frame, text)
+		}
+	}
+	if len(text) > adapterOutputLimit/2 {
+		t.Fatalf("deadline notice is %d bytes", len(text))
+	}
+}
+
+// AHI-055: the Codex fallback for an expired dogfood event deadline keeps its frame and carries
+// the same remediation, in the one channel codexDegraded chose for the event.
+func TestCodexAdapterDeadlineNamesRemediation(t *testing.T) {
+	t.Parallel()
+	root := queryCLIRepository(t)
+	frame := "Corvint fallback: corvint-event-rejected:dogfood-event-deadline; unrelated coding continues."
+	for _, event := range []string{"UserPromptSubmit", "Stop"} {
+		release := make(chan struct{})
+		ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 10 * time.Millisecond })
+		ctx = context.WithValue(ctx, dogfoodEventReadKey{}, func(context.Context, options, map[string]any) (map[string]any, error) {
+			<-release
+			return nil, errors.New("released")
+		})
+		output := runCodexAdapter(ctx, map[string]any{"hook_event_name": event, "session_id": "s", "cwd": root, "prompt": "inspect requirement", "stop_hook_active": false})
+		close(release)
+		hook, _ := output["hookSpecificOutput"].(map[string]any)
+		text, _ := output["systemMessage"].(string)
+		if event == "UserPromptSubmit" {
+			text, _ = hook["additionalContext"].(string)
+			if output["systemMessage"] != nil || hook["hookEventName"] != event {
+				t.Fatalf("codex %s deadline changed channel: %+v", event, output)
+			}
+		} else if hook != nil {
+			t.Fatalf("codex %s deadline changed channel: %+v", event, output)
+		}
+		assertDeadlineRemediation(t, text, frame, root)
+		if reason := adapterDegradationReason(output); reason != claudeDeadlineReason {
+			t.Fatalf("codex %s ledger reason %q", event, reason)
+		}
+	}
 }
 
 // LCP-V0-008, HLQ-V1-009: a Stop whose dogfood event deadline expires fails open. Its output has
@@ -587,8 +647,14 @@ func TestClaudeAdapterStopDeadlineFailsOpenVisibly(t *testing.T) {
 	if !reached.Load() {
 		t.Fatalf("the Stop never reached its repository read: %+v", output)
 	}
-	if _, decided := output["decision"]; decided || output["systemMessage"] != "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline; coding continues" {
+	notice, _ := output["systemMessage"].(string)
+	if _, decided := output["decision"]; decided || output["hookSpecificOutput"] != nil {
 		t.Fatalf("expired Stop output %+v", output)
+	}
+	// AHI-055: the user-visible Stop notice keeps the frame line the lifecycle runner keys on.
+	assertDeadlineRemediation(t, notice, "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline; coding continues", adapterGetenv(ctx, "CLAUDE_PROJECT_DIR"))
+	if adapterDegradationReason(output) != claudeDeadlineReason {
+		t.Fatalf("expired Stop ledger reason lost: %+v", output)
 	}
 }
 
@@ -616,6 +682,9 @@ func TestClaudeAdapterStaleSnapshotNamesRemediation(t *testing.T) {
 	if !strings.HasPrefix(notice, frame) || !strings.HasSuffix(notice, "\n"+string(refresh)) || hook["additionalContext"] != notice || hook["hookEventName"] != "UserPromptSubmit" {
 		t.Fatalf("stale snapshot degradation carried no remediation: %+v", output)
 	}
+	if strings.Contains(notice, "hook time limit") || strings.Contains(notice, `"status"`) {
+		t.Fatalf("stale snapshot notice carried the AHI-055 deadline text: %q", notice) // AHI-055 leaves AHI-031 unchanged
+	}
 	if reason := adapterDegradationReason(output); reason != claudeSnapshotStaleReason {
 		t.Fatalf("ledger reason %q", reason)
 	}
@@ -638,6 +707,9 @@ func TestCodexAdapterStaleSnapshotNamesRemediation(t *testing.T) {
 	frame := "Corvint fallback: corvint-event-rejected:dogfood-event-index-snapshot-stale; unrelated coding continues.\n"
 	if !strings.HasPrefix(text, frame) || !strings.HasSuffix(text, "\n"+string(refresh)) || hook["hookEventName"] != "UserPromptSubmit" || output["systemMessage"] != nil {
 		t.Fatalf("codex stale snapshot fallback carried no remediation: %+v", output)
+	}
+	if strings.Contains(text, "hook time limit") || strings.Contains(text, `"status"`) {
+		t.Fatalf("codex stale snapshot fallback carried the AHI-055 deadline text: %q", text)
 	}
 	if reason := adapterDegradationReason(output); reason != claudeSnapshotStaleReason {
 		t.Fatalf("ledger reason %q", reason)
