@@ -37,6 +37,8 @@ func buildCorpusOperations() []corpusOperation {
 		{name: "behavior-provider", purpose: "build a corvint-corpus-behavior-provider/2 declaration from a request", required: []string{"--input"}},
 		{name: "discover-playwright", purpose: "produce Playwright test discovery from a listing and migration", required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
 		{name: "witness-playwright", purpose: "import qualified Playwright witnesses from a committed receipt and report", required: []string{"--input", "--receipt-input", "--report"}},
+		{name: "import-cases", purpose: "import manual legacy cases from a caller-exported TestRail JSON or CSV file", required: []string{"--format", "--input"}, optional: []string{"--content"}},
+		{name: "search-cases", purpose: "search a caller-exported TestRail JSON or CSV file for legacy cases", required: []string{"--format", "--input", "--query"}, optional: []string{"--limit"}},
 		read("info", "artifact identity, capabilities and freshness", nil),
 		read("validate", "recheck the artifact against its original inputs", nil),
 		read("inventory", "page through every subject, claim and relation ID", nil),
@@ -107,6 +109,8 @@ var corpusFlagHelp = map[string][2]string{
 	"--receipt":         {"RECEIPT.json", "qualified Playwright receipt, read unchanged"},
 	"--receipt-input":   {"ID", "REQUEST.json input naming the committed receipt; not a file"},
 	"--report":          {"REPORT.json", "caller-run Playwright JSON report"},
+	"--format":          {"testrail-json|csv", "test-management export format"},
+	"--content":         {"ids-paths-titles|full", "case text kept; full is local_only (default ids-paths-titles)"},
 	"--query":           {"TEXT", "search text"},
 	"--path":            {"PATH", "repository path"},
 	"--limit":           {"N", "1.." + strconv.Itoa(doccorpus.MaxResults) + " results (default 20)"},
@@ -172,6 +176,9 @@ func docsCorpusOperationHelp(name string) string {
 	text.WriteString(docsCorpusHelpTrailer)
 	if name == "discover-playwright" || name == "witness-playwright" {
 		text.WriteString("\n" + playwrightReceiptHelp)
+	}
+	if name == "import-cases" || name == "search-cases" {
+		text.WriteString("\n" + legacyCasesHelp)
 	}
 	return text.String()
 }

@@ -190,6 +190,8 @@ Separate experimental corpus profile:
   corvint [--root PATH] docs corpus behavior-provider --input REQUEST-V2.json
   corvint [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json]
   corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json
+  corvint [--root PATH] docs corpus import-cases --format testrail-json|csv --input EXPORT [--content ids-paths-titles|full]
+  corvint [--root PATH] docs corpus search-cases --format testrail-json|csv --input EXPORT --query TEXT [--limit N]
   corvint [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT
   corvint [--root PATH] docs corpus render --artifact CORPUS.json
   corvint [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply]
@@ -204,7 +206,7 @@ or test-selection authority. Read commands print bounded JSON and never collect 
 Every operation: corvint help docs corpus; its options: corvint docs corpus OPERATION --help.
 Guide: docs/DOCUMENTATION-CORPUS.md; contract: docs/specs/documentation-corpus-v1.md
 
-` + playwrightReceiptHelp
+` + playwrightReceiptHelp + "\n" + legacyCasesHelp
 
 // playwrightReceiptHelp is the DCP-V1-053 receipt guidance that docs help and the
 // discover-playwright and witness-playwright help topics share.
@@ -221,6 +223,19 @@ End-to-end example, run at the repository root:
     git add evidence/receipt.json && git commit -m "retain playwright receipt"
     corvint docs corpus witness-playwright --input evidence/request.json --receipt-input receipt --report evidence/report.json
 REQUEST.json names the committed receipt as input "receipt", beside the migration and discovery.
+`
+
+// legacyCasesHelp is the DCP-V1-070..079 test-management export guidance that docs help and the
+// import-cases and search-cases help topics share.
+const legacyCasesHelp = `Test-management export (DCP-V1-070..079): import-cases reads a caller-exported TestRail JSON
+({suites, sections, cases}) or CSV file, joins each case with its suite and section path and emits
+corvint-legacy-cases/1: state manual legacy cases keyed by case ID. Manual cases are never
+executable and never count as runtime parity. --content defaults to ids-paths-titles, which omits
+preconditions, steps and expected results (the case digest still covers them); full keeps the
+HTML-stripped text and marks the record local_only, so keep it out of commits. Oversized fields are
+bounded and listed under bounded, never silently cut. search-cases matches every query word as a
+prefix in title, suite/section path, preconditions and steps, returns case ID, path and title only,
+and names its query, fields and searched export, so a none-found result can be audited.
 `
 
 func parseTrustedNavArgs(options docsOptions, args []string) (docsOptions, error) {

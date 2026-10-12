@@ -34,7 +34,7 @@ type chainFixture struct {
 
 func chainGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	argv := append([]string{"-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.test"}, args...)
+	argv := append([]string{"-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)
 	cmd := exec.Command("git", argv...)
 	cmd.Env = gitEnvironment()
 	out, err := cmd.CombinedOutput()

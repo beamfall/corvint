@@ -33,6 +33,7 @@ func TestBehaviorLegacyParity(t *testing.T) {
 			r.Legacy[0].Criteria[0].Locator = "#other"
 		}, false, "legacy-criterion-contradiction"},
 		{"disabled baseline", func(r *BehaviorRegistry) { r.Legacy[0].State = "disabled" }, false, "legacy-runtime-unknown"},
+		{"manual case baseline", func(r *BehaviorRegistry) { r.Legacy[0].State = "manual" }, false, "legacy-runtime-unknown"},
 		{"source review not runtime", func(r *BehaviorRegistry) { r.Legacy[0].Runtime = nil }, false, "legacy-runtime-unknown"},
 		{"target unmapped", func(r *BehaviorRegistry) { r.Tests[0].Legacy = nil }, false, "unreviewed-legacy-join"},
 		{"unreviewed mapping", func(r *BehaviorRegistry) { r.Tests[0].Legacy[0].Review.Kind = "declared" }, false, "legacy-criterion-contradiction"},

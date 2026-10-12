@@ -331,6 +331,16 @@ ANL-V0-033	docs/specs/application-navigation-ledger-v0.md	200	`test-plan page-st
 ANL-V0-034	docs/specs/application-navigation-ledger-v0.md	207	Several `--appmap-impact` reports may name one app when each comes from a differ
 ANL-V0-035	docs/specs/application-navigation-ledger-v0.md	213	`flows appmap build` classifies every `test-sequence` edge (AMAP-V0-008) by stat
 ANL-V0-036	docs/specs/application-navigation-ledger-v0.md	249	`test-plan prefixes` treats a derived `navigation-only` step as read-only withou
+ANL-V0-037	docs/specs/application-navigation-ledger-v0.md	257	Corvint ships a navigation-events producer as the repository file
+ANL-V0-038	docs/specs/application-navigation-ledger-v0.md	263	The config is loaded by the runner and by every worker; in each, `install` resol
+ANL-V0-039	docs/specs/application-navigation-ledger-v0.md	270	When a test's browser context closes (the before-close hook, or the context `clo
+ANL-V0-040	docs/specs/application-navigation-ledger-v0.md	279	Each URL commit of the test page's main frame (`framenavigated`) is one event,
+ANL-V0-041	docs/specs/application-navigation-ledger-v0.md	286	When the committed document's main-frame navigation request was reached through
+ANL-V0-042	docs/specs/application-navigation-ledger-v0.md	290	On the same run, `observe` over the producer's file yields the same visits and
+ANL-V0-043	docs/specs/application-navigation-ledger-v0.md	296	A test attempt that opens a second page (a popup or another context), closes a
+ANL-V0-044	docs/specs/application-navigation-ledger-v0.md	303	The producer reads only main-frame URLs, navigation request redirect chains and
+ANL-V0-045	docs/specs/application-navigation-ledger-v0.md	321	Its cost is one in-process listener call per Playwright call, two page event
+ANL-V0-046	docs/specs/application-navigation-ledger-v0.md	327	The runner process (where Playwright has not set `TEST_WORKER_INDEX`) loads the
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
@@ -820,30 +830,54 @@ CEM-V1-007	docs/specs/cem-stable-v1.md	32	Migrate Core producers/validators/revi
 CEM-V1-008	docs/specs/cem-stable-v1.md	33	Retain independent external consumer conformance and matched external outcome ev
 CEM-V1-009	docs/specs/cem-stable-v1.md	34	Promote only with the native release's compatibility, focused documentation, int
 CEM-V1-010	docs/specs/cem-stable-v1.md	35	Rollback preserves original0.x producer defaults and emitted historical packets,
-CEM-V1-011	docs/specs/cem-stable-v1.md	60	Reject missing, duplicate, unknown or escaping reference/artifact identities. Re
-CEM-V1-012	docs/specs/cem-stable-v1.md	61	Publish the candidate schema and algorithms before the standalone consumer. Nati
-CEM-V1-013	docs/specs/cem-stable-v1.md	62	Never translate candidate spec labels to earlier0.x profiles to bypass consumer
-CEM-V1-014	docs/specs/cem-stable-v1.md	63	Inventory every existing consumer's profile and migration disposition. An unsupp
-CEM-V1-015	docs/specs/cem-stable-v1.md	73	Candidate assembly MUST require independently supplied immutable base and target
-CEM-V1-016	docs/specs/cem-stable-v1.md	74	Assembly MUST compare each declared runner source input with its self-hashed imm
-CEM-V1-017	docs/specs/cem-stable-v1.md	316	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab
-CEM-V1-018	docs/specs/cem-stable-v1.md	317	A stable read MUST refuse `--patch` and policy ceilings with `invalid-arguments`
-CEM-V1-019	docs/specs/cem-stable-v1.md	318	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b
-CEM-V1-030	docs/specs/cem-stable-v1.md	351	Core `cem prepare` MUST refuse an existing map at the fixed sidecar path whose b
-CEM-V1-031	docs/specs/cem-stable-v1.md	352	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c
-CEM-V1-032	docs/specs/cem-stable-v1.md	353	The daily bind loop MUST read no hunks from a map declaring `cem/1.0`, so such a
-CEM-V1-033	docs/specs/cem-stable-v1.md	354	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem
-CEM-V1-034	docs/specs/cem-stable-v1.md	398	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
-CEM-V1-035	docs/specs/cem-stable-v1.md	399	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
-CEM-V1-036	docs/specs/cem-stable-v1.md	400	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
-CEM-V1-050	docs/specs/cem-stable-v1.md	200	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable
-CEM-V1-080	docs/specs/cem-stable-v1.md	221	Support tiers are consumer-derived. The native (`internal/cem/verify`, `support.
-CEM-V1-081	docs/specs/cem-stable-v1.md	229	Anchor kinds and byte-level rules. `id`: an ASCII requirement ID
-CEM-V1-082	docs/specs/cem-stable-v1.md	239	The `citation` block and the shift null MUST be byte-identical across the native
-CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	428	The default `verify` path refuses a strictly parsed JSON object whose exact
-CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	432	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
-CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	435	Only that exact case changes. A duplicate, non-string, differently cased,
-CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	439	`examples/cem/verify-portable.sh` runs `verify-stable-canonical` only when
+CEM-V1-011	docs/specs/cem-stable-v1.md	61	Reject missing, duplicate, unknown or escaping reference/artifact identities. Re
+CEM-V1-012	docs/specs/cem-stable-v1.md	62	Publish the candidate schema and algorithms before the standalone consumer. Nati
+CEM-V1-013	docs/specs/cem-stable-v1.md	63	Never translate candidate spec labels to earlier0.x profiles to bypass consumer
+CEM-V1-014	docs/specs/cem-stable-v1.md	64	Inventory every existing consumer's profile and migration disposition. An unsupp
+CEM-V1-015	docs/specs/cem-stable-v1.md	74	Candidate assembly MUST require independently supplied immutable base and target
+CEM-V1-016	docs/specs/cem-stable-v1.md	75	Assembly MUST compare each declared runner source input with its self-hashed imm
+CEM-V1-017	docs/specs/cem-stable-v1.md	317	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab
+CEM-V1-018	docs/specs/cem-stable-v1.md	318	A stable read MUST refuse `--patch` and policy ceilings with `invalid-arguments`
+CEM-V1-019	docs/specs/cem-stable-v1.md	319	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b
+CEM-V1-030	docs/specs/cem-stable-v1.md	352	Core `cem prepare` MUST refuse an existing map at the fixed sidecar path whose b
+CEM-V1-031	docs/specs/cem-stable-v1.md	353	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c
+CEM-V1-032	docs/specs/cem-stable-v1.md	354	The daily bind loop MUST read no hunks from a map declaring `cem/1.0`, so such a
+CEM-V1-033	docs/specs/cem-stable-v1.md	355	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem
+CEM-V1-034	docs/specs/cem-stable-v1.md	399	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
+CEM-V1-035	docs/specs/cem-stable-v1.md	400	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
+CEM-V1-036	docs/specs/cem-stable-v1.md	401	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
+CEM-V1-050	docs/specs/cem-stable-v1.md	201	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable
+CEM-V1-051	docs/specs/cem-stable-v1.md	477	`lrfrepo.VerifyStableUniverse` MUST admit a map whose bytes declare exactly
+CEM-V1-052	docs/specs/cem-stable-v1.md	487	The repository root, expected base, target and artifact root are explicit, with
+CEM-V1-053	docs/specs/cem-stable-v1.md	493	The OCM MUST bind the exact original stable map digest, the accepted target and
+CEM-V1-054	docs/specs/cem-stable-v1.md	497	The projection is read-only. It never exposes a legacy `*wire.Map` or any 0.x
+CEM-V1-055	docs/specs/cem-stable-v1.md	501	`lrf/0` stays frozen. `lrf.Evaluate` MUST keep refusing a `cem/1.0` context with
+CEM-V1-056	docs/specs/cem-stable-v1.md	507	A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1
+CEM-V1-057	docs/specs/cem-stable-v1.md	515	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in
+CEM-V1-058	docs/specs/cem-stable-v1.md	518	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,
+CEM-V1-059	docs/specs/cem-stable-v1.md	523	A stable universe verification is a read. It MUST NOT change the repository HEAD
+CEM-V1-060	docs/specs/cem-stable-v1.md	562	Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first ru
+CEM-V1-061	docs/specs/cem-stable-v1.md	566	An accepted export MUST write a new directory outside the worktree (the 0.x outp
+CEM-V1-062	docs/specs/cem-stable-v1.md	573	The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem
+CEM-V1-063	docs/specs/cem-stable-v1.md	577	`ReadStable` MUST refuse a bundle with a missing declared file
+CEM-V1-064	docs/specs/cem-stable-v1.md	603	A stable export MUST refuse `--witness` with `invalid-arguments` before
+CEM-V1-070	docs/specs/cem-stable-v1.md	655	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the
+CEM-V1-071	docs/specs/cem-stable-v1.md	656	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v
+CEM-V1-072	docs/specs/cem-stable-v1.md	657	A report built over a stable source MUST take profile `corvint-witness-stable/0`
+CEM-V1-073	docs/specs/cem-stable-v1.md	658	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`
+CEM-V1-074	docs/specs/cem-stable-v1.md	659	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a
+CEM-V1-075	docs/specs/cem-stable-v1.md	660	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab
+CEM-V1-076	docs/specs/cem-stable-v1.md	661	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and
+CEM-V1-077	docs/specs/cem-stable-v1.md	662	The console chain pane MUST admit `cem/1.0` in its closed profile registry only
+CEM-V1-078	docs/specs/cem-stable-v1.md	663	Each criterion binding, runner receipt (with its execution authority, source bin
+CEM-V1-079	docs/specs/cem-stable-v1.md	664	The registry stays closed: an unsupported profile, a near-stable spec, an unknow
+CEM-V1-080	docs/specs/cem-stable-v1.md	222	Support tiers are consumer-derived. The native (`internal/cem/verify`, `support.
+CEM-V1-081	docs/specs/cem-stable-v1.md	230	Anchor kinds and byte-level rules. `id`: an ASCII requirement ID
+CEM-V1-082	docs/specs/cem-stable-v1.md	240	The `citation` block and the shift null MUST be byte-identical across the native
+CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	429	The default `verify` path refuses a strictly parsed JSON object whose exact
+CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	433	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
+CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	436	Only that exact case changes. A duplicate, non-string, differently cased,
+CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	440	`examples/cem/verify-portable.sh` runs `verify-stable-canonical` only when
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and
@@ -1130,10 +1164,20 @@ DCP-V1-050	docs/specs/documentation-corpus-v1.md	383	A witness is produced only 
 DCP-V1-051	docs/specs/documentation-corpus-v1.md	397	Every other registered test stays unwitnessed with exactly one named reason and
 DCP-V1-052	docs/specs/documentation-corpus-v1.md	406	Missing or untrustworthy shared evidence yields uncertainty for every test, neve
 DCP-V1-053	docs/specs/documentation-corpus-v1.md	412	`corvint docs --help`, and the `docs corpus discover-playwright --help` and
-DCP-V1-054	docs/specs/documentation-corpus-v1.md	700	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
+DCP-V1-054	docs/specs/documentation-corpus-v1.md	790	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
 DCP-V1-055	docs/specs/documentation-corpus-v1.md	426	`discover-playwright` applies the `TJAA-V0-021` grep/grepInvert omission rules o
 DCP-V1-056	docs/specs/documentation-corpus-v1.md	438	`corvint help docs corpus` and `corvint docs corpus --help` (or `-h`) print one
-DCP-V1-057	docs/specs/documentation-corpus-v1.md	456	`corvint help TOPIC` with an unknown topic stays the `invalid-arguments` refusal
+DCP-V1-057	docs/specs/documentation-corpus-v1.md	457	`corvint help TOPIC` with an unknown topic stays the `invalid-arguments` refusal
+DCP-V1-070	docs/specs/documentation-corpus-v1.md	465	`corvint docs corpus import-cases --format testrail-json|csv --input EXPORT` rea
+DCP-V1-071	docs/specs/documentation-corpus-v1.md	475	Every imported case is a `BehaviorLegacyCase` in the existing legacy inventory s
+DCP-V1-072	docs/specs/documentation-corpus-v1.md	482	Preconditions, steps and expected results have HTML stripped before use: tags an
+DCP-V1-073	docs/specs/documentation-corpus-v1.md	489	`--content` is `ids-paths-titles` (default) or `full`. Under `ids-paths-titles`,
+DCP-V1-074	docs/specs/documentation-corpus-v1.md	494	Oversized fields are bounded, never silently truncated. A title over 1024 bytes,
+DCP-V1-075	docs/specs/documentation-corpus-v1.md	499	`corvint docs corpus search-cases --format F --input EXPORT --query TEXT [--limi
+DCP-V1-076	docs/specs/documentation-corpus-v1.md	506	Every search result is the auditable receipt `corvint-legacy-case-search/1`. It
+DCP-V1-077	docs/specs/documentation-corpus-v1.md	511	The separate `corvint-corpus-mcp`, started with `--legacy-cases`, lists the read
+DCP-V1-078	docs/specs/documentation-corpus-v1.md	516	Each of the following is refused with `corpus-refused` and no partial output:
+DCP-V1-079	docs/specs/documentation-corpus-v1.md	528	Manual legacy cases never count as runtime parity. `manual` joins `executable` a
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide
@@ -2686,16 +2730,29 @@ PWP-V3-004	docs/specs/playwright-external-provider-v0.md	217	Every `/3` attempt 
 PWP-V3-005	docs/specs/playwright-external-provider-v0.md	218	The reporter emits `attemptDetails` only under `/3`; the provider validates the
 PWP-V3-006	docs/specs/playwright-external-provider-v0.md	219	`/3` is non-promotable until the changed reporter completes the live matrix of `
 PWP-V3-007	docs/specs/playwright-external-provider-v0.md	452	The `/3` exact project identity permits an explicitly observed empty project nam
-PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	29	One shared reader MUST read an explicit Playwright json-reporter file read-only
-PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	43	Runs pool only at identical identity inputs: the Playwright version plus the
-PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	50	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes
-PWR-V0-004	docs/specs/playwright-run-evidence-v0.md	59	An `INTERMITTENT` pool whose test is expected to fail (`expectedStatus` `failed`
-PWR-V0-005	docs/specs/playwright-run-evidence-v0.md	63	`corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-
-PWR-V0-006	docs/specs/playwright-run-evidence-v0.md	72	`Compare(baseline, candidate)` MUST match tests by the `PWR-V0-001` identity acr
-PWR-V0-007	docs/specs/playwright-run-evidence-v0.md	82	A failed assertion's origin MUST come only from its reported location: `TEST_FIL
-PWR-V0-008	docs/specs/playwright-run-evidence-v0.md	89	The overall verdict MUST be `INCOMPARABLE` with every applicable reason, in the
-PWR-V0-009	docs/specs/playwright-run-evidence-v0.md	99	Each admitted report MUST be listed per side with its position, SHA-256, Playwri
-PWR-V0-010	docs/specs/playwright-run-evidence-v0.md	103	`corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,
+PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	31	One shared reader MUST read an explicit Playwright json-reporter file read-only
+PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	45	Runs pool only at identical identity inputs: the Playwright version plus the
+PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	52	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes
+PWR-V0-004	docs/specs/playwright-run-evidence-v0.md	61	An `INTERMITTENT` pool whose test is expected to fail (`expectedStatus` `failed`
+PWR-V0-005	docs/specs/playwright-run-evidence-v0.md	65	`corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-
+PWR-V0-006	docs/specs/playwright-run-evidence-v0.md	74	`Compare(baseline, candidate)` MUST match tests by the `PWR-V0-001` identity acr
+PWR-V0-007	docs/specs/playwright-run-evidence-v0.md	84	A failed assertion's origin MUST come only from its reported location: `TEST_FIL
+PWR-V0-008	docs/specs/playwright-run-evidence-v0.md	91	The overall verdict MUST be `INCOMPARABLE` with every applicable reason, in the
+PWR-V0-009	docs/specs/playwright-run-evidence-v0.md	101	Each admitted report MUST be listed per side with its position, SHA-256, Playwri
+PWR-V0-010	docs/specs/playwright-run-evidence-v0.md	105	`corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,
+PWR-V0-011	docs/specs/playwright-run-evidence-v0.md	111	The reader MUST read `config.projects[].repeatEach` and, for a project whose
+PWR-V0-012	docs/specs/playwright-run-evidence-v0.md	116	A test identity that occurs more than once in a logical run stays
+PWR-V0-013	docs/specs/playwright-run-evidence-v0.md	121	Stability output MUST add `repeatEach` to a run summary and `repeats[]` (the rep
+PWR-V0-014	docs/specs/playwright-run-evidence-v0.md	125	Compare MUST lay each test out over observation slots: per admitted logical run,
+PWR-V0-015	docs/specs/playwright-run-evidence-v0.md	129	Unsharded single-repeat inputs MUST produce stability and compare documents
+PWR-V0-016	docs/specs/playwright-run-evidence-v0.md	132	A report declaring `config.shard` MUST have `1 <= current <= total` (else
+PWR-V0-017	docs/specs/playwright-run-evidence-v0.md	138	A shard set is admitted only when shards 1..total are each present exactly once
+PWR-V0-018	docs/specs/playwright-run-evidence-v0.md	142	An admitted set is read as one run at its shared inputs: tests concatenated in s
+PWR-V0-019	docs/specs/playwright-run-evidence-v0.md	145	Stability MUST count an admitted set as one run, giving the same entries as one
+PWR-V0-020	docs/specs/playwright-run-evidence-v0.md	148	Compare MUST treat an admitted set as one report of its side. A refused set adds
+PWR-V0-021	docs/specs/playwright-run-evidence-v0.md	151	Sharding and repeat-each MUST compose: Playwright shards repeat instances, so a
+PWR-V0-022	docs/specs/playwright-run-evidence-v0.md	154	`merge-reports` JSON output (no `config.shard`, projects listed once per merged
+PWR-V0-023	docs/specs/playwright-run-evidence-v0.md	156	`corvint runs` topic help MUST document repeat observations, shard sets, the thr
 PWV-V0-001	docs/specs/pi-workflow-v0.md	36	Pi MUST preserve original native Core receipt objects, output and exit status, i
 PWV-V0-002	docs/specs/pi-workflow-v0.md	37	Core read tools MUST use closed operation and argument sets for query, context,
 PWV-V0-003	docs/specs/pi-workflow-v0.md	38	Each command MUST use bounded argv-only local execution, one owned POSIX process
@@ -3176,42 +3233,52 @@ TJAA-V0-018	docs/specs/typescript-javascript-affected-adapter-v0.md	170	(accepte
 TJAA-V0-019	docs/specs/typescript-javascript-affected-adapter-v0.md	234	(accepted, decision 0483; V1-1066; GitHub #709; V1-1175 amendment accepted, deci
 TJAA-V0-020	docs/specs/typescript-javascript-affected-adapter-v0.md	296	(accepted, decision 0483; V1-1067; GitHub #709) When `discovery.state`
 TJAA-V0-021	docs/specs/typescript-javascript-affected-adapter-v0.md	305	(accepted, decision 0519 (V1-1175); GitHub #790) A project `grep` or
-TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	63	A NATIVE ticket record MAY carry the optional member `obligations`, a closed
-TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	72	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger
-TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	89	A folded obligation entry MUST be the closed object `{id, title, core, state,
-TOL-V0-004	docs/specs/corvint-tasks-obligation-ledger-v0.md	98	Witness evidence MUST be the closed object `{source, eventSha256, commit,
-TOL-V0-005	docs/specs/corvint-tasks-obligation-ledger-v0.md	112	`corvint-tasks ticket obligations seed --target T --expected-revision N --payloa
-TOL-V0-006	docs/specs/corvint-tasks-obligation-ledger-v0.md	120	`corvint-tasks ticket obligations show --target T` is a read. It MUST print the
-TOL-V0-007	docs/specs/corvint-tasks-obligation-ledger-v0.md	125	`corvint-tasks ticket obligations set` MUST apply operation `OBLIGATIONS_SET` wi
-TOL-V0-008	docs/specs/corvint-tasks-obligation-ledger-v0.md	134	`corvint-tasks ticket obligations witness` MUST apply operation
-TOL-V0-009	docs/specs/corvint-tasks-obligation-ledger-v0.md	145	`witness --from-playwright-report FILE --commit SHA [--ids ID,...]` MUST read at
-TOL-V0-010	docs/specs/corvint-tasks-obligation-ledger-v0.md	159	Crediting MUST use only results with `retry` `0` of tests whose `expectedStatus`
-TOL-V0-011	docs/specs/corvint-tasks-obligation-ledger-v0.md	171	Every match of an id in the report MUST pass, and be bound by TOL-V0-012, for th
-TOL-V0-012	docs/specs/corvint-tasks-obligation-ledger-v0.md	178	Each match MUST pass a source presence check. Its `spec.file` (relative to
-TOL-V0-013	docs/specs/corvint-tasks-obligation-ledger-v0.md	184	Validation and audit are source-specific.
-TOL-V0-014	docs/specs/corvint-tasks-obligation-ledger-v0.md	202	Every `OBLIGATIONS_*` write MUST be an ordinary receipt-backed mutation. It uses
-TOL-V0-015	docs/specs/corvint-tasks-obligation-ledger-v0.md	213	Roles are as follows.
-TOL-V0-016	docs/specs/corvint-tasks-obligation-ledger-v0.md	228	`highWater` MUST be monotone within one acceptance revision.
-TOL-V0-017	docs/specs/corvint-tasks-obligation-ledger-v0.md	234	For a ticket that carries `obligations`, the CAL-V0-057 per-ticket fingerprint l
-TOL-V0-018	docs/specs/corvint-tasks-obligation-ledger-v0.md	244	A WORKER witness that raises `highWater.witnessed` MUST set `lastRaise` to its
-TOL-V0-019	docs/specs/corvint-tasks-obligation-ledger-v0.md	255	`queue status` and `queue status --summary` MUST add the key `obligations`
-TOL-V0-020	docs/specs/corvint-tasks-obligation-ledger-v0.md	263	`corvint-tasks ticket obligations plan --target T --plan FILE` is an optional
-TOL-V0-021	docs/specs/corvint-tasks-obligation-ledger-v0.md	274	A CAL-V0-185 `stall` count MUST restart at zero when a ticket's observed
-TOL-V0-022	docs/specs/corvint-tasks-obligation-ledger-v0.md	285	A `test.fail` test MUST never credit, and an obligation it marks expected-fail M
-TOL-V0-023	docs/specs/corvint-tasks-obligation-ledger-v0.md	303	Any other obligation named in a `test.fail` test (in its title path or a step,
-TOL-V0-024	docs/specs/corvint-tasks-obligation-ledger-v0.md	308	`witness --from-playwright-report` MUST accept `--post-check LOG
-TOL-V0-025	docs/specs/corvint-tasks-obligation-ledger-v0.md	317	`corvint-tasks preflight <ticket> [--commit OID] [--path PREFIX ...]` MUST check
-TOL-V0-026	docs/specs/corvint-tasks-obligation-ledger-v0.md	348	`preflight --plan PATH` MUST add the TOL-V0-020 findings of the plan document at
-TOL-V0-027	docs/specs/corvint-tasks-obligation-ledger-v0.md	352	`preflight --deep --gate GATE ...` MUST run each named policy gate, under the le
-TOL-V0-028	docs/specs/corvint-tasks-obligation-ledger-v0.md	375	`run-batch` and `qualify` MUST read their commands from one closed local
-TOL-V0-029	docs/specs/corvint-tasks-obligation-ledger-v0.md	388	`run-batch <ticket> --config FILE --spec PATH ... --out DIR --request-id ID` MUS
-TOL-V0-030	docs/specs/corvint-tasks-obligation-ledger-v0.md	404	A job MUST run only in a clean checkout of the commit: a checkout at another com
-TOL-V0-031	docs/specs/corvint-tasks-obligation-ledger-v0.md	416	Before any lane is acquired or command run, `run-batch` MUST refuse `LOOP_DETECT
-TOL-V0-032	docs/specs/corvint-tasks-obligation-ledger-v0.md	428	`qualify --config FILE --spec PATH ... --base REV --out DIR --request-id ID` MUS
-TOL-V0-033	docs/specs/corvint-tasks-obligation-ledger-v0.md	446	`qualify` MUST write `<DIR>/<ID>/verdict.json` (schema
-TOL-V0-034	docs/specs/corvint-tasks-obligation-ledger-v0.md	474	A seed item MAY carry an optional adopter `alias`, so a suite that already names
-TOL-V0-035	docs/specs/corvint-tasks-obligation-ledger-v0.md	487	A seed MUST refuse, and write nothing, when an alias repeats an alias already in
-TOL-V0-036	docs/specs/corvint-tasks-obligation-ledger-v0.md	495	Wherever TOL-V0-010..013 and 022..029 find an obligation named in a report title
+TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	65	A NATIVE ticket record MAY carry the optional member `obligations`, a closed
+TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	74	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger
+TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	91	A folded obligation entry MUST be the closed object `{id, title, core, state,
+TOL-V0-004	docs/specs/corvint-tasks-obligation-ledger-v0.md	100	Witness evidence MUST be the closed object `{source, eventSha256, commit,
+TOL-V0-005	docs/specs/corvint-tasks-obligation-ledger-v0.md	114	`corvint-tasks ticket obligations seed --target T --expected-revision N --payloa
+TOL-V0-006	docs/specs/corvint-tasks-obligation-ledger-v0.md	122	`corvint-tasks ticket obligations show --target T` is a read. It MUST print the
+TOL-V0-007	docs/specs/corvint-tasks-obligation-ledger-v0.md	127	`corvint-tasks ticket obligations set` MUST apply operation `OBLIGATIONS_SET` wi
+TOL-V0-008	docs/specs/corvint-tasks-obligation-ledger-v0.md	136	`corvint-tasks ticket obligations witness` MUST apply operation
+TOL-V0-009	docs/specs/corvint-tasks-obligation-ledger-v0.md	147	`witness --from-playwright-report FILE --commit SHA [--ids ID,...]` MUST read at
+TOL-V0-010	docs/specs/corvint-tasks-obligation-ledger-v0.md	161	Crediting MUST use only results with `retry` `0` of tests whose `expectedStatus`
+TOL-V0-011	docs/specs/corvint-tasks-obligation-ledger-v0.md	173	Every match of an id in the report MUST pass, and be bound by TOL-V0-012, for th
+TOL-V0-012	docs/specs/corvint-tasks-obligation-ledger-v0.md	180	Each match MUST pass a source presence check. Its `spec.file` (relative to
+TOL-V0-013	docs/specs/corvint-tasks-obligation-ledger-v0.md	186	Validation and audit are source-specific.
+TOL-V0-014	docs/specs/corvint-tasks-obligation-ledger-v0.md	204	Every `OBLIGATIONS_*` write MUST be an ordinary receipt-backed mutation. It uses
+TOL-V0-015	docs/specs/corvint-tasks-obligation-ledger-v0.md	215	Roles are as follows.
+TOL-V0-016	docs/specs/corvint-tasks-obligation-ledger-v0.md	230	`highWater` MUST be monotone within one acceptance revision.
+TOL-V0-017	docs/specs/corvint-tasks-obligation-ledger-v0.md	236	For a ticket that carries `obligations`, the CAL-V0-057 per-ticket fingerprint l
+TOL-V0-018	docs/specs/corvint-tasks-obligation-ledger-v0.md	246	A WORKER witness that raises `highWater.witnessed` MUST set `lastRaise` to its
+TOL-V0-019	docs/specs/corvint-tasks-obligation-ledger-v0.md	257	`queue status` and `queue status --summary` MUST add the key `obligations`
+TOL-V0-020	docs/specs/corvint-tasks-obligation-ledger-v0.md	265	`corvint-tasks ticket obligations plan --target T --plan FILE` is an optional
+TOL-V0-021	docs/specs/corvint-tasks-obligation-ledger-v0.md	276	A CAL-V0-185 `stall` count MUST restart at zero when a ticket's observed
+TOL-V0-022	docs/specs/corvint-tasks-obligation-ledger-v0.md	287	A `test.fail` test MUST never credit, and an obligation it marks expected-fail M
+TOL-V0-023	docs/specs/corvint-tasks-obligation-ledger-v0.md	305	Any other obligation named in a `test.fail` test (in its title path or a step,
+TOL-V0-024	docs/specs/corvint-tasks-obligation-ledger-v0.md	310	`witness --from-playwright-report` MUST accept `--post-check LOG
+TOL-V0-025	docs/specs/corvint-tasks-obligation-ledger-v0.md	319	`corvint-tasks preflight <ticket> [--commit OID] [--path PREFIX ...]` MUST check
+TOL-V0-026	docs/specs/corvint-tasks-obligation-ledger-v0.md	350	`preflight --plan PATH` MUST add the TOL-V0-020 findings of the plan document at
+TOL-V0-027	docs/specs/corvint-tasks-obligation-ledger-v0.md	354	`preflight --deep --gate GATE ...` MUST run each named policy gate, under the le
+TOL-V0-028	docs/specs/corvint-tasks-obligation-ledger-v0.md	377	`run-batch` and `qualify` MUST read their commands from one closed local
+TOL-V0-029	docs/specs/corvint-tasks-obligation-ledger-v0.md	390	`run-batch <ticket> --config FILE --spec PATH ... --out DIR --request-id ID` MUS
+TOL-V0-030	docs/specs/corvint-tasks-obligation-ledger-v0.md	406	A job MUST run only in a clean checkout of the commit: a checkout at another com
+TOL-V0-031	docs/specs/corvint-tasks-obligation-ledger-v0.md	418	Before any lane is acquired or command run, `run-batch` MUST refuse `LOOP_DETECT
+TOL-V0-032	docs/specs/corvint-tasks-obligation-ledger-v0.md	430	`qualify --config FILE --spec PATH ... --base REV --out DIR --request-id ID` MUS
+TOL-V0-033	docs/specs/corvint-tasks-obligation-ledger-v0.md	448	`qualify` MUST write `<DIR>/<ID>/verdict.json` (schema
+TOL-V0-034	docs/specs/corvint-tasks-obligation-ledger-v0.md	476	A seed item MAY carry an optional adopter `alias`, so a suite that already names
+TOL-V0-035	docs/specs/corvint-tasks-obligation-ledger-v0.md	489	A seed MUST refuse, and write nothing, when an alias repeats an alias already in
+TOL-V0-036	docs/specs/corvint-tasks-obligation-ledger-v0.md	497	Wherever TOL-V0-010..013 and 022..029 find an obligation named in a report title
+TOL-V0-037	docs/specs/corvint-tasks-obligation-ledger-v0.md	525	A folded entry MAY carry an optional `sources` list of 1..16 review sources, kep
+TOL-V0-038	docs/specs/corvint-tasks-obligation-ledger-v0.md	539	An `OBLIGATIONS_SET` change MAY carry `sources`. A change becomes `{id, state,
+TOL-V0-039	docs/specs/corvint-tasks-obligation-ledger-v0.md	543	An entry or set change without sources MUST keep its exact pre-#813 bytes (the
+TOL-V0-040	docs/specs/corvint-tasks-obligation-ledger-v0.md	547	The policy key `obligations` becomes `{workerWitness, requireSourceReview?}`.
+TOL-V0-041	docs/specs/corvint-tasks-obligation-ledger-v0.md	552	Under the same policy, `preflight` MUST add a `SOURCE_REVIEW_NONE_UNSEARCHED`
+TOL-V0-042	docs/specs/corvint-tasks-obligation-ledger-v0.md	556	When some entry records sources, `ticket obligations show` and `ticket obligatio
+TOL-V0-043	docs/specs/corvint-tasks-obligation-ledger-v0.md	565	`show` and `plan` take an optional `--legacy-cases FILE`, a
+TOL-V0-044	docs/specs/corvint-tasks-obligation-ledger-v0.md	573	A `legacy-spec` ref MUST resolve as a clean repository-relative path at `HEAD`,
+TOL-V0-045	docs/specs/corvint-tasks-obligation-ledger-v0.md	577	Source refs, queries and searched ids MUST pass the TOL-V0-009 secret screen
+TOL-V0-046	docs/specs/corvint-tasks-obligation-ledger-v0.md	580	`show`, `plan` and `preflight` stay reads: the review-source checks write no que
 TPN-V0-001	docs/specs/trusted-project-navigation-v0.md	29	Execution requires explicit `--trusted-project`. Accept only the closed canonica
 TPN-V0-002	docs/specs/trusted-project-navigation-v0.md	32	Stage only the complete admitted immutable Git manifest, with regular files and
 TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-party configuration, check the interpreter and installed

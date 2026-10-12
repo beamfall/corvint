@@ -65,6 +65,7 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	var rec *ticket.Record
 	var ledger *ticket.ObligationLedger
 	var defs []*intent.GateDefinition
+	reviewSources := false
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		r, l, ferr := obligationTarget(rc, target)
 		if ferr != nil {
@@ -74,6 +75,7 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 			return wire.Errorf(wire.CodeMalformed, "--target", "%s ticket %s has no obligation ledger; seed it first", ticket.ObligationUnknownDetail, r.TicketID.Raw)
 		}
 		rec, ledger = r, l
+		reviewSources = rc.store.Policy.ObligationSourceReviewRequired()
 		if deep {
 			d, err := store.PreflightGateDefinitions(rc.store.Policy, gates)
 			if err != nil {
@@ -130,6 +132,9 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 		}
 	}
 	findings = append(findings, obligation.CheckSources(ledger, files)...)
+	if reviewSources {
+		findings = append(findings, obligation.CheckReviewSources(ledger)...)
+	}
 	if planPath != "" {
 		pf, err := preflightPlan(root, resolved, planPath, rec, ledger)
 		if err != nil {

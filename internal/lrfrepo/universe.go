@@ -100,7 +100,7 @@ func VerifyUniverseWithRepository(ctx context.Context, repository *gitauth.Repos
 		return nil, cemcode.New(cemcode.InvalidArguments, "universe repository is required")
 	}
 	defer repository.BeginObjectSession()()
-	document, err := wire.ParseMap(cemRaw)
+	document, err := parseUniverseMap(cemRaw)
 	if err != nil {
 		return nil, err
 	}
@@ -258,4 +258,14 @@ func obligationRows(rows []ocmObligation) []Obligation {
 		})
 	}
 	return obligations
+}
+
+// parseUniverseMap parses the legacy universe input. A stable map never enters
+// the cem/0.2 universe, not even as a reduced legacy view; its only route is
+// VerifyStableUniverse (CEM-V1-057, CEM-V1-058).
+func parseUniverseMap(cemRaw []byte) (*wire.Map, error) {
+	if wire.DeclaresStable(cemRaw) {
+		return nil, cemcode.New(cemcode.UnsupportedSpec, "universe verification accepts canonical cem/0.2 only; cem/1.0 is admitted only by the stable universe verification")
+	}
+	return wire.ParseMap(cemRaw)
 }

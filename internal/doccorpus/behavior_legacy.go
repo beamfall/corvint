@@ -59,7 +59,7 @@ func (c *compiler) importBehaviorLegacy(r *BehaviorRegistry) error {
 			return err
 		}
 		locations = append(locations, location)
-		if !textOK(legacy.Suite) || !textOK(legacy.Case) || !words("executable disabled")[legacy.State] || !uniqueIdentities(legacy.Fixtures) || !uniqueIdentities(legacy.Roles) || len(legacy.Criteria) > MaxRecords {
+		if !textOK(legacy.Suite) || !textOK(legacy.Case) || !words("executable disabled manual")[legacy.State] || !uniqueIdentities(legacy.Fixtures) || !uniqueIdentities(legacy.Roles) || len(legacy.Criteria) > MaxRecords {
 			return fail("invalid legacy case identity")
 		}
 		if err := c.checkAnchor(legacy.Evidence, true); err != nil {

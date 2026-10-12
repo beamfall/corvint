@@ -32,6 +32,21 @@ RUN_INTERRUPTED, NOT_RUN for no result or an unexpected skip). An
 intermittent test.fail() test is flagged EXPECTED_FAIL_NOT_DETERMINISTIC with
 the alternatives.
 
+Repeats and shards: each repeat of a project run with --repeat-each N
+(config.projects[].repeatEach) is one observation, numbered in report order
+(repeats[] in stability, k/N slots in compare); a test seen once is one plain
+observation, and one seen more than once is IDENTITY_AMBIGUOUS unless it is
+seen exactly N times at one reported spec location. Reports
+declaring config.shard group into one logical run by shard total, Playwright
+version, applicationRevision, configDigest, testFileBlobs and repeatEach (shard
+total and repeatEach at most 1024), and are admitted only when shards 1..total
+are each present once; otherwise the set is refused with
+SHARD_INPUTS_NOT_DECLARED, SHARD_SET_INCOMPLETE or SHARD_DUPLICATE (shardSets[]
+names the missing and duplicate indexes): its tests are INSUFFICIENT and
+compare is INCOMPARABLE. A test in two shards of one set is ambiguous unless
+repeatEach explains it (Playwright shards repeat instances).
+merge-reports output is one unsharded run.
+
 compare matches tests by the same identity across the baseline and candidate
 report sets (N repeats per side give k/N stability). Each test is SAME,
 CHANGED (outcome, retries, or failed assertions raised in the test file or
@@ -39,6 +54,7 @@ without a location), MISSING, NEW or AMBIGUOUS (withheld); failed assertions
 raised in other files (page objects, helpers, fixtures) are listed separately
 as a support difference and do not change the verdict. The overall verdict is
 PARITY, DIVERGED or INCOMPARABLE with reasons (REPORT_UNREADABLE,
+SHARD_INPUTS_NOT_DECLARED, SHARD_SET_INCOMPLETE, SHARD_DUPLICATE,
 PLAYWRIGHT_VERSION_DIFFERS, PROJECTS_DIFFER, CONFIG_DIFFERS,
 INPUTS_DIFFER_WITHIN_SIDE, REPORT_HAS_ERRORS, NO_TESTS, IDENTITY_AMBIGUOUS,
 RUN_INTERRUPTED). Per report it lists worker indexes and result durations;

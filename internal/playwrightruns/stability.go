@@ -48,20 +48,38 @@ func (in *PoolInputs) presented() *PoolInputs {
 		ConfigDigest: screenText(in.ConfigDigest), TestFileBlob: screenText(in.TestFileBlob)}
 }
 
-// RunSummary names one admitted report by its 1-based argument position.
+// RunSummary names one admitted report by its 1-based argument position. Shard and RepeatEach
+// appear only when the report declares a shard or a repeatEach above 1 (PWR-V0-013, PWR-V0-019).
 type RunSummary struct {
-	Run               int    `json:"run"`
-	Sha256            string `json:"sha256"`
-	PlaywrightVersion string `json:"playwrightVersion"`
-	IdentityInputs    string `json:"identityInputs"` // DECLARED | NOT_DECLARED
+	Run               int            `json:"run"`
+	Sha256            string         `json:"sha256"`
+	PlaywrightVersion string         `json:"playwrightVersion"`
+	IdentityInputs    string         `json:"identityInputs"` // DECLARED | NOT_DECLARED
+	Shard             *Shard         `json:"shard,omitempty"`
+	RepeatEach        map[string]int `json:"repeatEach,omitempty"`
+}
+
+// presentedRepeatEach is a run's repeatEach declaration as emitted, secret-screened; nil when empty.
+func presentedRepeatEach(run *Run) map[string]int {
+	if len(run.RepeatEach) == 0 {
+		return nil
+	}
+	out := map[string]int{}
+	for p, n := range run.RepeatEach {
+		out[screenText(p)] = n
+	}
+	return out
 }
 
 // StabilityEntry is one test under one set of identity inputs, or the observations of one test
-// that could not be pooled for one reason (Inputs is then null).
+// that could not be pooled for one reason (Inputs is then null). Runs names each observation's
+// logical run by its first report's position; Repeats, present only when an observation comes from
+// a run that declares repeatEach above 1, is each observation's 0-based repeat (PWR-V0-013).
 type StabilityEntry struct {
 	Identity
 	Inputs      *PoolInputs `json:"inputs"`
 	Runs        []int       `json:"runs"`
+	Repeats     []int       `json:"repeats,omitempty"`
 	Outcomes    []string    `json:"outcomes"`
 	Verdict     string      `json:"verdict"`
 	Reason      string      `json:"reason"`
@@ -80,15 +98,19 @@ type StabilitySummary struct {
 
 // StabilityReport is the `corvint runs stability` document.
 type StabilityReport struct {
-	Profile string           `json:"profile"`
-	MinRuns int              `json:"minRuns"`
-	Runs    []RunSummary     `json:"runs"`
-	Tests   []StabilityEntry `json:"tests"`
-	Summary StabilitySummary `json:"summary"`
+	Profile string       `json:"profile"`
+	MinRuns int          `json:"minRuns"`
+	Runs    []RunSummary `json:"runs"`
+	// ShardSets lists every shard set, admitted or refused; absent when no report is a shard.
+	ShardSets []ShardSet       `json:"shardSets,omitempty"`
+	Tests     []StabilityEntry `json:"tests"`
+	Summary   StabilitySummary `json:"summary"`
 }
 
 type observation struct {
 	run          int
+	repeat       int
+	repeated     bool // the observation's run declares repeatEach above 1 for its project
 	outcome      string
 	firstError   string
 	expectedFail bool
@@ -96,7 +118,9 @@ type observation struct {
 
 // Stability pools each test's observations across runs whose identity inputs match and classifies
 // every pool (PWR-V0-003): differing outcomes, or a flaky run, are INTERMITTENT at any run count;
-// identical outcomes are DETERMINISTIC only at minRuns or more runs, otherwise INSUFFICIENT.
+// identical outcomes are DETERMINISTIC only at minRuns or more observations, otherwise
+// INSUFFICIENT. Each repeat of a repeatEach run is one observation (PWR-V0-011), and the shard
+// reports of one logical run count as one run; a refused shard set's tests never pool (PWR-V0-019).
 func Stability(runs []*Run, minRuns int) StabilityReport {
 	report := StabilityReport{Profile: StabilityProfile, MinRuns: minRuns, Runs: []RunSummary{}, Tests: []StabilityEntry{}}
 	type bucket struct {
@@ -104,22 +128,33 @@ func Stability(runs []*Run, minRuns int) StabilityReport {
 		obs   []observation
 	}
 	buckets := map[string]*bucket{}
+	positions := make([]int, len(runs))
 	for i, run := range runs {
-		index := i + 1
+		positions[i] = i + 1
 		declared := "NOT_DECLARED"
 		if run.InputsDeclared {
 			declared = "DECLARED"
 		}
-		report.Runs = append(report.Runs, RunSummary{Run: index, Sha256: run.Sha256, PlaywrightVersion: screenText(run.Version), IdentityInputs: declared})
+		report.Runs = append(report.Runs, RunSummary{Run: i + 1, Sha256: run.Sha256, PlaywrightVersion: screenText(run.Version), IdentityInputs: declared,
+			Shard: run.Shard, RepeatEach: presentedRepeatEach(run)})
+	}
+	logical, sets := logicalRuns(runs, positions)
+	if len(sets) > 0 {
+		report.ShardSets = sets
+	}
+	for _, run := range logical {
 		for _, t := range run.Tests {
-			o := observation{run: index, outcome: outcomeOf(t), expectedFail: t.ExpectedFail}
+			o := observation{run: run.index, repeat: t.Repeat, repeated: run.repeats(t.Project) > 1, outcome: outcomeOf(t), expectedFail: t.ExpectedFail}
 			for _, r := range t.Results {
 				if r.FirstError != "" {
 					o.firstError = r.FirstError
 					break
 				}
 			}
-			inputs, reason := poolInputs(run, t)
+			inputs, reason := poolInputs(run.Run, t)
+			if run.refusal != "" {
+				inputs, reason = nil, run.refusal
+			}
 			raw, _ := json.Marshal(inputs)
 			key := t.Key() + "\x00" + reason + "\x00" + string(raw)
 			b := buckets[key]
@@ -190,9 +225,12 @@ func classify(e *StabilityEntry, obs []observation, minRuns int) StabilityEntry 
 	out := *e
 	out.Runs, out.Outcomes, out.Flags, out.FirstErrors, out.Suggestions = []int{}, []string{}, []string{}, []string{}, []string{}
 	distinct, errs := map[string]bool{}, map[string]bool{}
-	expectedFail := false
+	expectedFail, repeated := false, false
+	repeats := []int{}
 	for _, o := range obs {
 		out.Runs = append(out.Runs, o.run)
+		repeats = append(repeats, o.repeat)
+		repeated = repeated || o.repeated
 		out.Outcomes = append(out.Outcomes, o.outcome)
 		distinct[o.outcome] = true
 		expectedFail = expectedFail || o.expectedFail
@@ -200,6 +238,9 @@ func classify(e *StabilityEntry, obs []observation, minRuns int) StabilityEntry 
 			errs[o.firstError] = true
 			out.FirstErrors = append(out.FirstErrors, o.firstError)
 		}
+	}
+	if repeated {
+		out.Repeats = repeats
 	}
 	switch {
 	case out.Reason != "":

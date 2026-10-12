@@ -109,18 +109,22 @@ func chainCode(err error) string {
 // obligationsShow is the TOL-V0-006 read: the folded ledger, the reference
 // counts and the head with the receipt sequence that posted it. A ticket
 // without a ledger is an empty result; a chain that cannot be folded is
-// UNKNOWN with a typed diagnostic, never an empty or partial ledger.
+// UNKNOWN with a typed diagnostic, never an empty or partial ledger. A
+// ledger whose entries record review sources adds sourceReview, the
+// TOL-V0-042 stale-source listing; --legacy-cases names the
+// corvint-legacy-cases/1 record legacy and manual case refs resolve in.
 func obligationsShow(env Env, cmd []string, args []string) *wire.Result {
-	var target string
-	if res := pairFlags(cmd, args, map[string]*string{"--target": &target}, nil, nil); res != nil {
+	var target, casesFile string
+	if res := pairFlags(cmd, args, map[string]*string{"--target": &target, "--legacy-cases": &casesFile}, nil, nil); res != nil {
 		return res
 	}
 	if target == "" {
 		return usage(cmd, "--target is required")
 	}
 	var item *wire.Value
+	var known *ticket.ObligationLedger
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
-		item = nil
+		item, known = nil, nil
 		rec, l, ferr := obligationTarget(rc, target)
 		if rec == nil {
 			return ferr
@@ -152,11 +156,20 @@ func obligationsShow(env Env, cmd []string, args []string) *wire.Result {
 		}
 		o.Set("ledger", wire.String("KNOWN")).Set("entries", l.EntriesValue()).Set("headSeq", seq).Set("diagnostic", wire.Null())
 		v := wire.ObjectValue(o)
-		item = &v
+		item, known = &v, l
 		return nil
 	})
 	if err != nil {
 		return failure(cmd, rc, err)
+	}
+	if known != nil {
+		review, ok, err := sourceReviewValue(env, known, casesFile)
+		if err != nil {
+			return errorResult(cmd, err)
+		}
+		if ok {
+			item.Obj.Set("sourceReview", review)
+		}
 	}
 	res := success(cmd, rc)
 	res.Items = []wire.Value{}
@@ -168,10 +181,12 @@ func obligationsShow(env Env, cmd []string, args []string) *wire.Result {
 }
 
 // obligationsPlan is the TOL-V0-020 read-only plan check. It exits 0 only
-// when every open obligation is assigned to exactly one planned test.
+// when every open obligation is assigned to exactly one planned test. A
+// ledger with review sources adds the TOL-V0-042 sourceReview listing,
+// which never changes ok.
 func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
-	var target, file string
-	if res := pairFlags(cmd, args, map[string]*string{"--target": &target, "--plan": &file}, nil, nil); res != nil {
+	var target, file, casesFile string
+	if res := pairFlags(cmd, args, map[string]*string{"--target": &target, "--plan": &file, "--legacy-cases": &casesFile}, nil, nil); res != nil {
 		return res
 	}
 	if target == "" || file == "" {
@@ -186,6 +201,7 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 		return errorResult(cmd, err)
 	}
 	var findings []ticket.ObligationPlanFinding
+	var ledger *ticket.ObligationLedger
 	ok := false
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		rec, l, ferr := obligationTarget(rc, target)
@@ -196,10 +212,15 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 			return wire.Errorf(wire.CodeMalformed, "/ticketId", "the plan names %s, not %s", plan.TicketID.Raw, rec.TicketID.Raw)
 		}
 		findings, ok = ticket.CheckObligationPlan(l, plan)
+		ledger = l
 		return nil
 	})
 	if err != nil {
 		return failure(cmd, rc, err)
+	}
+	review, hasReview, err := sourceReviewValue(env, ledger, casesFile)
+	if err != nil {
+		return errorResult(cmd, err)
 	}
 	items := make([]wire.Value, 0, len(findings))
 	for _, f := range findings {
@@ -207,7 +228,11 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 			Set("testCount", wire.String(string(wire.CountOf(int64(len(f.Tests)))))).Set("tests", wire.Strings(f.Tests))))
 	}
 	res := success(cmd, rc)
-	res.Items = []wire.Value{wire.ObjectValue(wire.NewObject().Set("ok", wire.Bool(ok)).Set("findings", wire.Array(items...)))}
+	po := wire.NewObject().Set("ok", wire.Bool(ok)).Set("findings", wire.Array(items...))
+	if hasReview {
+		po.Set("sourceReview", review)
+	}
+	res.Items = []wire.Value{wire.ObjectValue(po)}
 	res.Untrusted = true
 	if !ok {
 		res.Outcome = wire.OutcomeRefused

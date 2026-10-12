@@ -31,6 +31,10 @@ const (
 	MaxResultsPerTest  = 100
 	MaxErrorsPerResult = 16
 	maxLineBytes       = 240
+	// MaxShardTotal and MaxRepeatEach bound the declared config.shard.total and
+	// config.projects[].repeatEach (PWR-V0-016, PWR-V0-011).
+	MaxShardTotal = 1024
+	MaxRepeatEach = 1024
 )
 
 // Assertion origins (PWR-V0-007).
@@ -98,6 +102,17 @@ type Test struct {
 	Executed     bool   // false when no result ran: none recorded, or a skip the test did not expect
 	ExpectedFail bool   // test.fail(): a "fail" annotation or expectedStatus "failed"
 	Results      []Result
+	// Repeat is this occurrence's 0-based position among the occurrences of its identity in the
+	// report (or the shard set it was merged into), in report order (PWR-V0-011).
+	Repeat int
+	// line and column are the spec's source location; repeats of one test share it.
+	line, column int
+}
+
+// Shard is a report's config.shard: the 1-based shard index and the shard count (PWR-V0-016).
+type Shard struct {
+	Current int `json:"current"`
+	Total   int `json:"total"`
 }
 
 // Run is one admitted report.
@@ -111,7 +126,53 @@ type Run struct {
 	InputsDeclared     bool
 	ReportErrors       int // top-level report errors, such as a spec file that failed to load
 	Tests              []Test
-	Ambiguous          map[string]bool // identity keys that occur more than once
+	Ambiguous          map[string]bool // identity keys whose occurrences repeatEach does not explain
+	// Shard is config.shard; nil when the report is not one shard of a sharded run.
+	Shard *Shard
+	// RepeatEach is config.projects[].repeatEach by project name, kept only when it is above 1 and
+	// every configured entry of that name agrees (PWR-V0-011).
+	RepeatEach map[string]int
+}
+
+// repeats is how many repeat observations of one test of project the run declares; 1 unless
+// config.projects declares an agreed repeatEach above 1.
+func (run *Run) repeats(project string) int {
+	if n := run.RepeatEach[project]; n > 1 {
+		return n
+	}
+	return 1
+}
+
+// resolveRepeats numbers the occurrences of each identity in report order and records as ambiguous
+// every identity whose several occurrences are not exactly the declared repeatEach occurrences of
+// one reported spec location (PWR-V0-011, PWR-V0-012). A spec without a line (Playwright lines
+// start at 1) has no location to share.
+func (run *Run) resolveRepeats() {
+	type tally struct {
+		count, line, column int
+		project             string
+		moved               bool
+	}
+	run.Ambiguous = map[string]bool{}
+	seen := map[string]*tally{}
+	for i := range run.Tests {
+		t := &run.Tests[i]
+		key := t.Key()
+		s := seen[key]
+		if s == nil {
+			s = &tally{line: t.line, column: t.column, project: t.Project}
+			seen[key] = s
+		} else if s.line != t.line || s.column != t.column {
+			s.moved = true
+		}
+		t.Repeat = s.count
+		s.count++
+	}
+	for key, s := range seen {
+		if s.count > 1 && (s.moved || s.line < 1 || s.count != run.repeats(s.project)) {
+			run.Ambiguous[key] = true
+		}
+	}
 }
 
 type jsonReport struct {
@@ -120,8 +181,10 @@ type jsonReport struct {
 		RootDir  string          `json:"rootDir"`
 		Workers  int             `json:"workers"`
 		Metadata json.RawMessage `json:"metadata"`
+		Shard    *Shard          `json:"shard"`
 		Projects []struct {
-			Name string `json:"name"`
+			Name       string `json:"name"`
+			RepeatEach *int   `json:"repeatEach"`
 		} `json:"projects"`
 	} `json:"config"`
 	Errors []json.RawMessage `json:"errors"`
@@ -136,9 +199,11 @@ type jsonSuite struct {
 }
 
 type jsonSpec struct {
-	Title string     `json:"title"`
-	File  string     `json:"file"`
-	Tests []jsonTest `json:"tests"`
+	Title  string     `json:"title"`
+	File   string     `json:"file"`
+	Line   int        `json:"line"`
+	Column int        `json:"column"`
+	Tests  []jsonTest `json:"tests"`
 }
 
 type jsonTest struct {
@@ -215,25 +280,58 @@ func Parse(raw []byte) (*Run, error) {
 	if doc.Config == nil || doc.Config.Version == "" || doc.Suites == nil {
 		return nil, ErrShape
 	}
+	if sh := doc.Config.Shard; sh != nil && (sh.Total < 1 || sh.Current < 1 || sh.Current > sh.Total) {
+		return nil, ErrShape
+	}
+	if sh := doc.Config.Shard; sh != nil && sh.Total > MaxShardTotal {
+		return nil, ErrTooLarge
+	}
 	sum := sha256.Sum256(raw)
 	run := &Run{Sha256: hex.EncodeToString(sum[:]), Version: doc.Config.Version, Workers: doc.Config.Workers,
 		ReportErrors: len(doc.Errors), Ambiguous: map[string]bool{}, Tests: []Test{}}
 	run.Inputs, run.InputsDeclared = declaredInputs(doc.Config.Metadata)
+	run.Shard = doc.Config.Shard
 	run.ConfiguredProjects = []string{}
 	configured := map[string]bool{}
+	repeatEach := map[string]map[int]bool{}
 	for _, p := range doc.Config.Projects {
 		if !configured[p.Name] {
 			configured[p.Name] = true
 			run.ConfiguredProjects = append(run.ConfiguredProjects, p.Name)
+			repeatEach[p.Name] = map[int]bool{}
 		}
+		n := 1
+		if p.RepeatEach != nil && *p.RepeatEach > MaxRepeatEach {
+			return nil, ErrTooLarge
+		}
+		if p.RepeatEach != nil && *p.RepeatEach > 1 {
+			n = *p.RepeatEach
+		}
+		repeatEach[p.Name][n] = true
 	}
 	sort.Strings(run.ConfiguredProjects)
-	r := reader{run: run, root: doc.Config.RootDir, seen: map[string]bool{}, projects: map[string]bool{}}
+	// A merge-reports output lists a project once per merged shard; entries that disagree leave
+	// the project at one repeat, so its duplicates stay ambiguous.
+	for name, values := range repeatEach {
+		if len(values) != 1 {
+			continue
+		}
+		for n := range values {
+			if n > 1 {
+				if run.RepeatEach == nil {
+					run.RepeatEach = map[string]int{}
+				}
+				run.RepeatEach[name] = n
+			}
+		}
+	}
+	r := reader{run: run, root: doc.Config.RootDir, projects: map[string]bool{}}
 	for _, s := range *doc.Suites {
 		if err := r.suite(s, nil, true); err != nil {
 			return nil, err
 		}
 	}
+	run.resolveRepeats()
 	for p := range r.projects {
 		run.Projects = append(run.Projects, p)
 	}
@@ -244,7 +342,6 @@ func Parse(raw []byte) (*Run, error) {
 type reader struct {
 	run      *Run
 	root     string
-	seen     map[string]bool
 	projects map[string]bool
 }
 
@@ -260,7 +357,7 @@ func (r *reader) suite(s jsonSuite, titles []string, top bool) error {
 			file = s.File
 		}
 		for _, t := range spec.Tests {
-			if err := r.test(file, append(append([]string{}, titles...), spec.Title), t); err != nil {
+			if err := r.test(file, append(append([]string{}, titles...), spec.Title), spec, t); err != nil {
 				return err
 			}
 		}
@@ -273,7 +370,7 @@ func (r *reader) suite(s jsonSuite, titles []string, top bool) error {
 	return nil
 }
 
-func (r *reader) test(file string, titles []string, t jsonTest) error {
+func (r *reader) test(file string, titles []string, spec jsonSpec, t jsonTest) error {
 	if len(r.run.Tests) >= MaxTests || len(t.Results) > MaxResultsPerTest {
 		return ErrTooLarge
 	}
@@ -281,12 +378,8 @@ func (r *reader) test(file string, titles []string, t jsonTest) error {
 		return ErrShape
 	}
 	id := Identity{Project: *t.ProjectName, File: slashPath(file), TitlePath: titles}
-	if r.seen[id.Key()] {
-		r.run.Ambiguous[id.Key()] = true
-	}
-	r.seen[id.Key()] = true
 	r.projects[id.Project] = true
-	test := Test{Identity: id, Status: t.Status, ExpectedFail: t.ExpectedStatus == "failed", Results: []Result{}}
+	test := Test{Identity: id, Status: t.Status, ExpectedFail: t.ExpectedStatus == "failed", Results: []Result{}, line: spec.Line, column: spec.Column}
 	for _, a := range t.Annotations {
 		test.ExpectedFail = test.ExpectedFail || a.Type == "fail"
 	}
