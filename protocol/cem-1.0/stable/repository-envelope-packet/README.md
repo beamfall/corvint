@@ -78,3 +78,8 @@ at 15 calls, records LOGICAL-LEDGERS as the attempted trace through the refused
 reservation, and binds drift processing/emission to bytewise ascending evidence-ID
 order. The affected ledgers and expected cases are regenerated to those rules.
 CHANGES.md lists every repair6 change.
+
+
+Additive member revisions: each later revision adds one stable result
+member with `make cem-stable-regen` (CEM-V1-091), which keeps every frozen
+key, exit and case, re-binds the digests and appends a section to CHANGES.md.

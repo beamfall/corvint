@@ -309,7 +309,7 @@ func s0eRegenCapture(t *testing.T, path string, c s0eCase, result StableResult, 
 }
 
 // requireS0EResult compares the complete closed result and the exit code with
-// the public expectation: all 21 keys, no normalization. With
+// the public expectation: all 22 keys, no normalization. With
 // CEM_STABLE_REGEN_CAPTURE set it also records the result, compares only the
 // frozen expectation's keys and tolerates the additive member being captured.
 func requireS0EResult(t *testing.T, c s0eCase, result StableResult, exit int) bool {
@@ -330,8 +330,8 @@ func requireS0EResult(t *testing.T, c s0eCase, result StableResult, exit int) bo
 	if !ok {
 		t.Errorf("exit = %d, want %d", exit, c.ExpectedExit)
 	}
-	if capture == "" && len(c.ExpectedResult) != 21 {
-		t.Fatalf("public expectation has %d keys, want the closed 21", len(c.ExpectedResult))
+	if capture == "" && len(c.ExpectedResult) != 22 {
+		t.Fatalf("public expectation has %d keys, want the closed 22", len(c.ExpectedResult))
 	}
 	keys := map[string]bool{}
 	for key := range got {

@@ -110,7 +110,7 @@ func TestStableAssemblySeparateSnapshotIdentityAndFullEnvelope(t *testing.T) {
 			b, _ := json.Marshal(result.Verification)
 			var full map[string]json.RawMessage
 			_ = json.Unmarshal(b, &full)
-			if len(full) != 21 {
+			if len(full) != 22 {
 				t.Fatalf("verification keys=%d", len(full))
 			}
 			for _, key := range []string{"nativeAuthority", "historicalValidity", "currentApplicability", "sourceGitBinding", "sourceInventoryCompleteness", "executionAtCommit", "runnerReceiptSemantics", "runnerExecution", "authentication", "dependencyClosure", "criterionAdequacy", "criterionDiscrimination", "externalInteroperability"} {

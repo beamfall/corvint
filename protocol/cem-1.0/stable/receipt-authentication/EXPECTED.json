@@ -44,6 +44,43 @@
         "sourceInventoryCompleteness": "NOT_OBSERVED",
         "structuralProof": "NOT_REQUIRED"
       },
+      "citation": {
+        "annotationHunks": 0,
+        "concentratedHunks": 2,
+        "distinctEvidence": 1,
+        "evidenceFanOut": [
+          [
+            "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+            2
+          ]
+        ],
+        "hunks": [
+          {
+            "anchors": [],
+            "annotation": false,
+            "hunkId": "hunk:sha256:16fcc32b2f5adc894792418166e51c1b26dd5b20a5a7a2123b2946391298eb1d",
+            "tier": "cited"
+          },
+          {
+            "anchors": [],
+            "annotation": false,
+            "hunkId": "hunk:sha256:30a1c6811c42769127d3f4fb654d25f3f1aae0afd2ac100ac04707a13b8b57c0",
+            "tier": "cited"
+          }
+        ],
+        "hunksByClass": {
+          "anchored": 0,
+          "cited": 2,
+          "held": 0,
+          "mechanical-proved": 0,
+          "unknown": 0
+        },
+        "invariant": true,
+        "maxFanOut": 2,
+        "profile": "cem-citation-support/0",
+        "samePathCitations": 0,
+        "specificity": 0
+      },
       "code": null,
       "drift": [
         {

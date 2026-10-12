@@ -3,7 +3,7 @@
   "status": "EXPERIMENTAL",
   "repositoryEnvelope": "canonical-repository-bounded/1",
   "license": "Apache-2.0 public specifications/data only; no native code",
-  "publicAmendmentManifestSHA256": "21655c5d73a4b9b9af9f91e6dacbf702a8d2f95cdc9b40368a4cc240dedbd535",
+  "publicAmendmentManifestSHA256": "2e69ef83a8fe94d59afbcdfb16c590936d630dfb09ba46f5cf98dbc6ec6ae186",
   "note": "Recursive hashes of every regular file under protocol/cem-1.0/stable except this manifest.",
   "files": [
     {
@@ -48,18 +48,18 @@
     },
     {
       "path": "REPOSITORY-ENVELOPE.cells.json",
-      "sha256": "c3eed8b8371322ffb6d03a7bd3065fbf956c1c6d312c92826699a406c396d257",
-      "bytes": 302453
+      "sha256": "ecbc86f8aab33a9548ae9cf9cb4f6e02d3198ff13d9d01a92814a78ccb1609c5",
+      "bytes": 316109
     },
     {
       "path": "REPOSITORY-ENVELOPE.md",
-      "sha256": "9c35b7a5e681c80fb148cd85d972f3200d67c838782242aa41116590a4f3dbab",
-      "bytes": 9705
+      "sha256": "89385b7ae4a910a4f2588264547f75353b0e30f144b7ae0851e118678b111a25",
+      "bytes": 10003
     },
     {
       "path": "RESULT.schema.json",
-      "sha256": "6c157e59ae9ed2ac372724084080a7e74263b8d9d3963e995445035fcc89176f",
-      "bytes": 25284
+      "sha256": "fabb8d1a3773f9881b20b39ae16256ce960a6ffbc68d45c18bdde450482d0e3a",
+      "bytes": 29191
     },
     {
       "path": "inherited/ALGORITHMS.md",
@@ -83,8 +83,8 @@
     },
     {
       "path": "neutral-criterion/EXPECTED.json",
-      "sha256": "695568b0bf9d56dcf2b223afebb4f1c442b3196ec4039ef8521a31dbb8fb62cb",
-      "bytes": 10963
+      "sha256": "f55c2cbb929278e18665115b479909f54978ded66bbec88bb012b205f0f118fb",
+      "bytes": 12032
     },
     {
       "path": "neutral-criterion/README.md",
@@ -113,8 +113,8 @@
     },
     {
       "path": "receipt-authentication/EXPECTED.json",
-      "sha256": "d01da540eb8184cb9cf271388e370cf0d74eee718dee4a57ee67f7297d9b7627",
-      "bytes": 29798
+      "sha256": "a3444239a817fd0e08ac96f2ec031353b827708bf2c356672f6683a524454259",
+      "bytes": 30867
     },
     {
       "path": "receipt-authentication/README.md",

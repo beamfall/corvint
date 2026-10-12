@@ -3,7 +3,7 @@ package main
 // S0E canonical-repository-bounded conformance: the FULL-RESULT cases, the
 // repository-envelope cells and the logical ledgers of the public packet named
 // by CEM01_S0E_PACKET, or the in-tree packet when unset. Each case compares all
-// 21 result keys exactly; results are written to CEM01_S0E_CONFORMANCE_OUT when
+// 22 result keys exactly; results are written to CEM01_S0E_CONFORMANCE_OUT when
 // set.
 
 import (
@@ -101,7 +101,7 @@ func s0eWriteConformance() {
 	}
 	b, _ := json.MarshalIndent(map[string]any{
 		"profile":          "cem01-go-s0e-portable-conformance/1",
-		"comparison":       "complete 21-key exact equality of the decoded result object plus exit status; no normalization",
+		"comparison":       "complete 22-key exact equality of the decoded result object plus exit status; no normalization",
 		"fullResultCases":  s0eConformance.FullResults,
 		"envelopeCells":    s0eConformance.Cells,
 		"ledgers":          s0eConformance.Ledgers,
@@ -120,7 +120,7 @@ func s0eCompare(got stableResult, gotExit int, want map[string]any, wantExit int
 	if err := json.Unmarshal(b, &g); err != nil {
 		return "unmarshal"
 	}
-	if len(want) != 21 || len(g) != 21 {
+	if len(want) != 22 || len(g) != 22 {
 		return "key-count"
 	}
 	keys := []string{}

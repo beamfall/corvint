@@ -244,6 +244,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -511,6 +548,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -778,6 +852,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -1045,6 +1156,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -1312,6 +1460,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:5c721635525c79131a721b2ac23c3d9f34491f2ae10fa76f5fd27a5ef0b0326a",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -1579,6 +1764,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:5c721635525c79131a721b2ac23c3d9f34491f2ae10fa76f5fd27a5ef0b0326a",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -1846,6 +2068,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:5c721635525c79131a721b2ac23c3d9f34491f2ae10fa76f5fd27a5ef0b0326a",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -2113,6 +2372,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:5c721635525c79131a721b2ac23c3d9f34491f2ae10fa76f5fd27a5ef0b0326a",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -2331,6 +2627,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -2598,6 +2895,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -2816,6 +3150,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -3034,6 +3369,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -3252,6 +3588,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -3470,6 +3807,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -3737,6 +4075,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -3955,6 +4330,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -4173,6 +4549,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -4391,6 +4768,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -4658,6 +5036,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -4876,6 +5291,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -5094,6 +5510,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -5312,6 +5729,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -5530,6 +5948,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -5748,6 +6167,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -5966,6 +6386,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -6184,6 +6605,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -6402,6 +6824,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -6620,6 +7043,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -6838,6 +7262,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -7111,11 +7536,11 @@
   "amendment": {
     "profile": "cem-stable-repository-envelope-amendment-index/1",
     "status": "EXPERIMENTAL",
-    "publicManifestSHA256": "21655c5d73a4b9b9af9f91e6dacbf702a8d2f95cdc9b40368a4cc240dedbd535",
+    "publicManifestSHA256": "2e69ef83a8fe94d59afbcdfb16c590936d630dfb09ba46f5cf98dbc6ec6ae186",
     "fullResultCases": {
       "path": "FULL-RESULT-CASES.json",
-      "sha256": "a59f490c33b02be55a576496be8ef670dd8b5e5765182f609c8a562b11e66ad1",
-      "bytes": 1059166,
+      "sha256": "f7f02ec13d77c90080c13160b1b5ab47a61baf3c9bde0fee5b14d439a257e4df",
+      "bytes": 1114176,
       "count": 56
     },
     "logicalLedgers": {
@@ -7129,7 +7554,7 @@
       "target": "c82a33df6ae9eea3b210fa4002b3c5bcf66d4206",
       "expectedBase": "bff36ef7f94a44f0b43dd71ba7125e0185f01fe1"
     },
-    "note": "Index only. The complete 21-field expectation of every case is the bound FULL-RESULT-CASES.json; every earlier byte of this document is unchanged.",
+    "note": "Index only. The complete 22-field expectation of every case is the bound FULL-RESULT-CASES.json; every earlier byte of this document is unchanged.",
     "cases": [
       {
         "id": "cancel-before-content",

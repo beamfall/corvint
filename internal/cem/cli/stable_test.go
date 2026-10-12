@@ -25,7 +25,7 @@ func TestStableRootPrecedenceBeforeReads(t *testing.T) {
 		if e := json.Unmarshal(out.Bytes(), &r); e != nil {
 			t.Fatal(e)
 		}
-		if len(r) != 21 || r["stage"] != "arguments" || r["mapSha256"] != nil || r["code"] != "invalid-arguments" {
+		if len(r) != 22 || r["stage"] != "arguments" || r["mapSha256"] != nil || r["code"] != "invalid-arguments" {
 			t.Fatalf("reads occurred before root refusal: %s", out.Bytes())
 		}
 	}

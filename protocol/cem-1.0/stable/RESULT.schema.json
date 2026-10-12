@@ -728,6 +728,7 @@
     "hunks",
     "references",
     "artifactChecks",
+    "citation",
     "axes",
     "runtime",
     "repositoryEnvelope"
@@ -978,6 +979,151 @@
           }
         }
       }
+    },
+    "citation": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "annotationHunks": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "concentratedHunks": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "distinctEvidence": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "evidenceFanOut": {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "hunks": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "anchors": {
+                    "items": {
+                      "enum": [
+                        "id",
+                        "path"
+                      ]
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "annotation": {
+                    "type": "boolean"
+                  },
+                  "hunkId": {
+                    "type": "string"
+                  },
+                  "tier": {
+                    "enum": [
+                      "held",
+                      "mechanical-proved",
+                      "anchored",
+                      "cited",
+                      "unknown"
+                    ]
+                  }
+                },
+                "required": [
+                  "hunkId",
+                  "tier",
+                  "anchors",
+                  "annotation"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "hunksByClass": {
+              "additionalProperties": false,
+              "properties": {
+                "anchored": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "cited": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "held": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "mechanical-proved": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "unknown": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "held",
+                "mechanical-proved",
+                "anchored",
+                "cited",
+                "unknown"
+              ],
+              "type": "object"
+            },
+            "invariant": {
+              "type": "boolean"
+            },
+            "maxFanOut": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "profile": {
+              "const": "cem-citation-support/0"
+            },
+            "samePathCitations": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "specificity": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "profile",
+            "hunks",
+            "hunksByClass",
+            "annotationHunks",
+            "distinctEvidence",
+            "evidenceFanOut",
+            "maxFanOut",
+            "samePathCitations",
+            "concentratedHunks",
+            "invariant",
+            "specificity"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "axes": {
       "type": "object",
