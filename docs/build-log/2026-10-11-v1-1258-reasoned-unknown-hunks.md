@@ -9,7 +9,7 @@ nearly 100% supported hunks. That share came from the workflow, not from the evi
 `unknown`) could never fire. Decision 0523 records this as a defect.
 
 This change amends `DCW-V0-019` and adds `DCW-V0-046` to
-`docs/specs/daily-change-evidence-workflow-v0.md`, both as proposed. It records no decision.
+`docs/specs/daily-change-evidence-workflow-v0.md`. It records no decision.
 
 ## Change
 
@@ -82,7 +82,18 @@ This change amends `DCW-V0-019` and adds `DCW-V0-046` to
 - P3: the `unknown-reasons-not-recorded` text said nothing was cited, but a failure to replace the
   file after the cite leaves the map changed. The spec and the fix hint now separate the two
   cases: earlier notes are kept, and rerunning the same plan replays it.
-- These fixes were made after the fourth and last review round and have not been reviewed again.
+- These fixes were reviewed in round 5.
+
+## Review round 5 (Codex, PASS)
+
+- No P0-P2 findings. Two P3s were fixed: the traceability row named the removed
+  `recordUnknownReasons`, and a test now covers a notes file that cannot be replaced after the cite
+  (reported, earlier notes kept, replay records the new notes).
+
+## Acceptance
+
+The `DCW-V0-019` amendment and `DCW-V0-046` are accepted under the owner's standing auto-accept
+(2026-10-11), after the round-5 Codex PASS.
 
 ## Choices
 

@@ -699,6 +699,29 @@ func TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned(t *testing.T) {
 		t.Errorf("failed citation stage: unknown reasons evidence = %q, %v; want the earlier notes", kept, err)
 	}
 
+	// Notes that cannot be replaced after the cite are reported; the map has
+	// changed, the earlier notes are kept, and replaying the plan records them.
+	newer := strings.Replace(reasoned, "generated fixture bytes that no spec governs", "a newer note", 1)
+	if os.MkdirAll(evidence+".next/occupied", 0o700) != nil {
+		t.Fatal("cannot occupy the staging path")
+	}
+	got, observed = run(newer)
+	if !strings.Contains(got, `"reason": "unknown-reasons-not-recorded"`) || len(mutations(observed)) != 3 {
+		t.Errorf("blocked publication: cem-cite = %s ran %q; want the cite and marks, then unknown-reasons-not-recorded", got, mutations(observed))
+	}
+	if kept, err := os.ReadFile(evidence); err != nil || string(kept) != notes {
+		t.Errorf("blocked publication: unknown reasons evidence = %q, %v; want the earlier notes", kept, err)
+	}
+	if err := os.RemoveAll(evidence + ".next"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ = run(newer); !strings.Contains(got, `"status": "PRODUCED"`) {
+		t.Fatalf("replayed plan: cem-cite = %s; want PRODUCED", got)
+	}
+	if kept, err := os.ReadFile(evidence); err != nil || string(kept) != strings.Replace(notes, "generated fixture bytes that no spec governs", "a newer note", 1) {
+		t.Errorf("replayed plan: unknown reasons evidence = %q, %v; want the newer notes", kept, err)
+	}
+
 	// A fresh map that keeps no hunk unknown drops the notes.
 	got, _ = run("1\ta.txt\t1:1\tspecification\n2\ta.txt\t1:1\tspecification\n3\ta.txt\t1:1\tspecification\n")
 	if !strings.Contains(got, `"status": "PRODUCED"`) {

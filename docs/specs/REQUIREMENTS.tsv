@@ -1220,7 +1220,7 @@ DCW-V0-042	docs/specs/daily-change-evidence-workflow-v0.md	427	(accepted 2026-10
 DCW-V0-043	docs/specs/daily-change-evidence-workflow-v0.md	450	(accepted 2026-10-11, decision 0520; V1-1198) The inherited archive of
 DCW-V0-044	docs/specs/daily-change-evidence-workflow-v0.md	474	(accepted 2026-10-11, decision 0520; V1-1209) The daily loop's local
 DCW-V0-045	docs/specs/daily-change-evidence-workflow-v0.md	488	(accepted 2026-10-11, decision 0520; V1-1207) `dogfood check`'s
-DCW-V0-046	docs/specs/daily-change-evidence-workflow-v0.md	499	(proposed 2026-10-11, decision 0523 P3; V1-1258) A `DOGFOOD_CITATIONS` row
+DCW-V0-046	docs/specs/daily-change-evidence-workflow-v0.md	499	(accepted under the owner's standing auto-accept (2026-10-11), decision 0523 P3;
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
