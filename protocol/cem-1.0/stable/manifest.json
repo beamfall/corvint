@@ -8,8 +8,8 @@
   "files": [
     {
       "path": "ALGORITHMS.md",
-      "sha256": "55e651761386ea71ec3ac19fb03b76bfbb1b985e336cbd2ecfeeec54dcc7bd24",
-      "bytes": 23726
+      "sha256": "370fa6b25354b89d55eaf5c3b2a430d7d244f4b5507e12575bfde2be90c7bd83",
+      "bytes": 35066
     },
     {
       "path": "FIXTURES.pack.json",
@@ -43,8 +43,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "ca6565344c3434eea8f70a954d811695dfdd9d7825fe720cbee705fb06f59d4d",
-      "bytes": 3298
+      "sha256": "20e7f56b35b9b01d89cb022b38311b41e9b1d5549c165c1c84fabc47cedcd56c",
+      "bytes": 3517
     },
     {
       "path": "REPOSITORY-ENVELOPE.cells.json",
