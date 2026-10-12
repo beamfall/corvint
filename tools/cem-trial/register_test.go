@@ -40,7 +40,7 @@ func commitRegistration(t *testing.T, name string, document any, committerDate s
 		t.Fatal(err)
 	}
 	for _, arguments := range [][]string{{"init", "-q", "-b", "main"}, {"add", name}, {"commit", "-q", "-m", "register"}} {
-		command := exec.Command("git", arguments...)
+		command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 		command.Dir = root
 		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
 			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@localhost", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@localhost")
