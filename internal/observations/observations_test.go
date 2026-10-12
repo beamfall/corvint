@@ -901,9 +901,10 @@ func TestDogfoodReasonAdmitsInputRefusals(t *testing.T) {
 }
 
 // TestDogfoodReasonAdmitsCitationStageRefusals: the two citation-stage refusals
-// of `dogfood change` are observable like its other cem-cite reasons (V1-0228).
+// of `dogfood change`, and its unknown-reasons refusal (DCW-V0-046), are
+// observable like its other cem-cite reasons (V1-0228).
 func TestDogfoodReasonAdmitsCitationStageRefusals(t *testing.T) {
-	for _, reason := range []string{"citation-stage-exists", "citation-stage-cleanup-failed"} {
+	for _, reason := range []string{"citation-stage-exists", "citation-stage-cleanup-failed", "unknown-reasons-not-recorded"} {
 		row := Event{Kind: "dogfood-step", Step: "cem-cite", Status: "NOT_PRODUCED", Reason: reason}
 		if err := validateWriterContract(row); err != nil {
 			t.Fatalf("%s refused as a dogfood reason: %v", reason, err)

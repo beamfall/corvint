@@ -258,6 +258,7 @@ type sealedVerification struct {
 	detail    string
 	base      string
 	bootstrap []string
+	reasoned  int
 	observed  cemStatus
 	ran       bool
 }
@@ -266,7 +267,8 @@ type sealedVerification struct {
 // contains, for batch-check (DCW-V0-039) and for a change that merges sealed
 // changes (DCW-V0-042). The bootstrap allowance is the decision-0055 shape the
 // bind loop admitted: an unknown, no-evidence hunk adding a whole file absent
-// at the change's base. The OCM that admitted it is not re-run. Only a
+// at the change's base. An unknown hunk kept with a recorded reason
+// (DCW-V0-019) is admitted beside it. The OCM that admitted it is not re-run. Only a
 // canonical map is accepted: its verifier derives the patch from the base and
 // bind commits, whereas a cem/0.1 map verifies a cached patch that need not
 // equal the committed change.
@@ -301,10 +303,13 @@ func (f *flow) verifySealedCEM(verifier Runner, target, bind string) sealedVerif
 			!f.gitSucceeds("cat-file", "-e", cem.BaseRevision+":"+hunk.Path) {
 			result.bootstrap = append(result.bootstrap, hunk.Path)
 		}
+		if hunk.Disposition == "unknown" && recordedUnknownReasons[hunk.Reason] {
+			result.reasoned++
+		}
 	}
 	var stdout, stderr bytes.Buffer
 	code := verifier.Run(f.ctx, f.root, []string{"cem", "status", "--map", path, "--expected-base", cem.BaseRevision,
-		"--target", bind, "--max-unknown", strconv.Itoa(len(result.bootstrap)), "--max-mechanical", "0"}, &stdout, &stderr)
+		"--target", bind, "--max-unknown", strconv.Itoa(len(result.bootstrap) + result.reasoned), "--max-mechanical", "0"}, &stdout, &stderr)
 	f.checkpoint()
 	result.ran = true
 	parsed := json.Unmarshal(firstLine(stdout.Bytes()), &result.observed) == nil
@@ -326,9 +331,9 @@ func (b *batch) verifyConstituent(bind string) {
 	result := b.verifySealedCEM(b.options.Verifier, b.target, bind)
 	if result.ran {
 		observed := result.observed
-		b.print("%s: CONSTITUENT bind=%s base=%s hunks=%s supported=%s unknown=%s bootstrapUnknown=%d state=%s\n",
+		b.print("%s: CONSTITUENT bind=%s base=%s hunks=%s supported=%s unknown=%s bootstrapUnknown=%d reasonedUnknown=%d state=%s\n",
 			b.prefix, bind, result.base, observedCount(observed.Counts.Total), observedCount(observed.Counts.Supported),
-			observedCount(observed.Counts.Unknown), len(result.bootstrap), observed.State)
+			observedCount(observed.Counts.Unknown), len(result.bootstrap), result.reasoned, observed.State)
 		for _, added := range result.bootstrap {
 			b.print("  bootstrap-unknown %s\n", added)
 		}

@@ -17,6 +17,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"math"
 	"os"
 	"os/exec"
@@ -155,6 +156,7 @@ type options struct {
 	seed         string
 	resume       bool
 	reuse        string
+	registration string
 }
 
 type agentResult struct {
@@ -247,6 +249,7 @@ func parseRunOptions(arguments []string) (options, error) {
 	flags.StringVar(&configuration.seed, "seed", "", "seed for the per-change arm order")
 	flags.BoolVar(&configuration.resume, "resume", false, "reuse OUTPUT.partial.json, rerunning only lanes that never finished")
 	flags.StringVar(&configuration.reuse, "reuse", "", "reuse the finished lanes of a prior report with byte-identical prompts")
+	flags.StringVar(&configuration.registration, "registration", "", "committed registration file the run must match (required when the manifest partition is heldout)")
 	if err := flags.Parse(arguments); err != nil {
 		return configuration, err
 	}
@@ -310,12 +313,25 @@ func runTrial(ctx context.Context, arguments []string) (*report, string, error) 
 		Prologues: prologueIdentity(configuration.arms), Agent: identity,
 		CorvintGo: corvintIdentity(ctx, configuration), Changes: changeMetadata(set), Lanes: []*lane{},
 	}
-	prior, err := loadReuse(configuration)
+	if err := checkRegistration(ctx, configuration, document); err != nil {
+		return nil, "", err
+	}
+	prior, err := loadReuse(configuration, document)
 	if err != nil {
 		return nil, "", err
 	}
 	if configuration.resume {
-		if checkpoint, err := loadReport(checkpointPath(configuration.output)); err == nil {
+		// A missing checkpoint starts afresh; an unreadable one is refused
+		// rather than rerunning lanes it may already hold (CRT-V0-010).
+		checkpoint, err := loadReport(checkpointPath(configuration.output))
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+		case err != nil:
+			return nil, "", fmt.Errorf("--resume: %w", err)
+		default:
+			if err := registeredPrior(document, checkpoint, checkpointPath(configuration.output)); err != nil {
+				return nil, "", err
+			}
 			prior = prior.merge(checkpoint)
 		}
 	}
@@ -466,6 +482,7 @@ func invokeLane(ctx context.Context, configuration options, runner agent, prep, 
 	result, runErr := runner.run(ctx, root, prompt, configuration.timeout)
 	wall := time.Since(started).Milliseconds()
 	assign(saver.lock(), func() {
+		record.StartedAt = started.UTC().Format(time.RFC3339Nano)
 		record.WallMs = wall
 		if runErr != nil {
 			record.Error = runErr.Error()
@@ -1160,10 +1177,20 @@ func changeMetadata(set *manifest) []changeMeta {
 		changes = append(changes, changeMeta{
 			ID: item.ID, Commit: item.Commit, BaseCommit: item.BaseCommit,
 			PatchSHA256: item.PatchSHA256, HunkCount: item.HunkCount,
-			Gold: item.Gold.Paths, StemBaseline: item.StemBaseline,
+			Gold: item.Gold.Paths, GoldSpans: goldSpansOf(item), StemBaseline: item.StemBaseline,
 		})
 	}
 	return changes
+}
+
+// goldSpansOf is the change's recorded secondary gold, never nil, so a report
+// distinguishes "no span recorded" (an older report, nil) from "no added line"
+// (CRT-V0-013).
+func goldSpansOf(item task) []span {
+	if item.Gold.Spans == nil {
+		return []span{}
+	}
+	return item.Gold.Spans
 }
 
 func prologueIdentity(arms []string) map[string]map[string]any {
@@ -1294,7 +1321,7 @@ type reuseSource struct {
 	lanes    map[string]*lane
 }
 
-func loadReuse(configuration options) (*reuseSource, error) {
+func loadReuse(configuration options, run *report) (*reuseSource, error) {
 	if configuration.reuse == "" {
 		return nil, nil
 	}
@@ -1304,6 +1331,9 @@ func loadReuse(configuration options) (*reuseSource, error) {
 	}
 	if document.Profile != profile || document.Model != modelOrNot(configuration) {
 		return nil, fmt.Errorf("%s: a reused report must share the profile and model of this run", configuration.reuse)
+	}
+	if err := registeredPrior(run, document, configuration.reuse); err != nil {
+		return nil, err
 	}
 	return newReuseSource(document), nil
 }
@@ -1343,7 +1373,7 @@ func (source *reuseSource) apply(record *lane) bool {
 	}
 	record.WallMs, record.ExitCode, record.Tokens, record.ToolCalls = prior.WallMs, prior.ExitCode, prior.Tokens, prior.ToolCalls
 	record.Reply, record.ReplyTruncated, record.CEM = prior.Reply, prior.ReplyTruncated, prior.CEM
-	record.StdoutTruncated = prior.StdoutTruncated
+	record.StdoutTruncated, record.StartedAt = prior.StdoutTruncated, prior.StartedAt
 	record.ReusedFrom = source.identity
 	return true
 }

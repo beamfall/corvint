@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -206,7 +207,7 @@ func TestBatchCheckDCWV0039PassesSealedConstituents(t *testing.T) {
 		t.Fatalf("exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	for _, want := range []string{
-		"dogfood-batch-check: CONSTITUENT bind=" + bindA + " base=" + repo.base + " hunks=1 supported=1 unknown=0 bootstrapUnknown=0 state=ready-for-ci\n",
+		"dogfood-batch-check: CONSTITUENT bind=" + bindA + " base=" + repo.base + " hunks=1 supported=1 unknown=0 bootstrapUnknown=0 reasonedUnknown=0 state=ready-for-ci\n",
 		"dogfood-batch-check: CONSTITUENT bind=" + bindB + " base=" + repo.base,
 		"derivation=ort\n",
 		" commits=8 constituents=2 merges first-parent-tree=0 ort=2 ort-ours=0 ort-theirs=0 bootstrapUnknown=0\n",
@@ -318,11 +319,52 @@ func TestBatchCheckDCWV0039BootstrapAllowanceIsVisible(t *testing.T) {
 	repo.batch(seal)
 	repo.status = 1
 	code, stdout, stderr := repo.check()
-	if !strings.Contains(stdout, " bootstrapUnknown=1 state=incomplete\n  bootstrap-unknown spec.md\n") || repo.args[0][9] != "1" {
+	if !strings.Contains(stdout, " bootstrapUnknown=1 reasonedUnknown=0 state=incomplete\n  bootstrap-unknown spec.md\n") || repo.args[0][9] != "1" {
 		t.Fatalf("bootstrap stdout=%s argv=%q", stdout, repo.args)
 	}
 	if code != 1 || !strings.Contains(stderr, "FAIL constituent-cem-policy count=1\n  bind="+bind+" state=incomplete\n  fix: rebind and reseal") {
 		t.Fatalf("policy exit=%d stderr=%s", code, stderr)
+	}
+}
+
+// DCW-V0-046 (V1-1258): a sealed CEM that kept hunks unknown with a recorded
+// reason is admitted beside the bootstrap allowance and counted visibly; the
+// prepared no-evidence hunk on an existing file is not reasoned and is not.
+// The fake verifier applies --max-unknown as cem status does, so the pair
+// shows the batch outcome, not only the count.
+func TestBatchCheckDCWV0046ReasonedUnknownAllowance(t *testing.T) {
+	hunk := func(reason string, start int) string {
+		return fmt.Sprintf(`{"disposition": "unknown", "reason": "%s", "path": "a.txt", "oldRange": {"count": 1, "start": %d}}`, reason, start)
+	}
+	for _, tc := range []struct {
+		name  string
+		hunks []string
+		code  int
+		state string
+	}{
+		{"reasoned only", []string{hunk("insufficient-evidence", 1), hunk("conflicting-evidence", 2)}, 0, "ready-for-ci"},
+		{"one unreasoned", []string{hunk("insufficient-evidence", 1), hunk("conflicting-evidence", 2), hunk("no-evidence", 3)}, 1, "incomplete"},
+	} {
+		repo := newBatchRepo(t)
+		cem := `{"spec": "cem/0.3", "baseRevision": "` + repo.base + `", "hunks": [` + strings.Join(tc.hunks, ",") + "]}\n"
+		_, seal := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", cem)
+		repo.batch(seal)
+		unknown := len(tc.hunks)
+		repo.output = func(base, bind string) string {
+			allowed, _ := strconv.Atoi(repo.args[len(repo.args)-1][9])
+			ready := unknown <= allowed
+			repo.status = map[bool]int{true: 0, false: 1}[ready]
+			state := map[bool]string{true: "ready-for-ci", false: "incomplete"}[ready]
+			return fmt.Sprintf(`{"counts":{"mechanical":0,"supported":0,"total":%d,"unknown":%d},"ok":%t,"state":"%s","tool":"cem-status",`+
+				`"verification":{"assurance":"canonical","baseRevision":"%s","targetRevision":"%s","valid":true}}`+"\n", unknown, unknown, ready, state, base, bind)
+		}
+		code, stdout, stderr := repo.check()
+		if !strings.Contains(stdout, " bootstrapUnknown=0 reasonedUnknown=2 state="+tc.state+"\n") || repo.args[0][9] != "2" {
+			t.Fatalf("%s: stdout=%s argv=%q", tc.name, stdout, repo.args)
+		}
+		if code != tc.code || (tc.code == 1) != strings.Contains(stderr, "FAIL constituent-cem-policy count=1\n") {
+			t.Fatalf("%s: exit=%d stderr=%s", tc.name, code, stderr)
+		}
 	}
 }
 

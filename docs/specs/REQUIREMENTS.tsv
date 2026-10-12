@@ -984,18 +984,21 @@ CRR-V0-004	docs/specs/compat-replay-runner-v0.md	334	Byte-exact comparison. Per 
 CRR-V0-005	docs/specs/compat-replay-runner-v0.md	342	Bounded IO and bounded time, refused rather than truncated or overrun.
 CRR-V0-006	docs/specs/compat-replay-runner-v0.md	379	Four separate vocabularies, none derived from another.
 CRR-V0-007	docs/specs/compat-replay-runner-v0.md	612	Unexecuted, interrupted and unobserved cases stay distinct.
-CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	42	Unit and selection. One change is one non-merge Beamfall commit `C`, and its lan
-CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	52	Pairing. Every change runs in both arms; the estimate is within-change. The arm
-CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	55	Withheld-patch construction. The presented patch `P(C)` contains only the source
-CRT-V0-004	docs/specs/cem-reviewer-trial-v0.md	58	Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself
-CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	70	Arms. `control` receives the prompt skeleton, `P(C)`, the numbered hunk list, an
-CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	89	Reply grammar. Every reply MUST end with one fenced JSON block
-CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	102	Metrics. `miss(c,a) = |gold(c) \ citedPaths(c,a)| / |gold(c)|`. The primary esti
-CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	122	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
-CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	151	Pilot. The pilot uses its own seed and partition; its changes are excluded from
-CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	154	Stopping and publication. There is no interim analysis: the scorer runs once, af
-CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	168	Invocation lifecycle (proposed). `runCommand` MUST share the
-CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	189	Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports
+CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	45	Unit and selection. One change is one non-merge Beamfall commit `C`, and its lan
+CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	55	Pairing. Every change runs in both arms; the estimate is within-change. The arm
+CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	58	Withheld-patch construction. The presented patch `P(C)` contains only the source
+CRT-V0-004	docs/specs/cem-reviewer-trial-v0.md	61	Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself
+CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	73	Arms. `control` receives the prompt skeleton, `P(C)`, the numbered hunk list, an
+CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	94	Reply grammar. Every reply MUST end with one fenced JSON block
+CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	107	Metrics. `miss(c,a) = |gold(c) \ citedPaths(c,a)| / |gold(c)|`. The primary esti
+CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	129	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
+CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	158	Pilot. The pilot uses its own seed and partition; its changes are excluded from
+CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	161	Stopping and publication. There is no interim analysis: the scorer runs once, af
+CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	181	Invocation lifecycle (proposed). `runCommand` MUST share the
+CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	202	Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports
+CRT-V0-013	docs/specs/cem-reviewer-trial-v0.md	216	Cited-not-gold precision (V1-1261, decision 0523 P4;
+CRT-V0-014	docs/specs/cem-reviewer-trial-v0.md	237	Registration (V1-1261, decision 0523 P4, extends CRT-V0-010;
+CRT-V0-015	docs/specs/cem-reviewer-trial-v0.md	266	Treatment arm and pre-baseline runs (V1-1261, decision 0523 P4;
 CTR-V0-001	docs/specs/compat-trial-v0.md	32	Descriptor schema. The fields below are frozen; a runner MUST NOT add, rename or
 CTR-V0-002	docs/specs/compat-trial-v0.md	40	Comparison policy v0. Equality is exact bytes of stdout, stderr and exit status
 CTR-V0-003	docs/specs/compat-trial-v0.md	42	Resource profile, quoted verbatim from `P:237–241`: "64 KiB input, 1 MiB output
@@ -1194,36 +1197,37 @@ DCW-V0-012	docs/specs/daily-change-evidence-workflow-v0.md	65	Final version/buil
 DCW-V0-013	docs/specs/daily-change-evidence-workflow-v0.md	69	The daily adopter path MUST be one ordered sequence in `docs/DOGFOOD.md` from th
 DCW-V0-014	docs/specs/daily-change-evidence-workflow-v0.md	74	A `dogfood-change` not-complete row caused by a malformed or missing input, or b
 DCW-V0-015	docs/specs/daily-change-evidence-workflow-v0.md	83	Dirty, stale, interrupted, unsupported and unknown evidence MUST each end the lo
-DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	96	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
-DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	108	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
-DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	117	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
-DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	126	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
-DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	146	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
-DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	159	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
-DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	162	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
-DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	174	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
-DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	180	(V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
-DCW-V0-025	docs/specs/daily-change-evidence-workflow-v0.md	198	(accepted 2026-09-25, decision 0388, V1-0264) The `coordination-time-impact` ste
-DCW-V0-026	docs/specs/daily-change-evidence-workflow-v0.md	217	(accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST N
-DCW-V0-027	docs/specs/daily-change-evidence-workflow-v0.md	233	(proposed 2026-09-25, V1-0137, not accepted) `dogfood seal` and
-DCW-V0-028	docs/specs/daily-change-evidence-workflow-v0.md	241	(proposed 2026-09-25, V1-0227, not accepted) When an intent's `ocm-prepare-NNN`
-DCW-V0-029	docs/specs/daily-change-evidence-workflow-v0.md	246	(proposed 2026-09-25, V1-0239, not accepted) Each time `dogfood change` accepts
-DCW-V0-030	docs/specs/daily-change-evidence-workflow-v0.md	254	(proposed 2026-09-25, V1-0145, not accepted; not implemented) `dogfood check`
-DCW-V0-031	docs/specs/daily-change-evidence-workflow-v0.md	263	(proposed 2026-09-25, V1-0316, not accepted) After its steps run, `dogfood chang
-DCW-V0-032	docs/specs/daily-change-evidence-workflow-v0.md	274	(accepted 2026-10-04, decision 0430; V1-0743) An empty `DOGFOOD_CITATIONS` file
-DCW-V0-033	docs/specs/daily-change-evidence-workflow-v0.md	296	(accepted by decision 0441; V1-0940) This amends the stdout
-DCW-V0-034	docs/specs/daily-change-evidence-workflow-v0.md	318	(accepted, decision 0505) Before invoking
-DCW-V0-035	docs/specs/daily-change-evidence-workflow-v0.md	327	(accepted, decision 0510) The coordinator
-DCW-V0-036	docs/specs/daily-change-evidence-workflow-v0.md	332	(accepted, decision 0510) Trace recording, changed-path admission and
-DCW-V0-037	docs/specs/daily-change-evidence-workflow-v0.md	340	(accepted, decision 0510) `docs/DOGFOOD.md`
-DCW-V0-038	docs/specs/daily-change-evidence-workflow-v0.md	348	accepted, decision 0510. Every build in Corvint's
-DCW-V0-039	docs/specs/daily-change-evidence-workflow-v0.md	356	(accepted, decision 0519 (V1-1151)) `corvint dogfood
-DCW-V0-040	docs/specs/daily-change-evidence-workflow-v0.md	406	(accepted, decision 0519 (V1-1151)) When `dogfood change`
-DCW-V0-041	docs/specs/daily-change-evidence-workflow-v0.md	414	(accepted, decision 0519 (V1-1171)) A citation plan row MAY
-DCW-V0-042	docs/specs/daily-change-evidence-workflow-v0.md	421	(accepted 2026-10-11, decision 0520; V1-1219) `dogfood change` MUST
-DCW-V0-043	docs/specs/daily-change-evidence-workflow-v0.md	444	(accepted 2026-10-11, decision 0520; V1-1198) The inherited archive of
-DCW-V0-044	docs/specs/daily-change-evidence-workflow-v0.md	468	(accepted 2026-10-11, decision 0520; V1-1209) The daily loop's local
-DCW-V0-045	docs/specs/daily-change-evidence-workflow-v0.md	482	(accepted 2026-10-11, decision 0520; V1-1207) `dogfood check`'s
+DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	97	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
+DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	109	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
+DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	118	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
+DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	127	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
+DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	150	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
+DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	163	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
+DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	166	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
+DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	178	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
+DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	184	(V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
+DCW-V0-025	docs/specs/daily-change-evidence-workflow-v0.md	202	(accepted 2026-09-25, decision 0388, V1-0264) The `coordination-time-impact` ste
+DCW-V0-026	docs/specs/daily-change-evidence-workflow-v0.md	221	(accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST N
+DCW-V0-027	docs/specs/daily-change-evidence-workflow-v0.md	237	(proposed 2026-09-25, V1-0137, not accepted) `dogfood seal` and
+DCW-V0-028	docs/specs/daily-change-evidence-workflow-v0.md	245	(proposed 2026-09-25, V1-0227, not accepted) When an intent's `ocm-prepare-NNN`
+DCW-V0-029	docs/specs/daily-change-evidence-workflow-v0.md	250	(proposed 2026-09-25, V1-0239, not accepted) Each time `dogfood change` accepts
+DCW-V0-030	docs/specs/daily-change-evidence-workflow-v0.md	258	(proposed 2026-09-25, V1-0145, not accepted; not implemented) `dogfood check`
+DCW-V0-031	docs/specs/daily-change-evidence-workflow-v0.md	267	(proposed 2026-09-25, V1-0316, not accepted) After its steps run, `dogfood chang
+DCW-V0-032	docs/specs/daily-change-evidence-workflow-v0.md	278	(accepted 2026-10-04, decision 0430; V1-0743) An empty `DOGFOOD_CITATIONS` file
+DCW-V0-033	docs/specs/daily-change-evidence-workflow-v0.md	300	(accepted by decision 0441; V1-0940) This amends the stdout
+DCW-V0-034	docs/specs/daily-change-evidence-workflow-v0.md	323	(accepted, decision 0505) Before invoking
+DCW-V0-035	docs/specs/daily-change-evidence-workflow-v0.md	332	(accepted, decision 0510) The coordinator
+DCW-V0-036	docs/specs/daily-change-evidence-workflow-v0.md	337	(accepted, decision 0510) Trace recording, changed-path admission and
+DCW-V0-037	docs/specs/daily-change-evidence-workflow-v0.md	345	(accepted, decision 0510) `docs/DOGFOOD.md`
+DCW-V0-038	docs/specs/daily-change-evidence-workflow-v0.md	353	accepted, decision 0510. Every build in Corvint's
+DCW-V0-039	docs/specs/daily-change-evidence-workflow-v0.md	361	(accepted, decision 0519 (V1-1151)) `corvint dogfood
+DCW-V0-040	docs/specs/daily-change-evidence-workflow-v0.md	412	(accepted, decision 0519 (V1-1151)) When `dogfood change`
+DCW-V0-041	docs/specs/daily-change-evidence-workflow-v0.md	420	(accepted, decision 0519 (V1-1171)) A citation plan row MAY
+DCW-V0-042	docs/specs/daily-change-evidence-workflow-v0.md	427	(accepted 2026-10-11, decision 0520; V1-1219) `dogfood change` MUST
+DCW-V0-043	docs/specs/daily-change-evidence-workflow-v0.md	450	(accepted 2026-10-11, decision 0520; V1-1198) The inherited archive of
+DCW-V0-044	docs/specs/daily-change-evidence-workflow-v0.md	474	(accepted 2026-10-11, decision 0520; V1-1209) The daily loop's local
+DCW-V0-045	docs/specs/daily-change-evidence-workflow-v0.md	488	(accepted 2026-10-11, decision 0520; V1-1207) `dogfood check`'s
+DCW-V0-046	docs/specs/daily-change-evidence-workflow-v0.md	499	(accepted under the owner's standing auto-accept (2026-10-11), decision 0523 P3;
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map

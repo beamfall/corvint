@@ -8,6 +8,7 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -21,26 +22,32 @@ const (
 // changeMeta is everything the scorer needs about one change, carried in the
 // report so `score --report` rebuilds every derived field without the manifest.
 type changeMeta struct {
-	ID           string   `json:"id"`
-	Commit       string   `json:"commit"`
-	BaseCommit   string   `json:"base_commit"`
-	PatchSHA256  string   `json:"patch_sha256"`
-	HunkCount    int      `json:"hunk_count"`
-	Gold         []string `json:"gold"`
+	ID          string   `json:"id"`
+	Commit      string   `json:"commit"`
+	BaseCommit  string   `json:"base_commit"`
+	PatchSHA256 string   `json:"patch_sha256"`
+	HunkCount   int      `json:"hunk_count"`
+	Gold        []string `json:"gold"`
+	// GoldSpans is the secondary gold: the one-based line ranges, at the
+	// change, of the lines it added to each gold file (CRT-V0-004). It is nil
+	// in a report written before CRT-V0-013, whose span rate is NOT_OBSERVED.
+	GoldSpans    []span   `json:"gold_spans"`
 	StemBaseline []string `json:"stem_baseline"`
 }
 
 type lane struct {
-	ID               string     `json:"id"`
-	Arm              string     `json:"arm"`
-	Repeat           int        `json:"repeat"`
-	ArmOrder         []string   `json:"arm_order"`
-	ReplyState       string     `json:"reply_state"`
-	Citations        []citation `json:"citations"`
-	Unknown          []string   `json:"unknown"`
-	Miss             float64    `json:"miss"`
-	GoldHits         []string   `json:"gold_hits"`
-	StemBaselineHits []string   `json:"stem_baseline_hits"`
+	ID         string     `json:"id"`
+	Arm        string     `json:"arm"`
+	Repeat     int        `json:"repeat"`
+	ArmOrder   []string   `json:"arm_order"`
+	ReplyState string     `json:"reply_state"`
+	Citations  []citation `json:"citations"`
+	Unknown    []string   `json:"unknown"`
+	Miss       float64    `json:"miss"`
+	// CitedNotGold is the lane's precision against the same gold (CRT-V0-013).
+	CitedNotGold     citedNotGold `json:"cited_not_gold"`
+	GoldHits         []string     `json:"gold_hits"`
+	StemBaselineHits []string     `json:"stem_baseline_hits"`
 	// Suggested is the seeded arm's distinct suggested paths, as the prologue
 	// carried them; SeedHits is the gold among them (CRT-V0-012).
 	Suggested      []string       `json:"suggested,omitempty"`
@@ -54,11 +61,14 @@ type lane struct {
 	ReplyTruncated bool           `json:"reply_truncated"`
 	// StdoutTruncated records that the agent's stdout reached the capture
 	// bound and was cut (CRT-V0-011).
-	StdoutTruncated bool   `json:"stdout_truncated,omitempty"`
-	PromptSHA256    string `json:"prompt_sha256"`
-	PromptBytes     int    `json:"prompt_bytes"`
-	ReusedFrom      string `json:"reused_from,omitempty"`
-	Error           string `json:"error,omitempty"`
+	StdoutTruncated bool `json:"stdout_truncated,omitempty"`
+	// StartedAt is the lane's launch time, UTC RFC 3339, which the
+	// registration order is checked against (CRT-V0-014).
+	StartedAt    string `json:"started_at,omitempty"`
+	PromptSHA256 string `json:"prompt_sha256"`
+	PromptBytes  int    `json:"prompt_bytes"`
+	ReusedFrom   string `json:"reused_from,omitempty"`
+	Error        string `json:"error,omitempty"`
 }
 
 type report struct {
@@ -81,6 +91,7 @@ type report struct {
 	CorvintGo      map[string]any            `json:"corvint"`
 	Changes        []changeMeta              `json:"changes"`
 	Lanes          []*lane                   `json:"lanes"`
+	Registration   *registrationRecord       `json:"registration,omitempty"`
 	Summary        map[string]any            `json:"summary,omitempty"`
 	Invalid        string                    `json:"invalid,omitempty"`
 	Partial        bool                      `json:"partial,omitempty"`
@@ -97,11 +108,13 @@ func finalize(document *report) {
 		scoreLane(item, meta[item.ID])
 	}
 	document.Summary = summarize(document, meta)
-	document.Invalid = ""
+	reasons := []string{}
 	if failed := erroredLanes(document); failed > maxErroredLanes {
-		document.Invalid = strconv.Itoa(failed) + " lanes errored, more than the " +
-			strconv.Itoa(maxErroredLanes) + " CRT-V0-010 allows: the run is discarded, not re-scored"
+		reasons = append(reasons, strconv.Itoa(failed)+" lanes errored, more than the "+
+			strconv.Itoa(maxErroredLanes)+" CRT-V0-010 allows: the run is discarded, not re-scored")
 	}
+	reasons = append(reasons, registrationInvalid(document)...)
+	document.Invalid = strings.Join(reasons, "; ")
 }
 
 func scoreLane(item *lane, meta changeMeta) {
@@ -110,6 +123,7 @@ func scoreLane(item *lane, meta changeMeta) {
 	if item.Citations == nil {
 		item.Citations = []citation{}
 	}
+	item.CitedNotGold = scoreCitedNotGold(item.Citations, meta)
 	cited := map[string]bool{}
 	for _, one := range item.Citations {
 		cited[normalizePath(one.Path)] = true
@@ -149,6 +163,141 @@ func scoreLane(item *lane, meta changeMeta) {
 		return
 	}
 	item.Miss = round(float64(missed) / float64(len(meta.Gold)))
+}
+
+// citedNotGold is one lane's share of what it cited that the withheld gold
+// does not hold: `paths` over its distinct cited paths, `spans` over its
+// distinct cited lines, against the recorded gold spans of the same path.
+// Each is NOT_OBSERVED when the lane cited nothing, and `spans` is also
+// NOT_OBSERVED when the report recorded no span gold (CRT-V0-013).
+type citedNotGold struct {
+	Paths any `json:"paths"`
+	Spans any `json:"spans"`
+}
+
+// interval is a one-based inclusive line range.
+type interval struct{ start, end int }
+
+func scoreCitedNotGold(citations []citation, meta changeMeta) citedNotGold {
+	if len(citations) == 0 {
+		return citedNotGold{Paths: notObserved, Spans: notObserved}
+	}
+	gold := map[string]bool{}
+	for _, one := range meta.Gold {
+		gold[normalizePath(one)] = true
+	}
+	paths := map[string]bool{}
+	cited := map[string][]interval{}
+	malformed := 0
+	for _, one := range citations {
+		path := normalizePath(one.Path)
+		paths[path] = true
+		start, end, ok := parseLines(one.Lines)
+		if !ok || start < 1 {
+			// A range the scorer cannot place counts as one cited line
+			// outside the gold, so a malformed range never escapes the rate.
+			malformed++
+			continue
+		}
+		cited[path] = append(cited[path], interval{start, end})
+	}
+	outside := 0
+	for path := range paths {
+		if !gold[path] {
+			outside++
+		}
+	}
+	result := citedNotGold{Paths: round(float64(outside) / float64(len(paths))), Spans: notObserved}
+	if meta.GoldSpans == nil {
+		return result
+	}
+	spans := map[string][]interval{}
+	for _, one := range meta.GoldSpans {
+		start, end, ok := parseLines(one.Lines)
+		if ok && start >= 1 && gold[normalizePath(one.Path)] {
+			spans[normalizePath(one.Path)] = append(spans[normalizePath(one.Path)], interval{start, end})
+		}
+	}
+	total, inside := float64(malformed), 0.0
+	for path, ranges := range cited {
+		merged := mergeIntervals(ranges)
+		for _, one := range merged {
+			total += float64(one.end-one.start) + 1
+		}
+		inside += overlap(merged, mergeIntervals(spans[path]))
+	}
+	result.Spans = round((total - inside) / total)
+	return result
+}
+
+// mergeIntervals sorts ranges and joins the overlapping or adjacent ones, so
+// a line cited twice is counted once.
+func mergeIntervals(ranges []interval) []interval {
+	if len(ranges) == 0 {
+		return nil
+	}
+	sorted := append([]interval(nil), ranges...)
+	sort.Slice(sorted, func(left, right int) bool { return sorted[left].start < sorted[right].start })
+	merged := []interval{sorted[0]}
+	for _, one := range sorted[1:] {
+		last := &merged[len(merged)-1]
+		if one.start <= last.end || one.start-last.end == 1 {
+			if one.end > last.end {
+				last.end = one.end
+			}
+			continue
+		}
+		merged = append(merged, one)
+	}
+	return merged
+}
+
+// overlap counts the lines two merged interval lists share.
+func overlap(left, right []interval) float64 {
+	shared := 0.0
+	for _, one := range left {
+		for _, other := range right {
+			start, end := max(one.start, other.start), min(one.end, other.end)
+			if start <= end {
+				shared += float64(end-start) + 1
+			}
+		}
+	}
+	return shared
+}
+
+// citedNotGoldArms is the mean lane rate per arm over the lanes of the scored
+// pairs that did not error and cited something, reported beside the miss
+// estimate so an arm that buys recall by citing everything shows its cost.
+func citedNotGoldArms(document *report, pairs []pair, arms ...string) map[string]any {
+	scored := map[string]bool{}
+	for _, item := range pairs {
+		scored[item.id] = true
+	}
+	result := map[string]any{}
+	for _, arm := range arms {
+		paths, spans := []float64{}, []float64{}
+		for _, item := range document.Lanes {
+			if item.Arm != arm || !scored[item.ID] || laneFailed(item) {
+				continue
+			}
+			if value, ok := item.CitedNotGold.Paths.(float64); ok {
+				paths = append(paths, value)
+			}
+			if value, ok := item.CitedNotGold.Spans.(float64); ok {
+				spans = append(spans, value)
+			}
+		}
+		block := map[string]any{"lanes": len(paths), "paths": notObserved, "spans": notObserved, "span_lanes": len(spans)}
+		if len(paths) != 0 {
+			block["paths"] = round(mean(paths))
+		}
+		if len(spans) != 0 {
+			block["spans"] = round(mean(spans))
+		}
+		result[arm] = block
+	}
+	return result
 }
 
 // pair is one change's mean miss per arm, over the repeats of that arm. The
@@ -276,6 +425,7 @@ func armSummary(document *report, meta map[string]changeMeta, byChange map[strin
 	}
 	summary["delta"] = round(delta)
 	summary["relative_reduction"] = round(relative)
+	summary["cited_not_gold"] = citedNotGoldArms(document, pairs, "control", arm)
 	summary["mcnemar"] = mcnemar(pairs)
 	summary["citable"] = citableArm(document, arm)
 	summary["verifier"] = verifierRatesArm(document, arm)
@@ -307,6 +457,7 @@ func contrast(document *report, meta map[string]changeMeta, byChange map[string]
 	}
 	result["mean_miss"] = map[string]any{reference: round(mean(missOf(pairs, "control"))), compared: round(mean(missOf(pairs, "treatment")))}
 	result["delta"] = round(mean(deltas))
+	result["cited_not_gold"] = citedNotGoldArms(document, pairs, reference, compared)
 	result["mcnemar_lanes"] = mcnemarLanes(document, reference, compared)
 	if len(pairs) < 2 {
 		result["delta_ci95"] = notObserved
