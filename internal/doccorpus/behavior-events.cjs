@@ -19,9 +19,10 @@
 // producer resolves Playwright's own `expect` from the project, runs the matcher itself, and records
 // an assertion only after that matcher resolved and the attempt gained no error. The matcher name,
 // locator selector and expected value of the event are the call's own arguments, so the event equals
-// the registered assertion tuple byte for byte or names a different one; anything the producer
-// cannot state exactly (a RegExp or array expectation, extra matcher options, a frame or
-// unobserved-page locator) runs the matcher and records nothing. Page events come only from
+// the registered assertion tuple byte for byte or names a different one; a valueless state matcher
+// (toBeVisible, toBeHidden, toBeEnabled, toBeChecked) records its state name as the value
+// (DCP-V1-083). Anything the producer cannot state exactly (a RegExp or array expectation, extra
+// matcher options, a frame or unobserved-page locator) runs the matcher and records nothing. Page events come only from
 // main-frame commits of http(s) URLs in pages of the test's `context` fixture.
 //
 // Private Playwright fields it reads (qualified on 1.61.1): Locator `_frame` and `_selector`, Page
@@ -51,6 +52,16 @@ const assertionMatchers = Object.freeze({
   toHaveAccessibleDescription: 'string',
   toHaveRole: 'string',
   toHaveCount: 'count',
+});
+// Valueless state matchers (DCP-V1-083): each is recorded with its canonical state name as the
+// event value, only when called with no argument or a timeout-only options object. `.not` is not
+// offered on behavior.expect, and a state option (visible, enabled, checked, indeterminate) runs
+// the matcher and records nothing, so a recorded event always means the positive state held.
+const stateMatchers = Object.freeze({
+  toBeVisible: 'visible',
+  toBeHidden: 'hidden',
+  toBeEnabled: 'enabled',
+  toBeChecked: 'checked',
 });
 const negativeMatcher = /^to[A-Z][A-Za-z]{0,63}$/;
 
@@ -218,10 +229,14 @@ function session({ context, testInfo, expect, fixtures, roles, warn }) {
     return result;
   };
 
+  // timeoutOnly admits no options or a plain object whose only own enumerable key is timeout.
+  const timeoutOnly = options => options === undefined || (options !== null && typeof options === 'object' && !Array.isArray(options) && Object.keys(options).every(key => key === 'timeout'));
+  // snapshot is the fresh options object a recorded matcher receives: only an own timeout, so an
+  // inherited or non-enumerable option (for example ignoreCase) never reaches the matcher.
+  const snapshot = options => (Object.hasOwn(options, 'timeout') ? { timeout: options.timeout } : {});
+
   const assertionValue = (kind, expected, options) => {
-    if (options !== undefined && (options === null || typeof options !== 'object' || Array.isArray(options) || Object.keys(options).some(key => key !== 'timeout'))) {
-      return '';
-    }
+    if (!timeoutOnly(options)) return '';
     if (kind === 'count') return Number.isSafeInteger(expected) && expected >= 0 ? String(expected) : '';
     return text(expected) ? expected : '';
   };
@@ -239,10 +254,17 @@ function session({ context, testInfo, expect, fixtures, roles, warn }) {
             const value = assertionValue(kind, expected, options);
             if (value === '') warn(`value-${matcher}`, `${matcher} with a non-literal expectation or extra options records no event`);
             const fields = value === '' ? null : { kind: 'assertion', id, behavior, criterion, matcher, value };
-            // A recorded call receives a fresh options snapshot holding only an own timeout, so an
-            // inherited or non-enumerable option (for example ignoreCase) never reaches the matcher.
-            const passed = value === '' || options === undefined ? options : (Object.hasOwn(options, 'timeout') ? { timeout: options.timeout } : {});
+            const passed = value === '' || options === undefined ? options : snapshot(options);
             return run(actual, expect(actual), a => a[matcher](...(passed === undefined ? [expected] : [expected, passed])), fields);
+          };
+        }
+        for (const [matcher, value] of Object.entries(stateMatchers)) {
+          matchers[matcher] = (...args) => {
+            const exact = args.length <= 1 && timeoutOnly(args[0]);
+            if (!exact) warn(`state-${matcher}`, `${matcher} with an argument other than a timeout-only options object records no event`);
+            const fields = exact ? { kind: 'assertion', id, behavior, criterion, matcher, value } : null;
+            const passed = !exact ? args : args[0] === undefined ? [] : [snapshot(args[0])];
+            return run(actual, expect(actual), a => a[matcher](...passed), fields);
           };
         }
         return Object.freeze(matchers);

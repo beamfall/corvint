@@ -727,8 +727,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
     recording session must still be open.
   - The event's `matcher`, `locator` and `value` are the called method, the Locator's selector and
     the literal expected argument. They are therefore the registered tuple byte for byte.
-  - Only a closed set of exact string matchers and a non-negative integer `toHaveCount` are
-    recorded, with no option but `timeout`, on a real Locator in the main frame of an observed
+  - Only a closed set of exact string matchers, a non-negative integer `toHaveCount` and the
+    valueless state matchers of `DCP-V1-083` are recorded, with no option but `timeout`, on a real Locator in the main frame of an observed
     page. A recorded matcher receives a fresh options object holding only an own `timeout`, so an
     inherited or non-enumerable option never reaches it. Any other assertion still runs, but records nothing and warns once.
   - A `negative-control` event is recorded only after a `to...` matcher, including `.not`, passes.
@@ -752,6 +752,25 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   The field is omitted when nothing is missing, and for every other reason. Reasons, details,
   admission and the witness wire are unchanged, so existing bundles without the field keep their
   bytes. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #835).
+- `DCP-V1-083`: `behavior.expect` in `behavior-events.cjs` also records the closed set of valueless
+  state matchers `toBeVisible`, `toBeHidden`, `toBeEnabled` and `toBeChecked`. Each is recorded with
+  its canonical state name as the event `value`: `visible`, `hidden`, `enabled` and `checked`. As for
+  the other matchers, the event is recorded only after the genuine matcher passed under the
+  `DCP-V1-081` conditions, and only when the call has no argument or one options object whose only
+  own enumerable key is `timeout`. The matcher then receives a fresh object holding only that
+  `timeout`. Every other form still runs the matcher but records nothing and warns once. That covers
+  a state option (`visible`, `enabled`, `checked`, `indeterminate`), even when it restates the
+  default, a non-object argument and extra arguments. `behavior.expect` offers no `.not`, so a
+  recorded state event always means the positive state held; a hidden element is asserted with
+  `toBeHidden`, and a negated state belongs in `negativeControl`. Status: proposed (GitHub #845;
+  V1-1318).
+- `DCP-V1-084`: A reviewed expected outcome and a declared test assertion for a valueless state
+  matcher state the same `matcher` and canonical `value` as `DCP-V1-083`, for example `toBeVisible`
+  with `visible`. `behavior-adapter` compares the runtime assertion event with the reviewed tuple
+  byte for byte, as for every other matcher, so an equal tuple keeps the variation's runtime
+  witness. Any other value, such as `true` or an empty string, never equals the recorded event and
+  reports `assertion-contradiction` and `missing-assertion-event`. The adapter, the witness wire and
+  every reason code are unchanged. Status: proposed (GitHub #845; V1-1318).
 
 ## Input and authority boundary
 
@@ -890,7 +909,9 @@ by Corvint and external utility qualification remain `NOT_OBSERVED`.
 Behavior annotation producer (issue 835). The annotation contract is in the docs help and the guide
 walkthrough (`DCP-V1-080`). `behavior-events.cjs` publishes the annotations from the test's own
 Playwright run (`DCP-V1-081`), and an unwitnessed test names the annotation types it never published
-(`DCP-V1-082`). Admission is unchanged: the importer still cannot tell producer annotations from
+(`DCP-V1-082`). The valueless state matchers `toBeVisible`, `toBeHidden`, `toBeEnabled` and
+`toBeChecked` are recorded with their state name as the value (`DCP-V1-083`), which a reviewed
+outcome states the same way (`DCP-V1-084`). Admission is unchanged: the importer still cannot tell producer annotations from
 hand-published ones, so the producer narrows accidental and casual forgery, not a determined author
 who replaces Playwright objects. The producer reads the private Playwright fields Locator `_frame`
 and `_selector` and Page `_opener`. It is qualified live on Playwright 1.61.1 only, observes only
@@ -1143,6 +1164,8 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-080 | `cmd/corvint/docs.go`, `cmd/corvint/docs_corpus_help.go`, `docs/DOCUMENTATION-CORPUS.md` | `TestDocsHelpNamesBehaviorAnnotationContract`, `TestDCPV1080GuideWitnessRequestExample` |
 | DCP-V1-081 | `internal/doccorpus/behavior-events.cjs`, `internal/doccorpus/testdata/behavior-events/live-1.61.1` | `TestDCPV1081ProducerNodeUnit`, `TestDCPV1081LiveProducerIsWitnessed` |
 | DCP-V1-082 | `internal/doccorpus/behavior_playwright_witness.go` | `TestPlaywrightWitnessImporter` (`DCP-V1-082 zero-witness result names the missing annotation types per test`), `TestDCPV1081LiveProducerIsWitnessed` |
+| DCP-V1-083 | `internal/doccorpus/behavior-events.cjs`, `docs/DOCUMENTATION-CORPUS.md` | `TestDCPV1081ProducerNodeUnit` (Node cases `DCP-V1-083: valueless state matchers record their canonical state name after they pass`, `DCP-V1-083: state options, extra arguments, .not and failures record nothing; hidden options never reach a recorded matcher`); live Playwright state-matcher run `NOT_RUN` |
+| DCP-V1-084 | `internal/doccorpus/behavior_adapter.go` (unchanged byte-for-byte comparison) | `TestDCPV1084StateMatcherAssertionIsWitnessed` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions

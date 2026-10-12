@@ -1231,7 +1231,7 @@ DCP-V1-050	docs/specs/documentation-corpus-v1.md	383	A witness is produced only 
 DCP-V1-051	docs/specs/documentation-corpus-v1.md	397	Every other registered test stays unwitnessed with exactly one named reason and
 DCP-V1-052	docs/specs/documentation-corpus-v1.md	406	Missing or untrustworthy shared evidence yields uncertainty for every test, neve
 DCP-V1-053	docs/specs/documentation-corpus-v1.md	412	`corvint docs --help`, and the `docs corpus discover-playwright --help` and
-DCP-V1-054	docs/specs/documentation-corpus-v1.md	1052	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
+DCP-V1-054	docs/specs/documentation-corpus-v1.md	1073	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
 DCP-V1-055	docs/specs/documentation-corpus-v1.md	426	`discover-playwright` applies the `TJAA-V0-021` grep/grepInvert omission rules o
 DCP-V1-056	docs/specs/documentation-corpus-v1.md	438	`corvint help docs corpus` and `corvint docs corpus --help` (or `-h`) print one
 DCP-V1-057	docs/specs/documentation-corpus-v1.md	457	`corvint help TOPIC` with an unknown topic stays the `invalid-arguments` refusal
@@ -1258,6 +1258,8 @@ DCP-V1-079	docs/specs/documentation-corpus-v1.md	702	Manual legacy cases never c
 DCP-V1-080	docs/specs/documentation-corpus-v1.md	706	`corvint docs --help` and `corvint docs corpus witness-playwright --help` state
 DCP-V1-081	docs/specs/documentation-corpus-v1.md	722	`internal/doccorpus/behavior-events.cjs` is a Playwright fixture producer. It
 DCP-V1-082	docs/specs/documentation-corpus-v1.md	747	An unwitnessed test with an annotation-stage reason (`events-unobserved`,
+DCP-V1-083	docs/specs/documentation-corpus-v1.md	755	`behavior.expect` in `behavior-events.cjs` also records the closed set of valuel
+DCP-V1-084	docs/specs/documentation-corpus-v1.md	767	A reviewed expected outcome and a declared test assertion for a valueless state
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide
@@ -2795,27 +2797,28 @@ PWP-V0-017	docs/specs/playwright-external-provider-v0.md	106	(accepted (decision
 PWP-V0-018	docs/specs/playwright-external-provider-v0.md	124	(accepted (decision 0461; V1-1028; GitHub #686)) Missing evidence never becomes
 PWP-V0-019	docs/specs/playwright-external-provider-v0.md	166	(accepted under the owner's standing auto-accept (2026-10-11); V1-1242; GitHub #
 PWP-V0-020	docs/specs/playwright-external-provider-v0.md	193	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #832) A ru
-PWP-V1-001	docs/specs/playwright-external-provider-v0.md	208	`/1` is available only in external-server mode and requires a typed `corvint-app
-PWP-V1-002	docs/specs/playwright-external-provider-v0.md	209	The closed provider configuration binds the expected application root commit, re
-PWP-V1-003	docs/specs/playwright-external-provider-v0.md	210	Each closed canonical `corvint-application-attestation/0` observation binds the
-PWP-V1-004	docs/specs/playwright-external-provider-v0.md	211	The receipt binds the provider profile, normalized argv, original executable pat
-PWP-V1-005	docs/specs/playwright-external-provider-v0.md	212	The provider runs before and after Playwright. Unavailable or malformed identity
-PWP-V1-006	docs/specs/playwright-external-provider-v0.md	213	`/1` binds one clean test repository by root commit, revision and tree before Pl
-PWP-V1-007	docs/specs/playwright-external-provider-v0.md	214	Corvint supplies only canonical configuration bytes on provider stdin and owns o
-PWP-V1-008	docs/specs/playwright-external-provider-v0.md	215	Qualification includes a deterministic, locally owned Docker Compose fixture and
-PWP-V2-001	docs/specs/playwright-external-provider-v0.md	219	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
-PWP-V2-002	docs/specs/playwright-external-provider-v0.md	220	Before reporter serialization, input actions matching the fixed defaults `fill`,
-PWP-V2-003	docs/specs/playwright-external-provider-v0.md	221	Redaction recurses through nested steps and retry attempts. Any sensitive action
-PWP-V2-004	docs/specs/playwright-external-provider-v0.md	222	Provider-declared additional case-insensitive action-title patterns and metadata
-PWP-V2-005	docs/specs/playwright-external-provider-v0.md	223	Reporter output and retained documents are untrusted. Ingestion rejects an unred
-PWP-V2-006	docs/specs/playwright-external-provider-v0.md	224	The conformance fixture contains a deliberately leaking payload that is rejected
-PWP-V3-001	docs/specs/playwright-external-provider-v0.md	231	`/3` is selected explicitly by a provider option in external-server mode. `/0`,
-PWP-V3-002	docs/specs/playwright-external-provider-v0.md	232	A `/3` test outcome carries `attemptDetails` with one entry per Playwright attem
-PWP-V3-003	docs/specs/playwright-external-provider-v0.md	233	The existing per-attempt classification is unchanged: browser or fixture failure
-PWP-V3-004	docs/specs/playwright-external-provider-v0.md	234	Every `/3` attempt failure message and artifact is subject to the same report-wi
-PWP-V3-005	docs/specs/playwright-external-provider-v0.md	235	The reporter emits `attemptDetails` only under `/3`; the provider validates the
-PWP-V3-006	docs/specs/playwright-external-provider-v0.md	236	`/3` is non-promotable until the changed reporter completes the live matrix of `
-PWP-V3-007	docs/specs/playwright-external-provider-v0.md	470	The `/3` exact project identity permits an explicitly observed empty project nam
+PWP-V0-021	docs/specs/playwright-external-provider-v0.md	211	(proposed; GitHub #844; V1-1317) The reporter-observed config-input set
+PWP-V1-001	docs/specs/playwright-external-provider-v0.md	236	`/1` is available only in external-server mode and requires a typed `corvint-app
+PWP-V1-002	docs/specs/playwright-external-provider-v0.md	237	The closed provider configuration binds the expected application root commit, re
+PWP-V1-003	docs/specs/playwright-external-provider-v0.md	238	Each closed canonical `corvint-application-attestation/0` observation binds the
+PWP-V1-004	docs/specs/playwright-external-provider-v0.md	239	The receipt binds the provider profile, normalized argv, original executable pat
+PWP-V1-005	docs/specs/playwright-external-provider-v0.md	240	The provider runs before and after Playwright. Unavailable or malformed identity
+PWP-V1-006	docs/specs/playwright-external-provider-v0.md	241	`/1` binds one clean test repository by root commit, revision and tree before Pl
+PWP-V1-007	docs/specs/playwright-external-provider-v0.md	242	Corvint supplies only canonical configuration bytes on provider stdin and owns o
+PWP-V1-008	docs/specs/playwright-external-provider-v0.md	243	Qualification includes a deterministic, locally owned Docker Compose fixture and
+PWP-V2-001	docs/specs/playwright-external-provider-v0.md	247	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
+PWP-V2-002	docs/specs/playwright-external-provider-v0.md	248	Before reporter serialization, input actions matching the fixed defaults `fill`,
+PWP-V2-003	docs/specs/playwright-external-provider-v0.md	249	Redaction recurses through nested steps and retry attempts. Any sensitive action
+PWP-V2-004	docs/specs/playwright-external-provider-v0.md	250	Provider-declared additional case-insensitive action-title patterns and metadata
+PWP-V2-005	docs/specs/playwright-external-provider-v0.md	251	Reporter output and retained documents are untrusted. Ingestion rejects an unred
+PWP-V2-006	docs/specs/playwright-external-provider-v0.md	252	The conformance fixture contains a deliberately leaking payload that is rejected
+PWP-V3-001	docs/specs/playwright-external-provider-v0.md	259	`/3` is selected explicitly by a provider option in external-server mode. `/0`,
+PWP-V3-002	docs/specs/playwright-external-provider-v0.md	260	A `/3` test outcome carries `attemptDetails` with one entry per Playwright attem
+PWP-V3-003	docs/specs/playwright-external-provider-v0.md	261	The existing per-attempt classification is unchanged: browser or fixture failure
+PWP-V3-004	docs/specs/playwright-external-provider-v0.md	262	Every `/3` attempt failure message and artifact is subject to the same report-wi
+PWP-V3-005	docs/specs/playwright-external-provider-v0.md	263	The reporter emits `attemptDetails` only under `/3`; the provider validates the
+PWP-V3-006	docs/specs/playwright-external-provider-v0.md	264	`/3` is non-promotable until the changed reporter completes the live matrix of `
+PWP-V3-007	docs/specs/playwright-external-provider-v0.md	500	The `/3` exact project identity permits an explicitly observed empty project nam
 PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	31	One shared reader MUST read an explicit Playwright json-reporter file read-only
 PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	45	Runs pool only at identical identity inputs: the Playwright version plus the
 PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	52	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes

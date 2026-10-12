@@ -336,6 +336,13 @@ What the producer records:
   `toHaveText`, `toContainText`, `toHaveValue`, `toHaveClass`, `toHaveId`, `toHaveAccessibleName`,
   `toHaveAccessibleDescription`, `toHaveRole` (each with a non-empty string) and `toHaveCount`
   (with a non-negative integer). The only matcher option it accepts is `timeout`.
+- The valueless state matchers `toBeVisible`, `toBeHidden`, `toBeEnabled` and `toBeChecked` are
+  recorded with the state name as `value`: `visible`, `hidden`, `enabled` and `checked`. Call them
+  with no argument or with `{timeout}` only. A state option such as `{visible: false}` or
+  `{checked: false}` runs the matcher but records nothing, and `behavior.expect` has no `.not`: use
+  `toBeHidden` for an element that must not be visible, or `negativeControl` for a negated check.
+  The reviewed outcome declares the same pair, for example matcher `toBeVisible` with value
+  `visible`, and `behavior-adapter` compares it byte for byte (`DCP-V1-083`, `DCP-V1-084`).
 - In any other case the matcher still runs, but nothing is recorded. That covers a RegExp or array
   expectation, other options, a locator inside a frame, a locator on a page that was not observed,
   and anything that is not a Locator. The producer warns once on stderr.

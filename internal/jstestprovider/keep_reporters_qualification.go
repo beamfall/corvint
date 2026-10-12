@@ -31,6 +31,10 @@ const (
 	keepReportersQualificationInvalid = "keep-reporters-qualification-invalid"
 	// MaxKeepReportersQualificationSize bounds the canonical record bytes.
 	MaxKeepReportersQualificationSize = 256 << 10
+	// keepReportersMaxConfigInputs keeps the record's own 256-input bound
+	// (PWP-V0-017), which fits MaxKeepReportersQualificationSize; it does not
+	// follow the receipt's raised externalMaxConfigInputs (PWP-V0-021).
+	keepReportersMaxConfigInputs = 256
 )
 
 // keepReportersQualificationReasons is the closed reason set and the verdict
@@ -104,7 +108,7 @@ func QualifyKeepReporters(control Receipt, controlErr error, keep Receipt, keepE
 // complete run, and whether the run is complete. A run whose config inputs
 // the record could not bind is incomplete.
 func completeRunDigest(r Receipt, err error, keep bool) (string, bool) {
-	if err != nil || r.External == nil || r.Infrastructure != nil || r.Cancelled || (r.External.ProjectReporters != nil) != keep || len(r.Identity.ConfigInputDigests) > externalMaxConfigInputs {
+	if err != nil || r.External == nil || r.Infrastructure != nil || r.Cancelled || (r.External.ProjectReporters != nil) != keep || len(r.Identity.ConfigInputDigests) > keepReportersMaxConfigInputs {
 		return "", false
 	}
 	for path, digest := range r.Identity.ConfigInputDigests {
@@ -236,7 +240,7 @@ func keepReportersVerdict(reasons []string) string {
 // keepReportersQualificationError validates the closed record (PWP-V0-017).
 func keepReportersQualificationError(q KeepReportersQualification) error {
 	invalid := errors.New(keepReportersQualificationInvalid)
-	if q.Profile != KeepReportersQualificationProfile || q.Reasons == nil || q.ConfigInputs == nil || q.Tests < 0 || len(q.Entries) > maxProjectReporters || len(q.ConfigInputs) > externalMaxConfigInputs {
+	if q.Profile != KeepReportersQualificationProfile || q.Reasons == nil || q.ConfigInputs == nil || q.Tests < 0 || len(q.Entries) > maxProjectReporters || len(q.ConfigInputs) > keepReportersMaxConfigInputs {
 		return invalid
 	}
 	if !sort.StringsAreSorted(q.Reasons) || keepReportersVerdict(q.Reasons) != q.Verdict {
