@@ -14,6 +14,7 @@ import (
 // own fixture commits.
 var cemMigrationCommits = []string{
 	"0b6f1bc245b44a8620c5e64f91e87f6d08da08d0",
+	"3b86121f4ced8b90212eaab6644ffbb4c491710d", // #838 b4f3758d
 }
 
 // migrationRewrite is one sealed CEM a migration commit rewrote in place.
