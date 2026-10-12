@@ -53,7 +53,10 @@ requirement is added or removed; the delivery status stays experimental.
   unreadable cases and the digest's independence from member order.
 - `tools/test-commands-check/main_test.go` runs the gate against the repository and seven drift
   mutations (flag value, flag order, dropped flag, extra and changed environment variable, absent
-  file, declared `make` target that does not exist), each of which must fail.
+  file, declared `make` target that does not exist), each of which must fail. The gate compares
+  the Makefile defaults under a `PATH`-only environment and requires every recipe and declared
+  word to be a plain word, so a word a shell would rewrite is a difference even when both sides
+  spell it the same way.
 - `tools/str-parity -corpus` refuses a corpus whose lines differ from
   `git rev-list --first-parent --parents` over the same end and count.
 

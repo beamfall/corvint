@@ -259,3 +259,21 @@ exposed no typing issue.
   (`docs/decisions/0524-str-v0-001-018-session-test-runner-accepted-2026-10-11.md`). It is
   retained on `claude/v1-0040-session-test-runner-spec` (beamfall/corvint#815) and not in this
   stack's base, so this branch must land after that one or together with it.
+
+## Rerun over the committed corpus (2026-10-12, decision 0526)
+
+Decision 0526 made the retained substitute corpus the STR-V0-013 input and replaced the
+Makefile reader with the `.github/cishards/test-commands.json` declaration. The rerun from
+`bee5a388682121053206f04e1591d5e8a76f0083` (`-corpus tools/str-parity/testdata/pairs-645304a2.txt`,
+same end commit, same driver binaries rebuilt from that commit, declaration written into every
+checkout) exited 0 in 1026 seconds; report 218,169 bytes, sha256
+`2b8ad62eedd0d4f29fa7da257aefa69ee26cab4dbe4a8fad983b06a5a7beea35`, `corpus`
+`a4d9da4b02496167e395f3da827f20d28630e356ea0742d3111241dcd54b8b7a`, `declarationDigest`
+`bfc9eee0c3d13e9aa58646fb2cfa9f4abff8cb069273024e7c5f8c29dcf153dd`.
+
+257 differences in five categories, none `UNEXPLAINED`, against the 277 in six above. The
+`str-v0-004-undeclared-language` category (20: ten pairs, one typescript, python or ruby unit each,
+`INCOMPLETE` in both profiles) is gone because the declaration asserts `none` for those languages
+and the unit becomes a `noSuite` entry; the other five categories keep their counts and every
+pair keeps its corvint local scope and package count. The details are in
+`docs/build-log/2026-10-12-session-test-runner-declaration.md`.
