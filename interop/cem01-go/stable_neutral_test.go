@@ -175,8 +175,8 @@ func neutralResultMap(t *testing.T, r stableResult) map[string]any {
 // TestCEMV1083NeutralCriterionPublicCase is the portable side of the public
 // no-Tasks case; the native verifier asserts the same EXPECTED.json.
 func TestCEMV1083NeutralCriterionPublicCase(t *testing.T) {
-	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
-		t.Skip("stable process containment is only supported on Darwin/Linux")
+	if !stableOwnerSupported() {
+		t.Skip("NOT_RUN: process containment is not qualified on " + runtime.GOOS)
 	}
 	dir := neutralCaseFiles(t)
 	var want neutralExpected
