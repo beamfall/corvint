@@ -212,7 +212,7 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	after, identityErr := cfg.identity(argv)
 	lifecycle.InputsUnchanged = identityErr == nil && reflect.DeepEqual(identity, after)
 	r.Cancelled = obs.Cancelled || ctx.Err() != nil
-	if boundary := unitBoundaryFailure(obs); boundary != nil {
+	if boundary := externalBoundaryFailure(obs, timeout); boundary != nil {
 		r.Infrastructure = boundary
 	}
 	if !lifecycle.ReadyAtPublish {
@@ -761,4 +761,11 @@ func qualifiedBundledPlaywrightBrowser(headless *bool, configured *string, brows
 		return false
 	}
 	return filepath.IsAbs(*browser.ExecutablePath) && strings.HasSuffix(*browser.ExecutablePath, qualifiedBundledExecutableSuffix)
+}
+
+// externalBoundaryFailure classifies the external-server Playwright process
+// observation in the vitest classifier's order, cancellation included, and
+// names the Playwright runner and its --timeout value on timeout (PWP-V0-020).
+func externalBoundaryFailure(obs procgroup.Observation, timeout time.Duration) *InfrastructureFailure {
+	return unitBoundaryFailure(obs, "playwright test", timeout)
 }

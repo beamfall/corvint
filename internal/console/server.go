@@ -31,6 +31,11 @@ type Options struct {
 	// tool wrote, the same delegation the board makes to `corvint-tasks` (LAC-V0-004).
 	Snapshot string
 	Timeout  time.Duration
+	// StableArtifacts, when set, selects the chain pane's verified cem/1.0
+	// mode: a sealed stable map is drawn only when the stable verifier accepts
+	// it against the request's base (CEM-V1-164). Empty keeps the display-only
+	// NOT_RUN pane (CEM-V1-077).
+	StableArtifacts string
 }
 
 // specsRoot is where the spec and code panes read from.
@@ -421,6 +426,9 @@ func (s *Server) handleChain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data.Chain = worktree.ReadChain(ctx, data.Revision.Commit, change)
+	if s.options.StableArtifacts != "" {
+		worktree.VerifyStableChain(ctx, data.Chain, r.URL.Query().Get("base"), s.options.StableArtifacts)
+	}
 	if hunk := r.URL.Query().Get("hunk"); hunk != "" && data.Chain.Err == "" {
 		data.Chain.Detail = worktree.HunkDetail(ctx, data.Chain, hunk)
 	}

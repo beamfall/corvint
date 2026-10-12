@@ -895,19 +895,46 @@ CEM-V1-103	docs/specs/cem-stable-v1.md	596	A map whose pinned objects are unavai
 CEM-V1-104	docs/specs/cem-stable-v1.md	600	Verdict parity is measured per committed map at the substituted target T', the
 CEM-V1-105	docs/specs/cem-stable-v1.md	620	The converter exists only to migrate cem/0.x maps. It is removed with the 0.x
 CEM-V1-106	docs/specs/cem-stable-v1.md	665	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) `cem sta
-CEM-V1-140	docs/specs/cem-stable-v1.md	1163	`corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps th
-CEM-V1-141	docs/specs/cem-stable-v1.md	1170	A `cem/1.0` prepare MUST write the canonical stable encoding of a producer map
-CEM-V1-142	docs/specs/cem-stable-v1.md	1184	`cem begin --spec cem/1.0` MUST write the canonical stable producer map of the
-CEM-V1-143	docs/specs/cem-stable-v1.md	1187	`cem cite`, `cem mark`, `cem cover` and `cem discriminate` over a stable produce
-CEM-V1-144	docs/specs/cem-stable-v1.md	1191	A structural `cem mark` on a stable producer map writes the claimed reason; the
-CEM-V1-145	docs/specs/cem-stable-v1.md	1194	`cem status` over a `cem/1.0` map MUST admit `--max-unknown` and
-CEM-V1-146	docs/specs/cem-stable-v1.md	1200	A stable prepare's `nextActions` MUST be the single `cem status` argv with the
-CEM-V1-147	docs/specs/cem-stable-v1.md	1203	The daily bind loop MUST cite, count, check and seal a `cem/1.0` map like a
-CEM-V1-148	docs/specs/cem-stable-v1.md	1209	`dogfood batch-check` MUST admit a sealed `cem/1.0` constituent when the verifie
-CEM-V1-149	docs/specs/cem-stable-v1.md	1214	`ocm prepare`, `ocm read` (status) and `ocm link` MUST admit a `cem/1.0` map onl
-CEM-V1-150	docs/specs/cem-stable-v1.md	1220	Local-completion sidecar-only reuse (`AllowCemSidecarOnlyReuse`) MUST keep
-CEM-V1-151	docs/specs/cem-stable-v1.md	1224	`dogfood finish` MUST read a `cem/1.0` change map: its `cem status` (and the
-CEM-V1-152	docs/specs/cem-stable-v1.md	1229	The aggregate verifier worker's closed argv grammar (`ALO-V0-018`) MUST admit th
+CEM-V1-120	docs/specs/cem-stable-v1.md	1284	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity
+CEM-V1-121	docs/specs/cem-stable-v1.md	1287	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly
+CEM-V1-122	docs/specs/cem-stable-v1.md	1291	The stable result MUST carry:
+CEM-V1-123	docs/specs/cem-stable-v1.md	1300	The verifier binding MUST name the SHA-256 of the exact input map bytes, and the
+CEM-V1-124	docs/specs/cem-stable-v1.md	1305	The 0.x TCQ and frontier routes are unchanged. `parseArtifacts` keeps the
+CEM-V1-125	docs/specs/cem-stable-v1.md	1308	`frontierrepo.RecomputeStable` MUST:
+CEM-V1-126	docs/specs/cem-stable-v1.md	1317	No stable frontier document is produced. `frontier/0` binds an `lrf/0` digest, a
+CEM-V1-127	docs/specs/cem-stable-v1.md	1321	Each of the following MUST refuse, keeping the stable verifier's full result and
+CEM-V1-130	docs/specs/cem-stable-v1.md	1327	`extevidence.StableObligations` MUST emit `external-frontier-obligations-stable/
+CEM-V1-131	docs/specs/cem-stable-v1.md	1335	Hunk associations MUST be computed exactly as in the frozen sidecar, with the sa
+CEM-V1-132	docs/specs/cem-stable-v1.md	1338	A verifier refusal MUST return a `StableObligationsRefusal` that holds the
+CEM-V1-133	docs/specs/cem-stable-v1.md	1342	The map's declared criterion links MUST be listed in a separate `criteria` membe
+CEM-V1-134	docs/specs/cem-stable-v1.md	1345	The frozen sidecar MUST keep refusing `cem/1.0`, and the stable sidecar MUST ref
+CEM-V1-135	docs/specs/cem-stable-v1.md	1347	`corvint obligations` MUST select the stable sidecar only when all four of these
+CEM-V1-136	docs/specs/cem-stable-v1.md	1357	The criterion experiment companion MUST add the explicit input mode
+CEM-V1-137	docs/specs/cem-stable-v1.md	1361	Stable admission MUST:
+CEM-V1-138	docs/specs/cem-stable-v1.md	1370	Plan, run and verify MUST each re-admit the plan's map through the stable verifi
+CEM-V1-139	docs/specs/cem-stable-v1.md	1375	The two modes never cross:
+CEM-V1-140	docs/specs/cem-stable-v1.md	1164	`corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps th
+CEM-V1-141	docs/specs/cem-stable-v1.md	1171	A `cem/1.0` prepare MUST write the canonical stable encoding of a producer map
+CEM-V1-142	docs/specs/cem-stable-v1.md	1185	`cem begin --spec cem/1.0` MUST write the canonical stable producer map of the
+CEM-V1-143	docs/specs/cem-stable-v1.md	1188	`cem cite`, `cem mark`, `cem cover` and `cem discriminate` over a stable produce
+CEM-V1-144	docs/specs/cem-stable-v1.md	1192	A structural `cem mark` on a stable producer map writes the claimed reason; the
+CEM-V1-145	docs/specs/cem-stable-v1.md	1195	`cem status` over a `cem/1.0` map MUST admit `--max-unknown` and
+CEM-V1-146	docs/specs/cem-stable-v1.md	1201	A stable prepare's `nextActions` MUST be the single `cem status` argv with the
+CEM-V1-147	docs/specs/cem-stable-v1.md	1204	The daily bind loop MUST cite, count, check and seal a `cem/1.0` map like a
+CEM-V1-148	docs/specs/cem-stable-v1.md	1210	`dogfood batch-check` MUST admit a sealed `cem/1.0` constituent when the verifie
+CEM-V1-149	docs/specs/cem-stable-v1.md	1215	`ocm prepare`, `ocm read` (status) and `ocm link` MUST admit a `cem/1.0` map onl
+CEM-V1-150	docs/specs/cem-stable-v1.md	1221	Local-completion sidecar-only reuse (`AllowCemSidecarOnlyReuse`) MUST keep
+CEM-V1-151	docs/specs/cem-stable-v1.md	1225	`dogfood finish` MUST read a `cem/1.0` change map: its `cem status` (and the
+CEM-V1-152	docs/specs/cem-stable-v1.md	1230	The aggregate verifier worker's closed argv grammar (`ALO-V0-018`) MUST admit th
+CEM-V1-160	docs/specs/cem-stable-v1.md	1438	`corvint witness --stable-artifact-root DIR` MUST pass the absolute artifact roo
+CEM-V1-161	docs/specs/cem-stable-v1.md	1442	The witness route MUST fail closed with exit 2, no stdout and the code
+CEM-V1-162	docs/specs/cem-stable-v1.md	1449	`corvint docs corpus cem-stable` MUST require `--artifact`, `--cem`,
+CEM-V1-163	docs/specs/cem-stable-v1.md	1454	A `cem-stable` refusal MUST exit 2 with no stdout and the code
+CEM-V1-164	docs/specs/cem-stable-v1.md	1457	`corvint-console -stable-artifact-root DIR` MUST select the chain pane's verifie
+CEM-V1-165	docs/specs/cem-stable-v1.md	1467	In verified mode, the pane MUST replace the chain with a refusal, drawing no cha
+CEM-V1-166	docs/specs/cem-stable-v1.md	1479	Without `-stable-artifact-root`, the display-only NOT_RUN pane of `CEM-V1-077` M
+CEM-V1-167	docs/specs/cem-stable-v1.md	1481	The protected local-authority consumer holds a Git object capsule and no
+CEM-V1-168	docs/specs/cem-stable-v1.md	1484	The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	892	The default `verify` path refuses a strictly parsed JSON object whose exact
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	896	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	899	Only that exact case changes. A duplicate, non-string, differently cased,
@@ -2760,27 +2787,28 @@ PWP-V0-016	docs/specs/playwright-external-provider-v0.md	95	(accepted (decision 
 PWP-V0-017	docs/specs/playwright-external-provider-v0.md	106	(accepted (decision 0461; V1-1028; GitHub #686)) The record is closed. It has ex
 PWP-V0-018	docs/specs/playwright-external-provider-v0.md	124	(accepted (decision 0461; V1-1028; GitHub #686)) Missing evidence never becomes
 PWP-V0-019	docs/specs/playwright-external-provider-v0.md	166	(accepted under the owner's standing auto-accept (2026-10-11); V1-1242; GitHub #
-PWP-V1-001	docs/specs/playwright-external-provider-v0.md	191	`/1` is available only in external-server mode and requires a typed `corvint-app
-PWP-V1-002	docs/specs/playwright-external-provider-v0.md	192	The closed provider configuration binds the expected application root commit, re
-PWP-V1-003	docs/specs/playwright-external-provider-v0.md	193	Each closed canonical `corvint-application-attestation/0` observation binds the
-PWP-V1-004	docs/specs/playwright-external-provider-v0.md	194	The receipt binds the provider profile, normalized argv, original executable pat
-PWP-V1-005	docs/specs/playwright-external-provider-v0.md	195	The provider runs before and after Playwright. Unavailable or malformed identity
-PWP-V1-006	docs/specs/playwright-external-provider-v0.md	196	`/1` binds one clean test repository by root commit, revision and tree before Pl
-PWP-V1-007	docs/specs/playwright-external-provider-v0.md	197	Corvint supplies only canonical configuration bytes on provider stdin and owns o
-PWP-V1-008	docs/specs/playwright-external-provider-v0.md	198	Qualification includes a deterministic, locally owned Docker Compose fixture and
-PWP-V2-001	docs/specs/playwright-external-provider-v0.md	202	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
-PWP-V2-002	docs/specs/playwright-external-provider-v0.md	203	Before reporter serialization, input actions matching the fixed defaults `fill`,
-PWP-V2-003	docs/specs/playwright-external-provider-v0.md	204	Redaction recurses through nested steps and retry attempts. Any sensitive action
-PWP-V2-004	docs/specs/playwright-external-provider-v0.md	205	Provider-declared additional case-insensitive action-title patterns and metadata
-PWP-V2-005	docs/specs/playwright-external-provider-v0.md	206	Reporter output and retained documents are untrusted. Ingestion rejects an unred
-PWP-V2-006	docs/specs/playwright-external-provider-v0.md	207	The conformance fixture contains a deliberately leaking payload that is rejected
-PWP-V3-001	docs/specs/playwright-external-provider-v0.md	214	`/3` is selected explicitly by a provider option in external-server mode. `/0`,
-PWP-V3-002	docs/specs/playwright-external-provider-v0.md	215	A `/3` test outcome carries `attemptDetails` with one entry per Playwright attem
-PWP-V3-003	docs/specs/playwright-external-provider-v0.md	216	The existing per-attempt classification is unchanged: browser or fixture failure
-PWP-V3-004	docs/specs/playwright-external-provider-v0.md	217	Every `/3` attempt failure message and artifact is subject to the same report-wi
-PWP-V3-005	docs/specs/playwright-external-provider-v0.md	218	The reporter emits `attemptDetails` only under `/3`; the provider validates the
-PWP-V3-006	docs/specs/playwright-external-provider-v0.md	219	`/3` is non-promotable until the changed reporter completes the live matrix of `
-PWP-V3-007	docs/specs/playwright-external-provider-v0.md	452	The `/3` exact project identity permits an explicitly observed empty project nam
+PWP-V0-020	docs/specs/playwright-external-provider-v0.md	193	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #832) A ru
+PWP-V1-001	docs/specs/playwright-external-provider-v0.md	208	`/1` is available only in external-server mode and requires a typed `corvint-app
+PWP-V1-002	docs/specs/playwright-external-provider-v0.md	209	The closed provider configuration binds the expected application root commit, re
+PWP-V1-003	docs/specs/playwright-external-provider-v0.md	210	Each closed canonical `corvint-application-attestation/0` observation binds the
+PWP-V1-004	docs/specs/playwright-external-provider-v0.md	211	The receipt binds the provider profile, normalized argv, original executable pat
+PWP-V1-005	docs/specs/playwright-external-provider-v0.md	212	The provider runs before and after Playwright. Unavailable or malformed identity
+PWP-V1-006	docs/specs/playwright-external-provider-v0.md	213	`/1` binds one clean test repository by root commit, revision and tree before Pl
+PWP-V1-007	docs/specs/playwright-external-provider-v0.md	214	Corvint supplies only canonical configuration bytes on provider stdin and owns o
+PWP-V1-008	docs/specs/playwright-external-provider-v0.md	215	Qualification includes a deterministic, locally owned Docker Compose fixture and
+PWP-V2-001	docs/specs/playwright-external-provider-v0.md	219	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
+PWP-V2-002	docs/specs/playwright-external-provider-v0.md	220	Before reporter serialization, input actions matching the fixed defaults `fill`,
+PWP-V2-003	docs/specs/playwright-external-provider-v0.md	221	Redaction recurses through nested steps and retry attempts. Any sensitive action
+PWP-V2-004	docs/specs/playwright-external-provider-v0.md	222	Provider-declared additional case-insensitive action-title patterns and metadata
+PWP-V2-005	docs/specs/playwright-external-provider-v0.md	223	Reporter output and retained documents are untrusted. Ingestion rejects an unred
+PWP-V2-006	docs/specs/playwright-external-provider-v0.md	224	The conformance fixture contains a deliberately leaking payload that is rejected
+PWP-V3-001	docs/specs/playwright-external-provider-v0.md	231	`/3` is selected explicitly by a provider option in external-server mode. `/0`,
+PWP-V3-002	docs/specs/playwright-external-provider-v0.md	232	A `/3` test outcome carries `attemptDetails` with one entry per Playwright attem
+PWP-V3-003	docs/specs/playwright-external-provider-v0.md	233	The existing per-attempt classification is unchanged: browser or fixture failure
+PWP-V3-004	docs/specs/playwright-external-provider-v0.md	234	Every `/3` attempt failure message and artifact is subject to the same report-wi
+PWP-V3-005	docs/specs/playwright-external-provider-v0.md	235	The reporter emits `attemptDetails` only under `/3`; the provider validates the
+PWP-V3-006	docs/specs/playwright-external-provider-v0.md	236	`/3` is non-promotable until the changed reporter completes the live matrix of `
+PWP-V3-007	docs/specs/playwright-external-provider-v0.md	470	The `/3` exact project identity permits an explicitly observed empty project nam
 PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	31	One shared reader MUST read an explicit Playwright json-reporter file read-only
 PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	45	Runs pool only at identical identity inputs: the Playwright version plus the
 PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	52	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes

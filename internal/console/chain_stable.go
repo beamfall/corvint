@@ -1,11 +1,13 @@
 package console
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
@@ -21,8 +23,11 @@ import (
 const stableUnverifiedReason = "the console runs no stable verifier, so stable verification is NOT_RUN here; " +
 	"`corvint cem verify-stable` with the expected base, target and artifact root owns acceptance"
 
-const stableReferenceDetail = "structurally valid reference; its digest is not checked by this pane; " +
-	"a valid reference is not task completion and not criterion satisfaction"
+const stableReferenceDetail = "structurally valid reference; its digest is not checked by this pane; " + stableReferenceLimit
+
+// stableReferenceLimit keeps a reference row's non-authority qualification in
+// both the display-only and the verified pane.
+const stableReferenceLimit = "a valid reference is not task completion and not criterion satisfaction"
 
 // stableAxes are the verifier axes the pane names. The integrity axes are
 // NOT_CHECKED because the pane does not verify; the others are NOT_OBSERVED
@@ -157,4 +162,72 @@ func stableEdges(chain *Chain) []ChainEdge {
 	completion := edge("task completion", "criterionLinks")
 	completion.Gap, completion.Reason = GapUnverified, "task completion NOT_OBSERVED: a sealed stable map records references, never completion or criterion satisfaction"
 	return append(edges, completion)
+}
+
+// VerifyStableChain is the pane's verified cem/1.0 mode (CEM-V1-164 to
+// CEM-V1-166). The operator started the console with an artifact root; the
+// request names the expected base. The complete stable verifier runs over the
+// specs repository with the sealed map's bind commit as target, and the chain
+// is kept only on an ACCEPT that binds the exact sealed bytes. Any other
+// outcome or a timeout replaces the chain with a refusal that names the
+// verifier outcome, stage and code, or the timeout; a missing or malformed
+// base is refused before verification runs. A map that is not
+// cem/1.0 is left to the 0.x pane unchanged.
+func (w Worktree) VerifyStableChain(ctx context.Context, chain *Chain, expectedBase, artifactRoot string) {
+	if chain == nil || chain.Err != "" || chain.Profile != wire.StableSpec {
+		return
+	}
+	if !objectIDPattern.MatchString(expectedBase) {
+		chain.Err = GapUnsupported + ": verified stable mode draws a cem/1.0 chain only against an expected base; " +
+			"add base=<full commit> to this request"
+		return
+	}
+	if w.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, w.Timeout)
+		defer cancel()
+	}
+	result, _ := verify.Stable(ctx, []byte(chain.Sealed.Text), verify.StableOptions{Repository: w.Root, ExpectedBase: expectedBase,
+		Target: chain.Change, ArtifactRoot: artifactRoot})
+	if ctx.Err() != nil {
+		chain.Err = GapUnsupported + ": the stable verifier did not finish within the console's -timeout (" + ctx.Err().Error() +
+			"), so no chain is drawn from this map"
+		return
+	}
+	if result.Outcome != "ACCEPT" || result.Accept == nil || !*result.Accept {
+		code := ""
+		if result.Code != nil {
+			code = " with code " + *result.Code
+		}
+		chain.Err = GapUnsupported + ": the stable verifier returned " + result.Outcome + " at stage " + result.Stage + code +
+			" for expected base " + expectedBase + " and target " + chain.Change + ", so no chain is drawn from this map"
+		return
+	}
+	if result.MapSha256 == nil || *result.MapSha256 != sha256Hex(chain.Sealed.Text) {
+		chain.Err = GapUnsupported + ": the accepted stable result does not bind the exact sealed bytes, so no chain is drawn from this map"
+		return
+	}
+	for index := range chain.Binding {
+		edge := &chain.Binding[index]
+		if edge.Artifact != chain.SealedPath {
+			continue
+		}
+		switch edge.Target {
+		case wire.StableSpec + " verification":
+			edge.Gap, edge.Reason = "", ""
+			edge.Detail = "stable verifier ACCEPT (" + result.Profile + ") against expected base " + expectedBase + " and target " +
+				chain.Change + "; acceptance establishes change and reference integrity only, never task completion"
+		case "target sidecar":
+			edge.Gap, edge.Reason, edge.Detail = "", "", "sidecar "+result.Sidecar+" as compared by the stable verifier"
+		case "axis changeIntegrity", "axis referenceIntegrity":
+			name := strings.TrimPrefix(edge.Target, "axis ")
+			edge.Gap, edge.Reason, edge.Detail = "", "", name+" "+result.Axes[name]+" from the stable verifier"
+		default:
+			if strings.HasSuffix(edge.Detail, stableReferenceDetail) {
+				edge.Detail = strings.Replace(strings.TrimSuffix(edge.Detail, stableReferenceDetail), " (content not opened)", "", 1) +
+					"referenceIntegrity " + result.Axes["referenceIntegrity"] + " from the stable verifier; " + stableReferenceLimit
+			}
+		}
+	}
+	chain.VerifiedBase = expectedBase
 }

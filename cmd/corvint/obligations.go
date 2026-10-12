@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -20,6 +21,14 @@ const obligationsInputCeiling = 4 << 20
 type obligationsOptions struct {
 	cem, impact string
 	limit       int
+	// stable is the explicit cem/1.0 verification context; all four members
+	// are given together or not at all (CEM-V1-135).
+	stable extevidence.StableObligationsOptions
+}
+
+// stableMode reports whether the invocation selected the stable sidecar.
+func (o obligationsOptions) stableMode() bool {
+	return o.stable != extevidence.StableObligationsOptions{}
 }
 
 // parseObligationsInvocation reports whether argv is an obligations run and
@@ -32,6 +41,10 @@ func parseObligationsInvocation(arguments []string) (obligationsOptions, bool, e
 	values := map[string]*string{"--cem": &options.cem, "--impact": &options.impact}
 	limit := ""
 	values["--limit"] = &limit
+	values["--repository"] = &options.stable.Repository
+	values["--expected-base"] = &options.stable.ExpectedBase
+	values["--target"] = &options.stable.Target
+	values["--stable-artifact-root"] = &options.stable.ArtifactRoot
 	rest := arguments[1:]
 	for len(rest) > 0 {
 		flag, inline, hasInline := strings.Cut(rest[0], "=")
@@ -56,6 +69,10 @@ func parseObligationsInvocation(arguments []string) (obligationsOptions, bool, e
 	if options.cem == "" || options.impact == "" {
 		return options, true, argumentError("obligations requires --cem FILE and --impact FILE")
 	}
+	stable := options.stable
+	if options.stableMode() && (stable.Repository == "" || stable.ExpectedBase == "" || stable.Target == "" || stable.ArtifactRoot == "") {
+		return options, true, argumentError("obligations stable mode requires --repository DIR, --expected-base REV, --target REV and --stable-artifact-root DIR together")
+	}
 	if limit != "" {
 		parsed, err := strconv.Atoi(limit)
 		if err != nil || parsed < 1 {
@@ -79,7 +96,12 @@ func runObligations(options obligationsOptions, stdout, stderr io.Writer) int {
 		emitError(stderr, err)
 		return 2
 	}
-	document, err := extevidence.Obligations(cem, impact, options.limit)
+	var document map[string]any
+	if options.stableMode() {
+		document, err = extevidence.StableObligations(context.Background(), cem, impact, options.limit, options.stable)
+	} else {
+		document, err = extevidence.Obligations(cem, impact, options.limit)
+	}
 	if err != nil {
 		emitError(stderr, err)
 		return 2

@@ -133,7 +133,7 @@ func RunUnit(ctx context.Context, cfg UnitConfig) (Receipt, error) {
 	obs := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: cfg.Dir, Env: os.Environ(), Timeout: timeout, OutputLimit: limit})
 	receipt := Receipt{Kind: "unit", Identity: identity, AppBuildAtStart: AppBuildIdentity{Unknown: true, Reason: "vitest runs against source directly, not a served build"}}
 	receipt.AppBuildAtPublish = receipt.AppBuildAtStart
-	if boundary := unitBoundaryFailure(obs); boundary != nil {
+	if boundary := unitBoundaryFailure(obs, "vitest", timeout); boundary != nil {
 		receipt.Infrastructure = boundary
 		receipt.Cancelled = obs.Cancelled
 		return receipt, nil
@@ -176,10 +176,10 @@ func unexplainedNonzeroExit(obs procgroup.Observation, tests []TestOutcome) bool
 	return true
 }
 
-func unitBoundaryFailure(obs procgroup.Observation) *InfrastructureFailure {
+func unitBoundaryFailure(obs procgroup.Observation, runner string, timeout time.Duration) *InfrastructureFailure {
 	switch {
 	case obs.TimedOut:
-		return &InfrastructureFailure{Reason: "timeout", Detail: "vitest did not complete within the bound"}
+		return &InfrastructureFailure{Reason: "timeout", Detail: boundaryTimeoutDetail(runner, timeout)}
 	case obs.OutputOverflow || obs.StdoutOverflow || obs.StderrOverflow:
 		return &InfrastructureFailure{Reason: "output-overflow", Detail: "stdout or stderr exceeded its collection bound"}
 	case obs.Cancelled:
@@ -338,7 +338,7 @@ func RunE2E(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 		receipt.Infrastructure = &InfrastructureFailure{Reason: "cancelled", Detail: "run was cancelled before completion"}
 		return receipt, nil
 	}
-	if boundary := e2eBoundaryFailure(testObs); boundary != nil {
+	if boundary := e2eBoundaryFailure(testObs, testTimeout); boundary != nil {
 		receipt.Infrastructure = boundary
 		return receipt, nil
 	}
@@ -358,10 +358,10 @@ func RunE2E(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 
 // e2eBoundaryFailure classifies the Playwright test process observation after
 // cancellation has been ruled out, in the same order unitBoundaryFailure uses.
-func e2eBoundaryFailure(obs procgroup.Observation) *InfrastructureFailure {
+func e2eBoundaryFailure(obs procgroup.Observation, timeout time.Duration) *InfrastructureFailure {
 	switch {
 	case obs.TimedOut:
-		return &InfrastructureFailure{Reason: "timeout", Detail: "playwright test did not complete within the bound"}
+		return &InfrastructureFailure{Reason: "timeout", Detail: boundaryTimeoutDetail("playwright test", timeout)}
 	case obs.OutputOverflow || obs.StdoutOverflow || obs.StderrOverflow:
 		return &InfrastructureFailure{Reason: "output-overflow", Detail: "stdout or stderr exceeded its collection bound"}
 	case !obs.Started:
@@ -441,4 +441,11 @@ func resolveArgv(argv []string) []string {
 	}
 	out := append([]string{abs}, argv[1:]...)
 	return out
+}
+
+// boundaryTimeoutDetail names the runner that timed out and the effective
+// --timeout value that bounded it, so an operator knows which bound to raise
+// (PWP-V0-020).
+func boundaryTimeoutDetail(runner string, timeout time.Duration) string {
+	return runner + " did not complete within the --timeout " + timeout.String() + " bound"
 }
