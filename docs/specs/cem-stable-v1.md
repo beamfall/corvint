@@ -6,7 +6,7 @@ Delivery status: planned
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed/planned; no stable delivery or promotion.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); qualification remains bounded.
 - Blocked on: stable wire/consumer integration, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -54,6 +54,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-050 | `structuralRuntimeAdmitted` in `internal/cem/verify/stable.go` and `interop/cem01-go/cem.go`; sealed `protocol/cem-1.0/structural-tuples/go1.27.2/`; `TestCEMV1050StructuralTupleAdmission` (native and portable); S0E, linked-control, ledger and cell tests bound through the tuple packet | Linux and Windows hosts, CI-hosted go1.27.2 runs and the full structural corpus remain NOT_RUN |
 | CEM-V1-080..082 | `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` and `testdata/citation/`; `TestCEMV1080*`, `TestCEMV1081*`, `TestCEMV1082*` in `internal/cem/verify`, `internal/cem/workflow` and `interop/cem01-go` | Recorded limits: `held` never produced, no `symbol` anchors, no threshold or cut-off, stable-result emission deferred to V1-1265; historical 591-map report in the build log |
 | CEM-V1-083 | Plain criterion form in `internal/cem/wire/stable.go` and `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/neutral-criterion/`; `TestCEMV1083*` in `internal/cem/wire`, `internal/cem/verify` and `interop/cem01-go` | No producer emits the plain form (`corvint-cem-candidate assemble-stable` accepts only Tasks-bound `cem-stable-assembly/1`); the public map was hand-assembled; stranger time NOT_OBSERVED |
+| CEM-V1-084 | `internal/cem/wire/stable_auth.go`, `internal/cem/verify/stable_auth.go`, `interop/cem01-go/stable_auth.go`; `--trusted-keys` in `internal/cem/cli/stable.go` and both portable commands; public case `protocol/cem-1.0/stable/receipt-authentication/`; `TestCEMV1084*` in `internal/cem/wire`, `internal/cem/verify`, `interop/cem01-go`, `internal/console` and `cmd/corvint` | No producer signs receipts (operator step, FPK-V0-036); `RESULT.schema.json` and the sealed S0E packet still name only `NOT_OBSERVED` for `authentication` and lack the four attestation issue codes (V1-1265); keys are TEST-ONLY; stranger time NOT_OBSERVED |
 | CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`; proof run in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` | No member has been added to the sealed packet yet; V1-1265 consumes the tool for `citation` |
 
 ## First portable candidate build contract
@@ -360,6 +361,57 @@ Rollback: revert the plain branch in `internal/cem/wire/stable.go` and `interop/
 CEM-V1-083 text in `ALGORITHMS.md`, the `neutral-criterion/` case and its manifest entries. Tasks
 maps need no migration.
 
+## Runner receipt authentication (V1-1264, decision 0523 P1)
+
+Status: proposed. Decision 0523 P1. A runner receipt can carry a signed attestation, and only the
+consumer decides which keys it trusts.
+
+- `CEM-V1-084`: A runner receipt's `authentication` MUST take one of three closed forms: the sealed
+  legacy string `"NOT_OBSERVED"` (read as method none and echoed unchanged), `{"method":"none"}`,
+  or `{"method":"dsse-ed25519","keyid":K,"envelopeSha256":E}`, where K is the lowercase hex SHA-256
+  of the raw 32-byte Ed25519 public key and E is the SHA-256 of the exact envelope bytes. The method
+  selects the key set, so a member is refused `missing-field`, then `unknown-field`, then
+  `invalid-field`. E MUST resolve to a `receipt-attestation` artifact (`artifact-role-closure`),
+  no two receipts may name the same E (`duplicate-reference`), and a `receipt-attestation` artifact
+  no receipt names is unused (`artifact-role-closure`). E's bytes MUST be one closed DSSE envelope
+  (`payloadType` `application/vnd.in-toto+json`, exactly one signature) over a closed in-toto
+  Statement v1 with `predicateType` `https://corvint-context.dev/attestation/cem-receipt/v1`, an
+  empty predicate and exactly the subjects `runner-receipt` (sha256), `runner-plan` (sha256) and
+  `target-tree` (gitTree), in that order. After both artifact passes a consumer MUST refuse, at
+  stage `artifacts` with exit 1 and `authentication` FAILED, `attestation-malformed`,
+  `attestation-key-mismatch` (signature keyid differs from K), `attestation-subject-mismatch`
+  (receipt, plan or target tree differs, checked with or without trust) and, for a trusted K only,
+  `attestation-signature-invalid`. Trust comes only from `--trusted-keys FILE`: an absolute regular
+  file of at most 64 KiB holding `{"profile":"corvint-trusted-keys/1","keys":[{"keyid":K,
+  "ed25519PublicKey":B64}]}` with 1..64 unique keys, each keyid the digest of its key; any other
+  file is `invalid-arguments` before the map is read. On ACCEPT the axis is NOT_OBSERVED without
+  that file, UNTRUSTED_KEY when any signed receipt names an untrusted keyid, NOT_OBSERVED when any
+  receipt is unsigned, and VERIFIED only when every receipt is signed by a trusted key. A key the
+  map or its artifacts carry is never trusted, and a signature never raises `executionAtCommit`.
+  The native and portable consumers MUST return the same result for the same inputs.
+
+Non-goals: no signing producer and no key management (signed production is an operator step,
+FPK-V0-036); no network, transparency log, certificate or key discovery; no change to
+`RESULT.schema.json`, the sealed S0E packet or `cem/0.x`; no change to the candidate profile.
+
+Failure modes: a malformed member is refused at the wire stage and an unresolved or repeated
+envelope at the references stage, before any artifact read; an envelope over another receipt,
+plan or tree is refused even without a trusted-keys file; a bad signature under an untrusted key
+is not checked and leaves UNTRUSTED_KEY, never VERIFIED; a bad trusted-keys file refuses the whole
+run rather than silently lowering the axis.
+
+Acceptance evidence:
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-084 | `TestCEMV1084ReceiptAuthenticationFixtures`, `TestCEMV1084ReceiptAuthenticationPublicCase` (`internal/cem/verify`); `TestCEMV1084AuthenticationForms`, `TestCEMV1084AuthenticationRefusals`, `TestCEMV1084ReceiptAttestationEnvelope`, `TestCEMV1084TrustedKeysFile` (`internal/cem/wire`); `TestCEMV1084PortableReceiptAuthenticationPublicCase`, `TestCEMV1084PortableTrustedKeysArgument` (`interop/cem01-go`); `TestCEMV1084VerifyStableTrustedKeysFlag`, `TestCEMV1084HelpNamesTrustedKeys` (`cmd/corvint`); `TestCEMV1084ConsoleReceiptAuthentication` (`internal/console`) | Public case `protocol/cem-1.0/stable/receipt-authentication/` ACCEPTs VERIFIED with the same non-runtime result on both consumers; five axis cases and thirteen refusals match on the native verifier and both portable commands; a self-carried key and a signature over the base tree are refused; walkthrough in `docs/build-log/2026-10-12-cem-receipt-authentication.md` |
+
+Rollback: revert `stable_auth.go` in `internal/cem/wire`, `internal/cem/verify` and
+`interop/cem01-go`, the `--trusted-keys` flag, the `authentication` `oneOf` and the
+`receipt-attestation` kind in `stable.schema.json`, the CEM-V1-084 text in `ALGORITHMS.md`, the
+`receipt-authentication/` case and its manifest entries. Maps with the legacy string need no
+migration; a map with an object form is refused again after rollback.
+
 ## Stable verification result codes
 
 The optional `cem verify-stable` operation emits the closed result codes of
@@ -376,6 +428,7 @@ one owning specification. A code reports a bounded check and never upgrades auth
 | repository | `unsupported-patch-inventory` | Exit 2 (`UNSUPPORTED`); a create destination lacks an authenticated base-entry proof, so absence is not inferred |
 | artifacts | `artifact-unavailable`, `artifact-resource-limit` | Exit 2 (`UNSUPPORTED`); declared artifact bytes could not be obtained within bounds, which asserts no mismatch |
 | artifacts | `artifact-changed-during-verification`, `artifact-digest-mismatch` | Exit 1 (`REJECT` issue codes); the bytes were read and changed between the two passes or differ from the declared digest |
+| artifacts | `attestation-malformed`, `attestation-key-mismatch`, `attestation-subject-mismatch`, `attestation-signature-invalid` | Exit 1 (`REJECT` issue codes, CEM-V1-084); a declared receipt attestation does not bind the receipt, plan, target tree or trusted key |
 
 ## Core stable read (V1-0632 S1)
 
