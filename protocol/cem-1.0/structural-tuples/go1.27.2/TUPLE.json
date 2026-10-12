@@ -8,10 +8,11 @@
   "license": "Apache-2.0 public specifications/data only; no native code",
   "inherited": {
     "packet": "repository-envelope-packet",
-    "manifestSha256": "21655c5d73a4b9b9af9f91e6dacbf702a8d2f95cdc9b40368a4cc240dedbd535",
+    "manifestSha256": "9423e789c58b20079ffdc5f6d73de1a703ecd0b2f155d5b988e1fbeaafd05f07",
+    "predecessorManifestSha256": "2e69ef83a8fe94d59afbcdfb16c590936d630dfb09ba46f5cf98dbc6ec6ae186",
     "files": {
-      "FULL-RESULT-CASES.json": "a59f490c33b02be55a576496be8ef670dd8b5e5765182f609c8a562b11e66ad1",
-      "inherited/s0e/REPOSITORY-ENVELOPE.cells.json": "68432f3e11fe9dff1f47fb4672ed97351dc67fd4875d8405e2b45e1007d065d9"
+      "FULL-RESULT-CASES.json": "25d4155c2235c3034146093d0c844e0e448281429c74bad5f19abf215d672146",
+      "inherited/s0e/REPOSITORY-ENVELOPE.cells.json": "03c55a3222d694df390724587b192170dca17bf6799bae80d86e7d706f670811"
     }
   },
   "substitution": {

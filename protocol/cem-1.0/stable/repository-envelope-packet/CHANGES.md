@@ -76,3 +76,98 @@ Files not listed above are byte-identical to repair5.
 Portable conformance was run after rebinding and logged to ../conformance.log.
 Any portable-reader mismatch is reported in HANDBACK.json with the applicable
 repair6 rule; the packet was not bent to match old reader behavior.
+
+# Additive member `citation` (2026-10-12)
+
+Base: the public packet with manifest sha256
+21655c5d73a4b9b9af9f91e6dacbf702a8d2f95cdc9b40368a4cc240dedbd535.
+Driver: V1-1265 citation member (CEM-V1-092): the CEM-V1-082 block on ACCEPT, null on every other outcome
+Produced by `make cem-stable-regen` (tools/cem-stable-regen, CEM-V1-091).
+
+- Member: `citation`, after `artifactChecks` in RESULT.schema.json `properties` and
+  `required` and in every expectedResult.
+- Schema fragment sha256: b22e37c29d75aeb17788e73f4d3c4a04ddd9a015071e5b720165288f1a1cae86.
+- Values captured from the native verifier on go1.27.2 for 54 cases.
+- Values from the override file (sha256 ac37f037ca28ec4f68f786da10db01c98beedd984b2c7f2db356e4e03a17cebc) for: go1.24.13-nonstructural-positive, go1.24.13-structural-refusal.
+- Envelope cells (inherited/s0e/REPOSITORY-ENVELOPE.cells.json and its ../REPOSITORY-ENVELOPE.cells.json copy):
+  19 cells take the value of the cases with the same exit and frozen keys.
+- Cell values from the cell override file (sha256 83382f3d22bf101021a4165b9131703cf9cce9037f25f725f227dcfa69edd080) for: ordinary-sha256, origin-sha256, linked-sha256, relative-sha256, attributes, shallow-missing, missing-base, corrupt-base, linked-attributes, missing-promisor.
+- No frozen key, expectedExit, recipe or status changed; every captured
+  result matched its frozen expectation on all 21 frozen keys and its exit
+  (runtime.goVersion only through a sealed structural-tuple substitution).
+  The case count stays 56.
+
+## Changed files
+
+| File | Old sha256 | New sha256 |
+| --- | --- | --- |
+| RESULT.schema.json | 6c157e59ae9ed2ac372724084080a7e74263b8d9d3963e995445035fcc89176f | fabb8d1a3773f9881b20b39ae16256ce960a6ffbc68d45c18bdde450482d0e3a |
+| FULL-RESULT-CASES.json | a59f490c33b02be55a576496be8ef670dd8b5e5765182f609c8a562b11e66ad1 | f7f02ec13d77c90080c13160b1b5ab47a61baf3c9bde0fee5b14d439a257e4df |
+| inherited/s0e/REPOSITORY-ENVELOPE.cells.json | 68432f3e11fe9dff1f47fb4672ed97351dc67fd4875d8405e2b45e1007d065d9 | c45e4e65b9a7465f309ff19c41d48b3542a61aa5bc2e4a4368a914dd028e43e9 |
+| README.md | a2626a13b1dd3e11239ffda83edb5d39cc3b50ff5ff10d33dc38ecb8a03904e1 | 34f8ca92caec4392da9d731fd5941ea8c0f58403da8d697b56286879fcbf7c00 |
+| CHANGES.md | 36d33faf7b62497e16e21de09ed36f0450d08e36c50851d1a7961de7aac233cc | See manifest.json; this file cannot contain its own final digest. |
+| manifest.json | 21655c5d73a4b9b9af9f91e6dacbf702a8d2f95cdc9b40368a4cc240dedbd535 | See ../manifest.json publicAmendmentManifestSHA256; manifest.json is not listed inside its own file list. |
+
+Files not listed above are byte-identical to the base packet. INPUTS.json
+keeps its repair-era pins as history.
+
+## Re-bound files outside the packet
+
+These files are re-bound to the digests above; their new digests depend on this
+file and are recorded in Git, in ../manifest.json and in each tuple manifest.
+
+| File | Predecessor sha256 |
+| --- | --- |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.cells.json | 6b3828ac703b8488cfacd17cf71e25dd7a795498e41b6d45681f2033dcb643b1 |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.md | dd33dcaf9362ce8d8914916d659891c6e8a635d18fafbc50d9dff91eded2e9e7 |
+| protocol/cem-1.0/stable/manifest.json | 5302bbfcc5d1c5007d3720e0e2d48abedb01e8d6d908102831c3bba4475978c8 |
+| protocol/cem-1.0/structural-tuples/go1.27.2/TUPLE.json | ea6bdc1a85ef99b195aa7d6945b03572344d3844bdfe51da25a4c07d2f51ea8a |
+| protocol/cem-1.0/structural-tuples/go1.27.2/manifest.json | 5233bba946e67a1f2e225b9a287adad7953bfc4a2ed2ddedd9452ab403b8ae28 |
+| protocol/cem-1.0/stable/RESULT.schema.json | identical to protocol/cem-1.0/stable/repository-envelope-packet/RESULT.schema.json |
+
+# Additive member `verdictSha256` (2026-10-12)
+
+Base: the public packet with manifest sha256
+2e69ef83a8fe94d59afbcdfb16c590936d630dfb09ba46f5cf98dbc6ec6ae186.
+Driver: V1-1265 / decision 0523 P1 (CEM-V1-066): SHA-256 of the canonical JSON value of the result minus runtime, repositoryEnvelope and verdictSha256, on every outcome
+Produced by `make cem-stable-regen` (tools/cem-stable-regen, CEM-V1-091).
+
+- Member: `verdictSha256`, after `repositoryEnvelope` in RESULT.schema.json `properties` and
+  `required` and in every expectedResult.
+- Schema fragment sha256: 980dbd0a7a812034e0a2178b7a355dc0c4e2ea10091b5665879c07b3d6166b46.
+- Values captured from the native verifier on go1.27.2 for 54 cases.
+- Values from the override file (sha256 fc82580378606bbff7a3a02ddcd6dde2df10ed48843328fe617c1e1543570f4b) for: go1.24.13-nonstructural-positive, go1.24.13-structural-refusal.
+- Envelope cells (inherited/s0e/REPOSITORY-ENVELOPE.cells.json and its ../REPOSITORY-ENVELOPE.cells.json copy):
+  19 cells take the value of the cases with the same exit and frozen keys.
+- Cell values from the cell override file (sha256 be817ae04d08452d00dddf3c06ad5c62367fdff851227e0fc36d2b74456dcdac) for: ordinary-sha256, origin-sha256, linked-sha256, relative-sha256, attributes, shallow-missing, missing-base, corrupt-base, linked-attributes, missing-promisor.
+- No frozen key, expectedExit, recipe or status changed; every captured
+  result matched its frozen expectation on all 22 frozen keys and its exit
+  (runtime.goVersion only through a sealed structural-tuple substitution).
+  The case count stays 56.
+
+## Changed files
+
+| File | Old sha256 | New sha256 |
+| --- | --- | --- |
+| RESULT.schema.json | fabb8d1a3773f9881b20b39ae16256ce960a6ffbc68d45c18bdde450482d0e3a | 2334f05dfbc4cb226ae53b5df22eba4ba0f94f3f7136b13e04b610e37bc14f2a |
+| FULL-RESULT-CASES.json | f7f02ec13d77c90080c13160b1b5ab47a61baf3c9bde0fee5b14d439a257e4df | 25d4155c2235c3034146093d0c844e0e448281429c74bad5f19abf215d672146 |
+| inherited/s0e/REPOSITORY-ENVELOPE.cells.json | c45e4e65b9a7465f309ff19c41d48b3542a61aa5bc2e4a4368a914dd028e43e9 | 03c55a3222d694df390724587b192170dca17bf6799bae80d86e7d706f670811 |
+| CHANGES.md | 57bbd50aa21b64b6a77e4e1962a1f15aeeec64e9342f4c4fd4e1ab76cb48ffb7 | See manifest.json; this file cannot contain its own final digest. |
+| manifest.json | 2e69ef83a8fe94d59afbcdfb16c590936d630dfb09ba46f5cf98dbc6ec6ae186 | See ../manifest.json publicAmendmentManifestSHA256; manifest.json is not listed inside its own file list. |
+
+Files not listed above are byte-identical to the base packet. INPUTS.json
+keeps its repair-era pins as history.
+
+## Re-bound files outside the packet
+
+These files are re-bound to the digests above; their new digests depend on this
+file and are recorded in Git, in ../manifest.json and in each tuple manifest.
+
+| File | Predecessor sha256 |
+| --- | --- |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.cells.json | ecbc86f8aab33a9548ae9cf9cb4f6e02d3198ff13d9d01a92814a78ccb1609c5 |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.md | 89385b7ae4a910a4f2588264547f75353b0e30f144b7ae0851e118678b111a25 |
+| protocol/cem-1.0/stable/manifest.json | c48f07ea68c136eb2db3d948883f29206cc31bb0ffec3fe498cf9a2b9ddcc679 |
+| protocol/cem-1.0/structural-tuples/go1.27.2/TUPLE.json | 707309ef2145c56f3acc1f3583fb9f6b63659f949d4c9317ca6bf6e5624e8d76 |
+| protocol/cem-1.0/structural-tuples/go1.27.2/manifest.json | 13ba55835e1349fb05e6c231eae4805c608fc81a6b02bb4b54a836a056202b55 |
+| protocol/cem-1.0/stable/RESULT.schema.json | identical to protocol/cem-1.0/stable/repository-envelope-packet/RESULT.schema.json |

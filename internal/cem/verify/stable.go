@@ -39,6 +39,10 @@ type stableSeam struct {
 // StableOuterDeadline is the one wall deadline of a Stable verification.
 const StableOuterDeadline = 30 * time.Minute
 
+// StableResult is the closed cem-stable-verification/1 result. Citation is the
+// CEM-V1-082 block over the admitted map and its resolved evidence spans and is
+// non-null only on ACCEPT (CEM-V1-092): Refuse and reject clear it, so no
+// refusal, rejection, cancellation or drift carries it.
 type StableResult struct {
 	Profile            string                `json:"profile"`
 	Spec               string                `json:"spec"`
@@ -58,9 +62,13 @@ type StableResult struct {
 	Hunks              []any                 `json:"hunks"`
 	References         map[string]any        `json:"references"`
 	ArtifactChecks     []StableArtifactCheck `json:"artifactChecks"`
+	Citation           *Citation             `json:"citation"`
 	Axes               map[string]string     `json:"axes"`
 	Runtime            StableRuntime         `json:"runtime"`
 	RepositoryEnvelope string                `json:"repositoryEnvelope"`
+	// VerdictSha256 is recomputed by MarshalJSON on every encoding; a value
+	// held in the struct is never emitted (CEM-V1-066).
+	VerdictSha256 string `json:"verdictSha256"`
 }
 type StableDrift struct {
 	EvidenceID    string           `json:"evidenceId"`
@@ -108,6 +116,7 @@ func NewStableResult(o StableOptions) StableResult {
 	return StableResult{Profile: "cem-stable-verification/1", Spec: wire.StableSpec, VerificationMode: "canonical-and-reference-integrity", Outcome: "UNSUPPORTED", Stage: "arguments", IssueCodes: []string{}, ExpectedBase: nullableStable(o.ExpectedBase), TargetRevision: nullableStable(o.Target), Sidecar: "NOT_CHECKED", Drift: []StableDrift{}, Hunks: []any{}, References: map[string]any{"criterionBindings": []any{}, "runnerReceipts": []any{}, "criterionLinks": []any{}, "artifacts": []any{}}, ArtifactChecks: []StableArtifactCheck{}, Axes: axes, Runtime: StableRuntime{runtime.Version(), "NOT_REQUIRED"}, RepositoryEnvelope: "canonical-repository-bounded/1"}
 }
 func (r *StableResult) Refuse(stage, code string, unsupported bool) int {
+	r.Citation = nil
 	r.Stage = stage
 	r.Code = nullableStable(code)
 	r.Outcome = "REJECT"
@@ -121,6 +130,7 @@ func (r *StableResult) Refuse(stage, code string, unsupported bool) int {
 	return 2
 }
 func (r *StableResult) reject(stage, issue string) int {
+	r.Citation = nil
 	r.Stage = stage
 	r.Outcome = "REJECT"
 	b := false
@@ -348,7 +358,8 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		exit = fail("verification", err)
 		return r, exit
 	}
-	if _, err = checkEvidence(ctx, repo, &change, d.Change.BaseRevision); err != nil {
+	spans, err := checkEvidence(ctx, repo, &change, d.Change.BaseRevision)
+	if err != nil {
 		exit = fail("verification", err)
 		return r, exit
 	}
@@ -454,6 +465,7 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		exit = r.Refuse("verification", "verification-timeout", true)
 		return r, exit
 	}
+	r.Citation = ComputeCitation(&change, parsed, spans)
 	r.Outcome = "ACCEPT"
 	b := true
 	r.Accept = &b

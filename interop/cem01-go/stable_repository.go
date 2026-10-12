@@ -1113,6 +1113,7 @@ func runStableCanonicalTrusted(ctx context.Context, repo string, raw []byte, bas
 	if ctx.Err() != nil {
 		return failStable(&r, "verification", operational("verification-timeout"), false)
 	}
+	r.Citation = computeCitation(citationHunks(m.Hunks), ph, m.Evidence)
 	yes := true
 	r.Accept = &yes
 	r.Outcome = "ACCEPT"

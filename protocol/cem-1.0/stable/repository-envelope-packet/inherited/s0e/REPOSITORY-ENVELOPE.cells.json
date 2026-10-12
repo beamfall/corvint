@@ -244,6 +244,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -268,7 +305,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
       }
     },
     {
@@ -511,6 +549,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -535,7 +610,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
       }
     },
     {
@@ -778,6 +854,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -802,7 +915,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
       }
     },
     {
@@ -1045,6 +1159,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -1069,7 +1220,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
       }
     },
     {
@@ -1312,6 +1464,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:5c721635525c79131a721b2ac23c3d9f34491f2ae10fa76f5fd27a5ef0b0326a",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -1336,7 +1525,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "4c9591650d95dc8606a56b7c556869865c6816cf062fd1ab0251ff1338c95fda"
       }
     },
     {
@@ -1579,6 +1769,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:5c721635525c79131a721b2ac23c3d9f34491f2ae10fa76f5fd27a5ef0b0326a",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -1603,7 +1830,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "4c9591650d95dc8606a56b7c556869865c6816cf062fd1ab0251ff1338c95fda"
       }
     },
     {
@@ -1846,6 +2074,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:5c721635525c79131a721b2ac23c3d9f34491f2ae10fa76f5fd27a5ef0b0326a",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -1870,7 +2135,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "4c9591650d95dc8606a56b7c556869865c6816cf062fd1ab0251ff1338c95fda"
       }
     },
     {
@@ -2113,6 +2379,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:5c721635525c79131a721b2ac23c3d9f34491f2ae10fa76f5fd27a5ef0b0326a",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -2137,7 +2440,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "4c9591650d95dc8606a56b7c556869865c6816cf062fd1ab0251ff1338c95fda"
       }
     },
     {
@@ -2331,6 +2635,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -2355,7 +2660,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "186472e19d46922b3e02c9f3d1306536d68ea4edf2773cf204ae9fc1018e131e"
       }
     },
     {
@@ -2598,6 +2904,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -2622,7 +2965,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
       }
     },
     {
@@ -2816,6 +3160,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -2840,7 +3185,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "0422ebf9fcbd92a5f80bb300f47d7c7421601429e2b7be74c7f2ae35ddd34f8d"
       }
     },
     {
@@ -3034,6 +3380,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -3058,7 +3405,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
       }
     },
     {
@@ -3252,6 +3600,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -3276,7 +3625,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
       }
     },
     {
@@ -3470,6 +3820,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -3494,7 +3845,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
       }
     },
     {
@@ -3737,6 +4089,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -3761,7 +4150,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
       }
     },
     {
@@ -3955,6 +4345,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -3979,7 +4370,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "507b799824cf9a827fa91f39ae9e921ab442912a79a9c1b83c44e94214a7c8c8"
       }
     },
     {
@@ -4173,6 +4565,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -4197,7 +4590,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "507b799824cf9a827fa91f39ae9e921ab442912a79a9c1b83c44e94214a7c8c8"
       }
     },
     {
@@ -4391,6 +4785,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -4415,7 +4810,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "507b799824cf9a827fa91f39ae9e921ab442912a79a9c1b83c44e94214a7c8c8"
       }
     },
     {
@@ -4658,6 +5054,43 @@
             "byteLength": 324
           }
         ],
+        "citation": {
+          "profile": "cem-citation-support/0",
+          "hunks": [
+            {
+              "hunkId": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+              "tier": "mechanical-proved",
+              "anchors": [],
+              "annotation": true
+            },
+            {
+              "hunkId": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+              "tier": "cited",
+              "anchors": [],
+              "annotation": false
+            }
+          ],
+          "hunksByClass": {
+            "held": 0,
+            "mechanical-proved": 1,
+            "anchored": 0,
+            "cited": 1,
+            "unknown": 0
+          },
+          "annotationHunks": 1,
+          "distinctEvidence": 1,
+          "evidenceFanOut": [
+            [
+              "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+              1
+            ]
+          ],
+          "maxFanOut": 1,
+          "samePathCitations": 0,
+          "concentratedHunks": 1,
+          "invariant": true,
+          "specificity": 0
+        },
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "VERIFIED",
@@ -4682,7 +5115,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
       }
     },
     {
@@ -4876,6 +5310,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -4900,7 +5335,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "0422ebf9fcbd92a5f80bb300f47d7c7421601429e2b7be74c7f2ae35ddd34f8d"
       }
     },
     {
@@ -5094,6 +5530,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -5118,7 +5555,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
       }
     },
     {
@@ -5312,6 +5750,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -5336,7 +5775,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
       }
     },
     {
@@ -5530,6 +5970,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -5554,7 +5995,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "186472e19d46922b3e02c9f3d1306536d68ea4edf2773cf204ae9fc1018e131e"
       }
     },
     {
@@ -5748,6 +6190,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -5772,7 +6215,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
       }
     },
     {
@@ -5966,6 +6410,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -5990,7 +6435,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
       }
     },
     {
@@ -6184,6 +6630,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -6208,7 +6655,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "507b799824cf9a827fa91f39ae9e921ab442912a79a9c1b83c44e94214a7c8c8"
       }
     },
     {
@@ -6402,6 +6850,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -6426,7 +6875,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
       }
     },
     {
@@ -6620,6 +7070,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -6644,7 +7095,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "d4c97deb1f0a83525c7dcc13b6f4cc973b8fbaae8acd8181fd2500c22bfa86e3"
       }
     },
     {
@@ -6838,6 +7290,7 @@
           ]
         },
         "artifactChecks": [],
+        "citation": null,
         "axes": {
           "authentication": "NOT_OBSERVED",
           "changeIntegrity": "NOT_CHECKED",
@@ -6862,7 +7315,8 @@
           "goVersion": "go1.27.1",
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
-        "repositoryEnvelope": "canonical-repository-bounded/1"
+        "repositoryEnvelope": "canonical-repository-bounded/1",
+        "verdictSha256": "d4c97deb1f0a83525c7dcc13b6f4cc973b8fbaae8acd8181fd2500c22bfa86e3"
       }
     }
   ],

@@ -3476,9 +3476,12 @@ type stableResult struct {
 	Hunks              []hunk03              `json:"hunks"`
 	References         stableReferences      `json:"references"`
 	ArtifactChecks     []stableArtifactCheck `json:"artifactChecks"`
+	Citation           *citationBlock        `json:"citation"`
 	Axes               map[string]string     `json:"axes"`
 	Runtime            runtime03             `json:"runtime"`
 	RepositoryEnvelope string                `json:"repositoryEnvelope"`
+	// VerdictSHA256 is recomputed by MarshalJSON on every encoding (CEM-V1-066).
+	VerdictSHA256 string `json:"verdictSha256"`
 }
 
 func emptyStableReferences() stableReferences {
@@ -3501,7 +3504,11 @@ func newStableResult(base, target string) stableResult {
 	}
 	return r
 }
+
+// failStable records a refusal or rejection. The citation block is carried only
+// by an accepted result (CEM-V1-092), so every failure clears it.
 func failStable(r *stableResult, stage string, e *cemError, verification bool) (stableResult, int) {
+	r.Citation = nil
 	r.Stage = stage
 	if e.operational {
 		r.Assurance = nil
@@ -4568,6 +4575,7 @@ func runStableTrusted(ctx context.Context, repo string, raw []byte, base, target
 	if len(m.Artifacts) == 0 {
 		r.Axes["referenceIntegrity"] = "EMPTY_REFERENCE_SET"
 	}
+	r.Citation = computeCitation(citationHunks(m.Hunks), ph, m.Evidence)
 	yes := true
 	r.Accept = &yes
 	r.Outcome = "ACCEPT"
