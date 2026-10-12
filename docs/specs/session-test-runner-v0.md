@@ -70,8 +70,10 @@ of every requirement below and the binding gate until this spec is promoted.
   `.github/cishards/test-commands.json` (profile `corvint-test-commands/0`): the Go full-suite
   environment and flags, and for each other language either its full command or `{"none":
   reason}`. `corvint test` reads that file as a plain, bounded, strictly-schemed read, independently
-  of the planner, and SHALL NOT interpret the Makefile. When no plan can be produced, `FULL` SHALL
-  run every full command it declares. When the declaration cannot be read (absent, oversized,
+  of the planner, and SHALL NOT interpret the Makefile. A declared command runs from the
+  repository root; an `argv[0]` containing a path separator is a repository-relative path resolved
+  against the root, never against the caller's working directory, and a bare name is looked up on
+  `PATH`. When no plan can be produced, `FULL` SHALL run every full command it declares. When the declaration cannot be read (absent, oversized,
   unknown or malformed member, missing `go`), the run is `INCOMPLETE` in every scope and exits
   nonzero. The verdict is a pure function of the plan, the declared full scope and the source
   identity, so every host and shard reaches it from the same inputs.
@@ -79,11 +81,19 @@ of every requirement below and the binding gate until this spec is promoted.
   versioned capability manifest (the discover, plan, execute and cancel subset of LPCV-V0-021) and
   the exact runner version captured before execution. The first adapter is Go. A selected or
   unknown unit in a language with no qualified adapter SHALL run that language's declared full
-  command. When the declaration asserts `{"none": reason}` for that language, the project has
-  declared it has no suite: the manifest records `<language>: <reason>` in `noSuite`, nothing runs
-  for it, and the run is not `INCOMPLETE` on its account. When the declaration names the language
-  neither way, the run is `INCOMPLETE` and exits nonzero. A selected unit is never silently
-  skipped.
+  command. `{"none": reason}` is a gate-scoped assertion: the repository's full gate (`make gate`),
+  its existing drivers (`script/gate-affected.sh`, `tools/corvint-pr-tests`) and CI run no suite
+  for that language. It SHALL NOT be declared for a language whose suite any gate step, driver or
+  CI job does run; such a language declares that step's command (the `integrations/pi`
+  `typescript` suites run under `make gate`'s `host-adapter-test`, so `typescript` declares
+  `["make", "host-adapter-test"]`, which also runs that step's `cmd/corvint` Go subset). A suite
+  outside the gate (the `extensions/vscode` npm test, the `integrations/pi-protected` and
+  `tools/web-flows` `node --test` suites) is a recorded limit this runner does not run, not a
+  contradiction of `none`. For a `none` language the manifest records `<language>: <reason>` in
+  `noSuite`, nothing runs for it, and the run is not `INCOMPLETE` on its account; the STR-V0-006
+  gate refuses a `none` language whose runner a `make gate` step recipe names. When the
+  declaration names the language neither way, the run is `INCOMPLETE` and exits nonzero. A
+  selected unit is never silently skipped.
 - `STR-V0-005`: An adapter SHALL receive only its selected targets and invoke the runner's native
   target filter (for example `go test <packages>`, `cargo test -p <crate>`, `swift test --filter`,
   `dotnet test <project>`, `gradle :<module>:test`, or Playwright files reconciled by discovery as
@@ -94,19 +104,31 @@ of every requirement below and the binding gate until this spec is promoted.
   wrapper and cache policy SHALL equal the repository's full-suite invocation; only the target set
   may differ between narrowed and `FULL` runs (as AFP-V0-028 requires in CI). Locally the Go
   environment and flags come from the declaration (STR-V0-003), and a maintained repository gate
-  (`make test-commands-check`, a `make gate` step and part of the CI doc-gates job) SHALL assert
-  that they equal `make -s -n go-test` exactly: same environment words as a set, same flags in
-  order, one `go test ... ./...` line, and every declared `make` language command a target that
-  dry-runs. The gate compares the Makefile defaults under a scrubbed environment (`PATH` only):
-  a developer Make override such as `GO_TEST_TIMEOUT` or `CORVINT_GOCACHE` is not the declared
-  full suite. Every recipe and declared word SHALL be a plain word (letters, digits and
-  `_ - . / = : , + @ %`), every environment name a portable identifier
-  (`[A-Za-z_][A-Za-z0-9_]*`) and only a space or tab a recipe word separator, because
-  `corvint test` passes declared words to exec literally while Make hands the recipe to a shell;
-  a word a shell would rewrite, an assignment a shell would run as a command or a separator a
-  shell would keep inside a word is a difference even when both spellings agree, and the reader
-  (STR-V0-003) refuses the same names and any word with whitespace or a control character. The
-  manifest binds the declaration's digest as `declaredDigest`.
+  (`make test-commands-check`, a `make gate` step and part of the CI doc-gates job) SHALL observe
+  what `make go-test` actually hands the test process rather than compare its printed recipe: it
+  runs the real `make -s go-test` from the repository root under an environment of exactly `PATH`
+  (a temporary directory holding a `go` shim, then `/usr/bin:/bin`) and the shim's record variable
+  `CORVINT_TEST_COMMANDS_RECORD`, so the Makefile defaults apply (a developer Make override such as
+  `GO_TEST_TIMEOUT` or `CORVINT_GOCACHE` is not the declared full suite), and the shim records its
+  argv and its whole environment and exits 0. The gate fails unless make exits zero, the shim ran
+  exactly once (an absolute-path `go`, a recipe that never reaches `go` and a second `go` call each
+  fail), the shim's argv is exactly `test <go.flags> ./...`, every name the gate passed arrives
+  unchanged, and the remaining environment, sorted, equals `go.env` exactly after excluding only
+  the closed set of names GNU make and the recipe shell introduce: `MAKEFLAGS`, `MFLAGS`,
+  `MAKELEVEL` (make 3.81 and 4.x), `MAKE_RESTARTS` (4.x after a makefile remake), `MAKE_TERMOUT`,
+  `MAKE_TERMERR` (4.1+ when that stream is a terminal), `PWD`, `SHLVL`, `_` (`/bin/sh`: bash sets
+  all three, dash only `PWD`) and `MANPATH`, `__CF_USER_TEXT_ENCODING` (Apple's `/usr/bin/make`
+  xcrun shim). That set settles which environment names make introduces; any other name reaching
+  `go` (a target-specific or global `export`, `.EXPORT_ALL_VARIABLES`) is drift. The gate also
+  dry-runs every declared `make` language command and, for each language declared `none`,
+  dry-runs the `GATE_STEPS` recipes (read from make's own database) and fails when a recipe word
+  names that language's runner (a closed per-language list: for example `node`, `npm`, `bun`,
+  `pytest`, `python3`, `cargo`, `swift`, `dotnet`, `gradle`); it inspects only the words make
+  prints, not what a script those words name runs, and refuses a `none` language it has no runner
+  list for. The reader (STR-V0-003) refuses any environment name that is not a portable identifier
+  (`[A-Za-z_][A-Za-z0-9_]*`) and any word with whitespace or a control character, because
+  `corvint test` passes declared words to exec literally. The manifest binds the declaration's
+  digest as `declaredDigest`.
 - `STR-V0-007`: `--shard I/N` with `--placement universe` (the default) SHALL use the AFP-V0-022
   complete-universe partition intersected with the run set, unchanged. An empty intersection runs
   nothing and says so. Every shard records the partition digest; a digest mismatch fails the shard.
@@ -196,14 +218,14 @@ of every requirement below and the binding gate until this spec is promoted.
 |---|---|
 | Plan cannot be produced, base unresolved, module-level frontier, unallowed unknown | `FULL` with named reason |
 | Language with selected units but no adapter, undeclared in `test-commands.json` | `INCOMPLETE`, nonzero |
-| Language with no adapter declared `{"none": reason}` | nothing runs; `<language>: <reason>` recorded in the manifest's `noSuite` |
+| Language with no adapter declared `{"none": reason}` (gate-scoped: no gate step, driver or CI job runs its suite) | nothing runs; `<language>: <reason>` recorded in the manifest's `noSuite` |
 | Runner version cannot be read | that adapter `INCOMPLETE`, nonzero |
 | Partition, manifest or source identity differs across shards | shard fails; fan-in `INCOMPLETE` |
 | Worktree bytes change during the run | drift, shard `INCOMPLETE` |
 | Missing shard receipt, duplicate execution unit, unit without terminal outcome | fan-in `INCOMPLETE` |
 | Any failed outcome or nonzero adapter exit | `FAIL`, nonzero |
 | `.github/cishards/test-commands.json` unreadable (absent, oversized, unknown or malformed member, no `go`) | `INCOMPLETE` in every scope, nonzero, no unit runs |
-| Declared Go environment or flags drift from `make -s -n go-test` | `make test-commands-check` fails (`make gate`, CI doc-gates) |
+| Declared Go environment or flags drift from what `make go-test` hands `go` (recipe, `export`, `.EXPORT_ALL_VARIABLES`, absolute-path or repeated `go`), a declared `make` target is absent, or a `make gate` step recipe runs a `none` language's runner | `make test-commands-check` fails (`make gate`, CI doc-gates) |
 | Bound exceeded | `INCOMPLETE`, nonzero |
 | Signal | owned groups killed, `INCOMPLETE`, no fallback |
 | CI admission fails (pins, queue rules, `.github/` change, trip, kill switch) | `FULL` |
@@ -230,9 +252,14 @@ Testing matrix (all `NOT_RUN` until implementation):
   in every scope with no runner started;
 - a language without an adapter runs its declared full command, records a declared `none`
   assertion in `noSuite` and runs nothing, or is `INCOMPLETE` when undeclared;
+- a declared repository-relative command (`./tools/...`) runs from `--root` when `corvint` is
+  invoked from another directory;
 - `make test-commands-check` passes on the repository and fails for a changed flag value, flag
-  order, dropped flag, extra or changed environment variable, an absent declaration and a
-  declared `make` target that does not exist;
+  order, dropped flag, extra or changed environment variable, an absent declaration, a declared
+  `make` target that does not exist, a `none` language whose runner a gate step runs, a `none`
+  language the gate has no runner list for, and for Makefile drift the printed recipe does not
+  show: a target-specific `export`, a global `export`, `.EXPORT_ALL_VARIABLES` with an extra
+  variable, an absolute-path `go`, two `go` calls, a recipe failing after `go` and a changed flag;
 - signal tests show killed groups and no fallback start;
 - the STR-V0-013 parity report over the retained substitute corpus.
 
@@ -269,10 +296,10 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 |---|---|---|
 | STR-V0-001 | `cmd/corvint/test.go` (`compileAffectedGraph` shared with `affected`) | `cmd/corvint/session_test_command_unix_test.go` TestSTRV0018CLIDryRunLaunchesNoRunner, TestSTRV0010CLIRunWritesReceipt, TestSTRV0001CLIRefusesProtectedOutputPaths |
 | STR-V0-002 | `internal/sessiontest/plan.go`, `internal/gateselect` | `internal/sessiontest/plan_test.go` TestSTRV0003BuildVerdicts, TestSTRV0007UniversePlacementEqualsCIPlan |
-| STR-V0-003 | `internal/sessiontest/plan.go`, `internal/sessiontest/declared.go` (`ReadDeclared`: strict, bounded read of `.github/cishards/test-commands.json`) | TestSTRV0003BuildVerdicts, TestSTRV0003ReadDeclared, TestSTRV0003CLINoPlanRunsDeclaredScope, TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand, TestSTRV0003CLIUnreadableDeclarationIsIncomplete |
-| STR-V0-004 | `internal/sessiontest/run.go` (Go adapter; declared language argv), `declaredLanguage` in `plan.go` (`none` to `noSuite`, undeclared to `INCOMPLETE`) | TestSTRV0004ParseTestEvents, TestSTRV0004RunnerDiscoveryRefusals, TestSTRV0003BuildVerdicts, TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand; no versioned LPCV-V0-021 capability manifest yet (partial) |
+| STR-V0-003 | `internal/sessiontest/plan.go`, `internal/sessiontest/declared.go` (`ReadDeclared`: strict, bounded read of `.github/cishards/test-commands.json`) | TestSTRV0003BuildVerdicts, TestSTRV0003ReadDeclared, TestSTRV0003CLINoPlanRunsDeclaredScope, TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand, TestSTRV0003CLIUnreadableDeclarationIsIncomplete, TestSTRV0003DeclaredRelativeCommandResolvesAgainstRoot, TestSTRV0003CLIDeclaredRelativeCommandRunsFromRoot |
+| STR-V0-004 | `internal/sessiontest/run.go` (Go adapter; declared language argv), `declaredLanguage` in `plan.go` (gate-scoped `none` to `noSuite`, undeclared to `INCOMPLETE`); `tools/test-commands-check` refuses a `none` language a `GATE_STEPS` recipe runs | TestSTRV0004ParseTestEvents, TestSTRV0004RunnerDiscoveryRefusals, TestSTRV0003BuildVerdicts, TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand; no versioned LPCV-V0-021 capability manifest yet (partial) |
 | STR-V0-005 | `Invocations` in `run.go` | TestSTRV0006Invocations, TestSTRV0010CLIRunWritesReceipt |
-| STR-V0-006 | `Invocations` (typed argv from the declaration's Go environment and flags); `tools/test-commands-check` behind `make test-commands-check` (`GATE_STEPS`, CI doc-gates) | TestSTRV0006Invocations, TestSTRV0003ReadDeclared, `tools/test-commands-check/main_test.go` TestSTRV0006DeclarationMatchesMakefile (repository pass plus seven drift mutations), TestSTRV0006CompareGo |
+| STR-V0-006 | `Invocations` (typed argv from the declaration's Go environment and flags); `tools/test-commands-check` behind `make test-commands-check` (`GATE_STEPS`, CI doc-gates) | TestSTRV0006Invocations, TestSTRV0003ReadDeclared, `tools/test-commands-check/main_test.go` TestSTRV0006DeclarationMatchesMakefile (repository pass plus eight declaration mutations and an absent file), TestSTRV0006MakefileDriftReachesGo (seven Makefile mutations the printed recipe does not show), TestSTRV0006CompareEnv, TestSTRV0006ShimRecordRoundTrip |
 | STR-V0-007 | `placeGo` over `cishards.PlanFrom` | TestSTRV0007UniversePlacementEqualsCIPlan, TestSTRV0009CLIShardsAndVerify |
 | STR-V0-008 | `placeGo` balanced branch over the run set (`Input.Placement`); `cmd/corvint/test.go` refuses `--profile ci` execution and a sharded run without `--manifest` | `internal/sessiontest/balanced_test.go` TestSTRV0008BalancedPlacesEveryUnitOnce (1 to 16 shards, catch-all slice), TestSTRV0008BalancedUsesEveryShard, TestSTRV0008BalancedFullAndManifest; TestSTRV0008CLIUsageRefusals, TestSTRV0008CLIBalancedShards; retaining it beside CI universe placement is the call site's (slice 3) and the local 20% bar is unmeasured: `NOT_RUN` |
 | STR-V0-009 | `internal/sessiontest/verify.go`, `corvint test verify-shards` | TestSTRV0009VerifyShardsMatrix, TestSTRV0009CLIShardsAndVerify |
