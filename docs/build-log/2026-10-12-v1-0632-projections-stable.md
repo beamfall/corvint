@@ -80,6 +80,8 @@ Date: 2026-10-12. Base: `85668d6c3d786ff46365f3b1642ae2de06304f8a`. Branch:
   - This log overclaimed C15/C17 acceptance. Fixed: C15 and C17 are now described separately.
   - P3: accepted reference rows kept "not checked" text. Fixed: they show the verifier's
     `referenceIntegrity` value.
+- Round 2: PASS, with one P3 (the spec rollback said four tests, not five), which is fixed.
+- `CEM-V1-160..168` are accepted under the owner's standing auto-accept (2026-10-11).
 
 ## Limits and NOT_RUN
 

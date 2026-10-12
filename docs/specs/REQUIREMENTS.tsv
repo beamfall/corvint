@@ -913,15 +913,15 @@ CEM-V1-136	docs/specs/cem-stable-v1.md	1240	The criterion experiment companion M
 CEM-V1-137	docs/specs/cem-stable-v1.md	1244	Stable admission MUST:
 CEM-V1-138	docs/specs/cem-stable-v1.md	1253	Plan, run and verify MUST each re-admit the plan's map through the stable verifi
 CEM-V1-139	docs/specs/cem-stable-v1.md	1258	The two modes never cross:
-CEM-V1-160	docs/specs/cem-stable-v1.md	1320	`corvint witness --stable-artifact-root DIR` MUST pass the absolute artifact roo
-CEM-V1-161	docs/specs/cem-stable-v1.md	1324	The witness route MUST fail closed with exit 2, no stdout and the code
-CEM-V1-162	docs/specs/cem-stable-v1.md	1331	`corvint docs corpus cem-stable` MUST require `--artifact`, `--cem`,
-CEM-V1-163	docs/specs/cem-stable-v1.md	1336	A `cem-stable` refusal MUST exit 2 with no stdout and the code
-CEM-V1-164	docs/specs/cem-stable-v1.md	1339	`corvint-console -stable-artifact-root DIR` MUST select the chain pane's verifie
-CEM-V1-165	docs/specs/cem-stable-v1.md	1349	In verified mode, the pane MUST replace the chain with a refusal, drawing no cha
-CEM-V1-166	docs/specs/cem-stable-v1.md	1361	Without `-stable-artifact-root`, the display-only NOT_RUN pane of `CEM-V1-077` M
-CEM-V1-167	docs/specs/cem-stable-v1.md	1363	The protected local-authority consumer holds a Git object capsule and no
-CEM-V1-168	docs/specs/cem-stable-v1.md	1366	The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So
+CEM-V1-160	docs/specs/cem-stable-v1.md	1321	`corvint witness --stable-artifact-root DIR` MUST pass the absolute artifact roo
+CEM-V1-161	docs/specs/cem-stable-v1.md	1325	The witness route MUST fail closed with exit 2, no stdout and the code
+CEM-V1-162	docs/specs/cem-stable-v1.md	1332	`corvint docs corpus cem-stable` MUST require `--artifact`, `--cem`,
+CEM-V1-163	docs/specs/cem-stable-v1.md	1337	A `cem-stable` refusal MUST exit 2 with no stdout and the code
+CEM-V1-164	docs/specs/cem-stable-v1.md	1340	`corvint-console -stable-artifact-root DIR` MUST select the chain pane's verifie
+CEM-V1-165	docs/specs/cem-stable-v1.md	1350	In verified mode, the pane MUST replace the chain with a refusal, drawing no cha
+CEM-V1-166	docs/specs/cem-stable-v1.md	1362	Without `-stable-artifact-root`, the display-only NOT_RUN pane of `CEM-V1-077` M
+CEM-V1-167	docs/specs/cem-stable-v1.md	1364	The protected local-authority consumer holds a Git object capsule and no
+CEM-V1-168	docs/specs/cem-stable-v1.md	1367	The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	892	The default `verify` path refuses a strictly parsed JSON object whose exact
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	896	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	899	Only that exact case changes. A duplicate, non-string, differently cased,

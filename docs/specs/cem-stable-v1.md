@@ -1307,8 +1307,9 @@ No 0.x profile, default, packet or stored evidence changes.
 
 ## Stable projection routes (V1-0632 C13..C17)
 
-Status: proposed, pending independent review; delivery is explicit flags and one explicit corpus
-operation, unpromoted. Native work: V1-0632, migration rows C13 (documentation corpus), C14
+Status: accepted under the owner's standing auto-accept (2026-10-11) after independent review
+(Codex round 2 PASS); delivery is explicit flags and one explicit corpus operation, unpromoted.
+Native work: V1-0632, migration rows C13 (documentation corpus), C14
 (witness and collapse), C15 (capsule closure), C16 (console chain pane) and C17 (dashboard) of
 `protocol/cem-1.0/stable/MIGRATION.json`, built on the library projections of S5c
 (`CEM-V1-070..079`). Each route admits a `cem/1.0` map only on the shipped stable verifier's
@@ -1388,7 +1389,7 @@ Rollback:
 - Remove the `--stable-artifact-root` witness flag and `admitStableWitness`.
 - Remove the `cem-stable` corpus operation and its three flags.
 - Remove `Options.StableArtifacts`, `VerifyStableChain` and the console flag.
-- Remove the four tests named below.
+- Remove the five tests named below.
 
 No 0.x profile, default, packet or stored evidence changes.
 
