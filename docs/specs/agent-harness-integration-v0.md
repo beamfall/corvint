@@ -576,13 +576,15 @@ separate exact extension tuple remains governed by AHI-024.
   continues, that the usual causes are a very large set of uncommitted or staged changes in the
   project checkout or heavy machine load and that the notice did not measure either, and give the
   read-only next step as the exact JSON argv `["git","-C",ROOT,"status","--short"]` for the
-  adapter-resolved root, noting that committing, stashing or unstaging unrelated changes, or
-  waiting for load to drop, usually clears it. The hook MUST NOT run that command or claim a cause
-  it did not observe. The text is appended in every channel the notice already uses: Claude
+  adapter-resolved root, noting that if that list is very long, committing, stashing or unstaging
+  unrelated changes may clear it, and otherwise waiting for load to drop may. The hook MUST NOT run
+  that command or claim a cause it did not observe. A root long enough that the encoded output
+  would exceed `adapterOutputLimit` keeps the frame-only notice rather than losing the frame to
+  `corvint-output-too-large`. The text is appended in every channel the notice already uses: Claude
   `systemMessage` on `stop` and other user-visible events, `hookSpecificOutput.additionalContext`
-  where `AHI-021` moves the expected deadline (`session-start`, `user-prompt`), and the
-  one channel the Codex fallback chose for the event, within `adapterOutputLimit`. The
-  `SOL-V0-010` reason and the host lifecycle runner's time-bound retry still read the frame line
+  where `AHI-021` moves the expected deadline (`session-start`, `user-prompt`), the
+  `pre-compact`/`post-compact` plain-text notice (`AHI-027`), and the one channel the Codex
+  fallback chose for the event. The `SOL-V0-010` reason and the host lifecycle runner's time-bound retry still read the frame line
   alone, and the `AHI-031`/`AHI-053` stale-snapshot text is unchanged. Rationale: the Stop notice
   named only the code (V1-1280, 2026-10-11) when a checkout with thousands of dirty paths on a
   loaded host outlasted the event bound. Rollback: remove `withDeadlineRemediation`.
@@ -1291,7 +1293,7 @@ there, which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:998@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
+| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1007@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
 | `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:119@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
 | `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:88@5fbc4775` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
@@ -1438,7 +1440,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-030` | `cmd/corvint/host_adapter_compaction.go` (`compactSessionDisclosure`), Claude branch of `runClaudeAdapter` | `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (compact `SessionStart` additionalContext begins with the disclosure) |
 | `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`, `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`, `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); V1-0286 amendment (accepted, decision 0422): `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
-| `AHI-055` (proposed, V1-1280) | `cmd/corvint/host_adapter.go` (`deadlineRemediation`, `withDeadlineRemediation`) | `TestClaudeAdapterStopDeadlineFailsOpenVisibly`, `TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice`, `TestCodexAdapterDeadlineNamesRemediation`, `TestClaudeAdapterStaleSnapshotNamesRemediation`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
+| `AHI-055` (proposed, V1-1280) | `cmd/corvint/host_adapter.go` (`deadlineRemediation`, `withDeadlineRemediation`), `cmd/corvint/host_adapter_compaction.go` | `TestClaudeAdapterStopDeadlineFailsOpenVisibly`, `TestClaudeCompactionDeadlineNamesRemediation`, `TestDeadlineRemediationKeepsFrameWithinLimit`, `TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice`, `TestCodexAdapterDeadlineNamesRemediation`, `TestClaudeAdapterStaleSnapshotNamesRemediation`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-054` (accepted, decision 0519; V1-1157) | `internal/gokernel/harness.go` `HandleEvent` stop frontier, `FrontierCauseNoClosingAuthority`; `conformance/cli-parity-v0` `validFrontierCauseDivergence`, `outOfPacketKnownDivergence`; `integrations/testfixture/main.go` | `TestAHI054StopFrontierCarriesFixedCause`, `TestAHI054FrontierCauseDivergenceIsPinnedAndOutOfPacket`, `TestGPKV0002ManifestReplay` (`DR-0043`), Gemini CLI and OpenCode stop cases and the `AHI-054` with-and-without-cause case under `TestHostAdapterJavaScriptHosts` |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |
 | `AHI-011`, `015` | embedded `internal/gokernel/host-schema.json` admission table and shared lifecycle command | schema/admission tests plus one host-keyed golden fixture per admitted host |

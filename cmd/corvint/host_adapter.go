@@ -847,24 +847,33 @@ func deadlineRemediation(root string) string {
 	return "\nCorvint's check for this event did not finish within the hook time limit, so this event got no Corvint context; coding continues." +
 		"\nThe usual causes are a very large set of uncommitted or staged changes in the project checkout, or heavy machine load; this notice did not measure either." +
 		"\nTo see the pending changes, run this read-only command outside the hook:\n" + string(status) +
-		"\nCommitting, stashing or unstaging unrelated changes, or waiting for load to drop, usually clears it."
+		"\nIf that list is very long, committing, stashing or unstaging unrelated changes may clear it; otherwise, waiting for load to drop may."
 }
 
 // withDeadlineRemediation appends deadlineRemediation to every channel a Claude Code or Codex
-// dogfood-event-deadline notice already uses, after its unchanged frame (AHI-055).
+// dogfood-event-deadline notice already uses, after its unchanged frame (AHI-055). A root long
+// enough to push the encoded output past adapterOutputLimit keeps the frame-only notice, since
+// emitAdapterOutput would otherwise replace the frame with corvint-output-too-large.
 func withDeadlineRemediation(root, reason string, output map[string]any) map[string]any {
 	if reason != claudeDeadlineReason {
 		return output
 	}
+	remediated := map[string]any{}
+	for key, value := range output {
+		remediated[key] = value
+	}
 	if text, ok := output["systemMessage"].(string); ok {
-		output["systemMessage"] = text + deadlineRemediation(root)
+		remediated["systemMessage"] = text + deadlineRemediation(root)
 	}
 	if hook, ok := output["hookSpecificOutput"].(map[string]any); ok {
 		if text, ok := hook["additionalContext"].(string); ok {
-			hook["additionalContext"] = text + deadlineRemediation(root)
+			remediated["hookSpecificOutput"] = map[string]any{"hookEventName": hook["hookEventName"], "additionalContext": text + deadlineRemediation(root)}
 		}
 	}
-	return output
+	if raw, err := json.Marshal(remediated); err != nil || len(raw)+1 > adapterOutputLimit {
+		return output
+	}
+	return remediated
 }
 
 // postToolChangeOutOfRoot reports whether a PostToolUse payload names a

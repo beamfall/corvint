@@ -594,6 +594,25 @@ func assertDeadlineRemediation(t *testing.T, text, frame, root string) {
 	}
 }
 
+// AHI-055: a root long enough to push the encoded notice past adapterOutputLimit keeps the
+// frame-only notice, so emitAdapterOutput never replaces the frame with corvint-output-too-large.
+func TestDeadlineRemediationKeepsFrameWithinLimit(t *testing.T) {
+	t.Parallel()
+	root := "/" + strings.Repeat(strings.Repeat("&", 240)+"/", 5)
+	for _, output := range []map[string]any{codexDegraded("Stop", claudeDeadlineReason), degradedAdapterOutput(claudeDeadlineReason)} {
+		frame := output["systemMessage"]
+		if got := withDeadlineRemediation(root, claudeDeadlineReason, output); got["systemMessage"] != frame {
+			t.Fatalf("over-limit remediation was not dropped: %q", got["systemMessage"])
+		}
+	}
+	short := withDeadlineRemediation("/repo", claudeDeadlineReason, claudeContextOutput("UserPromptSubmit", "Corvint FALLBACK degraded: "+claudeDeadlineReason+"; coding continues"))
+	var stdout bytes.Buffer
+	emitAdapterOutput(&stdout, short)
+	if !strings.Contains(stdout.String(), "hook time limit") {
+		t.Fatalf("short-root remediation did not reach stdout: %s", stdout.String())
+	}
+}
+
 // AHI-055: the Codex fallback for an expired dogfood event deadline keeps its frame and carries
 // the same remediation, in the one channel codexDegraded chose for the event.
 func TestCodexAdapterDeadlineNamesRemediation(t *testing.T) {
