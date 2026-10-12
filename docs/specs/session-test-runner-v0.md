@@ -109,19 +109,24 @@ of every requirement below and the binding gate until this spec is promoted.
   the STR-V0-003 reader (an unreadable or absent declaration, an argument, or a directory without
   `go.mod` is a refusal, exit 2, before `go` starts), runs `go test <go.flags> ./...` from the
   repository root with each `go.env` entry replacing any inherited value of the same name, passes
-  stdout and stderr through and returns `go`'s exit status. There is no second statement of the
-  command for a gate to compare against. A maintained repository gate (`make test-commands-check`,
-  a `make gate` step and part of the CI doc-gates job) keeps the Makefile to that delegation by
-  reading its source text, never make's output or execution: (a) exactly one rule line reads
+  stdout and stderr through and returns `go`'s exit status. `make gate` runs Go tests through
+  `ledger/go-test` (GL-V0-004) rather than `go-test`, so that rule's command is pinned to the
+  declaration by rule (f). A maintained repository gate (`make test-commands-check`,
+  a `make gate` step and part of the CI doc-gates job) keeps the Makefile to that delegation.
+  Rules (a), (b), (c) and (f) read source text only; (d) and (e) dry-run make (`make -s -n` on a
+  minimal `PATH`), which expands the Makefile, including any parse-time `$(shell ...)`, so those
+  two are not text-only: (a) exactly one rule line reads
   `go-test:` (no prerequisites, no `;` recipe, no `::`), followed by exactly one recipe line
-  `go run ./tools/test-commands-run` (blank and comment lines between do not end the recipe; a
-  backslash continuation joins into the compared text), and any other rule line names `go-test`
+  `go run ./tools/test-commands-run` (blank, comment and conditional-directive lines between do
+  not end the recipe, so a tab line inside an `ifeq` branch after it counts as a second recipe
+  line; a backslash continuation joins into the compared text), and any other rule line names `go-test`
   only as a prerequisite; a rule whose target could match `go-test` (a `%` pattern it fits, or a
   target word make would expand) MAY list prerequisites (GOC-V0-010's order-only
   `gate-receipt-clear` line) but SHALL carry no recipe, tab-indented or after `;`; (b) no line of
   the Makefile or of a file it `include`s assigns `SHELL`, `.SHELLFLAGS`, `MAKEFLAGS` or
   `.RECIPEPREFIX`, globally, through `export`/`override`/`private`, or for any target or pattern;
-  exports `MAKEFLAGS`; exports every variable (`export` alone, `.EXPORT_ALL_VARIABLES`); or
+  exports `MAKEFLAGS`; exports every variable (`export` alone, `.EXPORT_ALL_VARIABLES`); names
+  `.IGNORE` as a target (which would let a failing recipe succeed); or
   defines a target- or pattern-specific variable whose target could match `go-test`; (c) the text
   is readable without make: `$(eval ...)`/`${eval ...}` anywhere, a `define` block, an `include`
   name holding `$` or a glob character and a missing non-optional include are each refused, and
@@ -132,19 +137,29 @@ of every requirement below and the binding gate until this spec is promoted.
   `npm`, `bun`, `pytest`, `python3`, `cargo`, `swift`, `dotnet`, `gradle`), inspecting only the
   words make prints, not what a script those words name runs, and refusing a `none` language it
   has no runner list for; (e) every declared `make` language command names a target that
-  dry-runs. A line inside a conditional counts as live, so the check is stricter than make, never
-  looser. Recorded limits: the environment make itself is started with (a caller's `GOFLAGS`, or
-  a Makefile `export GOFLAGS`) reaches `go` through the runner's inherited environment and is not
-  refused; `ledger/go-test` (GL-V0-004) and `gate-affected` still build their own `go test`
-  command from `GO_TEST_FLAGS`/`GO_TEST_COMMAND`, so the declaration governs `make go-test` only
-  until slice 3 moves those call sites. The gate was first a make-observing one (a recording `go`
+  dry-runs; (f) when a `ledger/go-test:` rule exists, it is exactly that line with the one recipe
+  `@$(GATE_LEDGER) go-test -- go test $(GO_TEST_FLAGS)`; `GATE_LEDGER`, `GO_TEST_FLAGS`,
+  `GO_TEST_TIMEOUT` and `CORVINT_GOCACHE` each have exactly one global `=`, `:=`, `::=` or `?=`
+  assignment and none for a target; no variable is set for `ledger/go-test`, `ledger/%` or an
+  expanded target word; and, expanding only those four, the `NAME=VALUE` words before `go` in
+  `GATE_LEDGER` equal the declared `go.env` and `GO_TEST_FLAGS` equals the declared `go.flags`
+  without `-count=1`, which gate-ledger adds itself only for the packages it cannot key, running
+  the others through Go's test cache (GL-V0). Without that rule `make gate` reaches `go-test`
+  through the `ledger/%` sub-make. A line inside a conditional counts as live, so the check is
+  stricter than make, never looser. Recorded limits: the environment make itself is started with
+  (a caller's `GOFLAGS` or `GO_TEST_TIMEOUT`, or a Makefile `export GOFLAGS`) reaches `go` and is
+  not refused; `gate-affected` still builds its own `go test` command from `GO_TEST_COMMAND`
+  until slice 3 moves that call site; the `none` check sees only the direct recipe words of the
+  `GATE_STEPS` steps, so a suite started inside a script, by a driver or by a CI job is the
+  owner's to review, not the gate's. The gate was first a make-observing one (a recording `go`
   shim, a control recipe and a `make -p` parse; decision 0526, review rounds 4 to 8); the owner
   replaced it on 2026-10-12 because each round found another make semantic it had to
   reverse-engineer, and acceptance now follows one independent review round of this text check
   with findings fixed or recorded here, not a `VERDICT: PASS`.
   The reader (STR-V0-003) refuses any environment name that is not a portable identifier
-  (`[A-Za-z_][A-Za-z0-9_]*`) and any word with whitespace or a control character, because
-  `corvint test` passes declared words to exec literally. The manifest binds the declaration's
+  (`[A-Za-z_][A-Za-z0-9_]*`), any word with whitespace or a control character, because
+  `corvint test` passes declared words to exec literally, and a declared `go.env` `PATH`, because
+  the `go` executable is found on the caller's `PATH` and a declared one would not select it. The manifest binds the declaration's
   digest as `declaredDigest`.
 - `STR-V0-007`: `--shard I/N` with `--placement universe` (the default) SHALL use the AFP-V0-022
   complete-universe partition intersected with the run set, unchanged. An empty intersection runs
@@ -328,7 +343,7 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-003 | `internal/sessiontest/plan.go`, `internal/sessiontest/declared.go` (`ReadDeclared`: strict, bounded read of `.github/cishards/test-commands.json`) | TestSTRV0003BuildVerdicts, TestSTRV0003ReadDeclared, TestSTRV0003CLINoPlanRunsDeclaredScope, TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand, TestSTRV0003CLIUnreadableDeclarationIsIncomplete, TestSTRV0003DeclaredRelativeCommandResolvesAgainstRoot, TestSTRV0003CLIDeclaredRelativeCommandRunsFromRoot |
 | STR-V0-004 | `internal/sessiontest/run.go` (Go adapter; declared language argv), `declaredLanguage` in `plan.go` (gate-scoped `none` to `noSuite`, undeclared to `INCOMPLETE`); `tools/test-commands-check` refuses a `none` language a `GATE_STEPS` recipe runs | TestSTRV0004ParseTestEvents, TestSTRV0004RunnerDiscoveryRefusals, TestSTRV0003BuildVerdicts, TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand; no versioned LPCV-V0-021 capability manifest yet (partial) |
 | STR-V0-005 | `Invocations` in `run.go` | TestSTRV0006Invocations, TestSTRV0010CLIRunWritesReceipt |
-| STR-V0-006 | `Invocations` (typed argv from the declaration's Go environment and flags); `tools/test-commands-run` behind the fixed Makefile `go-test` recipe; `tools/test-commands-check` behind `make test-commands-check` (`GATE_STEPS`, CI doc-gates) | TestSTRV0006Invocations, TestSTRV0003ReadDeclared, `tools/test-commands-run/main_test.go` TestSTRV0006RunnerRunsTheDeclaration (fake `go`: argv, directory, environment precedence, exit status), TestSTRV0006RunnerRefusals, TestSTRV0006Invocation; `tools/test-commands-check/main_test.go` TestSTRV0006DeclarationMatchesMakefile (repository pass, three declaration mutations and an absent file), TestSTRV0006MakefileTextRules (thirty-two Makefile text refusals and five passes), TestSTRV0006IncludedFile (nested include, prerequisite-only `$` target line), TestSTRV0006Classify |
+| STR-V0-006 | `Invocations` (typed argv from the declaration's Go environment and flags); `tools/test-commands-run` behind the fixed Makefile `go-test` recipe; `tools/test-commands-check` behind `make test-commands-check` (`GATE_STEPS`, CI doc-gates) | TestSTRV0006Invocations, TestSTRV0003ReadDeclared, `tools/test-commands-run/main_test.go` TestSTRV0006RunnerRunsTheDeclaration (fake `go`: argv, directory, environment precedence, exit status), TestSTRV0006RunnerRefusals, TestSTRV0006Invocation; `tools/test-commands-check/main_test.go` TestSTRV0006DeclarationMatchesMakefile (repository pass, three declaration mutations and an absent file), TestSTRV0006MakefileTextRules (thirty-five Makefile text refusals, among them a recipe line inside a conditional and `.IGNORE`, and five passes), TestSTRV0006LedgerMatchesDeclaration (twelve `ledger/go-test` refusals: flags, timeout, `-race`, cache, ledger environment, an appended or unknown variable, a changed or second recipe line, target variables; the rule removed passes), TestSTRV0006IncludedFile (nested include, prerequisite-only `$` target line), TestSTRV0006Classify |
 | STR-V0-007 | `placeGo` over `cishards.PlanFrom` | TestSTRV0007UniversePlacementEqualsCIPlan, TestSTRV0009CLIShardsAndVerify |
 | STR-V0-008 | `placeGo` balanced branch over the run set (`Input.Placement`); `cmd/corvint/test.go` refuses `--profile ci` execution and a sharded run without `--manifest` | `internal/sessiontest/balanced_test.go` TestSTRV0008BalancedPlacesEveryUnitOnce (1 to 16 shards, catch-all slice), TestSTRV0008BalancedUsesEveryShard, TestSTRV0008BalancedFullAndManifest; TestSTRV0008CLIUsageRefusals, TestSTRV0008CLIBalancedShards; retaining it beside CI universe placement is the call site's (slice 3) and the local 20% bar is unmeasured: `NOT_RUN` |
 | STR-V0-009 | `internal/sessiontest/verify.go`, `corvint test verify-shards` | TestSTRV0009VerifyShardsMatrix, TestSTRV0009CLIShardsAndVerify |

@@ -461,6 +461,39 @@ Nothing under `cmd/` changed, so `cmd/corvint` tests were not run. `make gate`: 
 waiver, above). Live GNU make 4.x is no longer a dependency of the gate: it reads text and
 dry-runs only `make -s -n` for the declared targets and gate steps.
 
+## Round 9, the one capped round (2026-10-12)
+
+Codex reviewed `21af64b58` once (decision 0526 item 4) and returned six P2 findings. The owner
+then said to fix them without waiting for another round, so there was no round 10.
+
+1. `make gate` runs Go tests through `ledger/go-test`, whose `go test $(GO_TEST_FLAGS)` was a
+   second statement of the command that the declaration did not govern. Fixed: STR-V0-006 rule (f)
+   pins that rule's one recipe line, the single global assignments of `GATE_LEDGER`,
+   `GO_TEST_FLAGS`, `GO_TEST_TIMEOUT` and `CORVINT_GOCACHE`, and their expansion against the
+   declared `go.env` and `go.flags` (gate-ledger adds `-count=1` itself only for unresolved
+   packages). TestSTRV0006LedgerMatchesDeclaration has twelve refusals, and removing the rule
+   passes because `make gate` then reaches `go-test` through `ledger/%`.
+2. The check still dry-runs `make -s -n` for the declared targets and `GATE_STEPS`, so "reads text
+   only" was not true. Recorded: STR-V0-006 now names rules (d) and (e) as dry-runs that expand the
+   Makefile, and the rest as text rules.
+3. A tab line inside an `ifeq` branch after the `go-test` recipe was not counted against it, because
+   the conditional directive reset recipe ownership. Fixed: conditional directives no longer end a
+   recipe, so a hidden second line is refused.
+4. `.IGNORE` would let a failing `go test` succeed. Fixed: naming it as a target, with or without
+   prerequisites, is refused.
+5. A declared `go.env` `PATH` cannot select which `go` runs, because exec resolves `go` on the
+   caller's `PATH`. Fixed: the reader refuses it (STR-V0-003).
+6. Decision 0526 said the gate refuses a stale `none`; it refuses one only when a direct
+   `GATE_STEPS` recipe word names that language's runner. Narrowed in 0526 and STR-V0-006.
+
+Still recorded limits, not fixed: the environment make starts with (`GOFLAGS`, or an override of
+a `?=` variable such as `GO_TEST_TIMEOUT`) reaches `go`; a Makefile `export GOFLAGS` is not
+refused; `gate-affected` uses `GO_TEST_COMMAND` until slice 3.
+
+Evidence: `gofmt -l` empty; `go vet` rc 0 and `go test -count=1 ./tools/test-commands-check
+./tools/test-commands-run ./internal/sessiontest` ok; `make -s test-commands-check` rc 0 on the
+committed Makefile.
+
 ## Left for slice 3
 
 The call-site switch (`make gate-affected`, then the CI call site under AFP-V0-016 consent and a

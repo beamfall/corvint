@@ -359,6 +359,7 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 		"env nul name":     `{"profile": "corvint-test-commands/0", "go": {"env": {"GO\u0000CACHE": "/tmp/c"}, "flags": []}}`,
 		"env dash name":    `{"profile": "corvint-test-commands/0", "go": {"env": {"GO-CACHE": "/tmp/c"}, "flags": []}}`,
 		"env digit first":  `{"profile": "corvint-test-commands/0", "go": {"env": {"1GOCACHE": "/tmp/c"}, "flags": []}}`,
+		"env PATH":         `{"profile": "corvint-test-commands/0", "go": {"env": {"PATH": "/opt/go/bin"}, "flags": []}}`,
 		"env value tab":    `{"profile": "corvint-test-commands/0", "go": {"env": {"GOCACHE": "/tmp/c\t"}, "flags": []}}`,
 		"language cr":      `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}, "languages": {"rust\r": ["cargo", "test"]}}`,
 		"argv escape":      `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}, "languages": {"rust": ["cargo", "test\u001b"]}}`,

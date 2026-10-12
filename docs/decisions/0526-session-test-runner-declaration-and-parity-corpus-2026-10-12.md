@@ -59,13 +59,18 @@ list was retained, so slice 2 measured a substitute corpus (the 50 first-parent 
    `go` and `MAKEFLAGS` in the recipe (5), `SHELL` wrappers and make functions in expanded
    variables (6), the 4.x database header and target- or pattern-specific `SHELL` (7),
    pattern-specific values of every expanded variable (8). With one fixed recipe line and
-   `tools/test-commands-run` there is no second statement of the command to compare, and the gate
-   becomes the bounded text check of STR-V0-006. The shim, the control recipe, the database parser
+   `tools/test-commands-run`, `make go-test` has no second statement of the command; the one
+   other statement, `make gate`'s `ledger/go-test`, is pinned to the declaration by STR-V0-006
+   rule (f), and the gate becomes the bounded check of STR-V0-006 (text rules, plus the `make -n`
+   dry-runs of rules (d) and (e)). The shim, the control recipe, the database parser
    and their tests are deleted; the round-8 fix was discarded uncommitted.
 4. Owner decision (2026-10-12): Codex review is capped at one round on the redesigned gate, then
    ship. Acceptance no longer waits for a `VERDICT: PASS`; it follows that one independent review
    round, and each of its findings is either fixed or recorded as a limit in STR-V0-006 and the
-   build log.
+   build log. That round (Codex, on `21af64b58`) returned six findings: the `ledger/go-test` gap
+   (fixed, rule (f)), a recipe line hidden in a conditional and `.IGNORE` (fixed), a declared
+   `PATH` (the reader refuses it), and the text-only and `none` wording (narrowed). None was
+   left open.
 5. Owner decision (2026-10-12): `make gate` is waived for V1-0040. The ticket's `requiredGates`
    full gate is `NOT_RUN` under that waiver; the evidence that replaces it is the focused tests
    (`tools/test-commands-check`, `tools/test-commands-run`, `internal/sessiontest`), the CI
@@ -85,17 +90,19 @@ requirement is added or removed; the delivery status stays experimental.
 - `tools/test-commands-check/main_test.go` runs the gate against the repository, three
   declaration mutations (a declared `make` target that does not exist, a `none` language the gate
   runs, a `none` language without a runner list) and an absent file; thirty-two Makefile text
-  mutations, each of which must fail (a changed, continued or second `go-test` recipe line, no
+  mutations (thirty-five with a recipe line inside a conditional, `.IGNORE` and a global
+  `.IGNORE`), each of which must fail (a changed, continued or second `go-test` recipe line, no
   recipe, a prerequisite, `::`, a second rule, `SHELL`/`.SHELLFLAGS`/`MAKEFLAGS`/`.RECIPEPREFIX`
   plain, exported, target- and pattern-specific, `export MAKEFLAGS`, bare `export`,
   `.EXPORT_ALL_VARIABLES`, target-, pattern-, match-anything- and expanded-target variables,
   pattern and expanded-target recipes tab-indented and after `;`, `$(eval)`, `define`, a computed
   and a missing `include`, a second and an expanded `GATE_STEPS`) and five that must pass; a
-  nested-include fixture with the GOC-V0-010 prerequisite-only line; and the line classifier.
+  nested-include fixture with the GOC-V0-010 prerequisite-only line; twelve `ledger/go-test`
+  mutations (TestSTRV0006LedgerMatchesDeclaration); and the line classifier.
   `tools/test-commands-run/main_test.go` runs the runner under a fake `go` on `PATH` (argv,
-  directory, environment precedence, exit status) and pins its four refusals. The gate reads
-  text only; its recorded limits are in STR-V0-006 (the environment make itself starts with, and
-  the `ledger/go-test` and `gate-affected` tiers that still use the Makefile variables).
+  directory, environment precedence, exit status) and pins its four refusals. Its recorded
+  limits are in STR-V0-006 (the environment make itself starts with, `gate-affected` still using
+  `GO_TEST_COMMAND`, and the `none` check seeing only direct recipe words).
 - `tools/str-parity -corpus` refuses a corpus whose lines differ from
   `git rev-list --first-parent --parents` over the same end and count.
 
@@ -104,7 +111,8 @@ requirement is added or removed; the delivery status stays experimental.
 - A language the declaration marks `none` is not `INCOMPLETE`; the assertion is the project's,
   scoped to the gate, and visible in every manifest and dry-run document (`noSuite`). Adding a
   suite to the gate for such a language means replacing `none` with its command (the gate refuses
-  the stale `none`), which the next `corvint test` then runs in `FULL`; `typescript` already runs
+  the stale `none` when a `GATE_STEPS` recipe word names that language's runner; a suite started
+  inside a script, a driver or CI is the owner's to review), which the next `corvint test` then runs in `FULL`; `typescript` already runs
   `make host-adapter-test`, which the drivers do not run, so parity records it as
   `str-v0-004-declared-language`.
 - The CI profile keeps its own constants (`-p 1 -count=1 -race -timeout 50m`, the closed CI

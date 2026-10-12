@@ -117,6 +117,11 @@ func readDeclaration(name string) (Declared, error) {
 		if !EnvName(name) || !plain(value) {
 			return Declared{}, fmt.Errorf("go.env has an invalid variable %q", name)
 		}
+		if name == "PATH" {
+			// The go executable is found on the caller's PATH, so a declared
+			// PATH would not select it.
+			return Declared{}, errors.New("go.env may not declare PATH")
+		}
 		declared.GoEnv = append(declared.GoEnv, name+"="+value)
 	}
 	sort.Strings(declared.GoEnv)

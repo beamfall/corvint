@@ -36,6 +36,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path"
@@ -61,7 +62,18 @@ const (
 	gateStepsVariable = "GATE_STEPS"
 	// includeDepth bounds how deep `include` files are followed.
 	includeDepth = 4
+	// ledgerTarget is the rule `make gate` runs Go tests through
+	// (docs/specs/gate-ledger-v0.md) instead of goTarget; ledgerRecipe is
+	// the only recipe line it may have.
+	ledgerTarget = "ledger/go-test"
+	ledgerRecipe = "@$(GATE_LEDGER) go-test -- go test $(GO_TEST_FLAGS)"
 )
+
+// ledgerNames are the variables ledgerRecipe expands. Each must have exactly
+// one global assignment and no target-specific one, so the Makefile text
+// alone says what `make gate` runs and checkLedger can compare it with the
+// declaration.
+var ledgerNames = map[string]bool{"GATE_LEDGER": true, "GO_TEST_FLAGS": true, "GO_TEST_TIMEOUT": true, "CORVINT_GOCACHE": true}
 
 // controlNames are the variables whose assignment anywhere, global or for
 // any target, changes how make runs every recipe, so the fixed go-test line
@@ -104,7 +116,8 @@ func run(root, makefile, declaration string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "test-commands-check: "+declared.Unreadable)
 		return 1
 	}
-	problems, steps := checkMakefile(root, makefile)
+	s, steps := scanMakefile(root, makefile)
+	problems := append(s.problems, checkLedger(s, declared)...)
 	targets := 0
 	for _, entry := range declared.Languages {
 		if len(entry.Argv) < 2 || entry.Argv[0] != "make" {
@@ -126,8 +139,12 @@ func run(root, makefile, declaration string, stdout, stderr io.Writer) int {
 		}
 		return 1
 	}
-	fmt.Fprintf(stdout, "test-commands-check: %s go-test is exactly `%s`, which runs %s (%s go test %s ./... in the repository root); no SHELL, .SHELLFLAGS, MAKEFLAGS or go-test variable in the Makefile; %d declared make targets dry-run; no make gate step recipe runs a suite of %v\n",
-		makefile, goRecipe, sessiontest.DeclarationPath, strings.Join(declared.GoEnv, " "), strings.Join(declared.GoFlags, " "), targets, none)
+	ledger := "no ledger/go-test rule, so make gate reaches go-test"
+	if s.ledgerRules == 1 {
+		ledger = "ledger/go-test runs the declared go.env and go.flags through gate-ledger"
+	}
+	fmt.Fprintf(stdout, "test-commands-check: %s go-test is exactly `%s`, which runs %s (%s go test %s ./... in the repository root); %s; no SHELL, .SHELLFLAGS, MAKEFLAGS or go-test variable in the Makefile; %d declared make targets dry-run; no make gate step recipe runs a suite of %v\n",
+		makefile, goRecipe, sessiontest.DeclarationPath, strings.Join(declared.GoEnv, " "), strings.Join(declared.GoFlags, " "), ledger, targets, none)
 	return 0
 }
 
@@ -135,7 +152,12 @@ func run(root, makefile, declaration string, stdout, stderr io.Writer) int {
 // the problems found and, when exactly one plain GATE_STEPS line exists, its
 // steps (nil otherwise, with the reason among the problems).
 func checkMakefile(root, makefile string) ([]string, []string) {
-	s := &scanner{root: root, seen: map[string]bool{}}
+	s, steps := scanMakefile(root, makefile)
+	return s.problems, steps
+}
+
+func scanMakefile(root, makefile string) (*scanner, []string) {
+	s := &scanner{root: root, seen: map[string]bool{}, ledger: map[string][]assignment{}}
 	s.scan(makefile, includeDepth)
 	switch {
 	case s.rules != 1:
@@ -152,7 +174,79 @@ func checkMakefile(root, makefile string) ([]string, []string) {
 	default:
 		steps = strings.Fields(s.gateSteps[0].value)
 	}
-	return s.problems, steps
+	switch {
+	case s.ledgerRules > 1:
+		s.problems = append(s.problems, fmt.Sprintf("%s has %d `%s:` rules, want at most one with the recipe `%s`", makefile, s.ledgerRules, ledgerTarget, ledgerRecipe))
+	case s.ledgerRules == 1 && s.ledgerRecipes == 0:
+		s.problems = append(s.problems, fmt.Sprintf("%s: `%s:` has no recipe line, want exactly `%s`", s.ledgerAt, ledgerTarget, ledgerRecipe))
+	}
+	return s, steps
+}
+
+// checkLedger compares what `make gate` runs for Go tests with the
+// declaration. Without a `ledger/go-test:` rule, `make gate` reaches go-test
+// through the ledger/% sub-make, which runs the declaration itself. With
+// one, its fixed recipe expands ledgerNames from their single literal
+// assignments: the environment words before `go` must be the declared go.env
+// and GO_TEST_FLAGS the declared go.flags except -count=1, which gate-ledger
+// adds only for the packages it cannot key (gate-ledger-v0), running the
+// others through Go's test cache.
+func checkLedger(s *scanner, declared sessiontest.Declared) []string {
+	if s.ledgerRules != 1 {
+		return nil
+	}
+	var problems []string
+	values := map[string]string{}
+	for name := range ledgerNames {
+		assigned := s.ledger[name]
+		switch {
+		case len(assigned) != 1:
+			problems = append(problems, fmt.Sprintf("%s is assigned %d times; `%s:` needs exactly one plain assignment of it", name, len(assigned), ledgerTarget))
+		case !slices.Contains([]string{"=", ":=", "::=", "?="}, assigned[0].op):
+			problems = append(problems, fmt.Sprintf("%s: %s is assigned with %s; `%s:` needs a plain assignment", assigned[0].at, name, assigned[0].op, ledgerTarget))
+		default:
+			values[name] = assigned[0].value
+		}
+	}
+	if len(problems) != 0 {
+		return problems
+	}
+	expand := func(name string) (string, error) {
+		value := values[name]
+		for depth := 0; strings.Contains(value, "$"); depth++ {
+			replaced := value
+			for other := range ledgerNames {
+				replaced = strings.ReplaceAll(replaced, "$("+other+")", values[other])
+			}
+			if replaced == value || depth == len(ledgerNames) {
+				return "", fmt.Errorf("%s expands %q, which is not one of %v", name, value, slices.Sorted(maps.Keys(ledgerNames)))
+			}
+			value = replaced
+		}
+		return value, nil
+	}
+	ledger, err := expand("GATE_LEDGER")
+	if err != nil {
+		return []string{err.Error()}
+	}
+	flags, err := expand("GO_TEST_FLAGS")
+	if err != nil {
+		return []string{err.Error()}
+	}
+	words := strings.Fields(ledger)
+	env := []string{}
+	for len(words) != 0 && strings.Contains(words[0], "=") {
+		env, words = append(env, words[0]), words[1:]
+	}
+	slices.Sort(env)
+	if !slices.Equal(env, declared.GoEnv) {
+		problems = append(problems, fmt.Sprintf("`%s:` runs go with %v (GATE_LEDGER), but %s declares go.env %v", ledgerTarget, env, sessiontest.DeclarationPath, declared.GoEnv))
+	}
+	want := slices.DeleteFunc(slices.Clone(declared.GoFlags), func(flag string) bool { return flag == "-count=1" })
+	if got := strings.Fields(flags); !slices.Equal(got, want) {
+		problems = append(problems, fmt.Sprintf("`%s:` runs go test %v (GO_TEST_FLAGS), but %s declares go.flags %v (gate-ledger adds -count=1 itself)", ledgerTarget, got, sessiontest.DeclarationPath, declared.GoFlags))
+	}
+	return problems
 }
 
 // logical is one makefile line with its backslash continuations joined,
@@ -182,6 +276,7 @@ func logicalLines(name string, data []byte) []logical {
 type assignment struct {
 	value string
 	at    string
+	op    string
 }
 
 type ruleKind int
@@ -190,6 +285,7 @@ const (
 	otherRule ruleKind = iota
 	goTestRule
 	matchingRule
+	ledgerRule
 )
 
 // scanner walks the Makefile text. rule, ruleLine and ruleWord describe the
@@ -205,6 +301,12 @@ type scanner struct {
 	rule      ruleKind
 	ruleLine  string
 	ruleWord  string // the target word that could match go-test
+	// ledger holds the global assignments of ledgerNames; ledgerRules and
+	// ledgerRecipes count the `ledger/go-test:` rules and their recipe lines.
+	ledger        map[string][]assignment
+	ledgerRules   int
+	ledgerRecipes int
+	ledgerAt      string
 }
 
 func (s *scanner) problem(at, format string, args ...any) {
@@ -241,9 +343,25 @@ func (s *scanner) scan(name string, depth int) {
 		if text == "" {
 			continue // blank and comment lines do not end a recipe
 		}
+		if conditional(text) {
+			// A conditional directive does not end a recipe either: make
+			// keeps the tab lines of every branch with the rule above, so
+			// they all count against it.
+			s.statement(line.at, text, depth)
+			continue
+		}
 		s.rule, s.ruleLine, s.ruleWord = otherRule, "", ""
 		s.statement(line.at, text, depth)
 	}
+}
+
+// conditional reports whether text is a conditional directive.
+func conditional(text string) bool {
+	switch strings.Fields(text)[0] {
+	case "ifeq", "ifneq", "ifdef", "ifndef", "else", "endif":
+		return true
+	}
+	return false
 }
 
 // recipe classifies a tab-prefixed line by the rule it belongs to.
@@ -256,6 +374,14 @@ func (s *scanner) recipe(line logical) {
 			s.problem(line.at, "`%s:` has a second recipe line %q; its only recipe is `%s`", goTarget, strings.TrimPrefix(line.text, "\t"), goRecipe)
 		case line.text != "\t"+goRecipe:
 			s.problem(line.at, "`%s:` recipe is %q, want exactly `%s`", goTarget, strings.TrimPrefix(line.text, "\t"), goRecipe)
+		}
+	case ledgerRule:
+		s.ledgerRecipes++
+		switch {
+		case s.ledgerRecipes > 1:
+			s.problem(line.at, "`%s:` has a second recipe line %q; its only recipe is `%s`", ledgerTarget, strings.TrimPrefix(line.text, "\t"), ledgerRecipe)
+		case line.text != "\t"+ledgerRecipe:
+			s.problem(line.at, "`%s:` recipe is %q, want exactly `%s`", ledgerTarget, strings.TrimPrefix(line.text, "\t"), ledgerRecipe)
 		}
 	case matchingRule:
 		s.problem(line.at, "recipe line %q belongs to the rule %q, whose target %s %s; only the `%s:` rule may give go-test a recipe", strings.TrimPrefix(line.text, "\t"), s.ruleLine, s.ruleWord, matchReason(s.ruleWord), goTarget)
@@ -286,12 +412,15 @@ func (s *scanner) statement(at, text string, depth int) {
 			return
 		}
 	}
-	kind, left, _, right := classify(text)
+	kind, left, op, right := classify(text)
 	switch kind {
 	case assignmentLine:
 		name := variableName(left)
 		if controlNames[name] {
 			s.problem(at, "%q assigns %s, which changes how make runs every recipe", text, name)
+		}
+		if ledgerNames[name] {
+			s.ledger[name] = append(s.ledger[name], assignment{value: strings.TrimSpace(right), at: at, op: op})
 		}
 		if name == gateStepsVariable {
 			s.gateSteps = append(s.gateSteps, assignment{value: strings.TrimSpace(right), at: at})
@@ -308,11 +437,24 @@ func (s *scanner) ruleStatement(at, text string, targets []string, rest string) 
 		s.problem(at, "`.EXPORT_ALL_VARIABLES` exports every make variable into go's environment")
 		return
 	}
+	if slices.Contains(targets, ".IGNORE") {
+		s.problem(at, "`.IGNORE` makes make ignore a failing recipe, so a failing go test would pass")
+		return
+	}
 	body, _, hasRecipe := strings.Cut(rest, ";")
 	if kind, left, _, _ := classify(body); kind == assignmentLine {
 		name := variableName(left)
 		if controlNames[name] {
 			s.problem(at, "%q sets %s for a target, which changes how make runs its recipe", text, name)
+		}
+		if ledgerNames[name] {
+			s.problem(at, "%q sets %s for a target; `%s:` must read its one global assignment", text, name, ledgerTarget)
+		}
+		for _, target := range targets {
+			if target == ledgerTarget || target == "ledger/%" || strings.Contains(target, "$") {
+				s.problem(at, "%q defines a variable for %s, which could reach `%s:`; it takes no target variable", text, target, ledgerTarget)
+				break
+			}
 		}
 		for _, target := range targets {
 			if reason := matchReason(target); reason != "" {
@@ -329,6 +471,15 @@ func (s *scanner) ruleStatement(at, text string, targets []string, rest string) 
 		}
 		s.rules++
 		s.rule, s.recipes, s.ruleAt, s.ruleLine = goTestRule, 0, at, text
+		return
+	}
+	if slices.Contains(targets, ledgerTarget) {
+		if text != ledgerTarget+":" {
+			s.problem(at, "rule %q names %s; the rule must be exactly `%s:` with the one recipe `%s`", text, ledgerTarget, ledgerTarget, ledgerRecipe)
+			return
+		}
+		s.ledgerRules++
+		s.rule, s.ledgerRecipes, s.ledgerAt, s.ruleLine = ledgerRule, 0, at, text
 		return
 	}
 	for _, target := range targets {

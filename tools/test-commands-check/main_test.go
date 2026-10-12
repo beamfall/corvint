@@ -52,7 +52,7 @@ func TestSTRV0006DeclarationMatchesMakefile(t *testing.T) {
 	if code := run(root, "Makefile", declaration, &stdout, &stderr); code != 0 {
 		t.Fatalf("repository declaration: code %d\n%s", code, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "Makefile go-test is exactly `go run ./tools/test-commands-run`, which runs .github/cishards/test-commands.json (GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go test -p 1 -timeout 30m -count=1 ./... in the repository root); no SHELL, .SHELLFLAGS, MAKEFLAGS or go-test variable in the Makefile; 1 declared make targets dry-run; no make gate step recipe runs a suite of [dotnet kotlin python ruby rust swift]") {
+	if !strings.Contains(stdout.String(), "Makefile go-test is exactly `go run ./tools/test-commands-run`, which runs .github/cishards/test-commands.json (GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go test -p 1 -timeout 30m -count=1 ./... in the repository root); ledger/go-test runs the declared go.env and go.flags through gate-ledger; no SHELL, .SHELLFLAGS, MAKEFLAGS or go-test variable in the Makefile; 1 declared make targets dry-run; no make gate step recipe runs a suite of [dotnet kotlin python ruby rust swift]") {
 		t.Fatalf("stdout %q", stdout.String())
 	}
 	// Every mutation is a readable declaration (the reader is not what fails)
@@ -87,6 +87,9 @@ func TestSTRV0006MakefileTextRules(t *testing.T) {
 		"changed recipe":          {recipe, "go-test:\n\tGOFLAGS=-race go run ./tools/test-commands-run\n", "recipe is \"GOFLAGS=-race go run ./tools/test-commands-run\", want exactly"},
 		"continued recipe":        {recipe, "go-test:\n\tgo run ./tools/test-commands-run \\\n\t\t-x\n", "recipe is \"go run ./tools/test-commands-run -x\""},
 		"second recipe line":      {recipe, recipe + "\techo done\n", "has a second recipe line \"echo done\""},
+		"conditional recipe":      {recipe, recipe + "ifneq ($(CI),)\n\tgo test -race ./...\nendif\n", "has a second recipe line \"go test -race ./...\""},
+		".IGNORE":                 {"", ".IGNORE: go-test\n", "`.IGNORE` makes make ignore a failing recipe"},
+		"global .IGNORE":          {"", ".IGNORE:\n", "`.IGNORE` makes make ignore a failing recipe"},
 		"recipe after a comment":  {recipe, recipe + "# still the same recipe\n\techo done\n", "has a second recipe line \"echo done\""},
 		"no recipe":               {recipe, "go-test:\n", "`go-test:` has no recipe line"},
 		"prerequisite":            {recipe, "go-test: go-version\n\tgo run ./tools/test-commands-run\n", "must be exactly `go-test:` with no prerequisites"},
@@ -135,6 +138,41 @@ func TestSTRV0006MakefileTextRules(t *testing.T) {
 		if len(problems) != 0 || len(steps) == 0 {
 			t.Errorf("%s: problems %q, steps %d", name, problems, len(steps))
 		}
+	}
+}
+
+// STR-V0-006: `make gate` runs Go tests through ledger/go-test, so its fixed
+// recipe and the single literal assignments it expands must give the
+// declared go.env and go.flags; a plausible edit to any of them fails, and
+// removing the rule (make gate then reaches go-test itself) passes.
+func TestSTRV0006LedgerMatchesDeclaration(t *testing.T) {
+	root := requireMake(t)
+	declaration := filepath.Join(root, filepath.FromSlash(sessiontest.DeclarationPath))
+	makefile := filepath.Join(root, "Makefile")
+	const recipe = "ledger/go-test:\n\t@$(GATE_LEDGER) go-test -- go test $(GO_TEST_FLAGS)\n"
+	refusals := map[string][3]string{
+		"flags":              {"GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)", "GO_TEST_FLAGS = -p 4 -timeout $(GO_TEST_TIMEOUT)", "runs go test [-p 4 -timeout 30m] (GO_TEST_FLAGS)"},
+		"timeout":            {"GO_TEST_TIMEOUT ?= 30m", "GO_TEST_TIMEOUT ?= 10m", "runs go test [-p 1 -timeout 10m] (GO_TEST_FLAGS)"},
+		"race":               {"GO_TEST_FLAGS = -p 1", "GO_TEST_FLAGS = -race -p 1", "runs go test [-race -p 1 -timeout 30m]"},
+		"cache":              {"CORVINT_GOCACHE ?= /tmp/corvint-go-build-cache", "CORVINT_GOCACHE ?= /tmp/other", "runs go with [GOCACHE=/tmp/other GOTOOLCHAIN=local] (GATE_LEDGER)"},
+		"ledger env":         {"GATE_LEDGER = GOCACHE", "GATE_LEDGER = GOFLAGS=-race GOCACHE", "runs go with [GOCACHE=/tmp/corvint-go-build-cache GOFLAGS=-race GOTOOLCHAIN=local]"},
+		"appended flags":     {"", "GO_TEST_FLAGS += -race\n", "GO_TEST_FLAGS is assigned 2 times"},
+		"unknown variable":   {"GO_TEST_FLAGS = -p 1", "GO_TEST_FLAGS = $(EXTRA) -p 1", "GO_TEST_FLAGS expands"},
+		"recipe":             {recipe, "ledger/go-test:\n\t@$(GATE_LEDGER) go-test -- go test -race $(GO_TEST_FLAGS)\n", "`ledger/go-test:` recipe is"},
+		"second recipe":      {recipe, recipe + "\techo done\n", "`ledger/go-test:` has a second recipe line"},
+		"target flags":       {"", "ledger/go-test: GO_TEST_FLAGS = -race\n", "sets GO_TEST_FLAGS for a target"},
+		"ledger variable":    {"", "ledger/go-test: export GOFLAGS = -race\n", "defines a variable for ledger/go-test, which could reach `ledger/go-test:`"},
+		"ledger pattern var": {"", "ledger/%: export GOFLAGS = -race\n", "defines a variable for ledger/%"},
+	}
+	for name, mutation := range refusals {
+		var out, errs bytes.Buffer
+		if code := run(root, mutate(t, makefile, mutation[0], mutation[1]), declaration, &out, &errs); code != 1 || !strings.Contains(errs.String(), mutation[2]) {
+			t.Errorf("%s: code %d stderr %q, want %q", name, code, errs.String(), mutation[2])
+		}
+	}
+	var out, errs bytes.Buffer
+	if code := run(root, mutate(t, makefile, recipe, ""), declaration, &out, &errs); code != 0 || !strings.Contains(out.String(), "no ledger/go-test rule, so make gate reaches go-test") {
+		t.Errorf("no ledger rule: code %d stdout %q stderr %q", code, out.String(), errs.String())
 	}
 }
 
