@@ -3450,6 +3450,9 @@ type stableMap struct {
 	Evidence     []evidence `json:"evidence"`
 	Hunks        []hunk03   `json:"hunks"`
 	stableReferences
+	// Optional CEM-V1-093/095 members; never authority, never echoed.
+	Provenance *stableProvenance `json:"provenance,omitempty"`
+	Role       string            `json:"role,omitempty"`
 }
 type stableArtifactCheck struct {
 	Kind       string `json:"kind"`
@@ -3659,7 +3662,7 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 			return m, invalid("unsupported-spec")
 		}
 	}
-	root, e := object03(raw, []string{"spec", "baseRevision", "patchSha256", "excludedPath", "evidence", "hunks", "criterionBindings", "runnerReceipts", "criterionLinks", "artifacts"}, nil)
+	root, e := object03(raw, []string{"spec", "baseRevision", "patchSha256", "excludedPath", "evidence", "hunks", "criterionBindings", "runnerReceipts", "criterionLinks", "artifacts"}, []string{"provenance", "role"})
 	if e != nil {
 		return m, e
 	}
@@ -3922,6 +3925,9 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 			return m, e
 		}
 		m.Artifacts = append(m.Artifacts, v)
+	}
+	if m.Provenance, m.Role, e = decodeStableProvenanceRole(root); e != nil {
+		return m, e
 	}
 	return m, nil
 }

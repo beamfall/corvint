@@ -39,7 +39,11 @@ type StableMap struct {
 	Receipts  []StableReceipt
 	Links     []StableLink
 	Artifacts []StableArtifact
-	original  []byte
+	// Provenance and Role are the optional CEM-V1-093/095 members; nil and ""
+	// mean absent. Neither carries authority.
+	Provenance *StableProvenance
+	Role       string
+	original   []byte
 }
 
 // StableCriterion has two closed forms (CEM-V1-083). The plain form is a Git
@@ -124,7 +128,7 @@ func ParseStable(raw []byte) (*StableMap, error) {
 	if spec.Kind != KindString || spec.Str != StableSpec {
 		return nil, cemcode.New(cemcode.UnsupportedSpec, "stable profile required")
 	}
-	if e = requireClosedKeys(v.Obj, []string{"spec", "baseRevision", "patchSha256", "excludedPath", "evidence", "hunks", "criterionBindings", "runnerReceipts", "criterionLinks", "artifacts"}); e != nil {
+	if e = requireStableRootKeys(v.Obj); e != nil {
 		return nil, e
 	}
 	d := &StableMap{Change: StableChange{Spec: StableSpec}, Criteria: []StableCriterion{}, Receipts: []StableReceipt{}, Links: []StableLink{}, Artifacts: []StableArtifact{}, original: append([]byte(nil), raw...)}
@@ -293,6 +297,9 @@ func ParseStable(raw []byte) (*StableMap, error) {
 			return nil, fieldError("artifact cannot name sidecar")
 		}
 		d.Artifacts = append(d.Artifacts, StableArtifact{k.Str, p.Str, h.Str})
+	}
+	if e = parseStableProvenanceRole(v.Obj, d); e != nil {
+		return nil, e
 	}
 	return d, validateStableGraph(d)
 }
