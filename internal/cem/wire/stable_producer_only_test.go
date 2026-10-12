@@ -152,8 +152,13 @@ func TestCEMV1094ProducerOnlyEmptyVerifyAccept(t *testing.T) {
 	if first["mapSha256"] == second["mapSha256"] {
 		t.Fatal("marked map has the same digest")
 	}
-	delete(first, "mapSha256")
-	delete(second, "mapSha256")
+	if first["verdictSha256"] == second["verdictSha256"] {
+		t.Fatal("verdict digest did not move with mapSha256 (CEM-V1-066)")
+	}
+	for _, member := range []string{"mapSha256", "verdictSha256"} {
+		delete(first, member)
+		delete(second, member)
+	}
 	if exit2 != exit || !reflect.DeepEqual(first, second) {
 		b, _ := json.Marshal(again)
 		t.Fatalf("provenance and role changed the result: exit=%d %s", exit2, b)
