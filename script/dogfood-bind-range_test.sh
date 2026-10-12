@@ -35,6 +35,18 @@ printf '%s\n' "$action" >> "$DOGFOOD_TEST_LOG"
 case $action in
   'cem prepare')
     mkdir -p "$root/.corvint"
+    if [[ ${DOGFOOD_TEST_STABLE:-} == 1 ]]; then
+      # The cem/1.0 producer layout: compact JSON with sorted keys (CEM-V1-140).
+      {
+        printf '{"baseRevision":"%s","hunks":[' "$6"
+        for ((hunk = 1; hunk <= ${DOGFOOD_TEST_HUNKS:-1}; hunk++)); do
+          [[ $hunk == 1 ]] || printf ','
+          printf '{"basis":[],"disposition":"unknown","id":"hunk:test:%d","path":"a\\\"disposition\\\":\\\"x","reason":"no-evidence"}' "$hunk"
+        done
+        printf '],"spec":"cem/1.0"}\n'
+      } > "$root/.corvint/change.cem.json"
+      exit 0
+    fi
     {
       printf '{\n  "baseRevision": "%s",\n  "hunks": [\n' "$6"
       for ((hunk = 1; hunk <= ${DOGFOOD_TEST_HUNKS:-1}; hunk++)); do
@@ -55,6 +67,7 @@ case $action in
     ;;
   'cem status')
     printf 'max-unknown %s\n' "${12}" >> "$DOGFOOD_TEST_LOG"
+    [[ ${15:-} != --artifacts ]] || printf 'artifacts %s\n' "${16}" >> "$DOGFOOD_TEST_LOG"
     git -C "$root" show "${10}:.corvint/change.cem.json" | cmp -s - "$root/.corvint/change.cem.json" ||
       { printf '{"code": "excluded-artifact-mismatch", "ok": false}\n' >&2; exit 2; }
     [[ ${DOGFOOD_TEST_STATUS:-} != incomplete ]] || { printf '{"ok":false,"state":"incomplete"}\n'; exit 1; }
@@ -135,6 +148,26 @@ output=$(bind DOGFOOD_CITATIONS="$test_root/citations-stale.tsv" script/dogfood-
 test "$status" = 1
 test "$output" = 'dogfood-bind-range: FAIL cem-cite citation-plan-map-mismatch'
 if rg -q '^cem cite$' "$test_root/corvint.log"; then exit 1; fi
+
+# CEM-V1-140 / DCW-V0-019: the default cem/1.0 map is compact JSON; the plan check still counts its
+# hunks (an escaped "disposition" inside a string is not a hunk), and a matching plan binds with the
+# absolute worktree root as the stable verifier's artifact root.
+status=0
+output=$(bind DOGFOOD_TEST_STABLE=1 DOGFOOD_TEST_HUNKS=2 DOGFOOD_CITATIONS="$test_root/citations.tsv" \
+  script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
+test "$status" = 1
+test "$output" = 'dogfood-bind-range: FAIL cem-cite citation-plan-map-mismatch'
+status=0
+output=$(bind DOGFOOD_TEST_STABLE=1 DOGFOOD_CITATIONS="$test_root/citations-stale.tsv" \
+  script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
+test "$status" = 1
+test "$output" = 'dogfood-bind-range: FAIL cem-cite citation-plan-map-mismatch'
+if rg -q '^cem cite$' "$test_root/corvint.log"; then exit 1; fi
+output=$(bind DOGFOOD_TEST_STABLE=1 DOGFOOD_CITATIONS="$test_root/citations.tsv" \
+  script/dogfood-bind-range.sh "$s1" "$g2" 2>&1)
+rg -q "^dogfood-bind-range: PASS retroactive binding=[0-9a-f]{40} range=$s1\\.\\.$g2\$" <<< "$output"
+rg -q '^artifacts /.*/dogfood-bind-range\.[^/]*/worktree$' "$test_root/corvint.log"
+: > "$test_root/corvint.log"
 
 # DOGFOOD-011: a passing binding commit is the target's tree plus only the cited sidecar, carries
 # the retroactive trailer, abstains from pre-change context, and never writes the main worktree.

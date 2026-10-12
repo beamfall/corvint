@@ -128,6 +128,40 @@ expect 0 'outcome=complete report='
 rendered=$(sed -n 's/.*outcome=complete report=\(.*\) out=.*/\1/p' "$test_root/$name.log")
 [ -s "$rendered" ] && [ -s "$out/review.out" ] || fail 'r-complete report or review missing'
 [ -z "$(git -C "$repo" status --porcelain)" ] || fail 'r-complete left the worktree dirty'
+# CEM-V1-140: a relative CORVINT_ROOT still completes; the stable read takes the absolute root.
+cd "$repo"
+run r-relative review-change.sh CORVINT_ROOT=. CORVINT_BASE="$base"
+cd - > /dev/null
+expect 0 'outcome=complete report='
+# CEM-V1-141: a resumed stable map whose spec member carries other JSON whitespace still gets the
+# stable read; the recipe takes the spec from prepare's next action, not the map's bytes.
+tab=$(printf '\t')
+sed "s#\"spec\":\"cem/1.0\"#\"spec\":${tab}\"cem/1.0\"#" "$repo/.corvint/change.cem.json" > "$test_root/spaced.json"
+grep -q "\"spec\":${tab}\"cem/1.0\"" "$test_root/spaced.json" || fail 'r-spaced fixture lacks the tab'
+cp "$test_root/spaced.json" "$repo/.corvint/change.cem.json"
+git -C "$repo" commit -qam 'spaced change evidence'
+run r-spaced review-change.sh "${review[@]}"
+expect 0 'outcome=complete report='
+# A cem/0.x prepare whose worklist names a file called --artifacts keeps the 0.x read: only the
+# stable next action's argv prefix selects --artifacts.
+legacy_bin="$test_root/corvint-legacy"
+printf '#!/bin/bash\nif [ "${3-}" = cem ] && [ "${4-}" = prepare ]; then exec "$CORVINT_REAL" "$@" --spec cem/0.2; fi\nexec "$CORVINT_REAL" "$@"\n' > "$legacy_bin"
+chmod +x "$legacy_bin"
+legacy="$test_root/legacy"
+new_repo "$legacy"
+printf 'base\n' > "$legacy/README.md"
+git -C "$legacy" add README.md
+git -C "$legacy" commit -qm base
+legacy_base=$(git -C "$legacy" rev-parse HEAD)
+printf 'x\n' > "$legacy/--artifacts"
+git -C "$legacy" add -- --artifacts
+git -C "$legacy" commit -qm 'dash-named file'
+run r-legacy-dash review-change.sh CORVINT_ROOT="$legacy" CORVINT_BASE="$legacy_base" \
+  CORVINT_BIN="$legacy_bin" CORVINT_REAL="$corvint_bin"
+expect 3 'outcome=incomplete refused=status'
+grep -q '"path":"--artifacts"' "$out/prepare.out" || fail 'r-legacy-dash worklist lacks the dash-named path'
+grep -q '"spec": *"cem/0.2"' "$legacy/.corvint/change.cem.json" || fail 'r-legacy-dash did not prepare cem/0.2'
+grep -q '"unknown":1' "$out/status.out" || fail 'r-legacy-dash status took the stable read'
 
 sed 's/900/901/' "$repo/auth/auth.go" > "$repo/auth/auth.go.new"
 mv "$repo/auth/auth.go.new" "$repo/auth/auth.go"
@@ -138,7 +172,7 @@ expect 3 'outcome=incomplete refused=prepare'
 grep -q 'different base or patch' "$out/prepare.out" "$out/prepare.stderr" || fail 'r-stale refusal not retained'
 [ "$(git -C "$repo" hash-object .corvint/change.cem.json)" = "$map_before" ] || fail 'r-stale replaced the map'
 
-sed 's#"spec": *"cem/0.2"#"spec":"cem/9.9"#' "$repo/.corvint/change.cem.json" > "$test_root/unsupported.json"
+sed 's#"spec":[[:space:]]*"cem/[0-9.]*"#"spec":"cem/9.9"#' "$repo/.corvint/change.cem.json" > "$test_root/unsupported.json"
 cp "$test_root/unsupported.json" "$repo/.corvint/change.cem.json"
 run r-unsupported review-change.sh "${review[@]}"
 expect 3 'outcome=incomplete refused=prepare'
@@ -190,9 +224,9 @@ git -C "$ci" commit -qam later
 run c-stale ci-verify.sh "${pins[@]}" CEM_HEAD_SHA="$(git -C "$ci" rev-parse HEAD)"
 expect 1 'outcome=rejected exit=1'
 
-# Unsupported: a cem/0.2 map from `cem prepare` needs verify-pr.sh, not this verifier.
+# Unsupported: a cem/0.2 map from `cem prepare --spec cem/0.2` needs verify-pr.sh, not this verifier.
 git -C "$ci" reset -q --hard "$ci_change"
-"$corvint_bin" --root "$ci" cem prepare --base "$ci_base" --target HEAD > /dev/null
+"$corvint_bin" --root "$ci" cem prepare --spec cem/0.2 --base "$ci_base" --target HEAD > /dev/null
 git -C "$ci" add .corvint/change.cem.json
 git -C "$ci" commit -qm 'cem/0.2 evidence'
 run c-unsupported ci-verify.sh "${pins[@]}" CEM_HEAD_SHA="$(git -C "$ci" rev-parse HEAD)"

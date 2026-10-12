@@ -68,7 +68,8 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	if options.PatchGiven {
 		return nil, stableRefusal{invalidArguments("%s %s does not accept --patch", wire.StableSpec, action)}
 	}
-	if options.Limits.MaxUnknown != nil || options.Limits.MaxMechanical != nil {
+	limited := options.Limits.MaxUnknown != nil || options.Limits.MaxMechanical != nil
+	if limited && action != "status" {
 		return nil, stableRefusal{invalidArguments("%s %s does not accept policy ceilings", wire.StableSpec, action)}
 	}
 	if report && (options.OCMGiven || options.OCMPath != "") {
@@ -112,10 +113,31 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 				envelope["citationClass"] = StableCitationClass(document.EffectiveRole())
 			}
 		}
+		if limited {
+			stablePolicy(envelope, raw, options.Limits, exit)
+		}
 	case "report", ActionReportPreview:
 		return s.stableReport(action, result, envelope, options)
 	}
 	return envelope, nil
+}
+
+// stablePolicy applies status disposition ceilings to a stable map beside,
+// never inside, the verifier result: counts come from the map's hunks and
+// policyIssues name each exceeded ceiling. The envelope is ok only when the
+// verifier accepts and no ceiling is exceeded; a map the stable parser refuses
+// has no counts and was already refused by the verifier (CEM-V1-145).
+func stablePolicy(envelope map[string]any, raw []byte, limits PolicyLimits, exit int) {
+	document, err := wire.ParseStable(raw)
+	if err != nil {
+		return
+	}
+	change := wire.Map(document.Change)
+	counts, _ := countsAndWorklist(&change)
+	issues := policyIssues(limits, counts)
+	envelope["counts"] = counts
+	envelope["policyIssues"] = issues
+	envelope["ok"] = exit == 0 && len(issues) == 0
 }
 
 // stableReport completes a stable report envelope. JSON adds the review

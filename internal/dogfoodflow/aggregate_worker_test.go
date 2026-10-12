@@ -175,6 +175,37 @@ func TestAggregateVerifierClosedReadCommands(t *testing.T) {
 	}
 }
 
+// TestAggregateVerifierStableArtifactRoot covers CEM-V1-152: a cem/1.0 status
+// read names the worker's own absolute root, and no other, as artifact root.
+func TestAggregateVerifierStableArtifactRoot(t *testing.T) {
+	oid := strings.Repeat("a", 40)
+	root := t.TempDir()
+	status := []string{"cem", "status", "--map", ".corvint/change.cem.json", "--expected-base", oid, "--target", oid, "--max-unknown", "0", "--max-mechanical", "0"}
+	stable := append(append([]string{}, status...), "--artifacts", root)
+	if !ValidAggregateVerifierInvocation(root, status) || !ValidAggregateVerifierInvocation(root, stable) {
+		t.Fatal("cem status read refused")
+	}
+	if resolved, err := filepath.EvalSymlinks(root); err == nil && resolved != root && !ValidAggregateVerifierInvocation(resolved, stable) {
+		t.Fatal("another spelling of the root refused")
+	}
+	other := t.TempDir()
+	for _, args := range [][]string{
+		append(append([]string{}, status...), "--artifacts", other),
+		append(append([]string{}, status...), "--artifacts", "relative"),
+		append(append([]string{}, status...), "--artifacts", root+"\x00"),
+		append(append([]string{}, status...), "--artifact", root),
+		append(append([]string{}, stable...), "--write"),
+		{"dogfood-ocm", "status", "--expected-base", oid, "--target", oid, "--artifacts", root},
+	} {
+		if ValidAggregateVerifierInvocation(root, args) {
+			t.Fatalf("invocation admitted %q", args)
+		}
+	}
+	if ValidAggregateVerifierInvocation("relative", status) {
+		t.Fatal("relative worker root admitted")
+	}
+}
+
 func TestAggregateOwnedProcessRetiresDescendants(t *testing.T) {
 	if !groupreap.OwnerAvailable() {
 		t.Skip("native owner unavailable")

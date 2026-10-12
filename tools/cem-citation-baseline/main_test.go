@@ -46,7 +46,9 @@ func bindMap(t *testing.T, root, base, target string, hunks int) {
 			t.Fatalf("cem %v: exit %d\n%s%s", args, exit, out.String(), errb.String())
 		}
 	}
-	cem("prepare", "--base", base, "--target", target)
+	// The baseline measures the committed cem/0.x maps (V1-1262); the stable
+	// producer default (CEM-V1-140) is out of its scope until the migration.
+	cem("prepare", "--spec", "cem/0.2", "--base", base, "--target", target)
 	for ordinal := 1; ordinal <= hunks; ordinal++ {
 		cem("cite", "--map", ".corvint/change.cem.json", "--hunk", strconv.Itoa(ordinal), "--evidence-path", "docs/spec.md", "--lines", "1:"+strconv.Itoa(ordinal), "--relation", "specification")
 	}

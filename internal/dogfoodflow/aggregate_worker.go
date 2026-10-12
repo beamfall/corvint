@@ -364,6 +364,11 @@ func ValidAggregateVerifierArguments(args []string) bool {
 	if len(args) == 6 && args[0] == "dogfood-ocm" && args[1] == "status" && args[2] == "--expected-base" && wire.IsGitOid(args[3]) && args[4] == "--target" && wire.IsGitOid(args[5]) {
 		return true
 	}
+	// A cem/1.0 change map adds its absolute artifact root (CEM-V1-152);
+	// ValidAggregateVerifierInvocation binds that root to the worker's.
+	if len(args) == 14 && args[12] == "--artifacts" && filepath.IsAbs(args[13]) && !strings.ContainsRune(args[13], 0) {
+		args = args[:12]
+	}
 	if len(args) == 12 && args[0] == "cem" && args[1] == "status" && args[2] == "--map" && args[3] == ".corvint/change.cem.json" && args[4] == "--expected-base" && wire.IsGitOid(args[5]) && args[6] == "--target" && wire.IsGitOid(args[7]) && args[8] == "--max-unknown" && args[10] == "--max-mechanical" && args[11] == "0" {
 		count, err := strconv.Atoi(args[9])
 		return err == nil && count >= 0 && count <= 200000 && strconv.Itoa(count) == args[9]
@@ -371,8 +376,18 @@ func ValidAggregateVerifierArguments(args []string) bool {
 	return false
 }
 
+// ValidAggregateVerifierInvocation is ValidAggregateVerifierArguments for a
+// worker rooted at root: a cem/1.0 status read may name only that root, in any
+// spelling of the same directory, as its artifact root (CEM-V1-152).
+func ValidAggregateVerifierInvocation(root string, args []string) bool {
+	if !filepath.IsAbs(root) || !ValidAggregateVerifierArguments(args) {
+		return false
+	}
+	return len(args) != 14 || sameDirectory(args[13], root)
+}
+
 func runAggregateVerifier(ctx context.Context, runner Runner, root string, args []string) (verification, error) {
-	if !filepath.IsAbs(runner.Path) || !ValidAggregateVerifierArguments(args) {
+	if !filepath.IsAbs(runner.Path) || !ValidAggregateVerifierInvocation(root, args) {
 		return verification{}, errors.New("aggregate-worker-invalid")
 	}
 	command := exec.Command(runner.Path, append([]string{"dogfood-verifier-worker", root}, args...)...)

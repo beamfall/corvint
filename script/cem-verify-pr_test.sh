@@ -34,7 +34,8 @@ printf 'one\ntwo\n' > "$repository/app.txt"
 git -C "$repository" commit -qam target
 target=$(git -C "$repository" rev-parse HEAD)
 
-"$corvint_bin" --root "$repository" cem prepare --base "$base" --target HEAD > /dev/null
+# verify-pr.sh reads cem/0.1 and cem/0.2 only, so the fixture keeps the explicit 0.x producer.
+"$corvint_bin" --root "$repository" cem prepare --spec cem/0.2 --base "$base" --target HEAD > /dev/null
 git -C "$repository" add .corvint/change.cem.json
 git -C "$repository" commit -qm 'uncited candidate'
 uncited=$(git -C "$repository" rev-parse HEAD)

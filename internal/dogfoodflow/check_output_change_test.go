@@ -191,3 +191,83 @@ func TestCheckDCWV0047DeclaredOutputChange(t *testing.T) {
 		t.Fatalf("agreeing exit=%d stdout=%q", code, stdout)
 	}
 }
+
+// TestCheckDCWV0047DeclaredOCMStatus covers V1-1276: the first change whose
+// prepared map is cem/1.0 makes OCM read a map its base verifier refuses
+// (unsupported-spec), so the dogfood-ocm status comparison can never agree.
+// Undeclared it still fails verifier-disagreement; under an admitted
+// declaration the tree verifier fills both roles, the base still runs once, and
+// a tree verifier that disagrees with itself still fails.
+func TestCheckDCWV0047DeclaredOCMStatus(t *testing.T) {
+	root := t.TempDir()
+	aggregate := filepath.Join(root, "ocm-aggregate.json")
+	treeOCM := `{"aggregate":{"state":"ready-for-review"},"ok":true}` + "\n"
+	if err := os.WriteFile(aggregate, []byte(treeOCM), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	reportPath := filepath.Join(root, "dogfood-report.json")
+	runs := map[string]int{}
+	verifier := func(role string, run func(stdout, stderr io.Writer) int) Runner {
+		path := filepath.Join(t.TempDir(), role)
+		if err := os.WriteFile(path, []byte(role), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return Runner{Path: path, Run: func(_ context.Context, _ string, args []string, stdout, stderr io.Writer) int {
+			if len(args) < 2 || args[0] != "dogfood-ocm" || args[1] != "status" {
+				t.Fatalf("%s verifier ran %q", role, args)
+			}
+			runs[role]++
+			return run(stdout, stderr)
+		}}
+	}
+	baseVerifier := verifier("base", func(_, stderr io.Writer) int {
+		_, _ = io.WriteString(stderr, `{"code": "unsupported-spec", "error": "OCM read verification accepts cem/0.1 or cem/0.2", "ok": false}`+"\n")
+		return 2
+	})
+	treeVerifier := verifier("tree", func(stdout, _ io.Writer) int {
+		_, _ = io.WriteString(stdout, treeOCM)
+		return 0
+	})
+	check := func(declared string, tree Runner) (int, []byte, string) {
+		t.Helper()
+		report := "{\n" + `  ,"dogfoodCheck": null` + "\n}\n"
+		if err := os.WriteFile(reportPath, []byte(report), 0o666); err != nil {
+			t.Fatal(err)
+		}
+		clear(runs)
+		var stdout, stderr bytes.Buffer
+		c := newCheck(context.Background(), "dogfood-check", CheckOptions{Root: root, BaseVerifier: baseVerifier, TreeVerifier: tree}, &stdout, &stderr)
+		c.base, c.target, c.outputChange = strings.Repeat("a", 40), strings.Repeat("b", 40), declared
+		c.report, c.evidence = reportPath, t.TempDir()
+		var line []byte
+		code, err := boundary(c.ctx, func() int {
+			c.resolveVerifiers()
+			line = c.verifyOCM(aggregate)
+			return 0
+		}, func() {})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return code, line, stderr.String()
+	}
+
+	if code, _, stderr := check("", treeVerifier); code != 1 || stderr != "dogfood-check: FAIL verifier-disagreement\n" {
+		t.Fatalf("undeclared exit=%d stderr=%q; want verifier-disagreement", code, stderr)
+	}
+	code, line, stderr := check("DCW-V0-047", treeVerifier)
+	if code != 0 || stderr != "" || string(line) != treeOCM {
+		t.Fatalf("declared exit=%d line=%q stderr=%q", code, line, stderr)
+	}
+	if runs["base"] != 1 || runs["tree"] != 2 {
+		t.Fatalf("declared verifier runs = %v; want base once, tree in both roles", runs)
+	}
+	flips := 0
+	unstable := verifier("unstable", func(stdout, _ io.Writer) int {
+		flips++
+		_, _ = io.WriteString(stdout, strings.Repeat(" ", flips%2)+treeOCM)
+		return 0
+	})
+	if code, _, stderr := check("DCW-V0-047", unstable); code != 1 || stderr != "dogfood-check: FAIL verifier-disagreement\n" {
+		t.Fatalf("self-disagreeing tree exit=%d stderr=%q; want verifier-disagreement", code, stderr)
+	}
+}

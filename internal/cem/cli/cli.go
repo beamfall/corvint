@@ -62,15 +62,20 @@ type cemAction struct {
 var readArguments = []string{"--map", "--patch", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--artifacts"}
 
 var cemActions = map[string]cemAction{
+	// --spec selects the producer profile (CEM-V1-140): prepare writes cem/1.0
+	// unless it names cem/0.2; begin keeps its frozen cem/0.1 default
+	// (cli-parity-v0 case cem-begin-map) unless it names cem/1.0.
 	"begin": {
-		arguments: []string{"--patch", "--base", "--output"},
+		arguments: []string{"--patch", "--base", "--output", "--spec"},
 		required:  []string{"--patch", "--output"},
+		choices:   map[string][]string{"--spec": {"cem/0.1", "cem/1.0"}},
 	},
 	"prepare": {
-		arguments: []string{"--base", "--target", "--map", "--patch"},
+		arguments: []string{"--base", "--target", "--map", "--patch", "--spec"},
 		required:  []string{"--base", "--target"},
 		booleans:  []string{"--replace"},
 		paths:     []string{"--map", "--patch"},
+		choices:   map[string][]string{"--spec": {"cem/1.0", "cem/0.2"}},
 	},
 	"cite": {
 		arguments: []string{"--map", "--hunk", "--evidence-path", "--bytes", "--lines", "--relation", "--output"},
@@ -361,8 +366,12 @@ func RunWithCallerRoot(ctx context.Context, root, callerRoot string, arguments [
 		return 2
 	}
 	// CEM-V1-017: a stable read exits with the verifier's own code (0 accept,
-	// 1 reject, 2 refusal), never one re-derived from the envelope.
+	// 1 reject, 2 refusal), never one re-derived from the envelope; an accepted
+	// status whose policy ceilings are exceeded exits 1 (CEM-V1-145).
 	if stable, isStable := envelope["stableVerification"].(workflow.StableVerification); isStable {
+		if stable.Exit == 0 && envelope["ok"] != true {
+			return 1
+		}
 		return stable.Exit
 	}
 	if envelope["ok"] != true {
@@ -425,13 +434,13 @@ func dispatchCEMWithOCM(ctx context.Context, root, callerRoot string, arguments 
 	case "begin":
 		return session.Begin(ctx, workflow.BeginOptions{
 			PatchPath: flags.values["--patch"], Base: flags.values["--base"],
-			Output: flags.values["--output"],
+			Output: flags.values["--output"], Spec: flags.values["--spec"],
 		})
 	case "prepare":
 		return session.Prepare(ctx, workflow.PrepareOptions{
 			Base: flags.values["--base"], Target: flags.values["--target"],
 			MapPath: flags.values["--map"], Cache: flags.values["--patch"],
-			Replace: flags.booleans["--replace"],
+			Replace: flags.booleans["--replace"], Spec: prepareSpec(flags),
 		})
 	case "cite":
 		return session.Cite(ctx, workflow.CiteOptions{
@@ -486,6 +495,15 @@ func dispatchCEMWithOCM(ctx context.Context, root, callerRoot string, arguments 
 		})
 	}
 	return nil, invalidChoice("cem_command", action, cemActionOrder)
+}
+
+// prepareSpec is the CLI producer default: cem prepare writes cem/1.0 unless
+// --spec names cem/0.2, which stays until the 0.x removal (CEM-V1-140).
+func prepareSpec(flags *cemFlags) string {
+	if flags.present["--spec"] {
+		return flags.values["--spec"]
+	}
+	return wire.StableSpec
 }
 
 // oracleReadFailures keeps the oracle's fixed CLI-level read messages for the

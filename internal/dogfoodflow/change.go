@@ -154,8 +154,9 @@ func (c *change) run() int {
 	// An unknown hunk the plan kept with a recorded reason is admitted beside
 	// the bootstrap unknowns; a prepared no-evidence hunk never is (DCW-V0-019).
 	_, c.reasonedUnknown = c.flow.reasonedUnknowns(c.path(".corvint/change.cem.json"), c.intents, c.bootstrapUnknown > 0)
-	c.runStep("cem-status", c.evidence+"/cem-status.json", "cem", "status", "--map", ".corvint/change.cem.json",
-		"--expected-base", c.base, "--target", c.target, "--max-unknown", strconv.Itoa(c.bootstrapUnknown+c.reasonedUnknown), "--max-mechanical", "0")
+	c.runStep("cem-status", c.evidence+"/cem-status.json", stableStatusArguments(c.path(".corvint/change.cem.json"), c.root,
+		"cem", "status", "--map", ".corvint/change.cem.json",
+		"--expected-base", c.base, "--target", c.target, "--max-unknown", strconv.Itoa(c.bootstrapUnknown+c.reasonedUnknown), "--max-mechanical", "0")...)
 	// The recorder refuses a dirty tree, so it runs last and sees the sidecar
 	// this pass prepared and cited: an untracked or modified sidecar reports
 	// record-index-failed and the pass is never complete (DCW-V0-015).
@@ -288,9 +289,14 @@ func (c *change) runStep(name, output string, args ...string) int {
 // outdatedCEMMaps are the exact outdated-map refusals: the coded form a current
 // binary prints (CCF-V1-004, proposed under decision 0398) and the codeless form
 // an N-1 --corvint-bin still prints.
+//
+// A cem/1.0 prepare also names a 0.x map at the frozen path as outdated by its
+// spec, so the first stable pass over a branch bound with cem/0.x regenerates
+// it (CEM-V1-147); an N-1 binary never prints that form.
 var outdatedCEMMaps = map[string]bool{
 	`{"code": "map-unavailable", "error": "cannot read CEM map: the existing map records a different base or patch; pass --replace to regenerate", "ok": false}`: true,
 	`{"error": "cannot read CEM map: the existing map records a different base or patch; pass --replace to regenerate", "ok": false}`:                            true,
+	`{"code": "map-unavailable", "error": "cannot read CEM map: the existing map records a different spec; pass --replace to regenerate", "ok": false}`:          true,
 }
 
 // prepare derives a CEM or OCM map and regenerates it with --replace only after
@@ -515,11 +521,6 @@ func (c *change) citeStep() {
 	case !c.cemPrepared || !isRegular(c.path(".corvint/change.cem.json")):
 		c.addStep("cem-cite", "NOT_PRODUCED", "cem-map-not-produced")
 		return
-	case declaresStableMap(c.path(".corvint/change.cem.json")):
-		// CEM-V1-032: a cem/1.0 map is refused before any plan is read, bound
-		// or cited, so it never looks like a map that owes no hunk.
-		c.addStep("cem-cite", "NOT_PRODUCED", "cem-map-stable-unsupported")
-		return
 	case c.options.Citations == "":
 		c.addStep("cem-cite", "NOT_PRODUCED", "citation-plan-not-provided")
 		return
@@ -583,13 +584,34 @@ func (c *change) uniformPlan(plan []byte) bool {
 }
 
 // declaresStableMap reports a regular map, read at most the native map bound,
-// that declares cem/1.0 (CEM-V1-032).
+// that declares cem/1.0; the bind loop cites, checks and seals it like a 0.x
+// map and reads it with --artifacts (CEM-V1-147).
 func declaresStableMap(mapPath string) bool {
 	if isSymlink(mapPath) {
 		return false
 	}
 	data, err := readPrefix(mapPath, maxPlanBytes)
 	return err == nil && wire.DeclaresStable(data)
+}
+
+// stableStatusArguments appends the explicit artifact root a cem/1.0 status
+// requires: the absolute repository root, which a producer map without
+// artifacts never opens (CEM-V1-146, CEM-V1-147). A 0.x map's arguments are
+// returned unchanged.
+func stableStatusArguments(mapPath, root string, args ...string) []string {
+	if !declaresStableMap(mapPath) {
+		return args
+	}
+	return append(args, "--artifacts", stableArtifactRoot(root))
+}
+
+// stableArtifactRoot is the absolute spelling of the repository root, which
+// the stable verifier requires of --artifacts.
+func stableArtifactRoot(root string) string {
+	if absolute, err := filepath.Abs(root); err == nil {
+		return absolute
+	}
+	return root
 }
 
 // citedHunks counts the hunks of a map that no longer carry the prepared
@@ -997,14 +1019,11 @@ func (c *change) ordinalsMoved(plan []byte, hunks []map[string]string) bool {
 
 // mapHunks decodes the disposition, id and path of each hunk of a map in map
 // order, whatever its JSON layout, so a compact map reads like the indent-2 one
-// cem prepare writes. A map that does not decode has no hunks, and neither has
-// a cem/1.0 map: its hunks are not Core 0.x hunks, and the bind loop never
-// cites, counts or binds a plan to them (CEM-V1-032).
+// cem prepare writes. A cem/1.0 map's hunks carry the same members, so the
+// bind loop cites, counts and binds a plan to them alike (CEM-V1-147). A map
+// that does not decode has no hunks.
 func mapHunks(data []byte) []map[string]string {
 	hunks := []map[string]string{}
-	if wire.DeclaresStable(data) {
-		return hunks
-	}
 	var decoded struct {
 		Hunks []struct {
 			Disposition string `json:"disposition"`
@@ -1315,7 +1334,6 @@ var fixHints = []struct{ pattern, hint string }{
 	{"*:git-budget-exceeded", "the change is larger than one 1,024-Git-operation verifier pass; bind and seal it as smaller changes on their own branches, merge them, and check the merge batch with corvint dogfood batch-check {base} instead of rebinding it (DCW-V0-039, DCW-V0-040)"},
 	{"cem-cite:citation-plan-not-provided", "set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json"},
 	{"cem-cite:citation-plan-unavailable", "DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves"},
-	{"cem-cite:cem-map-stable-unsupported", ".corvint/change.cem.json declares cem/1.0, which the bind loop does not cite or bind; it binds only Core cem/0.x maps, so move the stable map out of that path and rerun the loop to prepare a Core map (CEM-V1-032)"},
 	{"cem-cite:empty-citation-plan", "DOGFOOD_CITATIONS names an empty file but .corvint/change.cem.json still has unknown hunks; write one row per unknown hunk, or unset DOGFOOD_CITATIONS to prepare the map without citing"},
 	{"cem-cite:citation-plan-row-limit-exceeded", "DOGFOOD_CITATIONS row limit=256 observed={citationRows}; use explicit staged plans of at most 256 rows on the same CEM (docs/DOGFOOD.md Staged binding of one oversized commit)"},
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)"},

@@ -42,6 +42,9 @@ type Session struct {
 	// stableRepository is the caller-named root a stable read admits; nil
 	// means root (see SetStableRepository).
 	stableRepository *string
+	// stableHolders maps the mechanics view a mutator read from a stable
+	// producer map to its stable document, which writeMap re-encodes.
+	stableHolders map[*wire.Map]*wire.StableMap
 }
 
 // Open validates the worktree root as a publication root only. Repository

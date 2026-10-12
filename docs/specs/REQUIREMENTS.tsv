@@ -838,12 +838,12 @@ CEM-V1-014	docs/specs/cem-stable-v1.md	73	Inventory every existing consumer's pr
 CEM-V1-015	docs/specs/cem-stable-v1.md	83	Candidate assembly MUST require independently supplied immutable base and target
 CEM-V1-016	docs/specs/cem-stable-v1.md	84	Assembly MUST compare each declared runner source input with its self-hashed imm
 CEM-V1-017	docs/specs/cem-stable-v1.md	780	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab
-CEM-V1-018	docs/specs/cem-stable-v1.md	781	A stable read MUST refuse `--patch` and policy ceilings with `invalid-arguments`
+CEM-V1-018	docs/specs/cem-stable-v1.md	781	A stable read MUST refuse `--patch` with `invalid-arguments`, and `cem verify` M
 CEM-V1-019	docs/specs/cem-stable-v1.md	782	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b
-CEM-V1-030	docs/specs/cem-stable-v1.md	815	Core `cem prepare` MUST refuse an existing map at the fixed sidecar path whose b
-CEM-V1-031	docs/specs/cem-stable-v1.md	816	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c
-CEM-V1-032	docs/specs/cem-stable-v1.md	817	The daily bind loop MUST read no hunks from a map declaring `cem/1.0`, so such a
-CEM-V1-033	docs/specs/cem-stable-v1.md	818	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem
+CEM-V1-030	docs/specs/cem-stable-v1.md	817	A `cem/0.x` Core `cem prepare` MUST refuse an existing map at the fixed sidecar
+CEM-V1-031	docs/specs/cem-stable-v1.md	818	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c
+CEM-V1-032	docs/specs/cem-stable-v1.md	819	(superseded by `CEM-V1-147` and `CEM-V1-148`, V1-1276) The daily bind loop MUST
+CEM-V1-033	docs/specs/cem-stable-v1.md	820	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem
 CEM-V1-034	docs/specs/cem-stable-v1.md	862	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
 CEM-V1-035	docs/specs/cem-stable-v1.md	863	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
 CEM-V1-036	docs/specs/cem-stable-v1.md	864	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
@@ -856,24 +856,24 @@ CEM-V1-055	docs/specs/cem-stable-v1.md	964	`lrf/0` stays frozen. `lrf.Evaluate` 
 CEM-V1-056	docs/specs/cem-stable-v1.md	970	A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1
 CEM-V1-057	docs/specs/cem-stable-v1.md	978	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in
 CEM-V1-058	docs/specs/cem-stable-v1.md	981	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,
-CEM-V1-059	docs/specs/cem-stable-v1.md	986	A stable universe verification is a read. It MUST NOT change the repository HEAD
-CEM-V1-060	docs/specs/cem-stable-v1.md	1025	Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first ru
-CEM-V1-061	docs/specs/cem-stable-v1.md	1029	An accepted export MUST write a new directory outside the worktree (the 0.x outp
-CEM-V1-062	docs/specs/cem-stable-v1.md	1036	The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem
-CEM-V1-063	docs/specs/cem-stable-v1.md	1040	`ReadStable` MUST refuse a bundle with a missing declared file
-CEM-V1-064	docs/specs/cem-stable-v1.md	1066	A stable export MUST refuse `--witness` with `invalid-arguments` before
+CEM-V1-059	docs/specs/cem-stable-v1.md	987	A stable universe verification is a read. It MUST NOT change the repository HEAD
+CEM-V1-060	docs/specs/cem-stable-v1.md	1026	Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first ru
+CEM-V1-061	docs/specs/cem-stable-v1.md	1030	An accepted export MUST write a new directory outside the worktree (the 0.x outp
+CEM-V1-062	docs/specs/cem-stable-v1.md	1037	The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem
+CEM-V1-063	docs/specs/cem-stable-v1.md	1041	`ReadStable` MUST refuse a bundle with a missing declared file
+CEM-V1-064	docs/specs/cem-stable-v1.md	1067	A stable export MUST refuse `--witness` with `invalid-arguments` before
 CEM-V1-065	docs/specs/cem-stable-v1.md	698	`internal/attest.CEMStatementV2(name, map, target)` MUST accept only bytes that
 CEM-V1-066	docs/specs/cem-stable-v1.md	440	Every `cem-stable-verification/1` result MUST carry `verdictSha256` after
-CEM-V1-070	docs/specs/cem-stable-v1.md	1118	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the
-CEM-V1-071	docs/specs/cem-stable-v1.md	1119	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v
-CEM-V1-072	docs/specs/cem-stable-v1.md	1120	A report built over a stable source MUST take profile `corvint-witness-stable/0`
-CEM-V1-073	docs/specs/cem-stable-v1.md	1121	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`
-CEM-V1-074	docs/specs/cem-stable-v1.md	1122	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a
-CEM-V1-075	docs/specs/cem-stable-v1.md	1123	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab
-CEM-V1-076	docs/specs/cem-stable-v1.md	1124	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and
-CEM-V1-077	docs/specs/cem-stable-v1.md	1125	The console chain pane MUST admit `cem/1.0` in its closed profile registry only
-CEM-V1-078	docs/specs/cem-stable-v1.md	1126	Each criterion binding, runner receipt (with its execution authority, source bin
-CEM-V1-079	docs/specs/cem-stable-v1.md	1127	The registry stays closed: an unsupported profile, a near-stable spec, an unknow
+CEM-V1-070	docs/specs/cem-stable-v1.md	1119	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the
+CEM-V1-071	docs/specs/cem-stable-v1.md	1120	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v
+CEM-V1-072	docs/specs/cem-stable-v1.md	1121	A report built over a stable source MUST take profile `corvint-witness-stable/0`
+CEM-V1-073	docs/specs/cem-stable-v1.md	1122	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`
+CEM-V1-074	docs/specs/cem-stable-v1.md	1123	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a
+CEM-V1-075	docs/specs/cem-stable-v1.md	1124	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab
+CEM-V1-076	docs/specs/cem-stable-v1.md	1125	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and
+CEM-V1-077	docs/specs/cem-stable-v1.md	1126	The console chain pane MUST admit `cem/1.0` in its closed profile registry only
+CEM-V1-078	docs/specs/cem-stable-v1.md	1127	Each criterion binding, runner receipt (with its execution authority, source bin
+CEM-V1-079	docs/specs/cem-stable-v1.md	1128	The registry stays closed: an unsupported profile, a near-stable spec, an unknow
 CEM-V1-080	docs/specs/cem-stable-v1.md	262	Support tiers are consumer-derived. The native (`internal/cem/verify`, `support.
 CEM-V1-081	docs/specs/cem-stable-v1.md	270	Anchor kinds and byte-level rules. `id`: an ASCII requirement ID
 CEM-V1-082	docs/specs/cem-stable-v1.md	280	The `citation` block and the shift null MUST be byte-identical across the native
@@ -895,33 +895,46 @@ CEM-V1-103	docs/specs/cem-stable-v1.md	596	A map whose pinned objects are unavai
 CEM-V1-104	docs/specs/cem-stable-v1.md	600	Verdict parity is measured per committed map at the substituted target T', the
 CEM-V1-105	docs/specs/cem-stable-v1.md	620	The converter exists only to migrate cem/0.x maps. It is removed with the 0.x
 CEM-V1-106	docs/specs/cem-stable-v1.md	665	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) `cem sta
-CEM-V1-120	docs/specs/cem-stable-v1.md	1167	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity
-CEM-V1-121	docs/specs/cem-stable-v1.md	1170	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly
-CEM-V1-122	docs/specs/cem-stable-v1.md	1174	The stable result MUST carry:
-CEM-V1-123	docs/specs/cem-stable-v1.md	1183	The verifier binding MUST name the SHA-256 of the exact input map bytes, and the
-CEM-V1-124	docs/specs/cem-stable-v1.md	1188	The 0.x TCQ and frontier routes are unchanged. `parseArtifacts` keeps the
-CEM-V1-125	docs/specs/cem-stable-v1.md	1191	`frontierrepo.RecomputeStable` MUST:
-CEM-V1-126	docs/specs/cem-stable-v1.md	1200	No stable frontier document is produced. `frontier/0` binds an `lrf/0` digest, a
-CEM-V1-127	docs/specs/cem-stable-v1.md	1204	Each of the following MUST refuse, keeping the stable verifier's full result and
-CEM-V1-130	docs/specs/cem-stable-v1.md	1210	`extevidence.StableObligations` MUST emit `external-frontier-obligations-stable/
-CEM-V1-131	docs/specs/cem-stable-v1.md	1218	Hunk associations MUST be computed exactly as in the frozen sidecar, with the sa
-CEM-V1-132	docs/specs/cem-stable-v1.md	1221	A verifier refusal MUST return a `StableObligationsRefusal` that holds the
-CEM-V1-133	docs/specs/cem-stable-v1.md	1225	The map's declared criterion links MUST be listed in a separate `criteria` membe
-CEM-V1-134	docs/specs/cem-stable-v1.md	1228	The frozen sidecar MUST keep refusing `cem/1.0`, and the stable sidecar MUST ref
-CEM-V1-135	docs/specs/cem-stable-v1.md	1230	`corvint obligations` MUST select the stable sidecar only when all four of these
-CEM-V1-136	docs/specs/cem-stable-v1.md	1240	The criterion experiment companion MUST add the explicit input mode
-CEM-V1-137	docs/specs/cem-stable-v1.md	1244	Stable admission MUST:
-CEM-V1-138	docs/specs/cem-stable-v1.md	1253	Plan, run and verify MUST each re-admit the plan's map through the stable verifi
-CEM-V1-139	docs/specs/cem-stable-v1.md	1258	The two modes never cross:
-CEM-V1-160	docs/specs/cem-stable-v1.md	1321	`corvint witness --stable-artifact-root DIR` MUST pass the absolute artifact roo
-CEM-V1-161	docs/specs/cem-stable-v1.md	1325	The witness route MUST fail closed with exit 2, no stdout and the code
-CEM-V1-162	docs/specs/cem-stable-v1.md	1332	`corvint docs corpus cem-stable` MUST require `--artifact`, `--cem`,
-CEM-V1-163	docs/specs/cem-stable-v1.md	1337	A `cem-stable` refusal MUST exit 2 with no stdout and the code
-CEM-V1-164	docs/specs/cem-stable-v1.md	1340	`corvint-console -stable-artifact-root DIR` MUST select the chain pane's verifie
-CEM-V1-165	docs/specs/cem-stable-v1.md	1350	In verified mode, the pane MUST replace the chain with a refusal, drawing no cha
-CEM-V1-166	docs/specs/cem-stable-v1.md	1362	Without `-stable-artifact-root`, the display-only NOT_RUN pane of `CEM-V1-077` M
-CEM-V1-167	docs/specs/cem-stable-v1.md	1364	The protected local-authority consumer holds a Git object capsule and no
-CEM-V1-168	docs/specs/cem-stable-v1.md	1367	The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So
+CEM-V1-120	docs/specs/cem-stable-v1.md	1284	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity
+CEM-V1-121	docs/specs/cem-stable-v1.md	1287	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly
+CEM-V1-122	docs/specs/cem-stable-v1.md	1291	The stable result MUST carry:
+CEM-V1-123	docs/specs/cem-stable-v1.md	1300	The verifier binding MUST name the SHA-256 of the exact input map bytes, and the
+CEM-V1-124	docs/specs/cem-stable-v1.md	1305	The 0.x TCQ and frontier routes are unchanged. `parseArtifacts` keeps the
+CEM-V1-125	docs/specs/cem-stable-v1.md	1308	`frontierrepo.RecomputeStable` MUST:
+CEM-V1-126	docs/specs/cem-stable-v1.md	1317	No stable frontier document is produced. `frontier/0` binds an `lrf/0` digest, a
+CEM-V1-127	docs/specs/cem-stable-v1.md	1321	Each of the following MUST refuse, keeping the stable verifier's full result and
+CEM-V1-130	docs/specs/cem-stable-v1.md	1327	`extevidence.StableObligations` MUST emit `external-frontier-obligations-stable/
+CEM-V1-131	docs/specs/cem-stable-v1.md	1335	Hunk associations MUST be computed exactly as in the frozen sidecar, with the sa
+CEM-V1-132	docs/specs/cem-stable-v1.md	1338	A verifier refusal MUST return a `StableObligationsRefusal` that holds the
+CEM-V1-133	docs/specs/cem-stable-v1.md	1342	The map's declared criterion links MUST be listed in a separate `criteria` membe
+CEM-V1-134	docs/specs/cem-stable-v1.md	1345	The frozen sidecar MUST keep refusing `cem/1.0`, and the stable sidecar MUST ref
+CEM-V1-135	docs/specs/cem-stable-v1.md	1347	`corvint obligations` MUST select the stable sidecar only when all four of these
+CEM-V1-136	docs/specs/cem-stable-v1.md	1357	The criterion experiment companion MUST add the explicit input mode
+CEM-V1-137	docs/specs/cem-stable-v1.md	1361	Stable admission MUST:
+CEM-V1-138	docs/specs/cem-stable-v1.md	1370	Plan, run and verify MUST each re-admit the plan's map through the stable verifi
+CEM-V1-139	docs/specs/cem-stable-v1.md	1375	The two modes never cross:
+CEM-V1-140	docs/specs/cem-stable-v1.md	1164	`corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps th
+CEM-V1-141	docs/specs/cem-stable-v1.md	1171	A `cem/1.0` prepare MUST write the canonical stable encoding of a producer map
+CEM-V1-142	docs/specs/cem-stable-v1.md	1185	`cem begin --spec cem/1.0` MUST write the canonical stable producer map of the
+CEM-V1-143	docs/specs/cem-stable-v1.md	1188	`cem cite`, `cem mark`, `cem cover` and `cem discriminate` over a stable produce
+CEM-V1-144	docs/specs/cem-stable-v1.md	1192	A structural `cem mark` on a stable producer map writes the claimed reason; the
+CEM-V1-145	docs/specs/cem-stable-v1.md	1195	`cem status` over a `cem/1.0` map MUST admit `--max-unknown` and
+CEM-V1-146	docs/specs/cem-stable-v1.md	1201	A stable prepare's `nextActions` MUST be the single `cem status` argv with the
+CEM-V1-147	docs/specs/cem-stable-v1.md	1204	The daily bind loop MUST cite, count, check and seal a `cem/1.0` map like a
+CEM-V1-148	docs/specs/cem-stable-v1.md	1210	`dogfood batch-check` MUST admit a sealed `cem/1.0` constituent when the verifie
+CEM-V1-149	docs/specs/cem-stable-v1.md	1215	`ocm prepare`, `ocm read` (status) and `ocm link` MUST admit a `cem/1.0` map onl
+CEM-V1-150	docs/specs/cem-stable-v1.md	1221	Local-completion sidecar-only reuse (`AllowCemSidecarOnlyReuse`) MUST keep
+CEM-V1-151	docs/specs/cem-stable-v1.md	1225	`dogfood finish` MUST read a `cem/1.0` change map: its `cem status` (and the
+CEM-V1-152	docs/specs/cem-stable-v1.md	1230	The aggregate verifier worker's closed argv grammar (`ALO-V0-018`) MUST admit th
+CEM-V1-160	docs/specs/cem-stable-v1.md	1438	`corvint witness --stable-artifact-root DIR` MUST pass the absolute artifact roo
+CEM-V1-161	docs/specs/cem-stable-v1.md	1442	The witness route MUST fail closed with exit 2, no stdout and the code
+CEM-V1-162	docs/specs/cem-stable-v1.md	1449	`corvint docs corpus cem-stable` MUST require `--artifact`, `--cem`,
+CEM-V1-163	docs/specs/cem-stable-v1.md	1454	A `cem-stable` refusal MUST exit 2 with no stdout and the code
+CEM-V1-164	docs/specs/cem-stable-v1.md	1457	`corvint-console -stable-artifact-root DIR` MUST select the chain pane's verifie
+CEM-V1-165	docs/specs/cem-stable-v1.md	1467	In verified mode, the pane MUST replace the chain with a refusal, drawing no cha
+CEM-V1-166	docs/specs/cem-stable-v1.md	1479	Without `-stable-artifact-root`, the display-only NOT_RUN pane of `CEM-V1-077` M
+CEM-V1-167	docs/specs/cem-stable-v1.md	1481	The protected local-authority consumer holds a Git object capsule and no
+CEM-V1-168	docs/specs/cem-stable-v1.md	1484	The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	892	The default `verify` path refuses a strictly parsed JSON object whose exact
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	896	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	899	Only that exact case changes. A duplicate, non-string, differently cased,
@@ -1278,16 +1291,16 @@ DCW-V0-036	docs/specs/daily-change-evidence-workflow-v0.md	337	(accepted, decisi
 DCW-V0-037	docs/specs/daily-change-evidence-workflow-v0.md	345	(accepted, decision 0510) `docs/DOGFOOD.md`
 DCW-V0-038	docs/specs/daily-change-evidence-workflow-v0.md	353	accepted, decision 0510. Every build in Corvint's
 DCW-V0-039	docs/specs/daily-change-evidence-workflow-v0.md	361	(accepted, decision 0519 (V1-1151)) `corvint dogfood
-DCW-V0-040	docs/specs/daily-change-evidence-workflow-v0.md	412	(accepted, decision 0519 (V1-1151)) When `dogfood change`
-DCW-V0-041	docs/specs/daily-change-evidence-workflow-v0.md	420	(accepted, decision 0519 (V1-1171)) A citation plan row MAY
-DCW-V0-042	docs/specs/daily-change-evidence-workflow-v0.md	427	(accepted 2026-10-11, decision 0520; V1-1219) `dogfood change` MUST
-DCW-V0-043	docs/specs/daily-change-evidence-workflow-v0.md	450	(accepted 2026-10-11, decision 0520; V1-1198) The inherited archive of
-DCW-V0-044	docs/specs/daily-change-evidence-workflow-v0.md	474	(accepted 2026-10-11, decision 0520; V1-1209) The daily loop's local
-DCW-V0-045	docs/specs/daily-change-evidence-workflow-v0.md	488	(accepted 2026-10-11, decision 0520; V1-1207) `dogfood check`'s
-DCW-V0-046	docs/specs/daily-change-evidence-workflow-v0.md	499	(accepted under the owner's standing auto-accept (2026-10-11), decision 0523 P3;
-DCW-V0-047	docs/specs/daily-change-evidence-workflow-v0.md	539	(accepted under the owner's standing auto-accept (2026-10-11); V1-1279) A change
-DCW-V0-048	docs/specs/daily-change-evidence-workflow-v0.md	572	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) A change
-DCW-V0-049	docs/specs/daily-change-evidence-workflow-v0.md	596	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) When the
+DCW-V0-040	docs/specs/daily-change-evidence-workflow-v0.md	415	(accepted, decision 0519 (V1-1151)) When `dogfood change`
+DCW-V0-041	docs/specs/daily-change-evidence-workflow-v0.md	423	(accepted, decision 0519 (V1-1171)) A citation plan row MAY
+DCW-V0-042	docs/specs/daily-change-evidence-workflow-v0.md	430	(accepted 2026-10-11, decision 0520; V1-1219) `dogfood change` MUST
+DCW-V0-043	docs/specs/daily-change-evidence-workflow-v0.md	453	(accepted 2026-10-11, decision 0520; V1-1198) The inherited archive of
+DCW-V0-044	docs/specs/daily-change-evidence-workflow-v0.md	477	(accepted 2026-10-11, decision 0520; V1-1209) The daily loop's local
+DCW-V0-045	docs/specs/daily-change-evidence-workflow-v0.md	491	(accepted 2026-10-11, decision 0520; V1-1207) `dogfood check`'s
+DCW-V0-046	docs/specs/daily-change-evidence-workflow-v0.md	502	(accepted under the owner's standing auto-accept (2026-10-11), decision 0523 P3;
+DCW-V0-047	docs/specs/daily-change-evidence-workflow-v0.md	542	(accepted under the owner's standing auto-accept (2026-10-11); V1-1279) A change
+DCW-V0-048	docs/specs/daily-change-evidence-workflow-v0.md	578	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) A change
+DCW-V0-049	docs/specs/daily-change-evidence-workflow-v0.md	602	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) When the
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map

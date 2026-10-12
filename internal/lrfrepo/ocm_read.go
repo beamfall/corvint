@@ -135,11 +135,11 @@ func readOCMBytes(ctx context.Context, inputRoot *publish.Root, ocmRaw, cemRaw [
 	if !bytes.Equal(ocmRaw, append(canonicalValue(rootValue), '\n')) {
 		return finishOCMFailure(result, "noncanonical-map", "OCM bytes are not canonical"), nil
 	}
-	cem, err := wire.ParseMap(cemRaw)
+	cem, err := parseOCMCEM(cemRaw)
 	if err != nil {
-		return invalidOrStableCEM(result, cemRaw)
+		return finishOCMFailure(result, "invalid-cem", "CEM is invalid"), nil
 	}
-	if cem.Spec == wire.Spec02 {
+	if canonicalCEM(cem.Spec) {
 		if !options.ExpectedBaseGiven {
 			return finishOCMFailure(result, cemcode.ExpectedBaseRequired, "cem/0.2 requires expected base"), nil
 		}
@@ -154,7 +154,7 @@ func readOCMBytes(ctx context.Context, inputRoot *publish.Root, ocmRaw, cemRaw [
 	if sha256Hex(cemRaw) != document.cemMap {
 		return finishOCMFailure(result, "cem-map-digest-mismatch", "CEM map digest does not match"), nil
 	}
-	if cem.Spec == wire.Spec02 && options.Target == "" {
+	if canonicalCEM(cem.Spec) && options.Target == "" {
 		return finishOCMFailure(result, "invalid-target-revision", "target must be a full commit OID"), nil
 	}
 	repository, err := gitauth.Open(inputRoot.Path(), gitrun.NewDefaultBudget())
@@ -163,10 +163,10 @@ func readOCMBytes(ctx context.Context, inputRoot *publish.Root, ocmRaw, cemRaw [
 		return finishOCMError(result, mapOCMRepositoryError(err)), nil
 	}
 	defer repository.BeginObjectSession()()
-	if cem.Spec == wire.Spec02 && options.ExpectedBase == "" {
+	if canonicalCEM(cem.Spec) && options.ExpectedBase == "" {
 		return finishOCMFailure(result, "invalid-cem", "CEM verification failed"), nil
 	}
-	verified, err := verifyReadCEM(ctx, repository, cem, cemRaw, document, options)
+	verified, err := verifyReadCEM(ctx, repository, inputRoot.Path(), cem, cemRaw, document, options)
 	if err != nil {
 		result.VerificationCause = err
 		return finishOCMError(result, mapOCMCEMError(err)), nil
@@ -219,7 +219,10 @@ func inputIsSymlink(root, requested string) bool {
 	return err == nil && info.Mode()&os.ModeSymlink != 0
 }
 
-func verifyReadCEM(ctx context.Context, repository *gitauth.Repository, cem *wire.Map, cemRaw []byte, document *ocmDocument, options OCMReadOptions) (*verifiedCEM, error) {
+func verifyReadCEM(ctx context.Context, repository *gitauth.Repository, root string, cem *wire.Map, cemRaw []byte, document *ocmDocument, options OCMReadOptions) (*verifiedCEM, error) {
+	if cem.Spec == wire.StableSpec {
+		return verifyStableOCMCEM(ctx, repository, root, cem, cemRaw, options)
+	}
 	if cem.Spec == wire.Spec02 {
 		outcome, _, err := verify.Canonical(ctx, repository, cem, verify.CanonicalOptions{
 			ExpectedBase: options.ExpectedBase,
@@ -528,14 +531,64 @@ func unreadableExistingMap(root string, options PrepareOptions, err error) error
 	return ocmInputFailure(root, options.MapPath, err, "OCM map", maxOCMBytes)
 }
 
-// invalidOrStableCEM reports a CEM that the 0.x parser refused. A stable map
-// is an unsupported profile here, never an invalid-cem verdict; its OCM is read
-// only by VerifyStableUniverse (CEM-V1-058).
-func invalidOrStableCEM(result *OCMReadResult, cemRaw []byte) (*OCMReadResult, error) {
-	if wire.DeclaresStable(cemRaw) {
-		return nil, cemcode.New(cemcode.UnsupportedSpec, "OCM read verification accepts cem/0.1 or cem/0.2; cem/1.0 is admitted only by the stable universe verification")
+// parseOCMCEM parses the CEM an OCM binds. A cem/1.0 change yields its
+// private mechanics view, whose spec stays cem/1.0 and which is never
+// returned or written; the stable verifier, not this parse, authenticates it
+// (CEM-V1-149).
+func parseOCMCEM(cemRaw []byte) (*wire.Map, error) {
+	if !wire.DeclaresStable(cemRaw) {
+		return wire.ParseMap(cemRaw)
 	}
-	return finishOCMFailure(result, "invalid-cem", "CEM is invalid"), nil
+	document, err := wire.ParseStable(cemRaw)
+	if err != nil {
+		return nil, err
+	}
+	change := wire.Map(document.Change)
+	return &change, nil
+}
+
+// canonicalCEM reports a CEM that binds both endpoints, so an OCM over it
+// needs an independent expected base and a full target: cem/0.2 and cem/1.0.
+func canonicalCEM(spec string) bool { return spec == wire.Spec02 || spec == wire.StableSpec }
+
+// verifyStableOCMCEM verifies a cem/1.0 change for an OCM read or prepare with
+// the stable verifier: the base and target resolve to full object ids, the
+// verifier must ACCEPT with the repository root as its artifact root, and the
+// re-derived canonical patch must match the accepted patchSha256. Any other
+// verdict refuses with the verifier's code, so no OCM is derived from or
+// verified against an unaccepted stable map (CEM-V1-149).
+func verifyStableOCMCEM(ctx context.Context, repository *gitauth.Repository, root string, cem *wire.Map, cemRaw []byte, options OCMReadOptions) (*verifiedCEM, error) {
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return nil, fail(cemcode.RepositoryObjectUnavailable, "repository object unavailable")
+	}
+	base, err := repository.Resolve(ctx, options.ExpectedBase)
+	if err != nil {
+		return nil, err
+	}
+	target, err := repository.Resolve(ctx, options.Target)
+	if err != nil {
+		return nil, err
+	}
+	result, err := acceptedStable(ctx, cemRaw, StableUniverseOptions{
+		Root: absolute, ExpectedBase: base, Target: target, ArtifactRoot: absolute,
+	})
+	if err != nil {
+		var refusal *StableRefusal
+		if errors.As(err, &refusal) {
+			return nil, fail(refusal.Code(), "stable CEM verification did not accept: %s", refusal.Code())
+		}
+		return nil, err
+	}
+	patchBytes, err := repository.CanonicalDiff(ctx, cem.BaseRevision, *result.TargetRevision)
+	if err != nil {
+		return nil, err
+	}
+	if sha256Hex(patchBytes) != *result.PatchSha256 || sha256Hex(patchBytes) != cem.PatchSha256 {
+		return nil, cemcode.New(cemcode.PatchDigestMismatch, "re-derived stable patch does not match the accepted patchSha256")
+	}
+	excluded := wire.ExcludedCEMPath
+	return &verifiedCEM{cem.BaseRevision, *result.TargetRevision, patchBytes, "canonical-derived", &excluded}, nil
 }
 
 // sameStableResult reports whether two stable verifier results encode to the

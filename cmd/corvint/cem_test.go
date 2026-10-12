@@ -103,7 +103,7 @@ func TestCEMErrorPrecedence(t *testing.T) {
 	}
 	// Stage 2 (map read and closed schema) precedes stage 3 (--patch denial):
 	// an invalid 0.2 map plus a forbidden --patch reports the schema failure.
-	code, _, _ = runCLI(t, "--root", root, "cem", "prepare", "--base", base, "--target", target)
+	code, _, _ = runCLI(t, "--root", root, "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target)
 	if code != 0 {
 		t.Fatal("prepare failed")
 	}
@@ -193,7 +193,7 @@ func TestCEMPrepareKeepsInheritedMapReplaceGuidance(t *testing.T) {
 func TestCEMStatusCitationIsOptIn(t *testing.T) {
 	t.Parallel()
 	root, base, target := cemRepo(t)
-	code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--base", base, "--target", target)
+	code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target)
 	if code != 0 {
 		t.Fatalf("prepare: %s", stderr)
 	}
@@ -224,7 +224,7 @@ func TestCEMStatusCitationIsOptIn(t *testing.T) {
 func TestCEMEndToEndAndGoldenEnvelope(t *testing.T) {
 	t.Parallel()
 	root, base, target := cemRepo(t)
-	code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--base", base, "--target", target)
+	code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target)
 	if code != 0 {
 		t.Fatalf("prepare: %s", stderr)
 	}

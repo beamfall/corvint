@@ -143,7 +143,7 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	// DCW-V0-033: PASS prints one summary line; the full status JSON is in the detail file.
 	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
 	detail := strings.TrimSpace(cemGit(t, root, "rev-parse", "--absolute-git-dir")) + "/corvint/dogfood-check.stdout"
-	summary := "dogfood-check: SUMMARY cem=ready-for-ci hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review requirements=2 linked=0 unlinked=2 report=.corvint/dogfood-report.json detail=" + detail
+	summary := "dogfood-check: SUMMARY cem=accepted hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review requirements=2 linked=0 unlinked=2 report=.corvint/dogfood-report.json detail=" + detail
 	if code != 0 || len(lines) != 2 || lines[0] != summary || lines[1] != "dogfood-check: PASS" {
 		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
@@ -195,7 +195,7 @@ func TestDogfoodDCWV0046ReasonedUnknownChecksAndSeals(t *testing.T) {
 		t.Fatalf("change exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	code, stdout, stderr := run.exec(t, root, nil, "dogfood", "check", base)
-	if code != 0 || !strings.HasPrefix(stdout, "dogfood-check: SUMMARY cem=ready-for-ci hunks=1 supported=0 unknown=1 mechanical=0 unknownShare=1/1 reasonedUnknown=1 ocm=") || !strings.HasSuffix(stdout, "\ndogfood-check: PASS\n") {
+	if code != 0 || !strings.HasPrefix(stdout, "dogfood-check: SUMMARY cem=accepted hunks=1 supported=0 unknown=1 mechanical=0 unknownShare=1/1 reasonedUnknown=1 ocm=") || !strings.HasSuffix(stdout, "\ndogfood-check: PASS\n") {
 		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	if code, stdout, stderr = run.exec(t, root, nil, "dogfood", "seal", base); code != 0 || !strings.HasSuffix(stdout, "dogfood-seal: PASS sealed=.corvint/changes/"+bind+".cem.json\n") {
@@ -213,7 +213,7 @@ func TestDogfoodDCWV0046ReasonedUnknownChecksAndSeals(t *testing.T) {
 	}
 	// The real verifier admits the sealed reasoned unknown hunk in batch-check.
 	if code, stdout, stderr = run.exec(t, root, nil, "dogfood", "batch-check", base); code != 0 ||
-		!strings.Contains(stdout, " reasonedUnknown=1 ") || !strings.Contains(stdout, "state=ready-for-ci") {
+		!strings.Contains(stdout, " reasonedUnknown=1 ") || !strings.Contains(stdout, "state=accepted") {
 		t.Fatalf("batch-check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 }
@@ -276,7 +276,7 @@ func TestDogfoodDailyPathCompletesWithDeclaredNoIntent(t *testing.T) {
 		t.Fatal(err)
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base)
-	if code != 0 || !strings.HasPrefix(stdout, "dogfood-check: SUMMARY cem=ready-for-ci hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=NOT_ASSESSED report=.corvint/dogfood-report.json detail=") || !strings.HasSuffix(stdout, "\ndogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\ndogfood-check: PASS\n") || strings.Count(stdout, "\n") != 3 || strings.Contains(stdout, "dogfood-ocm-status") {
+	if code != 0 || !strings.HasPrefix(stdout, "dogfood-check: SUMMARY cem=accepted hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=NOT_ASSESSED report=.corvint/dogfood-report.json detail=") || !strings.HasSuffix(stdout, "\ndogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\ndogfood-check: PASS\n") || strings.Count(stdout, "\n") != 3 || strings.Contains(stdout, "dogfood-ocm-status") {
 		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "seal", base)
@@ -633,6 +633,10 @@ func testDogfoodFinishFromBinary(t *testing.T, root, base string, ignoreRules bo
 	session := []string{"--session-key", key}
 	run.ok(t, root, append([]string{"dogfood", "begin", "--plan", planPath}, session...)...)
 	run.ok(t, root, "cem", "prepare", "--base", base, "--target", "HEAD")
+	// CEM-V1-151: finish reads the default cem/1.0 change map end to end.
+	if prepared, err := os.ReadFile(filepath.Join(root, ".corvint/change.cem.json")); err != nil || !strings.Contains(string(prepared), `"spec":"cem/1.0"`) {
+		t.Fatalf("default prepare did not write cem/1.0: %v %.80s", err, prepared)
+	}
 	run.ok(t, root, "cem", "cite", "--map", ".corvint/change.cem.json", "--hunk", "1", "--evidence-path", "intent.md", "--lines", "1:5", "--relation", "specification")
 	if ignoreRules {
 		// Each hunk cites its own span, so the next change's plan is not uniform (DCW-V0-048).

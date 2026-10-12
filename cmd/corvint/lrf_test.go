@@ -55,7 +55,7 @@ func newLRFFixture(t *testing.T, spec string) lrfFixture {
 	mapPath := "change.cem.json"
 	if spec == wire.Spec02 {
 		mapPath = ".corvint/change.cem.json"
-		code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--base", base, "--target", target)
+		code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--spec", wire.Spec02, "--base", base, "--target", target)
 		if code != 0 {
 			t.Fatalf("prepare: %s", stderr)
 		}

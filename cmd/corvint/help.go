@@ -954,7 +954,9 @@ const cemHelp = `Change Evidence Map producer and verifier.
 
 Usage:
   corvint [--root PATH] cem begin --patch PATCH --output MAP [--base REV]
+    [--spec cem/0.1|cem/1.0]
   corvint [--root PATH] cem prepare --base REV --target REV [--patch CACHE] [--replace]
+    [--spec cem/1.0|cem/0.2]
   corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH
     (--bytes START:END | --lines START:END) --relation RELATION [--output MAP]
   corvint [--root PATH] cem mark --map MAP --hunk SELECTOR
@@ -976,10 +978,13 @@ Usage:
     [--repository PATH]
 
 Actions:
-  begin    Build a cem/0.1 candidate from exact out-of-band patch bytes.
+  begin    Build a cem/0.1 candidate from exact out-of-band patch bytes;
+           --spec cem/1.0 writes a cem/1.0 producer map instead.
   prepare  Derive the canonical base-to-target patch and write or resume the
-           cem/0.2 candidate at .corvint/change.cem.json. Commit the candidate,
-           then run the returned verification action against HEAD.
+           cem/1.0 candidate at .corvint/change.cem.json (--spec cem/0.2 keeps
+           the cem/0.2 producer until the 0.x readers are removed). Commit the
+           candidate, then run the returned verification action against HEAD;
+           for cem/1.0 it passes --artifacts with the absolute repository root.
   cite     Compile a byte or one-based line span of base evidence into the
            normative span and attach it to one hunk with a typed relation.
            --relation accepts: call-site, decision, dependency, implementation,
@@ -991,7 +996,8 @@ Actions:
            report writes $GIT_DIR/corvint/cem-review.md unless --output names
            a repository-relative path or an absolute one outside the repository.
   cover    Record a patch coverage witness on every hunk from one local Go
-           coverprofile named by --test-run; writes a cem/0.3 copy to --output.
+           coverprofile named by --test-run; writes a cem/0.3 copy to --output
+           (a cem/1.0 producer map stays cem/1.0).
   discriminate
            Mutate the map's changed Go hunks (at most --max-hunks hunks and
            --max-mutants mutants each, within --wall-time; defaults 8, 8, 10m)
@@ -1038,6 +1044,9 @@ Verification options:
   --max-unknown N      Policy ceiling on unknown hunks.
   --max-mechanical N   Policy ceiling on mechanical hunks.
   --citation           status/verify: add the cem/0.2+ citation support block.
+  --artifacts DIR      Required for cem/1.0: the artifact root the stable
+                       verifier reads; status also applies the ceilings to
+                       an accepted cem/1.0 map.
 
 cem/0.2 verification requires --expected-base and --target, derives the
 canonical whole-repository patch itself excluding exactly

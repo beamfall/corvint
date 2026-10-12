@@ -7,13 +7,13 @@
     ]
   },
   "evidenceClass": "hostile-tests",
-  "repositoryRevision": "5eddd496edf240997ed6af58501a31bf9cdfa320",
+  "repositoryRevision": "ebf8a2731275187c4f96aa4cfc478cae1260c2ab",
   "result": "PASS",
   "spec": "corvint-use-case-evidence/0",
   "subjects": [
     {
       "path": "cmd/corvint/usecase_hostile_evidence_completion_test.go",
-      "sha256": "461e9ca702e4c7acbf9d717960913410a5b457fff7745ad81ec39f3a20fc9806"
+      "sha256": "74c3be3c81e5772020d3d70ecc13977fb9ace6c56a39f9aefdc81937db119034"
     }
   ],
   "useCaseId": "UC-EVIDENCE-CARRYING-COMPLETION"

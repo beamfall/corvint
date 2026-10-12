@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/observations"
 )
 
@@ -15,58 +16,104 @@ import (
 // supported and mechanical dispositions a loose 0.x decode would count.
 const stableCEMFixture = "../../protocol/cem-1.0/stable/repository-envelope-packet/inherited/fixtures/maps/sha1-positive-sealed.json"
 
-// CEM-V1-032: the bind loop reads no hunks from a map that declares cem/1.0,
-// so a stable map never counts as cited or binds a citation plan.
-func TestMapHunksRefusesStableMap(t *testing.T) {
+// CEM-V1-147 (amends CEM-V1-032): the bind loop reads the hunks of a map that
+// declares cem/1.0 like a 0.x map, so it counts the cited ones and binds a
+// citation plan to them.
+func TestMapHunksReadsStableMap(t *testing.T) {
 	stable, err := os.ReadFile(stableCEMFixture)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := mapHunks(stable); len(got) != 0 {
-		t.Fatalf("mapHunks decoded %d hunks from a cem/1.0 map", len(got))
+	document, err := wire.ParseStable(stable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := mapHunks(stable)
+	if len(got) != len(document.Change.Hunks) || len(got) == 0 {
+		t.Fatalf("mapHunks decoded %d hunks from a cem/1.0 map; want %d", len(got), len(document.Change.Hunks))
+	}
+	cited := 0
+	for i, hunk := range document.Change.Hunks {
+		if got[i]["id"] != hunk.ID || got[i]["path"] != hunk.Path || got[i]["disposition"] != hunk.Disposition {
+			t.Fatalf("hunk %d = %v; want %+v", i, got[i], hunk)
+		}
+		if hunk.Disposition != "unknown" {
+			cited++
+		}
 	}
 	path := filepath.Join(t.TempDir(), "change.cem.json")
 	if err := os.WriteFile(path, stable, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := citedHunks(path); got != 0 {
-		t.Fatalf("citedHunks = %d for a cem/1.0 map; want 0", got)
+	if got := citedHunks(path); got != cited {
+		t.Fatalf("citedHunks = %d for a cem/1.0 map; want %d", got, cited)
 	}
-	// CEM-V1-033: only the exact declaration is refused; any other spec keeps
-	// the earlier layout-agnostic decode.
-	for _, spec := range []string{`"cem/1.0 "`, `"cem/1.0-experimental.1"`, `"cem/0.2"`, `10`} {
-		data := []byte(`{"spec": ` + spec + `, "hunks": [{"disposition": "cited", "id": "hunk:a", "path": "a"}]}`)
-		if got := mapHunks(data); len(got) != 1 || got[0]["id"] != "hunk:a" {
-			t.Errorf("spec %s: mapHunks = %v; want one hunk", spec, got)
+	// Refusal control: a map that does not decode still has no hunks.
+	for _, data := range []string{`{"spec": "cem/1.0", "hunks": {}}`, `not json`} {
+		if got := mapHunks([]byte(data)); len(got) != 0 {
+			t.Errorf("%s: mapHunks = %v; want none", data, got)
 		}
 	}
 }
 
-// CEM-V1-032: batch-check refuses a sealed cem/1.0 constituent with its own
-// code before any verifier run, never as a malformed 0.x map.
-func TestBatchCheckRefusesStableConstituent(t *testing.T) {
+// stableStatusLine is the stable `cem status` line of an accepted map.
+func stableStatusLine(base, bind string) string {
+	return `{"counts":{"mechanical":0,"supported":1,"total":1,"unknown":0},"ok":true,"state":"accepted","tool":"cem-status",` +
+		`"stableVerification":{"accept":true,"expectedBase":"` + base + `","outcome":"ACCEPT","targetRevision":"` + bind + `"}}` + "\n"
+}
+
+// CEM-V1-148 (amends CEM-V1-032): batch-check admits a sealed cem/1.0
+// constituent when the verifier, run with the repository root as artifact
+// root, reports a stable ACCEPT of exactly its base and bind; a 0.x status
+// line never proves a stable map, nor a stable line a 0.x map.
+func TestBatchCheckAdmitsStableConstituent(t *testing.T) {
 	repo := newBatchRepo(t)
 	bind, seal := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", `{"spec": "cem/1.0", "baseRevision": "`+repo.base+`", "hunks": []}`+"\n")
 	repo.batch(seal)
-	code, _, stderr := repo.check()
-	if code != 1 || !strings.Contains(stderr, "FAIL constituent-cem-stable-unsupported count=1\n  bind="+bind+"\n") ||
-		strings.Contains(stderr, "constituent-cem-invalid") || len(repo.args) != 0 {
-		t.Fatalf("cem/1.0 exit=%d stderr=%s argv=%q", code, stderr, repo.args)
+	repo.output = func(base, bind string) string { return stableStatusLine(base, bind) }
+	code, stdout, stderr := repo.check()
+	root, _ := filepath.Abs(repo.root)
+	want := []string{"cem", "status", "--map", ".corvint/changes/" + bind + ".cem.json", "--expected-base", repo.base, "--target", bind,
+		"--max-unknown", "0", "--max-mechanical", "0", "--artifacts", root}
+	if code != 0 || stderr != "" || len(repo.args) != 1 || strings.Join(repo.args[0], " ") != strings.Join(want, " ") ||
+		!strings.Contains(stdout, "CONSTITUENT bind="+bind+" base="+repo.base+" hunks=1 supported=1 unknown=0 bootstrapUnknown=0 reasonedUnknown=0 state=accepted\n") {
+		t.Fatalf("cem/1.0 exit=%d stdout=%s stderr=%s argv=%q", code, stdout, stderr, repo.args)
 	}
-	if !strings.Contains(stderr, "fix: "+batchRecovery["constituent-cem-stable-unsupported"]+"\n") || batchRecovery["constituent-cem-stable-unsupported"] == "" {
-		t.Fatalf("missing recovery line: %s", stderr)
+	// Refusal controls: the 0.x line does not prove the stable map, a stable
+	// REJECT or a different bind does not either.
+	for name, output := range map[string]func(base, bind string) string{
+		"legacy-line": nil,
+		"reject": func(base, bind string) string {
+			return strings.Replace(stableStatusLine(base, bind), `"outcome":"ACCEPT"`, `"outcome":"REJECT"`, 1)
+		},
+		"other-bind": func(base, _ string) string { return stableStatusLine(base, repo.base) },
+	} {
+		repo.output = output
+		if code, _, stderr := repo.check(); code != 1 || !strings.Contains(stderr, "FAIL constituent-unverified count=1\n  bind="+bind) {
+			t.Fatalf("%s: exit=%d stderr=%s", name, code, stderr)
+		}
+	}
+	legacy := newBatchRepo(t)
+	_, legacySeal := legacy.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
+	legacy.batch(legacySeal)
+	legacy.output = func(base, bind string) string { return stableStatusLine(base, bind) }
+	if code, _, stderr := legacy.check(); code != 1 || !strings.Contains(stderr, "FAIL constituent-unverified count=1") || strings.Contains(strings.Join(legacy.args[0], " "), "--artifacts") {
+		t.Fatalf("0.x map proved by a stable line: exit=%d stderr=%s argv=%q", code, stderr, legacy.args)
 	}
 }
 
-// CEM-V1-032: the cite step refuses a cem/1.0 map explicitly. It does not read
-// it as a map that owes no hunk, so it never runs cem cite, writes no
-// plan binding or cite log, and leaves the map unchanged.
-func TestCiteStepRefusesStableMap(t *testing.T) {
+// CEM-V1-147 (amends CEM-V1-032): the cite step treats a cem/1.0 map like a
+// 0.x map: with no plan it reports the missing plan, never a stable refusal,
+// and an unreadable plan path is refused before the map is touched.
+func TestCiteStepAdmitsStableMap(t *testing.T) {
 	stable, err := os.ReadFile(stableCEMFixture)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, plan := range []string{"", "1\tintent.md\t1:1\tspecification\n"} {
+	for _, c := range []struct{ plan, reason string }{
+		{"", "citation-plan-not-provided"},
+		{"missing", "citation-plan-unavailable"},
+	} {
 		root := t.TempDir()
 		mapPath := filepath.Join(root, ".corvint", "change.cem.json")
 		if err := os.MkdirAll(filepath.Dir(mapPath), 0o700); err != nil {
@@ -75,34 +122,56 @@ func TestCiteStepRefusesStableMap(t *testing.T) {
 		if err := os.WriteFile(mapPath, stable, 0o600); err != nil {
 			t.Fatal(err)
 		}
-		source := filepath.Join(root, "plan.tsv")
-		if err := os.WriteFile(source, []byte(plan), 0o600); err != nil {
-			t.Fatal(err)
-		}
 		var stderr bytes.Buffer
-		c := &change{flow: flow{ctx: context.Background(), root: root, stderr: &stderr}, evidence: root, cemPrepared: true, intentSnapshot: []byte("intent.md\n")}
-		c.options.Citations = source
-		c.citeStep()
-		if len(c.rows) != 1 || c.rows[0].name != "cem-cite" || c.rows[0].status != "NOT_PRODUCED" || c.rows[0].reason != "cem-map-stable-unsupported" {
-			t.Fatalf("plan %q: steps=%+v", plan, c.rows)
+		ch := &change{flow: flow{ctx: context.Background(), root: root, stderr: &stderr}, evidence: root, cemPrepared: true, intentSnapshot: []byte("intent.md\n")}
+		if c.plan != "" {
+			ch.options.Citations = filepath.Join(root, c.plan)
 		}
-		for _, absent := range []string{root + citationBinding, root + "/cem-cite.jsonl"} {
-			if _, statErr := os.Lstat(absent); !os.IsNotExist(statErr) {
-				t.Fatalf("plan %q: refusal wrote %s (%v)", plan, absent, statErr)
-			}
+		ch.citeStep()
+		if len(ch.rows) != 1 || ch.rows[0].name != "cem-cite" || ch.rows[0].status != "NOT_PRODUCED" || ch.rows[0].reason != c.reason {
+			t.Fatalf("plan %q: steps=%+v", c.plan, ch.rows)
 		}
 		if got, err := os.ReadFile(mapPath); err != nil || !bytes.Equal(got, stable) {
-			t.Fatalf("plan %q: the stable map changed (%v)", plan, err)
-		}
-		if hint := c.fixHint(c.rows[0]); !strings.Contains(hint, "cem/1.0") {
-			t.Fatalf("fix=%q", hint)
+			t.Fatalf("plan %q: the stable map changed (%v)", c.plan, err)
 		}
 		if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".corvint/\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		row := c.rows[0]
+		row := ch.rows[0]
 		if err := observations.Append(root, observations.Event{Kind: "dogfood-step", Step: row.name, Status: row.status, Reason: row.reason}); err != nil {
-			t.Fatalf("the refusal is lost at the observation boundary: %v", err)
+			t.Fatalf("the NOT_PRODUCED reason is lost at the observation boundary: %v", err)
 		}
+	}
+}
+
+// CEM-V1-146, CEM-V1-147: the bind loop's and the check's `cem status` of a
+// cem/1.0 map name the absolute repository root as --artifacts, a 0.x map's
+// arguments are unchanged, and a stable prepare's different-spec refusal is an
+// outdated map the loop regenerates with --replace.
+func TestStableStatusArgumentsAddArtifactRoot(t *testing.T) {
+	stable, err := os.ReadFile(stableCEMFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	mapPath := filepath.Join(root, "change.cem.json")
+	if err := os.WriteFile(mapPath, stable, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"cem", "status", "--map", "change.cem.json"}
+	absolute, _ := filepath.Abs(root)
+	if got := stableStatusArguments(mapPath, root, args...); strings.Join(got, " ") != strings.Join(append(args, "--artifacts", absolute), " ") {
+		t.Fatalf("stable arguments = %q", got)
+	}
+	for _, data := range []string{`{"spec": "cem/0.2", "hunks": []}`, `{"spec": "cem/1.0 "}`} {
+		if err := os.WriteFile(mapPath, []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if got := stableStatusArguments(mapPath, root, args...); strings.Join(got, " ") != strings.Join(args, " ") {
+			t.Fatalf("%s: arguments = %q", data, got)
+		}
+	}
+	if !outdatedCEMMaps[`{"code": "map-unavailable", "error": "cannot read CEM map: the existing map records a different spec; pass --replace to regenerate", "ok": false}`] {
+		t.Fatal("the different-spec refusal is not an outdated map")
 	}
 }
