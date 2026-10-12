@@ -591,6 +591,8 @@ const obligationsHelp = `Compose the external-frontier-obligations/0 sidecar for
 
 Usage:
   corvint obligations --cem FILE --impact FILE [--limit N]
+  corvint obligations --cem FILE --impact FILE [--limit N] --repository DIR
+      --expected-base REV --target REV --stable-artifact-root DIR
 
 Reads one cem/0.2 document and one saved corvint impact --provider receipt,
 joins every CEM hunk to the receipt's context.external rows by path, and writes
@@ -600,13 +602,21 @@ association carries its provider evidence reference, EEP path verification,
 and provider freshness, and none states that the record justifies the hunk.
 The sidecar binds both inputs by SHA-256 of their raw bytes: binding.cem_sha256
 equals the frontier's inputs.cemSha256 for the same CEM file, and every hunk id
-equals the CEM hunk id the frontier cites. The verb reads no repository,
-verifies no CEM, and changes no frontier state or wire. --limit bounds the
+equals the CEM hunk id the frontier cites. In this form the verb reads no
+repository, verifies no CEM, and changes no frontier state or wire. --limit bounds the
 associations per hunk (default 64); omitted rows are counted.
 
+With all four of --repository, --expected-base, --target and
+--stable-artifact-root, the verb instead reads one cem/1.0 map, admits it only
+through the stable verifier's ACCEPT with the exact committed sidecar, and writes
+one external-frontier-obligations-stable/0 document bound to the accepted map,
+patch and target. Declared criterion links are listed in their own criteria
+member and state no satisfaction. A cem/1.0 map is never read without them.
+
 Exit status: 0 with the sidecar on stdout; 2 with an error envelope on stderr
-for an argument error, an unreadable or oversized input, a non-cem/0.2 document,
-or a non-impact receipt.
+for an argument error, an unreadable or oversized input, a non-cem/0.2 document
+(a non-cem/1.0 document in stable mode), a stable verifier refusal, or a
+non-impact receipt.
 `
 
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.

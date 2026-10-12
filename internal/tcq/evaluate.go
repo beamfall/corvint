@@ -176,6 +176,12 @@ type parsedDocuments struct {
 }
 
 func parseArtifacts(inputs rawInputs) (parsedDocuments, error) {
+	return parseArtifactsWith(inputs, checkCEMProfile)
+}
+
+// parseArtifactsWith runs stage 3 with the CEM profile admission of one
+// explicit route: tcq/0 admits cem/0.2 only, tcq-stable/0 cem/1.0 only.
+func parseArtifactsWith(inputs rawInputs, checkCEM func([]byte) error) (parsedDocuments, error) {
 	if err := preflightArtifacts(inputs); err != nil {
 		return parsedDocuments{}, err
 	}
@@ -185,7 +191,7 @@ func parseArtifacts(inputs rawInputs) (parsedDocuments, error) {
 		return parsedDocuments{}, err
 	}
 	document.ocm = ocm
-	if err := checkCEMProfile(inputs.cem); err != nil {
+	if err := checkCEM(inputs.cem); err != nil {
 		return parsedDocuments{}, err
 	}
 	if inputs.command != nil {

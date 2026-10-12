@@ -210,7 +210,7 @@ func literal(p string) bool {
 	return cw.ValidatePath(p) == nil && !strings.ContainsAny(p, "*?[]\\:") && !strings.Contains(p, "...")
 }
 func (r Request) validate() error {
-	if r.Schema != Profile || !cw.IsGitOid(r.Base) || !cw.IsGitOid(r.Target) || r.Base == r.Target || !literal(r.Module) || !cw.IsSha256(r.GoSha256) || r.TimeoutSeconds < 1 || r.TimeoutSeconds > 120 || len(r.Criteria) < 1 || len(r.Criteria) > 16 || r.Ticket == "" || r.Attempt == "" {
+	if (r.Schema != Profile && r.Schema != StableProfile) || !cw.IsGitOid(r.Base) || !cw.IsGitOid(r.Target) || r.Base == r.Target || !literal(r.Module) || !cw.IsSha256(r.GoSha256) || r.TimeoutSeconds < 1 || r.TimeoutSeconds > 120 || len(r.Criteria) < 1 || len(r.Criteria) > 16 || r.Ticket == "" || r.Attempt == "" {
 		return fmt.Errorf("unsupported request identity or bounds")
 	}
 	for i, c := range r.Criteria {
