@@ -894,24 +894,24 @@ CEM-V1-102	docs/specs/cem-stable-v1.md	586	`corvint cem convert --map MAP (--out
 CEM-V1-103	docs/specs/cem-stable-v1.md	595	A map whose pinned objects are unavailable still converts from its bytes alone
 CEM-V1-104	docs/specs/cem-stable-v1.md	599	Verdict parity is measured per committed map at the substituted target T', the
 CEM-V1-105	docs/specs/cem-stable-v1.md	619	The converter exists only to migrate cem/0.x maps. It is removed with the 0.x
-CEM-V1-120	docs/specs/cem-stable-v1.md	1132	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity
-CEM-V1-121	docs/specs/cem-stable-v1.md	1135	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly
-CEM-V1-122	docs/specs/cem-stable-v1.md	1139	The stable result MUST carry:
-CEM-V1-123	docs/specs/cem-stable-v1.md	1148	The verifier binding MUST name the SHA-256 of the exact input map bytes, and the
-CEM-V1-124	docs/specs/cem-stable-v1.md	1153	The 0.x TCQ and frontier routes are unchanged. `parseArtifacts` keeps the
-CEM-V1-125	docs/specs/cem-stable-v1.md	1156	`frontierrepo.RecomputeStable` MUST:
-CEM-V1-126	docs/specs/cem-stable-v1.md	1165	No stable frontier document is produced. `frontier/0` binds an `lrf/0` digest, a
-CEM-V1-127	docs/specs/cem-stable-v1.md	1169	Each of the following MUST refuse, keeping the stable verifier's full result and
-CEM-V1-130	docs/specs/cem-stable-v1.md	1175	`extevidence.StableObligations` MUST emit `external-frontier-obligations-stable/
-CEM-V1-131	docs/specs/cem-stable-v1.md	1183	Hunk associations MUST be computed exactly as in the frozen sidecar, with the sa
-CEM-V1-132	docs/specs/cem-stable-v1.md	1186	A verifier refusal MUST return a `StableObligationsRefusal` that holds the
-CEM-V1-133	docs/specs/cem-stable-v1.md	1190	The map's declared criterion links MUST be listed in a separate `criteria` membe
-CEM-V1-134	docs/specs/cem-stable-v1.md	1193	The frozen sidecar MUST keep refusing `cem/1.0`, and the stable sidecar MUST ref
-CEM-V1-135	docs/specs/cem-stable-v1.md	1195	`corvint obligations` MUST select the stable sidecar only when all four of these
-CEM-V1-136	docs/specs/cem-stable-v1.md	1205	The criterion experiment companion MUST add the explicit input mode
-CEM-V1-137	docs/specs/cem-stable-v1.md	1209	Stable admission MUST:
-CEM-V1-138	docs/specs/cem-stable-v1.md	1218	Plan, run and verify MUST each re-admit the plan's map through the stable verifi
-CEM-V1-139	docs/specs/cem-stable-v1.md	1223	The two modes never cross:
+CEM-V1-120	docs/specs/cem-stable-v1.md	1133	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity
+CEM-V1-121	docs/specs/cem-stable-v1.md	1136	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly
+CEM-V1-122	docs/specs/cem-stable-v1.md	1140	The stable result MUST carry:
+CEM-V1-123	docs/specs/cem-stable-v1.md	1149	The verifier binding MUST name the SHA-256 of the exact input map bytes, and the
+CEM-V1-124	docs/specs/cem-stable-v1.md	1154	The 0.x TCQ and frontier routes are unchanged. `parseArtifacts` keeps the
+CEM-V1-125	docs/specs/cem-stable-v1.md	1157	`frontierrepo.RecomputeStable` MUST:
+CEM-V1-126	docs/specs/cem-stable-v1.md	1166	No stable frontier document is produced. `frontier/0` binds an `lrf/0` digest, a
+CEM-V1-127	docs/specs/cem-stable-v1.md	1170	Each of the following MUST refuse, keeping the stable verifier's full result and
+CEM-V1-130	docs/specs/cem-stable-v1.md	1176	`extevidence.StableObligations` MUST emit `external-frontier-obligations-stable/
+CEM-V1-131	docs/specs/cem-stable-v1.md	1184	Hunk associations MUST be computed exactly as in the frozen sidecar, with the sa
+CEM-V1-132	docs/specs/cem-stable-v1.md	1187	A verifier refusal MUST return a `StableObligationsRefusal` that holds the
+CEM-V1-133	docs/specs/cem-stable-v1.md	1191	The map's declared criterion links MUST be listed in a separate `criteria` membe
+CEM-V1-134	docs/specs/cem-stable-v1.md	1194	The frozen sidecar MUST keep refusing `cem/1.0`, and the stable sidecar MUST ref
+CEM-V1-135	docs/specs/cem-stable-v1.md	1196	`corvint obligations` MUST select the stable sidecar only when all four of these
+CEM-V1-136	docs/specs/cem-stable-v1.md	1206	The criterion experiment companion MUST add the explicit input mode
+CEM-V1-137	docs/specs/cem-stable-v1.md	1210	Stable admission MUST:
+CEM-V1-138	docs/specs/cem-stable-v1.md	1219	Plan, run and verify MUST each re-admit the plan's map through the stable verifi
+CEM-V1-139	docs/specs/cem-stable-v1.md	1224	The two modes never cross:
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	858	The default `verify` path refuses a strictly parsed JSON object whose exact
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	862	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	865	Only that exact case changes. A duplicate, non-string, differently cased,

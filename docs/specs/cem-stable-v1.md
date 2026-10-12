@@ -1118,7 +1118,8 @@ profile, default, packet or stored evidence changes.
 
 ## Closure-chain stable consumers (V1-0632 C06..C08)
 
-Status: proposed. Native work: V1-0632, migration rows C06 (TCQ/frontier), C07 (obligation
+Status: accepted under the owner's standing auto-accept (2026-10-11) after independent review
+(Codex round 2 PASS); delivery stays library-level plus two explicit CLI flags, unpromoted. Native work: V1-0632, migration rows C06 (TCQ/frontier), C07 (obligation
 sidecar) and C08 (criterion experiment companion) of `protocol/cem-1.0/stable/MIGRATION.json`,
 built on the C05 admission (`CEM-V1-051..059`). Each family gains a stable route beside its
 unchanged 0.x route. Every stable route admits a `cem/1.0` map only through the shipped stable

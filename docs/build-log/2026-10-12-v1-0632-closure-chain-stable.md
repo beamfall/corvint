@@ -2,7 +2,7 @@
 
 Date: 2026-10-12. Base: `37ed36a46b40ba2499de14482df5d902098c77fc`. Branch:
 `claude/v1-0632-closure-chain`. Scope: migration rows C06, C07 and C08 of
-`protocol/cem-1.0/stable/MIGRATION.json` under decision 0525, with proposed requirements
+`protocol/cem-1.0/stable/MIGRATION.json` under decision 0525, with requirements
 `CEM-V1-120` to `CEM-V1-139` in their own section of `docs/specs/cem-stable-v1.md`
 (`CEM-V1-140..159` belong to the parallel V1-1276 lane). No ticket-store writes, PRs,
 CEM bind or seal.
@@ -66,6 +66,14 @@ CEM bind or seal.
   in historical mode. A missing root and a tampered artifact then refuse.
 - Corvint use: `corvint affected --base 37ed36a46` (Corvint 1.0.0-rc.3 build 456) selected 127
   units, 6 by direct source change; the advisory checks are `PLAN_ONLY`.
+
+## Review
+
+- Codex (`gpt-6.1-sol`, read-only) round 1: FAIL with one P2. Successful stable planning was
+  untested, because the test built the plan by hand. Fixed by splitting `planWithCaptures` out of
+  `planExperiment` and planning through it.
+- Round 2: PASS, with no findings.
+- `CEM-V1-120..139` are accepted under the owner's standing auto-accept (2026-10-11).
 
 ## Limits and NOT_RUN
 
