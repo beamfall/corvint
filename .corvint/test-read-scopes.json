@@ -395,6 +395,7 @@
       "tools/compat-trial/"
     ],
     "tools/corvint-pr-tests": [
+      ".github/cishards/",
       "cmd/",
       "go.mod",
       "go.sum",
