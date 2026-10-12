@@ -1013,7 +1013,7 @@ rg -q '^dogfood-check: NOTE unbound-commits NOT_OBSERVED window-cem-base-unavail
 seal_repo="$test_root/seal-repo"
 mkdir -p "$seal_repo/script" "$seal_repo/.corvint"
 cp "$source_root/script/dogfood-seal.sh" "$seal_repo/script/"
-printf '#!/usr/bin/env bash\nexit "${SEAL_TEST_CHECK_STATUS:-0}"\n' > "$seal_repo/script/dogfood-check.sh"
+printf '#!/usr/bin/env bash\nprintf %%s "${SEAL_TEST_CHECK_OUTPUT-}"\nexit "${SEAL_TEST_CHECK_STATUS:-0}"\n' > "$seal_repo/script/dogfood-check.sh"
 chmod +x "$seal_repo/script/dogfood-check.sh"
 git -C "$seal_repo" init -q -b main
 printf '{}\n' > "$seal_repo/.corvint/change.cem.json"
@@ -1032,6 +1032,17 @@ test "$(git -C "$seal_repo" diff-tree -r -M --no-commit-id --name-status HEAD^ H
 seal_again_status=0
 (cd "$seal_repo" && script/dogfood-seal.sh HEAD 2>/dev/null) || seal_again_status=$?
 test "$seal_again_status" = 2
+# DCW-V0-047: the wrapper streams the check's stdout and keeps a declared output
+# change's base-independence fields on its PASS line, as `dogfood seal` does.
+printf '{"declared":true}\n' > "$seal_repo/.corvint/change.cem.json"
+git -C "$seal_repo" add -A
+git -C "$seal_repo" -c user.name=t -c user.email=t@example.invalid commit -qm declared
+seal_declared_bind=$(git -C "$seal_repo" rev-parse HEAD)
+seal_fields="base-independence=NOT_PROVED base=sha256:$(printf '%064d' 1) tree=sha256:$(printf '%064d' 2) declared=A-V0-002"
+seal_check_out="dogfood-check: SUMMARY cem=ready-for-ci ocm=NOT_ASSESSED $seal_fields report=.corvint/dogfood-report.json"$'\n'"dogfood-check: PASS"$'\n'
+seal_declared=$(cd "$seal_repo" && SEAL_TEST_CHECK_OUTPUT=$seal_check_out GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid \
+  GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid script/dogfood-seal.sh HEAD)
+test "$seal_declared" = "${seal_check_out}dogfood-seal: PASS sealed=.corvint/changes/$seal_declared_bind.cem.json $seal_fields"
 # V1-0137: a change that replaced BASE's unsealed CEM does not seal it away.
 printf '{"earlier":true}\n' > "$seal_repo/.corvint/change.cem.json"
 git -C "$seal_repo" add -A

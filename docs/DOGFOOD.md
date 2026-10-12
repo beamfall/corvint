@@ -387,7 +387,8 @@ $ DOGFOOD_OUTPUT_CHANGE=REQUIREMENT-ID make dogfood-seal BASE=BASE_SHA
 ```
 
 The declaration is admitted only when `REQUIREMENTS.tsv` at `HEAD` maps the ID to a spec that
-`BASE_SHA..HEAD` modifies. The `cem status` comparison then runs the tree verifier in both roles,
+`BASE_SHA..HEAD` modifies; an empty range refuses it rather than passing
+`no-change-clean-worktree`. The `cem status` comparison then runs the tree verifier in both roles,
 still runs the base verifier, and requires the tree verifier to agree with itself and with any
 `CORVINT_BIN` override. The SUMMARY line carries `base-independence=NOT_PROVED base=sha256:B
 tree=sha256:T declared=ID` before `report=`, B and T being the digests of the two verifiers'

@@ -265,6 +265,10 @@ func (c *check) requireCleanChange() {
 		c.exit(2)
 	}
 	if diffStatus == 0 {
+		// A declaration is never admitted by an empty range: an unknown ID
+		// refuses output-change-requirement-unknown and a known one
+		// output-change-not-in-diff, before the empty-range PASS (DCW-V0-047).
+		c.admitOutputChange()
 		fmt.Fprintf(c.stdout, "dogfood-check: PASS no-change-clean-worktree\n")
 		c.exit(0)
 	}

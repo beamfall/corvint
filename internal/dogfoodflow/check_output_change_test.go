@@ -17,7 +17,7 @@ import (
 // roles and the check passes recording base-independence=NOT_PROVED with both
 // stdout digests, which the report and the seal keep; a declaration that
 // names an absent requirement, or one whose spec is not in the diff, refuses
-// before any verifier runs.
+// before any verifier runs, including on an empty BASE..HEAD range.
 func TestCheckDCWV0047DeclaredOutputChange(t *testing.T) {
 	for _, name := range []string{"GIT_AUTHOR_NAME", "GIT_COMMITTER_NAME"} {
 		t.Setenv(name, "t")
@@ -156,6 +156,33 @@ func TestCheckDCWV0047DeclaredOutputChange(t *testing.T) {
 		_, code, stdout, stderr := check(tc.declared, treeVerifier)
 		if code != 2 || stdout != "" || !strings.HasPrefix(stderr, "dogfood-check: REFUSE "+tc.refusal+"\n  ") || len(runs) != 0 {
 			t.Fatalf("%q exit=%d stdout=%q stderr=%q runs=%v", tc.declared, code, stdout, stderr, runs)
+		}
+	}
+
+	// An empty range never admits a declaration: before the empty-range PASS
+	// an unknown ID refuses requirement-unknown and a known one not-in-diff.
+	clean := filepath.Join(t.TempDir(), "clean")
+	testGit(t, root, "clone", "-q", root, clean)
+	for _, tc := range []struct{ declared, want string }{
+		{"", "dogfood-check: PASS no-change-clean-worktree\n"},
+		{"DOES-NOT-EXIST", "output-change-requirement-unknown"},
+		{"A-V0-002", "output-change-not-in-diff"},
+	} {
+		var stdout, stderr bytes.Buffer
+		c := newCheck(context.Background(), "dogfood-check", CheckOptions{Root: clean, OutputChange: tc.declared}, &stdout, &stderr)
+		c.base, c.target, c.gitDir = head, head, filepath.Join(clean, ".git")
+		code, err := boundary(c.ctx, func() int { c.requireCleanChange(); return 1 }, func() {})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tc.declared == "" {
+			if code != 0 || stdout.String() != tc.want || stderr.Len() != 0 {
+				t.Fatalf("empty range exit=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+			}
+			continue
+		}
+		if code != 2 || stdout.Len() != 0 || !strings.HasPrefix(stderr.String(), "dogfood-check: REFUSE "+tc.want+"\n  ") {
+			t.Fatalf("empty range %q exit=%d stdout=%q stderr=%q", tc.declared, code, stdout.String(), stderr.String())
 		}
 	}
 

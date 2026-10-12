@@ -26,6 +26,12 @@ a declared, recorded path instead of a workaround.
 - When admitted, only the `cem status` comparison changes: the base verifier still runs once (its
   stdout digest is recorded) and the tree verifier runs in both roles and must agree with itself.
   The OCM status comparison and `verifyAbstention` are unchanged.
+- An empty `BASE..HEAD` range never admits a declaration: it is checked before the range's
+  `no-change-clean-worktree` PASS, so an unknown ID refuses `output-change-requirement-unknown` and
+  a known one `output-change-not-in-diff` (review finding, repaired in the same lane).
+- `make dogfood-seal` runs `script/dogfood-seal.sh`, which prints its own PASS line. It now streams
+  the check's stdout through `tee` and copies the fields from the check's SUMMARY or NOTE line onto
+  that PASS line after `sealed=`, byte-identical to `corvint dogfood seal` (review finding).
 - The SUMMARY line, the report's `dogfoodCheck` member (`baseIndependence`) and the seal's PASS line
   record `base-independence=NOT_PROVED base=sha256:B tree=sha256:T declared=ID`. `NOT_PROVED` is
   recorded even if the two outputs happen to agree: the declaration replaced the proof.
@@ -42,9 +48,6 @@ a declared, recorded path instead of a workaround.
   cited requirement remains the control.
 - An admitted change can no longer detect a regression the base verifier would have caught in the
   `cem status` bytes; the recorded base digest keeps the difference inspectable.
-- In the `make dogfood-seal` path the PASS line is printed by `script/dogfood-seal.sh`, so the
-  fields appear on the SUMMARY line of the check it runs, not on the shell's PASS line; the
-  `corvint dogfood seal` subverb appends them to its own PASS line.
 
 ## Evidence
 
@@ -54,7 +57,12 @@ a declared, recorded path instead of a workaround.
   `internal/dogfoodflow/check_output_change_test.go` reproduces the bug (undeclared additive member
   fails `verifier-disagreement`), then passes when declared with base once / tree twice, checks the
   report member and the seal PASS line, an unstable tree verifier still fails, each refusal fires
-  before any verifier runs, and agreeing verifiers without a declaration print no new field.
+  before any verifier runs, an empty range refuses an unknown or a known declaration (and still
+  passes without one), and agreeing verifiers without a declaration print no new field.
+- Wrapper test: `script/dogfood-change_test.sh` (run by `TestGoOnlyContextAbstentionRemainsClosed`)
+  feeds the seal wrapper a stub check whose SUMMARY carries the fields and requires the check
+  output to stream through followed by `dogfood-seal: PASS sealed=... base-independence=...`; the
+  undeclared case keeps the former exact PASS line.
 - Focused gates: `go test ./internal/dogfoodflow/`, `go test -run 'Dogfood|DCW' ./cmd/corvint/`,
   `go vet`, `gofmt`, `go build ./...` and the local doc gates.
 - `NOT_OBSERVED`: a real output-changing lane run through `make dogfood-check` with the declaration
