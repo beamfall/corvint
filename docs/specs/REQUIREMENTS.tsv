@@ -980,18 +980,21 @@ CRR-V0-004	docs/specs/compat-replay-runner-v0.md	334	Byte-exact comparison. Per 
 CRR-V0-005	docs/specs/compat-replay-runner-v0.md	342	Bounded IO and bounded time, refused rather than truncated or overrun.
 CRR-V0-006	docs/specs/compat-replay-runner-v0.md	379	Four separate vocabularies, none derived from another.
 CRR-V0-007	docs/specs/compat-replay-runner-v0.md	612	Unexecuted, interrupted and unobserved cases stay distinct.
-CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	42	Unit and selection. One change is one non-merge Beamfall commit `C`, and its lan
-CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	52	Pairing. Every change runs in both arms; the estimate is within-change. The arm
-CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	55	Withheld-patch construction. The presented patch `P(C)` contains only the source
-CRT-V0-004	docs/specs/cem-reviewer-trial-v0.md	58	Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself
-CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	70	Arms. `control` receives the prompt skeleton, `P(C)`, the numbered hunk list, an
-CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	89	Reply grammar. Every reply MUST end with one fenced JSON block
-CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	102	Metrics. `miss(c,a) = |gold(c) \ citedPaths(c,a)| / |gold(c)|`. The primary esti
-CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	122	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
-CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	151	Pilot. The pilot uses its own seed and partition; its changes are excluded from
-CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	154	Stopping and publication. There is no interim analysis: the scorer runs once, af
-CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	168	Invocation lifecycle (proposed). `runCommand` MUST share the
-CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	189	Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports
+CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	45	Unit and selection. One change is one non-merge Beamfall commit `C`, and its lan
+CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	55	Pairing. Every change runs in both arms; the estimate is within-change. The arm
+CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	58	Withheld-patch construction. The presented patch `P(C)` contains only the source
+CRT-V0-004	docs/specs/cem-reviewer-trial-v0.md	61	Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself
+CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	73	Arms. `control` receives the prompt skeleton, `P(C)`, the numbered hunk list, an
+CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	94	Reply grammar. Every reply MUST end with one fenced JSON block
+CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	107	Metrics. `miss(c,a) = |gold(c) \ citedPaths(c,a)| / |gold(c)|`. The primary esti
+CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	129	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
+CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	158	Pilot. The pilot uses its own seed and partition; its changes are excluded from
+CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	161	Stopping and publication. There is no interim analysis: the scorer runs once, af
+CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	181	Invocation lifecycle (proposed). `runCommand` MUST share the
+CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	202	Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports
+CRT-V0-013	docs/specs/cem-reviewer-trial-v0.md	216	Cited-not-gold precision (V1-1261, decision 0523 P4;
+CRT-V0-014	docs/specs/cem-reviewer-trial-v0.md	237	Registration (V1-1261, decision 0523 P4, extends CRT-V0-010;
+CRT-V0-015	docs/specs/cem-reviewer-trial-v0.md	266	Treatment arm and pre-baseline runs (V1-1261, decision 0523 P4;
 CTR-V0-001	docs/specs/compat-trial-v0.md	32	Descriptor schema. The fields below are frozen; a runner MUST NOT add, rename or
 CTR-V0-002	docs/specs/compat-trial-v0.md	40	Comparison policy v0. Equality is exact bytes of stdout, stderr and exit status
 CTR-V0-003	docs/specs/compat-trial-v0.md	42	Resource profile, quoted verbatim from `P:237–241`: "64 KiB input, 1 MiB output
