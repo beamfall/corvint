@@ -771,15 +771,18 @@ write them; V1-1278 S2/S3 remove them after those consumers move.
   `cem status`, the corpus check), MUST refuse bytes whose `spec` is `cem/0.1`, `cem/0.2` or
   `cem/0.3` with `unsupported-spec` and the message `<spec> is retired; cem/1.0 is the only
   stable wire; fix: <RetiredSpecFix>`, where the fix line says that committed 0.x maps were
-  migrated in place and names the forward recovery: merge `origin/main` into the branch, then
-  rerun `dogfood-change`, `dogfood-check` and `dogfood-seal` with `BASE=<that merge>`. The fix
+  migrated in place and names the forward recovery: merge `origin/main` into the branch, remove
+  the branch's own 0.x seal from `.corvint/changes/` (`CEM-V1-203`), then rerun `dogfood-change`,
+  `dogfood-check` and `dogfood-seal` with `BASE=<the origin/main commit merged>`. The fix
   MUST NOT name a rebase or a force-push. Any other non-`cem/1.0` spec keeps the existing
   "stable profile required" refusal.
 - `CEM-V1-201`: Every committed `.corvint/changes/<bind>.cem.json` MUST be accepted by
   `wire.ParseStable`, and a map that carries `provenance` MUST name its own file as
   `bindCommit`. A migrated map (one with `provenance`) MUST name a retired `sourceSpec`
   (`CEM-V1-200`) and a source blob that the repository holds under `sourceBlobOid` with the
-  recorded `sourceSha256`. A native map (no `provenance`) MUST be byte-identical to the
+  recorded `sourceSha256`, and MUST be byte-identical to the blob one of the `DCW-V0-050`
+  migration commits (`cemMigrationCommits`) wrote at its path, so an edit after migration fails.
+  A native map (no `provenance`) MUST be byte-identical to the
   `.corvint/change.cem.json` blob its bind commit tracks (`CEM-V1-231`). A Git object the
   checkout lacks makes the binding test report `NOT_RUN` (skip), never a pass. This replaces the
   converter reconversion of `CEM-V1-230`; byte equality between each source and its migrated map
@@ -797,9 +800,13 @@ write them; V1-1278 S2/S3 remove them after those consumers move.
   `NOTE sealed-cem-retired bind=<bind> spec=<spec> NOT_REVERIFIED coverage=none` with a
   `fix:` line, does not count it as a constituent, and does not count its range or its seal
   commit as bound, so those commits fail `unbound-commits` unless a verified `cem/1.0`
-  constituent's own range covers them. The recovery is to merge `origin/main` and rebind the
-  branch as one `cem/1.0` change whose `BASE` precedes the retired bind, for example the
-  `origin/main` commit merged. `dogfood change` admits a retired seal with
+  constituent's own range covers them. The recovery is to merge `origin/main`, remove the
+  retired seal file with a forward commit (its bind commit and sidecar stay in history), and rebind
+  the branch as one `cem/1.0` change whose `BASE` precedes the retired bind, for example the
+  `origin/main` commit merged. The removal is required because `CEM-V1-201` refuses any `cem/0.x`
+  map in the committed corpus; since the seal is added and removed inside `BASE..HEAD`, the net
+  diff that both `dogfood change` and `batch-check` read holds no sealed-CEM change for it, and
+  the new map's range covers the retired bind and seal commits. `dogfood change` admits a retired seal with
   `NOTE sealed-cem-retired ... NOT_REVERIFIED bound-by-this-change`, because that change binds
   and cites the whole range itself. No rebase, history rewrite or allow-list is needed. A seal
   modified after its bind commit keeps `sealed-cem-drift` and `DCW-V0-050` keeps its migration
@@ -819,7 +826,7 @@ migration commit.
 
 Failure modes: a pre-cutover branch that sealed a `cem/0.x` map and merges without rebinding
 fails `unbound-commits` with the retired-seal NOTE and its fix, never passes on an unverified
-map; a corpus map edited after migration fails `CEM-V1-201` by its sha256 or stable parse; a
+map; a migrated corpus map edited after its migration commit fails `CEM-V1-201` by byte comparison with the blob that commit wrote, and a native map by byte comparison with its bind commit's sidecar; a
 shallow checkout without a source blob or bind commit reports `NOT_RUN`; a verifier build that
 prints a 0.x `ready-for-ci` line for a stable map fails `constituent-unverified`.
 
@@ -828,7 +835,7 @@ Acceptance evidence:
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-200 | `TestCEMV1200RetiredSpecRefusedWithMergeFix` (`internal/cem/wire`) | Each retired spec gives `unsupported-spec` with "is retired" and the exact fix, and no "rebase", "force-push" or `--force`; `cem/0.4` keeps the plain refusal; a late 0.x seal in a copied corpus is caught by the corpus scan |
-| CEM-V1-201 | `TestCEMV1201CommittedCorpusIsStable`, `TestCEMV1201CommittedCorpusBinding` (`internal/cem/wire`) | 621 committed maps parse stable; 615 migrated maps match their source blob digests and retired source specs, and 6 native maps equal their bind commits' sidecars |
+| CEM-V1-201 | `TestCEMV1201CommittedCorpusIsStable`, `TestCEMV1201CommittedCorpusBinding` (`internal/cem/wire`) | 621 committed maps parse stable; 615 migrated maps match their source blob digests and retired source specs and equal the blobs their migration commits wrote (614 at `0b6f1bc2`, 1 at `3b86121f`), and 6 native maps equal their bind commits' sidecars; a late 0.x seal and its removal are checked together |
 | CEM-V1-202 | `TestBatchCheckDCWV0039RequiresStableVerification`, `TestBatchCheckDCWV0039PassesSealedConstituents`, `TestBatchCheckAdmitsStableConstituent` (`internal/dogfoodflow`) | A stable ACCEPT admits with `--artifacts`; empty, malformed, incomplete, REJECT, other-target, count-less and 0.x `ready-for-ci` output fail `constituent-unverified` |
 | CEM-V1-203 | `TestBatchCheckCEMV1203RetiredSealHasNoCoverage` (`internal/dogfoodflow`) | For each retired spec: batch-check exits 1 with the NOTE, its fix and `unbound-commits count=3` and runs no verifier; `dogfood change` admits it with the bound-by-this-change NOTE; after a `cem/1.0` rebind whose `BASE` precedes the retired bind the batch passes with one constituent; a `cem/0.4` seal fails `constituent-cem-invalid` |
 | CEM-V1-204 | `TestCEMV1204StableDispatchNoLongerCapturesConvert` (`internal/cem/cli`) | `cem convert` is not captured by the stable dispatch and is refused by the generic parser with exit 2 |

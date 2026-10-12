@@ -363,7 +363,7 @@ func (b *batch) verifyConstituent(bind string) {
 		// constituent's range or the batch fails unbound-commits (CEM-V1-203).
 		delete(b.constituents, bind)
 		b.print("%s: NOTE sealed-cem-retired %s NOT_REVERIFIED coverage=none\n", b.prefix, result.detail)
-		b.print("  fix: if its commits are unbound, rebind the branch as one cem/1.0 change whose BASE precedes this bind (merge origin/main, then dogfood-change BASE=<the origin/main commit merged>)\n")
+		b.print("  fix: if its commits are unbound, rebind the branch as one cem/1.0 change whose BASE precedes this bind and that removes this seal (merge origin/main, git rm the seal, then dogfood-change BASE=<the origin/main commit merged>)\n")
 		return
 	}
 	if result.ran {

@@ -17,6 +17,14 @@ import (
 // committedChanges is the repository's sealed CEM corpus.
 var committedChanges = filepath.Join("..", "..", "..", ".corvint", "changes")
 
+// migrationCommits are the DCW-V0-050 migration commits that wrote every
+// migrated map (internal/dogfoodflow cemMigrationCommits). The converter is
+// gone, so no further migration commit can be written and the list is frozen.
+var migrationCommits = []string{
+	"0b6f1bc245b44a8620c5e64f91e87f6d08da08d0",
+	"3b86121f4ced8b90212eaab6644ffbb4c491710d",
+}
+
 // corpusFailures checks every <bind>.cem.json map under dir: each must read
 // as stable cem/1.0, and a migrated map's provenance must name its own bind
 // commit. A retired 0.x map fails with the stable reader's refusal.
@@ -64,9 +72,10 @@ func TestCEMV1201CommittedCorpusIsStable(t *testing.T) {
 }
 
 // CEM-V1-201 (CEM-V1-230/231 kept without the converter): a migrated map's
-// provenance names the source blob by Git object ID and SHA-256, and a stable
-// map without provenance equals its bind commit's sidecar. Both read Git
-// objects, so a checkout without them reports NOT_RUN.
+// provenance names the source blob by Git object ID and SHA-256 and the map
+// equals the blob its migration commit wrote, and a stable map without
+// provenance equals its bind commit's sidecar. Both read Git objects, so a
+// checkout without them reports NOT_RUN.
 func TestCEMV1201CommittedCorpusBinding(t *testing.T) {
 	entries, err := os.ReadDir(committedChanges)
 	if err != nil {
@@ -95,6 +104,9 @@ func TestCEMV1201CommittedCorpusBinding(t *testing.T) {
 			if hex.EncodeToString(sum[:]) != p.SourceSha256 || !RetiredSpec(p.SourceSpec) {
 				t.Fatalf("%s: provenance does not name its source blob", e.Name())
 			}
+			if !migratedUnchanged(t, e.Name(), data) {
+				t.Fatalf("%s: migrated map differs from the blob every migration commit wrote at its path", e.Name())
+			}
 			migrated++
 		} else if sidecar := gitObject(t, bind+":.corvint/change.cem.json"); !bytes.Equal(sidecar, data) {
 			t.Fatalf("%s: stable map without provenance differs from its bind commit's sidecar", e.Name())
@@ -103,6 +115,23 @@ func TestCEMV1201CommittedCorpusBinding(t *testing.T) {
 		}
 	}
 	t.Logf("migrated=%d native=%d", migrated, native)
+}
+
+// migratedUnchanged reports whether data equals the blob one migration commit
+// holds for the sealed map name. A migration commit the checkout lacks is
+// NOT_RUN; a commit without that path is simply not the one that wrote it.
+func migratedUnchanged(t *testing.T, name string, data []byte) bool {
+	t.Helper()
+	for _, commit := range migrationCommits {
+		if err := exec.Command("git", "-C", committedChanges, "cat-file", "-e", commit+"^{commit}").Run(); err != nil {
+			t.Skipf("NOT_RUN: migration commit %s unavailable: %v", commit, err)
+		}
+		blob, err := exec.Command("git", "-C", committedChanges, "cat-file", "blob", commit+":.corvint/changes/"+name).Output()
+		if err == nil && bytes.Equal(blob, data) {
+			return true
+		}
+	}
+	return false
 }
 
 func gitObject(t *testing.T, name string) []byte {
@@ -146,6 +175,13 @@ func TestCEMV1200RetiredSpecRefusedWithMergeFix(t *testing.T) {
 		}
 		if n, failures, _ := corpusFailures(dir); n != 2 || len(failures) != 1 || !strings.Contains(failures[0], "unsupported-spec") {
 			t.Fatalf("%s: late seal not caught: n=%d failures=%v", spec, n, failures)
+		}
+		// CEM-V1-203's recovery removes the retired seal, which clears the scan.
+		if err := os.Remove(filepath.Join(dir, strings.Repeat("c", 40)+".cem.json")); err != nil {
+			t.Fatal(err)
+		}
+		if n, failures, err := corpusFailures(dir); err != nil || n != 1 || len(failures) != 0 {
+			t.Fatalf("%s: recovery: n=%d failures=%v err=%v", spec, n, failures, err)
 		}
 	}
 	// Other unsupported specs keep the plain stable refusal.

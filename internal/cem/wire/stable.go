@@ -15,7 +15,7 @@ const StableSpec = "cem/1.0"
 // RetiredSpecFix is the recovery a retired cem/0.x map names (CEM-V1-200):
 // the committed maps were rewritten in place, so a branch catches up by
 // merging, never by rebasing or force-pushing.
-const RetiredSpecFix = "committed 0.x maps were migrated in place by the migration commits (internal/dogfoodflow/migration.go); merge origin/main into the branch, then rerun dogfood-change, dogfood-check and dogfood-seal with BASE=<that merge>"
+const RetiredSpecFix = "committed 0.x maps were migrated in place by the migration commits (internal/dogfoodflow/migration.go); merge origin/main into the branch, git rm the branch's own 0.x seal under .corvint/changes/, then rerun dogfood-change, dogfood-check and dogfood-seal with BASE=<the origin/main commit merged>"
 
 // RetiredSpec reports a cem/0.1, cem/0.2 or cem/0.3 spec. cem/1.0 is the only
 // stable wire, so the stable reader refuses these with unsupported-spec and
