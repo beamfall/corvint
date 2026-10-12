@@ -344,7 +344,7 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		exit = fail("verification", err)
 		return r, exit
 	}
-	if err = checkEvidence(ctx, repo, &change, d.Change.BaseRevision); err != nil {
+	if _, err = checkEvidence(ctx, repo, &change, d.Change.BaseRevision); err != nil {
 		exit = fail("verification", err)
 		return r, exit
 	}

@@ -523,10 +523,15 @@ func (c *check) verifyBinding(report []byte) int {
 	}
 	ocmLine := []byte("dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\n")
 	bootstrap := 0
+	intents := []string{}
 	if !noIntent {
 		ocmLine = c.verifyOCM(aggregate)
-		bootstrap = bootstrapUnknowns(&c.flow, readLines(readFile(intentSnapshot)))
+		intents = readLines(readFile(intentSnapshot))
+		bootstrap = bootstrapUnknowns(&c.flow, intents)
 	}
+	// The committed map carries each reason an author recorded for a hunk kept
+	// unknown, so the check admits them as the change did (DCW-V0-019).
+	reasoned, allowance := c.flow.reasonedUnknowns(c.root+"/.corvint/change.cem.json", intents, bootstrap > 0)
 	policyMatches := bytes.Contains(report, []byte(`  ,"dogfoodPolicy": {"bootstrapUnknown": `+strconv.Itoa(bootstrap)+`, "maximumUnknownAfterBootstrap": 0}`))
 	if c.aggregate != nil {
 		policyMatches = c.aggregate.DogfoodPolicy.BootstrapUnknown == bootstrap && c.aggregate.DogfoodPolicy.MaximumUnknownAfterBootstrap == 0
@@ -536,7 +541,7 @@ func (c *check) verifyBinding(report []byte) int {
 		c.fail("dogfood-report-drift")
 	}
 	cem, agreed := c.verifyAll("cem", "status", "--map", ".corvint/change.cem.json", "--expected-base", c.base, "--target", c.target,
-		"--max-unknown", strconv.Itoa(bootstrap), "--max-mechanical", "0")
+		"--max-unknown", strconv.Itoa(bootstrap+allowance), "--max-mechanical", "0")
 	if !agreed {
 		_ = c.record(false, bootstrap)
 		c.fail("verifier-disagreement")
@@ -562,7 +567,7 @@ func (c *check) verifyBinding(report []byte) int {
 		fmt.Fprintf(c.stdout, "dogfood-check: PASS\n")
 		return 0
 	}
-	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, detail))
+	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, reasoned, detail))
 	if noIntent {
 		_, _ = c.stdout.Write(ocmLine)
 	}
@@ -573,7 +578,10 @@ func (c *check) verifyBinding(report []byte) int {
 // checkSummary is the one PASS line that stands in for the CEM and OCM status
 // JSON (DCW-V0-033): their states and counts, the report, and the detail file
 // that holds the full JSON. A field the JSON does not carry prints NOT_OBSERVED.
-func checkSummary(cemLine, ocmLine []byte, noIntent bool, detail string) string {
+// unknownShare is unknown over material (non-mechanical) hunks, the measure of
+// the CEM kill condition, and reasonedUnknown the unknown hunks kept with a
+// recorded reason (DCW-V0-019).
+func checkSummary(cemLine, ocmLine []byte, noIntent bool, reasoned int, detail string) string {
 	var cem struct {
 		State  *string `json:"state"`
 		Counts *struct {
@@ -586,10 +594,12 @@ func checkSummary(cemLine, ocmLine []byte, noIntent bool, detail string) string 
 	_ = json.Unmarshal(cemLine, &cem)
 	fields := []string{"cem=" + summaryString(cem.State)}
 	if counts := cem.Counts; counts != nil {
-		fields = append(fields, "hunks="+summaryInt(counts.Total), "supported="+summaryInt(counts.Supported), "unknown="+summaryInt(counts.Unknown), "mechanical="+summaryInt(counts.Mechanical))
+		fields = append(fields, "hunks="+summaryInt(counts.Total), "supported="+summaryInt(counts.Supported), "unknown="+summaryInt(counts.Unknown), "mechanical="+summaryInt(counts.Mechanical),
+			"unknownShare="+unknownShare(counts.Total, counts.Unknown, counts.Mechanical))
 	} else {
-		fields = append(fields, "hunks=NOT_OBSERVED")
+		fields = append(fields, "hunks=NOT_OBSERVED", "unknownShare=NOT_OBSERVED")
 	}
+	fields = append(fields, "reasonedUnknown="+strconv.Itoa(reasoned))
 	if noIntent {
 		fields = append(fields, "ocm=NOT_ASSESSED")
 	} else {
@@ -626,6 +636,15 @@ func summaryString(value *string) string {
 		return "NOT_OBSERVED"
 	}
 	return *value
+}
+
+// unknownShare is UNKNOWN/MATERIAL, material hunks being the total less the
+// mechanical ones; it is NOT_OBSERVED when a count is absent or inconsistent.
+func unknownShare(total, unknown, mechanical *int) string {
+	if total == nil || unknown == nil || mechanical == nil || *unknown < 0 || *mechanical < 0 || *unknown+*mechanical > *total {
+		return "NOT_OBSERVED"
+	}
+	return strconv.Itoa(*unknown) + "/" + strconv.Itoa(*total-*mechanical)
 }
 
 func summaryInt(value *int) string {

@@ -143,7 +143,7 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	// DCW-V0-033: PASS prints one summary line; the full status JSON is in the detail file.
 	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
 	detail := strings.TrimSpace(cemGit(t, root, "rev-parse", "--absolute-git-dir")) + "/corvint/dogfood-check.stdout"
-	summary := "dogfood-check: SUMMARY cem=ready-for-ci hunks=1 supported=1 unknown=0 mechanical=0 ocm=ready-for-review requirements=2 linked=0 unlinked=2 report=.corvint/dogfood-report.json detail=" + detail
+	summary := "dogfood-check: SUMMARY cem=ready-for-ci hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review requirements=2 linked=0 unlinked=2 report=.corvint/dogfood-report.json detail=" + detail
 	if code != 0 || len(lines) != 2 || lines[0] != summary || lines[1] != "dogfood-check: PASS" {
 		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
@@ -166,6 +166,55 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	cemGit(t, root, "cat-file", "-e", "HEAD:.corvint/changes/"+bind+".cem.json")
 	if subject := cemGit(t, root, "log", "-1", "--format=%s"); subject != "chore: seal change evidence" {
 		t.Fatalf("seal commit %q", subject)
+	}
+}
+
+// DCW-V0-046 (V1-1258): the installed binary binds a plan that keeps the only
+// hunk unknown with a recorded reason, the check passes and reports the unknown
+// share instead of refusing, and the seal keeps the reason in the sealed map.
+func TestDogfoodDCWV0046ReasonedUnknownChecksAndSeals(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	inputsDir := t.TempDir()
+	citations := filepath.Join(inputsDir, "citations.tsv")
+	intents := filepath.Join(inputsDir, "intents")
+	for path, content := range map[string]string{citations: "1\tunknown\tinsufficient-evidence\tno governing line states the new answer\n", intents: "intent.md\n"} {
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
+	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 || !strings.Contains(stderr, "\n  local-outcome: record-index-failed\n") || strings.Contains(stderr, "cem-cite") || strings.Contains(stderr, "cem-status") {
+		t.Fatalf("untracked sidecar exit=%d stderr=%s", code, stderr)
+	}
+	cemGit(t, root, "add", ".corvint/change.cem.json")
+	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
+	bind := cemGit(t, root, "rev-parse", "HEAD")
+	if code, stdout, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 0 || stdout != "" || stderr != absentAgentReceipts {
+		t.Fatalf("change exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	code, stdout, stderr := run.exec(t, root, nil, "dogfood", "check", base)
+	if code != 0 || !strings.HasPrefix(stdout, "dogfood-check: SUMMARY cem=ready-for-ci hunks=1 supported=0 unknown=1 mechanical=0 unknownShare=1/1 reasonedUnknown=1 ocm=") || !strings.HasSuffix(stdout, "\ndogfood-check: PASS\n") {
+		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	if code, stdout, stderr = run.exec(t, root, nil, "dogfood", "seal", base); code != 0 || !strings.HasSuffix(stdout, "dogfood-seal: PASS sealed=.corvint/changes/"+bind+".cem.json\n") {
+		t.Fatalf("seal exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	var sealed struct {
+		Hunks []struct {
+			Disposition string `json:"disposition"`
+			Reason      string `json:"reason"`
+		} `json:"hunks"`
+	}
+	if err := json.Unmarshal([]byte(cemGit(t, root, "show", "HEAD:.corvint/changes/"+bind+".cem.json")), &sealed); err != nil || len(sealed.Hunks) != 1 ||
+		sealed.Hunks[0].Disposition != "unknown" || sealed.Hunks[0].Reason != "insufficient-evidence" {
+		t.Fatalf("sealed map hunks %+v err=%v", sealed.Hunks, err)
+	}
+	// The real verifier admits the sealed reasoned unknown hunk in batch-check.
+	if code, stdout, stderr = run.exec(t, root, nil, "dogfood", "batch-check", base); code != 0 ||
+		!strings.Contains(stdout, " reasonedUnknown=1 ") || !strings.Contains(stdout, "state=ready-for-ci") {
+		t.Fatalf("batch-check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 }
 
@@ -227,7 +276,7 @@ func TestDogfoodDailyPathCompletesWithDeclaredNoIntent(t *testing.T) {
 		t.Fatal(err)
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base)
-	if code != 0 || !strings.HasPrefix(stdout, "dogfood-check: SUMMARY cem=ready-for-ci hunks=1 supported=1 unknown=0 mechanical=0 ocm=NOT_ASSESSED report=.corvint/dogfood-report.json detail=") || !strings.HasSuffix(stdout, "\ndogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\ndogfood-check: PASS\n") || strings.Count(stdout, "\n") != 3 || strings.Contains(stdout, "dogfood-ocm-status") {
+	if code != 0 || !strings.HasPrefix(stdout, "dogfood-check: SUMMARY cem=ready-for-ci hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=NOT_ASSESSED report=.corvint/dogfood-report.json detail=") || !strings.HasSuffix(stdout, "\ndogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\ndogfood-check: PASS\n") || strings.Count(stdout, "\n") != 3 || strings.Contains(stdout, "dogfood-ocm-status") {
 		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "seal", base)

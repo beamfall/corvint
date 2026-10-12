@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -461,6 +461,180 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `docs flows` and `docs maintain`, each of which `corvint help` accepts. Acceptance:
   `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError`. Status: accepted
   under the owner's standing auto-accept (2026-10-11; GitHub #805).
+- `DCP-V1-060`: `corvint docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT
+  --path PATH [--input REGISTRY.json]` is an experimental static producer. It reads the Jasmine or
+  Mocha/Cypress test files at `--path` (one Git blob, or every test-named `.js`, `.ts`, `.jsx`,
+  `.tsx`, `.mjs` or `.cjs` file under a directory, skipping `node_modules`; `.` is the whole tree)
+  from Git at the full commit and prints one closed `corvint-legacy-inventory/1` record with status
+  `generated`. Its `legacy` array uses the existing `BehaviorLegacyCase` shape unchanged, so the
+  cases can be pasted into a behavior registry. Every anchor is an `external-provider` source span
+  bound to the blob's digest. It runs no test, browser, Node or package manager and downloads
+  nothing. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
+- `DCP-V1-061`: Each statically named `it` (and its runner's aliases) under statically titled
+  suites appears exactly once, with ID `legacy:<path>::<suite titles > case title>`, the title path
+  split into `suite` and `case`, and an anchor spanning the call. When a title path repeats in a
+  file, the first occurrence keeps the plain ID, each later one gets an ordinal ` #n` suffix
+  (n from 2), and every occurrence has a `duplicate-title` unknown. `xit`, `xdescribe`,
+  `xcontext`, `xspecify`, `.skip`, a case without a callback, a jasmine `pending(` call and any
+  case inside a disabled suite have state `disabled`; everything else is `executable`. A focused
+  `fit`, `fdescribe` or `.only` case stays in the inventory with a `focused` unknown. A case inside
+  a dynamic scope (a loop, a callback that is not a suite, or a call that is not a statement of its
+  own, such as an unbraced `if` body or `flag && it(...)`, with automatic semicolon insertion
+  applied at line breaks) or with a non-static title is not invented: it is a
+  `case-in-dynamic-scope` or `dynamic-title` unknown. A runner call inside a template substitution
+  is a `runner-call-in-template` unknown, a case whose callback is not an inline function has a
+  `case-callback-not-static` unknown, a case that calls `this.skip()` has a `runtime-skip` unknown,
+  and a case whose span cannot be anchored is a `case-span-unanchorable` unknown. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
+- `DCP-V1-062`: Assertions in a case body become ordinal criteria `c1..cn` with matcher, locator
+  and value tuples: `expect(subject).matcher(value)` and `expectAsync`, `assert(...)` and
+  `assert.X(...)`, Cypress `.should(chainer, value)` and `.and(...)`, and a `cy`-rooted `.contains`.
+  A leading Jasmine `withContext(...)` is skipped. String escapes are decoded (`\n`, `\xHH`, `\uHHHH`,
+  surrogate pairs, `\u{...}`, identity escapes); a legacy octal, malformed or lone-surrogate escape
+  refuses the file. A single static
+  string value is unquoted; no argument is `(no expected value)`; anything else is the layout-free
+  canonical token text. An assertion the reader cannot turn into one tuple (a `should` callback, a
+  computed matcher, a nested helper, a chain that continues after the first matcher such as
+  `.and.equal(...)` or `['and']`, a Cypress `.and(...)` not chained from a `.should(...)`, a matcher
+  reached through a computed member such as `['should']`, a `.contains` whose second argument is
+  neither a literal nor a plain options object, an assertion inside a function the case defines
+  but does not pass directly as a call argument, or an assertion or Cypress `.contains`/`.and`
+  inside a template substitution) is listed under `unknown` as
+  `unparsed-assertion` or `should-callback` with its case and anchor; it is never dropped, and a
+  case with no static assertion has a `no-static-assertion` unknown. Only an `expect` that is not a
+  member (`chai.expect`, `globalThis.expect`) is extracted. A helper is proven only as a `function`
+  or arrow expression passed whole as one direct argument of a plain call; a declared, assigned,
+  parenthesised, immediately invoked or otherwise grouped function, an object or class method,
+  getter or setter, and a class body are unproven, and an assertion inside one is an
+  `unparsed-assertion` unknown, never a criterion. After extraction a fail-closed residue check
+  scans the body's code tokens: every `expect`, `expectAsync`, `assert`, `should`, `and` or
+  `contains`, every precondition word (`task`, `request`, `intercept`, `fixture`, `visit`, `exec`,
+  `route`, `goto`), every `cy`, `browser` or `page` chain and every runner suite, case or hook call
+  that no extraction consumed adds an unknown (`unparsed-assertion`, `unparsed-command` or
+  `runner-call-in-case`); so does such a word as a string anywhere inside a bracket, an unbound
+  matcher member (`to` or a `toX...` name other than a built-in such as `toString`), a `cy`, or a
+  `browser`/`page` precondition, reached as a member, a precondition word reached through a
+  computed member or such a root, an optional (`?.`) or otherwise computed `cy`/`browser`/`page`
+  chain, a bare `cy` value, a runner function used as a value (`beforeEach.call(...)`) and a
+  template substitution naming one. A runner function so used at suite scope is a
+  `runner-reference-not-static` unknown, and a hook so used gives every case in that scope
+  `hook-not-static`. A method named by any keyword other than a statement header, or by a header
+  keyword inside an object literal, is unproven. A keyword used as a property name ends an
+  expression for the regex/division decision, and a numeric literal is scanned to its JavaScript
+  grammar; a literal followed directly by an identifier character refuses the file. The residue
+  check is a diagnostic; the verdict comes from a closed-world allowlist. A case is admitted only
+  when every token of the file structure (runner suite, case and hook calls with one static string
+  title and an anonymous, parameterless, synchronous callback with a block body, separated by `;`
+  or line breaks), of each
+  enclosing hook body and of its own callback and body belongs to a recognized statement form:
+  `expect(<operand>)`, optionally `.withContext(<literals>)`, then either exactly one call of a
+  listed Jasmine/Jest matcher with literal arguments, never negated, where `toHaveLength` and
+  `toHaveSize` take only a decimal integer literal of at least 1, or a chai chain that, less an
+  optional leading `to`, equals one admitted chainer; a `cy` chain of known queries with literal
+  arguments, optionally `.contains(<content>)` or `.contains(<selector>, <content>)`, then
+  `.should('<chainer>', <values>)` and `.and(...)` with one admitted chainer each, where no `.and`
+  or further `.should` follows `have.attr` or `have.length` (they may yield a new subject) and a
+  query after `contains` has a `.should` directly after it; a `cy`, `browser` or `page`
+  precondition call with literal arguments and an optional `.as('<name>')` (the only form
+  admitted in a hook). The admitted chainers are a closed set of whole strings, never composed
+  from words, each a positive assertion on the subject: `be.visible` (it is visible), `exist`
+  alone (it exists), `be.checked`, `be.disabled` and `be.enabled` (that state holds), each with no
+  value; `contain` (it contains the value), `contain.text` and `include.text` (its text contains
+  the value), `have.text` (its text equals the value), `have.value` (its value equals the value),
+  `have.class` (it has the class) and `have.length` (it has exactly that many elements, a decimal
+  integer literal of at least 1), each with one value; and `have.attr` (it has the attribute,
+  with the given value when a second is supplied). In a chai chain an entry with no value is not
+  called and an entry with a value is called with it. A negated, composed (`exist.and.be.a`),
+  zero-length or unlisted chainer is refused as a whole. Operands that are literals (strings without
+  substitution, numbers, `true`, `false`, `null`, arrays and plain objects of those) or plain
+  identifier member paths; and `;`, line breaks and comments. Anything else, including any other
+  call, a computed member, an escaped identifier, a regex-ambiguous `/`, an alias or declaration,
+  `.call`/`.apply`, a member-qualified runner name, a template substitution, an import, a
+  callback parameter, `await`, an `async` or expression-bodied callback, a chainer outside the
+  admitted set, a negated Jasmine matcher, a `contains` options argument, and a single string expected value whose
+  unquoted text could read as another literal's canonical text (it starts with a digit, `.`, `-`,
+  `+`, `[`, `{`, `(` or a quote, or with `true`, `false` or `null`), is a `not-allowlisted` unknown naming the first refused token and its region
+  (file structure, an enclosing hook, case callback or case body). An admitted statement whose key
+  token no extraction consumed is also `not-allowlisted`. A case with more assertion tuples than
+  the registry's per-case criterion bound (4,096) has no criteria and a `criteria-over-bound`
+  unknown; its list is never truncated. A case with more distinct preconditions than that bound
+  has no fixtures and a `fixtures-over-bound` unknown, and discovery fails when the inventory's
+  distinct preconditions exceed it, as it does for cases and unknowns. Over-refusal is accepted: helper calls, Cypress actions,
+  `afterEach`, `done` and `async` callbacks, awaited Playwright or WebdriverIO calls, subject
+  changing continuations, every chai or Cypress assertion outside the admitted chainer set
+  (including `equal`, `be.true` and type checks), `contains` options, ambiguous string values and regex literals make a
+  case unknown, never parity. The allowlist does not prove what runs outside the case: other cases' bodies and hooks
+  of non-enclosing suites (cross-test state is a runtime-baseline question), getters on operand
+  paths, custom matchers or commands that override a known name, and support files. A case with
+  any unknown never reaches `parity-candidate` (`DCP-V1-066`). LF, CR, CRLF, U+2028 and U+2029 are each a line terminator: each ends a `//`
+  comment, separates statements for ASI and counts as a JavaScript line break; anchor lines stay
+  LF-delimited as for every corpus anchor. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
+- `DCP-V1-063`: Preconditions are content-bound references. Every top-level call statement in an
+  enclosing `beforeEach`/`before` hook, and every `cy.visit`, `browser.get`, `browser.url`,
+  `page.goto` (`visit`), `cy.intercept`, `cy.route` (`intercept`), `cy.task`, `cy.exec` or
+  `cy.fixture` (`setup`) call in the case body (a member named by one bracketed static
+  identifier-name string, as in `cy['task']`, resolves to that member; any other computed member is
+  a `DCP-V1-062` residue unknown, and in a hook a `hook-not-static` doubt), is one `preconditions` entry with kind, callee, the
+  full canonical call text (layout-free: a space separates only two word tokens or two operators),
+  its SHA-256 and an anchor. The case's `fixtures` list holds
+  `kind:callee@sha256:<digest>` in execution order: run-once (`before`/`beforeAll`) hooks outer to
+  inner, then per-case hooks outer to inner, then the body in source order; a repeated identity
+  keeps its first place. Any change to a seed name, URL, intercept argument or call order changes
+  the list. A body precondition nested in a callback, conditional or template substitution is
+  still recorded and adds a `nested-precondition` unknown. A hook the reader cannot fully bind (no
+  inline callback, a call nested in a conditional, loop or callback, a non-statement call, or a
+  recorded call that passes a callback or template substitution) gives every case under it a
+  `hook-not-static` unknown. A hook at file root (`root-level-hook`) or in a dynamic scope
+  (`hook-in-dynamic-scope`) is an unknown, not a precondition, and every case under it also has a `hook-not-static` unknown, as does every case in
+  a scope with a hook call inside a template substitution. Canonical text writes a line break that
+  ends a restricted production (after `return`, `break`, `continue` or `yield`, or before `++` or
+  `--`) as the `;` ASI inserts; a backslash before U+2028 or U+2029 is a line continuation and a
+  template's CR or CRLF cooks to LF. A case reaches `parity-candidate` only when every enclosing
+  hook body holds nothing but allowlisted precondition statements (`DCP-V1-062`); any other hook
+  statement, such as a helper call or a Cypress action, is a `not-allowlisted` unknown for every
+  case under it, so a precondition the reader cannot bind is never silently omitted from
+  `fixtures`. An awaited precondition, or one in an `async` or expression-bodied hook or case, is
+  also `not-allowlisted`: the fixture identity does not record completion order. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
+- `DCP-V1-064`: The record is pinned and deterministic: it names the repository identity and the
+  full revision, reads only Git objects (never the working tree), writes nothing, and repeated runs
+  on the same inputs give identical bytes. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
+- `DCP-V1-065`: With `--input REGISTRY.json` (a closed behavior registry) the record adds a
+  `crosswalk` with status `generated` and the registry's SHA-256. For each legacy case it lists at
+  most five targets (tests and flows) ordered by score, then kind, then ID, each with its score and
+  reasons: equal tuples, equal values, title-word overlap, equal preconditions, and required pages
+  the case visits. Candidates are suggestions only: the producer never writes or emits a
+  `legacy_criteria` relation or a review, and the same inputs give identical bytes. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
+- `DCP-V1-066`: The crosswalk re-checks every existing reviewed `legacy_criteria` mapping in the
+  registry against the fresh inventory. A `same` or `stronger` mapping whose target criterion no
+  longer asserts the extracted legacy tuple is `refused` (`expected-value-differs` when matcher and
+  locator agree, otherwise `observable-dropped`); the command still prints the full record and
+  exits 1. A mapping to an undiscovered case or criterion is `unresolved`. Other relations, role
+  requirements, disabled cases, cases with unknowns, a mapping criterion the target does not
+  declare (`target-criterion-not-declared`), a mapping without a review at the registry's source
+  revision (`mapping-review-missing-or-stale`), and a retained tuple whose target assertion lacks a
+  reviewed annotation and behavior binding (`target-assertion-not-reviewed`) are `not-parity`. Only
+  a mapping with none of these is `parity-candidate`, with the reason `runtime-baseline-required`. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
+- `DCP-V1-067`: A target whose fixture identities differ from the legacy case's makes the mapping
+  `not-parity`, naming `precondition-digest-differs`, `precondition-not-discovered`,
+  `precondition-missing-from-target` or `precondition-order-differs`. Because the fixture identity
+  embeds the digest, the existing behavior compiler reports the same change as a
+  `legacy-precondition-mismatch` gap and never parity. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
+- `DCP-V1-068`: The producer refuses with `corpus-refused` an unknown runner, a revision that is
+  not a full commit ID, a non-canonical, absolute or parent-traversing `--path`, a path absent at
+  the revision, a directory without test files, a non-regular blob (selected alone or as a
+  test-named entry of a selected directory), an open or malformed registry, a registry that is not
+  a schema 2 registry with a pinned contract and full revisions or that has invalid or duplicate
+  flow, source behavior, test, fixture, role or mapping identities (flows, source behaviors and
+  tests share one identity namespace, as in the behavior compiler; a mapping is identified by
+  its criterion, legacy case and legacy criterion), and an inventory over
+  `MaxRecords`. A file the lexer cannot classify (for example JSX, invalid UTF-8, an unterminated
+  literal, a legacy octal escape, a raw line break in a string or regex, or a `/` after `}` whose
+  regex or division reading depends on statement context) is a `lex-failed` unknown, a file over `MaxBytes` is `file-over-bound`, and a
+  file without static cases is `no-static-cases`; none of them invents a case. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
+- `DCP-V1-069`: `corvint docs --help` lists the `discover-legacy` usage and describes its output,
+  the generated crosswalk, and the exit 1 on a refused mapping. The CLI prints exactly the
+  producer's bytes, exits 1 with the record on a refused mapping, and exits 2 with the named
+  error for a `DCP-V1-068` refusal, a missing required option or an option the operation does not
+  take. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
 
 - `DCP-V1-070`: `corvint docs corpus import-cases --format testrail-json|csv --input EXPORT` reads
   one caller-exported test-management file, a root-relative local input of at most 32 MiB and 4096
@@ -782,6 +956,35 @@ The opt-in adoption `/2` capacity and read projection limits are defined by DCP-
 Query limits disclose withheld rows. Unsupported analyzer input may be inventoried with an explicit
 gap; explicitly requesting an unavailable provider implementation fails the build.
 
+### Experimental legacy inventory producer and crosswalk (issue 811)
+
+`discover-legacy` turns an existing Jasmine or Mocha/Cypress suite into the legacy inventory shape
+the behavior registry already accepts (`DCP-V1-060..069`), so an adopter starts a migration from
+evidence rather than a hand-typed list. It reuses the static tokenizer approach of the Playwright
+producers: comment- and literal-aware, no external parser, and a file it cannot classify is
+reported, not guessed. The inventory and crosswalk are generated suggestions. A reviewer still
+writes every `legacy_criteria` relation, and the behavior compiler still needs a qualified
+`corvint-legacy-behavior-run/1` baseline before any runtime parity.
+
+Limits: helper, custom-command, support and fixture bodies are not followed (a precondition binds
+its call text, not the seed file); roles are always empty; global support hooks and root-level
+hooks in other files are not seen; an assertion or any statement other than an allowlisted
+precondition inside an enclosing hook makes every case under it `not-allowlisted`; a call nested
+inside a conditional, loop or callback in a hook is not recorded as a precondition, and every case
+under that hook carries a `hook-not-static` unknown instead. The closed-world allowlist
+(`DCP-V1-062`) over-refuses by design: a case that uses any helper call, Cypress action,
+declaration, `await`, `async` or expression-bodied callback, function-calling or subject-changing
+chainer continuation, `contains` option, ambiguous string value or other unlisted form is unknown,
+never parity, and a case over the 4,096-criterion bound is unknown rather than truncated. Other
+cases' bodies, hooks of
+non-enclosing suites, getters on operand paths and custom matchers or commands overriding a known
+name are not proven; cross-test state needs the runtime baseline.
+
+Acceptance: `TestLegacyDiscoveryInventory`, `TestLegacyDiscoveryDeterministicReadOnly`,
+`TestLegacyCrosswalk`, `TestLegacyPreconditionDigestCompileGap`, `TestLegacyDiscoveryRefusals`,
+`TestLegacyDiscoveryStaticEdgeCases`, `TestLegacyLexerCanonicalAndEscapes` and
+`TestDocsCorpusDiscoverLegacyCLI`.
+
 ## Failure modes
 
 `corpus-refused` covers malformed/canonical/digest/closure/authority/span/bound failures.
@@ -863,6 +1066,14 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-053 | `cmd/corvint/docs.go`, `cmd/corvint-js-test-provider/main.go` | `TestDocsHelpNamesPlaywrightReceiptProducer`, `TestDocsHelpProducerExampleUsesE2EFlags` |
 | DCP-V1-056 | `cmd/corvint/docs_corpus_help.go`, `cmd/corvint/docs_corpus.go`, `cmd/corvint/help.go` | `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags`, `TestDocsCorpusOperationFlagMatrix` |
 | DCP-V1-057 | `cmd/corvint/help.go` | `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError` |
+| DCP-V1-060..061 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-060 DCP-V1-061`) |
+| DCP-V1-062 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go`, `behavior_legacy_allow.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-062`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-062`), `TestLegacyResidueFailsClosed` (`DCP-V1-062`) |
+| DCP-V1-063 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_allow.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-063`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-063`), `TestLegacyLexerCanonicalAndEscapes`, `TestLegacyResidueFailsClosed` (`DCP-V1-063`) |
+| DCP-V1-064 | `internal/doccorpus/behavior_legacy_discovery.go` | `TestLegacyDiscoveryDeterministicReadOnly` |
+| DCP-V1-065..066 | `internal/doccorpus/behavior_legacy_crosswalk.go` | `TestLegacyCrosswalk` (`DCP-V1-065`, `DCP-V1-066`) |
+| DCP-V1-067 | `internal/doccorpus/behavior_legacy_crosswalk.go`, `behavior.go` | `TestLegacyCrosswalk` (`DCP-V1-067`), `TestLegacyPreconditionDigestCompileGap` |
+| DCP-V1-068 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go` | `TestLegacyDiscoveryRefusals`, `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-068`), `TestLegacyCrosswalk` (`DCP-V1-068`), `TestLegacyLexerCanonicalAndEscapes` |
+| DCP-V1-069 | `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs_corpus_legacy.go`, `docs.go` | `TestDocsCorpusDiscoverLegacyCLI`, `TestDocsCorpusOperationFlagMatrix` |
 | DCP-V1-070..071 | `internal/doccorpus/legacy_cases.go`, `cmd/corvint/docs_corpus_legacy_cases.go` | `TestImportLegacyCasesFormats`, `TestDocsCorpusLegacyCasesCLI` |
 | DCP-V1-072..073 | `internal/doccorpus/legacy_cases.go` | `TestImportLegacyCasesFullStripsHTML`, `TestLegacyCasesIDsPathsTitlesWithholdsSteps` |
 | DCP-V1-074 | `internal/doccorpus/legacy_cases.go` | `TestImportLegacyCasesBoundsOversized` |

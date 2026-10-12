@@ -39,6 +39,10 @@ type ReadOptions struct {
 	// multi-version reader, which admits symbolic revisions such as HEAD.
 	// A cem/1.0 map never reaches the stable reader under SingleSpec.
 	SingleSpec string
+	// Citation opts a 0.x canonical status or verify into the
+	// consumer-computed citation block (CEM-V1-080); default output stays
+	// byte-identical to the frozen 0.x goldens (decision 0357).
+	Citation bool
 }
 
 // ActionReportPreview renders the report without publishing it: the
@@ -200,7 +204,7 @@ func (s *Session) runVerification(ctx context.Context, document *wire.Map, raw [
 		if fatalVerificationError(err) {
 			return nil, nil, nil, patchEnvelope{}, err
 		}
-		verification := verificationFor(document, outcome, err, canonicallyBound)
+		verification := verificationFor(document, outcome, err, canonicallyBound, options.Citation)
 		counts, work := countsAndWorklist(document)
 		return verification, counts, work, envelope, nil
 	}
@@ -215,7 +219,7 @@ func (s *Session) runVerification(ctx context.Context, document *wire.Map, raw [
 	if fatalVerificationError(err) {
 		return nil, nil, nil, patchEnvelope{}, err
 	}
-	verification := verificationFor(document, outcome, err, false)
+	verification := verificationFor(document, outcome, err, false, options.Citation)
 	envelope.retainedPatch = patchBytes
 	counts, work := countsAndWorklist(document)
 	return verification, counts, work, envelope, nil
@@ -223,12 +227,12 @@ func (s *Session) runVerification(ctx context.Context, document *wire.Map, raw [
 
 // verificationFor renders success, drift-rejection (context retained), or
 // failure verification objects.
-func verificationFor(document *wire.Map, outcome *verify.Outcome, err error, canonicallyBound bool) map[string]any {
+func verificationFor(document *wire.Map, outcome *verify.Outcome, err error, canonicallyBound, citation bool) map[string]any {
 	switch {
 	case err == nil:
-		return successVerification(document, outcome, false)
+		return successVerification(document, outcome, false, citation)
 	case cemcode.CodeOf(err) == cemcode.EvidenceDrift && outcome != nil:
-		return successVerification(document, outcome, true)
+		return successVerification(document, outcome, true, citation)
 	default:
 		return failureVerification(document.Spec, err, canonicallyBound)
 	}

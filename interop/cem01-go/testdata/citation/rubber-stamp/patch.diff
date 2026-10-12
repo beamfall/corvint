@@ -1,0 +1,264 @@
+diff --git a/src/unit00.go b/src/unit00.go
+index 1b3f05c85b2ab2fe9115493942a06e1dea51703e..d303817ec4f1aae35afcac89d4bb0317b4755320 100644
+--- a/src/unit00.go
++++ b/src/unit00.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit00(value int) int {
+-	return value
++	return compute(value) // CEM-SM-100
+ }
+diff --git a/src/unit01.go b/src/unit01.go
+index ca7e77ab2ecf8d36533b568a4aded23ace2eccb1..ca9ce1f9677388d0345858c2cda721dce14c2070 100644
+--- a/src/unit01.go
++++ b/src/unit01.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit01(value int) int {
+-	return value
++	return compute(value) // CEM-SM-101
+ }
+diff --git a/src/unit02.go b/src/unit02.go
+index bc81c70b42824af3f38df6cf9b1ded9ab17d1c05..c13ba68ea472842a67b637e08c54754b35034fea 100644
+--- a/src/unit02.go
++++ b/src/unit02.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit02(value int) int {
+-	return value
++	return compute(value) // CEM-SM-102
+ }
+diff --git a/src/unit03.go b/src/unit03.go
+index f59d07b2da31ffc36458c04e2fad5be167c5528c..72c62a92f7ab3b52c18591b107b081d8b58986bb 100644
+--- a/src/unit03.go
++++ b/src/unit03.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit03(value int) int {
+-	return value
++	return compute(value) // CEM-SM-103
+ }
+diff --git a/src/unit04.go b/src/unit04.go
+index 1a20e3c3ed0b6f69321830380a92ca9aecb76716..4e601c29e0aa12caf4f776f678e958cb16d48da2 100644
+--- a/src/unit04.go
++++ b/src/unit04.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit04(value int) int {
+-	return value
++	return compute(value) // CEM-SM-104
+ }
+diff --git a/src/unit05.go b/src/unit05.go
+index 183731f1c291aad9d30b630c3eceac15425bdaff..20880a466d6ee80a3c8e1be71098b069ff5b42b1 100644
+--- a/src/unit05.go
++++ b/src/unit05.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit05(value int) int {
+-	return value
++	return compute(value) // CEM-SM-105
+ }
+diff --git a/src/unit06.go b/src/unit06.go
+index 927702d6e5dbbf85865642f287fea12d5b68065f..893bd4b89fbaa677faf41e5207183331660bf5b7 100644
+--- a/src/unit06.go
++++ b/src/unit06.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit06(value int) int {
+-	return value
++	return compute(value) // CEM-SM-106
+ }
+diff --git a/src/unit07.go b/src/unit07.go
+index b856e5a9d47ccd81cd6b5fca5cb7506b1d7c3a58..3b6c86db9725b93e83156e210eb798443c2cacb3 100644
+--- a/src/unit07.go
++++ b/src/unit07.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit07(value int) int {
+-	return value
++	return compute(value) // CEM-SM-107
+ }
+diff --git a/src/unit08.go b/src/unit08.go
+index cbcc847ae36353a3bd0d682f9b0c4c9c840dccae..88ba4e88bb094b2fb9105075bfd93191438baafa 100644
+--- a/src/unit08.go
++++ b/src/unit08.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit08(value int) int {
+-	return value
++	return compute(value) + 8
+ }
+diff --git a/src/unit09.go b/src/unit09.go
+index 17748b262a9afaa112ae43a2f92b06f840464137..33a72caec1ffa3fafab5b8b4fcb9ea71496e1514 100644
+--- a/src/unit09.go
++++ b/src/unit09.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit09(value int) int {
+-	return value
++	return compute(value) + 9
+ }
+diff --git a/src/unit10.go b/src/unit10.go
+index 4bdc356c417bcc93508cddfb1725eabb839d37d6..3e30523d6a2c69c39376f63091091d5ea3bfa377 100644
+--- a/src/unit10.go
++++ b/src/unit10.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit10(value int) int {
+-	return value
++	return compute(value) + 10
+ }
+diff --git a/src/unit11.go b/src/unit11.go
+index 183fda860e0af7116c8cdc9856e3e1fe989ff424..6781d448806e3a65704a36e8b00805eba02bf21e 100644
+--- a/src/unit11.go
++++ b/src/unit11.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit11(value int) int {
+-	return value
++	return compute(value) + 11
+ }
+diff --git a/src/unit12.go b/src/unit12.go
+index 15812d17417c6bb0133d23c4f9b7e1b05b4f7777..54fff2b7edfb8ef83123eab5b4216663d8ebe83f 100644
+--- a/src/unit12.go
++++ b/src/unit12.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit12(value int) int {
+-	return value
++	return compute(value) + 12
+ }
+diff --git a/src/unit13.go b/src/unit13.go
+index e5ad34e7b6d131b4252933b8da09c8ab8b9830cf..db52c6aa8869c959e99ac2cdf7648dc3eb7281b5 100644
+--- a/src/unit13.go
++++ b/src/unit13.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit13(value int) int {
+-	return value
++	return compute(value) + 13
+ }
+diff --git a/src/unit14.go b/src/unit14.go
+index c44b06aeb83db86f9913b11b90b2a345ef40ca99..0e0d11002398865215f840a43a53f89b5f424e98 100644
+--- a/src/unit14.go
++++ b/src/unit14.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit14(value int) int {
+-	return value
++	return compute(value) + 14
+ }
+diff --git a/src/unit15.go b/src/unit15.go
+index 82ab91f92d8b45ba3267287eab5ea8104ddb393f..9476519fa0ce10f6bfcc55676a4633c92be91d0a 100644
+--- a/src/unit15.go
++++ b/src/unit15.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit15(value int) int {
+-	return value
++	return compute(value) + 15
+ }
+diff --git a/src/unit16.go b/src/unit16.go
+index 2d61ab0cc93c53adfe19c6def20db80f721d0d37..fabdef6fe34bb5cc5a59131d4e0bf5da3a8135dc 100644
+--- a/src/unit16.go
++++ b/src/unit16.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit16(value int) int {
+-	return value
++	return compute(value) + 16
+ }
+diff --git a/src/unit17.go b/src/unit17.go
+index 91714acda42cb4184c038c37bb1942af79eae3c6..ae3dd93d62fa3c40551381c75845407c07d2900e 100644
+--- a/src/unit17.go
++++ b/src/unit17.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit17(value int) int {
+-	return value
++	return compute(value) + 17
+ }
+diff --git a/src/unit18.go b/src/unit18.go
+index e72746242325f77772a6c118d7cd04d50243bfb2..828a783c632a3d8dd8bba697342f39c1b1a8bdc2 100644
+--- a/src/unit18.go
++++ b/src/unit18.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit18(value int) int {
+-	return value
++	return compute(value) + 18
+ }
+diff --git a/src/unit19.go b/src/unit19.go
+index 798c99005584265348229a0c086d7934a353b413..b2d570f4405ddebf12dd7ac79bea17056feb5969 100644
+--- a/src/unit19.go
++++ b/src/unit19.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit19(value int) int {
+-	return value
++	return compute(value) + 19
+ }
+diff --git a/src/unit20.go b/src/unit20.go
+index d9d3e07628149698023024f55fd574d380188001..52ea5f96f403283713834d1f06d64f4095f5833a 100644
+--- a/src/unit20.go
++++ b/src/unit20.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit20(value int) int {
+-	return value
++	return compute(value) + 20
+ }
+diff --git a/src/unit21.go b/src/unit21.go
+index cc5669ed219303c5da4ebb8be4a52d744f7c8da3..f90d447d1b2c368481aa3b3432447912bb5e7319 100644
+--- a/src/unit21.go
++++ b/src/unit21.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit21(value int) int {
+-	return value
++	return compute(value) + 21
+ }
+diff --git a/src/unit22.go b/src/unit22.go
+index 1ed63e65a1aa09ded5afc5e239e844549ab11801..082543a8cb49224f3ea876faf7c152613dd21c09 100644
+--- a/src/unit22.go
++++ b/src/unit22.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit22(value int) int {
+-	return value
++	return compute(value) + 22
+ }
+diff --git a/src/unit23.go b/src/unit23.go
+index 68ccecb0f6b876e083ffd437857d70a6a577ae7a..8e2e6962c2dfd5d4822638598782dd48b03e932d 100644
+--- a/src/unit23.go
++++ b/src/unit23.go
+@@ -1,5 +1,5 @@
+ package units
+ 
+ func unit23(value int) int {
+-	return value
++	return compute(value) + 23
+ }

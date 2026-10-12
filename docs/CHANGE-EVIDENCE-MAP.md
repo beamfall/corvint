@@ -423,7 +423,13 @@ Success requires all of:
 
 Kill or redesign 0.1 if any of these occurs:
 
-- more than 30% of material hunks are legitimately `unknown`;
+- more than 30% of material hunks are legitimately `unknown`, measured per change by the
+  `unknownShare=U/M` field of the `dogfood-check: SUMMARY` line (the committed map's unknown hunks
+  over its non-mechanical hunks) and across sealed changes by the `unknown=` and `hunks=` fields of
+  `dogfood batch-check`'s `CONSTITUENT` lines over `.corvint/changes/*.cem.json`, whose `hunks=`
+  includes mechanical hunks, so that ratio is a lower bound of the share; a hunk without
+  evidence stays `unknown` with a recorded reason rather than being refused
+  (`daily-change-evidence-workflow-v0.md` `DCW-V0-046`);
 - mechanical false classification exceeds 20% under reviewer audit;
 - any required independent implementation needs more than one engineer-day;
 - the artifact adds more than 10% median end-to-end change latency; or
@@ -432,3 +438,17 @@ Kill or redesign 0.1 if any of these occurs:
 The protocol earns expansion only after this wedge works. Test attestations, signatures,
 multi-repository evidence, issue receipts, semantic entailment, and outcome sharing remain outside
 0.1.
+
+## Support tiers and the `citation` block (CEM-V1-080..062)
+
+Verifiers compute, per hunk, one support tier from the committed bytes alone: `held` (reserved,
+never produced yet), `mechanical-proved`, `anchored`, `cited` or `unknown`, plus an `annotation`
+flag. The `citation` block (`cem-citation-support/0`) summarizes them as integers:
+`hunksByClass` (hunks per tier), `distinctEvidence` (distinct cited evidence IDs), `evidenceFanOut`
+and `maxFanOut` (how many hunks cite each evidence ID), `samePathCitations` (citations whose
+evidence path is the hunk's own file), `concentratedHunks` (hunks resting only on the most-cited
+evidence), `invariant` (every supported hunk cites the same evidence set) and `specificity`
+(anchored hunks minus anchored hunks after a cyclic one-step shift of citations; 0 means the
+citations are interchangeable). None of these is a verdict, threshold or pass/fail signal, and none
+changes the verdict, codes or drift. They help a reviewer see a rubber-stamp map. See
+`docs/specs/cem-stable-v1.md` (`CEM-V1-080..062`) and decision 0523. Frozen `cem/0.1` has no block.

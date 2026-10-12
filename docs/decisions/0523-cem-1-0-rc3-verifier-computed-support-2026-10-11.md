@@ -1,5 +1,9 @@
 # Decision 0523: CEM 1.0 in rc.3 is verifier-computed support, not author-declared support
 
+Requirement ID note (2026-10-12): the draft IDs `CEM-V1-060..070` in this decision collided with
+IDs accepted on `main` by beamfall/corvint#817 (`CEM-V1-051..064`, `070..079`), so every ID below is
+shifted by +20 (`CEM-V1-080..090`). The P0 slice landed as `CEM-V1-080..082`.
+
 Date: 2026-10-11. Status: accepted as the rc.3 plan (owner instruction in chat 2026-10-11: "I want
 this as part of rc.3"). Amends decision 0521 §1 and §2 within the limits 0521 §2 already sets.
 Every requirement ID below is proposed; this decision accepts none of them.
@@ -74,8 +78,8 @@ limit. The closed result also gains an integer-exact `citation` block (`hunksByC
 `concentratedHunks`) and a map-level assignment null: sort supported hunks by ID, shift the basis
 sets cyclically by one, recompute the anchor count, and report `invariant` (all basis sets equal)
 and `specificity` (anchored minus anchored-after-shift). No value in this block is pass/fail.
-- Proposed IDs: `CEM-V1-060` (tiers are consumer-derived; no producer field can raise one),
-  `CEM-V1-061` (anchor kinds and their byte-level rules), `CEM-V1-062` (`citation` block and the
+- Proposed IDs: `CEM-V1-080` (tiers are consumer-derived; no producer field can raise one),
+  `CEM-V1-081` (anchor kinds and their byte-level rules), `CEM-V1-082` (`citation` block and the
   shift null are byte-identical across native and portable consumers and carry no verdict).
 - Falsifying fixtures: (a) a rubber-stamp map (every hunk cites one `AGENTS.md` span) and a
   careful map of the same 24-hunk patch both ACCEPT, and their `citation` integers differ;
@@ -92,25 +96,25 @@ and `specificity` (anchored minus anchored-after-shift). No value in this block 
 - rc.3: **fits**.
 
 **P1. Wire changes that must land before the V1-0595 freeze.**
-- `CEM-V1-063` Criterion is provider-neutral: a criterion is any committed Git blob span holding
+- `CEM-V1-083` Criterion is provider-neutral: a criterion is any committed Git blob span holding
   acceptance text; the Tasks digests (`claimTicketSha256`, `captureSha256`, `snapshotHead*`)
   become an optional extension. A `cem/1.0` map MUST verify with no Corvint Tasks store present.
-- `CEM-V1-064` Receipt `authentication` becomes a verifiable slot: `{"method":"none"}` or
+- `CEM-V1-084` Receipt `authentication` becomes a verifiable slot: `{"method":"none"}` or
   `{"method":"dsse-ed25519","keyid":K,"envelopeSha256":E}` where E is a `receipt-attestation`
   artifact holding an in-toto Statement whose subjects are the receipt digest, the runner-plan
   digest and the target `gitTree`. The axis rises above `NOT_OBSERVED` only when a consumer-
   supplied `--trusted-keys` file names K; a key the map carries itself stays `UNTRUSTED_KEY`; a
   valid signature never raises `executionAtCommit`.
-- `CEM-V1-065` `cem/v2` in-toto statement: subjects are the stable map and every `artifacts[]`
+- `CEM-V1-085` `cem/v2` in-toto statement: subjects are the stable map and every `artifacts[]`
   entry; the predicate adds `target {gitCommit, gitTree}` beside `base` and `patch`. `ParseMap`
   routes the stable spec to `ParseStable` for attestation and anchoring. Verification refuses an
   artifact or `--target` that is not a subject of the signed statement.
-- `CEM-V1-066` Verdict/environment split: the result separates `verdict` from `environment`
+- `CEM-V1-086` Verdict/environment split: the result separates `verdict` from `environment`
   (`runtime.goVersion`, repository envelope) and publishes `verdictSha256` over canonical
   `verdict`. Two conformant consumers given identical inputs MUST produce identical
   `verdictSha256`. Later re-verification appends a record keyed by (`mapSha256`, target) and
   rewrites nothing; hunk IDs carry line ranges and are not chain keys.
-- `CEM-V1-067` Anchor pointer `corvint-cem-anchor/1` adds `base`, `patchSha256` and
+- `CEM-V1-087` Anchor pointer `corvint-cem-anchor/1` adds `base`, `patchSha256` and
   `targetTree`; `pointerState` recomputes base..REV and returns `scope-mismatch` when the map does
   not describe REV; `cem provenance --notes-tip OID` reports `rollback` when the pinned tip is not
   an ancestor of the live `refs/notes/corvint`. `/0` stays readable. Anchoring stays an explicit
@@ -132,9 +136,9 @@ failure the consumer itself observed; a compile, skip or infrastructure failure 
 producer-written witness never counts. The dogfood producer gains a "cite the guarding test"
 step so the tier can fire; `TCQ-V0-057` selects only hunks that already cite `_test.go` as
 `test-claim`, which today is none.
-- Proposed IDs: `CEM-V1-068` (`held` only after consumer re-execution), `CEM-V1-069` (two cases
+- Proposed IDs: `CEM-V1-088` (`held` only after consumer re-execution), `CEM-V1-089` (two cases
   are `not-run`, never `held`: a hunk whose revert breaks compilation, and a hunk whose named test
-  also fails without the revert), `CEM-V1-070` (discrimination witnesses fail `invalid-field`
+  also fails without the revert), `CEM-V1-090` (discrimination witnesses fail `invalid-field`
   when `mutants` exceeds `bounds.maxMutants` or survivors are inconsistent with the counts).
 - rc.3: `go test` **fits**; every other runner is a **recorded limit**. Frozen mutant-operator
   enumeration and pinning the coverprofile as a Git blob are **post-rc.3** (they need cases in

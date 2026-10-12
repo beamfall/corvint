@@ -184,29 +184,30 @@ AHI-028	docs/specs/agent-harness-integration-v0.md	511	`post-compact` MUST re-re
 AHI-029	docs/specs/agent-harness-integration-v0.md	524	Neither compaction event writes repository, index, trace, or store state; the on
 AHI-030	docs/specs/agent-harness-integration-v0.md	526	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
 AHI-031	docs/specs/agent-harness-integration-v0.md	537	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
-AHI-032	docs/specs/agent-harness-integration-v0.md	573	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica
-AHI-033	docs/specs/agent-harness-integration-v0.md	659	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”
-AHI-034	docs/specs/agent-harness-integration-v0.md	714	The owner-approved change cockpit (2026-09-28, “do it” after the change
-AHI-035	docs/specs/agent-harness-integration-v0.md	764	At the owner's request (2026-09-29), the OpenCode 2 terminal integration MUST
-AHI-036	docs/specs/agent-harness-integration-v0.md	794	At the owner's request (2026-09-29, “do all 6”), the optional OpenCode 2 workben
-AHI-037	docs/specs/agent-harness-integration-v0.md	801	The workbench MUST show each selected ticket criterion alongside only explicitly
-AHI-038	docs/specs/agent-harness-integration-v0.md	809	An explicit qualification doctor MUST display the installed host version, adapte
-AHI-039	docs/specs/agent-harness-integration-v0.md	814	The workbench MUST derive at most five next actions from recorded ticket blocker
-AHI-040	docs/specs/agent-harness-integration-v0.md	818	The terminal MUST show OpenCode's observed per-session cost and token/cache tota
-AHI-041	docs/specs/agent-harness-integration-v0.md	825	The terminal MUST show at most 16 members of the current OpenCode session family
-AHI-042	docs/specs/agent-harness-integration-v0.md	841	The owner-approved OpenCode presentation polish (2026-09-30, “ok, update it”, ex
-AHI-043	docs/specs/agent-harness-integration-v0.md	849	For an unchanged committed tree, worktree state, hook input and session key, the
-AHI-044	docs/specs/agent-harness-integration-v0.md	866	Every shipped hook adapter MUST fail open under the faults a host or machine can
-AHI-045	docs/specs/agent-harness-integration-v0.md	906	(accepted by decision 0441; V1-0942) The Claude Code and Codex
-AHI-046	docs/specs/agent-harness-integration-v0.md	929	(accepted by decision 0441; V1-0942) Outside a main-thread
-AHI-047	docs/specs/agent-harness-integration-v0.md	939	(accepted by decision 0441; V1-0939) The Claude Code trusted
-AHI-048	docs/specs/agent-harness-integration-v0.md	955	(proposed; V1-0734) When an adapter process exits through `exitProcess`, includi
-AHI-049	docs/specs/agent-harness-integration-v0.md	991	(accepted by decision 0477, amended by decision 0479; V1-1040, V1-1055) Every Se
-AHI-050	docs/specs/agent-harness-integration-v0.md	1039	(accepted by decision 0474; V1-0371) The OpenCode and Gemini adapters MUST send
-AHI-051	docs/specs/agent-harness-integration-v0.md	1092	(proposed; V1-1070, V1-1071) The Claude Code plugin MUST present itself with
-AHI-052	docs/specs/agent-harness-integration-v0.md	1118	(accepted, decision 0497; V1-1116; amends `AHI-050` for OpenCode only) When
+AHI-032	docs/specs/agent-harness-integration-v0.md	592	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica
+AHI-033	docs/specs/agent-harness-integration-v0.md	678	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”
+AHI-034	docs/specs/agent-harness-integration-v0.md	733	The owner-approved change cockpit (2026-09-28, “do it” after the change
+AHI-035	docs/specs/agent-harness-integration-v0.md	783	At the owner's request (2026-09-29), the OpenCode 2 terminal integration MUST
+AHI-036	docs/specs/agent-harness-integration-v0.md	813	At the owner's request (2026-09-29, “do all 6”), the optional OpenCode 2 workben
+AHI-037	docs/specs/agent-harness-integration-v0.md	820	The workbench MUST show each selected ticket criterion alongside only explicitly
+AHI-038	docs/specs/agent-harness-integration-v0.md	828	An explicit qualification doctor MUST display the installed host version, adapte
+AHI-039	docs/specs/agent-harness-integration-v0.md	833	The workbench MUST derive at most five next actions from recorded ticket blocker
+AHI-040	docs/specs/agent-harness-integration-v0.md	837	The terminal MUST show OpenCode's observed per-session cost and token/cache tota
+AHI-041	docs/specs/agent-harness-integration-v0.md	844	The terminal MUST show at most 16 members of the current OpenCode session family
+AHI-042	docs/specs/agent-harness-integration-v0.md	860	The owner-approved OpenCode presentation polish (2026-09-30, “ok, update it”, ex
+AHI-043	docs/specs/agent-harness-integration-v0.md	868	For an unchanged committed tree, worktree state, hook input and session key, the
+AHI-044	docs/specs/agent-harness-integration-v0.md	885	Every shipped hook adapter MUST fail open under the faults a host or machine can
+AHI-045	docs/specs/agent-harness-integration-v0.md	925	(accepted by decision 0441; V1-0942) The Claude Code and Codex
+AHI-046	docs/specs/agent-harness-integration-v0.md	948	(accepted by decision 0441; V1-0942) Outside a main-thread
+AHI-047	docs/specs/agent-harness-integration-v0.md	958	(accepted by decision 0441; V1-0939) The Claude Code trusted
+AHI-048	docs/specs/agent-harness-integration-v0.md	974	(proposed; V1-0734) When an adapter process exits through `exitProcess`, includi
+AHI-049	docs/specs/agent-harness-integration-v0.md	1010	(accepted by decision 0477, amended by decision 0479; V1-1040, V1-1055) Every Se
+AHI-050	docs/specs/agent-harness-integration-v0.md	1058	(accepted by decision 0474; V1-0371) The OpenCode and Gemini adapters MUST send
+AHI-051	docs/specs/agent-harness-integration-v0.md	1111	(proposed; V1-1070, V1-1071) The Claude Code plugin MUST present itself with
+AHI-052	docs/specs/agent-harness-integration-v0.md	1137	(accepted, decision 0497; V1-1116; amends `AHI-050` for OpenCode only) When
 AHI-053	docs/specs/agent-harness-integration-v0.md	530	accepted, decision 0517 (V1-1128). Amendment to `AHI-031`
-AHI-054	docs/specs/agent-harness-integration-v0.md	1151	(accepted, decision 0519 (V1-1157); GitHub #785) The
+AHI-054	docs/specs/agent-harness-integration-v0.md	1170	(accepted, decision 0519 (V1-1157); GitHub #785) The
+AHI-055	docs/specs/agent-harness-integration-v0.md	572	(accepted under the owner's standing auto-accept (2026-10-11); V1-1280) A Claude
 ALO-V0-001	docs/specs/aggregate-local-outcome-v0.md	43	Activation MUST require the explicit enrolled aggregate selector and exact bound
 ALO-V0-002	docs/specs/aggregate-local-outcome-v0.md	45	Legacy trace, learning, ranking, public fixtures and ordinary /0 behavior MUST
 ALO-V0-003	docs/specs/aggregate-local-outcome-v0.md	47	Candidate and admitted sets MUST use the complete pinned current context-index
@@ -830,52 +831,55 @@ CEM-V1-007	docs/specs/cem-stable-v1.md	32	Migrate Core producers/validators/revi
 CEM-V1-008	docs/specs/cem-stable-v1.md	33	Retain independent external consumer conformance and matched external outcome ev
 CEM-V1-009	docs/specs/cem-stable-v1.md	34	Promote only with the native release's compatibility, focused documentation, int
 CEM-V1-010	docs/specs/cem-stable-v1.md	35	Rollback preserves original0.x producer defaults and emitted historical packets,
-CEM-V1-011	docs/specs/cem-stable-v1.md	61	Reject missing, duplicate, unknown or escaping reference/artifact identities. Re
-CEM-V1-012	docs/specs/cem-stable-v1.md	62	Publish the candidate schema and algorithms before the standalone consumer. Nati
-CEM-V1-013	docs/specs/cem-stable-v1.md	63	Never translate candidate spec labels to earlier0.x profiles to bypass consumer
-CEM-V1-014	docs/specs/cem-stable-v1.md	64	Inventory every existing consumer's profile and migration disposition. An unsupp
-CEM-V1-015	docs/specs/cem-stable-v1.md	74	Candidate assembly MUST require independently supplied immutable base and target
-CEM-V1-016	docs/specs/cem-stable-v1.md	75	Assembly MUST compare each declared runner source input with its self-hashed imm
-CEM-V1-017	docs/specs/cem-stable-v1.md	270	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab
-CEM-V1-018	docs/specs/cem-stable-v1.md	271	A stable read MUST refuse `--patch` and policy ceilings with `invalid-arguments`
-CEM-V1-019	docs/specs/cem-stable-v1.md	272	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b
-CEM-V1-030	docs/specs/cem-stable-v1.md	305	Core `cem prepare` MUST refuse an existing map at the fixed sidecar path whose b
-CEM-V1-031	docs/specs/cem-stable-v1.md	306	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c
-CEM-V1-032	docs/specs/cem-stable-v1.md	307	The daily bind loop MUST read no hunks from a map declaring `cem/1.0`, so such a
-CEM-V1-033	docs/specs/cem-stable-v1.md	308	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem
-CEM-V1-034	docs/specs/cem-stable-v1.md	352	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
-CEM-V1-035	docs/specs/cem-stable-v1.md	353	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
-CEM-V1-036	docs/specs/cem-stable-v1.md	354	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
-CEM-V1-050	docs/specs/cem-stable-v1.md	201	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable
-CEM-V1-051	docs/specs/cem-stable-v1.md	430	`lrfrepo.VerifyStableUniverse` MUST admit a map whose bytes declare exactly
-CEM-V1-052	docs/specs/cem-stable-v1.md	440	The repository root, expected base, target and artifact root are explicit, with
-CEM-V1-053	docs/specs/cem-stable-v1.md	446	The OCM MUST bind the exact original stable map digest, the accepted target and
-CEM-V1-054	docs/specs/cem-stable-v1.md	450	The projection is read-only. It never exposes a legacy `*wire.Map` or any 0.x
-CEM-V1-055	docs/specs/cem-stable-v1.md	454	`lrf/0` stays frozen. `lrf.Evaluate` MUST keep refusing a `cem/1.0` context with
-CEM-V1-056	docs/specs/cem-stable-v1.md	460	A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1
-CEM-V1-057	docs/specs/cem-stable-v1.md	468	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in
-CEM-V1-058	docs/specs/cem-stable-v1.md	471	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,
-CEM-V1-059	docs/specs/cem-stable-v1.md	476	A stable universe verification is a read. It MUST NOT change the repository HEAD
-CEM-V1-060	docs/specs/cem-stable-v1.md	515	Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first ru
-CEM-V1-061	docs/specs/cem-stable-v1.md	519	An accepted export MUST write a new directory outside the worktree (the 0.x outp
-CEM-V1-062	docs/specs/cem-stable-v1.md	526	The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem
-CEM-V1-063	docs/specs/cem-stable-v1.md	530	`ReadStable` MUST refuse a bundle with a missing declared file
-CEM-V1-064	docs/specs/cem-stable-v1.md	556	A stable export MUST refuse `--witness` with `invalid-arguments` before
-CEM-V1-070	docs/specs/cem-stable-v1.md	608	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the
-CEM-V1-071	docs/specs/cem-stable-v1.md	609	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v
-CEM-V1-072	docs/specs/cem-stable-v1.md	610	A report built over a stable source MUST take profile `corvint-witness-stable/0`
-CEM-V1-073	docs/specs/cem-stable-v1.md	611	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`
-CEM-V1-074	docs/specs/cem-stable-v1.md	612	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a
-CEM-V1-075	docs/specs/cem-stable-v1.md	613	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab
-CEM-V1-076	docs/specs/cem-stable-v1.md	614	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and
-CEM-V1-077	docs/specs/cem-stable-v1.md	615	The console chain pane MUST admit `cem/1.0` in its closed profile registry only
-CEM-V1-078	docs/specs/cem-stable-v1.md	616	Each criterion binding, runner receipt (with its execution authority, source bin
-CEM-V1-079	docs/specs/cem-stable-v1.md	617	The registry stays closed: an unsupported profile, a near-stable spec, an unknow
-CEM-V1-091	docs/specs/cem-stable-v1.md	221	A new top-level member of `cem-stable-verification/1` MUST be added only by
-CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	382	The default `verify` path refuses a strictly parsed JSON object whose exact
-CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	386	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
-CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	389	Only that exact case changes. A duplicate, non-string, differently cased,
-CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	393	`examples/cem/verify-portable.sh` runs `verify-stable-canonical` only when
+CEM-V1-011	docs/specs/cem-stable-v1.md	62	Reject missing, duplicate, unknown or escaping reference/artifact identities. Re
+CEM-V1-012	docs/specs/cem-stable-v1.md	63	Publish the candidate schema and algorithms before the standalone consumer. Nati
+CEM-V1-013	docs/specs/cem-stable-v1.md	64	Never translate candidate spec labels to earlier0.x profiles to bypass consumer
+CEM-V1-014	docs/specs/cem-stable-v1.md	65	Inventory every existing consumer's profile and migration disposition. An unsupp
+CEM-V1-015	docs/specs/cem-stable-v1.md	75	Candidate assembly MUST require independently supplied immutable base and target
+CEM-V1-016	docs/specs/cem-stable-v1.md	76	Assembly MUST compare each declared runner source input with its self-hashed imm
+CEM-V1-017	docs/specs/cem-stable-v1.md	349	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab
+CEM-V1-018	docs/specs/cem-stable-v1.md	350	A stable read MUST refuse `--patch` and policy ceilings with `invalid-arguments`
+CEM-V1-019	docs/specs/cem-stable-v1.md	351	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b
+CEM-V1-030	docs/specs/cem-stable-v1.md	384	Core `cem prepare` MUST refuse an existing map at the fixed sidecar path whose b
+CEM-V1-031	docs/specs/cem-stable-v1.md	385	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c
+CEM-V1-032	docs/specs/cem-stable-v1.md	386	The daily bind loop MUST read no hunks from a map declaring `cem/1.0`, so such a
+CEM-V1-033	docs/specs/cem-stable-v1.md	387	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem
+CEM-V1-034	docs/specs/cem-stable-v1.md	431	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable
+CEM-V1-035	docs/specs/cem-stable-v1.md	432	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render
+CEM-V1-036	docs/specs/cem-stable-v1.md	433	A stable report MUST refuse every supplied `--ocm`, `--patch` and policy ceiling
+CEM-V1-050	docs/specs/cem-stable-v1.md	202	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable
+CEM-V1-051	docs/specs/cem-stable-v1.md	509	`lrfrepo.VerifyStableUniverse` MUST admit a map whose bytes declare exactly
+CEM-V1-052	docs/specs/cem-stable-v1.md	519	The repository root, expected base, target and artifact root are explicit, with
+CEM-V1-053	docs/specs/cem-stable-v1.md	525	The OCM MUST bind the exact original stable map digest, the accepted target and
+CEM-V1-054	docs/specs/cem-stable-v1.md	529	The projection is read-only. It never exposes a legacy `*wire.Map` or any 0.x
+CEM-V1-055	docs/specs/cem-stable-v1.md	533	`lrf/0` stays frozen. `lrf.Evaluate` MUST keep refusing a `cem/1.0` context with
+CEM-V1-056	docs/specs/cem-stable-v1.md	539	A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1
+CEM-V1-057	docs/specs/cem-stable-v1.md	547	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in
+CEM-V1-058	docs/specs/cem-stable-v1.md	550	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,
+CEM-V1-059	docs/specs/cem-stable-v1.md	555	A stable universe verification is a read. It MUST NOT change the repository HEAD
+CEM-V1-060	docs/specs/cem-stable-v1.md	594	Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first ru
+CEM-V1-061	docs/specs/cem-stable-v1.md	598	An accepted export MUST write a new directory outside the worktree (the 0.x outp
+CEM-V1-062	docs/specs/cem-stable-v1.md	605	The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem
+CEM-V1-063	docs/specs/cem-stable-v1.md	609	`ReadStable` MUST refuse a bundle with a missing declared file
+CEM-V1-064	docs/specs/cem-stable-v1.md	635	A stable export MUST refuse `--witness` with `invalid-arguments` before
+CEM-V1-070	docs/specs/cem-stable-v1.md	687	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the
+CEM-V1-071	docs/specs/cem-stable-v1.md	688	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v
+CEM-V1-072	docs/specs/cem-stable-v1.md	689	A report built over a stable source MUST take profile `corvint-witness-stable/0`
+CEM-V1-073	docs/specs/cem-stable-v1.md	690	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`
+CEM-V1-074	docs/specs/cem-stable-v1.md	691	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a
+CEM-V1-075	docs/specs/cem-stable-v1.md	692	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab
+CEM-V1-076	docs/specs/cem-stable-v1.md	693	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and
+CEM-V1-077	docs/specs/cem-stable-v1.md	694	The console chain pane MUST admit `cem/1.0` in its closed profile registry only
+CEM-V1-078	docs/specs/cem-stable-v1.md	695	Each criterion binding, runner receipt (with its execution authority, source bin
+CEM-V1-079	docs/specs/cem-stable-v1.md	696	The registry stays closed: an unsupported profile, a near-stable spec, an unknow
+CEM-V1-080	docs/specs/cem-stable-v1.md	254	Support tiers are consumer-derived. The native (`internal/cem/verify`, `support.
+CEM-V1-081	docs/specs/cem-stable-v1.md	262	Anchor kinds and byte-level rules. `id`: an ASCII requirement ID
+CEM-V1-082	docs/specs/cem-stable-v1.md	272	The `citation` block and the shift null MUST be byte-identical across the native
+CEM-V1-091	docs/specs/cem-stable-v1.md	222	A new top-level member of `cem-stable-verification/1` MUST be added only by
+CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	461	The default `verify` path refuses a strictly parsed JSON object whose exact
+CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	465	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
+CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	468	Only that exact case changes. A duplicate, non-string, differently cased,
+CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	472	`examples/cem/verify-portable.sh` runs `verify-stable-canonical` only when
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and
@@ -981,18 +985,21 @@ CRR-V0-004	docs/specs/compat-replay-runner-v0.md	334	Byte-exact comparison. Per 
 CRR-V0-005	docs/specs/compat-replay-runner-v0.md	342	Bounded IO and bounded time, refused rather than truncated or overrun.
 CRR-V0-006	docs/specs/compat-replay-runner-v0.md	379	Four separate vocabularies, none derived from another.
 CRR-V0-007	docs/specs/compat-replay-runner-v0.md	612	Unexecuted, interrupted and unobserved cases stay distinct.
-CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	42	Unit and selection. One change is one non-merge Beamfall commit `C`, and its lan
-CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	52	Pairing. Every change runs in both arms; the estimate is within-change. The arm
-CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	55	Withheld-patch construction. The presented patch `P(C)` contains only the source
-CRT-V0-004	docs/specs/cem-reviewer-trial-v0.md	58	Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself
-CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	70	Arms. `control` receives the prompt skeleton, `P(C)`, the numbered hunk list, an
-CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	89	Reply grammar. Every reply MUST end with one fenced JSON block
-CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	102	Metrics. `miss(c,a) = |gold(c) \ citedPaths(c,a)| / |gold(c)|`. The primary esti
-CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	122	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
-CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	151	Pilot. The pilot uses its own seed and partition; its changes are excluded from
-CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	154	Stopping and publication. There is no interim analysis: the scorer runs once, af
-CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	168	Invocation lifecycle (proposed). `runCommand` MUST share the
-CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	189	Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports
+CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	45	Unit and selection. One change is one non-merge Beamfall commit `C`, and its lan
+CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	55	Pairing. Every change runs in both arms; the estimate is within-change. The arm
+CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	58	Withheld-patch construction. The presented patch `P(C)` contains only the source
+CRT-V0-004	docs/specs/cem-reviewer-trial-v0.md	61	Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself
+CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	73	Arms. `control` receives the prompt skeleton, `P(C)`, the numbered hunk list, an
+CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	94	Reply grammar. Every reply MUST end with one fenced JSON block
+CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	107	Metrics. `miss(c,a) = |gold(c) \ citedPaths(c,a)| / |gold(c)|`. The primary esti
+CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	129	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
+CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	158	Pilot. The pilot uses its own seed and partition; its changes are excluded from
+CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	161	Stopping and publication. There is no interim analysis: the scorer runs once, af
+CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	181	Invocation lifecycle (proposed). `runCommand` MUST share the
+CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	202	Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports
+CRT-V0-013	docs/specs/cem-reviewer-trial-v0.md	216	Cited-not-gold precision (V1-1261, decision 0523 P4;
+CRT-V0-014	docs/specs/cem-reviewer-trial-v0.md	237	Registration (V1-1261, decision 0523 P4, extends CRT-V0-010;
+CRT-V0-015	docs/specs/cem-reviewer-trial-v0.md	266	Treatment arm and pre-baseline runs (V1-1261, decision 0523 P4;
 CTR-V0-001	docs/specs/compat-trial-v0.md	32	Descriptor schema. The fields below are frozen; a runner MUST NOT add, rename or
 CTR-V0-002	docs/specs/compat-trial-v0.md	40	Comparison policy v0. Equality is exact bytes of stdout, stderr and exit status
 CTR-V0-003	docs/specs/compat-trial-v0.md	42	Resource profile, quoted verbatim from `P:237–241`: "64 KiB input, 1 MiB output
@@ -1162,20 +1169,30 @@ DCP-V1-050	docs/specs/documentation-corpus-v1.md	383	A witness is produced only 
 DCP-V1-051	docs/specs/documentation-corpus-v1.md	397	Every other registered test stays unwitnessed with exactly one named reason and
 DCP-V1-052	docs/specs/documentation-corpus-v1.md	406	Missing or untrustworthy shared evidence yields uncertainty for every test, neve
 DCP-V1-053	docs/specs/documentation-corpus-v1.md	412	`corvint docs --help`, and the `docs corpus discover-playwright --help` and
-DCP-V1-054	docs/specs/documentation-corpus-v1.md	790	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
+DCP-V1-054	docs/specs/documentation-corpus-v1.md	993	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
 DCP-V1-055	docs/specs/documentation-corpus-v1.md	426	`discover-playwright` applies the `TJAA-V0-021` grep/grepInvert omission rules o
 DCP-V1-056	docs/specs/documentation-corpus-v1.md	438	`corvint help docs corpus` and `corvint docs corpus --help` (or `-h`) print one
 DCP-V1-057	docs/specs/documentation-corpus-v1.md	457	`corvint help TOPIC` with an unknown topic stays the `invalid-arguments` refusal
-DCP-V1-070	docs/specs/documentation-corpus-v1.md	465	`corvint docs corpus import-cases --format testrail-json|csv --input EXPORT` rea
-DCP-V1-071	docs/specs/documentation-corpus-v1.md	475	Every imported case is a `BehaviorLegacyCase` in the existing legacy inventory s
-DCP-V1-072	docs/specs/documentation-corpus-v1.md	482	Preconditions, steps and expected results have HTML stripped before use: tags an
-DCP-V1-073	docs/specs/documentation-corpus-v1.md	489	`--content` is `ids-paths-titles` (default) or `full`. Under `ids-paths-titles`,
-DCP-V1-074	docs/specs/documentation-corpus-v1.md	494	Oversized fields are bounded, never silently truncated. A title over 1024 bytes,
-DCP-V1-075	docs/specs/documentation-corpus-v1.md	499	`corvint docs corpus search-cases --format F --input EXPORT --query TEXT [--limi
-DCP-V1-076	docs/specs/documentation-corpus-v1.md	506	Every search result is the auditable receipt `corvint-legacy-case-search/1`. It
-DCP-V1-077	docs/specs/documentation-corpus-v1.md	511	The separate `corvint-corpus-mcp`, started with `--legacy-cases`, lists the read
-DCP-V1-078	docs/specs/documentation-corpus-v1.md	516	Each of the following is refused with `corpus-refused` and no partial output:
-DCP-V1-079	docs/specs/documentation-corpus-v1.md	528	Manual legacy cases never count as runtime parity. `manual` joins `executable` a
+DCP-V1-060	docs/specs/documentation-corpus-v1.md	464	`corvint docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMM
+DCP-V1-061	docs/specs/documentation-corpus-v1.md	473	Each statically named `it` (and its runner's aliases) under statically titled
+DCP-V1-062	docs/specs/documentation-corpus-v1.md	488	Assertions in a case body become ordinal criteria `c1..cn` with matcher, locator
+DCP-V1-063	docs/specs/documentation-corpus-v1.md	571	Preconditions are content-bound references. Every top-level call statement in an
+DCP-V1-064	docs/specs/documentation-corpus-v1.md	597	The record is pinned and deterministic: it names the repository identity and the
+DCP-V1-065	docs/specs/documentation-corpus-v1.md	600	With `--input REGISTRY.json` (a closed behavior registry) the record adds a
+DCP-V1-066	docs/specs/documentation-corpus-v1.md	606	The crosswalk re-checks every existing reviewed `legacy_criteria` mapping in the
+DCP-V1-067	docs/specs/documentation-corpus-v1.md	616	A target whose fixture identities differ from the legacy case's makes the mappin
+DCP-V1-068	docs/specs/documentation-corpus-v1.md	621	The producer refuses with `corpus-refused` an unknown runner, a revision that is
+DCP-V1-069	docs/specs/documentation-corpus-v1.md	633	`corvint docs --help` lists the `discover-legacy` usage and describes its output
+DCP-V1-070	docs/specs/documentation-corpus-v1.md	639	`corvint docs corpus import-cases --format testrail-json|csv --input EXPORT` rea
+DCP-V1-071	docs/specs/documentation-corpus-v1.md	649	Every imported case is a `BehaviorLegacyCase` in the existing legacy inventory s
+DCP-V1-072	docs/specs/documentation-corpus-v1.md	656	Preconditions, steps and expected results have HTML stripped before use: tags an
+DCP-V1-073	docs/specs/documentation-corpus-v1.md	663	`--content` is `ids-paths-titles` (default) or `full`. Under `ids-paths-titles`,
+DCP-V1-074	docs/specs/documentation-corpus-v1.md	668	Oversized fields are bounded, never silently truncated. A title over 1024 bytes,
+DCP-V1-075	docs/specs/documentation-corpus-v1.md	673	`corvint docs corpus search-cases --format F --input EXPORT --query TEXT [--limi
+DCP-V1-076	docs/specs/documentation-corpus-v1.md	680	Every search result is the auditable receipt `corvint-legacy-case-search/1`. It
+DCP-V1-077	docs/specs/documentation-corpus-v1.md	685	The separate `corvint-corpus-mcp`, started with `--legacy-cases`, lists the read
+DCP-V1-078	docs/specs/documentation-corpus-v1.md	690	Each of the following is refused with `corpus-refused` and no partial output:
+DCP-V1-079	docs/specs/documentation-corpus-v1.md	702	Manual legacy cases never count as runtime parity. `manual` joins `executable` a
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide
@@ -1191,36 +1208,37 @@ DCW-V0-012	docs/specs/daily-change-evidence-workflow-v0.md	65	Final version/buil
 DCW-V0-013	docs/specs/daily-change-evidence-workflow-v0.md	69	The daily adopter path MUST be one ordered sequence in `docs/DOGFOOD.md` from th
 DCW-V0-014	docs/specs/daily-change-evidence-workflow-v0.md	74	A `dogfood-change` not-complete row caused by a malformed or missing input, or b
 DCW-V0-015	docs/specs/daily-change-evidence-workflow-v0.md	83	Dirty, stale, interrupted, unsupported and unknown evidence MUST each end the lo
-DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	96	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
-DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	108	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
-DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	117	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
-DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	126	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
-DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	146	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
-DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	159	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
-DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	162	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
-DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	174	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
-DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	180	(V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
-DCW-V0-025	docs/specs/daily-change-evidence-workflow-v0.md	198	(accepted 2026-09-25, decision 0388, V1-0264) The `coordination-time-impact` ste
-DCW-V0-026	docs/specs/daily-change-evidence-workflow-v0.md	217	(accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST N
-DCW-V0-027	docs/specs/daily-change-evidence-workflow-v0.md	233	(proposed 2026-09-25, V1-0137, not accepted) `dogfood seal` and
-DCW-V0-028	docs/specs/daily-change-evidence-workflow-v0.md	241	(proposed 2026-09-25, V1-0227, not accepted) When an intent's `ocm-prepare-NNN`
-DCW-V0-029	docs/specs/daily-change-evidence-workflow-v0.md	246	(proposed 2026-09-25, V1-0239, not accepted) Each time `dogfood change` accepts
-DCW-V0-030	docs/specs/daily-change-evidence-workflow-v0.md	254	(proposed 2026-09-25, V1-0145, not accepted; not implemented) `dogfood check`
-DCW-V0-031	docs/specs/daily-change-evidence-workflow-v0.md	263	(proposed 2026-09-25, V1-0316, not accepted) After its steps run, `dogfood chang
-DCW-V0-032	docs/specs/daily-change-evidence-workflow-v0.md	274	(accepted 2026-10-04, decision 0430; V1-0743) An empty `DOGFOOD_CITATIONS` file
-DCW-V0-033	docs/specs/daily-change-evidence-workflow-v0.md	296	(accepted by decision 0441; V1-0940) This amends the stdout
-DCW-V0-034	docs/specs/daily-change-evidence-workflow-v0.md	318	(accepted, decision 0505) Before invoking
-DCW-V0-035	docs/specs/daily-change-evidence-workflow-v0.md	327	(accepted, decision 0510) The coordinator
-DCW-V0-036	docs/specs/daily-change-evidence-workflow-v0.md	332	(accepted, decision 0510) Trace recording, changed-path admission and
-DCW-V0-037	docs/specs/daily-change-evidence-workflow-v0.md	340	(accepted, decision 0510) `docs/DOGFOOD.md`
-DCW-V0-038	docs/specs/daily-change-evidence-workflow-v0.md	348	accepted, decision 0510. Every build in Corvint's
-DCW-V0-039	docs/specs/daily-change-evidence-workflow-v0.md	356	(accepted, decision 0519 (V1-1151)) `corvint dogfood
-DCW-V0-040	docs/specs/daily-change-evidence-workflow-v0.md	406	(accepted, decision 0519 (V1-1151)) When `dogfood change`
-DCW-V0-041	docs/specs/daily-change-evidence-workflow-v0.md	414	(accepted, decision 0519 (V1-1171)) A citation plan row MAY
-DCW-V0-042	docs/specs/daily-change-evidence-workflow-v0.md	421	(accepted 2026-10-11, decision 0520; V1-1219) `dogfood change` MUST
-DCW-V0-043	docs/specs/daily-change-evidence-workflow-v0.md	444	(accepted 2026-10-11, decision 0520; V1-1198) The inherited archive of
-DCW-V0-044	docs/specs/daily-change-evidence-workflow-v0.md	468	(accepted 2026-10-11, decision 0520; V1-1209) The daily loop's local
-DCW-V0-045	docs/specs/daily-change-evidence-workflow-v0.md	482	(accepted 2026-10-11, decision 0520; V1-1207) `dogfood check`'s
+DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	97	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
+DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	109	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
+DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	118	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
+DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	127	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
+DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	150	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
+DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	163	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
+DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	166	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
+DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	178	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
+DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	184	(V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
+DCW-V0-025	docs/specs/daily-change-evidence-workflow-v0.md	202	(accepted 2026-09-25, decision 0388, V1-0264) The `coordination-time-impact` ste
+DCW-V0-026	docs/specs/daily-change-evidence-workflow-v0.md	221	(accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST N
+DCW-V0-027	docs/specs/daily-change-evidence-workflow-v0.md	237	(proposed 2026-09-25, V1-0137, not accepted) `dogfood seal` and
+DCW-V0-028	docs/specs/daily-change-evidence-workflow-v0.md	245	(proposed 2026-09-25, V1-0227, not accepted) When an intent's `ocm-prepare-NNN`
+DCW-V0-029	docs/specs/daily-change-evidence-workflow-v0.md	250	(proposed 2026-09-25, V1-0239, not accepted) Each time `dogfood change` accepts
+DCW-V0-030	docs/specs/daily-change-evidence-workflow-v0.md	258	(proposed 2026-09-25, V1-0145, not accepted; not implemented) `dogfood check`
+DCW-V0-031	docs/specs/daily-change-evidence-workflow-v0.md	267	(proposed 2026-09-25, V1-0316, not accepted) After its steps run, `dogfood chang
+DCW-V0-032	docs/specs/daily-change-evidence-workflow-v0.md	278	(accepted 2026-10-04, decision 0430; V1-0743) An empty `DOGFOOD_CITATIONS` file
+DCW-V0-033	docs/specs/daily-change-evidence-workflow-v0.md	300	(accepted by decision 0441; V1-0940) This amends the stdout
+DCW-V0-034	docs/specs/daily-change-evidence-workflow-v0.md	323	(accepted, decision 0505) Before invoking
+DCW-V0-035	docs/specs/daily-change-evidence-workflow-v0.md	332	(accepted, decision 0510) The coordinator
+DCW-V0-036	docs/specs/daily-change-evidence-workflow-v0.md	337	(accepted, decision 0510) Trace recording, changed-path admission and
+DCW-V0-037	docs/specs/daily-change-evidence-workflow-v0.md	345	(accepted, decision 0510) `docs/DOGFOOD.md`
+DCW-V0-038	docs/specs/daily-change-evidence-workflow-v0.md	353	accepted, decision 0510. Every build in Corvint's
+DCW-V0-039	docs/specs/daily-change-evidence-workflow-v0.md	361	(accepted, decision 0519 (V1-1151)) `corvint dogfood
+DCW-V0-040	docs/specs/daily-change-evidence-workflow-v0.md	412	(accepted, decision 0519 (V1-1151)) When `dogfood change`
+DCW-V0-041	docs/specs/daily-change-evidence-workflow-v0.md	420	(accepted, decision 0519 (V1-1171)) A citation plan row MAY
+DCW-V0-042	docs/specs/daily-change-evidence-workflow-v0.md	427	(accepted 2026-10-11, decision 0520; V1-1219) `dogfood change` MUST
+DCW-V0-043	docs/specs/daily-change-evidence-workflow-v0.md	450	(accepted 2026-10-11, decision 0520; V1-1198) The inherited archive of
+DCW-V0-044	docs/specs/daily-change-evidence-workflow-v0.md	474	(accepted 2026-10-11, decision 0520; V1-1209) The daily loop's local
+DCW-V0-045	docs/specs/daily-change-evidence-workflow-v0.md	488	(accepted 2026-10-11, decision 0520; V1-1207) `dogfood check`'s
+DCW-V0-046	docs/specs/daily-change-evidence-workflow-v0.md	499	(accepted under the owner's standing auto-accept (2026-10-11), decision 0523 P3;
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map

@@ -190,6 +190,7 @@ Separate experimental corpus profile:
   corvint [--root PATH] docs corpus behavior-provider --input REQUEST-V2.json
   corvint [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json]
   corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json
+  corvint [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REGISTRY.json]
   corvint [--root PATH] docs corpus import-cases --format testrail-json|csv --input EXPORT [--content ids-paths-titles|full]
   corvint [--root PATH] docs corpus search-cases --format testrail-json|csv --input EXPORT --query TEXT [--limit N]
   corvint [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT
@@ -223,6 +224,15 @@ End-to-end example, run at the repository root:
     git add evidence/receipt.json && git commit -m "retain playwright receipt"
     corvint docs corpus witness-playwright --input evidence/request.json --receipt-input receipt --report evidence/report.json
 REQUEST.json names the committed receipt as input "receipt", beside the migration and discovery.
+
+Legacy inventory (DCP-V1-060..069): discover-legacy reads Jasmine or Mocha/Cypress test files
+from Git at --revision (one file, or the test-named files under a directory; --path . for all)
+and prints a generated corvint-legacy-inventory/1 record without running a test. Cases use the
+legacy case shape: disabled cases are marked, assertions become matcher/locator/value tuples,
+precondition fixtures carry the digest of their call text, and every unparsed assertion is listed
+under unknown. --input REGISTRY.json adds a generated crosswalk of candidate flows and tests and
+re-checks the registry's reviewed legacy_criteria; a refused same/stronger mapping exits 1 with
+the report printed. Nothing it emits is a reviewed legacy_criteria relation.
 `
 
 // legacyCasesHelp is the DCP-V1-070..079 test-management export guidance that docs help and the

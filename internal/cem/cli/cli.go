@@ -93,8 +93,8 @@ var cemActions = map[string]cemAction{
 			},
 		},
 	},
-	"verify": {arguments: readArguments, required: []string{"--map"}},
-	"status": {arguments: readArguments, required: []string{"--map"}},
+	"verify": {arguments: readArguments, required: []string{"--map"}, booleans: []string{"--citation"}},
+	"status": {arguments: readArguments, required: []string{"--map"}, booleans: []string{"--citation"}},
 	"report": {
 		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--format", "--ocm", "--artifacts"},
 		required:  []string{"--map"},
@@ -482,6 +482,7 @@ func dispatchCEMWithOCM(ctx context.Context, root, callerRoot string, arguments 
 			OCMGiven:     flags.present["--ocm"],
 			Limits:       workflow.PolicyLimits{MaxUnknown: maxUnknown, MaxMechanical: maxMechanical},
 			ArtifactRoot: flags.values["--artifacts"], ArtifactsGiven: flags.present["--artifacts"],
+			Citation: flags.booleans["--citation"],
 		})
 	}
 	return nil, invalidChoice("cem_command", action, cemActionOrder)
