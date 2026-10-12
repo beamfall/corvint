@@ -95,3 +95,35 @@ an unknown, not a criterion; canonical text writes an ASI restricted-production 
 so `return\n1` and `return 1` digest differently; and a backslash before U+2028/U+2029 is a line
 continuation while template CR/CRLF cooks to LF. These fixes have no independent re-review, so the
 verdict stays FAIL and DCP-V1-060..069 remain proposed/experimental, not accepted.
+
+## Review round 4 repairs (fail-closed residue check)
+
+Codex round 4 failed with four P2 findings (`/private/tmp/claude-501/w13-legacy-codex-r4.log`):
+comments ended only at LF; a computed Cypress subject (`cy['get']('nav').contains(...)`) made the
+assertion vanish; parenthesised arrows and object methods escaped the helper filter; and
+`cy['task'](...)` was dropped without uncertainty. Each was a variant of one gap: extraction
+recognised known forms and silently ignored the rest. The repair makes discovery fail closed.
+
+- One lexer helper treats LF, CR, CRLF, U+2028 and U+2029 as line terminators. They end `//`
+  comments, count for ASI and restricted productions through a per-token line-break flag, and
+  refuse regex literals. Anchor lines stay LF-delimited, matching every other corpus anchor.
+- A residue pass runs after extraction. Every code-token `expect`, `expectAsync`, `assert`,
+  `should`, `and`, `contains`, precondition word, `cy`/`browser`/`page` chain or runner call that
+  no extraction consumed adds an `unparsed-assertion`, `unparsed-command` or
+  `runner-call-in-case` unknown. Computed string members naming those words, `cy` reached as a
+  member, and optional or computed root chains are covered too. A member `expect` is no longer
+  taken for the runner's.
+- Only a function or arrow passed whole as one direct call argument counts as a proven helper.
+  Every other function-like construct is unproven, including grouped or IIFE functions, object
+  and class methods, getters and class bodies.
+- `cy['task']` (one static identifier-name string) resolves to `cy.task` and is recorded with its
+  full-text digest, so `'A'` and `'B'` differ. Any other computed member is an unknown.
+
+`TestLegacyResidueFailsClosed` pins each repro and novel forms such as `cy?.get(...)`,
+`(0, expect)(a)`, `const c = cy` and `window.cy.task(...)`. Every repro other than the comment
+terminator yields an unknown and `legacy-case-has-unknowns`. The comment-terminator repro is
+repaired by correct extraction: the formerly hidden assertion becomes a visible criterion.
+
+Inventory output for the existing fixtures and edge suites was byte-compared with `65fee2174`.
+It is unchanged except that one duplicate computed-continuation unknown is gone; that case keeps
+its continuation unknown.

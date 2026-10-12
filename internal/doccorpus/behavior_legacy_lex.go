@@ -16,7 +16,8 @@ type legacyToken struct {
 	kind byte // 'i' identifier, 's' static string, 't' template with substitutions, 'n' number, 'r' regex, 'p' punctuation
 	text string
 	raw  string
-	line int
+	line int           // the anchor line: LF-delimited, as the corpus anchor span counts lines
+	nl   bool          // a JavaScript line terminator (LF, CR, CRLF, U+2028, U+2029) precedes the token
 	sub  []legacyToken // the tokens of a template's substitutions, so code inside them is never invisible
 }
 
@@ -59,22 +60,42 @@ func (l *legacyLexer) run(i int, sub bool) ([]legacyToken, int, bool) {
 	src := l.src
 	tokens := []legacyToken{}
 	braces := 0
+	// broke records a line terminator since the previous token, in layout or inside a comment,
+	// which is what automatic semicolon insertion and restricted productions test.
+	broke, seen := false, 0
+	mark := func() {
+		// Each pass appends at most one token; flag it with the breaks scanned before it.
+		if len(tokens) > seen {
+			tokens[len(tokens)-1].nl, broke, seen = broke, false, len(tokens)
+		}
+	}
 	for i < len(src) {
+		mark()
 		c := src[i]
+		if size := legacyLineTerminator(src, i); size > 0 {
+			broke = true
+			i += size
+			continue
+		}
 		switch {
-		case c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v':
+		case c == ' ' || c == '\t' || c == '\f' || c == '\v':
 			i++
 		case strings.HasPrefix(src[i:], "//"):
-			end := strings.IndexByte(src[i:], '\n')
-			if end < 0 {
-				i = len(src)
-			} else {
-				i += end
+			// A single-line comment ends at the first JavaScript line terminator, which is not
+			// part of it.
+			i += 2
+			for i < len(src) && legacyLineTerminator(src, i) == 0 {
+				i++
 			}
 		case strings.HasPrefix(src[i:], "/*"):
 			end := strings.Index(src[i+2:], "*/")
 			if end < 0 {
 				return nil, 0, false
+			}
+			for k := i + 2; k < i+2+end; k++ {
+				if legacyLineTerminator(src, k) > 0 {
+					broke = true
+				}
 			}
 			i += end + 4
 		case c == '\'' || c == '"':
@@ -159,9 +180,30 @@ func (l *legacyLexer) run(i int, sub bool) ([]legacyToken, int, bool) {
 			i += len(text)
 		}
 	}
+	mark()
 	return tokens, i, !sub
 }
 
+// legacyLineTerminator returns the byte length of the JavaScript line terminator at src[i] (LF,
+// CR, CRLF, U+2028 or U+2029), or 0. It is the one definition comments, automatic semicolon
+// insertion and canonical text use.
+func legacyLineTerminator(src string, i int) int {
+	switch {
+	case src[i] == '\n':
+		return 1
+	case src[i] == '\r':
+		if i+1 < len(src) && src[i+1] == '\n' {
+			return 2
+		}
+		return 1
+	case strings.HasPrefix(src[i:], "\u2028") || strings.HasPrefix(src[i:], "\u2029"):
+		return 3
+	}
+	return 0
+}
+
+// legacyLineStarts indexes anchor lines. Anchors use the corpus-wide LF line convention (span), so
+// JavaScript line semantics are carried by each token's nl flag instead.
 func legacyLineStarts(src string) []int {
 	starts := []int{0}
 	for i := 0; i < len(src); i++ {
@@ -371,10 +413,14 @@ func (l *legacyLexer) template(start int) (int, string, []legacyToken, bool, boo
 func legacyRegex(src string, start int) (int, bool) {
 	class := false
 	for i := start + 1; i < len(src); i++ {
-		switch src[i] {
-		case '\n', '\r':
+		if legacyLineTerminator(src, i) > 0 {
 			return 0, false
+		}
+		switch src[i] {
 		case '\\':
+			if i+1 < len(src) && legacyLineTerminator(src, i+1) > 0 {
+				return 0, false
+			}
 			i++
 		case '[':
 			class = true
@@ -426,7 +472,7 @@ func legacyCanonical(tokens []legacyToken, lo, hi int) string {
 	var out strings.Builder
 	operator := func(token legacyToken) bool { return token.kind == 'p' && !legacySeparators[token.text] }
 	for i := lo; i < hi; i++ {
-		if i > lo && tokens[i].line > tokens[i-1].line && legacyRestrictedBreak(tokens, i) {
+		if i > lo && tokens[i].nl && legacyRestrictedBreak(tokens, i) {
 			out.WriteByte(';')
 			out.WriteString(tokens[i].raw)
 			continue

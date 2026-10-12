@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
@@ -101,8 +102,15 @@ var (
 	legacyAssertionWord = words("expect expectAsync assert should")
 	// legacyTemplateAssertionWord adds the Cypress chain words that are assertions only as members.
 	legacyTemplateAssertionWord = words("expect expectAsync assert should contains and")
-	legacyEachHook              = words("beforeEach setup")
-	legacyConditional           = words("if for while switch try do catch else")
+	// The residue check (DCP-V1-062) requires every case-body occurrence of these words to have
+	// been consumed by a recognised extraction; anything left over is an unknown, so a form the
+	// reader does not list can never make an assertion or precondition vanish.
+	legacyResidueRoot         = words("cy browser page")
+	legacyPreconditionWord    = words("task request intercept fixture visit exec route goto")
+	legacyComputedWord        = words("expect expectAsync assert should contains and task request intercept fixture visit exec route goto")
+	legacyTemplateCommandWord = words("cy task request intercept fixture visit exec route goto")
+	legacyEachHook            = words("beforeEach setup")
+	legacyConditional         = words("if for while switch try do catch else")
 )
 
 const legacyNoValue = "(no expected value)"
@@ -603,7 +611,8 @@ func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope) {
 		note("case-callback-not-static", "the case body is not an inline function: "+legacyCanonical(t, args[1].lo, args[1].hi))
 	}
 	if hasBody {
-		fixtures = append(fixtures, p.casePreconditions(f, id, body, false)...)
+		consumed := map[int]bool{}
+		fixtures = append(fixtures, p.casePreconditions(f, id, body, false, consumed)...)
 		for i := body.lo; i < body.hi; i++ {
 			if p.name == "jasmine" && t[i].kind == 'i' && t[i].text == "pending" && !legacyChained(t, i) && legacyPunct(t, i+1, "(") {
 				legacy.State = "disabled"
@@ -612,7 +621,8 @@ func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope) {
 				note("runtime-skip", "the case may skip itself at runtime")
 			}
 		}
-		legacy.Criteria = p.assertions(f, id, body)
+		legacy.Criteria = p.assertions(f, id, body, consumed)
+		p.residue(f, id, body, consumed)
 	}
 	// Execution order is part of the precondition identity; a repeated call keeps its first place.
 	for _, fixture := range fixtures {
@@ -651,12 +661,27 @@ func legacyChain(f *legacyFile, i, hi int) (int, string, int) {
 			}
 			k = f.match[k] + 1
 		case legacyPunct(t, k, "["):
+			// Only a bracket holding exactly one static identifier-name string resolves
+			// (cy['task'] is cy.task); any other computed member leaves the callee unresolved.
+			if open < 0 && f.match[k] == k+2 && t[k+1].kind == 's' && legacyIdentifierName(t[k+1].text) {
+				callee += "." + t[k+1].text
+			}
 			k = f.match[k] + 1
 		default:
 			return k, callee, open
 		}
 	}
 	return k, callee, open
+}
+
+// legacyIdentifierName reports whether text is a plain JavaScript identifier name.
+func legacyIdentifierName(text string) bool {
+	for i, r := range text {
+		if r != '_' && r != '$' && !unicode.IsLetter(r) && (i == 0 || !unicode.IsDigit(r)) {
+			return false
+		}
+	}
+	return text != ""
 }
 
 // record binds one precondition call chain tokens[i:end] by the digest of its canonical text.
@@ -688,7 +713,7 @@ func legacyStatementStart(f *legacyFile, i, lo int) bool {
 		return true
 	}
 	previous := t[i-1]
-	if previous.line == t[i].line {
+	if !t[i].nl {
 		return false
 	}
 	switch {
@@ -778,7 +803,10 @@ func (p *legacyProducer) hookPreconditions(f *legacyFile, r legacyRange) ([]stri
 // casePreconditions records every visit, intercept and seed command of a case body at any depth.
 // One that is not an unconditional statement of the body, or that sits in a template
 // substitution (nested), is still bound by digest but also makes the case uncertain.
-func (p *legacyProducer) casePreconditions(f *legacyFile, caseID string, r legacyRange, nested bool) []string {
+//
+// consumed (nil inside a template substitution) receives the tokens of every recorded callee path,
+// root through the member called, for the residue check.
+func (p *legacyProducer) casePreconditions(f *legacyFile, caseID string, r legacyRange, nested bool, consumed map[int]bool) []string {
 	t := f.tokens
 	fixtures := []string{}
 	depth, conditional := 0, false
@@ -798,7 +826,7 @@ func (p *legacyProducer) casePreconditions(f *legacyFile, caseID string, r legac
 			sub := &legacyFile{path: f.path, blob: f.blob, data: f.data, tokens: t[i].sub}
 			if match, ok := legacyMatchBrackets(sub.tokens); ok {
 				sub.match = match
-				fixtures = append(fixtures, p.casePreconditions(sub, caseID, legacyRange{0, len(sub.tokens)}, true)...)
+				fixtures = append(fixtures, p.casePreconditions(sub, caseID, legacyRange{0, len(sub.tokens)}, true, nil)...)
 				continue
 			}
 			for _, callee := range legacySubCalls(t[i].sub) {
@@ -829,6 +857,11 @@ func (p *legacyProducer) casePreconditions(f *legacyFile, caseID string, r legac
 			continue
 		}
 		fixtures = append(fixtures, fixture)
+		if consumed != nil {
+			for k := i; k < open; k++ {
+				consumed[k] = true
+			}
+		}
 		if nested || depth != 0 || conditional || !legacyStatementStart(f, i, r.lo) {
 			p.unknown(f, caseID, "nested-precondition", callee+" may not run unconditionally before the assertions", t[i].line, t[end-1].line)
 		}
@@ -947,22 +980,28 @@ func legacyChainRoot(f *legacyFile, dot, lo int) (int, bool) {
 	return 0, false
 }
 
-// assertions extracts the assertion tuples of a case body. Every expect, assert or should the
-// patterns do not consume is reported as an unparsed-assertion unknown.
-func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange) []BehaviorLegacyCriterion {
+// assertions extracts the assertion tuples of a case body and marks every token a recognised
+// form consumed; the residue check reports whatever is left.
+func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange, consumed map[int]bool) []BehaviorLegacyCriterion {
 	t := f.tokens
-	consumed := map[int]bool{}
 	tuples := []legacyTuple{}
+	continued := func(i, next int) {
+		p.unknown(f, caseID, "unparsed-assertion", "a chained assertion continues after the first matcher: "+legacyBounded(legacyCanonical(t, i, min(next+12, r.hi))), t[i].line, t[min(next+12, r.hi)-1].line)
+		legacyConsumeChain(f, consumed, next, r.hi)
+	}
 	for i := r.lo; i < r.hi; i++ {
 		if t[i].kind != 'i' {
 			continue
 		}
 		switch {
-		case (t[i].text == "expect" || t[i].text == "expectAsync") && legacyPunct(t, i+1, "("):
+		case (t[i].text == "expect" || t[i].text == "expectAsync") && !legacyChained(t, i) && legacyPunct(t, i+1, "("):
+			// A member expect (chai.expect, obj.expect) is not proven to be the runner's; the
+			// residue check reports it.
 			close := f.match[i+1]
 			locator := legacyCanonical(t, i+2, close)
 			k, members, call := close+1, []string{}, -1
 			for k+1 < r.hi && legacyPunct(t, k, ".") && t[k+1].kind == 'i' {
+				consumed[k+1] = true
 				members, k = append(members, t[k+1].text), k+2
 				if legacyPunct(t, k, "(") {
 					if len(members) == 1 && members[0] == "withContext" {
@@ -977,14 +1016,20 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 			if len(members) == 0 {
 				continue
 			}
+			consumed[i] = true
 			end := k - 1
+			if call < 0 && (legacyPunct(t, k, "[") || legacyPunct(t, k, "?.")) {
+				// A property chain that continues through a computed or optional member has no
+				// static matcher.
+				continued(i, k)
+				continue
+			}
 			if call >= 0 {
 				end = f.match[call]
 				if next := end + 1; next+1 < r.hi && ((legacyPunct(t, next, ".") || legacyPunct(t, next, "?.")) && t[next+1].kind == 'i' || legacyPunct(t, next, "[") || legacyPunct(t, next, "(")) {
-					p.unknown(f, caseID, "unparsed-assertion", "a chained assertion continues after the first matcher: "+legacyBounded(legacyCanonical(t, i, min(next+12, r.hi))), t[i].line, t[min(next+12, r.hi)-1].line)
+					continued(i, next)
 				}
 			}
-			consumed[i] = true
 			tuples = append(tuples, legacyTuple{at: i, from: i, to: end, matcher: strings.Join(members, "."), locator: locator, value: legacyValue(f, call, 0, 0)})
 		case t[i].text == "assert" && !legacyChained(t, i):
 			k, matcher := i+1, "assert"
@@ -1023,6 +1068,10 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 					tuples = append(tuples, legacyTuple{at: call - 1, from: root, to: f.match[call], matcher: "should." + t[args[0].lo].text, locator: locator, value: legacyValue(f, call, 1, 0)})
 				}
 				next := f.match[call] + 1
+				if legacyPunct(t, next, "[") || legacyPunct(t, next, "(") {
+					continued(root, next)
+					break
+				}
 				if !legacyPunct(t, next, ".") || next+2 >= r.hi || t[next+1].kind != 'i' || t[next+1].text != "and" || !legacyPunct(t, next+2, "(") {
 					break
 				}
@@ -1030,6 +1079,8 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 				call = next + 2
 			}
 		case t[i].text == "contains" && legacyChained(t, i) && legacyPunct(t, i+1, "("):
+			// Only a cy-rooted contains is a Cypress assertion; any other root is left for the
+			// residue check to report.
 			root, ok := legacyChainRoot(f, i-1, r.lo)
 			if !ok || t[root].kind != 'i' || t[root].text != "cy" {
 				continue
@@ -1045,26 +1096,14 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 				// The second argument is neither a literal content nor a plain options object, so
 				// which argument is the selector is not static.
 				p.unknown(f, caseID, "unparsed-assertion", "a contains call whose arguments are not static: "+legacyBounded(legacyCanonical(t, root, f.match[i+1]+1)), t[root].line, t[f.match[i+1]].line)
-				consumed[i] = true
 			default:
 				tuples = append(tuples, legacyTuple{at: i, from: root, to: f.match[i+1], matcher: "contains", locator: prefix + " " + legacyCanonical(t, args[0].lo, args[0].hi), value: legacyValue(f, i+1, 1, 1)})
 			}
-		}
-	}
-	for i := r.lo; i < r.hi; i++ {
-		if t[i].kind == 's' && legacyPunct(t, i-1, "[") && legacyPunct(t, i+1, "]") && legacyTemplateAssertionWord[t[i].text] {
-			p.unknown(f, caseID, "unparsed-assertion", "an assertion reached through a computed member: "+legacyBounded(legacyCanonical(t, max(i-6, r.lo), min(i+8, r.hi))), t[i].line, t[i].line)
-		}
-		if t[i].kind == 't' && legacySubWords(t[i].sub, legacyTemplateAssertionWord) {
-			p.unknown(f, caseID, "unparsed-assertion", "an assertion inside a template substitution: "+legacyBounded(t[i].raw), t[i].line, t[i].line)
-		}
-		cypressAnd := t[i].kind == 'i' && t[i].text == "and" && legacyChained(t, i) && legacyPunct(t, i+1, "(")
-		if t[i].kind == 'i' && (legacyAssertionWord[t[i].text] || cypressAnd) && !consumed[i] {
-			p.unknown(f, caseID, "unparsed-assertion", legacyCanonical(t, i, min(i+12, r.hi)), t[i].line, t[min(i+12, r.hi)-1].line)
+			consumed[i] = true
 		}
 	}
 	sort.SliceStable(tuples, func(i, j int) bool { return tuples[i].at < tuples[j].at })
-	helpers := legacyHelperSpans(f, r)
+	helpers := legacyUnprovenFunctions(f, r)
 	criteria := []BehaviorLegacyCriterion{}
 	for _, tuple := range tuples {
 		if slices.ContainsFunc(helpers, func(h legacyRange) bool { return h.lo <= tuple.at && tuple.at < h.hi }) {
@@ -1085,15 +1124,179 @@ func (p *legacyProducer) assertions(f *legacyFile, caseID string, r legacyRange)
 	return criteria
 }
 
-// legacyHelperSpans returns the token ranges of functions defined in r that are not passed
-// directly as a call argument: a named or assigned helper may never run, so an assertion inside
-// it is not a criterion of the case.
-func legacyHelperSpans(f *legacyFile, r legacyRange) []legacyRange {
+// legacyConsumeChain marks the member names of the chain continuing at k as reported, so one
+// unknown covers one unparsed chain.
+func legacyConsumeChain(f *legacyFile, consumed map[int]bool, k, hi int) {
+	t := f.tokens
+	for k < hi {
+		switch {
+		case (legacyPunct(t, k, ".") || legacyPunct(t, k, "?.")) && k+1 < hi && t[k+1].kind == 'i':
+			consumed[k+1] = true
+			k += 2
+		case legacyPunct(t, k, "["):
+			if f.match[k] == k+2 {
+				consumed[k+1] = true
+			}
+			k = f.match[k] + 1
+		case legacyPunct(t, k, "("):
+			k = f.match[k] + 1
+		default:
+			return
+		}
+	}
+}
+
+// residue is the fail-closed check of a case body (DCP-V1-062): every code-token occurrence of
+// an assertion word, a Cypress chain word, a precondition root or member, or a runner call that no
+// recognised extraction consumed becomes an unknown. It never adds a criterion or a fixture.
+func (p *legacyProducer) residue(f *legacyFile, caseID string, r legacyRange, consumed map[int]bool) {
+	t := f.tokens
+	report := func(reason string, i int, detail string) {
+		end := min(i+12, r.hi)
+		p.unknown(f, caseID, reason, legacyBounded(detail+legacyCanonical(t, i, end)), t[i].line, t[end-1].line)
+	}
+	// Computed members first, so a chain walk does not report the same bracket twice.
+	for i := r.lo; i < r.hi; i++ {
+		if t[i].kind == 's' && legacyPunct(t, i-1, "[") && legacyPunct(t, i+1, "]") && (legacyComputedWord[t[i].text] || t[i].text == "cy") && !consumed[i] {
+			kind := "an assertion"
+			if legacyPreconditionWord[t[i].text] || t[i].text == "cy" {
+				kind = "a command"
+			}
+			p.unknown(f, caseID, "unparsed-assertion", kind+" reached through a computed member: "+legacyBounded(legacyCanonical(t, max(i-6, r.lo), min(i+8, r.hi))), t[i].line, t[i].line)
+			consumed[i] = true
+		}
+		if t[i].kind != 't' {
+			continue
+		}
+		if legacySubWords(t[i].sub, legacyTemplateAssertionWord) {
+			p.unknown(f, caseID, "unparsed-assertion", "an assertion inside a template substitution: "+legacyBounded(t[i].raw), t[i].line, t[i].line)
+		} else if legacySubWords(t[i].sub, legacyTemplateCommandWord) && !slices.ContainsFunc(legacySubCalls(t[i].sub), func(callee string) bool { return legacyPreconditionOf[callee] != "" }) {
+			// A recorded precondition in a substitution already has its nested-precondition unknown.
+			p.unknown(f, caseID, "unparsed-command", "a command inside a template substitution: "+legacyBounded(t[i].raw), t[i].line, t[i].line)
+		}
+	}
+	for i := r.lo; i < r.hi; i++ {
+		if t[i].kind != 'i' || legacyObjectKey(t, i) {
+			continue
+		}
+		word := t[i].text
+		if word == "cy" && legacyChained(t, i) {
+			// cy reached as a member (window.cy) is not the case's own chain.
+			report("unparsed-command", i, "cy reached as a member is not resolved: ")
+			continue
+		}
+		if legacyResidueRoot[word] && !legacyChained(t, i) {
+			if detail := legacyRootResidue(f, i, r.hi, consumed); detail != "" {
+				report("unparsed-command", i, detail)
+			}
+			continue
+		}
+		if consumed[i] {
+			continue
+		}
+		switch {
+		case legacyAssertionWord[word] || word == "and" || word == "contains":
+			report("unparsed-assertion", i, "")
+		case legacyPreconditionWord[word]:
+			if legacyChained(t, i) {
+				// A member of a cy/browser/page chain is judged by that chain's walk; a member of
+				// another plain object is not a runner precondition.
+				if root, ok := legacyChainRoot(f, i-1, r.lo); ok && t[root].kind == 'i' && !legacyKeyword[t[root].text] {
+					continue
+				}
+				report("unparsed-command", i, "a precondition command on a chain the static reader does not resolve: ")
+				continue
+			}
+			report("unparsed-command", i, "a precondition command the static reader does not bind: ")
+		case (p.runner.suites[word] || p.runner.cases[word] || p.runner.hooks[word]) && !legacyChained(t, i) &&
+			(legacyPunct(t, i+1, "(") || legacyPunct(t, i+1, ".") && i+2 < r.hi && (t[i+2].text == "skip" || t[i+2].text == "only")):
+			report("runner-call-in-case", i, "a runner call inside a case body is not inventoried: ")
+		}
+	}
+}
+
+// legacyRootResidue walks a cy, browser or page chain rooted at i and returns why it is not fully
+// bound, or "". A cy chain may only continue through plain members and calls; any root may only
+// reach a recorded precondition, and a computed member resolves only where its precondition was
+// recorded or its bracket was already reported.
+func legacyRootResidue(f *legacyFile, i, hi int, consumed map[int]bool) string {
+	t := f.tokens
+	root := t[i].text
+	cy := root == "cy"
+	k, open, path := i+1, -1, root
+	if !legacyPunct(t, k, ".") && !legacyPunct(t, k, "[") && !legacyPunct(t, k, "?.") {
+		if cy {
+			return "cy is used in a form the static reader does not resolve: "
+		}
+		return ""
+	}
+walk:
+	for k < hi {
+		switch {
+		case legacyPunct(t, k, ".") && k+1 < hi && t[k+1].kind == 'i':
+			if open < 0 {
+				path += "." + t[k+1].text
+			}
+			if legacyPreconditionWord[t[k+1].text] && !consumed[k+1] {
+				return "a precondition command the static reader does not bind: "
+			}
+			k += 2
+		case legacyPunct(t, k, "("):
+			if open < 0 {
+				open = k
+			}
+			if !cy {
+				break walk
+			}
+			k = f.match[k] + 1
+		case legacyPunct(t, k, "["):
+			if f.match[k] == k+2 && consumed[k+1] {
+				if open < 0 {
+					path += "." + t[k+1].text
+				}
+				k += 3
+				continue
+			}
+			return "a computed member on a " + root + " chain: "
+		case legacyPunct(t, k, "?."):
+			return "an optional " + root + " chain may skip its commands: "
+		default:
+			break walk
+		}
+	}
+	if legacyPreconditionOf[path] != "" && !consumed[i] {
+		return "a precondition command the static reader does not bind: "
+	}
+	return ""
+}
+
+// legacyObjectKey reports whether token i is a property name in an object literal ({key: ...}).
+func legacyObjectKey(t []legacyToken, i int) bool {
+	return (legacyPunct(t, i-1, "{") || legacyPunct(t, i-1, ",")) && legacyPunct(t, i+1, ":")
+}
+
+// legacyUnprovenFunctions returns the token ranges of function-like constructs in r whose call
+// the reader cannot prove: anything other than a function or arrow expression passed whole as a
+// direct call argument (a declared, assigned, grouped or immediately invoked function, an object
+// or class method, getter or setter, or a class body). An assertion inside one is an unknown,
+// never a criterion.
+func legacyUnprovenFunctions(f *legacyFile, r legacyRange) []legacyRange {
 	t := f.tokens
 	spans := []legacyRange{}
 	for k := r.lo; k < r.hi; k++ {
 		head, end := -1, -1
 		switch {
+		case t[k].kind == 'i' && t[k].text == "class" && !legacyChained(t, k):
+			for j := k + 1; j < r.hi; j++ {
+				if legacyPunct(t, j, "{") {
+					spans = append(spans, legacyRange{lo: k, hi: f.match[j] + 1})
+					break
+				}
+				if legacyPunct(t, j, "(") || legacyPunct(t, j, "[") {
+					j = f.match[j]
+				}
+			}
+			continue
 		case t[k].kind == 'i' && t[k].text == "function" && !legacyChained(t, k):
 			head = k
 			open := k + 1
@@ -1119,11 +1322,15 @@ func legacyHelperSpans(f *legacyFile, r legacyRange) []legacyRange {
 					continue
 				}
 				if t[j].kind == 'p' && (t[j].text == ")" || t[j].text == "]" || t[j].text == "}" || t[j].text == ";" || t[j].text == ",") ||
-					j > k+1 && t[j].line > t[j-1].line && legacyStatementStart(f, j, r.lo) {
+					j > k+1 && t[j].nl && legacyStatementStart(f, j, r.lo) {
 					break
 				}
 			}
 			end = j - 1
+		case legacyPunct(t, k, "(") && legacyPunct(t, f.match[k]+1, "{") && legacyMethodName(t, k):
+			// name(params) { ... } is a method, getter or setter definition.
+			spans = append(spans, legacyRange{lo: k - 1, hi: f.match[f.match[k]+1] + 1})
+			continue
 		}
 		if head < r.lo || end < k {
 			continue
@@ -1131,10 +1338,74 @@ func legacyHelperSpans(f *legacyFile, r legacyRange) []legacyRange {
 		if head > r.lo && t[head-1].kind == 'i' && t[head-1].text == "async" {
 			head--
 		}
-		if head > r.lo && (legacyPunct(t, head-1, "(") || legacyPunct(t, head-1, ",")) {
+		if legacyDirectArgument(f, head, end, r.lo) {
 			continue
 		}
-		spans = append(spans, legacyRange{lo: k, hi: end + 1})
+		spans = append(spans, legacyRange{lo: head, hi: end + 1})
 	}
 	return spans
+}
+
+// legacyMethodName reports whether the '(' at k follows a method name rather than a callee, a
+// control keyword or a function expression's name.
+func legacyMethodName(t []legacyToken, k int) bool {
+	if k < 1 {
+		return false
+	}
+	name := t[k-1]
+	switch {
+	case name.kind == 'i':
+		if legacyKeyword[name.text] {
+			return false
+		}
+		if k >= 2 && t[k-2].kind == 'i' && t[k-2].text == "function" || k >= 3 && legacyPunct(t, k-2, "*") && t[k-3].kind == 'i' && t[k-3].text == "function" {
+			return false
+		}
+		return true
+	case name.kind == 's' || name.kind == 'n':
+		return true
+	}
+	return name.kind == 'p' && name.text == "]"
+}
+
+// legacyDirectArgument reports whether tokens[head:end+1] is one whole argument of a call: its
+// enclosing bracket is a '(' that follows a callee, not a grouping, parameter list or header.
+func legacyDirectArgument(f *legacyFile, head, end, lo int) bool {
+	t := f.tokens
+	open := -1
+	for j := head - 1; j >= lo && open < 0; j-- {
+		if t[j].kind != 'p' {
+			continue
+		}
+		switch t[j].text {
+		case ")", "]", "}":
+			j = f.match[j]
+		case "(", "[", "{":
+			open = j
+		}
+	}
+	if open < 1 || !legacyPunct(t, open, "(") || legacyPunct(t, f.match[open]+1, "{") || legacyPunct(t, f.match[open]+1, "=>") {
+		return false
+	}
+	callee := t[open-1]
+	switch {
+	case callee.kind == 'i':
+		if legacyKeyword[callee.text] || callee.text == "with" || open >= 2 && t[open-2].kind == 'i' && t[open-2].text == "function" {
+			return false
+		}
+	case callee.kind == 'p' && callee.text == ")":
+		// A call of a call result, unless the ')' closes a control header.
+		if m := f.match[open-1]; m >= 1 && t[m-1].kind == 'i' && (legacyKeyword[t[m-1].text] || t[m-1].text == "with") {
+			return false
+		}
+	case callee.kind == 'p' && callee.text == "]":
+	default:
+		return false
+	}
+	for _, arg := range legacyArgs(f, open) {
+		if arg.lo == head && arg.hi == end+1 {
+			return true
+		}
+	}
+	return false
 }

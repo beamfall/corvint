@@ -470,11 +470,28 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   but does not pass directly as a call argument, or an assertion or Cypress `.contains`/`.and`
   inside a template substitution) is listed under `unknown` as
   `unparsed-assertion` or `should-callback` with its case and anchor; it is never dropped, and a
-  case with no static assertion has a `no-static-assertion` unknown. Status: (proposed/experimental; GitHub #811).
+  case with no static assertion has a `no-static-assertion` unknown. Only an `expect` that is not a
+  member (`chai.expect`, `globalThis.expect`) is extracted. A helper is proven only as a `function`
+  or arrow expression passed whole as one direct argument of a plain call; a declared, assigned,
+  parenthesised, immediately invoked or otherwise grouped function, an object or class method,
+  getter or setter, and a class body are unproven, and an assertion inside one is an
+  `unparsed-assertion` unknown, never a criterion. After extraction a fail-closed residue check
+  scans the body's code tokens: every `expect`, `expectAsync`, `assert`, `should`, `and` or
+  `contains`, every precondition word (`task`, `request`, `intercept`, `fixture`, `visit`, `exec`,
+  `route`, `goto`), every `cy`, `browser` or `page` chain and every runner suite, case or hook call
+  that no extraction consumed adds an unknown (`unparsed-assertion`, `unparsed-command` or
+  `runner-call-in-case`); so does such a word as a computed string member, a `cy` reached as a
+  member, an optional (`?.`) or otherwise computed `cy`/`browser`/`page` chain, a bare `cy` value
+  and a template substitution naming one. A case with any unknown never reaches `parity-candidate`
+  (`DCP-V1-066`). LF, CR, CRLF, U+2028 and U+2029 are each a line terminator: each ends a `//`
+  comment, separates statements for ASI and counts as a JavaScript line break; anchor lines stay
+  LF-delimited as for every corpus anchor. Status: (proposed/experimental; GitHub #811).
 - `DCP-V1-063`: Preconditions are content-bound references. Every top-level call statement in an
   enclosing `beforeEach`/`before` hook, and every `cy.visit`, `browser.get`, `browser.url`,
   `page.goto` (`visit`), `cy.intercept`, `cy.route` (`intercept`), `cy.task`, `cy.exec` or
-  `cy.fixture` (`setup`) call in the case body, is one `preconditions` entry with kind, callee, the
+  `cy.fixture` (`setup`) call in the case body (a member named by one bracketed static
+  identifier-name string, as in `cy['task']`, resolves to that member; any other computed member is
+  a `DCP-V1-062` residue unknown), is one `preconditions` entry with kind, callee, the
   full canonical call text (layout-free: a space separates only two word tokens or two operators),
   its SHA-256 and an anchor. The case's `fixtures` list holds
   `kind:callee@sha256:<digest>` in execution order: run-once (`before`/`beforeAll`) hooks outer to
@@ -862,8 +879,8 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-049..052 | `internal/doccorpus/behavior_playwright_witness.go`, `cmd/corvint/docs_corpus_playwright.go` | `TestPlaywrightWitnessImporter`, `TestDocsCorpusPlaywrightProducersCLI` |
 | DCP-V1-053 | `cmd/corvint/docs.go`, `cmd/corvint-js-test-provider/main.go` | `TestDocsHelpNamesPlaywrightReceiptProducer`, `TestDocsHelpProducerExampleUsesE2EFlags` |
 | DCP-V1-060..061 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-060 DCP-V1-061`) |
-| DCP-V1-062 | `internal/doccorpus/behavior_legacy_discovery.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-062`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-062`) |
-| DCP-V1-063 | `internal/doccorpus/behavior_legacy_discovery.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-063`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-063`), `TestLegacyLexerCanonicalAndEscapes` |
+| DCP-V1-062 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-062`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-062`), `TestLegacyResidueFailsClosed` (`DCP-V1-062`) |
+| DCP-V1-063 | `internal/doccorpus/behavior_legacy_discovery.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-063`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-063`), `TestLegacyLexerCanonicalAndEscapes`, `TestLegacyResidueFailsClosed` (`DCP-V1-063`) |
 | DCP-V1-064 | `internal/doccorpus/behavior_legacy_discovery.go` | `TestLegacyDiscoveryDeterministicReadOnly` |
 | DCP-V1-065..066 | `internal/doccorpus/behavior_legacy_crosswalk.go` | `TestLegacyCrosswalk` (`DCP-V1-065`, `DCP-V1-066`) |
 | DCP-V1-067 | `internal/doccorpus/behavior_legacy_crosswalk.go`, `behavior.go` | `TestLegacyCrosswalk` (`DCP-V1-067`), `TestLegacyPreconditionDigestCompileGap` |
