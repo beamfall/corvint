@@ -73,7 +73,21 @@ Contracts and decisions:
   parentheses). A false branch is skipped as make skips it; anything else reads every branch.
   Verified against GNU Make 3.81 probes: `CC ?= clang` keeps `cc`, `F = -race ` keeps the blank,
   `F = x\\` is not a continuation, `${F)` is an error, `./go-test:` and `%-test:` both answer
-  `make go-test`, and `MAKECMDGOALS=other make go-test` takes the `other` branch. This
+  `make go-test`, and `MAKECMDGOALS=other make go-test` takes the `other` branch. Codex round 9
+  added, each probed: a second `go-test:` rule replaces the first recipe (untyped); every tab line
+  in the go-test span is a recipe line, an empty one and a shell comment included (two lines are
+  untyped); any non-conditional line that names `MAKECMDGOALS` (assignment, `export`, `define`,
+  `eval`) makes every later `$(MAKECMDGOALS)` conditional unknown, while an assignment after the
+  conditional leaves it as make evaluated it; a tab line outside a rule is read again as makefile
+  text (so `\tinclude x.mk` marks the scope `INCOMPLETE`); an unrecognised line with a colon is
+  `INCOMPLETE` because its targets may be outside the alphabet (`go-test @x:`); and
+  `.PHONY: go-test` with no rule stays `absent` with a note, because `make go-test` then runs
+  nothing (make prints "Nothing to be done") and `absent` is what makes the planner report Go
+  `INCOMPLETE` instead of running an empty target. A makefile assignment to `MAKEFLAGS`,
+  `GNUMAKEFLAGS`, `MAKEFILES` or `.RECIPEPREFIX` is `INCOMPLETE` for the same reason as the
+  environment words. One known deviation stays in the safe direction: a stale file named `go-test`
+  in the root makes `make go-test` run nothing ("is up to date"), while the typed argv runs the
+  suite. This
   repository's Makefile still types go-test: its line-49 `$(GATE_STEPS) ...: | gate-receipt-clear`
   sits under `ifneq ($(filter gate,$(or $(MAKECMDGOALS),gate)),)`, which is false for
   `make go-test`, and the 63-71 block holds no go-test rule

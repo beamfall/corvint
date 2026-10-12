@@ -560,6 +560,49 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 			t.Errorf("%q: %s %q, want unparsed naming %q", body, got.GoTest, got.GoTestNote, note)
 		}
 	}
+	// Absence is claimed only when certain: a tab line outside a rule is
+	// read as makefile text (an include among them), a rule whose target
+	// names are outside the alphabet, and a tab-prefixed conditional in a
+	// skipped branch all leave the scope incomplete.
+	for _, body := range []string{
+		"F = 1\n\tinclude inc.mk\n",
+		"F = 1\n\t-include inc.mk\n",
+		"go-test @x:\n\tgo test ./...\n",
+		"ifeq (1,2)\n\tifeq (a,b)\nendif\nendif\n",
+		"MAKEFLAGS = -R\n",
+		"MAKEFILES = x.mk\n",
+		".RECIPEPREFIX = >\n",
+	} {
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": body}), nil, none); got.Unreadable == "" {
+			t.Errorf("%q: declared scope read as complete: %#v", body, got)
+		}
+	}
+	// Codex round 9: a second go-test rule replaces the first recipe; an
+	// empty or comment tab line is a recipe line; a makefile line that
+	// touches MAKECMDGOALS makes a later conditional unknown, so the rule
+	// under it is read; `.PHONY: go-test` alone runs nothing, which is
+	// absent (Go INCOMPLETE), never `make go-test`.
+	for body, note := range map[string]string{
+		"go-test:\n\tgo test -race ./...\ngo-test:\n\t# no tests\n":                                         "more than one rule",
+		"go-test:\n\tgo test ./...\n\t# c\n":                                                                "2 recipe lines",
+		"go-test:\n\tgo test ./...\n\t\n":                                                                   "2 recipe lines",
+		"MAKECMDGOALS = gate\nifeq ($(MAKECMDGOALS),gate)\ngo-test:\n\tgo test -race ./...\nendif\n":        "assigns MAKECMDGOALS",
+		"export MAKECMDGOALS = gate\nifeq ($(MAKECMDGOALS),gate)\ngo-test:\n\tgo test ./...\nendif\n":       "uses export",
+		"define MAKECMDGOALS\ngate\nendef\nifeq ($(MAKECMDGOALS),gate)\ngo-test:\n\tgo test ./...\nendif\n": "uses define",
+	} {
+		got := ReadDeclared(write(t, map[string]string{"Makefile": body}), nil, none)
+		if got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, note) {
+			t.Errorf("%q: %s %q, want unparsed naming %q", body, got.GoTest, got.GoTestNote, note)
+		}
+	}
+	// An assignment after the conditional does not change what make
+	// already evaluated, so the false branch stays skipped.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "ifeq ($(MAKECMDGOALS),gate)\ngo-test:\n\tgo test ./...\nendif\nMAKECMDGOALS = gate\n"}), nil, none); got.GoTest != GoTestAbsent {
+		t.Errorf("late MAKECMDGOALS assignment: %#v, want absent", got)
+	}
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": ".PHONY: go-test\n"}), nil, none); got.GoTest != GoTestAbsent || !strings.Contains(got.GoTestNote, ".PHONY") || got.Unreadable != "" {
+		t.Errorf(".PHONY: go-test alone: %#v, want absent naming .PHONY", got)
+	}
 	// A pattern rule alone answers `make go-test`, so go-test is declared
 	// (untyped) and a matching <lang>-test is declared.
 	pattern := ReadDeclared(write(t, map[string]string{"Makefile": "%-test:\n\tcargo test\n"}), []string{"rust"}, none)

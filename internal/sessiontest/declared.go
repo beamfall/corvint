@@ -14,7 +14,9 @@ import (
 
 // Declared go-test recipe states (STR-V0-003, STR-V0-006).
 const (
-	// GoTestAbsent: the makefile make would read names no go-test target.
+	// GoTestAbsent: `make go-test` runs no recipe, because the makefile
+	// make would read gives go-test no rule, or names it only as a .PHONY
+	// prerequisite; the planner reports Go INCOMPLETE rather than run it.
 	GoTestAbsent = "absent"
 	// GoTestParsed: one typed `[NAME=VALUE...] go test FLAGS ./...` recipe line.
 	GoTestParsed = "parsed"
@@ -184,9 +186,12 @@ type makefileReader struct {
 	refused map[string]bool
 	recipe  []logicalLine
 	stack   []int
-	// goalsInherited: MAKECMDGOALS came from the environment, so make uses
-	// that value and a conditional on it is not evaluated.
-	goalsInherited             bool
+	// goalsUnknown: MAKECMDGOALS came from the environment or a makefile
+	// line touched it, so from here on a conditional on it is not
+	// evaluated and both branches are read.
+	goalsUnknown               bool
+	goTestRules                int
+	phonyGoTest                bool
 	inGoTest, inRule, inDefine bool
 	goTest                     string
 	languages                  []string
@@ -210,7 +215,7 @@ func (r *makefileReader) environment() {
 	if _, ok := r.lookup("MAKECMDGOALS"); ok {
 		// make then uses the inherited value, so no conditional on it is
 		// evaluated for go-test: both branches are read.
-		r.goalsInherited = true
+		r.goalsUnknown = true
 		r.setUntyped("MAKECMDGOALS is in the environment, which make uses instead of the goals")
 	}
 	for _, name := range []string{"MAKEFLAGS", "GNUMAKEFLAGS"} {
@@ -246,13 +251,27 @@ func (r *makefileReader) read(line logicalLine) {
 	skipping := conditionSkipping(r.stack)
 	if strings.HasPrefix(text, "\t") {
 		body := strings.Trim(text, " \t")
+		words := makeWords(body)
 		switch {
-		case skipping || body == "" || strings.HasPrefix(body, "#"):
-		case r.inGoTest:
+		case r.inGoTest && !skipping:
+			// Every tab line is a recipe line to make, an empty one and a
+			// shell comment included.
 			r.recipe = append(r.recipe, line)
+		case body == "" || strings.HasPrefix(body, "#"):
+		case skipping:
+			if len(words) > 0 && (conditionalWords[words[0]] || words[0] == "else" || words[0] == "endif") {
+				// Whether make nests a tab-prefixed conditional inside a
+				// skipped branch depends on the rule context, so the
+				// branch structure after it is not known.
+				r.setIncomplete(fmt.Sprintf("%s line %d is a tab-prefixed conditional in a skipped branch", r.name, line.number))
+				r.setUntyped(fmt.Sprintf("%s line %d is a tab-prefixed conditional in a skipped branch", r.name, line.number))
+			}
 		case !r.inRule:
-			// Outside a rule make reads a tab line as makefile text.
+			// Outside a rule make reads a tab line as makefile text: a
+			// directive or an assignment is read as such (a rule is a
+			// make error), so the line is read again without the tab.
 			r.setUntyped(fmt.Sprintf("%s line %d is a tab line outside a rule", r.name, line.number))
+			r.read(logicalLine{text: body, number: line.number, continued: line.continued})
 		}
 		return
 	}
@@ -264,6 +283,12 @@ func (r *makefileReader) read(line logicalLine) {
 		return
 	}
 	directive := makeWords(text)[0]
+	if strings.Contains(text, "MAKECMDGOALS") && !conditionalWords[directive] && directive != "else" {
+		// Any other line that names MAKECMDGOALS can assign it (an
+		// assignment, export, override, define or eval), and make
+		// evaluates a later conditional against that value.
+		r.goalsUnknown = true
+	}
 	// A conditional does not end a recipe: make keeps reading the rule's
 	// tab lines inside it, so one inside the go-test recipe span, or
 	// around a go-test rule, leaves go-test untyped.
@@ -337,9 +362,10 @@ func (r *makefileReader) read(line logicalLine) {
 	}
 	match := makeRule.FindStringSubmatch(text)
 	if match == nil {
-		if strings.Contains(text, "$") {
+		if strings.ContainsAny(text, "$:") {
 			// A function call at top level, $(call ...) included, can
-			// expand to a rule.
+			// expand to a rule, and a line with a colon can be a rule
+			// whose target names are outside this reader's alphabet.
 			r.setIncomplete(fmt.Sprintf("%s line %d is not a construct this reader recognises", r.name, line.number))
 		}
 		r.setUntyped(fmt.Sprintf("%s line %d is not a construct this reader recognises", r.name, line.number))
@@ -383,6 +409,13 @@ func (r *makefileReader) conditionalEnd(number int, directive, text string) {
 
 // assign reads one variable assignment.
 func (r *makefileReader) assign(name, operator, value string) {
+	switch name {
+	case "MAKEFLAGS", "GNUMAKEFLAGS", "MAKEFILES", ".RECIPEPREFIX":
+		// make re-reads options assigned to MAKEFLAGS, and the recipe
+		// prefix decides which lines are makefile text, so what make
+		// reads after this line is not known.
+		r.setIncomplete("the " + r.name + " assigns " + name)
+	}
 	if makeControlNames[name] || (strings.HasPrefix(name, ".") && name != ".DEFAULT_GOAL") {
 		r.setUntyped("the " + r.name + " assigns " + name + ", which changes how make runs a recipe")
 	}
@@ -434,6 +467,11 @@ func (r *makefileReader) rule(text, targets string) {
 		case target == "go-test":
 			r.goTest = GoTestUnparsed
 			r.inGoTest = true
+			r.goTestRules++
+			if r.goTestRules > 1 {
+				// A second rule with a recipe replaces the first recipe.
+				r.setUntyped("go-test has more than one rule")
+			}
 			if len(r.stack) > 0 {
 				r.setUntyped("go-test is defined under a conditional")
 			}
@@ -448,7 +486,15 @@ func (r *makefileReader) rule(text, targets string) {
 			// .DEFAULT answers every target make has no rule for.
 			r.setIncomplete("the " + r.name + " has a .DEFAULT rule")
 			r.setUntyped("the " + r.name + " has a .DEFAULT rule, which answers any target")
-		case strings.HasPrefix(target, ".") && target != ".PHONY":
+		case target == ".PHONY":
+			if _, after, _ := strings.Cut(text, ":"); r.goTestRules == 0 {
+				for _, prerequisite := range makeWords(stripMakeComment(after)) {
+					if prerequisite == "go-test" {
+						r.phonyGoTest = true
+					}
+				}
+			}
+		case strings.HasPrefix(target, "."):
 			r.setUntyped("the " + r.name + " names the special target " + target + ", which this reader cannot evaluate")
 		case strings.Contains(target, "%"):
 			// A pattern rule serves every target it matches, so each one
@@ -480,7 +526,7 @@ func (r *makefileReader) resolve(name string) (string, bool) {
 
 // evaluate evaluates a conditional line within the exact subset.
 func (r *makefileReader) evaluate(line string) int {
-	return conditionEvaluator{goalsInherited: r.goalsInherited}.conditional(line)
+	return conditionEvaluator{goalsUnknown: r.goalsUnknown}.conditional(line)
 }
 
 func (r *makefileReader) declared() Declared {
@@ -498,6 +544,9 @@ func (r *makefileReader) declared() Declared {
 			declared.GoTest, declared.GoEnv, declared.GoFlags = GoTestParsed, env, flags
 		}
 		declared.GoTestNote = note
+	}
+	if declared.GoTest == GoTestAbsent && r.phonyGoTest {
+		declared.GoTestNote = ".PHONY names go-test but no rule gives it a recipe, so make go-test runs nothing"
 	}
 	return declared
 }
@@ -527,13 +576,13 @@ func makeWords(value string) []string {
 // conditionEvaluator evaluates an `ifeq (A,B)` or `ifneq (A,B)` line only
 // within a subset that is exact by construction for `make go-test`: literal
 // words of ASCII letters, digits and -_./ separated by single spaces,
-// $(MAKECMDGOALS) as go-test unless it is inherited, $(filter LITERALS,X)
+// $(MAKECMDGOALS) as go-test unless it is unknown, $(filter LITERALS,X)
 // without %, and $(or X,...). It reads no makefile or environment variable.
 // Anything else, another reference, %, a tab, doubled or surrounding
 // blanks, a comment or a non-ASCII byte, is condUnknown, so every branch is
 // read.
 type conditionEvaluator struct {
-	goalsInherited bool
+	goalsUnknown bool
 }
 
 func (e conditionEvaluator) conditional(line string) int {
@@ -684,8 +733,8 @@ func (e conditionEvaluator) operand(value string) (string, error) {
 
 func (e conditionEvaluator) function(body string) (string, error) {
 	if body == "MAKECMDGOALS" {
-		if e.goalsInherited {
-			return "", errors.New("MAKECMDGOALS is inherited from the environment")
+		if e.goalsUnknown {
+			return "", errors.New("MAKECMDGOALS is inherited or assigned")
 		}
 		return "go-test", nil
 	}
