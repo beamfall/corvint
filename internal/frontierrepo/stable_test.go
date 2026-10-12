@@ -195,3 +195,78 @@ func tcqCode(err error) string {
 	}
 	return ""
 }
+
+func (f stableFixture) viewRequest() frontier.StableViewRequest {
+	return frontier.StableViewRequest{
+		CEMBytes: f.stable.Map, OCMBytes: f.ocm, ExpectedBase: f.base, Target: f.stable.Target, ArtifactRoot: f.stable.ArtifactRoot,
+	}
+}
+
+// TestV1304StableViewAccepts: frontier.ComputeStable over a verified cem/1.0
+// map yields the frontier-stable-view/0 bytes bound to the exact map, OCM and
+// stable TCQ identity, with the unknown obligation kept and state NOT_PRODUCED.
+func TestV1304StableViewAccepts(t *testing.T) {
+	f := newStableFixture(t, false)
+	ctx := context.Background()
+	view, encoded, err := frontier.ComputeStable(ctx, New(ctx, f.root), f.viewRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.FrontierState != "NOT_PRODUCED" || view.ExitCode() != 1 || view.MapSHA256 != digestHex(f.stable.Map) ||
+		view.OCMSHA256 != digestHex(f.ocm) || view.TargetRevision != f.stable.Target || view.PatchSHA256 != f.patchSHA256 {
+		t.Fatalf("view = %+v", view)
+	}
+	if len(view.Obligations) != 1 || view.Obligations[0].Disposition != "unknown" || view.Obligations[0].Reason != "unassessed" {
+		t.Fatalf("obligations = %+v", view.Obligations)
+	}
+	document, err := wire.Parse(encoded)
+	if err != nil || !bytes.HasSuffix(encoded, []byte("}\n")) {
+		t.Fatalf("encoded view: %v %q", err, encoded)
+	}
+	for key, want := range map[string]string{"profile": "frontier-stable-view/0", "frontierState": "NOT_PRODUCED"} {
+		if got, _ := document.Obj.Get(key); got.Str != want {
+			t.Fatalf("%s = %q, want %q", key, got.Str, want)
+		}
+	}
+	if bytes.Contains(encoded, []byte(`"frontier/0"`)) || bytes.Contains(encoded, []byte(`"EMPTY"`)) {
+		t.Fatal("stable view relabels a frontier/0 document or claims EMPTY")
+	}
+}
+
+// TestV1304StableViewRefusals: a tampered map, a wrong base, a tampered
+// artifact and a missing artifact root each refuse with a closed code and no
+// view; a cem/0.2 map refuses the stable route.
+func TestV1304StableViewRefusals(t *testing.T) {
+	f := newStableFixture(t, true)
+	edited := append(bytes.TrimSuffix(append([]byte(nil), f.stable.Map...), []byte("\n")), ' ', '\n')
+	cases := map[string]struct {
+		mutate func(*frontier.StableViewRequest)
+		code   string
+	}{
+		"tampered map":          {func(r *frontier.StableViewRequest) { r.CEMBytes = edited }, "excluded-artifact-mismatch"},
+		"wrong base":            {func(r *frontier.StableViewRequest) { r.ExpectedBase = f.target }, "base-revision-mismatch"},
+		"missing artifact root": {func(r *frontier.StableViewRequest) { r.ArtifactRoot = "" }, frontier.CodeInvalidInput},
+		"cem/0.2 map":           {func(r *frontier.StableViewRequest) { r.CEMBytes = f.cemRaw }, frontier.CodeUnsupportedContext},
+	}
+	ctx := context.Background()
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			request := f.viewRequest()
+			tc.mutate(&request)
+			view, encoded, err := frontier.ComputeStable(ctx, New(ctx, f.root), request)
+			if encoded != nil || view.FrontierState != "" || frontier.CodeOf(err) != tc.code {
+				t.Fatalf("code = %q, want %q (view=%+v)", frontier.CodeOf(err), tc.code, view)
+			}
+		})
+	}
+	t.Run("tampered artifact", func(t *testing.T) {
+		path := filepath.Join(f.stable.ArtifactRoot, filepath.FromSlash(f.stable.ArtifactPaths[0]))
+		if err := os.WriteFile(path, []byte(`{"fixture":"tampered"}`+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		view, encoded, err := frontier.ComputeStable(ctx, New(ctx, f.root), f.viewRequest())
+		if encoded != nil || view.FrontierState != "" || frontier.CodeOf(err) != "artifact-digest-mismatch" {
+			t.Fatalf("code = %q", frontier.CodeOf(err))
+		}
+	})
+}

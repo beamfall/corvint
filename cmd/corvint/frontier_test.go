@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/frontier"
 	"github.com/Beamfall/corvint/internal/lrf"
@@ -440,14 +441,14 @@ func TestParseFrontierOptions(t *testing.T) {
 	t.Parallel()
 	options, err := parseFrontierOptions([]string{
 		"--cem", "a.json", "--ocm=b.json", "--expected-base", "abc", "--target", "def",
-		"--command", "c.json", "--observation", "o.json", "--report", "r.xml", "--json",
+		"--command", "c.json", "--observation", "o.json", "--report", "r.xml", "--json", "--artifacts", "art",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	want := frontierOptions{
 		cem: "a.json", ocm: "b.json", expectedBase: "abc", target: "def",
-		command: "c.json", observation: "o.json", report: "r.xml", json: true,
+		command: "c.json", observation: "o.json", report: "r.xml", json: true, artifacts: "art",
 	}
 	if options != want {
 		t.Fatalf("options = %+v, want %+v", options, want)
@@ -515,5 +516,94 @@ func TestRunFrontierHelpDoesNotEnterTheCascade(t *testing.T) {
 				t.Errorf("stdout = %q stderr = %q", stdout.String(), stderr.String())
 			}
 		})
+	}
+}
+
+// stubStableViewer is a verifier that also serves the V1-1304 stable route.
+type stubStableViewer struct {
+	stubFrontierVerifier
+	err     error
+	request *frontier.StableViewRequest
+}
+
+func (stub stubStableViewer) StableView(_ context.Context, request frontier.StableViewRequest) (frontier.StableView, error) {
+	if stub.request != nil {
+		*stub.request = request
+	}
+	if stub.err != nil {
+		return frontier.StableView{}, stub.err
+	}
+	return frontier.StableView{
+		FrontierState: frontier.StableFrontierState, Spec: "cem/1.0", Verification: "ACCEPT", Sidecar: "EXACT",
+		MapSHA256: frontierHex(string(request.CEMBytes)), PatchSHA256: frontierHex("patch"), OCMSHA256: frontierHex(string(request.OCMBytes)),
+		BaseRevision: frontierOID("base"), TargetRevision: frontierOID("target"), ObjectFormat: "sha1",
+		TCQProfile: "tcq-stable/0", TCQID: "tcq-stable:sha256:" + frontierHex("tcq"), TestMode: frontier.TestModeStatic,
+		UnknownHunks: []frontier.StableHunk{{ID: "hunk-1", Path: "add.go", Reason: "insufficient-evidence"}},
+	}, nil
+}
+
+func stableFrontierRepository(t *testing.T) string {
+	t.Helper()
+	root := frontierRepository(t)
+	for name, body := range map[string]string{
+		"cem.json": `{"spec":"cem/1.0"}`,
+		"ocm.json": `{"spec":"ocm/0.1-experimental","cem":{"spec":"cem/1.0"}}`,
+	} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return root
+}
+
+// V1-1304: a cem/1.0 map reaches the stable viewer with the explicit artifact
+// root and renders frontier-stable-view/0 with exit 1 (NOT_PRODUCED, never a
+// frontier/0 document); refusals and route misuse are exit-2 envelopes.
+func TestRunFrontierStableMapRoute(t *testing.T) {
+	t.Parallel()
+	root := stableFrontierRepository(t)
+	var seen frontier.StableViewRequest
+	ctx := registerFrontierAdapters(t, stubStableViewer{request: &seen}, stubFrontierTCQ{id: "tcq"})
+	before := repositoryBytesDigest(t, root)
+	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+	if exit := runContext(ctx, frontierArguments(root, "--artifacts", ".", "--json"), strings.NewReader(""), stdout, stderr); exit != 1 {
+		t.Fatalf("exit = %d, stderr = %q", exit, stderr.String())
+	}
+	for _, want := range []string{`"profile":"frontier-stable-view/0"`, `"frontierState":"NOT_PRODUCED"`, `"unknownHunks":[{"id":"hunk-1"`} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("stdout lacks %s: %s", want, stdout)
+		}
+	}
+	resolvedRoot, _ := filepath.EvalSymlinks(root)
+	resolvedSeen, _ := filepath.EvalSymlinks(seen.ArtifactRoot)
+	if strings.Contains(stdout.String(), `"frontier/0"`) || resolvedSeen != resolvedRoot {
+		t.Fatalf("stdout %s, artifact root %q", stdout, seen.ArtifactRoot)
+	}
+	stdout.Reset()
+	if exit := runContext(ctx, frontierArguments(root, "--artifacts", "."), strings.NewReader(""), stdout, stderr); exit != 1 ||
+		!strings.Contains(stdout.String(), "closes nothing") {
+		t.Fatalf("human exit = %d: %s", exit, stdout)
+	}
+	if after := repositoryBytesDigest(t, root); after != before {
+		t.Fatal("stable route wrote to the repository")
+	}
+	refusals := []struct {
+		name string
+		ctx  context.Context
+		root string
+		args []string
+		code string
+	}{
+		{"wrong base", registerFrontierAdapters(t, stubStableViewer{err: cemcode.New("base-revision-mismatch", "refused")}, stubFrontierTCQ{}), root, []string{"--artifacts", "."}, "base-revision-mismatch"},
+		{"missing artifacts", ctx, root, nil, frontier.CodeInvalidInput},
+		{"artifacts with cem 0.2", ctx, frontierRepository(t), []string{"--artifacts", "."}, frontier.CodeInvalidInput},
+		{"verifier without stable route", registerFrontierAdapters(t, stubFrontierVerifier{}, stubFrontierTCQ{}), root, []string{"--artifacts", "."}, frontier.CodeUnsupportedContext},
+	}
+	for _, refusal := range refusals {
+		stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+		exit := runContext(refusal.ctx, frontierArguments(refusal.root, append(refusal.args, "--json")...), strings.NewReader(""), stdout, stderr)
+		if exit != 2 || !strings.Contains(stdout.String()+stderr.String(), `"code":"`+refusal.code+`"`) {
+			t.Fatalf("%s: exit %d stdout %q stderr %q", refusal.name, exit, stdout, stderr)
+		}
 	}
 }
