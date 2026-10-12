@@ -469,6 +469,34 @@ func TestLegacyDiscoveryRefusals(t *testing.T) {
 				t.Fatalf("%s: expected a named refusal, got %v", tc.name, err)
 			}
 		}
+		// The compiler keeps flows, source behaviors and tests in one identity namespace.
+		inventory, _, err := legacyInventory(t, root, "mocha", revision, "e2e/cypress", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for name, edit := range map[string]func(*BehaviorRegistry){
+			"test named as a flow":     func(r *BehaviorRegistry) { r.Tests[0].ID = r.Flows[0].ID },
+			"test named as a behavior": func(r *BehaviorRegistry) { r.Tests[1].ID = r.Behaviors[0].ID },
+		} {
+			_, data, err := legacyInventory(t, root, "mocha", revision, "e2e/cypress", legacyRegistry(t, inventory, edit))
+			if data != nil || err == nil || !strings.Contains(err.Error(), "duplicate flow, source behavior or test identities") {
+				t.Fatalf("%s: expected the shared-namespace refusal, got %v", name, err)
+			}
+		}
+		// A test-named symlink in a directory walk is refused as it is when selected alone.
+		if err := os.Symlink("checkout.cy.js", filepath.Join(root, "e2e", "cypress", "linked.cy.js")); err != nil {
+			t.Fatal(err)
+		}
+		git(t, root, "add", ".")
+		git(t, root, "commit", "-qm", "symlinked suite")
+		linked := git(t, root, "rev-parse", "HEAD")
+		for _, selected := range []string{"e2e", "e2e/cypress", "e2e/cypress/linked.cy.js"} {
+			if _, data, err := legacyInventory(t, root, "mocha", linked, selected, nil); data != nil || err == nil || !strings.Contains(err.Error(), "not a regular Git blob") {
+				t.Fatalf("%s: a symlinked test file was not refused: %v", selected, err)
+			}
+		}
+		git(t, root, "rm", "-q", "e2e/cypress/linked.cy.js")
+		git(t, root, "commit", "-qm", "drop symlink")
 		legacyWrite(t, root, "e2e/broken/broken.spec.js", "describe('broken', () => {\n  it('never closes', () => {\n")
 		legacyWrite(t, root, "e2e/broken/empty.spec.js", "// no cases here\nconst value = 1;\n")
 		legacyWrite(t, root, "e2e/plain/helpers.js", "export const value = 1;\n")
@@ -478,7 +506,7 @@ func TestLegacyDiscoveryRefusals(t *testing.T) {
 		if _, data, err := legacyInventory(t, root, "mocha", broken, "e2e/plain", nil); data != nil || err == nil || !strings.Contains(err.Error(), "no test files") {
 			t.Fatalf("directory without test files: %v", err)
 		}
-		inventory, _, err := legacyInventory(t, root, "mocha", broken, "e2e/broken", nil)
+		inventory, _, err = legacyInventory(t, root, "mocha", broken, "e2e/broken", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -977,7 +1005,7 @@ func TestLegacyResidueFailsClosed(t *testing.T) {
 		inventory, legacy := edit(t, "it('shows the cart total', () => {", "it('shows the cart total', (done) => {")
 		blocked(t, "a case callback parameter", inventory, legacy)
 		// Admitted forms keep the case a parity candidate.
-		admitted := "expect(a.b).not.toBe(-1);\n    expect(c).to.be.true\n    cy.get('a').first().should('have.text', 'A').and('be.visible')"
+		admitted := "expect(a.b).toBe(-1);\n    expect(c).to.exist\n    cy.get('a').first().should('have.text', 'A').and('be.visible')"
 		inventory, legacy = with(t, admitted)
 		if reasons := legacyUnknownReasons(inventory, legacy.ID); len(reasons) != 0 || len(legacy.Criteria) != len(baseTuples)+4 || inventory.Crosswalk.ReviewedChecks[0].Verdict != "parity-candidate" {
 			t.Fatalf("admitted forms were refused: %v %q %+v", reasons, legacyTuples(legacy), inventory.Crosswalk.ReviewedChecks[0])
@@ -1053,6 +1081,36 @@ func TestLegacyResidueFailsClosed(t *testing.T) {
 		if _, _, err := legacyInventory(t, root, "mocha", git(t, root, "rev-parse", "HEAD"), "e2e/cypress", registry); err == nil || !strings.Contains(err.Error(), "record bound") {
 			t.Fatalf("over-bound preconditions did not fail the run: %v", err)
 		}
+		// Round 10: chainers are whole strings from a closed set of positive assertions; a
+		// composed, negated, zero-length or unlisted chainer, in should/and or expect, is refused.
+		for _, snippet := range []string{
+			"cy.contains('Pay now').should('have.length', 0);",
+			"cy.get('a').should('have.length', 1.5);",
+			"cy.url().should('exist.and.be.a', 'number');",
+			"cy.url().should('be.a', 'string');",
+			"cy.get('a').should('be.visible.and.have.text', 'A');",
+			"cy.get('a').should('have.text');",
+			"cy.get('a').should('exist', 'A');",
+			"expect(a.b).not.toBe(-1);",
+			"expect(c).to.be.true;",
+			"expect(c).to.not.exist;",
+			"expect(c).to.equal(1);",
+			"expect(c).to.exist.and.be.a('string');",
+			"expect(c).to.have.length(0);",
+			"expect(c).to.be.visible();",
+			"expect(c).to.have.text;",
+			"expect(rows).toHaveLength(0);",
+			"expect(rows).toHaveSize(-1);",
+		} {
+			inventory, legacy := with(t, snippet)
+			blocked(t, snippet, inventory, legacy)
+		}
+		inventory, legacy = with(t, "cy.get('a').should('have.length', 2);\n    expect(c).to.have.attr('href', '/a');\n    expect(rows).toHaveLength(3);")
+		if reasons := legacyUnknownReasons(inventory, legacy.ID); len(reasons) != 0 {
+			t.Fatalf("exact chainers were refused: %v", reasons)
+		}
+		inventory, legacy = with(t, "cy.get('a').should('have.length', 2).and('be.visible');")
+		blocked(t, "and after have.length", inventory, legacy)
 		// Round 8: a chainer or expect chain of language words alone asserts nothing.
 		for _, snippet := range []string{
 			"cy.url().should('to.be');",

@@ -275,3 +275,38 @@ fail-closed:
 
 `TestLegacyResidueFailsClosed` pins each repro, the negated `.and` form, an admitted
 `contains(...).find(...).should(...)` chain and the over-bound precondition run failure.
+
+## Review round 10 repairs (exact chainer set)
+
+Codex round 10 (`/private/tmp/claude-501/w13-legacy-codex-r10.log`) found four P2s:
+
+1. `cy.contains('Pay now').should('have.length', 0)` emitted a positive `contains` criterion,
+   although a zero length passes on an empty subject and suppresses the existence check.
+2. `cy.url().should('exist.and.be.a', 'number')` recorded a type assertion that Cypress never
+   calls, because it only accesses the final method when `exist` appears in the chainer.
+3. A directory walk silently dropped a test-named symlink that the single-file path refuses.
+4. Crosswalk validation used separate `flow:` and `test:` identity namespaces, so a test whose ID
+   equalled a flow ID passed, though the behavior compiler rejects it as a duplicate identity.
+
+Ten review rounds of Cypress chainer findings showed that building chainers from words was the
+defect, so word-by-word patching stopped. Decision: chainers are now a closed set of whole
+strings, each a positive assertion whose meaning DCP-V1-062 states: `be.visible`, `exist`
+(alone), `contain`, `contain.text`, `have.text`, `have.value`, `have.attr`, `be.checked`,
+`be.disabled`, `be.enabled`, `have.class`, `include.text`, and `have.length` only with a decimal
+integer literal of at least 1. The same set governs a chai `expect(...)` chain after an optional
+leading `to`. A negated, composed, zero-length or unlisted chainer is refused as a whole.
+
+Jasmine matchers keep the existing list, but each is admitted only as the single un-negated
+call after `expect(...)`. `toHaveLength` and `toHaveSize` take only an integer of at least 1.
+The coordinator accepted this rule.
+
+A directory walk now keeps every test-named non-directory entry, so the read refuses a symlink
+or other non-regular entry exactly as it does when that path is selected alone. Crosswalk
+validation now checks flows, source behaviors and tests in one identity namespace, as
+`behavior.go` does, and refuses a collision.
+
+Regressions:
+- `TestLegacyResidueFailsClosed` pins both repros and the composed, negated, zero-length and
+  unlisted forms in `should` and `expect`, and confirms the exact entries are admitted.
+- `TestLegacyDiscoveryRefusals` pins the symlink refusal for directory and single-file
+  selection, and the flow/test and behavior/test identity collisions.

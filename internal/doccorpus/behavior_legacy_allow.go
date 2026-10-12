@@ -12,24 +12,23 @@ var (
 	// legacyJasmineMatcher lists the Jasmine/Jest matchers admitted after expect(...). Matchers that
 	// call their operand (toThrow...) are not listed.
 	legacyJasmineMatcher = words("toBe toEqual toStrictEqual toContain toBeTruthy toBeFalsy toBeTrue toBeFalse toBeDefined toBeUndefined toBeNull toBeNaN toMatch toBeGreaterThan toBeGreaterThanOrEqual toBeLessThan toBeLessThanOrEqual toBeCloseTo toHaveLength toHaveSize toHaveClass toBePositiveInfinity toBeNegativeInfinity toHaveBeenCalled toHaveBeenCalledWith toHaveBeenCalledTimes toHaveBeenCalledOnceWith toBeInstanceOf toHaveProperty toMatchObject")
-	// legacyChaiChain lists chai's language chains and flags, which may appear anywhere in a chain.
-	legacyChaiChain = words("to be been is that which and has have with at of same but does still also not deep nested own ordered any all")
-	// legacyChaiProperty lists the chai property assertions that may end a chain without a call.
-	legacyChaiProperty = words("ok true false null undefined NaN exist empty finite extensible sealed frozen arguments")
-	// legacyChaiMethod lists the chai assertion methods admitted with literal arguments. Methods that
-	// call a function (throw, satisfy, change, respondTo) are not listed.
-	legacyChaiMethod = words("equal equals eq eql eqls include includes contain contains a an above gt greaterThan below lt lessThan least gte greaterThanOrEqual most lte lessThanOrEqual within instanceof instanceOf property ownProperty haveOwnProperty lengthOf length match matches string keys key members oneOf closeTo approximately")
+	// legacyChainer is the closed set of whole chainer strings admitted in a Cypress should/and
+	// call and, after an optional leading `to`, in a chai expect(...) chain. Each is a positive
+	// assertion whose meaning is stated in DCP-V1-062, mapped to the number of expected values it
+	// takes (-1: one or two, for have.attr). A chainer is never composed from words: a negated,
+	// composed, zero-length or unlisted chainer is refused as a whole.
+	legacyChainer = map[string]int{
+		"be.visible": 0, "exist": 0, "be.checked": 0, "be.disabled": 0, "be.enabled": 0,
+		"contain": 1, "contain.text": 1, "have.text": 1, "have.value": 1, "have.class": 1,
+		"include.text": 1, "have.length": 1, "have.attr": -1,
+	}
 	// legacyCypressQuery lists the Cypress queries admitted before a should/contains assertion.
 	legacyCypressQuery = words("get find first last eq children parent parents closest siblings next prev filter not location url title hash its root focused")
 	legacyLiteralWord  = words("true false null")
-	// legacyCypressChainerWord lists the words a should/and chainer string may be built from: the
-	// chai words above and the chai-jquery state words. A chainer that calls a function (throw,
-	// satisfy, change, increase, decrease, respondTo) or any other word is refused.
-	legacyCypressChainerWord = words("text attr visible class value checked css disabled enabled hidden focused selected prop id html data descendants readonly focus")
 	// legacyCypressTransform lists the chainer words after which Cypress yields a new subject
 	// (have.attr, have.prop, have.property, ...). A should/and continuing such a chainer would assert
 	// on that new subject while the criterion names the original locator, so it is refused.
-	legacyCypressTransform = words("property ownProperty haveOwnProperty ownPropertyDescriptor attr prop css data length lengthOf")
+	legacyCypressTransform = words("have.attr have.length")
 )
 
 // legacyAmbiguousValue reports whether a single string argument, which the criterion value
@@ -52,17 +51,27 @@ func legacyAmbiguousValue(f *legacyFile, args []legacyRange) bool {
 	return false
 }
 
-// legacyAllowChainer admits a should/and chainer built only from known, non-calling words whose
-// last word asserts. A chainer of language chains alone (to.be, not.have) asserts nothing, so a
-// criterion for it would be fabricated; like an expect chain, it is refused.
-func legacyAllowChainer(chainer string) bool {
-	parts := strings.Split(chainer, ".")
-	for _, word := range parts {
-		if !legacyChaiChain[word] && !legacyChaiProperty[word] && !legacyChaiMethod[word] && !legacyCypressChainerWord[word] {
-			return false
-		}
+// legacyAllowAssertion admits a whole chainer from legacyChainer with its expected values: the
+// listed count, have.length only with a literal integer of at least one (a zero length passes on
+// an empty subject and suppresses the existence check), and no ambiguous single string value.
+func legacyAllowAssertion(f *legacyFile, chainer string, values []legacyRange) bool {
+	n, ok := legacyChainer[chainer]
+	switch {
+	case !ok, n >= 0 && len(values) != n, n < 0 && (len(values) < 1 || len(values) > 2):
+		return false
+	case chainer == "have.length":
+		return legacyPositiveCount(f, values)
 	}
-	return !legacyChaiChain[parts[len(parts)-1]]
+	return !legacyAmbiguousValue(f, values)
+}
+
+// legacyPositiveCount reports whether values is one decimal integer literal of at least one.
+func legacyPositiveCount(f *legacyFile, values []legacyRange) bool {
+	if len(values) != 1 || values[0].hi-values[0].lo != 1 || f.tokens[values[0].lo].kind != 'n' {
+		return false
+	}
+	text := f.tokens[values[0].lo].text
+	return text[0] >= '1' && text[0] <= '9' && strings.Trim(text, "0123456789") == ""
 }
 
 // allowStructure checks the runner structure of tokens[lo:hi]: only runner suite, case and hook
@@ -333,37 +342,51 @@ func legacyAllowExpect(f *legacyFile, k, hi int, keys *[]int) (int, int) {
 		}
 		j = end
 	}
-	last := ""
-	for legacyPunct(t, j, ".") && j+1 < hi && t[j+1].kind == 'i' {
+	// A Jasmine/Jest matcher is admitted only as the single call after expect(...), never negated.
+	if legacyPunct(t, j, ".") && j+2 < hi && t[j+1].kind == 'i' && legacyJasmineMatcher[t[j+1].text] {
 		word := t[j+1].text
-		if !legacyJasmineMatcher[word] && !legacyChaiChain[word] && !legacyChaiProperty[word] && !legacyChaiMethod[word] {
-			return 0, j + 1
+		end, bad := legacyAllowCall(f, j+2, hi)
+		if bad >= 0 {
+			return 0, bad
 		}
-		last, j = word, j+2
+		args := legacyArgs(f, j+2)
+		if (word == "toHaveLength" || word == "toHaveSize") && !legacyPositiveCount(f, args) || legacyAmbiguousValue(f, args) {
+			return 0, j + 3
+		}
+		*keys = append(*keys, k)
+		return end, -1
+	}
+	// A chai chain, less an optional leading `to`, must equal one whole legacyChainer entry: a
+	// property entry is not called and a value entry is called with its values.
+	words, start := []string{}, j
+	for legacyPunct(t, j, ".") && j+1 < hi && t[j+1].kind == 'i' && !legacyPunct(t, j, "(") {
+		words, j = append(words, t[j+1].text), j+2
 		if legacyPunct(t, j, "(") {
-			if !legacyJasmineMatcher[word] && !legacyChaiMethod[word] {
-				return 0, j
-			}
-			end, bad := legacyAllowCall(f, j, hi)
-			if bad >= 0 {
-				return 0, bad
-			}
-			if legacyAmbiguousValue(f, legacyArgs(f, j)) {
-				return 0, j + 1
-			}
-			*keys = append(*keys, k)
-			return end, -1
-		}
-		if legacyJasmineMatcher[word] {
-			return 0, j - 1
+			break
 		}
 	}
-	if !legacyChaiProperty[last] {
-		// No matcher runs: a bare expect(...) or a chain that ends before its assertion.
+	if len(words) > 0 && words[0] == "to" {
+		words = words[1:]
+	}
+	chainer, values, end := strings.Join(words, "."), []legacyRange{}, j
+	if legacyPunct(t, j, "(") {
+		var bad int
+		if end, bad = legacyAllowCall(f, j, hi); bad >= 0 {
+			return 0, bad
+		}
+		values = legacyArgs(f, j)
+		if legacyChainer[chainer] == 0 {
+			return 0, j
+		}
+	} else if n, ok := legacyChainer[chainer]; ok && n != 0 {
 		return 0, min(j, hi-1)
 	}
+	if !legacyAllowAssertion(f, chainer, values) {
+		// No admitted assertion runs: a bare expect(...), a composed, negated or unlisted chain.
+		return 0, min(start+1, hi-1)
+	}
 	*keys = append(*keys, k)
-	return j, -1
+	return end, -1
 }
 
 func legacyAllowCypress(f *legacyFile, k, hi int, keys *[]int) (int, int) {
@@ -383,20 +406,13 @@ func legacyAllowCypress(f *legacyFile, k, hi int, keys *[]int) (int, int) {
 				return 0, min(j+2, hi-1)
 			}
 			args := legacyArgs(f, j+2)
-			if len(args) == 0 || args[0].hi-args[0].lo != 1 || t[args[0].lo].kind != 's' || !legacyAllowChainer(t[args[0].lo].text) {
+			// The whole chainer must be one admitted positive assertion: a negated or zero-length
+			// one would disable the implicit existence check that the query and contains criteria
+			// before it claim, and a composed one may not run the assertion it names.
+			if len(args) == 0 || args[0].hi-args[0].lo != 1 || t[args[0].lo].kind != 's' || !legacyAllowAssertion(f, t[args[0].lo].text, args[1:]) {
 				return 0, j + 3
 			}
-			if legacyAmbiguousValue(f, args[1:]) {
-				return 0, args[1].lo
-			}
-			for _, part := range strings.Split(t[args[0].lo].text, ".") {
-				if part == "not" {
-					// A negated chainer disables the implicit existence check of the queries and
-					// contains before it, so their criteria would claim a check that does not run.
-					return 0, j + 3
-				}
-				transformed = transformed || legacyCypressTransform[part]
-			}
+			transformed = legacyCypressTransform[t[args[0].lo].text]
 			should, pending = true, -1
 		case should:
 			return 0, name

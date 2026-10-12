@@ -78,7 +78,7 @@ var legacyLimitations = []string{
 	"helper and custom-command bodies, support files and fixture files are not followed; a precondition binds its call text by digest",
 	"roles are not inferred and are always empty",
 	"global support hooks and root-level hooks in other files are not seen",
-	"the closed-world allowlist over-refuses: a case using any helper call, Cypress action, declaration, await, async or expression-bodied callback, function-calling or subject-changing chainer, contains option, ambiguous string value or other unlisted form is unknown, never parity",
+	"the closed-world allowlist over-refuses: a case using any helper call, Cypress action, declaration, await, async or expression-bodied callback, assertion chainer outside the exact admitted set, negated matcher, subject-changing continuation, contains option, ambiguous string value or other unlisted form is unknown, never parity",
 	"other cases' bodies, hooks of non-enclosing suites, getters on operand paths and custom matchers or commands overriding a known name are not proven; cross-test state needs the runtime baseline",
 	"the inventory and crosswalk are generated; neither creates a reviewed legacy_criteria relation",
 }
@@ -226,8 +226,8 @@ func BuildLegacyInventory(ctx context.Context, input LegacyInventoryInput) ([]by
 	return data, err
 }
 
-// legacyPaths resolves --path at the revision: a regular blob is read as is, a directory yields
-// its test-named files in path order, skipping node_modules.
+// legacyPaths resolves --path at the revision: a blob is read as is, a directory yields its
+// test-named entries in path order, skipping node_modules; the read refuses a non-regular one.
 func legacyPaths(ctx context.Context, auth *gitauth.Repository, revision, root string) ([]string, error) {
 	if root != "." {
 		entry, ok, err := auth.LookupTreeEntry(ctx, revision, root)
@@ -259,7 +259,9 @@ func legacyPaths(ctx context.Context, auth *gitauth.Repository, revision, root s
 			}
 			return nil
 		}
-		if entry.Type().IsRegular() && legacyTestPath(current) {
+		// A test-named symlink or other non-regular entry is kept, so the read refuses it exactly as
+		// it refuses that path selected alone instead of the walk silently dropping it.
+		if legacyTestPath(current) {
 			paths = append(paths, current)
 		}
 		return nil

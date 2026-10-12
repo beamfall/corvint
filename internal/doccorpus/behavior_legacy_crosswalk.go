@@ -109,21 +109,25 @@ func (p *legacyProducer) crosswalk(raw []byte) (*LegacyCrosswalk, bool, error) {
 }
 
 // legacyRegistryValid applies the behavior registry header and legacy mapping rules the compiler
-// enforces (schema 2, pinned revisions, unique test IDs, closed relations), so a crosswalk is never
-// computed against a registry the compiler would refuse.
+// enforces (schema 2, pinned revisions, one identity namespace shared by flows, source behaviors
+// and tests, closed relations), so a crosswalk is never computed against a registry the compiler
+// would refuse.
 func legacyRegistryValid(r BehaviorRegistry) error {
 	if r.Schema != 2 || !textOK(r.ContractID) || !wire.IsSha256(r.ContractSHA256) || !wire.IsGitOid(r.SourceRevision) || !wire.IsGitOid(r.DocumentationRevision) {
 		return fail("crosswalk registry header is not a schema 2 behavior registry with pinned revisions")
 	}
 	ids := []string{}
 	for _, flow := range r.Flows {
-		ids = append(ids, "flow:"+flow.ID)
+		ids = append(ids, flow.ID)
 		if !textOK(flow.ID) {
 			return fail("crosswalk registry has an invalid flow identity")
 		}
 	}
+	for _, behavior := range r.Behaviors {
+		ids = append(ids, behavior.ID)
+	}
 	for _, test := range r.Tests {
-		ids = append(ids, "test:"+test.ID)
+		ids = append(ids, test.ID)
 		if !textOK(test.ID) || !uniqueIdentities(test.Fixtures) || !uniqueIdentities(test.Roles) || len(test.Legacy) > MaxRecords {
 			return fail("crosswalk registry has an invalid test identity or preconditions")
 		}
@@ -140,7 +144,7 @@ func legacyRegistryValid(r BehaviorRegistry) error {
 		}
 	}
 	if !uniqueIdentities(ids) {
-		return fail("crosswalk registry has duplicate flow or test identities")
+		return fail("crosswalk registry has duplicate flow, source behavior or test identities")
 	}
 	return nil
 }

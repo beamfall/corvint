@@ -496,25 +496,31 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   title and an anonymous, parameterless, synchronous callback with a block body, separated by `;`
   or line breaks), of each
   enclosing hook body and of its own callback and body belongs to a recognized statement form:
-  `expect(<operand>)`, optionally `.withContext(<literals>)`, a chain of known chai words and
-  `.not`, ending in a known Jasmine matcher or chai method called with literal arguments or in a
-  known chai property; a `cy` chain of known queries with literal arguments, optionally
-  `.contains(<content>)` or `.contains(<selector>, <content>)`, then `.should('<chainer>',
-  <literals>)` and `.and(...)`, where every chainer word is a known chai or chai-jquery word, the
-  last word asserts (a chainer of language chains alone, such as `to.be`, is refused), and
-  no `.and` or further `.should` follows a chainer that yields a new subject (`attr`, `prop`,
-  `css`, `data`, `property`, `ownProperty`, `length`, ...), no chainer word is `not` (a negated
-  chainer disables the implicit existence check of the queries before it), and a query after
-  `contains` has a `.should` directly after it; a `cy`, `browser` or `page`
+  `expect(<operand>)`, optionally `.withContext(<literals>)`, then either exactly one call of a
+  listed Jasmine/Jest matcher with literal arguments, never negated, where `toHaveLength` and
+  `toHaveSize` take only a decimal integer literal of at least 1, or a chai chain that, less an
+  optional leading `to`, equals one admitted chainer; a `cy` chain of known queries with literal
+  arguments, optionally `.contains(<content>)` or `.contains(<selector>, <content>)`, then
+  `.should('<chainer>', <values>)` and `.and(...)` with one admitted chainer each, where no `.and`
+  or further `.should` follows `have.attr` or `have.length` (they may yield a new subject) and a
+  query after `contains` has a `.should` directly after it; a `cy`, `browser` or `page`
   precondition call with literal arguments and an optional `.as('<name>')` (the only form
-  admitted in a hook); operands that are literals (strings without
+  admitted in a hook). The admitted chainers are a closed set of whole strings, never composed
+  from words, each a positive assertion on the subject: `be.visible` (it is visible), `exist`
+  alone (it exists), `be.checked`, `be.disabled` and `be.enabled` (that state holds), each with no
+  value; `contain` (it contains the value), `contain.text` and `include.text` (its text contains
+  the value), `have.text` (its text equals the value), `have.value` (its value equals the value),
+  `have.class` (it has the class) and `have.length` (it has exactly that many elements, a decimal
+  integer literal of at least 1), each with one value; and `have.attr` (it has the attribute,
+  with the given value when a second is supplied). In a chai chain an entry with no value is not
+  called and an entry with a value is called with it. A negated, composed (`exist.and.be.a`),
+  zero-length or unlisted chainer is refused as a whole. Operands that are literals (strings without
   substitution, numbers, `true`, `false`, `null`, arrays and plain objects of those) or plain
   identifier member paths; and `;`, line breaks and comments. Anything else, including any other
   call, a computed member, an escaped identifier, a regex-ambiguous `/`, an alias or declaration,
   `.call`/`.apply`, a member-qualified runner name, a template substitution, an import, a
-  callback parameter, `await`, an `async` or expression-bodied callback, a chainer that calls a
-  function (`throw`, `satisfy`, `change`, `increase`, `decrease`, `respondTo`) or any other
-  unlisted chainer word, a `contains` options argument, and a single string expected value whose
+  callback parameter, `await`, an `async` or expression-bodied callback, a chainer outside the
+  admitted set, a negated Jasmine matcher, a `contains` options argument, and a single string expected value whose
   unquoted text could read as another literal's canonical text (it starts with a digit, `.`, `-`,
   `+`, `[`, `{`, `(` or a quote, or with `true`, `false` or `null`), is a `not-allowlisted` unknown naming the first refused token and its region
   (file structure, an enclosing hook, case callback or case body). An admitted statement whose key
@@ -524,7 +530,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   has no fixtures and a `fixtures-over-bound` unknown, and discovery fails when the inventory's
   distinct preconditions exceed it, as it does for cases and unknowns. Over-refusal is accepted: helper calls, Cypress actions,
   `afterEach`, `done` and `async` callbacks, awaited Playwright or WebdriverIO calls, subject
-  changing continuations, negated Cypress chainers, `contains` options, ambiguous string values and regex literals make a
+  changing continuations, every chai or Cypress assertion outside the admitted chainer set
+  (including `equal`, `be.true` and type checks), `contains` options, ambiguous string values and regex literals make a
   case unknown, never parity. The allowlist does not prove what runs outside the case: other cases' bodies and hooks
   of non-enclosing suites (cross-test state is a runtime-baseline question), getters on operand
   paths, custom matchers or commands that override a known name, and support files. A case with
@@ -583,9 +590,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `legacy-precondition-mismatch` gap and never parity. Status: (proposed/experimental; GitHub #811).
 - `DCP-V1-068`: The producer refuses with `corpus-refused` an unknown runner, a revision that is
   not a full commit ID, a non-canonical, absolute or parent-traversing `--path`, a path absent at
-  the revision, a directory without test files, a non-regular blob, an open or malformed registry,
-  a registry that is not a schema 2 registry with a pinned contract and full revisions or that has
-  invalid or duplicate flow, test, fixture, role or mapping identities (a mapping is identified by
+  the revision, a directory without test files, a non-regular blob (selected alone or as a
+  test-named entry of a selected directory), an open or malformed registry, a registry that is not
+  a schema 2 registry with a pinned contract and full revisions or that has invalid or duplicate
+  flow, source behavior, test, fixture, role or mapping identities (flows, source behaviors and
+  tests share one identity namespace, as in the behavior compiler; a mapping is identified by
   its criterion, legacy case and legacy criterion), and an inventory over
   `MaxRecords`. A file the lexer cannot classify (for example JSX, invalid UTF-8, an unterminated
   literal, a legacy octal escape, a raw line break in a string or regex, or a `/` after `}` whose
