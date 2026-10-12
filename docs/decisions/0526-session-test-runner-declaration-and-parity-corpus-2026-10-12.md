@@ -62,10 +62,14 @@ requirement is added or removed; the delivery status stays experimental.
 - `tools/test-commands-check/main_test.go` runs the gate against the repository and nine
   declaration mutations (flag value, flag order, dropped flag, extra and changed environment
   variable, absent file, declared `make` target that does not exist, a `none` language the gate
-  runs, a `none` language without a runner list) and seven Makefile mutations the printed recipe
-  does not show (target-specific `export`, global `export`, `.EXPORT_ALL_VARIABLES`, absolute-path
-  `go`, two `go` calls, a recipe failing after `go`, a changed flag), each of which must fail. The
-  gate runs make under a minimal environment, so the Makefile defaults are what it observes.
+  runs, a `none` language without a runner list) and thirteen Makefile mutations (target-specific
+  `export`, global `export`, `.EXPORT_ALL_VARIABLES`, absolute-path `go`, two `go` calls, a recipe
+  failing after `go`, a changed flag, a changed directory, a recipe setting `MAKEFLAGS`, a second
+  `go` through an absolute path chained or on its own line, an absolute-path `go` word, a quoted
+  `"python3"` in a gate step), each of which must fail. The gate runs make under a minimal
+  environment, so the Makefile defaults are what it observes; it checks the make-introduced names
+  against a control recipe under the same make rather than trusting them, and requires the
+  go-test recipe to be one plain `go` command line so nothing the shim cannot see runs beside it.
 - `tools/str-parity -corpus` refuses a corpus whose lines differ from
   `git rev-list --first-parent --parents` over the same end and count.
 

@@ -84,7 +84,20 @@ The owner decided so in chat on 2026-10-12.
   `none` language has no runner list; it inspects only the words make prints, not what a script
   those words name runs (`./tools/python-tests` would pass), which is the recorded limit of that
   check. `compareGo` and `plainWord` are gone (the observation is exact, so recipe-text validation
-  is redundant); the reader keeps its own validation. It is not in `tools/gate-ledger`'s scoped
+  is redundant); the reader keeps its own validation. After round 5 (`5fc504ffe`) the shim also
+  records its working directory, which must resolve to the repository root; every passed name
+  must be present as well as unchanged; the make-introduced names are checked rather than
+  trusted: a control recipe of the same shape (`GOCACHE=... GOTOOLCHAIN=local go
+  __corvint_test_commands_control`, added through a second `-f` makefile so make runs it through
+  the same shell; a bare `go` word would take make's direct-exec path and show no `PWD`, `SHLVL`
+  or `_`) is observed under the same make, and the make-introduced names and values `go-test`'s
+  `go` saw must equal the control's exactly, so `MAKEFLAGS=--just-print go test ...` fails; and
+  the recipe's shape is checked because the shim cannot see a `go` that is not it: `make -s -n
+  go-test` must print one line with exactly one word `go`, no other word whose basename is `go`
+  and none of `;|&()<>{}` `` ` `` `$\"'`, so a second recipe line, a chained absolute-path `go`, a
+  substitution, a redirection, a quoted word or a wrapper script is refused (a plain `nice go
+  test` would pass; `go` receives the same argv and environment). `runnerWords` trims quotes, so
+  `"python3"` in a gate step is the python runner. It is not in `tools/gate-ledger`'s scoped
   map, so it runs on every change.
 - `run.go` `discover` (round 4): a declared `argv[0]` containing a path separator is resolved
   against `filepath.Abs(Root)` before `exec.LookPath`, so `./tools/python-tests` is the
@@ -161,6 +174,14 @@ Logs under the lane scratch directory
   `traceability-tests-check`, `decision-numbers-check`, `line-citations-check`,
   `error-code-ownership-check`, `unbounded-readers-check` rc 0; `use-case-receipts-check`,
   `use-case-receipts-test` rc 0.
+- After the round-5 fixes (`5fc504ffe`, gate only; `corvint test` is unchanged, so the dry run
+  and its manifest digest above stand): `gofmt -l` empty; `go vet` rc 0 on
+  `tools/test-commands-check`; `go test -count=1 ./tools/test-commands-check` rc 0 (8.2 s:
+  thirteen Makefile mutations, nine declaration cases, `compareEnv`, `compareIntroduced` and
+  record cases); `make -s test-commands-check` rc 0. The three round-5 Makefile scenarios (`cd
+  internal/sessiontest; unset OLDPWD; ...`, `MAKEFLAGS=--just-print ...`, a second recipe line
+  `/usr/bin/true test -race ./...`) were run against a build of the `96bed1f5e` gate and of
+  `5fc504ffe` on the same mutated Makefile copies: rc 0, 0, 0 before and 1, 1, 1 after.
 - After the round-1 Codex fixes (`e2be5b36f`): `gofmt -l` empty and `go vet` rc 0 on the five
   packages; `go test` rc 0 for `internal/sessiontest`, `tools/test-commands-check`,
   `internal/gateselect`, `tools/str-parity` and the focused `cmd/corvint` run (74 s);
@@ -272,8 +293,25 @@ Codex (`gpt-6-astra`, read-only, up to three rounds) over `bed653e92..HEAD`.
   runner list); gate-scoped `none` in STR-V0-004, decision 0526 and the six reasons, with
   `typescript` declared `["make", "host-adapter-test"]`; root-relative resolution in `discover`
   with a runner test under `t.Chdir` and a CLI test (`TestSTRV0003CLIDeclaredRelativeCommandRunsFromRoot`,
-  the test process's directory is the package, not `--root`). The decision 0526 condition
-  (`VERDICT: PASS`) is checked by rounds 5 and 6 below.
+  the test process's directory is the package, not `--root`).
+- Round 5 (`3f5dab6ca`, run by this lane, prompt asking whether the shim gate is exact):
+  `CHANGES_REQUESTED`, five findings, all verified against the `96bed1f5e` gate. [P1] a recipe
+  that changes directory (`cd internal/sessiontest; ...`) passed: the shim recorded no working
+  directory and `PWD` was excluded. [P1] a second `go` through an absolute path beside the
+  `PATH` one passed: the count covered shim records only. [P2] a passed name removed from the
+  environment (`env -u PATH`) passed: only observed entries were compared. [P2]
+  `MAKEFLAGS=--just-print` prefixed to the recipe passed: the exclusion was by name. [P2]
+  `"python3"` in a gate step evaded the `none` check: quotes were not trimmed. Fixed in
+  `5fc504ffe` as described above (working directory in the record, passed names required
+  present, the control recipe for the make-introduced values, the one-plain-line recipe shape,
+  quote trimming), with six new Makefile mutations in `TestSTRV0006MakefileDriftReachesGo`,
+  `TestSTRV0006CompareIntroduced`, and `dropped PATH`/`dropped both` cases in
+  `TestSTRV0006CompareEnv`. The answer to the exactness question is bounded: the gate is exact
+  about the one `go` the recipe runs from `PATH` (argv, environment, directory, make's exit) and
+  refuses every recipe shape under which something else could run beside it; it does not and
+  cannot audit an arbitrary program the Makefile could name, which is why the shape rule admits
+  only a plain `go` line. The decision 0526 condition (`VERDICT: PASS`) is checked by round 6
+  below.
 
 ## Left for slice 3
 
