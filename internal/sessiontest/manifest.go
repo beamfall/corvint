@@ -38,9 +38,13 @@ const (
 	ResultFail       = "FAIL"
 	ResultIncomplete = "INCOMPLETE"
 
-	// PlacementUniverse is the only executable placement (STR-V0-007);
-	// balanced placement (STR-V0-008) is refused, not implemented.
+	// PlacementUniverse is the default complete-universe placement
+	// (STR-V0-007).
 	PlacementUniverse = "universe"
+	// PlacementBalanced partitions a narrowed run set's own execution units
+	// by the advisory cost table (STR-V0-008, experimental). It executes only
+	// in the local profile; FULL keeps the universe partition.
+	PlacementBalanced = "balanced"
 
 	// SliceWhole names an unsplit unit; a split one is "<index>/<count>".
 	SliceWhole = "whole"

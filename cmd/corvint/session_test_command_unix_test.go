@@ -379,7 +379,9 @@ func TestSTRV0014CLISignalKillsRunAndExits(t *testing.T) {
 func TestSTRV0008CLIUsageRefusals(t *testing.T) {
 	base := strings.Repeat("a", 40)
 	for _, args := range [][]string{
-		{"test", "--base", base, "--placement", "balanced"},
+		{"test", "--base", base, "--placement", "packed"},
+		{"test", "--base", base, "--placement", "balanced", "--shard", "0/2"},
+		{"test", "--base", base, "--placement", "balanced", "--profile", "ci", "--confine", "/x"},
 		{"test", "--base", base, "--require-clean"},
 		{"test", "--base", "HEAD"},
 		{"test", "--base", base, "--profile", "ci"},
@@ -393,7 +395,70 @@ func TestSTRV0008CLIUsageRefusals(t *testing.T) {
 			t.Errorf("%v: code %d stdout %q", args, code, stdout)
 		}
 	}
-	if _, _, stderr := runCLI(t, "test", "--base", base, "--placement", "balanced"); !strings.Contains(stderr, "STR-V0-008") {
-		t.Fatalf("balanced refusal %q", stderr)
+	for _, args := range [][]string{
+		{"test", "--base", base, "--placement", "balanced", "--shard", "1/3"},
+		{"test", "--base", base, "--placement", "balanced", "--profile", "ci", "--confine", "/x", "--manifest", "/m"},
+	} {
+		if _, _, stderr := runCLI(t, args...); !strings.Contains(stderr, "STR-V0-008") {
+			t.Errorf("%v: balanced refusal %q", args, stderr)
+		}
+	}
+}
+
+// STR-V0-008: a sharded balanced run executes against one dry-run manifest
+// that every shard reproduces; verify-shards accepts the union; a shard that
+// recomputes a different manifest is INCOMPLETE and runs nothing; the ci
+// profile computes balanced placement with --dry-run and launches nothing.
+func TestSTRV0008CLIBalancedShards(t *testing.T) {
+	root, _, log := sessionFixture(t, "pass")
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD~1"))
+	if err := os.WriteFile(filepath.Join(root, "b/b.go"), []byte("package b\n\nfunc B() int { return 4 }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "commit", "-qam", "change b")
+	dir := t.TempDir()
+	manifest := filepath.Join(dir, "manifest.json")
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--placement", "balanced", "--shard", "0/2", "--dry-run", "--manifest", manifest)
+	if code != 0 || stderr != "corvint-test: NARROWED 2 execution units\n" || !strings.Contains(stdout, `"placement":"balanced"`) {
+		t.Fatalf("dry run %d %q %s", code, stderr, stdout)
+	}
+	planned, _, err := sessiontest.ReadManifest(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if planned.Placement != sessiontest.PlacementBalanced || len(planned.Units) != 2 || planned.Units[0].Shard == planned.Units[1].Shard {
+		t.Fatalf("balanced manifest %+v", planned.Units)
+	}
+	receipts := []string{}
+	for _, shard := range []string{"0/2", "1/2"} {
+		name := filepath.Join(dir, "run."+shard[:1]+".json")
+		code, _, stderr := runCLI(t, "--root", root, "test", "--base", base, "--placement", "balanced", "--shard", shard, "--manifest", manifest, "--receipt", name)
+		if code != 0 {
+			t.Fatalf("shard %s: %d %s", shard, code, stderr)
+		}
+		if receipt := readSessionReceipt(t, name); receipt.Placement != sessiontest.PlacementBalanced || receipt.Summary != "selected units passed: 1 of 1; the full suite runs under make gate and the required CI checks" {
+			t.Fatalf("shard %s receipt %s %q", shard, receipt.Placement, receipt.Summary)
+		}
+		receipts = append(receipts, name)
+	}
+	code, stdout, _ = runCLI(t, append([]string{"test", "verify-shards", "--manifest", manifest}, receipts...)...)
+	if code != 0 || !strings.Contains(stdout, `"reasons":[],"result":"PASS"`) {
+		t.Fatalf("verify-shards %d %s", code, stdout)
+	}
+	before := strings.Count(sessionRunnerLog(t, log), "go test")
+	code, _, stderr = runCLI(t, "--root", root, "test", "--base", base, "--shard", "1/2", "--manifest", manifest, "--receipt", filepath.Join(dir, "universe.json"))
+	if code != 3 || !strings.Contains(stderr, "it differs from the manifest this shard recomputed") {
+		t.Fatalf("universe shard against a balanced manifest %d %q", code, stderr)
+	}
+	if after := strings.Count(sessionRunnerLog(t, log), "go test"); after != before {
+		t.Fatalf("a mismatched shard ran go test (%d before, %d after)", before, after)
+	}
+	confine := filepath.Join(dir, "test-confine")
+	code, stdout, stderr = runCLI(t, "--root", root, "test", "--base", base, "--placement", "balanced", "--profile", "ci", "--confine", confine, "--shard", "1/2", "--dry-run", "--manifest", filepath.Join(dir, "ci.json"))
+	if code != 0 || !strings.Contains(stdout, `"placement":"balanced"`) || !strings.Contains(stdout, `"-exec","`+confine+`"`) {
+		t.Fatalf("ci dry run %d %q %s", code, stderr, stdout)
+	}
+	if after := strings.Count(sessionRunnerLog(t, log), "go test"); after != before {
+		t.Fatal("the ci dry run launched go test")
 	}
 }
