@@ -227,6 +227,9 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   and name packages the selector never claims. The fast tier is not the push gate: `make gate` is unchanged
   and stays the mandatory check (AFP-V0-009 keeps advising it). The selector MUST refuse a plan
   file above 8 MiB before JSON decoding, so external plan input cannot consume unbounded memory.
+  Since STR-V0-012 rollout step 2 (2026-10-12) the `gate-affected` target runs `corvint test`
+  through `script/gate-affected-corvint.sh` instead, under STR-V0-012; this requirement governs
+  `script/gate-affected.sh` as the retained rollback, which `make gate-affected-test` still runs.
 - **AFP-V0-012:** (decision 0131) The fast tier's selector MUST attribute every dirty path from a
   static index of the repository under test, built without a build or a Go toolchain. The index
   walks the root module, skipping `.`, `_`, and `testdata` directories and every subtree holding a
