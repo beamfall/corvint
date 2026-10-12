@@ -1,0 +1,45 @@
+{
+  "profile": "cem-convert-parity/1-summary",
+  "converter": "corvint-cem-convert/1",
+  "goVersion": "go1.27.2",
+  "corpusMaps": 603,
+  "sampleEvery": 1,
+  "rows": 603,
+  "paritySha256": "bf9b354bdab31ed5a330a38c17850c7f95f1ffc79aabc3ce428321a6d9fa7ba9",
+  "classes": {
+    "NOT_OBSERVED": 0,
+    "different": 0,
+    "empty-member-explained": 0,
+    "identical": 602,
+    "pre-existing-refusal": 1,
+    "unavailable-objects": 0
+  },
+  "idempotent": 603,
+  "reconvertCodes": {
+    "convert-source-is-stable": 603
+  },
+  "sourceBindings": {
+    "EXACT": 603
+  },
+  "bindReachable": 565,
+  "sourceOutcomes": {
+    "ACCEPT": 602,
+    "UNSUPPORTED unsupported-resource-limit": 1
+  },
+  "substitutedNativeOutcomes": {
+    "ACCEPT": 602,
+    "UNSUPPORTED unsupported-resource-limit": 1
+  },
+  "substitutedNativeEqualsPortable": 602,
+  "directNativeOutcomes": {
+    "REJECT excluded-artifact-mismatch": 603
+  },
+  "directPortableOutcomes": {
+    "REJECT excluded-artifact-mismatch": 603
+  },
+  "directNativeEqualsPortable": 603,
+  "different": [],
+  "nativePortableDiffer": [
+    "f0fda542fa64969df58dc9cfd8268f321d562880 unsupported-resource-limit consumer-partial-drift-differs"
+  ]
+}
