@@ -66,6 +66,10 @@ func TestSTRV0006CompareGo(t *testing.T) {
 	if got := compareGo(quoted, "A=1 B=2 go test -run='TestA|TestB' ./...\n"); len(got) == 0 {
 		t.Errorf("quoted flag spelled identically on both sides passed")
 	}
+	dashed := sessiontest.Declared{GoEnv: []string{"A-B=1"}, GoFlags: []string{"-p", "1"}}
+	if got := compareGo(dashed, "A-B=1 go test -p 1 ./...\n"); len(got) == 0 {
+		t.Errorf("A-B=1 spelled identically on both sides passed; the shell would run it as a command")
+	}
 	declared := sessiontest.Declared{GoEnv: []string{"A=1", "B=2"}, GoFlags: []string{"-p", "1"}}
 	for recipe, want := range map[string]int{
 		"B=2 A=1 go test -p 1 ./...\n":           0,
@@ -80,6 +84,9 @@ func TestSTRV0006CompareGo(t *testing.T) {
 		"A=1 B=2 go test -p '1' ./...\n":         1,
 		"A=1 B='2' go test -p 1 ./...\n":         1,
 		"A=1 B=2 go test -p 1 ./... 2>/dev/null": 1,
+		"A=1 B=2 go test -p\u00a01 ./...\n":      1,
+		"A=1 B=2 go test -p 1 ./...\r\n":         1,
+		"A=1\tB=2\tgo test -p 1 ./...\n":         0,
 	} {
 		if got := len(compareGo(declared, recipe)); (got != 0) != (want != 0) {
 			t.Errorf("%q: %d problems, want %d", recipe, got, want)

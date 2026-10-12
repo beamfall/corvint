@@ -26,6 +26,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
@@ -93,8 +94,16 @@ func compareGo(declared sessiontest.Declared, recipe string) []string {
 	if len(lines) != 1 {
 		return []string{fmt.Sprintf("make -s -n go-test prints %d command lines, want exactly one", len(lines))}
 	}
-	words := strings.Fields(lines[0])
 	problems := []string{}
+	// Only a space or tab separates recipe words: any other whitespace or
+	// control rune (U+00A0, \r, ...) would be one argument to the shell and
+	// is not a separator strings.Fields may hide.
+	for _, r := range lines[0] {
+		if (unicode.IsSpace(r) || unicode.IsControl(r)) && r != ' ' && r != '\t' {
+			problems = append(problems, fmt.Sprintf("make go-test recipe contains the whitespace or control rune %U, which is not a word separator", r))
+		}
+	}
+	words := strings.FieldsFunc(lines[0], func(r rune) bool { return r == ' ' || r == '\t' })
 	for _, word := range append(append(append([]string{}, words...), declared.GoEnv...), declared.GoFlags...) {
 		if !plainWord(word) {
 			problems = append(problems, fmt.Sprintf("%q is not a plain word: the shell would rewrite it, corvint test passes it literally", word))
@@ -102,6 +111,9 @@ func compareGo(declared sessiontest.Declared, recipe string) []string {
 	}
 	env := []string{}
 	for len(words) != 0 && strings.Contains(words[0], "=") && !strings.HasPrefix(words[0], "-") {
+		if name, _, _ := strings.Cut(words[0], "="); !sessiontest.EnvName(name) {
+			problems = append(problems, fmt.Sprintf("%q is not a shell assignment: the shell would run it as a command", words[0]))
+		}
 		env, words = append(env, words[0]), words[1:]
 	}
 	sort.Strings(env)

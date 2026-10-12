@@ -100,10 +100,13 @@ of every requirement below and the binding gate until this spec is promoted.
   dry-runs. The gate compares the Makefile defaults under a scrubbed environment (`PATH` only):
   a developer Make override such as `GO_TEST_TIMEOUT` or `CORVINT_GOCACHE` is not the declared
   full suite. Every recipe and declared word SHALL be a plain word (letters, digits and
-  `_ - . / = : , + @ %`), because `corvint test` passes declared words to exec literally while
-  Make hands the recipe to a shell; a word a shell would rewrite is a difference even when both
-  spellings agree, and the reader (STR-V0-003) refuses any word with whitespace or a control
-  character. The manifest binds the declaration's digest as `declaredDigest`.
+  `_ - . / = : , + @ %`), every environment name a portable identifier
+  (`[A-Za-z_][A-Za-z0-9_]*`) and only a space or tab a recipe word separator, because
+  `corvint test` passes declared words to exec literally while Make hands the recipe to a shell;
+  a word a shell would rewrite, an assignment a shell would run as a command or a separator a
+  shell would keep inside a word is a difference even when both spellings agree, and the reader
+  (STR-V0-003) refuses the same names and any word with whitespace or a control character. The
+  manifest binds the declaration's digest as `declaredDigest`.
 - `STR-V0-007`: `--shard I/N` with `--placement universe` (the default) SHALL use the AFP-V0-022
   complete-universe partition intersected with the run set, unchanged. An empty intersection runs
   nothing and says so. Every shard records the partition digest; a digest mismatch fails the shard.

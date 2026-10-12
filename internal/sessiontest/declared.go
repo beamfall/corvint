@@ -113,7 +113,7 @@ func readDeclaration(name string) (Declared, error) {
 	}
 	declared := Declared{GoEnv: []string{}, GoFlags: []string{}, Languages: []LanguageCommand{}}
 	for name, value := range parsed.Go.Env {
-		if !plain(name) || strings.Contains(name, "=") || !plain(value) {
+		if !EnvName(name) || !plain(value) {
 			return Declared{}, fmt.Errorf("go.env has an invalid variable %q", name)
 		}
 		declared.GoEnv = append(declared.GoEnv, name+"="+value)
@@ -176,6 +176,21 @@ func words(field string, values []string) error {
 		}
 	}
 	return nil
+}
+
+// EnvName reports whether name is a portable environment variable name
+// ([A-Za-z_][A-Za-z0-9_]*), the only shape a shell reads as an assignment
+// and exec sets as a variable alike.
+func EnvName(name string) bool {
+	for i, r := range name {
+		switch {
+		case r == '_', r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9' && i != 0:
+		default:
+			return false
+		}
+	}
+	return name != ""
 }
 
 // plain reports whether value is a non-empty word with no whitespace (of any

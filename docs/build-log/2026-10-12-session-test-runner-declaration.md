@@ -164,8 +164,19 @@ Codex (`gpt-6-astra`, read-only, up to three rounds) over `bed653e92..HEAD`.
   declared word to be a plain word (letters, digits, `_ - . / = : , + @ %`), with a
   same-spelling quoted flag and three recipe cases in `TestSTRV0006CompareGo`; STR-V0-006 and
   the gate's comment state the defaults-only contract; `plain()` refuses any `unicode.IsSpace`
-  or `IsControl` rune, with seven new reader mutations.
-- Round 2: see the line appended below when it finishes.
+  or `IsControl` rune, with six new reader mutations.
+- Round 2 (`2cde4d485`): `CHANGES_REQUESTED`, two findings, both verified. [P2] a leading
+  recipe word such as `A-B=1` passed as an environment word on both sides although `/bin/sh`
+  runs it as a command while exec sets it as a variable. [P2] `strings.Fields` split the recipe
+  on U+00A0 and other Unicode whitespace before the plain-word check, so `-p<U+00A0>1` matched
+  `["-p", "1"]` although the shell passes it as one argument. Fixed in the next commit:
+  `sessiontest.EnvName` requires `[A-Za-z_][A-Za-z0-9_]*` in the reader (two more mutations) and
+  for every leading assignment in the gate; the gate rejects any whitespace or control rune other
+  than a space or tab in the raw recipe line before splitting on exactly those two; cases for a
+  dashed name, U+00A0, `\r\n` and tab separators. Codex confirmed the corpus triples, both input
+  digests, the requirement locators and the 257 arithmetic; it could not run Go tests in its
+  read-only sandbox and did not verify the uncommitted parity report.
+- Round 3: see the line appended below when it finishes.
 
 ## Left for slice 3
 
