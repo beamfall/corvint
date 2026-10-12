@@ -35,6 +35,11 @@ const (
 	batchPathsShown       = 20
 )
 
+// retiredSeal is verifySealedCEM's result for a sealed cem/0.x map that still
+// equals its bind commit's sidecar (CEM-V1-203). It is not a failure reason:
+// batch-check and dogfood change admit it unverified, with no coverage.
+const retiredSeal = "constituent-retired-spec"
+
 var sealedCEMPath = regexp.MustCompile(`^\.corvint/changes/([0-9a-f]{40})\.cem\.json$`)
 
 // batchRecovery names the documented recovery of each batch-check failure.
@@ -44,8 +49,8 @@ var batchRecovery = map[string]string{
 	"unrecognized-sealed-cem":       "only .corvint/changes/<40-hex bind commit>.cem.json files are sealed CEMs; remove or rename the listed path",
 	"unsealed-cem-at-head":          "seal the bound change (make dogfood-seal) or restore BASE's .corvint/change.cem.json before the batch check",
 	"constituent-not-merged":        "a sealed CEM names a bind commit HEAD does not contain; merge that change's branch or drop the copied file",
-	"constituent-cem-invalid":       "the sealed CEM is unreadable or not a canonical cem/0.2, cem/0.3 or cem/1.0 map at its bind commit; rebind and reseal that change with the normal loop, then remerge it",
-	"constituent-unverified":        "the verifier did not report canonical ready-for-ci verification (cem/0.x) or stable ACCEPT (cem/1.0) of this bind and base; pass --verifier a corvint build of this tree (script/dogfood-batch-check.sh does) and rerun",
+	"constituent-cem-invalid":       "the sealed CEM is unreadable or not a cem/1.0 map at its bind commit; rebind and reseal that change with the normal loop, then remerge it",
+	"constituent-unverified":        "the verifier did not report a stable ACCEPT of this bind and base; pass --verifier a corvint build of this tree (script/dogfood-batch-check.sh does) and rerun",
 	"sealed-cem-migration-reverted": "HEAD holds a sealed CEM a migration commit in the range rewrote, with bytes that commit did not write; restore the migration's bytes with git show <migration commit>:PATH > PATH and commit, or drop the merge that reverted it",
 	"constituent-migrated":          "the migration commit rewrote this sealed CEM after the batch's BASE added it; split the batch at the migration commit: batch-check up to its parent, then rerun with BASE=<the migration commit's parent>",
 	"constituent-cem-policy":        "rebind and reseal that change with the normal loop on its own branch (dogfood-change BASE=<its base>), then remerge it",
@@ -155,7 +160,7 @@ func (b *batch) run() int {
 		b.verifyConstituent(bind)
 	}
 	b.verifyCoverage()
-	return b.finish(count, len(sealed))
+	return b.finish(count, len(b.constituents))
 }
 
 // requireScratchOutside refuses a temporary directory that resolves inside the
@@ -245,14 +250,8 @@ type cemStatus struct {
 		Supported *int `json:"supported"`
 		Unknown   *int `json:"unknown"`
 	} `json:"counts"`
-	Verification struct {
-		Valid          bool   `json:"valid"`
-		Assurance      string `json:"assurance"`
-		BaseRevision   string `json:"baseRevision"`
-		TargetRevision string `json:"targetRevision"`
-	} `json:"verification"`
-	// StableVerification is the stable verifier result a cem/1.0 status
-	// carries in place of the 0.x verification (CEM-V1-017, CEM-V1-148).
+	// StableVerification is the stable verifier result of a cem/1.0 status
+	// (CEM-V1-017, CEM-V1-148).
 	StableVerification *struct {
 		Outcome        string  `json:"outcome"`
 		Accept         *bool   `json:"accept"`
@@ -261,22 +260,16 @@ type cemStatus struct {
 	} `json:"stableVerification"`
 }
 
-// proves reports whether a status response is canonical ready-for-ci
-// verification of exactly this bind and base, or for a cem/1.0 map the stable
-// verifier's ACCEPT of exactly this bind and base with its policy counts; an
-// exit status alone is not evidence. The map's declared spec picks the form,
-// so a cem/1.0 map is never proved by a 0.x status line nor a 0.x map by a
-// stable one.
-func (s cemStatus) proves(base, bind string, stableMap bool) bool {
+// proves reports whether a status response is the stable verifier's ACCEPT of
+// exactly this bind and base with its policy counts; an exit status alone is
+// not evidence, and a 0.x ready-for-ci line proves nothing (CEM-V1-202).
+func (s cemStatus) proves(base, bind string) bool {
 	counted := s.Counts.Total != nil && s.Counts.Supported != nil && s.Counts.Unknown != nil
-	if stable := s.StableVerification; stableMap || stable != nil {
-		return stableMap && stable != nil && s.OK && s.Tool == "cem-status" && s.State == "accepted" && counted &&
-			stable.Outcome == "ACCEPT" && stable.Accept != nil && *stable.Accept &&
-			stable.ExpectedBase != nil && *stable.ExpectedBase == base &&
-			stable.TargetRevision != nil && *stable.TargetRevision == bind
-	}
-	return s.OK && s.Tool == "cem-status" && s.State == "ready-for-ci" && s.Verification.Valid && counted &&
-		s.Verification.Assurance == "canonical" && s.Verification.BaseRevision == base && s.Verification.TargetRevision == bind
+	stable := s.StableVerification
+	return stable != nil && s.OK && s.Tool == "cem-status" && s.State == "accepted" && counted &&
+		stable.Outcome == "ACCEPT" && stable.Accept != nil && *stable.Accept &&
+		stable.ExpectedBase != nil && *stable.ExpectedBase == base &&
+		stable.TargetRevision != nil && *stable.TargetRevision == bind
 }
 
 // sealedVerification is one sealed CEM re-verified against its own base and
@@ -297,11 +290,11 @@ type sealedVerification struct {
 // bind loop admitted: an unknown, no-evidence hunk adding a whole file absent
 // at the change's base. An unknown hunk kept with a recorded reason
 // (DCW-V0-019) is admitted beside it. The OCM that admitted it is not re-run. Only a
-// canonical map is accepted: its verifier derives the patch from the base and
-// bind commits, whereas a cem/0.1 map verifies a cached patch that need not
-// equal the committed change. A cem/1.0 map is accepted too: the stable
-// verifier also derives the patch from the base and bind commits, and reads
-// the producer map with the repository root as its artifact root (CEM-V1-148).
+// cem/1.0 map is verified: the stable verifier derives the patch from the base
+// and bind commits, and reads the producer map with the repository root as its
+// artifact root (CEM-V1-148, CEM-V1-202). A retired cem/0.x seal that still
+// equals its bind commit's sidecar fails constituent-retired-spec, which each
+// caller admits without verification or coverage (CEM-V1-203).
 func (f *flow) verifySealedCEM(verifier Runner, target, bind string) sealedVerification {
 	path := ".corvint/changes/" + bind + ".cem.json"
 	result := sealedVerification{detail: "bind=" + bind}
@@ -320,8 +313,12 @@ func (f *flow) verifySealedCEM(verifier Runner, target, bind string) sealedVerif
 	}
 	data, status := f.git(true, "cat-file", "blob", sealedBlob)
 	var cem sealedMap
-	stable := status == 0 && wire.DeclaresStable([]byte(data))
-	if status != 0 || json.Unmarshal([]byte(data), &cem) != nil || !(wire.Canonical(cem.Spec) || stable) || !fullRevision.MatchString(cem.BaseRevision) ||
+	decoded := status == 0 && json.Unmarshal([]byte(data), &cem) == nil
+	if decoded && wire.RetiredSpec(cem.Spec) {
+		result.failure, result.detail = retiredSeal, result.detail+" spec="+cem.Spec
+		return result
+	}
+	if !decoded || !wire.DeclaresStable([]byte(data)) || !fullRevision.MatchString(cem.BaseRevision) ||
 		!f.gitSucceeds("merge-base", "--is-ancestor", cem.BaseRevision, bind) {
 		result.failure = "constituent-cem-invalid"
 		return result
@@ -338,10 +335,8 @@ func (f *flow) verifySealedCEM(verifier Runner, target, bind string) sealedVerif
 	}
 	var stdout, stderr bytes.Buffer
 	args := []string{"cem", "status", "--map", path, "--expected-base", cem.BaseRevision,
-		"--target", bind, "--max-unknown", strconv.Itoa(len(result.bootstrap) + result.reasoned), "--max-mechanical", "0"}
-	if stable {
-		args = append(args, "--artifacts", stableArtifactRoot(f.root))
-	}
+		"--target", bind, "--max-unknown", strconv.Itoa(len(result.bootstrap) + result.reasoned), "--max-mechanical", "0",
+		"--artifacts", stableArtifactRoot(f.root)}
 	code := verifier.Run(f.ctx, f.root, args, &stdout, &stderr)
 	f.checkpoint()
 	result.ran = true
@@ -352,7 +347,7 @@ func (f *flow) verifySealedCEM(verifier Runner, target, bind string) sealedVerif
 	switch {
 	case code != 0:
 		result.failure, result.detail = "constituent-cem-policy", result.detail+" state="+result.observed.State
-	case !parsed || !result.observed.proves(cem.BaseRevision, bind, stable):
+	case !parsed || !result.observed.proves(cem.BaseRevision, bind):
 		result.failure, result.detail = "constituent-unverified", result.detail+" state="+result.observed.State
 	}
 	return result
@@ -362,6 +357,15 @@ func (f *flow) verifySealedCEM(verifier Runner, target, bind string) sealedVerif
 // commits its own range covers.
 func (b *batch) verifyConstituent(bind string) {
 	result := b.verifySealedCEM(b.options.Verifier, b.target, bind)
+	if result.failure == retiredSeal {
+		// A retired seal proves nothing and covers nothing, not even its own
+		// seal commit: every commit of its range must be in a verified cem/1.0
+		// constituent's range or the batch fails unbound-commits (CEM-V1-203).
+		delete(b.constituents, bind)
+		b.print("%s: NOTE sealed-cem-retired %s NOT_REVERIFIED coverage=none\n", b.prefix, result.detail)
+		b.print("  fix: if its commits are unbound, rebind the branch as one cem/1.0 change whose BASE precedes this bind (merge origin/main, then dogfood-change BASE=<the origin/main commit merged>)\n")
+		return
+	}
 	if result.ran {
 		observed := result.observed
 		b.print("%s: CONSTITUENT bind=%s base=%s hunks=%s supported=%s unknown=%s bootstrapUnknown=%d reasonedUnknown=%d state=%s\n",

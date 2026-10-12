@@ -12,6 +12,18 @@ import (
 
 const StableSpec = "cem/1.0"
 
+// RetiredSpecFix is the recovery a retired cem/0.x map names (CEM-V1-200):
+// the committed maps were rewritten in place, so a branch catches up by
+// merging, never by rebasing or force-pushing.
+const RetiredSpecFix = "committed 0.x maps were migrated in place by the migration commits (internal/dogfoodflow/migration.go); merge origin/main into the branch, then rerun dogfood-change, dogfood-check and dogfood-seal with BASE=<that merge>"
+
+// RetiredSpec reports a cem/0.1, cem/0.2 or cem/0.3 spec. cem/1.0 is the only
+// stable wire, so the stable reader refuses these with unsupported-spec and
+// RetiredSpecFix (CEM-V1-200).
+func RetiredSpec(spec string) bool {
+	return spec == Spec01 || spec == Spec02 || spec == Spec03
+}
+
 // DeclaresStable reports whether data is one bounded JSON object whose spec is
 // exactly StableSpec. It selects a reader only; it validates nothing else, so a
 // caller still verifies the document through ParseStable (CEM-V1-019).
@@ -125,6 +137,9 @@ func ParseStable(raw []byte) (*StableMap, error) {
 		return nil, fieldError("stable root must be object")
 	}
 	spec, _ := v.Obj.Get("spec")
+	if spec.Kind == KindString && RetiredSpec(spec.Str) {
+		return nil, cemcode.New(cemcode.UnsupportedSpec, "%s is retired; %s is the only stable wire; fix: %s", spec.Str, StableSpec, RetiredSpecFix)
+	}
 	if spec.Kind != KindString || spec.Str != StableSpec {
 		return nil, cemcode.New(cemcode.UnsupportedSpec, "stable profile required")
 	}

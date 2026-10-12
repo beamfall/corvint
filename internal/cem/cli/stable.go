@@ -16,10 +16,10 @@ import (
 // RunStableInvocation handles only the explicit Core stable command, before
 // generic Core root resolution, worktree opening or observation side effects.
 func RunStableInvocation(ctx context.Context, args []string, out io.Writer) (int, bool) {
-	at, action := -1, ""
+	at := -1
 	for i := 0; i+1 < len(args); i++ {
-		if args[i] == "cem" && (args[i+1] == "verify-stable" || args[i+1] == "convert") {
-			at, action = i, args[i+1]
+		if args[i] == "cem" && args[i+1] == "verify-stable" {
+			at = i
 			break
 		}
 	}
@@ -37,13 +37,6 @@ func RunStableInvocation(ctx context.Context, args []string, out io.Writer) (int
 		default:
 			return 0, false
 		}
-	}
-	if action == "convert" {
-		// The converter takes no global option: its only repository is --repository.
-		if at != 0 {
-			return emitConvert(out, convertFailure("invalid-arguments"), 2), true
-		}
-		return runConvert(ctx, args[at+2:], out), true
 	}
 	options := verify.StableOptions{}
 	values := map[string]string{}

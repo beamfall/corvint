@@ -215,6 +215,12 @@ func (c *change) admitSealedCEMs(inherited inheritedCEM) {
 			notes = append(notes, "inherited-cem-archived NOT_REVERIFIED path="+path)
 		default:
 			result := c.verifySealedCEM(c.options.Steps, c.target, match[1])
+			if result.failure == retiredSeal {
+				// The change binds the whole range, so its own cem/1.0 map
+				// covers the retired seal's hunks and commits (CEM-V1-203).
+				notes = append(notes, "sealed-cem-retired "+result.detail+" NOT_REVERIFIED bound-by-this-change")
+				continue
+			}
 			if result.failure != "" {
 				refusals = append(refusals, path+": "+result.failure+" "+result.detail)
 				continue

@@ -20,7 +20,7 @@ type batchRepo struct {
 	args [][]string
 	// status is the fake verifier's exit status for every constituent.
 	status int
-	// output, when set, replaces the fake verifier's canonical status line.
+	// output, when set, replaces the fake verifier's stable status line.
 	output func(base, bind string) string
 }
 
@@ -63,7 +63,7 @@ func (r *batchRepo) lane(name, path, data, cem string) (string, string) {
 	r.write(path, data)
 	r.commit("work " + name)
 	if cem == "" {
-		cem = `{"spec": "cem/0.2", "baseRevision": "` + r.base + `", "hunks": []}` + "\n"
+		cem = `{"spec": "cem/1.0", "baseRevision": "` + r.base + `", "hunks": []}` + "\n"
 	}
 	r.write(".corvint/change.cem.json", cem)
 	bind := r.commit("chore: bind change evidence")
@@ -95,8 +95,8 @@ func (r *batchRepo) check() (int, string, string) {
 	return code, stdout.String(), stderr.String()
 }
 
-// verifier is the fake constituent verifier: canonical ready-for-ci output of
-// the base and bind it is asked about, unless status or output say otherwise.
+// verifier is the fake constituent verifier: the stable ACCEPT of the base and
+// bind it is asked about, unless status or output say otherwise.
 func (r *batchRepo) verifier() Runner {
 	return Runner{Path: "/never-executed/corvint", Run: func(_ context.Context, _ string, args []string, stdout, _ io.Writer) int {
 		r.args = append(r.args, args)
@@ -105,11 +105,18 @@ func (r *batchRepo) verifier() Runner {
 			fmt.Fprint(stdout, r.output(base, bind))
 			return r.status
 		}
-		state := map[bool]string{true: "ready-for-ci", false: "incomplete"}[r.status == 0]
-		fmt.Fprintf(stdout, `{"counts":{"mechanical":0,"supported":1,"total":1,"unknown":0},"ok":%t,"state":"%s","tool":"cem-status",`+
-			`"verification":{"assurance":"canonical","baseRevision":"%s","targetRevision":"%s","valid":true}}`+"\n", r.status == 0, state, base, bind)
+		fmt.Fprint(stdout, fakeStableStatus(r.status == 0, 1, 1, base, bind))
 		return r.status
 	}}
+}
+
+// fakeStableStatus is a stable `cem status` line: ACCEPT and accepted when ok,
+// otherwise REJECT and incomplete.
+func fakeStableStatus(ok bool, total, supported int, base, bind string) string {
+	state, outcome := map[bool]string{true: "accepted", false: "incomplete"}[ok], map[bool]string{true: "ACCEPT", false: "REJECT"}[ok]
+	return fmt.Sprintf(`{"counts":{"mechanical":0,"supported":%d,"total":%d,"unknown":%d},"ok":%t,"state":"%s","tool":"cem-status",`+
+		`"stableVerification":{"accept":%t,"expectedBase":"%s","outcome":"%s","targetRevision":"%s"}}`+"\n",
+		supported, total, total-supported, ok, state, ok, base, outcome, bind)
 }
 
 // admit runs dogfood change's sealed-CEM admission and inherited-CEM check
@@ -207,7 +214,7 @@ func TestBatchCheckDCWV0039PassesSealedConstituents(t *testing.T) {
 		t.Fatalf("exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	for _, want := range []string{
-		"dogfood-batch-check: CONSTITUENT bind=" + bindA + " base=" + repo.base + " hunks=1 supported=1 unknown=0 bootstrapUnknown=0 reasonedUnknown=0 state=ready-for-ci\n",
+		"dogfood-batch-check: CONSTITUENT bind=" + bindA + " base=" + repo.base + " hunks=1 supported=1 unknown=0 bootstrapUnknown=0 reasonedUnknown=0 state=accepted\n",
 		"dogfood-batch-check: CONSTITUENT bind=" + bindB + " base=" + repo.base,
 		"derivation=ort\n",
 		" commits=8 constituents=2 merges first-parent-tree=0 ort=2 ort-ours=0 ort-theirs=0 bootstrapUnknown=0\n",
@@ -222,7 +229,7 @@ func TestBatchCheckDCWV0039PassesSealedConstituents(t *testing.T) {
 		}
 	}
 	// Constituents run in bind-commit order, so bindA is either call.
-	wantArgs := []string{"cem", "status", "--map", ".corvint/changes/" + bindA + ".cem.json", "--expected-base", repo.base, "--target", bindA, "--max-unknown", "0", "--max-mechanical", "0"}
+	wantArgs := []string{"cem", "status", "--map", ".corvint/changes/" + bindA + ".cem.json", "--expected-base", repo.base, "--target", bindA, "--max-unknown", "0", "--max-mechanical", "0", "--artifacts", stableArtifactRoot(repo.root)}
 	if len(repo.args) != 2 || strings.Join(repo.args[0], " ") != strings.Join(wantArgs, " ") && strings.Join(repo.args[1], " ") != strings.Join(wantArgs, " ") {
 		t.Fatalf("verifier argv %q", repo.args)
 	}
@@ -311,7 +318,7 @@ func TestBatchCheckDCWV0039RefusesDriftedEvidence(t *testing.T) {
 func TestBatchCheckDCWV0039BootstrapAllowanceIsVisible(t *testing.T) {
 	repo := newBatchRepo(t)
 	cem := func(base string) string {
-		return `{"spec": "cem/0.3", "baseRevision": "` + base + `", "hunks": [` +
+		return `{"spec": "cem/1.0", "baseRevision": "` + base + `", "hunks": [` +
 			`{"disposition": "unknown", "reason": "no-evidence", "path": "spec.md", "oldRange": {"count": 0, "start": 0}},` +
 			`{"disposition": "unknown", "reason": "no-evidence", "path": "a.txt", "oldRange": {"count": 0, "start": 2}}]}` + "\n"
 	}
@@ -342,11 +349,11 @@ func TestBatchCheckDCWV0046ReasonedUnknownAllowance(t *testing.T) {
 		code  int
 		state string
 	}{
-		{"reasoned only", []string{hunk("insufficient-evidence", 1), hunk("conflicting-evidence", 2)}, 0, "ready-for-ci"},
+		{"reasoned only", []string{hunk("insufficient-evidence", 1), hunk("conflicting-evidence", 2)}, 0, "accepted"},
 		{"one unreasoned", []string{hunk("insufficient-evidence", 1), hunk("conflicting-evidence", 2), hunk("no-evidence", 3)}, 1, "incomplete"},
 	} {
 		repo := newBatchRepo(t)
-		cem := `{"spec": "cem/0.3", "baseRevision": "` + repo.base + `", "hunks": [` + strings.Join(tc.hunks, ",") + "]}\n"
+		cem := `{"spec": "cem/1.0", "baseRevision": "` + repo.base + `", "hunks": [` + strings.Join(tc.hunks, ",") + "]}\n"
 		_, seal := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", cem)
 		repo.batch(seal)
 		unknown := len(tc.hunks)
@@ -354,9 +361,7 @@ func TestBatchCheckDCWV0046ReasonedUnknownAllowance(t *testing.T) {
 			allowed, _ := strconv.Atoi(repo.args[len(repo.args)-1][9])
 			ready := unknown <= allowed
 			repo.status = map[bool]int{true: 0, false: 1}[ready]
-			state := map[bool]string{true: "ready-for-ci", false: "incomplete"}[ready]
-			return fmt.Sprintf(`{"counts":{"mechanical":0,"supported":0,"total":%d,"unknown":%d},"ok":%t,"state":"%s","tool":"cem-status",`+
-				`"verification":{"assurance":"canonical","baseRevision":"%s","targetRevision":"%s","valid":true}}`+"\n", unknown, unknown, ready, state, base, bind)
+			return fakeStableStatus(ready, unknown, 0, base, bind)
 		}
 		code, stdout, stderr := repo.check()
 		if !strings.Contains(stdout, " bootstrapUnknown=0 reasonedUnknown=2 state="+tc.state+"\n") || repo.args[0][9] != "2" {
@@ -418,37 +423,28 @@ func TestChangeDCWV0040NamesBatchRecoveryForOversizedChanges(t *testing.T) {
 	}
 }
 
-// DCW-V0-039: only canonical evidence covers a constituent. A cem/0.1 map,
-// whose verifier reads a cached patch, is refused before verification, and a
-// zero exit without canonical ready-for-ci output of exactly this bind and
-// base is not evidence.
-func TestBatchCheckDCWV0039RequiresCanonicalVerification(t *testing.T) {
+// DCW-V0-039, CEM-V1-202: only a stable ACCEPT covers a constituent. A zero
+// exit without the accepted stable line of exactly this bind and base is not
+// evidence, and neither is a 0.x ready-for-ci line.
+func TestBatchCheckDCWV0039RequiresStableVerification(t *testing.T) {
 	repo := newBatchRepo(t)
-	bind, seal := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", `{"spec": "cem/0.1", "baseRevision": "`+repo.base+`", "hunks": []}`+"\n")
+	bind, seal := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
 	repo.batch(seal)
-	if code, _, stderr := repo.check(); code != 1 || !strings.Contains(stderr, "FAIL constituent-cem-invalid count=1\n  bind="+bind+"\n") || len(repo.args) != 0 {
-		t.Fatalf("cem/0.1 exit=%d stderr=%s argv=%q", code, stderr, repo.args)
-	}
-	repo = newBatchRepo(t)
-	bind, seal = repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
-	repo.batch(seal)
-	counts := `"counts":{"supported":1,"total":1,"unknown":0},`
-	canonical := func(state, assurance, target, counts string) string {
-		return `{` + counts + `"ok":true,"state":"` + state + `","tool":"cem-status","verification":{"assurance":"` + assurance +
-			`","baseRevision":"` + repo.base + `","targetRevision":"` + target + `","valid":true}}` + "\n"
-	}
-	// Control: the complete canonical response passes.
-	repo.output = func(string, string) string { return canonical("ready-for-ci", "canonical", bind, counts) }
+	// Control: the complete stable response passes.
+	repo.output = func(base, bind string) string { return fakeStableStatus(true, 1, 1, base, bind) }
 	if code, stdout, stderr := repo.check(); code != 0 || !strings.Contains(stdout, " hunks=1 supported=1 unknown=0 ") {
 		t.Fatalf("control exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
+	accepted := fakeStableStatus(true, 1, 1, repo.base, bind)
 	for name, output := range map[string]string{
 		"empty":        "",
 		"malformed":    "not json\n",
-		"incomplete":   canonical("incomplete", "canonical", bind, counts),
-		"structural":   canonical("ready-for-ci", "structural", bind, counts),
-		"other-target": canonical("ready-for-ci", "canonical", repo.base, counts),
-		"no-counts":    canonical("ready-for-ci", "canonical", bind, ""),
+		"incomplete":   strings.Replace(accepted, `"state":"accepted"`, `"state":"incomplete"`, 1),
+		"reject":       strings.Replace(accepted, `"outcome":"ACCEPT"`, `"outcome":"REJECT"`, 1),
+		"other-target": fakeStableStatus(true, 1, 1, repo.base, repo.base),
+		"no-counts":    strings.Replace(accepted, `"counts":{"mechanical":0,"supported":1,"total":1,"unknown":0},`, "", 1),
+		"legacy-line": `{"counts":{"supported":1,"total":1,"unknown":0},"ok":true,"state":"ready-for-ci","tool":"cem-status",` +
+			`"verification":{"assurance":"canonical","baseRevision":"` + repo.base + `","targetRevision":"` + bind + `","valid":true}}` + "\n",
 	} {
 		repo.output = func(string, string) string { return output }
 		code, stdout, stderr := repo.check()
@@ -458,6 +454,52 @@ func TestBatchCheckDCWV0039RequiresCanonicalVerification(t *testing.T) {
 		if (name == "empty" || name == "no-counts") && !strings.Contains(stdout, " hunks=NOT_OBSERVED supported=NOT_OBSERVED unknown=NOT_OBSERVED ") {
 			t.Fatalf("invented counts: %s", stdout)
 		}
+	}
+}
+
+// CEM-V1-203: a retired cem/0.x seal that still equals its bind commit's
+// sidecar is neither verified nor refused as invalid. batch-check notes it and
+// gives it no coverage, so its commits fail unbound-commits until a verified
+// cem/1.0 constituent's own range covers them; a branch that merged main and
+// rebound with BASE before that seal passes. dogfood change admits it because
+// the change binds the whole range itself.
+func TestBatchCheckCEMV1203RetiredSealHasNoCoverage(t *testing.T) {
+	for _, spec := range []string{"cem/0.1", "cem/0.2", "cem/0.3"} {
+		repo := newBatchRepo(t)
+		bind, seal := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", `{"spec": "`+spec+`", "baseRevision": "`+repo.base+`", "hunks": []}`+"\n")
+		repo.batch(seal)
+		code, stdout, stderr := repo.check()
+		note := "dogfood-batch-check: NOTE sealed-cem-retired bind=" + bind + " spec=" + spec + " NOT_REVERIFIED coverage=none\n"
+		if code != 1 || len(repo.args) != 0 || !strings.Contains(stdout, note) || !strings.Contains(stdout, "  fix: if its commits are unbound, rebind the branch") ||
+			!strings.Contains(stderr, "FAIL unbound-commits count=3\n") || strings.Contains(stderr, "constituent-cem-invalid") {
+			t.Fatalf("%s: exit=%d argv=%q stdout=%s stderr=%s", spec, code, repo.args, stdout, stderr)
+		}
+		if code, stderr := repo.admit(repo.base); code != 0 || len(repo.args) != 0 ||
+			!strings.Contains(stderr, "dogfood-change: NOTE sealed-cem-retired bind="+bind+" spec="+spec+" NOT_REVERIFIED bound-by-this-change\n") {
+			t.Fatalf("%s admit: exit=%d stderr=%s", spec, code, stderr)
+		}
+		// The lane merges main and rebinds as one cem/1.0 change whose base
+		// precedes the retired seal: that constituent covers every commit.
+		testGit(t, repo.root, "checkout", "-q", "lane-a")
+		repo.write("a.txt", "a1\nA2\nA3\n")
+		repo.commit("rework lane-a")
+		repo.write(".corvint/change.cem.json", `{"spec": "cem/1.0", "baseRevision": "`+repo.base+`", "hunks": []}`+"\n")
+		rebind := repo.commit("chore: bind change evidence")
+		testGit(t, repo.root, "mv", ".corvint/change.cem.json", ".corvint/changes/"+rebind+".cem.json")
+		testGit(t, repo.root, "commit", "-q", "-m", "chore: seal change evidence")
+		testGit(t, repo.root, "checkout", "-q", "batch")
+		testGit(t, repo.root, "merge", "-q", "--no-ff", "--no-edit", "lane-a")
+		code, stdout, stderr = repo.check()
+		if code != 0 || len(repo.args) != 1 || repo.args[0][7] != rebind || !strings.Contains(stdout, note) || !strings.Contains(stdout, " constituents=1 ") {
+			t.Fatalf("%s rebound: exit=%d argv=%q stdout=%s stderr=%s", spec, code, repo.args, stdout, stderr)
+		}
+	}
+	// A sealed map that declares no spec, or a malformed one, stays invalid.
+	repo := newBatchRepo(t)
+	bind, seal := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", `{"spec": "cem/0.4", "baseRevision": "`+repo.base+`", "hunks": []}`+"\n")
+	repo.batch(seal)
+	if code, _, stderr := repo.check(); code != 1 || !strings.Contains(stderr, "FAIL constituent-cem-invalid count=1\n  bind="+bind+"\n") || len(repo.args) != 0 {
+		t.Fatalf("cem/0.4 exit=%d stderr=%s argv=%q", code, stderr, repo.args)
 	}
 }
 
