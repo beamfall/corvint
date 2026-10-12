@@ -435,7 +435,13 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 				return lookupInherited(name)
 			}
 		}
-		if got := ReadDeclared(write(t, body+recipe), nil, lookup); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "assigns GOFLAGS") {
+		want := "assigns GOFLAGS"
+		if strings.Contains(body, "${BAD)") {
+			// make refuses the unterminated reference as it reads the
+			// line, so the scope is incomplete before any branch is read.
+			want = "unterminated reference"
+		}
+		if got := ReadDeclared(write(t, body+recipe), nil, lookup); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, want) {
 			t.Errorf("%q: %s %q, want every branch read and GOFLAGS untyped", body, got.GoTest, got.GoTestNote)
 		}
 	}
@@ -523,9 +529,9 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 		t.Errorf("trailing blank in a value: %#v, want flags [-tags=integration -race]", trailing)
 	}
 	for body, note := range map[string]string{
-		// 2. A comment in a value is not stripped: the blank before `#`
-		// stays in the value, and `#` is outside the alphabet.
-		"F = -tags=integration # c\ngo-test:\n\tgo test $(F)-race ./...\n": "'#'",
+		// 2. make cuts a comment from a makefile line (typed below), while
+		// a `#` in a recipe line reaches the shell.
+		"F = -race\ngo-test:\n\tgo test $(F) ./... # c\n": "'#'",
 		// 3. `?=` on a make built-in keeps make's default (CC=cc), which
 		// this reader does not know.
 		"CC ?= clang\nF = -ldflags=-X,main.cc=$(CC)\n" + recipe: "undefined variable CC",
@@ -602,6 +608,81 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 	}
 	if got := ReadDeclared(write(t, map[string]string{"Makefile": ".PHONY: go-test\n"}), nil, none); got.GoTest != GoTestAbsent || !strings.Contains(got.GoTestNote, ".PHONY") || got.Unreadable != "" {
 		t.Errorf(".PHONY: go-test alone: %#v, want absent naming .PHONY", got)
+	}
+	// Codex round 10. make cuts a comment anywhere in a makefile line and
+	// keeps the blank before it in a value, so a commented value is typed,
+	// and `else# c` is an else, so the go-test rule after it is read (and
+	// untyped under the conditional), never absent; `\#` is outside the
+	// grammar.
+	commented := ReadDeclared(write(t, map[string]string{"Makefile": "F = -tags=integration # c\ngo-test:\n\tgo test $(F)-race ./...\n"}), nil, none)
+	if commented.GoTest != GoTestParsed || !reflect.DeepEqual(commented.GoFlags, []string{"-tags=integration", "-race"}) {
+		t.Errorf("comment after a value: %#v, want flags [-tags=integration -race]", commented)
+	}
+	for _, body := range []string{
+		"ifeq (1,2)\nelse# comment\ngo-test:\n\tgo test -race ./...\nendif\n",
+		"ifeq (1,1)# c\ngo-test: # c\n\tgo test ./...\nendif\n",
+	} {
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": body}), nil, none); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "under a conditional") || got.Unreadable != "" {
+			t.Errorf("%q: %#v, want the go-test rule read under the conditional", body, got)
+		}
+	}
+	// A line make expands as it reads it may hold only $(NAME) references
+	// and pure functions. eval reached through call in an immediate
+	// assignment, a conditional, an else-if, a prerequisite list, a
+	// referenced variable, a define body or an inherited value, shell, a
+	// bare $F and `\#` all leave the scope incomplete and go-test untyped.
+	inheritedEval := func(name string) (string, bool) {
+		if name == "E" {
+			return "$(call eval,F = -short)", true
+		}
+		return "", false
+	}
+	for body, note := range map[string]string{
+		"F = -race\nIGNORED := $(call eval,F = -short)\n" + recipe:                        "make function call",
+		"F = -race\nIGNORED := $(or $(call eval,F = -short))\n" + recipe:                  "make function call",
+		"F = -race\nifeq ($(call eval,F = -short),)\nendif\n" + recipe:                    "make function call",
+		"F = -race\nifeq (1,2)\nelse ifeq ($(call eval,F = -short),)\nendif\n" + recipe:   "make function call",
+		"F = -race\nall: $(call eval,F = -short)\n" + recipe:                              "make function call",
+		"F = -race\nX = $(call eval,F = -short)\nIGNORED := $(X)\n" + recipe:              "make function call",
+		"F = -race\ndefine X\n$(call eval,F = -short)\nendef\nIGNORED := $(X)\n" + recipe: "make function call",
+		"F = -race\nIGNORED := $(E)\n" + recipe:                                           "make function call",
+		"V := $(shell echo -short)\n" + recipe:                                            "make function shell",
+		"IGNORED := $F\n" + recipe:                                                        "not a $(...) or ${...} reference",
+		"F = a\\#b\n" + recipe:                                                            `\#`,
+	} {
+		got := ReadDeclared(write(t, map[string]string{"Makefile": body}), nil, inheritedEval)
+		if got.GoTest != GoTestUnparsed || !strings.Contains(got.Unreadable, note) {
+			t.Errorf("%q: %s %q %q, want unparsed and incomplete naming %q", body, got.GoTest, got.GoTestNote, got.Unreadable, note)
+		}
+	}
+	// Without an explicit go-test rule make searches its built-in implicit
+	// rules, so a go-test.<suffix> rule or root entry, a pattern or suffix
+	// rule that can serve one, vpath, VPATH and an RCS directory leave
+	// absence uncertain, with or without a makefile; a .PHONY go-test is
+	// never built by one. A root file named go-test makes a go-test rule
+	// with no prerequisites up to date unless it is .PHONY.
+	for _, files := range []map[string]string{
+		{"Makefile": "CC = /bin/echo\ngo-test.c:\n\t@echo built-in-prerequisite\n"},
+		{"Makefile": "%.c:\n\t@echo $@\n"},
+		{"Makefile": ".c.o:\n\t@echo x\n"},
+		{"Makefile": "all:\n\t@echo all\n", "go-test.sh": "true\n"},
+		{"Makefile": "vpath %.c src\n"},
+		{"Makefile": "VPATH = src\n"},
+		{"Makefile": "all:\n\t@echo all\n", "RCS": ""},
+		{"go-test.sh": "true\n"},
+	} {
+		if got := ReadDeclared(write(t, files), nil, none); got.GoTest != GoTestAbsent || got.Unreadable == "" {
+			t.Errorf("%v: %#v, want absent and incomplete", files, got)
+		}
+	}
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": ".PHONY: go-test\n", "go-test.c": ""}), nil, none); got.GoTest != GoTestAbsent || got.Unreadable != "" {
+		t.Errorf(".PHONY go-test beside go-test.c: %#v, want absent and complete", got)
+	}
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "go-test:\n\tgo test ./...\n", "go-test": ""}), nil, none); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "up to date") {
+		t.Errorf("stale go-test file: %#v, want unparsed naming up to date", got)
+	}
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": ".PHONY: go-test\ngo-test:\n\tgo test ./...\n", "go-test": ""}), nil, none); got.GoTest != GoTestParsed {
+		t.Errorf("phony go-test beside a go-test file: %#v, want parsed", got)
 	}
 	// A pattern rule alone answers `make go-test`, so go-test is declared
 	// (untyped) and a matching <lang>-test is declared.

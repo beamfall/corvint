@@ -58,14 +58,21 @@ func (d Declared) Names() bool { return d.GoTest != GoTestAbsent || len(d.Langua
 //	byte     = ASCII letter | digit | "-" | "_" | "." | "/" | "=" | ","
 //	blank    = " " | "\t"
 //
+// A "#" starts a comment anywhere in a makefile line: make cuts it before
+// it reads the line and keeps the blank before it in a value, so this reader
+// cuts it the same way; "\#" is outside the grammar. A makefile line that
+// make expands as it reads it (a conditional, a rule line, an immediate
+// assignment) may hold only $(NAME) references, whose assigned and inherited
+// texts hold the same, and the pure functions listed in pureFunctions; eval,
+// call, shell and the rest leave the scope incomplete.
+//
 // The expanded recipe is split on blank runs, as sh splits an unquoted
 // command line of these bytes. A value is kept verbatim (make strips only
-// the blanks after the operator), so its trailing blanks are kept and a
-// `#` in it is checked, not stripped.
+// the blanks after the operator), so its trailing blanks are kept.
 var (
 	makefileNames  = []string{"GNUmakefile", "makefile", "Makefile"}
 	makeAssignment = regexp.MustCompile(`^([A-Za-z_.][A-Za-z0-9_.]*)[ \t]*(\?=|::=|:=|=)[ \t]*(.*)$`)
-	makeAppend     = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*[ \t]*(\+=|!=)`)
+	makeAppend     = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)[ \t]*(\+=|!=)[ \t]*(.*)$`)
 	makeRule       = regexp.MustCompile(`^([A-Za-z0-9_.%/-]+(?:[ \t]+[A-Za-z0-9_.%/-]+)*)[ \t]*:([^=]|$)`)
 	envAssignment  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 	// goEnvironmentName names the variables that pick or configure the go
@@ -100,6 +107,16 @@ var (
 	conditionalWords = map[string]bool{"ifeq": true, "ifneq": true, "ifdef": true, "ifndef": true}
 	// exportWords change which makefile variables reach a recipe's environment.
 	exportWords = map[string]bool{"export": true, "unexport": true, "override": true, ".EXPORT_ALL_VARIABLES": true}
+	// pureFunctions are the make functions that only compute a string from
+	// their arguments. eval and call define rules and variables, shell runs
+	// a process, error stops make, and foreach, value, origin, flavor, info,
+	// warning and the rest are left out rather than reasoned about.
+	pureFunctions = map[string]bool{
+		"subst": true, "patsubst": true, "strip": true, "findstring": true, "filter": true, "filter-out": true,
+		"sort": true, "word": true, "wordlist": true, "words": true, "firstword": true, "lastword": true,
+		"dir": true, "notdir": true, "suffix": true, "basename": true, "addsuffix": true, "addprefix": true,
+		"join": true, "wildcard": true, "realpath": true, "abspath": true, "if": true, "or": true, "and": true,
+	}
 )
 
 // Conditional frame states. Lines are read only while no open frame skips.
@@ -123,6 +140,7 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 		lookup:    lookup,
 		wanted:    map[string]bool{},
 		variables: map[string]string{},
+		texts:     map[string][]string{},
 		refused:   map[string]bool{},
 		goTest:    GoTestAbsent,
 		languages: []string{},
@@ -135,6 +153,9 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 	if problem != "" {
 		return Declared{GoEnv: []string{}, GoFlags: []string{}, GoTest: GoTestAbsent, Languages: []string{}, Unreadable: problem}
 	}
+	// make answers `make go-test` from its built-in implicit rules even
+	// without a makefile, so the root is listed in every case.
+	r.listRoot(root)
 	if name != "" {
 		r.name = name
 		for _, line := range logicalLines(string(raw)) {
@@ -184,8 +205,17 @@ type makefileReader struct {
 	// a conditional, an immediate assignment it cannot expand, or a ?= on a
 	// make built-in. A reference to one leaves the recipe untyped.
 	refused map[string]bool
-	recipe  []logicalLine
-	stack   []int
+	// texts holds every text the makefile gives a name, whatever the
+	// operator or branch, so pure can follow a reference to it.
+	texts  map[string][]string
+	recipe []logicalLine
+	stack  []int
+	// implicit names the first rule target or root entry that can start a
+	// built-in implicit-rule chain to go-test; goTestFile reports a root
+	// entry named go-test, which make treats as up to date.
+	implicit   string
+	goTestFile bool
+	defineName string
 	// goalsUnknown: MAKECMDGOALS came from the environment or a makefile
 	// line touched it, so from here on a conditional on it is not
 	// evaluated and both branches are read.
@@ -245,7 +275,9 @@ func (r *makefileReader) read(line logicalLine) {
 	if r.inDefine {
 		if words := makeWords(text); len(words) > 0 && words[0] == "endef" {
 			r.inDefine = false
+			return
 		}
+		r.texts[r.defineName] = append(r.texts[r.defineName], text)
 		return
 	}
 	skipping := conditionSkipping(r.stack)
@@ -279,7 +311,20 @@ func (r *makefileReader) read(line logicalLine) {
 	// tab lines after it as the same rule's recipe. make accepts leading
 	// blanks before a directive or assignment.
 	text = strings.TrimLeft(text, " \t")
-	if text == "" || text[0] == '#' {
+	if strings.Contains(text, `\#`) {
+		// make reads \# as a literal #, which is outside the grammar; what
+		// the rest of the line then means is not read.
+		r.setIncomplete(fmt.Sprintf(`%s line %d has \#`, r.name, line.number))
+		r.setUntyped(fmt.Sprintf(`%s line %d has \#, which this reader does not read`, r.name, line.number))
+		return
+	}
+	// A # starts a comment anywhere in a makefile line; make cuts it before
+	// it reads the line, so `else# c` is an else and a value keeps the blank
+	// before the #.
+	if index := strings.IndexByte(text, '#'); index >= 0 {
+		text = text[:index]
+	}
+	if strings.Trim(text, " \t") == "" {
 		return
 	}
 	directive := makeWords(text)[0]
@@ -300,6 +345,7 @@ func (r *makefileReader) read(line logicalLine) {
 		if skipping {
 			r.stack = append(r.stack, condNested)
 		} else {
+			r.expandsNow(line.number, text)
 			r.stack = append(r.stack, r.evaluate(text))
 		}
 		return
@@ -308,8 +354,12 @@ func (r *makefileReader) read(line logicalLine) {
 		return
 	case directive == "define":
 		// A define body is skipped up to endef; what it holds can reach
-		// a recipe through a reference, so go-test is untyped.
+		// a recipe through a reference, so go-test is untyped. Its text is
+		// kept under its name so pure can follow a reference to it.
 		r.inDefine = true
+		if words := makeWords(text); len(words) > 1 {
+			r.defineName = words[1]
+		}
 		r.setUntyped("the " + r.name + " uses define, which this reader cannot evaluate")
 		return
 	case directive == "endef":
@@ -320,12 +370,6 @@ func (r *makefileReader) read(line logicalLine) {
 		return
 	}
 	r.inGoTest, r.inRule = false, false
-	if strings.Contains(text, "$(eval") || strings.Contains(text, "${eval") {
-		// eval can define any rule, a <lang>-test included.
-		r.setIncomplete("the " + r.name + " uses eval")
-		r.setUntyped("the " + r.name + " uses eval, which this reader cannot evaluate")
-		return
-	}
 	switch directive {
 	case "export", "unexport", "override", "include", "-include", "sinclude", ".EXPORT_ALL_VARIABLES:":
 		if strings.HasSuffix(directive, "include") {
@@ -333,24 +377,29 @@ func (r *makefileReader) read(line logicalLine) {
 			r.setIncomplete("the " + r.name + " uses " + directive)
 		}
 		r.setUntyped("the " + r.name + " uses " + strings.TrimSuffix(directive, ":") + ", which this reader cannot evaluate")
+		r.expandsNow(line.number, text)
 		return
 	}
 	// export, unexport, override and .EXPORT_ALL_VARIABLES in any other
 	// position, a target-specific one included, change a recipe's
 	// environment.
-	for _, word := range strings.FieldsFunc(stripMakeComment(text), func(r rune) bool {
+	for _, word := range strings.FieldsFunc(text, func(r rune) bool {
 		return strings.ContainsRune(" \t:=;,()", r)
 	}) {
 		if exportWords[word] {
 			r.setUntyped("the " + r.name + " uses " + word + ", which this reader cannot evaluate")
 		}
 	}
-	if makeAppend.MatchString(text) {
+	if match := makeAppend.FindStringSubmatch(text); match != nil {
+		// += expands now when the variable was assigned with :=, and !=
+		// runs a shell now; the text is kept under the name for pure.
 		r.setUntyped("the " + r.name + " uses += or !=, which this reader cannot evaluate")
+		r.texts[match[1]] = append(r.texts[match[1]], match[3])
+		r.expandsNow(line.number, match[3])
 		return
 	}
 	if match := makeAssignment.FindStringSubmatch(text); match != nil {
-		r.assign(match[1], match[2], match[3])
+		r.assign(line.number, match[1], match[2], match[3])
 		return
 	}
 	if targets, _, found := strings.Cut(text, ":"); found && strings.Contains(targets, "$") {
@@ -358,20 +407,32 @@ func (r *makefileReader) read(line logicalLine) {
 		// prerequisites to it.
 		r.setIncomplete(fmt.Sprintf("%s line %d has a rule target that uses $", r.name, line.number))
 		r.setUntyped(fmt.Sprintf("%s line %d has a rule target that uses $, which this reader cannot expand", r.name, line.number))
+		r.expandsNow(line.number, text)
 		return
 	}
 	match := makeRule.FindStringSubmatch(text)
 	if match == nil {
-		if strings.ContainsAny(text, "$:") {
-			// A function call at top level, $(call ...) included, can
-			// expand to a rule, and a line with a colon can be a rule
-			// whose target names are outside this reader's alphabet.
-			r.setIncomplete(fmt.Sprintf("%s line %d is not a construct this reader recognises", r.name, line.number))
-		}
+		// A line outside the grammar can be anything make reads: a
+		// function call that expands to a rule, a vpath directive, a rule
+		// whose target names are outside this reader's alphabet.
+		r.setIncomplete(fmt.Sprintf("%s line %d is not a construct this reader recognises", r.name, line.number))
 		r.setUntyped(fmt.Sprintf("%s line %d is not a construct this reader recognises", r.name, line.number))
+		r.expandsNow(line.number, text)
 		return
 	}
+	// make expands a rule line, prerequisites included, as it reads it.
+	r.expandsNow(line.number, text)
 	r.rule(text, match[1])
+}
+
+// expandsNow checks text that make expands as it reads the line: when the
+// expansion could do more than yield a string, what make reads afterwards is
+// not known, so the scope is incomplete and go-test untyped.
+func (r *makefileReader) expandsNow(number int, text string) {
+	if err := r.pure(text, 0); err != nil {
+		r.setIncomplete(fmt.Sprintf("%s line %d expands %s now", r.name, number, err))
+		r.setUntyped(fmt.Sprintf("%s line %d expands %s now, which this reader cannot follow", r.name, number, err))
+	}
 }
 
 // conditionalEnd reads an else or endif line.
@@ -391,7 +452,7 @@ func (r *makefileReader) conditionalEnd(number int, directive, text string) {
 	rest := strings.TrimLeft(text[len("else"):], " \t")
 	words := makeWords(rest)
 	conditional := len(words) > 0 && conditionalWords[words[0]]
-	if rest != "" && rest[0] != '#' && !conditional {
+	if rest != "" && !conditional {
 		// make refuses text after else that is not another conditional.
 		r.setUntyped(fmt.Sprintf("%s line %d has text after else", r.name, number))
 		return
@@ -402,18 +463,23 @@ func (r *makefileReader) conditionalEnd(number int, directive, text string) {
 	case condSkipping:
 		*top = condTaken
 		if conditional {
+			if !conditionSkipping(r.stack[:len(r.stack)-1]) {
+				r.expandsNow(number, rest)
+			}
 			*top = r.evaluate(rest)
 		}
 	}
 }
 
 // assign reads one variable assignment.
-func (r *makefileReader) assign(name, operator, value string) {
+func (r *makefileReader) assign(number int, name, operator, value string) {
+	r.texts[name] = append(r.texts[name], value)
 	switch name {
-	case "MAKEFLAGS", "GNUMAKEFLAGS", "MAKEFILES", ".RECIPEPREFIX":
-		// make re-reads options assigned to MAKEFLAGS, and the recipe
-		// prefix decides which lines are makefile text, so what make
-		// reads after this line is not known.
+	case "MAKEFLAGS", "GNUMAKEFLAGS", "MAKEFILES", ".RECIPEPREFIX", "VPATH":
+		// make re-reads options assigned to MAKEFLAGS, the recipe prefix
+		// decides which lines are makefile text, and VPATH finds
+		// implicit-rule sources in other directories, so what make reads
+		// after this line is not known.
 		r.setIncomplete("the " + r.name + " assigns " + name)
 	}
 	if makeControlNames[name] || (strings.HasPrefix(name, ".") && name != ".DEFAULT_GOAL") {
@@ -444,6 +510,7 @@ func (r *makefileReader) assign(name, operator, value string) {
 		// An immediate assignment expands now, against the values
 		// assigned so far; a later reassignment must not change it.
 		if strings.Contains(value, "$") {
+			r.expandsNow(number, value)
 			expanded, err := expandMake(value, r.resolve, 0)
 			if err != nil {
 				r.refused[name] = true
@@ -477,7 +544,7 @@ func (r *makefileReader) rule(text, targets string) {
 			}
 			// Prerequisites, target-specific variables and a
 			// double-colon rule all change what `make go-test` runs.
-			if _, after, _ := strings.Cut(text, ":"); strings.Trim(stripMakeComment(after), " \t") != "" {
+			if _, after, _ := strings.Cut(text, ":"); strings.Trim(after, " \t") != "" {
 				r.setUntyped("the go-test rule line has prerequisites or target-specific variables")
 			}
 		case r.wanted[target]:
@@ -487,23 +554,31 @@ func (r *makefileReader) rule(text, targets string) {
 			r.setIncomplete("the " + r.name + " has a .DEFAULT rule")
 			r.setUntyped("the " + r.name + " has a .DEFAULT rule, which answers any target")
 		case target == ".PHONY":
-			if _, after, _ := strings.Cut(text, ":"); r.goTestRules == 0 {
-				for _, prerequisite := range makeWords(stripMakeComment(after)) {
-					if prerequisite == "go-test" {
-						r.phonyGoTest = true
-					}
+			_, after, _ := strings.Cut(text, ":")
+			for _, prerequisite := range makeWords(after) {
+				if prerequisite == "go-test" {
+					r.phonyGoTest = true
 				}
 			}
 		case strings.HasPrefix(target, "."):
+			// .SUFFIXES and a suffix rule change the implicit rules.
+			r.setImplicit("the " + r.name + " has the special target " + target)
 			r.setUntyped("the " + r.name + " names the special target " + target + ", which this reader cannot evaluate")
+		case implicitSource(target):
+			// A rule for go-test.c makes it a source make ought to build.
+			r.setImplicit("the " + r.name + " has a rule for " + target)
 		case strings.Contains(target, "%"):
 			// A pattern rule serves every target it matches, so each one
-			// is declared and go-test is untyped.
+			// is declared and go-test is untyped; one that can serve a
+			// go-test.<suffix> source can start an implicit-rule chain.
 			if patternMatches(target, "go-test") {
 				if r.goTest == GoTestAbsent {
 					r.goTest = GoTestUnparsed
 				}
 				r.setUntyped("the pattern rule " + target + " applies to go-test")
+			}
+			if prefix, _, _ := strings.Cut(target, "%"); strings.HasPrefix("go-test.", prefix) || strings.HasPrefix(prefix, "go-test.") {
+				r.setImplicit("the " + r.name + " has the pattern rule " + target)
 			}
 			for want := range r.wanted {
 				if patternMatches(target, want) {
@@ -532,6 +607,20 @@ func (r *makefileReader) evaluate(line string) int {
 func (r *makefileReader) declared() Declared {
 	declared := Declared{GoEnv: []string{}, GoFlags: []string{}, GoTest: r.goTest, Languages: r.languages}
 	sort.Strings(declared.Languages)
+	switch {
+	case r.phonyGoTest:
+		// A .PHONY target is never built by an implicit rule and is never
+		// up to date.
+	case declared.GoTest == GoTestAbsent && r.implicit != "":
+		// Without an explicit rule make searches its built-in implicit
+		// rules, so whether `make go-test` runs anything is not known.
+		r.setIncomplete(r.implicit + ", from which a built-in implicit rule may build go-test")
+		r.setUntyped(r.implicit + ", from which a built-in implicit rule may build go-test")
+	case declared.GoTest == GoTestUnparsed && r.goTestFile:
+		// A rule with a recipe and no prerequisites is up to date when a
+		// file of its name exists, so make runs nothing.
+		r.setUntyped("the repository root holds a file named go-test and go-test is not .PHONY, so make go-test is up to date and runs nothing")
+	}
 	if r.incomplete != "" {
 		declared.Unreadable = r.incomplete + ", so its declared full scope cannot be read completely"
 	}
@@ -843,11 +932,116 @@ func trailingBackslashes(line string) int {
 	return count
 }
 
-func stripMakeComment(value string) string {
-	if index := strings.Index(value, "#"); index >= 0 {
-		return value[:index]
+func (r *makefileReader) setImplicit(reason string) {
+	if r.implicit == "" {
+		r.implicit = reason
 	}
-	return value
+}
+
+// implicitSource reports whether a rule target or a repository-root entry
+// can start one of make's built-in implicit-rule chains to go-test: a
+// go-test.<suffix> source (any suffix, since chains such as .y to .c to .o
+// pass through them), an RCS or SCCS master, or their directories.
+func implicitSource(name string) bool {
+	return strings.HasPrefix(name, "go-test.") || name == "go-test,v" || name == "s.go-test" ||
+		name == "RCS" || name == "SCCS" || name == "RCS/go-test,v" || name == "SCCS/s.go-test"
+}
+
+// listRoot reads the repository root's entries, which make reads as the
+// targets that exist: a go-test file is up to date, and a go-test.<suffix>
+// source can start an implicit-rule chain.
+func (r *makefileReader) listRoot(root string) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		r.setImplicit("the repository root cannot be listed")
+		return
+	}
+	for _, entry := range entries {
+		switch name := entry.Name(); {
+		case name == "go-test":
+			r.goTestFile = true
+		case implicitSource(name):
+			r.setImplicit("the repository root holds " + name)
+		}
+	}
+}
+
+// pure returns an error when text, expanded by make as it reads the line,
+// could do more than yield a string: a $ that is not $$, $(...) or ${...},
+// a function outside pureFunctions, a computed name, or a name whose
+// assigned, defined or inherited text does any of these. Every argument is
+// checked, even one make would never expand.
+func (r *makefileReader) pure(text string, depth int) error {
+	if depth > maxExpandDepth {
+		return errors.New("references that nest too deeply")
+	}
+	for index := 0; index < len(text); index++ {
+		if text[index] != '$' {
+			continue
+		}
+		if index+1 >= len(text) {
+			return errors.New("a $ that is not a reference")
+		}
+		opener, closer := text[index+1], byte(')')
+		switch opener {
+		case '$':
+			index++
+			continue
+		case '{':
+			closer = '}'
+		case '(':
+		default:
+			return errors.New("a $ that is not a $(...) or ${...} reference")
+		}
+		end, nesting := -1, 0
+		for scan := index + 1; scan < len(text) && end < 0; scan++ {
+			switch text[scan] {
+			case opener:
+				nesting++
+			case closer:
+				nesting--
+				if nesting == 0 {
+					end = scan
+				}
+			}
+		}
+		if end < 0 {
+			return errors.New("an unterminated reference")
+		}
+		body := text[index+2 : end]
+		name, arguments, function := body, "", false
+		if cut := strings.IndexAny(body, " \t"); cut >= 0 {
+			name, arguments, function = body[:cut], body[cut+1:], true
+			if !pureFunctions[name] {
+				return errors.New("make function " + name)
+			}
+		} else if before, after, found := strings.Cut(body, ":"); found {
+			// A substitution reference $(NAME:a=b) expands NAME.
+			name, arguments = before, after
+		}
+		if err := r.pure(arguments, depth+1); err != nil {
+			return err
+		}
+		if !function {
+			for position := 0; position < len(name); position++ {
+				if !referenceNameByte(name[position], position == 0) {
+					return errors.New("a reference that is not $(NAME) or ${NAME}")
+				}
+			}
+			for _, candidate := range r.texts[name] {
+				if err := r.pure(candidate, depth+1); err != nil {
+					return err
+				}
+			}
+			if inherited, ok := r.lookup(name); ok {
+				if err := r.pure(inherited, depth+1); err != nil {
+					return err
+				}
+			}
+		}
+		index = end
+	}
+	return nil
 }
 
 func appendUnique(values []string, value string) []string {

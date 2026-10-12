@@ -41,8 +41,9 @@ Contracts and decisions:
   `os.Stat` in make's order; none means absent); one go-test recipe line that is not a
   backslash continuation, after an optional `@`; `$(NAME)`/`${NAME}` references with matching
   delimiters to variables assigned at top level by `=`, `:=`, `::=` or `?=` (values kept
-  verbatim after the operator, so trailing blanks stay significant and a `#` is checked, not
-  stripped; `:=` expands immediately; `?=` takes an earlier Makefile value, then the environment,
+  verbatim after the operator, so trailing blanks stay significant; a `#` starts a comment
+  anywhere in a makefile line and is cut as make cuts it, keeping the blank before it; `:=`
+  expands immediately; `?=` takes an earlier Makefile value, then the environment,
   and is refused for a make built-in such as `CC`, `LINK.o` or any `MAKE*` name); an expanded
   recipe whose every byte is an ASCII letter, digit, `-_./=,`, space or tab, split on ASCII blank
   runs into `[NAME=VALUE ...] go test FLAGS ./...` without `PATH=`, `-json`, `-run` or `-skip`.
@@ -85,9 +86,25 @@ Contracts and decisions:
   nothing (make prints "Nothing to be done") and `absent` is what makes the planner report Go
   `INCOMPLETE` instead of running an empty target. A makefile assignment to `MAKEFLAGS`,
   `GNUMAKEFLAGS`, `MAKEFILES` or `.RECIPEPREFIX` is `INCOMPLETE` for the same reason as the
-  environment words. One known deviation stays in the safe direction: a stale file named `go-test`
-  in the root makes `make go-test` run nothing ("is up to date"), while the typed argv runs the
-  suite. This
+  environment words. Codex round 10 added, each probed: a `#` starts a comment anywhere in a
+  makefile line (`else# c` is an else, so the rule after it is read, never absent; `\#` is
+  `INCOMPLETE`); a line make expands as it reads it (a conditional, an else-if, a rule line with
+  its prerequisites, a `:=`/`::=` value, `+=`, `export`, an unrecognised line) may hold only `$$`,
+  `$(NAME)`/`${NAME}` references and the pure functions `subst patsubst strip findstring filter
+  filter-out sort word wordlist words firstword lastword dir notdir suffix basename addsuffix
+  addprefix join wildcard realpath abspath if or and`, checked recursively through every text the
+  makefile or the environment gives a referenced name (`=`, `?=`, `+=`, `define` bodies), every
+  argument included; `eval` reached through `$(call eval,...)`, `shell`, `error`, `foreach`,
+  `value`, a bare `$F` or a computed name marks the scope `INCOMPLETE` and go-test untyped
+  (round-10 finding 1 typed `-race` while make ran `-short`); and absence is claimed only when
+  make's built-in implicit rules cannot answer `make go-test`: a rule target or repository-root
+  entry `go-test.<suffix>`, `go-test,v`, `s.go-test`, `RCS` or `SCCS`, a `%` pattern rule whose
+  prefix can serve a `go-test.<suffix>` source, a `.SUFFIXES`/suffix rule, `vpath` or a `VPATH`
+  assignment make it `INCOMPLETE` (the root is listed with `os.ReadDir`, no process, even without
+  a makefile), while `.PHONY: go-test` is never built by an implicit rule and stays absent. The
+  earlier stale-file deviation is closed the same way: a root entry named `go-test` beside a
+  go-test rule that is not `.PHONY` is untyped, because make reports it up to date and runs
+  nothing. Unrecognised lines are now always `INCOMPLETE`. This
   repository's Makefile still types go-test: its line-49 `$(GATE_STEPS) ...: | gate-receipt-clear`
   sits under `ifneq ($(filter gate,$(or $(MAKECMDGOALS),gate)),)`, which is false for
   `make go-test`, and the 63-71 block holds no go-test rule
