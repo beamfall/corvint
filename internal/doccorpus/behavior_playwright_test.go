@@ -700,6 +700,82 @@ func TestPlaywrightWitnessImporter(t *testing.T) {
 			}
 		})
 	})
+	t.Run("DCP-V1-082 zero-witness result names the missing annotation types per test", func(t *testing.T) {
+		repo := newPlaywrightBehaviorRepo(t)
+		discovery := repo.discover(t)
+		request := repo.request(t, discovery, nil, nil, nil)
+		clean := repo.receiptIDs["lists items"]
+		keep := func(kinds ...string) func(spec, test map[string]any) {
+			return func(_, test map[string]any) {
+				result := asSlice(test["results"])[0].(map[string]any)
+				result["annotations"] = slices.DeleteFunc(asSlice(result["annotations"]), func(v any) bool {
+					return !slices.Contains(kinds, v.(map[string]any)["type"].(string))
+				})
+			}
+		}
+		cases := []struct {
+			name, reason string
+			edit         func(spec, test map[string]any)
+			missing      []string
+		}{
+			{"nothing published", "events-unobserved", keep(), []string{"events", "cleanup", "fixture"}},
+			{"only cleanup published", "events-unobserved", keep(PlaywrightCleanupAnnotation), []string{"events", "fixture"}},
+			{"events and fixture published", "cleanup-unobserved", keep(PlaywrightEventAnnotation, PlaywrightFixtureAnnotation), []string{"cleanup"}},
+			{"fixture absent", "fixture-role-mismatch", keep(PlaywrightEventAnnotation, PlaywrightCleanupAnnotation), []string{"fixture"}},
+			{"events malformed and cleanup absent", "event-malformed", func(_, test map[string]any) {
+				result := asSlice(test["results"])[0].(map[string]any)
+				result["annotations"] = []any{map[string]any{"type": PlaywrightEventAnnotation, "description": "{}"}}
+			}, []string{"cleanup", "fixture"}},
+			{"cleanup failed with every type published", "cleanup-failed", func(_, test map[string]any) {
+				result := asSlice(test["results"])[0].(map[string]any)
+				result["annotations"] = append(asSlice(result["annotations"]), map[string]any{"type": PlaywrightCleanupAnnotation, "description": "failed"})
+			}, nil},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				bundle := importPlaywright(t, request, "receipt", editPlaywrightReportTest(t, repo.report, "lists items", "alpha", c.edit))
+				var entry PlaywrightUnwitnessedTest
+				for _, candidate := range bundle.Unwitnessed {
+					if candidate.TestID == clean {
+						entry = candidate
+					}
+				}
+				if len(bundle.Witnesses) != 0 || entry.Reason != c.reason || !slices.Equal(entry.MissingAnnotations, c.missing) {
+					t.Fatalf("witnesses=%d entry=%+v want reason %q missing %v", len(bundle.Witnesses), entry, c.reason, c.missing)
+				}
+			})
+		}
+		t.Run("registered roles are named in the closed order", func(t *testing.T) {
+			test := BehaviorTest{Fixtures: []string{"seeded-items"}, Roles: []string{"admin"}}
+			published := []playwrightReportAnnotation{{Type: PlaywrightFixtureAnnotation, Description: "seeded-items"}, {Type: "unrelated"}}
+			if got := playwrightMissingAnnotations(published, test); !slices.Equal(got, []string{"events", "cleanup", "role"}) {
+				t.Fatalf("missing = %v", got)
+			}
+			if got := playwrightMissingAnnotations(nil, test); !slices.Equal(got, PlaywrightMissingAnnotationTypes) {
+				t.Fatalf("missing = %v", got)
+			}
+		})
+		t.Run("unregistered roles and non-annotation reasons name nothing", func(t *testing.T) {
+			raw, err := ImportPlaywrightWitnesses(behaviorAdapterRaw(t, request), "receipt", repo.report)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(raw), "missing_annotations") {
+				t.Fatalf("clean report names missing annotations: %s", raw)
+			}
+			bundle := importPlaywright(t, request, "receipt", editPlaywrightReportTest(t, repo.report, "lists items", "alpha", keep()))
+			for _, entry := range bundle.Unwitnessed {
+				if entry.TestID != clean && entry.MissingAnnotations != nil {
+					t.Fatalf("%s (%s) names %v", entry.TestID, entry.Reason, entry.MissingAnnotations)
+				}
+				for _, name := range entry.MissingAnnotations {
+					if !slices.Contains(PlaywrightMissingAnnotationTypes, name) || name == "role" {
+						t.Fatalf("missing annotation %q outside the registered need", name)
+					}
+				}
+			}
+		})
+	})
 }
 
 // playwrightEventAnnotation returns a copy of the index-th event annotation with its event edited.

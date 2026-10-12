@@ -1,0 +1,76 @@
+{
+ "all": {
+  "maps": 615,
+  "withCitation": 1,
+  "invalidOrError": 614,
+  "hunks": 156,
+  "tiers": {
+   "anchored": 0,
+   "cited": 156,
+   "held": 0,
+   "mechanical-proved": 0,
+   "unknown": 0
+  },
+  "annotationHunks": 0,
+  "invariantMaps": 0,
+  "specificity": {
+   "positive": 0,
+   "zero": 1,
+   "negative": 0
+  },
+  "specificityHistogram": {
+   "0": 1
+  },
+  "maxFanOutHistogram": {
+   "1": 1
+  }
+ },
+ "change": {
+  "maps": 615,
+  "withCitation": 1,
+  "invalidOrError": 614,
+  "hunks": 156,
+  "tiers": {
+   "anchored": 0,
+   "cited": 156,
+   "held": 0,
+   "mechanical-proved": 0,
+   "unknown": 0
+  },
+  "annotationHunks": 0,
+  "invariantMaps": 0,
+  "specificity": {
+   "positive": 0,
+   "zero": 1,
+   "negative": 0
+  },
+  "specificityHistogram": {
+   "0": 1
+  },
+  "maxFanOutHistogram": {
+   "1": 1
+  }
+ },
+ "chore": {
+  "maps": 0,
+  "withCitation": 0,
+  "invalidOrError": 0,
+  "hunks": 0,
+  "tiers": {
+   "anchored": 0,
+   "cited": 0,
+   "held": 0,
+   "mechanical-proved": 0,
+   "unknown": 0
+  },
+  "annotationHunks": 0,
+  "invariantMaps": 0,
+  "specificity": {
+   "positive": 0,
+   "zero": 0,
+   "negative": 0
+  },
+  "specificityHistogram": {},
+  "maxFanOutHistogram": {}
+ }
+}

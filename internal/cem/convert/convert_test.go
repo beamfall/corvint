@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -185,13 +186,18 @@ func TestCEMV1099ConvertSourceBinding(t *testing.T) {
 
 // TestCEMV1100ConvertCorpusIdempotent converts every committed corpus map
 // twice to identical bytes and proves a converted map is refused on reconvert.
+// After the V1-1277 migration every committed map is cem/1.0: a migrated map
+// (one with converter provenance) must equal the conversion of its
+// provenance-named source blob byte for byte (CEM-V1-230), and a stable map
+// without provenance must refuse and equal its bind commit's sidecar
+// (CEM-V1-231).
 func TestCEMV1100ConvertCorpusIdempotent(t *testing.T) {
 	dir := filepath.Join("..", "..", "..", ".corvint", "changes")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	n := 0
+	n, migrated := 0, 0
 	for _, e := range entries {
 		if !strings.HasSuffix(e.Name(), ".cem.json") {
 			continue
@@ -202,9 +208,26 @@ func TestCEMV1100ConvertCorpusIdempotent(t *testing.T) {
 		}
 		bind := BindCommitFromName(e.Name())
 		if wire.DeclaresStable(src) {
-			// A sealed cem/1.0 map refuses; its source bytes are not in the tree.
 			if _, _, err := Convert(src, Inputs{BindCommit: bind}); cemcode.CodeOf(err) != CodeSourceIsStable {
 				t.Fatalf("%s: stable map not refused: %v", e.Name(), err)
+			}
+			doc, err := wire.ParseStable(src)
+			if doc == nil {
+				t.Fatalf("%s: %v", e.Name(), err)
+			}
+			if p := doc.Provenance; p != nil {
+				source := sourceBlob(t, dir, p.SourceBlobOid)
+				if p.BindCommit != bind || BlobOid(source) != p.SourceBlobOid || sha256Hex(source) != p.SourceSha256 {
+					t.Fatalf("%s: provenance does not name its source blob", e.Name())
+				}
+				if again, _ := mustConvert(t, source, Inputs{BindCommit: bind}); !bytes.Equal(again, src) {
+					t.Fatalf("%s: committed bytes differ from the conversion of %s", e.Name(), p.SourceBlobOid)
+				}
+				migrated++
+			} else if bound := sourceBlob(t, dir, bind+":.corvint/change.cem.json"); !bytes.Equal(bound, src) {
+				// A natively produced stable map is the sidecar its bind
+				// commit tracks; a migrated map without provenance is not.
+				t.Fatalf("%s: stable map without provenance differs from its bind commit's sidecar", e.Name())
 			}
 			continue
 		}
@@ -218,10 +241,25 @@ func TestCEMV1100ConvertCorpusIdempotent(t *testing.T) {
 		}
 		n++
 	}
-	if n == 0 {
+	if n+migrated == 0 {
 		t.Fatal("no corpus maps converted")
 	}
-	t.Logf("converted %d corpus maps twice", n)
+	t.Logf("converted %d corpus maps twice; reconverted %d migrated maps from their source blobs", n, migrated)
+}
+
+// sourceBlob reads a migrated map's source blob from the repository's objects.
+func sourceBlob(t *testing.T, dir, oid string) []byte {
+	t.Helper()
+	out, err := exec.Command("git", "-C", dir, "cat-file", "blob", oid).Output()
+	if err != nil {
+		t.Skipf("NOT_RUN: source blob %s unavailable: %v", oid, err)
+	}
+	return out
+}
+
+func sha256Hex(b []byte) string {
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
 }
 
 // TestCEMV1100ConvertF0fda542 pins the 877-hunk map's converted bytes.

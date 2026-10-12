@@ -183,6 +183,9 @@ func docsCorpusOperationHelp(name string) string {
 	if name == "discover-playwright" || name == "witness-playwright" {
 		text.WriteString("\n" + playwrightReceiptHelp)
 	}
+	if name == "witness-playwright" {
+		text.WriteString("\n" + behaviorAnnotationHelp)
+	}
 	if name == "import-cases" || name == "search-cases" {
 		text.WriteString("\n" + legacyCasesHelp)
 	}

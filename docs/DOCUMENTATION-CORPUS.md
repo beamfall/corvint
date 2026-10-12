@@ -198,6 +198,169 @@ also bind exact CI node/shard, Playwright worker, database mode, project-set, sp
 topology; any declared-versus-observed mismatch refuses qualification before counting. A stability
 report is repeated-run evidence, not test adequacy, behavior parity or selection authority.
 
+### Playwright behavior witness walkthrough
+
+This walkthrough connects four steps (DCP-V1-080): the Playwright receipt producer, `discover-playwright`,
+committing the evidence, and `witness-playwright`. The result is a set of behavior runs that the
+behavior adapter can count in `runtime_witnessed_contracts`. Each command's own help repeats its part:
+`corvint docs corpus witness-playwright --help` prints the receipt guidance and the annotation contract.
+
+1. **Publish behavior annotations from the tests.** `witness-playwright` reads only the
+   annotations that a test attempt published (see the contract below). The shipped producer,
+   `internal/doccorpus/behavior-events.cjs` (DCP-V1-081), publishes them from a Playwright fixture,
+   so specs do not spell events by hand:
+
+   ```js
+   const { test: base } = require('@playwright/test');
+   const test = require('CORVINT/internal/doccorpus/behavior-events.cjs').extend(base);
+   test.use({ behaviorFixtures: ['seeded-items'] });
+   test('lists items', async ({ page, behavior }) => {
+     behavior.cleanup(async () => { /* remove the seeded items */ });
+     await page.goto('/items');
+     await behavior.expect({ id: 'items-visible', behavior: 'list-items', criterion: 'items-visible' })(page.locator('#count')).toHaveText('2');
+     await behavior.negativeControl('empty-hidden')(page.locator('#empty')).toBeHidden();
+     await page.locator('#done').click();
+   });
+   ```
+
+2. **Produce the qualified receipt and the report.** Run
+   `corvint-js-test-provider e2e --external-server ... --retain > evidence/receipt.json` exactly as the
+   receipt guidance in `corvint docs corpus discover-playwright --help` shows. That run replaces the
+   project's reporters, so it writes no report. Produce REPORT.json in a second, caller-run
+   Playwright run of the same config file and runner version, against the same running app:
+   `npx --no-install playwright test --config playwright.config.ts --reporter=json > evidence/report.json`.
+   The behavior annotations are read from this report run, not from the receipt run. The importer
+   checks each test's report outcome against the receipt, and credits a test only when both show
+   a single first attempt (retry 0) that passed. The report must name the same `configFile` as the
+   receipt, otherwise every test is `report-foreign-config`. The provider's `--keep-reporters` mode
+   runs Playwright through a generated config, so it is not a qualified way to produce this report.
+3. **Discover.** `corvint docs corpus discover-playwright --migration evidence/migration.json --config playwright.config.ts --playwright-list evidence/list.json --receipt evidence/receipt.json > evidence/discovery.json`
+   reads the receipt file unchanged and binds each listed test to its receipt identity.
+4. **Commit the evidence and write REQUEST.json.** Commit the receipt bytes unchanged at a tracked
+   path, beside the migration, discovery and reviewed inventories. Then add the receipt to
+   REQUEST.json as one more `inputs[]` entry: an `observed` input with `external-provider`
+   authority and a full-file anchor in the provider repository. `document` holds the exact
+   receipt bytes as one JSON string, and both `sha256` and `span_sha256` are the SHA-256 of those
+   bytes. `start_line` is 1 and `end_line` is the file's last line; the receipt is one line.
+   The reviewed flow, variation, candidate and test inputs and their mappings are those of
+   the behavior-adapter request above, so they are left out of this sample:
+
+<!-- DCP-V1-080 witness request example -->
+```json
+{
+  "schema": "corvint-behavior-adapter-request/1",
+  "provider_id": "behavior",
+  "provider_version": "1",
+  "contract_id": "items-contract",
+  "source": {"id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "revision": "2222222222222222222222222222222222222222"},
+  "revisions": {
+    "app": {"id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "revision": "1111111111111111111111111111111111111111"},
+    "PROVIDER_MEMBER": {"id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "revision": "2222222222222222222222222222222222222222"},
+    "docs_corpus": {"id": "cccccccccccccccccccccccccccccccccccccccc", "revision": "3333333333333333333333333333333333333333"}
+  },
+  "source_revision": "2222222222222222222222222222222222222222",
+  "documentation_revision": "3333333333333333333333333333333333333333",
+  "migration_input": "migration",
+  "discovery_input": "discovery",
+  "inputs": [
+    {
+      "id": "receipt",
+      "anchor": {
+        "repository": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "revision": "4444444444444444444444444444444444444444",
+        "path": "evidence/receipt.json",
+        "blob": "GIT_BLOB_OF_EVIDENCE_RECEIPT_JSON",
+        "sha256": "SHA256_OF_RECEIPT_BYTES",
+        "start_line": 1,
+        "end_line": 1,
+        "span_sha256": "SHA256_OF_RECEIPT_BYTES",
+        "symbol": "",
+        "region": "",
+        "authority": "external-provider",
+        "evidence_kind": "observed",
+        "reason": "retained qualified Playwright receipt"
+      },
+      "document": "RECEIPT_BYTES"
+    }
+  ],
+  "mappings": [],
+  "observations": []
+}
+```
+
+   The `migration` and `discovery` inputs have the same shape: the migration is `declared`, and the
+   discovery is `observed`. `4444...` is the later commit that retained the inputs; it is not
+   `source_revision` (see the self-referencing revision pitfall above).
+5. **Witness.** `corvint docs corpus witness-playwright --input evidence/request.json --receipt-input receipt --report evidence/report.json`
+   prints one `corvint-behavior-witness-import/1` bundle. `--receipt-input` names the request
+   input, not a file. Each entry in `witnesses` carries a behavior run `document` and its
+   `observation` link. To credit it, commit each run document unchanged as an `observed` input,
+   add the observation link to `observations`, and set the test's `runtime` to
+   `{"evidence": <that input's anchor>, "observation": <the link's id>}`. Then run `behavior-adapter` again.
+
+The annotation contract. The importer reads the passing attempt's `annotations` in published order.
+Unknown annotation types are ignored.
+
+| Annotation type | Description | Rule |
+| --- | --- | --- |
+| `corvint-behavior-event` | One closed JSON event | Keys `browser_context`, `page`, `frame`, `navigation`, `parent_page`, `behavior`, `criterion`, `matcher`, `locator`, `value`, `passed`, `sequence`, `kind`, `id`, and no others. `sequence` is 1, 2, 3, ... in publication order. `passed` is true. `browser_context`, `page`, `frame` and `id` are non-empty. `kind:id` is unique. At most 4096 events. |
+| `corvint-behavior-cleanup` | `passed` | Exactly one, published after cleanup ran. If none is published, the reason is `cleanup-unobserved`. If the value is `failed`, or more than one is published, the reason is `cleanup-failed`. |
+| `corvint-behavior-fixture` | A fixture name | One per registered fixture, equal to the test's `fixtures` in order. |
+| `corvint-behavior-role` | A role name | One per registered role, equal to the test's `roles` in order. |
+
+- `kind` is one of `page`, `assertion` or `negative-control`.
+- A `page` event names its `navigation`: one of `main-frame`, `frame`, `redirect`, `popup` or
+  `setup`. A `popup` also names its `parent_page`.
+- An `assertion` event counts only when it equals a registered assertion of the test on `id`,
+  `behavior`, `criterion`, `matcher`, `locator` and `value`.
+- A run counts as witnessed only if three things hold. Its events must equal the
+  `ordered_events` of each flow the test registers. Every registered assertion must have an equal
+  event. Every required page and negative control must have been seen.
+
+Reading an unwitnessed test. Each test without a witness names exactly one `reason`. For an
+annotation-stage reason, `missing_annotations` lists the needed annotation types that the attempt
+never published (DCP-V1-082). Those reasons are `events-unobserved`, `event-malformed`,
+`cleanup-unobserved`, `cleanup-failed` and `fixture-role-mismatch`. The types are listed in the
+order `events`, `cleanup`, `fixture`, `role`. `fixture` and `role` are listed only when the test
+registers fixtures or roles. A malformed or mismatched annotation that was published is not
+missing, so `missing_annotations` can be absent even when the reason is an annotation-stage reason.
+For example, a test that published nothing at all, with one registered fixture, reports
+`events-unobserved` with `missing_annotations` `["events", "cleanup", "fixture"]`.
+
+What the producer records:
+
+- It records an `assertion` only after Playwright's own `expect` matcher passes, and only when the
+  attempt gained no error while the matcher ran. The producer resolves `expect` from the project's
+  `playwright/test`; a caller cannot supply it. `matcher` is the method called, `locator` is the
+  Locator's selector, and `value` is the literal expected argument. The supported matchers are
+  `toHaveText`, `toContainText`, `toHaveValue`, `toHaveClass`, `toHaveId`, `toHaveAccessibleName`,
+  `toHaveAccessibleDescription`, `toHaveRole` (each with a non-empty string) and `toHaveCount`
+  (with a non-negative integer). The only matcher option it accepts is `timeout`.
+- In any other case the matcher still runs, but nothing is recorded. That covers a RegExp or array
+  expectation, other options, a locator inside a frame, a locator on a page that was not observed,
+  and anything that is not a Locator. The producer warns once on stderr.
+- `negativeControl(id)` records a `negative-control` event after any `to...` matcher passes,
+  including `.not`.
+- It records a `page` event for each main-frame commit of an http(s) URL in a page of the test's
+  `context` fixture. The `id` is the URL path, so the query and fragment never leave the browser.
+  Commits to the same path in a row are recorded once. `navigation` is `popup` for the first commit
+  of a page opened by an observed page, `redirect` when the committed request was redirected, and
+  `main-frame` otherwise. It never produces `frame` or `setup` navigations.
+- `browser_context` is `context-1`, and pages are `page-1`, `page-2`, and so on, in the order
+  they were observed. `frame` is `main`.
+- At teardown it runs the `behavior.cleanup` callbacks, last registered first. It then publishes
+  the fixtures, the roles, the events and one cleanup outcome. The outcome is `passed` only if at
+  least one callback was registered and every callback returned. With no callbacks registered it
+  publishes no cleanup outcome, so the test stays `cleanup-unobserved`.
+- If `corvint-behavior-*` annotations were published outside the producer, or there are more than
+  4096 events, it publishes one non-JSON event instead, and the test reports `event-malformed`.
+
+Limits. The producer reads private Playwright fields: Locator `_frame` and `_selector`, and Page
+`_opener`. These are qualified on Playwright 1.61.1. When one of them is absent, the producer
+records nothing for that page or locator. The importer cannot tell producer annotations from
+annotations a test pushed by hand. A path segment that carries a secret is published as part of
+the page `id`. Pages in browser contexts other than the `context` fixture are not observed.
+
 ## Rendering and maintenance
 
 Set manifest `profile.format` to `markdown` or `json`, and optional `profile.groups` to generic subject

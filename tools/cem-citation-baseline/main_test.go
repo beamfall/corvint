@@ -37,7 +37,7 @@ func write(t *testing.T, root, name, content string) {
 
 // bindMap prepares base..target, cites every hunk ordinal to its own span of
 // docs/spec.md and keeps the map as .corvint/changes/<target>.cem.json.
-func bindMap(t *testing.T, root, base, target string, hunks int) {
+func bindMap(t *testing.T, root, base, target, spec string, hunks int) {
 	t.Helper()
 	cem := func(args ...string) {
 		t.Helper()
@@ -46,9 +46,9 @@ func bindMap(t *testing.T, root, base, target string, hunks int) {
 			t.Fatalf("cem %v: exit %d\n%s%s", args, exit, out.String(), errb.String())
 		}
 	}
-	// The baseline measures the committed cem/0.x maps (V1-1262); the stable
-	// producer default (CEM-V1-140) is out of its scope until the migration.
-	cem("prepare", "--spec", "cem/0.2", "--base", base, "--target", target)
+	// The baseline measures the committed cem/0.x maps (V1-1262) and, since the
+	// producer cutover (CEM-V1-140), the cem/1.0 maps sealed after it.
+	cem("prepare", "--spec", spec, "--base", base, "--target", target)
 	for ordinal := 1; ordinal <= hunks; ordinal++ {
 		cem("cite", "--map", ".corvint/change.cem.json", "--hunk", strconv.Itoa(ordinal), "--evidence-path", "docs/spec.md", "--lines", "1:"+strconv.Itoa(ordinal), "--relation", "specification")
 	}
@@ -80,11 +80,21 @@ func TestBaselineDCWV0049SplitsRowsByCitationClass(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, ".corvint", "changes"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	bindMap(t, root, base, change, 2)
+	bindMap(t, root, base, change, "cem/0.2", 2)
 	git(t, root, "add", ".corvint/changes")
 	git(t, root, "commit", "-qm", "chore: bind the change map")
 	chore := git(t, root, "rev-parse", "HEAD")
-	bindMap(t, root, change, chore, 1)
+	bindMap(t, root, change, chore, "cem/0.2", 1)
+	git(t, root, "add", ".corvint/changes")
+	git(t, root, "commit", "-qm", "chore: bind the chore map")
+	choreBound := git(t, root, "rev-parse", "HEAD")
+	write(t, root, "c.txt", "c\n")
+	git(t, root, "add", "c.txt")
+	git(t, root, "commit", "-qm", "stable change")
+	stable := git(t, root, "rev-parse", "HEAD")
+	// A post-cutover cem/1.0 map reads its class from the status envelope,
+	// whose stable verifier needs the artifact root the tool now passes.
+	bindMap(t, root, choreBound, stable, "cem/1.0", 1)
 	broken := strings.Repeat("0", 40)
 	write(t, root, ".corvint/changes/"+broken+".cem.json", `{"spec":"cem/0.2","baseRevision":"`+base+`"}`)
 
@@ -101,8 +111,11 @@ func TestBaselineDCWV0049SplitsRowsByCitationClass(t *testing.T) {
 		}
 		rows[row["map"].(string)] = row
 	}
-	if len(rows) != 3 {
-		t.Fatalf("rows = %d; want 3\n%s", len(rows), stdout.String())
+	if len(rows) != 4 {
+		t.Fatalf("rows = %d; want 4\n%s", len(rows), stdout.String())
+	}
+	if row := rows[stable]; row["spec"] != "cem/1.0" || row["class"] != "change" || row["valid"] != true || row["hunksTotal"] != float64(1) {
+		t.Errorf("stable row = %v", row)
 	}
 	if row := rows[change]; row["class"] != "change" || row["valid"] != true || row["hunksTotal"] != float64(2) || row["distinctEvidence"] != float64(2) {
 		t.Errorf("change row = %v", row)
@@ -128,8 +141,8 @@ func TestBaselineDCWV0049SplitsRowsByCitationClass(t *testing.T) {
 		class, key string
 		want       float64
 	}{
-		{"all", "maps", 3}, {"all", "withCitation", 2}, {"all", "invalidOrError", 1}, {"all", "hunks", 3},
-		{"change", "maps", 1}, {"change", "hunks", 2}, {"chore", "maps", 1}, {"chore", "hunks", 1},
+		{"all", "maps", 4}, {"all", "withCitation", 3}, {"all", "invalidOrError", 1}, {"all", "hunks", 4},
+		{"change", "maps", 2}, {"change", "hunks", 3}, {"chore", "maps", 1}, {"chore", "hunks", 1},
 	} {
 		if got := summary[check.class][check.key]; got != check.want {
 			t.Errorf("summary %s.%s = %v; want %v", check.class, check.key, got, check.want)

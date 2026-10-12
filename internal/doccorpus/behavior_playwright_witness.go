@@ -65,7 +65,15 @@ type PlaywrightUnwitnessedTest struct {
 	Project string `json:"project"`
 	Reason  string `json:"reason"`
 	Detail  string `json:"detail"`
+	// MissingAnnotations names, in the closed order events, cleanup, fixture, role, each
+	// annotation type the passing attempt never published although the registered test needs it.
+	// It is present only for an annotation-stage reason (DCP-V1-082).
+	MissingAnnotations []string `json:"missing_annotations,omitempty"`
 }
+
+// PlaywrightMissingAnnotationTypes is the closed, ordered list of annotation types a zero-witness
+// result can name as missing.
+var PlaywrightMissingAnnotationTypes = []string{"events", "cleanup", "fixture", "role"}
 
 type playwrightReport struct {
 	Config struct {
@@ -192,9 +200,9 @@ func ImportPlaywrightWitnesses(requestRaw []byte, receiptInputID string, reportR
 			out.Unwitnessed = append(out.Unwitnessed, PlaywrightUnwitnessedTest{TestID: test.ID, Project: test.Project, Reason: shared, Detail: playwrightSharedDetail(shared)})
 			continue
 		}
-		witness, reason, detail := c.witness(test)
+		witness, reason, detail, missing := c.witness(test)
 		if reason != "" {
-			out.Unwitnessed = append(out.Unwitnessed, PlaywrightUnwitnessedTest{TestID: test.ID, Project: test.Project, Reason: reason, Detail: detail})
+			out.Unwitnessed = append(out.Unwitnessed, PlaywrightUnwitnessedTest{TestID: test.ID, Project: test.Project, Reason: reason, Detail: detail, MissingAnnotations: missing})
 			continue
 		}
 		out.Witnesses = append(out.Witnesses, witness)
@@ -267,7 +275,7 @@ func (c playwrightWitnessContext) repositoryPath(absolute string) (string, bool)
 }
 
 // witness returns the test's witness or the named reason it stays unwitnessed.
-func (c playwrightWitnessContext) witness(test BehaviorTest) (PlaywrightWitness, string, string) {
+func (c playwrightWitnessContext) witness(test BehaviorTest) (PlaywrightWitness, string, string, []string) {
 	identity := c.receipt.Playwright.Identity
 	var native *jstestprovider.Anchor
 	fullName := ""
@@ -276,49 +284,49 @@ func (c playwrightWitnessContext) witness(test BehaviorTest) (PlaywrightWitness,
 			continue
 		}
 		if outcome.Project == nil || outcome.Project.Name != test.Project {
-			return PlaywrightWitness{}, "foreign-project", "qualified receipt ran this test under another project"
+			return PlaywrightWitness{}, "foreign-project", "qualified receipt ran this test under another project", nil
 		}
 		mapped, ok := c.repositoryPath(outcome.Anchor.File)
 		if !ok || mapped != test.Evidence.Path || identity.TestFileDigests[outcome.Anchor.File] != test.Evidence.SHA256 || outcome.Anchor.Line < test.Evidence.Start || outcome.Anchor.Line > test.Evidence.End || outcome.Name != test.Title {
-			return PlaywrightWitness{}, "source-mismatch", "qualified receipt test file, bytes, line or title differ from the registered test"
+			return PlaywrightWitness{}, "source-mismatch", "qualified receipt test file, bytes, line or title differ from the registered test", nil
 		}
 		if native != nil {
-			return PlaywrightWitness{}, "report-ambiguous", "qualified receipt has more than one outcome with this test identity"
+			return PlaywrightWitness{}, "report-ambiguous", "qualified receipt has more than one outcome with this test identity", nil
 		}
 		native, fullName = outcome.Anchor, outcome.FullName
 	}
 	if native == nil {
-		return PlaywrightWitness{}, "receipt-test-missing", "qualified receipt has no outcome with this test identity"
+		return PlaywrightWitness{}, "receipt-test-missing", "qualified receipt has no outcome with this test identity", nil
 	}
 	if c.sharedReceiptTuple(native, test.Project, fullName) {
-		return PlaywrightWitness{}, "report-ambiguous", "another qualified receipt outcome has this test's file, line, project and full title"
+		return PlaywrightWitness{}, "report-ambiguous", "another qualified receipt outcome has this test's file, line, project and full title", nil
 	}
 	observed, ok := c.observedTest(test)
 	if !ok {
-		return PlaywrightWitness{}, "receipt-test-missing", "qualified receipt has no projected result for this test and project"
+		return PlaywrightWitness{}, "receipt-test-missing", "qualified receipt has no projected result for this test and project", nil
 	}
 	if reason, detail := playwrightReceiptState(observed); reason != "" {
-		return PlaywrightWitness{}, reason, detail
+		return PlaywrightWitness{}, reason, detail, nil
 	}
 	entry, reason, detail := c.reportEntry(test, native.File, native.Line, fullName)
 	if reason != "" {
-		return PlaywrightWitness{}, reason, detail
+		return PlaywrightWitness{}, reason, detail, nil
 	}
 	if reason, detail := playwrightReportState(entry); reason != "" {
-		return PlaywrightWitness{}, reason, detail
+		return PlaywrightWitness{}, reason, detail, nil
 	}
 	result := entry.results[0]
 	events, fixtures, roles, reason, detail := playwrightAnnotations(result.Annotations)
 	if reason != "" {
-		return PlaywrightWitness{}, reason, detail
+		return PlaywrightWitness{}, reason, detail, playwrightMissingAnnotations(result.Annotations, test)
 	}
 	if !slices.Equal(fixtures, test.Fixtures) || !slices.Equal(roles, test.Roles) {
-		return PlaywrightWitness{}, "fixture-role-mismatch", "observed fixture or role annotations differ from the registered test"
+		return PlaywrightWitness{}, "fixture-role-mismatch", "observed fixture or role annotations differ from the registered test", playwrightMissingAnnotations(result.Annotations, test)
 	}
 	run := BehaviorRun{Fixtures: fixtures, Roles: roles, Revisions: c.registry.Revisions, Schema: "corvint-behavior-run/1", ContractID: c.registry.ContractID, ContractSHA256: c.registry.ContractSHA256, SourceRevision: c.registry.SourceRevision, DocumentationRevision: c.registry.DocumentationRevision, RunSHA256: c.digest, TestID: test.ID, Project: test.Project, Retry: *result.Retry, Cleanup: "passed", Events: events}
 	document, err := Encode(run)
 	if err != nil {
-		return PlaywrightWitness{}, "event-malformed", "behavior run exceeds its bound"
+		return PlaywrightWitness{}, "event-malformed", "behavior run exceeds its bound", nil
 	}
 	link := ObservationLink{
 		ID: c.request.ProviderID + ":run:" + test.ID, Subject: c.request.ProviderID + ":test:" + test.ID,
@@ -326,7 +334,7 @@ func (c playwrightWitnessContext) witness(test BehaviorTest) (PlaywrightWitness,
 		SourceRevision: c.request.SourceRevision, RunID: c.digest,
 		SourcePaths: map[string]string{identity.ConfigFile: c.config, native.File: test.Evidence.Path},
 	}
-	return PlaywrightWitness{TestID: test.ID, Project: test.Project, Title: test.Title, Retry: *result.Retry, ReportTestID: entry.id, ReportSHA256: c.reportID, RunSHA256: c.digest, Document: string(document), SHA256: Digest(document), Observation: link}, "", ""
+	return PlaywrightWitness{TestID: test.ID, Project: test.Project, Title: test.Title, Retry: *result.Retry, ReportTestID: entry.id, ReportSHA256: c.reportID, RunSHA256: c.digest, Document: string(document), SHA256: Digest(document), Observation: link}, "", "", nil
 }
 
 func (c playwrightWitnessContext) observedTest(test BehaviorTest) (testvaliditydoc.Test, bool) {
@@ -461,4 +469,31 @@ func playwrightAnnotations(annotations []playwrightReportAnnotation) ([]Behavior
 		return nil, nil, nil, "cleanup-failed", "the passing attempt did not publish exactly one passed cleanup"
 	}
 	return events, fixtures, roles, "", ""
+}
+
+// playwrightMissingAnnotations names the annotation types the passing attempt never published
+// although the registered test needs them: events and cleanup always, fixture and role only when
+// the test registers fixtures or roles. The order is PlaywrightMissingAnnotationTypes; nil means
+// every needed type was published at least once, so the umbrella reason alone explains the defect.
+func playwrightMissingAnnotations(annotations []playwrightReportAnnotation, test BehaviorTest) []string {
+	published := map[string]bool{}
+	for _, annotation := range annotations {
+		published[annotation.Type] = true
+	}
+	needed := []struct {
+		name, annotation string
+		required         bool
+	}{
+		{"events", PlaywrightEventAnnotation, true},
+		{"cleanup", PlaywrightCleanupAnnotation, true},
+		{"fixture", PlaywrightFixtureAnnotation, len(test.Fixtures) > 0},
+		{"role", PlaywrightRoleAnnotation, len(test.Roles) > 0},
+	}
+	var missing []string
+	for _, kind := range needed {
+		if kind.required && !published[kind.annotation] {
+			missing = append(missing, kind.name)
+		}
+	}
+	return missing
 }
