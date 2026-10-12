@@ -846,16 +846,21 @@ CEM-V1-056	docs/specs/cem-stable-v1.md	428	A tampered artifact is the verifier's
 CEM-V1-057	docs/specs/cem-stable-v1.md	436	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in
 CEM-V1-058	docs/specs/cem-stable-v1.md	439	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,
 CEM-V1-059	docs/specs/cem-stable-v1.md	444	A stable universe verification is a read. It MUST NOT change the repository HEAD
-CEM-V1-070	docs/specs/cem-stable-v1.md	485	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the
-CEM-V1-071	docs/specs/cem-stable-v1.md	486	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v
-CEM-V1-072	docs/specs/cem-stable-v1.md	487	A report built over a stable source MUST take profile `corvint-witness-stable/0`
-CEM-V1-073	docs/specs/cem-stable-v1.md	488	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`
-CEM-V1-074	docs/specs/cem-stable-v1.md	489	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a
-CEM-V1-075	docs/specs/cem-stable-v1.md	490	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab
-CEM-V1-076	docs/specs/cem-stable-v1.md	491	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and
-CEM-V1-077	docs/specs/cem-stable-v1.md	492	The console chain pane MUST admit `cem/1.0` in its closed profile registry only
-CEM-V1-078	docs/specs/cem-stable-v1.md	493	Each criterion binding, runner receipt (with its execution authority, source bin
-CEM-V1-079	docs/specs/cem-stable-v1.md	494	The registry stays closed: an unsupported profile, a near-stable spec, an unknow
+CEM-V1-060	docs/specs/cem-stable-v1.md	483	Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first ru
+CEM-V1-061	docs/specs/cem-stable-v1.md	487	An accepted export MUST write a new directory outside the worktree (the 0.x outp
+CEM-V1-062	docs/specs/cem-stable-v1.md	494	The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem
+CEM-V1-063	docs/specs/cem-stable-v1.md	498	`ReadStable` MUST refuse a bundle with a missing declared file
+CEM-V1-064	docs/specs/cem-stable-v1.md	524	A stable export MUST refuse `--witness` with `invalid-arguments` before
+CEM-V1-070	docs/specs/cem-stable-v1.md	576	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the
+CEM-V1-071	docs/specs/cem-stable-v1.md	577	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v
+CEM-V1-072	docs/specs/cem-stable-v1.md	578	A report built over a stable source MUST take profile `corvint-witness-stable/0`
+CEM-V1-073	docs/specs/cem-stable-v1.md	579	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`
+CEM-V1-074	docs/specs/cem-stable-v1.md	580	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a
+CEM-V1-075	docs/specs/cem-stable-v1.md	581	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab
+CEM-V1-076	docs/specs/cem-stable-v1.md	582	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and
+CEM-V1-077	docs/specs/cem-stable-v1.md	583	The console chain pane MUST admit `cem/1.0` in its closed profile registry only
+CEM-V1-078	docs/specs/cem-stable-v1.md	584	Each criterion binding, runner receipt (with its execution authority, source bin
+CEM-V1-079	docs/specs/cem-stable-v1.md	585	The registry stays closed: an unsupported profile, a near-stable spec, an unknow
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	350	The default `verify` path refuses a strictly parsed JSON object whose exact
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	354	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	357	Only that exact case changes. A duplicate, non-string, differently cased,

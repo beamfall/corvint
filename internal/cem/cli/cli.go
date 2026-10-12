@@ -115,7 +115,7 @@ var cemActions = map[string]cemAction{
 	},
 	"provenance": {arguments: []string{"--commit"}, required: []string{"--commit"}},
 	"export": {
-		arguments: []string{"--map", "--expected-base", "--target", "--output", "--witness"},
+		arguments: []string{"--map", "--expected-base", "--target", "--output", "--witness", "--artifacts"},
 		required:  []string{"--map", "--expected-base", "--target", "--output"},
 		paths:     []string{"--map"},
 	},
@@ -133,8 +133,8 @@ var cemActionOrder = []string{"begin", "prepare", "cite", "mark", "verify", "sta
 var GitNotes func(ctx context.Context, root, action string, values map[string]string) (map[string]any, error)
 
 // Export serves export (internal/receiptbundle), installed by the binary for
-// the same reason as GitNotes.
-var Export func(ctx context.Context, root string, values map[string]string) (map[string]any, error)
+// the same reason as GitNotes; cem/1.0 admits callerRoot (CEM-V1-060).
+var Export func(ctx context.Context, root, callerRoot string, values map[string]string) (map[string]any, error)
 
 func quotedChoices(values []string) string {
 	quoted := make([]string, 0, len(values))
@@ -463,7 +463,7 @@ func dispatchCEMWithOCM(ctx context.Context, root, callerRoot string, arguments 
 		}
 	case "export":
 		if Export != nil {
-			return Export(ctx, root, flags.values)
+			return Export(ctx, root, callerRoot, flags.values)
 		}
 	case "status", "verify", "report":
 		maxUnknown, err := flags.limit("--max-unknown")
