@@ -176,6 +176,11 @@
       "conformance/divergence-register.md"
     ],
     "internal/breakagemap": [],
+    "internal/cem/convert": [
+      ".corvint/changes/",
+      "conformance/cem-0.1/",
+      "protocol/cem-0.3/vectors/manifest.json"
+    ],
     "internal/cem/gitauth": [],
     "internal/cem/patch": [
       "interop/cem-0.1/"
