@@ -138,7 +138,7 @@ expect 3 'outcome=incomplete refused=prepare'
 grep -q 'different base or patch' "$out/prepare.out" "$out/prepare.stderr" || fail 'r-stale refusal not retained'
 [ "$(git -C "$repo" hash-object .corvint/change.cem.json)" = "$map_before" ] || fail 'r-stale replaced the map'
 
-sed 's#"spec": *"cem/0.2"#"spec":"cem/9.9"#' "$repo/.corvint/change.cem.json" > "$test_root/unsupported.json"
+sed 's#"spec": *"cem/[0-9.]*"#"spec":"cem/9.9"#' "$repo/.corvint/change.cem.json" > "$test_root/unsupported.json"
 cp "$test_root/unsupported.json" "$repo/.corvint/change.cem.json"
 run r-unsupported review-change.sh "${review[@]}"
 expect 3 'outcome=incomplete refused=prepare'
@@ -190,9 +190,9 @@ git -C "$ci" commit -qam later
 run c-stale ci-verify.sh "${pins[@]}" CEM_HEAD_SHA="$(git -C "$ci" rev-parse HEAD)"
 expect 1 'outcome=rejected exit=1'
 
-# Unsupported: a cem/0.2 map from `cem prepare` needs verify-pr.sh, not this verifier.
+# Unsupported: a cem/0.2 map from `cem prepare --spec cem/0.2` needs verify-pr.sh, not this verifier.
 git -C "$ci" reset -q --hard "$ci_change"
-"$corvint_bin" --root "$ci" cem prepare --base "$ci_base" --target HEAD > /dev/null
+"$corvint_bin" --root "$ci" cem prepare --spec cem/0.2 --base "$ci_base" --target HEAD > /dev/null
 git -C "$ci" add .corvint/change.cem.json
 git -C "$ci" commit -qm 'cem/0.2 evidence'
 run c-unsupported ci-verify.sh "${pins[@]}" CEM_HEAD_SHA="$(git -C "$ci" rev-parse HEAD)"

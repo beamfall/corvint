@@ -319,7 +319,6 @@ func TestCoreStableReadExplicitRefusals(t *testing.T) {
 		{"verify patch", stable("verify", "--patch", "x.patch"), cemcode.InvalidArguments, "cem/1.0 verify does not accept --patch"},
 		{"status patch", stable("status", "--patch", "x.patch"), cemcode.InvalidArguments, "cem/1.0 status does not accept --patch"},
 		{"verify ceiling", stable("verify", "--max-unknown", "0"), cemcode.InvalidArguments, "cem/1.0 verify does not accept policy ceilings"},
-		{"status ceiling", stable("status", "--max-mechanical", "1"), cemcode.InvalidArguments, "cem/1.0 status does not accept policy ceilings"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			exit, envelope, refusal := runCoreRead(t, f.repo, c.arguments...)
@@ -405,4 +404,44 @@ func legacyCanonicalMap(t *testing.T) []byte {
 		t.Fatalf("legacy fixture does not parse as cem/0.3: %v", err)
 	}
 	return data
+}
+
+// TestCEMV1145StatusCeilings checks the stable status policy ceilings: counts
+// and policyIssues sit beside the unmodified verifier result, a ceiling the map
+// meets keeps exit 0, an exceeded one exits 1 with ok false, and verify still
+// refuses ceilings (CEM-V1-145).
+func TestCEMV1145StatusCeilings(t *testing.T) {
+	f := materializeStableRead(t)
+	// Without ceilings the status keeps the CEM-V1-017 shape: no counts.
+	baseline, verified := requireCoreMatchesVerifyStable(t, "status", f, f.artifacts)
+	if baseline != 0 {
+		t.Fatalf("baseline exit %d", baseline)
+	}
+	met := append(coreStableArguments("status", f, f.artifacts), "--max-unknown", "0", "--max-mechanical", "1")
+	exit, envelope, refusal := runCoreRead(t, f.repo, met...)
+	if exit != 0 || refusal != nil || envelope["ok"] != true || envelope["state"] != "accepted" {
+		t.Fatalf("met ceilings: exit %d envelope %v refusal %v", exit, envelope, refusal)
+	}
+	counts, _ := envelope["counts"].(map[string]any)
+	if counts["mechanical"] != float64(1) || counts["unknown"] != float64(0) {
+		t.Fatalf("counts = %v", counts)
+	}
+	if issues, _ := envelope["policyIssues"].([]any); len(issues) != 0 {
+		t.Fatalf("policyIssues = %v", issues)
+	}
+	if !reflect.DeepEqual(envelope["stableVerification"], verified) {
+		t.Fatal("ceilings changed the embedded verifier result")
+	}
+	exceeded := append(coreStableArguments("status", f, f.artifacts), "--max-mechanical", "0")
+	exit, envelope, refusal = runCoreRead(t, f.repo, exceeded...)
+	if exit != 1 || refusal != nil || envelope["ok"] != false || envelope["state"] != "accepted" {
+		t.Fatalf("exceeded ceiling: exit %d envelope %v refusal %v", exit, envelope, refusal)
+	}
+	if issues, _ := envelope["policyIssues"].([]any); len(issues) != 1 {
+		t.Fatalf("policyIssues = %v", issues)
+	}
+	exit, envelope, refusal = runCoreRead(t, f.repo, append(coreStableArguments("verify", f, f.artifacts), "--max-unknown", "0")...)
+	if exit != 2 || envelope != nil || refusal["code"] != cemcode.InvalidArguments {
+		t.Fatalf("verify ceiling: exit %d envelope %v refusal %v", exit, envelope, refusal)
+	}
 }

@@ -507,7 +507,7 @@ func TestCEMV1057StableUniverseProfileSwapsRefuse(t *testing.T) {
 	requireNoUniverse(t, universe, err, cemcode.UnsupportedSpec)
 }
 
-// TestCEMV1058LegacyOCMLRFAdmissionUnchanged (CEM-V1-058): old OCM/LRF admission is unchanged and never reads a stable map.
+// TestCEMV1058LegacyOCMLRFAdmissionUnchanged (CEM-V1-058, CEM-V1-149): old OCM/LRF admission is unchanged; LRF never reads a stable map, and OCM admits one only when the stable verifier accepts it against the repository root as artifact root, so a bound map whose artifacts live elsewhere fails closed.
 func TestCEMV1058LegacyOCMLRFAdmissionUnchanged(t *testing.T) {
 	f := makeStableUniverseFixture(t)
 	ctx := context.Background()
@@ -527,8 +527,8 @@ func TestCEMV1058LegacyOCMLRFAdmissionUnchanged(t *testing.T) {
 		OCMPath: ".corvint/stable.ocm.json", CEMPath: ".corvint/stable.cem.json",
 		ExpectedBase: f.base, Target: f.target, ExpectedBaseGiven: true, TargetGiven: true,
 	})
-	if result != nil || CodeOf(err) != cemcode.UnsupportedSpec {
-		t.Fatalf("ocm read reduced a stable map: result=%+v err=%v", result, err)
+	if err != nil || result == nil || result.State != "invalid" || CodeOf(result.VerificationCause) != "artifact-unavailable" {
+		t.Fatalf("ocm read admitted an unverified stable map: err=%v", err)
 	}
 	before, err := os.ReadFile(filepath.Join(f.root, ".corvint/stable.ocm.json"))
 	if err != nil {
@@ -537,8 +537,8 @@ func TestCEMV1058LegacyOCMLRFAdmissionUnchanged(t *testing.T) {
 	if _, err := PrepareOCM(ctx, f.root, PrepareOptions{
 		MapPath: ".corvint/stable.ocm.json", CEMPath: ".corvint/stable.cem.json", IntentPath: "docs/specs/intent.md",
 		ExpectedBase: f.base, Target: f.target, Replace: true,
-	}); CodeOf(err) != cemcode.UnsupportedSpec {
-		t.Fatalf("ocm prepare wrote from a stable map: %v", err)
+	}); CodeOf(err) != "artifact-unavailable" {
+		t.Fatalf("ocm prepare wrote from an unverified stable map: %v", err)
 	}
 	after, err := os.ReadFile(filepath.Join(f.root, ".corvint/stable.ocm.json"))
 	if err != nil || !bytes.Equal(before, after) {
@@ -547,8 +547,8 @@ func TestCEMV1058LegacyOCMLRFAdmissionUnchanged(t *testing.T) {
 	if _, err := LinkOCM(ctx, f.root, LinkOptions{
 		MapPath: ".corvint/stable.ocm.json", CEMPath: ".corvint/stable.cem.json", Obligation: "OCM-TEST-002",
 		Hunks: []string{f.linkedHunk}, ExpectedBase: f.base, Target: f.target,
-	}); CodeOf(err) != cemcode.UnsupportedSpec {
-		t.Fatalf("ocm link wrote from a stable map: %v", err)
+	}); CodeOf(err) != "invalid-cem" {
+		t.Fatalf("ocm link wrote from an unverified stable map: %v", err)
 	}
 	if after, err := os.ReadFile(filepath.Join(f.root, ".corvint/stable.ocm.json")); err != nil || !bytes.Equal(before, after) {
 		t.Fatalf("refused link changed the OCM map: %v", err)

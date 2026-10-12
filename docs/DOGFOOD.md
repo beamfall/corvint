@@ -137,7 +137,9 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `corvint ocm mark` (section 5) is still manual and is dropped by the next commit.
 8. Inspect what a reviewer sees: `corvint cem report` and `corvint ocm report` (section 6), and
    `corvint frontier --cem .corvint/change.cem.json --ocm .corvint/change.ocm.001.json
-   --expected-base $BASE --target HEAD`, whose exit 1 is a valid open frontier. These paths and
+   --expected-base $BASE --target HEAD`, whose exit 1 is a valid open frontier. Frontier admits
+   only a `cem/0.2` map: over the default `cem/1.0` map it exits 2 `unsupported-frontier-context`,
+   so that view is not produced until Frontier reads `cem/1.0` (V1-1276). These paths and
    `--target HEAD` hold only before step 10; after the seal, `cem report` takes section 6's sealed
    form (`.corvint/changes/<bind-sha>.cem.json` and `--target <bind-sha>`).
 9. Run `make dogfood-check BASE=$BASE`. Expected: one `dogfood-check: SUMMARY cem=STATE hunks=N
@@ -167,7 +169,10 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
     `corvint cem status` with `--max-unknown 0 --max-mechanical 0`, expected `ready-for-ci`
     (raise `--max-unknown` only to the count of the map's `"disposition": "unknown"` hunks whose
     `path` is absent at `$BASE` per `git cat-file -e $BASE:<path>`, never to a number taken from
-    the handed-off report); that
+    the handed-off report); for a `cem/1.0` map (V1-1276) both commands also take
+    `--artifacts "$PWD"` and full commit IDs (`--target "$(git rev-parse HEAD)"`; the stable
+    verifier refuses `HEAD`) and report the stable result, expected `"outcome":"ACCEPT"` with that
+    base and target, and status `"state":"accepted"` (`CEM-V1-145`, `CEM-V1-147`); that
     `git diff-tree -r -M --no-commit-id --name-status HEAD SEAL` prints only
     `R100 .corvint/change.cem.json .corvint/changes/<bind-commit>.cem.json` (tab-separated); and
     the semantics of the cited hunks and the handed-off reports (section 6).
@@ -328,7 +333,7 @@ $ make dogfood-seal BASE=BASE_SHA
 
 `dogfood-seal` reruns `dogfood-check` and, only on PASS, commits `chore: seal change evidence`,
 which does nothing but rename `.corvint/change.cem.json` to
-`.corvint/changes/<bind-commit>.cem.json`. The CEM is bound and checked at the fixed `cem/0.2`
+`.corvint/changes/<bind-commit>.cem.json`. The CEM is bound and checked at the fixed sidecar
 path, and the seal moves it out of that one shared tracked path, so two open branches never edit
 the same file (decision 0319). A sealed HEAD is refused by `dogfood-check` (`sealed-head`); check
 its parent instead. A branch that merged or stacked on sealed changes binds against its own,
@@ -344,8 +349,14 @@ and the prepared but uncommitted `.corvint/change.cem.json` is the one tracked p
 modified; the OCM maps and the report are ignored paths and do not make the worktree dirty.
 
 The first `dogfood-change` prepares and cites the tracked CEM. That CEM must itself be committed
-before strict status can accept it; the `cem/0.2` profile self-excludes the sidecar from its mapped
-patch so the commit does not create a recursive self-citation. The second `dogfood-change` resolves
+before strict status can accept it; the canonical patch self-excludes the sidecar, so the commit
+does not create a recursive self-citation. Since V1-1276 `cem prepare` writes a `cem/1.0` map by
+default (`CEM-V1-140`); the loop cites, counts, checks and seals it like a `cem/0.x` map and runs
+its `cem status` with `--artifacts <absolute repository root>` (`CEM-V1-146`, `CEM-V1-147`). A
+`cem/0.x` sidecar left by an earlier run is refused as a different spec and regenerated with
+`--replace` on the first pass. `corvint cem prepare --spec cem/0.2` keeps the `cem/0.x` producer
+until V1-1278 removes it; any other `--spec` is refused. A change that alters the `cem status`
+output the loop records, as V1-1276 itself does, declares `DOGFOOD_OUTPUT_CHANGE=DCW-V0-047`. The second `dogfood-change` resolves
 the new `HEAD`; prepare resumes and re-citing the same plan is idempotent, so the worktree stays clean while the report is
 regenerated with `"complete": true`. `dogfood-change` reruns prepare with `--replace` only when
 prepare refused the existing map with the exact `CEM-PILOT-018` base-or-patch mismatch line; every
@@ -449,9 +460,11 @@ repository-configured filter, hook or merge driver (a configuration Core's harde
 read safely refuses `worktree-status-unavailable`), and refuses a `TMPDIR` inside the repository. Its
 constituents are the `.corvint/changes/<bind>.cem.json` files `BASE..HEAD` adds. For each it
 requires the bind commit in `HEAD`, the sealed bytes equal to that commit's
-`.corvint/change.cem.json`, a canonical `cem/0.2` or `cem/0.3` map, and `cem status --max-mechanical 0`
+`.corvint/change.cem.json`, a canonical `cem/0.2` or `cem/0.3` map with `cem status --max-mechanical 0`
 output that reports canonical `ready-for-ci` verification of exactly that bind against the CEM's own
-base (a zero exit alone is not evidence), printing `CONSTITUENT bind=... state=...`. It then requires every commit of the range to sit in
+base, or a `cem/1.0` map whose status, run with `--artifacts <absolute repository root>`, reports
+`ok`, `accepted` and a stable `ACCEPT` of exactly that base and bind (`CEM-V1-148`; a zero exit
+alone is not evidence), printing `CONSTITUENT bind=... state=...`. It then requires every commit of the range to sit in
 a constituent's own range, to be its rename-only seal commit, or to be a two-parent merge whose tree
 is its first parent's tree or the tree `git merge-tree` derives with the default, `-Xours` or
 `-Xtheirs` strategy (`MERGE <sha> derivation=...`), derived in a private scratch repository that
@@ -539,7 +552,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
 - `DOGFOOD-BIND-007`: a hunk whose intent no stable base content records (for example an intent
   added or removed inside the range) is not cited. A fixing commit that removes its backlog entry
   MUST cite a stable owning spec requirement or accepted decision instead. The producer reads a
-  requested span from `baseRevision` (`internal/cem/workflow/commands.go:334-351@d53a3b0c`), but
+  requested span from `baseRevision` (`internal/cem/workflow/commands.go:455-472@d53a3b0c`), but
   both its stability precheck and canonical target-drift verification reject that removed span
   (`internal/cem/verify/verify.go:442-497@92b33007`). A backlog entry that was the only recorded
   intent therefore binds as `NOT_PRODUCED`, never as an
@@ -645,8 +658,8 @@ map with the stable member `role`, `seal-chore` when a `.corvint/changes/` path 
 `bind-chore` otherwise, and `cem status --citation` reports it as `citationClass`
 `{"class": "chore", ...}` beside the stable result, never inside it (`DCW-V0-049`,
 `CEM-V1-095`, `CEM-V1-106`); a change map has no role and is class `change`. A Core `cem/0.x`
-map never carries a role, and Core prepares `cem/0.2` today, so no committed map is marked yet.
-The stable producer cutover (V1-1276) must cite V1-1281 before it lands. To measure citation
+map never carries a role. Core prepares `cem/1.0` since V1-1276, so the mark is live for every
+chore bound after it (`CEM-V1-147`). To measure citation
 support with chore maps kept apart, run
 `GOTOOLCHAIN=local go run ./tools/cem-citation-baseline --root . --maps .corvint/changes --summary SUMMARY.json > ROWS.jsonl`:
 it writes one baseline row per map with its class, and a summary for all maps and for each
@@ -725,6 +738,9 @@ the validated base-absent intent count. `REASONED_UNKNOWN_COUNT` is the map's ot
 effective ceiling for unreasoned unknown hunks remains zero.
 Preparation ignores an inherited target-side sidecar, then its returned literal
 `--target HEAD` action independently resolves the final revision after the candidate is committed.
+A `cem/1.0` map, the prepare default since V1-1276, is read only with full commit IDs and
+`--artifacts <absolute repository root>`: its returned action names the resolved base and target
+and that root (`CEM-V1-146`), so after the candidate commit pass `--target "$(git rev-parse HEAD)"`.
 The sidecar is excluded from its own patch, avoiding recursive self-citation.
 
 ### 5. Close every owning-spec obligation

@@ -246,9 +246,16 @@ binding=$(git -C "$repo" commit-tree "$tree" -p "$target" \
   -m "chore: retroactively bind $range_label to a CEM" ${unknown_message[@]+"${unknown_message[@]}"} \
   -m 'Corvint-Dogfood-Binding: retroactive' 2> "$run_tmp/commit-tree.stderr") || fail binding-commit-failed
 
+# A cem/1.0 map (the prepare default, CEM-V1-140) is read with the absolute artifact root the
+# stable verifier requires; a producer map names no artifact, so it is never opened (CEM-V1-147).
+stable_artifacts=()
+if grep -q '"spec": *"cem/1.0"' "$map"; then
+  stable_artifacts=(--artifacts "$(cd "$worktree" && pwd -P)")
+fi
 run_child "$run_tmp/cem-status.json" "$run_tmp/cem-status.stderr" \
   "$corvint_bin" --root "$worktree" cem status --map .corvint/change.cem.json \
-  --expected-base "$base" --target "$binding" --max-unknown "$unknown_count" --max-mechanical 0
+  --expected-base "$base" --target "$binding" --max-unknown "$unknown_count" --max-mechanical 0 \
+  ${stable_artifacts[@]+"${stable_artifacts[@]}"}
 cp "$run_tmp/cem-status.json" "$evidence/bind-range.$range_label.cem-status.json" || exit 2
 if [[ $child_status -ne 0 ]]; then
   if [[ -s $run_tmp/cem-status.json ]]; then

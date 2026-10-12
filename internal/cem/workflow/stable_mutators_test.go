@@ -36,7 +36,7 @@ func requireStableRefusal(t *testing.T, err error, tool, root, relative string, 
 		t.Fatalf("%s: got %v, want %s", tool, err, cemcode.UnsupportedSpec)
 	}
 	message := cemcode.MessageOf(err)
-	for _, fragment := range []string{"cem/1.0", "cem " + tool, "produce only cem/0.x", "cem status or cem verify"} {
+	for _, fragment := range []string{"cem/1.0", "cem " + tool, "a cem/0.x write never replaces it", "cem status or cem verify"} {
 		if !strings.Contains(message, fragment) {
 			t.Errorf("%s: refusal %q does not name %q", tool, message, fragment)
 		}

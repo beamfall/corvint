@@ -655,8 +655,9 @@ func (c *check) verifyBinding(report []byte) int {
 		_ = c.record(true, bootstrap)
 		c.fail("dogfood-report-drift")
 	}
-	cem, agreed := c.verifyStatus("cem", "status", "--map", ".corvint/change.cem.json", "--expected-base", c.base, "--target", c.target,
-		"--max-unknown", strconv.Itoa(bootstrap+allowance), "--max-mechanical", "0")
+	cem, agreed := c.verifyStatus(stableStatusArguments(c.root+"/.corvint/change.cem.json", c.root,
+		"cem", "status", "--map", ".corvint/change.cem.json", "--expected-base", c.base, "--target", c.target,
+		"--max-unknown", strconv.Itoa(bootstrap+allowance), "--max-mechanical", "0")...)
 	if !agreed {
 		_ = c.record(false, bootstrap)
 		c.fail("verifier-disagreement")

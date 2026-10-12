@@ -17,7 +17,7 @@ func TestCEMReviewNativeOCMAdapter(t *testing.T) {
 		cemGit(t, fixture.root, "commit", "-qm", "unrelated hunk")
 		fixture.target = cemGit(t, fixture.root, "rev-parse", "HEAD")
 		for _, args := range [][]string{
-			{"cem", "prepare", "--base", fixture.base, "--target", fixture.target, "--replace"},
+			{"cem", "prepare", "--spec", "cem/0.2", "--base", fixture.base, "--target", fixture.target, "--replace"},
 			{"cem", "cite", "--map", fixture.mapPath, "--hunk", "1", "--evidence-path", "docs/rule.txt", "--lines", "1:1", "--relation", "specification"},
 			{"ocm", "prepare", "--map", "change.ocm.json", "--cem", fixture.mapPath, "--intent", "docs/intent.md", "--expected-base", fixture.base, "--target", fixture.target, "--replace"},
 		} {
