@@ -45,6 +45,9 @@ type Session struct {
 	// stableHolders maps the mechanics view a mutator read from a stable
 	// producer map to its stable document, which writeMap re-encodes.
 	stableHolders map[*wire.Map]*wire.StableMap
+	// stableOCM verifies an OCM a stable report supplies; nil leaves the
+	// report's obligations NOT_PRODUCED (see SetStableOCMReader).
+	stableOCM StableOCMReader
 }
 
 // Open validates the worktree root as a publication root only. Repository

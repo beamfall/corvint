@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	cemcli "github.com/Beamfall/corvint/internal/cem/cli"
 	"github.com/Beamfall/corvint/internal/cem/mdreport"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/lrfrepo"
@@ -554,4 +555,87 @@ func toAnySlice(values []string) []any {
 		result = append(result, value)
 	}
 	return result
+}
+
+func init() { cemcli.StableOCM = readStableOCMReview }
+
+// readStableOCMReview verifies supplied OCM bytes against an exact cem/1.0
+// map through lrfrepo.VerifyStableUniverse and returns the review OCM
+// projection with the 0.x reader's field shape. A coded refusal is an invalid
+// projection naming the code; the stable route never produces policyIssues and
+// keeps testExecution NOT_RUN. The report binds mapSha256 and cemMapSha256 to
+// the bytes it read (V1-1305).
+func readStableOCMReview(ctx context.Context, repository string, cemRaw, ocmRaw []byte, expectedBase, target, artifactRoot string) (map[string]any, error) {
+	projection := map[string]any{
+		"testExecution": map[string]any{"state": "NOT_RUN"}, "obligations": []any{}, "claims": []any{},
+	}
+	universe, err := lrfrepo.VerifyStableUniverse(ctx, cemRaw, ocmRaw, lrfrepo.StableUniverseOptions{
+		Root: repository, ExpectedBase: expectedBase, Target: target, ArtifactRoot: artifactRoot,
+	})
+	if err != nil {
+		code := lrfrepo.CodeOf(err)
+		if code == "" {
+			return nil, err
+		}
+		projection["valid"], projection["state"] = false, "invalid"
+		projection["verification"] = stableOCMFailure(code, strings.TrimPrefix(err.Error(), code+": "))
+		if code == "invalid-path" || code == cemcode.RepositoryObjectUnavailable {
+			projection["testExecution"] = map[string]any{"observed": false, "state": "NOT_RUN"}
+		}
+		return projection, nil
+	}
+	var document map[string]any
+	decoder := json.NewDecoder(strings.NewReader(string(ocmRaw)))
+	decoder.UseNumber()
+	if err := decoder.Decode(&document); err != nil {
+		return nil, err
+	}
+	rows := make([]any, 0, len(universe.Obligations))
+	linked, unknown := 0, 0
+	for index, obligation := range universe.Obligations {
+		next := "link-or-review-unknown"
+		switch obligation.Disposition {
+		case "linked":
+			linked++
+			next = "done"
+		case "unknown":
+			unknown++
+		}
+		rows = append(rows, map[string]any{
+			"selector": index + 1, "id": obligation.ID, "disposition": obligation.Disposition, "reason": obligation.Reason,
+			"hunkIds": toAnySlice(obligation.HunkIDs), "claimIds": toAnySlice(obligation.ClaimIDs), "next": next,
+		})
+	}
+	projection["valid"], projection["state"] = true, "ready-for-review"
+	projection["verification"] = map[string]any{
+		"valid": true, "spec": document["spec"], "targetRevision": universe.TargetRevision,
+		"structuralCoverage": map[string]any{"total": len(rows), "linked": linked, "unknown": unknown},
+		"testExecution":      map[string]any{"state": "NOT_RUN"}, "issues": []any{}, "policyIssues": []any{},
+	}
+	projection["obligations"] = rows
+	for _, field := range []string{"claims", "intentScope", "targetRevision"} {
+		if member, found := document[field]; found {
+			projection[field] = member
+		}
+	}
+	return projection, nil
+}
+
+// stableOCMFailure is the invalid OCM verification with the 0.x reader's
+// failure shape (internal/lrfrepo finishOCMFailure).
+func stableOCMFailure(code, message string) map[string]any {
+	issue := map[string]any{"code": code}
+	if message != "" {
+		issue["message"] = message
+	}
+	if code == "invalid-path" || code == cemcode.RepositoryObjectUnavailable {
+		return map[string]any{"valid": false, "issues": []any{map[string]any{"code": code}}}
+	}
+	return map[string]any{
+		"valid": false, "spec": "ocm/0.1-experimental", "targetRevision": "",
+		"structuralCoverage": map[string]any{"total": 0, "linked": 0, "unknown": 0},
+		"testExecution":      map[string]any{"state": "NOT_RUN"},
+		"issues":             []any{issue},
+		"policyIssues":       []any{},
+	}
 }
