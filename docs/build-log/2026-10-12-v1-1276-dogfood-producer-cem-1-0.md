@@ -1,7 +1,7 @@
 # 2026-10-12 Core cem/1.0 producer and dogfood loop cutover (V1-1276)
 
 Branch `claude/v1-1276-dogfood-producer` from `origin/main` ddd559754 (includes V1-1281, #831).
-Decision 0525 step 5. Requirements `CEM-V1-140..151` in `docs/specs/cem-stable-v1.md`, proposed;
+Decision 0525 step 5. Requirements `CEM-V1-140..152` in `docs/specs/cem-stable-v1.md`, proposed;
 amends `CEM-V1-018`, `CEM-V1-030..033`, `CEM-V1-058` and `DCW-V0-039`/`DCW-V0-049` in place.
 
 ## Intent
@@ -57,7 +57,18 @@ The RC3 loop must produce only `cem/1.0` (decision 0525). Before this change Cor
     only) now prepare with `--spec cem/0.2`; the dogfood flow tests expect the stable
     `cem=accepted` / `state=accepted` summary in place of `ready-for-ci`.
 15. `script/dogfood-bind-range.sh` reads a `cem/1.0` range map with `--artifacts <absolute
-    worktree root>`; a `cem/0.x` map keeps the old argv. Its own test drives a fake binary.
+    worktree root>`; a `cem/0.x` map keeps the old argv. Its own test drives a fake binary. Its
+    citation-plan comparison parses the compact stable map's hunk order (Codex round 1, P1).
+16. `DCW-V0-047` is extended to the `dogfood-ocm status` comparison: the base verifier refuses an
+    OCM read over a `cem/1.0` map (`unsupported-spec`), so under an admitted declaration the tree
+    verifier runs in both roles, as it already did for `cem status`; undeclared, the comparison is
+    still byte-identical and fails `verifier-disagreement`. Found by the live qualification; this
+    is a fork decision of the lane (`TestCheckDCWV0047DeclaredOCMStatus`).
+17. The aggregate verifier worker grammar admits `--artifacts` on the strict `cem status` read only
+    for the worker's own root (`CEM-V1-152`); without it the aggregate finish over a default map
+    failed `final-check-failed`.
+18. `review-change.sh` resolves `CORVINT_ROOT` to an absolute path before it adds `--artifacts`,
+    since the stable read refuses a relative root (Codex round 1, P2).
 
 ## Output change declaration
 
@@ -86,6 +97,12 @@ Live AC1 qualification: LIVE_QUALIFICATION_PENDING
 - `tools/cem-citation-baseline` runs `cem status --citation` without `--artifacts`, so it reports
   a sealed `cem/1.0` map as an `artifacts-required` error row; its test prepares `cem/0.2`. The
   step 6 migration rerun owns its stable read.
+- `docs corpus cem` projects `cem/0.x` only and reports a `cem/1.0` map as `internal-error`
+  wrapping `unsupported-spec`; `cem report --ocm` reads `cem/0.x` only. Their tests prepare
+  `cem/0.2` (or remove the default map first). Stable projection is a follow-up.
+- The hostile-evidence use cases assert `cem/0.x` status codes and resolve the target as `HEAD`,
+  which the stable verifier refuses; they prepare `--spec cem/0.2`. A stable read also refuses a
+  relative `--root` (pre-existing parity with `cem verify-stable`).
 - `internal/observations` keeps `cem-map-stable-unsupported` in its closed reason list so ledgers
   written before V1-1276 still replay; nothing writes it now.
 - OCM fails closed for a bound stable map whose artifacts lie outside the repository root.

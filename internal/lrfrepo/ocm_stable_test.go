@@ -98,3 +98,59 @@ func TestCEMV1149OCMPrepareRefusesUnverifiedStableMap(t *testing.T) {
 		t.Fatalf("refused prepare wrote an OCM map: %v", err)
 	}
 }
+
+// TestCEMV1149OCMLinkAdmitsStableProducerMap (CEM-V1-149): ocm link over a
+// cem/1.0 producer map links a stable hunk ID to a pinned test claim, and the
+// linked OCM map still reads valid against the same stable map.
+func TestCEMV1149OCMLinkAdmitsStableProducerMap(t *testing.T) {
+	root, base, _ := makeOCMPrepareRepository(t)
+	const testPath = "example_test.go"
+	source := "package example\nimport \"testing\"\nfunc TestAnchors(t *testing.T) {\n t.Run(\"OCM-TEST-001 exact anchor\", func(t *testing.T) {})\n}\n"
+	writeOCMPrepareFile(t, root, testPath, source)
+	gitOCMPrepare(t, root, "add", testPath)
+	gitOCMPrepare(t, root, "commit", "-qm", "test anchors")
+	target := gitOCMPrepare(t, root, "rev-parse", "HEAD")
+	prepareStableCEM(t, root, base, target)
+	session, err := workflow.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.Cite(context.Background(), workflow.CiteOptions{
+		MapPath: wire.ExcludedCEMPath, Hunk: "1", EvidencePath: "docs/specs/intent.md", Lines: "5:5", Relation: "specification",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := wire.ParseStable(raw)
+	if err != nil || len(document.Change.Hunks) == 0 {
+		t.Fatalf("stable map: err=%v", err)
+	}
+	options := LinkOptions{
+		MapPath: DefaultOCMMapPath, CEMPath: wire.ExcludedCEMPath, Obligation: "OCM-TEST-001",
+		Hunks: []string{document.Change.Hunks[0].ID}, TestPath: testPath, ExpectedBase: base, Target: target,
+	}
+	if _, err := PrepareOCM(context.Background(), root, PrepareOptions{
+		MapPath: options.MapPath, CEMPath: options.CEMPath, IntentPath: "docs/specs/intent.md", ExpectedBase: base, Target: target,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	claims, err := enumerateClaims(testPath, gitOCMPrepare(t, root, "rev-parse", target+":"+testPath), []byte(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	options.Claims = []string{caseClaim(t, claims).selector}
+	linked, err := LinkOCM(context.Background(), root, options)
+	if err != nil || len(linked.HunkIDs) != 1 || linked.HunkIDs[0] != document.Change.Hunks[0].ID {
+		t.Fatalf("stable OCM link: err=%v result=%+v", err, linked)
+	}
+	checked, err := ReadOCM(context.Background(), root, OCMReadOptions{
+		OCMPath: options.MapPath, CEMPath: options.CEMPath, ExpectedBase: base, Target: target,
+		ExpectedBaseGiven: true, TargetGiven: true,
+	})
+	if err != nil || checked.Verification["valid"] != true {
+		t.Fatalf("linked stable OCM read: err=%v verification=%v", err, checked)
+	}
+}

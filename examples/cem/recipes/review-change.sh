@@ -52,12 +52,14 @@ read=(--expected-base "$base" --target "$target")
 ceilings=(--max-unknown "$max_unknown" --max-mechanical "$max_mechanical")
 
 step_or_stop prepare "$corvint" --root "$root" cem prepare --base "$base" --target HEAD
-# A cem/1.0 map (the prepare default, CEM-V1-140) is read by the stable verifier, which needs the
-# absolute artifact root; a producer map names no artifact, so the root is never opened.
-# Its report applies no ceilings: status, which runs first, already enforced them.
+# A cem/1.0 map (the prepare default, CEM-V1-140) is read by the stable verifier, which needs an
+# absolute repository root and an absolute artifact root; a producer map names no artifact, so
+# the root is never opened. Its report applies no ceilings: status, which runs first, already
+# enforced them.
 report_ceilings=("${ceilings[@]}")
 if grep -q '"spec": *"cem/1.0"' "$root/$map" 2>/dev/null; then
-  read+=(--artifacts "$(cd "$root" && pwd -P)")
+  root=$(cd "$root" && pwd -P) || operational 'CORVINT_ROOT is not a directory'
+  read+=(--artifacts "$root")
   report_ceilings=()
 fi
 step_or_stop status "$corvint" --root "$root" cem status --map "$map" "${read[@]}" "${ceilings[@]}"

@@ -56,7 +56,7 @@ To repair it, run `git repack -a -d`, delete `.git/objects/info/alternates` and
 | `DOGFOOD_VERIFY_FILE` | Path to a file with one shell-free verification command per line, each at most 512 characters; `DOGFOOD_VERIFY` takes the same lines inline (section 7) | line `go test ./internal/lrfrepo` |
 | `DOGFOOD_OUTCOME` | `passed`, `failed` or `blocked` | `passed` |
 | `DOGFOOD_OCM_LINKS` | Optional path to a TSV file, not the rows. One `INTENT<TAB>REQUIREMENT<TAB>HUNK[,HUNK...]<TAB>TEST_PATH<TAB>CLAIM[,CLAIM...]` row per requirement the author links, LF-terminated, at most 256 rows; `INTENT` is listed in `DOGFOOD_INTENTS_FILE`, each hunk is a cited CEM ordinal or hunk ID, and each claim is a test selector at `HEAD` whose anchor contains the exact requirement ID (step 7, section 5) | row `docs/specs/local-admin-console-v0.md	LAC-V0-032	7,8	internal/console/roadmap_test.go	test:TestRoadmapSafeAutoRecheck/case:lac-v0-safe-auto-recheck` |
-| `DOGFOOD_OUTPUT_CHANGE` | Optional, `dogfood-check` and `dogfood-seal` only. One requirement ID, set only when the change alters the canonical `cem status` output by construction, so the base verifier cannot agree (`DCW-V0-047`). Admitted only when `docs/specs/REQUIREMENTS.tsv` at `HEAD` maps the ID to a spec that `BASE..HEAD` modifies; the `cem status` comparison then runs the tree verifier in both roles and records `base-independence=NOT_PROVED` with both stdout digests. Unset, the check is unchanged | `DOGFOOD_OUTPUT_CHANGE=DCW-V0-047` |
+| `DOGFOOD_OUTPUT_CHANGE` | Optional, `dogfood-check` and `dogfood-seal` only. One requirement ID, set only when the change alters the canonical `cem status` output by construction, so the base verifier cannot agree (`DCW-V0-047`). Admitted only when `docs/specs/REQUIREMENTS.tsv` at `HEAD` maps the ID to a spec that `BASE..HEAD` modifies; the `cem status` comparison, and the `dogfood-ocm status` comparison, then run the tree verifier in both roles, and it records `base-independence=NOT_PROVED` with both stdout digests. Unset, the check is unchanged | `DOGFOOD_OUTPUT_CHANGE=DCW-V0-047` |
 
 Every `dogfood-change` refusal caused by one of these inputs prints the step and reason, then a
 `fix:` line naming the correction (`DCW-V0-014`).
@@ -356,7 +356,7 @@ its `cem status` with `--artifacts <absolute repository root>` (`CEM-V1-146`, `C
 `cem/0.x` sidecar left by an earlier run is refused as a different spec and regenerated with
 `--replace` on the first pass. `corvint cem prepare --spec cem/0.2` keeps the `cem/0.x` producer
 until V1-1278 removes it; any other `--spec` is refused. A change that alters the `cem status`
-output the loop records, as V1-1276 itself does, declares `DOGFOOD_OUTPUT_CHANGE=DCW-V0-047`. The second `dogfood-change` resolves
+output the loop records, or makes OCM read a map its base refuses, as V1-1276 itself does, declares `DOGFOOD_OUTPUT_CHANGE=DCW-V0-047`. The second `dogfood-change` resolves
 the new `HEAD`; prepare resumes and re-citing the same plan is idempotent, so the worktree stays clean while the report is
 regenerated with `"complete": true`. `dogfood-change` reruns prepare with `--replace` only when
 prepare refused the existing map with the exact `CEM-PILOT-018` base-or-patch mismatch line; every

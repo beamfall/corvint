@@ -128,6 +128,11 @@ expect 0 'outcome=complete report='
 rendered=$(sed -n 's/.*outcome=complete report=\(.*\) out=.*/\1/p' "$test_root/$name.log")
 [ -s "$rendered" ] && [ -s "$out/review.out" ] || fail 'r-complete report or review missing'
 [ -z "$(git -C "$repo" status --porcelain)" ] || fail 'r-complete left the worktree dirty'
+# CEM-V1-140: a relative CORVINT_ROOT still completes; the stable read takes the absolute root.
+cd "$repo"
+run r-relative review-change.sh CORVINT_ROOT=. CORVINT_BASE="$base"
+cd - > /dev/null
+expect 0 'outcome=complete report='
 
 sed 's/900/901/' "$repo/auth/auth.go" > "$repo/auth/auth.go.new"
 mv "$repo/auth/auth.go.new" "$repo/auth/auth.go"

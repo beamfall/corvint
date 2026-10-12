@@ -907,6 +907,7 @@ CEM-V1-148	docs/specs/cem-stable-v1.md	1204	`dogfood batch-check` MUST admit a s
 CEM-V1-149	docs/specs/cem-stable-v1.md	1209	`ocm prepare`, `ocm read` (status) and `ocm link` MUST admit a `cem/1.0` map onl
 CEM-V1-150	docs/specs/cem-stable-v1.md	1215	Local-completion sidecar-only reuse (`AllowCemSidecarOnlyReuse`) MUST keep
 CEM-V1-151	docs/specs/cem-stable-v1.md	1219	`dogfood finish` MUST read a `cem/1.0` change map: its `cem status` (and the
+CEM-V1-152	docs/specs/cem-stable-v1.md	1224	The aggregate verifier worker's closed argv grammar (`ALO-V0-018`) MUST admit th
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	892	The default `verify` path refuses a strictly parsed JSON object whose exact
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	896	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	899	Only that exact case changes. A duplicate, non-string, differently cased,
@@ -1271,8 +1272,8 @@ DCW-V0-044	docs/specs/daily-change-evidence-workflow-v0.md	477	(accepted 2026-10
 DCW-V0-045	docs/specs/daily-change-evidence-workflow-v0.md	491	(accepted 2026-10-11, decision 0520; V1-1207) `dogfood check`'s
 DCW-V0-046	docs/specs/daily-change-evidence-workflow-v0.md	502	(accepted under the owner's standing auto-accept (2026-10-11), decision 0523 P3;
 DCW-V0-047	docs/specs/daily-change-evidence-workflow-v0.md	542	(accepted under the owner's standing auto-accept (2026-10-11); V1-1279) A change
-DCW-V0-048	docs/specs/daily-change-evidence-workflow-v0.md	575	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) A change
-DCW-V0-049	docs/specs/daily-change-evidence-workflow-v0.md	599	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) When the
+DCW-V0-048	docs/specs/daily-change-evidence-workflow-v0.md	578	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) A change
+DCW-V0-049	docs/specs/daily-change-evidence-workflow-v0.md	602	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) When the
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map

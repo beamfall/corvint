@@ -125,10 +125,29 @@ validate_unknown_plan() {
 # citation_plan_matches_map binds a nonempty citation plan to the map prepared in this run, as the
 # bind loop does (DCW-V0-019): a numeric selector must be a canonical ordinal no larger than the
 # hunk count, and every unknown hunk must be named by ordinal or ID in the citation or unknown plan.
+# A cem/1.0 map (the prepare default, CEM-V1-140) is compact JSON with sorted keys: after "hunks",
+# each hunk's own "disposition" is followed by its "id", and an escaped string never holds the
+# unescaped "disposition":" token.
 citation_plan_matches_map() {
   local plans=("$run_tmp/citations.snapshot")
   [[ -z ${DOGFOOD_UNKNOWN:-} ]] || plans+=("$run_tmp/unknown.snapshot")
   awk -F '\t' '
+    FILENAME == ARGV[1] && index($0, "\"spec\":\"cem/1.0\"") {
+      rest = $0
+      start = index(rest, "\"hunks\":[")
+      if (!start) next
+      rest = substr(rest, start)
+      while ((at = index(rest, "\"disposition\":\"")) > 0) {
+        rest = substr(rest, at + 15)
+        count++
+        if (substr(rest, 1, 8) == "unknown\"") owed[count] = 1
+        at = index(rest, "\"id\":\"")
+        if (!at) { bad = 1; break }
+        rest = substr(rest, at + 6)
+        id[count] = substr(rest, 1, index(rest, "\"") - 1)
+      }
+      next
+    }
     FILENAME == ARGV[1] {
       if ($0 == "  \"hunks\": [") { inside = 1; next }
       if (substr($0, 1, 3) == "  ]") inside = 0
