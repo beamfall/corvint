@@ -142,6 +142,8 @@ func TestSTRV0006MakefileDriftReachesGo(t *testing.T) {
 		"target make function":    {"", "\ngo-test: GO_TEST_FLAGS = $(shell true)-p 1 -timeout 30m\n", `go-test's own GO_TEST_FLAGS contains "$(shell true)-p 1 -timeout 30m": only $(NAME) references`, ""},
 		"global MAKEFLAGS export": {"", "\nexport MAKEFLAGS := --keep-going\n", `make go-test runs go with MAKEFLAGS="sk", which make gives a plain recipe as "s": the Makefile or recipe sets it`, ""},
 		"Makefile sets SHELL":     {"", "\nSHELL := /bin/sh\n", "the Makefile sets SHELL (makefile (from ", "the go-test recipe must run through make's default shell"},
+		"target SHELL":            {"", "\ngo-test: SHELL := /usr/bin/nice /bin/sh\n", `the Makefile sets SHELL for go-test itself ("/usr/bin/nice /bin/sh")`, "the go-test recipe must run through make's default shell"},
+		"pattern SHELLFLAGS":      {"", "\n%: .SHELLFLAGS := -ec\n", `the Makefile sets .SHELLFLAGS for the pattern %, which matches go-test ("-ec")`, "the go-test recipe must run through make's default shell"},
 		"quoted gate runner":      {"", "\nGATE_STEPS += quoted-python\nquoted-python:\n\t\"python3\" -m unittest discover\n", `languages.python is none, but make gate step quoted-python runs "\"python3\""`, ""},
 	}
 	for name, mutation := range mutations {
@@ -282,6 +284,122 @@ func TestSTRV0006PlainRecipe(t *testing.T) {
 	}
 	if _, err := readDatabase(requireMake(t), "Makefile"); err != nil {
 		t.Errorf("repository database: %v", err)
+	}
+}
+
+// TestSTRV0006DatabaseForms parses the database in both forms the gate meets:
+// GNU make 3.81 (macOS) prints `#  commands to execute` and target-specific
+// variables inside the target block; GNU make 4.x (Ubuntu CI) prints `#  recipe
+// to execute`, `go-test: NAME := value` lines before the target, origins
+// quoted with ASCII quotes, and `+=` and `$(subst ,,)` forms (its print_file,
+// print_variable and print_commands in src/file.c, src/variable.c and
+// src/commands.c of 4.3). Pattern-specific values appear in their own section.
+func TestSTRV0006DatabaseForms(t *testing.T) {
+	forms := map[string]string{
+		"make 3.81": strings.Join([]string{
+			"# default",
+			"SHELL := /bin/sh",
+			"# makefile (from `Makefile', line 1)",
+			"GO_TEST_FLAGS := -count=1",
+			"",
+			"# Pattern-specific Variable Values",
+			"",
+			"% :",
+			"# makefile (from `Makefile', line 2)",
+			"# .SHELLFLAGS := -ec",
+			"",
+			"%.o :",
+			"# makefile (from `Makefile', line 3)",
+			"# SHELL := /bin/bash",
+			"",
+			"# 2 pattern-specific variable values",
+			"",
+			"go-test:",
+			"#  Phony target (prerequisite of .PHONY).",
+			"#  Command-line target.",
+			"# automatic",
+			"# @ := go-test",
+			"# makefile (from `Makefile', line 4)",
+			"# SHELL := /usr/bin/nice /bin/sh",
+			"# variable set hash-table stats:",
+			"# Load=2/32=6%, Rehash=0, Collisions=0/2=0%",
+			"#  commands to execute (from `Makefile', line 5):",
+			"\tGOTOOLCHAIN=local go test $(GO_TEST_FLAGS) ./...",
+			"\t",
+			"",
+		}, "\n"),
+		"make 4.3": strings.Join([]string{
+			"# default",
+			"SHELL = /bin/sh",
+			"# makefile (from 'Makefile', line 1)",
+			"GO_TEST_FLAGS := -count=1",
+			"# makefile (from 'Makefile', line 6)",
+			"EXTRA += -p 1",
+			"# makefile (from 'Makefile', line 7)",
+			"SPACE := $(subst ,, )",
+			"# makefile (from 'Makefile', line 8)",
+			"LATE := $$$$HOME",
+			"",
+			"# Pattern-specific Variable Values",
+			"",
+			"% :",
+			"# makefile (from 'Makefile', line 2)",
+			"# .SHELLFLAGS := -ec",
+			"",
+			"%.o :",
+			"# makefile (from 'Makefile', line 3)",
+			"# SHELL := /bin/bash",
+			"",
+			"# 2 pattern-specific variable values",
+			"",
+			"# makefile (from 'Makefile', line 4)",
+			"go-test: SHELL := /usr/bin/nice /bin/sh",
+			"go-test:",
+			"#  Phony target (prerequisite of .PHONY).",
+			"#  Command line target.",
+			"# automatic",
+			"# @ := go-test",
+			"# makefile (from 'Makefile', line 4)",
+			"# SHELL := /usr/bin/nice /bin/sh",
+			"# variable set hash-table stats:",
+			"# Load=2/32=6%, Rehash=0, Collisions=0/2=0%",
+			"#  recipe to execute (from 'Makefile', line 5):",
+			"\tGOTOOLCHAIN=local go test $(GO_TEST_FLAGS) ./...",
+			"",
+		}, "\n"),
+	}
+	for form, printed := range forms {
+		db := parseDatabase(printed)
+		if strings.Join(db.recipe, "|") != "GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) ./..." {
+			t.Errorf("%s: recipe %q", form, db.recipe)
+		}
+		if db.origin["SHELL"] != "default" || db.origin["GO_TEST_FLAGS"] == "" || db.global["GO_TEST_FLAGS"].recursive {
+			t.Errorf("%s: globals %+v origins %+v", form, db.global, db.origin)
+		}
+		if db.target["SHELL"].value != "/usr/bin/nice /bin/sh" || len(db.target) != 1 {
+			t.Errorf("%s: target-specific %+v", form, db.target)
+		}
+		if def := db.pattern[".SHELLFLAGS"]; def.value != "-ec" || def.target != "%" || len(db.pattern) != 1 {
+			t.Errorf("%s: pattern-specific %+v", form, db.pattern)
+		}
+		problems := plainRecipe(db)
+		if len(problems) != 2 || !strings.Contains(problems[0], "SHELL for go-test itself") || !strings.Contains(problems[1], ".SHELLFLAGS for the pattern %, which matches go-test") {
+			t.Errorf("%s: problems %v", form, problems)
+		}
+	}
+	db := parseDatabase(forms["make 4.3"])
+	if db.global["EXTRA"] != (definition{value: "-p 1", recursive: true}) || db.global["SPACE"].value != " " || db.global["LATE"].value != "$$HOME" {
+		t.Errorf("4.3 definitions %+v", db.global)
+	}
+	for pattern, want := range map[string]bool{"%": true, "go-%": true, "%-test": true, "go-test": true, "%.o": false, "go-test%": false, "other": false, "go-%-test": false} {
+		if got := matchesTarget(pattern, goTarget); got != want {
+			t.Errorf("matchesTarget(%q) = %v, want %v", pattern, got, want)
+		}
+	}
+	for line, want := range map[string]bool{"NAME = v": true, "NAME := v": true, "NAME += v": true, "export NAME = v": true, "NAME ?= v": false, "NAME": false, "# NAME = v": false, "go-test: SHELL := x": false, "": false} {
+		if _, _, got := parseDefinition(line); got != want {
+			t.Errorf("parseDefinition(%q) ok = %v, want %v", line, got, want)
+		}
 	}
 }
 

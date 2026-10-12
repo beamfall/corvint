@@ -62,10 +62,11 @@ requirement is added or removed; the delivery status stays experimental.
 - `tools/test-commands-check/main_test.go` runs the gate against the repository and nine
   declaration mutations (flag value, flag order, dropped flag, extra and changed environment
   variable, absent file, declared `make` target that does not exist, a `none` language the gate
-  runs, a `none` language without a runner list) and twenty Makefile mutations (target-specific
+  runs, a `none` language without a runner list) and twenty-two Makefile mutations (target-specific
   `export`, global `export`, `.EXPORT_ALL_VARIABLES`, absolute-path `go`, two `go` calls, a recipe
   failing after `go`, a changed flag, a changed directory, a recipe setting `MAKEFLAGS`, a
-  Makefile exporting `MAKEFLAGS` or setting `SHELL`, a second `go` through an absolute path
+  Makefile exporting `MAKEFLAGS` or setting `SHELL`, a target-specific `SHELL` on `go-test`, a
+  pattern-specific `.SHELLFLAGS` matching it, a second `go` through an absolute path
   chained, on its own line or as an argument, a shell wrapper script or `nice` before `go`,
   `$(shell ...)` in the recipe, in a variable it expands or in a target-specific variable, a
   quoted `"python3"` in a gate step), each of which must fail. The gate runs make under a minimal
@@ -73,8 +74,9 @@ requirement is added or removed; the delivery status stays experimental.
   against a control recipe in its own makefile under the same make rather than trusting them,
   requires the go-test recipe to be one `NAME=VALUE... go` command line so nothing the shim cannot
   see runs beside it, and reads make's database to refuse any make function the recipe would
-  expand and any Makefile `SHELL`. Make functions expanded while the Makefile is read are its
-  recorded limit.
+  expand and any Makefile `SHELL` or `.SHELLFLAGS` (global, target-specific on `go-test`, or
+  pattern-specific matching it), in both the GNU make 3.81 and 4.x database forms. Make functions
+  expanded while the Makefile is read are its recorded limit.
 - `tools/str-parity -corpus` refuses a corpus whose lines differ from
   `git rev-list --first-parent --parents` over the same end and count.
 

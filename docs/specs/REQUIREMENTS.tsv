@@ -2985,18 +2985,18 @@ STR-V0-003	docs/specs/session-test-runner-v0.md	65	The command SHALL run the com
 STR-V0-004	docs/specs/session-test-runner-v0.md	80	Execution SHALL go through registered runner adapters, one per runner, each with
 STR-V0-005	docs/specs/session-test-runner-v0.md	97	An adapter SHALL receive only its selected targets and invoke the runner's nativ
 STR-V0-006	docs/specs/session-test-runner-v0.md	103	Adapter argv SHALL be typed with no shell. Environment, AFP-V0-023 `test-confine
-STR-V0-007	docs/specs/session-test-runner-v0.md	152	`--shard I/N` with `--placement universe` (the default) SHALL use the AFP-V0-022
-STR-V0-008	docs/specs/session-test-runner-v0.md	155	`--placement balanced` (experimental, off by default) SHALL partition the run
-STR-V0-009	docs/specs/session-test-runner-v0.md	163	`corvint test verify-shards --manifest PATH RECEIPT...` SHALL read the expected
-STR-V0-010	docs/specs/session-test-runner-v0.md	175	Each shard, including an empty one, SHALL write one bounded `corvint-test-run/0`
-STR-V0-011	docs/specs/session-test-runner-v0.md	182	Receipts are evidence only. They MUST NOT feed ranking, selection, learning or
-STR-V0-012	docs/specs/session-test-runner-v0.md	184	Local and CI SHALL run the same binary code path. The CI profile adds only
-STR-V0-013	docs/specs/session-test-runner-v0.md	190	Neither `make gate-affected` nor `tools/corvint-pr-tests` SHALL switch to
-STR-V0-014	docs/specs/session-test-runner-v0.md	201	A hangup, interrupt or termination SHALL kill every owned process group, exit
-STR-V0-015	docs/specs/session-test-runner-v0.md	203	The run SHALL be bounded: the plan's existing walk and status bounds, at most 40
-STR-V0-016	docs/specs/session-test-runner-v0.md	212	Adapters execute repository code with the invoking user's authority. The local
-STR-V0-017	docs/specs/session-test-runner-v0.md	215	The source identity SHALL bind the bytes that execute: the HEAD commit and tree,
-STR-V0-018	docs/specs/session-test-runner-v0.md	220	Before execution the command SHALL derive one canonical `corvint-test-manifest/0
+STR-V0-007	docs/specs/session-test-runner-v0.md	157	`--shard I/N` with `--placement universe` (the default) SHALL use the AFP-V0-022
+STR-V0-008	docs/specs/session-test-runner-v0.md	160	`--placement balanced` (experimental, off by default) SHALL partition the run
+STR-V0-009	docs/specs/session-test-runner-v0.md	168	`corvint test verify-shards --manifest PATH RECEIPT...` SHALL read the expected
+STR-V0-010	docs/specs/session-test-runner-v0.md	180	Each shard, including an empty one, SHALL write one bounded `corvint-test-run/0`
+STR-V0-011	docs/specs/session-test-runner-v0.md	187	Receipts are evidence only. They MUST NOT feed ranking, selection, learning or
+STR-V0-012	docs/specs/session-test-runner-v0.md	189	Local and CI SHALL run the same binary code path. The CI profile adds only
+STR-V0-013	docs/specs/session-test-runner-v0.md	195	Neither `make gate-affected` nor `tools/corvint-pr-tests` SHALL switch to
+STR-V0-014	docs/specs/session-test-runner-v0.md	206	A hangup, interrupt or termination SHALL kill every owned process group, exit
+STR-V0-015	docs/specs/session-test-runner-v0.md	208	The run SHALL be bounded: the plan's existing walk and status bounds, at most 40
+STR-V0-016	docs/specs/session-test-runner-v0.md	217	Adapters execute repository code with the invoking user's authority. The local
+STR-V0-017	docs/specs/session-test-runner-v0.md	220	The source identity SHALL bind the bytes that execute: the HEAD commit and tree,
+STR-V0-018	docs/specs/session-test-runner-v0.md	225	Before execution the command SHALL derive one canonical `corvint-test-manifest/0
 TAT-V0-001	docs/specs/test-attack-v0.md	27	`prove --base FULL_SHA --mutate --attack-tests` MUST be an explicit opt-in. The
 TAT-V0-002	docs/specs/test-attack-v0.md	28	The attack MUST reuse the immutable range export and changed-line spans, evaluat
 TAT-V0-003	docs/specs/test-attack-v0.md	29	Every judged mutation row MUST expose an additive `attack` object with `mutants`

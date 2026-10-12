@@ -106,7 +106,12 @@ The owner decided so in chat on 2026-10-12.
   target-specific comments and its tab-indented recipe) so `plainRecipe` can refuse any `$` in
   the recipe or a variable it expands that is not a `$(NAME)`/`${NAME}` reference to a plain
   variable (`$(shell ...)`, `$$`, `$@`, substitution references, a `:=` value still holding `$`)
-  and any `SHELL`/`.SHELLFLAGS` whose origin is not `default`. The limit that remains: a make
+  and any `SHELL`/`.SHELLFLAGS` whose origin is not `default`. After round 7 (`parseDatabase`
+  reads both database forms: 3.81's `#  commands to execute` and 4.x's `#  recipe to execute`,
+  one recipe prefix character stripped per line, 4.x's `go-test: NAME := value` lines before the
+  target, `+=` and `$(subst ,,)` values, and the `# Pattern-specific Variable Values` section
+  kept for patterns matching `go-test` through `matchesTarget`), `plainRecipe` also refuses
+  `SHELL`/`.SHELLFLAGS` set for `go-test` itself or for a matching pattern. The limit that remains: a make
   function expanded while the Makefile is read (`CORVINT_GOCACHE := $(shell ...)`) runs on every
   make invocation before the recipe and is not observed; the repository's `$(shell git ...)`
   lookups are of that kind. It is not in `tools/gate-ledger`'s scoped map, so it runs on every
@@ -204,6 +209,18 @@ Logs under the lane scratch directory
   `GO_TEST_FLAGS = $(shell true)...`, `SHELL := /bin/bash` and `CORVINT_GOCACHE := $(shell echo
   ...)`. The old gate refused only the two bash-`_` cases (wrapper, `nice`); the new gate refuses
   the first seven and still passes the eighth, the recorded parse-time limit.
+- After the round-7 fixes (gate only; `corvint test` unchanged): `gofmt -l` empty; `go vet
+  ./tools/test-commands-check` rc 0; `go test -count=1 ./tools/test-commands-check` rc 0
+  (14.6 s: twenty-two Makefile mutations, `TestSTRV0006DatabaseForms` over a captured GNU make
+  3.81 excerpt and a 4.3-form excerpt written from `print_file`, `print_variable` and
+  `print_commands` in that release's `src/file.c`, `src/variable.c` and `src/commands.c`, plus
+  the earlier cases); `make -s test-commands-check` rc 0. Four Makefile scenarios were run
+  against builds of the `c07788ba7` and round-7 gates: `go-test: SHELL := /usr/bin/nice
+  /bin/sh`, `%: .SHELLFLAGS := -ec` and `go-%: SHELL := /bin/bash` passed the old gate (rc 0)
+  and fail the new one (rc 1, naming the target or pattern); `%.o: SHELL := /bin/bash`, which
+  does not match `go-test`, passes both. No GNU make 4.x is installed on this host (`gmake`
+  absent), so the 4.x parse is pinned by the fixture and by the cited source, not by a live run:
+  NOT_OBSERVED until the CI doc-gates job (ubuntu, GNU make 4.3) runs the gate.
 - After the round-1 Codex fixes (`e2be5b36f`): `gofmt -l` empty and `go vet` rc 0 on the five
   packages; `go test` rc 0 for `internal/sessiontest`, `tools/test-commands-check`,
   `internal/gateselect`, `tools/str-parity` and the focused `cmd/corvint` run (74 s);
@@ -345,9 +362,23 @@ Codex (`gpt-6-astra`, read-only, up to three rounds) over `bed653e92..HEAD`.
   parse refusing make functions the recipe expands and a Makefile `SHELL`), with seven more
   mutations in `TestSTRV0006MakefileDriftReachesGo` and `TestSTRV0006PlainRecipe`. The bounded
   answer stands with one named hole: make functions expanded while the Makefile is read are not
-  observed. The coordinator capped this lane at two Codex rounds, so no round 7 ran and the
-  decision 0526 condition (`VERDICT: PASS` from an independent review) is not yet met; the fixes
-  after round 6 await that review.
+  observed.
+- Round 7 (`7561537fc`, run by the coordinator over `bed653e92..7561537fc`, threat model: the
+  Makefile is trusted and the gate is a drift alarm for plausible maintainer edits):
+  `CHANGES_REQUESTED`, two findings. [P1] `parseDatabase` matched only make 3.81's `#  commands
+  to execute`; GNU make 4.x prints `#  recipe to execute`, so on the ubuntu CI runner `db.recipe`
+  stayed nil and the unchanged Makefile would have failed with `make -p prints no go-test:
+  recipe`. [P1] the shell check read only the global `SHELL`/`.SHELLFLAGS` origin, so a
+  target-specific `go-test: SHELL := /usr/bin/nice /bin/sh` wrapped the run while the printed
+  recipe, the shim's argv, environment and directory and the global origin were all unchanged.
+  Fixed in the round-7 commit: both headers accepted, 4.x's pre-target `go-test: NAME op value`
+  lines, `+=`, `$(subst ,,)`, doubled `$` and the recipe prefix character handled, the
+  pattern-specific section parsed with `matchesTarget`, and `plainRecipe` refusing
+  `SHELL`/`.SHELLFLAGS` globally, on `go-test` itself and on any matching pattern (a prerequisite
+  cannot carry a recipe: the dry run would print a second line). STR-V0-006, decision 0526 and
+  the test counts were updated to match. Live GNU make 4.x remains unobserved on this host; the
+  decision 0526 condition (`VERDICT: PASS` from an independent review) is not yet met and awaits
+  the coordinator's round 8.
 
 ## Left for slice 3
 

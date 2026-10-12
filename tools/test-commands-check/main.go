@@ -446,13 +446,21 @@ type definition struct {
 }
 
 // database is what `make -p go-test` shows of the Makefile: the go-test recipe
-// as written, the global and go-test-specific variable definitions and each
-// global variable's origin comment.
+// as written, the global and go-test-specific variable definitions, each
+// global variable's origin comment, and the pattern-specific definitions whose
+// pattern matches go-test.
 type database struct {
-	recipe []string
-	global map[string]definition
-	target map[string]definition
-	origin map[string]string
+	recipe  []string
+	global  map[string]definition
+	target  map[string]definition
+	pattern map[string]patternDefinition
+	origin  map[string]string
+}
+
+// patternDefinition is a pattern-specific variable and the pattern it is for.
+type patternDefinition struct {
+	definition
+	target string
 }
 
 // readDatabase runs `make -s -n -p go-test` under the minimal environment and
@@ -469,29 +477,34 @@ func readDatabase(root, makefile string) (database, error) {
 	return db, nil
 }
 
-// parseDatabase reads make's database print: `NAME = value` and
-// `NAME := value` lines (after an optional export/override/private), each
-// under a `# <origin>` comment, `define NAME` ... `endef` blocks, and the
-// `go-test:` block, whose `# NAME = value` comments are target-specific
-// definitions (the `# automatic` ones are not) and whose tab-indented lines
-// after `#  commands to execute` are the recipe.
+// parseDatabase reads make's database print, in GNU make 3.81's form and in
+// 4.x's (`src/file.c`, `src/variable.c`, `src/commands.c` of 4.3): `NAME =
+// value`, `NAME += value` and `NAME := value` lines (after an optional
+// export/override/private), each under a `# <origin>` comment; `define NAME`
+// ... `endef` blocks; the `# Pattern-specific Variable Values` section
+// (`<pattern> :` lines, each followed by `# NAME = value` comments); the
+// `go-test: NAME = value` lines 4.x prints before the target; and the
+// `go-test:` block itself, whose `# NAME = value` comments are target-specific
+// definitions (the `# automatic` ones are not) and whose lines after
+// `#  commands to execute` (3.81) or `#  recipe to execute` (4.x), up to the
+// blank line, are the recipe, each behind one recipe prefix character.
 func parseDatabase(printed string) database {
-	db := database{global: map[string]definition{}, target: map[string]definition{}, origin: map[string]string{}}
+	db := database{global: map[string]definition{}, target: map[string]definition{}, pattern: map[string]patternDefinition{}, origin: map[string]string{}}
 	lines := strings.Split(printed, "\n")
-	origin, inTarget, inRecipe, automatic := "", false, false, false
+	origin, pattern, inPatterns, inTarget, inRecipe, automatic := "", "", false, false, false, false
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
 		switch {
 		case inRecipe:
-			if body, ok := strings.CutPrefix(line, "\t"); ok {
-				if strings.TrimSpace(body) != "" {
+			if line != "" {
+				if body := line[1:]; strings.TrimSpace(body) != "" {
 					db.recipe = append(db.recipe, body)
 				}
 				continue
 			}
 			inRecipe, inTarget = false, false
 		case inTarget:
-			if strings.HasPrefix(line, "#  commands to execute") {
+			if strings.HasPrefix(line, "#  commands to execute") || strings.HasPrefix(line, "#  recipe to execute") {
 				db.recipe, inRecipe = []string{}, true
 				continue
 			}
@@ -508,8 +521,29 @@ func parseDatabase(printed string) database {
 			}
 			automatic = false
 			continue
+		case inPatterns:
+			if strings.HasSuffix(line, " :") && !strings.HasPrefix(line, "#") {
+				pattern = strings.TrimSuffix(line, " :")
+				continue
+			}
+			if strings.Contains(line, "pattern-specific variable values") {
+				inPatterns = false
+				continue
+			}
+			if name, def, ok := parseDefinition(strings.TrimPrefix(line, "# ")); ok && matchesTarget(pattern, goTarget) {
+				db.pattern[name] = patternDefinition{def, pattern}
+			}
+			continue
 		}
-		if line == goTarget+":" {
+		if line == "# Pattern-specific Variable Values" {
+			inPatterns = true
+			continue
+		}
+		if rest, ok := strings.CutPrefix(line, goTarget+":"); ok {
+			if name, def, ok := parseDefinition(strings.TrimPrefix(rest, " ")); ok {
+				db.target[name] = def
+				continue
+			}
 			inTarget, automatic = true, false
 			continue
 		}
@@ -532,6 +566,16 @@ func parseDatabase(printed string) database {
 	return db
 }
 
+// matchesTarget reports whether a make pattern (one `%` standing for any
+// non-empty string, or a literal name) matches the target.
+func matchesTarget(pattern, target string) bool {
+	prefix, suffix, ok := strings.Cut(pattern, "%")
+	if !ok {
+		return pattern == target
+	}
+	return len(target) > len(prefix)+len(suffix) && strings.HasPrefix(target, prefix) && strings.HasSuffix(target, suffix)
+}
+
 // stripModifiers removes the export, override and private words make prints
 // before a definition.
 func stripModifiers(line string) string {
@@ -547,24 +591,24 @@ func stripModifiers(line string) string {
 	}
 }
 
-// parseDefinition reads one `NAME = value` or `NAME := value` line.
+// parseDefinition reads one `NAME = value`, `NAME += value` or `NAME :=
+// value` line as make prints it: a whitespace-only value is printed as
+// `$(subst ,,<value>)`, and a simple value has its `$` doubled.
 func parseDefinition(line string) (string, definition, bool) {
 	line = stripModifiers(line)
 	name, rest, ok := strings.Cut(line, " ")
 	if !ok || name == "" || strings.ContainsAny(name, "#$:=\t") {
 		return "", definition{}, false
 	}
-	if value, ok := strings.CutPrefix(rest, "= "); ok {
+	operator, value, _ := strings.Cut(rest, " ")
+	if strings.HasPrefix(value, "$(subst ,,") && strings.HasSuffix(value, ")") {
+		value = strings.TrimSuffix(strings.TrimPrefix(value, "$(subst ,,"), ")")
+	}
+	switch operator {
+	case "=", "+=":
 		return name, definition{value: value, recursive: true}, true
-	}
-	if rest == "=" {
-		return name, definition{value: "", recursive: true}, true
-	}
-	if value, ok := strings.CutPrefix(rest, ":= "); ok {
-		return name, definition{value: value}, true
-	}
-	if rest == ":=" {
-		return name, definition{value: ""}, true
+	case ":=":
+		return name, definition{value: strings.ReplaceAll(value, "$$", "$")}, true
 	}
 	return "", definition{}, false
 }
@@ -573,13 +617,23 @@ func parseDefinition(line string) (string, definition, bool) {
 // plain text: $(NAME) and ${NAME} references only, each to a variable that is
 // itself plain, so nothing runs while make expands the recipe (a make function
 // such as $(shell ...) runs during the gate's dry run and observation yet
-// prints nothing). SHELL must be make's default: a Makefile that sets it runs
-// the recipe through a program the gate did not observe.
+// prints nothing). SHELL and .SHELLFLAGS must be make's defaults, globally,
+// for go-test itself and for any pattern matching it: a Makefile that sets
+// them runs the recipe through a program the gate did not observe. (A
+// prerequisite of go-test cannot carry a recipe of its own: the dry run would
+// print it as a second line.)
 func plainRecipe(db database) []string {
 	problems := []string{}
 	for _, name := range []string{"SHELL", ".SHELLFLAGS"} {
+		const want = ": the go-test recipe must run through make's default shell"
 		if origin, ok := db.origin[name]; ok && origin != "default" {
-			problems = append(problems, fmt.Sprintf("the Makefile sets %s (%s): the go-test recipe must run through make's default shell", name, origin))
+			problems = append(problems, fmt.Sprintf("the Makefile sets %s (%s)%s", name, origin, want))
+		}
+		if def, ok := db.target[name]; ok {
+			problems = append(problems, fmt.Sprintf("the Makefile sets %s for go-test itself (%q)%s", name, def.value, want))
+		}
+		if def, ok := db.pattern[name]; ok {
+			problems = append(problems, fmt.Sprintf("the Makefile sets %s for the pattern %s, which matches go-test (%q)%s", name, def.target, def.value, want))
 		}
 	}
 	for _, line := range db.recipe {
