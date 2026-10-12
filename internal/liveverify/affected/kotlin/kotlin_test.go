@@ -229,6 +229,8 @@ func TestJavaSiblingSourceWidensCrossLanguageDependency(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "build.gradle.kts", "plugins { kotlin(\"jvm\") version \"2.2.0\" }\n")
 	write(t, root, "core/src/main/kotlin/com/ex/core/Calc.kt", "package com.ex.core\nclass Calc\n")
+	write(t, root, "core/src/main/kotlin/com/ex/core/Other.kt", "package com.ex.other\nclass Other\n")
+	write(t, root, "core/src/test/kotlin/com/ex/core/OtherTest.kt", "package com.ex.other\nimport org.junit.jupiter.api.Test\nclass OtherTest { @Test fun works() = Other() }\n")
 	write(t, root, "core/src/main/java/com/ex/bridge/Bridge.java", "package com.ex.bridge;\nimport com.ex.core.Calc;\nclass Bridge { Calc calc; }\n")
 	write(t, root, "app/src/test/kotlin/com/ex/app/AppTest.kt", "package com.ex.app\nimport com.ex.bridge.Bridge\nimport org.junit.jupiter.api.Test\nclass AppTest { @Test fun works() = Unit }\n")
 	graph, err := affected.Build(context.Background(), root, New())
@@ -236,11 +238,21 @@ func TestJavaSiblingSourceWidensCrossLanguageDependency(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan := affected.Select(graph, []string{"core/src/main/kotlin/com/ex/core/Calc.kt"})
-	if !contains(graph.Frontier(), FrontierJVMSiblingSource) {
-		t.Fatalf("frontier=%v", graph.Frontier())
+	calc, _ := graph.Unit("kotlin:source:core/src/main/kotlin/com/ex/core/Calc.kt")
+	if !contains(calc.Frontier, FrontierJavaDependent) {
+		t.Fatalf("calc frontier=%v", calc.Frontier)
 	}
 	if plan.Scope != affected.ScopeUnknown {
 		t.Fatalf("scope=%s unknown=%v", plan.Scope, plan.Unknown)
+	}
+	// A Kotlin file no Java text names keeps a bounded plan in the same tree.
+	otherUnit, _ := graph.Unit("kotlin:source:core/src/main/kotlin/com/ex/core/Other.kt")
+	if len(otherUnit.Frontier) != 0 {
+		t.Fatalf("other frontier=%v", otherUnit.Frontier)
+	}
+	other := affected.Select(graph, []string{"core/src/main/kotlin/com/ex/core/Other.kt"})
+	if other.Scope != affected.ScopeBounded {
+		t.Fatalf("other scope=%s unknown=%v", other.Scope, other.Unknown)
 	}
 }
 

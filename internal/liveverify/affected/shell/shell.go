@@ -55,7 +55,7 @@ var gitTopLevel = "--show-" + "toplevel"
 // universe raises FrontierForeignInvocation on every non-test shell unit.
 var ForeignSourceSuffixes = []string{
 	".go", ".py", ".rb", ".rs", ".swift",
-	".kt", ".kts", ".cs",
+	".kt", ".kts", ".java", ".cs",
 	".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx",
 	".c", ".h", ".cc", ".cpp", ".cxx", ".c++", ".hh", ".hpp", ".hxx", ".h++",
 	".inl", ".ipp", ".tpp", ".m", ".mm",
