@@ -8,8 +8,8 @@
   "files": [
     {
       "path": "ALGORITHMS.md",
-      "sha256": "58a52688ec75aa2580186f29fa9d1443f86c46a438b803871ad0587fe7f68803",
-      "bytes": 18769
+      "sha256": "0a0c2e0643ae0fb2f68dd34ee24fef9c849ffe17dc5fc66a6d4bcdd27c11639d",
+      "bytes": 20434
     },
     {
       "path": "FIXTURES.pack.json",
@@ -82,9 +82,39 @@
       "bytes": 11131
     },
     {
+      "path": "neutral-criterion/EXPECTED.json",
+      "sha256": "695568b0bf9d56dcf2b223afebb4f1c442b3196ec4039ef8521a31dbb8fb62cb",
+      "bytes": 10963
+    },
+    {
+      "path": "neutral-criterion/README.md",
+      "sha256": "41dd2ae464d416abaa1563bb598dc8079740b6d76038648c8023aa81a9948920",
+      "bytes": 2137
+    },
+    {
+      "path": "neutral-criterion/artifacts/runner-plan.json",
+      "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+      "bytes": 130
+    },
+    {
+      "path": "neutral-criterion/artifacts/runner-receipt.json",
+      "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+      "bytes": 133
+    },
+    {
+      "path": "neutral-criterion/repository.recipe.json",
+      "sha256": "7731fc2399f502f7320918baee6c24659bc27c628ad551debac482bdd91dbd27",
+      "bytes": 2203
+    },
+    {
+      "path": "neutral-criterion/stable.json",
+      "sha256": "0c445ac2cec0623621d15ca6483c1d5e9500348f7ede43852f5ae5448221e8c0",
+      "bytes": 2656
+    },
+    {
       "path": "stable.schema.json",
-      "sha256": "e4b0c453e43af858dc4cc431044e71051c6ae46eae45fbeb95a50d73dde5bddc",
-      "bytes": 17107
+      "sha256": "cea7ec4b4234a9c663668185869a3ba6e1b50f9567e66f0411a1d178d8960af3",
+      "bytes": 18186
     }
   ]
 }

@@ -530,6 +530,45 @@
       "pattern": "^criterion:sha256:[0-9a-f]{64}$"
     },
     "criterionBinding": {
+      "description": "CEM-V1-083: the plain Git blob span form, or the optional closed Corvint Tasks extension form. Any Tasks member selects the Tasks form.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/plainCriterionBinding"
+        },
+        {
+          "$ref": "#/$defs/tasksCriterionBinding"
+        }
+      ]
+    },
+    "plainCriterionBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "criterionIndex",
+        "criterionSha256",
+        "evidenceId"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/criterionId"
+        },
+        "criterionIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "criterionSha256": {
+          "$ref": "#/$defs/sha256",
+          "description": "Equals the spanSha256 of the evidence record named by evidenceId."
+        },
+        "evidenceId": {
+          "type": "string",
+          "pattern": "^evidence:sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "tasksCriterionBinding": {
       "type": "object",
       "additionalProperties": false,
       "required": [

@@ -41,19 +41,45 @@ type StableMap struct {
 	Artifacts []StableArtifact
 	original  []byte
 }
+
+// StableCriterion has two closed forms (CEM-V1-083). The plain form is a Git
+// blob span criterion: id, criterionIndex, criterionSha256 and evidenceId. The
+// optional Corvint Tasks extension is the eight Tasks members, wholly present
+// (and then evidenceId is absent) or wholly absent. Empty members are omitted,
+// so the Tasks form encodes and identifies exactly as before.
 type StableCriterion struct {
 	ID                         string `json:"id"`
-	TicketID                   string `json:"ticketId"`
-	AcceptanceRevision         string `json:"acceptanceRevision"`
+	TicketID                   string `json:"ticketId,omitempty"`
+	AcceptanceRevision         string `json:"acceptanceRevision,omitempty"`
 	CriterionIndex             int64  `json:"criterionIndex"`
-	AcceptanceSha256           string `json:"acceptanceSha256"`
+	AcceptanceSha256           string `json:"acceptanceSha256,omitempty"`
 	CriterionSha256            string `json:"criterionSha256"`
-	CaptureSha256              string `json:"captureSha256"`
-	VerificationSha256         string `json:"verificationSha256"`
-	ClaimTicketSha256          string `json:"claimTicketSha256"`
-	SnapshotHeadReceiptSha256  string `json:"snapshotHeadReceiptSha256"`
-	SnapshotHeadArtifactSha256 string `json:"snapshotHeadArtifactSha256"`
+	CaptureSha256              string `json:"captureSha256,omitempty"`
+	VerificationSha256         string `json:"verificationSha256,omitempty"`
+	ClaimTicketSha256          string `json:"claimTicketSha256,omitempty"`
+	SnapshotHeadReceiptSha256  string `json:"snapshotHeadReceiptSha256,omitempty"`
+	SnapshotHeadArtifactSha256 string `json:"snapshotHeadArtifactSha256,omitempty"`
+	EvidenceID                 string `json:"evidenceId,omitempty"`
 }
+
+// Plain reports whether the criterion uses the provider-neutral form.
+func (c StableCriterion) Plain() bool { return c.EvidenceID != "" }
+
+// StableTasksCriterionKeys is the optional Tasks extension member set.
+var StableTasksCriterionKeys = []string{"ticketId", "acceptanceRevision", "acceptanceSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256", "snapshotHeadArtifactSha256"}
+
+// stableCriterionKeys selects the closed key set: any Tasks member selects the
+// whole Tasks form, so a partial extension fails as a missing member and a
+// plain member beside it fails as an unknown member.
+func stableCriterionKeys(o *Object) []string {
+	for _, k := range StableTasksCriterionKeys {
+		if _, ok := o.Get(k); ok {
+			return []string{"id", "ticketId", "acceptanceRevision", "criterionIndex", "acceptanceSha256", "criterionSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256", "snapshotHeadArtifactSha256"}
+		}
+	}
+	return []string{"id", "criterionIndex", "criterionSha256", "evidenceId"}
+}
+
 type StableReceipt struct {
 	Sha256             string `json:"sha256"`
 	Profile            string `json:"profile"`
@@ -118,7 +144,10 @@ func ParseStable(raw []byte) (*StableMap, error) {
 		return nil, e
 	}
 	for _, x := range a {
-		keys := []string{"id", "ticketId", "acceptanceRevision", "criterionIndex", "acceptanceSha256", "criterionSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256", "snapshotHeadArtifactSha256"}
+		if x.Kind != KindObject {
+			return nil, fieldError("candidate record must be object")
+		}
+		keys := stableCriterionKeys(x.Obj)
 		if e = candidateObject(x, keys...); e != nil {
 			return nil, e
 		}
@@ -145,6 +174,10 @@ func ParseStable(raw []byte) (*StableMap, error) {
 			case "acceptanceRevision":
 				if !candidateRevision(t.Str) {
 					return nil, fieldError("acceptance revision")
+				}
+			case "evidenceId":
+				if !isPrefixedDigest(t.Str, EvidencePrefix) {
+					return nil, fieldError("criterion evidence ID")
 				}
 			default:
 				if !IsSha256(t.Str) {
@@ -264,15 +297,18 @@ func stableCriterionIdentity(c StableCriterion) string {
 	return candidateRecordIdentity(v.Obj)
 }
 func validateStableGraph(d *StableMap) error {
-	ids, tuples, groups := map[string]bool{}, map[string]bool{}, map[string]string{}
+	ids, tuples, groups, spans := map[string]bool{}, map[string]bool{}, map[string]string{}, map[string]bool{}
 	for _, c := range d.Criteria {
 		if c.ID != stableCriterionIdentity(c) {
 			return stableGraphError("invalid-criterion-identity")
 		}
+		// Plain criteria share one unnamed group (empty ticket and revision),
+		// which no Tasks criterion can occupy.
 		tuple := c.TicketID + "\x00" + c.AcceptanceRevision + "\x00" + strconv.FormatInt(c.CriterionIndex, 10)
-		if ids[c.ID] || tuples[tuple] {
+		if ids[c.ID] || tuples[tuple] || c.Plain() && spans[c.EvidenceID] {
 			return stableGraphError("duplicate-reference")
 		}
+		spans[c.EvidenceID] = c.Plain()
 		ids[c.ID] = true
 		tuples[tuple] = true
 		group := c.TicketID + "\x00" + c.AcceptanceRevision
@@ -290,7 +326,7 @@ func validateStableGraph(d *StableMap) error {
 		receipts[r.Sha256] = true
 	}
 	hunks := map[string]Hunk{}
-	evidence := map[string]bool{}
+	evidence, spanDigests := map[string]bool{}, map[string]string{}
 	for _, h := range d.Change.Hunks {
 		if _, ok := hunks[h.ID]; ok {
 			return stableGraphError("duplicate-reference")
@@ -299,6 +335,20 @@ func validateStableGraph(d *StableMap) error {
 	}
 	for _, e := range d.Change.Evidence {
 		evidence[e.ID] = true
+		spanDigests[e.ID] = e.SpanSha256
+	}
+	// A plain criterion is the cited base blob span itself: its digest is the
+	// span digest, which canonical evidence verification then binds to Git.
+	for _, c := range d.Criteria {
+		if !c.Plain() {
+			continue
+		}
+		if !evidence[c.EvidenceID] {
+			return stableGraphError("unresolved-reference")
+		}
+		if spanDigests[c.EvidenceID] != c.CriterionSha256 {
+			return stableGraphError("reference-coherence")
+		}
 	}
 	usedCriteria, usedReceipts := map[string]bool{}, map[string]bool{}
 	// Resolve all links before checking basis membership, preserving graph precedence.
@@ -359,6 +409,9 @@ func validateStableGraph(d *StableMap) error {
 		return true
 	}
 	for _, c := range d.Criteria {
+		if c.Plain() {
+			continue
+		}
 		for _, pair := range [][2]string{{c.CaptureSha256, "tasks-capture"}, {c.VerificationSha256, "tasks-verification"}, {c.ClaimTicketSha256, "tasks-claimed-ticket"}, {c.SnapshotHeadArtifactSha256, "tasks-snapshot-head-receipt"}} {
 			if !need(pair[0], pair[1]) {
 				return stableGraphError("artifact-role-closure")
