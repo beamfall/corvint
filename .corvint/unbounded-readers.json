@@ -44,7 +44,6 @@
     "script/gate-affected_test.sh",
     "script/gate-receipt_test.sh",
     "script/vscode-check-install_test.sh",
-    "tools/cem-convert-parity",
     "tools/cem-interop-runner",
     "tools/cem-trial"
   ],
@@ -92,7 +91,6 @@
     "script/gate-affected_test.sh": "runs go build and go test, whose reads are the whole program the toolchain builds; a shell unit has no read-scope declaration, so the shell plugin marks it shell:runs-toolchain (NSA-V0-011, V1-1301)",
     "script/gate-receipt_test.sh": "runs go run and make gate, whose reads are the whole program the toolchain builds; a shell unit has no read-scope declaration, so the shell plugin marks it shell:runs-toolchain (NSA-V0-011, V1-1301)",
     "script/vscode-check-install_test.sh": "runs npm and make gate, whose reads are the whole program the toolchain builds; a shell unit has no read-scope declaration, so the shell plugin marks it shell:runs-toolchain (NSA-V0-011, V1-1301)",
-    "tools/cem-convert-parity": "TestCEMV1104ConvertParitySample clones the whole repository object store (git rev-parse --git-common-dir, git clone --local) and runs a nested go build of interop/cem01-go, skipping when the clone fails, so a confined run passes without the reads it needs; .git and a nested build cannot be declared narrowly (AFP-V0-023 residuals)",
     "tools/cem-interop-runner": "consumer.go:359 runs git -C kitRoot rev-parse --show-toplevel HEAD and falls back to standalone when git fails, so a confined run passes while reading .git/HEAD is denied (4 refused opens, V1-0868, 2026-10-06); AFP-V0-023 never grants .git",
     "tools/cem-trial": "buildCorvint runs go build of cmd/corvint and skips the test when the build fails, so a confined run passes without the reads it needs; a nested build cannot be declared narrowly (AFP-V0-023 residuals)"
   }

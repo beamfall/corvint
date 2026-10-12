@@ -461,11 +461,13 @@ repository-configured filter, hook or merge driver (a configuration Core's harde
 read safely refuses `worktree-status-unavailable`), and refuses a `TMPDIR` inside the repository. Its
 constituents are the `.corvint/changes/<bind>.cem.json` files `BASE..HEAD` adds. For each it
 requires the bind commit in `HEAD`, the sealed bytes equal to that commit's
-`.corvint/change.cem.json`, a canonical `cem/0.2` or `cem/0.3` map with `cem status --max-mechanical 0`
-output that reports canonical `ready-for-ci` verification of exactly that bind against the CEM's own
-base, or a `cem/1.0` map whose status, run with `--artifacts <absolute repository root>`, reports
-`ok`, `accepted` and a stable `ACCEPT` of exactly that base and bind (`CEM-V1-148`; a zero exit
-alone is not evidence), printing `CONSTITUENT bind=... state=...`. It then requires every commit of the range to sit in
+`.corvint/change.cem.json`, and a `cem/1.0` map whose status, run with `--artifacts <absolute
+repository root>`, reports `ok`, `accepted` and a stable `ACCEPT` of exactly that base and bind
+(`CEM-V1-148`, `CEM-V1-202`; a zero exit alone is not evidence, and a `cem/0.x` `ready-for-ci`
+line proves no map), printing `CONSTITUENT bind=... state=...`. A pre-cutover branch's own sealed
+`cem/0.1`..`cem/0.3` map is a retired seal: it prints `NOTE sealed-cem-retired ...
+NOT_REVERIFIED coverage=none`, covers no commit, and is recovered by merging `origin/main`,
+removing the seal and rebinding the branch as one `cem/1.0` change (`CEM-V1-203`). It then requires every commit of the range to sit in
 a constituent's own range, to be its rename-only seal commit, or to be a two-parent merge whose tree
 is its first parent's tree or the tree `git merge-tree` derives with the default, `-Xours` or
 `-Xtheirs` strategy (`MERGE <sha> derivation=...`), derived in a private scratch repository that

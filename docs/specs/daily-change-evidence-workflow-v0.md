@@ -378,14 +378,13 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   no sealed file is modified or deleted, every added file under `.corvint/changes/` has that form,
   and `HEAD` tracks `.corvint/change.cem.json` only if `BASE` tracks the same blob;
   (b) each constituent's bind commit is in `HEAD`, its sealed blob equals that bind commit's
-  `.corvint/change.cem.json` and is a canonical `cem/0.2` or `cem/0.3` map or a `cem/1.0` map
-  (a `cem/0.1` map verifies a cached patch, not the committed change), its `baseRevision` is an
-  ancestor of the bind commit, and the verifier's `cem status --map <sealed path> --expected-base
-  <its base> --target <bind> --max-mechanical 0` exits 0 and reports `ok`, `ready-for-ci`, a valid
-  `canonical` verification and exactly that base and bind as base and target revisions, or, for a
-  `cem/1.0` map run with `--artifacts <absolute repository root>`, `ok`, `accepted` and a stable
-  `ACCEPT` with exactly that base and bind as `expectedBase` and `targetRevision`; the map's
-  declared spec selects the form, so neither form proves the other's map (`CEM-V1-148`; an exit
+  `.corvint/change.cem.json` and is a `cem/1.0` map, its `baseRevision` is an ancestor of the
+  bind commit, and the verifier's `cem status --map <sealed path> --expected-base <its base>
+  --target <bind> --max-mechanical 0 --artifacts <absolute repository root>` exits 0 and reports
+  `ok`, `accepted` and a stable `ACCEPT` with exactly that base and bind as `expectedBase` and
+  `targetRevision` (`CEM-V1-148`, `CEM-V1-202`; amended by V1-1278: the 0.x `ready-for-ci` form
+  is retired and proves no map, and a sealed `cem/0.x` map that still equals its bind commit's
+  sidecar is a retired seal, admitted unverified with no coverage under `CEM-V1-203`; an exit
   status or unparseable output alone is never evidence; counts it does not report print
   `NOT_OBSERVED`), with `--max-unknown` equal to its bootstrap unknowns: whole-file
   `no-evidence` unknown hunks on paths absent at its base, each printed, plus its reasoned unknown
@@ -405,8 +404,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Failure modes: an orchestrator edit committed straight to the batch branch, or a hand-resolved
   merge, fails with its recovery rather than passing; a constituent sealed against a base the
   verifier cannot reach fails `constituent-cem-policy`; a map reused on a bind commit with an
-  extra committed edit fails canonical verification; a verifier that exits 0 without canonical
-  `ready-for-ci` output fails `constituent-unverified`; a root commit of an unrelated history fails
+  extra committed edit fails stable verification; a verifier that exits 0 without a stable
+  `ACCEPT` fails `constituent-unverified`; a retired `cem/0.x` seal covers no commit, so its
+  branch fails `unbound-commits` until it is rebound as one `cem/1.0` change (`CEM-V1-203`); a root commit of an unrelated history fails
   `unbound-commits`; a batch over a bound refuses with a
   split recovery instead of truncating.
   Reason: the w4 batch of 2026-10-11 (PR #789, over 200 paths and about 900 hunks) could not be
@@ -437,7 +437,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   unmoved `BASE`, so the merged hunks and each admitted sealed file are hunks the plan cites like
   any other. It MUST still refuse `sealed-cem-in-change` (exit 2, before any step runs or any
   file is written) when any file under `.corvint/changes/` is modified, deleted, misnamed, not
-  merged, drifted from its bind commit's map, not canonical, or not proved `ready-for-ci`,
+  merged, drifted from its bind commit's map, not a `cem/1.0` map, or not proved by a stable
+  `ACCEPT` (amended by V1-1278, `CEM-V1-202`; a retired `cem/0.x` seal is admitted with
+  `NOTE sealed-cem-retired ... NOT_REVERIFIED bound-by-this-change` under `CEM-V1-203`),
   printing one line per refused path with its `DCW-V0-039` reason and the `DCW-V0-040` `fix:`
   line; when more than 256 files under `.corvint/changes/` change it refuses, verifying none,
   with the one line `sealed CEMs=<n> exceed 256` in place of the per-path lines. This amends the
@@ -626,7 +628,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
 - `DCW-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1277) Each
   migration commit, which rewrites committed sealed CEMs to `cem/1.0` in place (`CEM-V1-230`), is
   the seal baseline from that commit on. The migration commits are V1-1277's commit and any
-  follow-up commit that converts maps a pre-cutover branch landed later; they are listed in
+  follow-up commit that converts maps a pre-cutover branch landed later (none can be written
+  after V1-1278 removes the converter; such a branch's seal follows `CEM-V1-203`); they are listed in
   `cemMigrationCommits` in `internal/dogfoodflow/migration.go`. When `BASE..HEAD` contains a
   migration commit and `BASE` does not, `dogfood change`'s sealed-CEM admission and
   `dogfood batch-check` MUST admit a modified `.corvint/changes/<bind>.cem.json` path whose `BASE`
@@ -750,9 +753,12 @@ failures, each with one `fix:` line:
 - `unsealed-cem-at-head`: `HEAD` tracks a `.corvint/change.cem.json` that `BASE` does not.
 - `constituent-not-merged`, `constituent-cem-invalid`, `constituent-cem-policy`,
   `constituent-unverified`: a sealed change's bind commit is not in `HEAD`, its map is unreadable
-  or not canonical, its verifier exits non-zero within its bootstrap allowance, or the verifier
-  exits 0 without canonical `ready-for-ci` output (`cem/0.x`) or a stable `ACCEPT` (`cem/1.0`,
-  `CEM-V1-148`) for exactly that base and bind.
+  or not a `cem/1.0` map, its verifier exits non-zero within its bootstrap allowance, or the
+  verifier exits 0 without a stable `ACCEPT` (`CEM-V1-148`, `CEM-V1-202`) for exactly that base
+  and bind.
+- `NOTE sealed-cem-retired` (`CEM-V1-203`, V1-1278): a sealed `cem/0.x` map still equal to its
+  bind commit's sidecar is not verified, not counted and covers no commit; its `fix:` line names
+  the `cem/1.0` rebind after merging `origin/main`.
 - `constituent-cem-stable-unsupported`: retired by V1-1276 (`CEM-V1-148`): a sealed `cem/1.0`
   constituent is verified by the stable status, not refused.
 - `unbound-commits`: a non-merge commit, including a root commit, belongs to no sealed change and
@@ -829,7 +835,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-032` (accepted, decision 0430) | `internal/dogfoodflow/change.go` `citeStep`, `citationPlanMismatch`, `validateIntentManifest`, `localOutcome` and `noteAgentReceipt`; `TestChangeRefusesEmptyPlanAndOverBoundInputs` (including the empty plan admitted on a map that owes no hunk, and inputs of exactly their bound), `TestDogfoodReasonAdmitsInputRefusals` (the new step reasons reach the self-observation ledger), `TestDogfoodFinishRunsFromBinaryInForeignRepository` (finish still completes with its empty plan), the `empty` citation case of `script/dogfood-change_test.sh`, and the malformed and over-bound case of `TestChangeNotesAbsentOrStaleAgentReceipts` | implemented; not accepted |
 | `DCW-V0-033` (accepted by decision 0441; V1-0940) | `internal/dogfoodflow/check.go` `verifyBinding`, `checkSummary`, `summaryString`; `cmd/corvint/dogfood_flow.go` (`DOGFOOD_VERBOSE`); `TestDCWV0033CheckSummaryAbstainsOnUnobservedFields` (missing, malformed and forged fields print `NOT_OBSERVED`), `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` (exact two-line PASS, detail file holds both status lines, `DOGFOOD_VERBOSE=1` restores the former bytes, seal prints the summary, terminator and seal line), `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (`ocm=NOT_ASSESSED` then the note) | implemented; not accepted |
 | `DCW-V0-034` (accepted, decision 0505) | `internal/dogfoodflow/change.go` `localOutcome`; `internal/trace/record.go` `ValidateVerificationCommands`; `TestDogfoodChangeDCWV0034VerifySyntaxBeforeBinding`, `TestDogfoodChangeDCWV0034CleanVerifyFile`, `TestDCWV0034VerificationCommandValidationBounds` | focused validation; accepted, decision 0505 |
-| `DCW-V0-039` (accepted, decision 0519; V1-1151) | `internal/dogfoodflow/batch.go` `BatchCheck`; `cmd/corvint/dogfood_flow.go`; `script/dogfood-batch-check.sh` (its build uses the `DCW-V0-038` cache selection; `script/dogfood-cache_test.sh` covers it); `TestBatchCheckDCWV0039PassesSealedConstituents` (object store and worktree unchanged), `TestBatchCheckDCWV0039DerivesOneSidedResolution`, `TestBatchCheckDCWV0039RefusesDriftedEvidence`, `TestBatchCheckDCWV0039BootstrapAllowanceIsVisible`, `TestBatchCheckDCWV0039Refusals`, `TestBatchCheckDCWV0039RequiresCanonicalVerification` (cem/0.1 map; empty, malformed, incomplete, structural, wrong-target and count-less verifier output), `TestBatchCheckDCWV0039IgnoresRepositoryDriversAndHooks` (configured merge driver and fsmonitor hook never run; driver-reproducible manual merge fails), `TestBatchCheckDCWV0039ReportsUnrelatedRootCommit`, `TestBatchCheckDCWV0039RefusesRepositoryFilters` (clean filter never runs), `TestBatchCheckDCWV0039RefusesScratchInsideRepository`; `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary, real verifier: two sealed lanes merge and pass, an unbound fix-up fails, a sealed map reused on a bind commit with an omitted edit fails); live runs on the w4 batch recorded in `docs/build-log/2026-10-10-dogfood-batch-check.md` | implemented and accepted; retroactive bindings and composition NOT_OBSERVED |
+| `DCW-V0-039` (accepted, decision 0519; V1-1151) | `internal/dogfoodflow/batch.go` `BatchCheck`; `cmd/corvint/dogfood_flow.go`; `script/dogfood-batch-check.sh` (its build uses the `DCW-V0-038` cache selection; `script/dogfood-cache_test.sh` covers it); `TestBatchCheckDCWV0039PassesSealedConstituents` (object store and worktree unchanged), `TestBatchCheckDCWV0039DerivesOneSidedResolution`, `TestBatchCheckDCWV0039RefusesDriftedEvidence`, `TestBatchCheckDCWV0039BootstrapAllowanceIsVisible`, `TestBatchCheckDCWV0039Refusals`, `TestBatchCheckDCWV0039RequiresStableVerification` (since V1-1278: empty, malformed, incomplete, REJECT, wrong-target, count-less and 0.x `ready-for-ci` verifier output), `TestBatchCheckCEMV1203RetiredSealHasNoCoverage` (retired `cem/0.x` seals), `TestBatchCheckDCWV0039IgnoresRepositoryDriversAndHooks` (configured merge driver and fsmonitor hook never run; driver-reproducible manual merge fails), `TestBatchCheckDCWV0039ReportsUnrelatedRootCommit`, `TestBatchCheckDCWV0039RefusesRepositoryFilters` (clean filter never runs), `TestBatchCheckDCWV0039RefusesScratchInsideRepository`; `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary, real verifier: two sealed lanes merge and pass, an unbound fix-up fails, a sealed map reused on a bind commit with an omitted edit fails); live runs on the w4 batch recorded in `docs/build-log/2026-10-10-dogfood-batch-check.md` | implemented and accepted; retroactive bindings and composition NOT_OBSERVED |
 | `DCW-V0-040` (accepted, decision 0519; V1-1151) | `internal/dogfoodflow/change.go` `fixHints` and the sealed-CEM refusal; `TestChangeDCWV0040NamesBatchRecoveryForOversizedChanges` (each hint matched by step and reason); `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary: rebinding the merged batch refuses `sealed-cem-in-change` and names batch-check, worktree clean); `TestBatchCheckDCWV0040NamesUnboundContentAndRecovery` (batch-check's own `fix:` lines) | implemented and accepted; a real over-budget or over-200-path refusal is not reproduced by a test |
 | `DCW-V0-041` (accepted, decision 0519; V1-1171) | `internal/dogfoodflow/change.go` `fixHints`; `docs/DOGFOOD.md` (the `DOGFOOD_CITATIONS` input row and the citation-plan paragraph of section 4); `TestChangeDCWV0041NamesCitationRowFix`; `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (a code and a spec citation on one hunk, an unregistered relation and a path absent at `BASE` each name their fix) | implemented and accepted |
 | `DCW-V0-042` (accepted, decision 0520; V1-1219) | `internal/dogfoodflow/change.go` `admitSealedCEMs`, `internal/dogfoodflow/batch.go` `verifySealedCEM` (shared with batch-check); `TestChangeDCWV0042AdmitsOnlyVerifiableSealedCEMs` (two merged seals admitted with one verifier run each; an unverified seal, a modified seal and a misnamed file each refuse with their path and reason and the batch-check `fix:` line; 257 added files refuse by count with no verifier run); `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary, real verifier: a drifted merged seal refuses with a clean worktree, and the merged two-lane batch binds, checks and seals against the unmoved `BASE`, citing both sealed files' hunks) | implemented; not accepted; reproduced before the fix by the same fixture, whose rebind of the valid merged batch refused `sealed-cem-in-change` at `6c38c6c4a` |

@@ -921,13 +921,18 @@ const frontierHelp = `Compile the deterministic Change Frontier V0 review queue.
 
 Usage:
   corvint [--root PATH] frontier --cem MAP --ocm MAP --expected-base REV
-    --target REV [--command FILE --observation FILE --report FILE] [--json]
+    --target REV [--artifacts DIR]
+    [--command FILE --observation FILE --report FILE] [--json]
 
 Options:
-  --cem MAP           Required verified cem/0.2 artifact.
+  --cem MAP           Required verified cem/0.2 or cem/1.0 artifact.
   --ocm MAP           Required canonical ocm/0.1-experimental artifact bound to it.
   --expected-base REV Independent expected base revision; never inferred.
   --target REV        Independent target revision; never inferred.
+  --artifacts DIR     Required for a cem/1.0 map, refused otherwise: the
+                      artifact root the stable verifier reads (no default).
+                      A cem/1.0 map yields the frontier-stable-view/0 view,
+                      whose state is always NOT_PRODUCED (exit 1).
   --command FILE      Canonical test command, for dynamic test mode.
   --observation FILE  Canonical test observation, for dynamic test mode.
   --report FILE       Raw JUnit report, for dynamic test mode.
@@ -977,8 +982,6 @@ Usage:
     --output DIR [--witness REPORT]
   corvint [--root PATH] cem verify-stable --repository PATH --map MAP
     --expected-base REV --target REV --artifacts DIR [--trusted-keys FILE]
-  corvint cem convert --map MAP (--output MAP | --in-place) [--bind-commit REV]
-    [--repository PATH]
 
 Actions:
   begin    Build a cem/0.1 candidate from exact out-of-band patch bytes;
@@ -1032,12 +1035,6 @@ Actions:
            authentication axis to VERIFIED (UNTRUSTED_KEY otherwise). A key
            the map or its artifacts carry is never trusted, and a valid
            signature never raises executionAtCommit.
-  convert  Convert one cem/0.1, cem/0.2 or cem/0.3 map to cem/1.0 with its
-           provenance member (decision 0525 §4) and print one
-           corvint-cem-convert-report/1 JSON report. Paths are absolute;
-           --bind-commit defaults to the <commit>.cem.json file name, and
-           --repository checks that the bind commit holds the source bytes.
-           A cem/1.0 input is refused.
 
 Verification options:
   --expected-base REV  Independent expected base. Required for cem/0.2.

@@ -46,6 +46,20 @@ func TestStableDispatchDoesNotCaptureOldCEM(t *testing.T) {
 	}
 }
 
+// CEM-V1-204: the converter is retired, so `cem convert` is no longer a stable
+// entry; the ordinary cem parser refuses it as an unknown action.
+func TestCEMV1204StableDispatchNoLongerCapturesConvert(t *testing.T) {
+	var out bytes.Buffer
+	for _, args := range [][]string{
+		{"cem", "convert", "--map", "/missing-map", "--output", "/missing-out"},
+		{"--root", "/missing", "cem", "convert", "--map", "/missing-map", "--in-place"},
+	} {
+		if _, ok := RunStableInvocation(context.Background(), args, &out); ok || out.Len() != 0 {
+			t.Fatalf("%q captured by the stable entry: %s", args, out.String())
+		}
+	}
+}
+
 func TestStableDispatchDoesNotCaptureOtherCommandValues(t *testing.T) {
 	for _, args := range [][]string{
 		{"query", "--task", "cem", "verify-stable"},

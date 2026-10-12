@@ -65,7 +65,8 @@ func stableStatusLine(base, bind string) string {
 // CEM-V1-148 (amends CEM-V1-032): batch-check admits a sealed cem/1.0
 // constituent when the verifier, run with the repository root as artifact
 // root, reports a stable ACCEPT of exactly its base and bind; a 0.x status
-// line never proves a stable map, nor a stable line a 0.x map.
+// line never proves a stable map, and a 0.x seal is retired, never verified
+// (CEM-V1-203).
 func TestBatchCheckAdmitsStableConstituent(t *testing.T) {
 	repo := newBatchRepo(t)
 	bind, seal := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", `{"spec": "cem/1.0", "baseRevision": "`+repo.base+`", "hunks": []}`+"\n")
@@ -82,7 +83,10 @@ func TestBatchCheckAdmitsStableConstituent(t *testing.T) {
 	// Refusal controls: the 0.x line does not prove the stable map, a stable
 	// REJECT or a different bind does not either.
 	for name, output := range map[string]func(base, bind string) string{
-		"legacy-line": nil,
+		"legacy-line": func(base, bind string) string {
+			return `{"counts":{"supported":1,"total":1,"unknown":0},"ok":true,"state":"ready-for-ci","tool":"cem-status",` +
+				`"verification":{"assurance":"canonical","baseRevision":"` + base + `","targetRevision":"` + bind + `","valid":true}}` + "\n"
+		},
 		"reject": func(base, bind string) string {
 			return strings.Replace(stableStatusLine(base, bind), `"outcome":"ACCEPT"`, `"outcome":"REJECT"`, 1)
 		},
@@ -92,13 +96,6 @@ func TestBatchCheckAdmitsStableConstituent(t *testing.T) {
 		if code, _, stderr := repo.check(); code != 1 || !strings.Contains(stderr, "FAIL constituent-unverified count=1\n  bind="+bind) {
 			t.Fatalf("%s: exit=%d stderr=%s", name, code, stderr)
 		}
-	}
-	legacy := newBatchRepo(t)
-	_, legacySeal := legacy.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
-	legacy.batch(legacySeal)
-	legacy.output = func(base, bind string) string { return stableStatusLine(base, bind) }
-	if code, _, stderr := legacy.check(); code != 1 || !strings.Contains(stderr, "FAIL constituent-unverified count=1") || strings.Contains(strings.Join(legacy.args[0], " "), "--artifacts") {
-		t.Fatalf("0.x map proved by a stable line: exit=%d stderr=%s argv=%q", code, stderr, legacy.args)
 	}
 }
 
