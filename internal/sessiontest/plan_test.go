@@ -436,10 +436,11 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 			}
 		}
 		want := "assigns GOFLAGS"
-		if strings.Contains(body, "${BAD)") {
-			// make refuses the unterminated reference as it reads the
-			// line, so the scope is incomplete before any branch is read.
-			want = "unterminated reference"
+		if strings.Contains(body, "${BAD)") || strings.Contains(body, "y)),x)") {
+			// The parentheses close before the end of the line, which is
+			// outside the one ifeq shape the reader reads (round 13), so
+			// the scope is incomplete before any branch is read.
+			want = "malformed ifeq"
 		}
 		if strings.Contains(body, "\u00a0") {
 			// A non-ASCII byte is outside the whole-file grammar.
@@ -817,6 +818,80 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 		lookup := func(key string) (string, bool) { return flags, key == "MAKEFLAGS" }
 		if got := ReadDeclared(write(t, map[string]string{"Makefile": "F = -race\n" + recipe}), nil, lookup); got.GoTest == GoTestParsed || got.Unreadable == "" || !strings.Contains(got.Unreadable, "MAKEFLAGS") {
 			t.Errorf("MAKEFLAGS=%q: %#v, want untyped and incomplete naming MAKEFLAGS", flags, got)
+		}
+	}
+	// Codex round 13.
+	// 1. The shell make starts for a NAME=VALUE recipe imports exported
+	// functions and start-up options from the environment, so their
+	// presence, with any value, is uncertain.
+	prefixed := "go-test:\n\tGOFLAGS=-race go test ./...\n"
+	for _, name := range []string{"BASH_FUNC_go%%", "BASH_FUNC_go()", "go", "SHELLOPTS", "BASHOPTS", "EXECIGNORE", "ENV", "BASH_ENV"} {
+		lookup := func(key string) (string, bool) { return "() { echo intercepted; }", key == name }
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": prefixed}), nil, lookup); got.GoTest == GoTestParsed || !strings.Contains(got.Unreadable, name) {
+			t.Errorf("%s in the environment: %#v, want untyped and incomplete naming it", name, got)
+		}
+	}
+	// A recipe prefix that is not a go environment variable may be special
+	// or read-only to that shell; go environment variables stay typed.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "go-test:\n\tSHELLOPTS=1 go test ./...\n"}), nil, none); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "sets SHELLOPTS") {
+		t.Errorf("SHELLOPTS prefix: %#v, want unparsed naming SHELLOPTS", got)
+	}
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "go-test:\n\tGOCACHE=/tmp/c GOTOOLCHAIN=local go test ./...\n"}), nil, none); got.GoTest != GoTestParsed || strings.Join(got.GoEnv, " ") != "GOCACHE=/tmp/c GOTOOLCHAIN=local" {
+		t.Errorf("go environment prefixes: %#v, want parsed with both", got)
+	}
+	// 2. make expands $(IFS) itself for every recipe line, so an IFS from
+	// the makefile or the environment runs make code before go-test.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "IFS = $(error witness)\nF = -race\n" + recipe}), nil, none); got.GoTest != GoTestUnparsed || got.Unreadable == "" || !strings.Contains(got.GoTestNote, "assigns IFS") {
+		t.Errorf("IFS assignment: %#v, want unparsed and incomplete naming IFS", got)
+	}
+	ifs := func(key string) (string, bool) { return "$(error witness)", key == "IFS" }
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "F = -race\n" + recipe}), nil, ifs); got.GoTest == GoTestParsed || !strings.Contains(got.Unreadable, "IFS") {
+		t.Errorf("IFS in the environment: %#v, want untyped and incomplete naming IFS", got)
+	}
+	// 3. An inherited control is read by presence: a blank or empty
+	// .SHELLFLAGS still replaces -c.
+	for _, value := range []string{"", " "} {
+		lookup := func(key string) (string, bool) { return value, key == ".SHELLFLAGS" }
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": "F = -race\n" + recipe}), nil, lookup); got.GoTest == GoTestParsed || !strings.Contains(got.Unreadable, ".SHELLFLAGS") {
+			t.Errorf(".SHELLFLAGS=%q: %#v, want untyped and incomplete naming .SHELLFLAGS", value, got)
+		}
+	}
+	// 4. make stops on a pure function with too few arguments or a word
+	// index that is not a positive number; valid shapes stay typed.
+	for _, line := range []string{"X := $(word bad,x)", "X := $(word 0,x)", "X := $(word $(N),x)", "X := $(wordlist 0,1,x)", "X := $(wordlist 1,b,x)", "X := $(filter x)", "X := $(subst a,b)", "X := $(if x)", "X := $(addprefix a)", "X := $(or x,${Y})"} {
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": line + "\nF = -race\n" + recipe}), nil, none); got.GoTest != GoTestUnparsed || got.Unreadable == "" || !strings.Contains(got.GoTestNote, "make function") {
+			t.Errorf("%q: %#v, want unparsed and incomplete naming the function", line, got)
+		}
+	}
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "X := $(word 2,a b) $(wordlist 1,2,a b c) $(filter a,b) $(or $(Y),z)\nF = -race\n" + recipe}), nil, none); got.GoTest != GoTestParsed || got.Unreadable != "" {
+		t.Errorf("well-formed functions: %#v, want parsed", got)
+	}
+	// 5. make allows one plain else per conditional and stops on a
+	// malformed conditional, text after else or endif, or a stray one.
+	for _, body := range []string{
+		"ifeq (a,a)\nelse\nelse\nendif\n",
+		"ifeq (a,b)\nelse\nelse ifeq (a,a)\nendif\n",
+		"ifeq (a,a)\nelse foo\nendif\n",
+		"ifeq (a,a)\nendif foo\n",
+		"ifeq (a,a)\nelse ifeq a b\nendif\n",
+		"ifeq a b\nendif\n",
+		"ifeq \"a\" \"a\"\nendif\n",
+		"ifeq (a,a) x\nendif\n",
+		"ifeq (a)\nendif\n",
+		"ifdef\nendif\n",
+		"ifdef A B\nendif\n",
+		"ifndef\nendif\n",
+		"else\n",
+		"endif\n",
+		"ifeq (a,a)\n",
+	} {
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": body + "F = -race\n" + recipe}), nil, none); got.GoTest == GoTestParsed || got.Unreadable == "" {
+			t.Errorf("%q: %#v, want untyped and incomplete", body, got)
+		}
+	}
+	for _, body := range []string{"ifeq (a,a)\nelse ifeq (a,b)\nelse\nendif\n", "ifdef A\nelse\nendif\n", "ifeq (a,b)\nelse ifneq (a,b)\nendif\n"} {
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": body + "F = -race\n" + recipe}), nil, none); got.GoTest != GoTestParsed || got.Unreadable != "" {
+			t.Errorf("%q: %#v, want parsed", body, got)
 		}
 	}
 }

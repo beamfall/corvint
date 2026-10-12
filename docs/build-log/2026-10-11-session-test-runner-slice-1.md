@@ -166,6 +166,29 @@ Contracts and decisions:
   recipe, a `.PHONY:` line after `go-test:` takes the following tab lines, a root `GO-TEST` is
   "up to date", `MAKEFLAGS="--jobserver-fds=3,4 -j"` with closed descriptors still runs, and
   `ifeq(a,a)` without a space is a "missing separator".
+  Codex round 13 found five more ways to a typed or absent answer, four confirmed by probes
+  `r13/a-e` with make 3.81 and bash 3.2.57 as `/bin/sh`: an exported bash function
+  (`BASH_FUNC_go%%`) or `SHELLOPTS` in the environment intercepts the shell make starts for a
+  `NAME=VALUE go test` line; make expands `$(IFS)` itself for every recipe line, so
+  `IFS = $(error witness)` in the makefile or `IFS='$(error witness)'` in the environment stops
+  make; a blank `.SHELLFLAGS` was trimmed away although make 4 would use it; `$(word bad,x)` and
+  too few function arguments are read-time fatals; and a second plain `else` is one too. The
+  reader now (1) treats every inherited control by presence, with any value, and adds `IFS`,
+  `SHELLOPTS`, `BASHOPTS`, `EXECIGNORE`, `ENV`, `BASH_ENV`, `BASH_FUNC_go%%`, `BASH_FUNC_go()` and
+  `go` to that list, and refuses an `IFS` assignment as a make control; (2) admits only Go
+  environment variables (`GO*`, `CGO_*`) as recipe prefixes, since another name may be special or
+  read-only to that shell; (3) checks each pure function's minimum arity and requires literal
+  positive `word`/`wordlist` indexes, and refuses a brace inside function arguments; (4) reads
+  one shape per conditional, `ifdef NAME` with exactly one word or `ifeq (A,B)` with balanced
+  parentheses, a top-level comma and nothing after the closing parenthesis, so the quoted forms,
+  text after `else` or `endif`, a stray `else`/`endif` and a second plain `else` are outside the
+  grammar; and (5) treats a makefile that ends inside a conditional or a define as incomplete,
+  not merely untyped. Retained limit: `ReadDeclared` takes a lookup function, so it can test only
+  the enumerated environment names; it cannot enumerate every `BASH_FUNC_*` or other shell
+  start-up variable. Closing that needs the call site (`cmd/corvint/test.go`) to pass the
+  environment's names, which this slice does not change. The repository Makefile still types
+  go-test with the same argv and environment; `TestSTRV0006ReaderGrammar` holds one case per
+  round-13 finding.
 - CI profile argv and environment are the full CI branch's: `-exec <confine> -p 1 -count=1 -race
   -timeout 50m`, with `GOPROXY=off`, `GOSUMDB=off`, `GOWORK=off`, an empty `GOFLAGS`,
   `CGO_ENABLED=1` and `CORVINT_CONFINE_ROOT`. The CI admission parts of STR-V0-012 belong to the

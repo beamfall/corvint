@@ -115,13 +115,21 @@ var (
 	makeControlNames = map[string]bool{
 		"SHELL": true, "MAKE": true, "MAKEFLAGS": true, "GNUMAKEFLAGS": true, "MFLAGS": true, "MAKEFILES": true,
 		"MAKEOVERRIDES": true, "MAKESHELL": true, "MAKELEVEL": true, "MAKECMDGOALS": true, "MAKEFILE_LIST": true,
-		"CURDIR": true, "VPATH": true, "GPATH": true, "SUFFIXES": true,
+		"CURDIR": true, "VPATH": true, "GPATH": true, "SUFFIXES": true, "IFS": true,
 	}
-	// inheritedControls are the environment variables that change what make
-	// reads or how it finds targets; a non-empty one leaves the scope
-	// incomplete. MAKECMDGOALS and the MAKEFLAGS words are read separately;
-	// SHELL is never taken from the environment by make.
-	inheritedControls = []string{"MAKEFILES", "VPATH", "GPATH", "MAKEOVERRIDES", ".RECIPEPREFIX", ".SHELLFLAGS", ".LIBPATTERNS", ".EXTRA_PREREQS"}
+	// inheritedControls are the environment variables whose presence, with
+	// any value, changes what make reads, where it finds targets, whether a
+	// recipe needs a shell, or how that shell starts and finds go: make
+	// expands $(IFS) and $(MAKEFILES) itself, an empty .SHELLFLAGS drops -c,
+	// and bash (which /bin/sh is here) imports SHELLOPTS, BASHOPTS,
+	// EXECIGNORE, ENV, BASH_ENV and exported functions named go. One that is
+	// present leaves the scope incomplete. MAKECMDGOALS and the MAKEFLAGS
+	// words are read separately; SHELL is never taken from the environment
+	// by make.
+	inheritedControls = []string{
+		"MAKEFILES", "VPATH", "GPATH", "MAKEOVERRIDES", ".RECIPEPREFIX", ".SHELLFLAGS", ".LIBPATTERNS", ".EXTRA_PREREQS",
+		"IFS", "SHELLOPTS", "BASHOPTS", "EXECIGNORE", "ENV", "BASH_ENV", "BASH_FUNC_go%%", "BASH_FUNC_go()", "go",
+	}
 	// makeBuiltinNames are GNU make's default variables (default.c, 4.4.1)
 	// without a dot, a comma or the MAKE prefix; makeBuiltinVariable covers
 	// the rest by shape. A `?=` on one keeps make's default, whose value
@@ -153,6 +161,18 @@ var (
 		"dir": true, "notdir": true, "suffix": true, "basename": true, "addsuffix": true, "addprefix": true,
 		"join": true, "wildcard": true, "realpath": true, "abspath": true, "if": true, "or": true, "and": true,
 	}
+	// functionArity is the fewest arguments each pure function takes; make
+	// stops reading with a fatal error below it. word and wordlist also
+	// stop on a non-numeric or zero index, so those arguments must be
+	// literal numbers (functionIndex, functionCount).
+	functionArity = map[string]int{
+		"subst": 3, "patsubst": 3, "strip": 1, "findstring": 2, "filter": 2, "filter-out": 2,
+		"sort": 1, "word": 2, "wordlist": 3, "words": 1, "firstword": 1, "lastword": 1,
+		"dir": 1, "notdir": 1, "suffix": 1, "basename": 1, "addsuffix": 2, "addprefix": 2,
+		"join": 2, "wildcard": 1, "realpath": 1, "abspath": 1, "if": 2, "or": 1, "and": 1,
+	}
+	functionIndex = regexp.MustCompile(`^[1-9][0-9]{0,8}$`)
+	functionCount = regexp.MustCompile(`^[0-9]{1,9}$`)
 )
 
 // Conditional frame states. Lines are read only while no open frame skips.
@@ -197,11 +217,12 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 		for _, line := range logicalLines(string(raw)) {
 			r.read(line)
 		}
+		// make stops reading on either, so it runs nothing.
 		if r.inDefine {
-			r.setUntyped("the " + r.name + " has a define without endef")
+			r.uncertain("the " + r.name + " has a define without endef")
 		}
 		if len(r.stack) != 0 {
-			r.setUntyped("the " + r.name + " has a conditional without endif")
+			r.uncertain("the " + r.name + " has a conditional without endif")
 		}
 	}
 	return r.declared()
@@ -246,6 +267,9 @@ type makefileReader struct {
 	texts  map[string][]string
 	recipe []logicalLine
 	stack  []int
+	// elseSeen parallels stack: a plain else was read for that frame, so
+	// make stops on any further else.
+	elseSeen []bool
 	// goalsUnknown: MAKECMDGOALS came from the environment or a makefile
 	// line touched it, so from here on a conditional on it is not
 	// evaluated and both branches are read.
@@ -305,8 +329,8 @@ func (r *makefileReader) environment() {
 		}
 	}
 	for _, name := range inheritedControls {
-		if value, ok := r.lookup(name); ok && strings.Trim(value, " \t") != "" {
-			r.uncertain(name + " is in the environment, which changes what make reads or where it finds targets")
+		if _, ok := r.lookup(name); ok {
+			r.uncertain(name + " is in the environment, which changes what make reads, where it finds targets or how the recipe shell starts")
 		}
 	}
 }
@@ -388,7 +412,12 @@ func (r *makefileReader) read(line logicalLine) {
 		if r.inGoTest {
 			r.setUntyped("the go-test recipe contains a conditional")
 		}
-		if skipping {
+		r.elseSeen = append(r.elseSeen, false)
+		if !conditionalSyntax(directive, text[len(directive):]) {
+			// make stops reading on a malformed conditional.
+			r.outside(line.number, "has a malformed "+directive)
+			r.stack = append(r.stack, condUnknown)
+		} else if skipping {
 			r.stack = append(r.stack, condNested)
 		} else {
 			r.expandsNow(line.number, text)
@@ -468,20 +497,39 @@ func (r *makefileReader) conditionalEnd(number int, directive, text string) {
 		r.setUntyped("the go-test recipe contains a conditional")
 	}
 	if len(r.stack) == 0 {
-		r.setUntyped(fmt.Sprintf("%s line %d has an unmatched %s", r.name, number, directive))
+		// make stops reading on an extraneous else or endif.
+		r.outside(number, "has an unmatched "+directive)
 		return
 	}
 	top := &r.stack[len(r.stack)-1]
 	if directive == "endif" {
+		if strings.Trim(text[len("endif"):], " \t") != "" {
+			// make stops reading on text after endif.
+			r.outside(number, "has text after endif")
+		}
 		r.stack = r.stack[:len(r.stack)-1]
+		r.elseSeen = r.elseSeen[:len(r.elseSeen)-1]
+		return
+	}
+	seen := &r.elseSeen[len(r.elseSeen)-1]
+	if *seen {
+		// make allows one plain else per conditional and stops on another.
+		r.outside(number, "has a second else")
 		return
 	}
 	rest := strings.TrimLeft(text[len("else"):], " \t")
 	words := makeWords(rest)
 	conditional := len(words) > 0 && conditionalWords[words[0]]
 	if rest != "" && !conditional {
-		// make refuses text after else that is not another conditional.
-		r.setUntyped(fmt.Sprintf("%s line %d has text after else", r.name, number))
+		// make stops reading on text after else that is not a conditional.
+		r.outside(number, "has text after else")
+		return
+	}
+	if !conditional {
+		*seen = true
+	} else if !conditionalSyntax(words[0], rest[len(words[0]):]) {
+		r.outside(number, "has a malformed else "+words[0])
+		*top = condUnknown
 		return
 	}
 	switch *top {
@@ -496,6 +544,38 @@ func (r *makefileReader) conditionalEnd(number int, directive, text string) {
 			*top = r.evaluate(rest)
 		}
 	}
+}
+
+// conditionalSyntax reports whether rest, the text after an ifeq, ifneq,
+// ifdef or ifndef word, has the one shape of each that this reader reads:
+// `ifdef NAME` with exactly one word, or `ifeq (A,B)` with balanced
+// parentheses, a top-level comma and nothing after the closing parenthesis.
+// make's quoted forms and everything else are outside the grammar.
+func conditionalSyntax(directive, rest string) bool {
+	rest = strings.Trim(rest, " \t")
+	if directive == "ifdef" || directive == "ifndef" {
+		return len(makeWords(rest)) == 1
+	}
+	if !strings.HasPrefix(rest, "(") {
+		return false
+	}
+	depth, end := 0, -1
+	for index := 0; index < len(rest) && end < 0; index++ {
+		switch rest[index] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				end = index
+			}
+		}
+	}
+	if end != len(rest)-1 {
+		return false
+	}
+	args, ok := splitMakeArgs(rest[1:end])
+	return ok && len(args) >= 2
 }
 
 // assign reads one variable assignment.
@@ -1127,6 +1207,9 @@ func (r *makefileReader) pure(text string, depth int) error {
 			if !pureFunctions[name] {
 				return errors.New("make function " + name)
 			}
+			if err := pureArguments(name, arguments); err != nil {
+				return err
+			}
 		} else if before, after, found := strings.Cut(body, ":"); found {
 			// A substitution reference $(NAME:a=b) expands NAME.
 			name, arguments = before, after
@@ -1152,6 +1235,32 @@ func (r *makefileReader) pure(text string, depth int) error {
 			}
 		}
 		index = end
+	}
+	return nil
+}
+
+// pureArguments checks the arguments of a pure function for the shapes on
+// which make stops reading: too few arguments, or a word or wordlist index
+// that is not a literal positive number. A brace inside the arguments is
+// refused rather than reasoned about, because make splits the arguments
+// on the function's own delimiter only.
+func pureArguments(name, arguments string) error {
+	if strings.ContainsAny(arguments, "{}") {
+		return errors.New("make function " + name + " with a brace in its arguments")
+	}
+	args, ok := splitMakeArgs(arguments)
+	if !ok || len(args) < functionArity[name] {
+		return fmt.Errorf("make function %s with %d arguments where make needs %d", name, len(args), functionArity[name])
+	}
+	switch name {
+	case "word":
+		if !functionIndex.MatchString(strings.Trim(args[0], " \t")) {
+			return errors.New("make function word with an index that is not a literal positive number")
+		}
+	case "wordlist":
+		if !functionIndex.MatchString(strings.Trim(args[0], " \t")) || !functionCount.MatchString(strings.Trim(args[1], " \t")) {
+			return errors.New("make function wordlist with indexes that are not literal numbers")
+		}
 	}
 	return nil
 }
@@ -1199,8 +1308,14 @@ func typeGoRecipe(recipe []logicalLine, resolve func(string) (string, bool)) (en
 	fields := makeWords(expanded)
 	env = []string{}
 	for len(fields) > 0 && envAssignment.MatchString(fields[0]) {
-		if strings.HasPrefix(fields[0], "PATH=") {
+		name, _, _ := strings.Cut(fields[0], "=")
+		if name == "PATH" {
 			return nil, nil, "go-test recipe sets PATH, which changes which go runs"
+		}
+		if !goEnvironmentName.MatchString(name) {
+			// Another name may be read-only or special to the shell make
+			// starts (SHELLOPTS, UID, IFS...), so the line needs that shell.
+			return nil, nil, "go-test recipe sets " + name + ", which is not a go environment variable"
 		}
 		env = append(env, fields[0])
 		fields = fields[1:]
