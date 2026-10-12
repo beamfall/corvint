@@ -101,8 +101,8 @@ requirement is added or removed; the delivery status stays experimental.
   mutations (TestSTRV0006LedgerMatchesDeclaration); and the line classifier.
   `tools/test-commands-run/main_test.go` runs the runner under a fake `go` on `PATH` (argv,
   directory, environment precedence, exit status) and pins its four refusals. Its recorded
-  limits are in STR-V0-006 (the environment make itself starts with, `gate-affected` still using
-  `GO_TEST_COMMAND`, and the `none` check seeing only direct recipe words).
+  limits are in STR-V0-006 (the environment make itself starts with, and the `none` check seeing
+  only direct recipe words).
 - `tools/str-parity -corpus` refuses a corpus whose lines differ from
   `git rev-list --first-parent --parents` over the same end and count.
 
@@ -126,3 +126,14 @@ Revert the lane's commits on `claude/v1-0040-impl`: the slice 1 Makefile reader 
 tests, STR-V0-003/004/006/013/015 return to their slice 2 text, `make go-test` returns to
 `$(GO_TEST_COMMAND) ./...`, `tools/test-commands-run` goes with its tests, and the gate step
 leaves `GATE_STEPS` and the CI doc-gates list. The corpus file can stay; it is inert without `-corpus`.
+
+## Slice 3
+
+Slice 3 (`claude/v1-0040-slice3`, `docs/build-log/2026-10-12-session-test-runner-slice-3.md`)
+switches `make gate-affected` to `corvint test` and adds a shadow-only CI step beside the driver.
+It amends STR-V0-012 (the gate-affected call site, a bad BASE as a usage error, inherited
+`MAKEFLAGS`, ci constants held to `ci.yml`, declared commands reported as checks in the ci
+profile, partition inputs), STR-V0-013 (the shadow step and `CORVINT_PR_FORWARD_EPOCH` at 1, a
+vacuous advance) and STR-V0-015 (a per-shard budget: 6h local as an outer hang bound, 60m ci). AFP-V0-011 gains only a
+note that it now governs the retained rollback `script/gate-affected.sh`. This decision's body
+above is unchanged.

@@ -18,7 +18,7 @@ import (
 
 // fakeGo is a `go` on PATH whose behaviour FAKE_MODE selects: it answers the
 // version and universe probes, and for `test` records its argv, then passes,
-// fails, or starts a grandchild and sleeps.
+// fails, passes after a second, or starts a grandchild and sleeps.
 const fakeGo = `#!/bin/sh
 case "$1" in
 env) [ "$FAKE_MODE" = noversion ] && exit 1; echo go1.27.1; exit 0;;
@@ -31,6 +31,7 @@ sleep)
   touch "$FAKE_DIR/started"
   sleep 60;;
 fail) echo '{"Action":"fail","Package":"m/a"}'; exit 1;;
+slow) sleep 1; echo '{"Action":"pass","Package":"m/a"}';;
 *) echo '{"Action":"pass","Package":"m/a"}';;
 esac
 `
@@ -161,7 +162,7 @@ func TestSTRV0014RunnerCancelAndBudgetKillGroup(t *testing.T) {
 		}
 		want := "cancelled while an adapter ran; its process group was killed"
 		if budget {
-			want = "an adapter invocation exceeded the 2s total budget; its process group was killed"
+			want = "the shard exceeded its 2s total budget while an adapter ran; its process group was killed"
 		}
 		if receipt.Result != ResultIncomplete || len(receipt.Invocations) != 1 || receipt.Incomplete[0] != want {
 			t.Fatalf("budget=%v: %s %d %v", budget, receipt.Result, len(receipt.Invocations), receipt.Incomplete)
@@ -177,6 +178,35 @@ func TestSTRV0014RunnerCancelAndBudgetKillGroup(t *testing.T) {
 				t.Fatalf("budget=%v: grandchild %d survived", budget, pid)
 			}
 		}
+	}
+}
+
+// STR-V0-015: the budget bounds the whole shard, not each invocation. Two
+// invocations of one second each pass a 1.6s per-invocation bound but not a
+// 1.6s shard bound: the second is killed at the shard deadline, and once the
+// deadline has passed nothing further launches.
+func TestSTRV0015BudgetBoundsTheShard(t *testing.T) {
+	runner, m, _, _ := runnerFixture(t, "slow")
+	m.Units = append(m.Units, Unit{Adapter: AdapterGo, Flag: "-run", Pattern: "^T$", Shard: 0, Slice: "0/2", Unit: "go:m/a"})
+	digest, _ := Digest(m)
+	runner.Budget = 1600 * time.Millisecond
+	receipt := runner.Execute(context.Background(), m, digest, 0)
+	want := "the shard exceeded its 1.6s total budget while an adapter ran; its process group was killed"
+	if receipt.Result != ResultIncomplete || len(receipt.Invocations) != 2 || receipt.Invocations[0].Outcomes[0].Outcome != OutcomePass ||
+		receipt.Incomplete[0] != want {
+		t.Fatalf("shard budget: %s %d %v", receipt.Result, len(receipt.Invocations), receipt.Incomplete)
+	}
+	runner.Budget = time.Nanosecond
+	spent := runner.Execute(context.Background(), m, digest, 0)
+	if spent.Result != ResultIncomplete || len(spent.Invocations) != 0 ||
+		spent.Incomplete[0] != "the shard's 1ns total budget ran out before every invocation launched" {
+		t.Fatalf("spent budget: %s %d %v", spent.Result, len(spent.Invocations), spent.Incomplete)
+	}
+	if got := (&Runner{}).ShardBudget(Manifest{RunnerProfile: ProfileCI}); got != CIBudget {
+		t.Fatalf("ci default budget %s", got)
+	}
+	if got := (&Runner{}).ShardBudget(Manifest{RunnerProfile: ProfileLocal}); got != DefaultBudget {
+		t.Fatalf("local default budget %s", got)
 	}
 }
 

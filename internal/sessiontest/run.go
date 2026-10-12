@@ -26,9 +26,31 @@ const (
 	OutcomeNotRun      = "NOT_RUN"
 )
 
-// DefaultBudget is the total wall-clock budget of one adapter invocation, the
-// current tools/corvint-pr-tests budget (STR-V0-015).
-const DefaultBudget = 70 * time.Minute
+// DefaultBudget is the total wall-clock budget of one local shard, every
+// adapter invocation of the shard included (STR-V0-015). It is an outer hang
+// bound, not a speed target: at the declared -p 1 a change reaching about 236
+// packages outran 70 minutes, and the script it replaces had no total budget.
+const DefaultBudget = 6 * time.Hour
+
+// CIBudget is the total wall-clock budget of one ci-profile shard. It sits
+// below the 75-minute timeout of the go-product-shard job in
+// .github/workflows/ci.yml, leaving room for checkout, toolchain setup and the
+// receipt upload, so the job timeout never kills a shard the runner still owns
+// (STR-V0-015).
+const CIBudget = 60 * time.Minute
+
+// ShardBudget is the budget Execute applies to a shard of m: the runner's own
+// when set, otherwise the profile default.
+func (r *Runner) ShardBudget(m Manifest) time.Duration {
+	switch {
+	case r.Budget > 0:
+		return r.Budget
+	case m.RunnerProfile == ProfileCI:
+		return CIBudget
+	default:
+		return DefaultBudget
+	}
+}
 
 // discoverDeadline bounds each runner version and universe probe.
 const discoverDeadline = 2 * time.Minute
@@ -147,6 +169,8 @@ func Invocations(m Manifest, declared Declared, shard int, root, confine string)
 
 // Runner executes one shard of a manifest.
 type Runner struct {
+	// Budget is the total wall-clock budget of one shard; zero selects the
+	// profile default (ShardBudget).
 	Budget   time.Duration
 	Confine  string
 	Declared Declared
@@ -167,6 +191,8 @@ type Runner struct {
 // running group and launches nothing more; the receipt is then INCOMPLETE.
 func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string, shard int) Receipt {
 	receipt := NewReceipt(m, manifestDigest, shard, r.Tool)
+	budget := r.ShardBudget(m)
+	deadline := time.Now().Add(budget)
 	planned := Invocations(m, r.Declared, shard, r.Root, r.Confine)
 	if len(planned) != 0 && !groupsSupported {
 		receipt.Incomplete = append(receipt.Incomplete, "this platform cannot own and kill a process group; nothing ran")
@@ -197,13 +223,17 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			receipt.Incomplete = append(receipt.Incomplete, "cancelled before every invocation launched")
 			break
 		}
+		if !time.Now().Before(deadline) {
+			receipt.Incomplete = append(receipt.Incomplete, fmt.Sprintf("the shard's %s total budget ran out before every invocation launched", budget))
+			break
+		}
 		if reason := r.drift(ctx, m.Source); reason != "" {
 			receipt.Incomplete = append(receipt.Incomplete, reason+" before an adapter launch; nothing further launched")
 			drifted = true
 			break
 		}
 		launched = true
-		recorded, stop := r.launch(ctx, invocation, versions[runnerKey(invocation)])
+		recorded, stop := r.launch(ctx, invocation, versions[runnerKey(invocation)], budget, deadline)
 		receipt.Invocations = append(receipt.Invocations, recorded)
 		if stop != "" {
 			receipt.Incomplete = append(receipt.Incomplete, stop)
@@ -420,15 +450,11 @@ func firstOf(values []string) string {
 	return fmt.Sprintf("%v", values)
 }
 
-// launch runs one invocation in its own process group under the total
-// budget and returns what the receipt records, plus a reason to stop
+// launch runs one invocation in its own process group until the shard's
+// deadline and returns what the receipt records, plus a reason to stop
 // launching when the budget or a cancellation ended it.
-func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string) (Invocation, string) {
-	budget := r.Budget
-	if budget <= 0 {
-		budget = DefaultBudget
-	}
-	runCtx, cancel := context.WithTimeout(ctx, budget)
+func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string, budget time.Duration, deadline time.Time) (Invocation, string) {
+	runCtx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	env := append(append([]string{}, r.Environ...), planned.Env...)
 	envDigest, _ := Digest(env)
@@ -465,7 +491,7 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 	case ctx.Err() != nil:
 		stop = "cancelled while an adapter ran; its process group was killed"
 	case runCtx.Err() != nil:
-		stop = fmt.Sprintf("an adapter invocation exceeded the %s total budget; its process group was killed", budget)
+		stop = fmt.Sprintf("the shard exceeded its %s total budget while an adapter ran; its process group was killed", budget)
 	}
 	for _, unit := range planned.Units {
 		outcome := OutcomeNotRun
