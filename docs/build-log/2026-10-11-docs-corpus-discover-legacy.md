@@ -310,3 +310,14 @@ Regressions:
   unlisted forms in `should` and `expect`, and confirms the exact entries are admitted.
 - `TestLegacyDiscoveryRefusals` pins the symlink refusal for directory and single-file
   selection, and the flow/test and behavior/test identity collisions.
+
+## Acceptance
+
+Codex round 11 (`/private/tmp/claude-501/w13-legacy-codex-r11.log`) reviewed
+`645304a2..c3b51bfc9` and returned PASS with no P0-P3 findings. Its verification was source-only,
+because the sandbox denied Go's temporary build directory. Locally, the full
+`go test ./internal/doccorpus/`, the `cmd/corvint` DocsCorpus, Legacy and DocsHelp subset,
+`go vet` and the eight doc gates passed at that commit.
+
+DCP-V1-060, DCP-V1-061, DCP-V1-062, DCP-V1-063, DCP-V1-064, DCP-V1-065, DCP-V1-066, DCP-V1-067,
+DCP-V1-068 and DCP-V1-069 are accepted under the owner's standing auto-accept (2026-10-11).

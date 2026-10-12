@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-060..069 experimental legacy inventory producer (GitHub #811); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -442,7 +442,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `generated`. Its `legacy` array uses the existing `BehaviorLegacyCase` shape unchanged, so the
   cases can be pasted into a behavior registry. Every anchor is an `external-provider` source span
   bound to the blob's digest. It runs no test, browser, Node or package manager and downloads
-  nothing. Status: (proposed/experimental; GitHub #811).
+  nothing. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
 - `DCP-V1-061`: Each statically named `it` (and its runner's aliases) under statically titled
   suites appears exactly once, with ID `legacy:<path>::<suite titles > case title>`, the title path
   split into `suite` and `case`, and an anchor spanning the call. When a title path repeats in a
@@ -454,7 +454,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   a dynamic scope (a loop, a callback that is not a suite, or a call that is not a statement of its
   own, such as an unbraced `if` body or `flag && it(...)`, with automatic semicolon insertion
   applied at line breaks) or with a non-static title is not invented: it is a
-  `case-in-dynamic-scope` or `dynamic-title` unknown. Status: (proposed/experimental; GitHub #811).
+  `case-in-dynamic-scope` or `dynamic-title` unknown. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
 - `DCP-V1-062`: Assertions in a case body become ordinal criteria `c1..cn` with matcher, locator
   and value tuples: `expect(subject).matcher(value)` and `expectAsync`, `assert(...)` and
   `assert.X(...)`, Cypress `.should(chainer, value)` and `.and(...)`, and a `cy`-rooted `.contains`.
@@ -537,7 +537,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   paths, custom matchers or commands that override a known name, and support files. A case with
   any unknown never reaches `parity-candidate` (`DCP-V1-066`). LF, CR, CRLF, U+2028 and U+2029 are each a line terminator: each ends a `//`
   comment, separates statements for ASI and counts as a JavaScript line break; anchor lines stay
-  LF-delimited as for every corpus anchor. Status: (proposed/experimental; GitHub #811).
+  LF-delimited as for every corpus anchor. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
 - `DCP-V1-063`: Preconditions are content-bound references. Every top-level call statement in an
   enclosing `beforeEach`/`before` hook, and every `cy.visit`, `browser.get`, `browser.url`,
   `page.goto` (`visit`), `cy.intercept`, `cy.route` (`intercept`), `cy.task`, `cy.exec` or
@@ -563,16 +563,16 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   statement, such as a helper call or a Cypress action, is a `not-allowlisted` unknown for every
   case under it, so a precondition the reader cannot bind is never silently omitted from
   `fixtures`. An awaited precondition, or one in an `async` or expression-bodied hook or case, is
-  also `not-allowlisted`: the fixture identity does not record completion order. Status: (proposed/experimental; GitHub #811).
+  also `not-allowlisted`: the fixture identity does not record completion order. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
 - `DCP-V1-064`: The record is pinned and deterministic: it names the repository identity and the
   full revision, reads only Git objects (never the working tree), writes nothing, and repeated runs
-  on the same inputs give identical bytes. Status: (proposed/experimental; GitHub #811).
+  on the same inputs give identical bytes. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
 - `DCP-V1-065`: With `--input REGISTRY.json` (a closed behavior registry) the record adds a
   `crosswalk` with status `generated` and the registry's SHA-256. For each legacy case it lists at
   most five targets (tests and flows) ordered by score, then kind, then ID, each with its score and
   reasons: equal tuples, equal values, title-word overlap, equal preconditions, and required pages
   the case visits. Candidates are suggestions only: the producer never writes or emits a
-  `legacy_criteria` relation or a review, and the same inputs give identical bytes. Status: (proposed/experimental; GitHub #811).
+  `legacy_criteria` relation or a review, and the same inputs give identical bytes. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
 - `DCP-V1-066`: The crosswalk re-checks every existing reviewed `legacy_criteria` mapping in the
   registry against the fresh inventory. A `same` or `stronger` mapping whose target criterion no
   longer asserts the extracted legacy tuple is `refused` (`expected-value-differs` when matcher and
@@ -582,12 +582,12 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   declare (`target-criterion-not-declared`), a mapping without a review at the registry's source
   revision (`mapping-review-missing-or-stale`), and a retained tuple whose target assertion lacks a
   reviewed annotation and behavior binding (`target-assertion-not-reviewed`) are `not-parity`. Only
-  a mapping with none of these is `parity-candidate`, with the reason `runtime-baseline-required`. Status: (proposed/experimental; GitHub #811).
+  a mapping with none of these is `parity-candidate`, with the reason `runtime-baseline-required`. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
 - `DCP-V1-067`: A target whose fixture identities differ from the legacy case's makes the mapping
   `not-parity`, naming `precondition-digest-differs`, `precondition-not-discovered`,
   `precondition-missing-from-target` or `precondition-order-differs`. Because the fixture identity
   embeds the digest, the existing behavior compiler reports the same change as a
-  `legacy-precondition-mismatch` gap and never parity. Status: (proposed/experimental; GitHub #811).
+  `legacy-precondition-mismatch` gap and never parity. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
 - `DCP-V1-068`: The producer refuses with `corpus-refused` an unknown runner, a revision that is
   not a full commit ID, a non-canonical, absolute or parent-traversing `--path`, a path absent at
   the revision, a directory without test files, a non-regular blob (selected alone or as a
@@ -599,12 +599,12 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `MaxRecords`. A file the lexer cannot classify (for example JSX, invalid UTF-8, an unterminated
   literal, a legacy octal escape, a raw line break in a string or regex, or a `/` after `}` whose
   regex or division reading depends on statement context) is a `lex-failed` unknown, a file over `MaxBytes` is `file-over-bound`, and a
-  file without static cases is `no-static-cases`; none of them invents a case. Status: (proposed/experimental; GitHub #811).
+  file without static cases is `no-static-cases`; none of them invents a case. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
 - `DCP-V1-069`: `corvint docs --help` lists the `discover-legacy` usage and describes its output,
   the generated crosswalk, and the exit 1 on a refused mapping. The CLI prints exactly the
   producer's bytes, exits 1 with the record on a refused mapping, and exits 2 with the named
   error for a `DCP-V1-068` refusal, a missing required option or an option the operation does not
-  take. Status: (proposed/experimental; GitHub #811).
+  take. Status: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811).
 
 ## Input and authority boundary
 
