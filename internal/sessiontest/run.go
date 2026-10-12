@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -332,13 +333,24 @@ func (r *Runner) drift(ctx context.Context, planned SourceIdentity) string {
 // discover captures the runner and its exact version before execution, and
 // for the Go adapter checks that `go list ./...` is the planned universe
 // (STR-V0-004). A declared command is probed by its own name: `go` answers
-// `go env GOVERSION`, anything else `--version`.
+// `go env GOVERSION`, anything else `--version`. A declared argv[0] with a
+// path separator is a repository-relative path (STR-V0-003: commands run
+// from the repository root), so it is resolved against Root, never against
+// the caller's working directory; a bare name is looked up on PATH.
 func (r *Runner) discover(ctx context.Context, invocation Planned) (string, string, error) {
 	name, versionArgs, env := invocation.Argv[0], []string{"--version"}, invocation.Env
 	if name == "go" {
 		versionArgs = []string{"env", "GOVERSION"}
 	}
-	runner, err := exec.LookPath(name)
+	lookup := name
+	if strings.Contains(name, "/") && !filepath.IsAbs(name) {
+		root, err := filepath.Abs(r.Root)
+		if err != nil {
+			return "", "", fmt.Errorf("runner %s not found: %v", name, err)
+		}
+		lookup = filepath.Join(root, name)
+	}
+	runner, err := exec.LookPath(lookup)
 	if err != nil {
 		return "", "", fmt.Errorf("runner %s not found", name)
 	}

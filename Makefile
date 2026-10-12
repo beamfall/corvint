@@ -234,8 +234,9 @@ unbounded-readers-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/unbounded-readers >/dev/null
 
 # test-commands-check fails unless the Go environment and flags declared in
-# .github/cishards/test-commands.json equal `make -s -n go-test` and every declared language
-# command that names a make target exists (STR-V0-006, docs/specs/session-test-runner-v0.md).
+# .github/cishards/test-commands.json are exactly what `make go-test` hands go (observed through a
+# go shim), every declared language command that names a make target exists, and no GATE_STEPS
+# recipe runs a suite of a language declared none (STR-V0-006, docs/specs/session-test-runner-v0.md).
 test-commands-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/test-commands-check >/dev/null
 

@@ -114,7 +114,15 @@ func TestSTRV0013ParityReading(t *testing.T) {
 			incomplete(&p.CorvintCI, typescript)
 			p.CIPlanned, p.CIPlannedPackages, p.CI.Packages = "FULL", universe, []string{"m/a"}
 		}, "ci executed UNEXPLAINED"},
-		"declared command": {func(p *Pair) { p.CorvintCI.Declared = []string{"make typescript-test"} }, "ci declared UNEXPLAINED"},
+		"declared command": {func(p *Pair) {
+			declaredCommands = []string{"make host-adapter-test"}
+			p.CorvintCI.Declared = []string{"make host-adapter-test"}
+		}, "ci declared str-v0-004-declared-language"},
+		"declared and undeclared commands": {func(p *Pair) {
+			declaredCommands = []string{"make host-adapter-test"}
+			p.CorvintLoc.Declared = []string{"make host-adapter-test", "make typescript-test"}
+		}, "local declared UNEXPLAINED"},
+		"undeclared command": {func(p *Pair) { declaredCommands = nil; p.CorvintCI.Declared = []string{"make typescript-test"} }, "ci declared UNEXPLAINED"},
 	} {
 		pair := fresh()
 		check.edit(&pair)

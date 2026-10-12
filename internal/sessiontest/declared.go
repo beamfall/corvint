@@ -18,10 +18,11 @@ import (
 
 // The project-owned full-suite declaration (STR-V0-003, STR-V0-006): one
 // bounded JSON file naming the Go full-suite environment and flags and each
-// other language's full command, or the project's assertion that the
-// language has no suite. `corvint test` reads it as a plain file; it never
-// interprets the Makefile, and a maintained gate (tools/test-commands-check)
-// keeps the Go entry equal to `make -s -n go-test`.
+// other language's full command, or the project's gate-scoped assertion
+// that no gate step, driver or CI job runs a suite for the language.
+// `corvint test` reads it as a plain file; it never interprets the Makefile,
+// and a maintained gate (tools/test-commands-check) keeps the Go entry equal
+// to what `make go-test` actually runs.
 const (
 	DeclarationPath    = ".github/cishards/test-commands.json"
 	DeclarationProfile = "corvint-test-commands/0"
@@ -29,7 +30,7 @@ const (
 
 // LanguageCommand is one declared language: either Argv, the full command
 // run from the repository root, or None, the reason the project asserts
-// the language has no suite (STR-V0-004).
+// that the gate runs no suite for the language (STR-V0-004).
 type LanguageCommand struct {
 	Language string   `json:"language"`
 	Argv     []string `json:"argv"`

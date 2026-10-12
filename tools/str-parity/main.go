@@ -151,6 +151,9 @@ func run(ctx context.Context, o options) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
+	if declaredCommands, err = languageCommands(declaration); err != nil {
+		return Report{}, err
+	}
 	var corpus []string
 	corpusDigest := ""
 	if o.corpus != "" {
@@ -560,8 +563,50 @@ func categorise(pair Pair, profile, field string, extra []string) string {
 		if profile == "ci" && expectedCIEnv(corvint.Env, pair.CI.Env, pair.Root) {
 			return "ci-closed-environment"
 		}
+	case "declared":
+		if len(corvint.Declared) != 0 && allDeclared(corvint.Declared) {
+			return "str-v0-004-declared-language"
+		}
 	}
 	return "UNEXPLAINED"
+}
+
+// declaredCommands is each language command the -declaration file names,
+// its argv joined by single spaces, in sorted order.
+var declaredCommands []string
+
+// languageCommands reads the language commands out of the declaration bytes
+// (corvint itself reads them strictly; this only needs the argv lists), so a
+// `declared` difference is explained when corvint runs exactly a declared
+// command (STR-V0-004: a language with selected units and no adapter runs
+// its declared full command, which neither driver runs).
+func languageCommands(declaration []byte) ([]string, error) {
+	var parsed struct {
+		Languages map[string]json.RawMessage `json:"languages"`
+	}
+	if err := json.Unmarshal(declaration, &parsed); err != nil {
+		return nil, fmt.Errorf("-declaration: %v", err)
+	}
+	commands := []string{}
+	for _, raw := range parsed.Languages {
+		var argv []string
+		if json.Unmarshal(raw, &argv) == nil && len(argv) != 0 {
+			commands = append(commands, strings.Join(argv, " "))
+		}
+	}
+	sort.Strings(commands)
+	return commands, nil
+}
+
+// allDeclared reports whether every command corvint also runs is one the
+// declaration names.
+func allDeclared(commands []string) bool {
+	for _, command := range commands {
+		if !containsArg(declaredCommands, command) {
+			return false
+		}
+	}
+	return true
 }
 
 // confinedOnce reports whether argv is `test -exec <confinePath> ...` with no

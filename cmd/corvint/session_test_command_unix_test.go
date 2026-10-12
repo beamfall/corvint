@@ -221,6 +221,43 @@ func TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand(t *testing.T) {
 	}
 }
 
+// STR-V0-003: a declared repository-relative command runs from --root when
+// the CLI is invoked from another directory (the test process's working
+// directory is the package directory, not root).
+func TestSTRV0003CLIDeclaredRelativeCommandRunsFromRoot(t *testing.T) {
+	root, _, log := sessionFixture(t, "pass")
+	script := filepath.Join(root, "tools", "fake-tests")
+	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho \"fake-tests $* in $(pwd)\" >> \"$SESSION_FAKE_LOG\"\n[ \"$1\" = --version ] && echo fake-tests 1\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	declaration := sessionDeclaration(`"python": ["./tools/fake-tests"]`)
+	if err := os.WriteFile(filepath.Join(root, sessiontest.DeclarationPath), []byte(declaration), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "declare python")
+	if cwd, _ := os.Getwd(); cwd == root {
+		t.Fatal("the test already runs from root; the resolution would not be exercised")
+	}
+	receiptPath := filepath.Join(t.TempDir(), "r.json")
+	code, _, stderr := runCLI(t, "--root", root, "test", "--base", strings.Repeat("e", 40), "--receipt", receiptPath)
+	if code != 0 {
+		t.Fatalf("code %d stderr %q", code, stderr)
+	}
+	resolvedRoot, _ := filepath.EvalSymlinks(root)
+	got := sessionRunnerLog(t, log)
+	if !strings.Contains(got, "fake-tests --version in "+resolvedRoot+"\n") || !strings.Contains(got, "fake-tests  in "+resolvedRoot+"\n") {
+		t.Fatalf("runner calls:\n%s", got)
+	}
+	receipt := readSessionReceipt(t, receiptPath)
+	if receipt.Result != sessiontest.ResultPass || len(receipt.Invocations) != 2 || receipt.Invocations[1].Runner != filepath.Join(resolvedRoot, "tools", "fake-tests") {
+		t.Fatalf("receipt %s %+v", receipt.Result, receipt.Invocations)
+	}
+}
+
 // STR-V0-003: a missing or malformed declaration is INCOMPLETE in every
 // scope; nothing runs on a guessed full scope.
 func TestSTRV0003CLIUnreadableDeclarationIsIncomplete(t *testing.T) {

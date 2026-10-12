@@ -8,12 +8,12 @@
     "flags": ["-p", "1", "-timeout", "30m", "-count=1"]
   },
   "languages": {
-    "dotnet": {"none": "the only C# source is a tools/beamfall-shadow fixture; the repository has no .NET project or test command"},
-    "kotlin": {"none": "the only Kotlin sources are internal/analyzerkotlinandroid testdata fixtures; the repository has no Gradle project or test command"},
-    "python": {"none": "Python files are benchmark and qualification scripts, runner reporters and affected-graph testdata fixtures; no gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Python suite and the repository has no pytest or unittest configuration"},
-    "ruby": {"none": "Ruby files are a runner reporter and affected-graph testdata fixtures; the repository has no Gemfile, Rakefile or Ruby test command"},
-    "rust": {"none": "the only Rust sources are internal/liveverify/affected testdata fixtures; the repository has no root Cargo workspace or test command"},
-    "swift": {"none": "the only Swift sources are internal/analyzerswift testdata fixtures; the repository has no root Swift package or test command"},
-    "typescript": {"none": "the extensions/vscode npm test, integrations/pi-protected and tools/web-flows node --test suites are not run by make gate, script/gate-affected.sh, tools/corvint-pr-tests or CI; make gate's host-adapter-test runs the integrations/pi JS suites as a repository check, not as a language full suite"}
+    "dotnet": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a .NET suite; the only C# source is a tools/beamfall-shadow fixture and the repository has no .NET project"},
+    "kotlin": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Kotlin suite; the only Kotlin sources are internal/analyzerkotlinandroid testdata fixtures and the repository has no Gradle project"},
+    "python": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Python suite; Python files are benchmark and qualification scripts, runner reporters and affected-graph testdata fixtures, and the repository has no pytest or unittest configuration"},
+    "ruby": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Ruby suite; Ruby files are a runner reporter and affected-graph testdata fixtures, and the repository has no Gemfile or Rakefile"},
+    "rust": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Rust suite; the only Rust sources are internal/liveverify/affected testdata fixtures and the repository has no root Cargo workspace"},
+    "swift": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Swift suite; the only Swift sources are internal/analyzerswift testdata fixtures and the repository has no root Swift package"},
+    "typescript": ["make", "host-adapter-test"]
   }
 }
