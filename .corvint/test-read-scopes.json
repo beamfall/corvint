@@ -200,9 +200,11 @@
       "conformance/cem-0.1/",
       "conformance/cem-0.2/",
       "interop/cem-0.1/",
+      "interop/cem01-go/testdata/stable-map-members/",
       "protocol/cem-1.0/maps/",
       "protocol/cem-1.0/stable/neutral-criterion/",
-      "protocol/cem-1.0/stable/receipt-authentication/"
+      "protocol/cem-1.0/stable/receipt-authentication/",
+      "protocol/cem-1.0/stable/stable.schema.json"
     ],
     "internal/cem/workflow": [
       "protocol/cem-0.2/",
