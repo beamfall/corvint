@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -20,12 +21,15 @@ func gitTop(t *testing.T, args ...string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// TestCEMV1104ConvertParitySample runs the parity tool end to end over a
-// deterministic sample (every 200th committed map in byte order) against a
-// scratch clone and the portable consumer built from interop/cem01-go. A bind
-// commit missing from the clone is a NOT_OBSERVED row, never a failure; any
-// observed row must be idempotent, refuse reconversion and carry an explained
-// class. The full-corpus run is retained under docs/build-log/evidence/v1-1275.
+// TestCEMV1104ConvertParitySample runs the parity tool end to end, in its
+// V1-1277 --migrated mode, over a deterministic sample (every 200th committed
+// map in byte order) against a scratch clone and the portable consumer built
+// from interop/cem01-go. Every sampled map must already be cem/1.0; a migrated
+// map must equal the conversion of its provenance-named source blob (CEM-V1-200).
+// A bind commit missing from the clone is a NOT_OBSERVED row, never a failure;
+// any observed row must be idempotent, refuse reconversion and carry an
+// explained class. The full-corpus runs are retained under
+// docs/build-log/evidence/v1-1275 (pre-migration) and v1-1277 (migrated).
 func TestCEMV1104ConvertParitySample(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds the portable consumer and clones the repository")
@@ -50,7 +54,7 @@ func TestCEMV1104ConvertParitySample(t *testing.T) {
 		t.Fatalf("build portable consumer: %v: %s", err, out)
 	}
 	out := filepath.Join(work, "out")
-	if _, err := Run(Options{Repository: clone, Maps: filepath.Join(root, ".corvint", "changes"), Portable: portable, Out: out, Jobs: 2, Every: 200}); err != nil {
+	if _, err := Run(Options{Repository: clone, Maps: filepath.Join(root, ".corvint", "changes"), Portable: portable, Out: out, Jobs: 2, Every: 200, Migrated: true}); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := os.ReadFile(filepath.Join(out, "parity.jsonl"))
@@ -79,6 +83,14 @@ func TestCEMV1104ConvertParitySample(t *testing.T) {
 			continue
 		case "different":
 			t.Fatalf("%s different: %s", r.Map, r.Reason)
+		case "native-stable":
+			if r.Committed != "stable-native" || r.ReconvertCode != "convert-source-is-stable" {
+				t.Fatalf("%s native-stable: committed=%s reconvert=%s", r.Map, r.Committed, r.ReconvertCode)
+			}
+			continue
+		}
+		if r.Committed != "migrated" || !r.CommittedEqual {
+			t.Fatalf("%s: committed=%s equal=%v", r.Map, r.Committed, r.CommittedEqual)
 		}
 		if !r.Idempotent || r.ReconvertCode != "convert-source-is-stable" || r.SourceBinding != "EXACT" {
 			t.Fatalf("%s: idempotent=%v reconvert=%s binding=%s", r.Map, r.Idempotent, r.ReconvertCode, r.SourceBinding)
@@ -146,5 +158,47 @@ func TestCEMV1104ConvertParityClassify(t *testing.T) {
 		if class, reason := classify(r); class != c.class || reason != c.reason {
 			t.Fatalf("%s: classify = %s/%q, want %s/%q", c.name, class, reason, c.class, c.reason)
 		}
+	}
+}
+
+// TestCEMV1200MigratedSourceChecks pins the --migrated refusals: a map that is
+// still cem/0.x, a source blob absent from the repository, and committed bytes
+// that differ from the conversion of the provenance-named source blob.
+func TestCEMV1200MigratedSourceChecks(t *testing.T) {
+	testdata := filepath.Join("..", "..", "internal", "cem", "convert", "testdata")
+	src, err := os.ReadFile(filepath.Join(testdata, "reachable-a79ab231.source.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	converted, err := os.ReadFile(filepath.Join(testdata, "reachable-a79ab231.converted.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const bind = "a79ab231e86f5365d8a84732e90f4b2c0755ac4a"
+	repo := t.TempDir()
+	if out, err := exec.Command("git", "init", "-q", repo).CombinedOutput(); err != nil {
+		t.Skipf("git init unavailable: %v: %s", err, out)
+	}
+	var row Row
+	if _, reason := migratedSource(context.Background(), repo, bind, src, &row); reason != "not-migrated" {
+		t.Fatalf("0.x map: reason %q", reason)
+	}
+	if _, reason := migratedSource(context.Background(), repo, bind, converted, &row); reason != "source-blob-unavailable" || row.Committed != "migrated" {
+		t.Fatalf("absent blob: reason %q committed %q", reason, row.Committed)
+	}
+	if _, reason := migratedSource(context.Background(), repo, strings.Repeat("0", 40), converted, &row); reason != "provenance-mismatch" {
+		t.Fatalf("other bind: reason %q", reason)
+	}
+	hash := exec.Command("git", "-C", repo, "hash-object", "-w", "--stdin")
+	hash.Stdin = bytes.NewReader(src)
+	if out, err := hash.CombinedOutput(); err != nil {
+		t.Fatalf("hash-object: %v: %s", err, out)
+	}
+	got, reason := migratedSource(context.Background(), repo, bind, converted, &row)
+	if reason != "" || !bytes.Equal(got, src) {
+		t.Fatalf("present blob: reason %q equal %v", reason, bytes.Equal(got, src))
+	}
+	if b := targets([]Row{{Map: bind, SubstitutedTarget: "t"}, {Map: "x"}}); string(b) != bind+" t\n" {
+		t.Fatalf("targets = %q", b)
 	}
 }
