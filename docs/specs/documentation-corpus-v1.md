@@ -503,7 +503,9 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   <literals>)` and `.and(...)`, where every chainer word is a known chai or chai-jquery word, the
   last word asserts (a chainer of language chains alone, such as `to.be`, is refused), and
   no `.and` or further `.should` follows a chainer that yields a new subject (`attr`, `prop`,
-  `css`, `data`, `property`, `ownProperty`, `length`, ...); a `cy`, `browser` or `page`
+  `css`, `data`, `property`, `ownProperty`, `length`, ...), no chainer word is `not` (a negated
+  chainer disables the implicit existence check of the queries before it), and a query after
+  `contains` has a `.should` directly after it; a `cy`, `browser` or `page`
   precondition call with literal arguments and an optional `.as('<name>')` (the only form
   admitted in a hook); operands that are literals (strings without
   substitution, numbers, `true`, `false`, `null`, arrays and plain objects of those) or plain
@@ -518,9 +520,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   (file structure, an enclosing hook, case callback or case body). An admitted statement whose key
   token no extraction consumed is also `not-allowlisted`. A case with more assertion tuples than
   the registry's per-case criterion bound (4,096) has no criteria and a `criteria-over-bound`
-  unknown; its list is never truncated. Over-refusal is accepted: helper calls, Cypress actions,
+  unknown; its list is never truncated. A case with more distinct preconditions than that bound
+  has no fixtures and a `fixtures-over-bound` unknown, and discovery fails when the inventory's
+  distinct preconditions exceed it, as it does for cases and unknowns. Over-refusal is accepted: helper calls, Cypress actions,
   `afterEach`, `done` and `async` callbacks, awaited Playwright or WebdriverIO calls, subject
-  changing continuations, `contains` options, ambiguous string values and regex literals make a
+  changing continuations, negated Cypress chainers, `contains` options, ambiguous string values and regex literals make a
   case unknown, never parity. The allowlist does not prove what runs outside the case: other cases' bodies and hooks
   of non-enclosing suites (cross-test state is a runtime-baseline question), getters on operand
   paths, custom matchers or commands that override a known name, and support files. A case with

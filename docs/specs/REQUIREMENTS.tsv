@@ -1109,18 +1109,18 @@ DCP-V1-050	docs/specs/documentation-corpus-v1.md	383	A witness is produced only 
 DCP-V1-051	docs/specs/documentation-corpus-v1.md	397	Every other registered test stays unwitnessed with exactly one named reason and
 DCP-V1-052	docs/specs/documentation-corpus-v1.md	406	Missing or untrustworthy shared evidence yields uncertainty for every test, neve
 DCP-V1-053	docs/specs/documentation-corpus-v1.md	412	`corvint docs --help`, which `docs corpus witness-playwright --help` prints, nam
-DCP-V1-054	docs/specs/documentation-corpus-v1.md	861	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
+DCP-V1-054	docs/specs/documentation-corpus-v1.md	865	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
 DCP-V1-055	docs/specs/documentation-corpus-v1.md	425	`discover-playwright` applies the `TJAA-V0-021` grep/grepInvert omission rules o
 DCP-V1-060	docs/specs/documentation-corpus-v1.md	437	`corvint docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMM
 DCP-V1-061	docs/specs/documentation-corpus-v1.md	446	Each statically named `it` (and its runner's aliases) under statically titled
 DCP-V1-062	docs/specs/documentation-corpus-v1.md	458	Assertions in a case body become ordinal criteria `c1..cn` with matcher, locator
-DCP-V1-063	docs/specs/documentation-corpus-v1.md	530	Preconditions are content-bound references. Every top-level call statement in an
-DCP-V1-064	docs/specs/documentation-corpus-v1.md	556	The record is pinned and deterministic: it names the repository identity and the
-DCP-V1-065	docs/specs/documentation-corpus-v1.md	559	With `--input REGISTRY.json` (a closed behavior registry) the record adds a
-DCP-V1-066	docs/specs/documentation-corpus-v1.md	565	The crosswalk re-checks every existing reviewed `legacy_criteria` mapping in the
-DCP-V1-067	docs/specs/documentation-corpus-v1.md	575	A target whose fixture identities differ from the legacy case's makes the mappin
-DCP-V1-068	docs/specs/documentation-corpus-v1.md	580	The producer refuses with `corpus-refused` an unknown runner, a revision that is
-DCP-V1-069	docs/specs/documentation-corpus-v1.md	590	`corvint docs --help` lists the `discover-legacy` usage and describes its output
+DCP-V1-063	docs/specs/documentation-corpus-v1.md	534	Preconditions are content-bound references. Every top-level call statement in an
+DCP-V1-064	docs/specs/documentation-corpus-v1.md	560	The record is pinned and deterministic: it names the repository identity and the
+DCP-V1-065	docs/specs/documentation-corpus-v1.md	563	With `--input REGISTRY.json` (a closed behavior registry) the record adds a
+DCP-V1-066	docs/specs/documentation-corpus-v1.md	569	The crosswalk re-checks every existing reviewed `legacy_criteria` mapping in the
+DCP-V1-067	docs/specs/documentation-corpus-v1.md	579	A target whose fixture identities differ from the legacy case's makes the mappin
+DCP-V1-068	docs/specs/documentation-corpus-v1.md	584	The producer refuses with `corpus-refused` an unknown runner, a revision that is
+DCP-V1-069	docs/specs/documentation-corpus-v1.md	594	`corvint docs --help` lists the `discover-legacy` usage and describes its output
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide

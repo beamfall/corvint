@@ -254,3 +254,24 @@ not exist, which also suppressed `no-static-assertion`.
 The repair requires the last chainer word to be an assertion word and never a pure chain word, the
 rule `expect` chains already followed. `TestLegacyResidueFailsClosed` pins the repro, plus
 language-only `.and`, flag-only chainers and the matching `expect` forms.
+
+## Review round 9 repairs
+
+Codex round 9 (`/private/tmp/claude-501/w13-legacy-codex-r9.log`) found three P2s, all repaired
+fail-closed:
+
+1. A query after `contains`, such as `cy.contains('Pay now').find('.required')`, was admitted, but
+   discovery records only the `contains` criterion, so the query's implicit existence check was
+   dropped. A query after `contains` is now admitted only when a `.should` directly follows it.
+2. `cy.contains('Pay now').should('not.exist')` emitted a positive `contains` criterion for a check
+   that the negated chainer disables. Any Cypress chainer with a `not` word is now refused, after
+   any query or `contains`.
+3. Preconditions were unbounded: 4,097 `cy.task(n)` calls passed discovery but failed the
+   registry's identity bound. Discovery now fails when the inventory's distinct preconditions
+   exceed `MaxRecords`. A case with more fixtures than the bound gets a `fixtures-over-bound`
+   unknown and no fixtures, never a truncated list. Because every case fixture is also an
+   inventory precondition, the run-level failure fires first; the per-case unknown is a second
+   defense.
+
+`TestLegacyResidueFailsClosed` pins each repro, the negated `.and` form, an admitted
+`contains(...).find(...).should(...)` chain and the over-bound precondition run failure.

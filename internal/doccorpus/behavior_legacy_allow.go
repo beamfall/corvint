@@ -368,7 +368,9 @@ func legacyAllowExpect(f *legacyFile, k, hi int, keys *[]int) (int, int) {
 
 func legacyAllowCypress(f *legacyFile, k, hi int, keys *[]int) (int, int) {
 	t := f.tokens
-	j, asserted, should, transformed := k+1, false, false, false
+	// contained records that a contains ran; pending is a query after it that no should/and has
+	// followed yet, whose implicit existence check no criterion would record.
+	j, asserted, should, transformed, contained, pending := k+1, false, false, false, false, -1
 	for legacyPunct(t, j, ".") && j+1 < hi && t[j+1].kind == 'i' {
 		word, name := t[j+1].text, j+1
 		switch {
@@ -388,9 +390,14 @@ func legacyAllowCypress(f *legacyFile, k, hi int, keys *[]int) (int, int) {
 				return 0, args[1].lo
 			}
 			for _, part := range strings.Split(t[args[0].lo].text, ".") {
+				if part == "not" {
+					// A negated chainer disables the implicit existence check of the queries and
+					// contains before it, so their criteria would claim a check that does not run.
+					return 0, j + 3
+				}
 				transformed = transformed || legacyCypressTransform[part]
 			}
-			should = true
+			should, pending = true, -1
 		case should:
 			return 0, name
 		case word == "contains":
@@ -406,7 +413,17 @@ func legacyAllowCypress(f *legacyFile, k, hi int, keys *[]int) (int, int) {
 			if legacyAmbiguousValue(f, args[len(args)-1:]) {
 				return 0, args[len(args)-1].lo
 			}
+			if pending >= 0 {
+				return 0, name
+			}
+			contained = true
 		case legacyCypressQuery[word]:
+			if contained {
+				if pending >= 0 {
+					return 0, name
+				}
+				pending = name
+			}
 		default:
 			return 0, name
 		}
@@ -423,6 +440,9 @@ func legacyAllowCypress(f *legacyFile, k, hi int, keys *[]int) (int, int) {
 	if !asserted {
 		// A query chain with no extracted assertion still fails the case when it finds nothing.
 		return 0, min(j, hi-1)
+	}
+	if pending >= 0 {
+		return 0, pending
 	}
 	return j, -1
 }

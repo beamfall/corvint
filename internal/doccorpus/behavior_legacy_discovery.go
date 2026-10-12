@@ -203,7 +203,7 @@ func BuildLegacyInventory(ctx context.Context, input LegacyInventoryInput) ([]by
 			continue
 		}
 		p.file(file)
-		if len(inventory.Legacy) > MaxRecords || len(inventory.Unknown) > MaxRecords {
+		if len(inventory.Legacy) > MaxRecords || len(inventory.Unknown) > MaxRecords || len(p.pre) > MaxRecords {
 			return nil, fail("legacy inventory exceeds the record bound")
 		}
 	}
@@ -668,6 +668,12 @@ func (p *legacyProducer) testCase(f *legacyFile, c legacyCall, s legacyScope) {
 		if !slices.Contains(legacy.Fixtures, fixture) {
 			legacy.Fixtures = append(legacy.Fixtures, fixture)
 		}
+	}
+	if len(legacy.Fixtures) > MaxRecords {
+		// A registry refuses a case over the fixture bound; a truncated list would drop
+		// preconditions, so none is emitted and the case is unknown.
+		note("fixtures-over-bound", strconv.Itoa(len(legacy.Fixtures))+" preconditions exceed the per-case bound of "+strconv.Itoa(MaxRecords))
+		legacy.Fixtures = []string{}
 	}
 	if len(legacy.Criteria) == 0 && !overBound {
 		note("no-static-assertion", "no assertion tuple was extracted from the case")

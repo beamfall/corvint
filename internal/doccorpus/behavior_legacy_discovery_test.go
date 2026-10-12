@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -1023,6 +1024,35 @@ func TestLegacyResidueFailsClosed(t *testing.T) {
 		}
 		inventory, legacy := edit(t, "it('shows the cart total', () => {", "it('shows the cart total', async () => {")
 		blocked(t, "an async case callback", inventory, legacy)
+		// Round 9: a query after contains with no should/and, and any negated Cypress chainer.
+		for _, snippet := range []string{
+			"cy.contains('Pay now').find('.required');",
+			"cy.contains('Pay now').find('.required').first().should('be.visible');",
+			"cy.contains('Pay now').should('not.exist');",
+			"cy.get('a').should('not.be.visible');",
+			"cy.get('a').should('be.visible').and('not.have.class', 'x');",
+		} {
+			inventory, legacy := with(t, snippet)
+			blocked(t, snippet, inventory, legacy)
+		}
+		// A query after contains that a should directly follows stays admitted.
+		inventory, legacy = with(t, "cy.contains('Pay now').find('.required').should('be.visible');")
+		if reasons := legacyUnknownReasons(inventory, legacy.ID); len(reasons) != 0 {
+			t.Fatalf("a checked query after contains was refused: %v", reasons)
+		}
+		// Preconditions over the record bound fail the run rather than emit an unloadable list.
+		tasks := strings.Builder{}
+		for n := 0; n <= MaxRecords; n++ {
+			fmt.Fprintf(&tasks, "cy.task(%d);", n)
+			if n%64 == 63 {
+				tasks.WriteString("\n")
+			}
+		}
+		legacyWrite(t, root, "e2e/cypress/checkout.cy.js", strings.Replace(string(source), "    cy.contains('Pay now');\n", "    cy.contains('Pay now');\n"+tasks.String()+"\n", 1))
+		git(t, root, "commit", "-qam", "over-bound preconditions")
+		if _, _, err := legacyInventory(t, root, "mocha", git(t, root, "rev-parse", "HEAD"), "e2e/cypress", registry); err == nil || !strings.Contains(err.Error(), "record bound") {
+			t.Fatalf("over-bound preconditions did not fail the run: %v", err)
+		}
 		// Round 8: a chainer or expect chain of language words alone asserts nothing.
 		for _, snippet := range []string{
 			"cy.url().should('to.be');",
