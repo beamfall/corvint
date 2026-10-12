@@ -3,6 +3,7 @@ package appmap
 import (
 	"encoding/json"
 	"net/url"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
@@ -93,7 +94,13 @@ func TestANLV0042LiveParityWithTraceZip(t *testing.T) {
 			t.Fatal(err)
 		}
 		events := docs[0]
-		zipped, _, err := LoadTraceZip(filepath.Join(navEventsData, "live-traces", name+".zip"), events.TestKey)
+		// The live trace is kept as its one zip entry's text, so the fixture stays bindable; the
+		// zip is rebuilt here with the entry name Playwright wrote.
+		trace, err := os.ReadFile(filepath.Join(navEventsData, "live-traces", name+".trace"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		zipped, _, err := LoadTraceZip(traceZip(t, map[string]string{"0-trace.trace": string(trace)}), events.TestKey)
 		if err != nil {
 			t.Fatal(err)
 		}

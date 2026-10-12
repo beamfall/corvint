@@ -33,8 +33,11 @@ from the main-frame navigation request's `redirectedFrom()` chain. The file live
   `expect` call, which reads UNKNOWN in both.
 - **Parity, redirect:** the producer shows an `/old` visit plus a redirect visit. The trace shows
   only `/home`. They agree once the chain is folded (ANL-V0-042).
-- **Test fixtures:** the zip fixtures keep only the run's `0-trace.trace` entry, byte for byte. The
-  other entries could carry local paths. `TestANLV0042LiveParityWithTraceZip` replays both.
+- **Test fixtures:** the fixtures keep only the run's `0-trace.trace` entry, byte for byte. The
+  other entries could carry local paths. In the batch they are kept as the entry's text
+  (`live-traces/walk.trace`, `live-traces/redirect.trace`) instead of one-entry zips, because a CEM
+  cannot bind a binary patch (`cem-prepare: binary-patch`). `TestANLV0042LiveParityWithTraceZip`
+  rebuilds each one-entry zip at test time and replays both through `LoadTraceZip`.
 
 ## Review round 1 repairs
 
