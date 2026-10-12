@@ -432,3 +432,17 @@ Kill or redesign 0.1 if any of these occurs:
 The protocol earns expansion only after this wedge works. Test attestations, signatures,
 multi-repository evidence, issue receipts, semantic entailment, and outcome sharing remain outside
 0.1.
+
+## Support tiers and the `citation` block (CEM-V1-080..062)
+
+Verifiers compute, per hunk, one support tier from the committed bytes alone: `held` (reserved,
+never produced yet), `mechanical-proved`, `anchored`, `cited` or `unknown`, plus an `annotation`
+flag. The `citation` block (`cem-citation-support/0`) summarizes them as integers:
+`hunksByClass` (hunks per tier), `distinctEvidence` (distinct cited evidence IDs), `evidenceFanOut`
+and `maxFanOut` (how many hunks cite each evidence ID), `samePathCitations` (citations whose
+evidence path is the hunk's own file), `concentratedHunks` (hunks resting only on the most-cited
+evidence), `invariant` (every supported hunk cites the same evidence set) and `specificity`
+(anchored hunks minus anchored hunks after a cyclic one-step shift of citations; 0 means the
+citations are interchangeable). None of these is a verdict, threshold or pass/fail signal, and none
+changes the verdict, codes or drift. They help a reviewer see a rubber-stamp map. See
+`docs/specs/cem-stable-v1.md` (`CEM-V1-080..062`) and decision 0523. Frozen `cem/0.1` has no block.

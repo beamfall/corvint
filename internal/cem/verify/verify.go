@@ -62,6 +62,9 @@ type Outcome struct {
 	BaseRevision   string
 	TargetRevision string // empty when no target was checked
 	Drift          []DriftItem
+	// Citation is the consumer-computed support block (CEM-V1-080..082),
+	// present for canonical (cem/0.2, cem/0.3) maps only and never a verdict.
+	Citation *Citation
 }
 
 // ExactOptions configure 0.1 exact-patch verification.
@@ -228,13 +231,17 @@ func inherited(ctx context.Context, repository *gitauth.Repository, document *wi
 	if err := checkHunkCoverage(document, parsed); err != nil {
 		return nil, err
 	}
-	if err := checkEvidence(ctx, repository, document, baseOID); err != nil {
+	spans, err := checkEvidence(ctx, repository, document, baseOID)
+	if err != nil {
 		return nil, err
 	}
 	if err := checkMechanical(document, parsed, source); err != nil {
 		return nil, err
 	}
 	outcome := &Outcome{BaseRevision: baseOID}
+	if wire.Canonical(document.Spec) {
+		outcome.Citation = ComputeCitation(document, parsed, spans)
+	}
 	if target != "" {
 		if err := checkDrift(ctx, repository, document, baseOID, target, outcome); err != nil {
 			// A drift rejection keeps its context: the populated outcome rides
@@ -310,42 +317,45 @@ func checkHunkCoverage(document *wire.Map, parsed *patch.Patch) error {
 }
 
 // checkEvidence resolves every evidence record through the base tree and
-// recomputes its span digest and identity.
-func checkEvidence(ctx context.Context, repository *gitauth.Repository, document *wire.Map, baseOID string) error {
+// recomputes its span digest and identity. It returns the bound span bytes
+// keyed by evidence ID.
+func checkEvidence(ctx context.Context, repository *gitauth.Repository, document *wire.Map, baseOID string) (map[string][]byte, error) {
+	spans := make(map[string][]byte, len(document.Evidence))
 	for _, record := range document.Evidence {
 		entry, exists, err := repository.LookupTreeEntry(ctx, baseOID, record.Path)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !exists || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") {
-			return cemcode.New(cemcode.EvidenceUnavailable,
+			return nil, cemcode.New(cemcode.EvidenceUnavailable,
 				"evidence path %q does not resolve to a regular blob at the base", record.Path)
 		}
 		if entry.OID != record.BlobOid {
-			return cemcode.New(cemcode.EvidenceUnavailable,
+			return nil, cemcode.New(cemcode.EvidenceUnavailable,
 				"evidence path %q does not resolve to the declared blob", record.Path)
 		}
 		data, err := repository.BlobBytes(ctx, entry.OID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if record.Span.Start >= record.Span.End || record.Span.End > int64(len(data)) {
-			return cemcode.New(cemcode.EvidenceUnavailable,
+			return nil, cemcode.New(cemcode.EvidenceUnavailable,
 				"evidence span for %q is empty or out of bounds", record.Path)
 		}
 		spanBytes := data[record.Span.Start:record.Span.End]
 		digest := sha256.Sum256(spanBytes)
 		if hex.EncodeToString(digest[:]) != record.SpanSha256 {
-			return cemcode.New(cemcode.FabricatedEvidenceID,
+			return nil, cemcode.New(cemcode.FabricatedEvidenceID,
 				"evidence span digest for %q does not match", record.Path)
 		}
 		derived := wire.EvidenceIdentity(record.BlobOid, record.Path, record.Span, record.SpanSha256)
 		if derived != record.ID {
-			return cemcode.New(cemcode.FabricatedEvidenceID,
+			return nil, cemcode.New(cemcode.FabricatedEvidenceID,
 				"evidence ID for %q does not recompute", record.Path)
 		}
+		spans[record.ID] = spanBytes
 	}
-	return nil
+	return spans, nil
 }
 
 // checkMechanical proves every mechanical claim the verifier can reproduce:

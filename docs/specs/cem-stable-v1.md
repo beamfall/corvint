@@ -51,6 +51,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-007, 014..016 | Additive native and portable candidate verification plus the optional `internal/cemcandidate` producer and `cmd/corvint-cem-candidate`; byte-compatible runner envelope extraction; actual same-target assembly and independent `/private/tmp/cem10-build/cem-next/review1.json` PASS | Existing producer/report/OCM/frontier/companion consumer migrations and their compatibility inventory remain open |
 | CEM-V1-008..010 | Historical defaults and packets retained; optional-profile rollback defined | Independent external consumer, matched external outcomes and terminal release/promotion evidence remain open |
 | CEM-V1-050 | `structuralRuntimeAdmitted` in `internal/cem/verify/stable.go` and `interop/cem01-go/cem.go`; sealed `protocol/cem-1.0/structural-tuples/go1.27.2/`; `TestCEMV1050StructuralTupleAdmission` (native and portable); S0E, linked-control, ledger and cell tests bound through the tuple packet | Linux and Windows hosts, CI-hosted go1.27.2 runs and the full structural corpus remain NOT_RUN |
+| CEM-V1-080..082 | `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` and `testdata/citation/`; `TestCEMV1080*`, `TestCEMV1081*`, `TestCEMV1082*` in `internal/cem/verify`, `internal/cem/workflow` and `interop/cem01-go` | Recorded limits: `held` never produced, no `symbol` anchors, no threshold or cut-off, stable-result emission deferred to V1-1265; historical 591-map report in the build log |
 
 ## First portable candidate build contract
 
@@ -210,6 +211,84 @@ the stable verifier admits it only on an exact qualified tuple and otherwise ref
   Qualification stays `EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS`; admitting a tuple does not complete
   the full corpus. Rollback removes the tuple from both lists and its packet; the frozen packet and
   `go1.27.1` behaviour are unchanged.
+
+## Consumer-computed support tiers (V1-1262, decision 0523 P0)
+
+Status: proposed. Decision 0523 P0. The verifiers derive, from the base blob, target blob,
+canonical patch and cited spans alone, how strongly each hunk is supported. No map field is added
+or changed. Nothing here is a verdict, threshold or published cut-off.
+
+- `CEM-V1-080`: Support tiers are consumer-derived. The native (`internal/cem/verify`, `support.go`)
+  and portable (`interop/cem01-go`, `citation.go`) verifiers MUST assign each hunk of a `cem/0.2` or
+  `cem/0.3` map exactly one tier, by precedence `held`, `mechanical-proved`, `anchored`, `cited`,
+  `unknown`, plus an `annotation` flag. A supported hunk is one with at least one basis;
+  `mechanical-proved` is the `mechanical` disposition after re-proof; `unknown` is a non-mechanical
+  hunk with no basis. `held` is reserved and never produced until the go-test hunk-revert falsifier
+  lands. No producer-written field can raise a tier. The tier MUST NOT change the verdict, the
+  codes or drift. Frozen `cem/0.1` never carries a tier.
+- `CEM-V1-081`: Anchor kinds and byte-level rules. `id`: an ASCII requirement ID
+  (`[A-Z][A-Z0-9-]{2,31}-[0-9]{3}`, token boundaries where the adjacent bytes are not in
+  `[A-Za-z0-9_-]`) occurs in the hunk's added bytes and the cited span contains a defining line
+  (optional leading spaces or tabs, then ``- `ID`:``). `path`: the span contains the hunk's
+  post-image path (the old path for a pure deletion) or its basename when the basename is at least
+  6 bytes. `annotation`: the hunk has added lines and, after every boundary-valid requirement ID in
+  the added bytes is masked to spaces, every remaining token (maximal `[A-Za-z0-9_]` run) is shorter
+  than 3 bytes or is a `lexical-relevance-floor-v0` stop term. A hunk's anchors are the union over
+  its distinct cited spans. A `symbol` anchor is a recorded limit (Go-only, deferred) and is never
+  produced.
+- `CEM-V1-082`: The `citation` block and the shift null MUST be byte-identical across the native and
+  portable consumers and carry no verdict. Shape:
+
+```json
+"citation": {
+  "profile": "cem-citation-support/0",
+  "hunks": [ {"hunkId": "...", "tier": "...", "anchors": ["id","path"], "annotation": false} ],
+  "hunksByClass": {"held": 0, "mechanical-proved": 0, "anchored": 0, "cited": 0, "unknown": 0},
+  "annotationHunks": 0, "distinctEvidence": 0,
+  "evidenceFanOut": [ ["<evidenceId>", 3] ], "maxFanOut": 0,
+  "samePathCitations": 0, "concentratedHunks": 0,
+  "invariant": true, "specificity": 0
+}
+```
+
+  `hunks` is sorted by `hunkId` bytewise and each `anchors` list is sorted. `distinctEvidence` is the
+  count of distinct cited evidence IDs. `evidenceFanOut` lists `[id, distinct citing hunks]` sorted
+  by count descending then ID ascending; `maxFanOut` is the largest count or 0. `samePathCitations`
+  counts basis entries whose evidence path equals the hunk's post-image path (the same evidence
+  under two relations counts twice). `concentratedHunks` counts supported hunks whose every basis
+  cites an evidence ID at `maxFanOut`. The shift null sorts supported hunks by `hunkId`, gives hunk
+  i the basis set of hunk i-1 (hunk 0 takes the last) and recomputes `anchored`. `invariant` is true
+  when all supported hunks' evidence-ID sets are equal (true below two supported hunks).
+  `specificity` is `anchored` minus `anchored` after the shift (0 below two supported hunks).
+
+  Placement in this slice: the native 0.x canonical verification object carries key `citation` on
+  success and on drift rejection (`verify`, `status`, `check`). The stable (`cem/1.0`) result does
+  not carry it yet: `cem-stable-verification/1` is a sealed 21-key shape
+  (`protocol/cem-1.0/stable/RESULT.schema.json`, the S0E repository-envelope packet and the
+  go1.27.2 structural tuples), so adding the member is a packet change owned by V1-1265. The
+  portable consumer computes the block as a library result pinned by `testdata/citation/`, and
+  emits nothing on the wire because the frozen `protocol/cem-0.3` vectors pin its 0.x result.
+
+Non-goals: no pass/fail threshold, no published cut-off, no `symbol` kind, no change to map wire
+fields, no producer-side tier, no stable-result emission before V1-1265.
+
+Failure modes: the block is derived only from span bytes the canonical verification already read
+and bound, so a span that cannot be read fails verification before any tier exists; a consumer never
+emits a partial or estimated block, and an absent block is not a verdict either way.
+
+Acceptance evidence:
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-080 | `TestCEMV1080RubberStampAndCarefulMapsDiffer`, `TestCEMV1080CitationIsCanonicalOnly` (native); `TestCEMV1080RubberStampAndCarefulBothAccept` (portable) | A rubber-stamp map (every hunk cites one `AGENTS.md` span) and a careful map of the same 24-hunk patch both ACCEPT and their `citation` integers differ; tiers never change `valid`, `issues` or `drift`; `cem/0.1` carries no block |
+| CEM-V1-081 | `TestCEMV1081IDBoundaryAndAnnotation`, `TestCEMV1081IDAnchorRequiresBoundedTokenAndDefinition`, `TestCEMV1081PathAnchorUsesPostImageAndBasenameFloor`, `TestCEMV1081Annotation` (native); `TestCEMV1081IDBoundaryAndAnnotation`, `TestCEMV1081RequirementIDGrammar` (portable) | A hunk adding ``x // `CEM-SM-007` `` against a span that mentions `CEM-SM-0070` and defines nothing is `cited`, not `anchored`; a hunk adding only that comment is `annotation: true`; the post-image path and the 6-byte basename floor decide `path` |
+| CEM-V1-082 | `TestCEMV1082DisjointUmbrellaSpansHaveNoSpecificity`, `TestCEMV1082CitationIsDeterministic`, `TestCEMV1082BlockShapeAndCounts`, `TestCEMV1082ShiftNull`, `TestCEMV1082HunkOrderDoesNotChangeTheBlock` (native); `TestCEMV1082DisjointUmbrellaSpansHaveZeroSpecificity`, `TestCEMV1082CitationIsOrderIndependent`, `TestCEMV1082CountingRules`, `TestCEMV1082StableResultKeepsSealedShape` (portable); `interop/cem01-go/testdata/citation/*/citation.json` byte-matched against the native binary | `AGENTS.md` split into 20 disjoint spans, one per hunk, reports `specificity: 0`; native and portable blocks are byte-identical on four fixtures; the stable result keeps its 21 keys |
+
+Rollback: remove `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` with
+`testdata/citation/`, and the `citation` key in `successVerification`; restore the three
+`cmd/corvint/testdata` goldens (`cem-status-canonical.golden`, `core-freeze/cem-status.json`,
+`core-freeze/cem-verify.json`) that gained the additive member. No map, packet or protocol vector
+changes.
 
 ## Stable verification result codes
 

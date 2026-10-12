@@ -358,6 +358,12 @@ func successVerification(document *wire.Map, outcome *verify.Outcome, driftRejec
 	}
 	if wire.Canonical(document.Spec) {
 		result["assurance"] = "canonical"
+		// The consumer-computed support block (CEM-V1-080..082) is evidence
+		// shape only: it never changes valid, issues or drift. Its struct keeps
+		// the pinned cross-consumer key order inside the sorted envelope.
+		if outcome.Citation != nil {
+			result["citation"] = outcome.Citation
+		}
 	}
 	return result
 }

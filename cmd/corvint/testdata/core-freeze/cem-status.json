@@ -17,6 +17,37 @@
   "verification": {
     "assurance": "canonical",
     "baseRevision": "61151eb4449d4798ad4875ffea7845238ef3c93e",
+    "citation": {
+      "annotationHunks": 0,
+      "concentratedHunks": 1,
+      "distinctEvidence": 1,
+      "evidenceFanOut": [
+        [
+          "evidence:sha256:bbcac3a96e483e758db60117b0c16c47adb4b51e5b91cfacea77fdf12e42187e",
+          1
+        ]
+      ],
+      "hunks": [
+        {
+          "anchors": [],
+          "annotation": false,
+          "hunkId": "hunk:sha256:9ec6dc6bc71093b93b17def234a14e099d03f2f51239998c24fecc6ac6330826",
+          "tier": "cited"
+        }
+      ],
+      "hunksByClass": {
+        "anchored": 0,
+        "cited": 1,
+        "held": 0,
+        "mechanical-proved": 0,
+        "unknown": 0
+      },
+      "invariant": true,
+      "maxFanOut": 1,
+      "profile": "cem-citation-support/0",
+      "samePathCitations": 0,
+      "specificity": 0
+    },
     "drift": [
       {
         "baseBlobOid": "654fa2d53b5fd4c691c6fdcad977142808cf38b0",
