@@ -126,7 +126,46 @@ Contracts and decisions:
   mutates that condition to an unknown one and shows the reader then refuses on line 50;
   `TestSTRV0006ReaderGrammar` holds one case per round-8 finding and probe). An untyped recipe
   never narrows Go: a narrowed run is `INCOMPLETE` and a `FULL` run calls `make go-test`. The
-  local argv adds `-json` so outcomes can be attributed to packages.
+  local argv adds `-json` so outcomes can be attributed to packages. Codex round 12 found five
+  more holes of the same kind (an inherited `VPATH=src` beside `src/go-test` typed a target make
+  reported up to date; a computed `define $(NAME)` body with an `eval` was claimed absent; an
+  `override`/`export` assignment was never recorded, so a later `:=` looked pure; a root `GO-TEST`
+  on a case-insensitive filesystem typed a target make reported up to date; and
+  `MAKEFLAGS=--jobserver-fds=bad` was admitted though make 3.81 exits before any recipe), so the
+  reader now whitelists the whole input instead of refusing enumerated constructs. The grammar is
+  the one this repository's Makefile uses and nothing more: blank and comment lines; `ifeq`,
+  `ifneq`, `ifdef`, `ifndef`, `else`, `endif`; `NAME =|?=|:= value` with `NAME` in
+  `[A-Za-z_][A-Za-z0-9_]*` or `.DEFAULT_GOAL`; rule lines `targets : prerequisites` whose target
+  words are `[A-Za-z0-9_./%-]+` with no `$`, at most one `%` and no leading `.` other than
+  `.PHONY`, and whose prerequisites hold only words, `|` and references; tab lines only inside
+  a rule; and printable ASCII only. Every other line (`define`, `endef`, `undefine`, `export`,
+  `unexport`, `override`, `private`, `include`, `-include`, `sinclude`, `vpath`, `load`, `+=`,
+  `!=`, `::=`, a computed or `$`-bearing target, a target-specific variable, a rule-line recipe, a
+  double colon, any special target but `.PHONY`, a `./` target, a `\#`, a byte outside printable
+  ASCII, an assignment to `SHELL`, `MAKE`, `MAKEFLAGS`, `GNUMAKEFLAGS`, `MFLAGS`, `MAKEFILES`,
+  `MAKEOVERRIDES`, `MAKESHELL`, `MAKELEVEL`, `MAKECMDGOALS`, `MAKEFILE_LIST`, `CURDIR`, `VPATH`,
+  `GPATH` or `SUFFIXES`) marks the scope `INCOMPLETE` and go-test untyped, with a note naming the
+  line and the construct; reading continues so a later `go-test:` rule is still `unparsed` and a
+  `FULL` run still calls `make go-test`. The environment is read the same way: `MAKECMDGOALS`
+  leaves every goal conditional unknown; each `MAKEFLAGS`/`GNUMAKEFLAGS` word must match the
+  closed harmless set (`k`, `s`, `w`, `-jN`, `-O[mode]`, `--jobs[=N]`,
+  `--jobserver-auth=N,N|fifo:path`, `--jobserver-fds=N,N`, `--[no-]print-directory`,
+  `--keep-going`, `--silent`, `--quiet`, `--output-sync[=mode]`), and a non-empty `MAKEFILES`,
+  `VPATH`, `GPATH`, `MAKEOVERRIDES`, `.RECIPEPREFIX`, `.SHELLFLAGS`, `.LIBPATTERNS` or
+  `.EXTRA_PREREQS` is `INCOMPLETE` and untyped without further reasoning. The root listing is
+  read with the same rule: any entry whose case-folded name is `go-test` leaves go-test untyped
+  (make may report it up to date), any implicit-rule or makefile-remake source is `INCOMPLETE`,
+  and any non-ASCII entry name is `INCOMPLETE`. Dropped with the negative rules: the `.PHONY`
+  exception for implicit rules (`.PHONY: go-test` beside `go-test.c` is now `INCOMPLETE`), `./`
+  target stripping, `define`-body texts and the special-target list. This repository's Makefile
+  still types go-test (`TestSTRV0006RepositoryMakefileTypesGoTest`, the line-49 mutation test and
+  the real `--dry-run` argv `go test -json -p 1 -timeout 30m -count=1 <pkgs>` with
+  `GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local` are unchanged); `TestSTRV0006ReaderGrammar`
+  holds one case per round-12 finding. Probes `r12/a-g` with GNU make 3.81 confirmed the
+  behaviours the grammar now refuses to reason about: an assignment between recipe lines ends the
+  recipe, a `.PHONY:` line after `go-test:` takes the following tab lines, a root `GO-TEST` is
+  "up to date", `MAKEFLAGS="--jobserver-fds=3,4 -j"` with closed descriptors still runs, and
+  `ifeq(a,a)` without a space is a "missing separator".
 - CI profile argv and environment are the full CI branch's: `-exec <confine> -p 1 -count=1 -race
   -timeout 50m`, with `GOPROXY=off`, `GOSUMDB=off`, `GOWORK=off`, an empty `GOFLAGS`,
   `CGO_ENABLED=1` and `CORVINT_CONFINE_ROOT`. The CI admission parts of STR-V0-012 belong to the

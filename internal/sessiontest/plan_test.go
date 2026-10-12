@@ -321,8 +321,8 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 		"export GOFLAGS=-mod=mod\ngo-test:\n\tgo test ./...\n":         "uses export",
 		"ifdef CI\nF = -race\nendif\ngo-test:\n\tgo test $(F) ./...\n": "F",
 		"go-test:\n\tgo test pkg ./...\n":                              "before its flags",
-		"F = -count=1\nF += -race\ngo-test:\n\tgo test $(F) ./...\n":   "+= or !=",
-		"F != echo -race\ngo-test:\n\tgo test $(F) ./...\n":            "+= or !=",
+		"F = -count=1\nF += -race\ngo-test:\n\tgo test $(F) ./...\n":   "+=",
+		"F != echo -race\ngo-test:\n\tgo test $(F) ./...\n":            "!=",
 		"go-test: build\n\tgo test ./...\n":                            "prerequisites",
 		"go-test: F = -race\ngo-test:\n\tgo test ./...\n":              "target-specific",
 		"go-test::\n\tgo test ./...\n":                                 "prerequisites",
@@ -350,7 +350,7 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 		"ifeq ($(UNSET),x)\n$(STEPS): | clear\nendif\ngo-test:\n\tgo test ./...\n": "uses $",
 		// A conditional that is true for `make go-test` is read.
 		"ifeq ($(filter go-test,$(or $(MAKECMDGOALS),gate)),go-test)\n$(STEPS): | clear\nendif\ngo-test:\n\tgo test ./...\n": "uses $",
-		"vpath %.go src\ngo-test:\n\tgo test ./...\n":    "line 1 is not a construct",
+		"vpath %.go src\ngo-test:\n\tgo test ./...\n":    "uses vpath",
 		"$(info hi)\ngo-test:\n\tgo test ./...\n":        "line 1 is not a construct",
 		".IGNORE: go-test\ngo-test:\n\tgo test ./...\n":  "special target .IGNORE",
 		"\tF = -race\ngo-test:\n\tgo test ./...\n":       "tab line outside a rule",
@@ -388,7 +388,7 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 	for body, note := range map[string]string{
 		"F = -race\ngo-test:\n\tgo test $(F) ./...\n":    "assigns F",
 		"GOFLAGS = -race\ngo-test:\n\tgo test ./...\n":   "assigns GOFLAGS",
-		"GOFLAGS ::= -race\ngo-test:\n\tgo test ./...\n": "assigns GOFLAGS",
+		"GOFLAGS ::= -race\ngo-test:\n\tgo test ./...\n": "::=",
 	} {
 		if got := ReadDeclared(write(t, body), nil, env); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, note) {
 			t.Errorf("%q with inherited F and GOFLAGS: %s %q, want unparsed naming %q", body, got.GoTest, got.GoTestNote, note)
@@ -440,6 +440,10 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 			// make refuses the unterminated reference as it reads the
 			// line, so the scope is incomplete before any branch is read.
 			want = "unterminated reference"
+		}
+		if strings.Contains(body, "\u00a0") {
+			// A non-ASCII byte is outside the whole-file grammar.
+			want = "outside the typed alphabet"
 		}
 		if got := ReadDeclared(write(t, body+recipe), nil, lookup); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, want) {
 			t.Errorf("%q: %s %q, want every branch read and GOFLAGS untyped", body, got.GoTest, got.GoTestNote)
@@ -495,6 +499,9 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 	write := func(t *testing.T, files map[string]string) string {
 		root := t.TempDir()
 		for name, body := range files {
+			if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
+				t.Fatal(err)
+			}
 			if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
 				t.Fatal(err)
 			}
@@ -535,7 +542,7 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 		// 3. `?=` on a make built-in keeps make's default (CC=cc), which
 		// this reader does not know.
 		"CC ?= clang\nF = -ldflags=-X,main.cc=$(CC)\n" + recipe: "undefined variable CC",
-		"LINK.o ?= x\nF = $(LINK.o)\n" + recipe:                 "not $(NAME) or ${NAME}",
+		"LINK.o ?= x\nF = $(LINK.o)\n" + recipe:                 "not a construct",
 		"MAKE_X ?= -race\nF = $(MAKE_X)\n" + recipe:             "undefined variable MAKE_X",
 		// 4. A backslash-newline in a recipe reaches the shell, which
 		// joins the pieces without a blank.
@@ -554,7 +561,7 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 		"ifeq(1,1)\nendif\n" + recipe:                          "line 1 is not a construct",
 		"ifeq (1,2)\nelse foo\nendif\n" + recipe:               "text after else",
 		"endef\n" + recipe:                                     "endef without define",
-		"F = -race\n.DEFAULT:\n\ttrue\n" + recipe:              ".DEFAULT rule",
+		"F = -race\n.DEFAULT:\n\ttrue\n" + recipe:              "special target .DEFAULT",
 		"F = -race\n%-test:\n\tgo test -race ./...\n" + recipe: "pattern rule %-test",
 		// A `-`, `+` or doubled `@` prefix changes how make runs the line.
 		"go-test:\n\t-go test ./...\n":  "not `[NAME=VALUE...] go test FLAGS ./...`",
@@ -644,7 +651,7 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 		"F = -race\nifeq (1,2)\nelse ifeq ($(call eval,F = -short),)\nendif\n" + recipe:   "make function call",
 		"F = -race\nall: $(call eval,F = -short)\n" + recipe:                              "make function call",
 		"F = -race\nX = $(call eval,F = -short)\nIGNORED := $(X)\n" + recipe:              "make function call",
-		"F = -race\ndefine X\n$(call eval,F = -short)\nendef\nIGNORED := $(X)\n" + recipe: "make function call",
+		"F = -race\ndefine X\n$(call eval,F = -short)\nendef\nIGNORED := $(X)\n" + recipe: "uses define",
 		"F = -race\nIGNORED := $(E)\n" + recipe:                                           "make function call",
 		"V := $(shell echo -short)\n" + recipe:                                            "make function shell",
 		"IGNORED := $F\n" + recipe:                                                        "not a $(...) or ${...} reference",
@@ -675,14 +682,17 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 			t.Errorf("%v: %#v, want absent and incomplete", files, got)
 		}
 	}
-	if got := ReadDeclared(write(t, map[string]string{"Makefile": ".PHONY: go-test\n", "go-test.c": ""}), nil, none); got.GoTest != GoTestAbsent || got.Unreadable != "" {
-		t.Errorf(".PHONY go-test beside go-test.c: %#v, want absent and complete", got)
+	// Round 12: the reader no longer reasons about which .PHONY lines make
+	// honours; any implicit-rule source at the root is incomplete, and any
+	// root entry make may read as go-test is untyped.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": ".PHONY: go-test\n", "go-test.c": ""}), nil, none); got.GoTest != GoTestAbsent || got.Unreadable == "" {
+		t.Errorf(".PHONY go-test beside go-test.c: %#v, want absent and incomplete", got)
 	}
-	if got := ReadDeclared(write(t, map[string]string{"Makefile": "go-test:\n\tgo test ./...\n", "go-test": ""}), nil, none); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "up to date") {
-		t.Errorf("stale go-test file: %#v, want unparsed naming up to date", got)
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "go-test:\n\tgo test ./...\n", "go-test": ""}), nil, none); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "up-to-date") {
+		t.Errorf("stale go-test file: %#v, want unparsed naming up-to-date", got)
 	}
-	if got := ReadDeclared(write(t, map[string]string{"Makefile": ".PHONY: go-test\ngo-test:\n\tgo test ./...\n", "go-test": ""}), nil, none); got.GoTest != GoTestParsed {
-		t.Errorf("phony go-test beside a go-test file: %#v, want parsed", got)
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": ".PHONY: go-test\ngo-test:\n\tgo test ./...\n", "go-test": ""}), nil, none); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "up-to-date") {
+		t.Errorf("phony go-test beside a go-test file: %#v, want unparsed naming up-to-date", got)
 	}
 	// Round 11. make remakes the makefile it read when a rule or a built-in
 	// implicit rule can, then reads it again, so a rule for it, a pattern
@@ -704,9 +714,10 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 	if got := ReadDeclared(write(t, map[string]string{"GNUmakefile": "go-test:\n\tgo test -race ./...\n", "Makefile.sh": "go-test:\n\tgo test -short ./...\n"}), nil, none); got.GoTest != GoTestParsed || got.Unreadable != "" {
 		t.Errorf("Makefile.sh beside a GNUmakefile: %#v, want parsed and complete", got)
 	}
-	// make expands a define line's variable name as it reads it.
-	if got := ReadDeclared(write(t, map[string]string{"Makefile": "define $(eval go-test: ; @echo witness)X\nunused\nendef\n"}), nil, none); got.GoTest == GoTestParsed || !strings.Contains(got.Unreadable, "make function eval") {
-		t.Errorf("eval in a define name: %#v, want incomplete naming eval", got)
+	// make expands a define line's variable name as it reads it; define is
+	// outside the grammar, so the scope is incomplete whatever the name.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "define $(eval go-test: ; @echo witness)X\nunused\nendef\n"}), nil, none); got.GoTest == GoTestParsed || !strings.Contains(got.Unreadable, "uses define") {
+		t.Errorf("eval in a define name: %#v, want incomplete naming define", got)
 	}
 	// A .PHONY line under a conditional this reader did not evaluate may be
 	// skipped by make, so it does not rule out an implicit rule.
@@ -734,9 +745,10 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 	if pattern.GoTest != GoTestUnparsed || !reflect.DeepEqual(pattern.Languages, []string{"rust"}) {
 		t.Errorf("pattern rule alone: %#v, want unparsed go-test and languages [rust]", pattern)
 	}
-	// make reads ./go-test as go-test.
-	if got := ReadDeclared(write(t, map[string]string{"Makefile": "./go-test:\n\tgo test ./...\n"}), nil, none); got.GoTest != GoTestParsed {
-		t.Errorf("./go-test: %#v, want parsed", got)
+	// make reads ./go-test as go-test; the grammar admits no leading `.`
+	// but .PHONY, so the scope is incomplete rather than typed.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "./go-test:\n\tgo test ./...\n"}), nil, none); got.GoTest == GoTestParsed || got.Unreadable == "" {
+		t.Errorf("./go-test: %#v, want untyped and incomplete", got)
 	}
 	// 7. make reads GNUmakefile before makefile before Makefile.
 	both := map[string]string{"GNUmakefile": "go-test:\n\tgo test -race ./...\n", "Makefile": "go-test:\n\tgo test ./...\n"}
@@ -765,10 +777,46 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 			}
 		}
 	}
-	for _, flags := range []string{"", "s", "-j8", "k --jobserver-auth=3,4", "--output-sync=line", "w"} {
+	for _, flags := range []string{"", "s", "-j8", "k --jobserver-auth=3,4", "--output-sync=line", "w", "k -j4", " --no-print-directory", "--jobserver-fds=3,4 -j"} {
 		lookup := func(key string) (string, bool) { return flags, key == "GNUMAKEFLAGS" }
 		if got := ReadDeclared(write(t, map[string]string{"Makefile": "F = -race\n" + recipe}), nil, lookup); got.GoTest != GoTestParsed {
 			t.Errorf("GNUMAKEFLAGS=%q: %#v, want parsed", flags, got)
+		}
+	}
+	// Round 12: the whole file and the inherited environment are read
+	// against one grammar; anything outside it is incomplete or untyped.
+	// 1. VPATH in the environment makes an existing src/go-test up to date.
+	vpathSrc := func(key string) (string, bool) { return "src", key == "VPATH" }
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "F = -race\n" + recipe, "src/go-test": ""}), nil, vpathSrc); got.GoTest == GoTestParsed || got.Unreadable == "" || !strings.Contains(got.Unreadable, "VPATH") {
+		t.Errorf("VPATH=src beside src/go-test: %#v, want untyped and incomplete naming VPATH", got)
+	}
+	// 2. A computed define name defines a variable whose expansion evals
+	// a go-test rule.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "NAME = X\ndefine $(NAME)\n$(eval go-test: ; @echo witness)\nendef\nY := $(X)\n"}), nil, none); got.GoTest == GoTestParsed || got.Unreadable == "" {
+		t.Errorf("computed define name: %#v, want incomplete", got)
+	}
+	// 3. override and export assignments carry text the reader does not
+	// record, so a later := expansion is not provably pure.
+	for _, body := range []string{
+		"Y = $(call eval,go-test: ; @echo witness)\noverride X = $(Y)\nZ := $(X)\n",
+		"Y = $(call eval,go-test: ; @echo witness)\nexport X = $(Y)\nZ := $(X)\n",
+	} {
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": body}), nil, none); got.GoTest == GoTestParsed || got.Unreadable == "" {
+			t.Errorf("%q: %#v, want incomplete", body, got)
+		}
+	}
+	// 4. A case-insensitive filesystem resolves go-test to a root GO-TEST.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "F = -race\n" + recipe, "GO-TEST": ""}), nil, none); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "up-to-date") {
+		t.Errorf("GO-TEST beside a typed go-test: %#v, want unparsed naming up-to-date", got)
+	}
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "F = -race\n" + recipe, "go\u2010test": ""}), nil, none); got.GoTest == GoTestParsed || got.Unreadable == "" {
+		t.Errorf("non-ASCII root entry beside a typed go-test: %#v, want untyped and incomplete", got)
+	}
+	// 5. A malformed jobserver option makes make exit before any recipe.
+	for _, flags := range []string{"--jobserver-fds=bad", "--jobserver-auth=x,y", "-j4x", "--output-sync=all", "-kx"} {
+		lookup := func(key string) (string, bool) { return flags, key == "MAKEFLAGS" }
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": "F = -race\n" + recipe}), nil, lookup); got.GoTest == GoTestParsed || got.Unreadable == "" || !strings.Contains(got.Unreadable, "MAKEFLAGS") {
+			t.Errorf("MAKEFLAGS=%q: %#v, want untyped and incomplete naming MAKEFLAGS", flags, got)
 		}
 	}
 }
