@@ -2,7 +2,7 @@
 
 Date: 2026-10-11. Branch `claude/v1-0040-slice2`, stacked on slice 1 at
 `30a918949d50ff00046da8e45aecf4029cb0dbd8`. `tools/str-parity` was built from
-`bf3d88362055d14a048ede80e9c21a8129b46e8f` and the corvint binary from
+`8811e43dc8327237c1bf72fb6cd34d8c8ea77146` and the corvint binary from
 `1a248337c7c58d4bd817902884934cf127d4d268`; the later commits change no `cmd/corvint` or
 `internal/` source. Scope:
 `docs/specs/session-test-runner-v0.md` STR-V0-013 (parity report) and STR-V0-008 (balanced
@@ -39,7 +39,7 @@ commit changes anything in their dependency closure):
 ```sh
 str-parity -repo <checkout> -end 645304a2fb71065f9061d8d8d866600d703e84c6 -pairs 50 \
   -corvint <corvint> -selector <gate-affected-select> -pr-tests <corvint-pr-tests> \
-  -script <checkout>/script/gate-affected.sh -source bf3d88362055d14a048ede80e9c21a8129b46e8f -work <new dir>
+  -script <checkout>/script/gate-affected.sh -source 8811e43dc8327237c1bf72fb6cd34d8c8ea77146 -work <new dir>
 ```
 
 ## Inputs
@@ -58,14 +58,15 @@ site: the frozen pairs and the shadow rows must still be replayed once they exis
 
 ## Result
 
-The run exited 0. The `corvint-str-parity/0` report is 221,276 bytes, with sha256
-`eb5a2eea1c0c7328b0feb0dece467e15303633c7338b9924d77b1a5b7e3b7517`. The earlier run with the
-`97accef7b` build (about 21 minutes, sha256 `2fa244ab…`) had the same plans, differences and
-categories in every pair; no corvint invocation's units disagreed with its arguments. It is not committed:
+The run exited 0 in 1,086 seconds. The `corvint-str-parity/0` report is 225,542 bytes, with
+sha256 `f509361d2b80d0c39e069729b484dc50f7c9d9f442324c3ae266799a9f724f86`. Runs with the
+`97accef7b` and `bf3d88362` builds gave the same plans in every pair; the only change since is
+the 9 executed-set differences the round-3 fix now counts for narrowed `INCOMPLETE` pairs. No
+corvint invocation's units disagreed with its arguments. It is not committed:
 the command above regenerates it, and the table below keeps every per-pair verdict, count and
 category.
 
-- No difference is `UNEXPLAINED`. There are 268 differences in six categories.
+- No difference is `UNEXPLAINED`. There are 277 differences in six categories.
 - Package sets are identical in all 46 pairs where corvint narrows: corvint local, the local
   driver and the CI selector's planned set name the same packages. Every package-set difference
   is one of the two widenings below.
@@ -80,7 +81,7 @@ category.
 | ci | argv | `ci-exec-confine` | 50 |
 | ci | env | `ci-closed-environment` | 50 |
 | ci | admission | `ci-admission-no-qualification` | 49 |
-| ci | executed | `ci-admission-no-qualification` | 37 |
+| ci | executed | `ci-admission-no-qualification` | 46 |
 | local, ci | error | `str-v0-004-undeclared-language` | 10 + 10 |
 | local, ci | verdict | `str-v0-003-unknown-widening` | 3 + 3 |
 | local, ci | packages | `str-v0-003-unknown-widening` | 3 + 3 |
@@ -94,11 +95,11 @@ driver, CI planned, CI executed, universe. Corvint ci's package count equals cor
 | 1 | `99f6a03f25` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 136/136/136/319/319 | admission x2, env, exec, json |
 | 2 | `1120e565a0` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 198/198/198/319/319 | admission x2, env, exec, json |
 | 3 | `684cca5f7c` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 253/253/253/320/320 | admission x2, env, exec, json |
-| 4 | `3503617bc7` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 246/246/246/320/320 | admission, env, exec, json, undeclared x2 |
-| 5 | `136d905e4a` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 234/234/234/320/320 | admission, env, exec, json, undeclared x2 |
-| 6 | `016bbd1748` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 130/130/130/320/320 | admission, env, exec, json, undeclared x2 |
+| 4 | `3503617bc7` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 246/246/246/320/320 | admission x2, env, exec, json, undeclared x2 |
+| 5 | `136d905e4a` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 234/234/234/320/320 | admission x2, env, exec, json, undeclared x2 |
+| 6 | `016bbd1748` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 130/130/130/320/320 | admission x2, env, exec, json, undeclared x2 |
 | 7 | `8a0959922a` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 176/176/176/320/320 | admission x2, env, exec, json |
-| 8 | `e5298bc573` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 200/200/200/320/320 | admission, env, exec, json, undeclared x2 |
+| 8 | `e5298bc573` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 200/200/200/320/320 | admission x2, env, exec, json, undeclared x2 |
 | 9 | `41ed082121` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 171/171/171/320/320 | admission x2, env, exec, json |
 | 10 | `cd5298d37d` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 99/99/99/320/320 | admission x2, env, exec, json |
 | 11 | `1786d9dac5` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 185/185/185/320/320 | admission x2, env, exec, json |
@@ -112,7 +113,7 @@ driver, CI planned, CI executed, universe. Corvint ci's package count equals cor
 | 19 | `76c4df1dac` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 158/158/158/320/320 | admission x2, env, exec, json |
 | 20 | `b7596eea9d` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 162/162/162/320/320 | admission x2, env, exec, json |
 | 21 | `556fef970f` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 218/218/218/320/320 | admission x2, env, exec, json |
-| 22 | `64b5d1745b` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 211/211/211/320/320 | admission, env, exec, json, undeclared x2 |
+| 22 | `64b5d1745b` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 211/211/211/320/320 | admission x2, env, exec, json, undeclared x2 |
 | 23 | `8b6af3eeab` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 159/159/159/320/320 | admission x2, env, exec, json |
 | 24 | `a3607ec5b5` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 194/194/194/320/320 | admission x2, env, exec, json |
 | 25 | `bf04e8a086` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 164/164/164/320/320 | admission x2, env, exec, json |
@@ -121,7 +122,7 @@ driver, CI planned, CI executed, universe. Corvint ci's package count equals cor
 | 28 | `408c83bcb7` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 183/183/183/320/320 | admission x2, env, exec, json |
 | 29 | `b524b5ed40` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 151/151/151/320/320 | admission x2, env, exec, json |
 | 30 | `fac080be5e` | FULL | NARROWED | FULL | NARROWED/FULL | 321/164/164/321/321 | admission, env, exec, json, widening x4 |
-| 31 | `bf2899b701` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 164/164/164/321/321 | admission, env, exec, json, undeclared x2 |
+| 31 | `bf2899b701` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 164/164/164/321/321 | admission x2, env, exec, json, undeclared x2 |
 | 32 | `5e664ce9cf` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 162/162/162/321/321 | admission x2, env, exec, json |
 | 33 | `26abaafcfa` | FULL | NARROWED | FULL | NARROWED/FULL | 321/155/155/321/321 | admission, env, exec, json, widening x4 |
 | 34 | `36f0089a60` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 171/171/171/321/321 | admission x2, env, exec, json |
@@ -133,9 +134,9 @@ driver, CI planned, CI executed, universe. Corvint ci's package count equals cor
 | 40 | `686fb1ac9c` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 159/159/159/321/321 | admission x2, env, exec, json |
 | 41 | `97c3a4bd03` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 148/148/148/321/321 | admission x2, env, exec, json |
 | 42 | `55aa6bb9f1` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 204/204/204/321/321 | admission x2, env, exec, json |
-| 43 | `00dd220753` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 295/295/295/322/322 | admission, env, exec, json, undeclared x2 |
-| 44 | `8b65914249` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 256/256/256/323/323 | admission, env, exec, json, undeclared x2 |
-| 45 | `10efc02d16` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 282/282/282/323/323 | admission, env, exec, json, undeclared x2 |
+| 43 | `00dd220753` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 295/295/295/322/322 | admission x2, env, exec, json, undeclared x2 |
+| 44 | `8b65914249` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 256/256/256/323/323 | admission x2, env, exec, json, undeclared x2 |
+| 45 | `10efc02d16` | NARROWED INCOMPLETE | NARROWED | NARROWED INCOMPLETE | NARROWED/FULL | 282/282/282/323/323 | admission x2, env, exec, json, undeclared x2 |
 | 46 | `8f032d969f` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 226/226/226/324/324 | admission x2, env, exec, json |
 | 47 | `3b123d3def` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 154/154/154/324/324 | admission x2, env, exec, json |
 | 48 | `a0e56f3c14` | NARROWED | NARROWED | NARROWED | NARROWED/FULL | 220/220/220/324/324 | admission x2, env, exec, json |
@@ -164,13 +165,14 @@ driver, CI planned, CI executed, universe. Corvint ci's package count equals cor
   changed or added driver variable stays `UNEXPLAINED`.
   Whether `corvint test --profile ci` should build the driver's closed environment itself or
   inherit it from the workflow is a slice-3 call-site decision.
-- `ci-admission-no-qualification` (49 admission, 37 executed): with no trusted qualification pin
+- `ci-admission-no-qualification` (49 admission, 46 executed): with no trusted qualification pin
   (AFP-V0-013/029 forward rows do not exist offline), `tools/corvint-pr-tests` executes `FULL`
   over the universe even when its selector narrows. Admission is the call site's job (STR-V0-012),
   so the comparison uses the selector's planned verdict and set. Both the admission and the
   executed-set difference are explained only when the driver executes exactly the universe, and
   the executed one also only when corvint runs nothing outside it.
-  It is not counted when corvint is `INCOMPLETE` (the next category).
+  It is also compared when corvint is `INCOMPLETE` (the next category), because that plan still
+  names its packages.
 - `str-v0-004-undeclared-language` (10 pairs, both profiles): the change touches TypeScript in
   all 10, and also Python or Ruby in one each. The repository Makefile declares no
   `typescript-test`, `python-test` or `ruby-test` target, so corvint reports `INCOMPLETE`, while
@@ -185,9 +187,10 @@ driver, CI planned, CI executed, universe. Corvint ci's package count equals cor
   narrows. The rule requires corvint to run exactly the universe and omit nothing a driver runs.
   This is the intended difference: the runner does not trust an unindexed source path, even where
   the selector's attribution narrows.
-- Not observed in these pairs: `ci-nothing-runs-full` (no merge planned `NOTHING`), and
-  `full-declared-languages` (no plan declared a non-Go command, because the Makefile declares
-  none).
+- Not observed in these pairs: `ci-nothing-runs-full` (no merge planned `NOTHING`). No plan
+  declared a non-Go command, because the Makefile declares none. A declared command has no
+  validated explanation yet, so one would be `UNEXPLAINED` until slice 3 checks it against the
+  Makefile's declarations.
 
 No difference needed a runner fix. `internal/sessiontest/declared.go` typed the go-test recipe in
 all 50 pairs: the corvint local argv equals `make -s -n go-test` apart from `-json`. Parity
@@ -238,8 +241,12 @@ exposed no typing issue.
 - Round 2: changes requested (4 findings: admission did not require the driver to execute the
   universe; the driver environment was only checked for containment; corvint's package set came
   from units, not argv; decision 0524 is absent from this branch). The three tool findings were
-  fixed in `bf3d88362`, and the run above was repeated with that build. It gave the same plans
-and categories in all 50 pairs.
+  fixed in `bf3d88362`, and the run was repeated with that build. It gave the same plans and
+  categories in all 50 pairs.
+- Round 3 (the last allowed): changes requested (2 findings: an `INCOMPLETE` corvint plan skipped
+  the executed-set comparison, so a package the CI driver dropped could go unseen; every declared
+  non-Go command was explained without validation). Both were fixed in `8811e43dc` with regression
+  tests, and the run above is from that build. These fixes had no further review round.
 - The spec's accepted intent cites decision 0524
   (`docs/decisions/0524-str-v0-001-018-session-test-runner-accepted-2026-10-11.md`). It is
   retained on `claude/v1-0040-session-test-runner-spec` (beamfall/corvint#815) and not in this
