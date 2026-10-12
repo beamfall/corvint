@@ -33,7 +33,7 @@
       "digest": "affected-excluded:sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
       "groups": []
     },
-    "graphDigest": "affected-graph:sha256:a3f75560c8a648071eacb010a81bd7f8bbc8b0f1a256ad6cc24f6298b953c884",
+    "graphDigest": "affected-graph:sha256:03f13ebd2bc818635f33e99e37789b95a55a5935a4cc20721b6f6d6e473fba17",
     "scope": "UNKNOWN",
     "selected": [
       {
