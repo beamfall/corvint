@@ -58,6 +58,10 @@ func TestSTRV0013ParityReading(t *testing.T) {
 	widened := Plan{Argv: local.Argv, Count: 2, Env: local.Env, Packages: universe, Reason: "plan.unknown entry outside the AFP-V0-028 allowlist: UNINDEXED_SOURCE_PATH x.go", Scope: "FULL"}
 	ci := Plan{Argv: []string{"test", "-json"}, Count: 2, Env: closed, Packages: universe, Reason: "qualification unavailable: no trusted qualification pin", Scope: "FULL"}
 	corvintCI := Plan{Argv: []string{"test", "-exec", confinePath, "-json"}, Count: 1, Env: ciEnv, Packages: []string{"m/a"}, Scope: "NARROWED"}
+	incomplete := func(plan *Plan, reasons ...string) {
+		plan.Incomplete, plan.Error = reasons, "INCOMPLETE: "+strings.Join(reasons, "; ")
+	}
+	const typescript = "typescript: no qualified adapter and no declared typescript-test full command"
 	categories := func(pair Pair) string {
 		out := []string{}
 		for _, difference := range compare(pair) {
@@ -87,10 +91,13 @@ func TestSTRV0013ParityReading(t *testing.T) {
 		"unexplained package":      {func(p *Pair) { p.Local.Packages = []string{"m/b"} }, "local packages UNEXPLAINED"},
 		"admission below universe": {func(p *Pair) { p.CI.Packages = []string{"m/a"}; p.CI.Count = 1 }, "ci admission UNEXPLAINED"},
 		"executed omits a package": {func(p *Pair) { p.CI.Packages = []string{"m/b"} }, "ci executed UNEXPLAINED"},
-		"undeclared language": {func(p *Pair) {
-			p.CorvintLoc.Error = "INCOMPLETE: typescript: no qualified adapter and no declared typescript-test full command"
-		}, "local error str-v0-004-undeclared-language"},
-		"another INCOMPLETE":        {func(p *Pair) { p.CorvintLoc.Error = "INCOMPLETE: the manifest exceeds 1048576 bytes" }, "local error UNEXPLAINED"},
+		"undeclared language":      {func(p *Pair) { incomplete(&p.CorvintLoc, typescript) }, "local error str-v0-004-undeclared-language"},
+		"another INCOMPLETE":       {func(p *Pair) { incomplete(&p.CorvintLoc, "the manifest exceeds 1048576 bytes") }, "local error UNEXPLAINED"},
+		"look-alike reason": {func(p *Pair) {
+			incomplete(&p.CorvintLoc, "typescript: no qualified adapter and no declared ruby-test full command")
+		}, "local error UNEXPLAINED"},
+		"error beyond reasons":      {func(p *Pair) { incomplete(&p.CorvintLoc, typescript); p.CorvintLoc.Error += " exit 1" }, "local error UNEXPLAINED"},
+		"units mismatch":            {func(p *Pair) { p.CorvintLoc.Mismatch = "arguments name [m/a], units name [m/a m/b]" }, "local units UNEXPLAINED"},
 		"ci variable added":         {func(p *Pair) { p.CorvintCI.Env = append(append([]string{}, ciEnv...), "GOFLAGS=-mod=mod") }, "ci env UNEXPLAINED"},
 		"ci variable dropped":       {func(p *Pair) { p.CorvintCI.Env = []string{"CORVINT_CONFINE_ROOT=/w"} }, "ci env UNEXPLAINED"},
 		"confine root elsewhere":    {func(p *Pair) { p.Root = "/other" }, "ci env UNEXPLAINED"},
@@ -102,8 +109,8 @@ func TestSTRV0013ParityReading(t *testing.T) {
 		"another exec wrapper":      {func(p *Pair) { p.CorvintCI.Argv = []string{"test", "-exec", "/bin/true", "-json"} }, "ci argv UNEXPLAINED"},
 		"local environment differs": {func(p *Pair) { p.Local.Env = []string{"A=2"} }, "local env UNEXPLAINED"},
 		"incomplete hides a dropped ci package": {func(p *Pair) {
-			p.CorvintCI = Plan{Argv: corvintCI.Argv, Count: 2, Env: ciEnv, Packages: universe, Scope: "FULL",
-				Error: "INCOMPLETE: typescript: no qualified adapter and no declared typescript-test full command"}
+			p.CorvintCI = Plan{Argv: corvintCI.Argv, Count: 2, Env: ciEnv, Packages: universe, Scope: "FULL"}
+			incomplete(&p.CorvintCI, typescript)
 			p.CIPlanned, p.CIPlannedPackages, p.CI.Packages = "FULL", universe, []string{"m/a"}
 		}, "ci executed UNEXPLAINED"},
 		"declared command": {func(p *Pair) { p.CorvintCI.Declared = []string{"make typescript-test"} }, "ci declared UNEXPLAINED"},
@@ -112,6 +119,17 @@ func TestSTRV0013ParityReading(t *testing.T) {
 		check.edit(&pair)
 		if got := categories(pair); !strings.Contains(got, check.want) {
 			t.Errorf("%s: want %q in\n%s", name, check.want, got)
+		}
+	}
+	// An undeclared-language INCOMPLETE plan whose go invocation omits a unit
+	// keeps the mismatch as its own UNEXPLAINED difference.
+	both := fresh()
+	incomplete(&both.CorvintLoc, typescript)
+	both.CorvintLoc.Mismatch = "arguments name [m/a], units name [m/a m/b]"
+	joined := categories(both)
+	for _, want := range []string{"local units UNEXPLAINED", "local error str-v0-004-undeclared-language"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("undeclared language with a units mismatch: want %q in\n%s", want, joined)
 		}
 	}
 }

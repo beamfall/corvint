@@ -54,6 +54,11 @@ type Plan struct {
 	Scope    string   `json:"scope"`
 	// Declared names the extra make targets corvint test would run.
 	Declared []string `json:"declared,omitempty"`
+	// Incomplete holds corvint's INCOMPLETE reasons as printed.
+	Incomplete []string `json:"-"`
+	// Mismatch names a go invocation whose package arguments differ from its
+	// units; it is its own difference and never explained.
+	Mismatch string `json:"mismatch,omitempty"`
 }
 
 // Difference is one compared field that disagrees, with its category.
@@ -265,6 +270,7 @@ func corvintPlan(ctx context.Context, o options, clone string, env []string, bas
 	}
 	plan := Plan{Reason: printed.Reason, Scope: printed.Scope, Env: []string{}, Argv: []string{}}
 	if len(printed.Incomplete) != 0 {
+		plan.Incomplete = append([]string{}, printed.Incomplete...)
 		plan.Error = "INCOMPLETE: " + strings.Join(printed.Incomplete, "; ")
 	}
 	set := map[string]bool{}
@@ -279,7 +285,7 @@ func corvintPlan(ctx context.Context, o options, clone string, env []string, bas
 		}
 		invoked, agrees := invokedPackages(invocation.Argv[1:], units, universe)
 		if !agrees {
-			plan.Error = strings.TrimSpace(plan.Error + " the go invocation's package arguments differ from its units")
+			plan.Mismatch = fmt.Sprintf("arguments name %v, units name %v", sortedKeys(invoked), sortedCopy(units))
 		}
 		for pkg := range invoked {
 			set[pkg] = true
@@ -411,6 +417,9 @@ func compare(pair Pair) []Difference {
 		{"local", pair.CorvintLoc, pair.Local, pair.Local.Scope},
 		{"ci", pair.CorvintCI, pair.CI, pair.CIPlanned},
 	} {
+		if side.corvint.Mismatch != "" {
+			add(side.profile, "units", side.corvint.Mismatch)
+		}
 		if side.corvint.Error != "" || side.driver.Error != "" {
 			add(side.profile, "error", fmt.Sprintf("corvint %q driver %q", side.corvint.Error, side.driver.Error))
 		}
@@ -458,7 +467,7 @@ func categorise(pair Pair, profile, field string, extra []string) string {
 	widened := corvint.Scope == "FULL" && strings.HasPrefix(corvint.Reason, "plan.unknown entry outside the AFP-V0-028 allowlist: ")
 	switch field {
 	case "error":
-		if strings.HasPrefix(corvint.Error, "INCOMPLETE: ") && undeclaredOnly(strings.TrimPrefix(corvint.Error, "INCOMPLETE: ")) && pair.Local.Error == "" && (profile == "local" || pair.CI.Error == "") {
+		if undeclaredOnly(corvint) && pair.Local.Error == "" && (profile == "local" || pair.CI.Error == "") {
 			return "str-v0-004-undeclared-language"
 		}
 	case "admission", "executed":
@@ -530,11 +539,16 @@ func containsArg(values []string, want string) bool {
 	return false
 }
 
-// undeclaredOnly reports whether every INCOMPLETE reason is a language with
-// no adapter and no declared full command (STR-V0-004).
-func undeclaredOnly(reasons string) bool {
-	for _, reason := range strings.Split(reasons, "; ") {
-		if !strings.Contains(reason, ": no qualified adapter and no declared ") {
+// undeclaredOnly reports whether the plan's only error is INCOMPLETE and
+// every reason is exactly "<language>: no qualified adapter and no declared
+// <language>-test full command" (STR-V0-004).
+func undeclaredOnly(plan Plan) bool {
+	if len(plan.Incomplete) == 0 || plan.Error != "INCOMPLETE: "+strings.Join(plan.Incomplete, "; ") {
+		return false
+	}
+	for _, reason := range plan.Incomplete {
+		language, _, _ := strings.Cut(reason, ": ")
+		if language == "" || strings.ContainsAny(language, " ;:") || reason != language+": no qualified adapter and no declared "+language+"-test full command" {
 			return false
 		}
 	}
