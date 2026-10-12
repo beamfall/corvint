@@ -372,11 +372,18 @@ It does not mutate repository or trace state.
 const witnessHelp = `Compile the unwitnessed surface of one committed range.
 
 Usage:
-  corvint [--root PATH] witness --base REV [--head REV] [--cem MAP] [--json]
+  corvint [--root PATH] witness --base REV [--head REV] [--cem MAP]
+      [--stable-artifact-root DIR] [--json]
 
 Builds the committed index, compares the range beginning at --base, and prints
 the conservative unwitnessed report. It does not mutate repository or trace
 state and never invents a witness.
+
+A cem/1.0 map is applied only when --stable-artifact-root is given and the
+stable verifier accepts it against --base and the checked-out HEAD; the report
+then uses corvint-witness-stable/0. Any other stable outcome, a cem/1.0 map
+without the flag, or the flag over a map that is not cem/1.0 exits 2 with no
+stdout.
 `
 
 const testValidityHelp = `Project test-level results through the shared test-validity shape.

@@ -26,8 +26,8 @@ import (
 )
 
 type options struct {
-	addr, repo, specs, tasks, snapshot string
-	timeout                            time.Duration
+	addr, repo, specs, tasks, snapshot, stable string
+	timeout                                    time.Duration
 }
 
 func main() {
@@ -60,9 +60,15 @@ func main() {
 			fail("%v", err)
 		}
 	}
+	stableArtifacts := ""
+	if parsed.stable != "" {
+		if stableArtifacts, err = filepath.Abs(parsed.stable); err != nil {
+			fail("could not resolve -stable-artifact-root: %v", err)
+		}
+	}
 	server, err := console.New(console.Options{
 		Addr: parsed.addr, Repo: root, Binary: parsed.tasks, Specs: specsRoot,
-		Snapshot: parsed.snapshot, Timeout: parsed.timeout,
+		Snapshot: parsed.snapshot, Timeout: parsed.timeout, StableArtifacts: stableArtifacts,
 	})
 	if err != nil {
 		fail("%v", err)
@@ -104,6 +110,8 @@ func parseOptions(arguments []string, output io.Writer) (options, error) {
 	flags.StringVar(&legacyTasks, "atm", "", "legacy alias for -tasks")
 	flags.StringVar(&parsed.specs, "specs", "", "repository holding docs/specs and the tree the code pane reads (default: -repo)")
 	flags.StringVar(&parsed.snapshot, "snapshot", defaults.snapshot, "the corvint-dashboard-snapshot executable the evidence pane invokes")
+	flags.StringVar(&parsed.stable, "stable-artifact-root", "",
+		"artifact root for the chain pane's verified cem/1.0 mode; a stable chain is then drawn only on a stable verifier ACCEPT against the request's base")
 	flags.DurationVar(&parsed.timeout, "timeout", defaults.timeout,
 		"per-invocation timeout for corvint-tasks, git and the snapshot compiler; the snapshot is the slowest source and may need longer on a loaded host")
 	if err := flags.Parse(arguments); err != nil {
