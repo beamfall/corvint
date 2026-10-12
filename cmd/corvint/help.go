@@ -944,6 +944,8 @@ Usage:
   corvint [--root PATH] cem provenance --commit REV
   corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
     --output DIR [--witness REPORT]
+  corvint [--root PATH] cem verify-stable --repository PATH --map MAP
+    --expected-base REV --target REV --artifacts DIR [--trusted-keys FILE]
 
 Actions:
   begin    Build a cem/0.1 candidate from exact out-of-band patch bytes.
@@ -983,6 +985,16 @@ Actions:
            NOT_RUN/NOT_PRODUCED axes. A receipt that is missing or binds
            another revision is listed as absent. Check it offline with
            script/verify-receipt-bundle.sh DIR.
+  verify-stable
+           Verify a cem/1.0 map against the absolute --repository and the
+           artifact bytes under --artifacts; prints one
+           cem-stable-verification/1 JSON result. --trusted-keys FILE is the
+           consumer's absolute corvint-trusted-keys/1 file
+           {"profile":"corvint-trusted-keys/1","keys":[{"keyid":K,
+           "ed25519PublicKey":B64}]}: only a keyid it names can raise the
+           authentication axis to VERIFIED (UNTRUSTED_KEY otherwise). A key
+           the map or its artifacts carry is never trusted, and a valid
+           signature never raises executionAtCommit.
 
 Verification options:
   --expected-base REV  Independent expected base. Required for cem/0.2.

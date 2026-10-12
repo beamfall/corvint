@@ -154,8 +154,8 @@ digests. Omitted criteria remain unreferenced.
 Runner records retain the exact reference fields and fixed limits from the public
 candidate shape: raw receipt SHA256, exact `corvint-test-runner-receipt/0` profile,
 raw plan-byte SHA256, sourceGitBinding=NOT_OBSERVED,
-executionAuthority=CALLER_OBSERVED, dependencyClosure=NOT_OBSERVED and
-authentication=NOT_OBSERVED. Receipt digests are unique. The raw plan SHA256 is
+executionAuthority=CALLER_OBSERVED, dependencyClosure=NOT_OBSERVED and an
+authentication member (CEM-V1-084 below). Receipt digests are unique. The raw plan SHA256 is
 not the native plan struct-serialization identity; neither can substitute for the
 other. CALLER_OBSERVED is a declared reference limitation, not proof of execution.
 
@@ -182,6 +182,8 @@ Stable proposes six artifact roles; the first five retain candidate names:
 
 The four criterion rows apply only to Tasks-form bindings (CEM-V1-083); a
 plain-form binding contributes no required artifact role.
+CEM-V1-084 adds a conditional seventh role: `runner.authentication.envelopeSha256`
+requires a `receipt-attestation` artifact, only for a `dsse-ed25519` receipt.
 
 The sixth role is a deliberate proposed stable addition: the candidate only
 retains the snapshot-head digest as a historical reference. Gate A must accept
@@ -227,7 +229,8 @@ referenceIntegrity are separate; an empty graph produces EMPTY_REFERENCE_SET,
 not a claimed observed execution. Structural/witness axes state only the checks
 actually performed. All authority, history/currentness, source/execution,
 receipt-semantics, authentication, dependency, adequacy/discrimination and external
-interoperability axes remain NOT_OBSERVED in this operation, including on success.
+interoperability axes remain NOT_OBSERVED in this operation, including on success,
+except that CEM-V1-084 lets a consumer trusted-keys file move `authentication`.
 
 Companions may emit separate versioned native verification results bound to the
 exact original stable map, expected base, target, artifact inventory and their
@@ -236,6 +239,54 @@ is not that check. Historical validity and fresh live applicability are distinct
 Native runner semantics must use the shared runner contract without changing its
 bytes/identity, retain every admitted observation and abstain on contradictions.
 No boolean from the stable result may replace these layered checks.
+
+## CEM-V1-084: runner receipt authentication
+
+A runner record's `authentication` is one of three closed forms: the sealed
+legacy string `"NOT_OBSERVED"` (read as method none and echoed unchanged),
+`{"method":"none"}`, or `{"method":"dsse-ed25519","keyid":K,"envelopeSha256":E}`.
+The method value selects the key set before any value check, so a consumer
+refuses `missing-field` first, then `unknown-field`, then `invalid-field`
+(an undefined method or a value that is not 64 lowercase hex). K is the
+lowercase hex SHA-256 of the raw 32-byte Ed25519 public key. E is the SHA-256
+of the exact envelope bytes.
+
+Graph: after the receipt and plan roles, a repeated E across receipts refuses
+`duplicate-reference`; E must resolve to a `receipt-attestation` artifact
+(`artifact-role-closure`), and a `receipt-attestation` artifact that no receipt
+names is unused (`artifact-role-closure`). A map that carries a key file as an
+attestation artifact therefore refuses: a map never supplies its own trust.
+
+Envelope: one closed DSSE object `{payload, payloadType, signatures}` with
+`payloadType` `application/vnd.in-toto+json`, standard padded base64 payload and
+exactly one signature `{keyid, sig}` (sig 64 bytes). The payload is a closed
+in-toto Statement v1: `_type` `https://in-toto.io/Statement/v1`, `predicateType`
+`https://corvint-context.dev/attestation/cem-receipt/v1`, `predicate` `{}`, and
+exactly three subjects in order: `runner-receipt` `{"sha256":R}`, `runner-plan`
+`{"sha256":P}` and `target-tree` `{"gitTree":T}`. The signature covers the DSSE
+v1 PAE `DSSEv1 28 application/vnd.in-toto+json <len> <payload>`.
+
+After the two artifact passes, for every dsse receipt a consumer checks, in
+order: the envelope shape (`attestation-malformed`), signature keyid equal to K
+(`attestation-key-mismatch`), R, P and T equal to the receipt digest, the plan
+digest and the target commit's tree (`attestation-subject-mismatch`, checked
+without any trust decision), and, only when K is trusted, the Ed25519 signature
+(`attestation-signature-invalid`). Any of these is a REJECT at stage
+`artifacts`, exit 1, with the code in `issueCodes`, `referenceIntegrity` FAILED
+and `authentication` FAILED.
+
+Trust comes only from the consumer: `--trusted-keys FILE`, an absolute regular
+file of at most 64 KiB holding the closed
+`{"profile":"corvint-trusted-keys/1","keys":[{"keyid":K,"ed25519PublicKey":B64}]}`
+with 1..64 unique keys whose keyid is the digest of the key. Any other file is
+`invalid-arguments` at stage `arguments`, exit 2, before the map is read. On
+ACCEPT the `authentication` axis is NOT_OBSERVED without a trusted-keys file;
+otherwise UNTRUSTED_KEY when any dsse receipt names a keyid the file does not
+list (its signature is then not checked), NOT_OBSERVED when no receipt is dsse
+or any receipt is unsigned, and VERIFIED only when every receipt is dsse with a
+trusted keyid and a valid signature. A signature never
+raises `executionAtCommit` or any other axis. Producing a signed receipt is an
+operator step outside this operation.
 
 ## CEM-V1-023..024: operation and committed sidecar
 

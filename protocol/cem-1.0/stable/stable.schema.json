@@ -657,7 +657,44 @@
           "const": "NOT_OBSERVED"
         },
         "authentication": {
-          "const": "NOT_OBSERVED"
+          "$comment": "CEM-V1-084: the string NOT_OBSERVED is the sealed S0E form, read as method none.",
+          "oneOf": [
+            {
+              "const": "NOT_OBSERVED"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "method"
+              ],
+              "properties": {
+                "method": {
+                  "const": "none"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "method",
+                "keyid",
+                "envelopeSha256"
+              ],
+              "properties": {
+                "method": {
+                  "const": "dsse-ed25519"
+                },
+                "keyid": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "envelopeSha256": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            }
+          ]
         }
       }
     },
@@ -722,7 +759,8 @@
             "tasks-claimed-ticket",
             "runner-plan",
             "runner-receipt",
-            "tasks-snapshot-head-receipt"
+            "tasks-snapshot-head-receipt",
+            "receipt-attestation"
           ]
         },
         "path": {

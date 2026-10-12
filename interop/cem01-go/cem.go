@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
@@ -2885,6 +2886,20 @@ func (v *verifier) object03(kind, oid string, limit int) ([]byte, *cemError) {
 	}
 	return b, nil
 }
+
+// commitTree03 reads one commit's root tree id, as snapshot03 does.
+func (v *verifier) commitTree03(commit string) (string, *cemError) {
+	raw, e := v.object03("commit", commit, 1<<20)
+	if e != nil {
+		return "", e
+	}
+	first, _, ok := strings.Cut(string(raw), "\n")
+	root := strings.TrimPrefix(first, "tree ")
+	if !ok || !strings.HasPrefix(first, "tree ") || !validOID(root) || len(root) != len(commit) {
+		return "", operational("repository-object-unavailable")
+	}
+	return root, nil
+}
 func (v *verifier) snapshot03(commit string) (map[string]*treeEntry, *cemError) {
 	// One MiB commits and 4096 entries are a declared narrower operational envelope.
 	raw, e := v.object03("commit", commit, 1<<20)
@@ -3402,13 +3417,13 @@ func stableCriterionKeys(raw json.RawMessage) []string {
 }
 
 type stableRunner struct {
-	SHA256             string `json:"sha256"`
-	Profile            string `json:"profile"`
-	PlanSHA256         string `json:"planSha256"`
-	SourceGitBinding   string `json:"sourceGitBinding"`
-	ExecutionAuthority string `json:"executionAuthority"`
-	DependencyClosure  string `json:"dependencyClosure"`
-	Authentication     string `json:"authentication"`
+	SHA256             string               `json:"sha256"`
+	Profile            string               `json:"profile"`
+	PlanSHA256         string               `json:"planSha256"`
+	SourceGitBinding   string               `json:"sourceGitBinding"`
+	ExecutionAuthority string               `json:"executionAuthority"`
+	DependencyClosure  string               `json:"dependencyClosure"`
+	Authentication     stableAuthentication `json:"authentication"`
 }
 type stableLink struct {
 	CriterionID          string   `json:"criterionId"`
@@ -3847,10 +3862,13 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 		for _, f := range []struct {
 			key, want string
 			dest      *string
-		}{{"sourceGitBinding", "NOT_OBSERVED", &v.SourceGitBinding}, {"executionAuthority", "CALLER_OBSERVED", &v.ExecutionAuthority}, {"dependencyClosure", "NOT_OBSERVED", &v.DependencyClosure}, {"authentication", "NOT_OBSERVED", &v.Authentication}} {
+		}{{"sourceGitBinding", "NOT_OBSERVED", &v.SourceGitBinding}, {"executionAuthority", "CALLER_OBSERVED", &v.ExecutionAuthority}, {"dependencyClosure", "NOT_OBSERVED", &v.DependencyClosure}} {
 			if *f.dest, e = stableString(o, f.key, func(s string) bool { return s == f.want }); e != nil {
 				return m, e
 			}
+		}
+		if v.Authentication, e = decodeStableAuthentication(o["authentication"]); e != nil {
+			return m, e
 		}
 		m.RunnerReceipts = append(m.RunnerReceipts, v)
 	}
@@ -3890,7 +3908,7 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 		v := stableArtifact{}
 		if v.Kind, e = stableString(o, "kind", func(s string) bool {
 			switch s {
-			case "tasks-capture", "tasks-verification", "tasks-claimed-ticket", "tasks-snapshot-head-receipt", "runner-receipt", "runner-plan":
+			case "tasks-capture", "tasks-verification", "tasks-claimed-ticket", "tasks-snapshot-head-receipt", "runner-receipt", "runner-plan", stableAttestationKind:
 				return true
 			}
 			return false
@@ -4037,9 +4055,21 @@ func validateStableReferences(m *stableMap) *cemError {
 			return invalid("artifact-role-closure")
 		}
 	}
+	envelopes := map[string]bool{}
 	for _, r := range m.RunnerReceipts {
 		if !want(r.SHA256, "runner-receipt") || !want(r.PlanSHA256, "runner-plan") {
 			return invalid("artifact-role-closure")
+		}
+		// CEM-V1-084: each signed receipt names its own receipt-attestation
+		// artifact; an attestation no receipt names fails the closure below.
+		if r.Authentication.dsse() {
+			if envelopes[r.Authentication.EnvelopeSHA256] {
+				return invalid("duplicate-reference")
+			}
+			envelopes[r.Authentication.EnvelopeSHA256] = true
+			if !want(r.Authentication.EnvelopeSHA256, stableAttestationKind) {
+				return invalid("artifact-role-closure")
+			}
 		}
 	}
 	paths, digests := map[string]bool{}, map[string]bool{}
@@ -4162,20 +4192,28 @@ func checkStableArtifacts(ctx context.Context, root string, as []stableArtifact)
 	return checkStableArtifactReads(ctx, root, as, readStableArtifact)
 }
 func checkStableArtifactReads(ctx context.Context, root string, as []stableArtifact, read func(context.Context, string, stableArtifact) ([]byte, *cemError)) ([]stableArtifactCheck, *cemError) {
+	checks, _, e := checkStableArtifactContents(ctx, root, as, read)
+	return checks, e
+}
+
+// checkStableArtifactContents also returns the verified bytes by digest, which
+// receipt authentication reads (CEM-V1-084).
+func checkStableArtifactContents(ctx context.Context, root string, as []stableArtifact, read func(context.Context, string, stableArtifact) ([]byte, *cemError)) ([]stableArtifactCheck, map[string][]byte, *cemError) {
 	checks := []stableArtifactCheck{}
+	contents := map[string][]byte{}
 	first := make([][]byte, len(as))
 	total := 0
 	for i, a := range as {
 		b, e := read(ctx, root, a)
 		if e != nil {
-			return nil, e
+			return nil, nil, e
 		}
 		total += len(b)
 		if total > 16<<20 {
-			return nil, operational("artifact-resource-limit")
+			return nil, nil, operational("artifact-resource-limit")
 		}
 		if shaHex(b) != a.SHA256 {
-			return nil, invalid("artifact-digest-mismatch")
+			return nil, nil, invalid("artifact-digest-mismatch")
 		}
 		first[i] = b
 	}
@@ -4183,20 +4221,27 @@ func checkStableArtifactReads(ctx context.Context, root string, as []stableArtif
 	for i, a := range as {
 		b, e := read(ctx, root, a)
 		if e != nil {
-			return nil, e
+			return nil, nil, e
 		}
 		total += len(b)
 		if total > 16<<20 {
-			return nil, operational("artifact-resource-limit")
+			return nil, nil, operational("artifact-resource-limit")
 		}
 		if !bytes.Equal(b, first[i]) || shaHex(b) != a.SHA256 {
-			return nil, invalid("artifact-changed-during-verification")
+			return nil, nil, invalid("artifact-changed-during-verification")
 		}
 		checks = append(checks, stableArtifactCheck{a.Kind, a.Path, a.SHA256, len(b)})
+		contents[a.SHA256] = b
 	}
-	return checks, nil
+	return checks, contents, nil
 }
 func runStable(ctx context.Context, repo string, raw []byte, base, target, artifacts string) (stableResult, int) {
+	return runStableTrusted(ctx, repo, raw, base, target, artifacts, nil)
+}
+
+// runStableTrusted is runStable with the consumer --trusted-keys set; nil
+// means no file was supplied (CEM-V1-084).
+func runStableTrusted(ctx context.Context, repo string, raw []byte, base, target, artifacts string, trusted map[string]ed25519.PublicKey) (stableResult, int) {
 	r := newStableResult(base, target)
 	r.MapSHA256 = string03(shaHex(raw))
 	m, e := decodeStable(raw)
@@ -4503,9 +4548,20 @@ func runStable(ctx context.Context, repo string, raw []byte, base, target, artif
 		return failStable(&r, "drift", invalid("evidence-drift"), true)
 	}
 	r.Axes["changeIntegrity"] = "VERIFIED"
-	checks, e := checkStableArtifacts(ctx, artifacts, m.Artifacts)
+	checks, contents, e := checkStableArtifactContents(ctx, artifacts, m.Artifacts, readStableArtifact)
 	if e != nil {
 		return failStable(&r, "artifacts", e, true)
+	}
+	if stableHasSignedReceipt(&m) {
+		tree, e := v.commitTree03(target)
+		if e != nil {
+			return failStable(&r, "repository", e, false)
+		}
+		axis, e := stableAuthenticate(&m, contents, tree, trusted)
+		if e != nil {
+			return failStableAuthentication(&r, e)
+		}
+		r.Axes["authentication"] = axis
 	}
 	r.ArtifactChecks = checks
 	r.Axes["referenceIntegrity"] = "REFERENCE_INTEGRITY_ONLY"
@@ -4521,7 +4577,7 @@ func runStable(ctx context.Context, repo string, raw []byte, base, target, artif
 
 func executeStableCLI(ctx context.Context, argv []string) (stableResult, int) {
 	flags := map[string]string{}
-	allowed := map[string]bool{"--repository": true, "--map": true, "--expected-base": true, "--target": true, "--artifacts": true}
+	allowed := map[string]bool{"--repository": true, "--map": true, "--expected-base": true, "--target": true, "--artifacts": true, "--trusted-keys": true}
 	bad := len(argv)%2 != 0
 	if !bad {
 		for i := 0; i < len(argv); i += 2 {
@@ -4536,11 +4592,15 @@ func executeStableCLI(ctx context.Context, argv []string) (stableResult, int) {
 	if bad || flags["--repository"] == "" || flags["--map"] == "" || !filepath.IsAbs(flags["--repository"]) || !filepath.IsAbs(flags["--map"]) {
 		return failStable(&r, "arguments", operational("invalid-arguments"), false)
 	}
+	trusted, ok := readStableTrustedKeys(ctx, flags["--trusted-keys"])
+	if !ok {
+		return failStable(&r, "arguments", operational("invalid-arguments"), false)
+	}
 	raw, e := readBounded(ctx, flags["--map"], maxJSONBytes)
 	if e != nil {
 		return failStable(&r, "input", operational("map-unavailable"), false)
 	}
-	return runStable(ctx, flags["--repository"], raw, flags["--expected-base"], flags["--target"], flags["--artifacts"])
+	return runStableTrusted(ctx, flags["--repository"], raw, flags["--expected-base"], flags["--target"], flags["--artifacts"], trusted)
 }
 func runStableCLI(argv []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), verificationBudget)

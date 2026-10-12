@@ -37,6 +37,21 @@ var stableAxes = []struct{ name, state string }{
 	{"authentication", "NOT_OBSERVED"},
 }
 
+// stableAuthenticationReason says why the pane never reports a receipt
+// signature (CEM-V1-084): it trusts no key and checks no envelope.
+const stableAuthenticationReason = ": the pane trusts no key and checks no receipt-attestation signature; " +
+	"only `corvint cem verify-stable --trusted-keys FILE` with a consumer key file can report VERIFIED, " +
+	"and a signature never raises executionAtCommit"
+
+// stableReceiptSignatureDetail qualifies a dsse-ed25519 receipt member: the
+// named keyid and envelope are references, not a checked signature.
+func stableReceiptSignatureDetail(a wire.StableAuthentication) string {
+	if !a.DSSE() {
+		return ""
+	}
+	return " (signature not checked and keyid not trusted in this pane)"
+}
+
 // mentionsStable reports whether any top-level member whose name matches
 // "spec" case-insensitively (the members json.Unmarshal may read as Spec)
 // carries the string cem/1.0, or whether the document declares it exactly.
@@ -108,6 +123,9 @@ func stableEdges(chain *Chain) []ChainEdge {
 	for _, axis := range stableAxes {
 		row := edge("axis "+axis.name, "axes."+axis.name)
 		row.Gap, row.Reason = GapUnverified, axis.name+" "+axis.state+" in this pane"
+		if axis.name == "authentication" {
+			row.Reason += stableAuthenticationReason
+		}
 		edges = append(edges, row)
 	}
 	reference := func(target, field, detail string) {
@@ -127,7 +145,7 @@ func stableEdges(chain *Chain) []ChainEdge {
 	}
 	for index, receipt := range document.Receipts {
 		reference("sha256:"+receipt.Sha256, "runnerReceipts["+strconv.Itoa(index)+"]", "executionAuthority "+receipt.ExecutionAuthority+
-			", sourceGitBinding "+receipt.SourceGitBinding+", dependencyClosure "+receipt.DependencyClosure+", authentication "+receipt.Authentication)
+			", sourceGitBinding "+receipt.SourceGitBinding+", dependencyClosure "+receipt.DependencyClosure+", authentication "+receipt.Authentication.String()+stableReceiptSignatureDetail(receipt.Authentication))
 	}
 	for index, link := range document.Links {
 		reference(link.CriterionID, "criterionLinks["+strconv.Itoa(index)+"]", strconv.Itoa(len(link.HunkIDs))+" hunk(s), "+

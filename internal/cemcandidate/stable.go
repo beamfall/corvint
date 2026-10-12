@@ -233,7 +233,7 @@ func stableBytes(r StableRequest, source *cw.Map, b tw.CriterionBinding, artifac
 		d.Criteria = append(d.Criteria, c)
 		d.Links = append(d.Links, cw.StableLink{CriterionID: c.ID, HunkIDs: append([]string(nil), l.HunkIDs...), EvidenceIDs: append([]string(nil), l.EvidenceIDs...), RunnerReceiptSha256s: []string{digest("runner-receipt")}})
 	}
-	d.Receipts = append(d.Receipts, cw.StableReceipt{Sha256: digest("runner-receipt"), Profile: "corvint-test-runner-receipt/0", PlanSha256: digest("runner-plan"), SourceGitBinding: "NOT_OBSERVED", ExecutionAuthority: "CALLER_OBSERVED", DependencyClosure: "NOT_OBSERVED", Authentication: "NOT_OBSERVED"})
+	d.Receipts = append(d.Receipts, cw.StableReceipt{Sha256: digest("runner-receipt"), Profile: "corvint-test-runner-receipt/0", PlanSha256: digest("runner-plan"), SourceGitBinding: "NOT_OBSERVED", ExecutionAuthority: "CALLER_OBSERVED", DependencyClosure: "NOT_OBSERVED"})
 	for _, kind := range stableArtifactKinds {
 		d.Artifacts = append(d.Artifacts, cw.StableArtifact{Kind: kind, Path: "artifacts/" + kind + ".json", Sha256: digest(kind)})
 	}

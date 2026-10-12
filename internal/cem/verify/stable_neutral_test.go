@@ -55,6 +55,26 @@ func loadNeutralCase(t *testing.T) *neutralCase {
 	t.Helper()
 	top := repositoryRoot(t)
 	c := &neutralCase{root: filepath.Join(top, neutralCaseRoot)}
+	checkStableCaseManifest(t, top, "neutral-criterion/")
+	var err error
+	if c.raw, err = os.ReadFile(filepath.Join(c.root, "stable.json")); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(c.root, "EXPECTED.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(data, &c.expect); err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+// checkStableCaseManifest checks every manifest entry under prefix against
+// its case file and every case file against the manifest, so a public case
+// and the stable protocol manifest cannot diverge.
+func checkStableCaseManifest(t *testing.T, top, prefix string) {
+	t.Helper()
 	var manifest struct {
 		Files []struct {
 			Path   string `json:"path"`
@@ -71,7 +91,7 @@ func loadNeutralCase(t *testing.T) *neutralCase {
 	}
 	listed := map[string]bool{}
 	for _, f := range manifest.Files {
-		if !strings.HasPrefix(f.Path, "neutral-criterion/") {
+		if !strings.HasPrefix(f.Path, prefix) {
 			continue
 		}
 		listed[f.Path] = true
@@ -80,7 +100,7 @@ func loadNeutralCase(t *testing.T) *neutralCase {
 			t.Fatalf("manifest entry %s does not match the case file", f.Path)
 		}
 	}
-	err = filepath.WalkDir(c.root, func(p string, d os.DirEntry, err error) error {
+	err = filepath.WalkDir(filepath.Join(top, "protocol/cem-1.0/stable", prefix), func(p string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
@@ -93,16 +113,6 @@ func loadNeutralCase(t *testing.T) *neutralCase {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.raw, err = os.ReadFile(filepath.Join(c.root, "stable.json")); err != nil {
-		t.Fatal(err)
-	}
-	if data, err = os.ReadFile(filepath.Join(c.root, "EXPECTED.json")); err != nil {
-		t.Fatal(err)
-	}
-	if err := json.Unmarshal(data, &c.expect); err != nil {
-		t.Fatal(err)
-	}
-	return c
 }
 
 // materialize builds the recipe repository with Git plumbing and the fixed
