@@ -895,19 +895,19 @@ CEM-V1-103	docs/specs/cem-stable-v1.md	596	A map whose pinned objects are unavai
 CEM-V1-104	docs/specs/cem-stable-v1.md	600	Verdict parity is measured per committed map at the substituted target T', the
 CEM-V1-105	docs/specs/cem-stable-v1.md	620	The converter exists only to migrate cem/0.x maps. It is removed with the 0.x
 CEM-V1-106	docs/specs/cem-stable-v1.md	665	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) `cem sta
-CEM-V1-140	docs/specs/cem-stable-v1.md	1162	`corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps th
-CEM-V1-141	docs/specs/cem-stable-v1.md	1169	A `cem/1.0` prepare MUST write the canonical stable encoding of a producer map
-CEM-V1-142	docs/specs/cem-stable-v1.md	1183	`cem begin --spec cem/1.0` MUST write the canonical stable producer map of the
-CEM-V1-143	docs/specs/cem-stable-v1.md	1186	`cem cite`, `cem mark`, `cem cover` and `cem discriminate` over a stable produce
-CEM-V1-144	docs/specs/cem-stable-v1.md	1190	A structural `cem mark` on a stable producer map writes the claimed reason; the
-CEM-V1-145	docs/specs/cem-stable-v1.md	1193	`cem status` over a `cem/1.0` map MUST admit `--max-unknown` and
-CEM-V1-146	docs/specs/cem-stable-v1.md	1199	A stable prepare's `nextActions` MUST be the single `cem status` argv with the
-CEM-V1-147	docs/specs/cem-stable-v1.md	1202	The daily bind loop MUST cite, count, check and seal a `cem/1.0` map like a
-CEM-V1-148	docs/specs/cem-stable-v1.md	1208	`dogfood batch-check` MUST admit a sealed `cem/1.0` constituent when the verifie
-CEM-V1-149	docs/specs/cem-stable-v1.md	1213	`ocm prepare`, `ocm read` (status) and `ocm link` MUST admit a `cem/1.0` map onl
-CEM-V1-150	docs/specs/cem-stable-v1.md	1219	Local-completion sidecar-only reuse (`AllowCemSidecarOnlyReuse`) MUST keep
-CEM-V1-151	docs/specs/cem-stable-v1.md	1223	`dogfood finish` MUST read a `cem/1.0` change map: its `cem status` (and the
-CEM-V1-152	docs/specs/cem-stable-v1.md	1228	The aggregate verifier worker's closed argv grammar (`ALO-V0-018`) MUST admit th
+CEM-V1-140	docs/specs/cem-stable-v1.md	1163	`corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps th
+CEM-V1-141	docs/specs/cem-stable-v1.md	1170	A `cem/1.0` prepare MUST write the canonical stable encoding of a producer map
+CEM-V1-142	docs/specs/cem-stable-v1.md	1184	`cem begin --spec cem/1.0` MUST write the canonical stable producer map of the
+CEM-V1-143	docs/specs/cem-stable-v1.md	1187	`cem cite`, `cem mark`, `cem cover` and `cem discriminate` over a stable produce
+CEM-V1-144	docs/specs/cem-stable-v1.md	1191	A structural `cem mark` on a stable producer map writes the claimed reason; the
+CEM-V1-145	docs/specs/cem-stable-v1.md	1194	`cem status` over a `cem/1.0` map MUST admit `--max-unknown` and
+CEM-V1-146	docs/specs/cem-stable-v1.md	1200	A stable prepare's `nextActions` MUST be the single `cem status` argv with the
+CEM-V1-147	docs/specs/cem-stable-v1.md	1203	The daily bind loop MUST cite, count, check and seal a `cem/1.0` map like a
+CEM-V1-148	docs/specs/cem-stable-v1.md	1209	`dogfood batch-check` MUST admit a sealed `cem/1.0` constituent when the verifie
+CEM-V1-149	docs/specs/cem-stable-v1.md	1214	`ocm prepare`, `ocm read` (status) and `ocm link` MUST admit a `cem/1.0` map onl
+CEM-V1-150	docs/specs/cem-stable-v1.md	1220	Local-completion sidecar-only reuse (`AllowCemSidecarOnlyReuse`) MUST keep
+CEM-V1-151	docs/specs/cem-stable-v1.md	1224	`dogfood finish` MUST read a `cem/1.0` change map: its `cem status` (and the
+CEM-V1-152	docs/specs/cem-stable-v1.md	1229	The aggregate verifier worker's closed argv grammar (`ALO-V0-018`) MUST admit th
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	892	The default `verify` path refuses a strictly parsed JSON object whose exact
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	896	`ci` reports such a map as verdict `unsupported-profile`, exit 4, with `code`
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	899	Only that exact case changes. A duplicate, non-string, differently cased,

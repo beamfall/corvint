@@ -1,8 +1,8 @@
 # 2026-10-12 Core cem/1.0 producer and dogfood loop cutover (V1-1276)
 
 Branch `claude/v1-1276-dogfood-producer` from `origin/main` ddd559754 (includes V1-1281, #831).
-Decision 0525 step 5. Requirements `CEM-V1-140..152` in `docs/specs/cem-stable-v1.md`, proposed;
-amends `CEM-V1-018`, `CEM-V1-030..033`, `CEM-V1-058` and `DCW-V0-039`/`DCW-V0-049` in place.
+Decision 0525 step 5. Requirements `CEM-V1-140..152` in `docs/specs/cem-stable-v1.md`, accepted;
+amends `CEM-V1-017`, `CEM-V1-018`, `CEM-V1-030..033`, `CEM-V1-058` and `DCW-V0-039`/`DCW-V0-049` in place.
 
 ## Intent
 
@@ -75,13 +75,24 @@ The RC3 loop must produce only `cem/1.0` (decision 0525). Before this change Cor
     round 4, P2; `script/cem-recipes_test.sh` case `r-spaced`, which fails on the old grep). The
     match is the action's exact argv prefix through `--target <full ID>`, `--artifacts`, so a
     worklist path cannot supply it (Codex round 5, P2; case `r-legacy-dash`, a `cem/0.2` prepare
-    of a file named `--artifacts`, which fails on a whole-output match). Round 5 was the last
-    review round; this fix is not re-reviewed.
+    of a file named `--artifacts`, which fails on a whole-output match). Round 6 reviewed this fix.
 19. A `cem/1.0` prepare skips the 0.x sidecar refusal but still probes every recognized
     interrupted-publication backup before recovery or resume cleanup: a producer or `cem/0.x`
     backup is restored or removed, a bound stable or unreadable one is refused and kept
     (`CEM-V1-141`, `TestCEMV1141StablePrepareGuardsBackups`; Codex round 3, P1). `docs/DOGFOOD.md`
     section 4 now shows the stable status read with a full target ID and `--artifacts` (round 3, P2).
+20. `CEM-V1-017` is amended in place to name the `CEM-V1-145` status-ceiling exception: after an
+    `ACCEPT`, `cem status` with ceilings adds the counts and `policyIssues` and exits 1 when a
+    ceiling fails, while `stableVerification` stays the unmodified verifier result. It previously
+    still prohibited those fields and required the verifier's own exit code (Codex round 6, P3).
+    Text only; behavior and tests are unchanged.
+
+## Review and acceptance
+
+Independent Codex review: rounds 1 to 5 returned FAIL, and each finding was fixed in this change
+(the Codex round citations under Decisions). Round 6 returned FINAL-VERDICT PASS with one P3, fixed by decision 20.
+`CEM-V1-140..152` are accepted under the owner's standing auto-accept (2026-10-11) after the
+round 6 PASS.
 
 ## Output change declaration
 
