@@ -56,6 +56,7 @@ To repair it, run `git repack -a -d`, delete `.git/objects/info/alternates` and
 | `DOGFOOD_VERIFY_FILE` | Path to a file with one shell-free verification command per line, each at most 512 characters; `DOGFOOD_VERIFY` takes the same lines inline (section 7) | line `go test ./internal/lrfrepo` |
 | `DOGFOOD_OUTCOME` | `passed`, `failed` or `blocked` | `passed` |
 | `DOGFOOD_OCM_LINKS` | Optional path to a TSV file, not the rows. One `INTENT<TAB>REQUIREMENT<TAB>HUNK[,HUNK...]<TAB>TEST_PATH<TAB>CLAIM[,CLAIM...]` row per requirement the author links, LF-terminated, at most 256 rows; `INTENT` is listed in `DOGFOOD_INTENTS_FILE`, each hunk is a cited CEM ordinal or hunk ID, and each claim is a test selector at `HEAD` whose anchor contains the exact requirement ID (step 7, section 5) | row `docs/specs/local-admin-console-v0.md	LAC-V0-032	7,8	internal/console/roadmap_test.go	test:TestRoadmapSafeAutoRecheck/case:lac-v0-safe-auto-recheck` |
+| `DOGFOOD_OUTPUT_CHANGE` | Optional, `dogfood-check` and `dogfood-seal` only. One requirement ID, set only when the change alters the canonical `cem status` output by construction, so the base verifier cannot agree (`DCW-V0-047`). Admitted only when `docs/specs/REQUIREMENTS.tsv` at `HEAD` maps the ID to a spec that `BASE..HEAD` modifies; the `cem status` comparison then runs the tree verifier in both roles and records `base-independence=NOT_PROVED` with both stdout digests. Unset, the check is unchanged | `DOGFOOD_OUTPUT_CHANGE=DCW-V0-047` |
 
 Every `dogfood-change` refusal caused by one of these inputs prints the step and reason, then a
 `fix:` line naming the correction (`DCW-V0-014`).
@@ -198,6 +199,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
 | Rewritten | amend or rebase after a recorded pass, or another lane run in the same worktree | `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
 | Sealed | check on the seal commit, or a change containing a modified or unverifiable seal | `REFUSE sealed-cem-in-change`, one line per refused path | `REFUSE sealed-head` |
+| Undeclared | `DOGFOOD_OUTPUT_CHANGE` names a requirement `REQUIREMENTS.tsv` at `HEAD` lacks, or whose spec `BASE..HEAD` does not modify, or is set for an enrolled aggregate check (`DCW-V0-047`; reproduced by `TestCheckDCWV0047DeclaredOutputChange` for V1-1279, the aggregate case NOT_OBSERVED) | not applicable | `REFUSE output-change-requirement-unknown`, `output-change-not-in-diff` or `output-change-aggregate-unsupported` (exit 2) before any verifier runs; without the variable an output change still fails `verifier-disagreement` |
 
 Test-claim linkage through `DOGFOOD_OCM_LINKS` needs a Go test that names the requirement ID. It was
 observed for V1-0142 by replaying the sealed LAC-V0-032 change: `ocm-link-001` PRODUCED and the
@@ -372,6 +374,29 @@ is `Corvint VERSION (build N)` with `VERSION` matched exactly (decision 0314); d
 and whose digest is also recorded. `corvint dogfood finish` runs its final check in-process with the
 running binary in both verifier roles, so its two digests are equal and prove no base independence
 (`LCP-V0-014`).
+
+A change whose own canonical `cem status` output differs from the base verifier's by construction,
+such as one adding a member to the verification object, can never agree with the base verifier.
+It declares a declared output change instead of gating its output behind an opt-in flag
+(`DCW-V0-047`): name, in the same change, the requirement that changes the output, regenerate
+`docs/specs/REQUIREMENTS.tsv`, and run
+
+```console
+$ DOGFOOD_OUTPUT_CHANGE=REQUIREMENT-ID make dogfood-check BASE=BASE_SHA
+$ DOGFOOD_OUTPUT_CHANGE=REQUIREMENT-ID make dogfood-seal BASE=BASE_SHA
+```
+
+The declaration is admitted only when `REQUIREMENTS.tsv` at `HEAD` maps the ID to a spec that
+`BASE_SHA..HEAD` modifies. The `cem status` comparison then runs the tree verifier in both roles,
+still runs the base verifier, and requires the tree verifier to agree with itself and with any
+`CORVINT_BIN` override. The SUMMARY line carries `base-independence=NOT_PROVED base=sha256:B
+tree=sha256:T declared=ID` before `report=`, B and T being the digests of the two verifiers'
+`cem status` stdout; the report's `dogfoodCheck` adds a `baseIndependence` member with the same
+values, its `outputsAgree` then meaning the tree verifier's self-agreement, and the seal's PASS
+line keeps the fields. The reviewer compares the two outputs against the declared requirement:
+the declaration admits any `cem status` difference, not only the intended one. The OCM status and
+`impact` abstention comparisons keep the byte-identical rule, and without the variable nothing
+changes.
 
 Because `.corvint/change.cem.json` is one tracked path and each change's base is the commit before
 its first commit, interleaved sessions can leave committed work that no CEM binds. For a clean
