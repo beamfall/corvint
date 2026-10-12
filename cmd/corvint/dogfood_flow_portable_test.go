@@ -211,6 +211,11 @@ func TestDogfoodDCWV0046ReasonedUnknownChecksAndSeals(t *testing.T) {
 		sealed.Hunks[0].Disposition != "unknown" || sealed.Hunks[0].Reason != "insufficient-evidence" {
 		t.Fatalf("sealed map hunks %+v err=%v", sealed.Hunks, err)
 	}
+	// The real verifier admits the sealed reasoned unknown hunk in batch-check.
+	if code, stdout, stderr = run.exec(t, root, nil, "dogfood", "batch-check", base); code != 0 ||
+		!strings.Contains(stdout, " reasonedUnknown=1 ") || !strings.Contains(stdout, "state=ready-for-ci") {
+		t.Fatalf("batch-check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
 }
 
 // DCW-V0-024: a change no requirements spec governs completes, checks and

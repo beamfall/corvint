@@ -558,7 +558,8 @@ refuses `cem-cite: invalid-arguments`; both print a `fix:` line naming the plan 
 cites stays `unknown` with reason `no-evidence`. A hunk that no base evidence supports may instead
 stay `unknown` on purpose: the row `HUNK<TAB>unknown<TAB>REASON<TAB>NOTE` runs `cem mark` with
 `REASON` (`insufficient-evidence` or `conflicting-evidence`), so the map and the sealed map record
-it, and keeps the row with its `NOTE` in `<git-dir>/corvint/cem-unknown-reasons.tsv`. Such a hunk
+it, and keeps the hunk ID, reason and `NOTE` in `<git-dir>/corvint/cem-unknown-reasons.tsv`
+(notes from earlier staged plans are kept while their hunks stay reasoned unknown). Such a hunk
 is admitted by `cem-status`, `dogfood check` and `dogfood batch-check` and counted in
 `unknownShare`; any other unknown row refuses `invalid-citation-plan` (`DCW-V0-046`). A base evidence path means the producer reads the span from the CEM base tree;
 it does not make base-only evidence admissible. The cited span must survive the change: cite base
@@ -623,13 +624,15 @@ there are already suitable commit boundaries.
    unknown hunks remain until the last plan, and the sidecar is uncommitted. The warning that
    citations were added to earlier citations is expected during staging; its delete-and-rerun
    advice applies to correcting wrong earlier evidence, not to these additive stages.
-4. Inspect `$(git rev-parse --absolute-git-dir)/corvint/cem-status.json` and the CEM: every hunk must be `supported`, with
-   `unknown=0` and `mechanical=0`. Then `git add .corvint/change.cem.json` and
+4. Inspect `$(git rev-parse --absolute-git-dir)/corvint/cem-status.json` and the CEM: every hunk must be `supported` or kept
+   `unknown` with a recorded reason (a bootstrap hunk, or a plan row under `DCW-V0-046`), with no
+   other `unknown` hunk and `mechanical=0`. Then `git add .corvint/change.cem.json` and
    `git commit -m "chore: bind fully cited change evidence"`. This is the only sidecar commit.
 5. Rerun `DOGFOOD_CITATIONS=/absolute/last-plan.tsv make dogfood-change BASE="$BASE"` with all
    the same normal inputs, then `make dogfood-check BASE="$BASE"`. The sidecar-only commit
    preserves the canonical patch; the last plan is an idempotent replay on the fully cited map.
-   Require `"complete": true`, `supported=hunks`, `unknown=0`, and `dogfood-check: PASS`.
+   Require `"complete": true` and `dogfood-check: PASS`; its `SUMMARY` reports any admitted
+   unknown hunks as `unknownShare` and `reasonedUnknown`.
    Inspect the reviewer reports and continue the normal seal route. Any further implementation
    commit invalidates these plans: prepare the new patch and rewrite the plans from its map.
 

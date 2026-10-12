@@ -657,7 +657,8 @@ func TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned(t *testing.T) {
 		t.Errorf("reasoned plan: cem status --max-unknown %s; want 2 (two reasoned unknown hunks, no bootstrap)", limit)
 	}
 	kept, err := os.ReadFile(evidence)
-	if err != nil || string(kept) != "2\tunknown\tinsufficient-evidence\tgenerated fixture bytes that no spec governs\nhunk:c\tunknown\tconflicting-evidence\ttwo specs disagree on the answer\n" {
+	notes := "hunk:b\tinsufficient-evidence\tgenerated fixture bytes that no spec governs\nhunk:c\tconflicting-evidence\ttwo specs disagree on the answer\n"
+	if err != nil || string(kept) != notes {
 		t.Errorf("unknown reasons evidence = %q, %v", kept, err)
 	}
 	if info, err := os.Stat(evidence); err != nil || info.Mode().Perm() != 0o600 {
@@ -665,7 +666,8 @@ func TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned(t *testing.T) {
 	}
 
 	// A resumed map whose hunks an earlier staged plan kept unknown with a
-	// reason owes no row for them: the last plan names only the rest.
+	// reason owes no row for them: the last plan names only the rest, and the
+	// earlier stage's notes are kept.
 	prepared.Hunks[1].Reason, prepared.Hunks[2].Reason = "insufficient-evidence", "conflicting-evidence"
 	got, observed = run("1\ta.txt\t1:1\tspecification\n")
 	prepared.Hunks[1].Reason, prepared.Hunks[2].Reason = "no-evidence", "no-evidence"
@@ -678,8 +680,17 @@ func TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned(t *testing.T) {
 	if limit := maxUnknown(observed); limit != "2" {
 		t.Errorf("resumed reasoned map: cem status --max-unknown %s; want 2", limit)
 	}
+	if kept, err := os.ReadFile(evidence); err != nil || string(kept) != notes {
+		t.Errorf("resumed reasoned map: unknown reasons evidence = %q, %v; want the earlier notes", kept, err)
+	}
+
+	// A fresh map that keeps no hunk unknown drops the notes.
+	got, _ = run("1\ta.txt\t1:1\tspecification\n2\ta.txt\t1:1\tspecification\n3\ta.txt\t1:1\tspecification\n")
+	if !strings.Contains(got, `"status": "PRODUCED"`) {
+		t.Fatalf("fully cited plan: cem-cite = %s; want PRODUCED", got)
+	}
 	if _, err := os.Lstat(evidence); !os.IsNotExist(err) {
-		t.Errorf("a plan without unknown rows left %s: %v", evidence, err)
+		t.Errorf("a map with no reasoned unknown left %s: %v", evidence, err)
 	}
 
 	for _, refused := range []struct{ name, rows, reason string }{

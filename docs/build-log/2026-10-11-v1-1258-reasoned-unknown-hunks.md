@@ -51,6 +51,18 @@ This change amends `DCW-V0-019` and adds `DCW-V0-046` to
 - P3: `DCW-V0-015`, the batch-check allowance text and the raw `cem status` example in
   `docs/DOGFOOD.md` named the old ceiling. They now name `DCW-V0-046`.
 
+## Review round 2 (Codex, FAIL)
+
+- P2: a staged plan sequence lost the notes of earlier stages, because the last plan rewrote the
+  notes file with only its own rows. The file now holds `HUNK_ID<TAB>REASON<TAB>NOTE` lines in
+  map order; a line from an earlier stage is kept while its hunk is still reasoned unknown, and
+  the file is removed only when no line remains.
+- P3: the staged binding steps in `docs/DOGFOOD.md` still required `unknown=0`. They now admit
+  bootstrap and reasoned unknown hunks and require `"complete": true` and `PASS`.
+- P3: the batch-check test did not prove the outcome. It is now a pair (reasoned only: ready for
+  CI; one more unreasoned unknown: `constituent-cem-policy`), and the built-binary test runs the
+  real `dogfood batch-check` after the seal.
+
 ## Choices
 
 - The existing `cem mark` verb is reused instead of adding a free-text reason to the CEM wire.

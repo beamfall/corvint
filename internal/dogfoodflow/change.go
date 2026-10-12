@@ -722,14 +722,45 @@ func reasonedUnknownRow(fields []string) bool {
 	}) >= 0
 }
 
-// recordUnknownReasons keeps the accepted plan's unknown rows, notes included,
-// privately in the evidence directory; the map itself records only the reason.
-// Whatever was at the path is removed first, so the file is created owner-only;
-// an error leaves the plan uncited, since its notes would not be retained.
+// recordUnknownReasons keeps, privately in the evidence directory, one
+// HUNK_ID<TAB>REASON<TAB>NOTE line per hunk kept unknown with a reason, in map
+// order: the accepted plan's unknown rows, and the earlier lines of hunks the
+// prepared map still records as reasoned unknown that this plan does not
+// rename, so a staged plan keeps the notes of earlier stages. The map itself
+// records only the reason. Whatever was at the path is removed first, so the
+// file is created owner-only; an error leaves the plan uncited, since its notes
+// would not be retained.
 func (c *change) recordUnknownReasons(plan []byte) error {
-	rows := []string{}
+	data, _ := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
+	hunks := mapHunks(data)
+	notes := map[string]string{}
+	if previous, err := readPrefix(c.evidence+unknownReasons, maxPlanBytes); err == nil && isRegular(c.evidence+unknownReasons) && !isSymlink(c.evidence+unknownReasons) {
+		for _, line := range textLines(previous) {
+			if fields := strings.SplitN(line, "\t", 3); len(fields) == 3 {
+				notes[fields[0]] = line
+			}
+		}
+	}
+	kept := map[string]string{}
+	for _, hunk := range hunks {
+		if note, ok := notes[hunk["id"]]; ok && hunk["disposition"] == "unknown" && recordedUnknownReasons[hunk["reason"]] {
+			kept[hunk["id"]] = note
+		}
+	}
 	for _, line := range textLines(plan) {
-		if unknownRow(strings.Split(line, "\t")) {
+		fields := strings.Split(line, "\t")
+		if !unknownRow(fields) {
+			continue
+		}
+		id := fields[0]
+		if index, err := strconv.Atoi(id); err == nil && index >= 1 && index <= len(hunks) {
+			id = hunks[index-1]["id"]
+		}
+		kept[id] = id + "\t" + fields[2] + "\t" + fields[3]
+	}
+	rows := []string{}
+	for _, hunk := range hunks {
+		if line, ok := kept[hunk["id"]]; ok {
 			rows = append(rows, line)
 		}
 	}
