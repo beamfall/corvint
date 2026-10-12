@@ -480,7 +480,7 @@ it emits empty.
   `unknown-field`, then an invalid value `invalid-field`, in that member order. Root optional
   members are validated after every required member and before the reference graph, `provenance`
   before `role`. Provenance MUST NOT be read for authority, ranking, any result axis or verdict, and
-  the result MUST NOT echo it; it affects only the map bytes and so `mapSha256`. The native and
+  the result MUST NOT echo it; it affects only the map bytes and so `mapSha256` and, through it, `verdictSha256`. The native and
   portable consumers MUST refuse and accept the same documents with the same codes.
 - `CEM-V1-094`: The producer-only stable map members are exactly this closed list:
   1. `criterionBindings`;
@@ -524,7 +524,7 @@ Acceptance evidence:
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-093 | `TestCEMV1093StableMemberVectors`, `TestCEMV1093ProvenanceDecoded`, `TestCEMV1093SchemaMembers` (`internal/cem/wire`); `TestCEMV1093PortableStableMemberVectors` (`interop/cem01-go`) | 50 shared vectors in `interop/cem01-go/testdata/stable-map-members/cases.json` (10 accepts, 40 refusals including member and stage ordering) give the same code on both consumers; accepted maps round-trip losslessly through `EncodeStable`; schema members match the Go constants; build log `docs/build-log/2026-10-12-cem-stable-map-provenance.md` |
-| CEM-V1-094 | `TestCEMV1094ProducerOnlyEmpty` (`internal/cem/wire`); `TestCEMV1094ProducerOnlyEmptyVerifyAccept` (`internal/cem/wire`, through `internal/cem/verify`); `TestCEMV1094PortableProducerOnlyEmptyAccept` (`interop/cem01-go`) | An all-empty map over the neutral-criterion repository ACCEPTs on both consumers with `EMPTY_REFERENCE_SET`, change integrity VERIFIED and every non-core axis NOT_OBSERVED; adding `provenance` and `role` changes only `mapSha256` |
+| CEM-V1-094 | `TestCEMV1094ProducerOnlyEmpty` (`internal/cem/wire`); `TestCEMV1094ProducerOnlyEmptyVerifyAccept` (`internal/cem/wire`, through `internal/cem/verify`); `TestCEMV1094PortableProducerOnlyEmptyAccept` (`interop/cem01-go`) | An all-empty map over the neutral-criterion repository ACCEPTs on both consumers with `EMPTY_REFERENCE_SET`, change integrity VERIFIED and every non-core axis NOT_OBSERVED; adding `provenance` and `role` changes only `mapSha256` and, through it, `verdictSha256` |
 | CEM-V1-095 | `TestCEMV1095Role` (`internal/cem/wire`); `TestCEMV1095PortableRoleAndProvenanceDecoded` (`interop/cem01-go`) | Each role decodes and re-encodes unchanged on both consumers and an absent role is effective `change`; six role refusals are `invalid-field` on both consumers |
 
 Rollback: revert `stable_provenance.go` in `internal/cem/wire` and `interop/cem01-go`, the root
