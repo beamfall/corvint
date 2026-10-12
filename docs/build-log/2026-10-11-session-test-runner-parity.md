@@ -2,7 +2,7 @@
 
 Date: 2026-10-11. Branch `claude/v1-0040-slice2`, stacked on slice 1 at
 `30a918949d50ff00046da8e45aecf4029cb0dbd8`. `tools/str-parity` was built from
-`8811e43dc8327237c1bf72fb6cd34d8c8ea77146` and the corvint binary from
+`5f53dfc98e635d152177d914ac42f6dc52416ed8` and the corvint binary from
 `1a248337c7c58d4bd817902884934cf127d4d268`; the later commits change no `cmd/corvint` or
 `internal/` source. Scope:
 `docs/specs/session-test-runner-v0.md` STR-V0-013 (parity report) and STR-V0-008 (balanced
@@ -39,7 +39,7 @@ commit changes anything in their dependency closure):
 ```sh
 str-parity -repo <checkout> -end 645304a2fb71065f9061d8d8d866600d703e84c6 -pairs 50 \
   -corvint <corvint> -selector <gate-affected-select> -pr-tests <corvint-pr-tests> \
-  -script <checkout>/script/gate-affected.sh -source 8811e43dc8327237c1bf72fb6cd34d8c8ea77146 -work <new dir>
+  -script <checkout>/script/gate-affected.sh -source 5f53dfc98e635d152177d914ac42f6dc52416ed8 -work <new dir>
 ```
 
 ## Inputs
@@ -58,10 +58,11 @@ site: the frozen pairs and the shadow rows must still be replayed once they exis
 
 ## Result
 
-The run exited 0 in 1,086 seconds. The `corvint-str-parity/0` report is 225,542 bytes, with
-sha256 `f509361d2b80d0c39e069729b484dc50f7c9d9f442324c3ae266799a9f724f86`. Runs with the
+The run exited 0 in 827 seconds. The `corvint-str-parity/0` report is 225,542 bytes, with
+sha256 `d0893d69a39981d9b4e471179291abaa2454ec1ece04731d21b37628e3da8cf1`. Runs with the
 `97accef7b` and `bf3d88362` builds gave the same plans in every pair; the only change since is
-the 9 executed-set differences the round-3 fix now counts for narrowed `INCOMPLETE` pairs. No
+the 9 executed-set differences the round-3 fix (`8811e43dc`) counts for narrowed `INCOMPLETE`
+pairs. The `8811e43dc` run had the same plans, differences and categories as this one. No
 corvint invocation's units disagreed with its arguments. It is not committed:
 the command above regenerates it, and the table below keeps every per-pair verdict, count and
 category.
@@ -246,7 +247,14 @@ exposed no typing issue.
 - Round 3 (the last allowed): changes requested (2 findings: an `INCOMPLETE` corvint plan skipped
   the executed-set comparison, so a package the CI driver dropped could go unseen; every declared
   non-Go command was explained without validation). Both were fixed in `8811e43dc` with regression
-  tests, and the run above is from that build. These fixes had no further review round.
+  tests.
+- Round 4, run by the coordinator: changes requested (1 finding: a unit/argv mismatch was
+  appended to an undeclared-language `INCOMPLETE` error and absorbed into
+  `str-v0-004-undeclared-language` by a substring check). Fixed in `5f53dfc98`: a mismatch is its
+  own `units` difference that no rule explains, and the undeclared-language rule requires each
+  structured `INCOMPLETE` reason to be exactly the STR-V0-004 sentence for one language. A
+  regression test covers both together. The run above is from that build; counts did not change.
+- Round 5: approved, with no findings.
 - The spec's accepted intent cites decision 0524
   (`docs/decisions/0524-str-v0-001-018-session-test-runner-accepted-2026-10-11.md`). It is
   retained on `claude/v1-0040-session-test-runner-spec` (beamfall/corvint#815) and not in this
