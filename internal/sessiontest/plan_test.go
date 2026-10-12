@@ -419,6 +419,12 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 		"ifeq ($(filter go%,$(MAKECMDGOALS)),)\nGOFLAGS = -race\nendif\n",
 		"ifeq\t($(MAKECMDGOALS),gate)\nGOFLAGS = -race\nendif\n",
 		"ifeq ($(MAKECMDGOALS),gate) \nGOFLAGS = -race\nendif\n",
+		// Codex round 7: make takes the else; ${BAD) sits in an or argument
+		// a short-circuit would never check.
+		"ifeq ($(or x,${BAD)),x)\nelse\nGOFLAGS = -race\nendif\n",
+		"ifeq ($(or x,$(BAD)),x)\nelse\nGOFLAGS = -race\nendif\n",
+		"ifeq ($(or x,$$y),x)\nelse\nGOFLAGS = -race\nendif\n",
+		"ifeq ($(or x,y)),x)\nelse\nGOFLAGS = -race\nendif\n",
 	} {
 		lookup := lookupInherited
 		if strings.HasPrefix(body, "ifeq ($(MODE)") {
@@ -433,11 +439,18 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 			t.Errorf("%q: %s %q, want every branch read and GOFLAGS untyped", body, got.GoTest, got.GoTestNote)
 		}
 	}
+	// Codex round 7: an inherited MAKECMDGOALS, even empty, replaces the
+	// goals make sees, so a conditional on it is not evaluated for go-test.
+	goals := func(name string) (string, bool) { return "", name == "MAKECMDGOALS" }
+	if got := ReadDeclared(write(t, "ifeq ($(MAKECMDGOALS),go-test)\nelse\nF = 1\nendif\n"+recipe), nil, goals); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "MAKECMDGOALS") {
+		t.Errorf("inherited empty MAKECMDGOALS: %#v", got)
+	}
 	// Inside the subset a false branch is skipped as make skips it.
 	for _, body := range []string{
 		"ifeq ($(filter gate,$(MAKECMDGOALS)),gate)\nGOFLAGS = -race\nendif\n",
 		"ifneq ($(or $(filter x y,a b),$(MAKECMDGOALS)),go-test)\nGOFLAGS = -race\nendif\n",
 		"ifeq ($(MAKECMDGOALS),go-test)\nelse\nGOFLAGS = -race\nendif\n",
+		"ifeq ($(or x,$(MAKECMDGOALS)),x)\nelse\nGOFLAGS = -race\nendif\n",
 	} {
 		if got := ReadDeclared(write(t, body+recipe), nil, lookupInherited); got.GoTest != GoTestParsed {
 			t.Errorf("%q: %s %q, want the false branch skipped", body, got.GoTest, got.GoTestNote)

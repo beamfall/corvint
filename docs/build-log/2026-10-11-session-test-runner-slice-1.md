@@ -61,7 +61,12 @@ Contracts and decisions:
   showed that evaluating user or inherited variables is not exact (trailing blanks before a
   comment, recursive inherited values, `?=` against make's built-in defaults such as `CC`, and
   Unicode word separation), so the evaluator stopped doing it rather than chase GNU make. An
-  invoking `MAKEFLAGS` with the `e` flag (environment overrides) also leaves go-test untyped. This
+  invoking `MAKEFLAGS` with the `e` flag (environment overrides) also leaves go-test untyped. Codex
+  round 7: an inherited `MAKECMDGOALS`, even empty, replaces the goals make sees, so it leaves
+  go-test untyped; and the whole conditional text is checked against the subset before anything
+  is evaluated (no braces, no `$$`, every `$` opens `$(`, balanced parentheses), while `or`
+  checks every argument without short-circuit, so `ifeq ($(or x,${BAD)),x)` reads every branch
+  instead of skipping an `else` that make takes. This
   repository's Makefile still types go-test: its line-49 `$(GATE_STEPS) ...: | gate-receipt-clear`
   sits under `ifneq ($(filter gate,$(or $(MAKECMDGOALS),gate)),)`, which is false for
   `make go-test`, and the 63-71 block holds no go-test rule

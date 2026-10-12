@@ -116,6 +116,11 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 			incomplete = reason
 		}
 	}
+	if _, ok := lookup("MAKECMDGOALS"); ok {
+		// make then uses the inherited value, so conditionals cannot be
+		// evaluated for go-test.
+		setUntyped("MAKECMDGOALS is in the environment, which make uses instead of the goals")
+	}
 	if flags, ok := lookup("MAKEFLAGS"); ok {
 		if strings.Contains(flags, "=") {
 			setUntyped("MAKEFLAGS carries command-line variable assignments, which reach the go-test recipe")
@@ -397,6 +402,9 @@ func evaluateConditional(line string) int {
 	if !strings.HasPrefix(rest, "(") || !strings.HasSuffix(rest, ")") {
 		return condUnknown
 	}
+	if !subsetText(rest) {
+		return condUnknown
+	}
 	args, ok := splitMakeArgs(rest[1 : len(rest)-1])
 	if !ok || len(args) != 2 {
 		return condUnknown
@@ -415,15 +423,42 @@ func evaluateConditional(line string) int {
 	return condSkipping
 }
 
+// subsetText checks the whole conditional text before anything is evaluated:
+// only literal bytes, single spaces, commas, `$(` and balanced parentheses.
+// Braces, `$$`, a `$` not opening a reference and anything else are outside
+// the subset, wherever they appear.
+func subsetText(value string) bool {
+	depth := 0
+	for index := 0; index < len(value); index++ {
+		switch c := value[index]; {
+		case literalByte(c) || c == ' ' || c == ',':
+		case c == '$':
+			if index+1 >= len(value) || value[index+1] != '(' {
+				return false
+			}
+		case c == '(':
+			depth++
+		case c == ')':
+			depth--
+			if depth < 0 {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return depth == 0
+}
+
 // splitMakeArgs splits at top-level commas; ok is false when the parentheses
-// or braces do not balance.
+// do not balance. Braces never reach it: subsetText refuses them.
 func splitMakeArgs(value string) (args []string, ok bool) {
 	depth, start := 0, 0
 	for index := 0; index < len(value); index++ {
 		switch value[index] {
-		case '(', '{':
+		case '(':
 			depth++
-		case ')', '}':
+		case ')':
 			depth--
 			if depth < 0 {
 				return nil, false
@@ -468,9 +503,9 @@ func evaluateOperand(value string) (string, error) {
 		end, nesting := -1, 0
 		for scan := index + 1; scan < len(value) && end < 0; scan++ {
 			switch value[scan] {
-			case '(', '{':
+			case '(':
 				nesting++
-			case ')', '}':
+			case ')':
 				nesting--
 				if nesting == 0 {
 					end = scan
@@ -531,16 +566,19 @@ func evaluateFunction(body string) (string, error) {
 		}
 		return strings.Join(kept, " "), nil
 	case "or":
+		// Every argument is checked, even one make would never expand,
+		// so the result never rests on text outside the subset.
+		result := ""
 		for _, arg := range args {
 			value, err := evaluateOperand(arg)
 			if err != nil {
 				return "", err
 			}
-			if value != "" {
-				return value, nil
+			if result == "" {
+				result = value
 			}
 		}
-		return "", nil
+		return result, nil
 	}
 	return "", fmt.Errorf("make function %s is outside the evaluated subset", function)
 }
