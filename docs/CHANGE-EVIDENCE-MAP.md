@@ -423,7 +423,13 @@ Success requires all of:
 
 Kill or redesign 0.1 if any of these occurs:
 
-- more than 30% of material hunks are legitimately `unknown`;
+- more than 30% of material hunks are legitimately `unknown`, measured per change by the
+  `unknownShare=U/M` field of the `dogfood-check: SUMMARY` line (the committed map's unknown hunks
+  over its non-mechanical hunks) and across sealed changes by the `unknown=` and `hunks=` fields of
+  `dogfood batch-check`'s `CONSTITUENT` lines over `.corvint/changes/*.cem.json`, whose `hunks=`
+  includes mechanical hunks, so that ratio is a lower bound of the share; a hunk without
+  evidence stays `unknown` with a recorded reason rather than being refused
+  (`daily-change-evidence-workflow-v0.md` `DCW-V0-046`);
 - mechanical false classification exceeds 20% under reviewer audit;
 - any required independent implementation needs more than one engineer-day;
 - the artifact adds more than 10% median end-to-end change latency; or

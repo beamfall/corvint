@@ -98,7 +98,7 @@ func TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations(t *testing.T) {
 	cemGit(t, root, "merge", "-q", "--no-ff", "--no-edit", sealA)
 	cemGit(t, root, "merge", "-q", "--no-ff", "--no-edit", sealB)
 	code, stdout, stderr := run.exec(t, root, nil, "dogfood", "batch-check", base)
-	if code != 0 || stderr != "" || !strings.Contains(stdout, "CONSTITUENT bind="+bindA+" base="+base+" hunks=1 supported=1 unknown=0 bootstrapUnknown=0 state=ready-for-ci\n") ||
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "CONSTITUENT bind="+bindA+" base="+base+" hunks=1 supported=1 unknown=0 bootstrapUnknown=0 reasonedUnknown=0 state=ready-for-ci\n") ||
 		!strings.Contains(stdout, "CONSTITUENT bind="+bindB) || !strings.HasSuffix(stdout, "dogfood-batch-check: PASS constituents=2 commits=8\n") {
 		t.Fatalf("batch-check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}

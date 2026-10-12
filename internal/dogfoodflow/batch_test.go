@@ -206,7 +206,7 @@ func TestBatchCheckDCWV0039PassesSealedConstituents(t *testing.T) {
 		t.Fatalf("exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	for _, want := range []string{
-		"dogfood-batch-check: CONSTITUENT bind=" + bindA + " base=" + repo.base + " hunks=1 supported=1 unknown=0 bootstrapUnknown=0 state=ready-for-ci\n",
+		"dogfood-batch-check: CONSTITUENT bind=" + bindA + " base=" + repo.base + " hunks=1 supported=1 unknown=0 bootstrapUnknown=0 reasonedUnknown=0 state=ready-for-ci\n",
 		"dogfood-batch-check: CONSTITUENT bind=" + bindB + " base=" + repo.base,
 		"derivation=ort\n",
 		" commits=8 constituents=2 merges first-parent-tree=0 ort=2 ort-ours=0 ort-theirs=0 bootstrapUnknown=0\n",
@@ -318,11 +318,31 @@ func TestBatchCheckDCWV0039BootstrapAllowanceIsVisible(t *testing.T) {
 	repo.batch(seal)
 	repo.status = 1
 	code, stdout, stderr := repo.check()
-	if !strings.Contains(stdout, " bootstrapUnknown=1 state=incomplete\n  bootstrap-unknown spec.md\n") || repo.args[0][9] != "1" {
+	if !strings.Contains(stdout, " bootstrapUnknown=1 reasonedUnknown=0 state=incomplete\n  bootstrap-unknown spec.md\n") || repo.args[0][9] != "1" {
 		t.Fatalf("bootstrap stdout=%s argv=%q", stdout, repo.args)
 	}
 	if code != 1 || !strings.Contains(stderr, "FAIL constituent-cem-policy count=1\n  bind="+bind+" state=incomplete\n  fix: rebind and reseal") {
 		t.Fatalf("policy exit=%d stderr=%s", code, stderr)
+	}
+}
+
+// DCW-V0-046 (V1-1258): a sealed CEM that kept hunks unknown with a recorded
+// reason is admitted beside the bootstrap allowance and counted visibly; the
+// prepared no-evidence hunk on an existing file is not reasoned and is not.
+func TestBatchCheckDCWV0046ReasonedUnknownAllowance(t *testing.T) {
+	repo := newBatchRepo(t)
+	cem := func(base string) string {
+		return `{"spec": "cem/0.3", "baseRevision": "` + base + `", "hunks": [` +
+			`{"disposition": "unknown", "reason": "insufficient-evidence", "path": "a.txt", "oldRange": {"count": 1, "start": 1}},` +
+			`{"disposition": "unknown", "reason": "conflicting-evidence", "path": "a.txt", "oldRange": {"count": 1, "start": 2}},` +
+			`{"disposition": "unknown", "reason": "no-evidence", "path": "a.txt", "oldRange": {"count": 1, "start": 3}}]}` + "\n"
+	}
+	_, seal := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", cem(repo.base))
+	repo.batch(seal)
+	repo.status = 1
+	_, stdout, _ := repo.check()
+	if !strings.Contains(stdout, " bootstrapUnknown=0 reasonedUnknown=2 state=incomplete\n") || repo.args[0][9] != "2" {
+		t.Fatalf("reasoned stdout=%s argv=%q", stdout, repo.args)
 	}
 }
 

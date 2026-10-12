@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // ChangeOptions are the inputs of `corvint dogfood change`; the text fields
@@ -56,6 +57,7 @@ type change struct {
 	contextAbstentionSHA string
 	queryAbstentionSHA   string
 	bootstrapUnknown     int
+	reasonedUnknown      int
 	manifestValid        bool
 	manifestReason       string
 	noIntent             bool
@@ -145,8 +147,11 @@ func (c *change) run() int {
 	case c.finishOCMAggregate():
 		c.countBootstrapUnknowns()
 	}
+	// An unknown hunk the plan kept with a recorded reason is admitted beside
+	// the bootstrap unknowns; a prepared no-evidence hunk never is (DCW-V0-019).
+	c.reasonedUnknown = c.flow.reasonedUnknowns(c.path(".corvint/change.cem.json"), c.intents, c.bootstrapUnknown > 0)
 	c.runStep("cem-status", c.evidence+"/cem-status.json", "cem", "status", "--map", ".corvint/change.cem.json",
-		"--expected-base", c.base, "--target", c.target, "--max-unknown", strconv.Itoa(c.bootstrapUnknown), "--max-mechanical", "0")
+		"--expected-base", c.base, "--target", c.target, "--max-unknown", strconv.Itoa(c.bootstrapUnknown+c.reasonedUnknown), "--max-mechanical", "0")
 	// The recorder refuses a dirty tree, so it runs last and sees the sidecar
 	// this pass prepared and cited: an untracked or modified sidecar reports
 	// record-index-failed and the pass is never complete (DCW-V0-015).
@@ -538,6 +543,7 @@ func (c *change) citeStep() {
 		status, reason = "NOT_PRODUCED", "citation-stage-exists"
 	default:
 		c.recordCitationBinding(plan)
+		c.recordUnknownReasons(plan)
 		cited := citedHunks(c.path(".corvint/change.cem.json"))
 		before, _ := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
 		status, reason = c.cite(plan, citeOutput)
@@ -582,6 +588,9 @@ func (c *change) cite(plan []byte, citeOutput string) (string, string) {
 	for index, line := range readLines(plan) {
 		fields := strings.SplitN(line, "\t", 4)
 		args := []string{"cem", "cite", "--map", citeMap, "--hunk", fields[0], "--evidence-path", fields[1], "--lines", fields[2], "--relation", fields[3]}
+		if unknownRow(fields) {
+			args = []string{"cem", "mark", "--map", citeMap, "--hunk", fields[0], "--disposition", "unknown", "--reason", fields[2]}
+		}
 		if c.citationCount > 1 {
 			destination := c.citationStage
 			if index+1 == c.citationCount {
@@ -685,8 +694,78 @@ func (c *change) validateCitationPlan() ([]byte, bool) {
 		if !nonEmptyFields(line, 4) {
 			return nil, false
 		}
+		if fields := strings.Split(line, "\t"); unknownRow(fields) && !reasonedUnknownRow(fields) {
+			return nil, false
+		}
 	}
 	return plan, true
+}
+
+// unknownRow reports a plan row that keeps its hunk unknown instead of citing
+// it: HUNK<TAB>unknown<TAB>REASON<TAB>NOTE (DCW-V0-019). A cite row's third
+// field is a START:END span, so a field without ':' is never a cite.
+func unknownRow(fields []string) bool {
+	return len(fields) == 4 && fields[1] == "unknown" && !strings.Contains(fields[2], ":")
+}
+
+// recordedUnknownReasons are the map reasons an author records for a hunk kept
+// unknown; the prepared no-evidence reason is not one, so the sealed map
+// tells a reasoned unknown from an unreasoned one (DCW-V0-019).
+var recordedUnknownReasons = map[string]bool{"insufficient-evidence": true, "conflicting-evidence": true}
+
+// reasonedUnknownRow admits an unknown row with a recorded reason and a
+// one-line note that names something: at least one letter or digit.
+func reasonedUnknownRow(fields []string) bool {
+	return recordedUnknownReasons[fields[2]] && strings.IndexFunc(fields[3], func(r rune) bool {
+		return unicode.IsLetter(r) || unicode.IsDigit(r)
+	}) >= 0
+}
+
+// recordUnknownReasons keeps the accepted plan's unknown rows, notes included,
+// privately in the evidence directory; the map itself records only the reason.
+func (c *change) recordUnknownReasons(plan []byte) {
+	rows := []string{}
+	for _, line := range textLines(plan) {
+		if unknownRow(strings.Split(line, "\t")) {
+			rows = append(rows, line)
+		}
+	}
+	if len(rows) == 0 {
+		_ = removeFile(c.evidence + unknownReasons)
+		return
+	}
+	_ = writePrivate(c.evidence+unknownReasons, []byte(strings.Join(rows, "\n")+"\n"))
+}
+
+const unknownReasons = "/cem-unknown-reasons.tsv"
+
+// reasonedUnknowns counts the map's unknown hunks whose reason the author
+// recorded (recordedUnknownReasons). With bootstrap set, a hunk on an intent
+// path absent at BASE is left to the bootstrap allowance and not counted
+// twice. Only a regular map is read, at most the native map bound.
+func (f *flow) reasonedUnknowns(mapPath string, intents []string, bootstrap bool) int {
+	if !isRegular(mapPath) || isSymlink(mapPath) {
+		return 0
+	}
+	data, err := readPrefix(mapPath, maxPlanBytes)
+	if err != nil {
+		return 0
+	}
+	absent := map[string]bool{}
+	if bootstrap {
+		for _, path := range intents {
+			if !f.gitSucceeds("cat-file", "-e", f.base+":"+path) {
+				absent[path] = true
+			}
+		}
+	}
+	count := 0
+	for _, hunk := range mapHunks(data) {
+		if hunk["disposition"] == "unknown" && recordedUnknownReasons[hunk["reason"]] && !absent[hunk["path"]] {
+			count++
+		}
+	}
+	return count
 }
 
 const maxPlanBytes = 4194304
@@ -822,13 +901,14 @@ func mapHunks(data []byte) []map[string]string {
 			Disposition string `json:"disposition"`
 			ID          string `json:"id"`
 			Path        string `json:"path"`
+			Reason      string `json:"reason"`
 		} `json:"hunks"`
 	}
 	if json.Unmarshal(data, &decoded) != nil {
 		return hunks
 	}
 	for _, hunk := range decoded.Hunks {
-		hunks = append(hunks, map[string]string{"disposition": hunk.Disposition, "id": hunk.ID, "path": hunk.Path})
+		hunks = append(hunks, map[string]string{"disposition": hunk.Disposition, "id": hunk.ID, "path": hunk.Path, "reason": hunk.Reason})
 	}
 	return hunks
 }
@@ -1129,8 +1209,8 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:cem-map-stable-unsupported", ".corvint/change.cem.json declares cem/1.0, which the bind loop does not cite or bind; it binds only Core cem/0.x maps, so move the stable map out of that path and rerun the loop to prepare a Core map (CEM-V1-032)"},
 	{"cem-cite:empty-citation-plan", "DOGFOOD_CITATIONS names an empty file but .corvint/change.cem.json still has unknown hunks; write one row per unknown hunk, or unset DOGFOOD_CITATIONS to prepare the map without citing"},
 	{"cem-cite:citation-plan-row-limit-exceeded", "DOGFOOD_CITATIONS row limit=256 observed={citationRows}; use explicit staged plans of at most 256 rows on the same CEM (docs/DOGFOOD.md Staged binding of one oversized commit)"},
-	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows"},
-	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE"},
+	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)"},
+	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE, by a citation or by an ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE row"},
 	{"cem-cite:invalid-arguments", "plan row {row}: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim, and START:END a line span of the cited file; any file present at BASE may be cited, code and tests as well as specs (DCW-V0-041)"},
 	{"cem-cite:missing-evidence", "plan row {row} cites a path that is not a regular file at BASE; cite a source, test or spec file that exists at BASE, since a file this change adds cannot be evidence for itself (DCW-V0-041)"},
 	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged"},
@@ -1141,7 +1221,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"coordination-time-impact:unsupported-impact-worktree", uncommittedHint},
 	{"local-outcome:record-index-failed", uncommittedHint},
 	{"ocm-status-*", "fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change {base}"},
-	{"cem-status:not-ready", "read verification.issues and policyIssues in {evidence}/cem-status.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk"},
+	{"cem-status:not-ready", "read verification.issues and policyIssues in {evidence}/cem-status.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite, or keep unknown with a recorded reason, every hunk"},
 	{"ocm-links:ocm-link-plan-unavailable", "DOGFOOD_OCM_LINKS must be the path of a TSV file of INTENT<TAB>REQUIREMENT<TAB>HUNKS<TAB>TEST_PATH<TAB>CLAIMS rows, not the rows themselves"},
 	{"ocm-links:empty-ocm-link-plan", "DOGFOOD_OCM_LINKS names an empty file; add at least one row, or unset DOGFOOD_OCM_LINKS so every requirement stays unassessed"},
 	{"ocm-links:ocm-link-plan-row-limit-exceeded", "DOGFOOD_OCM_LINKS row limit=256 observed={linkRows}; combine cited hunk selectors for the same requirement in one row, or split the change into separately bound commits"},

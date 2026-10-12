@@ -347,8 +347,8 @@ func TestMapHunksReadsAnyJSONLayout(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []map[string]string{
-		{"disposition": "unknown", "id": "hunk:a", "path": "docs/a&b.md"},
-		{"disposition": "cited", "id": "hunk:b", "path": "b.txt"},
+		{"disposition": "unknown", "id": "hunk:a", "path": "docs/a&b.md", "reason": "no-evidence"},
+		{"disposition": "cited", "id": "hunk:b", "path": "b.txt", "reason": "cited"},
 	}
 	for name, data := range map[string][]byte{"indent-2": indented, "compact": compact} {
 		if got := mapHunks(data); !reflect.DeepEqual(got, want) {
@@ -511,5 +511,166 @@ func TestLocalOutcomeTracePathLimitKeepsAdmissionReason(t *testing.T) {
 				t.Fatalf("row=%+v called=%v", row, called)
 			}
 		})
+	}
+}
+
+// DCW-V0-019 as amended by DCW-V0-046 (V1-1258, decision 0523 P3): a plan may
+// keep a non-bootstrap hunk unknown with a recorded reason and a one-line note.
+// dogfood change records the reason in the map through cem mark and admits
+// that hunk beside the bootstrap allowance in cem status; an unknown hunk the
+// plan leaves unnamed, or keeps with the prepared no-evidence reason or with no
+// note, still refuses the whole plan and runs no cite or mark.
+func TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("base\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "a.txt")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("changed\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "commit", "-q", "-am", "change")
+	type hunk struct {
+		Disposition string `json:"disposition"`
+		ID          string `json:"id"`
+		Path        string `json:"path"`
+		Reason      string `json:"reason"`
+	}
+	type document struct {
+		Hunks []hunk `json:"hunks"`
+	}
+	prepared := document{Hunks: []hunk{
+		{"unknown", "hunk:a", "a.txt", "no-evidence"},
+		{"unknown", "hunk:b", "a.txt", "no-evidence"},
+		{"unknown", "hunk:c", "a.txt", "no-evidence"},
+	}}
+	flags := func(args []string) map[string]string {
+		values := map[string]string{}
+		for index := 2; index+1 < len(args); index += 2 {
+			values[args[index]] = args[index+1]
+		}
+		return values
+	}
+	var calls [][]string
+	steps := Runner{Path: "corvint", Run: func(_ context.Context, _ string, args []string, _, _ io.Writer) int {
+		calls = append(calls, append([]string{}, args...))
+		if len(args) < 2 || args[0] != "cem" {
+			return 1
+		}
+		values := flags(args)
+		output := values["--output"]
+		if output == "" {
+			output = values["--map"]
+		}
+		switch args[1] {
+		case "prepare":
+			data, _ := json.Marshal(prepared)
+			if os.MkdirAll(filepath.Join(root, ".corvint"), 0o777) != nil || os.WriteFile(filepath.Join(root, ".corvint/change.cem.json"), data, 0o666) != nil {
+				return 1
+			}
+			return 0
+		case "cite", "mark":
+			var current document
+			data, err := os.ReadFile(filepath.Join(root, values["--map"]))
+			if err != nil || json.Unmarshal(data, &current) != nil {
+				return 1
+			}
+			if args[1] == "mark" {
+				for index := range current.Hunks {
+					if fmt.Sprint(index+1) == values["--hunk"] || current.Hunks[index].ID == values["--hunk"] {
+						current.Hunks[index].Reason = values["--reason"]
+					}
+				}
+			}
+			data, _ = json.Marshal(current)
+			if os.WriteFile(filepath.Join(root, output), data, 0o666) != nil {
+				return 1
+			}
+			return 0
+		}
+		return 1
+	}}
+	plan := filepath.Join(t.TempDir(), "cites.tsv")
+	run := func(rows string) (string, [][]string) {
+		t.Helper()
+		calls = nil
+		_ = os.Remove(filepath.Join(root, ".corvint/change.cem.json"))
+		if err := os.WriteFile(plan, []byte(rows), 0o666); err != nil {
+			t.Fatal(err)
+		}
+		var stderr bytes.Buffer
+		if _, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan}, &stderr); err != nil {
+			t.Fatal(err)
+		}
+		report, err := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, line := range strings.Split(string(report), "\n") {
+			if strings.Contains(line, `"name": "cem-cite"`) {
+				return strings.TrimSpace(line), calls
+			}
+		}
+		t.Fatalf("report has no cem-cite row:\n%s", report)
+		return "", nil
+	}
+	mutations := func(calls [][]string) []string {
+		names := []string{}
+		for _, call := range calls {
+			if len(call) > 1 && call[0] == "cem" && (call[1] == "cite" || call[1] == "mark") {
+				names = append(names, strings.Join(call[1:], " "))
+			}
+		}
+		return names
+	}
+	maxUnknown := func(calls [][]string) string {
+		for _, call := range calls {
+			if len(call) > 1 && call[0] == "cem" && call[1] == "status" {
+				return flags(call)["--max-unknown"]
+			}
+		}
+		return "not-run"
+	}
+
+	reasoned := "1\ta.txt\t1:1\tspecification\n" +
+		"2\tunknown\tinsufficient-evidence\tgenerated fixture bytes that no spec governs\n" +
+		"hunk:c\tunknown\tconflicting-evidence\ttwo specs disagree on the answer\n"
+	got, observed := run(reasoned)
+	if !strings.Contains(got, `"status": "PRODUCED"`) {
+		t.Fatalf("reasoned plan: cem-cite = %s; want PRODUCED", got)
+	}
+	ran := mutations(observed)
+	if len(ran) != 3 || !strings.HasPrefix(ran[0], "cite ") ||
+		!strings.Contains(ran[1], "mark --map .corvint/.cem-citations.") || !strings.Contains(ran[1], " --hunk 2 --disposition unknown --reason insufficient-evidence --output .corvint/.cem-citations.") ||
+		!strings.HasPrefix(ran[2], "mark --map .corvint/.cem-citations.") || !strings.HasSuffix(ran[2], " --hunk hunk:c --disposition unknown --reason conflicting-evidence --output .corvint/change.cem.json") {
+		t.Fatalf("reasoned plan ran %q", ran)
+	}
+	if limit := maxUnknown(observed); limit != "2" {
+		t.Errorf("reasoned plan: cem status --max-unknown %s; want 2 (two reasoned unknown hunks, no bootstrap)", limit)
+	}
+	kept, err := os.ReadFile(filepath.Join(root, ".git/corvint/cem-unknown-reasons.tsv"))
+	if err != nil || string(kept) != "2\tunknown\tinsufficient-evidence\tgenerated fixture bytes that no spec governs\nhunk:c\tunknown\tconflicting-evidence\ttwo specs disagree on the answer\n" {
+		t.Errorf("unknown reasons evidence = %q, %v", kept, err)
+	}
+
+	for _, refused := range []struct{ name, rows, reason string }{
+		{"unnamed unknown hunk", "1\ta.txt\t1:1\tspecification\n2\tunknown\tinsufficient-evidence\tgenerated fixture bytes\n", "citation-plan-map-mismatch"},
+		{"prepared reason", "1\ta.txt\t1:1\tspecification\n2\tunknown\tinsufficient-evidence\tgenerated fixture bytes\n3\tunknown\tno-evidence\tnot looked at\n", "invalid-citation-plan"},
+		{"unregistered reason", "1\ta.txt\t1:1\tspecification\n2\tunknown\tinsufficient-evidence\tgenerated fixture bytes\n3\tunknown\tlater\tnot looked at\n", "invalid-citation-plan"},
+		{"note names nothing", "1\ta.txt\t1:1\tspecification\n2\tunknown\tinsufficient-evidence\tgenerated fixture bytes\n3\tunknown\tconflicting-evidence\t- .\n", "invalid-citation-plan"},
+	} {
+		got, observed := run(refused.rows)
+		if !strings.Contains(got, `"reason": "`+refused.reason+`"`) {
+			t.Errorf("%s: cem-cite = %s; want %s", refused.name, got, refused.reason)
+		}
+		if ran := mutations(observed); len(ran) != 0 {
+			t.Errorf("%s: refused plan ran %q", refused.name, ran)
+		}
+		if limit := maxUnknown(observed); limit != "0" {
+			t.Errorf("%s: cem status --max-unknown %s; want 0", refused.name, limit)
+		}
 	}
 }
