@@ -260,6 +260,13 @@
     ],
     "internal/genesis": [],
     "internal/gitnotes": [
+      "go.mod",
+      "internal/cem/cemcode/",
+      "internal/cem/gitauth/",
+      "internal/cem/gitrun/",
+      "internal/cem/patch/",
+      "internal/cem/wire/",
+      "internal/groupreap/",
       "protocol/cem-1.0/stable/receipt-authentication/"
     ],
     "internal/liveverify/affected/dotnet": [],
