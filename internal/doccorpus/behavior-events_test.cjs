@@ -160,6 +160,25 @@ test('DCP-V1-081: inexact tuples run the matcher and record nothing', async () =
   assert.ok(h.warnings.length >= 4);
 });
 
+test('DCP-V1-081: inherited or hidden matcher options never reach a recorded matcher', async () => {
+  const h = harness();
+  const page = h.context.open(new Page());
+  const inherited = Object.create({ ignoreCase: true });
+  const hidden = { timeout: 50 };
+  Object.defineProperty(hidden, 'ignoreCase', { value: true, enumerable: false });
+  const inheritedTimeout = Object.create({ timeout: 5 });
+  await h.attempt(async behavior => {
+    const meta = { id: 'a', behavior: 'b', criterion: 'c' };
+    await behavior.expect(meta)(page.locator('#count')).toHaveText('2', inherited);
+    await behavior.expect(meta)(page.locator('#count')).toHaveText('2', hidden);
+    await behavior.expect(meta)(page.locator('#count')).toHaveText('2', inheritedTimeout);
+  });
+  assert.deepEqual(calls.map(c => c.args), [['2', {}], ['2', { timeout: 50 }], ['2', {}]]);
+  for (const call of calls) assert.deepEqual(Object.getOwnPropertyNames(call.args[1]).filter(k => k !== 'timeout'), []);
+  for (const call of calls) assert.equal(Object.getPrototypeOf(call.args[1]), Object.prototype);
+  assert.equal(h.events().length, 3);
+});
+
 test('DCP-V1-081: the recorded tuple is the call itself, including timeout-only options and counts', async () => {
   const h = harness();
   const page = h.context.open(new Page());

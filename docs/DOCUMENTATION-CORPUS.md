@@ -225,9 +225,15 @@ behavior adapter can count in `runtime_witnessed_contracts`. Each command's own 
 
 2. **Produce the qualified receipt and the report.** Run
    `corvint-js-test-provider e2e --external-server ... --retain > evidence/receipt.json` exactly as the
-   receipt guidance in `corvint docs corpus discover-playwright --help` shows. REPORT.json is a Playwright JSON reporter document
-   of the same config file and runner version. The importer checks each test's report outcome
-   against the receipt, and credits only a single first attempt (retry 0) that passed in both.
+   receipt guidance in `corvint docs corpus discover-playwright --help` shows. That run replaces the
+   project's reporters, so it writes no report. Produce REPORT.json in a second, caller-run
+   Playwright run of the same config file and runner version, against the same running app:
+   `npx --no-install playwright test --config playwright.config.ts --reporter=json > evidence/report.json`.
+   The behavior annotations are read from this report run, not from the receipt run. The importer
+   checks each test's report outcome against the receipt, and credits a test only when both show
+   a single first attempt (retry 0) that passed. The report must name the same `configFile` as the
+   receipt, otherwise every test is `report-foreign-config`. The provider's `--keep-reporters` mode
+   runs Playwright through a generated config, so it is not a qualified way to produce this report.
 3. **Discover.** `corvint docs corpus discover-playwright --migration evidence/migration.json --config playwright.config.ts --playwright-list evidence/list.json --receipt evidence/receipt.json > evidence/discovery.json`
    reads the receipt file unchanged and binds each listed test to its receipt identity.
 4. **Commit the evidence and write REQUEST.json.** Commit the receipt bytes unchanged at a tracked

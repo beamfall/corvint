@@ -75,6 +75,31 @@ producer to the witness, with a tested sample REQUEST.json.
   - foreign annotations and overflow
   - a matcher that resolves after close
 
+## Independent review
+
+One Codex round (`gpt-6.1-sol`, read-only, range `eb53998e0..a6b553290`) returned
+`FINAL-VERDICT: FAIL` with two findings. Both are fixed in the follow-up commit, and no second
+round was run.
+
+- **P1: hidden matcher options could forge an exact assertion event.** The validation checked
+  only `Object.keys(options)`. An inherited or non-enumerable `ignoreCase` therefore reached
+  Playwright and loosened the match, while the producer still recorded the exact tuple.
+  Fixed: a recorded matcher now receives a fresh `{timeout}` snapshot that holds only an own
+  `timeout`. The new Node test "inherited or hidden matcher options never reach a recorded
+  matcher" covers this.
+- **P2: the walkthrough omitted the report-producing command.** The receipt run replaces the
+  project's reporters. Fixed: step 2 now shows a separate caller-run
+  `playwright test --reporter=json` against the same config and runner version. It states the
+  `configFile` rule (`report-foreign-config`), and says that `--keep-reporters` is not a qualified
+  route. The guide test checks both phrases. That route is excluded by reading the code (it runs a
+  generated config); it was not observed in a run.
+
+The live run predates the P1 fix. The fix changes only recorded calls that pass options, and none
+of the live spec's recorded calls passes an option. The live spec's one call with an option
+(`useInnerText`) is a rejected call, and the producer still passes that call's options through
+unchanged. The live evidence therefore still covers the code paths it exercised; it was not
+rerun.
+
 ## Limits
 
 - The importer cannot tell producer annotations from annotations a test pushes by hand.

@@ -239,7 +239,10 @@ function session({ context, testInfo, expect, fixtures, roles, warn }) {
             const value = assertionValue(kind, expected, options);
             if (value === '') warn(`value-${matcher}`, `${matcher} with a non-literal expectation or extra options records no event`);
             const fields = value === '' ? null : { kind: 'assertion', id, behavior, criterion, matcher, value };
-            return run(actual, expect(actual), a => a[matcher](...(options === undefined ? [expected] : [expected, options])), fields);
+            // A recorded call receives a fresh options snapshot holding only an own timeout, so an
+            // inherited or non-enumerable option (for example ignoreCase) never reaches the matcher.
+            const passed = value === '' || options === undefined ? options : (Object.hasOwn(options, 'timeout') ? { timeout: options.timeout } : {});
+            return run(actual, expect(actual), a => a[matcher](...(passed === undefined ? [expected] : [expected, passed])), fields);
           };
         }
         return Object.freeze(matchers);

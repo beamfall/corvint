@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) proposed; this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -713,11 +713,12 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   registered assertion tuples, the annotation-stage reasons, the producer and a pointer to the
   guide walkthrough. `discover-playwright --help` does not print it. `docs/DOCUMENTATION-CORPUS.md`,
   section "Playwright behavior witness walkthrough", walks the chain from the qualified receipt
-  producer through `discover-playwright` and the evidence commit to `witness-playwright`, and back
+  producer and the separate caller-run JSON report run, through `discover-playwright` and the
+  evidence commit to `witness-playwright`, and back
   to `behavior-adapter`. It includes a marked sample REQUEST.json whose receipt is the observed
   `external-provider` full-file `inputs[]` entry (V1-1222). A test closed-decodes that sample, and
   imports a witness through a real request whose receipt input carries the sample's anchor
-  metadata. Status: proposed (GitHub #835; V1-1222).
+  metadata. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #835; V1-1222).
 - `DCP-V1-081`: `internal/doccorpus/behavior-events.cjs` is a Playwright fixture producer. It
   publishes the four annotation types at test teardown, and it records only what ran:
   - An `assertion` event is recorded only after the genuine Playwright `expect` matcher resolves.
@@ -728,7 +729,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
     the literal expected argument. They are therefore the registered tuple byte for byte.
   - Only a closed set of exact string matchers and a non-negative integer `toHaveCount` are
     recorded, with no option but `timeout`, on a real Locator in the main frame of an observed
-    page. Any other assertion still runs, but records nothing and warns once.
+    page. A recorded matcher receives a fresh options object holding only an own `timeout`, so an
+    inherited or non-enumerable option never reaches it. Any other assertion still runs, but records nothing and warns once.
   - A `negative-control` event is recorded only after a `to...` matcher, including `.not`, passes.
   - A `page` event is recorded only for a real main-frame commit of an http(s) URL, observed from
     Playwright's own `framenavigated` event in the `context` fixture. Its `id` is the URL path.
@@ -741,7 +743,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
     one callback ran and every one returned, `failed` when one threw, and nothing when none was
     registered.
   - Live Playwright 1.61.1 annotations equal the committed fixture report byte for byte and import
-    to a witness. Status: proposed (GitHub #835).
+    to a witness. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #835).
 - `DCP-V1-082`: An unwitnessed test with an annotation-stage reason (`events-unobserved`,
   `event-malformed`, `cleanup-unobserved`, `cleanup-failed` or `fixture-role-mismatch`) adds
   `missing_annotations`. It lists the needed annotation types that the passing attempt never
@@ -749,7 +751,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   always needed. `fixture` and `role` are needed only when the test registers fixtures or roles.
   The field is omitted when nothing is missing, and for every other reason. Reasons, details,
   admission and the witness wire are unchanged, so existing bundles without the field keep their
-  bytes. Status: proposed (GitHub #835).
+  bytes. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #835).
 
 ## Input and authority boundary
 

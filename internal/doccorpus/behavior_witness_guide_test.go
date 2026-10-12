@@ -36,6 +36,7 @@ func TestDCPV1080GuideWitnessRequestExample(t *testing.T) {
 	for _, phrase := range []string{
 		"witness-playwright --input evidence/request.json --receipt-input receipt --report evidence/report.json",
 		"discover-playwright --migration evidence/migration.json",
+		"--reporter=json > evidence/report.json", "report-foreign-config",
 		PlaywrightEventAnnotation, PlaywrightCleanupAnnotation, PlaywrightFixtureAnnotation, PlaywrightRoleAnnotation,
 		"missing_annotations", "internal/doccorpus/behavior-events.cjs", "DCP-V1-081", "DCP-V1-082",
 	} {
