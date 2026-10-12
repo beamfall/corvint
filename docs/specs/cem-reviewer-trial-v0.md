@@ -10,14 +10,17 @@ least 20% fewer missed-evidence findings, at least 70% citable material hunks, a
 verifier hard failures"), `benchmarks/README.md` (partitions and the first-observation rule),
 `docs/specs/confidently-wrong-trial-v0.md` (arms, dispatch, canonical output, reply grammar),
 `docs/CHANGE-EVIDENCE-MAP.md` and `internal/cem` (the cem/0.1 workflow under test), `AGENTS.md`
-invariants 2 and 4.
+invariants 2 and 4, and decision 0523 P4
+(`docs/decisions/0523-cem-1-0-rc3-verifier-computed-support-2026-10-11.md`: precision scoring, the
+registration file, the shipped-profile treatment arm, and no run before decision 0523 P2 has a
+baseline).
 
 ## Agent digest
 - Claim: `tools/cem-trial` runs one agent over frozen Beamfall changes under control, treatment and seeded arms and scores base-reachable withheld test-or-spec evidence.
 - Status: proposed/experimental
-- Exists: `tools/cem-trial` (`select`, `run`, `score`), the five-change pilot manifest under `tools/cem-trial/testdata/pilot`, and `tools/cem-trial/testdata/fake-agent.sh`.
-- Blocked on: owner acceptance of the 2026-10-01 amendments and the owner-commissioned three-arm held-out run; the real-agent pilot is run and valid (2026-09-04) but its treatment carried no evidence and three of its five changes had gold no arm could cite.
-- Read next: Requirements (selection, withheld patch, arms, metrics, CRT-V0-012); Power; Non-goals; Stopping and publication.
+- Exists: `tools/cem-trial` (`select`, `run`, `score`), the five-change pilot manifest under `tools/cem-trial/testdata/pilot`, and `tools/cem-trial/testdata/fake-agent.sh`; proposed 2026-10-11 (V1-1261): the cited-not-gold precision rate (CRT-V0-013) and the registration file and its order check (CRT-V0-014).
+- Blocked on: owner acceptance of the 2026-10-01 amendments; an arm builder for the shipped profile's artifact (CRT-V0-015), which needs decision 0523 P2 to land and have a baseline; and the owner-commissioned held-out run, which is post-rc.3 and `NOT_RUN`. The real-agent pilot is run and valid (2026-09-04) but its treatment carried no evidence and three of its five changes had gold no arm could cite; no run before decision 0523 P2 has a baseline is outcome evidence.
+- Read next: Requirements (selection, withheld patch, arms, metrics, CRT-V0-012..015); Power; Non-goals; Stopping and publication.
 
 ## Intent and scope
 
@@ -85,7 +88,9 @@ name is exactly what the change's author also wrote and the harness removed.
   2026-09-04 pilot's treatment carried a map in which every hunk was `unknown` with no evidence,
   so it measured the wording of a worklist and not Corvint's evidence; `seeded` is the arm that
   carries the evidence, `treatment` becomes the format control between `control` and `seeded`.
-  Each seeded lane records `suggested`, the distinct suggested paths.
+  Each seeded lane records `suggested`, the distinct suggested paths. Amended 2026-10-11
+  (V1-1261, proposed): for a registered run the treatment arm is redefined by CRT-V0-015; the
+  `cem begin` worklist arms above remain only for pilot and development runs.
 - `CRT-V0-006`: Reply grammar. Every reply MUST end with one fenced JSON block
   `{"citations":[{"hunk":"N","path":"...","lines":"S:E","relation":"specification|decision|test-claim|implementation|call-site|dependency|incident","confidence":"certain|likely|unsure"}],"unknown":["N"]}`.
   The scorer takes the last fenced block naming `"citations"`, or a reply that is itself one JSON
@@ -118,7 +123,9 @@ name is exactly what the change's author also wrote and the harness removed.
   over that arm's own lanes. McNemar is additionally reported over lanes (`mcnemar_lanes`): the
   control lane and the compared lane of the same change and repeat form one pair, because
   averaging the repeats first turns every change both arms sometimes missed into a tie, which is
-  how the pilot reported zero discordant pairs over fifty lanes.
+  how the pilot reported zero discordant pairs over fifty lanes. Amended 2026-10-11 (V1-1261,
+  proposed): `miss` is reported beside the cited-not-gold rate of CRT-V0-013 and is never read
+  without it.
 - `CRT-V0-008`: Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
   (ICC 0.3, m=4, design effect 1.9) the effective n is about 63. At a control miss of 0.50 a 20%
   relative reduction is `Δ = 0.10` with SE ≈ 0.088 and a 95% CI of about (−0.07, 0.27); 80% power at
@@ -164,6 +171,12 @@ name is exactly what the change's author also wrote and the harness removed.
   may only re-run lanes that never finished; a lane is reused only when its prompt sha256 is
   byte-identical, its wall time was observed, and it did not error under CRT-V0-006 (read from the
   recorded exit code too, so a prior report's failed lane without an `error` is re-run).
+  Amended 2026-10-11 (V1-1261, proposed): a run is also invalid when CRT-V0-014's registration
+  check fails — a `heldout` report with no registration, a registration whose fixed fields, scorer
+  digest or arms disagree with the report, or a registration commit newer than the run's first
+  lane. Each lane records its launch time as `started_at` (a reused lane keeps the original), and
+  the scorer reaches the same reading on `score --report` from the recorded fields alone; several
+  reasons are joined with `; ` after the errored-lane reason.
 
 - `CRT-V0-011`: Invocation lifecycle (proposed). `runCommand` MUST share the
   `internal/procgroup` pre-reap supervisor with the other trial dispatcher. On Darwin and
@@ -200,6 +213,58 @@ name is exactly what the change's author also wrote and the harness removed.
   0.5 is reported as retrieval-limited and supports no claim about the map. The suggestions are
   computed once per change in the prep clone and shared by that change's seeded lanes, so a
   seeded lane's prompt digest covers them.
+- `CRT-V0-013`: Cited-not-gold precision (proposed 2026-10-11, V1-1261; decision 0523 P4). Every
+  scored lane records `cited_not_gold` beside `miss`, scored against the same reachable gold:
+  `paths` = the distinct normalized cited paths not in `gold(c)` over the distinct cited paths;
+  `spans` = the distinct cited lines (each path's cited ranges merged, a line cited twice counted
+  once) outside the recorded secondary gold spans of the same gold path (CRT-V0-004), over the
+  distinct cited lines. A citation whose range does not parse or starts before line 1 counts as one
+  cited line outside the gold, so a malformed range never escapes the rate. Each rate is
+  `NOT_OBSERVED` for a lane that cited nothing, and `spans` is `NOT_OBSERVED` for a report whose
+  changes carry no `gold_spans` (a report written before this requirement). The report carries each
+  change's `gold_spans`. Every arm block and the `seeded_vs_treatment` contrast report
+  `cited_not_gold[arm]` = `{paths, spans, lanes, span_lanes}`, the mean lane rate over the
+  non-errored lanes of the scored pairs that cited something, for control and the compared arm.
+  An arm that buys a lower miss by citing every suggestion shows that cost here: a scripted agent
+  citing all eight suggestions per file reaches miss 0 and loses on both rates to an arm that
+  cites only the gold it can justify. Limits: gold is test-or-spec evidence only, so a valid
+  implementation or call-site citation counts as not gold in every arm alike; gold spans are line
+  ranges at `C` of the lines `C` added while citations are ranges at `C^`, so `spans` over-counts
+  where a hunk is shifted or appended past the base file's end. Both rates are therefore read as a
+  paired comparison between arms over the same changes, never as an absolute error rate, and
+  neither changes the CRT-V0-008 verdict wording.
+- `CRT-V0-014`: Registration (proposed 2026-10-11, V1-1261; decision 0523 P4; extends CRT-V0-010).
+  An outcome run is preregistered by one JSON file, committed before `select` runs, holding exactly
+  the keys `profile` (`corvint-cem-trial-registration/0`), `hypotheses` (a non-empty array of
+  non-blank strings), `primary_metric` (`miss`, the CRT-V0-007 contrast and the only primary metric
+  this scorer estimates), `alpha` (`0.05`, the level of the fixed 95% interval), `n` (the pair
+  count, equal to the manifest's change count), `scorer_sha256` (the sha256 of
+  `tools/cem-trial/{gold,main,register,score,select}.go` concatenated in that order, which the
+  binary computes from the sources it embeds), `model` and `effort` (the strings the report
+  records, `NOT_OBSERVED` for the script agent or an unset effort) and `partition`. An unknown key,
+  trailing data or any other value for the fixed fields is refused. `run --registration FILE`
+  reads the file, requires it to be committed byte for byte at `HEAD` of the Git repository holding
+  it, and records its repository-relative path, sha256, the commit that last wrote it and that
+  commit's committer time (UTC RFC 3339) as `registration`. Before any lane runs, `run` refuses a
+  `heldout` manifest with no registration and a registration whose partition, model, effort, `n`
+  or scorer digest differs from the run, or whose run names an arm CRT-V0-015 bars. The report is
+  invalid (CRT-V0-010) when the registration commit is newer than the earliest recorded lane
+  `started_at`, when no lane recorded a start, or when any of those checks fails on rescore,
+  including a rescore under a scorer whose digest differs from the registered one. Limits: the
+  committer time is self-asserted by whoever wrote the commit, so the order check catches a
+  registration written late by mistake, not a forged date; and "before selection" is a procedural
+  obligation the tool does not check, because a manifest records no selection time.
+- `CRT-V0-015`: Treatment arm and pre-baseline runs (proposed 2026-10-11, V1-1261; decision 0523
+  P4). In a registered run the treatment arm is the artifact the shipped CEM profile produces for
+  the change — the map with verifier-computed support of decision 0523 P0 and P2 — never the
+  all-`unknown` cem/0.1 worklist that `cem begin` builds. The harness builds no such artifact yet,
+  so `run` refuses a registered run that names the `treatment` or `seeded` arm, both of which still
+  carry that worklist, and a registered report naming either is invalid on rescore. Any run made
+  before decision 0523 P2 has a baseline (kill criterion K1 of decision 0523) is invalid as outcome
+  evidence, whatever its partition or reading: it may tune prompts and the harness and is
+  development forever under `benchmarks/README.md`'s first-observation rule. The 2026-09-04 pilot
+  is such a run. Replacing the arm builder is a follow-up that amends this requirement and
+  CRT-V0-005 together.
 
 ## Non-goals and simpler baseline
 
@@ -257,6 +322,9 @@ executables named on the command line; it downloads nothing. Manifest 16 MiB; pa
 | CRT-V0-010 | `finalize`, `rescore`, `write`, `checkpointer`, `loadReuse`, `reuseSource.apply`, `laneFailed`, `report.Invalid` | `TestScoreRebuildsTheReportByteIdentically`; `TestErroredLaneDropsItsPair`; `TestNonZeroAgentExitErrorsTheLaneAndInvalidatesTheRun`; 2026-09-03 pilot rescored to `invalid` (31 errored lanes); 2026-09-04 re-run valid (`invalid: null`, 0 errored lanes) |
 | CRT-V0-011 | `runCommand`; `internal/procgroup.Run`, `OverflowPolicy`, `Spec.StderrLimit` | `TestRunProcessLifecycleMatrix`; `TestRunProcessTruncateOverflowPolicy`; `TestRunProcessDefaultOverflowPolicyStillTerminates`; `TestRunProcessRejectsInvalidOverflowPolicyBeforeSpawn`; `TestTruncateCaptureConsumesCrossingWrite`; `TestRunCommandPreservesExitShapes`; `TestRunCommandNormalizesPathsAndEnvironment`; `TestRunCommandRefusesBeforeDispatch`; `TestRunCommandTruncatesOutput`; `TestRunCommandCancellationKillsDescendant`; `TestTrialMainSignalsCleanOwnedAgentGroup`; 2026-10-04 amendment: `TestCodexRunBoundsTheReplyAndRecordsStdoutTruncation`, `TestScriptRunRecordsStdoutTruncation`, `TestNegativeTokenCountsAreNotObservations` |
 | CRT-V0-004 (2026-10-01 amendment) | `inspectCommit` (status `M`/`D` gold, `unreachable`), `task.GoldUnreachable`, `printSelection` | `TestSelectionRecordsUnreachableGoldSeparately` |
+| CRT-V0-013 | `scoreCitedNotGold`, `citedNotGold`, `mergeIntervals`, `overlap`, `citedNotGoldArms`, `changeMeta.GoldSpans`, `goldSpansOf` (`tools/cem-trial/score.go`, `main.go`) | `TestCiteEverySuggestionAgentLosesOnCitedNotGold` (the cite-every-suggestion agent wins on miss, Δ 0.5, and loses on both rates); `TestCitedNotGoldCountsDistinctPathsAndLines`; `TestRunChecksItsRegistration` (a run carries `gold_spans` and scores the rate) |
+| CRT-V0-014, CRT-V0-010 (2026-10-11 amendment) | `registration`, `parseRegistration`, `loadRegistration`, `registrationRecord`, `registrationMismatches`, `registrationInvalid`, `firstLaneStart`, `checkRegistration`, `scorerDigest`, `scorerFiles`, `lane.StartedAt`, `finalize` (`tools/cem-trial/register.go`, `score.go`, `main.go`) | `TestScorerDigestCoversEveryScorerSource`; `TestRegistrationRefusesAnIncompletePlan`; `TestRegistrationMustBeCommitted`; `TestReportRefusesARegistrationNewerThanItsFirstLane`; `TestRunChecksItsRegistration`; no registered run yet: the run is post-rc.3 and owner-commissioned (`NOT_RUN`) |
+| CRT-V0-015 | `registrationMismatches` (arms carrying the cem/0.1 worklist), `armsNeedCorvint` | `TestReportRefusesARegistrationNewerThanItsFirstLane` (`CRT-V0-015` subtest); `TestRunChecksItsRegistration` (registered treatment arm refused before dispatch); the shipped-profile arm builder is not built |
 | CRT-V0-005 (seeded arm), CRT-V0-012 | `seededPrologue`, `suggestEvidence`, `suggestedPaths`, `buildArtefacts`, `buildPrompt`, `prologueIdentity`, `armsNeedCorvint`, `lane.Suggested`, `lane.SeedHits`, `seedCoverage`, `contrast`, `mcnemarLanes`, `armSummary`, `citableArm`, `verifierRatesArm` (`tools/cem-trial/main.go`, `score.go`) | `TestSeededArmSharesThePromptApartFromItsPrologue`; `TestRunRefusesSeededArmWithoutCorvint`; `TestThreeArmSummaryKeepsPilotKeysAndDecomposesTheSeededArm`; `TestTwoArmSummaryIsUnchanged`; `TestLaneLevelMcNemarKeepsDiscordance`; no agent run yet: the three-arm run is owner-commissioned (decision 0427) |
 
 ## Rollout, rollback, compatibility
@@ -282,10 +350,14 @@ refuses, so lanes are plain local clones.
 Which model and reasoning effort the judged run uses; whether the secondary mutant stratum runs at
 all; whether `unknown` hunks the agent declares should score beside the citations rather than only
 being recorded; whether the owner accepts the 2026-10-01 amendments (reachable gold, the `seeded`
-arm, lane-level McNemar, the CRT-V0-008 power and gate reading, CRT-V0-012). Promote to
+arm, lane-level McNemar, the CRT-V0-008 power and gate reading, CRT-V0-012) and the 2026-10-11
+ones (CRT-V0-013..015); how the shipped-profile treatment arm is built once decision 0523 P2 has a
+baseline. Promote to
 `implemented` when a `heldout` set selected with the amended rule and frozen before any agent
 output was read, sized by the amended CRT-V0-008 (about 55 pairs at a corrected control miss of
-0.50), has run once in all three arms and its first report is preserved unrepaired. V4's gate is
+0.50), has run once in all three arms and its first report is preserved unrepaired, with a
+CRT-V0-014 registration committed before its selection and before its first lane, and a treatment
+arm that is the shipped profile's artifact (CRT-V0-015). V4's gate is
 then read from that report by the owner under CRT-V0-008's wording, never from the pilot, and
 the README row changes only to what that report supports: an agent-reviewer result with its
 interval and its retrieval/adoption decomposition, never "helps a reviewer" without the human

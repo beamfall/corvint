@@ -1,0 +1,329 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+	"testing"
+)
+
+func validRegistration(partition, model, effort string, n int) registration {
+	return registration{
+		Profile: registrationProfile, Hypotheses: []string{"the shipped-profile arm misses less withheld evidence than control"},
+		PrimaryMetric: "miss", Alpha: 0.05, N: n, ScorerSHA256: scorerDigest(),
+		Model: model, Effort: effort, Partition: partition,
+	}
+}
+
+// commitRegistration writes the registration into a fresh Git repository and
+// commits it with the given committer date (empty for now).
+func commitRegistration(t *testing.T, document any, committerDate string) string {
+	t.Helper()
+	root := t.TempDir()
+	data, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "registration.json")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, arguments := range [][]string{{"init", "-q", "-b", "main"}, {"add", "registration.json"}, {"commit", "-q", "-m", "register"}} {
+		command := exec.Command("git", arguments...)
+		command.Dir = root
+		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
+			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@localhost", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@localhost")
+		if committerDate != "" {
+			command.Env = append(command.Env, "GIT_COMMITTER_DATE="+committerDate, "GIT_AUTHOR_DATE="+committerDate)
+		}
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", arguments, err, output)
+		}
+	}
+	return path
+}
+
+// CRT-V0-014: the scorer digest is the sha256 of the package's non-test
+// sources concatenated in the documented order, and that list is complete.
+func TestScorerDigestCoversEveryScorerSource(t *testing.T) {
+	sources, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	present := []string{}
+	for _, name := range sources {
+		if !strings.HasSuffix(name, "_test.go") {
+			present = append(present, name)
+		}
+	}
+	sort.Strings(present)
+	if strings.Join(present, ",") != strings.Join(scorerFiles, ",") {
+		t.Fatalf("scorer files %v, package sources %v", scorerFiles, present)
+	}
+	hash := sha256.New()
+	for _, name := range scorerFiles {
+		data, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		hash.Write(data)
+	}
+	if got := hex.EncodeToString(hash.Sum(nil)); got != scorerDigest() {
+		t.Fatalf("scorerDigest %s, concatenated sources %s", scorerDigest(), got)
+	}
+}
+
+// CRT-V0-014: the registration is a closed object whose fixed fields are
+// checked before anything else reads them.
+func TestRegistrationRefusesAnIncompletePlan(t *testing.T) {
+	good, err := json.Marshal(validRegistration("heldout", "m", "high", 2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parseRegistration(good); err != nil {
+		t.Fatalf("a complete registration was refused: %v", err)
+	}
+	cases := map[string]string{
+		"unknown field":  strings.Replace(string(good), `"profile"`, `"extra":1,"profile"`, 1),
+		"trailing data":  string(good) + "{}",
+		"other metric":   strings.Replace(string(good), `"primary_metric":"miss"`, `"primary_metric":"citable"`, 1),
+		"other alpha":    strings.Replace(string(good), `"alpha":0.05`, `"alpha":0.1`, 1),
+		"no hypothesis":  strings.Replace(string(good), `"hypotheses":["the shipped-profile arm misses less withheld evidence than control"]`, `"hypotheses":[]`, 1),
+		"blank effort":   strings.Replace(string(good), `"effort":"high"`, `"effort":" "`, 1),
+		"zero n":         strings.Replace(string(good), `"n":2`, `"n":0`, 1),
+		"short scorer":   strings.Replace(string(good), scorerDigest(), "abc", 1),
+		"wrong profile":  strings.Replace(string(good), registrationProfile, "other/0", 1),
+		"no partition":   strings.Replace(string(good), `"partition":"heldout"`, `"partition":""`, 1),
+		"not an object":  `[]`,
+		"model a number": strings.Replace(string(good), `"model":"m"`, `"model":1`, 1),
+	}
+	for name, body := range cases {
+		t.Run("CRT-V0-014/"+name, func(t *testing.T) {
+			if body == string(good) {
+				t.Fatal("the case did not change the registration")
+			}
+			if _, err := parseRegistration([]byte(body)); err == nil {
+				t.Fatal("the registration was accepted")
+			}
+		})
+	}
+}
+
+// CRT-V0-014: a registration counts only as committed at HEAD byte for byte,
+// and the report keeps the commit and its committer time.
+func TestRegistrationMustBeCommitted(t *testing.T) {
+	path := commitRegistration(t, validRegistration("heldout", "m", "high", 2), "2026-10-01T12:00:00Z")
+	record, err := loadRegistration(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.Path != "registration.json" || record.CommittedAt != "2026-10-01T12:00:00Z" || len(record.Commit) != 40 {
+		t.Fatalf("record = %+v", record)
+	}
+	if err := os.WriteFile(path, []byte(`{"edited":true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadRegistration(context.Background(), path); err == nil {
+		t.Fatal("an uncommitted registration was accepted")
+	}
+	loose := filepath.Join(t.TempDir(), "registration.json")
+	data, _ := json.Marshal(validRegistration("heldout", "m", "high", 2))
+	if err := os.WriteFile(loose, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadRegistration(context.Background(), loose); err == nil {
+		t.Fatal("a registration outside any repository was accepted")
+	}
+}
+
+// registeredReport is syntheticReport as a control-only heldout run whose
+// lanes started at the given time, registered at the given commit time.
+func registeredReport(started, committed string) *report {
+	document := syntheticReport()
+	kept := []*lane{}
+	for _, item := range document.Lanes {
+		if item.Arm == "control" {
+			item.StartedAt = started
+			kept = append(kept, item)
+		}
+	}
+	document.Lanes, document.Arms, document.Partition, document.Pilot = kept, []string{"control"}, "heldout", false
+	document.Prologues = prologueIdentity(document.Arms)
+	document.Registration = &registrationRecord{
+		Path: "registration.json", SHA256: digestOf("x"), Commit: strings.Repeat("a", 40), CommittedAt: committed,
+		Document: validRegistration("heldout", notObserved, notObserved, 2),
+	}
+	return document
+}
+
+// CRT-V0-010, CRT-V0-014, CRT-V0-015: the report is invalid when the
+// registration was committed after the first lane, does not describe the run,
+// or registers an arm that carries the all-unknown cem/0.1 worklist; a heldout
+// report with no registration is invalid too.
+func TestReportRefusesARegistrationNewerThanItsFirstLane(t *testing.T) {
+	t.Run("CRT-V0-014/registered before the first lane", func(t *testing.T) {
+		document := registeredReport("2026-10-02T00:00:00.5Z", "2026-10-01T12:00:00Z")
+		finalize(document)
+		if document.Invalid != "" {
+			t.Fatalf("invalid = %q", document.Invalid)
+		}
+	})
+	t.Run("CRT-V0-014/registered after the first lane", func(t *testing.T) {
+		document := registeredReport("2026-10-02T00:00:00Z", "2026-10-03T00:00:00Z")
+		document.Lanes[1].StartedAt = "2026-10-04T00:00:00Z"
+		finalize(document)
+		if !strings.Contains(document.Invalid, "is newer than the first lane (2026-10-02T00:00:00Z)") {
+			t.Fatalf("invalid = %q", document.Invalid)
+		}
+	})
+	t.Run("CRT-V0-014/no lane start observed", func(t *testing.T) {
+		document := registeredReport("", "2026-10-01T00:00:00Z")
+		finalize(document)
+		if !strings.Contains(document.Invalid, "registration order is unobserved") {
+			t.Fatalf("invalid = %q", document.Invalid)
+		}
+	})
+	t.Run("CRT-V0-014/fixed fields disagree", func(t *testing.T) {
+		document := registeredReport("2026-10-02T00:00:00Z", "2026-10-01T00:00:00Z")
+		document.Registration.Document.Model, document.Registration.Document.N = "other-model", 3
+		document.Registration.Document.ScorerSHA256 = strings.Repeat("0", 64)
+		finalize(document)
+		for _, needle := range []string{`registered model "other-model"`, "registered n 3, run 2 pairs", "registered scorer_sha256"} {
+			if !strings.Contains(document.Invalid, needle) {
+				t.Fatalf("invalid = %q, want %q", document.Invalid, needle)
+			}
+		}
+	})
+	t.Run("CRT-V0-015/cem/0.1 worklist arm", func(t *testing.T) {
+		document := registeredReport("2026-10-02T00:00:00Z", "2026-10-01T00:00:00Z")
+		document.Arms = []string{"control", "treatment"}
+		finalize(document)
+		if !strings.Contains(document.Invalid, "not the shipped profile's artifact") {
+			t.Fatalf("invalid = %q", document.Invalid)
+		}
+	})
+	t.Run("CRT-V0-014/heldout without registration", func(t *testing.T) {
+		document := registeredReport("2026-10-02T00:00:00Z", "2026-10-01T00:00:00Z")
+		document.Registration = nil
+		finalize(document)
+		if !strings.Contains(document.Invalid, "carries no registration") {
+			t.Fatalf("invalid = %q", document.Invalid)
+		}
+	})
+	t.Run("CRT-V0-010/rescore keeps the reading", func(t *testing.T) {
+		document := registeredReport("2026-10-02T00:00:00Z", "2026-10-03T00:00:00Z")
+		finalize(document)
+		path := filepath.Join(t.TempDir(), "report.json")
+		var stdout, stderr bytes.Buffer
+		if code := write(document, path, &stdout, &stderr); code != 0 {
+			t.Fatal(stderr.String())
+		}
+		original, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rebuilt, _, err := rescore([]string{"--report", path})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out bytes.Buffer
+		if code := write(rebuilt, "", &out, &stderr); code != 0 || !bytes.Equal(original, out.Bytes()) {
+			t.Fatal("score did not reproduce the registered report's bytes")
+		}
+		if rebuilt.Invalid == "" {
+			t.Fatal("the rescored report lost its invalid reading")
+		}
+	})
+}
+
+// heldoutManifest writes a one-change heldout manifest over the fixture
+// repository's last commit.
+func heldoutManifest(t *testing.T, repo string) string {
+	t.Helper()
+	head, err := git(context.Background(), repo, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, err := git(context.Background(), repo, "rev-parse", "HEAD^")
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	patch := "diff --git a/internal/play/play.go b/internal/play/play.go\n--- a/internal/play/play.go\n+++ b/internal/play/play.go\n@@ -9,1 +9,1 @@\n-\treturn 0\n+\treturn 10\n"
+	if err := os.WriteFile(filepath.Join(directory, "c01.patch"), []byte(patch), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	set := manifest{Partition: "heldout", Seed: "fixture", SelectionRule: selectionRule, Population: 1, Pairs: 1, Tasks: []task{{
+		ID: "c01", Commit: head, BaseCommit: base, PatchSHA256: digestOf(patch), PatchPath: "c01.patch",
+		SourceFiles: []string{"internal/play/play.go"}, HunkCount: 1, StemBaseline: []string{"internal/play/play_test.go"},
+		Gold: gold{Paths: []string{"internal/play/play_test.go"}, Spans: []span{{Path: "internal/play/play_test.go", Lines: "6:7"}}},
+	}}}
+	data, err := json.Marshal(set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(directory, "tasks.json")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// CRT-V0-014, CRT-V0-015: `run` refuses a heldout manifest with no
+// registration, a registration the run does not match, and a registered run
+// of an arm that carries the cem/0.1 worklist, before any lane runs; a
+// matching registration runs, records each lane's start, and the report reads
+// invalid only when the registration commit is newer than the first lane.
+func TestRunChecksItsRegistration(t *testing.T) {
+	repo := fixtureRepo(t)
+	tasks := heldoutManifest(t, repo)
+	agentScript, err := filepath.Abs(filepath.Join("testdata", "fake-agent.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	arguments := func(arms, registrationPath string) []string {
+		list := []string{"--tasks", tasks, "--history", repo, "--arms", arms, "--agent", "script", "--agent-command", agentScript, "--seed", "fixture"}
+		if registrationPath != "" {
+			list = append(list, "--registration", registrationPath)
+		}
+		return list
+	}
+	ctx := context.Background()
+	if _, _, err := runTrial(ctx, arguments("control", "")); err == nil || !strings.Contains(err.Error(), "needs --registration") {
+		t.Fatalf("heldout run without registration: %v", err)
+	}
+	mismatched := commitRegistration(t, validRegistration("heldout", notObserved, notObserved, 5), "")
+	if _, _, err := runTrial(ctx, arguments("control", mismatched)); err == nil || !strings.Contains(err.Error(), "registered n 5, run 1 pairs") {
+		t.Fatalf("mismatched registration: %v", err)
+	}
+	past := commitRegistration(t, validRegistration("heldout", notObserved, notObserved, 1), "2026-01-01T00:00:00Z")
+	if _, _, err := runTrial(ctx, []string{"--tasks", tasks, "--history", repo, "--arms", "control,treatment", "--agent", "script",
+		"--agent-command", agentScript, "--corvint", agentScript, "--registration", past}); err == nil || !strings.Contains(err.Error(), "shipped profile's artifact") {
+		t.Fatalf("registered cem/0.1 treatment arm: %v", err)
+	}
+	document, _, err := runTrial(ctx, arguments("control", past))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if document.Invalid != "" || document.Registration == nil || document.Lanes[0].StartedAt == "" {
+		t.Fatalf("registered run: invalid %q, registration %v, started %q", document.Invalid, document.Registration, document.Lanes[0].StartedAt)
+	}
+	if document.Changes[0].GoldSpans == nil || document.Lanes[0].CitedNotGold.Paths == notObserved {
+		t.Fatalf("the run did not carry span gold or score precision: %+v %+v", document.Changes[0], document.Lanes[0].CitedNotGold)
+	}
+	future := commitRegistration(t, validRegistration("heldout", notObserved, notObserved, 1), "2099-01-01T00:00:00Z")
+	document, _, err = runTrial(ctx, arguments("control", future))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(document.Invalid, "is newer than the first lane") {
+		t.Fatalf("a registration committed after the first lane left invalid = %q", document.Invalid)
+	}
+}

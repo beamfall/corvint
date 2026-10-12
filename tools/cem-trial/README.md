@@ -24,7 +24,8 @@ cem-trial select --repo DIR --output DIR --seed S --corvint PATH \
   [--name N] [--since DATE] [--partition pilot|heldout] [--exclude FILES] [--limit N]
 cem-trial run --tasks tasks.json --history DIR --corvint PATH \
   [--arms control,treatment,seeded] [--repeats N] [--agent codex|script] [--agent-command PATH] \
-  [--model M] [--effort E] [--timeout D] [--workers N] [--seed S] [--output FILE] [--resume|--reuse FILE]
+  [--model M] [--effort E] [--timeout D] [--workers N] [--seed S] [--output FILE] [--resume|--reuse FILE] \
+  [--registration FILE]
 cem-trial score --report FILE [--output FILE]
 ```
 
@@ -53,6 +54,21 @@ cem-trial score --report FILE [--output FILE]
   prep clone (which holds no object at or after `C`) and recorded on each seeded lane as `suggested`.
 - **score** rebuilds every derived field from the raw ones and reproduces a report's bytes unchanged.
 
+## Registration
+
+A `heldout` run needs `--registration FILE` (CRT-V0-014): a JSON object with exactly the keys
+`profile` (`corvint-cem-trial-registration/0`), `hypotheses` (non-empty strings), `primary_metric`
+(`miss`), `alpha` (`0.05`), `n` (the manifest's pair count), `scorer_sha256`, `model`, `effort` and
+`partition`. `scorer_sha256` is
+`cat tools/cem-trial/{gold,main,register,score,select}.go | shasum -a 256`; `model` and `effort` are
+the strings the report records (`NOT_OBSERVED` for the script agent and an unset effort). The file
+must be committed, byte for byte, at `HEAD` of its repository before selection. `run` refuses a
+registration the run does not match before any lane starts, and refuses a registered run of the
+`treatment` or `seeded` arm, which still carry the all-unknown cem/0.1 worklist rather than the
+shipped profile's artifact (CRT-V0-015). Each lane records `started_at`; the report is `invalid`
+when the registration commit is newer than the first lane, and `score --report` re-checks that
+order, the fixed fields and the running scorer's digest.
+
 ## Reply grammar
 
 Every reply must end with one fenced JSON block:
@@ -77,6 +93,13 @@ block. `citable` is `supported / (total − mechanical)` from the arm's own `cem
 verifier **hard failure** is a citing lane where `cem verify` reports `ok:false`; it is
 **incorrect** when the harness's own Git-only replay says the citation was valid. An errored lane
 drops its pair whole, so the arms always cover the same changes.
+
+`cited_not_gold` is the precision beside `miss` (CRT-V0-013): per lane, the share of its distinct
+cited paths that are not gold (`paths`) and of its distinct cited lines that fall outside the
+recorded gold spans of the same path (`spans`); each arm block reports the mean per arm. A lane that
+cites every suggestion reaches miss 0 and pays for it here. Gold is test-or-spec only and the spans
+are line ranges at the change while citations are at the base, so both rates are read as a paired
+comparison between arms, never as an absolute error rate.
 
 A seeded run adds `summary.seed_coverage` (how much of the gold the suggestions carried, and the
 miss rate of suggested against unsuggested gold) and `summary.contrasts.seeded_vs_treatment`

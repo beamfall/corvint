@@ -155,6 +155,7 @@ type options struct {
 	seed         string
 	resume       bool
 	reuse        string
+	registration string
 }
 
 type agentResult struct {
@@ -247,6 +248,7 @@ func parseRunOptions(arguments []string) (options, error) {
 	flags.StringVar(&configuration.seed, "seed", "", "seed for the per-change arm order")
 	flags.BoolVar(&configuration.resume, "resume", false, "reuse OUTPUT.partial.json, rerunning only lanes that never finished")
 	flags.StringVar(&configuration.reuse, "reuse", "", "reuse the finished lanes of a prior report with byte-identical prompts")
+	flags.StringVar(&configuration.registration, "registration", "", "committed registration file the run must match (required when the manifest partition is heldout)")
 	if err := flags.Parse(arguments); err != nil {
 		return configuration, err
 	}
@@ -309,6 +311,9 @@ func runTrial(ctx context.Context, arguments []string) (*report, string, error) 
 		SkeletonSHA256: digestOf(skeleton), Arms: configuration.arms, Repeats: configuration.repeats,
 		Prologues: prologueIdentity(configuration.arms), Agent: identity,
 		CorvintGo: corvintIdentity(ctx, configuration), Changes: changeMetadata(set), Lanes: []*lane{},
+	}
+	if err := checkRegistration(ctx, configuration, document); err != nil {
+		return nil, "", err
 	}
 	prior, err := loadReuse(configuration)
 	if err != nil {
@@ -466,6 +471,7 @@ func invokeLane(ctx context.Context, configuration options, runner agent, prep, 
 	result, runErr := runner.run(ctx, root, prompt, configuration.timeout)
 	wall := time.Since(started).Milliseconds()
 	assign(saver.lock(), func() {
+		record.StartedAt = started.UTC().Format(time.RFC3339Nano)
 		record.WallMs = wall
 		if runErr != nil {
 			record.Error = runErr.Error()
@@ -1160,10 +1166,20 @@ func changeMetadata(set *manifest) []changeMeta {
 		changes = append(changes, changeMeta{
 			ID: item.ID, Commit: item.Commit, BaseCommit: item.BaseCommit,
 			PatchSHA256: item.PatchSHA256, HunkCount: item.HunkCount,
-			Gold: item.Gold.Paths, StemBaseline: item.StemBaseline,
+			Gold: item.Gold.Paths, GoldSpans: goldSpansOf(item), StemBaseline: item.StemBaseline,
 		})
 	}
 	return changes
+}
+
+// goldSpansOf is the change's recorded secondary gold, never nil, so a report
+// distinguishes "no span recorded" (an older report, nil) from "no added line"
+// (CRT-V0-013).
+func goldSpansOf(item task) []span {
+	if item.Gold.Spans == nil {
+		return []span{}
+	}
+	return item.Gold.Spans
 }
 
 func prologueIdentity(arms []string) map[string]map[string]any {
@@ -1343,7 +1359,7 @@ func (source *reuseSource) apply(record *lane) bool {
 	}
 	record.WallMs, record.ExitCode, record.Tokens, record.ToolCalls = prior.WallMs, prior.ExitCode, prior.Tokens, prior.ToolCalls
 	record.Reply, record.ReplyTruncated, record.CEM = prior.Reply, prior.ReplyTruncated, prior.CEM
-	record.StdoutTruncated = prior.StdoutTruncated
+	record.StdoutTruncated, record.StartedAt = prior.StdoutTruncated, prior.StartedAt
 	record.ReusedFrom = source.identity
 	return true
 }
