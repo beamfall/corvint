@@ -2,7 +2,7 @@
 
 Intent: decision 0523 P4. Requirements CRT-V0-013, CRT-V0-014 and CRT-V0-015 and the 2026-10-11
 amendments to CRT-V0-005, CRT-V0-007 and CRT-V0-010 in `docs/specs/cem-reviewer-trial-v0.md` are
-proposed. Baseline: `f0d0e6106d8f7ffeaac46339ba274df3aafc712f`. Scope is the scorer and the
+accepted under the owner's standing auto-accept (2026-10-11) after the Codex PASS below. Baseline: `f0d0e6106d8f7ffeaac46339ba274df3aafc712f`. Scope is the scorer and the
 harness's run-time checks; the trial run itself is post-rc.3 and `NOT_RUN`.
 
 ## Contract and implementation
@@ -58,3 +58,5 @@ strictly, so `score --report` refuses it.
 Codex round 3 (FAIL) found one P2: `--resume` ignored a checkpoint that failed to decode, so the
 stricter decoder could make a resumed run rerun finished lanes. Only a missing checkpoint now
 starts afresh; any other read or decode error is refused and the checkpoint is kept.
+
+Codex round 4: PASS with no findings; the requirements were then accepted as above.

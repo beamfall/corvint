@@ -18,7 +18,7 @@ baseline).
 ## Agent digest
 - Claim: `tools/cem-trial` runs one agent over frozen Beamfall changes under control, treatment and seeded arms and scores base-reachable withheld test-or-spec evidence.
 - Status: proposed/experimental
-- Exists: `tools/cem-trial` (`select`, `run`, `score`), the five-change pilot manifest under `tools/cem-trial/testdata/pilot`, and `tools/cem-trial/testdata/fake-agent.sh`; proposed 2026-10-11 (V1-1261): the cited-not-gold precision rate (CRT-V0-013) and the registration file and its order check (CRT-V0-014).
+- Exists: `tools/cem-trial` (`select`, `run`, `score`), the five-change pilot manifest under `tools/cem-trial/testdata/pilot`, and `tools/cem-trial/testdata/fake-agent.sh`; added 2026-10-11 (V1-1261, accepted under the owner's standing auto-accept (2026-10-11)): the cited-not-gold precision rate (CRT-V0-013) and the registration file and its order check (CRT-V0-014).
 - Blocked on: owner acceptance of the 2026-10-01 amendments; an arm builder for the shipped profile's artifact (CRT-V0-015), which needs decision 0523 P2 to land and have a baseline; and the owner-commissioned held-out run, which is post-rc.3 and `NOT_RUN`. The real-agent pilot is run and valid (2026-09-04) but its treatment carried no evidence and three of its five changes had gold no arm could cite; no run before decision 0523 P2 has a baseline is outcome evidence.
 - Read next: Requirements (selection, withheld patch, arms, metrics, CRT-V0-012..015); Power; Non-goals; Stopping and publication.
 
@@ -89,7 +89,7 @@ name is exactly what the change's author also wrote and the harness removed.
   so it measured the wording of a worklist and not Corvint's evidence; `seeded` is the arm that
   carries the evidence, `treatment` becomes the format control between `control` and `seeded`.
   Each seeded lane records `suggested`, the distinct suggested paths. Amended 2026-10-11
-  (V1-1261, proposed): for a registered run the treatment arm is redefined by CRT-V0-015; the
+  (V1-1261, accepted under the owner's standing auto-accept (2026-10-11)): for a registered run the treatment arm is redefined by CRT-V0-015; the
   `cem begin` worklist arms above remain only for pilot and development runs.
 - `CRT-V0-006`: Reply grammar. Every reply MUST end with one fenced JSON block
   `{"citations":[{"hunk":"N","path":"...","lines":"S:E","relation":"specification|decision|test-claim|implementation|call-site|dependency|incident","confidence":"certain|likely|unsure"}],"unknown":["N"]}`.
@@ -124,7 +124,7 @@ name is exactly what the change's author also wrote and the harness removed.
   control lane and the compared lane of the same change and repeat form one pair, because
   averaging the repeats first turns every change both arms sometimes missed into a tie, which is
   how the pilot reported zero discordant pairs over fifty lanes. Amended 2026-10-11 (V1-1261,
-  proposed): `miss` is reported beside the cited-not-gold rate of CRT-V0-013 and is never read
+  accepted under the owner's standing auto-accept (2026-10-11)): `miss` is reported beside the cited-not-gold rate of CRT-V0-013 and is never read
   without it.
 - `CRT-V0-008`: Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering
   (ICC 0.3, m=4, design effect 1.9) the effective n is about 63. At a control miss of 0.50 a 20%
@@ -171,7 +171,7 @@ name is exactly what the change's author also wrote and the harness removed.
   may only re-run lanes that never finished; a lane is reused only when its prompt sha256 is
   byte-identical, its wall time was observed, and it did not error under CRT-V0-006 (read from the
   recorded exit code too, so a prior report's failed lane without an `error` is re-run).
-  Amended 2026-10-11 (V1-1261, proposed): a run is also invalid when CRT-V0-014's registration
+  Amended 2026-10-11 (V1-1261, accepted under the owner's standing auto-accept (2026-10-11)): a run is also invalid when CRT-V0-014's registration
   check fails — a `heldout` report with no registration, a registration whose fixed fields, scorer
   digest or arms disagree with the report, or a registration commit newer than the run's first
   lane. Each lane records its launch time as `started_at` (a reused lane keeps the original), and
@@ -213,7 +213,8 @@ name is exactly what the change's author also wrote and the harness removed.
   0.5 is reported as retrieval-limited and supports no claim about the map. The suggestions are
   computed once per change in the prep clone and shared by that change's seeded lanes, so a
   seeded lane's prompt digest covers them.
-- `CRT-V0-013`: Cited-not-gold precision (proposed 2026-10-11, V1-1261; decision 0523 P4). Every
+- `CRT-V0-013`: Cited-not-gold precision (V1-1261, decision 0523 P4;
+  accepted under the owner's standing auto-accept (2026-10-11)). Every
   scored lane records `cited_not_gold` beside `miss`, scored against the same reachable gold:
   `paths` = the distinct normalized cited paths not in `gold(c)` over the distinct cited paths;
   `spans` = the distinct cited lines (each path's cited ranges merged, a line cited twice counted
@@ -233,7 +234,8 @@ name is exactly what the change's author also wrote and the harness removed.
   where a hunk is shifted or appended past the base file's end. Both rates are therefore read as a
   paired comparison between arms over the same changes, never as an absolute error rate, and
   neither changes the CRT-V0-008 verdict wording.
-- `CRT-V0-014`: Registration (proposed 2026-10-11, V1-1261; decision 0523 P4; extends CRT-V0-010).
+- `CRT-V0-014`: Registration (V1-1261, decision 0523 P4, extends CRT-V0-010;
+  accepted under the owner's standing auto-accept (2026-10-11)).
   An outcome run is preregistered by one JSON file, committed before `select` runs, holding exactly
   the keys `profile` (`corvint-cem-trial-registration/0`), `hypotheses` (a non-empty array of
   non-blank strings), `primary_metric` (`miss`, the CRT-V0-007 contrast and the only primary metric
@@ -261,8 +263,9 @@ name is exactly what the change's author also wrote and the harness removed.
   committer time is self-asserted by whoever wrote the commit, so the order check catches a
   registration written late by mistake, not a forged date; and "before selection" is a procedural
   obligation the tool does not check, because a manifest records no selection time.
-- `CRT-V0-015`: Treatment arm and pre-baseline runs (proposed 2026-10-11, V1-1261; decision 0523
-  P4). In a registered run the treatment arm is the artifact the shipped CEM profile produces for
+- `CRT-V0-015`: Treatment arm and pre-baseline runs (V1-1261, decision 0523 P4;
+  accepted under the owner's standing auto-accept (2026-10-11)).
+  In a registered run the treatment arm is the artifact the shipped CEM profile produces for
   the change — the map with verifier-computed support of decision 0523 P0 and P2 — never the
   all-`unknown` cem/0.1 worklist that `cem begin` builds. The harness builds no such artifact yet,
   so `run` refuses a registered run that names the `treatment` or `seeded` arm, both of which still
@@ -357,8 +360,7 @@ refuses, so lanes are plain local clones.
 Which model and reasoning effort the judged run uses; whether the secondary mutant stratum runs at
 all; whether `unknown` hunks the agent declares should score beside the citations rather than only
 being recorded; whether the owner accepts the 2026-10-01 amendments (reachable gold, the `seeded`
-arm, lane-level McNemar, the CRT-V0-008 power and gate reading, CRT-V0-012) and the 2026-10-11
-ones (CRT-V0-013..015); how the shipped-profile treatment arm is built once decision 0523 P2 has a
+arm, lane-level McNemar, the CRT-V0-008 power and gate reading, CRT-V0-012); how the shipped-profile treatment arm is built once decision 0523 P2 has a
 baseline. Promote to
 `implemented` when a `heldout` set selected with the amended rule and frozen before any agent
 output was read, sized by the amended CRT-V0-008 (about 55 pairs at a corrected control miss of

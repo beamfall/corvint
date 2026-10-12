@@ -992,9 +992,9 @@ CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	158	Pilot. The pilot uses its own
 CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	161	Stopping and publication. There is no interim analysis: the scorer runs once, af
 CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	181	Invocation lifecycle (proposed). `runCommand` MUST share the
 CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	202	Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports
-CRT-V0-013	docs/specs/cem-reviewer-trial-v0.md	216	Cited-not-gold precision (proposed 2026-10-11, V1-1261; decision 0523 P4). Every
-CRT-V0-014	docs/specs/cem-reviewer-trial-v0.md	236	Registration (proposed 2026-10-11, V1-1261; decision 0523 P4; extends CRT-V0-010
-CRT-V0-015	docs/specs/cem-reviewer-trial-v0.md	264	Treatment arm and pre-baseline runs (proposed 2026-10-11, V1-1261; decision 0523
+CRT-V0-013	docs/specs/cem-reviewer-trial-v0.md	216	Cited-not-gold precision (V1-1261, decision 0523 P4;
+CRT-V0-014	docs/specs/cem-reviewer-trial-v0.md	237	Registration (V1-1261, decision 0523 P4, extends CRT-V0-010;
+CRT-V0-015	docs/specs/cem-reviewer-trial-v0.md	266	Treatment arm and pre-baseline runs (V1-1261, decision 0523 P4;
 CTR-V0-001	docs/specs/compat-trial-v0.md	32	Descriptor schema. The fields below are frozen; a runner MUST NOT add, rename or
 CTR-V0-002	docs/specs/compat-trial-v0.md	40	Comparison policy v0. Equality is exact bytes of stdout, stderr and exit status
 CTR-V0-003	docs/specs/compat-trial-v0.md	42	Resource profile, quoted verbatim from `P:237–241`: "64 KiB input, 1 MiB output
