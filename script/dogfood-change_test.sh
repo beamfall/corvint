@@ -732,7 +732,7 @@ phase_jobs="$phase_jobs $!"
   rg -Fxq -- '  ocm-status-001: not-ready' <<< "$pending_output"
   rg -Fxq -- "    fix: fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change $base" <<< "$pending_output"
   rg -Fxq -- '  cem-status: not-ready' <<< "$pending_output"
-  rg -q '^    fix: read verification\.issues and policyIssues in .*/cem-status\.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk$' <<< "$pending_output"
+  rg -q '^    fix: read verification\.issues and policyIssues in .*/cem-status\.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite, or keep unknown with a recorded reason, every hunk$' <<< "$pending_output"
   printf '1\tAGENTS.md\n' > "$test_root/malformed-citations.tsv"
   malformed_status=0
   malformed_output=$(CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" \
@@ -740,7 +740,7 @@ phase_jobs="$phase_jobs $!"
     DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || malformed_status=$?
   test "$malformed_status" = 1
-  rg -Fxq -- '    fix: each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows' <<< "$malformed_output"
+  rg -Fxq -- '    fix: each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)' <<< "$malformed_output"
   missing_report_status=0
   rm -f .corvint/dogfood-report.json
   missing_report_output=$(run_dogfood_check "$base" 2>&1) || missing_report_status=$?
