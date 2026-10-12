@@ -49,7 +49,7 @@ func runDogfoodVerifierWorker(arguments []string, stdout, stderr io.Writer) int 
 		emitDogfoodRecordError(stderr, "aggregate-worker-invalid", err)
 		return 2
 	}
-	if len(arguments) < 2 || !filepath.IsAbs(arguments[0]) || !dogfoodflow.ValidAggregateVerifierArguments(arguments[1:]) {
+	if len(arguments) < 2 || !dogfoodflow.ValidAggregateVerifierInvocation(arguments[0], arguments[1:]) {
 		emitDogfoodRecordError(stderr, "aggregate-worker-invalid", argumentError("invalid contained verifier invocation"))
 		return 2
 	}

@@ -702,8 +702,10 @@ func (r *runner) cliFrontier() (string, error) {
 		return "", err
 	}
 	target = strings.TrimSpace(target)
+	// Frontier admits only a cem/0.2 map, so this case keeps the explicit 0.x
+	// producer (CEM-V1-140) until frontier reads cem/1.0.
 	for _, argv := range [][]string{
-		{"corvint", "cem", "prepare", "--base", base, "--target", target},
+		{"corvint", "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target},
 		{"corvint", "cem", "mark", "--map", ".corvint/change.cem.json", "--hunk", "1", "--disposition", "unknown", "--reason", "insufficient-evidence"},
 		{"corvint", "ocm", "prepare", "--target", target, "--intent", "docs/intent.md", "--expected-base", base},
 	} {

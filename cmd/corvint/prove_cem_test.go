@@ -30,7 +30,7 @@ import (
 func proveCEMRepository(t *testing.T) (root, base string) {
 	t.Helper()
 	root, base, target := cemRepo(t)
-	if code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--base", base, "--target", target); code != 0 {
+	if code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target); code != 0 {
 		t.Fatalf("prepare: %s", stderr)
 	}
 	if code, _, stderr := runCLI(t, "--root", root, "cem", "cite",

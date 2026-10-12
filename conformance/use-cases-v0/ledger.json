@@ -250,7 +250,7 @@
         },
         "hostile-tests": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/hostile-tests.json",
-          "sha256": "02f1215a208fa4be0de353c63ec3248ba507c39846e5bc0960828bb0ac893a37"
+          "sha256": "65f8d145c93b906944d08e418fce18639a8b3345b25d6e13fa50d5d0af03ae6f"
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/implementation.json",

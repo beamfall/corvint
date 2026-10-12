@@ -197,9 +197,12 @@ func TestUseCaseHostileEvidenceCompletion(t *testing.T) {
 	}
 }
 
+// completionPrepare pins cem/0.2: these use cases assert the 0.x status codes
+// and record shape, and resolve the target as HEAD, which a cem/1.0 read
+// refuses (V1-1276, CEM-V1-140).
 func completionPrepare(t *testing.T, root, base, target string) {
 	t.Helper()
-	if code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--base", base, "--target", target); code != 0 {
+	if code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target); code != 0 {
 		t.Fatalf("prepare exit %d: %s", code, stderr)
 	}
 }

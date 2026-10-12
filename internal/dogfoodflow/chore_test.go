@@ -202,7 +202,8 @@ func TestMarkChoreRoleDCWV0049WritesStableRoleOnly(t *testing.T) {
 
 // DCW-V0-049: once cem prepare writes cem/1.0 (V1-1276), the bind loop marks
 // the prepared map of a bind-chore range and leaves a non-chore map's role
-// absent; the map is then refused for citation as before (CEM-V1-032).
+// absent; the stable map then continues through the loop and is never
+// refused for citation (CEM-V1-147).
 func TestChangeDCWV0049MarksPreparedStableChoreMap(t *testing.T) {
 	fixture, err := os.ReadFile(stableCEMFixture)
 	if err != nil {
@@ -245,8 +246,8 @@ func TestChangeDCWV0049MarksPreparedStableChoreMap(t *testing.T) {
 			t.Fatalf("prepared map does not parse: %v", err)
 		}
 		report, _ := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
-		if !bytes.Contains(report, []byte(`"reason": "cem-map-stable-unsupported"`)) {
-			t.Errorf("stable map was not refused for citation:\n%s", report)
+		if len(report) == 0 || bytes.Contains(report, []byte("stable-unsupported")) {
+			t.Errorf("stable map was refused by the bind loop:\n%s", report)
 		}
 		return document
 	}

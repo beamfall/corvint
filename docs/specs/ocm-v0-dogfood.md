@@ -329,7 +329,7 @@ what the row asserts.
 | `duplicate-or-unsorted-reference` | `internal/lrfrepo/ocm.go:371` | "<value> must be sorted and unique" |
 | `fabricated-claim-id` | `internal/lrfrepo/ocm.go:258` | "claim ID is not content-derived" |
 | `intent-scope-mismatch` | `internal/lrfrepo/ocm.go:466` | "intent scope is stale or invalid" |
-| `invalid-cem` | `internal/lrfrepo/ocm_read.go:333` | "CEM verification failed" |
+| `invalid-cem` | `internal/lrfrepo/ocm_read.go:336` | "CEM verification failed" |
 | `invalid-cem-digest` | `internal/lrfrepo/ocm.go:173` | "CEM binding digest is invalid" |
 | `invalid-claim-blob` | `internal/lrfrepo/ocm.go:266` | "claim blob OID is invalid" |
 | `invalid-claim-extractor` | `internal/lrfrepo/ocm.go:262` | "claim extractor is unsupported" |
@@ -342,7 +342,7 @@ what the row asserts.
 | `invalid-intent-blob` | `internal/lrfrepo/ocm.go:226` | "intent blob OID is invalid" |
 | `invalid-intent-scope` | `internal/lrfrepo/ocm_write.go:558` | "intentScope must be an object" |
 | `invalid-linked` | `internal/lrfrepo/ocm.go:780` | "linked obligation has invalid fields" |
-| `invalid-map` | `internal/lrfrepo/ocm_read.go:249` | the code recorded for a verification failure that carries none, with that failure's message; `internal/lrfrepo/ocm_write.go:758` returns it as "OCM verification failed" |
+| `invalid-map` | `internal/lrfrepo/ocm_read.go:296` | the code recorded for a verification failure that carries none, with that failure's message; `internal/lrfrepo/ocm_write.go:758` returns it as "OCM verification failed" |
 | `invalid-object` | `internal/lrfrepo/ocm.go:335` | "<value> must be an object" |
 | `invalid-obligation` | `internal/lrfrepo/ocm_write.go:68` | "selected obligation has no valid id" |
 | `invalid-obligation-id` | `internal/lrfrepo/ocm.go:303` | "obligation ID is invalid" |
@@ -368,13 +368,13 @@ what the row asserts.
 | `obligation-order-mismatch` | `internal/lrfrepo/ocm.go:770` | "obligations must retain requirement order" |
 | `obligation-selector-out-of-range` | `internal/lrfrepo/ocm_write.go:60` | "obligation selector is outside the worklist" |
 | `obligation-set-mismatch` | `internal/lrfrepo/ocm.go:759` | "obligations do not match requirements" |
-| `ocm-cli-error` | `internal/lrfrepo/ocm_read.go:166` | one of "cannot read <label>", "<label> is not a regular file", "<label> exceeds the <limit>-byte limit", "<label> changed while being read", by the read failure kind |
+| `ocm-cli-error` | `internal/lrfrepo/ocm_read.go:214` | one of "cannot read <label>", "<label> is not a regular file", "<label> exceeds the <limit>-byte limit", "<label> changed while being read", by the read failure kind |
 | `output-path-conflict` | `internal/lrfrepo/ocm_write.go:212` | "OCM and CEM map paths must differ" |
 | `unknown-claim-reference` | `internal/lrfrepo/ocm.go:794` | "linked claim is absent" |
 | `unknown-field` | `internal/lrfrepo/ocm.go:346` | "<value> has an unknown field" |
 | `unknown-hunk-reference` | `internal/lrfrepo/ocm.go:787` | "linked hunk is not verified and supported" |
 | `unknown-obligation-id` | `internal/lrfrepo/ocm_write.go:121` | "obligation ID must select exactly one row" |
-| `unsafe-output` | `internal/lrfrepo/ocm_read.go:426` | "output parent does not exist" |
+| `unsafe-output` | `internal/lrfrepo/ocm_read.go:473` | "output parent does not exist" |
 | `unsupported-spec` | `internal/lrfrepo/ocm.go:159` | "OCM profile is unsupported" |
 
 #### Dogfood aggregate failure codes

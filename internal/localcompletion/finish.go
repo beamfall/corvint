@@ -90,7 +90,7 @@ func finishWithProfile(ctx context.Context, root, key, profile string, command P
 	bootstrap, err := repo.prepareBindings(ctx, saved, snap, command, &evaluation)
 	if err != nil {
 		evaluation.Unmet = append(evaluation.Unmet, "evidence-bindings-required")
-		evaluation.NextActions = append(evaluation.NextActions, []string{"corvint", "cem", "status", "--map", ".corvint/change.cem.json", "--expected-base", saved.Plan.Base, "--target", snap.target})
+		evaluation.NextActions = append(evaluation.NextActions, append([]string{"corvint"}, repo.cemReadArguments("status", saved.Plan.Base, snap.target, -1)...))
 		for index := range saved.Plan.Intents {
 			evaluation.NextActions = append(evaluation.NextActions, []string{"corvint", "ocm", "status", "--map", fmt.Sprintf(".corvint/change.ocm.%03d.json", index+1), "--cem", ".corvint/change.cem.json", "--expected-base", saved.Plan.Base, "--target", snap.target})
 		}
@@ -189,13 +189,38 @@ func (repo *repository) prepareBindings(ctx context.Context, saved *state, snap 
 			bootstrap++
 		}
 	}
-	args := []string{"cem", "status", "--map", ".corvint/change.cem.json", "--expected-base", saved.Plan.Base, "--target", snap.target, "--max-unknown", strconv.Itoa(bootstrap), "--max-mechanical", "0"}
-	result, err := repo.public(ctx, command, args)
+	result, err := repo.public(ctx, command, repo.cemReadArguments("status", saved.Plan.Base, snap.target, bootstrap))
 	appendEvidence(evaluation, "cem-status", ".corvint/change.cem.json", result, err)
 	if err != nil {
 		return 0, errors.New("cem-bindings-required")
 	}
 	return bootstrap, nil
+}
+
+// cemReadArguments is the cem status or report argv over the change map. A
+// cem/1.0 map adds the absolute repository root as the artifact root the
+// stable verifier requires (CEM-V1-151). Status keeps the ceilings, which a
+// stable status applies after an ACCEPT (CEM-V1-145); a stable report takes
+// none, because the status that precedes it already enforced them. A
+// negative bootstrap omits the ceilings.
+func (repo *repository) cemReadArguments(action, base, target string, bootstrap int) []string {
+	const mapPath = ".corvint/change.cem.json"
+	args := []string{"cem", action, "--map", mapPath, "--expected-base", base, "--target", target}
+	stable := false
+	if raw, err := readFile(filepath.Join(repo.auth.Root, mapPath), wire.MaxMapBytes); err == nil {
+		stable = wire.DeclaresStable(raw)
+	}
+	if stable {
+		root := repo.auth.Root
+		if absolute, err := filepath.Abs(root); err == nil {
+			root = absolute
+		}
+		args = append(args, "--artifacts", root)
+	}
+	if bootstrap >= 0 && !(stable && action == "report") {
+		args = append(args, "--max-unknown", strconv.Itoa(bootstrap), "--max-mechanical", "0")
+	}
+	return args
 }
 
 func (repo *repository) public(ctx context.Context, command PublicCommand, args []string) (map[string]any, error) {
@@ -288,7 +313,7 @@ func (repo *repository) generateReports(ctx context.Context, saved *state, snap 
 		}
 		set.Bindings = append(set.Bindings, item)
 	}
-	commands := [][]string{{"cem", "report", "--map", ".corvint/change.cem.json", "--expected-base", saved.Plan.Base, "--target", snap.target, "--max-unknown", strconv.Itoa(bootstrap), "--max-mechanical", "0"}}
+	commands := [][]string{repo.cemReadArguments("report", saved.Plan.Base, snap.target, bootstrap)}
 	for index := range saved.Plan.Intents {
 		commands = append(commands, []string{"ocm", "report", "--map", fmt.Sprintf(".corvint/change.ocm.%03d.json", index+1), "--cem", ".corvint/change.cem.json", "--expected-base", saved.Plan.Base, "--target", snap.target})
 	}

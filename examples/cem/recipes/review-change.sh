@@ -46,10 +46,27 @@ step_or_stop() {
   if [ "$status" -ne 0 ]; then finish incomplete "refused=$1" 3; fi
 }
 
-caps=(--expected-base "$base" --target HEAD --max-unknown "$max_unknown" --max-mechanical "$max_mechanical")
+# The full commit ID, not HEAD: the cem/1.0 verifier takes only full object IDs.
+target=$(git -C "$root" rev-parse --verify --quiet 'HEAD^{commit}') || operational 'HEAD is not a commit'
+read=(--expected-base "$base" --target "$target")
+ceilings=(--max-unknown "$max_unknown" --max-mechanical "$max_mechanical")
 
 step_or_stop prepare "$corvint" --root "$root" cem prepare --base "$base" --target HEAD
-step_or_stop status "$corvint" --root "$root" cem status --map "$map" "${caps[@]}"
+# A cem/1.0 map (the prepare default, CEM-V1-140) is read by the stable verifier, which needs an
+# absolute repository root and an absolute artifact root; a producer map names no artifact, so
+# the root is never opened. Its report applies no ceilings: status, which runs first, already
+# enforced them. Prepare's own next action names --artifacts only for a cem/1.0 map
+# (CEM-V1-141), so the choice does not depend on the map's JSON whitespace. The match is the
+# action's exact argv prefix: a quote inside a JSON string, such as a worklist path, is escaped,
+# so no path can supply it.
+report_ceilings=("${ceilings[@]}")
+stable_action='"nextActions":[["corvint","cem","status","--map","'"$map"'","--expected-base","'"$base"'","--target","'"$target"'","--artifacts",'
+if grep -qF -- "$stable_action" "$recipe_out/prepare.out" 2>/dev/null; then
+  root=$(cd "$root" && pwd -P) || operational 'CORVINT_ROOT is not a directory'
+  read+=(--artifacts "$root")
+  report_ceilings=()
+fi
+step_or_stop status "$corvint" --root "$root" cem status --map "$map" "${read[@]}" "${ceilings[@]}"
 
 # CI reads the map from the committed head tree, so an uncommitted or edited map is not done.
 committed=yes
@@ -57,7 +74,7 @@ git -C "$root" cat-file -e "HEAD:$map" 2>/dev/null || committed=no
 if [ -n "$(git -C "$root" status --porcelain -- "$map")" ]; then committed=no; fi
 if [ "$committed" != yes ]; then finish incomplete "map-uncommitted=$map" 3; fi
 
-step_or_stop report "$corvint" --root "$root" cem report --map "$map" "${caps[@]}"
+step_or_stop report "$corvint" --root "$root" cem report --map "$map" "${read[@]}" ${report_ceilings[@]+"${report_ceilings[@]}"}
 step_or_stop review "$corvint" --root "$root" review --base "$base"
 report=$(grep -o '"report":"[^"]*"' "$recipe_out/report.out" | cut -d'"' -f4)
 finish complete "report=$report" 0

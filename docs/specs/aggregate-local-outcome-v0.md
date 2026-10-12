@@ -441,7 +441,8 @@ The requirement definition positions above are preserved for the separately owne
   verifies group ownership before ordinary startup. Strict aggregate checks execute native
   verifiers through the separate `dogfood-verifier-worker` entrypoint, whose closed argv grammar
   permits only the exact impact, CEM status, dogfood-OCM status and bound authority-query abstention
-  replay reads used by Check. It inherits
+  replay reads used by Check; a `cem/1.0` CEM status read adds `--artifacts` naming only the
+  worker's own root (`CEM-V1-152`, V1-1276). It inherits
   the owned group without charging excluded CEM/OCM work to aggregate acquisition. Executable
   hashes are observed before and after each verifier run. Old verifier binaries without this
   entrypoint cannot supply aggregate verifier qualification; the held recovery entrypoint remains

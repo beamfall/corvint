@@ -567,16 +567,24 @@ func (c *check) verifyStatus(args ...string) (verification, bool) {
 	if c.outputChange == "" {
 		return c.verifyAll(args...)
 	}
+	base, tree, agreed := c.verifyDeclared(args...)
+	c.baseStatusSHA, c.treeStatusSHA = sha256Hex(base.stdout), sha256Hex(tree.stdout)
+	return tree, agreed
+}
+
+// verifyDeclared is verifyAll under an admitted output-change declaration: the
+// base verifier still runs, the tree verifier fills both roles, and it must
+// agree with itself and with any override (DCW-V0-047).
+func (c *check) verifyDeclared(args ...string) (verification, verification, bool) {
 	base := c.verify(c.options.BaseVerifier, args...)
 	tree := c.verify(c.options.TreeVerifier, args...)
-	c.baseStatusSHA, c.treeStatusSHA = sha256Hex(base.stdout), sha256Hex(tree.stdout)
 	if !agree(tree, c.verify(c.options.TreeVerifier, args...)) {
-		return tree, false
+		return base, tree, false
 	}
 	if c.options.Override == nil {
-		return tree, true
+		return base, tree, true
 	}
-	return tree, agree(tree, c.verify(*c.options.Override, args...))
+	return base, tree, agree(tree, c.verify(*c.options.Override, args...))
 }
 
 // baseIndependence is the fields an admitted output change records on the
@@ -655,8 +663,9 @@ func (c *check) verifyBinding(report []byte) int {
 		_ = c.record(true, bootstrap)
 		c.fail("dogfood-report-drift")
 	}
-	cem, agreed := c.verifyStatus("cem", "status", "--map", ".corvint/change.cem.json", "--expected-base", c.base, "--target", c.target,
-		"--max-unknown", strconv.Itoa(bootstrap+allowance), "--max-mechanical", "0")
+	cem, agreed := c.verifyStatus(stableStatusArguments(c.root+"/.corvint/change.cem.json", c.root,
+		"cem", "status", "--map", ".corvint/change.cem.json", "--expected-base", c.base, "--target", c.target,
+		"--max-unknown", strconv.Itoa(bootstrap+allowance), "--max-mechanical", "0")...)
 	if !agreed {
 		_ = c.record(false, bootstrap)
 		c.fail("verifier-disagreement")
@@ -777,9 +786,18 @@ func summaryInt(value *int) string {
 }
 
 // verifyOCM requires the verifiers to agree on the OCM aggregate the change
-// published and returns its first line.
+// published and returns its first line. Under an admitted output-change
+// declaration the tree verifier fills both roles, as for `cem status`: a base
+// that cannot read the change's own map spec cannot agree (DCW-V0-047, V1-1276).
 func (c *check) verifyOCM(aggregate string) []byte {
-	ocm, agreed := c.verifyAll("dogfood-ocm", "status", "--expected-base", c.base, "--target", c.target)
+	args := []string{"dogfood-ocm", "status", "--expected-base", c.base, "--target", c.target}
+	var ocm verification
+	var agreed bool
+	if c.outputChange == "" {
+		ocm, agreed = c.verifyAll(args...)
+	} else {
+		_, ocm, agreed = c.verifyDeclared(args...)
+	}
 	if !agreed {
 		_ = c.record(false, 0)
 		c.fail("verifier-disagreement")

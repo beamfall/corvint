@@ -300,9 +300,9 @@ func PrepareOCM(ctx context.Context, root string, options PrepareOptions) (*Prep
 	if err != nil {
 		return nil, err
 	}
-	cemRaw, err := readLegacyCEMInput(inputRoot, options.CEMPath)
+	cemRaw, err := readRootInput(inputRoot, options.CEMPath, wire.MaxMapBytes, cemcode.MapUnavailable)
 	if err != nil {
-		return nil, legacyCEMInputFailure(inputRoot.Path(), options.CEMPath, err)
+		return nil, ocmInputFailure(inputRoot.Path(), options.CEMPath, err, "CEM map", wire.MaxMapBytes)
 	}
 	if sameInputFile(inputRoot.Path(), options.MapPath, options.CEMPath) {
 		return nil, &Error{Code: "output-path-conflict", Message: "OCM and CEM map paths must differ"}
@@ -311,11 +311,11 @@ func PrepareOCM(ctx context.Context, root string, options PrepareOptions) (*Prep
 	if err != nil {
 		return nil, err
 	}
-	cem, err := wire.ParseMap(cemRaw)
+	cem, err := parseOCMCEM(cemRaw)
 	if err != nil {
 		return nil, err
 	}
-	candidate, derived, target, err := beginOCM(ctx, repository, cem, cemRaw, options)
+	candidate, derived, target, err := beginOCM(ctx, repository, inputRoot.Path(), cem, cemRaw, options)
 	if err != nil {
 		return nil, err
 	}
@@ -348,13 +348,13 @@ func PrepareOCM(ctx context.Context, root string, options PrepareOptions) (*Prep
 
 // beginOCM builds the deterministic candidate: every exact requirement in the
 // intent scope becomes one visibly unknown obligation.
-func beginOCM(ctx context.Context, repository *gitauth.Repository, cem *wire.Map, cemRaw []byte, options PrepareOptions) (wire.Value, intentDerivation, string, error) {
+func beginOCM(ctx context.Context, repository *gitauth.Repository, root string, cem *wire.Map, cemRaw []byte, options PrepareOptions) (wire.Value, intentDerivation, string, error) {
 	// A canonical CEM binds both endpoints, so the caller must name the target by
 	// full object id; a ref could move between this call and the next.
-	if cem.Spec == wire.Spec02 && !fullObjectID(options.Target) {
+	if canonicalCEM(cem.Spec) && !fullObjectID(options.Target) {
 		return wire.Value{}, intentDerivation{}, "", &Error{Code: "invalid-target-revision", Message: "target must be a full commit OID"}
 	}
-	verified, err := verifyPrepareCEM(ctx, repository, cem, cemRaw, options)
+	verified, err := verifyPrepareCEM(ctx, repository, root, cem, cemRaw, options)
 	if err != nil {
 		return wire.Value{}, intentDerivation{}, "", err
 	}
@@ -384,14 +384,14 @@ func beginOCM(ctx context.Context, repository *gitauth.Repository, cem *wire.Map
 	return buildOCMCandidate(target, derived.intent, derived.requirements, sha256Hex(cemRaw), sha256Hex(verified.patch)), derived, target, nil
 }
 
-func verifyPrepareCEM(ctx context.Context, repository *gitauth.Repository, cem *wire.Map, cemRaw []byte, options PrepareOptions) (*verifiedCEM, error) {
+func verifyPrepareCEM(ctx context.Context, repository *gitauth.Repository, root string, cem *wire.Map, cemRaw []byte, options PrepareOptions) (*verifiedCEM, error) {
 	document := &ocmDocument{target: options.Target}
 	resolved, err := repository.Resolve(ctx, options.Target)
 	if err != nil {
 		return nil, err
 	}
 	document.target = resolved
-	return verifyReadCEM(ctx, repository, cem, cemRaw, document, OCMReadOptions{
+	return verifyReadCEM(ctx, repository, root, cem, cemRaw, document, OCMReadOptions{
 		ExpectedBase: options.ExpectedBase, Target: options.Target,
 	})
 }
@@ -582,7 +582,7 @@ func decodeIntentScope(document wire.Value) (map[string]any, error) {
 // name `corvint`, not the `corvint` build name (decision 0122).
 func prepareStatusAction(ctx context.Context, repository *gitauth.Repository, cem *wire.Map, options PrepareOptions) []any {
 	action := []any{"corvint", "ocm", "status", "--map", options.MapPath, "--cem", options.CEMPath}
-	if cem.Spec == wire.Spec02 {
+	if canonicalCEM(cem.Spec) {
 		base, baseErr := repository.Resolve(ctx, options.ExpectedBase)
 		target, targetErr := repository.Resolve(ctx, options.Target)
 		if baseErr == nil && targetErr == nil {
@@ -681,7 +681,7 @@ func LinkOCM(ctx context.Context, root string, options LinkOptions) (*LinkResult
 	if err != nil {
 		return nil, err
 	}
-	cem, err := wire.ParseMap(cemRaw)
+	cem, err := parseOCMCEM(cemRaw)
 	if err != nil {
 		return nil, err
 	}
@@ -1028,28 +1028,4 @@ func sortedCopy(values []string) []string {
 	result := append([]string(nil), values...)
 	sort.Strings(result)
 	return result
-}
-
-// errStableOCMPrepare refuses a cem/1.0 change as an OCM prepare input: the
-// stable change view is read-only, so no OCM writer may derive a document from
-// it (CEM-V1-058).
-var errStableOCMPrepare = cemcode.New(cemcode.UnsupportedSpec, "ocm prepare accepts cem/0.1 or cem/0.2; a cem/1.0 change is read only by the stable universe verification")
-
-// readLegacyCEMInput reads the OCM prepare CEM input and refuses a cem/1.0
-// map before anything is written.
-func readLegacyCEMInput(inputRoot *publish.Root, requested string) ([]byte, error) {
-	cemRaw, err := readRootInput(inputRoot, requested, wire.MaxMapBytes, cemcode.MapUnavailable)
-	if err == nil && wire.DeclaresStable(cemRaw) {
-		return nil, errStableOCMPrepare
-	}
-	return cemRaw, err
-}
-
-// legacyCEMInputFailure keeps the stable refusal and the earlier read failure
-// messages unchanged.
-func legacyCEMInputFailure(root, requested string, err error) error {
-	if err == errStableOCMPrepare {
-		return err
-	}
-	return ocmInputFailure(root, requested, err, "CEM map", wire.MaxMapBytes)
 }

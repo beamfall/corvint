@@ -77,8 +77,13 @@ func (s *Session) Discriminate(ctx context.Context, options DiscriminateOptions)
 	if err != nil {
 		return nil, err
 	}
-	if err := checkSpec03Output(document, options.MapPath, options.Output); err != nil {
-		return nil, err
+	// A stable producer map already carries the witness vocabulary and stays
+	// cem/1.0 (CEM-V1-144).
+	stable := s.stableOf(document) != nil
+	if !stable {
+		if err := checkSpec03Output(document, options.MapPath, options.Output); err != nil {
+			return nil, err
+		}
 	}
 	candidates := discriminationCandidates(document)
 	selected := candidates
@@ -95,7 +100,9 @@ func (s *Session) Discriminate(ctx context.Context, options DiscriminateOptions)
 		witness.TreeRevision, witness.SelectionSha256, witness.Bounds = target, selection, bounds.DiscriminationBounds
 		document.Hunks[index].Discriminates = &witness
 	}
-	document.Spec = wire.Spec03
+	if !stable {
+		document.Spec = wire.Spec03
+	}
 	output, err := s.writeMap(document, options.MapPath, options.Output)
 	if err != nil {
 		return nil, err

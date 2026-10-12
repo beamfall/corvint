@@ -229,7 +229,9 @@ func TestCorpusCEMProjectionBindsOriginalEvidence(t *testing.T) {
 	t.Run("DCP-V1-014 citation", func(t *testing.T) {
 		root, base, target := cemRepo(t)
 		writeCorpusFixture(t, root, base, "docs/rule.txt")
-		code, _, stderr := corpusCLI(t, root, "cem", "prepare", "--base", base, "--target", target)
+		// `docs corpus cem` projects a cem/0.x map only; the fixture keeps the
+		// explicit 0.x producer (CEM-V1-140) until that projection reads cem/1.0.
+		code, _, stderr := corpusCLI(t, root, "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target)
 		if code != 0 {
 			t.Fatal(stderr)
 		}
