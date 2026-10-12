@@ -334,6 +334,27 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 		"go-test:\n\tPATH=/opt/go/bin:/usr/bin go test ./...\n":        "sets PATH",
 		"export\tGOFLAGS=-race\ngo-test:\n\tgo test ./...\n":           "uses export",
 		"  override F = -race\ngo-test:\n\tgo test ./...\n":            "uses override",
+		// Make keeps reading the recipe inside a conditional, so the
+		// conditional -race line runs too.
+		"go-test:\n\tgo test ./...\nifeq (1,1)\n\tgo test -race ./...\nendif\n":    "recipe contains a conditional",
+		"ifeq (1,1)\ngo-test:\n\tgo test ./...\nendif\n":                           "under a conditional",
+		"ifeq ($(UNSET),x)\nelse\ngo-test:\n\tgo test ./...\nendif\n":              "under a conditional",
+		"PATH = /opt/go/bin:/usr/bin\ngo-test:\n\tgo test ./...\n":                 "assigns PATH",
+		"GOFLAGS := -race\ngo-test:\n\tgo test ./...\n":                            "assigns GOFLAGS",
+		"CGO_ENABLED = 0\ngo-test:\n\tgo test ./...\n":                             "assigns CGO_ENABLED",
+		"SHELL = /bin/bash\ngo-test:\n\tgo test ./...\n":                           "assigns SHELL",
+		"lint: export F = 1\ngo-test:\n\tgo test ./...\n":                          "uses export",
+		".PHONY .EXPORT_ALL_VARIABLES:\ngo-test:\n\tgo test ./...\n":               "uses .EXPORT_ALL_VARIABLES",
+		"define T\nrust-test:\nendef\ngo-test:\n\tgo test ./...\n":                 "uses define",
+		"$(STEPS): | clear\ngo-test:\n\tgo test ./...\n":                           "uses $",
+		"ifeq ($(UNSET),x)\n$(STEPS): | clear\nendif\ngo-test:\n\tgo test ./...\n": "uses $",
+		// A conditional that is true for `make go-test` is read.
+		"ifeq ($(filter go-test,$(or $(MAKECMDGOALS),gate)),go-test)\n$(STEPS): | clear\nendif\ngo-test:\n\tgo test ./...\n": "uses $",
+		"vpath %.go src\ngo-test:\n\tgo test ./...\n":    "line 1 is not a construct",
+		"$(info hi)\ngo-test:\n\tgo test ./...\n":        "line 1 is not a construct",
+		".IGNORE: go-test\ngo-test:\n\tgo test ./...\n":  "special target .IGNORE",
+		"\tF = -race\ngo-test:\n\tgo test ./...\n":       "tab line outside a rule",
+		"go-test:\n\tgo test ./...\nF = 1\nifeq (1,1)\n": "without endif",
 	} {
 		got := ReadDeclared(write(t, body), nil, none)
 		if got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, note) {
@@ -354,10 +375,36 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 	}
 	// ?= leaves an earlier Makefile value alone, whatever the environment
 	// says; a leading blank does not hide an assignment.
-	env := func(name string) (string, bool) { return "-short", name == "F" }
-	precedence := ReadDeclared(write(t, "F = -race\nF ?= -count=1\n  G = -v\ngo-test:\n\tgo test $(F) $(G) ./...\n"), nil, env)
+	precedence := ReadDeclared(write(t, "F = -race\nF ?= -count=1\n  G = -v\ngo-test:\n\tgo test $(F) $(G) ./...\n"), nil, none)
 	if !reflect.DeepEqual(precedence.GoFlags, []string{"-race", "-v"}) {
 		t.Fatalf("?= precedence: %#v", precedence)
+	}
+	// ?= on an inherited variable keeps the environment value; any other
+	// assignment to one reaches the recipe through the environment.
+	env := func(name string) (string, bool) { return "-short", name == "F" || name == "GOFLAGS" }
+	if kept := ReadDeclared(write(t, "F ?= -count=1\ngo-test:\n\tgo test $(F) ./...\n"), nil, env); kept.GoTest != GoTestParsed || !reflect.DeepEqual(kept.GoFlags, []string{"-short"}) {
+		t.Fatalf("?= over the environment: %#v", kept)
+	}
+	for body, note := range map[string]string{
+		"F = -race\ngo-test:\n\tgo test $(F) ./...\n":    "assigns F",
+		"GOFLAGS = -race\ngo-test:\n\tgo test ./...\n":   "assigns GOFLAGS",
+		"GOFLAGS ::= -race\ngo-test:\n\tgo test ./...\n": "assigns GOFLAGS",
+	} {
+		if got := ReadDeclared(write(t, body), nil, env); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, note) {
+			t.Errorf("%q with inherited F and GOFLAGS: %s %q, want unparsed naming %q", body, got.GoTest, got.GoTestNote, note)
+		}
+	}
+	makeflags := func(name string) (string, bool) { return "-k -- F=-race", name == "MAKEFLAGS" }
+	if got := ReadDeclared(write(t, "go-test:\n\tgo test ./...\n"), nil, makeflags); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "MAKEFLAGS") {
+		t.Fatalf("MAKEFLAGS assignments: %#v", got)
+	}
+	// A conditional outside the go-test span, false for `make go-test`,
+	// is skipped as make skips it; an unevaluated one outside the span is
+	// read and changes nothing here.
+	conditionals := "ifneq ($(filter gate,$(or $(MAKECMDGOALS),gate)),)\n$(STEPS): | clear\nendif\n" +
+		"ifeq ($(LEDGER),off)\nledger/%:\n\t@true\nelse\nledger/go-test:\n\t@true\nendif\ngo-test:\n\tgo test ./...\n"
+	if got := ReadDeclared(write(t, conditionals), nil, none); got.GoTest != GoTestParsed {
+		t.Fatalf("conditionals outside the go-test span: %#v", got)
 	}
 	// An immediate assignment keeps the value it had when assigned.
 	immediate := ReadDeclared(write(t, "F = -race\nFLAGS := $(F) -count=1\nF = -short\ngo-test:\n\tgo test $(FLAGS) ./...\n"), nil, none)
@@ -373,6 +420,16 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 	}
 	if unreadable := ReadDeclared(directory, nil, none); unreadable.Unreadable == "" {
 		t.Fatal("a Makefile directory was read")
+	}
+}
+
+// STR-V0-006: the repository's own Makefile still types go-test; its
+// conditionals sit outside the go-test span and assign no Go variable.
+func TestSTRV0006RepositoryMakefileTypesGoTest(t *testing.T) {
+	got := ReadDeclared(filepath.Join("..", ".."), nil, func(string) (string, bool) { return "", false })
+	want := Declared{GoEnv: []string{"GOCACHE=/tmp/corvint-go-build-cache", "GOTOOLCHAIN=local"}, GoFlags: []string{"-p", "1", "-timeout", "30m", "-count=1"}, GoTest: GoTestParsed, Languages: []string{}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("repository Makefile: %#v", got)
 	}
 }
 

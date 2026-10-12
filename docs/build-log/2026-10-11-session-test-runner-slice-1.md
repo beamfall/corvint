@@ -18,7 +18,7 @@ Contracts and decisions:
   verdict. An allowlisted non-Go `LANGUAGE_FRONTIER` entry names a frontier category, not a unit,
   so it does not require that language's declared command. This repository has six such entries
   in every plan. A selected unit, or a `NO_SELECTABLE_TEST` unknown unit, in a language without
-  an adapter does require the command. Owner question below.
+  an adapter does require the command. Accepted by the owner (below).
 - No plan: the declared full scope runs on shard 0, read independently of the planner: the
   Makefile `go-test` target and each `<lang>-test` target for every registered language name. A
   declaration that cannot be read or names nothing is `INCOMPLETE`.
@@ -29,22 +29,38 @@ Contracts and decisions:
   declare targets this reader never sees.
 - The `ci` profile never runs `make go-test`: with no plan, or FULL with no Go universe, Go is
   `INCOMPLETE`, because that target would drop the CI confinement, `-race` and environment.
-- Go recipe typing: the `go-test` recipe must be one line of the form
-  `[NAME=VALUE ...] go test FLAGS ./...`. Blank and comment lines do not end the recipe, so a
-  second command after one is still counted. It may use `$(VAR)`, `:=`, `=` and `?=`, where `?=`
-  leaves a variable the Makefile already assigned alone and otherwise prefers the invoking
-  environment over its own value, and `:=` expands immediately against the values assigned so
-  far (an immediate value that cannot be expanded is refused). A rule naming several targets
-  declares each one. A recipe that sets `PATH` is untyped, because the runner is resolved on
-  Corvint's own `PATH`. It may not set `-json`, `-run` or `-skip`, and may
-  not use shell metacharacters. Anything else leaves the recipe untyped, including export,
-  override, include, define, `.EXPORT_ALL_VARIABLES`, `+=`, `!=`, a variable assigned under a
-  conditional (directives are recognised after any leading blank and before a tab), a go-test rule under a conditional or with prerequisites, target-specific variables
-  or `::`, and a `%` pattern rule that matches go-test. A rule whose target is a `$(VAR)` expansion
-  is not evaluated (this repository's Makefile has one, under a goal conditional); that is a
-  retained limit, not a typed guarantee. An untyped recipe never narrows Go: a narrowed run is `INCOMPLETE`
-  and a `FULL` run calls `make go-test`. The local argv adds `-json` so outcomes can be attributed
-  to packages.
+- Go recipe typing is conservative: anything the reader does not reproduce exactly leaves
+  go-test untyped, never partially typed. The `go-test` recipe must be one line of the form
+  `[NAME=VALUE ...] go test FLAGS ./...`, without shell metacharacters, `-json`, `-run`, `-skip`
+  or an inline `PATH=`. Blank and comment lines do not end the recipe. It may use `$(VAR)`, `=`,
+  `:=`, `::=` and `?=`: `?=` leaves a variable the Makefile already assigned alone and otherwise
+  prefers the invoking environment, and `:=` expands immediately (an immediate value that cannot
+  be expanded is refused). A rule naming several targets declares each one. Untyped:
+  - a conditional (`ifeq`, `ifneq`, `ifdef`, `ifndef`, `else`, `endif`) inside the go-test recipe
+    span, because make keeps reading the recipe through it, or a go-test rule inside a conditional
+    block; a `define` block anywhere; an unmatched or unterminated conditional;
+  - a top-level `=`, `:=` or `::=` assignment to a variable present in the invoking environment
+    (make passes its Makefile value to the recipe), or to `PATH`, `GO[A-Z0-9]+` or `CGO_*`
+    (`GO_TEST_FLAGS` is not a Go variable); `?=` on an inherited variable keeps the environment
+    value and is allowed;
+  - `export`, `unexport`, `override` or `.EXPORT_ALL_VARIABLES` in any position, `+=`, `!=`,
+    `include` and `eval`; `MAKEFLAGS` carrying a variable assignment; a non-empty `MAKEFILES`
+    (also `INCOMPLETE`); an assignment to `SHELL`, a `MAKE*` control variable or a dotted special
+    variable other than `.DEFAULT_GOAL`; a special target other than `.PHONY`;
+  - a rule target containing `$`, a tab line outside a rule, and any other top-level line the
+    reader does not recognise;
+  - a variable assigned under a conditional, a go-test rule with prerequisites, target-specific
+    variables or `::`, and a `%` pattern rule matching go-test.
+  Conditionals elsewhere are allowed. An `ifeq`/`ifneq (A,B)` line is evaluated as make would for
+  `make go-test` (Makefile variables so far, the environment, `MAKECMDGOALS=go-test`, and only the
+  `filter` and `or` functions), and a false branch is skipped as make skips it. Anything else, an
+  undefined variable make might default, `ifdef` or surrounding blanks, reads every branch. This
+  repository's Makefile still types go-test: its line-49 `$(GATE_STEPS) ...: | gate-receipt-clear`
+  sits under `ifneq ($(filter gate,$(or $(MAKECMDGOALS),gate)),)`, which is false for
+  `make go-test`, and the 63-71 block holds no go-test rule
+  (`TestSTRV0006RepositoryMakefileTypesGoTest`; a mutation that never skips a branch fails it on
+  line 49). An untyped recipe never narrows Go: a narrowed run is `INCOMPLETE` and a `FULL` run
+  calls `make go-test`. The local argv adds `-json` so outcomes can be attributed to packages.
 - CI profile argv and environment are the full CI branch's: `-exec <confine> -p 1 -count=1 -race
   -timeout 50m`, with `GOPROXY=off`, `GOSUMDB=off`, `GOWORK=off`, an empty `GOFLAGS`,
   `CGO_ENABLED=1` and `CORVINT_CONFINE_ROOT`. The CI admission parts of STR-V0-012 belong to the
@@ -96,3 +112,15 @@ Not run:
 
 To fit the new verb within the 4096-byte root-help bound (CCF-V1-009), three phrases in root
 help were shortened.
+
+Owner decisions (2026-10-11, relayed by the orchestrator):
+
+- Accepted as implemented: allowlisted non-Go frontiers do not require a declared command; the
+  `<lang>-test` declaration format; `--manifest` on a run; `-json` in the local argv; no-plan FULL
+  on shard 0; exit 3 for `INCOMPLETE`; the default receipt under `<git-dir>/corvint/`; FULL running
+  every declared language plus every dirty-owning language; refusing a dirty submodule; refusing
+  an unignored worktree output (identity safety wins over convenience).
+- Resolved by the conservative typing above: a `$(VAR)` rule target leaves go-test untyped.
+- Open, deferred to slice 3 where the CI call site binds them: repository partition files versus
+  the embedded copy, the CI argv and environment constants, `MAKEFLAGS` handling at the call site,
+  and the `ci` profile refusing `make go-test`.
