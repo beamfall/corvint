@@ -221,6 +221,10 @@ jobs:
       CORVINT_PR_TOOL_SOURCE: ""
       CORVINT_PR_QUALIFICATION_SOURCE: ""
       CORVINT_PR_QUALIFICATION_SHA256: ""
+      # AFP-V0-030: the forward-evidence epoch. Advanced to 1 when `corvint test` joined the
+      # shadow (STR-V0-012 step 3), so no earlier row counts toward the AFP-V0-029 bar. The
+      # advance is vacuous: no forward shadow row exists in any epoch (the pins above are empty).
+      CORVINT_PR_FORWARD_EPOCH: "1"
       GOTOOLCHAIN: local
       GOPROXY: "off"
       GOSUMDB: "off"
@@ -383,6 +387,39 @@ jobs:
           name: affected-share
           path: ${{ runner.temp }}/affected-share/share.json
           if-no-files-found: ignore
+      - name: Shadow corvint test plan (never decides, executes or narrows)
+        # STR-V0-012 rollout step 3 under AFP-V0-029: the pinned corvint built above from
+        # CORVINT_PR_TOOL_SOURCE, outside the tested checkout, plans this shard with the ci
+        # profile and universe placement and prints its argv; --dry-run runs nothing but Git.
+        # The driver below keeps deciding and executing, and its result alone counts. With
+        # the pins empty this step never runs, so it adds no shadow row.
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
+        continue-on-error: true
+        timeout-minutes: 5
+        working-directory: source
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          SHARD: ${{ strategy.job-index }}
+          SHARDS: ${{ strategy.job-total }}
+        run: |
+          test -x "$RUNNER_TEMP/corvint-pr-bin/corvint"
+          mkdir -p "$RUNNER_TEMP/corvint-test-shadow"
+          status=0
+          "$RUNNER_TEMP/corvint-pr-bin/corvint" --root "$PWD" test --base "$PR_BASE" --profile ci \
+            --confine "$RUNNER_TEMP/test-confine" --placement universe --shard "$SHARD/$SHARDS" --dry-run \
+            --manifest "$RUNNER_TEMP/corvint-test-shadow/manifest.json" \
+            > "$RUNNER_TEMP/corvint-test-shadow/dry-run.json" < /dev/null || status=$?
+          echo "corvint test --dry-run, shard $SHARD of $SHARDS, exited $status (shadow only)"
+      - name: Retain corvint test shadow plan
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: corvint-test-shadow-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/corvint-test-shadow/
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Go tests (full until matching shadow qualification)
         id: tests
         # DOCS (DCI-V0) and REUSE (AFP-V0-024) are the only modes that omit this invocation.

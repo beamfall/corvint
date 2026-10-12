@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-11
 Requirement prefix: `STR-V0`
 Intent status: accepted (decision 0524; V1-0040)
-Delivery status: experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate)
+Delivery status: experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate; slice 3: `make gate-affected` on `corvint test`, CI shadow dry-run beside the driver)
 Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 2026-10-11);
 `docs/specs/affected-plan-v0.md` (AFP-V0-011..013, 022, 023, 028..030, 041);
 `docs/specs/live-proof-carrying-verification-v0.md` (LPCV-V0-021..026);
@@ -12,9 +12,9 @@ Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 
 
 ## Agent digest
 - Claim: `corvint test` plans from the diff, runs only selected tests through runner adapters, shards deterministically, and falls back alike locally and in CI.
-- Status: accepted (decision 0524; V1-0040)/experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate)
-- Exists: the pieces, under separate drivers: `corvint affected` (plan), `script/gate-affected.sh` (local driver), `tools/corvint-pr-tests` and `tools/gate-affected-select` (CI driver), `.github/cishards` (complete-universe partition and test slices), `cmd/corvint-go-test-provider` (experimental Go execute provider).
-- Blocked on: the call-site switch itself (slice 3: `make gate-affected` first, then the CI call site under AFP-V0-016 consent); STR-V0-013 parity is measured over the retained `tools/str-parity/testdata/pairs-645304a2.txt` corpus (decision 0526; the AFP-V0-011 list and AFP-V0-029 rows stay `NOT_OBSERVED`); the full-suite commands are declared in `.github/cishards/test-commands.json`, kept equal to `make go-test` by `make test-commands-check`; AFP-V0-029 shadow bar for any CI narrowing, which this spec does not relax.
+- Status: accepted (decision 0524; V1-0040)/experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate; slice 3: `make gate-affected` on `corvint test`, CI shadow dry-run beside the driver)
+- Exists: `corvint test` (`cmd/corvint/test.go`, `internal/sessiontest`), behind `make gate-affected` through `script/gate-affected-corvint.sh` (slice 3; `script/gate-affected.sh` stays as the rollback); in CI a shadow `--profile ci --dry-run` step beside the deciding driver `tools/corvint-pr-tests` with `tools/gate-affected-select`, inactive while the trusted pins are empty; `.github/cishards` (complete-universe partition and test slices), `cmd/corvint-go-test-provider` (experimental Go execute provider).
+- Blocked on: owner AFP-V0-016 consent for the slice-3 `.github/workflows/ci.yml` shadow step; the AFP-V0-029 shadow bar (zero shadow rows: the trusted pins are empty) before `corvint test` decides or narrows anything in CI; STR-V0-013 parity is measured over the retained `tools/str-parity/testdata/pairs-645304a2.txt` corpus (decision 0526; the AFP-V0-011 list and AFP-V0-029 rows stay `NOT_OBSERVED`); the full-suite commands are declared in `.github/cishards/test-commands.json`, kept equal to `make go-test` by `make test-commands-check`; AFP-V0-029 shadow bar for any CI narrowing, which this spec does not relax.
 - Read next: Requirements; Boundaries and failure modes; Rollout and rollback.
 
 ## User and verified baseline
@@ -192,6 +192,22 @@ of every requirement below and the binding gate until this spec is promoted.
   (AFP-V0-029/030). Every AFP-V0-028 FULL condition still applies in CI, and CI executes only
   universe placement (STR-V0-008). A local narrowed PASS
   SHALL NOT be reported as a gate PASS; `make gate` and the required CI checks stay binding.
+  (Slice 3.) `make gate-affected` SHALL run `corvint test --base BASE` in the local profile through
+  `script/gate-affected-corvint.sh`, which builds the binary from the checkout under test into a
+  private temporary directory, never from `PATH`, and passes its exit status through; `BASE=`
+  is HEAD (the dirty worktree alone), and a BASE that does not resolve to a commit is a usage
+  error (exit 2), not the previous full fallback. The make-introduced `MAKEFLAGS`, `MAKELEVEL` and
+  `MFLAGS` are inherited unchanged, as `make go-test`'s own `go test` inherits them (no make
+  jobserver is passed through). The ci profile's Go environment and flags SHALL equal the full
+  branch of the `go-product-shard` job, the environment its `go test` sees (the job `env` over the
+  runner's own) and its two `go test -exec` invocations, not the driver's closed environment; they
+  are constants held equal to `.github/workflows/ci.yml` by a maintained test, not read from the
+  declaration's `go` section, which declares the local full suite. The ci profile SHALL NOT launch
+  a declared language command, a make target included: the CI full branch runs only Go, so a
+  declared command is reported in `checks` as still required and not run. The partition inputs
+  are the tested checkout's `.github/cishards` JSON files, the bytes the full branch's protected
+  helper copies, placed by the algorithm compiled into the pinned binary; a changed `.github/`
+  path and partition drift stay AFP-V0-028 FULL conditions that CI admission applies.
 - `STR-V0-013`: Neither `make gate-affected` nor `tools/corvint-pr-tests` SHALL switch to
   `corvint test` until a parity check over the retained substitute corpus,
   `tools/str-parity/testdata/pairs-645304a2.txt` (the 50 first-parent pairs ending at
@@ -202,7 +218,13 @@ of every requirement below and the binding gate until this spec is promoted.
   corpus, never over a list reconstructed from memory. Switching the CI call site is a `.github/`
   change under AFP-V0-016 consent, SHALL advance `CORVINT_PR_FORWARD_EPOCH`, because forward
   qualification binds the driver's identity, and SHALL first meet the AFP-V0-029 shadow bar
-  before any CI narrowing.
+  before any CI narrowing. (Slice 3.) With parity met, `make gate-affected` switched
+  (STR-V0-012). The CI call site gains only a shadow step: the pinned `corvint test --profile ci
+  --placement universe --dry-run` for each shard, retained as an artifact, while
+  `tools/corvint-pr-tests` keeps deciding and executing and CI narrowing is unchanged.
+  `CORVINT_PR_FORWARD_EPOCH` is introduced at `1` in the `go-product-shard` job environment;
+  the advance is vacuous, since no forward shadow row exists in any epoch, and the shadow step
+  itself adds none while the trusted pins are empty.
 - `STR-V0-014`: A hangup, interrupt or termination SHALL kill every owned process group, exit
   nonzero and write an `INCOMPLETE` receipt; it MUST NOT start the fallback.
 - `STR-V0-015`: The run SHALL be bounded: the plan's existing walk and status bounds, at most 4096
@@ -210,10 +232,12 @@ of every requirement below and the binding gate until this spec is promoted.
   profile's current call site (for Go, a per-package hang detector: the declared `-timeout` flag
   locally, which the STR-V0-006 gate keeps equal to the Makefile `GO_TEST_TIMEOUT`, and the `50m`
   that `tools/corvint-pr-tests` and the full CI branch pass in CI), and a
-  separate
-  total wall-clock budget per adapter invocation from the repository declaration (for Go, default
-  70 minutes, the current `tools/corvint-pr-tests` budget). Exceeding a bound yields `INCOMPLETE`
-  and nonzero, never a narrower run.
+  separate total wall-clock budget per shard that covers every adapter invocation of the shard
+  (slice 3): 70 minutes locally, the `tools/corvint-pr-tests` budget for its single invocation, and
+  60 minutes in the ci profile, which leaves the `go-product-shard` job's 75-minute timeout at
+  least 10 minutes for checkout, toolchain and tool builds, so the runner, not the job timeout,
+  kills a slow shard. Once the budget is spent nothing further launches. Exceeding a bound yields
+  `INCOMPLETE` and nonzero, never a narrower run.
 - `STR-V0-016`: Adapters execute repository code with the invoking user's authority. The local
   profile claims no containment or network denial. The CI profile keeps read-only workflow
   permissions, no persisted credentials or secrets, and no `pull_request_target` execution.
@@ -310,14 +334,23 @@ above, which removes balanced placement only.
 ## Rollout and rollback
 
 1. Go adapter, `--dry-run`, receipts and universe placement, used by hand alongside both drivers.
-2. Parity report (STR-V0-013); then `make gate-affected` calls `corvint test`.
+   Done (slice 1).
+2. Parity report (STR-V0-013); then `make gate-affected` calls `corvint test`. Done: the parity
+   report (slice 2, decision 0526), and the call site (slice 3, `script/gate-affected-corvint.sh`).
 3. CI call site behind AFP-V0-016 consent with a new forward epoch; shadow first, as AFP-V0-029.
+   Slice 3 adds the shadow `--dry-run` step and `CORVINT_PR_FORWARD_EPOCH: "1"`, pending owner
+   consent; the step is inactive while the trusted pins are empty, so the AFP-V0-029 bar has zero
+   rows and the driver still decides.
 4. Balanced placement executes locally; in CI it is computed and retained while universe
    placement executes, until an accepted AFP-V0-028 amendment says otherwise.
 5. Further adapters, each with its own fixture qualification, before its language may narrow.
 
 Rollback: restore the previous call site (`script/gate-affected.sh`, `tools/corvint-pr-tests`),
-which this spec leaves in place until step 3 is promoted; `CORVINT_PR_NARROWING=off` restores full
+which this spec leaves in place until step 3 is promoted. For slice 3: point the `gate-affected`
+target back at `GO_TEST_COMMAND='$(GO_TEST_COMMAND)' script/gate-affected.sh "$(BASE)"` (the
+script and its test stay in the tree, and `gate-affected-test` still runs it), and delete the two
+shadow steps and `CORVINT_PR_FORWARD_EPOCH` from `.github/workflows/ci.yml`, which changes no CI
+decision; `CORVINT_PR_NARROWING=off` restores full
 CI immediately (AFP-V0-030). Removing the command removes no other capability.
 
 ## Traceability
@@ -331,15 +364,15 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-005 | `Invocations` in `run.go` | TestSTRV0006Invocations, TestSTRV0010CLIRunWritesReceipt |
 | STR-V0-006 | `Invocations` (typed argv from the declaration's Go environment and flags); `tools/test-commands-check` behind `make test-commands-check` (`GATE_STEPS`, CI doc-gates) | TestSTRV0006Invocations, TestSTRV0003ReadDeclared, `tools/test-commands-check/main_test.go` TestSTRV0006DeclarationMatchesMakefile (repository pass plus eight declaration mutations and an absent file), TestSTRV0006MakefileDriftReachesGo (twenty-two Makefile mutations: drift the printed recipe does not show, shapes the shim cannot see, make functions the recipe would expand and a target- or pattern-specific shell), TestSTRV0006CompareEnv, TestSTRV0006CompareIntroduced, TestSTRV0006PlainRecipe, TestSTRV0006DatabaseForms (GNU make 3.81 and 4.3 database fixtures), TestSTRV0006ShimRecordRoundTrip |
 | STR-V0-007 | `placeGo` over `cishards.PlanFrom` | TestSTRV0007UniversePlacementEqualsCIPlan, TestSTRV0009CLIShardsAndVerify |
-| STR-V0-008 | `placeGo` balanced branch over the run set (`Input.Placement`); `cmd/corvint/test.go` refuses `--profile ci` execution and a sharded run without `--manifest` | `internal/sessiontest/balanced_test.go` TestSTRV0008BalancedPlacesEveryUnitOnce (1 to 16 shards, catch-all slice), TestSTRV0008BalancedUsesEveryShard, TestSTRV0008BalancedFullAndManifest; TestSTRV0008CLIUsageRefusals, TestSTRV0008CLIBalancedShards; retaining it beside CI universe placement is the call site's (slice 3) and the local 20% bar is unmeasured: `NOT_RUN` |
+| STR-V0-008 | `placeGo` balanced branch over the run set (`Input.Placement`); `cmd/corvint/test.go` refuses `--profile ci` execution and a sharded run without `--manifest` | `internal/sessiontest/balanced_test.go` TestSTRV0008BalancedPlacesEveryUnitOnce (1 to 16 shards, catch-all slice), TestSTRV0008BalancedUsesEveryShard, TestSTRV0008BalancedFullAndManifest; TestSTRV0008CLIUsageRefusals, TestSTRV0008CLIBalancedShards; the slice-3 CI shadow retains universe placement only, so retaining balanced placement in CI and the local 20% bar are `NOT_RUN` |
 | STR-V0-009 | `internal/sessiontest/verify.go`, `corvint test verify-shards` | TestSTRV0009VerifyShardsMatrix, TestSTRV0009CLIShardsAndVerify |
 | STR-V0-010 | `Receipt`, `Finish`, `testWriteReceipt` | TestSTRV0011FinishResultAndSummary, TestSTRV0018ManifestStrictRoundTrip, TestSTRV0010CLIRunWritesReceipt |
 | STR-V0-011 | no reader other than `verify-shards` | by construction; no test asserts absence of other readers |
-| STR-V0-012 | `--profile ci` argv and environment on the same code path | TestSTRV0006Invocations; CI admission (pinned build, queue backstop, trip) is the call site's: `NOT_RUN` |
-| STR-V0-013 | `tools/str-parity` (offline replay of `corvint test --dry-run` against `script/gate-affected.sh` and `tools/corvint-pr-tests` over `tools/str-parity/testdata/pairs-645304a2.txt`); no call site switched | `tools/str-parity/main_test.go` TestSTRV0013ParityReading, TestSTRV0013CorpusReading; `docs/build-log/2026-10-11-session-test-runner-parity.md` and `docs/build-log/2026-10-12-session-test-runner-declaration.md`: the retained 50-pair corpus, no `UNEXPLAINED` difference; the AFP-V0-011 list and the AFP-V0-029 shadow rows are `NOT_OBSERVED`, and the AFP-V0-029 shadow bar is still owed before CI narrowing |
-| STR-V0-014 | `internal/sessiontest/procgroup_unix.go`, `testExecute` | TestSTRV0014RunnerCancelAndBudgetKillGroup, TestSTRV0014CLISignalKillsRunAndExits |
-| STR-V0-015 | `MaxUnits`, `MaxDocumentBytes`, `DefaultBudget` | TestSTRV0015UnitBound, TestSTRV0014RunnerCancelAndBudgetKillGroup |
-| STR-V0-016 | local profile claims no containment (help text) | help text only; CI permissions are the call site's: `NOT_RUN` |
+| STR-V0-012 | `--profile ci` argv and environment on the same code path (`ciGoEnv`, `ciGoFlags` in `run.go`); the ci branch of `declaredLanguage` in `plan.go` (declared commands to `checks`); `gate-affected` in `Makefile` over `script/gate-affected-corvint.sh` | TestSTRV0006Invocations; `internal/sessiontest/ciconstants_test.go` TestSTRV0012CIConstantsMatchFullBranch (job env and both full-branch `go test` lines of `go-product-shard`); TestSTRV0003BuildVerdicts (two ci-profile cases: a declared command and a make target become `checks`); `script/gate-affected-corvint_test.sh` via `make gate-affected-test` (clean, narrowed, `go.mod` FULL, committed range, failing test, bad and option-shaped BASE, SIGTERM forwarding); `docs/build-log/2026-10-12-session-test-runner-slice-3.md` (a real `make gate-affected` run); CI admission (pinned build, queue backstop, trip) stays the driver's, and the shadow step has never run: `NOT_RUN` |
+| STR-V0-013 | `tools/str-parity` (offline replay of `corvint test --dry-run` against `script/gate-affected.sh` and `tools/corvint-pr-tests` over `tools/str-parity/testdata/pairs-645304a2.txt`); slice 3: the local call site switched, and the shadow steps and `CORVINT_PR_FORWARD_EPOCH` in `.github/workflows/ci.yml` | `tools/str-parity/main_test.go` TestSTRV0013ParityReading, TestSTRV0013CorpusReading; `docs/build-log/2026-10-11-session-test-runner-parity.md` and `docs/build-log/2026-10-12-session-test-runner-declaration.md`: the retained 50-pair corpus, no `UNEXPLAINED` difference; the AFP-V0-011 list and the AFP-V0-029 shadow rows are `NOT_OBSERVED`, and the AFP-V0-029 shadow bar is still owed before CI narrowing; `docs/build-log/2026-10-12-session-test-runner-slice-3.md`: zero shadow rows, a vacuous epoch advance |
+| STR-V0-014 | `internal/sessiontest/procgroup_unix.go`, `testExecute`; signal forwarding in `script/gate-affected-corvint.sh` | TestSTRV0014RunnerCancelAndBudgetKillGroup, TestSTRV0014CLISignalKillsRunAndExits; `script/gate-affected-corvint_test.sh` (SIGTERM reaches the running corvint, exit 143) |
+| STR-V0-015 | `MaxUnits`, `MaxDocumentBytes`, `DefaultBudget`, `CIBudget`, `Runner.ShardBudget` (one deadline per shard in `Execute`) | TestSTRV0015UnitBound, TestSTRV0014RunnerCancelAndBudgetKillGroup, TestSTRV0015BudgetBoundsTheShard, TestSTRV0012CIConstantsMatchFullBranch (the ci budget against the job's `timeout-minutes`) |
+| STR-V0-016 | local profile claims no containment (help text); the slice-3 shadow steps run under the workflow's existing read-only permissions with no persisted credentials | help text; `make ci-least-privilege-check`; no CI run has executed the shadow step: `NOT_RUN` |
 | STR-V0-017 | `internal/sessiontest/identity.go`, drift rechecks in `Execute` | TestSTRV0017Identify, TestSTRV0017RunnerDrift |
 | STR-V0-018 | `internal/sessiontest/manifest.go`, `--dry-run --manifest`, shard recompute match | TestSTRV0018ManifestStrictRoundTrip, TestSTRV0018CLIDryRunLaunchesNoRunner, TestSTRV0009CLIShardsAndVerify |
 

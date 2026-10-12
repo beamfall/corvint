@@ -64,6 +64,7 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		reason     string
 		units      []string
 		incomplete []string
+		checks     []string
 		noSuite    []string
 	}{
 		{name: "narrowed", edit: func(*Input) {}, scope: ScopeNarrowed, units: whole("a")},
@@ -133,11 +134,17 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 			in.GoSelection = "FALLBACK UNINDEXED_SOURCE_PATH pkg/gone.py"
 			in.DirtyLanguages = []string{"python"}
 		}, scope: ScopeFull, reason: "UNINDEXED_SOURCE_PATH pkg/gone.py", units: whole("a", "b", "c"), incomplete: []string{"python: no qualified adapter and .github/cishards/test-commands.json declares no python full command"}},
-		{name: "ci profile with no plan runs the declared Go suite", edit: func(in *Input) {
+		{name: "ci profile with no plan runs the declared Go suite and reports declared commands as checks", edit: func(in *Input) {
 			in.PlanError = "base unresolved"
 			in.RunnerProfile = ProfileCI
 			declare(in, rustArgv)
-		}, scope: ScopeFull, reason: "no plan: base unresolved", units: []string{"0 declared:go whole", "0 declared:rust whole"}},
+		}, scope: ScopeFull, reason: "no plan: base unresolved", units: []string{"0 declared:go whole"}, checks: []string{"cargo test"}},
+		{name: "ci profile FULL never launches a declared command or make target", edit: func(in *Input) {
+			in.GoSelection = "FALLBACK go.mod changed"
+			in.RunnerProfile = ProfileCI
+			in.Checks = []string{"make go-vet"}
+			declare(in, LanguageCommand{Language: "typescript", Argv: []string{"make", "host-adapter-test"}}, noPython)
+		}, scope: ScopeFull, reason: "go.mod changed", units: whole("a", "b", "c"), checks: []string{"make go-vet", "make host-adapter-test"}, noSuite: []string{"python: fixtures only"}},
 		{name: "FULL with an unreadable declaration", edit: func(in *Input) {
 			in.GoSelection = "FALLBACK go.mod changed"
 			in.Declared = Declared{Unreadable: "test-commands.json: profile is \"x\""}
@@ -163,6 +170,9 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 			}
 			if m.Scope != tc.scope || m.Reason != tc.reason || !reflect.DeepEqual(unitIDs(m), tc.units) || !reflect.DeepEqual(m.Incomplete, tc.incomplete) || !reflect.DeepEqual(m.NoSuite, nonNil(tc.noSuite)) {
 				t.Fatalf("got scope=%s reason=%q units=%v incomplete=%v noSuite=%v", m.Scope, m.Reason, unitIDs(m), m.Incomplete, m.NoSuite)
+			}
+			if tc.checks != nil && !reflect.DeepEqual(m.Checks, tc.checks) {
+				t.Fatalf("got checks=%v want %v", m.Checks, tc.checks)
 			}
 			again, _ := Build(input)
 			first, _ := Digest(m)

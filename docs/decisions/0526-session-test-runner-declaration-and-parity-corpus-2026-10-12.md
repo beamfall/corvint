@@ -98,3 +98,14 @@ requirement is added or removed; the delivery status stays experimental.
 Revert the lane's commits on `claude/v1-0040-impl`: the slice 1 Makefile reader returns with its
 tests, STR-V0-003/004/006/013/015 return to their slice 2 text, and the gate step leaves
 `GATE_STEPS` and the CI doc-gates list. The corpus file can stay; it is inert without `-corpus`.
+
+## Slice 3
+
+Slice 3 (`claude/v1-0040-slice3`, `docs/build-log/2026-10-12-session-test-runner-slice-3.md`)
+switches `make gate-affected` to `corvint test` and adds a shadow-only CI step beside the driver.
+It amends STR-V0-012 (the gate-affected call site, a bad BASE as a usage error, inherited
+`MAKEFLAGS`, ci constants held to `ci.yml`, declared commands reported as checks in the ci
+profile, partition inputs), STR-V0-013 (the shadow step and `CORVINT_PR_FORWARD_EPOCH` at 1, a
+vacuous advance) and STR-V0-015 (a per-shard budget: 70m local, 60m ci). AFP-V0-011 gains only a
+note that it now governs the retained rollback `script/gate-affected.sh`. This decision's body
+above is unchanged.

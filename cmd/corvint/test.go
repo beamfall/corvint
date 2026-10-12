@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/gateselect"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -36,8 +37,9 @@ attribution, and runs the selected Go packages on the unchanged
 flags declared in .github/cishards/test-commands.json (ci: the full CI
 branch's). Any fallback condition runs FULL and prints corvint-test:
 FALLBACK <reason>. A language with no adapter runs the full command that
-file declares, runs nothing when it declares {"none": reason}, and is
-INCOMPLETE when it declares neither.
+file declares (ci: reports it as still required, not run), runs nothing
+when it declares {"none": reason}, and is INCOMPLETE when it declares
+neither. The budget covers the whole shard: 70m local, 60m ci.
 --placement balanced (experimental) spreads a narrowed run's own units
 over the shards by the cost table; FULL keeps the universe partition. It
 executes only in the local profile (ci: --dry-run only), and a sharded run
@@ -539,8 +541,9 @@ func testExecute(ctx context.Context, root string, options testOptions, m sessio
 	return receipt, 0
 }
 
-// testBudget is package state so fixture tests can shorten the budget.
-var testBudget = sessiontest.DefaultBudget
+// testBudget is package state so fixture tests can shorten the shard budget;
+// zero selects the profile default (sessiontest.Runner.ShardBudget).
+var testBudget time.Duration
 
 // testDefaultReceiptPath is <git-dir>/corvint/test-run[.I].json.
 func testDefaultReceiptPath(ctx context.Context, gitExecutable, root string, options testOptions) (string, error) {

@@ -81,19 +81,19 @@ go-version:
 go-test:
 	$(GO_TEST_COMMAND) ./...
 
-# gate-affected is the fast tier: Corvint's own affected-test selection (`corvint affected`)
-# narrows go-test to the Go packages the change reaches, then the cheap non-test checks run.
-# script/gate-affected.sh prints the selection and falls back to the full `./...` run, saying
-# why on stderr, whenever the plan cannot justify a narrower set. BASE (default main) joins
-# the committed range BASE..HEAD to the dirty worktree; `make gate-affected BASE=` tests the
-# dirty worktree alone. It is not the push gate: `make gate` stays that, unchanged, until the
-# 200-commit shadow evidence exists (docs/specs/affected-plan-v0.md).
+# gate-affected is the fast tier: `corvint test` (STR-V0-012), built from this checkout by
+# script/gate-affected-corvint.sh, runs the Go units the change reaches as test-commands.json
+# declares, or FULL with the reason on stderr; then the cheap non-test checks run. BASE (default
+# main) joins BASE..HEAD to the dirty worktree, `BASE=` tests the worktree alone, and a BASE that
+# does not resolve is a usage error. Not the push gate: `make gate` stays that. Rollback:
+# script/gate-affected.sh stays (docs/specs/session-test-runner-v0.md, Rollout).
 gate-affected: go-version
-	@GO_TEST_COMMAND='$(GO_TEST_COMMAND)' script/gate-affected.sh "$(BASE)"
+	@script/gate-affected-corvint.sh "$(BASE)"
 	@$(MAKE) go-vet go-format-check spec-requirements-check decision-numbers-check line-citations-check
 
 gate-affected-test:
 	@script/gate-affected_test.sh
+	@script/gate-affected-corvint_test.sh
 
 go-vet:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go vet ./...

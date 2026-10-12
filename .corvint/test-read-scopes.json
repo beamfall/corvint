@@ -283,7 +283,8 @@
     "internal/pythongrammar": [],
     "internal/releasecandidate": [],
     "internal/sessiontest": [
-      ".github/cishards/"
+      ".github/cishards/",
+      ".github/workflows/ci.yml"
     ],
     "internal/skillexport": [],
     "internal/specindex": [

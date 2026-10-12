@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -257,6 +258,9 @@ func (m *Manifest) declaredOnly(declared Declared) {
 // declaredLanguage runs a language with no qualified adapter through its
 // declared full command, records the project's assertion that it has no
 // suite, or is INCOMPLETE when the declaration does not name it (STR-V0-004).
+// The ci profile runs only what the CI full branch runs, which is Go, so it
+// never launches a declared command (a make target included); it reports the
+// command as still required and not run (STR-V0-012).
 func (m *Manifest) declaredLanguage(declared Declared, language string) {
 	entry, ok := declared.Command(language)
 	switch {
@@ -264,6 +268,10 @@ func (m *Manifest) declaredLanguage(declared Declared, language string) {
 		m.Incomplete = append(m.Incomplete, language+": no qualified adapter and "+DeclarationPath+" declares no "+language+" full command")
 	case entry.None != "":
 		m.NoSuite = append(m.NoSuite, language+": "+entry.None)
+	case m.RunnerProfile == ProfileCI:
+		if command := strings.Join(entry.Argv, " "); !slices.Contains(m.Checks, command) {
+			m.Checks = append(m.Checks, command)
+		}
 	default:
 		m.addDeclared(language)
 	}
