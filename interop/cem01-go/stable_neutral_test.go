@@ -47,9 +47,9 @@ func neutralStableRoot(t *testing.T) string {
 	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "protocol", "cem-1.0", "stable"))
 }
 
-// neutralCaseFiles checks every case file against the stable protocol
-// manifest and returns the case directory.
-func neutralCaseFiles(t *testing.T) string {
+// stableCaseFiles checks every file of one public case against the stable
+// protocol manifest and returns the case directory.
+func stableCaseFiles(t *testing.T, name string) string {
 	t.Helper()
 	stable := neutralStableRoot(t)
 	raw, err := os.ReadFile(filepath.Join(stable, "manifest.json"))
@@ -68,7 +68,7 @@ func neutralCaseFiles(t *testing.T) string {
 	}
 	listed := map[string]bool{}
 	for _, f := range manifest.Files {
-		if strings.HasPrefix(f.Path, "neutral-criterion/") {
+		if strings.HasPrefix(f.Path, name+"/") {
 			b, err := os.ReadFile(filepath.Join(stable, filepath.FromSlash(f.Path)))
 			if err != nil || len(b) != f.Bytes || shaHex(b) != f.SHA256 {
 				t.Fatalf("manifest entry %s does not match the case file", f.Path)
@@ -76,7 +76,7 @@ func neutralCaseFiles(t *testing.T) string {
 			listed[f.Path] = true
 		}
 	}
-	dir := filepath.Join(stable, "neutral-criterion")
+	dir := filepath.Join(stable, name)
 	err = filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
@@ -91,6 +91,11 @@ func neutralCaseFiles(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return dir
+}
+
+func neutralCaseFiles(t *testing.T) string {
+	t.Helper()
+	return stableCaseFiles(t, "neutral-criterion")
 }
 
 // neutralRepository builds the recipe repository with Git plumbing and the
@@ -175,8 +180,8 @@ func neutralResultMap(t *testing.T, r stableResult) map[string]any {
 // TestCEMV1083NeutralCriterionPublicCase is the portable side of the public
 // no-Tasks case; the native verifier asserts the same EXPECTED.json.
 func TestCEMV1083NeutralCriterionPublicCase(t *testing.T) {
-	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
-		t.Skip("stable process containment is only supported on Darwin/Linux")
+	if !stableOwnerSupported() {
+		t.Skip("NOT_RUN: process containment is not qualified on " + runtime.GOOS)
 	}
 	dir := neutralCaseFiles(t)
 	var want neutralExpected
