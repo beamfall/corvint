@@ -1,0 +1,55 @@
+{
+  "profile": "cem-convert-parity/1-summary",
+  "converter": "corvint-cem-convert/1",
+  "goVersion": "go1.27.2",
+  "corpusMaps": 615,
+  "sampleEvery": 1,
+  "rows": 615,
+  "paritySha256": "a5969310083e220ec56fc819dbc95760052479f0f88178e2c279a51b63d935e7",
+  "classes": {
+    "NOT_OBSERVED": 0,
+    "different": 0,
+    "empty-member-explained": 0,
+    "identical": 613,
+    "native-stable": 1,
+    "pre-existing-refusal": 1,
+    "unavailable-objects": 0
+  },
+  "idempotent": 614,
+  "reconvertCodes": {
+    "convert-source-is-stable": 615
+  },
+  "sourceBindings": {
+    "": 1,
+    "EXACT": 614
+  },
+  "bindReachable": 579,
+  "sourceOutcomes": {
+    "": 1,
+    "ACCEPT": 613,
+    "UNSUPPORTED unsupported-resource-limit": 1
+  },
+  "substitutedNativeOutcomes": {
+    "ACCEPT": 614,
+    "UNSUPPORTED unsupported-resource-limit": 1
+  },
+  "substitutedNativeEqualsPortable": 614,
+  "directNativeOutcomes": {
+    "ACCEPT": 1,
+    "REJECT excluded-artifact-mismatch": 614
+  },
+  "directPortableOutcomes": {
+    "ACCEPT": 1,
+    "REJECT excluded-artifact-mismatch": 614
+  },
+  "directNativeEqualsPortable": 615,
+  "committed": {
+    "migrated": 614,
+    "stable-native": 1
+  },
+  "committedEqualsConverted": 614,
+  "different": [],
+  "nativePortableDiffer": [
+    "f0fda542fa64969df58dc9cfd8268f321d562880 unsupported-resource-limit consumer-partial-drift-differs"
+  ]
+}
