@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-11
 Requirement prefix: `STR-V0`
 Intent status: proposed (owner-directed 2026-10-11; V1-0040)
-Delivery status: not-started
+Delivery status: experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards)
 Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 2026-10-11);
 `docs/specs/affected-plan-v0.md` (AFP-V0-011..013, 022, 023, 028..030, 041);
 `docs/specs/live-proof-carrying-verification-v0.md` (LPCV-V0-021..026);
@@ -12,7 +12,7 @@ Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 
 
 ## Agent digest
 - Claim: `corvint test` plans from the diff, runs only selected tests through runner adapters, shards deterministically, and falls back alike locally and in CI.
-- Status: proposed (owner-directed 2026-10-11; V1-0040)/not-started
+- Status: proposed (owner-directed 2026-10-11; V1-0040)/experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards)
 - Exists: the pieces, under separate drivers: `corvint affected` (plan), `script/gate-affected.sh` (local driver), `tools/corvint-pr-tests` and `tools/gate-affected-select` (CI driver), `.github/cishards` (complete-universe partition and test slices), `cmd/corvint-go-test-provider` (experimental Go execute provider).
 - Blocked on: owner acceptance; driver parity evidence (STR-V0-013) before either call site moves; AFP-V0-029 shadow bar for any CI narrowing, which this spec does not relax.
 - Read next: Requirements; Boundaries and failure modes; Rollout and rollback.
@@ -233,7 +233,24 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| STR-V0-001..018 | not started | `NOT_RUN` |
+| STR-V0-001 | `cmd/corvint/test.go` (`compileAffectedGraph` shared with `affected`) | `cmd/corvint/session_test_command_unix_test.go` TestSTRV0018CLIDryRunLaunchesNoRunner, TestSTRV0010CLIRunWritesReceipt |
+| STR-V0-002 | `internal/sessiontest/plan.go`, `internal/gateselect` | `internal/sessiontest/plan_test.go` TestSTRV0003BuildVerdicts, TestSTRV0007UniversePlacementEqualsCIPlan |
+| STR-V0-003 | `internal/sessiontest/plan.go`, `internal/sessiontest/declared.go` | TestSTRV0003BuildVerdicts, TestSTRV0003ReadDeclared, TestSTRV0003CLINoPlanRunsDeclaredScope |
+| STR-V0-004 | `internal/sessiontest/run.go` (Go adapter; declared `make <lang>-test` fallback) | TestSTRV0004ParseTestEvents, TestSTRV0004RunnerDiscoveryRefusals; no versioned LPCV-V0-021 capability manifest yet (partial) |
+| STR-V0-005 | `Invocations` in `run.go` | TestSTRV0006Invocations, TestSTRV0010CLIRunWritesReceipt |
+| STR-V0-006 | `Invocations`; `ReadDeclared` types the Makefile `go-test` recipe | TestSTRV0006Invocations, TestSTRV0003ReadDeclared |
+| STR-V0-007 | `placeGo` over `cishards.PlanFrom` | TestSTRV0007UniversePlacementEqualsCIPlan, TestSTRV0009CLIShardsAndVerify |
+| STR-V0-008 | refused as experimental and not implemented | `NOT_RUN`; TestSTRV0008CLIUsageRefusals covers only the refusal |
+| STR-V0-009 | `internal/sessiontest/verify.go`, `corvint test verify-shards` | TestSTRV0009VerifyShardsMatrix, TestSTRV0009CLIShardsAndVerify |
+| STR-V0-010 | `Receipt`, `Finish`, `testWriteReceipt` | TestSTRV0011FinishResultAndSummary, TestSTRV0018ManifestStrictRoundTrip, TestSTRV0010CLIRunWritesReceipt |
+| STR-V0-011 | no reader other than `verify-shards` | by construction; no test asserts absence of other readers |
+| STR-V0-012 | `--profile ci` argv and environment on the same code path | TestSTRV0006Invocations; CI admission (pinned build, queue backstop, trip) is the call site's: `NOT_RUN` |
+| STR-V0-013 | not started | `NOT_RUN` |
+| STR-V0-014 | `internal/sessiontest/procgroup_unix.go`, `testExecute` | TestSTRV0014RunnerCancelAndBudgetKillGroup, TestSTRV0014CLISignalKillsRunAndExits |
+| STR-V0-015 | `MaxUnits`, `MaxDocumentBytes`, `DefaultBudget` | TestSTRV0015UnitBound, TestSTRV0014RunnerCancelAndBudgetKillGroup |
+| STR-V0-016 | local profile claims no containment (help text) | help text only; CI permissions are the call site's: `NOT_RUN` |
+| STR-V0-017 | `internal/sessiontest/identity.go`, drift rechecks in `Execute` | TestSTRV0017Identify, TestSTRV0017RunnerDrift |
+| STR-V0-018 | `internal/sessiontest/manifest.go`, `--dry-run --manifest`, shard recompute match | TestSTRV0018ManifestStrictRoundTrip, TestSTRV0018CLIDryRunLaunchesNoRunner, TestSTRV0009CLIShardsAndVerify |
 
 ## Open decisions
 

@@ -239,6 +239,7 @@
     "internal/frontierrepo": [
       "conformance/tcq-0/"
     ],
+    "internal/gateselect": [],
     "internal/genesis": [],
     "internal/liveverify/affected/dotnet": [],
     "internal/liveverify/affected/kotlin": [],
@@ -281,6 +282,9 @@
     "internal/projectpath": [],
     "internal/pythongrammar": [],
     "internal/releasecandidate": [],
+    "internal/sessiontest": [
+      ".github/cishards/"
+    ],
     "internal/skillexport": [],
     "internal/specindex": [
       "docs/specs/"
@@ -372,9 +376,10 @@
     ],
     "tools/gate-affected-select": [],
     "tools/gate-ledger": [
-      "tools/gate-affected-select/main.go",
-      "tools/gate-affected-select/readers.go",
-      "tools/gate-affected-select/readscopes.go"
+      "internal/gateselect/readers.go",
+      "internal/gateselect/readscopes.go",
+      "internal/gateselect/select.go",
+      "tools/gate-affected-select/main.go"
     ],
     "tools/heading-nav-bench": [],
     "tools/retrieval-bench": []

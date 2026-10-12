@@ -1,0 +1,485 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/gateselect"
+	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/sessiontest"
+)
+
+const testHelp = `Run the affected test set (experimental, STR-V0).
+
+Usage:
+  corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N]
+    [--placement universe] [--profile local|ci [--confine PATH]]
+    [--dry-run] [--manifest PATH] [--receipt PATH]
+  corvint test verify-shards --manifest PATH RECEIPT...
+
+Plans in process as corvint affected --base does, adds the AFP-V0-012
+attribution, and runs the selected Go packages on the unchanged
+.github/cishards complete-universe partition with the Makefile go-test
+environment and flags (ci: the full CI branch's). Any fallback condition
+runs FULL and prints corvint-test: FALLBACK <reason>. A language with no
+adapter runs its declared make <lang>-test target or is INCOMPLETE.
+--placement balanced is experimental and not implemented.
+
+--dry-run prints the shard's argv as JSON and runs nothing but Git;
+--manifest PATH writes the corvint-test-manifest/0 there. Without --dry-run
+a supplied --manifest must equal the recomputed one. Each shard writes one
+corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json).
+verify-shards accepts the union only when every shard's receipt binds the
+manifest and every execution unit passed exactly once.
+
+Executes repository code with your authority; no containment is claimed.
+A narrowed PASS is not a gate PASS: make gate and the required CI checks
+stay binding. Exit: 0 PASS, 1 FAIL, 2 usage, 3 INCOMPLETE, 128+n signal.
+`
+
+// testCommandExit maps a shard or fan-in result to the process status:
+// INCOMPLETE is distinct from FAIL so a caller can tell missing evidence
+// from a failing test, and both are nonzero (STR-V0-009, STR-V0-010).
+var testCommandExit = map[string]int{sessiontest.ResultPass: 0, sessiontest.ResultFail: 1, sessiontest.ResultIncomplete: 3}
+
+// testPartitionDirectory holds the AFP-V0-022/041 placement inputs.
+const testPartitionDirectory = ".github/cishards"
+
+type testOptions struct {
+	base, placement, profile, confine, manifest, receipt string
+	shard, shardCount                                    int
+	dryRun                                               bool
+}
+
+// testInvocation recognises `[--root PATH] test ...`.
+func testInvocation(args []string) (string, []string, bool) {
+	root := ""
+	for len(args) > 0 {
+		if args[0] == "--root" {
+			if !rootPreambleValue(args, 1) {
+				return "", nil, false
+			}
+			root = args[1]
+			args = args[2:]
+			continue
+		}
+		if strings.HasPrefix(args[0], "--root=") {
+			root = strings.TrimPrefix(args[0], "--root=")
+			args = args[1:]
+			continue
+		}
+		break
+	}
+	if len(args) == 0 || args[0] != "test" {
+		return "", nil, false
+	}
+	return root, args[1:], true
+}
+
+func parseTestOptions(args []string) (testOptions, error) {
+	options := testOptions{placement: sessiontest.PlacementUniverse, profile: sessiontest.ProfileLocal, shardCount: 1}
+	f := flag.NewFlagSet("test", flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+	seen := map[string]bool{}
+	once := func(name string, dst *string) {
+		f.Func(name, name, func(value string) error {
+			if seen[name] || value == "" {
+				return errors.New("repeated or empty")
+			}
+			seen[name], *dst = true, value
+			return nil
+		})
+	}
+	once("base", &options.base)
+	once("placement", &options.placement)
+	once("profile", &options.profile)
+	once("confine", &options.confine)
+	once("manifest", &options.manifest)
+	once("receipt", &options.receipt)
+	shard := ""
+	once("shard", &shard)
+	f.BoolVar(&options.dryRun, "dry-run", false, "")
+	requireClean := f.Bool("require-clean", false, "")
+	if err := f.Parse(args); err != nil || f.NArg() != 0 {
+		return options, argumentError("usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe] [--profile local|ci --confine PATH] [--dry-run] [--manifest PATH] [--receipt PATH]")
+	}
+	switch {
+	case *requireClean:
+		return options, argumentError("test runs the bytes that execute, dirty paths included; --require-clean is not accepted")
+	case !validGitObjectID(options.base):
+		return options, argumentError("test needs --base FULL_COMMIT_ID")
+	case options.placement == "balanced":
+		return options, argumentError("--placement balanced is experimental and not implemented (STR-V0-008)")
+	case options.placement != sessiontest.PlacementUniverse:
+		return options, argumentError("--placement must be universe")
+	case options.profile != sessiontest.ProfileLocal && options.profile != sessiontest.ProfileCI:
+		return options, argumentError("--profile must be local or ci")
+	case options.profile == sessiontest.ProfileCI && !filepath.IsAbs(options.confine):
+		return options, argumentError("--profile ci needs --confine ABSOLUTE_PATH to the test-confine wrapper")
+	case options.profile == sessiontest.ProfileLocal && options.confine != "":
+		return options, argumentError("--confine applies only to --profile ci")
+	}
+	if shard != "" {
+		index, count, ok := strings.Cut(shard, "/")
+		i, iErr := strconv.Atoi(index)
+		n, nErr := strconv.Atoi(count)
+		if !ok || iErr != nil || nErr != nil || n < 1 || n > 64 || i < 0 || i >= n {
+			return options, argumentError("--shard must be I/N with 0 <= I < N <= 64")
+		}
+		options.shard, options.shardCount = i, n
+	}
+	return options, nil
+}
+
+func runTest(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "verify-shards" {
+		return runTestVerifyShards(args[1:], stdout, stderr)
+	}
+	options, err := parseTestOptions(args)
+	if err != nil {
+		emitError(stderr, err)
+		return 2
+	}
+	if root == "" {
+		root = "."
+	}
+	if root, err = resolveExplicitRoot(root); err != nil {
+		emitError(stderr, err)
+		return 2
+	}
+	gitExecutable, err := exec.LookPath("git")
+	if err != nil {
+		emitError(stderr, affectedGitExecutableRefusal())
+		return 2
+	}
+	identify := func(ctx context.Context) (sessiontest.SourceIdentity, error) {
+		return testSourceIdentity(ctx, gitExecutable, root)
+	}
+	source, err := identify(ctx)
+	if err != nil {
+		emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "test cannot capture the source identity: " + err.Error()})
+		return 2
+	}
+	input := testRunInput(ctx, root, options, source)
+	manifest, err := sessiontest.Build(input)
+	if err != nil {
+		emitError(stderr, argumentError(err.Error()))
+		return 2
+	}
+	digest, err := sessiontest.Digest(manifest)
+	if err != nil {
+		emitError(stderr, err)
+		return 2
+	}
+	testVerdict(stderr, manifest)
+	if options.dryRun {
+		return testDryRun(manifest, digest, input.Declared, root, options, stdout, stderr)
+	}
+	receipt, signalExit := testExecute(ctx, root, options, manifest, digest, input, identify, stdout, stderr)
+	return testWriteReceipt(ctx, gitExecutable, root, options, receipt, signalExit, stderr)
+}
+
+// testRunInput plans in process through `corvint affected --base` and the
+// AFP-V0-012 attribution, and reads the declared full scope and partition
+// files independently of the planner (STR-V0-001..003, STR-V0-018).
+func testRunInput(ctx context.Context, root string, options testOptions, source sessiontest.SourceIdentity) sessiontest.Input {
+	input := sessiontest.Input{
+		Base: options.base, RunnerProfile: options.profile, ShardCount: options.shardCount, Source: source,
+		Partition: sessiontest.PartitionFiles{
+			Allow:  testReadOptional(filepath.Join(root, testPartitionDirectory, "test-split-allow.json")),
+			Costs:  testReadOptional(filepath.Join(root, testPartitionDirectory, "package-costs.json")),
+			Slices: testReadOptional(filepath.Join(root, testPartitionDirectory, "test-slices.json")),
+		},
+	}
+	receipt, graph, err := compileAffectedGraph(ctx, affectedInvocation{Root: root, Base: options.base})
+	var languages []string
+	if err == nil {
+		input.GraphDigest = graph.Digest()
+		for _, language := range graph.Languages() {
+			if language != "go" {
+				languages = append(languages, language)
+			}
+		}
+		err = testFillPlan(&input, receipt, graph, root)
+	}
+	if err != nil {
+		message := err.Error()
+		var kernelError *gokernel.Error
+		if errors.As(err, &kernelError) {
+			message = kernelError.Code + ": " + kernelError.Message
+		}
+		input.PlanError = message
+	}
+	input.Declared = sessiontest.ReadDeclared(root, languages, os.LookupEnv)
+	return input
+}
+
+func testFillPlan(input *sessiontest.Input, receipt affectedReceipt, graph *affected.Graph, root string) error {
+	compact, err := compactAffectedReceipt(receipt)
+	if err != nil {
+		return err
+	}
+	if input.PlanDigest, err = sessiontest.Digest(compact); err != nil {
+		return err
+	}
+	encoded, err := gokernel.CanonicalJSON(compact)
+	if err != nil {
+		return err
+	}
+	var plan gateselect.Receipt
+	if err := json.Unmarshal(encoded, &plan); err != nil {
+		return err
+	}
+	for _, check := range receipt.Advice.Checks {
+		if check.Kind == adviceKindMandatory {
+			input.Checks = append(input.Checks, check.Command)
+		}
+	}
+	for _, selection := range receipt.Plan.Selected {
+		input.Selected = append(input.Selected, selection.UnitID)
+	}
+	for _, entry := range receipt.Plan.Unknown {
+		input.Unknown = append(input.Unknown, sessiontest.Unknown{Detail: entry.Detail, Reason: entry.Reason})
+	}
+	input.Universe = []string{}
+	for _, id := range graph.UnitIDs() {
+		if pkg, ok := strings.CutPrefix(id, "go:"); ok {
+			input.Universe = append(input.Universe, pkg)
+		}
+	}
+	switch module, err := golang.ReadModulePath(root); {
+	case len(input.Universe) == 0:
+		input.GoSelection = "NOTHING no Go universe"
+	case err != nil:
+		input.GoSelection = "FALLBACK the root module path cannot be read"
+	default:
+		lines := gateselect.Select(plan, module, root)
+		if len(lines) != 0 {
+			input.GoSelection = lines[len(lines)-1]
+		}
+	}
+	return nil
+}
+
+func testReadOptional(name string) []byte {
+	info, err := os.Lstat(name)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > sessiontest.MaxDocumentBytes {
+		return nil
+	}
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return nil
+	}
+	return data
+}
+
+// testSourceIdentity is the STR-V0-017 source identity: HEAD, its tree and
+// every dirty path's content digest.
+func testSourceIdentity(ctx context.Context, gitExecutable, root string) (sessiontest.SourceIdentity, error) {
+	head, err := affectedHeadRevision(ctx, gitExecutable, root)
+	if err != nil {
+		return sessiontest.SourceIdentity{}, err
+	}
+	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
+	defer cancel()
+	tree, err := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--verify", "--quiet", head+"^{tree}").Output()
+	if err != nil {
+		return sessiontest.SourceIdentity{}, errors.New("HEAD tree cannot be read")
+	}
+	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
+	if err != nil {
+		return sessiontest.SourceIdentity{}, err
+	}
+	return sessiontest.Identify(root, head, strings.TrimSpace(string(tree)), dirty)
+}
+
+func testVerdict(stderr io.Writer, m sessiontest.Manifest) {
+	switch m.Scope {
+	case sessiontest.ScopeFull:
+		_, _ = fmt.Fprintf(stderr, "corvint-test: FALLBACK %s\n", m.Reason)
+	case sessiontest.ScopeNothing:
+		_, _ = fmt.Fprintf(stderr, "corvint-test: NOTHING %s\n", m.Reason)
+	default:
+		_, _ = fmt.Fprintf(stderr, "corvint-test: NARROWED %d execution units\n", len(m.Units))
+	}
+	for _, reason := range m.Incomplete {
+		_, _ = fmt.Fprintf(stderr, "corvint-test: INCOMPLETE %s\n", reason)
+	}
+	for _, check := range m.Checks {
+		_, _ = fmt.Fprintf(stderr, "corvint-test: still required, not run: %s\n", check)
+	}
+}
+
+// testDryRun prints the shard's run set and argv and executes nothing but
+// the Git reads planning needed; --manifest names the only file it writes.
+func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Declared, root string, options testOptions, stdout, stderr io.Writer) int {
+	type plannedJSON struct {
+		Adapter string             `json:"adapter"`
+		Argv    []string           `json:"argv"`
+		Env     []string           `json:"env"`
+		Units   []sessiontest.Unit `json:"units"`
+	}
+	planned := []plannedJSON{}
+	for _, invocation := range sessiontest.Invocations(m, declared, options.shard, root, options.confine) {
+		planned = append(planned, plannedJSON{invocation.Adapter, invocation.Argv, invocation.Env, invocation.Units})
+	}
+	document := map[string]any{
+		"checks": m.Checks, "incomplete": m.Incomplete, "invocations": planned, "manifestDigest": digest,
+		"reason": m.Reason, "scope": m.Scope, "shardCount": m.ShardCount, "shardIndex": options.shard,
+	}
+	if options.manifest != "" {
+		encoded, err := sessiontest.Encode(m)
+		if err == nil {
+			err = sessiontest.WriteFile(options.manifest, encoded)
+		}
+		if err != nil {
+			emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "the manifest cannot be written: " + err.Error()})
+			return 2
+		}
+	}
+	encoded, err := gokernel.CanonicalJSON(document)
+	if err != nil {
+		emitError(stderr, err)
+		return 2
+	}
+	_, _ = stdout.Write(append(encoded, '\n'))
+	if len(m.Incomplete) != 0 {
+		return testCommandExit[sessiontest.ResultIncomplete]
+	}
+	return 0
+}
+
+// testExecute runs one shard. A supplied --manifest must equal the one this
+// shard recomputed (STR-V0-018); a signal kills the running group and ends
+// the shard INCOMPLETE without any fallback (STR-V0-014).
+func testExecute(ctx context.Context, root string, options testOptions, m sessiontest.Manifest, digest string, input sessiontest.Input, identify func(context.Context) (sessiontest.SourceIdentity, error), stdout, stderr io.Writer) (sessiontest.Receipt, int) {
+	tool := "corvint " + version + " (build " + build + ")"
+	if options.manifest != "" {
+		_, suppliedDigest, err := sessiontest.ReadManifest(options.manifest)
+		if err == nil && suppliedDigest != digest {
+			err = errors.New("it differs from the manifest this shard recomputed")
+		}
+		if err != nil {
+			receipt := sessiontest.NewReceipt(m, digest, options.shard, tool)
+			receipt.Incomplete = append(receipt.Incomplete, "the supplied manifest is not usable: "+err.Error())
+			return sessiontest.Finish(receipt, m), 0
+		}
+	}
+	codes := dogfoodSignalCodes()
+	notified := make(chan os.Signal, 1)
+	signals := make([]os.Signal, 0, len(codes))
+	for received := range codes {
+		signals = append(signals, received)
+	}
+	signal.Notify(notified, signals...)
+	defer signal.Stop(notified)
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	var received os.Signal
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		select {
+		case value := <-notified:
+			received = value
+			cancel()
+		case <-runCtx.Done():
+		}
+	}()
+	runner := &sessiontest.Runner{
+		Budget: testBudget, Confine: options.confine, Declared: input.Declared, Environ: os.Environ(),
+		Errors: stderr, Output: stdout, Recheck: identify, Root: root, Tool: tool, Universe: input.Universe,
+	}
+	receipt := runner.Execute(runCtx, m, digest, options.shard)
+	cancel()
+	<-done
+	if received != nil {
+		receipt.Incomplete = append(receipt.Incomplete, fmt.Sprintf("terminated by signal %v; owned process groups killed; no fallback started", received))
+		return sessiontest.Finish(receipt, m), codes[received]
+	}
+	return receipt, 0
+}
+
+// testBudget is package state so fixture tests can shorten the budget.
+var testBudget = sessiontest.DefaultBudget
+
+func testWriteReceipt(ctx context.Context, gitExecutable, root string, options testOptions, receipt sessiontest.Receipt, signalExit int, stderr io.Writer) int {
+	name := options.receipt
+	if name == "" {
+		deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
+		defer cancel()
+		gitDir, err := hermeticGitCommand(context.WithoutCancel(deadline), gitExecutable, root, "rev-parse", "--absolute-git-dir").Output()
+		if err != nil {
+			emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "the default receipt path cannot be resolved; pass --receipt PATH"})
+			return testCommandExit[sessiontest.ResultIncomplete]
+		}
+		base := "test-run.json"
+		if options.shardCount > 1 {
+			base = fmt.Sprintf("test-run.%d.json", options.shard)
+		}
+		name = filepath.Join(strings.TrimSpace(string(gitDir)), "corvint", base)
+	}
+	encoded, err := sessiontest.Encode(receipt)
+	if err == nil {
+		err = sessiontest.WriteFile(name, encoded)
+	}
+	if err != nil {
+		emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "the receipt cannot be written: " + err.Error()})
+		return testCommandExit[sessiontest.ResultIncomplete]
+	}
+	for _, reason := range receipt.Incomplete {
+		_, _ = fmt.Fprintf(stderr, "corvint-test: INCOMPLETE %s\n", reason)
+	}
+	_, _ = fmt.Fprintf(stderr, "corvint-test: %s %s; receipt %s\n", receipt.Result, receipt.Summary, name)
+	if signalExit != 0 {
+		return signalExit
+	}
+	return testCommandExit[receipt.Result]
+}
+
+// runTestVerifyShards is the STR-V0-009 fan-in: the expected run comes from
+// the manifest, never from the receipts.
+func runTestVerifyShards(args []string, stdout, stderr io.Writer) int {
+	f := flag.NewFlagSet("test verify-shards", flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+	manifestPath := f.String("manifest", "", "")
+	if err := f.Parse(args); err != nil || *manifestPath == "" || f.NArg() == 0 {
+		emitError(stderr, argumentError("usage: corvint test verify-shards --manifest PATH RECEIPT..."))
+		return 2
+	}
+	manifest, digest, err := sessiontest.ReadManifest(*manifestPath)
+	if err != nil {
+		emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "the manifest is not usable: " + err.Error()})
+		return 2
+	}
+	var receipts []sessiontest.Receipt
+	var unreadable []string
+	for _, name := range f.Args() {
+		receipt, err := sessiontest.ReadReceipt(name)
+		if err != nil {
+			unreadable = append(unreadable, name+": unreadable receipt: "+err.Error())
+			continue
+		}
+		receipts = append(receipts, receipt)
+	}
+	result, reasons := sessiontest.Verify(manifest, digest, receipts, unreadable)
+	encoded, err := gokernel.CanonicalJSON(map[string]any{"manifestDigest": digest, "reasons": reasons, "result": result})
+	if err != nil {
+		emitError(stderr, err)
+		return 2
+	}
+	_, _ = stdout.Write(append(encoded, '\n'))
+	return testCommandExit[result]
+}
