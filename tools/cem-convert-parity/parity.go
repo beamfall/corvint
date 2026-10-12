@@ -247,7 +247,7 @@ func classify(r Row) (string, string) {
 		// carries. The row keeps nativeEqualsPortable=false and the summary
 		// lists it under nativePortableDiffer.
 		if s.Outcome == "UNSUPPORTED" && n.Outcome == s.Outcome && p.Outcome == s.Outcome && n.Code == s.Code && p.Code == s.Code &&
-			n.Stage == p.Stage && n.ChangeIntegrity == p.ChangeIntegrity && n.HunksEqual && p.HunksEqual {
+			n.Stage == s.Stage && p.Stage == s.Stage && n.ChangeIntegrity == p.ChangeIntegrity && n.HunksEqual && p.HunksEqual {
 			if reflect.DeepEqual(n.Drift, p.Drift) {
 				return "pre-existing-refusal", s.Code + " consumer-result-differs"
 			}
@@ -256,11 +256,15 @@ func classify(r Row) (string, string) {
 		return "different", "native-portable-differ"
 	}
 	if s.Outcome == "UNSUPPORTED" {
+		// CEM-V1-104: a pre-existing refusal repeats the source's code, stage
+		// and hunks on both consumers (equal to each other here).
 		if n.Outcome == "UNSUPPORTED" && n.Code == s.Code {
 			if s.Code == cemcode.RepositoryObjectUnavailable {
 				return "unavailable-objects", s.Code
 			}
-			return "pre-existing-refusal", s.Code
+			if n.Stage == s.Stage && n.HunksEqual {
+				return "pre-existing-refusal", s.Code
+			}
 		}
 		return "different", "refusal-differs"
 	}

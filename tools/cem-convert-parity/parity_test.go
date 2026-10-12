@@ -99,6 +99,21 @@ func TestCEMV1104ConvertParityClassify(t *testing.T) {
 		{"partial-drift", func(r *Row) {
 			r.Source, r.Native, r.Portable, r.NativeEqualsPortable = limit, limit, limitMore, false
 		}, "pre-existing-refusal", "unsupported-resource-limit consumer-partial-drift-differs"},
+		{"refusal-stage-differs", func(r *Row) {
+			n := limit
+			n.Stage = "references"
+			r.Source, r.Native, r.Portable = limit, n, n
+		}, "different", "refusal-differs"},
+		{"refusal-hunks-differ", func(r *Row) {
+			n := limit
+			n.HunksEqual = false
+			r.Source, r.Native, r.Portable = limit, n, n
+		}, "different", "refusal-differs"},
+		{"refusal-stage-differs-consumers-differ", func(r *Row) {
+			n := limit
+			n.Stage = "references"
+			r.Source, r.Native, r.Portable, r.NativeEqualsPortable = limit, n, limitMore, false
+		}, "different", "native-portable-differ"},
 		{"consumers-disagree", func(r *Row) {
 			r.Source, r.Native, r.Portable, r.NativeEqualsPortable = accept, accept, limit, false
 		}, "different", "native-portable-differ"},

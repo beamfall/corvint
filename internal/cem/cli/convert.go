@@ -3,7 +3,9 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -99,8 +101,10 @@ func readConvertSource(path string) ([]byte, error) {
 	return raw, nil
 }
 
-// publishConverted writes through a sibling temporary file and one rename. A
-// new --output never replaces an existing file; --in-place replaces the source.
+// publishConverted writes through a sibling temporary file and one atomic
+// publish step. A new --output never replaces an existing file: it is linked
+// into place, which the filesystem refuses when the name exists, so no check
+// and rename can race. --in-place replaces the source through one rename.
 func publishConverted(target string, data []byte, replace bool) error {
 	if !replace {
 		if _, err := os.Lstat(target); err == nil || !os.IsNotExist(err) {
@@ -119,15 +123,14 @@ func publishConverted(target string, data []byte, replace bool) error {
 	if e := tmp.Close(); err == nil {
 		err = e
 	}
-	if err == nil && !replace {
-		if _, e := os.Lstat(target); e == nil || !os.IsNotExist(e) {
+	if err == nil {
+		if replace {
+			err = os.Rename(name, target)
+		} else if err = os.Link(name, target); errors.Is(err, fs.ErrExist) {
 			err = os.ErrExist
 		}
 	}
-	if err == nil {
-		err = os.Rename(name, target)
-	}
-	if err != nil {
+	if err != nil || !replace {
 		os.Remove(name)
 	}
 	return err

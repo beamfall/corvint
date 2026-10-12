@@ -94,6 +94,37 @@ func TestCEMV1099ConvertGitReaderStates(t *testing.T) {
 	if _, r, err := Convert(src, Inputs{BindCommit: other, Git: reader}); cemcode.CodeOf(err) != CodeSourceBindingMismatch || r.SourceBinding != BindingMismatch {
 		t.Fatalf("other bytes: %+v %v", r, err)
 	}
+	// An executable sidecar is still a regular file: the exact bytes bind EXACT
+	// and other bytes refuse MISMATCH. A symlink at the path is no sidecar.
+	execExact := plumbingCommitModes(t, dir, map[string]modeFile{wire.ExcludedCEMPath: {"100755", src}}, "exec exact", id[0], id[1], id[2])
+	execOther := plumbingCommitModes(t, dir, map[string]modeFile{wire.ExcludedCEMPath: {"100755", []byte("{}\n")}}, "exec other", id[0], id[1], id[2])
+	link := plumbingCommitModes(t, dir, map[string]modeFile{wire.ExcludedCEMPath: {"120000", []byte("a.txt")}}, "link", id[0], id[1], id[2])
+	if _, r := mustConvert(t, src, Inputs{BindCommit: execExact, Git: reader}); r.SourceBinding != BindingExact {
+		t.Fatalf("executable exact bytes: binding %s, want %s", r.SourceBinding, BindingExact)
+	}
+	if _, r, err := Convert(src, Inputs{BindCommit: execOther, Git: reader}); cemcode.CodeOf(err) != CodeSourceBindingMismatch || r.SourceBinding != BindingMismatch {
+		t.Fatalf("executable other bytes: %+v %v", r, err)
+	}
+	if _, r := mustConvert(t, src, Inputs{BindCommit: link, Git: reader}); r.SourceBinding != BindingAbsent {
+		t.Fatalf("symlink: binding %s, want %s", r.SourceBinding, BindingAbsent)
+	}
+}
+
+type modeFile struct {
+	mode string
+	data []byte
+}
+
+// plumbingCommitModes is plumbingCommit with an explicit tree entry mode per file.
+func plumbingCommitModes(t *testing.T, dir string, files map[string]modeFile, message, name, email, date string) string {
+	t.Helper()
+	env := []string{"GIT_INDEX_FILE=" + filepath.Join(t.TempDir(), "index")}
+	for path, f := range files {
+		oid := testGit(t, dir, f.data, nil, name, email, date, "hash-object", "-w", "--no-filters", "--stdin")
+		testGit(t, dir, nil, env, name, email, date, "update-index", "--add", "--cacheinfo", f.mode+","+oid+","+path)
+	}
+	tree := testGit(t, dir, nil, env, name, email, date, "write-tree")
+	return testGit(t, dir, nil, env, name, email, date, "commit-tree", tree, "-m", message)
 }
 
 // TestCEMV1103ConvertUnavailableObjects converts with no pinned object

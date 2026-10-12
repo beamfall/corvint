@@ -90,3 +90,26 @@ Revert `internal/cem/convert`, `internal/cem/cli/convert.go`, the `convert` disp
 the `tools/cem-convert-parity` unit in `.corvint/unbounded-readers.json`, the repinned
 `cmd/corvint/help.go` citation in `docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md`, this entry and
 `docs/build-log/evidence/v1-1275/`. No committed map, schema, consumer or sealed packet changed.
+
+## Independent review (Codex, read-only, 2026-10-12)
+
+Verdict CONCERNS with four findings; three were confirmed against the cited source and repaired in
+the same lane, one is a documented limit retained as an open question.
+
+- Repaired: `tools/cem-convert-parity` classified an `UNSUPPORTED` source as `pre-existing-refusal`
+  on outcome and code alone. `classify` now also requires the source stage and equal hunks on both
+  consumers (CEM-V1-104), with `refusal-stage-differs` and `refusal-hunks-differ` cases in
+  `TestCEMV1104ConvertParityClassify`. The retained f0fda542 row keeps its class: stage
+  `repository` and `hunksEqual` on the source and both consumers.
+- Repaired: `internal/cem/convert/git.go` reported an executable sidecar (mode `100755`) as
+  `ABSENT`, so different bytes at that path escaped `convert-source-binding-mismatch`. Both regular
+  file modes now count as the sidecar; a symlink stays `ABSENT`. `TestCEMV1099ConvertGitReaderStates`
+  covers executable exact, executable other bytes and a symlink.
+- Repaired: `publishConverted` checked `--output` for existence and then renamed, so a file created
+  between the two was overwritten. The new output is now hard-linked into place, which the
+  filesystem refuses atomically when the name exists; `--in-place` keeps the single rename.
+- Retained: the cem/0.1 conformance fixture accepts with its out-of-band patch bytes and converts to
+  a map that verifies `REJECT patch-digest-mismatch` (CEM-V1-104 recorded limit). The repository
+  alone gives the source the same result, cem/1.0 has no out-of-band patch member and the committed
+  corpus holds no cem/0.1 map, so no migrated verdict changes. Whether such a source should refuse
+  conversion instead is filed as an open question.
