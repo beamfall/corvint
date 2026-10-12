@@ -635,7 +635,8 @@ func testDogfoodFinishFromBinary(t *testing.T, root, base string, ignoreRules bo
 	run.ok(t, root, "cem", "prepare", "--base", base, "--target", "HEAD")
 	run.ok(t, root, "cem", "cite", "--map", ".corvint/change.cem.json", "--hunk", "1", "--evidence-path", "intent.md", "--lines", "1:5", "--relation", "specification")
 	if ignoreRules {
-		run.ok(t, root, "cem", "cite", "--map", ".corvint/change.cem.json", "--hunk", "2", "--evidence-path", "intent.md", "--lines", "1:5", "--relation", "specification")
+		// Each hunk cites its own span, so the next change's plan is not uniform (DCW-V0-048).
+		run.ok(t, root, "cem", "cite", "--map", ".corvint/change.cem.json", "--hunk", "2", "--evidence-path", "AGENTS.md", "--lines", "1:2", "--relation", "specification")
 	}
 	cemGit(t, root, "add", ".corvint/change.cem.json")
 	cemGit(t, root, "commit", "-qm", "bind evidence")
@@ -685,7 +686,7 @@ func testDogfoodFinishFromBinary(t *testing.T, root, base string, ignoreRules bo
 			t.Fatal(err)
 		}
 		citations := filepath.Join(inputsDir, "citations.tsv")
-		if err := os.WriteFile(citations, []byte("1\tintent.md\t1:5\tspecification\n2\tintent.md\t1:5\tspecification\n"), 0600); err != nil {
+		if err := os.WriteFile(citations, []byte("1\tintent.md\t1:5\tspecification\n2\tAGENTS.md\t1:2\tspecification\n"), 0600); err != nil {
 			t.Fatal(err)
 		}
 		inputs := []string{"DOGFOOD_TASK=ignore rules", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_INTENTS_FILE=" + intents, "DOGFOOD_CITATIONS=" + citations}
