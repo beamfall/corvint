@@ -139,9 +139,10 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `corvint frontier --cem .corvint/change.cem.json --ocm .corvint/change.ocm.001.json
    --expected-base $BASE --target HEAD`, whose exit 1 is a valid open frontier. Frontier admits
    only a `cem/0.2` map: over the default `cem/1.0` map it exits 2 `unsupported-frontier-context`,
-   so that view is not produced until Frontier reads `cem/1.0` (V1-1276). These paths and
-   `--target HEAD` hold only before step 10; after the seal, `cem report` takes section 6's sealed
-   form (`.corvint/changes/<bind-sha>.cem.json` and `--target <bind-sha>`).
+   so that view is not produced until Frontier reads `cem/1.0` (V1-1276). The `cem/1.0` reads in
+   section 6 take the full target ID and `--artifacts`. These paths hold only before step 10;
+   after the seal, `cem report` takes section 6's sealed form
+   (`.corvint/changes/<bind-sha>.cem.json` and `--target <bind-sha>`).
 9. Run `make dogfood-check BASE=$BASE`. Expected: one `dogfood-check: SUMMARY cem=STATE hunks=N
    supported=N unknown=N mechanical=N unknownShare=U/M reasonedUnknown=N ocm=STATE ...
    report=.corvint/dogfood-report.json detail=<git-dir>/corvint/dogfood-check.stdout` line, then
@@ -791,14 +792,22 @@ A reviewer receives the sealed branch. At the seal head the seal has moved the m
 commit, so the report targets it, not `HEAD`:
 
 ```console
-$ corvint cem report --map .corvint/changes/BIND_SHA.cem.json \
-    --expected-base BASE_SHA --target BIND_SHA --max-unknown 0 --max-mechanical 0
+$ corvint --root "$PWD" cem status --map .corvint/changes/BIND_SHA.cem.json \
+    --expected-base BASE_SHA --target BIND_SHA --artifacts "$PWD" --max-unknown 0 --max-mechanical 0
+$ corvint --root "$PWD" cem report --map .corvint/changes/BIND_SHA.cem.json \
+    --expected-base BASE_SHA --target BIND_SHA --artifacts "$PWD"
 ```
 
-Before the seal, at the bind commit, the author runs the same report with
-`--map .corvint/change.cem.json --target HEAD`. At the seal head that path no longer exists, and
-`--target HEAD` names the seal commit, so both forms fail there. The OCM maps are ignored local
-files, so only the author can report them, before the seal:
+The default map is `cem/1.0` (`CEM-V1-140`): its reads take full 40-hex commit IDs, never `HEAD`,
+an absolute repository root and an absolute `--artifacts` root. `cem status` enforces the policy
+ceilings (`CEM-V1-145`); a stable `cem report` refuses them, so it runs after that status. A
+`cem/0.2` map, prepared with `--spec cem/0.2`, keeps the former single report with the ceilings
+and no `--artifacts`.
+
+Before the seal, at the bind commit, the author runs the same reads with
+`--map .corvint/change.cem.json --target "$(git rev-parse HEAD)"`. At the seal head that path no
+longer exists, and `HEAD` names the seal commit, so both forms fail there. The OCM maps are
+ignored local files, so only the author can report them, before the seal:
 
 ```console
 $ corvint ocm report --map .corvint/change.ocm.001.json \

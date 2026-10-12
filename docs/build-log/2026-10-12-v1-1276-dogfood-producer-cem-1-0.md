@@ -48,7 +48,8 @@ The RC3 loop must produce only `cem/1.0` (decision 0525). Before this change Cor
     (`CEM-V1-151`). Sidecar-only reuse stays `cem/0.x` only (`CEM-V1-150`).
 12. The stable verifier takes only full 40-hex object IDs, never `HEAD`. The `review-change.sh`
     recipe resolves the target to its full ID, adds `--artifacts` for a `cem/1.0` map and passes
-    no ceilings to its report; `docs/DOGFOOD.md`'s reviewer path and console section say the same.
+    no ceilings to its report; `docs/DOGFOOD.md` section 6 runs the stable `cem status` with the
+    ceilings and then `cem report` without them, on full IDs (Codex round 2, P2).
 13. A stable prepare over sidecar bytes that are neither a `cem/0.x` nor a `cem/1.0` map keeps the
     "not a valid CEM document" refusal; only a readable `cem/0.x` map is "a different spec".
 14. Tests that exercise `cem/0.x`-only surfaces (0.x status goldens, `verify --patch`,
