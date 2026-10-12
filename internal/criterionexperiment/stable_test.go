@@ -15,7 +15,6 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/stablefixture"
 	cw "github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
-	tw "github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 type stableExperiment struct {
@@ -90,7 +89,8 @@ func newStableExperiment(t *testing.T) stableExperiment {
 }
 
 // TestCEMV1136StableExperimentRunsAndVerifies (CEM-V1-136, CEM-V1-138): a
-// stable-profile plan over a verified cem/1.0 map runs and verifies under
+// stable request admitted over a verified cem/1.0 map is planned by the
+// planning core from verified native captures, then runs and verifies under
 // the stable schema; the frozen phases refuse the same plan, and a missing
 // artifact root or tampered artifact refuses verification.
 func TestCEMV1136StableExperimentRunsAndVerifies(t *testing.T) {
@@ -107,20 +107,25 @@ func TestCEMV1136StableExperimentRunsAndVerifies(t *testing.T) {
 		t.Fatal(e)
 	}
 	r.GoBinary = binaryLink
-	tree, e := f.repo.CommitTree(ctx, r.Target)
+	cem := filepath.Join(t.TempDir(), "cem.json")
+	if e := os.WriteFile(cem, f.stable.Map, 0o600); e != nil {
+		t.Fatal(e)
+	}
+	r.CEM = cem
+	if e := r.validate(); e != nil {
+		t.Fatal(e)
+	}
+	if e := admitCEM(ctx, f.repo, f.dir, r, f.stable.Map, f.stable.ArtifactRoot); e != nil {
+		t.Fatal(e)
+	}
+	planDir := filepath.Join(t.TempDir(), "plan")
+	p, e := planWithCaptures(ctx, f.repo, r, f.stable.Map, captures, planDir)
 	if e != nil {
 		t.Fatal(e)
 	}
-	binding, _, _, e := authorityBinding(captures, tree)
-	if e != nil {
-		t.Fatal(e)
-	}
-	p := Plan{StableProfile, r, binding, Digest(f.stable.Map), Digest(tw.EncodeFile(captures.Capture.Value())), captures.Verification.Verifier}
-	planDir := t.TempDir()
-	for name, b := range map[string][]byte{"plan.json": Encode(p), "cem.json": f.stable.Map, "captures.json": tw.EncodeFile(captures.Capture.Value())} {
-		if e = save(planDir, name, b); e != nil {
-			t.Fatal(e)
-		}
+	marker, e := os.ReadFile(filepath.Join(planDir, "EXPERIMENT-DISPOSABLE"))
+	if e != nil || p.Schema != StableProfile || p.CEMSha256 != stablefixture.Digest(f.stable.Map) || string(marker) != StableProfile+"\n" {
+		t.Fatalf("stable plan %q %q %v", p.Schema, marker, e)
 	}
 	planPath := filepath.Join(planDir, "plan.json")
 	if _, e = Run(ctx, f.dir, planPath, CanonicalDigest(p), filepath.Join(t.TempDir(), "frozen"), true, true, tasks); e == nil {

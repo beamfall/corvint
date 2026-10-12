@@ -1265,7 +1265,7 @@ No 0.x profile, default, packet or stored evidence changes.
 | CEM-V1-133 | `TestCEMV1130StableObligationsAccepts` | Criterion link listed apart with `NOT_OBSERVED`; no association carries a criterion |
 | CEM-V1-134 | `TestCEMV1134ObligationRoutesStayDisjoint` | Frozen refuses `cem/1.0`; stable refuses `cem/0.2`; both `invalid-obligations-input` |
 | CEM-V1-135 | `TestCEMV1135ObligationsStableMode` | Accept over the four flags; wrong base exit 2 with no stdout; partial flags exit 2; frozen form refuses `cem/1.0` |
-| CEM-V1-136 | `TestCEMV1136StableExperimentRunsAndVerifies` | Stable plan, receipt and summary carry the stable schema; `VERIFIED_SATISFIED` over the stable map digest |
+| CEM-V1-136 | `TestCEMV1136StableExperimentRunsAndVerifies` | The planning core (`planWithCaptures`, after stable admission, over verified native captures) writes a stable plan and marker; receipt and summary carry the stable schema; `VERIFIED_SATISFIED` over the stable map digest. The live `capture` call is not exercised |
 | CEM-V1-137 | `TestCEMV1137StableExperimentAdmission` | Accepts the verified map; wrong base, edited bytes, missing root, tampered artifact and unknown hunk refuse |
 | CEM-V1-138 | `TestCEMV1136StableExperimentRunsAndVerifies` | Frozen run and verify refuse the stable plan; missing root and tampered artifact refuse stable verification |
 | CEM-V1-139 | `TestCEMV1137StableExperimentAdmission`, `TestCEMV1139StableFlagRefusesWithoutPayload` | Frozen with root, frozen over `cem/1.0`, stable over `cem/0.2` and stable without root refuse; CLI flag prints no payload on refusal |

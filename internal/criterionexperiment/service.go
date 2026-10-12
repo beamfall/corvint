@@ -45,6 +45,13 @@ func planExperiment(ctx context.Context, repoPath string, r Request, out, artifa
 	if e != nil {
 		return p, e
 	}
+	return planWithCaptures(ctx, repo, r, cem, captures, out)
+}
+
+// planWithCaptures binds an admitted request and map to verified native
+// captures and writes the plan in the request's schema.
+func planWithCaptures(ctx context.Context, repo *gitauth.Repository, r Request, cem []byte, captures Captures, out string) (Plan, error) {
+	var p Plan
 	tree, e := repo.CommitTree(ctx, r.Target)
 	if e != nil {
 		return p, e

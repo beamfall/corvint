@@ -76,6 +76,9 @@ CEM bind or seal.
 - No CLI or MCP route exists for the stable TCQ/frontier upstream. The obligations stable mode and
   the experiments flag are the only CLI surfaces.
 - C08:
+  - planning is tested through `planWithCaptures`, which was split out of `planExperiment`
+    with no behavior change, over the verified fixture captures; neither the stable nor the
+    frozen tests exercise the live Tasks `capture` call;
   - the live exact-target Tasks gate (`gate`, live mode) over a stable plan is NOT_RUN;
   - the stale-generation and policy negatives over a stable plan are NOT_RUN beyond the shared
     frozen tests;
