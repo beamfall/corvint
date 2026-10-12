@@ -29,20 +29,23 @@ type PartitionFiles struct {
 // (STR-V0-003, STR-V0-018). PlanError is set when no plan could be produced;
 // then only Base, Source, Declared, RunnerProfile and ShardCount are read.
 type Input struct {
-	Base          string
-	Checks        []string
-	Declared      Declared
-	GoSelection   string // the AFP-V0-012 verdict line: run/FALLBACK/NOTHING
-	GraphDigest   string
-	Partition     PartitionFiles
-	PlanDigest    string
-	PlanError     string
-	RunnerProfile string
-	Selected      []string // plan.selected unit ids
-	ShardCount    int
-	Source        SourceIdentity
-	Universe      []string // the graph's Go import paths
-	Unknown       []Unknown
+	Base     string
+	Checks   []string
+	Declared Declared
+	// DirtyLanguages names each non-Go language whose plugin owns a
+	// plan.dirty path; FULL covers it even when no unit names it.
+	DirtyLanguages []string
+	GoSelection    string // the AFP-V0-012 verdict line: run/FALLBACK/NOTHING
+	GraphDigest    string
+	Partition      PartitionFiles
+	PlanDigest     string
+	PlanError      string
+	RunnerProfile  string
+	Selected       []string // plan.selected unit ids
+	ShardCount     int
+	Source         SourceIdentity
+	Universe       []string // the graph's Go import paths
+	Unknown        []Unknown
 }
 
 // allowedUnknown is the closed AFP-V0-028 allowlist: every other plan.unknown
@@ -150,11 +153,12 @@ func Build(input Input) (Manifest, error) {
 		goRun = append([]string{}, input.Universe...)
 		// A fallback need not name the language it widened for (a deleted
 		// source file is only a path), so FULL runs every declared language
-		// full command, and an unreadable declaration is INCOMPLETE.
+		// full command and covers every language owning a dirty path; an
+		// unreadable declaration is INCOMPLETE.
 		if input.Declared.Unreadable != "" {
 			manifest.Incomplete = append(manifest.Incomplete, "the declared full scope is unreadable: "+input.Declared.Unreadable)
 		}
-		for _, language := range input.Declared.Languages {
+		for _, language := range append(append([]string{}, input.Declared.Languages...), input.DirtyLanguages...) {
 			languages[language] = true
 		}
 	} else if len(goRun) == 0 && len(languages) == 0 {
@@ -163,7 +167,7 @@ func Build(input Input) (Manifest, error) {
 	if len(goRun) != 0 {
 		manifest.placeGo(input, goRun)
 	} else if manifest.Scope == ScopeFull && input.Declared.GoTest != GoTestAbsent {
-		manifest.addDeclared("go-test") // FULL with no Go universe still runs the declared Go suite
+		manifest.addDeclaredGo() // FULL with no Go universe still runs the declared Go suite
 	}
 	for _, language := range sortedKeys(languages) {
 		manifest.declaredLanguage(input.Declared, language)
@@ -227,7 +231,7 @@ func (m *Manifest) declaredOnly(declared Declared) {
 		return
 	}
 	if declared.GoTest != GoTestAbsent {
-		m.addDeclared("go-test")
+		m.addDeclaredGo()
 	}
 	for _, language := range declared.Languages {
 		m.addDeclared(language + "-test")
@@ -244,6 +248,17 @@ func (m *Manifest) declaredLanguage(declared Declared, language string) {
 		}
 	}
 	m.Incomplete = append(m.Incomplete, language+": no qualified adapter and no declared "+language+"-test full command")
+}
+
+// addDeclaredGo runs the declared go-test target. The CI profile refuses it,
+// because make go-test would drop the CI confinement, -race and environment
+// (STR-V0-006).
+func (m *Manifest) addDeclaredGo() {
+	if m.RunnerProfile == ProfileCI {
+		m.Incomplete = append(m.Incomplete, "go: the ci profile cannot run make go-test, which drops the CI confinement, -race and environment")
+		return
+	}
+	m.addDeclared("go-test")
 }
 
 func (m *Manifest) addDeclared(target string) {

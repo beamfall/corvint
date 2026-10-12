@@ -84,7 +84,7 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 	inGoTest := false
 	// depth counts open conditionals; a variable assigned under one, or a
 	// directive that changes what a recipe sees, cannot be evaluated here.
-	depth, untyped := 0, ""
+	depth, untyped, incomplete := 0, "", ""
 	// refused names variables this reader cannot evaluate: assigned under a
 	// conditional, or an immediate assignment whose expansion it cannot type.
 	refused := map[string]bool{}
@@ -103,7 +103,23 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 			continue
 		}
 		inGoTest = false
-		directive, _, _ := strings.Cut(strings.TrimSpace(line), " ")
+		// make accepts leading blanks before a directive or assignment, and
+		// any blank, tab included, after a directive word.
+		line = strings.TrimLeft(line, " \t")
+		directive := strings.Fields(line)[0]
+		if before, _, found := strings.Cut(directive, "("); found && before != "" {
+			directive = before
+		}
+		if strings.Contains(line, "$(eval") || strings.Contains(line, "${eval") {
+			// eval can define any rule, a <lang>-test included.
+			if incomplete == "" {
+				incomplete = "the Makefile uses eval"
+			}
+			if untyped == "" {
+				untyped = "the Makefile uses eval, which this reader cannot evaluate"
+			}
+			continue
+		}
 		switch directive {
 		case "ifeq", "ifneq", "ifdef", "ifndef":
 			depth++
@@ -114,6 +130,10 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 		case "else":
 			continue
 		case "export", "unexport", "override", "include", "-include", "sinclude", "define", ".EXPORT_ALL_VARIABLES:":
+			if strings.HasSuffix(directive, "include") && incomplete == "" {
+				// An included file can declare any full-suite target.
+				incomplete = "the Makefile uses " + directive
+			}
 			if untyped == "" {
 				untyped = "the Makefile uses " + strings.TrimSuffix(directive, ":") + ", which this reader cannot evaluate"
 			}
@@ -131,10 +151,13 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 				refused[name] = true
 			}
 			if operator == "?=" {
+				// ?= assigns only an undefined variable; an earlier Makefile
+				// assignment wins over the environment, as in make.
+				if _, defined := variables[name]; defined {
+					continue
+				}
 				if environment, ok := lookup(name); ok {
 					value = environment
-				} else if _, defined := variables[name]; defined {
-					continue
 				}
 			}
 			if (operator == ":=" || operator == "::=") && strings.Contains(value, "$") {
@@ -171,6 +194,9 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 		}
 	}
 	sort.Strings(declared.Languages)
+	if incomplete != "" {
+		declared.Unreadable = incomplete + ", so its declared full scope cannot be read completely"
+	}
 	if declared.GoTest == GoTestUnparsed {
 		for name := range refused {
 			delete(variables, name) // expandMake then refuses any reference to it

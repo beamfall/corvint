@@ -236,6 +236,26 @@ func TestSTRV0001CLIRefusesProtectedOutputPaths(t *testing.T) {
 	if code, _, stderr := runCLI(t, "--root", root, "test", "--base", base, "--receipt", allowed); code != 0 {
 		t.Fatalf("default receipt name refused: %d %s", code, stderr)
 	}
+	// The default destination passes the same guard: a linked
+	// <git-dir>/corvint cannot redirect it into protected state.
+	linked, linkedBase, linkedLog := sessionFixture(t, "pass")
+	if err := os.MkdirAll(filepath.Join(linked, ".corvint"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.RemoveAll(filepath.Join(linked, ".git", "corvint"))
+	if err := os.Symlink(filepath.Join(linked, ".corvint"), filepath.Join(linked, ".git", "corvint")); err != nil {
+		t.Fatal(err)
+	}
+	code, _, stderr := runCLI(t, "--root", linked, "test", "--base", linkedBase)
+	if code != 2 || !strings.Contains(stderr, "default receipt") || !strings.Contains(stderr, "under .corvint/") {
+		t.Fatalf("linked default receipt: %d %s", code, stderr)
+	}
+	if _, err := os.Lstat(filepath.Join(linked, ".corvint", "test-run.json")); err == nil {
+		t.Fatal("the default receipt was written through the link")
+	}
+	if got := sessionRunnerLog(t, linkedLog); got != "" {
+		t.Fatalf("a refused run launched runners:\n%s", got)
+	}
 }
 
 // STR-V0-007, STR-V0-009: every shard of one manifest, the empty one

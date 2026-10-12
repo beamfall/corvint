@@ -140,7 +140,9 @@ func TestSTRV0014RunnerCancelAndBudgetKillGroup(t *testing.T) {
 		digest, _ = Digest(m)
 		ctx, cancel := context.WithCancel(context.Background())
 		if budget {
-			runner.Budget = 300 * time.Millisecond
+			// Long enough for the fake go to start its grandchild on a
+			// loaded host; 300ms was racy.
+			runner.Budget = 2 * time.Second
 		} else {
 			go func() {
 				for deadline := time.Now().Add(20 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
@@ -159,7 +161,7 @@ func TestSTRV0014RunnerCancelAndBudgetKillGroup(t *testing.T) {
 		}
 		want := "cancelled while an adapter ran; its process group was killed"
 		if budget {
-			want = "an adapter invocation exceeded the 300ms total budget; its process group was killed"
+			want = "an adapter invocation exceeded the 2s total budget; its process group was killed"
 		}
 		if receipt.Result != ResultIncomplete || len(receipt.Invocations) != 1 || receipt.Incomplete[0] != want {
 			t.Fatalf("budget=%v: %s %d %v", budget, receipt.Result, len(receipt.Invocations), receipt.Incomplete)

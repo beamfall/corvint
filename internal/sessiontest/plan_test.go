@@ -115,6 +115,15 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 			in.GoSelection = "FALLBACK UNINDEXED_SOURCE_PATH pkg/gone.py"
 			in.Declared.Languages = []string{"python"}
 		}, scope: ScopeFull, reason: "UNINDEXED_SOURCE_PATH pkg/gone.py", units: []string{"0 go:example.test/m/a whole", "0 go:example.test/m/b whole", "0 go:example.test/m/c whole", "0 declared:python-test whole"}},
+		{name: "FULL covers an undeclared language owning a dirty path", edit: func(in *Input) {
+			in.GoSelection = "FALLBACK UNINDEXED_SOURCE_PATH pkg/gone.py"
+			in.DirtyLanguages = []string{"python"}
+		}, scope: ScopeFull, reason: "UNINDEXED_SOURCE_PATH pkg/gone.py", units: whole("a", "b", "c"), incomplete: []string{"python: no qualified adapter and no declared python-test full command"}},
+		{name: "ci profile refuses make go-test with no plan", edit: func(in *Input) {
+			in.PlanError = "base unresolved"
+			in.RunnerProfile = ProfileCI
+			in.Declared.Languages = []string{"rust"}
+		}, scope: ScopeFull, reason: "no plan: base unresolved", units: []string{"0 declared:rust-test whole"}, incomplete: []string{"go: the ci profile cannot run make go-test, which drops the CI confinement, -race and environment"}},
 		{name: "FULL with an unreadable declaration", edit: func(in *Input) {
 			in.GoSelection = "FALLBACK go.mod changed"
 			in.Declared.Unreadable = "Makefile is unreadable"
@@ -322,11 +331,27 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 		"go-test:\n\tgo test ./...\n# note\n\tgo test -race ./...\n":   "2 recipe lines",
 		"F := $(UNDEFINED) -race\ngo-test:\n\tgo test $(F) ./...\n":    "F",
 		"F := $$HOME\ngo-test:\n\tgo test $(F) ./...\n":                "F",
+		"export\tGOFLAGS=-race\ngo-test:\n\tgo test ./...\n":           "uses export",
+		"  override F = -race\ngo-test:\n\tgo test ./...\n":            "uses override",
 	} {
 		got := ReadDeclared(write(t, body), nil, none)
 		if got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, note) {
 			t.Errorf("%q: %s %q, want unparsed naming %q", body, got.GoTest, got.GoTestNote, note)
 		}
+	}
+	// An included file or eval can declare any full-suite target, so the
+	// declared scope is not complete.
+	for _, body := range []string{"include rust.mk\ngo-test:\n\tgo test ./...\n", "-include x.mk\n", "$(eval $(call T,rust))\n"} {
+		if got := ReadDeclared(write(t, body), []string{"rust"}, none); !strings.Contains(got.Unreadable, "cannot be read completely") {
+			t.Errorf("%q: declared scope read as complete: %#v", body, got)
+		}
+	}
+	// ?= leaves an earlier Makefile value alone, whatever the environment
+	// says; a leading blank does not hide an assignment.
+	env := func(name string) (string, bool) { return "-short", name == "F" }
+	precedence := ReadDeclared(write(t, "F = -race\nF ?= -count=1\n  G = -v\ngo-test:\n\tgo test $(F) $(G) ./...\n"), nil, env)
+	if !reflect.DeepEqual(precedence.GoFlags, []string{"-race", "-v"}) {
+		t.Fatalf("?= precedence: %#v", precedence)
 	}
 	// An immediate assignment keeps the value it had when assigned.
 	immediate := ReadDeclared(write(t, "F = -race\nFLAGS := $(F) -count=1\nF = -short\ngo-test:\n\tgo test $(FLAGS) ./...\n"), nil, none)

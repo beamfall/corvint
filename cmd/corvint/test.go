@@ -165,7 +165,17 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, affectedGitExecutableRefusal())
 		return 2
 	}
-	for _, output := range []struct{ flag, name string }{{"--receipt", options.receipt}, {"--dry-run --manifest", testManifestOutput(options)}} {
+	receiptFlag := "--receipt"
+	if options.receipt == "" && !options.dryRun {
+		// The default destination passes the same guard as a supplied one,
+		// so a linked <git-dir>/corvint cannot redirect it onto tracked state.
+		if options.receipt, err = testDefaultReceiptPath(ctx, gitExecutable, root, options); err != nil {
+			emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "the default receipt path cannot be resolved; pass --receipt PATH"})
+			return 2
+		}
+		receiptFlag = "default receipt"
+	}
+	for _, output := range []struct{ flag, name string }{{receiptFlag, options.receipt}, {"--dry-run --manifest", testManifestOutput(options)}} {
 		if output.name == "" {
 			continue
 		}
@@ -339,6 +349,17 @@ func testFillPlan(input *sessiontest.Input, receipt affectedReceipt, graph *affe
 	for _, entry := range receipt.Plan.Unknown {
 		input.Unknown = append(input.Unknown, sessiontest.Unknown{Detail: entry.Detail, Reason: entry.Reason})
 	}
+	for _, language := range affectedLanguages() {
+		if language.Name() == "go" {
+			continue
+		}
+		for _, dirty := range receipt.Plan.Dirty {
+			if language.Owns(dirty) {
+				input.DirtyLanguages = append(input.DirtyLanguages, language.Name())
+				break
+			}
+		}
+	}
 	input.Universe = []string{}
 	for _, id := range graph.UnitIDs() {
 		if pkg, ok := strings.CutPrefix(id, "go:"); ok {
@@ -501,22 +522,23 @@ func testExecute(ctx context.Context, root string, options testOptions, m sessio
 // testBudget is package state so fixture tests can shorten the budget.
 var testBudget = sessiontest.DefaultBudget
 
+// testDefaultReceiptPath is <git-dir>/corvint/test-run[.I].json.
+func testDefaultReceiptPath(ctx context.Context, gitExecutable, root string, options testOptions) (string, error) {
+	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
+	defer cancel()
+	gitDir, err := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--absolute-git-dir").Output()
+	if err != nil {
+		return "", err
+	}
+	base := "test-run.json"
+	if options.shardCount > 1 {
+		base = fmt.Sprintf("test-run.%d.json", options.shard)
+	}
+	return filepath.Join(strings.TrimSpace(string(gitDir)), "corvint", base), nil
+}
+
 func testWriteReceipt(ctx context.Context, gitExecutable, root string, options testOptions, receipt sessiontest.Receipt, signalExit int, stderr io.Writer) int {
 	name := options.receipt
-	if name == "" {
-		deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
-		defer cancel()
-		gitDir, err := hermeticGitCommand(context.WithoutCancel(deadline), gitExecutable, root, "rev-parse", "--absolute-git-dir").Output()
-		if err != nil {
-			emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "the default receipt path cannot be resolved; pass --receipt PATH"})
-			return testCommandExit[sessiontest.ResultIncomplete]
-		}
-		base := "test-run.json"
-		if options.shardCount > 1 {
-			base = fmt.Sprintf("test-run.%d.json", options.shard)
-		}
-		name = filepath.Join(strings.TrimSpace(string(gitDir)), "corvint", base)
-	}
 	encoded, err := sessiontest.Encode(receipt)
 	if err == nil {
 		err = sessiontest.WriteFile(name, encoded)
