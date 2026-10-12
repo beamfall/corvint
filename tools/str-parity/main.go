@@ -200,8 +200,16 @@ const confinePath = "/str-parity/test-confine"
 // ciGoEnv is the environment overlay corvint's ci profile sets besides
 // CORVINT_CONFINE_ROOT (internal/sessiontest ciGoEnv, AFP-V0-028). A ci
 // environment difference is explained only when corvint sets exactly these
-// plus the confine root and the driver's closed environment holds each one.
+// plus the confine root and the driver's environment is exactly its closed
+// environment: ciDriverFixed, ciGoEnv, and each ciDriverPaths key once with
+// any value (tools/corvint-pr-tests ciEnvironment).
 var ciGoEnv = []string{"CGO_ENABLED=1", "GOFLAGS=", "GOPROXY=off", "GOSUMDB=off", "GOTOOLCHAIN=local", "GOWORK=off"}
+
+var ciDriverFixed = []string{"CC=/usr/bin/cc", "GIT_CONFIG_COUNT=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_KEY_0=advice.graftFileDeprecated",
+	"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_VALUE_0=false", "GIT_GRAFT_FILE=/dev/null", "GIT_NO_REPLACE_OBJECTS=1", "GIT_TERMINAL_PROMPT=0",
+	"GOENV=off", "GOMAXPROCS=2", "LANG=C", "LC_ALL=C", "TZ=UTC"}
+
+var ciDriverPaths = []string{"GOCACHE", "GOMODCACHE", "HOME", "PATH", "TEMP", "TMP", "TMPDIR"}
 
 func comparePair(ctx context.Context, o options, clone, bin, record, target, base, head string, ordinal int) (Pair, error) {
 	pair := Pair{Base: base, Head: head, Root: clone, Target: target}
@@ -223,8 +231,8 @@ func comparePair(ctx context.Context, o options, clone, bin, record, target, bas
 	}
 	all := strings.Fields(universe)
 	pair.Universe, pair.UniverseCount = sortedCopy(all), len(all)
-	pair.CorvintLoc = corvintPlan(ctx, o, clone, env, base, "--profile", "local")
-	pair.CorvintCI = corvintPlan(ctx, o, clone, env, base, "--profile", "ci", "--confine", confinePath)
+	pair.CorvintLoc = corvintPlan(ctx, o, clone, env, base, all, "--profile", "local")
+	pair.CorvintCI = corvintPlan(ctx, o, clone, env, base, all, "--profile", "ci", "--confine", confinePath)
 	pair.Local = localPlan(ctx, o, clone, env, record, base, all)
 	pair.CI, pair.CIPlanned, pair.CIPlannedPackages = ciPlan(ctx, o, clone, env, base, head, target, ordinal, all)
 	pair.CIPlannedCount = len(pair.CIPlannedPackages)
@@ -236,7 +244,7 @@ func comparePair(ctx context.Context, o options, clone, bin, record, target, bas
 }
 
 // corvintPlan reads `corvint test --dry-run` for the one unsharded shard.
-func corvintPlan(ctx context.Context, o options, clone string, env []string, base string, profile ...string) Plan {
+func corvintPlan(ctx context.Context, o options, clone string, env []string, base string, universe []string, profile ...string) Plan {
 	args := append([]string{"--root", clone, "test", "--base", base, "--dry-run"}, profile...)
 	stdout, stderr, code := runCommand(ctx, clone, env, o.corvint, args...)
 	var printed struct {
@@ -265,15 +273,34 @@ func corvintPlan(ctx context.Context, o options, clone string, env []string, bas
 			plan.Declared = append(plan.Declared, strings.Join(invocation.Argv, " "))
 			continue
 		}
+		units := []string{}
 		for _, unit := range invocation.Units {
-			set[strings.TrimPrefix(unit.Unit, "go:")] = true
+			units = append(units, strings.TrimPrefix(unit.Unit, "go:"))
 		}
-		plan.Argv = flagsOnly(invocation.Argv[1:], set)
+		invoked, agrees := invokedPackages(invocation.Argv[1:], units, universe)
+		if !agrees {
+			plan.Error = strings.TrimSpace(plan.Error + " the go invocation's package arguments differ from its units")
+		}
+		for pkg := range invoked {
+			set[pkg] = true
+		}
+		plan.Argv = flagsOnly(invocation.Argv[1:], invoked)
 		plan.Env = sortedCopy(invocation.Env)
 	}
 	plan.Packages = sortedKeys(set)
 	plan.Count = len(plan.Packages)
 	return plan
+}
+
+// invokedPackages returns the packages a go invocation's arguments name, the
+// set that is compared, and whether its units name exactly those packages.
+func invokedPackages(argv, units, universe []string) (map[string]bool, bool) {
+	invoked := packageSet(argv, universe)
+	unitSet := map[string]bool{}
+	for _, unit := range units {
+		unitSet[unit] = true
+	}
+	return invoked, equalStrings(sortedKeys(invoked), sortedKeys(unitSet))
 }
 
 // localPlan runs the local driver as `make gate-affected BASE=P` does, with
@@ -435,7 +462,7 @@ func categorise(pair Pair, profile, field string, extra []string) string {
 			return "str-v0-004-undeclared-language"
 		}
 	case "admission", "executed":
-		if field == "executed" && (len(extra) != 0 || !equalStrings(pair.CI.Packages, pair.Universe)) {
+		if pair.CI.Scope != "FULL" || !equalStrings(pair.CI.Packages, pair.Universe) || (field == "executed" && len(extra) != 0) {
 			break
 		}
 		if strings.HasPrefix(pair.CI.Reason, "qualification unavailable: ") {
@@ -476,19 +503,24 @@ func confinedOnce(argv []string) bool {
 }
 
 // expectedCIEnv reports whether corvint's ci overlay is exactly ciGoEnv plus
-// CORVINT_CONFINE_ROOT=<root>, and the CI driver's closed environment holds
-// every ciGoEnv entry.
+// CORVINT_CONFINE_ROOT=<root>, and the CI driver's environment is exactly
+// ciDriverFixed and ciGoEnv plus one entry for each ciDriverPaths key.
 func expectedCIEnv(corvint, driver []string, root string) bool {
 	want := append([]string{"CORVINT_CONFINE_ROOT=" + root}, ciGoEnv...)
 	if !equalStrings(sortedCopy(corvint), sortedCopy(want)) {
 		return false
 	}
-	for _, entry := range ciGoEnv {
-		if !containsArg(driver, entry) {
-			return false
+	fixed := []string{}
+	paths := []string{}
+	for _, entry := range driver {
+		if key, _, _ := strings.Cut(entry, "="); containsArg(ciDriverPaths, key) {
+			paths = append(paths, key)
+		} else {
+			fixed = append(fixed, entry)
 		}
 	}
-	return true
+	return equalStrings(sortedCopy(fixed), sortedCopy(append(append([]string{}, ciDriverFixed...), ciGoEnv...))) &&
+		equalStrings(sortedCopy(paths), sortedCopy(ciDriverPaths))
 }
 
 func containsArg(values []string, want string) bool {

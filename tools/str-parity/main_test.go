@@ -32,8 +32,27 @@ func TestSTRV0013ParityReading(t *testing.T) {
 		t.Fatalf("overlay %v", got)
 	}
 
+	if got, agrees := invokedPackages([]string{"test", "-json", "m/a"}, []string{"m/a", "m/b"}, universe); agrees || !reflect.DeepEqual(sortedKeys(got), []string{"m/a"}) {
+		t.Fatalf("units naming a package argv omits: %v agrees=%v", sortedKeys(got), agrees)
+	}
+	if got, agrees := invokedPackages([]string{"test", "./..."}, universe, universe); !agrees || len(got) != 2 {
+		t.Fatalf("./... with every unit: %v agrees=%v", sortedKeys(got), agrees)
+	}
+
 	ciEnv := append([]string{"CORVINT_CONFINE_ROOT=/w"}, ciGoEnv...)
-	closed := append([]string{"HOME=/r", "PATH=/bin"}, ciGoEnv...)
+	closed := append(append([]string{}, ciDriverFixed...), ciGoEnv...)
+	for _, key := range ciDriverPaths {
+		closed = append(closed, key+"=/r/"+key)
+	}
+	driverEnv := func(drop string, add ...string) []string {
+		out := []string{}
+		for _, entry := range closed {
+			if entry != drop {
+				out = append(out, entry)
+			}
+		}
+		return append(out, add...)
+	}
 	local := Plan{Argv: []string{"test", "-json", "-p", "1"}, Count: 1, Env: []string{"A=1"}, Packages: []string{"m/a"}, Scope: "NARROWED"}
 	driver := Plan{Argv: []string{"test", "-p", "1"}, Count: 1, Env: []string{"A=1"}, Packages: []string{"m/a"}, Scope: "NARROWED"}
 	widened := Plan{Argv: local.Argv, Count: 2, Env: local.Env, Packages: universe, Reason: "plan.unknown entry outside the AFP-V0-028 allowlist: UNINDEXED_SOURCE_PATH x.go", Scope: "FULL"}
@@ -66,7 +85,7 @@ func TestSTRV0013ParityReading(t *testing.T) {
 		"unknown widening":         {func(p *Pair) { p.CorvintLoc = widened }, "local packages str-v0-003-unknown-widening"},
 		"widening that drops one":  {func(p *Pair) { p.CorvintLoc = widened; p.CorvintLoc.Packages = []string{"m/b"} }, "local packages UNEXPLAINED"},
 		"unexplained package":      {func(p *Pair) { p.Local.Packages = []string{"m/b"} }, "local packages UNEXPLAINED"},
-		"admission below universe": {func(p *Pair) { p.CI.Packages = []string{"m/a"}; p.CI.Count = 1 }, "ci admission ci-admission-no-qualification"},
+		"admission below universe": {func(p *Pair) { p.CI.Packages = []string{"m/a"}; p.CI.Count = 1 }, "ci admission UNEXPLAINED"},
 		"executed omits a package": {func(p *Pair) { p.CI.Packages = []string{"m/b"} }, "ci executed UNEXPLAINED"},
 		"undeclared language": {func(p *Pair) {
 			p.CorvintLoc.Error = "INCOMPLETE: typescript: no qualified adapter and no declared typescript-test full command"
@@ -75,6 +94,11 @@ func TestSTRV0013ParityReading(t *testing.T) {
 		"ci variable added":         {func(p *Pair) { p.CorvintCI.Env = append(append([]string{}, ciEnv...), "GOFLAGS=-mod=mod") }, "ci env UNEXPLAINED"},
 		"ci variable dropped":       {func(p *Pair) { p.CorvintCI.Env = []string{"CORVINT_CONFINE_ROOT=/w"} }, "ci env UNEXPLAINED"},
 		"confine root elsewhere":    {func(p *Pair) { p.Root = "/other" }, "ci env UNEXPLAINED"},
+		"driver drops GOENV":        {func(p *Pair) { p.CI.Env = driverEnv("GOENV=off") }, "ci env UNEXPLAINED"},
+		"driver changes GOMAXPROCS": {func(p *Pair) { p.CI.Env = driverEnv("GOMAXPROCS=2", "GOMAXPROCS=8") }, "ci env UNEXPLAINED"},
+		"driver adds GODEBUG":       {func(p *Pair) { p.CI.Env = driverEnv("", "GODEBUG=x=1") }, "ci env UNEXPLAINED"},
+		"driver drops a path":       {func(p *Pair) { p.CI.Env = driverEnv("HOME=/r/HOME") }, "ci env UNEXPLAINED"},
+		"driver path elsewhere":     {func(p *Pair) { p.CI.Env = driverEnv("HOME=/r/HOME", "HOME=/elsewhere") }, "ci env ci-closed-environment"},
 		"another exec wrapper":      {func(p *Pair) { p.CorvintCI.Argv = []string{"test", "-exec", "/bin/true", "-json"} }, "ci argv UNEXPLAINED"},
 		"local environment differs": {func(p *Pair) { p.Local.Env = []string{"A=2"} }, "local env UNEXPLAINED"},
 	} {
