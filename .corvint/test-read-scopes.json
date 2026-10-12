@@ -190,6 +190,8 @@
       "protocol/cem-1.0/maps/",
       "protocol/cem-1.0/patches/",
       "protocol/cem-1.0/repository/",
+      "protocol/cem-1.0/stable/manifest.json",
+      "protocol/cem-1.0/stable/neutral-criterion/",
       "protocol/cem-1.0/stable/repository-envelope-packet/",
       "protocol/cem-1.0/structural-tuples/"
     ],
@@ -197,7 +199,8 @@
       "conformance/cem-0.1/",
       "conformance/cem-0.2/",
       "interop/cem-0.1/",
-      "protocol/cem-1.0/maps/"
+      "protocol/cem-1.0/maps/",
+      "protocol/cem-1.0/stable/neutral-criterion/"
     ],
     "internal/cem/workflow": [
       "protocol/cem-0.2/",
