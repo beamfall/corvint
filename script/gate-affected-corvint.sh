@@ -53,8 +53,15 @@ trap 'interrupt TERM 143' TERM
 corvint=${CORVINT_TEST_BINARY:-}
 if [ -z "$corvint" ]; then
     corvint="$work/corvint"
-    if ! (cd "$source_root" && GOCACHE=${CORVINT_GOCACHE:-/tmp/corvint-go-build-cache} GOTOOLCHAIN=local \
-        go build -trimpath -o "$corvint" ./cmd/corvint); then
+    # The build runs as a waited background child too, so a signal during it is forwarded
+    # rather than deferred until a hung build returns.
+    build=0
+    (cd "$source_root" && exec env GOCACHE="${CORVINT_GOCACHE:-/tmp/corvint-go-build-cache}" \
+        GOTOOLCHAIN=local go build -trimpath -o "$corvint" ./cmd/corvint) &
+    child=$!
+    wait "$child" || build=$?
+    child=""
+    if [ "$build" -ne 0 ]; then
         printf 'gate-affected: corvint could not be built from %s\n' "$source_root" >&2
         exit 2
     fi

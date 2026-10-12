@@ -21,7 +21,7 @@ import (
 // fails, passes after a second, or starts a grandchild and sleeps.
 const fakeGo = `#!/bin/sh
 case "$1" in
-env) [ "$FAKE_MODE" = noversion ] && exit 1; echo go1.27.1; exit 0;;
+env) [ "$FAKE_MODE" = noversion ] && exit 1; [ "$FAKE_MODE" = slowenv ] && exec sleep 60; echo go1.27.1; exit 0;;
 list) echo m/a; [ "$FAKE_MODE" = extra ] && echo m/x; exit 0;;
 esac
 echo "$@" >> "$FAKE_DIR/argv"
@@ -199,8 +199,19 @@ func TestSTRV0015BudgetBoundsTheShard(t *testing.T) {
 	runner.Budget = time.Nanosecond
 	spent := runner.Execute(context.Background(), m, digest, 0)
 	if spent.Result != ResultIncomplete || len(spent.Invocations) != 0 ||
-		spent.Incomplete[0] != "the shard's 1ns total budget ran out before every invocation launched" {
+		spent.Incomplete[0] != "the shard's 1ns total budget ran out during runner discovery; nothing launched" {
 		t.Fatalf("spent budget: %s %d %v", spent.Result, len(spent.Invocations), spent.Incomplete)
+	}
+	// Discovery spends the same budget: a hung version probe is killed at the
+	// shard deadline, not after its own two-minute bound.
+	runner, m, _, _ = runnerFixture(t, "slowenv")
+	digest, _ = Digest(m)
+	runner.Budget = 500 * time.Millisecond
+	started := time.Now()
+	hung := runner.Execute(context.Background(), m, digest, 0)
+	if elapsed := time.Since(started); elapsed > 20*time.Second || hung.Result != ResultIncomplete ||
+		len(hung.Invocations) != 0 || len(hung.Incomplete) == 0 || !strings.HasPrefix(hung.Incomplete[0], "go: ") {
+		t.Fatalf("hung discovery: %s %s %d %v", elapsed, hung.Result, len(hung.Invocations), hung.Incomplete)
 	}
 	if got := (&Runner{}).ShardBudget(Manifest{RunnerProfile: ProfileCI}); got != CIBudget {
 		t.Fatalf("ci default budget %s", got)

@@ -199,17 +199,26 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 		planned = nil
 	}
 	versions := map[string][2]string{}
+	// Discovery spends the shard budget too (STR-V0-015): each probe is bound
+	// by the shard deadline, and none starts after it.
+	discoverCtx, cancelDiscover := context.WithDeadline(ctx, deadline)
+	defer cancelDiscover()
 	for _, invocation := range planned {
 		key := runnerKey(invocation)
 		if _, done := versions[key]; done {
 			continue
+		}
+		if !time.Now().Before(deadline) {
+			receipt.Incomplete = append(receipt.Incomplete, fmt.Sprintf("the shard's %s total budget ran out during runner discovery; nothing launched", budget))
+			planned = nil
+			break
 		}
 		if len(invocation.Argv) == 0 {
 			receipt.Incomplete = append(receipt.Incomplete, invocation.Units[0].Unit+": "+DeclarationPath+" names no command for it")
 			planned = withoutRunner(planned, key)
 			continue
 		}
-		runner, version, err := r.discover(ctx, invocation)
+		runner, version, err := r.discover(discoverCtx, invocation)
 		if err != nil {
 			receipt.Incomplete = append(receipt.Incomplete, key+": "+err.Error())
 			planned = withoutRunner(planned, key)

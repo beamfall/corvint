@@ -5,7 +5,7 @@ set -eu
 # repository with real go test: a clean tree runs nothing, an edit runs a narrowed set, a
 # dirty go.mod runs FULL, BASE joins the committed range, an unresolvable BASE is a usage
 # error, a failing test fails the run, the receipt lands under the Git directory, and SIGTERM
-# reaches the running corvint.
+# reaches the running corvint and the build before it.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-gate-affected-corvint-test.XXXXXX")
@@ -123,5 +123,17 @@ status=0
   "$source_root/script/gate-affected-corvint.sh" > "$test_root/stdout" 2> "$test_root/stderr") || status=$?
 expect_status 143 "terminated"
 test -f "$test_root/forwarded" || fail "SIGTERM was not forwarded to corvint"
+
+# SIGTERM during the build of corvint is forwarded to the build too, rather than deferred
+# until a hung build returns.
+mkdir -p "$test_root/fake-go"
+# shellcheck disable=SC2016
+printf '#!/bin/sh\ntrap '"'"'echo forwarded > "%s/build-forwarded"; exit 143'"'"' TERM\nkill -TERM "$PPID"\nsleep 30 &\nwait\n' "$test_root" > "$test_root/fake-go/go"
+chmod +x "$test_root/fake-go/go"
+status=0
+(cd "$repository" && PATH="$test_root/fake-go:$PATH" \
+  "$source_root/script/gate-affected-corvint.sh" > "$test_root/stdout" 2> "$test_root/stderr") || status=$?
+expect_status 143 "terminated during the build"
+test -f "$test_root/build-forwarded" || fail "SIGTERM was not forwarded to the build"
 
 echo "gate-affected-corvint tests passed"

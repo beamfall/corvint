@@ -238,8 +238,8 @@ of every requirement below and the binding gate until this spec is promoted.
   profile's current call site (for Go, a per-package hang detector: the declared `-timeout` flag
   locally, which `make go-test` runs unchanged through `tools/test-commands-run` (STR-V0-006), and the `50m`
   that `tools/corvint-pr-tests` and the full CI branch pass in CI), and a
-  separate total wall-clock budget per shard that covers every adapter invocation of the shard
-  (slice 3): 6 hours locally, an outer hang bound above the per-package detector rather than a
+  separate total wall-clock budget per shard that covers runner discovery and every adapter
+  invocation of the shard (slice 3): 6 hours locally, an outer hang bound above the per-package detector rather than a
   speed target (at the declared `-p 1` a change reaching about 236 packages outran 70 minutes, and
   `script/gate-affected.sh` had no total budget; a full local run's duration is `NOT_OBSERVED`), and
   60 minutes in the ci profile, which leaves the `go-product-shard` job's 75-minute timeout at

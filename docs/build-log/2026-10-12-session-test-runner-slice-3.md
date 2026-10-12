@@ -94,6 +94,17 @@ stays experimental: `corvint test` decides nothing in CI.
 - Balanced placement is not retained in CI (`NOT_RUN`); CI retains universe placement only.
 - `make gate` was waived by the owner (`NOT_RUN`).
 
+## Integration review (one Codex round)
+
+One read-only Codex round on the slice-3 integration diff (`0927631ce..c204e9262`) raised two P2
+findings, both fixed. First, `script/gate-affected-corvint.sh` built `corvint` in the foreground,
+so a trapped SIGTERM waited for a hung build; the build now runs as a waited background child and
+the signal is forwarded to it (new case in `script/gate-affected-corvint_test.sh`, which fails on
+the old script). Second, runner discovery in `Runner.Execute` used the caller's context and its own
+two-minute probe bound, so it could outrun the shard budget; probes now run under the shard
+deadline and none starts after it (STR-V0-015 text names discovery; `TestSTRV0015BudgetBoundsTheShard`
+adds a hung version probe). Under the owner's one-round cap no second round ran.
+
 ## Rollback
 
 Point `gate-affected` back at `GO_TEST_COMMAND='$(GO_TEST_COMMAND)' script/gate-affected.sh
