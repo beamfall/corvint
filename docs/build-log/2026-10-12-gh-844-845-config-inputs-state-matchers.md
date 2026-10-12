@@ -1,7 +1,7 @@
 # 2026-10-12 Playwright config-input bounds and behavior state matchers (GitHub #844, #845)
 
 Branch `claude/gh-844-845`, base `origin/main` 35c365a9e. Tickets V1-1317 (#844) and V1-1318 (#845).
-Requirements `PWP-V0-021` and `DCP-V1-083`, `DCP-V1-084` (proposed in this change).
+Requirements `PWP-V0-021` and `DCP-V1-083`, `DCP-V1-084`, accepted under the owner's standing auto-accept (2026-10-11) after the review below.
 
 ## #844: config-input bounds (`PWP-V0-021`)
 
@@ -48,6 +48,14 @@ that a non-canonical value stays a mismatch. The Go test is a new file so the pe
   `TestRunUnit_ReportBoundIsItsOwnAndNotTheExternalProviders`, keep-reporters and freshness tests).
 - `node --test internal/doccorpus/behavior-events_test.cjs` and
   `TestDCPV1081ProducerNodeUnit`, `TestDCPV1084StateMatcherAssertionIsWitnessed`.
+
+## Review
+
+One Codex read-only round on `35c365a9e..67a705bd9`: one minor finding, CHANGES_REQUESTED.
+`DCP-V1-084` claimed an empty reviewed value reports `assertion-contradiction` and
+`missing-assertion-event`, but the adapter refuses an empty outcome or check value during validation
+(`textOK`) before any comparison. Fixed: the requirement now separates an invalid empty declaration
+from a non-empty mismatch, and `TestDCPV1084StateMatcherAssertionIsWitnessed` asserts both refusals.
 
 ## NOT_RUN
 

@@ -2,6 +2,7 @@ package doccorpus
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -42,7 +43,8 @@ func behaviorAdapterUseMatcher(t *testing.T, fixture *behaviorAdapterTestFixture
 // DCP-V1-083 DCP-V1-084: an assertion event that behavior-events.cjs records for a valueless
 // state matcher (matcher toBeVisible, value visible) equals a reviewed outcome
 // that declares the same matcher and canonical value, so the variation keeps its
-// runtime witness; any other value stays a mismatch.
+// runtime witness; any other non-empty value stays a mismatch, and an empty
+// reviewed outcome or declared check value is refused as an invalid declaration.
 func TestDCPV1084StateMatcherAssertionIsWitnessed(t *testing.T) {
 	assertionGaps := func(result BehaviorAdapterResult) []string {
 		kinds := []string{}
@@ -73,5 +75,23 @@ func TestDCPV1084StateMatcherAssertionIsWitnessed(t *testing.T) {
 	result := buildBehaviorAdapter(t, fixture.request, nil)
 	if gaps := assertionGaps(result); !slices.Contains(gaps, "assertion-contradiction") || !slices.Contains(gaps, "missing-assertion-event") {
 		t.Fatalf("non-canonical runtime value was not a mismatch: %v", gaps)
+	}
+	for _, input := range []struct{ id, field, refusal string }{
+		{"variations", "outcomes", "variation identity or semantic contract is invalid"},
+		{"tests", "checks", "mapped assertion identity is incomplete"},
+	} {
+		fixture := behaviorAdapterFixture(t)
+		behaviorAdapterEditRow(t, &fixture.request, input.id, func(row map[string]any) {
+			for _, item := range row[input.field].([]any) {
+				item.(map[string]any)["matcher"], item.(map[string]any)["value"] = "toBeVisible", ""
+			}
+		})
+		raw, err := Encode(fixture.request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := BuildBehaviorAdapter(raw, nil); err == nil || !strings.Contains(err.Error(), input.refusal) {
+			t.Fatalf("empty %s value was not refused as an invalid declaration: %v", input.field, err)
+		}
 	}
 }
