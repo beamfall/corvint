@@ -122,15 +122,24 @@ of every requirement below and the binding gate until this spec is promoted.
   xcrun shim). That set settles which environment names make introduces; any other name reaching
   `go` (a target-specific or global `export`, `.EXPORT_ALL_VARIABLES`) is drift. The set is
   excluded, not trusted: the gate also runs a control recipe of the go-test recipe's shape
-  (`<go.env words> go <control target>`, added through a second `-f` makefile) under the same make
-  and shell, and the make-introduced names `go-test`'s `go` saw SHALL be exactly those the
-  control's `go` saw, with the same values, so a recipe that sets `MAKEFLAGS` itself fails. What
-  the shim cannot see, a second `go` behind an absolute path or a script, is excluded by the
-  recipe's shape: `make -s -n go-test` SHALL print exactly one line holding exactly one word `go`,
-  no other word whose basename is `go`, and none of the characters `; | & ( ) < > { } ` $ \ " '`,
-  so a chained, substituted, redirected or quoted command, a second recipe line, a changed
-  directory and a wrapper script are each refused, while a plain wrapper such as `nice go test`
-  passes because `go` still receives the declared argv and environment. The gate also
+  (`<go.env words> go <control target>`, in the gate's own one-target makefile read alone, not
+  beside the repository Makefile) under the same make and its default shell, and the
+  make-introduced names `go-test`'s `go` saw SHALL be exactly those the control's `go` saw, with
+  the same values, so a recipe that sets `MAKEFLAGS` itself and a Makefile that exports
+  `MAKEFLAGS` both fail. What the shim cannot see, anything that runs before or around the `go`
+  it is, is excluded by the recipe's shape and source: `make -s -n go-test` SHALL print exactly
+  one line whose words are zero or more `NAME=VALUE` assignments followed by the word `go` (the
+  rest is `go`'s argv, which the shim records), with none of the characters
+  `; | & ( ) < > { } ` $ \ " '`, so a chained, substituted, redirected or quoted command, a second
+  recipe line, a changed directory and any program before `go`, a wrapper script or `nice` alike,
+  are refused; and in make's own database (`make -p`) the go-test recipe and every variable it
+  expands, global or target-specific, SHALL be plain text whose only `$` uses are `$(NAME)` and
+  `${NAME}` references to such variables, so a make function such as `$(shell ...)` that runs
+  while the recipe is expanded (and prints nothing in the dry run) is refused, as is a Makefile
+  that sets `SHELL` or `.SHELLFLAGS` at all, whose recipe would run through a program the gate
+  did not observe. A make function expanded while the Makefile is read (`$(shell ...)` in a `:=`
+  assignment, which the repository uses for `git` lookups) runs before any of this on every make
+  invocation and is not observed; that is the recorded limit of the gate. The gate also
   dry-runs every declared `make` language command and, for each language declared `none`,
   dry-runs the `GATE_STEPS` recipes (read from make's own database) and fails when a recipe word
   names that language's runner (a closed per-language list: for example `node`, `npm`, `bun`,
@@ -236,7 +245,7 @@ of every requirement below and the binding gate until this spec is promoted.
 | Missing shard receipt, duplicate execution unit, unit without terminal outcome | fan-in `INCOMPLETE` |
 | Any failed outcome or nonzero adapter exit | `FAIL`, nonzero |
 | `.github/cishards/test-commands.json` unreadable (absent, oversized, unknown or malformed member, no `go`) | `INCOMPLETE` in every scope, nonzero, no unit runs |
-| Declared Go environment or flags drift from what `make go-test` hands `go` (recipe, `export`, `.EXPORT_ALL_VARIABLES`, absolute-path or repeated `go`, a changed directory, a recipe setting a make-introduced name, a second `go` outside `PATH`), a declared `make` target is absent, or a `make gate` step recipe runs a `none` language's runner | `make test-commands-check` fails (`make gate`, CI doc-gates) |
+| Declared Go environment or flags drift from what `make go-test` hands `go` (recipe, `export`, `.EXPORT_ALL_VARIABLES`, absolute-path or repeated `go`, a changed directory, a recipe or Makefile setting a make-introduced name or `SHELL`, a program before `go`, a make function the recipe expands), a declared `make` target is absent, or a `make gate` step recipe runs a `none` language's runner | `make test-commands-check` fails (`make gate`, CI doc-gates) |
 | Bound exceeded | `INCOMPLETE`, nonzero |
 | Signal | owned groups killed, `INCOMPLETE`, no fallback |
 | CI admission fails (pins, queue rules, `.github/` change, trip, kill switch) | `FULL` |
@@ -271,8 +280,10 @@ Testing matrix (all `NOT_RUN` until implementation):
   language the gate has no runner list for, and for Makefile drift the printed recipe does not
   show: a target-specific `export`, a global `export`, `.EXPORT_ALL_VARIABLES` with an extra
   variable, an absolute-path `go`, two `go` calls, a recipe failing after `go`, a changed flag, a
-  changed directory, a recipe setting `MAKEFLAGS`, a second `go` through an absolute path (chained,
-  or on its own recipe line), an absolute-path `go` word and a quoted runner in a gate step;
+  changed directory, a recipe setting `MAKEFLAGS`, a Makefile exporting `MAKEFLAGS` or setting
+  `SHELL`, a second `go` through an absolute path (chained, on its own recipe line, or as an
+  argument), a shell wrapper script or `nice` before `go`, `$(shell ...)` in the recipe, in a
+  variable it expands or in a target-specific variable, and a quoted runner in a gate step;
 - signal tests show killed groups and no fallback start;
 - the STR-V0-013 parity report over the retained substitute corpus.
 
@@ -312,7 +323,7 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-003 | `internal/sessiontest/plan.go`, `internal/sessiontest/declared.go` (`ReadDeclared`: strict, bounded read of `.github/cishards/test-commands.json`) | TestSTRV0003BuildVerdicts, TestSTRV0003ReadDeclared, TestSTRV0003CLINoPlanRunsDeclaredScope, TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand, TestSTRV0003CLIUnreadableDeclarationIsIncomplete, TestSTRV0003DeclaredRelativeCommandResolvesAgainstRoot, TestSTRV0003CLIDeclaredRelativeCommandRunsFromRoot |
 | STR-V0-004 | `internal/sessiontest/run.go` (Go adapter; declared language argv), `declaredLanguage` in `plan.go` (gate-scoped `none` to `noSuite`, undeclared to `INCOMPLETE`); `tools/test-commands-check` refuses a `none` language a `GATE_STEPS` recipe runs | TestSTRV0004ParseTestEvents, TestSTRV0004RunnerDiscoveryRefusals, TestSTRV0003BuildVerdicts, TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand; no versioned LPCV-V0-021 capability manifest yet (partial) |
 | STR-V0-005 | `Invocations` in `run.go` | TestSTRV0006Invocations, TestSTRV0010CLIRunWritesReceipt |
-| STR-V0-006 | `Invocations` (typed argv from the declaration's Go environment and flags); `tools/test-commands-check` behind `make test-commands-check` (`GATE_STEPS`, CI doc-gates) | TestSTRV0006Invocations, TestSTRV0003ReadDeclared, `tools/test-commands-check/main_test.go` TestSTRV0006DeclarationMatchesMakefile (repository pass plus eight declaration mutations and an absent file), TestSTRV0006MakefileDriftReachesGo (thirteen Makefile mutations: drift the printed recipe does not show and shapes the shim cannot see), TestSTRV0006CompareEnv, TestSTRV0006CompareIntroduced, TestSTRV0006ShimRecordRoundTrip |
+| STR-V0-006 | `Invocations` (typed argv from the declaration's Go environment and flags); `tools/test-commands-check` behind `make test-commands-check` (`GATE_STEPS`, CI doc-gates) | TestSTRV0006Invocations, TestSTRV0003ReadDeclared, `tools/test-commands-check/main_test.go` TestSTRV0006DeclarationMatchesMakefile (repository pass plus eight declaration mutations and an absent file), TestSTRV0006MakefileDriftReachesGo (twenty Makefile mutations: drift the printed recipe does not show, shapes the shim cannot see and make functions the recipe would expand), TestSTRV0006CompareEnv, TestSTRV0006CompareIntroduced, TestSTRV0006PlainRecipe, TestSTRV0006ShimRecordRoundTrip |
 | STR-V0-007 | `placeGo` over `cishards.PlanFrom` | TestSTRV0007UniversePlacementEqualsCIPlan, TestSTRV0009CLIShardsAndVerify |
 | STR-V0-008 | `placeGo` balanced branch over the run set (`Input.Placement`); `cmd/corvint/test.go` refuses `--profile ci` execution and a sharded run without `--manifest` | `internal/sessiontest/balanced_test.go` TestSTRV0008BalancedPlacesEveryUnitOnce (1 to 16 shards, catch-all slice), TestSTRV0008BalancedUsesEveryShard, TestSTRV0008BalancedFullAndManifest; TestSTRV0008CLIUsageRefusals, TestSTRV0008CLIBalancedShards; retaining it beside CI universe placement is the call site's (slice 3) and the local 20% bar is unmeasured: `NOT_RUN` |
 | STR-V0-009 | `internal/sessiontest/verify.go`, `corvint test verify-shards` | TestSTRV0009VerifyShardsMatrix, TestSTRV0009CLIShardsAndVerify |

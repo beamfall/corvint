@@ -20,10 +20,17 @@
 // and the closed set makeIntroduced, is go.env exactly. The makeIntroduced
 // names are not taken on trust either: a control recipe run under the same
 // make must show the same values, so a recipe that sets MAKEFLAGS itself is
-// a difference. What the shim cannot see, a second invocation through an
-// absolute path or a script, is excluded by the recipe's shape: `make -n
-// go-test` must print one plain command line with one `go` word and no shell
-// operator or substitution.
+// a difference, and the control makefile is read alone, so a Makefile-level
+// MAKEFLAGS or SHELL setting differs from it too. What the shim cannot see, a
+// second invocation through an absolute path, a wrapper or a script, is
+// excluded by the recipe's shape: `make -n go-test` must print one command
+// line of NAME=VALUE words then `go`, with no shell operator or substitution,
+// and make's own database (`make -p`) must show the go-test recipe and every
+// variable it expands as plain text: only $(NAME) references, no make
+// function such as $(shell ...) that runs during expansion, no target-specific
+// override of another kind, and SHELL left at make's default. Make functions
+// expanded while the Makefile is read ($(shell ...) in a := assignment) run
+// before any of this and are not observed.
 package main
 
 import (
@@ -54,9 +61,13 @@ const (
 	// minimalPath follows the shim directory: what make's /bin/sh and the
 	// Makefile's $(shell git ...) need, and nothing a developer prepends.
 	minimalPath = "/usr/bin:/bin"
-	// controlTarget is the recipe the gate adds through a second -f makefile
-	// to observe the values make and its shell give the makeIntroduced names.
+	// controlTarget is the recipe of the gate's own one-target makefile, run
+	// alone under the same make to observe the values make and its default
+	// shell give the makeIntroduced names.
 	controlTarget = "__corvint_test_commands_control"
+	// goTarget is the make target the declaration's go.env and go.flags
+	// describe.
+	goTarget = "go-test"
 	// shellSyntax are the characters a go-test recipe line may not contain:
 	// each can chain, substitute or redirect a command the shim never sees.
 	shellSyntax = ";|&()<>{}`$\\\"'\r"
@@ -183,6 +194,12 @@ func run(root, makefile, declaration string, stdout, stderr io.Writer) int {
 	}
 	problems := observeGoTest(root, makefile, declared)
 	problems = append(problems, recipeShape(root, makefile)...)
+	database, err := readDatabase(root, makefile)
+	if err != nil {
+		problems = append(problems, "make -p go-test: "+err.Error())
+	} else {
+		problems = append(problems, plainRecipe(database)...)
+	}
 	targets := 0
 	for _, entry := range declared.Languages {
 		if len(entry.Argv) < 2 || entry.Argv[0] != "make" {
@@ -195,8 +212,8 @@ func run(root, makefile, declaration string, stdout, stderr io.Writer) int {
 	}
 	none, unknown := noneLanguages(declared)
 	problems = append(problems, unknown...)
-	if len(none) != 0 {
-		problems = append(problems, checkGateSteps(root, makefile, none)...)
+	if len(none) != 0 && err == nil {
+		problems = append(problems, checkGateSteps(root, makefile, database, none)...)
 	}
 	if len(problems) != 0 {
 		for _, problem := range problems {
@@ -204,7 +221,7 @@ func run(root, makefile, declaration string, stdout, stderr io.Writer) int {
 		}
 		return 1
 	}
-	fmt.Fprintf(stdout, "test-commands-check: %s equals make go-test (%s go test %s ./... in the repository root, one plain command line); %d declared make targets dry-run; no make gate step recipe runs a suite of %v\n",
+	fmt.Fprintf(stdout, "test-commands-check: %s equals make go-test (%s go test %s ./... in the repository root, one plain command line, no make function in the recipe); %d declared make targets dry-run; no make gate step recipe runs a suite of %v\n",
 		sessiontest.DeclarationPath, strings.Join(declared.GoEnv, " "), strings.Join(declared.GoFlags, " "), targets, none)
 	return 0
 }
@@ -228,6 +245,8 @@ func observeGoTest(root, makefile string, declared sessiontest.Declared) []strin
 	}
 	// The control recipe has the go-test recipe's shape, environment words
 	// before go, so make runs it through the same shell rather than directly.
+	// It is read alone: what the Makefile does to MAKEFLAGS or SHELL must show
+	// up as a difference, not be inherited by the control.
 	control := filepath.Join(work, "control.mk")
 	if err := os.WriteFile(control, []byte(".PHONY: "+controlTarget+"\n"+controlTarget+":\n\t@"+strings.Join(append(slices.Clone(declared.GoEnv), "go", controlTarget), " ")+"\n"), 0o600); err != nil {
 		return []string{"cannot write the control makefile: " + err.Error()}
@@ -252,7 +271,7 @@ func observeGoTest(root, makefile string, declared sessiontest.Declared) []strin
 		problems = append(problems, fmt.Sprintf("make go-test runs go in %s, want the repository root %s: a recipe that changes directory does not run the declared full suite", seen.cwd, wantRoot))
 	}
 	problems = append(problems, compareEnv(declared.GoEnv, passed, seen.env)...)
-	baseline, _, controlProblems := observe(root, filepath.Join(work, "control-records"), path, "-s", "-f", makefile, "-f", control, controlTarget)
+	baseline, _, controlProblems := observe(root, filepath.Join(work, "control-records"), path, "-s", "-f", control, controlTarget)
 	if len(controlProblems) != 0 {
 		return append(problems, "cannot observe make's own environment through the control recipe: "+strings.Join(controlProblems, "; "))
 	}
@@ -354,7 +373,7 @@ func introducedValues(env []string) map[string]string {
 // compareIntroduced requires the makeIntroduced names go-test's go saw to be
 // exactly those the control recipe's go saw, with the same values: the set
 // is excluded from the declaration because make and the shell set it, so a
-// recipe or Makefile setting one of them for go-test is a difference.
+// recipe or Makefile setting one of them is a difference.
 func compareIntroduced(control, observed map[string]string) []string {
 	problems := []string{}
 	for _, name := range slices.Sorted(maps.Keys(makeIntroduced)) {
@@ -364,20 +383,21 @@ func compareIntroduced(control, observed map[string]string) []string {
 		case inControl && !inObserved:
 			problems = append(problems, fmt.Sprintf("make go-test runs go without %s, which make gives a plain recipe as %q", name, want))
 		case inObserved && !inControl:
-			problems = append(problems, fmt.Sprintf("make go-test runs go with %s=%q, which make gives a plain recipe no value: the recipe sets it", name, got))
+			problems = append(problems, fmt.Sprintf("make go-test runs go with %s=%q, which make gives a plain recipe no value: the Makefile or recipe sets it", name, got))
 		case inObserved && got != want:
-			problems = append(problems, fmt.Sprintf("make go-test runs go with %s=%q, which make gives a plain recipe as %q: the recipe sets it", name, got, want))
+			problems = append(problems, fmt.Sprintf("make go-test runs go with %s=%q, which make gives a plain recipe as %q: the Makefile or recipe sets it", name, got, want))
 		}
 	}
 	return problems
 }
 
 // recipeShape requires `make -n go-test` to print one plain command line:
-// one word `go`, no other word naming a go, and none of shellSyntax. The
-// shim observes the go it is; this excludes a second one it is not (an
-// absolute path, a script, a chained or substituted command).
+// NAME=VALUE words, then the word `go`, and none of shellSyntax. The shim
+// observes the go it is; this excludes what runs before or around it (an
+// absolute path, a wrapper such as nice or a script, a chained or substituted
+// command). The words after go are go's argv, which the shim records.
 func recipeShape(root, makefile string) []string {
-	printed, err := dryRun(root, makefile, "go-test")
+	printed, err := dryRun(root, makefile, goTarget)
 	if err != nil {
 		return []string{"make -s -n go-test: " + err.Error()}
 	}
@@ -389,21 +409,229 @@ func recipeShape(root, makefile string) []string {
 	if strings.ContainsAny(line, shellSyntax) {
 		return []string{fmt.Sprintf("make -s -n go-test prints %q: the go-test recipe may not use shell operators, substitutions, redirections or quotes, which can run what the go shim does not see", line)}
 	}
-	goWords := 0
-	for i, word := range strings.Fields(line) {
-		if i == 0 {
-			word = strings.TrimLeft(word, "@-+")
-		}
+	words := strings.Fields(line)
+	if len(words) != 0 {
+		words[0] = strings.TrimLeft(words[0], "@-+")
+	}
+	for _, word := range words {
 		if word == "go" {
-			goWords++
-		} else if path.Base(word) == "go" {
-			return []string{fmt.Sprintf("make -s -n go-test prints %q: %s is a go the shim on PATH does not observe", line, word)}
+			return nil
+		}
+		if name, _, ok := strings.Cut(word, "="); !ok || !plainName(name) {
+			return []string{fmt.Sprintf("make -s -n go-test prints %q: want NAME=VALUE words then go, found %q, a program the go shim on PATH does not observe", line, word)}
 		}
 	}
-	if goWords != 1 {
-		return []string{fmt.Sprintf("make -s -n go-test prints %q: want exactly one `go` word, found %d", line, goWords)}
+	return []string{fmt.Sprintf("make -s -n go-test prints %q: want NAME=VALUE words then go, found no go word", line)}
+}
+
+// plainName reports whether name is a plain environment or make variable
+// name: letters, digits and underscores, not starting with a digit.
+func plainName(name string) bool {
+	for i, r := range name {
+		switch {
+		case r == '_', r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9' && i != 0:
+		default:
+			return false
+		}
 	}
-	return nil
+	return name != ""
+}
+
+// definition is one variable in make's database: recursive (`=`, expanded
+// when used) or simple (`:=`, already expanded when the Makefile was read).
+type definition struct {
+	value     string
+	recursive bool
+}
+
+// database is what `make -p go-test` shows of the Makefile: the go-test recipe
+// as written, the global and go-test-specific variable definitions and each
+// global variable's origin comment.
+type database struct {
+	recipe []string
+	global map[string]definition
+	target map[string]definition
+	origin map[string]string
+}
+
+// readDatabase runs `make -s -n -p go-test` under the minimal environment and
+// parses it.
+func readDatabase(root, makefile string) (database, error) {
+	printed, err := runMake(root, []string{"PATH=" + minimalPath}, "-s", "-n", "-p", "-f", makefile, goTarget)
+	if err != nil {
+		return database{}, err
+	}
+	db := parseDatabase(printed)
+	if db.recipe == nil {
+		return database{}, fmt.Errorf("make -p prints no %s: recipe", goTarget)
+	}
+	return db, nil
+}
+
+// parseDatabase reads make's database print: `NAME = value` and
+// `NAME := value` lines (after an optional export/override/private), each
+// under a `# <origin>` comment, `define NAME` ... `endef` blocks, and the
+// `go-test:` block, whose `# NAME = value` comments are target-specific
+// definitions (the `# automatic` ones are not) and whose tab-indented lines
+// after `#  commands to execute` are the recipe.
+func parseDatabase(printed string) database {
+	db := database{global: map[string]definition{}, target: map[string]definition{}, origin: map[string]string{}}
+	lines := strings.Split(printed, "\n")
+	origin, inTarget, inRecipe, automatic := "", false, false, false
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		switch {
+		case inRecipe:
+			if body, ok := strings.CutPrefix(line, "\t"); ok {
+				if strings.TrimSpace(body) != "" {
+					db.recipe = append(db.recipe, body)
+				}
+				continue
+			}
+			inRecipe, inTarget = false, false
+		case inTarget:
+			if strings.HasPrefix(line, "#  commands to execute") {
+				db.recipe, inRecipe = []string{}, true
+				continue
+			}
+			if line == "" || !strings.HasPrefix(line, "#") {
+				inTarget = false
+				continue
+			}
+			if line == "# automatic" {
+				automatic = true
+				continue
+			}
+			if name, def, ok := parseDefinition(strings.TrimPrefix(line, "# ")); ok && !automatic {
+				db.target[name] = def
+			}
+			automatic = false
+			continue
+		}
+		if line == goTarget+":" {
+			inTarget, automatic = true, false
+			continue
+		}
+		if rest, ok := strings.CutPrefix(line, "# "); ok {
+			origin = rest
+			continue
+		}
+		if name, ok := strings.CutPrefix(stripModifiers(line), "define "); ok {
+			body := []string{}
+			for i++; i < len(lines) && lines[i] != "endef"; i++ {
+				body = append(body, lines[i])
+			}
+			db.global[name], db.origin[name] = definition{value: strings.Join(body, "\n"), recursive: true}, origin
+			continue
+		}
+		if name, def, ok := parseDefinition(line); ok {
+			db.global[name], db.origin[name] = def, origin
+		}
+	}
+	return db
+}
+
+// stripModifiers removes the export, override and private words make prints
+// before a definition.
+func stripModifiers(line string) string {
+	for {
+		trimmed := line
+		for _, modifier := range []string{"export ", "override ", "private "} {
+			trimmed = strings.TrimPrefix(trimmed, modifier)
+		}
+		if trimmed == line {
+			return line
+		}
+		line = trimmed
+	}
+}
+
+// parseDefinition reads one `NAME = value` or `NAME := value` line.
+func parseDefinition(line string) (string, definition, bool) {
+	line = stripModifiers(line)
+	name, rest, ok := strings.Cut(line, " ")
+	if !ok || name == "" || strings.ContainsAny(name, "#$:=\t") {
+		return "", definition{}, false
+	}
+	if value, ok := strings.CutPrefix(rest, "= "); ok {
+		return name, definition{value: value, recursive: true}, true
+	}
+	if rest == "=" {
+		return name, definition{value: "", recursive: true}, true
+	}
+	if value, ok := strings.CutPrefix(rest, ":= "); ok {
+		return name, definition{value: value}, true
+	}
+	if rest == ":=" {
+		return name, definition{value: ""}, true
+	}
+	return "", definition{}, false
+}
+
+// plainRecipe requires the go-test recipe and every variable it expands to be
+// plain text: $(NAME) and ${NAME} references only, each to a variable that is
+// itself plain, so nothing runs while make expands the recipe (a make function
+// such as $(shell ...) runs during the gate's dry run and observation yet
+// prints nothing). SHELL must be make's default: a Makefile that sets it runs
+// the recipe through a program the gate did not observe.
+func plainRecipe(db database) []string {
+	problems := []string{}
+	for _, name := range []string{"SHELL", ".SHELLFLAGS"} {
+		if origin, ok := db.origin[name]; ok && origin != "default" {
+			problems = append(problems, fmt.Sprintf("the Makefile sets %s (%s): the go-test recipe must run through make's default shell", name, origin))
+		}
+	}
+	for _, line := range db.recipe {
+		problems = append(problems, expandsPlainly(db, line, "the go-test recipe", map[string]bool{})...)
+	}
+	return problems
+}
+
+// expandsPlainly checks one piece of make text, named by where for the
+// diagnostic, and the variables it references.
+func expandsPlainly(db database, text, where string, visited map[string]bool) []string {
+	problems := []string{}
+	for rest := text; ; {
+		dollar := strings.IndexByte(rest, '$')
+		if dollar < 0 {
+			return problems
+		}
+		after := rest[dollar+1:]
+		closer := byte(0)
+		switch {
+		case strings.HasPrefix(after, "("):
+			closer = ')'
+		case strings.HasPrefix(after, "{"):
+			closer = '}'
+		}
+		end := -1
+		if closer != 0 {
+			end = strings.IndexByte(after, closer)
+		}
+		if end < 0 || !plainName(strings.ReplaceAll(after[1:end], ".", "_")) {
+			return append(problems, fmt.Sprintf("%s contains %q: only $(NAME) references to variables defined as plain text may appear in the go-test recipe, not make functions, substitutions or automatic variables", where, "$"+after))
+		}
+		name := after[1:end]
+		rest = after[end+1:]
+		if visited[name] {
+			continue
+		}
+		visited[name] = true
+		def, isTarget := db.target[name]
+		if !isTarget {
+			def = db.global[name]
+		}
+		scope := "variable " + name
+		if isTarget {
+			scope = "go-test's own " + name
+		}
+		if def.recursive {
+			problems = append(problems, expandsPlainly(db, def.value, scope, visited)...)
+		} else if strings.Contains(def.value, "$") {
+			problems = append(problems, fmt.Sprintf("%s is %q: a simply expanded value may not hold a $ for the recipe to expand", scope, def.value))
+		}
+	}
 }
 
 // installShim copies this program to dst, where make will find it as `go`.
@@ -450,8 +678,8 @@ func noneLanguages(declared sessiontest.Declared) ([]string, []string) {
 // recipe word that names a runner of a language declared none. All steps
 // are dry-run together first; only when that finds a word is each step
 // dry-run alone, to name the step.
-func checkGateSteps(root, makefile string, none []string) []string {
-	steps, err := gateSteps(root, makefile)
+func checkGateSteps(root, makefile string, db database, none []string) []string {
+	steps, err := gateSteps(db)
 	if err != nil {
 		return []string{"GATE_STEPS: " + err.Error()}
 	}
@@ -493,17 +721,12 @@ func runnerWords(recipe string, none []string) [][2]string {
 
 // gateSteps reads GATE_STEPS from make's own database, so the step list is
 // the one `make gate` uses rather than a parse of the Makefile text.
-func gateSteps(root, makefile string) ([]string, error) {
-	database, err := runMake(root, []string{"PATH=" + minimalPath}, "-s", "-n", "-p", "-f", makefile, "go-test")
-	if err != nil {
-		return nil, err
+func gateSteps(db database) ([]string, error) {
+	steps, ok := db.global["GATE_STEPS"]
+	if !ok {
+		return nil, fmt.Errorf("make -p prints no GATE_STEPS variable; the none-language check cannot run")
 	}
-	for _, line := range strings.Split(database, "\n") {
-		if steps, ok := strings.CutPrefix(line, "GATE_STEPS = "); ok {
-			return strings.Fields(steps), nil
-		}
-	}
-	return nil, fmt.Errorf("make -p prints no GATE_STEPS variable; the none-language check cannot run")
+	return strings.Fields(steps.value), nil
 }
 
 // dryRun prints what make would run for the targets, under an environment
