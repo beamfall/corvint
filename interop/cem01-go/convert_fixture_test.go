@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -32,11 +33,16 @@ func stableCode(r stableResult) string {
 // the 0.3 vector converts to ACCEPT at its manifest repository, the 0.1
 // conformance map rejects patch-digest-mismatch at its reconstructed target,
 // and with no pinned object the result is an explicit repository refusal.
+// The reader check runs everywhere; the verification runs need the qualified
+// process containment of the canonical engine and are NOT_RUN elsewhere.
 func TestCEMV1104PortableConvertedFixtures(t *testing.T) {
 	for _, name := range []string{"reachable-a79ab231", "cem01-valid", "cem03-coverage-covered"} {
 		if _, e := decodeStable(readConvertFixture(t, name+".converted.json")); e != nil {
 			t.Fatalf("%s: stable reader refused converter output: %v", name, e)
 		}
+	}
+	if !stableOwnerSupported() {
+		t.Skip("NOT_RUN: process containment is not qualified on " + runtime.GOOS)
 	}
 
 	m, read := readPacket03(t)
