@@ -778,6 +778,29 @@ func TestPrepareUnknownReasonsDCWV0046RefusesOverflow(t *testing.T) {
 	}
 }
 
+// TestPrepareUnknownReasonsDCWV0046AppliesRowsInPlanOrder: a later citation
+// of a hunk an earlier stage kept unknown drops its note, and the last row for
+// a hunk decides.
+func TestPrepareUnknownReasonsDCWV0046AppliesRowsInPlanOrder(t *testing.T) {
+	root := t.TempDir()
+	c := &change{flow: flow{root: root}, evidence: root}
+	if os.MkdirAll(filepath.Join(root, ".corvint"), 0o700) != nil ||
+		os.WriteFile(filepath.Join(root, ".corvint/change.cem.json"), []byte(`{"hunks":[{"id":"hunk:a","disposition":"unknown","reason":"insufficient-evidence"},{"id":"hunk:b","disposition":"unknown","reason":"conflicting-evidence"}]}`), 0o600) != nil ||
+		os.WriteFile(root+unknownReasons, []byte("hunk:a\tinsufficient-evidence\tearlier a\nhunk:b\tconflicting-evidence\tearlier b\n"), 0o600) != nil {
+		t.Fatal("cannot seed the map and notes")
+	}
+	for _, step := range []struct{ plan, want string }{
+		{"1\ta.txt\t1:1\tspecification\n", "hunk:b\tconflicting-evidence\tearlier b\n"},
+		{"hunk:b\ta.txt\t1:1\tspecification\n1\ta.txt\t1:1\tspecification\n", ""},
+		{"1\ta.txt\t1:1\tspecification\n1\tunknown\tconflicting-evidence\tlater a\n", "hunk:a\tconflicting-evidence\tlater a\nhunk:b\tconflicting-evidence\tearlier b\n"},
+		{"2\tunknown\tinsufficient-evidence\tlater b\n2\ta.txt\t1:1\tspecification\n", "hunk:a\tinsufficient-evidence\tearlier a\n"},
+	} {
+		if err := c.prepareUnknownReasons([]byte(step.plan)); err != nil || string(c.unknownNotes) != step.want {
+			t.Errorf("plan %q: notes = %q, %v; want %q", step.plan, c.unknownNotes, err, step.want)
+		}
+	}
+}
+
 // TestReasonedUnknownsDCWV0046CountsBootstrapOnceInTheAllowance: a reasoned
 // hunk on an intent path absent at BASE is reported, but the bootstrap
 // allowance already admits it, so the added allowance leaves it out.

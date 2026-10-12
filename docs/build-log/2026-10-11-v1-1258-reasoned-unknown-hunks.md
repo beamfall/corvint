@@ -74,6 +74,16 @@ This change amends `DCW-V0-019` and adds `DCW-V0-046` to
 - P2: a FIFO at the notes path blocked the read. Only a regular file is read; any other
   non-directory entry is replaced.
 
+## Review round 4 (Codex, FAIL; final round)
+
+- P2: a citation of a hunk that an earlier stage kept unknown left its old note in the file.
+  Plan rows now apply in order: an unknown row replaces the hunk's note and a citation drops it.
+  The size bound is checked on the result.
+- P3: the `unknown-reasons-not-recorded` text said nothing was cited, but a failure to replace the
+  file after the cite leaves the map changed. The spec and the fix hint now separate the two
+  cases: earlier notes are kept, and rerunning the same plan replays it.
+- These fixes were made after the fourth and last review round and have not been reviewed again.
+
 ## Choices
 
 - The existing `cem mark` verb is reused instead of adding a free-text reason to the CEM wire.

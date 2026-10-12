@@ -728,10 +728,10 @@ func reasonedUnknownRow(fields []string) bool {
 
 // prepareUnknownReasons builds, before anything is cited, the private notes
 // file: one HUNK_ID<TAB>REASON<TAB>NOTE line per hunk kept unknown with a
-// reason, in map order. It holds the accepted plan's unknown rows and the
-// earlier lines of hunks the prepared map still records as unknown with the
-// same reason that this plan does not rename, so a staged plan keeps the notes
-// of earlier stages. The map itself records only the reason. Only a regular
+// reason, in map order. It starts from the earlier lines of hunks the prepared
+// map still records as unknown with the same reason, so a staged plan keeps
+// the notes of earlier stages, then applies the accepted plan's rows in order:
+// an unknown row replaces a hunk's note and a citation drops it. The map itself records only the reason. Only a regular
 // file is read; an earlier file over the bound, a result over the bound or a
 // directory at the path refuses, since the notes could not be retained whole.
 func (c *change) prepareUnknownReasons(plan []byte) error {
@@ -769,14 +769,15 @@ func (c *change) prepareUnknownReasons(plan []byte) error {
 	}
 	for _, line := range textLines(plan) {
 		fields := strings.Split(line, "\t")
-		if !unknownRow(fields) {
-			continue
-		}
 		id := fields[0]
 		if index, err := strconv.Atoi(id); err == nil && index >= 1 && index <= len(hunks) {
 			id = hunks[index-1]["id"]
 		}
-		kept[id] = id + "\t" + fields[2] + "\t" + fields[3]
+		if unknownRow(fields) {
+			kept[id] = id + "\t" + fields[2] + "\t" + fields[3]
+		} else {
+			delete(kept, id) // a citation supersedes an earlier note
+		}
 	}
 	var notesFile strings.Builder
 	for _, hunk := range hunks {
@@ -1298,7 +1299,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:citation-plan-row-limit-exceeded", "DOGFOOD_CITATIONS row limit=256 observed={citationRows}; use explicit staged plans of at most 256 rows on the same CEM (docs/DOGFOOD.md Staged binding of one oversized commit)"},
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)"},
 	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE, by a citation or by an ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE row"},
-	{"cem-cite:unknown-reasons-not-recorded", "the unknown rows of DOGFOOD_CITATIONS could not be kept in {evidence}/cem-unknown-reasons.tsv, so nothing was cited; remove whatever occupies that path and rerun (DCW-V0-046)"},
+	{"cem-cite:unknown-reasons-not-recorded", "the unknown rows of DOGFOOD_CITATIONS could not be kept in {evidence}/cem-unknown-reasons.tsv (or its .next file): before citing (an occupied path, or notes over 16 MiB) nothing was cited; after citing the map has changed and earlier notes are kept; remove whatever occupies the path and rerun the same plan, which replays idempotently (DCW-V0-046)"},
 	{"cem-cite:invalid-arguments", "plan row {row}: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim, and START:END a line span of the cited file; any file present at BASE may be cited, code and tests as well as specs (DCW-V0-041)"},
 	{"cem-cite:missing-evidence", "plan row {row} cites a path that is not a regular file at BASE; cite a source, test or spec file that exists at BASE, since a file this change adds cannot be evidence for itself (DCW-V0-041)"},
 	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged"},
