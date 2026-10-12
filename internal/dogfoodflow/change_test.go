@@ -102,7 +102,11 @@ func TestChangeRefusesAPlanWhoseOrdinalsMoved(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("base\n"), 0o666); err != nil {
 		t.Fatal(err)
 	}
-	testGit(t, root, "add", "a.txt")
+	// Each hunk cites its own span, so the plan is not uniform (DCW-V0-048).
+	if err := os.WriteFile(filepath.Join(root, "b.txt"), []byte("base\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "a.txt", "b.txt")
 	testGit(t, root, "commit", "-q", "-m", "base")
 	base := testGit(t, root, "rev-parse", "HEAD")
 	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("changed\n"), 0o666); err != nil {
@@ -110,7 +114,7 @@ func TestChangeRefusesAPlanWhoseOrdinalsMoved(t *testing.T) {
 	}
 	testGit(t, root, "commit", "-q", "-am", "change")
 	plan := filepath.Join(t.TempDir(), "cites.tsv")
-	if err := os.WriteFile(plan, []byte("1\ta.txt\t1:1\tspecification\n2\ta.txt\t1:1\tspecification\n"), 0o666); err != nil {
+	if err := os.WriteFile(plan, []byte("1\ta.txt\t1:1\tspecification\n2\tb.txt\t1:1\tspecification\n"), 0o666); err != nil {
 		t.Fatal(err)
 	}
 	cemMap := func(ids ...string) string {
@@ -526,7 +530,11 @@ func TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("base\n"), 0o666); err != nil {
 		t.Fatal(err)
 	}
-	testGit(t, root, "add", "a.txt")
+	// A fully cited plan cites b.txt for one hunk, so it is not uniform (DCW-V0-048).
+	if err := os.WriteFile(filepath.Join(root, "b.txt"), []byte("base\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "a.txt", "b.txt")
 	testGit(t, root, "commit", "-q", "-m", "base")
 	base := testGit(t, root, "rev-parse", "HEAD")
 	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("changed\n"), 0o666); err != nil {
@@ -723,7 +731,7 @@ func TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned(t *testing.T) {
 	}
 
 	// A fresh map that keeps no hunk unknown drops the notes.
-	got, _ = run("1\ta.txt\t1:1\tspecification\n2\ta.txt\t1:1\tspecification\n3\ta.txt\t1:1\tspecification\n")
+	got, _ = run("1\ta.txt\t1:1\tspecification\n2\ta.txt\t1:1\tspecification\n3\tb.txt\t1:1\tspecification\n")
 	if !strings.Contains(got, `"status": "PRODUCED"`) {
 		t.Fatalf("fully cited plan: cem-cite = %s; want PRODUCED", got)
 	}
