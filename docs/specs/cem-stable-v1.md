@@ -1115,3 +1115,157 @@ profile, default, packet or stored evidence changes.
 | CEM-V1-077 | `TestConsoleChainStableDisplay` | Envelope, digest pin, sidecar and axis rows render for the sealed public positive |
 | CEM-V1-078 | `TestConsoleChainStableDisplay`, `TestConsoleChainStableStale` | Reference rows say not task completion; artifact content not opened; survived witness and stale seal shown |
 | CEM-V1-079 | `TestConsoleChainStableRegistry` | `cem/2.0`, `cem/1.0.0`, an unknown member, duplicate and case-variant `spec` members and an invalid stable map refuse; 0.x reads |
+
+## Closure-chain stable consumers (V1-0632 C06..C08)
+
+Status: proposed. Native work: V1-0632, migration rows C06 (TCQ/frontier), C07 (obligation
+sidecar) and C08 (criterion experiment companion) of `protocol/cem-1.0/stable/MIGRATION.json`,
+built on the C05 admission (`CEM-V1-051..059`). Each family gains a stable route beside its
+unchanged 0.x route. Every stable route admits a `cem/1.0` map only through the shipped stable
+verifier's `ACCEPT` over the exact bytes, with an explicit repository, expected base, target and
+artifact root, and with the exact committed sidecar (`EXACT`). Every emitted document carries a
+distinct stable profile; no 0.x profile, identity domain, default or emitted byte changes, and no
+0.x document is relabeled. `MIGRATION.json` is digest-pinned by
+`protocol/cem-1.0/stable/manifest.json` and is not edited here; its rows stay
+`OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL` until that packet is regenerated.
+
+- `CEM-V1-120`: `tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity
+  has the prefix `tcq-stable:sha256:` and is hashed in the domain `corvint-tcq-stable/0`. `tcq/0`
+  stays frozen: it keeps admitting `cem/0.2` only, with its identity domain unchanged.
+- `CEM-V1-121`: The stable TCQ stage 3 MUST admit only a bounded object declaring exactly
+  `cem/1.0`. Its upstream stage MUST be a `StableUpstreamVerifier`, whose refusal passes through
+  unchanged, with no result. `tcq.Evaluate` and the `frontier/0` upstream MUST keep refusing a
+  `cem/1.0` map, and the stable route MUST refuse `cem/0.2`.
+- `CEM-V1-122`: The stable result MUST carry:
+  - the stable profile;
+  - `cem/1.0`;
+  - the accepted map and patch digests;
+  - an identity that differs from the `tcq/0` identity of the same computation.
+
+  Claims, units, issues and relations MUST come from the unchanged `tcq/0` machinery. A
+  supplied cached result MUST verify byte for byte, and an edited cached result refuses with a
+  typed TCQ code.
+- `CEM-V1-123`: The verifier binding MUST name the SHA-256 of the exact input map bytes, and the
+  OCM MUST bind that map and the accepted patch digest; anything else refuses. The
+  `frontierrepo` upstream seam MUST return its memoized accepted binding only for the exact
+  verified CEM and OCM bytes, by digest, and the accepted revisions. Any other input runs a real
+  stable verification.
+- `CEM-V1-124`: The 0.x TCQ and frontier routes are unchanged. `parseArtifacts` keeps the
+  `tcq/0` stage-3 check through `parseArtifactsWith`, and the existing `internal/tcq`, `internal/frontier` and
+  `internal/frontierrepo` suites pass unchanged.
+- `CEM-V1-125`: `frontierrepo.RecomputeStable` MUST:
+  1. admit the map and OCM only through `lrfrepo.VerifyStableUniverse`;
+  2. open the target under the stable repository boundary;
+  3. recompute TCQ under `tcq-stable/0` against the same accepted map;
+  4. revalidate the boundary.
+
+  It returns the stable universe, its obligations carried field for field, the stable TCQ result
+  and its per-edge claims. A declared criterion link or a caller discrimination witness MUST NOT
+  match a TCQ claim or grant adequacy.
+- `CEM-V1-126`: No stable frontier document is produced. `frontier/0` binds an `lrf/0` digest, and
+  no stable LRF or frontier profile is accepted, so the fail-closed choice is
+  `StableFrontierState` `NOT_PRODUCED`. That state is never `EMPTY` or closed. Unknown obligations
+  cross with their reasons, and nothing closes them.
+- `CEM-V1-127`: Each of the following MUST refuse, keeping the stable verifier's full result and
+  returning no upstream:
+  - a wrong base;
+  - edited map bytes;
+  - a tampered artifact;
+  - a missing artifact root.
+- `CEM-V1-130`: `extevidence.StableObligations` MUST emit `external-frontier-obligations-stable/0`,
+  with an identity prefix of `obligations-stable:sha256:`. Its `binding` names:
+  - `cem/1.0`;
+  - the exact map SHA-256, the accepted patch digest, base and target, and the excluded path;
+  - the verifier outcome;
+  - the impact receipt digest and tool.
+
+  `external-frontier-obligations/0` stays frozen and admits `cem/0.2` only.
+- `CEM-V1-131`: Hunk associations MUST be computed exactly as in the frozen sidecar, with the same
+  join, bound, freshness and state rules. Every unknown association, including
+  `no-external-section`, is kept.
+- `CEM-V1-132`: A verifier refusal MUST return a `StableObligationsRefusal` that holds the
+  complete result. It unwraps to a kernel error carrying the verifier code and produces no
+  document. A sidecar other than `EXACT`, or an accepted result that does not bind the exact map
+  digest, base and patch, MUST refuse with `invalid-obligations-input`.
+- `CEM-V1-133`: The map's declared criterion links MUST be listed in a separate `criteria` member,
+  each giving its criterion, ticket, hunks, evidence and runner receipts with satisfaction
+  `NOT_OBSERVED`. They are never associations and close no obligation.
+- `CEM-V1-134`: The frozen sidecar MUST keep refusing `cem/1.0`, and the stable sidecar MUST refuse
+  a `cem/0.x` map before verification, both with `invalid-obligations-input`.
+- `CEM-V1-135`: `corvint obligations` MUST select the stable sidecar only when all four of these
+  flags are given:
+  - `--repository`
+  - `--expected-base`
+  - `--target`
+  - `--stable-artifact-root`
+
+  A partial set is an argument error, with exit 2. A stable refusal is an error envelope with
+  exit 2 and no stdout. Without the flags, the verb is the unchanged frozen sidecar, which reads
+  no repository.
+- `CEM-V1-136`: The criterion experiment companion MUST add the explicit input mode
+  `cem-criterion-experiments-stable/0`. A request with that schema yields a plan, receipt and
+  summary with the same schema, and a plan never changes mode between phases. A
+  `cem-criterion-experiments/0` request keeps its exact frozen behavior and output bytes.
+- `CEM-V1-137`: Stable admission MUST:
+  - require bytes declaring `cem/1.0`;
+  - run `verify.Stable` with the repository, the request base and target, and the explicit
+    artifact root;
+  - require `ACCEPT`, an `EXACT` sidecar, and the exact map digest, base, target and patch;
+  - require every criterion hunk to be a hunk of the accepted change.
+
+  It MUST NOT read the map's criterion links. Criterion authority stays the native Tasks capture
+  and verifier, as in the frozen mode.
+- `CEM-V1-138`: Plan, run and verify MUST each re-admit the plan's map through the stable verifier
+  with the invocation's artifact root, which is never plan data. The frozen phases MUST refuse a
+  stable plan. A missing artifact root or a tampered artifact MUST refuse verification with
+  `StableRefusal`. That refusal keeps the complete result and names the verifier code, else its
+  first issue code, else `stable-verification-failed`.
+- `CEM-V1-139`: The two modes never cross:
+  - the frozen mode refuses `cem/1.0` and any artifact root;
+  - the stable mode refuses `cem/0.2`;
+  - a stable request without an artifact root refuses.
+
+  `corvint-cem-experiments --stable-artifact-root DIR` selects the stable phases and prints no
+  payload on refusal.
+
+Failure modes:
+- A host outside the frozen structural runtime tuples gets the verifier's `UNSUPPORTED` refusal,
+  which every route keeps as a refusal.
+- A target that commits no sidecar can be `ACCEPT`/`ABSENT` at the verifier, but every stable
+  route here refuses it, which is fail-closed.
+- The stable TCQ route does not apply the frontier adapter's Python grammar-failure reason rewrite
+  (TCQ-V0-047). Such a claim stays abstained with the generic `unsupported-anchor-profile` reason.
+- No route promotes, sets a default, or has an MCP surface.
+
+Rollback:
+- Remove `internal/tcq/stable.go`, `internal/frontierrepo/stable.go`,
+  `internal/extevidence/obligations_stable.go`, `internal/criterionexperiment/stable.go` and the
+  test-only `internal/cem/stablefixture`.
+- Restore `parseArtifacts`, the companion's single-schema checks and the
+  `--stable-artifact-root` flag, and remove the four `obligations` stable flags with their help
+  text.
+
+No 0.x profile, default, packet or stored evidence changes.
+
+### Closure-chain stable consumer traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-120 | `TestCEMV1122StableEnvelope` | `tcq-stable/0` profile and `tcq-stable:sha256:` identity in the stable domain |
+| CEM-V1-121 | `TestCEMV1121StableAdmissionRefusals`, `TestCEMV1121LegacyRoutesRefuseStable` | `cem/0.2` never enters the stable route; verifier refusal passes through; `tcq/0` and `frontier/0` refuse `cem/1.0` |
+| CEM-V1-122 | `TestCEMV1122StableEnvelope`, `TestCEMV1125StableUpstreamAccepts` | Map and patch digests bound; identity differs from `tcq/0`; cached result verifies and an edited one refuses |
+| CEM-V1-123 | `TestCEMV1121StableAdmissionRefusals`, `TestCEMV1123StableTCQMemoNeverBypasses` | Binding or OCM digest not the exact map refuses; memo answers only the exact verified bytes |
+| CEM-V1-124 | `TestCEMV1121LegacyRoutesRefuseStable` | Frozen routes unchanged; existing `internal/tcq`, `internal/frontier`, `internal/frontierrepo` suites pass |
+| CEM-V1-125 | `TestCEMV1125StableUpstreamAccepts` | Verified change yields `tcq-stable/0` bound to map and patch; caller claim stays unmatched |
+| CEM-V1-126 | `TestCEMV1125StableUpstreamAccepts`, `TestCEMV1126StableUpstreamKeepsUnknownObligation` | `NOT_PRODUCED` frontier; unknown obligation keeps its reason |
+| CEM-V1-127 | `TestCEMV1127StableUpstreamRefusals` | Wrong base, edited bytes, tampered artifact and missing root refuse with the result kept |
+| CEM-V1-130 | `TestCEMV1130StableObligationsAccepts` | Stable schema, identity prefix and exact binding; no frozen schema bytes |
+| CEM-V1-131 | `TestCEMV1130StableObligationsAccepts`, `TestCEMV1131StableObligationsKeepUnknowns` | Same association kinds as the frozen join; `no-external-section` kept |
+| CEM-V1-132 | `TestCEMV1132StableObligationsRefusals` | Wrong base, edited bytes, missing root and tampered artifact refuse with the result kept and a kernel code |
+| CEM-V1-133 | `TestCEMV1130StableObligationsAccepts` | Criterion link listed apart with `NOT_OBSERVED`; no association carries a criterion |
+| CEM-V1-134 | `TestCEMV1134ObligationRoutesStayDisjoint` | Frozen refuses `cem/1.0`; stable refuses `cem/0.2`; both `invalid-obligations-input` |
+| CEM-V1-135 | `TestCEMV1135ObligationsStableMode` | Accept over the four flags; wrong base exit 2 with no stdout; partial flags exit 2; frozen form refuses `cem/1.0` |
+| CEM-V1-136 | `TestCEMV1136StableExperimentRunsAndVerifies` | Stable plan, receipt and summary carry the stable schema; `VERIFIED_SATISFIED` over the stable map digest |
+| CEM-V1-137 | `TestCEMV1137StableExperimentAdmission` | Accepts the verified map; wrong base, edited bytes, missing root, tampered artifact and unknown hunk refuse |
+| CEM-V1-138 | `TestCEMV1136StableExperimentRunsAndVerifies` | Frozen run and verify refuse the stable plan; missing root and tampered artifact refuse stable verification |
+| CEM-V1-139 | `TestCEMV1137StableExperimentAdmission`, `TestCEMV1139StableFlagRefusesWithoutPayload` | Frozen with root, frozen over `cem/1.0`, stable over `cem/0.2` and stable without root refuse; CLI flag prints no payload on refusal |
