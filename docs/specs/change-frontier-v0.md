@@ -550,3 +550,25 @@ Before promotion, rollback removes the derived Frontier result and preview wrapp
 OCM, LRF, TCQ, explicit unknowns, failed evaluations, and this proposed specification as decision
 history. A failed preview does not justify weakening upstream verification or relabelling lexical or
 caller-reported evidence as closure.
+
+## Stable change-map view (2026-10-12, V1-1304)
+
+`corvint frontier` given a map that declares `cem/1.0` no longer stops at
+`unsupported-frontier-context`. It takes a separate route that composes
+`frontierrepo.RecomputeStable` (`CEM-V1-125`). The route needs the shipped stable verifier
+`ACCEPT`, an `EXACT` committed sidecar, and the explicit `--artifacts` root. It emits
+`frontier-stable-view/0` with `frontierState: NOT_PRODUCED` and exit 1. The view binds the map,
+patch and OCM digests, the scope, the `tcq-stable/0` identity, the hunks whose disposition is
+`unknown`, and the OCM obligations.
+
+This view is not a Frontier document. It closes nothing, and it is never `EMPTY` or exit 0. The
+reason is that `frontier/0` still admits `cem/0.2` only (`CEM-V1-121`) and no stable LRF or frontier
+profile is accepted (`CEM-V1-126`). Refusals use the closed exit-2 envelope (`CF-V0-022`). The
+stable verifier's refusal codes pass through, for example `base-revision-mismatch`,
+`excluded-artifact-mismatch` and `artifact-digest-mismatch`. Any other code becomes
+`frontier-internal-error`. `--artifacts` with a non-stable map is `invalid-frontier-input`.
+
+No requirement ID is assigned here. The proposed IDs, the help-topic text for `--artifacts`, and
+the decision that would promote a stable frontier profile stay open. Rollback removes the route
+(`internal/frontier/stable.go`, `frontierrepo.Adapter.StableView`, the CLI branch), so a `cem/1.0`
+map is refused as before.

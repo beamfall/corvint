@@ -59,7 +59,10 @@ type frontierOptions struct {
 	command     string
 	observation string
 	report      string
-	json        bool
+	// artifacts is the explicit artifact root a cem/1.0 map requires
+	// (V1-1304). It has no default and is refused for a cem/0.2 map.
+	artifacts string
+	json      bool
 }
 
 // parseFrontierInvocation intercepts `frontier` ahead of the shared argument
@@ -95,9 +98,12 @@ func parseFrontierInvocation(arguments []string) (string, []string, bool) {
 // recomputed for it.
 func runFrontier(ctx context.Context, root string, arguments []string, stdout, stderr io.Writer) int {
 	jsonMode := frontierJSONRequested(arguments)
-	request, buildErr := buildFrontierRequest(ctx, root, arguments)
+	request, stable, buildErr := buildFrontierRequest(ctx, root, arguments)
 	if buildErr != nil {
 		return emitFrontierFailure(stderr, buildErr, jsonMode)
+	}
+	if stable != nil {
+		return runStableFrontier(ctx, *stable, stdout, stderr, jsonMode)
 	}
 	document, encoded, computeErr := frontier.Compute(ctx, request)
 	if computeErr != nil {
@@ -110,6 +116,31 @@ func runFrontier(ctx context.Context, root string, arguments []string, stdout, s
 	// result carrying items, so it is returned from the document rather than
 	// from any error path — 2 is reserved for operational failure alone.
 	return document.ExitCode()
+}
+
+// stableFrontierInvocation is one cem/1.0 route: the shared request bytes and
+// the stable viewer the registered adapter provides.
+type stableFrontierInvocation struct {
+	viewer  frontier.StableViewer
+	request frontier.StableViewRequest
+}
+
+// runStableFrontier renders the frontier-stable-view/0 result of one stable
+// computation. The view's state is NOT_PRODUCED and its exit is 1: it closes
+// nothing, so it can never take the EMPTY exit.
+func runStableFrontier(ctx context.Context, stable stableFrontierInvocation, stdout, stderr io.Writer, jsonMode bool) int {
+	view, encoded, err := frontier.ComputeStable(ctx, stable.viewer, stable.request)
+	if err != nil {
+		return emitFrontierFailure(stderr, err, jsonMode)
+	}
+	rendered := encoded
+	if !jsonMode {
+		rendered = []byte(frontier.RenderStableHuman(view))
+	}
+	if written, writeErr := stdout.Write(rendered); writeErr != nil || written != len(rendered) {
+		return emitFrontierFailure(stderr, frontierFailure(frontier.CodeInternalError), jsonMode)
+	}
+	return view.ExitCode()
 }
 
 // frontierJSONRequested pre-scans argv for the rendering mode. Argument
@@ -129,23 +160,31 @@ func frontierJSONRequested(arguments []string) bool {
 // buildFrontierRequest turns argv into the one CF-V0-001 invocation. Required
 // inputs are deliberately NOT checked here: an absent artifact arrives as
 // absent bytes and the library issues the verdict, so the wrapper cannot drift
-// from the cascade's own admitted-input rules.
-func buildFrontierRequest(ctx context.Context, root string, arguments []string) (frontier.Request, error) {
+// from the cascade's own admitted-input rules. A map declaring cem/1.0 takes
+// the stable route instead (V1-1304); --artifacts belongs to that route only.
+func buildFrontierRequest(ctx context.Context, root string, arguments []string) (frontier.Request, *stableFrontierInvocation, error) {
 	options, parseErr := parseFrontierOptions(arguments)
 	if parseErr != nil {
-		return frontier.Request{}, parseErr
+		return frontier.Request{}, nil, parseErr
 	}
 	resolvedRoot, rootErr := resolveFrontierRoot(root)
 	if rootErr != nil {
-		return frontier.Request{}, rootErr
+		return frontier.Request{}, nil, rootErr
 	}
 	verifier, recomputer, adapterErr := resolveFrontierAdapters(ctx, resolvedRoot)
 	if adapterErr != nil {
-		return frontier.Request{}, adapterErr
+		return frontier.Request{}, nil, adapterErr
 	}
 	artifacts, readErr := readFrontierArtifacts(resolvedRoot, options)
 	if readErr != nil {
-		return frontier.Request{}, readErr
+		return frontier.Request{}, nil, readErr
+	}
+	if frontier.DeclaresStableCEM(artifacts.cem) {
+		stable, stableErr := stableFrontierRequest(verifier, resolvedRoot, options, artifacts)
+		return frontier.Request{}, stable, stableErr
+	}
+	if options.artifacts != "" {
+		return frontier.Request{}, nil, frontierFailure(frontier.CodeInvalidInput)
 	}
 	return frontier.Request{
 		CEMBytes:     artifacts.cem,
@@ -157,7 +196,31 @@ func buildFrontierRequest(ctx context.Context, root string, arguments []string) 
 		JUnitReport:  artifacts.report,
 		Verifier:     verifier,
 		TCQ:          recomputer,
-	}, nil
+	}, nil, nil
+}
+
+// stableFrontierRequest builds the cem/1.0 invocation. The registered adapter
+// must also be a stable viewer, or the context is unsupported; an absent
+// --artifacts stays empty so the library issues that verdict.
+func stableFrontierRequest(verifier frontier.Verifier, root string, options frontierOptions, artifacts frontierArtifacts) (*stableFrontierInvocation, error) {
+	viewer, supported := verifier.(frontier.StableViewer)
+	if !supported {
+		return nil, frontierFailure(frontier.CodeUnsupportedContext)
+	}
+	artifactRoot := ""
+	if options.artifacts != "" {
+		artifactRoot = filepath.Clean(resolveFrontierPath(root, options.artifacts))
+	}
+	return &stableFrontierInvocation{viewer: viewer, request: frontier.StableViewRequest{
+		CEMBytes:     artifacts.cem,
+		OCMBytes:     artifacts.ocm,
+		ExpectedBase: options.expectedBase,
+		Target:       options.target,
+		ArtifactRoot: artifactRoot,
+		Command:      artifacts.command,
+		Observation:  artifacts.observation,
+		JUnitReport:  artifacts.report,
+	}}, nil
 }
 
 // frontierValueFlags is the closed set of flags that take a value, mapped to
@@ -173,6 +236,7 @@ func frontierValueFlags(options *frontierOptions) map[string]*string {
 		"--command":       &options.command,
 		"--observation":   &options.observation,
 		"--report":        &options.report,
+		"--artifacts":     &options.artifacts,
 	}
 }
 

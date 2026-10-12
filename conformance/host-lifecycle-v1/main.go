@@ -679,8 +679,10 @@ func (r *runner) runCLI() {
 	})
 }
 
-// cliFrontier commits one change in a clone, marks its hunk unknown, prepares the OCM over the
-// fixture intent and requires a valid open frontier (exit 1, profile frontier/0).
+// cliFrontier commits one change in a clone, prepares the default cem/1.0 map, marks its hunk
+// unknown, commits the map so its sidecar is EXACT, prepares the OCM over the fixture intent and
+// requires the V1-1304 stable view (exit 1, profile frontier-stable-view/0, NOT_PRODUCED), then
+// refuses a wrong base and a tampered map with closed exit-2 codes.
 func (r *runner) cliFrontier() (string, error) {
 	clone := filepath.Join(r.work, "frontier")
 	if _, err := r.ok(r.work, "git", "clone", "-q", r.fixture, clone); err != nil {
@@ -702,30 +704,69 @@ func (r *runner) cliFrontier() (string, error) {
 		return "", err
 	}
 	target = strings.TrimSpace(target)
-	// Frontier admits only a cem/0.2 map, so this case keeps the explicit 0.x
-	// producer (CEM-V1-140) until frontier reads cem/1.0.
 	for _, argv := range [][]string{
-		{"corvint", "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target},
+		{"corvint", "cem", "prepare", "--base", base, "--target", target},
 		{"corvint", "cem", "mark", "--map", ".corvint/change.cem.json", "--hunk", "1", "--disposition", "unknown", "--reason", "insufficient-evidence"},
-		{"corvint", "ocm", "prepare", "--target", target, "--intent", "docs/intent.md", "--expected-base", base},
+		{"git", "add", "-f", ".corvint/change.cem.json"},
+		{"git", "commit", "-q", "-m", "map"},
 	} {
 		if _, err := r.ok(clone, argv...); err != nil {
 			return "", err
 		}
 	}
-	stdout, stderr, code, err := r.exec(clone, nil, nil, "corvint", "frontier", "--cem", ".corvint/change.cem.json",
-		"--ocm", ".corvint/change.ocm.json", "--expected-base", base, "--target", target, "--json")
+	mapped, err := r.ok(clone, "git", "rev-parse", "HEAD")
+	if err != nil {
+		return "", err
+	}
+	mapped = strings.TrimSpace(mapped)
+	if _, err := r.ok(clone, "corvint", "ocm", "prepare", "--target", mapped, "--intent", "docs/intent.md", "--expected-base", base); err != nil {
+		return "", err
+	}
+	frontier := func(expectedBase string) (string, string, int, error) {
+		return r.exec(clone, nil, nil, "corvint", "frontier", "--cem", ".corvint/change.cem.json",
+			"--ocm", ".corvint/change.ocm.json", "--expected-base", expectedBase, "--target", mapped, "--artifacts", clone, "--json")
+	}
+	// refused requires the CF-V0-022 failure shape: no stdout, exit 2 and
+	// exactly the two-field frontier-error/0 envelope naming the expected code.
+	refused := func(label, expectedBase, want string) error {
+		stdout, stderr, code, err := frontier(expectedBase)
+		if err != nil {
+			return err
+		}
+		var envelope map[string]any
+		if code != 2 || stdout != "" || json.Unmarshal([]byte(stderr), &envelope) != nil || len(envelope) != 2 ||
+			envelope["profile"] != "frontier-error/0" || envelope["code"] != want {
+			return fmt.Errorf("%s: exit %d, want 2 %s: %s", label, code, want, firstLine(stderr+stdout))
+		}
+		return nil
+	}
+	stdout, stderr, code, err := frontier(base)
 	if err != nil {
 		return "", err
 	}
 	var document map[string]any
-	if code != 1 || json.Unmarshal([]byte(stdout), &document) != nil {
+	if code != 1 || stderr != "" || json.Unmarshal([]byte(stdout), &document) != nil {
 		return "", fmt.Errorf("frontier exit %d: %s", code, firstLine(stderr+stdout))
 	}
-	if document["profile"] != "frontier/0" || document["frontierState"] != "OPEN" {
-		return "", fmt.Errorf("frontier profile=%v state=%v", document["profile"], document["frontierState"])
+	hunks, _ := document["unknownHunks"].([]any)
+	if document["profile"] != "frontier-stable-view/0" || document["frontierState"] != "NOT_PRODUCED" || len(hunks) != 1 {
+		return "", fmt.Errorf("frontier profile=%v state=%v unknownHunks=%d", document["profile"], document["frontierState"], len(hunks))
 	}
-	return "unknown hunk yields frontier/0 OPEN, exit 1", nil
+	if err := refused("wrong base", target, "base-revision-mismatch"); err != nil {
+		return "", err
+	}
+	mapPath := filepath.Join(clone, ".corvint", "change.cem.json")
+	original, err := os.ReadFile(mapPath)
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(mapPath, append(original, ' '), 0o644); err != nil {
+		return "", err
+	}
+	if err := refused("tampered map", base, "excluded-artifact-mismatch"); err != nil {
+		return "", err
+	}
+	return "default cem/1.0 map yields frontier-stable-view/0 NOT_PRODUCED, exit 1; wrong base and tampered map refused", nil
 }
 
 // ---- plugin host tuples ----
