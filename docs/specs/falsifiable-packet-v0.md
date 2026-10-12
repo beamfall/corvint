@@ -1072,7 +1072,10 @@ above stands with that substitution.
   `cem`, `patch`, `size`, and `spec` are Corvint's. A later change to that shape takes a new URI.
   `CEMStatement`, `VerifyCEM`, the `cem/0` bytes, and the output of every invocation that existed
   before FPK-V0-050 are unchanged: FPK-V0-031 `--attest-cem` still emits `cem/0`, and FPK-V0-050
-  `--attest-cem-v1` is the only command that emits `cem/v1`. Rollback: delete `internal/attest/cem_v1.go`, its test, FPK-V0-034 to
+  `--attest-cem-v1` is the only command that emits `cem/v1`. A third version,
+  `https://corvint-context.dev/attestation/cem/v2`, signs a `cem/1.0` stable map with its declared
+  artifacts and accepted target and is specified by CEM-V1-065 in `docs/specs/cem-stable-v1.md`
+  (amendment 2026-10-12, V1-1265). Rollback: delete `internal/attest/cem_v1.go`, its test, FPK-V0-034 to
   FPK-V0-036, and this clause; `cem/0` is untouched.
 - **FPK-V0-034:** (experimental prototype, not advertised; proposed 2026-09-22, decision 0354)
   `internal/attest.VerifyCEMPredicate(envelope, publicKey, cem)` MUST pass `Verify`, read

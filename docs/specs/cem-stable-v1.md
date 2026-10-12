@@ -55,6 +55,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-080..082 | `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` and `testdata/citation/`; `TestCEMV1080*`, `TestCEMV1081*`, `TestCEMV1082*` in `internal/cem/verify`, `internal/cem/workflow` and `interop/cem01-go` | Recorded limits: `held` never produced, no `symbol` anchors, no threshold or cut-off, stable-result emission deferred to V1-1265; historical 591-map report in the build log |
 | CEM-V1-083 | Plain criterion form in `internal/cem/wire/stable.go` and `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/neutral-criterion/`; `TestCEMV1083*` in `internal/cem/wire`, `internal/cem/verify` and `interop/cem01-go` | No producer emits the plain form (`corvint-cem-candidate assemble-stable` accepts only Tasks-bound `cem-stable-assembly/1`); the public map was hand-assembled; stranger time NOT_OBSERVED |
 | CEM-V1-084 | `internal/cem/wire/stable_auth.go`, `internal/cem/verify/stable_auth.go`, `interop/cem01-go/stable_auth.go`; `--trusted-keys` in `internal/cem/cli/stable.go` and both portable commands; public case `protocol/cem-1.0/stable/receipt-authentication/`; `TestCEMV1084*` in `internal/cem/wire`, `internal/cem/verify`, `interop/cem01-go`, `internal/console` and `cmd/corvint` | No producer signs receipts (operator step, FPK-V0-036); `RESULT.schema.json` and the sealed S0E packet still name only `NOT_OBSERVED` for `authentication` and lack the four attestation issue codes (V1-1265); keys are TEST-ONLY; stranger time NOT_OBSERVED |
+| CEM-V1-065 | `CEMStatementV2` and the v2 verifier in `internal/attest/cem_v2.go`; `prove --attest-cem-v2` and `--verify-cem-attestation --artifacts/--target` in `cmd/corvint/prove_attest_cem.go`; stable routing in `internal/cem/wire/route.go` and `internal/gitnotes/anchor.go`; `TestCEMV1065*` in `internal/attest`, `cmd/corvint` and `internal/gitnotes` | No verdict ledger; no signing producer or key management; v2 emission needs full-OID `--expected-base` and `--target` and an ACCEPT result; no independent consumer of `cem/v2` |
 | CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`; proof run in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` | No member has been added to the sealed packet yet; V1-1265 consumes the tool for `citation` |
 
 ## First portable candidate build contract
@@ -411,6 +412,70 @@ Rollback: revert `stable_auth.go` in `internal/cem/wire`, `internal/cem/verify` 
 `receipt-attestation` kind in `stable.schema.json`, the CEM-V1-084 text in `ALGORITHMS.md`, the
 `receipt-authentication/` case and its manifest entries. Maps with the legacy string need no
 migration; a map with an object form is refused again after rollback.
+
+## `cem/v2` statement (V1-1265, decision 0523 P1)
+
+Status: proposed. Decision 0523 P1. A `cem/v1` statement signs only the map's bytes, its base and
+its patch, so a stable map's artifacts and the commit it was accepted at are not signed. `cem/v2`
+signs all three for a `cem/1.0` stable map. `cem/0` and `cem/v1` are unchanged.
+
+- `CEM-V1-065`: `internal/attest.CEMStatementV2(name, map, target)` MUST accept only bytes that
+  declare `cem/1.0` and parse as a stable map, and otherwise MUST return a canonical in-toto
+  Statement v1. Its `predicateType` is `https://corvint-context.dev/attestation/cem/v2`. Its
+  `subject` list is the map first (`{"digest":{"sha256":HEX},"name":NAME}` over the exact map
+  bytes), then one `{"digest":{"sha256":S},"name":P}` for each declared artifact, in map order,
+  where P and S are the artifact's declared `path` and `sha256`; subject names are unique. Its
+  `predicate` is exactly `{"baseRevision":B,"patchSha256":H,"target":{"gitCommit":C,"gitTree":T}}`,
+  with B and H the map's `change.baseRevision` and `change.patchSha256`, and C and T the full
+  lowercase commit and tree OIDs of the accepted target. A verifier MUST refuse a predicate with an
+  unknown, repeated or case-variant member, a missing target, or a malformed digest.
+  `corvint prove --cem MAP --expected-base OID --target OID [--artifacts ABS] --attest-cem-v2`
+  MUST refuse a `cem/0.x` map with `attest-cem-v2-requires-stable-map`. It runs the stable verifier
+  over the map, and MUST refuse any result that is not ACCEPT with a target revision, with
+  `attest-cem-v2-not-accepted`. Otherwise it prints the unchanged proof statement or envelope,
+  then the `cem/v2` statement or its DSSE envelope over the accepted target. `--attest-cem`,
+  `--attest-cem-v1` and `--attest-cem-v2` are mutually exclusive, and `--artifacts` requires
+  `--attest-cem-v2` (`invalid-arguments`). `prove --verify-cem-attestation ENVELOPE
+  --attest-public-key PEM --cem MAP [--artifacts ABS] [--target REV]` MUST refuse:
+  - map bytes that differ from the signed map subject, with `attest-cem-mismatch`;
+  - an artifact file whose digest is not its signed subject, or an artifact set that differs from
+    the signed artifact subjects, with `attest-cem-subject-mismatch`;
+  - a `--target` whose commit or tree is not the signed target, with `attest-cem-target-mismatch`.
+
+  The same two codes refuse `--artifacts` or `--target` given against a `cem/0` or `cem/v1`
+  envelope, which signs neither. A check that is not supplied is reported NOT_RUN in
+  `status`, `artifactsStatus` or `targetStatus`, never VERIFIED. `cem anchor` and `cem provenance`
+  MUST route a committed map that declares `cem/1.0` through the stable parser. The pointer records
+  `map_spec` `cem/1.0` and the map's sha256, the provenance read reports it verified, and the read
+  mutates nothing. A `cem/0.x` map's pointer bytes are unchanged.
+
+Non-goals: no verdict ledger and no stored verification result; `cem/v1` is not widened to stable
+maps; no signing producer, key management, transparency log or network step; no change to the
+stable map schema, `RESULT.schema.json` or the verifier; the target tree is not re-derived from the
+artifacts.
+
+Failure modes: a map re-issued over another receipt attestation has new bytes, so the old envelope
+refuses it with `attest-cem-mismatch`; the old map with a swapped artifact file is refused with
+`attest-cem-subject-mismatch`; a missing or unreadable artifact file is refused with the same
+code, never skipped; a rejected, unsupported or drifted stable verification emits no statement;
+a `--target` that does not resolve to a commit exits 2 with `unsupported-prove-revision`; a stable
+map that fails to parse is not anchored.
+
+Acceptance evidence:
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-065 | `TestCEMV1065StatementBytesAndSubjectOrder`, `TestCEMV1065VerifiesMapArtifactsAndTarget`, `TestCEMV1065RefusesSwappedReceiptArtifact`, `TestCEMV1065RefusesTargetThatIsNotTheSubject`, `TestCEMV1065PredicateIsClosed`, `TestCEMV1065V1UnchangedForStableMaps` (`internal/attest`) | Statement bytes and subject order over the public `receipt-authentication/` map; the receipt swap is refused under the old envelope both ways; a closed predicate; `cem/v1` still refuses a stable map |
+| CEM-V1-065 | `TestCEMV1065ProveEmitsAndVerifiesTheV2Statement`, `TestCEMV1065RefusesAReceiptSwapUnderTheOldEnvelope`, `TestCEMV1065RefusesATargetThatIsNotTheSubject`, `TestCEMV1065RefusesALegacyMap`, `TestCEMV1065RefusesConflictingFlags` (`cmd/corvint`) | `prove --attest-cem-v2` over the materialized public case emits four subjects and the accepted target, verifies VERIFIED on all three axes without mutation, and refuses the swap, a foreign target, a `cem/0.x` map and every flag conflict |
+| CEM-V1-065 | `TestCEMV1065AnchorStableMap`, `TestCEMV1065AnchorLegacyUnchanged` (`internal/gitnotes`) | A committed stable map anchors with `cem/1.0` and its sha256, and provenance reads it back verified without mutation; the `cem/0.x` pointer bytes are unchanged; walkthrough in `docs/build-log/2026-10-12-cem-v2-statement.md` |
+
+Rollback: revert `internal/attest/cem_v2.go`, the `V2` field and the v2 parser entry in
+`internal/attest`, `internal/cem/wire/route.go` and its use in `internal/gitnotes/anchor.go`, the
+`--attest-cem-v2` and `--artifacts` branches in `cmd/corvint/prove.go` and
+`cmd/corvint/prove_attest_cem.go`, the help lines and this section. No stored state was written in
+the new shape: `cem/0` and `cem/v1` bytes are unchanged. A stable-map anchor note already written
+stays readable as a plain note, and after rollback `cem provenance` reports its map as
+unsupported again.
 
 ## Stable verification result codes
 

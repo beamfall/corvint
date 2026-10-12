@@ -35,3 +35,11 @@ repository holds no copy of the draft or of agentattest.
 Delete `internal/attest/cem_v1.go` and its test, `interop/cem01-go/intoto.go` and its test, and
 FPK-V0-033 to FPK-V0-036. Restore the `VerifyCEM` call and the two receipt members in
 `cmd/corvint/prove_attest_cem.go` and the help sentence. The `cem/0` path is untouched either way.
+
+## Amendment 2026-10-12 (V1-1265)
+
+`cem/v2` (`https://corvint-context.dev/attestation/cem/v2`) adds, for a `cem/1.0` stable map only,
+one subject for each declared artifact and the accepted target commit and tree, so a re-issued
+map or a swapped artifact cannot pass under an old envelope. `cem/v1`, its bytes and its verifier
+are unchanged, and `cem/v1` is not widened to stable maps. The contract is CEM-V1-065 in the
+"`cem/v2` statement (V1-1265, decision 0523 P1)" section of `docs/specs/cem-stable-v1.md`.
