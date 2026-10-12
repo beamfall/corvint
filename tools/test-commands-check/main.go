@@ -85,23 +85,23 @@ func run(root, declaration string, stdout, stderr io.Writer) int {
 // environment (as a set of NAME=VALUE words) followed by `go test`, the
 // declared flags in order, and `./...`.
 func compareGo(declared sessiontest.Declared, recipe string) []string {
+	// Only a space or tab separates recipe words, and only a line of those
+	// is blank: any other whitespace or control rune (U+00A0, \r, ...) is part
+	// of a shell word, not a separator strings.Fields may hide.
+	problems := []string{}
 	lines := []string{}
 	for _, line := range strings.Split(recipe, "\n") {
-		if strings.TrimSpace(line) != "" {
+		for _, r := range line {
+			if (unicode.IsSpace(r) || unicode.IsControl(r)) && r != ' ' && r != '\t' {
+				problems = append(problems, fmt.Sprintf("make go-test recipe contains the whitespace or control rune %U, which is not a word separator", r))
+			}
+		}
+		if strings.Trim(line, " \t") != "" {
 			lines = append(lines, line)
 		}
 	}
 	if len(lines) != 1 {
-		return []string{fmt.Sprintf("make -s -n go-test prints %d command lines, want exactly one", len(lines))}
-	}
-	problems := []string{}
-	// Only a space or tab separates recipe words: any other whitespace or
-	// control rune (U+00A0, \r, ...) would be one argument to the shell and
-	// is not a separator strings.Fields may hide.
-	for _, r := range lines[0] {
-		if (unicode.IsSpace(r) || unicode.IsControl(r)) && r != ' ' && r != '\t' {
-			problems = append(problems, fmt.Sprintf("make go-test recipe contains the whitespace or control rune %U, which is not a word separator", r))
-		}
+		return append(problems, fmt.Sprintf("make -s -n go-test prints %d command lines, want exactly one", len(lines)))
 	}
 	words := strings.FieldsFunc(lines[0], func(r rune) bool { return r == ' ' || r == '\t' })
 	for _, word := range append(append(append([]string{}, words...), declared.GoEnv...), declared.GoFlags...) {

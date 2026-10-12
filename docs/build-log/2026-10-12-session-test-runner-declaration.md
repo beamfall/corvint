@@ -176,7 +176,19 @@ Codex (`gpt-6-astra`, read-only, up to three rounds) over `bed653e92..HEAD`.
   dashed name, U+00A0, `\r\n` and tab separators. Codex confirmed the corpus triples, both input
   digests, the requirement locators and the 257 arithmetic; it could not run Go tests in its
   read-only sandbox and did not verify the uncommitted parity report.
-- Round 3: see the line appended below when it finishes.
+- Round 3 (`a4fd32143`, the last authorised round): `CHANGES_REQUESTED`, two findings, both
+  verified. [P2] `compareGo` dropped a recipe line that `strings.TrimSpace` emptied before the
+  new rune check, so a U+00A0-only line passed although make itself fails on it. [P2] two drift
+  mutations in `TestSTRV0006DeclarationMatchesMakefile` failed in the reader, not in the
+  comparison they named: `"GOFLAGS": ""` has an empty value (refused since round 1) and the
+  `rust` member was a duplicate. Fixed after the round, without a further Codex pass: every raw
+  recipe line is checked before filtering and only space/tab lines are blank (two cases); the
+  mutations use `"-mod=mod"` and a `zig` language, the test asserts each mutation is readable and
+  names the diagnostic its comparison prints (`go.flags give`, `go.env is`,
+  `languages.zig names make no-such-target`). Codex again confirmed the corpus triples, input
+  digests, category arithmetic, status records and requirement locators. The decision 0526
+  condition (`VERDICT: PASS`) is therefore not met by this lane; the owner or the orchestrator
+  decides whether a fourth round is run.
 
 ## Left for slice 3
 
