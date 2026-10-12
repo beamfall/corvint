@@ -49,3 +49,7 @@ landed in the same integration branch.
 - Cases 21 and 22 were not run on this host on either consumer.
 - The citation regeneration left a double blank line in the packet README pointer paragraph; it is
   cosmetic and bound by the packet manifest, so it waits for the next regen run.
+- Independent review (Codex, 2026-10-12) reproduced the pre-existing V1-1289 refusal-code divergence
+  (`reference-coherence` native, `unresolved-reference` portable) as two different verdict digests for
+  the same map; the digests are correct over their differing results, and V1-1289 now carries a
+  know-how note that its fix must add a digest-parity case.
