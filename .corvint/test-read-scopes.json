@@ -255,6 +255,10 @@
       "go.mod",
       "internal/remoteprovider/"
     ],
+    "internal/frontier": [
+      "benchmarks/expert-audit-followup/finite-policy.json",
+      "protocol/cem-1.0/stable/RESULT.schema.json"
+    ],
     "internal/frontierrepo": [
       "conformance/tcq-0/"
     ],

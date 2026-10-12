@@ -134,3 +134,50 @@ func (verifier *stableVerifier) VerifyStableOCM(cemRaw, ocmRaw []byte, expectedB
 		PatchSha256:    universe.PatchSHA256,
 	}, nil
 }
+
+// StableView is the frontier.StableViewer seam (V1-1304): it runs
+// RecomputeStable once over the adapter's repository root and projects the
+// accepted upstream into the frontier-stable-view/0 values. A refusal returns
+// no view, so a tampered map or a wrong base can never surface as one.
+func (adapter *Adapter) StableView(ctx context.Context, request frontier.StableViewRequest) (frontier.StableView, error) {
+	upstream, err := RecomputeStable(ctx, adapter.root, StableRequest{
+		CEMBytes: request.CEMBytes, OCMBytes: request.OCMBytes,
+		ExpectedBase: request.ExpectedBase, Target: request.Target, ArtifactRoot: request.ArtifactRoot,
+		Command: request.Command, Observation: request.Observation, JUnitReport: request.JUnitReport,
+	})
+	if err != nil {
+		return frontier.StableView{}, err
+	}
+	universe := upstream.Universe
+	document, err := universe.Document()
+	if err != nil {
+		return frontier.StableView{}, translate(err)
+	}
+	unknown := []frontier.StableHunk{}
+	for _, hunk := range document.Change.Hunks {
+		if hunk.Disposition == "unknown" { // the CEM hunk disposition, not the OCM one
+			unknown = append(unknown, frontier.StableHunk{ID: hunk.ID, Path: hunk.Path, Reason: hunk.Reason})
+		}
+	}
+	mode := frontier.TestModeStatic
+	if request.Command != nil {
+		mode = frontier.TestModeDynamicCallerReported
+	}
+	return frontier.StableView{
+		FrontierState:  upstream.FrontierState,
+		Spec:           universe.Spec,
+		Verification:   universe.Verification.Outcome,
+		Sidecar:        universe.Verification.Sidecar,
+		MapSHA256:      universe.MapSHA256,
+		PatchSHA256:    universe.PatchSHA256,
+		OCMSHA256:      universe.OCMSHA256,
+		BaseRevision:   universe.BaseRevision,
+		TargetRevision: universe.TargetRevision,
+		ObjectFormat:   universe.ObjectFormat,
+		TCQProfile:     tcq.StableProfile,
+		TCQID:          upstream.TCQ.ID(),
+		TestMode:       mode,
+		UnknownHunks:   unknown,
+		Obligations:    upstream.Obligations,
+	}, nil
+}
