@@ -427,7 +427,7 @@ func compare(pair Pair) []Difference {
 		if only, missing := setDifference(side.corvint.Packages, driverPackages); len(only)+len(missing) != 0 {
 			add(side.profile, "packages", fmt.Sprintf("corvint only %d %s; driver only %d %s", len(only), clip(only), len(missing), clip(missing)), missing...)
 		}
-		if side.profile == "ci" && side.corvint.Error == "" && side.driver.Error == "" {
+		if side.profile == "ci" && side.corvint.Scope != "ERROR" && side.driver.Error == "" { // an INCOMPLETE plan still names its packages
 			if only, missing := setDifference(side.corvint.Packages, side.driver.Packages); len(only)+len(missing) != 0 {
 				add(side.profile, "executed", fmt.Sprintf("driver executes %d packages: corvint only %d %s; driver only %d %s", side.driver.Count, len(only), clip(only), len(missing), clip(missing)), only...)
 			}
@@ -490,8 +490,6 @@ func categorise(pair Pair, profile, field string, extra []string) string {
 		if profile == "ci" && expectedCIEnv(corvint.Env, pair.CI.Env, pair.Root) {
 			return "ci-closed-environment"
 		}
-	case "declared":
-		return "full-declared-languages"
 	}
 	return "UNEXPLAINED"
 }

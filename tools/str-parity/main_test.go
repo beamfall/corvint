@@ -101,6 +101,12 @@ func TestSTRV0013ParityReading(t *testing.T) {
 		"driver path elsewhere":     {func(p *Pair) { p.CI.Env = driverEnv("HOME=/r/HOME", "HOME=/elsewhere") }, "ci env ci-closed-environment"},
 		"another exec wrapper":      {func(p *Pair) { p.CorvintCI.Argv = []string{"test", "-exec", "/bin/true", "-json"} }, "ci argv UNEXPLAINED"},
 		"local environment differs": {func(p *Pair) { p.Local.Env = []string{"A=2"} }, "local env UNEXPLAINED"},
+		"incomplete hides a dropped ci package": {func(p *Pair) {
+			p.CorvintCI = Plan{Argv: corvintCI.Argv, Count: 2, Env: ciEnv, Packages: universe, Scope: "FULL",
+				Error: "INCOMPLETE: typescript: no qualified adapter and no declared typescript-test full command"}
+			p.CIPlanned, p.CIPlannedPackages, p.CI.Packages = "FULL", universe, []string{"m/a"}
+		}, "ci executed UNEXPLAINED"},
+		"declared command": {func(p *Pair) { p.CorvintCI.Declared = []string{"make typescript-test"} }, "ci declared UNEXPLAINED"},
 	} {
 		pair := fresh()
 		check.edit(&pair)
