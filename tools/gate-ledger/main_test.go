@@ -394,17 +394,23 @@ func TestWorktreeDigestImportFailureRunsWithoutRecord(t *testing.T) {
 // was proven, the key is hit from a linked worktree, an edit inside the bound
 // reruns the package and its dependents, and an edit outside it does not (the
 // root package encloses every path, so only the nested packages are asserted).
-// packageRepository commits files and the partition's selector into a fixture
+// packageRepository commits files and the partition's selector (its wrapper and
+// internal/gateselect, rebased onto the fixture module) into a fixture
 // repository and returns its root.
 func packageRepository(t *testing.T, files map[string]string) string {
 	t.Helper()
-	for _, name := range []string{"main.go", "readers.go", "readscopes.go"} {
-		data, err := os.ReadFile(filepath.Join("..", "gate-affected-select", name))
+	for _, name := range []string{"select.go", "readers.go", "readscopes.go"} {
+		data, err := os.ReadFile(filepath.Join("..", "..", "internal", "gateselect", name))
 		if err != nil {
 			t.Fatal(err)
 		}
-		files["tools/gate-affected-select/"+name] = string(data)
+		files["internal/gateselect/"+name] = string(data)
 	}
+	wrapper, err := os.ReadFile(filepath.Join("..", "gate-affected-select", "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	files["tools/gate-affected-select/main.go"] = strings.Replace(string(wrapper), "github.com/Beamfall/corvint/internal/gateselect", "example.com/fixture/internal/gateselect", 1)
 	root := fixtureRepository(t)
 	for file, body := range files {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, filepath.FromSlash(file))), 0o755); err != nil {
@@ -513,11 +519,12 @@ func TestGoTestPartialPassRerun(t *testing.T) {
 func testGoTestPartialPassRerun(t *testing.T, bad string) {
 	packageRepository(t, map[string]string{
 		"tools/gate-affected-select/main_test.go": "package main\nimport \"testing\"\nfunc TestSelector(t *testing.T) {}\n",
-		"go.mod":            "module example.com/fixture\n\ngo 1.27\n",
-		"main_test.go":      "package main\nimport \"testing\"\nfunc TestRoot(t *testing.T) {}\n",
-		"good/good_test.go": "package good\nimport \"testing\"\nfunc TestGood(t *testing.T) {}\n",
-		"bad/bad_test.go":   bad,
-		"wd/wd_test.go":     "package wd\nimport (\"testing\"; \"os\")\nfunc TestWd(t *testing.T) { os.Getwd(); t.Fatal(\"unresolved failure\") }\n",
+		"internal/gateselect/select_test.go":      "package gateselect\nimport \"testing\"\nfunc TestSelect(t *testing.T) {}\n",
+		"go.mod":                                  "module example.com/fixture\n\ngo 1.27\n",
+		"main_test.go":                            "package main\nimport \"testing\"\nfunc TestRoot(t *testing.T) {}\n",
+		"good/good_test.go":                       "package good\nimport \"testing\"\nfunc TestGood(t *testing.T) {}\n",
+		"bad/bad_test.go":                         bad,
+		"wd/wd_test.go":                           "package wd\nimport (\"testing\"; \"os\")\nfunc TestWd(t *testing.T) { os.Getwd(); t.Fatal(\"unresolved failure\") }\n",
 	})
 	args := []string{"go-test", "--", "go", "test", "-timeout", "30s"}
 	code, out := ledgerRun(t, args...)

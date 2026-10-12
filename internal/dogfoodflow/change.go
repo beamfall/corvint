@@ -171,18 +171,38 @@ func (c *change) run() int {
 // batch-check verifies a constituent. Any other added, modified or deleted
 // file under .corvint/changes/ refuses sealed-cem-in-change before a step runs.
 // The archive of BASE's own inherited CEM is admitted without re-verification:
-// it keeps bytes BASE already tracks (DCW-V0-043).
+// it keeps bytes BASE already tracks (DCW-V0-043). A sealed CEM a migration
+// commit rewrote is admitted as the seal baseline, and HEAD must keep the
+// migration's bytes (DCW-V0-050).
 func (c *change) admitSealedCEMs(inherited inheritedCEM) {
 	changed := nonEmpty(strings.Split(c.gitValue("diff", "--no-renames", "--name-status", c.base, c.target, "--", ".corvint/changes"), "\n"))
-	if len(changed) == 0 {
+	// A migration commit's rewrites are the seal baseline, not constituents,
+	// and do not count toward the limit; HEAD must keep them even where the
+	// net diff shows no change (DCW-V0-050).
+	migrated, reverted := c.migratedSeals(c.base, c.target)
+	if len(changed) == 0 && len(reverted) == 0 {
 		return
 	}
+	kept := changed[:0]
+	for _, line := range changed {
+		if state, path, _ := strings.Cut(line, "\t"); state != "M" || !migrated[path] {
+			kept = append(kept, line)
+		}
+	}
+	admitted := len(changed) - len(kept)
+	changed = kept
 	refusals := []string{}
+	for _, path := range reverted {
+		refusals = append(refusals, path+": sealed-cem-migration-reverted")
+	}
 	if len(changed) > batchConstituentLimit {
 		refusals = append(refusals, fmt.Sprintf("sealed CEMs=%d exceed %d", len(changed), batchConstituentLimit))
 		changed = nil
 	}
 	notes := []string{}
+	if admitted > 0 {
+		notes = append(notes, fmt.Sprintf("sealed-cem-migrated maps=%d commit=%s", admitted, c.migrationNote(c.base, c.target)))
+	}
 	for _, line := range changed {
 		state, path, _ := strings.Cut(line, "\t")
 		match := sealedCEMPath.FindStringSubmatch(path)

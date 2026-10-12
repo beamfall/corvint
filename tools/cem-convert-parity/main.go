@@ -9,6 +9,15 @@
 //
 //	cem-convert-parity --repository CLONE --maps DIR --portable CEM01GO
 //	                   --reachable-revs FILE --out DIR [--jobs N] [--every N]
+//	                   [--migrated]
+//
+// --migrated is the V1-1277 migration check over maps already rewritten to
+// cem/1.0: each converted map must carry converter provenance, its named source
+// blob must exist with the recorded digests, and reconverting that blob must
+// reproduce the committed bytes exactly; the parity run then verifies the
+// committed bytes at the substituted target. A stable map without provenance
+// (natively produced) is verified at its bind commit on both consumers. It also
+// writes targets.txt ("<bind> <target>" lines) for cem-citation-baseline.
 //
 // CLONE is an absolute scratch `git clone --local --no-checkout` of the
 // repository: the stable consumers refuse object alternates, and the
@@ -33,6 +42,7 @@ func main() {
 	flag.StringVar(&o.Out, "out", "", "absolute evidence directory")
 	flag.IntVar(&o.Jobs, "jobs", 4, "parallel maps")
 	flag.IntVar(&o.Every, "every", 1, "deterministic sample: every Nth map in byte order")
+	flag.BoolVar(&o.Migrated, "migrated", false, "check committed cem/1.0 maps against their provenance-named source blobs")
 	flag.Parse()
 	for _, p := range []string{o.Repository, o.Maps, o.Portable, o.Out} {
 		if !filepath.IsAbs(p) {
