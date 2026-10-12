@@ -25,7 +25,7 @@ func gitTop(t *testing.T, args ...string) string {
 // V1-1277 --migrated mode, over a deterministic sample (every 200th committed
 // map in byte order) against a scratch clone and the portable consumer built
 // from interop/cem01-go. Every sampled map must already be cem/1.0; a migrated
-// map must equal the conversion of its provenance-named source blob (CEM-V1-200).
+// map must equal the conversion of its provenance-named source blob (CEM-V1-230).
 // A bind commit missing from the clone is a NOT_OBSERVED row, never a failure;
 // any observed row must be idempotent, refuse reconversion and carry an
 // explained class. The full-corpus runs are retained under
@@ -161,11 +161,11 @@ func TestCEMV1104ConvertParityClassify(t *testing.T) {
 	}
 }
 
-// TestCEMV1200MigratedSourceChecks pins the --migrated refusals: a map that is
+// TestCEMV1230MigratedSourceChecks pins the --migrated refusals: a map that is
 // still cem/0.x, a source blob absent from the repository, committed bytes
 // that differ from the conversion of the provenance-named source blob, and a
 // stable map without provenance whose bytes are not its bind commit's sidecar.
-func TestCEMV1200MigratedSourceChecks(t *testing.T) {
+func TestCEMV1230MigratedSourceChecks(t *testing.T) {
 	testdata := filepath.Join("..", "..", "internal", "cem", "convert", "testdata")
 	src, err := os.ReadFile(filepath.Join(testdata, "reachable-a79ab231.source.json"))
 	if err != nil {

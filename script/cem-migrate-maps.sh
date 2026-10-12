@@ -2,7 +2,7 @@
 set -eu
 
 # Rewrite every committed change map to cem/1.0 with the converter (V1-1277, decision 0525 §3
-# step 6, docs/specs/cem-stable-v1.md CEM-V1-200).
+# step 6, docs/specs/cem-stable-v1.md CEM-V1-230).
 #
 #   script/cem-migrate-maps.sh CORVINT [REPOSITORY]
 #

@@ -188,8 +188,9 @@ func TestCEMV1099ConvertSourceBinding(t *testing.T) {
 // twice to identical bytes and proves a converted map is refused on reconvert.
 // After the V1-1277 migration every committed map is cem/1.0: a migrated map
 // (one with converter provenance) must equal the conversion of its
-// provenance-named source blob byte for byte (CEM-V1-200), and a natively
-// produced stable map must refuse.
+// provenance-named source blob byte for byte (CEM-V1-230), and a stable map
+// without provenance must refuse and equal its bind commit's sidecar
+// (CEM-V1-231).
 func TestCEMV1100ConvertCorpusIdempotent(t *testing.T) {
 	dir := filepath.Join("..", "..", "..", ".corvint", "changes")
 	entries, err := os.ReadDir(dir)

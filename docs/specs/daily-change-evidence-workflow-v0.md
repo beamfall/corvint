@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 proposed (V1-1277)
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277)
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 proposed (V1-1277); experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -623,29 +623,35 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   bound in chore-subject commits, which `DCW-V0-048` addresses instead.
   Reason: the V1-1262 baseline mixed self-referential bind and seal maps with change maps; a
   distinct class keeps a chore's one-span citation out of the change-map support measure.
-- `DCW-V0-050`: (proposed; V1-1277) The V1-1277 migration commit, which rewrites every committed
-  sealed CEM to `cem/1.0` in place (`CEM-V1-200`), is the seal baseline from that commit on. When
-  `BASE..HEAD` contains the migration commit and `BASE` does not, `dogfood change`'s sealed-CEM
-  admission and `dogfood batch-check` MUST admit a modified `.corvint/changes/<bind>.cem.json`
-  path whose `BASE` blob is exactly the migration commit's preimage and whose `HEAD` blob is
-  exactly its rewrite: the path is not `sealed-cem-modified`, it is not a batch constituent, it
-  does not count toward the 256-constituent limit, and each command prints one
-  `NOTE sealed-cem-migrated maps=N commit=<migration commit>` line. Any other modification of
-  such a path, before or after, still fails `sealed-cem-modified`. `batch-check` MUST count the
-  migration commit itself as bound only when it modifies sealed CEM paths and nothing else. A
-  constituent that `BASE..HEAD` adds before the migration commit, whose `HEAD` blob is the
-  migration's rewrite of its bind commit's map, MUST fail `constituent-migrated` with a `fix:`
-  line that splits the batch at the migration commit, never pass and never fail
-  `sealed-cem-drift`: its bind commit's sidecar still holds the source bytes, so the stable
-  verifier cannot verify the rewrite there (`CEM-V1-104`). The migration commit is named by one
-  constant in `internal/dogfoodflow/migration.go`; while it is empty every path keeps its former
-  result.
+- `DCW-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1277) Each
+  migration commit, which rewrites committed sealed CEMs to `cem/1.0` in place (`CEM-V1-230`), is
+  the seal baseline from that commit on. The migration commits are V1-1277's commit and any
+  follow-up commit that converts maps a pre-cutover branch landed later; they are listed in
+  `cemMigrationCommits` in `internal/dogfoodflow/migration.go`. When `BASE..HEAD` contains a
+  migration commit and `BASE` does not, `dogfood change`'s sealed-CEM admission and
+  `dogfood batch-check` MUST admit a modified `.corvint/changes/<bind>.cem.json` path whose `BASE`
+  blob is exactly that commit's preimage and whose `HEAD` blob is exactly its rewrite: the path is
+  not `sealed-cem-modified`, it is not a batch constituent, it does not count toward the
+  256-constituent limit, and each command prints one
+  `NOTE sealed-cem-migrated maps=N commit=<migration commits in the range>` line. Every path such
+  a migration commit rewrote that `HEAD` holds with bytes the migration did not write, including a
+  merge that keeps the pre-migration tree and so hides the rewrite from the net `BASE..HEAD` diff,
+  MUST fail `sealed-cem-migration-reverted`. Any other modification of such a path, before or
+  after, still fails `sealed-cem-modified`. `batch-check` MUST count a listed migration commit
+  itself as bound only when it modifies sealed CEM paths and nothing else. A constituent that
+  `BASE..HEAD` adds before a migration commit, whose `HEAD` blob is the migration's rewrite of its
+  bind commit's map, MUST fail `constituent-migrated` with a `fix:` line that splits the batch at
+  the migration commit, never pass and never fail `sealed-cem-drift`: its bind commit's sidecar
+  still holds the source bytes, so the stable verifier cannot verify the rewrite there
+  (`CEM-V1-104`). While the list is empty every path keeps its former result.
   Non-goals: re-binding any map or bind commit; a general allow-list of rewrites; admitting a
   migrated constituent in a batch that spans the migration commit.
-  Failure modes: a rebase or squash that changes the migration commit's ID disables the
-  admission, so the migrated paths fail `sealed-cem-modified` closed until the constant names the
-  landed commit; a later edit of a migrated map fails `sealed-cem-modified`; a sealed map that a
-  branch adds after the migration commit is checked as before.
+  Failure modes: a rebase or squash that changes a migration commit's ID disables its admission,
+  so the migrated paths fail `sealed-cem-modified` closed until the list names the landed commit;
+  a follow-up migration commit not yet listed fails the same way; a later edit of a migrated map
+  fails `sealed-cem-modified`; a restored pre-migration map fails
+  `sealed-cem-migration-reverted`; a sealed map that a branch adds after a migration commit is
+  checked as before.
   Reason: decision 0525 §3 step 6 rewrites the sealed corpus once; without a baseline every
   later range that spans the rewrite would fail closed on 614 sealed paths.
 
@@ -751,8 +757,10 @@ failures, each with one `fix:` line:
   constituent is verified by the stable status, not refused.
 - `unbound-commits`: a non-merge commit, including a root commit, belongs to no sealed change and
   is no seal commit.
-- `constituent-migrated` (`DCW-V0-050`, proposed): a constituent the range adds before the V1-1277
-  migration commit holds that commit's `cem/1.0` rewrite; split the batch at the migration commit.
+- `constituent-migrated` (`DCW-V0-050`): a constituent the range adds before a migration commit
+  holds that commit's `cem/1.0` rewrite; split the batch at the migration commit.
+- `sealed-cem-migration-reverted` (`DCW-V0-050`): `HEAD` holds a sealed CEM that a migration commit
+  in the range rewrote, with bytes that commit did not write; restore the migration's bytes.
 - `merge-resolution-unbound`, `octopus-merge-unbound`: a merge tree is not derivable from its
   parents, listing at most 20 differing paths, or the merge has more than two parents.
 
@@ -832,7 +840,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-047` (accepted under the owner's standing auto-accept (2026-10-11); V1-1279) | `internal/dogfoodflow/check.go` `admitOutputChange` (also before the empty-range PASS in `requireCleanChange`), `requirementSpec`, `verifyStatus`, `verifyDeclared`, `verifyOCM`, `baseIndependence`, `checkSummary`, `record` and `seal`; `cmd/corvint/dogfood_flow.go` (`DOGFOOD_OUTPUT_CHANGE`); `TestCheckDCWV0047DeclaredOutputChange` (a tree verifier whose `cem status` stdout adds one member: undeclared fails `verifier-disagreement` with `outputsAgree: false`; declared by a requirement the change adds to a spec it modifies, the base verifier runs once and the tree verifier twice, the SUMMARY line carries `base-independence=NOT_PROVED` with both digests, the report records `outputsAgree: true` and the `baseIndependence` member, and the seal PASS line keeps the fields; a tree verifier that disagrees with itself fails `verifier-disagreement`; a requirement whose spec is not in the diff refuses `output-change-not-in-diff`, an absent or malformed ID `output-change-requirement-unknown`, with no verifier run; on an empty range an unknown ID refuses `output-change-requirement-unknown` and a known one `output-change-not-in-diff` while no declaration still passes `no-change-clean-worktree`; agreeing verifiers without a declaration print no new field); `TestCheckDCWV0047DeclaredOCMStatus` (V1-1276: a base verifier refusing the OCM read `unsupported-spec` fails `verifier-disagreement` undeclared; declared, the base runs once and the tree twice and its line is returned; a tree verifier that disagrees with itself still fails); `script/dogfood-seal.sh` with `script/dogfood-change_test.sh` (a stub check whose SUMMARY carries the fields: the wrapper streams the check output and its PASS line keeps the fields after `sealed=`) | implemented; accepted; a real output-changing lane NOT_OBSERVED |
 | `DCW-V0-048` (accepted under the owner's standing auto-accept (2026-10-11); V1-1281) | `internal/dogfoodflow/chore.go` `ChoreRole`, `uniformCitation`; `internal/dogfoodflow/change.go` `citeStep`, `uniformPlan` and its `fix:` hint; `internal/observations/observations.go` `validDogfoodReason`; `TestChoreRoleDCWV0048ClassifiesOnlyCEMPaths` (exact CEM paths only; a quoted path, a nested or empty NAME, another suffix, any other path and an empty diff are not chores; seal-chore when any `.corvint/changes/` path is touched); `TestChangeDCWV0048RefusesUniformPlan` (a three-hunk one-span plan, by ordinal or full ID, is NOT_PRODUCED with no cite and the `fix:` line `hunks=3 span=a.txt:1:2`; distinct spans, another span of the same path, an unnamed hunk and a single hunk are cited; a bind-chore change is exempt); `TestDogfoodReasonAdmitsCitationPlanUniform` | implemented; accepted; the committed maps are not re-bound |
 | `DCW-V0-049` (accepted under the owner's standing auto-accept (2026-10-11); V1-1281) | `internal/dogfoodflow/chore.go` `markChoreRole`, `markStableChoreMap` (called after `cem-prepare` in `run`); `internal/cem/workflow/stable_read.go` `StableCitationClass`; `tools/cem-citation-baseline`; `TestMarkChoreRoleDCWV0049WritesStableRoleOnly` (a stable map gains each chore role through the encoder, re-parses and keeps its mode, a second write leaves it byte-identical, a Core 0.x map is refused unchanged and no temporary file remains); `TestChangeDCWV0049MarksPreparedStableChoreMap` (a prepared stable map gets `bind-chore` only for a chore range and none for a change range); `TestCEMV1106StatusCitationClassGroupsChoreMaps`; `TestBaselineDCWV0049SplitsRowsByCitationClass` and `TestBaselineRowKeepsThePythonEncoding` | implemented; accepted; live since V1-1276 (`cem prepare` writes `cem/1.0` by default; `TestChangeDCWV0049MarksPreparedStableChoreMap` now also requires that the loop never refuses the stable map); the class-split baseline rerun is NOT_PRODUCED (no committed map carries a role yet) |
-| `DCW-V0-050` (proposed; V1-1277) | `internal/dogfoodflow/migration.go` `cemMigrationCommit`, `migratedSeals`, `migratedConstituent`, `isMigrationCommit`; `internal/dogfoodflow/batch.go` `sealedConstituents`, `verifySealedCEM`, `verifyCoverage`; `internal/dogfoodflow/change.go` `admitSealedCEMs`; `TestBatchCheckDCWV0050MigrationCommitIsTheSealBaseline` (a range from before the migration passes with zero constituents, one commit and the NOTE, running no verifier; admission prints only the note; with the constant unset the same range fails `sealed-cem-modified`; a range that adds the constituents before the migration fails `constituent-migrated count=2` with the split `fix:`; a later edit of a migrated map fails `sealed-cem-modified` in both commands) | implemented; proposed; live range over the landed migration commit NOT_OBSERVED until merge |
+| `DCW-V0-050` (accepted under the owner's standing auto-accept (2026-10-11); V1-1277) | `internal/dogfoodflow/migration.go` `cemMigrationCommits`, `migratedSeals`, `migrationRewrites`, `migratedConstituent`, `migrationsInRange`, `isMigrationCommit`; `internal/dogfoodflow/batch.go` `sealedConstituents`, `verifySealedCEM`, `verifyCoverage`; `internal/dogfoodflow/change.go` `admitSealedCEMs`; `TestBatchCheckDCWV0050MigrationCommitIsTheSealBaseline` (a range from before the migration passes with zero constituents, one commit and the NOTE, running no verifier; admission prints only the note; with the list empty the same range fails `sealed-cem-modified`; a range that adds the constituents before the migration fails `constituent-migrated count=2` with the split `fix:`; a later edit of a migrated map fails `sealed-cem-modified` in both commands); `TestBatchCheckDCWV0050RevertedMigrationFails` (a `-s ours` merge of the migration onto its parent fails `sealed-cem-migration-reverted` in both commands; removing the check fails the test); `TestBatchCheckDCWV0050FollowUpMigration` (a second listed migration commit is admitted with its own NOTE; a map it rewrote that the range adds fails `constituent-migrated`) | implemented; live `batch-check 75bc22605` at the migration commit PASS `constituents=0 commits=1`; a range over the landed merge NOT_OBSERVED until merge |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
@@ -882,7 +890,7 @@ output-changing lane fails `verifier-disagreement` again, so it returns to gatin
 an opt-in flag. A report or seal line written under it keeps its extra member or fields, which no
 reader requires; no map or sealed CEM format changes.
 Roll back `DCW-V0-050` with the V1-1277 migration by reverting its merge commit: the sealed maps
-return to `cem/0.2` and the constant disappears. Reverting only the constant keeps the migrated maps,
+return to `cem/0.2` and the list disappears. Reverting only the list keeps the migrated maps,
 and every range that spans the migration commit then fails `sealed-cem-modified` closed.
 Roll back `DCW-V0-048` and `DCW-V0-049` by reverting their change: a uniform plan is cited
 again, a prepared stable chore map keeps no role, `cem status --citation` loses `citationClass`
