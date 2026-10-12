@@ -13,10 +13,17 @@
 // defaults apply (a developer GO_TEST_TIMEOUT or CORVINT_GOCACHE override is
 // not the declared full suite) and whatever make and the recipe shell hand
 // the test process is observed: the shim, a copy of this program, records
-// its argv and its whole environment and exits 0. The gate fails unless the
-// shim ran exactly once, make exited zero, the argv is `test <go.flags>
-// ./...` and the environment, less the names the gate passed (unchanged)
-// and the closed set makeIntroduced, is go.env exactly.
+// its argv, working directory and whole environment and exits 0. The gate
+// fails unless the shim ran exactly once, make exited zero, the argv is
+// `test <go.flags> ./...`, the working directory is the repository root, and
+// the environment, less the names the gate passed (present and unchanged)
+// and the closed set makeIntroduced, is go.env exactly. The makeIntroduced
+// names are not taken on trust either: a control recipe run under the same
+// make must show the same values, so a recipe that sets MAKEFLAGS itself is
+// a difference. What the shim cannot see, a second invocation through an
+// absolute path or a script, is excluded by the recipe's shape: `make -n
+// go-test` must print one plain command line with one `go` word and no shell
+// operator or substitution.
 package main
 
 import (
@@ -25,6 +32,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path"
@@ -46,6 +54,12 @@ const (
 	// minimalPath follows the shim directory: what make's /bin/sh and the
 	// Makefile's $(shell git ...) need, and nothing a developer prepends.
 	minimalPath = "/usr/bin:/bin"
+	// controlTarget is the recipe the gate adds through a second -f makefile
+	// to observe the values make and its shell give the makeIntroduced names.
+	controlTarget = "__corvint_test_commands_control"
+	// shellSyntax are the characters a go-test recipe line may not contain:
+	// each can chain, substitute or redirect a command the shim never sees.
+	shellSyntax = ";|&()<>{}`$\\\"'\r"
 )
 
 // makeIntroduced is the closed set of environment names that reach the test
@@ -104,15 +118,20 @@ func main() {
 }
 
 // shim is the `go` make runs: when recordVariable names a directory, this
-// process writes its arguments and environment there, NUL-separated, and
-// exits 0. Each invocation writes its own file, so a second call is counted.
+// process writes its arguments, working directory and environment there,
+// NUL-separated, and exits 0. Each invocation writes its own file, so a
+// second call is counted.
 func shim() (bool, error) {
 	dir := os.Getenv(recordVariable)
 	if dir == "" {
 		return false, nil
 	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return true, err
+	}
 	var record bytes.Buffer
-	fmt.Fprintf(&record, "%d\x00", len(os.Args)-1)
+	fmt.Fprintf(&record, "%d\x00%s\x00", len(os.Args)-1, cwd)
 	for _, word := range os.Args[1:] {
 		record.WriteString(word)
 		record.WriteByte(0)
@@ -132,19 +151,26 @@ func shim() (bool, error) {
 	return true, err
 }
 
-// parseRecord reads one shim record back: the argument count, the arguments
-// and then the environment entries, each NUL-terminated.
-func parseRecord(data []byte) (argv, env []string, err error) {
+// observation is what one shim record holds.
+type observation struct {
+	argv, env []string
+	cwd       string
+}
+
+// parseRecord reads one shim record back: the argument count, the working
+// directory, the arguments and then the environment entries, each
+// NUL-terminated.
+func parseRecord(data []byte) (observation, error) {
 	fields := strings.Split(string(data), "\x00")
-	if len(fields) < 2 || fields[len(fields)-1] != "" {
-		return nil, nil, fmt.Errorf("malformed shim record (%d bytes)", len(data))
+	if len(fields) < 3 || fields[len(fields)-1] != "" {
+		return observation{}, fmt.Errorf("malformed shim record (%d bytes)", len(data))
 	}
 	fields = fields[:len(fields)-1]
 	count, err := strconv.Atoi(fields[0])
-	if err != nil || count < 0 || count > len(fields)-1 {
-		return nil, nil, fmt.Errorf("malformed shim record: argument count %q", fields[0])
+	if err != nil || count < 0 || count > len(fields)-2 {
+		return observation{}, fmt.Errorf("malformed shim record: argument count %q", fields[0])
 	}
-	return fields[1 : 1+count], fields[1+count:], nil
+	return observation{cwd: fields[1], argv: fields[2 : 2+count], env: fields[2+count:]}, nil
 }
 
 // run returns 0 when the declaration is what make runs, 1 on any difference
@@ -156,6 +182,7 @@ func run(root, makefile, declaration string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	problems := observeGoTest(root, makefile, declared)
+	problems = append(problems, recipeShape(root, makefile)...)
 	targets := 0
 	for _, entry := range declared.Languages {
 		if len(entry.Argv) < 2 || entry.Argv[0] != "make" {
@@ -177,66 +204,105 @@ func run(root, makefile, declaration string, stdout, stderr io.Writer) int {
 		}
 		return 1
 	}
-	fmt.Fprintf(stdout, "test-commands-check: %s equals make go-test (%s go test %s ./...); %d declared make targets dry-run; no make gate step recipe runs a suite of %v\n",
+	fmt.Fprintf(stdout, "test-commands-check: %s equals make go-test (%s go test %s ./... in the repository root, one plain command line); %d declared make targets dry-run; no make gate step recipe runs a suite of %v\n",
 		sessiontest.DeclarationPath, strings.Join(declared.GoEnv, " "), strings.Join(declared.GoFlags, " "), targets, none)
 	return 0
 }
 
 // observeGoTest runs the real `make -s go-test` with the go shim first on
-// PATH and compares what the shim recorded with the declaration.
+// PATH and compares what the shim recorded with the declaration, and runs
+// the control recipe under the same make to learn the values make itself
+// gives the makeIntroduced names.
 func observeGoTest(root, makefile string, declared sessiontest.Declared) []string {
 	work, err := os.MkdirTemp("", "test-commands-check-")
 	if err != nil {
 		return []string{"cannot create the shim directory: " + err.Error()}
 	}
 	defer os.RemoveAll(work)
-	bin, records := filepath.Join(work, "bin"), filepath.Join(work, "records")
-	for _, dir := range []string{bin, records} {
-		if err := os.Mkdir(dir, 0o700); err != nil {
-			return []string{"cannot create the shim directory: " + err.Error()}
-		}
+	bin := filepath.Join(work, "bin")
+	if err := os.Mkdir(bin, 0o700); err != nil {
+		return []string{"cannot create the shim directory: " + err.Error()}
 	}
 	if err := installShim(filepath.Join(bin, "go")); err != nil {
 		return []string{"cannot install the go shim: " + err.Error()}
 	}
-	passed := []string{"PATH=" + bin + string(os.PathListSeparator) + minimalPath, recordVariable + "=" + records}
-	_, err = runMake(root, passed, "-s", "-f", makefile, "go-test")
+	// The control recipe has the go-test recipe's shape, environment words
+	// before go, so make runs it through the same shell rather than directly.
+	control := filepath.Join(work, "control.mk")
+	if err := os.WriteFile(control, []byte(".PHONY: "+controlTarget+"\n"+controlTarget+":\n\t@"+strings.Join(append(slices.Clone(declared.GoEnv), "go", controlTarget), " ")+"\n"), 0o600); err != nil {
+		return []string{"cannot write the control makefile: " + err.Error()}
+	}
+	wantRoot, err := filepath.Abs(root)
+	if err == nil {
+		wantRoot, err = filepath.EvalSymlinks(wantRoot)
+	}
+	if err != nil {
+		return []string{"cannot resolve the repository root: " + err.Error()}
+	}
+	path := "PATH=" + bin + string(os.PathListSeparator) + minimalPath
+	seen, passed, problems := observe(root, filepath.Join(work, "records"), path, "-s", "-f", makefile, "go-test")
+	if len(problems) != 0 {
+		return problems
+	}
+	want := append(append([]string{"test"}, declared.GoFlags...), "./...")
+	if !slices.Equal(seen.argv, want) {
+		problems = append(problems, fmt.Sprintf("go.flags give %q, make go-test runs go with %q", strings.Join(want, " "), strings.Join(seen.argv, " ")))
+	}
+	if cwd, err := filepath.EvalSymlinks(seen.cwd); err != nil || cwd != wantRoot {
+		problems = append(problems, fmt.Sprintf("make go-test runs go in %s, want the repository root %s: a recipe that changes directory does not run the declared full suite", seen.cwd, wantRoot))
+	}
+	problems = append(problems, compareEnv(declared.GoEnv, passed, seen.env)...)
+	baseline, _, controlProblems := observe(root, filepath.Join(work, "control-records"), path, "-s", "-f", makefile, "-f", control, controlTarget)
+	if len(controlProblems) != 0 {
+		return append(problems, "cannot observe make's own environment through the control recipe: "+strings.Join(controlProblems, "; "))
+	}
+	return append(problems, compareIntroduced(introducedValues(baseline.env), introducedValues(seen.env))...)
+}
+
+// observe runs make with exactly PATH and the record variable naming a fresh
+// directory, and returns the one shim record it must produce. Make failing,
+// no record (an absolute-path go, or a recipe that never reaches go) and more
+// than one record are each a problem.
+func observe(root, records, path string, args ...string) (observation, []string, []string) {
+	if err := os.Mkdir(records, 0o700); err != nil {
+		return observation{}, nil, []string{"cannot create the shim record directory: " + err.Error()}
+	}
+	passed := []string{path, recordVariable + "=" + records}
+	_, err := runMake(root, passed, args...)
 	entries, readErr := os.ReadDir(records)
 	if readErr != nil {
-		return []string{"cannot read the shim records: " + readErr.Error()}
+		return observation{}, passed, []string{"cannot read the shim records: " + readErr.Error()}
 	}
+	target := args[len(args)-1]
 	problems := []string{}
 	if err != nil {
-		problems = append(problems, "make -s go-test: "+err.Error())
+		problems = append(problems, fmt.Sprintf("make -s %s: %v", target, err))
 	}
 	switch len(entries) {
 	case 0:
-		return append(problems, "make go-test never ran go from PATH: an absolute-path go, or a recipe that does not reach go test, is not the declared full suite")
+		return observation{}, passed, append(problems, fmt.Sprintf("make %s never ran go from PATH: an absolute-path go, or a recipe that does not reach go test, is not the declared full suite", target))
 	case 1:
 	default:
-		return append(problems, fmt.Sprintf("make go-test ran go %d times, want exactly once", len(entries)))
+		return observation{}, passed, append(problems, fmt.Sprintf("make %s ran go %d times, want exactly once", target, len(entries)))
 	}
 	if err != nil {
-		return problems
+		return observation{}, passed, problems
 	}
 	data, err := os.ReadFile(filepath.Join(records, entries[0].Name()))
 	if err != nil {
-		return append(problems, "cannot read the shim record: "+err.Error())
+		return observation{}, passed, []string{"cannot read the shim record: " + err.Error()}
 	}
-	argv, env, err := parseRecord(data)
+	seen, err := parseRecord(data)
 	if err != nil {
-		return append(problems, err.Error())
+		return observation{}, passed, []string{err.Error()}
 	}
-	want := append(append([]string{"test"}, declared.GoFlags...), "./...")
-	if !slices.Equal(argv, want) {
-		problems = append(problems, fmt.Sprintf("go.flags give %q, make go-test runs go with %q", strings.Join(want, " "), strings.Join(argv, " ")))
-	}
-	return append(problems, compareEnv(declared.GoEnv, passed, env)...)
+	return seen, passed, nil
 }
 
 // compareEnv checks the environment the shim saw: every name the gate passed
-// is unchanged, every makeIntroduced name is ignored, and what remains,
-// sorted, is exactly the declared go.env words.
+// is present and unchanged, every makeIntroduced name is set aside for
+// compareIntroduced, and what remains, sorted, is exactly the declared
+// go.env words.
 func compareEnv(declared, passed, observed []string) []string {
 	passedValues := map[string]string{}
 	for _, entry := range passed {
@@ -254,6 +320,7 @@ func compareEnv(declared, passed, observed []string) []string {
 			if value != want {
 				problems = append(problems, fmt.Sprintf("make go-test changes %s from %q to %q", name, want, value))
 			}
+			delete(passedValues, name)
 			continue
 		}
 		if _, ok := makeIntroduced[name]; ok {
@@ -261,11 +328,82 @@ func compareEnv(declared, passed, observed []string) []string {
 		}
 		extra = append(extra, entry)
 	}
+	for _, name := range slices.Sorted(maps.Keys(passedValues)) {
+		problems = append(problems, fmt.Sprintf("make go-test runs go without %s, which the gate passed", name))
+	}
 	sort.Strings(extra)
 	if !slices.Equal(extra, declared) {
 		problems = append(problems, fmt.Sprintf("go.env is %v, make go-test runs go with %v", declared, extra))
 	}
 	return problems
+}
+
+// introducedValues keeps the makeIntroduced entries of an environment.
+func introducedValues(env []string) map[string]string {
+	values := map[string]string{}
+	for _, entry := range env {
+		if name, value, ok := strings.Cut(entry, "="); ok {
+			if _, ok := makeIntroduced[name]; ok {
+				values[name] = value
+			}
+		}
+	}
+	return values
+}
+
+// compareIntroduced requires the makeIntroduced names go-test's go saw to be
+// exactly those the control recipe's go saw, with the same values: the set
+// is excluded from the declaration because make and the shell set it, so a
+// recipe or Makefile setting one of them for go-test is a difference.
+func compareIntroduced(control, observed map[string]string) []string {
+	problems := []string{}
+	for _, name := range slices.Sorted(maps.Keys(makeIntroduced)) {
+		want, inControl := control[name]
+		got, inObserved := observed[name]
+		switch {
+		case inControl && !inObserved:
+			problems = append(problems, fmt.Sprintf("make go-test runs go without %s, which make gives a plain recipe as %q", name, want))
+		case inObserved && !inControl:
+			problems = append(problems, fmt.Sprintf("make go-test runs go with %s=%q, which make gives a plain recipe no value: the recipe sets it", name, got))
+		case inObserved && got != want:
+			problems = append(problems, fmt.Sprintf("make go-test runs go with %s=%q, which make gives a plain recipe as %q: the recipe sets it", name, got, want))
+		}
+	}
+	return problems
+}
+
+// recipeShape requires `make -n go-test` to print one plain command line:
+// one word `go`, no other word naming a go, and none of shellSyntax. The
+// shim observes the go it is; this excludes a second one it is not (an
+// absolute path, a script, a chained or substituted command).
+func recipeShape(root, makefile string) []string {
+	printed, err := dryRun(root, makefile, "go-test")
+	if err != nil {
+		return []string{"make -s -n go-test: " + err.Error()}
+	}
+	lines := strings.Split(strings.TrimSuffix(printed, "\n"), "\n")
+	if len(lines) != 1 {
+		return []string{fmt.Sprintf("make -s -n go-test prints %d lines, want one plain go command line:\n%s", len(lines), printed)}
+	}
+	line := lines[0]
+	if strings.ContainsAny(line, shellSyntax) {
+		return []string{fmt.Sprintf("make -s -n go-test prints %q: the go-test recipe may not use shell operators, substitutions, redirections or quotes, which can run what the go shim does not see", line)}
+	}
+	goWords := 0
+	for i, word := range strings.Fields(line) {
+		if i == 0 {
+			word = strings.TrimLeft(word, "@-+")
+		}
+		if word == "go" {
+			goWords++
+		} else if path.Base(word) == "go" {
+			return []string{fmt.Sprintf("make -s -n go-test prints %q: %s is a go the shim on PATH does not observe", line, word)}
+		}
+	}
+	if goWords != 1 {
+		return []string{fmt.Sprintf("make -s -n go-test prints %q: want exactly one `go` word, found %d", line, goWords)}
+	}
+	return nil
 }
 
 // installShim copies this program to dst, where make will find it as `go`.
@@ -343,7 +481,7 @@ func checkGateSteps(root, makefile string, none []string) []string {
 func runnerWords(recipe string, none []string) [][2]string {
 	found := [][2]string{}
 	for _, word := range strings.FieldsFunc(recipe, func(r rune) bool { return r == ' ' || r == '\t' || r == '\n' }) {
-		program := path.Base(strings.Trim(word, "@-()&|;"))
+		program := path.Base(strings.Trim(word, "@-()&|;\"'"))
 		for _, language := range none {
 			if slices.Contains(languageRunners[language], program) {
 				found = append(found, [2]string{language, word})

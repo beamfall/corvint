@@ -66,7 +66,7 @@ func TestSTRV0006DeclarationMatchesMakefile(t *testing.T) {
 	if code := run(root, "Makefile", declaration, &stdout, &stderr); code != 0 {
 		t.Fatalf("repository declaration: code %d\n%s", code, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "equals make go-test (GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go test -p 1 -timeout 30m -count=1 ./...); 1 declared make targets dry-run; no make gate step recipe runs a suite of [dotnet kotlin python ruby rust swift]") {
+	if !strings.Contains(stdout.String(), "equals make go-test (GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go test -p 1 -timeout 30m -count=1 ./... in the repository root, one plain command line); 1 declared make targets dry-run; no make gate step recipe runs a suite of [dotnet kotlin python ruby rust swift]") {
 		t.Fatalf("stdout %q", stdout.String())
 	}
 	// Every mutation is a readable declaration (the reader is not what fails)
@@ -101,21 +101,34 @@ func TestSTRV0006DeclarationMatchesMakefile(t *testing.T) {
 // leaves the printed recipe identical still fails, because the gate observes
 // what go receives: a target-specific export, a global export,
 // .EXPORT_ALL_VARIABLES, an absolute-path go the shim never sees, a second
-// go call and a recipe that fails after go are each a difference.
+// go call, a recipe that fails after go, a changed directory, a recipe that
+// sets a make-introduced name itself, a second go behind an absolute path
+// (chained, or on its own recipe line) and a quoted runner in a gate step are
+// each a difference.
 func TestSTRV0006MakefileDriftReachesGo(t *testing.T) {
 	root := requireMake(t)
 	declaration := filepath.Join(root, filepath.FromSlash(sessiontest.DeclarationPath))
 	makefile := filepath.Join(root, "Makefile")
+	otherGo := filepath.Join(t.TempDir(), "go")
+	if err := os.WriteFile(otherGo, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
 	const command = "GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1"
 	const recipe = "go-test:\n\t$(GO_TEST_COMMAND) ./...\n"
 	mutations := map[string]struct{ old, new, diagnostic, detail string }{
-		"target-specific export": {"", "\ngo-test: export GOFLAGS := -race\n", "go.env is [GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local], make go-test runs go with [GOCACHE=/tmp/corvint-go-build-cache GOFLAGS=-race GOTOOLCHAIN=local]", ""},
-		"global export":          {"", "\nexport GOFLAGS := -race\n", "go.env is [GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local], make go-test runs go with [GOCACHE=/tmp/corvint-go-build-cache GOFLAGS=-race GOTOOLCHAIN=local]", ""},
-		"export all variables":   {"", "\n.EXPORT_ALL_VARIABLES:\nEXTRA := 1\n", "go.env is [GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local], make go-test runs go with [", " EXTRA=1 "},
-		"absolute-path go":       {command, "GOTOOLCHAIN=local /usr/bin/true test $(GO_TEST_FLAGS) -count=1", "make go-test never ran go from PATH", ""},
-		"two go calls":           {recipe, "go-test:\n\t$(GO_TEST_COMMAND) ./...\n\t$(GO_TEST_COMMAND) ./...\n", "make go-test ran go 2 times, want exactly once", ""},
-		"make fails after go":    {recipe, "go-test:\n\t$(GO_TEST_COMMAND) ./... && false\n", "make -s go-test: exit status 2", ""},
-		"changed flags":          {command, "GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1 -race", `go.flags give "test -p 1 -timeout 30m -count=1 ./...", make go-test runs go with "test -p 1 -timeout 30m -count=1 -race ./..."`, ""},
+		"target-specific export":  {"", "\ngo-test: export GOFLAGS := -race\n", "go.env is [GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local], make go-test runs go with [GOCACHE=/tmp/corvint-go-build-cache GOFLAGS=-race GOTOOLCHAIN=local]", ""},
+		"global export":           {"", "\nexport GOFLAGS := -race\n", "go.env is [GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local], make go-test runs go with [GOCACHE=/tmp/corvint-go-build-cache GOFLAGS=-race GOTOOLCHAIN=local]", ""},
+		"export all variables":    {"", "\n.EXPORT_ALL_VARIABLES:\nEXTRA := 1\n", "go.env is [GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local], make go-test runs go with [", " EXTRA=1 "},
+		"absolute-path go":        {command, "GOTOOLCHAIN=local /usr/bin/true test $(GO_TEST_FLAGS) -count=1", "make go-test never ran go from PATH", ""},
+		"two go calls":            {recipe, "go-test:\n\t$(GO_TEST_COMMAND) ./...\n\t$(GO_TEST_COMMAND) ./...\n", "make go-test ran go 2 times, want exactly once", ""},
+		"make fails after go":     {recipe, "go-test:\n\t$(GO_TEST_COMMAND) ./... && false\n", "make -s go-test: exit status 2", ""},
+		"changed flags":           {command, "GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1 -race", `go.flags give "test -p 1 -timeout 30m -count=1 ./...", make go-test runs go with "test -p 1 -timeout 30m -count=1 -race ./..."`, ""},
+		"changed directory":       {recipe, "go-test:\n\tcd internal/sessiontest; unset OLDPWD; $(GO_TEST_COMMAND) ./...\n", "make go-test runs go in ", "/internal/sessiontest, want the repository root "},
+		"recipe sets MAKEFLAGS":   {recipe, "go-test:\n\tMAKEFLAGS=--just-print $(GO_TEST_COMMAND) ./...\n", `make go-test runs go with MAKEFLAGS="--just-print", which make gives a plain recipe as "`, ""},
+		"chained absolute go":     {recipe, "go-test:\n\t$(GO_TEST_COMMAND) ./... && " + otherGo + " test -race ./...\n", "make -s -n go-test prints \"GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go test -p 1 -timeout 30m -count=1 ./... && " + otherGo + " test -race ./...\": the go-test recipe may not use shell operators", ""},
+		"second line absolute go": {recipe, "go-test:\n\t$(GO_TEST_COMMAND) ./...\n\t" + otherGo + " test -race ./...\n", "make -s -n go-test prints 2 lines, want one plain go command line", otherGo + " test -race ./..."},
+		"absolute go word":        {recipe, "go-test:\n\t$(GO_TEST_COMMAND) ./... " + otherGo + "\n", "make -s -n go-test prints \"", otherGo + " is a go the shim on PATH does not observe"},
+		"quoted gate runner":      {"", "\nGATE_STEPS += quoted-python\nquoted-python:\n\t\"python3\" -m unittest discover\n", `languages.python is none, but make gate step quoted-python runs "\"python3\""`, ""},
 	}
 	for name, mutation := range mutations {
 		mutated := mutate(t, makefile, mutation.old, mutation.new)
@@ -132,9 +145,9 @@ func TestSTRV0006MakefileDriftReachesGo(t *testing.T) {
 	}
 }
 
-// The environment comparison ignores exactly the closed make-introduced set,
-// requires every passed name to arrive unchanged and otherwise demands the
-// declared words in sorted order.
+// The environment comparison sets aside exactly the closed make-introduced
+// set, requires every passed name to arrive present and unchanged and
+// otherwise demands the declared words in sorted order.
 func TestSTRV0006CompareEnv(t *testing.T) {
 	passed := []string{"PATH=/shim:/usr/bin:/bin", recordVariable + "=/records"}
 	declared := []string{"A=1", "B=2"}
@@ -143,14 +156,16 @@ func TestSTRV0006CompareEnv(t *testing.T) {
 		problems int
 	}{
 		"exact":             {[]string{"B=2", "PATH=/shim:/usr/bin:/bin", "A=1", recordVariable + "=/records"}, 0},
-		"make introduced":   {[]string{"A=1", "B=2", "MAKEFLAGS=s", "MFLAGS=-s", "MAKELEVEL=1", "PWD=/r", "SHLVL=1", "_=/shim/go", "MANPATH=/m", "__CF_USER_TEXT_ENCODING=0", "PATH=/shim:/usr/bin:/bin"}, 0},
-		"extra name":        {[]string{"A=1", "B=2", "GOFLAGS=-race", "PATH=/shim:/usr/bin:/bin"}, 1},
-		"missing name":      {[]string{"A=1", "PATH=/shim:/usr/bin:/bin"}, 1},
-		"changed value":     {[]string{"A=1", "B=3", "PATH=/shim:/usr/bin:/bin"}, 1},
-		"changed PATH":      {[]string{"A=1", "B=2", "PATH=/usr/local/bin:/shim:/usr/bin:/bin"}, 1},
-		"lower-case make":   {[]string{"A=1", "B=2", "makeflags=s"}, 1},
-		"entry without =":   {[]string{"A=1", "B=2", "C"}, 1},
-		"unsorted declared": {[]string{"B=2", "A=1"}, 0},
+		"make introduced":   {[]string{"A=1", "B=2", "MAKEFLAGS=s", "MFLAGS=-s", "MAKELEVEL=1", "PWD=/r", "SHLVL=1", "_=/shim/go", "MANPATH=/m", "__CF_USER_TEXT_ENCODING=0", "PATH=/shim:/usr/bin:/bin", recordVariable + "=/records"}, 0},
+		"extra name":        {[]string{"A=1", "B=2", "GOFLAGS=-race", "PATH=/shim:/usr/bin:/bin", recordVariable + "=/records"}, 1},
+		"missing name":      {[]string{"A=1", "PATH=/shim:/usr/bin:/bin", recordVariable + "=/records"}, 1},
+		"changed value":     {[]string{"A=1", "B=3", "PATH=/shim:/usr/bin:/bin", recordVariable + "=/records"}, 1},
+		"changed PATH":      {[]string{"A=1", "B=2", "PATH=/usr/local/bin:/shim:/usr/bin:/bin", recordVariable + "=/records"}, 1},
+		"dropped PATH":      {[]string{"A=1", "B=2", recordVariable + "=/records"}, 1},
+		"dropped both":      {[]string{"A=1", "B=2"}, 2},
+		"lower-case make":   {[]string{"A=1", "B=2", "makeflags=s", "PATH=/shim:/usr/bin:/bin", recordVariable + "=/records"}, 1},
+		"entry without =":   {[]string{"A=1", "B=2", "C", "PATH=/shim:/usr/bin:/bin", recordVariable + "=/records"}, 1},
+		"unsorted declared": {[]string{"B=2", "A=1", "PATH=/shim:/usr/bin:/bin", recordVariable + "=/records"}, 0},
 	} {
 		if got := len(compareEnv(declared, passed, c.observed)); got != c.problems {
 			t.Errorf("%s: %d problems, want %d", name, got, c.problems)
@@ -158,14 +173,36 @@ func TestSTRV0006CompareEnv(t *testing.T) {
 	}
 }
 
-func TestSTRV0006ShimRecordRoundTrip(t *testing.T) {
-	data := []byte("2\x00test\x00./...\x00A=1\x00B=\x00")
-	argv, env, err := parseRecord(data)
-	if err != nil || strings.Join(argv, " ") != "test ./..." || strings.Join(env, " ") != "A=1 B=" {
-		t.Fatalf("argv %q env %q err %v", argv, env, err)
+// The make-introduced names are excluded from the declaration only while
+// they hold the values make gives a plain recipe.
+func TestSTRV0006CompareIntroduced(t *testing.T) {
+	control := map[string]string{"MAKEFLAGS": "s", "MFLAGS": "-s", "MAKELEVEL": "1", "PWD": "/r"}
+	for name, c := range map[string]struct {
+		observed map[string]string
+		problems int
+	}{
+		"same":            {map[string]string{"MAKEFLAGS": "s", "MFLAGS": "-s", "MAKELEVEL": "1", "PWD": "/r"}, 0},
+		"recipe override": {map[string]string{"MAKEFLAGS": "--just-print", "MFLAGS": "-s", "MAKELEVEL": "1", "PWD": "/r"}, 1},
+		"recipe adds":     {map[string]string{"MAKEFLAGS": "s", "MFLAGS": "-s", "MAKELEVEL": "1", "PWD": "/r", "MAKE_RESTARTS": "1"}, 1},
+		"recipe unsets":   {map[string]string{"MAKEFLAGS": "s", "MFLAGS": "-s", "MAKELEVEL": "1"}, 1},
+	} {
+		if got := len(compareIntroduced(control, c.observed)); got != c.problems {
+			t.Errorf("%s: %d problems, want %d", name, got, c.problems)
+		}
 	}
-	for _, malformed := range []string{"", "x\x00", "3\x00a\x00", "1\x00a"} {
-		if _, _, err := parseRecord([]byte(malformed)); err == nil {
+	if got := introducedValues([]string{"A=1", "MAKEFLAGS=s", "PATH=/p", "_=/shim/go"}); len(got) != 2 || got["MAKEFLAGS"] != "s" || got["_"] != "/shim/go" {
+		t.Errorf("introducedValues %v", got)
+	}
+}
+
+func TestSTRV0006ShimRecordRoundTrip(t *testing.T) {
+	data := []byte("2\x00/r\x00test\x00./...\x00A=1\x00B=\x00")
+	seen, err := parseRecord(data)
+	if err != nil || seen.cwd != "/r" || strings.Join(seen.argv, " ") != "test ./..." || strings.Join(seen.env, " ") != "A=1 B=" {
+		t.Fatalf("record %+v err %v", seen, err)
+	}
+	for _, malformed := range []string{"", "x\x00", "3\x00/r\x00a\x00", "1\x00/r\x00a", "1\x00a\x00"} {
+		if _, err := parseRecord([]byte(malformed)); err == nil {
 			t.Errorf("%q parsed", malformed)
 		}
 	}
