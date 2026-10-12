@@ -7,6 +7,8 @@ darwin arm64, against the loopback app in `server.cjs`. Command, from the suite 
 
     node node_modules/playwright/cli.js test --config playwright.config.cjs
 
-`report.json` is the JSON reporter output and `run.log` the console output. The `fixtures.cjs`
-path names the producer in the worktree that ran it. `behavior_events_producer_test.go` reads
+`report.json` is the JSON reporter output and `run.log` the console output. The run's
+`fixtures.cjs` required the producer by the absolute path of the worktree that ran it; the retained
+copy requires it relative to this directory (`../../../../behavior-events.cjs`), which resolves to
+the same file inside the repository, so the suite does not name a local path. `behavior_events_producer_test.go` reads
 these files; it does not rerun Playwright.
