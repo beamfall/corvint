@@ -46,6 +46,7 @@ var batchRecovery = map[string]string{
 	"constituent-not-merged":   "a sealed CEM names a bind commit HEAD does not contain; merge that change's branch or drop the copied file",
 	"constituent-cem-invalid":  "the sealed CEM is unreadable or not a canonical cem/0.2, cem/0.3 or cem/1.0 map at its bind commit; rebind and reseal that change with the normal loop, then remerge it",
 	"constituent-unverified":   "the verifier did not report canonical ready-for-ci verification (cem/0.x) or stable ACCEPT (cem/1.0) of this bind and base; pass --verifier a corvint build of this tree (script/dogfood-batch-check.sh does) and rerun",
+	"constituent-migrated":     "the migration commit rewrote this sealed CEM after the batch's BASE added it; split the batch at the migration commit: batch-check up to its parent, then rerun with BASE=<the migration commit's parent>",
 	"constituent-cem-policy":   "rebind and reseal that change with the normal loop on its own branch (dogfood-change BASE=<its base>), then remerge it",
 	"unbound-commits":          "bind each listed commit through a sealed change: commit it on its own branch, run dogfood-change, dogfood-check and dogfood-seal there with BASE=<its parent>, and merge that branch instead",
 	"merge-resolution-unbound": "redo the merge with git merge -X ours (or -X theirs) so its tree is derivable, then commit the manual resolution as its own sealed change",
@@ -186,16 +187,20 @@ func (f *flow) gitRevision(spec string) string {
 }
 
 // sealedConstituents lists the bind commits whose sealed CEMs BASE..HEAD adds;
-// a sealed CEM BASE already had must be unchanged.
+// a sealed CEM BASE already had must be unchanged, or changed only by the
+// migration commit's rewrite (DCW-V0-050).
 func (b *batch) sealedConstituents() []string {
 	changed := b.gitValue("diff", "--no-renames", "--name-status", b.base, b.target, "--", ".corvint/changes")
 	binds := []string{}
+	migrated, admitted := b.migratedSeals(b.base, b.target), 0
 	for _, line := range nonEmpty(strings.Split(changed, "\n")) {
 		state, path, _ := strings.Cut(line, "\t")
 		match := sealedCEMPath.FindStringSubmatch(path)
 		switch {
 		case match == nil:
 			b.failure("unrecognized-sealed-cem", path)
+		case state == "M" && migrated[path]:
+			admitted++
 		case state != "A":
 			b.failure("sealed-cem-modified", path+" status="+state)
 		case path == b.inherited.path && b.archived:
@@ -205,6 +210,9 @@ func (b *batch) sealedConstituents() []string {
 			binds = append(binds, match[1])
 			b.constituents[match[1]] = true
 		}
+	}
+	if admitted > 0 {
+		b.print("%s: NOTE sealed-cem-migrated maps=%d commit=%s\n", b.prefix, admitted, cemMigrationCommit)
 	}
 	sort.Strings(binds)
 	return binds
@@ -296,8 +304,12 @@ func (f *flow) verifySealedCEM(verifier Runner, target, bind string) sealedVerif
 		result.failure = "constituent-not-merged"
 		return result
 	}
-	sealedBlob := f.gitRevision(target + ":" + path)
-	if sealedBlob == "" || sealedBlob != f.gitRevision(bind+":.corvint/change.cem.json") {
+	sealedBlob, bindBlob := f.gitRevision(target+":"+path), f.gitRevision(bind+":.corvint/change.cem.json")
+	if sealedBlob != "" && sealedBlob != bindBlob && f.migratedConstituent(target, path, bindBlob, sealedBlob) {
+		result.failure = "constituent-migrated"
+		return result
+	}
+	if sealedBlob == "" || sealedBlob != bindBlob {
 		result.failure = "sealed-cem-drift"
 		return result
 	}
@@ -373,7 +385,8 @@ func observedCount(value *int) string {
 }
 
 // verifyCoverage requires every commit of the range outside a constituent's
-// own range to be that constituent's seal commit or a derivable merge.
+// own range to be that constituent's seal commit, the migration commit
+// (DCW-V0-050) or a derivable merge.
 func (b *batch) verifyCoverage() {
 	listing := b.gitValue("rev-list", "--topo-order", "--reverse", "--parents", b.base+".."+b.target)
 	for _, line := range nonEmpty(strings.Split(listing, "\n")) {
@@ -384,7 +397,7 @@ func (b *batch) verifyCoverage() {
 		case len(parents) == 0:
 			b.failure("unbound-commits", commit)
 		case len(parents) == 1:
-			if (!b.constituents[parents[0]] || !b.isSealCommit(commit)) && !b.archivesInherited(parents[0], commit) {
+			if (!b.constituents[parents[0]] || !b.isSealCommit(commit)) && !b.archivesInherited(parents[0], commit) && !b.isMigrationCommit(parents[0], commit) {
 				b.failure("unbound-commits", commit)
 			}
 		case len(parents) > 2:
