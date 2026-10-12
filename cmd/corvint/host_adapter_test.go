@@ -583,7 +583,7 @@ func assertDeadlineRemediation(t *testing.T, text, frame, root string) {
 		"very large set of uncommitted or staged changes",
 		"heavy machine load; this notice did not measure either",
 		"read-only command outside the hook:\n" + string(status) + "\n",
-		"waiting for load to drop",
+		"If that list is very long, committing, stashing or unstaging unrelated changes may clear it; otherwise, waiting for load to drop may.",
 	} {
 		if first != frame || !strings.Contains(text, want) {
 			t.Fatalf("deadline notice lacks %q after frame %q: %q", want, frame, text)

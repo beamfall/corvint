@@ -207,7 +207,7 @@ AHI-051	docs/specs/agent-harness-integration-v0.md	1111	(proposed; V1-1070, V1-1
 AHI-052	docs/specs/agent-harness-integration-v0.md	1137	(accepted, decision 0497; V1-1116; amends `AHI-050` for OpenCode only) When
 AHI-053	docs/specs/agent-harness-integration-v0.md	530	accepted, decision 0517 (V1-1128). Amendment to `AHI-031`
 AHI-054	docs/specs/agent-harness-integration-v0.md	1170	(accepted, decision 0519 (V1-1157); GitHub #785) The
-AHI-055	docs/specs/agent-harness-integration-v0.md	572	(proposed, V1-1280) A Claude Code or Codex notice whose reason is
+AHI-055	docs/specs/agent-harness-integration-v0.md	572	(accepted under the owner's standing auto-accept (2026-10-11); V1-1280) A Claude
 ALO-V0-001	docs/specs/aggregate-local-outcome-v0.md	43	Activation MUST require the explicit enrolled aggregate selector and exact bound
 ALO-V0-002	docs/specs/aggregate-local-outcome-v0.md	45	Legacy trace, learning, ranking, public fixtures and ordinary /0 behavior MUST
 ALO-V0-003	docs/specs/aggregate-local-outcome-v0.md	47	Candidate and admitted sets MUST use the complete pinned current context-index
