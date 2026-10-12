@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -441,7 +441,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `corvint docs corpus OPERATION --help` prints that operation's own usage, each option it admits
   with its required or optional form and a one-line description, and a `Relative to --root:` line
   naming exactly the `DCP-V1-054` local input options that operation admits; the two Playwright
-  operations also print the `DCP-V1-053` receipt guidance. Both forms exit 0 with empty stderr, read
+  operations also print the `DCP-V1-053` receipt guidance, and `import-cases` and `search-cases`
+  the `DCP-V1-070..079` test-management export guidance. Both forms exit 0 with empty stderr, read
   no stdin and inspect no repository (`GPK-V0-059`), and follow the `GPK-V0-062`/`GPK-V0-064` help
   scan: `--help` after admitted options and values is still help. The parser and the help topics
   read one operation table (`cmd/corvint/docs_corpus_help.go`), so help cannot name an option the
@@ -460,6 +461,74 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `docs flows` and `docs maintain`, each of which `corvint help` accepts. Acceptance:
   `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError`. Status: accepted
   under the owner's standing auto-accept (2026-10-11; GitHub #805).
+
+- `DCP-V1-070`: `corvint docs corpus import-cases --format testrail-json|csv --input EXPORT` reads
+  one caller-exported test-management file, a root-relative local input of at most 32 MiB and 4096
+  cases. `testrail-json` is the `{suites, sections, cases}` document the TestRail API returns; members
+  Corvint does not read are ignored. `csv` needs a header row with `ID` and `Title`, and reads
+  `Suite`, `Section`, `Section Hierarchy` (` > ` separated), `Preconditions`, `Steps`,
+  `Expected Result`, `Steps (Step)` and `Steps (Expected Result)`; a row with an empty `ID`
+  continues the previous case's separated steps. Each case is joined with its suite and its section
+  chain, root first, into one path. The output is `corvint-legacy-cases/1`, which names the source
+  format, path, sha256 and case count, is deterministic, and is sorted by case ID. The command writes
+  nothing and contacts no service. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
+- `DCP-V1-071`: Every imported case is a `BehaviorLegacyCase` in the existing legacy inventory shape,
+  keyed by its case ID normalized to `C` plus 1..10 digits. `suite` is the path joined by ` > `,
+  `case` is the title, `state` is `manual`, and fixtures, roles and criteria are empty with no
+  runtime. Its evidence anchor names the export path and sha256, the region `case:<ID>`, the case
+  digest as the span digest, authority `external-provider` and kind `imported`. The anchor has no
+  repository or revision, so a behavior registry does not admit it until the caller binds it to a
+  committed revision; the record states that limit. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
+- `DCP-V1-072`: Preconditions, steps and expected results have HTML stripped before use: tags and
+  comments are removed, `script` and `style` bodies are dropped, entities are decoded and whitespace
+  is collapsed. A tag ends at the first `>` outside a quoted attribute value, and tag names match
+  whole and ASCII case-insensitively on the original bytes (`scripture` is not `script`). An
+  unterminated tag, comment or `script`/`style` body drops the rest of the field. A `<` that does
+  not open a tag is kept as text. Titles and path elements are entity-decoded and
+  whitespace-collapsed. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
+- `DCP-V1-073`: `--content` is `ids-paths-titles` (default) or `full`. Under `ids-paths-titles`, no
+  precondition, step or expected-result text appears in any import or search output. Each case
+  still carries a `digest`, the sha256 of its full stripped and bounded content, so a step edit
+  changes the digest. `full` adds the stripped preconditions and steps and sets `local_only: true`,
+  and its limitations say to keep the record out of commits. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
+- `DCP-V1-074`: Oversized fields are bounded, never silently truncated. A title over 1024 bytes, a
+  path element over 512, preconditions over 8 KiB, step content or expected result over 4 KiB, or
+  more than 64 steps is cut at a UTF-8 boundary. The case's `bounded` list then names the field,
+  its stripped size and the bytes or steps kept. A path deeper than 32 sections is refused.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
+- `DCP-V1-075`: `corvint docs corpus search-cases --format F --input EXPORT --query TEXT [--limit
+  1..256]` searches the bounded, stripped title, suite/section path, preconditions and step content
+  of every case. A case matches when every query word (a lowercase run of letters or digits, 1..32
+  words, at most 1024 bytes) is a prefix of a word in one of those fields. A result is the case
+  ID, path, title and the fields that matched, and never step or expected-result text. Results are
+  sorted by case ID and truncated to the limit, with the full match count in `total`. A case whose
+  feature words appear only in its section path is found. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
+- `DCP-V1-076`: Every search result is the auditable receipt `corvint-legacy-case-search/1`. It
+  holds the query, its words, the match rule, the searched fields, the searched source (format, path,
+  sha256 and case count), `state` `found` or `none-found`, and the cases whose searched text was
+  bounded. A `none-found` therefore states what was searched and what was not read. Expected results
+  are not searched, and the receipt says so. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
+- `DCP-V1-077`: The separate `corvint-corpus-mcp`, started with `--legacy-cases`, lists the read-only
+  tool `corvint.docs_search_cases` with the closed arguments `format`, `input`, `query` and
+  `limit`. The tool returns the CLI's exact `search-cases` bytes framed as untrusted repository
+  data, with the receipt as structured content. Without the flag, the tool list is unchanged.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
+- `DCP-V1-078`: Each of the following is refused with `corpus-refused` and no partial output:
+  - an unknown format or content policy;
+  - a malformed document;
+  - an unknown section or suite, including a suite named by any section in a case's chain, or a
+    section cycle;
+  - a duplicate or invalid case ID, or a case without a title;
+  - a CSV without `ID` and `Title`;
+  - an empty export, or one over the case bound;
+  - a query without words.
+
+  An option that does not apply to the operation is an argument error. A non-canonical input path
+  keeps the `DCP-V1-054` refusal. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
+- `DCP-V1-079`: Manual legacy cases never count as runtime parity. `manual` joins `executable` and
+  `disabled` as an admitted legacy state. A legacy case that is not `executable` has no runtime
+  baseline, so a contract mapped to it reports the `legacy-runtime-unknown` gap and no runtime
+  parity. Every import record states `runtime_parity: false`. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
 
 ## Input and authority boundary
 
@@ -598,6 +667,27 @@ by Corvint and external utility qualification remain `NOT_OBSERVED`.
 Acceptance: `TestPlaywrightDiscoveryProducerRoundTrip`, `TestPlaywrightDiscoveryProducerRefusals`,
 `TestPlaywrightWitnessImporter`, `TestPlaywrightListedTestsMultiProject` and
 `TestDocsCorpusPlaywrightProducersCLI`.
+
+### Experimental test-management case import (issue 812)
+
+`import-cases` and `search-cases` read a test-management export the caller produced, such as a
+TestRail API dump or CSV export (`DCP-V1-070..079`). Corvint never calls the service. The import
+yields `manual` legacy cases for review and search, not runtime baselines. Under the default
+`ids-paths-titles` policy, the record and the search receipt can be shared, because only IDs, paths,
+titles and digests leave the export. A `full` record is local-only.
+
+Limits:
+- HTML is stripped by a bounded tag scanner, not a full HTML parser.
+- Expected results are not searched.
+- Other TestRail custom fields are ignored.
+- The legacy anchor is not admissible into a behavior registry until the caller binds it to a
+  committed revision.
+- The search reads one export per call.
+
+Acceptance: `TestImportLegacyCasesFormats`, `TestLegacyCasesIDsPathsTitlesWithholdsSteps`,
+`TestImportLegacyCasesFullStripsHTML`, `TestImportLegacyCasesBoundsOversized`,
+`TestSearchLegacyCasesReceipt`, `TestLegacyCasesRefusals`, `TestBehaviorLegacyParity`,
+`TestDocsCorpusLegacyCasesCLI` and `TestDCPV1077CorpusMCPSearchCases`.
 
 ### Multi-repository behavior declarations (issue 330)
 
@@ -773,6 +863,13 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-053 | `cmd/corvint/docs.go`, `cmd/corvint-js-test-provider/main.go` | `TestDocsHelpNamesPlaywrightReceiptProducer`, `TestDocsHelpProducerExampleUsesE2EFlags` |
 | DCP-V1-056 | `cmd/corvint/docs_corpus_help.go`, `cmd/corvint/docs_corpus.go`, `cmd/corvint/help.go` | `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags`, `TestDocsCorpusOperationFlagMatrix` |
 | DCP-V1-057 | `cmd/corvint/help.go` | `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError` |
+| DCP-V1-070..071 | `internal/doccorpus/legacy_cases.go`, `cmd/corvint/docs_corpus_legacy_cases.go` | `TestImportLegacyCasesFormats`, `TestDocsCorpusLegacyCasesCLI` |
+| DCP-V1-072..073 | `internal/doccorpus/legacy_cases.go` | `TestImportLegacyCasesFullStripsHTML`, `TestLegacyCasesIDsPathsTitlesWithholdsSteps` |
+| DCP-V1-074 | `internal/doccorpus/legacy_cases.go` | `TestImportLegacyCasesBoundsOversized` |
+| DCP-V1-075..076 | `internal/doccorpus/legacy_cases.go`, `cmd/corvint/docs_corpus_legacy_cases.go` | `TestSearchLegacyCasesReceipt`, `TestImportLegacyCasesBoundsOversized`, `TestDocsCorpusLegacyCasesCLI` |
+| DCP-V1-077 | `cmd/corvint-corpus-mcp/legacycases.go` | `TestDCPV1077CorpusMCPSearchCases` |
+| DCP-V1-078 | `internal/doccorpus/legacy_cases.go`, `cmd/corvint/docs_corpus.go`, `cmd/corvint/docs_corpus_help.go` | `TestLegacyCasesRefusals`, `TestDocsCorpusLegacyCasesCLI` |
+| DCP-V1-079 | `internal/doccorpus/behavior_legacy.go` | `TestBehaviorLegacyParity` (`manual case baseline`) |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions
