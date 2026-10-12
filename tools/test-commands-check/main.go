@@ -1,0 +1,124 @@
+// Command test-commands-check is the STR-V0-006 declaration gate: the Go
+// environment and flags declared in .github/cishards/test-commands.json
+// (corvint-test-commands/0) must equal what `make -s -n go-test` would run,
+// and every declared language command that names a make target must exist.
+// `corvint test` reads the declaration as a plain file and never interprets
+// the Makefile; this gate is what keeps the two from drifting
+// (docs/specs/session-test-runner-v0.md).
+package main
+
+import (
+	"bytes"
+	"context"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"reflect"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/sessiontest"
+)
+
+const makeDeadline = time.Minute
+
+func main() {
+	root := flag.String("root", ".", "repository root holding the Makefile")
+	declaration := flag.String("declaration", "", "declaration file (default <root>/"+sessiontest.DeclarationPath+")")
+	flag.Parse()
+	if flag.NArg() != 0 {
+		fmt.Fprintln(os.Stderr, "usage: test-commands-check [--root DIR] [--declaration FILE]")
+		os.Exit(2)
+	}
+	if *declaration == "" {
+		*declaration = filepath.Join(*root, filepath.FromSlash(sessiontest.DeclarationPath))
+	}
+	os.Exit(run(*root, *declaration, os.Stdout, os.Stderr))
+}
+
+// run returns 0 when the declaration equals the Makefile, 1 on any
+// difference or unreadable input, naming every difference on stderr.
+func run(root, declaration string, stdout, stderr io.Writer) int {
+	declared := sessiontest.ReadDeclaredFile(declaration)
+	if declared.Unreadable != "" {
+		fmt.Fprintln(stderr, "test-commands-check: "+declared.Unreadable)
+		return 1
+	}
+	problems := []string{}
+	recipe, err := dryRun(root, "go-test")
+	if err != nil {
+		problems = append(problems, "make -s -n go-test: "+err.Error())
+	} else {
+		problems = append(problems, compareGo(declared, recipe)...)
+	}
+	for _, entry := range declared.Languages {
+		if len(entry.Argv) < 2 || entry.Argv[0] != "make" {
+			continue
+		}
+		if _, err := dryRun(root, entry.Argv[1:]...); err != nil {
+			problems = append(problems, fmt.Sprintf("languages.%s names make %s: %v", entry.Language, strings.Join(entry.Argv[1:], " "), err))
+		}
+	}
+	if len(problems) != 0 {
+		for _, problem := range problems {
+			fmt.Fprintln(stderr, "test-commands-check: "+problem)
+		}
+		return 1
+	}
+	fmt.Fprintf(stdout, "test-commands-check: %s equals make go-test (%s go test %s ./...)\n",
+		sessiontest.DeclarationPath, strings.Join(declared.GoEnv, " "), strings.Join(declared.GoFlags, " "))
+	return 0
+}
+
+// compareGo checks that the one go-test recipe line is exactly the declared
+// environment (as a set of NAME=VALUE words) followed by `go test`, the
+// declared flags in order, and `./...`.
+func compareGo(declared sessiontest.Declared, recipe string) []string {
+	lines := []string{}
+	for _, line := range strings.Split(recipe, "\n") {
+		if strings.TrimSpace(line) != "" {
+			lines = append(lines, line)
+		}
+	}
+	if len(lines) != 1 {
+		return []string{fmt.Sprintf("make -s -n go-test prints %d command lines, want exactly one", len(lines))}
+	}
+	words := strings.Fields(lines[0])
+	env := []string{}
+	for len(words) != 0 && strings.Contains(words[0], "=") && !strings.HasPrefix(words[0], "-") {
+		env, words = append(env, words[0]), words[1:]
+	}
+	sort.Strings(env)
+	want := append(append([]string{"go", "test"}, declared.GoFlags...), "./...")
+	problems := []string{}
+	if !reflect.DeepEqual(env, declared.GoEnv) {
+		problems = append(problems, fmt.Sprintf("go.env is %v, make go-test sets %v", declared.GoEnv, env))
+	}
+	if !reflect.DeepEqual(words, want) {
+		problems = append(problems, fmt.Sprintf("go.flags give %q, make go-test runs %q", strings.Join(want, " "), strings.Join(words, " ")))
+	}
+	return problems
+}
+
+// dryRun prints what make would run for the targets, under an environment
+// holding only PATH so no inherited MAKEFLAGS or variable override leaks in.
+func dryRun(root string, targets ...string) (string, error) {
+	makePath, err := exec.LookPath("make")
+	if err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), makeDeadline)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, makePath, append([]string{"-s", "-n"}, targets...)...)
+	cmd.Dir, cmd.Env = root, []string{"PATH=" + os.Getenv("PATH")}
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("%v: %s", err, strings.TrimSpace(stderr.String()))
+	}
+	return stdout.String(), nil
+}

@@ -109,10 +109,21 @@ func Build(input Input) (Manifest, error) {
 	}
 	manifest := Manifest{
 		Base: input.Base, Checks: nonNil(input.Checks), DeclaredDigest: declaredDigest,
-		GraphDigest: input.GraphDigest, Incomplete: []string{}, PartitionDigest: PartitionDigest(input.Partition),
+		GraphDigest: input.GraphDigest, Incomplete: []string{}, NoSuite: []string{}, PartitionDigest: PartitionDigest(input.Partition),
 		Placement: placement, PlanDigest: input.PlanDigest, Profile: ManifestProfile,
 		RunnerProfile: input.RunnerProfile, ShardCount: input.ShardCount, Source: input.Source,
 		SourceDigest: sourceDigest, Units: []Unit{},
+	}
+	if input.Declared.Unreadable != "" {
+		// Every scope needs the declaration: the Go environment and flags
+		// locally, and the language commands and no-suite assertions in
+		// FULL; nothing runs on a guessed scope (STR-V0-003).
+		manifest.Scope, manifest.Reason = ScopeFull, "the declared full scope is unreadable"
+		if input.PlanError != "" {
+			manifest.Reason = "no plan: " + input.PlanError
+		}
+		manifest.Incomplete = append(manifest.Incomplete, "the declared full scope is unreadable: "+input.Declared.Unreadable)
+		return manifest.bounded(), nil
 	}
 	if input.PlanError != "" {
 		manifest.Scope, manifest.Reason = ScopeFull, "no plan: "+input.PlanError
@@ -164,12 +175,12 @@ func Build(input Input) (Manifest, error) {
 		goRun = append([]string{}, input.Universe...)
 		// A fallback need not name the language it widened for (a deleted
 		// source file is only a path), so FULL runs every declared language
-		// full command and covers every language owning a dirty path; an
-		// unreadable declaration is INCOMPLETE.
-		if input.Declared.Unreadable != "" {
-			manifest.Incomplete = append(manifest.Incomplete, "the declared full scope is unreadable: "+input.Declared.Unreadable)
+		// full command, records every declared no-suite assertion and covers
+		// every language owning a dirty path.
+		for _, entry := range input.Declared.Languages {
+			languages[entry.Language] = true
 		}
-		for _, language := range append(append([]string{}, input.Declared.Languages...), input.DirtyLanguages...) {
+		for _, language := range input.DirtyLanguages {
 			languages[language] = true
 		}
 	} else if len(goRun) == 0 && len(languages) == 0 {
@@ -177,8 +188,8 @@ func Build(input Input) (Manifest, error) {
 	}
 	if len(goRun) != 0 {
 		manifest.placeGo(input, goRun)
-	} else if manifest.Scope == ScopeFull && input.Declared.GoTest != GoTestAbsent {
-		manifest.addDeclaredGo() // FULL with no Go universe still runs the declared Go suite
+	} else if manifest.Scope == ScopeFull {
+		manifest.addDeclared("go") // FULL with no Go universe still runs the declared Go full suite
 	}
 	for _, language := range sortedKeys(languages) {
 		manifest.declaredLanguage(input.Declared, language)
@@ -191,21 +202,6 @@ func Build(input Input) (Manifest, error) {
 // placement of a narrowed run, partitions the run set's own execution units
 // (STR-V0-008).
 func (m *Manifest) placeGo(input Input, run []string) {
-	declared := input.Declared
-	if input.RunnerProfile == ProfileLocal {
-		switch declared.GoTest {
-		case GoTestAbsent:
-			m.Incomplete = append(m.Incomplete, "go: the repository declares no go-test full-suite command")
-			return
-		case GoTestUnparsed:
-			if m.Scope == ScopeFull {
-				m.addDeclared("go-test")
-				return
-			}
-			m.Incomplete = append(m.Incomplete, "go: the go-test recipe cannot be typed ("+declared.GoTestNote+"); run make go-test")
-			return
-		}
-	}
 	// Balanced placement runs the same cishards placement over the run set
 	// instead of the universe: a package splits into the same slices either
 	// way (the split test reads only that package's entries and the shard
@@ -248,50 +244,36 @@ func (m *Manifest) placeGo(input Input, run []string) {
 	}
 }
 
-// declaredOnly is the no-plan FULL run: every declared full-suite command,
-// read independently of the planner, on shard 0 (STR-V0-003).
+// declaredOnly is the no-plan FULL run: the declared Go full suite and every
+// declared language full command, read independently of the planner, on
+// shard 0; every no-suite assertion is recorded (STR-V0-003).
 func (m *Manifest) declaredOnly(declared Declared) {
-	if declared.Unreadable != "" {
-		m.Incomplete = append(m.Incomplete, "the declared full scope is unreadable: "+declared.Unreadable)
-		return
-	}
-	if !declared.Names() {
-		m.Incomplete = append(m.Incomplete, "the repository declares no full-suite command")
-		return
-	}
-	if declared.GoTest != GoTestAbsent {
-		m.addDeclaredGo()
-	}
-	for _, language := range declared.Languages {
-		m.addDeclared(language + "-test")
+	m.addDeclared("go")
+	for _, entry := range declared.Languages {
+		m.declaredLanguage(declared, entry.Language)
 	}
 }
 
 // declaredLanguage runs a language with no qualified adapter through its
-// declared full command, or records why it cannot (STR-V0-004).
+// declared full command, records the project's assertion that it has no
+// suite, or is INCOMPLETE when the declaration does not name it (STR-V0-004).
 func (m *Manifest) declaredLanguage(declared Declared, language string) {
-	for _, named := range declared.Languages {
-		if named == language {
-			m.addDeclared(language + "-test")
-			return
-		}
+	entry, ok := declared.Command(language)
+	switch {
+	case !ok:
+		m.Incomplete = append(m.Incomplete, language+": no qualified adapter and "+DeclarationPath+" declares no "+language+" full command")
+	case entry.None != "":
+		m.NoSuite = append(m.NoSuite, language+": "+entry.None)
+	default:
+		m.addDeclared(language)
 	}
-	m.Incomplete = append(m.Incomplete, language+": no qualified adapter and no declared "+language+"-test full command")
 }
 
-// addDeclaredGo runs the declared go-test target. The CI profile refuses it,
-// because make go-test would drop the CI confinement, -race and environment
-// (STR-V0-006).
-func (m *Manifest) addDeclaredGo() {
-	if m.RunnerProfile == ProfileCI {
-		m.Incomplete = append(m.Incomplete, "go: the ci profile cannot run make go-test, which drops the CI confinement, -race and environment")
-		return
-	}
-	m.addDeclared("go-test")
-}
-
-func (m *Manifest) addDeclared(target string) {
-	m.Units = append(m.Units, Unit{Adapter: AdapterDeclared, Shard: 0, Slice: SliceWhole, Unit: "declared:" + target})
+// addDeclared adds the whole-suite unit of one declared command: "go" is the
+// declaration's typed `go test` full suite, any other name a declared
+// language's argv (STR-V0-006).
+func (m *Manifest) addDeclared(name string) {
+	m.Units = append(m.Units, Unit{Adapter: AdapterDeclared, Shard: 0, Slice: SliceWhole, Unit: "declared:" + name})
 }
 
 // bounded applies the unit and size bounds (STR-V0-015): an exceeded bound

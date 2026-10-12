@@ -32,10 +32,12 @@ Usage:
 
 Plans in process as corvint affected --base does, adds the AFP-V0-012
 attribution, and runs the selected Go packages on the unchanged
-.github/cishards complete-universe partition with the Makefile go-test
-environment and flags (ci: the full CI branch's). Any fallback condition
-runs FULL and prints corvint-test: FALLBACK <reason>. A language with no
-adapter runs its declared make <lang>-test target or is INCOMPLETE.
+.github/cishards complete-universe partition with the Go environment and
+flags declared in .github/cishards/test-commands.json (ci: the full CI
+branch's). Any fallback condition runs FULL and prints corvint-test:
+FALLBACK <reason>. A language with no adapter runs the full command that
+file declares, runs nothing when it declares {"none": reason}, and is
+INCOMPLETE when it declares neither.
 --placement balanced (experimental) spreads a narrowed run's own units
 over the shards by the cost table; FULL keeps the universe partition. It
 executes only in the local profile (ci: --dry-run only), and a sharded run
@@ -321,14 +323,6 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 			Slices: testReadOptional(filepath.Join(root, testPartitionDirectory, "test-slices.json")),
 		},
 	}
-	// The declared full commands are discovered from the registered language
-	// names, not the plan, so a planning failure still finds every one.
-	var languages []string
-	for _, language := range affectedLanguages() {
-		if name := language.Name(); name != "go" {
-			languages = append(languages, name)
-		}
-	}
 	receipt, graph, err := compileAffectedGraph(ctx, affectedInvocation{Root: root, Base: options.base})
 	if err == nil {
 		input.GraphDigest = graph.Digest()
@@ -342,7 +336,9 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 		}
 		input.PlanError = message
 	}
-	input.Declared = sessiontest.ReadDeclared(root, languages, os.LookupEnv)
+	// The declaration is read independently of the plan, so a planning
+	// failure still finds every declared full command (STR-V0-003).
+	input.Declared = sessiontest.ReadDeclared(root)
 	return input
 }
 
@@ -468,7 +464,7 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	}
 	document := map[string]any{
 		"checks": m.Checks, "incomplete": m.Incomplete, "invocations": planned, "manifestDigest": digest,
-		"placement": m.Placement, "reason": m.Reason, "scope": m.Scope, "shardCount": m.ShardCount, "shardIndex": options.shard,
+		"noSuite": m.NoSuite, "placement": m.Placement, "reason": m.Reason, "scope": m.Scope, "shardCount": m.ShardCount, "shardIndex": options.shard,
 	}
 	if options.manifest != "" {
 		encoded, err := sessiontest.Encode(m)

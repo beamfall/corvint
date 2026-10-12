@@ -19,7 +19,8 @@ import (
 
 // sessionFakeRunners is a recording `go` and `make` on PATH: probes answer
 // the fixture universe, `go test` reports each named package as passing
-// (or, in sleep mode, signals readiness and sleeps), and `make` passes.
+// (or, in sleep mode, signals readiness and sleeps), and `make` passes
+// except for its rust-test target.
 const sessionFakeGo = `#!/bin/sh
 echo "go $*" >> "$SESSION_FAKE_LOG"
 case "$1" in
@@ -39,17 +40,23 @@ echo "make $*" >> "$SESSION_FAKE_LOG"
 exit 0
 `
 
+// sessionDeclaration is the fixture's corvint-test-commands/0 file, with
+// any extra language members spliced in.
+func sessionDeclaration(languages string) string {
+	return `{"profile": "corvint-test-commands/0", "go": {"env": {"GOTOOLCHAIN": "local"}, "flags": ["-p", "1", "-count=1"]}, "languages": {` + languages + `}}` + "\n"
+}
+
 // sessionFixture is a two-package module whose HEAD changes package a.
 func sessionFixture(t *testing.T, mode string) (root, base, log string) {
 	t.Helper()
 	root = t.TempDir()
 	files := map[string]string{
-		"go.mod":      "module example.test/m\n\ngo 1.27\n",
-		"a/a.go":      "package a\n\nfunc A() int { return 1 }\n",
-		"a/a_test.go": "package a\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) { _ = A() }\n",
-		"b/b.go":      "package b\n\nfunc B() int { return 2 }\n",
-		"b/b_test.go": "package b\n\nimport \"testing\"\n\nfunc TestB(t *testing.T) { _ = B() }\n",
-		"Makefile":    "go-test:\n\tGOTOOLCHAIN=local go test -p 1 -count=1 ./...\n",
+		"go.mod":                    "module example.test/m\n\ngo 1.27\n",
+		"a/a.go":                    "package a\n\nfunc A() int { return 1 }\n",
+		"a/a_test.go":               "package a\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) { _ = A() }\n",
+		"b/b.go":                    "package b\n\nfunc B() int { return 2 }\n",
+		"b/b_test.go":               "package b\n\nimport \"testing\"\n\nfunc TestB(t *testing.T) { _ = B() }\n",
+		sessiontest.DeclarationPath: sessionDeclaration(""),
 	}
 	for name, body := range files {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
@@ -173,30 +180,40 @@ func TestSTRV0003CLINoPlanRunsDeclaredScope(t *testing.T) {
 	if code != 0 || !strings.Contains(stderr, "corvint-test: FALLBACK no plan: ") {
 		t.Fatalf("code %d stderr %q", code, stderr)
 	}
-	if got := sessionRunnerLog(t, log); got != "make --version\nmake go-test\n" {
+	if got := sessionRunnerLog(t, log); got != "go env GOVERSION\ngo test -p 1 -count=1 ./...\n" {
 		t.Fatalf("runner calls:\n%s", got)
 	}
 	receipt := readSessionReceipt(t, receiptPath)
-	if receipt.Scope != sessiontest.ScopeFull || receipt.Result != sessiontest.ResultPass || receipt.Summary != "FULL units passed: 1 of 1" {
+	if receipt.Scope != sessiontest.ScopeFull || receipt.Result != sessiontest.ResultPass || receipt.Summary != "FULL units passed: 1 of 1" ||
+		len(receipt.Invocations) != 1 || receipt.Invocations[0].Adapter != sessiontest.AdapterDeclared || receipt.Invocations[0].Version != "go1.27.1" {
 		t.Fatalf("receipt %+v", receipt)
 	}
 }
 
-// STR-V0-003: with no plan, a declared language full command is found from
-// the registered languages, not the plan, and its failure fails the run.
+// STR-V0-003, STR-V0-004: with no plan, a declared language full command is
+// found from the declaration, not the plan, and its failure fails the run;
+// a {"none": reason} language is recorded and runs nothing.
 func TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand(t *testing.T) {
 	root, _, log := sessionFixture(t, "pass")
-	makefile := "go-test:\n\tGOTOOLCHAIN=local go test -p 1 -count=1 ./...\nrust-test:\n\tcargo test\n"
-	if err := os.WriteFile(filepath.Join(root, "Makefile"), []byte(makefile), 0o644); err != nil {
+	declaration := sessionDeclaration(`"rust": ["make", "rust-test"], "python": {"none": "fixtures only"}`)
+	if err := os.WriteFile(filepath.Join(root, sessiontest.DeclarationPath), []byte(declaration), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	affectedGit(t, root, "commit", "-qam", "declare rust")
 	receiptPath := filepath.Join(t.TempDir(), "r.json")
-	code, _, stderr := runCLI(t, "--root", root, "test", "--base", strings.Repeat("e", 40), "--receipt", receiptPath)
+	manifestPath := filepath.Join(t.TempDir(), "m.json")
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", strings.Repeat("e", 40), "--dry-run", "--manifest", manifestPath)
+	if code != 0 || !strings.Contains(stdout, `"noSuite":["python: fixtures only"]`) {
+		t.Fatalf("dry run code %d stdout %s stderr %q", code, stdout, stderr)
+	}
+	if m, _, err := sessiontest.ReadManifest(manifestPath); err != nil || len(m.NoSuite) != 1 || len(m.Units) != 2 {
+		t.Fatalf("manifest %+v %v", m, err)
+	}
+	code, _, stderr = runCLI(t, "--root", root, "test", "--base", strings.Repeat("e", 40), "--receipt", receiptPath)
 	if code != 1 {
 		t.Fatalf("code %d stderr %q", code, stderr)
 	}
-	if got := sessionRunnerLog(t, log); got != "make --version\nmake go-test\nmake --version\nmake rust-test\n" && got != "make --version\nmake go-test\nmake rust-test\n" {
+	if got := sessionRunnerLog(t, log); got != "go env GOVERSION\nmake --version\ngo test -p 1 -count=1 ./...\nmake rust-test\n" {
 		t.Fatalf("runner calls:\n%s", got)
 	}
 	if receipt := readSessionReceipt(t, receiptPath); receipt.Result != sessiontest.ResultFail || receipt.Summary != "FULL units passed: 1 of 2" {
@@ -204,21 +221,42 @@ func TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand(t *testing.T) {
 	}
 }
 
+// STR-V0-003: a missing or malformed declaration is INCOMPLETE in every
+// scope; nothing runs on a guessed full scope.
+func TestSTRV0003CLIUnreadableDeclarationIsIncomplete(t *testing.T) {
+	root, base, log := sessionFixture(t, "pass")
+	if err := os.WriteFile(filepath.Join(root, sessiontest.DeclarationPath), []byte(`{"profile": "corvint-test-commands/0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "commit", "-qam", "break the declaration")
+	receiptPath := filepath.Join(t.TempDir(), "r.json")
+	code, _, stderr := runCLI(t, "--root", root, "test", "--base", base, "--receipt", receiptPath)
+	if code != 3 || !strings.Contains(stderr, "the declared full scope is unreadable: "+sessiontest.DeclarationPath+": ") {
+		t.Fatalf("code %d stderr %q", code, stderr)
+	}
+	if got := sessionRunnerLog(t, log); got != "" {
+		t.Fatalf("an unreadable declaration launched runners:\n%s", got)
+	}
+	if receipt := readSessionReceipt(t, receiptPath); receipt.Result != sessiontest.ResultIncomplete || len(receipt.Invocations) != 0 {
+		t.Fatalf("receipt %+v", receipt)
+	}
+}
+
 // STR-V0-001: an output path that is tracked, Git metadata or a .corvint/
 // ledger is refused before anything runs.
 func TestSTRV0001CLIRefusesProtectedOutputPaths(t *testing.T) {
 	root, base, log := sessionFixture(t, "pass")
-	before, err := os.ReadFile(filepath.Join(root, "Makefile"))
+	before, err := os.ReadFile(filepath.Join(root, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{
-		{"--receipt", filepath.Join(root, "Makefile")},
+		{"--receipt", filepath.Join(root, "go.mod")},
 		{"--receipt", filepath.Join(root, "a")},
 		{"--receipt", filepath.Join(root, ".git", "index")},
 		{"--receipt", filepath.Join(root, ".git", "corvint", "traces.json")},
 		{"--receipt", filepath.Join(root, ".corvint", "self-observations.jsonl")},
-		{"--dry-run", "--manifest", filepath.Join(root, "Makefile")},
+		{"--dry-run", "--manifest", filepath.Join(root, "go.mod")},
 		{"--dry-run", "--manifest", filepath.Join(root, ".git", "config")},
 	} {
 		code, stdout, stderr := runCLI(t, append([]string{"--root", root, "test", "--base", base}, args...)...)
@@ -226,8 +264,8 @@ func TestSTRV0001CLIRefusesProtectedOutputPaths(t *testing.T) {
 			t.Errorf("%v: code %d stdout %q stderr %q", args, code, stdout, stderr)
 		}
 	}
-	if after, _ := os.ReadFile(filepath.Join(root, "Makefile")); string(after) != string(before) {
-		t.Fatal("the tracked Makefile changed")
+	if after, _ := os.ReadFile(filepath.Join(root, "go.mod")); string(after) != string(before) {
+		t.Fatal("the tracked go.mod changed")
 	}
 	if got := sessionRunnerLog(t, log); got != "" {
 		t.Fatalf("a refused run launched runners:\n%s", got)

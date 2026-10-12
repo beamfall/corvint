@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -61,7 +62,7 @@ func TestSTRV0013ParityReading(t *testing.T) {
 	incomplete := func(plan *Plan, reasons ...string) {
 		plan.Incomplete, plan.Error = reasons, "INCOMPLETE: "+strings.Join(reasons, "; ")
 	}
-	const typescript = "typescript: no qualified adapter and no declared typescript-test full command"
+	const typescript = "typescript: no qualified adapter and .github/cishards/test-commands.json declares no typescript full command"
 	categories := func(pair Pair) string {
 		out := []string{}
 		for _, difference := range compare(pair) {
@@ -94,7 +95,7 @@ func TestSTRV0013ParityReading(t *testing.T) {
 		"undeclared language":      {func(p *Pair) { incomplete(&p.CorvintLoc, typescript) }, "local error str-v0-004-undeclared-language"},
 		"another INCOMPLETE":       {func(p *Pair) { incomplete(&p.CorvintLoc, "the manifest exceeds 1048576 bytes") }, "local error UNEXPLAINED"},
 		"look-alike reason": {func(p *Pair) {
-			incomplete(&p.CorvintLoc, "typescript: no qualified adapter and no declared ruby-test full command")
+			incomplete(&p.CorvintLoc, "typescript: no qualified adapter and .github/cishards/test-commands.json declares no ruby full command")
 		}, "local error UNEXPLAINED"},
 		"error beyond reasons":      {func(p *Pair) { incomplete(&p.CorvintLoc, typescript); p.CorvintLoc.Error += " exit 1" }, "local error UNEXPLAINED"},
 		"units mismatch":            {func(p *Pair) { p.CorvintLoc.Mismatch = "arguments name [m/a], units name [m/a m/b]" }, "local units UNEXPLAINED"},
@@ -131,5 +132,36 @@ func TestSTRV0013ParityReading(t *testing.T) {
 		if !strings.Contains(joined, want) {
 			t.Errorf("undeclared language with a units mismatch: want %q in\n%s", want, joined)
 		}
+	}
+}
+
+// STR-V0-013: the retained corpus is read as newest-first OID triples and
+// anything else is refused, so parity never runs over a guessed pair list.
+func TestSTRV0013CorpusReading(t *testing.T) {
+	a, b, c := strings.Repeat("a", 40), strings.Repeat("b", 40), strings.Repeat("c", 40)
+	got, err := readCorpus([]byte("# comment\n\n" + a + "  " + b + " " + c + "\n" + b + " " + c + " " + a + "\n"))
+	if err != nil || !reflect.DeepEqual(got, []string{a + " " + b + " " + c, b + " " + c + " " + a}) {
+		t.Fatalf("corpus %v err %v", got, err)
+	}
+	for name, raw := range map[string]string{
+		"empty":        "# only a comment\n",
+		"short oid":    a[:39] + " " + b + " " + c + "\n",
+		"two fields":   a + " " + b + "\n",
+		"four fields":  a + " " + b + " " + c + " " + a + "\n",
+		"repeated":     a + " " + b + " " + c + "\n" + a + " " + c + " " + b + "\n",
+		"uppercase":    strings.ToUpper(a) + " " + b + " " + c + "\n",
+		"trailing tag": a + " " + b + " " + c + " # merge\n",
+	} {
+		if _, err := readCorpus([]byte(raw)); err == nil {
+			t.Errorf("%s: accepted %q", name, raw)
+		}
+	}
+	committed, err := os.ReadFile("testdata/pairs-645304a2.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pairs, err := readCorpus(committed)
+	if err != nil || len(pairs) != 50 || !strings.HasPrefix(pairs[0], "645304a2fb71065f9061d8d8d866600d703e84c6 ") {
+		t.Fatalf("retained corpus: %d pairs, err %v", len(pairs), err)
 	}
 }

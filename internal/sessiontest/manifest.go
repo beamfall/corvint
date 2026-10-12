@@ -86,11 +86,14 @@ func (u Unit) Key() string { return u.Unit + " " + u.Slice }
 // Manifest is the STR-V0-018 corvint-test-manifest/0: everything every shard
 // and the fan-in must agree on before anything executes.
 type Manifest struct {
-	Base            string         `json:"base"`
-	Checks          []string       `json:"checks"`
-	DeclaredDigest  string         `json:"declaredDigest"`
-	GraphDigest     string         `json:"graphDigest"`
-	Incomplete      []string       `json:"incomplete"`
+	Base           string   `json:"base"`
+	Checks         []string `json:"checks"`
+	DeclaredDigest string   `json:"declaredDigest"`
+	GraphDigest    string   `json:"graphDigest"`
+	Incomplete     []string `json:"incomplete"`
+	// NoSuite records each covered language the declaration asserts has no
+	// suite, as "<language>: <reason>"; nothing runs for it (STR-V0-004).
+	NoSuite         []string       `json:"noSuite"`
 	PartitionDigest string         `json:"partitionDigest"`
 	Placement       string         `json:"placement"`
 	PlanDigest      string         `json:"planDigest"`

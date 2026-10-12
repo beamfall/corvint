@@ -18,7 +18,7 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test receipt-bundle-verify-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-batch-check dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test cem-verify-pr-test cem-recipes-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test
+.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test receipt-bundle-verify-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-commands-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-batch-check dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test cem-verify-pr-test cem-recipes-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -38,7 +38,7 @@ pi-protected-test: pi-protected-build
 # not a gate prerequisite because it depends on
 # untracked, gitignored .corvint/ artifacts that a clean checkout never has.
 # GATE_STEPS are the gate prerequisites after gate-receipt-clear.
-GATE_STEPS = host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check release-checklist-test gate-receipt-test error-code-ownership-check error-code-ownership-test cem-verify-pr-test cem-recipes-test host-package-versions-check host-package-versions-test diagnostic-coverage-check no-python-runtime-dependency-test
+GATE_STEPS = host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-commands-check release-checklist-test gate-receipt-test error-code-ownership-check error-code-ownership-test cem-verify-pr-test cem-recipes-test host-package-versions-check host-package-versions-test diagnostic-coverage-check no-python-runtime-dependency-test
 gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS))
 	@script/gate-receipt record
 
@@ -232,6 +232,12 @@ ci-least-privilege-test:
 # docs/specs/affected-plan-v0.md).
 unbounded-readers-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/unbounded-readers >/dev/null
+
+# test-commands-check fails unless the Go environment and flags declared in
+# .github/cishards/test-commands.json equal `make -s -n go-test` and every declared language
+# command that names a make target exists (STR-V0-006, docs/specs/session-test-runner-v0.md).
+test-commands-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/test-commands-check >/dev/null
 
 # host-package-versions-check fails when a host package manifest's version field (AHI-020,
 # docs/specs/agent-harness-integration-v0.md) was last bumped in a commit older than the last

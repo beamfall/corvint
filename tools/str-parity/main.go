@@ -22,6 +22,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -39,6 +41,7 @@ var oid = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
 type options struct {
 	repo, end, corvint, selector, prTests, script, source, work, realGo string
+	corpus, declaration                                                 string
 	pairs                                                               int
 }
 
@@ -92,10 +95,15 @@ type Pair struct {
 // Report is the deterministic parity report: no timestamps, sorted members.
 type Report struct {
 	Categories map[string]int `json:"categories"`
-	End        string         `json:"end"`
-	Pairs      []Pair         `json:"pairs"`
-	Profile    string         `json:"profile"`
-	Source     string         `json:"source"`
+	// Corpus is the sha256 of the -corpus pair file, when one was given.
+	Corpus string `json:"corpus,omitempty"`
+	// DeclarationDigest is the sha256 of the -declaration file every pair
+	// ran with (STR-V0-003).
+	DeclarationDigest string `json:"declarationDigest"`
+	End               string `json:"end"`
+	Pairs             []Pair `json:"pairs"`
+	Profile           string `json:"profile"`
+	Source            string `json:"source"`
 }
 
 func main() {
@@ -103,6 +111,8 @@ func main() {
 	flag.StringVar(&o.repo, "repo", "", "repository holding the history's objects")
 	flag.StringVar(&o.end, "end", "", "full OID of the newest first-parent commit")
 	flag.IntVar(&o.pairs, "pairs", 50, "number of first-parent pairs ending at -end")
+	flag.StringVar(&o.corpus, "corpus", "", "absolute retained pair file (tools/str-parity/testdata); sets -end and -pairs and must equal the history")
+	flag.StringVar(&o.declaration, "declaration", "", "absolute .github/cishards/test-commands.json written into every checkout (default: the -repo file)")
 	flag.StringVar(&o.corvint, "corvint", "", "absolute corvint binary (planner and runner)")
 	flag.StringVar(&o.selector, "selector", "", "absolute gate-affected-select binary for the CI driver")
 	flag.StringVar(&o.prTests, "pr-tests", "", "absolute corvint-pr-tests binary")
@@ -131,10 +141,35 @@ func run(ctx context.Context, o options) (Report, error) {
 			return Report{}, errors.New("-repo, -corvint, -selector, -pr-tests, -script and -work must be absolute")
 		}
 	}
+	if o.declaration == "" {
+		o.declaration = filepath.Join(o.repo, declarationPath)
+	}
+	if !filepath.IsAbs(o.declaration) || (o.corpus != "" && !filepath.IsAbs(o.corpus)) {
+		return Report{}, errors.New("-corpus and -declaration must be absolute")
+	}
+	declaration, err := os.ReadFile(o.declaration)
+	if err != nil {
+		return Report{}, err
+	}
+	var corpus []string
+	corpusDigest := ""
+	if o.corpus != "" {
+		raw, err := os.ReadFile(o.corpus)
+		if err != nil {
+			return Report{}, err
+		}
+		if corpus, err = readCorpus(raw); err != nil {
+			return Report{}, fmt.Errorf("-corpus: %w", err)
+		}
+		end := strings.Fields(corpus[0])[0]
+		if o.end != "" && o.end != end {
+			return Report{}, fmt.Errorf("-end %s is not the corpus end %s", o.end, end)
+		}
+		o.end, o.pairs, corpusDigest = end, len(corpus), sha256Hex(raw)
+	}
 	if !oid.MatchString(o.end) || !oid.MatchString(o.source) || o.pairs < 1 || o.pairs > 200 {
 		return Report{}, errors.New("-end and -source must be full OIDs and -pairs 1..200")
 	}
-	var err error
 	if o.realGo, err = exec.LookPath("go"); err != nil {
 		return Report{}, err
 	}
@@ -144,6 +179,9 @@ func run(ctx context.Context, o options) (Report, error) {
 	if err := os.Mkdir(o.work, 0o700); err != nil {
 		return Report{}, fmt.Errorf("-work must not exist: %w", err)
 	}
+	if err := os.WriteFile(filepath.Join(o.work, "test-commands.json"), declaration, 0o600); err != nil {
+		return Report{}, err
+	}
 	clone := filepath.Join(o.work, "clone")
 	if _, err := gitOut(ctx, o.work, "clone", "-q", "--shared", "--no-checkout", o.repo, clone); err != nil {
 		return Report{}, err
@@ -152,6 +190,9 @@ func run(ctx context.Context, o options) (Report, error) {
 		if _, err := gitOut(ctx, clone, "config", setting[0], setting[1]); err != nil {
 			return Report{}, err
 		}
+	}
+	if err := os.WriteFile(filepath.Join(clone, ".git", "info", "exclude"), []byte("/"+declarationPath+"\n"), 0o600); err != nil {
+		return Report{}, err
 	}
 	bin, record := filepath.Join(o.work, "bin"), filepath.Join(o.work, "go-test.record")
 	if err := os.MkdirAll(bin, 0o700); err != nil {
@@ -170,7 +211,14 @@ func run(ctx context.Context, o options) (Report, error) {
 	if len(lines) != o.pairs {
 		return Report{}, fmt.Errorf("history has %d first-parent commits, want %d", len(lines), o.pairs)
 	}
-	report := Report{Categories: map[string]int{}, End: o.end, Profile: "corvint-str-parity/0", Source: o.source}
+	for index := range corpus {
+		// The retained corpus is the parity input (STR-V0-013); the history
+		// must still contain exactly those pairs.
+		if strings.Join(strings.Fields(lines[index]), " ") != corpus[index] {
+			return Report{}, fmt.Errorf("corpus line %d is %q, history has %q", index+1, corpus[index], lines[index])
+		}
+	}
+	report := Report{Categories: map[string]int{}, Corpus: corpusDigest, DeclarationDigest: sha256Hex(declaration), End: o.end, Profile: "corvint-str-parity/0", Source: o.source}
 	for index := len(lines) - 1; index >= 0; index-- {
 		fields := strings.Fields(lines[index])
 		if len(fields) != 3 {
@@ -224,6 +272,16 @@ func comparePair(ctx context.Context, o options, clone, bin, record, target, bas
 	if _, err := gitOut(ctx, clone, "clean", "-q", "-fdx"); err != nil {
 		return pair, err
 	}
+	// Every checkout plans with the same declaration (STR-V0-003): the file
+	// is written untracked, kept out of the dirty set through
+	// .git/info/exclude, and removed before the cleanliness check.
+	declared := filepath.Join(clone, declarationPath)
+	if err := os.MkdirAll(filepath.Dir(declared), 0o700); err != nil {
+		return pair, err
+	}
+	if err := copyFile(filepath.Join(o.work, "test-commands.json"), declared); err != nil {
+		return pair, err
+	}
 	env := environment(o, bin)
 	for _, dir := range []string{"home", "tmp"} {
 		if err := os.MkdirAll(filepath.Join(o.work, dir), 0o700); err != nil {
@@ -242,6 +300,9 @@ func comparePair(ctx context.Context, o options, clone, bin, record, target, bas
 	pair.CI, pair.CIPlanned, pair.CIPlannedPackages = ciPlan(ctx, o, clone, env, base, head, target, ordinal, all)
 	pair.CIPlannedCount = len(pair.CIPlannedPackages)
 	pair.Differences = compare(pair)
+	if err := os.Remove(declared); err != nil {
+		return pair, err
+	}
 	if status, _ := gitOut(ctx, clone, "status", "--porcelain=v1", "--untracked-files=all", "--ignored"); status != "" {
 		return pair, fmt.Errorf("a planner or driver changed the checkout: %s", status)
 	}
@@ -540,19 +601,64 @@ func containsArg(values []string, want string) bool {
 }
 
 // undeclaredOnly reports whether the plan's only error is INCOMPLETE and
-// every reason is exactly "<language>: no qualified adapter and no declared
-// <language>-test full command" (STR-V0-004).
+// every reason is exactly "<language>: no qualified adapter and
+// .github/cishards/test-commands.json declares no <language> full command"
+// (STR-V0-004).
 func undeclaredOnly(plan Plan) bool {
 	if len(plan.Incomplete) == 0 || plan.Error != "INCOMPLETE: "+strings.Join(plan.Incomplete, "; ") {
 		return false
 	}
 	for _, reason := range plan.Incomplete {
 		language, _, _ := strings.Cut(reason, ": ")
-		if language == "" || strings.ContainsAny(language, " ;:") || reason != language+": no qualified adapter and no declared "+language+"-test full command" {
+		if language == "" || strings.ContainsAny(language, " ;:") || reason != language+": no qualified adapter and "+declarationPath+" declares no "+language+" full command" {
 			return false
 		}
 	}
 	return true
+}
+
+// declarationPath is where corvint test reads the full-suite declaration
+// (internal/sessiontest DeclarationPath).
+const declarationPath = ".github/cishards/test-commands.json"
+
+// readCorpus reads a retained pair file: comment and blank lines skipped,
+// every other line "<merge> <first parent> <second parent>" in full OIDs,
+// newest first, at least one line, no merge repeated.
+func readCorpus(raw []byte) ([]string, error) {
+	lines := []string{}
+	seen := map[string]bool{}
+	for number, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 3 || !oid.MatchString(fields[0]) || !oid.MatchString(fields[1]) || !oid.MatchString(fields[2]) {
+			return nil, fmt.Errorf("line %d: want three full OIDs, got %q", number+1, line)
+		}
+		if seen[fields[0]] {
+			return nil, fmt.Errorf("line %d: merge %s repeated", number+1, fields[0])
+		}
+		seen[fields[0]] = true
+		lines = append(lines, strings.Join(fields, " "))
+	}
+	if len(lines) == 0 {
+		return nil, errors.New("no pairs")
+	}
+	return lines, nil
+}
+
+func sha256Hex(raw []byte) string {
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
+}
+
+func copyFile(from, to string) error {
+	raw, err := os.ReadFile(from)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(to, raw, 0o600)
 }
 
 func withoutJSON(argv []string) []string {

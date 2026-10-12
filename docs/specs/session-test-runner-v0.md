@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-11
 Requirement prefix: `STR-V0`
 Intent status: accepted (decision 0524; V1-0040)
-Delivery status: experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement)
+Delivery status: experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate)
 Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 2026-10-11);
 `docs/specs/affected-plan-v0.md` (AFP-V0-011..013, 022, 023, 028..030, 041);
 `docs/specs/live-proof-carrying-verification-v0.md` (LPCV-V0-021..026);
@@ -12,9 +12,9 @@ Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 
 
 ## Agent digest
 - Claim: `corvint test` plans from the diff, runs only selected tests through runner adapters, shards deterministically, and falls back alike locally and in CI.
-- Status: accepted (decision 0524; V1-0040)/experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement)
+- Status: accepted (decision 0524; V1-0040)/experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate)
 - Exists: the pieces, under separate drivers: `corvint affected` (plan), `script/gate-affected.sh` (local driver), `tools/corvint-pr-tests` and `tools/gate-affected-select` (CI driver), `.github/cishards` (complete-universe partition and test slices), `cmd/corvint-go-test-provider` (experimental Go execute provider).
-- Blocked on: STR-V0-013 parity over the frozen AFP-V0-011 pairs and the AFP-V0-029 shadow rows (both `NOT_OBSERVED`; the substitute-pair report has no unexplained difference) before either call site moves; declared non-Go full commands before the local switch; AFP-V0-029 shadow bar for any CI narrowing, which this spec does not relax.
+- Blocked on: the call-site switch itself (slice 3: `make gate-affected` first, then the CI call site under AFP-V0-016 consent); STR-V0-013 parity is measured over the retained `tools/str-parity/testdata/pairs-645304a2.txt` corpus (decision 0526; the AFP-V0-011 list and AFP-V0-029 rows stay `NOT_OBSERVED`); the full-suite commands are declared in `.github/cishards/test-commands.json`, kept equal to `make go-test` by `make test-commands-check`; AFP-V0-029 shadow bar for any CI narrowing, which this spec does not relax.
 - Read next: Requirements; Boundaries and failure modes; Rollout and rollback.
 
 ## User and verified baseline
@@ -66,17 +66,24 @@ of every requirement below and the binding gate until this spec is promoted.
   `corvint-test: FALLBACK <reason>`, under every AFP-V0-011 fallback condition, and also when a
   module-level frontier or any `plan.unknown` entry outside the AFP-V0-028 reviewed allowlist is
   present. `FULL` covers every language with selected or unknown units, never only the languages
-  that narrowed. When no plan can be produced, `FULL` SHALL run every full-suite command the
-  repository declares (the Makefile `go-test` target and each declared language full command),
-  read independently of the planner; when that declaration cannot be read or names nothing, the
-  run is `INCOMPLETE` and exits nonzero. The verdict is a pure function of the plan, the declared
-  full scope and the source identity, so every host and shard reaches it from the same inputs.
+  that narrowed. The repository declares its full-suite commands in one project-owned file,
+  `.github/cishards/test-commands.json` (profile `corvint-test-commands/0`): the Go full-suite
+  environment and flags, and for each other language either its full command or `{"none":
+  reason}`. `corvint test` reads that file as a plain, bounded, strictly-schemed read, independently
+  of the planner, and SHALL NOT interpret the Makefile. When no plan can be produced, `FULL` SHALL
+  run every full command it declares. When the declaration cannot be read (absent, oversized,
+  unknown or malformed member, missing `go`), the run is `INCOMPLETE` in every scope and exits
+  nonzero. The verdict is a pure function of the plan, the declared full scope and the source
+  identity, so every host and shard reaches it from the same inputs.
 - `STR-V0-004`: Execution SHALL go through registered runner adapters, one per runner, each with a
   versioned capability manifest (the discover, plan, execute and cancel subset of LPCV-V0-021) and
   the exact runner version captured before execution. The first adapter is Go. A selected or
-  unknown unit in a language with no qualified adapter SHALL run that language's
-  repository-declared full command; when none is declared, the run is `INCOMPLETE` and exits
-  nonzero. A selected unit is never silently skipped.
+  unknown unit in a language with no qualified adapter SHALL run that language's declared full
+  command. When the declaration asserts `{"none": reason}` for that language, the project has
+  declared it has no suite: the manifest records `<language>: <reason>` in `noSuite`, nothing runs
+  for it, and the run is not `INCOMPLETE` on its account. When the declaration names the language
+  neither way, the run is `INCOMPLETE` and exits nonzero. A selected unit is never silently
+  skipped.
 - `STR-V0-005`: An adapter SHALL receive only its selected targets and invoke the runner's native
   target filter (for example `go test <packages>`, `cargo test -p <crate>`, `swift test --filter`,
   `dotnet test <project>`, `gradle :<module>:test`, or Playwright files reconciled by discovery as
@@ -85,7 +92,12 @@ of every requirement below and the binding gate until this spec is promoted.
   SHALL NOT claim build or isolation guarantees stronger than the runner supplies (LPCV-V0-025).
 - `STR-V0-006`: Adapter argv SHALL be typed with no shell. Environment, AFP-V0-023 `test-confine`
   wrapper and cache policy SHALL equal the repository's full-suite invocation; only the target set
-  may differ between narrowed and `FULL` runs (as AFP-V0-028 requires in CI).
+  may differ between narrowed and `FULL` runs (as AFP-V0-028 requires in CI). Locally the Go
+  environment and flags come from the declaration (STR-V0-003), and a maintained repository gate
+  (`make test-commands-check`, a `make gate` step and part of the CI doc-gates job) SHALL assert
+  that they equal `make -s -n go-test` exactly: same environment words as a set, same flags in
+  order, one `go test ... ./...` line, and every declared `make` language command a target that
+  dry-runs. The manifest binds the declaration's digest as `declaredDigest`.
 - `STR-V0-007`: `--shard I/N` with `--placement universe` (the default) SHALL use the AFP-V0-022
   complete-universe partition intersected with the run set, unchanged. An empty intersection runs
   nothing and says so. Every shard records the partition digest; a digest mismatch fails the shard.
@@ -125,17 +137,23 @@ of every requirement below and the binding gate until this spec is promoted.
   universe placement (STR-V0-008). A local narrowed PASS
   SHALL NOT be reported as a gate PASS; `make gate` and the required CI checks stay binding.
 - `STR-V0-013`: Neither `make gate-affected` nor `tools/corvint-pr-tests` SHALL switch to
-  `corvint test` until a parity check over the 50 first-parent pairs of the AFP-V0-011 measurement
-  and the retained AFP-V0-029 shadow rows shows the same Go package set, argv, environment and
-  fallback verdict as the driver it replaces, with every difference explained in a build-log
-  entry. Switching the CI call site is a `.github/` change under AFP-V0-016 consent and SHALL
-  advance `CORVINT_PR_FORWARD_EPOCH`, because forward qualification binds the driver's identity.
+  `corvint test` until a parity check over the retained substitute corpus,
+  `tools/str-parity/testdata/pairs-645304a2.txt` (the 50 first-parent pairs ending at
+  `645304a2fb71065f9061d8d8d866600d703e84c6`, the ones slice 2 measured), shows the same Go
+  package set, argv, environment and fallback verdict as the driver it replaces, with every
+  difference explained in a build-log entry. The original AFP-V0-011 pair list and the AFP-V0-029
+  shadow rows were not retained and stay `NOT_OBSERVED`; parity is measured over the committed
+  corpus, never over a list reconstructed from memory. Switching the CI call site is a `.github/`
+  change under AFP-V0-016 consent, SHALL advance `CORVINT_PR_FORWARD_EPOCH`, because forward
+  qualification binds the driver's identity, and SHALL first meet the AFP-V0-029 shadow bar
+  before any CI narrowing.
 - `STR-V0-014`: A hangup, interrupt or termination SHALL kill every owned process group, exit
   nonzero and write an `INCOMPLETE` receipt; it MUST NOT start the fallback.
 - `STR-V0-015`: The run SHALL be bounded: the plan's existing walk and status bounds, at most 4096
   execution units, the receipt bound, the runner's native per-unit timeout unchanged from the
-  profile's current call site (for Go, a per-package hang detector: the Makefile `GO_TEST_TIMEOUT`
-  locally, and the `50m` that `tools/corvint-pr-tests` and the full CI branch pass in CI), and a
+  profile's current call site (for Go, a per-package hang detector: the declared `-timeout` flag
+  locally, which the STR-V0-006 gate keeps equal to the Makefile `GO_TEST_TIMEOUT`, and the `50m`
+  that `tools/corvint-pr-tests` and the full CI branch pass in CI), and a
   separate
   total wall-clock budget per adapter invocation from the repository declaration (for Go, default
   70 minutes, the current `tools/corvint-pr-tests` budget). Exceeding a bound yields `INCOMPLETE`
@@ -168,13 +186,15 @@ of every requirement below and the binding gate until this spec is promoted.
 | Condition | Result |
 |---|---|
 | Plan cannot be produced, base unresolved, module-level frontier, unallowed unknown | `FULL` with named reason |
-| Language with selected units but no adapter and no declared full command | `INCOMPLETE`, nonzero |
+| Language with selected units but no adapter, undeclared in `test-commands.json` | `INCOMPLETE`, nonzero |
+| Language with no adapter declared `{"none": reason}` | nothing runs; `<language>: <reason>` recorded in the manifest's `noSuite` |
 | Runner version cannot be read | that adapter `INCOMPLETE`, nonzero |
 | Partition, manifest or source identity differs across shards | shard fails; fan-in `INCOMPLETE` |
 | Worktree bytes change during the run | drift, shard `INCOMPLETE` |
 | Missing shard receipt, duplicate execution unit, unit without terminal outcome | fan-in `INCOMPLETE` |
 | Any failed outcome or nonzero adapter exit | `FAIL`, nonzero |
-| No plan and no readable declared full scope | `INCOMPLETE`, nonzero |
+| `.github/cishards/test-commands.json` unreadable (absent, oversized, unknown or malformed member, no `go`) | `INCOMPLETE` in every scope, nonzero, no unit runs |
+| Declared Go environment or flags drift from `make -s -n go-test` | `make test-commands-check` fails (`make gate`, CI doc-gates) |
 | Bound exceeded | `INCOMPLETE`, nonzero |
 | Signal | owned groups killed, `INCOMPLETE`, no fallback |
 | CI admission fails (pins, queue rules, `.github/` change, trip, kill switch) | `FULL` |
@@ -197,10 +217,15 @@ Testing matrix (all `NOT_RUN` until implementation):
   its outcomes all passed with zero exits, and `FAIL` for a failed outcome or nonzero exit with every
   digest correct;
 - editing an already-dirty file between planning and launch, or during the run, yields drift;
-- planning failure runs the declared full scope, and with no declaration is `INCOMPLETE`;
-- a language without an adapter runs its declared full command, or is `INCOMPLETE`;
+- planning failure runs the declared full scope, and an unreadable declaration is `INCOMPLETE`
+  in every scope with no runner started;
+- a language without an adapter runs its declared full command, records a declared `none`
+  assertion in `noSuite` and runs nothing, or is `INCOMPLETE` when undeclared;
+- `make test-commands-check` passes on the repository and fails for a changed flag value, flag
+  order, dropped flag, extra or changed environment variable, an absent declaration and a
+  declared `make` target that does not exist;
 - signal tests show killed groups and no fallback start;
-- the STR-V0-013 parity report over the frozen pairs and shadow rows.
+- the STR-V0-013 parity report over the retained substitute corpus.
 
 Promotion from experimental requires the parity report, 20 merged PRs through the queue on the new
 CI call site with complete forward rows and no trip, and median and p90 PR wall time and
@@ -235,17 +260,17 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 |---|---|---|
 | STR-V0-001 | `cmd/corvint/test.go` (`compileAffectedGraph` shared with `affected`) | `cmd/corvint/session_test_command_unix_test.go` TestSTRV0018CLIDryRunLaunchesNoRunner, TestSTRV0010CLIRunWritesReceipt, TestSTRV0001CLIRefusesProtectedOutputPaths |
 | STR-V0-002 | `internal/sessiontest/plan.go`, `internal/gateselect` | `internal/sessiontest/plan_test.go` TestSTRV0003BuildVerdicts, TestSTRV0007UniversePlacementEqualsCIPlan |
-| STR-V0-003 | `internal/sessiontest/plan.go`, `internal/sessiontest/declared.go` | TestSTRV0003BuildVerdicts, TestSTRV0003ReadDeclared, TestSTRV0003CLINoPlanRunsDeclaredScope, TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand |
-| STR-V0-004 | `internal/sessiontest/run.go` (Go adapter; declared `make <lang>-test` fallback) | TestSTRV0004ParseTestEvents, TestSTRV0004RunnerDiscoveryRefusals; no versioned LPCV-V0-021 capability manifest yet (partial) |
+| STR-V0-003 | `internal/sessiontest/plan.go`, `internal/sessiontest/declared.go` (`ReadDeclared`: strict, bounded read of `.github/cishards/test-commands.json`) | TestSTRV0003BuildVerdicts, TestSTRV0003ReadDeclared, TestSTRV0003CLINoPlanRunsDeclaredScope, TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand, TestSTRV0003CLIUnreadableDeclarationIsIncomplete |
+| STR-V0-004 | `internal/sessiontest/run.go` (Go adapter; declared language argv), `declaredLanguage` in `plan.go` (`none` to `noSuite`, undeclared to `INCOMPLETE`) | TestSTRV0004ParseTestEvents, TestSTRV0004RunnerDiscoveryRefusals, TestSTRV0003BuildVerdicts, TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand; no versioned LPCV-V0-021 capability manifest yet (partial) |
 | STR-V0-005 | `Invocations` in `run.go` | TestSTRV0006Invocations, TestSTRV0010CLIRunWritesReceipt |
-| STR-V0-006 | `Invocations`; `ReadDeclared` types the Makefile `go-test` recipe | TestSTRV0006Invocations, TestSTRV0003ReadDeclared, TestSTRV0006ReaderGrammar, TestSTRV0006RepositoryMakefileTypesGoTest, TestSTRV0006RepositoryMakefileDependsOnConditional |
+| STR-V0-006 | `Invocations` (typed argv from the declaration's Go environment and flags); `tools/test-commands-check` behind `make test-commands-check` (`GATE_STEPS`, CI doc-gates) | TestSTRV0006Invocations, TestSTRV0003ReadDeclared, `tools/test-commands-check/main_test.go` TestSTRV0006DeclarationMatchesMakefile (repository pass plus seven drift mutations), TestSTRV0006CompareGo |
 | STR-V0-007 | `placeGo` over `cishards.PlanFrom` | TestSTRV0007UniversePlacementEqualsCIPlan, TestSTRV0009CLIShardsAndVerify |
 | STR-V0-008 | `placeGo` balanced branch over the run set (`Input.Placement`); `cmd/corvint/test.go` refuses `--profile ci` execution and a sharded run without `--manifest` | `internal/sessiontest/balanced_test.go` TestSTRV0008BalancedPlacesEveryUnitOnce (1 to 16 shards, catch-all slice), TestSTRV0008BalancedUsesEveryShard, TestSTRV0008BalancedFullAndManifest; TestSTRV0008CLIUsageRefusals, TestSTRV0008CLIBalancedShards; retaining it beside CI universe placement is the call site's (slice 3) and the local 20% bar is unmeasured: `NOT_RUN` |
 | STR-V0-009 | `internal/sessiontest/verify.go`, `corvint test verify-shards` | TestSTRV0009VerifyShardsMatrix, TestSTRV0009CLIShardsAndVerify |
 | STR-V0-010 | `Receipt`, `Finish`, `testWriteReceipt` | TestSTRV0011FinishResultAndSummary, TestSTRV0018ManifestStrictRoundTrip, TestSTRV0010CLIRunWritesReceipt |
 | STR-V0-011 | no reader other than `verify-shards` | by construction; no test asserts absence of other readers |
 | STR-V0-012 | `--profile ci` argv and environment on the same code path | TestSTRV0006Invocations; CI admission (pinned build, queue backstop, trip) is the call site's: `NOT_RUN` |
-| STR-V0-013 | `tools/str-parity` (offline replay of `corvint test --dry-run` against `script/gate-affected.sh` and `tools/corvint-pr-tests`); no call site switched | `tools/str-parity/main_test.go` TestSTRV0013ParityReading; `docs/build-log/2026-10-11-session-test-runner-parity.md`: 50 substitute first-parent pairs, no `UNEXPLAINED` difference; partial: the frozen AFP-V0-011 pairs and the AFP-V0-029 shadow rows are `NOT_OBSERVED` |
+| STR-V0-013 | `tools/str-parity` (offline replay of `corvint test --dry-run` against `script/gate-affected.sh` and `tools/corvint-pr-tests` over `tools/str-parity/testdata/pairs-645304a2.txt`); no call site switched | `tools/str-parity/main_test.go` TestSTRV0013ParityReading, TestSTRV0013CorpusReading; `docs/build-log/2026-10-11-session-test-runner-parity.md` and `docs/build-log/2026-10-12-session-test-runner-declaration.md`: the retained 50-pair corpus, no `UNEXPLAINED` difference; the AFP-V0-011 list and the AFP-V0-029 shadow rows are `NOT_OBSERVED`, and the AFP-V0-029 shadow bar is still owed before CI narrowing |
 | STR-V0-014 | `internal/sessiontest/procgroup_unix.go`, `testExecute` | TestSTRV0014RunnerCancelAndBudgetKillGroup, TestSTRV0014CLISignalKillsRunAndExits |
 | STR-V0-015 | `MaxUnits`, `MaxDocumentBytes`, `DefaultBudget` | TestSTRV0015UnitBound, TestSTRV0014RunnerCancelAndBudgetKillGroup |
 | STR-V0-016 | local profile claims no containment (help text) | help text only; CI permissions are the call site's: `NOT_RUN` |
