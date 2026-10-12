@@ -187,6 +187,37 @@ func TestCEMPrepareKeepsInheritedMapReplaceGuidance(t *testing.T) {
 	}
 }
 
+// TestCEMStatusCitationIsOptIn pins CEM-V1-080's --citation opt-in at the
+// CLI: default canonical status omits the citation block, keeping the frozen
+// 0.x goldens (decision 0357), and --citation adds it.
+func TestCEMStatusCitationIsOptIn(t *testing.T) {
+	t.Parallel()
+	root, base, target := cemRepo(t)
+	code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--base", base, "--target", target)
+	if code != 0 {
+		t.Fatalf("prepare: %s", stderr)
+	}
+	code, _, stderr = runCLI(t, "--root", root, "cem", "cite",
+		"--map", ".corvint/change.cem.json", "--hunk", "1",
+		"--evidence-path", "docs/rule.txt", "--lines", "1:1", "--relation", "specification")
+	if code != 0 {
+		t.Fatalf("cite: %s", stderr)
+	}
+	cemGit(t, root, "add", ".corvint/change.cem.json")
+	cemGit(t, root, "commit", "-qm", "candidate")
+	status := []string{"--root", root, "cem", "status",
+		"--map", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD",
+		"--max-unknown", "0", "--max-mechanical", "0"}
+	code, out, stderr := runCLI(t, status...)
+	if code != 0 || strings.Contains(out, "\"citation\"") {
+		t.Fatalf("default status: %d %s\n%s", code, stderr, out)
+	}
+	code, out, stderr = runCLI(t, append(status, "--citation")...)
+	if code != 0 || !strings.Contains(out, "\"citation\":{") || !strings.Contains(out, "\"profile\":\"cem-citation-support/0\"") {
+		t.Fatalf("--citation status: %d %s\n%s", code, stderr, out)
+	}
+}
+
 // TestCEMEndToEndAndGoldenEnvelope drives the full two-phase flow through the
 // CLI and freezes the canonical status envelope byte-for-byte (roots
 // normalized; every hash is deterministic from the fixed fixture).

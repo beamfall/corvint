@@ -263,7 +263,9 @@ or changed. Nothing here is a verdict, threshold or published cut-off.
   `specificity` is `anchored` minus `anchored` after the shift (0 below two supported hunks).
 
   Placement in this slice: the native 0.x canonical verification object carries key `citation` on
-  success and on drift rejection (`verify`, `status`, `check`). The stable (`cem/1.0`) result does
+  success and on drift rejection only when `--citation` is given to `verify` or `status`; default
+  output stays byte-identical to the frozen 0.x goldens (decision 0357) and to the base verifier,
+  which `dogfood-check` requires. The stable (`cem/1.0`) result does
   not carry it yet: `cem-stable-verification/1` is a sealed 21-key shape
   (`protocol/cem-1.0/stable/RESULT.schema.json`, the S0E repository-envelope packet and the
   go1.27.2 structural tuples), so adding the member is a packet change owned by V1-1265. The
@@ -281,15 +283,13 @@ Acceptance evidence:
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-080 | `TestCEMV1080RubberStampAndCarefulMapsDiffer`, `TestCEMV1080CitationIsCanonicalOnly` (native); `TestCEMV1080RubberStampAndCarefulBothAccept` (portable) | A rubber-stamp map (every hunk cites one `AGENTS.md` span) and a careful map of the same 24-hunk patch both ACCEPT and their `citation` integers differ; tiers never change `valid`, `issues` or `drift`; `cem/0.1` carries no block |
+| CEM-V1-080 | `TestCEMV1080RubberStampAndCarefulMapsDiffer`, `TestCEMV1080CitationIsCanonicalOnly`, `TestCEMStatusCitationIsOptIn` (native); `TestCEMV1080RubberStampAndCarefulBothAccept` (portable) | A rubber-stamp map (every hunk cites one `AGENTS.md` span) and a careful map of the same 24-hunk patch both ACCEPT and their `citation` integers differ; tiers never change `valid`, `issues` or `drift`; `cem/0.1` carries no block |
 | CEM-V1-081 | `TestCEMV1081IDBoundaryAndAnnotation`, `TestCEMV1081IDAnchorRequiresBoundedTokenAndDefinition`, `TestCEMV1081PathAnchorUsesPostImageAndBasenameFloor`, `TestCEMV1081Annotation` (native); `TestCEMV1081IDBoundaryAndAnnotation`, `TestCEMV1081RequirementIDGrammar` (portable) | A hunk adding ``x // `CEM-SM-007` `` against a span that mentions `CEM-SM-0070` and defines nothing is `cited`, not `anchored`; a hunk adding only that comment is `annotation: true`; the post-image path and the 6-byte basename floor decide `path` |
 | CEM-V1-082 | `TestCEMV1082DisjointUmbrellaSpansHaveNoSpecificity`, `TestCEMV1082CitationIsDeterministic`, `TestCEMV1082BlockShapeAndCounts`, `TestCEMV1082ShiftNull`, `TestCEMV1082HunkOrderDoesNotChangeTheBlock` (native); `TestCEMV1082DisjointUmbrellaSpansHaveZeroSpecificity`, `TestCEMV1082CitationIsOrderIndependent`, `TestCEMV1082CountingRules`, `TestCEMV1082StableResultKeepsSealedShape` (portable); `interop/cem01-go/testdata/citation/*/citation.json` byte-matched against the native binary | `AGENTS.md` split into 20 disjoint spans, one per hunk, reports `specificity: 0`; native and portable blocks are byte-identical on four fixtures; the stable result keeps its 21 keys |
 
 Rollback: remove `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` with
-`testdata/citation/`, and the `citation` key in `successVerification`; restore the three
-`cmd/corvint/testdata` goldens (`cem-status-canonical.golden`, `core-freeze/cem-status.json`,
-`core-freeze/cem-verify.json`) that gained the additive member. No map, packet or protocol vector
-changes.
+`testdata/citation/`, and the `citation` key in `successVerification`; remove the `--citation`
+flag and the `Citation` read option. No map, packet or protocol vector changes.
 
 ## Stable verification result codes
 

@@ -9,7 +9,7 @@ is converted to `cem/1.0`.
 ## Method
 
 `corvint cem status --map .corvint/changes/<bind>.cem.json --expected-base <baseRevision>
---target <bind>` for each of the 593 maps under `.corvint/changes/`, binary built from the lane
+--target <bind> --citation` for each of the 593 maps under `.corvint/changes/`, binary built from the lane
 before the review repairs below. The per-map `verification.citation` block was retained; the two
 maps the `origin/main` merge added were run afterwards with both the pre-repair and the repaired
 binary (byte-identical output), as were three sampled maps from the main run. Retained evidence:
@@ -17,7 +17,9 @@ binary (byte-identical output), as were three sampled maps from the main run. Re
 distinct evidence, fan-out, concentration, invariant flag, specificity) and
 `evidence/v1-1262/citation-baseline-summary.json` (aggregate, with the specificity and fan-out
 histograms). The full per-hunk blocks (3.3 MB) are reproducible from the command above and were
-not committed.
+not committed. The flag was added after the baseline run because `dogfood-check` requires
+byte-identical base and tree verifier output, so default `cem status` output stays frozen; the
+block itself is unchanged.
 
 ## Result
 

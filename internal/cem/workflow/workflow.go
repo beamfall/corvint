@@ -346,7 +346,7 @@ func policyIssues(limits PolicyLimits, counts map[string]any) []any {
 
 // --- verification envelopes ---
 
-func successVerification(document *wire.Map, outcome *verify.Outcome, driftRejected bool) map[string]any {
+func successVerification(document *wire.Map, outcome *verify.Outcome, driftRejected, citation bool) map[string]any {
 	result := map[string]any{
 		"valid": !driftRejected, "spec": document.Spec, "baseRevision": outcome.BaseRevision,
 		"targetRevision": nullableText(outcome.TargetRevision), "patchSha256": document.PatchSha256,
@@ -360,8 +360,9 @@ func successVerification(document *wire.Map, outcome *verify.Outcome, driftRejec
 		result["assurance"] = "canonical"
 		// The consumer-computed support block (CEM-V1-080..082) is evidence
 		// shape only: it never changes valid, issues or drift. Its struct keeps
-		// the pinned cross-consumer key order inside the sorted envelope.
-		if outcome.Citation != nil {
+		// the pinned cross-consumer key order inside the sorted envelope. It is
+		// opt-in (--citation) so default 0.x output stays frozen.
+		if citation && outcome.Citation != nil {
 			result["citation"] = outcome.Citation
 		}
 	}
