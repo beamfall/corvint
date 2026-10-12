@@ -22,20 +22,24 @@ func validRegistration(partition, model, effort string, n int) registration {
 	}
 }
 
-// commitRegistration writes the registration into a fresh Git repository and
-// commits it with the given committer date (empty for now).
-func commitRegistration(t *testing.T, document any, committerDate string) string {
+// commitRegistration writes the registration at the repository-relative name
+// in a fresh Git repository and commits it with the given committer date
+// (empty for now).
+func commitRegistration(t *testing.T, name string, document any, committerDate string) string {
 	t.Helper()
 	root := t.TempDir()
 	data, err := json.Marshal(document)
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(root, "registration.json")
+	path := filepath.Join(root, filepath.FromSlash(name))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, arguments := range [][]string{{"init", "-q", "-b", "main"}, {"add", "registration.json"}, {"commit", "-q", "-m", "register"}} {
+	for _, arguments := range [][]string{{"init", "-q", "-b", "main"}, {"add", name}, {"commit", "-q", "-m", "register"}} {
 		command := exec.Command("git", arguments...)
 		command.Dir = root
 		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
@@ -119,7 +123,7 @@ func TestRegistrationRefusesAnIncompletePlan(t *testing.T) {
 // CRT-V0-014: a registration counts only as committed at HEAD byte for byte,
 // and the report keeps the commit and its committer time.
 func TestRegistrationMustBeCommitted(t *testing.T) {
-	path := commitRegistration(t, validRegistration("heldout", "m", "high", 2), "2026-10-01T12:00:00Z")
+	path := commitRegistration(t, "registration.json", validRegistration("heldout", "m", "high", 2), "2026-10-01T12:00:00Z")
 	record, err := loadRegistration(context.Background(), path)
 	if err != nil {
 		t.Fatal(err)
@@ -140,6 +144,14 @@ func TestRegistrationMustBeCommitted(t *testing.T) {
 	}
 	if _, err := loadRegistration(context.Background(), loose); err == nil {
 		t.Fatal("a registration outside any repository was accepted")
+	}
+	nested := commitRegistration(t, "plans/trial/registration.json", validRegistration("heldout", "m", "high", 2), "2026-10-01T12:00:00Z")
+	record, err = loadRegistration(context.Background(), nested)
+	if err != nil {
+		t.Fatalf("a registration committed below the repository root was refused: %v", err)
+	}
+	if record.Path != "plans/trial/registration.json" || record.CommittedAt != "2026-10-01T12:00:00Z" {
+		t.Fatalf("nested record = %+v", record)
 	}
 }
 
@@ -181,6 +193,38 @@ func TestReportRefusesARegistrationNewerThanItsFirstLane(t *testing.T) {
 		finalize(document)
 		if !strings.Contains(document.Invalid, "is newer than the first lane (2026-10-02T00:00:00Z)") {
 			t.Fatalf("invalid = %q", document.Invalid)
+		}
+	})
+	t.Run("CRT-V0-014/one completed lane without a start", func(t *testing.T) {
+		document := registeredReport("2026-10-02T00:00:00Z", "2026-10-01T00:00:00Z")
+		document.Lanes[1].StartedAt = ""
+		finalize(document)
+		if !strings.Contains(document.Invalid, "1 completed lane(s) recorded no start") {
+			t.Fatalf("invalid = %q", document.Invalid)
+		}
+	})
+	t.Run("CRT-V0-014/rescore checks the registered plan", func(t *testing.T) {
+		edits := map[string]func(*registration){
+			"alpha":          func(plan *registration) { plan.Alpha = 0.1 },
+			"primary_metric": func(plan *registration) { plan.PrimaryMetric = "citable" },
+			"hypotheses":     func(plan *registration) { plan.Hypotheses = nil },
+			"profile":        func(plan *registration) { plan.Profile = "other/0" },
+		}
+		for name, edit := range edits {
+			document := registeredReport("2026-10-02T00:00:00Z", "2026-10-01T00:00:00Z")
+			edit(&document.Registration.Document)
+			path := filepath.Join(t.TempDir(), "report.json")
+			var stdout, stderr bytes.Buffer
+			if code := write(document, path, &stdout, &stderr); code != 0 {
+				t.Fatal(stderr.String())
+			}
+			rebuilt, _, err := rescore([]string{"--report", path})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(rebuilt.Invalid, name) {
+				t.Fatalf("%s: rescored invalid = %q", name, rebuilt.Invalid)
+			}
 		}
 	})
 	t.Run("CRT-V0-014/no lane start observed", func(t *testing.T) {
@@ -299,11 +343,11 @@ func TestRunChecksItsRegistration(t *testing.T) {
 	if _, _, err := runTrial(ctx, arguments("control", "")); err == nil || !strings.Contains(err.Error(), "needs --registration") {
 		t.Fatalf("heldout run without registration: %v", err)
 	}
-	mismatched := commitRegistration(t, validRegistration("heldout", notObserved, notObserved, 5), "")
+	mismatched := commitRegistration(t, "registration.json", validRegistration("heldout", notObserved, notObserved, 5), "")
 	if _, _, err := runTrial(ctx, arguments("control", mismatched)); err == nil || !strings.Contains(err.Error(), "registered n 5, run 1 pairs") {
 		t.Fatalf("mismatched registration: %v", err)
 	}
-	past := commitRegistration(t, validRegistration("heldout", notObserved, notObserved, 1), "2026-01-01T00:00:00Z")
+	past := commitRegistration(t, "registration.json", validRegistration("heldout", notObserved, notObserved, 1), "2026-01-01T00:00:00Z")
 	if _, _, err := runTrial(ctx, []string{"--tasks", tasks, "--history", repo, "--arms", "control,treatment", "--agent", "script",
 		"--agent-command", agentScript, "--corvint", agentScript, "--registration", past}); err == nil || !strings.Contains(err.Error(), "shipped profile's artifact") {
 		t.Fatalf("registered cem/0.1 treatment arm: %v", err)
@@ -318,7 +362,7 @@ func TestRunChecksItsRegistration(t *testing.T) {
 	if document.Changes[0].GoldSpans == nil || document.Lanes[0].CitedNotGold.Paths == notObserved {
 		t.Fatalf("the run did not carry span gold or score precision: %+v %+v", document.Changes[0], document.Lanes[0].CitedNotGold)
 	}
-	future := commitRegistration(t, validRegistration("heldout", notObserved, notObserved, 1), "2099-01-01T00:00:00Z")
+	future := commitRegistration(t, "registration.json", validRegistration("heldout", notObserved, notObserved, 1), "2099-01-01T00:00:00Z")
 	document, _, err = runTrial(ctx, arguments("control", future))
 	if err != nil {
 		t.Fatal(err)

@@ -86,6 +86,15 @@ func parseRegistration(data []byte) (registration, error) {
 	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
 		return document, errors.New("registration: trailing data after the object")
 	}
+	if problems := registrationProblems(document); len(problems) != 0 {
+		return document, errors.New("registration: " + strings.Join(problems, "; "))
+	}
+	return document, nil
+}
+
+// registrationProblems checks each field's shape and fixed value, sorted, so
+// loading a registration and rescoring a report that carries one agree.
+func registrationProblems(document registration) []string {
 	problems := []string{}
 	if document.Profile != registrationProfile {
 		problems = append(problems, "profile must be "+registrationProfile)
@@ -116,11 +125,8 @@ func parseRegistration(data []byte) (registration, error) {
 			problems = append(problems, name+" must not be empty")
 		}
 	}
-	if len(problems) != 0 {
-		sort.Strings(problems)
-		return document, errors.New("registration: " + strings.Join(problems, "; "))
-	}
-	return document, nil
+	sort.Strings(problems)
+	return problems
 }
 
 // loadRegistration reads a registration file that must be committed, byte for
@@ -142,21 +148,23 @@ func loadRegistration(ctx context.Context, path string) (*registrationRecord, er
 	if err != nil {
 		return nil, err
 	}
-	directory := filepath.Dir(absolute)
-	top, err := gitOutput(ctx, directory, "rev-parse", "--show-toplevel")
+	top, err := gitOutput(ctx, filepath.Dir(absolute), "rev-parse", "--show-toplevel")
 	if err != nil {
 		return nil, fmt.Errorf("registration %s is not inside a Git repository: %w", path, err)
 	}
-	relative, err := filepath.Rel(strings.TrimSpace(top), absolute)
+	top = strings.TrimSpace(top)
+	relative, err := filepath.Rel(top, absolute)
 	if err != nil {
 		return nil, err
 	}
 	relative = filepath.ToSlash(relative)
-	committed, err := gitBytes(ctx, directory, "cat-file", "blob", "HEAD:"+relative)
+	// Both lookups run from the repository root, where the root-relative
+	// path names the file whatever directory holds it.
+	committed, err := gitBytes(ctx, top, "cat-file", "blob", "HEAD:"+relative)
 	if err != nil || !bytes.Equal(committed, data) {
 		return nil, fmt.Errorf("registration %s must be committed at HEAD exactly as it is on disk", path)
 	}
-	line, err := gitOutput(ctx, directory, "log", "-1", "--format=%H %cI", "HEAD", "--", relative)
+	line, err := gitOutput(ctx, top, "log", "-1", "--format=%H %cI", "HEAD", "--", relative)
 	fields := strings.Fields(line)
 	if err != nil || len(fields) != 2 {
 		return nil, fmt.Errorf("registration %s: cannot read the commit that wrote it", path)
@@ -172,11 +180,12 @@ func loadRegistration(ctx context.Context, path string) (*registrationRecord, er
 }
 
 // registrationMismatches lists every way the report's run disagrees with its
-// registration: the fixed fields, the running scorer, and the arms, which may
-// not carry the all-unknown cem/0.1 worklist (CRT-V0-014, CRT-V0-015).
+// registration: a malformed or unfixed field (a report is decoded without
+// parseRegistration), the registered values, the running scorer, and the arms,
+// which may not carry the all-unknown cem/0.1 worklist (CRT-V0-014, CRT-V0-015).
 func registrationMismatches(document *report, record *registrationRecord) []string {
 	plan := record.Document
-	problems := []string{}
+	problems := registrationProblems(plan)
 	compare := func(name, registered, observed string) {
 		if registered != observed {
 			problems = append(problems, fmt.Sprintf("registered %s %q, run %q", name, registered, observed))
@@ -214,6 +223,9 @@ func registrationInvalid(document *report) []string {
 	}
 	first, observed := firstLaneStart(document)
 	switch {
+	case unstampedLanes(document) != 0:
+		problems = append(problems, fmt.Sprintf("%d completed lane(s) recorded no start, so the registration order is unobserved",
+			unstampedLanes(document)))
 	case !observed:
 		problems = append(problems, "no lane recorded its start, so the registration order is unobserved")
 	case committed.After(first):
@@ -238,6 +250,20 @@ func firstLaneStart(document *report) (time.Time, bool) {
 		}
 	}
 	return first, observed
+}
+
+// unstampedLanes counts lanes that did not error yet carry no readable start,
+// such as a lane reused from a report written before lanes recorded one: the
+// earliest start would then miss a lane that may have run first. An errored
+// lane already makes the run invalid (CRT-V0-010).
+func unstampedLanes(document *report) int {
+	count := 0
+	for _, item := range document.Lanes {
+		if _, err := time.Parse(time.RFC3339Nano, item.StartedAt); err != nil && item.Error == "" {
+			count++
+		}
+	}
+	return count
 }
 
 // checkRegistration refuses, before any lane runs, a run its registration

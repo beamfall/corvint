@@ -21,8 +21,9 @@ harness's run-time checks; the trial run itself is post-rc.3 and `NOT_RUN`.
   `{gold,main,register,score,select}.go`, so
   `cat tools/cem-trial/{gold,main,register,score,select}.go | shasum -a 256` reproduces it. A
   heldout run needs a registration; mismatches are refused before dispatch. On rescore the report
-  is invalid if the commit is newer than the earliest lane `started_at`, if no start was recorded,
-  or if any field or the running scorer disagrees.
+  is invalid if the commit is newer than the earliest lane `started_at`, if a lane that did not
+  error recorded no start, or if any field (re-validated from the carried registration) or the
+  running scorer disagrees.
 - Treatment arm (CRT-V0-015): the registered treatment is the shipped profile's artifact. The
   harness cannot build it yet, so a registered run with the `treatment` or `seeded` arm, both still
   carrying the all-`unknown` cem/0.1 worklist, is refused and invalid on rescore. Any run before
@@ -40,3 +41,11 @@ are new-side ranges at `C` while citations are at `C^`. Gold is test-or-spec onl
 implementation citation is not gold in every arm alike. Read the rates as paired comparisons
 between arms, not as absolute error rates. The shipped-profile arm builder follows decision 0523
 P2.
+
+## Review
+
+Codex round 1 (FAIL) found three P2 defects, all repaired with regression tests. A registration
+below the repository root failed the Git history lookup, so both lookups now run from the root.
+Rescore skipped validating the registered profile, hypotheses, metric and alpha, so the shape
+check is now shared. A reused lane without a start could hide from the order check, so a
+non-errored lane without a start now makes the report invalid.

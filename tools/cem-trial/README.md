@@ -66,8 +66,9 @@ must be committed, byte for byte, at `HEAD` of its repository before selection. 
 registration the run does not match before any lane starts, and refuses a registered run of the
 `treatment` or `seeded` arm, which still carry the all-unknown cem/0.1 worklist rather than the
 shipped profile's artifact (CRT-V0-015). Each lane records `started_at`; the report is `invalid`
-when the registration commit is newer than the first lane, and `score --report` re-checks that
-order, the fixed fields and the running scorer's digest.
+when the registration commit is newer than the first lane or a lane that did not error recorded
+no start, and `score --report` re-checks that order, the registration's fields and the running
+scorer's digest.
 
 ## Reply grammar
 
