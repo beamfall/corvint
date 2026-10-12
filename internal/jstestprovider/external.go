@@ -26,9 +26,17 @@ import (
 const ExternalProfile = "corvint-playwright-external/0"
 const externalOutputLimit = 4 << 20
 
-// externalMaxConfigInputs bounds how many reporter-observed config inputs are
-// re-opened and digested at bind time; beyond it the report is refused as overflow.
-const externalMaxConfigInputs = 256
+// externalMaxConfigInputs and externalMaxConfigInputBytes bound the
+// reporter-observed config-input set that is re-opened and digested at bind time
+// and copied into the receipt (PWP-V0-021). The count admits the non-node_modules
+// module graph of a large suite (the earlier 256 refused mid-size suites); the
+// byte bound, the sum of every path and digest length, keeps the set at a quarter
+// of the 4 MiB provider-document bound (testvaliditydoc.MaxInputBytes). Beyond
+// either bound the report is refused as config-inputs-overflow.
+const (
+	externalMaxConfigInputs     = 4096
+	externalMaxConfigInputBytes = 1 << 20
+)
 
 const (
 	qualifiedBundledBrowserName      = "chromium-headless-shell"
@@ -482,10 +490,26 @@ func readBoundedReport(path string, limit int) ([]byte, error) {
 	return data, err
 }
 
+// configInputsWithinBounds refuses a config-input set above either bound with
+// config-inputs-overflow, naming the observed value and the limit (PWP-V0-021).
+func configInputsWithinBounds(inputs map[string]string) error {
+	if len(inputs) > externalMaxConfigInputs {
+		return fmt.Errorf("config-inputs-overflow: observed %d config inputs, limit %d", len(inputs), externalMaxConfigInputs)
+	}
+	size := 0
+	for path, digest := range inputs {
+		size += len(path) + len(digest)
+	}
+	if size > externalMaxConfigInputBytes {
+		return fmt.Errorf("config-inputs-overflow: observed %d config input bytes, limit %d", size, externalMaxConfigInputBytes)
+	}
+	return nil
+}
+
 func bindQualifiedReport(r *Receipt, report qualifiedReport) error {
 	r.Schedule = report.Schedule
-	if len(report.ConfigFiles) > externalMaxConfigInputs {
-		return errors.New("report-output-overflow")
+	if err := configInputsWithinBounds(report.ConfigFiles); err != nil {
+		return err
 	}
 	if report.ConfigFiles[r.Identity.ConfigFile] != r.Identity.ConfigDigest {
 		return errors.New("config-inputs-unobserved")

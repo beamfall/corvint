@@ -557,14 +557,73 @@ func TestSensitiveInputPrefixOverlappingValuesRedactLongestFirst(t *testing.T) {
 	}
 }
 
-func TestQualifiedReportRefusesConfigInputOverflow(t *testing.T) {
-	r := qualifiedFixture(t)
-	report := qualifiedReport{Version: r.Identity.RunnerVersion, Status: "passed", Tests: r.Tests, ConfigFiles: map[string]string{r.Identity.ConfigFile: r.Identity.ConfigDigest}}
+// PWP-V0-021: a suite whose non-node_modules module graph exceeds the earlier
+// 256-input cap binds when every input is within both bounds; above the count or
+// byte bound the report is refused as config-inputs-overflow naming the observed
+// value and the limit, never as report-output-overflow.
+func TestQualifiedReportConfigInputBounds(t *testing.T) {
+	dir := t.TempDir()
+	config := filepath.Join(dir, "playwright.config.cjs")
+	if err := os.WriteFile(config, []byte("module.exports = {};\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	configDigest, err := digestFile(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture := func() (Receipt, qualifiedReport) {
+		r := qualifiedFixture(t)
+		r.Identity.ConfigFile, r.Identity.ConfigDigest = config, configDigest
+		r.Tests[0].Project.ConfigDigest = configDigest
+		report := qualifiedReport{Version: r.Identity.RunnerVersion, Status: "passed", Tests: r.Tests, ConfigFiles: map[string]string{config: configDigest}, Files: map[string]string{"/repo/test.cjs": "test"}}
+		return r, report
+	}
+
+	r, report := fixture()
+	for i := range 300 {
+		helper := filepath.Join(dir, fmt.Sprintf("support-%03d.cjs", i))
+		if err := os.WriteFile(helper, []byte(fmt.Sprintf("module.exports = %d;\n", i)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		digest, err := digestFile(helper)
+		if err != nil {
+			t.Fatal(err)
+		}
+		report.ConfigFiles[helper] = digest
+	}
+	if err := bindQualifiedReport(&r, report); err != nil {
+		t.Fatalf("301 config inputs within both bounds refused: %v", err)
+	}
+	if len(r.Identity.ConfigInputDigests) != 301 || !QualifiedReceiptBindingReady(r, r.Tests[0]) {
+		t.Fatalf("bound run lost its config inputs or identity: %d inputs", len(r.Identity.ConfigInputDigests))
+	}
+
+	r, report = fixture()
 	for i := range externalMaxConfigInputs {
 		report.ConfigFiles[fmt.Sprintf("/missing/helper-%d.cjs", i)] = "digest"
 	}
-	if err := bindQualifiedReport(&r, report); err == nil || err.Error() != "report-output-overflow" {
-		t.Fatalf("config input overflow err=%v", err)
+	want := fmt.Sprintf("config-inputs-overflow: observed %d config inputs, limit %d", externalMaxConfigInputs+1, externalMaxConfigInputs)
+	if err := bindQualifiedReport(&r, report); err == nil || err.Error() != want {
+		t.Fatalf("config input count overflow err=%v, want %q", err, want)
+	}
+
+	r, report = fixture()
+	long := "/missing/" + strings.Repeat("d", 4000)
+	size := len(config) + len(configDigest)
+	for i := 0; size <= externalMaxConfigInputBytes; i++ {
+		path := fmt.Sprintf("%s-%04d.cjs", long, i)
+		report.ConfigFiles[path] = configDigest
+		size += len(path) + len(configDigest)
+	}
+	if len(report.ConfigFiles) > externalMaxConfigInputs {
+		t.Fatalf("byte-bound fixture also exceeds the count bound: %d", len(report.ConfigFiles))
+	}
+	want = fmt.Sprintf("config-inputs-overflow: observed %d config input bytes, limit %d", size, externalMaxConfigInputBytes)
+	if err := bindQualifiedReport(&r, report); err == nil || err.Error() != want {
+		t.Fatalf("config input byte overflow err=%v, want %q", err, want)
+	}
+	if failure := externalReportFailure(SensitiveExternalProfile, "report-identity-unknown", want); failure.Detail != "untrusted reporter output rejected" {
+		t.Fatalf("/2 detail echoed reporter output: %q", failure.Detail)
 	}
 }
 

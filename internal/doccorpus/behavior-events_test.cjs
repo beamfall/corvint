@@ -219,6 +219,68 @@ test('DCP-V1-081: the API exposes no recorder and refuses ambiguous use', async 
   await assert.rejects(harness({ fixtures: [''] }).attempt(async () => {}), TypeError);
 });
 
+test('DCP-V1-083: valueless state matchers record their canonical state name after they pass', async () => {
+  const h = harness();
+  const page = h.context.open(new Page());
+  await h.attempt(async behavior => {
+    navigate(page, 'http://127.0.0.1/form');
+    const meta = id => ({ id, behavior: 'b', criterion: 'c' });
+    await behavior.expect(meta('v'))(page.locator('#panel')).toBeVisible();
+    await behavior.expect(meta('h'))(page.locator('#empty')).toBeHidden({ timeout: 100 });
+    await behavior.expect(meta('e'))(page.locator('#save')).toBeEnabled({});
+    await behavior.expect(meta('k'))(page.locator('#agree')).toBeChecked(undefined);
+  });
+  const events = h.events().map(e => JSON.parse(e));
+  assert.deepEqual(events.map(e => [e.kind, e.id, e.matcher, e.locator, e.value]), [
+    ['page', '/form', '', '', ''],
+    ['assertion', 'v', 'toBeVisible', '#panel', 'visible'],
+    ['assertion', 'h', 'toBeHidden', '#empty', 'hidden'],
+    ['assertion', 'e', 'toBeEnabled', '#save', 'enabled'],
+    ['assertion', 'k', 'toBeChecked', '#agree', 'checked'],
+  ]);
+  assert.deepEqual(calls.map(c => [c.name, c.args, c.negated]), [
+    ['toBeVisible', [], false], ['toBeHidden', [{ timeout: 100 }], false], ['toBeEnabled', [{}], false], ['toBeChecked', [], false],
+  ]);
+  assert.deepEqual(h.warnings, []);
+});
+
+test('DCP-V1-083: state options, extra arguments, .not and failures record nothing; hidden options never reach a recorded matcher', async () => {
+  const h = harness();
+  const page = h.context.open(new Page());
+  const hidden = { timeout: 50 };
+  Object.defineProperty(hidden, 'visible', { value: false, enumerable: false });
+  await h.attempt(async behavior => {
+    const meta = { id: 'a', behavior: 'b', criterion: 'c' };
+    const matchers = behavior.expect(meta)(page.locator('#x'));
+    assert.equal(matchers.not, undefined);
+    await matchers.toBeVisible({ visible: false });
+    await matchers.toBeVisible({ visible: true });
+    await matchers.toBeEnabled({ enabled: false, timeout: 5 });
+    await matchers.toBeChecked({ checked: false });
+    await matchers.toBeChecked({ indeterminate: true });
+    await matchers.toBeHidden('x');
+    await matchers.toBeHidden(null);
+    await matchers.toBeVisible({ timeout: 5 }, 'extra');
+    await matchers.toBeVisible(hidden);
+  });
+  assert.equal(calls.length, 9);
+  assert.deepEqual(calls[0].args, [{ visible: false }]);
+  assert.deepEqual(calls[8].args, [{ timeout: 50 }]);
+  assert.equal(Object.getOwnPropertyNames(calls[8].args[0]).includes('visible'), false);
+  // Only the last call records: its non-enumerable visible:false never reached the matcher, which
+  // received the fresh timeout-only snapshot, so the event states what actually ran.
+  assert.deepEqual(h.events().map(e => [JSON.parse(e).matcher, JSON.parse(e).value]), [['toBeVisible', 'visible']]);
+  assert.ok(h.warnings.length >= 4);
+
+  const failing = harness();
+  const failingPage = failing.context.open(new Page());
+  outcome = ({ name }) => name !== 'toBeChecked';
+  await assert.rejects(failing.attempt(async behavior => {
+    await behavior.expect({ id: 'a', behavior: 'b', criterion: 'c' })(failingPage.locator('#agree')).toBeChecked();
+  }), /toBeChecked failed/);
+  assert.deepEqual(failing.events(), []);
+});
+
 test('DCP-V1-081: page events follow real main-frame commits only', async () => {
   const h = harness();
   const first = new Page();
