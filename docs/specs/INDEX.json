@@ -3618,8 +3618,8 @@
     "path": "docs/specs/session-test-runner-v0.md",
     "title": "Session Test Runner V0",
     "reqPrefix": "STR-V0",
-    "intent": "proposed (owner-directed 2026-10-11; V1-0040)",
-    "delivery": "experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards)",
+    "intent": "accepted (decision 0524; V1-0040)",
+    "delivery": "experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement)",
     "claim": "`corvint test` plans from the diff, runs only selected tests through runner adapters, shards deterministically, and falls back alike locally and in CI.",
     "dependsOn": [
       "docs/specs/affected-plan-v0.md",
@@ -3629,7 +3629,8 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint",
-      "internal/sessiontest"
+      "internal/sessiontest",
+      "tools/str-parity"
     ]
   }
 ]

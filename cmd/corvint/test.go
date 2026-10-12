@@ -26,7 +26,7 @@ const testHelp = `Run the affected test set (experimental, STR-V0).
 
 Usage:
   corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N]
-    [--placement universe] [--profile local|ci [--confine PATH]]
+    [--placement universe|balanced] [--profile local|ci [--confine PATH]]
     [--dry-run] [--manifest PATH] [--receipt PATH]
   corvint test verify-shards --manifest PATH RECEIPT...
 
@@ -36,7 +36,10 @@ attribution, and runs the selected Go packages on the unchanged
 environment and flags (ci: the full CI branch's). Any fallback condition
 runs FULL and prints corvint-test: FALLBACK <reason>. A language with no
 adapter runs its declared make <lang>-test target or is INCOMPLETE.
---placement balanced is experimental and not implemented.
+--placement balanced (experimental) spreads a narrowed run's own units
+over the shards by the cost table; FULL keeps the universe partition. It
+executes only in the local profile (ci: --dry-run only), and a sharded run
+needs every shard to match one --manifest from a --dry-run.
 
 --dry-run prints the shard's argv as JSON and runs nothing but Git;
 --manifest PATH writes the corvint-test-manifest/0 there. Without --dry-run
@@ -114,17 +117,15 @@ func parseTestOptions(args []string) (testOptions, error) {
 	f.BoolVar(&options.dryRun, "dry-run", false, "")
 	requireClean := f.Bool("require-clean", false, "")
 	if err := f.Parse(args); err != nil || f.NArg() != 0 {
-		return options, argumentError("usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe] [--profile local|ci --confine PATH] [--dry-run] [--manifest PATH] [--receipt PATH]")
+		return options, argumentError("usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced] [--profile local|ci --confine PATH] [--dry-run] [--manifest PATH] [--receipt PATH]")
 	}
 	switch {
 	case *requireClean:
 		return options, argumentError("test runs the bytes that execute, dirty paths included; --require-clean is not accepted")
 	case !validGitObjectID(options.base):
 		return options, argumentError("test needs --base FULL_COMMIT_ID")
-	case options.placement == "balanced":
-		return options, argumentError("--placement balanced is experimental and not implemented (STR-V0-008)")
-	case options.placement != sessiontest.PlacementUniverse:
-		return options, argumentError("--placement must be universe")
+	case options.placement != sessiontest.PlacementUniverse && options.placement != sessiontest.PlacementBalanced:
+		return options, argumentError("--placement must be universe or balanced")
 	case options.profile != sessiontest.ProfileLocal && options.profile != sessiontest.ProfileCI:
 		return options, argumentError("--profile must be local or ci")
 	case options.profile == sessiontest.ProfileCI && !filepath.IsAbs(options.confine):
@@ -140,6 +141,18 @@ func parseTestOptions(args []string) (testOptions, error) {
 			return options, argumentError("--shard must be I/N with 0 <= I < N <= 64")
 		}
 		options.shard, options.shardCount = i, n
+	}
+	// Balanced placement executes only locally; CI computes and retains it
+	// beside the executing universe placement (STR-V0-008, AFP-V0-028). Its
+	// membership depends on the plan, so a sharded run executes only against
+	// one supplied manifest, which every shard must reproduce or fail.
+	if options.placement == sessiontest.PlacementBalanced && !options.dryRun {
+		switch {
+		case options.profile == sessiontest.ProfileCI:
+			return options, argumentError("--profile ci --placement balanced may only be computed with --dry-run; CI executes universe placement (STR-V0-008)")
+		case options.shardCount > 1 && options.manifest == "":
+			return options, argumentError("a sharded --placement balanced run needs --manifest PATH from one --dry-run, which every shard must reproduce (STR-V0-008)")
+		}
 	}
 	return options, nil
 }
@@ -301,7 +314,7 @@ func testWithin(path, directory string) bool {
 // files independently of the planner (STR-V0-001..003, STR-V0-018).
 func testRunInput(ctx context.Context, root string, options testOptions, source sessiontest.SourceIdentity) sessiontest.Input {
 	input := sessiontest.Input{
-		Base: options.base, RunnerProfile: options.profile, ShardCount: options.shardCount, Source: source,
+		Base: options.base, Placement: options.placement, RunnerProfile: options.profile, ShardCount: options.shardCount, Source: source,
 		Partition: sessiontest.PartitionFiles{
 			Allow:  testReadOptional(filepath.Join(root, testPartitionDirectory, "test-split-allow.json")),
 			Costs:  testReadOptional(filepath.Join(root, testPartitionDirectory, "package-costs.json")),
@@ -455,7 +468,7 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	}
 	document := map[string]any{
 		"checks": m.Checks, "incomplete": m.Incomplete, "invocations": planned, "manifestDigest": digest,
-		"reason": m.Reason, "scope": m.Scope, "shardCount": m.ShardCount, "shardIndex": options.shard,
+		"placement": m.Placement, "reason": m.Reason, "scope": m.Scope, "shardCount": m.ShardCount, "shardIndex": options.shard,
 	}
 	if options.manifest != "" {
 		encoded, err := sessiontest.Encode(m)

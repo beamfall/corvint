@@ -40,12 +40,15 @@ type Input struct {
 	Partition      PartitionFiles
 	PlanDigest     string
 	PlanError      string
-	RunnerProfile  string
-	Selected       []string // plan.selected unit ids
-	ShardCount     int
-	Source         SourceIdentity
-	Universe       []string // the graph's Go import paths
-	Unknown        []Unknown
+	// Placement is PlacementUniverse (or empty, the same) or
+	// PlacementBalanced; the manifest records it (STR-V0-018).
+	Placement     string
+	RunnerProfile string
+	Selected      []string // plan.selected unit ids
+	ShardCount    int
+	Source        SourceIdentity
+	Universe      []string // the graph's Go import paths
+	Unknown       []Unknown
 }
 
 // allowedUnknown is the closed AFP-V0-028 allowlist: every other plan.unknown
@@ -88,6 +91,14 @@ func Build(input Input) (Manifest, error) {
 	if input.ShardCount < 1 || input.ShardCount > cishards.MaxShards {
 		return Manifest{}, fmt.Errorf("shard count must be 1 to %d", cishards.MaxShards)
 	}
+	placement := input.Placement
+	switch placement {
+	case "":
+		placement = PlacementUniverse
+	case PlacementUniverse, PlacementBalanced:
+	default:
+		return Manifest{}, fmt.Errorf("placement must be %s or %s", PlacementUniverse, PlacementBalanced)
+	}
 	sourceDigest, err := Digest(input.Source)
 	if err != nil {
 		return Manifest{}, err
@@ -99,7 +110,7 @@ func Build(input Input) (Manifest, error) {
 	manifest := Manifest{
 		Base: input.Base, Checks: nonNil(input.Checks), DeclaredDigest: declaredDigest,
 		GraphDigest: input.GraphDigest, Incomplete: []string{}, PartitionDigest: PartitionDigest(input.Partition),
-		Placement: PlacementUniverse, PlanDigest: input.PlanDigest, Profile: ManifestProfile,
+		Placement: placement, PlanDigest: input.PlanDigest, Profile: ManifestProfile,
 		RunnerProfile: input.RunnerProfile, ShardCount: input.ShardCount, Source: input.Source,
 		SourceDigest: sourceDigest, Units: []Unit{},
 	}
@@ -176,7 +187,9 @@ func Build(input Input) (Manifest, error) {
 }
 
 // placeGo expands the Go run set into execution units on the unchanged
-// complete-universe partition (STR-V0-002, STR-V0-007).
+// complete-universe partition (STR-V0-002, STR-V0-007), or, for balanced
+// placement of a narrowed run, partitions the run set's own execution units
+// (STR-V0-008).
 func (m *Manifest) placeGo(input Input, run []string) {
 	declared := input.Declared
 	if input.RunnerProfile == ProfileLocal {
@@ -193,9 +206,25 @@ func (m *Manifest) placeGo(input Input, run []string) {
 			return
 		}
 	}
-	shards, err := cishards.PlanFrom(input.Universe, input.ShardCount, input.Partition.Costs, input.Partition.Allow, input.Partition.Slices)
+	// Balanced placement runs the same cishards placement over the run set
+	// instead of the universe: a package splits into the same slices either
+	// way (the split test reads only that package's entries and the shard
+	// count) and an unknown package costs the same table median, so the
+	// execution units equal universe placement's and only their shards move.
+	// Longest first into the least-loaded shard puts the first N units on N
+	// different shards, so a run set of at least N units uses every shard.
+	// FULL keeps the complete-universe partition in either mode.
+	placed, partition := input.Universe, "universe"
+	if m.Placement == PlacementBalanced && m.Scope == ScopeNarrowed {
+		set := map[string]bool{}
+		for _, pkg := range run {
+			set[pkg] = true
+		}
+		placed, partition = sortedKeys(set), "balanced"
+	}
+	shards, err := cishards.PlanFrom(placed, input.ShardCount, input.Partition.Costs, input.Partition.Allow, input.Partition.Slices)
 	if err != nil {
-		m.Incomplete = append(m.Incomplete, "go: the universe partition is unavailable: "+err.Error())
+		m.Incomplete = append(m.Incomplete, "go: the "+partition+" partition is unavailable: "+err.Error())
 		return
 	}
 	wanted := map[string]bool{}
