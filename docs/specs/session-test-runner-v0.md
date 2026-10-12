@@ -97,7 +97,13 @@ of every requirement below and the binding gate until this spec is promoted.
   (`make test-commands-check`, a `make gate` step and part of the CI doc-gates job) SHALL assert
   that they equal `make -s -n go-test` exactly: same environment words as a set, same flags in
   order, one `go test ... ./...` line, and every declared `make` language command a target that
-  dry-runs. The manifest binds the declaration's digest as `declaredDigest`.
+  dry-runs. The gate compares the Makefile defaults under a scrubbed environment (`PATH` only):
+  a developer Make override such as `GO_TEST_TIMEOUT` or `CORVINT_GOCACHE` is not the declared
+  full suite. Every recipe and declared word SHALL be a plain word (letters, digits and
+  `_ - . / = : , + @ %`), because `corvint test` passes declared words to exec literally while
+  Make hands the recipe to a shell; a word a shell would rewrite is a difference even when both
+  spellings agree, and the reader (STR-V0-003) refuses any word with whitespace or a control
+  character. The manifest binds the declaration's digest as `declaredDigest`.
 - `STR-V0-007`: `--shard I/N` with `--placement universe` (the default) SHALL use the AFP-V0-022
   complete-universe partition intersected with the run set, unchanged. An empty intersection runs
   nothing and says so. Every shard records the partition digest; a digest mismatch fails the shard.

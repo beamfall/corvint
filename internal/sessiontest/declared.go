@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
@@ -111,8 +113,8 @@ func readDeclaration(name string) (Declared, error) {
 	}
 	declared := Declared{GoEnv: []string{}, GoFlags: []string{}, Languages: []LanguageCommand{}}
 	for name, value := range parsed.Go.Env {
-		if name == "" || strings.ContainsAny(name, "= \t\n") {
-			return Declared{}, fmt.Errorf("go.env has an invalid variable name %q", name)
+		if !plain(name) || strings.Contains(name, "=") || !plain(value) {
+			return Declared{}, fmt.Errorf("go.env has an invalid variable %q", name)
 		}
 		declared.GoEnv = append(declared.GoEnv, name+"="+value)
 	}
@@ -122,7 +124,7 @@ func readDeclaration(name string) (Declared, error) {
 	}
 	declared.GoFlags = append(declared.GoFlags, parsed.Go.Flags...)
 	for language, value := range parsed.Languages {
-		if language == "" || language == "go" || strings.ContainsAny(language, " \t\n:") {
+		if !plain(language) || language == "go" || strings.Contains(language, ":") {
 			return Declared{}, fmt.Errorf("languages has an invalid language name %q", language)
 		}
 		entry, err := languageCommand(language, value)
@@ -169,9 +171,24 @@ func languageCommand(language string, value jsontext.Value) (LanguageCommand, er
 
 func words(field string, values []string) error {
 	for _, value := range values {
-		if value == "" || strings.ContainsAny(value, " \t\n") {
-			return errors.New(field + ": every word must be non-empty without whitespace, got " + fmt.Sprintf("%q", value))
+		if !plain(value) {
+			return fmt.Errorf("%s: every word must be non-empty without whitespace or control characters, got %q", field, value)
 		}
 	}
 	return nil
+}
+
+// plain reports whether value is a non-empty word with no whitespace (of any
+// script) and no control character, so it crosses exec and the gate's
+// comparison unchanged.
+func plain(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if unicode.IsSpace(r) || unicode.IsControl(r) || r == utf8.RuneError {
+			return false
+		}
+	}
+	return true
 }

@@ -58,19 +58,28 @@ func TestSTRV0006DeclarationMatchesMakefile(t *testing.T) {
 }
 
 // A one-command recipe is required: a go-test target with two commands or
-// a different package pattern is a difference, not a partial match.
+// a different package pattern is a difference, not a partial match, and a
+// word the shell would rewrite (quotes, redirections) is a difference even
+// when the declaration spells it the same way.
 func TestSTRV0006CompareGo(t *testing.T) {
+	quoted := sessiontest.Declared{GoEnv: []string{"A=1", "B=2"}, GoFlags: []string{"-run='TestA|TestB'"}}
+	if got := compareGo(quoted, "A=1 B=2 go test -run='TestA|TestB' ./...\n"); len(got) == 0 {
+		t.Errorf("quoted flag spelled identically on both sides passed")
+	}
 	declared := sessiontest.Declared{GoEnv: []string{"A=1", "B=2"}, GoFlags: []string{"-p", "1"}}
 	for recipe, want := range map[string]int{
-		"B=2 A=1 go test -p 1 ./...\n":          0,
-		"A=1 B=2 go test -p 1 ./...":            0,
-		"A=1 B=2 go test -p 1 ./... \n\n":       0,
-		"A=1 go test -p 1 ./...\n":              1,
-		"A=1 B=2 go test -p 1 ./pkg/...\n":      1,
-		"A=1 B=2 go test -p 1 -count=1 ./...\n": 1,
-		"A=1 B=2 go test -p 1 ./...\ngo vet\n":  1,
-		"":                                      1,
-		"A=1 B=2 env go test -p 1 ./...\n":      1,
+		"B=2 A=1 go test -p 1 ./...\n":           0,
+		"A=1 B=2 go test -p 1 ./...":             0,
+		"A=1 B=2 go test -p 1 ./... \n\n":        0,
+		"A=1 go test -p 1 ./...\n":               1,
+		"A=1 B=2 go test -p 1 ./pkg/...\n":       1,
+		"A=1 B=2 go test -p 1 -count=1 ./...\n":  1,
+		"A=1 B=2 go test -p 1 ./...\ngo vet\n":   1,
+		"":                                       1,
+		"A=1 B=2 env go test -p 1 ./...\n":       1,
+		"A=1 B=2 go test -p '1' ./...\n":         1,
+		"A=1 B='2' go test -p 1 ./...\n":         1,
+		"A=1 B=2 go test -p 1 ./... 2>/dev/null": 1,
 	} {
 		if got := len(compareGo(declared, recipe)); (got != 0) != (want != 0) {
 			t.Errorf("%q: %d problems, want %d", recipe, got, want)

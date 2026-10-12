@@ -4,7 +4,13 @@
 // and every declared language command that names a make target must exist.
 // `corvint test` reads the declaration as a plain file and never interprets
 // the Makefile; this gate is what keeps the two from drifting
-// (docs/specs/session-test-runner-v0.md).
+// (docs/specs/session-test-runner-v0.md). It compares the Makefile defaults
+// under a scrubbed environment (PATH only): a developer override such as
+// GO_TEST_TIMEOUT=1m or CORVINT_GOCACHE is not the declared full suite.
+// Every recipe and declared word must be a plain word, because corvint test
+// passes the declared words to exec literally while make hands the recipe to
+// a shell; a word a shell would rewrite (quotes, $, globs, redirections) is a
+// difference even when both spellings agree.
 package main
 
 import (
@@ -88,13 +94,18 @@ func compareGo(declared sessiontest.Declared, recipe string) []string {
 		return []string{fmt.Sprintf("make -s -n go-test prints %d command lines, want exactly one", len(lines))}
 	}
 	words := strings.Fields(lines[0])
+	problems := []string{}
+	for _, word := range append(append(append([]string{}, words...), declared.GoEnv...), declared.GoFlags...) {
+		if !plainWord(word) {
+			problems = append(problems, fmt.Sprintf("%q is not a plain word: the shell would rewrite it, corvint test passes it literally", word))
+		}
+	}
 	env := []string{}
 	for len(words) != 0 && strings.Contains(words[0], "=") && !strings.HasPrefix(words[0], "-") {
 		env, words = append(env, words[0]), words[1:]
 	}
 	sort.Strings(env)
 	want := append(append([]string{"go", "test"}, declared.GoFlags...), "./...")
-	problems := []string{}
 	if !reflect.DeepEqual(env, declared.GoEnv) {
 		problems = append(problems, fmt.Sprintf("go.env is %v, make go-test sets %v", declared.GoEnv, env))
 	}
@@ -102,6 +113,23 @@ func compareGo(declared sessiontest.Declared, recipe string) []string {
 		problems = append(problems, fmt.Sprintf("go.flags give %q, make go-test runs %q", strings.Join(want, " "), strings.Join(words, " ")))
 	}
 	return problems
+}
+
+// plainWord reports whether word reaches a program unchanged through both
+// `sh -c` and exec: only letters, digits and the characters _ - . / = : , + @ %.
+func plainWord(word string) bool {
+	if word == "" {
+		return false
+	}
+	for _, r := range word {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+		case strings.ContainsRune("_-./=:,+@%", r):
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // dryRun prints what make would run for the targets, under an environment
