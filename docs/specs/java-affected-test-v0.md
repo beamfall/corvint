@@ -36,22 +36,29 @@ This slice plans only. It runs no compiler, build tool, annotation processor or 
 - `JAT-V0-002`: One unit MUST be one file, identity `java:<path>`. A file is a test, with `Tests`
   set to its path, only when it carries a runner signal and lies in a test location. Runner
   signals are a `@Test`, `@ParameterizedTest`, `@RepeatedTest`, `@TestFactory`, `@TestTemplate`,
-  `@RunWith` or `@Nested` annotation (simple or qualified), a `TestCase` reference (JUnit 3), or a
-  `testng` package reference. A test location is a `test` or `tests` directory component, a
+  `@RunWith` or `@Nested` annotation (simple or qualified, with any whitespace or comment after the
+  `@`), a `TestCase` reference (JUnit 3), or a `testng` package reference. A file also carries a
+  signal when it extends or implements a type whose declaring file it reaches by an edge and that
+  carries a signal, directly or by the same rule, because runners execute inherited test methods. A test location is a `test` or `tests` directory component, a
   component ending `Test` (Gradle `integrationTest`, Android `androidTest`), or a stem ending `Test`,
   `Tests`, `IT` or `TestCase` or starting `Test`. Every other file, including a helper under
-  `src/test`, is a source unit.
+  `src/test`, is a source unit. A base class outside the observed sources (a library test base
+  other than `TestCase`) is not seen; that is a known gap.
 - `JAT-V0-003`: Imports MUST include the declaring file of each type named by: a single-type import
   (resolved by the longest dotted prefix that names a declared type, so `p.Outer.Inner` reaches
   `p.Outer`); a static import (`import static p.C.m` and `p.C.*` reach `p.C`); a type-import-on-demand
   `import p.*` (only the types of `p` the file names by simple identifier); a same-package type
-  named by simple identifier; a dotted reference in code of at least three segments with a lowercase
-  first segment (a fully qualified name); and the string literal argument of `Class.forName`.
+  named by simple identifier; a dotted reference in code of at least two segments with a lowercase
+  first segment (a qualified name), with whitespace or comments allowed around each dot; and the
+  string literal argument of `Class.forName`, read as a binary name, so `p.Outer$Inner` also
+  reaches `p.Outer`.
   Declared types include classes, interfaces, enums, records and annotation types, with nested types
   qualified by their enclosing type.
 - `JAT-V0-004`: Comments and the contents of string, character and text-block literals MUST NOT
-  create edges. An unreadable file, or one with an unterminated comment, string or text block, MUST
-  raise the global frontier `java:unparsed-source` and yield no unit.
+  create edges. Unicode escapes MUST be translated before lexing, as `javac` does, so an escaped line
+  terminator ends a line comment; LF, CR and CRLF all end a line. An unreadable file, a malformed
+  Unicode escape, or an unterminated comment, string or text block MUST raise the global frontier
+  `java:unparsed-source` and yield no unit.
 - `JAT-V0-005`: A name declared by more than one file MUST keep an edge to every candidate and raise
   the global frontier `java:ambiguous-type`.
 - `JAT-V0-006`: An import that resolves to no observed type, and whose package is first-party, MUST
@@ -60,12 +67,19 @@ This slice plans only. It runs no compiler, build tool, annotation processor or 
   equals, contains or lies under a package an observed file declares, or shares its first two
   segments with such a package when that package has more than two. This covers generated and
   annotation-processed source, which the graph cannot see. An unresolved import outside first-party
-  packages is an external dependency and adds nothing.
+  packages is an external dependency and adds nothing. A file that names a capitalised simple
+  identifier (an uppercase initial and a lowercase letter, not after a `.`) that no observed Java
+  file declares, no Kotlin file mentions, no single-type import names and `java.lang` does not
+  hold MUST set `UnboundedReads` to `java:unresolved-name`, with `LocatesRoot` on a non-test unit,
+  when a first-party package could supply it: the file imports a first-party package on demand, or
+  has no external on-demand import. Behind an external on-demand import alone the name is
+  attributed to that package; a generated same-package type there is a known gap.
 - `JAT-V0-007`: A file that loads classes or members by computed name MUST set `UnboundedReads` to
   `java:reflection`, and a non-test unit MUST also set `LocatesRoot`. The triggers are a
   `Class.forName` call without one literal dotted argument, `ServiceLoader`, `loadClass`,
   `getMethod`, `getDeclaredMethod`, `getField`, `getDeclaredField`, `getConstructor`,
-  `getDeclaredConstructor`, `newInstance` or `MethodHandles`.
+  `getDeclaredConstructor`, `newInstance` or `MethodHandles`, matched with whitespace and comments
+  removed, so `l.loadClass ("x")` is a trigger.
 - `JAT-V0-008`: Kotlin and Java cross-reach is reported as unit frontiers, not edges, because each
   language's dependents belong to another plugin's namespace:
   - A Java unit that a Kotlin file can reach MUST carry the unit frontier `java:kotlin-dependent`.
@@ -74,7 +88,10 @@ This slice plans only. It runs no compiler, build tool, annotation processor or 
     package on demand, or qualifies into it.
   - Under the matching amendment of `kotlin-jvm-affected-test-v0.md`, a Kotlin unit that Java text
     can reach carries `kotlin:java-dependent`. Java reaches Kotlin by JVM names: a declaration's own
-    name, or the file facade (`FileKt`, or the `@file:JvmName` value).
+    name, or the file facade (the capitalised stem with `Kt`, so `core.kt` is `CoreKt`, or the
+    `@file:JvmName` value, simple or `kotlin.jvm`-qualified, with any spacing).
+  - Each side reads the other's package and import headers after blanking comments, and qualified
+    names with whitespace allowed around each dot.
   A reached unit carrying either frontier makes the plan UNKNOWN. A plan that reaches neither kind of
   unit stays bounded in a mixed JVM tree.
 - `JAT-V0-009`: The plugin MUST NOT execute repository code, a compiler, a build tool or an
@@ -102,7 +119,10 @@ selection.
   `JAT-V0-008`, and `NO_SELECTABLE_TEST` for an unreached changed unit keep such a plan UNKNOWN or
   widen it instead of reporting it bounded. A generated package that is neither under nor beside a
   first-party package's two-segment group (`example.gen` beside `example.core`) is treated as
-  external; this is a known gap.
+  external; this is a known gap. So are a library test base class (`JAT-V0-002`) and a generated
+  same-package type behind an external on-demand import (`JAT-V0-006`).
+- `java:unresolved-name` also fires on names it cannot tell from types, such as a capitalised enum
+  constant in a `case` label or a multi-letter type parameter. That widens selection.
 - Registering the plugin changes `corvint affected` output for any repository holding `.java` files.
   Those paths stop being `UNOWNED_DIRTY_PATH`, and Kotlin plans in a mixed tree are no longer UNKNOWN
   merely because a `.java` file exists.
@@ -122,5 +142,5 @@ Rollback: remove `java.New()` from `languages.All()`, the conformance list and
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | `JAT-V0-001..009` | `internal/liveverify/affected/java/` | `internal/liveverify/affected/java` package tests |
-| `JAT-V0-008` | `internal/liveverify/affected/kotlin/java.go` | `TestJavaSiblingSourceWidensCrossLanguageDependency` |
+| `JAT-V0-008` | `internal/liveverify/affected/kotlin/java.go` | `TestJavaSiblingSourceWidensCrossLanguageDependency`, `TestJavaReachesFacadesAndCommentedHeaders` |
 | `JAT-V0-010` | `internal/liveverify/affected/languages/` | `TestSeamSelectsTheDependencyClosureInEveryLanguage` and the shared seam tests |

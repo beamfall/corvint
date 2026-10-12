@@ -2012,14 +2012,14 @@ IID-V0-006	docs/specs/agent-instruction-doctor-v0.md	87	Evaluation MUST use boun
 IID-V0-007	docs/specs/agent-instruction-doctor-v0.md	93	Focused tests MUST cover default wire/authority preservation, selection and blan
 JAT-V0-001	docs/specs/java-affected-test-v0.md	32	A plugin with namespace `java` MUST own exactly the names ending `.java`. Build
 JAT-V0-002	docs/specs/java-affected-test-v0.md	36	One unit MUST be one file, identity `java:<path>`. A file is a test, with `Tests
-JAT-V0-003	docs/specs/java-affected-test-v0.md	44	Imports MUST include the declaring file of each type named by: a single-type imp
-JAT-V0-004	docs/specs/java-affected-test-v0.md	52	Comments and the contents of string, character and text-block literals MUST NOT
-JAT-V0-005	docs/specs/java-affected-test-v0.md	55	A name declared by more than one file MUST keep an edge to every candidate and r
-JAT-V0-006	docs/specs/java-affected-test-v0.md	57	An import that resolves to no observed type, and whose package is first-party, M
-JAT-V0-007	docs/specs/java-affected-test-v0.md	64	A file that loads classes or members by computed name MUST set `UnboundedReads`
-JAT-V0-008	docs/specs/java-affected-test-v0.md	69	Kotlin and Java cross-reach is reported as unit frontiers, not edges, because ea
-JAT-V0-009	docs/specs/java-affected-test-v0.md	80	The plugin MUST NOT execute repository code, a compiler, a build tool or an
-JAT-V0-010	docs/specs/java-affected-test-v0.md	84	The plugin MUST pass the shared seam conformance suite (`core <- mid <- leaf` pl
+JAT-V0-003	docs/specs/java-affected-test-v0.md	47	Imports MUST include the declaring file of each type named by: a single-type imp
+JAT-V0-004	docs/specs/java-affected-test-v0.md	57	Comments and the contents of string, character and text-block literals MUST NOT
+JAT-V0-005	docs/specs/java-affected-test-v0.md	62	A name declared by more than one file MUST keep an edge to every candidate and r
+JAT-V0-006	docs/specs/java-affected-test-v0.md	64	An import that resolves to no observed type, and whose package is first-party, M
+JAT-V0-007	docs/specs/java-affected-test-v0.md	77	A file that loads classes or members by computed name MUST set `UnboundedReads`
+JAT-V0-008	docs/specs/java-affected-test-v0.md	83	Kotlin and Java cross-reach is reported as unit frontiers, not edges, because ea
+JAT-V0-009	docs/specs/java-affected-test-v0.md	97	The plugin MUST NOT execute repository code, a compiler, a build tool or an
+JAT-V0-010	docs/specs/java-affected-test-v0.md	101	The plugin MUST pass the shared seam conformance suite (`core <- mid <- leaf` pl
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	28	The command and its package remain isolated, unregistered, and unreachable from
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	30	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	34	The target is exactly Android/arm64/none. The twelve input rows below occur once

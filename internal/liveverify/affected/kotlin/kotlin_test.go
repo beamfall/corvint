@@ -651,3 +651,36 @@ func contains(values []string, want string) bool {
 	}
 	return false
 }
+
+// Java reaches a Kotlin file through its capitalised facade, a qualified or
+// spaced @file:JvmName, and a package header after a comment.
+func TestJavaReachesFacadesAndCommentedHeaders(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "build.gradle.kts", "plugins { kotlin(\"jvm\") version \"2.2.0\" }\n")
+	write(t, root, "src/main/kotlin/com/ex/core/core.kt", "package com.ex.core\nfun helper() = 1\n")
+	write(t, root, "src/main/kotlin/com/ex/core/api.kt", "@file:kotlin.jvm.JvmName(\"Api\")\npackage com.ex.core\nfun call() = 1\n")
+	write(t, root, "src/main/kotlin/com/ex/core/spaced.kt", "@file:JvmName (\"Spaced\")\npackage com.ex.core\nfun other() = 1\n")
+	write(t, root, "src/main/kotlin/com/ex/core/quiet.kt", "package com.ex.core\nfun quiet() = 1\n")
+	write(t, root, "src/main/kotlin/com/ex/bridge/Calc.kt", "package com.ex.bridge\nclass Calc\n")
+	write(t, root, "src/main/java/com/ex/app/Use.java", "package com.ex.app;\nclass Use { int a = com.ex.core.CoreKt.helper() + com.ex.core.Api.call() + com.ex.core . Spaced.other(); }\n")
+	write(t, root, "src/main/java/com/ex/bridge/Peer.java", "/* Licensed. */ package com.ex.bridge;\nclass Peer { Calc calc; }\n")
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for relative, want := range map[string]bool{
+		"src/main/kotlin/com/ex/core/core.kt":   true,
+		"src/main/kotlin/com/ex/core/api.kt":    true,
+		"src/main/kotlin/com/ex/core/spaced.kt": true,
+		"src/main/kotlin/com/ex/core/quiet.kt":  false,
+		"src/main/kotlin/com/ex/bridge/Calc.kt": true,
+	} {
+		got, ok := graph.Unit("kotlin:source:" + relative)
+		if !ok {
+			t.Fatalf("no unit for %s in %v", relative, graph.UnitIDs())
+		}
+		if contains(got.Frontier, FrontierJavaDependent) != want {
+			t.Errorf("%s frontier=%v want java-dependent=%v", relative, got.Frontier, want)
+		}
+	}
+}

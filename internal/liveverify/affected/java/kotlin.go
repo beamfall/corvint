@@ -1,32 +1,55 @@
 package java
 
-import "strings"
+import (
+	"path"
+	"strings"
+)
 
 // jvmReferrer is the part of a Kotlin file needed to tell whether it can name
-// a Java type: its package, its imports, its qualified names and its words.
+// a Java type, or be named by one: its package, imports, qualified names, words
+// and file facade.
 type jvmReferrer struct {
 	packageName string
 	imports     []string
 	qualified   []string
 	words       map[string]bool
+	facade      string
 }
 
-// kotlinReferrer reads a Kotlin file without lexing it. Words inside comments
-// and strings are kept, which can only add a frontier, never remove one.
-func kotlinReferrer(text string) jvmReferrer {
-	referrer := jvmReferrer{words: map[string]bool{}, qualified: qualifiedReferences(text)}
-	for _, line := range strings.Split(text, "\n") {
-		fields := strings.Fields(strings.TrimPrefix(line, "\ufeff"))
+// kotlinReferrer reads a Kotlin file without a Kotlin parser. Headers and
+// qualified names come from the text with comments blanked when the Java
+// lexer can read it (Kotlin adds nested comments and raw strings), and from
+// the raw text otherwise. Words come from the raw text, so a word inside a
+// comment or string can only add a frontier, never remove one.
+func kotlinReferrer(relative, text string) jvmReferrer {
+	text = strings.TrimPrefix(text, "\ufeff")
+	header := text
+	if clean, _, ok := sourceText(text); ok {
+		header = clean
+	}
+	referrer := jvmReferrer{words: map[string]bool{}, facade: kotlinFacade(relative)}
+	referrer.qualified = qualifiedReferences(chains(header))
+	for _, line := range strings.Split(strings.ReplaceAll(header, "\r", "\n"), "\n") {
+		fields := strings.Fields(line)
 		if len(fields) < 2 {
 			continue
 		}
+		rest := fields[1:]
+		for index, field := range rest {
+			if field == "as" {
+				rest = rest[:index]
+				break
+			}
+		}
+		name := strings.ReplaceAll(strings.Join(rest, ""), "`", "")
+		name, _, _ = strings.Cut(name, ";")
 		switch fields[0] {
 		case "package":
 			if referrer.packageName == "" {
-				referrer.packageName = strings.Trim(fields[1], "`;")
+				referrer.packageName = name
 			}
 		case "import":
-			referrer.imports = append(referrer.imports, strings.TrimSuffix(strings.Trim(fields[1], "`;"), ".*"))
+			referrer.imports = append(referrer.imports, strings.TrimSuffix(name, ".*"))
 		}
 	}
 	for _, token := range tokenize(text) {
@@ -35,6 +58,24 @@ func kotlinReferrer(text string) jvmReferrer {
 		}
 	}
 	return referrer
+}
+
+// kotlinFacade is the JVM class holding a Kotlin file's top-level members:
+// the capitalised file stem with Kt appended, other characters as _.
+func kotlinFacade(relative string) string {
+	stem := strings.TrimSuffix(strings.TrimSuffix(path.Base(relative), ".kts"), ".kt")
+	var facade strings.Builder
+	for index, r := range stem {
+		switch {
+		case index == 0 && r >= 'a' && r <= 'z':
+			facade.WriteRune(r - 'a' + 'A')
+		case identifierRune(r) && r != '$':
+			facade.WriteRune(r)
+		default:
+			facade.WriteByte('_')
+		}
+	}
+	return facade.String() + "Kt"
 }
 
 // markKotlinDependents raises FrontierKotlinDependent on a Java unit when a

@@ -220,3 +220,129 @@ func TestGraphIsDeterministic_JATV0009(t *testing.T) {
 		t.Fatalf("selected=%v", got)
 	}
 }
+
+// The review cases below each pin one form that an earlier lexer missed.
+
+func TestSpacedQualifiedNamesAndForNameBinaryNames_JATV0003(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "src/main/java/p/Core.java", "package p;\npublic class Core {}\n")
+	write(t, root, "src/main/java/com/ex/core/Deep.java", "package com.ex.core;\npublic class Deep {}\n")
+	write(t, root, "src/main/java/com/ex/core/Outer.java", "package com.ex.core;\npublic class Outer { public static class Inner {} }\n")
+	write(t, root, "src/main/java/q/Short.java", "package q;\nclass Short { Object o = new p.Core(); }\n")
+	write(t, root, "src/main/java/q/Spaced.java", "package q;\nclass Spaced { com . ex . core . Deep d; }\n")
+	write(t, root, "src/main/java/q/Commented.java", "package q;\nclass Commented { com.ex.core./*c*/Deep d; }\n")
+	write(t, root, "src/main/java/q/Binary.java", "package q;\nclass Binary { Object o = Class.forName(\"com.ex.core.Outer$Inner\"); }\n")
+	graph := build(t, root)
+	for relative, want := range map[string]string{
+		"src/main/java/q/Short.java":     "java:src/main/java/p/Core.java",
+		"src/main/java/q/Spaced.java":    "java:src/main/java/com/ex/core/Deep.java",
+		"src/main/java/q/Commented.java": "java:src/main/java/com/ex/core/Deep.java",
+		"src/main/java/q/Binary.java":    "java:src/main/java/com/ex/core/Outer.java",
+	} {
+		got := unit(t, graph, relative)
+		if !slices.Equal(got.Imports, []string{want}) {
+			t.Errorf("%s imports=%v want %s", relative, got.Imports, want)
+		}
+		if got.UnboundedReads != "" {
+			t.Errorf("%s reads=%q", relative, got.UnboundedReads)
+		}
+	}
+}
+
+func TestUnicodeEscapesAndCarriageReturnsEndComments_JATV0004(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "src/main/java/p/Core.java", "package p;\npublic class Core {}\n")
+	write(t, root, "src/main/java/p/Escaped.java", "package p;\nclass Escaped {\n// hidden \\u000a Core core;\n}\n")
+	write(t, root, "src/main/java/p/Classic.java", "package p;\rclass Classic {\r// note\rCore core;\r}\r")
+	write(t, root, "src/main/java/p/Doubled.java", "package p;\nclass Doubled {\n// \\\\u000a Core core;\n}\n")
+	graph := build(t, root)
+	for relative, want := range map[string]int{
+		"src/main/java/p/Escaped.java": 1,
+		"src/main/java/p/Classic.java": 1,
+		"src/main/java/p/Doubled.java": 0,
+	} {
+		if got := unit(t, graph, relative).Imports; len(got) != want {
+			t.Errorf("%s imports=%v want %d", relative, got, want)
+		}
+	}
+	write(t, root, "src/main/java/p/Bad.java", "package p;\nclass Bad { char c = '\\uZZZZ'; }\n")
+	if graph := build(t, root); !slices.Contains(graph.Frontier(), FrontierUnparsedSource) {
+		t.Fatalf("a malformed escape lexed: frontier=%v", graph.Frontier())
+	}
+}
+
+func TestSpacedAnnotationsAndInheritedTests_JATV0002(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "src/main/java/p/Core.java", "package p;\npublic class Core {}\n")
+	write(t, root, "src/test/java/p/SpacedTest.java", "package p;\nclass SpacedTest { @ Test void a() {} }\n")
+	write(t, root, "src/test/java/p/CommentedTest.java", "package p;\nclass CommentedTest { @/*c*/Test void a() {} }\n")
+	write(t, root, "src/test/java/p/BaseTest.java", "package p;\n"+junit+"abstract class BaseTest { @Test void covers() { new Core(); } }\n")
+	write(t, root, "src/test/java/p/MissedTest.java", "package p;\nclass MissedTest extends BaseTest {}\n")
+	write(t, root, "src/test/java/p/DeeperTest.java", "package p;\nclass DeeperTest extends MissedTest {}\n")
+	write(t, root, "src/test/java/p/Fixture.java", "package p;\nclass Fixture extends Core {}\n")
+	graph := build(t, root)
+	for relative, wantTest := range map[string]bool{
+		"src/test/java/p/SpacedTest.java":    true,
+		"src/test/java/p/CommentedTest.java": true,
+		"src/test/java/p/MissedTest.java":    true,
+		"src/test/java/p/DeeperTest.java":    true,
+		"src/test/java/p/Fixture.java":       false,
+	} {
+		if got := unit(t, graph, relative); (len(got.Tests) == 1) != wantTest || len(got.Tests) == len(got.Sources) {
+			t.Errorf("%s tests=%v sources=%v want test=%v", relative, got.Tests, got.Sources, wantTest)
+		}
+	}
+	plan := affected.Select(graph, []string{"src/main/java/p/Core.java"})
+	for _, want := range []string{"src/test/java/p/BaseTest.java", "src/test/java/p/MissedTest.java", "src/test/java/p/DeeperTest.java"} {
+		if !slices.Contains(plan.SelectedTests(), want) {
+			t.Errorf("selected=%v misses %s", plan.SelectedTests(), want)
+		}
+	}
+}
+
+func TestSpacedReflectionCallsAreUnbounded_JATV0007(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "src/main/java/p/Loader.java", "package p;\nclass Loader { Object o(ClassLoader l, String n) throws Exception { return l.loadClass (n); } }\n")
+	write(t, root, "src/main/java/p/Maker.java", "package p;\nclass Maker { Object o(Class<?> c) throws Exception { return c . getDeclaredConstructor ( ).newInstance(); } }\n")
+	write(t, root, "src/main/java/p/Named.java", "package p;\nclass Named { Object o(String n) throws Exception { return Class.forName (n); } }\n")
+	graph := build(t, root)
+	for _, relative := range []string{"src/main/java/p/Loader.java", "src/main/java/p/Maker.java", "src/main/java/p/Named.java"} {
+		if got := unit(t, graph, relative); got.UnboundedReads != Reflection || !got.LocatesRoot {
+			t.Errorf("%s reads=%q locates=%v", relative, got.UnboundedReads, got.LocatesRoot)
+		}
+	}
+}
+
+func TestUnresolvedFirstPartyNamesAreUnbounded_JATV0006(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "src/main/java/com/ex/core/Core.java", "package com.ex.core;\npublic class Core {}\n")
+	write(t, root, "src/main/java/com/ex/app/Wild.java", "package com.ex.app;\nimport com.ex.core.*;\nclass Wild { Core c; Generated g; }\n")
+	write(t, root, "src/main/java/com/ex/core/Peer.java", "package com.ex.core;\nclass Peer { CoreBuilder b; }\n")
+	write(t, root, "src/main/java/com/ex/app/External.java", "package com.ex.app;\nimport java.util.*;\nclass External { List<String> names; }\n")
+	write(t, root, "src/main/java/com/ex/app/Plain.java", "package com.ex.app;\nimport java.util.List;\nclass Plain { List<String> names; String s; Override o; Inner i; static final int MAX_SIZE = 1; class Inner {} <T> T id(T t) { return t; } }\n")
+	write(t, root, "src/main/kotlin/com/ex/app/Shared.kt", "package com.ex.app\nclass Shared\n")
+	write(t, root, "src/main/java/com/ex/app/UsesKotlin.java", "package com.ex.app;\nclass UsesKotlin { Shared s; Object f = SharedKt.class; }\n")
+	graph := build(t, root)
+	for relative, want := range map[string]string{
+		"src/main/java/com/ex/app/Wild.java":       UnresolvedName,
+		"src/main/java/com/ex/core/Peer.java":      UnresolvedName,
+		"src/main/java/com/ex/app/External.java":   "",
+		"src/main/java/com/ex/app/Plain.java":      "",
+		"src/main/java/com/ex/app/UsesKotlin.java": "",
+	} {
+		got := unit(t, graph, relative)
+		if got.UnboundedReads != want || got.LocatesRoot != (want != "") {
+			t.Errorf("%s reads=%q locates=%v want %q", relative, got.UnboundedReads, got.LocatesRoot, want)
+		}
+	}
+}
+
+func TestKotlinHeaderAfterCommentStillReachesJava_JATV0008(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "src/main/java/com/ex/bridge/Bridge.java", "package com.ex.bridge;\npublic class Bridge {}\n")
+	write(t, root, "src/main/kotlin/com/ex/bridge/Use.kt", "/* Licensed. */ package com.ex.bridge\n\nclass Use { val b = Bridge() }\n")
+	graph := build(t, root)
+	if got := unit(t, graph, "src/main/java/com/ex/bridge/Bridge.java").Frontier; !slices.Contains(got, FrontierKotlinDependent) {
+		t.Fatalf("frontier=%v", got)
+	}
+}

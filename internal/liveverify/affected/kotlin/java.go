@@ -2,6 +2,7 @@ package kotlin
 
 import (
 	"path"
+	"regexp"
 	"strings"
 )
 
@@ -14,39 +15,53 @@ type javaReferrer struct {
 	words       map[string]bool
 }
 
-// observeJava reads a Java file without lexing it. Words inside comments and
-// strings are kept, which can only add a frontier, never remove one.
+// observeJava reads a Java file without a Java parser. Headers and qualified
+// names come from the text with comments blanked when it lexes, and from the
+// raw text otherwise; qualified names tolerate whitespace and comments around
+// each dot. Words come from the raw text, so a word inside a comment or string
+// can only add a frontier, never remove one.
 func observeJava(text string) javaReferrer {
+	text = strings.TrimPrefix(text, "\ufeff")
+	header := text
+	if clean, ok := sourceText(text); ok {
+		header = clean
+	}
 	referrer := javaReferrer{words: map[string]bool{}}
-	for _, statement := range strings.Split(text, ";") {
-		fields := strings.Fields(strings.TrimPrefix(strings.TrimSpace(statement), "\ufeff"))
+	for _, statement := range strings.Split(header, ";") {
+		fields := strings.Fields(statement)
 		if len(fields) < 2 {
 			continue
 		}
 		switch fields[0] {
 		case "package":
 			if referrer.packageName == "" {
-				referrer.packageName = fields[1]
+				referrer.packageName = strings.Join(fields[1:], "")
 			}
 		case "import":
-			name := fields[1]
-			if name == "static" && len(fields) > 2 {
-				name = fields[2]
+			rest := fields[1:]
+			if rest[0] == "static" && len(rest) > 1 {
+				rest = rest[1:]
 			}
-			referrer.imports = append(referrer.imports, strings.TrimSuffix(name, ".*"))
+			referrer.imports = append(referrer.imports, strings.TrimSuffix(strings.Join(rest, ""), ".*"))
 		}
 	}
-	for _, field := range strings.FieldsFunc(text, func(r rune) bool { return !identifierRune(r) && r != '.' }) {
-		field = strings.Trim(field, ".")
-		if strings.Contains(field, ".") {
+	for _, field := range strings.FieldsFunc(spacedDots.ReplaceAllString(header, "."), func(r rune) bool { return !identifierRune(r) && r != '.' }) {
+		if field = strings.Trim(field, "."); strings.Contains(field, ".") {
 			referrer.qualified = append(referrer.qualified, field)
 		}
-		for _, word := range strings.Split(field, ".") {
-			referrer.words[word] = true
-		}
+	}
+	for _, field := range strings.FieldsFunc(text, func(r rune) bool { return !identifierRune(r) }) {
+		referrer.words[field] = true
 	}
 	return referrer
 }
+
+// spacedDots matches a dot with the whitespace around it, which Java allows
+// inside a qualified name.
+var spacedDots = regexp.MustCompile(`\s*\.\s*`)
+
+// fileJvmName matches the @file:JvmName annotation, simple or qualified.
+var fileJvmName = regexp.MustCompile(`@file\s*:\s*(?:kotlin\s*\.\s*jvm\s*\.\s*)?JvmName\s*\(\s*"([^"]+)"`)
 
 // markJavaDependents gives FrontierJavaDependent to every Kotlin unit a Java
 // file can reach. Java resolves Kotlin declarations by their JVM names: a class
@@ -73,16 +88,32 @@ func markJavaDependents(observations []sourceObservation, java []javaReferrer, t
 }
 
 func jvmNames(observation *sourceObservation, text string) []string {
-	names := []string{strings.TrimSuffix(strings.TrimSuffix(path.Base(observation.relative), ".kts"), ".kt") + "Kt"}
+	names := []string{fileFacade(observation.relative)}
 	for _, alias := range observation.aliases {
 		names = append(names, alias[strings.LastIndex(alias, ".")+1:])
 	}
-	if _, rest, ok := strings.Cut(text, "@file:JvmName("); ok {
-		if value, _, ok := strings.Cut(rest, ")"); ok {
-			names = append(names, strings.Trim(strings.TrimSpace(value), "\""))
-		}
+	if match := fileJvmName.FindStringSubmatch(text); match != nil {
+		names = append(names, match[1])
 	}
 	return names
+}
+
+// fileFacade is the JVM class holding a file's top-level members: the
+// capitalised file stem with Kt appended, other characters as _.
+func fileFacade(relative string) string {
+	stem := strings.TrimSuffix(strings.TrimSuffix(path.Base(relative), ".kts"), ".kt")
+	var facade strings.Builder
+	for index, r := range stem {
+		switch {
+		case index == 0 && r >= 'a' && r <= 'z':
+			facade.WriteRune(r - 'a' + 'A')
+		case identifierRune(r) && r != '$':
+			facade.WriteRune(r)
+		default:
+			facade.WriteByte('_')
+		}
+	}
+	return facade.String() + "Kt"
 }
 
 func referencesDeclaration(referrer javaReferrer, packageName string, names []string) bool {

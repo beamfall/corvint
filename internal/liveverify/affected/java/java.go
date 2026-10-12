@@ -31,6 +31,9 @@ const (
 	// UnresolvedImport marks a unit importing a first-party name that no
 	// observed file declares: generated or annotation-processed source.
 	UnresolvedImport = "java:unresolved-import"
+	// UnresolvedName marks a unit naming a type that no observed file, import,
+	// or java.lang declares, where a first-party package could supply it.
+	UnresolvedName = "java:unresolved-name"
 	// Reflection marks a unit loading classes or members by computed name.
 	Reflection = "java:reflection"
 )
@@ -41,7 +44,8 @@ var testAnnotations = []string{
 	"Test", "ParameterizedTest", "RepeatedTest", "TestFactory", "TestTemplate", "RunWith", "Nested",
 }
 
-// reflectionMarkers are calls whose class or member target is a runtime value.
+// reflectionMarkers are calls whose class or member target is a runtime value,
+// matched against code with all whitespace removed.
 var reflectionMarkers = []string{
 	"ServiceLoader", ".loadClass(", ".getMethod(", ".getDeclaredMethod(", ".getField(",
 	".getDeclaredField(", ".newInstance(", "MethodHandles.", ".getConstructor(", ".getDeclaredConstructor(",
@@ -69,11 +73,16 @@ type observation struct {
 	words       map[string]bool
 	qualified   []string
 	literals    []string
+	names       []string
+	supertypes  []string
+	signal      bool
+	location    bool
 	unit        affected.Unit
 }
 
 type importRef struct {
 	name     string
+	simple   string
 	wildcard bool
 	static   bool
 }
@@ -98,7 +107,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		body, readErr := root.Read(relative)
 		if !strings.HasSuffix(relative, ".java") {
 			if readErr == nil {
-				kotlin = append(kotlin, kotlinReferrer(string(body)))
+				kotlin = append(kotlin, kotlinReferrer(relative, string(body)))
 			}
 			continue
 		}
@@ -113,7 +122,8 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		}
 		observations = append(observations, observe(relative, clean, literals))
 	}
-	resolve(observations, frontier)
+	resolve(observations, frontier, kotlin)
+	inheritTests(observations)
 	for index := range observations {
 		markKotlinDependents(&observations[index], kotlin)
 	}
@@ -134,7 +144,7 @@ func observe(relative, clean string, literals []string) observation {
 		switch {
 		case strings.HasPrefix(trimmed, "package "):
 			if observed.packageName == "" {
-				observed.packageName = dottedName(strings.TrimPrefix(trimmed, "package "))
+				observed.packageName = dottedName(strings.ReplaceAll(strings.TrimPrefix(trimmed, "package "), " ", ""))
 			}
 		case strings.HasPrefix(trimmed, "import "):
 			if ref, ok := parseImport(strings.TrimPrefix(trimmed, "import ")); ok {
@@ -142,10 +152,16 @@ func observe(relative, clean string, literals []string) observation {
 			}
 		}
 	}
-	observed.types = declaredTypes(clean)
-	observed.qualified = qualifiedReferences(clean)
+	tokens := tokenize(clean)
+	observed.types = declaredTypes(tokens)
+	observed.supertypes = supertypes(tokens)
+	found := chains(clean)
+	observed.qualified = qualifiedReferences(found)
+	observed.names = typeNames(found)
+	observed.signal = runnerSignal(observed.words)
+	observed.location = testLocation(relative)
 	id := "java:" + relative
-	if isTestFile(relative, observed.words) {
+	if observed.signal && observed.location {
 		observed.unit = affected.Unit{ID: id, Tests: []string{relative}}
 	} else {
 		observed.unit = affected.Unit{ID: id, Sources: []string{relative}}
@@ -172,6 +188,9 @@ func parseImport(body string) (importRef, bool) {
 	if ref.name == "" || ref.name != body {
 		return importRef{}, false
 	}
+	if !ref.wildcard {
+		ref.simple = ref.name[strings.LastIndex(ref.name, ".")+1:]
+	}
 	if ref.static && !ref.wildcard {
 		// import static p.C.member names a member; the declaring type is p.C.
 		cut := strings.LastIndex(ref.name, ".")
@@ -185,14 +204,26 @@ func parseImport(body string) (importRef, bool) {
 
 // resolve turns imports, same-package type mentions, qualified references and
 // literal Class.forName targets into unit edges.
-func resolve(observations []observation, frontier map[string]bool) {
+func resolve(observations []observation, frontier map[string]bool, kotlin []jvmReferrer) {
 	types := make(map[string]map[string]bool, len(observations)*2)
 	packages := make(map[string]map[string]bool, len(observations))
+	// known holds every simple name a first-party Java or Kotlin file can
+	// supply, so a name outside it is generated, external, or missing.
+	known := map[string]bool{}
 	for _, observed := range observations {
 		add(packages, observed.packageName, observed.unit.ID)
 		for _, name := range observed.types {
 			add(types, qualify(observed.packageName, name), observed.unit.ID)
+			for _, part := range strings.Split(name, ".") {
+				known[part] = true
+			}
 		}
+	}
+	for _, referrer := range kotlin {
+		for word := range referrer.words {
+			known[word] = true
+		}
+		known[referrer.facade] = true
 	}
 	firstParty := sortedKeys(packages)
 	byPackage := make(map[string][]int, len(packages))
@@ -211,6 +242,9 @@ func resolve(observations []observation, frontier map[string]bool) {
 		// Same-package types need no import; a mention by simple name is the
 		// edge, so an unrelated class in the same package is not one.
 		mentioned(observed, observed.packageName, types, observations, byPackage, link)
+		if unresolvedName(observed, known, packages, firstParty) {
+			markUnbounded(&observed.unit, UnresolvedName)
+		}
 		for _, ref := range observed.imports {
 			if ref.wildcard && !ref.static {
 				if len(packages[ref.name]) != 0 {
@@ -224,12 +258,100 @@ func resolve(observations []observation, frontier map[string]bool) {
 			}
 			link(targets)
 		}
-		for _, name := range append(append([]string(nil), observed.qualified...), observed.literals...) {
+		for _, name := range observed.qualified {
 			link(lookup(name, types))
+		}
+		// Class.forName takes a binary name, so p.Outer$Inner names p.Outer.Inner.
+		for _, name := range observed.literals {
+			link(lookup(name, types))
+			if strings.Contains(name, "$") {
+				link(lookup(strings.ReplaceAll(name, "$", "."), types))
+			}
 		}
 		delete(edges, observed.unit.ID)
 		observed.unit.Imports = sortedKeys(edges)
 	}
+}
+
+// unresolvedName reports a capitalised simple name that nothing observed
+// declares or imports when a first-party package could supply it: the file
+// imports one on demand, or no external on-demand import could explain it, so
+// it is a same-package type the graph cannot see (generated source). Behind an
+// external on-demand import the name is attributed to that package.
+func unresolvedName(observed *observation, known map[string]bool, packages map[string]map[string]bool, firstParty []string) bool {
+	external := false
+	firstPartyWildcard := false
+	local := map[string]bool{}
+	for _, ref := range observed.imports {
+		if ref.simple != "" {
+			local[ref.simple] = true
+		}
+		if !ref.wildcard {
+			continue
+		}
+		owner := ref.name
+		if ref.static {
+			owner = packageOf(importRef{name: ref.name}, packages)
+		}
+		if len(packages[owner]) != 0 || underFirstParty(owner, firstParty) {
+			firstPartyWildcard = true
+		} else {
+			external = true
+		}
+	}
+	if external && !firstPartyWildcard {
+		return false
+	}
+	for _, name := range observed.names {
+		if !known[name] && !local[name] && !javaLang[name] {
+			return true
+		}
+	}
+	return false
+}
+
+// inheritTests marks a file in a test location as a test when it extends or
+// implements a type whose declaring file, reached by an edge, carries a runner
+// signal, directly or by inheritance: JUnit and TestNG run inherited test
+// methods. A base type outside the observed sources is not seen.
+func inheritTests(observations []observation) {
+	declaring := map[string][]int{}
+	for index, observed := range observations {
+		for _, name := range observed.types {
+			simple := name[strings.LastIndex(name, ".")+1:]
+			declaring[simple] = append(declaring[simple], index)
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for index := range observations {
+			observed := &observations[index]
+			if observed.signal {
+				continue
+			}
+			for _, super := range observed.supertypes {
+				for _, base := range declaring[super] {
+					if base != index && observations[base].signal && hasEdge(observed.unit.Imports, observations[base].unit.ID) {
+						observed.signal = true
+						changed = true
+					}
+				}
+			}
+		}
+	}
+	for index := range observations {
+		observed := &observations[index]
+		if observed.signal && observed.location && len(observed.unit.Tests) == 0 {
+			observed.unit.Tests = []string{observed.relative}
+			observed.unit.Sources = nil
+			observed.unit.LocatesRoot = false
+		}
+	}
+}
+
+func hasEdge(imports []string, id string) bool {
+	at := sort.SearchStrings(imports, id)
+	return at < len(imports) && imports[at] == id
 }
 
 // mentioned links every type declared in packageName whose simple name the
@@ -317,13 +439,14 @@ func leadingSegments(name string, count int) string {
 }
 
 func reflective(clean string, literals []string) bool {
+	compact := strings.Join(strings.Fields(clean), "")
 	for _, marker := range reflectionMarkers {
-		if strings.Contains(clean, marker) {
+		if strings.Contains(compact, marker) {
 			return true
 		}
 	}
 	// Every forName call must have been a literal sourceText could read.
-	return strings.Count(clean, "forName") > len(literals)
+	return strings.Count(compact, "forName") > len(literals)
 }
 
 func markUnbounded(unit *affected.Unit, reason string) {
@@ -335,16 +458,18 @@ func markUnbounded(unit *affected.Unit, reason string) {
 	unit.LocatesRoot = len(unit.Tests) == 0
 }
 
-// isTestFile requires both a runner signal and a conventional test location,
-// so a helper under src/test and a main class mentioning @Test stay sources.
-func isTestFile(relative string, words map[string]bool) bool {
+// runnerSignal reports a JUnit or TestNG marker. A file is a test only with a
+// signal and a conventional test location, so a helper under src/test and a
+// main class mentioning @Test stay sources.
+func runnerSignal(words map[string]bool) bool {
 	signal := words["TestCase"] || words["testng"]
 	for _, annotation := range testAnnotations {
 		signal = signal || words["@"+annotation]
 	}
-	if !signal {
-		return false
-	}
+	return signal
+}
+
+func testLocation(relative string) bool {
 	for _, component := range strings.Split(path.Dir(relative), "/") {
 		if component == "test" || component == "tests" || strings.HasSuffix(component, "Test") {
 			return true
@@ -361,8 +486,7 @@ func isTestFile(relative string, words map[string]bool) bool {
 
 // declaredTypes lists every class, interface, enum, record, and annotation
 // type name, nested ones as Outer.Inner by brace depth.
-func declaredTypes(clean string) []string {
-	tokens := tokenize(clean)
+func declaredTypes(tokens []string) []string {
 	type open struct {
 		name  string
 		depth int
@@ -403,16 +527,120 @@ func declaredTypes(clean string) []string {
 	return compactSorted(names)
 }
 
-// qualifiedReferences lists dotted names in code with a lowercase first segment
-// and at least three segments, the shape of a fully qualified type reference.
-func qualifiedReferences(clean string) []string {
-	values := make([]string, 0)
-	for _, field := range strings.FieldsFunc(clean, func(r rune) bool { return !identifierRune(r) && r != '.' }) {
-		parts := strings.Split(strings.Trim(field, "."), ".")
-		if len(parts) < 3 || !lowerInitial(parts[0]) {
+// supertypes lists the simple names after extends and implements up to the
+// class body; type arguments are included, which can only add a match.
+func supertypes(tokens []string) []string {
+	names := make([]string, 0)
+	for index := 0; index < len(tokens); index++ {
+		if tokens[index] != "extends" && tokens[index] != "implements" {
 			continue
 		}
-		values = append(values, strings.Join(parts, "."))
+		for index++; index < len(tokens) && tokens[index] != "{"; index++ {
+			token := tokens[index]
+			following := index+1 < len(tokens) && tokens[index+1] == "."
+			if identifier(token) && !following && token != "extends" && token != "implements" {
+				names = append(names, token)
+			}
+		}
+	}
+	return compactSorted(names)
+}
+
+// chain is a dotted name in code, read across whitespace and blanked
+// comments. An annotation chain followed @.
+type chain struct {
+	parts      []string
+	annotation bool
+}
+
+// chains reads every dotted name that does not continue a member access, so
+// p . Core, p./*c*/Core and @ org.junit.Test are each one name.
+func chains(clean string) []chain {
+	found := make([]chain, 0, len(clean)/16)
+	previous := byte(0)
+	for index := 0; index < len(clean); {
+		current := clean[index]
+		switch {
+		case current == ' ' || current == '\t' || current == '\n' || current == '\r':
+			index++
+		case current == '@':
+			parts, end := readChain(clean, skipSpace(clean, index+1))
+			if len(parts) == 0 {
+				previous = current
+				index++
+				continue
+			}
+			found = append(found, chain{parts: parts, annotation: true})
+			previous, index = 'a', end
+		case identifierRune(rune(current)):
+			parts, end := readChain(clean, index)
+			if previous != '.' && len(parts) != 0 {
+				found = append(found, chain{parts: parts})
+			}
+			if end == index {
+				end++
+			}
+			previous, index = 'a', end
+		default:
+			previous = current
+			index++
+		}
+	}
+	return found
+}
+
+func readChain(clean string, start int) ([]string, int) {
+	word := wordAt(clean, start)
+	if !identifier(word) {
+		return nil, start + len(word)
+	}
+	parts := []string{word}
+	end := start + len(word)
+	for {
+		dot := skipSpace(clean, end)
+		if dot >= len(clean) || clean[dot] != '.' {
+			return parts, end
+		}
+		next := skipSpace(clean, dot+1)
+		word := wordAt(clean, next)
+		if !identifier(word) {
+			return parts, end
+		}
+		parts = append(parts, word)
+		end = next + len(word)
+	}
+}
+
+func wordAt(clean string, start int) string {
+	end := start
+	for end < len(clean) && identifierRune(rune(clean[end])) {
+		end++
+	}
+	return clean[start:end]
+}
+
+// qualifiedReferences lists dotted names with a lowercase first segment, the
+// shape of a qualified type reference (p.Core, com.ex.core.Core).
+func qualifiedReferences(found []chain) []string {
+	values := make([]string, 0)
+	for _, name := range found {
+		if !name.annotation && len(name.parts) >= 2 && lowerInitial(name.parts[0]) {
+			values = append(values, strings.Join(name.parts, "."))
+		}
+	}
+	return compactSorted(values)
+}
+
+// typeNames lists the first segment of every name that looks like a type: an
+// uppercase initial and at least one lowercase letter, so constants and type
+// parameters such as T are not candidates.
+func typeNames(found []chain) []string {
+	values := make([]string, 0)
+	for _, name := range found {
+		first := name.parts[0]
+		if first[0] >= 'A' && first[0] <= 'Z' && strings.ToUpper(first) != first {
+			values = append(values, first)
+		}
 	}
 	return compactSorted(values)
 }
@@ -426,12 +654,11 @@ func identifierWords(clean string) map[string]bool {
 	}
 	// Annotations are recorded with their marker so a method named test is
 	// not mistaken for @Test.
-	for _, field := range strings.FieldsFunc(clean, func(r rune) bool { return !identifierRune(r) && r != '@' && r != '.' }) {
-		if strings.HasPrefix(field, "@") {
-			name := field[1:]
-			words["@"+name[strings.LastIndex(name, ".")+1:]] = true
+	for _, name := range chains(clean) {
+		if name.annotation {
+			words["@"+name.parts[len(name.parts)-1]] = true
 		}
-		for _, part := range strings.Split(field, ".") {
+		for _, part := range name.parts {
 			if part == "testng" {
 				words[part] = true
 			}
@@ -537,4 +764,37 @@ func sortedKeys[Value any](values map[string]Value) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// javaLang is the java.lang package, imported implicitly by every file.
+var javaLang = setOf(
+	"AbstractMethodError", "Appendable", "ArithmeticException", "ArrayIndexOutOfBoundsException",
+	"ArrayStoreException", "AssertionError", "AutoCloseable", "BootstrapMethodError", "Boolean", "Byte",
+	"CharSequence", "Character", "Class", "ClassCastException", "ClassCircularityError",
+	"ClassFormatError", "ClassLoader", "ClassNotFoundException", "ClassValue", "CloneNotSupportedException",
+	"Cloneable", "Comparable", "Deprecated", "Double", "Enum", "EnumConstantNotPresentException", "Error",
+	"Exception", "ExceptionInInitializerError", "Float", "FunctionalInterface", "IllegalAccessError",
+	"IllegalAccessException", "IllegalArgumentException", "IllegalCallerException",
+	"IllegalMonitorStateException", "IllegalStateException", "IllegalThreadStateException",
+	"IncompatibleClassChangeError", "IndexOutOfBoundsException", "InheritableThreadLocal",
+	"InstantiationError", "InstantiationException", "Integer", "InternalError", "InterruptedException",
+	"Iterable", "LayerInstantiationException", "LinkageError", "Long", "MatchException", "Math", "Module",
+	"ModuleLayer", "NegativeArraySizeException", "NoClassDefFoundError", "NoSuchFieldError",
+	"NoSuchFieldException", "NoSuchMethodError", "NoSuchMethodException", "NullPointerException", "Number",
+	"NumberFormatException", "Object", "OutOfMemoryError", "Override", "Package", "Process",
+	"ProcessBuilder", "ProcessHandle", "Readable", "Record", "ReflectiveOperationException", "Runnable",
+	"Runtime", "RuntimeException", "RuntimePermission", "SafeVarargs", "ScopedValue", "SecurityException",
+	"SecurityManager", "Short", "StackOverflowError", "StackTraceElement", "StackWalker", "StrictMath",
+	"String", "StringBuffer", "StringBuilder", "StringIndexOutOfBoundsException", "SuppressWarnings",
+	"System", "Thread", "ThreadDeath", "ThreadGroup", "ThreadLocal", "Throwable", "TypeNotPresentException",
+	"UnsatisfiedLinkError", "UnsupportedClassVersionError", "UnsupportedOperationException", "VerifyError",
+	"VirtualMachineError", "Void", "WrongThreadException",
+)
+
+func setOf(values ...string) map[string]bool {
+	set := make(map[string]bool, len(values))
+	for _, value := range values {
+		set[value] = true
+	}
+	return set
 }
