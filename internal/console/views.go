@@ -616,7 +616,7 @@ revision, not a test result and not a result for any one requirement.</div>
 <div class="panel">
 <h2>Hunks</h2>
 {{range .Hunks}}
-<h3><a href="/chain?change={{$.Chain.Change}}&amp;hunk={{.ID}}&amp;at={{$.Revision.Commit}}#hunk-detail"><code>{{.Path}}</code> −{{.Old.Start}},{{.Old.Count}} +{{.New.Start}},{{.New.Count}}</a></h3>
+<h3><a href="/chain?change={{$.Chain.Change}}&amp;hunk={{.ID}}&amp;at={{$.Revision.Commit}}{{with $.Chain.VerifiedBase}}&amp;base={{.}}{{end}}#hunk-detail"><code>{{.Path}}</code> −{{.Old.Start}},{{.Old.Count}} +{{.New.Start}},{{.New.Count}}</a></h3>
 <div style="font-size:12px"><code>{{.ID}}</code> · <code>{{$.Chain.SealedPath}}</code> · <code>{{.Field}}</code> · disposition <code>{{.Disposition}}</code>{{if .Reason}} · reason <code>{{.Reason}}</code>{{end}}</div>
 <h4>Cited evidence</h4>
 {{template "edges" .Evidence}}
