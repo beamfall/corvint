@@ -46,7 +46,7 @@ func (d Declared) Names() bool { return d.GoTest != GoTestAbsent || len(d.Langua
 var (
 	makeAssignment = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)[ \t]*(\?=|::=|:=|=)[ \t]*(.*)$`)
 	makeAppend     = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*[ \t]*(\+=|!=)`)
-	makeRule       = regexp.MustCompile(`^([A-Za-z0-9_.%/-]+)[ \t]*:([^=]|$)`)
+	makeRule       = regexp.MustCompile(`^([A-Za-z0-9_.%/-]+(?:[ \t]+[A-Za-z0-9_.%/-]+)*)[ \t]*:([^=]|$)`)
 	makeReference  = regexp.MustCompile(`\$[({]([A-Za-z_][A-Za-z0-9_]*)[)}]`)
 	envAssignment  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 	// Anything a shell would interpret makes the recipe untyped.
@@ -174,27 +174,31 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 			continue
 		}
 		if match := makeRule.FindStringSubmatch(line); match != nil {
-			switch target := match[1]; {
-			case target == "go-test":
-				declared.GoTest = GoTestUnparsed
-				inGoTest = true
-				if depth > 0 && untyped == "" {
-					untyped = "go-test is defined under a conditional"
+			// A rule may name several targets; each one is declared.
+			for _, target := range strings.Fields(match[1]) {
+				switch {
+				case target == "go-test":
+					declared.GoTest = GoTestUnparsed
+					inGoTest = true
+					if depth > 0 && untyped == "" {
+						untyped = "go-test is defined under a conditional"
+					}
+					// Prerequisites, target-specific variables and a
+					// double-colon rule all change what `make go-test` runs.
+					if _, after, _ := strings.Cut(line, ":"); strings.TrimSpace(stripMakeComment(after)) != "" && untyped == "" {
+						untyped = "the go-test rule line has prerequisites or target-specific variables"
+					}
+				case wanted[target]:
+					declared.Languages = appendUnique(declared.Languages, strings.TrimSuffix(target, "-test"))
+				case patternMatches(target, "go-test") && untyped == "":
+					untyped = "the pattern rule " + target + " applies to go-test"
 				}
-				// Prerequisites, target-specific variables and a double-colon
-				// rule all change what `make go-test` runs.
-				if _, after, _ := strings.Cut(line, ":"); strings.TrimSpace(stripMakeComment(after)) != "" && untyped == "" {
-					untyped = "the go-test rule line has prerequisites or target-specific variables"
-				}
-			case wanted[target]:
-				declared.Languages = appendUnique(declared.Languages, strings.TrimSuffix(target, "-test"))
-			case patternMatches(target, "go-test") && untyped == "":
-				untyped = "the pattern rule " + target + " applies to go-test"
 			}
 		}
 	}
 	sort.Strings(declared.Languages)
 	if incomplete != "" {
+
 		declared.Unreadable = incomplete + ", so its declared full scope cannot be read completely"
 	}
 	if declared.GoTest == GoTestUnparsed {
@@ -271,6 +275,11 @@ func typeGoRecipe(recipe []string, variables map[string]string) (env, flags []st
 	fields := strings.Fields(expanded)
 	env = []string{}
 	for len(fields) > 0 && envAssignment.MatchString(fields[0]) {
+		if strings.HasPrefix(fields[0], "PATH=") {
+			// The runner is resolved on Corvint's PATH, so a recipe that
+			// picks another go cannot be reproduced by the typed argv.
+			return nil, nil, "go-test recipe sets PATH, which changes which go runs"
+		}
 		env = append(env, fields[0])
 		fields = fields[1:]
 	}

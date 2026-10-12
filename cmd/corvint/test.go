@@ -228,7 +228,9 @@ func testCheckOutputPath(ctx context.Context, gitExecutable, root, name string) 
 	if err != nil {
 		return err
 	}
-	resolved := testResolveExisting(absolute)
+	// Only the parent is resolved: the write renames over the directory
+	// entry itself, so a leaf symlink is the entry replaced, not its target.
+	resolved := filepath.Join(testResolveExisting(filepath.Dir(absolute)), filepath.Base(absolute))
 	if info, err := os.Lstat(resolved); err == nil && !info.Mode().IsRegular() {
 		return errors.New("exists and is not a regular file")
 	}
@@ -259,6 +261,15 @@ func testCheckOutputPath(ctx context.Context, gitExecutable, root, name string) 
 		}
 		if len(tracked) != 0 {
 			return errors.New("is a tracked file or directory")
+		}
+		// An unignored worktree file is a dirty path, so writing it would
+		// change the source identity the run binds (STR-V0-017).
+		fromRoot, err := filepath.Rel(testResolveExisting(root), resolved)
+		if err != nil {
+			return err
+		}
+		if err := hermeticGitCommand(deadline, gitExecutable, root, "check-ignore", "-q", "--no-index", "--", filepath.ToSlash(fromRoot)).Run(); err != nil {
+			return errors.New("is in the worktree and not ignored, so writing it would change the source identity; write it outside the worktree, to an ignored path, or under <git-dir>/corvint")
 		}
 	}
 	return nil

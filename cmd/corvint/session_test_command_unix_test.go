@@ -232,6 +232,32 @@ func TestSTRV0001CLIRefusesProtectedOutputPaths(t *testing.T) {
 	if got := sessionRunnerLog(t, log); got != "" {
 		t.Fatalf("a refused run launched runners:\n%s", got)
 	}
+	// A leaf symlink is the entry a write replaces, so it is refused even
+	// when its target would be allowed; an unignored worktree file would
+	// change the bound source identity.
+	outside := t.TempDir()
+	target := filepath.Join(outside, "target.json")
+	if err := os.WriteFile(target, []byte("keep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(outside, "link.json")); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"--receipt", filepath.Join(outside, "link.json")},
+		{"--dry-run", "--manifest", filepath.Join(root, "manifest.json")},
+	} {
+		code, _, stderr := runCLI(t, append([]string{"--root", root, "test", "--base", base}, args...)...)
+		if code != 2 || !strings.Contains(stderr, args[len(args)-1]) {
+			t.Errorf("%v: code %d stderr %q", args, code, stderr)
+		}
+	}
+	if kept, _ := os.ReadFile(target); string(kept) != "keep\n" {
+		t.Fatal("the symlink target was overwritten")
+	}
+	if _, err := os.Lstat(filepath.Join(root, "manifest.json")); err == nil {
+		t.Fatal("an unignored worktree manifest was written")
+	}
 	allowed := filepath.Join(root, ".git", "corvint", "test-run.1.json")
 	if code, _, stderr := runCLI(t, "--root", root, "test", "--base", base, "--receipt", allowed); code != 0 {
 		t.Fatalf("default receipt name refused: %d %s", code, stderr)

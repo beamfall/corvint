@@ -331,6 +331,7 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 		"go-test:\n\tgo test ./...\n# note\n\tgo test -race ./...\n":   "2 recipe lines",
 		"F := $(UNDEFINED) -race\ngo-test:\n\tgo test $(F) ./...\n":    "F",
 		"F := $$HOME\ngo-test:\n\tgo test $(F) ./...\n":                "F",
+		"go-test:\n\tPATH=/opt/go/bin:/usr/bin go test ./...\n":        "sets PATH",
 		"export\tGOFLAGS=-race\ngo-test:\n\tgo test ./...\n":           "uses export",
 		"  override F = -race\ngo-test:\n\tgo test ./...\n":            "uses override",
 	} {
@@ -345,6 +346,11 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 		if got := ReadDeclared(write(t, body), []string{"rust"}, none); !strings.Contains(got.Unreadable, "cannot be read completely") {
 			t.Errorf("%q: declared scope read as complete: %#v", body, got)
 		}
+	}
+	// A rule naming several targets declares each of them.
+	multi := ReadDeclared(write(t, "rust-test cargo-test:\n\tcargo test\ngo-test lint:\n\tgo test ./...\n"), []string{"rust"}, none)
+	if !reflect.DeepEqual(multi.Languages, []string{"rust"}) || multi.GoTest != GoTestParsed {
+		t.Fatalf("multi-target rules: %#v", multi)
 	}
 	// ?= leaves an earlier Makefile value alone, whatever the environment
 	// says; a leading blank does not hide an assignment.

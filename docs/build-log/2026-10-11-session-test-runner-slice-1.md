@@ -34,7 +34,9 @@ Contracts and decisions:
   second command after one is still counted. It may use `$(VAR)`, `:=`, `=` and `?=`, where `?=`
   leaves a variable the Makefile already assigned alone and otherwise prefers the invoking
   environment over its own value, and `:=` expands immediately against the values assigned so
-  far (an immediate value that cannot be expanded is refused). It may not set `-json`, `-run` or `-skip`, and may
+  far (an immediate value that cannot be expanded is refused). A rule naming several targets
+  declares each one. A recipe that sets `PATH` is untyped, because the runner is resolved on
+  Corvint's own `PATH`. It may not set `-json`, `-run` or `-skip`, and may
   not use shell metacharacters. Anything else leaves the recipe untyped, including export,
   override, include, define, `.EXPORT_ALL_VARIABLES`, `+=`, `!=`, a variable assigned under a
   conditional (directives are recognised after any leading blank and before a tab), a go-test rule under a conditional or with prerequisites, target-specific variables
@@ -56,7 +58,9 @@ Contracts and decisions:
 - Writes: `--dry-run` writes only `--manifest PATH`. A run writes only its receipt, by default
   `<git-dir>/corvint/test-run[.I].json`, which is neither the index nor a `.corvint/` ledger. A
   supplied or default output path is refused before planning when it is tracked, under `.corvint/`, or in Git
-  metadata other than `<git-dir>/corvint/test-run[.I].json`.
+  metadata other than `<git-dir>/corvint/test-run[.I].json`. It is also refused when its leaf is a
+  symlink (the write replaces the entry, not the target) or when it is an unignored worktree file,
+  which would be a dirty path and change the bound source identity.
 - Source identity refuses a dirty directory (a submodule or nested repository), whose contents
   it cannot bind; the run exits 2 before planning. Every shard rechecks the identity before it
   finishes, including one that launched nothing.
