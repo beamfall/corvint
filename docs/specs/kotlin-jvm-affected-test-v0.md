@@ -95,9 +95,12 @@ package exactly as a single-name import does. When a top-level declaration and a
 qualified name an import walks back to, both remain candidate edges and the ambiguous-declaration
 frontier is raised, so the declaration cannot hide the package.
 
-Any observed `.java` source raises `kotlin:jvm-sibling-source-present`: the adapter does not claim
-Java ownership, parse Kotlin/Java dependency edges, or discover Java test classes, so a bounded
-scope cannot be reported for Kotlin exclusions in that mixed JVM tree.
+Java is owned by the `java` plugin (`java-affected-test-v0.md`). A Kotlin unit that observed Java
+text can reach carries the unit frontier `kotlin:java-dependent` (`JAT-V0-008`): Java reaches it by a
+declaration's simple name, an alias import name, or its file facade (the capitalised stem with `Kt`,
+so `core.kt` is `CoreKt`, or the `@file:JvmName` value), within the same package, a single or on-demand import, or a qualified
+reference. The Java dependent belongs to another namespace, so a plan that reaches such a unit is
+UNKNOWN; a plan in a mixed JVM tree that reaches none stays bounded.
 
 The bounded scanner rejects unterminated comments, strings, characters, and backticked names, but it
 is not a Kotlin compiler. It copies a backticked name verbatim up to its closing backtick, so a quote

@@ -2875,6 +2875,23 @@
     ]
   },
   {
+    "path": "docs/specs/java-affected-test-v0.md",
+    "title": "Java Affected-Test Adapter V0",
+    "reqPrefix": "JAT-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Static Java analysis maps dirty `.java` sources to JUnit/TestNG tests; unresolved imports, reflection, build files and Kotlin reach stay UNKNOWN or widen.",
+    "dependsOn": [
+      "docs/specs/affected-plan-v0.md",
+      "docs/specs/live-proof-carrying-verification-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/liveverify/affected/java"
+    ]
+  },
+  {
     "path": "docs/specs/run-verified-navigation-v0.md",
     "title": "Run-Verified Navigation V0",
     "reqPrefix": "RVN-V0",

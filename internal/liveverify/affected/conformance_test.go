@@ -12,6 +12,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/cfamily"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/dotnet"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/java"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/kotlin"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/python"
 	rubyadapter "github.com/Beamfall/corvint/internal/liveverify/affected/ruby"
@@ -65,6 +66,18 @@ func seamCases() []seamCase {
 			wantTests:      []string{"dotnet/core/CoreTests.cs", "dotnet/leaf/LeafTests.cs", "dotnet/mid/MidTests.cs"},
 			wantExcluded:   []string{"dotnet/solo/SoloTests.cs"},
 			ownedUnindexed: "dotnet/core/BrandNew.cs",
+		},
+		{
+			language: java.New(),
+			solo:     "java/solo/src/main/java/example/solo/Solo.java",
+			dirty:    "java/core/src/main/java/example/core/Core.java",
+			wantTests: []string{
+				"java/core/src/test/java/example/core/CoreTest.java",
+				"java/leaf/src/test/java/example/leaf/LeafTest.java",
+				"java/mid/src/test/java/example/mid/MidTest.java",
+			},
+			wantExcluded:   []string{"java/solo/src/test/java/example/solo/SoloTest.java"},
+			ownedUnindexed: "java/core/src/main/java/example/core/BrandNew.java",
 		},
 		{
 			language: kotlin.New(),
@@ -135,14 +148,14 @@ func seamCases() []seamCase {
 // allLanguages is every plugin the seam admits, in Name() order.
 func allLanguages() []affected.Language {
 	return []affected.Language{
-		cfamily.New(), dotnet.New(), golang.New(), kotlin.New(), python.New(),
-		rubyadapter.New(), rust.New(), shell.New(), swift.New(), typescript.New(),
+		cfamily.New(), dotnet.New(), golang.New(), java.New(), kotlin.New(),
+		python.New(), rubyadapter.New(), rust.New(), shell.New(), swift.New(), typescript.New(),
 	}
 }
 
 // allLanguageNames mirrors allLanguages and is the sorted namespace set a
 // composed graph must report.
-var allLanguageNames = []string{"cfamily", "dotnet", "go", "kotlin", "python", "ruby", "rust", "shell", "swift", "typescript"}
+var allLanguageNames = []string{"cfamily", "dotnet", "go", "java", "kotlin", "python", "ruby", "rust", "shell", "swift", "typescript"}
 
 func fixtureRoot(t *testing.T) string {
 	t.Helper()

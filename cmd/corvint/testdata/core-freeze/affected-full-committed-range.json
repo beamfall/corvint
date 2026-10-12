@@ -28,7 +28,7 @@
       "testing/scenarios.yaml"
     ],
     "excluded": [],
-    "graphDigest": "affected-graph:sha256:a3f75560c8a648071eacb010a81bd7f8bbc8b0f1a256ad6cc24f6298b953c884",
+    "graphDigest": "affected-graph:sha256:03f13ebd2bc818635f33e99e37789b95a55a5935a4cc20721b6f6d6e473fba17",
     "scope": "UNKNOWN",
     "selected": [
       {

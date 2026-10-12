@@ -124,8 +124,7 @@ runner tuple; runner execution belongs to V1-0593 and V1-0594.
 
 `sql-native`, `shader`, `html-css` and `structured-data` analyzer families get no affected plugin:
 they are not test-bearing source languages under this seam. A dirty path of theirs stays
-`UNOWNED_DIRTY_PATH`, which already keeps scope UNKNOWN. Java has no affected plugin in this slice (the `kotlin` plugin owns only `.kt` and `.kts`); a
-dirty `.java` path also stays `UNOWNED_DIRTY_PATH`.
+`UNOWNED_DIRTY_PATH`, which already keeps scope UNKNOWN. Java is planned by `java-affected-test-v0.md`.
 Extensionless shell executables, shebang detection, per-test-case anchors, runner commands, and
 build-system link graphs are V0 non-goals.
 
