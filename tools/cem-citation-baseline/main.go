@@ -36,6 +36,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/cli"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/dogfoodflow"
 )
 
@@ -102,10 +103,35 @@ type row struct {
 	citation map[string]any
 }
 
+// readMap reads one regular map file of at most the native map bound, the
+// bound the status verifier applies, without following a symbolic link.
+func readMap(name string) ([]byte, error) {
+	info, err := os.Lstat(name)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, errors.New("map is not a regular file")
+	}
+	if info.Size() > wire.MaxMapBytes {
+		return nil, errors.New("map exceeds the " + strconv.Itoa(wire.MaxMapBytes) + " byte bound")
+	}
+	file, err := os.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	raw, err := io.ReadAll(io.LimitReader(file, wire.MaxMapBytes+1))
+	if err == nil && len(raw) > wire.MaxMapBytes {
+		err = errors.New("map exceeds the " + strconv.Itoa(wire.MaxMapBytes) + " byte bound")
+	}
+	return raw, err
+}
+
 func measure(ctx context.Context, root, name string) row {
 	stem := strings.TrimSuffix(filepath.Base(name), ".cem.json")
 	r := row{stem: stem, issues: []any{}}
-	raw, err := os.ReadFile(name)
+	raw, err := readMap(name)
 	var head struct {
 		Spec         string `json:"spec"`
 		BaseRevision string `json:"baseRevision"`

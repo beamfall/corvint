@@ -3,6 +3,7 @@ package dogfoodflow
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -48,7 +49,8 @@ func (c *change) choreRole() string {
 // uniformCitation reports a plan that cites one span for every hunk of a map
 // with more than one hunk (DCW-V0-048): every hunk is named, by ordinal or full
 // ID, by a citation row, and every citation row carries the same PATH and
-// START:END, whatever its RELATION. It returns the hunk count and the span as
+// START:END, whatever its RELATION or the decimal spelling of START and END.
+// It returns the hunk count and the span as
 // PATH:START:END; a plan that keeps any hunk unknown or leaves one unnamed, or
 // cites two spans, is not uniform. The caller exempts a chore change.
 func uniformCitation(plan []byte, hunks []map[string]string) (int, string, bool) {
@@ -62,7 +64,10 @@ func uniformCitation(plan []byte, hunks []map[string]string) (int, string, bool)
 		if len(fields) != 4 || unknownRow(fields) {
 			return 0, "", false
 		}
-		rowSpan := fields[1] + ":" + fields[2]
+		rowSpan, ok := canonicalSpan(fields[1], fields[2])
+		if !ok {
+			return 0, "", false
+		}
 		if span != "" && rowSpan != span {
 			return 0, "", false
 		}
@@ -75,6 +80,22 @@ func uniformCitation(plan []byte, hunks []map[string]string) (int, string, bool)
 		}
 	}
 	return len(hunks), span, true
+}
+
+// canonicalSpan names PATH:START:END with START and END as the decimal
+// integers cem cite parses, so spellings such as 01:02 or +1:2 compare equal to
+// 1:2; a span cem cite would refuse is not canonical.
+func canonicalSpan(path, span string) (string, bool) {
+	left, right, found := strings.Cut(span, ":")
+	if !found {
+		return "", false
+	}
+	start, startErr := strconv.ParseInt(left, 10, 64)
+	end, endErr := strconv.ParseInt(right, 10, 64)
+	if startErr != nil || endErr != nil {
+		return "", false
+	}
+	return path + ":" + strconv.FormatInt(start, 10) + ":" + strconv.FormatInt(end, 10), true
 }
 
 // markChoreRole writes role into the regular cem/1.0 map at mapPath and keeps
@@ -109,12 +130,19 @@ func markChoreRole(mapPath, role string) error {
 	if err != nil {
 		return err
 	}
-	temporary := mapPath + ".role." + strconv.Itoa(os.Getpid())
-	if err := writePrivate(temporary, encoded); err != nil {
-		_ = removeFile(temporary)
+	// The sibling temporary file is created exclusively under a random name,
+	// so a planted path or symbolic link is never opened or overwritten.
+	file, err := os.CreateTemp(filepath.Dir(mapPath), "."+filepath.Base(mapPath)+".role.*")
+	if err != nil {
 		return err
 	}
-	if err := errors.Join(os.Chmod(temporary, info.Mode().Perm()), os.Rename(temporary, mapPath)); err != nil {
+	temporary := file.Name()
+	_, err = file.Write(encoded)
+	err = errors.Join(err, file.Chmod(info.Mode().Perm()), file.Close())
+	if err == nil {
+		err = os.Rename(temporary, mapPath)
+	}
+	if err != nil {
 		_ = removeFile(temporary)
 		return err
 	}

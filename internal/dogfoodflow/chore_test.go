@@ -109,6 +109,10 @@ func TestChangeDCWV0048RefusesUniformPlan(t *testing.T) {
 	if !strings.Contains(stderr, "fix: the plan cites one span for every hunk: hunks=3 span=a.txt:1:2;") {
 		t.Errorf("uniform plan: fix line does not name the hunk count and span:\n%s", stderr)
 	}
+	spelled := "1\ta.txt\t1:2\timplementation\n2\ta.txt\t01:02\timplementation\n3\ta.txt\t+1:2\timplementation\n"
+	if got, _ := run(base, spelled, "hunk:a", "hunk:b", "hunk:c"); !strings.Contains(got, `"reason": "citation-plan-uniform"`) {
+		t.Errorf("uniform plan with respelled spans: cem-cite = %s; want citation-plan-uniform", got)
+	}
 	byID := "hunk:a\ta.txt\t1:2\timplementation\nhunk:b\ta.txt\t1:2\timplementation\n"
 	if got, _ := run(base, byID, "hunk:a", "hunk:b"); !strings.Contains(got, `"reason": "citation-plan-uniform"`) {
 		t.Errorf("uniform plan by full hunk ID: cem-cite = %s; want citation-plan-uniform", got)

@@ -544,7 +544,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   change` MUST refuse a uniform plan as `cem-cite` `citation-plan-uniform`, citing and marking
   nothing, unless the change is a chore. A plan is uniform when the map prepared in the run has
   at least two hunks, the plan has no unknown row (`DCW-V0-046`), every citation row carries the
-  same evidence PATH and `START:END` span whatever its RELATION, and every map hunk is named by
+  same evidence PATH and `START:END` span, compared as the decimal integers `cem cite` parses (so
+  `01:02` is `1:2`), whatever its RELATION, and every map hunk is named by
   ordinal or full hunk ID. Its `fix:` line MUST name the hunk count and the span as
   `hunks=N span=PATH:START:END` and direct a per-hunk citation of the BASE lines each hunk
   depends on or implements. A plan that keeps a hunk unknown or leaves one unnamed, a
