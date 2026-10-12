@@ -133,6 +133,15 @@ cd "$repo"
 run r-relative review-change.sh CORVINT_ROOT=. CORVINT_BASE="$base"
 cd - > /dev/null
 expect 0 'outcome=complete report='
+# CEM-V1-141: a resumed stable map whose spec member carries other JSON whitespace still gets the
+# stable read; the recipe takes the spec from prepare's next action, not the map's bytes.
+tab=$(printf '\t')
+sed "s#\"spec\":\"cem/1.0\"#\"spec\":${tab}\"cem/1.0\"#" "$repo/.corvint/change.cem.json" > "$test_root/spaced.json"
+grep -q "\"spec\":${tab}\"cem/1.0\"" "$test_root/spaced.json" || fail 'r-spaced fixture lacks the tab'
+cp "$test_root/spaced.json" "$repo/.corvint/change.cem.json"
+git -C "$repo" commit -qam 'spaced change evidence'
+run r-spaced review-change.sh "${review[@]}"
+expect 0 'outcome=complete report='
 
 sed 's/900/901/' "$repo/auth/auth.go" > "$repo/auth/auth.go.new"
 mv "$repo/auth/auth.go.new" "$repo/auth/auth.go"
@@ -143,7 +152,7 @@ expect 3 'outcome=incomplete refused=prepare'
 grep -q 'different base or patch' "$out/prepare.out" "$out/prepare.stderr" || fail 'r-stale refusal not retained'
 [ "$(git -C "$repo" hash-object .corvint/change.cem.json)" = "$map_before" ] || fail 'r-stale replaced the map'
 
-sed 's#"spec": *"cem/[0-9.]*"#"spec":"cem/9.9"#' "$repo/.corvint/change.cem.json" > "$test_root/unsupported.json"
+sed 's#"spec":[[:space:]]*"cem/[0-9.]*"#"spec":"cem/9.9"#' "$repo/.corvint/change.cem.json" > "$test_root/unsupported.json"
 cp "$test_root/unsupported.json" "$repo/.corvint/change.cem.json"
 run r-unsupported review-change.sh "${review[@]}"
 expect 3 'outcome=incomplete refused=prepare'

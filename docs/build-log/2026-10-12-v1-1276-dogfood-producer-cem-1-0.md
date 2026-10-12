@@ -69,7 +69,10 @@ The RC3 loop must produce only `cem/1.0` (decision 0525). Before this change Cor
     for the worker's own root (`CEM-V1-152`); without it the aggregate finish over a default map
     failed `final-check-failed`.
 18. `review-change.sh` resolves `CORVINT_ROOT` to an absolute path before it adds `--artifacts`,
-    since the stable read refuses a relative root (Codex round 1, P2).
+    since the stable read refuses a relative root (Codex round 1, P2). It selects the stable read
+    from prepare's own next action, which names `--artifacts` only for a `cem/1.0` map, not by
+    grepping the map's bytes, so a resumed map with other JSON whitespace still gets it (Codex
+    round 4, P2; `script/cem-recipes_test.sh` case `r-spaced`, which fails on the old grep).
 19. A `cem/1.0` prepare skips the 0.x sidecar refusal but still probes every recognized
     interrupted-publication backup before recovery or resume cleanup: a producer or `cem/0.x`
     backup is restored or removed, a bound stable or unreadable one is refused and kept
