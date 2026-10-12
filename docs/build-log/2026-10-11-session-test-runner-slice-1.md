@@ -17,17 +17,20 @@ Contracts and decisions:
   AFP-V0-028 allowlist, for a selected package outside the Go universe, and when there is no
   verdict. An allowlisted non-Go `LANGUAGE_FRONTIER` entry names a frontier category, not a unit,
   so it does not require that language's declared command. This repository has six such entries
-  in every plan. A selected unit in a language without an adapter does require the command.
-  Owner question below.
+  in every plan. A selected unit, or a `NO_SELECTABLE_TEST` unknown unit, in a language without
+  an adapter does require the command. Owner question below.
 - No plan: the declared full scope runs on shard 0, read independently of the planner: the
-  Makefile `go-test` target and each `<lang>-test` target. A declaration that cannot be read or
-  names nothing is `INCOMPLETE`.
+  Makefile `go-test` target and each `<lang>-test` target for every registered language name. A
+  declaration that cannot be read or names nothing is `INCOMPLETE`.
 - Go recipe typing: the `go-test` recipe must be one line of the form
   `[NAME=VALUE ...] go test FLAGS ./...`. It may use `$(VAR)`, `:=`, `=` and `?=`, where `?=`
   defers to the invoking environment. It may not set `-json`, `-run` or `-skip`, and may
   not use shell metacharacters. Anything else leaves the recipe untyped, including export,
-  override, include, define, `.EXPORT_ALL_VARIABLES`, a variable assigned under a conditional, and
-  a rule under a conditional. An untyped recipe never narrows Go: a narrowed run is `INCOMPLETE`
+  override, include, define, `.EXPORT_ALL_VARIABLES`, `+=`, `!=`, a variable assigned under a
+  conditional, a go-test rule under a conditional or with prerequisites, target-specific variables
+  or `::`, and a `%` pattern rule that matches go-test. A rule whose target is a `$(VAR)` expansion
+  is not evaluated (this repository's Makefile has one, under a goal conditional); that is a
+  retained limit, not a typed guarantee. An untyped recipe never narrows Go: a narrowed run is `INCOMPLETE`
   and a `FULL` run calls `make go-test`. The local argv adds `-json` so outcomes can be attributed
   to packages.
 - CI profile argv and environment are the full CI branch's: `-exec <confine> -p 1 -count=1 -race
@@ -41,7 +44,11 @@ Contracts and decisions:
   143). Both verify-shards and a single shard use 3 for missing evidence, so callers can tell it
   apart from a failing test.
 - Writes: `--dry-run` writes only `--manifest PATH`. A run writes only its receipt, by default
-  `<git-dir>/corvint/test-run[.I].json`, which is neither the index nor a `.corvint/` ledger.
+  `<git-dir>/corvint/test-run[.I].json`, which is neither the index nor a `.corvint/` ledger. A
+  supplied output path is refused before planning when it is tracked, under `.corvint/`, or in Git
+  metadata other than `<git-dir>/corvint/test-run[.I].json`.
+- Fan-in recomputes the source digest from the manifest's and each receipt's source identity and
+  checks the receipt revision, so a receipt cannot keep the digest string over other identities.
 - Process ownership: each adapter runs as its own process group. Cancel, a signal or the 70
   minute budget kills the whole group. A platform without process groups runs nothing and is
   `INCOMPLETE`.

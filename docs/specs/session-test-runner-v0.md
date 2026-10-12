@@ -233,9 +233,9 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| STR-V0-001 | `cmd/corvint/test.go` (`compileAffectedGraph` shared with `affected`) | `cmd/corvint/session_test_command_unix_test.go` TestSTRV0018CLIDryRunLaunchesNoRunner, TestSTRV0010CLIRunWritesReceipt |
+| STR-V0-001 | `cmd/corvint/test.go` (`compileAffectedGraph` shared with `affected`) | `cmd/corvint/session_test_command_unix_test.go` TestSTRV0018CLIDryRunLaunchesNoRunner, TestSTRV0010CLIRunWritesReceipt, TestSTRV0001CLIRefusesProtectedOutputPaths |
 | STR-V0-002 | `internal/sessiontest/plan.go`, `internal/gateselect` | `internal/sessiontest/plan_test.go` TestSTRV0003BuildVerdicts, TestSTRV0007UniversePlacementEqualsCIPlan |
-| STR-V0-003 | `internal/sessiontest/plan.go`, `internal/sessiontest/declared.go` | TestSTRV0003BuildVerdicts, TestSTRV0003ReadDeclared, TestSTRV0003CLINoPlanRunsDeclaredScope |
+| STR-V0-003 | `internal/sessiontest/plan.go`, `internal/sessiontest/declared.go` | TestSTRV0003BuildVerdicts, TestSTRV0003ReadDeclared, TestSTRV0003CLINoPlanRunsDeclaredScope, TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand |
 | STR-V0-004 | `internal/sessiontest/run.go` (Go adapter; declared `make <lang>-test` fallback) | TestSTRV0004ParseTestEvents, TestSTRV0004RunnerDiscoveryRefusals; no versioned LPCV-V0-021 capability manifest yet (partial) |
 | STR-V0-005 | `Invocations` in `run.go` | TestSTRV0006Invocations, TestSTRV0010CLIRunWritesReceipt |
 | STR-V0-006 | `Invocations`; `ReadDeclared` types the Makefile `go-test` recipe | TestSTRV0006Invocations, TestSTRV0003ReadDeclared |

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -164,6 +165,15 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, affectedGitExecutableRefusal())
 		return 2
 	}
+	for _, output := range []struct{ flag, name string }{{"--receipt", options.receipt}, {"--dry-run --manifest", testManifestOutput(options)}} {
+		if output.name == "" {
+			continue
+		}
+		if err := testCheckOutputPath(ctx, gitExecutable, root, output.name); err != nil {
+			emitError(stderr, argumentError(output.flag+" "+output.name+": "+err.Error()))
+			return 2
+		}
+	}
 	identify := func(ctx context.Context) (sessiontest.SourceIdentity, error) {
 		return testSourceIdentity(ctx, gitExecutable, root)
 	}
@@ -191,6 +201,80 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	return testWriteReceipt(ctx, gitExecutable, root, options, receipt, signalExit, stderr)
 }
 
+func testManifestOutput(options testOptions) string {
+	if options.dryRun {
+		return options.manifest
+	}
+	return "" // without --dry-run the manifest is only read
+}
+
+var testDefaultReceiptName = regexp.MustCompile(`^test-run(\.[0-9]+)?\.json$`)
+
+// testCheckOutputPath refuses an output path STR-V0-001 forbids: a tracked
+// file, Git metadata other than the default receipt names under
+// <git-dir>/corvint, and the .corvint/ ledgers.
+func testCheckOutputPath(ctx context.Context, gitExecutable, root, name string) error {
+	absolute, err := filepath.Abs(name)
+	if err != nil {
+		return err
+	}
+	resolved := testResolveExisting(absolute)
+	if info, err := os.Lstat(resolved); err == nil && !info.Mode().IsRegular() {
+		return errors.New("exists and is not a regular file")
+	}
+	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
+	defer cancel()
+	out, err := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir", "--show-toplevel").Output()
+	fields := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if err != nil || len(fields) != 3 {
+		return errors.New("the repository layout cannot be read to check the path")
+	}
+	gitDir, commonDir, top := testResolveExisting(fields[0]), testResolveExisting(fields[1]), testResolveExisting(fields[2])
+	switch {
+	case testWithin(resolved, gitDir) || testWithin(resolved, commonDir):
+		if filepath.Dir(resolved) != filepath.Join(gitDir, "corvint") || !testDefaultReceiptName.MatchString(filepath.Base(resolved)) {
+			return errors.New("is Git metadata; only <git-dir>/corvint/test-run[.I].json may be written there")
+		}
+		return nil
+	case testWithin(resolved, filepath.Join(top, ".corvint")):
+		return errors.New("is under .corvint/, which corvint test never writes")
+	case testWithin(resolved, top):
+		relative, err := filepath.Rel(top, resolved)
+		if err != nil {
+			return err
+		}
+		tracked, err := hermeticGitCommand(deadline, gitExecutable, root, "ls-files", "-z", "--", ":(top,literal)"+filepath.ToSlash(relative)).Output()
+		if err != nil {
+			return errors.New("its tracked state cannot be read")
+		}
+		if len(tracked) != 0 {
+			return errors.New("is a tracked file or directory")
+		}
+	}
+	return nil
+}
+
+// testResolveExisting resolves symbolic links in the longest existing prefix
+// of an absolute path and keeps the rest.
+func testResolveExisting(path string) string {
+	path = filepath.Clean(path)
+	rest := ""
+	for current := path; ; current = filepath.Dir(current) {
+		if resolved, err := filepath.EvalSymlinks(current); err == nil {
+			return filepath.Join(resolved, rest)
+		}
+		if parent := filepath.Dir(current); parent == current {
+			return path
+		}
+		rest = filepath.Join(filepath.Base(current), rest)
+	}
+}
+
+func testWithin(path, directory string) bool {
+	relative, err := filepath.Rel(directory, path)
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !filepath.IsAbs(relative)
+}
+
 // testRunInput plans in process through `corvint affected --base` and the
 // AFP-V0-012 attribution, and reads the declared full scope and partition
 // files independently of the planner (STR-V0-001..003, STR-V0-018).
@@ -203,15 +287,17 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 			Slices: testReadOptional(filepath.Join(root, testPartitionDirectory, "test-slices.json")),
 		},
 	}
-	receipt, graph, err := compileAffectedGraph(ctx, affectedInvocation{Root: root, Base: options.base})
+	// The declared full commands are discovered from the registered language
+	// names, not the plan, so a planning failure still finds every one.
 	var languages []string
+	for _, language := range affectedLanguages() {
+		if name := language.Name(); name != "go" {
+			languages = append(languages, name)
+		}
+	}
+	receipt, graph, err := compileAffectedGraph(ctx, affectedInvocation{Root: root, Base: options.base})
 	if err == nil {
 		input.GraphDigest = graph.Digest()
-		for _, language := range graph.Languages() {
-			if language != "go" {
-				languages = append(languages, language)
-			}
-		}
 		err = testFillPlan(&input, receipt, graph, root)
 	}
 	if err != nil {

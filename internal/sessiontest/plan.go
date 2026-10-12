@@ -123,6 +123,11 @@ func Build(input Input) (Manifest, error) {
 		}
 	}
 	for _, entry := range input.Unknown {
+		// An unknown unit with no selectable test still needs its language's
+		// declared full command when no adapter covers it (STR-V0-004).
+		if language, _, ok := strings.Cut(entry.Detail, ":"); ok && entry.Reason == "NO_SELECTABLE_TEST" && language != "go" {
+			languages[language] = true
+		}
 		if allowedUnknown(entry) {
 			continue // an allowlisted frontier names a category, not a unit (AFP-V0-028)
 		}

@@ -45,7 +45,8 @@ func (d Declared) Names() bool { return d.GoTest != GoTestAbsent || len(d.Langua
 
 var (
 	makeAssignment = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)[ \t]*(\?=|::=|:=|=)[ \t]*(.*)$`)
-	makeRule       = regexp.MustCompile(`^([A-Za-z0-9_.-]+)[ \t]*:([^=]|$)`)
+	makeAppend     = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*[ \t]*(\+=|!=)`)
+	makeRule       = regexp.MustCompile(`^([A-Za-z0-9_.%/-]+)[ \t]*:([^=]|$)`)
 	makeReference  = regexp.MustCompile(`\$[({]([A-Za-z_][A-Za-z0-9_]*)[)}]`)
 	envAssignment  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 	// Anything a shell would interpret makes the recipe untyped.
@@ -114,6 +115,12 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 			}
 			continue
 		}
+		if makeAppend.MatchString(line) {
+			if untyped == "" {
+				untyped = "the Makefile uses += or !=, which this reader cannot evaluate"
+			}
+			continue
+		}
 		if match := makeAssignment.FindStringSubmatch(line); match != nil {
 			name, operator, value := match[1], match[2], strings.TrimSpace(stripMakeComment(match[3]))
 			if depth > 0 {
@@ -137,8 +144,15 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 				if depth > 0 && untyped == "" {
 					untyped = "go-test is defined under a conditional"
 				}
+				// Prerequisites, target-specific variables and a double-colon
+				// rule all change what `make go-test` runs.
+				if _, after, _ := strings.Cut(line, ":"); strings.TrimSpace(stripMakeComment(after)) != "" && untyped == "" {
+					untyped = "the go-test rule line has prerequisites or target-specific variables"
+				}
 			case wanted[target]:
 				declared.Languages = appendUnique(declared.Languages, strings.TrimSuffix(target, "-test"))
+			case patternMatches(target, "go-test") && untyped == "":
+				untyped = "the pattern rule " + target + " applies to go-test"
 			}
 		}
 	}
@@ -157,6 +171,14 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 		declared.GoTestNote = note
 	}
 	return declared
+}
+
+// patternMatches reports whether a make target pattern with one % stem
+// matches name.
+func patternMatches(pattern, name string) bool {
+	prefix, suffix, ok := strings.Cut(pattern, "%")
+	return ok && !strings.Contains(suffix, "%") && len(name) > len(prefix)+len(suffix) &&
+		strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix)
 }
 
 // logicalLines joins backslash continuations, as make does for every line.

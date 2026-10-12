@@ -35,6 +35,7 @@ done
 const sessionFakeMake = `#!/bin/sh
 echo "make $*" >> "$SESSION_FAKE_LOG"
 [ "$1" = --version ] && echo "GNU Make 4.4"
+[ "$1" = rust-test ] && exit 1
 exit 0
 `
 
@@ -178,6 +179,62 @@ func TestSTRV0003CLINoPlanRunsDeclaredScope(t *testing.T) {
 	receipt := readSessionReceipt(t, receiptPath)
 	if receipt.Scope != sessiontest.ScopeFull || receipt.Result != sessiontest.ResultPass || receipt.Summary != "FULL units passed: 1 of 1" {
 		t.Fatalf("receipt %+v", receipt)
+	}
+}
+
+// STR-V0-003: with no plan, a declared language full command is found from
+// the registered languages, not the plan, and its failure fails the run.
+func TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand(t *testing.T) {
+	root, _, log := sessionFixture(t, "pass")
+	makefile := "go-test:\n\tGOTOOLCHAIN=local go test -p 1 -count=1 ./...\nrust-test:\n\tcargo test\n"
+	if err := os.WriteFile(filepath.Join(root, "Makefile"), []byte(makefile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "commit", "-qam", "declare rust")
+	receiptPath := filepath.Join(t.TempDir(), "r.json")
+	code, _, stderr := runCLI(t, "--root", root, "test", "--base", strings.Repeat("e", 40), "--receipt", receiptPath)
+	if code != 1 {
+		t.Fatalf("code %d stderr %q", code, stderr)
+	}
+	if got := sessionRunnerLog(t, log); got != "make --version\nmake go-test\nmake --version\nmake rust-test\n" && got != "make --version\nmake go-test\nmake rust-test\n" {
+		t.Fatalf("runner calls:\n%s", got)
+	}
+	if receipt := readSessionReceipt(t, receiptPath); receipt.Result != sessiontest.ResultFail || receipt.Summary != "FULL units passed: 1 of 2" {
+		t.Fatalf("receipt %s %q", receipt.Result, receipt.Summary)
+	}
+}
+
+// STR-V0-001: an output path that is tracked, Git metadata or a .corvint/
+// ledger is refused before anything runs.
+func TestSTRV0001CLIRefusesProtectedOutputPaths(t *testing.T) {
+	root, base, log := sessionFixture(t, "pass")
+	before, err := os.ReadFile(filepath.Join(root, "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"--receipt", filepath.Join(root, "Makefile")},
+		{"--receipt", filepath.Join(root, "a")},
+		{"--receipt", filepath.Join(root, ".git", "index")},
+		{"--receipt", filepath.Join(root, ".git", "corvint", "traces.json")},
+		{"--receipt", filepath.Join(root, ".corvint", "self-observations.jsonl")},
+		{"--dry-run", "--manifest", filepath.Join(root, "Makefile")},
+		{"--dry-run", "--manifest", filepath.Join(root, ".git", "config")},
+	} {
+		code, stdout, stderr := runCLI(t, append([]string{"--root", root, "test", "--base", base}, args...)...)
+		if code != 2 || stdout != "" || !strings.Contains(stderr, args[len(args)-1]) {
+			t.Errorf("%v: code %d stdout %q stderr %q", args, code, stdout, stderr)
+		}
+	}
+	if after, _ := os.ReadFile(filepath.Join(root, "Makefile")); string(after) != string(before) {
+		t.Fatal("the tracked Makefile changed")
+	}
+	if got := sessionRunnerLog(t, log); got != "" {
+		t.Fatalf("a refused run launched runners:\n%s", got)
+	}
+	allowed := filepath.Join(root, ".git", "corvint", "test-run.1.json")
+	if code, _, stderr := runCLI(t, "--root", root, "test", "--base", base, "--receipt", allowed); code != 0 {
+		t.Fatalf("default receipt name refused: %d %s", code, stderr)
 	}
 }
 

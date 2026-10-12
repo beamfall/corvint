@@ -15,11 +15,15 @@ func twoShardManifest(t *testing.T) (Manifest, string) {
 	t.Helper()
 	m := Manifest{
 		Checks: []string{}, Incomplete: []string{}, PartitionDigest: "sha256:p", Profile: ManifestProfile,
-		Scope: ScopeNarrowed, ShardCount: 3, SourceDigest: "sha256:s",
+		Scope: ScopeNarrowed, ShardCount: 3, Source: SourceIdentity{Head: "h", Paths: []PathDigest{}, Tree: "t"},
 		Units: []Unit{
 			{Adapter: AdapterGo, Shard: 0, Slice: SliceWhole, Unit: "go:m/a"},
 			{Adapter: AdapterGo, Shard: 1, Slice: "0/2", Unit: "go:m/s"},
 		},
+	}
+	var err error
+	if m.SourceDigest, err = Digest(m.Source); err != nil {
+		t.Fatal(err)
 	}
 	digest, err := Digest(m)
 	if err != nil {
@@ -59,6 +63,11 @@ func TestSTRV0009VerifyShardsMatrix(t *testing.T) {
 		{"foreign manifest", func(r []Receipt) []Receipt { r[2].ManifestDigest = "sha256:other"; return r }, ResultIncomplete, "binds another manifest"},
 		{"changed source", func(r []Receipt) []Receipt { r[2].SourceDigest = "sha256:x"; return r }, ResultIncomplete, "source, partition or shard count differs"},
 		{"out of range", func(r []Receipt) []Receipt { r[2].ShardIndex = 3; return r }, ResultIncomplete, "shard index out of range"},
+		{"changed source identity under the original digest", func(r []Receipt) []Receipt {
+			r[1].Source.Tree = "other"
+			return r
+		}, ResultIncomplete, "receipt 1 (shard 1): the source identity does not match its digest or the manifest"},
+		{"changed revision", func(r []Receipt) []Receipt { r[1].Revision = "other"; return r }, ResultIncomplete, "does not match its digest or the manifest"},
 		{"extra unit", func(r []Receipt) []Receipt {
 			r[2].Invocations = []Invocation{{Outcomes: []Outcome{{Outcome: OutcomePass, Slice: SliceWhole, Unit: "go:m/z"}}}}
 			return r

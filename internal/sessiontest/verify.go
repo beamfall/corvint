@@ -17,6 +17,9 @@ func Verify(m Manifest, digest string, receipts []Receipt, unreadable []string) 
 	for _, reason := range m.Incomplete {
 		incomplete = append(incomplete, "manifest: "+reason)
 	}
+	if !sourceMatchesDigest(m.Source, m.SourceDigest) {
+		incomplete = append(incomplete, "manifest: the source identity does not match its digest")
+	}
 	shardOf := map[string]int{}
 	for _, unit := range m.Units {
 		shardOf[unit.Key()] = unit.Shard
@@ -31,6 +34,9 @@ func Verify(m Manifest, digest string, receipts []Receipt, unreadable []string) 
 			continue
 		case receipt.SourceDigest != m.SourceDigest || receipt.PartitionDigest != m.PartitionDigest || receipt.ShardCount != m.ShardCount:
 			incomplete = append(incomplete, name+": source, partition or shard count differs from the manifest")
+			continue
+		case !sourceMatchesDigest(receipt.Source, receipt.SourceDigest) || receipt.Revision != m.Source.Head:
+			incomplete = append(incomplete, name+": the source identity does not match its digest or the manifest")
 			continue
 		case receipt.ShardIndex < 0 || receipt.ShardIndex >= m.ShardCount:
 			incomplete = append(incomplete, name+": shard index out of range")
@@ -92,4 +98,11 @@ func Verify(m Manifest, digest string, receipts []Receipt, unreadable []string) 
 		return ResultFail, failed
 	}
 	return ResultPass, []string{}
+}
+
+// sourceMatchesDigest recomputes the STR-V0-017 source digest, so a receipt
+// cannot keep the manifest's digest string over different identities.
+func sourceMatchesDigest(source SourceIdentity, digest string) bool {
+	computed, err := Digest(source)
+	return err == nil && computed == digest
 }

@@ -97,6 +97,15 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 			in.GoSelection = "NOTHING none"
 			in.Selected = []string{"swift:Sources/App"}
 		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"swift: no qualified adapter and no declared swift-test full command"}},
+		{name: "unknown-only non-Go unit runs its declared command", edit: func(in *Input) {
+			in.GoSelection = "NOTHING none"
+			in.Unknown = []Unknown{{Reason: "NO_SELECTABLE_TEST", Detail: "python:pkg/mod.py"}}
+			in.Declared.Languages = []string{"python"}
+		}, scope: ScopeNarrowed, units: []string{"0 declared:python-test whole"}},
+		{name: "unknown-only non-Go unit with no declaration", edit: func(in *Input) {
+			in.GoSelection = "NOTHING none"
+			in.Unknown = []Unknown{{Reason: "NO_SELECTABLE_TEST", Detail: "python:pkg/mod.py"}}
+		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"python: no qualified adapter and no declared python-test full command"}},
 		{name: "FULL still covers a selected non-Go language", edit: func(in *Input) {
 			in.GoSelection = "FALLBACK go.mod changed"
 			in.Selected = []string{"python:pkg/mod.py"}
@@ -277,7 +286,7 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 	makefile := "CACHE ?= /tmp/cache\nTIMEOUT ?= 30m\nFLAGS = -p 1 \\\n  -timeout $(TIMEOUT)\n" +
 		"go-test:\n\tGOCACHE=$(CACHE) GOTOOLCHAIN=local go test $(FLAGS) -count=1 ./...\n" +
 		"rust-test:\n\tcargo test\nswift-test:\n\tswift test\n"
-	got := ReadDeclared(write(t, makefile), []string{"rust"}, none)
+	got := ReadDeclared(write(t, makefile+"ledger/%:\n\t@true\n.DEFAULT_GOAL := gate\n"), []string{"rust"}, none)
 	want := Declared{GoEnv: []string{"GOCACHE=/tmp/cache", "GOTOOLCHAIN=local"}, GoFlags: []string{"-p", "1", "-timeout", "30m", "-count=1"}, GoTest: GoTestParsed, Languages: []string{"rust"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %#v", got)
@@ -287,14 +296,20 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 		t.Fatalf("?= did not defer to the environment: %v", override.GoFlags)
 	}
 	for body, note := range map[string]string{
-		"go-test:\n\tgo test -json ./...\n":                           "sets -json",
-		"go-test:\n\tgo test -run=X ./...\n":                          "sets -run",
-		"go-test:\n\tgo test ./... | tee log\n":                       "needs a shell",
-		"go-test:\n\tgo vet ./...\n\tgo test ./...\n":                 "2 recipe lines",
-		"go-test:\n\tgo test $(UNDEFINED) ./...\n":                    "UNDEFINED",
+		"go-test:\n\tgo test -json ./...\n":                            "sets -json",
+		"go-test:\n\tgo test -run=X ./...\n":                           "sets -run",
+		"go-test:\n\tgo test ./... | tee log\n":                        "needs a shell",
+		"go-test:\n\tgo vet ./...\n\tgo test ./...\n":                  "2 recipe lines",
+		"go-test:\n\tgo test $(UNDEFINED) ./...\n":                     "UNDEFINED",
 		"export GOFLAGS=-mod=mod\ngo-test:\n\tgo test ./...\n":         "uses export",
 		"ifdef CI\nF = -race\nendif\ngo-test:\n\tgo test $(F) ./...\n": "F",
-		"go-test:\n\tgo test pkg ./...\n":                             "before its flags",
+		"go-test:\n\tgo test pkg ./...\n":                              "before its flags",
+		"F = -count=1\nF += -race\ngo-test:\n\tgo test $(F) ./...\n":   "+= or !=",
+		"F != echo -race\ngo-test:\n\tgo test $(F) ./...\n":            "+= or !=",
+		"go-test: build\n\tgo test ./...\n":                            "prerequisites",
+		"go-test: F = -race\ngo-test:\n\tgo test ./...\n":              "target-specific",
+		"go-test::\n\tgo test ./...\n":                                 "prerequisites",
+		"%-test:\n\techo\ngo-test:\n\tgo test ./...\n":                 "pattern rule %-test",
 	} {
 		got := ReadDeclared(write(t, body), nil, none)
 		if got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, note) {
