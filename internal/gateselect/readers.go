@@ -1,4 +1,4 @@
-package main
+package gateselect
 
 // The repository index behind AFP-V0-012 (decision 0131): which root-module
 // package a dirty path can reach, by import edges and by the path literals its

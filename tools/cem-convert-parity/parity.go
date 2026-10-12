@@ -28,11 +28,16 @@ import (
 const Profile = "cem-convert-parity/1"
 
 // Classes are the CEM-V1-104 explanation classes plus NOT_OBSERVED and different.
-var Classes = []string{"identical", "empty-member-explained", "unavailable-objects", "pre-existing-refusal", "NOT_OBSERVED", "different"}
+var Classes = []string{"identical", "empty-member-explained", "unavailable-objects", "pre-existing-refusal", "native-stable", "NOT_OBSERVED", "different"}
 
+// Options.Migrated selects the V1-1277 migration check: every committed map
+// must already be cem/1.0, a converted map must equal the converter's output
+// over its provenance-named source blob byte for byte, and the parity run then
+// compares that committed map against its source.
 type Options struct {
 	Repository, Maps, Portable, ReachableRevs, Out string
 	Jobs, Every                                    int
+	Migrated                                       bool
 }
 
 // Verdict is the compared projection of one consumer result.
@@ -50,6 +55,8 @@ type Verdict struct {
 type Row struct {
 	Profile              string  `json:"profile"`
 	Map                  string  `json:"map"`
+	Committed            string  `json:"committed,omitempty"`
+	CommittedEqual       bool    `json:"committedEqualsConverted,omitempty"`
 	SourceSpec           string  `json:"sourceSpec"`
 	SourceBlobOid        string  `json:"sourceBlobOid"`
 	BindPresent          bool    `json:"bindPresent"`
@@ -141,6 +148,11 @@ func Run(o Options) ([]byte, error) {
 	if err := os.WriteFile(filepath.Join(o.Out, "parity.jsonl"), jsonl.Bytes(), 0o644); err != nil {
 		return nil, err
 	}
+	if o.Migrated {
+		if err := os.WriteFile(filepath.Join(o.Out, "targets.txt"), targets(rows), 0o644); err != nil {
+			return nil, err
+		}
+	}
 	summary, err := json.MarshalIndent(summarize(rows, len(names), o.Every, sha256Hex(jsonl.Bytes())), "", "  ")
 	if err != nil {
 		return nil, err
@@ -173,6 +185,18 @@ func runOne(o Options, name string, reachable map[string]bool, work, artifacts s
 		row.Class, row.Reason = "different", "source-unreadable"
 		return row
 	}
+	var committed []byte
+	if o.Migrated {
+		committed = src
+		var reason string
+		if src, reason = migratedSource(ctx, o.Repository, bind, committed, &row); reason != "" {
+			row.Class, row.Reason = "different", reason
+			return row
+		}
+		if src == nil {
+			return nativeStableRow(ctx, o, row, committed, bind, work, artifacts)
+		}
+	}
 	row.SourceBlobOid = convert.BlobOid(src)
 	row.BindPresent = git(ctx, o.Repository, nil, nil, "cat-file", "-e", bind+"^{commit}") == nil
 	converted, report, err := convert.Convert(src, convert.Inputs{BindCommit: bind, Git: convert.NewGitReader(ctx, o.Repository)})
@@ -186,6 +210,12 @@ func runOne(o Options, name string, reachable map[string]bool, work, artifacts s
 		return row
 	}
 	row.ConvertedSha256 = sha256Hex(converted)
+	if o.Migrated {
+		if row.CommittedEqual = bytes.Equal(committed, converted); !row.CommittedEqual {
+			row.Class, row.Reason = "different", "committed-differs-from-converter"
+			return row
+		}
+	}
 	again, _, err := convert.Convert(src, convert.Inputs{BindCommit: bind})
 	row.Idempotent = err == nil && bytes.Equal(again, converted)
 	if _, _, err := convert.Convert(converted, convert.Inputs{BindCommit: bind}); err != nil {
@@ -221,6 +251,92 @@ func runOne(o Options, name string, reachable map[string]bool, work, artifacts s
 	row.Native, row.Portable, row.NativeEqualsPortable = run(target)
 	row.Class, row.Reason = classify(row)
 	return row
+}
+
+// migratedSource returns the provenance-named source blob of a committed
+// cem/1.0 map, or nil with no reason for a natively produced stable map that
+// carries no provenance. Such a map must be byte-identical to the sidecar its
+// bind commit tracks, the immutable evidence that it was bound with these
+// bytes; a migrated map with its provenance removed is not, and fails
+// native-bytes-not-bound. A nonempty reason fails the row.
+func migratedSource(ctx context.Context, repository, bind string, committed []byte, row *Row) ([]byte, string) {
+	if !wire.DeclaresStable(committed) {
+		return nil, "not-migrated"
+	}
+	doc, err := wire.ParseStable(committed)
+	if doc == nil {
+		row.ConvertCode = cemcode.CodeOf(err)
+		return nil, "committed-unparseable"
+	}
+	p := doc.Provenance
+	if p == nil {
+		var bound bytes.Buffer
+		if err := gitOut(ctx, repository, nil, nil, &bound, "cat-file", "blob", bind+":.corvint/change.cem.json"); err != nil || !bytes.Equal(bound.Bytes(), committed) {
+			return nil, "native-bytes-not-bound"
+		}
+		row.Committed = "stable-native"
+		return nil, ""
+	}
+	row.Committed = "migrated"
+	if p.BindCommit != bind || p.Converter != convert.Converter {
+		return nil, "provenance-mismatch"
+	}
+	var blob bytes.Buffer
+	if err := gitOut(ctx, repository, nil, nil, &blob, "cat-file", "blob", p.SourceBlobOid); err != nil {
+		return nil, "source-blob-unavailable"
+	}
+	src := blob.Bytes()
+	if convert.BlobOid(src) != p.SourceBlobOid || sha256Hex(src) != p.SourceSha256 {
+		return nil, "source-digest-mismatch"
+	}
+	return src, ""
+}
+
+// nativeStableRow verifies a natively produced stable map where it was bound:
+// both stable consumers at the bind commit, whose sidecar holds these bytes.
+func nativeStableRow(ctx context.Context, o Options, row Row, committed []byte, bind, work, artifacts string) Row {
+	row.SourceBlobOid, row.ConvertedSha256 = convert.BlobOid(committed), sha256Hex(committed)
+	if _, _, err := convert.Convert(committed, convert.Inputs{BindCommit: bind}); err != nil {
+		row.ReconvertCode = cemcode.CodeOf(err)
+	}
+	if err := os.MkdirAll(work, 0o755); err != nil {
+		row.Class, row.Reason = "different", "work-directory"
+		return row
+	}
+	mapPath := filepath.Join(work, "committed.cem.json")
+	if err := os.WriteFile(mapPath, committed, 0o644); err != nil {
+		row.Class, row.Reason = "different", "work-directory"
+		return row
+	}
+	doc, _ := wire.ParseStable(committed)
+	base, expected := doc.Change.BaseRevision, expectedHunks(committed)
+	nativeRaw := nativeStable(ctx, o.Repository, committed, base, bind, artifacts)
+	portableRaw := portableStable(ctx, o.Portable, o.Repository, mapPath, base, bind, artifacts)
+	row.DirectNative, row.DirectPortable, row.DirectEqual = stableVerdict(nativeRaw, expected), stableVerdict(portableRaw, expected), jsonEqual(nativeRaw, portableRaw)
+	row.Native, row.Portable, row.NativeEqualsPortable = row.DirectNative, row.DirectPortable, row.DirectEqual
+	row.SubstitutedTarget = bind
+	switch {
+	case row.ReconvertCode != convert.CodeSourceIsStable:
+		row.Class, row.Reason = "different", "reconvert-not-refused"
+	case !row.DirectEqual:
+		row.Class, row.Reason = "different", "native-portable-differ"
+	default:
+		row.Class, row.Reason = "native-stable", row.DirectNative.Outcome
+	}
+	return row
+}
+
+// targets lists "<bind> <target>" for every row with a verification target:
+// the CEM-V1-104 substituted target for a converted map, the bind commit for a
+// natively produced stable map. cem-citation-baseline --targets reads it.
+func targets(rows []Row) []byte {
+	var b bytes.Buffer
+	for _, r := range rows {
+		if r.SubstitutedTarget != "" {
+			fmt.Fprintf(&b, "%s %s\n", r.Map, r.SubstitutedTarget)
+		}
+	}
+	return b.Bytes()
 }
 
 // ConvertedBase is the base revision the source map pins; the stable consumers
@@ -467,6 +583,8 @@ type Summary struct {
 	DirectNative        map[string]int `json:"directNativeOutcomes"`
 	DirectPortable      map[string]int `json:"directPortableOutcomes"`
 	DirectEqual         int            `json:"directNativeEqualsPortable"`
+	Committed           map[string]int `json:"committed,omitempty"`
+	CommittedEqual      int            `json:"committedEqualsConverted,omitempty"`
 	Different           []string       `json:"different"`
 	NativePortable      []string       `json:"nativePortableDiffer"`
 }
@@ -480,6 +598,15 @@ func summarize(rows []Row, corpus, every int, digest string) Summary {
 	key := func(v Verdict) string { return strings.TrimSuffix(v.Outcome+" "+v.Code, " ") }
 	for _, r := range rows {
 		s.Classes[r.Class]++
+		if r.Committed != "" {
+			if s.Committed == nil {
+				s.Committed = map[string]int{}
+			}
+			s.Committed[r.Committed]++
+		}
+		if r.CommittedEqual {
+			s.CommittedEqual++
+		}
 		if r.Idempotent {
 			s.Idempotent++
 		}
