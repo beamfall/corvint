@@ -55,8 +55,9 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-080..082 | `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` and `testdata/citation/`; `TestCEMV1080*`, `TestCEMV1081*`, `TestCEMV1082*` in `internal/cem/verify`, `internal/cem/workflow` and `interop/cem01-go` | Recorded limits: `held` never produced, no `symbol` anchors, no threshold or cut-off, stable-result emission is CEM-V1-092; historical 591-map report in the build log |
 | CEM-V1-083 | Plain criterion form in `internal/cem/wire/stable.go` and `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/neutral-criterion/`; `TestCEMV1083*` in `internal/cem/wire`, `internal/cem/verify` and `interop/cem01-go` | No producer emits the plain form (`corvint-cem-candidate assemble-stable` accepts only Tasks-bound `cem-stable-assembly/1`); the public map was hand-assembled; stranger time NOT_OBSERVED |
 | CEM-V1-084 | `internal/cem/wire/stable_auth.go`, `internal/cem/verify/stable_auth.go`, `interop/cem01-go/stable_auth.go`; `--trusted-keys` in `internal/cem/cli/stable.go` and both portable commands; public case `protocol/cem-1.0/stable/receipt-authentication/`; `TestCEMV1084*` in `internal/cem/wire`, `internal/cem/verify`, `interop/cem01-go`, `internal/console` and `cmd/corvint` | No producer signs receipts (operator step, FPK-V0-036); `RESULT.schema.json` and the sealed S0E packet still name only `NOT_OBSERVED` for `authentication` and lack the four attestation issue codes (V1-1265); keys are TEST-ONLY; stranger time NOT_OBSERVED |
-| CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`; proof run in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` | V1-1265 added `citation` (CEM-V1-092) through the tool |
+| CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`; proof run in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` | V1-1265 added `citation` (CEM-V1-092) and `verdictSha256` (CEM-V1-066) through the tool |
 | CEM-V1-092 | `citation` member of `StableResult` (`internal/cem/verify/stable.go`) and `stableResult` (`interop/cem01-go/cem.go`, `stable_repository.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1092CitationOnlyOnAccept`, `TestCEMV1092SealedCasesCarryCitationOnlyOnAccept`, `TestCEMV1092RefuseAndRejectClearCitation` (native); `TestCEMV1092PortableCitationOnlyOnAccept`, `TestCEMV1082StableResultCarriesTheBlock`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file (case 21 derived natively on go1.27.2 with every other non-runtime key matching); ten envelope cells take `--cell-values` overrides |
+| CEM-V1-066 | `verdictSha256` member and `VerdictDigest` of `StableResult` (`internal/cem/verify/stable.go`, `stable_verdict.go`) and `stableResult` (`interop/cem01-go/cem.go`, `verdict.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1066SealedVerdictDigests`, `TestCEMV1066VerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066EveryOutcomeCarriesVerdictDigest` (native); `TestCEMV1066PortableSealedVerdictDigests`, `TestCEMV1066PortableVerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066PortableEveryOutcomeCarriesVerdictDigest`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file, computed from their sealed expectations; ten envelope cells take `--cell-values` overrides; no consumer reads the digest yet (decision 0525 step 8, V1-1283) |
 
 ## First portable candidate build contract
 
@@ -369,7 +370,7 @@ Acceptance evidence:
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-083 | `TestCEMV1083NeutralCriterionPublicCase`, `TestCEMV1083TasksFormUnchanged` (`internal/cem/verify`); `TestCEMV1083PlainCriterionWire`, `TestCEMV1083PlainCriterionRefusals` (`internal/cem/wire`); `TestCEMV1083NeutralCriterionPublicCase`, `TestCEMV1083PortablePlainDuplicateEvidence`, `TestCEMV1083PortableTasksFormUnchanged` (`interop/cem01-go`) | Public case `protocol/cem-1.0/stable/neutral-criterion/` ACCEPTs with the same 20 non-runtime keys on both consumers on a repository with no `.taskman/`; seven public refusals match on both; every S0E Tasks criterion re-encodes to its original eleven keys; walkthrough in `docs/build-log/2026-10-12-cem-neutral-criterion-walkthrough.md` |
+| CEM-V1-083 | `TestCEMV1083NeutralCriterionPublicCase`, `TestCEMV1083TasksFormUnchanged` (`internal/cem/verify`); `TestCEMV1083PlainCriterionWire`, `TestCEMV1083PlainCriterionRefusals` (`internal/cem/wire`); `TestCEMV1083NeutralCriterionPublicCase`, `TestCEMV1083PortablePlainDuplicateEvidence`, `TestCEMV1083PortableTasksFormUnchanged` (`interop/cem01-go`) | Public case `protocol/cem-1.0/stable/neutral-criterion/` ACCEPTs with the same non-runtime result on both consumers on a repository with no `.taskman/`; seven public refusals match on both; every S0E Tasks criterion re-encodes to its original eleven keys; walkthrough in `docs/build-log/2026-10-12-cem-neutral-criterion-walkthrough.md` |
 
 Rollback: revert the plain branch in `internal/cem/wire/stable.go` and `interop/cem01-go/cem.go`
 (restore the eleven required keys), the `criterionBinding` `oneOf` in `stable.schema.json`, the
@@ -426,6 +427,42 @@ Rollback: revert `stable_auth.go` in `internal/cem/wire`, `internal/cem/verify` 
 `receipt-attestation` kind in `stable.schema.json`, the CEM-V1-084 text in `ALGORITHMS.md`, the
 `receipt-authentication/` case and its manifest entries. Maps with the legacy string need no
 migration; a map with an object form is refused again after rollback.
+
+## Verdict digest (V1-1265, decision 0523 P1)
+
+Status: proposed. Decision 0523 P1. A stable result separates the verdict from the environment that
+produced it, so a later consumer can bind the verdict alone.
+
+- `CEM-V1-066`: Every `cem-stable-verification/1` result MUST carry `verdictSha256` after
+  `repositoryEnvelope`: the lowercase hex SHA-256 of the canonical JSON value (sorted keys, minimal
+  separators, decimal integers, no terminal LF) of the result object without `runtime`,
+  `repositoryEnvelope` and `verdictSha256`. It MUST be computed on every outcome, ACCEPT, REJECT and
+  UNSUPPORTED, and is never null. The excluded members are environment: re-verification of the same
+  inputs on another admitted Go tuple, or under another repository-envelope label, MUST yield the
+  same digest, while a change to any other member MUST change it. The native and portable
+  consumers MUST emit the same digest for every public case (S0E cases, envelope cells,
+  `neutral-criterion` and `receipt-authentication`); a disagreement is a consumer defect, never a
+  reason to edit the sealed value. Later consumers (decision 0525 step 8 and the Tasks gate,
+  V1-1283) consume `verdictSha256` rather than hashing the whole result.
+
+Non-goals: no signature or attestation over the digest, no change to the verdict members themselves,
+no digest in `cem/0.x` results, and no consumer of the digest in this change.
+
+Failure modes: an emitted digest that differs from the recomputed digest of the emitted result, a
+digest that moves with `runtime` or `repositoryEnvelope`, or a non-integer number in the result
+(refused rather than rounded) is a consumer defect; a value held in the result struct is never
+emitted, because both consumers recompute the digest at encoding.
+
+Acceptance evidence:
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-066 | `TestCEMV1066SealedVerdictDigests`, `TestCEMV1066VerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066EveryOutcomeCarriesVerdictDigest` (`internal/cem/verify`); `TestCEMV1066PortableSealedVerdictDigests`, `TestCEMV1066PortableVerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066PortableEveryOutcomeCarriesVerdictDigest`, `TestStableCanonicalFullResults` (`interop/cem01-go`) | The native capture of 54 S0E cases equals an independent recomputation from the sealed expectations; every sealed case, cell and public ACCEPT digest recomputes by hand on both consumers; each verdict member moves the digest and the three excluded members do not; the public refusals, axis cases and a REJECT, drift and UNSUPPORTED fixture each carry their own digest |
+
+Rollback: revert the `verdictSha256` regeneration (the packet files, both schema copies, the
+cells, the tuple packet and their manifests), the public `EXPECTED.json` members and stable
+manifest entries, `stable_verdict.go`, `interop/cem01-go/verdict.go` and the key-count changes in
+both consumers. No map changes; no consumer reads the digest yet.
 
 ## Stable verification result codes
 
