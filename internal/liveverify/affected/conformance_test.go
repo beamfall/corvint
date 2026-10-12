@@ -9,17 +9,19 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/cfamily"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/dotnet"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/kotlin"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/python"
 	rubyadapter "github.com/Beamfall/corvint/internal/liveverify/affected/ruby"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/rust"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/shell"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/swift"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 )
 
-// The fixture encodes one shape in eight languages: core <- mid <- leaf, plus an
+// The fixture encodes one shape in every language: core <- mid <- leaf, plus an
 // unrelated solo unit. Editing core must reach the whole chain and must not
 // reach solo, in every language, with the same code path.
 type seamCase struct {
@@ -93,6 +95,15 @@ func seamCases() []seamCase {
 			ownedUnindexed: "rust/core/src/brand_new.rs",
 		},
 		{
+			language:          shell.New(),
+			solo:              "shell/lib/solo.sh",
+			dirty:             "shell/lib/core.sh",
+			wantTests:         []string{"shell/tests/core_test.sh", "shell/tests/leaf_test.sh", "shell/tests/mid_test.sh"},
+			wantExcluded:      []string{"shell/tests/solo_test.sh"},
+			ownedUnindexed:    "shell/lib/brand_new.sh",
+			permanentFrontier: shell.FrontierForeignInvocation,
+		},
+		{
 			language:          swift.New(),
 			solo:              "swift/solo/Solo.swift",
 			dirty:             "swift/core/Core.swift",
@@ -100,6 +111,15 @@ func seamCases() []seamCase {
 			wantExcluded:      []string{"swift/tests/SoloTests.swift"},
 			ownedUnindexed:    "swift/core/BrandNew.swift",
 			permanentFrontier: swift.FrontierExclusionContract,
+		},
+		{
+			language:          cfamily.New(),
+			solo:              "native/solo/solo.c",
+			dirty:             "native/core/core.c",
+			wantTests:         []string{"native/core/core_test.c", "native/leaf/leaf_test.c", "native/mid/mid_test.c"},
+			wantExcluded:      []string{"native/solo/solo_test.c"},
+			ownedUnindexed:    "native/core/brand_new.c",
+			permanentFrontier: cfamily.FrontierLinkGraph,
 		},
 		{
 			language:       typescript.New(),
@@ -115,14 +135,14 @@ func seamCases() []seamCase {
 // allLanguages is every plugin the seam admits, in Name() order.
 func allLanguages() []affected.Language {
 	return []affected.Language{
-		dotnet.New(), golang.New(), kotlin.New(), python.New(),
-		rubyadapter.New(), rust.New(), swift.New(), typescript.New(),
+		cfamily.New(), dotnet.New(), golang.New(), kotlin.New(), python.New(),
+		rubyadapter.New(), rust.New(), shell.New(), swift.New(), typescript.New(),
 	}
 }
 
 // allLanguageNames mirrors allLanguages and is the sorted namespace set a
 // composed graph must report.
-var allLanguageNames = []string{"dotnet", "go", "kotlin", "python", "ruby", "rust", "swift", "typescript"}
+var allLanguageNames = []string{"cfamily", "dotnet", "go", "kotlin", "python", "ruby", "rust", "shell", "swift", "typescript"}
 
 func fixtureRoot(t *testing.T) string {
 	t.Helper()
