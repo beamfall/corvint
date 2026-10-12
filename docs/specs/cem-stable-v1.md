@@ -1346,14 +1346,18 @@ relabeled. `MIGRATION.json` is digest-pinned and is not edited here.
   - the verifier's change- and reference-integrity axes.
 
   The NOT_OBSERVED authority, criterion, runner and authentication axes stay gaps.
-- `CEM-V1-165`: In verified mode, the pane MUST replace the chain with a refusal that names the
-  verifier outcome, stage and code, drawing no chain row, when any of these holds:
-  - the `base` is missing or malformed;
-  - the base is wrong;
-  - the artifact root is missing;
-  - an artifact is tampered;
-  - the sealed bytes are edited;
-  - the verifier times out under the console's `-timeout`.
+- `CEM-V1-165`: In verified mode, the pane MUST replace the chain with a refusal, drawing no chain
+  row, when any of these holds:
+  - the `base` is missing or malformed: the refusal is an argument refusal, raised before the
+    verifier runs, that asks for `base=<full commit>`;
+  - the verifier returns anything but `ACCEPT`, including for a wrong base, a missing artifact
+    root, a tampered artifact or edited sealed bytes: the refusal names the verifier outcome, stage
+    and code;
+  - the verifier does not finish within the console's `-timeout`: the refusal names the timeout.
+
+  An accepted chain's hunk links MUST carry the accepted `base`, so following them stays in
+  verified mode. Its reference rows MUST show the verifier's `referenceIntegrity` value in place of
+  the display-only "not checked" text, and keep the not-completion qualification.
 - `CEM-V1-166`: Without `-stable-artifact-root`, the display-only NOT_RUN pane of `CEM-V1-077` MUST be
   unchanged. Verified mode MUST NOT change how a 0.x sealed map is drawn.
 - `CEM-V1-167`: The protected local-authority consumer holds a Git object capsule and no
@@ -1397,7 +1401,7 @@ No 0.x profile, default, packet or stored evidence changes.
 | CEM-V1-162 | `TestCEMV1162CorpusStableOperation` | Accepted map prints `corvint-corpus-cem-stable/1` with `PROJECTED`, `ACCEPT`, the map digest and claim rows |
 | CEM-V1-163 | `TestCEMV1162CorpusStableOperation` | Wrong base, edited map, missing root and tampered artifact exit 2 with no stdout; partial binding refused; 0.x `cem` refuses `cem/1.0` |
 | CEM-V1-164 | `TestCEMV1164ConsoleVerifiedStableChain` | Verified chain shows the `ACCEPT` envelope, `changeIntegrity VERIFIED`, `sidecar EXACT` and keeps NOT_OBSERVED axes |
-| CEM-V1-165 | `TestCEMV1164ConsoleVerifiedStableChain` | Missing base, wrong base, missing root, tampered artifact and edited sealed bytes draw only a refusal |
+| CEM-V1-165 | `TestCEMV1164ConsoleVerifiedStableChain` | Missing or malformed base, wrong base, missing root, tampered artifact, edited sealed bytes and a verifier timeout draw only a refusal; a followed hunk link stays verified; reference rows show the verifier value |
 | CEM-V1-166 | `TestCEMV1164ConsoleVerifiedStableChain` | Without the root the NOT_RUN envelope renders unchanged |
 | CEM-V1-167 | `TestCEMV1167CapsuleRefusesStableEnrollment` | A verified-shape `cem/1.0` enrollment refuses with `capsule CEM base`; the 0.x map reaches the object demand |
 | CEM-V1-168 | `TestCEMV1168DashboardRefusesStableBundle` | Three `cem/1.0` profile spellings refuse with `DASHBOARD_INVALID_ARGUMENT` and no stdout; the registry keeps 0.x profiles only |

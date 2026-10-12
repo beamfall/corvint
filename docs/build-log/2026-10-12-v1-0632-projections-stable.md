@@ -48,21 +48,38 @@ Date: 2026-10-12. Base: `85668d6c3d786ff46365f3b1642ae2de06304f8a`. Branch:
 
 ## Evidence
 
-- `TestCEMV1160WitnessStableRoute`, `TestCEMV1162CorpusStableOperation`,
-  `TestCEMV1164ConsoleVerifiedStableChain`, `TestCEMV1167CapsuleRefusesStableEnrollment` and
-  `TestCEMV1168DashboardRefusesStableBundle` build real fixtures with `internal/cem/stablefixture`.
-  For every route they show acceptance, and refusal of each of these:
+- `TestCEMV1160WitnessStableRoute`, `TestCEMV1162CorpusStableOperation` and
+  `TestCEMV1164ConsoleVerifiedStableChain` (C13, C14, C16) build real fixtures with
+  `internal/cem/stablefixture`. Each shows acceptance, and refusal of each of these:
   - a wrong base;
   - edited map bytes;
   - a tampered artifact;
   - a missing artifact root.
+- The console test also covers:
+  - a missing and a malformed base;
+  - a verifier timeout;
+  - following a rendered hunk link, which keeps the accepted base;
+  - reference rows that show the verifier's `referenceIntegrity` value.
+- C15 and C17 deliver refusals only, so they have no acceptance case:
+  - `TestCEMV1167CapsuleRefusesStableEnrollment` shows that an exact stablefixture cem/1.0 map
+    is refused at the capsule CEM base check.
+  - `TestCEMV1168DashboardRefusesStableBundle` shows that minimal arguments naming cem/1.0
+    profiles are refused, and that no registered adapter profile names cem/1.0.
 - The 0.x routes and their suites are unchanged.
 - Corvint use: `corvint affected --base 85668d6c3` (Corvint 1.0.0-rc.3 build 456) selected 80
   units with scope `UNKNOWN`, whose unknowns are `LANGUAGE_FRONTIER` items.
 
 ## Review
 
-- Codex (`gpt-6.1-sol`, read-only) rounds are recorded below as they complete.
+- Codex (`gpt-6.1-sol`, read-only) round 1: FAIL with four P2 findings and one P3:
+  - Verified hunk links dropped the base. Fixed: `Chain.VerifiedBase` is set on `ACCEPT`, and
+    hunk links carry it.
+  - The missing- or malformed-base refusal names no verifier outcome. Fixed by amending
+    `CEM-V1-165`: it is an argument refusal raised before the verifier runs.
+  - The timeout was untested. Fixed: an explicit deadline check refuses, and a test covers it.
+  - This log overclaimed C15/C17 acceptance. Fixed: C15 and C17 are now described separately.
+  - P3: accepted reference rows kept "not checked" text. Fixed: they show the verifier's
+    `referenceIntegrity` value.
 
 ## Limits and NOT_RUN
 

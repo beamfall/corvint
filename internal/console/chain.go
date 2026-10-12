@@ -224,6 +224,9 @@ type Chain struct {
 	Hunks        []ChainHunk
 	Detail       *ChainDetail
 	Err          string
+	// VerifiedBase is the expected base a verified cem/1.0 chain was accepted
+	// against (CEM-V1-164); hunk links carry it so navigation stays verified.
+	VerifiedBase string
 }
 
 // boundOCM is one OCM map bound to the sealed map by digest and revision.
