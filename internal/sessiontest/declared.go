@@ -85,7 +85,9 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 	// depth counts open conditionals; a variable assigned under one, or a
 	// directive that changes what a recipe sees, cannot be evaluated here.
 	depth, untyped := 0, ""
-	conditional := map[string]bool{}
+	// refused names variables this reader cannot evaluate: assigned under a
+	// conditional, or an immediate assignment whose expansion it cannot type.
+	refused := map[string]bool{}
 	for _, line := range lines {
 		if strings.HasPrefix(line, "\t") {
 			if inGoTest {
@@ -95,10 +97,12 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 			}
 			continue
 		}
-		inGoTest = false
+		// A blank or comment line does not end a recipe; make keeps reading
+		// tab lines after it as the same rule's recipe.
 		if strings.TrimSpace(line) == "" || strings.HasPrefix(strings.TrimSpace(line), "#") {
 			continue
 		}
+		inGoTest = false
 		directive, _, _ := strings.Cut(strings.TrimSpace(line), " ")
 		switch directive {
 		case "ifeq", "ifneq", "ifdef", "ifndef":
@@ -124,13 +128,23 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 		if match := makeAssignment.FindStringSubmatch(line); match != nil {
 			name, operator, value := match[1], match[2], strings.TrimSpace(stripMakeComment(match[3]))
 			if depth > 0 {
-				conditional[name] = true
+				refused[name] = true
 			}
 			if operator == "?=" {
 				if environment, ok := lookup(name); ok {
 					value = environment
 				} else if _, defined := variables[name]; defined {
 					continue
+				}
+			}
+			if (operator == ":=" || operator == "::=") && strings.Contains(value, "$") {
+				// An immediate assignment expands now, against the values
+				// assigned so far; a later reassignment must not change it.
+				expanded, err := expandMake(value, variables, 0)
+				if err != nil || strings.Contains(expanded, "$") {
+					refused[name] = true
+				} else {
+					value = expanded
 				}
 			}
 			variables[name] = value
@@ -158,7 +172,7 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 	}
 	sort.Strings(declared.Languages)
 	if declared.GoTest == GoTestUnparsed {
-		for name := range conditional {
+		for name := range refused {
 			delete(variables, name) // expandMake then refuses any reference to it
 		}
 		env, flags, note := typeGoRecipe(recipe, variables)

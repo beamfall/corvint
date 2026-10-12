@@ -111,6 +111,14 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 			in.Selected = []string{"python:pkg/mod.py"}
 			in.Declared.Languages = []string{"python"}
 		}, scope: ScopeFull, reason: "go.mod changed", units: []string{"0 go:example.test/m/a whole", "0 go:example.test/m/b whole", "0 go:example.test/m/c whole", "0 declared:python-test whole"}},
+		{name: "FULL from a path-only fallback runs every declared language", edit: func(in *Input) {
+			in.GoSelection = "FALLBACK UNINDEXED_SOURCE_PATH pkg/gone.py"
+			in.Declared.Languages = []string{"python"}
+		}, scope: ScopeFull, reason: "UNINDEXED_SOURCE_PATH pkg/gone.py", units: []string{"0 go:example.test/m/a whole", "0 go:example.test/m/b whole", "0 go:example.test/m/c whole", "0 declared:python-test whole"}},
+		{name: "FULL with an unreadable declaration", edit: func(in *Input) {
+			in.GoSelection = "FALLBACK go.mod changed"
+			in.Declared.Unreadable = "Makefile is unreadable"
+		}, scope: ScopeFull, reason: "go.mod changed", units: whole("a", "b", "c"), incomplete: []string{"the declared full scope is unreadable: Makefile is unreadable"}},
 		{name: "untyped recipe cannot narrow", edit: func(in *Input) {
 			in.Declared = Declared{GoEnv: []string{}, GoFlags: []string{}, GoTest: GoTestUnparsed, GoTestNote: "go-test recipe needs a shell", Languages: []string{}}
 		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"go: the go-test recipe cannot be typed (go-test recipe needs a shell); run make go-test"}},
@@ -310,11 +318,20 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 		"go-test: F = -race\ngo-test:\n\tgo test ./...\n":              "target-specific",
 		"go-test::\n\tgo test ./...\n":                                 "prerequisites",
 		"%-test:\n\techo\ngo-test:\n\tgo test ./...\n":                 "pattern rule %-test",
+		"go-test:\n\tgo test ./...\n\n\tgo test -race ./...\n":         "2 recipe lines",
+		"go-test:\n\tgo test ./...\n# note\n\tgo test -race ./...\n":   "2 recipe lines",
+		"F := $(UNDEFINED) -race\ngo-test:\n\tgo test $(F) ./...\n":    "F",
+		"F := $$HOME\ngo-test:\n\tgo test $(F) ./...\n":                "F",
 	} {
 		got := ReadDeclared(write(t, body), nil, none)
 		if got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, note) {
 			t.Errorf("%q: %s %q, want unparsed naming %q", body, got.GoTest, got.GoTestNote, note)
 		}
+	}
+	// An immediate assignment keeps the value it had when assigned.
+	immediate := ReadDeclared(write(t, "F = -race\nFLAGS := $(F) -count=1\nF = -short\ngo-test:\n\tgo test $(FLAGS) ./...\n"), nil, none)
+	if immediate.GoTest != GoTestParsed || !reflect.DeepEqual(immediate.GoFlags, []string{"-race", "-count=1"}) {
+		t.Fatalf(":= was expanded late: %#v", immediate)
 	}
 	if absent := ReadDeclared(t.TempDir(), nil, none); absent.GoTest != GoTestAbsent || absent.Names() || absent.Unreadable != "" {
 		t.Fatalf("missing Makefile: %#v", absent)
@@ -355,5 +372,13 @@ func TestSTRV0017Identify(t *testing.T) {
 	edited, err := Identify(root, "h", "t", []string{"a.go", "gone.go", "link"})
 	if err != nil || reflect.DeepEqual(edited, identity) {
 		t.Fatalf("an edit to a dirty file is not drift: %v", err)
+	}
+	// A dirty submodule is reported as its directory; its contents cannot
+	// be bound, so the identity is refused rather than bound to a constant.
+	if err := os.Mkdir(filepath.Join(root, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Identify(root, "h", "t", []string{"a.go", "sub"}); err == nil || !strings.Contains(err.Error(), "dirty path sub: it is a directory") {
+		t.Fatalf("a dirty directory was bound: %v", err)
 	}
 }

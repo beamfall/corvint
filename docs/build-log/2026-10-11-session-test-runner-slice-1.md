@@ -22,9 +22,14 @@ Contracts and decisions:
 - No plan: the declared full scope runs on shard 0, read independently of the planner: the
   Makefile `go-test` target and each `<lang>-test` target for every registered language name. A
   declaration that cannot be read or names nothing is `INCOMPLETE`.
+- FULL with a plan also runs every declared `<lang>-test` command, because a fallback such as a
+  deleted source file names only a path, not its language. An unreadable declaration under FULL
+  is `INCOMPLETE`.
 - Go recipe typing: the `go-test` recipe must be one line of the form
-  `[NAME=VALUE ...] go test FLAGS ./...`. It may use `$(VAR)`, `:=`, `=` and `?=`, where `?=`
-  defers to the invoking environment. It may not set `-json`, `-run` or `-skip`, and may
+  `[NAME=VALUE ...] go test FLAGS ./...`. Blank and comment lines do not end the recipe, so a
+  second command after one is still counted. It may use `$(VAR)`, `:=`, `=` and `?=`, where `?=`
+  defers to the invoking environment and `:=` expands immediately against the values assigned so
+  far (an immediate value that cannot be expanded is refused). It may not set `-json`, `-run` or `-skip`, and may
   not use shell metacharacters. Anything else leaves the recipe untyped, including export,
   override, include, define, `.EXPORT_ALL_VARIABLES`, `+=`, `!=`, a variable assigned under a
   conditional, a go-test rule under a conditional or with prerequisites, target-specific variables
@@ -47,6 +52,9 @@ Contracts and decisions:
   `<git-dir>/corvint/test-run[.I].json`, which is neither the index nor a `.corvint/` ledger. A
   supplied output path is refused before planning when it is tracked, under `.corvint/`, or in Git
   metadata other than `<git-dir>/corvint/test-run[.I].json`.
+- Source identity refuses a dirty directory (a submodule or nested repository), whose contents
+  it cannot bind; the run exits 2 before planning. Every shard rechecks the identity before it
+  finishes, including one that launched nothing.
 - Fan-in recomputes the source digest from the manifest's and each receipt's source identity and
   checks the receipt revision, so a receipt cannot keep the digest string over other identities.
 - Process ownership: each adapter runs as its own process group. Cancel, a signal or the 70

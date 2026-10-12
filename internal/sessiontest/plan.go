@@ -148,6 +148,15 @@ func Build(input Input) (Manifest, error) {
 	if fullReason != "" {
 		manifest.Scope, manifest.Reason = ScopeFull, fullReason
 		goRun = append([]string{}, input.Universe...)
+		// A fallback need not name the language it widened for (a deleted
+		// source file is only a path), so FULL runs every declared language
+		// full command, and an unreadable declaration is INCOMPLETE.
+		if input.Declared.Unreadable != "" {
+			manifest.Incomplete = append(manifest.Incomplete, "the declared full scope is unreadable: "+input.Declared.Unreadable)
+		}
+		for _, language := range input.Declared.Languages {
+			languages[language] = true
+		}
 	} else if len(goRun) == 0 && len(languages) == 0 {
 		manifest.Scope, manifest.Reason = ScopeNothing, strings.TrimPrefix(input.GoSelection, "NOTHING ")
 	}

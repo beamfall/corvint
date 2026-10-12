@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
@@ -115,6 +116,18 @@ func TestSTRV0017RunnerDrift(t *testing.T) {
 	if after.Result != ResultIncomplete || after.Invocations[0].Outcomes[0].Outcome != OutcomePass ||
 		after.Incomplete[0] != "source identity unavailable (index locked) after the last adapter launch" {
 		t.Fatalf("drift during run: %s %v", after.Result, after.Incomplete)
+	}
+	// A shard with no units still rechecks before it finishes.
+	runner, m, _, _ = runnerFixture(t, "pass")
+	m.Scope, m.Units = ScopeNothing, []Unit{}
+	digest, _ = Digest(m)
+	runner.Recheck = func(context.Context) (SourceIdentity, error) {
+		return SourceIdentity{Head: "h2", Paths: []PathDigest{}, Tree: "t"}, nil
+	}
+	empty := runner.Execute(context.Background(), m, digest, 0)
+	if empty.Result != ResultIncomplete || len(empty.Invocations) != 0 ||
+		!reflect.DeepEqual(empty.Incomplete, []string{"source drift before the shard finished; nothing launched"}) {
+		t.Fatalf("empty shard over drift: %s %v", empty.Result, empty.Incomplete)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -13,7 +14,8 @@ import (
 
 // Identify binds head, tree and the bytes of every dirty path (STR-V0-017).
 // A path that is gone is "deleted"; a symlink binds its target text, never
-// what it points at, because that is what Git would commit.
+// what it points at, because that is what Git would commit. A dirty
+// directory is refused.
 func Identify(root, head, tree string, dirty []string) (SourceIdentity, error) {
 	paths := append([]string(nil), dirty...)
 	sort.Strings(paths)
@@ -21,7 +23,7 @@ func Identify(root, head, tree string, dirty []string) (SourceIdentity, error) {
 	for _, name := range paths {
 		digest, err := pathDigest(filepath.Join(root, filepath.FromSlash(name)))
 		if err != nil {
-			return SourceIdentity{}, err
+			return SourceIdentity{}, fmt.Errorf("dirty path %s: %w", name, err)
 		}
 		identity.Paths = append(identity.Paths, PathDigest{Path: name, Digest: digest})
 	}
@@ -45,7 +47,10 @@ func pathDigest(name string) (string, error) {
 		sum := sha256.Sum256([]byte(target))
 		return "symlink:sha256:" + hex.EncodeToString(sum[:]), nil
 	case info.IsDir():
-		return "directory", nil
+		// Git reports a dirty submodule or nested repository as one directory
+		// path; its contents cannot be bound here, so refuse rather than bind
+		// a constant that no later edit inside it would change.
+		return "", errors.New("it is a directory (a submodule or nested repository) whose contents cannot be bound")
 	case !info.Mode().IsRegular():
 		return "special:" + info.Mode().Type().String(), nil
 	}

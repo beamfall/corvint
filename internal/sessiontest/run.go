@@ -175,7 +175,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 		}
 		versions[adapter] = [2]string{runner, version}
 	}
-	launched := false
+	launched, drifted := false, false
 	for _, invocation := range planned {
 		if ctx.Err() != nil {
 			receipt.Incomplete = append(receipt.Incomplete, "cancelled before every invocation launched")
@@ -183,6 +183,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 		}
 		if reason := r.drift(ctx, m.Source); reason != "" {
 			receipt.Incomplete = append(receipt.Incomplete, reason+" before an adapter launch; nothing further launched")
+			drifted = true
 			break
 		}
 		launched = true
@@ -193,9 +194,15 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			break
 		}
 	}
-	if launched {
+	// The closing recheck also covers a shard that launched nothing, so an
+	// empty or NOTHING run cannot pass over changed source.
+	if !drifted {
 		if reason := r.drift(context.WithoutCancel(ctx), m.Source); reason != "" {
-			receipt.Incomplete = append(receipt.Incomplete, reason+" after the last adapter launch")
+			when := " after the last adapter launch"
+			if !launched {
+				when = " before the shard finished; nothing launched"
+			}
+			receipt.Incomplete = append(receipt.Incomplete, reason+when)
 		}
 	}
 	return Finish(receipt, m)
