@@ -34,6 +34,10 @@ type CheckOptions struct {
 	// Verbose prints the full CEM and OCM status JSON on PASS, the output
 	// DCW-V0-020 fixed before DCW-V0-033 (DOGFOOD_VERBOSE=1).
 	Verbose bool
+	// OutputChange is DOGFOOD_OUTPUT_CHANGE: the requirement ID of a change
+	// that alters the canonical `cem status` output by construction, so the
+	// base verifier cannot agree with the tree verifier (DCW-V0-047).
+	OutputChange string
 }
 
 // AggregateCheckStage is an already admitted private observation. Finish only
@@ -67,6 +71,11 @@ type check struct {
 	baseSHA     string
 	treeSHA     string
 	overrideSHA string
+	// outputChange is the admitted DOGFOOD_OUTPUT_CHANGE requirement ID, and
+	// baseStatusSHA and treeStatusSHA the digests of the base and tree
+	// verifiers' `cem status` stdout it records (DCW-V0-047); all are empty
+	// without a declaration.
+	outputChange, baseStatusSHA, treeStatusSHA string
 }
 
 type verification struct {
@@ -134,6 +143,11 @@ func (c *check) seal() int {
 	}
 	if c.gitPassthrough("commit", "-q", "-m", "chore: seal change evidence") != 0 {
 		c.exit(2)
+	}
+	if c.baseIndependence() != "" {
+		// The seal keeps the declared output change beside its PASS (DCW-V0-047).
+		fmt.Fprintf(c.stdout, "dogfood-seal: PASS sealed=%s %s\n", sealed, c.baseIndependence())
+		return 0
 	}
 	fmt.Fprintf(c.stdout, "dogfood-seal: PASS sealed=%s\n", sealed)
 	return 0
@@ -211,6 +225,7 @@ func (c *check) run() int {
 	if report == nil {
 		report = c.checkReport()
 	}
+	c.admitOutputChange()
 	abstention := c.checkContextAbstention(report)
 	queryTask, queryAbstention := c.checkQueryAbstention(report)
 	c.resolveVerifiers()
@@ -250,6 +265,10 @@ func (c *check) requireCleanChange() {
 		c.exit(2)
 	}
 	if diffStatus == 0 {
+		// A declaration is never admitted by an empty range: an unknown ID
+		// refuses output-change-requirement-unknown and a known one
+		// output-change-not-in-diff, before the empty-range PASS (DCW-V0-047).
+		c.admitOutputChange()
 		fmt.Fprintf(c.stdout, "dogfood-check: PASS no-change-clean-worktree\n")
 		c.exit(0)
 	}
@@ -473,6 +492,102 @@ func (c *check) verifyAll(args ...string) (verification, bool) {
 	return tree, agree(tree, c.verify(*c.options.Override, args...))
 }
 
+// requirementIDPattern bounds a declared requirement ID before it is looked up,
+// so no tab, newline or path text reaches the comparison.
+var (
+	requirementIDPattern = regexp.MustCompile(`^[A-Z][A-Za-z0-9]*(-[A-Za-z0-9]+)+$`)
+	requirementSpecPath  = regexp.MustCompile(`^docs/specs/[A-Za-z0-9][A-Za-z0-9._-]*\.md$`)
+)
+
+// maxRequirementsBytes bounds the REQUIREMENTS.tsv read; a larger index is
+// treated as unreadable rather than read whole.
+const maxRequirementsBytes = 16 << 20
+
+// admitOutputChange admits DOGFOOD_OUTPUT_CHANGE only when HEAD's
+// docs/specs/REQUIREMENTS.tsv maps the requirement ID to a spec that
+// BASE..HEAD modifies; anything else refuses before a verifier runs
+// (DCW-V0-047). The aggregate report's closed schema has no member for the
+// declaration, so an enrolled aggregate check refuses it.
+func (c *check) admitOutputChange() {
+	id := c.options.OutputChange
+	if id == "" {
+		return
+	}
+	if c.aggregate != nil {
+		c.say("dogfood-check: REFUSE output-change-aggregate-unsupported\n")
+		c.say("  fix: unset DOGFOOD_OUTPUT_CHANGE; the enrolled aggregate report cannot record base-independence=NOT_PROVED (DCW-V0-047)\n")
+		c.exit(2)
+	}
+	spec := c.requirementSpec(id)
+	if spec == "" {
+		c.say("dogfood-check: REFUSE output-change-requirement-unknown\n")
+		c.say("  fix: set DOGFOOD_OUTPUT_CHANGE to a requirement ID that docs/specs/REQUIREMENTS.tsv at HEAD maps to its spec (DCW-V0-047)\n")
+		c.exit(2)
+	}
+	if _, status := c.git(true, "diff", "--quiet", "--no-ext-diff", "--no-textconv", c.base, c.target, "--", spec); status != 1 {
+		c.say("dogfood-check: REFUSE output-change-not-in-diff\n")
+		c.say("  %s maps to %s, which %s..%s does not modify; the requirement that changes the output must change in the same change (DCW-V0-047)\n", id, spec, c.base, c.target)
+		c.exit(2)
+	}
+	c.outputChange = id
+}
+
+// requirementSpec is the spec path HEAD's REQUIREMENTS.tsv maps id to, or
+// empty when the ID is malformed, absent, or the index is unreadable.
+func (c *check) requirementSpec(id string) string {
+	if !requirementIDPattern.MatchString(id) || len(id) > 64 {
+		return ""
+	}
+	object := c.target + ":docs/specs/REQUIREMENTS.tsv"
+	size, status := c.git(true, "cat-file", "-s", object)
+	if length, err := strconv.Atoi(chomp(size)); status != 0 || err != nil || length > maxRequirementsBytes {
+		return ""
+	}
+	index, status := c.git(true, "cat-file", "blob", object)
+	if status != 0 {
+		return ""
+	}
+	for _, line := range strings.Split(index, "\n") {
+		fields := strings.Split(line, "\t")
+		if len(fields) >= 2 && fields[0] == id {
+			if requirementSpecPath.MatchString(fields[1]) {
+				return fields[1]
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
+// verifyStatus is verifyAll for `cem status`. Under an admitted output-change
+// declaration the tree verifier fills both roles, the base verifier still
+// runs, and the digests of both stdouts are kept: the change proves its own
+// verifier deterministic, not independent of its base (DCW-V0-047).
+func (c *check) verifyStatus(args ...string) (verification, bool) {
+	if c.outputChange == "" {
+		return c.verifyAll(args...)
+	}
+	base := c.verify(c.options.BaseVerifier, args...)
+	tree := c.verify(c.options.TreeVerifier, args...)
+	c.baseStatusSHA, c.treeStatusSHA = sha256Hex(base.stdout), sha256Hex(tree.stdout)
+	if !agree(tree, c.verify(c.options.TreeVerifier, args...)) {
+		return tree, false
+	}
+	if c.options.Override == nil {
+		return tree, true
+	}
+	return tree, agree(tree, c.verify(*c.options.Override, args...))
+}
+
+// baseIndependence is the fields an admitted output change records on the
+// SUMMARY, NOTE and seal PASS lines, or empty before its `cem status` ran.
+func (c *check) baseIndependence() string {
+	if c.outputChange == "" || c.treeStatusSHA == "" {
+		return ""
+	}
+	return "base-independence=NOT_PROVED base=sha256:" + c.baseStatusSHA + " tree=sha256:" + c.treeStatusSHA + " declared=" + c.outputChange
+}
+
 func (c *check) verifyAbstention() {
 	args := []string{"impact", "--base", c.base, "--range-profile", "expanded-256", "--limit", "20"}
 	base := c.verify(c.options.BaseVerifier, args...)
@@ -540,7 +655,7 @@ func (c *check) verifyBinding(report []byte) int {
 		_ = c.record(true, bootstrap)
 		c.fail("dogfood-report-drift")
 	}
-	cem, agreed := c.verifyAll("cem", "status", "--map", ".corvint/change.cem.json", "--expected-base", c.base, "--target", c.target,
+	cem, agreed := c.verifyStatus("cem", "status", "--map", ".corvint/change.cem.json", "--expected-base", c.base, "--target", c.target,
 		"--max-unknown", strconv.Itoa(bootstrap+allowance), "--max-mechanical", "0")
 	if !agreed {
 		_ = c.record(false, bootstrap)
@@ -564,10 +679,13 @@ func (c *check) verifyBinding(report []byte) int {
 		// Verbose, or with no detail file to point at, the former full output stands.
 		_, _ = c.stdout.Write(cemLine)
 		_, _ = c.stdout.Write(ocmLine)
+		if c.baseIndependence() != "" {
+			fmt.Fprintf(c.stdout, "dogfood-check: NOTE %s\n", c.baseIndependence())
+		}
 		fmt.Fprintf(c.stdout, "dogfood-check: PASS\n")
 		return 0
 	}
-	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, reasoned, detail))
+	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, reasoned, c.baseIndependence(), detail))
 	if noIntent {
 		_, _ = c.stdout.Write(ocmLine)
 	}
@@ -580,8 +698,9 @@ func (c *check) verifyBinding(report []byte) int {
 // that holds the full JSON. A field the JSON does not carry prints NOT_OBSERVED.
 // unknownShare is unknown over material (non-mechanical) hunks, the measure of
 // the CEM kill condition, and reasonedUnknown the unknown hunks kept with a
-// recorded reason (DCW-V0-019).
-func checkSummary(cemLine, ocmLine []byte, noIntent bool, reasoned int, detail string) string {
+// recorded reason (DCW-V0-019). independence, when not empty, is the
+// base-independence=NOT_PROVED fields of an admitted output change (DCW-V0-047).
+func checkSummary(cemLine, ocmLine []byte, noIntent bool, reasoned int, independence, detail string) string {
 	var cem struct {
 		State  *string `json:"state"`
 		Counts *struct {
@@ -622,6 +741,9 @@ func checkSummary(cemLine, ocmLine []byte, noIntent bool, reasoned int, detail s
 				fields = append(fields, "requirements="+summaryInt(coverage.Total), "linked="+summaryInt(coverage.Linked), "unlinked="+summaryInt(coverage.Unknown))
 			}
 		}
+	}
+	if independence != "" {
+		fields = append(fields, independence)
 	}
 	fields = append(fields, "report=.corvint/dogfood-report.json", "detail="+detail)
 	return "dogfood-check: SUMMARY " + strings.Join(fields, " ")
@@ -701,6 +823,12 @@ func (c *check) record(agreed bool, bootstrap int) error {
 	}
 	replacement := fmt.Sprintf(`  ,"dogfoodCheck": {"baseVerifierSha256": "sha256:%s", "treeVerifierSha256": "sha256:%s", "overrideVerifierSha256": %s, "bootstrapUnknown": %d, "maximumUnknownAfterBootstrap": 0, "outputsAgree": %t}`,
 		c.baseSHA, c.treeSHA, override, bootstrap, agreed)
+	if c.baseIndependence() != "" {
+		// outputsAgree then means the tree verifier agreed with itself and any
+		// override, as in LCP-V0-014; the member says what stays unproved (DCW-V0-047).
+		replacement = strings.TrimSuffix(replacement, "}") + fmt.Sprintf(`, "baseIndependence": {"state": "NOT_PROVED", "declared": "%s", "baseStatusStdoutSha256": "sha256:%s", "treeStatusStdoutSha256": "sha256:%s"}}`,
+			c.outputChange, c.baseStatusSHA, c.treeStatusSHA)
+	}
 	data, err := os.ReadFile(c.report)
 	if err != nil {
 		return err
