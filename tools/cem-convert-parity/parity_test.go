@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -64,6 +65,13 @@ func TestCEMV1104ConvertParitySample(t *testing.T) {
 		var r Row
 		if err := json.Unmarshal(line, &r); err != nil {
 			t.Fatal(err)
+		}
+		// The portable consumer's stable verification needs its qualified
+		// process containment; where the host lacks it (every non-darwin CI
+		// runner) the consumer refuses before it reads the map, so parity is
+		// NOT_RUN there, not different (the interop fixture test skips the same way).
+		if r.Portable.Code == "unsupported-process-containment" || r.DirectPortable.Code == "unsupported-process-containment" {
+			t.Skip("NOT_RUN: portable consumer process containment is not qualified on " + runtime.GOOS)
 		}
 		switch r.Class {
 		case "NOT_OBSERVED":
