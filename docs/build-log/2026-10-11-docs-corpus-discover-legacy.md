@@ -321,3 +321,11 @@ because the sandbox denied Go's temporary build directory. Locally, the full
 
 DCP-V1-060, DCP-V1-061, DCP-V1-062, DCP-V1-063, DCP-V1-064, DCP-V1-065, DCP-V1-066, DCP-V1-067,
 DCP-V1-068 and DCP-V1-069 are accepted under the owner's standing auto-accept (2026-10-11).
+
+## Merge with origin/main (9360e083e)
+
+`discover-legacy` joins the table-driven corpus parser (`corpusOperations`, DCP-V1-056) with
+`--runner` added to the shared option table and the flag-matrix expectations. The stricter
+error-code ownership gate on main required the existing unknown codes `runner-call-in-template`,
+`case-callback-not-static`, `runtime-skip`, `case-span-unanchorable`, `root-level-hook` and
+`hook-in-dynamic-scope` to be named in DCP-V1-061 and DCP-V1-063; no behavior changed.

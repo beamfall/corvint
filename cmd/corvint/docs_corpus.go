@@ -14,8 +14,17 @@ import (
 type corpusOptions struct {
 	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement, runner string
 	playwright                                                                                                                playwrightCorpusOptions
+	legacyCases                                                                                                               legacyCasesCorpusOptions
 	apply, check                                                                                                              bool
 	limit, offset                                                                                                             int
+}
+
+// stringFlags maps each value-taking corpus option to its field.
+func (o *corpusOptions) stringFlags() map[string]*string {
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner}
+	o.playwright.addFlags(flags)
+	o.legacyCases.addFlags(flags)
+	return flags
 }
 
 func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
@@ -36,8 +45,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		return o, true, argumentError("docs corpus requires an operation")
 	}
 	o.op = args[pos+2]
-	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner}
-	o.playwright.addFlags(flags)
+	flags := o.stringFlags()
 	seen := map[string]bool{}
 	for i := pos + 3; i < len(args); i++ {
 		flag, value, inline := strings.Cut(args[i], "=")
@@ -85,56 +93,17 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		}
 		*target = value
 	}
-	allowed := map[string]string{
-		"manifest": "--revision --scope --timestamp", "build": "--manifest", "render": "--artifact",
-		"behavior-adapter":    "--input --previous --check",
-		"behavior-provider":   "--input",
-		"discover-playwright": "--migration --config --playwright-list --receipt",
-		"witness-playwright":  "--input --receipt-input --report",
-		"discover-legacy":     "--runner --revision --path --input",
-		"maintain":            "--artifact --page --apply", "cem": "--artifact --cem --id",
-		"info": "--artifact --limit", "validate": "--artifact --limit", "search": "--artifact --query --limit",
-		"get": "--artifact --id --limit", "trace": "--artifact --id --limit", "related": "--artifact --id --limit",
-		"journey": "--artifact --id --limit", "stability": "--artifact --id --limit", "locate": "--artifact --path --limit", "coverage": "--artifact --limit", "gaps": "--artifact --id --limit",
-	}
-	for _, op := range []string{"concept", "claims", "flow", "dependencies", "recommend-tests", "navigation", "vocabulary", "intent"} {
-		allowed[op] = "--artifact --limit --" + doccorpus.OperationInput(op)
-	}
-	allowed["inventory"] = "--artifact --limit --offset"
-	valid, ok := allowed[o.op]
-	if strings.Contains(valid, "--limit") {
-		valid += " --offset --retirement"
-	}
+	operation, ok := lookupCorpusOperation(o.op)
 	if !ok {
 		return o, true, argumentError("unsupported corpus operation")
 	}
 	for flag := range seen {
-		if !strings.Contains(" "+valid+" ", " "+flag+" ") {
+		if !operation.admits(flag) {
 			return o, true, argumentError("option does not apply to corpus operation")
 		}
 	}
-	required := map[string][]string{
-		"manifest": {o.revision, o.scope, o.timestamp}, "build": {o.manifest}, "maintain": {o.artifact, o.page}, "cem": {o.artifact, o.cem},
-		"behavior-adapter":    {o.input},
-		"behavior-provider":   {o.input},
-		"discover-playwright": {o.playwright.migration, o.playwright.config, o.playwright.listing},
-		"witness-playwright":  {o.input, o.playwright.receiptInput, o.playwright.report},
-		"discover-legacy":     {o.runner, o.revision, o.path},
-		"search":              {o.artifact, o.query}, "locate": {o.artifact, o.path}, "get": {o.artifact, o.id}, "trace": {o.artifact, o.id}, "related": {o.artifact, o.id}, "journey": {o.artifact, o.id}, "stability": {o.artifact, o.id},
-	}
-	if kind := doccorpus.OperationInput(o.op); kind == "query" {
-		required[o.op] = []string{o.artifact, o.query}
-	} else if kind == "id" {
-		required[o.op] = []string{o.artifact, o.id}
-	} else if kind == "path" {
-		required[o.op] = []string{o.artifact, o.path}
-	}
-	values, ok := required[o.op]
-	if !ok {
-		values = []string{o.artifact}
-	}
-	for _, value := range values {
-		if strings.TrimSpace(value) == "" {
+	for _, flag := range operation.required {
+		if strings.TrimSpace(*flags[flag]) == "" {
 			return o, true, argumentError("missing required corpus option")
 		}
 	}
@@ -179,17 +148,14 @@ func emitCorpusError(w io.Writer, err error) {
 // corpusInputPathError names the first local-input flag whose path the bounded reader would refuse
 // and the rule it breaks (DCP-V1-054). The code stays corpus-refused; what the reader admits is unchanged.
 func corpusInputPathError(o corpusOptions) error {
-	inputs := []struct{ flag, value string }{
-		{"--manifest", o.manifest}, {"--artifact", o.artifact}, {"--input", o.input}, {"--previous", o.previous},
-		{"--cem", o.cem}, {"--retirement", o.retirement}, {"--migration", o.playwright.migration},
-		{"--playwright-list", o.playwright.listing}, {"--receipt", o.playwright.receipt}, {"--report", o.playwright.report},
-	}
-	for _, input := range inputs {
-		if input.value == "" {
+	flags := o.stringFlags()
+	for _, flag := range corpusLocalInputFlags {
+		value := *flags[flag]
+		if value == "" {
 			continue
 		}
-		if rule := doccorpus.LocalInputPathRule(input.value); rule != "" {
-			return &doccorpus.Error{Code: "corpus-refused", Message: input.flag + ": local input paths must be canonical and relative to --root (" + rule + ")"}
+		if rule := doccorpus.LocalInputPathRule(value); rule != "" {
+			return &doccorpus.Error{Code: "corpus-refused", Message: flag + ": local input paths must be canonical and relative to --root (" + rule + ")"}
 		}
 	}
 	return nil
@@ -225,6 +191,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	}
 	if o.op == "discover-legacy" {
 		return compileLegacyCorpus(ctx, o)
+	}
+	if o.op == "import-cases" || o.op == "search-cases" {
+		return compileLegacyCasesCorpus(o)
 	}
 	if o.op == "behavior-provider" {
 		raw, err := doccorpus.ReadFile(o.root, o.input)

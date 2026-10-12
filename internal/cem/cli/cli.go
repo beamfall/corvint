@@ -57,7 +57,9 @@ type cemAction struct {
 	mutex   *mutexGroup
 }
 
-var readArguments = []string{"--map", "--patch", "--target", "--expected-base", "--max-unknown", "--max-mechanical"}
+// readArguments are shared by status and verify. --artifacts is the explicit
+// absolute artifact root only a cem/1.0 map accepts (CEM-V1-017, CEM-V1-018).
+var readArguments = []string{"--map", "--patch", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--artifacts"}
 
 var cemActions = map[string]cemAction{
 	"begin": {
@@ -94,7 +96,7 @@ var cemActions = map[string]cemAction{
 	"verify": {arguments: readArguments, required: []string{"--map"}},
 	"status": {arguments: readArguments, required: []string{"--map"}},
 	"report": {
-		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--format", "--ocm"},
+		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--format", "--ocm", "--artifacts"},
 		required:  []string{"--map"},
 		choices:   map[string][]string{"--format": {"markdown", "json"}},
 	},
@@ -113,7 +115,7 @@ var cemActions = map[string]cemAction{
 	},
 	"provenance": {arguments: []string{"--commit"}, required: []string{"--commit"}},
 	"export": {
-		arguments: []string{"--map", "--expected-base", "--target", "--output", "--witness"},
+		arguments: []string{"--map", "--expected-base", "--target", "--output", "--witness", "--artifacts"},
 		required:  []string{"--map", "--expected-base", "--target", "--output"},
 		paths:     []string{"--map"},
 	},
@@ -131,8 +133,8 @@ var cemActionOrder = []string{"begin", "prepare", "cite", "mark", "verify", "sta
 var GitNotes func(ctx context.Context, root, action string, values map[string]string) (map[string]any, error)
 
 // Export serves export (internal/receiptbundle), installed by the binary for
-// the same reason as GitNotes.
-var Export func(ctx context.Context, root string, values map[string]string) (map[string]any, error)
+// the same reason as GitNotes; cem/1.0 admits callerRoot (CEM-V1-060).
+var Export func(ctx context.Context, root, callerRoot string, values map[string]string) (map[string]any, error)
 
 func quotedChoices(values []string) string {
 	quoted := make([]string, 0, len(values))
@@ -334,7 +336,16 @@ func Run(ctx context.Context, root string, arguments []string, stdout, stderr io
 // RunWithOCM supplies the optional owning OCM verifier per invocation. The
 // standalone CEM dependency closure stays independent of that capability.
 func RunWithOCM(ctx context.Context, root string, arguments []string, stdout, stderr io.Writer, reader workflow.ReviewOCMReader) int {
-	envelope, err := dispatchCEMWithOCM(ctx, root, arguments, reader)
+	return RunWithCallerRoot(ctx, root, root, arguments, stdout, stderr, reader)
+}
+
+// RunWithCallerRoot is RunWithOCM for an entry point that normalized the root
+// it was given. Every 0.x command reads root; a cem/1.0 status or verify passes
+// callerRoot, the root byte for byte as the caller named it, to stable
+// admission, which judges it exactly as `cem verify-stable --repository` judges
+// the same string (CEM-V1-017).
+func RunWithCallerRoot(ctx context.Context, root, callerRoot string, arguments []string, stdout, stderr io.Writer, reader workflow.ReviewOCMReader) int {
+	envelope, err := dispatchCEMWithOCM(ctx, root, callerRoot, arguments, reader)
 	if err != nil {
 		emitCEMError(stderr, err)
 		return 2
@@ -348,6 +359,11 @@ func RunWithOCM(ctx context.Context, root string, arguments []string, stdout, st
 	if _, writeErr := fmt.Fprintf(stdout, "%s\n", encoded); writeErr != nil {
 		emitCEMError(stderr, cemcode.New("output-failed", "cannot write CEM output"))
 		return 2
+	}
+	// CEM-V1-017: a stable read exits with the verifier's own code (0 accept,
+	// 1 reject, 2 refusal), never one re-derived from the envelope.
+	if stable, isStable := envelope["stableVerification"].(workflow.StableVerification); isStable {
+		return stable.Exit
 	}
 	if envelope["ok"] != true {
 		return 1
@@ -385,10 +401,10 @@ func appendUnicodeEscape(output []byte, character rune) []byte {
 }
 
 func dispatchCEM(ctx context.Context, root string, arguments []string) (map[string]any, error) {
-	return dispatchCEMWithOCM(ctx, root, arguments, nil)
+	return dispatchCEMWithOCM(ctx, root, root, arguments, nil)
 }
 
-func dispatchCEMWithOCM(ctx context.Context, root string, arguments []string, reader workflow.ReviewOCMReader) (map[string]any, error) {
+func dispatchCEMWithOCM(ctx context.Context, root, callerRoot string, arguments []string, reader workflow.ReviewOCMReader) (map[string]any, error) {
 	action, spec, err := parseAction(arguments)
 	if err != nil {
 		return nil, err
@@ -404,6 +420,7 @@ func dispatchCEMWithOCM(ctx context.Context, root string, arguments []string, re
 	if err != nil {
 		return nil, err
 	}
+	session.SetStableRepository(callerRoot)
 	switch action {
 	case "begin":
 		return session.Begin(ctx, workflow.BeginOptions{
@@ -446,7 +463,7 @@ func dispatchCEMWithOCM(ctx context.Context, root string, arguments []string, re
 		}
 	case "export":
 		if Export != nil {
-			return Export(ctx, root, flags.values)
+			return Export(ctx, root, callerRoot, flags.values)
 		}
 	case "status", "verify", "report":
 		maxUnknown, err := flags.limit("--max-unknown")
@@ -462,7 +479,9 @@ func dispatchCEMWithOCM(ctx context.Context, root string, arguments []string, re
 			PatchGiven: flags.present["--patch"], ExpectedBase: flags.values["--expected-base"],
 			Target: flags.values["--target"], Output: flags.values["--output"],
 			Format: flags.values["--format"], OCMPath: flags.values["--ocm"], ReadOCM: reader,
-			Limits: workflow.PolicyLimits{MaxUnknown: maxUnknown, MaxMechanical: maxMechanical},
+			OCMGiven:     flags.present["--ocm"],
+			Limits:       workflow.PolicyLimits{MaxUnknown: maxUnknown, MaxMechanical: maxMechanical},
+			ArtifactRoot: flags.values["--artifacts"], ArtifactsGiven: flags.present["--artifacts"],
 		})
 	}
 	return nil, invalidChoice("cem_command", action, cemActionOrder)

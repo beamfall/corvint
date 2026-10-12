@@ -1,0 +1,198 @@
+package main
+
+import (
+	"strconv"
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/doccorpus"
+)
+
+// corpusOperation is one `docs corpus` operation: the options it admits and requires, in usage
+// order, and its one-line purpose. parseCorpusInvocation and the corpus help topics read the same
+// table (DCP-V1-056), so help cannot name an option the parser refuses.
+type corpusOperation struct {
+	name, purpose string
+	required      []string
+	optional      []string
+}
+
+// corpusOperations lists every `docs corpus` operation in help order.
+var corpusOperations = buildCorpusOperations()
+
+func buildCorpusOperations() []corpusOperation {
+	reads := []string{"--limit", "--offset", "--retirement"}
+	read := func(name, purpose string, required []string, optional ...string) corpusOperation {
+		return corpusOperation{name: name, purpose: purpose, required: append([]string{"--artifact"}, required...), optional: append(optional, reads...)}
+	}
+	typed := func(name, purpose string) corpusOperation {
+		return read(name, purpose, []string{"--" + doccorpus.OperationInput(name)})
+	}
+	return []corpusOperation{
+		{name: "manifest", purpose: "inventory one scope at a full commit as a corpus manifest", required: []string{"--revision", "--scope", "--timestamp"}},
+		{name: "build", purpose: "build the immutable corpus artifact from a manifest", required: []string{"--manifest"}},
+		{name: "render", purpose: "emit a deterministic filename-to-content documentation plan; writes nothing", required: []string{"--artifact"}},
+		{name: "maintain", purpose: "preview, or with --apply write, generated blocks of one human page", required: []string{"--artifact", "--page"}, optional: []string{"--apply"}},
+		{name: "cem", purpose: "emit CEM citation arguments and a corpus/CEM binding sidecar", required: []string{"--artifact", "--cem"}, optional: []string{"--id"}},
+		{name: "behavior-adapter", purpose: "map a behavior-adapter request to a provider bundle, or --check it", required: []string{"--input"}, optional: []string{"--previous", "--check"}},
+		{name: "behavior-provider", purpose: "build a corvint-corpus-behavior-provider/2 declaration from a request", required: []string{"--input"}},
+		{name: "discover-playwright", purpose: "produce Playwright test discovery from a listing and migration", required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
+		{name: "witness-playwright", purpose: "import qualified Playwright witnesses from a committed receipt and report", required: []string{"--input", "--receipt-input", "--report"}},
+		{name: "discover-legacy", purpose: "inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs", required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
+		{name: "import-cases", purpose: "import manual legacy cases from a caller-exported TestRail JSON or CSV file", required: []string{"--format", "--input"}, optional: []string{"--content"}},
+		{name: "search-cases", purpose: "search a caller-exported TestRail JSON or CSV file for legacy cases", required: []string{"--format", "--input", "--query"}, optional: []string{"--limit"}},
+		read("info", "artifact identity, capabilities and freshness", nil),
+		read("validate", "recheck the artifact against its original inputs", nil),
+		read("inventory", "page through every subject, claim and relation ID", nil),
+		read("search", "search subjects by text", []string{"--query"}),
+		read("get", "one subject by ID", []string{"--id"}),
+		read("trace", "source citations of one subject", []string{"--id"}),
+		read("related", "subjects related to one subject", []string{"--id"}),
+		read("journey", "one recorded journey and its observations", []string{"--id"}),
+		read("stability", "repeated-run stability evidence of one subject", []string{"--id"}),
+		read("locate", "subjects that cite one path", []string{"--path"}),
+		read("coverage", "scoped coverage with its denominator", nil),
+		read("gaps", "reported gaps, optionally for one subject", nil, "--id"),
+		typed("concept", "typed subjects matching a concept"),
+		typed("claims", "typed claims about one path"),
+		typed("flow", "one typed flow"),
+		typed("dependencies", "typed dependency relations of one subject"),
+		typed("recommend-tests", "tests related to one path; grants no test-selection authority"),
+		typed("navigation", "typed navigation subject"),
+		typed("vocabulary", "typed vocabulary matching a term"),
+		typed("intent", "typed intent comparisons of one subject"),
+	}
+}
+
+func lookupCorpusOperation(name string) (corpusOperation, bool) {
+	for _, operation := range corpusOperations {
+		if operation.name == name {
+			return operation, true
+		}
+	}
+	return corpusOperation{}, false
+}
+
+// admits reports whether the operation accepts flag.
+func (operation corpusOperation) admits(flag string) bool {
+	for _, known := range operation.required {
+		if known == flag {
+			return true
+		}
+	}
+	for _, known := range operation.optional {
+		if known == flag {
+			return true
+		}
+	}
+	return false
+}
+
+// corpusLocalInputFlags are the options whose value is a local input file: a canonical path
+// relative to --root that sits under it (DCP-V1-054).
+var corpusLocalInputFlags = []string{"--manifest", "--artifact", "--input", "--previous", "--cem", "--retirement", "--migration", "--playwright-list", "--receipt", "--report"}
+
+var corpusFlagHelp = map[string][2]string{
+	"--revision":        {"FULL_COMMIT", "source revision the manifest pins"},
+	"--scope":           {"PATH", "repository path the manifest inventories"},
+	"--timestamp":       {"RFC3339", "manifest timestamp"},
+	"--manifest":        {"INPUT.json", "manifest from docs corpus manifest"},
+	"--artifact":        {"CORPUS.json", "corpus artifact from docs corpus build"},
+	"--page":            {"PAGE.md", "human page holding generated blocks"},
+	"--apply":           {"", "write the page; without it the change is only previewed"},
+	"--cem":             {"CEM.json", "change evidence map"},
+	"--id":              {"ID", "subject or claim ID"},
+	"--input":           {"REQUEST.json", "request file"},
+	"--previous":        {"RESULT.json", "previous result; the new result reports the delta from it"},
+	"--check":           {"", "validate the request and print a check report; emits no result"},
+	"--migration":       {"MIGRATION.json", "migration input"},
+	"--config":          {"PATH", "Playwright config file"},
+	"--playwright-list": {"LIST.json", "Playwright --list JSON output"},
+	"--receipt":         {"RECEIPT.json", "qualified Playwright receipt, read unchanged"},
+	"--receipt-input":   {"ID", "REQUEST.json input naming the committed receipt; not a file"},
+	"--report":          {"REPORT.json", "caller-run Playwright JSON report"},
+	"--format":          {"testrail-json|csv", "test-management export format"},
+	"--content":         {"ids-paths-titles|full", "case text kept; full is local_only (default ids-paths-titles)"},
+	"--query":           {"TEXT", "search text"},
+	"--path":            {"PATH", "repository path"},
+	"--limit":           {"N", "1.." + strconv.Itoa(doccorpus.MaxResults) + " results (default 20)"},
+	"--offset":          {"N", "results to skip"},
+	"--retirement":      {"POLICY.json", "retirement policy"},
+	"--runner":          {"jasmine|mocha", "legacy test runner"},
+}
+
+func corpusFlagUsage(flag string) string {
+	if metavar := corpusFlagHelp[flag][0]; metavar != "" {
+		return flag + " " + metavar
+	}
+	return flag
+}
+
+const docsCorpusHelpTrailer = "Generated evidence grants no task or test-selection authority. Read operations print bounded\n" +
+	"JSON and never collect tests.\n" +
+	"Guide: docs/DOCUMENTATION-CORPUS.md; contract: docs/specs/documentation-corpus-v1.md\n"
+
+// docsCorpusHelp is the `help docs corpus` topic: every operation with its one-line purpose.
+func docsCorpusHelp() string {
+	var text strings.Builder
+	text.WriteString("Experimental documentation corpus profile\n\nUsage:\n  corvint [--root PATH] docs corpus OPERATION [OPTIONS]\n  corvint docs corpus OPERATION --help\n\nOperations:\n")
+	for _, operation := range corpusOperations {
+		text.WriteString("  " + operation.name + "  " + operation.purpose + "\n")
+	}
+	text.WriteString("\nLocal input files are canonical paths relative to --root that sit under it; absolute\n" +
+		"paths are refused: " + strings.Join(corpusLocalInputFlags, ", ") + ".\n")
+	text.WriteString(docsCorpusHelpTrailer)
+	return text.String()
+}
+
+// docsCorpusOperationHelp is the `docs corpus OPERATION --help` topic: its usage, options and the
+// options whose files must be relative to --root.
+func docsCorpusOperationHelp(name string) string {
+	operation, ok := lookupCorpusOperation(name)
+	if !ok {
+		panic("unknown corpus help topic")
+	}
+	usage := []string{"corvint [--root PATH] docs corpus " + operation.name}
+	for _, flag := range operation.required {
+		usage = append(usage, corpusFlagUsage(flag))
+	}
+	for _, flag := range operation.optional {
+		usage = append(usage, "["+corpusFlagUsage(flag)+"]")
+	}
+	var text strings.Builder
+	text.WriteString("Experimental documentation corpus: " + operation.purpose + "\n\nUsage:\n  " + strings.Join(usage, " ") + "\n\nOptions:\n")
+	for _, flags := range [][]string{operation.required, operation.optional} {
+		for _, flag := range flags {
+			text.WriteString("  " + corpusFlagUsage(flag) + "  " + corpusFlagHelp[flag][1] + "\n")
+		}
+	}
+	var relative []string
+	for _, flag := range corpusLocalInputFlags {
+		if operation.admits(flag) {
+			relative = append(relative, flag)
+		}
+	}
+	if len(relative) > 0 {
+		text.WriteString("\nRelative to --root: " + strings.Join(relative, ", ") + ". Each is a canonical path that sits under\n" +
+			"--root: no leading /, no .., no ./ or //. Absolute paths are refused (corpus-refused).\n")
+	}
+	text.WriteString(docsCorpusHelpTrailer)
+	if name == "discover-playwright" || name == "witness-playwright" {
+		text.WriteString("\n" + playwrightReceiptHelp)
+	}
+	if name == "import-cases" || name == "search-cases" {
+		text.WriteString("\n" + legacyCasesHelp)
+	}
+	return text.String()
+}
+
+// corpusHelpTopic names the help topic of `docs corpus` arguments, or "" when the operation is
+// unknown so the corpus parser refuses it.
+func corpusHelpTopic(rest []string) string {
+	if len(rest) == 0 || rest[0] == "--help" || rest[0] == "-h" {
+		return "docs-corpus"
+	}
+	if _, ok := lookupCorpusOperation(rest[0]); ok {
+		return "docs-corpus-" + rest[0]
+	}
+	return ""
+}

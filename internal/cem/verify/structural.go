@@ -376,8 +376,9 @@ func isOrderSensitive(decl ast.Decl) bool {
 	return false
 }
 
-// renameProven: the token streams differ only by one identifier pair
-// from→to (and comments that differ only by that whole-word substitution);
+// renameProven: the new token stream is exactly the base stream with every
+// from identifier replaced by to and every non-directive comment replaced by
+// its whole-word substitution image;
 // both names are unexported, `to` is fresh in the base file, and `from` is
 // declared in the base file without any use the file cannot resolve alone
 // (selector, composite-literal key, struct field, interface or concrete
@@ -401,14 +402,16 @@ func renameProven(old, new []byte) bool {
 }
 
 // identSubstitution finds the single identifier pair by which two equal-length
-// token streams differ; comments may differ only by that pair as whole words
-// and never when they carry a compiler directive.
+// token streams differ. The image must be the whole substitution: every
+// occurrence of the source identifier becomes the destination, and every
+// comment, changed or not, equals its whole-word substitution image, so an
+// unchanged comment that still names the source is not a proven rename;
+// compiler directives stay byte-identical (CEM-SM-007).
 func identSubstitution(old, new []goToken) (string, string, bool) {
 	if len(old) != len(new) {
 		return "", "", false
 	}
 	from, to := "", ""
-	var comments []int
 	for index := range old {
 		a, b := old[index], new[index]
 		if a.kind != b.kind {
@@ -424,7 +427,6 @@ func identSubstitution(old, new []goToken) (string, string, bool) {
 			}
 			from, to = a.lit, b.lit
 		case token.COMMENT:
-			comments = append(comments, index)
 		default:
 			return "", "", false
 		}
@@ -432,8 +434,14 @@ func identSubstitution(old, new []goToken) (string, string, bool) {
 	if from == "" {
 		return "", "", false
 	}
-	for _, index := range comments {
-		if directive(old[index].lit) || replaceWord(old[index].lit, from, to) != new[index].lit {
+	for index := range old {
+		a, b := old[index], new[index]
+		switch {
+		case a.kind == token.IDENT && a.lit == from && b.lit != to:
+			return "", "", false
+		case a.kind == token.COMMENT && directive(a.lit) && a.lit != b.lit:
+			return "", "", false
+		case a.kind == token.COMMENT && !directive(a.lit) && replaceWord(a.lit, from, to) != b.lit:
 			return "", "", false
 		}
 	}

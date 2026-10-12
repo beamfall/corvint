@@ -12,6 +12,21 @@ import (
 
 const StableSpec = "cem/1.0"
 
+// DeclaresStable reports whether data is one bounded JSON object whose spec is
+// exactly StableSpec. It selects a reader only; it validates nothing else, so a
+// caller still verifies the document through ParseStable (CEM-V1-019).
+func DeclaresStable(data []byte) bool {
+	if len(data) > MaxMapBytes {
+		return false
+	}
+	root, err := Parse(data)
+	if err != nil || root.Kind != KindObject {
+		return false
+	}
+	spec, present := root.Obj.Get("spec")
+	return present && spec.Kind == KindString && spec.Str == StableSpec
+}
+
 // StableMap owns the full stable document. Change retains the actual stable
 // profile; no legacy/candidate admission or profile translation is involved.
 // StableChange is intentionally not a legacy Map: reduced serializers cannot

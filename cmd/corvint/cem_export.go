@@ -11,9 +11,14 @@ import (
 // internal/receiptbundle to the CEM seams' closure.
 func init() { cemcli.Export = runCEMExport }
 
-func runCEMExport(ctx context.Context, root string, values map[string]string) (map[string]any, error) {
+// A cem/1.0 map is exported through the stable route, which admits callerRoot
+// byte for byte and needs --artifacts (CEM-V1-060).
+func runCEMExport(ctx context.Context, root, callerRoot string, values map[string]string) (map[string]any, error) {
+	_, artifactsGiven := values["--artifacts"]
+	_, witnessGiven := values["--witness"]
 	return receiptbundle.Export(ctx, root, receiptbundle.Options{
 		MapPath: values["--map"], ExpectedBase: values["--expected-base"], Target: values["--target"],
 		Output: values["--output"], Witness: values["--witness"],
+		Repository: callerRoot, Artifacts: values["--artifacts"], ArtifactsGiven: artifactsGiven, WitnessGiven: witnessGiven,
 	})
 }

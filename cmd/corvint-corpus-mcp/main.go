@@ -30,8 +30,9 @@ func main() {
 
 func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	arguments, protocolVersion, protocolOK := protocol.ExtractVersionArgument(arguments)
+	arguments, legacyCases, legacyOK := extractLegacyCasesFlag(arguments)
 	root, artifact, maps, consolidation, versionOnly, ok := parseArguments(arguments)
-	if !ok || !protocolOK {
+	if !ok || !protocolOK || !legacyOK || versionOnly && legacyCases {
 		_, _ = fmt.Fprintln(stderr, "corvint-corpus-mcp: invalid arguments")
 		return 2
 	}
@@ -58,6 +59,9 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		}
 		handler.consolidator = &consolidator{root: absolute}
 	}
+	if legacyCases {
+		handler.legacyCases = &legacyCaseSearcher{root: root}
+	}
 	instance, err := server.New(server.Config{
 		ProtocolVersion: protocolVersion,
 		Name:            serverName, Version: serverVersion,
@@ -78,7 +82,8 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 
 // parseArguments accepts --version, or --root R --artifact A followed by up to eight --map FILE
 // pairs naming root-relative application maps for corvint.map_plan (AMSP-V0-010) and at most one
-// --consolidation, which lists corvint.consolidate_tests (TCN-V0-012).
+// --consolidation, which lists corvint.consolidate_tests (TCN-V0-012). run removes one
+// --legacy-cases first, which lists corvint.docs_search_cases (DCP-V1-077).
 func parseArguments(arguments []string) (root, artifact string, maps []string, consolidation, versionOnly, ok bool) {
 	if len(arguments) == 1 && arguments[0] == "--version" {
 		return "", "", nil, false, true, true
@@ -107,6 +112,7 @@ type toolHandler struct {
 	registry     *corpusbridge.Registry
 	planner      *mapPlanner
 	consolidator *consolidator
+	legacyCases  *legacyCaseSearcher
 }
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
@@ -126,6 +132,9 @@ func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request
 		}
 		if handler.consolidator != nil {
 			tools = append(tools, handler.consolidator.descriptor())
+		}
+		if handler.legacyCases != nil {
+			tools = append(tools, handler.legacyCases.descriptor())
 		}
 		sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
 		return map[string]any{
@@ -163,6 +172,9 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	}
 	if name == consolidateTool && handler.consolidator != nil {
 		return handler.callConsolidate(ctx, raw)
+	}
+	if name == legacyCasesTool && handler.legacyCases != nil {
+		return handler.callLegacyCases(ctx, raw)
 	}
 	structured, text, toolFailure, transportErr := handler.registry.Call(ctx, name, raw)
 	if transportErr != nil {

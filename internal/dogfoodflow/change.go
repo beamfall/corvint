@@ -506,6 +506,11 @@ func (c *change) citeStep() {
 	case !c.cemPrepared || !isRegular(c.path(".corvint/change.cem.json")):
 		c.addStep("cem-cite", "NOT_PRODUCED", "cem-map-not-produced")
 		return
+	case declaresStableMap(c.path(".corvint/change.cem.json")):
+		// CEM-V1-032: a cem/1.0 map is refused before any plan is read, bound
+		// or cited, so it never looks like a map that owes no hunk.
+		c.addStep("cem-cite", "NOT_PRODUCED", "cem-map-stable-unsupported")
+		return
 	case c.options.Citations == "":
 		c.addStep("cem-cite", "NOT_PRODUCED", "citation-plan-not-provided")
 		return
@@ -543,6 +548,16 @@ func (c *change) citeStep() {
 		status, reason = "NOT_PRODUCED", "citation-stage-cleanup-failed"
 	}
 	c.addStep("cem-cite", status, reason)
+}
+
+// declaresStableMap reports a regular map, read at most the native map bound,
+// that declares cem/1.0 (CEM-V1-032).
+func declaresStableMap(mapPath string) bool {
+	if isSymlink(mapPath) {
+		return false
+	}
+	data, err := readPrefix(mapPath, maxPlanBytes)
+	return err == nil && wire.DeclaresStable(data)
 }
 
 // citedHunks counts the hunks of a map that no longer carry the prepared
@@ -794,8 +809,14 @@ func (c *change) ordinalsMoved(plan []byte, hunks []map[string]string) bool {
 
 // mapHunks decodes the disposition, id and path of each hunk of a map in map
 // order, whatever its JSON layout, so a compact map reads like the indent-2 one
-// cem prepare writes. A map that does not decode has no hunks.
+// cem prepare writes. A map that does not decode has no hunks, and neither has
+// a cem/1.0 map: its hunks are not Core 0.x hunks, and the bind loop never
+// cites, counts or binds a plan to them (CEM-V1-032).
 func mapHunks(data []byte) []map[string]string {
+	hunks := []map[string]string{}
+	if wire.DeclaresStable(data) {
+		return hunks
+	}
 	var decoded struct {
 		Hunks []struct {
 			Disposition string `json:"disposition"`
@@ -803,7 +824,6 @@ func mapHunks(data []byte) []map[string]string {
 			Path        string `json:"path"`
 		} `json:"hunks"`
 	}
-	hunks := []map[string]string{}
 	if json.Unmarshal(data, &decoded) != nil {
 		return hunks
 	}
@@ -1106,6 +1126,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"*:git-budget-exceeded", "the change is larger than one 1,024-Git-operation verifier pass; bind and seal it as smaller changes on their own branches, merge them, and check the merge batch with corvint dogfood batch-check {base} instead of rebinding it (DCW-V0-039, DCW-V0-040)"},
 	{"cem-cite:citation-plan-not-provided", "set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json"},
 	{"cem-cite:citation-plan-unavailable", "DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves"},
+	{"cem-cite:cem-map-stable-unsupported", ".corvint/change.cem.json declares cem/1.0, which the bind loop does not cite or bind; it binds only Core cem/0.x maps, so move the stable map out of that path and rerun the loop to prepare a Core map (CEM-V1-032)"},
 	{"cem-cite:empty-citation-plan", "DOGFOOD_CITATIONS names an empty file but .corvint/change.cem.json still has unknown hunks; write one row per unknown hunk, or unset DOGFOOD_CITATIONS to prepare the map without citing"},
 	{"cem-cite:citation-plan-row-limit-exceeded", "DOGFOOD_CITATIONS row limit=256 observed={citationRows}; use explicit staged plans of at most 256 rows on the same CEM (docs/DOGFOOD.md Staged binding of one oversized commit)"},
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows"},

@@ -17,7 +17,9 @@ beamfall/corvint#714) were accepted on 2026-10-10, as amended by the first indep
 (decision 0485, recorded from the coordinating agent's relay of the owner's chat approval), and are
 experimental. The agent-drafted TOL-V0-034..036 (adopter obligation aliases, GitHub
 beamfall/corvint#792, V1-1177) were accepted on 2026-10-11 under the owner's standing auto-accept
-(decision 0519), and are experimental.
+(decision 0519), and are experimental. The agent-drafted TOL-V0-037..046 (per-obligation review
+sources and an auditable "none found", GitHub beamfall/corvint#813) were accepted on 2026-10-11
+under the owner's standing auto-accept, and are experimental.
 The profile reuses unchanged the ticket, mutation,
 receipt and fold boundaries of the [agent lease contract](corvint-tasks-agent-leases-v0.md), the
 reference-plus-evidence-event shape of [operator notes](corvint-tasks-operator-notes-v0.md)
@@ -29,7 +31,7 @@ in the build log.
 
 ## Agent digest
 - Claim: A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.
-- Status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); TOL-V0-034..036 (obligation aliases, GitHub #792, V1-1177) by decision 0519; experimental; TOL-V0-001..018 and 020..036 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
+- Status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); TOL-V0-034..036 (obligation aliases, GitHub #792, V1-1177) by decision 0519; TOL-V0-037..046 (review sources, GitHub #813) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; experimental; TOL-V0-001..018 and 020..036 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
 - Exists: the experimental `ticket obligations seed|show|witness|set|plan` verbs, the read-only `preflight` verb (TOL-V0-025..027), the experimental `run-batch` and `qualify` verbs (TOL-V0-028..033), the record member, the `internal/tasks/obligation` report reader, the receipt audit and the fingerprint, stall and loop integration; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
 - Blocked on: a live Playwright 1.63 fixture before any crediting code can qualify.
 - Read next: User and current state; Requirements; Failure modes and trust; Resolved owner decisions.
@@ -513,6 +515,72 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   - The receipt audit folds the ledger chain before the audited witness to learn its aliases, so
     an alias-bound match audits `CONSISTENT` from stored content alone.
 
+### Review sources (GitHub #813)
+
+A credited migrated test should say which legacy case it replaces, or show that someone searched
+and found none. A free-text "none found" cannot be checked. TOL-V0-037..046 record what a reviewer
+read as structured, digest-pinned review sources. They are review records, never witness
+evidence: they never credit, demote or block an obligation, satisfy a gate, or change a count.
+
+- `TOL-V0-037`: A folded entry MAY carry an optional `sources` list of 1..16 review sources, kept
+  in the order written. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
+  - `{kind, ref, digest}` with `kind` `legacy-case`, `legacy-spec` or `manual-case` names a
+    reviewed source. `ref` is 1..256 non-blank bytes: a case ID for `legacy-case` and
+    `manual-case`, a repository path for `legacy-spec`. `digest` is the 64-lowercase-hex sha256
+    the reviewer read.
+  - `{kind: none, query, searched, at}` records an empty search. `query` is 0..1024 bytes,
+    `searched` a sorted unique list of 0..32 non-blank source ids of 1..256 bytes, and `at` a
+    timestamp.
+  - Each element is closed to its kind's keys. An unknown kind, a key of the other shape, a bad
+    digest, an empty list or an unsorted `searched` refuses `MALFORMED`; a list of more than 16
+    sources refuses `LIMIT_EXCEEDED`, the code of the sibling array bounds. The codec
+    admits an empty `query` or `searched`; TOL-V0-041 refuses them under the policy, so a stored
+    ledger stays readable when the policy changes.
+- `TOL-V0-038`: An `OBLIGATIONS_SET` change MAY carry `sources`. A change becomes `{id, state,
+  core, reason, sources?}` and must name a state, a core flag, sources or a combination; `sources`
+  replaces the entry's whole list and stamps `updatedAt`/`updatedBy` like any set. A sources-only
+  change leaves state and core as they are. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
+- `TOL-V0-039`: An entry or set change without sources MUST keep its exact pre-#813 bytes (the
+  member is absent, never null), and the `requireSourceReview` policy MUST NOT change any ledger
+  byte: the same writes fold to the same entries with the policy on and off. Status: accepted
+  under the owner's standing auto-accept (2026-10-11; GitHub #813).
+- `TOL-V0-040`: The policy key `obligations` becomes `{workerWitness, requireSourceReview?}`.
+  With `requireSourceReview: true`, `preflight` (TOL-V0-025) MUST add a `SOURCE_REVIEW_MISSING`
+  finding naming each OPEN, DEFECT or BLOCKED obligation that records no sources. WITNESSED and
+  DEFERRED obligations are not checked. A policy without the key keeps the check off. Status:
+  accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
+- `TOL-V0-041`: Under the same policy, `preflight` MUST add a `SOURCE_REVIEW_NONE_UNSEARCHED`
+  finding naming each checked obligation that has a `none` source with a blank query (Unicode
+  whitespace only) or an empty `searched` set. Each finding carries a remedy, and any finding refuses `PREFLIGHT_FAILED`
+  (TOL-V0-025). Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
+- `TOL-V0-042`: When some entry records sources, `ticket obligations show` and `ticket obligations
+  plan` MUST add `sourceReview`. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
+  - `sourceReview` is `{specCommit, staleCount, stale, unresolvedCount, unresolved}`. `stale`
+    lists each legacy-case, legacy-spec or manual-case source whose current digest differs from
+    the reviewed one, as `{id, state, kind, ref, reviewed, current}`. `unresolved` lists each
+    whose current digest cannot be read, with a `reason`.
+  - Neither list changes a state: a WITNESSED obligation with a stale source stays WITNESSED.
+    `plan`'s `ok` and exit code are unchanged.
+  - A ledger without sources adds no member.
+- `TOL-V0-043`: `show` and `plan` take an optional `--legacy-cases FILE`, a
+  `corvint-legacy-cases/1` record from `corvint docs corpus import-cases` (DCP-V1-070), read up to
+  32 MiB from a regular file; a symlink, FIFO, device or directory refuses `MALFORMED` without
+  blocking. `legacy-case` and `manual-case` refs resolve by case ID to that record's case digest.
+  A document that is not exactly one JSON value, a repeated object member, another schema, a case
+  without a 64-hex digest or a repeated case ID refuses `MALFORMED`. Without
+  the flag, or for a case not in the record, the source is unresolved with the reason. Status:
+  accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
+- `TOL-V0-044`: A `legacy-spec` ref MUST resolve as a clean repository-relative path at `HEAD`,
+  read from Git objects with the bounded TOL-V0-012 reader. Its current digest is the sha256 of
+  the blob, and `specCommit` names the commit read. A ref that is not such a path, is absent, or is
+  over the read bound is unresolved with the reason. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
+- `TOL-V0-045`: Source refs, queries and searched ids MUST pass the TOL-V0-009 secret screen
+  before storage, refusing `SECRET_DETECTED` without echoing the value. Status: accepted under
+  the owner's standing auto-accept (2026-10-11; GitHub #813).
+- `TOL-V0-046`: `show`, `plan` and `preflight` stay reads: the review-source checks write no queue,
+  intent or evidence state. Review sources never reach witness evidence, counts, high water, gates
+  or completion. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
+
 ## Failure modes and trust
 
 | Failure | Effect without this profile | Required behaviour |
@@ -539,6 +607,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
 | A flaky, partially failing or neighbour-breaking candidate looks final | A green final run hides a retry, a failed post-check or a broken neighbour | `qualify` is `NOT_QUALIFIED` with the named reason (TOL-V0-032); a neighbour failure the base shares is `PRE_EXISTING`, unless the neighbour run ended abnormally, which disqualifies on its own, or the base run did, which observes nothing. |
 | A command leaves a FIFO, symlink or device in the results directory, or plants a results file | The job blocks on a FIFO, hashes `/dev/zero` forever, or overwrites the file a symlink points at | Reports and logs are read only as regular files without following or blocking; the manifest lists non-regular entries by type unopened and caps each file at 1 GiB; results files are created exclusively, and a planted one fails the job with nothing credited (TOL-V0-033); prior summaries are read through one bounded regular-file descriptor (TOL-V0-031). |
 | The checkout moves or is interrupted under a job | A report from other code credits the commit | The job runs only a clean checkout of the commit, re-checks it after the run, and an interrupt or change credits nothing and fails qualification (TOL-V0-030, 033). An interrupt is honoured up to the witness submit; a submitted witness is atomic. A refused lane release fails the job. A command that changes untracked files only is not detected. |
+| A migrated test is credited with a free-text "none found", or the legacy case it replaces changes after review | A reviewer cannot check the claim, and a false negative hides | Review sources pin the reviewed case or spec by digest, or record the query and the searched source ids. `requireSourceReview` makes preflight refuse missing sources or an unaudited `none`. `show` and `plan` list a changed digest as stale without demoting the state (TOL-V0-037..046). |
 | An adopter suite names obligations in its own scheme (`M001`), so titles never hold the native id | Every title must be renamed or no obligation is credited | A seeded alias names its entry as a whole token in reports, steps, source, preflight and the audit, with every result keyed to the native id (TOL-V0-034..036). A duplicate alias, or one holding a native id, refuses at seed (TOL-V0-035); an alias inside a longer token never matches, and a defect-shaped alias is never read as a defect. |
 | Older binary meets an alias-bearing seed event | — | Its closed seed reader refuses the retained request, so `show` is `UNKNOWN` and the audit `INCONSISTENT` for that ticket (fail-closed); see Rollout and rollback. |
 | Older binary meets a record with the member | — | The closed reader refuses the record (fail-closed); see Rollout and rollback. |
@@ -590,6 +659,7 @@ fixture passes.
 | TOL-V0-025..027 (decision 0484) | GitHub #713 | `internal/tasks/obligation/source.go` (scanner), `internal/tasks/store/preflight.go` (Git reads, deep worktree), `internal/tasks/cli/preflight.go` | `TestTOLV0025_ScannerSkipsCommentsRegexAndInterpolation` (`internal/tasks/obligation`); `TestTOLV0025_DescribeTitleIDsReachNestedTests` (`internal/tasks/obligation`); `TestTOLV0025_PreflightRefusesUnnamedMixedAndSplit`, `TestTOLV0025_PreflightCleanTicketPasses`, `TestTOLV0025_PreflightPathNarrowsTheTreeListing`, `TestTOLV0025_PreflightSkipsOversizedSpecUnread`, `TestTOLV0025_PreflightRefusesALineBreakSpecPath`, `TestTOLV0026_PreflightPlanCheck`, `TestTOLV0027_PreflightDeepRunsGatesInCleanWorktree`, `TestTOLV0027_PreflightDeepRunsNoRepositoryHooks`, `TestTOLV0027_PreflightDeepGateThatChangesSourceFails`, `TestTOLV0027_PreflightDeepInterruptRetiresGateAndWorktree`, `TestTOLV0027_PreflightDeepInterruptRetiresEarlierGateDescendants`, `TestTOLV0027_PreflightDeepRetiresAFinishedGatesDescendants`, `TestTOLV0027_PreflightDeepInterruptStopsAHungStatus`, `TestTOLV0027_PreflightDeepStatusPastTheGateTimeoutFails`, `TestTOLV0027_PreflightDeepCleanStatusRetiresItsGroup` (`internal/tasks/cli`); `TestTOLV0027_PreflightStatusStopsAtFirstEntry`, `TestTOLV0027_PreflightBoundedCancelDuringRetireSignalsBeforeReap` (`internal/tasks/store`) | preflight against a real Playwright suite (`NOT_RUN`) |
 | TOL-V0-028..033 (decision 0485) | GitHub #714 | `internal/tasks/obligation/batch.go` (outcomes, causes, named tests), `internal/tasks/store/batch_run.go` (command runner, checkout state, fixture digest, detached worktree), `internal/tasks/cli/run_batch.go`, `internal/tasks/cli/qualify.go` | `TestTOLV0028_RunConfigIsClosed`, `TestTOLV0029_RunBatchCreditsAndWritesCauses` (WITNESSED, FAILED with the step error, NOT_REACHED, NOT_NAMED, request id reuse), `TestTOLV0029_RunBatchPrepFailureIsNotReached`, `TestTOLV0030_RunBatchRefusesAStaleOrDirtyCheckout`, `TestTOLV0031_RepeatFailureRefusedBeforeLaneAcquire` (refusal before acquire, `--ids` subset on a pool lane with capture and release, new fixture evidence admits), `TestTOLV0032_QualifyVerdicts` (qualified, retry, candidate failure, post-check, new and pre-existing neighbour failure, static check, manifest, no leftover worktree, retried pre-existing neighbour, neighbour top-level errors with and without a failing test), `TestTOLV0030_RefusedReleaseFailsTheJob`, `TestTOLV0030_AcquireRefusalCodeIsTheJobs`, `TestTOLV0031_RootFixturePathIsDigested`, `TestTOLV0033_InterruptBeforeWitnessSubmitCreditsNothing`, `TestTOLV0033_CaptureRunsAfterAnInterruptDuringTests`, `TestTOLV0033_ManifestStreamsAnOversizedArtifact`, `TestTOLV0033_ReportPathMustBeARegularFile` (a FIFO report, a FIFO or changed report swapped in by the capture, qualify), `TestTOLV0033_ManifestRecordsNonRegularEntriesByType` (symlink to `/dev/zero`, FIFO, 1025 MiB sparse file), `TestTOLV0033_PlantedSummarySymlinkIsRefused`, `TestTOLV0033_ZeroCreditInterruptIsLaneFailed`, `TestTOLV0032_AbnormalNeighbourRunDisqualifies` (neighbour and base timeouts), `TestTOLV0033_InterruptDuringLastManifestHashRefuses`, `TestTOLV0031_PriorSummaryReadIsBoundToItsDescriptor` (a prior summary that grows past 4 MiB or is swapped for a FIFO after its check) (`internal/tasks/cli`), all with a fake shell test command that writes Playwright-shaped json; the interrupt tests replace the job context, the release refusal is injected, and the manifest-hash and prior-summary swap points are test hooks; the FIFO and symlink tests skip on Windows | a real Playwright suite under `run-batch` and `qualify`; a real `SIGINT`/`SIGTERM` delivered to a running job; untracked-file change detection (`NOT_RUN`) |
 | TOL-V0-034..036 (accepted, decision 0519) | V1-1177 (GitHub #792) | `internal/tasks/wire/obligations.go` (alias grammar), `internal/tasks/ticket/obligations.go` (seed and entry codec, `admitAlias`), `internal/tasks/obligation/names.go` (alias whole-token matching), report, batch and source readers, `internal/tasks/transaction/obligation_audit.go`, `internal/tasks/mutation/obligations.go` (screen) | `TestTOLV0034_SeedWithAliases` (aliased and alias-free entries, later aliased seed, grammar refusals, audit), `TestTOLV0035_AliasDuplicateAndCollision` (in one seed, against the ledger, a ledger id, its own id, an id inside, an other-prefix alias admitted), `TestTOLV0036_PreflightMatchesAliases` (test title, `test.step` title, contract annotation, alias inside longer tokens stays `UNNAMED`), `TestTOLV0036_WitnessCreditsByAliasKeyedToNativeID` (credit, evidence and lists keyed to native ids, defect-shaped alias in a `test.fail` step, audit `CONSISTENT`) (`internal/tasks/cli`); `TestTOLV0036_AliasWholeToken`, `TestTOLV0036_AliasMasksDefectIDs`, `TestTOLV0036_ContractAliasAndNamedTests` (`internal/tasks/obligation`), on synthetic json reports | the adopter's suite and a live Playwright 1.63 report naming aliases (`NOT_RUN`) |
+| TOL-V0-037..046 (accepted, owner's standing auto-accept 2026-10-11) | GitHub #813 | `internal/tasks/ticket/obligations.go` (review-source codec, set and entry), `internal/tasks/intent/policy.go` (`requireSourceReview`), `internal/tasks/obligation/review.go` (preflight findings, legacy-cases reader, digest comparison), `internal/tasks/cli/preflight.go`, `internal/tasks/cli/obligation_sources.go` (show and plan `sourceReview`), `internal/tasks/mutation/obligations.go` (screen) | `TestTOLV0037_ReviewSourceCodec`, `TestTOLV0039_LegacyLedgerBytesUnchanged` (`internal/tasks/ticket`); `TestTOLV0039_PolicyLeavesLedgerBytes`, `TestTOLV0040_PreflightRequiresSourceReview` (missing, blank query, empty searched, DEFERRED skipped, secret screen, policy off), `TestTOLV0042_StaleSourcesListed` (legacy-case, manual-case and legacy-spec staleness, WITNESSED kept, unresolved reasons, plan `ok` unchanged, no state written, schema, trailing-data and repeated-member refusal), `TestTOLV0043_LegacyCasesFIFORefused` (`internal/tasks/cli`) | a live test-management export imported and reviewed against a migrated suite (`NOT_RUN`) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1
@@ -671,3 +741,10 @@ an alias; after that, run the newer binary or restore the store from a backup ta
 first aliased seed. Whether CAL-V0-131 instead requires a `/1` event or seed profile for this
 optional member is an open owner question: with `/0` kept, the adjacent-compatibility format sets
 do not change, so that check cannot detect an old binary meeting an aliased seed.
+
+The accepted TOL-V0-037..046 follow the same optional-member precedent. Only a set change that
+carries `sources` writes new bytes; an older binary refuses that request `MALFORMED` at its closed
+reader, so the ledger is `UNKNOWN`, never silently stripped. The `requireSourceReview` policy key
+and the `sourceReview` output add no stored state. Rollback is reverting the change before any set
+carries sources; after that, run the newer binary or restore the store from a backup taken before
+the first sources write. The same CAL-V0-131 profile question applies.

@@ -200,7 +200,9 @@
       "protocol/cem-1.0/maps/"
     ],
     "internal/cem/workflow": [
-      "protocol/cem-0.2/"
+      "protocol/cem-0.2/",
+      "protocol/cem-0.3/",
+      "protocol/cem-1.0/stable/repository-envelope-packet/"
     ],
     "internal/cemcandidate": [
       "protocol/cem-1.0/"
@@ -226,10 +228,14 @@
     "internal/doccompiler": [],
     "internal/doccorpus": [
       "docs/DOCUMENTATION-CORPUS.md",
-      "examples/documentation-corpus/"
+      "examples/documentation-corpus/",
+      "protocol/cem-1.0/stable/repository-envelope-packet/",
+      "protocol/cem-1.0/structural-tuples/"
     ],
     "internal/docviews": [],
-    "internal/dogfoodflow": [],
+    "internal/dogfoodflow": [
+      "protocol/cem-1.0/stable/repository-envelope-packet/"
+    ],
     "internal/extevidence": [
       "cmd/corvint-remote-provider/",
       "examples/evidence-provider/",
@@ -259,7 +265,9 @@
       "docs/specs/"
     ],
     "internal/lspevidence": [],
-    "internal/mcp/bridge": [],
+    "internal/mcp/bridge": [
+      "protocol/cem-1.0/stable/repository-envelope-packet/"
+    ],
     "internal/mcp/corpusbridge": [],
     "internal/mcp/testvaliditybridge": [
       "internal/testvaliditydoc/"
@@ -335,7 +343,10 @@
     "internal/testvaliditydoc": [],
     "internal/trace": [],
     "internal/unplannedread": [],
-    "internal/witness": [],
+    "internal/witness": [
+      "protocol/cem-1.0/stable/repository-envelope-packet/",
+      "protocol/cem-1.0/structural-tuples/"
+    ],
     "internal/worksource": [],
     "tools/beamfall-shadow": [
       "go.mod"

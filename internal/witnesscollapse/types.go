@@ -90,4 +90,7 @@ type Report struct {
 	Causes        []Cause            `json:"causes"`
 	Groups        []CorrelationGroup `json:"groups"`
 	Hunks         []HunkAssessment   `json:"hunks"`
+	// Stable is present only in a StableProfile report, so a 0.x report keeps
+	// its canonical bytes (CEM-V1-073).
+	Stable *StableBinding `json:"stable,omitempty"`
 }

@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -167,6 +169,107 @@ func TestRunsCompareCLI(t *testing.T) {
 			if code != 2 || len(doc) != 0 || !strings.Contains(diag, `"code":"runs-invalid-arguments"`) || strings.Contains(diag, "do-not-echo") {
 				t.Errorf("%q: code=%d doc=%v diag=%q", args, code, doc, diag)
 			}
+		}
+	})
+}
+
+// runsShardReport adds config.shard to a runsReport document; an empty shard has no suites.
+func runsShardReport(body string, current, total int, empty bool) string {
+	body = strings.Replace(body, `"workers":1,`, `"workers":1,"shard":{"current":`+strconv.Itoa(current)+`,"total":`+strconv.Itoa(total)+`},`, 1)
+	if empty {
+		body = body[:strings.Index(body, `"suites":[{"title":"cart.spec.ts"`)] + `"suites":[]}`
+	}
+	return body
+}
+
+// runsProjectReport is runsReport declaring its one configured project, as runsRepeatReport does.
+func runsProjectReport(status string) string {
+	return strings.Replace(runsReport(status, runsDeclared), `"workers":1,`, `"workers":1,"projects":[{"name":"chromium","repeatEach":1}],`, 1)
+}
+
+// runsRepeatReport is runsReport run with --repeat-each 2: one spec entry per repeat, each at the
+// same reported location.
+func runsRepeatReport(first, second string) string {
+	spec := func(status string) string {
+		one := runsReport(status, runsDeclared)
+		start := strings.Index(one, `{"title":"adds item"`)
+		return strings.Replace(one[start:len(one)-len(`]}]}]}`)], `"file":"cart.spec.ts",`, `"file":"cart.spec.ts","line":3,"column":3,`, 1)
+	}
+	head := runsReport(first, runsDeclared)
+	head = strings.Replace(head, `"workers":1,`, `"workers":1,"projects":[{"name":"chromium","repeatEach":2}],`, 1)
+	return head[:strings.Index(head, `{"title":"adds item"`)] + spec(first) + "," + spec(second) + `]}]}]}`
+}
+
+func TestRunsRepeatAndShardCLI(t *testing.T) {
+	dir := t.TempDir()
+	writeRunsReports(t, dir, map[string]string{
+		"whole.json":  runsReport("passed", runsDeclared),
+		"s1.json":     runsShardReport(runsReport("passed", runsDeclared), 1, 2, false),
+		"s2.json":     runsShardReport(runsReport("passed", runsDeclared), 2, 2, true),
+		"repeat.json": runsRepeatReport("passed", "failed"),
+		"failed.json": runsProjectReport("failed"),
+		"passed.json": runsProjectReport("passed"),
+	})
+	cli := func(t *testing.T, args ...string) map[string]any {
+		t.Helper()
+		var out, errb bytes.Buffer
+		if code := run(append([]string{"--root", dir, "runs"}, args...), strings.NewReader(""), &out, &errb); code != 0 || errb.Len() != 0 {
+			t.Fatalf("%q: code=%d err=%q", args, code, errb.String())
+		}
+		doc := map[string]any{}
+		if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+			t.Fatal(err)
+		}
+		return doc
+	}
+	only := func(t *testing.T, doc map[string]any) map[string]any {
+		t.Helper()
+		tests, _ := doc["tests"].([]any)
+		if len(tests) != 1 {
+			t.Fatalf("tests = %v", doc["tests"])
+		}
+		return tests[0].(map[string]any)
+	}
+	t.Run("PWR-V0-023 help names repeats, shard sets and refusals", func(t *testing.T) {
+		var out, errb bytes.Buffer
+		run([]string{"runs", "--help"}, strings.NewReader(""), &out, &errb)
+		for _, want := range []string{"--repeat-each", "repeats[]", "shardSets[]", "SHARD_INPUTS_NOT_DECLARED", "SHARD_SET_INCOMPLETE", "SHARD_DUPLICATE", "merge-reports"} {
+			if !strings.Contains(out.String(), want) {
+				t.Errorf("help lacks %q", want)
+			}
+		}
+	})
+	t.Run("PWR-V0-011 PWR-V0-014 PWR-V0-023 one repeat-each report end to end", func(t *testing.T) {
+		e := only(t, cli(t, "stability", "--runs", "repeat.json", "--min-runs", "2"))
+		if e["verdict"] != "INTERMITTENT" || fmt.Sprint(e["repeats"]) != "[0 1]" || fmt.Sprint(e["runs"]) != "[1 1]" {
+			t.Fatalf("entry = %v", e)
+		}
+		doc := cli(t, "compare", "--baseline", "passed.json,failed.json", "--candidate", "repeat.json")
+		cand := only(t, doc)["candidate"].(map[string]any)
+		if doc["verdict"] != "PARITY" || cand["stability"] != "1/2" {
+			t.Fatalf("compare = %v", doc)
+		}
+	})
+	t.Run("PWR-V0-017 PWR-V0-019 PWR-V0-020 PWR-V0-023 shard sets end to end", func(t *testing.T) {
+		before, _ := os.ReadDir(dir)
+		e := only(t, cli(t, "stability", "--runs", "s2.json,s1.json", "--runs", "whole.json", "--min-runs", "2"))
+		if e["verdict"] != "DETERMINISTIC" || fmt.Sprint(e["runs"]) != "[1 3]" {
+			t.Fatalf("complete set: %v", e)
+		}
+		doc := cli(t, "stability", "--runs", "s1.json", "--min-runs", "2")
+		set := doc["shardSets"].([]any)[0].(map[string]any)
+		if e := only(t, doc); e["verdict"] != "INSUFFICIENT" || e["reason"] != "SHARD_SET_INCOMPLETE" || fmt.Sprint(set["missing"]) != "[2]" {
+			t.Fatalf("incomplete set: %v %v", e, set)
+		}
+		doc = cli(t, "compare", "--baseline", "whole.json", "--candidate", "s1.json,s1.json,s2.json")
+		if doc["verdict"] != "INCOMPARABLE" || fmt.Sprint(doc["reasons"]) != "[SHARD_DUPLICATE]" {
+			t.Fatalf("duplicate set: %v", doc)
+		}
+		if doc = cli(t, "compare", "--baseline", "whole.json", "--candidate", "s1.json,s2.json"); doc["verdict"] != "PARITY" {
+			t.Fatalf("complete set compare: %v", doc)
+		}
+		if after, _ := os.ReadDir(dir); len(after) != len(before) {
+			t.Fatalf("runs wrote into the report directory")
 		}
 	})
 }

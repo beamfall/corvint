@@ -62,7 +62,7 @@ func (s *Session) Discriminate(ctx context.Context, options DiscriminateOptions)
 	if strings.TrimSpace(options.Target) == "" {
 		return nil, invalidArguments("--target is required")
 	}
-	document, unlock, err := s.lockedMapInput(options.MapPath, options.Output)
+	document, unlock, err := s.lockedMapInput("discriminate", options.MapPath, options.Output)
 	if err != nil {
 		return nil, err
 	}
