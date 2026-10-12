@@ -163,7 +163,7 @@ func makeStableUniverseFixture(t *testing.T) stableUniverseFixture {
 		Criteria: []wire.StableCriterion{criterion},
 		Receipts: []wire.StableReceipt{{
 			Sha256: receipt, Profile: "corvint-test-runner-receipt/0", PlanSha256: plan, SourceGitBinding: "NOT_OBSERVED",
-			ExecutionAuthority: "CALLER_OBSERVED", DependencyClosure: "NOT_OBSERVED", Authentication: "NOT_OBSERVED",
+			ExecutionAuthority: "CALLER_OBSERVED", DependencyClosure: "NOT_OBSERVED",
 		}},
 		Links: []wire.StableLink{{
 			CriterionID: criterion.ID, HunkIDs: []string{f.linkedHunk}, EvidenceIDs: evidenceIDs, RunnerReceiptSha256s: []string{receipt},

@@ -2,7 +2,9 @@ package cli
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
+	"errors"
 	"io"
 	"path/filepath"
 	"strings"
@@ -53,7 +55,7 @@ func RunStableInvocation(ctx context.Context, args []string, out io.Writer) (int
 	}
 	for i := at + 2; i < len(args); i++ {
 		key := args[i]
-		if key != "--repository" && key != "--map" && key != "--expected-base" && key != "--target" && key != "--artifacts" {
+		if key != "--repository" && key != "--map" && key != "--expected-base" && key != "--target" && key != "--artifacts" && key != "--trusted-keys" {
 			bad = true
 			break
 		}
@@ -84,6 +86,14 @@ func RunStableInvocation(ctx context.Context, args []string, out io.Writer) (int
 		exit = r.Refuse("arguments", "invalid-arguments", false)
 		return emit()
 	}
+	if path, ok := values["--trusted-keys"]; ok {
+		keys, e := readTrustedKeys(path)
+		if e != nil {
+			exit = r.Refuse("arguments", "invalid-arguments", false)
+			return emit()
+		}
+		options.TrustedKeys = keys
+	}
 	// Read once into the private bounded byte copy. A regular file is required so
 	// FIFO/device inputs cannot hang before the verifier's process deadline.
 	f, e := openStableMap(values["--map"])
@@ -105,4 +115,26 @@ func RunStableInvocation(ctx context.Context, args []string, out io.Writer) (int
 	}
 	r, exit = verify.Stable(ctx, raw, options)
 	return emit()
+}
+
+// readTrustedKeys reads the consumer --trusted-keys file (CEM-V1-084) once,
+// as a bounded regular file at an absolute path, and parses its closed form.
+func readTrustedKeys(path string) (map[string]ed25519.PublicKey, error) {
+	if !filepath.IsAbs(path) {
+		return nil, errors.New("trusted keys path must be absolute")
+	}
+	f, e := openStableMap(path)
+	if e != nil {
+		return nil, e
+	}
+	defer f.Close()
+	info, e := f.Stat()
+	if e != nil || !info.Mode().IsRegular() || info.Size() > wire.MaxTrustedKeysBytes {
+		return nil, errors.New("trusted keys file unavailable")
+	}
+	raw, e := io.ReadAll(io.LimitReader(f, wire.MaxTrustedKeysBytes+1))
+	if e != nil {
+		return nil, e
+	}
+	return wire.ParseTrustedKeys(raw)
 }

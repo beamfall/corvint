@@ -10,16 +10,19 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
-func stableArtifacts(ctx context.Context, path string, artifacts []wire.StableArtifact) ([]StableArtifactCheck, error) {
+// stableArtifacts reads every artifact twice and returns the checks and the
+// verified bytes by digest, which receipt authentication then reads.
+func stableArtifacts(ctx context.Context, path string, artifacts []wire.StableArtifact) ([]StableArtifactCheck, map[string][]byte, error) {
 	checks := []StableArtifactCheck{}
+	contents := map[string][]byte{}
 	// The explicit root remains required even for the empty set. No filesystem
 	// discovery or synthetic artifact is needed for that empty declaration.
 	if len(artifacts) == 0 {
-		return checks, nil
+		return checks, contents, nil
 	}
 	root, closeRoot, e := stableOpenRoot(path)
 	if e != nil {
-		return nil, cemcode.New("artifact-unavailable", "artifact root")
+		return nil, nil, cemcode.New("artifact-unavailable", "artifact root")
 	}
 	defer closeRoot()
 	first := make([][]byte, len(artifacts))
@@ -27,33 +30,34 @@ func stableArtifacts(ctx context.Context, path string, artifacts []wire.StableAr
 		total := 0
 		for i, a := range artifacts {
 			if ctx.Err() != nil {
-				return nil, cemcode.New("verification-timeout", "artifact deadline")
+				return nil, nil, cemcode.New("verification-timeout", "artifact deadline")
 			}
 			b, e := stableReadArtifact(root, a.Path, wire.CandidateMaxArtifactBytes)
 			if e != nil {
-				return nil, e
+				return nil, nil, e
 			}
 			total += len(b)
 			if total > wire.CandidateMaxTotalArtifactBytes {
-				return nil, cemcode.New("artifact-resource-limit", "artifact aggregate")
+				return nil, nil, cemcode.New("artifact-resource-limit", "artifact aggregate")
 			}
 			if ctx.Err() != nil {
-				return nil, cemcode.New("verification-timeout", "artifact deadline")
+				return nil, nil, cemcode.New("verification-timeout", "artifact deadline")
 			}
 			if pass == 1 && !bytes.Equal(first[i], b) {
-				return nil, cemcode.New("artifact-changed-during-verification", "artifact changed")
+				return nil, nil, cemcode.New("artifact-changed-during-verification", "artifact changed")
 			}
 			if stableDigest(b) != a.Sha256 {
-				return nil, cemcode.New("artifact-digest-mismatch", "artifact mismatch")
+				return nil, nil, cemcode.New("artifact-digest-mismatch", "artifact mismatch")
 			}
 			if pass == 0 {
 				first[i] = b
 			} else {
 				checks = append(checks, StableArtifactCheck{a.Kind, a.Path, a.Sha256, len(b)})
+				contents[a.Sha256] = b
 			}
 		}
 	}
-	return checks, nil
+	return checks, contents, nil
 }
 func stableReadBoundedFile(f *os.File, bound int) ([]byte, error) {
 	st, e := f.Stat()

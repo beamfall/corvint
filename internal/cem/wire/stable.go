@@ -81,13 +81,13 @@ func stableCriterionKeys(o *Object) []string {
 }
 
 type StableReceipt struct {
-	Sha256             string `json:"sha256"`
-	Profile            string `json:"profile"`
-	PlanSha256         string `json:"planSha256"`
-	SourceGitBinding   string `json:"sourceGitBinding"`
-	ExecutionAuthority string `json:"executionAuthority"`
-	DependencyClosure  string `json:"dependencyClosure"`
-	Authentication     string `json:"authentication"`
+	Sha256             string               `json:"sha256"`
+	Profile            string               `json:"profile"`
+	PlanSha256         string               `json:"planSha256"`
+	SourceGitBinding   string               `json:"sourceGitBinding"`
+	ExecutionAuthority string               `json:"executionAuthority"`
+	DependencyClosure  string               `json:"dependencyClosure"`
+	Authentication     StableAuthentication `json:"authentication"`
 }
 type StableLink struct {
 	CriterionID          string   `json:"criterionId"`
@@ -200,9 +200,15 @@ func ParseStable(raw []byte) (*StableMap, error) {
 		if e = candidateObject(x, keys...); e != nil {
 			return nil, e
 		}
-		fixed := map[string]string{"profile": "corvint-test-runner-receipt/0", "sourceGitBinding": "NOT_OBSERVED", "executionAuthority": "CALLER_OBSERVED", "dependencyClosure": "NOT_OBSERVED", "authentication": "NOT_OBSERVED"}
+		fixed := map[string]string{"profile": "corvint-test-runner-receipt/0", "sourceGitBinding": "NOT_OBSERVED", "executionAuthority": "CALLER_OBSERVED", "dependencyClosure": "NOT_OBSERVED"}
 		for _, k := range keys {
 			t, _ := x.Obj.Get(k)
+			if k == "authentication" {
+				if _, e = parseStableAuthentication(t); e != nil {
+					return nil, e
+				}
+				continue
+			}
 			if t.Kind != KindString {
 				return nil, fieldError("runner string required")
 			}
@@ -264,7 +270,7 @@ func ParseStable(raw []byte) (*StableMap, error) {
 	if e != nil {
 		return nil, e
 	}
-	kinds := map[string]bool{"tasks-capture": true, "tasks-verification": true, "tasks-claimed-ticket": true, "tasks-snapshot-head-receipt": true, "runner-plan": true, "runner-receipt": true}
+	kinds := map[string]bool{"tasks-capture": true, "tasks-verification": true, "tasks-claimed-ticket": true, "tasks-snapshot-head-receipt": true, "runner-plan": true, "runner-receipt": true, ReceiptAttestationKind: true}
 	for _, x := range a {
 		if e = candidateObject(x, "kind", "path", "sha256"); e != nil {
 			return nil, e
@@ -418,9 +424,21 @@ func validateStableGraph(d *StableMap) error {
 			}
 		}
 	}
+	envelopes := map[string]bool{}
 	for _, r := range d.Receipts {
 		if !need(r.Sha256, "runner-receipt") || !need(r.PlanSha256, "runner-plan") {
 			return stableGraphError("artifact-role-closure")
+		}
+		// CEM-V1-084: each signed receipt names its own receipt-attestation
+		// artifact; an attestation no receipt names fails the closure below.
+		if r.Authentication.DSSE() {
+			if envelopes[r.Authentication.EnvelopeSha256] {
+				return stableGraphError("duplicate-reference")
+			}
+			envelopes[r.Authentication.EnvelopeSha256] = true
+			if !need(r.Authentication.EnvelopeSha256, ReceiptAttestationKind) {
+				return stableGraphError("artifact-role-closure")
+			}
 		}
 	}
 	paths, digests := map[string]bool{}, map[string]bool{}
