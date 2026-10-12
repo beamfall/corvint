@@ -56,9 +56,12 @@ step_or_stop prepare "$corvint" --root "$root" cem prepare --base "$base" --targ
 # absolute repository root and an absolute artifact root; a producer map names no artifact, so
 # the root is never opened. Its report applies no ceilings: status, which runs first, already
 # enforced them. Prepare's own next action names --artifacts only for a cem/1.0 map
-# (CEM-V1-141), so the choice does not depend on the map's JSON whitespace.
+# (CEM-V1-141), so the choice does not depend on the map's JSON whitespace. The match is the
+# action's exact argv prefix: a quote inside a JSON string, such as a worklist path, is escaped,
+# so no path can supply it.
 report_ceilings=("${ceilings[@]}")
-if grep -q '"--artifacts"' "$recipe_out/prepare.out" 2>/dev/null; then
+stable_action='"nextActions":[["corvint","cem","status","--map","'"$map"'","--expected-base","'"$base"'","--target","'"$target"'","--artifacts",'
+if grep -qF -- "$stable_action" "$recipe_out/prepare.out" 2>/dev/null; then
   root=$(cd "$root" && pwd -P) || operational 'CORVINT_ROOT is not a directory'
   read+=(--artifacts "$root")
   report_ceilings=()

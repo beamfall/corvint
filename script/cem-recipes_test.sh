@@ -142,6 +142,26 @@ cp "$test_root/spaced.json" "$repo/.corvint/change.cem.json"
 git -C "$repo" commit -qam 'spaced change evidence'
 run r-spaced review-change.sh "${review[@]}"
 expect 0 'outcome=complete report='
+# A cem/0.x prepare whose worklist names a file called --artifacts keeps the 0.x read: only the
+# stable next action's argv prefix selects --artifacts.
+legacy_bin="$test_root/corvint-legacy"
+printf '#!/bin/bash\nif [ "${3-}" = cem ] && [ "${4-}" = prepare ]; then exec "$CORVINT_REAL" "$@" --spec cem/0.2; fi\nexec "$CORVINT_REAL" "$@"\n' > "$legacy_bin"
+chmod +x "$legacy_bin"
+legacy="$test_root/legacy"
+new_repo "$legacy"
+printf 'base\n' > "$legacy/README.md"
+git -C "$legacy" add README.md
+git -C "$legacy" commit -qm base
+legacy_base=$(git -C "$legacy" rev-parse HEAD)
+printf 'x\n' > "$legacy/--artifacts"
+git -C "$legacy" add -- --artifacts
+git -C "$legacy" commit -qm 'dash-named file'
+run r-legacy-dash review-change.sh CORVINT_ROOT="$legacy" CORVINT_BASE="$legacy_base" \
+  CORVINT_BIN="$legacy_bin" CORVINT_REAL="$corvint_bin"
+expect 3 'outcome=incomplete refused=status'
+grep -q '"path":"--artifacts"' "$out/prepare.out" || fail 'r-legacy-dash worklist lacks the dash-named path'
+grep -q '"spec": *"cem/0.2"' "$legacy/.corvint/change.cem.json" || fail 'r-legacy-dash did not prepare cem/0.2'
+grep -q '"unknown":1' "$out/status.out" || fail 'r-legacy-dash status took the stable read'
 
 sed 's/900/901/' "$repo/auth/auth.go" > "$repo/auth/auth.go.new"
 mv "$repo/auth/auth.go.new" "$repo/auth/auth.go"

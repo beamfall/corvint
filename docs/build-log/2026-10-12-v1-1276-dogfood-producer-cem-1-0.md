@@ -72,7 +72,11 @@ The RC3 loop must produce only `cem/1.0` (decision 0525). Before this change Cor
     since the stable read refuses a relative root (Codex round 1, P2). It selects the stable read
     from prepare's own next action, which names `--artifacts` only for a `cem/1.0` map, not by
     grepping the map's bytes, so a resumed map with other JSON whitespace still gets it (Codex
-    round 4, P2; `script/cem-recipes_test.sh` case `r-spaced`, which fails on the old grep).
+    round 4, P2; `script/cem-recipes_test.sh` case `r-spaced`, which fails on the old grep). The
+    match is the action's exact argv prefix through `--target <full ID>`, `--artifacts`, so a
+    worklist path cannot supply it (Codex round 5, P2; case `r-legacy-dash`, a `cem/0.2` prepare
+    of a file named `--artifacts`, which fails on a whole-output match). Round 5 was the last
+    review round; this fix is not re-reviewed.
 19. A `cem/1.0` prepare skips the 0.x sidecar refusal but still probes every recognized
     interrupted-publication backup before recovery or resume cleanup: a producer or `cem/0.x`
     backup is restored or removed, a bound stable or unreadable one is refused and kept
