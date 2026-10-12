@@ -53,6 +53,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-051..059 | `lrfrepo.VerifyStableUniverse`, `StableUniverse`, `StableRefusal`, `lrf.ValidateStableRequest`; explicit `cem/1.0` refusals in `VerifyUniverse`, `readOCMBytes`, `PrepareOCM`; tests in the OCM/LRF stable admission traceability table | Stable LRF evaluation needs an accepted stable LRF profile; no CLI or MCP route; OCM writers stay `cem/0.x` only; C06..C09 and C17 consumers remain open |
 | CEM-V1-050 | `structuralRuntimeAdmitted` in `internal/cem/verify/stable.go` and `interop/cem01-go/cem.go`; sealed `protocol/cem-1.0/structural-tuples/go1.27.2/`; `TestCEMV1050StructuralTupleAdmission` (native and portable); S0E, linked-control, ledger and cell tests bound through the tuple packet | Linux and Windows hosts, CI-hosted go1.27.2 runs and the full structural corpus remain NOT_RUN |
 | CEM-V1-080..082 | `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` and `testdata/citation/`; `TestCEMV1080*`, `TestCEMV1081*`, `TestCEMV1082*` in `internal/cem/verify`, `internal/cem/workflow` and `interop/cem01-go` | Recorded limits: `held` never produced, no `symbol` anchors, no threshold or cut-off, stable-result emission deferred to V1-1265; historical 591-map report in the build log |
+| CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`; proof run in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` | No member has been added to the sealed packet yet; V1-1265 consumes the tool for `citation` |
 
 ## First portable candidate build contract
 
@@ -207,11 +208,42 @@ the stable verifier admits it only on an exact qualified tuple and otherwise ref
   `repository-envelope-packet` manifest and result files by SHA-256, records the stdlib source and
   behavioural byte-identity comparison against its predecessor, and admits exactly one
   substitution: `expectedResult.runtime.goVersion` from the predecessor to the new tuple. The
-  frozen packet is never rewritten. Tests run the S0E cases, linked control, ledgers and envelope
+  frozen packet is never rewritten except by an additive member regeneration (`CEM-V1-091`). Tests run the S0E cases, linked control, ledgers and envelope
   cells on an admitted tuple only through that binding and report NOT_RUN otherwise.
   Qualification stays `EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS`; admitting a tuple does not complete
   the full corpus. Rollback removes the tuple from both lists and its packet; the frozen packet and
   `go1.27.1` behaviour are unchanged.
+
+### Additive member regeneration
+
+An additive stable result member (for example `citation`, V1-1265) changes the closed key set of
+every frozen S0E expectation, so it cannot land by hand edits to sealed case files.
+
+- `CEM-V1-091`: A new top-level member of `cem-stable-verification/1` MUST be added only by
+  `tools/cem-stable-regen` (`make cem-stable-regen-capture`, then `make cem-stable-regen`). The
+  values MUST come from the native S0E harness capture (`CEM_STABLE_REGEN_CAPTURE`, one
+  `{id, tuple, exit, result}` line per case, comparing only the frozen keys) or from an explicit
+  per-case override file for cases the host cannot run; a case with neither, a case with both, a
+  captured exit or frozen key that differs (`runtime.goVersion` only through an admitted tuple
+  substitution), an unknown capture key or an existing member MUST be refused before any write. The
+  tool MUST insert the member after `--after` in both `RESULT.schema.json` copies (`properties` and
+  `required`) and in every `expectedResult`, including each cell of the packet's
+  `inherited/s0e/REPOSITORY-ENVELOPE.cells.json` and its stable copy. A cell takes the value of the
+  regenerated cases whose exit and frozen keys equal its own, and those cases MUST agree; a cell no
+  case matches MUST take an explicit `--cell-values` override, and a matched cell MUST NOT have one.
+  The tool MUST leave every other byte unchanged, keep the case count,
+  bump the closed key count, record each replaced file's SHA-256 (`predecessorSHA256`,
+  `predecessorPublicManifestSHA256`, the tuple's `inherited.predecessorManifestSha256`, and a
+  `CHANGES.md` section with old and new digests, value provenance, the fragment digest and the
+  predecessor digest of every re-bound file outside the packet), and re-bind the packet manifest,
+  the stable manifest entries for the schema, cells and prose, `publicAmendmentManifestSHA256`,
+  the stable `REPOSITORY-ENVELOPE.cells.json` amendment index, `REPOSITORY-ENVELOPE.md` and every
+  `structural-tuples/<version>/` `TUPLE.json` and manifest. `make cem-stable-regen-check` MUST
+  verify that whole chain, including that each manifest lists its mandatory files, and exit nonzero
+  on any mismatch. Native and portable consumers then raise
+  their closed key count in the same change; a native/portable value disagreement is a consumer
+  defect, never a reason to edit captured values. `INPUTS.json` repair-era pins stay historical.
+  Rollback is a Git revert of the regenerated files and the consumer change.
 
 ## Consumer-computed support tiers (V1-1262, decision 0523 P0)
 

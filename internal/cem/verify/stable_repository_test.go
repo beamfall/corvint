@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
@@ -262,8 +263,55 @@ func writeObjectFile(t *testing.T, gitDir, oid string, data []byte) {
 	}
 }
 
+// s0eRegenCaptureEnv names the JSON Lines file to which requireS0EResult
+// appends every complete native result while an additive stable result member
+// is being regenerated (tools/cem-stable-regen, CEM-V1-091). Unset, the
+// comparison is exactly the closed one below.
+const s0eRegenCaptureEnv = "CEM_STABLE_REGEN_CAPTURE"
+
+var s0eRegenCaptureMu sync.Mutex
+
+// s0eRegenCapture appends {"id","tuple","exit","result"} for one case. The
+// result is the complete marshaled native result, extra members included.
+func s0eRegenCapture(t *testing.T, path string, c s0eCase, result StableResult, exit int) {
+	t.Helper()
+	var encoded bytes.Buffer
+	encoder := json.NewEncoder(&encoded)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(result); err != nil {
+		t.Fatal(err)
+	}
+	var line bytes.Buffer
+	encoder = json.NewEncoder(&line)
+	encoder.SetEscapeHTML(false)
+	record := struct {
+		ID     string          `json:"id"`
+		Tuple  string          `json:"tuple"`
+		Exit   int             `json:"exit"`
+		Result json.RawMessage `json:"result"`
+	}{c.ID, runtime.Version(), exit, bytes.TrimSpace(encoded.Bytes())}
+	if err := encoder.Encode(record); err != nil {
+		t.Fatal(err)
+	}
+	s0eRegenCaptureMu.Lock()
+	defer s0eRegenCaptureMu.Unlock()
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatalf("regeneration capture: %v", err)
+	}
+	_, err = file.Write(line.Bytes())
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		t.Fatalf("regeneration capture: %v", err)
+	}
+}
+
 // requireS0EResult compares the complete closed result and the exit code with
-// the public expectation: all 21 keys, no normalization.
+// the public expectation: all 21 keys, no normalization. With
+// CEM_STABLE_REGEN_CAPTURE set it also records the result, compares only the
+// frozen expectation's keys and tolerates the additive member being captured.
 func requireS0EResult(t *testing.T, c s0eCase, result StableResult, exit int) bool {
 	t.Helper()
 	encoded, err := json.Marshal(result)
@@ -274,23 +322,29 @@ func requireS0EResult(t *testing.T, c s0eCase, result StableResult, exit int) bo
 	if err := json.Unmarshal(encoded, &got); err != nil {
 		t.Fatal(err)
 	}
+	capture := os.Getenv(s0eRegenCaptureEnv)
+	if capture != "" {
+		s0eRegenCapture(t, capture, c, result, exit)
+	}
 	ok := exit == c.ExpectedExit
 	if !ok {
 		t.Errorf("exit = %d, want %d", exit, c.ExpectedExit)
 	}
-	if len(c.ExpectedResult) != 21 {
+	if capture == "" && len(c.ExpectedResult) != 21 {
 		t.Fatalf("public expectation has %d keys, want the closed 21", len(c.ExpectedResult))
 	}
 	keys := map[string]bool{}
 	for key := range got {
-		keys[key] = true
+		keys[key] = capture == ""
 	}
 	for key := range c.ExpectedResult {
 		keys[key] = true
 	}
 	names := make([]string, 0, len(keys))
-	for key := range keys {
-		names = append(names, key)
+	for key, compared := range keys {
+		if compared {
+			names = append(names, key)
+		}
 	}
 	sort.Strings(names)
 	for _, key := range names {

@@ -351,6 +351,9 @@
     "tools/beamfall-shadow": [
       "go.mod"
     ],
+    "tools/cem-stable-regen": [
+      "protocol/cem-1.0/"
+    ],
     "tools/compat-trial": [
       "go.mod",
       "internal/groupreap/",
