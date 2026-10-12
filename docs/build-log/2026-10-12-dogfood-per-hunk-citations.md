@@ -77,11 +77,12 @@ be able to keep genuine bind and seal maps apart once the stable producer can ma
 
 ## Retained limits and NOT_PRODUCED
 
-- Criterion 3 (rerun of the baseline split by role class after the cutover): NOT_PRODUCED pending
-  V1-1276. V1-1277 runs, from the repository root after the cutover lands,
+- Criterion 3 (rerun of the baseline split by role class after the cutover): run once at the
+  V1-1276 merge, `2026-10-12-v1-1281-citation-class-baseline-post-cutover.md` (the tool needed
+  `--artifacts` for a `cem/1.0` map). V1-1277 reruns, from the repository root after the migration,
   `GOTOOLCHAIN=local go run ./tools/cem-citation-baseline --root . --maps .corvint/changes --summary docs/build-log/evidence/v1-1277/citation-baseline-summary.json > docs/build-log/evidence/v1-1277/citation-baseline-maps.jsonl`.
-  For `cem/1.0` maps the tool passes no `--artifacts`; if converted maps need their artifacts to
-  reach a citation block, V1-1277 must extend the tool rather than read their rows as errors.
+  The tool passes `--artifacts <absolute root>` for a `cem/1.0` map, as the bind loop does
+  (CEM-V1-147); without it the stable verifier refuses `artifacts-required`.
 - The role write and `citationClass` are live only for `cem/1.0` maps; V1-1276 must cite this
   ticket (`DCW-V0-049`) before its cutover lands.
 - The committed maps are not re-bound; the 171 single-evidence invariant maps remain in history.
