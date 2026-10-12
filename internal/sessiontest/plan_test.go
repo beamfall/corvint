@@ -394,9 +394,54 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 			t.Errorf("%q with inherited F and GOFLAGS: %s %q, want unparsed naming %q", body, got.GoTest, got.GoTestNote, note)
 		}
 	}
-	makeflags := func(name string) (string, bool) { return "-k -- F=-race", name == "MAKEFLAGS" }
-	if got := ReadDeclared(write(t, "go-test:\n\tgo test ./...\n"), nil, makeflags); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "MAKEFLAGS") {
-		t.Fatalf("MAKEFLAGS assignments: %#v", got)
+	for flags, typed := range map[string]bool{"-k -- F=-race": false, "ek": false, "k -e": false, " --environment-overrides": false, "k -j4": true, " --no-print-directory": true} {
+		makeflags := func(name string) (string, bool) { return flags, name == "MAKEFLAGS" }
+		got := ReadDeclared(write(t, "go-test:\n\tgo test ./...\n"), nil, makeflags)
+		if (got.GoTest == GoTestParsed) != typed || (!typed && !strings.Contains(got.GoTestNote, "MAKEFLAGS")) {
+			t.Errorf("MAKEFLAGS=%q: %#v, want typed %v", flags, got, typed)
+		}
+	}
+	// The conditional evaluator reads no Makefile or environment variable,
+	// so each Codex round-6 scenario reads every branch and the GOFLAGS
+	// assignment in it leaves go-test untyped. The last ones are outside the
+	// exact subset: doubled blank, %, a tab and a trailing blank.
+	// Every scenario inherits GOFLAGS and CHOICE; scenario 2 also inherits
+	// MODE, which scenario 1 assigns and so must not inherit.
+	inherited := map[string]string{"GOFLAGS": "", "CHOICE": "race"}
+	lookupInherited := func(name string) (string, bool) { value, ok := inherited[name]; return value, ok }
+	recipe := "go-test:\n\tgo test ./...\n"
+	for _, body := range []string{
+		"MODE = normal # space before comment is significant\nifneq ($(MODE),normal)\nGOFLAGS = -race\nendif\n",
+		"ifeq ($(MODE),race)\nGOFLAGS = -race\nendif\n", // MODE='$(CHOICE)' is inherited below
+		"CC ?= clang\nifeq ($(CC),cc)\nGOFLAGS = -race\nendif\n",
+		"ifeq ($(filter x,a\u00a0x),)\nGOFLAGS = -race\nendif\n",
+		"ifeq ($(filter  go-test,$(MAKECMDGOALS)),)\nGOFLAGS = -race\nendif\n",
+		"ifeq ($(filter go%,$(MAKECMDGOALS)),)\nGOFLAGS = -race\nendif\n",
+		"ifeq\t($(MAKECMDGOALS),gate)\nGOFLAGS = -race\nendif\n",
+		"ifeq ($(MAKECMDGOALS),gate) \nGOFLAGS = -race\nendif\n",
+	} {
+		lookup := lookupInherited
+		if strings.HasPrefix(body, "ifeq ($(MODE)") {
+			lookup = func(name string) (string, bool) {
+				if name == "MODE" {
+					return "$(CHOICE)", true
+				}
+				return lookupInherited(name)
+			}
+		}
+		if got := ReadDeclared(write(t, body+recipe), nil, lookup); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "assigns GOFLAGS") {
+			t.Errorf("%q: %s %q, want every branch read and GOFLAGS untyped", body, got.GoTest, got.GoTestNote)
+		}
+	}
+	// Inside the subset a false branch is skipped as make skips it.
+	for _, body := range []string{
+		"ifeq ($(filter gate,$(MAKECMDGOALS)),gate)\nGOFLAGS = -race\nendif\n",
+		"ifneq ($(or $(filter x y,a b),$(MAKECMDGOALS)),go-test)\nGOFLAGS = -race\nendif\n",
+		"ifeq ($(MAKECMDGOALS),go-test)\nelse\nGOFLAGS = -race\nendif\n",
+	} {
+		if got := ReadDeclared(write(t, body+recipe), nil, lookupInherited); got.GoTest != GoTestParsed {
+			t.Errorf("%q: %s %q, want the false branch skipped", body, got.GoTest, got.GoTestNote)
+		}
 	}
 	// A conditional outside the go-test span, false for `make go-test`,
 	// is skipped as make skips it; an unevaluated one outside the span is

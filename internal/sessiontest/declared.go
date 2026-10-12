@@ -48,7 +48,6 @@ var (
 	makeAppend     = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*[ \t]*(\+=|!=)`)
 	makeRule       = regexp.MustCompile(`^([A-Za-z0-9_.%/-]+(?:[ \t]+[A-Za-z0-9_.%/-]+)*)[ \t]*:([^=]|$)`)
 	makeReference  = regexp.MustCompile(`\$[({]([A-Za-z_][A-Za-z0-9_]*)[)}]`)
-	makeName       = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 	envAssignment  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 	// goEnvironmentName names the variables that pick or configure the go
 	// command; a Makefile that assigns one leaves go-test untyped even when
@@ -117,8 +116,13 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 			incomplete = reason
 		}
 	}
-	if flags, ok := lookup("MAKEFLAGS"); ok && strings.Contains(flags, "=") {
-		setUntyped("MAKEFLAGS carries command-line variable assignments, which reach the go-test recipe")
+	if flags, ok := lookup("MAKEFLAGS"); ok {
+		if strings.Contains(flags, "=") {
+			setUntyped("MAKEFLAGS carries command-line variable assignments, which reach the go-test recipe")
+		}
+		if makeflagsOverrideEnvironment(flags) {
+			setUntyped("MAKEFLAGS sets -e, so environment values override the Makefile's")
+		}
 	}
 	if files, ok := lookup("MAKEFILES"); ok && strings.TrimSpace(files) != "" {
 		setIncomplete("MAKEFILES names extra makefiles")
@@ -173,7 +177,7 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 			if skipping {
 				stack = append(stack, condNested)
 			} else {
-				stack = append(stack, evaluateConditional(line, variables, refused, lookup))
+				stack = append(stack, evaluateConditional(line))
 			}
 			continue
 		case "else", "endif":
@@ -195,7 +199,7 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 			case condSkipping:
 				*top = condTaken
 				if rest != "" {
-					*top = evaluateConditional(rest, variables, refused, lookup)
+					*top = evaluateConditional(rest)
 				}
 			}
 			continue
@@ -345,18 +349,52 @@ func conditionSkipping(stack []int) bool {
 	return false
 }
 
-// evaluateConditional evaluates an `ifeq (A,B)` or `ifneq (A,B)` line as make
-// does for `make go-test`, against the variables assigned so far and the
-// environment. Anything it cannot reproduce exactly, ifdef, the quoted form,
-// surrounding blanks, a make default variable or an unsupported function,
-// is condUnknown, so every branch is read.
-func evaluateConditional(line string, variables map[string]string, refused map[string]bool, lookup func(string) (string, bool)) int {
-	cut := strings.IndexAny(line, " \t(")
-	if cut < 0 || strings.Contains(line, "#") {
+// makeWords splits on ASCII blanks only, as make does in the C locale.
+func makeWords(value string) []string {
+	return strings.FieldsFunc(value, func(r rune) bool { return r == ' ' || r == '\t' })
+}
+
+// makeflagsOverrideEnvironment reports whether MAKEFLAGS carries -e
+// (--environment-overrides): the first word's single-letter flags, any
+// single-dash cluster, or the long form. Over-reporting is conservative.
+func makeflagsOverrideEnvironment(flags string) bool {
+	for index, word := range makeWords(flags) {
+		switch {
+		case word == "--":
+			return false
+		case word == "--environment-overrides":
+			return true
+		case strings.HasPrefix(word, "--"):
+		case strings.HasPrefix(word, "-"):
+			if strings.Contains(word[1:], "e") {
+				return true
+			}
+		case index == 0 && !strings.Contains(word, "=") && strings.Contains(word, "e"):
+			return true
+		}
+	}
+	return false
+}
+
+// evaluateConditional evaluates an `ifeq (A,B)` or `ifneq (A,B)` line only
+// within a subset that is exact by construction for `make go-test`: literal
+// words of ASCII letters, digits and -_./ separated by single spaces,
+// $(MAKECMDGOALS) as go-test, $(filter LITERALS,X) without %, and
+// $(or X,...). It reads no Makefile or environment variable. Anything else,
+// another reference, %, a tab, doubled or surrounding blanks, a comment or a
+// non-ASCII byte, is condUnknown, so every branch is read.
+func evaluateConditional(line string) int {
+	word, rest := "", ""
+	switch {
+	case strings.HasPrefix(line, "ifeq"):
+		word, rest = "ifeq", line[len("ifeq"):]
+	case strings.HasPrefix(line, "ifneq"):
+		word, rest = "ifneq", line[len("ifneq"):]
+	default:
 		return condUnknown
 	}
-	word, rest := line[:cut], strings.TrimSpace(line[cut:])
-	if (word != "ifeq" && word != "ifneq") || !strings.HasPrefix(rest, "(") || !strings.HasSuffix(rest, ")") {
+	rest = strings.TrimPrefix(rest, " ")
+	if !strings.HasPrefix(rest, "(") || !strings.HasSuffix(rest, ")") {
 		return condUnknown
 	}
 	args, ok := splitMakeArgs(rest[1 : len(rest)-1])
@@ -364,12 +402,12 @@ func evaluateConditional(line string, variables map[string]string, refused map[s
 		return condUnknown
 	}
 	values := make([]string, 2)
-	for i, arg := range args {
-		value, err := evaluateMake(arg, variables, refused, lookup, 0)
-		if err != nil || arg != strings.TrimSpace(arg) || value != strings.TrimSpace(value) {
+	for index, arg := range args {
+		value, err := evaluateOperand(arg)
+		if err != nil {
 			return condUnknown
 		}
-		values[i] = value
+		values[index] = value
 	}
 	if (values[0] == values[1]) == (word == "ifeq") {
 		return condTaken
@@ -400,27 +438,32 @@ func splitMakeArgs(value string) (args []string, ok bool) {
 	return append(args, value[start:]), depth == 0
 }
 
-// evaluateMake expands value for a conditional: Makefile variables, the
-// environment, MAKECMDGOALS as go-test, and the filter and or functions.
-// Anything else is an error.
-func evaluateMake(value string, variables map[string]string, refused map[string]bool, lookup func(string) (string, bool), depth int) (string, error) {
-	if depth > maxExpandDepth {
-		return "", errors.New("conditional variables nest too deeply")
+// cleanWords reports whether value is words separated by single spaces, with
+// no surrounding blank; the empty string is clean.
+func cleanWords(value string) bool {
+	return value == "" || (!strings.HasPrefix(value, " ") && !strings.HasSuffix(value, " ") && !strings.Contains(value, "  "))
+}
+
+// literalByte is the literal alphabet of the evaluated subset.
+func literalByte(c byte) bool {
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || strings.IndexByte("-_./", c) >= 0
+}
+
+// evaluateOperand evaluates one operand or function argument of the subset;
+// both the source and its value must be clean words.
+func evaluateOperand(value string) (string, error) {
+	if !cleanWords(value) {
+		return "", errors.New("blanks outside single separators")
 	}
 	var out strings.Builder
 	for index := 0; index < len(value); {
-		if value[index] != '$' {
-			out.WriteByte(value[index])
+		switch c := value[index]; {
+		case literalByte(c) || c == ' ':
+			out.WriteByte(c)
 			index++
 			continue
-		}
-		if strings.HasPrefix(value[index:], "$$") {
-			out.WriteString("$")
-			index += 2
-			continue
-		}
-		if index+1 >= len(value) || (value[index+1] != '(' && value[index+1] != '{') {
-			return "", errors.New("a one-letter variable")
+		case c != '$' || index+1 >= len(value) || value[index+1] != '(':
+			return "", errors.New("outside the evaluated subset")
 		}
 		end, nesting := -1, 0
 		for scan := index + 1; scan < len(value) && end < 0; scan++ {
@@ -437,76 +480,61 @@ func evaluateMake(value string, variables map[string]string, refused map[string]
 		if end < 0 {
 			return "", errors.New("an unterminated reference")
 		}
-		body := value[index+2 : end]
-		expanded, err := evaluateReference(body, variables, refused, lookup, depth)
+		expanded, err := evaluateFunction(value[index+2 : end])
 		if err != nil {
 			return "", err
 		}
 		out.WriteString(expanded)
 		index = end + 1
 	}
-	return out.String(), nil
+	if result := out.String(); cleanWords(result) {
+		return result, nil
+	}
+	return "", errors.New("a value with blanks outside single separators")
 }
 
-func evaluateReference(body string, variables map[string]string, refused map[string]bool, lookup func(string) (string, bool), depth int) (string, error) {
-	if makeName.MatchString(body) {
-		if refused[body] {
-			return "", fmt.Errorf("variable %s cannot be evaluated", body)
-		}
-		if definition, ok := variables[body]; ok {
-			return evaluateMake(definition, variables, refused, lookup, depth+1)
-		}
-		if body == "MAKECMDGOALS" {
-			return "go-test", nil
-		}
-		if makeControlNames[body] {
-			return "", fmt.Errorf("make sets %s itself", body)
-		}
-		if environment, ok := lookup(body); ok {
-			return environment, nil
-		}
-		// make may define it by default, so its value is not known here.
-		return "", fmt.Errorf("variable %s is undefined", body)
+func evaluateFunction(body string) (string, error) {
+	if body == "MAKECMDGOALS" {
+		return "go-test", nil
 	}
 	function, arguments, found := strings.Cut(body, " ")
 	if !found {
-		return "", errors.New("an unsupported reference")
+		return "", errors.New("a reference outside the evaluated subset")
 	}
-	args, ok := splitMakeArgs(strings.TrimLeft(arguments, " \t"))
+	args, ok := splitMakeArgs(arguments)
 	if !ok {
 		return "", errors.New("unbalanced function arguments")
 	}
-	values := make([]string, len(args))
-	for i, arg := range args {
-		value, err := evaluateMake(arg, variables, refused, lookup, depth+1)
+	switch function {
+	case "filter":
+		if len(args) != 2 || !cleanWords(args[0]) {
+			return "", errors.New("filter takes literal patterns and one text")
+		}
+		patterns := map[string]bool{}
+		for _, pattern := range strings.Split(args[0], " ") {
+			for index := 0; index < len(pattern); index++ {
+				if !literalByte(pattern[index]) {
+					return "", errors.New("a filter pattern that is not a literal word")
+				}
+			}
+			patterns[pattern] = pattern != ""
+		}
+		text, err := evaluateOperand(args[1])
 		if err != nil {
 			return "", err
 		}
-		values[i] = value
-	}
-	switch function {
-	case "filter":
-		if len(values) != 2 {
-			return "", errors.New("filter takes two arguments")
-		}
 		var kept []string
-		for _, word := range strings.Fields(values[1]) {
-			for _, pattern := range strings.Fields(values[0]) {
-				matched, err := filterMatches(pattern, word)
-				if err != nil {
-					return "", err
-				}
-				if matched {
-					kept = append(kept, word)
-					break
-				}
+		for _, word := range makeWords(text) {
+			if patterns[word] {
+				kept = append(kept, word)
 			}
 		}
 		return strings.Join(kept, " "), nil
 	case "or":
-		for _, value := range values {
-			if value != strings.TrimSpace(value) {
-				return "", errors.New("an or argument has surrounding blanks")
+		for _, arg := range args {
+			value, err := evaluateOperand(arg)
+			if err != nil {
+				return "", err
 			}
 			if value != "" {
 				return value, nil
@@ -514,20 +542,7 @@ func evaluateReference(body string, variables map[string]string, refused map[str
 		}
 		return "", nil
 	}
-	return "", fmt.Errorf("make function %s is not supported", function)
-}
-
-// filterMatches matches one filter pattern; % matches any stem, the empty one
-// included. A pattern with a backslash or several % is not supported.
-func filterMatches(pattern, word string) (bool, error) {
-	if strings.Contains(pattern, `\`) || strings.Count(pattern, "%") > 1 {
-		return false, errors.New("an unsupported filter pattern")
-	}
-	prefix, suffix, wildcard := strings.Cut(pattern, "%")
-	if !wildcard {
-		return pattern == word, nil
-	}
-	return len(word) >= len(prefix)+len(suffix) && strings.HasPrefix(word, prefix) && strings.HasSuffix(word, suffix), nil
+	return "", fmt.Errorf("make function %s is outside the evaluated subset", function)
 }
 
 // patternMatches reports whether a make target pattern with one % stem

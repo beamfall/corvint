@@ -51,10 +51,17 @@ Contracts and decisions:
     reader does not recognise;
   - a variable assigned under a conditional, a go-test rule with prerequisites, target-specific
     variables or `::`, and a `%` pattern rule matching go-test.
-  Conditionals elsewhere are allowed. An `ifeq`/`ifneq (A,B)` line is evaluated as make would for
-  `make go-test` (Makefile variables so far, the environment, `MAKECMDGOALS=go-test`, and only the
-  `filter` and `or` functions), and a false branch is skipped as make skips it. Anything else, an
-  undefined variable make might default, `ifdef` or surrounding blanks, reads every branch. This
+  Conditionals elsewhere are allowed. An `ifeq`/`ifneq (A,B)` line is evaluated only inside a
+  subset that is exact by construction for `make go-test`, and reads no Makefile or environment
+  variable: literal words of ASCII letters, digits and `-_./` separated by single spaces,
+  `$(MAKECMDGOALS)` as exactly `go-test`, `$(filter LITERALS,X)` with literal patterns and no
+  `%`, and `$(or X,Y)`, with words split only on ASCII space and tab. A false branch is skipped as
+  make skips it. Anything else (another variable reference, `%`, a tab, doubled or surrounding
+  blanks, a comment, a non-ASCII byte or another function) reads every branch. Codex round 6
+  showed that evaluating user or inherited variables is not exact (trailing blanks before a
+  comment, recursive inherited values, `?=` against make's built-in defaults such as `CC`, and
+  Unicode word separation), so the evaluator stopped doing it rather than chase GNU make. An
+  invoking `MAKEFLAGS` with the `e` flag (environment overrides) also leaves go-test untyped. This
   repository's Makefile still types go-test: its line-49 `$(GATE_STEPS) ...: | gate-receipt-clear`
   sits under `ifneq ($(filter gate,$(or $(MAKECMDGOALS),gate)),)`, which is false for
   `make go-test`, and the 63-71 block holds no go-test rule
