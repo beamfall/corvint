@@ -170,6 +170,84 @@ func TestCEMV1141StablePrepareWritesResumesAndReplaces(t *testing.T) {
 	}
 }
 
+// TestCEMV1141StablePrepareGuardsBackups: a stable prepare restores or removes
+// an interrupted-publication backup only when it is a stable producer map (or
+// 0.x); a bound stable backup or an unreadable one is refused before recovery
+// or resume cleanup, and neither the backup nor the sidecar changes.
+func TestCEMV1141StablePrepareGuardsBackups(t *testing.T) {
+	backup := wire.ExcludedCEMPath + ".bak-0123456789abcdef"
+	bound := stableMapBytes(t)
+	prepareStable := func(t *testing.T) (string, string, string, []byte) {
+		t.Helper()
+		root, base, target := makeRepo(t)
+		if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target, Spec: wire.StableSpec}); err != nil {
+			t.Fatal(err)
+		}
+		sidecar, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return root, base, target, sidecar
+	}
+	backupAbsent := func(t *testing.T, root string) {
+		t.Helper()
+		if _, err := os.Lstat(filepath.Join(root, filepath.FromSlash(backup))); !os.IsNotExist(err) {
+			t.Fatalf("backup survived (%v)", err)
+		}
+	}
+
+	t.Run("producer backup removed on resume", func(t *testing.T) {
+		root, base, target, sidecar := prepareStable(t)
+		writeFile(t, root, backup, string(sidecar))
+		result, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target, Spec: wire.StableSpec})
+		if err != nil || result["resumed"] != true {
+			t.Fatalf("resume over a producer backup: %v %v", err, result)
+		}
+		requireUntouched(t, root, wire.ExcludedCEMPath, sidecar)
+		backupAbsent(t, root)
+	})
+
+	t.Run("producer backup restored", func(t *testing.T) {
+		root, base, target, sidecar := prepareStable(t)
+		full := filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath))
+		if err := os.Rename(full, filepath.Join(root, filepath.FromSlash(backup))); err != nil {
+			t.Fatal(err)
+		}
+		result, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target, Spec: wire.StableSpec})
+		if err != nil || result["resumed"] != true {
+			t.Fatalf("recovery of a producer backup: %v %v", err, result)
+		}
+		requireUntouched(t, root, wire.ExcludedCEMPath, sidecar)
+		backupAbsent(t, root)
+	})
+
+	t.Run("bound backup beside a resumable sidecar", func(t *testing.T) {
+		root, base, target, sidecar := prepareStable(t)
+		writeFile(t, root, backup, string(bound))
+		_, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target, Spec: wire.StableSpec})
+		requireStableRefusal(t, err, "prepare", root, backup, bound)
+		requireUntouched(t, root, wire.ExcludedCEMPath, sidecar)
+	})
+
+	t.Run("bound backup with the sidecar missing", func(t *testing.T) {
+		root, base, target := makeRepo(t)
+		writeFile(t, root, backup, string(bound))
+		_, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target, Spec: wire.StableSpec, Replace: true})
+		requireStableRefusal(t, err, "prepare", root, backup, bound)
+		if _, statErr := os.Lstat(filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath))); !os.IsNotExist(statErr) {
+			t.Fatalf("refusal restored the bound backup (%v)", statErr)
+		}
+	})
+
+	t.Run("unreadable backup", func(t *testing.T) {
+		root, base, target, sidecar := prepareStable(t)
+		writeUnreadable(t, root, backup, bound)
+		_, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target, Spec: wire.StableSpec})
+		requireUnresolvedRefusal(t, err, "prepare", root, backup, bound)
+		requireUntouched(t, root, wire.ExcludedCEMPath, sidecar)
+	})
+}
+
 // TestCEMV1142StableBeginWritesProducerMap is the stable begin positive path:
 // the out-of-band patch yields a canonical cem/1.0 producer map that verifies,
 // and a stable producer destination may be rewritten by a stable begin.

@@ -70,6 +70,11 @@ The RC3 loop must produce only `cem/1.0` (decision 0525). Before this change Cor
     failed `final-check-failed`.
 18. `review-change.sh` resolves `CORVINT_ROOT` to an absolute path before it adds `--artifacts`,
     since the stable read refuses a relative root (Codex round 1, P2).
+19. A `cem/1.0` prepare skips the 0.x sidecar refusal but still probes every recognized
+    interrupted-publication backup before recovery or resume cleanup: a producer or `cem/0.x`
+    backup is restored or removed, a bound stable or unreadable one is refused and kept
+    (`CEM-V1-141`, `TestCEMV1141StablePrepareGuardsBackups`; Codex round 3, P1). `docs/DOGFOOD.md`
+    section 4 now shows the stable status read with a full target ID and `--artifacts` (round 3, P2).
 
 ## Output change declaration
 

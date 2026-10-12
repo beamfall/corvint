@@ -1175,7 +1175,11 @@ receipts, links, artifacts or provenance; it may carry a `role` (`CEM-V1-095`).
   MUST refuse, unchanged, a valid stable map that is not a producer map (`unsupported-spec`) and a
   regular sidecar it cannot read (`map-unavailable`). Without `--replace`, sidecar bytes that are
   neither a valid `cem/0.x` nor a `cem/1.0` map keep the `map-unavailable` "is not a valid CEM
-  document; pass --replace to regenerate" refusal. A `cem/0.x` prepare keeps `CEM-V1-030`.
+  document; pass --replace to regenerate" refusal. Before the sidecar lock and again under it,
+  before backup recovery or resume cleanup restores or removes a recognized interrupted-publication
+  backup, a `cem/1.0` prepare MUST refuse, unchanged, a backup that is a valid stable map but not a
+  producer map (`unsupported-spec`) or that it cannot read (`map-unavailable`); a stable producer
+  or `cem/0.x` backup is restored or removed as before. A `cem/0.x` prepare keeps `CEM-V1-030`.
 - `CEM-V1-142`: `cem begin --spec cem/1.0` MUST write the canonical stable producer map of the
   supplied patch at its `--output`, may rewrite a stable producer map there, and keeps the
   `CEM-V1-031` destination guards; a `cem/0.x` begin never replaces a stable map.
@@ -1242,7 +1246,7 @@ Acceptance evidence:
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-140 | `TestCEMV1140ProducerSpecSelection` (`internal/cem/workflow`) | Library defaults stay `cem/0.2` and `cem/0.1`; invalid prepare and begin specs refuse `invalid-arguments` and write nothing |
-| CEM-V1-141 | `TestCEMV1141StablePrepareWritesResumesAndReplaces` (`internal/cem/workflow`) | Writes and verifies `ACCEPT`, resumes byte-identical, refuses a 0.x sidecar as different spec and invalid bytes as not a valid CEM document, regenerates the 0.x sidecar with `--replace`; a bound stable map is refused by stable and 0.x prepare with `--replace` |
+| CEM-V1-141 | `TestCEMV1141StablePrepareWritesResumesAndReplaces`, `TestCEMV1141StablePrepareGuardsBackups` (`internal/cem/workflow`) | Writes and verifies `ACCEPT`, resumes byte-identical, refuses a 0.x sidecar as different spec and invalid bytes as not a valid CEM document, regenerates the 0.x sidecar with `--replace`; a bound stable map is refused by stable and 0.x prepare with `--replace`; a producer backup is removed on resume or restored, a bound or unreadable backup is refused and kept |
 | CEM-V1-142 | `TestCEMV1142StableBeginWritesProducerMap` (`internal/cem/workflow`) | Two stable begins write the same verifying producer map; a 0.x begin is refused on it |
 | CEM-V1-143 | `TestCEMV1143StableProducerMutationsStayStable` (`internal/cem/workflow`); `TestMutatorsRefuseStableInput`, `TestMutatorsRefuseStableDestination` | cite, cover and discriminate keep `cem/1.0` and role `bind-chore` and the result verifies `ACCEPT`; every mutator refuses the bound public map |
 | CEM-V1-144 | `TestCEMV1144StableStructuralMark` (`internal/cem/workflow`) | `import-reorder` stays `cem/1.0` and verifies `ACCEPT` within ceilings; `rename` on the same hunk is `REJECT` `unproven-mechanical`, `ok: false` |

@@ -213,22 +213,19 @@ func (s *Session) Prepare(ctx context.Context, options PrepareOptions) (map[stri
 	// sidecar or backup is refused first, before the lock or recovery touches
 	// either, and again under the lock before recovery or resume cleanup
 	// (CEM-V1-030); resumeCandidate re-checks the sidecar strictly. A stable
-	// prepare writes cem/1.0, so it downgrades nothing and skips both checks
-	// (CEM-V1-141).
-	if !stable {
-		if err := s.preflightStableSidecar(); err != nil {
-			return nil, err
-		}
+	// prepare writes cem/1.0, so it downgrades no sidecar, but recovery or
+	// resume cleanup still restores or removes a backup: only a 0.x or stable
+	// producer backup is admitted (CEM-V1-141).
+	if err := s.preflightStableSidecar(stable); err != nil {
+		return nil, err
 	}
 	unlock, err := s.workRoot.Lock(wire.ExcludedCEMPath)
 	if err != nil {
 		return nil, err
 	}
 	defer unlock()
-	if !stable {
-		if err := s.preflightStableSidecar(); err != nil {
-			return nil, err
-		}
+	if err := s.preflightStableSidecar(stable); err != nil {
+		return nil, err
 	}
 	if err := s.workRoot.RecoverPairBackup(wire.ExcludedCEMPath); err != nil {
 		return nil, err
@@ -956,9 +953,12 @@ func (s *Session) stableAt(relative string) bool {
 // cem/1.0 (CEM-V1-030). A recognized backup gets the strict probe: one whose
 // bytes cannot be read is refused too, since it may be stable. Backup names
 // follow publish.RecoverPairBackup: "<map>.bak-" plus sixteen lowercase hex
-// digits, regular files only.
-func (s *Session) preflightStableSidecar() error {
-	if s.stableAt(wire.ExcludedCEMPath) {
+// digits, regular files only. A stable writer replaces no sidecar here
+// (refuseStableReplace guards --replace) and admits a stable producer backup;
+// a stable backup carrying criteria, receipts, links, artifacts or provenance,
+// or an unreadable one, is still refused (CEM-V1-141).
+func (s *Session) preflightStableSidecar(stableWriter bool) error {
+	if !stableWriter && s.stableAt(wire.ExcludedCEMPath) {
 		return stableMutationRefusal("prepare", wire.ExcludedCEMPath)
 	}
 	directory := path.Dir(wire.ExcludedCEMPath)
@@ -972,7 +972,7 @@ func (s *Session) preflightStableSidecar() error {
 		if !found || len(suffix) != 16 || strings.Trim(suffix, "0123456789abcdef") != "" || !entry.Type().IsRegular() {
 			continue
 		}
-		if err := s.refuseStableEntry("prepare", path.Join(directory, entry.Name()), "restore or remove", false); err != nil {
+		if err := s.refuseStableEntry("prepare", path.Join(directory, entry.Name()), "restore or remove", stableWriter); err != nil {
 			return err
 		}
 	}

@@ -553,7 +553,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
 - `DOGFOOD-BIND-007`: a hunk whose intent no stable base content records (for example an intent
   added or removed inside the range) is not cited. A fixing commit that removes its backlog entry
   MUST cite a stable owning spec requirement or accepted decision instead. The producer reads a
-  requested span from `baseRevision` (`internal/cem/workflow/commands.go:455-472@d53a3b0c`), but
+  requested span from `baseRevision` (`internal/cem/workflow/commands.go:452-469@d53a3b0c`), but
   both its stability precheck and canonical target-drift verification reject that removed span
   (`internal/cem/verify/verify.go:442-497@92b33007`). A backlog entry that was the only recorded
   intent therefore binds as `NOT_PRODUCED`, never as an
@@ -722,12 +722,12 @@ candidate. The public CLI's evidence validation and refusal codes remain authori
 The underlying CEM phase derives the exact committed base-to-target patch:
 
 ```console
-$ corvint cem prepare --base BASE_SHA --target HEAD \
+$ corvint --root "$PWD" cem prepare --base BASE_SHA --target HEAD \
     --map .corvint/change.cem.json
 $ git add .corvint/change.cem.json
 $ git commit -m "chore: bind change evidence"
-$ corvint cem status --map .corvint/change.cem.json \
-    --expected-base BASE_SHA --target HEAD \
+$ corvint --root "$PWD" cem status --map .corvint/change.cem.json \
+    --expected-base BASE_SHA --target "$(git rev-parse HEAD)" --artifacts "$PWD" \
     --max-unknown BOOTSTRAP_UNKNOWN_COUNT+REASONED_UNKNOWN_COUNT --max-mechanical 0
 ```
 
@@ -737,11 +737,13 @@ change review. `BOOTSTRAP_UNKNOWN_COUNT` is zero unless the complete OCM aggrega
 the validated base-absent intent count. `REASONED_UNKNOWN_COUNT` is the map's other hunks kept
 `unknown` with reason `insufficient-evidence` or `conflicting-evidence` (`DCW-V0-046`), so the
 effective ceiling for unreasoned unknown hunks remains zero.
-Preparation ignores an inherited target-side sidecar, then its returned literal
-`--target HEAD` action independently resolves the final revision after the candidate is committed.
-A `cem/1.0` map, the prepare default since V1-1276, is read only with full commit IDs and
-`--artifacts <absolute repository root>`: its returned action names the resolved base and target
-and that root (`CEM-V1-146`), so after the candidate commit pass `--target "$(git rev-parse HEAD)"`.
+Preparation ignores an inherited target-side sidecar. A `cem/1.0` map, the prepare default since
+V1-1276, is read only with a full `BASE_SHA`, a full target ID, an absolute `--root` and
+`--artifacts <absolute repository root>`: prepare's returned action names the resolved base and
+target and that root (`CEM-V1-146`), and the status read above resolves the final revision after
+the candidate commit with `--target "$(git rev-parse HEAD)"`; `--target HEAD` or a missing
+`--artifacts` is refused. Only a `cem/0.2` map (`cem prepare --spec cem/0.2`) returns the literal
+`--target HEAD` action and reads without `--artifacts`.
 The sidecar is excluded from its own patch, avoiding recursive self-citation.
 
 ### 5. Close every owning-spec obligation
