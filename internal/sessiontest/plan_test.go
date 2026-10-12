@@ -552,7 +552,7 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 		"F = -race\\\\\n" + recipe: `'\\'`,
 		// 5. A non-ASCII blank is a byte of the word to the shell.
 		"F = -race -count=1\n" + recipe: "outside the typed alphabet",
-		"F = -race\r\n" + recipe:        `'\r'`,
+		"F = -race\r\n" + recipe:        "byte 0x0d outside the typed alphabet",
 		// 6. Mismatched reference delimiters are an error to make.
 		"F = -race\ngo-test:\n\tgo test ${F) ./...\n": "not $(NAME) or ${NAME}",
 		"F = -race\ngo-test:\n\tgo test $(F} ./...\n": "not $(NAME) or ${NAME}",
@@ -893,6 +893,65 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 		if got := ReadDeclared(write(t, map[string]string{"Makefile": body + "F = -race\n" + recipe}), nil, none); got.GoTest != GoTestParsed || got.Unreadable != "" {
 			t.Errorf("%q: %#v, want parsed", body, got)
 		}
+	}
+	// Codex round 14.
+	// 1. Prerequisites are checked as make expands them: a reference may
+	// carry a second colon, a recipe, a target-specific variable, a file
+	// name from the filesystem or a built-in value.
+	for _, body := range []string{
+		"X = :\nother: $(X)\n",
+		"X = ; echo hi\nother: $(X)\n",
+		"X = GOFLAGS=-race\nother: $(X)\n",
+		"X = $(wildcard *)\nother: $(X)\n",
+		"other: $(CURDIR)\n",
+		"other: $(X:a=b)\n",
+		"Y = :\nX := $(Y)\nY = a\nother: $(X)\n",
+	} {
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": body + "F = -race\n" + recipe}), nil, none); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "after the rule's colon") {
+			t.Errorf("%q: %#v, want unparsed and incomplete naming the prerequisites", body, got)
+		}
+	}
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "other: $(addprefix a)\nF = -race\n" + recipe}), nil, none); got.GoTest != GoTestUnparsed || got.Unreadable == "" {
+		t.Errorf("function arity in prerequisites: %#v, want unparsed and incomplete", got)
+	}
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "X = GOFLAGS=-race\ngo-test: $(X)\n\tgo test ./...\n"}), nil, none); got.GoTest == GoTestParsed {
+		t.Errorf("expanded target-specific variable: %#v, want untyped", got)
+	}
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "STEPS = a b\nall: x $(addprefix ledger/,$(STEPS)) | y\nF = -race\n" + recipe}), nil, none); got.GoTest != GoTestParsed || got.Unreadable != "" {
+		t.Errorf("expanded word prerequisites: %#v, want parsed", got)
+	}
+	// 2. make stops on a rule that mixes pattern and normal targets.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "foo% bar:\n\ttrue\nF = -race\n" + recipe}), nil, none); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "mixes pattern and normal targets") {
+		t.Errorf("mixed targets: %#v, want unparsed and incomplete", got)
+	}
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "a% b%:\n\ttrue\nF = -race\n" + recipe}), nil, none); got.GoTest != GoTestParsed || got.Unreadable != "" {
+		t.Errorf("two patterns: %#v, want parsed", got)
+	}
+	// 3. ifdef names one literal variable; make expands a reference first.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "N = a b\nifdef $(N)\nendif\nF = -race\n" + recipe}), nil, none); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "malformed ifdef") {
+		t.Errorf("ifdef reference: %#v, want unparsed and incomplete", got)
+	}
+	// 4. The alphabet applies to every byte: a comment, another rule's
+	// recipe and a skipped branch included.
+	for _, body := range []string{"#\x00\n", "# caf\u00e9\n", "other:\n\tcaf\u00e9\n", "ifeq (a,b)\n\x01\nendif\n"} {
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": body + "F = -race\n" + recipe}), nil, none); got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, "outside the typed alphabet") {
+			t.Errorf("%q: %#v, want unparsed and incomplete naming the alphabet", body, got)
+		}
+	}
+	// 5. An SCCS or RCS master of a go-test.<suffix> source, as a rule or a
+	// root entry, starts a chain to go-test; ledger/go-test does not.
+	for _, name := range []string{"s.go-test.sh", "go-test.sh,v", "S.GO-TEST.c", "RCS/go-test"} {
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": name + ":\n\t/bin/echo source\n"}), nil, none); got.GoTest == GoTestAbsent && got.Unreadable == "" {
+			t.Errorf("rule for %s: %#v, want not absent or incomplete", name, got)
+		}
+	}
+	for _, name := range []string{"s.go-test.sh", "go-test.sh,v"} {
+		if got := ReadDeclared(write(t, map[string]string{name: ""}), nil, none); got.Unreadable == "" {
+			t.Errorf("root %s: %#v, want incomplete", name, got)
+		}
+	}
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "ledger/go-test:\n\ttrue\nF = -race\n" + recipe, "ledger/go-test": ""}), nil, none); got.GoTest != GoTestParsed || got.Unreadable != "" {
+		t.Errorf("ledger/go-test: %#v, want parsed", got)
 	}
 }
 

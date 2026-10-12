@@ -189,6 +189,25 @@ Contracts and decisions:
   environment's names, which this slice does not change. The repository Makefile still types
   go-test with the same argv and environment; `TestSTRV0006ReaderGrammar` holds one case per
   round-13 finding.
+  Codex round 14 found five more read-time paths, all confirmed by probes `r14/a-e` with make
+  3.81: a reference in a rule's prerequisites expanded to a second colon (`missing target
+  pattern`), a recipe, a target-specific variable or a filesystem name while the reader stripped
+  references before checking; `foo% bar:` is `mixed implicit and normal rules`; `ifdef $(N)` with
+  `N = a b` is `invalid syntax in conditional`; a NUL inside a comment or another rule's recipe
+  escaped the alphabet check; and an SCCS master `s.go-test.sh` (rule or root entry) starts the
+  chain `s.go-test.sh` to `go-test.sh` to `go-test` while the reader knew only `s.go-test`. The
+  reader now (1) checks prerequisites as make expands them, following each `$(NAME)` into every
+  text the makefile gave the name so far and its inherited value, admitting the pure functions
+  except `wildcard`, `realpath` and `abspath`, and refusing a built-in variable, a substitution
+  reference and `$$`; (2) refuses a rule that mixes pattern and normal targets; (3) reads `ifdef`
+  and `ifndef` only with one literal identifier; (4) applies the typed alphabet to every byte of
+  every logical line before anything else is read from it; and (5) recognises every
+  `[RCS/|SCCS/][s.]go-test[.suffix...][,v]` form as an implicit source. The repository Makefile
+  still types go-test (line 42, `gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS))`, is
+  inside the prerequisite grammar; `ledger/go-test` is not an implicit source); the same argv and
+  environment come out of the real dry run; `TestSTRV0006ReaderGrammar` holds one case per
+  round-14 finding. Round 14 was the last review round this slice was allotted; its findings are
+  fixed, not retained as open.
 - CI profile argv and environment are the full CI branch's: `-exec <confine> -p 1 -count=1 -race
   -timeout 50m`, with `GOPROXY=off`, `GOSUMDB=off`, `GOWORK=off`, an empty `GOFLAGS`,
   `CGO_ENABLED=1` and `CORVINT_CONFINE_ROOT`. The CI admission parts of STR-V0-012 belong to the

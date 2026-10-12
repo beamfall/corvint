@@ -98,6 +98,7 @@ var (
 	makeOtherAssignment = regexp.MustCompile(`^[A-Za-z_.][A-Za-z0-9_.]*[ \t]*(\+=|!=|::=)`)
 	makeRule            = regexp.MustCompile(`^([A-Za-z0-9_.%/-]+(?:[ \t]+[A-Za-z0-9_.%/-]+)*)[ \t]*:(.*)$`)
 	envAssignment       = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
+	identifierName      = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 	// goEnvironmentName names the variables that pick or configure the go
 	// command; a makefile that assigns one leaves go-test untyped even when
 	// the variable is not inherited now.
@@ -347,6 +348,15 @@ func (r *makefileReader) read(line logicalLine) {
 		}
 		return
 	}
+	// The alphabet applies to the whole line before anything is read from
+	// it: a comment, another rule's recipe and a skipped branch included,
+	// since make reads a NUL, a CR or a byte outside ASCII its own way.
+	for index := 0; index < len(text); index++ {
+		if c := text[index]; (c < ' ' || c > '~') && c != '\t' {
+			r.outside(line.number, fmt.Sprintf("has byte 0x%02x outside the typed alphabet", c))
+			return
+		}
+	}
 	skipping := conditionSkipping(r.stack)
 	if strings.HasPrefix(text, "\t") {
 		body := strings.Trim(text, " \t")
@@ -390,12 +400,6 @@ func (r *makefileReader) read(line logicalLine) {
 	}
 	if strings.Trim(text, " \t") == "" {
 		return
-	}
-	for index := 0; index < len(text); index++ {
-		if c := text[index]; (c < ' ' || c > '~') && c != '\t' {
-			r.outside(line.number, fmt.Sprintf("has %q, which is outside the typed alphabet", c))
-			return
-		}
 	}
 	directive := makeWords(text)[0]
 	if strings.Contains(text, "MAKECMDGOALS") && !conditionalWords[directive] && directive != "else" {
@@ -554,7 +558,10 @@ func (r *makefileReader) conditionalEnd(number int, directive, text string) {
 func conditionalSyntax(directive, rest string) bool {
 	rest = strings.Trim(rest, " \t")
 	if directive == "ifdef" || directive == "ifndef" {
-		return len(makeWords(rest)) == 1
+		// make expands the name first, so a reference may turn into two
+		// words and stop make; only a literal name is read.
+		words := makeWords(rest)
+		return len(words) == 1 && identifierName.MatchString(words[0])
 	}
 	if !strings.HasPrefix(rest, "(") {
 		return false
@@ -627,7 +634,17 @@ func (r *makefileReader) assign(number int, name, operator, value string) {
 // rule reads one rule line; a rule may name several targets.
 func (r *makefileReader) rule(number int, targets, rest string) {
 	r.inRule = true
-	for _, target := range makeWords(targets) {
+	words, patterns := makeWords(targets), 0
+	for _, target := range words {
+		if strings.Contains(target, "%") {
+			patterns++
+		}
+	}
+	if patterns != 0 && patterns != len(words) {
+		// make stops reading on a rule that mixes the two.
+		r.outside(number, "mixes pattern and normal targets")
+	}
+	for _, target := range words {
 		switch {
 		case target == "go-test":
 			r.goTest = GoTestUnparsed
@@ -687,43 +704,45 @@ func (r *makefileReader) rule(number int, targets, rest string) {
 			}
 		}
 	}
-	// After the colon the grammar has words, | and references only: a
-	// target-specific variable, a rule-line recipe and a second colon are
-	// outside it.
-	literal, ok := stripReferences(rest)
-	if !ok {
-		return // expandsNow already recorded the malformed reference
-	}
-	for index := 0; index < len(literal); index++ {
-		if c := literal[index]; !literalByte(c) && c != '%' && c != '|' && c != ' ' && c != '\t' {
-			r.outside(number, fmt.Sprintf("has %q after the rule's colon", c))
-			return
-		}
+	// After the colon the grammar has words, | and references that expand
+	// now to words: a target-specific variable, a rule-line recipe and a
+	// second colon are outside it, written or expanded.
+	if err := r.prerequisiteText(rest, 0); err != nil {
+		r.outside(number, "has "+err.Error()+" after the rule's colon")
 	}
 }
 
-// stripReferences removes every $(...) and ${...} reference and $$ from
-// text; ok is false when a $ is bare or a reference is unterminated.
-func stripReferences(text string) (literal string, ok bool) {
-	var out strings.Builder
+// prerequisiteText checks the text after a rule's colon as make expands it
+// when it reads the line: a literal byte is a word byte, %, |, a comma or a
+// blank; a $(NAME) or ${NAME} reference is followed into every text the
+// makefile has given NAME so far and into its inherited value; an admitted
+// function's arguments are checked the same way, since those functions
+// return only bytes of their arguments. wildcard, realpath and abspath
+// return names from the filesystem, a built-in variable has a value this
+// reader does not know, and a substitution reference, $$ and anything else
+// are outside the grammar.
+func (r *makefileReader) prerequisiteText(text string, depth int) error {
+	if depth > maxExpandDepth {
+		return errors.New("references that nest too deeply")
+	}
 	for index := 0; index < len(text); index++ {
-		if text[index] != '$' {
-			out.WriteByte(text[index])
+		c := text[index]
+		if c != '$' {
+			if !literalByte(c) && c != '%' && c != '|' && c != ',' && c != ' ' && c != '\t' {
+				return fmt.Errorf("%q", c)
+			}
 			continue
 		}
 		if index+1 >= len(text) {
-			return "", false
+			return errors.New("a $ that is not a reference")
 		}
 		opener, closer := text[index+1], byte(')')
 		switch opener {
-		case '$':
-			index++
-			continue
 		case '{':
 			closer = '}'
 		case '(':
 		default:
-			return "", false
+			return errors.New("a $ that is not a $(...) or ${...} reference")
 		}
 		end, nesting := -1, 0
 		for scan := index + 1; scan < len(text) && end < 0; scan++ {
@@ -738,11 +757,43 @@ func stripReferences(text string) (literal string, ok bool) {
 			}
 		}
 		if end < 0 {
-			return "", false
+			return errors.New("an unterminated reference")
+		}
+		body := text[index+2 : end]
+		if cut := strings.IndexAny(body, " \t"); cut >= 0 {
+			name, arguments := body[:cut], body[cut+1:]
+			if !pureFunctions[name] || name == "wildcard" || name == "realpath" || name == "abspath" {
+				return errors.New("make function " + name)
+			}
+			if err := pureArguments(name, arguments); err != nil {
+				return err
+			}
+			if err := r.prerequisiteText(arguments, depth+1); err != nil {
+				return err
+			}
+			index = end
+			continue
+		}
+		for position := 0; position < len(body); position++ {
+			if !referenceNameByte(body[position], position == 0) {
+				return errors.New("a reference that is not $(NAME) or ${NAME}")
+			}
+		}
+		texts, inherited, ok := r.texts[body], "", false
+		if inherited, ok = r.lookup(body); ok {
+			texts = append(append([]string{}, texts...), inherited)
+		}
+		if len(texts) == 0 && makeBuiltinVariable(body) {
+			return errors.New("the built-in variable " + body)
+		}
+		for _, candidate := range texts {
+			if err := r.prerequisiteText(candidate, depth+1); err != nil {
+				return err
+			}
 		}
 		index = end
 	}
-	return out.String(), true
+	return nil
 }
 
 // resolve answers a reference from the makefile's own variables; a refused
@@ -1107,20 +1158,29 @@ func (r *makefileReader) remakeSource(name string) bool {
 }
 
 // implicitSourceOf reports whether name can start a built-in implicit-rule
-// chain to base: a base.<suffix> source (any suffix, since chains such as .y
-// to .c to .o pass through them), an RCS or SCCS master, or their
-// directories.
+// chain to base: after an optional RCS/ or SCCS/ directory and an optional
+// SCCS s. prefix, base followed by a suffix chain (any suffixes, since
+// chains such as .y to .c to .o pass through them) or an RCS ,v, or base
+// itself under one of those prefixes; the RCS and SCCS directories count
+// as well. Names compare without case.
 func implicitSourceOf(name, base string) bool {
-	for _, source := range []string{base + ".", base + ",v", "s." + base, "RCS", "SCCS", "RCS/" + base + ",v", "SCCS/s." + base} {
-		if strings.HasSuffix(source, ".") {
-			if len(name) > len(source) && strings.EqualFold(name[:len(source)], source) {
-				return true
-			}
-		} else if strings.EqualFold(name, source) {
-			return true
+	if strings.EqualFold(name, "RCS") || strings.EqualFold(name, "SCCS") {
+		return true
+	}
+	prefixed := false
+	for _, prefix := range []string{"RCS/", "SCCS/", "s."} {
+		if len(name) > len(prefix) && strings.EqualFold(name[:len(prefix)], prefix) {
+			name, prefixed = name[len(prefix):], true
 		}
 	}
-	return false
+	if len(name) < len(base) || !strings.EqualFold(name[:len(base)], base) {
+		return false
+	}
+	rest := name[len(base):]
+	if rest == "" {
+		return prefixed
+	}
+	return rest[0] == '.' || rest[0] == ','
 }
 
 // patternReaches reports whether a pattern rule can serve a base.<suffix>
