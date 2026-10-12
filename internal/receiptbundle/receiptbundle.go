@@ -59,6 +59,13 @@ type Options struct {
 	Target       string // the commit whose canonical patch the map binds
 	Output       string // absolute path of a directory that must not exist
 	Witness      string // optional saved `corvint witness --json` report
+
+	// The cem/1.0 route only (CEM-V1-060): the repository root as the caller
+	// named it, the explicit artifact root, and which optional flags were given.
+	Repository     string
+	Artifacts      string
+	ArtifactsGiven bool
+	WitnessGiven   bool
 }
 
 // Axis is one NOT_RUN or NOT_PRODUCED value inside a receipt.
@@ -97,8 +104,16 @@ type exporter struct {
 // script/release-checklist reads it: no other bytes, one final LF.
 var gateLine = regexp.MustCompile(`\Acorvint-gate-receipt/0 ([0-9a-f]{40}|[0-9a-f]{64}) ([0-9a-f]{40}|[0-9a-f]{64}) [0-9a-f]{64}\n\z`)
 
-// Export writes the bundle and returns the command envelope.
+// Export writes the bundle and returns the command envelope. A map whose bytes
+// declare exactly cem/1.0 takes the stable route; every other map keeps the
+// 0.x export, which refuses --artifacts (CEM-V1-060, CEM-V1-064).
 func Export(ctx context.Context, root string, options Options) (map[string]any, error) {
+	if raw, err := readStableProbe(root, options.MapPath); err == nil && wire.DeclaresStable(raw) {
+		return exportStable(ctx, root, raw, options)
+	}
+	if options.ArtifactsGiven {
+		return nil, cemcode.New(cemcode.InvalidArguments, "--artifacts is accepted only for a %s map", wire.StableSpec)
+	}
 	repo, err := gitauth.Open(root, gitrun.NewDefaultBudget())
 	if err != nil {
 		return nil, err
