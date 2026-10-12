@@ -62,9 +62,14 @@ func (d Declared) Names() bool { return d.GoTest != GoTestAbsent || len(d.Langua
 // it reads the line and keeps the blank before it in a value, so this reader
 // cuts it the same way; "\#" is outside the grammar. A makefile line that
 // make expands as it reads it (a conditional, a rule line, an immediate
-// assignment) may hold only $(NAME) references, whose assigned and inherited
-// texts hold the same, and the pure functions listed in pureFunctions; eval,
-// call, shell and the rest leave the scope incomplete.
+// assignment, a define name) may hold only $(NAME) references, whose
+// assigned and inherited texts hold the same, and the pure functions listed
+// in pureFunctions; eval, call, shell and the rest leave the scope
+// incomplete. Absence is claimed only when neither a built-in implicit rule
+// nor a remade makefile can give go-test a recipe: a go-test.<suffix> or
+// <makefile>.<suffix> source, an RCS or SCCS master, a pattern or suffix
+// rule that can serve one, or a rule for the makefile itself leaves the
+// scope incomplete, and a .PHONY go-test rules out only the implicit rules.
 //
 // The expanded recipe is split on blank runs, as sh splits an unquoted
 // command line of these bytes. A value is kept verbatim (make strips only
@@ -117,6 +122,13 @@ var (
 		"dir": true, "notdir": true, "suffix": true, "basename": true, "addsuffix": true, "addprefix": true,
 		"join": true, "wildcard": true, "realpath": true, "abspath": true, "if": true, "or": true, "and": true,
 	}
+	// specialTargets are make's dotted targets that are not suffix rules.
+	specialTargets = map[string]bool{
+		".PHONY": true, ".SUFFIXES": true, ".DEFAULT": true, ".PRECIOUS": true, ".INTERMEDIATE": true,
+		".NOTINTERMEDIATE": true, ".SECONDARY": true, ".SECONDEXPANSION": true, ".DELETE_ON_ERROR": true,
+		".IGNORE": true, ".LOW_RESOLUTION_TIME": true, ".SILENT": true, ".EXPORT_ALL_VARIABLES": true,
+		".NOTPARALLEL": true, ".ONESHELL": true, ".POSIX": true, ".WAIT": true,
+	}
 )
 
 // Conditional frame states. Lines are read only while no open frame skips.
@@ -155,9 +167,9 @@ func ReadDeclared(root string, languages []string, lookup func(string) (string, 
 	}
 	// make answers `make go-test` from its built-in implicit rules even
 	// without a makefile, so the root is listed in every case.
+	r.name = name
 	r.listRoot(root)
 	if name != "" {
-		r.name = name
 		for _, line := range logicalLines(string(raw)) {
 			r.read(line)
 		}
@@ -215,6 +227,9 @@ type makefileReader struct {
 	// entry named go-test, which make treats as up to date.
 	implicit   string
 	goTestFile bool
+	// remake names the first rule target or root entry from which make may
+	// remake the makefile it read and then read it again.
+	remake     string
 	defineName string
 	// goalsUnknown: MAKECMDGOALS came from the environment or a makefile
 	// line touched it, so from here on a conditional on it is not
@@ -266,6 +281,10 @@ func (r *makefileReader) environment() {
 	if files, ok := r.lookup("MAKEFILES"); ok && strings.Trim(files, " \t") != "" {
 		r.setIncomplete("MAKEFILES names extra makefiles")
 		r.setUntyped("MAKEFILES names extra makefiles, which this reader cannot read")
+	}
+	if path, ok := r.lookup("VPATH"); ok && strings.Trim(path, " \t") != "" {
+		// make searches VPATH for implicit-rule sources such as go-test.c.
+		r.setImplicit("VPATH is in the environment")
 	}
 }
 
@@ -361,6 +380,10 @@ func (r *makefileReader) read(line logicalLine) {
 			r.defineName = words[1]
 		}
 		r.setUntyped("the " + r.name + " uses define, which this reader cannot evaluate")
+		if !skipping {
+			// make expands the variable name as it reads the define line.
+			r.expandsNow(line.number, text)
+		}
 		return
 	case directive == "endef":
 		r.setUntyped(fmt.Sprintf("%s line %d has an endef without define", r.name, line.number))
@@ -394,6 +417,9 @@ func (r *makefileReader) read(line logicalLine) {
 		// += expands now when the variable was assigned with :=, and !=
 		// runs a shell now; the text is kept under the name for pure.
 		r.setUntyped("the " + r.name + " uses += or !=, which this reader cannot evaluate")
+		if match[2] == "!=" {
+			r.setIncomplete(fmt.Sprintf("%s line %d runs a shell command with !=", r.name, line.number))
+		}
 		r.texts[match[1]] = append(r.texts[match[1]], match[3])
 		r.expandsNow(line.number, match[3])
 		return
@@ -506,7 +532,14 @@ func (r *makefileReader) assign(number int, name, operator, value string) {
 		} else if makeBuiltinVariable(name) {
 			r.refused[name] = true
 		}
-	case ":=", "::=":
+	case "::=":
+		// GNU make 3.81 reads this line as a rule and leaves name unset;
+		// GNU make 4 assigns it. Which make runs is not known here.
+		r.refused[name] = true
+		r.setIncomplete(fmt.Sprintf("%s line %d uses ::=, which GNU make 3.81 reads as a rule line", r.name, number))
+		r.setUntyped(fmt.Sprintf("%s line %d uses ::=, which GNU make 3.81 reads as a rule line and GNU make 4 as an assignment", r.name, number))
+		return
+	case ":=":
 		// An immediate assignment expands now, against the values
 		// assigned so far; a later reassignment must not change it.
 		if strings.Contains(value, "$") {
@@ -529,6 +562,10 @@ func (r *makefileReader) rule(text, targets string) {
 		// make reads ./go-test as go-test.
 		for strings.HasPrefix(target, "./") && len(target) > 2 {
 			target = target[2:]
+		}
+		if r.remakeSource(target) {
+			// make remakes a makefile that has a rule, then reads it again.
+			r.setRemake("the " + r.name + " has a rule for " + target)
 		}
 		switch {
 		case target == "go-test":
@@ -556,13 +593,19 @@ func (r *makefileReader) rule(text, targets string) {
 		case target == ".PHONY":
 			_, after, _ := strings.Cut(text, ":")
 			for _, prerequisite := range makeWords(after) {
-				if prerequisite == "go-test" {
+				// Under a conditional this reader did not evaluate, make
+				// may skip the line, so it proves nothing.
+				if prerequisite == "go-test" && !conditionUnknown(r.stack) {
 					r.phonyGoTest = true
 				}
 			}
 		case strings.HasPrefix(target, "."):
-			// .SUFFIXES and a suffix rule change the implicit rules.
+			// .SUFFIXES and a suffix rule change the implicit rules; a
+			// suffix rule can also remake the makefile from a source.
 			r.setImplicit("the " + r.name + " has the special target " + target)
+			if !specialTargets[target] {
+				r.setRemake("the " + r.name + " has the suffix rule " + target)
+			}
 			r.setUntyped("the " + r.name + " names the special target " + target + ", which this reader cannot evaluate")
 		case implicitSource(target):
 			// A rule for go-test.c makes it a source make ought to build.
@@ -577,8 +620,11 @@ func (r *makefileReader) rule(text, targets string) {
 				}
 				r.setUntyped("the pattern rule " + target + " applies to go-test")
 			}
-			if prefix, _, _ := strings.Cut(target, "%"); strings.HasPrefix("go-test.", prefix) || strings.HasPrefix(prefix, "go-test.") {
+			if patternReaches(target, "go-test") {
 				r.setImplicit("the " + r.name + " has the pattern rule " + target)
+			}
+			if patternMatches(target, r.name) || patternReaches(target, r.name) {
+				r.setRemake("the " + r.name + " has the pattern rule " + target)
 			}
 			for want := range r.wanted {
 				if patternMatches(target, want) {
@@ -607,6 +653,12 @@ func (r *makefileReader) evaluate(line string) int {
 func (r *makefileReader) declared() Declared {
 	declared := Declared{GoEnv: []string{}, GoFlags: []string{}, GoTest: r.goTest, Languages: r.languages}
 	sort.Strings(declared.Languages)
+	if r.remake != "" {
+		// A remade makefile is read again, and what it then holds is not
+		// known, whether or not go-test is .PHONY.
+		r.setIncomplete(r.remake + ", from which make may remake and re-read it")
+		r.setUntyped(r.remake + ", from which make may remake and re-read it")
+	}
 	switch {
 	case r.phonyGoTest:
 		// A .PHONY target is never built by an implicit rule and is never
@@ -651,6 +703,17 @@ func makeBuiltinVariable(name string) bool {
 func conditionSkipping(stack []int) bool {
 	for _, state := range stack {
 		if state == condSkipping || state == condDone || state == condNested {
+			return true
+		}
+	}
+	return false
+}
+
+// conditionUnknown reports whether an open conditional frame was not
+// evaluated, so make may or may not read the line.
+func conditionUnknown(stack []int) bool {
+	for _, state := range stack {
+		if state == condUnknown {
 			return true
 		}
 	}
@@ -938,13 +1001,55 @@ func (r *makefileReader) setImplicit(reason string) {
 	}
 }
 
+func (r *makefileReader) setRemake(reason string) {
+	if r.remake == "" {
+		r.remake = reason
+	}
+}
+
 // implicitSource reports whether a rule target or a repository-root entry
-// can start one of make's built-in implicit-rule chains to go-test: a
-// go-test.<suffix> source (any suffix, since chains such as .y to .c to .o
-// pass through them), an RCS or SCCS master, or their directories.
-func implicitSource(name string) bool {
-	return strings.HasPrefix(name, "go-test.") || name == "go-test,v" || name == "s.go-test" ||
-		name == "RCS" || name == "SCCS" || name == "RCS/go-test,v" || name == "SCCS/s.go-test"
+// can start one of make's built-in implicit-rule chains to go-test.
+func implicitSource(name string) bool { return implicitSourceOf(name, "go-test") }
+
+// remakeSource reports whether a rule target or a repository-root entry is
+// the makefile make read, which it remakes and reads again when a rule or a
+// built-in implicit rule can, or a source of such a rule. When no makefile
+// exists make tries to remake every default name. Names compare without
+// case: make finds a file by name on a filesystem that may ignore case.
+func (r *makefileReader) remakeSource(name string) bool {
+	for _, makefile := range makefileNames {
+		if r.name != "" && makefile != r.name {
+			continue
+		}
+		if strings.EqualFold(name, makefile) || implicitSourceOf(name, makefile) {
+			return true
+		}
+	}
+	return false
+}
+
+// implicitSourceOf reports whether name can start a built-in implicit-rule
+// chain to base: a base.<suffix> source (any suffix, since chains such as .y
+// to .c to .o pass through them), an RCS or SCCS master, or their
+// directories.
+func implicitSourceOf(name, base string) bool {
+	for _, source := range []string{base + ".", base + ",v", "s." + base, "RCS", "SCCS", "RCS/" + base + ",v", "SCCS/s." + base} {
+		if strings.HasSuffix(source, ".") {
+			if len(name) > len(source) && strings.EqualFold(name[:len(source)], source) {
+				return true
+			}
+		} else if strings.EqualFold(name, source) {
+			return true
+		}
+	}
+	return false
+}
+
+// patternReaches reports whether a pattern rule can serve a base.<suffix>
+// source, the start of an implicit-rule chain to base.
+func patternReaches(target, base string) bool {
+	prefix, _, _ := strings.Cut(target, "%")
+	return strings.HasPrefix(base+".", prefix) || strings.HasPrefix(prefix, base+".")
 }
 
 // listRoot reads the repository root's entries, which make reads as the
@@ -957,7 +1062,11 @@ func (r *makefileReader) listRoot(root string) {
 		return
 	}
 	for _, entry := range entries {
-		switch name := entry.Name(); {
+		name := entry.Name()
+		if r.remakeSource(name) && !strings.EqualFold(name, r.name) {
+			r.setRemake("the repository root holds " + name)
+		}
+		switch {
 		case name == "go-test":
 			r.goTestFile = true
 		case implicitSource(name):

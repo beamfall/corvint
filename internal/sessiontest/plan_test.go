@@ -684,6 +684,50 @@ func TestSTRV0006ReaderGrammar(t *testing.T) {
 	if got := ReadDeclared(write(t, map[string]string{"Makefile": ".PHONY: go-test\ngo-test:\n\tgo test ./...\n", "go-test": ""}), nil, none); got.GoTest != GoTestParsed {
 		t.Errorf("phony go-test beside a go-test file: %#v, want parsed", got)
 	}
+	// Round 11. make remakes the makefile it read when a rule or a built-in
+	// implicit rule can, then reads it again, so a rule for it, a pattern
+	// or suffix rule that can serve it, or a <makefile>.<suffix> source
+	// beside it leaves the scope incomplete even when go-test is .PHONY;
+	// with no makefile every default name may be remade. A source of a
+	// default name make did not read is not one.
+	for _, files := range []map[string]string{
+		{"Makefile": "Makefile: replacement.mk\n\tcp replacement.mk Makefile\n.PHONY: go-test\ngo-test:\n\tgo test -race ./...\n", "replacement.mk": "go-test:\n\tgo test -short ./...\n"},
+		{"Makefile": ".PHONY: go-test\ngo-test:\n\tgo test -race ./...\n", "Makefile.sh": "go-test:\n\tgo test -short ./...\n"},
+		{"Makefile": ".PHONY: go-test\ngo-test:\n\tgo test -race ./...\n%: %.in\n\tcp $< $@\n"},
+		{"Makefile": ".PHONY: go-test\ngo-test:\n\tgo test -race ./...\n.in:\n\tcp $< $@\n"},
+		{"Makefile.sh": "go-test:\n\tgo test -short ./...\n"},
+	} {
+		if got := ReadDeclared(write(t, files), nil, none); got.GoTest == GoTestParsed || got.Unreadable == "" {
+			t.Errorf("%v: %#v, want untyped and incomplete", files, got)
+		}
+	}
+	if got := ReadDeclared(write(t, map[string]string{"GNUmakefile": "go-test:\n\tgo test -race ./...\n", "Makefile.sh": "go-test:\n\tgo test -short ./...\n"}), nil, none); got.GoTest != GoTestParsed || got.Unreadable != "" {
+		t.Errorf("Makefile.sh beside a GNUmakefile: %#v, want parsed and complete", got)
+	}
+	// make expands a define line's variable name as it reads it.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "define $(eval go-test: ; @echo witness)X\nunused\nendef\n"}), nil, none); got.GoTest == GoTestParsed || !strings.Contains(got.Unreadable, "make function eval") {
+		t.Errorf("eval in a define name: %#v, want incomplete naming eval", got)
+	}
+	// A .PHONY line under a conditional this reader did not evaluate may be
+	// skipped by make, so it does not rule out an implicit rule.
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "ifdef NEVER_SET\n.PHONY: go-test\nendif\ngo-test.c:\n\tprintf x > go-test.c\n"}), nil, none); got.GoTest != GoTestAbsent || got.Unreadable == "" {
+		t.Errorf(".PHONY under ifdef beside a go-test.c rule: %#v, want absent and incomplete", got)
+	}
+	// VPATH from the environment finds implicit-rule sources too.
+	vpath := func(name string) (string, bool) { return "src", name == "VPATH" }
+	if got := ReadDeclared(write(t, map[string]string{"Makefile": "all:\n\t@true\n"}), nil, vpath); got.GoTest != GoTestAbsent || got.Unreadable == "" {
+		t.Errorf("VPATH in the environment: %#v, want absent and incomplete", got)
+	}
+	// GNU make 3.81 reads ::= as a rule line and GNU make 4 as an
+	// assignment; != runs a shell as make reads the line.
+	for body, note := range map[string]string{
+		"F ::= -race\n" + recipe:     "::=",
+		"F != echo -race\n" + recipe: "!=",
+	} {
+		if got := ReadDeclared(write(t, map[string]string{"Makefile": body}), nil, none); got.GoTest != GoTestUnparsed || !strings.Contains(got.Unreadable, note) {
+			t.Errorf("%q: %#v, want unparsed and incomplete naming %q", body, got, note)
+		}
+	}
 	// A pattern rule alone answers `make go-test`, so go-test is declared
 	// (untyped) and a matching <lang>-test is declared.
 	pattern := ReadDeclared(write(t, map[string]string{"Makefile": "%-test:\n\tcargo test\n"}), []string{"rust"}, none)

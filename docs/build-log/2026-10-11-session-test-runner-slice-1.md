@@ -89,7 +89,7 @@ Contracts and decisions:
   environment words. Codex round 10 added, each probed: a `#` starts a comment anywhere in a
   makefile line (`else# c` is an else, so the rule after it is read, never absent; `\#` is
   `INCOMPLETE`); a line make expands as it reads it (a conditional, an else-if, a rule line with
-  its prerequisites, a `:=`/`::=` value, `+=`, `export`, an unrecognised line) may hold only `$$`,
+  its prerequisites, a `:=` value, `+=`, `export`, `define`, an unrecognised line) may hold only `$$`,
   `$(NAME)`/`${NAME}` references and the pure functions `subst patsubst strip findstring filter
   filter-out sort word wordlist words firstword lastword dir notdir suffix basename addsuffix
   addprefix join wildcard realpath abspath if or and`, checked recursively through every text the
@@ -104,8 +104,22 @@ Contracts and decisions:
   a makefile), while `.PHONY: go-test` is never built by an implicit rule and stays absent. The
   earlier stale-file deviation is closed the same way: a root entry named `go-test` beside a
   go-test rule that is not `.PHONY` is untyped, because make reports it up to date and runs
-  nothing. Unrecognised lines are now always `INCOMPLETE`. This
-  repository's Makefile still types go-test: its line-49 `$(GATE_STEPS) ...: | gate-receipt-clear`
+  nothing. Unrecognised lines are now always `INCOMPLETE`. Codex round 11 added, each probed
+  with GNU make 3.81: make remakes the makefile it read when a rule or a built-in implicit rule
+  can, then reads it again, so a rule for that makefile, a `%` pattern rule that matches it or
+  can serve a `<makefile>.<suffix>` source, a suffix rule, or a root entry `<makefile>.<suffix>`,
+  `<makefile>,v`, `s.<makefile>`, `RCS` or `SCCS` is `INCOMPLETE` and untyped even when go-test
+  is `.PHONY` (a `Makefile.sh` beside `Makefile` ran `-short` where the reader typed `-race`);
+  with no makefile every default name may be remade, while a source of a default name make did
+  not read (`Makefile.sh` beside `GNUmakefile`) is not one. A `define` line expands its name as
+  make reads it, so it is checked like any other immediate expansion (`define $(eval go-test: ;
+  ...)X` defined go-test). `.PHONY: go-test` proves absence only outside a conditional the reader
+  did not evaluate (`ifdef NEVER_SET` around it beside a `go-test.c` rule compiled go-test).
+  `VPATH` from the environment finds implicit-rule sources like a makefile assignment to it.
+  `::=` is `INCOMPLETE` and untyped because GNU make 3.81 reads the line as a rule and leaves the
+  name unset while GNU make 4 assigns it, and `!=` is `INCOMPLETE` because it runs a shell as
+  make reads the line. The `.PHONY` test now sits beside the implicit-rule tests in
+  `TestSTRV0006ReaderGrammar`. This repository's Makefile still types go-test: its line-49 `$(GATE_STEPS) ...: | gate-receipt-clear`
   sits under `ifneq ($(filter gate,$(or $(MAKECMDGOALS),gate)),)`, which is false for
   `make go-test`, and the 63-71 block holds no go-test rule
   (`TestSTRV0006RepositoryMakefileTypesGoTest`; `TestSTRV0006RepositoryMakefileDependsOnConditional`
