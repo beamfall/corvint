@@ -42,10 +42,12 @@ type CEMVerification struct {
 	Status string
 	Reason string
 	// PredicateType is set by VerifyCEMPredicate only; BaseRevision and
-	// PatchSHA256 only for a CEMPredicateTypeV1 claim.
+	// PatchSHA256 only for a CEMPredicateTypeV1 or CEMPredicateTypeV2 claim.
 	PredicateType string
 	BaseRevision  string
 	PatchSHA256   string
+	// V2 is set only for a CEMPredicateTypeV2 claim.
+	V2 *CEMV2Claim
 }
 
 type cemDigest struct {
