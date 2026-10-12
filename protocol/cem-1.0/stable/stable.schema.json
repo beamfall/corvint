@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://corvint.dev/protocol/cem-1.0/stable/stable.schema.json",
   "title": "PROPOSED stable CEM 1.0 document",
-  "description": "Closed exact cem/1.0 wire. Technical contract PROPOSED/EXPERIMENTAL; native/portable implementations and release qualification are not delivered. ALGORITHMS.md supplies byte/identity/cross-record/Git rules not expressible here.",
+  "description": "Closed exact cem/1.0 wire: ten required members plus the optional provenance and role members (CEM-V1-093, CEM-V1-095), neither of which carries authority. Technical contract PROPOSED/EXPERIMENTAL; native/portable implementations and release qualification are not delivered. ALGORITHMS.md supplies byte/identity/cross-record/Git rules not expressible here.",
   "$comment": "Apache-2.0. Derived only from public permissive CEM schemas, with independently authored stable rules. The separate candidate packet remains byte-identical.",
   "type": "object",
   "additionalProperties": false,
@@ -73,6 +73,12 @@
       "items": {
         "$ref": "#/$defs/artifact"
       }
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "role": {
+      "$ref": "#/$defs/role"
     }
   },
   "$defs": {
@@ -530,6 +536,45 @@
       "pattern": "^criterion:sha256:[0-9a-f]{64}$"
     },
     "criterionBinding": {
+      "description": "CEM-V1-083: the plain Git blob span form, or the optional closed Corvint Tasks extension form. Any Tasks member selects the Tasks form.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/plainCriterionBinding"
+        },
+        {
+          "$ref": "#/$defs/tasksCriterionBinding"
+        }
+      ]
+    },
+    "plainCriterionBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "criterionIndex",
+        "criterionSha256",
+        "evidenceId"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/criterionId"
+        },
+        "criterionIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "criterionSha256": {
+          "$ref": "#/$defs/sha256",
+          "description": "Equals the spanSha256 of the evidence record named by evidenceId."
+        },
+        "evidenceId": {
+          "type": "string",
+          "pattern": "^evidence:sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "tasksCriterionBinding": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -618,7 +663,44 @@
           "const": "NOT_OBSERVED"
         },
         "authentication": {
-          "const": "NOT_OBSERVED"
+          "$comment": "CEM-V1-084: the string NOT_OBSERVED is the sealed S0E form, read as method none.",
+          "oneOf": [
+            {
+              "const": "NOT_OBSERVED"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "method"
+              ],
+              "properties": {
+                "method": {
+                  "const": "none"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "method",
+                "keyid",
+                "envelopeSha256"
+              ],
+              "properties": {
+                "method": {
+                  "const": "dsse-ed25519"
+                },
+                "keyid": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "envelopeSha256": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            }
+          ]
         }
       }
     },
@@ -683,7 +765,8 @@
             "tasks-claimed-ticket",
             "runner-plan",
             "runner-receipt",
-            "tasks-snapshot-head-receipt"
+            "tasks-snapshot-head-receipt",
+            "receipt-attestation"
           ]
         },
         "path": {
@@ -711,6 +794,53 @@
         }
       ],
       "description": "No case-insensitive .git component; ASCII Git-reserved spelling is refused before filesystem access."
+    },
+    "sha1Oid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "provenance": {
+      "description": "CEM-V1-093: the cem/0.x source a converted map came from. A natively produced map omits it. Never read for authority, ranking or any result axis, and never echoed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceSpec",
+        "sourceBlobOid",
+        "sourceSha256",
+        "bindCommit",
+        "converter"
+      ],
+      "properties": {
+        "sourceSpec": {
+          "enum": [
+            "cem/0.1",
+            "cem/0.2",
+            "cem/0.3"
+          ]
+        },
+        "sourceBlobOid": {
+          "$ref": "#/$defs/sha1Oid"
+        },
+        "sourceSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bindCommit": {
+          "$ref": "#/$defs/sha1Oid"
+        },
+        "converter": {
+          "type": "string",
+          "pattern": "^corvint-cem-convert/[0-9]+(\\.[0-9]+)*$"
+        }
+      }
+    },
+    "role": {
+      "description": "CEM-V1-095: the change role; absent reads as change. Never changes a verdict, tier or result axis.",
+      "type": "string",
+      "enum": [
+        "change",
+        "bind-chore",
+        "seal-chore"
+      ]
     }
   },
   "allOf": [

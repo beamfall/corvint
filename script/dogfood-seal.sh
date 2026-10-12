@@ -8,7 +8,16 @@ export LC_ALL=C
 
 base_arg=${1:?usage: dogfood-seal.sh BASE}
 repo=$(cd "$(dirname "$0")/.." && pwd)
-"$repo/script/dogfood-check.sh" "$base_arg" || exit
+# The check's stdout streams through unchanged; a copy keeps the DCW-V0-047
+# base-independence fields of a declared output change for the PASS line.
+check_out=$(mktemp "${TMPDIR:-/tmp}/corvint-dogfood-seal.XXXXXX") || exit 2
+trap 'rm -f "$check_out"' EXIT
+"$repo/script/dogfood-check.sh" "$base_arg" | tee "$check_out"
+check_status=${PIPESTATUS[0]}
+(( check_status == 0 )) || exit "$check_status"
+independence=$(grep -E '^dogfood-check: (SUMMARY|NOTE) ' "$check_out" |
+  grep -oE 'base-independence=NOT_PROVED base=sha256:[0-9a-f]{64} tree=sha256:[0-9a-f]{64} declared=[A-Za-z0-9-]+' |
+  head -n 1)
 bind=$(git -C "$repo" rev-parse 'HEAD^{commit}') || exit 2
 if ! git -C "$repo" cat-file -e "$bind:.corvint/change.cem.json" 2>/dev/null; then
   printf 'dogfood-seal: REFUSE nothing-to-seal\n' >&2
@@ -36,4 +45,8 @@ sealed=".corvint/changes/$bind.cem.json"
 mkdir -p "$repo/.corvint/changes"
 git -C "$repo" mv .corvint/change.cem.json "$sealed" || exit 2
 git -C "$repo" commit -q -m "chore: seal change evidence" || exit 2
-printf 'dogfood-seal: PASS sealed=%s\n' "$sealed"
+if [[ -n $independence ]]; then
+  printf 'dogfood-seal: PASS sealed=%s %s\n' "$sealed" "$independence"
+else
+  printf 'dogfood-seal: PASS sealed=%s\n' "$sealed"
+fi

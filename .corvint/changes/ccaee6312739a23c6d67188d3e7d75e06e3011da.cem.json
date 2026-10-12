@@ -1,0 +1,40 @@
+{
+  "baseRevision": "b8ef66364c9577ea42e265c1303bb450be5c46af",
+  "evidence": [
+    {
+      "blobOid": "e91e19e3fb6e4ecf05d7715bf7e5877a5c20c0f3",
+      "id": "evidence:sha256:eedba7dbe1f2e5f111eb1ec8a9911adbc1143c005d64123521f11b265fef89f4",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3266,
+        "start": 2977
+      },
+      "spanSha256": "d6d029e73c0db3a311ea5867a6bf2e619c17c2d9d5f1ee62464017710035bb55"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:eedba7dbe1f2e5f111eb1ec8a9911adbc1143c005d64123521f11b265fef89f4",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8281f885d3d0c5c207d8248a100b80634cef9784d97eb9874cd23a132d0abaac",
+      "newRange": {
+        "count": 13,
+        "start": 255
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 255
+      },
+      "path": ".corvint/test-read-scopes.json",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "0175c3b2199dee2e8343f9a993a3f5c5c8ea86b6e1067825ec56c38020be51b9",
+  "spec": "cem/0.2"
+}

@@ -37,6 +37,7 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 	approve := flags.String("approve", "", "exact canonical plan SHA256")
 	experimental := flags.Bool("experimental", false, "admit experimental profile")
 	trusted := flags.Bool("trusted-local", false, "admit trusted local test execution")
+	stableRoot := flags.String("stable-artifact-root", "", "explicit artifact root; selects the cem/1.0 stable mode")
 	seen := map[string]bool{}
 	for _, arg := range args[1:] {
 		if !strings.HasPrefix(arg, "-") {
@@ -64,20 +65,32 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 			err = ce.Decode(b, &r)
 			if err == nil {
 				var p ce.Plan
-				p, err = ce.PlanExperiment(ctx, *repo, r, *output, tasks)
+				if *stableRoot != "" {
+					p, err = ce.PlanStableExperiment(ctx, *repo, r, *output, *stableRoot, tasks)
+				} else {
+					p, err = ce.PlanExperiment(ctx, *repo, r, *output, tasks)
+				}
 				if err == nil {
-					result = map[string]string{"schema": ce.Profile, "state": "PLANNED", "planSha256": ce.CanonicalDigest(p)}
+					result = map[string]string{"schema": p.Schema, "state": "PLANNED", "planSha256": ce.CanonicalDigest(p)}
 				}
 			}
 		}
 	case "run":
 		var r ce.Receipt
-		r, err = ce.Run(ctx, *repo, *plan, *approve, *output, *experimental, *trusted, tasks)
+		if *stableRoot != "" {
+			r, err = ce.RunStable(ctx, *repo, *plan, *approve, *output, *stableRoot, *experimental, *trusted, tasks)
+		} else {
+			r, err = ce.Run(ctx, *repo, *plan, *approve, *output, *experimental, *trusted, tasks)
+		}
 		if err == nil {
-			result = map[string]string{"schema": ce.Profile, "state": "RECORDED", "receiptSha256": ce.CanonicalDigest(r)}
+			result = map[string]string{"schema": r.Schema, "state": "RECORDED", "receiptSha256": ce.CanonicalDigest(r)}
 		}
 	case "verify", "gate":
-		result, err = ce.Verify(ctx, *repo, *plan, *receipt, args[0] == "gate", tasks)
+		if *stableRoot != "" {
+			result, err = ce.VerifyStable(ctx, *repo, *plan, *receipt, *stableRoot, args[0] == "gate", tasks)
+		} else {
+			result, err = ce.Verify(ctx, *repo, *plan, *receipt, args[0] == "gate", tasks)
+		}
 	default:
 		err = fmt.Errorf("unknown command")
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -12,10 +13,11 @@ import (
 )
 
 type witnessOptions struct {
-	base string
-	head string
-	cem  string
-	json bool
+	base   string
+	head   string
+	cem    string
+	stable string
+	json   bool
 }
 
 // parseWitnessInvocation intercepts `witness` ahead of the shared argument
@@ -66,7 +68,8 @@ func splitWitnessFlag(argument string) (string, string, bool) {
 // witnessOptionField names the field a valued option sets, or nil for an
 // unknown name, so the name is checked before a value is consumed.
 func witnessOptionField(result *witnessOptions, name string) *string {
-	return map[string]*string{"--base": &result.base, "--head": &result.head, "--cem": &result.cem}[name]
+	return map[string]*string{"--base": &result.base, "--head": &result.head, "--cem": &result.cem,
+		"--stable-artifact-root": &result.stable}[name]
 }
 
 func parseWitnessOptions(arguments []string) (witnessOptions, error) {
@@ -96,6 +99,13 @@ func parseWitnessOptions(arguments []string) (witnessOptions, error) {
 	if result.base == "" {
 		return result, argumentError("witness requires --base")
 	}
+	if result.stable != "" {
+		root, err := filepath.Abs(result.stable)
+		if err != nil {
+			return result, argumentError("cannot resolve --stable-artifact-root")
+		}
+		result.stable = root
+	}
 	return result, nil
 }
 
@@ -118,9 +128,13 @@ func runWitness(ctx context.Context, root string, arguments []string, stdout, st
 			"--head must name the captured HEAD commit "+index.CommitRevision+"; witness reports a range ending at the checked-out revision"))
 		return 2
 	}
-	report, err := witness.Compile(ctx, index, witness.Options{Base: options.base, CEMPath: options.cem})
+	report, err := witness.Compile(ctx, index, witness.Options{Base: options.base, CEMPath: options.cem, StableArtifacts: options.stable})
 	if err != nil {
 		emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: err.Error()})
+		return 2
+	}
+	if err := admitStableWitness(report, options.stable != ""); err != nil {
+		emitError(stderr, err)
 		return 2
 	}
 	if options.json {
@@ -135,4 +149,24 @@ func runWitness(ctx context.Context, root string, arguments []string, stdout, st
 		return 2
 	}
 	return 0
+}
+
+// admitStableWitness fails closed for the stable witness route (CEM-V1-160,
+// CEM-V1-161). A cem/1.0 source is printed only when the stable verifier
+// accepted it; any other stable outcome, including a missing artifact root,
+// refuses with no stdout. --stable-artifact-root over a map that is not
+// cem/1.0 refuses rather than relabel a 0.x report as stable.
+func admitStableWitness(report *witness.Report, requested bool) error {
+	source := report.Sources[0]
+	if source.Stable == nil {
+		if requested {
+			return &gokernel.Error{Code: "stable-witness-refused", Message: "--stable-artifact-root requires a " +
+				"cem/1.0 map committed at " + source.Path + "; the source is " + source.Status + ", so no stable report is produced"}
+		}
+		return nil
+	}
+	if source.Status != "BOUND" || report.Profile != witness.StableProfile {
+		return &gokernel.Error{Code: "stable-witness-refused", Message: "the cem/1.0 witness source is " + source.Status + ": " + source.Detail}
+	}
+	return nil
 }

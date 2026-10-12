@@ -1,0 +1,811 @@
+{
+  "accept": {
+    "exit": 0,
+    "resultExceptRuntime": {
+      "accept": true,
+      "artifactChecks": [
+        {
+          "byteLength": 130,
+          "kind": "runner-plan",
+          "path": "artifacts/runner-plan.json",
+          "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+        },
+        {
+          "byteLength": 133,
+          "kind": "runner-receipt",
+          "path": "artifacts/runner-receipt.json",
+          "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+        },
+        {
+          "byteLength": 853,
+          "kind": "receipt-attestation",
+          "path": "artifacts/receipt-attestation.json",
+          "sha256": "10aff04b6184a48504b765d6b08307e3ad522ce652edee2ffede930fa2109e85"
+        }
+      ],
+      "assurance": "canonical",
+      "axes": {
+        "authentication": "VERIFIED",
+        "changeIntegrity": "VERIFIED",
+        "coverageValidation": "ABSENT",
+        "criterionAdequacy": "NOT_OBSERVED",
+        "criterionDiscrimination": "NOT_OBSERVED",
+        "currentApplicability": "NOT_OBSERVED",
+        "dependencyClosure": "NOT_OBSERVED",
+        "discriminationValidation": "ABSENT",
+        "executionAtCommit": "NOT_OBSERVED",
+        "externalInteroperability": "NOT_OBSERVED",
+        "historicalValidity": "NOT_OBSERVED",
+        "nativeAuthority": "NOT_OBSERVED",
+        "referenceIntegrity": "REFERENCE_INTEGRITY_ONLY",
+        "runnerExecution": "NOT_OBSERVED",
+        "runnerReceiptSemantics": "NOT_OBSERVED",
+        "sourceGitBinding": "NOT_OBSERVED",
+        "sourceInventoryCompleteness": "NOT_OBSERVED",
+        "structuralProof": "NOT_REQUIRED"
+      },
+      "citation": {
+        "annotationHunks": 0,
+        "concentratedHunks": 2,
+        "distinctEvidence": 1,
+        "evidenceFanOut": [
+          [
+            "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+            2
+          ]
+        ],
+        "hunks": [
+          {
+            "anchors": [],
+            "annotation": false,
+            "hunkId": "hunk:sha256:16fcc32b2f5adc894792418166e51c1b26dd5b20a5a7a2123b2946391298eb1d",
+            "tier": "cited"
+          },
+          {
+            "anchors": [],
+            "annotation": false,
+            "hunkId": "hunk:sha256:30a1c6811c42769127d3f4fb654d25f3f1aae0afd2ac100ac04707a13b8b57c0",
+            "tier": "cited"
+          }
+        ],
+        "hunksByClass": {
+          "anchored": 0,
+          "cited": 2,
+          "held": 0,
+          "mechanical-proved": 0,
+          "unknown": 0
+        },
+        "invariant": true,
+        "maxFanOut": 2,
+        "profile": "cem-citation-support/0",
+        "samePathCitations": 0,
+        "specificity": 0
+      },
+      "code": null,
+      "drift": [
+        {
+          "baseBlobOid": "6d278d004301d16170039816f28919c070a9c697",
+          "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+          "path": "SPEC.md",
+          "status": "stable",
+          "targetBlobOid": "6d278d004301d16170039816f28919c070a9c697",
+          "targetSpan": {
+            "end": 150,
+            "start": 92
+          }
+        }
+      ],
+      "expectedBase": "467cbb73c1102cd7df0299cd74a6bef96ee3a9a4",
+      "hunks": [
+        {
+          "basis": [
+            {
+              "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+              "relation": "specification"
+            }
+          ],
+          "disposition": "supported",
+          "id": "hunk:sha256:16fcc32b2f5adc894792418166e51c1b26dd5b20a5a7a2123b2946391298eb1d",
+          "newRange": {
+            "count": 9,
+            "start": 1
+          },
+          "oldRange": {
+            "count": 6,
+            "start": 1
+          },
+          "path": "greet.go",
+          "reason": "evidence-backed"
+        },
+        {
+          "basis": [
+            {
+              "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+              "relation": "specification"
+            }
+          ],
+          "disposition": "supported",
+          "id": "hunk:sha256:30a1c6811c42769127d3f4fb654d25f3f1aae0afd2ac100ac04707a13b8b57c0",
+          "newRange": {
+            "count": 9,
+            "start": 7
+          },
+          "oldRange": {
+            "count": 3,
+            "start": 7
+          },
+          "path": "greet_test.go",
+          "reason": "evidence-backed"
+        }
+      ],
+      "issueCodes": [],
+      "mapSha256": "e380f77082ac2a3ea8c112287d9722388875601c43124faa01fc912ade36db1d",
+      "outcome": "ACCEPT",
+      "patchSha256": "9466aca391d358b6fd969537fd6fcc5088526e85d6b3f9fad13ecf35431f7ff8",
+      "profile": "cem-stable-verification/1",
+      "references": {
+        "artifacts": [
+          {
+            "kind": "runner-plan",
+            "path": "artifacts/runner-plan.json",
+            "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+          },
+          {
+            "kind": "runner-receipt",
+            "path": "artifacts/runner-receipt.json",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+          },
+          {
+            "kind": "receipt-attestation",
+            "path": "artifacts/receipt-attestation.json",
+            "sha256": "10aff04b6184a48504b765d6b08307e3ad522ce652edee2ffede930fa2109e85"
+          }
+        ],
+        "criterionBindings": [
+          {
+            "criterionIndex": 0,
+            "criterionSha256": "54d8b85a6775bd4fafe245d23370f62398f83fe0c5b10ecf915574de7bed85af",
+            "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+            "id": "criterion:sha256:dcb81b643a934c32bb849dd3fadf6450cbdf3e662550a2660126999d17819977"
+          }
+        ],
+        "criterionLinks": [
+          {
+            "criterionId": "criterion:sha256:dcb81b643a934c32bb849dd3fadf6450cbdf3e662550a2660126999d17819977",
+            "evidenceIds": [
+              "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2"
+            ],
+            "hunkIds": [
+              "hunk:sha256:16fcc32b2f5adc894792418166e51c1b26dd5b20a5a7a2123b2946391298eb1d",
+              "hunk:sha256:30a1c6811c42769127d3f4fb654d25f3f1aae0afd2ac100ac04707a13b8b57c0"
+            ],
+            "runnerReceiptSha256s": [
+              "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+            ]
+          }
+        ],
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "envelopeSha256": "10aff04b6184a48504b765d6b08307e3ad522ce652edee2ffede930fa2109e85",
+              "keyid": "4a5f2fe7ce8b5573a8352755fdc4468d1b4fb84630230338f3a732cebfb695dd",
+              "method": "dsse-ed25519"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "repositoryEnvelope": "canonical-repository-bounded/1",
+      "sidecar": "ABSENT",
+      "spec": "cem/1.0",
+      "stage": "complete",
+      "targetRevision": "1f181cd0843318b72bb6679cd19878c46eb95ada",
+      "verdictSha256": "ef9f86de98e63148fcf51914c5b03796ece262e7f300f91ca4f8226dbb95a805",
+      "verificationMode": "canonical-and-reference-integrity"
+    },
+    "trustedKeys": "trusted-keys.json"
+  },
+  "artifactRoot": ".",
+  "axisCases": [
+    {
+      "authentication": "NOT_OBSERVED",
+      "description": "the signed map without --trusted-keys; trusted-keys.json sits in the artifact root but only a consumer-supplied file is ever trusted",
+      "exit": 0,
+      "name": "no-trusted-keys",
+      "outcome": "ACCEPT",
+      "set": {}
+    },
+    {
+      "authentication": "UNTRUSTED_KEY",
+      "description": "the signed map under a trusted-keys file that does not name its keyid",
+      "exit": 0,
+      "name": "untrusted-key",
+      "outcome": "ACCEPT",
+      "set": {},
+      "trustedKeys": "other-trusted-keys.json"
+    },
+    {
+      "authentication": "NOT_OBSERVED",
+      "description": "authentication {\"method\":\"none\"} and no attestation artifact under a trusted-keys file",
+      "exit": 0,
+      "name": "method-none",
+      "outcome": "ACCEPT",
+      "set": {
+        "artifacts": [
+          {
+            "kind": "runner-plan",
+            "path": "artifacts/runner-plan.json",
+            "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+          },
+          {
+            "kind": "runner-receipt",
+            "path": "artifacts/runner-receipt.json",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+          }
+        ],
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "method": "none"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "trustedKeys": "trusted-keys.json"
+    },
+    {
+      "authentication": "NOT_OBSERVED",
+      "description": "the sealed S0E string form \"NOT_OBSERVED\", read as method none",
+      "exit": 0,
+      "name": "legacy-not-observed",
+      "outcome": "ACCEPT",
+      "set": {
+        "artifacts": [
+          {
+            "kind": "runner-plan",
+            "path": "artifacts/runner-plan.json",
+            "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+          },
+          {
+            "kind": "runner-receipt",
+            "path": "artifacts/runner-receipt.json",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+          }
+        ],
+        "runnerReceipts": [
+          {
+            "authentication": "NOT_OBSERVED",
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "trustedKeys": "trusted-keys.json"
+    },
+    {
+      "authentication": "UNTRUSTED_KEY",
+      "description": "a signature is checked only for a trusted keyid, so an invalid signature under an untrusted key stays UNTRUSTED_KEY",
+      "exit": 0,
+      "name": "bad-signature-untrusted",
+      "outcome": "ACCEPT",
+      "set": {
+        "artifacts": [
+          {
+            "kind": "runner-plan",
+            "path": "artifacts/runner-plan.json",
+            "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+          },
+          {
+            "kind": "runner-receipt",
+            "path": "artifacts/runner-receipt.json",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+          },
+          {
+            "kind": "receipt-attestation",
+            "path": "artifacts/attestation-bad-signature.json",
+            "sha256": "53de7195602352f2b7a396601bd1436254b1dc38e68a38027cdb815b7f9b1d84"
+          }
+        ],
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "envelopeSha256": "53de7195602352f2b7a396601bd1436254b1dc38e68a38027cdb815b7f9b1d84",
+              "keyid": "4a5f2fe7ce8b5573a8352755fdc4468d1b4fb84630230338f3a732cebfb695dd",
+              "method": "dsse-ed25519"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "trustedKeys": "other-trusted-keys.json"
+    }
+  ],
+  "baseRevision": "467cbb73c1102cd7df0299cd74a6bef96ee3a9a4",
+  "baseTree": "3104a47ee9f2866cece73a093a0567760b8764f9",
+  "map": "stable.json",
+  "profile": "cem-stable-receipt-authentication-cases/1",
+  "refusals": [
+    {
+      "authentication": "NOT_OBSERVED",
+      "code": "unknown-field",
+      "description": "method none carrying a keyid",
+      "exit": 2,
+      "name": "none-with-extra-key",
+      "outcome": "REJECT",
+      "set": {
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "keyid": "4a5f2fe7ce8b5573a8352755fdc4468d1b4fb84630230338f3a732cebfb695dd",
+              "method": "none"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "stage": "wire"
+    },
+    {
+      "authentication": "NOT_OBSERVED",
+      "code": "missing-field",
+      "description": "method dsse-ed25519 without keyid",
+      "exit": 2,
+      "name": "dsse-missing-keyid",
+      "outcome": "REJECT",
+      "set": {
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "envelopeSha256": "10aff04b6184a48504b765d6b08307e3ad522ce652edee2ffede930fa2109e85",
+              "method": "dsse-ed25519"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "stage": "wire"
+    },
+    {
+      "authentication": "NOT_OBSERVED",
+      "code": "unknown-field",
+      "description": "method dsse-ed25519 with an undefined member",
+      "exit": 2,
+      "name": "dsse-unknown-key",
+      "outcome": "REJECT",
+      "set": {
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "envelopeSha256": "10aff04b6184a48504b765d6b08307e3ad522ce652edee2ffede930fa2109e85",
+              "keyid": "4a5f2fe7ce8b5573a8352755fdc4468d1b4fb84630230338f3a732cebfb695dd",
+              "method": "dsse-ed25519",
+              "publicKey": "HzHBz6S0KBHpOj850CoAXKOvwTHUabNKIoX0sC6h1/A="
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "stage": "wire"
+    },
+    {
+      "authentication": "NOT_OBSERVED",
+      "code": "invalid-field",
+      "description": "an envelopeSha256 that is not 64 lowercase hex",
+      "exit": 2,
+      "name": "dsse-invalid-envelope-digest",
+      "outcome": "REJECT",
+      "set": {
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "envelopeSha256": "sha256:10aff04b6184a48504b765d6b08307e3ad522ce652edee2ffede930fa2109e85",
+              "keyid": "4a5f2fe7ce8b5573a8352755fdc4468d1b4fb84630230338f3a732cebfb695dd",
+              "method": "dsse-ed25519"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "stage": "wire"
+    },
+    {
+      "authentication": "NOT_OBSERVED",
+      "code": "invalid-field",
+      "description": "an undefined authentication method",
+      "exit": 2,
+      "name": "unknown-method",
+      "outcome": "REJECT",
+      "set": {
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "method": "dsse-ecdsa"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "stage": "wire"
+    },
+    {
+      "authentication": "NOT_OBSERVED",
+      "code": "artifact-role-closure",
+      "description": "a receipt-attestation artifact that no receipt names",
+      "exit": 2,
+      "name": "attestation-unreferenced-artifact-role-closure",
+      "outcome": "REJECT",
+      "set": {
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "method": "none"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "stage": "references"
+    },
+    {
+      "authentication": "NOT_OBSERVED",
+      "code": "artifact-role-closure",
+      "description": "the map carries the trusted-keys bytes as its own attestation artifact; a map can never supply its own trust",
+      "exit": 2,
+      "name": "self-carried-key",
+      "outcome": "REJECT",
+      "set": {
+        "artifacts": [
+          {
+            "kind": "runner-plan",
+            "path": "artifacts/runner-plan.json",
+            "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+          },
+          {
+            "kind": "runner-receipt",
+            "path": "artifacts/runner-receipt.json",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+          },
+          {
+            "kind": "receipt-attestation",
+            "path": "artifacts/receipt-attestation.json",
+            "sha256": "10aff04b6184a48504b765d6b08307e3ad522ce652edee2ffede930fa2109e85"
+          },
+          {
+            "kind": "receipt-attestation",
+            "path": "trusted-keys.json",
+            "sha256": "56a91cc1d7e71e302de0d61a3a02e1bde87f9f2ebb2db1e61c4e128184f1d8f2"
+          }
+        ]
+      },
+      "stage": "references",
+      "trustedKeys": "trusted-keys.json"
+    },
+    {
+      "authentication": "NOT_OBSERVED",
+      "code": "duplicate-reference",
+      "description": "two receipts naming the same attestation",
+      "exit": 2,
+      "name": "duplicate-attestation-reference",
+      "outcome": "REJECT",
+      "set": {
+        "criterionLinks": [
+          {
+            "criterionId": "criterion:sha256:dcb81b643a934c32bb849dd3fadf6450cbdf3e662550a2660126999d17819977",
+            "evidenceIds": [
+              "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2"
+            ],
+            "hunkIds": [
+              "hunk:sha256:16fcc32b2f5adc894792418166e51c1b26dd5b20a5a7a2123b2946391298eb1d",
+              "hunk:sha256:30a1c6811c42769127d3f4fb654d25f3f1aae0afd2ac100ac04707a13b8b57c0"
+            ],
+            "runnerReceiptSha256s": [
+              "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+              "7777777777777777777777777777777777777777777777777777777777777777"
+            ]
+          }
+        ],
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "envelopeSha256": "10aff04b6184a48504b765d6b08307e3ad522ce652edee2ffede930fa2109e85",
+              "keyid": "4a5f2fe7ce8b5573a8352755fdc4468d1b4fb84630230338f3a732cebfb695dd",
+              "method": "dsse-ed25519"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          },
+          {
+            "authentication": {
+              "envelopeSha256": "10aff04b6184a48504b765d6b08307e3ad522ce652edee2ffede930fa2109e85",
+              "keyid": "4a5f2fe7ce8b5573a8352755fdc4468d1b4fb84630230338f3a732cebfb695dd",
+              "method": "dsse-ed25519"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "stage": "references"
+    },
+    {
+      "authentication": "FAILED",
+      "description": "an envelope whose payloadType is not application/vnd.in-toto+json",
+      "exit": 1,
+      "issueCode": "attestation-malformed",
+      "name": "attestation-malformed",
+      "outcome": "REJECT",
+      "set": {
+        "artifacts": [
+          {
+            "kind": "runner-plan",
+            "path": "artifacts/runner-plan.json",
+            "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+          },
+          {
+            "kind": "runner-receipt",
+            "path": "artifacts/runner-receipt.json",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+          },
+          {
+            "kind": "receipt-attestation",
+            "path": "artifacts/attestation-malformed.json",
+            "sha256": "49354034e112f793b3867f61abdd0977529933ebd6ee07132d64d758a31698fb"
+          }
+        ],
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "envelopeSha256": "49354034e112f793b3867f61abdd0977529933ebd6ee07132d64d758a31698fb",
+              "keyid": "4a5f2fe7ce8b5573a8352755fdc4468d1b4fb84630230338f3a732cebfb695dd",
+              "method": "dsse-ed25519"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "stage": "artifacts",
+      "trustedKeys": "trusted-keys.json"
+    },
+    {
+      "authentication": "FAILED",
+      "description": "an envelope signed by another key than the receipt keyid",
+      "exit": 1,
+      "issueCode": "attestation-key-mismatch",
+      "name": "attestation-key-mismatch",
+      "outcome": "REJECT",
+      "set": {
+        "artifacts": [
+          {
+            "kind": "runner-plan",
+            "path": "artifacts/runner-plan.json",
+            "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+          },
+          {
+            "kind": "runner-receipt",
+            "path": "artifacts/runner-receipt.json",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+          },
+          {
+            "kind": "receipt-attestation",
+            "path": "artifacts/attestation-other-key.json",
+            "sha256": "d1979b32ec015ebad53be76686d1b5f00a010682dd23df8c187b3d527b3275e5"
+          }
+        ],
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "envelopeSha256": "d1979b32ec015ebad53be76686d1b5f00a010682dd23df8c187b3d527b3275e5",
+              "keyid": "4a5f2fe7ce8b5573a8352755fdc4468d1b4fb84630230338f3a732cebfb695dd",
+              "method": "dsse-ed25519"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "stage": "artifacts",
+      "trustedKeys": "trusted-keys.json"
+    },
+    {
+      "authentication": "FAILED",
+      "description": "a valid signature by the trusted key over the base tree instead of the target tree",
+      "exit": 1,
+      "issueCode": "attestation-subject-mismatch",
+      "name": "attestation-subject-mismatch",
+      "outcome": "REJECT",
+      "set": {
+        "artifacts": [
+          {
+            "kind": "runner-plan",
+            "path": "artifacts/runner-plan.json",
+            "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+          },
+          {
+            "kind": "runner-receipt",
+            "path": "artifacts/runner-receipt.json",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+          },
+          {
+            "kind": "receipt-attestation",
+            "path": "artifacts/attestation-other-tree.json",
+            "sha256": "2efc1b73f5a9a472a0d749a7bd1349fdcd10283c99cef5e95d866abb7d9547a3"
+          }
+        ],
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "envelopeSha256": "2efc1b73f5a9a472a0d749a7bd1349fdcd10283c99cef5e95d866abb7d9547a3",
+              "keyid": "4a5f2fe7ce8b5573a8352755fdc4468d1b4fb84630230338f3a732cebfb695dd",
+              "method": "dsse-ed25519"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "stage": "artifacts",
+      "trustedKeys": "trusted-keys.json"
+    },
+    {
+      "authentication": "FAILED",
+      "description": "a different gitTree is refused before and without any trust decision",
+      "exit": 1,
+      "issueCode": "attestation-subject-mismatch",
+      "name": "attestation-subject-mismatch-untrusted",
+      "outcome": "REJECT",
+      "set": {
+        "artifacts": [
+          {
+            "kind": "runner-plan",
+            "path": "artifacts/runner-plan.json",
+            "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+          },
+          {
+            "kind": "runner-receipt",
+            "path": "artifacts/runner-receipt.json",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+          },
+          {
+            "kind": "receipt-attestation",
+            "path": "artifacts/attestation-other-tree.json",
+            "sha256": "2efc1b73f5a9a472a0d749a7bd1349fdcd10283c99cef5e95d866abb7d9547a3"
+          }
+        ],
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "envelopeSha256": "2efc1b73f5a9a472a0d749a7bd1349fdcd10283c99cef5e95d866abb7d9547a3",
+              "keyid": "4a5f2fe7ce8b5573a8352755fdc4468d1b4fb84630230338f3a732cebfb695dd",
+              "method": "dsse-ed25519"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "stage": "artifacts"
+    },
+    {
+      "authentication": "FAILED",
+      "description": "an envelope whose signature covers another statement, under the trusted key",
+      "exit": 1,
+      "issueCode": "attestation-signature-invalid",
+      "name": "attestation-signature-invalid",
+      "outcome": "REJECT",
+      "set": {
+        "artifacts": [
+          {
+            "kind": "runner-plan",
+            "path": "artifacts/runner-plan.json",
+            "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+          },
+          {
+            "kind": "runner-receipt",
+            "path": "artifacts/runner-receipt.json",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+          },
+          {
+            "kind": "receipt-attestation",
+            "path": "artifacts/attestation-bad-signature.json",
+            "sha256": "53de7195602352f2b7a396601bd1436254b1dc38e68a38027cdb815b7f9b1d84"
+          }
+        ],
+        "runnerReceipts": [
+          {
+            "authentication": {
+              "envelopeSha256": "53de7195602352f2b7a396601bd1436254b1dc38e68a38027cdb815b7f9b1d84",
+              "keyid": "4a5f2fe7ce8b5573a8352755fdc4468d1b4fb84630230338f3a732cebfb695dd",
+              "method": "dsse-ed25519"
+            },
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "stage": "artifacts",
+      "trustedKeys": "trusted-keys.json"
+    }
+  ],
+  "requirement": "CEM-V1-084",
+  "targetRevision": "1f181cd0843318b72bb6679cd19878c46eb95ada",
+  "targetTree": "c1949cc4344b78776b6691be676a5f911d2ea27d"
+}

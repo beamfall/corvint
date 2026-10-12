@@ -261,16 +261,26 @@ func TestDCWV0033CheckSummaryAbstainsOnUnobservedFields(t *testing.T) {
 		noIntent bool
 		want     string
 	}{
-		{"complete", cem, ocm, false, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 ocm=ready-for-review requirements=2 linked=1 unlinked=1"},
-		{"no intent", cem, []byte("dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\n"), true, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 ocm=NOT_ASSESSED"},
-		{"malformed", []byte("not json\n"), []byte("{}\n"), false, "cem=NOT_OBSERVED hunks=NOT_OBSERVED ocm=NOT_OBSERVED"},
-		{"missing counts", []byte(`{"state":"ready-for-ci","counts":{"total":1}}`), []byte(`{"aggregate":{}}`), false, "cem=ready-for-ci hunks=1 supported=NOT_OBSERVED unknown=NOT_OBSERVED mechanical=NOT_OBSERVED ocm=NOT_OBSERVED"},
-		{"forged token", []byte(`{"state":"ok\ndogfood-check: PASS","counts":{}}`), []byte(`{"aggregate":{"state":"a b"}}`), false, "cem=NOT_OBSERVED hunks=NOT_OBSERVED supported=NOT_OBSERVED unknown=NOT_OBSERVED mechanical=NOT_OBSERVED ocm=NOT_OBSERVED"},
+		{"complete", cem, ocm, false, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=ready-for-review requirements=2 linked=1 unlinked=1"},
+		{"no intent", cem, []byte("dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\n"), true, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=NOT_ASSESSED"},
+		{"malformed", []byte("not json\n"), []byte("{}\n"), false, "cem=NOT_OBSERVED hunks=NOT_OBSERVED unknownShare=NOT_OBSERVED reasonedUnknown=0 ocm=NOT_OBSERVED"},
+		{"missing counts", []byte(`{"state":"ready-for-ci","counts":{"total":1}}`), []byte(`{"aggregate":{}}`), false, "cem=ready-for-ci hunks=1 supported=NOT_OBSERVED unknown=NOT_OBSERVED mechanical=NOT_OBSERVED unknownShare=NOT_OBSERVED reasonedUnknown=0 ocm=NOT_OBSERVED"},
+		{"forged token", []byte(`{"state":"ok\ndogfood-check: PASS","counts":{}}`), []byte(`{"aggregate":{"state":"a b"}}`), false, "cem=NOT_OBSERVED hunks=NOT_OBSERVED supported=NOT_OBSERVED unknown=NOT_OBSERVED mechanical=NOT_OBSERVED unknownShare=NOT_OBSERVED reasonedUnknown=0 ocm=NOT_OBSERVED"},
 	}
 	for _, tc := range cases {
 		want := "dogfood-check: SUMMARY " + tc.want + " report=.corvint/dogfood-report.json detail=/g/corvint/dogfood-check.stdout"
-		if got := checkSummary(tc.cem, tc.ocm, tc.noIntent, "/g/corvint/dogfood-check.stdout"); got != want {
+		if got := checkSummary(tc.cem, tc.ocm, tc.noIntent, 0, "", "/g/corvint/dogfood-check.stdout"); got != want {
 			t.Errorf("%s\n got %s\nwant %s", tc.name, got, want)
 		}
+	} // DCW-V0-046: the share is unknown over material hunks, mechanical ones
+	// excluded, and the reasoned count is the check's own allowance.
+	mixed := []byte(`{"state":"ready-for-ci","counts":{"total":4,"supported":1,"unknown":2,"mechanical":1}}` + "\n")
+	want := "dogfood-check: SUMMARY cem=ready-for-ci hunks=4 supported=1 unknown=2 mechanical=1 unknownShare=2/3 reasonedUnknown=1 ocm=NOT_ASSESSED report=.corvint/dogfood-report.json detail=/d"
+	if got := checkSummary(mixed, nil, true, 1, "", "/d"); got != want {
+		t.Errorf("mixed\n got %s\nwant %s", got, want)
+	}
+	inconsistent := []byte(`{"state":"ready-for-ci","counts":{"total":1,"supported":0,"unknown":1,"mechanical":1}}` + "\n")
+	if got := checkSummary(inconsistent, nil, true, 0, "", "/d"); !strings.Contains(got, " unknownShare=NOT_OBSERVED ") {
+		t.Errorf("inconsistent counts: %s", got)
 	}
 }

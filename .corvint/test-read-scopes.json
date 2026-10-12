@@ -167,7 +167,8 @@
       "internal/slotlearn/"
     ],
     "internal/attest": [
-      "interop/cem-0.1/"
+      "interop/cem-0.1/",
+      "protocol/cem-1.0/stable/receipt-authentication/"
     ],
     "internal/authoritystore": [],
     "internal/betarung": [
@@ -175,6 +176,11 @@
       "conformance/divergence-register.md"
     ],
     "internal/breakagemap": [],
+    "internal/cem/convert": [
+      ".corvint/changes/",
+      "conformance/cem-0.1/",
+      "protocol/cem-0.3/vectors/manifest.json"
+    ],
     "internal/cem/gitauth": [],
     "internal/cem/patch": [
       "interop/cem-0.1/"
@@ -190,6 +196,9 @@
       "protocol/cem-1.0/maps/",
       "protocol/cem-1.0/patches/",
       "protocol/cem-1.0/repository/",
+      "protocol/cem-1.0/stable/manifest.json",
+      "protocol/cem-1.0/stable/neutral-criterion/",
+      "protocol/cem-1.0/stable/receipt-authentication/",
       "protocol/cem-1.0/stable/repository-envelope-packet/",
       "protocol/cem-1.0/structural-tuples/"
     ],
@@ -197,7 +206,11 @@
       "conformance/cem-0.1/",
       "conformance/cem-0.2/",
       "interop/cem-0.1/",
-      "protocol/cem-1.0/maps/"
+      "interop/cem01-go/testdata/stable-map-members/",
+      "protocol/cem-1.0/maps/",
+      "protocol/cem-1.0/stable/neutral-criterion/",
+      "protocol/cem-1.0/stable/receipt-authentication/",
+      "protocol/cem-1.0/stable/stable.schema.json"
     ],
     "internal/cem/workflow": [
       "protocol/cem-0.2/",
@@ -247,6 +260,16 @@
     ],
     "internal/gateselect": [],
     "internal/genesis": [],
+    "internal/gitnotes": [
+      "go.mod",
+      "internal/cem/cemcode/",
+      "internal/cem/gitauth/",
+      "internal/cem/gitrun/",
+      "internal/cem/patch/",
+      "internal/cem/wire/",
+      "internal/groupreap/",
+      "protocol/cem-1.0/stable/receipt-authentication/"
+    ],
     "internal/liveverify/affected/dotnet": [],
     "internal/liveverify/affected/kotlin": [],
     "internal/liveverify/affected/python": [],
@@ -354,6 +377,9 @@
     "internal/worksource": [],
     "tools/beamfall-shadow": [
       "go.mod"
+    ],
+    "tools/cem-stable-regen": [
+      "protocol/cem-1.0/"
     ],
     "tools/compat-trial": [
       "go.mod",

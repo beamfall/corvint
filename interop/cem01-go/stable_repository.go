@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -709,6 +710,12 @@ func (s *stableSession) canonical(base, target, baseTree, targetTree string) (*s
 // --- engine -----------------------------------------------------------------
 
 func runStableCanonical(ctx context.Context, repo string, raw []byte, base, target, artifacts string, hooks *stableHooks) (stableResult, int) {
+	return runStableCanonicalTrusted(ctx, repo, raw, base, target, artifacts, hooks, nil)
+}
+
+// runStableCanonicalTrusted is runStableCanonical with the consumer
+// --trusted-keys set; nil means no file was supplied (CEM-V1-084).
+func runStableCanonicalTrusted(ctx context.Context, repo string, raw []byte, base, target, artifacts string, hooks *stableHooks, trusted map[string]ed25519.PublicKey) (stableResult, int) {
 	r := newStableResult(base, target)
 	r.RepositoryEnvelope = stableCanonicalEnvelope
 	r.MapSHA256 = string03(shaHex(raw))
@@ -1075,9 +1082,17 @@ func runStableCanonical(ctx context.Context, repo string, raw []byte, base, targ
 	if ctx.Err() != nil {
 		return fail("artifacts", operational("verification-timeout"), false)
 	}
-	checks, e := checkStableArtifacts(ctx, artifacts, m.Artifacts)
+	checks, contents, e := checkStableArtifactContents(ctx, artifacts, m.Artifacts, readStableArtifact)
 	if e != nil {
 		return fail("artifacts", e, true)
+	}
+	if stableHasSignedReceipt(&m) {
+		axis, e := stableAuthenticate(&m, contents, targetTree, trusted)
+		if e != nil {
+			r.Axes["authentication"] = "FAILED"
+			return fail("artifacts", e, true)
+		}
+		r.Axes["authentication"] = axis
 	}
 	r.ArtifactChecks = checks
 	r.Axes["referenceIntegrity"] = "REFERENCE_INTEGRITY_ONLY"
@@ -1094,6 +1109,7 @@ func runStableCanonical(ctx context.Context, repo string, raw []byte, base, targ
 	if s.hold {
 		return failStable(&r, "repository", operational("unsupported-process-containment"), false)
 	}
+	r.Citation = computeCitation(citationHunks(m.Hunks), ph, m.Evidence)
 	hooks.emit("before-final-checkpoint")
 	if ctx.Err() != nil {
 		return failStable(&r, "verification", operational("verification-timeout"), false)
@@ -1107,7 +1123,7 @@ func runStableCanonical(ctx context.Context, repo string, raw []byte, base, targ
 
 func executeStableCanonicalCLI(ctx context.Context, argv []string) (stableResult, int) {
 	flags := map[string]string{}
-	allowed := map[string]bool{"--repository": true, "--map": true, "--expected-base": true, "--target": true, "--artifacts": true}
+	allowed := map[string]bool{"--repository": true, "--map": true, "--expected-base": true, "--target": true, "--artifacts": true, "--trusted-keys": true}
 	bad := len(argv)%2 != 0
 	if !bad {
 		for i := 0; i < len(argv); i += 2 {
@@ -1123,11 +1139,15 @@ func executeStableCanonicalCLI(ctx context.Context, argv []string) (stableResult
 	if bad || flags["--repository"] == "" || flags["--map"] == "" || !filepath.IsAbs(flags["--repository"]) || !filepath.IsAbs(flags["--map"]) {
 		return failStable(&r, "arguments", operational("invalid-arguments"), false)
 	}
+	trusted, ok := readStableTrustedKeys(ctx, flags["--trusted-keys"])
+	if !ok {
+		return failStable(&r, "arguments", operational("invalid-arguments"), false)
+	}
 	raw, e := readBounded(ctx, flags["--map"], maxJSONBytes)
 	if e != nil {
 		return failStable(&r, "input", operational("map-unavailable"), false)
 	}
-	return runStableCanonical(ctx, flags["--repository"], raw, flags["--expected-base"], flags["--target"], flags["--artifacts"], nil)
+	return runStableCanonicalTrusted(ctx, flags["--repository"], raw, flags["--expected-base"], flags["--target"], flags["--artifacts"], nil, trusted)
 }
 
 func runStableCanonicalCLI(argv []string) {

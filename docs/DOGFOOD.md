@@ -52,10 +52,11 @@ To repair it, run `git repack -a -d`, delete `.git/objects/info/alternates` and
 | `BASE` | Full 40-hex commit before the change's first commit; never `HEAD` | `BASE=$(git rev-parse origin/main)` taken when branching |
 | `DOGFOOD_TASK` | One sentence describing the change, not project-operations wording (section 1) | `Deliver the documented daily change-evidence adopter path.` |
 | `DOGFOOD_INTENTS_FILE` | Path to a file of 1 to 16 repository-relative spec paths, sorted, LF-terminated, no absolute path and no `.` or `..` segment. Each spec exists at `BASE` and has exactly one `## Requirements` heading (`rg -c '^## Requirements' SPEC` prints 1); a spec created in this change cannot be an intent (section 2). When no such spec governs the change, the file instead holds exactly the one line `#no-intent-declared` (`DCW-V0-024`): no OCM step runs, `ocm-prepare`, `ocm-status` and `ocm-aggregate` report `no-intent-declared`, `ocmStatus` is `NOT_ASSESSED`, and the check prints `dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared`; an unset variable or an empty file still refuses `missing-intent-scope` | file content `docs/specs/daily-change-evidence-workflow-v0.md` |
-| `DOGFOOD_CITATIONS` | Path to a TSV file, not the rows. `HUNK<TAB>PATH<TAB>START:END<TAB>RELATION` rows, `HUNK` being a hunk's ordinal in `hunks` order (from 1) or its full hunk ID; a hunk cited against several bases takes one row each; LF-terminated, at most 256 rows; the span must exist at `BASE`, and `PATH` may be any file there, code and tests as well as specs (`DCW-V0-041`). Only the hunk of an intent spec absent at `BASE` may be left out; leaving out any other unknown hunk, or an ordinal above the hunk count, refuses the whole plan (`DCW-V0-019`) | row `1	AGENTS.md	26:28	specification` |
+| `DOGFOOD_CITATIONS` | Path to a TSV file, not the rows. `HUNK<TAB>PATH<TAB>START:END<TAB>RELATION` rows, `HUNK` being a hunk's ordinal in `hunks` order (from 1) or its full hunk ID; cite each hunk with the base lines that hunk itself depends on or implements, and a hunk cited against several bases takes one row each; one span cited for every hunk of a non-chore change with at least two hunks refuses `citation-plan-uniform` (`DCW-V0-048`); LF-terminated, at most 256 rows; the span must exist at `BASE`, and `PATH` may be any file there, code and tests as well as specs (`DCW-V0-041`). Only the hunk of an intent spec absent at `BASE` may be left out; leaving out any other unknown hunk, or an ordinal above the hunk count, refuses the whole plan (`DCW-V0-019`). A hunk no base evidence supports takes `HUNK<TAB>unknown<TAB>REASON<TAB>NOTE` instead, `REASON` being `insufficient-evidence` or `conflicting-evidence` and `NOTE` a one-line reason; it stays `unknown` with that reason, is admitted, and is counted in the check's `unknownShare` (`DCW-V0-046`) | row `1	AGENTS.md	26:28	specification` |
 | `DOGFOOD_VERIFY_FILE` | Path to a file with one shell-free verification command per line, each at most 512 characters; `DOGFOOD_VERIFY` takes the same lines inline (section 7) | line `go test ./internal/lrfrepo` |
 | `DOGFOOD_OUTCOME` | `passed`, `failed` or `blocked` | `passed` |
 | `DOGFOOD_OCM_LINKS` | Optional path to a TSV file, not the rows. One `INTENT<TAB>REQUIREMENT<TAB>HUNK[,HUNK...]<TAB>TEST_PATH<TAB>CLAIM[,CLAIM...]` row per requirement the author links, LF-terminated, at most 256 rows; `INTENT` is listed in `DOGFOOD_INTENTS_FILE`, each hunk is a cited CEM ordinal or hunk ID, and each claim is a test selector at `HEAD` whose anchor contains the exact requirement ID (step 7, section 5) | row `docs/specs/local-admin-console-v0.md	LAC-V0-032	7,8	internal/console/roadmap_test.go	test:TestRoadmapSafeAutoRecheck/case:lac-v0-safe-auto-recheck` |
+| `DOGFOOD_OUTPUT_CHANGE` | Optional, `dogfood-check` and `dogfood-seal` only. One requirement ID, set only when the change alters the canonical `cem status` output by construction, so the base verifier cannot agree (`DCW-V0-047`). Admitted only when `docs/specs/REQUIREMENTS.tsv` at `HEAD` maps the ID to a spec that `BASE..HEAD` modifies; the `cem status` comparison then runs the tree verifier in both roles and records `base-independence=NOT_PROVED` with both stdout digests. Unset, the check is unchanged | `DOGFOOD_OUTPUT_CHANGE=DCW-V0-047` |
 
 Every `dogfood-change` refusal caused by one of these inputs prints the step and reason, then a
 `fix:` line naming the correction (`DCW-V0-014`).
@@ -140,8 +141,11 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `--target HEAD` hold only before step 10; after the seal, `cem report` takes section 6's sealed
    form (`.corvint/changes/<bind-sha>.cem.json` and `--target <bind-sha>`).
 9. Run `make dogfood-check BASE=$BASE`. Expected: one `dogfood-check: SUMMARY cem=STATE hunks=N
-   supported=N unknown=N mechanical=N ocm=STATE ... report=.corvint/dogfood-report.json
-   detail=<git-dir>/corvint/dogfood-check.stdout` line, then `dogfood-check: PASS` (`DCW-V0-033`).
+   supported=N unknown=N mechanical=N unknownShare=U/M reasonedUnknown=N ocm=STATE ...
+   report=.corvint/dogfood-report.json detail=<git-dir>/corvint/dogfood-check.stdout` line, then
+   `dogfood-check: PASS` (`DCW-V0-033`). `unknownShare` is the map's unknown hunks over its material
+   (non-mechanical) hunks, and `reasonedUnknown` the unknown hunks kept with a recorded reason
+   (`DCW-V0-046`).
    The detail file holds the full CEM and OCM status JSON; `DOGFOOD_VERBOSE=1` prints that JSON
    in place of the summary, and a failing CEM policy always prints it. A base whose committed CEM names a base outside its history also prints
    `dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable`; a base whose
@@ -187,7 +191,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Dirty | modified tracked or untracked file after the change | runs; the recorder reports `local-outcome: record-index-failed` | `REFUSE dirty-worktree` (exit 2) with the required-order line |
 | Unsupported | repository-configured clean or process filter | NOT_OBSERVED | `REFUSE worktree-status-unavailable` (exit 2) with the reason and a `fix:` line; the filter never runs (`DCW-V0-045`) |
 | Stale | commit after the last `dogfood-change` | the rerun returns to step 3 until the sidecar is recommitted | `FAIL dogfood-report-drift`, `fix:` names another base or head |
-| Unknown | hunk not cited by `DOGFOOD_CITATIONS` | `cem-status: not-ready`; a nonempty plan also refuses `cem-cite: citation-plan-map-mismatch`, an empty one `cem-cite: empty-citation-plan` | `FAIL dogfood-report-drift`, `fix:` names an incomplete report |
+| Unknown | hunk neither cited nor kept unknown with a reason by `DOGFOOD_CITATIONS` | `cem-status: not-ready`; a nonempty plan also refuses `cem-cite: citation-plan-map-mismatch`, an empty one `cem-cite: empty-citation-plan` | `FAIL dogfood-report-drift`, `fix:` names an incomplete report |
 | Interrupted | `SIGTERM` during a run | exit 143, no report written, no citation stage left, sidecar unchanged | `FAIL dogfood-report-missing`, or `dogfood-report-drift` when an older report exists |
 | Interrupted | `SIGINT` (Ctrl-C) | NOT_OBSERVED | NOT_OBSERVED |
 | Unsupported | run from a subdirectory of the worktree (reproduced for V1-0236) | `REFUSE not-repository-root` (exit 2) | `REFUSE not-repository-root` (exit 2) |
@@ -195,6 +199,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
 | Rewritten | amend or rebase after a recorded pass, or another lane run in the same worktree | `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
 | Sealed | check on the seal commit, or a change containing a modified or unverifiable seal | `REFUSE sealed-cem-in-change`, one line per refused path | `REFUSE sealed-head` |
+| Undeclared | `DOGFOOD_OUTPUT_CHANGE` names a requirement `REQUIREMENTS.tsv` at `HEAD` lacks, or whose spec `BASE..HEAD` does not modify, or is set for an enrolled aggregate check (`DCW-V0-047`; reproduced by `TestCheckDCWV0047DeclaredOutputChange` for V1-1279, the aggregate case NOT_OBSERVED) | not applicable | `REFUSE output-change-requirement-unknown`, `output-change-not-in-diff` or `output-change-aggregate-unsupported` (exit 2) before any verifier runs; without the variable an output change still fails `verifier-disagreement` |
 
 Test-claim linkage through `DOGFOOD_OCM_LINKS` needs a Go test that names the requirement ID. It was
 observed for V1-0142 by replaying the sealed LAC-V0-032 change: `ocm-link-001` PRODUCED and the
@@ -370,6 +375,30 @@ and whose digest is also recorded. `corvint dogfood finish` runs its final check
 running binary in both verifier roles, so its two digests are equal and prove no base independence
 (`LCP-V0-014`).
 
+A change whose own canonical `cem status` output differs from the base verifier's by construction,
+such as one adding a member to the verification object, can never agree with the base verifier.
+It declares a declared output change instead of gating its output behind an opt-in flag
+(`DCW-V0-047`): name, in the same change, the requirement that changes the output, regenerate
+`docs/specs/REQUIREMENTS.tsv`, and run
+
+```console
+$ DOGFOOD_OUTPUT_CHANGE=REQUIREMENT-ID make dogfood-check BASE=BASE_SHA
+$ DOGFOOD_OUTPUT_CHANGE=REQUIREMENT-ID make dogfood-seal BASE=BASE_SHA
+```
+
+The declaration is admitted only when `REQUIREMENTS.tsv` at `HEAD` maps the ID to a spec that
+`BASE_SHA..HEAD` modifies; an empty range refuses it rather than passing
+`no-change-clean-worktree`. The `cem status` comparison then runs the tree verifier in both roles,
+still runs the base verifier, and requires the tree verifier to agree with itself and with any
+`CORVINT_BIN` override. The SUMMARY line carries `base-independence=NOT_PROVED base=sha256:B
+tree=sha256:T declared=ID` before `report=`, B and T being the digests of the two verifiers'
+`cem status` stdout; the report's `dogfoodCheck` adds a `baseIndependence` member with the same
+values, its `outputsAgree` then meaning the tree verifier's self-agreement, and the seal's PASS
+line keeps the fields. The reviewer compares the two outputs against the declared requirement:
+the declaration admits any `cem status` difference, not only the intended one. The OCM status and
+`impact` abstention comparisons keep the byte-identical rule, and without the variable nothing
+changes.
+
 Because `.corvint/change.cem.json` is one tracked path and each change's base is the commit before
 its first commit, interleaved sessions can leave committed work that no CEM binds. For a clean
 worktree with a change, `dogfood-check` reads the `baseRevision` of the previous binding: the CEM
@@ -512,7 +541,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
   MUST cite a stable owning spec requirement or accepted decision instead. The producer reads a
   requested span from `baseRevision` (`internal/cem/workflow/commands.go:334-351@d53a3b0c`), but
   both its stability precheck and canonical target-drift verification reject that removed span
-  (`internal/cem/verify/verify.go:430-485@92b33007`). A backlog entry that was the only recorded
+  (`internal/cem/verify/verify.go:442-497@92b33007`). A backlog entry that was the only recorded
   intent therefore binds as `NOT_PRODUCED`, never as an
   invented citation, with an unknown `no-evidence` row. Its detail is the
   `removed-intent.<blob OID>.<start>-<end>` pin that the refused `cem cite` names (`CEM-CB-005`,
@@ -552,7 +581,14 @@ and its requirement, for example `3	internal/x/x.go	40:52	implementation` and
 `3	docs/specs/x.md	12:14	specification` (`DCW-V0-041`). A file the change itself adds
 cannot be its own evidence: it refuses `cem-cite: missing-evidence`, and an unregistered relation
 refuses `cem-cite: invalid-arguments`; both print a `fix:` line naming the plan row. A hunk no row
-cites stays `unknown` with reason `no-evidence`. A base evidence path means the producer reads the span from the CEM base tree;
+cites stays `unknown` with reason `no-evidence`. A hunk that no base evidence supports may instead
+stay `unknown` on purpose: the row `HUNK<TAB>unknown<TAB>REASON<TAB>NOTE` runs `cem mark` with
+`REASON` (`insufficient-evidence` or `conflicting-evidence`), so the map and the sealed map record
+it, and keeps the hunk ID, reason and `NOTE` in `<git-dir>/corvint/cem-unknown-reasons.tsv`
+(notes from earlier staged plans are kept while their hunks stay reasoned unknown, and the file
+changes only after a plan is cited). Such a hunk
+is admitted by `cem-status`, `dogfood check` and `dogfood batch-check` and counted in
+`unknownShare`; any other unknown row refuses `invalid-citation-plan` (`DCW-V0-046`). A base evidence path means the producer reads the span from the CEM base tree;
 it does not make base-only evidence admissible. The cited span must survive the change: cite base
 lines the change leaves in place, because a span the candidate patch deletes or duplicates fails
 the producer's `cite-span-not-stable` precheck. A hunk ID is derived from that hunk's content, paths, and line
@@ -589,6 +625,33 @@ than 256 requirement rows are necessary, split the implementation into separatel
 For a change needing more than 200 trace paths, use separately bound commits of at most 200 paths;
 do not truncate the trace or omit changed paths.
 
+Write the plan per hunk: for each hunk, cite the base lines that hunk depends on or implements,
+such as the function it edits or calls, the contract or test that pins it, or the spec section it
+implements, so two hunks share a span only when they rest on the same lines. After the
+`DCW-V0-019` binding passes, a plan whose rows all cite one span is refused before any cite as
+`cem-cite NOT_PRODUCED citation-plan-uniform` when the map has at least two hunks, every hunk is
+named by ordinal or full hunk ID, no row is an unknown row, and every citation row has the same
+`PATH` and `START:END`, whatever its relation (`DCW-V0-048`). The `fix:` line names the hunk count
+and the span, for example `hunks=3 span=docs/specs/x.md:12:14`. A plan that keeps a hunk unknown
+with a reason, or a staged plan that names only some hunks, is not uniform. A chore change is
+exempt: one whose `git diff --no-renames --name-only BASE HEAD` names at least one path, every
+path being exactly `.corvint/change.cem.json` or `.corvint/changes/NAME.cem.json` with `NAME` one
+nonempty path segment. A path Git quotes, a nested `NAME` or any other path makes the change
+a non-chore.
+
+A chore change is a self-referential bind or seal: its map cites the map files the bind loop
+itself writes. Once `cem prepare` writes `cem/1.0`, `dogfood change` marks a chore's prepared
+map with the stable member `role`, `seal-chore` when a `.corvint/changes/` path is touched and
+`bind-chore` otherwise, and `cem status --citation` reports it as `citationClass`
+`{"class": "chore", ...}` beside the stable result, never inside it (`DCW-V0-049`,
+`CEM-V1-095`, `CEM-V1-106`); a change map has no role and is class `change`. A Core `cem/0.x`
+map never carries a role, and Core prepares `cem/0.2` today, so no committed map is marked yet.
+The stable producer cutover (V1-1276) must cite V1-1281 before it lands. To measure citation
+support with chore maps kept apart, run
+`GOTOOLCHAIN=local go run ./tools/cem-citation-baseline --root . --maps .corvint/changes --summary SUMMARY.json > ROWS.jsonl`:
+it writes one baseline row per map with its class, and a summary for all maps and for each
+class; a `cem/0.x` map is classed by its paths under the chore rule above.
+
 ### Staged binding of one oversized commit
 
 Accepted, decision 0510 (V1-1107; `DCW-V0-037`). The normal coordinator supports one
@@ -615,13 +678,15 @@ there are already suitable commit boundaries.
    unknown hunks remain until the last plan, and the sidecar is uncommitted. The warning that
    citations were added to earlier citations is expected during staging; its delete-and-rerun
    advice applies to correcting wrong earlier evidence, not to these additive stages.
-4. Inspect `$(git rev-parse --absolute-git-dir)/corvint/cem-status.json` and the CEM: every hunk must be `supported`, with
-   `unknown=0` and `mechanical=0`. Then `git add .corvint/change.cem.json` and
+4. Inspect `$(git rev-parse --absolute-git-dir)/corvint/cem-status.json` and the CEM: every hunk must be `supported` or kept
+   `unknown` with a recorded reason (a bootstrap hunk, or a plan row under `DCW-V0-046`), with no
+   other `unknown` hunk and `mechanical=0`. Then `git add .corvint/change.cem.json` and
    `git commit -m "chore: bind fully cited change evidence"`. This is the only sidecar commit.
 5. Rerun `DOGFOOD_CITATIONS=/absolute/last-plan.tsv make dogfood-change BASE="$BASE"` with all
    the same normal inputs, then `make dogfood-check BASE="$BASE"`. The sidecar-only commit
    preserves the canonical patch; the last plan is an idempotent replay on the fully cited map.
-   Require `"complete": true`, `supported=hunks`, `unknown=0`, and `dogfood-check: PASS`.
+   Require `"complete": true` and `dogfood-check: PASS`; its `SUMMARY` reports any admitted
+   unknown hunks as `unknownShare` and `reasonedUnknown`.
    Inspect the reviewer reports and continue the normal seal route. Any further implementation
    commit invalidates these plans: prepare the new patch and rewrite the plans from its map.
 
@@ -649,13 +714,15 @@ $ git add .corvint/change.cem.json
 $ git commit -m "chore: bind change evidence"
 $ corvint cem status --map .corvint/change.cem.json \
     --expected-base BASE_SHA --target HEAD \
-    --max-unknown BOOTSTRAP_UNKNOWN_COUNT --max-mechanical 0
+    --max-unknown BOOTSTRAP_UNKNOWN_COUNT+REASONED_UNKNOWN_COUNT --max-mechanical 0
 ```
 
 Use worklist ordinals with `cem cite` or `cem mark` before the sidecar commit. Zero is the default
 Corvint-repository policy for unknown and mechanical hunks; an exception must be explicit in the
 change review. `BOOTSTRAP_UNKNOWN_COUNT` is zero unless the complete OCM aggregate validates; it is
-the validated base-absent intent count, so the effective post-subtraction ceiling remains zero.
+the validated base-absent intent count. `REASONED_UNKNOWN_COUNT` is the map's other hunks kept
+`unknown` with reason `insufficient-evidence` or `conflicting-evidence` (`DCW-V0-046`), so the
+effective ceiling for unreasoned unknown hunks remains zero.
 Preparation ignores an inherited target-side sidecar, then its returned literal
 `--target HEAD` action independently resolves the final revision after the candidate is committed.
 The sidecar is excluded from its own patch, avoiding recursive self-citation.
@@ -765,7 +832,7 @@ are shared. A different session must use its own worktree or wait for explicit c
 
 A linked Git worktree is a supported checkout for the loop; it is run at that worktree's top level
 like any other and does not refuse. The loop resolves its private evidence and session directory
-with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:95`), which for a linked
+with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:102`), which for a linked
 worktree (whose `.git` is a file) is that worktree's own directory under the main repository's
 `.git/worktrees/NAME`, so sessions and evidence stay per worktree.
 The `.corvint/` outputs live in the worktree root. Repository-wide Git state (objects, refs, and

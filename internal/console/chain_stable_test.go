@@ -1,8 +1,11 @@
 package console
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
 // sealStableFixture commits the packet's positive cem/1.0 map as a sealed
@@ -112,5 +115,40 @@ func TestConsoleChainStableRegistry(t *testing.T) {
 	}
 	if _, err := decodeSealed(&Blob{Text: `{"spec":"cem/0.3","baseRevision":"` + strings.Repeat("a", 40) + `"}`}); err != nil {
 		t.Fatalf("a 0.x map lost its reading: %v", err)
+	}
+}
+
+// TestCEMV1084ConsoleReceiptAuthentication proves the chain pane shows a
+// dsse-ed25519 receipt's keyid and envelope as references it neither checks
+// nor trusts, keeps the authentication axis NOT_OBSERVED, and opens no
+// receipt-attestation artifact.
+func TestCEMV1084ConsoleReceiptAuthentication(t *testing.T) {
+	var m map[string]any
+	if err := json.Unmarshal(stablePacketMap(t), &m); err != nil {
+		t.Fatal(err)
+	}
+	keyID, envelope := strings.Repeat("4", 64), strings.Repeat("e", 64)
+	m["runnerReceipts"].([]any)[0].(map[string]any)["authentication"] = map[string]any{"method": "dsse-ed25519", "keyid": keyID, "envelopeSha256": envelope}
+	m["artifacts"] = append(m["artifacts"].([]any), map[string]any{"kind": "receipt-attestation", "path": "receipt-attestation.json", "sha256": envelope})
+	sealed, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wire.ParseStable(sealed); err != nil {
+		t.Fatalf("signed packet map does not parse: %v", err)
+	}
+	page := mainOf(sealStableFixture(t, append(sealed, '\n'), false).page(t, ""))
+	for _, want := range []string{
+		"authentication dsse-ed25519 keyid " + keyID + " envelope " + envelope + " (signature not checked and keyid not trusted in this pane)",
+		"authentication NOT_OBSERVED in this pane: the pane trusts no key",
+		"a signature never raises executionAtCommit",
+		"artifacts[6]", "receipt-attestation artifact sha256:" + envelope + " (content not opened)",
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("stable chain page lacks %q:\n%s", want, page)
+		}
+	}
+	if strings.Contains(page, "authentication VERIFIED") || strings.Contains(page, "UNTRUSTED_KEY") {
+		t.Fatal("the pane reported a receipt signature state it never checks")
 	}
 }

@@ -1,0 +1,60 @@
+{
+  "baseRevision": "b8a115389fba4f58d85c00c2903780baf57eabaa",
+  "evidence": [
+    {
+      "blobOid": "ae98747521b96f1ad938a37b900df3b9179fa6c2",
+      "id": "evidence:sha256:508523bc041922d9d472e15cb6907773103179aedcfed3703d8321fdededf695",
+      "path": "docs/specs/cem-stable-v1.md",
+      "span": {
+        "end": 64235,
+        "start": 63467
+      },
+      "spanSha256": "e5af0d02b459b5cc52d9c27acb95099f4d9f33e23f07b89d8d8fc5ffa4fbf133"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:508523bc041922d9d472e15cb6907773103179aedcfed3703d8321fdededf695",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ebd94e7149f66565469c716774e53facd225c5e9c140a9525a490e48c3d5ec6d",
+      "newRange": {
+        "count": 7,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 6
+      },
+      "path": "tools/cem-convert-parity/parity_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:508523bc041922d9d472e15cb6907773103179aedcfed3703d8321fdededf695",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bcb5916d73202b9c3ed6af480a3cf74eba102df47569280a4217944736bf1054",
+      "newRange": {
+        "count": 13,
+        "start": 66
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 65
+      },
+      "path": "tools/cem-convert-parity/parity_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "60b7effe2ba907c1f5925c11f1291927f87363a6cfa5cdbaa26d9dde7bdf234b",
+  "spec": "cem/0.2"
+}

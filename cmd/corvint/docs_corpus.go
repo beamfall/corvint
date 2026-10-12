@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -12,16 +13,19 @@ import (
 )
 
 type corpusOptions struct {
-	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement string
-	playwright                                                                                                        playwrightCorpusOptions
-	legacyCases                                                                                                       legacyCasesCorpusOptions
-	apply, check                                                                                                      bool
-	limit, offset                                                                                                     int
+	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement, runner string
+	// stable is the cem-stable verifier binding; its artifact root is not a --root-relative input.
+	stable        doccorpus.StableCEMInputs
+	playwright    playwrightCorpusOptions
+	legacyCases   legacyCasesCorpusOptions
+	apply, check  bool
+	limit, offset int
 }
 
 // stringFlags maps each value-taking corpus option to its field.
 func (o *corpusOptions) stringFlags() map[string]*string {
-	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem}
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner,
+		"--expected-base": &o.stable.ExpectedBase, "--target": &o.stable.Target, "--stable-artifact-root": &o.stable.ArtifactRoot}
 	o.playwright.addFlags(flags)
 	o.legacyCases.addFlags(flags)
 	return flags
@@ -112,8 +116,8 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	return o, true, err
 }
 
-// errCorpusCheckRefused marks a behavior-adapter check report that lists
-// refusals; the report is still the command output.
+// errCorpusCheckRefused marks a behavior-adapter check report, or a legacy inventory whose
+// crosswalk refused a reviewed mapping, that lists refusals; the report is still the command output.
 var errCorpusCheckRefused = errors.New("behavior adapter check refused")
 
 func runCorpus(ctx context.Context, o corpusOptions, stdout, stderr io.Writer) int {
@@ -189,6 +193,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	if o.op == "discover-playwright" || o.op == "witness-playwright" {
 		return compilePlaywrightCorpus(ctx, o)
 	}
+	if o.op == "discover-legacy" {
+		return compileLegacyCorpus(ctx, o)
+	}
 	if o.op == "import-cases" || o.op == "search-cases" {
 		return compileLegacyCasesCorpus(o)
 	}
@@ -261,6 +268,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	if o.apply {
 		return nil, argumentError("--apply requires corpus maintain")
 	}
+	if o.op == "cem-stable" {
+		return compileStableCorpusCEM(ctx, o, a)
+	}
 	if o.op == "cem" {
 		data, err := doccorpus.ReadFile(o.root, o.cem)
 		if err != nil {
@@ -288,6 +298,27 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		}
 	}
 	receipt, err := doccorpus.QueryContext(ctx, a, doccorpus.Request{Operation: o.op, Retirement: retirement, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset}, fresh, limits)
+	if err != nil {
+		return nil, err
+	}
+	return doccorpus.Encode(receipt)
+}
+
+// compileStableCorpusCEM is the explicit cem/1.0 documentation projection
+// (CEM-V1-162, CEM-V1-163). The repository is --root; the map is admitted only
+// on a stable verifier ACCEPT, and a refusal exits 2 with no stdout, so the
+// 0.x `cem` operation is never relabelled stable.
+func compileStableCorpusCEM(ctx context.Context, o corpusOptions, a *doccorpus.Artifact) ([]byte, error) {
+	data, err := doccorpus.ReadFile(o.root, o.cem)
+	if err != nil {
+		return nil, err
+	}
+	inputs := o.stable
+	inputs.Repository = o.root
+	if inputs.ArtifactRoot, err = filepath.Abs(inputs.ArtifactRoot); err != nil {
+		return nil, argumentError("cannot resolve --stable-artifact-root")
+	}
+	receipt, err := doccorpus.StableCEMProjection(ctx, a, data, o.id, inputs)
 	if err != nil {
 		return nil, err
 	}

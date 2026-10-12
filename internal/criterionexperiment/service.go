@@ -11,17 +11,20 @@ import (
 	tw "github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-func newOutput(dir string) error {
+func newOutput(dir, schema string) error {
 	if !filepath.IsAbs(dir) {
 		return fmt.Errorf("output must be absolute new disposable directory")
 	}
 	if e := os.Mkdir(dir, 0700); e != nil {
 		return fmt.Errorf("output must not exist: %w", e)
 	}
-	return os.WriteFile(filepath.Join(dir, "EXPERIMENT-DISPOSABLE"), []byte(Profile+"\n"), 0600)
+	return os.WriteFile(filepath.Join(dir, "EXPERIMENT-DISPOSABLE"), []byte(schema+"\n"), 0600)
 }
 func save(dir, name string, b []byte) error { return os.WriteFile(filepath.Join(dir, name), b, 0600) }
 func PlanExperiment(ctx context.Context, repoPath string, r Request, out string, tasks TasksVerifierConfig) (Plan, error) {
+	return planExperiment(ctx, repoPath, r, out, "", tasks)
+}
+func planExperiment(ctx context.Context, repoPath string, r Request, out, artifactRoot string, tasks TasksVerifierConfig) (Plan, error) {
 	var p Plan
 	if e := r.validate(); e != nil {
 		return p, e
@@ -35,13 +38,20 @@ func PlanExperiment(ctx context.Context, repoPath string, r Request, out string,
 	if e != nil {
 		return p, e
 	}
-	if e = validateCEM(ctx, repo, r, cem); e != nil {
+	if e = admitCEM(ctx, repo, repoPath, r, cem, artifactRoot); e != nil {
 		return p, e
 	}
 	captures, e := capture(ctx, repoPath, r.Ticket, r.Attempt, tasks)
 	if e != nil {
 		return p, e
 	}
+	return planWithCaptures(ctx, repo, r, cem, captures, out)
+}
+
+// planWithCaptures binds an admitted request and map to verified native
+// captures and writes the plan in the request's schema.
+func planWithCaptures(ctx context.Context, repo *gitauth.Repository, r Request, cem []byte, captures Captures, out string) (Plan, error) {
+	var p Plan
 	tree, e := repo.CommitTree(ctx, r.Target)
 	if e != nil {
 		return p, e
@@ -67,8 +77,8 @@ func PlanExperiment(ctx context.Context, repoPath string, r Request, out string,
 	if e = checkAnchors(ctx, repo, r, captures); e != nil {
 		return p, e
 	}
-	p = Plan{Profile, r, binding, Digest(cem), Digest(tw.EncodeFile(captures.Capture.Value())), captures.Verification.Verifier}
-	if e = newOutput(out); e != nil {
+	p = Plan{r.Schema, r, binding, Digest(cem), Digest(tw.EncodeFile(captures.Capture.Value())), captures.Verification.Verifier}
+	if e = newOutput(out, p.Schema); e != nil {
 		return p, e
 	}
 	for name, b := range map[string][]byte{"plan.json": Encode(p), "cem.json": cem, "captures.json": tw.EncodeFile(captures.Capture.Value())} {
@@ -78,7 +88,7 @@ func PlanExperiment(ctx context.Context, repoPath string, r Request, out string,
 	}
 	return p, nil
 }
-func loadPlan(ctx context.Context, repo *gitauth.Repository, planPath string, tasks TasksVerifierConfig) (Plan, error) {
+func loadPlan(ctx context.Context, repo *gitauth.Repository, repoPath, planPath, artifactRoot string, tasks TasksVerifierConfig) (Plan, error) {
 	var p Plan
 	b, e := Read(planPath)
 	if e != nil {
@@ -87,7 +97,7 @@ func loadPlan(ctx context.Context, repo *gitauth.Repository, planPath string, ta
 	if e = Decode(b, &p); e != nil {
 		return p, e
 	}
-	if p.Schema != Profile {
+	if (p.Schema != Profile && p.Schema != StableProfile) || p.Schema != p.Request.Schema {
 		return p, fmt.Errorf("unsupported plan")
 	}
 	if e = p.Request.validate(); e != nil {
@@ -101,7 +111,7 @@ func loadPlan(ctx context.Context, repo *gitauth.Repository, planPath string, ta
 	if Digest(cem) != p.CEMSha256 {
 		return p, fmt.Errorf("CEM digest changed")
 	}
-	if e = validateCEM(ctx, repo, p.Request, cem); e != nil {
+	if e = admitCEM(ctx, repo, repoPath, p.Request, cem, artifactRoot); e != nil {
 		return p, e
 	}
 	b, e = Read(filepath.Join(dir, "captures.json"))
@@ -150,6 +160,9 @@ func scenarios(p Plan) []Scenario {
 	return rows
 }
 func Run(ctx context.Context, repoPath, planPath, approval, out string, experimental, trusted bool, tasks TasksVerifierConfig) (Receipt, error) {
+	return run(ctx, repoPath, planPath, approval, out, "", experimental, trusted, tasks)
+}
+func run(ctx context.Context, repoPath, planPath, approval, out, artifactRoot string, experimental, trusted bool, tasks TasksVerifierConfig) (Receipt, error) {
 	var receipt Receipt
 	if !experimental || !trusted {
 		return receipt, fmt.Errorf("explicit experimental and trusted-local admission required")
@@ -159,7 +172,7 @@ func Run(ctx context.Context, repoPath, planPath, approval, out string, experime
 		return receipt, e
 	}
 	defer repo.BeginObjectSession()()
-	p, e := loadPlan(ctx, repo, planPath, tasks)
+	p, e := loadPlan(ctx, repo, repoPath, planPath, artifactRoot, tasks)
 	if e != nil {
 		return receipt, e
 	}
@@ -167,10 +180,10 @@ func Run(ctx context.Context, repoPath, planPath, approval, out string, experime
 	if approval != digest {
 		return receipt, fmt.Errorf("exact plan digest approval required")
 	}
-	if e = newOutput(out); e != nil {
+	if e = newOutput(out, p.Schema); e != nil {
 		return receipt, e
 	}
-	receipt = Receipt{Profile, digest, "CALLER_REPORTED", "REVIEWER_ATTESTED", scenarios(p)}
+	receipt = Receipt{p.Schema, digest, "CALLER_REPORTED", "REVIEWER_ATTESTED", scenarios(p)}
 	for i := range receipt.Scenarios {
 		row := &receipt.Scenarios[i]
 		c := p.Request.Criteria[row.Criterion]
@@ -208,13 +221,16 @@ func Run(ctx context.Context, repoPath, planPath, approval, out string, experime
 	return receipt, nil
 }
 func Verify(ctx context.Context, repoPath, planPath, receiptPath string, live bool, tasks TasksVerifierConfig) (Summary, error) {
+	return verifyExperiment(ctx, repoPath, planPath, receiptPath, "", live, tasks)
+}
+func verifyExperiment(ctx context.Context, repoPath, planPath, receiptPath, artifactRoot string, live bool, tasks TasksVerifierConfig) (Summary, error) {
 	var summary Summary
 	repo, e := gitauth.Open(repoPath, gitrun.NewDefaultBudget())
 	if e != nil {
 		return summary, e
 	}
 	defer repo.BeginObjectSession()()
-	p, e := loadPlan(ctx, repo, planPath, tasks)
+	p, e := loadPlan(ctx, repo, repoPath, planPath, artifactRoot, tasks)
 	if e != nil {
 		return summary, e
 	}
@@ -232,14 +248,14 @@ func Verify(ctx context.Context, repoPath, planPath, receiptPath string, live bo
 	if e = Decode(b, &receipt); e != nil {
 		return summary, e
 	}
-	if receipt.Schema != Profile || receipt.PlanSha256 != CanonicalDigest(p) || receipt.Assurance != "CALLER_REPORTED" || receipt.OracleAssurance != "REVIEWER_ATTESTED" {
+	if receipt.Schema != p.Schema || receipt.PlanSha256 != CanonicalDigest(p) || receipt.Assurance != "CALLER_REPORTED" || receipt.OracleAssurance != "REVIEWER_ATTESTED" {
 		return summary, fmt.Errorf("receipt binding mismatch")
 	}
 	expected := scenarios(p)
 	if len(expected) != len(receipt.Scenarios) {
 		return summary, fmt.Errorf("scenario denominator mismatch")
 	}
-	summary = Summary{Schema: Profile, State: "VERIFIED_UNRESOLVED", PlanSha256: receipt.PlanSha256, ReceiptSha256: CanonicalDigest(receipt), CEMSha256: p.CEMSha256, AcceptanceSha256: p.Binding.AcceptanceSha256, Binding: p.Binding, Criteria: len(p.Request.Criteria), Unknowns: []string{"execution is CALLER_REPORTED; oracle relevance is REVIEWER_ATTESTED; adequacy and hostile detached descendants are not established"}}
+	summary = Summary{Schema: p.Schema, State: "VERIFIED_UNRESOLVED", PlanSha256: receipt.PlanSha256, ReceiptSha256: CanonicalDigest(receipt), CEMSha256: p.CEMSha256, AcceptanceSha256: p.Binding.AcceptanceSha256, Binding: p.Binding, Criteria: len(p.Request.Criteria), Unknowns: []string{"execution is CALLER_REPORTED; oracle relevance is REVIEWER_ATTESTED; adequacy and hostile detached descendants are not established"}}
 	closed := true
 	manifest := []string{}
 	for _, c := range p.Request.Criteria {

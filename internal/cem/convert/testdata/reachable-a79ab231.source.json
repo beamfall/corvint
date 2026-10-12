@@ -1,0 +1,40 @@
+{
+  "baseRevision": "d8ceb030f812f4d77908fe492ef2ef1b2baf2178",
+  "evidence": [
+    {
+      "blobOid": "f936eaa727d762c74c3946bbbf4a8143a6819c55",
+      "id": "evidence:sha256:e3eee37790472556df780ce8a1c81e3b3ecd4d703720fb080596668408688c1b",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2853,
+        "start": 2578
+      },
+      "spanSha256": "4b64d86cb3a0f3db641596d837683063e1d06f12aeb1e64a00d7e45ec9d3441b"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e3eee37790472556df780ce8a1c81e3b3ecd4d703720fb080596668408688c1b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5b32a0e452b807f02678ef74044a1bee6ccbee0cc03b0132547b85efabafbb40",
+      "newRange": {
+        "count": 15,
+        "start": 11
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 11
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "64417b00d810efc00167edd7b79124d3891a46d98bfab42061cd1e31ff788622",
+  "spec": "cem/0.2"
+}

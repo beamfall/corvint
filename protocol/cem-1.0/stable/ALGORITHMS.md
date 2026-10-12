@@ -12,10 +12,14 @@ CEM-V1-001..016 and the experimental candidate keep their original meanings.
 
 ## CEM-V1-017: exact wire and absent evidence
 
-The exact profile is `cem/1.0`, with ten required root keys and no others: `spec`,
+The exact profile is `cem/1.0`, with ten required root keys, the two optional root
+keys `provenance` (CEM-V1-093) and `role` (CEM-V1-095), and no others: `spec`,
 `baseRevision`, `patchSha256`, `excludedPath`, `evidence`, `hunks`,
 `criterionBindings`, `runnerReceipts`, `criterionLinks`, `artifacts`. This is a
 separate closed decoder, not a label substituted into a 0.3 or candidate document.
+A missing required key precedes any unknown root key. The optional root members
+are validated after every required member and before cross-record reference
+validation, `provenance` before `role`.
 Legacy and candidate operations continue to admit only their existing profiles.
 
 Read one private original byte copy, at most 4 MiB. Require strict UTF-8 and one
@@ -46,11 +50,16 @@ link/basis membership, then artifact role closure. OPERATION defines stages.
 
 ## CEM-V1-018: unchanged change semantics, with full 0.3 vocabulary
 
-The public corrected `inherited/ALGORITHMS.md` supplies the canonical JSON identity (with its complete spelling in
-`inherited/cem-0.1-algorithms.md`), canonical patch, hunk replay, evidence and drift algorithms and the four
-structural predicates. Its profile/command/candidate exclusions, draft-stage
-qualification notes and prototype implementation status do not define this stable
-operation. Stable admission and result semantics are exclusively defined here.
+The canonical JSON identity, canonical patch, hunk replay, evidence and drift
+algorithms and the four structural predicates are restated in cem/1.0 vocabulary
+in "CEM-V1-018 restated: 0.1 algorithms" and "CEM-V1-018 restated: 0.3 hunk
+vocabulary, structural reasons and witnesses" below; those sections are the
+1.0-normative text. The pinned copies `inherited/ALGORITHMS.md` and
+`inherited/cem-0.1-algorithms.md` are retained unchanged as historical provenance
+for that restatement; where they differ from this file, this file governs. Their
+profile/command/candidate exclusions, draft-stage qualification notes and
+prototype implementation status do not define this stable operation. Stable
+admission and result semantics are exclusively defined here.
 Reusing pure validation algorithms is permitted; rewriting the original `spec`
 into another profile to obtain a verifier result is forbidden.
 
@@ -88,6 +97,138 @@ classified as controls or nonprinting. U+0085/U+2028 remain valid. Structural an
 witness checks must retain the corrected public 0.3 corpus, not merely its happy
 path. Unknown/survived/uncovered claims can coexist with valid change integrity.
 
+## CEM-V1-018 restated: 0.1 algorithms
+
+This section restates, for the stable `cem/1.0` map, the pure algorithms first
+published as `inherited/cem-0.1-algorithms.md`. The requirement IDs of the 0.1
+and 0.2 specifications remain their historical identities; the text below is the
+1.0-normative statement of the same behaviour. Nothing here admits a 0.x profile.
+
+1. Strict JSON. As CEM-V1-017: at most 4 MiB, strict UTF-8, one object, no
+   duplicate keys, integers 0..9007199254740991 in canonical decimal syntax.
+2. Paths. A repository path is 1..512 UTF-8 bytes, relative POSIX, with no
+   leading `/`, backslash, NUL or other control byte, and no empty, `.` or `..`
+   segment. Paths are never case-folded or Unicode-normalized.
+3. Canonical identity JSON. Identity inputs are serialized with object keys in
+   byte order, no insignificant whitespace, `"` and `\` escaped, C0 controls as
+   `\b`, `\f`, `\n`, `\r`, `\t` or lowercase `\u00XX`, all other code points as
+   raw UTF-8, and integers in canonical decimal. The digest is lowercase SHA-256
+   over those bytes.
+4. Evidence identity. `id` is `evidence:sha256:` followed by the digest of the
+   canonical object `{"blobOid","path","span":{"end","start"},"spanSha256"}`.
+5. Hunk identity. `id` is `hunk:sha256:` followed by the digest of the canonical
+   object `{"contentSha256","newPath","newRange":{"count","start"},"oldPath",
+   "oldRange":{"count","start"}}`.
+6. Canonical patch profile. `patchSha256` is the SHA-256 of the canonical patch
+   bytes produced by the CEM-V1-023 diff recipe: at most 8 MiB and at most
+   262,144 LF-terminated records. The parser is a `diff --git` state machine.
+   File modes are 100644 or 100755 only; an `old mode`/`new mode` change is
+   rejected; a created file needs `new file mode` and an old range of `0,0`; a
+   deleted file needs `deleted file mode` and a new range of `0,0`. Hunk headers
+   follow `@@ -start[,count] +start[,count] @@`, and `\ No newline at end of file`
+   applies only to the immediately preceding record.
+7. Base simulation. `baseRevision` resolves to a commit whose full lowercase OID
+   equals the supplied value byte for byte. Hunks are grouped by
+   `(oldPath,newPath)` in patch order and replayed against base blobs read from
+   Git objects only, never from the working tree. A create needs the destination
+   absent; a delete needs the old path with a matching mode and yields empty
+   bytes; a rename needs the old path and an absent destination. Every context
+   and removed record is compared byte for byte and every cursor is checked. The
+   patch is simulated, never executed.
+8. Evidence. An evidence record names a regular blob (mode 100644 or 100755,
+   never a symlink or gitlink; 40- or 64-hex OID) at `baseRevision`, a nonempty half-open byte span `[start,end)` within it, and the
+   SHA-256 of those span bytes. At most 64 MiB is read per blob and 128 MiB in
+   total. Every evidence record is referenced by at least one basis.
+9. Dispositions. A `supported` hunk carries reason `evidence-backed` and 1..32
+   bases; each basis names one evidence ID and one relation from `specification`,
+   `decision`, `test-claim`, `implementation`, `call-site`, `dependency`,
+   `incident`. An `unknown` hunk carries an empty basis and one of
+   `no-evidence`, `insufficient-evidence`, `conflicting-evidence`. A `mechanical`
+   hunk carries an empty basis and one of the mechanical reasons below.
+10. Text mechanical reasons. `line-ending-only` holds when replacing CRLF with LF
+    in both images yields equal bytes. `whitespace-only` holds when both images
+    have equal LF counts and each record is equal after deleting the bytes
+    0x09, 0x0b, 0x0c, 0x0d and 0x20.
+11. Limits. 4096 evidence records; 2048 hunks; 32 bases per hunk; a reason of at
+    most 64 bytes; at most 1024 Git operations, 10 seconds per operation and 30
+    minutes in total for one verification.
+12. Drift. Each evidence record is checked at its literal same path in the
+    target, never following a rename. An identical blob OID is `stable`. A missing
+    path, or an entry that is not a 100644/100755 blob, is `deleted`. Otherwise
+    the exact base span bytes are searched in the target blob, counting
+    overlapping matches: zero is `stale`, one is `relocated` with that span, two
+    or more is `ambiguous`. There is no normalization or fuzzy matching. The drift
+    row keeps `baseBlobOid`; the target blob and span are null when absent. Rows
+    are ordered by evidence ID.
+
+## CEM-V1-018 restated: 0.3 hunk vocabulary, structural reasons and witnesses
+
+This section restates, for the stable map, the 0.3 additions first published as
+`inherited/ALGORITHMS.md` and specified as CEM-SM-001..010 in
+`docs/specs/cem-0.3-structural-mechanical.md`. Those IDs remain the historical
+requirement identities and are cited here as references; the text below is the
+1.0-normative statement.
+
+The stable mechanical reasons are `whitespace-only`, `line-ending-only`, `rename`,
+`move`, `import-reorder` and `formatter-only` (CEM-SM-001). The four structural
+reasons are recomputed by the consumer from Git; the map carries only the reason
+token, never a structural witness.
+
+1. Inputs (CEM-SM-002). A structural proof uses only the base blob at
+   `baseRevision` and the parsed canonical patch. A missing or non-regular base,
+   a created or deleted file, or a hunk whose replayed image equals its base
+   refuses the structural claim.
+2. Scope (CEM-SM-003, CEM-SM-004). `rename`, `import-reorder` and
+   `formatter-only` apply the single hunk in isolation to the base. `move`
+   inspects the whole file group. Go syntax is parsed irrespective of the file
+   extension.
+3. Failure (CEM-SM-005). A parse, scan or format failure makes the claim
+   `unproven-mechanical`. No fallback to a weaker predicate exists.
+4. Rename (CEM-SM-007, decision 0521). Exactly one identifier pair `from`->`to`
+   differs; comments equal their whole-word substitution; both names are
+   unexported; `to` is absent from the base and `from` is declared in the file
+   (local receiver names and statement labels included). The pair is not a
+   selector, composite-literal key, struct field, interface or concrete method or
+   package name. `//go:`, `//line ` and `//export ` directives are unchanged.
+   Rename is file-local and can leave sibling-file references uncompilable.
+5. Move (CEM-SM-008). Tokens outside top-level declarations are unchanged; the
+   top-level declarations form the same multiset in a different order; `var`
+   declarations and `init` functions keep their relative order.
+6. Import reorder (CEM-SM-009). The ordered import specs differ; the multiset of
+   name/path pairs and all comments are unchanged; tokens outside the import
+   declarations are unchanged.
+7. Formatter only (CEM-SM-010). `go/format` renders base and target images to
+   identical bytes.
+8. Runtime gate. A structural reason is checked only on a sealed structural
+   runtime tuple (CEM-V1-050; currently `go1.27.2`); otherwise the consumer
+   reports `unsupported-structural-runtime`.
+
+None of these predicates proves package semantics, build success, test adequacy or
+behavioural equivalence.
+
+Witnesses. Hunk `coverage` and `discriminates` are optional 0.3 witness objects
+carried unchanged from the source document. Coverage has five keys; its ranges
+are ascending, nonoverlapping, nonadjacent and inside `newRange`. Discriminates
+has nine keys; `killed + survived <= mutants`; state `discriminates` needs
+killed >= 1 and survived = 0, `survived` needs survived >= 1, `not-run` needs
+mutants = 0; the survivors array length equals `survived`. Text bounds exclude
+only C0 and DEL. Result witness copies preserve absence. A consumer never
+synthesizes a witness that the source did not carry.
+
+Nesting depth follows CEM-V1-017. Git diff failures report `git-diff-failed`
+and Git object read failures report `git-read-failed`.
+
+### 0.3 schema fragments relied on
+
+`stable.schema.json` restates, as identical JSON values, these 13
+`$defs` from `inherited/cem-0.3.schema.json`: `basis`, `bounds`, `coverage`,
+`coveredRange`, `discriminates`, `evidence`, `gitOid`, `hunk`, `path`, `range`,
+`sha256`, `span`, `survivor`. The stable schema adds the reference-record
+definitions (`criterionBinding`, `plainCriterionBinding`, `tasksCriterionBinding`,
+`criterionId`, `runnerReceipt`, `criterionLink`, `artifact`, `artifactPath`) and
+the CEM-V1-093/095 definitions `sha1Oid`, `provenance` and `role`; it does not
+reference the inherited schema file at runtime.
+
 ## CEM-V1-019: lossless typed documents and immutable input
 
 Native `StableMap`, `ParseStable`, `EncodeStable` are distinct from legacy Map and
@@ -108,7 +249,28 @@ No receipt, capture or plan artifact is parsed and reserialized just to copy it.
 
 ## CEM-V1-020: criterion, runner and association records
 
-Criterion binding fields retain the closed public reference structure and add
+CEM-V1-083 gives a criterion binding two closed forms. The plain form is a Git
+blob span criterion with exactly `id`, `criterionIndex`, `criterionSha256` and
+`evidenceId`. The Corvint Tasks fields (`ticketId`, `acceptanceRevision`,
+`acceptanceSha256`, `captureSha256`, `verificationSha256`, `claimTicketSha256`,
+`snapshotHeadReceiptSha256`, `snapshotHeadArtifactSha256`) are one optional
+closed extension. A consumer selects the form by key presence before any value
+check: if any Tasks member is present, the record must be the complete Tasks form
+below and `evidenceId` is an unknown member; otherwise it must be the complete
+plain form. Missing members of the selected form refuse `missing-field` (checked
+first), other members `unknown-field`, and bad values `invalid-field`. A plain
+`evidenceId` is `evidence:sha256:` plus 64 lowercase hex digits; it must resolve
+to an evidence record of this document (`unresolved-reference`) and
+`criterionSha256` must equal that record's `spanSha256` (`reference-coherence`),
+so the criterion is the exact base blob span that canonical evidence
+verification reads from Git. A plain `evidenceId` occurs in at most one binding
+(`duplicate-reference`). Plain bindings form one unnamed group whose
+criterionIndex values are unique; no Tasks tuple can collide with it. The plain
+ID is computed exactly as below over its three non-id members. Plain bindings
+require no Tasks artifact role and no `.taskman/` store; their links, runner
+records and runner artifact roles are unchanged.
+
+Tasks-form criterion binding fields retain the closed public reference structure and add
 required `snapshotHeadArtifactSha256`, the SHA256 of retained raw snapshot-head
 artifact bytes. The original `snapshotHeadReceiptSha256` remains a distinct native
 historical receipt identity; the two digests are not interchangeable. ticketId is
@@ -133,8 +295,8 @@ digests. Omitted criteria remain unreferenced.
 Runner records retain the exact reference fields and fixed limits from the public
 candidate shape: raw receipt SHA256, exact `corvint-test-runner-receipt/0` profile,
 raw plan-byte SHA256, sourceGitBinding=NOT_OBSERVED,
-executionAuthority=CALLER_OBSERVED, dependencyClosure=NOT_OBSERVED and
-authentication=NOT_OBSERVED. Receipt digests are unique. The raw plan SHA256 is
+executionAuthority=CALLER_OBSERVED, dependencyClosure=NOT_OBSERVED and an
+authentication member (CEM-V1-084 below). Receipt digests are unique. The raw plan SHA256 is
 not the native plan struct-serialization identity; neither can substitute for the
 other. CALLER_OBSERVED is a declared reference limitation, not proof of execution.
 
@@ -158,6 +320,11 @@ Stable proposes six artifact roles; the first five retain candidate names:
 | criterion.snapshotHeadArtifactSha256 | tasks-snapshot-head-receipt |
 | runner.sha256 | runner-receipt |
 | runner.planSha256 | runner-plan |
+
+The four criterion rows apply only to Tasks-form bindings (CEM-V1-083); a
+plain-form binding contributes no required artifact role.
+CEM-V1-084 adds a conditional seventh role: `runner.authentication.envelopeSha256`
+requires a `receipt-attestation` artifact, only for a `dsse-ed25519` receipt.
 
 The sixth role is a deliberate proposed stable addition: the candidate only
 retains the snapshot-head digest as a historical reference. Gate A must accept
@@ -203,7 +370,8 @@ referenceIntegrity are separate; an empty graph produces EMPTY_REFERENCE_SET,
 not a claimed observed execution. Structural/witness axes state only the checks
 actually performed. All authority, history/currentness, source/execution,
 receipt-semantics, authentication, dependency, adequacy/discrimination and external
-interoperability axes remain NOT_OBSERVED in this operation, including on success.
+interoperability axes remain NOT_OBSERVED in this operation, including on success,
+except that CEM-V1-084 lets a consumer trusted-keys file move `authentication`.
 
 Companions may emit separate versioned native verification results bound to the
 exact original stable map, expected base, target, artifact inventory and their
@@ -212,6 +380,100 @@ is not that check. Historical validity and fresh live applicability are distinct
 Native runner semantics must use the shared runner contract without changing its
 bytes/identity, retain every admitted observation and abstain on contradictions.
 No boolean from the stable result may replace these layered checks.
+
+## CEM-V1-084: runner receipt authentication
+
+A runner record's `authentication` is one of three closed forms: the sealed
+legacy string `"NOT_OBSERVED"` (read as method none and echoed unchanged),
+`{"method":"none"}`, or `{"method":"dsse-ed25519","keyid":K,"envelopeSha256":E}`.
+The method value selects the key set before any value check, so a consumer
+refuses `missing-field` first, then `unknown-field`, then `invalid-field`
+(an undefined method or a value that is not 64 lowercase hex). K is the
+lowercase hex SHA-256 of the raw 32-byte Ed25519 public key. E is the SHA-256
+of the exact envelope bytes.
+
+Graph: after the receipt and plan roles, a repeated E across receipts refuses
+`duplicate-reference`; E must resolve to a `receipt-attestation` artifact
+(`artifact-role-closure`), and a `receipt-attestation` artifact that no receipt
+names is unused (`artifact-role-closure`). A map that carries a key file as an
+attestation artifact therefore refuses: a map never supplies its own trust.
+
+Envelope: one closed DSSE object `{payload, payloadType, signatures}` with
+`payloadType` `application/vnd.in-toto+json`, standard padded base64 payload and
+exactly one signature `{keyid, sig}` (sig 64 bytes). The payload is a closed
+in-toto Statement v1: `_type` `https://in-toto.io/Statement/v1`, `predicateType`
+`https://corvint-context.dev/attestation/cem-receipt/v1`, `predicate` `{}`, and
+exactly three subjects in order: `runner-receipt` `{"sha256":R}`, `runner-plan`
+`{"sha256":P}` and `target-tree` `{"gitTree":T}`. The signature covers the DSSE
+v1 PAE `DSSEv1 28 application/vnd.in-toto+json <len> <payload>`.
+
+After the two artifact passes, for every dsse receipt a consumer checks, in
+order: the envelope shape (`attestation-malformed`), signature keyid equal to K
+(`attestation-key-mismatch`), R, P and T equal to the receipt digest, the plan
+digest and the target commit's tree (`attestation-subject-mismatch`, checked
+without any trust decision), and, only when K is trusted, the Ed25519 signature
+(`attestation-signature-invalid`). Any of these is a REJECT at stage
+`artifacts`, exit 1, with the code in `issueCodes`, `referenceIntegrity` FAILED
+and `authentication` FAILED.
+
+Trust comes only from the consumer: `--trusted-keys FILE`, an absolute regular
+file of at most 64 KiB holding the closed
+`{"profile":"corvint-trusted-keys/1","keys":[{"keyid":K,"ed25519PublicKey":B64}]}`
+with 1..64 unique keys whose keyid is the digest of the key. Any other file is
+`invalid-arguments` at stage `arguments`, exit 2, before the map is read. On
+ACCEPT the `authentication` axis is NOT_OBSERVED without a trusted-keys file;
+otherwise UNTRUSTED_KEY when any dsse receipt names a keyid the file does not
+list (its signature is then not checked), NOT_OBSERVED when no receipt is dsse
+or any receipt is unsigned, and VERIFIED only when every receipt is dsse with a
+trusted keyid and a valid signature. A signature never
+raises `executionAtCommit` or any other axis. Producing a signed receipt is an
+operator step outside this operation.
+
+## CEM-V1-093: map provenance
+
+`provenance` is an optional closed object recording that a stable map was
+converted from a 0.x map. A native stable map omits it. It has exactly five
+members, all required, validated in this order:
+
+1. `sourceSpec`: one of `cem/0.1`, `cem/0.2`, `cem/0.3`.
+2. `sourceBlobOid`: the 40-hex lowercase Git blob ID of the source map.
+3. `sourceSha256`: the 64-hex lowercase SHA-256 of the source map bytes.
+4. `bindCommit`: the 40-hex lowercase commit that bound the source map.
+5. `converter`: matching `^corvint-cem-convert/[0-9]+(\.[0-9]+)*$`.
+
+A non-object value is `invalid-field`. Within the object a missing member is
+`missing-field`, then an unknown member is `unknown-field`, then an invalid value
+is `invalid-field`. Provenance is never read for authority, ranking, any result
+axis or any verdict, and the result never echoes it. It contributes to the map
+bytes and therefore to `mapSha256` only.
+
+## CEM-V1-094: Producer-only members
+
+The closed list of producer-only stable map members is:
+
+1. `criterionBindings`
+2. `runnerReceipts` (including any runner `authentication` object, which exists
+   only inside a receipt)
+3. `criterionLinks`
+4. `artifacts` (including receipt attestation records)
+
+A producer that holds no task or runner evidence, including the 0.x converter,
+emits each of these as an empty array. A map whose four producer-only members are
+all empty is valid: both consumers ACCEPT it with `referenceIntegrity`
+`EMPTY_REFERENCE_SET` and every non-core axis `NOT_OBSERVED`. There is no "intent
+and scope" member and no "structural witness" member: intent stays in the
+project's specs and tickets, and structural mechanical reasons are recomputed
+from Git (CEM-V1-018). Hunk `coverage` and `discriminates` are not producer-only
+members; they are optional source witnesses carried unchanged when present and
+omitted when absent.
+
+## CEM-V1-095: role
+
+`role` is an optional closed string enum naming why the change exists:
+`change` (the meaning when `role` is absent), `bind-chore` or `seal-chore`. Any
+other string, or a non-string, is `invalid-field`. Role never changes a verdict,
+tier or result axis, and the result never echoes it. Grouping by role in readers
+is a separate reader contract.
 
 ## CEM-V1-023..024: operation and committed sidecar
 

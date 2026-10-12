@@ -1,0 +1,319 @@
+{
+  "accept": {
+    "exit": 0,
+    "resultExceptRuntime": {
+      "accept": true,
+      "artifactChecks": [
+        {
+          "byteLength": 130,
+          "kind": "runner-plan",
+          "path": "artifacts/runner-plan.json",
+          "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+        },
+        {
+          "byteLength": 133,
+          "kind": "runner-receipt",
+          "path": "artifacts/runner-receipt.json",
+          "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+        }
+      ],
+      "assurance": "canonical",
+      "axes": {
+        "authentication": "NOT_OBSERVED",
+        "changeIntegrity": "VERIFIED",
+        "coverageValidation": "ABSENT",
+        "criterionAdequacy": "NOT_OBSERVED",
+        "criterionDiscrimination": "NOT_OBSERVED",
+        "currentApplicability": "NOT_OBSERVED",
+        "dependencyClosure": "NOT_OBSERVED",
+        "discriminationValidation": "ABSENT",
+        "executionAtCommit": "NOT_OBSERVED",
+        "externalInteroperability": "NOT_OBSERVED",
+        "historicalValidity": "NOT_OBSERVED",
+        "nativeAuthority": "NOT_OBSERVED",
+        "referenceIntegrity": "REFERENCE_INTEGRITY_ONLY",
+        "runnerExecution": "NOT_OBSERVED",
+        "runnerReceiptSemantics": "NOT_OBSERVED",
+        "sourceGitBinding": "NOT_OBSERVED",
+        "sourceInventoryCompleteness": "NOT_OBSERVED",
+        "structuralProof": "NOT_REQUIRED"
+      },
+      "citation": {
+        "annotationHunks": 0,
+        "concentratedHunks": 2,
+        "distinctEvidence": 1,
+        "evidenceFanOut": [
+          [
+            "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+            2
+          ]
+        ],
+        "hunks": [
+          {
+            "anchors": [],
+            "annotation": false,
+            "hunkId": "hunk:sha256:16fcc32b2f5adc894792418166e51c1b26dd5b20a5a7a2123b2946391298eb1d",
+            "tier": "cited"
+          },
+          {
+            "anchors": [],
+            "annotation": false,
+            "hunkId": "hunk:sha256:30a1c6811c42769127d3f4fb654d25f3f1aae0afd2ac100ac04707a13b8b57c0",
+            "tier": "cited"
+          }
+        ],
+        "hunksByClass": {
+          "anchored": 0,
+          "cited": 2,
+          "held": 0,
+          "mechanical-proved": 0,
+          "unknown": 0
+        },
+        "invariant": true,
+        "maxFanOut": 2,
+        "profile": "cem-citation-support/0",
+        "samePathCitations": 0,
+        "specificity": 0
+      },
+      "code": null,
+      "drift": [
+        {
+          "baseBlobOid": "6d278d004301d16170039816f28919c070a9c697",
+          "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+          "path": "SPEC.md",
+          "status": "stable",
+          "targetBlobOid": "6d278d004301d16170039816f28919c070a9c697",
+          "targetSpan": {
+            "end": 150,
+            "start": 92
+          }
+        }
+      ],
+      "expectedBase": "467cbb73c1102cd7df0299cd74a6bef96ee3a9a4",
+      "hunks": [
+        {
+          "basis": [
+            {
+              "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+              "relation": "specification"
+            }
+          ],
+          "disposition": "supported",
+          "id": "hunk:sha256:16fcc32b2f5adc894792418166e51c1b26dd5b20a5a7a2123b2946391298eb1d",
+          "newRange": {
+            "count": 9,
+            "start": 1
+          },
+          "oldRange": {
+            "count": 6,
+            "start": 1
+          },
+          "path": "greet.go",
+          "reason": "evidence-backed"
+        },
+        {
+          "basis": [
+            {
+              "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+              "relation": "specification"
+            }
+          ],
+          "disposition": "supported",
+          "id": "hunk:sha256:30a1c6811c42769127d3f4fb654d25f3f1aae0afd2ac100ac04707a13b8b57c0",
+          "newRange": {
+            "count": 9,
+            "start": 7
+          },
+          "oldRange": {
+            "count": 3,
+            "start": 7
+          },
+          "path": "greet_test.go",
+          "reason": "evidence-backed"
+        }
+      ],
+      "issueCodes": [],
+      "mapSha256": "0c445ac2cec0623621d15ca6483c1d5e9500348f7ede43852f5ae5448221e8c0",
+      "outcome": "ACCEPT",
+      "patchSha256": "9466aca391d358b6fd969537fd6fcc5088526e85d6b3f9fad13ecf35431f7ff8",
+      "profile": "cem-stable-verification/1",
+      "references": {
+        "artifacts": [
+          {
+            "kind": "runner-plan",
+            "path": "artifacts/runner-plan.json",
+            "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+          },
+          {
+            "kind": "runner-receipt",
+            "path": "artifacts/runner-receipt.json",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+          }
+        ],
+        "criterionBindings": [
+          {
+            "criterionIndex": 0,
+            "criterionSha256": "54d8b85a6775bd4fafe245d23370f62398f83fe0c5b10ecf915574de7bed85af",
+            "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+            "id": "criterion:sha256:dcb81b643a934c32bb849dd3fadf6450cbdf3e662550a2660126999d17819977"
+          }
+        ],
+        "criterionLinks": [
+          {
+            "criterionId": "criterion:sha256:dcb81b643a934c32bb849dd3fadf6450cbdf3e662550a2660126999d17819977",
+            "evidenceIds": [
+              "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2"
+            ],
+            "hunkIds": [
+              "hunk:sha256:16fcc32b2f5adc894792418166e51c1b26dd5b20a5a7a2123b2946391298eb1d",
+              "hunk:sha256:30a1c6811c42769127d3f4fb654d25f3f1aae0afd2ac100ac04707a13b8b57c0"
+            ],
+            "runnerReceiptSha256s": [
+              "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+            ]
+          }
+        ],
+        "runnerReceipts": [
+          {
+            "authentication": "NOT_OBSERVED",
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "repositoryEnvelope": "canonical-repository-bounded/1",
+      "sidecar": "ABSENT",
+      "spec": "cem/1.0",
+      "stage": "complete",
+      "targetRevision": "1f181cd0843318b72bb6679cd19878c46eb95ada",
+      "verdictSha256": "6197c1f8170f98feb0e8796e11e9bf231849697b059644979e64390114688b22",
+      "verificationMode": "canonical-and-reference-integrity"
+    }
+  },
+  "artifactRoot": ".",
+  "baseRevision": "467cbb73c1102cd7df0299cd74a6bef96ee3a9a4",
+  "map": "stable.json",
+  "profile": "cem-stable-neutral-criterion-cases/1",
+  "refusals": [
+    {
+      "code": "missing-field",
+      "criterion": {
+        "criterionIndex": 0,
+        "criterionSha256": "54d8b85a6775bd4fafe245d23370f62398f83fe0c5b10ecf915574de7bed85af",
+        "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+        "id": "criterion:sha256:dcb81b643a934c32bb849dd3fadf6450cbdf3e662550a2660126999d17819977",
+        "ticketId": "T-1"
+      },
+      "description": "a plain record that also carries ticketId",
+      "exit": 2,
+      "name": "plain-with-ticket-id",
+      "outcome": "REJECT",
+      "rebindLink": false,
+      "stage": "wire"
+    },
+    {
+      "code": "unknown-field",
+      "criterion": {
+        "acceptanceRevision": 1,
+        "acceptanceSha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "captureSha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "claimTicketSha256": "4444444444444444444444444444444444444444444444444444444444444444",
+        "criterionIndex": 0,
+        "criterionSha256": "54d8b85a6775bd4fafe245d23370f62398f83fe0c5b10ecf915574de7bed85af",
+        "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+        "id": "criterion:sha256:dcb81b643a934c32bb849dd3fadf6450cbdf3e662550a2660126999d17819977",
+        "snapshotHeadArtifactSha256": "6666666666666666666666666666666666666666666666666666666666666666",
+        "snapshotHeadReceiptSha256": "5555555555555555555555555555555555555555555555555555555555555555",
+        "ticketId": "T-1",
+        "verificationSha256": "3333333333333333333333333333333333333333333333333333333333333333"
+      },
+      "description": "a full Tasks-form record that also carries evidenceId",
+      "exit": 2,
+      "name": "tasks-with-evidence-id",
+      "outcome": "REJECT",
+      "rebindLink": false,
+      "stage": "wire"
+    },
+    {
+      "code": "unknown-field",
+      "criterion": {
+        "criterionIndex": 0,
+        "criterionSha256": "54d8b85a6775bd4fafe245d23370f62398f83fe0c5b10ecf915574de7bed85af",
+        "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+        "id": "criterion:sha256:dcb81b643a934c32bb849dd3fadf6450cbdf3e662550a2660126999d17819977",
+        "provider": "x"
+      },
+      "description": "a plain record with one unknown key",
+      "exit": 2,
+      "name": "plain-unknown-key",
+      "outcome": "REJECT",
+      "rebindLink": false,
+      "stage": "wire"
+    },
+    {
+      "code": "missing-field",
+      "criterion": {
+        "criterionIndex": 0,
+        "criterionSha256": "54d8b85a6775bd4fafe245d23370f62398f83fe0c5b10ecf915574de7bed85af",
+        "id": "criterion:sha256:dcb81b643a934c32bb849dd3fadf6450cbdf3e662550a2660126999d17819977"
+      },
+      "description": "a plain record without evidenceId",
+      "exit": 2,
+      "name": "plain-missing-evidence-id",
+      "outcome": "REJECT",
+      "rebindLink": false,
+      "stage": "wire"
+    },
+    {
+      "code": "invalid-field",
+      "criterion": {
+        "criterionIndex": 0,
+        "criterionSha256": "54d8b85a6775bd4fafe245d23370f62398f83fe0c5b10ecf915574de7bed85af",
+        "evidenceId": "evidence:sha256:XYZ",
+        "id": "criterion:sha256:dcb81b643a934c32bb849dd3fadf6450cbdf3e662550a2660126999d17819977"
+      },
+      "description": "a plain record whose evidenceId is not evidence:sha256:<64 hex>",
+      "exit": 2,
+      "name": "plain-invalid-evidence-id",
+      "outcome": "REJECT",
+      "rebindLink": false,
+      "stage": "wire"
+    },
+    {
+      "code": "reference-coherence",
+      "criterion": {
+        "criterionIndex": 0,
+        "criterionSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+        "id": "criterion:sha256:c8286cd1a97fc44c86b6120baf8c6dffbdfcd236fba0079dc9ae8dc88d703a4f"
+      },
+      "description": "criterionSha256 differs from the evidence spanSha256 (id recomputed, link rebound)",
+      "exit": 2,
+      "name": "plain-span-digest-mismatch",
+      "outcome": "REJECT",
+      "rebindLink": true,
+      "stage": "references"
+    },
+    {
+      "code": "unresolved-reference",
+      "criterion": {
+        "criterionIndex": 0,
+        "criterionSha256": "54d8b85a6775bd4fafe245d23370f62398f83fe0c5b10ecf915574de7bed85af",
+        "evidenceId": "evidence:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "id": "criterion:sha256:e491873d1e07b4e8142646c7f90cb3f68870559ebdd0386aa2e1f4f8cc5ae934"
+      },
+      "description": "evidenceId names no evidence record (id recomputed, link rebound)",
+      "exit": 2,
+      "name": "plain-unresolved-evidence",
+      "outcome": "REJECT",
+      "rebindLink": true,
+      "stage": "references"
+    }
+  ],
+  "requirement": "CEM-V1-083",
+  "targetRevision": "1f181cd0843318b72bb6679cd19878c46eb95ada"
+}

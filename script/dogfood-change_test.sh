@@ -732,7 +732,7 @@ phase_jobs="$phase_jobs $!"
   rg -Fxq -- '  ocm-status-001: not-ready' <<< "$pending_output"
   rg -Fxq -- "    fix: fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change $base" <<< "$pending_output"
   rg -Fxq -- '  cem-status: not-ready' <<< "$pending_output"
-  rg -q '^    fix: read verification\.issues and policyIssues in .*/cem-status\.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk$' <<< "$pending_output"
+  rg -q '^    fix: read verification\.issues and policyIssues in .*/cem-status\.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite, or keep unknown with a recorded reason, every hunk$' <<< "$pending_output"
   printf '1\tAGENTS.md\n' > "$test_root/malformed-citations.tsv"
   malformed_status=0
   malformed_output=$(CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" \
@@ -740,7 +740,7 @@ phase_jobs="$phase_jobs $!"
     DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || malformed_status=$?
   test "$malformed_status" = 1
-  rg -Fxq -- '    fix: each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows' <<< "$malformed_output"
+  rg -Fxq -- '    fix: each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)' <<< "$malformed_output"
   missing_report_status=0
   rm -f .corvint/dogfood-report.json
   missing_report_output=$(run_dogfood_check "$base" 2>&1) || missing_report_status=$?
@@ -1013,7 +1013,7 @@ rg -q '^dogfood-check: NOTE unbound-commits NOT_OBSERVED window-cem-base-unavail
 seal_repo="$test_root/seal-repo"
 mkdir -p "$seal_repo/script" "$seal_repo/.corvint"
 cp "$source_root/script/dogfood-seal.sh" "$seal_repo/script/"
-printf '#!/usr/bin/env bash\nexit "${SEAL_TEST_CHECK_STATUS:-0}"\n' > "$seal_repo/script/dogfood-check.sh"
+printf '#!/usr/bin/env bash\nprintf %%s "${SEAL_TEST_CHECK_OUTPUT-}"\nexit "${SEAL_TEST_CHECK_STATUS:-0}"\n' > "$seal_repo/script/dogfood-check.sh"
 chmod +x "$seal_repo/script/dogfood-check.sh"
 git -C "$seal_repo" init -q -b main
 printf '{}\n' > "$seal_repo/.corvint/change.cem.json"
@@ -1032,6 +1032,17 @@ test "$(git -C "$seal_repo" diff-tree -r -M --no-commit-id --name-status HEAD^ H
 seal_again_status=0
 (cd "$seal_repo" && script/dogfood-seal.sh HEAD 2>/dev/null) || seal_again_status=$?
 test "$seal_again_status" = 2
+# DCW-V0-047: the wrapper streams the check's stdout and keeps a declared output
+# change's base-independence fields on its PASS line, as `dogfood seal` does.
+printf '{"declared":true}\n' > "$seal_repo/.corvint/change.cem.json"
+git -C "$seal_repo" add -A
+git -C "$seal_repo" -c user.name=t -c user.email=t@example.invalid commit -qm declared
+seal_declared_bind=$(git -C "$seal_repo" rev-parse HEAD)
+seal_fields="base-independence=NOT_PROVED base=sha256:$(printf '%064d' 1) tree=sha256:$(printf '%064d' 2) declared=A-V0-002"
+seal_check_out="dogfood-check: SUMMARY cem=ready-for-ci ocm=NOT_ASSESSED $seal_fields report=.corvint/dogfood-report.json"$'\n'"dogfood-check: PASS"$'\n'
+seal_declared=$(cd "$seal_repo" && SEAL_TEST_CHECK_OUTPUT=$seal_check_out GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid \
+  GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid script/dogfood-seal.sh HEAD)
+test "$seal_declared" = "${seal_check_out}dogfood-seal: PASS sealed=.corvint/changes/$seal_declared_bind.cem.json $seal_fields"
 # V1-0137: a change that replaced BASE's unsealed CEM does not seal it away.
 printf '{"earlier":true}\n' > "$seal_repo/.corvint/change.cem.json"
 git -C "$seal_repo" add -A

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
@@ -2885,6 +2886,20 @@ func (v *verifier) object03(kind, oid string, limit int) ([]byte, *cemError) {
 	}
 	return b, nil
 }
+
+// commitTree03 reads one commit's root tree id, as snapshot03 does.
+func (v *verifier) commitTree03(commit string) (string, *cemError) {
+	raw, e := v.object03("commit", commit, 1<<20)
+	if e != nil {
+		return "", e
+	}
+	first, _, ok := strings.Cut(string(raw), "\n")
+	root := strings.TrimPrefix(first, "tree ")
+	if !ok || !strings.HasPrefix(first, "tree ") || !validOID(root) || len(root) != len(commit) {
+		return "", operational("repository-object-unavailable")
+	}
+	return root, nil
+}
 func (v *verifier) snapshot03(commit string) (map[string]*treeEntry, *cemError) {
 	// One MiB commits and 4096 entries are a declared narrower operational envelope.
 	raw, e := v.object03("commit", commit, 1<<20)
@@ -3367,27 +3382,48 @@ func run03CLI(argv []string) {
 // retain the full document; no 0.x profile substitution or lossy writer is used.
 const stableSpec = "cem/1.0"
 
+// stableCriterion has two closed forms (CEM-V1-083): the plain Git blob span
+// form {id, criterionIndex, criterionSha256, evidenceId}, or the optional Tasks
+// extension with all eight Tasks members and no evidenceId. Empty members are
+// omitted, so the Tasks form keeps its identity and encoding.
 type stableCriterion struct {
 	ID                         string `json:"id"`
-	TicketID                   string `json:"ticketId"`
-	AcceptanceRevision         string `json:"acceptanceRevision"`
+	TicketID                   string `json:"ticketId,omitempty"`
+	AcceptanceRevision         string `json:"acceptanceRevision,omitempty"`
 	CriterionIndex             uint64 `json:"criterionIndex"`
-	AcceptanceSHA256           string `json:"acceptanceSha256"`
+	AcceptanceSHA256           string `json:"acceptanceSha256,omitempty"`
 	CriterionSHA256            string `json:"criterionSha256"`
-	CaptureSHA256              string `json:"captureSha256"`
-	VerificationSHA256         string `json:"verificationSha256"`
-	ClaimTicketSHA256          string `json:"claimTicketSha256"`
-	SnapshotHeadReceiptSHA256  string `json:"snapshotHeadReceiptSha256"`
-	SnapshotHeadArtifactSHA256 string `json:"snapshotHeadArtifactSha256"`
+	CaptureSHA256              string `json:"captureSha256,omitempty"`
+	VerificationSHA256         string `json:"verificationSha256,omitempty"`
+	ClaimTicketSHA256          string `json:"claimTicketSha256,omitempty"`
+	SnapshotHeadReceiptSHA256  string `json:"snapshotHeadReceiptSha256,omitempty"`
+	SnapshotHeadArtifactSHA256 string `json:"snapshotHeadArtifactSha256,omitempty"`
+	EvidenceID                 string `json:"evidenceId,omitempty"`
 }
+
+var stableTasksCriterionKeys = []string{"ticketId", "acceptanceRevision", "acceptanceSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256", "snapshotHeadArtifactSha256"}
+
+// stableCriterionKeys selects the closed set: any Tasks member requires the
+// whole Tasks form; otherwise the plain form applies.
+func stableCriterionKeys(raw json.RawMessage) []string {
+	var obj map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &obj)
+	for _, k := range stableTasksCriterionKeys {
+		if _, ok := obj[k]; ok {
+			return []string{"id", "ticketId", "acceptanceRevision", "criterionIndex", "acceptanceSha256", "criterionSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256", "snapshotHeadArtifactSha256"}
+		}
+	}
+	return []string{"id", "criterionIndex", "criterionSha256", "evidenceId"}
+}
+
 type stableRunner struct {
-	SHA256             string `json:"sha256"`
-	Profile            string `json:"profile"`
-	PlanSHA256         string `json:"planSha256"`
-	SourceGitBinding   string `json:"sourceGitBinding"`
-	ExecutionAuthority string `json:"executionAuthority"`
-	DependencyClosure  string `json:"dependencyClosure"`
-	Authentication     string `json:"authentication"`
+	SHA256             string               `json:"sha256"`
+	Profile            string               `json:"profile"`
+	PlanSHA256         string               `json:"planSha256"`
+	SourceGitBinding   string               `json:"sourceGitBinding"`
+	ExecutionAuthority string               `json:"executionAuthority"`
+	DependencyClosure  string               `json:"dependencyClosure"`
+	Authentication     stableAuthentication `json:"authentication"`
 }
 type stableLink struct {
 	CriterionID          string   `json:"criterionId"`
@@ -3414,6 +3450,9 @@ type stableMap struct {
 	Evidence     []evidence `json:"evidence"`
 	Hunks        []hunk03   `json:"hunks"`
 	stableReferences
+	// Optional CEM-V1-093/095 members; never authority, never echoed.
+	Provenance *stableProvenance `json:"provenance,omitempty"`
+	Role       string            `json:"role,omitempty"`
 }
 type stableArtifactCheck struct {
 	Kind       string `json:"kind"`
@@ -3440,9 +3479,12 @@ type stableResult struct {
 	Hunks              []hunk03              `json:"hunks"`
 	References         stableReferences      `json:"references"`
 	ArtifactChecks     []stableArtifactCheck `json:"artifactChecks"`
+	Citation           *citationBlock        `json:"citation"`
 	Axes               map[string]string     `json:"axes"`
 	Runtime            runtime03             `json:"runtime"`
 	RepositoryEnvelope string                `json:"repositoryEnvelope"`
+	// VerdictSHA256 is recomputed by MarshalJSON on every encoding (CEM-V1-066).
+	VerdictSHA256 string `json:"verdictSha256"`
 }
 
 func emptyStableReferences() stableReferences {
@@ -3465,7 +3507,11 @@ func newStableResult(base, target string) stableResult {
 	}
 	return r
 }
+
+// failStable records a refusal or rejection. The citation block is carried only
+// by an accepted result (CEM-V1-092), so every failure clears it.
 func failStable(r *stableResult, stage string, e *cemError, verification bool) (stableResult, int) {
+	r.Citation = nil
 	r.Stage = stage
 	if e.operational {
 		r.Assurance = nil
@@ -3623,7 +3669,7 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 			return m, invalid("unsupported-spec")
 		}
 	}
-	root, e := object03(raw, []string{"spec", "baseRevision", "patchSha256", "excludedPath", "evidence", "hunks", "criterionBindings", "runnerReceipts", "criterionLinks", "artifacts"}, nil)
+	root, e := object03(raw, []string{"spec", "baseRevision", "patchSha256", "excludedPath", "evidence", "hunks", "criterionBindings", "runnerReceipts", "criterionLinks", "artifacts"}, []string{"provenance", "role"})
 	if e != nil {
 		return m, e
 	}
@@ -3757,7 +3803,8 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 		return m, e
 	}
 	for _, raw := range cs {
-		keys := []string{"id", "ticketId", "acceptanceRevision", "criterionIndex", "acceptanceSha256", "criterionSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256", "snapshotHeadArtifactSha256"}
+		keys := stableCriterionKeys(raw)
+		tasks := len(keys) > 4
 		o, e := object03(raw, keys, nil)
 		if e != nil {
 			return m, e
@@ -3766,24 +3813,38 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 		if c.ID, e = stableString(o, "id", func(s string) bool { return prefixedStable(s, "criterion:sha256:") }); e != nil {
 			return m, e
 		}
-		if c.TicketID, e = stableString(o, "ticketId", candidateTicket); e != nil {
-			return m, e
-		}
-		if c.AcceptanceRevision, e = stableString(o, "acceptanceRevision", func(s string) bool {
-			n, e := strconv.ParseUint(s, 10, 64)
-			return len(s) <= 16 && e == nil && n > 0 && n <= maxWireInteger && strconv.FormatUint(n, 10) == s
-		}); e != nil {
-			return m, e
+		if tasks {
+			if c.TicketID, e = stableString(o, "ticketId", candidateTicket); e != nil {
+				return m, e
+			}
+			if c.AcceptanceRevision, e = stableString(o, "acceptanceRevision", func(s string) bool {
+				n, e := strconv.ParseUint(s, 10, 64)
+				return len(s) <= 16 && e == nil && n > 0 && n <= maxWireInteger && strconv.FormatUint(n, 10) == s
+			}); e != nil {
+				return m, e
+			}
 		}
 		var ok bool
 		if c.CriterionIndex, ok = uint03(o["criterionIndex"]); !ok || c.CriterionIndex > 255 {
 			return m, invalid("invalid-field")
 		}
-		for _, v := range []struct {
+		digests := []struct {
 			key  string
 			dest *string
-		}{{"acceptanceSha256", &c.AcceptanceSHA256}, {"criterionSha256", &c.CriterionSHA256}, {"captureSha256", &c.CaptureSHA256}, {"verificationSha256", &c.VerificationSHA256}, {"claimTicketSha256", &c.ClaimTicketSHA256}, {"snapshotHeadReceiptSha256", &c.SnapshotHeadReceiptSHA256}, {"snapshotHeadArtifactSha256", &c.SnapshotHeadArtifactSHA256}} {
+		}{{"criterionSha256", &c.CriterionSHA256}}
+		if tasks {
+			digests = []struct {
+				key  string
+				dest *string
+			}{{"acceptanceSha256", &c.AcceptanceSHA256}, {"criterionSha256", &c.CriterionSHA256}, {"captureSha256", &c.CaptureSHA256}, {"verificationSha256", &c.VerificationSHA256}, {"claimTicketSha256", &c.ClaimTicketSHA256}, {"snapshotHeadReceiptSha256", &c.SnapshotHeadReceiptSHA256}, {"snapshotHeadArtifactSha256", &c.SnapshotHeadArtifactSHA256}}
+		}
+		for _, v := range digests {
 			if *v.dest, e = stableString(o, v.key, validDigest); e != nil {
+				return m, e
+			}
+		}
+		if !tasks {
+			if c.EvidenceID, e = stableString(o, "evidenceId", func(s string) bool { return prefixedStable(s, "evidence:sha256:") }); e != nil {
 				return m, e
 			}
 		}
@@ -3811,10 +3872,13 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 		for _, f := range []struct {
 			key, want string
 			dest      *string
-		}{{"sourceGitBinding", "NOT_OBSERVED", &v.SourceGitBinding}, {"executionAuthority", "CALLER_OBSERVED", &v.ExecutionAuthority}, {"dependencyClosure", "NOT_OBSERVED", &v.DependencyClosure}, {"authentication", "NOT_OBSERVED", &v.Authentication}} {
+		}{{"sourceGitBinding", "NOT_OBSERVED", &v.SourceGitBinding}, {"executionAuthority", "CALLER_OBSERVED", &v.ExecutionAuthority}, {"dependencyClosure", "NOT_OBSERVED", &v.DependencyClosure}} {
 			if *f.dest, e = stableString(o, f.key, func(s string) bool { return s == f.want }); e != nil {
 				return m, e
 			}
+		}
+		if v.Authentication, e = decodeStableAuthentication(o["authentication"]); e != nil {
+			return m, e
 		}
 		m.RunnerReceipts = append(m.RunnerReceipts, v)
 	}
@@ -3854,7 +3918,7 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 		v := stableArtifact{}
 		if v.Kind, e = stableString(o, "kind", func(s string) bool {
 			switch s {
-			case "tasks-capture", "tasks-verification", "tasks-claimed-ticket", "tasks-snapshot-head-receipt", "runner-receipt", "runner-plan":
+			case "tasks-capture", "tasks-verification", "tasks-claimed-ticket", "tasks-snapshot-head-receipt", "runner-receipt", "runner-plan", stableAttestationKind:
 				return true
 			}
 			return false
@@ -3869,10 +3933,13 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 		}
 		m.Artifacts = append(m.Artifacts, v)
 	}
+	if m.Provenance, m.Role, e = decodeStableProvenanceRole(root); e != nil {
+		return m, e
+	}
 	return m, nil
 }
 func validateStableReferences(m *stableMap) *cemError {
-	criteria, tuples, groups := map[string]bool{}, map[string]bool{}, map[string]string{}
+	criteria, tuples, groups, spans := map[string]bool{}, map[string]bool{}, map[string]string{}, map[string]bool{}
 	for _, c := range m.CriterionBindings {
 		raw, _ := json.Marshal(c)
 		var fields map[string]json.RawMessage
@@ -3881,10 +3948,13 @@ func validateStableReferences(m *stableMap) *cemError {
 		if e != nil || c.ID != "criterion:sha256:"+shaHex(canonical) {
 			return invalid("invalid-criterion-identity")
 		}
+		// Plain criteria form one unnamed group that no Tasks ticket can occupy.
 		tuple := c.TicketID + ":" + c.AcceptanceRevision + ":" + strconv.FormatUint(c.CriterionIndex, 10)
-		if criteria[c.ID] || tuples[tuple] {
+		plain := c.EvidenceID != ""
+		if criteria[c.ID] || tuples[tuple] || plain && spans[c.EvidenceID] {
 			return invalid("duplicate-reference")
 		}
+		spans[c.EvidenceID] = plain
 		criteria[c.ID] = true
 		tuples[tuple] = true
 		group := c.TicketID + ":" + c.AcceptanceRevision
@@ -3906,8 +3976,23 @@ func validateStableReferences(m *stableMap) *cemError {
 	for _, h := range m.Hunks {
 		hunks[h.ID] = h
 	}
+	spanDigests := map[string]string{}
 	for _, ev := range m.Evidence {
 		evidenceIDs[ev.ID] = true
+		spanDigests[ev.ID] = ev.SpanSHA256
+	}
+	// A plain criterion is its cited base span; canonical evidence checks bind
+	// that span digest to the Git blob bytes.
+	for _, c := range m.CriterionBindings {
+		if c.EvidenceID == "" {
+			continue
+		}
+		if !evidenceIDs[c.EvidenceID] {
+			return invalid("unresolved-reference")
+		}
+		if spanDigests[c.EvidenceID] != c.CriterionSHA256 {
+			return invalid("reference-coherence")
+		}
 	}
 	linkedCriteria, linkedRunners := map[string]bool{}, map[string]bool{}
 	for _, l := range m.CriterionLinks {
@@ -3976,13 +4061,28 @@ func validateStableReferences(m *stableMap) *cemError {
 		return true
 	}
 	for _, c := range m.CriterionBindings {
+		if c.EvidenceID != "" {
+			continue
+		}
 		if !want(c.CaptureSHA256, "tasks-capture") || !want(c.VerificationSHA256, "tasks-verification") || !want(c.ClaimTicketSHA256, "tasks-claimed-ticket") || !want(c.SnapshotHeadArtifactSHA256, "tasks-snapshot-head-receipt") {
 			return invalid("artifact-role-closure")
 		}
 	}
+	envelopes := map[string]bool{}
 	for _, r := range m.RunnerReceipts {
 		if !want(r.SHA256, "runner-receipt") || !want(r.PlanSHA256, "runner-plan") {
 			return invalid("artifact-role-closure")
+		}
+		// CEM-V1-084: each signed receipt names its own receipt-attestation
+		// artifact; an attestation no receipt names fails the closure below.
+		if r.Authentication.dsse() {
+			if envelopes[r.Authentication.EnvelopeSHA256] {
+				return invalid("duplicate-reference")
+			}
+			envelopes[r.Authentication.EnvelopeSHA256] = true
+			if !want(r.Authentication.EnvelopeSHA256, stableAttestationKind) {
+				return invalid("artifact-role-closure")
+			}
 		}
 	}
 	paths, digests := map[string]bool{}, map[string]bool{}
@@ -4105,20 +4205,28 @@ func checkStableArtifacts(ctx context.Context, root string, as []stableArtifact)
 	return checkStableArtifactReads(ctx, root, as, readStableArtifact)
 }
 func checkStableArtifactReads(ctx context.Context, root string, as []stableArtifact, read func(context.Context, string, stableArtifact) ([]byte, *cemError)) ([]stableArtifactCheck, *cemError) {
+	checks, _, e := checkStableArtifactContents(ctx, root, as, read)
+	return checks, e
+}
+
+// checkStableArtifactContents also returns the verified bytes by digest, which
+// receipt authentication reads (CEM-V1-084).
+func checkStableArtifactContents(ctx context.Context, root string, as []stableArtifact, read func(context.Context, string, stableArtifact) ([]byte, *cemError)) ([]stableArtifactCheck, map[string][]byte, *cemError) {
 	checks := []stableArtifactCheck{}
+	contents := map[string][]byte{}
 	first := make([][]byte, len(as))
 	total := 0
 	for i, a := range as {
 		b, e := read(ctx, root, a)
 		if e != nil {
-			return nil, e
+			return nil, nil, e
 		}
 		total += len(b)
 		if total > 16<<20 {
-			return nil, operational("artifact-resource-limit")
+			return nil, nil, operational("artifact-resource-limit")
 		}
 		if shaHex(b) != a.SHA256 {
-			return nil, invalid("artifact-digest-mismatch")
+			return nil, nil, invalid("artifact-digest-mismatch")
 		}
 		first[i] = b
 	}
@@ -4126,20 +4234,27 @@ func checkStableArtifactReads(ctx context.Context, root string, as []stableArtif
 	for i, a := range as {
 		b, e := read(ctx, root, a)
 		if e != nil {
-			return nil, e
+			return nil, nil, e
 		}
 		total += len(b)
 		if total > 16<<20 {
-			return nil, operational("artifact-resource-limit")
+			return nil, nil, operational("artifact-resource-limit")
 		}
 		if !bytes.Equal(b, first[i]) || shaHex(b) != a.SHA256 {
-			return nil, invalid("artifact-changed-during-verification")
+			return nil, nil, invalid("artifact-changed-during-verification")
 		}
 		checks = append(checks, stableArtifactCheck{a.Kind, a.Path, a.SHA256, len(b)})
+		contents[a.SHA256] = b
 	}
-	return checks, nil
+	return checks, contents, nil
 }
 func runStable(ctx context.Context, repo string, raw []byte, base, target, artifacts string) (stableResult, int) {
+	return runStableTrusted(ctx, repo, raw, base, target, artifacts, nil)
+}
+
+// runStableTrusted is runStable with the consumer --trusted-keys set; nil
+// means no file was supplied (CEM-V1-084).
+func runStableTrusted(ctx context.Context, repo string, raw []byte, base, target, artifacts string, trusted map[string]ed25519.PublicKey) (stableResult, int) {
 	r := newStableResult(base, target)
 	r.MapSHA256 = string03(shaHex(raw))
 	m, e := decodeStable(raw)
@@ -4446,15 +4561,27 @@ func runStable(ctx context.Context, repo string, raw []byte, base, target, artif
 		return failStable(&r, "drift", invalid("evidence-drift"), true)
 	}
 	r.Axes["changeIntegrity"] = "VERIFIED"
-	checks, e := checkStableArtifacts(ctx, artifacts, m.Artifacts)
+	checks, contents, e := checkStableArtifactContents(ctx, artifacts, m.Artifacts, readStableArtifact)
 	if e != nil {
 		return failStable(&r, "artifacts", e, true)
+	}
+	if stableHasSignedReceipt(&m) {
+		tree, e := v.commitTree03(target)
+		if e != nil {
+			return failStable(&r, "repository", e, false)
+		}
+		axis, e := stableAuthenticate(&m, contents, tree, trusted)
+		if e != nil {
+			return failStableAuthentication(&r, e)
+		}
+		r.Axes["authentication"] = axis
 	}
 	r.ArtifactChecks = checks
 	r.Axes["referenceIntegrity"] = "REFERENCE_INTEGRITY_ONLY"
 	if len(m.Artifacts) == 0 {
 		r.Axes["referenceIntegrity"] = "EMPTY_REFERENCE_SET"
 	}
+	r.Citation = computeCitation(citationHunks(m.Hunks), ph, m.Evidence)
 	yes := true
 	r.Accept = &yes
 	r.Outcome = "ACCEPT"
@@ -4464,7 +4591,7 @@ func runStable(ctx context.Context, repo string, raw []byte, base, target, artif
 
 func executeStableCLI(ctx context.Context, argv []string) (stableResult, int) {
 	flags := map[string]string{}
-	allowed := map[string]bool{"--repository": true, "--map": true, "--expected-base": true, "--target": true, "--artifacts": true}
+	allowed := map[string]bool{"--repository": true, "--map": true, "--expected-base": true, "--target": true, "--artifacts": true, "--trusted-keys": true}
 	bad := len(argv)%2 != 0
 	if !bad {
 		for i := 0; i < len(argv); i += 2 {
@@ -4479,11 +4606,15 @@ func executeStableCLI(ctx context.Context, argv []string) (stableResult, int) {
 	if bad || flags["--repository"] == "" || flags["--map"] == "" || !filepath.IsAbs(flags["--repository"]) || !filepath.IsAbs(flags["--map"]) {
 		return failStable(&r, "arguments", operational("invalid-arguments"), false)
 	}
+	trusted, ok := readStableTrustedKeys(ctx, flags["--trusted-keys"])
+	if !ok {
+		return failStable(&r, "arguments", operational("invalid-arguments"), false)
+	}
 	raw, e := readBounded(ctx, flags["--map"], maxJSONBytes)
 	if e != nil {
 		return failStable(&r, "input", operational("map-unavailable"), false)
 	}
-	return runStable(ctx, flags["--repository"], raw, flags["--expected-base"], flags["--target"], flags["--artifacts"])
+	return runStableTrusted(ctx, flags["--repository"], raw, flags["--expected-base"], flags["--target"], flags["--artifacts"], trusted)
 }
 func runStableCLI(argv []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), verificationBudget)
