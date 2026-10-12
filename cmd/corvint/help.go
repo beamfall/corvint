@@ -1296,8 +1296,13 @@ checks, then commits the CEM rename to .corvint/changes/COMMIT.cem.json. Steps a
 verifiers run as this executable unless an option names another one; this binary
 never builds or version-checks one. DOGFOOD_TASK, DOGFOOD_VERIFY,
 DOGFOOD_VERIFY_FILE, DOGFOOD_OUTCOME, DOGFOOD_INTENTS_FILE, DOGFOOD_CITATIONS,
-DOGFOOD_OCM_LINKS and DOGFOOD_EXCEPTION keep their script meanings. The root, the
-current directory unless --root names one, must be the worktree top level.
+DOGFOOD_OCM_LINKS and DOGFOOD_EXCEPTION keep their script meanings. For check and
+seal, DOGFOOD_OUTPUT_CHANGE=REQUIREMENT-ID declares a change whose cem status output
+differs from the base verifier's by construction: admitted only when HEAD's
+docs/specs/REQUIREMENTS.tsv maps the ID to a spec BASE..HEAD modifies, it runs the
+tree verifier in both roles and records base-independence=NOT_PROVED with both
+stdout digests. The root, the current directory unless --root names one, must be
+the worktree top level.
 
 batch-check is read-only. It checks that every commit in BASE..HEAD belongs to a
 sealed change the range adds, verifies each sealed CEM against its own base, and

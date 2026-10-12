@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258)
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279)
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -536,6 +536,39 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Reason: refusing every non-bootstrap unknown made the supported share a workflow artifact, so
   the `>30%` unknown kill condition of `docs/CHANGE-EVIDENCE-MAP.md` could never fire (decision
   0523 P3, `docs/build-log/2026-10-11-cem-1-0-expert-panel.md`).
+- `DCW-V0-047`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1279) A change
+  whose canonical `cem status` output differs from the base verifier's by construction MUST
+  declare it as a declared output change: `dogfood check`, and `dogfood seal` through it, read
+  `DOGFOOD_OUTPUT_CHANGE=REQUIREMENT-ID`. Unset or empty, the check is byte-for-byte unchanged and
+  every verifier comparison keeps the byte-identical stdout, stderr and status rule. Set, it is
+  admitted, after the report is read and before any verifier runs, only when the ID is a line's
+  first field in `docs/specs/REQUIREMENTS.tsv` at `HEAD` (read from the commit, at most 16 MiB)
+  whose second field is a `docs/specs/*.md` path that `BASE..HEAD` modifies; an absent, malformed
+  or unreadable ID MUST refuse `output-change-requirement-unknown`, an unmodified spec
+  `output-change-not-in-diff`, and an enrolled aggregate check, whose closed report schema has no
+  member for it, `output-change-aggregate-unsupported`, each with exit 2 and one explanatory line.
+  An empty `BASE..HEAD` range never admits it: the declaration is checked before that range's
+  `no-change-clean-worktree` PASS, so an unknown ID refuses `output-change-requirement-unknown` and
+  a known one `output-change-not-in-diff`. When admitted, the `cem status` comparison MUST run the tree verifier in both roles, still run
+  the base verifier, and require the tree verifier to agree with itself and with any override; it
+  records `base-independence=NOT_PROVED base=sha256:B tree=sha256:T declared=ID`, B and T being the
+  digests of the base and tree verifiers' `cem status` stdout, on the `DCW-V0-033` SUMMARY line
+  before `report=` (as a `dogfood-check: NOTE` line under `DOGFOOD_VERBOSE=1`), and in the report's
+  `dogfoodCheck` member as `"baseIndependence": {"state": "NOT_PROVED", "declared": ID,
+  "baseStatusStdoutSha256": B, "treeStatusStdoutSha256": T}` after `outputsAgree`, which then means
+  the tree verifier's self-agreement, as in `LCP-V0-014` where `dogfood finish` runs one binary in
+  every role and proves no base independence. `dogfood seal`, and `script/dogfood-seal.sh` behind
+  `make dogfood-seal` (copied from the check's SUMMARY or NOTE line), MUST keep the same fields on
+  its PASS line, after `sealed=`. The OCM status comparison and the `impact` abstention comparison
+  (`verifyAbstention`) keep the byte-identical rule unchanged.
+  Non-goals: weakening the byte-identical rule for an ordinary change; inferring that an output
+  change is additive; a declaration in `dogfood finish` (`LCP-V0-014`) or `dogfood batch-check`.
+  Failure modes: a declaration admits any `cem status` difference, not only the intended member,
+  so the reviewer MUST compare the two recorded digests' outputs against the declared requirement;
+  an admitted declaration records NOT_PROVED even when the outputs happen to agree.
+  Reason: a change that adds a member to the canonical verification object can never agree with
+  the base verifier, so it either failed `verifier-disagreement` or gated its output behind an
+  opt-in flag (V1-1279; V1-1265 landed under that workaround).
 
 ## Code vocabulary
 
@@ -592,6 +625,10 @@ Base anchoring, refused by every subverb:
 - `dogfood-report-write`: the report could not be written.
 - `worktree-status-unavailable` (exit 2): Core's hardened status refused the worktree, for example
   a configured clean or process filter; its reason is printed (`DCW-V0-045`, accepted).
+- `output-change-requirement-unknown`, `output-change-not-in-diff`,
+  `output-change-aggregate-unsupported` (exit 2): `DOGFOOD_OUTPUT_CHANGE` names no requirement
+  `REQUIREMENTS.tsv` at `HEAD` maps to a spec, names one whose spec `BASE..HEAD` does not modify, or
+  is set for an enrolled aggregate check (`DCW-V0-047`, accepted).
 - `previous-cem-absent`, `previous-cem-base-unavailable`, `window-unavailable`,
   `window-exceeds-256-commits`, `window-cem-base-unavailable`: the window of commits since the
   previous CEM cannot be observed.
@@ -706,6 +743,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-044` (accepted, decision 0520; V1-1209) | `internal/trace/store.go` (store under the worktree root), `internal/dogfoodflow/change.go`, `check.go` and `flow.go` (`--absolute-git-dir` evidence and lock), `internal/dogfoodflow/change.go` stranded-trace hint; `docs/DOGFOOD.md` step 5 and the batch steps; `TestDogfoodDCWV0044WorktreeLanesRunConcurrently` (built binary: two worktrees start each of change, bind, check and seal together and all pass with their own stores and clean worktrees, the primary worktree's store never written; lane B's work run in lane A's worktree refuses with the per-lane hint) | implemented; not accepted; the concurrent passes already held at `696dbdbf6`, where the shared-worktree refusal lacked the hint, so the defect was the undocumented one-worktree-per-lane rule |
 | `DCW-V0-045` (accepted, decision 0520; V1-1207) | `internal/dogfoodflow/check.go` `requireCleanChange`; `TestCheckDCWV0045CleanProbeNeverRunsRepositoryFilters` (a configured clean filter on a re-stated tracked file never runs and the check refuses with the reason and `fix:` line; without it a clean change passes, an untracked file refuses `dirty-worktree`, a change outside `BASE..HEAD` refuses `uncommitted-change-not-in-base-target`, and an empty range passes `no-change-clean-worktree`) | implemented; not accepted; reproduced before the fix: at `36718cd0d` the same test's filter marker was written |
 | `DCW-V0-046` (accepted under the owner's standing auto-accept (2026-10-11), decision 0523 P3; V1-1258) | `internal/dogfoodflow/change.go` `unknownRow`, `reasonedUnknownRow`, `prepareUnknownReasons`, `publishUnknownReasons` and `reasonedUnknowns`, `internal/dogfoodflow/check.go` `verifyBinding`, `checkSummary` and `unknownShare`, `internal/dogfoodflow/batch.go` `sealedVerification`; `TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned` (a plan with one reasoned unknown row is PRODUCED with one cite, two marks and `--max-unknown 2`; an unnamed unknown hunk, a `no-evidence` reason, an unregistered reason and a note with no letter or digit each refuse with no cite or mark; a world-readable evidence file is replaced owner-only; a resumed map whose hunks an earlier staged plan marked owes them no row and keeps their notes; a stage whose citation fails leaves the earlier notes; notes that cannot be replaced after the cite report `unknown-reasons-not-recorded`, keep the earlier notes, and a replay of the same plan records the new ones; a map with no reasoned unknown removes the file; an occupied evidence path refuses `unknown-reasons-not-recorded`); `TestPrepareUnknownReasonsDCWV0046AppliesRowsInPlanOrder` (a later citation drops a hunk's note; the last row for a hunk decides); `TestPrepareUnknownReasonsDCWV0046RefusesOverflow` (notes at the bound are kept, over it refuse without truncation, and nothing is written before a cite); `TestPrepareUnknownReasonsDCWV0046SkipsANonRegularFile` (a FIFO at the path is not opened and is replaced by an owner-only file); `TestReasonedUnknownsDCWV0046CountsBootstrapOnceInTheAllowance`; `TestDogfoodReasonAdmitsCitationStageRefusals` (the new code is observable); `TestBatchCheckDCWV0046ReasonedUnknownAllowance` (reasoned unknowns only: ready-for-ci; one more unreasoned unknown: `constituent-cem-policy`); `TestDCWV0033CheckSummaryAbstainsOnUnobservedFields` (unknownShare cases); `TestDogfoodDCWV0046ReasonedUnknownChecksAndSeals` (built binary: a reasoned unknown change checks with `unknownShare=1/1 reasonedUnknown=1`, passes and seals with the reason in the sealed map, and the real `dogfood batch-check` then reports `reasonedUnknown=1 state=ready-for-ci`) | implemented; accepted |
+| `DCW-V0-047` (accepted under the owner's standing auto-accept (2026-10-11); V1-1279) | `internal/dogfoodflow/check.go` `admitOutputChange` (also before the empty-range PASS in `requireCleanChange`), `requirementSpec`, `verifyStatus`, `baseIndependence`, `checkSummary`, `record` and `seal`; `cmd/corvint/dogfood_flow.go` (`DOGFOOD_OUTPUT_CHANGE`); `TestCheckDCWV0047DeclaredOutputChange` (a tree verifier whose `cem status` stdout adds one member: undeclared fails `verifier-disagreement` with `outputsAgree: false`; declared by a requirement the change adds to a spec it modifies, the base verifier runs once and the tree verifier twice, the SUMMARY line carries `base-independence=NOT_PROVED` with both digests, the report records `outputsAgree: true` and the `baseIndependence` member, and the seal PASS line keeps the fields; a tree verifier that disagrees with itself fails `verifier-disagreement`; a requirement whose spec is not in the diff refuses `output-change-not-in-diff`, an absent or malformed ID `output-change-requirement-unknown`, with no verifier run; on an empty range an unknown ID refuses `output-change-requirement-unknown` and a known one `output-change-not-in-diff` while no declaration still passes `no-change-clean-worktree`; agreeing verifiers without a declaration print no new field); `script/dogfood-seal.sh` with `script/dogfood-change_test.sh` (a stub check whose SUMMARY carries the fields: the wrapper streams the check output and its PASS line keeps the fields after `sealed=`) | implemented; accepted; a real output-changing lane NOT_OBSERVED |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
@@ -750,6 +788,10 @@ Roll back `DCW-V0-046` by reverting its change: an unknown row is again an inval
 `cem-status`, the SUMMARY and CONSTITUENT lines lose their added fields, and the evidence file is
 unused. A map or sealed CEM that records a reasoned unknown stays a valid CEM but no longer
 passes `dogfood check` or `batch-check`; no report or map format changes.
+Roll back `DCW-V0-047` by reverting its change: `DOGFOOD_OUTPUT_CHANGE` is ignored and an
+output-changing lane fails `verifier-disagreement` again, so it returns to gating its output behind
+an opt-in flag. A report or seal line written under it keeps its extra member or fields, which no
+reader requires; no map or sealed CEM format changes.
 Roll back `DCW-V0-039..041` by reverting their change: `batch-check`, its wrapper and make
 target disappear and the `fix:` lines return to their former text; no report, map, receipt or
 sealed CEM format changes, and batch-check writes nothing, so no evidence needs migrating.
