@@ -531,7 +531,7 @@ func (c *check) verifyBinding(report []byte) int {
 	}
 	// The committed map carries each reason an author recorded for a hunk kept
 	// unknown, so the check admits them as the change did (DCW-V0-019).
-	reasoned := c.flow.reasonedUnknowns(c.root+"/.corvint/change.cem.json", intents, bootstrap > 0)
+	reasoned, allowance := c.flow.reasonedUnknowns(c.root+"/.corvint/change.cem.json", intents, bootstrap > 0)
 	policyMatches := bytes.Contains(report, []byte(`  ,"dogfoodPolicy": {"bootstrapUnknown": `+strconv.Itoa(bootstrap)+`, "maximumUnknownAfterBootstrap": 0}`))
 	if c.aggregate != nil {
 		policyMatches = c.aggregate.DogfoodPolicy.BootstrapUnknown == bootstrap && c.aggregate.DogfoodPolicy.MaximumUnknownAfterBootstrap == 0
@@ -541,7 +541,7 @@ func (c *check) verifyBinding(report []byte) int {
 		c.fail("dogfood-report-drift")
 	}
 	cem, agreed := c.verifyAll("cem", "status", "--map", ".corvint/change.cem.json", "--expected-base", c.base, "--target", c.target,
-		"--max-unknown", strconv.Itoa(bootstrap+reasoned), "--max-mechanical", "0")
+		"--max-unknown", strconv.Itoa(bootstrap+allowance), "--max-mechanical", "0")
 	if !agreed {
 		_ = c.record(false, bootstrap)
 		c.fail("verifier-disagreement")

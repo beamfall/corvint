@@ -635,6 +635,11 @@ func TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned(t *testing.T) {
 		return "not-run"
 	}
 
+	// A world-readable file left at the evidence path is replaced, not reused.
+	evidence := filepath.Join(root, ".git/corvint/cem-unknown-reasons.tsv")
+	if os.MkdirAll(filepath.Dir(evidence), 0o700) != nil || os.WriteFile(evidence, []byte("stale\n"), 0o644) != nil || os.Chmod(evidence, 0o644) != nil {
+		t.Fatal("cannot seed the evidence file")
+	}
 	reasoned := "1\ta.txt\t1:1\tspecification\n" +
 		"2\tunknown\tinsufficient-evidence\tgenerated fixture bytes that no spec governs\n" +
 		"hunk:c\tunknown\tconflicting-evidence\ttwo specs disagree on the answer\n"
@@ -651,9 +656,30 @@ func TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned(t *testing.T) {
 	if limit := maxUnknown(observed); limit != "2" {
 		t.Errorf("reasoned plan: cem status --max-unknown %s; want 2 (two reasoned unknown hunks, no bootstrap)", limit)
 	}
-	kept, err := os.ReadFile(filepath.Join(root, ".git/corvint/cem-unknown-reasons.tsv"))
+	kept, err := os.ReadFile(evidence)
 	if err != nil || string(kept) != "2\tunknown\tinsufficient-evidence\tgenerated fixture bytes that no spec governs\nhunk:c\tunknown\tconflicting-evidence\ttwo specs disagree on the answer\n" {
 		t.Errorf("unknown reasons evidence = %q, %v", kept, err)
+	}
+	if info, err := os.Stat(evidence); err != nil || info.Mode().Perm() != 0o600 {
+		t.Errorf("unknown reasons evidence mode = %v, %v; want 0600", info, err)
+	}
+
+	// A resumed map whose hunks an earlier staged plan kept unknown with a
+	// reason owes no row for them: the last plan names only the rest.
+	prepared.Hunks[1].Reason, prepared.Hunks[2].Reason = "insufficient-evidence", "conflicting-evidence"
+	got, observed = run("1\ta.txt\t1:1\tspecification\n")
+	prepared.Hunks[1].Reason, prepared.Hunks[2].Reason = "no-evidence", "no-evidence"
+	if !strings.Contains(got, `"status": "PRODUCED"`) {
+		t.Fatalf("resumed reasoned map: cem-cite = %s; want PRODUCED", got)
+	}
+	if ran := mutations(observed); len(ran) != 1 || !strings.HasPrefix(ran[0], "cite ") {
+		t.Errorf("resumed reasoned map ran %q", ran)
+	}
+	if limit := maxUnknown(observed); limit != "2" {
+		t.Errorf("resumed reasoned map: cem status --max-unknown %s; want 2", limit)
+	}
+	if _, err := os.Lstat(evidence); !os.IsNotExist(err) {
+		t.Errorf("a plan without unknown rows left %s: %v", evidence, err)
 	}
 
 	for _, refused := range []struct{ name, rows, reason string }{
@@ -672,5 +698,48 @@ func TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned(t *testing.T) {
 		if limit := maxUnknown(observed); limit != "0" {
 			t.Errorf("%s: cem status --max-unknown %s; want 0", refused.name, limit)
 		}
+	}
+
+	// Notes that cannot be retained leave the plan uncited (DCW-V0-046).
+	if os.MkdirAll(filepath.Join(evidence, "occupied"), 0o700) != nil {
+		t.Fatal("cannot occupy the evidence path")
+	}
+	got, observed = run(reasoned)
+	if !strings.Contains(got, `"reason": "unknown-reasons-not-recorded"`) {
+		t.Errorf("occupied evidence path: cem-cite = %s; want unknown-reasons-not-recorded", got)
+	}
+	if ran := mutations(observed); len(ran) != 0 {
+		t.Errorf("occupied evidence path ran %q", ran)
+	}
+	if limit := maxUnknown(observed); limit != "0" {
+		t.Errorf("occupied evidence path: cem status --max-unknown %s; want 0", limit)
+	}
+}
+
+// TestReasonedUnknownsDCWV0046CountsBootstrapOnceInTheAllowance: a reasoned
+// hunk on an intent path absent at BASE is reported, but the bootstrap
+// allowance already admits it, so the added allowance leaves it out.
+func TestReasonedUnknownsDCWV0046CountsBootstrapOnceInTheAllowance(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("base\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "a.txt")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	mapPath := filepath.Join(root, "change.cem.json")
+	if err := os.WriteFile(mapPath, []byte(`{"hunks":[`+
+		`{"disposition":"unknown","id":"hunk:s","path":"spec.md","reason":"insufficient-evidence"},`+
+		`{"disposition":"unknown","id":"hunk:a","path":"a.txt","reason":"conflicting-evidence"},`+
+		`{"disposition":"unknown","id":"hunk:b","path":"a.txt","reason":"no-evidence"},`+
+		`{"disposition":"cited","id":"hunk:c","path":"a.txt","reason":"cited"}]}`), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	run := &flow{ctx: context.Background(), root: root, stderr: io.Discard, base: testGit(t, root, "rev-parse", "HEAD")}
+	if all, allowance := run.reasonedUnknowns(mapPath, []string{"spec.md"}, true); all != 2 || allowance != 1 {
+		t.Errorf("with bootstrap: reasonedUnknowns = %d, %d; want 2, 1", all, allowance)
+	}
+	if all, allowance := run.reasonedUnknowns(mapPath, []string{"spec.md"}, false); all != 2 || allowance != 2 {
+		t.Errorf("without bootstrap: reasonedUnknowns = %d, %d; want 2, 2", all, allowance)
 	}
 }

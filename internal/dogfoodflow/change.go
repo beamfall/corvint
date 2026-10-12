@@ -149,7 +149,7 @@ func (c *change) run() int {
 	}
 	// An unknown hunk the plan kept with a recorded reason is admitted beside
 	// the bootstrap unknowns; a prepared no-evidence hunk never is (DCW-V0-019).
-	c.reasonedUnknown = c.flow.reasonedUnknowns(c.path(".corvint/change.cem.json"), c.intents, c.bootstrapUnknown > 0)
+	_, c.reasonedUnknown = c.flow.reasonedUnknowns(c.path(".corvint/change.cem.json"), c.intents, c.bootstrapUnknown > 0)
 	c.runStep("cem-status", c.evidence+"/cem-status.json", "cem", "status", "--map", ".corvint/change.cem.json",
 		"--expected-base", c.base, "--target", c.target, "--max-unknown", strconv.Itoa(c.bootstrapUnknown+c.reasonedUnknown), "--max-mechanical", "0")
 	// The recorder refuses a dirty tree, so it runs last and sees the sidecar
@@ -541,9 +541,10 @@ func (c *change) citeStep() {
 		status, reason = "NOT_PRODUCED", mismatch
 	case c.citationCount > 1 && exists(c.path(c.citationStage)):
 		status, reason = "NOT_PRODUCED", "citation-stage-exists"
+	case c.recordUnknownReasons(plan) != nil:
+		status, reason = "NOT_PRODUCED", "unknown-reasons-not-recorded"
 	default:
 		c.recordCitationBinding(plan)
-		c.recordUnknownReasons(plan)
 		cited := citedHunks(c.path(".corvint/change.cem.json"))
 		before, _ := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
 		status, reason = c.cite(plan, citeOutput)
@@ -723,33 +724,35 @@ func reasonedUnknownRow(fields []string) bool {
 
 // recordUnknownReasons keeps the accepted plan's unknown rows, notes included,
 // privately in the evidence directory; the map itself records only the reason.
-func (c *change) recordUnknownReasons(plan []byte) {
+// Whatever was at the path is removed first, so the file is created owner-only;
+// an error leaves the plan uncited, since its notes would not be retained.
+func (c *change) recordUnknownReasons(plan []byte) error {
 	rows := []string{}
 	for _, line := range textLines(plan) {
 		if unknownRow(strings.Split(line, "\t")) {
 			rows = append(rows, line)
 		}
 	}
-	if len(rows) == 0 {
-		_ = removeFile(c.evidence + unknownReasons)
-		return
+	if err := removeFile(c.evidence + unknownReasons); err != nil || len(rows) == 0 {
+		return err
 	}
-	_ = writePrivate(c.evidence+unknownReasons, []byte(strings.Join(rows, "\n")+"\n"))
+	return writePrivate(c.evidence+unknownReasons, []byte(strings.Join(rows, "\n")+"\n"))
 }
 
 const unknownReasons = "/cem-unknown-reasons.tsv"
 
 // reasonedUnknowns counts the map's unknown hunks whose reason the author
-// recorded (recordedUnknownReasons). With bootstrap set, a hunk on an intent
-// path absent at BASE is left to the bootstrap allowance and not counted
-// twice. Only a regular map is read, at most the native map bound.
-func (f *flow) reasonedUnknowns(mapPath string, intents []string, bootstrap bool) int {
+// recorded (recordedUnknownReasons): all of them, as reported, and those the
+// allowance adds. With bootstrap set, a hunk on an intent path absent at BASE
+// is already in the bootstrap allowance, so it is not added twice. Only a
+// regular map is read, at most the native map bound.
+func (f *flow) reasonedUnknowns(mapPath string, intents []string, bootstrap bool) (all, allowance int) {
 	if !isRegular(mapPath) || isSymlink(mapPath) {
-		return 0
+		return 0, 0
 	}
 	data, err := readPrefix(mapPath, maxPlanBytes)
 	if err != nil {
-		return 0
+		return 0, 0
 	}
 	absent := map[string]bool{}
 	if bootstrap {
@@ -759,13 +762,15 @@ func (f *flow) reasonedUnknowns(mapPath string, intents []string, bootstrap bool
 			}
 		}
 	}
-	count := 0
 	for _, hunk := range mapHunks(data) {
-		if hunk["disposition"] == "unknown" && recordedUnknownReasons[hunk["reason"]] && !absent[hunk["path"]] {
-			count++
+		if hunk["disposition"] == "unknown" && recordedUnknownReasons[hunk["reason"]] {
+			all++
+			if !absent[hunk["path"]] {
+				allowance++
+			}
 		}
 	}
-	return count
+	return all, allowance
 }
 
 const maxPlanBytes = 4194304
@@ -829,9 +834,11 @@ func (c *change) citationPlanMismatch(plan []byte) string {
 			return mismatch
 		}
 	}
+	// A hunk an earlier plan kept unknown with a recorded reason is marked,
+	// so, like a cited one, it needs no row (DCW-V0-019).
 	owed := []int{}
 	for index, hunk := range hunks {
-		if hunk["disposition"] == "unknown" && !bootstrap[hunk["path"]] {
+		if hunk["disposition"] == "unknown" && !bootstrap[hunk["path"]] && !recordedUnknownReasons[hunk["reason"]] {
 			owed = append(owed, index+1)
 		}
 	}
@@ -1211,6 +1218,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:citation-plan-row-limit-exceeded", "DOGFOOD_CITATIONS row limit=256 observed={citationRows}; use explicit staged plans of at most 256 rows on the same CEM (docs/DOGFOOD.md Staged binding of one oversized commit)"},
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)"},
 	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE, by a citation or by an ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE row"},
+	{"cem-cite:unknown-reasons-not-recorded", "the unknown rows of DOGFOOD_CITATIONS could not be kept in {evidence}/cem-unknown-reasons.tsv, so nothing was cited; remove whatever occupies that path and rerun (DCW-V0-046)"},
 	{"cem-cite:invalid-arguments", "plan row {row}: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim, and START:END a line span of the cited file; any file present at BASE may be cited, code and tests as well as specs (DCW-V0-041)"},
 	{"cem-cite:missing-evidence", "plan row {row} cites a path that is not a regular file at BASE; cite a source, test or spec file that exists at BASE, since a file this change adds cannot be evidence for itself (DCW-V0-041)"},
 	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged"},

@@ -657,13 +657,15 @@ $ git add .corvint/change.cem.json
 $ git commit -m "chore: bind change evidence"
 $ corvint cem status --map .corvint/change.cem.json \
     --expected-base BASE_SHA --target HEAD \
-    --max-unknown BOOTSTRAP_UNKNOWN_COUNT --max-mechanical 0
+    --max-unknown BOOTSTRAP_UNKNOWN_COUNT+REASONED_UNKNOWN_COUNT --max-mechanical 0
 ```
 
 Use worklist ordinals with `cem cite` or `cem mark` before the sidecar commit. Zero is the default
 Corvint-repository policy for unknown and mechanical hunks; an exception must be explicit in the
 change review. `BOOTSTRAP_UNKNOWN_COUNT` is zero unless the complete OCM aggregate validates; it is
-the validated base-absent intent count, so the effective post-subtraction ceiling remains zero.
+the validated base-absent intent count. `REASONED_UNKNOWN_COUNT` is the map's other hunks kept
+`unknown` with reason `insufficient-evidence` or `conflicting-evidence` (`DCW-V0-046`), so the
+effective ceiling for unreasoned unknown hunks remains zero.
 Preparation ignores an inherited target-side sidecar, then its returned literal
 `--target HEAD` action independently resolves the final revision after the candidate is committed.
 The sidecar is excluded from its own patch, avoiding recursive self-citation.

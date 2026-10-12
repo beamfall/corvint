@@ -38,6 +38,19 @@ This change amends `DCW-V0-019` and adds `DCW-V0-046` to
   change, and the batch `CONSTITUENT` `unknown=`/`hunks=` ratio, a lower bound, across sealed
   changes.
 
+## Review round 1 (Codex, FAIL)
+
+- P2: a failed write of the notes file was ignored. It now refuses `cem-cite`
+  `unknown-reasons-not-recorded` and cites nothing. The file is written after removing whatever
+  was at the path, so it is always created owner-only. The new code is registered in the
+  observation reason vocabulary.
+- P2: a staged plan sequence could not be replayed. Hunks an earlier plan kept unknown with a
+  reason were still treated as owed rows. Those hunks no longer need a row.
+- P3: a reasoned unknown hunk on a bootstrap path was left out of `reasonedUnknown`. It is now
+  counted there, and the allowance still counts it only once.
+- P3: `DCW-V0-015`, the batch-check allowance text and the raw `cem status` example in
+  `docs/DOGFOOD.md` named the old ceiling. They now name `DCW-V0-046`.
+
 ## Choices
 
 - The existing `cem mark` verb is reused instead of adding a free-text reason to the CEM wire.
