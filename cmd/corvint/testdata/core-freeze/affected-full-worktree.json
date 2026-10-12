@@ -17,10 +17,10 @@
         "invalidation": "NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH",
         "reason": "NO_DEPENDENCY_PATH_TO_DIRTY_UNIT",
         "unitId": "go:example.test/cli/pkg",
-        "universe": "affected-graph:sha256:d1843d747ca24797039742f72f3d1b2133817a4afa48a4b38d47831065ad73ca"
+        "universe": "affected-graph:sha256:a3f75560c8a648071eacb010a81bd7f8bbc8b0f1a256ad6cc24f6298b953c884"
       }
     ],
-    "graphDigest": "affected-graph:sha256:d1843d747ca24797039742f72f3d1b2133817a4afa48a4b38d47831065ad73ca",
+    "graphDigest": "affected-graph:sha256:a3f75560c8a648071eacb010a81bd7f8bbc8b0f1a256ad6cc24f6298b953c884",
     "scope": "BOUNDED",
     "selected": [],
     "unknown": []
