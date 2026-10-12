@@ -108,7 +108,28 @@ No receipt, capture or plan artifact is parsed and reserialized just to copy it.
 
 ## CEM-V1-020: criterion, runner and association records
 
-Criterion binding fields retain the closed public reference structure and add
+CEM-V1-083 gives a criterion binding two closed forms. The plain form is a Git
+blob span criterion with exactly `id`, `criterionIndex`, `criterionSha256` and
+`evidenceId`. The Corvint Tasks fields (`ticketId`, `acceptanceRevision`,
+`acceptanceSha256`, `captureSha256`, `verificationSha256`, `claimTicketSha256`,
+`snapshotHeadReceiptSha256`, `snapshotHeadArtifactSha256`) are one optional
+closed extension. A consumer selects the form by key presence before any value
+check: if any Tasks member is present, the record must be the complete Tasks form
+below and `evidenceId` is an unknown member; otherwise it must be the complete
+plain form. Missing members of the selected form refuse `missing-field` (checked
+first), other members `unknown-field`, and bad values `invalid-field`. A plain
+`evidenceId` is `evidence:sha256:` plus 64 lowercase hex digits; it must resolve
+to an evidence record of this document (`unresolved-reference`) and
+`criterionSha256` must equal that record's `spanSha256` (`reference-coherence`),
+so the criterion is the exact base blob span that canonical evidence
+verification reads from Git. A plain `evidenceId` occurs in at most one binding
+(`duplicate-reference`). Plain bindings form one unnamed group whose
+criterionIndex values are unique; no Tasks tuple can collide with it. The plain
+ID is computed exactly as below over its three non-id members. Plain bindings
+require no Tasks artifact role and no `.taskman/` store; their links, runner
+records and runner artifact roles are unchanged.
+
+Tasks-form criterion binding fields retain the closed public reference structure and add
 required `snapshotHeadArtifactSha256`, the SHA256 of retained raw snapshot-head
 artifact bytes. The original `snapshotHeadReceiptSha256` remains a distinct native
 historical receipt identity; the two digests are not interchangeable. ticketId is
@@ -158,6 +179,9 @@ Stable proposes six artifact roles; the first five retain candidate names:
 | criterion.snapshotHeadArtifactSha256 | tasks-snapshot-head-receipt |
 | runner.sha256 | runner-receipt |
 | runner.planSha256 | runner-plan |
+
+The four criterion rows apply only to Tasks-form bindings (CEM-V1-083); a
+plain-form binding contributes no required artifact role.
 
 The sixth role is a deliberate proposed stable addition: the candidate only
 retains the snapshot-head digest as a historical reference. Gate A must accept

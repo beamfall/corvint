@@ -119,7 +119,11 @@ func stableEdges(chain *Chain) []ChainEdge {
 		edges = append(edges, row)
 	}
 	for index, criterion := range document.Criteria {
-		reference(criterion.ID, "criterionBindings["+strconv.Itoa(index)+"]", "ticket "+criterion.TicketID)
+		detail := "ticket " + criterion.TicketID
+		if criterion.Plain() {
+			detail = "span " + criterion.EvidenceID
+		}
+		reference(criterion.ID, "criterionBindings["+strconv.Itoa(index)+"]", detail)
 	}
 	for index, receipt := range document.Receipts {
 		reference("sha256:"+receipt.Sha256, "runnerReceipts["+strconv.Itoa(index)+"]", "executionAuthority "+receipt.ExecutionAuthority+

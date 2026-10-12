@@ -3367,19 +3367,40 @@ func run03CLI(argv []string) {
 // retain the full document; no 0.x profile substitution or lossy writer is used.
 const stableSpec = "cem/1.0"
 
+// stableCriterion has two closed forms (CEM-V1-083): the plain Git blob span
+// form {id, criterionIndex, criterionSha256, evidenceId}, or the optional Tasks
+// extension with all eight Tasks members and no evidenceId. Empty members are
+// omitted, so the Tasks form keeps its identity and encoding.
 type stableCriterion struct {
 	ID                         string `json:"id"`
-	TicketID                   string `json:"ticketId"`
-	AcceptanceRevision         string `json:"acceptanceRevision"`
+	TicketID                   string `json:"ticketId,omitempty"`
+	AcceptanceRevision         string `json:"acceptanceRevision,omitempty"`
 	CriterionIndex             uint64 `json:"criterionIndex"`
-	AcceptanceSHA256           string `json:"acceptanceSha256"`
+	AcceptanceSHA256           string `json:"acceptanceSha256,omitempty"`
 	CriterionSHA256            string `json:"criterionSha256"`
-	CaptureSHA256              string `json:"captureSha256"`
-	VerificationSHA256         string `json:"verificationSha256"`
-	ClaimTicketSHA256          string `json:"claimTicketSha256"`
-	SnapshotHeadReceiptSHA256  string `json:"snapshotHeadReceiptSha256"`
-	SnapshotHeadArtifactSHA256 string `json:"snapshotHeadArtifactSha256"`
+	CaptureSHA256              string `json:"captureSha256,omitempty"`
+	VerificationSHA256         string `json:"verificationSha256,omitempty"`
+	ClaimTicketSHA256          string `json:"claimTicketSha256,omitempty"`
+	SnapshotHeadReceiptSHA256  string `json:"snapshotHeadReceiptSha256,omitempty"`
+	SnapshotHeadArtifactSHA256 string `json:"snapshotHeadArtifactSha256,omitempty"`
+	EvidenceID                 string `json:"evidenceId,omitempty"`
 }
+
+var stableTasksCriterionKeys = []string{"ticketId", "acceptanceRevision", "acceptanceSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256", "snapshotHeadArtifactSha256"}
+
+// stableCriterionKeys selects the closed set: any Tasks member requires the
+// whole Tasks form; otherwise the plain form applies.
+func stableCriterionKeys(raw json.RawMessage) []string {
+	var obj map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &obj)
+	for _, k := range stableTasksCriterionKeys {
+		if _, ok := obj[k]; ok {
+			return []string{"id", "ticketId", "acceptanceRevision", "criterionIndex", "acceptanceSha256", "criterionSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256", "snapshotHeadArtifactSha256"}
+		}
+	}
+	return []string{"id", "criterionIndex", "criterionSha256", "evidenceId"}
+}
+
 type stableRunner struct {
 	SHA256             string `json:"sha256"`
 	Profile            string `json:"profile"`
@@ -3757,7 +3778,8 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 		return m, e
 	}
 	for _, raw := range cs {
-		keys := []string{"id", "ticketId", "acceptanceRevision", "criterionIndex", "acceptanceSha256", "criterionSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256", "snapshotHeadArtifactSha256"}
+		keys := stableCriterionKeys(raw)
+		tasks := len(keys) > 4
 		o, e := object03(raw, keys, nil)
 		if e != nil {
 			return m, e
@@ -3766,24 +3788,38 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 		if c.ID, e = stableString(o, "id", func(s string) bool { return prefixedStable(s, "criterion:sha256:") }); e != nil {
 			return m, e
 		}
-		if c.TicketID, e = stableString(o, "ticketId", candidateTicket); e != nil {
-			return m, e
-		}
-		if c.AcceptanceRevision, e = stableString(o, "acceptanceRevision", func(s string) bool {
-			n, e := strconv.ParseUint(s, 10, 64)
-			return len(s) <= 16 && e == nil && n > 0 && n <= maxWireInteger && strconv.FormatUint(n, 10) == s
-		}); e != nil {
-			return m, e
+		if tasks {
+			if c.TicketID, e = stableString(o, "ticketId", candidateTicket); e != nil {
+				return m, e
+			}
+			if c.AcceptanceRevision, e = stableString(o, "acceptanceRevision", func(s string) bool {
+				n, e := strconv.ParseUint(s, 10, 64)
+				return len(s) <= 16 && e == nil && n > 0 && n <= maxWireInteger && strconv.FormatUint(n, 10) == s
+			}); e != nil {
+				return m, e
+			}
 		}
 		var ok bool
 		if c.CriterionIndex, ok = uint03(o["criterionIndex"]); !ok || c.CriterionIndex > 255 {
 			return m, invalid("invalid-field")
 		}
-		for _, v := range []struct {
+		digests := []struct {
 			key  string
 			dest *string
-		}{{"acceptanceSha256", &c.AcceptanceSHA256}, {"criterionSha256", &c.CriterionSHA256}, {"captureSha256", &c.CaptureSHA256}, {"verificationSha256", &c.VerificationSHA256}, {"claimTicketSha256", &c.ClaimTicketSHA256}, {"snapshotHeadReceiptSha256", &c.SnapshotHeadReceiptSHA256}, {"snapshotHeadArtifactSha256", &c.SnapshotHeadArtifactSHA256}} {
+		}{{"criterionSha256", &c.CriterionSHA256}}
+		if tasks {
+			digests = []struct {
+				key  string
+				dest *string
+			}{{"acceptanceSha256", &c.AcceptanceSHA256}, {"criterionSha256", &c.CriterionSHA256}, {"captureSha256", &c.CaptureSHA256}, {"verificationSha256", &c.VerificationSHA256}, {"claimTicketSha256", &c.ClaimTicketSHA256}, {"snapshotHeadReceiptSha256", &c.SnapshotHeadReceiptSHA256}, {"snapshotHeadArtifactSha256", &c.SnapshotHeadArtifactSHA256}}
+		}
+		for _, v := range digests {
 			if *v.dest, e = stableString(o, v.key, validDigest); e != nil {
+				return m, e
+			}
+		}
+		if !tasks {
+			if c.EvidenceID, e = stableString(o, "evidenceId", func(s string) bool { return prefixedStable(s, "evidence:sha256:") }); e != nil {
 				return m, e
 			}
 		}
@@ -3872,7 +3908,7 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 	return m, nil
 }
 func validateStableReferences(m *stableMap) *cemError {
-	criteria, tuples, groups := map[string]bool{}, map[string]bool{}, map[string]string{}
+	criteria, tuples, groups, spans := map[string]bool{}, map[string]bool{}, map[string]string{}, map[string]bool{}
 	for _, c := range m.CriterionBindings {
 		raw, _ := json.Marshal(c)
 		var fields map[string]json.RawMessage
@@ -3881,10 +3917,13 @@ func validateStableReferences(m *stableMap) *cemError {
 		if e != nil || c.ID != "criterion:sha256:"+shaHex(canonical) {
 			return invalid("invalid-criterion-identity")
 		}
+		// Plain criteria form one unnamed group that no Tasks ticket can occupy.
 		tuple := c.TicketID + ":" + c.AcceptanceRevision + ":" + strconv.FormatUint(c.CriterionIndex, 10)
-		if criteria[c.ID] || tuples[tuple] {
+		plain := c.EvidenceID != ""
+		if criteria[c.ID] || tuples[tuple] || plain && spans[c.EvidenceID] {
 			return invalid("duplicate-reference")
 		}
+		spans[c.EvidenceID] = plain
 		criteria[c.ID] = true
 		tuples[tuple] = true
 		group := c.TicketID + ":" + c.AcceptanceRevision
@@ -3906,8 +3945,23 @@ func validateStableReferences(m *stableMap) *cemError {
 	for _, h := range m.Hunks {
 		hunks[h.ID] = h
 	}
+	spanDigests := map[string]string{}
 	for _, ev := range m.Evidence {
 		evidenceIDs[ev.ID] = true
+		spanDigests[ev.ID] = ev.SpanSHA256
+	}
+	// A plain criterion is its cited base span; canonical evidence checks bind
+	// that span digest to the Git blob bytes.
+	for _, c := range m.CriterionBindings {
+		if c.EvidenceID == "" {
+			continue
+		}
+		if !evidenceIDs[c.EvidenceID] {
+			return invalid("unresolved-reference")
+		}
+		if spanDigests[c.EvidenceID] != c.CriterionSHA256 {
+			return invalid("reference-coherence")
+		}
 	}
 	linkedCriteria, linkedRunners := map[string]bool{}, map[string]bool{}
 	for _, l := range m.CriterionLinks {
@@ -3976,6 +4030,9 @@ func validateStableReferences(m *stableMap) *cemError {
 		return true
 	}
 	for _, c := range m.CriterionBindings {
+		if c.EvidenceID != "" {
+			continue
+		}
 		if !want(c.CaptureSHA256, "tasks-capture") || !want(c.VerificationSHA256, "tasks-verification") || !want(c.ClaimTicketSHA256, "tasks-claimed-ticket") || !want(c.SnapshotHeadArtifactSHA256, "tasks-snapshot-head-receipt") {
 			return invalid("artifact-role-closure")
 		}

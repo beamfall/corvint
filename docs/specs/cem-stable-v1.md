@@ -6,7 +6,7 @@ Delivery status: planned
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed/planned; no stable delivery or promotion.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); qualification remains bounded.
 - Blocked on: stable wire/consumer integration, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -53,6 +53,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-051..059 | `lrfrepo.VerifyStableUniverse`, `StableUniverse`, `StableRefusal`, `lrf.ValidateStableRequest`; explicit `cem/1.0` refusals in `VerifyUniverse`, `readOCMBytes`, `PrepareOCM`; tests in the OCM/LRF stable admission traceability table | Stable LRF evaluation needs an accepted stable LRF profile; no CLI or MCP route; OCM writers stay `cem/0.x` only; C06..C09 and C17 consumers remain open |
 | CEM-V1-050 | `structuralRuntimeAdmitted` in `internal/cem/verify/stable.go` and `interop/cem01-go/cem.go`; sealed `protocol/cem-1.0/structural-tuples/go1.27.2/`; `TestCEMV1050StructuralTupleAdmission` (native and portable); S0E, linked-control, ledger and cell tests bound through the tuple packet | Linux and Windows hosts, CI-hosted go1.27.2 runs and the full structural corpus remain NOT_RUN |
 | CEM-V1-080..082 | `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` and `testdata/citation/`; `TestCEMV1080*`, `TestCEMV1081*`, `TestCEMV1082*` in `internal/cem/verify`, `internal/cem/workflow` and `interop/cem01-go` | Recorded limits: `held` never produced, no `symbol` anchors, no threshold or cut-off, stable-result emission deferred to V1-1265; historical 591-map report in the build log |
+| CEM-V1-083 | Plain criterion form in `internal/cem/wire/stable.go` and `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/neutral-criterion/`; `TestCEMV1083*` in `internal/cem/wire`, `internal/cem/verify` and `interop/cem01-go` | No producer emits the plain form (`corvint-cem-candidate assemble-stable` accepts only Tasks-bound `cem-stable-assembly/1`); the public map was hand-assembled; stranger time NOT_OBSERVED |
 | CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`; proof run in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` | No member has been added to the sealed packet yet; V1-1265 consumes the tool for `citation` |
 
 ## First portable candidate build contract
@@ -322,6 +323,42 @@ Acceptance evidence:
 Rollback: remove `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` with
 `testdata/citation/`, and the `citation` key in `successVerification`; remove the `--citation`
 flag and the `Citation` read option. No map, packet or protocol vector changes.
+
+## Provider-neutral criterion (V1-1263, decision 0523 P1)
+
+Status: proposed. Decision 0523 P1. A stable criterion no longer requires a Corvint Tasks store.
+
+- `CEM-V1-083`: A `cem/1.0` criterion binding MUST take exactly one of two closed forms. The plain
+  form is `{id, criterionIndex, criterionSha256, evidenceId}`: `evidenceId` MUST name an evidence
+  record of the same map (else `unresolved-reference`), `criterionSha256` MUST equal that record's
+  `spanSha256` (else `reference-coherence`), no two plain criteria may name the same evidence
+  (`duplicate-reference`), and `id` is `criterion:sha256:` over the canonical JSON of the other
+  three keys. The Tasks form is the existing eleven keys, unchanged in encoding, identity and
+  artifact roles. Any of the eight Tasks keys present selects the whole Tasks form; a record is
+  then checked for missing keys (`missing-field`), unknown keys (`unknown-field`) and invalid values
+  (`invalid-field`) in that order, so plain keys beside a partial Tasks extension are `missing-field`
+  and `evidenceId` beside the full Tasks form is `unknown-field`. A plain criterion contributes no
+  Tasks artifact role, and a map with only plain criteria MUST verify on a repository with no
+  `.taskman/`. The native and portable consumers MUST return the same result for the same inputs.
+
+Non-goals: no new producer verb (a plain map is hand-assembled until a producer lands), no new
+result key, no change to the S0E repository-envelope packet, no change to `cem/0.x`. Runner
+receipts, criterion links and runner artifacts stay required by the existing coherence rules.
+
+Failure modes: a mixed or partial record is refused at the wire stage before any repository read;
+a plain criterion whose span digest or evidence reference is wrong is refused at the references
+stage; artifacts are checked only by SHA-256, so an opaque artifact never upgrades authority.
+
+Acceptance evidence:
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-083 | `TestCEMV1083NeutralCriterionPublicCase`, `TestCEMV1083TasksFormUnchanged` (`internal/cem/verify`); `TestCEMV1083PlainCriterionWire`, `TestCEMV1083PlainCriterionRefusals` (`internal/cem/wire`); `TestCEMV1083NeutralCriterionPublicCase`, `TestCEMV1083PortablePlainDuplicateEvidence`, `TestCEMV1083PortableTasksFormUnchanged` (`interop/cem01-go`) | Public case `protocol/cem-1.0/stable/neutral-criterion/` ACCEPTs with the same 20 non-runtime keys on both consumers on a repository with no `.taskman/`; seven public refusals match on both; every S0E Tasks criterion re-encodes to its original eleven keys; walkthrough in `docs/build-log/2026-10-12-cem-neutral-criterion-walkthrough.md` |
+
+Rollback: revert the plain branch in `internal/cem/wire/stable.go` and `interop/cem01-go/cem.go`
+(restore the eleven required keys), the `criterionBinding` `oneOf` in `stable.schema.json`, the
+CEM-V1-083 text in `ALGORITHMS.md`, the `neutral-criterion/` case and its manifest entries. Tasks
+maps need no migration.
 
 ## Stable verification result codes
 
