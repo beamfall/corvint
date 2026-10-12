@@ -83,7 +83,20 @@ and `dogfood-seal`; `docs/specs/daily-change-evidence-workflow-v0.md` is modifie
 Focused tests: see the traceability table under "Core cem/1.0 producer and dogfood loop" in
 `docs/specs/cem-stable-v1.md`.
 
-Live AC1 qualification: LIVE_QUALIFICATION_PENDING
+Live AC1 qualification (throwaway `git clone --no-local` of `117f29a81`, removed afterwards; not
+the final bind). Inputs: four intent specs, a 152-row citation plan, a verify file, outcome
+`passed`, full BASE `ddd559754614e7b7bd4e7527eb7fbb9500bfaf71`, `DOGFOOD_OUTPUT_CHANGE=DCW-V0-047`.
+
+- First `make dogfood-change` pass: every step PRODUCED; `local-outcome` `record-index-failed`
+  (the uncommitted sidecar, as `docs/DOGFOOD.md` step 5 expects). The map is `"spec":"cem/1.0"`.
+- After the CEM commit, the second pass exits 0.
+- `make dogfood-check`: `PASS`, `cem=accepted hunks=152 supported=152 unknown=0 mechanical=0`,
+  `ocm=ready-for-review`, `base-independence=NOT_PROVED declared=DCW-V0-047`. The base digest is
+  that of empty output, because the base verifier refuses the stable read.
+- `make dogfood-seal`: `PASS`; the sealed `.corvint/changes/<bind>.cem.json` is `cem/1.0`.
+
+An earlier clone of `ebf8a2731` failed the check with `verifier-disagreement` on the OCM
+comparison, which led to decision 16.
 
 ## Limits and NOT_RUN
 
@@ -107,6 +120,7 @@ Live AC1 qualification: LIVE_QUALIFICATION_PENDING
   written before V1-1276 still replay; nothing writes it now.
 - OCM fails closed for a bound stable map whose artifacts lie outside the repository root.
 - The class-split citation baseline rerun stays NOT_PRODUCED until committed maps carry a role.
+- `script/dogfood-bind-range.sh` against the real binary NOT_RUN; its test drives a fake binary.
 - `make gate` NOT_RUN (owner preference for scoped issue work); the final bind and seal are the
   orchestrator's and are NOT_RUN here.
 
