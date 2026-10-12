@@ -95,10 +95,22 @@ The owner decided so in chat on 2026-10-12.
   the recipe's shape is checked because the shim cannot see a `go` that is not it: `make -s -n
   go-test` must print one line with exactly one word `go`, no other word whose basename is `go`
   and none of `;|&()<>{}` `` ` `` `$\"'`, so a second recipe line, a chained absolute-path `go`, a
-  substitution, a redirection, a quoted word or a wrapper script is refused (a plain `nice go
-  test` would pass; `go` receives the same argv and environment). `runnerWords` trims quotes, so
-  `"python3"` in a gate step is the python runner. It is not in `tools/gate-ledger`'s scoped
-  map, so it runs on every change.
+  substitution, a redirection, a quoted word or a wrapper script is refused. `runnerWords` trims
+  quotes, so `"python3"` in a gate step is the python runner. After round 6 (`c07788ba7`) the
+  shape rule is `NAME=VALUE` words then `go` (round 5's claim that `nice go test` would pass was
+  wrong in both directions: bash's `_` rejected it by accident, and a wrapper under a shell that
+  sets no `_` passed); the control makefile is read alone (`make -s -f control.mk <target>`), so
+  a Makefile `export MAKEFLAGS := --keep-going` now differs (`sk` against `s`) instead of being
+  inherited; and the gate parses `make -s -n -p go-test` (`readDatabase`/`parseDatabase`:
+  `NAME = value`, `NAME := value`, `define`/`endef`, the `go-test:` block's `# NAME = value`
+  target-specific comments and its tab-indented recipe) so `plainRecipe` can refuse any `$` in
+  the recipe or a variable it expands that is not a `$(NAME)`/`${NAME}` reference to a plain
+  variable (`$(shell ...)`, `$$`, `$@`, substitution references, a `:=` value still holding `$`)
+  and any `SHELL`/`.SHELLFLAGS` whose origin is not `default`. The limit that remains: a make
+  function expanded while the Makefile is read (`CORVINT_GOCACHE := $(shell ...)`) runs on every
+  make invocation before the recipe and is not observed; the repository's `$(shell git ...)`
+  lookups are of that kind. It is not in `tools/gate-ledger`'s scoped map, so it runs on every
+  change.
 - `run.go` `discover` (round 4): a declared `argv[0]` containing a path separator is resolved
   against `filepath.Abs(Root)` before `exec.LookPath`, so `./tools/python-tests` is the
   repository's file when `corvint --root R test` runs from another directory; a bare name is
@@ -182,6 +194,16 @@ Logs under the lane scratch directory
   internal/sessiontest; unset OLDPWD; ...`, `MAKEFLAGS=--just-print ...`, a second recipe line
   `/usr/bin/true test -race ./...`) were run against a build of the `96bed1f5e` gate and of
   `5fc504ffe` on the same mutated Makefile copies: rc 0, 0, 0 before and 1, 1, 1 after.
+- After the round-6 fixes (`c07788ba7`, gate only; `corvint test` unchanged): `gofmt -l` empty;
+  `go vet ./tools/...` rc 0; `go test -count=1 ./tools/test-commands-check` rc 0 (11.2 s: twenty
+  Makefile mutations, nine declaration cases, `TestSTRV0006PlainRecipe`, `compareEnv`,
+  `compareIntroduced` and record cases); `make -s test-commands-check` rc 0. Eight Makefile
+  scenarios were run against builds of the `5fc504ffe` and `c07788ba7` gates: a `/bin/sh
+  wrapper go test ...` recipe with `SHELL := /bin/sh`, `$(shell true)$(GO_TEST_COMMAND)`, `export
+  MAKEFLAGS := --keep-going`, `nice go test`, `go-test: GO_TEST_FLAGS = $(shell true)...`,
+  `GO_TEST_FLAGS = $(shell true)...`, `SHELL := /bin/bash` and `CORVINT_GOCACHE := $(shell echo
+  ...)`. The old gate refused only the two bash-`_` cases (wrapper, `nice`); the new gate refuses
+  the first seven and still passes the eighth, the recorded parse-time limit.
 - After the round-1 Codex fixes (`e2be5b36f`): `gofmt -l` empty and `go vet` rc 0 on the five
   packages; `go test` rc 0 for `internal/sessiontest`, `tools/test-commands-check`,
   `internal/gateselect`, `tools/str-parity` and the focused `cmd/corvint` run (74 s);
@@ -310,8 +332,22 @@ Codex (`gpt-6-astra`, read-only, up to three rounds) over `bed653e92..HEAD`.
   about the one `go` the recipe runs from `PATH` (argv, environment, directory, make's exit) and
   refuses every recipe shape under which something else could run beside it; it does not and
   cannot audit an arbitrary program the Makefile could name, which is why the shape rule admits
-  only a plain `go` line. The decision 0526 condition (`VERDICT: PASS`) is checked by round 6
-  below.
+  only a plain `go` line.
+- Round 6 (`53ff3bebd`, run by this lane, same exactness question): `CHANGES_REQUESTED`, four
+  findings. [P1] `SHELL := /bin/dash` with a recipe `<go.env> /bin/dash tools/wrapper go test
+  ...` (wrapper `exec "$@"`) passed the shape rule: one `go` word, no shell syntax, and dash sets
+  no `_` for the control to differ on. [P1] `$(shell ./tools/pre-test)$(GO_TEST_COMMAND) ./...`
+  ran the script during the dry run and the observation while printing the plain line. [P2] a
+  global `export MAKEFLAGS := --keep-going` was inherited by the control through `-f Makefile`
+  (both saw `sk`). [P2] the spec's claim that `nice go test` passes was false: bash's `_` is
+  `/usr/bin/nice` for the recipe and the shim's path for the control. Fixed in `c07788ba7` as
+  described above (strict `NAME=VALUE... go` shape, standalone control makefile, the database
+  parse refusing make functions the recipe expands and a Makefile `SHELL`), with seven more
+  mutations in `TestSTRV0006MakefileDriftReachesGo` and `TestSTRV0006PlainRecipe`. The bounded
+  answer stands with one named hole: make functions expanded while the Makefile is read are not
+  observed. The coordinator capped this lane at two Codex rounds, so no round 7 ran and the
+  decision 0526 condition (`VERDICT: PASS` from an independent review) is not yet met; the fixes
+  after round 6 await that review.
 
 ## Left for slice 3
 
