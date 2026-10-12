@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -12,9 +13,17 @@ import (
 
 // CEMProjection preserves the immutable original span and carries corpus
 // provenance beside the frozen wire. It never cites generated prose as intent.
+// A cem/1.0 map is refused with a closed code naming the stable operation
+// (CEM-V1-163); any other coded parse refusal keeps its code (V1-1305).
 func CEMProjection(ctx context.Context, root string, a *Artifact, data []byte, claimID string) (map[string]any, error) {
+	if wire.DeclaresStable(data) {
+		return nil, &Error{Code: cemcode.UnsupportedSpec, Message: "docs corpus cem projects cem/0.x maps only; project a cem/1.0 map with `corvint docs corpus cem-stable`, which also requires --expected-base, --target and --stable-artifact-root"}
+	}
 	cem, err := wire.ParseMap(data)
 	if err != nil {
+		if code := cemcode.CodeOf(err); code != "" {
+			return nil, &Error{Code: code, Message: cemcode.MessageOf(err)}
+		}
 		return nil, err
 	}
 	rows, omitted, err := projectClaims(ctx, root, a, claimID, cem.BaseRevision, cem.Evidence, true)

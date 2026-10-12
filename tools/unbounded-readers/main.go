@@ -70,11 +70,18 @@ func readRecord(root string) (record, error) {
 }
 
 // unboundedTests lists the directories of the unbounded units that have tests:
-// the ones any change selects.
+// the ones any change selects. A unit whose identity is its one test file (a
+// shell test, NSA-V0-011) is listed by that file, since one directory holds
+// many such units.
 func unboundedTests(graph *affected.Graph) []string {
 	directories := []string{}
 	for _, id := range graph.UnboundedReaders() {
-		if unit, ok := graph.Unit(id); ok && len(unit.Tests) > 0 {
+		unit, ok := graph.Unit(id)
+		switch {
+		case !ok || len(unit.Tests) == 0:
+		case len(unit.Tests) == 1 && strings.HasSuffix(id, ":"+unit.Tests[0]):
+			directories = append(directories, unit.Tests[0])
+		default:
 			directories = append(directories, path.Dir(unit.Tests[0]))
 		}
 	}

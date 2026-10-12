@@ -15,7 +15,7 @@ external-ownership boundary. Decision 0417 approves the every-attempt `/3` revis
 ## Agent digest
 - Claim: External-server Playwright receipts bind outcomes without owning the app; `/1` attests application identity and `/2` redacts sensitive input evidence.
 - Status: accepted; `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175.
-- Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. PWP-V0-019 names each unbound reported anchor file (for example a setup-project file) in the `test-file-unbound` detail and never binds it implicitly. `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
+- Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. PWP-V0-019 names each unbound reported anchor file (for example a setup-project file) in the `test-file-unbound` detail and never binds it implicitly. PWP-V0-021 admits up to 4096 config inputs and 1 MiB of their paths and digests, and refuses beyond either as `config-inputs-overflow` stating the observed value and the limit. `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
 - Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Proposed PWP-V0-009 (Node v24.11.1, `/0` bundled tuple) awaits owner acceptance. Proposed PWP-V0-010..013 (keep-reporters option, V1-0986) await owner acceptance and a live run. PWP-V0-014..018 (provider-first order and the `qualify-keep-reporters` command) are accepted (decision 0461; V1-1028); their live qualification is `NOT_RUN`. Other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
 
@@ -203,6 +203,34 @@ Failure mode addressed: an external-server Playwright timeout was reported as `v
 complete within the bound`. Rollback restores the earlier fixed details; retained receipts carrying
 either wording stay readable because the detail is free text.
 
+### Config-input bounds (accepted under the owner's standing auto-accept (2026-10-11); GitHub #844; V1-1317)
+
+Intent: a suite whose module graph loads more than a few hundred project modules still binds, and a
+suite above the bound learns that its config inputs, not its report output, were refused.
+
+- `PWP-V0-021`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #844; V1-1317) The reporter-observed config-input set
+  (`receipt.identity.configInputDigests`, every non-`node_modules` module in the runner's module
+  cache) admits at most `externalMaxConfigInputs`, 4096, entries and at most
+  `externalMaxConfigInputBytes`, 1 MiB, summed over each entry's path and digest lengths. The count
+  replaces the earlier 256, which refused a mid-size suite after two added support modules; 4096
+  covers a suite whose specs, page objects, fixtures and helpers each load as modules, and every
+  entry is still re-read and digested at bind time. The byte bound keeps the set at a quarter of the
+  4 MiB provider-document bound (`internal/testvaliditydoc` `MaxInputBytes`) that reads the
+  retained receipt. A set above either bound refuses `report-identity-unknown` with the detail
+  `config-inputs-overflow: observed <N> config inputs, limit 4096` or
+  `config-inputs-overflow: observed <N> config input bytes, limit 1048576`; the count is checked
+  first, and both are checked before `config-inputs-unobserved`. `report-output-overflow` names
+  only a report file above the 4 MiB output bound. The `/2` profile names no count: its detail is
+  the fixed untrusted-output text. A retained freshness receipt is checked against the same two
+  bounds. The keep-reporters qualification record keeps its own 256-input bound (`PWP-V0-017`),
+  which fits its 256 KiB record bound, so a run above 256 config inputs cannot be recorded as
+  keep-reporters qualified.
+
+Failure mode addressed: a mid-size suite was refused as `report-output-overflow` while its report
+was small. Rollback restores the 256 count and the `report-output-overflow` detail and removes the
+byte bound. Retained receipts stay readable because the detail is free text; a retained freshness
+receipt with more than 256 inputs then abstains, and no receipt is deleted or rewritten.
+
 ### Application-attested revision
 
 - `PWP-V1-001`: `/1` is available only in external-server mode and requires a typed `corvint-application-attestation-command/0` provider and canonical `corvint-application-attestation-config/0`; the `/0` caller label cannot select `/1`, `/0` remains readable, and neither profile can carry the other profile's identity fields.
@@ -272,9 +300,10 @@ claim is added.
 The provider's closed refusal codes are:
 
 - `config-input-drift`
-- `config-inputs-unobserved` (checked against at most `externalMaxConfigInputs`, 256, reporter-observed
-  config entries; beyond that count the report is refused as `report-output-overflow` before this
-  check runs)
+- `config-inputs-overflow` (more than `externalMaxConfigInputs`, 4096, reporter-observed config
+  entries or more than `externalMaxConfigInputBytes`, 1 MiB, of their paths and digests; the detail
+  states the observed value and the limit, `PWP-V0-021`)
+- `config-inputs-unobserved` (checked only after `config-inputs-overflow`)
 - `external-app-identity-required`
 - `external-config-version-test-files-required`
 - `external-input-bound-or-secret`
@@ -298,7 +327,7 @@ The provider's closed refusal codes are:
 - `qualified-document-output-overflow`
 - `qualified-document-secret-shaped`
 - `report-identity-unknown`
-- `report-output-overflow`
+- `report-output-overflow` (the report file exceeds the 4 MiB output bound; never a config-input count)
 - `reporter-global-error`
 - `run-status-unknown`
 - `runner-cleanup-unknown`
@@ -437,6 +466,7 @@ browser-path override. With the bundled path, the exact command is:
 | PWP-V0-014..018 (accepted, decision 0461; V1-1028; GitHub #686) | `internal/jstestprovider/keep_reporters_qualification.go`, `internal/jstestprovider/project_reporters.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/runner.go`, `cmd/corvint-js-test-provider/main.go` | `TestKeptReporterListResolution`, `TestQualifyKeepReportersQualified`, `TestQualifyKeepReportersReasons`, `TestKeepReportersQualificationRecordClosed`, `TestKeepReportersQualifiedProjection`, `TestKeepReportersQualificationRunGuards`, `TestQualifyKeepReportersRunOrderAndNotRun`, `TestKeepReportersQualificationFlags`, `TestKeepReportersQualifiedReceiptProjects`, Node case `PWP-V0-011 PWP-V0-014 keep mode reports kept entries`; live Playwright `NOT_RUN` (`docs/build-log/2026-10-08-gh686-playwright-keep-reporters-qualification.md`) |
 | PWP-V0-019 (accepted under the owner's standing auto-accept (2026-10-11); V1-1242; GitHub #807) | `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReportNamesUnboundSetupProjectFiles`, `TestProviderHelpExplainsSetupProjectFileBinding`; live Playwright setup-project run `NOT_RUN` (`docs/build-log/2026-10-11-gh807-setup-project-files.md`) |
 | PWP-V0-020 (accepted under the owner's standing auto-accept (2026-10-11); GitHub #832) | `internal/jstestprovider/external.go`, `internal/jstestprovider/runner.go` | `TestBoundaryTimeoutNamesRunnerAndFlag`, `TestE2EBoundaryFailure_WaitNotCompleted`; live Playwright timeout run `NOT_RUN` (`docs/build-log/2026-10-12-issue-832-e2e-timeout-wording.md`) |
+| PWP-V0-021 (accepted under the owner's standing auto-accept (2026-10-11); GitHub #844; V1-1317) | `internal/jstestprovider/external.go`, `internal/jstestprovider/freshness.go`, `internal/jstestprovider/keep_reporters_qualification.go` | `TestQualifiedReportConfigInputBounds`, `TestRunUnit_ReportBoundIsItsOwnAndNotTheExternalProviders`; live Playwright run above 256 config inputs `NOT_RUN` (`docs/build-log/2026-10-12-gh-844-845-config-inputs-state-matchers.md`) |
 | PWP-V1-001..008 | `internal/jstestprovider/application_attestation.go`, `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestApplicationAttestationCommandProvider`, `TestApplicationAttestationNegativeControls`, `TestAttestedReceiptNeverPassesWrongOrRestartedApplication`, `TestApplicationAttestationDockerComposeQualification` |
 | PWP-V2-001..006 | `internal/jstestprovider/sensitive_input.go`, `internal/jstestprovider/sensitive_input_boundary.go`, `internal/jstestprovider/sensitive_input_grammar.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/external.go`, `internal/testvaliditydoc/document.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReporterSensitiveRedaction`, `TestSensitiveInputEvidenceRedactionAndValidation`, `TestSensitiveInputNormalizationBoundsAndNoPanic`, `TestSensitiveInputAlreadyRedactedRiskFieldsFailClosed`, `TestSensitiveInputReceiverPrefixExtraction`, `TestSensitiveInputUnicodeGrammarAndReportScope`, `TestSensitiveInputAlreadyRedactedCrossTestRiskRejected`, `TestSensitiveInputArgumentCandidatesRespectStructure`, `TestSensitiveInputPolicyGrammarAgreement`, `TestSensitiveInputUnsupportedReceiverSyntaxRejected`, `TestSensitiveRetainedPolicyAndUnsupportedActionRejection`, `TestSensitiveRetainedDecodeNeverEchoesUnknownProperties`, `TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction`; live Playwright matrix `NOT_RUN` |
 | PWP-V3-001..006 | `internal/jstestprovider/attempt_details.go`, `external.go`, `qualified-reporter.cjs`, `internal/appflows/runingest.go`, strict consumer and provider CLI | `TestPWPV3AttemptInventory`, `TestPWPV3ProfileBoundaries`, `TestAFUV1012QualifiedReceiptIngest`, `TestAFUV1012QualifiedReceiptRefusals`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightAttemptsLiveDevicesSpread`; local live log `evidence/issues-167-175/pwp3-live-passed.log` |
@@ -449,12 +479,12 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 |---|---|---|
 | `application-attestation-config-invalid` | The provider config is noncanonical, has the wrong profile, or carries an invalid expectation. | `internal/jstestprovider/application_attestation.go:84@12af3b3a` |
 | `application-attestation-config-unavailable` | The bounded provider config file cannot be read. | `internal/jstestprovider/application_attestation.go:80@b18eb77f` |
-| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:190@db0a61bf` |
+| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:198@db0a61bf` |
 | `application-attestation-provider-required` | The attested profile lacks an absolute config path or provider argv. | `internal/jstestprovider/application_attestation.go:68@2bc06a44` |
 | `application-attestation-provider-unavailable` | The provider executable is unresolved, unreadable, unstaged, or fails bounded execution. | `internal/jstestprovider/application_attestation.go:72@94973cec` |
 | `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:260@ae7d4bc6` |
 | `attested-external-profile-has-declared-identity` | An attested receipt also carries the legacy caller-declared application identity. | `internal/jstestprovider/projection.go:97@d5db6c8b` |
-| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:378@2fb84e28` |
+| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:386@2fb84e28` |
 | `external-attempt-document-invalid` | The imported document has an unknown shape, trailing data, a profile other than `/3`, or bytes that differ from the rederived canonical qualified document. | `internal/jstestprovider/attempt_details.go`, `DecodeAttemptReceipt` |
 | `external-profile-has-attempt-details` | An earlier `/0`, `/1` or `/2` receipt carries the `/3` `attemptDetails` member (AFU-V1-012). | `internal/jstestprovider/projection.go:78@d7cd2a65` |
 | `file-bound-exceeded` | A bounded attestation input cannot be read within its byte ceiling. | `internal/jstestprovider/application_attestation.go:164@5714ccbf` |
@@ -463,7 +493,7 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 | `legacy-external-profile-has-attested-fields` | A legacy `/0` receipt carries `/1` attestation fields. | `internal/jstestprovider/projection.go:90@751bcb11` |
 | `noncanonical-input` | Parsed input bytes differ from the canonical JSON encoding. | `internal/jstestprovider/application_attestation.go:187@0bb50e72` |
 | `not-regular` | An attestation input path does not resolve to a regular file. | `internal/jstestprovider/application_attestation.go:151@9133b825` |
-| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:209@0fe9d240` |
+| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:217@0fe9d240` |
 
 ## Issue340 exact project identity amendment
 

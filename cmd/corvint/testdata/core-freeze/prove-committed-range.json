@@ -178,7 +178,7 @@
   "profile": "falsifiable-packet/0",
   "proof": {
     "affected": {
-      "graph_digest": "affected-graph:sha256:d1843d747ca24797039742f72f3d1b2133817a4afa48a4b38d47831065ad73ca",
+      "graph_digest": "affected-graph:sha256:03f13ebd2bc818635f33e99e37789b95a55a5935a4cc20721b6f6d6e473fba17",
       "paths": [
         {
           "covered_by": [],

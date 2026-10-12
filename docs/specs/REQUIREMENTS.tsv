@@ -59,26 +59,26 @@ AFP-V0-022	docs/specs/affected-plan-v0.md	500	(accepted (decision 0431); amended
 AFP-V0-023	docs/specs/affected-plan-v0.md	662	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit
 AFP-V0-024	docs/specs/affected-plan-v0.md	700	(owner-directed, proposed, 2026-10-04; V1-0717) A push to `main` MAY reuse a
 AFP-V0-025	docs/specs/affected-plan-v0.md	726	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL
-AFP-V0-026	docs/specs/affected-plan-v0.md	761	(accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04;
-AFP-V0-027	docs/specs/affected-plan-v0.md	786	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
-AFP-V0-028	docs/specs/affected-plan-v0.md	799	(accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHAL
-AFP-V0-029	docs/specs/affected-plan-v0.md	832	(accepted, decision 0509; intent decision 0431) Every PR run computing a trusted
-AFP-V0-030	docs/specs/affected-plan-v0.md	857	(accepted, decision 0509; intent decision 0431) PR runs SHALL return to FULL wit
-AFP-V0-031	docs/specs/affected-plan-v0.md	874	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
-AFP-V0-032	docs/specs/affected-plan-v0.md	912	(accepted by decision 0438; V1-0865) Only a declaration path that
-AFP-V0-033	docs/specs/affected-plan-v0.md	921	(accepted by decision 0438; V1-0868) Every `units` directory of
-AFP-V0-034	docs/specs/affected-plan-v0.md	937	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R
-AFP-V0-035	docs/specs/affected-plan-v0.md	954	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,
-AFP-V0-036	docs/specs/affected-plan-v0.md	973	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
-AFP-V0-037	docs/specs/affected-plan-v0.md	992	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil
-AFP-V0-038	docs/specs/affected-plan-v0.md	1022	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the
-AFP-V0-039	docs/specs/affected-plan-v0.md	1033	(proposed (V1-0662); no GitHub issue) A Go test fixture under
-AFP-V0-040	docs/specs/affected-plan-v0.md	1046	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL
+AFP-V0-026	docs/specs/affected-plan-v0.md	763	(accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04;
+AFP-V0-027	docs/specs/affected-plan-v0.md	788	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled
+AFP-V0-028	docs/specs/affected-plan-v0.md	801	(accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHAL
+AFP-V0-029	docs/specs/affected-plan-v0.md	834	(accepted, decision 0509; intent decision 0431) Every PR run computing a trusted
+AFP-V0-030	docs/specs/affected-plan-v0.md	859	(accepted, decision 0509; intent decision 0431) PR runs SHALL return to FULL wit
+AFP-V0-031	docs/specs/affected-plan-v0.md	876	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module
+AFP-V0-032	docs/specs/affected-plan-v0.md	914	(accepted by decision 0438; V1-0865) Only a declaration path that
+AFP-V0-033	docs/specs/affected-plan-v0.md	923	(accepted by decision 0438; V1-0868) Every `units` directory of
+AFP-V0-034	docs/specs/affected-plan-v0.md	939	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R
+AFP-V0-035	docs/specs/affected-plan-v0.md	956	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,
+AFP-V0-036	docs/specs/affected-plan-v0.md	975	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an
+AFP-V0-037	docs/specs/affected-plan-v0.md	994	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil
+AFP-V0-038	docs/specs/affected-plan-v0.md	1024	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the
+AFP-V0-039	docs/specs/affected-plan-v0.md	1035	(proposed (V1-0662); no GitHub issue) A Go test fixture under
+AFP-V0-040	docs/specs/affected-plan-v0.md	1048	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL
 AFP-V0-041	docs/specs/affected-plan-v0.md	541	(accepted by decision 0488, 2026-10-10; V1-1096; no GitHub issue) Full
-AFP-V0-042	docs/specs/affected-plan-v0.md	1092	(accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the
-AFP-V0-043	docs/specs/affected-plan-v0.md	1112	(accepted, decision 0505) Cost-table
-AFP-V0-044	docs/specs/affected-plan-v0.md	1121	(accepted, decision 0519 (V1-1141); GitHub #783) When `--base`
-AFP-V0-045	docs/specs/affected-plan-v0.md	1132	(accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST
+AFP-V0-042	docs/specs/affected-plan-v0.md	1094	(accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the
+AFP-V0-043	docs/specs/affected-plan-v0.md	1114	(accepted, decision 0505) Cost-table
+AFP-V0-044	docs/specs/affected-plan-v0.md	1123	(accepted, decision 0519 (V1-1141); GitHub #783) When `--base`
+AFP-V0-045	docs/specs/affected-plan-v0.md	1134	(accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -1236,7 +1236,7 @@ DCP-V1-050	docs/specs/documentation-corpus-v1.md	383	A witness is produced only 
 DCP-V1-051	docs/specs/documentation-corpus-v1.md	397	Every other registered test stays unwitnessed with exactly one named reason and
 DCP-V1-052	docs/specs/documentation-corpus-v1.md	406	Missing or untrustworthy shared evidence yields uncertainty for every test, neve
 DCP-V1-053	docs/specs/documentation-corpus-v1.md	412	`corvint docs --help`, and the `docs corpus discover-playwright --help` and
-DCP-V1-054	docs/specs/documentation-corpus-v1.md	1052	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
+DCP-V1-054	docs/specs/documentation-corpus-v1.md	1075	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
 DCP-V1-055	docs/specs/documentation-corpus-v1.md	426	`discover-playwright` applies the `TJAA-V0-021` grep/grepInvert omission rules o
 DCP-V1-056	docs/specs/documentation-corpus-v1.md	438	`corvint help docs corpus` and `corvint docs corpus --help` (or `-h`) print one
 DCP-V1-057	docs/specs/documentation-corpus-v1.md	457	`corvint help TOPIC` with an unknown topic stays the `invalid-arguments` refusal
@@ -1263,6 +1263,8 @@ DCP-V1-079	docs/specs/documentation-corpus-v1.md	702	Manual legacy cases never c
 DCP-V1-080	docs/specs/documentation-corpus-v1.md	706	`corvint docs --help` and `corvint docs corpus witness-playwright --help` state
 DCP-V1-081	docs/specs/documentation-corpus-v1.md	722	`internal/doccorpus/behavior-events.cjs` is a Playwright fixture producer. It
 DCP-V1-082	docs/specs/documentation-corpus-v1.md	747	An unwitnessed test with an annotation-stage reason (`events-unobserved`,
+DCP-V1-083	docs/specs/documentation-corpus-v1.md	755	`behavior.expect` in `behavior-events.cjs` also records the closed set of valuel
+DCP-V1-084	docs/specs/documentation-corpus-v1.md	767	A reviewed expected outcome and a declared test assertion for a valueless state
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide
@@ -2022,6 +2024,16 @@ IID-V0-004	docs/specs/agent-instruction-doctor-v0.md	74	Candidate sources MUST c
 IID-V0-005	docs/specs/agent-instruction-doctor-v0.md	82	The attachment MUST distinguish host-loaded, empty-selected, shadowed,
 IID-V0-006	docs/specs/agent-instruction-doctor-v0.md	87	Evaluation MUST use bounded pinned index bytes only. Symlinks, excluded sources,
 IID-V0-007	docs/specs/agent-instruction-doctor-v0.md	93	Focused tests MUST cover default wire/authority preservation, selection and blan
+JAT-V0-001	docs/specs/java-affected-test-v0.md	32	A plugin with namespace `java` MUST own exactly the names ending `.java`. Build
+JAT-V0-002	docs/specs/java-affected-test-v0.md	36	One unit MUST be one file, identity `java:<path>`. A file is a test, with `Tests
+JAT-V0-003	docs/specs/java-affected-test-v0.md	47	Imports MUST include the declaring file of each type named by: a single-type imp
+JAT-V0-004	docs/specs/java-affected-test-v0.md	57	Comments and the contents of string, character and text-block literals MUST NOT
+JAT-V0-005	docs/specs/java-affected-test-v0.md	62	A name declared by more than one file MUST keep an edge to every candidate and r
+JAT-V0-006	docs/specs/java-affected-test-v0.md	64	An import that resolves to no observed type, and whose package is first-party, M
+JAT-V0-007	docs/specs/java-affected-test-v0.md	77	A file that loads classes or members by computed name MUST set `UnboundedReads`
+JAT-V0-008	docs/specs/java-affected-test-v0.md	83	Kotlin and Java cross-reach is reported as unit frontiers, not edges, because ea
+JAT-V0-009	docs/specs/java-affected-test-v0.md	97	The plugin MUST NOT execute repository code, a compiler, a build tool or an
+JAT-V0-010	docs/specs/java-affected-test-v0.md	101	The plugin MUST pass the shared seam conformance suite (`core <- mid <- leaf` pl
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	28	The command and its package remain isolated, unregistered, and unreachable from
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	30	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	34	The target is exactly Android/arm64/none. The twelve input rows below occur once
@@ -2450,6 +2462,21 @@ NPO-V0-006	docs/specs/native-observer-prearm-v0.md	60	Optional comparison gold M
 NPO-V0-007	docs/specs/native-observer-prearm-v0.md	68	Comparison mode MUST require every expected completed summary in order and refus
 NPO-V0-008	docs/specs/native-observer-prearm-v0.md	80	Optional native continuation evidence MUST use only typed turn/started,
 NPO-V0-009	docs/specs/native-observer-prearm-v0.md	91	The `observe` mode's input read MUST be bounded by its stated lifetime on every
+NSA-V0-001	docs/specs/native-shell-affected-test-v0.md	34	One plugin with namespace `cfamily` MUST own C, C++, Objective-C, Objective-C++
+NSA-V0-002	docs/specs/native-shell-affected-test-v0.md	39	One unit MUST be one repository file, identity `cfamily:<path>`. A header is nev
+NSA-V0-003	docs/specs/native-shell-affected-test-v0.md	48	Imports MUST include each quoted `#include`/`#import` that resolves to one repos
+NSA-V0-004	docs/specs/native-shell-affected-test-v0.md	56	A quoted include that resolves to more than one candidate MUST keep every candid
+NSA-V0-005	docs/specs/native-shell-affected-test-v0.md	62	Whenever the source universe holds a C-family file, the plugin MUST report the
+NSA-V0-006	docs/specs/native-shell-affected-test-v0.md	71	One plugin with namespace `shell` MUST own names ending `.sh`, `.bash`, `.zsh`,
+NSA-V0-007	docs/specs/native-shell-affected-test-v0.md	73	One unit MUST be one file, identity `shell:<path>`. A test is a `.bats` file, or
+NSA-V0-008	docs/specs/native-shell-affected-test-v0.md	77	Imports MUST include each literal `source`, `.` and bats `load` target, and each
+NSA-V0-009	docs/specs/native-shell-affected-test-v0.md	85	A `source`, `.` or `load` whose target is not a resolvable literal MUST set
+NSA-V0-010	docs/specs/native-shell-affected-test-v0.md	90	Every unit MUST record as `PathTokens` the path-shaped string tokens of its own
+NSA-V0-011	docs/specs/native-shell-affected-test-v0.md	93	A shell test that runs a build or language toolchain (`go`, `make`, `cargo`, `np
+NSA-V0-012	docs/specs/native-shell-affected-test-v0.md	101	When the source universe holds source text of another language Corvint plans (an
+NSA-V0-013	docs/specs/native-shell-affected-test-v0.md	112	Neither plugin may execute repository code, a compiler, a shell or a package man
+NSA-V0-014	docs/specs/native-shell-affected-test-v0.md	115	Units, paths, imports, path tokens and frontier reasons MUST be sorted and uniqu
+NSA-V0-015	docs/specs/native-shell-affected-test-v0.md	118	Both plugins MUST pass the shared seam conformance suite (`core <- mid <- leaf`
 NTP-V0-001	docs/specs/native-taskman-planning-v0.md	32	The opt-in `corvint work plan-fixture --executor ABSOLUTE_FILE --observations FI
 NTP-V0-002	docs/specs/native-taskman-planning-v0.md	38	The receipt MUST bind the immutable source commit/tree, executor digest, native
 NTP-V0-003	docs/specs/native-taskman-planning-v0.md	42	Eligible tickets MUST be processed by priority P0..P3, numeric order, then ticke
@@ -2800,27 +2827,28 @@ PWP-V0-017	docs/specs/playwright-external-provider-v0.md	106	(accepted (decision
 PWP-V0-018	docs/specs/playwright-external-provider-v0.md	124	(accepted (decision 0461; V1-1028; GitHub #686)) Missing evidence never becomes
 PWP-V0-019	docs/specs/playwright-external-provider-v0.md	166	(accepted under the owner's standing auto-accept (2026-10-11); V1-1242; GitHub #
 PWP-V0-020	docs/specs/playwright-external-provider-v0.md	193	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #832) A ru
-PWP-V1-001	docs/specs/playwright-external-provider-v0.md	208	`/1` is available only in external-server mode and requires a typed `corvint-app
-PWP-V1-002	docs/specs/playwright-external-provider-v0.md	209	The closed provider configuration binds the expected application root commit, re
-PWP-V1-003	docs/specs/playwright-external-provider-v0.md	210	Each closed canonical `corvint-application-attestation/0` observation binds the
-PWP-V1-004	docs/specs/playwright-external-provider-v0.md	211	The receipt binds the provider profile, normalized argv, original executable pat
-PWP-V1-005	docs/specs/playwright-external-provider-v0.md	212	The provider runs before and after Playwright. Unavailable or malformed identity
-PWP-V1-006	docs/specs/playwright-external-provider-v0.md	213	`/1` binds one clean test repository by root commit, revision and tree before Pl
-PWP-V1-007	docs/specs/playwright-external-provider-v0.md	214	Corvint supplies only canonical configuration bytes on provider stdin and owns o
-PWP-V1-008	docs/specs/playwright-external-provider-v0.md	215	Qualification includes a deterministic, locally owned Docker Compose fixture and
-PWP-V2-001	docs/specs/playwright-external-provider-v0.md	219	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
-PWP-V2-002	docs/specs/playwright-external-provider-v0.md	220	Before reporter serialization, input actions matching the fixed defaults `fill`,
-PWP-V2-003	docs/specs/playwright-external-provider-v0.md	221	Redaction recurses through nested steps and retry attempts. Any sensitive action
-PWP-V2-004	docs/specs/playwright-external-provider-v0.md	222	Provider-declared additional case-insensitive action-title patterns and metadata
-PWP-V2-005	docs/specs/playwright-external-provider-v0.md	223	Reporter output and retained documents are untrusted. Ingestion rejects an unred
-PWP-V2-006	docs/specs/playwright-external-provider-v0.md	224	The conformance fixture contains a deliberately leaking payload that is rejected
-PWP-V3-001	docs/specs/playwright-external-provider-v0.md	231	`/3` is selected explicitly by a provider option in external-server mode. `/0`,
-PWP-V3-002	docs/specs/playwright-external-provider-v0.md	232	A `/3` test outcome carries `attemptDetails` with one entry per Playwright attem
-PWP-V3-003	docs/specs/playwright-external-provider-v0.md	233	The existing per-attempt classification is unchanged: browser or fixture failure
-PWP-V3-004	docs/specs/playwright-external-provider-v0.md	234	Every `/3` attempt failure message and artifact is subject to the same report-wi
-PWP-V3-005	docs/specs/playwright-external-provider-v0.md	235	The reporter emits `attemptDetails` only under `/3`; the provider validates the
-PWP-V3-006	docs/specs/playwright-external-provider-v0.md	236	`/3` is non-promotable until the changed reporter completes the live matrix of `
-PWP-V3-007	docs/specs/playwright-external-provider-v0.md	470	The `/3` exact project identity permits an explicitly observed empty project nam
+PWP-V0-021	docs/specs/playwright-external-provider-v0.md	211	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #844; V1-1
+PWP-V1-001	docs/specs/playwright-external-provider-v0.md	236	`/1` is available only in external-server mode and requires a typed `corvint-app
+PWP-V1-002	docs/specs/playwright-external-provider-v0.md	237	The closed provider configuration binds the expected application root commit, re
+PWP-V1-003	docs/specs/playwright-external-provider-v0.md	238	Each closed canonical `corvint-application-attestation/0` observation binds the
+PWP-V1-004	docs/specs/playwright-external-provider-v0.md	239	The receipt binds the provider profile, normalized argv, original executable pat
+PWP-V1-005	docs/specs/playwright-external-provider-v0.md	240	The provider runs before and after Playwright. Unavailable or malformed identity
+PWP-V1-006	docs/specs/playwright-external-provider-v0.md	241	`/1` binds one clean test repository by root commit, revision and tree before Pl
+PWP-V1-007	docs/specs/playwright-external-provider-v0.md	242	Corvint supplies only canonical configuration bytes on provider stdin and owns o
+PWP-V1-008	docs/specs/playwright-external-provider-v0.md	243	Qualification includes a deterministic, locally owned Docker Compose fixture and
+PWP-V2-001	docs/specs/playwright-external-provider-v0.md	247	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
+PWP-V2-002	docs/specs/playwright-external-provider-v0.md	248	Before reporter serialization, input actions matching the fixed defaults `fill`,
+PWP-V2-003	docs/specs/playwright-external-provider-v0.md	249	Redaction recurses through nested steps and retry attempts. Any sensitive action
+PWP-V2-004	docs/specs/playwright-external-provider-v0.md	250	Provider-declared additional case-insensitive action-title patterns and metadata
+PWP-V2-005	docs/specs/playwright-external-provider-v0.md	251	Reporter output and retained documents are untrusted. Ingestion rejects an unred
+PWP-V2-006	docs/specs/playwright-external-provider-v0.md	252	The conformance fixture contains a deliberately leaking payload that is rejected
+PWP-V3-001	docs/specs/playwright-external-provider-v0.md	259	`/3` is selected explicitly by a provider option in external-server mode. `/0`,
+PWP-V3-002	docs/specs/playwright-external-provider-v0.md	260	A `/3` test outcome carries `attemptDetails` with one entry per Playwright attem
+PWP-V3-003	docs/specs/playwright-external-provider-v0.md	261	The existing per-attempt classification is unchanged: browser or fixture failure
+PWP-V3-004	docs/specs/playwright-external-provider-v0.md	262	Every `/3` attempt failure message and artifact is subject to the same report-wi
+PWP-V3-005	docs/specs/playwright-external-provider-v0.md	263	The reporter emits `attemptDetails` only under `/3`; the provider validates the
+PWP-V3-006	docs/specs/playwright-external-provider-v0.md	264	`/3` is non-promotable until the changed reporter completes the live matrix of `
+PWP-V3-007	docs/specs/playwright-external-provider-v0.md	500	The `/3` exact project identity permits an explicitly observed empty project nam
 PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	31	One shared reader MUST read an explicit Playwright json-reporter file read-only
 PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	45	Runs pool only at identical identity inputs: the Playwright version plus the
 PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	52	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes

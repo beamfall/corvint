@@ -29,7 +29,7 @@ const (
 	FrontierRunnerMismatch       = "kotlin:test-runner-source-set-mismatch"
 	FrontierAmbiguousDeclaration = "kotlin:ambiguous-declaration"
 	FrontierScriptContext        = "kotlin:script-context-unresolved"
-	FrontierJVMSiblingSource     = "kotlin:jvm-sibling-source-present"
+	FrontierJavaDependent        = "kotlin:java-dependent"
 )
 
 // Framework names returned by detectFrameworks. MockK is deliberately an
@@ -113,16 +113,23 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	frontier := map[string]bool{}
 	observations := make([]sourceObservation, 0, len(files))
 	seenIDs := make(map[string]bool, len(files))
+	java := make([]javaReferrer, 0)
+	texts := make(map[string]string, len(files))
 	for _, relative := range files {
+		body, readErr := root.Read(relative)
 		if strings.HasSuffix(relative, ".java") {
-			frontier[FrontierJVMSiblingSource] = true
+			// The java plugin reports an unreadable file; here a Java file
+			// only matters for what it references.
+			if readErr == nil {
+				java = append(java, observeJava(string(body)))
+			}
 			continue
 		}
-		body, readErr := root.Read(relative)
 		if readErr != nil {
 			frontier[FrontierUnparsedSource] = true
 			continue
 		}
+		texts[relative] = string(body)
 		clean, ok := sourceText(strings.TrimPrefix(string(body), "\ufeff"))
 		if !ok {
 			frontier[FrontierUnparsedSource] = true
@@ -138,6 +145,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		observations = append(observations, observation)
 	}
 	resolve(observations, frontier)
+	markJavaDependents(observations, java, texts)
 	units := make([]affected.Unit, 0, len(observations))
 	for _, observation := range observations {
 		units = append(units, observation.unit)

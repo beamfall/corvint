@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/stablefixture"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
@@ -996,5 +997,135 @@ func TestOIFV0PrepareIntentFormFlag(t *testing.T) {
 	}
 	if _, err := parseOCMPrepareFlags(ocmCLIOptions{}, append(base, "--intent-form=adr")); err == nil {
 		t.Fatal("unknown intent form accepted")
+	}
+}
+
+// TestV11305StableReportOCM (V1-1305): `cem report --ocm` over a cem/1.0 map
+// verifies the OCM through the stable universe admission and joins it with the
+// 0.x review shape: ocm valid, worklist obligations, the linked hunk's
+// obligations, unmapped obligations and the Markdown OCM lines. An OCM still
+// bound to the legacy map is an invalid OCM naming its closed code, never an
+// internal error.
+func TestV11305StableReportOCM(t *testing.T) {
+	stablefixture.RequireStableHost(t)
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const anchor = "TM-V0-008 rejected mutation"
+	cemGit(t, root, "init", "-q", "-b", "main")
+	cemWrite(t, root, "docs/rule.txt", "task mutation authority\n")
+	cemWrite(t, root, "docs/intent.md", "# Intent\n\n## Requirements\n\n- `TM-V0-008`: Rejected task mutations leave no effects.\n- `TM-V0-009`: Keep the gap visible.\n\n## Next\n")
+	cemWrite(t, root, "src/app.txt", "before\n")
+	cemWrite(t, root, "tests/ocm_link_test.go", fmt.Sprintf("package fixture\n\nimport \"testing\"\n\nfunc TestOCMLinkFixture(t *testing.T) {\n\tt.Run(%q, func(t *testing.T) {})\n}\n", anchor))
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "base")
+	base := cemGit(t, root, "rev-parse", "HEAD")
+	cemWrite(t, root, "src/app.txt", "after\n")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "target")
+	target := cemGit(t, root, "rev-parse", "HEAD")
+	const cemPath, ocmPath = ".corvint/change.cem.json", ".corvint/change.ocm.json"
+	for _, arguments := range [][]string{
+		{"cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target},
+		{"cem", "cite", "--map", cemPath, "--hunk", "1", "--evidence-path", "docs/rule.txt", "--lines", "1:1", "--relation", "specification"},
+		{"ocm", "prepare", "--map", ocmPath, "--cem", cemPath, "--intent", "docs/intent.md", "--expected-base", base, "--target", target},
+		{"ocm", "link", "--map", ocmPath, "--cem", cemPath, "--obligation", "TM-V0-008", "--hunk", "1", "--test-path", "tests/ocm_link_test.go",
+			"--claim", ocmCaseClaimSelector(anchor), "--expected-base", base, "--target", target},
+	} {
+		if code, _, stderr := runCLI(t, append([]string{"--root", root}, arguments...)...); code != 0 {
+			t.Fatalf("%v: %s", arguments, stderr)
+		}
+	}
+	legacyRaw, err := os.ReadFile(filepath.Join(root, cemPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy, err := wire.ParseMap(legacyRaw)
+	if err != nil || len(legacy.Hunks) != 1 {
+		t.Fatalf("legacy map: %v", err)
+	}
+	hunkID := legacy.Hunks[0].ID
+	legacyOCM, err := os.ReadFile(filepath.Join(root, ocmPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stable := stablefixture.Stabilize(t, root, legacyRaw, hunkID, func(args ...string) string { return cemGit(t, root, args...) })
+	report := func(format string) (int, map[string]any, string) {
+		t.Helper()
+		code, stdout, stderr := runCLI(t, "--root", root, "cem", "report", "--map", cemPath, "--expected-base", base, "--target", stable.Target,
+			"--artifacts", stable.ArtifactRoot, "--ocm", ocmPath, "--format", format)
+		var envelope map[string]any
+		if err := json.Unmarshal([]byte(stdout), &envelope); err != nil {
+			t.Fatalf("report %s: exit %d stdout %q stderr %q", format, code, stdout, stderr)
+		}
+		return code, envelope, stderr
+	}
+
+	// An OCM still bound to the legacy map and target is an invalid OCM.
+	code, envelope, stderr := report("json")
+	review := envelope["review"].(map[string]any)
+	ocm := review["ocm"].(map[string]any)
+	issues, _ := ocm["verification"].(map[string]any)["issues"].([]any)
+	if code != 1 || envelope["ok"] != false || review["ocmValid"] != false || ocm["state"] != "invalid" || len(issues) != 1 || strings.Contains(stderr, "internal-error") {
+		t.Fatalf("legacy-bound OCM: exit %d envelope %v stderr %q", code, envelope, stderr)
+	}
+	if issue := issues[0].(map[string]any); issue["code"] != "cem-map-digest-mismatch" || issue["message"] != "CEM map digest does not match" {
+		t.Fatalf("legacy-bound OCM issue: %v", issues)
+	}
+	failure := ocm["verification"].(map[string]any)
+	for _, field := range []string{"spec", "targetRevision", "structuralCoverage", "testExecution", "policyIssues"} {
+		if _, found := failure[field]; !found {
+			t.Fatalf("invalid OCM verification lacks the 0.x field %s: %v", field, failure)
+		}
+	}
+
+	cemWrite(t, root, ocmPath, string(stablefixture.RebindOCM(t, legacyOCM, stable.Target, stablefixture.Digest(stable.Map))))
+	code, envelope, stderr = report("json")
+	if code != 0 || envelope["ok"] != true || stderr != "" {
+		t.Fatalf("stable OCM report: exit %d ok %v stderr %q", code, envelope["ok"], stderr)
+	}
+	review = envelope["review"].(map[string]any)
+	ocm = review["ocm"].(map[string]any)
+	if review["profile"] != "cem-stable-review/0" || review["ocmValid"] != true || ocm["valid"] != true || ocm["state"] != "ready-for-review" ||
+		ocm["cemMapSha256"] != stablefixture.Digest(stable.Map) || ocm["targetRevision"] != stable.Target {
+		t.Fatalf("stable OCM projection: %v", review)
+	}
+	verification := ocm["verification"].(map[string]any)
+	coverage := verification["structuralCoverage"].(map[string]any)
+	if verification["valid"] != true || coverage["total"] != 2.0 || coverage["linked"] != 1.0 || coverage["unknown"] != 1.0 {
+		t.Fatalf("stable OCM verification: %v", verification)
+	}
+	obligations := ocm["obligations"].([]any)
+	first := obligations[0].(map[string]any)
+	if len(obligations) != 2 || first["id"] != "TM-V0-008" || first["selector"] != 1.0 || first["next"] != "done" ||
+		fmt.Sprint(first["hunkIds"]) != "["+hunkID+"]" || len(first["claimIds"].([]any)) != 1 {
+		t.Fatalf("stable OCM obligations: %v", obligations)
+	}
+	row := review["hunks"].([]any)[0].(map[string]any)
+	linked := row["obligations"].([]any)
+	if row["id"] != hunkID || len(linked) != 1 || linked[0].(map[string]any)["id"] != "TM-V0-008" || row["obligationsState"] != "ready-for-review" {
+		t.Fatalf("stable hunk join: %v", row)
+	}
+	unmapped := review["unmappedObligations"].([]any)
+	if len(unmapped) != 1 || unmapped[0].(map[string]any)["id"] != "TM-V0-009" {
+		t.Fatalf("unmapped obligations: %v", unmapped)
+	}
+
+	code, envelope, _ = report("markdown")
+	if code != 0 || envelope["ok"] != true {
+		t.Fatalf("stable OCM markdown: exit %d envelope %v", code, envelope)
+	}
+	markdown, err := os.ReadFile(envelope["report"].(string))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"- OCM validity: `true`\n", "- OCM state: `ready-for-review`\n", "  - Obligation `TM-V0-008`\n", "- Unmapped obligation `TM-V0-009`: "} {
+		if !strings.Contains(string(markdown), want) {
+			t.Fatalf("markdown lacks %q:\n%s", want, markdown)
+		}
+	}
+	if strings.Contains(string(markdown), "ocm-not-supplied") {
+		t.Fatalf("markdown keeps the no-OCM line:\n%s", markdown)
 	}
 }
