@@ -44,11 +44,25 @@ planning only; runner execution stays with V1-0593 and V1-0594.
   `cfamily:link-graph-unmodelled`. Dirty `shell/lib/core.sh` selects the three tests through
   `source` edges, scope BOUNDED; adding one `.go` file makes it UNKNOWN on
   `shell:foreign-invocation-unmodelled`.
-- Repository scan: 106 shell units, 41 tests, 10 classified toolchain tests (one false positive
-  fixed by decision 4), 3 with `shell:dynamic-source`.
+- Repository scan (after the review fixes): 114 shell units, 45 tests, 9 toolchain tests, none with
+  `shell:dynamic-source`. The 3 dynamic-source units of the first scan were lexer false positives: a
+  `.` case pattern (`''|/*|.|..)`) and a `[[ =~ ]]` regex split into commands.
 - `TestSelectionOnTheLiveDirtyWorktree` exceeded its 100 ms budget at load average 21–43;
   interleaved baseline and change runs both measured about 265 ms, so it is host load, not this
   change (tracked by V1-0564).
+
+## Independent review (Codex, one round)
+
+All five findings were accepted and fixed; no second round (one-round cap).
+
+1. A computed `source` in an unreached unit left the plan BOUNDED, because a unit frontier applies
+   only when its unit is reached. `shell:dynamic-source` is now an unbounded read, with
+   `LocatesRoot` on non-test units (`NSA-V0-009`).
+2. A toolchain in an expanding heredoc body was missed; those bodies are now scanned.
+3. `command make`, and a call before a later function definition, were treated as shadowed;
+   shadowing is now positional and bypass prefixes are never shadowed (`NSA-V0-011`).
+4. A shell backslash-newline split a word; it now joins it (`NSA-V0-008`).
+5. A continued C `#include` was missed; backslash-newlines are spliced first (`NSA-V0-003`).
 
 ## Rollback
 

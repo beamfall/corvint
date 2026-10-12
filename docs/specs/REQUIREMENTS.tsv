@@ -2441,18 +2441,18 @@ NPO-V0-009	docs/specs/native-observer-prearm-v0.md	91	The `observe` mode's input
 NSA-V0-001	docs/specs/native-shell-affected-test-v0.md	34	One plugin with namespace `cfamily` MUST own C, C++, Objective-C, Objective-C++
 NSA-V0-002	docs/specs/native-shell-affected-test-v0.md	39	One unit MUST be one repository file, identity `cfamily:<path>`. A header is nev
 NSA-V0-003	docs/specs/native-shell-affected-test-v0.md	48	Imports MUST include each quoted `#include`/`#import` that resolves to one repos
-NSA-V0-004	docs/specs/native-shell-affected-test-v0.md	55	A quoted include that resolves to more than one candidate MUST keep every candid
-NSA-V0-005	docs/specs/native-shell-affected-test-v0.md	61	Whenever the source universe holds a C-family file, the plugin MUST report the
-NSA-V0-006	docs/specs/native-shell-affected-test-v0.md	70	One plugin with namespace `shell` MUST own names ending `.sh`, `.bash`, `.zsh`,
-NSA-V0-007	docs/specs/native-shell-affected-test-v0.md	72	One unit MUST be one file, identity `shell:<path>`. A test is a `.bats` file, or
-NSA-V0-008	docs/specs/native-shell-affected-test-v0.md	76	Imports MUST include each literal `source`, `.` and bats `load` target, and each
-NSA-V0-009	docs/specs/native-shell-affected-test-v0.md	82	A `source`, `.` or `load` whose target is not a resolvable literal MUST raise th
-NSA-V0-010	docs/specs/native-shell-affected-test-v0.md	85	Every unit MUST record as `PathTokens` the path-shaped string tokens of its own
-NSA-V0-011	docs/specs/native-shell-affected-test-v0.md	88	A shell test that runs a build or language toolchain (`go`, `make`, `cargo`, `np
-NSA-V0-012	docs/specs/native-shell-affected-test-v0.md	93	When the source universe holds source text of another language Corvint plans (an
-NSA-V0-013	docs/specs/native-shell-affected-test-v0.md	104	Neither plugin may execute repository code, a compiler, a shell or a package man
-NSA-V0-014	docs/specs/native-shell-affected-test-v0.md	107	Units, paths, imports, path tokens and frontier reasons MUST be sorted and uniqu
-NSA-V0-015	docs/specs/native-shell-affected-test-v0.md	110	Both plugins MUST pass the shared seam conformance suite (`core <- mid <- leaf`
+NSA-V0-004	docs/specs/native-shell-affected-test-v0.md	56	A quoted include that resolves to more than one candidate MUST keep every candid
+NSA-V0-005	docs/specs/native-shell-affected-test-v0.md	62	Whenever the source universe holds a C-family file, the plugin MUST report the
+NSA-V0-006	docs/specs/native-shell-affected-test-v0.md	71	One plugin with namespace `shell` MUST own names ending `.sh`, `.bash`, `.zsh`,
+NSA-V0-007	docs/specs/native-shell-affected-test-v0.md	73	One unit MUST be one file, identity `shell:<path>`. A test is a `.bats` file, or
+NSA-V0-008	docs/specs/native-shell-affected-test-v0.md	77	Imports MUST include each literal `source`, `.` and bats `load` target, and each
+NSA-V0-009	docs/specs/native-shell-affected-test-v0.md	85	A `source`, `.` or `load` whose target is not a resolvable literal MUST set
+NSA-V0-010	docs/specs/native-shell-affected-test-v0.md	90	Every unit MUST record as `PathTokens` the path-shaped string tokens of its own
+NSA-V0-011	docs/specs/native-shell-affected-test-v0.md	93	A shell test that runs a build or language toolchain (`go`, `make`, `cargo`, `np
+NSA-V0-012	docs/specs/native-shell-affected-test-v0.md	101	When the source universe holds source text of another language Corvint plans (an
+NSA-V0-013	docs/specs/native-shell-affected-test-v0.md	112	Neither plugin may execute repository code, a compiler, a shell or a package man
+NSA-V0-014	docs/specs/native-shell-affected-test-v0.md	115	Units, paths, imports, path tokens and frontier reasons MUST be sorted and uniqu
+NSA-V0-015	docs/specs/native-shell-affected-test-v0.md	118	Both plugins MUST pass the shared seam conformance suite (`core <- mid <- leaf`
 NTP-V0-001	docs/specs/native-taskman-planning-v0.md	32	The opt-in `corvint work plan-fixture --executor ABSOLUTE_FILE --observations FI
 NTP-V0-002	docs/specs/native-taskman-planning-v0.md	38	The receipt MUST bind the immutable source commit/tree, executor digest, native
 NTP-V0-003	docs/specs/native-taskman-planning-v0.md	42	Eligible tickets MUST be processed by priority P0..P3, numeric order, then ticke

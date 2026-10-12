@@ -142,6 +142,19 @@ func TestHeaderCounterpartReachesTestsIncludingTheHeader_NSAV0003(t *testing.T) 
 	}
 }
 
+// A directive continued with a backslash is spliced before it is read.
+func TestContinuedIncludeKeepsItsEdge_NSAV0003(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "core.h", "int core(void);\n")
+	write(t, root, "core.c", "#include \"core.h\"\nint core(void) { return 0; }\n")
+	write(t, root, "tests/core_test.c", "#include \\\n\"../core.h\"\nint main(void) { return core(); }\n")
+	write(t, root, "tests/crlf_test.c", "#include \\\r\n\"../core.h\"\r\nint main(void) { return core(); }\r\n")
+	want := []string{"tests/core_test.c", "tests/crlf_test.c"}
+	if got := selectFor(t, root, "core.c").SelectedTests(); !equal(got, want) {
+		t.Fatalf("selected=%v want %v", got, want)
+	}
+}
+
 func TestIncludeResolutionFollowsTheSpecifiedSearch_NSAV0003(t *testing.T) {
 	root := t.TempDir()
 	// Directory-relative wins over the root-relative candidate of the same name.

@@ -14,11 +14,19 @@ type command struct {
 
 // script is what one lexing pass over a file yields: its commands in source
 // order, its heredoc bodies, which are data rather than commands, and the
-// names of the functions it defines.
+// functions it defines, each mapped to the number of commands before its
+// first definition.
 type script struct {
 	commands  []command
 	data      []string
-	functions map[string]bool
+	functions map[string]int
+}
+
+// define records a function's first definition.
+func (s *script) define(name string) {
+	if _, seen := s.functions[name]; !seen {
+		s.functions[name] = len(s.commands)
+	}
 }
 
 // redirect marks a redirection operator; the word after it is its target.
@@ -43,7 +51,7 @@ func plainWords(words []string) []string {
 // and anything else is kept as word text. A misreading can add or drop an
 // edge in either direction only for constructs it does not model.
 func parse(text string) script {
-	out := script{functions: map[string]bool{}}
+	out := script{functions: map[string]int{}}
 	lexer := &lexer{src: text, out: &out}
 	lexer.parse(0, false, false)
 	return out
@@ -58,6 +66,9 @@ type lexer struct {
 type heredoc struct {
 	delimiter string
 	dash      bool
+	// expands reports an unquoted delimiter, whose body's command
+	// substitutions run.
+	expands bool
 }
 
 type frame struct{ function, paren bool }
@@ -71,6 +82,10 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 		pending     []heredoc
 		stack       []frame
 		pendingFunc bool
+		// cases counts open case statements; pattern is set while a case
+		// pattern list, whose words and `|` are not commands, is being read.
+		cases   int
+		pattern bool
 	)
 	inFunction := func() bool {
 		if inherited {
@@ -92,16 +107,24 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 		if start < 0 {
 			return
 		}
-		word := l.src[start:l.pos]
+		word := strings.ReplaceAll(l.src[start:l.pos], "\\\n", "")
 		start = -1
 		switch {
+		case cases > 0 && len(words) == 0 && word == "esac":
+			cases--
+			pattern = false
+		case pattern:
+		case len(words) == 2 && words[0] == "case" && word == "in":
+			words = nil
+			cases++
+			pattern = true
 		case len(words) == 0 && word == "{":
 			stack = append(stack, frame{function: pendingFunc})
 			pendingFunc = false
 		case len(words) == 0 && word == "}":
 			pop()
 		case word == "{" && len(words) == 2 && words[0] == "function":
-			l.out.functions[words[1]] = true
+			l.out.define(words[1])
 			words = nil
 			stack = append(stack, frame{function: true})
 			pendingFunc = false
@@ -116,7 +139,7 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 		}
 		if words[0] == "function" {
 			if len(words) > 1 {
-				l.out.functions[words[1]] = true
+				l.out.define(words[1])
 			}
 			pendingFunc = true
 		} else {
@@ -131,12 +154,28 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 	}
 	for l.pos < len(l.src) {
 		c := l.src[l.pos]
+		if pattern && (c == '|' || c == '(' || c == ')') {
+			endWord()
+			if c == ')' {
+				words = nil
+				pattern = false
+			}
+			l.pos++
+			continue
+		}
+		// Inside [[ ]] parentheses, `|`, `&`, `<` and `>` belong to the
+		// conditional expression, e.g. a `=~` regex, not to the command list.
+		if len(words) > 0 && words[0] == "[[" && words[len(words)-1] != "]]" && strings.IndexByte("()|&<>", c) >= 0 {
+			begin()
+			l.pos++
+			continue
+		}
 		switch {
 		case c == '\n':
 			endCommand()
 			l.pos++
 			for _, body := range pending {
-				l.heredoc(body)
+				l.heredoc(body, inFunction())
 			}
 			pending = nil
 		case c == ' ' || c == '\t' || c == '\r':
@@ -147,8 +186,8 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 				l.pos++
 			}
 		case c == '\\':
+			// A line continuation joins the words around it.
 			if l.pos+1 < len(l.src) && l.src[l.pos+1] == '\n' {
-				endWord()
 				l.pos += 2
 				continue
 			}
@@ -166,6 +205,13 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 		case c == '$':
 			begin()
 			l.dollar(inFunction())
+		case c == ';' && cases > 0 && (l.peek(1) == ';' || l.peek(1) == '&'):
+			endCommand()
+			l.pos += 2
+			if l.peek(0) == '&' {
+				l.pos++
+			}
+			pattern = true
 		case c == ';' || c == '&' || c == '|':
 			endCommand()
 			l.pos++
@@ -244,7 +290,7 @@ func (l *lexer) functionParens(words []string) bool {
 	if next >= len(l.src) || l.src[next] != ')' {
 		return false
 	}
-	l.out.functions[words[len(words)-1]] = true
+	l.out.define(words[len(words)-1])
 	l.pos = next + 1
 	return true
 }
@@ -379,12 +425,15 @@ func (l *lexer) heredocOperator() (heredoc, bool) {
 		}
 		l.pos++
 	}
-	body.delimiter = unquote(l.src[begin:l.pos])
+	raw := l.src[begin:l.pos]
+	body.delimiter = unquote(raw)
+	body.expands = !strings.ContainsAny(raw, `'"\\`)
 	return body, body.delimiter != ""
 }
 
 // heredoc consumes one heredoc body, from pos to its delimiter line, as data.
-func (l *lexer) heredoc(body heredoc) {
+// An expanding body's command substitutions are lexed as commands.
+func (l *lexer) heredoc(body heredoc, inFunction bool) {
 	var lines []string
 	for l.pos < len(l.src) {
 		end := strings.IndexByte(l.src[l.pos:], '\n')
@@ -404,5 +453,26 @@ func (l *lexer) heredoc(body heredoc) {
 		}
 		lines = append(lines, line)
 	}
-	l.out.data = append(l.out.data, strings.Join(lines, "\n"))
+	text := strings.Join(lines, "\n")
+	l.out.data = append(l.out.data, text)
+	if body.expands {
+		l.substitutions(text, inFunction)
+	}
+}
+
+// substitutions lexes the command substitutions of double-quote-like text.
+func (l *lexer) substitutions(text string, inFunction bool) {
+	sub := &lexer{src: text, out: l.out}
+	for sub.pos < len(sub.src) {
+		switch sub.src[sub.pos] {
+		case '\\':
+			sub.pos += 2
+		case '`':
+			sub.backtick(inFunction)
+		case '$':
+			sub.dollar(inFunction)
+		default:
+			sub.pos++
+		}
+	}
 }

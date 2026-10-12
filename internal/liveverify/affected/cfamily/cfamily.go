@@ -199,6 +199,9 @@ func unitID(relative string) string { return "cfamily:" + relative }
 
 // observe classifies one file and lists its include targets.
 func observe(relative string, body []byte) (observation, map[string]bool) {
+	// Splice continued lines first, as translation phase 2 does, so a
+	// directive continued with a backslash is read whole.
+	body = bytes.ReplaceAll(bytes.ReplaceAll(body, []byte("\\\r\n"), nil), []byte("\\\n"), nil)
 	code, masked := scrub(body)
 	item := observation{relative: relative, jni: jniExport.Match(masked)}
 	item.test = !isHeader(relative) && testPath(relative) && hasTestSignal(relative, masked)

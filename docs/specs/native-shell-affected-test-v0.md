@@ -51,7 +51,8 @@ runner tuple; runner execution belongs to V1-0593 and V1-0594.
   exactly one repository file has that path suffix; otherwise it is treated as external. A header's
   unit MUST import its implementation counterparts (same stem with a non-header C-family suffix in the
   same directory, or in a sibling `src` directory of an `include` directory) so that a change to an
-  implementation reaches every test that includes its header.
+  implementation reaches every test that includes its header. A backslash-newline MUST be spliced
+  before directives are read, as in translation phase 2, so a continued directive keeps its edge.
 - `NSA-V0-004`: A quoted include that resolves to more than one candidate MUST keep every candidate
   edge and raise `cfamily:ambiguous-include`. A quoted include resolving to no repository file MUST
   raise `cfamily:unresolved-include`. A macro-named include (`#include MACRO`) MUST raise
@@ -78,10 +79,14 @@ runner tuple; runner execution belongs to V1-0593 and V1-0594.
   that resolves to one owned shell unit. Resolution MUST accept a path relative to the repository
   root, to the referencing file's directory, and to the forms `$(dirname "$0")`, `${0%/*}`,
   `$(dirname "${BASH_SOURCE[0]}")`, `${BASH_SOURCE%/*}`, `$BATS_TEST_DIRNAME` and a variable
-  assigned once from one of those forms. bats `load NAME` also tries `NAME.bash`.
-- `NSA-V0-009`: A `source`, `.` or `load` whose target is not a resolvable literal MUST raise the unit
-  frontier `shell:dynamic-source`. Unreadable or undecodable text MUST raise
-  `shell:unreadable-source`.
+  assigned once from one of those forms. bats `load NAME` also tries `NAME.bash`. A backslash-newline
+  MUST join the words around it. Case patterns and the operands of `[[ ]]` (including a `=~` regex)
+  are not commands.
+- `NSA-V0-009`: A `source`, `.` or `load` whose target is not a resolvable literal MUST set
+  `UnboundedReads` to `shell:dynamic-source`, and a non-test unit MUST also set `LocatesRoot`, so
+  every test that reaches it is selected on any dirty path. A unit frontier is not enough: it applies
+  only when the unit is reached, and a computed target may read the dirty path without any edge.
+  Unreadable or undecodable text MUST raise `shell:unreadable-source`.
 - `NSA-V0-010`: Every unit MUST record as `PathTokens` the path-shaped string tokens of its own text,
   bounded and marked `PathTokensBounded` when the bound is hit, so a test that names a data file or
   another language's file is selected when that file is dirty.
@@ -89,7 +94,10 @@ runner tuple; runner execution belongs to V1-0593 and V1-0594.
   `npx`, `pnpm`, `yarn`, `node`, `python`, `python3`, `ruby`, `bundle`, `swift`, `xcodebuild`,
   `gradle`, `./gradlew`, `mvn`, `dotnet`, `cmake`, `ctest`, `bazel`) MUST set `UnboundedReads` to
   `shell:runs-toolchain`, so it is selected on any dirty path: what such a test reads is the whole
-  program the toolchain builds, which no literal bounds.
+  program the toolchain builds, which no literal bounds. A function the file defines shadows a
+  toolchain of the same name only for calls after its definition and outside a `bash -c` string; a
+  call through `exec`, `command`, `nohup`, `sudo`, `env`, `xcrun` or `timeout` is never shadowed.
+  The bodies of expanding heredocs (unquoted delimiter) MUST be scanned for substitutions.
 - `NSA-V0-012`: When the source universe holds source text of another language Corvint plans (any
   name ending in a suffix owned by another plugin in `languages.All()`), every non-test shell unit
   MUST carry the unit frontier `shell:foreign-invocation-unmodelled`, because programs in those
@@ -124,8 +132,9 @@ build-system link graphs are V0 non-goals.
 ## Failure modes
 
 - A false include or invocation edge widens selection; that is acceptable.
-- A missing edge narrows selection. The frontiers of `NSA-V0-005` and `NSA-V0-012` and
-  `NO_SELECTABLE_TEST` for an unreached changed unit keep such a plan UNKNOWN instead of bounded.
+- A missing edge narrows selection. The frontiers of `NSA-V0-005` and `NSA-V0-012`, the unbounded
+  reads of `NSA-V0-009` and `NSA-V0-011`, and `NO_SELECTABLE_TEST` for an unreached changed unit keep
+  such a plan UNKNOWN or widen it instead of reporting it bounded.
 - Registering the plugins changes `corvint affected` output for any repository holding these files:
   paths that were `UNOWNED_DIRTY_PATH` now select tests or report `NO_SELECTABLE_TEST`.
 

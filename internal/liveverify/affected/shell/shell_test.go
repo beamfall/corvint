@@ -100,12 +100,35 @@ func TestResolvesEveryLiteralForm_NSAV0008(t *testing.T) {
 	}
 }
 
+// A line continuation inside a word joins it, as the shell does.
+func TestContinuedInvocationKeepsItsEdge_NSAV0008(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "core.sh", "true\n")
+	write(t, root, "continued_test.sh", "bash co\\\nre.sh\nsh \\\n  core.sh\n")
+	unit := unitOf(t, units(t, root), "continued_test.sh")
+	if !slices.Equal(unit.Imports, []string{"shell:core.sh"}) {
+		t.Fatalf("imports=%v", unit.Imports)
+	}
+}
+
+func TestCasePatternsAndConditionalsAreNotCommands_NSAV0008_NSAV0009(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "a.sh", "true\n")
+	write(t, root, "b.sh", "true\n")
+	write(t, root, "use.sh", "case \"$1\" in\n  ''|/*|.|-) source a.sh ;;\n  (x) . b.sh ;&\n  *) exit 1\nesac\n"+
+		"[[ $1 =~ ^v\\.([0-9]+)|(x)$ ]] && true\n")
+	unit := unitOf(t, units(t, root), "use.sh")
+	if !slices.Equal(unit.Imports, []string{"shell:a.sh", "shell:b.sh"}) || unit.UnboundedReads != "" {
+		t.Fatalf("case pattern or [[ ]] regex parsed as a command: %+v", unit)
+	}
+}
+
 func TestReassignedVariableIsNotADirectoryForm_NSAV0008(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "lib/a.sh", "true\n")
 	write(t, root, "use.sh", "DIR=$(dirname \"$0\")\nDIR=/tmp\nsource \"$DIR/lib/a.sh\"\n")
 	unit := unitOf(t, units(t, root), "use.sh")
-	if len(unit.Imports) != 0 || !slices.Equal(unit.Frontier, []string{FrontierDynamicSource}) {
+	if len(unit.Imports) != 0 || unit.UnboundedReads != UnboundedDynamicSource {
 		t.Fatalf("reassigned directory variable resolved: %+v", unit)
 	}
 }
@@ -128,7 +151,7 @@ func TestBatsLoadTriesTheBashSuffix_NSAV0008(t *testing.T) {
 	}
 }
 
-func TestNonLiteralSourceRaisesDynamicSource_NSAV0009(t *testing.T) {
+func TestNonLiteralSourceReadsUnboundedly_NSAV0009(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "a.sh", "for f in lib/*.sh; do source \"$f\"; done\n")
 	write(t, root, "b.sh", ". \"$HOME/.profile\"\n")
@@ -137,20 +160,34 @@ func TestNonLiteralSourceRaisesDynamicSource_NSAV0009(t *testing.T) {
 	write(t, root, "e.sh", "# source \"$f\"\necho 'source $x'\ncat <<EOF\nsource $y\nEOF\n")
 	result := units(t, root)
 	for _, dynamicFile := range []string{"a.sh", "b.sh", "c.bats", "d.sh"} {
-		if unit := unitOf(t, result, dynamicFile); !slices.Equal(unit.Frontier, []string{FrontierDynamicSource}) {
-			t.Fatalf("%s frontier=%v", dynamicFile, unit.Frontier)
+		unit := unitOf(t, result, dynamicFile)
+		if unit.UnboundedReads != UnboundedDynamicSource || unit.LocatesRoot != (dynamicFile != "c.bats") || len(unit.Frontier) != 0 {
+			t.Fatalf("%s=%+v", dynamicFile, unit)
 		}
 	}
-	if unit := unitOf(t, result, "e.sh"); len(unit.Frontier) != 0 {
-		t.Fatalf("comment, string or heredoc raised a frontier: %v", unit.Frontier)
+	if unit := unitOf(t, result, "e.sh"); unit.UnboundedReads != "" {
+		t.Fatalf("comment, string or heredoc read unboundedly: %+v", unit)
 	}
 	if len(result.Frontier) != 0 {
-		t.Fatalf("unit frontier leaked into the global frontier: %v", result.Frontier)
+		t.Fatalf("dynamic source raised a global frontier: %v", result.Frontier)
 	}
+}
+
+// A computed source target is not an edge, so an unreached frontier would let
+// a plan stay bounded without the test that sources the dirty file.
+func TestComputedSourceIsSelectedOnAnyDirtyPath_NSAV0009(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "lib/core.sh", "core() { :; }\n")
+	write(t, root, "lib/other.sh", "other() { :; }\n")
+	write(t, root, "direct_test.sh", ". lib/core.sh\ncore\n")
+	write(t, root, "computed_test.sh", "name=core\n. \"lib/${name}.sh\"\ncore\n")
+	write(t, root, "lib/loader.sh", "name=other\n. \"lib/${name}.sh\"\n")
+	write(t, root, "loader_test.sh", ". lib/loader.sh\nother\n")
 	graph := build(t, root)
-	plan := affected.Select(graph, []string{"a.sh"})
-	if !hasUnknown(plan, affected.UnknownLanguageFrontier, FrontierDynamicSource) {
-		t.Fatalf("reached dynamic source is not named: %+v", plan.Unknown)
+	plan := affected.Select(graph, []string{"lib/core.sh"})
+	want := []string{"computed_test.sh", "direct_test.sh", "loader_test.sh"}
+	if got := plan.SelectedTests(); !slices.Equal(got, want) {
+		t.Fatalf("selected %v, want %v", got, want)
 	}
 }
 
@@ -284,6 +321,12 @@ func TestToolchainTestsReadUnboundedly_NSAV0011(t *testing.T) {
 		"t/condition_test.sh": true,
 		"t/shadow_test.sh":    false,
 		"t/kwshadow_test.sh":  false,
+		"t/late_test.sh":      true,
+		"t/child_test.sh":     true,
+		"t/command_test.sh":   true,
+		"t/expanding_test.sh": true,
+		"t/quoted_test.sh":    false,
+		"t/joined_test.sh":    true,
 	}
 	write(t, root, "t/go_test.sh", "go test ./cmd\n")
 	write(t, root, "t/make_test.sh", "set -e; make -C x check\n")
@@ -303,6 +346,12 @@ func TestToolchainTestsReadUnboundedly_NSAV0011(t *testing.T) {
 	write(t, root, "t/condition_test.sh", "if ! bazel test //cmd:all; then exit 1; fi\n")
 	write(t, root, "t/shadow_test.sh", "bundle() {\n  mktemp -d\n}\ndir=$(bundle match)\n")
 	write(t, root, "t/kwshadow_test.sh", "function make {\n  printf x\n}\nmake all\n")
+	write(t, root, "t/late_test.sh", "make all\nmake() {\n  printf x\n}\n")
+	write(t, root, "t/child_test.sh", "go() {\n  printf x\n}\nbash -c 'go build ./cmd'\n")
+	write(t, root, "t/command_test.sh", "make() { :; }\ncommand make test\n")
+	write(t, root, "t/expanding_test.sh", "cat <<EOF\n$(make test)\nEOF\n")
+	write(t, root, "t/quoted_test.sh", "cat <<'EOF'\n$(make test)\nEOF\n")
+	write(t, root, "t/joined_test.sh", "ma\\\nke test\n")
 	result := units(t, root)
 	for file, want := range cases {
 		unit := unitOf(t, result, file)

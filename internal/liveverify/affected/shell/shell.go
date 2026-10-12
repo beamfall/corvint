@@ -27,9 +27,9 @@ import (
 
 // Reasons this plugin can raise.
 const (
-	// FrontierDynamicSource is the unit frontier of a `source`, `.` or bats
+	// UnboundedDynamicSource marks the unbounded reads of a `source`, `.` or bats
 	// `load` whose target is not a literal this plugin can resolve.
-	FrontierDynamicSource = "shell:dynamic-source"
+	UnboundedDynamicSource = "shell:dynamic-source"
 	// FrontierUnreadableSource is the global frontier for a shell file that
 	// could not be read or is not valid UTF-8.
 	FrontierUnreadableSource = "shell:unreadable-source"
@@ -151,7 +151,7 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 	}
 	edges := map[string]bool{}
 	unitFrontier := map[string]bool{}
-	toolchain := false
+	toolchain, dynamic := false, false
 	loads := strings.HasSuffix(relative, ".bats") || strings.HasSuffix(relative, ".bash")
 	commands := parsed.commands
 	for index := 0; index < len(commands); index++ {
@@ -159,11 +159,11 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 		switch {
 		case word == "source" || word == ".":
 			if len(args) == 0 || !resolve.link(unquote(args[0]), nil, known, edges) {
-				unitFrontier[FrontierDynamicSource] = true
+				dynamic = true
 			}
 		case word == "load" && loads:
 			if len(args) == 0 || !resolve.link(unquote(args[0]), []string{"", ".bash"}, known, edges) {
-				unitFrontier[FrontierDynamicSource] = true
+				dynamic = true
 			}
 		case shells[word]:
 			// A command string's commands are scanned as the file's own.
@@ -176,16 +176,21 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 		case strings.Contains(word, "/") || strings.HasPrefix(word, "$"):
 			resolve.link(word, nil, known, edges)
 		}
-		// A function the file defines shadows a toolchain of the same name.
-		if isToolchain(word) && !parsed.functions[word] {
+		if isToolchain(word) && (bypassesFunctions(commands[index].words) || !shadowed(parsed, word, index)) {
 			toolchain = true
 		}
 	}
 	delete(edges, unit.ID)
 	unit.Imports = sortedKeys(edges)
 	unit.Frontier = sortedKeys(unitFrontier)
-	if test && toolchain {
+	switch {
+	case test && toolchain:
 		unit.UnboundedReads = UnboundedRunsToolchain
+	case dynamic:
+		// What a computed path sources is unknown, so the unit is selected on
+		// any dirty path, and so is every unit that sources a helper doing it.
+		unit.UnboundedReads = UnboundedDynamicSource
+		unit.LocatesRoot = !test
 	}
 	tokens := pathTokens(parsed)
 	if len(tokens) > maxPathTokens {
@@ -194,6 +199,37 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 		unit.PathTokens = sortedKeys(tokens)
 	}
 	return unit
+}
+
+// shadowed reports a call to a function the file defined earlier. A later
+// definition does not shadow an earlier call, and a command string runs in a
+// child shell that does not inherit the file's functions.
+func shadowed(parsed script, word string, index int) bool {
+	defined, ok := parsed.functions[word]
+	return ok && index >= defined && index < len(parsed.commands)
+}
+
+// bypassesFunctions reports a command run through a prefix that looks the
+// command up on PATH, past any function of the same name.
+func bypassesFunctions(words []string) bool {
+	for _, raw := range plainWords(words) {
+		if assignment.MatchString(raw) {
+			continue
+		}
+		word := unquote(raw)
+		if functionBypassPrefixes[word] {
+			return true
+		}
+		if !commandPrefixes[word] {
+			return false
+		}
+	}
+	return false
+}
+
+// functionBypassPrefixes are the commandPrefixes that run an external command.
+var functionBypassPrefixes = map[string]bool{
+	"exec": true, "command": true, "nohup": true, "sudo": true, "env": true, "xcrun": true, "timeout": true,
 }
 
 // shells are the interpreters whose script argument is an invocation edge.
