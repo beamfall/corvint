@@ -387,6 +387,7 @@
     "tools/test-commands-check": [
       ".github/cishards/test-commands.json",
       "Makefile"
-    ]
+    ],
+    "tools/test-commands-run": []
   }
 }

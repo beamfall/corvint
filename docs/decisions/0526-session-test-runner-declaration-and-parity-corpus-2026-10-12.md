@@ -33,20 +33,43 @@ list was retained, so slice 2 measured a substitute corpus (the 50 first-parent 
    plain, bounded, strictly-schemed read (unknown or duplicate members, a missing `go` member, an
    oversized file and a malformed entry are all unreadable, which is `INCOMPLETE` in every scope),
    and never interprets the Makefile. The manifest binds the declaration's digest as
-   `declaredDigest`. A maintained repository gate, `make test-commands-check`
-   (`tools/test-commands-check`, in `GATE_STEPS` and the CI doc-gates job), observes what
-   `make go-test` actually hands `go` through a recording `go` shim on a minimal `PATH` and asserts
-   that the shim ran exactly once with argv `test <go.flags> ./...` and an environment equal to
-   `go.env` after excluding only the closed make-introduced name set recorded in STR-V0-006, that
-   every declared `make` language command names a target that dry-runs, and that no `GATE_STEPS`
-   recipe word names a runner of a `none` language. The Makefile reader and its make-semantics
-   tests are deleted, not kept behind a flag.
+   `declaredDigest`. The Makefile delegates to the declaration: `make go-test` is the one fixed
+   recipe line `go run ./tools/test-commands-run`, which runs `go test <go.flags> ./...` with
+   `go.env` from the repository root (item 3). A maintained repository gate,
+   `make test-commands-check` (`tools/test-commands-check`, in `GATE_STEPS` and the CI doc-gates
+   job), reads the Makefile text, never make's output, and asserts that the `go-test` rule is
+   exactly that line, that no Makefile or included line sets `SHELL`, `.SHELLFLAGS`, `MAKEFLAGS`
+   or `.RECIPEPREFIX`, exports `MAKEFLAGS` or every variable, or defines a target- or
+   pattern-specific variable that could reach `go-test`, that the text needs no make to read
+   (no `$(eval)`, `define`, computed or missing `include`), that every declared `make` language
+   command names a target that dry-runs, and that no `GATE_STEPS` recipe word names a runner of a
+   `none` language (STR-V0-006 (a) to (e)). The Makefile reader and its make-semantics tests are
+   deleted, not kept behind a flag.
 2. STR-V0-013's parity input becomes the retained substitute corpus,
    `tools/str-parity/testdata/pairs-645304a2.txt`: the 50 first-parent pairs ending at
    `645304a2fb71065f9061d8d8d866600d703e84c6` that slice 2 measured, committed as a file the parity
    tool reads (`-corpus`) and checks against `git rev-list`. The original AFP-V0-011 pair list and
    the AFP-V0-029 shadow rows stay `NOT_OBSERVED`; nothing reconstructs them from memory. The
    AFP-V0-029 shadow bar remains a precondition for any CI narrowing.
+3. Owner decision (2026-10-12, in chat): the Makefile runs the declaration. This replaces the
+   make-observing drift gate (a recording `go` shim on a minimal `PATH`, a control recipe for the
+   make-introduced names, a recipe shape rule and a `make -p` database parse) that Codex review
+   rounds 4 to 8 kept finding incomplete, each round surfacing another make semantic the gate had
+   to reverse-engineer: exports and `.EXPORT_ALL_VARIABLES` (4), the working directory, a second
+   `go` and `MAKEFLAGS` in the recipe (5), `SHELL` wrappers and make functions in expanded
+   variables (6), the 4.x database header and target- or pattern-specific `SHELL` (7),
+   pattern-specific values of every expanded variable (8). With one fixed recipe line and
+   `tools/test-commands-run` there is no second statement of the command to compare, and the gate
+   becomes the bounded text check of STR-V0-006. The shim, the control recipe, the database parser
+   and their tests are deleted; the round-8 fix was discarded uncommitted.
+4. Owner decision (2026-10-12): Codex review is capped at one round on the redesigned gate, then
+   ship. Acceptance no longer waits for a `VERDICT: PASS`; it follows that one independent review
+   round, and each of its findings is either fixed or recorded as a limit in STR-V0-006 and the
+   build log.
+5. Owner decision (2026-10-12): `make gate` is waived for V1-0040. The ticket's `requiredGates`
+   full gate is `NOT_RUN` under that waiver; the evidence that replaces it is the focused tests
+   (`tools/test-commands-check`, `tools/test-commands-run`, `internal/sessiontest`), the CI
+   doc-gates list run locally, the use-case receipts checks and the CI run on PR #815.
 
 Amended requirement IDs (text changed, IDs stable): `STR-V0-003` (declaration file, no Makefile
 interpretation, unreadable is `INCOMPLETE` in every scope), `STR-V0-004` (`none` records a
@@ -59,24 +82,20 @@ requirement is added or removed; the delivery status stays experimental.
 
 - `internal/sessiontest/declared.go` is the only reader; `TestSTRV0003ReadDeclared` pins the
   unreadable cases and the digest's independence from member order.
-- `tools/test-commands-check/main_test.go` runs the gate against the repository and nine
-  declaration mutations (flag value, flag order, dropped flag, extra and changed environment
-  variable, absent file, declared `make` target that does not exist, a `none` language the gate
-  runs, a `none` language without a runner list) and twenty-two Makefile mutations (target-specific
-  `export`, global `export`, `.EXPORT_ALL_VARIABLES`, absolute-path `go`, two `go` calls, a recipe
-  failing after `go`, a changed flag, a changed directory, a recipe setting `MAKEFLAGS`, a
-  Makefile exporting `MAKEFLAGS` or setting `SHELL`, a target-specific `SHELL` on `go-test`, a
-  pattern-specific `.SHELLFLAGS` matching it, a second `go` through an absolute path
-  chained, on its own line or as an argument, a shell wrapper script or `nice` before `go`,
-  `$(shell ...)` in the recipe, in a variable it expands or in a target-specific variable, a
-  quoted `"python3"` in a gate step), each of which must fail. The gate runs make under a minimal
-  environment, so the Makefile defaults are what it observes; it checks the make-introduced names
-  against a control recipe in its own makefile under the same make rather than trusting them,
-  requires the go-test recipe to be one `NAME=VALUE... go` command line so nothing the shim cannot
-  see runs beside it, and reads make's database to refuse any make function the recipe would
-  expand and any Makefile `SHELL` or `.SHELLFLAGS` (global, target-specific on `go-test`, or
-  pattern-specific matching it), in both the GNU make 3.81 and 4.x database forms. Make functions
-  expanded while the Makefile is read are its recorded limit.
+- `tools/test-commands-check/main_test.go` runs the gate against the repository, three
+  declaration mutations (a declared `make` target that does not exist, a `none` language the gate
+  runs, a `none` language without a runner list) and an absent file; thirty-two Makefile text
+  mutations, each of which must fail (a changed, continued or second `go-test` recipe line, no
+  recipe, a prerequisite, `::`, a second rule, `SHELL`/`.SHELLFLAGS`/`MAKEFLAGS`/`.RECIPEPREFIX`
+  plain, exported, target- and pattern-specific, `export MAKEFLAGS`, bare `export`,
+  `.EXPORT_ALL_VARIABLES`, target-, pattern-, match-anything- and expanded-target variables,
+  pattern and expanded-target recipes tab-indented and after `;`, `$(eval)`, `define`, a computed
+  and a missing `include`, a second and an expanded `GATE_STEPS`) and five that must pass; a
+  nested-include fixture with the GOC-V0-010 prerequisite-only line; and the line classifier.
+  `tools/test-commands-run/main_test.go` runs the runner under a fake `go` on `PATH` (argv,
+  directory, environment precedence, exit status) and pins its four refusals. The gate reads
+  text only; its recorded limits are in STR-V0-006 (the environment make itself starts with, and
+  the `ledger/go-test` and `gate-affected` tiers that still use the Makefile variables).
 - `tools/str-parity -corpus` refuses a corpus whose lines differ from
   `git rev-list --first-parent --parents` over the same end and count.
 
@@ -96,5 +115,6 @@ requirement is added or removed; the delivery status stays experimental.
 ## Rollback
 
 Revert the lane's commits on `claude/v1-0040-impl`: the slice 1 Makefile reader returns with its
-tests, STR-V0-003/004/006/013/015 return to their slice 2 text, and the gate step leaves
-`GATE_STEPS` and the CI doc-gates list. The corpus file can stay; it is inert without `-corpus`.
+tests, STR-V0-003/004/006/013/015 return to their slice 2 text, `make go-test` returns to
+`$(GO_TEST_COMMAND) ./...`, `tools/test-commands-run` goes with its tests, and the gate step
+leaves `GATE_STEPS` and the CI doc-gates list. The corpus file can stay; it is inert without `-corpus`.

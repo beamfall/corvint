@@ -3631,7 +3631,8 @@
       "cmd/corvint",
       "internal/sessiontest",
       "tools/str-parity",
-      "tools/test-commands-check"
+      "tools/test-commands-check",
+      "tools/test-commands-run"
     ]
   }
 ]

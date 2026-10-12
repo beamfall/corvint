@@ -11,10 +11,10 @@ CORVINT_BIN ?= corvint
 # in docs/agent-memory/optimizations.md; neither deadline is changed by this experiment.
 GO_TEST_TIMEOUT ?= 30m
 
-# GO_TEST_COMMAND is the one go test invocation both tiers run; go-test appends `./...` and
-# gate-affected appends the selected packages, so the flags cannot drift apart. GO_TEST_FLAGS is
-# the same invocation without -count=1: the gate's ledger tier (GL-V0-004) adds -count=1 itself
-# for the packages whose reads no literal bounds and lets Go's test cache answer the rest.
+# GO_TEST_COMMAND is the go test invocation gate-affected runs on the selected packages; go-test
+# instead runs the declaration .github/cishards/test-commands.json through tools/test-commands-run
+# (STR-V0-006; test-commands-check keeps that rule to one line). GO_TEST_FLAGS is the invocation
+# without -count=1: the ledger tier (GL-V0-004) adds it itself where a package's reads lack bounds.
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
@@ -79,7 +79,7 @@ go-version:
 	test "$$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.2"
 
 go-test:
-	$(GO_TEST_COMMAND) ./...
+	go run ./tools/test-commands-run
 
 # gate-affected is the fast tier: Corvint's own affected-test selection (`corvint affected`)
 # narrows go-test to the Go packages the change reaches, then the cheap non-test checks run.
@@ -233,9 +233,11 @@ ci-least-privilege-test:
 unbounded-readers-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/unbounded-readers >/dev/null
 
-# test-commands-check fails unless the Go environment and flags declared in
-# .github/cishards/test-commands.json are exactly what `make go-test` hands go (observed through a
-# go shim), every declared language command that names a make target exists, and no GATE_STEPS
+# test-commands-check reads this Makefile's text (not make's output) and fails unless the go-test
+# rule is exactly `go-test:` + `go run ./tools/test-commands-run` (the runner of the declaration
+# .github/cishards/test-commands.json), no line here or in an included file sets SHELL,
+# .SHELLFLAGS or MAKEFLAGS or defines a target- or pattern-specific variable that could reach
+# go-test, every declared language command that names a make target exists, and no GATE_STEPS
 # recipe runs a suite of a language declared none (STR-V0-006, docs/specs/session-test-runner-v0.md).
 test-commands-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/test-commands-check >/dev/null

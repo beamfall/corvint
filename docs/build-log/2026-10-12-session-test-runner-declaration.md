@@ -115,7 +115,8 @@ The owner decided so in chat on 2026-10-12.
   function expanded while the Makefile is read (`CORVINT_GOCACHE := $(shell ...)`) runs on every
   make invocation before the recipe and is not observed; the repository's `$(shell git ...)`
   lookups are of that kind. It is not in `tools/gate-ledger`'s scoped map, so it runs on every
-  change.
+  change. Superseded on 2026-10-12: the shim, the control recipe and the database parser are
+  deleted and the gate is a Makefile text check; see "Round 8 and the redesign" below.
 - `run.go` `discover` (round 4): a declared `argv[0]` containing a path separator is resolved
   against `filepath.Abs(Root)` before `exec.LookPath`, so `./tools/python-tests` is the
   repository's file when `corvint --root R test` runs from another directory; a bare name is
@@ -379,6 +380,86 @@ Codex (`gpt-6-astra`, read-only, up to three rounds) over `bed653e92..HEAD`.
   the test counts were updated to match. Live GNU make 4.x remains unobserved on this host; the
   decision 0526 condition (`VERDICT: PASS` from an independent review) is not yet met and awaits
   the coordinator's round 8.
+- Round 8 (`6ecae5897`, run by the coordinator): `CHANGES_REQUESTED`, one finding, verified.
+  [P1] `expandsPlainly` read only the global and `go-test` target-specific values of a variable
+  the recipe expands, so a pattern-specific `go-%: GO_TEST_FLAGS := $(shell ./tools/pre-test)`
+  (any `%` pattern matching `go-test`) ran a make function during expansion while the printed
+  recipe, the shim's observation and the global value were unchanged. A fix was written (every
+  scope consulted for every expanded name and its siblings, four more mutations) and discarded
+  uncommitted when the owner ended the loop; no further Codex round ran on the make-observing
+  gate.
+
+## Round 8 and the redesign (2026-10-12)
+
+Why: rounds 4 to 8 each found a new make semantic because the gate reverse-engineered make. The
+recipe-text comparison (rounds 1 to 3) gave way to a `go` shim (round 4), which needed the
+working directory, a record count, a control recipe for the make-introduced names and a recipe
+shape rule (round 5), then a `make -p` database parse to refuse make functions and `SHELL`
+(round 6), then the 4.x database header and target- and pattern-specific `SHELL` (round 7), then
+the pattern-specific values of every expanded variable (round 8). Each fix was right and each
+left the next scope unread, because the gate was modelling what make would do with a Makefile
+that restates the declaration. The owner's decision (2026-10-12, decision 0526 item 3): the
+Makefile runs the declaration, so there is nothing to compare.
+
+What changed, in one commit from `6ecae5897`:
+
+- `tools/test-commands-run` (new; standard library and `internal/sessiontest` only): reads the
+  declaration through the strict reader, runs `go test <go.flags> ./...` from the repository
+  root with each `go.env` entry replacing the inherited value of that name, passes output through
+  and returns `go`'s exit status; refuses arguments, an unreadable or absent declaration and a
+  directory without `go.mod` with exit 2. `TestSTRV0006RunnerRunsTheDeclaration` proves the argv,
+  directory, environment precedence (`GOCACHE` overridden, an inherited `GOFLAGS=-race` kept) and
+  exit 3 under a fake `go` first on `PATH`.
+- `Makefile`: `go-test:` is the one line `go run ./tools/test-commands-run`; `make -n go-test`
+  prints exactly that. Nothing else changed but two comments. `GO_TEST_TIMEOUT`, `GO_TEST_FLAGS`
+  and `GO_TEST_COMMAND` stay: `ledger/go-test` (GL-V0-004), `gate-affected`, and the specindex,
+  cem and tasks targets use them, so the declaration governs `make go-test` only (recorded limit
+  in STR-V0-006; slice 3 moves the call sites). No CI workflow changed.
+- `tools/test-commands-check`: `shim`, `observeGoTest`, the control recipe, `recipeShape`,
+  `readDatabase`/`parseDatabase`, `plainRecipe`, `expandsPlainly`, `matchesTarget` and their
+  tests are deleted (810 to 514 lines). The gate is the text check of STR-V0-006 (a) to
+  (e): logical lines with continuations joined, `#` comments stripped outside recipes, each line
+  classified by make's own rule (the first `=`-operator or rule colon), `go-test:` exact with one
+  exact recipe line, no recipe on any rule whose target could match `go-test`,
+  `SHELL`/`.SHELLFLAGS`/`MAKEFLAGS`/`.RECIPEPREFIX` refused in every scope, `export MAKEFLAGS`,
+  bare `export` and `.EXPORT_ALL_VARIABLES` refused, target- and pattern-specific variables that
+  could reach `go-test` refused, `$(eval)`, `define`, computed and missing includes refused,
+  literal includes followed four deep, `GATE_STEPS` read as one literal line, the `none`-language
+  dry-run kept. One deviation from the brief's "no prerequisites": a rule whose target could
+  match `go-test` may list prerequisites without a recipe, because the repository's own
+  GOC-V0-010 line `$(GATE_STEPS) $(addprefix ledger/,$(GATE_STEPS)): | gate-receipt-clear` gives
+  `go-test` an order-only prerequisite; the `go-test:` line itself still takes none.
+- Docs: STR-V0-006 rewritten (delegation, the text rules, the limits; every claim about
+  observing make execution removed) with its Boundaries row, Acceptance bullets and Traceability
+  row; decision 0526 items 3 to 5 and its Enforcement and Rollback; `REQUIREMENTS.tsv`
+  regenerated.
+
+Review and gates under the owner's 2026-10-12 decisions: Codex review is capped at one round on
+this result, then ship; acceptance follows that round with each finding fixed or recorded as a
+limit, not a `VERDICT: PASS` (decision 0526 item 4). `make gate` is waived for V1-0040: the
+ticket's `requiredGates` full gate is `NOT_RUN` under the waiver, replaced by the focused tests,
+the CI doc-gates list run locally, the use-case receipts checks and the CI run on #815 (item 5).
+
+Evidence (this commit; host GNU Make 3.81, go1.27.2, `GOTOOLCHAIN=local`): `gofmt -l` empty on
+both tools; `go vet` rc 0 on `tools/test-commands-check`, `tools/test-commands-run`,
+`internal/sessiontest`; `go test -count=1` on the same three packages rc 0 (2.1 s, 1.0 s, 5.2 s);
+`make -s test-commands-check` rc 0, printing "Makefile go-test is exactly `go run
+./tools/test-commands-run`, which runs .github/cishards/test-commands.json (GOCACHE=/tmp/corvint-go-build-cache
+GOTOOLCHAIN=local go test -p 1 -timeout 30m -count=1 ./... in the repository root); no SHELL,
+.SHELLFLAGS, MAKEFLAGS or go-test variable in the Makefile; 1 declared make targets dry-run; no
+make gate step recipe runs a suite of [dotnet kotlin python ruby rust swift]"; `make -n go-test`
+prints the one line `go run ./tools/test-commands-run`, rc 0 (the full run was not repeated here:
+the fake-`go` test proves the argv, directory and environment). CI doc-gates list
+(`spec-requirements-check requirement-definitions-check traceability-tests-check
+decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check`)
+rc 0 after the Makefile comment was kept at four lines so the `Makefile:42`, `:111` and `:130`
+citations in other specs still resolve (the first attempt, two lines longer, broke all three) and
+`tools/test-commands-run` was declared with no outside reads in `.corvint/test-read-scopes.json`
+(the first `unbounded-readers-check` run flagged the new package, rc 2);
+`make -s use-case-receipts-check use-case-receipts-test` rc 0 (18 receipts current, 5 cases).
+Nothing under `cmd/` changed, so `cmd/corvint` tests were not run. `make gate`: `NOT_RUN` (owner
+waiver, above). Live GNU make 4.x is no longer a dependency of the gate: it reads text and
+dry-runs only `make -s -n` for the declared targets and gate steps.
 
 ## Left for slice 3
 
