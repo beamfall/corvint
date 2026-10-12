@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) proposed; this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -703,6 +703,53 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `disabled` as an admitted legacy state. A legacy case that is not `executable` has no runtime
   baseline, so a contract mapped to it reports the `legacy-runtime-unknown` gap and no runtime
   parity. Every import record states `runtime_parity: false`. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #812).
+- `DCP-V1-080`: `corvint docs --help` and `corvint docs corpus witness-playwright --help` state the
+  behavior annotation contract that `witness-playwright` reads (`DCP-V1-050`). The four annotation
+  types are `corvint-behavior-event`, `corvint-behavior-cleanup`, `corvint-behavior-fixture` and
+  `corvint-behavior-role`. The help names every event key, the sequence, `passed`, non-empty and
+  `kind:id` uniqueness rules, the 4096-event bound, the kinds, the navigation values and the
+  `parent_page` rule for a popup. It also names the one-`passed`-cleanup rule, the fixture and role
+  order, the rule that the events equal each registered flow's `ordered_events` and the
+  registered assertion tuples, the annotation-stage reasons, the producer and a pointer to the
+  guide walkthrough. `discover-playwright --help` does not print it. `docs/DOCUMENTATION-CORPUS.md`,
+  section "Playwright behavior witness walkthrough", walks the chain from the qualified receipt
+  producer through `discover-playwright` and the evidence commit to `witness-playwright`, and back
+  to `behavior-adapter`. It includes a marked sample REQUEST.json whose receipt is the observed
+  `external-provider` full-file `inputs[]` entry (V1-1222). A test closed-decodes that sample, and
+  imports a witness through a real request whose receipt input carries the sample's anchor
+  metadata. Status: proposed (GitHub #835; V1-1222).
+- `DCP-V1-081`: `internal/doccorpus/behavior-events.cjs` is a Playwright fixture producer. It
+  publishes the four annotation types at test teardown, and it records only what ran:
+  - An `assertion` event is recorded only after the genuine Playwright `expect` matcher resolves.
+    That `expect` comes from the project's own `playwright/test` or `@playwright/test`, never from
+    the caller. The test attempt must also have gained no error while the matcher ran, and the
+    recording session must still be open.
+  - The event's `matcher`, `locator` and `value` are the called method, the Locator's selector and
+    the literal expected argument. They are therefore the registered tuple byte for byte.
+  - Only a closed set of exact string matchers and a non-negative integer `toHaveCount` are
+    recorded, with no option but `timeout`, on a real Locator in the main frame of an observed
+    page. Any other assertion still runs, but records nothing and warns once.
+  - A `negative-control` event is recorded only after a `to...` matcher, including `.not`, passes.
+  - A `page` event is recorded only for a real main-frame commit of an http(s) URL, observed from
+    Playwright's own `framenavigated` event in the `context` fixture. Its `id` is the URL path.
+    `navigation` is `popup` for the first commit of a page opened by an observed page, `redirect`
+    for a redirected request, and `main-frame` otherwise.
+  - The recorder is private and its API is frozen. `corvint-behavior-*` annotations published by
+    anything else, or more than 4096 events, replace the events with one malformed event, so the
+    test is never witnessed.
+  - Cleanup callbacks run last-registered first. The producer publishes `passed` only when at least
+    one callback ran and every one returned, `failed` when one threw, and nothing when none was
+    registered.
+  - Live Playwright 1.61.1 annotations equal the committed fixture report byte for byte and import
+    to a witness. Status: proposed (GitHub #835).
+- `DCP-V1-082`: An unwitnessed test with an annotation-stage reason (`events-unobserved`,
+  `event-malformed`, `cleanup-unobserved`, `cleanup-failed` or `fixture-role-mismatch`) adds
+  `missing_annotations`. It lists the needed annotation types that the passing attempt never
+  published, in the closed order `events`, `cleanup`, `fixture`, `role`. `events` and `cleanup` are
+  always needed. `fixture` and `role` are needed only when the test registers fixtures or roles.
+  The field is omitted when nothing is missing, and for every other reason. Reasons, details,
+  admission and the witness wire are unchanged, so existing bundles without the field keep their
+  bytes. Status: proposed (GitHub #835).
 
 ## Input and authority boundary
 
@@ -837,6 +884,16 @@ check accepts; its producer is `corvint-js-test-provider e2e --external-server`,
 that run to `witness-playwright` is in the docs help (`DCP-V1-053`). Only a first-attempt pass is credited. Fixture tests use a real Playwright 1.63.0
 listing and report of a generic project with a synthetic qualified receipt; live browser execution
 by Corvint and external utility qualification remain `NOT_OBSERVED`.
+
+Behavior annotation producer (issue 835). The annotation contract is in the docs help and the guide
+walkthrough (`DCP-V1-080`). `behavior-events.cjs` publishes the annotations from the test's own
+Playwright run (`DCP-V1-081`), and an unwitnessed test names the annotation types it never published
+(`DCP-V1-082`). Admission is unchanged: the importer still cannot tell producer annotations from
+hand-published ones, so the producer narrows accidental and casual forgery, not a determined author
+who replaces Playwright objects. The producer reads the private Playwright fields Locator `_frame`
+and `_selector` and Page `_opener`. It is qualified live on Playwright 1.61.1 only, observes only
+the `context` fixture, never produces `frame` or `setup` navigations, and publishes a URL path,
+which may itself carry a secret, as the page `id`.
 
 Acceptance: `TestPlaywrightDiscoveryProducerRoundTrip`, `TestPlaywrightDiscoveryProducerRefusals`,
 `TestPlaywrightWitnessImporter`, `TestPlaywrightListedTestsMultiProject` and
@@ -1081,6 +1138,9 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-077 | `cmd/corvint-corpus-mcp/legacycases.go` | `TestDCPV1077CorpusMCPSearchCases` |
 | DCP-V1-078 | `internal/doccorpus/legacy_cases.go`, `cmd/corvint/docs_corpus.go`, `cmd/corvint/docs_corpus_help.go` | `TestLegacyCasesRefusals`, `TestDocsCorpusLegacyCasesCLI` |
 | DCP-V1-079 | `internal/doccorpus/behavior_legacy.go` | `TestBehaviorLegacyParity` (`manual case baseline`) |
+| DCP-V1-080 | `cmd/corvint/docs.go`, `cmd/corvint/docs_corpus_help.go`, `docs/DOCUMENTATION-CORPUS.md` | `TestDocsHelpNamesBehaviorAnnotationContract`, `TestDCPV1080GuideWitnessRequestExample` |
+| DCP-V1-081 | `internal/doccorpus/behavior-events.cjs`, `internal/doccorpus/testdata/behavior-events/live-1.61.1` | `TestDCPV1081ProducerNodeUnit`, `TestDCPV1081LiveProducerIsWitnessed` |
+| DCP-V1-082 | `internal/doccorpus/behavior_playwright_witness.go` | `TestPlaywrightWitnessImporter` (`DCP-V1-082 zero-witness result names the missing annotation types per test`), `TestDCPV1081LiveProducerIsWitnessed` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions
