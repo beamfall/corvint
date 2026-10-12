@@ -3450,6 +3450,9 @@ type stableMap struct {
 	Evidence     []evidence `json:"evidence"`
 	Hunks        []hunk03   `json:"hunks"`
 	stableReferences
+	// Optional CEM-V1-093/095 members; never authority, never echoed.
+	Provenance *stableProvenance `json:"provenance,omitempty"`
+	Role       string            `json:"role,omitempty"`
 }
 type stableArtifactCheck struct {
 	Kind       string `json:"kind"`
@@ -3476,9 +3479,12 @@ type stableResult struct {
 	Hunks              []hunk03              `json:"hunks"`
 	References         stableReferences      `json:"references"`
 	ArtifactChecks     []stableArtifactCheck `json:"artifactChecks"`
+	Citation           *citationBlock        `json:"citation"`
 	Axes               map[string]string     `json:"axes"`
 	Runtime            runtime03             `json:"runtime"`
 	RepositoryEnvelope string                `json:"repositoryEnvelope"`
+	// VerdictSHA256 is recomputed by MarshalJSON on every encoding (CEM-V1-066).
+	VerdictSHA256 string `json:"verdictSha256"`
 }
 
 func emptyStableReferences() stableReferences {
@@ -3501,7 +3507,11 @@ func newStableResult(base, target string) stableResult {
 	}
 	return r
 }
+
+// failStable records a refusal or rejection. The citation block is carried only
+// by an accepted result (CEM-V1-092), so every failure clears it.
 func failStable(r *stableResult, stage string, e *cemError, verification bool) (stableResult, int) {
+	r.Citation = nil
 	r.Stage = stage
 	if e.operational {
 		r.Assurance = nil
@@ -3659,7 +3669,7 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 			return m, invalid("unsupported-spec")
 		}
 	}
-	root, e := object03(raw, []string{"spec", "baseRevision", "patchSha256", "excludedPath", "evidence", "hunks", "criterionBindings", "runnerReceipts", "criterionLinks", "artifacts"}, nil)
+	root, e := object03(raw, []string{"spec", "baseRevision", "patchSha256", "excludedPath", "evidence", "hunks", "criterionBindings", "runnerReceipts", "criterionLinks", "artifacts"}, []string{"provenance", "role"})
 	if e != nil {
 		return m, e
 	}
@@ -3922,6 +3932,9 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 			return m, e
 		}
 		m.Artifacts = append(m.Artifacts, v)
+	}
+	if m.Provenance, m.Role, e = decodeStableProvenanceRole(root); e != nil {
+		return m, e
 	}
 	return m, nil
 }
@@ -4568,6 +4581,7 @@ func runStableTrusted(ctx context.Context, repo string, raw []byte, base, target
 	if len(m.Artifacts) == 0 {
 		r.Axes["referenceIntegrity"] = "EMPTY_REFERENCE_SET"
 	}
+	r.Citation = computeCitation(citationHunks(m.Hunks), ph, m.Evidence)
 	yes := true
 	r.Accept = &yes
 	r.Outcome = "ACCEPT"

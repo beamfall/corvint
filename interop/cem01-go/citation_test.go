@@ -145,7 +145,7 @@ func (f *citationFixture) stableMap(t *testing.T, plan citationPlan) stableMap {
 // run proves the map ACCEPTs on the sealed stable route (mechanical re-proof
 // and span binding included), then computes the citation block directly from
 // the retained map bytes, the canonical patch and the base span bytes. The
-// stable result keeps its sealed 21-key shape and carries no block (V1-1265).
+// stable result carries the same block as its citation member (CEM-V1-092).
 func (f *citationFixture) run(t *testing.T, m stableMap) (stableResult, *citationBlock, []byte, []byte) {
 	t.Helper()
 	raw, err := json.Marshal(m)
@@ -452,24 +452,64 @@ func TestCEMV1081RequirementIDGrammar(t *testing.T) {
 	}
 }
 
-// The sealed cem/1.0 stable result keeps its 21 keys and carries no block in
-// this change, on ACCEPT and on an earlier REJECT; emission moves to V1-1265.
-func TestCEMV1082StableResultKeepsSealedShape(t *testing.T) {
+// The accepted cem/1.0 stable result carries the computed block as its
+// citation member, byte for byte (CEM-V1-082 placement, CEM-V1-092).
+func TestCEMV1082StableResultCarriesTheBlock(t *testing.T) {
+	f := newCitationFixture(t, patch24Tree())
+	accepted, _, _, block := f.run(t, f.stableMap(t, patch24Careful()))
+	b, _ := json.Marshal(accepted)
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(b, &obj); err != nil || len(obj) != 23 || !bytes.Equal(obj["citation"], block) {
+		t.Fatalf("accepted citation = %s, want %s", obj["citation"], block)
+	}
+}
+
+// TestCEMV1092PortableCitationOnlyOnAccept proves the portable consumer emits
+// citation only on ACCEPT: a REJECT (patch digest), an evidence-drift REJECT
+// and an argument refusal all carry null in the full closed result.
+func TestCEMV1092PortableCitationOnlyOnAccept(t *testing.T) {
 	f := newCitationFixture(t, patch24Tree())
 	m := f.stableMap(t, patch24Careful())
 	accepted, _, _, _ := f.run(t, m)
-	m.PatchSHA256 = strings.Repeat("0", 64)
-	raw, _ := json.Marshal(m)
-	rejected, n := runStable(context.Background(), f.repo, raw, f.base, f.target, t.TempDir())
-	if n != 1 {
-		t.Fatalf("reject exit=%d", n)
-	}
-	for _, r := range []stableResult{accepted, rejected} {
-		b, _ := json.Marshal(r)
+	bad := m
+	bad.PatchSHA256 = strings.Repeat("0", 64)
+	raw, _ := json.Marshal(bad)
+	rejected, rejectExit := runStable(context.Background(), f.repo, raw, f.base, f.target, t.TempDir())
+	raw, _ = json.Marshal(m)
+	refused, refuseExit := runStable(context.Background(), "relative/repository", raw, f.base, f.target, t.TempDir())
+
+	// Drift: the target drops the cited note, so its evidence span goes stale.
+	tree := patch24Tree()
+	tree.Target["docs/notes.md"] = strings.Replace(tree.Target["docs/notes.md"], "Note 16: keep the retry budget bounded.\n", "", 1)
+	g := newCitationFixture(t, tree)
+	raw, _ = json.Marshal(g.stableMap(t, patch24Careful()))
+	drifted, driftExit := runStable(context.Background(), g.repo, raw, g.base, g.target, t.TempDir())
+
+	for _, c := range []struct {
+		name           string
+		r              stableResult
+		exit           int
+		outcome, stage string
+	}{
+		{"accept", accepted, 0, "ACCEPT", "complete"},
+		{"reject", rejected, rejectExit, "REJECT", rejected.Stage},
+		{"drift", drifted, driftExit, "REJECT", "drift"},
+		{"refusal", refused, refuseExit, "UNSUPPORTED", refused.Stage},
+	} {
+		b, _ := json.Marshal(c.r)
 		var obj map[string]json.RawMessage
-		if err := json.Unmarshal(b, &obj); err != nil || len(obj) != 21 || obj["citation"] != nil {
-			t.Fatalf("stable result shape changed: %s", b)
+		if err := json.Unmarshal(b, &obj); err != nil || len(obj) != 23 {
+			t.Fatalf("%s: result shape %s", c.name, b)
 		}
+		if c.r.Outcome != c.outcome || c.r.Stage != c.stage {
+			t.Fatalf("%s: outcome %s stage %s, want %s %s", c.name, c.r.Outcome, c.r.Stage, c.outcome, c.stage)
+		}
+		if got := string(obj["citation"]); (c.outcome == "ACCEPT") == (got == "null") {
+			t.Errorf("%s: citation = %s", c.name, got)
+		}
+	}
+	if rejectExit != 1 || driftExit != 1 || refuseExit != 2 {
+		t.Fatalf("exits reject=%d drift=%d refusal=%d", rejectExit, driftExit, refuseExit)
 	}
 }
 

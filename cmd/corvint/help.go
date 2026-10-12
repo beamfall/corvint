@@ -26,7 +26,7 @@ var helpSubcommands = map[string]map[string]bool{
 // helpBooleanFlags are the public command options that take no value, so a --help after one is
 // still help. Every other option is scanned as taking one value (GPK-V0-062).
 var helpBooleanFlags = map[string]bool{
-	"--apply": true, "--attest": true, "--check": true, "--attest-cem": true, "--attest-cem-v1": true, "--dry-run": true, "--enable": true,
+	"--apply": true, "--attest": true, "--check": true, "--attest-cem": true, "--attest-cem-v1": true, "--attest-cem-v2": true, "--dry-run": true, "--enable": true,
 	"--full-receipt": true, "--if-stale": true, "--json": true, "--mutate": true, "--preview": true,
 	"--replace": true, "--working-tree-untracked": true,
 }
@@ -733,9 +733,10 @@ Usage:
   corvint [--root PATH] prove [--limit N] [--mutate] PATH...
   corvint [--root PATH] prove --base FULL_COMMIT_ID [--limit N] [--mutate]
   corvint [--root PATH] prove --cem MAP [--expected-base REV] [--target REV] [--patch FILE]
-    [--attest | --attest-key PEM] [--attest-cem | --attest-cem-v1]
+    [--attest | --attest-key PEM]
+    [--attest-cem | --attest-cem-v1 | --attest-cem-v2 [--artifacts ABS]]
   corvint [--root PATH] prove --verify-cem-attestation ENVELOPE --attest-public-key PEM
-    [--cem MAP]
+    [--cem MAP] [--artifacts ABS] [--target REV]
 
 Checkpoint mode:
   corvint [--root PATH] prove --checkpoint FILE
@@ -838,10 +839,18 @@ and prints a second line after the unchanged statement or envelope, a CEM
 statement (predicate https://corvint-context.dev/attestation/cem/0) naming MAP by
 path, sha256, and size, signed with the same key when --attest-key is given;
 --attest-cem-v1 prints cem/v1 instead, also binding baseRevision and patchSha256.
---verify-cem-attestation ENVELOPE checks either offline against the Ed25519 PKIX
-key PEM: VERIFIED if --cem MAP matches, else NOT_RUN (cem-bytes-not-supplied).
+--attest-cem-v2 (a cem/1.0 stable map only, else attest-cem-v2-requires-stable-map)
+runs the stable verifier with full-OID --expected-base and --target and the
+--artifacts root, and only for an accepted map (else attest-cem-v2-not-accepted)
+prints cem/v2: subjects are the map then each declared artifact, and the
+predicate binds baseRevision, patchSha256 and the target commit and tree.
+The three --attest-cem flags are mutually exclusive.
+--verify-cem-attestation ENVELOPE checks any of them offline against the Ed25519
+PKIX key PEM: VERIFIED if --cem MAP matches, else NOT_RUN (cem-bytes-not-supplied);
+for cem/v2, --artifacts ABS and --target REV check the artifact and target subjects.
 It exits 2 with attest-public-key-unavailable, attest-envelope-unavailable,
-attest-verification-failed, attest-cem-mismatch, or map-unavailable.
+attest-verification-failed, attest-cem-mismatch, attest-cem-subject-mismatch,
+attest-cem-target-mismatch, or map-unavailable.
 
 Experimental failure bundles (decision 0361):
   corvint [--root PATH] prove --export-bundle (--task TEXT [...] | --checkpoint FILE)

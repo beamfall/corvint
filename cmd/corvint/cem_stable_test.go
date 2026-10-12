@@ -14,7 +14,7 @@ func TestCEMStableDispatchBeforeRootReads(t *testing.T) {
 	if e := json.Unmarshal(out.Bytes(), &result); e != nil {
 		t.Fatal(e)
 	}
-	if exit != 2 || errout.Len() != 0 || len(result) != 21 || result["stage"] != "arguments" || result["code"] != "invalid-arguments" || result["mapSha256"] != nil {
+	if exit != 2 || errout.Len() != 0 || len(result) != 23 || result["stage"] != "arguments" || result["code"] != "invalid-arguments" || result["mapSha256"] != nil {
 		t.Fatalf("wrong actual dispatch: %d %s %s", exit, out.String(), errout.String())
 	}
 }

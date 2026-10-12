@@ -228,6 +228,9 @@ func TestRegenerateRealPacketCopy(t *testing.T) {
 	if len(cases) != 56 {
 		t.Fatalf("frozen cases = %d, want 56", len(cases))
 	}
+	// The sealed packet grows by one key per landed member, so the expected
+	// counts follow the frozen shape rather than a fixed number.
+	frozen := len(cases[0].ExpectedResult)
 	scratch := t.TempDir()
 	fragment := filepath.Join(scratch, "fragment.json")
 	writeJSON(t, fragment, map[string]any{"type": []any{"object", "null"}})
@@ -256,7 +259,7 @@ func TestRegenerateRealPacketCopy(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("regeneration failed:\n%s", out)
 	}
-	if code, out := runTool(t, "--check", "--root", root); code != 0 || !strings.Contains(out, "56 cases x 22 keys") {
+	if code, out := runTool(t, "--check", "--root", root); code != 0 || !strings.Contains(out, fmt.Sprintf("56 cases x %d keys", frozen+1)) {
 		t.Fatalf("check after regeneration: %d\n%s", code, out)
 	}
 	after := snapshot(t, root)
@@ -267,10 +270,14 @@ func TestRegenerateRealPacketCopy(t *testing.T) {
 	// Every file outside the chain is byte-identical.
 	changed := map[string]bool{
 		stableDir + "/" + schemaName: true, packetDir + "/" + schemaName: true, packetDir + "/" + casesName: true,
-		packetDir + "/" + changesName: true, packetDir + "/" + readmeName: true, packetManifest: true,
+		packetDir + "/" + changesName: true, packetManifest: true,
 		stableDir + "/manifest.json": true, stableDir + "/" + cellsName: true, stableDir + "/" + envelopeMD: true,
 		packetDir + "/" + inheritedCells:   true,
 		tupleRoot + "/go1.27.2/TUPLE.json": true, tupleRoot + "/go1.27.2/manifest.json": true,
+	}
+	// The README gains its pointer paragraph only on the packet's first member.
+	if !bytes.Contains(before[packetDir+"/"+readmeName], []byte(readmePointer)) {
+		changed[packetDir+"/"+readmeName] = true
 	}
 	for name, b := range before {
 		if !changed[name] && !bytes.Equal(b, after[name]) {
@@ -281,7 +288,7 @@ func TestRegenerateRealPacketCopy(t *testing.T) {
 		}
 	}
 
-	// Every case carries 22 keys with the member after artifactChecks and its value.
+	// Every case carries one more key with the member after artifactChecks and its value.
 	casesDoc, err := parseJSON(after[packetDir+"/"+casesName])
 	if err != nil {
 		t.Fatal(err)
@@ -291,7 +298,7 @@ func TestRegenerateRealPacketCopy(t *testing.T) {
 	for i, c := range casesDoc.get("cases").elems {
 		expected := c.get("expectedResult")
 		objects = append(objects, expected)
-		if len(expected.keys) != 22 || expected.keys[expected.index("artifactChecks")+1] != "probe" {
+		if len(expected.keys) != frozen+1 || expected.keys[expected.index("artifactChecks")+1] != "probe" {
 			t.Fatalf("case %d keys %v", i, expected.keys)
 		}
 		got, _ := expected.get("probe").decode(src)
@@ -326,7 +333,7 @@ func TestRegenerateRealPacketCopy(t *testing.T) {
 	originalCases := before[packetDir+"/"+casesName]
 	oldDoc, _ := parseJSON(originalCases)
 	stripped = bytes.Replace(stripped, []byte(sum(before, packetDir+"/"+casesName)), []byte(oldDoc.get("predecessorSHA256").text(originalCases)), 1)
-	stripped = bytes.Replace(stripped, []byte("closed22-key"), []byte("closed21-key"), 1)
+	stripped = bytes.Replace(stripped, []byte(fmt.Sprintf("closed%d-key", frozen+1)), []byte(fmt.Sprintf("closed%d-key", frozen)), 1)
 	if !bytes.Equal(stripped, originalCases) {
 		t.Errorf("%s without the member differs from the original", casesName)
 	}
@@ -376,7 +383,7 @@ func TestRegenerateRealPacketCopy(t *testing.T) {
 	if got := finalTuple.get("inherited").get("predecessorManifestSha256").text(final[tupleRoot+"/go1.27.2/TUPLE.json"]); got != newManifest {
 		t.Errorf("second predecessorManifestSha256 = %s, want %s", got, newManifest)
 	}
-	if code, out := runTool(t, "--check", "--root", root); code != 0 || !strings.Contains(out, "x 23 keys") {
+	if code, out := runTool(t, "--check", "--root", root); code != 0 || !strings.Contains(out, fmt.Sprintf("x %d keys", frozen+2)) {
 		t.Fatalf("check after second regeneration: %d\n%s", code, out)
 	}
 }

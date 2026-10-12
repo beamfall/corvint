@@ -9,8 +9,9 @@ code can extend its existing licensed files after accepted design/review.
 
 - `ALGORITHMS.md`: exact wire, complete 0.3 preservation, reference closure,
   sidecar lifecycle, result authority boundaries and qualification requirements.
-- `stable.schema.json`: closed ten-key stable map; cross-field and byte rules
-  require the algorithms as well as schema validation.
+- `stable.schema.json`: closed stable map with ten required keys and the optional
+  `provenance` and `role` members (CEM-V1-093, CEM-V1-095); cross-field and byte
+  rules require the algorithms as well as schema validation.
 - `OPERATION.json` and `RESULT.schema.json`: distinct native/portable stable
   operation and closed result, with integrity separated from native authority.
 - `MIGRATION.json`: precise decisions for 19 consumer families and two later
@@ -18,8 +19,10 @@ code can extend its existing licensed files after accepted design/review.
 - `fixtures/manifest.json`: 50 independently constructed proposed SHA1/SHA256
   positive/adversarial cells and 54 literal Git objects. Git patch/sidecar readback
   is observed; all stable implementation outcomes remain NOT_RUN.
-- `inherited/`: unchanged pinned public algorithm/schema inputs. These supply
-  pure algorithms; their profile-specific admissions are not stable aliases.
+- `inherited/`: unchanged pinned public algorithm/schema inputs, now historical
+  provenance only. `ALGORITHMS.md` restates their pure algorithms, the 0.3 hunk
+  vocabulary and structural reasons as the 1.0-normative text; their
+  profile-specific admissions are not stable aliases.
 
 Fixture Tasks/runner artifacts are manufactured opaque examples, including failed
 and skipped observations. They are not valid native authority or execution

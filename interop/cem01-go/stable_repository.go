@@ -1109,6 +1109,7 @@ func runStableCanonicalTrusted(ctx context.Context, repo string, raw []byte, bas
 	if s.hold {
 		return failStable(&r, "repository", operational("unsupported-process-containment"), false)
 	}
+	r.Citation = computeCitation(citationHunks(m.Hunks), ph, m.Evidence)
 	hooks.emit("before-final-checkpoint")
 	if ctx.Err() != nil {
 		return failStable(&r, "verification", operational("verification-timeout"), false)

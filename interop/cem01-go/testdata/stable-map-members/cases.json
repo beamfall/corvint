@@ -1,0 +1,570 @@
+{
+ "profile": "cem-stable-map-members-vectors/1",
+ "requirements": [
+  "CEM-V1-093",
+  "CEM-V1-094",
+  "CEM-V1-095"
+ ],
+ "base": "protocol/cem-1.0/stable/neutral-criterion/stable.json",
+ "cases": [
+  {
+   "name": "provenance-source-cem-01",
+   "code": "",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.1",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-source-cem-02",
+   "code": "",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-source-cem-03",
+   "code": "",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.3",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-converter-dotted",
+   "code": "",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/0.12.3"
+    }
+   }
+  },
+  {
+   "name": "role-change",
+   "code": "",
+   "set": {
+    "role": "change"
+   }
+  },
+  {
+   "name": "role-bind-chore",
+   "code": "",
+   "set": {
+    "role": "bind-chore"
+   }
+  },
+  {
+   "name": "role-seal-chore",
+   "code": "",
+   "set": {
+    "role": "seal-chore"
+   }
+  },
+  {
+   "name": "provenance-and-role",
+   "code": "",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    },
+    "role": "seal-chore"
+   }
+  },
+  {
+   "name": "producer-only-empty",
+   "code": "",
+   "set": {
+    "criterionBindings": [],
+    "runnerReceipts": [],
+    "criterionLinks": [],
+    "artifacts": []
+   }
+  },
+  {
+   "name": "producer-only-empty-with-provenance-and-role",
+   "code": "",
+   "set": {
+    "criterionBindings": [],
+    "runnerReceipts": [],
+    "criterionLinks": [],
+    "artifacts": [],
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    },
+    "role": "change"
+   }
+  },
+  {
+   "name": "provenance-null",
+   "code": "invalid-field",
+   "set": {
+    "provenance": null
+   }
+  },
+  {
+   "name": "provenance-array",
+   "code": "invalid-field",
+   "set": {
+    "provenance": [
+     {
+      "sourceSpec": "cem/0.2",
+      "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+      "converter": "corvint-cem-convert/1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "provenance-string",
+   "code": "invalid-field",
+   "set": {
+    "provenance": "cem/0.2"
+   }
+  },
+  {
+   "name": "provenance-empty-object",
+   "code": "missing-field",
+   "set": {
+    "provenance": {}
+   }
+  },
+  {
+   "name": "provenance-missing-sourceSpec",
+   "code": "missing-field",
+   "set": {
+    "provenance": {
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-missing-sourceBlobOid",
+   "code": "missing-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-missing-sourceSha256",
+   "code": "missing-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-missing-bindCommit",
+   "code": "missing-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-missing-converter",
+   "code": "missing-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc"
+    }
+   }
+  },
+  {
+   "name": "provenance-missing-before-unknown",
+   "code": "missing-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "note": "x"
+    }
+   }
+  },
+  {
+   "name": "provenance-unknown-field",
+   "code": "unknown-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1",
+     "note": "x"
+    }
+   }
+  },
+  {
+   "name": "provenance-unknown-before-invalid",
+   "code": "unknown-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/1.0",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1",
+     "note": "x"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-source-spec-stable",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/1.0",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-source-spec-unknown",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.4",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-source-spec-number",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": 2,
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-source-blob-sha256-repository",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-source-blob-uppercase",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-source-blob-short",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-source-sha256-short",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-source-sha256-uppercase",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-source-sha256-null",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": null,
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-bind-commit-short",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "ccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-bind-commit-sha256-repository",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-converter-no-version",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-converter-trailing-dot",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1."
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-converter-foreign",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "other-convert/1"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-converter-suffix",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1a"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-converter-newline",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": "corvint-cem-convert/1\n"
+    }
+   }
+  },
+  {
+   "name": "provenance-invalid-converter-number",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {
+     "sourceSpec": "cem/0.2",
+     "sourceBlobOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "sourceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "bindCommit": "cccccccccccccccccccccccccccccccccccccccc",
+     "converter": 1
+    }
+   }
+  },
+  {
+   "name": "role-invalid-empty",
+   "code": "invalid-field",
+   "set": {
+    "role": ""
+   }
+  },
+  {
+   "name": "role-invalid-case",
+   "code": "invalid-field",
+   "set": {
+    "role": "Change"
+   }
+  },
+  {
+   "name": "role-invalid-unknown",
+   "code": "invalid-field",
+   "set": {
+    "role": "chore"
+   }
+  },
+  {
+   "name": "role-invalid-null",
+   "code": "invalid-field",
+   "set": {
+    "role": null
+   }
+  },
+  {
+   "name": "role-invalid-number",
+   "code": "invalid-field",
+   "set": {
+    "role": 1
+   }
+  },
+  {
+   "name": "role-invalid-array",
+   "code": "invalid-field",
+   "set": {
+    "role": [
+     "change"
+    ]
+   }
+  },
+  {
+   "name": "required-missing-before-provenance",
+   "code": "missing-field",
+   "set": {
+    "provenance": null
+   },
+   "delete": [
+    "artifacts"
+   ]
+  },
+  {
+   "name": "root-unknown-before-role",
+   "code": "unknown-field",
+   "set": {
+    "role": 1,
+    "kind": "bind-chore"
+   }
+  },
+  {
+   "name": "required-invalid-before-provenance",
+   "code": "invalid-field",
+   "set": {
+    "provenance": {},
+    "patchSha256": "x"
+   }
+  },
+  {
+   "name": "provenance-before-graph",
+   "code": "invalid-field",
+   "set": {
+    "role": "other",
+    "artifacts": []
+   }
+  },
+  {
+   "name": "graph-after-valid-role",
+   "code": "artifact-role-closure",
+   "set": {
+    "role": "change",
+    "artifacts": []
+   }
+  }
+ ]
+}

@@ -29,6 +29,12 @@ func EncodeStable(d *StableMap) ([]byte, error) {
 		evidence = append(evidence, map[string]any{"id": e.ID, "blobOid": e.BlobOid, "path": e.Path, "span": map[string]any{"start": e.Span.Start, "end": e.Span.End}, "spanSha256": e.SpanSha256})
 	}
 	refs["evidence"] = evidence
+	if d.Provenance != nil {
+		refs["provenance"] = d.Provenance
+	}
+	if d.Role != "" {
+		refs["role"] = d.Role
+	}
 	b, e := json.Marshal(refs)
 	if e != nil {
 		return nil, e
