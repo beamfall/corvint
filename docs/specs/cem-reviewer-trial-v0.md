@@ -250,7 +250,9 @@ name is exactly what the change's author also wrote and the harness removed.
   or scorer digest differs from the run, or whose run names an arm CRT-V0-015 bars, and a
   registered run refuses a `--reuse` report or `--resume` checkpoint whose model or effort differs
   from the run. `score --report` decodes the carried registration as strictly as the file and
-  refuses a report whose registration holds a key the object does not define. The report is
+  refuses a report whose registration holds a key the object does not define, and `--resume`
+  refuses a checkpoint that exists but does not decode rather than rerunning the lanes it holds.
+  The report is
   invalid (CRT-V0-010) when the registration commit is newer than the earliest recorded lane
   `started_at`, when a lane that did not error recorded no start (such as a lane reused from an
   older report, which may have run first), or when any of those checks fails on rescore, including

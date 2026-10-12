@@ -54,3 +54,7 @@ Codex round 2 (FAIL) found two more P2 defects, both repaired with regression te
 run could reuse or resume lanes run under another model or effort; it now refuses them. Rescore
 silently dropped an unknown key inside the carried registration; the record is now decoded
 strictly, so `score --report` refuses it.
+
+Codex round 3 (FAIL) found one P2: `--resume` ignored a checkpoint that failed to decode, so the
+stricter decoder could make a resumed run rerun finished lanes. Only a missing checkpoint now
+starts afresh; any other read or decode error is refused and the checkpoint is kept.

@@ -402,6 +402,28 @@ func TestRunChecksItsRegistration(t *testing.T) {
 	if _, _, err := runTrial(ctx, append(arguments("control", past), "--output", output, "--resume")); err == nil || !strings.Contains(err.Error(), "reuses only lanes run under") {
 		t.Fatalf("registered run resuming another effort's checkpoint: %v", err)
 	}
+	// A checkpoint that no longer decodes is refused and kept, not silently
+	// replaced by rerunning the lanes it holds.
+	document.Effort = notObserved
+	broken := filepath.Join(directory, "broken.json")
+	var stdout, stderr bytes.Buffer
+	if code := write(document, checkpointPath(broken), &stdout, &stderr); code != 0 {
+		t.Fatal(stderr.String())
+	}
+	data, err := os.ReadFile(checkpointPath(broken))
+	if err != nil {
+		t.Fatal(err)
+	}
+	edited := strings.Replace(string(data), `"primary_metric"`, `"secondary_metric": "spans", "primary_metric"`, 1)
+	if err := os.WriteFile(checkpointPath(broken), []byte(edited), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := runTrial(ctx, append(arguments("control", past), "--output", broken, "--resume")); err == nil || !strings.Contains(err.Error(), "secondary_metric") {
+		t.Fatalf("registered run resuming an undecodable checkpoint: %v", err)
+	}
+	if kept, err := os.ReadFile(checkpointPath(broken)); err != nil || string(kept) != edited {
+		t.Fatalf("the undecodable checkpoint was not kept: %v", err)
+	}
 	future := commitRegistration(t, "registration.json", validRegistration("heldout", notObserved, notObserved, 1), "2099-01-01T00:00:00Z")
 	document, _, err = runTrial(ctx, arguments("control", future))
 	if err != nil {

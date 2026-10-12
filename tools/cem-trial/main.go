@@ -17,6 +17,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"math"
 	"os"
 	"os/exec"
@@ -320,7 +321,14 @@ func runTrial(ctx context.Context, arguments []string) (*report, string, error) 
 		return nil, "", err
 	}
 	if configuration.resume {
-		if checkpoint, err := loadReport(checkpointPath(configuration.output)); err == nil {
+		// A missing checkpoint starts afresh; an unreadable one is refused
+		// rather than rerunning lanes it may already hold (CRT-V0-010).
+		checkpoint, err := loadReport(checkpointPath(configuration.output))
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+		case err != nil:
+			return nil, "", fmt.Errorf("--resume: %w", err)
+		default:
 			if err := registeredPrior(document, checkpoint, checkpointPath(configuration.output)); err != nil {
 				return nil, "", err
 			}
