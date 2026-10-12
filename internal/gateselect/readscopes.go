@@ -1,4 +1,4 @@
-package main
+package gateselect
 
 // The project-owned read-scope declaration (AFP-V0-023). It mirrors
 // internal/liveverify/affected/golang/readscopes.go and InReadScope in

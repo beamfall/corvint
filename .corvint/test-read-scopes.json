@@ -258,6 +258,7 @@
     "internal/frontierrepo": [
       "conformance/tcq-0/"
     ],
+    "internal/gateselect": [],
     "internal/genesis": [],
     "internal/gitnotes": [
       "go.mod",
@@ -312,6 +313,10 @@
     "internal/projectpath": [],
     "internal/pythongrammar": [],
     "internal/releasecandidate": [],
+    "internal/sessiontest": [
+      ".github/cishards/",
+      ".github/workflows/ci.yml"
+    ],
     "internal/skillexport": [],
     "internal/specindex": [
       "docs/specs/"
@@ -391,6 +396,7 @@
       "tools/compat-trial/"
     ],
     "tools/corvint-pr-tests": [
+      ".github/cishards/",
       "cmd/",
       "go.mod",
       "go.sum",
@@ -409,11 +415,18 @@
     ],
     "tools/gate-affected-select": [],
     "tools/gate-ledger": [
-      "tools/gate-affected-select/main.go",
-      "tools/gate-affected-select/readers.go",
-      "tools/gate-affected-select/readscopes.go"
+      "internal/gateselect/readers.go",
+      "internal/gateselect/readscopes.go",
+      "internal/gateselect/select.go",
+      "tools/gate-affected-select/main.go"
     ],
     "tools/heading-nav-bench": [],
-    "tools/retrieval-bench": []
+    "tools/retrieval-bench": [],
+    "tools/str-parity": [],
+    "tools/test-commands-check": [
+      ".github/cishards/test-commands.json",
+      "Makefile"
+    ],
+    "tools/test-commands-run": []
   }
 }

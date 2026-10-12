@@ -1,0 +1,12 @@
+
+Running 3 tests using 1 worker
+
+[1/3] [alpha] › tests/items.spec.cjs:7:3 › items › lists items
+[2/3] [alpha] › tests/items.spec.cjs:17:1 › walks a redirect and a popup
+[3/3] [alpha] › tests/items.spec.cjs:25:1 › records no event for inexact or frame assertions
+
+[alpha] › tests/items.spec.cjs:25:1 › records no event for inexact or frame assertions
+corvint behavior-events: toHaveText with a non-literal expectation or extra options records no event
+
+corvint behavior-events: the locator selector is not one main-frame selector; no event
+  3 passed (1.5s)

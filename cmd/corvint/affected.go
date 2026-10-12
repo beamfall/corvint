@@ -594,42 +594,50 @@ func readPlaywrightDiscovery(root, name string) []byte {
 // (AFP-V0-010); the base is immutable, so it is read once and needs no
 // drift recheck.
 func compileAffected(ctx context.Context, invocation affectedInvocation) (affectedReceipt, error) {
+	receipt, _, err := compileAffectedGraph(ctx, invocation)
+	return receipt, err
+}
+
+// compileAffectedGraph is compileAffected that also returns the graph the plan
+// was selected over, so `corvint test` reads the Go universe from the same
+// observation (STR-V0-001, STR-V0-007).
+func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (affectedReceipt, *affected.Graph, error) {
 	root := invocation.Root
 	gitExecutable, err := exec.LookPath("git")
 	if err != nil {
-		return affectedReceipt{}, affectedGitExecutableRefusal()
+		return affectedReceipt{}, nil, affectedGitExecutableRefusal()
 	}
 	revision, err := affectedHeadRevision(ctx, gitExecutable, root)
 	if err != nil {
-		return affectedReceipt{}, err
+		return affectedReceipt{}, nil, err
 	}
 	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
 	if err != nil {
-		return affectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 	}
 	if invocation.RequireClean && len(dirty) != 0 {
-		return affectedReceipt{}, affectedMixedWorktreeRefusal(revision, len(dirty))
+		return affectedReceipt{}, nil, affectedMixedWorktreeRefusal(revision, len(dirty))
 	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
 	if err != nil {
-		return affectedReceipt{}, err
+		return affectedReceipt{}, nil, err
 	}
 	graph, err := affected.Build(ctx, root, affectedLanguages()...)
 	if err != nil {
-		return affectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-graph", Message: err.Error()}
+		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-graph", Message: err.Error()}
 	}
 	// The status and the graph are two observations of one mutable worktree.
 	// A dirty set or HEAD that changed while the graph was built would bind a
 	// plan to inputs nobody observed together; refuse rather than publish.
 	recheck, err := affected.DirtyPaths(ctx, gitExecutable, root)
 	if err != nil {
-		return affectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 	}
 	if !equalStringSlices(dirty, recheck) {
-		return affectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-drift", Message: "worktree changed while the plan was compiled"}
+		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "worktree changed while the plan was compiled"}
 	}
 	if revisionAfter, err := affectedHeadRevision(ctx, gitExecutable, root); err != nil || revisionAfter != revision {
-		return affectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-drift", Message: "HEAD changed while the plan was compiled"}
+		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "HEAD changed while the plan was compiled"}
 	}
 	plan := affected.Select(graph, affected.NormalizePaths(append(append([]string{}, dirty...), committed...)))
 	provider := providerGoProjection(graph, plan)
@@ -637,7 +645,7 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 	if invocation.SelectionProfile == appflows.E2ESafeProfile {
 		advice.TestSelection, err = affectedE2ESafeSelection(ctx, invocation, revision, graph, plan, advice)
 		if err != nil {
-			return affectedReceipt{}, err
+			return affectedReceipt{}, nil, err
 		}
 	} else if len(invocation.Providers) != 0 {
 		input := affectedSelectionInput(invocation, plan, dirty, advice)
@@ -647,7 +655,7 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 		advice.TestSelection = extevidence.Selection(ctx, root, revision, invocation.Providers, invocation.Checkouts, input)
 	}
 	if err := affectedAppNavigations(invocation, revision, dirty, &advice); err != nil {
-		return affectedReceipt{}, err
+		return affectedReceipt{}, nil, err
 	}
 	return affectedReceipt{
 		Advice:   advice,
@@ -660,7 +668,7 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 		Revision: revision,
 		Tool:     "affected",
 		Warning:  affectedMixedWarning(revision, dirty, committed),
-	}, nil
+	}, graph, nil
 }
 
 // affectedE2ESafeSelection runs the e2e-safe profile over the plan and hands its closed output to

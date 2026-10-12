@@ -1,4 +1,4 @@
-package main
+package gateselect
 
 import (
 	"strings"
@@ -27,7 +27,7 @@ func TestSelectPackagesHonorsDeclaredReadScopes(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.dirty, func(t *testing.T) {
-			var plan receipt
+			var plan Receipt
 			plan.Provider.Go.State = "RUNNABLE"
 			plan.Plan.Dirty = []string{tc.dirty}
 			output := selectPackages(plan, fixtureModule, root)
@@ -49,7 +49,7 @@ func TestSelectPackagesHonorsDeclaredReadScopes(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			files[readScopesPath] = declaration
 			root := writeFixture(t, files)
-			var plan receipt
+			var plan Receipt
 			plan.Provider.Go.State = "RUNNABLE"
 			plan.Plan.Dirty = []string{"notes/x.md"}
 			if got := verdict(plan, root); !strings.HasPrefix(got, "FALLBACK the read-scope declaration is invalid: ") {
