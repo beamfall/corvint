@@ -3480,6 +3480,8 @@ type stableResult struct {
 	Axes               map[string]string     `json:"axes"`
 	Runtime            runtime03             `json:"runtime"`
 	RepositoryEnvelope string                `json:"repositoryEnvelope"`
+	// VerdictSHA256 is recomputed by MarshalJSON on every encoding (CEM-V1-066).
+	VerdictSHA256 string `json:"verdictSha256"`
 }
 
 func emptyStableReferences() stableReferences {

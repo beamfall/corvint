@@ -66,6 +66,9 @@ type StableResult struct {
 	Axes               map[string]string     `json:"axes"`
 	Runtime            StableRuntime         `json:"runtime"`
 	RepositoryEnvelope string                `json:"repositoryEnvelope"`
+	// VerdictSha256 is recomputed by MarshalJSON on every encoding; a value
+	// held in the struct is never emitted (CEM-V1-066).
+	VerdictSha256 string `json:"verdictSha256"`
 }
 type StableDrift struct {
 	EvidenceID    string           `json:"evidenceId"`

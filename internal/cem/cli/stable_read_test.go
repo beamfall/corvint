@@ -205,7 +205,7 @@ func coreStableArguments(action string, f stableReadFixture, artifacts string) [
 }
 
 // requireCoreMatchesVerifyStable checks one Core read against verify-stable:
-// the same exit, the complete unmodified 22-field result, and no 0.x
+// the same exit, the complete unmodified 23-field result, and no 0.x
 // verification, counts, worklist or ready-for-ci state (CEM-V1-017).
 func requireCoreMatchesVerifyStable(t *testing.T, action string, f stableReadFixture, artifacts string) (int, map[string]any) {
 	t.Helper()
@@ -218,7 +218,7 @@ func requireCoreMatchesVerifyStable(t *testing.T, action string, f stableReadFix
 		t.Errorf("%s exit = %d, verify-stable exit = %d", action, exit, wantExit)
 	}
 	got, _ := envelope["stableVerification"].(map[string]any)
-	if len(got) != 22 || !reflect.DeepEqual(got, want) {
+	if len(got) != 23 || !reflect.DeepEqual(got, want) {
 		t.Errorf("%s stableVerification differs from verify-stable:\n got %v\nwant %v", action, got, want)
 	}
 	if envelope["ok"] != (wantExit == 0) || envelope["mutates"] != false || envelope["tool"] != "cem-"+action {

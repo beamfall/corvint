@@ -190,6 +190,7 @@
       "spec": "cem/1.0",
       "stage": "complete",
       "targetRevision": "1f181cd0843318b72bb6679cd19878c46eb95ada",
+      "verdictSha256": "6197c1f8170f98feb0e8796e11e9bf231849697b059644979e64390114688b22",
       "verificationMode": "canonical-and-reference-integrity"
     }
   },

@@ -41,7 +41,7 @@ func requireStableReportEnvelope(t *testing.T, name string, exit, wantExit int, 
 		t.Errorf("%s exit = %d, verify-stable exit = %d", name, exit, wantExit)
 	}
 	got, _ := envelope["stableVerification"].(map[string]any)
-	if len(got) != 22 || !reflect.DeepEqual(got, want) {
+	if len(got) != 23 || !reflect.DeepEqual(got, want) {
 		t.Errorf("%s stableVerification differs from verify-stable:\n got %v\nwant %v", name, got, want)
 	}
 	if envelope["ok"] != (wantExit == 0) || envelope["tool"] != "cem-report" {
