@@ -79,3 +79,22 @@ mismatch gives `reference-coherence` and an unresolved evidence ID gives `unreso
 - The `manifest.json` entries for `REPOSITORY-ENVELOPE.md` and `REPOSITORY-ENVELOPE.cells.json`
   were already stale on `origin/main`. They are left unchanged because those files are owned
   elsewhere.
+
+## Independent review (Codex, read-only, 2026-10-12)
+
+CONCERNS, all confirmed on source; none changes this branch:
+- Four pre-existing refusal-code divergences between the native and portable consumers (hunk-basis
+  stage, missing criterion link, duplicated unknown link IDs, duplicated artifacts). No sealed case
+  covers them, and the plain form inherits them. Filed as V1-1289; the canonical order is a protocol
+  decision, so it is not settled here.
+- The portable public-case tests mutate only the criterion and its link ID (part of V1-1289).
+- The stale `manifest.json` envelope entries are V1-1287.
+
+The missing plain-form producer (step 8) is filed as V1-1290. The builder's full `./cmd/corvint` run
+hit the 30-minute package timeout under host load (load average 38 to 45) with deadline and stale
+snapshot failures in dogfood and source-view tests that do not read the stable consumer; the
+504-test focused `stable|cem` selection passed (1016 s). A quiet-host full run is NOT_RUN.
+
+After merging `origin/main` 3d180ba5b (V1-1273): `tools/cem-stable-regen --check` PASS (56 cases x
+21 keys), `internal/cem/wire`, `internal/cem/verify`, `internal/console`, `internal/cemcandidate`,
+`tools/cem-stable-regen` and `interop/cem01-go` ok, vet and gofmt clean, seven doc gates rc=0.
