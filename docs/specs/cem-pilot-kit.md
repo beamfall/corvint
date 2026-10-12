@@ -232,6 +232,13 @@ composes existing CEM/OCM verification; it supplies no semantic proof or test ex
   exact pinned install, digest computation, and invocation, the exit taxonomy, the report members,
   and the verifier's limits.
 
+Walkthrough pointer (V1-1263, `CEM-V1-083`, informative): the timed run from `cem prepare` on a
+non-Corvint repository with no `.taskman/` to a provider-neutral `cem/1.0` map accepted by both
+`corvint cem verify-stable` and `cem01-go verify-stable-canonical` is recorded in
+`docs/build-log/2026-10-12-cem-neutral-criterion-walkthrough.md`, with every refusal met on the
+way. No producer emits the plain criterion form yet, so that step is hand-assembled; the public
+case is `protocol/cem-1.0/stable/neutral-criterion/`.
+
 ### Workflow recipes
 
 Owner-requested for 0.7.0 on 2026-09-22 (ticket V1-0026); delivery is experimental.
