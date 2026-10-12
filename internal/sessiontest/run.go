@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -94,14 +95,17 @@ type Planned struct {
 
 // Invocations derives one shard's typed argv (STR-V0-005, STR-V0-006): one
 // go test over the shard's whole packages, one per test slice, and one
-// `make <target>` per declared unit. Only the target set differs between a
-// narrowed and a FULL run.
+// invocation per declared unit: `declared:go` is the declaration's Go
+// environment and flags over ./... (ci: the CI branch's), any other the
+// declared language argv. Only the target set differs between a narrowed
+// and a FULL run.
 func Invocations(m Manifest, declared Declared, shard int, root, confine string) []Planned {
 	var whole []Unit
 	var planned []Planned
-	goEnv, goPrefix := append([]string{}, declared.GoEnv...), append([]string{"go", "test", "-json"}, declared.GoFlags...)
+	goEnv, goFlags := append([]string{}, declared.GoEnv...), append([]string{}, declared.GoFlags...)
+	goPrefix := append([]string{"go", "test", "-json"}, goFlags...)
 	if m.RunnerProfile == ProfileCI {
-		goEnv = append([]string{"CORVINT_CONFINE_ROOT=" + root}, ciGoEnv...)
+		goEnv, goFlags = append([]string{"CORVINT_CONFINE_ROOT=" + root}, ciGoEnv...), append([]string{"-exec", confine}, ciGoFlags...)
 		goPrefix = append([]string{"go", "test", "-exec", confine, "-json"}, ciGoFlags...)
 	}
 	for _, unit := range m.Units {
@@ -121,15 +125,21 @@ func Invocations(m Manifest, declared Declared, shard int, root, confine string)
 		if unit.Shard != shard {
 			continue
 		}
-		switch {
+		switch name := strings.TrimPrefix(unit.Unit, "declared:"); {
 		case unit.Adapter == AdapterGo && unit.Slice != SliceWhole:
 			argv := append(append([]string{}, goPrefix...), unit.Flag, unit.Pattern, strings.TrimPrefix(unit.Unit, "go:"))
 			planned = append(planned, Planned{Adapter: AdapterGo, Argv: argv, Env: goEnv, Units: []Unit{unit}})
+		case unit.Adapter == AdapterDeclared && name == "go":
+			argv := append(append([]string{"go", "test"}, goFlags...), "./...")
+			planned = append(planned, Planned{Adapter: AdapterDeclared, Argv: argv, Env: goEnv, Units: []Unit{unit}})
 		case unit.Adapter == AdapterDeclared:
-			planned = append(planned, Planned{
-				Adapter: AdapterDeclared, Argv: []string{"make", strings.TrimPrefix(unit.Unit, "declared:")},
-				Env: []string{}, Units: []Unit{unit},
-			})
+			// A manifest unit the declaration no longer names has no argv;
+			// Execute refuses it before discovery.
+			argv := []string{}
+			if entry, ok := declared.Command(name); ok {
+				argv = append(argv, entry.Argv...)
+			}
+			planned = append(planned, Planned{Adapter: AdapterDeclared, Argv: argv, Env: []string{}, Units: []Unit{unit}})
 		}
 	}
 	return planned
@@ -163,17 +173,23 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 		planned = nil
 	}
 	versions := map[string][2]string{}
-	for _, adapter := range []string{AdapterGo, AdapterDeclared} {
-		if !usesAdapter(planned, adapter) {
+	for _, invocation := range planned {
+		key := runnerKey(invocation)
+		if _, done := versions[key]; done {
 			continue
 		}
-		runner, version, err := r.discover(ctx, adapter, planned)
+		if len(invocation.Argv) == 0 {
+			receipt.Incomplete = append(receipt.Incomplete, invocation.Units[0].Unit+": "+DeclarationPath+" names no command for it")
+			planned = withoutRunner(planned, key)
+			continue
+		}
+		runner, version, err := r.discover(ctx, invocation)
 		if err != nil {
-			receipt.Incomplete = append(receipt.Incomplete, adapter+": "+err.Error())
-			planned = withoutAdapter(planned, adapter)
+			receipt.Incomplete = append(receipt.Incomplete, key+": "+err.Error())
+			planned = withoutRunner(planned, key)
 			continue
 		}
-		versions[adapter] = [2]string{runner, version}
+		versions[key] = [2]string{runner, version}
 	}
 	launched, drifted := false, false
 	for _, invocation := range planned {
@@ -187,7 +203,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			break
 		}
 		launched = true
-		recorded, stop := r.launch(ctx, invocation, versions[invocation.Adapter])
+		recorded, stop := r.launch(ctx, invocation, versions[runnerKey(invocation)])
 		receipt.Invocations = append(receipt.Invocations, recorded)
 		if stop != "" {
 			receipt.Incomplete = append(receipt.Incomplete, stop)
@@ -282,19 +298,19 @@ func Finish(receipt Receipt, m Manifest) Receipt {
 	return receipt
 }
 
-func usesAdapter(planned []Planned, adapter string) bool {
-	for _, invocation := range planned {
-		if invocation.Adapter == adapter {
-			return true
-		}
+// runnerKey names the runner one invocation needs: the Go adapter, or the
+// declared adapter's command name. Each is discovered once per shard.
+func runnerKey(invocation Planned) string {
+	if invocation.Adapter == AdapterGo || len(invocation.Argv) == 0 {
+		return invocation.Adapter
 	}
-	return false
+	return invocation.Adapter + " " + invocation.Argv[0]
 }
 
-func withoutAdapter(planned []Planned, adapter string) []Planned {
+func withoutRunner(planned []Planned, key string) []Planned {
 	kept := []Planned{}
 	for _, invocation := range planned {
-		if invocation.Adapter != adapter {
+		if runnerKey(invocation) != key {
 			kept = append(kept, invocation)
 		}
 	}
@@ -315,20 +331,26 @@ func (r *Runner) drift(ctx context.Context, planned SourceIdentity) string {
 }
 
 // discover captures the runner and its exact version before execution, and
-// for Go checks that `go list ./...` is the planned universe (STR-V0-004).
-func (r *Runner) discover(ctx context.Context, adapter string, planned []Planned) (string, string, error) {
-	name, versionArgs := "make", []string{"--version"}
-	env := []string{}
-	if adapter == AdapterGo {
-		name, versionArgs = "go", []string{"env", "GOVERSION"}
-		for _, invocation := range planned {
-			if invocation.Adapter == AdapterGo {
-				env = invocation.Env
-				break
-			}
-		}
+// for the Go adapter checks that `go list ./...` is the planned universe
+// (STR-V0-004). A declared command is probed by its own name: `go` answers
+// `go env GOVERSION`, anything else `--version`. A declared argv[0] with a
+// path separator is a repository-relative path (STR-V0-003: commands run
+// from the repository root), so it is resolved against Root, never against
+// the caller's working directory; a bare name is looked up on PATH.
+func (r *Runner) discover(ctx context.Context, invocation Planned) (string, string, error) {
+	name, versionArgs, env := invocation.Argv[0], []string{"--version"}, invocation.Env
+	if name == "go" {
+		versionArgs = []string{"env", "GOVERSION"}
 	}
-	runner, err := exec.LookPath(name)
+	lookup := name
+	if strings.Contains(name, "/") && !filepath.IsAbs(name) {
+		root, err := filepath.Abs(r.Root)
+		if err != nil {
+			return "", "", fmt.Errorf("runner %s not found: %v", name, err)
+		}
+		lookup = filepath.Join(root, name)
+	}
+	runner, err := exec.LookPath(lookup)
 	if err != nil {
 		return "", "", fmt.Errorf("runner %s not found", name)
 	}
@@ -337,7 +359,7 @@ func (r *Runner) discover(ctx context.Context, adapter string, planned []Planned
 	if err != nil || version == "" {
 		return "", "", errors.New("runner version cannot be read")
 	}
-	if adapter == AdapterGo {
+	if invocation.Adapter == AdapterGo {
 		listed, err := r.probe(ctx, runner, env, "list", "./...")
 		if err != nil {
 			return "", "", errors.New("go list ./... failed; the Go universe cannot be confirmed")

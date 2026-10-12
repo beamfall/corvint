@@ -1,342 +1,215 @@
 package sessiontest
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
 )
 
-// Declared go-test recipe states (STR-V0-003, STR-V0-006).
+// The project-owned full-suite declaration (STR-V0-003, STR-V0-006): one
+// bounded JSON file naming the Go full-suite environment and flags and each
+// other language's full command, or the project's gate-scoped assertion
+// that no gate step, driver or CI job runs a suite for the language.
+// `corvint test` reads it as a plain file; it never interprets the Makefile,
+// and a maintained gate (tools/test-commands-check) keeps the Go entry equal
+// to what `make go-test` actually runs.
 const (
-	// GoTestAbsent: the Makefile names no go-test target.
-	GoTestAbsent = "absent"
-	// GoTestParsed: one typed `[NAME=VALUE...] go test FLAGS ./...` recipe line.
-	GoTestParsed = "parsed"
-	// GoTestUnparsed: a go-test target this reader cannot type; only
-	// `make go-test` reproduces it, so Go runs FULL through it.
-	GoTestUnparsed = "unparsed"
+	DeclarationPath    = ".github/cishards/test-commands.json"
+	DeclarationProfile = "corvint-test-commands/0"
 )
 
-const (
-	maxMakefileBytes = 1 << 20
-	maxExpandDepth   = 16
-)
-
-// Declared is the repository's declared full scope, read from the root
-// Makefile independently of the planner (STR-V0-003). Languages names each
-// non-Go language with a `<language>-test` target.
-type Declared struct {
-	GoEnv      []string `json:"goEnv"`
-	GoFlags    []string `json:"goFlags"`
-	GoTest     string   `json:"goTest"`
-	GoTestNote string   `json:"goTestNote"`
-	Languages  []string `json:"languages"`
-	Unreadable string   `json:"unreadable"`
+// LanguageCommand is one declared language: either Argv, the full command
+// run from the repository root, or None, the reason the project asserts
+// that the gate runs no suite for the language (STR-V0-004).
+type LanguageCommand struct {
+	Language string   `json:"language"`
+	Argv     []string `json:"argv"`
+	None     string   `json:"none"`
 }
 
-// Names reports whether anything full-suite is declared.
-func (d Declared) Names() bool { return d.GoTest != GoTestAbsent || len(d.Languages) != 0 }
+// Declared is the read declaration in the slice form the manifest digests:
+// GoEnv as sorted NAME=VALUE words, GoFlags as argv words placed between
+// `go test` and the package patterns, and Languages sorted by name. A
+// declaration that cannot be read carries the reason in Unreadable and
+// nothing else.
+type Declared struct {
+	GoEnv      []string          `json:"goEnv"`
+	GoFlags    []string          `json:"goFlags"`
+	Languages  []LanguageCommand `json:"languages"`
+	Unreadable string            `json:"unreadable"`
+}
 
-var (
-	makeAssignment = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)[ \t]*(\?=|::=|:=|=)[ \t]*(.*)$`)
-	makeAppend     = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*[ \t]*(\+=|!=)`)
-	makeRule       = regexp.MustCompile(`^([A-Za-z0-9_.%/-]+(?:[ \t]+[A-Za-z0-9_.%/-]+)*)[ \t]*:([^=]|$)`)
-	makeReference  = regexp.MustCompile(`\$[({]([A-Za-z_][A-Za-z0-9_]*)[)}]`)
-	envAssignment  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
-	// Anything a shell would interpret makes the recipe untyped.
-	shellMeta = "'\"\\;|&<>`$(){}[]*?~#!\n\r"
-	// The adapter adds these itself; a recipe that sets them is untyped.
-	reservedGoFlags = []string{"-json", "-run", "-skip"}
-)
-
-// ReadDeclared reads root/Makefile. languages are the non-Go language names a
-// `<language>-test` target may declare; lookup is the environment `?=` defers
-// to, as make does.
-func ReadDeclared(root string, languages []string, lookup func(string) (string, bool)) Declared {
-	declared := Declared{GoEnv: []string{}, GoFlags: []string{}, GoTest: GoTestAbsent, Languages: []string{}}
-	file, err := os.Open(filepath.Join(root, "Makefile"))
-	if errors.Is(err, fs.ErrNotExist) {
-		return declared
+// Command returns the declared entry for language, if any.
+func (d Declared) Command(language string) (LanguageCommand, bool) {
+	for _, entry := range d.Languages {
+		if entry.Language == language {
+			return entry, true
+		}
 	}
+	return LanguageCommand{}, false
+}
+
+// declarationFile is the on-disk schema: a closed set of members, with each
+// language mapped to an argv array or to {"none": reason}.
+type declarationFile struct {
+	Profile   string                    `json:"profile"`
+	Go        *declarationGo            `json:"go"`
+	Languages map[string]jsontext.Value `json:"languages"`
+}
+
+type declarationGo struct {
+	Env   map[string]string `json:"env"`
+	Flags []string          `json:"flags"`
+}
+
+// ReadDeclared reads root's declaration. Any problem (absence, size, an
+// unknown or duplicate member, a malformed entry) is returned as Unreadable
+// rather than as a partial declaration.
+func ReadDeclared(root string) Declared {
+	return ReadDeclaredFile(filepath.Join(root, filepath.FromSlash(DeclarationPath)))
+}
+
+// ReadDeclaredFile reads one declaration file by path (the repository gate
+// reads a copy under test this way).
+func ReadDeclaredFile(name string) Declared {
+	declared, err := readDeclaration(name)
 	if err != nil {
-		declared.Unreadable = "Makefile is unreadable"
-		return declared
-	}
-	defer file.Close()
-	raw, err := io.ReadAll(io.LimitReader(file, maxMakefileBytes+1))
-	if err != nil || len(raw) > maxMakefileBytes {
-		declared.Unreadable = fmt.Sprintf("Makefile is unreadable or exceeds %d bytes", maxMakefileBytes)
-		return declared
-	}
-	lines := logicalLines(string(raw))
-	variables := map[string]string{}
-	wanted := map[string]bool{}
-	for _, language := range languages {
-		wanted[language+"-test"] = true
-	}
-	var recipe []string
-	inGoTest := false
-	// depth counts open conditionals; a variable assigned under one, or a
-	// directive that changes what a recipe sees, cannot be evaluated here.
-	depth, untyped, incomplete := 0, "", ""
-	// refused names variables this reader cannot evaluate: assigned under a
-	// conditional, or an immediate assignment whose expansion it cannot type.
-	refused := map[string]bool{}
-	for _, line := range lines {
-		if strings.HasPrefix(line, "\t") {
-			if inGoTest {
-				if body := strings.TrimSpace(line); body != "" && !strings.HasPrefix(body, "#") {
-					recipe = append(recipe, body)
-				}
-			}
-			continue
-		}
-		// A blank or comment line does not end a recipe; make keeps reading
-		// tab lines after it as the same rule's recipe.
-		if strings.TrimSpace(line) == "" || strings.HasPrefix(strings.TrimSpace(line), "#") {
-			continue
-		}
-		inGoTest = false
-		// make accepts leading blanks before a directive or assignment, and
-		// any blank, tab included, after a directive word.
-		line = strings.TrimLeft(line, " \t")
-		directive := strings.Fields(line)[0]
-		if before, _, found := strings.Cut(directive, "("); found && before != "" {
-			directive = before
-		}
-		if strings.Contains(line, "$(eval") || strings.Contains(line, "${eval") {
-			// eval can define any rule, a <lang>-test included.
-			if incomplete == "" {
-				incomplete = "the Makefile uses eval"
-			}
-			if untyped == "" {
-				untyped = "the Makefile uses eval, which this reader cannot evaluate"
-			}
-			continue
-		}
-		switch directive {
-		case "ifeq", "ifneq", "ifdef", "ifndef":
-			depth++
-			continue
-		case "endif":
-			depth--
-			continue
-		case "else":
-			continue
-		case "export", "unexport", "override", "include", "-include", "sinclude", "define", ".EXPORT_ALL_VARIABLES:":
-			if strings.HasSuffix(directive, "include") && incomplete == "" {
-				// An included file can declare any full-suite target.
-				incomplete = "the Makefile uses " + directive
-			}
-			if untyped == "" {
-				untyped = "the Makefile uses " + strings.TrimSuffix(directive, ":") + ", which this reader cannot evaluate"
-			}
-			continue
-		}
-		if makeAppend.MatchString(line) {
-			if untyped == "" {
-				untyped = "the Makefile uses += or !=, which this reader cannot evaluate"
-			}
-			continue
-		}
-		if match := makeAssignment.FindStringSubmatch(line); match != nil {
-			name, operator, value := match[1], match[2], strings.TrimSpace(stripMakeComment(match[3]))
-			if depth > 0 {
-				refused[name] = true
-			}
-			if operator == "?=" {
-				// ?= assigns only an undefined variable; an earlier Makefile
-				// assignment wins over the environment, as in make.
-				if _, defined := variables[name]; defined {
-					continue
-				}
-				if environment, ok := lookup(name); ok {
-					value = environment
-				}
-			}
-			if (operator == ":=" || operator == "::=") && strings.Contains(value, "$") {
-				// An immediate assignment expands now, against the values
-				// assigned so far; a later reassignment must not change it.
-				expanded, err := expandMake(value, variables, 0)
-				if err != nil || strings.Contains(expanded, "$") {
-					refused[name] = true
-				} else {
-					value = expanded
-				}
-			}
-			variables[name] = value
-			continue
-		}
-		if match := makeRule.FindStringSubmatch(line); match != nil {
-			// A rule may name several targets; each one is declared.
-			for _, target := range strings.Fields(match[1]) {
-				switch {
-				case target == "go-test":
-					declared.GoTest = GoTestUnparsed
-					inGoTest = true
-					if depth > 0 && untyped == "" {
-						untyped = "go-test is defined under a conditional"
-					}
-					// Prerequisites, target-specific variables and a
-					// double-colon rule all change what `make go-test` runs.
-					if _, after, _ := strings.Cut(line, ":"); strings.TrimSpace(stripMakeComment(after)) != "" && untyped == "" {
-						untyped = "the go-test rule line has prerequisites or target-specific variables"
-					}
-				case wanted[target]:
-					declared.Languages = appendUnique(declared.Languages, strings.TrimSuffix(target, "-test"))
-				case patternMatches(target, "go-test") && untyped == "":
-					untyped = "the pattern rule " + target + " applies to go-test"
-				}
-			}
-		}
-	}
-	sort.Strings(declared.Languages)
-	if incomplete != "" {
-
-		declared.Unreadable = incomplete + ", so its declared full scope cannot be read completely"
-	}
-	if declared.GoTest == GoTestUnparsed {
-		for name := range refused {
-			delete(variables, name) // expandMake then refuses any reference to it
-		}
-		env, flags, note := typeGoRecipe(recipe, variables)
-		if untyped != "" {
-			note = untyped
-		}
-		if note == "" {
-			declared.GoTest, declared.GoEnv, declared.GoFlags = GoTestParsed, env, flags
-		}
-		declared.GoTestNote = note
+		return Declared{GoEnv: []string{}, GoFlags: []string{}, Languages: []LanguageCommand{}, Unreadable: DeclarationPath + ": " + err.Error()}
 	}
 	return declared
 }
 
-// patternMatches reports whether a make target pattern with one % stem
-// matches name.
-func patternMatches(pattern, name string) bool {
-	prefix, suffix, ok := strings.Cut(pattern, "%")
-	return ok && !strings.Contains(suffix, "%") && len(name) > len(prefix)+len(suffix) &&
-		strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix)
-}
-
-// logicalLines joins backslash continuations, as make does for every line.
-func logicalLines(body string) []string {
-	var lines []string
-	current := ""
-	for _, line := range strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n") {
-		if strings.HasSuffix(line, "\\") {
-			current += strings.TrimSuffix(line, "\\") + " "
-			continue
-		}
-		lines = append(lines, current+line)
-		current = ""
-	}
-	if current != "" {
-		lines = append(lines, current)
-	}
-	return lines
-}
-
-func stripMakeComment(value string) string {
-	if index := strings.Index(value, "#"); index >= 0 {
-		return value[:index]
-	}
-	return value
-}
-
-func appendUnique(values []string, value string) []string {
-	for _, existing := range values {
-		if existing == value {
-			return values
-		}
-	}
-	return append(values, value)
-}
-
-// typeGoRecipe types the one go-test recipe line, or names why it cannot.
-func typeGoRecipe(recipe []string, variables map[string]string) (env, flags []string, note string) {
-	if len(recipe) != 1 {
-		return nil, nil, fmt.Sprintf("go-test has %d recipe lines, want exactly one", len(recipe))
-	}
-	line := strings.TrimPrefix(recipe[0], "@")
-	expanded, err := expandMake(line, variables, 0)
+func readDeclaration(name string) (Declared, error) {
+	file, err := os.Open(name)
 	if err != nil {
-		return nil, nil, err.Error()
+		return Declared{}, err
 	}
-	if strings.ContainsAny(expanded, shellMeta) {
-		return nil, nil, "go-test recipe needs a shell"
+	defer file.Close()
+	raw, err := io.ReadAll(io.LimitReader(file, MaxDocumentBytes+1))
+	if err != nil {
+		return Declared{}, err
 	}
-	fields := strings.Fields(expanded)
-	env = []string{}
-	for len(fields) > 0 && envAssignment.MatchString(fields[0]) {
-		if strings.HasPrefix(fields[0], "PATH=") {
-			// The runner is resolved on Corvint's PATH, so a recipe that
-			// picks another go cannot be reproduced by the typed argv.
-			return nil, nil, "go-test recipe sets PATH, which changes which go runs"
+	if len(raw) > MaxDocumentBytes {
+		return Declared{}, fmt.Errorf("exceeds %d bytes", MaxDocumentBytes)
+	}
+	var parsed declarationFile
+	if err := json.Unmarshal(raw, &parsed, json.RejectUnknownMembers(true)); err != nil {
+		return Declared{}, err
+	}
+	if parsed.Profile != DeclarationProfile {
+		return Declared{}, fmt.Errorf("profile is %q, want %q", parsed.Profile, DeclarationProfile)
+	}
+	if parsed.Go == nil {
+		return Declared{}, errors.New("go is required")
+	}
+	declared := Declared{GoEnv: []string{}, GoFlags: []string{}, Languages: []LanguageCommand{}}
+	for name, value := range parsed.Go.Env {
+		if !EnvName(name) || !plain(value) {
+			return Declared{}, fmt.Errorf("go.env has an invalid variable %q", name)
 		}
-		env = append(env, fields[0])
-		fields = fields[1:]
-	}
-	if len(fields) < 3 || fields[0] != "go" || fields[1] != "test" || fields[len(fields)-1] != "./..." {
-		return nil, nil, "go-test recipe is not `[NAME=VALUE...] go test FLAGS ./...`"
-	}
-	flags = append([]string{}, fields[2:len(fields)-1]...)
-	for _, flag := range flags {
-		if flag == "./..." {
-			return nil, nil, "go-test recipe names ./... twice"
+		if name == "PATH" {
+			// The go executable is found on the caller's PATH, so a declared
+			// PATH would not select it.
+			return Declared{}, errors.New("go.env may not declare PATH")
 		}
-		for _, reserved := range reservedGoFlags {
-			if flag == reserved || strings.HasPrefix(flag, reserved+"=") {
-				return nil, nil, "go-test recipe sets " + reserved + ", which the adapter owns"
-			}
+		declared.GoEnv = append(declared.GoEnv, name+"="+value)
+	}
+	sort.Strings(declared.GoEnv)
+	if err := words("go.flags", parsed.Go.Flags); err != nil {
+		return Declared{}, err
+	}
+	declared.GoFlags = append(declared.GoFlags, parsed.Go.Flags...)
+	for language, value := range parsed.Languages {
+		if !plain(language) || language == "go" || strings.Contains(language, ":") {
+			return Declared{}, fmt.Errorf("languages has an invalid language name %q", language)
 		}
+		entry, err := languageCommand(language, value)
+		if err != nil {
+			return Declared{}, err
+		}
+		declared.Languages = append(declared.Languages, entry)
 	}
-	if len(flags) != 0 && !strings.HasPrefix(flags[0], "-") {
-		return nil, nil, "go-test recipe names a target before its flags"
-	}
-	return env, flags, ""
+	sort.Slice(declared.Languages, func(i, j int) bool { return declared.Languages[i].Language < declared.Languages[j].Language })
+	return declared, nil
 }
 
-// expandMake expands $(NAME) and ${NAME} from the Makefile's own variables;
-// $$ is a literal dollar, which typeGoRecipe then refuses. Anything else, an
-// undefined name or a make function, leaves the recipe untyped.
-func expandMake(value string, variables map[string]string, depth int) (string, error) {
-	if depth > maxExpandDepth {
-		return "", errors.New("go-test recipe variables nest too deeply")
+// languageCommand reads one language value: a non-empty argv array, or an
+// object whose only member is a non-empty "none" reason.
+func languageCommand(language string, value jsontext.Value) (LanguageCommand, error) {
+	entry := LanguageCommand{Language: language}
+	switch trimmed := bytes.TrimSpace(value); {
+	case len(trimmed) != 0 && trimmed[0] == '[':
+		if err := json.Unmarshal(trimmed, &entry.Argv); err != nil {
+			return entry, fmt.Errorf("languages.%s: %w", language, err)
+		}
+		if len(entry.Argv) == 0 {
+			return entry, fmt.Errorf("languages.%s: argv is empty", language)
+		}
+		if err := words("languages."+language, entry.Argv); err != nil {
+			return entry, err
+		}
+	case len(trimmed) != 0 && trimmed[0] == '{':
+		var none struct {
+			None string `json:"none"`
+		}
+		if err := json.Unmarshal(trimmed, &none, json.RejectUnknownMembers(true)); err != nil {
+			return entry, fmt.Errorf("languages.%s: %w", language, err)
+		}
+		if strings.TrimSpace(none.None) == "" {
+			return entry, fmt.Errorf("languages.%s: none needs a reason", language)
+		}
+		entry.None = none.None
+	default:
+		return entry, fmt.Errorf("languages.%s: want an argv array or {\"none\": reason}", language)
 	}
-	var out strings.Builder
-	for index := 0; index < len(value); {
-		if value[index] != '$' {
-			out.WriteByte(value[index])
-			index++
-			continue
+	return entry, nil
+}
+
+func words(field string, values []string) error {
+	for _, value := range values {
+		if !plain(value) {
+			return fmt.Errorf("%s: every word must be non-empty without whitespace or control characters, got %q", field, value)
 		}
-		if strings.HasPrefix(value[index:], "$$") {
-			out.WriteString("$")
-			index += 2
-			continue
-		}
-		match := makeReference.FindStringSubmatchIndex(value[index:])
-		if match == nil || match[0] != 0 {
-			return "", errors.New("go-test recipe uses a make function or a one-letter variable")
-		}
-		name := value[index+match[2] : index+match[3]]
-		definition, defined := variables[name]
-		if !defined {
-			return "", fmt.Errorf("go-test recipe names undefined variable %s", name)
-		}
-		expanded, err := expandMake(definition, variables, depth+1)
-		if err != nil {
-			return "", err
-		}
-		out.WriteString(expanded)
-		index += match[1]
 	}
-	return out.String(), nil
+	return nil
+}
+
+// EnvName reports whether name is a portable environment variable name
+// ([A-Za-z_][A-Za-z0-9_]*), the only shape a shell reads as an assignment
+// and exec sets as a variable alike.
+func EnvName(name string) bool {
+	for i, r := range name {
+		switch {
+		case r == '_', r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9' && i != 0:
+		default:
+			return false
+		}
+	}
+	return name != ""
+}
+
+// plain reports whether value is a non-empty word with no whitespace (of any
+// script) and no control character, so it crosses exec and the gate's
+// comparison unchanged.
+func plain(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if unicode.IsSpace(r) || unicode.IsControl(r) || r == utf8.RuneError {
+			return false
+		}
+	}
+	return true
 }

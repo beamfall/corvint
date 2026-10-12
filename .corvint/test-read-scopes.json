@@ -393,6 +393,12 @@
       "tools/gate-affected-select/main.go"
     ],
     "tools/heading-nav-bench": [],
-    "tools/retrieval-bench": []
+    "tools/retrieval-bench": [],
+    "tools/str-parity": [],
+    "tools/test-commands-check": [
+      ".github/cishards/test-commands.json",
+      "Makefile"
+    ],
+    "tools/test-commands-run": []
   }
 }

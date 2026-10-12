@@ -179,3 +179,39 @@ func TestSTRV0014RunnerCancelAndBudgetKillGroup(t *testing.T) {
 		}
 	}
 }
+
+// STR-V0-003: a declared argv[0] with a path separator is resolved against
+// the repository root, not the caller's working directory, so `corvint
+// --root R test` run from elsewhere finds R/tools/fake-tests.
+func TestSTRV0003DeclaredRelativeCommandResolvesAgainstRoot(t *testing.T) {
+	runner, m, _, dir := runnerFixture(t, "pass")
+	script := filepath.Join(dir, "tools", "fake-tests")
+	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(script, []byte("#!/bin/sh\n[ \"$1\" = --version ] && echo fake-tests 1\npwd > \"$FAKE_DIR/cwd\"\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runner.Declared.Languages = []LanguageCommand{{Language: "python", Argv: []string{"./tools/fake-tests"}}}
+	m.Scope, m.Units = ScopeFull, []Unit{{Adapter: AdapterDeclared, Shard: 0, Slice: SliceWhole, Unit: "declared:python"}}
+	digest, _ := Digest(m)
+	elsewhere := t.TempDir()
+	if err := os.WriteFile(filepath.Join(elsewhere, "fake-tests"), []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(elsewhere)
+	receipt := runner.Execute(context.Background(), m, digest, 0)
+	if receipt.Result != ResultPass || len(receipt.Invocations) != 1 || receipt.Invocations[0].Runner != script || receipt.Invocations[0].Version != "fake-tests 1" {
+		t.Fatalf("receipt %s %+v", receipt.Result, receipt.Invocations)
+	}
+	resolvedRoot, _ := filepath.EvalSymlinks(dir)
+	if cwd, _ := os.ReadFile(filepath.Join(dir, "cwd")); strings.TrimSpace(string(cwd)) != resolvedRoot && strings.TrimSpace(string(cwd)) != dir {
+		t.Fatalf("declared command ran in %q, want the root %q", cwd, dir)
+	}
+	// An absent repository-relative command is a missing runner, not a
+	// lookup of the caller's directory.
+	runner.Declared.Languages[0].Argv = []string{"./tools/absent"}
+	if receipt := runner.Execute(context.Background(), m, digest, 0); receipt.Result != ResultIncomplete || !strings.Contains(strings.Join(receipt.Incomplete, " "), "runner ./tools/absent not found") {
+		t.Fatalf("absent receipt %s %+v", receipt.Result, receipt.Incomplete)
+	}
+}

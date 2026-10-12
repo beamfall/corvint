@@ -42,7 +42,7 @@ jobs:
       - name: Host package versions (AHI-020)
         run: make -s host-package-versions-check host-package-versions-test
       - name: Documentation gate steps
-        run: make -s spec-requirements-check requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check
+        run: make -s spec-requirements-check requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-commands-check
       - name: Use-case receipt pins (run script/repin-use-case-receipts.sh on failure)
         run: |
           make -s use-case-receipts-check use-case-receipts-test

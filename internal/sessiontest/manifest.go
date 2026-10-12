@@ -38,9 +38,13 @@ const (
 	ResultFail       = "FAIL"
 	ResultIncomplete = "INCOMPLETE"
 
-	// PlacementUniverse is the only executable placement (STR-V0-007);
-	// balanced placement (STR-V0-008) is refused, not implemented.
+	// PlacementUniverse is the default complete-universe placement
+	// (STR-V0-007).
 	PlacementUniverse = "universe"
+	// PlacementBalanced partitions a narrowed run set's own execution units
+	// by the advisory cost table (STR-V0-008, experimental). It executes only
+	// in the local profile; FULL keeps the universe partition.
+	PlacementBalanced = "balanced"
 
 	// SliceWhole names an unsplit unit; a split one is "<index>/<count>".
 	SliceWhole = "whole"
@@ -82,11 +86,14 @@ func (u Unit) Key() string { return u.Unit + " " + u.Slice }
 // Manifest is the STR-V0-018 corvint-test-manifest/0: everything every shard
 // and the fan-in must agree on before anything executes.
 type Manifest struct {
-	Base            string         `json:"base"`
-	Checks          []string       `json:"checks"`
-	DeclaredDigest  string         `json:"declaredDigest"`
-	GraphDigest     string         `json:"graphDigest"`
-	Incomplete      []string       `json:"incomplete"`
+	Base           string   `json:"base"`
+	Checks         []string `json:"checks"`
+	DeclaredDigest string   `json:"declaredDigest"`
+	GraphDigest    string   `json:"graphDigest"`
+	Incomplete     []string `json:"incomplete"`
+	// NoSuite records each covered language the declaration asserts has no
+	// suite, as "<language>: <reason>"; nothing runs for it (STR-V0-004).
+	NoSuite         []string       `json:"noSuite"`
 	PartitionDigest string         `json:"partitionDigest"`
 	Placement       string         `json:"placement"`
 	PlanDigest      string         `json:"planDigest"`

@@ -16,9 +16,19 @@ import (
 func parsedDeclared() Declared {
 	return Declared{
 		GoEnv: []string{"GOTOOLCHAIN=local"}, GoFlags: []string{"-p", "1", "-timeout", "30m", "-count=1"},
-		GoTest: GoTestParsed, Languages: []string{},
+		Languages: []LanguageCommand{},
 	}
 }
+
+func declare(in *Input, entries ...LanguageCommand) {
+	in.Declared.Languages = append(in.Declared.Languages, entries...)
+}
+
+var (
+	rustArgv   = LanguageCommand{Language: "rust", Argv: []string{"cargo", "test"}}
+	pythonArgv = LanguageCommand{Language: "python", Argv: []string{"pytest", "-q"}}
+	noPython   = LanguageCommand{Language: "python", None: "fixtures only"}
+)
 
 func fixtureInput() Input {
 	return Input{
@@ -54,6 +64,7 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		reason     string
 		units      []string
 		incomplete []string
+		noSuite    []string
 	}{
 		{name: "narrowed", edit: func(*Input) {}, scope: ScopeNarrowed, units: whole("a")},
 		{name: "allowlisted unknowns stay narrowed", edit: func(in *Input) {
@@ -75,20 +86,23 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 			scope: ScopeNothing, reason: "no Go package attributed", units: []string{}},
 		{name: "no plan runs the declared scope", edit: func(in *Input) {
 			in.PlanError = "unsupported-affected-graph: boom"
-			in.Declared.Languages = []string{"rust"}
-		}, scope: ScopeFull, reason: "no plan: unsupported-affected-graph: boom", units: []string{"0 declared:go-test whole", "0 declared:rust-test whole"}},
-		{name: "no plan and nothing declared", edit: func(in *Input) {
+			declare(in, rustArgv, noPython)
+		}, scope: ScopeFull, reason: "no plan: unsupported-affected-graph: boom", units: []string{"0 declared:go whole", "0 declared:rust whole"}, noSuite: []string{"python: fixtures only"}},
+		{name: "no plan with only Go declared", edit: func(in *Input) {
 			in.PlanError = "base unresolved"
-			in.Declared = Declared{GoEnv: []string{}, GoFlags: []string{}, GoTest: GoTestAbsent, Languages: []string{}}
-		}, scope: ScopeFull, reason: "no plan: base unresolved", units: []string{}, incomplete: []string{"the repository declares no full-suite command"}},
+		}, scope: ScopeFull, reason: "no plan: base unresolved", units: []string{"0 declared:go whole"}},
 		{name: "no plan and an unreadable declaration", edit: func(in *Input) {
 			in.PlanError = "base unresolved"
-			in.Declared.Unreadable = "Makefile is unreadable"
-		}, scope: ScopeFull, reason: "no plan: base unresolved", units: []string{}, incomplete: []string{"the declared full scope is unreadable: Makefile is unreadable"}},
+			in.Declared = Declared{Unreadable: "test-commands.json: open: no such file"}
+		}, scope: ScopeFull, reason: "no plan: base unresolved", units: []string{}, incomplete: []string{"the declared full scope is unreadable: test-commands.json: open: no such file"}},
 		{name: "language without an adapter runs its declared command", edit: func(in *Input) {
 			in.Selected = []string{"rust:crate"}
-			in.Declared.Languages = []string{"rust"}
-		}, scope: ScopeNarrowed, units: append(whole("a"), "0 declared:rust-test whole")},
+			declare(in, rustArgv)
+		}, scope: ScopeNarrowed, units: append(whole("a"), "0 declared:rust whole")},
+		{name: "language without an adapter and a none declaration runs nothing", edit: func(in *Input) {
+			in.Selected = []string{"python:pkg/mod.py"}
+			declare(in, noPython)
+		}, scope: ScopeNarrowed, units: whole("a"), noSuite: []string{"python: fixtures only"}},
 		{name: "allowlisted non-Go frontier names no unit", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Unknown = []Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "swift:conditional-compilation"}}
@@ -96,48 +110,45 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		{name: "selected unit with no adapter and no declaration", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Selected = []string{"swift:Sources/App"}
-		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"swift: no qualified adapter and no declared swift-test full command"}},
+		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"swift: no qualified adapter and .github/cishards/test-commands.json declares no swift full command"}},
 		{name: "unknown-only non-Go unit runs its declared command", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Unknown = []Unknown{{Reason: "NO_SELECTABLE_TEST", Detail: "python:pkg/mod.py"}}
-			in.Declared.Languages = []string{"python"}
-		}, scope: ScopeNarrowed, units: []string{"0 declared:python-test whole"}},
+			declare(in, pythonArgv)
+		}, scope: ScopeNarrowed, units: []string{"0 declared:python whole"}},
 		{name: "unknown-only non-Go unit with no declaration", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Unknown = []Unknown{{Reason: "NO_SELECTABLE_TEST", Detail: "python:pkg/mod.py"}}
-		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"python: no qualified adapter and no declared python-test full command"}},
+		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"python: no qualified adapter and .github/cishards/test-commands.json declares no python full command"}},
 		{name: "FULL still covers a selected non-Go language", edit: func(in *Input) {
 			in.GoSelection = "FALLBACK go.mod changed"
 			in.Selected = []string{"python:pkg/mod.py"}
-			in.Declared.Languages = []string{"python"}
-		}, scope: ScopeFull, reason: "go.mod changed", units: []string{"0 go:example.test/m/a whole", "0 go:example.test/m/b whole", "0 go:example.test/m/c whole", "0 declared:python-test whole"}},
+			declare(in, pythonArgv)
+		}, scope: ScopeFull, reason: "go.mod changed", units: []string{"0 go:example.test/m/a whole", "0 go:example.test/m/b whole", "0 go:example.test/m/c whole", "0 declared:python whole"}},
 		{name: "FULL from a path-only fallback runs every declared language", edit: func(in *Input) {
 			in.GoSelection = "FALLBACK UNINDEXED_SOURCE_PATH pkg/gone.py"
-			in.Declared.Languages = []string{"python"}
-		}, scope: ScopeFull, reason: "UNINDEXED_SOURCE_PATH pkg/gone.py", units: []string{"0 go:example.test/m/a whole", "0 go:example.test/m/b whole", "0 go:example.test/m/c whole", "0 declared:python-test whole"}},
+			declare(in, pythonArgv, LanguageCommand{Language: "ruby", None: "no Ruby sources"})
+		}, scope: ScopeFull, reason: "UNINDEXED_SOURCE_PATH pkg/gone.py", units: []string{"0 go:example.test/m/a whole", "0 go:example.test/m/b whole", "0 go:example.test/m/c whole", "0 declared:python whole"}, noSuite: []string{"ruby: no Ruby sources"}},
 		{name: "FULL covers an undeclared language owning a dirty path", edit: func(in *Input) {
 			in.GoSelection = "FALLBACK UNINDEXED_SOURCE_PATH pkg/gone.py"
 			in.DirtyLanguages = []string{"python"}
-		}, scope: ScopeFull, reason: "UNINDEXED_SOURCE_PATH pkg/gone.py", units: whole("a", "b", "c"), incomplete: []string{"python: no qualified adapter and no declared python-test full command"}},
-		{name: "ci profile refuses make go-test with no plan", edit: func(in *Input) {
+		}, scope: ScopeFull, reason: "UNINDEXED_SOURCE_PATH pkg/gone.py", units: whole("a", "b", "c"), incomplete: []string{"python: no qualified adapter and .github/cishards/test-commands.json declares no python full command"}},
+		{name: "ci profile with no plan runs the declared Go suite", edit: func(in *Input) {
 			in.PlanError = "base unresolved"
 			in.RunnerProfile = ProfileCI
-			in.Declared.Languages = []string{"rust"}
-		}, scope: ScopeFull, reason: "no plan: base unresolved", units: []string{"0 declared:rust-test whole"}, incomplete: []string{"go: the ci profile cannot run make go-test, which drops the CI confinement, -race and environment"}},
+			declare(in, rustArgv)
+		}, scope: ScopeFull, reason: "no plan: base unresolved", units: []string{"0 declared:go whole", "0 declared:rust whole"}},
 		{name: "FULL with an unreadable declaration", edit: func(in *Input) {
 			in.GoSelection = "FALLBACK go.mod changed"
-			in.Declared.Unreadable = "Makefile is unreadable"
-		}, scope: ScopeFull, reason: "go.mod changed", units: whole("a", "b", "c"), incomplete: []string{"the declared full scope is unreadable: Makefile is unreadable"}},
-		{name: "untyped recipe cannot narrow", edit: func(in *Input) {
-			in.Declared = Declared{GoEnv: []string{}, GoFlags: []string{}, GoTest: GoTestUnparsed, GoTestNote: "go-test recipe needs a shell", Languages: []string{}}
-		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"go: the go-test recipe cannot be typed (go-test recipe needs a shell); run make go-test"}},
-		{name: "untyped recipe runs FULL through make", edit: func(in *Input) {
-			in.GoSelection = "FALLBACK go.sum changed"
-			in.Declared = Declared{GoEnv: []string{}, GoFlags: []string{}, GoTest: GoTestUnparsed, GoTestNote: "x", Languages: []string{}}
-		}, scope: ScopeFull, reason: "go.sum changed", units: []string{"0 declared:go-test whole"}},
-		{name: "no go-test declaration", edit: func(in *Input) {
-			in.Declared = Declared{GoEnv: []string{}, GoFlags: []string{}, GoTest: GoTestAbsent, Languages: []string{}}
-		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"go: the repository declares no go-test full-suite command"}},
+			in.Declared = Declared{Unreadable: "test-commands.json: profile is \"x\""}
+		}, scope: ScopeFull, reason: "the declared full scope is unreadable", units: []string{}, incomplete: []string{"the declared full scope is unreadable: test-commands.json: profile is \"x\""}},
+		{name: "narrowed with an unreadable declaration", edit: func(in *Input) {
+			in.Declared = Declared{Unreadable: "test-commands.json: open: no such file"}
+		}, scope: ScopeFull, reason: "the declared full scope is unreadable", units: []string{}, incomplete: []string{"the declared full scope is unreadable: test-commands.json: open: no such file"}},
+		{name: "FULL with no Go universe runs the declared Go suite", edit: func(in *Input) {
+			in.GoSelection = "FALLBACK go.mod changed"
+			in.Universe = nil
+		}, scope: ScopeFull, reason: "go.mod changed", units: []string{"0 declared:go whole"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -150,8 +161,8 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 			if tc.incomplete == nil {
 				tc.incomplete = []string{}
 			}
-			if m.Scope != tc.scope || m.Reason != tc.reason || !reflect.DeepEqual(unitIDs(m), tc.units) || !reflect.DeepEqual(m.Incomplete, tc.incomplete) {
-				t.Fatalf("got scope=%s reason=%q units=%v incomplete=%v", m.Scope, m.Reason, unitIDs(m), m.Incomplete)
+			if m.Scope != tc.scope || m.Reason != tc.reason || !reflect.DeepEqual(unitIDs(m), tc.units) || !reflect.DeepEqual(m.Incomplete, tc.incomplete) || !reflect.DeepEqual(m.NoSuite, nonNil(tc.noSuite)) {
+				t.Fatalf("got scope=%s reason=%q units=%v incomplete=%v noSuite=%v", m.Scope, m.Reason, unitIDs(m), m.Incomplete, m.NoSuite)
 			}
 			again, _ := Build(input)
 			first, _ := Digest(m)
@@ -264,19 +275,25 @@ func TestSTRV0006Invocations(t *testing.T) {
 		{Adapter: AdapterGo, Shard: 0, Slice: SliceWhole, Unit: "go:example.test/m/b"},
 		{Adapter: AdapterGo, Flag: "-run", Pattern: "^(TestA)$", Shard: 0, Slice: "0/2", Unit: "go:example.test/m/s"},
 		{Adapter: AdapterGo, Shard: 1, Slice: SliceWhole, Unit: "go:example.test/m/c"},
-		{Adapter: AdapterDeclared, Shard: 0, Slice: SliceWhole, Unit: "declared:rust-test"},
+		{Adapter: AdapterDeclared, Shard: 0, Slice: SliceWhole, Unit: "declared:rust"},
+		{Adapter: AdapterDeclared, Shard: 0, Slice: SliceWhole, Unit: "declared:go"},
+		{Adapter: AdapterDeclared, Shard: 0, Slice: SliceWhole, Unit: "declared:swift"},
 	}}
-	got := Invocations(m, parsedDeclared(), 0, "/repo", "")
+	declared := parsedDeclared()
+	declared.Languages = []LanguageCommand{rustArgv}
+	got := Invocations(m, declared, 0, "/repo", "")
 	want := []Planned{
 		{Adapter: AdapterGo, Argv: []string{"go", "test", "-json", "-p", "1", "-timeout", "30m", "-count=1", "example.test/m/a", "example.test/m/b"}, Env: []string{"GOTOOLCHAIN=local"}, Units: m.Units[:2]},
 		{Adapter: AdapterGo, Argv: []string{"go", "test", "-json", "-p", "1", "-timeout", "30m", "-count=1", "-run", "^(TestA)$", "example.test/m/s"}, Env: []string{"GOTOOLCHAIN=local"}, Units: m.Units[2:3]},
-		{Adapter: AdapterDeclared, Argv: []string{"make", "rust-test"}, Env: []string{}, Units: m.Units[4:5]},
+		{Adapter: AdapterDeclared, Argv: []string{"cargo", "test"}, Env: []string{}, Units: m.Units[4:5]},
+		{Adapter: AdapterDeclared, Argv: []string{"go", "test", "-p", "1", "-timeout", "30m", "-count=1", "./..."}, Env: []string{"GOTOOLCHAIN=local"}, Units: m.Units[5:6]},
+		{Adapter: AdapterDeclared, Argv: []string{}, Env: []string{}, Units: m.Units[6:7]},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("local:\ngot  %#v\nwant %#v", got, want)
 	}
 	m.RunnerProfile = ProfileCI
-	ci := Invocations(m, parsedDeclared(), 1, "/repo", "/runner/test-confine")
+	ci := Invocations(m, declared, 1, "/repo", "/runner/test-confine")
 	wantCI := Planned{
 		Adapter: AdapterGo,
 		Argv:    []string{"go", "test", "-exec", "/runner/test-confine", "-json", "-p", "1", "-count=1", "-race", "-timeout", "50m", "example.test/m/c"},
@@ -286,93 +303,86 @@ func TestSTRV0006Invocations(t *testing.T) {
 	if len(ci) != 1 || !reflect.DeepEqual(ci[0], wantCI) {
 		t.Fatalf("ci: %#v", ci)
 	}
-	if empty := Invocations(m, parsedDeclared(), 5, "/repo", ""); len(empty) != 0 {
+	ciGo := Invocations(m, declared, 0, "/repo", "/runner/test-confine")[3]
+	if !reflect.DeepEqual(ciGo.Argv, []string{"go", "test", "-exec", "/runner/test-confine", "-p", "1", "-count=1", "-race", "-timeout", "50m", "./..."}) || !reflect.DeepEqual(ciGo.Env, wantCI.Env) {
+		t.Fatalf("ci declared go: %#v", ciGo)
+	}
+	if empty := Invocations(m, declared, 5, "/repo", ""); len(empty) != 0 {
 		t.Fatalf("an empty shard planned %v", empty)
 	}
 }
 
+// STR-V0-003, STR-V0-006: the declaration is one strict, bounded JSON file;
+// every defect makes it unreadable rather than a partial declaration.
 func TestSTRV0003ReadDeclared(t *testing.T) {
 	write := func(t *testing.T, body string) string {
 		root := t.TempDir()
-		if err := os.WriteFile(filepath.Join(root, "Makefile"), []byte(body), 0o644); err != nil {
+		if err := os.MkdirAll(filepath.Join(root, ".github", "cishards"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(DeclarationPath)), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		return root
 	}
-	none := func(string) (string, bool) { return "", false }
-	makefile := "CACHE ?= /tmp/cache\nTIMEOUT ?= 30m\nFLAGS = -p 1 \\\n  -timeout $(TIMEOUT)\n" +
-		"go-test:\n\tGOCACHE=$(CACHE) GOTOOLCHAIN=local go test $(FLAGS) -count=1 ./...\n" +
-		"rust-test:\n\tcargo test\nswift-test:\n\tswift test\n"
-	got := ReadDeclared(write(t, makefile+"ledger/%:\n\t@true\n.DEFAULT_GOAL := gate\n"), []string{"rust"}, none)
-	want := Declared{GoEnv: []string{"GOCACHE=/tmp/cache", "GOTOOLCHAIN=local"}, GoFlags: []string{"-p", "1", "-timeout", "30m", "-count=1"}, GoTest: GoTestParsed, Languages: []string{"rust"}}
+	full := `{
+  "profile": "corvint-test-commands/0",
+  "go": {"env": {"GOTOOLCHAIN": "local", "GOCACHE": "/tmp/c"}, "flags": ["-p", "1", "-count=1"]},
+  "languages": {"rust": ["cargo", "test"], "python": {"none": "fixtures only"}}
+}
+`
+	got := ReadDeclared(write(t, full))
+	want := Declared{
+		GoEnv: []string{"GOCACHE=/tmp/c", "GOTOOLCHAIN=local"}, GoFlags: []string{"-p", "1", "-count=1"},
+		Languages: []LanguageCommand{{Language: "python", None: "fixtures only"}, {Language: "rust", Argv: []string{"cargo", "test"}}},
+	}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %#v", got)
+		t.Fatalf("declaration %#v", got)
 	}
-	override := ReadDeclared(write(t, makefile), nil, func(name string) (string, bool) { return "45m", name == "TIMEOUT" })
-	if !reflect.DeepEqual(override.GoFlags, []string{"-p", "1", "-timeout", "45m", "-count=1"}) {
-		t.Fatalf("?= did not defer to the environment: %v", override.GoFlags)
+	if got := ReadDeclared(t.TempDir()); !strings.HasPrefix(got.Unreadable, DeclarationPath+": ") || len(got.GoEnv)+len(got.GoFlags)+len(got.Languages) != 0 {
+		t.Fatalf("absent declaration %#v", got)
 	}
-	for body, note := range map[string]string{
-		"go-test:\n\tgo test -json ./...\n":                            "sets -json",
-		"go-test:\n\tgo test -run=X ./...\n":                           "sets -run",
-		"go-test:\n\tgo test ./... | tee log\n":                        "needs a shell",
-		"go-test:\n\tgo vet ./...\n\tgo test ./...\n":                  "2 recipe lines",
-		"go-test:\n\tgo test $(UNDEFINED) ./...\n":                     "UNDEFINED",
-		"export GOFLAGS=-mod=mod\ngo-test:\n\tgo test ./...\n":         "uses export",
-		"ifdef CI\nF = -race\nendif\ngo-test:\n\tgo test $(F) ./...\n": "F",
-		"go-test:\n\tgo test pkg ./...\n":                              "before its flags",
-		"F = -count=1\nF += -race\ngo-test:\n\tgo test $(F) ./...\n":   "+= or !=",
-		"F != echo -race\ngo-test:\n\tgo test $(F) ./...\n":            "+= or !=",
-		"go-test: build\n\tgo test ./...\n":                            "prerequisites",
-		"go-test: F = -race\ngo-test:\n\tgo test ./...\n":              "target-specific",
-		"go-test::\n\tgo test ./...\n":                                 "prerequisites",
-		"%-test:\n\techo\ngo-test:\n\tgo test ./...\n":                 "pattern rule %-test",
-		"go-test:\n\tgo test ./...\n\n\tgo test -race ./...\n":         "2 recipe lines",
-		"go-test:\n\tgo test ./...\n# note\n\tgo test -race ./...\n":   "2 recipe lines",
-		"F := $(UNDEFINED) -race\ngo-test:\n\tgo test $(F) ./...\n":    "F",
-		"F := $$HOME\ngo-test:\n\tgo test $(F) ./...\n":                "F",
-		"go-test:\n\tPATH=/opt/go/bin:/usr/bin go test ./...\n":        "sets PATH",
-		"export\tGOFLAGS=-race\ngo-test:\n\tgo test ./...\n":           "uses export",
-		"  override F = -race\ngo-test:\n\tgo test ./...\n":            "uses override",
-	} {
-		got := ReadDeclared(write(t, body), nil, none)
-		if got.GoTest != GoTestUnparsed || !strings.Contains(got.GoTestNote, note) {
-			t.Errorf("%q: %s %q, want unparsed naming %q", body, got.GoTest, got.GoTestNote, note)
+	minimal := `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}}`
+	if got := ReadDeclared(write(t, minimal)); got.Unreadable != "" || len(got.Languages) != 0 || got.GoEnv == nil || got.GoFlags == nil {
+		t.Fatalf("minimal declaration %#v", got)
+	}
+	unreadable := map[string]string{
+		"profile":          `{"profile": "corvint-test-commands/1", "go": {"env": {}, "flags": []}}`,
+		"no go":            `{"profile": "corvint-test-commands/0", "languages": {}}`,
+		"unknown member":   `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}, "make": true}`,
+		"unknown go field": `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": [], "packages": ["./..."]}}`,
+		"duplicate member": `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": ["-p"]}, "go": {"env": {}, "flags": []}}`,
+		"env name":         `{"profile": "corvint-test-commands/0", "go": {"env": {"A=B": "c"}, "flags": []}}`,
+		"flag with space":  `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": ["-timeout 30m"]}}`,
+		"flag with cr":     `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": ["-run=TestA\r"]}}`,
+		"flag nbsp":        `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": ["-p\u00a01"]}}`,
+		"env nul name":     `{"profile": "corvint-test-commands/0", "go": {"env": {"GO\u0000CACHE": "/tmp/c"}, "flags": []}}`,
+		"env dash name":    `{"profile": "corvint-test-commands/0", "go": {"env": {"GO-CACHE": "/tmp/c"}, "flags": []}}`,
+		"env digit first":  `{"profile": "corvint-test-commands/0", "go": {"env": {"1GOCACHE": "/tmp/c"}, "flags": []}}`,
+		"env PATH":         `{"profile": "corvint-test-commands/0", "go": {"env": {"PATH": "/opt/go/bin"}, "flags": []}}`,
+		"env value tab":    `{"profile": "corvint-test-commands/0", "go": {"env": {"GOCACHE": "/tmp/c\t"}, "flags": []}}`,
+		"language cr":      `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}, "languages": {"rust\r": ["cargo", "test"]}}`,
+		"argv escape":      `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}, "languages": {"rust": ["cargo", "test\u001b"]}}`,
+		"empty argv":       `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}, "languages": {"rust": []}}`,
+		"empty none":       `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}, "languages": {"rust": {"none": " "}}}`,
+		"none plus argv":   `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}, "languages": {"rust": {"none": "x", "argv": ["cargo"]}}}`,
+		"string value":     `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}, "languages": {"rust": "cargo test"}}`,
+		"go language":      `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}, "languages": {"go": ["go", "test"]}}`,
+		"trailing data":    `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}} {}`,
+		"oversize":         `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}, "languages": {"rust": {"none": "` + strings.Repeat("x", MaxDocumentBytes) + `"}}}`,
+	}
+	for name, body := range unreadable {
+		if got := ReadDeclared(write(t, body)); got.Unreadable == "" || len(got.Languages) != 0 || len(got.GoFlags) != 0 {
+			t.Errorf("%s: read as %#v", name, got)
 		}
 	}
-	// An included file or eval can declare any full-suite target, so the
-	// declared scope is not complete.
-	for _, body := range []string{"include rust.mk\ngo-test:\n\tgo test ./...\n", "-include x.mk\n", "$(eval $(call T,rust))\n"} {
-		if got := ReadDeclared(write(t, body), []string{"rust"}, none); !strings.Contains(got.Unreadable, "cannot be read completely") {
-			t.Errorf("%q: declared scope read as complete: %#v", body, got)
-		}
-	}
-	// A rule naming several targets declares each of them.
-	multi := ReadDeclared(write(t, "rust-test cargo-test:\n\tcargo test\ngo-test lint:\n\tgo test ./...\n"), []string{"rust"}, none)
-	if !reflect.DeepEqual(multi.Languages, []string{"rust"}) || multi.GoTest != GoTestParsed {
-		t.Fatalf("multi-target rules: %#v", multi)
-	}
-	// ?= leaves an earlier Makefile value alone, whatever the environment
-	// says; a leading blank does not hide an assignment.
-	env := func(name string) (string, bool) { return "-short", name == "F" }
-	precedence := ReadDeclared(write(t, "F = -race\nF ?= -count=1\n  G = -v\ngo-test:\n\tgo test $(F) $(G) ./...\n"), nil, env)
-	if !reflect.DeepEqual(precedence.GoFlags, []string{"-race", "-v"}) {
-		t.Fatalf("?= precedence: %#v", precedence)
-	}
-	// An immediate assignment keeps the value it had when assigned.
-	immediate := ReadDeclared(write(t, "F = -race\nFLAGS := $(F) -count=1\nF = -short\ngo-test:\n\tgo test $(FLAGS) ./...\n"), nil, none)
-	if immediate.GoTest != GoTestParsed || !reflect.DeepEqual(immediate.GoFlags, []string{"-race", "-count=1"}) {
-		t.Fatalf(":= was expanded late: %#v", immediate)
-	}
-	if absent := ReadDeclared(t.TempDir(), nil, none); absent.GoTest != GoTestAbsent || absent.Names() || absent.Unreadable != "" {
-		t.Fatalf("missing Makefile: %#v", absent)
-	}
-	directory := t.TempDir()
-	if err := os.Mkdir(filepath.Join(directory, "Makefile"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if unreadable := ReadDeclared(directory, nil, none); unreadable.Unreadable == "" {
-		t.Fatal("a Makefile directory was read")
+	// The manifest digest is the parsed declaration's canonical form, so
+	// member order and whitespace do not change it.
+	reordered := `{"languages": {"python": {"none": "fixtures only"}, "rust": ["cargo", "test"]}, "go": {"flags": ["-p", "1", "-count=1"], "env": {"GOCACHE": "/tmp/c", "GOTOOLCHAIN": "local"}}, "profile": "corvint-test-commands/0"}`
+	a, _ := Digest(ReadDeclared(write(t, full)))
+	b, _ := Digest(ReadDeclared(write(t, reordered)))
+	if a != b {
+		t.Fatalf("digests differ: %s %s", a, b)
 	}
 }
 

@@ -18,7 +18,7 @@ Contracts and decisions:
   verdict. An allowlisted non-Go `LANGUAGE_FRONTIER` entry names a frontier category, not a unit,
   so it does not require that language's declared command. This repository has six such entries
   in every plan. A selected unit, or a `NO_SELECTABLE_TEST` unknown unit, in a language without
-  an adapter does require the command. Owner question below.
+  an adapter does require the command. Accepted by the owner (below).
 - No plan: the declared full scope runs on shard 0, read independently of the planner: the
   Makefile `go-test` target and each `<lang>-test` target for every registered language name. A
   declaration that cannot be read or names nothing is `INCOMPLETE`.
@@ -29,22 +29,185 @@ Contracts and decisions:
   declare targets this reader never sees.
 - The `ci` profile never runs `make go-test`: with no plan, or FULL with no Go universe, Go is
   `INCOMPLETE`, because that target would drop the CI confinement, `-race` and environment.
-- Go recipe typing: the `go-test` recipe must be one line of the form
-  `[NAME=VALUE ...] go test FLAGS ./...`. Blank and comment lines do not end the recipe, so a
-  second command after one is still counted. It may use `$(VAR)`, `:=`, `=` and `?=`, where `?=`
-  leaves a variable the Makefile already assigned alone and otherwise prefers the invoking
-  environment over its own value, and `:=` expands immediately against the values assigned so
-  far (an immediate value that cannot be expanded is refused). A rule naming several targets
-  declares each one. A recipe that sets `PATH` is untyped, because the runner is resolved on
-  Corvint's own `PATH`. It may not set `-json`, `-run` or `-skip`, and may
-  not use shell metacharacters. Anything else leaves the recipe untyped, including export,
-  override, include, define, `.EXPORT_ALL_VARIABLES`, `+=`, `!=`, a variable assigned under a
-  conditional (directives are recognised after any leading blank and before a tab), a go-test rule under a conditional or with prerequisites, target-specific variables
-  or `::`, and a `%` pattern rule that matches go-test. A rule whose target is a `$(VAR)` expansion
-  is not evaluated (this repository's Makefile has one, under a goal conditional); that is a
-  retained limit, not a typed guarantee. An untyped recipe never narrows Go: a narrowed run is `INCOMPLETE`
-  and a `FULL` run calls `make go-test`. The local argv adds `-json` so outcomes can be attributed
-  to packages.
+- Go recipe typing is exact by construction (Codex round 8 redesign). Rounds 1 to 7 patched a
+  reader that reimplemented make by rejecting known-bad constructs; round 8 found seven more
+  places where its accept set still differed from make or `/bin/sh` (an inherited
+  `MAKECMDGOALS` hiding a conditional go-test as absent, trailing blanks trimmed from values, `?=`
+  ignoring make's built-in defaults, recipe backslash continuations, Unicode word splitting,
+  mismatched `${F)` delimiters, and `GNUmakefile`/`makefile` precedence). The root cause was the
+  negative design, so the reader now types only a small positive grammar whose meaning is the
+  same to make, to the shell and to the typed argv, and anything outside it is untyped, never a
+  guess. Typed: the file make reads (`GNUmakefile`, then `makefile`, then `Makefile`, by
+  `os.Stat` in make's order; none means absent); one go-test recipe line that is not a
+  backslash continuation, after an optional `@`; `$(NAME)`/`${NAME}` references with matching
+  delimiters to variables assigned at top level by `=`, `:=`, `::=` or `?=` (values kept
+  verbatim after the operator, so trailing blanks stay significant; a `#` starts a comment
+  anywhere in a makefile line and is cut as make cuts it, keeping the blank before it; `:=`
+  expands immediately; `?=` takes an earlier Makefile value, then the environment,
+  and is refused for a make built-in such as `CC`, `LINK.o` or any `MAKE*` name); an expanded
+  recipe whose every byte is an ASCII letter, digit, `-_./=,`, space or tab, split on ASCII blank
+  runs into `[NAME=VALUE ...] go test FLAGS ./...` without `PATH=`, `-json`, `-run` or `-skip`.
+  Untyped (unchanged from earlier rounds where they already were): a conditional inside the
+  go-test recipe span or around the go-test rule, `define`, unmatched or unterminated
+  conditionals, text after `else`, an assignment to an inherited variable, `PATH`, `GO*`, `CGO_*`,
+  `SHELL` or a `MAKE*`/dotted control variable, `export`/`unexport`/`override`/
+  `.EXPORT_ALL_VARIABLES`, `+=`, `!=`, `include`, `eval`, special targets other than `.PHONY`,
+  tab lines outside a rule, unrecognised lines, variables assigned under a conditional, go-test
+  prerequisites or target-specific variables, `%` pattern rules matching go-test, and a
+  `MAKEFLAGS`/`GNUMAKEFLAGS` word outside the harmless set (`s`, `w`, `k`, `-jN`, jobserver,
+  print-directory and output-sync words); an option that can change what make reads or runs
+  (`-e`, `-n`, `-R`, `-f`, `--eval`, `--warn-*`, `-- VAR=VALUE`) also marks the scope
+  `INCOMPLETE`, as do a non-empty `MAKEFILES`, `.DEFAULT`, a computed rule target and a top-level
+  `$(...)` line, because each can define a rule the reader never sees. Absence is claimed only
+  when certain: `./go-test` counts as go-test, a `%-test` pattern rule declares go-test (untyped)
+  and every wanted `<lang>-test`, and an inherited `MAKECMDGOALS` makes every `$(MAKECMDGOALS)`
+  conditional unknown so both branches are read (round 8 finding 1 previously reported absent).
+  Backslash continuation follows make: only an odd run of trailing backslashes continues, a
+  non-recipe join condenses the surrounding blanks to one space, and a continued recipe line is
+  untyped because the shell joins its pieces without a blank. `\r` is a byte outside the
+  alphabet, not a line end. Conditionals elsewhere are allowed. An `ifeq`/`ifneq (A,B)` line is
+  evaluated only inside a subset that is exact by construction for `make go-test`, and reads no
+  Makefile or environment variable: literal words of ASCII letters, digits and `-_./` separated
+  by single spaces, `$(MAKECMDGOALS)` as exactly `go-test` (unless inherited), `$(filter
+  LITERALS,X)` with literal patterns and no `%`, and `$(or X,Y)` checked without short-circuit,
+  with the whole text validated first (no braces, no `$$`, every `$` opens `$(`, balanced
+  parentheses). A false branch is skipped as make skips it; anything else reads every branch.
+  Verified against GNU Make 3.81 probes: `CC ?= clang` keeps `cc`, `F = -race ` keeps the blank,
+  `F = x\\` is not a continuation, `${F)` is an error, `./go-test:` and `%-test:` both answer
+  `make go-test`, and `MAKECMDGOALS=other make go-test` takes the `other` branch. Codex round 9
+  added, each probed: a second `go-test:` rule replaces the first recipe (untyped); every tab line
+  in the go-test span is a recipe line, an empty one and a shell comment included (two lines are
+  untyped); any non-conditional line that names `MAKECMDGOALS` (assignment, `export`, `define`,
+  `eval`) makes every later `$(MAKECMDGOALS)` conditional unknown, while an assignment after the
+  conditional leaves it as make evaluated it; a tab line outside a rule is read again as makefile
+  text (so `\tinclude x.mk` marks the scope `INCOMPLETE`); an unrecognised line with a colon is
+  `INCOMPLETE` because its targets may be outside the alphabet (`go-test @x:`); and
+  `.PHONY: go-test` with no rule stays `absent` with a note, because `make go-test` then runs
+  nothing (make prints "Nothing to be done") and `absent` is what makes the planner report Go
+  `INCOMPLETE` instead of running an empty target. A makefile assignment to `MAKEFLAGS`,
+  `GNUMAKEFLAGS`, `MAKEFILES` or `.RECIPEPREFIX` is `INCOMPLETE` for the same reason as the
+  environment words. Codex round 10 added, each probed: a `#` starts a comment anywhere in a
+  makefile line (`else# c` is an else, so the rule after it is read, never absent; `\#` is
+  `INCOMPLETE`); a line make expands as it reads it (a conditional, an else-if, a rule line with
+  its prerequisites, a `:=` value, `+=`, `export`, `define`, an unrecognised line) may hold only `$$`,
+  `$(NAME)`/`${NAME}` references and the pure functions `subst patsubst strip findstring filter
+  filter-out sort word wordlist words firstword lastword dir notdir suffix basename addsuffix
+  addprefix join wildcard realpath abspath if or and`, checked recursively through every text the
+  makefile or the environment gives a referenced name (`=`, `?=`, `+=`, `define` bodies), every
+  argument included; `eval` reached through `$(call eval,...)`, `shell`, `error`, `foreach`,
+  `value`, a bare `$F` or a computed name marks the scope `INCOMPLETE` and go-test untyped
+  (round-10 finding 1 typed `-race` while make ran `-short`); and absence is claimed only when
+  make's built-in implicit rules cannot answer `make go-test`: a rule target or repository-root
+  entry `go-test.<suffix>`, `go-test,v`, `s.go-test`, `RCS` or `SCCS`, a `%` pattern rule whose
+  prefix can serve a `go-test.<suffix>` source, a `.SUFFIXES`/suffix rule, `vpath` or a `VPATH`
+  assignment make it `INCOMPLETE` (the root is listed with `os.ReadDir`, no process, even without
+  a makefile), while `.PHONY: go-test` is never built by an implicit rule and stays absent. The
+  earlier stale-file deviation is closed the same way: a root entry named `go-test` beside a
+  go-test rule that is not `.PHONY` is untyped, because make reports it up to date and runs
+  nothing. Unrecognised lines are now always `INCOMPLETE`. Codex round 11 added, each probed
+  with GNU make 3.81: make remakes the makefile it read when a rule or a built-in implicit rule
+  can, then reads it again, so a rule for that makefile, a `%` pattern rule that matches it or
+  can serve a `<makefile>.<suffix>` source, a suffix rule, or a root entry `<makefile>.<suffix>`,
+  `<makefile>,v`, `s.<makefile>`, `RCS` or `SCCS` is `INCOMPLETE` and untyped even when go-test
+  is `.PHONY` (a `Makefile.sh` beside `Makefile` ran `-short` where the reader typed `-race`);
+  with no makefile every default name may be remade, while a source of a default name make did
+  not read (`Makefile.sh` beside `GNUmakefile`) is not one. A `define` line expands its name as
+  make reads it, so it is checked like any other immediate expansion (`define $(eval go-test: ;
+  ...)X` defined go-test). `.PHONY: go-test` proves absence only outside a conditional the reader
+  did not evaluate (`ifdef NEVER_SET` around it beside a `go-test.c` rule compiled go-test).
+  `VPATH` from the environment finds implicit-rule sources like a makefile assignment to it.
+  `::=` is `INCOMPLETE` and untyped because GNU make 3.81 reads the line as a rule and leaves the
+  name unset while GNU make 4 assigns it, and `!=` is `INCOMPLETE` because it runs a shell as
+  make reads the line. The `.PHONY` test now sits beside the implicit-rule tests in
+  `TestSTRV0006ReaderGrammar`. This repository's Makefile still types go-test: its line-49 `$(GATE_STEPS) ...: | gate-receipt-clear`
+  sits under `ifneq ($(filter gate,$(or $(MAKECMDGOALS),gate)),)`, which is false for
+  `make go-test`, and the 63-71 block holds no go-test rule
+  (`TestSTRV0006RepositoryMakefileTypesGoTest`; `TestSTRV0006RepositoryMakefileDependsOnConditional`
+  mutates that condition to an unknown one and shows the reader then refuses on line 50;
+  `TestSTRV0006ReaderGrammar` holds one case per round-8 finding and probe). An untyped recipe
+  never narrows Go: a narrowed run is `INCOMPLETE` and a `FULL` run calls `make go-test`. The
+  local argv adds `-json` so outcomes can be attributed to packages. Codex round 12 found five
+  more holes of the same kind (an inherited `VPATH=src` beside `src/go-test` typed a target make
+  reported up to date; a computed `define $(NAME)` body with an `eval` was claimed absent; an
+  `override`/`export` assignment was never recorded, so a later `:=` looked pure; a root `GO-TEST`
+  on a case-insensitive filesystem typed a target make reported up to date; and
+  `MAKEFLAGS=--jobserver-fds=bad` was admitted though make 3.81 exits before any recipe), so the
+  reader now whitelists the whole input instead of refusing enumerated constructs. The grammar is
+  the one this repository's Makefile uses and nothing more: blank and comment lines; `ifeq`,
+  `ifneq`, `ifdef`, `ifndef`, `else`, `endif`; `NAME =|?=|:= value` with `NAME` in
+  `[A-Za-z_][A-Za-z0-9_]*` or `.DEFAULT_GOAL`; rule lines `targets : prerequisites` whose target
+  words are `[A-Za-z0-9_./%-]+` with no `$`, at most one `%` and no leading `.` other than
+  `.PHONY`, and whose prerequisites hold only words, `|` and references; tab lines only inside
+  a rule; and printable ASCII only. Every other line (`define`, `endef`, `undefine`, `export`,
+  `unexport`, `override`, `private`, `include`, `-include`, `sinclude`, `vpath`, `load`, `+=`,
+  `!=`, `::=`, a computed or `$`-bearing target, a target-specific variable, a rule-line recipe, a
+  double colon, any special target but `.PHONY`, a `./` target, a `\#`, a byte outside printable
+  ASCII, an assignment to `SHELL`, `MAKE`, `MAKEFLAGS`, `GNUMAKEFLAGS`, `MFLAGS`, `MAKEFILES`,
+  `MAKEOVERRIDES`, `MAKESHELL`, `MAKELEVEL`, `MAKECMDGOALS`, `MAKEFILE_LIST`, `CURDIR`, `VPATH`,
+  `GPATH` or `SUFFIXES`) marks the scope `INCOMPLETE` and go-test untyped, with a note naming the
+  line and the construct; reading continues so a later `go-test:` rule is still `unparsed` and a
+  `FULL` run still calls `make go-test`. The environment is read the same way: `MAKECMDGOALS`
+  leaves every goal conditional unknown; each `MAKEFLAGS`/`GNUMAKEFLAGS` word must match the
+  closed harmless set (`k`, `s`, `w`, `-jN`, `-O[mode]`, `--jobs[=N]`,
+  `--jobserver-auth=N,N|fifo:path`, `--jobserver-fds=N,N`, `--[no-]print-directory`,
+  `--keep-going`, `--silent`, `--quiet`, `--output-sync[=mode]`), and a non-empty `MAKEFILES`,
+  `VPATH`, `GPATH`, `MAKEOVERRIDES`, `.RECIPEPREFIX`, `.SHELLFLAGS`, `.LIBPATTERNS` or
+  `.EXTRA_PREREQS` is `INCOMPLETE` and untyped without further reasoning. The root listing is
+  read with the same rule: any entry whose case-folded name is `go-test` leaves go-test untyped
+  (make may report it up to date), any implicit-rule or makefile-remake source is `INCOMPLETE`,
+  and any non-ASCII entry name is `INCOMPLETE`. Dropped with the negative rules: the `.PHONY`
+  exception for implicit rules (`.PHONY: go-test` beside `go-test.c` is now `INCOMPLETE`), `./`
+  target stripping, `define`-body texts and the special-target list. This repository's Makefile
+  still types go-test (`TestSTRV0006RepositoryMakefileTypesGoTest`, the line-49 mutation test and
+  the real `--dry-run` argv `go test -json -p 1 -timeout 30m -count=1 <pkgs>` with
+  `GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local` are unchanged); `TestSTRV0006ReaderGrammar`
+  holds one case per round-12 finding. Probes `r12/a-g` with GNU make 3.81 confirmed the
+  behaviours the grammar now refuses to reason about: an assignment between recipe lines ends the
+  recipe, a `.PHONY:` line after `go-test:` takes the following tab lines, a root `GO-TEST` is
+  "up to date", `MAKEFLAGS="--jobserver-fds=3,4 -j"` with closed descriptors still runs, and
+  `ifeq(a,a)` without a space is a "missing separator".
+  Codex round 13 found five more ways to a typed or absent answer, four confirmed by probes
+  `r13/a-e` with make 3.81 and bash 3.2.57 as `/bin/sh`: an exported bash function
+  (`BASH_FUNC_go%%`) or `SHELLOPTS` in the environment intercepts the shell make starts for a
+  `NAME=VALUE go test` line; make expands `$(IFS)` itself for every recipe line, so
+  `IFS = $(error witness)` in the makefile or `IFS='$(error witness)'` in the environment stops
+  make; a blank `.SHELLFLAGS` was trimmed away although make 4 would use it; `$(word bad,x)` and
+  too few function arguments are read-time fatals; and a second plain `else` is one too. The
+  reader now (1) treats every inherited control by presence, with any value, and adds `IFS`,
+  `SHELLOPTS`, `BASHOPTS`, `EXECIGNORE`, `ENV`, `BASH_ENV`, `BASH_FUNC_go%%`, `BASH_FUNC_go()` and
+  `go` to that list, and refuses an `IFS` assignment as a make control; (2) admits only Go
+  environment variables (`GO*`, `CGO_*`) as recipe prefixes, since another name may be special or
+  read-only to that shell; (3) checks each pure function's minimum arity and requires literal
+  positive `word`/`wordlist` indexes, and refuses a brace inside function arguments; (4) reads
+  one shape per conditional, `ifdef NAME` with exactly one word or `ifeq (A,B)` with balanced
+  parentheses, a top-level comma and nothing after the closing parenthesis, so the quoted forms,
+  text after `else` or `endif`, a stray `else`/`endif` and a second plain `else` are outside the
+  grammar; and (5) treats a makefile that ends inside a conditional or a define as incomplete,
+  not merely untyped. Retained limit: `ReadDeclared` takes a lookup function, so it can test only
+  the enumerated environment names; it cannot enumerate every `BASH_FUNC_*` or other shell
+  start-up variable. Closing that needs the call site (`cmd/corvint/test.go`) to pass the
+  environment's names, which this slice does not change. The repository Makefile still types
+  go-test with the same argv and environment; `TestSTRV0006ReaderGrammar` holds one case per
+  round-13 finding.
+  Codex round 14 found five more read-time paths, all confirmed by probes `r14/a-e` with make
+  3.81: a reference in a rule's prerequisites expanded to a second colon (`missing target
+  pattern`), a recipe, a target-specific variable or a filesystem name while the reader stripped
+  references before checking; `foo% bar:` is `mixed implicit and normal rules`; `ifdef $(N)` with
+  `N = a b` is `invalid syntax in conditional`; a NUL inside a comment or another rule's recipe
+  escaped the alphabet check; and an SCCS master `s.go-test.sh` (rule or root entry) starts the
+  chain `s.go-test.sh` to `go-test.sh` to `go-test` while the reader knew only `s.go-test`. The
+  reader now (1) checks prerequisites as make expands them, following each `$(NAME)` into every
+  text the makefile gave the name so far and its inherited value, admitting the pure functions
+  except `wildcard`, `realpath` and `abspath`, and refusing a built-in variable, a substitution
+  reference and `$$`; (2) refuses a rule that mixes pattern and normal targets; (3) reads `ifdef`
+  and `ifndef` only with one literal identifier; (4) applies the typed alphabet to every byte of
+  every logical line before anything else is read from it; and (5) recognises every
+  `[RCS/|SCCS/][s.]go-test[.suffix...][,v]` form as an implicit source. The repository Makefile
+  still types go-test (line 42, `gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS))`, is
+  inside the prerequisite grammar; `ledger/go-test` is not an implicit source); the same argv and
+  environment come out of the real dry run; `TestSTRV0006ReaderGrammar` holds one case per
+  round-14 finding. Round 14 was the last review round this slice was allotted; its findings are
+  fixed, not retained as open.
 - CI profile argv and environment are the full CI branch's: `-exec <confine> -p 1 -count=1 -race
   -timeout 50m`, with `GOPROXY=off`, `GOSUMDB=off`, `GOWORK=off`, an empty `GOFLAGS`,
   `CGO_ENABLED=1` and `CORVINT_CONFINE_ROOT`. The CI admission parts of STR-V0-012 belong to the
@@ -96,3 +259,15 @@ Not run:
 
 To fit the new verb within the 4096-byte root-help bound (CCF-V1-009), three phrases in root
 help were shortened.
+
+Owner decisions (2026-10-11, relayed by the orchestrator):
+
+- Accepted as implemented: allowlisted non-Go frontiers do not require a declared command; the
+  `<lang>-test` declaration format; `--manifest` on a run; `-json` in the local argv; no-plan FULL
+  on shard 0; exit 3 for `INCOMPLETE`; the default receipt under `<git-dir>/corvint/`; FULL running
+  every declared language plus every dirty-owning language; refusing a dirty submodule; refusing
+  an unignored worktree output (identity safety wins over convenience).
+- Resolved by the conservative typing above: a `$(VAR)` rule target leaves go-test untyped.
+- Open, deferred to slice 3 where the CI call site binds them: repository partition files versus
+  the embedded copy, the CI argv and environment constants, `MAKEFLAGS` handling at the call site,
+  and the `ci` profile refusing `make go-test`.
