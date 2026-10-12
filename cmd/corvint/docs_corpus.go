@@ -12,16 +12,16 @@ import (
 )
 
 type corpusOptions struct {
-	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement string
-	playwright                                                                                                        playwrightCorpusOptions
-	legacyCases                                                                                                       legacyCasesCorpusOptions
-	apply, check                                                                                                      bool
-	limit, offset                                                                                                     int
+	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement, runner string
+	playwright                                                                                                                playwrightCorpusOptions
+	legacyCases                                                                                                               legacyCasesCorpusOptions
+	apply, check                                                                                                              bool
+	limit, offset                                                                                                             int
 }
 
 // stringFlags maps each value-taking corpus option to its field.
 func (o *corpusOptions) stringFlags() map[string]*string {
-	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem}
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner}
 	o.playwright.addFlags(flags)
 	o.legacyCases.addFlags(flags)
 	return flags
@@ -112,8 +112,8 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	return o, true, err
 }
 
-// errCorpusCheckRefused marks a behavior-adapter check report that lists
-// refusals; the report is still the command output.
+// errCorpusCheckRefused marks a behavior-adapter check report, or a legacy inventory whose
+// crosswalk refused a reviewed mapping, that lists refusals; the report is still the command output.
 var errCorpusCheckRefused = errors.New("behavior adapter check refused")
 
 func runCorpus(ctx context.Context, o corpusOptions, stdout, stderr io.Writer) int {
@@ -188,6 +188,9 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	}
 	if o.op == "discover-playwright" || o.op == "witness-playwright" {
 		return compilePlaywrightCorpus(ctx, o)
+	}
+	if o.op == "discover-legacy" {
+		return compileLegacyCorpus(ctx, o)
 	}
 	if o.op == "import-cases" || o.op == "search-cases" {
 		return compileLegacyCasesCorpus(o)

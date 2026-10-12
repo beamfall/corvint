@@ -37,6 +37,7 @@ func buildCorpusOperations() []corpusOperation {
 		{name: "behavior-provider", purpose: "build a corvint-corpus-behavior-provider/2 declaration from a request", required: []string{"--input"}},
 		{name: "discover-playwright", purpose: "produce Playwright test discovery from a listing and migration", required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
 		{name: "witness-playwright", purpose: "import qualified Playwright witnesses from a committed receipt and report", required: []string{"--input", "--receipt-input", "--report"}},
+		{name: "discover-legacy", purpose: "inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs", required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 		{name: "import-cases", purpose: "import manual legacy cases from a caller-exported TestRail JSON or CSV file", required: []string{"--format", "--input"}, optional: []string{"--content"}},
 		{name: "search-cases", purpose: "search a caller-exported TestRail JSON or CSV file for legacy cases", required: []string{"--format", "--input", "--query"}, optional: []string{"--limit"}},
 		read("info", "artifact identity, capabilities and freshness", nil),
@@ -116,6 +117,7 @@ var corpusFlagHelp = map[string][2]string{
 	"--limit":           {"N", "1.." + strconv.Itoa(doccorpus.MaxResults) + " results (default 20)"},
 	"--offset":          {"N", "results to skip"},
 	"--retirement":      {"POLICY.json", "retirement policy"},
+	"--runner":          {"jasmine|mocha", "legacy test runner"},
 }
 
 func corpusFlagUsage(flag string) string {

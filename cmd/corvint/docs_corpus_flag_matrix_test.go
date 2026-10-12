@@ -9,7 +9,8 @@ import (
 // corpusFlagExpectation is one operation's admitted options, written out literally from the
 // parser at a0e56f3c1 (its allowed and required maps) rather than read from corpusOperations, so
 // the shared table cannot vouch for itself. import-cases and search-cases come from the
-// claude/issues-812-813-legacy-cases parser (DCP-V1-070..079), which predates the table.
+// claude/issues-812-813-legacy-cases parser (DCP-V1-070..079), and discover-legacy from the
+// claude/issue-811-legacy-inventory parser (DCP-V1-060..069); both predate the table.
 type corpusFlagExpectation struct{ required, optional []string }
 
 var corpusReadOptional = []string{"--limit", "--offset", "--retirement"}
@@ -24,6 +25,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"behavior-provider":   {required: []string{"--input"}},
 	"discover-playwright": {required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
 	"witness-playwright":  {required: []string{"--input", "--receipt-input", "--report"}},
+	"discover-legacy":     {required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 	"import-cases":        {required: []string{"--format", "--input"}, optional: []string{"--content"}},
 	"search-cases":        {required: []string{"--format", "--input", "--query"}, optional: []string{"--limit"}},
 	"info":                {required: []string{"--artifact"}, optional: corpusReadOptional},
@@ -50,7 +52,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
 	"--cem", "--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content"}
+	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner"}
 
 func corpusFlagArgs(flag string) []string {
 	switch flag {
@@ -122,7 +124,7 @@ func TestDocsCorpusOperationFlagMatrix(t *testing.T) {
 			}
 			// An inapplicable option is refused before the missing required one.
 			stray := "--revision"
-			if op == "manifest" {
+			if op == "manifest" || op == "discover-legacy" {
 				stray = "--artifact"
 			}
 			if got := corpusParseError(append(args, corpusFlagArgs(stray)...)); got != "option does not apply to corpus operation" {
