@@ -2,8 +2,8 @@
 
 Date: 2026-10-11. Branch `claude/v1-0040-slice2`, stacked on slice 1 at
 `30a918949d50ff00046da8e45aecf4029cb0dbd8`. `tools/str-parity` was built from
-`97accef7b9b6cea4027349b4885eb9c934def827` and the corvint binary from
-`1a248337c7c58d4bd817902884934cf127d4d268`; the later commit changes no `cmd/corvint` or
+`bf3d88362055d14a048ede80e9c21a8129b46e8f` and the corvint binary from
+`1a248337c7c58d4bd817902884934cf127d4d268`; the later commits change no `cmd/corvint` or
 `internal/` source. Scope:
 `docs/specs/session-test-runner-v0.md` STR-V0-013 (parity report) and STR-V0-008 (balanced
 placement, local profile only). No call site changes: `script/gate-affected.sh`,
@@ -25,20 +25,21 @@ environment (`PATH=<fake go>:<go dir>:/usr/bin:/bin`, private `HOME` and `TMPDIR
   binary built from the same source.
 
 A fake `go` first on `PATH` records each driver's `go test` argv and environment and runs nothing;
-other `go` commands pass through. The tool compares the Go package set, the argv flags, the
+other `go` commands pass through. Corvint's package set is read from its `go test` arguments, and
+units that name other packages are an error. The tool compares the Go package set, the argv flags, the
 environment overlay (each variable whose value differs from the base environment) and the
 fallback verdict. It categorises every difference or marks it `UNEXPLAINED`, and checks that the
 checkout is clean after each pair. Scratch paths in the report are spelled `$WORK`.
 `tools/str-parity/main_test.go` pins the argv, overlay and category reading, including that an
 unrecognised package, environment or `INCOMPLETE` difference stays `UNEXPLAINED`.
 
-Command (the selector and `corvint-pr-tests` binaries were built from `30a918949`; neither later
+Command (the selector and `corvint-pr-tests` binaries were built from `30a918949`; no later
 commit changes anything in their dependency closure):
 
 ```sh
 str-parity -repo <checkout> -end 645304a2fb71065f9061d8d8d866600d703e84c6 -pairs 50 \
   -corvint <corvint> -selector <gate-affected-select> -pr-tests <corvint-pr-tests> \
-  -script <checkout>/script/gate-affected.sh -source 97accef7b9b6cea4027349b4885eb9c934def827 -work <new dir>
+  -script <checkout>/script/gate-affected.sh -source bf3d88362055d14a048ede80e9c21a8129b46e8f -work <new dir>
 ```
 
 ## Inputs
@@ -57,8 +58,10 @@ site: the frozen pairs and the shadow rows must still be replayed once they exis
 
 ## Result
 
-The run exited 0 in about 21 minutes. The `corvint-str-parity/0` report is 221,276 bytes, with
-sha256 `2fa244ab519591e47544eff9c2a639d20320d2ee11d41bbcb402b0cf4111d466`. It is not committed:
+The run exited 0. The `corvint-str-parity/0` report is 221,276 bytes, with sha256
+`eb5a2eea1c0c7328b0feb0dece467e15303633c7338b9924d77b1a5b7e3b7517`. The earlier run with the
+`97accef7b` build (about 21 minutes, sha256 `2fa244ab…`) had the same plans, differences and
+categories in every pair; no corvint invocation's units disagreed with its arguments. It is not committed:
 the command above regenerates it, and the table below keeps every per-pair verdict, count and
 category.
 
@@ -153,15 +156,20 @@ driver, CI planned, CI executed, universe. Corvint ci's package count equals cor
 - `ci-closed-environment` (ci env, 50): corvint sets exactly `CGO_ENABLED=1`, `GOFLAGS=`,
   `GOPROXY=off`, `GOSUMDB=off`, `GOTOOLCHAIN=local` and `GOWORK=off`, plus
   `CORVINT_CONFINE_ROOT=<checkout>`, over the inherited environment. The CI driver instead builds
-  a closed environment (`HOME`, `PATH`, caches, `GIT_CONFIG_*`, `GOMAXPROCS=2`, `CC`, `TZ`, ...)
-  that contains each of those six. The rule requires that exact overlay and that containment.
+  a closed environment: those six, the fixed entries `CC=/usr/bin/cc`, `GIT_CONFIG_*`,
+  `GIT_GRAFT_FILE=/dev/null`, `GIT_NO_REPLACE_OBJECTS=1`, `GIT_TERMINAL_PROMPT=0`, `GOENV=off`,
+  `GOMAXPROCS=2`, `LANG=C`, `LC_ALL=C` and `TZ=UTC`, and one path each for `GOCACHE`,
+  `GOMODCACHE`, `HOME`, `PATH`, `TEMP`, `TMP` and `TMPDIR`. The rule requires corvint's exact
+  overlay and exactly that driver environment, with only the path values free, so a dropped,
+  changed or added driver variable stays `UNEXPLAINED`.
   Whether `corvint test --profile ci` should build the driver's closed environment itself or
   inherit it from the workflow is a slice-3 call-site decision.
 - `ci-admission-no-qualification` (49 admission, 37 executed): with no trusted qualification pin
   (AFP-V0-013/029 forward rows do not exist offline), `tools/corvint-pr-tests` executes `FULL`
   over the universe even when its selector narrows. Admission is the call site's job (STR-V0-012),
-  so the comparison uses the selector's planned verdict and set. The executed-set difference is
-  explained only when the driver executes the whole universe and corvint runs nothing outside it.
+  so the comparison uses the selector's planned verdict and set. Both the admission and the
+  executed-set difference are explained only when the driver executes exactly the universe, and
+  the executed one also only when corvint runs nothing outside it.
   It is not counted when corvint is `INCOMPLETE` (the next category).
 - `str-v0-004-undeclared-language` (10 pairs, both profiles): the change touches TypeScript in
   all 10, and also Python or Ruby in one each. The repository Makefile declares no
@@ -221,3 +229,18 @@ exposed no typing issue.
   `-exec` and the closed environment, keep admission (qualification pin, queue backstop, trip) in
   the driver, and retain the computed balanced placement beside the executing universe placement.
 - Balanced placement: measure the local 20% p90 bar over executed runs before any promotion.
+
+## Review and dependencies
+
+- Codex read-only review, round 1: changes requested (4 findings: CI packages used the planned
+  set instead of the executed one; widening could hide a package corvint omitted; the closed
+  environment check accepted omissions; any `-exec` wrapper was accepted). Fixed in `97accef7b`.
+- Round 2: changes requested (4 findings: admission did not require the driver to execute the
+  universe; the driver environment was only checked for containment; corvint's package set came
+  from units, not argv; decision 0524 is absent from this branch). The three tool findings were
+  fixed in `bf3d88362`, and the run above was repeated with that build. It gave the same plans
+and categories in all 50 pairs.
+- The spec's accepted intent cites decision 0524
+  (`docs/decisions/0524-str-v0-001-018-session-test-runner-accepted-2026-10-11.md`). It is
+  retained on `claude/v1-0040-session-test-runner-spec` (beamfall/corvint#815) and not in this
+  stack's base, so this branch must land after that one or together with it.
