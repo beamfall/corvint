@@ -58,7 +58,8 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`; proof run in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` | V1-1265 added `citation` (CEM-V1-092) and `verdictSha256` (CEM-V1-066) through the tool |
 | CEM-V1-092 | `citation` member of `StableResult` (`internal/cem/verify/stable.go`) and `stableResult` (`interop/cem01-go/cem.go`, `stable_repository.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1092CitationOnlyOnAccept`, `TestCEMV1092SealedCasesCarryCitationOnlyOnAccept`, `TestCEMV1092RefuseAndRejectClearCitation` (native); `TestCEMV1092PortableCitationOnlyOnAccept`, `TestCEMV1082StableResultCarriesTheBlock`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file (case 21 derived natively on go1.27.2 with every other non-runtime key matching); ten envelope cells take `--cell-values` overrides |
 | CEM-V1-066 | `verdictSha256` member and `VerdictDigest` of `StableResult` (`internal/cem/verify/stable.go`, `stable_verdict.go`) and `stableResult` (`interop/cem01-go/cem.go`, `verdict.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1066SealedVerdictDigests`, `TestCEMV1066VerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066EveryOutcomeCarriesVerdictDigest` (native); `TestCEMV1066PortableSealedVerdictDigests`, `TestCEMV1066PortableVerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066PortableEveryOutcomeCarriesVerdictDigest`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file, computed from their sealed expectations; ten envelope cells take `--cell-values` overrides; no consumer reads the digest yet (decision 0525 step 8, V1-1283) |
-| CEM-V1-093..095 | `internal/cem/wire/stable_provenance.go`, `interop/cem01-go/stable_provenance.go`; `provenance`, `role`, `sha1Oid` in `protocol/cem-1.0/stable/stable.schema.json`; re-homed 0.1/0.3 text in `protocol/cem-1.0/stable/ALGORITHMS.md`; shared vectors `interop/cem01-go/testdata/stable-map-members/cases.json`; `TestCEMV1093*`, `TestCEMV1094*`, `TestCEMV1095*` in `internal/cem/wire` and `interop/cem01-go` | No converter emits `provenance` or `role` yet (V1-1275); `cem status --citation` role grouping is V1-1281; provenance OIDs are SHA-1 only; the sealed S0E packet copy of `stable.schema.json` is unchanged; stranger time NOT_OBSERVED |
+| CEM-V1-093..095 | `internal/cem/wire/stable_provenance.go`, `interop/cem01-go/stable_provenance.go`; `provenance`, `role`, `sha1Oid` in `protocol/cem-1.0/stable/stable.schema.json`; re-homed 0.1/0.3 text in `protocol/cem-1.0/stable/ALGORITHMS.md`; shared vectors `interop/cem01-go/testdata/stable-map-members/cases.json`; `TestCEMV1093*`, `TestCEMV1094*`, `TestCEMV1095*` in `internal/cem/wire` and `interop/cem01-go` | No converter emits `provenance` or `role` yet (V1-1275); `cem status --citation` role grouping is `CEM-V1-096` (V1-1281); provenance OIDs are SHA-1 only; the sealed S0E packet copy of `stable.schema.json` is unchanged; stranger time NOT_OBSERVED |
+| CEM-V1-096 | `internal/cem/workflow/stable_read.go` `StableCitationClass` and the `status` branch of `readStable`; `TestCEMV1096StatusCitationClassGroupsChoreMaps` in `internal/cem/cli` | No producer writes `role` before the V1-1276 cutover, so every committed map reads class `change`; the portable consumer has no status envelope and is unchanged |
 | CEM-V1-065 | `CEMStatementV2` and the v2 verifier in `internal/attest/cem_v2.go`; `prove --attest-cem-v2` and `--verify-cem-attestation --artifacts/--target` in `cmd/corvint/prove_attest_cem.go`; stable routing in `internal/cem/wire/route.go` and `internal/gitnotes/anchor.go`; `TestCEMV1065*` in `internal/attest`, `cmd/corvint` and `internal/gitnotes` | No verdict ledger; no signing producer or key management; v2 emission needs full-OID `--expected-base` and `--target` and an ACCEPT result; no independent consumer of `cem/v2` |
 
 ## First portable candidate build contract
@@ -508,8 +509,8 @@ schema restates from `inherited/cem-0.3.schema.json`. The `inherited/` copies ar
 as historical provenance; `ALGORITHMS.md` is the 1.0-normative text and governs where they differ.
 The 0.1/0.2/0.3 requirement IDs keep their definitions in their own specs.
 
-Non-goals: no converter (V1-1275) and no reader grouping by role (`cem status --citation`,
-V1-1281); no "intent and scope" or "structural witness" member; no change to `RESULT.schema.json`,
+Non-goals: no converter (V1-1275); reader grouping by role is `CEM-V1-096` (`cem status
+--citation`, V1-1281); no "intent and scope" or "structural witness" member; no change to `RESULT.schema.json`,
 the stable result struct, the sealed S0E packet or any `inherited/` file; no SHA-256 repository
 form of the provenance OIDs.
 
@@ -532,6 +533,39 @@ key change in both decoders and `EncodeStable`, the `provenance`, `role` and `sh
 in `stable.schema.json`, the CEM-V1-093..095 and re-homed sections of `ALGORITHMS.md`, the README
 bullets and their manifest entries. A map without the optional members needs no migration; a map
 carrying either is refused `unknown-field` again after rollback.
+
+## Status citation class (V1-1281)
+
+Status: accepted under the owner's standing auto-accept (2026-10-11); V1-1281. The dogfood bind loop
+marks a self-referential bind or seal map with its role (`DCW-V0-049`), and a reader of the citation
+measure needs to keep those maps apart from change maps without reading the role into the result.
+
+- `CEM-V1-096`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1281) `cem status
+  --citation` on a `cem/1.0` map whose wire parses MUST add the envelope member `citationClass`
+  beside, never inside, `stableVerification`: an object with exactly `class` and `role`, where
+  `role` is the map's effective role (`CEM-V1-095`) and `class` is `change` for role `change` and
+  `chore` for `bind-chore` or `seal-chore`. Status without `--citation`, a map whose wire does not
+  parse, and every other read keep their envelope unchanged. `stableVerification` stays exactly
+  what `cem verify-stable` reports for the same arguments; the class is not a result member, so
+  "the result MUST NOT echo it" in `CEM-V1-095` still holds, and the role changes no outcome,
+  issue, tier or citation block.
+
+Non-goals: no `role` or class in `RESULT.schema.json`, the stable result struct, the 0.x
+verification object or the portable consumer; no class for a `cem/0.x` map, which has no role.
+
+Failure modes: a map that fails verification still reports its class when its wire parses, so a
+rejected chore map stays out of the change-map measure; a map whose wire does not parse has no
+class, and a reader counts it as an error row, never as either class.
+
+Acceptance evidence:
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-096 | `TestCEMV1096StatusCitationClassGroupsChoreMaps` (`internal/cem/cli`) | Status without `--citation` has no `citationClass`; with it, a map with no role is class `change`, and re-encoded roles `change`, `bind-chore` and `seal-chore` give their class; each `stableVerification` equals `cem verify-stable` with no `role` key, and the outcome, issue codes and citation block match across roles; build log `docs/build-log/2026-10-12-dogfood-per-hunk-citations.md` |
+
+Rollback: revert the `--citation` branch of the stable `status` read and `StableCitationClass` in
+`internal/cem/workflow/stable_read.go`; the envelope loses `citationClass`, and no map, result or
+sealed artifact changes.
 
 ## `cem/v2` statement (V1-1265, decision 0523 P1)
 

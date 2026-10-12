@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258)
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281)
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -536,6 +536,53 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Reason: refusing every non-bootstrap unknown made the supported share a workflow artifact, so
   the `>30%` unknown kill condition of `docs/CHANGE-EVIDENCE-MAP.md` could never fire (decision
   0523 P3, `docs/build-log/2026-10-11-cem-1-0-expert-panel.md`).
+- `DCW-V0-048`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1281) A change
+  is a chore when `git diff --no-renames --name-only BASE HEAD` names at least one path and every
+  path is exactly `.corvint/change.cem.json` or `.corvint/changes/NAME.cem.json`, NAME being one
+  nonempty path segment; a path Git quotes never matches, and any other change, an empty one
+  included, is not a chore. Before any cite, after the `DCW-V0-019` binding passes, `dogfood
+  change` MUST refuse a uniform plan as `cem-cite` `citation-plan-uniform`, citing and marking
+  nothing, unless the change is a chore. A plan is uniform when the map prepared in the run has
+  at least two hunks, the plan has no unknown row (`DCW-V0-046`), every citation row carries the
+  same evidence PATH and `START:END` span whatever its RELATION, and every map hunk is named by
+  ordinal or full hunk ID. Its `fix:` line MUST name the hunk count and the span as
+  `hunks=N span=PATH:START:END` and direct a per-hunk citation of the BASE lines each hunk
+  depends on or implements. A plan that keeps a hunk unknown or leaves one unnamed, a
+  single-hunk map, and a resumed staged plan naming only some hunks are not uniform; one span
+  MAY serve several hunks.
+  Non-goals: judging whether a cited span supports its hunk; refusing a plan that cites two
+  spans for many hunks; refusing an earlier committed map, which stays valid CEM.
+  Failure modes: a plan can still pass with two near-identical spans, or by keeping one hunk
+  unknown; the measured citation shape (`CEM-V1-080..082`) stays the evidence of support, and
+  this refusal only removes the one-span-for-everything shape that measured invariant.
+  Reason: 171 of the 180 invariant committed maps of the V1-1262 citation baseline cite a single
+  evidence span, 161 of them over more than one hunk, because the bind loop accepted one row
+  per hunk all naming the same span
+  (`docs/build-log/2026-10-12-cem-citation-baseline-593-maps.md`).
+- `DCW-V0-049`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1281) When the
+  map `cem prepare` writes in a `dogfood change` run declares `cem/1.0`, and the change is a
+  chore by `DCW-V0-048`, the run MUST write the stable map member `role` before any cite:
+  `seal-chore` when any `.corvint/changes/` path is touched, otherwise `bind-chore`
+  (`CEM-V1-095`). It rewrites only a regular, non-symlink map whose wire and reference graph
+  parse, through the stable encoder, keeping the file mode; a map that already carries that role
+  stays byte-identical, and a map it cannot rewrite is treated as not produced in that run. A map
+  for any other change carries no role, which reads as `change`. A Core `cem/0.x` map MUST
+  never receive a role: its wire has no such member, and Core `cem prepare` writes `cem/0.2`
+  today, so the write is dormant until the stable producer cutover (V1-1276), which MUST cite
+  this requirement before it lands. `cem status --citation` on a `cem/1.0` map reports the class
+  beside the result (`CEM-V1-096`): `change` for a map with no role or role `change`, `chore`
+  for `bind-chore` or `seal-chore`. The maintained tool `tools/cem-citation-baseline` reproduces
+  the V1-1262 baseline rows and summary over a map directory with each row's class, and the
+  summary for all maps, class `change` and class `chore`; a `cem/0.x` map, which has no role, is
+  classed by its `BASE..TARGET` paths under the `DCW-V0-048` rule.
+  Non-goals: adding `role` to the `cem/0.x` wire; a role for a change map; letting the role
+  change any verdict, tier, issue or result member; a rerun of the baseline before V1-1276.
+  Failure modes: before V1-1276 no committed map carries a role, so the class of every
+  committed map comes from its paths; none of the 593 committed maps is a chore by that rule,
+  so the chore class is empty today, and the self-referential invariant maps are change maps
+  bound in chore-subject commits, which `DCW-V0-048` addresses instead.
+  Reason: the V1-1262 baseline mixed self-referential bind and seal maps with change maps; a
+  distinct class keeps a chore's one-span citation out of the change-map support measure.
 
 ## Code vocabulary
 
@@ -567,6 +614,9 @@ Base anchoring, refused by every subverb:
   `<git-dir>/corvint/cem-unknown-reasons.tsv`. When preparing the notes fails nothing is cited;
   when replacing the file fails after the cite, the map has changed, the earlier notes are kept,
   and rerunning the same plan replays it (`DCW-V0-046`, accepted).
+- `citation-plan-uniform`: the plan cites one span for every hunk of a non-chore change whose
+  map has at least two hunks; nothing is cited and the fix text names the hunk count and span
+  (`DCW-V0-048`, accepted).
 - `cem-map-not-produced`: `cem-prepare` failed in this run or left no `.corvint/change.cem.json`,
   so nothing is cited; a map left by an earlier run is never cited (proposed 2026-09-25, V1-0228,
   not accepted).
@@ -706,6 +756,8 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-044` (accepted, decision 0520; V1-1209) | `internal/trace/store.go` (store under the worktree root), `internal/dogfoodflow/change.go`, `check.go` and `flow.go` (`--absolute-git-dir` evidence and lock), `internal/dogfoodflow/change.go` stranded-trace hint; `docs/DOGFOOD.md` step 5 and the batch steps; `TestDogfoodDCWV0044WorktreeLanesRunConcurrently` (built binary: two worktrees start each of change, bind, check and seal together and all pass with their own stores and clean worktrees, the primary worktree's store never written; lane B's work run in lane A's worktree refuses with the per-lane hint) | implemented; not accepted; the concurrent passes already held at `696dbdbf6`, where the shared-worktree refusal lacked the hint, so the defect was the undocumented one-worktree-per-lane rule |
 | `DCW-V0-045` (accepted, decision 0520; V1-1207) | `internal/dogfoodflow/check.go` `requireCleanChange`; `TestCheckDCWV0045CleanProbeNeverRunsRepositoryFilters` (a configured clean filter on a re-stated tracked file never runs and the check refuses with the reason and `fix:` line; without it a clean change passes, an untracked file refuses `dirty-worktree`, a change outside `BASE..HEAD` refuses `uncommitted-change-not-in-base-target`, and an empty range passes `no-change-clean-worktree`) | implemented; not accepted; reproduced before the fix: at `36718cd0d` the same test's filter marker was written |
 | `DCW-V0-046` (accepted under the owner's standing auto-accept (2026-10-11), decision 0523 P3; V1-1258) | `internal/dogfoodflow/change.go` `unknownRow`, `reasonedUnknownRow`, `prepareUnknownReasons`, `publishUnknownReasons` and `reasonedUnknowns`, `internal/dogfoodflow/check.go` `verifyBinding`, `checkSummary` and `unknownShare`, `internal/dogfoodflow/batch.go` `sealedVerification`; `TestChangeDCWV0046AdmitsReasonedUnknownRefusesUnreasoned` (a plan with one reasoned unknown row is PRODUCED with one cite, two marks and `--max-unknown 2`; an unnamed unknown hunk, a `no-evidence` reason, an unregistered reason and a note with no letter or digit each refuse with no cite or mark; a world-readable evidence file is replaced owner-only; a resumed map whose hunks an earlier staged plan marked owes them no row and keeps their notes; a stage whose citation fails leaves the earlier notes; notes that cannot be replaced after the cite report `unknown-reasons-not-recorded`, keep the earlier notes, and a replay of the same plan records the new ones; a map with no reasoned unknown removes the file; an occupied evidence path refuses `unknown-reasons-not-recorded`); `TestPrepareUnknownReasonsDCWV0046AppliesRowsInPlanOrder` (a later citation drops a hunk's note; the last row for a hunk decides); `TestPrepareUnknownReasonsDCWV0046RefusesOverflow` (notes at the bound are kept, over it refuse without truncation, and nothing is written before a cite); `TestPrepareUnknownReasonsDCWV0046SkipsANonRegularFile` (a FIFO at the path is not opened and is replaced by an owner-only file); `TestReasonedUnknownsDCWV0046CountsBootstrapOnceInTheAllowance`; `TestDogfoodReasonAdmitsCitationStageRefusals` (the new code is observable); `TestBatchCheckDCWV0046ReasonedUnknownAllowance` (reasoned unknowns only: ready-for-ci; one more unreasoned unknown: `constituent-cem-policy`); `TestDCWV0033CheckSummaryAbstainsOnUnobservedFields` (unknownShare cases); `TestDogfoodDCWV0046ReasonedUnknownChecksAndSeals` (built binary: a reasoned unknown change checks with `unknownShare=1/1 reasonedUnknown=1`, passes and seals with the reason in the sealed map, and the real `dogfood batch-check` then reports `reasonedUnknown=1 state=ready-for-ci`) | implemented; accepted |
+| `DCW-V0-048` (accepted under the owner's standing auto-accept (2026-10-11); V1-1281) | `internal/dogfoodflow/chore.go` `ChoreRole`, `uniformCitation`; `internal/dogfoodflow/change.go` `citeStep`, `uniformPlan` and its `fix:` hint; `internal/observations/observations.go` `validDogfoodReason`; `TestChoreRoleDCWV0048ClassifiesOnlyCEMPaths` (exact CEM paths only; a quoted path, a nested or empty NAME, another suffix, any other path and an empty diff are not chores; seal-chore when any `.corvint/changes/` path is touched); `TestChangeDCWV0048RefusesUniformPlan` (a three-hunk one-span plan, by ordinal or full ID, is NOT_PRODUCED with no cite and the `fix:` line `hunks=3 span=a.txt:1:2`; distinct spans, another span of the same path, an unnamed hunk and a single hunk are cited; a bind-chore change is exempt); `TestDogfoodReasonAdmitsCitationPlanUniform` | implemented; accepted; the committed maps are not re-bound |
+| `DCW-V0-049` (accepted under the owner's standing auto-accept (2026-10-11); V1-1281) | `internal/dogfoodflow/chore.go` `markChoreRole`, `markStableChoreMap` (called after `cem-prepare` in `run`); `internal/cem/workflow/stable_read.go` `StableCitationClass`; `tools/cem-citation-baseline`; `TestMarkChoreRoleDCWV0049WritesStableRoleOnly` (a stable map gains each chore role through the encoder, re-parses and keeps its mode, a second write leaves it byte-identical, a Core 0.x map is refused unchanged and no temporary file remains); `TestChangeDCWV0049MarksPreparedStableChoreMap` (a prepared stable map gets `bind-chore` only for a chore range and none for a change range); `TestCEMV1096StatusCitationClassGroupsChoreMaps`; `TestBaselineDCWV0049SplitsRowsByCitationClass` and `TestBaselineRowKeepsThePythonEncoding` | implemented; accepted; dormant on the live path until V1-1276 (Core prepares `cem/0.2`); the class-split baseline rerun is NOT_PRODUCED pending V1-1276 |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
@@ -750,6 +802,10 @@ Roll back `DCW-V0-046` by reverting its change: an unknown row is again an inval
 `cem-status`, the SUMMARY and CONSTITUENT lines lose their added fields, and the evidence file is
 unused. A map or sealed CEM that records a reasoned unknown stays a valid CEM but no longer
 passes `dogfood check` or `batch-check`; no report or map format changes.
+Roll back `DCW-V0-048` and `DCW-V0-049` by reverting their change: a uniform plan is cited
+again, a prepared stable chore map keeps no role, `cem status --citation` loses `citationClass`
+and the baseline tool disappears. No committed map carries a role before V1-1276, so nothing
+needs migrating; a later stable map with a role stays valid under `CEM-V1-095`.
 Roll back `DCW-V0-039..041` by reverting their change: `batch-check`, its wrapper and make
 target disappear and the `fix:` lines return to their former text; no report, map, receipt or
 sealed CEM format changes, and batch-check writes nothing, so no evidence needs migrating.
