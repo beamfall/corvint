@@ -668,6 +668,9 @@ support with chore maps kept apart, run
 it writes one baseline row per map with its class, and a summary for all maps and for each
 class; a `cem/0.x` map is classed by its paths under the chore rule above.
 
+A record change touches only `docs/build-log/` or `.agent-evidence/` paths, with at most the two sidecar paths: name its build-log entry or decision in `DOGFOOD_INTENTS_FILE` (reported as `no-intent-declared`), and cite each hunk to BASE lines of the decision or entry it records with relation `decision`; one span may serve every hunk (`DCW-V0-057`, `DCW-V0-058`).
+Its sealed map has no role and reads `citationClass` `{"class": "record", "role": "change"}`, which the baseline summarizes apart from `change` (`CEM-V1-170`, `DCW-V0-059`).
+
 ### Staged binding of one oversized commit
 
 Accepted, decision 0510 (V1-1107; `DCW-V0-037`). The normal coordinator supports one

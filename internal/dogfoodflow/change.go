@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -63,6 +64,7 @@ type change struct {
 	manifestReason       string
 	noIntent             bool
 	intentSnapshot       []byte
+	intentSource         []byte
 	intents              []string
 	linkPlan             []byte
 	linksReady           bool
@@ -498,6 +500,7 @@ func (c *change) validateIntentManifest() string {
 	if err != nil || len(data) == 0 || data[len(data)-1] != '\n' {
 		return "missing-intent-scope"
 	}
+	c.intentSource = data
 	if bytes.Equal(data, noIntentManifest) {
 		c.intentSnapshot, c.noIntent = data, true
 		return ""
@@ -513,8 +516,37 @@ func (c *change) validateIntentManifest() string {
 		}
 		previous = path
 	}
+	if c.recordIntent(paths) {
+		// A record change names its build-log entry or decision as its intent;
+		// it has no requirements section to assess, so the run publishes the
+		// no-intent declaration the check accepts (DCW-V0-058, DCW-V0-024).
+		c.intentSnapshot, c.noIntent = noIntentManifest, true
+		return ""
+	}
 	c.intentSnapshot, c.intents = data, paths
 	return ""
+}
+
+// recordIntent reports a record change whose manifest names only build-log
+// entries the change itself touches and decision files present at the target
+// (DCW-V0-058).
+func (c *change) recordIntent(paths []string) bool {
+	changed := nonEmpty(strings.Split(c.gitValue("diff", "--no-renames", "--name-only", c.base, c.target), "\n"))
+	if !RecordChange(changed) {
+		return false
+	}
+	for _, path := range paths {
+		if !recordIntentPath(path) {
+			return false
+		}
+		if strings.HasPrefix(path, "docs/build-log/") && !slices.Contains(changed, path) {
+			return false
+		}
+		if kind, status := c.git(true, "cat-file", "-t", c.target+":"+path); status != 0 || kind != "blob\n" {
+			return false
+		}
+	}
+	return true
 }
 
 func canonicalIntentPath(path string) bool {
@@ -594,15 +626,15 @@ func (c *change) citeStep() {
 }
 
 // uniformPlan reports, and keeps for the fix hint, a plan that cites one span
-// for every hunk of a non-chore change with more than one hunk; it is refused
-// before any cite runs (DCW-V0-048).
+// for every hunk of a change with more than one hunk; it is refused before any
+// cite runs (DCW-V0-048). A chore or record change is exempt (DCW-V0-058).
 func (c *change) uniformPlan(plan []byte) bool {
 	data, err := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
 	if err != nil {
 		return false
 	}
 	hunks, span, uniform := uniformCitation(plan, mapHunks(data))
-	if !uniform || c.choreRole() != "" {
+	if !uniform || c.choreRole() != "" || c.recordChange() {
 		return false
 	}
 	c.uniformHunks, c.uniformSpan = hunks, span
@@ -1195,7 +1227,7 @@ func (c *change) finishOCMAggregate() bool {
 // changed during the run.
 func (c *change) publishIntentManifest() bool {
 	current, err := os.ReadFile(c.options.IntentsFile)
-	if err != nil || !bytes.Equal(current, c.intentSnapshot) {
+	if err != nil || !bytes.Equal(current, c.intentSource) {
 		c.addStep("ocm-aggregate", "NOT_PRODUCED", "intent-scope-drift")
 		return false
 	}

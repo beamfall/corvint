@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337)
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344)
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344); experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -725,6 +725,49 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   registration before it scores the prospective set.
   Failure modes: a T' commit built from the wrong tree changes `patchSha256` and fails
   `arms-patch-digest-mismatch`.
+- `DCW-V0-057`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1344) A change
+  is a record when `git diff --no-renames --name-only BASE HEAD` names at least one path under
+  `docs/build-log/` or `.agent-evidence/` (with a nonempty remainder) and every other path is one
+  of the `DCW-V0-048` CEM sidecar paths, `.corvint/change.cem.json` or
+  `.corvint/changes/NAME.cem.json`. A change that also names any other path is a change; a change
+  that names only sidecar paths is a chore by `DCW-V0-048`, never a record; an empty change is
+  neither, and a path Git quotes never matches. A record changes evidence about other work, not
+  the product, so its citation shape is not a change's.
+  Non-goals: classifying decisions, specs or other documentation as records; a `record` value of
+  the stable map member `role`, whose enum stays `change`, `bind-chore`, `seal-chore`
+  (`CEM-V1-095`).
+  Failure modes: a record that also edits a decision or spec is a change and keeps the
+  `DCW-V0-048` refusal; a record map carries no role, so its class is derived from its hunk paths
+  (`CEM-V1-170`).
+- `DCW-V0-058`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a
+  record change, `dogfood change` MUST accept a `DOGFOOD_INTENTS_FILE` that names only build-log
+  entries (`docs/build-log/NAME.md`) the change adds or modifies, or decision files
+  (`docs/decisions/NAME.md`) present as files at the target, as the intent: it has no requirements section to assess, so the run reports the `DCW-V0-024` no-intent
+  declaration (OCM steps `no-intent-declared`, `ocmStatus` `NOT_ASSESSED`), publishes
+  `#no-intent-declared` as `.corvint/change.ocm-intents`, and never refuses
+  `invalid-requirements-section`; the source manifest MUST still be unchanged when it publishes,
+  else `intent-scope-drift`. The `DCW-V0-048` uniform-plan refusal MUST NOT apply to a record
+  change, which commonly cites one BASE decision or build-log entry for all of its hunks. Because
+  `cem cite` refuses an evidence path absent at `baseRevision`, a record's new entry cannot be its
+  own evidence: each hunk cites, with relation `decision`, BASE lines of the decision or build-log
+  entry the record reports on. The registered relations (`DCW-V0-041`) have no `evidence` relation.
+  The same manifest on a change that is not a record, or one naming an entry the change does not
+  touch or a decision absent at the target, is read as path intents unchanged.
+  Non-goals: retaining the named entry in the published intent snapshot; OCM assessment of a
+  record.
+  Failure modes: the published declaration does not name the record's entry, so the entry is
+  identified only by the map's hunk paths and the citation plan.
+- `DCW-V0-059`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1344)
+  `tools/cem-citation-baseline` MUST report each map's `cem status --citation` class, now
+  including `record` (`CEM-V1-170`), and its summary MUST carry a `record` aggregate after
+  `chore`, always present, so record maps are summarized apart from class `change`. Decision
+  0527's authored arm excludes record maps from the dated amendment on; its kill threshold is
+  unchanged.
+  Non-goals: rescoring the V1-1262 or V1-1336 committed-corpus baselines.
+  Failure modes: the prospective registration pins the scorer blob at the V1-1336 merge, where
+  a record map still reads class `change`; this change edits
+  `tools/cem-citation-baseline/main.go`, so by `DCW-V0-056` the exclusion applies to the
+  prospective set only through a new registration made before its maps are read.
 
 ## Code vocabulary
 
@@ -921,6 +964,9 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-054` (accepted under the owner's standing auto-accept (2026-10-11); V1-1336) | `tools/cem-citation-baseline/main.go` `scoreArm` (`excl` sets); `TestBaselineDCWV0052ArmsPinTheAnchoredTierDefect` (self-cite: authored `anchoredExclAdjacent` 0) | implemented; focused tests PASS; committed-corpus run in `docs/build-log/evidence/v1-1336/` |
 | `DCW-V0-055` (accepted under the owner's standing auto-accept (2026-10-11); V1-1336) | `tools/cem-citation-baseline/main.go` `armsSummary`, `pooled`, `killStatistic`; `TestBaselineDCWV0052ArmsPinTheAnchoredTierDefect` (pooled authored excess 0.666667 over four maps; kill statistic 4/4) | implemented; focused tests PASS; committed-corpus run in `docs/build-log/evidence/v1-1336/` |
 | `DCW-V0-056` (accepted under the owner's standing auto-accept (2026-10-11); V1-1336, V1-1337) | `tools/cem-citation-baseline/main.go` `readTargets`, `measure`; `TestBaselineDCWV0056TargetsVerifyAtTheNamedCommit` (refused at a stale-sidecar bind, accepted at the named target, malformed line exit 2); `docs/build-log/2026-10-13-cem-citation-prospective-registration.md` | implemented; focused tests PASS; the prospective 30-map run is NOT_OBSERVED until those maps are sealed |
+| `DCW-V0-057` (accepted under the owner's standing auto-accept (2026-10-11); V1-1344) | `internal/dogfoodflow/record.go` `RecordPath`, `RecordChange`; `TestRecordChangeDCWV0057Classifies` (record, evidence subdirectory, `.agent-evidence`, record with sidecars, mixed with code or a decision, sidecar-only, empty, quoted, bare directory) | implemented; focused tests PASS |
+| `DCW-V0-058` (accepted under the owner's standing auto-accept (2026-10-11); V1-1344) | `internal/dogfoodflow/change.go` `validateIntentManifest`, `recordIntent`, `uniformPlan`, `publishIntentManifest`; `internal/dogfoodflow/record.go` `recordIntentPath`; `TestChangeDCWV0058RecordBindsUniformPlanAndRecordIntent` (record accepts the uniform plan and publishes the declaration; mixed still refuses and assesses the intent; an untouched entry or absent decision is assessed as a path intent; a manifest changed during the run is `intent-scope-drift`, never published); `TestRecordChangeDCWV0057MatchesStatusClass` (classifier parity with `cem status`); `TestDogfoodDCWV0058RecordChangeBindsChecksAndSeals` (built binary: change, bind, check PASS, seal, sealed map class `record`) | implemented; focused tests PASS |
+| `DCW-V0-059` (accepted under the owner's standing auto-accept (2026-10-11); V1-1344) | `tools/cem-citation-baseline/main.go` `classRecord`, `summarize`; `TestBaselineDCWV0059SplitsRecordRows`; decision 0527 amendment (2026-10-13) | implemented; focused tests PASS; the prospective run with the exclusion needs a new registration (NOT_OBSERVED) |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
@@ -972,6 +1018,10 @@ reader requires; no map or sealed CEM format changes.
 Roll back `DCW-V0-050` with the V1-1277 migration by reverting its merge commit: the sealed maps
 return to `cem/0.2` and the list disappears. Reverting only the list keeps the migrated maps,
 and every range that spans the migration commit then fails `sealed-cem-modified` closed.
+Roll back `DCW-V0-057..059` by reverting their change: a record change is a change again, so
+a uniform plan is refused and a build-log intent is assessed as a path intent; the baseline loses
+its `record` member and status reports class `change` for record maps. No map, report or sealed
+CEM format changes, so nothing needs migrating.
 Roll back `DCW-V0-048` and `DCW-V0-049` by reverting their change: a uniform plan is cited
 again, a prepared stable chore map keeps no role, `cem status --citation` loses `citationClass`
 and the baseline tool disappears. No committed map carries a role before V1-1276, so nothing
