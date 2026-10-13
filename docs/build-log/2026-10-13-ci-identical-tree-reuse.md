@@ -110,6 +110,20 @@ These replays exercise the decision logic only. They are not a hosted run.
   is never admitted.
 - **The second listing is best effort.** An unreadable `merge_group` listing on a push leaves
   only the PR candidate.
+- **The workflow shell path has no executable fixture.** `TestAFPV0046WorkflowWiresQueueReuse`
+  binds its strings, and a local replay plus a `git archive` build of the tool exercised it. A
+  fault there fails closed to FULL, so it would cost time but could not admit an untested tree.
+
+## Review
+
+One read-only Codex round over the change found no path that admits an untested tree and no
+run or artifact spoofing flaw. Two findings:
+
+- **P2, fixed.** AFP-V0-024 said REUSE meant a passed PR merge-ref run. It now names the queue
+  commit too. AFP-V0-046 now states how it relates to the AFP-V0-028 rule that `merge_group`
+  stays FULL: the queue run is never narrowed. AFP-V0-028 itself is outside this change's scope
+  and is unchanged.
+- **P3, recorded.** There is no executable fixture for the shell path; see Limits.
 
 ## Rollback
 

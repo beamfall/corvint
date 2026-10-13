@@ -711,7 +711,7 @@ and container qualification; full fallback remains available.
   whose records name the same tree. Tree
   identity binds every tracked file, including the workflow file blob and the pinned Go
   version; no separate comparison is trusted. REUSE therefore means that the pull-request
-  merge-ref commit with the identical tree passed. A fork pull-request run is admitted like any
+  merge-ref commit, or the queue commit, with the identical tree passed in full. A fork pull-request run is admitted like any
   other: it runs in this repository, and a record for the merged head can only come from a
   workflow that head, and so the merged tree, contains. The decision SHALL be made by `tools/ci-reuse-plan --event push`, built from
   the pushed `main` commit, over retained public run and artifact listings (the `pull_request`
@@ -1178,8 +1178,11 @@ and container qualification; full fallback remains available.
   queue run's outcomes from the reused pull-request run, because the queue run has none; the
   `ci-control-plane` status still posts on the completed `merge_group` run (AFP-V0-026); the
   change that introduces this requirement runs its own queue run with the previous tool and so
-  in full; hosted observation is `NOT_OBSERVED` until the first REUSE queue run. Rollback:
-  restore the `push`-only condition on the `reuse` step and the `pull_request`-only record step.
+  in full; hosted observation is `NOT_OBSERVED` until the first REUSE queue run.
+  AFP-V0-028 keeps every `merge_group` run unnarrowed; this exception skips the race invocation only
+  for a tree a full pull-request run already passed, and a narrowed PR run writes no record, so
+  its queue run still runs in full. Rollback: restore the `push`-only condition on the `reuse` step and the
+  `pull_request`-only record step.
 
 ## Non-goals and authority
 
