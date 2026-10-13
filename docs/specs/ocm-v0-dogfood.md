@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-22
-Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469)
+Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept)
 Delivery status: experimental
 Authoritative inputs: `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/CHANGE-EVIDENCE-MAP.md`,
 `docs/specs/cem-pilot-kit.md`, `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: OCM maps scoped requirements to exact change-and-test witnesses or explicit unknowns; ordered multi-intent dogfood coordination is experimental.
-- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469)/experimental; accepted amendments implemented without promotion
+- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept)/experimental; accepted amendments implemented without promotion
 - Exists: an `ocm/0.1-experimental` structural traceability profile, verifier, and evidence mapping.
 - Blocked on: ten-change dogfood and promotion gates; linked rows do not prove correctness or adequacy.
 - Read next: Verified starting state; Requirements; Acceptance and dogfood.
@@ -199,6 +199,26 @@ claim, and mutation ordering deltas below.
   contract change with its own oracle/divergence adjudication, not an extractor-only change. Every
   `/case:` miss hint appends `, nor on its parent func header line` to the `TCQ-V0-018` shape list.
   The hint does not select, widen extraction, or change any verdict.
+- `OCM-V0-019`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1345) the
+  `dogfood-check` SUMMARY members `requirements`, `linked` and `unlinked` count the change's
+  referenced requirements, not the declared intent's whole requirements section, which stays in the
+  `OCM-V0-013` aggregate's `coverage`. A requirement is referenced when it is an item of a declared
+  intent's `## Requirements` section, enumerated as `OCM-V0-001` enumerates it, and either an
+  `evidence[]` span of the committed change map on that intent path overlaps the item's bytes in the
+  cited blob or the BASE..target `-U0` diff, with no inter-hunk context, adds or changes a line of
+  the item in the target blob (a pure deletion references nothing). A referenced requirement is linked when its obligation is
+  `linked` in the change's own OCM map, a `|` table row of the target intent outside its requirements
+  section names it, or a line of a `*_test.go` or `*_test.sh` file at the target names it; every name
+  match is an exact token under the `OCM-V0-017` adjoining-byte rule. `unlinked` is `requirements`
+  minus `linked`. When any of these inputs cannot be read the three members print `NOT_OBSERVED`,
+  never a guessed count. The members are reviewer information: they gate nothing, `dogfood-check:
+  PASS` keeps its meaning, and the `ocm/0.1-experimental` wire, aggregate and `OCM-V0-016` finding
+  are unchanged.
+- `OCM-V0-020`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1345) a bound
+  change that adds N requirement lines to its declared intent, each named by a test or a
+  traceability row, reports `requirements=N linked=N unlinked=0`; a change whose map cites no
+  requirement and whose diff edits none reports `requirements=0 linked=0 unlinked=0`, never the
+  intent's total with `linked=0`.
 
 ## Wire profile
 
@@ -490,6 +510,8 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-016 | `internal/dogfoodocm/aggregate.go` (`linkageFindings`) | `internal/dogfoodocm/aggregate_test.go:TestAggregateFindsNoLinkedRequirements` |
 | OCM-V0-017 | `internal/lrfrepo/ocm_write.go` (`withAnchorBoundaryHint`), `internal/lrfrepo/ocm.go` (`requirementBoundaryHint`) | `internal/lrfrepo/ocm_anchor_test.go:TestOCMLinkExplainsRequirementTokenBoundary`, `cmd/corvint/ocm_test.go:TestOCMLinkRejectsClaimWithoutExactObligationIDBeforePublication` |
 | OCM-V0-018 | `internal/lrfrepo/ocm.go` (`extractableGoClaim`), `internal/lrfrepo/ocm_claims.go` (`enumerateClaims`), `internal/lrfrepo/ocm_write.go` (`goCaseAnchorShapes`) | `internal/lrfrepo/ocm_selector_test.go:TestOCMInlineGoRunCaseBoundary` |
+| OCM-V0-019 | `internal/dogfoodflow/ocm_coverage.go` (`changeCoverage`, `parseRequirements`, `namesRequirement`), `internal/dogfoodflow/check.go` (`checkSummary`) | `internal/dogfoodflow/check_test.go:TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces`, `internal/dogfoodflow/check_test.go:TestDCWV0033CheckSummaryAbstainsOnUnobservedFields`, `cmd/corvint/dogfood_flow_portable_test.go:TestDogfoodDailyPathRunsFromBinaryInForeignRepository` |
+| OCM-V0-020 | `internal/dogfoodflow/ocm_coverage.go` (`changeCoverage`, `changedLines`, `testsNaming`) | `internal/dogfoodflow/check_test.go:TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces` (`adds two traced IDs`, `cites none`), `cmd/corvint/dogfood_ocm_dcw_test.go:TestDogfoodDCWLinksSurviveRebind` |
 
 Native selector diagnostic amendment to `OCM-V0-007` (2026-09-08): the owner's Task 2
 follow-up explicitly requests printing the normalized fragment on a miss. A missing `/case:` selector retains
