@@ -243,12 +243,8 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 			emitCorpusError(stderr, readErr)
 			return 2, true
 		}
-		projection, projectionErr := doccorpus.CEMProjection(ctx, root, corpus, data, "")
-		if projectionErr != nil {
-			emitCorpusError(stderr, projectionErr)
-			return 2, true
-		}
-		section["cem"] = projection
+		emitCorpusError(stderr, doccorpus.RefuseCEMProjection(data))
+		return 2, true
 	}
 	encoded, err := doccorpus.Encode(section)
 	if err != nil {

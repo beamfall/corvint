@@ -338,7 +338,7 @@ func PrepareOCM(ctx context.Context, root string, options PrepareOptions) (*Prep
 		return nil, err
 	}
 	return &PrepareResult{
-		StatusAction: prepareStatusAction(ctx, repository, cem, options),
+		StatusAction: prepareStatusAction(ctx, repository, options),
 		Document:     document, MapAbsolute: written,
 		CEMAbsolute: absoluteInput(inputRoot.Path(), options.CEMPath),
 		Target:      target, IntentScope: scope, Resumed: resumed, Requirements: derived.requirements,
@@ -349,9 +349,9 @@ func PrepareOCM(ctx context.Context, root string, options PrepareOptions) (*Prep
 // beginOCM builds the deterministic candidate: every exact requirement in the
 // intent scope becomes one visibly unknown obligation.
 func beginOCM(ctx context.Context, repository *gitauth.Repository, root string, cem *wire.Map, cemRaw []byte, options PrepareOptions) (wire.Value, intentDerivation, string, error) {
-	// A canonical CEM binds both endpoints, so the caller must name the target by
+	// A cem/1.0 CEM binds both endpoints, so the caller must name the target by
 	// full object id; a ref could move between this call and the next.
-	if canonicalCEM(cem.Spec) && !fullObjectID(options.Target) {
+	if !fullObjectID(options.Target) {
 		return wire.Value{}, intentDerivation{}, "", &Error{Code: "invalid-target-revision", Message: "target must be a full commit OID"}
 	}
 	verified, err := verifyPrepareCEM(ctx, repository, root, cem, cemRaw, options)
@@ -385,13 +385,7 @@ func beginOCM(ctx context.Context, repository *gitauth.Repository, root string, 
 }
 
 func verifyPrepareCEM(ctx context.Context, repository *gitauth.Repository, root string, cem *wire.Map, cemRaw []byte, options PrepareOptions) (*verifiedCEM, error) {
-	document := &ocmDocument{target: options.Target}
-	resolved, err := repository.Resolve(ctx, options.Target)
-	if err != nil {
-		return nil, err
-	}
-	document.target = resolved
-	return verifyReadCEM(ctx, repository, root, cem, cemRaw, document, OCMReadOptions{
+	return verifyStableOCMCEM(ctx, repository, root, cem, cemRaw, OCMReadOptions{
 		ExpectedBase: options.ExpectedBase, Target: options.Target,
 	})
 }
@@ -577,21 +571,15 @@ func decodeIntentScope(document wire.Value) (map[string]any, error) {
 }
 
 // prepareStatusAction renders the exact follow-up command the oracle prints. A
-// canonical CEM binds both endpoints, so the action names the RESOLVED base and
+// cem/1.0 CEM binds both endpoints, so the action names the RESOLVED base and
 // target rather than whatever the caller typed. argv[0] is the contract command
 // name `corvint`, not the `corvint` build name (decision 0122).
-func prepareStatusAction(ctx context.Context, repository *gitauth.Repository, cem *wire.Map, options PrepareOptions) []any {
+func prepareStatusAction(ctx context.Context, repository *gitauth.Repository, options PrepareOptions) []any {
 	action := []any{"corvint", "ocm", "status", "--map", options.MapPath, "--cem", options.CEMPath}
-	if canonicalCEM(cem.Spec) {
-		base, baseErr := repository.Resolve(ctx, options.ExpectedBase)
-		target, targetErr := repository.Resolve(ctx, options.Target)
-		if baseErr == nil && targetErr == nil {
-			action = append(action, "--expected-base", base, "--target", target)
-		}
-	} else if options.ExpectedBase != "" {
-		if base, err := repository.Resolve(ctx, options.ExpectedBase); err == nil {
-			action = append(action, "--expected-base", base)
-		}
+	base, baseErr := repository.Resolve(ctx, options.ExpectedBase)
+	target, targetErr := repository.Resolve(ctx, options.Target)
+	if baseErr == nil && targetErr == nil {
+		action = append(action, "--expected-base", base, "--target", target)
 	}
 	if options.MaxUnknown != nil {
 		action = append(action, "--max-unknown", strconv.Itoa(*options.MaxUnknown))

@@ -62,3 +62,9 @@ map binding a full OID the repository does not hold is refused with
 The `intent-scope-drift` fixture (added 2026-09-22) confirmed that a relocated or stale-digest
 intent span refuses with `intent-scope-mismatch`, while an absent intent blob or path refuses with
 `repository-object-unavailable` (`OCM-V0-012`).
+
+Refrozen 2026-10-12 (V1-1278 S2a, `CEM-V1-212`): OCM reads a `cem/1.0` CEM only, so `universe.go`
+now builds the seed CEM with the stable producer (`cem prepare --spec cem/1.0`, then the same cite).
+The only drift was the bound `cem.mapSha256` of every valid and hostile vector (the stable map's own
+bytes); hunk ids, claim ids and `patchSha256` are unchanged. The `cem/0.2` freeze is superseded
+(decision 0525 §6).

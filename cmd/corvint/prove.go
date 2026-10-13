@@ -22,7 +22,6 @@ import (
 	"github.com/Beamfall/corvint/internal/attest"
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
-	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -827,63 +826,23 @@ func rangeChangedPaths(ctx context.Context, gitExecutable, root, base string) ([
 	return paths, nil
 }
 
-// compileCEMProof judges a CEM map: the embedded document is what `cem verify`
-// would emit for the same inputs, and every hunk becomes one row whose
-// verdict is the verifier's. The verifier reads committed objects only, so the
-// bracket checks the dirty set, the HEAD tree, and that the map bytes the rows
-// and the attestation subject describe are the bytes the verifier read; a
-// worktree edit to the map itself is otherwise caught by the verifier's own
-// target-side sidecar comparison.
+// compileCEMProof judges a CEM map. Only a cem/1.0 map is judged, through the
+// stable verifier under --attest-cem-v2 (CEM-V1-065). Without it a retired
+// cem/0.x map refuses with unsupported-spec and the recovery line, and a
+// cem/1.0 map refuses with unsupported-spec naming the stable route; the map
+// is the only input read (CEM-V1-210).
 func compileCEMProof(ctx context.Context, gitExecutable string, options options, dirtyBefore []string) (proveReceipt, error) {
 	if options.prove.attestCEMV2 {
 		return compileStableCEMProof(ctx, gitExecutable, options, dirtyBefore)
 	}
-	document, mapBytes, err := readProveMap(options.root, options.prove.mapPath)
+	data, err := readCEMMapBytes(options.root, options.prove.mapPath)
 	if err != nil {
 		return proveReceipt{}, err
 	}
-	treeBefore, err := proveTreeRevision(ctx, gitExecutable, options.root)
-	if err != nil {
-		return proveReceipt{}, err
-	}
-	session, err := workflow.Open(options.root)
-	if err != nil {
+	if _, err := wire.ParseStable(data); err != nil {
 		return proveReceipt{}, cemProveError(err)
 	}
-	packet, err := session.Read(ctx, "verify", workflow.ReadOptions{
-		MapPath: options.prove.mapPath, PatchPath: options.prove.patch, PatchGiven: options.prove.patchGiven,
-		ExpectedBase: options.prove.expectedBase, Target: options.prove.target,
-	})
-	if err != nil {
-		return proveReceipt{}, cemProveError(err)
-	}
-	dirtyAfter, err := affected.DirtyPaths(ctx, gitExecutable, options.root)
-	if err != nil {
-		return proveReceipt{}, &gokernel.Error{Code: "unsupported-prove-history", Message: "cannot read the worktree status"}
-	}
-	_, mapAfter, err := readProveMap(options.root, options.prove.mapPath)
-	if err != nil {
-		return proveReceipt{}, err
-	}
-	treeAfter, err := proveTreeRevision(ctx, gitExecutable, options.root)
-	if err != nil {
-		return proveReceipt{}, err
-	}
-	if treeBefore != treeAfter || !equalStringSlices(dirtyBefore, dirtyAfter) || !bytes.Equal(mapBytes, mapAfter) {
-		return proveReceipt{}, &gokernel.Error{Code: "unsupported-prove-drift", Message: "the worktree, HEAD tree, or map changed while the map was being proved"}
-	}
-	verification, _ := packet["verification"].(map[string]any)
-	rows := cemRows(document)
-	for index := range rows {
-		rows[index].Falsified = judgeVerifier(rows[index], verification)
-	}
-	summary := summarizeCEMProof(rows)
-	revision := cemRevision(document, verification)
-	return proveReceipt{
-		Mutates: false, OK: true, Packet: packet, Profile: proveProfile, Proof: summary,
-		Revision: revision, State: cemState(verification, summary), Tool: "prove",
-		subjects: cemSubjects(options.prove.mapPath, mapBytes, revision), mapBytes: mapBytes,
-	}, nil
+	return proveReceipt{}, &gokernel.Error{Code: cemcode.UnsupportedSpec, Message: "prove judges a cem/1.0 map only with --attest-cem-v2, --artifacts, --expected-base and --target"}
 }
 
 // cemSubjects names the artifacts an attestation is about: the map bytes the
@@ -928,20 +887,6 @@ func attestProof(document []byte, subjects []attest.Subject, cem *cemAttestation
 		}
 	}
 	return bytes.Join(statements, []byte{'\n'}), nil
-}
-
-// readProveMap reads a repository-relative map the way the verifier will: an
-// absolute path or one that climbs out of the root is refused before any read.
-func readProveMap(root, mapPath string) (*wire.Map, []byte, error) {
-	data, err := readCEMMapBytes(root, mapPath)
-	if err != nil {
-		return nil, nil, err
-	}
-	document, err := wire.ParseMap(data)
-	if err != nil {
-		return nil, nil, cemProveError(err)
-	}
-	return document, data, nil
 }
 
 // containedRelativePath reports whether value is safe to resolve under a
@@ -1059,13 +1004,6 @@ func summarizeCEMProof(rows []proveRow) proveSummary {
 		}
 	}
 	return summary
-}
-
-func cemRevision(document *wire.Map, verification map[string]any) string {
-	if target := stringAt(verification, "targetRevision"); validGitObjectID(target) {
-		return target
-	}
-	return document.BaseRevision
 }
 
 // cemState: REJECTED when the verifier refused the map, UNPROVEN when it

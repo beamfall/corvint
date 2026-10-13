@@ -5,8 +5,6 @@ import (
 	"context"
 	"strings"
 	"testing"
-
-	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
 // selfObservationsRelativePath is the one write AGENTS.md invariant 4 /
@@ -66,16 +64,16 @@ func TestCLIReadVerbsLeaveTheRepositoryByteIdentical(t *testing.T) {
 			wantExit: 0,
 		},
 		{
-			name: "lrf accepts the canonical-derived CEM/02 fixture",
+			name: "lrf refuses the cem/1.0 fixture without writing (CEM-V1-210)",
 			setup: func(t *testing.T) (string, func() int) {
-				fixture := newLRFFixture(t, wire.Spec02)
+				fixture := newLRFFixture(t)
 				return fixture.root, func() int {
 					code, _, _ := runCLI(t, "--root", fixture.root, "lrf", "--cem", fixture.mapPath,
 						"--expected-base", fixture.base, "--target", fixture.target)
 					return code
 				}
 			},
-			wantExit: 0,
+			wantExit: 2,
 		},
 		{
 			name: "frontier reports an EMPTY frontier through the registered adapters",

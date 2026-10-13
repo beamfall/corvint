@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"os"
 	"reflect"
 	"runtime"
 	"sort"
@@ -18,18 +17,18 @@ import (
 func TestCWCX0001ExactCEMBinding(t *testing.T) {
 	raw, _ := testCEM(t, 2, false)
 	withLF := append(append([]byte(nil), raw...), '\n')
-	first, err := Compile(raw, nil)
+	first, err := compileFixture(raw, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := Compile(withLF, nil)
+	second, err := compileFixture(withLF, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if first.CEM.MapSHA256 == second.CEM.MapSHA256 {
 		t.Fatal("exact CEM byte binding ignored trailing whitespace")
 	}
-	if first.CEM.Spec != wire.Spec01 || first.CEM.BaseRevision == "" || first.CEM.PatchSHA256 == "" {
+	if first.CEM.Spec != wire.StableSpec || first.CEM.BaseRevision == "" || first.CEM.PatchSHA256 == "" {
 		t.Fatalf("incomplete CEM binding: %+v", first.CEM)
 	}
 }
@@ -76,7 +75,7 @@ func TestCWCX0003RejectsHostileMemberships(t *testing.T) {
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
-			report, err := Compile(raw, test.rows)
+			report, err := compileFixture(raw, test.rows)
 			if CodeOf(err) != test.code {
 				t.Fatalf("error=%v code=%q want %q", err, CodeOf(err), test.code)
 			}
@@ -90,7 +89,7 @@ func TestCWCX0003RejectsHostileMemberships(t *testing.T) {
 func TestCWCX0004FiveCopiesCollapseToOne(t *testing.T) {
 	raw, evidence := testCEM(t, 5, true)
 	rows := sharedAttributions(evidence, CauseGenerator, digestText("one-generator"))
-	report, err := Compile(raw, rows)
+	report, err := compileFixture(raw, rows)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +116,7 @@ func TestCWCX0004TransitiveAndDisconnectedCollapse(t *testing.T) {
 		attribution(evidence[1], evidence[3], CausePremise, digestText("premise-b")),
 		attribution(evidence[2], evidence[3], CausePremise, digestText("premise-b")),
 	}
-	report, err := Compile(raw, rows)
+	report, err := compileFixture(raw, rows)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +135,7 @@ func TestCWCX0004TransitiveAndDisconnectedCollapse(t *testing.T) {
 		attribution(evidence[2], evidence[0], CauseOracle, digestText("oracle-b")),
 		attribution(evidence[3], evidence[0], CauseOracle, digestText("oracle-b")),
 	}
-	report, err = Compile(raw, disconnected)
+	report, err = compileFixture(raw, disconnected)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +146,7 @@ func TestCWCX0004TransitiveAndDisconnectedCollapse(t *testing.T) {
 
 func TestCWCX0005UniqueWitnessUpperBoundAndDisposition(t *testing.T) {
 	raw, evidence := testCEM(t, 5, true)
-	report, err := Compile(raw, nil)
+	report, err := compileFixture(raw, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,17 +167,17 @@ func TestCWCX0005UniqueWitnessUpperBoundAndDisposition(t *testing.T) {
 	}
 }
 
-func TestCWCX0007PermutationGoldenAndVerification(t *testing.T) {
+func TestCWCX0007PermutationDeterminism(t *testing.T) {
 	raw, evidence := testCEM(t, 5, true)
 	rows := sharedAttributions(evidence, CauseGenerator, digestText("one-generator"))
-	first, err := Compile(raw, rows)
+	first, err := compileFixture(raw, rows)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for left, right := 0, len(rows)-1; left < right; left, right = left+1, right-1 {
 		rows[left], rows[right] = rows[right], rows[left]
 	}
-	second, err := Compile(raw, rows)
+	second, err := compileFixture(raw, rows)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,37 +192,17 @@ func TestCWCX0007PermutationGoldenAndVerification(t *testing.T) {
 	if !bytes.Equal(firstBytes, secondBytes) || firstDigest != secondDigest {
 		t.Fatal("attribution order changed canonical report")
 	}
-	golden, err := os.ReadFile("testdata/five-copies.report.json")
-	if err != nil {
-		t.Fatalf("golden unavailable: %v\n%s", err, firstBytes)
-	}
-	if !bytes.Equal(firstBytes, golden) {
-		t.Fatalf("golden mismatch\n%s", firstBytes)
-	}
-	if err := Verify(raw, first); err != nil {
-		t.Fatalf("valid report rejected: %v", err)
-	}
-	tampered := first
-	tampered.Claim = "VALIDATED"
-	if err := Verify(raw, tampered); CodeOf(err) != "report-mismatch" {
-		t.Fatalf("tampered report error=%v", err)
-	}
-	if err := Verify(append(append([]byte(nil), raw...), '\n'), first); CodeOf(err) != "report-mismatch" {
-		t.Fatalf("wrong CEM binding error=%v", err)
-	}
-	selfAttested := first
-	selfAttested.Causes = append([]Cause(nil), first.Causes...)
-	selfAttested.Causes[0].Members = append([]CauseMember(nil), first.Causes[0].Members...)
-	selfAttested.Causes[0].Members[0].AttestationEvidenceID = selfAttested.Causes[0].Members[0].WitnessEvidenceID
-	if err := Verify(raw, selfAttested); CodeOf(err) != "self-attestation" {
-		t.Fatalf("self-attested report error=%v", err)
+	selfAttested := append([]Attribution(nil), rows...)
+	selfAttested[0].AttestationEvidenceID = selfAttested[0].WitnessEvidenceID
+	if _, err := compileFixture(raw, selfAttested); CodeOf(err) != "self-attestation" {
+		t.Fatalf("self-attested declaration error=%v", err)
 	}
 }
 
 func TestCWCX0008ReportExcludesSourceBodiesAndCausePreimages(t *testing.T) {
 	raw, evidence := testCEM(t, 2, false)
 	secret := "private-generator-name"
-	report, err := Compile(raw, sharedAttributions(evidence, CauseGenerator, digestText(secret)))
+	report, err := compileFixture(raw, sharedAttributions(evidence, CauseGenerator, digestText(secret)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +220,7 @@ func TestCWCX0008ReportExcludesSourceBodiesAndCausePreimages(t *testing.T) {
 func TestCWCX0009AttributionBound(t *testing.T) {
 	raw, _ := testCEM(t, 2, false)
 	rows := make([]Attribution, MaxAttributions+1)
-	if _, err := Compile(raw, rows); CodeOf(err) != "too-many-attributions" {
+	if _, err := compileFixture(raw, rows); CodeOf(err) != "too-many-attributions" {
 		t.Fatalf("bound error=%v", err)
 	}
 }
@@ -252,7 +231,7 @@ func TestCWCX0011MaximumAllocationRatchet(t *testing.T) {
 	}
 	raw, rows := benchmarkFixture(t, false)
 	allocations := testing.AllocsPerRun(1, func() {
-		report, err := Compile(raw, rows)
+		report, err := compileFixture(raw, rows)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -261,6 +240,17 @@ func TestCWCX0011MaximumAllocationRatchet(t *testing.T) {
 	if allocations > 250_000 {
 		t.Fatalf("maximum disconnected compile allocations=%.0f want <=250000", allocations)
 	}
+}
+
+// compileFixture drives the shared collapse compiler over a decoded mechanics
+// view, the same view CompileStable hands it after the stable verifier admits
+// a map; the retired 0.x Compile is gone (CEM-V1-210).
+func compileFixture(raw []byte, rows []Attribution) (Report, error) {
+	var document wire.Map
+	if err := json.Unmarshal(raw, &document); err != nil {
+		return Report{}, err
+	}
+	return compileDocument(raw, &document, rows)
 }
 
 func testCEM(t testing.TB, evidenceCount int, repeatedRelation bool) ([]byte, []string) {
@@ -312,7 +302,7 @@ func testCEM(t testing.TB, evidenceCount int, repeatedRelation bool) ([]byte, []
 		},
 	)
 	value := map[string]any{
-		"spec": wire.Spec01, "baseRevision": strings.Repeat("a", 40),
+		"spec": wire.StableSpec, "baseRevision": strings.Repeat("a", 40),
 		"patchSha256": digestText("patch"), "evidence": evidence, "hunks": hunks,
 	}
 	raw, err := json.Marshal(value)

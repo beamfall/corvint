@@ -858,11 +858,11 @@ duplicate basis tuples collapse to the single-tuple bytes (`determinism.duplicat
 four-row issue list byte-identical (`claim.reuse-issue-order`,
 `conformance/lrf-v0/cases.json:6496@6422be9c`).
 
-`LRF-V0-001` context precedence: an OCM supplied with CEM 0.1 refuses `unsupported-lrf-context`
-before OCM verification, whether that OCM is valid or not
-(`cmd/corvint/lrf_test.go:TestLRFOCMPlusCEM01IsUnsupportedBeforeOCMVerification`).
-A `cem/0.3` map refuses `unsupported-spec` naming `cem/0.3` with no patch, a missing `--patch`, or
-a real `--patch` (V1-0352, `cmd/corvint/lrf_test.go:TestLRFRefusesCEM03BeforeAnyPatchPath`).
+`LRF-V0-001` context precedence: lrf/0 evaluates no map since decision 0525 (CEM-V1-210). A retired
+cem/0.1, cem/0.2 or cem/0.3 map refuses `unsupported-spec` with the recovery line, and a cem/1.0 map
+refuses `unsupported-spec`, before any explicit, missing or default patch or any OCM is read
+(`cmd/corvint/lrf_test.go:TestCEMV1210LRFRefusesEveryMapBeforeAnyInput`; the earlier 0.1 OCM and
+0.3 cases, V1-0352, are superseded).
 
 `LRF-V0-002` frozen algorithm step 4 admits only an ASCII byte outside `[A-Za-z0-9_]` as a
 content-ID boundary: a content ID beside a non-ASCII byte is tokenized, not redacted

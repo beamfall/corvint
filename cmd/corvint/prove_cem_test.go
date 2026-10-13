@@ -24,13 +24,14 @@ import (
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
-// proveCEMRepository is the CEM end-to-end fixture: one committed change, a
-// cem/0.2 map prepared for it, hunk 1 cited to committed evidence, and the map
-// committed so the target-side sidecar check can bind it.
+// proveCEMRepository is the CEM argument fixture: one committed change, a
+// cem/1.0 map prepared for it (CEM-V1-214), hunk 1 cited to committed
+// evidence, and the map committed. Only refusals run over it; an accepted
+// proof runs over the receipt-authentication case (materializeCEMV2Case).
 func proveCEMRepository(t *testing.T) (root, base string) {
 	t.Helper()
 	root, base, target := cemRepo(t)
-	if code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target); code != 0 {
+	if code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--spec", wire.StableSpec, "--base", base, "--target", target); code != 0 {
 		t.Fatalf("prepare: %s", stderr)
 	}
 	if code, _, stderr := runCLI(t, "--root", root, "cem", "cite",
@@ -43,89 +44,105 @@ func proveCEMRepository(t *testing.T) (root, base string) {
 	return root, base
 }
 
+// proveStableCEM runs `prove --attest-cem-v2` unsigned over the
+// receipt-authentication case and returns the prove document (the FPK-V0-015
+// statement's predicate) and the raw stdout. A cem/1.0 map is judged only
+// through the stable verifier (CEM-V1-210, CEM-V1-214).
+func proveStableCEM(t *testing.T, f cemV2Fixture, extra ...string) (map[string]any, []byte) {
+	t.Helper()
+	arguments := append([]string{"--root", f.repo, "prove", "--cem", "stable.json", "--expected-base", f.base,
+		"--target", f.target, "--artifacts", f.artifacts, "--attest-cem-v2"}, extra...)
+	stdout, stderr, code := runProveArguments(t, arguments...)
+	lines := strings.Split(strings.TrimSuffix(string(stdout), "\n"), "\n")
+	if code != 0 || len(lines) != 2 {
+		t.Fatalf("prove exit %d, %d lines: %s", code, len(lines), stderr)
+	}
+	var statement struct {
+		Predicate map[string]any `json:"predicate"`
+	}
+	if err := json.Unmarshal([]byte(lines[0]), &statement); err != nil {
+		t.Fatal(err)
+	}
+	return statement.Predicate, stdout
+}
+
 func TestProveCEMAcceptedMapProvesSupportedHunksAndWritesNothing(t *testing.T) {
 	t.Parallel()
-	root, base := proveCEMRepository(t)
-	before := treeDigest(t, root)
-	arguments := []string{"--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD"}
-	receipt, first, stderr, code := runProveCLI(t, root, arguments...)
-	if code != 0 {
-		t.Fatalf("exit %d: %s", code, stderr)
-	}
+	f := materializeCEMV2Case(t)
+	before := treeDigest(t, f.repo)
+	receipt, first := proveStableCEM(t, f)
 	if receipt["state"] != "READY" || receipt["mutates"] != false || receipt["profile"] != proveProfile {
 		t.Fatalf("envelope: %v", receipt)
 	}
 	rows := proofRows(t, receipt)
-	if len(rows) != 1 {
-		t.Fatalf("one hunk, %d rows: %v", len(rows), rows)
+	if len(rows) != 2 {
+		t.Fatalf("two hunks, %d rows: %v", len(rows), rows)
 	}
-	row := rows[0]
-	if row["falsifier"] != falsifierVerifier || row["falsified"] != falsifiedPass || row["authority"] != "cem-supported" ||
-		row["path"] != "src/app.txt" || !strings.HasPrefix(stringAt(row, "result"), "hunk:sha256:") || stringAt(row, "blob_hash") == "" {
-		t.Fatalf("row: %v", row)
+	for _, row := range rows {
+		if row["falsifier"] != falsifierVerifier || row["falsified"] != falsifiedPass || row["authority"] != "cem-supported" ||
+			!strings.HasPrefix(stringAt(row, "result"), "hunk:sha256:") || stringAt(row, "blob_hash") == "" {
+			t.Fatalf("row: %v", row)
+		}
 	}
-	if proofField(t, receipt, "proven_results") != 1 || proofField(t, receipt, "failed_results") != 0 {
+	if proofField(t, receipt, "proven_results") != 2 || proofField(t, receipt, "failed_results") != 0 {
 		t.Fatalf("proof: %v", receipt["proof"])
 	}
 	assertProofClaims(t, receipt)
-	verifyCode, verifyStdout, verifyStderr := runCLI(t, "--root", root, "cem", "verify", "--map", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD")
-	if verifyCode != 0 {
-		t.Fatalf("cem verify: %d %s", verifyCode, verifyStderr)
+	if stringAt(receipt, "revision") != f.target {
+		t.Fatalf("revision %v is not the target %s", receipt["revision"], f.target)
 	}
-	var verifyEnvelope map[string]any
-	if err := json.Unmarshal([]byte(verifyStdout), &verifyEnvelope); err != nil {
-		t.Fatal(err)
-	}
-	embedded, _ := json.Marshal(receipt["packet"])
-	expected, _ := json.Marshal(verifyEnvelope)
-	if string(embedded) != string(expected) {
-		t.Fatalf("embedded document differs from cem verify:\n%s\n%s", embedded, expected)
-	}
-	if !wire.IsGitOid(stringAt(receipt, "revision")) {
-		t.Fatalf("revision %v", receipt["revision"])
-	}
-	if _, second, _, _ := runProveCLI(t, root, arguments...); string(first) != string(second) {
+	if _, second := proveStableCEM(t, f); string(first) != string(second) {
 		t.Fatal("two runs over one tree differ")
 	}
-	if after := treeDigest(t, root); after != before {
+	if after := treeDigest(t, f.repo); after != before {
 		t.Fatal("prove --cem changed the repository")
 	}
 }
 
-func TestProveCEMRejectedMapFailsEveryClaimRow(t *testing.T) {
+// TestCEMV1210ProveRefusesEveryMapOutsideTheStableRoute checks CEM-V1-210 for
+// prove: without --attest-cem-v2 a cem/1.0 map, and a map relabelled to any
+// retired cem/0.x spec, exits 2 with unsupported-spec and an empty stdout; a
+// 0.x refusal carries the recovery line, the 1.0 refusal names the stable
+// route, and --attest-cem and --attest-cem-v1 attest no map. A stable map the
+// verifier does not accept is refused with attest-cem-v2-not-accepted.
+func TestCEMV1210ProveRefusesEveryMapOutsideTheStableRoute(t *testing.T) {
 	t.Parallel()
 	root, base := proveCEMRepository(t)
-	receipt, _, stderr, code := runProveCLI(t, root, "--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", base)
-	if code != 0 {
-		t.Fatalf("exit %d: %s", code, stderr)
+	mapBytes, err := os.ReadFile(filepath.Join(root, ".corvint", "change.cem.json"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if receipt["state"] != "REJECTED" || proofField(t, receipt, "failed_results") != 1 || proofField(t, receipt, "proven_results") != 0 {
-		t.Fatalf("state %v proof %v", receipt["state"], receipt["proof"])
+	before := treeDigest(t, root)
+	common := []string{"--expected-base", base, "--target", "HEAD"}
+	for _, spec := range []string{"cem/0.1", "cem/0.2", "cem/0.3", wire.StableSpec} {
+		name := ".corvint/relabelled-" + strings.ReplaceAll(spec, "/", "-") + ".cem.json"
+		relabelled := bytes.Replace(mapBytes, []byte(`"spec":"`+wire.StableSpec+`"`), []byte(`"spec":"`+spec+`"`), 1)
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(name)), relabelled, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		want := wire.RetiredSpecFix
+		if spec == wire.StableSpec {
+			want = "prove judges a cem/1.0 map only with --attest-cem-v2"
+		}
+		for _, flags := range [][]string{nil, {"--attest"}, {"--attest-cem"}, {"--attest-cem-v1"}} {
+			arguments := append(append([]string{"--cem", name}, common...), flags...)
+			_, stdout, stderr, code := runProveCLI(t, root, arguments...)
+			if code != 2 || len(stdout) != 0 || !strings.Contains(stderr, `"unsupported-spec"`) || !strings.Contains(stderr, want) {
+				t.Fatalf("%v: exit=%d stdout=%q stderr=%q", arguments, code, stdout, stderr)
+			}
+		}
+		if err := os.Remove(filepath.Join(root, filepath.FromSlash(name))); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if row := proofRows(t, receipt)[0]; row["falsified"] != falsifiedFail {
-		t.Fatalf("row: %v", row)
+	if after := treeDigest(t, root); after != before {
+		t.Fatal("a refused prove --cem invocation wrote to the repository")
 	}
-}
-
-func TestProveCEMUnknownHunkIsNotAClaim(t *testing.T) {
-	t.Parallel()
-	root, base := proveCEMRepository(t)
-	if code, out, _ := runCLI(t, "--root", root, "cem", "mark",
-		"--map", ".corvint/change.cem.json", "--hunk", "1", "--disposition", "unknown", "--reason", "insufficient-evidence"); code != 0 {
-		t.Fatalf("mark: %s", out)
-	}
-	cemGit(t, root, "add", ".corvint/change.cem.json")
-	cemGit(t, root, "commit", "-qm", "unknown")
-	receipt, _, stderr, code := runProveCLI(t, root, "--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD")
-	if code != 0 {
-		t.Fatalf("exit %d: %s", code, stderr)
-	}
-	row := proofRows(t, receipt)[0]
-	if row["falsifier"] != falsifierNone || row["falsified"] != falsifiedNotRun || row["authority"] != "cem-unknown" {
-		t.Fatalf("row: %v", row)
-	}
-	if receipt["state"] != "UNPROVEN" || proofField(t, receipt, "unproven_results") != 1 {
-		t.Fatalf("state %v proof %v", receipt["state"], receipt["proof"])
+	f := materializeCEMV2Case(t)
+	_, stdout, stderr, code := runProveCLI(t, f.repo, "--cem", "stable.json", "--expected-base", f.base, "--target", f.base,
+		"--artifacts", f.artifacts, "--attest-cem-v2")
+	if code != 2 || len(stdout) != 0 || !strings.Contains(stderr, `"attest-cem-v2-not-accepted"`) {
+		t.Fatalf("rejected stable map: exit=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 }
 
@@ -140,8 +157,8 @@ func TestProveCEMRejectsBadArgumentsWithoutOutputOrWrite(t *testing.T) {
 		{[]string{"--cem"}, "invalid-arguments"},
 		{[]string{"--cem", ".corvint/change.cem.json", "--bogus", "x"}, "invalid-arguments"},
 		{[]string{"--cem", ".corvint/change.cem.json", "--target", "HEAD", "--target", "HEAD"}, "invalid-arguments"},
-		{[]string{"--cem", ".corvint/change.cem.json", "--target", "HEAD"}, "expected-base-required"},
-		{[]string{"--cem", ".corvint/change.cem.json", "--expected-base", base}, "target-required"},
+		{[]string{"--cem", ".corvint/change.cem.json", "--target", "HEAD", "--artifacts", root, "--attest-cem-v2"}, "expected-base-required"},
+		{[]string{"--cem", ".corvint/change.cem.json", "--expected-base", base, "--artifacts", root, "--attest-cem-v2"}, "target-required"},
 		{[]string{"--cem", ".corvint/missing.cem.json", "--expected-base", base, "--target", "HEAD"}, "map-unavailable"},
 		{[]string{"--cem", "../outside.cem.json", "--expected-base", base, "--target", "HEAD"}, "map-unavailable"},
 		{[]string{"--cem", filepath.Join(root, ".corvint", "change.cem.json"), "--expected-base", base, "--target", "HEAD"}, "map-unavailable"},
@@ -255,77 +272,63 @@ func proveTestKey(t *testing.T) (string, ed25519.PublicKey) {
 	return path, publicKey
 }
 
+// TestProveCEMAttestWrapsTheDocumentAndSignsIt checks FPK-V0-015 over a
+// cem/1.0 map (CEM-V1-214): the first line is the in-toto statement whose
+// predicate is the prove document and whose subjects are the map digest and
+// the accepted target commit, and --attest-key signs exactly that statement.
 func TestProveCEMAttestWrapsTheDocumentAndSignsIt(t *testing.T) {
 	t.Parallel()
-	root, base := proveCEMRepository(t)
-	before := treeDigest(t, root)
-	common := []string{"--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD"}
-	plain, plainStdout, stderr, code := runProveCLI(t, root, common...)
-	if code != 0 {
-		t.Fatalf("exit %d: %s", code, stderr)
-	}
-	statement, statementStdout, stderr, code := runProveCLI(t, root, append(common, "--attest")...)
-	if code != 0 {
-		t.Fatalf("attest exit %d: %s", code, stderr)
+	f := materializeCEMV2Case(t)
+	before := treeDigest(t, f.repo)
+	_, unsigned := proveStableCEM(t, f)
+	statementLine := strings.SplitN(string(unsigned), "\n", 2)[0]
+	var statement map[string]any
+	if err := json.Unmarshal([]byte(statementLine), &statement); err != nil {
+		t.Fatal(err)
 	}
 	if statement["_type"] != "https://in-toto.io/Statement/v1" || statement["predicateType"] != attest.PredicateType {
 		t.Fatalf("statement: %v", statement)
 	}
-	predicate, _ := json.Marshal(statement["predicate"])
-	document, _ := json.Marshal(plain)
-	if string(predicate) != string(document) {
-		t.Fatalf("predicate differs from the plain document:\n%s\n%s", predicate, document)
-	}
-	mapBytes, err := os.ReadFile(filepath.Join(root, ".corvint", "change.cem.json"))
+	mapBytes, err := os.ReadFile(filepath.Join(f.repo, "stable.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	mapDigest := sha256.Sum256(mapBytes)
-	head := strings.TrimSpace(cemGit(t, root, "rev-parse", "HEAD"))
 	subjects, _ := json.Marshal(statement["subject"])
-	want := `[{"digest":{"sha256":"` + hex.EncodeToString(mapDigest[:]) + `"},"name":".corvint/change.cem.json"},{"digest":{"gitCommit":"` + head + `"},"name":"git:` + head + `"}]`
+	want := `[{"digest":{"sha256":"` + hex.EncodeToString(mapDigest[:]) + `"},"name":"stable.json"},{"digest":{"gitCommit":"` + f.target + `"},"name":"git:` + f.target + `"}]`
 	if string(subjects) != want {
 		t.Fatalf("subjects:\n%s\n%s", subjects, want)
 	}
-	if stringAt(plain, "revision") != head {
-		t.Fatalf("revision %v is not HEAD %s", plain["revision"], head)
+	predicate, _ := statement["predicate"].(map[string]any)
+	if stringAt(predicate, "revision") != f.target {
+		t.Fatalf("revision %v is not the target %s", predicate["revision"], f.target)
 	}
 	keyPath, publicKey := proveTestKey(t)
-	_, envelope, stderr, code := runProveCLI(t, root, append(common, "--attest-key", keyPath)...)
+	signed, stderr, code := runProveArguments(t, "--root", f.repo, "prove", "--cem", "stable.json", "--expected-base", f.base,
+		"--target", f.target, "--artifacts", f.artifacts, "--attest-key", keyPath, "--attest-cem-v2")
 	if code != 0 {
 		t.Fatalf("attest-key exit %d: %s", code, stderr)
 	}
-	payload, err := attest.Verify(bytes.TrimSuffix(envelope, []byte("\n")), publicKey)
+	payload, err := attest.Verify([]byte(strings.SplitN(string(signed), "\n", 2)[0]), publicKey)
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
-	if string(payload) != string(bytes.TrimSuffix(statementStdout, []byte("\n"))) {
+	if string(payload) != statementLine {
 		t.Fatal("signed payload differs from the unsigned statement")
 	}
-	if len(plainStdout) == 0 || treeDigest(t, root) != before {
+	if treeDigest(t, f.repo) != before {
 		t.Fatal("attestation changed the repository")
 	}
 }
 
 // TestProveCEMAttestVerifiesOfflineWithCosignSemantics independently checks
-// FPK-V0-015's public-key DSSE/in-toto contract without the Corvint verifier.
+// FPK-V0-015's public-key DSSE/in-toto contract without the Corvint verifier,
+// on the proof envelope a cem/1.0 map's prove emits (CEM-V1-214).
 func TestProveCEMAttestVerifiesOfflineWithCosignSemantics(t *testing.T) {
 	t.Parallel()
-	root, base := proveCEMRepository(t)
-	privateKeyPath, publicKey := proveTestKey(t)
-	publicKeyPath := filepath.Join(t.TempDir(), "cosign.pub")
-	publicDER, err := x509.MarshalPKIXPublicKey(publicKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(publicKeyPath, pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: publicDER}), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	arguments := []string{"--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD", "--attest-key", privateKeyPath}
-	_, envelope, stderr, code := runProveCLI(t, root, arguments...)
-	if code != 0 {
-		t.Fatalf("attest-key exit %d: %s", code, stderr)
-	}
+	f := materializeCEMV2Case(t)
+	lines, _, publicKeyPath := emitCEMV2Attestation(t, f)
+	envelope := []byte(lines[0])
 	payload, err := verifyOfflineCosignEnvelope(bytes.TrimSpace(envelope), publicKeyPath)
 	if err != nil {
 		t.Fatalf("offline verify: %v", err)
@@ -405,8 +408,9 @@ func verifyOfflineCosignEnvelope(envelope []byte, publicKeyPath string) ([]byte,
 
 func TestProveCEMAttestRejectsBadFlagsAndKeys(t *testing.T) {
 	t.Parallel()
-	root, base := proveCEMRepository(t)
-	common := []string{"--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD"}
+	f := materializeCEMV2Case(t)
+	root := f.repo
+	common := []string{"--cem", "stable.json", "--expected-base", f.base, "--target", f.target, "--artifacts", f.artifacts, "--attest-cem-v2"}
 	bogusKey := filepath.Join(t.TempDir(), "bogus.pem")
 	if err := os.WriteFile(bogusKey, []byte("-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -437,13 +441,14 @@ func TestProveCEMAttestRejectsBadFlagsAndKeys(t *testing.T) {
 // the seam runProve calls, with the real prove document for the same map.
 func TestProveCEMAttestRefusesAMapPathThatIsNotUTF8(t *testing.T) {
 	t.Parallel()
-	root, base := proveCEMRepository(t)
-	mapBytes, err := os.ReadFile(filepath.Join(root, ".corvint", "change.cem.json"))
+	f := materializeCEMV2Case(t)
+	root := f.repo
+	mapBytes, err := os.ReadFile(filepath.Join(root, "stable.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	name := ".corvint/change-\xff.cem.json"
-	common := []string{"--expected-base", base, "--target", "HEAD", "--attest"}
+	name := "stable-\xff.json"
+	common := []string{"--expected-base", f.base, "--target", f.target, "--artifacts", f.artifacts, "--attest-cem-v2"}
 	err = os.WriteFile(filepath.Join(root, filepath.FromSlash(name)), mapBytes, 0o644)
 	if err == nil {
 		// The file system accepted the name, so the map is itself a non-UTF-8 untracked path.
@@ -458,13 +463,13 @@ func TestProveCEMAttestRefusesAMapPathThatIsNotUTF8(t *testing.T) {
 	if !errors.Is(err, syscall.EILSEQ) {
 		t.Fatal(err)
 	}
-	plain, document, stderr, code := runProveCLI(t, root, "--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD")
-	if code != 0 {
-		t.Fatalf("exit %d: %s", code, stderr)
+	plain, _ := proveStableCEM(t, f)
+	document, err := json.Marshal(plain)
+	if err != nil {
+		t.Fatal(err)
 	}
-	document = bytes.TrimSuffix(document, []byte("\n"))
 	revision := stringAt(plain, "revision")
-	if _, err := attestProof(document, cemSubjects(".corvint/change.cem.json", mapBytes, revision), nil, ""); err != nil {
+	if _, err := attestProof(document, cemSubjects("stable.json", mapBytes, revision), nil, ""); err != nil {
 		t.Fatalf("attestProof with a UTF-8 map path: %v", err)
 	}
 	output, err := attestProof(document, cemSubjects(name, mapBytes, revision), nil, "")

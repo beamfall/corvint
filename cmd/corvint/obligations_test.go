@@ -1,19 +1,19 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
-// EFO-V0-001, EFO-V0-007: the verb joins a real impact --provider receipt to
-// a CEM's hunks, binds the CEM by the raw digest the frontier uses, and
-// writes nothing.
-func TestObligationsCommandComposesSidecar(t *testing.T) {
+// EFO-V0-001, CEM-V1-210: without the stable flags the verb names the retired
+// cem/0.2 form, which admits no map. A cem/0.2 map beside a real impact
+// --provider receipt refuses with unsupported-spec and the recovery line,
+// writes no stdout, and writes no file.
+func TestObligationsCommandRefusesRetiredMap(t *testing.T) {
 	t.Parallel()
 	root := impactCLIRepository(t)
 	record := providerRecord(t, root)
@@ -30,24 +30,8 @@ func TestObligationsCommandComposesSidecar(t *testing.T) {
 		}
 	}
 	code, out, stderr := runCLI(t, "obligations", "--cem", cemPath, "--impact", impactPath)
-	if code != 0 || stderr != "" {
-		t.Fatalf("obligations: exit %d stderr %q", code, stderr)
-	}
-	var document map[string]any
-	if err := json.Unmarshal([]byte(out), &document); err != nil {
-		t.Fatal(err)
-	}
-	sum := sha256.Sum256([]byte(cem))
-	if document["binding"].(map[string]any)["cem_sha256"] != hex.EncodeToString(sum[:]) || document["state"] != "complete" {
-		t.Fatalf("binding or state: %s", out)
-	}
-	hunk := document["hunks"].([]any)[0].(map[string]any)
-	kinds := []string{}
-	for _, row := range hunk["associations"].([]any) {
-		kinds = append(kinds, row.(map[string]any)["kind"].(string))
-	}
-	if hunk["hunk"] != "hunk:sha256:aaaa" || strings.Join(kinds, ",") != "entity,obligation,test" {
-		t.Fatalf("hunk row: %v", hunk)
+	if code != 2 || out != "" || !strings.Contains(stderr, cemcode.UnsupportedSpec) || !strings.Contains(stderr, wire.RetiredSpecFix) {
+		t.Fatalf("obligations over cem/0.2: exit %d out %q stderr %q", code, out, stderr)
 	}
 	entries, err := os.ReadDir(scratch)
 	if err != nil {

@@ -10,9 +10,10 @@
 //
 // and writes one JSON row per map to stdout, in the baseline row shape plus a
 // "class" member. A cem/1.0 map takes its class from the status envelope's
-// citationClass (CEM-V1-106); a 0.x map, which carries no role, is classed by
-// the paths of base..bind (dogfoodflow.ChoreRole, DCW-V0-048). A map whose
-// status carries no citation block is an error row and an ERR line on stderr.
+// citationClass (CEM-V1-106). A retired cem/0.x map is never read: its row is
+// the stable reader's unsupported-spec refusal with its fix line and no class,
+// so the summary counts it as unclassified (CEM-V1-210). A map whose status
+// carries no citation block is an error row and an ERR line on stderr.
 // --summary writes the aggregate for all maps and for each class.
 //
 // Usage:
@@ -29,15 +30,14 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/cli"
 	"github.com/Beamfall/corvint/internal/cem/wire"
-	"github.com/Beamfall/corvint/internal/dogfoodflow"
 )
 
 // Citation classes, as `cem status --citation` names them for cem/1.0 maps.
@@ -144,15 +144,17 @@ func measure(ctx context.Context, root, name string) row {
 		return r
 	}
 	r.spec = head.Spec
+	if wire.RetiredSpec(head.Spec) {
+		_, err := wire.ParseStable(raw)
+		r.issues = []any{issue(cemcode.CodeOf(err), cemcode.MessageOf(err))}
+		return r
+	}
 	rel, _ := filepath.Rel(root, name)
 	var out, errb bytes.Buffer
-	args := []string{"status", "--map", filepath.ToSlash(rel), "--expected-base", head.BaseRevision, "--target", stem, "--citation"}
-	if head.Spec == wire.StableSpec {
-		// A cem/1.0 status requires an explicit absolute artifact root, which
-		// a producer map without artifacts never opens (CEM-V1-146,
-		// CEM-V1-147); root is already absolute.
-		args = append(args, "--artifacts", root)
-	}
+	// A cem/1.0 status requires an explicit absolute artifact root, which a
+	// producer map without artifacts never opens (CEM-V1-146, CEM-V1-147);
+	// root is already absolute.
+	args := []string{"status", "--map", filepath.ToSlash(rel), "--expected-base", head.BaseRevision, "--target", stem, "--citation", "--artifacts", root}
 	cli.Run(ctx, root, args, &out, &errb)
 	var envelope map[string]any
 	if err := json.Unmarshal(out.Bytes(), &envelope); err != nil {
@@ -175,44 +177,12 @@ func measure(ctx context.Context, root, name string) row {
 		if code, ok := stable["code"].(string); ok && len(r.issues) == 0 {
 			r.issues = []any{issue(code, "")}
 		}
-	} else if verification, ok := envelope["verification"].(map[string]any); ok {
-		r.valid = verification["valid"] == true
-		r.citation, _ = verification["citation"].(map[string]any)
-		if list, ok := verification["issues"].([]any); ok {
-			r.issues = list
-		}
-		r.class, err = legacyClass(ctx, root, head.BaseRevision, stem)
-		if err != nil {
-			r.issues = append(r.issues, issue("class-unresolved", err.Error()))
-		}
 	} else {
 		code, _ := envelope["code"].(string)
 		message, _ := envelope["error"].(string)
 		r.issues = []any{issue(code, message)}
 	}
 	return r
-}
-
-// legacyClass classes a 0.x map, which carries no role, by the paths its
-// change touches: a change touching only CEM map paths is a chore.
-func legacyClass(ctx context.Context, root, base, target string) (string, error) {
-	command := exec.CommandContext(ctx, "git", "-C", root, "diff", "--no-renames", "--name-only", base, target)
-	var stderr bytes.Buffer
-	command.Stderr = &stderr
-	out, err := command.Output()
-	if err != nil {
-		return "", errors.New(strings.TrimSpace(stderr.String()))
-	}
-	var paths []string
-	for _, line := range strings.Split(string(out), "\n") {
-		if line != "" {
-			paths = append(paths, line)
-		}
-	}
-	if dogfoodflow.ChoreRole(paths) != "" {
-		return classChore, nil
-	}
-	return classChange, nil
 }
 
 func issue(code, message string) map[string]any {

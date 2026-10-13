@@ -133,7 +133,7 @@ above stands with that substitution.
   Accepted amendment (AT-06, decision 0052): the
   "nothing on stdout" guarantee binds refusals only. An output-transport failure is not a refusal:
   encoding and the stdout write both happen after every verdict is decided, either can fail, and
-  both exit 2 with `output-failed` (`cmd/corvint/prove.go:504-508@4c0799f8`, `cmd/corvint/prove.go:516-518@ea3220b5`). A failed write
+  both exit 2 with `output-failed` (`cmd/corvint/prove.go:503-507@4c0799f8`, `cmd/corvint/prove.go:515-517@ea3220b5`). A failed write
   MAY leave partial bytes on stdout, so a consumer MUST read the exit status, never stdout
   emptiness, as the signal that no verdict was produced — the same exit-2 signal the harness
   gives for its own write failure (`cmd/corvint/main.go:1311-1313@f3b5fd7c`), which the adapter contract
@@ -189,7 +189,7 @@ above stands with that substitution.
   read the HEAD tree before and after verification and refuse with
   `unsupported-prove-drift` if it changes; with an explicit non-HEAD `--target`, this tree half MAY
   refuse conservatively. A CEM failure that carries no frozen CEM code is reported as
-  `unsupported-prove-cem` (`cmd/corvint/prove.go:988@975538a3`).
+  `unsupported-prove-cem` (`cmd/corvint/prove.go:933@975538a3`).
 - **FPK-V0-013:** A `reverse-import` row whose cited path ends in `.py` (`reason` `imports X`) MUST
   be judged by the Python import grammar in `internal/liveverify/pyresolve` over the committed blob,
   never by the index. It is `PASS` when an import statement that begins on the cited line binds
@@ -377,7 +377,7 @@ above stands with that substitution.
   ledger row whose counts are malformed, and `none` never contributes to `judged`.
   Accepted amendment (AT-06, decision 0052): checkpoint mode omits `proof.ledger` entirely, never
   emitting it even absent. `runProve` today sets `receipt.Proof.Ledger` unconditionally for every
-  mode, checkpoint included (`cmd/corvint/prove.go:499-502@63a5d957`), but this clause's own byte-identity
+  mode, checkpoint included (`cmd/corvint/prove.go:498-501@63a5d957`), but this clause's own byte-identity
   requirement (`repository.dirty_paths_sha256`) fixes checkpoint output to the tree, HEAD, dirty
   set, and the checkpoint document alone; `prove-observe` can append a ledger row, changing
   `proof.ledger`, without changing any of those four (`cmd/corvint/prove_observe.go:45-66@2adc0365`,
@@ -445,7 +445,7 @@ above stands with that substitution.
   `internal/liveverify/affected/select.go:481-494@eadff8fe`), by the same construction
   `internal/gokernel/repository.go:405-406@425ed3ff` and `internal/gokernel/repository.go:416@54fe2926` already take — cited as a construction
   precedent only, since that digest's input is gokernel's own status list, whereas this digest's
-  input is the `affected.DirtyPaths` list the run already reads (`cmd/corvint/prove.go:532-534@6b81d3a5`). It hashes
+  input is the `affected.DirtyPaths` list the run already reads (`cmd/corvint/prove.go:531-533@6b81d3a5`). It hashes
   path names, never
   content, so a caller can compute a matching value and an equal dirty set is decidably equal.
   `repository.object_format` names the Git object format the document's
@@ -475,33 +475,33 @@ above stands with that substitution.
   keeps the only copy.
 - **FPK-V0-021:** (accepted 2026-09-04 for AT-06 by decision 0052) `--checkpoint FILE` accepts an absolute or relative path outside the repository root,
   unlike `--cem` (`cmd/corvint/prove_attest_cem.go:263-270@2adcddfb`), and is read through `readBoundedFile`
-  (`cmd/corvint/prove.go:969@9388fe37`) at 256 KiB. FILE itself MUST be an unchanged regular file;
+  (`cmd/corvint/prove.go:914@9388fe37`) at 256 KiB. FILE itself MUST be an unchanged regular file;
   symlinks, directories, FIFOs, devices, and an identity change while opening are unreadable.
-  `proveWrappedCommand` (`cmd/corvint/prove.go:366-385@8ae224e9`) dispatches on
+  `proveWrappedCommand` (`cmd/corvint/prove.go:365-384@8ae224e9`) dispatches on
   `--checkpoint` as a third branch beside `--task` and `--cem`. The flag MUST be mutually exclusive
   with `--task`, `--cem`, `--base`, and `--mutate`; combining it with any of them is
   `invalid-arguments`. Two paths reach that one code, and which one runs is argv-order dependent.
   `proveWrappedCommand` is a single loop over the arguments in argv order that returns on the first
-  matching argument (`cmd/corvint/prove.go:366-385@8ae224e9`); the `--checkpoint` test MUST sit in that same loop body
+  matching argument (`cmd/corvint/prove.go:365-384@8ae224e9`); the `--checkpoint` test MUST sit in that same loop body
   beside the `--task` and `--cem` tests, so the FIRST of the three flags to appear in argv selects
   the branch. Before this branch the loop scanned every element of `rest` with no `--` handling,
   while `parseImpactArguments` treats a literal `--` as ending flag recognition and
   reading every later token positionally (`cmd/corvint/main.go:308-315@bcf2181e`), which is how positional
   impact paths are preserved (FPK-V0-010). Wrapper flag recognition, including the
   `--checkpoint` test, MUST therefore stop scanning at the first `--` (the loop breaks there,
-  `cmd/corvint/prove.go:371-373@0bd3675a`), so a tracked path literally
+  `cmd/corvint/prove.go:370-372@0bd3675a`), so a tracked path literally
   named `--checkpoint=foo.go` given after `--` is read as a positional impact path, never as the
   checkpoint flag. The `=` form `--checkpoint=FILE` is accepted: the `--checkpoint` test MUST match it
-  by prefix exactly as the `--task=` and `--cem=` tests do (`cmd/corvint/prove.go:374-382@474c00a2`), so a spelling
+  by prefix exactly as the `--task=` and `--cem=` tests do (`cmd/corvint/prove.go:373-381@474c00a2`), so a spelling
   accepted everywhere else in `prove` is not silently rejected here.
   Its `"checkpoint"` result MUST be consumed at its own early-return dispatch site
-  (`cmd/corvint/prove.go:299-302@f89c7c4b`), like the one `cem` uses (`cmd/corvint/prove.go:303-306@5ee2e164`), before `withoutMutateFlag` lifts `--mutate` out
-  (`cmd/corvint/prove.go:308@45f6fde4`): the branch then sees the arguments as written and owns its own refusal of
+  (`cmd/corvint/prove.go:298-301@f89c7c4b`), like the one `cem` uses (`cmd/corvint/prove.go:302-305@5ee2e164`), before `withoutMutateFlag` lifts `--mutate` out
+  (`cmd/corvint/prove.go:307@45f6fde4`): the branch then sees the arguments as written and owns its own refusal of
   `--checkpoint --mutate`, rather than reaching the existing impact-mode `--mutate` check
-  (`cmd/corvint/prove.go:332-333@13b30987`), which gives the same `invalid-arguments` code under another message.
+  (`cmd/corvint/prove.go:331-332@13b30987`), which gives the same `invalid-arguments` code under another message.
   `prove --checkpoint FILE --task T` therefore reaches the checkpoint branch, and
   `prove --task T --checkpoint FILE` rewrites to `query` (`parseProveInvocation`,
-  `cmd/corvint/prove.go:308-312@ac41b612`) and is refused by the query argument parser, whose allowlist admits only
+  `cmd/corvint/prove.go:307-311@ac41b612`) and is refused by the query argument parser, whose allowlist admits only
   `--task`, `--limit`, and `--budget-bytes` and refuses everything else as `invalid-arguments`
   (`parseQueryArgumentsForPlatform`, `cmd/corvint/main.go:235-238@228dfda4`; `argumentError`, `cmd/corvint/main.go:80-81@9e55e110`).
   The requirement is therefore stated on what is observable: `--checkpoint` with `--task` MUST
@@ -518,16 +518,16 @@ above stands with that substitution.
   `--checkpoint` combined with `--base` or `--mutate`, in either order,
   reaches the checkpoint parser, because neither is a wrapper flag, and is refused there; with
   `--cem` written first, the CEM parser's unrecognized-flag branch refuses `--checkpoint`
-  (`cmd/corvint/prove.go:414-415@f316ecd0`) with the same code. Before this branch, `prove --checkpoint FILE` rewrote to
+  (`cmd/corvint/prove.go:413-414@f316ecd0`) with the same code. Before this branch, `prove --checkpoint FILE` rewrote to
   `impact` and was refused by `parseImpactArguments` (`cmd/corvint/main.go:474-475@6955320f`); it now
   reaches the checkpoint branch, which is the accepted invocation. The parsers are distinct —
   `--budget-bytes` is accepted by the query parser and rejected by the checkpoint parser — so the
   requirement is stated on the code, not on one shared parser. `prove --checkpoint FILE` MUST be read-only under FPK-V0-001: no
   self-observation append, no ledger write. The read bracket of FPK-V0-006/007 MUST apply
-  unchanged, and the checkpoint compile function (`compileCheckpointProof`, `cmd/corvint/prove.go:618@01d34b22`) MUST
+  unchanged, and the checkpoint compile function (`compileCheckpointProof`, `cmd/corvint/prove.go:617@01d34b22`) MUST
   implement it itself, since the early-return
-  dispatch (`cmd/corvint/prove.go:536-538@acc310b7`) leaves the surrounding function's own closing check unreached: the
-  dirty set is read before compilation with the semantics of `cmd/corvint/prove.go:532-535@10e13ff1`, and after every
+  dispatch (`cmd/corvint/prove.go:535-537@acc310b7`) leaves the surrounding function's own closing check unreached: the
+  dirty set is read before compilation with the semantics of `cmd/corvint/prove.go:531-534@10e13ff1`, and after every
   verdict is decided the function re-reads the dirty set and the HEAD commit plus its immutable tree, refusing
   `unsupported-prove-drift` if any has moved and all were read successfully; if a closing
   read instead FAILS, the refusal is that read's own code — `unsupported-prove-history` for the
@@ -535,10 +535,10 @@ above stands with that substitution.
   `unsupported-prove-drift`, which asserts a difference, not a read failure. The closing re-read
   is `checkpointClosingRead` (`cmd/corvint/prove_checkpoint.go:517-530@9b0dd02e`): it re-reads the dirty
   set, then re-resolves the HEAD commit and its tree through `checkpointRevision` (`cmd/corvint/prove_checkpoint.go:499-516@39afb808`).
-  `compileCEMProof` brackets the tree and dirty set the same way (`cmd/corvint/prove.go:845-873@9d171913`) but not the
+  `compileStableCEMProof` brackets the tree and dirty set the same way (`cmd/corvint/prove_attest_cem.go:363-393@ce985523`) but not the
   commit. After the closing read, `compileCheckpointProof` also refuses `unsupported-prove-drift`
   when `contextindex.Build` pinned a commit or tree other than the opening read's
-  (`cmd/corvint/prove.go:660-664@7e436d2a`), because `Build` can observe a later stable revision inside the bracket. Every handle MUST be
+  (`cmd/corvint/prove.go:659-663@7e436d2a`), because `Build` can observe a later stable revision inside the bracket. Every handle MUST be
   judged against the CURRENT snapshot, never the checkpoint's own `base_commit`/`base_tree`.
   After the index is built and before any handle is judged or the checkpoint branch's own blob
   reads, `repository.object_format` MUST equal
@@ -555,7 +555,7 @@ above stands with that substitution.
   handle MUST receive exactly one verdict, decided by this total order over all inputs, first match
   wins: (1) `unframable` — the path is not normalized
   (`internal/contextindex/impact.go:522-532@00d37054`) or the LF-delimited `cat-file --batch` protocol cannot
-  carry it (`cmd/corvint/prove.go:1649-1653@7d324499`), so it is never sent to Git at all; (2) `unsupported` — the current
+  carry it (`cmd/corvint/prove.go:1587-1591@7d324499`), so it is never sent to Git at all; (2) `unsupported` — the current
   tree lists the path at a non-blob mode, or lists it as a blob for which the path has no entry in
   `Index.Sources` (`internal/contextindex/index.go:209-215@aa5d6289`, `internal/contextindex/index.go:480-483@478ddf23`), whether because its kind
   is unadmitted or because an index exclusion removed it — the named field, not
@@ -565,10 +565,10 @@ above stands with that substitution.
   which includes untracked and worktree-deleted names, content unresolved; (4) `path-deleted` —
   the current tree lists no entry for the path AND `readCitedBlobs` returned no entry for it. That
   absence is how a `missing` object MUST be detected: the batch is addressed `<revision>:<path>`
-  (`cmd/corvint/prove.go:1829-1838@06a841dc`), so a path Git does not hold is simply left out of the returned map. The
+  (`cmd/corvint/prove.go:1767-1776@06a841dc`), so a path Git does not hold is simply left out of the returned map. The
   verdict branch MUST decide from that map absence rather than re-parsing Git's batch framing;
   `parseCatFileBatch` matches the exact echoed `<revision>:<path> missing` header, including a path
-  bearing a space (`cmd/corvint/prove.go:1879-1885@aa98f5c8`);
+  bearing a space (`cmd/corvint/prove.go:1817-1823@aa98f5c8`);
   (5) `blob-changed` — the current blob differs from `blob_hash`;
   (6) `unchanged` — the current blob equals `blob_hash`. Directories and gitlinks are decided at
   step (2) by mode: `git ls-tree --full-tree <tree> -- <path>` reports `040000` for a directory and
@@ -629,7 +629,7 @@ above stands with that substitution.
   committed tree (`internal/contextindex/impact.go:98-104@d2231c48`), so a dirty or unadmitted path still has
   matching committed rows, and an ungated match would rehydrate committed bytes as if they were
   what the agent will read — the same reason `judgeHistory` declines to judge a dirty path at all
-  (`cmd/corvint/prove.go:1160-1166@72ba1935`). For an eligible handle, selectors MUST be matched by identity,
+  (`cmd/corvint/prove.go:1098-1104@72ba1935`). For an eligible handle, selectors MUST be matched by identity,
   not by position. Checkpoint lookup compiles unranked results from the current index using the
   existing direct-path, document, feature/scenario, symbol, test, reverse-import and reference
   result constructors. It uses only eligible critical paths, never the stored task prose, and
@@ -684,7 +684,7 @@ above stands with that substitution.
   unreadable, non-regular, or changes identity while opening, or exceeds the 256 KiB bound of
   `readBoundedFile` (`cmd/corvint/prove_checkpoint.go:95-99@afdb91b4`) —
   `unreadable-checkpoint-document`, the branch supplying its own message for the over-bound case
-  rather than surfacing that helper's, which names a CEM `map` (`cmd/corvint/prove.go:969-982@d4769336`);
+  rather than surfacing that helper's, which names a CEM `map` (`cmd/corvint/prove.go:914-927@d4769336`);
   (2) the document fails schema or canonical-JSON validation —
   `invalid-checkpoint-document`, which includes a `blob_hash` whose shape is not the one
   `repository.object_format` declares and two `handles` entries sharing a `path` with different
@@ -695,18 +695,18 @@ above stands with that substitution.
   `invalid-arguments`, the single code `argumentError` gives every such refusal
   (`cmd/corvint/main.go:80-81@9e55e110`), whichever parser produces it: the query allowlist when `--task` is
   the first wrapper flag (`cmd/corvint/main.go:236-237@66cf57ce`), the CEM parser when `--cem` is
-  (`cmd/corvint/prove.go:414-415@f316ecd0`), and `parseProveCheckpointArguments` otherwise
+  (`cmd/corvint/prove.go:413-414@f316ecd0`), and `parseProveCheckpointArguments` otherwise
   (`cmd/corvint/prove_checkpoint.go:68-69@191ad3c1`);
   `--checkpoint` introduces no parser vocabulary of its
   own, and this case is enumerated so the closed list is not read as excluding ordinary parse
   failures; (6) the `git` executable is unavailable — `unsupported-prove-revision`
-  (`cmd/corvint/prove.go:528-531@429f1ce3`), decided in `compileProof` before it dispatches to any mode
-  compile function (`cmd/corvint/prove.go:536-541@75d9bf23`), so it is settled before the checkpoint compile function is ever
+  (`cmd/corvint/prove.go:527-530@429f1ce3`), decided in `compileProof` before it dispatches to any mode
+  compile function (`cmd/corvint/prove.go:535-540@75d9bf23`), so it is settled before the checkpoint compile function is ever
   entered; (7) the worktree status cannot be read — `unsupported-prove-history`
-  (`cmd/corvint/prove.go:532-535@10e13ff1`), likewise decided in `compileProof` before dispatch; (8) the repository has
+  (`cmd/corvint/prove.go:531-534@10e13ff1`), likewise decided in `compileProof` before dispatch; (8) the repository has
   no resolvable HEAD tree — `unsupported-prove-revision` (`checkpointRevision`,
   `cmd/corvint/prove_checkpoint.go:499-516@39afb808`, refusing at `cmd/corvint/prove_checkpoint.go:508-509@c3ca96ba`), a separate case from (6): `compileProof` itself never calls `proveTreeRevision`
-  before dispatch (the shared closing check that does, `cmd/corvint/prove.go:584@4667fe9f`, sits inside the
+  before dispatch (the shared closing check that does, `cmd/corvint/prove.go:583@4667fe9f`, sits inside the
   non-checkpoint path only), so the checkpoint compile function MUST first resolve the HEAD commit
   and then its immutable tree, before `readBoundedFile`, to settle this case ahead of the file read; (9) the tree
   cannot be listed at HEAD, or the `git ls-tree` output passes the same 64 MiB bound
@@ -737,10 +737,10 @@ above stands with that substitution.
   NOT wrap the `*contextindex.Error`: `emitError` prints without a `code` member for an error
   that unwraps to a code-less context error (`cmd/corvint/main.go:1485-1496@a9930fba`), so wrapping to preserve the message
   would still emit an uncoded refusal, which this clause forbids. That mapping MUST live in the
-  checkpoint branch's own compile function — `compileCheckpointProof` (`cmd/corvint/prove.go:618@01d34b22`), the sibling of
-  `compileCEMProof` (`cmd/corvint/prove.go:837@e469a50d`) that `compileProof` dispatches to on the
-  checkpoint mode (`cmd/corvint/prove.go:527@6d433de3`, `cmd/corvint/prove.go:536-538@acc310b7`) — between its
-  index build and its return to `runProve` (`cmd/corvint/prove.go:631-641@5563dd2e`, `cmd/corvint/prove.go:487-495@73e66e84`). It MUST NOT be placed in
+  checkpoint branch's own compile function — `compileCheckpointProof` (`cmd/corvint/prove.go:617@01d34b22`), the sibling of
+  `compileCEMProof` (`cmd/corvint/prove.go:834@e469a50d`) that `compileProof` dispatches to on the
+  checkpoint mode (`cmd/corvint/prove.go:526@6d433de3`, `cmd/corvint/prove.go:535-537@acc310b7`) — between its
+  index build and its return to `runProve` (`cmd/corvint/prove.go:630-640@5563dd2e`, `cmd/corvint/prove.go:486-494@73e66e84`). It MUST NOT be placed in
   `emitError` (`cmd/corvint/main.go:1494-1496@4f554a82`), which plain `prove` shares, so plain `prove`'s
   stderr for the same code-less `Build` error stays byte-unchanged, which FPK-V0-026 requires as a
   named test; (11) `repository.object_format` differs from the object format of the index
@@ -754,12 +754,12 @@ above stands with that substitution.
   called from `pinCandidates`/`readResidualBlobs`, `internal/contextindex/index.go:461-463@16cf1c1f`, `internal/contextindex/index.go:1492-1494@b9840036`), so `Build` (case
   10) necessarily runs, and necessarily calls `cat-file`, before `Index.ObjectFormat` is even known
   to compare; (12) the `cat-file --batch` stream fails or passes its 64 MiB
-  bound — `unsupported-prove-history` (`cmd/corvint/prove.go:1829-1836@a1df6715`); (13) the read bracket drifts,
+  bound — `unsupported-prove-history` (`cmd/corvint/prove.go:1767-1774@a1df6715`); (13) the read bracket drifts,
   the HEAD commit, its tree, or dirty set having been read again successfully but found to differ from the
   opening read — `unsupported-prove-drift`, decided by the closing re-read FPK-V0-021 requires the
   checkpoint compile function to perform itself (`checkpointClosingRead`,
   `cmd/corvint/prove_checkpoint.go:517-530@9b0dd02e`), or the index `Build` having pinned a revision other
-  than the opening read's (`cmd/corvint/prove.go:660-664@7e436d2a`). A closing re-read that FAILS outright, rather than succeeding and
+  than the opening read's (`cmd/corvint/prove.go:659-663@7e436d2a`). A closing re-read that FAILS outright, rather than succeeding and
   differing, is not case (13): it refuses with the code its own kind of read always carries —
   `unsupported-prove-history` for a failing closing status re-read, `unsupported-prove-revision`
   for a failing closing HEAD-tree re-read — and both are exempt from the fixed evaluation order
@@ -773,10 +773,10 @@ above stands with that substitution.
   (11), before the `cat-file` stream the handle verdicts need (12); the closing drift check (13) and
   the two closing-read-failure codes above are evaluated last in every case because they can only be
   decided after the reads they bracket. This order is the one `compileProof` already runs for its
-  shared prefix (`cmd/corvint/prove.go:527@6d433de3`): `exec.LookPath("git")` (`cmd/corvint/prove.go:528-531@429f1ce3`) and
-  `affected.DirtyPaths` (`cmd/corvint/prove.go:532-535@10e13ff1`) both decide before it dispatches to any mode compile function
-  (`cmd/corvint/prove.go:536-541@75d9bf23`), so cases (6) and (7) are settled ahead of every case the checkpoint compile function
-  itself decides; within that function, `checkpointRevision` as the first statement (`cmd/corvint/prove.go:619@a1870ebe`)
+  shared prefix (`cmd/corvint/prove.go:526@6d433de3`): `exec.LookPath("git")` (`cmd/corvint/prove.go:527-530@429f1ce3`) and
+  `affected.DirtyPaths` (`cmd/corvint/prove.go:531-534@10e13ff1`) both decide before it dispatches to any mode compile function
+  (`cmd/corvint/prove.go:535-540@75d9bf23`), so cases (6) and (7) are settled ahead of every case the checkpoint compile function
+  itself decides; within that function, `checkpointRevision` as the first statement (`cmd/corvint/prove.go:618@a1870ebe`)
   settles case (8) ahead of the tree listing (9) and the file read (1). A
   document that is both over the entry bound and
   schema-invalid is therefore `invalid-checkpoint-document`, not
@@ -785,16 +785,16 @@ above stands with that substitution.
   `invalid-checkpoint-document`.
   Output-transport failure is NOT a refusal and is not on that list. Encoding
   the receipt as canonical JSON and writing it to stdout both happen after every verdict is already
-  decided, and either can fail: both exit 2 with `output-failed` (`cmd/corvint/prove.go:504-508@4c0799f8`,
-  `cmd/corvint/prove.go:516-518@ea3220b5`). The "nothing on stdout" guarantee therefore binds refusals only, which return before
-  the write is reached (`cmd/corvint/prove.go:491-494@21e8ca71`). `stdout.Write` can fail having already written part of
-  the document (`cmd/corvint/prove.go:516-518@ea3220b5`), so an `output-failed` exit MAY leave a partial document on
+  decided, and either can fail: both exit 2 with `output-failed` (`cmd/corvint/prove.go:503-507@4c0799f8`,
+  `cmd/corvint/prove.go:515-517@ea3220b5`). The "nothing on stdout" guarantee therefore binds refusals only, which return before
+  the write is reached (`cmd/corvint/prove.go:490-493@21e8ca71`). `stdout.Write` can fail having already written part of
+  the document (`cmd/corvint/prove.go:515-517@ea3220b5`), so an `output-failed` exit MAY leave a partial document on
   stdout; a consumer MUST read the exit status, never stdout emptiness, as the signal that no
   verdict was produced. The checkpoint branch MUST call `contextindex.Build`
   (`internal/contextindex/index.go:278@1cafb447`) directly, as prove's impact and change modes did until `IDX-SNAP-V0-020`, which
-  left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1100@a1c6494d`, `cmd/corvint/index_snapshot.go:85@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
+  left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1038@a1c6494d`, `cmd/corvint/index_snapshot.go:85@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
   for this: its project-operations query profile acquires through `standaloneQueryContext`
-  (`cmd/corvint/prove.go:1086-1088@d473eb95`, `cmd/corvint/main.go:1359-1370@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
+  (`cmd/corvint/prove.go:1024-1026@d473eb95`, `cmd/corvint/main.go:1359-1370@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
   (`cmd/corvint/index_snapshot.go:73-74@5959c784`, `cmd/corvint/index_snapshot.go:59-60@123f0830`) at `cmd/corvint/main.go:1388-1389@c39315fe` and
   `cmd/corvint/harness_context.go:69-70@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:394-396@9faff3e7`, called at
   `cmd/corvint/main.go:1384@e0e5c824`; `BuildEval`, `internal/contextindex/index.go:304-305@b1c33c59`, called at `cmd/corvint/harness_context.go:71@54018a6a`) on a miss — so plain
@@ -859,7 +859,7 @@ above stands with that substitution.
   Index omission MUST NOT be evidence of deletion:
   `path-deleted` rests on the tree-entry and `git cat-file` presence checks of FPK-V0-021.
   `judgeHistory` is the precedent for judging against Git rather than the index, but only a
-  partial one: it consults the `cat-file` map alone (`cmd/corvint/prove.go:1160-1171@c20da0d4`) and makes no
+  partial one: it consults the `cat-file` map alone (`cmd/corvint/prove.go:1098-1109@c20da0d4`) and makes no
   `ls-tree` check, so the tree-entry half of the FPK-V0-021 test is new work here. Neither rests
   on index omission; `dirty_paths_sha256` itself hashes path names only, not content
   (`internal/gokernel/repository.go:406@8febb932`).
@@ -891,7 +891,7 @@ above stands with that substitution.
   distinguish one; the same fixture with and without a valid `.corvint/index/` snapshot additionally
   yields byte-identical documents, and neither carries a `snapshot` or any other cache-metadata
   member; and the stderr of a plain `prove PATH...` (or `prove --base`, the two modes that reach
-  `contextindex.Build` on a snapshot miss at `cmd/corvint/prove.go:1100@a1c6494d` and `cmd/corvint/index_snapshot.go:85@90129c09`) for a code-less `Build` error is
+  `contextindex.Build` on a snapshot miss at `cmd/corvint/prove.go:1038@a1c6494d` and `cmd/corvint/index_snapshot.go:85@90129c09`) for a code-less `Build` error is
   byte-equal to a pinned expectation, so an `unsupported-prove-index` mapping placed in `emitError`
   rather than in the checkpoint branch fails. History
   flags: a merge and a revert each yield `commit-moved`, with the same tree reported as a fact and
@@ -1598,13 +1598,13 @@ which is the whole of what the row asserts.
 | Code | First emitting site | At the cited site |
 |---|---|---|
 | `attest-failed` | `cmd/corvint/prove.go:905` | "cannot build the in-toto statement", or at the signing site "cannot sign the DSSE envelope" |
-| `invalid-mutation-claim` | `cmd/corvint/prove.go:1397@bd8d0b17` | witness `NOT_PRODUCED` reason when the row reason names no recognizable test-claim target; the row is `FAIL` with detail "unrecognized test claim" |
+| `invalid-mutation-claim` | `cmd/corvint/prove.go:1335@bd8d0b17` | witness `NOT_PRODUCED` reason when the row reason names no recognizable test-claim target; the row is `FAIL` with detail "unrecognized test claim" |
 | `mutation-budget-exhausted` | `cmd/corvint/prove.go:1230` | witness `NOT_PRODUCED` reason for an unjudged mutant row reached after the invocation mutation budget context has ended while the parent context has not; the row is `NOT_RUN` |
-| `mutation-input-unavailable` | `cmd/corvint/prove.go:1400@d744f811` | witness `NOT_PRODUCED` reason when a cited path is dirty (row `NOT_RUN`), the cited test blob is not at the cited path (row `FAIL`), or, after a kill, the changed blob or checkout revision is missing or the reported witness has no operator, no killing test, or an empty span |
-| `no-mutant-in-range` | `cmd/corvint/prove.go:1368` | witness `NOT_PRODUCED` reason when the range changed no lines of the claimed path; the row is `NOT_RUN` |
+| `mutation-input-unavailable` | `cmd/corvint/prove.go:1338@d744f811` | witness `NOT_PRODUCED` reason when a cited path is dirty (row `NOT_RUN`), the cited test blob is not at the cited path (row `FAIL`), or, after a kill, the changed blob or checkout revision is missing or the reported witness has no operator, no killing test, or an empty span |
+| `no-mutant-in-range` | `cmd/corvint/prove.go:1306` | witness `NOT_PRODUCED` reason when the range changed no lines of the claimed path; the row is `NOT_RUN` |
 | `no-replayable-kill-observed` | `cmd/corvint/prove.go:1387` | witness `NOT_PRODUCED` reason when the Go mutation report verdict is not killed or carries no witness, and the runner-unavailable case did not apply |
 | `observation-failed` | `cmd/corvint/prove_observe.go:64` | `prove-observe` could not append the `proof` row to the self-observation ledger; the message is the append error text and the exit is 2 |
-| `python-mutation-witness-not-produced` | `cmd/corvint/prove.go:1369` | witness `NOT_PRODUCED` reason set on every row whose claimed changed path ends in `.py`, whatever the Python mutation verdict |
+| `python-mutation-witness-not-produced` | `cmd/corvint/prove.go:1307` | witness `NOT_PRODUCED` reason set on every row whose claimed changed path ends in `.py`, whatever the Python mutation verdict |
 
 ## Acceptance evidence and traceability
 
@@ -1627,7 +1627,7 @@ which is the whole of what the row asserts.
 | FPK-V0-014 | `withoutMutateFlag`, `judgeMutations`, `judgeMutation`, `mutationFalsified`, `internal/liveverify/mutate` (`Open`, `Judge`, `Close`, `classifyRun`, `deletableStatement`, `hostSandbox`, `seatbeltProfile`, `bubblewrap`, `newWorkspace`, `resetScratch`, `reportsTestFailure`, `configureProcess`) | `TestProveImpactMutationIsOptInAndKillsWithAStrongTest` (NOT_RUN without the flag, PASS with `detail`, tree digest), `TestProveImpactMutationFailsAnAssertionFreeTest`, `TestProveMutateFlagIsImpactOnly` (repeat, non-impact, `--`), `TestJudgeMutationFailsAMisplacedTestBlobWithoutRunning`, `TestMutationVerdictVocabulary`, package tests in `mutate` (root digest, temp-dir removal, budget, baseline, `TestRunNeverCreditsAMutantThatDoesNotCompile`, `TestRunRejectsModeOnlyFailureBeforeMutation`, `TestGroupFallbackRejectsModeOnlyBaseline`, `TestEventSinkPreservesFailureClassification`, `TestPlanNeverDeletesADefinition`, `TestClassifyRunSeparatesABuildFailureFromARedTest`, `TestRunConfinesTheCitedTests`, `TestRunKillsWhatTheCitedTestsLeftRunning`, `TestRunReportsUnsupportedWithoutASandbox`, `TestSeatbeltProfileConfinesWritesAndNetwork`, `TestBubblewrapArgvConfinesWritesAndNetwork`, `TestRunGivesEveryRunAFreshScratch`, `TestRunRefusesToJudgeARunWithoutAVerdict`, `TestRunRejectsARelativeCacheDir`, `TestOpenServesManyClaimsFromOneCopy`, `TestJudgeRejectsAClaimAgainstAnotherRevision`, `TestOpenRejectsCallerMistakes`, `TestOpenNeverReadsTheRevisionAsAnOption`, `TestOpenExportsCommittedBytesWhateverTheAttributes`, `TestOpenRefusesATreeEntryItCannotReproduce`) |
 | FPK-V0-015 | `attestProof`, `cemSubjects`, `internal/attest` | `TestProveCEMAttestWrapsTheDocumentAndSignsIt` (predicate equals the document, subjects, `Verify` round trip, tree digest), `TestProveCEMAttestVerifiesOfflineWithCosignSemantics` (independent PKIX public-key, DSSE PAE, in-toto shape, and tampered-payload rejection), `TestProveCEMAttestRejectsBadFlagsAndKeys`, `TestProveCEMAttestRefusesAMapPathThatIsNotUTF8` (a map path whose bytes are not valid UTF-8 is exit 2 `attest-failed` with empty stdout; where the filesystem refuses the name, as APFS does with EILSEQ, `attestProof` refuses it with the real prove document after accepting the UTF-8 path; fails with the canonical string check disabled), package tests in `attest` (golden statement, envelope rejections, key bounds), `TestVerifyRejectsDuplicateMemberNames` (repeated envelope `payload` and signature `keyid`), `TestVerifyRejectsCaseVariantSignatureMember` (`KeyID` alone and `KEYID` before `keyid`); each accepted before the strict decoder; `TestStatementRejectsRepeatedMemberName` (top-level and nested), `TestStatementRejectsInvalidUTF8` (prove document, subject name, digest algorithm, CEM name); each accepted before the refusal |
 | FPK-V0-016 | `runProveObserve`, `proofCounts`, `proveLedger`, `observations.Falsification`, `falsificationLines` | `TestProveObserveRecordsOnlyTheVerdictCounts` (a real proof piped in; the row carries kind and counts only; `ledger` absent before and present after; tree digest unchanged by the second `prove`; `observations` lines), `TestProveObserveRejectsWhatIsNotAProof` (seven rejections, unignored ledger, stray flag), `TestFalsificationRateCountsJudgedRowsOnly` |
-| FPK-V0-012 | `compileCEMProof`, `cemRows`, `judgeVerifier`, `cemState`, `parseProveCEMArguments` | `TestProveCEMAcceptedMapProvesSupportedHunksAndWritesNothing` (embedded document equals `cem verify`, rerun byte-identical, tree digest), `TestProveCEMRejectedMapFailsEveryClaimRow`, `TestProveCEMUnknownHunkIsNotAClaim`, `TestProveCEMRejectsBadArgumentsWithoutOutputOrWrite`, `TestProveCEMRefusesAMapPathThroughASymlinkedParentOrCaseFoldedGit` (a symlinked parent, whether it resolves inside or outside `--root`, and a path component that case-folds equal to `.git`, exit 2 `map-unavailable`), `TestJudgeVerifierVerdicts`, `TestProveRefusesDriftInEveryMode`, `TestReadBoundedFileRefusesFIFO`, `TestReadBoundedFileRefusesDirectory` |
+| FPK-V0-012 | `compileCEMProof`, `cemRows`, `judgeVerifier`, `cemState`, `parseProveCEMArguments` | `TestProveCEMAcceptedMapProvesSupportedHunksAndWritesNothing` (embedded document equals `cem verify`, rerun byte-identical, tree digest), `TestCEMV1210ProveRefusesEveryMapOutsideTheStableRoute` (a retired 0.x map refuses `unsupported-spec`; the 0.x REJECTED and unknown-hunk rows are unreachable and their tests retired under `CEM-V1-210`), `TestProveCEMRejectsBadArgumentsWithoutOutputOrWrite`, `TestProveCEMRefusesAMapPathThroughASymlinkedParentOrCaseFoldedGit` (a symlinked parent, whether it resolves inside or outside `--root`, and a path component that case-folds equal to `.git`, exit 2 `map-unavailable`), `TestJudgeVerifierVerdicts`, `TestProveRefusesDriftInEveryMode`, `TestReadBoundedFileRefusesFIFO`, `TestReadBoundedFileRefusesDirectory` |
 | FPK-V0-019 | `mutationTestPath`, `mutationClaim`, `judgePythonMutation` (`cmd/corvint/prove_py.go`); `falsifierFor`, `affectedRow`, `judgeMutation` Python branch, `rangeHunkSpans` `*.py`; `internal/liveverify/pymutate` (`Judge`, `Run`, test-file recognition, `planMutations`, `mergeCompoundOperators`, `generateMutants`, `findInterpreter`, `classifyRun`, `baselineDetail`); `Export.Dir`, `Export.Scratch`, `Export.Unsandboxed`, `Export.Run` (`internal/liveverify/mutate/shared.go`) | `TestProveChangeModeJudgesPythonTestRowsUnderMutate` (NOT_RUN without the flag, PASS with `detail` naming `swap-binary at calc.py:5`, tree digest), `TestMutationClaimSeparatesLanguagesAndTests`, `TestMutationVerdictVocabulary` (a `test_*.py` path), `TestAffectedRowMakesNoMutationClaimForAChangedTest`; package tests in `pymutate` (`TestRunKillsAMutantAndLeavesTheRootUntouched`, `TestRunReportsSurvivedWhenTheTestAssertsNothing`, `TestRunNeverCreditsAMutantThatDoesNotParse`, `TestRunReportsNoMutantsOutsideTheChangedLines`, `TestRunReportsUnsupportedWhenTheBaselineFails` (red and offline), `TestRunReportsUnsupportedWithoutPytest`, `TestFindInterpreterReportsUnavailablePythonAndPytest`, `TestAllUnaskableMutantsRemainUnjudged`, `TestRunRejectsCallerMistakes`, `TestClassifyRunSeparatesACollectionErrorFromARedTest`, `TestTestFunctionNamesSelectsOnlyTheClaimedTests`, `TestBaselineDetailSeparatesOfflineFromRed`, `TestPlanMutationsListsOperatorsInSourceOrder`, `TestRenderedMutantsAreSingleEdits`, `TestPlanNeverDeletesADefinition`, `TestGenerateMutantsConfinesToTheGivenLines`); bench snapshot run in `docs/BUILD-LOG.md` 2026-09-01 |
 | FPK-V0-020 | implemented experimentally in `prove_checkpoint.go` and `contextindex/checkpoint.go`; focused tests pass, full gate and Claude review pending | `TestCheckpointDocumentSchemaIsValidated`, `TestCheckpointEntryBoundsAndExactDuplicateCollapse`, `TestCheckpointHandlePrecedenceAndCriticalGates`, `TestCheckpointCallerProseAndVerificationAreInert`, `TestCheckpointHistoryFlagsAreFactsAndDirtyDigestHashesNames`, `TestCheckpointByteBoundAndCriticalBoundAreIndependent`; MISSING: absent `repository.object_format`, sha256 document with a 40-hex `blob_hash`, and an independently constructed dirty-path digest literal |
 | FPK-V0-021 | implemented experimentally in `prove_checkpoint.go` and `contextindex/checkpoint.go`; focused tests pass, full gate and Claude review pending | `TestCheckpointArgumentDispatchAndExclusivity`, `TestCheckpointHandlePrecedenceAndCriticalGates`, `TestCheckpointCurrentIdentityAuthorityAndLineMovement`, `TestCheckpointRefusesAnObjectFormatMismatch`, `TestCheckpointHistoryFlagsAreFactsAndDirtyDigestHashesNames`, `TestCheckpointReadsNoIndexSnapshotAndRetainsNothing`, `TestCheckpointRejectsSameTreeHEADDrift`, `TestCheckpointAuthorityFlagsAreIndependentOfDirtyVerdict`, `TestReadBoundedFileRefusesFIFO`, `TestReadBoundedFileRefusesDirectory`; MISSING: a positive `tree_moved` assertion |
@@ -1640,13 +1640,13 @@ which is the whole of what the row asserts.
 | FPK-V0-028 | `proveRow.Witness`, `mutationWitnessFromReport`, `citedPaths`; `mutate.Report.Witness`, mutation site byte spans, grouped test attribution | `TestProveMutationWitnessReplaysKillOnSecondCheckout` (second checkout, original blob, baseline pass, recorded operator/span, exact named-test kill), `TestMutationWitnessDisclosesNotProducedWhenRunnerUnavailable`, `TestMutationBudgetExhaustionDisclosesTypedWitness`, `TestMutationInputUnavailableDisclosesTypedWitness`, `TestNoMutantInRangeDisclosesTypedWitness`; 19-of-20 second-checkout acceptance cohort `NOT_RUN` because the repository has one focused replay fixture, not the required 20-witness cohort |
 | FPK-V0-029 | `documentStatus` (`internal/contextindex/parse.go`) and its oracle twin in `src/context_corvint_index.py`; fenced examples skipped through `nextFence`; consumed by `documentAuthority` | `TestDocumentStatusReadsEveryFieldShapeAndCapturesTheTokenAlone`, `TestDocumentStatusIsAnchoredAndHeadingsTruncateByRune`, `TestDocumentStatusIgnoresFencedExamples`, `test_document_status_reads_every_field_shape_and_captures_the_token_alone`, `conformance/cli-parity-v0` with unchanged stdout digests |
 | FPK-V0-030 | experimental prototype: `CEMStatement`, `VerifyCEM`, `ErrCEMBytesMismatch` (`internal/attest/cem.go`); wired by FPK-V0-031 | `TestCEMAttestationRoundTripsThroughTheExistingEnvelope` (predicate type, single subject with independently computed digest, no embedded bytes, `VERIFIED`), `TestCEMAttestationRefusesTamperedMapBytes` (flipped, empty, and appended bytes refused; non-CEM input not attested), `TestCEMAttestationDisclosesMissingMapBytes` (`NOT_RUN` with reason), `TestCEMAttestationRefusesASignedStatementThatIsNotACEMClaim` (validly signed statement with another `_type` or `predicateType`, zero or two subjects, or a subject name or digest that disagrees with the predicate refused with and without bytes, never as a byte mismatch), `TestCEMAttestationRefusesAMalformedSignedClaim` (validly signed empty, 63-digit, and uppercase sha256, negative size, empty spec, and empty name refused with and without bytes), `TestCEMAttestationRefusesADuplicateStatementMember` (repeated `predicateType` and predicate `size`), `TestCEMAttestationRefusesACaseVariantStatementMember` (`PredicateType` beside `predicateType`, predicate `Spec` beside `spec`), `TestCEMAttestationAcceptsUnknownStatementMembers` (undefined top-level and predicate members still `VERIFIED`); each refusal test fails with its refusal branch disabled |
-| FPK-V0-031 | experimental prototype: `attestProof`, `cemAttestationInput`, `parseProveCEMArguments` (`--attest-cem`), `parseProveVerifyCEMArguments`, `runVerifyCEMAttestation`, `verifyCEMAttestation` (`cmd/corvint/prove_attest_cem.go`), `attest.ReadPublicKey` | `TestProveCEMAttestOutputIsUnchangedWithoutAttestCEM` (`--attest` and `--attest-key` bytes equal the FPK-V0-015 statement and envelope rebuilt in-test, and are the first of two lines under `--attest-cem`), `TestProveCEMAttestationRoundTripsThroughTheCLI` (emit, verify `VERIFIED` with independently computed digest and size, tree digest unchanged), `TestProveCEMAttestationVerifyRefusesAChangedMap` (exit 2 `attest-cem-mismatch`, empty stdout), `TestProveCEMAttestationVerifyDisclosesMissingMapBytes` (`NOT_RUN` with reason), `TestProveCEMAttestationVerifyRefusesAnUnusablePublicKey` (missing, private-key PEM, and over-16-KiB key exit 2 `attest-public-key-unavailable`, empty stdout), `TestProveCEMAttestationVerifyRefusesAnUnreadableEnvelope` (missing envelope and the valid envelope whitespace-padded past 8 MiB exit 2 `attest-envelope-unavailable`), `TestProveCEMAttestationVerifyRefusesAnEnvelopeThatDoesNotVerify` (other signer's key, changed `payloadType`, changed payload, and the same-key FPK-V0-015 envelope exit 2 `attest-verification-failed`), `TestProveCEMAttestationVerifyRefusesInvalidArguments` (missing key flag, empty `--cem=`, repeated and unknown flags exit 2 `invalid-arguments`), `TestProveCEMAttestCEMRefusesInvalidArguments` (`--attest-cem=yes`, repeated `--attest-cem`, and `--attest-cem` in impact mode exit 2 `invalid-arguments`, empty stdout), `TestProveCEMAttestationVerifyRefusesAnUnavailableMap` (absolute, climbing with the signed map present at its target, missing, and over-4-MiB `--cem` exit 2 `map-unavailable`), `TestProveCEMAttestationVerifyRefusesASymlinkedOrCaseFoldedGitMap` (a symlinked parent, whether it resolves inside or outside `--root`, and a path component that case-folds equal to `.git`, exit 2 `map-unavailable`), `TestProveCEMAttestFailsWhenTheCEMStatementCannotBeBuilt` (`attestProof` with an attestable proof document and an empty CEM name or non-CEM bytes returns `attest-failed` and no output; the CLI reaches this branch only after the CEM verifier accepted the map, so the test calls `attestProof` directly), `TestReadBoundedFileRefusesFIFO`, `TestReadBoundedFileRefusesDirectory`; each refusal test fails with its refusal branch disabled |
+| FPK-V0-031 | experimental prototype: `attestProof`, `cemAttestationInput`, `parseProveCEMArguments` (`--attest-cem`), `parseProveVerifyCEMArguments`, `runVerifyCEMAttestation`, `verifyCEMAttestation` (`cmd/corvint/prove_attest_cem.go`), `attest.ReadPublicKey` | `TestCEMV1210ProveRefusesEveryMapOutsideTheStableRoute` (the 0.x `--attest-cem` emit and round-trip tests are retired with the 0.x map under `CEM-V1-210`; the stable emit and verify round trip is `TestCEMV1065ProveEmitsAndVerifiesTheV2Statement`), `TestProveCEMAttestationVerifyRefusesAChangedMap` (exit 2 `attest-cem-mismatch`, empty stdout), `TestProveCEMAttestationVerifyDisclosesMissingMapBytes` (`NOT_RUN` with reason), `TestProveCEMAttestationVerifyRefusesAnUnusablePublicKey` (missing, private-key PEM, and over-16-KiB key exit 2 `attest-public-key-unavailable`, empty stdout), `TestProveCEMAttestationVerifyRefusesAnUnreadableEnvelope` (missing envelope and the valid envelope whitespace-padded past 8 MiB exit 2 `attest-envelope-unavailable`), `TestProveCEMAttestationVerifyRefusesAnEnvelopeThatDoesNotVerify` (other signer's key, changed `payloadType`, changed payload, and the same-key FPK-V0-015 envelope exit 2 `attest-verification-failed`), `TestProveCEMAttestationVerifyRefusesInvalidArguments` (missing key flag, empty `--cem=`, repeated and unknown flags exit 2 `invalid-arguments`), `TestProveCEMAttestCEMRefusesInvalidArguments` (`--attest-cem=yes`, repeated `--attest-cem`, and `--attest-cem` in impact mode exit 2 `invalid-arguments`, empty stdout), `TestProveCEMAttestationVerifyRefusesAnUnavailableMap` (absolute, climbing with the signed map present at its target, missing, and over-4-MiB `--cem` exit 2 `map-unavailable`), `TestProveCEMAttestationVerifyRefusesASymlinkedOrCaseFoldedGitMap` (a symlinked parent, whether it resolves inside or outside `--root`, and a path component that case-folds equal to `.git`, exit 2 `map-unavailable`), `TestProveCEMAttestFailsWhenTheCEMStatementCannotBeBuilt` (`attestProof` with an attestable proof document and an empty CEM name or non-CEM bytes returns `attest-failed` and no output; the CLI reaches this branch only after the CEM verifier accepted the map, so the test calls `attestProof` directly), `TestReadBoundedFileRefusesFIFO`, `TestReadBoundedFileRefusesDirectory`; each refusal test fails with its refusal branch disabled |
 | FPK-V0-032 | `classifyTrust` (`cmd/corvint/prove_trust.go`), `proveRow.Trust`, `proveRow.Refusal`; `contextindex.TrustClass`, `contextindex.TrustTainted` | `TestProveRowsCarryOneTrustClassAndOldConsumersDecode` (every row of a real proof carries the class its label derives, none refused, and the previous row shape decodes the wire to the wire minus `trust` and `refusal`), `TestProveRefusesATaintedRowAsBasis` (a learned-ledger row and an unlisted label keep falsifier `none` and are refused by name even when marked `PASS`, so they count as unproven; a `syntax` row and an affected-test row are untouched) |
-| FPK-V0-033 | experimental prototype: `CEMPredicateTypeV1`, `CEMStatementV1` (`internal/attest/cem_v1.go`) | `TestCEMV1StatementBindsBaseAndPatchAndVerifies` (exact canonical statement rebuilt from the map's independently parsed `baseRevision` and `patchSha256`; `VerifyCEM` refuses `cem/v1`), and the unchanged `cem/0` tests `TestCEMAttestationRoundTripsThroughTheExistingEnvelope` and `TestProveCEMAttestOutputIsUnchangedWithoutAttestCEM` |
-| FPK-V0-034 | experimental prototype: `VerifyCEMPredicate`, `cemClaimParsers`, `parseCEMStatementV1`, `checkCEMV1Map`, `checkCEMBytes`, `checkCEMClaim` (`internal/attest`); `verifyCEMAttestation`, `cemAttestationClaim.BaseRevision`, `cemAttestationClaim.PatchSHA256` (`cmd/corvint/prove_attest_cem.go`) | `TestCEMV1StatementBindsBaseAndPatchAndVerifies` (`VERIFIED` and `NOT_RUN` claims; a `cem/0` envelope yields the `VerifyCEM` claim), `TestCEMV1RefusesAClaimItCouldNotHaveProduced` (13 signed edits refused, none as a byte mismatch), `TestProveCEMAttestationVerifiesAV1Predicate` (CLI `VERIFIED` and `NOT_RUN` with `predicateType`, `baseRevision`, `patchSha256`; a `cem/0` receipt carries neither member), `TestProveCEMAttestationRoundTripsThroughTheCLI` |
+| FPK-V0-033 | experimental prototype: `CEMPredicateTypeV1`, `CEMStatementV1` (`internal/attest/cem_v1.go`) | `TestCEMV1StatementBindsBaseAndPatchAndVerifies` (exact canonical statement rebuilt from the map's independently parsed `baseRevision` and `patchSha256`; `VerifyCEM` refuses `cem/v1`), and the unchanged `cem/0` test `TestCEMAttestationRoundTripsThroughTheExistingEnvelope`; the 0.x CLI output test is retired with the 0.x map under `CEM-V1-210` |
+| FPK-V0-034 | experimental prototype: `VerifyCEMPredicate`, `cemClaimParsers`, `parseCEMStatementV1`, `checkCEMV1Map`, `checkCEMBytes`, `checkCEMClaim` (`internal/attest`); `verifyCEMAttestation`, `cemAttestationClaim.BaseRevision`, `cemAttestationClaim.PatchSHA256` (`cmd/corvint/prove_attest_cem.go`) | `TestCEMV1StatementBindsBaseAndPatchAndVerifies` (`VERIFIED` and `NOT_RUN` claims; a `cem/0` envelope yields the `VerifyCEM` claim), `TestCEMV1RefusesAClaimItCouldNotHaveProduced` (13 signed edits refused, none as a byte mismatch); the 0.x CLI predicate and round-trip tests are retired with the 0.x map under `CEM-V1-210` |
 | FPK-V0-035 | experimental prototype: `readCEMAttestation`, `intotoVerifyEnvelope`, `intotoCEMClaim`, `intotoCheckMap` (`interop/cem01-go/intoto.go`) | `TestIntotoReadsTheDigestPinnedCorvintCEMAttestation` (pinned envelope digest; `VERIFIED` and `NOT_RUN` with the claim derived from the map), `TestIntotoRefusesWhatTheSignerDidNotAttest` (changed map, other key, changed payload, extra, repeated, and case-variant members, `cem/0` type, subject name), `TestCEMV1FixtureEnvelopeIsDigestPinned` (Corvint emits the same digest) |
 | FPK-V0-036 | no code: documentation only | measured: `git diff --stat` of `go.mod`, `go.sum`, and `interop/cem01-go/go.mod` against the base is empty; the new files import no `net/*`, `os/exec`, or `crypto/tls` package (`internal/attest` already reaches `net` and `net/url` through `crypto/x509` at the base); the external Sigstore path is `NOT_RUN`; revision 23: `go list -deps ./cmd/corvint` has 0 Sigstore, Rekor, Fulcio, cosign, gitsign, or securesystemslib packages and 0 packages outside the standard library and the Corvint module |
-| FPK-V0-050 | experimental prototype: `parseProveCEMArguments` (`--attest-cem-v1`), `proveOptions.attestCEMV1`, `attestFlagRefusal`, `cemAttestation.v1`, `cemAttestation.statement`, `cemAttestationInput`, `attestProof` (`cmd/corvint`), `helpBooleanFlags` | `TestProveCEMAttestCEMV1EmitsTheV1Predicate` (first line equal to the `--attest-cem` first line, unsigned second line equal to `CEMStatementV1`, signed second line `VERIFIED` as `cem/v1` with `baseRevision` and `patchSha256`), `TestProveCEMAttestCEMV1RefusesInvalidArguments` (value, repeat, with `--attest-cem`, outside CEM mode); `TestProveCEMAttestOutputIsUnchangedWithoutAttestCEM` still passes |
+| FPK-V0-050 | experimental prototype: `parseProveCEMArguments` (`--attest-cem-v1`), `proveOptions.attestCEMV1`, `attestFlagRefusal`, `cemAttestation.v1`, `cemAttestation.statement`, `cemAttestationInput`, `attestProof` (`cmd/corvint`), `helpBooleanFlags` | `TestProveCEMAttestCEMV1RefusesInvalidArguments` (value, repeat, with `--attest-cem`, outside CEM mode), `TestCEMV1210ProveRefusesEveryMapOutsideTheStableRoute`; the 0.x `--attest-cem-v1` emit test is retired with the 0.x map under `CEM-V1-210` |
 | FPK-V0-051 | no code: documentation only | the comparison table under Non-goals, each source pinned to the revision fetched on 2026-09-23; `TestIntotoReadsTheDigestPinnedCorvintCEMAttestation` still pins the unchanged fixture sha256 |
 | FPK-V0-052 | `hermeticGitCommand` at every Git read in `prove.go`, `prove_bundle.go`, `prove_checkpoint.go`, `affected.go`, and `host_adapter_compaction.go` | `TestProveGitReadsNeverRunRepositoryFSMonitor` (its control shows plain `git status` runs the program), `TestProveGitReadsIgnoreReplaceObjects`, `TestAffectedBaseRangeIgnoresReplaceObjects`, `TestCompactionPinVerifiesFromSubdirectoryRoot` |
 | FPK-V0-053 | experimental `revieworder.Rank` (`internal/revieworder/order.go`), accepted, decision 0515 | `TestRankHunksWithCitedFactors`, `TestRankUnwitnessedIsOnlyDiscriminatingFactor` (equal authorship/coverage, opposing path/input order; omission mutation must fail), `TestRankDeterministicAndDoesNotMutateInputs` |

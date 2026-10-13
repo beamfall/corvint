@@ -2,19 +2,33 @@ package extevidence
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
-const obligationsCEM = `{"spec":"cem/0.2","baseRevision":"` + "1111111111111111111111111111111111111111" + `","excludedPath":".corvint/change.cem.json","patchSha256":"` + "2222222222222222222222222222222222222222222222222222222222222222" + `","evidence":[],"hunks":[
-{"id":"hunk:sha256:aaaa","path":"pkg/main.go","disposition":"supported"},
-{"id":"hunk:sha256:bbbb","path":"docs/readme.md","disposition":"unknown"}]}`
+// obligationsTestHunks are the change hunks the shared impact join reads; the
+// stable sidecar passes a verified cem/1.0 map's hunks the same way.
+var obligationsTestHunks = []wire.Hunk{
+	{ID: "hunk:sha256:aaaa", Path: "pkg/main.go", Disposition: "supported"},
+	{ID: "hunk:sha256:bbbb", Path: "docs/readme.md", Disposition: "unknown"},
+}
+
+// joined runs the shared impact join over the test hunks and returns its
+// state and hunk rows in the sidecar's member names.
+func joined(t *testing.T, receipt []byte, limit int) map[string]any {
+	t.Helper()
+	join, err := joinImpact(receipt, obligationsTestHunks, limit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return map[string]any{"state": join.state, "state_reason": join.reason, "providers": join.providers, "hunks": join.hunks}
+}
 
 func obligationsReceipt(reverse bool) []byte {
 	rows := []string{
@@ -55,10 +69,7 @@ func associationsOf(hunk map[string]any) []map[string]any {
 // obligations, and required tests; each carries the reference-only members.
 func TestObligationsHunkAssociations(t *testing.T) {
 	t.Parallel()
-	document, err := Obligations([]byte(obligationsCEM), obligationsReceipt(false), 64)
-	if err != nil {
-		t.Fatal(err)
-	}
+	document := joined(t, obligationsReceipt(false), 64)
 	if document["state"] != ObligationsComplete {
 		t.Fatalf("state = %v", document["state"])
 	}
@@ -91,19 +102,13 @@ func TestObligationsHunkAssociations(t *testing.T) {
 // receipt without an external section are each an explicit unknown.
 func TestObligationsExplicitUnknowns(t *testing.T) {
 	t.Parallel()
-	document, err := Obligations([]byte(obligationsCEM), obligationsReceipt(false), 64)
-	if err != nil {
-		t.Fatal(err)
-	}
+	document := joined(t, obligationsReceipt(false), 64)
 	rows := associationsOf(obligationsHunks(t, document)[1])
 	if len(rows) != 1 || rows[0]["kind"] != "unknown" || rows[0]["code"] != "no-external-evidence" {
 		t.Fatalf("hunk without evidence: %v", rows)
 	}
 	unavailable := bytes.Replace(obligationsReceipt(false), []byte(`"state":"loaded","reason":""`), []byte(`"state":"unavailable","reason":"missing file"`), 1)
-	document, err = Obligations([]byte(obligationsCEM), unavailable, 64)
-	if err != nil {
-		t.Fatal(err)
-	}
+	document = joined(t, unavailable, 64)
 	if document["state"] != ObligationsPartial {
 		t.Fatalf("state = %v", document["state"])
 	}
@@ -114,46 +119,10 @@ func TestObligationsExplicitUnknowns(t *testing.T) {
 			t.Fatalf("hunk %v lacks the provider unknown: %v", hunk["hunk"], rows)
 		}
 	}
-	document, err = Obligations([]byte(obligationsCEM), []byte(`{"ok":true,"mutates":false,"tool":"impact","context":{"profile":"impact"}}`), 64)
-	if err != nil {
-		t.Fatal(err)
-	}
+	document = joined(t, []byte(`{"ok":true,"mutates":false,"tool":"impact","context":{"profile":"impact"}}`), 64)
 	rows = associationsOf(obligationsHunks(t, document)[0])
 	if document["state"] != ObligationsUnknown || len(rows) != 1 || rows[0]["code"] != "no-external-section" {
 		t.Fatalf("receipt without external: state %v rows %v", document["state"], rows)
-	}
-}
-
-// EFO-V0-003, EFO-V0-007: the binding digests hash the raw inputs, hunk ids
-// keep the CEM's ids and order, and the id is recomputable from the body.
-func TestObligationsBindingAndIdentity(t *testing.T) {
-	t.Parallel()
-	cem, receipt := []byte(obligationsCEM), obligationsReceipt(false)
-	document, err := Obligations(cem, receipt, 64)
-	if err != nil {
-		t.Fatal(err)
-	}
-	binding := document["binding"].(map[string]any)
-	cemSum, impactSum := sha256.Sum256(cem), sha256.Sum256(receipt)
-	if binding["cem_sha256"] != hex.EncodeToString(cemSum[:]) || binding["impact_sha256"] != hex.EncodeToString(impactSum[:]) {
-		t.Fatalf("binding = %v", binding)
-	}
-	if binding["base_revision"] != strings.Repeat("1", 40) || binding["excluded_path"] != ".corvint/change.cem.json" {
-		t.Fatalf("binding = %v", binding)
-	}
-	hunks := obligationsHunks(t, document)
-	if len(hunks) != 2 || hunks[0]["hunk"] != "hunk:sha256:aaaa" || hunks[1]["hunk"] != "hunk:sha256:bbbb" || hunks[1]["disposition"] != "unknown" {
-		t.Fatalf("hunks = %v", hunks)
-	}
-	id := document["id"].(string)
-	delete(document, "id")
-	body, err := gokernel.CanonicalJSON(document)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sum := sha256.Sum256(body)
-	if id != "obligations:sha256:"+hex.EncodeToString(sum[:]) {
-		t.Fatalf("id %s is not the digest of the body", id)
 	}
 }
 
@@ -162,11 +131,7 @@ func TestObligationsBindingAndIdentity(t *testing.T) {
 func TestObligationsDeterministicAndBounded(t *testing.T) {
 	t.Parallel()
 	encode := func(receipt []byte, limit int) []byte {
-		document, err := Obligations([]byte(obligationsCEM), receipt, limit)
-		if err != nil {
-			t.Fatal(err)
-		}
-		encoded, err := gokernel.CanonicalJSON(document)
+		encoded, err := gokernel.CanonicalJSON(joined(t, receipt, limit))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -180,14 +145,8 @@ func TestObligationsDeterministicAndBounded(t *testing.T) {
 	if err := json.Unmarshal(reversed, &reversedDocument); err != nil {
 		t.Fatal(err)
 	}
-	delete(forwardDocument, "binding")
-	delete(reversedDocument, "binding")
-	delete(forwardDocument, "id")
-	delete(reversedDocument, "id")
-	forwardBody, _ := gokernel.CanonicalJSON(forwardDocument)
-	reversedBody, _ := gokernel.CanonicalJSON(reversedDocument)
-	if !bytes.Equal(forwardBody, reversedBody) {
-		t.Fatalf("row order reached the output:\n%s\n%s", forwardBody, reversedBody)
+	if !bytes.Equal(forward, reversed) {
+		t.Fatalf("row order reached the output:\n%s\n%s", forward, reversed)
 	}
 	var bounded map[string]any
 	if err := json.Unmarshal(encode(obligationsReceipt(false), 1), &bounded); err != nil {
@@ -199,43 +158,57 @@ func TestObligationsDeterministicAndBounded(t *testing.T) {
 	}
 }
 
-// EFO-V0-002: a non-cem/0.2 document or a non-impact receipt is refused.
-func TestObligationsRejectsInvalidInput(t *testing.T) {
+// CEM-V1-210: the frozen external-frontier-obligations/0 route admits no map.
+// A retired cem/0.x map refuses with unsupported-spec and the recovery line; a
+// cem/1.0 map or other bytes refuse with invalid-obligations-input naming the
+// stable route. The shared join refuses a receipt that is not an impact
+// receipt (EFO-V0-002).
+func TestCEMV1210FrozenObligationsAdmitNoMap(t *testing.T) {
 	t.Parallel()
-	cases := map[string][2][]byte{
-		"cem 0.1":        {[]byte(`{"spec":"cem/0.1","hunks":[]}`), obligationsReceipt(false)},
-		"cem not json":   {[]byte(`{`), obligationsReceipt(false)},
-		"affected":       {[]byte(obligationsCEM), []byte(`{"ok":true,"tool":"affected","context":{}}`)},
-		"receipt broken": {[]byte(obligationsCEM), []byte(`[]`)},
+	cases := map[string]struct {
+		cem  []byte
+		code string
+	}{
+		"cem 0.2":  {[]byte(`{"spec":"cem/0.2","hunks":[]}`), cemcode.UnsupportedSpec},
+		"cem 0.1":  {[]byte(`{"spec":"cem/0.1","hunks":[]}`), cemcode.UnsupportedSpec},
+		"cem 1.0":  {[]byte(`{"spec":"cem/1.0"}`), "invalid-obligations-input"},
+		"not json": {[]byte(`{`), "invalid-obligations-input"},
 	}
-	for name, inputs := range cases {
-		document, err := Obligations(inputs[0], inputs[1], 64)
+	for name, test := range cases {
+		document, err := Obligations(test.cem, obligationsReceipt(false), 64)
 		var kernelErr *gokernel.Error
-		if document != nil || err == nil || !errors.As(err, &kernelErr) || kernelErr.Code != "invalid-obligations-input" {
+		if document != nil || err == nil || !errors.As(err, &kernelErr) || kernelErr.Code != test.code {
 			t.Errorf("%s: document %v err %v", name, document, err)
+			continue
+		}
+		if test.code == cemcode.UnsupportedSpec && !strings.Contains(kernelErr.Message, wire.RetiredSpecFix) {
+			t.Errorf("%s: refusal lacks the recovery line: %v", name, err)
+		}
+	}
+	for name, receipt := range map[string][]byte{
+		"affected":       []byte(`{"ok":true,"tool":"affected","context":{}}`),
+		"receipt broken": []byte(`[]`),
+	} {
+		_, err := joinImpact(receipt, obligationsTestHunks, 64)
+		var kernelErr *gokernel.Error
+		if !errors.As(err, &kernelErr) || kernelErr.Code != "invalid-obligations-input" {
+			t.Errorf("%s: err %v", name, err)
 		}
 	}
 }
 
-// EFO-V0-009: the sidecar carries no file body and names its untrusted text.
+// EFO-V0-009: the joined rows carry no file body, and the sidecar names its
+// untrusted text.
 func TestObligationsPrivate(t *testing.T) {
 	t.Parallel()
-	document, err := Obligations([]byte(obligationsCEM), obligationsReceipt(false), 64)
-	if err != nil {
-		t.Fatal(err)
-	}
-	encoded, err := gokernel.CanonicalJSON(document)
+	encoded, err := gokernel.CanonicalJSON(joined(t, obligationsReceipt(false), 64))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if bytes.Contains(encoded, []byte("func StableValue")) || bytes.Contains(encoded, []byte(`"body"`)) {
-		t.Fatalf("sidecar carries a body: %s", encoded)
+		t.Fatalf("join carries a body: %s", encoded)
 	}
-	fields := document["untrusted_text_fields"].([]any)
-	if len(fields) != 3 || fields[1] != "hunks[].associations[].relation.rule" {
-		t.Fatalf("untrusted fields = %v", fields)
-	}
-	if !strings.Contains(document["note"].(string), "never reads this sidecar") {
-		t.Fatalf("note = %v", document["note"])
+	if len(obligationsUntrusted) != 3 || obligationsUntrusted[1] != "hunks[].associations[].relation.rule" {
+		t.Fatalf("untrusted fields = %v", obligationsUntrusted)
 	}
 }

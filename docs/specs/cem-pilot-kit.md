@@ -368,10 +368,10 @@ command boundary; a standalone CEM consumer without it reports unavailable expli
 | Requirement | Implementation | Focused acceptance evidence |
 |---|---|---|
 | CEM-PILOT-028 | `internal/cem/workflow/review_projection.go`, `read.go`; `internal/cem/cli/cli.go` | `TestReviewProjectionParityAndReadOnly`, `TestReviewProjectionInvalidMapRetainsUnmappedHunks`, `TestReviewProjectionArguments` |
-| CEM-PILOT-029 | per-call `ReviewOCMReader`; `internal/lrfrepo/ocm_read.go` `ReadOCMReview` | `TestReviewProjectionOCMJoinAndInvalidRefusal`, `TestReviewProjectionNativeOCMAdapterUnknownOnly`, `TestReviewProjectionPerCallResolver` |
+| CEM-PILOT-029 | per-call `ReviewOCMReader`; `internal/lrfrepo/ocm_read.go` `ReadOCMReview` | `TestReviewProjectionOCMJoinAndInvalidRefusal`, `TestReviewProjectionPerCallResolver`; the native 0.x adapter test is retired by CEM-V1-210 (the OCM reader admits cem/1.0 only) |
 | CEM-PILOT-030 | retained-input projection digest and inert Markdown rendering | `TestReviewProjectionParityAndReadOnly`, `TestReviewProjectionHostileText` |
 | CEM-PILOT-031 | retained coverage/discrimination fields and explicit execution boundary | `TestReviewProjectionParityAndReadOnly`; existing coverage/discrimination report regressions |
-| CEM-PILOT-032 | `renderReviewProjection` OCM validity/state/issue lines (proposed, V1-0513) | `TestReviewProjectionNativeInvalidOCMMarkdownParity` (native wrong-base, noncanonical, malformed and non-JSON OCM) |
+| CEM-PILOT-032 | `renderReviewProjection` OCM validity/state/issue lines (proposed, V1-0513) | 0.x native rows retired by CEM-V1-210 (the OCM reader admits cem/1.0 only); the cem/1.0 report OCM lines: `TestV11305StableReportOCMWithoutVerifier` |
 
 The deterministic qualification is a real producer CEM/OCM fixture, JSON/Markdown digest parity,
 all derived hunks on an invalid-map fixture, explicit callback OCM joins and native unknown reasons, hostile

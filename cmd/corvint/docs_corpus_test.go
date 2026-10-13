@@ -226,42 +226,6 @@ func TestCorpusNativeReadIntegrationParity(t *testing.T) {
 		}
 	})
 }
-func TestCorpusCEMProjectionBindsOriginalEvidence(t *testing.T) {
-	t.Run("DCP-V1-014 citation", func(t *testing.T) {
-		root, base, target := cemRepo(t)
-		writeCorpusFixture(t, root, base, "docs/rule.txt")
-		// `docs corpus cem` projects a cem/0.x map only; the fixture keeps the
-		// explicit 0.x producer (CEM-V1-140) until that projection reads cem/1.0.
-		code, _, stderr := corpusCLI(t, root, "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target)
-		if code != 0 {
-			t.Fatal(stderr)
-		}
-		code, _, stderr = corpusCLI(t, root, "cem", "cite", "--map", ".corvint/change.cem.json", "--hunk", "1", "--evidence-path", "docs/rule.txt", "--lines", "1:1", "--relation", "specification")
-		if code != 0 {
-			t.Fatal(stderr)
-		}
-		code, out, stderr := corpusCLI(t, root, "docs", "corpus", "cem", "--artifact", "corpus.json", "--cem", ".corvint/change.cem.json", "--id", "native:file:docs/rule.txt:excerpt")
-		if code != 0 {
-			t.Fatal(stderr)
-		}
-		if !strings.Contains(out, `"bound_in_cem":true`) || !strings.Contains(out, `"authority":"generated-documentation"`) {
-			t.Fatal(out)
-		}
-		before, err := os.ReadFile(filepath.Join(root, ".corvint/change.cem.json"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		code, _, stderr = corpusCLI(t, root, "cem", "status", "--map", ".corvint/change.cem.json", "--expected-base", base, "--target", target, "--corpus=corpus.json")
-		if code != 0 {
-			t.Fatal(stderr)
-		}
-		after, _ := os.ReadFile(filepath.Join(root, ".corvint/change.cem.json"))
-		if !bytes.Equal(before, after) {
-			t.Fatal("documentation review mutated CEM")
-		}
-	})
-}
-
 func TestCorpusNativeReceiptJoin(t *testing.T) {
 	t.Run("DCP-V1-007 DCP-V1-013 observation", func(t *testing.T) {
 		root := taskContextRepository(t)

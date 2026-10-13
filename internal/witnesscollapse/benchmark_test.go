@@ -3,22 +3,7 @@ package witnesscollapse
 import (
 	"runtime"
 	"testing"
-
-	"github.com/Beamfall/corvint/internal/cem/wire"
 )
-
-func BenchmarkCWCX0ParseMaxCEM(b *testing.B) {
-	raw, _ := testCEM(b, 4096, false)
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		document, err := wire.ParseMap(raw)
-		if err != nil {
-			b.Fatal(err)
-		}
-		runtime.KeepAlive(document)
-	}
-}
 
 func BenchmarkCWCX0CompileFiveCopies(b *testing.B) {
 	raw, evidence := testCEM(b, 5, true)
@@ -26,7 +11,7 @@ func BenchmarkCWCX0CompileFiveCopies(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		report, err := Compile(raw, rows)
+		report, err := compileFixture(raw, rows)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -39,7 +24,7 @@ func BenchmarkCWCX0CompileMaxDisconnected(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		report, err := Compile(raw, rows)
+		report, err := compileFixture(raw, rows)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -52,7 +37,7 @@ func BenchmarkCWCX0CompileMaxConnected(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		report, err := Compile(raw, rows)
+		report, err := compileFixture(raw, rows)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -60,9 +45,9 @@ func BenchmarkCWCX0CompileMaxConnected(b *testing.B) {
 	}
 }
 
-func BenchmarkCWCX0CanonicalAndVerifyMaxReport(b *testing.B) {
+func BenchmarkCWCX0CanonicalMaxReport(b *testing.B) {
 	raw, rows := benchmarkFixture(b, true)
-	report, err := Compile(raw, rows)
+	report, err := compileFixture(raw, rows)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -75,14 +60,6 @@ func BenchmarkCWCX0CanonicalAndVerifyMaxReport(b *testing.B) {
 			}
 			runtime.KeepAlive(document)
 			runtime.KeepAlive(digest)
-		}
-	})
-	b.Run("verify", func(b *testing.B) {
-		b.ReportAllocs()
-		for b.Loop() {
-			if err := Verify(raw, report); err != nil {
-				b.Fatal(err)
-			}
 		}
 	})
 }

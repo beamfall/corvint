@@ -612,7 +612,7 @@ func TestEveryCapabilityNamesWhyItIsOutOfReach(t *testing.T) {
 		CapTCQDiagnosticSet, CapDeclaredItemCounts, CapUnreachableItemCount,
 		CapReasonUnionBeyondAlgebra,
 		CapCandidateDocument, CapSiblingRepository, CapUncommittableOCMReferences,
-		CapObligationFreeUniverse,
+		CapObligationFreeUniverse, CapVerifiedRetiredCEM,
 	}
 	if len(declared) != len(capabilityReasons) {
 		t.Errorf("%d capabilities are declared but %d have reasons", len(declared), len(capabilityReasons))
@@ -678,7 +678,8 @@ func TestEmptyStateIsUnreachableThroughTheEntryPoint(t *testing.T) {
 	// The recorded cost of the gap must match the tree it describes.
 	// A case counts here only when this is the reason it actually skips with:
 	// RequiredCapabilities returns capabilityOrder order, and obligation-free
-	// is last, so a case reported under it has no more specific blocker.
+	// is last but the retirement, so a case reported under it has no more
+	// specific blocker.
 	blocked := []string{}
 	for _, f := range loadFixturesT(t) {
 		for _, c := range f.Cases {
@@ -696,6 +697,7 @@ func TestEmptyStateIsUnreachableThroughTheEntryPoint(t *testing.T) {
 	if registeredRunner == nil {
 		t.Skip(unboundReason)
 	}
+	skipUnlessRetiredCEMVerifies(t)
 	// Link 2, driven rather than asserted: a real universe whose intent scope
 	// enumerates no requirement is refused, with the exact upstream code.
 	fixture, subject := findCase(t, "whitespace-and-line-ending-hunks-close", "whitespace-only")
@@ -712,6 +714,44 @@ func TestEmptyStateIsUnreachableThroughTheEntryPoint(t *testing.T) {
 			"`missing-requirements` refusal. CF-V0-004 EMPTY may be reachable again: re-read "+
 			"IntentItemsPerObligation's derivation and stop skipping the %d obligation-free cases",
 			got.ExitCode, len(got.Stdout), got.Stderr, ObligationFreeCaseCount)
+	}
+}
+
+// skipUnlessRetiredCEMVerifies skips a test whose subject universe needs a
+// verified `cem/0.2` map when the bound runner cannot build one, with the
+// recorded reason rather than a blanket one (CEM-V1-210, CEM-V1-212).
+func skipUnlessRetiredCEMVerifies(t *testing.T) {
+	t.Helper()
+	if !registeredRunner.Supports(CapVerifiedRetiredCEM) {
+		t.Skip(capabilityReasons[CapVerifiedRetiredCEM])
+	}
+}
+
+// TestRetiredCEMUniverseRefusesThroughTheEntryPoint is the reason the
+// verified-retired-cem skip is a result rather than a claim: a real `cem/0.2`
+// universe whose frozen outcome is an OPEN document now yields exactly the
+// bounded `unsupported-spec` refusal (CEM-V1-210). If frontier/0 verifies such a
+// universe again, this fails and the skipped cases must run again.
+func TestRetiredCEMUniverseRefusesThroughTheEntryPoint(t *testing.T) {
+	if registeredRunner == nil {
+		t.Skip(unboundReason)
+	}
+	fixture, subject := findCase(t, "static-mode", "absent-tuple")
+	if subject.Declared.CEMProfile != "cem/0.2" || subject.Expect.Kind != "result" {
+		t.Fatalf("%s no longer declares a cem/0.2 result universe", subject.ID)
+	}
+	required := RequiredCapabilities(fixture, subject)
+	if len(required) != 1 || required[0] != CapVerifiedRetiredCEM {
+		t.Fatalf("%s requires %v, want only %s", subject.ID, required, CapVerifiedRetiredCEM)
+	}
+	got, err := registeredRunner.Run(fixture, subject)
+	if err != nil {
+		t.Fatalf("runner: %v", err)
+	}
+	if got.ExitCode != 2 || string(got.Stderr) != RetiredCEMRefusal || len(got.Stdout) != 0 {
+		t.Fatalf("a cem/0.2 universe now yields exit %d / stdout %d bytes / stderr %q, not %q: "+
+			"frontier/0 may verify it again, so stop skipping the verified-retired-cem cases",
+			got.ExitCode, len(got.Stdout), got.Stderr, RetiredCEMRefusal)
 	}
 }
 
@@ -793,6 +833,7 @@ func TestMeasuredMaximalDocumentIsStillMeasured(t *testing.T) {
 	if registeredRunner == nil {
 		t.Skip(unboundReason)
 	}
+	skipUnlessRetiredCEMVerifies(t)
 	fixture, subject := findCase(t, "resource-limits", "totalItems-at-limit")
 	got, err := registeredRunner.Run(fixture, subject)
 	if err != nil {
@@ -823,6 +864,7 @@ func TestSynthesizedUniversesAreDeterministic(t *testing.T) {
 	if registeredRunner == nil {
 		t.Skip(unboundReason)
 	}
+	skipUnlessRetiredCEMVerifies(t)
 	fixture, subject := findCase(t, "resource-limits", "intentChangeItems-at-limit")
 	first, err := registeredRunner.Run(fixture, subject)
 	if err != nil {

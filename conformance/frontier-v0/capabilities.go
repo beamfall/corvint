@@ -68,6 +68,10 @@ const (
 	// CapObligationFreeUniverse is a verified universe carrying no OCM
 	// obligation at all.
 	CapObligationFreeUniverse Capability = "obligation-free-universe"
+	// CapVerifiedRetiredCEM is a universe whose required outcome is reached
+	// only after the shared OCM-consuming verification admits its `cem/0.2`
+	// map (CF-V0-021 stage 5 onward). See RetiredCEMRefusal.
+	CapVerifiedRetiredCEM Capability = "verified-retired-cem"
 )
 
 // capabilityReasons names, for each capability, WHY a runner may not have it.
@@ -125,7 +129,31 @@ var capabilityReasons = map[Capability]string{
 		"while OCM-V0-001 does not itself demand a non-empty `## Requirements` section — and " +
 		"conformance/divergence-register.md adjudicates a spec-silent observable as `spec-gap`: amend the " +
 		"owning spec first, neither runtime wins by default.",
+	CapVerifiedRetiredCEM: "the declared universe needs a verified `cem/0.2` map, and frontier/0 admits " +
+		"`cem/0.2` only (CEM-V1-121) while every consumer now reads `cem/1.0` only (decision 0525 §1, " +
+		"CEM-V1-210): the shared OCM-consuming verification refuses the map with `unsupported-spec` at " +
+		"CF-V0-021 stage 5, so no frontier/0 document and no later-stage refusal can be produced from " +
+		"any repository. The frozen expectation is superseded, not rewritten (decision 0525 §6, " +
+		"CEM-V1-212); TestRetiredCEMUniverseRefusesThroughTheEntryPoint drives the refusal for real, so " +
+		"this skip stops being true the moment a frontier/0 universe verifies again. A `cem/1.0` map " +
+		"takes the frontier-stable-view/0 route, covered by internal/frontier and cmd/corvint.",
 }
+
+// preVerificationCodes are the refusals CF-V0-021 reaches in stages 1 to 4,
+// before the shared OCM-consuming verification reads the CEM map: call shape
+// and input, the admitted-profile check, then the missing expected base and
+// target. A `cem/0.2` case expecting one of them still runs; every other
+// `cem/0.2` case needs CapVerifiedRetiredCEM.
+var preVerificationCodes = map[string]bool{
+	"invalid-frontier-input":       true,
+	"unsupported-frontier-context": true,
+	"expected-base-required":       true,
+	"target-required":              true,
+}
+
+// RetiredCEMRefusal is the exact CF-V0-022 envelope a verified-`cem/0.2`
+// universe now yields through the entry point (CEM-V1-210).
+const RetiredCEMRefusal = `{"code":"unsupported-spec","profile":"frontier-error/0"}` + "\n"
 
 // IntentItemsPerObligation is the minimum number of items one obligation of
 // each OCM disposition contributes, read from the clauses rather than from the
@@ -306,6 +334,10 @@ func RequiredCapabilities(f Fixture, c Case) []Capability {
 	if f.ID == "noncanonical-frontier-refusals" {
 		required[CapCandidateDocument] = true
 	}
+	// A cem/0.2 universe past stage 4 cannot verify any more (CEM-V1-210).
+	if declared.CEMProfile == "cem/0.2" && !(c.Expect.Kind == "error" && preVerificationCodes[c.Expect.ErrorCode]) {
+		required[CapVerifiedRetiredCEM] = true
+	}
 
 	ordered := make([]Capability, 0, len(required))
 	for _, capability := range capabilityOrder {
@@ -341,6 +373,9 @@ var capabilityOrder = []Capability{
 	CapSiblingRepository,
 	CapDeclaredItemCounts,
 	CapObligationFreeUniverse,
+	// Last: the retirement blocks every case below its stage, so it is the
+	// least specific reason and never shadows a recorded derivation.
+	CapVerifiedRetiredCEM,
 }
 
 func containsCapability(values []Capability, target Capability) bool {

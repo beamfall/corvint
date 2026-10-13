@@ -222,7 +222,7 @@ func prepareCEM(t *testing.T, root, base, target string, replace bool) {
 		t.Fatal(err)
 	}
 	if _, err := session.Prepare(context.Background(), workflow.PrepareOptions{
-		Base: base, Target: target, Replace: replace,
+		Base: base, Target: target, Replace: replace, Spec: wire.StableSpec,
 	}); err != nil {
 		t.Fatal(err)
 	}

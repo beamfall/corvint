@@ -7,7 +7,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/lrf"
 )
@@ -77,69 +76,23 @@ type Universe struct {
 	PythonClaims []PythonClaimEvidence
 }
 
-// VerifyUniverse runs one shared OCM-consuming canonical verification over
-// caller-supplied artifact bytes and returns the accepted universe.
-//
-// Both revisions are required and independent: an inferred revision authority
-// is refused by the canonical verifier itself, which is why neither is
-// defaulted here.
+// VerifyUniverse is the frozen frontier/0 and TCQ universe admission. That
+// universe was defined over a cem/0.2 map, which is retired (decision 0525),
+// so it admits nothing: a cem/0.x map refuses with unsupported-spec and the
+// recovery line (CEM-V1-200, CEM-V1-210), and a cem/1.0 map refuses with
+// unsupported-spec naming VerifyStableUniverse, its only route (CEM-V1-057).
+// The repository is never opened for a refused map.
 func VerifyUniverse(ctx context.Context, root string, cemRaw, ocmRaw []byte, expectedBase, target string) (*Universe, error) {
-	repository, err := gitauth.Open(root, gitrun.NewDefaultBudget())
-	if err != nil {
-		return nil, err
-	}
-	return VerifyUniverseWithRepository(ctx, repository, cemRaw, ocmRaw, expectedBase, target)
+	return nil, refuseUniverseMap(cemRaw)
 }
 
-// VerifyUniverseWithRepository executes the same canonical verification using
-// one caller-owned repository scope. It does not accept a precomputed result or
-// an authority grant; the protected adapter supplies its separately budgeted
-// immutable reader. Ordinary VerifyUniverse callers retain their uncached Open.
+// VerifyUniverseWithRepository is VerifyUniverse over one caller-owned
+// repository scope; it refuses exactly as VerifyUniverse does.
 func VerifyUniverseWithRepository(ctx context.Context, repository *gitauth.Repository, cemRaw, ocmRaw []byte, expectedBase, target string) (*Universe, error) {
 	if repository == nil {
 		return nil, cemcode.New(cemcode.InvalidArguments, "universe repository is required")
 	}
-	defer repository.BeginObjectSession()()
-	document, err := parseUniverseMap(cemRaw)
-	if err != nil {
-		return nil, err
-	}
-	if document.Spec != wire.Spec02 {
-		return nil, cemcode.New(cemcode.UnsupportedSpec, "universe verification accepts canonical cem/0.2 only")
-	}
-	options := Options{ExpectedBase: expectedBase, Target: target}
-	verified, err := verifyCanonicalCEM(ctx, repository, document, cemRaw, options)
-	if err != nil {
-		return nil, err
-	}
-	parsed, err := parseOCM(ocmRaw)
-	if err != nil {
-		return nil, err
-	}
-	ocm, pythonClaims, err := verifyUniverseOCM(ctx, repository, document, cemRaw, verified, parsed, ocmRaw, options)
-	if err != nil {
-		return nil, err
-	}
-	request, err := project(ctx, repository, document, cemRaw, verified, ocm)
-	if err != nil {
-		return nil, err
-	}
-	format, err := objectFormat(ctx, repository)
-	if err != nil {
-		return nil, err
-	}
-	return &Universe{
-		CEM:            document,
-		BaseRevision:   verified.base,
-		TargetRevision: verified.target,
-		ObjectFormat:   format,
-		PatchSHA256:    sha256Hex(verified.patch),
-		OCMSHA256:      ocm.mapSHA256,
-		Intent:         intentScope(ocm.intent),
-		Obligations:    obligationRows(parsed.obligations),
-		LRFRequest:     request,
-		PythonClaims:   pythonClaims,
-	}, nil
+	return nil, refuseUniverseMap(cemRaw)
 }
 
 // verifyUniverseOCM preserves the canonical verifier's binding, intent,
@@ -260,12 +213,13 @@ func obligationRows(rows []ocmObligation) []Obligation {
 	return obligations
 }
 
-// parseUniverseMap parses the legacy universe input. A stable map never enters
-// the cem/0.2 universe, not even as a reduced legacy view; its only route is
-// VerifyStableUniverse (CEM-V1-057, CEM-V1-058).
-func parseUniverseMap(cemRaw []byte) (*wire.Map, error) {
-	if wire.DeclaresStable(cemRaw) {
-		return nil, cemcode.New(cemcode.UnsupportedSpec, "universe verification accepts canonical cem/0.2 only; cem/1.0 is admitted only by the stable universe verification")
+// refuseUniverseMap returns the legacy universe refusal for any map bytes: the
+// stable decoder's own refusal for a retired or malformed map, and otherwise the
+// stable-route refusal. A stable map never enters the legacy universe, not even
+// as a reduced view (CEM-V1-057, CEM-V1-210).
+func refuseUniverseMap(cemRaw []byte) error {
+	if _, err := wire.ParseStable(cemRaw); err != nil {
+		return err
 	}
-	return wire.ParseMap(cemRaw)
+	return cemcode.New(cemcode.UnsupportedSpec, "the legacy universe admits no map; cem/1.0 is admitted only by the stable universe verification")
 }

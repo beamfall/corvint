@@ -270,8 +270,8 @@ func TestCEMV1065V1UnchangedForStableMaps(t *testing.T) {
 	if _, err := VerifyCEMPredicateWith(envelope, publicKey, CEMCheck{Map: legacy, Target: &target}); !errors.Is(err, ErrCEMTargetMismatch) {
 		t.Errorf("v1 claim with a target check: %v", err)
 	}
-	got, err := VerifyCEMPredicate(envelope, publicKey, legacy)
-	if err != nil || got.V2 != nil || got.PredicateType != CEMPredicateTypeV1 {
+	got, err := VerifyCEMPredicate(envelope, publicKey, nil)
+	if err != nil || got.V2 != nil || got.PredicateType != CEMPredicateTypeV1 || got.Status != CEMNotRun {
 		t.Errorf("v1 verification = %#v, %v", got, err)
 	}
 }

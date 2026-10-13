@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -409,6 +410,44 @@ func TestReadCEMSourceNonBlobAtMapPathIsInvalidNotAbsent(t *testing.T) {
 	absent, _ := readCEMSource(context.Background(), gitrun.NewDefaultBudget(), index, Options{CEMPath: ".corvint/missing.cem.json"})
 	if absent.Status != "ABSENT" {
 		t.Fatalf("missing map path status = %q detail = %q, want ABSENT", absent.Status, absent.Detail)
+	}
+}
+
+// TestReadCEMSourceRefusesRetiredMap covers CEM-V1-210: a committed cem/0.x
+// map is UNSUPPORTED with the closed code and the retired-spec fix line, and
+// none of its citations are applied.
+func TestReadCEMSourceRefusesRetiredMap(t *testing.T) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Skipf("git unavailable: %v", err)
+	}
+	root := initTestRepo(t, git)
+	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".corvint", "change.cem.json"), []byte(`{"spec":"cem/0.2"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tree := ""
+	for _, arguments := range [][]string{
+		{"add", "."},
+		{"-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "--quiet", "-m", "retired map"},
+		{"rev-parse", "HEAD^{tree}"},
+	} {
+		command := exec.Command(git, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
+		command.Dir = root
+		command.Env = gitEnvironment()
+		output, err := command.Output()
+		if err != nil {
+			t.Fatalf("git %s: %v", strings.Join(arguments, " "), err)
+		}
+		tree = strings.TrimSpace(string(output))
+	}
+	index := &contextindex.Index{Root: root, Revision: tree}
+	source, document := readCEMSource(context.Background(), gitrun.NewDefaultBudget(), index, Options{})
+	if source.Status != "UNSUPPORTED" || document != nil || source.Stable != nil ||
+		!strings.Contains(source.Detail, "unsupported-spec") || !strings.Contains(source.Detail, wire.RetiredSpecFix) {
+		t.Fatalf("retired map source = %+v, want UNSUPPORTED with the fix line", source)
 	}
 }
 

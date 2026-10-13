@@ -65,7 +65,7 @@ func frontierUniverse(hunks int) frontier.VerifiedUniverse {
 	intentPath := "docs/specs/change-frontier-v0.md"
 	span := frontier.Span{Start: 0, End: 512}
 	cemMap := &wire.Map{
-		Spec:         wire.Spec02,
+		Spec:         frontier.AdmittedCEMSpec,
 		BaseRevision: frontierOID("base"),
 		PatchSha256:  frontierHex("patch"),
 		ExcludedPath: frontier.ExcludedPath,
@@ -89,7 +89,7 @@ func frontierUniverse(hunks int) frontier.VerifiedUniverse {
 			Span: span, SpanSHA256: frontierHex("intent-span"),
 		},
 		LRFRequest: lrf.Request{Context: lrf.Context{
-			CEMSpec:          wire.Spec02,
+			CEMSpec:          frontier.AdmittedCEMSpec,
 			CEMMapSHA256:     frontierHex("cem-map"),
 			PatchSource:      "canonical-derived",
 			BaseRevision:     frontierOID("base"),
@@ -365,6 +365,30 @@ func TestFrontierAdaptersAreRegistered(t *testing.T) {
 	verifier, recomputer := frontierAdapters(t.Context(), t.TempDir())
 	if verifier == nil || recomputer == nil {
 		t.Fatal("the registered seam returned no verifier or no recomputer")
+	}
+}
+
+// TestCEMV1210FrontierRefusesARetiredMap (CEM-V1-210): through the REAL
+// adapter, a retired cem/0.2 map refuses with the bounded unsupported-spec
+// envelope before the repository is opened; the frontier/0 universe it named
+// admits no map since cem/0.x was retired (decision 0525). CF-V0-024 keeps the
+// envelope code-only, so the recovery line is not echoed here.
+func TestCEMV1210FrontierRefusesARetiredMap(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	for name, body := range map[string]string{
+		"cem.json": `{"spec":"cem/0.2"}`,
+		"ocm.json": `{"spec":"ocm/0.1-experimental"}`,
+	} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+	exit := runContext(t.Context(), frontierArguments(root, "--json"), strings.NewReader(""), stdout, stderr)
+	want := `{"code":"unsupported-spec","profile":"frontier-error/0"}` + "\n"
+	if exit != 2 || stdout.Len() != 0 || stderr.String() != want {
+		t.Fatalf("exit %d stdout %q stderr %q, want exit 2 and %q", exit, stdout.String(), stderr.String(), want)
 	}
 }
 

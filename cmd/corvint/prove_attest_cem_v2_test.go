@@ -281,14 +281,26 @@ func TestCEMV1065RefusesATargetThatIsNotTheSubject(t *testing.T) {
 }
 
 // TestCEMV1065RefusesALegacyMap checks CEM-V1-065: --attest-cem-v2 over a
-// cem/0.x map exits 2 with attest-cem-v2-requires-stable-map and prints
-// nothing; v1 is not widened to stable maps.
+// cem/0.x map (the argument fixture relabelled, CEM-V1-214) exits 2 with
+// attest-cem-v2-requires-stable-map, names the retired-spec recovery line
+// (CEM-V1-210) and prints nothing; v1 is not widened to stable maps.
 func TestCEMV1065RefusesALegacyMap(t *testing.T) {
 	t.Parallel()
 	root, base := proveCEMRepository(t)
+	mapPath := filepath.Join(root, ".corvint", "change.cem.json")
+	mapBytes, err := os.ReadFile(mapPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(mapPath, bytes.Replace(mapBytes, []byte(`"spec":"`+wire.StableSpec+`"`), []byte(`"spec":"cem/0.2"`), 1), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	keyPath, _ := proveTestKey(t)
-	verifyCEMAttestationRefusal(t, root, "attest-cem-v2-requires-stable-map", "--cem", ".corvint/change.cem.json",
-		"--expected-base", base, "--target", "HEAD", "--attest-key", keyPath, "--attest-cem-v2")
+	arguments := []string{"--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD", "--attest-key", keyPath, "--attest-cem-v2"}
+	verifyCEMAttestationRefusal(t, root, "attest-cem-v2-requires-stable-map", arguments...)
+	if _, _, stderr, _ := runProveCLI(t, root, arguments...); !strings.Contains(stderr, wire.RetiredSpecFix) {
+		t.Fatalf("refusal names no recovery line: %s", stderr)
+	}
 }
 
 // TestCEMV1065RefusesConflictingFlags checks CEM-V1-065's grammar:

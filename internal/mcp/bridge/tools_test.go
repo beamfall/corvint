@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/stablefixture"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -55,36 +55,39 @@ func TestContextToolReturnsBoundPacketWithoutWrites(t *testing.T) {
 	}
 }
 
-// TestCEMReportToolPreviewsCLIReportWithoutPublishing covers MCPV0-025: the
-// preview's markdown is byte-identical to the report `corvint cem report`
-// publishes, including the hunk review projection, and the preview itself
-// writes nothing. An invalid map keeps that parity and stays not-ok (V1-0529).
+// TestCEMReportToolPreviewsCLIReportWithoutPublishing covers MCPV0-025 and
+// CEM-V1-211: the preview of a cem/1.0 map is byte-identical to the report
+// `corvint cem report` publishes for the same map, revisions and artifact
+// root, and the preview itself writes nothing. Without its artifacts the map
+// keeps that parity and stays not-ok (V1-0529).
 func TestCEMReportToolPreviewsCLIReportWithoutPublishing(t *testing.T) {
 	if runtimeUnsupported() {
 		t.Skip("CEM Git reads are qualified only on Darwin and Linux")
 	}
-	for name, invalid := range map[string]bool{"valid map": false, "invalid map": true} {
+	for name, withArtifacts := range map[string]bool{"artifacts given": true, "artifacts absent": false} {
 		t.Run(name, func(t *testing.T) {
 			root, base, target := cemRepository(t)
-			if invalid {
-				dropMapHunks(t, filepath.Join(root, ".corvint", "change.cem.json"))
-			}
-			assertPreviewMatchesPublishedReport(t, root, base, target, !invalid)
+			assertPreviewMatchesPublishedReport(t, root, base, target, withArtifacts)
 		})
 	}
 }
 
 // assertPreviewMatchesPublishedReport previews the report over MCP, checks it
 // wrote nothing, then publishes it through the CLI workflow and compares both.
-func assertPreviewMatchesPublishedReport(t *testing.T, root, base, target string, wantValid bool) {
+func assertPreviewMatchesPublishedReport(t *testing.T, root, base, target string, withArtifacts bool) {
 	t.Helper()
 	registry, err := NewTaskReview(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	arguments := `{"map":".corvint/change.cem.json","expectedBase":"` + base + `","target":"` + target + `","maxUnknown":0}`
+	arguments := `{"map":".corvint/change.cem.json","expectedBase":"` + base + `","target":"` + target + `"`
+	options := workflow.ReadOptions{MapPath: ".corvint/change.cem.json", ExpectedBase: base, Target: target}
+	if withArtifacts {
+		arguments += `,"artifacts":"artifacts"`
+		options.ArtifactRoot, options.ArtifactsGiven = filepath.Join(root, "artifacts"), true
+	}
 	before := rootDigest(t, root)
-	result, callErr := registry.Call(context.Background(), ToolCEMReport, []byte(arguments))
+	result, callErr := registry.Call(context.Background(), ToolCEMReport, []byte(arguments+"}"))
 	if callErr != nil {
 		t.Fatal(callErr)
 	}
@@ -94,18 +97,14 @@ func assertPreviewMatchesPublishedReport(t *testing.T, root, base, target string
 	assertObservedBinding(t, result)
 	assertCanonicalObject(t, result)
 	markdown, _ := result.Receipt["markdown"].(string)
-	if result.Receipt["tool"] != "cem-report" || result.Receipt["mutates"] != false || markdown == "" {
+	if result.Receipt["tool"] != "cem-report" || result.Receipt["mutates"] != false || !strings.Contains(markdown, "- Spec: `cem/1.0`\n") {
 		t.Fatalf("cem report receipt = %#v", result.Receipt)
 	}
 	session, openErr := workflow.Open(root)
 	if openErr != nil {
 		t.Fatal(openErr)
 	}
-	limit := 0
-	published, readErr := session.Read(context.Background(), "report", workflow.ReadOptions{
-		MapPath: ".corvint/change.cem.json", ExpectedBase: base, Target: target,
-		Limits: workflow.PolicyLimits{MaxUnknown: &limit},
-	})
+	published, readErr := session.Read(context.Background(), "report", options)
 	if readErr != nil {
 		t.Fatal(readErr)
 	}
@@ -116,39 +115,19 @@ func assertPreviewMatchesPublishedReport(t *testing.T, root, base, target string
 	if string(written) != markdown {
 		t.Fatal("preview markdown differs from the published CLI report")
 	}
-	for _, field := range []string{"ok", "counts", "policyIssues", "verification", "patchSource", "excludedPath", "warnings", "recordSetSha256"} {
+	for _, field := range []string{"ok", "stableVerification", "recordSetSha256"} {
 		if !reflect.DeepEqual(canonicalValue(t, published[field]), canonicalValue(t, result.Receipt[field])) {
 			t.Fatalf("field %s differs: cli=%#v mcp=%#v", field, published[field], result.Receipt[field])
 		}
 	}
-	verification, _ := result.Receipt["verification"].(map[string]any)
-	if verification["valid"] != wantValid || (!wantValid && result.Receipt["ok"] != false) ||
-		!strings.Contains(markdown, "\n## Hunk review projection\n") {
-		t.Fatalf("preview lost map validity, uncertainty or the review projection: valid=%v ok=%v", verification["valid"], result.Receipt["ok"])
+	if result.Receipt["ok"] != withArtifacts {
+		t.Fatalf("preview ok = %v with artifacts %v", result.Receipt["ok"], withArtifacts)
 	}
-}
-
-// dropMapHunks removes every mapped hunk, so the derived patch keeps hunks the
-// map no longer explains and the map is invalid.
-func dropMapHunks(t *testing.T, path string) {
-	t.Helper()
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var document map[string]any
-	if err := json.Unmarshal(raw, &document); err != nil {
-		t.Fatal(err)
-	}
-	document["hunks"] = []any{}
-	if raw, err = json.Marshal(document); err != nil {
-		t.Fatal(err)
-	}
-	writeFile(t, path, string(raw))
 }
 
 // TestCEMReportToolRefusesMapsOutsideTheRoot: a symlinked map or ancestor is
-// a CEM read refusal, and a 0.1 map (whose patch is out of band) is refused.
+// a CEM read refusal, and a retired cem/0.x map refuses as cem-map-invalid
+// (CEM-V1-210).
 func TestCEMReportToolRefusesMapsOutsideTheRoot(t *testing.T) {
 	if runtimeUnsupported() {
 		t.Skip("CEM Git reads are qualified only on Darwin and Linux")
@@ -166,15 +145,18 @@ func TestCEMReportToolRefusesMapsOutsideTheRoot(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(root, "linked")); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(root, "legacy.cem.json"), `{"spec":"cem/0.1","baseRevision":"`+base+
-		`","patchSha256":"`+strings.Repeat("0", 64)+`","evidence":[],"hunks":[]}`)
+	for _, spec := range []string{"0.1", "0.2", "0.3"} {
+		writeFile(t, filepath.Join(root, "retired-"+spec+".cem.json"), `{"spec":"cem/`+spec+`","baseRevision":"`+base+
+			`","patchSha256":"`+strings.Repeat("0", 64)+`","excludedPath":".corvint/change.cem.json","evidence":[],"hunks":[]}`)
+	}
 	registry, newErr := NewTaskReview(root)
 	if newErr != nil {
 		t.Fatal(newErr)
 	}
 	for mapPath, want := range map[string]string{
 		"linked.cem.json": "cem-map-unavailable", "linked/map.cem.json": "cem-map-unavailable",
-		"missing.cem.json": "cem-map-unavailable", "legacy.cem.json": "cem-map-unsupported",
+		"missing.cem.json": "cem-map-unavailable", "retired-0.1.cem.json": "cem-map-invalid",
+		"retired-0.2.cem.json": "cem-map-invalid", "retired-0.3.cem.json": "cem-map-invalid",
 	} {
 		arguments := `{"map":"` + mapPath + `","expectedBase":"` + base + `","target":"` + target + `"}`
 		if result, callErr := registry.Call(context.Background(), ToolCEMReport, []byte(arguments)); callErr == nil || callErr.Code != want {
@@ -258,23 +240,21 @@ func TestCEMReportToolAbstainsWhenTheCheckoutMoves(t *testing.T) {
 	}
 }
 
-// cemRepository commits one change on the fixture and prepares its canonical
-// map at the fixed path, returning the root and both full object IDs.
+// cemRepository builds the stable fixture change (CEM-V1-214): its cem/1.0 map
+// is committed at the fixed path and its artifacts are copied under
+// artifacts/; it returns the root and both full object IDs.
 func cemRepository(t *testing.T) (string, string, string) {
 	t.Helper()
-	root := makeRepository(t)
-	base := strings.TrimSpace(string(gitOutput(t, root, "rev-parse", "HEAD")))
-	writeFile(t, filepath.Join(root, "internal/widget/widget.go"), "package widget\n\nfunc Value() int { return 2 }\n")
-	gitOutput(t, root, "commit", "-q", "-am", "change")
-	target := strings.TrimSpace(string(gitOutput(t, root, "rev-parse", "HEAD")))
-	session, err := workflow.Open(root)
-	if err != nil {
-		t.Fatal(err)
+	change := stablefixture.NewChange(t)
+	stable := change.Stable(t)
+	for _, path := range stable.ArtifactPaths {
+		data, err := os.ReadFile(filepath.Join(stable.ArtifactRoot, filepath.FromSlash(path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(change.Root, "artifacts", filepath.FromSlash(path)), string(data))
 	}
-	if _, err := session.Prepare(context.Background(), workflow.PrepareOptions{Base: base, Target: target}); err != nil {
-		t.Fatal(err)
-	}
-	return root, base, target
+	return change.Root, change.Base, stable.Target
 }
 
 // rootDigest hashes every path, mode, and regular-file content under root,

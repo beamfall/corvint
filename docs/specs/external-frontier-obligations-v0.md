@@ -12,7 +12,7 @@ Frontier").
 
 ## Agent digest
 - Claim: `corvint obligations` writes a reference-only sidecar joining each CEM hunk to the external obligations, tests, and unknowns an impact receipt reports.
-- Status: accepted (decision 0313, a delegated call on Beamfall/corvint#1)/experimental (file transport only); checked by `TestObligationsHunkAssociations`, `TestObligationsBindingAndIdentity`, and `TestObligationsCommandComposesSidecar`.
+- Status: accepted (decision 0313, a delegated call on Beamfall/corvint#1)/experimental (file transport only); checked by `TestObligationsHunkAssociations` and `TestObligationsCommandRefusesRetiredMap`; since 2026-10-12 the cem/0.2 form admits no map (CEM-V1-210) and the shared join serves only the stable sidecar (CEM-V1-130).
 - Exists: `internal/extevidence/obligations.go`, the `corvint obligations` verb in `cmd/corvint/obligations.go`.
 - Blocked on: an ACC-V0 provider profile before any executed transport; an independent adopter record before promotion.
 - Read next: Definitions; Requirements; Trust boundary, limits, and failure modes.
@@ -126,13 +126,13 @@ and the CEM's own hunk bound.
 
 | Case | Expected | Test |
 |---|---|---|
-| Real `impact --provider` receipt and a CEM | entity, obligation, test rows; `cem_sha256` of the raw file; no file written | `TestObligationsCommandComposesSidecar` |
+| Real `impact --provider` receipt and a retired cem/0.2 map | exit 2 `unsupported-spec` with the recovery line; no stdout; no file written (2026-10-12 amendment) | `TestObligationsCommandRefusesRetiredMap` |
 | Option errors | exit 2 with named message | `TestObligationsArguments` |
 | Two hunks, one on the provider path | kinds `entity,entity,obligation,test`; reference-only members | `TestObligationsHunkAssociations` |
 | No result, unloaded provider, no external section | coded unknowns and `partial`/`unknown` state | `TestObligationsExplicitUnknowns` |
-| Binding and id | raw digests, CEM hunk order, recomputable id | `TestObligationsBindingAndIdentity` |
+| Binding and id (stable sidecar since 2026-10-12) | raw digests, map hunk order, recomputable id | `TestCEMV1130StableObligationsAccepts` |
 | Reversed rows and limit 1 | identical body; omitted counted | `TestObligationsDeterministicAndBounded` |
-| CEM 0.1, broken JSON, affected receipt | `invalid-obligations-input` | `TestObligationsRejectsInvalidInput` |
+| cem/0.x map; cem/1.0 map or broken JSON; affected receipt | `unsupported-spec` with the recovery line; `invalid-obligations-input`; `invalid-obligations-input` (2026-10-12 amendment) | `TestCEMV1210FrozenObligationsAdmitNoMap` |
 | Output privacy | no body; untrusted fields listed | `TestObligationsPrivate` |
 
 ## Rollout, rollback, and compatibility
@@ -145,9 +145,9 @@ this document, its index rows, and decision 0313. No other surface changes in ei
 
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
-| `EFO-V0-001` | `parseObligationsInvocation`, `readObligationsInput` in `cmd/corvint/obligations.go` | `TestObligationsArguments`, `TestObligationsCommandComposesSidecar` |
-| `EFO-V0-002` | `Obligations` in `internal/extevidence/obligations.go` | `TestObligationsRejectsInvalidInput` |
-| `EFO-V0-003`, `EFO-V0-007` | `Obligations`, `digest` in `internal/extevidence/obligations.go` | `TestObligationsBindingAndIdentity`, `TestObligationsCommandComposesSidecar` |
+| `EFO-V0-001` | `parseObligationsInvocation`, `readObligationsInput` in `cmd/corvint/obligations.go` | `TestObligationsArguments`, `TestObligationsCommandRefusesRetiredMap` |
+| `EFO-V0-002` | `Obligations`, `joinImpact` in `internal/extevidence/obligations.go` | `TestCEMV1210FrozenObligationsAdmitNoMap` |
+| `EFO-V0-003`, `EFO-V0-007` | `StableObligations` in `internal/extevidence/obligations_stable.go`, `digest` in `internal/extevidence/obligations.go` | `TestCEMV1130StableObligationsAccepts`, `TestObligationsCommandRefusesRetiredMap` |
 | `EFO-V0-004`, `EFO-V0-005` | `associate`, `fromRow`, `toMap` in `internal/extevidence/obligations.go` | `TestObligationsHunkAssociations` |
 | `EFO-V0-006` | `providerSummary`, `obligationsState`, `associate` in `internal/extevidence/obligations.go` | `TestObligationsExplicitUnknowns` |
 | `EFO-V0-008` | `boundAssociations`, `associationKey` in `internal/extevidence/obligations.go` | `TestObligationsDeterministicAndBounded` |
@@ -159,3 +159,16 @@ this document, its index rows, and decision 0313. No other surface changes in ei
   showing the joined rows were read as references, not as closure.
 - Kill the sidecar if any consumer treats an association as closing a frontier item; the verb would
   then be withdrawn rather than given an authority field.
+
+## Amendment 2026-10-12: the cem/0.2 form admits no map (V1-1278 S2a)
+
+Decision 0525 retires cem/0.x, so the `external-frontier-obligations/0` form, defined over a
+cem/0.2 map, composes no sidecar any more (CEM-V1-210). `Obligations` refuses a cem/0.x map
+with `unsupported-spec` and the recovery line, and any other input, including a cem/1.0 map, with
+`invalid-obligations-input` naming the four stable flags. The hunk join (EFO-V0-004..EFO-V0-006,
+EFO-V0-008) moved unchanged into `joinImpact`, which the stable sidecar
+(`external-frontier-obligations-stable/0`, CEM-V1-130..CEM-V1-135) reads; its unit tests now
+exercise that join directly. The frozen binding/identity test was deleted with the form (0525 §6);
+binding and identity are checked on the stable sidecar. EFO-V0-002 and EFO-V0-003 keep their text
+as the historical cem/0.2 contract; they constrain no live output. Rollback: revert the V1-1278
+S2a commits.

@@ -17,7 +17,7 @@ import (
 
 func newOCMReadFixture(t *testing.T) lrfFixture {
 	t.Helper()
-	fixture := newLRFFixture(t, wire.Spec02)
+	fixture := newLRFFixture(t)
 	writeOCM(t, fixture, "change.ocm.json", false)
 	return fixture
 }
@@ -386,28 +386,6 @@ func TestOCMReadCommandsMatchPythonOracle(t *testing.T) {
 	}
 }
 
-// GPK-V0-002, OCM-V0-006..007.
-func TestOCMLegacyCEMReadCommandsMatchPythonOracle(t *testing.T) {
-	t.Parallel()
-	for _, action := range []string{"status", "verify", "report"} {
-		t.Run(action, func(t *testing.T) {
-			fixture := newLRFFixture(t, wire.Spec01)
-			writeOCM(t, fixture, "change.ocm.json", false)
-			arguments := []string{
-				"--root", fixture.root, "ocm", action,
-				"--map", "change.ocm.json", "--cem", fixture.mapPath,
-			}
-			if action == "report" {
-				arguments = append(arguments, "--output", "ocm-review.md")
-			}
-			candidate := runOCMProcess(t, arguments)
-			if candidate.exit != 0 || len(candidate.stderr) != 0 {
-				t.Fatalf("exit=%d stderr=%s", candidate.exit, candidate.stderr)
-			}
-		})
-	}
-}
-
 // GPK-V0-002, OCM-V0-010.
 func TestOCMMaxUnknownMatchesOracleBelowAtAndAbove(t *testing.T) {
 	t.Parallel()
@@ -500,7 +478,7 @@ func TestOCMFailuresMatchOracleVerdictAndReportWritesNothing(t *testing.T) {
 
 func TestOCMCEMBindingPrecedesMalformedClosureLikeOracle(t *testing.T) {
 	t.Parallel()
-	fixture := newLRFFixture(t, wire.Spec02)
+	fixture := newLRFFixture(t)
 	writeOCM(t, fixture, "change.ocm.json", true)
 	path := filepath.Join(fixture.root, "change.ocm.json")
 	raw, err := os.ReadFile(path)
@@ -584,20 +562,6 @@ func TestOCMExplicitEmptyAuthorityMatchesOracle(t *testing.T) {
 	arguments := append(append([]string{}, base...), "--expected-base", fixture.base, "--target", "")
 	candidate := runOCMProcess(t, arguments)
 	if candidate.exit != 1 || !bytes.Contains(candidate.stdout, []byte(`"code":"cem-map-digest-mismatch"`)) {
-		t.Fatalf("candidate=%#v", candidate)
-	}
-}
-
-func TestOCMLegacyTargetMismatchMatchesOracle(t *testing.T) {
-	t.Parallel()
-	fixture := newLRFFixture(t, wire.Spec01)
-	writeOCM(t, fixture, "change.ocm.json", false)
-	arguments := []string{
-		"--root", fixture.root, "ocm", "verify", "--map", "change.ocm.json",
-		"--cem", fixture.mapPath, "--target", fixture.base,
-	}
-	candidate := runOCMProcess(t, arguments)
-	if candidate.exit != 1 || !bytes.Contains(candidate.stdout, []byte(`"code":"target-mismatch"`)) {
 		t.Fatalf("candidate=%#v", candidate)
 	}
 }
@@ -769,7 +733,7 @@ func TestOCMUnsupportedProfilesAreTyped(t *testing.T) {
 		}
 	})
 	t.Run("Python claim", func(t *testing.T) {
-		fixture := newLRFFixture(t, wire.Spec02)
+		fixture := newLRFFixture(t)
 		writeOCM(t, fixture, "change.ocm.json", true)
 		path := filepath.Join(fixture.root, "change.ocm.json")
 		raw, err := os.ReadFile(path)
@@ -833,7 +797,7 @@ func TestOCMUnsupportedProfilesAreTyped(t *testing.T) {
 		}
 	})
 	t.Run("closure validation", func(t *testing.T) {
-		fixture := newLRFFixture(t, wire.Spec02)
+		fixture := newLRFFixture(t)
 		writeOCM(t, fixture, "change.ocm.json", true)
 		path := filepath.Join(fixture.root, "change.ocm.json")
 		raw, err := os.ReadFile(path)
@@ -935,7 +899,7 @@ func TestOCMUnsupportedRefusalAppendsOneObservation(t *testing.T) {
 // the same stderr boundary as ocm, each appending exactly one row.
 func TestLRFCEMAndDogfoodOCMUnsupportedRefusalsAppendOneObservationEach(t *testing.T) {
 	t.Parallel()
-	fixture := newLRFFixture(t, wire.Spec01)
+	fixture := newLRFFixture(t)
 	writeOCM(t, fixture, "change.ocm.json", true)
 	ocm, err := os.ReadFile(filepath.Join(fixture.root, "change.ocm.json"))
 	if err != nil {
@@ -956,7 +920,7 @@ func TestLRFCEMAndDogfoodOCMUnsupportedRefusalsAppendOneObservationEach(t *testi
 		code string
 		argv []string
 	}{
-		{"unsupported-lrf-context", []string{"lrf", "--cem", fixture.mapPath, "--patch", fixture.patchPath, "--target", fixture.target, "--ocm", "change.ocm.json"}},
+		{"unsupported-spec", []string{"lrf", "--cem", fixture.mapPath, "--patch", fixture.patchPath, "--target", fixture.target, "--ocm", "change.ocm.json"}},
 		{"unsupported-object-alternates", []string{"cem", "prepare", "--base", fixture.base, "--target", fixture.target}},
 		{"unsupported-object-alternates", []string{"dogfood-ocm", "status", "--expected-base", fixture.base, "--target", fixture.target}},
 	}
@@ -1004,7 +968,7 @@ func TestOIFV0PrepareIntentFormFlag(t *testing.T) {
 // verifies the OCM through the stable universe admission and joins it with the
 // 0.x review shape: ocm valid, worklist obligations, the linked hunk's
 // obligations, unmapped obligations and the Markdown OCM lines. An OCM still
-// bound to the legacy map is an invalid OCM naming its closed code, never an
+// bound to the prepared map is an invalid OCM naming its closed code, never an
 // internal error.
 func TestV11305StableReportOCM(t *testing.T) {
 	stablefixture.RequireStableHost(t)
@@ -1027,7 +991,7 @@ func TestV11305StableReportOCM(t *testing.T) {
 	target := cemGit(t, root, "rev-parse", "HEAD")
 	const cemPath, ocmPath = ".corvint/change.cem.json", ".corvint/change.ocm.json"
 	for _, arguments := range [][]string{
-		{"cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target},
+		{"cem", "prepare", "--spec", wire.StableSpec, "--base", base, "--target", target},
 		{"cem", "cite", "--map", cemPath, "--hunk", "1", "--evidence-path", "docs/rule.txt", "--lines", "1:1", "--relation", "specification"},
 		{"ocm", "prepare", "--map", ocmPath, "--cem", cemPath, "--intent", "docs/intent.md", "--expected-base", base, "--target", target},
 		{"ocm", "link", "--map", ocmPath, "--cem", cemPath, "--obligation", "TM-V0-008", "--hunk", "1", "--test-path", "tests/ocm_link_test.go",
@@ -1037,20 +1001,20 @@ func TestV11305StableReportOCM(t *testing.T) {
 			t.Fatalf("%v: %s", arguments, stderr)
 		}
 	}
-	legacyRaw, err := os.ReadFile(filepath.Join(root, cemPath))
+	preparedRaw, err := os.ReadFile(filepath.Join(root, cemPath))
 	if err != nil {
 		t.Fatal(err)
 	}
-	legacy, err := wire.ParseMap(legacyRaw)
-	if err != nil || len(legacy.Hunks) != 1 {
-		t.Fatalf("legacy map: %v", err)
+	prepared, err := wire.ParseStable(preparedRaw)
+	if err != nil || len(prepared.Change.Hunks) != 1 {
+		t.Fatalf("prepared map: %v", err)
 	}
-	hunkID := legacy.Hunks[0].ID
-	legacyOCM, err := os.ReadFile(filepath.Join(root, ocmPath))
+	hunkID := prepared.Change.Hunks[0].ID
+	preparedOCM, err := os.ReadFile(filepath.Join(root, ocmPath))
 	if err != nil {
 		t.Fatal(err)
 	}
-	stable := stablefixture.Stabilize(t, root, legacyRaw, hunkID, func(args ...string) string { return cemGit(t, root, args...) })
+	stable := stablefixture.Stabilize(t, root, preparedRaw, hunkID, func(args ...string) string { return cemGit(t, root, args...) })
 	report := func(format string) (int, map[string]any, string) {
 		t.Helper()
 		code, stdout, stderr := runCLI(t, "--root", root, "cem", "report", "--map", cemPath, "--expected-base", base, "--target", stable.Target,
@@ -1062,16 +1026,16 @@ func TestV11305StableReportOCM(t *testing.T) {
 		return code, envelope, stderr
 	}
 
-	// An OCM still bound to the legacy map and target is an invalid OCM.
+	// An OCM still bound to the prepared map and target is an invalid OCM.
 	code, envelope, stderr := report("json")
 	review := envelope["review"].(map[string]any)
 	ocm := review["ocm"].(map[string]any)
 	issues, _ := ocm["verification"].(map[string]any)["issues"].([]any)
 	if code != 1 || envelope["ok"] != false || review["ocmValid"] != false || ocm["state"] != "invalid" || len(issues) != 1 || strings.Contains(stderr, "internal-error") {
-		t.Fatalf("legacy-bound OCM: exit %d envelope %v stderr %q", code, envelope, stderr)
+		t.Fatalf("prepared-bound OCM: exit %d envelope %v stderr %q", code, envelope, stderr)
 	}
 	if issue := issues[0].(map[string]any); issue["code"] != "cem-map-digest-mismatch" || issue["message"] != "CEM map digest does not match" {
-		t.Fatalf("legacy-bound OCM issue: %v", issues)
+		t.Fatalf("prepared-bound OCM issue: %v", issues)
 	}
 	failure := ocm["verification"].(map[string]any)
 	for _, field := range []string{"spec", "targetRevision", "structuralCoverage", "testExecution", "policyIssues"} {
@@ -1080,7 +1044,7 @@ func TestV11305StableReportOCM(t *testing.T) {
 		}
 	}
 
-	cemWrite(t, root, ocmPath, string(stablefixture.RebindOCM(t, legacyOCM, stable.Target, stablefixture.Digest(stable.Map))))
+	cemWrite(t, root, ocmPath, string(stablefixture.RebindOCM(t, preparedOCM, stable.Target, stablefixture.Digest(stable.Map))))
 	code, envelope, stderr = report("json")
 	if code != 0 || envelope["ok"] != true || stderr != "" {
 		t.Fatalf("stable OCM report: exit %d ok %v stderr %q", code, envelope["ok"], stderr)

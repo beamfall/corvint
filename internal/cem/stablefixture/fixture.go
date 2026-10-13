@@ -44,14 +44,16 @@ func Digest(data []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// Stabilize converts legacyRaw, a cem/0.2 map verified at the repository's
+// Stabilize converts legacyRaw, a change map verified at the repository's
 // current HEAD, into a cem/1.0 map whose one criterion links linkedHunk, and
 // commits it with git, a caller-owned runner that must disable automatic
-// maintenance. The legacy change mechanics are kept byte for byte.
+// maintenance. legacyRaw is either the cem/1.0 change `cem prepare --spec
+// cem/1.0` writes (CEM-V1-214) or the internal cem/0.2 build NewChange still
+// uses until S2b. The change mechanics are kept byte for byte.
 func Stabilize(t testing.TB, root string, legacyRaw []byte, linkedHunk string, git func(args ...string) string) Stable {
 	t.Helper()
 	RequireStableHost(t)
-	legacy, err := wire.ParseMap(legacyRaw)
+	legacy, err := changeMechanics(legacyRaw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,6 +119,20 @@ func Stabilize(t testing.TB, root string, legacyRaw []byte, linkedHunk string, g
 	git("commit", "-qm", "stable sidecar")
 	out.Target = git("rev-parse", "HEAD")
 	return out
+}
+
+// changeMechanics parses the change Stabilize converts: a cem/1.0 change map
+// through the stable decoder, otherwise the internal cem/0.2 build.
+func changeMechanics(raw []byte) (*wire.Map, error) {
+	if !wire.DeclaresStable(raw) {
+		return wire.ParseMap(raw)
+	}
+	document, err := wire.ParseStable(raw)
+	if err != nil {
+		return nil, err
+	}
+	change := wire.Map(document.Change)
+	return &change, nil
 }
 
 // RebindOCM rewrites only an OCM's target and CEM map digest and returns its

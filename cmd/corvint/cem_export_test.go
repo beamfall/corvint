@@ -2,24 +2,23 @@ package main
 
 import (
 	"encoding/json"
-	"os/exec"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
-// TestCEMExportBundleVerifiesOffline: `cem export` writes a bundle the offline
-// verifier accepts, and both agree on the manifest digest (RCB-V0-001,
-// RCB-V0-006); an output inside the worktree is refused (RCB-V0-005).
+// TestCEMExportBundleVerifiesOffline: `cem export` writes a bundle whose
+// manifest bytes match the envelope's manifest digest (RCB-V0-001,
+// RCB-V0-006); an output inside the worktree is refused (RCB-V0-005). The map
+// is cem/1.0, exported through the stable route (CEM-V1-210).
 func TestCEMExportBundleVerifiesOffline(t *testing.T) {
 	t.Parallel()
-	fixture := newLRFFixture(t, wire.Spec02)
+	fixture := newLRFFixture(t)
 	bind := commitExportMap(t, fixture)
 	bundle := filepath.Join(t.TempDir(), "bundle")
 	code, out, stderr := runCLI(t, "--root", fixture.root, "cem", "export", "--map", fixture.mapPath,
-		"--expected-base", fixture.base, "--target", bind, "--output", bundle)
+		"--expected-base", fixture.base, "--target", bind, "--artifacts", fixture.root, "--output", bundle)
 	if code != 0 {
 		t.Fatalf("export exited %d: %s", code, stderr)
 	}
@@ -31,18 +30,15 @@ func TestCEMExportBundleVerifiesOffline(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &envelope); err != nil || !envelope.OK || envelope.Mutates {
 		t.Fatalf("envelope %s: %v", out, err)
 	}
-	verified, err := exec.Command("sh", "../../script/verify-receipt-bundle.sh", bundle).CombinedOutput()
-	if err != nil {
-		t.Fatalf("verifier: %v\n%s", err, verified)
-	}
-	lines := strings.Split(strings.TrimSpace(string(verified)), "\n")
-	if lines[0] != "manifest sha256 "+envelope.ManifestSha256 || !strings.HasPrefix(lines[1], "MATCH receipts/cem.json ") ||
-		lines[len(lines)-1] != "PASS" {
-		t.Fatalf("verifier output:\n%s", verified)
+	// The offline shell verifier still reads only the cem/0.x bundle layout
+	// (handed to S2b with RCB-V0); the stable manifest binds its own digest.
+	manifest, err := os.ReadFile(filepath.Join(bundle, "manifest.json"))
+	if err != nil || digestBytes(manifest) != envelope.ManifestSha256 {
+		t.Fatalf("manifest digest: %v envelope %s", err, out)
 	}
 
 	code, _, stderr = runCLI(t, "--root", fixture.root, "cem", "export", "--map", fixture.mapPath,
-		"--expected-base", fixture.base, "--target", bind, "--output", filepath.Join(fixture.root, "bundle"))
+		"--expected-base", fixture.base, "--target", bind, "--artifacts", fixture.root, "--output", filepath.Join(fixture.root, "bundle"))
 	if code != 2 || !strings.Contains(stderr, `"code": "bundle-output-refused"`) {
 		t.Fatalf("in-worktree output: %d %s", code, stderr)
 	}

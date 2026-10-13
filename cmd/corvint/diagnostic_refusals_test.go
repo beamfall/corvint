@@ -207,23 +207,23 @@ func TestConvertedRefusalDiagnostics(t *testing.T) {
 			return refusalRun{exit: exit, stdout: string(stdout), stderr: stderr, want: want}
 		},
 		"attest key missing": func(t *testing.T) refusalRun {
-			root, base := proveCEMRepository(t)
+			f := materializeCEMV2Case(t)
 			key := filepath.Join(t.TempDir(), "missing.pem")
-			_, stdout, stderr, exit := runProveCLI(t, root, "--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD", "--attest-key", key)
+			_, stdout, stderr, exit := runProveCLI(t, f.repo, "--cem", "stable.json", "--expected-base", f.base, "--target", f.target, "--artifacts", f.artifacts, "--attest-cem-v2", "--attest-key", key)
 			want := refusalEnvelope("attest-key-unavailable", "cannot read an Ed25519 PKCS#8 private key from "+key, subjectOf("value", key), evidenceOf(), fixesOf("attest.use-ed25519-private-key"), "")
 			return refusalRun{exit: exit, stdout: string(stdout), stderr: stderr, want: want}
 		},
 		"attest public key missing": func(t *testing.T) refusalRun {
 			root, envelopePath, _ := emitCEMAttestation(t)
 			key := filepath.Join(t.TempDir(), "missing.pub")
-			_, stdout, stderr, exit := runProveCLI(t, root, "--verify-cem-attestation", envelopePath, "--attest-public-key", key, "--cem", ".corvint/change.cem.json")
+			_, stdout, stderr, exit := runProveCLI(t, root, "--verify-cem-attestation", envelopePath, "--attest-public-key", key, "--cem", "stable.json")
 			want := refusalEnvelope("attest-public-key-unavailable", "cannot read an Ed25519 PKIX public key from "+key, subjectOf("value", key), evidenceOf(), fixesOf("attest.use-ed25519-public-key"), "")
 			return refusalRun{exit: exit, stdout: string(stdout), stderr: stderr, want: want}
 		},
 		"attest envelope missing": func(t *testing.T) refusalRun {
 			root, _, publicKeyPath := emitCEMAttestation(t)
 			envelope := filepath.Join(t.TempDir(), "missing.dsse.json")
-			_, stdout, stderr, exit := runProveCLI(t, root, "--verify-cem-attestation", envelope, "--attest-public-key", publicKeyPath, "--cem", ".corvint/change.cem.json")
+			_, stdout, stderr, exit := runProveCLI(t, root, "--verify-cem-attestation", envelope, "--attest-public-key", publicKeyPath, "--cem", "stable.json")
 			want := refusalEnvelope("attest-envelope-unavailable", "cannot read the DSSE envelope from "+envelope, subjectOf("value", envelope), evidenceOf(), fixesOf("attest.use-readable-envelope"), "")
 			return refusalRun{exit: exit, stdout: string(stdout), stderr: stderr, want: want}
 		},

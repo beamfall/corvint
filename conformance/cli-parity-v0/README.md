@@ -40,7 +40,9 @@ Decision 0308 gives the candidate one name while the frozen oracle inputs keep t
 outside the counted packet and reported `PASS-WITH-IDENTITY-RENAME`; and `retired`, pinned by
 `validRetired` and `retiredCases` to the twenty-nine cases whose frozen argv, fixture or
 expectation address the oracle's `.atlas/` or `.context-atlas/traces` state paths or its
-product-name tooling term, and by `validRetiredRefusal` and `retiredRefusalCases` to the two
+product-name tooling term (plus `lrf-evaluate-supported`, retired under decision 0525 because its
+frozen map is cem/0.x, which `lrf` now refuses with `unsupported-spec`; `retiredCaseDecisions` pins
+it to `decision=0525`, `CEM-V1-212`), and by `validRetiredRefusal` and `retiredRefusalCases` to the two
 refusal items whose frozen argv or setup does the same (`lrf-ocm-python-claim-refusal`,
 `query-present-trace-store-refusal`). A retired item is neither executed nor scored: replay prints
 `RETIRED <id> decision=0308 reason=…`, never a `PASS` or `UNSUPPORTED` vocabulary, and its frozen

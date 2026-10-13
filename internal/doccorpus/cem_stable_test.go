@@ -3,6 +3,7 @@ package doccorpus
 import (
 	"context"
 	"errors"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -71,8 +72,12 @@ func TestStableCEMProjectionCitesVerifiedSpan(t *testing.T) {
 	if err != nil || strings.Contains(string(encoded), `"spec":"cem/1.0","baseRevision"`) {
 		t.Fatalf("stable projection encoded a map or failed: %v", err)
 	}
-	if _, err := CEMProjection(context.Background(), fixture.repo, artifact, fixture.raw, ""); err == nil {
-		t.Fatal("the 0.x projection accepted a stable map instead of refusing")
+	if err := RefuseCEMProjection(fixture.raw); err == nil || !strings.Contains(err.Error(), "docs corpus cem-stable") {
+		t.Fatalf("the retired projection did not name the stable operation: %v", err)
+	}
+	var retired *Error
+	if err := RefuseCEMProjection([]byte(`{"spec":"cem/0.2"}`)); !errors.As(err, &retired) || retired.Code != cemcode.UnsupportedSpec || !strings.Contains(retired.Message, wire.RetiredSpecFix) {
+		t.Fatalf("a cem/0.x map was not refused with the retired-spec fix (CEM-V1-210): %v", err)
 	}
 }
 

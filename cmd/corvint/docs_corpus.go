@@ -276,11 +276,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		receipt, err := doccorpus.CEMProjection(ctx, o.root, a, data, o.id)
-		if err != nil {
-			return nil, err
-		}
-		return doccorpus.Encode(receipt)
+		return nil, doccorpus.RefuseCEMProjection(data)
 	}
 	fresh, limits, err := doccorpus.Freshness(ctx, o.root, a)
 	if err != nil {

@@ -40,8 +40,6 @@ const (
 	VerifierUnknown            VerifierID = "unknown"
 	VerifierContextEnvelopeV1  VerifierID = "corvint-context-envelope/1"
 	VerifierLocalTraceV1       VerifierID = "go-local-trace-v1"
-	VerifierCEMV01             VerifierID = "cem/0.1"
-	VerifierCEMV02             VerifierID = "cem/0.2"
 	VerifierOCMV01Experimental VerifierID = "ocm/0.1-experimental"
 	VerifierFrontierV0         VerifierID = "frontier/0"
 	VerifierPulseSnapshotV0    VerifierID = "corvint-pulse-snapshot/0"

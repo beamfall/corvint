@@ -35,7 +35,7 @@ func TestProveRefusesDriftInEveryMode(t *testing.T) {
 				t.Fatal(err)
 			}
 			if test.drift == "map" {
-				mapPath := filepath.Join(root, ".corvint", "change.cem.json")
+				mapPath := filepath.Join(root, "stable.json")
 				contents, err := os.ReadFile(mapPath)
 				if err != nil {
 					t.Fatal(err)
@@ -45,7 +45,8 @@ func TestProveRefusesDriftInEveryMode(t *testing.T) {
 				}
 			}
 			environment := checkpointGitWrapper(t, proveDriftScript(test.drift, root, realGit))
-			_, stdout, stderr, code := runProveCLIEnvironment(t, environment, root, arguments...)
+			// Raw stdout: the cem mode prints two statement lines under --attest-cem-v2.
+			stdout, stderr, code := runCandidateWithEnvironment(t, "", environment, append([]string{"--root", root, "prove"}, arguments...)...)
 			if test.drift == "control" {
 				if code != 0 {
 					t.Fatalf("control exited %d: %s", code, stderr)
@@ -70,8 +71,10 @@ func proveDriftFixture(t *testing.T, mode string) (string, []string) {
 		root, base := proveChangeRepository(t)
 		return root, []string{"--base", base}
 	case "cem":
-		root, base := proveCEMRepository(t)
-		return root, []string{"--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD"}
+		// A cem/1.0 map is proved only through the stable route (CEM-V1-210, CEM-V1-214).
+		f := materializeCEMV2Case(t)
+		return f.repo, []string{"--cem", "stable.json", "--expected-base", f.base, "--target", f.target,
+			"--artifacts", f.artifacts, "--attest-cem-v2"}
 	default:
 		t.Fatalf("unknown prove mode %q", mode)
 		return "", nil
@@ -102,7 +105,7 @@ esac`
   if [ -f "$0.status" ]; then
    ` + shellQuote(realGit) + ` "$@"
    code=$?
-   printf ' ' >> ` + shellQuote(filepath.Join(root, ".corvint", "change.cem.json")) + `
+   printf ' ' >> ` + shellQuote(filepath.Join(root, "stable.json")) + `
    exit "$code"
   fi
   : > "$0.status";;

@@ -3,7 +3,6 @@ package doccorpus
 import (
 	"bytes"
 	"context"
-	"fmt"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
@@ -11,41 +10,24 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
-// CEMProjection preserves the immutable original span and carries corpus
-// provenance beside the frozen wire. It never cites generated prose as intent.
-// A cem/1.0 map is refused with a closed code naming the stable operation
-// (CEM-V1-163); any other coded parse refusal keeps its code (V1-1305).
-func CEMProjection(ctx context.Context, root string, a *Artifact, data []byte, claimID string) (map[string]any, error) {
-	if wire.DeclaresStable(data) {
-		return nil, &Error{Code: cemcode.UnsupportedSpec, Message: "docs corpus cem projects cem/0.x maps only; project a cem/1.0 map with `corvint docs corpus cem-stable`, which also requires --expected-base, --target and --stable-artifact-root"}
-	}
-	cem, err := wire.ParseMap(data)
-	if err != nil {
+// RefuseCEMProjection is all that is left of `docs corpus cem`: it projected a
+// cem/0.x map only, and cem/0.x is retired (CEM-V1-210). A 0.x map refuses with
+// the retired-spec fix, a cem/1.0 map with the stable operation (CEM-V1-163),
+// and any other coded parse refusal keeps its code (V1-1305).
+func RefuseCEMProjection(data []byte) error {
+	if _, err := wire.ParseStable(data); err != nil {
 		if code := cemcode.CodeOf(err); code != "" {
-			return nil, &Error{Code: code, Message: cemcode.MessageOf(err)}
+			return &Error{Code: code, Message: cemcode.MessageOf(err)}
 		}
-		return nil, err
+		return err
 	}
-	rows, omitted, err := projectClaims(ctx, root, a, claimID, cem.BaseRevision, cem.Evidence, true)
-	if err != nil {
-		return nil, err
-	}
-	receipt := map[string]any{"schema": "corvint-corpus-cem/1", "artifact_sha256": a.SHA256, "cem_sha256": Digest(data), "base_revision": cem.BaseRevision, "claims": rows, "authority": "generated-documentation", "mutates": false}
-	if a.Schema == SchemaV2 {
-		receipt["omitted"] = omitted
-	}
-	digest, err := hashValue(receipt)
-	if err != nil {
-		return nil, err
-	}
-	receipt["sha256"] = digest
-	return receipt, nil
+	return &Error{Code: cemcode.UnsupportedSpec, Message: "docs corpus cem projected retired cem/0.x maps only; project a cem/1.0 map with `corvint docs corpus cem-stable`, which also requires --expected-base, --target and --stable-artifact-root"}
 }
 
 // projectClaims checks each selected claim anchor at the map's base commit and
-// binds it to the map's evidence by identity. cite adds the 0.x `cem cite`
-// writer argv; a stable projection never offers a writer (CEM-V1-076).
-func projectClaims(ctx context.Context, root string, a *Artifact, claimID, base string, evidence []wire.Evidence, cite bool) ([]any, int, error) {
+// binds it to the map's evidence by identity. A stable projection never offers
+// a writer (CEM-V1-076).
+func projectClaims(ctx context.Context, root string, a *Artifact, claimID, base string, evidence []wire.Evidence) ([]any, int, error) {
 	auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
 	if err != nil {
 		return nil, 0, err
@@ -91,9 +73,6 @@ func projectClaims(ctx context.Context, root string, a *Artifact, claimID, base 
 				}
 			}
 			row := map[string]any{"claim_id": claim.ID, "evidence_id": id, "bound_in_cem": bound, "source": anchor, "derivation": claim.Evidence.Derivation, "trust": claim.Evidence.Trust, "limitations": []string{"citation supports the original span only; generated claim meaning and adequacy are not established"}}
-			if cite {
-				row["cite"] = []string{"cem", "cite", "--evidence-path", anchor.Path, "--bytes", fmt.Sprintf("%d:%d", extent.Start, extent.End)}
-			}
 			if a.Schema == SchemaV2 {
 				raw, err := Encode(row)
 				if err != nil {

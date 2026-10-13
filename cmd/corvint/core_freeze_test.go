@@ -84,6 +84,11 @@ func jsonMember(document map[string]any, path string) (any, bool) {
 func coreEvidenceArguments(t *testing.T, verb string, extra ...string) []string {
 	t.Helper()
 	fixture := newOCMReadFixture(t)
+	if verb == "cem" {
+		// The frozen cem status/verify goldens describe the retired cem/0.2
+		// route, which ships until V1-1278 S2b removes it.
+		fixture = newCEMSpecFixture(t, "cem/0.2")
+	}
 	maps := map[string][]string{
 		"cem":      {"--map", fixture.mapPath},
 		"ocm":      {"--map", "change.ocm.json", "--cem", fixture.mapPath},
@@ -217,8 +222,6 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			map[string]any{"tool": "ocm-status", "verification.spec": "ocm/0.1-experimental"}},
 		{"ocm verify", func(t *testing.T) []string { return coreEvidenceArguments(t, "ocm", "verify") }, 0,
 			map[string]any{"tool": "ocm-verify", "verification.spec": "ocm/0.1-experimental"}},
-		{"frontier open json", func(t *testing.T) []string { return coreEvidenceArguments(t, "frontier") }, 1,
-			map[string]any{"profile": "frontier/0", "frontierState": "OPEN", "ok": absentMember{}, "mutates": absentMember{}}},
 		{"dogfood status retained outcome", func(t *testing.T) []string {
 			return []string{"--root", impactCLIRepository(t), "dogfood", "status", "--session-key", strings.Repeat("a", 64)}
 		}, 0, map[string]any{"tool": "dogfood-status", "profile": "corvint-local-completion/0", "claim": "caller-owned-selected-workflow-only"}},

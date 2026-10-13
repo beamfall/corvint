@@ -5,9 +5,12 @@ package criterionexperiment
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
@@ -68,9 +71,15 @@ func newStableExperiment(t *testing.T) stableExperiment {
 	if e != nil {
 		t.Fatal(e)
 	}
-	m, e := cw.ParseMap(legacy)
-	if e != nil {
-		t.Fatal(e)
+	// The legacy map is only the stable fixture's input; its hunk ID is read
+	// as plain JSON, never through a retired cem/0.x decoder.
+	var m struct {
+		Hunks []struct {
+			ID string `json:"id"`
+		} `json:"hunks"`
+	}
+	if e = json.Unmarshal(legacy, &m); e != nil || len(m.Hunks) == 0 {
+		t.Fatalf("legacy fixture hunks: %v", e)
 	}
 	stable := stablefixture.Stabilize(t, dir, legacy, m.Hunks[0].ID, func(args ...string) string { return gitTest(t, dir, args...) })
 	repo, e := gitauth.Open(dir, gitrun.NewDefaultBudget())
@@ -115,7 +124,7 @@ func TestCEMV1136StableExperimentRunsAndVerifies(t *testing.T) {
 	if e := r.validate(); e != nil {
 		t.Fatal(e)
 	}
-	if e := admitCEM(ctx, f.repo, f.dir, r, f.stable.Map, f.stable.ArtifactRoot); e != nil {
+	if e := admitCEM(ctx, f.dir, r, f.stable.Map, f.stable.ArtifactRoot); e != nil {
 		t.Fatal(e)
 	}
 	planDir := filepath.Join(t.TempDir(), "plan")
@@ -167,7 +176,7 @@ func TestCEMV1136StableExperimentRunsAndVerifies(t *testing.T) {
 func TestCEMV1137StableExperimentAdmission(t *testing.T) {
 	ctx := context.Background()
 	f := newStableExperiment(t)
-	if e := admitCEM(ctx, f.repo, f.dir, f.request, f.stable.Map, f.stable.ArtifactRoot); e != nil {
+	if e := admitCEM(ctx, f.dir, f.request, f.stable.Map, f.stable.ArtifactRoot); e != nil {
 		t.Fatalf("stable admission: %v", e)
 	}
 	edited := append(bytes.TrimSuffix(append([]byte(nil), f.stable.Map...), []byte("\n")), ' ', '\n')
@@ -196,7 +205,7 @@ func TestCEMV1137StableExperimentAdmission(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := admitCEM(ctx, f.repo, f.dir, tc.request, tc.raw, tc.root)
+			e := admitCEM(ctx, f.dir, tc.request, tc.raw, tc.root)
 			var refusal *StableRefusal
 			if e == nil || errors.As(e, &refusal) != tc.refusal {
 				t.Fatalf("admission = %v, want refusal=%v", e, tc.refusal)
@@ -205,6 +214,13 @@ func TestCEMV1137StableExperimentAdmission(t *testing.T) {
 				t.Fatal("refusal retains an ACCEPT")
 			}
 		})
+	}
+	// CEM-V1-210: the frozen profile admitted only cem/0.2, which is retired.
+	if e := admitCEM(ctx, f.dir, frozen, f.legacy, ""); cemcode.CodeOf(e) != cemcode.UnsupportedSpec || !strings.Contains(e.Error(), cw.RetiredSpecFix) {
+		t.Fatalf("frozen over cem/0.2: %v", e)
+	}
+	if e := admitCEM(ctx, f.dir, frozen, f.stable.Map, ""); cemcode.CodeOf(e) != cemcode.UnsupportedSpec || !strings.Contains(e.Error(), StableProfile) {
+		t.Fatalf("frozen over cem/1.0: %v", e)
 	}
 	t.Run("plan entries", func(t *testing.T) {
 		requestDir := t.TempDir()
@@ -228,7 +244,7 @@ func TestCEMV1137StableExperimentAdmission(t *testing.T) {
 			t.Fatal(e)
 		}
 		var refusal *StableRefusal
-		if e := admitCEM(ctx, f.repo, f.dir, f.request, f.stable.Map, f.stable.ArtifactRoot); !errors.As(e, &refusal) {
+		if e := admitCEM(ctx, f.dir, f.request, f.stable.Map, f.stable.ArtifactRoot); !errors.As(e, &refusal) {
 			t.Fatalf("tampered artifact: %v", e)
 		}
 	})

@@ -218,7 +218,9 @@ func TestTaskReviewCEMReportNeverRunsPlantedGit(t *testing.T) {
 		t.Fatalf("cem report after planting git=%s", canonicalJSON(report))
 	}
 	content := object(t, object(t, report["structuredContent"])["receipt"])
-	if content["ok"] != false || object(t, content["verification"])["valid"] != false {
+	// The report reads a cem/1.0 map through the stable verifier (CEM-V1-210),
+	// whose result never accepts an empty-diff map with a wrong patch digest.
+	if content["ok"] != false || object(t, content["stableVerification"])["outcome"] == "ACCEPT" {
 		t.Fatalf("invalid empty-diff map upgraded: %s", canonicalJSON(report))
 	}
 }

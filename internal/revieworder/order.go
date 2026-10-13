@@ -49,7 +49,9 @@ type Note struct {
 	Body    []byte
 }
 
-// CEM holds an already-read map and its caller-established verification binding.
+// CEM holds an already-read cem/1.0 map (the Change of wire.ParseStable; a
+// retired cem/0.x map never qualifies, CEM-V1-211) and its caller-established
+// verification binding.
 // Verified must come from verification against the same patch and target, not
 // merely successful JSON parsing. Coverage is still a caller-reported observation.
 type CEM struct {
@@ -251,7 +253,7 @@ func coverage(in Inputs, h patch.Hunk, lines []int64) Factor {
 	}
 	f.Citation.Object = c.MapSha256
 	if !c.Verified || !commitID(in.BaseRevision) || !commitID(in.TargetRevision) ||
-		!digestID(c.MapSha256) || !digestID(in.PatchSha256) || c.Map.Spec != wire.Spec03 ||
+		!digestID(c.MapSha256) || !digestID(in.PatchSha256) || c.Map.Spec != wire.StableSpec ||
 		c.Map.BaseRevision != in.BaseRevision || c.TargetRevision != in.TargetRevision || c.Map.PatchSha256 != in.PatchSha256 {
 		f.Citation.Detail = "cem-binding-unverified-or-mismatched"
 		return f

@@ -1,10 +1,9 @@
 package cemcandidate
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -101,204 +100,38 @@ func fixture(t *testing.T, format string) (Request, string) {
 	r := Request{Profile: Profile, Repository: repo, ExpectedBase: base, Target: target, TicketID: ticket.Raw, AttemptID: binding.AttemptID, SourceMap: save(t, filepath.Join(dir, "source.json"), encode(t, m)), Capture: save(t, filepath.Join(dir, "capture.json"), capture), Verification: save(t, filepath.Join(dir, "verification.json"), tw.EncodeFile(v.Value())), RunnerPlan: save(t, filepath.Join(dir, "plan.json"), encode(t, plan)), RunnerReceipt: save(t, filepath.Join(dir, "receipt.json"), encode(t, receipt)), Links: []Link{{CriterionIndex: 0, HunkIDs: []string{hunk}, EvidenceIDs: []string{evidence}}}}
 	return r, filepath.Join(realTemp(t), "bundle")
 }
-func TestAssembleReferenceIntegrityAndDeclaredSource(t *testing.T) {
-	for _, format := range []string{"sha1", "sha256"} {
-		t.Run(format, func(t *testing.T) {
-			r, out := fixture(t, format)
-			result, e := Assemble(t.Context(), r, out)
-			if e != nil {
-				t.Fatal(e)
-			}
-			if result.Verification.Integrity != "VERIFIED" || result.DeclaredInputGitBinding != "DECLARED_INPUT_BYTES_MATCH_TARGET" || result.ExecutionAtCommit != "NOT_OBSERVED" || result.NativeCaptureSemanticVerification != "NOT_OBSERVED" {
-				t.Fatalf("overstated result %+v", result)
-			}
-			for _, v := range result.Verification.Limits {
-				if v != "NOT_OBSERVED" {
-					t.Fatal("promoted authority")
-				}
-			}
-			raw, e := Read(result.CandidatePath)
-			if e != nil {
-				t.Fatal(e)
-			}
-			c, e := cw.ParseCandidate(raw)
-			if e != nil {
-				t.Fatal(e)
-			}
-			if len(c.Criteria) != 1 || c.Criteria[0].TicketID != r.TicketID {
-				t.Fatal("wrong criterion identity")
-			}
-			for name, pin := range map[string]FileRef{"runner-plan": r.RunnerPlan, "runner-receipt": r.RunnerReceipt, "tasks-capture": r.Capture, "tasks-verification": r.Verification} {
-				b, e := Read(filepath.Join(out, "artifacts", name+".json"))
-				if e != nil || tr.Digest(b) != pin.Sha256 {
-					t.Fatalf("original bytes lost: %s %v", name, e)
-				}
-			}
-			// Only app.txt was declared, despite rule.txt also existing. The successful
-			// result must retain dependency/source execution unknowns for that subset.
-			if result.Verification.Limits["sourceGitBinding"] != "NOT_OBSERVED" {
-				t.Fatal("subset became execution source closure")
-			}
-		})
-	}
-}
-func TestAssembleRetainsEveryNativeOutcome(t *testing.T) {
-	r, baseOut := fixture(t, "sha1")
-	raw, e := Read(r.RunnerReceipt.Path)
+
+// TestAssembleRefusesRetiredAndStableSources: both assemblies converted only a
+// cem/0.x source, which is retired; a 0.x source refuses with the retired-spec
+// fix and a cem/1.0 source refuses as already stable, and neither writes output
+// (CEM-V1-210).
+func TestAssembleRefusesRetiredAndStableSources(t *testing.T) {
+	stableRaw, e := os.ReadFile(filepath.Join("..", "..", "protocol", "cem-1.0", "stable", "repository-envelope-packet", "inherited", "fixtures", "maps", "sha1-positive-sealed.json"))
 	if e != nil {
 		t.Fatal(e)
 	}
-	var receipt tr.ReceiptDocument
-	if e := Decode(raw, &receipt); e != nil {
-		t.Fatal(e)
-	}
-	states := []string{tr.Passed, tr.Failed, tr.Skipped, tr.Flaky, tr.TimedOut, tr.Interrupted, tr.Unknown}
-	kinds := []string{"", tr.Assertion, tr.BuildFailure, tr.CollectionFailure, tr.Infrastructure}
-	for _, state := range states {
-		for _, kind := range kinds {
-			receipt.Observation.Tests = []tr.Test{{ID: "native", State: state, FailureKind: kind, Attempts: []tr.Attempt{{State: state, FailureKind: kind, Message: "original retry"}}}}
-			receipt.Observation.Complete = state == tr.Passed
-			encoded := encode(t, receipt)
-			r.RunnerReceipt = save(t, r.RunnerReceipt.Path, encoded)
-			out := baseOut + "-" + state + "-" + kind
-			result, e := Assemble(t.Context(), r, out)
-			if e != nil {
-				t.Fatal(e)
-			}
-			got, e := Read(filepath.Join(out, "artifacts/runner-receipt.json"))
-			if e != nil || !bytes.Equal(encoded, got) {
-				t.Fatal("native outcome rewritten")
-			}
-			if result.Verification.Limits["criterionDiscrimination"] != "NOT_OBSERVED" {
-				t.Fatal("failure became discrimination")
+	r, out := fixture(t, "sha1")
+	s, stableOut := stableFixture(t, "sha1")
+	for _, c := range []struct {
+		name, want string
+		source     []byte
+	}{{"retired", cw.RetiredSpecFix, nil}, {"stable", "needs no assembly", stableRaw}} {
+		if c.source != nil {
+			r.SourceMap = save(t, r.SourceMap.Path, c.source)
+			s.SourceMap = r.SourceMap
+		}
+		_, e := Assemble(t.Context(), r, out)
+		_, se := AssembleStable(t.Context(), s, stableOut)
+		for _, got := range []error{e, se} {
+			if cemcode.CodeOf(got) != cemcode.UnsupportedSpec || !strings.Contains(got.Error(), c.want) {
+				t.Fatalf("%s source: %v", c.name, got)
 			}
 		}
-	}
-}
-func TestAssembleRefusesMismatchedReferences(t *testing.T) {
-	for _, kind := range []string{"ticket", "attempt", "base", "tree", "criterion", "hunk", "evidence", "plan-hash", "input-hash", "invocation-hash", "source-bytes", "git-path", "changed-artifact", "cem03", "old-sidecar", "inside-repo", "overwrite"} {
-		t.Run(kind, func(t *testing.T) {
-			r, out := fixture(t, "sha1")
-			mutateReceipt := func(f func(*tr.ReceiptDocument)) {
-				raw, _ := Read(r.RunnerReceipt.Path)
-				var x tr.ReceiptDocument
-				if e := Decode(raw, &x); e != nil {
-					t.Fatal(e)
-				}
-				f(&x)
-				r.RunnerReceipt = save(t, r.RunnerReceipt.Path, encode(t, x))
+		for _, p := range []string{out, stableOut} {
+			if _, e := os.Lstat(p); !os.IsNotExist(e) {
+				t.Fatalf("%s source wrote output %s: %v", c.name, p, e)
 			}
-			switch kind {
-			case "ticket":
-				r.TicketID = "ticket:example:main:OTHER"
-			case "attempt":
-				r.AttemptID = "other-attempt"
-			case "base":
-				r.ExpectedBase = r.Target
-			case "tree":
-				raw, _ := Read(r.Verification.Path)
-				value, e := tw.Parse(raw)
-				if e != nil {
-					t.Fatal(e)
-				}
-				v, e := tw.ReadCriterionVerification(value)
-				if e != nil {
-					t.Fatal(e)
-				}
-				wrong := r.ExpectedBase
-				v.Binding.CandidateTreeOID = &wrong
-				r.Verification = save(t, r.Verification.Path, tw.EncodeFile(v.Value()))
-			case "criterion":
-				r.Links[0].CriterionIndex = 1
-			case "hunk":
-				r.Links[0].HunkIDs[0] = "hunk:sha256:" + strings.Repeat("0", 64)
-			case "evidence":
-				r.Links[0].EvidenceIDs[0] = "evidence:sha256:" + strings.Repeat("0", 64)
-			case "plan-hash":
-				mutateReceipt(func(x *tr.ReceiptDocument) { x.PlanSha256 = r.RunnerPlan.Sha256 + "x" })
-			case "input-hash":
-				mutateReceipt(func(x *tr.ReceiptDocument) { x.Execution.InputSha256 = strings.Repeat("0", 64) })
-			case "invocation-hash":
-				mutateReceipt(func(x *tr.ReceiptDocument) { x.Execution.InvocationSha256 = strings.Repeat("0", 64) })
-			case "source-bytes", "git-path":
-				raw, _ := Read(r.RunnerPlan.Path)
-				var p tr.PlanDocument
-				if e := Decode(raw, &p); e != nil {
-					t.Fatal(e)
-				}
-				if kind == "source-bytes" {
-					p.Request.InputFiles["app.txt"] = tr.Digest([]byte("different"))
-				} else {
-					p.Request.InputFiles = map[string]string{".GiT/config": strings.Repeat("0", 64)}
-				}
-				r.RunnerPlan = save(t, r.RunnerPlan.Path, encode(t, p))
-				mutateReceipt(func(x *tr.ReceiptDocument) {
-					x.PlanSha256 = tr.Identity(p)
-					x.Execution.InputSha256 = tr.Identity(p.Request.InputFiles)
-				})
-			case "changed-artifact":
-				save(t, r.RunnerReceipt.Path, []byte("changed"))
-			case "cem03":
-				raw, _ := Read(r.SourceMap.Path)
-				r.SourceMap = save(t, r.SourceMap.Path, bytes.Replace(raw, []byte("cem/0.2"), []byte("cem/0.3"), 1))
-			case "old-sidecar":
-				if e := os.Mkdir(filepath.Join(r.Repository, ".corvint"), 0700); e != nil {
-					t.Fatal(e)
-				}
-				raw, _ := Read(r.SourceMap.Path)
-				save(t, filepath.Join(r.Repository, cw.ExcludedCEMPath), raw)
-				git(t, r.Repository, "add", ".")
-				git(t, r.Repository, "commit", "-qm", "sidecar")
-				r.Target = git(t, r.Repository, "rev-parse", "HEAD")
-			case "inside-repo":
-				out = filepath.Join(r.Repository, "new-bundle")
-			case "overwrite":
-				if e := os.Mkdir(out, 0700); e != nil {
-					t.Fatal(e)
-				}
-			}
-			if _, e := Assemble(t.Context(), r, out); e == nil {
-				t.Fatal("unsafe assembly admitted")
-			}
-			if _, e := os.Stat(filepath.Join(out, "candidate.json")); !os.IsNotExist(e) {
-				t.Fatal("failed assembly published candidate")
-			}
-		})
-	}
-}
-func TestNativePlanIdentityIsNotRawArtifactDigest(t *testing.T) {
-	r, out := fixture(t, "sha1")
-	raw, e := Read(r.RunnerPlan.Path)
-	if e != nil {
-		t.Fatal(e)
-	}
-	var p tr.PlanDocument
-	if e := Decode(raw, &p); e != nil {
-		t.Fatal(e)
-	}
-	formatted, e := json.MarshalIndent(p, "", "  ")
-	if e != nil {
-		t.Fatal(e)
-	}
-	formatted = append(formatted, '\n')
-	r.RunnerPlan = save(t, r.RunnerPlan.Path, formatted)
-	if r.RunnerPlan.Sha256 == tr.Identity(p) {
-		t.Fatal("test requires distinct identities")
-	}
-	result, e := Assemble(t.Context(), r, out)
-	if e != nil {
-		t.Fatal(e)
-	}
-	candidate, e := Read(result.CandidatePath)
-	if e != nil {
-		t.Fatal(e)
-	}
-	c, e := cw.ParseCandidate(candidate)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if c.Receipts[0].PlanSha256 != r.RunnerPlan.Sha256 {
-		t.Fatal("candidate used native identity as raw artifact digest")
+		}
 	}
 }
 func TestAssemblyCancellationAndInputSymlinks(t *testing.T) {
@@ -315,29 +148,5 @@ func TestAssemblyCancellationAndInputSymlinks(t *testing.T) {
 	r.RunnerPlan.Path = link
 	if _, e := Assemble(context.Background(), r, out); e == nil {
 		t.Fatal("symlink accepted")
-	}
-}
-
-// TestRunnerBindingAdmitsKilledRunReceipt covers V1-1025: a runner-killed
-// phase (exitCode -1) binds, but never with a complete observation.
-func TestRunnerBindingAdmitsKilledRunReceipt(t *testing.T) {
-	plan := tr.PlanDocument{Profile: "corvint-test-runner-plan/0", Request: tr.Request{Runner: "go-test", InputFiles: map[string]string{"app.txt": tr.Digest([]byte("after\n"))}}, Invocation: tr.Invocation{Argv: []string{"not-executed"}}}
-	phase := tr.PhaseResult{Kind: "TEST", ExitCode: tr.KilledExitCode, TimedOut: true}
-	receipt := tr.ReceiptDocument{Profile: "corvint-test-runner-receipt/0", PlanSha256: tr.Identity(plan), Execution: tr.Execution{Profile: "corvint-test-runner-execution/0", Runner: plan.Request.Runner, InputSha256: tr.Identity(plan.Request.InputFiles), InvocationSha256: tr.Identity(plan.Invocation), Phases: []tr.PhaseResult{phase}, ExecutionAuthority: "CALLER_OBSERVED", DependencyClosure: "NOT_OBSERVED"}, Observation: tr.Observation{Runner: plan.Request.Runner, Tests: []tr.Test{{ID: "fixture", State: tr.Unknown}}, Problems: []tr.Problem{{Code: "timeout", Detail: "runner did not finish within its admitted duration"}}}}
-	raw := encode(t, receipt)
-	if !bytes.Contains(raw, []byte(`"exitCode":-1`)) {
-		t.Fatal("fixture lacks killed-run exit code")
-	}
-	if _, e := runnerBinding(encode(t, plan), raw); e != nil {
-		t.Fatalf("killed-run receipt refused: %v", e)
-	}
-	receipt.Observation.Complete = true
-	if _, e := runnerBinding(encode(t, plan), encode(t, receipt)); !errors.Is(e, tr.ErrKilledRunComplete) {
-		t.Fatalf("complete killed run admitted: %v", e)
-	}
-	receipt.Observation.Complete = false
-	receipt.Execution.Phases[0].ExitCode = -9
-	if _, e := runnerBinding(encode(t, plan), encode(t, receipt)); !errors.Is(e, tr.ErrNegativeInteger) {
-		t.Fatalf("unadmitted negative exit code: %v", e)
 	}
 }

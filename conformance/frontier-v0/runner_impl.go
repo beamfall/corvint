@@ -7,7 +7,10 @@ package main
 // temporary Git repository — real commits, a real `cem/0.2` sidecar produced by
 // the real CEM two-phase workflow, a real OCM artifact bound to that map and
 // patch, a real intent scope read out of a committed Markdown blob — and then
-// invokes `frontier.Compute` over it through `internal/frontierrepo`.
+// invokes `frontier.Compute` over it through `internal/frontierrepo`. Every
+// consumer now refuses that retired `cem/0.2` map at CF-V0-021 stage 5
+// (CEM-V1-210), so only cases refused in stages 1 to 4 run to their frozen
+// outcome; the rest skip as verified-retired-cem (capabilities.go).
 //
 // Nothing is stubbed, and deliberately so: a fixture that passed against a
 // double would prove only that the double agreed with the fixture. The

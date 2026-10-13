@@ -16,9 +16,15 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
-const fixtureMap = `{"spec":"cem/0.2","baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",` +
-	`"patchSha256":"dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c",` +
-	`"excludedPath":".corvint/change.cem.json","evidence":[],"hunks":[]}`
+// fixtureMap is the committed cem/1.0 map every fixture repository carries:
+// the public receipt-authentication stable map (CEM-V1-214).
+var fixtureMap = func() string {
+	data, err := os.ReadFile(stableFixture)
+	if err != nil {
+		panic(err)
+	}
+	return string(data)
+}()
 
 const mapPath = ".corvint/change.cem.json"
 
@@ -107,7 +113,7 @@ func TestAnchorWritesAVerifiedPointerAndReadsItBack(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(fixtureMap))
 	if stored.MapBlob != blob || stored.CEMCommit != head || stored.MapPath != mapPath || stored.Schema != PointerSchema ||
-		stored.MapSha256 != hex.EncodeToString(digest[:]) || stored.MapSpec != "cem/0.2" {
+		stored.MapSha256 != hex.EncodeToString(digest[:]) || stored.MapSpec != "cem/1.0" {
 		t.Fatalf("stored pointer: %+v", stored)
 	}
 	again, err := Anchor(ctx, root, mapPath, "HEAD")

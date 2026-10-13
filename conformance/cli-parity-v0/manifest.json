@@ -91,7 +91,7 @@
     {
       "command": "lrf",
       "status": "PARTIAL",
-      "reason": "positive supported-edge evaluation and the required-argument negative replay byte-exactly with no normalization or accepted divergence. The GPK-V0-041 / DR-0010 refusal of a .py claim in --ocm is RETIRED under decision 0308 because its frozen argv names the maps under .atlas/; the typed unsupported-ocm-python-claims refusal itself is unchanged"
+      "reason": "the required-argument negative replays byte-exactly with no normalization or accepted divergence. The positive supported-edge evaluation is RETIRED under decision 0525 because its frozen map is cem/0.x, which lrf now refuses with unsupported-spec (CEM-V1-212). The GPK-V0-041 / DR-0010 refusal of a .py claim in --ocm is RETIRED under decision 0308 because its frozen argv names the maps under .atlas/; the typed unsupported-ocm-python-claims refusal itself is unchanged"
     },
     {
       "command": "migrate-traces",
@@ -4100,6 +4100,10 @@
       "fixtureSha256": "9c176a83813d6babe709414791f76c84097d44d4b8cd1af528554221b4a10206",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0525",
+        "reason": "the frozen map .atlas/change.cem.json is cem/0.x; decision 0525 admits cem/1.0 only, so lrf refuses it with unsupported-spec and the frozen supported-edge expectation is unreachable (CEM-V1-210, CEM-V1-212)"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "ddabed74771f9a2d4f17295eb87f7e5e6b5a7238ed629ccf5305e8ff153eb08e",

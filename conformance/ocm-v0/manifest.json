@@ -109,6 +109,6 @@
     "fixtures/every-unknown-reason/case.json": "e2c2e266fa4eaf65bdee6458b0d5da3c57d9712ff65aa76e3e898155f33ddb81",
     "fixtures/intent-scope-drift/case.json": "7e956eaa5eb3f8efd90eb8845b588de4894aea7994ae5e5d442a2deb52fc687b",
     "fixtures/obligation-order-and-set/case.json": "65e6904977480cbb3b6b68ac52c1dda7d415d29678eb3b39c6f101c5853a7c86",
-    "vectors/structural.json": "a4c647dfaaa14d13b035a760e03f737851c50379461d30dedc8e9820aebc644d"
+    "vectors/structural.json": "4f839942270cc1d47554482d1190e95f490ebd97ee3ca2ad6deba9b60d922f5a"
   }
 }

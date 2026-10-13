@@ -6,9 +6,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
 // stableFixture is the public receipt-authentication stable map.
@@ -23,9 +26,7 @@ func TestCEMV1065AnchorStableMap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	root := fixtureRepo(t)
-	writeFile(t, root, mapPath, string(stable))
-	fixtureGit(t, root, nil, "commit", "-qam", "stable map")
+	root := fixtureRepo(t) // commits stableFixture as the map
 	ctx := context.Background()
 	receipt, err := Anchor(ctx, root, mapPath, "HEAD")
 	if err != nil {
@@ -63,9 +64,10 @@ func TestCEMV1065AnchorStableMap(t *testing.T) {
 	}
 }
 
-// CEM-V1-065: a 0.x map keeps its pointer bytes exactly, and a spec neither
-// parser accepts keeps the 0.x refusal code.
-func TestCEMV1065AnchorLegacyUnchanged(t *testing.T) {
+// CEM-V1-210: a committed retired cem/0.x map refuses with unsupported-spec
+// and the migration fix line, and no note is written; the exact pointer bytes
+// of a cem/1.0 map stay the anchor's wire.
+func TestCEMV1210AnchorRefusesARetiredMap(t *testing.T) {
 	t.Parallel()
 	root := fixtureRepo(t)
 	ctx := context.Background()
@@ -76,14 +78,23 @@ func TestCEMV1065AnchorLegacyUnchanged(t *testing.T) {
 	blob := fixtureGit(t, root, nil, "rev-parse", "HEAD:"+mapPath)
 	digest := sha256.Sum256([]byte(fixtureMap))
 	want := `{"schema":"corvint-cem-anchor/0","cem_commit":"` + head + `","map_path":"` + mapPath +
-		`","map_blob":"` + blob + `","map_sha256":"` + hex.EncodeToString(digest[:]) + `","map_spec":"cem/0.2"}`
+		`","map_blob":"` + blob + `","map_sha256":"` + hex.EncodeToString(digest[:]) + `","map_spec":"cem/1.0"}`
 	if got := fixtureGit(t, root, nil, "notes", "--ref="+Ref, "show", head); got != want {
-		t.Fatalf("0.x pointer bytes changed:\n got %s\nwant %s", got, want)
+		t.Fatalf("pointer bytes:\n got %s\nwant %s", got, want)
 	}
-	other := fixtureRepo(t)
-	writeFile(t, other, mapPath, `{"spec":"cem/1.0-experimental.1"}`)
-	fixtureGit(t, other, nil, "commit", "-qam", "candidate map")
-	if _, err := Anchor(ctx, other, mapPath, "HEAD"); cemcode.CodeOf(err) != cemcode.UnsupportedSpec {
-		t.Fatalf("candidate map: code %q (%v)", cemcode.CodeOf(err), err)
+	for _, spec := range []string{"cem/0.1", "cem/0.2", "cem/0.3", "cem/1.0-experimental.1"} {
+		other := fixtureRepo(t)
+		writeFile(t, other, mapPath, strings.Replace(fixtureMap, `"cem/1.0"`, strconv.Quote(spec), 1))
+		fixtureGit(t, other, nil, "commit", "-qam", "retired map")
+		_, err := Anchor(ctx, other, mapPath, "HEAD")
+		if cemcode.CodeOf(err) != cemcode.UnsupportedSpec {
+			t.Fatalf("%s: code %q (%v)", spec, cemcode.CodeOf(err), err)
+		}
+		if strings.HasPrefix(spec, "cem/0.") && !strings.Contains(err.Error(), "fix: "+wire.RetiredSpecFix) {
+			t.Fatalf("%s: no fix line: %v", spec, err)
+		}
+		if fixtureGit(t, other, nil, "for-each-ref", Ref) != "" {
+			t.Fatalf("%s: a refused anchor wrote a note", spec)
+		}
 	}
 }

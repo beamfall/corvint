@@ -2998,3 +2998,14 @@ no candidate output regenerates historical oracle expectations. All trace consum
 the typed profile, and mixed dashboard snapshots use the distinct `LOD-V0-035` registry.
 Rollback stops new v2 writes while retaining v2 readers. This does not qualify a release or
 prove a retrieval-quality improvement.
+
+## cem/1.0-only consumers retire one parity case (V1-1278 S2a, 2026-10-12)
+
+Decision 0525 §1 admits cem/1.0 only, and `CEM-V1-210` makes every consumer refuse a cem/0.x map
+with `unsupported-spec`. The frozen `lrf` fixture's `.atlas/change.cem.json` is cem/0.x, so
+`lrf-evaluate-supported` can no longer reach its frozen supported-edge expectation. Under the
+suite's own contract the expectation is not regenerated: the case is `retired` with
+`decision=0525`, pinned by `retiredCaseDecisions` in `conformance/cli-parity-v0/manifest.go`, and
+replay prints `RETIRED lrf-evaluate-supported decision=0525 reason=…`. The `SUMMARY` line moves from
+`parity=104 retired=29` to `parity=103 retired=30`; every other count is unchanged. The
+superseded freeze is recorded under 0525 §6 (`CEM-V1-212`). Rollback is reverting the stage commit.

@@ -22,10 +22,11 @@ func cemFixture(t *testing.T, root, mapPath, hunkPath string, count int) (base, 
 	return base, gitOutput(t, root, "rev-parse", "HEAD")
 }
 
-// writeCEMMap writes a hand-built cem/0.2 map. Its patch digest is
-// deliberately wrong, so verification fails but the report still renders
-// every hunk path in its worklist: this suite needs the read path, not a
-// valid change.
+// writeCEMMap writes a hand-built cem/1.0 map (CEM-V1-210: the report preview
+// admits cem/1.0 only) whose producer-only members are empty arrays
+// (CEM-V1-094). Its patch digest is deliberately wrong, so verification fails
+// but the report still renders every hunk path in its worklist: this suite
+// needs the read path, not a valid change.
 func writeCEMMap(t *testing.T, root, mapPath, base, hunkPath string, count int) {
 	t.Helper()
 	hunks := make([]any, 0, count)
@@ -38,8 +39,9 @@ func writeCEMMap(t *testing.T, root, mapPath, base, hunkPath string, count int) 
 		})
 	}
 	raw, err := json.Marshal(map[string]any{
-		"spec": "cem/0.2", "baseRevision": base, "evidence": []any{}, "hunks": hunks,
+		"spec": "cem/1.0", "baseRevision": base, "evidence": []any{}, "hunks": hunks,
 		"excludedPath": ".corvint/change.cem.json", "patchSha256": strings.Repeat("0", 64),
+		"criterionBindings": []any{}, "runnerReceipts": []any{}, "criterionLinks": []any{}, "artifacts": []any{},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -77,7 +79,7 @@ func TestContextAndCEMReportAreBoundReadOnlyAndFramed(t *testing.T) {
 
 	report := successResult(t, client.call(t, 701, "tools/call", map[string]any{
 		"_meta": requestMeta(), "name": "corvint.cem.report",
-		"arguments": map[string]any{"map": ".corvint/change.cem.json", "expectedBase": base, "target": target, "maxUnknown": json.Number("0")},
+		"arguments": map[string]any{"map": ".corvint/change.cem.json", "expectedBase": base, "target": target},
 	}))
 	assertToolReceipt(t, report, target, secret, sourceSecret)
 	receipt := object(t, object(t, report["structuredContent"])["receipt"])

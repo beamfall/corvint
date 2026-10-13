@@ -65,7 +65,7 @@ func StableCEMProjection(ctx context.Context, a *Artifact, data []byte, claimID 
 	if err != nil || result.MapSha256 == nil || *result.MapSha256 != Digest(data) {
 		return refuse("the accepted stable result does not bind the exact map bytes")
 	}
-	rows, omitted, err := projectClaims(ctx, inputs.Repository, a, claimID, document.Change.BaseRevision, document.Change.Evidence, false)
+	rows, omitted, err := projectClaims(ctx, inputs.Repository, a, claimID, document.Change.BaseRevision, document.Change.Evidence)
 	if err != nil {
 		return nil, err
 	}

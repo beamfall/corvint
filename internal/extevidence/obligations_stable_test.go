@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"os"
 	"path/filepath"
 	"strings"
@@ -140,22 +142,29 @@ func requireStableObligationsRefusal(t *testing.T, document map[string]any, err 
 	}
 }
 
-// TestCEMV1134ObligationRoutesStayDisjoint (CEM-V1-134): the frozen sidecar
-// still refuses cem/1.0, and the stable sidecar refuses cem/0.2 before any
+// TestCEMV1134ObligationRoutesStayDisjoint (CEM-V1-134, CEM-V1-210): the
+// frozen sidecar refuses cem/1.0, and the stable sidecar refuses a retired
+// cem/0.2 map with unsupported-spec and the recovery line before any
 // verification.
 func TestCEMV1134ObligationRoutesStayDisjoint(t *testing.T) {
 	f := newStableObligationsFixture(t)
-	for name, run := range map[string]func() (map[string]any, error){
-		"frozen over cem/1.0": func() (map[string]any, error) { return Obligations(f.stable.Map, stableObligationsReceipt(), 64) },
-		"stable over cem/0.2": func() (map[string]any, error) {
+	for name, test := range map[string]struct {
+		run  func() (map[string]any, error)
+		code string
+	}{
+		"frozen over cem/1.0": {func() (map[string]any, error) { return Obligations(f.stable.Map, stableObligationsReceipt(), 64) }, "invalid-obligations-input"},
+		"stable over cem/0.2": {func() (map[string]any, error) {
 			return StableObligations(context.Background(), f.change.Legacy, stableObligationsReceipt(), 64, f.options())
-		},
+		}, cemcode.UnsupportedSpec},
 	} {
-		document, err := run()
+		document, err := test.run()
 		var kernelErr *gokernel.Error
 		var refusal *StableObligationsRefusal
-		if document != nil || !errors.As(err, &kernelErr) || kernelErr.Code != "invalid-obligations-input" || errors.As(err, &refusal) {
+		if document != nil || !errors.As(err, &kernelErr) || kernelErr.Code != test.code || errors.As(err, &refusal) {
 			t.Fatalf("%s: document %v err %v", name, document != nil, err)
+		}
+		if test.code == cemcode.UnsupportedSpec && !strings.Contains(kernelErr.Message, wire.RetiredSpecFix) {
+			t.Fatalf("%s: refusal lacks the recovery line: %v", name, err)
 		}
 	}
 }

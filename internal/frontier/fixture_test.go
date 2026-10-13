@@ -98,13 +98,13 @@ func (s scenario) universe(t *testing.T) VerifiedUniverse {
 	}
 
 	cemMap := &wire.Map{
-		Spec:         wire.Spec02,
+		Spec:         AdmittedCEMSpec,
 		BaseRevision: oidOf("base"),
 		PatchSha256:  hexOf(patchSeed),
 		ExcludedPath: ExcludedPath,
 	}
 	request := lrf.Request{Context: lrf.Context{
-		CEMSpec:          wire.Spec02,
+		CEMSpec:          AdmittedCEMSpec,
 		CEMMapSHA256:     hexOf("cem-map"),
 		PatchSource:      "canonical-derived",
 		BaseRevision:     oidOf("base"),

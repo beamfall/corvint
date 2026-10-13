@@ -547,9 +547,9 @@ func coverage(item change, unparsed map[string]string) (string, string) {
 	}
 }
 
-// readCEMSource loads the Change Evidence Map from the head tree. The map is
-// the repository's existing binding of claims to patch hunks; this package
-// reuses it rather than inventing a parallel notion of evidence.
+// readCEMSource loads the cem/1.0 Change Evidence Map from the head tree. The
+// map is the repository's existing binding of claims to patch hunks; this
+// package reuses it rather than inventing a parallel notion of evidence.
 func readCEMSource(ctx context.Context, budget *gitrun.Budget, index *contextindex.Index, options Options) (Source, *wire.Map) {
 	location := options.CEMPath
 	if location == "" {
@@ -565,25 +565,18 @@ func readCEMSource(ctx context.Context, budget *gitrun.Budget, index *contextind
 		}
 		return source, nil
 	}
-	if wire.DeclaresStable(raw) {
-		return readStableSource(ctx, source, raw, index, options)
+	if !wire.DeclaresStable(raw) {
+		// A retired cem/0.x map is refused with its closed code and fix
+		// line; its citations are never applied (CEM-V1-210).
+		if _, err := wire.ParseStable(raw); err != nil {
+			source.Status, source.Detail = "UNSUPPORTED", err.Error()
+			if cemcode.CodeOf(err) != cemcode.UnsupportedSpec {
+				source.Status = "INVALID"
+			}
+			return source, nil
+		}
 	}
-	document, err := wire.ParseMap(raw)
-	if err != nil {
-		source.Status, source.Detail = "INVALID", err.Error()
-		return source, nil
-	}
-	source.Hunks = len(document.Hunks)
-	for _, hunk := range document.Hunks {
-		source.Basis += len(hunk.Basis)
-	}
-	if document.BaseRevision != options.Base {
-		source.Status = "UNBOUND"
-		source.Detail = "the map is bound to base " + document.BaseRevision + ", not the requested base; its citations are not applied"
-		return source, nil
-	}
-	source.Status = "BOUND"
-	return source, document
+	return readStableSource(ctx, source, raw, index, options)
 }
 
 // committedAtPath settles a failed blob read. `git cat-file blob` exits

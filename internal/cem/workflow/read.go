@@ -73,17 +73,17 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 		}
 		return nil, err
 	}
+	// CEM-V1-210: the MCP preview is a consumer route and admits cem/1.0
+	// only; a retired 0.x map refuses before any other judgment.
+	if action == ActionReportPreview {
+		return nil, cemcode.New(cemcode.UnsupportedSpec, "%s is retired; %s is the only stable wire; fix: %s", document.Spec, wire.StableSpec, wire.RetiredSpecFix)
+	}
 	// Stage 3: profile-forbidden arguments.
 	if options.ArtifactsGiven {
 		return nil, invalidArguments("%s %s does not accept --artifacts", document.Spec, action)
 	}
 	if wire.Canonical(document.Spec) && options.PatchGiven {
 		return nil, invalidArguments("%s %s does not accept --patch", document.Spec, action)
-	}
-	// A preview takes no patch, so only a map whose patch derives from Git
-	// objects can be previewed; a 0.1 map would read an out-of-band file.
-	if action == ActionReportPreview && !wire.Canonical(document.Spec) {
-		return nil, invalidArguments("%s %s requires a canonical map", document.Spec, action)
 	}
 	// Stage 4: profile-required independent inputs.
 	if wire.Canonical(document.Spec) {
@@ -151,22 +151,6 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 			return result, nil
 		}
 		return s.renderReport(document, verification, counts, work, policy, envelope, options, projection)
-	case ActionReportPreview:
-		projection, err := s.reviewProjection(ctx, raw, document, verification, options, envelope.retainedPatch)
-		if err != nil {
-			return nil, err
-		}
-		markdown := renderReportText(document, verification, counts, work, policy) + renderReviewProjection(projection)
-		if len(markdown) > maxReportBytes {
-			return nil, invalidArguments("report exceeds %d bytes", maxReportBytes)
-		}
-		result := map[string]any{
-			"ok": valid && len(policy) == 0 && projection["ocmValid"] != false, "mutates": false, "tool": "cem-report",
-			"markdown": markdown, "recordSetSha256": projection["recordSetSha256"],
-			"counts": counts, "policyIssues": policy, "verification": verification,
-		}
-		envelope.apply(result, false)
-		return result, nil
 	default:
 		return nil, invalidArguments("unknown CEM command")
 	}

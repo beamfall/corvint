@@ -13,10 +13,10 @@ type disjointSet struct {
 	rank   []uint8
 }
 
-// compileDocument collapses only explicitly declared common causes over one
-// parsed map: a 0.x document Compile parsed, or the private mechanics view of
-// a stable map the stable verifier accepted. rawCEM is always the exact input
-// bytes. Its line positions are cited by the X0 failure-code table.
+// compileDocument collapses only explicitly declared common causes over the
+// private mechanics view of a stable map the stable verifier accepted (the 0.x
+// Compile is retired, CEM-V1-210). rawCEM is always the exact input bytes.
+// Its line positions are cited by the X0 failure-code table.
 func compileDocument(rawCEM []byte, document *wire.Map, attributions []Attribution) (Report, error) {
 	if document == nil {
 		return Report{}, failure("cem-unavailable", "no parsed CEM document")
@@ -168,17 +168,6 @@ func compileDocument(rawCEM []byte, document *wire.Map, attributions []Attributi
 		},
 		Causes: causes, Groups: groups, Hunks: hunks,
 	}, nil
-}
-
-// Compile parses exact CEM bytes and collapses only explicitly declared common
-// causes. It performs structural parsing, not repository or canonical CEM
-// verification.
-func Compile(rawCEM []byte, attributions []Attribution) (Report, error) {
-	document, err := wire.ParseMap(rawCEM)
-	if err != nil {
-		return Report{}, err
-	}
-	return compileDocument(rawCEM, document, attributions)
 }
 
 func sortedMapKeys[T any](values map[string]T) []string {

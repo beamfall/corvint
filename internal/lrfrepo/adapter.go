@@ -62,7 +62,9 @@ func fail(code, format string, args ...any) error {
 	return &Error{Code: code, Message: fmt.Sprintf(format, args...)}
 }
 
-// Evaluate verifies all repository authority and evaluates the frozen LRF projection.
+// Evaluate is the `corvint lrf` admission. The frozen lrf/0 projection was
+// defined over cem/0.x maps, which are retired, and it evaluates no cem/1.0
+// map, so Evaluate reads only the map bytes and refuses (CEM-V1-055, CEM-V1-210).
 func Evaluate(ctx context.Context, root string, options Options) (lrf.Result, error) {
 	if options.CEMPath == "" {
 		return lrf.Result{}, fail(cemcode.InvalidArguments, "--cem is required")
@@ -75,43 +77,14 @@ func Evaluate(ctx context.Context, root string, options Options) (lrf.Result, er
 	if err != nil {
 		return lrf.Result{}, err
 	}
-	document, err := wire.ParseMap(cemRaw)
-	if err != nil {
+	// CEM-V1-210: a retired cem/0.x map refuses with unsupported-spec and the
+	// recovery line before any patch, OCM or repository input is read.
+	if _, err := wire.ParseStable(cemRaw); err != nil {
 		return lrf.Result{}, err
 	}
-	// LRF-V0-001: refuse another profile before any patch path runs (V1-0352).
-	if document.Spec != wire.Spec01 && document.Spec != wire.Spec02 {
-		return lrf.Result{}, cemcode.New(cemcode.UnsupportedSpec, "lrf accepts cem/0.1 or cem/0.2, not %s", document.Spec)
-	}
-	if document.Spec == wire.Spec02 && options.PatchGiven {
-		return lrf.Result{}, fail(cemcode.InvalidArguments, "cem/0.2 lrf does not accept --patch")
-	}
-	if document.Spec == wire.Spec02 && options.ExpectedBase == "" {
-		return lrf.Result{}, cemcode.New(cemcode.ExpectedBaseRequired, "cem/0.2 lrf requires --expected-base")
-	}
-	if document.Spec == wire.Spec02 && options.Target == "" {
-		return lrf.Result{}, cemcode.New(cemcode.TargetRequired, "cem/0.2 lrf requires --target")
-	}
-	repository, err := gitauth.Open(inputRoot.Path(), gitrun.NewDefaultBudget())
-	if err != nil {
-		return lrf.Result{}, err
-	}
-	verified, err := verifyCEM(ctx, inputRoot, repository, document, cemRaw, options)
-	if err != nil {
-		return lrf.Result{}, err
-	}
-	if options.OCMPath != "" && document.Spec != wire.Spec02 {
-		return lrf.Result{}, fail("unsupported-lrf-context", "OCM requires canonical cem/0.2")
-	}
-	ocm, err := verifyOptionalOCM(ctx, inputRoot, repository, document, cemRaw, verified, options)
-	if err != nil {
-		return lrf.Result{}, err
-	}
-	request, err := project(ctx, repository, document, cemRaw, verified, ocm)
-	if err != nil {
-		return lrf.Result{}, err
-	}
-	return lrf.Evaluate(request)
+	// CEM-V1-055: lrf/0 stays frozen and evaluates no cem/1.0 map; there is no
+	// stable LRF result, so a stable map refuses explicitly.
+	return lrf.Result{}, cemcode.New(cemcode.UnsupportedSpec, "lrf/0 evaluates no cem/1.0 map; the stable universe verification is its only admission")
 }
 
 type verifiedCEM struct {
@@ -120,59 +93,6 @@ type verifiedCEM struct {
 	patch       []byte
 	patchSource string
 	excluded    *string
-}
-
-func verifyCEM(ctx context.Context, root *publish.Root, repository *gitauth.Repository, document *wire.Map, raw []byte, options Options) (*verifiedCEM, error) {
-	if document.Spec == wire.Spec02 {
-		return verifyCanonicalCEM(ctx, repository, document, raw, options)
-	}
-	patchBytes, source, err := readExactPatch(root, repository, options)
-	if err != nil {
-		return nil, err
-	}
-	outcome, err := verify.Exact(ctx, repository, document, patchBytes, verify.ExactOptions{
-		ExpectedBase: options.ExpectedBase, Target: options.Target,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &verifiedCEM{outcome.BaseRevision, outcome.TargetRevision, patchBytes, source, nil}, nil
-}
-
-// verifyCanonicalCEM is the cem/0.2 half of verifyCEM: the shared canonical
-// verification call in its own frozen order, then the canonical patch its
-// accepted revisions derive. It is a named step rather than an inline branch
-// so a bytes-only caller can reach it without a publication root — the 0.2
-// path reads no filesystem input, and only the 0.1 branch below does.
-func verifyCanonicalCEM(ctx context.Context, repository *gitauth.Repository, document *wire.Map, raw []byte, options Options) (*verifiedCEM, error) {
-	outcome, _, err := verify.Canonical(ctx, repository, document, verify.CanonicalOptions{
-		ExpectedBase: options.ExpectedBase, Target: options.Target, RawMapBytes: raw,
-	})
-	if err != nil {
-		return nil, err
-	}
-	patchBytes, err := repository.CanonicalDiff(ctx, outcome.BaseRevision, outcome.TargetRevision)
-	if err != nil {
-		return nil, err
-	}
-	excluded := wire.ExcludedCEMPath
-	return &verifiedCEM{outcome.BaseRevision, outcome.TargetRevision, patchBytes, "canonical-derived", &excluded}, nil
-}
-
-func readExactPatch(root *publish.Root, repository *gitauth.Repository, options Options) ([]byte, string, error) {
-	if options.PatchGiven {
-		if options.PatchPath == "" {
-			return nil, "", fail(cemcode.InvalidArguments, "--patch requires a value")
-		}
-		data, err := readRootInput(root, options.PatchPath, patch.MaxPatchBytes, cemcode.PatchUnavailable)
-		return data, "explicit-out-of-band", err
-	}
-	gitRoot, err := publish.OpenRoot(repository.GitDir)
-	if err != nil {
-		return nil, "", err
-	}
-	data, err := gitRoot.ReadBounded("corvint/change.patch", patch.MaxPatchBytes, cemcode.PatchUnavailable)
-	return data, "default-out-of-band", err
 }
 
 func readRootInput(root *publish.Root, requested string, bound int, code string) ([]byte, error) {
@@ -364,6 +284,11 @@ func (e *StableRefusal) Unwrap() error {
 // or empty frontier from a stale, swapped or incomplete input (CEM-V1-056).
 func VerifyStableUniverse(ctx context.Context, cemRaw, ocmRaw []byte, options StableUniverseOptions) (*StableUniverse, error) {
 	if !wire.DeclaresStable(cemRaw) {
+		// A retired cem/0.x map keeps the decoder's refusal and fix line
+		// (CEM-V1-210).
+		if _, err := wire.ParseStable(cemRaw); cemcode.CodeOf(err) == cemcode.UnsupportedSpec {
+			return nil, err
+		}
 		return nil, cemcode.New(cemcode.UnsupportedSpec, "stable universe verification accepts cem/1.0 only")
 	}
 	result, err := acceptedStable(ctx, cemRaw, options)

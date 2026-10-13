@@ -597,36 +597,31 @@ record explicitly writes one screened private evidence file and refuses overwrit
 it does not update ranking or accept inferred intent. No automatic ledger is written.
 ` + flowsIntentHelp + flowsNavigateHelp + flowsAppmapHelp + flowsAppmapPlanHelp
 
-const obligationsHelp = `Compose the external-frontier-obligations/0 sidecar for one CEM.
+const obligationsHelp = `Compose the external-frontier-obligations-stable/0 sidecar for one cem/1.0 map.
 
 Usage:
-  corvint obligations --cem FILE --impact FILE [--limit N]
   corvint obligations --cem FILE --impact FILE [--limit N] --repository DIR
       --expected-base REV --target REV --stable-artifact-root DIR
 
-Reads one cem/0.2 document and one saved corvint impact --provider receipt,
-joins every CEM hunk to the receipt's context.external rows by path, and writes
-one external-frontier-obligations/0 document to stdout. Each hunk row lists
-associations of kind entity, obligation, test, or unknown; every non-unknown
-association carries its provider evidence reference, EEP path verification,
-and provider freshness, and none states that the record justifies the hunk.
-The sidecar binds both inputs by SHA-256 of their raw bytes: binding.cem_sha256
-equals the frontier's inputs.cemSha256 for the same CEM file, and every hunk id
-equals the CEM hunk id the frontier cites. In this form the verb reads no
-repository, verifies no CEM, and changes no frontier state or wire. --limit bounds the
-associations per hunk (default 64); omitted rows are counted.
+Reads one cem/1.0 map and one saved corvint impact --provider receipt, admits
+the map only through the stable verifier's ACCEPT with the exact committed
+sidecar, joins every map hunk to the receipt's context.external rows by path,
+and writes one external-frontier-obligations-stable/0 document to stdout bound
+to the accepted map, patch and target. Each hunk row lists associations of kind
+entity, obligation, test, or unknown; every non-unknown association carries its
+provider evidence reference, EEP path verification, and provider freshness, and
+none states that the record justifies the hunk. Declared criterion links are
+listed in their own criteria member and state no satisfaction. --limit bounds
+the associations per hunk (default 64); omitted rows are counted.
 
-With all four of --repository, --expected-base, --target and
---stable-artifact-root, the verb instead reads one cem/1.0 map, admits it only
-through the stable verifier's ACCEPT with the exact committed sidecar, and writes
-one external-frontier-obligations-stable/0 document bound to the accepted map,
-patch and target. Declared criterion links are listed in their own criteria
-member and state no satisfaction. A cem/1.0 map is never read without them.
+Without the four stable flags the verb names the retired cem/0.2
+external-frontier-obligations/0 form, which admits no map: a cem/0.x map refuses
+with unsupported-spec and its recovery line, and any other input refuses with
+invalid-obligations-input.
 
 Exit status: 0 with the sidecar on stdout; 2 with an error envelope on stderr
-for an argument error, an unreadable or oversized input, a non-cem/0.2 document
-(a non-cem/1.0 document in stable mode), a stable verifier refusal, or a
-non-impact receipt.
+for an argument error, an unreadable or oversized input, a retired cem/0.x map,
+a non-cem/1.0 document, a stable verifier refusal, or a non-impact receipt.
 `
 
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.
@@ -902,19 +897,17 @@ Usage:
     [--expected-base REV] [--target REV]
 
 Options:
-  --cem MAP           Required CEM 0.1 or 0.2 map.
-  --ocm MAP           Optional canonical OCM bound to the CEM and target.
-  --patch PATCH       CEM 0.1 only: exact out-of-band patch. Omission uses the
-                      per-worktree Git-dir default corvint/change.patch.
-  --expected-base REV Independent expected base; required for CEM 0.2.
-  --target REV        Optional for CEM 0.1 and required for CEM 0.2.
+  --cem MAP           Required map, read from a bounded regular file.
+  --ocm MAP           Optional OCM; not read, since no map is admitted.
+  --patch PATCH       Not read, since no map is admitted.
+  --expected-base REV Not read, since no map is admitted.
+  --target REV        Not read, since no map is admitted.
 
-The command reads maps from bounded regular files, verifies CEM, optional OCM,
-patch, revision, blob, and span identities through local Git objects, then emits
-one canonical lrf/0 document. Normal results exit 0, including rejected or
-abstained edges; aggregate bound results exit 1. Structural, context, I/O, or
-interruption failures emit no LRF stdout and exit 2. The command is read-only,
-local-only, and always uses the frozen public bounds.
+lrf/0 is frozen over the retired cem/0.x maps and evaluates no cem/1.0 map, so
+the command admits no map: a retired cem/0.x map refuses with unsupported-spec
+and its recovery line, and a cem/1.0 map refuses with unsupported-spec, both
+with no LRF stdout and exit 2. A missing or unreadable --cem also exits 2. The
+command is read-only and local-only.
 `
 
 const frontierHelp = `Compile the deterministic Change Frontier V0 review queue.
@@ -925,11 +918,12 @@ Usage:
     [--command FILE --observation FILE --report FILE] [--json]
 
 Options:
-  --cem MAP           Required verified cem/0.2 or cem/1.0 artifact.
+  --cem MAP           Required verified cem/1.0 artifact. A retired cem/0.x
+                      map refuses with unsupported-spec (exit 2).
   --ocm MAP           Required canonical ocm/0.1-experimental artifact bound to it.
   --expected-base REV Independent expected base revision; never inferred.
   --target REV        Independent target revision; never inferred.
-  --artifacts DIR     Required for a cem/1.0 map, refused otherwise: the
+  --artifacts DIR     Required for a cem/1.0 map, refused with any other: the
                       artifact root the stable verifier reads (no default).
                       A cem/1.0 map yields the frontier-stable-view/0 view,
                       whose state is always NOT_PRODUCED (exit 1).
@@ -1074,8 +1068,11 @@ Options:
   --intent-form FORM  Experimental prepare intent form: requirements (default),
                       adr-decisions, or roadmap-acceptance.
   --max-unknown N     Optional non-negative unknown-obligation ceiling.
-  --expected-base REV Independent expected base; required for CEM 0.2.
-  --target REV        Independent target; required for CEM 0.2.
+  --expected-base REV Independent expected base; required for the cem/1.0 map.
+  --target REV        Independent target; required for the cem/1.0 map.
+
+The bound CEM must be a cem/1.0 map; a retired cem/0.x map refuses with
+unsupported-spec and its recovery line.
 
 prepare, link, and mark publish one source-body-free 0600 local map atomically.
 link verifies the OCM and bound CEM before mutation. status and verify are
