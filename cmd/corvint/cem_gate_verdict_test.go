@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -66,6 +67,13 @@ func TestTCBV0016GateVerdictArgvIsClosed(t *testing.T) {
 // verifier-disagreement when the portable result is patched.
 func TestTCBV0016GateVerdictRunsBothConsumers(t *testing.T) {
 	stablefixture.RequireStableHost(t)
+	// interop/cem01-go answers verify-stable-canonical only where its process
+	// containment is qualified (stable_process_darwin.go); elsewhere it reports
+	// UNSUPPORTED and the gate refuses verifier-disagreement, so the real
+	// cross-check is observed on darwin and the stand-in consumer covers linux.
+	if runtime.GOOS != "darwin" {
+		t.Skip("NOT_RUN: interop/cem01-go process containment is not qualified on " + runtime.GOOS)
+	}
 	consumer := buildPortableConsumer(t)
 	root, base, seal := sealedVerdictFixture(t)
 	in := taskman.CEMVerdictInput{Root: root, BaseCommit: base, CandidateCommit: seal, TouchPaths: []string{"src/"}, Predicate: taskman.PredicateTouchedAnchored, PortableConsumer: consumer}

@@ -204,9 +204,10 @@ Preflight and batch runs keep placeholders literal, and the command then refuses
 
 Acceptance evidence: the TCB-V0-007..019 tests above, run on a dogfood-shaped fixture (base, change,
 bind and seal commits produced by the CEM workflow), plus the unchanged Tasks import-direction test.
-The TCB-V0-016 test runs a freshly built `interop/cem01-go`. The `internal/taskman` tests use their
-own test binary as a stand-in portable consumer that answers with the in-process stable verifier,
-because those tests may not read the interop module.
+The TCB-V0-016 test runs a freshly built `interop/cem01-go` on darwin, the only host where that
+consumer's process containment is qualified; elsewhere it skips `NOT_RUN`. The `internal/taskman`
+tests use their own test binary as a stand-in portable consumer that answers with the in-process
+stable verifier, because those tests may not read the interop module; they run on darwin and linux.
 
 Rollback: delete `cmd/corvint/cem_gate_verdict.go` and its test, the `cem gate-verdict` dispatch and
 help, the placeholder substitution in `internal/tasks/store/lease_gate.go` and its tests, and
