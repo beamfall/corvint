@@ -152,6 +152,14 @@ requires only a minimum field count: `internal/dashboard/roadmap` and `internal/
 Decision 0105 holds one anchored citation of the generator, and its cited comment moved from line
 113 to line 212. The content hash `ec359190` is unchanged, so only the line number was repinned.
 
+The lane then met a real merge. `origin/main` moved to 77f9364e3 (#862, V1-1345), which added OCM
+requirements and edited the OCM header, INDEX.json and README.md rows. Merging it into this branch
+auto-merged INDEX.json and README.md and conflicted only in REQUIREMENTS.tsv, whose every row this
+change rewrites. `make spec-requirements` resolved that conflict, and the result is a fixed point
+that passes `spec-requirements-check`. On the merged tree the audit counts `standing` 27 in 6
+specs, with `owner`, `unrecorded` and `UNPARSED_STANDING` unchanged, and the change is bound against
+77f9364e3.
+
 ## Independent review
 
 One Codex round (`codex exec -s read-only`) reviewed the commit against five criteria: generator
