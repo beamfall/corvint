@@ -1320,6 +1320,12 @@ DCW-V0-047	docs/specs/daily-change-evidence-workflow-v0.md	544	(accepted under t
 DCW-V0-048	docs/specs/daily-change-evidence-workflow-v0.md	580	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) A change
 DCW-V0-049	docs/specs/daily-change-evidence-workflow-v0.md	604	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) When the
 DCW-V0-050	docs/specs/daily-change-evidence-workflow-v0.md	628	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) Each
+DCW-V0-051	docs/specs/daily-change-evidence-workflow-v0.md	660	(accepted under the owner's standing auto-accept (2026-10-11); V1-1330)
+DCW-V0-052	docs/specs/daily-change-evidence-workflow-v0.md	672	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336) For ever
+DCW-V0-053	docs/specs/daily-change-evidence-workflow-v0.md	695	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336) Each arm
+DCW-V0-054	docs/specs/daily-change-evidence-workflow-v0.md	706	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336) Each arm
+DCW-V0-055	docs/specs/daily-change-evidence-workflow-v0.md	710	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336) The summ
+DCW-V0-056	docs/specs/daily-change-evidence-workflow-v0.md	717	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336, V1-1337)
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
