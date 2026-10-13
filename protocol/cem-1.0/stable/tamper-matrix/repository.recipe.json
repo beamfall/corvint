@@ -1,0 +1,32 @@
+{
+  "profile": "cem-stable-neutral-repository/1",
+  "objectFormat": "sha1",
+  "note": "Flat-tree recipe, built exactly like ../neutral-criterion/repository.recipe.json: git hash-object -w, mktree (mode 100644, names sorted bytewise) and commit-tree, with GIT_CONFIG_GLOBAL=/dev/null, GIT_CONFIG_NOSYSTEM=1 and the fixed identity and date below for author and committer; the target's parent is the base. No .taskman/ or other Corvint file exists in either tree.",
+  "identity": {
+    "name": "Fixture",
+    "email": "fixture@invalid",
+    "date": "2026-10-01T00:00:00Z"
+  },
+  "commits": [
+    {
+      "name": "base",
+      "message": "greet: initial service",
+      "files": {
+        "SPEC.md": "# Greeting service\n\nRequirements:\n\n- `GRT-001`: greet.go MUST return \"Hello, stranger!\" for an empty NAME.\n- `GRT-002`: greet_test.go MUST cover the empty NAME case.\n",
+        "go.mod": "module example.com/greet\n\ngo 1.27\n",
+        "greet.go": "package greet\n\n// Greet returns a greeting for name.\nfunc Greet(name string) string {\n\treturn \"Hello, \" + name + \"!\"\n}\n",
+        "greet_test.go": "package greet\n\nimport \"testing\"\n\nfunc TestGreetName(t *testing.T) {\n\tif got := Greet(\"Ada\"); got != \"Hello, Ada!\" {\n\t\tt.Fatalf(\"Greet(Ada) = %q\", got)\n\t}\n}\n"
+      }
+    },
+    {
+      "name": "target",
+      "message": "greet: handle empty names",
+      "files": {
+        "SPEC.md": "# Greeting service\n\nRequirements:\n\n- `GRT-001`: greet.go MUST return \"Hello, stranger!\" for an empty NAME.\n- `GRT-002`: greet_test.go MUST cover the empty NAME case.\n",
+        "go.mod": "module example.com/greet\n\ngo 1.27\n",
+        "greet.go": "package greet\n\n// Greet returns a greeting for name, or for a stranger when name is empty (GRT-001).\nfunc Greet(name string) string {\n\tif name == \"\" {\n\t\tname = \"stranger\"\n\t}\n\treturn \"Hello, \" + name + \"!\"\n}\n",
+        "greet_test.go": "package greet\n\nimport \"testing\"\n\nfunc TestGreetName(t *testing.T) {\n\tif got := Greet(\"Ada\"); got != \"Hello, Ada!\" {\n\t\tt.Fatalf(\"Greet(Ada) = %q\", got)\n\t}\n}\n\n// TestGreetEmpty covers GRT-002.\nfunc TestGreetEmpty(t *testing.T) {\n\tif got := Greet(\"\"); got != \"Hello, stranger!\" {\n\t\tt.Fatalf(\"Greet(\\\"\\\") = %q\", got)\n\t}\n}\n"
+      }
+    }
+  ]
+}
