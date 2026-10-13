@@ -693,7 +693,11 @@ func (c *check) verifyBinding(report []byte) int {
 		fmt.Fprintf(c.stdout, "dogfood-check: PASS\n")
 		return 0
 	}
-	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, reasoned, c.baseIndependence(), detail))
+	var coverage *changeCoverage
+	if !noIntent {
+		coverage = c.changeCoverage(c.root+"/.corvint/change.cem.json", intents)
+	}
+	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, reasoned, coverage, c.baseIndependence(), detail))
 	if noIntent {
 		_, _ = c.stdout.Write(ocmLine)
 	}
@@ -708,7 +712,10 @@ func (c *check) verifyBinding(report []byte) int {
 // the CEM kill condition, and reasonedUnknown the unknown hunks kept with a
 // recorded reason (DCW-V0-019). independence, when not empty, is the
 // base-independence=NOT_PROVED fields of an admitted output change (DCW-V0-047).
-func checkSummary(cemLine, ocmLine []byte, noIntent bool, reasoned int, independence, detail string) string {
+// coverage fills the requirements, linked and unlinked members: the declared
+// requirements the change cites or edits, not the aggregate's whole intent
+// scope (OCM-V0-019).
+func checkSummary(cemLine, ocmLine []byte, noIntent bool, reasoned int, coverage *changeCoverage, independence, detail string) string {
 	var cem struct {
 		State  *string `json:"state"`
 		Counts *struct {
@@ -732,12 +739,7 @@ func checkSummary(cemLine, ocmLine []byte, noIntent bool, reasoned int, independ
 	} else {
 		var ocm struct {
 			Aggregate *struct {
-				State    *string `json:"state"`
-				Coverage *struct {
-					Total   *int `json:"total"`
-					Linked  *int `json:"linked"`
-					Unknown *int `json:"unknown"`
-				} `json:"coverage"`
+				State *string `json:"state"`
 			} `json:"aggregate"`
 		}
 		_ = json.Unmarshal(ocmLine, &ocm)
@@ -745,9 +747,7 @@ func checkSummary(cemLine, ocmLine []byte, noIntent bool, reasoned int, independ
 			fields = append(fields, "ocm=NOT_OBSERVED")
 		} else {
 			fields = append(fields, "ocm="+summaryString(ocm.Aggregate.State))
-			if coverage := ocm.Aggregate.Coverage; coverage != nil {
-				fields = append(fields, "requirements="+summaryInt(coverage.Total), "linked="+summaryInt(coverage.Linked), "unlinked="+summaryInt(coverage.Unknown))
-			}
+			fields = append(fields, coverage.summaryFields()...)
 		}
 	}
 	if independence != "" {

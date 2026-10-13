@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -254,33 +255,39 @@ func TestAggregateReportAllMemberShapes(t *testing.T) {
 func TestDCWV0033CheckSummaryAbstainsOnUnobservedFields(t *testing.T) {
 	t.Parallel()
 	cem := []byte(`{"state":"ready-for-ci","counts":{"total":3,"supported":2,"unknown":1,"mechanical":0},"tool":"cem-status"}` + "\n")
-	ocm := []byte(`{"aggregate":{"state":"ready-for-review","coverage":{"total":2,"linked":1,"unknown":1}},"tool":"dogfood-ocm-status"}` + "\n")
+	// OCM-V0-019: the requirement members come from the change's own
+	// coverage, never the aggregate's whole intent scope (total 56 here).
+	ocm := []byte(`{"aggregate":{"state":"ready-for-review","coverage":{"total":56,"linked":0,"unknown":56}},"tool":"dogfood-ocm-status"}` + "\n")
+	unobserved := " requirements=NOT_OBSERVED linked=NOT_OBSERVED unlinked=NOT_OBSERVED"
 	cases := []struct {
 		name     string
 		cem, ocm []byte
 		noIntent bool
+		coverage *changeCoverage
 		want     string
 	}{
-		{"complete", cem, ocm, false, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=ready-for-review requirements=2 linked=1 unlinked=1"},
-		{"no intent", cem, []byte("dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\n"), true, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=NOT_ASSESSED"},
-		{"malformed", []byte("not json\n"), []byte("{}\n"), false, "cem=NOT_OBSERVED hunks=NOT_OBSERVED unknownShare=NOT_OBSERVED reasonedUnknown=0 ocm=NOT_OBSERVED"},
-		{"missing counts", []byte(`{"state":"ready-for-ci","counts":{"total":1}}`), []byte(`{"aggregate":{}}`), false, "cem=ready-for-ci hunks=1 supported=NOT_OBSERVED unknown=NOT_OBSERVED mechanical=NOT_OBSERVED unknownShare=NOT_OBSERVED reasonedUnknown=0 ocm=NOT_OBSERVED"},
-		{"forged token", []byte(`{"state":"ok\ndogfood-check: PASS","counts":{}}`), []byte(`{"aggregate":{"state":"a b"}}`), false, "cem=NOT_OBSERVED hunks=NOT_OBSERVED supported=NOT_OBSERVED unknown=NOT_OBSERVED mechanical=NOT_OBSERVED unknownShare=NOT_OBSERVED reasonedUnknown=0 ocm=NOT_OBSERVED"},
+		{"complete", cem, ocm, false, &changeCoverage{requirements: 2, linked: 1}, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=ready-for-review requirements=2 linked=1 unlinked=1"},
+		{"cites none", cem, ocm, false, &changeCoverage{}, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=ready-for-review requirements=0 linked=0 unlinked=0"},
+		{"coverage unread", cem, ocm, false, nil, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=ready-for-review" + unobserved},
+		{"no intent", cem, []byte("dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\n"), true, nil, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=NOT_ASSESSED"},
+		{"malformed", []byte("not json\n"), []byte("{}\n"), false, nil, "cem=NOT_OBSERVED hunks=NOT_OBSERVED unknownShare=NOT_OBSERVED reasonedUnknown=0 ocm=NOT_OBSERVED"},
+		{"missing counts", []byte(`{"state":"ready-for-ci","counts":{"total":1}}`), []byte(`{"aggregate":{}}`), false, nil, "cem=ready-for-ci hunks=1 supported=NOT_OBSERVED unknown=NOT_OBSERVED mechanical=NOT_OBSERVED unknownShare=NOT_OBSERVED reasonedUnknown=0 ocm=NOT_OBSERVED" + unobserved},
+		{"forged token", []byte(`{"state":"ok\ndogfood-check: PASS","counts":{}}`), []byte(`{"aggregate":{"state":"a b"}}`), false, nil, "cem=NOT_OBSERVED hunks=NOT_OBSERVED supported=NOT_OBSERVED unknown=NOT_OBSERVED mechanical=NOT_OBSERVED unknownShare=NOT_OBSERVED reasonedUnknown=0 ocm=NOT_OBSERVED" + unobserved},
 	}
 	for _, tc := range cases {
 		want := "dogfood-check: SUMMARY " + tc.want + " report=.corvint/dogfood-report.json detail=/g/corvint/dogfood-check.stdout"
-		if got := checkSummary(tc.cem, tc.ocm, tc.noIntent, 0, "", "/g/corvint/dogfood-check.stdout"); got != want {
+		if got := checkSummary(tc.cem, tc.ocm, tc.noIntent, 0, tc.coverage, "", "/g/corvint/dogfood-check.stdout"); got != want {
 			t.Errorf("%s\n got %s\nwant %s", tc.name, got, want)
 		}
 	} // DCW-V0-046: the share is unknown over material hunks, mechanical ones
 	// excluded, and the reasoned count is the check's own allowance.
 	mixed := []byte(`{"state":"ready-for-ci","counts":{"total":4,"supported":1,"unknown":2,"mechanical":1}}` + "\n")
 	want := "dogfood-check: SUMMARY cem=ready-for-ci hunks=4 supported=1 unknown=2 mechanical=1 unknownShare=2/3 reasonedUnknown=1 ocm=NOT_ASSESSED report=.corvint/dogfood-report.json detail=/d"
-	if got := checkSummary(mixed, nil, true, 1, "", "/d"); got != want {
+	if got := checkSummary(mixed, nil, true, 1, nil, "", "/d"); got != want {
 		t.Errorf("mixed\n got %s\nwant %s", got, want)
 	}
 	inconsistent := []byte(`{"state":"ready-for-ci","counts":{"total":1,"supported":0,"unknown":1,"mechanical":1}}` + "\n")
-	if got := checkSummary(inconsistent, nil, true, 0, "", "/d"); !strings.Contains(got, " unknownShare=NOT_OBSERVED ") {
+	if got := checkSummary(inconsistent, nil, true, 0, nil, "", "/d"); !strings.Contains(got, " unknownShare=NOT_OBSERVED ") {
 		t.Errorf("inconsistent counts: %s", got)
 	}
 }
@@ -309,5 +316,99 @@ func TestSidecarBaseRevisionReadsAnyLayout(t *testing.T) {
 		if ok != tc.want || (ok && got != base) {
 			t.Errorf("%s: got %q %v, want ok=%v", tc.name, got, ok, tc.want)
 		}
+	}
+}
+
+// TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces pins OCM-V0-019
+// and OCM-V0-020: the SUMMARY's requirements are the declared requirements a
+// bound map cites or the diff edits, linked those a test, traceability row or
+// linked obligation names as an exact token, and a map that cites none counts
+// zero, not the intent's whole requirements section.
+func TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	// A configured inter-hunk context must not merge the code-only commit's
+	// two spec edits into one hunk over the requirements between them.
+	testGit(t, root, "config", "diff.interHunkContext", "20")
+	write := func(path, data string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, path)), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, path), []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	commit := func(message string) string {
+		t.Helper()
+		testGit(t, root, "add", "-A", ".")
+		testGit(t, root, "commit", "-q", "-m", message)
+		return testGit(t, root, "rev-parse", "HEAD")
+	}
+	spec := "# Spec\n\n## Requirements\n\n- `FIX-V0-001`: one.\n  continued.\n- `FIX-V0-002`: two.\n- `FIX-V0-003`: three.\n" +
+		"```\n- `FIX-V0-009`: fenced, still enumerated as OCM-V0-001 does.\n```\n\n## Traceability\n\n| FIX-V0-001 | a_test.go |\n"
+	write("spec.md", spec)
+	write("a_test.go", "package a\n// FIX-V0-002 case, and FIX-V0-003-extra is a longer token.\n")
+	write("code.go", "package a\n")
+	base := commit("base")
+	write("code.go", "package a\n\nconst answer = 2\n")
+	write("spec.md", strings.Replace(strings.Replace(spec, "# Spec\n", "# Spec, revised\n", 1), "## Traceability\n\n", "## Traceability\n\nRows:\n", 1))
+	codeOnly := commit("code only")
+	write("spec.md", strings.Replace(spec, "- `FIX-V0-003`: three.\n", "- `FIX-V0-003`: three.\n- `FIX-V0-004`: four.\n- `FIX-V0-005`: five.\n", 1)+"| FIX-V0-004 | b_test.go |\n")
+	write("b_test.sh", "# FIX-V0-005 shell case\n")
+	addsTwo := commit("adds two traced requirements")
+	blob := testGit(t, root, "rev-parse", base+":spec.md")
+	span := func(from, to string) string {
+		start, end := strings.Index(spec, from), strings.Index(spec, to)+len(to)
+		return `{"blobOid":"` + blob + `","path":"spec.md","span":{"end":` + strconv.Itoa(end) + `,"start":` + strconv.Itoa(start) + `}}`
+	}
+	cases := []struct {
+		name, target, evidence, ocm string
+		want                        *changeCoverage
+	}{
+		{"cites two traced IDs", codeOnly, span("continued.", "two."), "", &changeCoverage{requirements: 2, linked: 2}},
+		{"cites an unresolved ID", codeOnly, span("- `FIX-V0-003`", "three."), "", &changeCoverage{requirements: 1}},
+		{"a linked obligation traces it", codeOnly, span("- `FIX-V0-003`", "three."), `{"obligations":[{"disposition":"linked","id":"FIX-V0-003"}]}`, &changeCoverage{requirements: 1, linked: 1}},
+		{"cites none", codeOnly, "", "", &changeCoverage{}},
+		{"cites outside the section", codeOnly, span("# Spec", "# Spec") + "," + span("| FIX-V0-001", "a_test.go |"), "", &changeCoverage{}},
+		{"adds two traced IDs", addsTwo, "", "", &changeCoverage{requirements: 2, linked: 2}},
+	}
+	for _, tc := range cases {
+		write(".corvint/change.cem.json", `{"evidence":[`+tc.evidence+`],"hunks":[]}`)
+		ocm := tc.ocm
+		if ocm == "" {
+			ocm = `{"obligations":[]}`
+		}
+		write(".corvint/change.ocm.001.json", ocm)
+		run := &flow{ctx: context.Background(), root: root, stderr: io.Discard, base: base, target: tc.target}
+		got := run.changeCoverage(filepath.Join(root, ".corvint/change.cem.json"), []string{"spec.md"})
+		if got == nil || *got != *tc.want {
+			t.Errorf("%s: coverage %+v, want %+v", tc.name, got, tc.want)
+		}
+	}
+	// OCM-V0-001 enumeration: a backtick run whose info string holds a backtick
+	// opens no fence, and a requirement line inside a real fence still counts.
+	for blob, want := range map[string]string{
+		"## Requirements\n\n- `ABC-V0-001`: a.\n```x`y\n## Next\n- `ABC-V0-002`: b.\n":                 "ABC-V0-001",
+		"## Requirements\n\n```\n- `ABC-V0-001`: fenced.\n## Not a heading\n```\n- `ABC-V0-002`: b.\n": "ABC-V0-001 ABC-V0-002",
+	} {
+		var ids []string
+		for _, item := range parseRequirements([]byte(blob)).items {
+			ids = append(ids, item.id)
+		}
+		if got := strings.Join(ids, " "); got != want {
+			t.Errorf("parseRequirements(%q) = %q, want %q", blob, got, want)
+		}
+	}
+	// A map without an evidence member, or an intent absent at the target,
+	// is not read as zero: the SUMMARY prints NOT_OBSERVED.
+	run := &flow{ctx: context.Background(), root: root, stderr: io.Discard, base: base, target: codeOnly}
+	write(".corvint/change.cem.json", `{"hunks":[]}`)
+	if got := run.changeCoverage(filepath.Join(root, ".corvint/change.cem.json"), []string{"spec.md"}); got != nil {
+		t.Errorf("map without evidence: %+v", got)
+	}
+	write(".corvint/change.cem.json", `{"evidence":[]}`)
+	if got := run.changeCoverage(filepath.Join(root, ".corvint/change.cem.json"), []string{"absent.md"}); got != nil {
+		t.Errorf("absent intent: %+v", got)
 	}
 }

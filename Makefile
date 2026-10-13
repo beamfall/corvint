@@ -18,7 +18,7 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-commands-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-batch-check dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-check
+.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-commands-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-batch-check dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-check
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -149,20 +149,38 @@ cem-stable-regen:
 cem-stable-regen-check:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-stable-regen --check
 
-# spec-requirements regenerates docs/specs/REQUIREMENTS.tsv. The generator reads the Git index,
-# so stage the changed spec first.
+# spec-requirements regenerates docs/specs/REQUIREMENTS.tsv and projects the spec headers onto
+# docs/specs/INDEX.json and the docs/specs/README.md table (SRG-V0-012). The generator reads the
+# Git index, so stage the changed spec first. Nothing is copied unless all three regenerate.
+SPEC_GENERATE = script/gen-spec-requirements.sh >"$$tmp/REQUIREMENTS.tsv" && script/gen-spec-requirements.sh --index >"$$tmp/INDEX.json" && script/gen-spec-requirements.sh --readme >"$$tmp/README.md"
+SPEC_GENERATED = REQUIREMENTS.tsv INDEX.json README.md
+
 spec-requirements:
-	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT INT TERM; script/gen-spec-requirements.sh >"$$tmp" && cp "$$tmp" docs/specs/REQUIREMENTS.tsv
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; $(SPEC_GENERATE) && \
+	for file in $(SPEC_GENERATED); do cp "$$tmp/$$file" "docs/specs/$$file" || exit 1; done
 
 spec-requirements-check:
-	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT INT TERM; script/gen-spec-requirements.sh >"$$tmp"; cmp "$$tmp" docs/specs/REQUIREMENTS.tsv || { echo "REQUIREMENTS.tsv is stale: stage the changed spec, then run make spec-requirements" >&2; exit 1; }
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; $(SPEC_GENERATE) || exit 1; stale=0; \
+	for file in $(SPEC_GENERATED); do cmp "$$tmp/$$file" "docs/specs/$$file" || stale=1; done; \
+	test $$stale = 0 || { echo "docs/specs/REQUIREMENTS.tsv, INDEX.json or README.md is stale: stage the changed spec, then run make spec-requirements" >&2; exit 1; }
 	$(GO_TEST_COMMAND) ./internal/specindex
 
 # spec-requirements-test pins SRG-V0-001: the generator enumerates the Git index, so no
 # untracked, deleted-from-the-worktree, or unstaged spec can change the index a fresh clone
-# reproduces. It is the drift detector for a return to a worktree listing.
+# reproduces. It is the drift detector for a return to a worktree listing. It also pins the
+# acceptance columns, the header projection and the audit (SRG-V0-009, -010, -012) and shows that
+# two lanes adding requirements to one spec conflict only in its requirement list and the TSV
+# rows (SRG-V0-013).
 spec-requirements-test:
 	@script/gen-spec-requirements_test.sh
+	@script/spec-requirements-conflict_test.sh
+
+# spec-acceptance-audit lists the requirements of one acceptance mode by spec, standing by
+# default, and reports a validated spec that holds a standing requirement as NOT_PROMOTABLE
+# (SRG-V0-010). It is a report, not a gate step: ACCEPTANCE=owner or unrecorded lists the others.
+ACCEPTANCE ?= standing
+spec-acceptance-audit:
+	@script/spec-acceptance-audit.sh --acceptance $(ACCEPTANCE)
 
 # requirement-definitions-check fails when a requirement id survives only as a table row.
 # REQUIREMENTS.tsv is generated by an extractor that falls back to a table row when no clause

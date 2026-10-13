@@ -2288,7 +2288,7 @@
     "path": "docs/specs/ocm-v0-dogfood.md",
     "title": "Obligation Closure Map V0 dogfood",
     "reqPrefix": "OCM-V0",
-    "intent": "proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469)",
+    "intent": "proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept)",
     "delivery": "experimental",
     "claim": "OCM maps scoped requirements to exact change-and-test witnesses or explicit unknowns; ordered multi-intent dogfood coordination is experimental.",
     "dependsOn": [
@@ -2301,6 +2301,7 @@
       "cmd/corvint/dogfood_ocm.go",
       "internal/dogfoodocm",
       "internal/lrfrepo/ocm.go",
+      "internal/dogfoodflow/ocm_coverage.go",
       "script/dogfood-change.sh",
       "script/dogfood-check.sh",
       "script/dogfood-change_test.sh",
@@ -3074,9 +3075,9 @@
     "path": "docs/specs/spec-requirement-index-generator-v0.md",
     "title": "Spec requirement index generator V0",
     "reqPrefix": "SRG-V0",
-    "intent": "accepted (decision 0105 amendment 2026-09-12)",
+    "intent": "accepted (history: REQUIREMENTS.tsv acceptance columns and docs/build-log)",
     "delivery": "implemented",
-    "claim": "One generated index names, for every requirement id in every tracked spec, the single best place that defines it.",
+    "claim": "One generator derives, from the staged specs, the requirement index with each requirement's acceptance mode and the INDEX.json and README.md status rows.",
     "dependsOn": [
       "docs/specs/decision-number-gate-v0.md",
       "docs/specs/requirement-definition-gate-v0.md"
@@ -3084,7 +3085,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "script/gen-spec-requirements.sh"
+      "script/gen-spec-requirements.sh",
+      "script/spec-acceptance-audit.sh"
     ]
   },
   {

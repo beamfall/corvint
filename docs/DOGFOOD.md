@@ -148,7 +148,7 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    report=.corvint/dogfood-report.json detail=<git-dir>/corvint/dogfood-check.stdout` line, then
    `dogfood-check: PASS` (`DCW-V0-033`). `unknownShare` is the map's unknown hunks over its material
    (non-mechanical) hunks, and `reasonedUnknown` the unknown hunks kept with a recorded reason
-   (`DCW-V0-046`).
+   (`DCW-V0-046`); section 6 explains its `requirements`, `linked` and `unlinked` members.
    The detail file holds the full CEM and OCM status JSON; `DOGFOOD_VERBOSE=1` prints that JSON
    in place of the summary, and a failing CEM policy always prints it. A base whose committed CEM names a base outside its history also prints
    `dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable`; a base whose
@@ -827,6 +827,18 @@ Read the report rather than trusting its exit code alone. It performs the same s
 policy verification as strict status; standalone `verify` is reserved for machine/CI use. The
 report stays local by default because
 paths and digests are sensitive even though source and diff bodies are omitted.
+
+The `dogfood-check: SUMMARY` members `requirements`, `linked` and `unlinked` after `ocm=STATE`
+describe only the requirements this change touches (`OCM-V0-019`): `requirements` counts the
+declared-intent requirements whose text a citation span covers or whose lines the diff adds or
+changes, `linked` those of them that a `*_test.go` or `*_test.sh` line, a traceability table row of
+the intent, or a `DOGFOOD_OCM_LINKS` obligation names as an exact ID, and `unlinked` the rest. A
+lane that adds four requirements with traced tests reads `requirements=4 linked=4 unlinked=0`; a
+code-only change that cites no requirement reads `requirements=0 linked=0 unlinked=0`
+(`OCM-V0-020`). A nonzero `unlinked` names requirements the change touched without a test or row
+naming them; it does not fail the check. `NOT_OBSERVED` in all three means an input could not be
+read. The intent-wide totals stay in `corvint ocm report` and the detail file's aggregate
+`coverage`.
 
 ### 7. Record the outcome
 
