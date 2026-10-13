@@ -2,17 +2,18 @@
 
 Owner: Russell Lewis
 Created: 2026-08-23
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired by decision 0525, superseded by `docs/specs/cem-stable-v1.md`
+Delivery status: superseded
+Retirement note: V1-1278 S3 (`CEM-V1-220`, `CEM-V1-222`, `CEM-V1-225`) deleted `interop/cem-0.1`
+and the 0.1 verification routes of `interop/cem01-go`; the body below is historical and its
+requirement IDs stay for traceability.
+Authoritative successor: `docs/specs/cem-stable-v1.md`
 Authoritative inputs: `docs/CHANGE-EVIDENCE-MAP.md`, `docs/specs/cem-pilot-kit.md`, and
 `interop/cem-0.1/ADAPTER.md`, `ALGORITHMS.md`, and `manifest.json`
 
 ## Agent digest
-- Claim: The Corvint-authored Go consumer tests CEM 0.1 portability but cannot satisfy independent interoperability or adoption gates.
-- Status: proposed/experimental
-- Exists: `interop/cem01-go`, passing the frozen 7/19/6 matrix and five producer maps.
-- Blocked on: independent external adoption evidence.
-- Read next: `cem-pilot-kit.md` and `cem-external-interop-v0.md`.
+- Successor: `docs/specs/cem-stable-v1.md` is the authoritative replacement.
+- Why: decision 0525 removes `cem/0.1`; S3 deleted `interop/cem-0.1` and the probe's 0.1 routes, and `interop/cem01-go` refuses every `cem/0.x` map with `unsupported-spec` (`CEM-V1-222`).
 
 ## User and job
 
@@ -89,9 +90,9 @@ proves internal portability only; the independent-consumer and product-value gat
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | CEM-GO-001..003 | `interop/cem01-go` | clean-room implementation record; Go unit tests and vet, including `TestSimilarityMetadataIsExact` (only the exact `similarity index N%` / `dissimilarity index N%` record is metadata) and `TestBinaryMarkerTextInHunkPayloadIsText` (a binary marker is a whole patch record, never prefixed hunk payload text); erratum 2 (decision 0192): `TestDissimilarityWithoutRenameParses`, `TestInconsistentNewPositionRejectedAtParse` |
-| CEM-GO-004 | `interop/cem01-go` process-boundary runner | frozen 7/19/6 matrix plus five expected producer maps, including erratum-1 vector `deleted-symlink-changed` |
-| CEM-GO-005 | bounded I/O and sanitized Git process boundary | hostile environment, resource, timeout, and repository tests; `TestEndToEndVerify` exits 2 (`object-alternates`) on a repository with `objects/info/alternates`, before any object read |
-| CEM-GO-006 | `interop/cem-0.1/IMPLEMENTATIONS.md` | independent rows remain empty; review confirms non-claim |
+| CEM-GO-004 | `interop/cem01-go` process-boundary runner | frozen 7/19/6 matrix plus five expected producer maps, including erratum-1 vector `deleted-symlink-changed`; retired by V1-1278 S3 (`CEM-V1-220`, `CEM-V1-222`) with `interop/cem-0.1` |
+| CEM-GO-005 | bounded I/O and sanitized Git process boundary | hostile environment, resource, timeout, and repository tests; the 0.1 end-to-end `object-alternates` test was deleted with the 0.1 route by V1-1278 S3 (`CEM-V1-222`) and is kept at commit `5a056d0a`; the 1.0 route keeps the same Git boundary |
+| CEM-GO-006 | `interop/cem-0.1/IMPLEMENTATIONS.md` (deleted by V1-1278 S3, `CEM-V1-220`; kept in Git history) | independent rows remain empty; review confirms non-claim |
 
 ## Open evidence
 

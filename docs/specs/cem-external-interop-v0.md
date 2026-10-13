@@ -1,18 +1,18 @@
 # CEM external consumer interoperability V0
 
 Owner: Russell Lewis
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired by decision 0525, superseded by `docs/specs/cem-stable-v1.md`
+Delivery status: superseded
+Retirement note: V1-1278 S3 (`CEM-V1-220`, `CEM-V1-223`, `CEM-V1-225`) deleted `interop/cem-0.1` and
+`tools/cem-interop-runner`; the body below is historical and its requirement IDs stay for traceability.
+Authoritative successor: `docs/specs/cem-stable-v1.md`
 Authoritative inputs: `ROADMAP.md`, `docs/specs/cem-pilot-kit.md`,
 `interop/cem-0.1/ADAPTER.md`, `interop/cem-0.1/ALGORITHMS.md`, and
 `interop/cem-0.1/manifest.json`
 
 ## Agent digest
-- Claim: A Corvint-free runner lets independent CEM 0.1 consumers test the frozen packet without creating an independence claim.
-- Status: proposed/experimental
-- Exists: the active native `tools/cem-interop-runner`, the historical `interop/cem-0.1/runner.py` packet member (re-pinned only by erratum 1), frozen packet checks, and retained observations.
-- Blocked on: an independently authored consumer matrix entry.
-- Read next: `cem-pilot-kit.md` and `../../interop/cem-0.1/SUBMIT.md`.
+- Successor: `docs/specs/cem-stable-v1.md` is the authoritative replacement.
+- Why: decision 0525 removes `cem/0.1`; S3 deleted `interop/cem-0.1` and `tools/cem-interop-runner`, whose only mode read that packet (`CEM-V1-223`).
 
 
 ## Intent

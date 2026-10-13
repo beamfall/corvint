@@ -20,7 +20,7 @@ func (m memSource) BaseBlob(path string) ([]byte, string, bool, error) {
 
 func interopBase(t *testing.T) memSource {
 	t.Helper()
-	root, err := filepath.Abs(filepath.Join("..", "..", "..", "interop", "cem-0.1", "repository", "base"))
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", "interop", "cem01-go", "testdata", "inherited-vectors", "repository", "base"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func interopBase(t *testing.T) memSource {
 
 func parseFixture(t *testing.T, name string) *patch.Patch {
 	t.Helper()
-	path := filepath.Join("..", "..", "..", "interop", "cem-0.1", "patches", name)
+	path := filepath.Join("..", "..", "..", "interop", "cem01-go", "testdata", "inherited-vectors", "patches", name)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

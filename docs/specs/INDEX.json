@@ -357,36 +357,32 @@
     "path": "docs/specs/cem-0.2-canonical-binding.md",
     "title": "CEM 0.2 canonical patch binding",
     "reqPrefix": "CEM-CB",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "CEM 0.2 binds evidence maps to the canonical Git-derived base-to-target patch after only the declared sidecar is excluded.",
+    "intent": "retired by decision 0525, superseded by `docs/specs/cem-stable-v1.md`",
+    "delivery": "superseded",
+    "claim": "CEM 0.2 canonical patch binding is retired by decision 0525 and superseded by the CEM 1.0 stable contract.",
     "dependsOn": [
       "docs/specs/ocm-v0-dogfood.md",
-      "docs/specs/verified-absence-frontier-v0.md"
+      "docs/specs/verified-absence-frontier-v0.md",
+      "docs/specs/cem-stable-v1.md"
     ],
-    "supersededBy": null,
+    "supersededBy": "docs/specs/cem-stable-v1.md",
     "closableToday": false,
-    "implementation": [
-      "internal/cem",
-      "cmd/corvint",
-      "conformance/cem-0.2"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/cem-0.3-structural-mechanical.md",
     "title": "CEM 0.3 structural mechanical reasons",
     "reqPrefix": "CEM-SM",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "CEM 0.3 adds Go rename, move, import-reorder and formatter-only mechanical reasons that the verifier re-proves from the base blob and patch alone.",
+    "intent": "retired by decision 0525, superseded by `docs/specs/cem-stable-v1.md`",
+    "delivery": "superseded",
+    "claim": "CEM 0.3 structural mechanical reasons are retired by decision 0525 and superseded by the CEM 1.0 stable contract.",
     "dependsOn": [
-      "docs/specs/cem-0.2-canonical-binding.md"
+      "docs/specs/cem-0.2-canonical-binding.md",
+      "docs/specs/cem-stable-v1.md"
     ],
-    "supersededBy": null,
+    "supersededBy": "docs/specs/cem-stable-v1.md",
     "closableToday": false,
-    "implementation": [
-      "internal/cem"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/cem-criterion-experiments-v0.md",
@@ -411,33 +407,31 @@
     "path": "docs/specs/cem-external-interop-v0.md",
     "title": "CEM external consumer interoperability V0",
     "reqPrefix": "CEM-EXT",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "A Corvint-free runner lets independent CEM 0.1 consumers test the frozen packet without creating an independence claim.",
+    "intent": "retired by decision 0525, superseded by `docs/specs/cem-stable-v1.md`",
+    "delivery": "superseded",
+    "claim": "The CEM 0.1 external consumer runner and packet are retired by decision 0525 and superseded by the CEM 1.0 stable contract.",
     "dependsOn": [
-      "docs/specs/cem-pilot-kit.md"
+      "docs/specs/cem-pilot-kit.md",
+      "docs/specs/cem-stable-v1.md"
     ],
-    "supersededBy": null,
+    "supersededBy": "docs/specs/cem-stable-v1.md",
     "closableToday": false,
-    "implementation": [
-      "interop/cem-0.1"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/cem-go-portability-probe.md",
     "title": "CEM 0.1 Go portability probe",
     "reqPrefix": "CEM-GO",
-    "intent": "proposed",
-    "delivery": "experimental",
-    "claim": "The Corvint-authored Go consumer tests CEM 0.1 portability but cannot satisfy independent interoperability or adoption gates.",
+    "intent": "retired by decision 0525, superseded by `docs/specs/cem-stable-v1.md`",
+    "delivery": "superseded",
+    "claim": "The CEM 0.1 Go portability probe is retired by decision 0525; cem01-go now verifies CEM 1.0 only.",
     "dependsOn": [
-      "docs/specs/cem-pilot-kit.md"
+      "docs/specs/cem-pilot-kit.md",
+      "docs/specs/cem-stable-v1.md"
     ],
-    "supersededBy": null,
+    "supersededBy": "docs/specs/cem-stable-v1.md",
     "closableToday": false,
-    "implementation": [
-      "interop/cem01-go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/cem-pilot-kit.md",
@@ -451,8 +445,7 @@
     "closableToday": false,
     "implementation": [
       "internal/cem",
-      "interop/cem01-go",
-      "examples/cem"
+      "interop/cem01-go"
     ]
   },
   {

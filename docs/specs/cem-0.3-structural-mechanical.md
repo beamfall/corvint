@@ -2,17 +2,17 @@
 
 Owner: Russell Lewis
 Date: 2026-09-22
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired by decision 0525, superseded by `docs/specs/cem-stable-v1.md`
+Delivery status: superseded
+Retirement note: V1-1278 S3 (`CEM-V1-220`, `CEM-V1-221`, `CEM-V1-225`) deleted `protocol/cem-0.3`
+and the portable 0.3 tests; the body below is historical and its requirement IDs stay for traceability.
+Authoritative successor: `docs/specs/cem-stable-v1.md`
 Authoritative inputs: `docs/CHANGE-EVIDENCE-MAP.md`, `docs/specs/cem-0.2-canonical-binding.md`,
 `docs/decisions/0338-cem-0-3-structural-mechanical-reasons-2026-09-22.md`
 
 ## Agent digest
-- Claim: CEM 0.3 adds Go rename, move, import-reorder and formatter-only mechanical reasons that the verifier re-proves from the base blob and patch alone.
-- Status: proposed/experimental (tickets V1-0087 and V1-0614, decisions 0338 and 0521)
-- Exists: `internal/cem/verify/structural.go`, `internal/cem/wire/map.go`, `internal/cem/workflow/commands.go`; the proposed portable packet `protocol/cem-0.3` (221 cases, `CEM-SM-011`..`CEM-SM-018`, decision 0521; native and portable agree on all 221) and its generator `interop/cem01-go/packet03_test.go`.
-- Blocked on: Go 1.24 structural parity, independent external consumption (`CEM-V1-008`), owner acceptance of the packet, and frontier/dashboard profile acceptance.
-- Read next: `cem-0.2-canonical-binding.md`, `../CHANGE-EVIDENCE-MAP.md`.
+- Successor: `docs/specs/cem-stable-v1.md` is the authoritative replacement.
+- Why: decision 0525 removes `cem/0.3`; S3 deleted `protocol/cem-0.3` and kept its algorithms text as `protocol/cem-1.0/stable/inherited/cem-0.3-algorithms.md`, which `cem/1.0` structural reasons inherit.
 
 ## User and measurable job
 
@@ -174,13 +174,13 @@ are widened under their own specs.
 | `CEM-SM-008` | `moveProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses`, `TestStructuralRefusesUnprovableInputs` |
 | `CEM-SM-009` | `importReorderProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses` |
 | `CEM-SM-010` | `formatterOnlyProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses` |
-| `CEM-SM-011` | `protocol/cem-0.3`, `interop/cem01-go/packet03_test.go` `readPacket03`, `internal/cem/workflow/portable03_test.go` | `TestCEMSM016PortablePacketConformance` (the native 0.3 vector test was retired by V1-1278 S2b (`CEM-V1-215`)) |
-| `CEM-SM-012` | `cases03` structural rows | `TestCEMSM014PacketReproducible`, `TestCEMSM016PortablePacketConformance` |
-| `CEM-SM-013` | `cases03` witness rows | `TestCEMSM014PacketReproducible`, `TestCEMSM016PortablePacketConformance` |
-| `CEM-SM-014` | `generatePacket03` | `TestCEMSM014PacketReproducible` |
-| `CEM-SM-015` | `cases03` sidecar rows | `TestCEMSM014PacketReproducible`, `TestCEMSM016PortablePacketConformance` |
-| `CEM-SM-016` | `verify-03` (`decode03`, `run03`), `portable03Projection` | `TestCEMSM016PortablePacketConformance`, `TestCEMSM016PortableConfigCeiling`, `TestCEMSM014PacketReproducible` (the native 0.3 vector test was retired by V1-1278 S2b (`CEM-V1-215`)) |
-| `CEM-SM-017` | `run03` runtime stage | `TestCEMSM016PortablePacketConformance` (go1.27.1 pinned results; pre-0522 go1.27.2 refusal run, build log 2026-10-11; reproduced on admitted go1.27.2, build log 2026-10-11 cem03 tuple admission) |
+| `CEM-SM-011` | `protocol/cem-0.3`, `interop/cem01-go/packet03_test.go` `readPacket03`, `internal/cem/workflow/portable03_test.go` | retired by V1-1278 S3 (`CEM-V1-220`): `protocol/cem-0.3`, `verify-03` and the portable 0.3 packet tests are deleted; the tests are kept at commit `5a056d0a` |
+| `CEM-SM-012` | `cases03` structural rows | retired by V1-1278 S3 (`CEM-V1-220`): `protocol/cem-0.3`, `verify-03` and the portable 0.3 packet tests are deleted; the tests are kept at commit `5a056d0a` |
+| `CEM-SM-013` | `cases03` witness rows | retired by V1-1278 S3 (`CEM-V1-220`): `protocol/cem-0.3`, `verify-03` and the portable 0.3 packet tests are deleted; the tests are kept at commit `5a056d0a` |
+| `CEM-SM-014` | `generatePacket03` | retired by V1-1278 S3 (`CEM-V1-220`): `protocol/cem-0.3`, `verify-03` and the portable 0.3 packet tests are deleted; the tests are kept at commit `5a056d0a` |
+| `CEM-SM-015` | `cases03` sidecar rows | retired by V1-1278 S3 (`CEM-V1-220`): `protocol/cem-0.3`, `verify-03` and the portable 0.3 packet tests are deleted; the tests are kept at commit `5a056d0a` |
+| `CEM-SM-016` | `verify-03` (`decode03`, `run03`), `portable03Projection` | retired by V1-1278 S3 (`CEM-V1-220`): `protocol/cem-0.3`, `verify-03` and the portable 0.3 packet tests are deleted; the tests are kept at commit `5a056d0a` |
+| `CEM-SM-017` | `run03` runtime stage | retired by V1-1278 S3 (`CEM-V1-220`): `protocol/cem-0.3`, `verify-03` and the portable 0.3 packet tests are deleted; the tests are kept at commit `5a056d0a` |
 | `CEM-SM-018` | `internal/cem/wire/map.go` `ParseMapSpec`, `internal/cem/workflow/read.go` `ReadOptions.SingleSpec` | retired by V1-1278 S2b (`CEM-V1-215`): `ParseMapSpec` and `ReadOptions.SingleSpec` are deleted with the `cem/0.x` wire, and so is their native vector test |
 
 ## Unresolved decisions

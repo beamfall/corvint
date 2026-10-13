@@ -150,9 +150,9 @@ func markChoreRole(mapPath, role string) error {
 }
 
 // markStableChoreMap gives the prepared map of a chore change its role. Core
-// cem prepare writes cem/1.0 by default since V1-1276 (CEM-V1-140); an
-// explicit cem/0.x map is left unmarked, and a stable map it cannot mark is
-// not prepared.
+// cem prepare writes cem/1.0 by default since V1-1276 (CEM-V1-140); a map
+// that does not declare cem/1.0 is left unmarked, and a stable map it cannot
+// mark is not prepared.
 func (c *change) markStableChoreMap() {
 	mapPath := c.path(".corvint/change.cem.json")
 	if !c.cemPrepared || !declaresStableMap(mapPath) {

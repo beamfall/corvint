@@ -70,9 +70,9 @@ git -C "$test_root" rm -q --cached docs/crlf.md
 rm -f "$test_root/docs/crlf.md"
 
 # 4. The two exempt interop fixtures keep their non-LF endings.
-mkdir -p "$test_root/interop/cem-0.1/repository/base/src" "$test_root/interop/cem-0.1/patches"
-printf 'one\r\ntwo\r\n' > "$test_root/interop/cem-0.1/repository/base/src/ending.txt"
-printf 'one\r\ntwo\n' > "$test_root/interop/cem-0.1/patches/line-ending.patch"
+mkdir -p "$test_root/interop/cem01-go/testdata/inherited-vectors/repository/base/src" "$test_root/interop/cem01-go/testdata/inherited-vectors/patches"
+printf 'one\r\ntwo\r\n' > "$test_root/interop/cem01-go/testdata/inherited-vectors/repository/base/src/ending.txt"
+printf 'one\r\ntwo\n' > "$test_root/interop/cem01-go/testdata/inherited-vectors/patches/line-ending.patch"
 git -C "$test_root" add -A
 output=$(run) || fail "the exempt interop fixtures failed the gate: $output"
 case $output in

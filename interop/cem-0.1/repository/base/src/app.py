@@ -1,2 +1,0 @@
-def allowed():
-    return True

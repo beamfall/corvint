@@ -759,7 +759,6 @@ func stripHorizontal(b []byte) []byte {
 
 var _ = fmt.Sprintf
 
-// errModeChange is the old/new mode metadata refusal. Profiles 0.1 and 0.2
-// report it as unsupported-tree-mode; verify-03 retains the native name
-// malformed-patch. It is compared by identity and never mutated.
+// errModeChange is the old/new mode metadata refusal, reported as
+// unsupported-tree-mode.
 var errModeChange = &cemError{code: "unsupported-tree-mode"}

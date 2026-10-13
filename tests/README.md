@@ -16,7 +16,7 @@ No test in the current source gate starts the retired implementation or requires
 | Legacy Python wrapper process/forged-child output | Wrapper retired; Go adapters call the linked kernel directly. Strict host input and kernel response tests replace the removed IPC boundary; `internal/procgroup` retains native interruption/ownership regressions |
 | Self-use batch and source views | `benchmarks/selfuse-batch`, real native batch/fallback parity and signal cleanup, `cmd/corvint/source_handoff_test.go` |
 | Benchmark contract/learned arm | `benchmarks/runner` independent case accounting, source proof, frozen provenance and threshold tests |
-| External CEM interop | `tools/cem-interop-runner`; original frozen packet bytes and matrix remain unchanged |
+| External CEM interop | `interop/cem01-go` verifies `cem/1.0` only; the `cem/0.1` runner and packet were removed by V1-1278 S3 and remain in Git history |
 | CEM 30×30 experiment | `experiments/cem-30x30`; frozen synthetic gate controls, exact rational arithmetic, bound human task registry and blinded ingestion |
 | First-use wheel trial | Retired with wheel distribution. Historical results stay historical; the native archive gate does not claim equivalent human first-use evidence |
 

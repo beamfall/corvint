@@ -1,12 +1,9 @@
-# CEM 0.1 Go portability probe
+# CEM 1.0 Go portable consumer
 
-This directory contains a Corvint-authored, clean-room Go consumer for the public CEM 0.1
-interchange contract. It uses only the Go standard library and the Git executable. It does not
-import, link, translate, inspect, or subprocess Corvint's Python implementation.
-
-The probe answers one question: can the published adapter, algorithms, manifest, and raw fixtures
-produce the same deterministic decisions in a second runtime? It is reference portability evidence,
-not an independently authored implementation and not a P1, C1, or C2 matrix claim.
+This directory contains a Corvint-authored, clean-room Go consumer for the public CEM 1.0 stable
+contract in [`protocol/cem-1.0/stable`](../../protocol/cem-1.0/stable). It uses only the Go standard
+library and the Git executable, and it does not import or link Corvint's product code. It is
+reference portability evidence, not an independently authored implementation.
 
 ## Verify
 
@@ -16,62 +13,40 @@ $ go test -count=1 ./...
 $ go vet ./...
 ```
 
-The process-boundary test checks all 51 manifest artifact digests, reconstructs the exact SHA-1 and
-SHA-256 repositories, and requires the published outcomes for 7 valid cases, 19 invalid cases, 6
-drift cases covering all 5 drift states, and all 5 producer expected maps. Focused tests cover strict
-JSON and mathematical wire integers, Unicode and canonical identities, bounded regular inputs, patch
-edge cases, empty blobs, overlapping drift, Git isolation, deadline enforcement, and batched
-capacity.
-
-`TestPortableProfileCompatibility` additionally consumes the candidate raw packet in
-`protocol/cem-0.2` through this consumer's process ABI: it rejects 0.2 and checks separately pinned
-0.1 equivalents, including ordered mixed drift, unknowns and evidence reuse across hunks. Repeated
-basis pairs remain invalid within one hunk. This supplement changes neither the historical frozen
-matrix nor the consumer's 0.1-only profile; it does not establish independent 0.2 interoperability.
-
 ## Run
 
 ```console
-$ go run . verify --repository /absolute/repository \
-    --map /absolute/change.cem.json --patch /absolute/change.patch
-$ go run . verify --repository /absolute/repository \
-    --map /absolute/change.cem.json --patch /absolute/change.patch \
-    --target FULL_COMMIT_OID
+$ go run . verify-stable-canonical --repository /absolute/repository \
+    --map /absolute/change.cem.json --expected-base FULL_BASE_OID --target FULL_TARGET_OID \
+    --artifacts /absolute/artifacts
 ```
 
-Exit 0 means accepted, exit 1 means invalid or unsafe drift, and exit 2 means invocation or
-operational failure. Standard output is exactly one JSON protocol object; standard error is empty.
-Verification proves structural integrity and drift status, never semantic support or correctness.
+`verify-stable-canonical` and `verify-stable` verify a `cem/1.0` map and print one
+`cem-stable-verification/1` result. Verification proves change integrity and drift status, never
+semantic support or correctness.
 
-`ci` is the portable CI verifier (`CEM-PILOT-020`..`023`): it derives the patch from two declared
-commits, reads the map from the head tree, and prints one `cem-ci-report/0` line with exit 0 to 5.
-It leaves `verify` unchanged. The pinned, network-denied runbook is `examples/cem/README.md`.
-An exact `cem/1.0` map is not verified on either path: `verify` refuses it with `unsupported-spec`,
-and `ci` reports `unsupported-profile` (exit 4) with code `use-verify-stable-canonical`, which names
-the stable command to run instead (`CEM-V1-PSR-001`..`003`).
+## Retired cem/0.x routes
 
-```console
-$ go run . ci --repository /absolute/repository --base BASE_OID --head HEAD_OID \
-    --map .corvint/change.cem.json
-```
+Decision 0525 retired the `cem/0.1` default `verify` route, `verify-03` and `ci` (V1-1278 S3,
+`CEM-V1-222`). Any other invocation prints one JSON line and a fix line on standard error: a map
+whose `spec` is a `cem/0.x` string is refused with the closed code `unsupported-spec` (exit 1), and
+anything else is `invocation` (exit 2). The stable commands refuse a `cem/0.x` map with
+`unsupported-spec`. Git history keeps the retired packets, routes and their evidence.
 
-The implementation was produced from `interop/cem-0.1/ADAPTER.md`, `ALGORITHMS.md`,
-`manifest.json`, and the digest-pinned public fixtures. The builder did not read `src/**`,
-`tests/**`, Python source, or repository history. A separate adversarial reviewer initially found
-eight contract defects; the repaired snapshot passed re-review with no remaining HIGH, MEDIUM, or
-LOW findings.
+`testdata/inherited-vectors` keeps the inherited `cem/0.1` patch, base-tree and hunk-identity
+vectors, moved unchanged from the retired CEM 0.1 interop packet, because the patch parser, LF
+tokenizer and replay algorithms that `cem/1.0` restates are still tested against them. They are
+algorithm vectors only; nothing admits a `cem/0.1` map.
 
 This interoperability implementation is licensed under plain Apache-2.0 as listed in
-`../../LICENSING.md`. Publication still requires the repository's release-integrity and
-product-evidence gates.
+`../../LICENSING.md`.
 
-### Experimental CEM 1.0 candidate
+## Experimental CEM 1.0 candidate
 
 The additive `verify-candidate` command implements the public
 [`protocol/cem-1.0/ALGORITHMS.md`](../../protocol/cem-1.0/ALGORITHMS.md)
-contract. It does not change `verify` or `ci`, and historical interfaces still
-refuse candidate maps. Building now requires Go 1.24 or later for rooted artifact
-reads; the consumer remains standard-library-only.
+contract. Building requires Go 1.24 or later for rooted artifact reads; the consumer
+remains standard-library-only.
 
 ```
 cem01-go verify-candidate --repository /absolute/repo --map candidate.json \
@@ -103,6 +78,5 @@ independently authored external consumers and outcome evaluation remain outside
 this candidate. Stable CEM 1.0 remains blocked on those qualifications.
 
 `TestCandidateNormativePacket` reconstructs the new frozen SHA-1 and SHA-256
-repositories and checks all 31 cases through the executable, separately from the
-unchanged historical manifests. The packet and both consumers are Corvint-authored
+repositories and checks all 31 cases through the executable. The packet and both consumers are Corvint-authored
 reference portability evidence, not independent external interoperability evidence.

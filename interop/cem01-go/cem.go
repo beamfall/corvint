@@ -30,7 +30,6 @@ import (
 )
 
 const (
-	specVersion        = "cem/0.1"
 	maxWireInteger     = uint64(9007199254740991)
 	maxJSONBytes       = 4 << 20
 	maxPatchBytes      = 8 << 20
@@ -44,14 +43,6 @@ const (
 	verificationBudget = 30 * time.Minute
 )
 
-type cliArgs struct {
-	repository string
-	mapFile    string
-	patchFile  string
-	target     string
-	targetSet  bool
-}
-
 type cemError struct {
 	code        string
 	operational bool
@@ -61,40 +52,6 @@ func (e *cemError) Error() string { return e.code }
 
 func invalid(code string) *cemError     { return &cemError{code: code} }
 func operational(code string) *cemError { return &cemError{code: code, operational: true} }
-
-func parseArgs(argv []string) (cliArgs, *cemError) {
-	var a cliArgs
-	if len(argv) == 0 || argv[0] != "verify" {
-		return a, operational("invocation")
-	}
-	seen := map[string]bool{}
-	for i := 1; i < len(argv); i += 2 {
-		if i+1 >= len(argv) || seen[argv[i]] {
-			return a, operational("invocation")
-		}
-		seen[argv[i]] = true
-		switch argv[i] {
-		case "--repository":
-			a.repository = argv[i+1]
-		case "--map":
-			a.mapFile = argv[i+1]
-		case "--patch":
-			a.patchFile = argv[i+1]
-		case "--target":
-			a.target = argv[i+1]
-			a.targetSet = true
-		default:
-			return a, operational("invocation")
-		}
-	}
-	if a.repository == "" || a.mapFile == "" || a.patchFile == "" {
-		return a, operational("invocation")
-	}
-	if a.targetSet && !validOID(a.target) {
-		return a, operational("invocation")
-	}
-	return a, nil
-}
 
 type span struct {
 	Start uint64 `json:"start"`
@@ -194,103 +151,7 @@ type verifier struct {
 	trees     map[string]*treeEntry
 }
 
-func verify(a cliArgs) ([]driftItem, *cemError) {
-	ctx, cancel := context.WithTimeout(context.Background(), verificationBudget)
-	defer cancel()
-
-	mapBytes, err := readBounded(ctx, a.mapFile, maxJSONBytes)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, operational("verification-timeout")
-		}
-		if errors.Is(err, errSizeLimit) {
-			return nil, invalid("resource")
-		}
-		return nil, operational("repository-io")
-	}
-	m, shapeErr := decodeMap(mapBytes)
-	if shapeErr != nil {
-		return nil, shapeErr
-	}
-	patch, err := readBounded(ctx, a.patchFile, maxPatchBytes)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, operational("verification-timeout")
-		}
-		if errors.Is(err, errSizeLimit) {
-			return nil, invalid("resource")
-		}
-		return nil, operational("repository-io")
-	}
-	if shaHex(patch) != m.PatchSHA256 {
-		return nil, invalid("patch-digest")
-	}
-	parsed, parseErr := parsePatch(patch)
-	if parseErr != nil {
-		return nil, parseErr
-	}
-	v := &verifier{ctx: ctx, repo: a.repository, blobs: make(map[string][]byte), trees: make(map[string]*treeEntry)}
-	if err := v.rejectAlternates(); err != nil {
-		return nil, err
-	}
-	baseOID, gitErr := v.resolveCommit(m.BaseRevision)
-	if gitErr != nil {
-		return nil, gitErr
-	}
-	if baseOID != m.BaseRevision {
-		return nil, invalid("base-revision")
-	}
-	if err := v.verifyPatchSimulation(baseOID, parsed); err != nil {
-		return nil, err
-	}
-	if err := v.verifyEvidence(baseOID, &m); err != nil {
-		return nil, err
-	}
-	if err := verifyHunkMap(&m, parsed); err != nil {
-		return nil, err
-	}
-	if !a.targetSet {
-		return []driftItem{}, nil
-	}
-	targetOID, gitErr := v.resolveCommit(a.target)
-	if gitErr != nil {
-		return nil, gitErr
-	}
-	if targetOID != a.target {
-		return nil, invalid("target-revision")
-	}
-	return v.computeDrift(targetOID, m.Evidence)
-}
-
 var errSizeLimit = errors.New("size limit")
-
-// decodeMap runs every structural check verify applies to the map bytes before it reads the patch.
-// An exact cem/1.0 map is refused as unsupported before those checks (CEM-V1-PSR-001).
-func decodeMap(mapBytes []byte) (cemMap, *cemError) {
-	var m cemMap
-	if declaresStableSpec(mapBytes) {
-		return m, invalid("unsupported-spec")
-	}
-	if err := strictDecode(mapBytes, &m); err != nil {
-		return m, invalid("invalid-json")
-	}
-	if err := validateRequiredShape(mapBytes); err != nil {
-		return m, invalid("version-shape")
-	}
-	return m, validateMapShape(&m)
-}
-
-// declaresStableSpec reports a strictly parsed JSON object whose exact "spec" member is the JSON
-// string cem/1.0. It reads nothing else, so every other input keeps its earlier decode result
-// (CEM-V1-PSR-003).
-func declaresStableSpec(raw []byte) bool {
-	var root map[string]json.RawMessage
-	if strictJSON(raw) != nil || json.Unmarshal(raw, &root) != nil {
-		return false
-	}
-	var spec string
-	return json.Unmarshal(root["spec"], &spec) == nil && spec == stableSpec
-}
 
 var errNotRegular = errors.New("not a stable regular file")
 
@@ -336,17 +197,6 @@ func readBounded(ctx context.Context, path string, limit int64) ([]byte, error) 
 		_ = f.Close()
 		return nil, ctx.Err()
 	}
-}
-
-func validateRequiredShape(raw []byte) error {
-	var root map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &root); err != nil {
-		return err
-	}
-	if !hasKeys(root, "spec", "baseRevision", "patchSha256", "evidence", "hunks") {
-		return errors.New("missing top-level field")
-	}
-	return validateEvidenceHunkShape(root)
 }
 
 func validateEvidenceHunkShape(root map[string]json.RawMessage) error {
@@ -413,21 +263,6 @@ func strictJSON(raw []byte) error {
 		return err
 	}
 	if _, err := dec.Token(); err != io.EOF {
-		return errors.New("trailing")
-	}
-	return nil
-}
-
-func strictDecode(raw []byte, dst any) error {
-	if err := strictJSON(raw); err != nil {
-		return err
-	}
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(dst); err != nil {
-		return err
-	}
-	if dec.Decode(new(any)) != io.EOF {
 		return errors.New("trailing")
 	}
 	return nil
@@ -622,13 +457,6 @@ func hex4(b []byte) (uint16, bool) {
 	}
 	n, err := strconv.ParseUint(string(b), 16, 16)
 	return uint16(n), err == nil
-}
-
-func validateMapShape(m *cemMap) *cemError {
-	if m.Spec != specVersion {
-		return invalid("version-shape")
-	}
-	return validateChangeFields(m)
 }
 
 func validateChangeFields(m *cemMap) *cemError {
@@ -827,21 +655,6 @@ func (v *verifier) rejectAlternates() *cemError {
 		return operational("object-alternates")
 	}
 	return nil
-}
-
-func (v *verifier) resolveCommit(rev string) (string, *cemError) {
-	if !validOID(rev) {
-		return "", invalid("revision-shape")
-	}
-	b, err := v.git("rev-parse", "--verify", rev+"^{commit}")
-	if err != nil {
-		return "", err
-	}
-	oid := strings.TrimSuffix(string(b), "\n")
-	if !validOID(oid) || len(oid) != len(rev) {
-		return "", operational("object-format")
-	}
-	return oid, nil
 }
 
 type treeEntry struct {
@@ -1906,7 +1719,6 @@ func verifyCandidate(ctx context.Context, repo string, raw []byte, base, target,
 }
 
 // CEM 0.3: independently authored from the public algorithm contract.
-const spec03 = "cem/0.3"
 const sidecar03 = ".corvint/change.cem.json"
 
 type coverage03 struct {
@@ -1941,14 +1753,6 @@ type hunk03 struct {
 	mappedHunk
 	Coverage      *coverage03       `json:"coverage,omitempty"`
 	Discriminates *discrimination03 `json:"discriminates,omitempty"`
-}
-type map03 struct {
-	Spec         string     `json:"spec"`
-	BaseRevision string     `json:"baseRevision"`
-	PatchSHA256  string     `json:"patchSha256"`
-	ExcludedPath string     `json:"excludedPath"`
-	Evidence     []evidence `json:"evidence"`
-	Hunks        []hunk03   `json:"hunks"`
 }
 
 // The old reader intentionally accepts some integral decimal spellings. This
@@ -2161,272 +1965,6 @@ func coverageDecode03(raw json.RawMessage, hr lineRange) (*coverage03, *cemError
 		return nil, invalid("invalid-field")
 	}
 	return c, nil
-}
-func discriminationDecode03(raw json.RawMessage, hr lineRange) (*discrimination03, *cemError) {
-	keys := []string{"treeRevision", "selectionSha256", "mutants", "killed", "survived", "survivors", "bounds", "state", "detail"}
-	o, e := object03(raw, keys, nil)
-	if e != nil {
-		return nil, e
-	}
-	d := &discrimination03{}
-	var ok bool
-	if d.TreeRevision, ok = text03(o["treeRevision"]); !ok || !validOID(d.TreeRevision) {
-		return nil, invalid("invalid-field")
-	}
-	if d.SelectionSHA256, ok = text03(o["selectionSha256"]); !ok || !validDigest(d.SelectionSHA256) {
-		return nil, invalid("invalid-field")
-	}
-	for _, p := range []struct {
-		k string
-		v *uint64
-	}{{"mutants", &d.Mutants}, {"killed", &d.Killed}, {"survived", &d.Survived}} {
-		if *p.v, ok = uint03(o[p.k]); !ok {
-			return nil, invalid("invalid-field")
-		}
-	}
-	if d.Killed > d.Mutants || d.Survived > d.Mutants-d.Killed {
-		return nil, invalid("invalid-field")
-	}
-	if d.State, ok = text03(o["state"]); !ok {
-		return nil, invalid("invalid-field")
-	}
-	switch d.State {
-	case "discriminates":
-		if d.Killed == 0 || d.Survived != 0 {
-			return nil, invalid("invalid-field")
-		}
-	case "survived":
-		if d.Survived == 0 {
-			return nil, invalid("invalid-field")
-		}
-	case "not-run":
-		if d.Mutants != 0 {
-			return nil, invalid("invalid-field")
-		}
-	default:
-		return nil, invalid("invalid-field")
-	}
-	if d.Detail, ok = text03(o["detail"]); !ok || !textBound03(d.Detail, 0, 512) {
-		return nil, invalid("invalid-field")
-	}
-	b, e := object03(o["bounds"], []string{"maxHunks", "maxMutants", "wallTimeSeconds"}, nil)
-	if e != nil {
-		return nil, e
-	}
-	for _, p := range []struct {
-		k string
-		v *uint64
-	}{{"maxHunks", &d.Bounds.MaxHunks}, {"maxMutants", &d.Bounds.MaxMutants}, {"wallTimeSeconds", &d.Bounds.WallTimeSeconds}} {
-		if *p.v, ok = uint03(b[p.k]); !ok || *p.v == 0 {
-			return nil, invalid("invalid-field")
-		}
-	}
-	a, e := list03(o["survivors"], maxJSONBytes)
-	if e != nil {
-		return nil, e
-	}
-	if uint64(len(a)) != d.Survived {
-		return nil, invalid("invalid-field")
-	}
-	d.Survivors = []survivor03{}
-	for _, raw := range a {
-		s, e := object03(raw, []string{"operator", "line", "description"}, nil)
-		if e != nil {
-			return nil, e
-		}
-		v := survivor03{}
-		if v.Operator, ok = text03(s["operator"]); !ok || !textBound03(v.Operator, 1, 64) {
-			return nil, invalid("invalid-field")
-		}
-		if v.Description, ok = text03(s["description"]); !ok || !textBound03(v.Description, 1, 512) {
-			return nil, invalid("invalid-field")
-		}
-		if v.Line, ok = uint03(s["line"]); !ok || hr.Count == 0 || v.Line < hr.Start || v.Line-hr.Start >= hr.Count {
-			return nil, invalid("invalid-field")
-		}
-		d.Survivors = append(d.Survivors, v)
-	}
-	return d, nil
-}
-func decode03(raw []byte) (map03, *cemError) {
-	var m map03
-	if len(raw) > maxJSONBytes {
-		return m, operational("map-unavailable")
-	}
-	if strictJSON03(raw) != nil {
-		return m, invalid("invalid-json")
-	}
-	var root map[string]json.RawMessage
-	if json.Unmarshal(raw, &root) != nil || root == nil {
-		return m, invalid("not-an-object")
-	}
-	if v, exists := root["spec"]; exists {
-		var ok bool
-		m.Spec, ok = text03(v)
-		if !ok || m.Spec != spec03 {
-			return m, invalid("unsupported-spec")
-		}
-	}
-	root, e := object03(raw, []string{"spec", "baseRevision", "patchSha256", "excludedPath", "evidence", "hunks"}, nil)
-	if e != nil {
-		return m, e
-	}
-	var ok bool
-	if m.BaseRevision, ok = text03(root["baseRevision"]); !ok || !validOID(m.BaseRevision) {
-		return m, invalid("invalid-field")
-	}
-	if m.PatchSHA256, ok = text03(root["patchSha256"]); !ok || !validDigest(m.PatchSHA256) {
-		return m, invalid("invalid-field")
-	}
-	if m.ExcludedPath, ok = text03(root["excludedPath"]); !ok || m.ExcludedPath != sidecar03 {
-		return m, invalid("invalid-excluded-path")
-	}
-	es, e := list03(root["evidence"], maxEvidence)
-	if e != nil {
-		return m, e
-	}
-	m.Evidence = []evidence{}
-	for _, raw := range es {
-		o, e := object03(raw, []string{"id", "path", "blobOid", "span", "spanSha256"}, nil)
-		if e != nil {
-			return m, e
-		}
-		v := evidence{}
-		for _, p := range []struct {
-			k string
-			v *string
-		}{{"id", &v.ID}, {"path", &v.Path}, {"blobOid", &v.BlobOID}, {"spanSha256", &v.SpanSHA256}} {
-			if *p.v, ok = text03(o[p.k]); !ok {
-				return m, invalid("invalid-field")
-			}
-		}
-		if !validPath(v.Path) || !validOID(v.BlobOID) || !validDigest(v.SpanSHA256) || !strings.HasPrefix(v.ID, "evidence:sha256:") || !validDigest(strings.TrimPrefix(v.ID, "evidence:sha256:")) {
-			return m, invalid("invalid-field")
-		}
-		sp, e := object03(o["span"], []string{"start", "end"}, nil)
-		if e != nil {
-			return m, e
-		}
-		if v.Span.Start, ok = uint03(sp["start"]); !ok {
-			return m, invalid("invalid-field")
-		}
-		// An empty or inverted span is well-formed wire; it resolves as
-		// unavailable evidence at verification, retaining native placement.
-		if v.Span.End, ok = uint03(sp["end"]); !ok || v.Span.End < 1 {
-			return m, invalid("invalid-field")
-		}
-		m.Evidence = append(m.Evidence, v)
-	}
-	hs, e := list03(root["hunks"], maxHunks)
-	if e != nil {
-		return m, e
-	}
-	m.Hunks = []hunk03{}
-	for _, raw := range hs {
-		o, e := object03(raw, []string{"id", "path", "oldRange", "newRange", "disposition", "reason", "basis"}, []string{"coverage", "discriminates"})
-		if e != nil {
-			return m, e
-		}
-		v := hunk03{}
-		for _, p := range []struct {
-			k string
-			v *string
-		}{{"id", &v.ID}, {"path", &v.Path}, {"disposition", &v.Disposition}, {"reason", &v.Reason}} {
-			if *p.v, ok = text03(o[p.k]); !ok {
-				return m, invalid("invalid-field")
-			}
-		}
-		if !validPath(v.Path) || !strings.HasPrefix(v.ID, "hunk:sha256:") || !validDigest(strings.TrimPrefix(v.ID, "hunk:sha256:")) {
-			return m, invalid("invalid-field")
-		}
-		if v.OldRange, e = hunkRange03(o["oldRange"]); e != nil {
-			return m, e
-		}
-		if v.NewRange, e = hunkRange03(o["newRange"]); e != nil {
-			return m, e
-		}
-		bs, e := list03(o["basis"], maxBases)
-		if e != nil {
-			return m, e
-		}
-		v.Basis = []basis{}
-		pairs := map[basis]bool{}
-		for _, raw := range bs {
-			b, e := object03(raw, []string{"evidenceId", "relation"}, nil)
-			if e != nil {
-				return m, e
-			}
-			item := basis{}
-			if item.EvidenceID, ok = text03(b["evidenceId"]); !ok || !strings.HasPrefix(item.EvidenceID, "evidence:sha256:") || !validDigest(strings.TrimPrefix(item.EvidenceID, "evidence:sha256:")) {
-				return m, invalid("invalid-field")
-			}
-			if item.Relation, ok = text03(b["relation"]); !ok || !relation03(item.Relation) {
-				return m, invalid("invalid-field")
-			}
-			if pairs[item] {
-				return m, invalid("invalid-field")
-			}
-			pairs[item] = true
-			v.Basis = append(v.Basis, item)
-		}
-		switch v.Disposition {
-		case "supported":
-			if len(v.Basis) == 0 {
-				return m, invalid("unsupported-without-basis")
-			}
-			if v.Reason != "evidence-backed" {
-				return m, invalid("invalid-field")
-			}
-		case "unknown":
-			if len(v.Basis) != 0 || v.Reason != "no-evidence" && v.Reason != "insufficient-evidence" && v.Reason != "conflicting-evidence" {
-				return m, invalid("invalid-field")
-			}
-		case "mechanical":
-			if len(v.Basis) != 0 || !structuralReason03(v.Reason) && v.Reason != "whitespace-only" && v.Reason != "line-ending-only" {
-				return m, invalid("invalid-field")
-			}
-		default:
-			return m, invalid("invalid-field")
-		}
-		if raw, exists := o["coverage"]; exists {
-			v.Coverage, e = coverageDecode03(raw, v.NewRange)
-			if e != nil {
-				return m, e
-			}
-		}
-		if raw, exists := o["discriminates"]; exists {
-			v.Discriminates, e = discriminationDecode03(raw, v.NewRange)
-			if e != nil {
-				return m, e
-			}
-		}
-		m.Hunks = append(m.Hunks, v)
-	}
-	// References close the wire: a duplicate evidence ID, a basis citing
-	// unknown evidence, then uncited evidence, each refused before any
-	// repository read (native wire placement).
-	ids := map[string]bool{}
-	for _, ev := range m.Evidence {
-		if ids[ev.ID] {
-			return m, invalid("invalid-field")
-		}
-		ids[ev.ID] = true
-	}
-	cited := map[string]bool{}
-	for _, h := range m.Hunks {
-		for _, basis := range h.Basis {
-			if !ids[basis.EvidenceID] {
-				return m, invalid("invalid-field")
-			}
-			cited[basis.EvidenceID] = true
-		}
-	}
-	for _, ev := range m.Evidence {
-		if !cited[ev.ID] {
-			return m, invalid("orphan-evidence")
-		}
-	}
-	return m, nil
 }
 func relation03(s string) bool {
 	switch s {
@@ -3054,9 +2592,6 @@ type result03 struct {
 }
 
 func string03(s string) *string { return &s }
-func newResult03() result03 {
-	return result03{Profile: "cem-03-verification/1", Spec: spec03, Outcome: "UNSUPPORTED", Stage: "arguments", IssueCodes: []string{}, Drift: []drift03{}, Hunks: []witness03{}, Counts: map[string]int{"supported": 0, "unknown": 0, "mechanical": 0}, Runtime: runtime03{runtime.Version(), "NOT_REQUIRED"}, RepositoryEnvelope: "primary-clean-config-bounded/1"}
-}
 func (r *result03) fail(stage string, e *cemError, verification bool) int {
 	r.Stage = stage
 	if e.operational {
@@ -3075,307 +2610,6 @@ func (r *result03) fail(stage string, e *cemError, verification bool) int {
 	}
 	r.Code = string03(e.code)
 	return 2
-}
-func failResult03(r *result03, stage string, e *cemError, verification bool) (result03, int) {
-	status := r.fail(stage, e, verification)
-	return *r, status
-}
-
-func run03(ctx context.Context, repo string, raw []byte, base, target string) (result03, int) {
-	r := newResult03()
-	r.MapSHA256 = string03(shaHex(raw))
-	m, e := decode03(raw)
-	if e != nil {
-		return failResult03(&r, "wire", e, false)
-	}
-	for _, h := range m.Hunks {
-		r.Hunks = append(r.Hunks, witness03{h.ID, h.Coverage, h.Discriminates})
-		r.Counts[h.Disposition]++
-	}
-	if base == "" {
-		return failResult03(&r, "authority-arguments", operational("expected-base-required"), false)
-	}
-	if target == "" {
-		return failResult03(&r, "authority-arguments", operational("target-required"), false)
-	}
-	if !validOID(base) || !validOID(target) || len(base) != len(target) {
-		return failResult03(&r, "authority-arguments", operational("invalid-arguments"), false)
-	}
-	for _, h := range m.Hunks {
-		if structuralReason03(h.Reason) {
-			r.Runtime.StructuralQualification = "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
-			if !structuralRuntimeAdmitted(runtime.Version()) {
-				r.Runtime.StructuralQualification = "UNSUPPORTED"
-				return failResult03(&r, "runtime", operational("unsupported-structural-runtime"), false)
-			}
-		}
-	}
-	if runtime.GOOS == "windows" {
-		return failResult03(&r, "runtime", operational("unsupported-process-containment"), false)
-	}
-	if e := repository03(repo); e != nil {
-		return failResult03(&r, "repository", e, false)
-	}
-	v := &verifier{ctx: ctx, repo: repo, blobs: map[string][]byte{}, trees: map[string]*treeEntry{}}
-	before, e := v.snapshot03(base)
-	if e != nil {
-		return failResult03(&r, "repository", e, false)
-	}
-	r.ExpectedBase = string03(base)
-	r.Assurance = string03("structural-only")
-	if m.BaseRevision != base {
-		return failResult03(&r, "binding", invalid("base-revision-mismatch"), true)
-	}
-	after, e := v.snapshot03(target)
-	if e != nil {
-		return failResult03(&r, "repository", e, false)
-	}
-	r.TargetRevision = string03(target)
-	if en := before[sidecar03]; en != nil && (en.typ != "blob" || en.mode != "100644") {
-		return failResult03(&r, "binding", invalid("excluded-path-not-file"), true)
-	}
-	if en := after[sidecar03]; en != nil {
-		if en.typ != "blob" || en.mode != "100644" {
-			return failResult03(&r, "binding", invalid("excluded-artifact-mismatch"), true)
-		}
-		b, e := v.blob03(en.oid)
-		if e != nil {
-			return failResult03(&r, "repository", e, false)
-		}
-		if !bytes.Equal(b, raw) {
-			return failResult03(&r, "binding", invalid("excluded-artifact-mismatch"), true)
-		}
-	}
-	patch, e := v.patch03(base, target)
-	if e != nil {
-		return failResult03(&r, "repository", e, false)
-	}
-	r.PatchSHA256 = string03(shaHex(patch))
-	r.Assurance = string03("canonical")
-	if *r.PatchSHA256 != m.PatchSHA256 {
-		return failResult03(&r, "verification", invalid("patch-digest-mismatch"), true)
-	}
-	parsed, e := parsePatch(patch)
-	if e != nil {
-		if e == errModeChange {
-			// verify-03 retains the native name for mode-change metadata.
-			e = invalid("malformed-patch")
-		}
-		return failResult03(&r, "verification", e, true)
-	}
-	ph := map[string]*patchHunk{}
-	groups := map[string]*filePatch{}
-	for _, f := range parsed.files {
-		for _, h := range f.hunks {
-			ph[h.ID] = h
-			groups[h.ID] = f
-		}
-	}
-	seen := map[string]bool{}
-	for _, h := range m.Hunks {
-		p := ph[h.ID]
-		if p == nil || seen[h.ID] {
-			return failResult03(&r, "verification", invalid("invalid-field"), true)
-		}
-		seen[h.ID] = true
-		path := p.OldPath
-		if p.NewPath != nil {
-			path = p.NewPath
-		}
-		if path == nil || h.Path != *path || h.OldRange != p.OldRange || h.NewRange != p.NewRange {
-			return failResult03(&r, "verification", invalid("invalid-field"), true)
-		}
-	}
-	for _, f := range parsed.files {
-		for _, h := range f.hunks {
-			if !seen[h.ID] {
-				return failResult03(&r, "verification", invalid("uncited-hunk"), true)
-			}
-		}
-	}
-	// Prove the Git change inventory independently, including changes which the
-	// textual diff might omit. The sidecar is its one fixed recursion exclusion.
-	changed := map[string]bool{}
-	all := map[string]bool{}
-	for p := range before {
-		all[p] = true
-	}
-	for p := range after {
-		all[p] = true
-	}
-	for p := range all {
-		if p == sidecar03 {
-			continue
-		}
-		a, b := before[p], after[p]
-		if a != nil && a.typ == "tree" || b != nil && b.typ == "tree" {
-			continue
-		}
-		if (a == nil) != (b == nil) || a != nil && b != nil && (a.oid != b.oid || a.mode != b.mode) {
-			changed[p] = true
-		}
-	}
-	mapped := map[string]bool{}
-	for _, f := range parsed.files {
-		path := ""
-		if f.oldPath != nil {
-			path = *f.oldPath
-		}
-		if f.newPath != nil {
-			if path != "" && path != *f.newPath {
-				return failResult03(&r, "verification", invalid("invalid-field"), true)
-			}
-			path = *f.newPath
-		}
-		a, b := before[path], after[path]
-		if !changed[path] || mapped[path] || (f.oldPath == nil) != (a == nil) || (f.newPath == nil) != (b == nil) {
-			return failResult03(&r, "verification", invalid("invalid-field"), true)
-		}
-		mapped[path] = true
-		var old, new []byte
-		for _, x := range []struct {
-			entry *treeEntry
-			dest  *[]byte
-		}{{a, &old}, {b, &new}} {
-			if x.entry == nil {
-				continue
-			}
-			if !regularFile(x.entry) {
-				return failResult03(&r, "repository", operational("unsupported-tree-mode"), false)
-			}
-			data, e := v.blob03(x.entry.oid)
-			if e != nil {
-				return failResult03(&r, "repository", e, false)
-			}
-			*x.dest = data
-		}
-		if f.oldPath == nil && b != nil && f.mode != b.mode || f.newPath == nil && a != nil && f.mode != a.mode {
-			return failResult03(&r, "verification", invalid("diff-metadata-mismatch"), true)
-		}
-		got, e := simulate(ctx, old, f.hunks)
-		if e != nil {
-			return failResult03(&r, "verification", e, true)
-		}
-		if !bytes.Equal(got, new) {
-			return failResult03(&r, "verification", invalid("invalid-field"), true)
-		}
-	}
-	if len(mapped) != len(changed) {
-		return failResult03(&r, "repository", operational("unsupported-patch-inventory"), false)
-	}
-	for i := range m.Evidence {
-		item := &m.Evidence[i]
-		en := before[item.Path]
-		if en == nil || !regularFile(en) || en.oid != item.BlobOID {
-			return failResult03(&r, "verification", invalid("evidence-unavailable"), true)
-		}
-		data, e := v.blob03(en.oid)
-		if e != nil {
-			return failResult03(&r, "repository", e, false)
-		}
-		if item.Span.Start >= item.Span.End || item.Span.End > uint64(len(data)) {
-			return failResult03(&r, "verification", invalid("evidence-unavailable"), true)
-		}
-		item.data = append([]byte(nil), data[item.Span.Start:item.Span.End]...)
-		if shaHex(item.data) != item.SpanSHA256 || "evidence:sha256:"+shaHex(canonicalEvidence(*item)) != item.ID {
-			return failResult03(&r, "verification", invalid("fabricated-evidence-id"), true)
-		}
-	}
-	for _, h := range m.Hunks {
-		if h.Disposition != "mechanical" {
-			continue
-		}
-		p := ph[h.ID]
-		proven := false
-		if structuralReason03(h.Reason) {
-			f := groups[h.ID]
-			if f.oldPath != nil {
-				en := before[*f.oldPath]
-				if en != nil && regularFile(en) {
-					proven = structuralProof03(ctx, h.Path, v.blobs[en.oid], f, p, h.Reason)
-				}
-			}
-		} else {
-			proven = proveMechanical(p, h.Reason)
-		}
-		if !proven {
-			return failResult03(&r, "verification", invalid("unproven-mechanical"), true)
-		}
-	}
-	unsafe := false
-	for _, ev := range m.Evidence {
-		d := drift03{EvidenceID: ev.ID, Path: ev.Path, BaseBlobOID: ev.BlobOID, Status: "deleted"}
-		en := after[ev.Path]
-		if en != nil && en.typ == "blob" {
-			if en.oid == ev.BlobOID {
-				d.Status = "stable"
-				d.TargetBlobOID = string03(en.oid)
-				d.TargetSpan = &nullableSpan{ev.Span.Start, ev.Span.End}
-			} else if regularFile(en) {
-				data, e := v.blob03(en.oid)
-				if e != nil {
-					return failResult03(&r, "repository", e, false)
-				}
-				d.TargetBlobOID = string03(en.oid)
-				first, matches, err := firstTwoMatches(ctx, data, ev.data)
-				if err != nil {
-					return failResult03(&r, "repository", operational("verification-timeout"), false)
-				}
-				switch matches {
-				case 0:
-					d.Status = "stale"
-				case 1:
-					d.Status = "relocated"
-					d.TargetSpan = &nullableSpan{uint64(first), uint64(first + len(ev.data))}
-				default:
-					d.Status = "ambiguous"
-				}
-			}
-		}
-		if d.Status != "stable" && d.Status != "relocated" {
-			unsafe = true
-		}
-		r.Drift = append(r.Drift, d)
-	}
-	sort.Slice(r.Drift, func(i, j int) bool { return r.Drift[i].EvidenceID < r.Drift[j].EvidenceID })
-	if unsafe {
-		return failResult03(&r, "drift", invalid("evidence-drift"), true)
-	}
-	yes := true
-	r.Accept = &yes
-	r.Outcome = "ACCEPT"
-	r.Stage = "complete"
-	return r, 0
-}
-func run03CLI(argv []string) {
-	r := newResult03()
-	flags := map[string]string{}
-	allowed := map[string]bool{"--repository": true, "--map": true, "--expected-base": true, "--target": true}
-	bad := len(argv)%2 != 0
-	if !bad {
-		for i := 0; i < len(argv); i += 2 {
-			if !allowed[argv[i]] || flags[argv[i]] != "" || argv[i+1] == "" {
-				bad = true
-				break
-			}
-			flags[argv[i]] = argv[i+1]
-		}
-	}
-	status := 2
-	if bad || flags["--repository"] == "" || flags["--map"] == "" || !filepath.IsAbs(flags["--repository"]) || !filepath.IsAbs(flags["--map"]) {
-		status = r.fail("arguments", operational("invalid-arguments"), false)
-	} else {
-		ctx, cancel := context.WithTimeout(context.Background(), verificationBudget)
-		defer cancel()
-		raw, e := readBounded(ctx, flags["--map"], maxJSONBytes)
-		if e != nil {
-			status = r.fail("input", operational("map-unavailable"), false)
-		} else {
-			r, status = run03(ctx, flags["--repository"], raw, flags["--expected-base"], flags["--target"])
-		}
-	}
-	_ = json.NewEncoder(os.Stdout).Encode(r)
-	os.Exit(status)
 }
 
 // Stable CEM is a separate closed wire and verification operation. These types

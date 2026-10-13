@@ -6,7 +6,7 @@ Requirement prefix: `PT-V0`
 Intent status: proposed
 Delivery status: experimental
 Authoritative inputs: owner-approved six V1 wow additions, V1-0504;
-`docs/CEM-CI.md`; `docs/specs/cem-pilot-kit.md`; `LICENSING.md`; `AGENTS.md` invariants 1–4, 7–8.
+`docs/CHANGE-EVIDENCE-MAP.md` (the former `docs/CEM-CI.md` was removed by V1-1278 S3); `docs/specs/cem-pilot-kit.md`; `LICENSING.md`; `AGENTS.md` invariants 1–4, 7–8.
 
 ## Agent digest
 - Claim: A disposable synthetic change pauses for an independent exact ACK before checksum-pinned portable structural verification.
@@ -68,7 +68,7 @@ accepted fabricated review. Resume keeps the original fixture and every prior re
   test MUST fail specifically at 600 versus 900; the repaired test MUST pass. Unsupported
   commands, timeouts or unexpected results MUST remain explicit failures/incompleteness.
 - `PT-V0-003`: The producer MUST derive the exact documented canonical diff profile, use
-  `cem begin` for `cem/0.1`, observe `max-unknown=0` missing-witness refusal with exit 1, cite
+  `cem begin` (which writes `cem/1.0`; the original `cem/0.1` producer was removed by decision 0525), observe `max-unknown=0` missing-witness refusal with exit 1, cite
   original policy lines 3:3 as a decision, commit the sidecar, and retain strict ready/report
   and advisory-review receipts. It MUST never relabel readiness or advisory review as semantic
   adequacy or independent reviewer approval.
@@ -108,7 +108,7 @@ accepted fabricated review. Resume keeps the original fixture and every prior re
 ## Qualification limits and failure modes
 
 This is a synthetic example, not a real authorization system or a claim that Corvint repaired
-an arbitrary application. CEM `cem/0.1` uses explicit out-of-band patch bytes; the script's
+an arbitrary application. CEM `cem/1.0` (originally `cem/0.1`, removed by decision 0525) uses explicit out-of-band patch bytes; the script's
 independent committed revisions and canonical patch profile bind those bytes, but the map's
 own verifier does not establish semantic adequacy. Go tests prove the constant-only selected behavior; token-expiration runtime and timing
 boundaries are NOT_PROVEN, and external adoption is NOT_OBSERVED.

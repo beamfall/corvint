@@ -77,6 +77,11 @@
       "bytes": 11764
     },
     {
+      "path": "inherited/cem-0.3-algorithms.md",
+      "sha256": "897b1d9856d8c7764a8c8814dc1b2db8353accb326eaaea904ea9d2c38935fa2",
+      "bytes": 15719
+    },
+    {
       "path": "inherited/cem-0.3.schema.json",
       "sha256": "be9ed2f1d0555948def5b0c55c2a520d76e224ed70d1b7e6ab2b75f9bacb842f",
       "bytes": 11131

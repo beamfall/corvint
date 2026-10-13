@@ -512,8 +512,8 @@ After the 0.4.0 tag, deliver these V5 emitters in order:
    check with bounded report bytes, zero network calls from the digest-pinned binary, and an
    independent consumer reproduces report bytes toward AT-17. Published digest-pinned 0.4.0 binaries are a hard dependency.
 
-- The staging reference slice now includes `docs/CHANGE-EVIDENCE-MAP.md`, the `cem/0.1` schema,
-  deterministic conformance vectors, strict local verifier, and `begin`/`cite`/`mark`/`verify`
+- The staging reference slice now includes `docs/CHANGE-EVIDENCE-MAP.md`, the `cem/0.1` schema (removed by
+  decision 0525; `cem/1.0` superseded it), deterministic conformance vectors, strict local verifier, and `begin`/`cite`/`mark`/`verify`
   commands. The common evidence-backed path remains `begin`/`cite`/`verify`.
   Add the CI example and independent implementations before calling it interoperable.
 - Bind every textual diff hunk to immutable receipt evidence, an explicit unknown, or a mechanically
@@ -528,7 +528,7 @@ After the 0.4.0 tag, deliver these V5 emitters in order:
   reviewer-found missed evidence falls at least 20%, at least 70% of material hunks are citable, and
   incorrect verifier hard failures stay below 5%.
 - Require at least one independent non-Corvint producer and two independent consumers to pass the same
-  `cem/0.1` fixtures; Corvint is a reference producer/verifier, not the mandatory retriever.
+  `cem/1.0` fixtures; Corvint is a reference producer/verifier, not the mandatory retriever.
 - Compute Merkle receipt diffs from changed blobs: added, removed, moved, dangling, contradicted,
   and stale-verification evidence.
 - Stabilize the transport-neutral request/receipt SDK so later integrations do not create parallel
@@ -635,8 +635,8 @@ the extension.
   shared; public evidence may use hash-only selectors, while private identifiers are keyed and
   pseudonymous. This outcome-labelled dataset is the potential data moat, not a prerequisite for
   the local product.
-- **V10 — mature receipt/CEM standardization:** evolve the already interoperable `cem/0.1` and
-  receipt contracts with compatibility, reproducibility, neutral governance, and migration suites.
+- **V10 — mature receipt/CEM standardization:** evolve the `cem/1.0` and receipt contracts
+  (`cem/0.x` was removed by decision 0525) with compatibility, reproducibility, neutral governance, and migration suites.
   Require at least two independent producers and three independent consumers with real use before
   claiming a standard; V10 is maturity, not the first external integration.
 
@@ -687,10 +687,10 @@ Milestone `m0-scope` is a ticket label, not a release.
 | [authority-trigger-index-v0.md](docs/specs/authority-trigger-index-v0.md) | implemented | none |
 | [beamfall-shadow-dogfood-v1.md](docs/specs/beamfall-shadow-dogfood-v1.md) | superseded by `docs/specs/analyzer-capability-contract-v0.md` | none |
 | [browser-behavior-falsification-v0.md](docs/specs/browser-behavior-falsification-v0.md) | experimental | none |
-| [cem-0.2-canonical-binding.md](docs/specs/cem-0.2-canonical-binding.md) | experimental | none |
-| [cem-0.3-structural-mechanical.md](docs/specs/cem-0.3-structural-mechanical.md) | experimental | none |
-| [cem-external-interop-v0.md](docs/specs/cem-external-interop-v0.md) | experimental | none |
-| [cem-go-portability-probe.md](docs/specs/cem-go-portability-probe.md) | experimental | none |
+| [cem-0.2-canonical-binding.md](docs/specs/cem-0.2-canonical-binding.md) | superseded by `docs/specs/cem-stable-v1.md` | none |
+| [cem-0.3-structural-mechanical.md](docs/specs/cem-0.3-structural-mechanical.md) | superseded by `docs/specs/cem-stable-v1.md` | none |
+| [cem-external-interop-v0.md](docs/specs/cem-external-interop-v0.md) | superseded by `docs/specs/cem-stable-v1.md` | none |
+| [cem-go-portability-probe.md](docs/specs/cem-go-portability-probe.md) | superseded by `docs/specs/cem-stable-v1.md` | none |
 | [cem-pilot-kit.md](docs/specs/cem-pilot-kit.md) | experimental | none |
 | [cem-reviewer-trial-v0.md](docs/specs/cem-reviewer-trial-v0.md) | experimental | none |
 | [change-frontier-profile-1.md](docs/specs/change-frontier-profile-1.md) | proposed | none |
@@ -823,7 +823,7 @@ Milestone `m0-scope` is a ticket label, not a release.
 | `record` | [learned-trace-admission-v0.md](docs/specs/learned-trace-admission-v0.md) | experimental | V1-0088, V1-0095 |
 | `migrate-traces` | [local-trace-producer-migration-v0.md](docs/specs/local-trace-producer-migration-v0.md) | experimental | none |
 | `harness` | [agent-harness-integration-v0.md](docs/specs/agent-harness-integration-v0.md) | experimental | V1-0005, V1-0111, V1-0112 |
-| `cem` | [cem-0.2-canonical-binding.md](docs/specs/cem-0.2-canonical-binding.md) | experimental | none |
+| `cem` | [cem-stable-v1.md](docs/specs/cem-stable-v1.md) | experimental | none |
 | `ocm` | [ocm-v0-dogfood.md](docs/specs/ocm-v0-dogfood.md) | experimental | V1-0013 |
 | `work` | [work-queue-observation-v0.md](docs/specs/work-queue-observation-v0.md) | experimental | V1-0082 |
 | `context` | [task-context-packet-v0.md](docs/specs/task-context-packet-v0.md) | experimental | V1-0023, V1-0083, V1-0084, V1-0089, V1-0090, V1-0096, V1-0098, V1-0099, V1-0114, V1-0115, V1-0116, V1-0118, V1-0119, V1-0122 |

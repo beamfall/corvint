@@ -1,5 +1,6 @@
-// Package patch implements the frozen CEM 0.1 bounded unified-diff parser
-// specified by interop/cem-0.1/ALGORITHMS.md.
+// Package patch implements the frozen CEM bounded unified-diff parser
+// inherited from cem/0.1 and restated by protocol/cem-1.0/stable/ALGORITHMS.md
+// (CEM-V1-018); the source text is protocol/cem-1.0/stable/inherited/cem-0.1-algorithms.md.
 package patch
 
 import (

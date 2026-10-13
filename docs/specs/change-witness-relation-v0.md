@@ -3,7 +3,7 @@
 Owner: Russell Lewis (repository owner). Accepted by the owner in decision 0047 (2026-09-04); the
 symbol-resolver boundary (Q1) is decided by
 `docs/decisions/0151-change-witness-symbol-resolver-boundary-2026-09-12.md`.
-Date: 2026-08-29
+Date: 2026-08-29; amended 2026-10-13 (V1-1278 S3, `CEM-V1-225`): decision 0525 removed `cem/0.x`, so the canonical CEM 0.2 patch named below is historical; the pure evaluator reads no CEM map itself.
 Intent status: accepted (decision 0047, 2026-09-04)
 Delivery status: experimental
 Authoritative inputs: `docs/specs/change-frontier-v0.md`, `docs/specs/ocm-v0-dogfood.md`,

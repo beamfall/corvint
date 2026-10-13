@@ -80,7 +80,7 @@ func copyTree(t *testing.T, source, destination string) {
 	}
 }
 
-// --- conformance/cem-0.1 mutation suite ---
+// --- inherited drift-rule mutation cases ---
 
 // TestClassifySpanCountsAMatchEndingAtTheEnd checks the ALGORITHMS.md drift
 // rule: overlapping matches count, including one that ends at the last target

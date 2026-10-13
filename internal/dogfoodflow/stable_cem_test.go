@@ -141,32 +141,16 @@ func TestCiteStepAdmitsStableMap(t *testing.T) {
 	}
 }
 
-// CEM-V1-146, CEM-V1-147: the bind loop's and the check's `cem status` of a
-// cem/1.0 map name the absolute repository root as --artifacts, a 0.x map's
-// arguments are unchanged, and a stable prepare's different-spec refusal is an
-// outdated map the loop regenerates with --replace.
+// CEM-V1-146, CEM-V1-147, CEM-V1-224: the bind loop's and the check's `cem
+// status` name the absolute repository root as --artifacts for every map, with
+// no retired cem/0.x pass-through, and a stable prepare's different-spec
+// refusal is an outdated map the loop regenerates with --replace.
 func TestStableStatusArgumentsAddArtifactRoot(t *testing.T) {
-	stable, err := os.ReadFile(stableCEMFixture)
-	if err != nil {
-		t.Fatal(err)
-	}
 	root := t.TempDir()
-	mapPath := filepath.Join(root, "change.cem.json")
-	if err := os.WriteFile(mapPath, stable, 0o600); err != nil {
-		t.Fatal(err)
-	}
 	args := []string{"cem", "status", "--map", "change.cem.json"}
 	absolute, _ := filepath.Abs(root)
-	if got := stableStatusArguments(mapPath, root, args...); strings.Join(got, " ") != strings.Join(append(args, "--artifacts", absolute), " ") {
+	if got := stableStatusArguments(root, args...); strings.Join(got, " ") != strings.Join(append(args, "--artifacts", absolute), " ") {
 		t.Fatalf("stable arguments = %q", got)
-	}
-	for _, data := range []string{`{"spec": "cem/0.2", "hunks": []}`, `{"spec": "cem/1.0 "}`} {
-		if err := os.WriteFile(mapPath, []byte(data), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		if got := stableStatusArguments(mapPath, root, args...); strings.Join(got, " ") != strings.Join(args, " ") {
-			t.Fatalf("%s: arguments = %q", data, got)
-		}
 	}
 	if !outdatedCEMMaps[`{"code": "map-unavailable", "error": "cannot read CEM map: the existing map records a different spec; pass --replace to regenerate", "ok": false}`] {
 		t.Fatal("the different-spec refusal is not an outdated map")

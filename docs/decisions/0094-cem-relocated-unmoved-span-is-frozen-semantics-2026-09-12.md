@@ -9,7 +9,7 @@ algorithm allows `stable` there, making Go wrong, or requires blob-level `stable
 
 It requires blob-level `stable`. The Go classifier is correct and is not changed:
 
-- `interop/cem-0.1/ALGORITHMS.md:149-153@a4df8285` (Same-path drift) decides it. `stable` is defined only by
+- `interop/cem-0.1/ALGORITHMS.md` lines 149-153 at commit `5a056d0a` (Same-path drift; the file was removed by V1-1278 S3 and its text is inherited by `protocol/cem-1.0/stable/inherited/cem-0.1-algorithms.md`) decides it. `stable` is defined only by
   identical blob OID; every other existing path takes the exact base span bytes and searches the
   entire target blob, and exactly one match is `relocated` with that target span. No offset
   comparison exists in the rule, so an unmoved span in a changed blob is `relocated` by definition.

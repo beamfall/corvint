@@ -2,17 +2,17 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-22
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired by decision 0525, superseded by `docs/specs/cem-stable-v1.md`
+Delivery status: superseded
+Retirement note: V1-1278 S3 (`CEM-V1-220`, `CEM-V1-225`) deleted `protocol/cem-0.2` and
+`conformance/cem-0.2`; the body below is historical and its requirement IDs stay for traceability.
+Authoritative successor: `docs/specs/cem-stable-v1.md`
 Authoritative inputs: `docs/PRODUCT.md`, `docs/CHANGE-EVIDENCE-MAP.md`,
 `docs/specs/verified-absence-frontier-v0.md`, and `docs/specs/ocm-v0-dogfood.md`
 
 ## Agent digest
-- Claim: CEM 0.2 binds evidence maps to the canonical Git-derived base-to-target patch after only the declared sidecar is excluded.
-- Status: proposed/experimental
-- Exists: `internal/cem`, `cmd/corvint`, and `conformance/cem-0.2`.
-- Blocked on: repository-owner acceptance after independent interoperability evidence.
-- Read next: `cem-pilot-kit.md`, `cem-external-interop-v0.md`, and `change-frontier-v0.md`.
+- Successor: `docs/specs/cem-stable-v1.md` is the authoritative replacement.
+- Why: decision 0525 removes `cem/0.2`; V1-1278 S2b deleted its native reader and S3 deleted `protocol/cem-0.2` and `conformance/cem-0.2`, so the canonical-patch rules live on only in `cem/1.0` and Git history.
 
 ## User and job
 

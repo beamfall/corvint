@@ -167,7 +167,6 @@
       "internal/slotlearn/"
     ],
     "internal/attest": [
-      "interop/cem-0.1/",
       "protocol/cem-1.0/stable/receipt-authentication/"
     ],
     "internal/authoritystore": [],
@@ -178,14 +177,12 @@
     "internal/breakagemap": [],
     "internal/cem/gitauth": [],
     "internal/cem/patch": [
-      "interop/cem-0.1/"
+      "interop/cem01-go/testdata/inherited-vectors/"
     ],
     "internal/cem/sim": [
-      "interop/cem-0.1/"
+      "interop/cem01-go/testdata/inherited-vectors/"
     ],
     "internal/cem/verify": [
-      "conformance/cem-0.1/",
-      "interop/cem-0.1/",
       "protocol/cem-1.0/artifacts/",
       "protocol/cem-1.0/manifest.json",
       "protocol/cem-1.0/maps/",
@@ -199,9 +196,6 @@
     ],
     "internal/cem/wire": [
       ".corvint/changes/",
-      "conformance/cem-0.1/",
-      "conformance/cem-0.2/",
-      "interop/cem-0.1/",
       "interop/cem01-go/testdata/stable-map-members/",
       "protocol/cem-1.0/maps/",
       "protocol/cem-1.0/stable/neutral-criterion/",
@@ -209,8 +203,6 @@
       "protocol/cem-1.0/stable/stable.schema.json"
     ],
     "internal/cem/workflow": [
-      "protocol/cem-0.2/",
-      "protocol/cem-0.3/",
       "protocol/cem-1.0/stable/repository-envelope-packet/"
     ],
     "internal/cemcandidate": [
