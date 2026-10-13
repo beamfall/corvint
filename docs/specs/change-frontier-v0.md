@@ -538,12 +538,12 @@ None of these deferred decisions may be silently resolved by the V0 implementati
 | Requirement | Planned implementation surface | Required evidence |
 |---|---|---|
 | `CF-V0-001..005`, `021..026` | Frontier library boundary and shared verifier composition | input, precedence, error, privacy, and resource fixtures |
-| `CF-V0-006..020` | canonical universe, item, and result projection | identity, closure, ordering, wire, and fresh-process vectors; `TestVerifyDocumentRebindsNestedIdentities` requires the verifier to reject forged universe and item IDs even when the outer document ID is rebound; `TestVerifyDocumentRejectsForgedItemAuthority` rejects an admitted but semantically false authority class; `TestVerifyDocumentRejectsNoncanonicalScopeIdentity` covers revision, path, object-format width, and span scope grammar |
+| `CF-V0-006..020` | canonical universe, item, and result projection | retired by V1-1278 S2b (`CEM-V1-217`): the `frontier/0` engine, its document verifier and its identity, closure and fresh-process fixture tier are deleted, so the verifier tests that held these rows are deleted with them; the frozen codec and identity vectors stay pinned by `TestManifestPinsRetirementAndArtifacts`, and the stable successor `frontier-stable-view/0` is held by `TestCEMV1210FrontierRefusesARetiredMap` and the V1-1304 stable-view tests |
 | `CF-V0-027..030` | candidate-only preview integration and independent consumer | non-closure, compatibility, interoperability, and deferred third-party-PR replay `NOT_RUN` evidence |
 | `CF-V0-031` (accepted 2026-08-29) | every authority-conferring resolver, Frontier-owned or not | an adversarial case where the change set authors its own accepted governing document and MUST NOT receive `authoritative`/`accepted-contract`, plus the named uncertainty entry. Held by `TestRangeImpactRefusesAuthorityFromSelfAuthoredADR` and `TestRangeImpactWithholdsSelfAuthoredLedgerAuthority` (`internal/contextindex/range_impact_test.go`), `TestImpactWithholdsUnverifiableADRAuthority` (`internal/contextindex/impact_test.go`), and parity case `impact-self-authored-adr` (`conformance/cli-parity-v0`) |
 | `CF-V0-032` (accepted 2026-08-29) | the withheld-authority reporting form on every such resolver | the same cases, asserting confidence `low` with authority exactly `unverified-contract` / `unverified-ledger` and an uncertainty entry derived from the emitted evidence; its exact `impact` wording and leading placement are held by `TestImpactWithholdsUnverifiableADRAuthority` |
-| `CF-V0-033` (accepted 2026-09-12, decision 0162) | `cmd/corvint/frontier.go` and `internal/frontier` | `cmd/corvint`: `TestCLIReadVerbsLeaveTheRepositoryByteIdentical`, subtest "frontier reports an EMPTY frontier through the registered adapters", and `TestRunFrontierUnsupportedRefusalLeavesRepositoryUnchanged` (successful and refused CLI-level repository-byte assertions) |
-| `CF-V0-034` (decision 0357) | `conformance/frontier-v0/` (`manifest.go` `ValidateStates`/`ValidateArtifacts`, `manifest.json` `states`/`artifactSha256`) | `conformance/frontier-v0/fixtures_test.go`: `TestManifestPinsStatesAndArtifacts`, `TestArtifactDigestDriftFails`; N-1 refusal: `TestRunFixturesAgainstImplementation` cases `unsupported-context-upstream-profile/*` |
+| `CF-V0-033` (accepted 2026-09-12, decision 0162) | `cmd/corvint/frontier.go` and `internal/frontier` | `cmd/corvint`: `TestCLIReadVerbsLeaveTheRepositoryByteIdentical`, subtest "frontier reports the stable view through the registered adapter" (since V1-1278 S2b no `frontier/0` result exists, so the successful read is the stable view, exit 1), and `TestRunFrontierUnsupportedRefusalLeavesRepositoryUnchanged` (successful and refused CLI-level repository-byte assertions) |
+| `CF-V0-034` (decision 0357, superseded by decision 0525 §6) | `conformance/frontier-v0/` (`manifest.go`, `manifest.json` `retired` record and `artifactSha256`) | `conformance/frontier-v0/manifest_test.go`: `TestManifestPinsRetirementAndArtifacts`, `TestArtifactDigestDriftFails`. Since V1-1278 S2b (`CEM-V1-217`, `CEM-V1-219`) the whole fixture tier is retired: the manifest `retired` record names every fixture, matrix row and case with its reason, and only the codec and identity vectors stay executable |
 | Outcome protocol | preregistered third-party-PR replay, constructed separately at first release cut | explicit `PASS`, `FAIL`, or `NOT_RUN` record; currently `NOT_RUN` |
 
 Before promotion, rollback removes the derived Frontier result and preview wrapper. It preserves CEM,
@@ -572,3 +572,11 @@ No requirement ID is assigned here. The proposed IDs, the help-topic text for `-
 the decision that would promote a stable frontier profile stay open. Rollback removes the route
 (`internal/frontier/stable.go`, `frontierrepo.Adapter.StableView`, the CLI branch), so a `cem/1.0`
 map is refused as before.
+
+Amended 2026-10-12 by V1-1278 S2b (decision 0525 §1, `CEM-V1-217`): `frontier/0` is retired.
+Its engine (`internal/frontier` compute, closure, document, identity, verify and upstream code) and
+`frontierrepo`'s `tcq/0` adapter are deleted, and `corvint frontier` has only the stable route. A
+map that does not declare `cem/1.0` refuses in the closed exit-2 envelope (`CF-V0-022`) with
+`unsupported-spec` before the map is verified. `frontier-stable-view/0` is the named
+stable successor; it still closes nothing. Rollback of this amendment is a revert of the S2b
+commit, which restores the deleted engine.

@@ -15,7 +15,7 @@ reader this slice sits beside.
 ## Agent digest
 - Claim: `corvint cem export` copies one change's CEM, witness, dogfood and gate receipts into a new directory whose manifest an offline script verifies.
 - Status: accepted (decision 0376; ticket V1-0197 with two owner-confirmed deviations) / experimental
-- Exists: `internal/receiptbundle`, `cmd/corvint/cem_export.go`, `script/verify-receipt-bundle.sh` and its `_test.sh` (`make receipt-bundle-verify-test`), the `cem export` read-only case.
+- Exists: `internal/receiptbundle`, `cmd/corvint/cem_export.go`, the `cem export` read-only case. The offline shell verifier `script/verify-receipt-bundle.sh` was deleted with cem/0.x (V1-1278, RCB-V0-006 amendment).
 - Blocked on: nothing for intent; the owner confirmed both ticket deviations (decision 0376). Signing, publication, archives and governance adapters are non-goals.
 - Read next: Ticket deviations (owner-confirmed); RCB-V0-002 (manifest), RCB-V0-004 (inclusion) and RCB-V0-005 (output); Failure modes.
 
@@ -135,6 +135,11 @@ The owner confirmed two departures from ticket V1-0197 on 2026-09-24 (decision 0
   expected=HEX actual=HEX`, or `MISSING PATH`, where a symlink counts as missing), then one `EXTRA
   PATH` line per unlisted non-directory entry, then `PASS` (exit 0) or `FAIL` (exit 1). An absent,
   symlinked, foreign or malformed manifest exits 2.
+  Amended 2026-10-12 (V1-1278, decision 0525 §1, CEM-V1-215): retired. The script read only the
+  cem/0.x bundle layout, which no export produces now that 0.x maps refuse (CEM-V1-210), so it and
+  its `_test.sh` are deleted. The stable bundle `corvint-cem-stable-bundle/1` binds its own manifest
+  digest and is checked with `corvint cem verify-stable --map DIR/cem.json --artifacts DIR/artifacts`
+  (`TestStableExportRelocatesWithSameVerification`).
 - `RCB-V0-007`: A bundle grants nothing. The export signs nothing, publishes nothing, contacts no
   network, and records nothing in any ledger. No Corvint command reads a bundle, so a bundle is
   never an input to ranking, evidence, authority, or learning. A `PASS` proves only that the copies
@@ -178,9 +183,8 @@ content. A bundle can disclose repository information and stays wherever the cal
 - CLI: an export on a canonical `cem/0.2` fixture verifies `PASS` with the manifest digest the
   envelope reported, an in-worktree output is refused, and the read-only-verbs case proves the
   repository tree, `.git` included, is byte-identical after an export.
-- Script: `make receipt-bundle-verify-test` covers match, tampered, missing, symlinked, extra, and
-  unusable manifests, including duplicated, reordered, traversal, absent-cem, unclosed, CRLF and
-  50-hex-base manifests.
+- Script: retired with RCB-V0-006 (V1-1278); `make receipt-bundle-verify-test` covered match, tampered,
+  missing, symlinked, extra, and unusable manifests until the 0.x bundle layout was retired.
 - Live: the bundle for PR #122's sealed CEM
   (`.corvint/changes/ace0a96bd5ffcfa2af8013e23a1cf3220b46c24f.cem.json`) with its witness report is
   exported and verified. The manifest digest and the verifier output are in `../BUILD-LOG.md`
@@ -195,7 +199,7 @@ content. A bundle can disclose repository information and stays wherever the cal
 | RCB-V0-003 | `TestExportRefusesRetiredMaps` (superseded by `CEM-V1-210`; the v0 receipt-binding tests are retired with the 0.x map) |
 | RCB-V0-004 | `TestExportRefusesRetiredMaps` (superseded by `CEM-V1-210`: every 0.x map, valid, invalid or drifted, refuses `unsupported-spec` before any copy), `TestStableExportPublishesNothingForARefusedSource` |
 | RCB-V0-005 | `TestExportRefusesOutputsItMustNotWrite`, `TestExportRefusesACaseVariantOfTheWorktree`, `TestExportRefusesEveryWorktreeAndGitDirectory`, `TestWriteStableRefusesASwappedBundleDirectory`, `TestCEMExportBundleVerifiesOffline`, `TestReadOnlyVerbsWriteNothing` |
-| RCB-V0-006 | `script/verify-receipt-bundle_test.sh`, `TestCEMExportBundleVerifiesOffline` |
+| RCB-V0-006 | retired by V1-1278 (`CEM-V1-215`): the shell verifier and its test are deleted; the stable bundle is `TestStableExportRelocatesWithSameVerification`; `TestCEMExportBundleVerifiesOffline` |
 | RCB-V0-007 | structural: only `cmd/corvint/cem_export.go` imports `internal/receiptbundle`, and the package imports no network, signing, or ledger code |
 
 ## Rollout, rollback, and drift

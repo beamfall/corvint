@@ -28,8 +28,7 @@ type CoverOptions struct {
 // discovers profiles nor runs tests here. Covered ranges are the hunk's added
 // lines that a block with a positive count reaches (diff-cover semantics); a
 // hunk none reach carries an explicit uncovered witness rather than none.
-// Witnesses are a cem/0.3 field, so a canonical map is upgraded like a
-// structural reason in Mark (CEM-SM-006).
+// A cem/1.0 producer map carries the witness vocabulary (CEM-V1-144).
 func (s *Session) Cover(ctx context.Context, options CoverOptions) (map[string]any, error) {
 	if err := wire.ValidateTestRun(options.TestRun); err != nil {
 		return nil, invalidArguments("--test-run %s", strings.TrimPrefix(err.Error(), "coverage "))
@@ -39,9 +38,6 @@ func (s *Session) Cover(ctx context.Context, options CoverOptions) (map[string]a
 		return nil, err
 	}
 	defer unlock()
-	if !wire.Canonical(document.Spec) {
-		return nil, invalidArguments("coverage witnesses require a canonical (cem/0.2 or cem/0.3) map")
-	}
 	raw, err := s.readCoverprofile(options.Coverprofile)
 	if err != nil {
 		return nil, err
@@ -83,14 +79,6 @@ func (s *Session) Cover(ctx context.Context, options CoverOptions) (map[string]a
 			uncovered++
 		}
 		hunk.Coverage = &witness
-	}
-	// A stable producer map already carries the witness vocabulary and stays
-	// cem/1.0 (CEM-V1-144).
-	if s.stableOf(document) == nil {
-		if err := checkSpec03Output(document, options.MapPath, options.Output); err != nil {
-			return nil, err
-		}
-		document.Spec = wire.Spec03
 	}
 	output, err := s.writeMap(document, options.MapPath, options.Output)
 	if err != nil {

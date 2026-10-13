@@ -16,7 +16,6 @@ func ptr(value string) *string { return &value }
 func testRegistry() []AdapterRegistration {
 	return []AdapterRegistration{
 		{AdapterID: "beamfall-shadow-v0", DeliveryStage: DeliveryUnsupported, IssueCodes: []string{"SOURCE_UNSUPPORTED"}, MaxBytes: "0", SourceKind: "BEAMFALL_SHADOW", VerifierID: "unsupported"},
-		{AdapterID: "cem-ocm-bundle-v0", AcceptedProfiles: []string{"cem/0.1+ocm/0.1", "cem/0.2+ocm/0.1"}, DeliveryStage: DeliveryNotStarted, IssueCodes: []string{"SOURCE_UNSUPPORTED"}, MaxBytes: "0", SourceKind: "CEM_OCM_BUNDLE", VerifierID: "go-cem-ocm-bundle-v0"},
 		{AdapterID: "frontier-usage-v0", DeliveryStage: DeliveryUnsupported, IssueCodes: []string{"SOURCE_UNSUPPORTED"}, MaxBytes: "0", SourceKind: "FRONTIER_RECEIPT", VerifierID: "unsupported"},
 		{AdapterID: "go-live-usage-v0", DeliveryStage: DeliveryUnsupported, IssueCodes: []string{"SOURCE_UNSUPPORTED"}, MaxBytes: "0", SourceKind: "GO_LIVE_RECEIPT", VerifierID: "unsupported"},
 		{AdapterID: "harness-usage-v0", DeliveryStage: DeliveryUnsupported, IssueCodes: []string{"SOURCE_UNSUPPORTED"}, MaxBytes: "0", SourceKind: "HARNESS_RECEIPT", VerifierID: "unsupported"},
@@ -274,19 +273,6 @@ func TestRepositoryWitnessSemanticsRequireCohortObjectFormat(t *testing.T) {
 	repository := Repository{HeadRevision: &revision, ObjectFormat: &format, WorktreeState: WorktreeUnknown}
 	if err := validateRepositoryWitnessSemantics(source, repository); err == nil {
 		t.Fatal("cohort object format diverged from repository authority")
-	}
-}
-
-func TestNotStartedAdapterCanReportUnsupportedSource(t *testing.T) {
-	input := baseInput()
-	input.Sources = []SourceInput{{
-		AdapterID: "cem-ocm-bundle-v0", ConfiguredOrdinal: "0", Profile: "cem/0.2+ocm/0.1",
-		AuthorityClass: AuthorityNone, Completeness: CompletenessUnknown, Currency: CurrencyUnknown,
-		DeliveryStage: DeliveryNotStarted, EpistemicClass: EpistemicNotObserved,
-		Validity: ValidityUnsupported, VerifierID: "go-cem-ocm-bundle-v0",
-	}}
-	if _, _, err := Compile(input); err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -574,7 +560,7 @@ func TestVerifyCanonicalRejectsSelfRehashedSourceByteLimitForgery(t *testing.T) 
 func TestVerifyCanonicalRejectsSelfRehashedZeroMaxBytesObservation(t *testing.T) {
 	input := baseInput()
 	input.Observation.ScanState = ScanPartial
-	input.Sources = []SourceInput{{AdapterID: "cem-ocm-bundle-v0", ConfiguredOrdinal: "0", Profile: "cem/0.1+ocm/0.1", AuthorityClass: AuthorityNone, Completeness: CompletenessUnknown, Currency: CurrencyUnknown, DeliveryStage: DeliveryNotStarted, EpistemicClass: EpistemicNotObserved, Validity: ValidityInvalid, VerifierID: "go-cem-ocm-bundle-v0"}}
+	input.Sources = []SourceInput{{AdapterID: "query-envelope-v1", ConfiguredOrdinal: "0", Profile: "unsupported", AuthorityClass: AuthorityNone, Completeness: CompletenessUnknown, Currency: CurrencyUnknown, DeliveryStage: DeliveryUnsupported, EpistemicClass: EpistemicNotObserved, Validity: ValidityUnsupported, VerifierID: "unsupported"}}
 	snapshot, _, err := Compile(input)
 	if err != nil {
 		t.Fatal(err)

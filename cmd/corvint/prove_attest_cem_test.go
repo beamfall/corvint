@@ -124,6 +124,55 @@ func TestProveCEMAttestationVerifyRefusesAnUnreadableEnvelope(t *testing.T) {
 	}
 }
 
+// TestProveCEMAttestationVerifyNamesTheRetiredPredicate checks CEM-V1-218 at
+// the CLI: a cem/0 or cem/v1 envelope that verifies under the key exits 2 with
+// attest-verification-failed naming cem/v2 as the only CEM predicate, with or
+// without --cem.
+func TestProveCEMAttestationVerifyNamesTheRetiredPredicate(t *testing.T) {
+	t.Parallel()
+	root, _, _ := emitCEMAttestation(t)
+	directory := t.TempDir()
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	der, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicKeyPath := filepath.Join(directory, "signer.pub")
+	if err := os.WriteFile(publicKeyPath, pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, predicateType := range []string{"https://corvint-context.dev/attestation/cem/0", "https://corvint-context.dev/attestation/cem/v1"} {
+		statement, err := json.Marshal(map[string]any{
+			"_type":         "https://in-toto.io/Statement/v1",
+			"subject":       []any{map[string]any{"name": "stable.json", "digest": map[string]any{"sha256": strings.Repeat("0", 64)}}},
+			"predicateType": predicateType,
+			"predicate":     map[string]any{"name": "stable.json"},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		envelope, err := attest.Envelope(statement, privateKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		envelopePath := filepath.Join(directory, "retired.dsse.json")
+		if err := os.WriteFile(envelopePath, envelope, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		for _, extra := range [][]string{nil, {"--cem", "stable.json"}} {
+			arguments := append([]string{"--verify-cem-attestation", envelopePath, "--attest-public-key", publicKeyPath}, extra...)
+			_, stdout, stderr, exit := runProveCLI(t, root, arguments...)
+			if exit != 2 || len(stdout) != 0 || !strings.Contains(stderr, `"attest-verification-failed"`) ||
+				!strings.Contains(stderr, attest.CEMPredicateTypeV2+" is the only CEM predicate") {
+				t.Fatalf("%s %v: exit=%d stdout=%q stderr=%q", predicateType, extra, exit, stdout, stderr)
+			}
+		}
+	}
+}
+
 // TestProveCEMAttestationVerifyRefusesAnEnvelopeThatDoesNotVerify checks
 // FPK-V0-031: another signer's key, a changed payloadType, a changed payload,
 // and the FPK-V0-015 proof envelope signed by the same key (wrong
@@ -197,19 +246,31 @@ func TestProveCEMAttestationVerifyRefusesInvalidArguments(t *testing.T) {
 	}
 }
 
-// TestProveCEMAttestCEMRefusesInvalidArguments checks FPK-V0-031's emission
-// grammar: --attest-cem with a value, repeated, or in impact mode (outside CEM
-// mode) exits 2 with invalid-arguments and prints nothing.
-func TestProveCEMAttestCEMRefusesInvalidArguments(t *testing.T) {
+// TestCEMV1218RetiredAttestationFlagsAreUnrecognized checks CEM-V1-218 and the
+// amended FPK-V0-031/050 grammar: the retired --attest-cem and --attest-cem-v1
+// flags, bare, with a value, repeated, beside each other or outside CEM mode,
+// exit 2 with invalid-arguments naming the flag and print nothing. Only
+// --attest-cem-v2 attests a map.
+func TestCEMV1218RetiredAttestationFlagsAreUnrecognized(t *testing.T) {
 	t.Parallel()
 	root, base := proveCEMRepository(t)
 	common := []string{"--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD", "--attest"}
+	with := func(extra ...string) []string { return append(append([]string{}, common...), extra...) }
 	for _, arguments := range [][]string{
-		append(append([]string{}, common...), "--attest-cem=yes"),
-		append(append([]string{}, common...), "--attest-cem", "--attest-cem"),
+		with("--attest-cem"),
+		with("--attest-cem=yes"),
+		with("--attest-cem", "--attest-cem"),
+		with("--attest-cem-v1"),
+		with("--attest-cem-v1=yes"),
+		with("--attest-cem-v1", "--attest-cem-v1"),
+		with("--attest-cem", "--attest-cem-v1"),
 		{"--attest-cem", "docs/rule.txt"},
+		{"--attest-cem-v1", "docs/rule.txt"},
 	} {
 		verifyCEMAttestationRefusal(t, root, "invalid-arguments", arguments...)
+		if _, _, stderr, _ := runProveCLI(t, root, arguments...); !strings.Contains(stderr, "unrecognized arguments: --attest-cem") {
+			t.Fatalf("%v: refusal names no retired flag: %s", arguments, stderr)
+		}
 	}
 }
 
@@ -303,22 +364,5 @@ func TestProveCEMAttestFailsWhenTheCEMStatementCannotBeBuilt(t *testing.T) {
 		if !errors.As(err, &refusal) || refusal.Code != "attest-failed" || output != nil {
 			t.Errorf("%s: attestProof = %q, %v; want attest-failed and no output", name, output, err)
 		}
-	}
-}
-
-// TestProveCEMAttestCEMV1RefusesInvalidArguments checks FPK-V0-050's grammar:
-// --attest-cem-v1 with a value, repeated, beside --attest-cem, or outside CEM
-// mode exits 2 with invalid-arguments and prints nothing.
-func TestProveCEMAttestCEMV1RefusesInvalidArguments(t *testing.T) {
-	t.Parallel()
-	root, base := proveCEMRepository(t)
-	common := []string{"--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD"}
-	for _, arguments := range [][]string{
-		append(append([]string{}, common...), "--attest-cem-v1=yes"),
-		append(append([]string{}, common...), "--attest-cem-v1", "--attest-cem-v1"),
-		append(append([]string{}, common...), "--attest-cem", "--attest-cem-v1"),
-		{"--attest-cem-v1", "docs/rule.txt"},
-	} {
-		verifyCEMAttestationRefusal(t, root, "invalid-arguments", arguments...)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -30,6 +31,35 @@ func readFixture(t *testing.T, parts ...string) []byte {
 	return data
 }
 
+// frozenMapHunks is the hunk identity a frozen interop map records, read as
+// plain JSON: the 0.x map decoder is retired (CEM-V1-215), and these vectors
+// check only the patch parser's derived IDs and ranges.
+type frozenMapHunks struct {
+	Hunks []struct {
+		ID       string                       `json:"id"`
+		Path     string                       `json:"path"`
+		OldRange struct{ Start, Count int64 } `json:"oldRange"`
+		NewRange struct{ Start, Count int64 } `json:"newRange"`
+	} `json:"hunks"`
+}
+
+func frozenHunks(t *testing.T, data []byte) []wire.Hunk {
+	t.Helper()
+	var frozen frozenMapHunks
+	if err := json.Unmarshal(data, &frozen); err != nil {
+		t.Fatal(err)
+	}
+	hunks := make([]wire.Hunk, 0, len(frozen.Hunks))
+	for _, hunk := range frozen.Hunks {
+		hunks = append(hunks, wire.Hunk{
+			ID: hunk.ID, Path: hunk.Path,
+			OldRange: wire.Range{Start: hunk.OldRange.Start, Count: hunk.OldRange.Count},
+			NewRange: wire.Range{Start: hunk.NewRange.Start, Count: hunk.NewRange.Count},
+		})
+	}
+	return hunks
+}
+
 // TestGoldenHunkIdentities parses every frozen valid patch and requires the
 // derived hunk IDs, ranges, and display paths to match its frozen valid map
 // exactly. These are the mandatory hunk-identity algorithm vectors.
@@ -49,16 +79,13 @@ func TestGoldenHunkIdentities(t *testing.T) {
 			t.Errorf("%s: %v", pair.patch, err)
 			continue
 		}
-		mapped, err := wire.ParseMap(readFixture(t, root, "maps", "valid", pair.mapFile))
-		if err != nil {
-			t.Fatalf("%s: %v", pair.mapFile, err)
-		}
-		if len(parsed.Hunks) != len(mapped.Hunks) {
-			t.Errorf("%s: %d parsed hunks, map has %d", pair.patch, len(parsed.Hunks), len(mapped.Hunks))
+		mapped := frozenHunks(t, readFixture(t, root, "maps", "valid", pair.mapFile))
+		if len(parsed.Hunks) != len(mapped) {
+			t.Errorf("%s: %d parsed hunks, map has %d", pair.patch, len(parsed.Hunks), len(mapped))
 			continue
 		}
 		recorded := map[string]wire.Hunk{}
-		for _, hunk := range mapped.Hunks {
+		for _, hunk := range mapped {
 			recorded[hunk.ID] = hunk
 		}
 		for index, hunk := range parsed.Hunks {

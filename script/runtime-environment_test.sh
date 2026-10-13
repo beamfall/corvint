@@ -28,5 +28,4 @@ done
 unset CORVINT_BIN
 bash "$root/script/dogfood-change_test.sh"
 bash "$root/script/dogfood-bind-range_test.sh"
-sh "$root/script/cem-verify-pr_test.sh"
 echo 'runtime environment helpers: ok'

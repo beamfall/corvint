@@ -21,7 +21,6 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/extevidence"
 	"github.com/Beamfall/corvint/internal/gokernel"
-	"github.com/Beamfall/corvint/internal/lrfrepo"
 	"github.com/Beamfall/corvint/internal/observations"
 	"github.com/Beamfall/corvint/internal/worktreeimpact"
 
@@ -1167,7 +1166,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 				emitError(stderr, cemErr)
 				return 2
 			}
-			return cemcli.RunWithCallerRoot(ctx, root, callerRoot, rest, stdout, recordingStderr(root, stderr), lrfrepo.ReadOCMReview)
+			return cemcli.RunWithCallerRoot(ctx, root, callerRoot, rest, stdout, recordingStderr(root, stderr))
 		}
 	}
 	options, err := parse(arguments)

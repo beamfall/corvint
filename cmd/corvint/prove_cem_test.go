@@ -114,8 +114,9 @@ func TestProveCEMAcceptedMapProvesSupportedHunksAndWritesNothing(t *testing.T) {
 // TestCEMV1210ProveRefusesEveryMapOutsideTheStableRoute checks CEM-V1-210 for
 // prove: without --attest-cem-v2 a cem/1.0 map, and a map relabelled to any
 // retired cem/0.x spec, exits 2 with unsupported-spec and an empty stdout; a
-// 0.x refusal carries the recovery line, the 1.0 refusal names the stable
-// route, and --attest-cem and --attest-cem-v1 attest no map. A stable map the
+// 0.x refusal carries the recovery line and the 1.0 refusal names the stable
+// route. The retired --attest-cem and --attest-cem-v1 flags are unrecognized
+// arguments before any map is read (CEM-V1-218). A stable map the
 // verifier does not accept is refused with attest-cem-v2-not-accepted.
 func TestCEMV1210ProveRefusesEveryMapOutsideTheStableRoute(t *testing.T) {
 	t.Parallel()
@@ -136,10 +137,17 @@ func TestCEMV1210ProveRefusesEveryMapOutsideTheStableRoute(t *testing.T) {
 		if spec == wire.StableSpec {
 			want = "prove judges a cem/1.0 map only with --attest-cem-v2"
 		}
-		for _, flags := range [][]string{nil, {"--attest"}, {"--attest-cem"}, {"--attest-cem-v1"}} {
+		for _, flags := range [][]string{nil, {"--attest"}} {
 			arguments := append(append([]string{"--cem", name}, common...), flags...)
 			_, stdout, stderr, code := runProveCLI(t, root, arguments...)
 			if code != 2 || len(stdout) != 0 || !strings.Contains(stderr, `"unsupported-spec"`) || !strings.Contains(stderr, want) {
+				t.Fatalf("%v: exit=%d stdout=%q stderr=%q", arguments, code, stdout, stderr)
+			}
+		}
+		for _, flag := range []string{"--attest-cem", "--attest-cem-v1"} {
+			arguments := append(append([]string{"--cem", name}, common...), flag)
+			_, stdout, stderr, code := runProveCLI(t, root, arguments...)
+			if code != 2 || len(stdout) != 0 || !strings.Contains(stderr, `"invalid-arguments"`) || !strings.Contains(stderr, "unrecognized arguments: "+flag) {
 				t.Fatalf("%v: exit=%d stdout=%q stderr=%q", arguments, code, stdout, stderr)
 			}
 		}

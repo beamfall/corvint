@@ -118,12 +118,6 @@ func adapterRequest(request compileRequest, budget *source.Budget) adapters.Scan
 			AdapterID: adapters.AdapterID(configured.AdapterID), RelativePath: configured.RelativePath,
 		}
 	}
-	if request.Bundle != nil {
-		result.CEMOCM = &adapters.CEMOCMBinding{
-			CEMPath: request.Bundle.CEM, OCMPath: request.Bundle.OCM, Profile: request.Bundle.Profile,
-			ExpectedBase: request.Bundle.ExpectedBase, Target: request.Bundle.Target,
-		}
-	}
 	return result
 }
 

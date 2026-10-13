@@ -42,7 +42,7 @@ func TestCEMV1135ObligationsStableMode(t *testing.T) {
 		binding["target_revision"] != stable.Target || document["state"] != "unknown" {
 		t.Fatalf("stable sidecar: %s", out)
 	}
-	code, out, stderr = runCLI(t, arguments(change.LegacyTarget)...)
+	code, out, stderr = runCLI(t, arguments(change.ProducerTarget)...)
 	if code != 2 || out != "" || !strings.Contains(stderr, `"code"`) {
 		t.Fatalf("wrong base: exit %d out %q stderr %q", code, out, stderr)
 	}

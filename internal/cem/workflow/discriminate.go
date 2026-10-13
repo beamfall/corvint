@@ -67,23 +67,12 @@ func (s *Session) Discriminate(ctx context.Context, options DiscriminateOptions)
 		return nil, err
 	}
 	defer unlock()
-	if !wire.Canonical(document.Spec) {
-		return nil, invalidArguments("discrimination witnesses require a canonical (cem/0.2 or cem/0.3) map")
-	}
 	if err := s.openRepository(); err != nil {
 		return nil, err
 	}
 	target, err := s.pinnedTarget(ctx, document, options.Target)
 	if err != nil {
 		return nil, err
-	}
-	// A stable producer map already carries the witness vocabulary and stays
-	// cem/1.0 (CEM-V1-144).
-	stable := s.stableOf(document) != nil
-	if !stable {
-		if err := checkSpec03Output(document, options.MapPath, options.Output); err != nil {
-			return nil, err
-		}
 	}
 	candidates := discriminationCandidates(document)
 	selected := candidates
@@ -99,9 +88,6 @@ func (s *Session) Discriminate(ctx context.Context, options DiscriminateOptions)
 		}
 		witness.TreeRevision, witness.SelectionSha256, witness.Bounds = target, selection, bounds.DiscriminationBounds
 		document.Hunks[index].Discriminates = &witness
-	}
-	if !stable {
-		document.Spec = wire.Spec03
 	}
 	output, err := s.writeMap(document, options.MapPath, options.Output)
 	if err != nil {

@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -18,7 +19,7 @@ func statusAfterCiting(t *testing.T, root, base, target, evidencePath string) ma
 	}
 	for {
 		session := openSession(t, root)
-		_, document, err := session.readMapInput(wire.ExcludedCEMPath)
+		_, document, err := session.readProducerMap(wire.ExcludedCEMPath)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -40,11 +41,8 @@ func statusAfterCiting(t *testing.T, root, base, target, evidencePath string) ma
 	}
 	gitCmd(t, root, "add", wire.ExcludedCEMPath)
 	gitCmd(t, root, "commit", "-qm", "candidate")
-	result, err := openSession(t, root).Read(ctx(), "status", ReadOptions{MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return result
+	head := strings.TrimSpace(gitCmd(t, root, "rev-parse", "HEAD"))
+	return stableStatus(t, root, wire.ExcludedCEMPath, base, head, PolicyLimits{})
 }
 
 // TestStatusReportsSelfModifiedAuthority is CEM-CB-026: a change that edits a
@@ -69,7 +67,7 @@ func TestStatusReportsSelfModifiedAuthority(t *testing.T) {
 	target := gitCmd(t, root, "rev-parse", "HEAD")
 
 	result := statusAfterCiting(t, root, base, target, "AGENTS.md")
-	if result["state"] != "ready-for-ci" || result["ok"] != true {
+	if result["state"] != stableStates["ACCEPT"] || result["ok"] != true {
 		encoded, _ := json.Marshal(result)
 		t.Fatalf("the report must not change status state: %s", encoded)
 	}
@@ -95,7 +93,7 @@ func TestStatusReportsSelfModifiedAuthority(t *testing.T) {
 func TestStatusOmitsSelfModifiedAuthorityWithoutAGoverningChange(t *testing.T) {
 	root, base, target := makeRepo(t)
 	result := statusAfterCiting(t, root, base, target, "docs/rule.txt")
-	if result["state"] != "ready-for-ci" {
+	if result["state"] != stableStates["ACCEPT"] {
 		t.Fatalf("state = %v", result["state"])
 	}
 	if _, present := result["selfModifiedAuthority"]; present {

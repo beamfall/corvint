@@ -15,6 +15,9 @@ var (
 	frontierIDPattern = regexp.MustCompile(`^frontier:sha256:[0-9a-f]{64}$`)
 )
 
+// itemKinds is the CF-V0-007 closed item-kind enumeration.
+var itemKinds = map[string]bool{"HUNK_BASIS": true, "INTENT_CHANGE": true, "INTENT_TEST": true}
+
 func loadIdentityVectorsT(t *testing.T) IdentityVectors {
 	t.Helper()
 	iv, err := LoadIdentityVectors(".")
@@ -237,38 +240,5 @@ func TestFrontierIDVector(t *testing.T) {
 	}
 	if f.FrontierID == f.PlaceholderIDInSpec {
 		t.Fatal("the spec's zero placeholder is not a real identity and must not equal the derived one")
-	}
-}
-
-func TestImplementationIdentityMatchesVectors(t *testing.T) {
-	if registeredIdentifier == nil {
-		t.Skip(unboundReason)
-	}
-	iv := loadIdentityVectorsT(t)
-	for _, u := range iv.Universes {
-		u := u
-		t.Run("universe/"+u.ID, func(t *testing.T) {
-			got, err := registeredIdentifier.UniverseID([]byte(u.PreimageCodec))
-			if err != nil {
-				t.Fatalf("implementation UniverseID: %v", err)
-			}
-			if got != u.UniverseID {
-				t.Fatalf("implementation universe ID differs from the hand-derived vector\n want %q\n  got %q",
-					u.UniverseID, got)
-			}
-		})
-	}
-	for _, it := range iv.Items {
-		it := it
-		t.Run("item/"+it.ID, func(t *testing.T) {
-			got, err := registeredIdentifier.ItemID([]byte(it.PreimageCodec))
-			if err != nil {
-				t.Fatalf("implementation ItemID: %v", err)
-			}
-			if got != it.ItemID {
-				t.Fatalf("implementation item ID differs from the hand-derived vector\n want %q\n  got %q",
-					it.ItemID, got)
-			}
-		})
 	}
 }

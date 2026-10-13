@@ -164,24 +164,24 @@ are widened under their own specs.
 
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
-| `CEM-SM-001` | `internal/cem/wire/map.go` | `TestSpec03StructuralReasons` |
+| `CEM-SM-001` | `internal/cem/wire/map.go` | `TestInheritedStructuralReasons` (since V1-1278 S2b the structural reasons are the vocabulary `cem/1.0` inherits; the `cem/0.3` spec gate is retired, `CEM-V1-215`) |
 | `CEM-SM-002` | `internal/cem/verify/structural.go` `structuralProven` | `TestStructuralProvenFromBaseBlobAndPatch`, `TestStructuralProvenRefusesCreateAndDelete` |
 | `CEM-SM-003` | `spliceHunk` | `TestStructuralProvenIsolatesHunksExceptMove` |
 | `CEM-SM-004` | `structuralImage` with `sim.ApplyHunks` | `TestStructuralProvenIsolatesHunksExceptMove` |
 | `CEM-SM-005` | `parseBoth`, `formatterOnlyProven` | `TestStructuralRefusesUnprovableInputs` |
-| `CEM-SM-006` | `internal/cem/workflow/commands.go` `Mark`, `checkSpec03Output`, `writeMap` (every writer, V1-0384) | `TestSpec03UpgradeNeverReplacesACoreMap`, `TestMarkStructuralReasonUpgradesToSpec03AndVerifies`, `TestMarkStructuralReasonWrongClassIsRefused`, `TestMarkStructuralReasonRefusedOnSpec01` |
-| `CEM-SM-007` | `renameProven`, `identSubstitution` | `TestStructuralTruePositives`, `TestStructuralNearMisses`, `TestStructuralRefusesUnprovableInputs`, `TestCEMSM007RenameIsStrict`, `TestCEMSM016NativePortable03Vectors` |
+| `CEM-SM-006` | `internal/cem/workflow/commands.go` `Mark`, `checkSpec03Output`, `writeMap` (every writer, V1-0384) | retired by V1-1278 S2b (`CEM-V1-215`): `checkSpec03Output` and the `cem/0.3` upgrade are deleted, so their tests are deleted; `TestMarkRefusesARetiredMapBeforeMutation` holds the retired-map refusal and `TestCEMV1143StableProducerMutationsStayStable` the stable mark |
+| `CEM-SM-007` | `renameProven`, `identSubstitution` | `TestStructuralTruePositives`, `TestStructuralNearMisses`, `TestStructuralRefusesUnprovableInputs`, `TestCEMSM007RenameIsStrict` (the native 0.3 vector test was retired by V1-1278 S2b (`CEM-V1-215`)) |
 | `CEM-SM-008` | `moveProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses`, `TestStructuralRefusesUnprovableInputs` |
 | `CEM-SM-009` | `importReorderProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses` |
 | `CEM-SM-010` | `formatterOnlyProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses` |
-| `CEM-SM-011` | `protocol/cem-0.3`, `interop/cem01-go/packet03_test.go` `readPacket03`, `internal/cem/workflow/portable03_test.go` | `TestCEMSM016PortablePacketConformance`, `TestCEMSM016NativePortable03Vectors` |
+| `CEM-SM-011` | `protocol/cem-0.3`, `interop/cem01-go/packet03_test.go` `readPacket03`, `internal/cem/workflow/portable03_test.go` | `TestCEMSM016PortablePacketConformance` (the native 0.3 vector test was retired by V1-1278 S2b (`CEM-V1-215`)) |
 | `CEM-SM-012` | `cases03` structural rows | `TestCEMSM014PacketReproducible`, `TestCEMSM016PortablePacketConformance` |
 | `CEM-SM-013` | `cases03` witness rows | `TestCEMSM014PacketReproducible`, `TestCEMSM016PortablePacketConformance` |
 | `CEM-SM-014` | `generatePacket03` | `TestCEMSM014PacketReproducible` |
 | `CEM-SM-015` | `cases03` sidecar rows | `TestCEMSM014PacketReproducible`, `TestCEMSM016PortablePacketConformance` |
-| `CEM-SM-016` | `verify-03` (`decode03`, `run03`), `portable03Projection` | `TestCEMSM016PortablePacketConformance`, `TestCEMSM016NativePortable03Vectors`, `TestCEMSM016PortableConfigCeiling`, `TestCEMSM014PacketReproducible` |
+| `CEM-SM-016` | `verify-03` (`decode03`, `run03`), `portable03Projection` | `TestCEMSM016PortablePacketConformance`, `TestCEMSM016PortableConfigCeiling`, `TestCEMSM014PacketReproducible` (the native 0.3 vector test was retired by V1-1278 S2b (`CEM-V1-215`)) |
 | `CEM-SM-017` | `run03` runtime stage | `TestCEMSM016PortablePacketConformance` (go1.27.1 pinned results; pre-0522 go1.27.2 refusal run, build log 2026-10-11; reproduced on admitted go1.27.2, build log 2026-10-11 cem03 tuple admission) |
-| `CEM-SM-018` | `internal/cem/wire/map.go` `ParseMapSpec`, `internal/cem/workflow/read.go` `ReadOptions.SingleSpec` | `TestCEMSM016NativePortable03Vectors` (cases `spec-0.2`, `argument-wire-precedes-missing-base`, `argument-uppercase-target`, `argument-width-mismatch`) |
+| `CEM-SM-018` | `internal/cem/wire/map.go` `ParseMapSpec`, `internal/cem/workflow/read.go` `ReadOptions.SingleSpec` | retired by V1-1278 S2b (`CEM-V1-215`): `ParseMapSpec` and `ReadOptions.SingleSpec` are deleted with the `cem/0.x` wire, and so is their native vector test |
 
 ## Unresolved decisions
 

@@ -6,10 +6,10 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
-// The stable TCQ route (CEM-V1-120..CEM-V1-124). tcq/0 is frozen and admits
-// cem/0.2 only (TCQ-V0-002); a cem/1.0 map is evaluated only under this
-// distinct profile and identity domain, so no stable result can ever be read
-// as, or collide with, a tcq/0 document.
+// The stable TCQ route (CEM-V1-120..CEM-V1-124). The tcq/0 route over cem/0.2
+// is retired (CEM-V1-217); a cem/1.0 map is evaluated only under this distinct
+// profile and identity domain, so no stable result can ever be read as, or
+// collide with, a historical tcq/0 document.
 const (
 	StableProfile = "tcq-stable/0"
 	StableCEMSpec = wire.StableSpec
@@ -37,8 +37,8 @@ type StableUpstreamVerifier interface {
 }
 
 // EvaluateStable computes one tcq-stable/0 result. It runs the same TCQ-V0-042
-// stages as Evaluate over the same bounded copies, except that stage 3 admits
-// cem/1.0 only and stage 7 is the stable verifier. Claims, units, issues and
+// stages the retired tcq/0 route ran over the same bounded copies, except that
+// stage 3 admits cem/1.0 only and stage 7 is the stable verifier. Claims, units, issues and
 // relations are computed by the unchanged tcq/0 machinery; only the envelope
 // differs: the stable profile, the bound cem/1.0 map and patch digests, and an
 // identity hashed in the stable domain (CEM-V1-122).

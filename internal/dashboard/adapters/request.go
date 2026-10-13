@@ -19,18 +19,9 @@ type ConfiguredSource struct {
 	RelativePath string
 }
 
-type CEMOCMBinding struct {
-	CEMPath      string
-	OCMPath      string
-	ExpectedBase string
-	Target       string
-	Profile      string
-}
-
 type ScanRequest struct {
 	Root         string
 	Sources      []ConfiguredSource
-	CEMOCM       *CEMOCMBinding
 	GeneratedAt  *string
 	ClockSource  string
 	Authority    authority.Authority
@@ -50,25 +41,12 @@ type plannedSource struct {
 
 func planRequest(request ScanRequest) ([]plannedSource, *ScanError) {
 	configuredCount := len(request.Sources) + 1
-	if request.CEMOCM != nil {
-		configuredCount++
-	}
 	if !validRootArgument(request.Root) || configuredCount > MaxConfiguredArtifacts || request.Authority == nil || request.SourceBudget == nil {
 		return nil, invalidArgumentError()
 	}
 	if (request.GeneratedAt == nil && request.ClockSource != "PROCESS") ||
 		(request.GeneratedAt != nil && (request.ClockSource != "CALLER" || !validTimestamp(*request.GeneratedAt))) {
 		return nil, invalidArgumentError()
-	}
-	if request.CEMOCM != nil {
-		binding := request.CEMOCM
-		if !validRelativeArgument(binding.CEMPath) || !validRelativeArgument(binding.OCMPath) || binding.CEMPath == binding.OCMPath ||
-			!validAnyObjectID(binding.ExpectedBase) || !validAnyObjectID(binding.Target) || len(binding.ExpectedBase) != len(binding.Target) {
-			return nil, invalidArgumentError()
-		}
-		if binding.Profile != "cem/0.1+ocm/0.1" && binding.Profile != "cem/0.2+ocm/0.1" {
-			return nil, invalidArgumentError()
-		}
 	}
 	sources := append([]ConfiguredSource(nil), request.Sources...)
 	seen := make(map[string]struct{}, len(sources))
@@ -110,9 +88,6 @@ func planRequest(request ScanRequest) ([]plannedSource, *ScanError) {
 			ordinal: ordinals[configured.AdapterID], profile: profile,
 		})
 		ordinals[configured.AdapterID]++
-	}
-	if request.CEMOCM != nil {
-		result = append(result, plannedSource{adapterID: AdapterCEMOCMBundle, ordinal: 0, profile: request.CEMOCM.Profile})
 	}
 	return result, nil
 }

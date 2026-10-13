@@ -90,7 +90,10 @@ name is exactly what the change's author also wrote and the harness removed.
   carries the evidence, `treatment` becomes the format control between `control` and `seeded`.
   Each seeded lane records `suggested`, the distinct suggested paths. Amended 2026-10-11
   (V1-1261, accepted under the owner's standing auto-accept (2026-10-11)): for a registered run the treatment arm is redefined by CRT-V0-015; the
-  `cem begin` worklist arms above remain only for pilot and development runs.
+  `cem begin` worklist arms above remain only for pilot and development runs. Amended 2026-10-12
+  (V1-1278, decision 0525 §1, CEM-V1-215): cem/0.x is retired, so the `treatment` and `seeded` arms, which carry
+  a cem/0.1 map, now refuse with `errRetiredMapArms` before writing into the prep clone; the `control` arm
+  is unchanged. Retiring this spec is S3's.
 - `CRT-V0-006`: Reply grammar. Every reply MUST end with one fenced JSON block
   `{"citations":[{"hunk":"N","path":"...","lines":"S:E","relation":"specification|decision|test-claim|implementation|call-site|dependency|incident","confidence":"certain|likely|unsure"}],"unknown":["N"]}`.
   The scorer takes the last fenced block naming `"citations"`, or a reply that is itself one JSON
@@ -324,7 +327,7 @@ executables named on the command line; it downloads nothing. Manifest 16 MiB; pa
 | CRT-V0-002 | `plan`, `shuffledArms`, `seededStream`, `laneClone` | `TestCloneCannotResolveTheChangeCommit`; pilot dry run (three of five changes ran treatment first) |
 | CRT-V0-003 | `inspectCommit` (source-only diff), `hunkList`, `readPatch` digest check | `TestWithheldPatchExcludesEveryGoldPath` |
 | CRT-V0-004 | `goldSpans`, `hunkRanges`, `stemBaseline`, `stemGuesses`, `leaksGold`, `hunkBody`, `stemMiss` (`gold.go`, `score.go`) | `TestSelectionIsDeterministicAndRefusesGoldLeak`; `TestWithheldPatchExcludesEveryGoldPath` (spans present) |
-| CRT-V0-005 | `skeleton`, `treatmentPrologue`, `buildPrompt`, `buildArtefacts`, `cloneAtBase`, `resolvable`, `laneClone` | `TestBothArmsShareTheSamePromptDigestApartFromThePrologue`; `TestTreatmentUsesCemBeginNotPrepare`; `TestCloneCannotResolveTheChangeCommit` |
+| CRT-V0-005 | `skeleton`, `treatmentPrologue`, `buildPrompt`, `buildArtefacts`, `cloneAtBase`, `resolvable`, `laneClone` | `TestBothArmsShareTheSamePromptDigestApartFromThePrologue`; `TestMapArmsRefuseTheRetiredWire`; `TestCloneCannotResolveTheChangeCommit` |
 | CRT-V0-006 | `extractCitations`, `citationsBlock`, `extractUnknown`, `scoreLane` | `TestMissRateAndPairedBootstrapAreDeterministicUnderASeed`; `TestScoreRebuildsTheReportByteIdentically`; `TestExtractCitationsKeepsEmptyAbsentAndMalformedDistinct`, `TestCodexRunBoundsTheReplyAndRecordsStdoutTruncation` (2026-10-04 amendment) |
 | CRT-V0-007 | `scoreLane`, `summarize`, `bca`, `mcnemar`, `exactBinomial`, `citable`, `verifierRates`, `applyCitations`, `replayCitations`, `replayCitation` | `TestMissRateAndPairedBootstrapAreDeterministicUnderASeed`; `TestReplayCheckerDisagreesWithVerifyOnAKnownGoodCitation`; `TestCitableAndVerifierSkipNonZeroExitLanes`; 2026-09-04 pilot (`citable` 0.815 over 200 material hunks, verifier incorrect-hard-failure rate 0 over 25 citing lanes) |
 | CRT-V0-008 | `verdicts`, `verdictAtLeast`, `verdictBelow`, `relativeGate`, `citableGate`, `hardFailureGate`; absolute interval target is `relativeGate × controlMiss` | `TestMissedEvidenceVerdictIntervalCompatibility` (`CRT-V0-008` subtests cover all five readings, absolute target scaling, and inclusive endpoints); `TestMissRateAndPairedBootstrapAreDeterministicUnderASeed`; `benchmarks/results/cem-reviewer-trial-pilot-2026-09-04.json`'s stored `missed_evidence` wording predates the 2026-09-04 amendment (control miss 0.90, interval [0, 0.06] now reads "consistent with 0 but not with 20%"); the stored report is history, not rescored |

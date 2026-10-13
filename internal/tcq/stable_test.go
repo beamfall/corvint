@@ -120,7 +120,4 @@ func TestCEMV1121StableAdmissionRefusals(t *testing.T) {
 	if _, err := EvaluateStable(nil, &stableSeam{binding: binding}, stale); stableCode(err) != CodeInvalidTCQ {
 		t.Fatalf("OCM bound to another map: %v", err)
 	}
-	if _, err := Evaluate(nil, nil, request); stableCode(err) != CodeUnsupportedCEMProfile {
-		t.Fatalf("tcq/0 over cem/1.0: %v", err)
-	}
 }

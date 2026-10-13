@@ -44,7 +44,7 @@ func (p mechanicalProofs) proven(id, reason string) bool {
 	return mechanicalProven(p.hunks[id], reason)
 }
 
-// structuralPredicates dispatch each cem/0.3 structural reason to the Go
+// structuralPredicates dispatch each structural reason to the Go
 // comparison that proves it (CEM-SM-001). Every predicate sees the base file
 // and a derived image that differ, and answers false for anything it cannot
 // parse, scan, or format (CEM-SM-005).

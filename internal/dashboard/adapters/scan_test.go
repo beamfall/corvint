@@ -99,10 +99,6 @@ func TestScanMissingTraceStoreAndDeclaredUnsupportedInputsRemainObservable(t *te
 	root := t.TempDir()
 	request := scanRequest(root, qualifiedAuthority())
 	request.Sources = []ConfiguredSource{{AdapterID: AdapterQueryEnvelope, RelativePath: "not-read.json"}}
-	request.CEMOCM = &CEMOCMBinding{
-		CEMPath: "cem.json", OCMPath: "ocm.json", ExpectedBase: testRevision, Target: testRevision,
-		Profile: "cem/0.2+ocm/0.1",
-	}
 	raw, err := Scan(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
@@ -111,8 +107,8 @@ func TestScanMissingTraceStoreAndDeclaredUnsupportedInputsRemainObservable(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	if snapshot.Observation.ScanState != model.ScanComplete || len(snapshot.Sources) != 3 ||
-		countIssues(snapshot.Issues, "SOURCE_NOT_PRESENT") != 1 || countIssues(snapshot.Issues, "SOURCE_UNSUPPORTED") != 2 {
+	if snapshot.Observation.ScanState != model.ScanComplete || len(snapshot.Sources) != 2 ||
+		countIssues(snapshot.Issues, "SOURCE_NOT_PRESENT") != 1 || countIssues(snapshot.Issues, "SOURCE_UNSUPPORTED") != 1 {
 		t.Fatalf("snapshot = %#v", snapshot)
 	}
 	missing := findIssue(snapshot.Issues, "SOURCE_NOT_PRESENT")

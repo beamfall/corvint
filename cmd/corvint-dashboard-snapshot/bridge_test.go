@@ -111,10 +111,6 @@ func TestCompileSnapshotRetriesOnceWithCumulativeBudgetsAndTerminalFinish(t *tes
 	request := compileRequest{
 		Root: "/repo", GeneratedAt: testTime,
 		Sources: []sourceOption{{AdapterID: "local-trace-v1", RelativePath: "traces=retained"}},
-		Bundle: &bundleOption{
-			CEM: "cem.json", OCM: "ocm.json", Profile: "cem/0.2+ocm/0.1",
-			ExpectedBase: testBase, Target: testTarget,
-		},
 	}
 	encoded, err := compileSnapshotWith(context.Background(), request, dependencies)
 	if err != nil || string(encoded) != "accepted" {
@@ -135,8 +131,8 @@ func TestCompileSnapshotRetriesOnceWithCumulativeBudgetsAndTerminalFinish(t *tes
 		if got.ClockSource != "CALLER" || got.GeneratedAt == nil || *got.GeneratedAt != testTime || got.Authority == nil {
 			t.Fatalf("clock/authority mapping=%#v", got)
 		}
-		if len(got.Sources) != 1 || got.Sources[0].RelativePath != "traces=retained" || got.CEMOCM == nil || got.CEMOCM.Profile != "cem/0.2+ocm/0.1" {
-			t.Fatalf("source/bundle mapping=%#v", got)
+		if len(got.Sources) != 1 || got.Sources[0].RelativePath != "traces=retained" {
+			t.Fatalf("source mapping=%#v", got)
 		}
 	}
 }

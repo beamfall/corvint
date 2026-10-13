@@ -348,7 +348,7 @@ func TestFrozenPositiveBytes(t *testing.T) {
 	if err := verifySnapshot(frozenValid); err != nil {
 		t.Fatal(err)
 	}
-	if got := domainDigest("corvint-dashboard-adapter-registry/0", []byte(canonicalRegistry)); got != "sha256:2de98344235e7f432b1b486c14fa1023f9fdb08b41632bac04d3049592cf3bb3" {
+	if got := domainDigest("corvint-dashboard-adapter-registry/0", []byte(canonicalRegistry)); got != "sha256:e94ebdfa1e1ec154419589cc3ad4030c9675f609f88e76e7f1847788886905c0" {
 		t.Fatalf("registry digest = %s", got)
 	}
 }

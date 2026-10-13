@@ -36,7 +36,7 @@ func requireStableRefusal(t *testing.T, err error, tool, root, relative string, 
 		t.Fatalf("%s: got %v, want %s", tool, err, cemcode.UnsupportedSpec)
 	}
 	message := cemcode.MessageOf(err)
-	for _, fragment := range []string{"cem/1.0", "cem " + tool, "a cem/0.x write never replaces it", "cem status or cem verify"} {
+	for _, fragment := range []string{"cem/1.0", "cem " + tool, "Core mutates only a producer map", "cem status or cem verify"} {
 		if !strings.Contains(message, fragment) {
 			t.Errorf("%s: refusal %q does not name %q", tool, message, fragment)
 		}
@@ -47,8 +47,10 @@ func requireStableRefusal(t *testing.T, err error, tool, root, relative string, 
 	}
 }
 
-// CEM-V1-030: prepare never downgrades or overwrites a stable sidecar, with or
-// without --replace, and publishes no patch cache when it refuses.
+// CEM-V1-030: prepare never overwrites a stable sidecar that carries criteria,
+// receipts, links, artifacts or provenance: without --replace it refuses the
+// unbound resume, with --replace the stable refusal, and it publishes no patch
+// cache when it refuses.
 func TestPrepareRefusesStableSidecar(t *testing.T) {
 	stable := stableMapBytes(t)
 	for _, replace := range []bool{false, true} {
@@ -56,7 +58,12 @@ func TestPrepareRefusesStableSidecar(t *testing.T) {
 		writeFile(t, root, wire.ExcludedCEMPath, string(stable))
 		session := openSession(t, root)
 		_, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target, Replace: replace})
-		requireStableRefusal(t, err, "prepare", root, wire.ExcludedCEMPath, stable)
+		if replace {
+			requireStableRefusal(t, err, "prepare", root, wire.ExcludedCEMPath, stable)
+		} else if cemcode.CodeOf(err) != cemcode.MapUnavailable {
+			t.Fatalf("resume over a bound stable sidecar: %v", err)
+		}
+		requireUntouched(t, root, wire.ExcludedCEMPath, stable)
 		if _, statErr := os.Lstat(filepath.Join(session.gitRoot.Path(), filepath.FromSlash(defaultPatchRelative))); !os.IsNotExist(statErr) {
 			t.Fatalf("replace=%v: refusal published the patch cache (%v)", replace, statErr)
 		}
@@ -133,7 +140,7 @@ func TestMutatorsRefuseStableInput(t *testing.T) {
 }
 
 // CEM-V1-031: no Core map writer replaces an existing cem/1.0 document named as
-// its output, even when its own 0.x input is valid.
+// its output, even when its own producer input is valid.
 func TestMutatorsRefuseStableDestination(t *testing.T) {
 	stable := stableMapBytes(t)
 	for tool, mutate := range stableMutators() {
@@ -175,8 +182,8 @@ func TestMutatorsWriteNonStableDestination(t *testing.T) {
 			t.Fatalf("%s: %v", existing, err)
 		}
 		written, err := os.ReadFile(filepath.Join(root, "other.cem.json"))
-		if err != nil || !bytes.Contains(written, []byte(`"spec": "cem/0.2"`)) {
-			t.Fatalf("%s: destination not replaced by the 0.2 map: %v", existing, err)
+		if err != nil || !wire.DeclaresStable(written) {
+			t.Fatalf("%s: destination not replaced by the cem/1.0 producer map: %v", existing, err)
 		}
 	}
 }

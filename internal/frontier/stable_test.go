@@ -16,6 +16,9 @@ const (
 	stableOCMBytes = `{"cem":{"spec":"cem/1.0"},"spec":"ocm/0.1-experimental"}`
 )
 
+// oidOf derives a deterministic 40-hex object id from a seed.
+func oidOf(seed string) string { return digest([]byte(seed))[:40] }
+
 type stubViewer struct {
 	view  func(StableViewRequest) StableView
 	err   error
@@ -83,8 +86,10 @@ func TestStableViewAdmissionOrder(t *testing.T) {
 		mutate func(*StableViewRequest)
 		code   string
 	}{
-		{"cem 0.2 map", func(r *StableViewRequest) { r.CEMBytes = []byte(validCEMBytes) }, CodeUnsupportedContext},
-		{"ocm bound to cem 0.2", func(r *StableViewRequest) { r.OCMBytes = []byte(validOCMBytes) }, CodeUnsupportedContext},
+		{"cem 0.2 map", func(r *StableViewRequest) { r.CEMBytes = []byte(`{"spec":"cem/0.2"}`) }, CodeUnsupportedContext},
+		{"ocm bound to cem 0.2", func(r *StableViewRequest) {
+			r.OCMBytes = []byte(`{"cem":{"spec":"cem/0.2"},"spec":"ocm/0.1-experimental"}`)
+		}, CodeUnsupportedContext},
 		{"partial dynamic tuple", func(r *StableViewRequest) { r.Command = []byte("x") }, CodeInvalidInput},
 		{"missing ocm", func(r *StableViewRequest) { r.OCMBytes = nil }, CodeInvalidInput},
 		{"missing expected base", func(r *StableViewRequest) { r.ExpectedBase = "" }, "expected-base-required"},
@@ -126,7 +131,7 @@ func TestStableViewRefusalsAreClosed(t *testing.T) {
 			return v
 		},
 		"reject outcome": func(r StableViewRequest) StableView { v := acceptedView(r); v.Verification = "REJECT"; return v },
-		"empty state":    func(r StableViewRequest) StableView { v := acceptedView(r); v.FrontierState = StateEmpty; return v },
+		"empty state":    func(r StableViewRequest) StableView { v := acceptedView(r); v.FrontierState = "EMPTY"; return v },
 		"absent sidecar": func(r StableViewRequest) StableView { v := acceptedView(r); v.Sidecar = "ABSENT"; return v },
 	}
 	for name, view := range forged {

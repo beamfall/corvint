@@ -9,7 +9,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 )
 
-// CandidateSpec is deliberately outside legacy ParseMap and Canonical dispatch.
+// CandidateSpec is deliberately outside ParseStable dispatch.
 // It binds references, never native authority, execution or criterion adequacy.
 const CandidateSpec = "cem/1.0-experimental.1"
 const CandidateCriterionPrefix = "criterion:sha256:"
@@ -59,7 +59,7 @@ func ParseCandidate(raw []byte) (*Candidate, error) {
 		return nil, err
 	}
 	c := &Candidate{Change: Map{Spec: CandidateSpec}}
-	if err = validateCommonFields(root.Obj, &c.Change, true); err != nil {
+	if err = validateCommonCapabilities(root.Obj, &c.Change, true, false); err != nil {
 		return nil, err
 	}
 	if err = validateReferences(&c.Change); err != nil {

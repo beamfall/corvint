@@ -26,7 +26,7 @@ var helpSubcommands = map[string]map[string]bool{
 // helpBooleanFlags are the public command options that take no value, so a --help after one is
 // still help. Every other option is scanned as taking one value (GPK-V0-062).
 var helpBooleanFlags = map[string]bool{
-	"--apply": true, "--attest": true, "--check": true, "--attest-cem": true, "--attest-cem-v1": true, "--attest-cem-v2": true, "--dry-run": true, "--enable": true,
+	"--apply": true, "--attest": true, "--check": true, "--attest-cem-v2": true, "--dry-run": true, "--enable": true,
 	"--full-receipt": true, "--if-stale": true, "--json": true, "--mutate": true, "--preview": true,
 	"--replace": true, "--working-tree-untracked": true,
 }
@@ -614,9 +614,9 @@ none states that the record justifies the hunk. Declared criterion links are
 listed in their own criteria member and state no satisfaction. --limit bounds
 the associations per hunk (default 64); omitted rows are counted.
 
-Without the four stable flags the verb names the retired cem/0.2
-external-frontier-obligations/0 form, which admits no map: a cem/0.x map refuses
-with unsupported-spec and its recovery line, and any other input refuses with
+The retired external-frontier-obligations/0 form is no longer produced: a
+retired cem/0.x map refuses with unsupported-spec and its recovery line, and any
+other input without the four stable flags refuses with
 invalid-obligations-input.
 
 Exit status: 0 with the sidecar on stdout; 2 with an error envelope on stderr
@@ -749,7 +749,7 @@ Usage:
   corvint [--root PATH] prove --base FULL_COMMIT_ID [--limit N] [--mutate]
   corvint [--root PATH] prove --cem MAP [--expected-base REV] [--target REV] [--patch FILE]
     [--attest | --attest-key PEM]
-    [--attest-cem | --attest-cem-v1 | --attest-cem-v2 [--artifacts ABS]]
+    [--attest-cem-v2 [--artifacts ABS]]
   corvint [--root PATH] prove --verify-cem-attestation ENVELOPE --attest-public-key PEM
     [--cem MAP] [--artifacts ABS] [--target REV]
 
@@ -849,20 +849,17 @@ with the Ed25519 PKCS#8 private key at PEM; the key is only ever read, and a
 missing or malformed key exits 2 with attest-key-unavailable. Without
 --mutate the command runs no test; it never writes.
 
-Experimental, not a stable contract: --attest-cem (cem mode) implies --attest
-and prints a second line after the unchanged statement or envelope, a CEM
-statement (predicate https://corvint-context.dev/attestation/cem/0) naming MAP by
-path, sha256, and size, signed with the same key when --attest-key is given;
---attest-cem-v1 prints cem/v1 instead, also binding baseRevision and patchSha256.
---attest-cem-v2 (a cem/1.0 stable map only, else attest-cem-v2-requires-stable-map)
-runs the stable verifier with full-OID --expected-base and --target and the
---artifacts root, and only for an accepted map (else attest-cem-v2-not-accepted)
+Experimental, not a stable contract: --attest-cem-v2 (cem mode) implies --attest
+and prints a second line after the unchanged statement or envelope, signed with
+the same key when --attest-key is given. It takes a cem/1.0 stable map only
+(else attest-cem-v2-requires-stable-map), runs the stable verifier with
+full-OID --expected-base and --target and the --artifacts root, and only for an accepted map (else attest-cem-v2-not-accepted)
 prints cem/v2: subjects are the map then each declared artifact, and the
 predicate binds baseRevision, patchSha256 and the target commit and tree.
-The three --attest-cem flags are mutually exclusive.
---verify-cem-attestation ENVELOPE checks any of them offline against the Ed25519
-PKIX key PEM: VERIFIED if --cem MAP matches, else NOT_RUN (cem-bytes-not-supplied);
-for cem/v2, --artifacts ABS and --target REV check the artifact and target subjects.
+The retired cem/0 and cem/v1 statements are no longer produced or verified.
+--verify-cem-attestation ENVELOPE checks a cem/v2 envelope offline against the
+Ed25519 PKIX key PEM: VERIFIED if --cem MAP matches, else NOT_RUN (cem-bytes-not-supplied);
+--artifacts ABS and --target REV check the artifact and target subjects.
 It exits 2 with attest-public-key-unavailable, attest-envelope-unavailable,
 attest-verification-failed, attest-cem-mismatch, attest-cem-subject-mismatch,
 attest-cem-target-mismatch, or map-unavailable.
@@ -930,8 +927,8 @@ Options:
   --command FILE      Canonical test command, for dynamic test mode.
   --observation FILE  Canonical test observation, for dynamic test mode.
   --report FILE       Raw JUnit report, for dynamic test mode.
-  --json              Emit the canonical frontier/0 document instead of the
-                      human rendering. Both are renderings of one computation.
+  --json              Emit the canonical frontier-stable-view/0 document instead
+                      of the human rendering. Both render one computation.
 
 The three dynamic options are all-or-none. Supplying none records test mode
 STATIC; supplying all three records DYNAMIC_CALLER_REPORTED, which raises no
@@ -956,9 +953,9 @@ const cemHelp = `Change Evidence Map producer and verifier.
 
 Usage:
   corvint [--root PATH] cem begin --patch PATCH --output MAP [--base REV]
-    [--spec cem/0.1|cem/1.0]
+    [--spec cem/1.0]
   corvint [--root PATH] cem prepare --base REV --target REV [--patch CACHE] [--replace]
-    [--spec cem/1.0|cem/0.2]
+    [--spec cem/1.0]
   corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH
     (--bytes START:END | --lines START:END) --relation RELATION [--output MAP]
   corvint [--root PATH] cem mark --map MAP --hunk SELECTOR
@@ -973,18 +970,16 @@ Usage:
   corvint [--root PATH] cem anchor --map MAP [--commit REV]
   corvint [--root PATH] cem provenance --commit REV
   corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
-    --output DIR [--witness REPORT]
+    --artifacts DIR --output DIR
   corvint [--root PATH] cem verify-stable --repository PATH --map MAP
     --expected-base REV --target REV --artifacts DIR [--trusted-keys FILE]
 
 Actions:
-  begin    Build a cem/0.1 candidate from exact out-of-band patch bytes;
-           --spec cem/1.0 writes a cem/1.0 producer map instead.
+  begin    Build a cem/1.0 producer map from exact out-of-band patch bytes.
   prepare  Derive the canonical base-to-target patch and write or resume the
-           cem/1.0 candidate at .corvint/change.cem.json (--spec cem/0.2 keeps
-           the cem/0.2 producer until the 0.x readers are removed). Commit the
-           candidate, then run the returned verification action against HEAD;
-           for cem/1.0 it passes --artifacts with the absolute repository root.
+           cem/1.0 candidate at .corvint/change.cem.json. Commit the candidate,
+           then run the returned verification action; it passes --artifacts
+           with the absolute repository root.
   cite     Compile a byte or one-based line span of base evidence into the
            normative span and attach it to one hunk with a typed relation.
            --relation accepts: call-site, decision, dependency, implementation,
@@ -996,29 +991,27 @@ Actions:
            report writes $GIT_DIR/corvint/cem-review.md unless --output names
            a repository-relative path or an absolute one outside the repository.
   cover    Record a patch coverage witness on every hunk from one local Go
-           coverprofile named by --test-run; writes a cem/0.3 copy to --output
-           (a cem/1.0 producer map stays cem/1.0).
+           coverprofile named by --test-run; the map stays cem/1.0.
   discriminate
            Mutate the map's changed Go hunks (at most --max-hunks hunks and
            --max-mutants mutants each, within --wall-time; defaults 8, 8, 10m)
            against the _test.go files their test claims cite, and record a
            discriminates / survived / not-run witness pinned to --target and
-           the test selection digest. Survivors downgrade the report; the run
-           never fails the build.
+           the test selection digest. The review projection shows each
+           hunk's state; the run never fails the build.
   anchor   (experimental) Write a pointer to the map committed at HEAD as the
            refs/notes/corvint note of REV (default HEAD); refuses a dirty,
            untracked, or uncommitted map and never replaces a different note.
   provenance  (experimental, read-only) Report REV's Corvint anchor, Git AI
            refs/notes/ai note, and Assisted-by/Agent-Logs-Url trailers as
            untrusted repository-history rows; no URL is fetched.
-  export   (read-only) Verify the map as cem verify does and require the
-           target to commit it, then copy it, the saved --witness JSON report,
-           the dogfood report and the full-gate receipt bound to the same base
-           and target into the new absolute directory DIR outside every
-           worktree, with a manifest of each receipt's sha256 and
-           NOT_RUN/NOT_PRODUCED axes. A receipt that is missing or binds
-           another revision is listed as absent. Check it offline with
-           script/verify-receipt-bundle.sh DIR.
+  export   (read-only) Verify the cem/1.0 map as cem verify does (with
+           --artifacts) and require the target to commit it, then copy the map
+           as cem.json and each declared artifact under artifacts/ into the new
+           absolute directory DIR outside every worktree, with a
+           corvint-cem-stable-bundle/1 manifest. The directory can move and
+           still verify with cem verify-stable --map DIR/cem.json
+           --artifacts DIR/artifacts.
   verify-stable
            Verify a cem/1.0 map against the absolute --repository and the
            artifact bytes under --artifacts; prints one
@@ -1031,22 +1024,20 @@ Actions:
            signature never raises executionAtCommit.
 
 Verification options:
-  --expected-base REV  Independent expected base. Required for cem/0.2.
-  --target REV         Verification target. Required for cem/0.2.
-  --patch PATH         cem/0.1 only: exact out-of-band patch bytes. A cem/0.2
-                       invocation supplying --patch fails invalid-arguments.
+  --expected-base REV  Independent expected base. Required.
+  --target REV         Verification target. Required.
+  --patch PATH         Refused: the verifier derives the canonical patch itself.
   --max-unknown N      Policy ceiling on unknown hunks.
   --max-mechanical N   Policy ceiling on mechanical hunks.
-  --citation           status/verify: add the cem/0.2+ citation support block.
-  --artifacts DIR      Required for cem/1.0: the artifact root the stable
-                       verifier reads; status also applies the ceilings to
-                       an accepted cem/1.0 map.
+  --citation           status adds the map's citation class beside the result;
+                       an accepted result always carries its citation block.
+  --artifacts DIR      Required: the artifact root the stable verifier reads;
+                       status also applies the ceilings to an accepted map.
 
-cem/0.2 verification requires --expected-base and --target, derives the
-canonical whole-repository patch itself excluding exactly
-.corvint/change.cem.json, and reports assurance "canonical". cem/0.1 keeps the
-historical explicit/default out-of-band patch behavior with its envelope
-warnings. All commands are local-only; reports can disclose repository
+cem/1.0 is the only wire. Verification derives the canonical
+whole-repository patch itself excluding exactly .corvint/change.cem.json. A
+retired cem/0.1, cem/0.2 or cem/0.3 map refuses with unsupported-spec and its
+migration fix. All commands are local-only; reports can disclose repository
 information and stay local by default.
 `
 

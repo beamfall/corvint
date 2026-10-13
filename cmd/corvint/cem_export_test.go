@@ -30,8 +30,8 @@ func TestCEMExportBundleVerifiesOffline(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &envelope); err != nil || !envelope.OK || envelope.Mutates {
 		t.Fatalf("envelope %s: %v", out, err)
 	}
-	// The offline shell verifier still reads only the cem/0.x bundle layout
-	// (handed to S2b with RCB-V0); the stable manifest binds its own digest.
+	// The 0.x offline shell verifier is retired (RCB-V0-006, V1-1278); the
+	// stable manifest binds its own digest.
 	manifest, err := os.ReadFile(filepath.Join(bundle, "manifest.json"))
 	if err != nil || digestBytes(manifest) != envelope.ManifestSha256 {
 		t.Fatalf("manifest digest: %v envelope %s", err, out)

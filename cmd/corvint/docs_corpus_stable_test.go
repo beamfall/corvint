@@ -58,7 +58,7 @@ func TestCEMV1162CorpusStableOperation(t *testing.T) {
 			t.Fatalf("%s: exit %d out %q stderr %q", name, code, out, stderr)
 		}
 	}
-	code, out, stderr = project("stable.cem.json", change.LegacyTarget, stable.ArtifactRoot)
+	code, out, stderr = project("stable.cem.json", change.ProducerTarget, stable.ArtifactRoot)
 	refused("wrong base", code, out, stderr)
 	code, out, stderr = project("edited.cem.json", change.Base, stable.ArtifactRoot)
 	refused("edited map bytes", code, out, stderr)

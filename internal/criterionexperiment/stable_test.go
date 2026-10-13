@@ -71,8 +71,10 @@ func newStableExperiment(t *testing.T) stableExperiment {
 	if e != nil {
 		t.Fatal(e)
 	}
-	// The legacy map is only the stable fixture's input; its hunk ID is read
-	// as plain JSON, never through a retired cem/0.x decoder.
+	// The producer map is the stable fixture's input; its hunk ID is read as
+	// plain JSON. The retired map the refusal cases need is the same bytes
+	// labelled cem/0.2: no cem/0.x producer remains (CEM-V1-216), and the
+	// admission refuses on the spec alone (CEM-V1-210).
 	var m struct {
 		Hunks []struct {
 			ID string `json:"id"`
@@ -82,6 +84,11 @@ func newStableExperiment(t *testing.T) stableExperiment {
 		t.Fatalf("legacy fixture hunks: %v", e)
 	}
 	stable := stablefixture.Stabilize(t, dir, legacy, m.Hunks[0].ID, func(args ...string) string { return gitTest(t, dir, args...) })
+	retired := bytes.Replace(legacy, []byte(`"spec":"cem/1.0"`), []byte(`"spec":"cem/0.2"`), 1)
+	if bytes.Equal(retired, legacy) {
+		t.Fatal("producer map does not declare the compact cem/1.0 spec")
+	}
+	legacy = retired
 	repo, e := gitauth.Open(dir, gitrun.NewDefaultBudget())
 	if e != nil {
 		t.Fatal(e)

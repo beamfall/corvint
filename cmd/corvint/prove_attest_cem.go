@@ -20,24 +20,23 @@ import (
 // matches the prove-observe stdin bound (FPK-V0-031, experimental).
 const maxAttestationEnvelopeBytes = 8 << 20
 
-// cemAttestation is the second statement's map bytes; v1 is --attest-cem-v1,
-// and v2 is --attest-cem-v2 with the target the stable verifier accepted.
+// cemAttestation is the --attest-cem-v2 statement input: the map bytes and the
+// target the stable verifier accepted.
 type cemAttestation struct {
 	name   string
 	bytes  []byte
-	v1, v2 bool
 	target attest.CEMTarget
 }
 
 // cemAttestationInput returns the CEM statement input when a CEM attestation
 // flag was given, and nil otherwise so the FPK-V0-015 output is untouched.
 func cemAttestationInput(prove proveOptions, mapBytes []byte, target attest.CEMTarget) *cemAttestation {
-	if !prove.attestCEM {
+	if !prove.attestCEMV2 {
 		return nil
 	}
 	return &cemAttestation{
 		name: filepath.ToSlash(prove.mapPath), bytes: mapBytes,
-		v1: prove.attestCEMV1, v2: prove.attestCEMV2, target: target,
+		target: target,
 	}
 }
 
@@ -179,8 +178,7 @@ func runVerifyCEMAttestation(ctx context.Context, options options, stdout, stder
 	return 0
 }
 
-// cemAttestationReceiptFor renders a verification; the v0 and v1 bytes are
-// unchanged by the cem/v2 members, which are all omitted for them.
+// cemAttestationReceiptFor renders a cem/v2 verification.
 func cemAttestationReceiptFor(verification attest.CEMVerification) cemAttestationReceipt {
 	size := verification.Size
 	receipt := cemAttestationReceipt{
@@ -242,6 +240,9 @@ func verifyCEMAttestation(ctx context.Context, options options) (attest.CEMVerif
 	if errors.Is(err, attest.ErrCEMTargetMismatch) {
 		return attest.CEMVerification{}, &gokernel.Error{Code: "attest-cem-target-mismatch", Message: "the target is not the signed target of the CEM attestation: " + err.Error()}
 	}
+	if errors.Is(err, attest.ErrCEMPredicateRetired) {
+		return attest.CEMVerification{}, &gokernel.Error{Code: "attest-verification-failed", Message: "the envelope's CEM predicate is retired; " + attest.CEMPredicateTypeV2 + " is the only CEM predicate"}
+	}
 	if err != nil {
 		return attest.CEMVerification{}, &gokernel.Error{Code: "attest-verification-failed", Message: "the envelope is not a verified CEM attestation for this key"}
 	}
@@ -271,41 +272,10 @@ func readCEMMapBytes(root, mapPath string) ([]byte, error) {
 	return data, nil
 }
 
-// attestCEMFlags are the CEM predicate flags, which exclude each other
-// (FPK-V0-050, CEM-V1-065); attestCEMFlagOrder fixes the refusal's wording.
-var (
-	attestCEMFlags     = map[string]bool{"--attest-cem": true, "--attest-cem-v1": true, "--attest-cem-v2": true}
-	attestCEMFlagOrder = []string{"--attest-cem", "--attest-cem-v1", "--attest-cem-v2"}
-)
-
-// attestFlagRefusal refuses a repeated boolean attestation flag, and any CEM
-// predicate flag once another was seen.
-func attestFlagRefusal(seen map[string]bool, name string) error {
-	if seen[name] {
-		return argumentError("argument " + name + ": may not be repeated")
-	}
-	if !attestCEMFlags[name] {
-		return nil
-	}
-	for _, other := range attestCEMFlagOrder {
-		if other != name && seen[other] {
-			return argumentError("argument " + name + ": not allowed with argument " + other)
-		}
-	}
-	return nil
-}
-
-// statement builds the CEM statement: `cem/v2` under --attest-cem-v2
-// (CEM-V1-065), `cem/v1` under --attest-cem-v1 (FPK-V0-050), and the
-// FPK-V0-031 `cem/0` otherwise.
+// statement builds the `cem/v2` CEM statement (CEM-V1-065); cem/0 and cem/v1
+// are retired (CEM-V1-218).
 func (cem *cemAttestation) statement() ([]byte, error) {
-	if cem.v2 {
-		return attest.CEMStatementV2(cem.name, cem.bytes, cem.target)
-	}
-	if cem.v1 {
-		return attest.CEMStatementV1(cem.name, cem.bytes)
-	}
-	return attest.CEMStatement(cem.name, cem.bytes)
+	return attest.CEMStatementV2(cem.name, cem.bytes, cem.target)
 }
 
 // cemArtifactReader reads a declared artifact path under the absolute
@@ -369,7 +339,7 @@ func compileStableCEMProof(ctx context.Context, gitExecutable string, options op
 		return proveReceipt{}, cemProveError(err)
 	}
 	packet, err := session.Read(ctx, "verify", workflow.ReadOptions{
-		MapPath: options.prove.mapPath, PatchPath: options.prove.patch, PatchGiven: options.prove.patchGiven,
+		MapPath: options.prove.mapPath, PatchGiven: options.prove.patchGiven,
 		ExpectedBase: options.prove.expectedBase, Target: options.prove.target,
 		ArtifactRoot: options.prove.artifacts, ArtifactsGiven: options.prove.artifacts != "",
 	})

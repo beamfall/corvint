@@ -20,7 +20,7 @@ type supportCase struct {
 }
 
 func supportInputs(cases []supportCase, records map[string]string, spans map[string]string) (*wire.Map, *patch.Patch, map[string][]byte) {
-	document := &wire.Map{Spec: wire.Spec03}
+	document := &wire.Map{Spec: wire.StableSpec}
 	parsed := &patch.Patch{}
 	for id, path := range records {
 		document.Evidence = append(document.Evidence, wire.Evidence{ID: id, Path: path})
@@ -243,19 +243,6 @@ func TestCEMV1082HunkOrderDoesNotChangeTheBlock(t *testing.T) {
 		}
 		if got := supportJSON(t, ComputeCitation(document, parsed, spans)); !bytes.Equal(first, got) {
 			t.Fatalf("rotation %d changed the block:\n%s\n%s", rotation, first, got)
-		}
-	}
-}
-
-// TestCEMV1080CitationIsCanonicalOnly checks the block never reaches frozen
-// cem/0.1 outcomes: Exact never computes it.
-func TestCEMV1080CitationIsCanonicalOnly(t *testing.T) {
-	if wire.Canonical(wire.Spec01) {
-		t.Fatal("cem/0.1 must not be canonical")
-	}
-	for _, spec := range []string{wire.Spec02, wire.Spec03} {
-		if !wire.Canonical(spec) {
-			t.Fatalf("%s must be canonical", spec)
 		}
 	}
 }

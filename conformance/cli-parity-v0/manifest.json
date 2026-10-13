@@ -278,6 +278,10 @@
       "fixtureSha256": "fb2ed9953c0dfed010453192777e2f1b91bbf4ca14fb2789f4d29a98ecb94ba6",
       "exitStatus": 0,
       "mutation": "cem-artifact",
+      "retired": {
+        "decision": "0525",
+        "reason": "the frozen expectation is the cem/0.2 map that begin wrote by default; decision 0525 makes cem/1.0 the only wire, so begin writes a cem/1.0 map and the frozen repository and stdout digests are unreachable (CEM-V1-215, CEM-V1-216)"
+      },
       "locationNormalization": {
         "fields": [
           "stdout.map"

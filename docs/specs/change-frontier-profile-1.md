@@ -46,7 +46,7 @@ appended unconditionally to **every** event — `session-start`, `user-prompt`, 
 (fixed `cause` per `AHI-054`, `reason: "frontier-authority-unavailable"`, `shouldContinue: false`, `state: "UNAVAILABLE"`).
 
 A Frontier command surface does exist and is wired to real Git-backed adapters
-(`cmd/corvint/frontier.go`, `cmd/corvint/frontier_adapters.go:24-29`, which binds
+(`cmd/corvint/frontier.go`, `cmd/corvint/frontier_adapters.go:21-25@81638a61`, which binds
 `frontierrepo.New`). Nothing connects it to the harness. So accepting both relations and this profile
 would change **zero bytes** of any harness receipt. A fourth work item — wiring
 `corvint harness event --event stop` to compute a frontier over a declared universe — is required, and
@@ -67,18 +67,18 @@ reaching it means something.
 ## Verified current state
 
 - `frontier/0` is implemented and its profile constant is `Profile = "frontier/0"`
-  (`internal/frontier/types.go:9`), with `ErrorProfile = "frontier-error/0"` (`:10`).
+  (`internal/frontier/types.go` line 9 at commit `52af6ee1`, deleted by V1-1278 S2b), with `ErrorProfile = "frontier-error/0"` (line 10).
 - `frontier/0` cannot ever be `EMPTY` over a real repository. This is not a defect and not an
   opinion; it is a recorded derivation with an executing test.
-  `conformance/frontier-v0/capabilities.go:119-127` states that "no verified universe can carry zero
+  `conformance/frontier-v0/capabilities.go` lines 119-127 (at commit `52af6ee1`; the fixture tier was retired by V1-1278 S2b, `CEM-V1-217`) state that "no verified universe can carry zero
   obligations, so the CF-V0-004 EMPTY state cannot be produced from any repository", derived in four
-  links at `:130-161`: `CF-V0-001` requires a bound OCM artifact; both runtimes refuse an intent
+  links at lines 130-161: `CF-V0-001` requires a bound OCM artifact; both runtimes refuse an intent
   scope with no enumerated requirement (`internal/lrfrepo/ocm.go` and the frozen oracle
   `src/context_corvint_ocm.py`) with code `missing-requirements`; `OCM-V0-003` requires one obligation
   per requirement; and every obligation emits at least one intent item
-  (`IntentItemsPerObligation` at `:162-165`: `unknown` → 1, `linked` → 2). Sixteen fixture cases skip
-  on this (`ObligationFreeCaseCount = 16`, `:171`), and
-  `TestEmptyStateIsUnreachableThroughTheEntryPoint` (`conformance/frontier-v0/fixtures_test.go:666`)
+  (`IntentItemsPerObligation` at lines 162-165: `unknown` → 1, `linked` → 2). Sixteen fixture cases skip
+  on this (`ObligationFreeCaseCount = 16`, line 171), and
+  `TestEmptyStateIsUnreachableThroughTheEntryPoint` (`conformance/frontier-v0/fixtures_test.go` line 666 at commit `52af6ee1`)
   drives the refusal for real rather than asserting it.
 - Decision 0012 closes the former spec gap by narrowing `OCM-V0-001`: an empty requirement
   enumeration is normatively invalid with `missing-requirements`. `CF-V0-004` and `CF-V0-018`
@@ -168,7 +168,7 @@ applies unchanged, with `frontier/0` read as `frontier/1`.
 
 - `CF-V1-014`: under `frontier/1`, a universe whose every linked obligation is witnessed and whose
   every hunk closes would emit no items, so `frontierState: EMPTY` is **reachable in principle** —
-  link 4 of the `conformance/frontier-v0/capabilities.go:130-161` derivation is exactly what
+  link 4 of the `conformance/frontier-v0/capabilities.go` lines 130-161 derivation (at commit `52af6ee1`) is exactly what
   `CF-V1-005` breaks.
 - `CF-V1-015`: **but it is not reachable in practice today, for two independent reasons, and neither
   is closed by this document.**

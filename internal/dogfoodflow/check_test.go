@@ -284,3 +284,30 @@ func TestDCWV0033CheckSummaryAbstainsOnUnobservedFields(t *testing.T) {
 		t.Errorf("inconsistent counts: %s", got)
 	}
 }
+
+// TestSidecarBaseRevisionReadsAnyLayout pins V1-1326: the previous binding's
+// base is read from the committed sidecar's top-level member whatever its JSON
+// layout, so the compact cem/1.0 map resolves as the indented one did, and a
+// sidecar with no single top-level base has none.
+func TestSidecarBaseRevisionReadsAnyLayout(t *testing.T) {
+	base := strings.Repeat("ab", 20)
+	for _, tc := range []struct {
+		name, sidecar string
+		want          bool
+	}{
+		{"compact cem/1.0", `{"baseRevision":"` + base + `","hunks":[{"id":"h","baseRevision":"x"}],"spec":"cem/1.0"}` + "\n", true},
+		{"indented", "{\n  \"baseRevision\": \"" + base + "\",\n  \"spec\": \"cem/1.0\"\n}\n", true},
+		{"member last", `{"spec":"cem/1.0","verification":{"baseRevision":"x"},"baseRevision":"` + base + `"}`, true},
+		{"nested only", `{"spec":"cem/1.0","verification":{"baseRevision":"` + base + `"}}`, false},
+		{"repeated", `{"baseRevision":"` + base + `","baseRevision":"` + base + `"}`, false},
+		{"not a string", `{"baseRevision":40}`, false},
+		{"trailing bytes", `{"baseRevision":"` + base + `"} {}`, false},
+		{"not an object", `["baseRevision","` + base + `"]`, false},
+		{"truncated", `{"baseRevision":"` + base + `"`, false},
+	} {
+		got, ok := sidecarBaseRevision([]byte(tc.sidecar))
+		if ok != tc.want || (ok && got != base) {
+			t.Errorf("%s: got %q %v, want ok=%v", tc.name, got, ok, tc.want)
+		}
+	}
+}

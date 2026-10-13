@@ -1,6 +1,6 @@
-// Package verify composes the CEM seams into the frozen repository-conformant
-// verifier: exact-patch (cem/0.1) and canonical (cem/0.2, cem/0.3) verification
-// with the frozen validation precedence, mechanical byte and Go structural
+// Package verify composes the CEM seams into the repository-conformant cem/1.0
+// verifier (stable.go) and the candidate verifier: the frozen validation
+// precedence, mechanical byte and Go structural
 // proofs, and same-path evidence drift.
 package verify
 
@@ -62,61 +62,16 @@ type Outcome struct {
 	BaseRevision   string
 	TargetRevision string // empty when no target was checked
 	Drift          []DriftItem
-	// Citation is the consumer-computed support block (CEM-V1-080..082),
-	// present for canonical (cem/0.2, cem/0.3) maps only and never a verdict.
-	Citation *Citation
 }
 
-// ExactOptions configure 0.1 exact-patch verification.
-type ExactOptions struct {
-	// ExpectedBase, when non-empty, independently resolves and checks the
-	// map's baseRevision at its historical position after digest validation.
-	ExpectedBase string
-	// Target, when non-empty, runs the inherited evidence drift check.
-	Target string
-}
-
-// Exact verifies a cem/0.1 map against exact caller-supplied patch bytes.
-func Exact(ctx context.Context, repository *gitauth.Repository, document *wire.Map, patchBytes []byte, options ExactOptions) (*Outcome, error) {
-	if document.Spec != wire.Spec01 {
-		return nil, cemcode.New(cemcode.UnsupportedSpec, "exact-patch verification accepts cem/0.1 only")
-	}
-	if err := checkPatchDigest(document, patchBytes); err != nil {
-		return nil, err
-	}
-	if options.ExpectedBase != "" {
-		if err := checkExpectedBase(ctx, repository, document, options.ExpectedBase); err != nil {
-			return nil, err
-		}
-	}
-	return inherited(ctx, repository, document, patchBytes, options.Target)
-}
-
-// CanonicalOptions configure 0.2 canonical verification.
+// CanonicalOptions configure the canonical change mechanics canonicalChange
+// checks for the candidate profile.
 type CanonicalOptions struct {
 	ExpectedBase string // required independent producer baseline
 	Target       string // required caller target revision
-	// RawMapBytes is the exact bounded raw cem/0.2 input being verified, used
+	// RawMapBytes is the exact bounded raw candidate input being verified, used
 	// for the target-side sidecar artifact binding.
 	RawMapBytes []byte
-}
-
-// Canonical verifies a cem/0.2 map with independent base and target authority,
-// deriving the canonical patch itself. It follows the frozen stage-7/8/9
-// precedence: expected-base resolution and equality, target resolution, the
-// base-side historical-sidecar check, the target-side raw artifact comparison,
-// canonical derivation, inherited verification, then drift.
-//
-// The returned bound flag reports whether independent repository derivation
-// and target binding both completed (CEM-CB-014): it is false for every
-// failure before the canonical patch was derived, and true from the digest
-// check onward, so callers claim "canonical" assurance only when it was
-// actually established.
-func Canonical(ctx context.Context, repository *gitauth.Repository, document *wire.Map, options CanonicalOptions) (*Outcome, bool, error) {
-	if !wire.Canonical(document.Spec) {
-		return nil, false, cemcode.New(cemcode.UnsupportedSpec, "canonical verification accepts cem/0.2 or cem/0.3 only")
-	}
-	return canonicalChange(ctx, repository, document, options)
 }
 
 // canonicalChange contains shared Git/evidence mechanics, not profile admission.
@@ -231,17 +186,13 @@ func inherited(ctx context.Context, repository *gitauth.Repository, document *wi
 	if err := checkHunkCoverage(document, parsed); err != nil {
 		return nil, err
 	}
-	spans, err := checkEvidence(ctx, repository, document, baseOID)
-	if err != nil {
+	if _, err := checkEvidence(ctx, repository, document, baseOID); err != nil {
 		return nil, err
 	}
 	if err := checkMechanical(document, parsed, source); err != nil {
 		return nil, err
 	}
 	outcome := &Outcome{BaseRevision: baseOID}
-	if wire.Canonical(document.Spec) {
-		outcome.Citation = ComputeCitation(document, parsed, spans)
-	}
 	if target != "" {
 		if err := checkDrift(ctx, repository, document, baseOID, target, outcome); err != nil {
 			// A drift rejection keeps its context: the populated outcome rides
@@ -362,7 +313,7 @@ func checkEvidence(ctx context.Context, repository *gitauth.Repository, document
 
 // checkMechanical proves every mechanical claim the verifier can reproduce:
 // byte reasons directly from a hunk's removed and added bytes, and the
-// cem/0.3 structural reasons from the base blob and the patch (CEM-SM-002).
+// structural reasons from the base blob and the patch (CEM-SM-002).
 // A claim it cannot reproduce is refused; the author's word is never an
 // input.
 func checkMechanical(document *wire.Map, parsed *patch.Patch, source sim.BlobSource) error {

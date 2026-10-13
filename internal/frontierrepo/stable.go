@@ -11,8 +11,8 @@ import (
 )
 
 // StableFrontierState is the frontier state of every stable upstream. frontier/0
-// is frozen, admits cem/0.2 only and binds an lrf/0 digest, and no stable LRF
-// or frontier profile is accepted, so the stable route produces no frontier
+// is retired with the cem/0.x wire (CEM-V1-217) and no stable LRF or frontier
+// profile is accepted, so the stable route produces no frontier
 // document and claims no frontier state at all (CEM-V1-126). It is never an
 // EMPTY or closed frontier.
 const StableFrontierState = "NOT_PRODUCED"
@@ -55,8 +55,8 @@ type StableUpstream struct {
 //     and otherwise runs a real stable verification;
 //  4. revalidates the retained boundary.
 //
-// Any refusal returns no upstream. The stable TCQ result is never rebound into
-// a tcq/0 identity and no frontier/0 document is computed from it.
+// Any refusal returns no upstream. No frontier document is computed from the
+// stable TCQ result.
 func RecomputeStable(ctx context.Context, root string, request StableRequest) (*StableUpstream, error) {
 	options := lrfrepo.StableUniverseOptions{
 		Root: root, ExpectedBase: request.ExpectedBase, Target: request.Target, ArtifactRoot: request.ArtifactRoot,

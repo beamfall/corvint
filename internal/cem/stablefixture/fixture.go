@@ -1,6 +1,6 @@
 // Package stablefixture builds real cem/1.0 fixtures for consumer tests. It is
-// imported only by tests: it converts one committed, verified cem/0.2 change
-// into a stable map with a closed criterion/receipt/link graph, writes that
+// imported only by tests: it converts one committed, verified cem/1.0 producer
+// change into a stable map with a closed criterion/receipt/link graph, writes that
 // graph's six artifact files under a new explicit artifact root, and commits
 // exactly the stable bytes as the sidecar at a new target.
 package stablefixture
@@ -44,16 +44,15 @@ func Digest(data []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// Stabilize converts legacyRaw, a change map verified at the repository's
-// current HEAD, into a cem/1.0 map whose one criterion links linkedHunk, and
-// commits it with git, a caller-owned runner that must disable automatic
-// maintenance. legacyRaw is either the cem/1.0 change `cem prepare --spec
-// cem/1.0` writes (CEM-V1-214) or the internal cem/0.2 build NewChange still
-// uses until S2b. The change mechanics are kept byte for byte.
-func Stabilize(t testing.TB, root string, legacyRaw []byte, linkedHunk string, git func(args ...string) string) Stable {
+// Stabilize converts producerRaw, the cem/1.0 producer map `cem prepare`
+// writes (CEM-V1-214), verified at the repository's current HEAD, into a
+// cem/1.0 map whose one criterion links linkedHunk, and commits it with git, a
+// caller-owned runner that must disable automatic maintenance. The change
+// mechanics are kept byte for byte.
+func Stabilize(t testing.TB, root string, producerRaw []byte, linkedHunk string, git func(args ...string) string) Stable {
 	t.Helper()
 	RequireStableHost(t)
-	legacy, err := changeMechanics(legacyRaw)
+	producer, err := changeMechanics(producerRaw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,10 +82,10 @@ func Stabilize(t testing.TB, root string, legacyRaw []byte, linkedHunk string, g
 	}
 	criterion.ID = criterionID(t, criterion)
 	out.CriterionID = criterion.ID
-	change := wire.StableChange(*legacy)
+	change := wire.StableChange(*producer)
 	change.Spec = wire.StableSpec
 	var evidenceIDs []string
-	for _, hunk := range legacy.Hunks {
+	for _, hunk := range producer.Hunks {
 		if hunk.ID == linkedHunk {
 			for _, basis := range hunk.Basis {
 				evidenceIDs = append(evidenceIDs, basis.EvidenceID)
@@ -121,12 +120,9 @@ func Stabilize(t testing.TB, root string, legacyRaw []byte, linkedHunk string, g
 	return out
 }
 
-// changeMechanics parses the change Stabilize converts: a cem/1.0 change map
-// through the stable decoder, otherwise the internal cem/0.2 build.
+// changeMechanics parses the cem/1.0 change Stabilize converts through the
+// stable decoder.
 func changeMechanics(raw []byte) (*wire.Map, error) {
-	if !wire.DeclaresStable(raw) {
-		return wire.ParseMap(raw)
-	}
 	document, err := wire.ParseStable(raw)
 	if err != nil {
 		return nil, err

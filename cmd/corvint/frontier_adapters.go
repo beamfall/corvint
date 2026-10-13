@@ -16,14 +16,10 @@ import (
 // outside the Frontier wire and verifier, and the command surface honours that
 // by holding a seam rather than an implementation.
 //
-// One `frontierrepo.Adapter` satisfies both seams because CF-V0-002 and
-// CF-V0-021 step 5 require ONE shared OCM-consuming verification call per
-// invocation: the adapter memoizes that single accepted verification, so the
-// call Frontier makes at cascade stage 5 is the same one TCQ consumes at
-// stage 7. Handing back two independent objects would silently verify twice.
+// The adapter is the stable viewer: it runs frontierrepo.RecomputeStable once
+// per invocation over the repository root (V1-1304).
 func init() {
-	frontierAdapters = func(ctx context.Context, root string) (frontier.Verifier, frontier.TCQRecomputer) {
-		adapter := frontierrepo.New(ctx, root)
-		return adapter, adapter
+	frontierAdapters = func(ctx context.Context, root string) frontier.StableViewer {
+		return frontierrepo.New(ctx, root)
 	}
 }

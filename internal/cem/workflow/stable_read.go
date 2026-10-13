@@ -120,6 +120,13 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 		// --citation names the map's citation class beside, never inside, the
 		// verifier result, so the result stays what verify-stable reports and
 		// never echoes the role (CEM-V1-095, CEM-V1-106).
+		// A governing instruction file the change rewrites is reported beside
+		// the result and never changes the state (CEM-CB-026).
+		if document, _ := wire.ParseStable(raw); document != nil {
+			if rows := selfModifiedAuthority(stableMechanics(document)); len(rows) != 0 {
+				envelope["selfModifiedAuthority"] = rows
+			}
+		}
 		if options.Citation {
 			if document, _ := wire.ParseStable(raw); document != nil {
 				envelope["citationClass"] = StableCitationClass(document.EffectiveRole())

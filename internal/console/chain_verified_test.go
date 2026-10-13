@@ -82,7 +82,7 @@ func TestCEMV1164ConsoleVerifiedStableChain(t *testing.T) {
 	}
 	refused("missing base", page(stable.ArtifactRoot, ""), "add base=")
 	refused("malformed base", page(stable.ArtifactRoot, "&base="+change.Base[:12]), "add base=")
-	refused("wrong base", page(stable.ArtifactRoot, "&base="+change.LegacyTarget), "the stable verifier returned")
+	refused("wrong base", page(stable.ArtifactRoot, "&base="+change.ProducerTarget), "the stable verifier returned")
 	refused("missing artifact root", page(filepath.Join(t.TempDir(), "absent"), "&base="+change.Base), "the stable verifier returned")
 
 	artifact := filepath.Join(stable.ArtifactRoot, filepath.FromSlash(stable.ArtifactPaths[0]))

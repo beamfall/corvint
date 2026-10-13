@@ -60,13 +60,13 @@ func citationRepo(t *testing.T, n int) (root, base, target string) {
 }
 
 // statusWithCitations prepares base..target, cites every hunk with the span
-// choose names for it, commits the candidate and returns canonical status.
+// choose names for it and returns the stable status with --citation.
 func statusWithCitations(t *testing.T, root, base, target string, choose func(wire.Hunk) (string, string)) map[string]any {
 	t.Helper()
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)
 	}
-	_, document, err := openSession(t, root).readMapInput(wire.ExcludedCEMPath)
+	_, document, err := openSession(t, root).readProducerMap(wire.ExcludedCEMPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,32 +78,36 @@ func statusWithCitations(t *testing.T, root, base, target string, choose func(wi
 			t.Fatal(err)
 		}
 	}
-	gitCmd(t, root, "add", wire.ExcludedCEMPath)
-	gitCmd(t, root, "commit", "-qm", "candidate")
-	result, err := openSession(t, root).Read(ctx(), "status", ReadOptions{MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD", Citation: true})
+	return citationStatus(t, root, base, target)
+}
+
+// citationStatus reads the stable status of the sidecar with --citation.
+func citationStatus(t *testing.T, root, base, target string) map[string]any {
+	t.Helper()
+	result, err := openSession(t, root).Read(ctx(), "status", ReadOptions{
+		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: target,
+		ArtifactRoot: root, ArtifactsGiven: true, Citation: true,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return result
 }
 
-// acceptedCitation requires an accepted canonical status and returns its
-// support block and that block's JSON bytes.
+// acceptedCitation requires an accepted stable status and returns the
+// verifier's support block and that block's JSON bytes (CEM-V1-092).
 func acceptedCitation(t *testing.T, result map[string]any) (*verify.Citation, []byte) {
 	t.Helper()
-	verification := result["verification"].(map[string]any)
-	if result["state"] != "ready-for-ci" || verification["valid"] != true {
-		t.Fatalf("status did not accept: %s", indentedCanonicalJSON(result))
+	verification, _ := result["stableVerification"].(StableVerification)
+	if verification.Result.Outcome != "ACCEPT" || verification.Result.Citation == nil {
+		encoded, _ := json.MarshalIndent(result, "", "  ")
+		t.Fatalf("status did not accept with a citation block: %s", encoded)
 	}
-	citation, ok := verification["citation"].(*verify.Citation)
-	if !ok {
-		t.Fatalf("canonical verification carries no citation block: %s", indentedCanonicalJSON(verification))
-	}
-	encoded, err := json.Marshal(citation)
+	encoded, err := json.Marshal(verification.Result.Citation)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return citation, encoded
+	return verification.Result.Citation, encoded
 }
 
 func unitIndex(t *testing.T, path string) int {
@@ -174,7 +178,7 @@ func TestCEMV1080RubberStampAndCarefulMapsDiffer(t *testing.T) {
 // hunkForPath returns the hunk ID the committed map assigns to unit index.
 func hunkForPath(t *testing.T, root string, index int) string {
 	t.Helper()
-	_, document, err := openSession(t, root).readMapInput(wire.ExcludedCEMPath)
+	_, document, err := openSession(t, root).readProducerMap(wire.ExcludedCEMPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +231,7 @@ func TestCEMV1081IDBoundaryAndAnnotation(t *testing.T) {
 	citation, encoded := acceptedCitation(t, statusWithCitations(t, root, base, target, func(wire.Hunk) (string, string) {
 		return "docs/ids.md", "1:1"
 	}))
-	_, document, err := openSession(t, root).readMapInput(wire.ExcludedCEMPath)
+	_, document, err := openSession(t, root).readProducerMap(wire.ExcludedCEMPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +252,8 @@ func TestCEMV1081IDBoundaryAndAnnotation(t *testing.T) {
 }
 
 // TestCEMV1082CitationIsDeterministic is fixture (e) at the envelope level:
-// two status reads of one committed map are byte-identical.
+// two status reads of one map are byte-identical, and the block keeps its
+// pinned key order.
 func TestCEMV1082CitationIsDeterministic(t *testing.T) {
 	root, base, target := citationRepo(t, 6)
 	first := statusWithCitations(t, root, base, target, func(hunk wire.Hunk) (string, string) {
@@ -256,46 +261,14 @@ func TestCEMV1082CitationIsDeterministic(t *testing.T) {
 		return "docs/notes.md", fmt.Sprintf("%d:%d", line, line)
 	})
 	_, firstJSON := acceptedCitation(t, first)
-	second, err := openSession(t, root).Read(ctx(), "status", ReadOptions{MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD", Citation: true})
-	if err != nil {
-		t.Fatal(err)
-	}
+	second := citationStatus(t, root, base, target)
 	_, secondJSON := acceptedCitation(t, second)
-	if !bytes.Equal(firstJSON, secondJSON) || !bytes.Equal(indentedCanonicalJSON(first), indentedCanonicalJSON(second)) {
+	firstEnvelope, _ := json.Marshal(first)
+	secondEnvelope, _ := json.Marshal(second)
+	if !bytes.Equal(firstJSON, secondJSON) || !bytes.Equal(firstEnvelope, secondEnvelope) {
 		t.Fatalf("status is not byte-deterministic:\n%s\n%s", firstJSON, secondJSON)
 	}
-	if !bytes.Contains(indentedCanonicalJSON(first), []byte("\"citation\": {\n      \"profile\": \"cem-citation-support/0\",\n      \"hunks\": [")) {
-		t.Fatalf("citation keys are not in the pinned order:\n%s", indentedCanonicalJSON(first))
-	}
-}
-
-// TestCEMV1080CitationIsCanonicalOnly pins the --citation opt-in:
-// default 0.x output omits the block so it stays byte-identical to the frozen
-// goldens (decision 0357); the opt-in adds it on success and drift rejection
-// for cem/0.2 and cem/0.3 only, never for cem/0.1.
-func TestCEMV1080CitationIsCanonicalOnly(t *testing.T) {
-	root, base, target := citationRepo(t, 6)
-	statusWithCitations(t, root, base, target, func(hunk wire.Hunk) (string, string) {
-		line := unitIndex(t, hunk.Path) + 1
-		return "docs/notes.md", fmt.Sprintf("%d:%d", line, line)
-	})
-	plain, err := openSession(t, root).Read(ctx(), "status", ReadOptions{MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, present := plain["verification"].(map[string]any)["citation"]; present {
-		t.Fatalf("default status carries citation: %s", indentedCanonicalJSON(plain))
-	}
-	outcome := &verify.Outcome{BaseRevision: base, Citation: &verify.Citation{}}
-	for _, spec := range []string{wire.Spec01, wire.Spec02, wire.Spec03} {
-		for _, driftRejected := range []bool{false, true} {
-			for _, optIn := range []bool{false, true} {
-				result := successVerification(&wire.Map{Spec: spec}, outcome, driftRejected, optIn)
-				_, present := result["citation"]
-				if want := optIn && wire.Canonical(spec); present != want {
-					t.Errorf("%s drift=%v --citation=%v: citation present=%v, want %v", spec, driftRejected, optIn, present, want)
-				}
-			}
-		}
+	if !bytes.HasPrefix(firstJSON, []byte(`{"profile":"cem-citation-support/0","hunks":[`)) {
+		t.Fatalf("citation keys are not in the pinned order: %s", firstJSON)
 	}
 }

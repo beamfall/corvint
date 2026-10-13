@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# CEM-PILOT-024..027 on fixture repositories: each recipe under examples/cem/recipes completes
-# on a supported fixture and, for missing, stale and unsupported evidence, exits non-zero with
-# the refusal retained. The bounded runner kills a step at RECIPE_TIMEOUT and kills the child
+# CEM-PILOT-024..027 on fixture repositories: recipes 1 and 2 complete on a supported fixture
+# and, for missing, stale and unsupported evidence, exit non-zero with the refusal retained;
+# recipe 3 retains its map-absent, stable-routing and verifier-pin refusals (its cem/0.1 accept
+# cases were retired with cem/0.x, V1-1278). The bounded runner kills a step at RECIPE_TIMEOUT and kills the child
 # when the recipe is interrupted. CORVINT_BIN selects an existing Corvint CLI (for example the
 # installed release); otherwise corvint is built from this checkout. The portable verifier is
 # always built from this checkout's interop/cem01-go.
@@ -142,26 +143,6 @@ cp "$test_root/spaced.json" "$repo/.corvint/change.cem.json"
 git -C "$repo" commit -qam 'spaced change evidence'
 run r-spaced review-change.sh "${review[@]}"
 expect 0 'outcome=complete report='
-# A cem/0.x prepare whose worklist names a file called --artifacts keeps the 0.x read: only the
-# stable next action's argv prefix selects --artifacts.
-legacy_bin="$test_root/corvint-legacy"
-printf '#!/bin/bash\nif [ "${3-}" = cem ] && [ "${4-}" = prepare ]; then exec "$CORVINT_REAL" "$@" --spec cem/0.2; fi\nexec "$CORVINT_REAL" "$@"\n' > "$legacy_bin"
-chmod +x "$legacy_bin"
-legacy="$test_root/legacy"
-new_repo "$legacy"
-printf 'base\n' > "$legacy/README.md"
-git -C "$legacy" add README.md
-git -C "$legacy" commit -qm base
-legacy_base=$(git -C "$legacy" rev-parse HEAD)
-printf 'x\n' > "$legacy/--artifacts"
-git -C "$legacy" add -- --artifacts
-git -C "$legacy" commit -qm 'dash-named file'
-run r-legacy-dash review-change.sh CORVINT_ROOT="$legacy" CORVINT_BASE="$legacy_base" \
-  CORVINT_BIN="$legacy_bin" CORVINT_REAL="$corvint_bin"
-expect 3 'outcome=incomplete refused=status'
-grep -q '"path":"--artifacts"' "$out/prepare.out" || fail 'r-legacy-dash worklist lacks the dash-named path'
-grep -q '"spec": *"cem/0.2"' "$legacy/.corvint/change.cem.json" || fail 'r-legacy-dash did not prepare cem/0.2'
-grep -q '"unknown":1' "$out/status.out" || fail 'r-legacy-dash status took the stable read'
 
 sed 's/900/901/' "$repo/auth/auth.go" > "$repo/auth/auth.go.new"
 mv "$repo/auth/auth.go.new" "$repo/auth/auth.go"
@@ -183,7 +164,9 @@ run r-bad-cap review-change.sh "${review[@]}" CEM_MAX_UNKNOWN=many
 expect 2 'CEM_MAX_UNKNOWN must be a whole number'
 [ ! -e "$out/prepare.out" ] || fail 'r-bad-cap ran prepare'
 
-# --- Recipe 3: portable CI verification of a cem/0.1 map ------------------------------------
+# --- Recipe 3: portable CI verification routing ----------------------------------------------
+# cem/0.x is retired (CEM-V1-215, V1-1278), so no Corvint command produces the cem/0.1 map the
+# portable verifier accepts; the recipe's map-absent, stable-routing and pin refusals remain.
 ci="$test_root/ci"
 new_repo "$ci"
 mkdir -p "$ci/docs" "$ci/.corvint"
@@ -195,47 +178,13 @@ ci_base=$(git -C "$ci" rev-parse HEAD)
 printf 'one\ntwo\n' > "$ci/app.txt"
 git -C "$ci" commit -qam change
 ci_change=$(git -C "$ci" rev-parse HEAD)
-# The map is produced from exactly the docs/CEM-CI.md patch profile.
-git -C "$ci" -c core.quotePath=false -c diff.algorithm=myers -c diff.context=3 \
-  diff --binary --full-index --no-color --no-ext-diff --no-textconv --no-renames \
-  --no-indent-heuristic --diff-algorithm=myers --unified=3 \
-  --src-prefix=a/ --dst-prefix=b/ --ignore-submodules=none \
-  "$ci_base" "$ci_change" -- . ':(exclude).corvint/change.cem.json' > "$test_root/ci.patch"
-"$corvint_bin" --root "$ci" cem begin --patch "$test_root/ci.patch" --output .corvint/change.cem.json \
-  --base "$ci_base" > /dev/null
-"$corvint_bin" --root "$ci" cem cite --map .corvint/change.cem.json --hunk 1 \
-  --evidence-path docs/decision.md --lines 3:3 --relation decision > /dev/null
-git -C "$ci" add .corvint/change.cem.json
-git -C "$ci" commit -qm 'change evidence'
-ci_head=$(git -C "$ci" rev-parse HEAD)
 pins=(CEM_REPOSITORY="$ci" CEM_BASE_SHA="$ci_base" CEM_VERIFIER="$verifier" CEM_VERIFIER_SHA256="$pin")
-
-run c-accepted ci-verify.sh "${pins[@]}" CEM_HEAD_SHA="$ci_head"
-expect 0 'outcome=accepted exit=0'
-grep -q '"schema":"cem-ci-report/0"' "$out/verify.out" || fail 'c-accepted report not retained'
 
 run c-missing ci-verify.sh "${pins[@]}" CEM_HEAD_SHA="$ci_change"
 expect 3 'outcome=missing-evidence exit=3'
 grep -q '"code":"map-absent"' "$out/verify.out" || fail 'c-missing report not retained'
 
-# Stale: a later code commit leaves the committed map describing an older patch.
-printf 'one\ntwo\nthree\n' > "$ci/app.txt"
-git -C "$ci" commit -qam later
-run c-stale ci-verify.sh "${pins[@]}" CEM_HEAD_SHA="$(git -C "$ci" rev-parse HEAD)"
-expect 1 'outcome=rejected exit=1'
-
-# Unsupported: a cem/0.2 map from `cem prepare --spec cem/0.2` needs verify-pr.sh, not this verifier.
-git -C "$ci" reset -q --hard "$ci_change"
-"$corvint_bin" --root "$ci" cem prepare --spec cem/0.2 --base "$ci_base" --target HEAD > /dev/null
-git -C "$ci" add .corvint/change.cem.json
-git -C "$ci" commit -qm 'cem/0.2 evidence'
-run c-unsupported ci-verify.sh "${pins[@]}" CEM_HEAD_SHA="$(git -C "$ci" rev-parse HEAD)"
-expect 4 'outcome=unsupported-profile exit=4'
-expect 4 'recovery=unsupported-profile: this verifier reads cem/0.1 only'
-
 # A cem/1.0 map is routed to the explicit stable branch of verify-portable.sh (CEM-V1-PSR-004).
-git -C "$ci" reset -q --hard "$ci_change"
-mkdir -p "$ci/.corvint"
 printf '{"spec":"cem/1.0"}\n' > "$ci/.corvint/change.cem.json"
 git -C "$ci" add .corvint/change.cem.json
 git -C "$ci" commit -qm 'cem/1.0 evidence'
@@ -245,7 +194,7 @@ expect 4 'recovery=unsupported-profile: cem/1.0 map; rerun verify-portable.sh wi
 # A verifier whose digest differs from the pin is never executed.
 printf '#!/bin/sh\n: > "%s/ran"\n' "$test_root" > "$test_root/impostor"
 chmod +x "$test_root/impostor"
-run c-digest ci-verify.sh "${pins[@]}" CEM_HEAD_SHA="$ci_head" CEM_VERIFIER="$test_root/impostor"
+run c-digest ci-verify.sh "${pins[@]}" CEM_HEAD_SHA="$ci_change" CEM_VERIFIER="$test_root/impostor"
 expect 2 'outcome=operational exit=2'
 [ ! -e "$test_root/ran" ] || fail 'c-digest executed a mismatched verifier'
 grep -q 'not executed' "$out/verify.stderr" || fail 'c-digest refusal not retained'

@@ -56,11 +56,11 @@ Every statement below was opened in the tree at this date; the citation is where
   an intent obligation" (`docs/specs/change-frontier-v0.md:54-55`, restating
   `LRF-V0-008` at `docs/specs/lexical-relevance-floor-v0.md:171`; the `cem-lexical-v0` definition
   that the CEM hunk side uses instead is `lexical-relevance-floor-v0.md:57-60`). The Go closure
-  table reads exactly that field (`internal/frontier/closure.go:191`).
+  table read exactly that field (`internal/frontier/closure.go` line 191 at commit `52af6ee1`; the `frontier/0` engine was deleted by V1-1278 S2b).
 - Relation names in this repository are versioned string constants:
   `MatchedRelation = "test-report-matched-v0"` (`internal/tcq/canonical.go:17`), consumed by Frontier
-  as `const tcqRelation = "test-report-matched-v0"` (`internal/frontier/closure.go:165`), and
-  `"cem-lexical-v0"` (`internal/lrf/evaluate.go:211`, `internal/frontier/closure.go:191`). This
+  as `const tcqRelation = "test-report-matched-v0"` (`internal/frontier/closure.go` line 165 at commit `52af6ee1`), and
+  `"cem-lexical-v0"` (`internal/lrf/evaluate.go:211`, and `internal/frontier/closure.go` line 191 at commit `52af6ee1`). This
   document follows that convention.
 - **The OCM intent scope is resolved at the target revision, not the base.**
   `internal/lrfrepo/ocm.go:457` reads the intent blob with `reader.blob(document.target, ...)`. A

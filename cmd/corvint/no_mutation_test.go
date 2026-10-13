@@ -76,18 +76,16 @@ func TestCLIReadVerbsLeaveTheRepositoryByteIdentical(t *testing.T) {
 			wantExit: 2,
 		},
 		{
-			name: "frontier reports an EMPTY frontier through the registered adapters",
+			name: "frontier reports the stable view through the registered adapter",
 			setup: func(t *testing.T) (string, func() int) {
 				root := frontierRepository(t)
-				ctx := registerFrontierAdapters(t,
-					stubFrontierVerifier{universe: frontierUniverse(0)},
-					stubFrontierTCQ{id: "tcq:sha256:" + frontierHex("tcq")})
+				ctx := registerFrontierAdapters(t, stubStableViewer{})
 				return root, func() int {
 					stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
-					return runContext(ctx, frontierArguments(root, "--json"), strings.NewReader(""), stdout, stderr)
+					return runContext(ctx, frontierArguments(root, "--artifacts", ".", "--json"), strings.NewReader(""), stdout, stderr)
 				}
 			},
-			wantExit: 0,
+			wantExit: 1,
 		},
 		{
 			name: "test-validity abstains without a receipt",

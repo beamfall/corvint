@@ -9,8 +9,8 @@ const (
 	MaxConfiguredArtifacts                         = 10_000
 	MaxAggregateInputBytes                  uint64 = 256 << 20
 	MaxMetricSamples                               = 100_000
-	ExpectedTypedTraceAdapterRegistrySHA256        = "sha256:477cf73e98c9ef9c70dcaea45ea4520e8957cac99ce9fea9886207a88df74738"
-	ExpectedAdapterRegistrySHA256                  = "sha256:2de98344235e7f432b1b486c14fa1023f9fdb08b41632bac04d3049592cf3bb3"
+	ExpectedTypedTraceAdapterRegistrySHA256        = "sha256:e046f10139be61ef37976cf210df77afce582fd75d42f2e5d2aec70adee0f7da"
+	ExpectedAdapterRegistrySHA256                  = "sha256:e94ebdfa1e1ec154419589cc3ad4030c9675f609f88e76e7f1847788886905c0"
 )
 
 type Validity string

@@ -28,9 +28,6 @@ func TestParseArgumentsAcceptsExactContract(t *testing.T) {
 	arguments := []string{
 		"snapshot", "--source", "local-trace-v1=.context-corvint/traces",
 		"--root", root, "--source", "query-envelope-v1=receipts/query.json",
-		"--cem", ".corvint/change.cem.json", "--ocm", ".corvint/change.ocm.json",
-		"--cem-ocm-profile", "cem/0.2+ocm/0.1",
-		"--expected-base", testBase, "--target", testTarget,
 		"--conformance", "--generated-at", testTime,
 	}
 	got, err := parseArguments(arguments)
@@ -42,11 +39,6 @@ func TestParseArgumentsAcceptsExactContract(t *testing.T) {
 		Sources: []sourceOption{
 			{AdapterID: "local-trace-v1", RelativePath: ".context-corvint/traces"},
 			{AdapterID: "query-envelope-v1", RelativePath: "receipts/query.json"},
-		},
-		Bundle: &bundleOption{
-			CEM: ".corvint/change.cem.json", OCM: ".corvint/change.ocm.json",
-			Profile:      "cem/0.2+ocm/0.1",
-			ExpectedBase: testBase, Target: testTarget,
 		},
 		GeneratedAt: testTime,
 	}
@@ -86,40 +78,6 @@ func TestPathArgumentsUseExact4096ByteCap(t *testing.T) {
 		t.Fatalf("accepted %d-byte relative path", len(pathOverLimit))
 	}
 
-	bundleArguments := func(cem, ocm string) []string {
-		return []string{
-			"snapshot", "--root", string(os.PathSeparator),
-			"--cem", cem, "--ocm", ocm,
-			"--cem-ocm-profile", "cem/0.1+ocm/0.1",
-			"--expected-base", testBase, "--target", testTarget,
-		}
-	}
-	for _, test := range []struct {
-		name string
-		args []string
-	}{
-		{name: "cem at limit", args: bundleArguments(pathAtLimit, "ocm.json")},
-		{name: "ocm at limit", args: bundleArguments("cem.json", pathAtLimit)},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			if _, err := parseArguments(test.args); err != nil {
-				t.Fatalf("rejected 4096-byte path: %v", err)
-			}
-		})
-	}
-	for _, test := range []struct {
-		name string
-		args []string
-	}{
-		{name: "cem over limit", args: bundleArguments(pathOverLimit, "ocm.json")},
-		{name: "ocm over limit", args: bundleArguments("cem.json", pathOverLimit)},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			if _, err := parseArguments(test.args); err == nil {
-				t.Fatal("accepted 4097-byte path")
-			}
-		})
-	}
 }
 
 func TestSourceAdapterIDUsesIndependent128ByteCap(t *testing.T) {
@@ -142,33 +100,31 @@ func TestParseArgumentsRejectsInvalidAndHostileInputs(t *testing.T) {
 	root := t.TempDir()
 	valid := []string{"snapshot", "--root", root}
 	tests := map[string][]string{
-		"empty":                       nil,
-		"wrong subcommand":            {"serve", "--root", root},
-		"missing root":                {"snapshot"},
-		"relative root":               {"snapshot", "--root", "."},
-		"unclean root":                {"snapshot", "--root", root + "/."},
-		"duplicate root":              append(append([]string{}, valid...), "--root", root),
-		"unknown flag":                append(append([]string{}, valid...), "--bogus", "x"),
-		"flag without value":          append(append([]string{}, valid...), "--source"),
-		"bare argument":               append(append([]string{}, valid...), "hostile"),
-		"source without equals":       append(append([]string{}, valid...), "--source", "local-trace-v1"),
-		"source bad adapter":          append(append([]string{}, valid...), "--source", "Local_Trace=ok"),
-		"source absolute":             append(append([]string{}, valid...), "--source", "local-trace-v1=/tmp/x"),
-		"source traversal":            append(append([]string{}, valid...), "--source", "local-trace-v1=a/../b"),
-		"source backslash":            append(append([]string{}, valid...), "--source", `local-trace-v1=a\b`),
-		"source control":              append(append([]string{}, valid...), "--source", "local-trace-v1=a\nb"),
-		"bundle one flag":             append(append([]string{}, valid...), "--cem", "cem.json"),
-		"bundle three flags":          append(append([]string{}, valid...), "--cem", "cem.json", "--ocm", "ocm.json", "--target", testTarget),
-		"bundle four without profile": append(append([]string{}, valid...), "--cem", "cem.json", "--ocm", "ocm.json", "--expected-base", testBase, "--target", testTarget),
-		"unsupported bundle profile":  append(append([]string{}, valid...), "--cem", "cem.json", "--ocm", "ocm.json", "--cem-ocm-profile", "cem/9+ocm/9", "--expected-base", testBase, "--target", testTarget),
-		"uppercase object":            append(append([]string{}, valid...), "--expected-base", strings.ToUpper(testBase)),
-		"generated ordinary":          append(append([]string{}, valid...), "--generated-at", testTime),
-		"duplicate conformance":       append(append([]string{}, valid...), "--conformance", "--conformance", "--generated-at", testTime),
-		"duplicate generated":         append(append([]string{}, valid...), "--conformance", "--generated-at", testTime, "--generated-at", testTime),
-		"conformance without time":    append(append([]string{}, valid...), "--conformance"),
-		"generated offset":            append(append([]string{}, valid...), "--conformance", "--generated-at", "2026-08-23T12:34:56.123456789+00:00"),
-		"generated short fraction":    append(append([]string{}, valid...), "--conformance", "--generated-at", "2026-08-23T12:34:56.123Z"),
-		"generated impossible":        append(append([]string{}, valid...), "--conformance", "--generated-at", "2026-02-30T12:34:56.123456789Z"),
+		"empty":                    nil,
+		"wrong subcommand":         {"serve", "--root", root},
+		"missing root":             {"snapshot"},
+		"relative root":            {"snapshot", "--root", "."},
+		"unclean root":             {"snapshot", "--root", root + "/."},
+		"duplicate root":           append(append([]string{}, valid...), "--root", root),
+		"unknown flag":             append(append([]string{}, valid...), "--bogus", "x"),
+		"flag without value":       append(append([]string{}, valid...), "--source"),
+		"bare argument":            append(append([]string{}, valid...), "hostile"),
+		"source without equals":    append(append([]string{}, valid...), "--source", "local-trace-v1"),
+		"source bad adapter":       append(append([]string{}, valid...), "--source", "Local_Trace=ok"),
+		"source absolute":          append(append([]string{}, valid...), "--source", "local-trace-v1=/tmp/x"),
+		"source traversal":         append(append([]string{}, valid...), "--source", "local-trace-v1=a/../b"),
+		"source backslash":         append(append([]string{}, valid...), "--source", `local-trace-v1=a\b`),
+		"source control":           append(append([]string{}, valid...), "--source", "local-trace-v1=a\nb"),
+		"retired bundle flag":      append(append([]string{}, valid...), "--cem", "cem.json"),
+		"retired bundle profile":   append(append([]string{}, valid...), "--cem-ocm-profile", "cem/0.2+ocm/0.1"),
+		"uppercase object":         append(append([]string{}, valid...), "--expected-base", strings.ToUpper(testBase)),
+		"generated ordinary":       append(append([]string{}, valid...), "--generated-at", testTime),
+		"duplicate conformance":    append(append([]string{}, valid...), "--conformance", "--conformance", "--generated-at", testTime),
+		"duplicate generated":      append(append([]string{}, valid...), "--conformance", "--generated-at", testTime, "--generated-at", testTime),
+		"conformance without time": append(append([]string{}, valid...), "--conformance"),
+		"generated offset":         append(append([]string{}, valid...), "--conformance", "--generated-at", "2026-08-23T12:34:56.123456789+00:00"),
+		"generated short fraction": append(append([]string{}, valid...), "--conformance", "--generated-at", "2026-08-23T12:34:56.123Z"),
+		"generated impossible":     append(append([]string{}, valid...), "--conformance", "--generated-at", "2026-02-30T12:34:56.123456789Z"),
 	}
 	duplicateSource := append(append([]string{}, valid...), "--source", "local-trace-v1=a")
 	tests["duplicate source"] = append(duplicateSource, "--source", "local-trace-v1=a")
@@ -487,7 +443,6 @@ func validRegistry() []model.AdapterRegistration {
 	defaultTrace := ".context-corvint/traces"
 	return []model.AdapterRegistration{
 		{AdapterID: "beamfall-shadow-v0", DeliveryStage: model.DeliveryUnsupported, IssueCodes: []string{"SOURCE_UNSUPPORTED"}, MaxBytes: "0", SourceKind: "BEAMFALL_SHADOW", VerifierID: "unsupported"},
-		{AdapterID: "cem-ocm-bundle-v0", AcceptedProfiles: []string{"cem/0.1+ocm/0.1", "cem/0.2+ocm/0.1"}, DeliveryStage: model.DeliveryNotStarted, IssueCodes: []string{"SOURCE_UNSUPPORTED"}, MaxBytes: "0", SourceKind: "CEM_OCM_BUNDLE", VerifierID: "go-cem-ocm-bundle-v0"},
 		{AdapterID: "frontier-usage-v0", DeliveryStage: model.DeliveryUnsupported, IssueCodes: []string{"SOURCE_UNSUPPORTED"}, MaxBytes: "0", SourceKind: "FRONTIER_RECEIPT", VerifierID: "unsupported"},
 		{AdapterID: "go-live-usage-v0", DeliveryStage: model.DeliveryUnsupported, IssueCodes: []string{"SOURCE_UNSUPPORTED"}, MaxBytes: "0", SourceKind: "GO_LIVE_RECEIPT", VerifierID: "unsupported"},
 		{AdapterID: "harness-usage-v0", DeliveryStage: model.DeliveryUnsupported, IssueCodes: []string{"SOURCE_UNSUPPORTED"}, MaxBytes: "0", SourceKind: "HARNESS_RECEIPT", VerifierID: "unsupported"},

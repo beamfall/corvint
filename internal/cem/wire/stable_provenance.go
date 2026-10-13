@@ -83,7 +83,7 @@ func parseStableProvenanceRole(o *Object, d *StableMap) error {
 			return e
 		}
 		checks := map[string]func(string) bool{
-			"sourceSpec":    func(s string) bool { return s == Spec01 || s == Spec02 || s == Spec03 },
+			"sourceSpec":    RetiredSpec,
 			"sourceBlobOid": isSha1Oid,
 			"sourceSha256":  IsSha256,
 			"bindCommit":    isSha1Oid,
