@@ -141,9 +141,11 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base)
 	// DCW-V0-033: PASS prints one summary line; the full status JSON is in the detail file.
+	// OCM-V0-019: the plan cites FIXTURE-LCP-001 only, and fixture_test.go names it,
+	// so the change references one requirement of the intent's two and links it.
 	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
 	detail := strings.TrimSpace(cemGit(t, root, "rev-parse", "--absolute-git-dir")) + "/corvint/dogfood-check.stdout"
-	summary := "dogfood-check: SUMMARY cem=accepted hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review requirements=2 linked=0 unlinked=2 report=.corvint/dogfood-report.json detail=" + detail
+	summary := "dogfood-check: SUMMARY cem=accepted hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review requirements=1 linked=1 unlinked=0 report=.corvint/dogfood-report.json detail=" + detail
 	if code != 0 || len(lines) != 2 || lines[0] != summary || lines[1] != "dogfood-check: PASS" {
 		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}

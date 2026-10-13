@@ -92,7 +92,11 @@ func TestDogfoodDCWLinksSurviveRebind(t *testing.T) {
 	bind()
 	change(0)
 	assertDCWLinks(t, root, base, requirements, testPath)
-	run.ok(t, root, "dogfood", "check", base)
+	// OCM-V0-020: the map cites the three linked requirements, so the summary
+	// counts those three, not the DCW intent's whole requirements section.
+	if out := run.ok(t, root, "dogfood", "check", base); !strings.Contains(out, " ocm=ready-for-review requirements=3 linked=3 unlinked=0 ") {
+		t.Fatalf("check summary does not count the cited, linked requirements: %s", out)
+	}
 	oldTarget := cemGit(t, root, "rev-parse", "HEAD")
 
 	if !t.Run("DCW-V0-015 stale evidence", func(t *testing.T) {
