@@ -51,3 +51,28 @@ func TestAFPV0024WorkflowShardCountsAgree(t *testing.T) {
 		}
 	}
 }
+
+// V1-0760 and V1-1360: the reuse step decides for both the main push and the merge-queue
+// entry, names its event to the tool, and merge-queue shards retain the tested-tree record that
+// a main push reuses. Losing any of these silently restores FULL on that path.
+func TestAFPV0046WorkflowWiresQueueReuse(t *testing.T) {
+	b, err := os.ReadFile("../../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ci := string(b)
+	for _, want := range []string{
+		"        id: reuse\n        if: github.event_name == 'push' || github.event_name == 'merge_group'\n",
+		"      - name: Retain reuse decision\n        if: github.event_name == 'push' || github.event_name == 'merge_group'\n",
+		`--event "$GITHUB_EVENT_NAME"`,
+		`--target "$GITHUB_SHA"`,
+		`list "head_sha=$GITHUB_SHA&event=merge_group" queue-runs.json`,
+		`if [ "$GITHUB_EVENT_NAME" = pull_request ] || [ "$GITHUB_EVENT_NAME" = merge_group ]; then` + "\n" +
+			`              tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}")`,
+		`git -C "$src" merge-base --is-ancestor "$base" refs/remotes/origin/main`,
+	} {
+		if n := strings.Count(ci, want); n != 1 {
+			t.Errorf("ci.yml has %d copies of %q, want 1", n, want)
+		}
+	}
+}

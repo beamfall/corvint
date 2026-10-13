@@ -2,8 +2,9 @@ name: CI
 
 on:
   pull_request:
-  # A merge-queue entry runs the complete suite on the exact commit that becomes main: every
-  # pull_request-gated narrowing below is off for it, so docs-plan selects FULL (AFP-V0-026).
+  # A merge-queue entry tests the exact commit that becomes main: every pull_request-gated
+  # narrowing below is off for it, so docs-plan selects FULL (AFP-V0-026) unless its tree is
+  # the one its pull-request run already tested in full (REUSE, AFP-V0-046).
   merge_group:
     types: [checks_requested]
   push:
@@ -117,13 +118,16 @@ jobs:
           name: docs-ci-plan
           path: ${{ runner.temp }}/docs-ci-plan.json
           if-no-files-found: ignore
-      - name: Find a passed pull-request result for this exact tree
-        # AFP-V0-024: a main push whose tree a successful pull-request run of this workflow
-        # already tested in full skips only the root race invocation. The decision tool is
-        # built from the pushed main commit; every failure here keeps FULL. REUSE_SHARDS
-        # must equal the go-product-shard matrix, or no record name matches and CI runs FULL.
+      - name: Find a passed result for this exact tree
+        # AFP-V0-024: a main push whose tree a successful pull-request run, or the merge-queue
+        # run of the pushed commit itself (V1-0760), already tested in full skips only the root
+        # race invocation; the decision tool is built from the pushed main commit. AFP-V0-046:
+        # a merge-queue entry whose tree a successful pull-request run of its second parent
+        # already tested in full does the same, only when its first parent is on main, with the
+        # tool built from that first parent. Every failure here keeps FULL. REUSE_SHARDS must
+        # equal the go-product-shard matrix, or no record name matches and CI runs FULL.
         id: reuse
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'merge_group'
         continue-on-error: true
         timeout-minutes: 5
         working-directory: trusted-docs
@@ -135,10 +139,24 @@ jobs:
           src="$GITHUB_WORKSPACE/source"
           tree=$(git -C "$src" rev-parse --verify -q "$GITHUB_SHA^{tree}")
           if ! head=$(git -C "$src" rev-parse --verify -q "$GITHUB_SHA^2") || git -C "$src" rev-parse --verify -q "$GITHUB_SHA^3" > /dev/null; then
-            echo 'Full CI: the pushed commit is not a two-parent merge.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Full CI: the tested commit is not a two-parent merge.' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-reuse-plan" ./tools/ci-reuse-plan
+          tool="$PWD"
+          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+            # Only the first entry on an unmoved main can have its pull-request run's tree; a
+            # later entry is built on a preceding queue commit and stays FULL. The tool comes
+            # from main code, never from the queue commit under test.
+            base=$(git -C "$src" rev-parse --verify -q "$GITHUB_SHA^1")
+            if ! git -C "$src" merge-base --is-ancestor "$base" refs/remotes/origin/main; then
+              echo 'Full CI: the queue commit is not built directly on main.' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            tool="$RUNNER_TEMP/ci-reuse-source"
+            mkdir -p "$tool"
+            git -C "$src" archive "$base" go.mod tools/ci-reuse-plan | tar -x -C "$tool"
+          fi
+          (cd "$tool" && go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-reuse-plan" ./tools/ci-reuse-plan)
           d="$RUNNER_TEMP/ci-reuse"
           mkdir -p "$d/artifacts"
           api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions"
@@ -149,14 +167,23 @@ jobs:
               -H "Authorization: Bearer $GH_TOKEN" -o "$2" "$1" ||
               curl -fsS --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' -o "$2" "$1"
           }
-          # An unreadable listing leaves an empty file, so the tool still retains a FULL decision.
-          get "$api/workflows/ci.yml/runs?head_sha=$head&event=pull_request&status=success&per_page=20" "$d/runs.json" ||
-            : > "$d/runs.json"
-          for id in $(jq -r '.workflow_runs[]?.id | select(type == "number")' "$d/runs.json" | head -n 5); do
-            get "$api/runs/$id/artifacts?per_page=100" "$d/artifacts/$id.json" || true
-          done
-          "$RUNNER_TEMP/ci-reuse-plan" --repository "$GITHUB_REPOSITORY" --tree "$tree" --head "$head" --shards "$REUSE_SHARDS" \
-            --runs "$d/runs.json" --artifacts "$d/artifacts" > "$d/decision.json.partial"
+          # An unreadable listing leaves an empty file that contributes no run, so the tool
+          # still retains a FULL decision when no listing is readable.
+          runs=()
+          list() {
+            get "$api/workflows/ci.yml/runs?$1&status=success&per_page=20" "$d/$2" || : > "$d/$2"
+            for id in $(jq -r '.workflow_runs[]?.id | select(type == "number")' "$d/$2" | head -n 5); do
+              get "$api/runs/$id/artifacts?per_page=100" "$d/artifacts/$id.json" || true
+            done
+            runs+=(--runs "$d/$2")
+          }
+          list "head_sha=$head&event=pull_request" runs.json
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            list "head_sha=$GITHUB_SHA&event=merge_group" queue-runs.json
+          fi
+          "$RUNNER_TEMP/ci-reuse-plan" --repository "$GITHUB_REPOSITORY" --event "$GITHUB_EVENT_NAME" --tree "$tree" \
+            --head "$head" --target "$GITHUB_SHA" --shards "$REUSE_SHARDS" "${runs[@]}" --artifacts "$d/artifacts" \
+            > "$d/decision.json.partial"
           mv "$d/decision.json.partial" "$d/decision.json"
           cat "$d/decision.json" >> "$GITHUB_STEP_SUMMARY"
           if jq -e --arg tree "$tree" --arg head "$head" --argjson shards "$REUSE_SHARDS" \
@@ -165,7 +192,7 @@ jobs:
             echo 'mode=REUSE' >> "$GITHUB_OUTPUT"
           fi
       - name: Retain reuse decision
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'merge_group'
         continue-on-error: true
         timeout-minutes: 2
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -482,8 +509,9 @@ jobs:
               echo "::notice::shard $SHARD: package outcomes not captured; the cost-drift report will abstain"
               run_tests
             fi
-            # AFP-V0-024: only a complete pull-request shard that passed names the tested tree.
-            if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            # AFP-V0-024: only a complete pull-request or merge-queue (V1-0760) shard that passed
+            # names the tested tree; a narrowed, DOCS or REUSE shard never reaches this line.
+            if [ "$GITHUB_EVENT_NAME" = pull_request ] || [ "$GITHUB_EVENT_NAME" = merge_group ]; then
               tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}")
               mkdir -p "$RUNNER_TEMP/tested-tree"
               printf '{"profile":"corvint-ci-tested-tree/0","tree":"%s","target":"%s","shard":%s,"shards":%s,"runId":%s}\n' \
@@ -523,7 +551,8 @@ jobs:
           fi
       - name: Expire cached test results before saving the build cache
         # Only a main push whose full race invocation passed writes the cache. A REUSE or DOCS
-        # push compiles nothing, and saving it would make the newest entry an empty one.
+        # push (AFP-V0-024, including a push that reuses its queue run) compiles nothing, skips
+        # the tests step, and saving it would make the newest entry an empty one.
         id: testcache
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.gocache.outcome == 'success' && steps.tests.outcome == 'success'
         continue-on-error: true
