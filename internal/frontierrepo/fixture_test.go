@@ -300,4 +300,3 @@ func encodeOCM(t *testing.T, document map[string]any) []byte {
 	}
 	return append(raw, '\n')
 }
-
