@@ -30,6 +30,28 @@ func runRead(ctx context.Context, binary, root string, args []string) ([]byte, e
 	return out.raw, nil
 }
 
+// runPortable runs the independent portable consumer (TCB-V0-017) with the
+// native read's environment and containment. It tolerates a nonzero exit,
+// since the consumer reports a refusal as its result document, and bounds the
+// run by the consumer's own whole-repository verification budget.
+func runPortable(ctx context.Context, binary, root string, args []string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binary, args...)
+	cmd.Dir = root
+	cmd.Env = []string{"PATH=/usr/bin:/bin", "LC_ALL=C", "LANG=C"}
+	containRead(cmd)
+	out, stderr := &limitedBuffer{limit: 16 << 20}, &limitedBuffer{limit: 1 << 20}
+	cmd.Stdout = out
+	cmd.Stderr = stderr
+	e := groupreap.Run(cmd)
+	var exit *exec.ExitError
+	if e != nil && !errors.As(e, &exit) || ctx.Err() != nil || out.overflow || stderr.overflow {
+		return nil, errors.New("portable consumer failed or exceeded bound")
+	}
+	return out.raw, nil
+}
+
 // containRead owns the read's process group and bounds its pipe drain.
 func containRead(cmd *exec.Cmd) {
 	// Cancellation stops the leader; groupreap.Run sweeps the group before the reap.

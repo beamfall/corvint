@@ -1039,7 +1039,7 @@ whole-repository patch itself excluding exactly .corvint/change.cem.json. A
 retired cem/0.1, cem/0.2 or cem/0.3 map refuses with unsupported-spec and its
 migration fix. All commands are local-only; reports can disclose repository
 information and stay local by default.
-`
+` + cemGateVerdictHelp
 
 const ocmHelp = `Prepare, close, or verify an Obligation Closure Map and its bound CEM.
 

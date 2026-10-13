@@ -25,6 +25,7 @@ import (
 type verdictFixture struct {
 	root, base, change, bind, seal string
 	sealed                         string
+	portable                       string
 	git                            func(args ...string) string
 }
 
@@ -68,7 +69,7 @@ func newVerdictFixture(t *testing.T, mutate func([]byte) []byte) verdictFixture 
 	put("lib/util.txt", "one\n")
 	run("add", ".")
 	run("commit", "-qm", "base")
-	f := verdictFixture{root: root, base: run("rev-parse", "HEAD"), git: run}
+	f := verdictFixture{root: root, base: run("rev-parse", "HEAD"), git: run, portable: portableConsumer(t)}
 	put("src/app.txt", "alpha\nwidget\n")
 	put("lib/util.txt", "one\ntwo\n")
 	run("commit", "-qam", "change")
@@ -134,7 +135,7 @@ func (f verdictFixture) commitAt(t *testing.T, from string, edit func()) string 
 }
 
 func (f verdictFixture) input(predicate string, touch ...string) CEMVerdictInput {
-	return CEMVerdictInput{Root: f.root, BaseCommit: f.base, CandidateCommit: f.seal, TouchPaths: touch, Predicate: predicate}
+	return CEMVerdictInput{Root: f.root, BaseCommit: f.base, CandidateCommit: f.seal, TouchPaths: touch, Predicate: predicate, PortableConsumer: f.portable}
 }
 
 type verdictView struct {
@@ -146,8 +147,10 @@ type verdictView struct {
 	SealedMaps    []string          `json:"sealedMaps"`
 	Map           *cemVerdictMap    `json:"map"`
 	Verdict       *cemVerdictPin    `json:"verdict"`
+	Portable      *cemPortablePin   `json:"portable"`
 	Citation      json.RawMessage   `json:"citation"`
 	Governed      []cemVerdictHunk  `json:"governed"`
+	Paths         []cemVerdictPath  `json:"paths"`
 }
 
 func evaluateVerdict(t *testing.T, in CEMVerdictInput) (CEMVerdictResult, verdictView) {
@@ -192,6 +195,8 @@ func TestTCBV0007GateInputsAreNativeAndClosed(t *testing.T) {
 		"escaping touch path":   func(in *CEMVerdictInput) { in.TouchPaths = []string{"../src/"} },
 		"absolute touch path":   func(in *CEMVerdictInput) { in.TouchPaths = []string{"/src/"} },
 		"mixed object id sizes": func(in *CEMVerdictInput) { in.CandidateCommit = f.seal + strings.Repeat("0", 24) },
+		"relative consumer":     func(in *CEMVerdictInput) { in.PortableConsumer = "cem01-go" },
+		"no consumer":           func(in *CEMVerdictInput) { in.PortableConsumer = "" },
 	} {
 		in := valid
 		edit(&in)
@@ -393,7 +398,7 @@ func TestTCBV0013TamperedEvidenceRefusesOnReverify(t *testing.T) {
 		t.Fatalf("fixture must grant: %s", pinned.Document)
 	}
 	// A consumer with no Tasks store reads the inputs from the pinned document.
-	storeless := CEMVerdictInput{Root: f.root, BaseCommit: view.Inputs.BaseCommit, CandidateCommit: view.Inputs.CandidateCommit, TouchPaths: view.Inputs.TouchPaths, Predicate: view.Inputs.Predicate}
+	storeless := CEMVerdictInput{Root: f.root, BaseCommit: view.Inputs.BaseCommit, CandidateCommit: view.Inputs.CandidateCommit, TouchPaths: view.Inputs.TouchPaths, Predicate: view.Inputs.Predicate, PortableConsumer: f.portable}
 	if again, err := ReverifyCEMVerdictGate(context.Background(), storeless, pinned.Document); err != nil || !again.Granted || again.Code != "" {
 		t.Fatalf("untampered evidence must re-verify: %v %+v", err, again)
 	}
