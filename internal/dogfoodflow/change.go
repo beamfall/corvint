@@ -154,7 +154,7 @@ func (c *change) run() int {
 	// An unknown hunk the plan kept with a recorded reason is admitted beside
 	// the bootstrap unknowns; a prepared no-evidence hunk never is (DCW-V0-019).
 	_, c.reasonedUnknown = c.flow.reasonedUnknowns(c.path(".corvint/change.cem.json"), c.intents, c.bootstrapUnknown > 0)
-	c.runStep("cem-status", c.evidence+"/cem-status.json", stableStatusArguments(c.path(".corvint/change.cem.json"), c.root,
+	c.runStep("cem-status", c.evidence+"/cem-status.json", stableStatusArguments(c.root,
 		"cem", "status", "--map", ".corvint/change.cem.json",
 		"--expected-base", c.base, "--target", c.target, "--max-unknown", strconv.Itoa(c.bootstrapUnknown+c.reasonedUnknown), "--max-mechanical", "0")...)
 	// The recorder refuses a dirty tree, so it runs last and sees the sidecar
@@ -610,8 +610,7 @@ func (c *change) uniformPlan(plan []byte) bool {
 }
 
 // declaresStableMap reports a regular map, read at most the native map bound,
-// that declares cem/1.0; the bind loop cites, checks and seals it like a 0.x
-// map and reads it with --artifacts (CEM-V1-147).
+// that declares cem/1.0, the only map the bind loop marks with a chore role.
 func declaresStableMap(mapPath string) bool {
 	if isSymlink(mapPath) {
 		return false
@@ -622,12 +621,10 @@ func declaresStableMap(mapPath string) bool {
 
 // stableStatusArguments appends the explicit artifact root a cem/1.0 status
 // requires: the absolute repository root, which a producer map without
-// artifacts never opens (CEM-V1-146, CEM-V1-147). A 0.x map's arguments are
-// returned unchanged.
-func stableStatusArguments(mapPath, root string, args ...string) []string {
-	if !declaresStableMap(mapPath) {
-		return args
-	}
+// artifacts never opens (CEM-V1-146, CEM-V1-147). Every map is read as
+// cem/1.0; a retired cem/0.x map is refused by the status reader with
+// unsupported-spec (CEM-V1-224).
+func stableStatusArguments(root string, args ...string) []string {
 	return append(args, "--artifacts", stableArtifactRoot(root))
 }
 

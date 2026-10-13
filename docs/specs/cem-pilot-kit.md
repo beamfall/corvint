@@ -10,9 +10,9 @@ onboarding, security, and wire-contract reviews recorded in `docs/BUILD-LOG.md`
 ## Agent digest
 - Claim: The CEM pilot kit freezes a safe first-run, reviewer-report, and outcome-trial contract for experimental CEM 0.1 use.
 - Status: accepted/experimental
-- Exists: `internal/cem`, reviewer reporting, the experimental read-only hunk JSON projection (CEM-PILOT-028..031), `experiments/cem-first-run`, frozen contracts, and the proposed portable `interop/cem01-go ci` verifier (CEM-PILOT-020..023).
+- Exists: `internal/cem`, reviewer reporting, the experimental read-only hunk JSON projection (CEM-PILOT-028..031), `experiments/cem-first-run` and frozen contracts; CEM-PILOT-009, 011..012 and 020..027 are retired with `cem/0.x` (decision 0525).
 - Blocked on: independent external outcome evidence.
-- Read next: `cem-external-interop-v0.md` and `cem-0.2-canonical-binding.md`.
+- Read next: `cem-stable-v1.md` and `../CHANGE-EVIDENCE-MAP.md`.
 
 This spec freezes the integration contract for work that began as an experimental prototype. It
 does not claim the implementation was originally spec-first. No part of the slice may be promoted
@@ -29,7 +29,8 @@ within 15 minutes.
 
 - `context_corvint_cem.py` implements strict `cem/0.1` parsing and verification.
 - `corvint cem begin|cite|mark|verify` implements the original low-level workflow.
-- `conformance/cem-0.1` is a Corvint-owned conformance seed, not independent interoperability.
+- `conformance/cem-0.1` was a Corvint-owned conformance seed, not independent interoperability;
+  V1-1278 S3 deleted it (`CEM-V1-220`).
 - An offensive review found six verifier defects; repairs and focused regressions passed review.
 - No external producer or consumer has passed the contract and no real 30×30 outcome trial has run.
 
@@ -42,7 +43,7 @@ within 15 minutes.
   return an ordered hunk worklist. (proposed 2026-09-25, V1-0301, not accepted) Today a patch with
   a binary file refuses the whole prepare with `binary-patch`, and one with an `old mode`/`new mode`
   change refuses it with `malformed-patch`, because the frozen `cem/0.1` grammar
-  (`interop/cem-0.1/ALGORITHMS.md`) and the `cem/0.2` hunk wire and hunk IDs have no such hunk. A
+  (now `protocol/cem-1.0/stable/inherited/cem-0.1-algorithms.md`) and the `cem/0.2` hunk wire and hunk IDs have no such hunk. A
   new versioned profile MAY bind each binary or mode-only file change as its own hunk kind whose
   disposition is always `unknown`: no citation or mark can make it ready, so a map that contains
   one never reaches `ready-for-ci` without an explicit policy exception. Neither frozen profile
@@ -209,6 +210,9 @@ composes existing CEM/OCM verification; it supplies no semantic proof or test ex
 
 ### Portable CI verifier
 
+Retired by V1-1278 S3 (`CEM-V1-222`, `CEM-V1-223`): `cem01-go ci` and the `examples/cem` portable
+workflow read `cem/0.1` maps only and are deleted; the four requirements below are kept as history.
+
 - `CEM-PILOT-020`: (proposed; accepted with decision 0356) the portable CI example
   (`examples/cem/github-actions-portable.yml`, `examples/cem/verify-portable.sh`) MUST pin the
   `interop/cem01-go` verifier by module pseudo-version and executable SHA-256, MUST build it only in
@@ -242,6 +246,9 @@ way. No producer emits the plain criterion form yet, so that step is hand-assemb
 case is `protocol/cem-1.0/stable/neutral-criterion/`.
 
 ### Workflow recipes
+
+Retired by V1-1278 S3 (`CEM-V1-223`): `examples/cem/recipes/` and its gate member are deleted; the
+four requirements below are kept as history.
 
 Owner-requested for 0.7.0 on 2026-09-22 (ticket V1-0026); delivery is experimental.
 
@@ -308,16 +315,16 @@ implementation non-authoritative and slated for separate removal.
 |---|---|---|
 | CEM-PILOT-001..005 | `src/context_corvint_cem_workflow.py`, `src/corvint_cli.py` | `tests/test_context_corvint_cem_workflow.py`, `tests/test_cli.py` |
 | CEM-PILOT-006..008 | `src/context_corvint_cem_report.py` | deterministic, content-omission, and hostile-rendering tests in `tests/test_context_corvint_cem_report.py` |
-| CEM-PILOT-009 | `examples/cem/verify-pr.sh`, `docs/CEM-CI.md` | retired by V1-1278 (`CEM-V1-215`): the example reads cem/0.1 and cem/0.2 only and no Corvint command produces either, so `script/cem-verify-pr_test.sh` and its `make cem-verify-pr-test` gate member are deleted; the example's own retirement is S3's. The local report is `cem report` under CEM-PILOT-006..008 |
+| CEM-PILOT-009 | `examples/cem/verify-pr.sh`, `docs/CEM-CI.md` | retired by V1-1278 (`CEM-V1-215`, `CEM-V1-223`): the example read cem/0.1 and cem/0.2 only, so S2b deleted `script/cem-verify-pr_test.sh` and its gate member and S3 deleted `examples/cem` and `docs/CEM-CI.md`; they are kept in Git history. The local report is `cem report` under CEM-PILOT-006..008 |
 | CEM-PILOT-010 | `experiments/cem-30x30` | synthetic-provenance, bound-packet, blinding, and formula tests in `tests/test_cem_experiment.py`; real result remains `NOT_RUN` |
-| CEM-PILOT-011..012 | `interop/cem-0.1` | `tests/test_cem_interop.py`; independent matrix remains unclaimed |
+| CEM-PILOT-011..012 | `interop/cem-0.1` | retired by V1-1278 S3 (`CEM-V1-220`): `interop/cem-0.1` is deleted; the historical evidence was `tests/test_cem_interop.py`, and the independent matrix was never claimed |
 | CEM-PILOT-013 | workflow and CLI output helpers; local dogfood citation staging through public `cem cite --output` | adversarial path, size, mode, atomicity, and symlink tests; `TestReadBoundedFileFIFOReplacementIsBounded`, `TestPairRollbackSyncsRestoredDirectory`, `TestPairSuccessSyncsFinalsBeforeRemovingBackup`, `TestPairFinalSyncFailureRetainsBackup`, `TestConcurrentMarksAllSurvive`, `TestMarkReplacementAtFirstRead`, `TestMarkHostileInputPrecedence`, `TestMutationsLockTheirEffectiveOutput`, `TestMutationLockNeverRemovesAnInputMap`, `TestCEMOutputsRefuseGitMetadata`, `TestCEMCLIRefusesGitMetadataOutput`, `TestCEMOutputsRefuseMapSidecars`, `TestPrepareCacheAliasingRefused`, `TestMapReadThroughSymlinkedParentIsUnavailable`, `TestPrepareRecoversInterruptedPairBackup`, and `TestPrepareRemovesValidatedStalePairBackup`; `script/dogfood-change_test.sh` checks bounded whole-plan validation, unchanged prepared-map bytes on failure, and owned staging/child cleanup |
 | CEM-PILOT-014 | `experiments/cem-first-run/run.py`, retained closed `/0` and `/0.1` result schemas | synthetic orchestration, builder-preflight, exact-wheel build/install, private-path, wheel-count/symlink/digest, private-clone isolation, porcelain-status identity, interruption, bounded-output, private-write, and non-promotion tests in `tests/test_cem_first_run.py`; one experienced-operator Beamfall run completed in 15.715100875 seconds with all 8 checks passing and 4/4 hunks explicitly unknown; adoption remains `NOT_RUN` |
 | CEM-PILOT-015 | `src/corvint_cli.py` | CLI success, invalid-input, and policy-failure tests |
 | CEM-PILOT-016 | `docs/DOGFOOD.md`, `script/dogfood-change.sh`, `.corvint/change.cem.json` | synchronized self-change report and local outcome trace; caller-selected plans remain bounded local orchestration, with no new CEM wire or interoperability claim |
 | CEM-PILOT-017 | Git environment and `experiments/_bounded_process.py` | hostile-environment, output-ceiling, process-group cleanup, and argv-shape regressions shared by first-run and dogfood measurement tests |
-| CEM-PILOT-020..023 | `interop/cem01-go/ci.go`, `examples/cem/verify-portable.sh`, `examples/cem/github-actions-portable.yml`, `examples/cem/README.md` | `interop/cem01-go/ci_test.go`: `TestCIVerdictsAndExits` (all six verdicts, determinism, bound, and a scan for every fixture source line), `TestCIAcceptedReportShape`, `TestCIInvocationEchoesNothing`, `TestCIReportWorstCaseBound`, and `TestCIPortableWorkflowOffline` (fresh-cache installs from a local module proxy agree on the digest, a mismatched stub is never executed, and the script run under an OS network sandbox that refuses a probe connection returns the in-process report byte for byte). The fetch from `proxy.golang.org` and the GitHub runner `unshare --net` step remain `NOT_RUN` |
-| CEM-PILOT-024..027 | `examples/cem/recipes/understand-change.sh`, `review-change.sh`, `ci-verify.sh`, `bounded.sh`, `README.md` | `script/cem-recipes_test.sh` (`make cem-recipes-test`, a gate member) on fixture repositories: understand completes on a Go range and refuses a missing base, a dirty worktree, and reports a no-Go range `OUT_OF_SCOPE`; review refuses unknown hunks, an uncommitted map, a stale map (bytes unchanged), and an invalid-spec map, and completes once cited and committed; CI returns missing (3), routes a `cem/1.0` map to the stable branch (4), and refuses a digest mismatch (2, never executed); the cited `cem/0.1` accept, stale and `cem/0.2` unsupported cases and the review recipe's cem/0.2 dash-named case were retired with cem/0.x (V1-1278, `CEM-V1-215`); a step is killed at `RECIPE_TIMEOUT=1` and on recipe `TERM`. Run against installed Corvint 0.7.0 build 46 and a checkout build. A first-use time by a reader unfamiliar with the recipes is `NOT_OBSERVED` |
+| CEM-PILOT-020..023 | `interop/cem01-go/ci.go`, `examples/cem/verify-portable.sh`, `examples/cem/github-actions-portable.yml`, `examples/cem/README.md` | retired by V1-1278 S3 (`CEM-V1-222`, `CEM-V1-223`): `cem01-go ci` read `cem/0.1` maps only, so `interop/cem01-go/ci.go`, its tests and the `examples/cem` portable workflow are deleted and kept at commit `5a056d0a`; `cem01-go verify-stable-canonical` is the portable `cem/1.0` check |
+| CEM-PILOT-024..027 | `examples/cem/recipes/understand-change.sh`, `review-change.sh`, `ci-verify.sh`, `bounded.sh`, `README.md` | retired by V1-1278 S3 (`CEM-V1-223`): `examples/cem/recipes/`, `script/cem-recipes_test.sh` and the `cem-recipes-test` gate member are deleted and kept at commit `5a056d0a` |
 
 ## Traceability
 
@@ -334,8 +341,9 @@ implementation non-authoritative and slated for separate removal.
 
 Ship only as experimental documentation and local tooling. Existing `begin|cite|mark|verify`
 contracts remain compatible. New convenience commands may be removed without a data migration;
-maps remain plain `cem/0.1`. The recipes under `examples/cem/recipes/` are removed by deleting that
-directory and the `cem-recipes-test` target; no command, map, or ledger depends on them. If the 15-minute journey fails, simplify the workflow before adding
+maps are `cem/1.0` since decision 0525. V1-1278 S3 removed the recipes under `examples/cem/recipes/`
+and the `cem-recipes-test` target; restoring them is a revert of that commit, and no command, map, or
+ledger depends on them. If the 15-minute journey fails, simplify the workflow before adding
 features. If external implementations cannot consume the kit within one engineer-day or the 30×30
 trial misses its value gates, redesign or kill CEM 0.1 rather than expanding it.
 
@@ -353,9 +361,9 @@ trial misses its value gates, redesign or kill CEM 0.1 rather than expanding it.
   minute requirement once, but a first-use median and external adoption remain `NOT_RUN`;
 - no external independent implementation exists;
 - the real 30-treatment/30-control trial has not run.
-- the portable verifier workflow has not run on a GitHub runner, and no pseudo-version or
+- (historical; retired by V1-1278 S3) the portable verifier workflow has not run on a GitHub runner, and no pseudo-version or
   executable digest of a published revision is recorded yet (`CEM-PILOT-020`).
-- the recipes (`CEM-PILOT-024`..`027`) are exercised only on Corvint-authored fixtures; time to a
+- (historical; retired by V1-1278 S3) the recipes (`CEM-PILOT-024`..`027`) were exercised only on Corvint-authored fixtures; time to a
   first valid receipt, review, or CI verification by a reader unfamiliar with them is
   `NOT_OBSERVED`, and the CI recipe's verifier comes from a checkout build, not a published pin.
 

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/format"
 	"io"
+	"net/mail"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,7 +28,7 @@ func TestVerificationBudget(t *testing.T) {
 
 func fixture(t *testing.T, name string) []byte {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("..", "cem-0.1", "patches", name))
+	b, err := os.ReadFile(filepath.Join("testdata", "inherited-vectors", "patches", name))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,13 +63,12 @@ func TestNormativeInvalidPatchFixtures(t *testing.T) {
 
 func TestStrictJSON(t *testing.T) {
 	t.Parallel()
-	var dst map[string]any
 	for _, raw := range [][]byte{
 		[]byte(`{"a":1,"a":2}`),
 		[]byte(`{"a":"\ud800"}`),
 		{0xff},
 	} {
-		if err := strictDecode(raw, &dst); err == nil {
+		if err := strictJSON(raw); err == nil {
 			t.Fatalf("accepted %q", raw)
 		}
 	}
@@ -78,16 +78,24 @@ func TestWireIntegers(t *testing.T) {
 	t.Parallel()
 	for _, raw := range []string{`{"start":1.0,"count":2e0}`, `{"start":0e1000000,"count":-0}`} {
 		var r lineRange
-		if err := strictDecode([]byte(raw), &r); err != nil {
+		if err := strictLineRange([]byte(raw), &r); err != nil {
 			t.Fatalf("%s: %v", raw, err)
 		}
 	}
 	for _, raw := range []string{`{"start":null,"count":0}`, `{"start":true,"count":0}`, `{"start":1.5,"count":0}`, `{"start":9007199254740992,"count":0}`} {
 		var r lineRange
-		if err := strictDecode([]byte(raw), &r); err == nil {
+		if err := strictLineRange([]byte(raw), &r); err == nil {
 			t.Fatalf("accepted %s", raw)
 		}
 	}
+}
+
+// strictLineRange decodes one strict JSON line range, as the stable map reader does.
+func strictLineRange(raw []byte, r *lineRange) error {
+	if err := strictJSON(raw); err != nil {
+		return err
+	}
+	return json.Unmarshal(raw, r)
 }
 
 func TestLiteralDiffPathContainingSeparator(t *testing.T) {
@@ -134,23 +142,14 @@ func TestSimulateEmptyBase(t *testing.T) {
 	}
 }
 
-func TestExplicitEmptyTargetRejected(t *testing.T) {
-	t.Parallel()
-	_, err := parseArgs([]string{"verify", "--repository", "r", "--map", "m", "--patch", "p", "--target", ""})
-	if err == nil || !err.operational {
-		t.Fatalf("got %v", err)
-	}
-}
-
 func TestStrictJSONSurrogateAfterEscapes(t *testing.T) {
 	t.Parallel()
-	var dst map[string]any
 	for _, raw := range [][]byte{
 		[]byte(`{"a":"escaped quote: \" then \ud800"}`),
 		[]byte(`{"a":"backslashes: \\\\ then \udfff"}`),
 		[]byte(`{"a":"valid pair first: \ud83d\ude00 then bad: \ud800"}`),
 	} {
-		if err := strictDecode(raw, &dst); err == nil {
+		if err := strictJSON(raw); err == nil {
 			t.Fatalf("accepted %q", raw)
 		}
 	}
@@ -159,7 +158,7 @@ func TestStrictJSONSurrogateAfterEscapes(t *testing.T) {
 		[]byte(`{"a":"escaped slash-u: \\ud800"}`),
 		[]byte(`{"a":"valid pair: \ud83d\ude00"}`),
 	} {
-		if err := strictDecode(raw, &dst); err != nil {
+		if err := strictJSON(raw); err != nil {
 			t.Fatalf("rejected %q: %v", raw, err)
 		}
 	}
@@ -192,64 +191,6 @@ func TestOverlappingMatches(t *testing.T) {
 	first, count, err := firstTwoMatches(context.Background(), []byte("aaaaa"), []byte("aaaa"))
 	if err != nil || first != 0 || count != 2 {
 		t.Fatalf("first=%d count=%d err=%v", first, count, err)
-	}
-}
-
-func TestEndToEndVerify(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	gitRun(t, dir, "init", "-q")
-	gitRun(t, dir, "config", "user.name", "CEM Test")
-	gitRun(t, dir, "config", "user.email", "cem@example.invalid")
-	base := []byte("Rule: value must be old.\n")
-	if err := os.WriteFile(filepath.Join(dir, "rule.txt"), base, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	gitRun(t, dir, "add", "rule.txt")
-	gitRun(t, dir, "commit", "-q", "-m", "base")
-	baseOID := strings.TrimSpace(gitRun(t, dir, "rev-parse", "HEAD"))
-	blobOID := strings.TrimSpace(gitRun(t, dir, "rev-parse", "HEAD:rule.txt"))
-	patch := []byte("--- a/rule.txt\n+++ b/rule.txt\n@@ -1 +1 @@\n-Rule: value must be old.\n+Rule: value must be new.\n")
-	parsed, parseErr := parsePatch(patch)
-	if parseErr != nil {
-		t.Fatal(parseErr)
-	}
-	e := evidence{Path: "rule.txt", BlobOID: blobOID, Span: span{Start: 6, End: 23}}
-	e.SpanSHA256 = shaHex(base[e.Span.Start:e.Span.End])
-	e.ID = "evidence:sha256:" + shaHex(canonicalEvidence(e))
-	ph := parsed.hunks[0]
-	m := cemMap{
-		Spec: specVersion, BaseRevision: baseOID, PatchSHA256: shaHex(patch), Evidence: []evidence{e},
-		Hunks: []mappedHunk{{ID: ph.ID, Path: "rule.txt", OldRange: ph.OldRange, NewRange: ph.NewRange,
-			Disposition: "supported", Reason: "evidence-backed", Basis: []basis{{EvidenceID: e.ID, Relation: "specification"}}}},
-	}
-	mapBytes, err := json.Marshal(m)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mapFile, patchFile := filepath.Join(dir, "map.json"), filepath.Join(dir, "change.patch")
-	if err := os.WriteFile(mapFile, mapBytes, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(patchFile, patch, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	drift, verifyErr := verify(cliArgs{repository: dir, mapFile: mapFile, patchFile: patchFile})
-	if verifyErr != nil || len(drift) != 0 {
-		t.Fatalf("verify drift=%v err=%v", drift, verifyErr)
-	}
-	shared := filepath.Join(t.TempDir(), "shared")
-	gitRun(t, dir, "clone", "-q", "--shared", ".", shared)
-	if _, err := verify(cliArgs{repository: shared, mapFile: mapFile, patchFile: patchFile}); err == nil || !err.operational || err.code != "object-alternates" {
-		t.Fatalf("CEM-GO-005 alternates repository: err=%v", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	v := &verifier{ctx: ctx, repo: dir, blobs: map[string][]byte{}}
-	items, driftErr := v.computeDrift(baseOID, []evidence{e})
-	if driftErr != nil || len(items) != 1 || items[0].Status != "stable" {
-		t.Fatalf("drift=%v err=%v", items, driftErr)
 	}
 }
 
@@ -352,6 +293,17 @@ func gitRun(t *testing.T, dir string, args ...string) string {
 		t.Fatalf("git %v: %v: %s", args, err, b)
 	}
 	return string(b)
+}
+
+// commitEnv pins the author, committer and dates of a reconstructed fixture commit.
+func commitEnv(t *testing.T, author, timestamp string) []string {
+	t.Helper()
+	a, err := mail.ParseAddress(author)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return []string{"GIT_AUTHOR_NAME=" + a.Name, "GIT_AUTHOR_EMAIL=" + a.Address, "GIT_COMMITTER_NAME=" + a.Name, "GIT_COMMITTER_EMAIL=" + a.Address,
+		"GIT_AUTHOR_DATE=" + timestamp, "GIT_COMMITTER_DATE=" + timestamp}
 }
 
 // TestDissimilarityWithoutRenameParses follows decision 0192: ALGORITHMS.md
@@ -542,9 +494,6 @@ func TestCandidateStrictAdditiveBoundary(t *testing.T) {
 	raw, e := os.ReadFile(filepath.Join(packet, "maps/sha1-valid.json"))
 	if e != nil {
 		t.Fatal(e)
-	}
-	if _, e := decodeMap(raw); e == nil {
-		t.Fatal("legacy accepted candidate")
 	}
 	m, shapeErr := decodeCandidate(raw)
 	if shapeErr != nil || m.Spec != candidateSpec {
@@ -825,52 +774,7 @@ func Test03IndependentStructuralPredicates(t *testing.T) {
 		})
 	}
 }
-func testMap03() map[string]any {
-	return map[string]any{"spec": spec03, "baseRevision": strings.Repeat("a", 40), "patchSha256": strings.Repeat("b", 64), "excludedPath": sidecar03, "evidence": []any{}, "hunks": []any{map[string]any{"id": "hunk:sha256:" + strings.Repeat("c", 64), "path": "sample.go", "oldRange": map[string]any{"start": 1, "count": 5}, "newRange": map[string]any{"start": 1, "count": 5}, "disposition": "mechanical", "reason": "import-reorder", "basis": []any{}}}}
-}
-func Test03WitnessRetentionAndBoundaries(t *testing.T) {
-	cases := []struct {
-		name string
-		edit func(map[string]any)
-		code string
-	}{
-		{"absent", func(h map[string]any) {}, ""},
-		{"coverage", func(h map[string]any) {
-			h["coverage"] = map[string]any{"profileSha256": strings.Repeat("a", 64), "testRun": "fixture\u0085\u2028", "mode": "set", "state": "covered", "covered": []any{map[string]any{"start": 1, "count": 1}}}
-		}, ""},
-		{"null", func(h map[string]any) { h["coverage"] = nil }, "invalid-field"},
-		{"uncompiled-residual", func(h map[string]any) {
-			h["discriminates"] = map[string]any{"treeRevision": strings.Repeat("1", 40), "selectionSha256": strings.Repeat("2", 64), "mutants": 2, "killed": 1, "survived": 0, "survivors": []any{}, "bounds": map[string]any{"maxHunks": 1, "maxMutants": 1, "wallTimeSeconds": 1}, "state": "discriminates", "detail": ""}
-		}, ""},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			m := testMap03()
-			h := m["hunks"].([]any)[0].(map[string]any)
-			tc.edit(h)
-			raw, _ := json.Marshal(m)
-			got, e := decode03(raw)
-			if tc.code != "" {
-				if e == nil || e.code != tc.code {
-					t.Fatalf("error %v", e)
-				}
-				return
-			}
-			if e != nil {
-				t.Fatal(e)
-			}
-			again, _ := json.Marshal(got)
-			var retained map[string]any
-			if e := json.Unmarshal(again, &retained); e != nil {
-				t.Fatal(e)
-			}
-			want, _ := json.Marshal(m)
-			actual, _ := json.Marshal(retained)
-			if string(want) != string(actual) {
-				t.Fatalf("lost values or presence\n%s\n%s", want, actual)
-			}
-		})
-	}
+func Test03TextBoundaries(t *testing.T) {
 	for _, tc := range []struct {
 		s    string
 		want bool
@@ -897,13 +801,6 @@ func Test03StrictJSONIsSeparateFromLegacy(t *testing.T) {
 		if (e == nil) != (n == 63) {
 			t.Fatalf("depth %d: %v", n, e)
 		}
-	}
-	m := testMap03()
-	h := m["hunks"].([]any)[0].(map[string]any)
-	h["newRange"] = map[string]any{"start": uint64(maxWireInteger), "count": 1}
-	raw, _ := json.Marshal(m)
-	if _, e := decode03(raw); e != nil {
-		t.Fatalf("invented early endpoint rejection: %v", e)
 	}
 }
 

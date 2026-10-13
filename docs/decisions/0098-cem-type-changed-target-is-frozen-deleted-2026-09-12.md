@@ -12,9 +12,9 @@ identical-OID symlink may be `stable`.
 The owner call: keep the five frozen statuses and the current Go behavior, and make the reading
 spec-owned as `CEM-PILOT-019`. Branch `434e5157` is not merged.
 
-- `type-changed` is a drift-rule change. `interop/cem-0.1/ALGORITHMS.md:149-153@a4df8285` closes same-path
+- `type-changed` is a drift-rule change. `interop/cem-0.1/ALGORITHMS.md` lines 149-153 at commit `5a056d0a` closes same-path
   drift to `stable`, `relocated`, `stale`, `ambiguous`, and `deleted`; `interop/cem-0.1/runner.py`
-  and `tools/cem-interop-runner/packet.go:283@f6458964` reject any other value; `CEM-CB-003` keeps
+  and `tools/cem-interop-runner/packet.go` line 283 at commit `5a056d0a` reject any other value; `CEM-CB-003` keeps
   `cem/0.2` drift byte-compatible with `cem/0.1`; and `interop/cem-0.1/IMPLEMENTATIONS.md` says a
   changed drift rule creates a new profile rather than rewriting 0.1 evidence. A versioned extension
   would need a new profile and its own vectors for a case that changes no acceptance outcome.
@@ -32,7 +32,7 @@ spec-owned as `CEM-PILOT-019`. Branch `434e5157` is not merged.
 - No interop artifact changes. Every `interop/cem-0.1` manifest vector, `ALGORITHMS.md`, and the
   runners stay byte-identical; `cem verify` output is unchanged for every input.
 
-Known gap: the Corvint-authored probe `interop/cem01-go/cem.go:1067@0624fff8` skips only non-blob object types,
+Known gap: the Corvint-authored probe `interop/cem01-go/cem.go:880@0624fff8` skips only non-blob object types,
 so it searches a changed symlink and can differ from Corvint there. No vector exercises it, and
 `CEM-GO-001` limits the probe to the public kit, which this decision does not amend. The errata
 sentence, a drift vector, and the probe repair are filed together in `docs/agent-memory/ideas.md`.
@@ -48,7 +48,7 @@ The known gap above is closed in the public kit rather than left as a Corvint-on
 target-kind sentence is a clarification of existing cem/0.1 semantics, not a behaviour change, so it
 lands as a kit erratum and creates no `cem/0.2` profile.
 
-- It is a clarification. The base rule (`interop/cem-0.1/ALGORITHMS.md:123-124@1c0515d4`) admits only
+- It is a clarification. The base rule (`interop/cem-0.1/ALGORITHMS.md` lines 123-124 at commit `5a056d0a`) admits only
   `100644`/`100755` blobs as evidence content and drift compares that content; Corvint already reports
   `deleted` (`CEM-PILOT-019`); the retired Python oracle also refused to search, raising
   `unsupported-tree-mode`; and no prior vector's fixture bytes or expected record change. The only

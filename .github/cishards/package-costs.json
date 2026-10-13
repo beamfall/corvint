@@ -300,7 +300,6 @@
     "github.com/Beamfall/corvint/tools/beamfall-shadow/fdexec": 1,
     "github.com/Beamfall/corvint/tools/beamfall-shadow/fixtures/matrix/go": 1,
     "github.com/Beamfall/corvint/tools/beamfall-shadow/wrapper": 1250,
-    "github.com/Beamfall/corvint/tools/cem-interop-runner": 24030,
     "github.com/Beamfall/corvint/tools/cem-trial": 23683,
     "github.com/Beamfall/corvint/tools/ci-reuse-plan": 1010,
     "github.com/Beamfall/corvint/tools/ci-shard-costs": 1037,

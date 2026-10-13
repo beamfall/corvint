@@ -4,7 +4,7 @@ Owner: Russell Lewis (repository owner). Accepted by the owner in decision 0047 
 Nothing here amends
 `change-frontier-v0.md`; where a `frontier/0` clause would have to change, this document *describes*
 the change rather than making it.
-Date: 2026-08-29
+Date: 2026-08-29; amended 2026-10-13 (V1-1278 S3, `CEM-V1-225`): decision 0525 removed `cem/0.x`, so the CEM 0.2 inputs below are historical and any `frontier/1` implementation would need a `cem/1.0` input (`docs/specs/cem-stable-v1.md`) under its own accepted profile.
 Intent status: accepted (decision 0047, 2026-09-04)
 Delivery status: not-started
 Authoritative inputs: `docs/specs/change-frontier-v0.md`,

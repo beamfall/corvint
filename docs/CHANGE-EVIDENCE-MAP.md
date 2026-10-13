@@ -1,10 +1,10 @@
 # Change Evidence Map 0.1
 
-Status: experimental interchange contract.
+Status: retired by decision 0525, superseded by [`cem-stable-v1`](specs/cem-stable-v1.md). Corvint reads and writes only `cem/1.0` ([`protocol/cem-1.0/stable`](../protocol/cem-1.0/stable)); a `cem/0.x` map is refused with `unsupported-spec`. This page is kept as the historical `cem/0.1`, `cem/0.2` and `cem/0.3` description; its packet links name paths removed by V1-1278 S3, which Git history keeps, and the 0.1 algorithms `cem/1.0` inherits are in [`cem-0.1-algorithms.md`](../protocol/cem-1.0/stable/inherited/cem-0.1-algorithms.md).
 
-> **Pre-release security erratum — 2026-08-23.** The current
-> [`interop/cem-0.1/ALGORITHMS.md`](../interop/cem-0.1/ALGORITHMS.md) and vector manifest replace
-> every earlier `cem/0.1` draft. Conformance requires the hardened line-boundary, Git mode-binding,
+> **Pre-release security erratum — 2026-08-23.** The then-current 0.1 `ALGORITHMS.md` (now
+> [`cem-0.1-algorithms.md`](../protocol/cem-1.0/stable/inherited/cem-0.1-algorithms.md)) and vector
+> manifest replaced every earlier `cem/0.1` draft. Conformance requires the hardened line-boundary, Git mode-binding,
 > and LF-tokenizer limits plus the exact negative-vector rejection codes; earlier 0.1 behavior is
 > not an accepted compatibility profile.
 
@@ -282,7 +282,7 @@ envelopes remain unchanged and omit this field.
 
 **Frozen minimum proof wire (2026-09-22).** The minimum portable proof wire is frozen as of
 2026-09-22 (decision 0357): `cem/0.2` with its N-1 `cem/0.1` reader, pinned by
-[`../protocol/cem-0.2/manifest.json`](../protocol/cem-0.2/manifest.json) (`CEM-CB-025`);
+the 0.2 packet manifest (`CEM-CB-025`; removed by V1-1278 S3, kept in Git history);
 `ocm/0.1-experimental`, pinned by `conformance/ocm-v0/` (`OCM-V0-014`, `OCM-V0-015`); and
 `frontier/0` with `frontier-error/0`, pinned by `conformance/frontier-v0/` (`CF-V0-034`). Each
 packet pins its vector files by SHA-256 and pins the stable, relocated, stale, ambiguous, deleted

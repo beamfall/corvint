@@ -27,7 +27,7 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   authority off the Core path (row 6, line 19); a CI or hook invocation of the same binary gains
   nothing either path lacks. In particular: `affected` never claims omitted tests are safe to skip
   (`cmd/corvint/help.go:571-572@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
-  correctness ([CEM in CI](CEM-CI.md#policy-and-failure-behavior)); and `witness` exits 0 on a
+  correctness ([Change Evidence Map](CHANGE-EVIDENCE-MAP.md)); and `witness` exits 0 on a
   report whose obligations are all unproven (worked example below).
 - **Network.** "Local-only; no network or telemetry" (root help support boundary)
   (`cmd/corvint/help.go:293@f1b66bd9`). Fetching the commits a step needs is the runner's job.
@@ -75,8 +75,8 @@ about their safety as a triggered step.
 | Step | Class | Exit codes | Output profile (stdout) | Required inputs | 1.0 label |
 |---|---|---|---|---|---|
 | `corvint affected --base BASE` | `R0` | 0 plan written; 2 refusal or error | `affected-plan/0`, one canonical JSON line, `"mutates": false` | full `BASE`; a checkout whose `HEAD` is the change head | Core |
-| `corvint cem verify --map MAP --expected-base BASE --target TARGET [--max-unknown N] [--max-mechanical N]` | `R0+SOL` | 0 valid and within caps; 1 invalid or over a cap (`"ok": false`); 2 refusal or error | JSON with `"tool": "cem-verify"`, `"mutates": false` (the example map is `cem/0.2`) | CEM path, full `BASE` and `TARGET` (both required for `cem/0.2`) | Core |
-| `corvint cem status` (same arguments) | `R0+SOL` | as `cem verify`; `"state"` is `ready-for-ci`, `incomplete` or `invalid` | JSON with `"tool": "cem-status"`, `"mutates": false` | as `cem verify` | Core |
+| `corvint cem verify --map MAP --expected-base BASE --target TARGET --artifacts ROOT` | `R0+SOL` | 0 accepted; 1 rejected (`"ok": false`); 2 refusal or error | JSON with `"tool": "cem-verify"`, `"mutates": false` and the `stableVerification` result; the map must be `cem/1.0` (decision 0525 refuses `cem/0.x` with `unsupported-spec`) | CEM path, full `BASE` and `TARGET`, absolute artifact root | Core |
+| `corvint cem status` (same arguments, plus optional `--max-unknown N` and `--max-mechanical N`) | `R0+SOL` | as `cem verify`; an exceeded ceiling exits 1; `"state"` is `accepted`, `rejected` or `unsupported` | JSON with `"tool": "cem-status"`, `"mutates": false` | as `cem verify` | Core |
 | `corvint witness --base BASE [--cem MAP] [--json]` | `R0+SOL` | 0 report written, whatever it says; 2 refusal or error | `corvint-witness/0` (text headed `WITNESS corvint-witness/0`, or JSON with `--json`) | full `BASE`; optional CEM path; `--head`, if given, must equal the checked-out `HEAD` | experimental |
 | `corvint impact --base BASE [--range-profile expanded-256]` | `R0+SOL` | 0 packet written; 2 refusal or error, including a range over capacity (`unsupported-impact-range`) | JSON with `"tool": "impact"`, `"mutates": false`; `context.profile` is `corvint-range-impact/0` | full `BASE`; the default range capacity is 100 paths, 256 with the explicit profile | Core |
 
@@ -145,10 +145,9 @@ author's dogfood-check verifier comparison. That comparison is author-only evide
 `review:` line naming the `cem verify` command a reviewer runs instead. The worked example below
 pins a commit that predates that line.
 
-The existing pull-request wrapper [`examples/cem/verify-pr.sh`](../examples/cem/verify-pr.sh),
-documented with its own 0/1/2/3 exit table in [CEM in CI](CEM-CI.md), runs `cem verify` from a
-trusted base checkout. It creates a temporary directory inside that checkout and removes it on exit
-(`examples/cem/verify-pr.sh:101-102`).
+The former pull-request wrapper `examples/cem/verify-pr.sh` and its `docs/CEM-CI.md` page read
+`cem/0.x` maps only; both were removed with `cem/0.x` by V1-1278 S3 (decision 0525) and remain in
+Git history.
 
 ## Worked example: a fresh clone at a fixed commit
 

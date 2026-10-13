@@ -1,7 +1,7 @@
 // Package gitauth is the isolated Git authority kernel for CEM: it validates
 // the repository boundary (reciprocal worktree metadata, alternates denial,
 // attribute isolation), resolves revisions, reads tree entries and blobs
-// through Git object identity, and derives canonical CEM 0.2 patch bytes that
+// through Git object identity, and derives the canonical CEM patch bytes that
 // are independent of repository configuration, attributes, diff drivers,
 // object redirection, shallow/partial state, and linked-worktree layout.
 package gitauth
@@ -50,7 +50,7 @@ type Repository struct {
 // alternates and un-isolatable repository attributes, and pins every later Git
 // operation to the resolved administrative directory.
 //
-// Validation order is frozen by the 0.2 spec: worktree/reciprocal validation
+// Validation order is frozen by the inherited 0.2 recipe: worktree/reciprocal validation
 // (repository-object-unavailable) precedes alternate denial
 // (unsupported-object-alternates), which precedes any object read.
 func Open(root string, budget *gitrun.Budget) (*Repository, error) {

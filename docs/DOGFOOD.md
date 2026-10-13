@@ -137,10 +137,10 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `corvint ocm mark` (section 5) is still manual and is dropped by the next commit.
 8. Inspect what a reviewer sees: `corvint cem report` and `corvint ocm report` (section 6), and
    `corvint frontier --cem .corvint/change.cem.json --ocm .corvint/change.ocm.001.json
-   --expected-base $BASE --target HEAD`, whose exit 1 is a valid open frontier. Frontier admits
-   only a `cem/0.2` map: over the default `cem/1.0` map it exits 2 `unsupported-frontier-context`,
-   so that view is not produced until Frontier reads `cem/1.0` (V1-1276). The `cem/1.0` reads in
-   section 6 take the full target ID and `--artifacts`. These paths hold only before step 10;
+   --expected-base $BASE --target HEAD`, whose exit 1 is a valid open frontier. Frontier refuses
+   every `cem/0.x` map with `unsupported-spec` (decision 0525); over the default `cem/1.0` map it
+   returns the `frontier-stable-view/0` view (V1-1304), whose frontier state is always
+   `NOT_PRODUCED`, and it needs an explicit artifact root. The `cem/1.0` reads in section 6 take the full target ID and `--artifacts`. These paths hold only before step 10;
    after the seal, `cem report` takes section 6's sealed form
    (`.corvint/changes/<bind-sha>.cem.json` and `--target <bind-sha>`).
 9. Run `make dogfood-check BASE=$BASE`. Expected: one `dogfood-check: SUMMARY cem=STATE hunks=N
@@ -355,8 +355,8 @@ does not create a recursive self-citation. Since V1-1276 `cem prepare` writes a 
 default (`CEM-V1-140`); the loop cites, counts, checks and seals it like a `cem/0.x` map and runs
 its `cem status` with `--artifacts <absolute repository root>` (`CEM-V1-146`, `CEM-V1-147`). A
 `cem/0.x` sidecar left by an earlier run is refused as a different spec and regenerated with
-`--replace` on the first pass. `corvint cem prepare --spec cem/0.2` keeps the `cem/0.x` producer
-until V1-1278 removes it; any other `--spec` is refused. A change that alters the `cem status`
+`--replace` on the first pass. `corvint cem prepare --spec` admits only `cem/1.0`; V1-1278 removed the
+`cem/0.x` producer (decision 0525), so `--spec cem/0.2` is refused with `unsupported-spec`. A change that alters the `cem status`
 output the loop records, or makes OCM read a map its base refuses, as V1-1276 itself does, declares `DOGFOOD_OUTPUT_CHANGE=DCW-V0-047`. The second `dogfood-change` resolves
 the new `HEAD`; prepare resumes and re-citing the same plan is idempotent, so the worktree stays clean while the report is
 regenerated with `"complete": true`. `dogfood-change` reruns prepare with `--replace` only when
@@ -744,8 +744,9 @@ V1-1276, is read only with a full `BASE_SHA`, a full target ID, an absolute `--r
 `--artifacts <absolute repository root>`: prepare's returned action names the resolved base and
 target and that root (`CEM-V1-146`), and the status read above resolves the final revision after
 the candidate commit with `--target "$(git rev-parse HEAD)"`; `--target HEAD` or a missing
-`--artifacts` is refused. Only a `cem/0.2` map (`cem prepare --spec cem/0.2`) returns the literal
-`--target HEAD` action and reads without `--artifacts`.
+`--artifacts` is refused. The former `cem/0.2` route, the only one that returned the literal
+`--target HEAD` action and read without `--artifacts`, was removed by decision 0525; prepare
+now writes `cem/1.0` only (`--spec cem/1.0`).
 The sidecar is excluded from its own patch, avoiding recursive self-citation.
 
 ### 5. Close every owning-spec obligation
@@ -804,9 +805,9 @@ $ corvint --root "$PWD" cem report --map .corvint/changes/BIND_SHA.cem.json \
 
 The default map is `cem/1.0` (`CEM-V1-140`): its reads take full 40-hex commit IDs, never `HEAD`,
 an absolute repository root and an absolute `--artifacts` root. `cem status` enforces the policy
-ceilings (`CEM-V1-145`); a stable `cem report` refuses them, so it runs after that status. A
-`cem/0.2` map, prepared with `--spec cem/0.2`, keeps the former single report with the ceilings
-and no `--artifacts`.
+ceilings (`CEM-V1-145`); a stable `cem report` refuses them, so it runs after that status. The
+former `cem/0.2` single report with the ceilings and no `--artifacts` was removed with `cem/0.x`
+(decision 0525); every map is prepared as `--spec cem/1.0`.
 
 Before the seal, at the bind commit, the author runs the same reads with
 `--map .corvint/change.cem.json --target "$(git rev-parse HEAD)"`. At the seal head that path no

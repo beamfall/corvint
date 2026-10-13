@@ -222,7 +222,8 @@ corvint cem status --map .corvint/change.cem.json \
 For a one-hunk change, `prepare` produces an incomplete worklist; after the citation, `status`
 reports `"state": "ready-for-ci"` with a stable span. A larger diff needs a disposition for every
 hunk, and the worklist says what remains. The policy above permits no unknowns and no mechanical
-exceptions. [CEM in CI](docs/CEM-CI.md) wires that policy into a pipeline.
+exceptions. In a pipeline, `corvint cem verify-stable` or the portable
+[`interop/cem01-go`](interop/cem01-go/README.md) verifier checks the committed `cem/1.0` map.
 
 The `nextActions` argv that `cem prepare` and `ocm prepare` return starts with the command name
 `corvint`. Run it with a `corvint` binary in that first position, or build one under that name
@@ -501,7 +502,7 @@ experimental; exact client tuples and outcome/performance floors are unqualified
 |---|---|
 | Spec-driven | Every substantive capability has an executable spec with stable requirement IDs in `docs/specs/REQUIREMENTS.tsv`; `go run ./script/spec-coverage-audit` reports test, case, and fixture mentions separately from comments and missing mentions |
 | Decision records | Numbered, accepted intent with explicit promotion boundaries in `docs/decisions/` |
-| Frozen conformance | Exact receipt and state replay, CEM/LRF/TCQ vectors, and an in-repo second consumer for `cem/0.1` in `interop/cem01-go` |
+| Frozen conformance | Exact receipt and state replay, CEM/LRF/TCQ vectors, and an in-repo second consumer for `cem/1.0` in `interop/cem01-go` |
 | Honest disagreements | Every known behavioural disagreement is adjudicated and dated in the [divergence register](conformance/divergence-register.md) |
 | Hermetic archives | `make gate` includes `script/go-archive-gate`, which rebuilds the release archives from the committed revision and checks the closed file set ([spec](docs/specs/go-archive-gate-v0.md)) |
 | Dogfooded | Substantive Corvint changes must collect context with Corvint and bind the diff to a CEM ([dogfood contract](docs/DOGFOOD.md)) |
@@ -524,7 +525,7 @@ experimental; exact client tuples and outcome/performance floors are unqualified
 | Surface | 1.0 label | Release evidence and current scope |
 |---|---|---|
 | `init`, `adopt`, `index`, `query`, `context`, `impact`, `affected`, `prove` | Core | Command, wire and migration contracts frozen; `init`, `adopt` and the deterministic index lifecycle qualified. Receipts carry coverage, omissions and uncertainty as specified. |
-| CEM `0.1` / `0.2`, OCM, change frontier | Core | Frozen with canonical conformance vectors. `interop/cem01-go` is an in-repo second consumer for `cem/0.1` only; 1.0 claims no third-party interoperability. |
+| CEM `1.0`, OCM, change frontier | Core | Frozen with canonical conformance vectors. `cem/0.x` was removed by decision 0525 and survives only in Git history. `interop/cem01-go` is an in-repo second consumer for `cem/1.0`; 1.0 claims no third-party interoperability. |
 | Dogfood loop | Core | Substantive Corvint changes are bound to a CEM and sealed with a retained local outcome ([dogfood contract](docs/DOGFOOD.md)). |
 | Core jobs | Core | **The rc.2 evaluation failed overall.** Task orientation missed critical files that the lexical baseline found: 6 files in 2 of 20 scored cases on urfave/cli, 9 files in 6 of 17 on Corvint and 1 file in 1 of 20 on Beamfall. Of the 15 public missed files, 11 are documentation or other non-Go files. Change consequence (no misses) and evidence-carrying completion (12 of 12 informative, no false complete verdict) passed on all three repositories. 1.0 final stays blocked on this evaluation ([release evidence](docs/RELEASE-NOTES.md#100-rc2-release-candidate)). The rc.1 evaluation also failed orientation, on go-chi/chi and Beamfall; its Corvint run aborted before scoring. |
 | Native release artifact and install lifecycle | Core | darwin/arm64 and linux/amd64 have retained rc.2 install-lifecycle qualification, in same-bytes mode and as the N-1 upgrade from rc.1 with rollback. darwin/amd64 was tested under Rosetta 2 and linux/arm64 in a container; both remain `FALLBACK`. Windows is unsupported. rc.2 is unsigned, and decision 0433 selects no signing for 1.0 either: `SHA256SUMS` only, publisher identity `NOT_VERIFIED` ([release evidence](docs/RELEASE-NOTES.md#100-rc2-release-candidate)). |
@@ -548,7 +549,7 @@ the [release notes](docs/RELEASE-NOTES.md), the [specification index](docs/specs
 - [Agent evidence routes](docs/AGENT-ROUTES.md): task-sized paths to authority, code, tests, and next action
 - [Specification index](docs/specs/README.md): accepted intent versus actual delivery state
 - [Change Evidence Map](docs/CHANGE-EVIDENCE-MAP.md): the interchange contract
-- [CEM in CI](docs/CEM-CI.md): wiring the verifier into a pipeline
+- [CEM 1.0 Go portable consumer](interop/cem01-go/README.md): verifying a `cem/1.0` map outside Corvint
 - [Dogfood contract](docs/DOGFOOD.md): how Corvint must prove substantive Corvint changes
 
 ## Development

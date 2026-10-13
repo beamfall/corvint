@@ -9,8 +9,8 @@ guidance from historical records.
 - [Product contract](PRODUCT.md) — product purpose, trust boundary, and supported direction.
 - [Specification index](specs/README.md) — authoritative intent and delivery status.
 - [Agent evidence routes](AGENT-ROUTES.md) — bounded routes from a task to original evidence.
-- [Change Evidence Map](CHANGE-EVIDENCE-MAP.md) and [CEM in CI](CEM-CI.md) — change-evidence
-  format and integration.
+- [Change Evidence Map](CHANGE-EVIDENCE-MAP.md) and the [CEM 1.0 stable contract](specs/cem-stable-v1.md)
+  — change-evidence format and integration.
 - [Triggered automation](AUTOMATION.md#session-hooks-frontier-authority-unavailable) — session-hook
   degradation guidance, including adopters without CEM/OCM artifacts.
 - [MCP server](MCP-SERVER.md), [integration ecosystem](EXTENSION-ECOSYSTEM.md), and

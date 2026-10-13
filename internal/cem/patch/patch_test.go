@@ -15,7 +15,7 @@ import (
 
 func interopDir(t *testing.T) string {
 	t.Helper()
-	root, err := filepath.Abs(filepath.Join("..", "..", "..", "interop", "cem-0.1"))
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", "interop", "cem01-go", "testdata", "inherited-vectors"))
 	if err != nil {
 		t.Fatal(err)
 	}

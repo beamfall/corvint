@@ -59,8 +59,8 @@ unchanged by this specification.
   `i/mixed` MUST be collected as ending drift. The gate MUST NOT reject another index EOL value
   through this ending check.
 - `EPG-V0-005`: The ending-drift exemption MUST be the closed set
-  `interop/cem-0.1/repository/base/src/ending.txt` and
-  `interop/cem-0.1/patches/line-ending.patch`. When either exact tracked path is encountered, the
+  `interop/cem01-go/testdata/inherited-vectors/repository/base/src/ending.txt` and
+  `interop/cem01-go/testdata/inherited-vectors/patches/line-ending.patch` (moved unchanged from `interop/cem-0.1` by V1-1278 S3, `CEM-V1-221`). When either exact tracked path is encountered, the
   gate MUST count it as exempt and skip only its ending check, regardless of the index EOL value.
   No basename, directory, pattern, or third path MUST inherit the exemption.
 - `EPG-V0-006`: The gate MUST scan the whole listing before reporting policy drift. It MUST report

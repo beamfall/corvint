@@ -88,7 +88,7 @@ or `CONFLICTED`; a high rank is never a truth verdict.
 
 ## Change Evidence Map interoperability contract
 
-The Change Evidence Map (CEM) is the first narrow application of the compiler: a sidecar association
+Decision 0525 removed `cem/0.1`..`cem/0.3`: `cem/1.0` ([stable contract](specs/cem-stable-v1.md)) is the only wire, a `cem/0.x` map is refused with `unsupported-spec`, and the 0.x paragraphs below are the inherited design history that `cem/1.0` keeps. The Change Evidence Map (CEM) is the first narrow application of the compiler: a sidecar association
 map for agent edits. A `cem/0.1` map binds a schema version, full base revision, and exact patch digest to
 every textual hunk. Each hunk carries content-derived path/range/body identity and either immutable
 Git blob-span evidence, an explicit unknown, or a mechanically verified whitespace/line-ending

@@ -1,6 +1,7 @@
-// Package wire reads and validates CEM 0.1/0.2 wire documents.
+// Package wire reads and validates CEM wire documents.
 //
-// The reader is a strict JSON parser implementing interop/cem-0.1/ALGORITHMS.md
+// The reader is a strict JSON parser implementing
+// protocol/cem-1.0/stable/inherited/cem-0.1-algorithms.md
 // "JSON and version dispatch": it rejects malformed UTF-8, duplicate object keys
 // at any depth, non-integer or non-finite numbers, integers outside
 // 0..9007199254740991, unpaired surrogates after JSON decoding, and inputs

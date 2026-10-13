@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Canonical identity encoding per interop/cem-0.1/ALGORITHMS.md: UTF-8, no BOM
+// Canonical identity encoding per protocol/cem-1.0/stable/inherited/cem-0.1-algorithms.md: UTF-8, no BOM
 // or trailing LF, members sorted by name, no insignificant spaces, shortest
 // unsigned decimal integers, and the exact string escape profile.
 

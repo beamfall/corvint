@@ -87,7 +87,6 @@ var scopes = map[string][]string{
 	"gate-receipt-test":             {},
 	"error-code-ownership-check":    {treeScope},
 	"error-code-ownership-test":     {},
-	"cem-recipes-test":              {treeScope},
 	"host-package-versions-check":   {treeScope},
 	"host-package-versions-test":    {},
 	"diagnostic-coverage-check":     {treeScope},

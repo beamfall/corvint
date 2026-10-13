@@ -1,10 +1,11 @@
 // Package cemcode registers the stable CEM error taxonomy shared by every CEM seam.
 //
-// Codes marked "frozen" are registered by the CEM 0.1 interop manifest
-// (interop/cem-0.1/manifest.json expectedCode / conformance acceptableCodes) or by
-// docs/specs/cem-0.2-canonical-binding.md CEM-CB-021 and must not be renamed.
-// Codes marked "operational" report documented implementation limits and are
-// distinguished from protocol invalidity per interop/cem-0.1/ALGORITHMS.md.
+// Codes marked "frozen" were registered by the retired CEM 0.1 interop manifest
+// (expectedCode / conformance acceptableCodes) or by the retired
+// docs/specs/cem-0.2-canonical-binding.md CEM-CB-021, are inherited by cem/1.0
+// and must not be renamed. Codes marked "operational" report documented
+// implementation limits and are distinguished from protocol invalidity per
+// protocol/cem-1.0/stable/inherited/cem-0.1-algorithms.md.
 package cemcode
 
 import "fmt"
@@ -121,8 +122,8 @@ func asError(err error, target **Error) bool {
 const (
 	InvalidJSON             = "invalid-json"              // malformed UTF-8/JSON, duplicate key, bad integer
 	NotAnObject             = "not-an-object"             // root JSON value is not an object
-	MissingField            = "missing-field"             // frozen: cem-0.2 cases.json missing-excluded-path
-	UnknownField            = "unknown-field"             // frozen: cem-0.2 cases.json surplus-field
+	MissingField            = "missing-field"             // frozen: retired cem-0.2 case missing-excluded-path
+	UnknownField            = "unknown-field"             // frozen: retired cem-0.2 case surplus-field
 	UnsupportedSpec         = "unsupported-spec"          // frozen: CEM-CB-021
 	InvalidField            = "invalid-field"             // structurally invalid wire value
 	InvalidExcludedPath     = "invalid-excluded-path"     // frozen: CEM-CB-021

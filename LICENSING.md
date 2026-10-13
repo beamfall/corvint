@@ -21,7 +21,6 @@ condition. The full text is in `LICENSE-APACHE-2.0`.
 - `conformance/**`
 - `interop/**`
 - `docs/CHANGE-EVIDENCE-MAP.md`
-- `docs/CEM-CI.md`
 - `docs/cem-0.1.schema.json`
 - `docs/cem-0.2.schema.json`
 - `docs/lrf-0.schema.json`

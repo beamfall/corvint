@@ -15,7 +15,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
-	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"github.com/Beamfall/corvint/internal/frontiernext"
@@ -136,64 +135,6 @@ func sign(t *testing.T, r *frontiernext.Request, p *localauthority.PolicySnapsho
 	r.Receipt.Signature = hex.EncodeToString(ed25519.Sign(key, raw))
 	d, _ := localauthority.Digest(r.Receipt)
 	p.TerminalSHA256[r.Enrollment.Nonce] = d
-}
-
-func TestUnsupportedAndAmbiguousDefinitionsStayOpen(t *testing.T) {
-	t.Run("CWR-V0-006 unresolved and ambiguous definitions abstain", func(t *testing.T) {
-		cases := []struct{ source, symbol string }{
-			{"package p\nfunc Encode() {}\nfunc Encode() {}\n", "Encode"},
-			{"package p\ntype T int\nfunc (T) Encode() {}\n", "Encode"},
-			{"package p\nfunc Other() {}\n", "Encode"},
-		}
-		for _, c := range cases {
-			if _, _, ok := functionSpan("codec.go", []byte(c.source), c.symbol); ok {
-				t.Fatal("unsupported definition qualified")
-			}
-		}
-
-	})
-}
-func TestNeighborMaterialEditCannotQualifyWhitespace(t *testing.T) {
-	t.Run("CWR-V0-007 neighboring edit cannot witness whitespace", func(t *testing.T) {
-		h := &patch.Hunk{NewRange: wire.Range{Start: 1, Count: 5}, Body: []patch.BodyLine{
-			{Prefix: ' ', Payload: []byte("func Encode() {\n")},
-			{Prefix: '-', Payload: []byte(" return value\n")},
-			{Prefix: '+', Payload: []byte("  return value\n")},
-			{Prefix: ' ', Payload: []byte("}\n")},
-			{Prefix: '-', Payload: []byte("func Other() { return 1 }\n")},
-			{Prefix: '+', Payload: []byte("func Other() { return 2 }\n")},
-		}}
-		if materialHunk(h, 1, 3) {
-			t.Fatal("neighbor edit qualified whitespace-only function")
-		}
-		if !materialHunk(h, 4, 4) {
-			t.Fatal("material target line refused")
-		}
-
-	})
-}
-
-func TestUndeclaredProductionSiblingCannotHideBehindCapsule(t *testing.T) {
-	source, err := os.ReadFile("../wp3codec/codec.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	driver := []byte("package driver\nfunc TestCanonicalOutput() {\n for _, group := range []struct{name string}{{name: \"PLE-V0-005 canonical vectors\"}} { if group.name == \"\" { panic(\"missing group\") } } }\n")
-	root, r, _ := fixtureRequest(t, source, driver, false)
-	write(t, root, "internal/wp3codec/shadow.go", []byte("package wp3codec\nfunc Encode() {}\n"))
-	git(t, root, "add", ".")
-	git(t, root, "commit", "-qm", "undeclared production source")
-	target := git(t, root, "rev-parse", "HEAD")
-	repo, err := gitauth.Open(root, gitrun.NewDefaultBudget())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !completePackage(context.Background(), repo, r.Enrollment.Binding.Target, "internal/wp3codec/codec.go") {
-		t.Fatal("baseline package refused")
-	}
-	if completePackage(context.Background(), repo, target, "internal/wp3codec/codec.go") {
-		t.Fatal("undeclared duplicate source omitted")
-	}
 }
 
 // TestCEMV1210FixtureRecomputeRefusesEveryMap (CEM-V1-210): the experimental

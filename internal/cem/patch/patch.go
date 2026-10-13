@@ -52,7 +52,7 @@ type Group struct {
 	Hunks   []*Hunk
 }
 
-// Patch is a fully parsed CEM 0.1 conformant patch.
+// Patch is a fully parsed patch conforming to the CEM patch grammar.
 type Patch struct {
 	Groups []*Group
 	Hunks  []*Hunk // every hunk in patch order
@@ -81,7 +81,7 @@ type parser struct {
 	pos   int
 }
 
-// Parse reads one bounded CEM 0.1 patch.
+// Parse reads one bounded CEM patch.
 func Parse(raw []byte) (*Patch, error) {
 	if len(raw) == 0 {
 		return nil, cemcode.New(cemcode.BinaryPatch, "patch is empty")
@@ -169,7 +169,7 @@ func hasPrefixLine(line []byte, prefix string) bool {
 func (p *parser) parseGroup() (*Group, error) {
 	line := p.peek()
 	if hasPrefixLine(line, "GIT binary patch") || hasPrefixLine(line, "Binary files ") {
-		return nil, cemcode.New(cemcode.BinaryPatch, "binary patches are not cem/0.1 conformant")
+		return nil, cemcode.New(cemcode.BinaryPatch, "binary patches are outside the CEM patch grammar")
 	}
 	switch {
 	case hasPrefixLine(line, "diff --git "):
@@ -209,7 +209,7 @@ func (p *parser) parseStateMachineGroup() (*Group, error) {
 		return nil, malformed("diff --git group is missing file headers")
 	}
 	if hasPrefixLine(p.peek(), "GIT binary patch") || hasPrefixLine(p.peek(), "Binary files ") {
-		return nil, cemcode.New(cemcode.BinaryPatch, "binary patches are not cem/0.1 conformant")
+		return nil, cemcode.New(cemcode.BinaryPatch, "binary patches are outside the CEM patch grammar")
 	}
 	oldPath, newPath, err := p.parseFileHeaders()
 	if err != nil {
@@ -259,7 +259,7 @@ func (p *parser) parseMetadata() (*metadata, error) {
 			}
 			meta.deleteMode = mode
 		case strings.HasPrefix(text, "old mode ") || strings.HasPrefix(text, "new mode "):
-			return nil, malformed("old mode/new mode metadata is unsupported in cem/0.1")
+			return nil, malformed("old mode/new mode metadata is outside the CEM patch grammar")
 		case strings.HasPrefix(text, "rename from "):
 			if meta.renameFrom != "" {
 				return nil, malformed("repeated rename from line")
@@ -364,7 +364,7 @@ func parseHeaderPath(text, prefix string) (*string, error) {
 		return nil, nil
 	}
 	if strings.HasPrefix(text, `"`) {
-		return nil, malformed("quoted or escaped Git paths are not in cem/0.1")
+		return nil, malformed("quoted or escaped Git paths are outside the CEM patch grammar")
 	}
 	path, hasPrefix := strings.CutPrefix(text, prefix)
 	if !hasPrefix {

@@ -5,14 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
-type response struct {
-	Accept bool        `json:"accept"`
-	Spec   string      `json:"spec"`
-	Drift  []driftItem `json:"drift"`
-	Code   string      `json:"code,omitempty"`
-}
+// retiredFix is the remediation printed with every refusal of a retired cem/0.x map.
+const retiredFix = "cem/0.x is retired (decision 0525); regenerate the map as cem/1.0 and run verify-stable-canonical"
 
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == stableKeeperProtocol && stableKeeperControlPresent() {
@@ -24,51 +21,46 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "verify-stable" {
 		runStableCLI(os.Args[2:])
 	}
-	if len(os.Args) > 1 && os.Args[1] == "verify-03" {
-		run03CLI(os.Args[2:])
-	}
 	if len(os.Args) > 1 && os.Args[1] == "verify-candidate" {
 		runCandidateCLI(os.Args[2:])
 	}
-	if len(os.Args) > 1 && os.Args[1] == "ci" {
-		writeCIReport(runCI(os.Args[2:]))
-	}
-	r := response{Spec: specVersion, Drift: []driftItem{}}
-	args, err := parseArgs(os.Args[1:])
-	if err != nil {
-		r.Code = "invocation"
-		writeResponse(r, 2)
-	}
-	drift, err := verify(args)
-	if err != nil {
-		r.Code = err.code
-		if err.operational {
-			writeResponse(r, 2)
-		}
-		writeResponse(r, 1)
-	}
-	r.Accept = true
-	r.Drift = drift
-	for _, item := range drift {
-		if item.Status != "stable" && item.Status != "relocated" {
-			r.Accept = false
-			break
-		}
-	}
-	if !r.Accept {
-		writeResponse(r, 1)
-	}
-	writeResponse(r, 0)
+	code, status := retiredRoute(os.Args[1:])
+	_, _ = fmt.Fprintf(os.Stderr, "cem01-go: %s; fix: %s\n", code, retiredFix)
+	_, _ = fmt.Fprintln(os.Stdout, `{"accept":false,"spec":"`+stableSpec+`","code":"`+code+`"}`)
+	os.Exit(status)
 }
 
-func writeResponse(r response, status int) {
-	b, err := json.Marshal(r)
-	if err != nil {
-		b = []byte(`{"accept":false,"spec":"cem/0.1","drift":[],"code":"internal"}`)
-		status = 2
+// retiredRoute refuses every invocation outside the cem/1.0 commands (CEM-V1-222). The cem/0.1
+// default verify route, verify-03 and ci are retired: an invocation naming a map whose spec is a
+// cem/0.x string is refused with the closed code unsupported-spec (exit 1); anything else is an
+// invocation error (exit 2).
+func retiredRoute(argv []string) (string, int) {
+	for i := 0; i+1 < len(argv); i++ {
+		if argv[i] != "--map" {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), verificationBudget)
+		defer cancel()
+		raw, e := readBounded(ctx, argv[i+1], maxJSONBytes)
+		if e == nil && retiredSpec(raw) {
+			return "unsupported-spec", 1
+		}
+		break
 	}
-	_, _ = fmt.Fprintln(os.Stdout, string(b))
-	os.Exit(status)
+	return "invocation", 2
+}
+
+// retiredSpec reports a strictly parsed JSON object whose spec member is a cem/0.x string.
+func retiredSpec(raw []byte) bool {
+	if strictJSON03(raw) != nil {
+		return false
+	}
+	var root map[string]json.RawMessage
+	if json.Unmarshal(raw, &root) != nil {
+		return false
+	}
+	s, ok := text03(root["spec"])
+	return ok && strings.HasPrefix(s, "cem/0.")
 }
 
 func runCandidateCLI(argv []string) {

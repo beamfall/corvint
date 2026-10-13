@@ -15,7 +15,7 @@ import (
 // consumes exactly its declared old and new counts and carries a changed line,
 // and each content address is the SHA-256 of that hunk's raw body bytes.
 func FuzzParseBodyMatchesDeclaredRanges(f *testing.F) {
-	seeds, _ := filepath.Glob(filepath.Join("..", "..", "..", "interop", "cem-0.1", "patches", "*.patch"))
+	seeds, _ := filepath.Glob(filepath.Join("..", "..", "..", "interop", "cem01-go", "testdata", "inherited-vectors", "patches", "*.patch"))
 	for _, seed := range seeds {
 		if data, err := os.ReadFile(seed); err == nil {
 			f.Add(data)

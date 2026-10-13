@@ -1,5 +1,5 @@
 // Package sim proves a parsed CEM patch against exact base-tree bytes, per
-// interop/cem-0.1/ALGORITHMS.md "Patch/base simulation". It is a simulation
+// protocol/cem-1.0/stable/inherited/cem-0.1-algorithms.md "Patch/base simulation". It is a simulation
 // only: the patch is never executed, and old bytes are never invented — every
 // context and removed payload must match the base byte-for-byte.
 package sim

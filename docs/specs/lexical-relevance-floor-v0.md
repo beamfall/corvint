@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-22
-Amended: 2026-08-30 (30-case conformance plan alignment)
+Amended: 2026-08-30 (30-case conformance plan alignment); 2026-10-13 (V1-1278 S3, `CEM-V1-225`: decision 0525 removed `cem/0.x`, so the CEM 0.1 and 0.2 sentences below describe the retired wire and are historical, and `lrf/0` evaluates no map, `CEM-V1-210`)
 Intent status: proposed
 Delivery status: experimental
 Authoritative inputs: `docs/CHANGE-EVIDENCE-MAP.md`, `docs/specs/ocm-v0-dogfood.md`,
@@ -12,7 +12,7 @@ Authoritative inputs: `docs/CHANGE-EVIDENCE-MAP.md`, `docs/specs/ocm-v0-dogfood.
 - Claim: Lexical Relevance Floor qualifies bounded lexical proximity without treating it as semantic evidence or obligation closure.
 - Status: proposed/experimental
 - Exists: `internal/lrf`, `internal/lrfrepo`, and `conformance/lrf-v0` experimental surfaces.
-- Blocked on: the frozen 41-case qualification plan (`conformance/lrf-v0/cases.json`) and independent evidence beyond structural self-use.
+- Blocked on: a stable LRF evaluation (the frozen 41-case `lrf/0` corpus was retired by `CEM-V1-217`; `conformance/lrf-v0/retired.json` records it) and independent evidence beyond structural self-use.
 - Read next: User and job; Verified current state; Definitions.
 
 ### Status-marker classification (2026-09-12)

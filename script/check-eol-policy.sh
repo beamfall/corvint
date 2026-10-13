@@ -27,8 +27,8 @@ use strict;
 use warnings;
 
 my %exempt = map { $_ => 1 } (
-    'interop/cem-0.1/repository/base/src/ending.txt',
-    'interop/cem-0.1/patches/line-ending.patch',
+    'interop/cem01-go/testdata/inherited-vectors/repository/base/src/ending.txt',
+    'interop/cem01-go/testdata/inherited-vectors/patches/line-ending.patch',
 );
 
 open my $listing, '-|', 'git', 'ls-files', '--eol', '-z'

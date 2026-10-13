@@ -1114,7 +1114,9 @@ above stands with that substitution.
   holds `cem/v2` only. A `cem/0` or `cem/v1` envelope is refused as a retired predicate type, with
   or without map bytes (CLI `attest-verification-failed`), and the two `cem/v1` receipt members
   are no longer emitted.
-- **FPK-V0-035:** (experimental prototype, not advertised; proposed 2026-09-22, decision 0354) A
+- **FPK-V0-035:** (retired by V1-1278 S3, `CEM-V1-222`: `interop/cem01-go/intoto.go` and its
+  tests are deleted and kept in Git history; the text below is historical. Experimental prototype,
+  not advertised; proposed 2026-09-22, decision 0354) A
   consumer outside the Corvint module MUST read `cem/v1` from its wire alone.
   `interop/cem01-go/intoto.go`, standard library only, in the separate `interop/cem01-go` module,
   verifies a DSSE envelope against a PKIX Ed25519 `PUBLIC KEY` PEM with no Git and no connection:
@@ -1125,7 +1127,8 @@ above stands with that substitution.
   `cem`; unique member names and no case variant of a name it reads; other members ignored. It
   reports `VERIFIED` when the supplied map has the signed sha256 and size and its own `spec`,
   `baseRevision`, and `patchSha256` equal the signed ones, and `NOT_RUN` without map bytes. The
-  envelope `CEMStatementV1` and `Envelope` produce for `interop/cem-0.1/maps/valid/supported-sha256.json`
+  envelope `CEMStatementV1` and `Envelope` produce for the inherited vector now at
+  `interop/cem01-go/testdata/inherited-vectors/maps/valid/supported-sha256.json`
   named `.corvint/change.cem.json`, under a public test key derived from the fixed seed
   sha256("corvint FPK-V0-033 fixture key"), is embedded byte for byte in the consumer's test, and
   both modules pin its sha256
@@ -1669,10 +1672,10 @@ which is the whole of what the row asserts.
 | FPK-V0-032 | `classifyTrust` (`cmd/corvint/prove_trust.go`), `proveRow.Trust`, `proveRow.Refusal`; `contextindex.TrustClass`, `contextindex.TrustTainted` | `TestProveRowsCarryOneTrustClassAndOldConsumersDecode` (every row of a real proof carries the class its label derives, none refused, and the previous row shape decodes the wire to the wire minus `trust` and `refusal`), `TestProveRefusesATaintedRowAsBasis` (a learned-ledger row and an unlisted label keep falsifier `none` and are refused by name even when marked `PASS`, so they count as unproven; a `syntax` row and an affected-test row are untouched) |
 | FPK-V0-033 | retired by V1-1278 S2b (`CEM-V1-218`): `internal/attest/cem_v1.go` deleted | `TestCEMV1218RetiredPredicatesRefuse` (a signed `cem/v1` envelope is refused as retired); the `cem/v1` statement tests were deleted with the predicate |
 | FPK-V0-034 | experimental prototype: `VerifyCEMPredicate`, `retiredCEMPredicateTypes`, `checkCEMClaim` (`internal/attest`); `verifyCEMAttestation` (`cmd/corvint/prove_attest_cem.go`); the `cem/v1` parser and receipt members retired by V1-1278 (`CEM-V1-218`) | `TestCEMV1218RetiredPredicatesRefuse` (`cem/0` and `cem/v1` envelopes refused as retired, with and without map bytes), `TestProveCEMAttestationVerifyRefusesAnEnvelopeThatDoesNotVerify`; the `cem/v1` claim tests were deleted with the predicate |
-| FPK-V0-035 | experimental prototype: `readCEMAttestation`, `intotoVerifyEnvelope`, `intotoCEMClaim`, `intotoCheckMap` (`interop/cem01-go/intoto.go`) | `TestIntotoReadsTheDigestPinnedCorvintCEMAttestation` (pinned envelope digest; `VERIFIED` and `NOT_RUN` with the claim derived from the map), `TestIntotoRefusesWhatTheSignerDidNotAttest` (changed map, other key, changed payload, extra, repeated, and case-variant members, `cem/0` type, subject name); the Corvint-side digest pin test was deleted with `cem_v1.go` by V1-1278 (`CEM-V1-218`), so the fixture is historical until S3 retires the reader |
+| FPK-V0-035 | experimental prototype: `readCEMAttestation`, `intotoVerifyEnvelope`, `intotoCEMClaim`, `intotoCheckMap` (`interop/cem01-go/intoto.go`) | retired by V1-1278 S3 (`CEM-V1-222`): `interop/cem01-go/intoto.go` and its tests are deleted, since the reader verified `cem/v1` statements that `CEM-V1-218` already retired; the tests are kept at commit `5a056d0a` |
 | FPK-V0-036 | no code: documentation only | measured: `git diff --stat` of `go.mod`, `go.sum`, and `interop/cem01-go/go.mod` against the base is empty; the new files import no `net/*`, `os/exec`, or `crypto/tls` package (`internal/attest` already reaches `net` and `net/url` through `crypto/x509` at the base); the external Sigstore path is `NOT_RUN`; revision 23: `go list -deps ./cmd/corvint` has 0 Sigstore, Rekor, Fulcio, cosign, gitsign, or securesystemslib packages and 0 packages outside the standard library and the Corvint module |
 | FPK-V0-050 | retired by V1-1278 S2b (`CEM-V1-218`): `--attest-cem-v1`, `attestCEMV1`, `attestFlagRefusal` and `cemAttestation.v1` deleted; `parseProveCEMArguments`, `cemAttestation.statement`, `attestProof` (`cmd/corvint`) emit `cem/v2` only | `TestCEMV1218RetiredAttestationFlagsAreUnrecognized` (`--attest-cem-v1` bare, with a value, repeated, beside `--attest-cem`, and outside CEM mode exit 2 `invalid-arguments`, empty stdout), `TestCEMV1210ProveRefusesEveryMapOutsideTheStableRoute` |
-| FPK-V0-051 | no code: documentation only | the comparison table under Non-goals, each source pinned to the revision fetched on 2026-09-23; `TestIntotoReadsTheDigestPinnedCorvintCEMAttestation` still pins the unchanged fixture sha256 |
+| FPK-V0-051 | no code: documentation only | the comparison table under Non-goals, each source pinned to the revision fetched on 2026-09-23; the fixture pin test was deleted with `interop/cem01-go/intoto.go` by V1-1278 S3 (`CEM-V1-222`) |
 | FPK-V0-052 | `hermeticGitCommand` at every Git read in `prove.go`, `prove_bundle.go`, `prove_checkpoint.go`, `affected.go`, and `host_adapter_compaction.go` | `TestProveGitReadsNeverRunRepositoryFSMonitor` (its control shows plain `git status` runs the program), `TestProveGitReadsIgnoreReplaceObjects`, `TestAffectedBaseRangeIgnoresReplaceObjects`, `TestCompactionPinVerifiesFromSubdirectoryRoot` |
 | FPK-V0-053 | experimental `revieworder.Rank` (`internal/revieworder/order.go`), accepted, decision 0515 | `TestRankHunksWithCitedFactors`, `TestRankUnwitnessedIsOnlyDiscriminatingFactor` (equal authorship/coverage, opposing path/input order; omission mutation must fail), `TestRankDeterministicAndDoesNotMutateInputs` |
 | FPK-V0-054 | experimental `readNote`, `lineAuthor`, `authorship` (`internal/revieworder`), accepted, decision 0515 | `TestAuthorshipUnknownAndExplicitLineAttestations`, `TestAuthorshipPathQuoting` (malformed/unquoted paths stay unknown despite valid human records; quoted spaces/tabs/newlines remain supported), `TestCommitWithoutGitAINoteReportsUnknownAuthorship` |
