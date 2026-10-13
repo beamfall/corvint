@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277)
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337)
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -657,6 +657,74 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   checked as before.
   Reason: decision 0525 §3 step 6 rewrites the sealed corpus once; without a baseline every
   later range that spans the rewrite would fail closed on 614 sealed paths.
+- `DCW-V0-051`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1330)
+  `tools/cem-citation-baseline` MUST carry, in each map row, the verifier's `samePathCitations`
+  count from the status citation block, and, for an accepted map, `supportedHunks` (hunks neither
+  mechanical nor empty-basis), `samePathBases` and `samePathHunks` (authored bases whose path is
+  the hunk's path, and the hunks with one), and `diffAdjacentBases` and `diffAdjacentHunks` (same-path
+  bases whose evidence lines intersect the hunk's old range widened by 3 lines on each side, an
+  empty old range counting as its start line). The summary MUST carry per class the totals and
+  `diffAdjacentBaseShare` (diff-adjacent bases over bases). A row without arms carries `null` for
+  each of these members except `samePathCitations`.
+  Non-goals: changing the verifier's tier rules or its citation block.
+  Failure modes: a map whose status is not accepted has no arms and carries
+  `arms-map-not-accepted` in `armsIssues`.
+- `DCW-V0-052`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1336) For every
+  accepted map the tool MUST score three arms over the supported hunks with the verifier's own tier
+  rules (`verify.ComputeCitation` on a synthetic map that keeps the hunks and the canonical patch
+  of `baseRevision..target` and swaps only the bases and evidence): `authored` (the map's bases;
+  its anchored count MUST equal the status citation's, else `arms-authored-mismatch`), `grepbot`
+  (reads only the patch: per hunk, of the IDs matching `[A-Z][A-Z0-9]+-V[0-9]+-[0-9]{3}` in its
+  added bytes, the first 2 in ascending order that have a line in the base tree's `docs/specs`
+  starting `` - `ID`: `` after leading blanks, each citing the earliest such line by (path, line);
+  a hunk with no such ID cites the earliest base-tree line under `docs/` or the hunk's own
+  directory, outside its own path, that contains the path's basename) and `preimage`
+  (each hunk's own old range at the base revision; an insertion cites the line it follows; a
+  created file cites nothing). Each arm reports `anchored`, `bases`, `hunksWithBases`,
+  `samePathBases` and `diffAdjacentBases`. Any failure to derive an arm MUST drop all arms for
+  that map and record one closed `armsIssues` code: `arms-map-unreadable`,
+  `arms-patch-unavailable`, `arms-patch-digest-mismatch`, `arms-hunk-not-in-patch`,
+  `arms-git-failed`, `arms-evidence-unreadable`, `arms-pair-mismatch` or
+  `arms-authored-mismatch`. The tool's own `git grep` and `git cat-file` reads are bounded
+  at 256 MiB of output and 5 minutes each; exceeding either, or an old path with no blob at the
+  base revision, is `arms-git-failed`.
+  Non-goals: a better grep bot; any judgment of whether a base supports its hunk.
+  Failure modes: the test fixtures pin forged-id and path-inventory authored anchored counts at or
+  above honest-careful's; that is the defect decision 0527 K2b targets, and a tier redesign MUST
+  change the pinned numbers deliberately.
+- `DCW-V0-053`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1336) Each arm
+  MUST carry a derangement null over its supported hunks: 200 permutations without fixed points
+  from math/rand/v2 PCG seeded with the big-endian uint64s of bytes 0..7 and 8..15 of the
+  hex-decoded `patchSha256`, each a Fisher-Yates shuffle of the identity (i from n-1 down to 1,
+  j = `Uint64()` mod (i+1)) redrawn until it has no fixed point. Hunk i is scored against the
+  basis set of hunk draw[i], with one `ComputeCitation` per distinct source deciding which hunks
+  that source anchors alone (a hunk anchors a set iff it anchors some member; the table MUST
+  reproduce the real count, else `arms-pair-mismatch`). The row reports `nullMean`, `nullSd`
+  (population) and `anchoredExcess` = anchored minus `nullMean`, rounded to 4 places, and `null`
+  for all three when fewer than 2 hunks are supported.
+  Non-goals: a null over other maps' bases.
+- `DCW-V0-054`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1336) Each arm
+  MUST also report `anchoredExclAdjacent`, `nullMeanExclAdjacent`, `nullSdExclAdjacent` and
+  `anchoredExcessExclAdjacent`: the same score and null with each hunk's diff-adjacent bases
+  (`DCW-V0-051`) removed from its set, so that a hunk citing its own neighborhood earns nothing.
+- `DCW-V0-055`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1336) The summary
+  MUST carry per class, for each arm, the pooled `anchoredExcess` and `anchoredExcessExclAdjacent`
+  over the maps with a null: the ratio estimator R = sum of excess over sum of supported hunks,
+  with the 95% normal-approximation interval R +/- 1.96 * sqrt(k/(k-1) * sum((e - R*n)^2)) / sum(n)
+  over the k maps, `null` when k < 2; and `killStatistic`: the maps compared and the share where
+  the grep bot anchors at least as many hunks as the authored map.
+  Non-goals: a bootstrap interval or per-map significance.
+- `DCW-V0-056`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1336, V1-1337)
+  `--targets FILE` MUST read `<bind> <target>` lines of full lowercase OIDs and verify, and derive
+  the arms of, each listed map at that target instead of its bind commit; a malformed line refuses
+  the run with exit 2. The committed-corpus measurement uses the `CEM-V1-104` T' target (the bind
+  tree with only `.corvint/change.cem.json` replaced by the map bytes) for every map migrated after
+  it was bound. The prospective registration
+  (`docs/build-log/2026-10-13-cem-citation-prospective-registration.md`) pins the scorer by the
+  blob OID of `tools/cem-citation-baseline/main.go`; any change to that file needs a new
+  registration before it scores the prospective set.
+  Failure modes: a T' commit built from the wrong tree changes `patchSha256` and fails
+  `arms-patch-digest-mismatch`.
 
 ## Code vocabulary
 
@@ -847,6 +915,12 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-048` (accepted under the owner's standing auto-accept (2026-10-11); V1-1281) | `internal/dogfoodflow/chore.go` `ChoreRole`, `uniformCitation`; `internal/dogfoodflow/change.go` `citeStep`, `uniformPlan` and its `fix:` hint; `internal/observations/observations.go` `validDogfoodReason`; `TestChoreRoleDCWV0048ClassifiesOnlyCEMPaths` (exact CEM paths only; a quoted path, a nested or empty NAME, another suffix, any other path and an empty diff are not chores; seal-chore when any `.corvint/changes/` path is touched); `TestChangeDCWV0048RefusesUniformPlan` (a three-hunk one-span plan, by ordinal or full ID, is NOT_PRODUCED with no cite and the `fix:` line `hunks=3 span=a.txt:1:2`; distinct spans, another span of the same path, an unnamed hunk and a single hunk are cited; a bind-chore change is exempt); `TestDogfoodReasonAdmitsCitationPlanUniform` | implemented; accepted; the committed maps are not re-bound |
 | `DCW-V0-049` (accepted under the owner's standing auto-accept (2026-10-11); V1-1281) | `internal/dogfoodflow/chore.go` `markChoreRole`, `markStableChoreMap` (called after `cem-prepare` in `run`); `internal/cem/workflow/stable_read.go` `StableCitationClass`; `tools/cem-citation-baseline`; `TestMarkChoreRoleDCWV0049WritesStableRoleOnly` (a stable map gains each chore role through the encoder, re-parses and keeps its mode, a second write leaves it byte-identical, a Core 0.x map is refused unchanged and no temporary file remains); `TestChangeDCWV0049MarksPreparedStableChoreMap` (a prepared stable map gets `bind-chore` only for a chore range and none for a change range); `TestCEMV1106StatusCitationClassGroupsChoreMaps`; `TestBaselineDCWV0049SplitsRowsByCitationClass` and `TestBaselineRowKeepsThePythonEncoding` | implemented; accepted; live since V1-1276 (`cem prepare` writes `cem/1.0` by default; `TestChangeDCWV0049MarksPreparedStableChoreMap` now also requires that the loop never refuses the stable map); the class-split baseline rerun over the committed maps at the V1-1276 merge is `2026-10-12-v1-1281-citation-class-baseline-post-cutover.md` (one `cem/1.0` map existed and no map carries a role yet; the first 30 post-cutover maps and the migrated set remain for V1-1277) |
 | `DCW-V0-050` (accepted under the owner's standing auto-accept (2026-10-11); V1-1277) | `internal/dogfoodflow/migration.go` `cemMigrationCommits`, `migratedSeals`, `migrationRewrites`, `migratedConstituent`, `migrationsInRange`, `isMigrationCommit`; `internal/dogfoodflow/batch.go` `sealedConstituents`, `verifySealedCEM`, `verifyCoverage`; `internal/dogfoodflow/change.go` `admitSealedCEMs`; `TestBatchCheckDCWV0050MigrationCommitIsTheSealBaseline` (a range from before the migration passes with zero constituents, one commit and the NOTE, running no verifier; admission prints only the note; with the list empty the same range fails `sealed-cem-modified`; a range that adds the constituents before the migration fails `constituent-migrated count=2` with the split `fix:`; a later edit of a migrated map fails `sealed-cem-modified` in both commands); `TestBatchCheckDCWV0050RevertedMigrationFails` (a `-s ours` merge of the migration onto its parent fails `sealed-cem-migration-reverted` in both commands; removing the check fails the test); `TestBatchCheckDCWV0050FollowUpMigration` (a second listed migration commit is admitted with its own NOTE; a map it rewrote that the range adds fails `constituent-migrated`) | implemented; live `batch-check 75bc22605` at the migration commit PASS `constituents=0 commits=1`; a range over the landed merge NOT_OBSERVED until merge |
+| `DCW-V0-051` (accepted under the owner's standing auto-accept (2026-10-11); V1-1330) | `tools/cem-citation-baseline/main.go` `row.fields`, `armsRow.members`, `adjacent`, `selfCitation`; `TestBaselineDCWV0052ArmsPinTheAnchoredTierDefect` (self-cite fixture: 24 same-path and 24 diff-adjacent bases, `diffAdjacentBaseShare` 0.25), `TestBaselineRowKeepsThePythonEncoding` (null members without arms); `docs/build-log/evidence/v1-1336/` | implemented; focused tests PASS; committed-corpus run in `docs/build-log/evidence/v1-1336/` |
+| `DCW-V0-052` (accepted under the owner's standing auto-accept (2026-10-11); V1-1336) | `tools/cem-citation-baseline/main.go` `measureArms`, `grepbotSources`, `preimageSources`, `scoreArm`, `synthetic`; `TestBaselineDCWV0052ArmsPinTheAnchoredTierDefect` (honest-careful 16, forged-id and path-inventory 24 authored anchored; grep bot 24 on every fixture); `TestBaselineDCWV0052PreimageWithoutABlobIsAnError`; `docs/build-log/2026-10-13-v1-1336-citation-arms.md` | implemented; focused tests PASS; committed-corpus run in `docs/build-log/evidence/v1-1336/` |
+| `DCW-V0-053` (accepted under the owner's standing auto-accept (2026-10-11); V1-1336) | `tools/cem-citation-baseline/main.go` `derangements`, `pairTable`, `tableCount`, `nullOf`; `TestBaselineDCWV0053DerangementsAreSeededFromThePatch` (200 reproducible draws without fixed points, equal to an independent derivation from the seed text, first draw pinned; no null below two hunks) | implemented; focused tests PASS; committed-corpus run in `docs/build-log/evidence/v1-1336/` |
+| `DCW-V0-054` (accepted under the owner's standing auto-accept (2026-10-11); V1-1336) | `tools/cem-citation-baseline/main.go` `scoreArm` (`excl` sets); `TestBaselineDCWV0052ArmsPinTheAnchoredTierDefect` (self-cite: authored `anchoredExclAdjacent` 0) | implemented; focused tests PASS; committed-corpus run in `docs/build-log/evidence/v1-1336/` |
+| `DCW-V0-055` (accepted under the owner's standing auto-accept (2026-10-11); V1-1336) | `tools/cem-citation-baseline/main.go` `armsSummary`, `pooled`, `killStatistic`; `TestBaselineDCWV0052ArmsPinTheAnchoredTierDefect` (pooled authored excess 0.666667 over four maps; kill statistic 4/4) | implemented; focused tests PASS; committed-corpus run in `docs/build-log/evidence/v1-1336/` |
+| `DCW-V0-056` (accepted under the owner's standing auto-accept (2026-10-11); V1-1336, V1-1337) | `tools/cem-citation-baseline/main.go` `readTargets`, `measure`; `TestBaselineDCWV0056TargetsVerifyAtTheNamedCommit` (refused at a stale-sidecar bind, accepted at the named target, malformed line exit 2); `docs/build-log/2026-10-13-cem-citation-prospective-registration.md` | implemented; focused tests PASS; the prospective 30-map run is NOT_OBSERVED until those maps are sealed |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
