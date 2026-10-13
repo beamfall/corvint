@@ -191,10 +191,10 @@ content. A bundle can disclose repository information and stays wherever the cal
 | Requirement | Evidence |
 | --- | --- |
 | RCB-V0-001 | `TestCEMExportBundleVerifiesOffline`, `TestAnchorActionsParseLikeTheirSiblings`, `TestReadOnlyVerbsWriteNothing` |
-| RCB-V0-002 | `TestExportCopiesBoundReceiptsAndListsTheRestAbsent` |
-| RCB-V0-003 | `TestExportCopiesBoundReceiptsAndListsTheRestAbsent`, `TestExportBindsTheWitnessAndGateReceiptToTheTarget`, `TestNotRunAxesEscapePointersAndSortKeys` |
-| RCB-V0-004 | `TestExportCopiesBoundReceiptsAndListsTheRestAbsent`, `TestExportBindsTheWitnessAndGateReceiptToTheTarget`, `TestExportRequiresAValidMap`, `TestExportRefusesADriftedCEM` |
-| RCB-V0-005 | `TestExportRefusesOutputsItMustNotWrite`, `TestExportRefusesACaseVariantOfTheWorktree`, `TestExportRefusesEveryWorktreeAndGitDirectory`, `TestWriteFailureRemovesTheBundle`, `TestCEMExportBundleVerifiesOffline`, `TestReadOnlyVerbsWriteNothing` |
+| RCB-V0-002 | `TestExportRefusesRetiredMaps` (superseded by `CEM-V1-210`: the v0 export reads a 0.x map, which now refuses `unsupported-spec`; its copy tests are retired; the stable bundle is `TestStableExportRelocatesWithSameVerification`) |
+| RCB-V0-003 | `TestExportRefusesRetiredMaps` (superseded by `CEM-V1-210`; the v0 receipt-binding tests are retired with the 0.x map) |
+| RCB-V0-004 | `TestExportRefusesRetiredMaps` (superseded by `CEM-V1-210`: every 0.x map, valid, invalid or drifted, refuses `unsupported-spec` before any copy), `TestStableExportPublishesNothingForARefusedSource` |
+| RCB-V0-005 | `TestExportRefusesOutputsItMustNotWrite`, `TestExportRefusesACaseVariantOfTheWorktree`, `TestExportRefusesEveryWorktreeAndGitDirectory`, `TestWriteStableRefusesASwappedBundleDirectory`, `TestCEMExportBundleVerifiesOffline`, `TestReadOnlyVerbsWriteNothing` |
 | RCB-V0-006 | `script/verify-receipt-bundle_test.sh`, `TestCEMExportBundleVerifiesOffline` |
 | RCB-V0-007 | structural: only `cmd/corvint/cem_export.go` imports `internal/receiptbundle`, and the package imports no network, signing, or ledger code |
 

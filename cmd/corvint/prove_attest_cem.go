@@ -358,7 +358,7 @@ func compileStableCEMProof(ctx context.Context, gitExecutable string, options op
 		return proveReceipt{}, err
 	}
 	if !wire.DeclaresStable(mapBytes) {
-		return proveReceipt{}, &gokernel.Error{Code: "attest-cem-v2-requires-stable-map", Message: "--attest-cem-v2 attests only a cem/1.0 stable map; use --attest-cem or --attest-cem-v1 for a cem/0.x map"}
+		return proveReceipt{}, &gokernel.Error{Code: "attest-cem-v2-requires-stable-map", Message: "--attest-cem-v2 attests only a cem/1.0 stable map; cem/0.x is retired; fix: " + wire.RetiredSpecFix}
 	}
 	treeBefore, err := proveTreeRevision(ctx, gitExecutable, options.root)
 	if err != nil {

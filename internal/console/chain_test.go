@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
 const chainSpec = "# Fixture spec\n\n## Requirements\n\n" +
@@ -75,9 +77,10 @@ func newChainFixture(t *testing.T, addedLine string, edit func(cem map[string]an
 	fixture := &chainFixture{root: root, base: chainGit(t, root, "rev-parse", "HEAD"),
 		specOid: chainGit(t, root, "rev-parse", "HEAD:spec.md"), testOid: chainGit(t, root, "rev-parse", "HEAD:widget_test.go")}
 	cem := map[string]any{
-		"spec": "cem/0.2", "baseRevision": fixture.base, "excludedPath": boundMapPath,
+		"spec": wire.StableSpec, "baseRevision": fixture.base, "excludedPath": boundMapPath, "patchSha256": strings.Repeat("0", 64),
+		"criterionBindings": []any{}, "runnerReceipts": []any{}, "criterionLinks": []any{}, "artifacts": []any{},
 		"evidence": []any{spanRef(chainEvidenceID, "spec.md", fixture.specOid, "- `FIX-V0-001`: The widget MUST frob.\n", chainSpec)},
-		"hunks": []any{map[string]any{"id": chainHunkID, "path": "widget.go", "disposition": "supported", "reason": "",
+		"hunks": []any{map[string]any{"id": chainHunkID, "path": "widget.go", "disposition": "supported", "reason": "evidence-backed",
 			"oldRange": map[string]any{"start": 1, "count": 0}, "newRange": map[string]any{"start": 2, "count": 1},
 			"basis": []any{map[string]any{"evidenceId": chainEvidenceID, "relation": "specification"}}}},
 	}
@@ -161,18 +164,29 @@ func (f *chainFixture) page(t *testing.T, query string) string {
 // chain, and every edge names the artifact and field that justify it.
 func TestConsoleChainComplete(t *testing.T) {
 	fixture := newChainFixture(t, "func Frob() {}", func(cem map[string]any) {
-		cem["spec"] = "cem/0.3"
 		hunk := cem["hunks"].([]any)[0].(map[string]any)
-		hunk["coverage"] = map[string]any{"state": "covered", "profileSha256": strings.Repeat("a", 64), "testRun": "fixture test run"}
+		hunk["coverage"] = map[string]any{"state": "covered", "profileSha256": strings.Repeat("a", 64), "testRun": "fixture test run",
+			"mode": "set", "covered": []any{map[string]any{"start": 2, "count": 1}}}
 	})
 	fixture.writeOCM(t, "change.ocm.001.json", fixture.ocm())
 	fixture.writeTrace(t, fixture.change, fixture.traceRow(fixture.change, "frob the widget", "go test ./widget"))
 
 	body := fixture.page(t, "&hunk="+chainHunkID)
-	if strings.Contains(body, "<b>gap:") || strings.Contains(body, ">gap: ") {
-		t.Fatalf("a complete chain rendered a gap:\n%s", mainOf(body))
-	}
 	sealed := changesDir + "/" + fixture.change + ".cem.json"
+	// A cem/1.0 seal always carries the pane's own NOT_RUN/NOT_CHECKED header
+	// rows on the sealed map (CEM-V1-078); every other edge must be complete.
+	gaps := strings.Split(body, "<b>gap: ")[1:]
+	for _, gap := range gaps {
+		row, _, _ := strings.Cut(gap, "</tr>")
+		_, field, _ := strings.Cut(row, "<code>"+sealed+"</code> · <code>")
+		if !strings.HasPrefix(row, GapUnverified+"</b>") || !(strings.HasPrefix(field, "spec<") || strings.HasPrefix(field, "axes.") ||
+			strings.HasPrefix(field, boundMapPath+"<") || strings.HasPrefix(field, "criterionLinks<")) {
+			t.Fatalf("a complete chain rendered a gap outside the stable header rows:\n%s", mainOf(body))
+		}
+	}
+	if len(gaps) == 0 || strings.Count(body, ">gap: ") != len(gaps) {
+		t.Fatalf("a complete stable chain lost its header rows or rendered a bare gap:\n%s", mainOf(body))
+	}
 	ocmPath := ocmDir + "/change.ocm.001.json"
 	for _, want := range []string{
 		// change binding: the sealed name is confirmed by the bind commit.
@@ -213,10 +227,10 @@ func TestConsoleChainGaps(t *testing.T) {
 		setup func(t *testing.T, f *chainFixture)
 		want  []string
 	}{
-		{name: "missing", edit: func(cem map[string]any) {
-			hunk := cem["hunks"].([]any)[0].(map[string]any)
-			hunk["basis"] = []any{map[string]any{"evidenceId": "evidence:sha256:" + strings.Repeat("9", 64), "relation": "specification"}}
-		}, want: []string{"<b>gap: missing</b>", "no evidence[] entry has this id",
+		// A cem/1.0 map whose basis names no evidence[] entry, or that repeats an
+		// evidence id, is refused whole by the strict stable reader (CEM-V1-214),
+		// so the missing and ambiguous classes are drawn from the OCM and trace.
+		{name: "missing", want: []string{"<b>gap: missing</b>",
 			"no OCM map bound to this sealed map by digest and revision was found"}},
 		{name: "stale", edit: func(cem map[string]any) {
 			cem["evidence"].([]any)[0].(map[string]any)["spanSha256"] = strings.Repeat("a", 64)
@@ -227,18 +241,16 @@ func TestConsoleChainGaps(t *testing.T) {
 			f.writeTrace(t, f.change, f.traceRow(f.base, "recorded against the base"))
 		}, want: []string{"<b>gap: stale</b>", "spanSha256 " + strings.Repeat("a", 64) + " does not match",
 			"targetRevision names this change but cem.mapSha256", "the row names revision"}},
-		{name: "ambiguous", edit: func(cem map[string]any) {
-			evidence := cem["evidence"].([]any)
-			cem["evidence"] = append(evidence, evidence[0])
-		}, setup: func(t *testing.T, f *chainFixture) {
+		{name: "ambiguous", setup: func(t *testing.T, f *chainFixture) {
 			f.writeTrace(t, f.change, f.traceRow(f.change, "first"), f.traceRow(f.change, "second"))
-		}, want: []string{"<b>gap: ambiguous</b>", "2 evidence[] entries share this id; none is chosen",
+		}, want: []string{"<b>gap: ambiguous</b>",
 			"2 rows record a result for this revision; every one is shown and none is chosen"}},
 		{name: "unverified", want: []string{"<b>gap: unverified</b>",
 			"no recorded verification result names revision"}},
 		{name: "unsupported", edit: func(cem map[string]any) {
 			hunk := cem["hunks"].([]any)[0].(map[string]any)
 			hunk["disposition"], hunk["reason"], hunk["basis"] = "unknown", "no-evidence", []any{}
+			cem["evidence"] = []any{}
 		}, setup: func(t *testing.T, f *chainFixture) {
 			doc := f.ocm()
 			doc["obligations"] = []any{map[string]any{"id": "FIX-V0-001", "disposition": "unknown", "reason": "unassessed",
@@ -359,9 +371,12 @@ func TestConsoleChainTextMatchDecoy(t *testing.T) {
 // in any artifact's free text renders escaped and inert.
 func TestConsoleChainHostileContent(t *testing.T) {
 	hostile := "<script>alert(1)</script>"
+	// The strict stable reader admits only the closed unknown reasons, so the
+	// hostile text reaches the pane through the added line, OCM and trace.
 	fixture := newChainFixture(t, hostile, func(cem map[string]any) {
 		hunk := cem["hunks"].([]any)[0].(map[string]any)
-		hunk["disposition"], hunk["reason"], hunk["basis"] = "unknown", hostile, []any{}
+		hunk["disposition"], hunk["reason"], hunk["basis"] = "unknown", "no-evidence", []any{}
+		cem["evidence"] = []any{}
 	})
 	doc := fixture.ocm()
 	doc["obligations"] = []any{map[string]any{"id": `"><img src=x onerror=alert(1)>`, "disposition": "unknown", "reason": hostile,

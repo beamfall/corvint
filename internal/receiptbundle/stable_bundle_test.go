@@ -502,8 +502,8 @@ func copyTree(t *testing.T, from, to string) {
 }
 
 // CEM-V1-064: the stable route refuses --witness and an output inside the
-// worktree, after verification and before writing; a 0.x map refuses
-// --artifacts and otherwise keeps its export.
+// worktree, after verification and before writing; a retired 0.x map
+// refuses with the retired-spec fix (CEM-V1-210).
 func TestStableExportArgumentRefusals(t *testing.T) {
 	requireStableRuntime(t)
 	f := newStableFixture(t)
@@ -523,12 +523,13 @@ func TestStableExportArgumentRefusals(t *testing.T) {
 	}
 
 	legacy := newFixture(t)
+	writeFixture(t, filepath.Join(legacy.root, mapPath), `{"spec":"cem/0.2"}`)
 	_, err := Export(context.Background(), legacy.root, Options{
 		MapPath: mapPath, ExpectedBase: legacy.base, Target: legacy.target,
 		Output: filepath.Join(t.TempDir(), "bundle"), Artifacts: f.artifacts, ArtifactsGiven: true,
 	})
-	if stableCode(err) != cemcode.InvalidArguments {
-		t.Fatalf("0.x --artifacts: %v", err)
+	if stableCode(err) != cemcode.UnsupportedSpec || !strings.Contains(err.Error(), wire.RetiredSpecFix) {
+		t.Fatalf("0.x map: %v", err)
 	}
 }
 

@@ -24,10 +24,10 @@ import (
 // files, and an OCM with one linked and one still-unknown obligation.
 type stableUniverseFixture struct {
 	root, artifacts           string
-	base, legacyTarget        string // legacyTarget is the change without the sidecar
+	base, changeTarget        string // changeTarget is the change without the sidecar
 	target                    string // target adds only the exact stable sidecar
 	stable, stableOCM         []byte
-	legacyCEM, legacyOCM      []byte
+	producerCEM, producerOCM  []byte
 	artifactPaths             []string
 	linkedHunk, unknownHunkID string
 }
@@ -61,24 +61,24 @@ func makeStableUniverseFixture(t *testing.T) stableUniverseFixture {
 	writeOCMPrepareFile(t, root, testPath, source)
 	gitOCMPrepare(t, root, "add", ".")
 	gitOCMPrepare(t, root, "commit", "-qm", "change")
-	f.legacyTarget = gitOCMPrepare(t, root, "rev-parse", "HEAD")
+	f.changeTarget = gitOCMPrepare(t, root, "rev-parse", "HEAD")
 
-	// The cem/0.2 producer flow supplies real hunks, evidence and an OCM.
-	prepareCEM(t, root, f.base, f.legacyTarget, false)
+	// The cem/1.0 producer flow supplies real hunks, evidence and an OCM.
+	prepareStableCEM(t, root, f.base, f.changeTarget)
 	session, err := workflow.Open(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	legacyRaw, err := os.ReadFile(filepath.Join(root, wire.ExcludedCEMPath))
+	producerRaw, err := os.ReadFile(filepath.Join(root, wire.ExcludedCEMPath))
 	if err != nil {
 		t.Fatal(err)
 	}
-	legacy, err := wire.ParseMap(legacyRaw)
-	if err != nil || len(legacy.Hunks) != 2 {
-		t.Fatalf("legacy map: hunks=%d err=%v", len(legacy.Hunks), err)
+	producer, err := wire.ParseStable(producerRaw)
+	if err != nil || len(producer.Change.Hunks) != 2 {
+		t.Fatalf("producer map: err=%v", err)
 	}
 	citeOrdinal := "1"
-	if legacy.Hunks[0].Path != "internal/example.txt" {
+	if producer.Change.Hunks[0].Path != "internal/example.txt" {
 		citeOrdinal = "2"
 	}
 	if _, err := session.Cite(ctx, workflow.CiteOptions{
@@ -86,13 +86,13 @@ func makeStableUniverseFixture(t *testing.T) stableUniverseFixture {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if f.legacyCEM, err = os.ReadFile(filepath.Join(root, wire.ExcludedCEMPath)); err != nil {
+	if f.producerCEM, err = os.ReadFile(filepath.Join(root, wire.ExcludedCEMPath)); err != nil {
 		t.Fatal(err)
 	}
-	if legacy, err = wire.ParseMap(f.legacyCEM); err != nil {
+	if producer, err = wire.ParseStable(f.producerCEM); err != nil {
 		t.Fatal(err)
 	}
-	for _, hunk := range legacy.Hunks {
+	for _, hunk := range producer.Change.Hunks {
 		if hunk.Disposition == "supported" {
 			f.linkedHunk = hunk.ID
 		} else {
@@ -101,22 +101,22 @@ func makeStableUniverseFixture(t *testing.T) stableUniverseFixture {
 	}
 	const ocmPath = ".corvint/change.ocm.json"
 	if _, err := PrepareOCM(ctx, root, PrepareOptions{
-		MapPath: ocmPath, CEMPath: wire.ExcludedCEMPath, IntentPath: "docs/specs/intent.md", ExpectedBase: f.base, Target: f.legacyTarget,
+		MapPath: ocmPath, CEMPath: wire.ExcludedCEMPath, IntentPath: "docs/specs/intent.md", ExpectedBase: f.base, Target: f.changeTarget,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	blobOID := gitOCMPrepare(t, root, "rev-parse", f.legacyTarget+":"+testPath)
+	blobOID := gitOCMPrepare(t, root, "rev-parse", f.changeTarget+":"+testPath)
 	claims, err := enumerateClaims(testPath, blobOID, []byte(source))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := LinkOCM(ctx, root, LinkOptions{
 		MapPath: ocmPath, CEMPath: wire.ExcludedCEMPath, Obligation: "OCM-TEST-001", Hunks: []string{f.linkedHunk},
-		TestPath: testPath, Claims: []string{caseClaim(t, claims).selector}, ExpectedBase: f.base, Target: f.legacyTarget,
+		TestPath: testPath, Claims: []string{caseClaim(t, claims).selector}, ExpectedBase: f.base, Target: f.changeTarget,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if f.legacyOCM, err = os.ReadFile(filepath.Join(root, ocmPath)); err != nil {
+	if f.producerOCM, err = os.ReadFile(filepath.Join(root, ocmPath)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -148,10 +148,9 @@ func makeStableUniverseFixture(t *testing.T) stableUniverseFixture {
 		SnapshotHeadReceiptSha256: stableDigestHex([]byte("snapshot-receipt")), SnapshotHeadArtifactSha256: snapshot,
 	}
 	criterion.ID = stableCriterionID(t, criterion)
-	change := wire.StableChange(*legacy)
-	change.Spec = wire.StableSpec
+	change := producer.Change
 	var evidenceIDs []string
-	for _, hunk := range legacy.Hunks {
+	for _, hunk := range producer.Change.Hunks {
 		if hunk.ID == f.linkedHunk {
 			for _, basis := range hunk.Basis {
 				evidenceIDs = append(evidenceIDs, basis.EvidenceID)
@@ -183,7 +182,7 @@ func makeStableUniverseFixture(t *testing.T) stableUniverseFixture {
 	gitOCMPrepare(t, root, "add", "-f", wire.ExcludedCEMPath)
 	gitOCMPrepare(t, root, "commit", "-qm", "sidecar")
 	f.target = gitOCMPrepare(t, root, "rev-parse", "HEAD")
-	f.stableOCM = rebindOCM(t, f.legacyOCM, f.target, stableDigestHex(f.stable))
+	f.stableOCM = rebindOCM(t, f.producerOCM, f.target, stableDigestHex(f.stable))
 	return f
 }
 
@@ -380,15 +379,8 @@ func TestCEMV1055StableLRFRequestAdmission(t *testing.T) {
 	if _, err := lrf.Evaluate(universe.LRFRequest); CodeOf(err) != "unsupported-lrf-context" {
 		t.Fatalf("lrf/0 admitted a cem/1.0 context: %v", err)
 	}
-	legacy, err := VerifyUniverse(ctx, f.root, f.legacyCEM, f.legacyOCM, f.base, f.legacyTarget)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := lrf.ValidateStableRequest(legacy.LRFRequest); CodeOf(err) != "unsupported-lrf-context" {
-		t.Fatalf("stable admission accepted a cem/0.2 context: %v", err)
-	}
 	relabeled := universe.LRFRequest
-	relabeled.Context.CEMSpec = wire.Spec02
+	relabeled.Context.CEMSpec = "cem/0.2"
 	if err := lrf.ValidateStableRequest(relabeled); CodeOf(err) != "unsupported-lrf-context" {
 		t.Fatalf("stable admission accepted a relabeled context: %v", err)
 	}
@@ -442,31 +434,31 @@ func TestCEMV1056StableUniverseRefusesStaleOrTamperedInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	universe, err = VerifyStableUniverse(ctx, swapped, rebindOCM(t, f.legacyOCM, f.target, stableDigestHex(swapped)), f.options())
+	universe, err = VerifyStableUniverse(ctx, swapped, rebindOCM(t, f.producerOCM, f.target, stableDigestHex(swapped)), f.options())
 	requireStableRefusal(t, universe, err, "REJECT", cemcode.ExcludedArtifactMismatch)
 
 	// A target without the committed sidecar, with an otherwise correctly
 	// rebound OCM: the verifier accepts it as ABSENT, the admission does not.
 	absent := f.options()
-	absent.Target = f.legacyTarget
-	universe, err = VerifyStableUniverse(ctx, f.stable, rebindOCM(t, f.legacyOCM, f.legacyTarget, stableDigestHex(f.stable)), absent)
+	absent.Target = f.changeTarget
+	universe, err = VerifyStableUniverse(ctx, f.stable, rebindOCM(t, f.producerOCM, f.changeTarget, stableDigestHex(f.stable)), absent)
 	requireNoUniverse(t, universe, err, cemcode.ExcludedArtifactMismatch)
 
 	// The OCM still bound to another map digest, or to a stale target.
-	universe, err = VerifyStableUniverse(ctx, f.stable, rebindOCM(t, f.legacyOCM, f.target, stableDigestHex(f.legacyCEM)), f.options())
+	universe, err = VerifyStableUniverse(ctx, f.stable, rebindOCM(t, f.producerOCM, f.target, stableDigestHex(f.producerCEM)), f.options())
 	requireNoUniverse(t, universe, err, "cem-map-digest-mismatch")
-	universe, err = VerifyStableUniverse(ctx, f.stable, rebindOCM(t, f.legacyOCM, f.legacyTarget, stableDigestHex(f.stable)), f.options())
+	universe, err = VerifyStableUniverse(ctx, f.stable, rebindOCM(t, f.producerOCM, f.changeTarget, stableDigestHex(f.stable)), f.options())
 	requireNoUniverse(t, universe, err, "target-mismatch")
 	// A stale caller target, which predates the sidecar, refuses before the
 	// OCM is read.
 	stale := f.options()
-	stale.Target = f.legacyTarget
+	stale.Target = f.changeTarget
 	universe, err = VerifyStableUniverse(ctx, f.stable, f.stableOCM, stale)
 	requireNoUniverse(t, universe, err, cemcode.ExcludedArtifactMismatch)
 
 	// A stale expected base refuses inside the verifier.
 	stale = f.options()
-	stale.ExpectedBase = f.legacyTarget
+	stale.ExpectedBase = f.changeTarget
 	universe, err = VerifyStableUniverse(ctx, f.stable, f.stableOCM, stale)
 	if universe != nil || err == nil {
 		t.Fatalf("stale base yielded a universe: %v", err)
@@ -494,32 +486,28 @@ func TestCEMV1056StableUniverseRefusesStaleOrTamperedInput(t *testing.T) {
 func TestCEMV1057StableUniverseProfileSwapsRefuse(t *testing.T) {
 	f := makeStableUniverseFixture(t)
 	ctx := context.Background()
-	universe, err := VerifyStableUniverse(ctx, f.legacyCEM, f.legacyOCM, StableUniverseOptions{
-		Root: f.root, ExpectedBase: f.base, Target: f.legacyTarget, ArtifactRoot: f.artifacts,
-	})
-	requireNoUniverse(t, universe, err, cemcode.UnsupportedSpec)
 	legacy, err := VerifyUniverse(ctx, f.root, f.stable, f.stableOCM, f.base, f.target)
 	if legacy != nil || CodeOf(err) != cemcode.UnsupportedSpec || !strings.Contains(err.Error(), "stable universe verification") {
 		t.Fatalf("legacy universe admitted cem/1.0: %v", err)
 	}
 	relabeled := bytes.Replace(f.stable, []byte(`"spec":"cem/1.0"`), []byte(`"spec":"cem/0.2"`), 1)
-	universe, err = VerifyStableUniverse(ctx, relabeled, f.stableOCM, f.options())
+	universe, err := VerifyStableUniverse(ctx, relabeled, f.stableOCM, f.options())
 	requireNoUniverse(t, universe, err, cemcode.UnsupportedSpec)
+	if !strings.Contains(err.Error(), wire.RetiredSpecFix) {
+		t.Fatalf("retired map refusal lacks the fix line: %v", err)
+	}
 }
 
-// TestCEMV1058LegacyOCMLRFAdmissionUnchanged (CEM-V1-058, CEM-V1-149): old OCM/LRF admission is unchanged; LRF never reads a stable map, and OCM admits one only when the stable verifier accepts it against the repository root as artifact root, so a bound map whose artifacts live elsewhere fails closed.
+// TestCEMV1058LegacyOCMLRFAdmissionUnchanged (CEM-V1-058, CEM-V1-149, CEM-V1-210): the retired cem/0.x universe admits no map
+// (unsupported-spec with the fix line); LRF never reads a stable map, and OCM admits one only when the stable verifier accepts it
+// against the repository root as artifact root, so a bound map whose artifacts live elsewhere fails closed.
 func TestCEMV1058LegacyOCMLRFAdmissionUnchanged(t *testing.T) {
 	f := makeStableUniverseFixture(t)
 	ctx := context.Background()
-	legacy, err := VerifyUniverse(ctx, f.root, f.legacyCEM, f.legacyOCM, f.base, f.legacyTarget)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if legacy.CEM.Spec != wire.Spec02 || legacy.LRFRequest.Context.CEMSpec != wire.Spec02 || len(legacy.Obligations) != 2 {
-		t.Fatalf("legacy universe changed: %+v", legacy.LRFRequest.Context)
-	}
-	if _, err := lrf.Evaluate(legacy.LRFRequest); err != nil {
-		t.Fatal(err)
+	retired := bytes.Replace(f.producerCEM, []byte(`"spec":"cem/1.0"`), []byte(`"spec":"cem/0.2"`), 1)
+	legacy, err := VerifyUniverse(ctx, f.root, retired, f.producerOCM, f.base, f.changeTarget)
+	if legacy != nil || CodeOf(err) != cemcode.UnsupportedSpec || !strings.Contains(err.Error(), wire.RetiredSpecFix) {
+		t.Fatalf("legacy universe admitted a retired map: %v", err)
 	}
 	writeOCMPrepareFile(t, f.root, ".corvint/stable.cem.json", string(f.stable))
 	writeOCMPrepareFile(t, f.root, ".corvint/stable.ocm.json", string(f.stableOCM))

@@ -137,15 +137,16 @@ func readOCMBytes(ctx context.Context, inputRoot *publish.Root, ocmRaw, cemRaw [
 	}
 	cem, err := parseOCMCEM(cemRaw)
 	if err != nil {
+		if retiredCEMFailure(err) {
+			return finishOCMError(result, err), nil
+		}
 		return finishOCMFailure(result, "invalid-cem", "CEM is invalid"), nil
 	}
-	if canonicalCEM(cem.Spec) {
-		if !options.ExpectedBaseGiven {
-			return finishOCMFailure(result, cemcode.ExpectedBaseRequired, "cem/0.2 requires expected base"), nil
-		}
-		if !options.TargetGiven {
-			return finishOCMFailure(result, cemcode.TargetRequired, "cem/0.2 requires caller target"), nil
-		}
+	if !options.ExpectedBaseGiven {
+		return finishOCMFailure(result, cemcode.ExpectedBaseRequired, "cem/1.0 requires expected base"), nil
+	}
+	if !options.TargetGiven {
+		return finishOCMFailure(result, cemcode.TargetRequired, "cem/1.0 requires caller target"), nil
 	}
 	document, err := parseOCMHeader(rootValue)
 	if err != nil {
@@ -154,7 +155,7 @@ func readOCMBytes(ctx context.Context, inputRoot *publish.Root, ocmRaw, cemRaw [
 	if sha256Hex(cemRaw) != document.cemMap {
 		return finishOCMFailure(result, "cem-map-digest-mismatch", "CEM map digest does not match"), nil
 	}
-	if canonicalCEM(cem.Spec) && options.Target == "" {
+	if options.Target == "" {
 		return finishOCMFailure(result, "invalid-target-revision", "target must be a full commit OID"), nil
 	}
 	repository, err := gitauth.Open(inputRoot.Path(), gitrun.NewDefaultBudget())
@@ -163,10 +164,10 @@ func readOCMBytes(ctx context.Context, inputRoot *publish.Root, ocmRaw, cemRaw [
 		return finishOCMError(result, mapOCMRepositoryError(err)), nil
 	}
 	defer repository.BeginObjectSession()()
-	if canonicalCEM(cem.Spec) && options.ExpectedBase == "" {
+	if options.ExpectedBase == "" {
 		return finishOCMFailure(result, "invalid-cem", "CEM verification failed"), nil
 	}
-	verified, err := verifyReadCEM(ctx, repository, inputRoot.Path(), cem, cemRaw, document, options)
+	verified, err := verifyStableOCMCEM(ctx, repository, inputRoot.Path(), cem, cemRaw, options)
 	if err != nil {
 		result.VerificationCause = err
 		return finishOCMError(result, mapOCMCEMError(err)), nil
@@ -217,49 +218,6 @@ func ocmInputFailure(root, requested string, err error, label string, limit int)
 func inputIsSymlink(root, requested string) bool {
 	info, err := os.Lstat(absoluteInput(root, requested))
 	return err == nil && info.Mode()&os.ModeSymlink != 0
-}
-
-func verifyReadCEM(ctx context.Context, repository *gitauth.Repository, root string, cem *wire.Map, cemRaw []byte, document *ocmDocument, options OCMReadOptions) (*verifiedCEM, error) {
-	if cem.Spec == wire.StableSpec {
-		return verifyStableOCMCEM(ctx, repository, root, cem, cemRaw, options)
-	}
-	if cem.Spec == wire.Spec02 {
-		outcome, _, err := verify.Canonical(ctx, repository, cem, verify.CanonicalOptions{
-			ExpectedBase: options.ExpectedBase,
-			Target:       options.Target,
-			RawMapBytes:  cemRaw,
-		})
-		if err != nil {
-			return nil, err
-		}
-		patchBytes, err := repository.CanonicalDiff(ctx, outcome.BaseRevision, outcome.TargetRevision)
-		if err != nil {
-			return nil, err
-		}
-		excluded := wire.ExcludedCEMPath
-		return &verifiedCEM{outcome.BaseRevision, outcome.TargetRevision, patchBytes, "canonical-derived", &excluded}, nil
-	}
-	if options.Target != "" {
-		resolved, err := repository.Resolve(ctx, options.Target)
-		if err != nil {
-			return nil, err
-		}
-		if resolved != document.target {
-			return nil, fail("target-mismatch", "caller target differs from OCM target")
-		}
-	}
-	patchBytes, err := repository.CanonicalDiff(ctx, cem.BaseRevision, document.target)
-	if err != nil {
-		return nil, err
-	}
-	outcome, err := verify.Exact(ctx, repository, cem, patchBytes, verify.ExactOptions{
-		ExpectedBase: options.ExpectedBase,
-		Target:       document.target,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &verifiedCEM{outcome.BaseRevision, document.target, patchBytes, "canonical-derived", nil}, nil
 }
 
 func finishOCMSuccess(result *OCMReadResult, document *ocmDocument, maxUnknown *int) *OCMReadResult {
@@ -531,14 +489,12 @@ func unreadableExistingMap(root string, options PrepareOptions, err error) error
 	return ocmInputFailure(root, options.MapPath, err, "OCM map", maxOCMBytes)
 }
 
-// parseOCMCEM parses the CEM an OCM binds. A cem/1.0 change yields its
-// private mechanics view, whose spec stays cem/1.0 and which is never
-// returned or written; the stable verifier, not this parse, authenticates it
-// (CEM-V1-149).
+// parseOCMCEM parses the CEM an OCM binds: cem/1.0 only (CEM-V1-210). A
+// retired cem/0.x map refuses with unsupported-spec and the recovery line
+// (CEM-V1-200). A stable change yields its private mechanics view, whose spec
+// stays cem/1.0 and which is never returned or written; the stable verifier,
+// not this parse, authenticates it (CEM-V1-149).
 func parseOCMCEM(cemRaw []byte) (*wire.Map, error) {
-	if !wire.DeclaresStable(cemRaw) {
-		return wire.ParseMap(cemRaw)
-	}
 	document, err := wire.ParseStable(cemRaw)
 	if err != nil {
 		return nil, err
@@ -547,9 +503,11 @@ func parseOCMCEM(cemRaw []byte) (*wire.Map, error) {
 	return &change, nil
 }
 
-// canonicalCEM reports a CEM that binds both endpoints, so an OCM over it
-// needs an independent expected base and a full target: cem/0.2 and cem/1.0.
-func canonicalCEM(spec string) bool { return spec == wire.Spec02 || spec == wire.StableSpec }
+// retiredCEMFailure reports a CEM parse refusal that must keep its own code
+// rather than collapse into invalid-cem: the cem/0.x retirement (CEM-V1-210).
+func retiredCEMFailure(err error) bool {
+	return cemcode.CodeOf(err) == cemcode.UnsupportedSpec
+}
 
 // verifyStableOCMCEM verifies a cem/1.0 change for an OCM read or prepare with
 // the stable verifier: the base and target resolve to full object ids, the

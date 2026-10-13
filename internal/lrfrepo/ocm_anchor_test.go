@@ -180,13 +180,13 @@ func TestAnchors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cem, err := wire.ParseMap(raw)
+	cem, err := wire.ParseStable(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
 	options := LinkOptions{
 		MapPath: ".corvint/change.ocm.json", CEMPath: wire.ExcludedCEMPath, Obligation: "OCM-TEST-001",
-		Hunks: []string{cem.Hunks[0].ID}, TestPath: testPath, ExpectedBase: base, Target: target,
+		Hunks: []string{cem.Change.Hunks[0].ID}, TestPath: testPath, ExpectedBase: base, Target: target,
 	}
 	prepared, err := PrepareOCM(context.Background(), root, PrepareOptions{
 		MapPath: options.MapPath, CEMPath: options.CEMPath, IntentPath: "docs/specs/intent.md", ExpectedBase: base, Target: target,

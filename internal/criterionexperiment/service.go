@@ -38,7 +38,7 @@ func planExperiment(ctx context.Context, repoPath string, r Request, out, artifa
 	if e != nil {
 		return p, e
 	}
-	if e = admitCEM(ctx, repo, repoPath, r, cem, artifactRoot); e != nil {
+	if e = admitCEM(ctx, repoPath, r, cem, artifactRoot); e != nil {
 		return p, e
 	}
 	captures, e := capture(ctx, repoPath, r.Ticket, r.Attempt, tasks)
@@ -111,7 +111,7 @@ func loadPlan(ctx context.Context, repo *gitauth.Repository, repoPath, planPath,
 	if Digest(cem) != p.CEMSha256 {
 		return p, fmt.Errorf("CEM digest changed")
 	}
-	if e = admitCEM(ctx, repo, repoPath, p.Request, cem, artifactRoot); e != nil {
+	if e = admitCEM(ctx, repoPath, p.Request, cem, artifactRoot); e != nil {
 		return p, e
 	}
 	b, e = Read(filepath.Join(dir, "captures.json"))

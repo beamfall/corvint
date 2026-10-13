@@ -3,6 +3,7 @@ package doccorpus
 import (
 	"context"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
@@ -52,7 +53,12 @@ func StableCEMProjection(ctx context.Context, a *Artifact, data []byte, claimID 
 		return receipt, &Error{Code: "corpus-stable-refused", Message: message}
 	}
 	if declared != wire.StableSpec {
-		return refuse("the stable documentation projection reads only an exact " + wire.StableSpec + " map")
+		message := "the stable documentation projection reads only an exact " + wire.StableSpec + " map"
+		// A retired cem/0.x map names the recovery line (CEM-V1-210).
+		if _, err := wire.ParseStable(data); cemcode.CodeOf(err) == cemcode.UnsupportedSpec {
+			message += "; " + err.Error()
+		}
+		return refuse(message)
 	}
 	if result.Outcome != "ACCEPT" || result.Accept == nil || !*result.Accept {
 		code := ""
@@ -65,7 +71,7 @@ func StableCEMProjection(ctx context.Context, a *Artifact, data []byte, claimID 
 	if err != nil || result.MapSha256 == nil || *result.MapSha256 != Digest(data) {
 		return refuse("the accepted stable result does not bind the exact map bytes")
 	}
-	rows, omitted, err := projectClaims(ctx, inputs.Repository, a, claimID, document.Change.BaseRevision, document.Change.Evidence, false)
+	rows, omitted, err := projectClaims(ctx, inputs.Repository, a, claimID, document.Change.BaseRevision, document.Change.Evidence)
 	if err != nil {
 		return nil, err
 	}

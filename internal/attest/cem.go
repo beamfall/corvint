@@ -4,10 +4,9 @@ import (
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -73,33 +72,28 @@ type cemStatement struct {
 	Subject       []cemSubject `json:"subject"`
 }
 
-// CEMStatement builds an in-toto Statement v1 whose single subject is the CEM
+// CEMStatement built an in-toto Statement v1 whose single subject is the CEM
 // at name with the sha256 of cem, and whose predicate is a content-addressed
-// reference to that map: name, sha256 digest, byte size, and CEM spec. The map
-// bytes are not embedded. It returns canonical JSON as Statement does, and
-// rejects an empty name or bytes that wire.ParseMap does not accept.
+// reference to that map: name, sha256 digest, byte size, and CEM spec. The
+// cem/0 predicate attests a cem/0.x map, which is retired, and never a cem/1.0
+// map (CEM-V1-065), so it now refuses an empty name and every map
+// (CEM-V1-210); VerifyCEM still verifies an existing signed claim, but refuses
+// every supplied map.
 func CEMStatement(name string, cem []byte) ([]byte, error) {
 	if name == "" {
 		return nil, errors.New("attest: CEM name must be non-empty")
 	}
-	document, err := wire.ParseMap(cem)
-	if err != nil {
-		return nil, fmt.Errorf("attest: parse CEM: %w", err)
+	return nil, retiredPredicateMap(cem)
+}
+
+// retiredPredicateMap refuses the map a cem/0 or cem/v1 predicate names: a
+// cem/0.x map with the retired-spec fix (CEM-V1-200) and a cem/1.0 map because
+// cem/v2 is its only predicate (CEM-V1-065).
+func retiredPredicateMap(cem []byte) error {
+	if _, err := wire.ParseStable(cem); err != nil {
+		return fmt.Errorf("attest: parse CEM: %w", err)
 	}
-	sum := sha256.Sum256(cem)
-	digest := map[string]any{"sha256": hex.EncodeToString(sum[:])}
-	statement := map[string]any{
-		"_type":         statementType,
-		"subject":       []any{map[string]any{"name": name, "digest": digest}},
-		"predicateType": CEMPredicateType,
-		"predicate": map[string]any{
-			"name":   name,
-			"digest": digest,
-			"size":   json.Number(strconv.Itoa(len(cem))),
-			"spec":   document.Spec,
-		},
-	}
-	return canonicalMarshal(statement)
+	return fmt.Errorf("attest: parse CEM: %w", cemcode.New(cemcode.UnsupportedSpec, "the cem/0 and cem/v1 predicates attest only a retired cem/0.x map; %s attests a cem/1.0 map", CEMPredicateTypeV2))
 }
 
 // VerifyCEM verifies envelope with Verify, requires its statement to be a
@@ -119,9 +113,10 @@ func VerifyCEM(envelope []byte, publicKey ed25519.PublicKey, cem []byte) (CEMVer
 	return checkCEMBytes(claim, cem)
 }
 
-// checkCEMBytes returns claim NOT_RUN for nil cem, and otherwise VERIFIED when
-// cem has the signed sha256 and size and, for a CEMPredicateTypeV1 claim, the
-// signed baseRevision and patchSha256.
+// checkCEMBytes returns claim NOT_RUN for nil cem. Supplied bytes must have the
+// signed sha256 and size, and are then refused: a cem/0 or cem/v1 claim names
+// a retired cem/0.x map, so neither is ever VERIFIED against map bytes
+// (CEM-V1-210).
 func checkCEMBytes(claim CEMVerification, cem []byte) (CEMVerification, error) {
 	if cem == nil {
 		claim.Status, claim.Reason = CEMNotRun, cemBytesNotSupplied
@@ -134,13 +129,7 @@ func checkCEMBytes(claim CEMVerification, cem []byte) (CEMVerification, error) {
 	if int64(len(cem)) != claim.Size {
 		return CEMVerification{}, fmt.Errorf("%w: size", ErrCEMBytesMismatch)
 	}
-	if claim.PredicateType == CEMPredicateTypeV1 {
-		if err := checkCEMV1Map(claim, cem); err != nil {
-			return CEMVerification{}, err
-		}
-	}
-	claim.Status = CEMVerified
-	return claim, nil
+	return CEMVerification{}, checkRetiredClaimMap(cem)
 }
 
 // parseCEMStatement reads a verified payload as a CEM statement and returns

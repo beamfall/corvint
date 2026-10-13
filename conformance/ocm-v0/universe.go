@@ -9,7 +9,7 @@ package main
 // content alone, so the bytes `ocm prepare` and `ocm link` write for it are
 // reproducible on any host and can be frozen as data.
 //
-// Nothing is stubbed. The CEM is produced by the real two-phase workflow and
+// Nothing is stubbed. The CEM is produced by the real cem/1.0 producer and
 // the OCM by the real `prepare`, `link`, and `mark` producers, exactly as
 // `script/dogfood-change.sh` drives them through the CLI.
 
@@ -194,15 +194,16 @@ func claimSelector(index int, obligationID string) string {
 	return "test:TestClaim" + claimSuffix(index) + "/case:" + strings.Join(words, "-")
 }
 
-// buildCEM runs the real two-phase workflow: prepare, then cite the one hunk
-// against the intent scope so it becomes `supported`.
+// buildCEM runs the real cem/1.0 producer flow (CEM-V1-210, CEM-V1-212):
+// prepare the stable map, then cite the one hunk against the intent scope so it
+// becomes `supported`.
 func buildCEM(root, base, target string) ([]byte, error) {
 	session, err := workflow.Open(root)
 	if err != nil {
 		return nil, err
 	}
 	ctx := context.Background()
-	if _, err := session.Prepare(ctx, workflow.PrepareOptions{Base: base, Target: target}); err != nil {
+	if _, err := session.Prepare(ctx, workflow.PrepareOptions{Base: base, Target: target, Spec: wire.StableSpec}); err != nil {
 		return nil, fmt.Errorf("cem prepare: %w", err)
 	}
 	if _, err := session.Cite(ctx, workflow.CiteOptions{

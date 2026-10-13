@@ -21,10 +21,13 @@ func TestCEMAnchorAndProvenanceInteropThroughTheCLI(t *testing.T) {
 	}
 	cemGit(t, root, "init", "-q", "-b", "main")
 	cemWrite(t, root, "src/main.rs", "fn main() {}\n")
-	cemWrite(t, root, ".corvint/change.cem.json", `{"spec":"cem/0.2",`+
-		`"baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",`+
-		`"patchSha256":"dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c",`+
-		`"excludedPath":".corvint/change.cem.json","evidence":[],"hunks":[]}`)
+	// The anchored map is the public cem/1.0 receipt-authentication fixture;
+	// a retired cem/0.x map is refused by anchor (CEM-V1-210).
+	stable, err := os.ReadFile("../../protocol/cem-1.0/stable/receipt-authentication/stable.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, ".corvint/change.cem.json", string(stable))
 	cemGit(t, root, "add", ".")
 	cemGit(t, root, "commit", "-qm", "assisted change\n\nAssisted-by: Claude <noreply@anthropic.com>\n"+
 		"Agent-Logs-Url: https://example.invalid/logs/42")

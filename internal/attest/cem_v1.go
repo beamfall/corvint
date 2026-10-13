@@ -2,12 +2,8 @@ package attest
 
 import (
 	"crypto/ed25519"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
@@ -57,34 +53,14 @@ var cemClaimParsers = map[string]func([]byte) (CEMVerification, error){
 	CEMPredicateTypeV2: parseCEMStatementV2,
 }
 
-// CEMStatementV1 builds the canonical in-toto Statement v1 of FPK-V0-033: the
+// CEMStatementV1 built the canonical in-toto Statement v1 of FPK-V0-033: the
 // subject CEMStatement writes, and the predicate
 // {"base":{"digest":{"gitCommit":OID}},"cem":{"digest":{"sha256":HEX},"name":NAME},
 // "patch":{"digest":{"sha256":HEX}},"size":BYTES,"spec":SPEC}, with base and
-// patch read from the map. It refuses what CEMStatement refuses.
+// patch read from a cem/0.x map. It refuses what CEMStatement refuses, which is
+// now every map (CEM-V1-210).
 func CEMStatementV1(name string, cem []byte) ([]byte, error) {
-	if name == "" {
-		return nil, errors.New("attest: CEM name must be non-empty")
-	}
-	document, err := wire.ParseMap(cem)
-	if err != nil {
-		return nil, fmt.Errorf("attest: parse CEM: %w", err)
-	}
-	sum := sha256.Sum256(cem)
-	resource := map[string]any{"name": name, "digest": map[string]any{"sha256": hex.EncodeToString(sum[:])}}
-	statement := map[string]any{
-		"_type":         statementType,
-		"subject":       []any{resource},
-		"predicateType": CEMPredicateTypeV1,
-		"predicate": map[string]any{
-			"base":  map[string]any{"digest": map[string]any{"gitCommit": document.BaseRevision}},
-			"cem":   resource,
-			"patch": map[string]any{"digest": map[string]any{"sha256": document.PatchSha256}},
-			"size":  json.Number(strconv.Itoa(len(cem))),
-			"spec":  document.Spec,
-		},
-	}
-	return canonicalMarshal(statement)
+	return CEMStatement(name, cem)
 }
 
 // VerifyCEMPredicate is VerifyCEM for a statement of CEMPredicateType,
@@ -127,16 +103,11 @@ func parseCEMStatementV1(payload []byte) (CEMVerification, error) {
 	})
 }
 
-// checkCEMV1Map refuses cem bytes, already matched to the signed digest, that
-// are not a CEM or whose baseRevision, patchSha256, or spec differ from the
-// signed claim: the signer attested a binding the map does not carry.
-func checkCEMV1Map(claim CEMVerification, cem []byte) error {
-	document, err := wire.ParseMap(cem)
-	if err != nil {
-		return fmt.Errorf("attest: attested CEM bytes are not a CEM: %w", err)
-	}
-	if document.BaseRevision != claim.BaseRevision || document.PatchSha256 != claim.PatchSHA256 || document.Spec != claim.Spec {
-		return errors.New("attest: signed base, patch, or spec differ from the attested CEM")
-	}
-	return nil
+// checkRetiredClaimMap refuses cem bytes, already matched to the signed
+// digest: a cem/0 or v1 claim names a cem/0.x map, which is retired, so no map
+// is read to confirm it (CEM-V1-210), and a cem/1.0 map still refuses
+// (CEM-V1-065).
+func checkRetiredClaimMap(cem []byte) error {
+	err := retiredPredicateMap(cem)
+	return fmt.Errorf("attest: attested CEM bytes are not an admissible map: %w", errors.Unwrap(err))
 }

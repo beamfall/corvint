@@ -2,7 +2,6 @@ package extevidence
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -63,6 +62,9 @@ func (e *StableObligationsRefusal) Unwrap() error {
 //  5. lists the map's declared criterion links in their own member, never as
 //     associations and never as closure.
 func StableObligations(ctx context.Context, cem, impact []byte, limit int, options StableObligationsOptions) (map[string]any, error) {
+	if err := refuseRetiredCEM(cem); err != nil {
+		return nil, err
+	}
 	if !wire.DeclaresStable(cem) {
 		return nil, &gokernel.Error{Code: "invalid-obligations-input", Message: "stable cem input is not a cem/1.0 document"}
 	}
@@ -81,32 +83,23 @@ func StableObligations(ctx context.Context, cem, impact []byte, limit int, optio
 		*result.PatchSha256 != document.Change.PatchSha256 {
 		return nil, &gokernel.Error{Code: "invalid-obligations-input", Message: "the accepted stable result does not bind the exact map bytes, base and patch"}
 	}
-	var receipt impactReceipt
-	if err := json.Unmarshal(impact, &receipt); err != nil || receipt.Tool != "impact" {
-		return nil, &gokernel.Error{Code: "invalid-obligations-input", Message: "impact input is not a corvint impact receipt"}
-	}
-	external := receipt.Context.External
-	providers, freshness, missing := providerSummary(external)
-	state, reason := obligationsState(external, missing)
-	hunks := make([]any, 0, len(document.Change.Hunks))
-	for _, hunk := range document.Change.Hunks {
-		rows := associate(external, hunk.Path, freshness, missing)
-		kept, omitted := boundAssociations(rows, limit)
-		hunks = append(hunks, map[string]any{"hunk": hunk.ID, "path": hunk.Path, "disposition": hunk.Disposition, "associations": kept, "omitted": omitted})
+	joined, err := joinImpact(impact, document.Change.Hunks, limit)
+	if err != nil {
+		return nil, err
 	}
 	out := map[string]any{
 		"schema":       StableObligationsSchema,
 		"authority":    Authority,
-		"state":        state,
-		"state_reason": reason,
+		"state":        joined.state,
+		"state_reason": joined.reason,
 		"binding": map[string]any{
 			"cem_spec": wire.StableSpec, "cem_sha256": digest(cem), "patch_sha256": *result.PatchSha256,
 			"base_revision": document.Change.BaseRevision, "target_revision": *result.TargetRevision,
 			"excluded_path": wire.ExcludedCEMPath, "verification": result.Outcome,
-			"impact_sha256": digest(impact), "impact_tool": receipt.Tool,
+			"impact_sha256": digest(impact), "impact_tool": "impact",
 		},
-		"providers":             providers,
-		"hunks":                 hunks,
+		"providers":             joined.providers,
+		"hunks":                 joined.hunks,
 		"criteria":              stableCriterionLinks(document),
 		"note":                  stableObligationsNote,
 		"untrusted_text_fields": anyStrings(obligationsUntrusted),

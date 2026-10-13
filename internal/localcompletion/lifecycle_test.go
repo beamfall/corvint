@@ -449,46 +449,10 @@ func TestActualVerificationAndSecretRefusal(t *testing.T) {
 	})
 }
 
-func TestExplicitSidecarReuseRequiresCanonicalMap(t *testing.T) {
-	root, key, plan := fixture(t, []string{"true"})
-	plan.Checks[0].AllowCemSidecarOnlyReuse = true
-	os.WriteFile(filepath.Join(root, "source.go"), []byte("package fixture\nconst Answer = 42\n"), 0600)
-	localGit(t, root, "add", "source.go")
-	localGit(t, root, "commit", "-qm", "change")
-	repo := beginFixture(t, root, key, plan)
-	if _, err := Verify(context.Background(), root, key, "test"); err != nil {
-		t.Fatal(err)
-	}
-	var stdout, stderr strings.Builder
-	// The 0.x producer is explicit since cem prepare writes cem/1.0 by default
-	// (CEM-V1-140); a cem/1.0 sidecar grants no reuse (CEM-V1-150).
-	for _, args := range [][]string{{"prepare", "--base", plan.Base, "--target", "HEAD", "--spec", "cem/0.2"}, {"cite", "--map", ".corvint/change.cem.json", "--hunk", "1", "--evidence-path", "intent.md", "--lines", "1:5", "--relation", "specification"}} {
-		if cli.Run(context.Background(), root, args, &stdout, &stderr) != 0 {
-			t.Fatalf("cem %v: %s", args, stderr.String())
-		}
-	}
-	localGit(t, root, "add", "-f", ".corvint/change.cem.json")
-	localGit(t, root, "commit", "-qm", "sidecar")
-	result, err := Evaluate(context.Background(), root, key)
-	if err != nil || hasUnmet(result, "selected-check-unverified") {
-		t.Fatalf("valid sidecar reuse: %#v %v", result, err)
-	}
-	saved, _ := repo.load()
-	if saved.Observations[0].Target == result.Target {
-		t.Fatal("reused check rewritten as current execution")
-	}
-	os.WriteFile(filepath.Join(root, "source.go"), []byte("package fixture\nconst Answer = 43\n"), 0600)
-	localGit(t, root, "add", "source.go")
-	localGit(t, root, "commit", "-qm", "drift")
-	result, err = Evaluate(context.Background(), root, key)
-	if err != nil || !hasUnmet(result, "selected-check-unverified") {
-		t.Fatal("source drift reused")
-	}
-}
-
-// TestCEMV1150StableSidecarGrantsNoReuse (CEM-V1-150): sidecar-only reuse
-// binds only a canonical cem/0.x map, so a committed cem/1.0 sidecar of the
-// same content leaves the check unverified until it runs again (fail closed).
+// TestCEMV1150StableSidecarGrantsNoReuse (CEM-V1-150, CEM-V1-210): sidecar-only
+// reuse bound only a canonical cem/0.x map, which is retired, so a committed
+// cem/1.0 sidecar of the same content leaves the check unverified until it
+// runs again (fail closed).
 func TestCEMV1150StableSidecarGrantsNoReuse(t *testing.T) {
 	root, key, plan := fixture(t, []string{"true"})
 	plan.Checks[0].AllowCemSidecarOnlyReuse = true

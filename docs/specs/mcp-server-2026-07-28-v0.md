@@ -493,8 +493,9 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
   `NOT_TRACKED_AT_REVISION`, revision drift during the build is `REPOSITORY_STATE_UNSTABLE`, and an
   unqualified platform is `UNSUPPORTED_PLATFORM`; the repository binding is the snapshot the packet was
   compiled from.
-- `MCPV0-025`: `corvint.cem.report` MUST render the `corvint cem report` Markdown, counts, policy
-  issues and verification for one canonical `cem/0.2` or `cem/0.3` map, as a preview that never
+- `MCPV0-025`: `corvint.cem.report` MUST render the `corvint cem report` Markdown and the stable
+  verification for one `cem/1.0` map (`MCPV0-036`; the `cem/0.2` and `cem/0.3` reading first named
+  here is retired by `CEM-V1-210`), as a preview that never
   publishes `.git/corvint/cem-review.md` or any other file. The `map` argument is a closed
   repository-relative path: at most 512 bytes (128 advertised code points), no control byte, not
   absolute, no backslash, no empty, `.` or `..` segment, and no `.git` segment in any case. A
@@ -502,9 +503,10 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
   echoing the path. The reason is that the map is repository-authored input: following a link would
   let a tracked file make the server read outside, or inside Git metadata of, the root it was bound
   to at start, and the result would then carry bytes the operator never scoped. `expectedBase` and
-  `target` are full lowercase 40- or 64-hex object IDs; a symbolic revision is `-32602`. A legacy
-  `cem/0.1` map needs an out-of-band patch and fails as `cem-map-unsupported`; a malformed map is
-  `cem-map-invalid`; Git read failures are `repository-unavailable`. The repository probe brackets the
+  `target` are full lowercase 40- or 64-hex object IDs; a symbolic revision is `-32602`. A retired
+  `cem/0.1`, `cem/0.2` or `cem/0.3` map fails as `cem-map-invalid` before any other judgment
+  (`CEM-V1-210`); a malformed map is `cem-map-invalid`; a `maxUnknown` ceiling on a `cem/1.0` map is
+  `cem-map-stable-refused` (`MCPV0-037`); Git read failures are `repository-unavailable`. The repository probe brackets the
   read, and a changed probe is `REPOSITORY_STATE_UNSTABLE`. Report Markdown carries repository-authored
   hunk paths, so it travels only inside the `MCPV0-008` envelope, and a report containing the
   terminator is refused with `corvint-envelope-terminator-collision`. The CEM Git runner is pinned to
@@ -513,15 +515,16 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
   argument under the same closed repository-relative path rule as `map`, resolved under the root
   exactly as the caller named it at start and passed to the CEM read as its artifact root. A
   `cem/1.0` map is admitted against that caller-named root, never the symlink-resolved root the
-  0.x reads use, byte for byte, so a symlinked `--root` is refused as `cem verify-stable --repository` refuses it. The server accepts only an absolute, clean `--root`; every other spelling is refused at start as `invalid-root`. A canonical `cem/0.2` or `cem/0.3`
-  map given `artifacts` fails as `cem-map-unsupported`. A `cem/1.0` map yields a READY receipt whose
+  retired 0.x reads used, byte for byte, so a symlinked `--root` is refused as `cem verify-stable --repository` refuses it. The server accepts only an absolute, clean `--root`; every other spelling is refused at start as `invalid-root`. A retired 0.x
+  map fails as `cem-map-invalid` whether or not `artifacts` is given (`CEM-V1-210`). A `cem/1.0` map yields a READY receipt whose
   `stableVerification` is the stable verifier's complete result for the same map, revisions and
   artifact root, unchanged, with the `cem/1.0` review Markdown and `recordSetSha256`; it never carries
   or synthesizes the 0.x `verification`, `counts`, `policyIssues` or `worklist`, and it still publishes
-  nothing. Default bytes for 0.x maps are unchanged.
+  nothing.
 - `MCPV0-037`: proposed (V1-0632 S2). A `cem/1.0` map refused before its stable verifier runs (a
   policy ceiling, `--patch`, or another 0.x-only input) MUST fail as `cem-map-stable-refused`, not
-  `cem-map-invalid`. An unknown spec such as `cem/9` and every 0.x refusal keep their existing codes.
+  `cem-map-invalid`. An unknown spec such as `cem/9` and a retired 0.x map fail as `cem-map-invalid`
+  (`CEM-V1-210`).
 
 ### Flows tool profile (amendment by `AFU-V1-034`, `AFU-V1-035`)
 
@@ -578,7 +581,7 @@ Each row cites the first emitting site and states only the condition checked the
 | `invalid-registry` | `internal/mcp/bridge/bridge.go:450@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
 | `unsupported-tool` | `internal/mcp/bridge/bridge.go:459@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
 | `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:719@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:719@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch, or a 0.x map given `artifacts` (`MCPV0-036`) |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:719@f5156052` | an invalid-arguments refusal that is not a `cem/1.0` stable refusal; since `CEM-V1-210` no retired 0.x map reaches it (a 0.x map is `cem-map-invalid`), so the report preview has no observed route to it |
 | `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:741@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
 | `cem-map-invalid` | `internal/mcp/bridge/bridge.go:720@b2fd0644` | the map fails CEM strict decoding or field validation |
 | `flows-refused` | `internal/mcp/bridge/flows.go:267@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
@@ -701,7 +704,7 @@ result again, and no state depends on it. Protocol and conformance paths retain 
 | `MCPV0-011..015` | `internal/mcp/server` | cancellation race and post-cancel health observed; `TestCancelledProgressNeverTearsFrame`, `TestUnterminatedEOFFlushesAdmittedResponse`, and Unix `TestServeRestoresInheritedDescriptorBlockingMode` observed; Unix-gated compiled-process INT/TERM fake-Git parent-and-child cleanup passed locally; Unix `TestClosedStdoutCancelsInFlightDescendantGroup` (closed stdout mid-call exits 2 and reaps the fake-Git group) observed; truthful emitted progress and non-Unix signal cleanup `NOT_OBSERVED`; pagination/logging/roots negative tests |
 | `MCPV0-016..019` | all MCP implementation paths | local secret/mutation and Unix descendant-cleanup checks observed; start-time Git pinning observed by Unix `TestGitPlantedOnPathAfterStartNeverRuns` and `TestPinFixesExecutableAgainstLaterPathChanges`; no promisor fetch (V1-0349) observed by `TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching` (every read tool over a blob:none sparse clone, also through a Git that drops `GIT_NO_LAZY_FETCH`) `TestMCPFlowsCoverageRefusesAMissingPromisorObjectWithoutFetching` (`corvint.flows.coverage`, with a full blob:none clone as the serving control) and `TestMCPCEMReportRefusesAMissingCitedBlobWithAValidMapWithoutFetching` (V1-1039: `corvint.cem.report` with a present map and a missing cited base blob, with an unfiltered clone as the serving control); fuzz, complete race, non-Unix cleanup, and cross-build evidence remain separate gates |
 | `MCPV0-021..023` | all four MCP commands; `internal/mcp/protocol/legacy.go`; `internal/mcp/server/legacy.go` | `TestMCPV0021LegacyFlagAcceptsCapturedInitialize`, `TestMCPV0021ProtocolSelector`, `TestMCPV0022LegacyAdmissionAndReceipt`, `TestMCPV0022LegacyFailedInitializeCannotAdmitTools`, `TestMCPV0022LegacyMetadata`, `TestMCPV0022LegacyCancellationAndProgress`, `TestMCPV0022LegacyCancelledAfterCompletionIsIgnored`, `TestMCPV0022LegacyBlockedInitializeCancels`, both profiles of `TestServeToolsListAndCallRoundTripsDocsDraftAndConsume`, `TestCorpusMCPTransport`, `TestVectorsAndReadOnly` and `TestTerminationSignalsCancelInFlightDescendantGroup`; actual OpenCode discovery and status-call development probes; exact release-artifact qualification separate |
-| `MCPV0-024`, `MCPV0-025` | `internal/mcp/bridge` (`NewTaskReview`), `internal/cem/workflow` (`report-preview`), `internal/cem/gitrun` (`PinBinary`) | `TestContextToolReturnsBoundPacketWithoutWrites`, `TestCEMReportToolPreviewsCLIReportWithoutPublishing`, `TestCEMReportToolRefusesMapsOutsideTheRoot`, `TestNewToolsAbstainOverTheBridgeBudget`, `TestCEMReportToolAbstainsWhenTheCheckoutMoves`, `TestMCPCEMReportRefusesAMissingCitedBlobWithAValidMapWithoutFetching` (a missing cited blob behind a valid map is `repository-unavailable` with no fetch, V1-1039); compiled-process `TestContextAndCEMReportAreBoundReadOnlyAndFramed`, `TestContextAndCEMReportRefuseInvalidArgumentsAndEscapes`, `TestCEMReportRefusesTerminatorAndAbstainsOverBudget`, `TestTaskReviewCEMReportNeverRunsPlantedGit`, `TestTaskReviewToolsRefuseExecutableConfigAndWorktreeRedirects` and `TestTaskReviewTrafficMatchesOfficialSchema`, all under the task-review selector (decision 0374); official-schema exchanges passed on 2026-09-23 |
+| `MCPV0-024`, `MCPV0-025` | `internal/mcp/bridge` (`NewTaskReview`), `internal/cem/workflow` (`report-preview`), `internal/cem/gitrun` (`PinBinary`) | `TestContextToolReturnsBoundPacketWithoutWrites`, `TestCEMReportToolPreviewsCLIReportWithoutPublishing`, `TestCEMReportToolRefusesMapsOutsideTheRoot`, `TestNewToolsAbstainOverTheBridgeBudget`, `TestCEMReportToolAbstainsWhenTheCheckoutMoves`, `TestMCPCEMReportRefusesAMissingCitedBlobWithAValidMapWithoutFetching` (a missing cited blob behind a valid `cem/1.0` map is a READY receipt whose stable result is `UNSUPPORTED` `repository-object-unavailable`, with no fetch, V1-1039, `CEM-V1-210`); compiled-process `TestContextAndCEMReportAreBoundReadOnlyAndFramed`, `TestContextAndCEMReportRefuseInvalidArgumentsAndEscapes`, `TestCEMReportRefusesTerminatorAndAbstainsOverBudget`, `TestTaskReviewCEMReportNeverRunsPlantedGit`, `TestTaskReviewToolsRefuseExecutableConfigAndWorktreeRedirects` and `TestTaskReviewTrafficMatchesOfficialSchema`, all under the task-review selector (decision 0374); official-schema exchanges passed on 2026-09-23 |
 | `MCPV0-026` | `cmd/corvint-mcp` (`extractToolProfile`), `internal/mcp/bridge` (`Registry.advertises`) | `TestMCPV0026ToolProfileSelectorIsClosed`, `TestToolsExposeOnlyDeliveredClosedReadSurface`; compiled-process profile `/1` `TestTaskReviewCaseInventoryIsClosed`, `TestTaskReviewSelectorIsClosed`, `TestTaskReviewDefaultProfileUnchanged`, `TestTaskReviewToolCatalogue`, `TestTaskReviewLegacyProtocol`; profile `/0` `TestToolCatalogueAndResourceOmission` still lists exactly three tools; flows value (`AFU-V1-034`): `TestAFUV1034FlowsToolProfile` (golden default and task-review bytes, closed selector, read-only flows list) and `TestAFUV1034FlowsToolsMatchCLIVerbs` |
 | `MCPV0-027`, `MCPV0-028` | `cmd/corvint-mcp` (`extractErrorProfile`, `toolFailure`), `internal/mcp/bridge` (`reasonClass`), `internal/gitstatus` (`RefusalClass`), `internal/gokernel`, `internal/contextindex` | `TestMCPV0027ErrorProfileSelectorIsClosed`, `TestMCPV0028ReasonClassToolError`, `TestEveryRefusalSiteCarriesAClosedClass`, `TestRefusalClassComesFromTypedRefusalOnly`, `TestStatusRefusesUnsupportedMetadataBeforeLiveStatus`; compiled-process profile `/2` `TestReasonClassCaseInventoryIsClosed`, `TestReasonClassSelectorIsClosed`, `TestReasonClassToolErrorOverRefusedRepositories`, `TestReasonClassUnclassifiedToolError` (decision 0383) |
 | all | `conformance/mcp-2026-07-28` | independent compiled-process vectors and retained `NOT_RUN` external result |
@@ -723,7 +726,7 @@ that focused run.
 | `MCPV0-032` | `cmd/corvint` `parseImpactArgumentsForPlatform`, `impactBudget`, `parseProveInvocation` | `TestMCPV0032PathImpactHonoursBudgetBytes`, `TestMCPV0032ProveRefusesBudgetBytes`; refusal cases in `TestImpactRejectsUnsupportedInputsWithoutReadingStdin` and `TestConvertedRefusalDiagnostics` |
 | `MCPV0-033` | `bridge.Result.TextJSON`, `cmd/corvint-mcp` `structuredResult` | `TestMCPV0033TextSummaryProjectsRowsAndKeepsEnvelopeFields`, `TestToolCallWrapsRepositoryFreeTextInUntrustedDataEnvelope`, `TestToolCallEnvelopeEscapesHiddenCharactersAndRefusesTerminator`, conformance `assertToolReceipt` |
 | `MCPV0-035` | `affected.Build`, context-bound `affected.Source`, `callFlowsImpact` | `TestAFUV1059FlowsImpactCancelledMidWalk` |
-| `MCPV0-036`, `MCPV0-037` | `callCEMReport`, `validCEMPath`, `cemFailure`; `internal/cem/workflow` (`readStable`, `stableReport`) | `TestCEMReportToolAdvertisesArtifacts`, `TestCEMReportToolResolvesArtifactsUnderTheRoot`, `TestCEMReportToolNamesStableRefusals`, `TestCEMReportToolPreviewsStableMap`, `TestCEMReportToolRefusesArtifactsFor0xMap`, `TestCEMReportToolAdmitsTheCallerNamedRoot`; `cmd/corvint-mcp/testdata/tools-list-task-review.golden.jsonl` |
+| `MCPV0-036`, `MCPV0-037` | `callCEMReport`, `validCEMPath`, `cemFailure`; `internal/cem/workflow` (`readStable`, `stableReport`) | `TestCEMReportToolAdvertisesArtifacts`, `TestCEMReportToolResolvesArtifactsUnderTheRoot`, `TestCEMReportToolNamesStableRefusals`, `TestCEMReportToolPreviewsStableMap`, `TestCEMReportToolRefusesMapsOutsideTheRoot` (retired 0.x maps, `CEM-V1-210`), `TestCEMReportToolAdmitsTheCallerNamedRoot`; `cmd/corvint-mcp/testdata/tools-list-task-review.golden.jsonl` |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria

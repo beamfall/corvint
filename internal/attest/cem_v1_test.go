@@ -6,10 +6,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 )
 
 // cemV1FixtureEnvelopeSHA256 pins the envelope TestCEMV1FixtureEnvelopeIsDigestPinned
@@ -34,26 +35,41 @@ func signedCEMV1(t *testing.T, statement []byte) ([]byte, ed25519.PublicKey) {
 	return envelope, privateKey.Public().(ed25519.PublicKey)
 }
 
+// buildCEMV1Statement is the canonical cem/v1 statement CEMStatementV1
+// emitted for the cem/0.1 fixture before cem/0.x was retired; its bytes keep
+// the interop consumer's pinned envelope (FPK-V0-035).
 func buildCEMV1Statement(t *testing.T) []byte {
 	t.Helper()
-	statement, err := CEMStatementV1(cemFixtureName, cemFixture(t))
+	cem := cemFixture(t)
+	fixture := readLegacyFixture(t, cem)
+	sum := sha256.Sum256(cem)
+	resource := map[string]any{"name": cemFixtureName, "digest": map[string]any{"sha256": hex.EncodeToString(sum[:])}}
+	statement, err := canonicalMarshal(map[string]any{
+		"_type":         statementType,
+		"subject":       []any{resource},
+		"predicateType": CEMPredicateTypeV1,
+		"predicate": map[string]any{
+			"base":  map[string]any{"digest": map[string]any{"gitCommit": fixture.BaseRevision}},
+			"cem":   resource,
+			"patch": map[string]any{"digest": map[string]any{"sha256": fixture.PatchSha256}},
+			"size":  json.Number(strconv.Itoa(len(cem))),
+			"spec":  fixture.Spec,
+		},
+	})
 	if err != nil {
-		t.Fatalf("CEMStatementV1: %v", err)
+		t.Fatal(err)
 	}
 	return statement
 }
 
 // TestCEMV1StatementBindsBaseAndPatchAndVerifies checks FPK-V0-033 and
 // FPK-V0-034: the v1 predicate carries the map's own base revision and patch
-// digest beside the ResourceDescriptor, VerifyCEMPredicate reports VERIFIED or
-// NOT_RUN with its predicate type, and a v0 envelope still verifies to the
-// VerifyCEM claim.
+// digest beside the ResourceDescriptor, VerifyCEMPredicate reports NOT_RUN with
+// its predicate type and refuses to confirm the claim against the retired map
+// (CEM-V1-210), and a v0 envelope still verifies to the VerifyCEM claim.
 func TestCEMV1StatementBindsBaseAndPatchAndVerifies(t *testing.T) {
 	cem := cemFixture(t)
-	document, err := wire.ParseMap(cem)
-	if err != nil {
-		t.Fatal(err)
-	}
+	document := readLegacyFixture(t, cem)
 	sum := sha256.Sum256(cem)
 	digest := hex.EncodeToString(sum[:])
 	want := `{"_type":"https://in-toto.io/Statement/v1","predicate":{"base":{"digest":{"gitCommit":"` +
@@ -63,7 +79,10 @@ func TestCEMV1StatementBindsBaseAndPatchAndVerifies(t *testing.T) {
 		digest + `"},"name":"` + cemFixtureName + `"}]}`
 	statement := buildCEMV1Statement(t)
 	if string(statement) != want {
-		t.Fatalf("CEMStatementV1 =\n%s\nwant\n%s", statement, want)
+		t.Fatalf("v1 statement =\n%s\nwant\n%s", statement, want)
+	}
+	if _, err := CEMStatementV1(cemFixtureName, cem); err == nil {
+		t.Fatal("CEMStatementV1 attested a retired cem/0.x map")
 	}
 
 	envelope, publicKey := signedCEMV1(t, statement)
@@ -71,11 +90,10 @@ func TestCEMV1StatementBindsBaseAndPatchAndVerifies(t *testing.T) {
 		Name: cemFixtureName, SHA256: digest, Size: int64(len(cem)), Spec: "cem/0.1",
 		PredicateType: CEMPredicateTypeV1, BaseRevision: document.BaseRevision, PatchSHA256: document.PatchSha256,
 	}
-	verified, notRun := claim, claim
-	verified.Status = CEMVerified
+	notRun := claim
 	notRun.Status, notRun.Reason = CEMNotRun, cemBytesNotSupplied
-	if got, err := VerifyCEMPredicate(envelope, publicKey, cem); err != nil || got != verified {
-		t.Errorf("VerifyCEMPredicate(bytes) = %#v, %v; want %#v", got, err, verified)
+	if got, err := VerifyCEMPredicate(envelope, publicKey, cem); cemcode.CodeOf(err) != cemcode.UnsupportedSpec {
+		t.Errorf("VerifyCEMPredicate(bytes) = %#v, %v; want the retired cem/0.x refusal", got, err)
 	}
 	if got, err := VerifyCEMPredicate(envelope, publicKey, nil); err != nil || got != notRun {
 		t.Errorf("VerifyCEMPredicate(nil) = %#v, %v; want %#v", got, err, notRun)
@@ -85,13 +103,16 @@ func TestCEMV1StatementBindsBaseAndPatchAndVerifies(t *testing.T) {
 	}
 
 	v0Envelope, v0Key := signedCEM(t, cem)
-	v0Claim, err := VerifyCEM(v0Envelope, v0Key, cem)
+	v0Claim, err := VerifyCEM(v0Envelope, v0Key, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	v0Claim.PredicateType = CEMPredicateType
-	if got, err := VerifyCEMPredicate(v0Envelope, v0Key, cem); err != nil || got != v0Claim {
+	if got, err := VerifyCEMPredicate(v0Envelope, v0Key, nil); err != nil || got != v0Claim {
 		t.Errorf("VerifyCEMPredicate(v0) = %#v, %v; want %#v", got, err, v0Claim)
+	}
+	if got, err := VerifyCEMPredicate(v0Envelope, v0Key, cem); cemcode.CodeOf(err) != cemcode.UnsupportedSpec {
+		t.Errorf("VerifyCEMPredicate(v0 bytes) = %#v, %v; want the retired cem/0.x refusal", got, err)
 	}
 }
 
@@ -109,10 +130,7 @@ func jsonInt(value int) string {
 func TestCEMV1RefusesAClaimItCouldNotHaveProduced(t *testing.T) {
 	cem := cemFixture(t)
 	original := string(buildCEMV1Statement(t))
-	document, err := wire.ParseMap(cem)
-	if err != nil {
-		t.Fatal(err)
-	}
+	document := readLegacyFixture(t, cem)
 	otherOID := strings.Repeat("a", len(document.BaseRevision))
 	for name, test := range map[string]struct {
 		edited    string

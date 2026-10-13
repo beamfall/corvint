@@ -30,7 +30,7 @@ func input() Inputs {
 		Note: note("app.go\n  9f8e7d6c5b4a3210 2\n"),
 		Witness: &witness.Report{Profile: witness.Profile, Range: witness.Range{Base: base, Head: target},
 			Obligations: []witness.Obligation{{ID: "change:app.go", Kind: witness.KindChange, Path: "app.go", Verdict: witness.Unproven}}},
-		CEM: &CEM{TargetRevision: target, MapSha256: digest, Verified: true, Map: &wire.Map{Spec: wire.Spec03, BaseRevision: base, PatchSha256: digest,
+		CEM: &CEM{TargetRevision: target, MapSha256: digest, Verified: true, Map: &wire.Map{Spec: wire.StableSpec, BaseRevision: base, PatchSha256: digest,
 			Hunks: []wire.Hunk{{ID: "h1", Path: "app.go", OldRange: h.OldRange, NewRange: h.NewRange,
 				Coverage: &wire.CoverageWitness{State: wire.CoverageUncovered, ProfileSha256: digest, TestRun: "go test ./app", Mode: "set"}}}}}}
 }

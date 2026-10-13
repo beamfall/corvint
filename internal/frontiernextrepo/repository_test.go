@@ -6,13 +6,12 @@ import (
 	"crypto/ed25519"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
@@ -78,7 +77,7 @@ func fixtureRequest(t *testing.T, source, driver []byte, mutant bool) (string, f
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = session.Prepare(context.Background(), workflow.PrepareOptions{Base: base, Target: target}); err != nil {
+	if _, err = session.Prepare(context.Background(), workflow.PrepareOptions{Base: base, Target: target, Spec: wire.StableSpec}); err != nil {
 		t.Fatal(err)
 	}
 	session, err = workflow.Open(root)
@@ -95,7 +94,7 @@ func fixtureRequest(t *testing.T, source, driver []byte, mutant bool) (string, f
 	git(t, root, "add", wire.ExcludedCEMPath)
 	git(t, root, "commit", "-qm", "bind fixture CEM")
 	target = git(t, root, "rev-parse", "HEAD")
-	parsed, err := wire.ParseMap(cem)
+	parsed, err := wire.ParseStable(cem)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +112,7 @@ func fixtureRequest(t *testing.T, source, driver []byte, mutant bool) (string, f
 	fields["id"] = "claim:sha256:" + localauthority.BytesDigest(claimRaw)
 	istart := strings.Index(intent, "## Requirements")
 	iend := strings.Index(intent, "## Next")
-	old := map[string]any{"spec": "ocm/0.1-experimental", "targetRevision": target, "intentScope": map[string]any{"path": "docs/intent.md", "blobOid": git(t, root, "rev-parse", target+":docs/intent.md"), "span": map[string]any{"start": istart, "end": iend}, "spanSha256": localauthority.BytesDigest([]byte(intent[istart:iend]))}, "cem": map[string]any{"mapSha256": localauthority.BytesDigest(cem), "patchSha256": localauthority.BytesDigest(diff)}, "claims": []any{fields}, "obligations": []any{map[string]any{"id": "PLE-V0-005", "disposition": "linked", "reason": "change-and-test-linked", "hunkIds": []string{parsed.Hunks[0].ID}, "claimIds": []string{fields["id"].(string)}}}}
+	old := map[string]any{"spec": "ocm/0.1-experimental", "targetRevision": target, "intentScope": map[string]any{"path": "docs/intent.md", "blobOid": git(t, root, "rev-parse", target+":docs/intent.md"), "span": map[string]any{"start": istart, "end": iend}, "spanSha256": localauthority.BytesDigest([]byte(intent[istart:iend]))}, "cem": map[string]any{"mapSha256": localauthority.BytesDigest(cem), "patchSha256": localauthority.BytesDigest(diff)}, "claims": []any{fields}, "obligations": []any{map[string]any{"id": "PLE-V0-005", "disposition": "linked", "reason": "change-and-test-linked", "hunkIds": []string{parsed.Change.Hunks[0].ID}, "claimIds": []string{fields["id"].(string)}}}}
 	ocm, _ := json.Marshal(old)
 	ocm = append(ocm, '\n')
 	selection, _ := localauthority.Canonical(frontiernext.Selection{Profile: frontiernext.OCMProfile, LegacyOCMSHA256: localauthority.BytesDigest(ocm), Mode: localauthority.SelectionMode, Edges: []frontiernext.Edge{{ClaimID: fields["id"].(string), ObligationID: "PLE-V0-005", CheckID: "wp3codec-canonical-v0", Subject: "internal/wp3codec/codec.go", Function: "Encode"}}})
@@ -137,25 +136,6 @@ func sign(t *testing.T, r *frontiernext.Request, p *localauthority.PolicySnapsho
 	r.Receipt.Signature = hex.EncodeToString(ed25519.Sign(key, raw))
 	d, _ := localauthority.Digest(r.Receipt)
 	p.TerminalSHA256[r.Enrollment.Nonce] = d
-}
-func TestExactGitCWRFixtureRelation(t *testing.T) {
-	source, err := os.ReadFile("../wp3codec/codec.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	root, r, p := fixtureRequest(t, source, []byte("package driver\nfunc TestCanonicalOutput() {\n for _, group := range []struct{name string}{{name: \"PLE-V0-005 canonical vectors\"}} { if group.name == \"\" { panic(\"missing group\") } } }\n"), false)
-	result, err := frontiernext.ComputeFixture(context.Background(), r, p, time.Unix(1200, 0), Adapter{root})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.State != "EMPTY" || result.Authority != "NONE" {
-		t.Fatalf("fixture relation: %+v", result)
-	}
-	sign(t, &r, &p, "FAIL")
-	result, err = frontiernext.ComputeFixture(context.Background(), r, p, time.Unix(1200, 0), Adapter{root})
-	if err != nil || result.State != "OPEN" {
-		t.Fatalf("failed driver: %+v %v", result, err)
-	}
 }
 
 func TestUnsupportedAndAmbiguousDefinitionsStayOpen(t *testing.T) {
@@ -192,85 +172,6 @@ func TestNeighborMaterialEditCannotQualifyWhitespace(t *testing.T) {
 
 	})
 }
-func TestArbitraryNativeEdgeAndDroppedSelectionRemainOpen(t *testing.T) {
-	t.Run("PLE-V0-008 unsupported edges and dropped selection remain open", func(t *testing.T) {
-		source, err := os.ReadFile("../wp3codec/codec.go")
-		if err != nil {
-			t.Fatal(err)
-		}
-		root, r, p := fixtureRequest(t, source, []byte("package driver\nfunc TestCanonicalOutput() {\n for _, group := range []struct{name string}{{name: \"PLE-V0-005 canonical vectors\"}} { if group.name == \"\" { panic(\"missing group\") } } }\n"), false)
-		var selection frontiernext.Selection
-		if err := localauthority.Decode(r.Selection, &selection); err != nil {
-			t.Fatal(err)
-		}
-		selection.Edges = append(selection.Edges, frontiernext.Edge{ClaimID: selection.Edges[0].ClaimID, ObligationID: "PLE-V0-005", CheckID: "arbitrary-native-junit", Subject: "internal/wp3codec/codec.go", Function: "Encode"})
-		r.Selection, _ = localauthority.Canonical(selection)
-		// Even a fixture-signed envelope cannot turn an unadmitted reporter into a protected check.
-		r.Enrollment.Binding.OCMSHA256 = localauthority.BytesDigest(r.Selection)
-		sign(t, &r, &p, "PASS")
-		result, err := frontiernext.ComputeFixture(context.Background(), r, p, time.Unix(1200, 0), Adapter{root})
-		if err != nil || result.State != "OPEN" {
-			t.Fatalf("native edge: %+v %v", result, err)
-		}
-		// Removing the edge without a new independent enrollment refuses its binding.
-		selection.Edges = selection.Edges[:1]
-		r.Selection, _ = localauthority.Canonical(selection)
-		if _, err := frontiernext.ComputeFixture(context.Background(), r, p, time.Unix(1200, 0), Adapter{root}); err == nil {
-			t.Fatal("dropped edge accepted")
-		}
-		selection.Edges = []frontiernext.Edge{}
-		r.Selection, _ = localauthority.Canonical(selection)
-		if _, err := frontiernext.ComputeFixture(context.Background(), r, p, time.Unix(1200, 0), Adapter{root}); err == nil {
-			t.Fatal("empty selection accepted")
-		}
-
-	})
-}
-
-func TestDistinctNativeLegacyClaimCannotDisappear(t *testing.T) {
-	source, err := os.ReadFile("../wp3codec/codec.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	driver := []byte("package driver\nfunc TestCanonicalOutput() {\n for _, group := range []struct{name string}{{name: \"PLE-V0-005 canonical vectors\"}} { if group.name == \"\" { panic(\"missing group\") } } }\n")
-	root, r, p := fixtureRequest(t, source, driver, false)
-	start := strings.Index(claimSource, claimAnchor)
-	native := map[string]any{"extractor": "corvint-test-claim/1", "path": "tests/codec_test.go", "blobOid": git(t, root, "rev-parse", r.Enrollment.Binding.Target+":tests/codec_test.go"), "selector": "test:TestCodec/case:ple-v0-canonical-vector", "span": map[string]any{"start": start, "end": start + len(claimAnchor)}, "spanSha256": localauthority.BytesDigest([]byte(claimAnchor))}
-	raw, _ := json.Marshal(native)
-	id := "claim:sha256:" + localauthority.BytesDigest(raw)
-	native["id"] = id
-	var original map[string]any
-	if err := json.Unmarshal(r.OCM, &original); err != nil {
-		t.Fatal(err)
-	}
-	original["claims"] = append(original["claims"].([]any), native)
-	sort.Slice(original["claims"].([]any), func(i, j int) bool {
-		return original["claims"].([]any)[i].(map[string]any)["id"].(string) < original["claims"].([]any)[j].(map[string]any)["id"].(string)
-	})
-	obligation := original["obligations"].([]any)[0].(map[string]any)
-	ids := []string{obligation["claimIds"].([]any)[0].(string), id}
-	sort.Strings(ids)
-	obligation["claimIds"] = ids
-	r.OCM, _ = json.Marshal(original)
-	r.OCM = append(r.OCM, '\n')
-	var selection frontiernext.Selection
-	if err := localauthority.Decode(r.Selection, &selection); err != nil {
-		t.Fatal(err)
-	}
-	selection.LegacyOCMSHA256 = localauthority.BytesDigest(r.OCM)
-	for _, explicit := range []bool{false, true} {
-		if explicit {
-			selection.Edges = append(selection.Edges, frontiernext.Edge{ClaimID: id, ObligationID: "PLE-V0-005", CheckID: "wp3codec-canonical-v0", Subject: "internal/wp3codec/codec.go", Function: "Encode"})
-		}
-		r.Selection, _ = localauthority.Canonical(selection)
-		r.Enrollment.Binding.OCMSHA256 = localauthority.BytesDigest(r.Selection)
-		sign(t, &r, &p, "PASS")
-		result, err := frontiernext.ComputeFixture(context.Background(), r, p, time.Unix(1200, 0), Adapter{root})
-		if err != nil || result.State != "OPEN" {
-			t.Fatalf("distinct native claim explicit=%v: %+v %v", explicit, result, err)
-		}
-	}
-}
 
 func TestUndeclaredProductionSiblingCannotHideBehindCapsule(t *testing.T) {
 	source, err := os.ReadFile("../wp3codec/codec.go")
@@ -295,85 +196,30 @@ func TestUndeclaredProductionSiblingCannotHideBehindCapsule(t *testing.T) {
 	}
 }
 
-// This is a synthetic in-process current-policy seam, not key admission. The
-// policy is never published to the protected store and grants no native support.
-func TestAuthenticatedFailureAndMixedRowsStayOpen(t *testing.T) {
-	t.Run("PLE-V0-008 authenticated failure cannot close mixed checks", func(t *testing.T) {
-		source, err := os.ReadFile("../wp3codec/codec.go")
-		if err != nil {
-			t.Fatal(err)
+// TestCEMV1210FixtureRecomputeRefusesEveryMap (CEM-V1-210): the experimental
+// recompute reads the frozen frontier/0 universe and lrf/0, which admit no map
+// since cem/0.x was retired. A cem/1.0 request refuses with unsupported-spec,
+// and a retired cem/0.2 map refuses with unsupported-spec and the recovery
+// line; neither reaches the edge evaluation.
+func TestCEMV1210FixtureRecomputeRefusesEveryMap(t *testing.T) {
+	source, err := os.ReadFile("../wp3codec/codec.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	driver := []byte("package driver\nfunc TestCanonicalOutput() {\n for _, group := range []struct{name string}{{name: \"PLE-V0-005 canonical vectors\"}} { if group.name == \"\" { panic(\"missing group\") } } }\n")
+	root, r, _ := fixtureRequest(t, source, driver, false)
+	retired := r
+	retired.CEM = bytes.Replace(r.CEM, []byte(`"spec":"cem/1.0"`), []byte(`"spec":"cem/0.2"`), 1)
+	if bytes.Equal(retired.CEM, r.CEM) {
+		t.Fatal("fixture map lacks the cem/1.0 spec anchor")
+	}
+	for name, request := range map[string]frontiernext.Request{"cem/1.0": r, "cem/0.2": retired} {
+		universe, err := Adapter{root}.Recompute(context.Background(), request, frontiernext.Selection{})
+		if cemcode.CodeOf(err) != cemcode.UnsupportedSpec || len(universe.Eligible) != 0 || len(universe.Open) != 0 {
+			t.Fatalf("%s: universe %+v err %v", name, universe, err)
 		}
-		driver := []byte("package driver\nfunc TestCanonicalOutput() {\n for _, group := range []struct{name string}{{name: \"PLE-V0-005 canonical vectors\"}} { if group.name == \"\" { panic(\"missing group\") } } }\n")
-		root, r, p := fixtureRequest(t, source, driver, false)
-		p.Fixture = false
-		p.Accepted = true
-		sign(t, &r, &p, "FAIL")
-		result, err := frontiernext.Compute(context.Background(), r, p, time.Unix(1200, 0), Adapter{root})
-		if err != nil || result.State != "OPEN" || result.Authority != "VERIFIED" {
-			t.Fatalf("authenticated failure: %+v %v", result, err)
+		if name == "cem/0.2" && !strings.Contains(err.Error(), wire.RetiredSpecFix) {
+			t.Fatalf("%s: refusal lacks the recovery line: %v", name, err)
 		}
-		second := r.Enrollment.Checks[0]
-		second.ID = "wp3codec-z-v0"
-		r.Enrollment.Checks = append(r.Enrollment.Checks, second)
-		p.Checks = r.Enrollment.Checks
-		r.Enrollment.Binding.SelectionSHA256, _ = localauthority.Digest(r.Enrollment.Checks)
-		var selection frontiernext.Selection
-		if err := localauthority.Decode(r.Selection, &selection); err != nil {
-			t.Fatal(err)
-		}
-		secondEdge := selection.Edges[0]
-		secondEdge.CheckID = second.ID
-		selection.Edges = append(selection.Edges, secondEdge)
-		r.Selection, _ = localauthority.Canonical(selection)
-		r.Enrollment.Binding.OCMSHA256 = localauthority.BytesDigest(r.Selection)
-		for _, status := range []string{"FAIL", "PASS", "SKIP"} {
-			r.Receipt.Payload.Enrollment = r.Enrollment
-			r.Receipt.Payload.Rows = []localauthority.Row{{Check: r.Enrollment.Checks[0], Status: "PASS"}, {Check: second, Status: status}}
-			key := ed25519.NewKeyFromSeed(make([]byte, 32))
-			raw, err := localauthority.SigningBytes(r.Receipt.Payload)
-			if err != nil {
-				t.Fatal(err)
-			}
-			r.Receipt.Signature = hex.EncodeToString(ed25519.Sign(key, raw))
-			p.TerminalSHA256[r.Enrollment.Nonce], _ = localauthority.Digest(r.Receipt)
-			result, err = frontiernext.Compute(context.Background(), r, p, time.Unix(1200, 0), Adapter{root})
-			if err != nil {
-				t.Fatal(err)
-			}
-			state, authority := "OPEN", "VERIFIED"
-			if status == "PASS" {
-				state = "EMPTY"
-			}
-			if status == "SKIP" {
-				authority = "NONE"
-			}
-			if result.State != state || result.Authority != authority {
-				t.Fatalf("mixed %s: %+v", status, result)
-			}
-			// A mandatory check cannot disappear merely because another edge covers
-			// every legacy claim. Its enrollment floor remains an explicit obligation.
-			completeSelection := r.Selection
-			selection.Edges = selection.Edges[:1]
-			r.Selection, _ = localauthority.Canonical(selection)
-			r.Enrollment.Binding.OCMSHA256 = localauthority.BytesDigest(r.Selection)
-			r.Receipt.Payload.Enrollment = r.Enrollment
-			raw, err = localauthority.SigningBytes(r.Receipt.Payload)
-			if err != nil {
-				t.Fatal(err)
-			}
-			r.Receipt.Signature = hex.EncodeToString(ed25519.Sign(key, raw))
-			p.TerminalSHA256[r.Enrollment.Nonce], _ = localauthority.Digest(r.Receipt)
-			omitted, err := frontiernext.Compute(context.Background(), r, p, time.Unix(1200, 0), Adapter{root})
-			if err != nil || omitted.State != "OPEN" || omitted.Authority != authority {
-				t.Fatalf("omitted mandatory %s: %+v %v", status, omitted, err)
-			}
-			r.Selection = completeSelection
-			if err := localauthority.Decode(r.Selection, &selection); err != nil {
-				t.Fatal(err)
-			}
-			r.Enrollment.Binding.OCMSHA256 = localauthority.BytesDigest(r.Selection)
-
-		}
-
-	})
+	}
 }

@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/cem/stablefixture"
 )
 
 // The real OCM producer and verifier must join only the explicitly linked hunk.
@@ -16,13 +18,10 @@ func TestCEMReviewNativeOCMAdapter(t *testing.T) {
 		cemGit(t, fixture.root, "add", "src/unrelated.txt")
 		cemGit(t, fixture.root, "commit", "-qm", "unrelated hunk")
 		fixture.target = cemGit(t, fixture.root, "rev-parse", "HEAD")
-		// `cem report --ocm` reads cem/0.x only, and a cem/0.x prepare never
-		// replaces the fixture's default cem/1.0 map (CEM-V1-140), so drop it.
-		if err := os.Remove(filepath.Join(fixture.root, filepath.FromSlash(fixture.mapPath))); err != nil {
-			t.Fatal(err)
-		}
+		// The fixture map is cem/1.0; `cem report --ocm` reads it through the
+		// stable route (CEM-V1-210, CEM-V1-211).
 		for _, args := range [][]string{
-			{"cem", "prepare", "--spec", "cem/0.2", "--base", fixture.base, "--target", fixture.target, "--replace"},
+			{"cem", "prepare", "--base", fixture.base, "--target", fixture.target, "--replace"},
 			{"cem", "cite", "--map", fixture.mapPath, "--hunk", "1", "--evidence-path", "docs/rule.txt", "--lines", "1:1", "--relation", "specification"},
 			{"ocm", "prepare", "--map", "change.ocm.json", "--cem", fixture.mapPath, "--intent", "docs/intent.md", "--expected-base", fixture.base, "--target", fixture.target, "--replace"},
 		} {
@@ -35,7 +34,21 @@ func TestCEMReviewNativeOCMAdapter(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("native OCM link: %d %s", code, diagnostic)
 		}
-		args := []string{"--root", fixture.root, "cem", "report", "--map", fixture.mapPath, "--format", "json", "--expected-base", fixture.base, "--target", fixture.target}
+		// Stable OCM admission reads the exact sidecar committed at the target:
+		// commit the map and rebind the OCM to that bind commit.
+		mapRaw, err := os.ReadFile(filepath.Join(fixture.root, filepath.FromSlash(fixture.mapPath)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ocmRaw, err := os.ReadFile(filepath.Join(fixture.root, "change.ocm.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		cemGit(t, fixture.root, "add", "-f", fixture.mapPath)
+		cemGit(t, fixture.root, "commit", "-qm", "bind")
+		fixture.target = cemGit(t, fixture.root, "rev-parse", "HEAD")
+		cemWrite(t, fixture.root, "change.ocm.json", string(stablefixture.RebindOCM(t, ocmRaw, fixture.target, digestBytes(mapRaw))))
+		args := []string{"--root", fixture.root, "cem", "report", "--map", fixture.mapPath, "--format", "json", "--expected-base", fixture.base, "--target", fixture.target, "--artifacts", fixture.root}
 		read := func(extra ...string) map[string]any {
 			t.Helper()
 			code, out, diagnostic := runCLI(t, append(append([]string(nil), args...), extra...)...)
@@ -87,7 +100,8 @@ func TestCEMReviewNativeOCMAdapter(t *testing.T) {
 		}
 		for _, projection := range []map[string]any{absent, rejected} {
 			for _, raw := range projection["hunks"].([]any) {
-				if len(raw.(map[string]any)["obligations"].([]any)) != 0 {
+				// The stable review omits an empty obligation join.
+				if obligations, _ := raw.(map[string]any)["obligations"].([]any); len(obligations) != 0 {
 					t.Fatal("missing/invalid OCM created an obligation join")
 				}
 			}

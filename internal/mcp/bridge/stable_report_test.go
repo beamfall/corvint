@@ -79,8 +79,8 @@ func TestCEMReportToolResolvesArtifactsUnderTheRoot(t *testing.T) {
 }
 
 // MCPV0-037: a cem/1.0 refusal before the verifier is its own bridge code; a
-// 0.x unsupported spec stays cem-map-invalid and a 0.x invalid argument stays
-// cem-map-unsupported.
+// retired 0.x map's unsupported-spec refusal is cem-map-invalid (CEM-V1-210)
+// and any other invalid-arguments refusal stays cem-map-unsupported.
 func TestCEMReportToolNamesStableRefusals(t *testing.T) {
 	err := workflowStableRefusal(t)
 	for _, c := range []struct {
@@ -88,8 +88,8 @@ func TestCEMReportToolNamesStableRefusals(t *testing.T) {
 		want string
 	}{
 		{err, "cem-map-stable-refused"},
-		{cemcode.New(cemcode.UnsupportedSpec, "spec must be one of the 0.x profiles"), "cem-map-invalid"},
-		{cemcode.New(cemcode.InvalidArguments, "cem/0.1 report-preview requires a canonical map"), "cem-map-unsupported"},
+		{cemcode.New(cemcode.UnsupportedSpec, "cem/0.2 is retired; fix: "+wire.RetiredSpecFix), "cem-map-invalid"},
+		{cemcode.New(cemcode.InvalidArguments, "invalid arguments"), "cem-map-unsupported"},
 	} {
 		if got := cemFailure(context.Background(), c.err); got == nil || got.Code != c.want {
 			t.Fatalf("%v maps to %v, want %s", c.err, got, c.want)
@@ -194,23 +194,6 @@ func TestCEMReportToolPreviewsStableMap(t *testing.T) {
 	}
 	if after := rootDigest(t, root); after != before {
 		t.Fatal("corvint.cem.report wrote under the repository root")
-	}
-}
-
-// MCPV0-036: a canonical 0.x map refuses `artifacts` as the unsupported
-// argument it is, without a stable refusal code.
-func TestCEMReportToolRefusesArtifactsFor0xMap(t *testing.T) {
-	if runtimeUnsupported() {
-		t.Skip("CEM Git reads are qualified only on Darwin and Linux")
-	}
-	root, base, target := cemRepository(t)
-	registry, err := NewTaskReview(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	arguments := `{"map":".corvint/change.cem.json","artifacts":"artifacts","expectedBase":"` + base + `","target":"` + target + `"}`
-	if result, callErr := registry.Call(context.Background(), ToolCEMReport, []byte(arguments)); callErr == nil || callErr.Code != "cem-map-unsupported" {
-		t.Fatalf("0.x map with artifacts = %#v %#v, want cem-map-unsupported", result, callErr)
 	}
 }
 

@@ -5,7 +5,6 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -215,78 +214,17 @@ func evidenceFormat(c capsule) string {
 	return "sha1"
 }
 
-// requireEvidencePaths validates the finite artifact-derived demand union before
-// publication. Parsing here only requests objects; the canonical verifier still
-// independently validates every artifact and derives its own universe.
+// requireEvidencePaths admits no enrolled map. The capsule derived its object
+// demand from a cem/0.x map, which is retired: such a map refuses with the
+// closed code unsupported-spec and its fix line (CEM-V1-210). A cem/1.0 map
+// still has no capsule-native stable path and refuses with the capsule CEM
+// base refusal before any object is requested (CEM-V1-167).
 func (objects objectSet) requireEvidencePaths(in enrolledInput) error {
-	b := in.enrollment.Binding
-	cem, err := wire.ParseMap(in.raw["cem.json"])
-	if err != nil || cem.BaseRevision != b.Base {
-		return errors.New("capsule CEM base")
-	}
-	before, err := objects.completeTree(b.Base)
-	if err != nil {
-		return err
-	}
-	after, err := objects.completeTree(b.Target)
-	if err != nil {
-		return err
-	}
-	require := func(rows map[string]capsuleEntry, p string, optional bool) error {
-		entry, ok := rows[p]
-		if !ok {
-			if optional {
-				return nil
-			}
-			return errors.New("required capsule path missing")
-		}
-		if entry.mode != "100644" && entry.mode != "100755" {
-			return errors.New("required capsule path mode")
-		}
-		return objects.requireChangedBlob(entry)
-	}
-	for _, e := range cem.Evidence {
-		if err := require(before, e.Path, false); err != nil {
-			return err
-		}
-		if before[e.Path].oid != e.BlobOid {
-			return errors.New("capsule CEM blob binding")
-		}
-		if err := require(after, e.Path, true); err != nil {
+	raw := in.raw["cem.json"]
+	if !wire.DeclaresStable(raw) {
+		if _, err := wire.ParseStable(raw); err != nil {
 			return err
 		}
 	}
-	var ocm struct {
-		Intent struct {
-			Path string `json:"path"`
-		} `json:"intentScope"`
-		Claims []struct {
-			Path string `json:"path"`
-		} `json:"claims"`
-	}
-	if err := json.Unmarshal(in.raw["ocm.json"], &ocm); err != nil {
-		return err
-	}
-	for _, rows := range []map[string]capsuleEntry{before, after} {
-		if err := require(rows, ocm.Intent.Path, false); err != nil {
-			return err
-		}
-	}
-	for _, claim := range ocm.Claims {
-		if err := require(after, claim.Path, false); err != nil {
-			return err
-		}
-	}
-	for _, check := range in.enrollment.Checks {
-		if err := require(before, check.DriverPath, false); err != nil {
-			return err
-		}
-		if err := require(after, check.DriverPath, false); err != nil {
-			return err
-		}
-		if err := require(after, check.Subject, false); err != nil {
-			return err
-		}
-	}
-	return require(after, wire.ExcludedCEMPath, false)
+	return errors.New("capsule CEM base")
 }

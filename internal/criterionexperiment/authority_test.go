@@ -11,102 +11,48 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
-	cw "github.com/Beamfall/corvint/internal/cem/wire"
-	"github.com/Beamfall/corvint/internal/cem/workflow"
 	tw "github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // CEX-V0-003, CEX-V0-006, CEX-V0-007, CEX-V0-009: full immutable CEM/source
 // replay, no live task or Go executable dependency, tamper and survivor refusal.
+// The frozen profile admitted only cem/0.2, which is retired, so the replay runs
+// under the stable profile over the stable-fixture map (CEM-V1-214).
 func TestHistoricalVerifyArtifactsAndSurvivors(t *testing.T) {
 	ctx := context.Background()
-	dir := t.TempDir()
-	gitTest(t, dir, "init", "-q")
-	_ = os.Mkdir(filepath.Join(dir, "sample"), 0700)
-	sources := map[string]string{"sample/go.mod": "module example.test/sample\ngo 1.27.1\n", "sample/source.go": "package sample\nconst Value=0\n", "sample/oracle_test.go": "package sample\nimport \"testing\"\nfunc TestRepair(t *testing.T){if Value!=1{t.Fatal(\"EXPECTED\")}}\n", "contract.txt": "accepted criterion\n"}
-	for p, s := range sources {
-		if e := os.WriteFile(filepath.Join(dir, p), []byte(s), 0600); e != nil {
-			t.Fatal(e)
-		}
-	}
-	gitTest(t, dir, "add", ".")
-	gitTest(t, dir, "commit", "-qm", "base")
-	base := gitTest(t, dir, "rev-parse", "HEAD")
-	_ = os.WriteFile(filepath.Join(dir, "sample/source.go"), []byte("package sample\nconst Value=1\n"), 0600)
-	gitTest(t, dir, "add", ".")
-	gitTest(t, dir, "commit", "-qm", "candidate")
-	target := gitTest(t, dir, "rev-parse", "HEAD")
-	s, e := workflow.Open(dir)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if _, e = s.Prepare(ctx, workflow.PrepareOptions{Base: base, Target: target}); e != nil {
-		t.Fatal(e)
-	}
-	cem, e := os.ReadFile(filepath.Join(dir, cw.ExcludedCEMPath))
-	if e != nil {
-		t.Fatal(e)
-	}
-	m, e := cw.ParseMap(cem)
-	if e != nil {
-		t.Fatal(e)
-	}
+	f := newStableExperiment(t)
 	tasks := testTasks(t)
-	captures := fixtureCaptures(t, base, tasks)
+	captures := fixtureCaptures(t, f.base, tasks)
 	rec := captures.Verification.Binding
-	a := rec
-	repo, e := gitauth.Open(dir, gitrun.NewDefaultBudget())
-	if e != nil {
-		t.Fatal(e)
-	}
-	tree, e := repo.CommitTree(ctx, target)
-	if e != nil {
-		t.Fatal(e)
-	}
-	binding, _, _, e := authorityBinding(captures, tree)
-	if e != nil {
-		t.Fatal(e)
-	}
-	r := goRequest(t)
-	r.Base = base
-	r.Target = target
-	r.Ticket = rec.TicketID.Raw
-	r.Attempt = a.AttemptID
+	r := f.request
+	r.Ticket, r.Attempt = rec.TicketID.Raw, rec.AttemptID
 	r.Criteria[0].AcceptanceSha256 = Digest([]byte(rec.AcceptanceCriteria[0]))
-	r.Criteria[0].Oracle.Commit = base
-	r.Criteria[0].Authority.AnchorCommit = base
-	r.Criteria[0].Authority.AnchorSha256 = Digest([]byte(sources["contract.txt"]))
-	r.Criteria[0].Hunks = []string{m.Hunks[0].ID}
-	r.Criteria[0].Controls = []string{base}
 	binaryLink := filepath.Join(t.TempDir(), "go")
-	if e = os.Symlink(r.GoBinary, binaryLink); e != nil {
+	if e := os.Symlink(r.GoBinary, binaryLink); e != nil {
 		t.Fatal(e)
 	}
 	r.GoBinary = binaryLink
-	p := Plan{Profile, r, binding, Digest(cem), Digest(tw.EncodeFile(captures.Capture.Value())), captures.Verification.Verifier}
-	planDir := t.TempDir()
-	for name, b := range map[string][]byte{"plan.json": Encode(p), "cem.json": cem, "captures.json": tw.EncodeFile(captures.Capture.Value())} {
-		if e = save(planDir, name, b); e != nil {
-			t.Fatal(e)
-		}
+	planDir := filepath.Join(t.TempDir(), "plan")
+	p, e := planWithCaptures(ctx, f.repo, r, f.stable.Map, captures, planDir)
+	if e != nil {
+		t.Fatal(e)
 	}
 	out := filepath.Join(t.TempDir(), "run")
 	planPath := filepath.Join(planDir, "plan.json")
 	receiptPath := filepath.Join(out, "receipt.json")
-	receipt, e := Run(ctx, dir, planPath, CanonicalDigest(p), out, true, true, tasks)
+	root := f.stable.ArtifactRoot
+	receipt, e := RunStable(ctx, f.dir, planPath, CanonicalDigest(p), out, root, true, true, tasks)
 	if e != nil {
 		t.Fatal(e)
 	}
 	if e = os.Remove(binaryLink); e != nil {
 		t.Fatal(e)
 	}
-	summary, e := Verify(ctx, dir, planPath, receiptPath, false, tasks)
+	summary, e := VerifyStable(ctx, f.dir, planPath, receiptPath, root, false, tasks)
 	if e != nil || summary.State != "VERIFIED_SATISFIED" || summary.RegisteredControls != 1 || summary.KilledControls != 1 {
 		t.Fatalf("historical verify %+v %v", summary, e)
 	}
-	if _, e = Verify(ctx, dir, planPath, receiptPath, true, tasks); e == nil {
+	if _, e = VerifyStable(ctx, f.dir, planPath, receiptPath, root, true, tasks); e == nil {
 		t.Fatal("live gate admitted absent Tasks store")
 	}
 	rawPath := filepath.Join(out, "stdout-002.jsonl")
@@ -115,7 +61,7 @@ func TestHistoricalVerifyArtifactsAndSurvivors(t *testing.T) {
 		t.Fatal(e)
 	}
 	_ = os.WriteFile(rawPath, []byte("tampered"), 0600)
-	if _, e = Verify(ctx, dir, planPath, receiptPath, false, tasks); e == nil {
+	if _, e = VerifyStable(ctx, f.dir, planPath, receiptPath, root, false, tasks); e == nil {
 		t.Fatal("tampered raw output admitted")
 	}
 	_ = os.WriteFile(rawPath, original, 0600)
@@ -126,14 +72,14 @@ func TestHistoricalVerifyArtifactsAndSurvivors(t *testing.T) {
 	receipt.Scenarios[2].Classification = "pass"
 	_ = os.WriteFile(rawPath, survivor, 0600)
 	_ = save(out, "receipt.json", Encode(receipt))
-	summary, e = Verify(ctx, dir, planPath, receiptPath, false, tasks)
+	summary, e = VerifyStable(ctx, f.dir, planPath, receiptPath, root, false, tasks)
 	if e != nil || summary.State != "VERIFIED_UNRESOLVED" || summary.ExecutedControls != 1 || summary.KilledControls != 0 {
 		t.Fatalf("survivor %+v %v", summary, e)
 	}
 	// Removing a requested row cannot improve the denominator.
 	receipt.Scenarios = receipt.Scenarios[:2]
 	_ = save(out, "receipt.json", Encode(receipt))
-	if _, e = Verify(ctx, dir, planPath, receiptPath, false, tasks); e == nil {
+	if _, e = VerifyStable(ctx, f.dir, planPath, receiptPath, root, false, tasks); e == nil {
 		t.Fatal("missing control row admitted")
 	}
 }

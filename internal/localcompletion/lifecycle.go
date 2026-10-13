@@ -11,8 +11,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/cem/verify"
-	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
@@ -257,7 +255,7 @@ func (repo *repository) evaluateObserved(ctx context.Context, saved *state, pinn
 	repositoryReady := len(result.Unmet) == 0
 	var verificationActions [][]string
 	for _, check := range saved.Plan.Checks {
-		qualified := repo.checkQualifies(ctx, saved, check, snap)
+		qualified := repo.checkQualifies(saved, check, snap)
 		summary := CheckObservation{ID: check.ID, Qualified: qualified, Argv: repo.executionArgv(saved, check), CurrentTarget: snap.target, Exit: -1}
 		if observed := repo.latest(saved, check.ID); observed != nil {
 			summary.TestedCommit = observed.Target
@@ -350,7 +348,7 @@ func (repo *repository) latest(saved *state, checkID string) *observation {
 	return nil
 }
 
-func (repo *repository) checkQualifies(ctx context.Context, saved *state, check Check, snap snapshot) bool {
+func (repo *repository) checkQualifies(saved *state, check Check, snap snapshot) bool {
 	observed := repo.latest(saved, check.ID)
 	if observed == nil || observed.CheckDigest != repo.executionDigest(saved, check) || !observed.Passed || !observed.Clean || observed.Exit != "0" || observed.TimedOut || observed.Cancelled || observed.Overflow || observed.SecretScreened {
 		return false
@@ -361,21 +359,10 @@ func (repo *repository) checkQualifies(ctx context.Context, saved *state, check 
 	if observed.Target == snap.target {
 		return observed.Tree == snap.tree
 	}
-	if !check.AllowCemSidecarOnlyReuse || observed.ContentDigest != snap.content {
-		return false
-	}
-	// An exclusion is usable only after the shared CEM verifier binds the exact
-	// sidecar to current committed content. A filename alone grants no waiver.
-	raw, err := readFile(filepath.Join(repo.auth.Root, wire.ExcludedCEMPath), wire.MaxMapBytes)
-	if err != nil {
-		return false
-	}
-	document, err := wire.ParseMap(raw)
-	if err != nil || document.ExcludedPath != wire.ExcludedCEMPath {
-		return false
-	}
-	_, _, err = verify.Canonical(ctx, repo.auth, document, verify.CanonicalOptions{ExpectedBase: saved.Plan.Base, Target: snap.target, RawMapBytes: raw})
-	return err == nil
+	// Sidecar-only reuse bound a canonical cem/0.x map, which is retired
+	// (CEM-V1-210), and a cem/1.0 sidecar grants none (CEM-V1-150): a check
+	// observed on another target runs again, whatever the plan allows.
+	return false
 }
 
 func (repo *repository) artifactsCurrent(items []artifact) bool {
@@ -534,7 +521,7 @@ func Review(ctx context.Context, root, key, reportDigest string) (Evaluation, er
 		return Evaluation{}, errors.New("report-set-stale")
 	}
 	for _, check := range saved.Plan.Checks {
-		if !repo.checkQualifies(ctx, saved, check, snap) {
+		if !repo.checkQualifies(saved, check, snap) {
 			return Evaluation{}, errors.New("selected-check-unverified")
 		}
 	}

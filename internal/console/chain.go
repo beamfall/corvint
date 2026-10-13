@@ -52,7 +52,7 @@ var (
 	// (docs/specs/ocm-v0-dogfood.md, Wire profile). It is used only to show
 	// the clause an obligation already names, never to find a requirement.
 	requirementLine = regexp.MustCompile("^- (?:`([A-Z][A-Z0-9-]{2,31}-[0-9]{3})`:[ ]|\\*\\*([A-Z][A-Z0-9-]{2,31}-[0-9]{3})[.:]\\*\\*[ ])")
-	cemProfiles     = map[string]bool{"cem/0.1": true, "cem/0.2": true, "cem/0.3": true, wire.StableSpec: true}
+	cemProfiles     = map[string]bool{wire.StableSpec: true}
 )
 
 type wireSpan struct {
@@ -333,6 +333,10 @@ func decodeSealed(sealed *Blob) (wireCEM, error) {
 			return document, err
 		}
 		document.Spec = wire.StableSpec
+	}
+	if strings.HasPrefix(document.Spec, "cem/0.") {
+		return document, errors.New(GapUnsupported + ": the sealed map states retired profile " + strconv.Quote(document.Spec) +
+			" (unsupported-spec), which this pane does not read; fix: " + wire.RetiredSpecFix)
 	}
 	if !cemProfiles[document.Spec] {
 		return document, errors.New(GapUnsupported + ": the sealed map states profile " + strconv.Quote(document.Spec) + ", which this pane does not read")

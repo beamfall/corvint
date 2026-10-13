@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -48,6 +49,11 @@ var stableCollapseLimits = []string{
 // retained and no collapse is produced from it (CEM-V1-074).
 func CompileStable(ctx context.Context, rawCEM []byte, attributions []Attribution, inputs StableInputs) (Report, error) {
 	if !wire.DeclaresStable(rawCEM) {
+		// A retired cem/0.x map refuses with the closed code and its fix
+		// line (CEM-V1-210); any other non-stable input stays not-stable.
+		if _, err := wire.ParseStable(rawCEM); cemcode.CodeOf(err) == cemcode.UnsupportedSpec {
+			return Report{}, &Error{Code: cemcode.UnsupportedSpec, Message: cemcode.MessageOf(err)}
+		}
 		return Report{}, failure("not-stable", "the map does not declare exactly %s", wire.StableSpec)
 	}
 	result, _ := verify.Stable(ctx, rawCEM, verify.StableOptions{Repository: inputs.Repository, ExpectedBase: inputs.ExpectedBase,

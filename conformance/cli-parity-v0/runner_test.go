@@ -97,7 +97,7 @@ func testGPKV0002ManifestReplay(t *testing.T) {
 		"PASS impact-python-package\n",
 		"PASS impact-web-component\n",
 		"PASS impact-web-directory\n",
-		"PASS lrf-evaluate-supported\n",
+		"RETIRED lrf-evaluate-supported decision=0525 reason=",
 		"PASS lrf-missing-cem\n",
 		"PASS migrate-traces-mode-conflict\n",
 		"PASS migrate-traces-mode-required\n",
@@ -155,7 +155,7 @@ func testGPKV0002ManifestReplay(t *testing.T) {
 		"PASS query-authority-start-limit-51\n",
 		"PASS-WITH-KNOWN-DIVERGENCE query-authority-start-non-ascii register=DR-0023 clause=GPK-V0-063 rewrites=1",
 		"PASS-WITH-KNOWN-DIVERGENCE query-repository-non-ascii register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"SUMMARY parity=104 retired=29 identity-renames=10 accepted-divergences=3 known-divergences=31 location-normalizations=1 structural-fields=0 unsupported-refusals=1 retired-refusals=2 full-gpk-v0-005=PARTIAL detached-descendants=NOT_RUN\n",
+		"SUMMARY parity=103 retired=30 identity-renames=10 accepted-divergences=3 known-divergences=31 location-normalizations=1 structural-fields=0 unsupported-refusals=1 retired-refusals=2 full-gpk-v0-005=PARTIAL detached-descendants=NOT_RUN\n",
 	} {
 		if !strings.Contains(output.String(), line) {
 			t.Fatalf("replay output missing %q:\n%s", line, &output)
@@ -1016,7 +1016,7 @@ func TestDecision0308DeclarationsAreClosed(t *testing.T) {
 			}
 		}
 	}
-	if retiredDeclared != len(retiredCases) || retiredDeclared != 29 || renamedDeclared != len(identityRenameDivergenceCases) || renamedDeclared != 10 {
+	if retiredDeclared != len(retiredCases) || retiredDeclared != 30 || renamedDeclared != len(identityRenameDivergenceCases) || renamedDeclared != 10 {
 		t.Fatalf("retired=%d/%d identity-renames=%d/%d", retiredDeclared, len(retiredCases), renamedDeclared, len(identityRenameDivergenceCases))
 	}
 	retiredRefusals := 0
@@ -1040,6 +1040,8 @@ func TestDecision0308DeclarationsAreClosed(t *testing.T) {
 	for name, mutate := range map[string]func(*parityCase){
 		"other case":     func(c *parityCase) { c.ID = "impact-clean-tracked" },
 		"other decision": func(c *parityCase) { c.Retired.Decision = "0088" },
+		"0525 decision":  func(c *parityCase) { c.Retired.Decision = "0525" },
+		"0308 on 0525":   func(c *parityCase) { c.ID = "lrf-evaluate-supported" },
 		"missing reason": func(c *parityCase) { c.Retired.Reason = "" },
 	} {
 		mutated := retired

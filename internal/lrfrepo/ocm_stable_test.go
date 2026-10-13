@@ -3,6 +3,7 @@ package lrfrepo
 import (
 	"bytes"
 	"context"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"os"
 	"path/filepath"
 	"strings"
@@ -152,5 +153,55 @@ func TestCEMV1149OCMLinkAdmitsStableProducerMap(t *testing.T) {
 	})
 	if err != nil || checked.Verification["valid"] != true {
 		t.Fatalf("linked stable OCM read: err=%v verification=%v", err, checked)
+	}
+}
+
+// TestCEMV1210OCMRefusesRetiredMap (CEM-V1-210): OCM prepare, link and
+// status refuse a retired cem/0.x map with unsupported-spec and the recovery
+// line, never invalid-cem or a silent fallback, and leave the OCM map as it was.
+func TestCEMV1210OCMRefusesRetiredMap(t *testing.T) {
+	root, base, target := makeOCMPrepareRepository(t)
+	raw := prepareStableCEM(t, root, base, target)
+	prepare := PrepareOptions{
+		MapPath: DefaultOCMMapPath, CEMPath: wire.ExcludedCEMPath,
+		IntentPath: "docs/specs/intent.md", ExpectedBase: base, Target: target,
+	}
+	if _, err := PrepareOCM(context.Background(), root, prepare); err != nil {
+		t.Fatal(err)
+	}
+	ocmPath := filepath.Join(root, filepath.FromSlash(DefaultOCMMapPath))
+	before, err := os.ReadFile(ocmPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retired := bytes.Replace(raw, []byte(`"spec":"cem/1.0"`), []byte(`"spec":"cem/0.2"`), 1)
+	if bytes.Equal(retired, raw) {
+		t.Fatal("fixture map does not declare cem/1.0")
+	}
+	writeOCMPrepareFile(t, root, wire.ExcludedCEMPath, string(retired))
+	refused := func(name string, err error) {
+		t.Helper()
+		if CodeOf(err) != cemcode.UnsupportedSpec || !strings.Contains(err.Error(), wire.RetiredSpecFix) {
+			t.Fatalf("%s admitted a retired map: code=%q err=%v", name, CodeOf(err), err)
+		}
+	}
+	prepare.Replace = true
+	_, err = PrepareOCM(context.Background(), root, prepare)
+	refused("prepare", err)
+	_, err = LinkOCM(context.Background(), root, LinkOptions{
+		MapPath: DefaultOCMMapPath, CEMPath: wire.ExcludedCEMPath, Obligation: "OCM-TEST-001",
+		Hunks: []string{"h"}, ExpectedBase: base, Target: target,
+	})
+	refused("link", err)
+	result, err := ReadOCM(context.Background(), root, OCMReadOptions{
+		OCMPath: DefaultOCMMapPath, CEMPath: wire.ExcludedCEMPath,
+		ExpectedBase: base, Target: target, ExpectedBaseGiven: true, TargetGiven: true,
+	})
+	if err != nil || result == nil || result.State != "invalid" {
+		t.Fatalf("status over a retired map: err=%v result=%+v", err, result)
+	}
+	refused("status", result.VerificationCause)
+	if after, err := os.ReadFile(ocmPath); err != nil || !bytes.Equal(before, after) {
+		t.Fatalf("a refused write changed the OCM map: %v", err)
 	}
 }

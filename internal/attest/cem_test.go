@@ -6,8 +6,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -23,16 +26,49 @@ func cemFixture(t *testing.T) []byte {
 	return data
 }
 
+// legacyFixture is the base revision, patch digest and spec of the cem/0.1
+// fixture, read as plain JSON: the cem/0 and cem/v1 producers refuse every map
+// now (CEM-V1-210), so these tests sign the statements they used to emit.
+type legacyFixture struct {
+	BaseRevision string `json:"baseRevision"`
+	PatchSha256  string `json:"patchSha256"`
+	Spec         string `json:"spec"`
+}
+
+func readLegacyFixture(t *testing.T, cem []byte) legacyFixture {
+	t.Helper()
+	var fixture legacyFixture
+	if err := json.Unmarshal(cem, &fixture); err != nil || fixture.Spec == "" {
+		t.Fatalf("legacy fixture: %v", err)
+	}
+	return fixture
+}
+
+// legacyCEMStatement is the canonical cem/0 statement CEMStatement emitted
+// for cem before cem/0.x was retired.
+func legacyCEMStatement(t *testing.T, name string, cem []byte) []byte {
+	t.Helper()
+	sum := sha256.Sum256(cem)
+	digest := map[string]any{"sha256": hex.EncodeToString(sum[:])}
+	statement, err := canonicalMarshal(map[string]any{
+		"_type":         statementType,
+		"subject":       []any{map[string]any{"name": name, "digest": digest}},
+		"predicateType": CEMPredicateType,
+		"predicate":     map[string]any{"name": name, "digest": digest, "size": json.Number(strconv.Itoa(len(cem))), "spec": readLegacyFixture(t, cem).Spec},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return statement
+}
+
 func signedCEM(t *testing.T, cem []byte) ([]byte, ed25519.PublicKey) {
 	t.Helper()
 	publicKey, privateKey, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		t.Fatalf("GenerateKey: %v", err)
 	}
-	statement, err := CEMStatement(cemFixtureName, cem)
-	if err != nil {
-		t.Fatalf("CEMStatement: %v", err)
-	}
+	statement := legacyCEMStatement(t, cemFixtureName, cem)
 	envelope, err := Envelope(statement, privateKey)
 	if err != nil {
 		t.Fatalf("Envelope: %v", err)
@@ -42,8 +78,9 @@ func signedCEM(t *testing.T, cem []byte) ([]byte, ed25519.PublicKey) {
 
 // TestCEMAttestationRoundTripsThroughTheExistingEnvelope checks FPK-V0-030:
 // the CEM statement signs and verifies through Envelope/Verify, its subject and
-// predicate carry an independently computed digest, and VerifyCEM reports the
-// supplied bytes as VERIFIED.
+// predicate carry an independently computed digest, VerifyCEM reports the claim
+// NOT_RUN without bytes, and it refuses the matching retired map bytes
+// (CEM-V1-210).
 func TestCEMAttestationRoundTripsThroughTheExistingEnvelope(t *testing.T) {
 	cem := cemFixture(t)
 	envelope, publicKey := signedCEM(t, cem)
@@ -71,13 +108,16 @@ func TestCEMAttestationRoundTripsThroughTheExistingEnvelope(t *testing.T) {
 		t.Error("predicate embeds CEM bytes; FPK-V0-030 carries a content-addressed reference only")
 	}
 
-	got, err := VerifyCEM(envelope, publicKey, cem)
+	got, err := VerifyCEM(envelope, publicKey, nil)
 	if err != nil {
 		t.Fatalf("VerifyCEM: %v", err)
 	}
-	want := CEMVerification{Name: cemFixtureName, SHA256: wantDigest, Size: int64(len(cem)), Spec: "cem/0.1", Status: CEMVerified}
+	want := CEMVerification{Name: cemFixtureName, SHA256: wantDigest, Size: int64(len(cem)), Spec: "cem/0.1", Status: CEMNotRun, Reason: cemBytesNotSupplied}
 	if got != want {
 		t.Errorf("VerifyCEM = %#v, want %#v", got, want)
+	}
+	if got, err := VerifyCEM(envelope, publicKey, cem); cemcode.CodeOf(err) != cemcode.UnsupportedSpec || !strings.Contains(err.Error(), wire.RetiredSpecFix) {
+		t.Errorf("VerifyCEM over the retired map = %#v, %v; want unsupported-spec with the recovery line", got, err)
 	}
 }
 
@@ -97,6 +137,25 @@ func TestCEMAttestationRefusesTamperedMapBytes(t *testing.T) {
 	}
 	if _, err := CEMStatement(cemFixtureName, []byte(`{"not":"a cem"}`)); err == nil {
 		t.Error("CEMStatement attested bytes that are not a CEM")
+	}
+}
+
+// TestCEMV1210LegacyPredicatesRefuseEveryMap checks CEM-V1-210: the cem/0 and
+// cem/v1 producers refuse a cem/0.x map with the retired-spec fix and a cem/1.0
+// map as unsupported-spec, and a signed v1 claim is never confirmed by a map.
+func TestCEMV1210LegacyPredicatesRefuseEveryMap(t *testing.T) {
+	legacy, stable := cemFixture(t), stableFixture(t)
+	for _, produce := range []func(string, []byte) ([]byte, error){CEMStatement, CEMStatementV1} {
+		if _, err := produce(cemFixtureName, legacy); cemcode.CodeOf(err) != cemcode.UnsupportedSpec || !strings.Contains(err.Error(), wire.RetiredSpecFix) {
+			t.Errorf("0.x map: %v", err)
+		}
+		if _, err := produce(stableMapName, stable); cemcode.CodeOf(err) != cemcode.UnsupportedSpec {
+			t.Errorf("1.0 map: %v", err)
+		}
+	}
+	envelope, publicKey := signedCEMV1(t, buildCEMV1Statement(t))
+	if _, err := VerifyCEMPredicate(envelope, publicKey, legacy); cemcode.CodeOf(err) != cemcode.UnsupportedSpec || errors.Is(err, ErrCEMBytesMismatch) {
+		t.Errorf("v1 claim over the 0.x map: %v", err)
 	}
 }
 
@@ -140,10 +199,7 @@ func signedEditedCEMStatement(t *testing.T, edit func(statement map[string]any))
 	if err != nil {
 		t.Fatalf("GenerateKey: %v", err)
 	}
-	statement, err := CEMStatement(cemFixtureName, cemFixture(t))
-	if err != nil {
-		t.Fatalf("CEMStatement: %v", err)
-	}
+	statement := legacyCEMStatement(t, cemFixtureName, cemFixture(t))
 	var decoded map[string]any
 	if err := json.Unmarshal(statement, &decoded); err != nil {
 		t.Fatalf("decode statement: %v", err)
@@ -227,10 +283,7 @@ func TestCEMAttestationRefusesAMalformedSignedClaim(t *testing.T) {
 // its bytes, so a test can sign JSON a Go map cannot represent.
 func signedRawCEMStatement(t *testing.T, edit func(statement string) string) ([]byte, ed25519.PublicKey) {
 	t.Helper()
-	statement, err := CEMStatement(cemFixtureName, cemFixture(t))
-	if err != nil {
-		t.Fatalf("CEMStatement: %v", err)
-	}
+	statement := legacyCEMStatement(t, cemFixtureName, cemFixture(t))
 	envelope, publicKey, _ := testEnvelope(t, []byte(edit(string(statement))))
 	return envelope, publicKey
 }
@@ -274,8 +327,8 @@ func TestCEMAttestationAcceptsUnknownStatementMembers(t *testing.T) {
 		withExtension := strings.Replace(statement, `{"_type":`, `{"extension":{"a":1},"_type":`, 1)
 		return strings.Replace(withExtension, `"size":`, `"note":"x","size":`, 1)
 	})
-	got, err := VerifyCEM(envelope, publicKey, cemFixture(t))
-	if err != nil || got.Status != CEMVerified {
-		t.Fatalf("VerifyCEM = %#v, %v; want VERIFIED", got, err)
+	got, err := VerifyCEM(envelope, publicKey, nil)
+	if err != nil || got.Status != CEMNotRun {
+		t.Fatalf("VerifyCEM = %#v, %v; want the claim NOT_RUN", got, err)
 	}
 }

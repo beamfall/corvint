@@ -91,7 +91,10 @@ type divergenceRewrite struct {
 // token. The frozen expectation stays in the manifest unchanged; the runner
 // neither executes nor scores the case and reports it as `RETIRED`, never as a
 // PASS. `retiredCases` pins the closed set so the declaration cannot become a
-// blanket exclusion.
+// blanket exclusion. Decision 0525 (CEM-V1-212) retires one more case the same
+// way: its frozen map is cem/0.x, which every consumer now refuses with
+// `unsupported-spec`, so the frozen supported-edge expectation is unreachable;
+// `retiredCaseDecisions` pins that case to decision 0525.
 type retiredCase struct {
 	Decision string `json:"decision"`
 	Reason   string `json:"reason"`
@@ -252,7 +255,7 @@ func validateManifest(manifest parityManifest) error {
 		}
 	}
 	if retired != len(retiredCases) || renamed != len(identityRenameDivergenceCases) {
-		return fmt.Errorf("decision 0308 declarations are not closed: retired=%d identity-renames=%d", retired, renamed)
+		return fmt.Errorf("decision 0308/0525 declarations are not closed: retired=%d identity-renames=%d", retired, renamed)
 	}
 	previous = ""
 	for _, item := range manifest.Refusals {
@@ -814,7 +817,8 @@ func validExclusionCountDivergence(item parityCase) bool {
 // retiredCases is the closed set decision 0308 withdraws from execution: the
 // cases whose frozen argv, fixture or expectation address the oracle's
 // `.atlas/` or `.context-atlas/` state paths, plus the one whose frozen task
-// carries the retired product name as a tooling term.
+// carries the retired product name as a tooling term; plus the one case
+// decision 0525 retires (retiredCaseDecisions).
 var retiredCases = map[string]bool{
 	"cem-cite-empty-span": true, "cem-cite-evidence": true, "cem-cite-invalid-line-range": true,
 	"cem-cite-line-range-out-of-range": true, "cem-cite-lines-span": true, "cem-cite-missing-evidence": true,
@@ -826,13 +830,24 @@ var retiredCases = map[string]bool{
 	"ocm-prepare-resume": true, "ocm-verify-cem-binding": true, "ocm-verify-linked": true,
 	"query-repository-agent-tooling": true, "query-repository-trace-budget-selection": true,
 	"query-repository-trace-matching": true, "query-repository-trace-nonmatching-nonpassed": true,
-	"record-create-trace": true,
+	"record-create-trace": true, "lrf-evaluate-supported": true,
 }
 
-// validRetired admits a retirement only for a pinned case, only under decision
-// 0308, and only with a stated reason.
+// retiredCaseDecisions names the pinned case retired under a decision other
+// than 0308: decision 0525 (CEM-V1-210, CEM-V1-212) admits cem/1.0 only, and the
+// case's frozen map is cem/0.x, so the consumer refuses it with
+// `unsupported-spec` and the frozen expectation cannot be reached.
+var retiredCaseDecisions = map[string]string{"lrf-evaluate-supported": "0525"}
+
+// validRetired admits a retirement only for a pinned case, only under its
+// pinned decision (0308 unless retiredCaseDecisions names another), and only
+// with a stated reason.
 func validRetired(item parityCase) bool {
-	return item.Retired != nil && item.Retired.Decision == "0308" && item.Retired.Reason != "" && retiredCases[item.ID]
+	decision, ok := retiredCaseDecisions[item.ID]
+	if !ok {
+		decision = "0308"
+	}
+	return item.Retired != nil && item.Retired.Decision == decision && item.Retired.Reason != "" && retiredCases[item.ID]
 }
 
 // retiredRefusalCases is the closed set of refusal items decision 0308 withdraws:

@@ -318,16 +318,16 @@ what the row asserts.
 | `ambiguous-claim-selector` | `internal/lrfrepo/ocm_write.go:863` | "claim selector does not identify exactly one claim" |
 | `bootstrap-intent-not-unknown` | `internal/lrfrepo/ocm.go:716` | "bootstrap intent hunk must remain unknown" |
 | `cem-map-digest-mismatch` | `internal/lrfrepo/ocm.go:424` | "CEM map digest does not match" |
-| `cem-patch-digest-mismatch` | `internal/lrfrepo/ocm.go:450` | "CEM patch digest does not match" |
+| `cem-patch-digest-mismatch` | `internal/lrfrepo/ocm.go:411` | "CEM patch digest does not match" |
 | `claim-conflict` | `internal/lrfrepo/ocm_write.go:983` | "claim ID has conflicting fields" |
 | `claim-not-reextractable` | `internal/lrfrepo/ocm.go:736` | "claim cannot be re-extracted at target" |
 | `duplicate-claim-reference` | `internal/lrfrepo/ocm_write.go:866` | "claim selectors must be unique" |
-| `duplicate-hunk-reference` | `internal/lrfrepo/ocm_write.go:811` | "hunk selectors must be unique" |
+| `duplicate-hunk-reference` | `internal/lrfrepo/ocm_write.go:799` | "hunk selectors must be unique" |
 | `duplicate-key` | `internal/lrfrepo/ocm_write.go:614` | "JSON contains a duplicate key" |
 | `duplicate-obligation` | `internal/lrfrepo/ocm.go:306` | "obligation IDs must be unique" |
 | `duplicate-or-unsorted-claims` | `internal/lrfrepo/ocm.go:260` | "claims must be sorted and unique" |
 | `duplicate-or-unsorted-reference` | `internal/lrfrepo/ocm.go:371` | "<value> must be sorted and unique" |
-| `fabricated-claim-id` | `internal/lrfrepo/ocm.go:258` | "claim ID is not content-derived" |
+| `fabricated-claim-id` | `internal/lrfrepo/ocm.go:252` | "claim ID is not content-derived" |
 | `intent-scope-mismatch` | `internal/lrfrepo/ocm.go:466` | "intent scope is stale or invalid" |
 | `invalid-cem` | `internal/lrfrepo/ocm_read.go:336` | "CEM verification failed" |
 | `invalid-cem-digest` | `internal/lrfrepo/ocm.go:173` | "CEM binding digest is invalid" |
@@ -336,24 +336,24 @@ what the row asserts.
 | `invalid-claim-references` | `internal/lrfrepo/ocm_write.go:930` | "claim references must be non-empty and unique" |
 | `invalid-claims` | `internal/lrfrepo/ocm.go:239` | "claims must be a bounded array" |
 | `invalid-field` | `internal/lrfrepo/ocm.go:355` | "<value> must be a string" |
-| `invalid-hunk-references` | `internal/lrfrepo/ocm_write.go:923` | "hunk references must be non-empty and unique" |
+| `invalid-hunk-references` | `internal/lrfrepo/ocm_write.go:911` | "hunk references must be non-empty and unique" |
 | `invalid-integer` | `internal/lrfrepo/ocm.go:325` | "<value> must contain non-negative integers" |
 | `invalid-intent` | `internal/lrfrepo/ocm.go:557` | "intent scope must be UTF-8 Markdown" |
 | `invalid-intent-blob` | `internal/lrfrepo/ocm.go:226` | "intent blob OID is invalid" |
 | `invalid-intent-scope` | `internal/lrfrepo/ocm_write.go:558` | "intentScope must be an object" |
-| `invalid-linked` | `internal/lrfrepo/ocm.go:780` | "linked obligation has invalid fields" |
-| `invalid-map` | `internal/lrfrepo/ocm_read.go:296` | the code recorded for a verification failure that carries none, with that failure's message; `internal/lrfrepo/ocm_write.go:758` returns it as "OCM verification failed" |
-| `invalid-object` | `internal/lrfrepo/ocm.go:335` | "<value> must be an object" |
+| `invalid-linked` | `internal/lrfrepo/ocm.go:713` | "linked obligation has invalid fields" |
+| `invalid-map` | `internal/lrfrepo/ocm_read.go:254` | the code recorded for a verification failure that carries none, with that failure's message; `internal/lrfrepo/ocm_write.go:758` returns it as "OCM verification failed" |
+| `invalid-object` | `internal/lrfrepo/ocm.go:311` | "<value> must be an object" |
 | `invalid-obligation` | `internal/lrfrepo/ocm_write.go:68` | "selected obligation has no valid id" |
 | `invalid-obligation-id` | `internal/lrfrepo/ocm.go:303` | "obligation ID is invalid" |
 | `invalid-obligation-selector` | `internal/lrfrepo/ocm_write.go:54` | "decimal obligation selectors must be canonical and one-based" |
-| `invalid-obligations` | `internal/lrfrepo/ocm.go:286` | "obligations must be a bounded array" |
+| `invalid-obligations` | `internal/lrfrepo/ocm.go:262` | "obligations must be a bounded array" |
 | `invalid-ocm` | `internal/lrfrepo/ocm_write.go:163` | "<value> must be an object" |
-| `invalid-path` | `internal/lrfrepo/ocm.go:223` | "path is invalid" |
+| `invalid-path` | `internal/lrfrepo/ocm.go:199` | "path is invalid" |
 | `invalid-reference-array` | `internal/lrfrepo/ocm.go:362` | "<value> must be a bounded array" |
 | `invalid-reference-id` | `internal/lrfrepo/ocm.go:368` | "<value> contains an invalid ID" |
-| `invalid-requirement-prefix` | `internal/lrfrepo/ocm.go:1379` | "requirement line is absent or ambiguous" |
-| `invalid-requirements-section` | `internal/lrfrepo/ocm.go:563` | "intent must contain exactly one ## Requirements heading" |
+| `invalid-requirement-prefix` | `internal/lrfrepo/ocm.go:1312` | "requirement line is absent or ambiguous" |
+| `invalid-requirements-section` | `internal/lrfrepo/ocm.go:496` | "intent must contain exactly one ## Requirements heading" |
 | `invalid-selector` | `internal/lrfrepo/ocm.go:268` | "claim selector is invalid" |
 | `invalid-span` | `internal/lrfrepo/ocm.go:328` | "<value> must be non-empty" |
 | `invalid-span-digest` | `internal/lrfrepo/ocm.go:232` | "intent span digest is invalid" |
@@ -367,15 +367,15 @@ what the row asserts.
 | `noncanonical-map` | `internal/lrfrepo/ocm.go:133` | "OCM bytes are not canonical" |
 | `obligation-order-mismatch` | `internal/lrfrepo/ocm.go:770` | "obligations must retain requirement order" |
 | `obligation-selector-out-of-range` | `internal/lrfrepo/ocm_write.go:60` | "obligation selector is outside the worklist" |
-| `obligation-set-mismatch` | `internal/lrfrepo/ocm.go:759` | "obligations do not match requirements" |
-| `ocm-cli-error` | `internal/lrfrepo/ocm_read.go:214` | one of "cannot read <label>", "<label> is not a regular file", "<label> exceeds the <limit>-byte limit", "<label> changed while being read", by the read failure kind |
+| `obligation-set-mismatch` | `internal/lrfrepo/ocm.go:692` | "obligations do not match requirements" |
+| `ocm-cli-error` | `internal/lrfrepo/ocm_read.go:215` | one of "cannot read <label>", "<label> is not a regular file", "<label> exceeds the <limit>-byte limit", "<label> changed while being read", by the read failure kind |
 | `output-path-conflict` | `internal/lrfrepo/ocm_write.go:212` | "OCM and CEM map paths must differ" |
-| `unknown-claim-reference` | `internal/lrfrepo/ocm.go:794` | "linked claim is absent" |
+| `unknown-claim-reference` | `internal/lrfrepo/ocm.go:727` | "linked claim is absent" |
 | `unknown-field` | `internal/lrfrepo/ocm.go:346` | "<value> has an unknown field" |
 | `unknown-hunk-reference` | `internal/lrfrepo/ocm.go:787` | "linked hunk is not verified and supported" |
 | `unknown-obligation-id` | `internal/lrfrepo/ocm_write.go:121` | "obligation ID must select exactly one row" |
 | `unsafe-output` | `internal/lrfrepo/ocm_read.go:473` | "output parent does not exist" |
-| `unsupported-spec` | `internal/lrfrepo/ocm.go:159` | "OCM profile is unsupported" |
+| `unsupported-spec` | `internal/lrfrepo/ocm.go:135` | "OCM profile is unsupported" |
 
 #### Dogfood aggregate failure codes
 
@@ -486,7 +486,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-012 (Git bound reached while resolving the OCM target keeps its runner code) | `internal/lrfrepo/ocm.go` (`verifyOCMBinding`, `gitBoundReached`) | `internal/lrfrepo/ocm_read_test.go:TestOCMBindingNamesGitBudgetExpiryNotMissingObject` |
 | OCM-V0-013 | `script/dogfood-change.sh`, `script/dogfood-check.sh`, `internal/dogfoodocm`, `cmd/corvint/dogfood_ocm.go` | `internal/dogfoodocm/aggregate_test.go`, `script/dogfood-change_test.sh`, `cmd/corvint/ocm_test.go:TestDogfoodOCMArgumentErrorsAreInvalidArguments` |
 | OCM-V0-014 | `conformance/ocm-v0/` (`universe.go`, `adapter.go`, `vectors.go`, `fixtures.go`, `manifest.go`, `vectors/structural.json`, `fixtures/*/case.json`, `manifest.json`) | `conformance/ocm-v0/structural_test.go:TestStructuralVectorsAgainstRealParser`, `conformance/ocm-v0/structural_test.go:TestValidVectorsAreCanonical`, `conformance/ocm-v0/structural_test.go:TestStructuralVectorsCoverEveryDisposition`, `conformance/ocm-v0/producer_test.go:TestFrozenVectorsMatchTheRealProducer`, `conformance/ocm-v0/fixtures_test.go:TestFixturesAgainstRealVerifier`, `conformance/ocm-v0/fixtures_test.go:TestSuiteDataIsSelfConsistent` |
-| OCM-V0-015 | `conformance/ocm-v0/` (`manifest.go` `ValidateArtifacts`/`validateStates`, `fixtures.go` `intent`/`intentShift` operators, `fixtures/intent-scope-drift/case.json`, `manifest.json` `states`/`artifactSha256`) | `conformance/ocm-v0/fixtures_test.go:TestSuiteDataIsSelfConsistent`, `conformance/ocm-v0/fixtures_test.go:TestArtifactDigestDriftFails`, `conformance/ocm-v0/fixtures_test.go:TestFixturesAgainstRealVerifier` (`intent-scope-drift`); upstream N-1: `cmd/corvint/ocm_test.go:TestOCMLegacyCEMReadCommandsMatchPythonOracle` |
+| OCM-V0-015 | `conformance/ocm-v0/` (`manifest.go` `ValidateArtifacts`/`validateStates`, `fixtures.go` `intent`/`intentShift` operators, `fixtures/intent-scope-drift/case.json`, `manifest.json` `states`/`artifactSha256`) | `conformance/ocm-v0/fixtures_test.go:TestSuiteDataIsSelfConsistent`, `conformance/ocm-v0/fixtures_test.go:TestArtifactDigestDriftFails`, `conformance/ocm-v0/fixtures_test.go:TestFixturesAgainstRealVerifier` (`intent-scope-drift`); upstream N-1: `cmd/corvint/ocm_test.go:TestOCMReadCommandsMatchPythonOracle` (cem/1.0 since CEM-V1-210; the cem/0.1 read case is retired) |
 | OCM-V0-016 | `internal/dogfoodocm/aggregate.go` (`linkageFindings`) | `internal/dogfoodocm/aggregate_test.go:TestAggregateFindsNoLinkedRequirements` |
 | OCM-V0-017 | `internal/lrfrepo/ocm_write.go` (`withAnchorBoundaryHint`), `internal/lrfrepo/ocm.go` (`requirementBoundaryHint`) | `internal/lrfrepo/ocm_anchor_test.go:TestOCMLinkExplainsRequirementTokenBoundary`, `cmd/corvint/ocm_test.go:TestOCMLinkRejectsClaimWithoutExactObligationIDBeforePublication` |
 | OCM-V0-018 | `internal/lrfrepo/ocm.go` (`extractableGoClaim`), `internal/lrfrepo/ocm_claims.go` (`enumerateClaims`), `internal/lrfrepo/ocm_write.go` (`goCaseAnchorShapes`) | `internal/lrfrepo/ocm_selector_test.go:TestOCMInlineGoRunCaseBoundary` |

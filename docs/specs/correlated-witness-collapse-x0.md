@@ -136,8 +136,8 @@ of what the row asserts.
 | `invalid-cause-kind` | `internal/witnesscollapse/identity.go:23` | "common cause kind is unsupported" |
 | `invalid-cause-subject` | `internal/witnesscollapse/identity.go:26` | "common cause subject must be a lowercase SHA-256" |
 | `non-common-cause` | `internal/witnesscollapse/compile.go:84` | "common cause must name at least two distinct witnesses" |
-| `report-encode-failed` | `internal/witnesscollapse/canonical.go:14` | "report cannot be encoded" |
-| `report-mismatch` | `internal/witnesscollapse/canonical.go:44` | "report differs from deterministic recompilation" |
+| `report-encode-failed` | `internal/witnesscollapse/canonical.go:13` | "report cannot be encoded" |
+| `report-mismatch` | `internal/witnesscollapse/stable.go:119` | "report differs from deterministic recompilation" |
 | `too-many-attributions` | `internal/witnesscollapse/compile.go:25` | "memberships exceed the <value>-item bound" |
 | `too-many-causes` | `internal/witnesscollapse/compile.go:62` | "common causes exceed the <value>-item bound" |
 | `unknown-attestation` | `internal/witnesscollapse/compile.go:71` | "membership attestation is absent from the CEM" |
@@ -176,7 +176,17 @@ Until all gates pass, the capability remains `experimental / UNPROVEN`.
 |---|---|---|
 | `CWC-X0-001..003` | `internal/witnesscollapse/compile.go`, `identity.go` | parser, binding, identity, reference, and hostile-input tests |
 | `CWC-X0-004..006` | `internal/witnesscollapse/compile.go`, `types.go` | direct, transitive, disconnected, repeated-relation, and disposition tests |
-| `CWC-X0-007` | `internal/witnesscollapse/canonical.go` | permutation golden, round-trip, and tampering tests |
+| `CWC-X0-007` | `internal/witnesscollapse/canonical.go`, `stable.go` | permutation determinism and stable round-trip and tampering tests |
 | `CWC-X0-008..010` | isolated package API and fixed limits | static package boundary plus limit and error tests |
 | `CWC-X0-011` | `collapse_test.go`, `benchmark_test.go` | focused test and benchmark commands |
 | `CWC-X0-012` | fixed report labels | exact-label and no-promotion assertions |
+
+## Amendment 2026-10-12: cem/1.0 input only (V1-1278 S2a)
+
+Decision 0525 retires every cem/0.x reader. The 0.x `Compile` and `Verify` entry points and the
+`experimental-v0` golden `testdata/five-copies.report.json` are removed; the collapse runs only
+through `CompileStable` and `VerifyStable` over a map the stable verifier accepted, under
+`CEM-V1-073` and `CEM-V1-074`. `CWC-X0-001` is superseded by `CEM-V1-210`: a cem/0.x map refuses
+with `unsupported-spec` and the retired-spec fix line. The collapse rules `CWC-X0-002..012` stay in
+force over the stable mechanics view, and their focused tests now drive the shared compiler
+directly.

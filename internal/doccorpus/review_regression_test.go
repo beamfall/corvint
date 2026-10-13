@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
 func TestCorpusScopeAdditionFreshness(t *testing.T) {
@@ -104,11 +102,9 @@ func TestCorpusCEMRejectsBaseSymlink(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		data, _ := Encode(map[string]any{"spec": wire.Spec01, "baseRevision": base, "patchSha256": strings.Repeat("a", 64), "evidence": []any{}, "hunks": []any{}})
-		if _, err := wire.ParseMap(data); err != nil {
-			t.Fatal(err)
-		}
-		if _, err = CEMProjection(context.Background(), root, a, data, ""); err == nil || !strings.Contains(err.Error(), "CEM base") {
+		// The base-anchor check is the stable projection's (CEM-V1-075); it is
+		// driven directly because cem/0.x maps are retired (CEM-V1-214).
+		if _, _, err = projectClaims(context.Background(), root, a, "", base, nil); err == nil || !strings.Contains(err.Error(), "CEM base") {
 			t.Fatal("base symlink projected as usable source")
 		}
 	})

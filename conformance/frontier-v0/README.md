@@ -40,6 +40,14 @@ temporary Git repository per case — real commits, a real `cem/0.2` sidecar fro
 two-phase workflow, a real OCM artifact bound to that map and patch — and invokes `frontier.Compute`
 over it through `internal/frontierrepo`.
 
+Since 2026-10-12 (V1-1278 S2a) every consumer reads `cem/1.0` only (decision 0525 §1, `CEM-V1-210`),
+while `frontier/0` still admits `cem/0.2` only (`CEM-V1-121`). A `cem/0.2` case whose required outcome
+is reached after the shared OCM-consuming verification (`CF-V0-021` stage 5 onward) therefore needs
+the `verified-retired-cem` capability, which the runner does not have: it skips with that reason, its
+frozen expectation is superseded rather than rewritten (decision 0525 §6, `CEM-V1-212`), and
+`TestRetiredCEMUniverseRefusesThroughTheEntryPoint` drives the exact `unsupported-spec` refusal for
+real. Cases refused in stages 1 to 4 (input shape, admitted profile, missing base or target) still run.
+
 Not every declared universe can be built, and the suite says so per case rather than per suite. Each
 case derives its **required capabilities** from its declared universe (`capabilities.go`); a case
 whose requirements the bound runner does not have skips with the SPECIFIC reason that universe is out

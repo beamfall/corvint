@@ -3,15 +3,16 @@ package criterionexperiment
 import (
 	"context"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 
-	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	cw "github.com/Beamfall/corvint/internal/cem/wire"
 )
 
 // StableProfile is the explicit cem/1.0 input mode (CEM-V1-136). Its request,
-// plan, receipt and summary carry this schema; the frozen Profile still
-// admits cem/0.2 only and a plan never changes mode between phases.
+// plan, receipt and summary carry this schema; the frozen Profile admitted
+// cem/0.2 only, which is retired, so it now admits no map (CEM-V1-210), and a
+// plan never changes mode between phases.
 const StableProfile = "cem-criterion-experiments-stable/0"
 
 // StableRefusal is a stable verifier result that did not accept, kept whole.
@@ -46,15 +47,19 @@ func VerifyStable(ctx context.Context, repoPath, planPath, receiptPath, artifact
 }
 
 // admitCEM selects the CEM admission by the request schema alone. The frozen
-// profile keeps validateCEM unchanged and refuses any artifact root; the
+// profile admitted only cem/0.2, which is retired: a 0.x map refuses with the
+// retired-spec fix and a cem/1.0 map names the stable profile (CEM-V1-210). The
 // stable profile admits only through validateStableCEM.
-func admitCEM(ctx context.Context, repo *gitauth.Repository, repoPath string, r Request, raw []byte, artifactRoot string) error {
+func admitCEM(ctx context.Context, repoPath string, r Request, raw []byte, artifactRoot string) error {
 	switch r.Schema {
 	case Profile:
 		if artifactRoot != "" {
 			return fmt.Errorf("an artifact root is admitted only with %s", StableProfile)
 		}
-		return validateCEM(ctx, repo, r, raw)
+		if _, e := cw.ParseStable(raw); e != nil {
+			return e
+		}
+		return cemcode.New(cemcode.UnsupportedSpec, "%s admitted only cem/0.2, which is retired; a cem/1.0 map is admitted by %s", Profile, StableProfile)
 	case StableProfile:
 		return validateStableCEM(ctx, repoPath, r, raw, artifactRoot)
 	}
@@ -69,6 +74,11 @@ func admitCEM(ctx context.Context, repo *gitauth.Repository, repoPath string, r 
 // capture and verification.
 func validateStableCEM(ctx context.Context, repoPath string, r Request, raw []byte, artifactRoot string) error {
 	if !cw.DeclaresStable(raw) {
+		// A retired cem/0.x map refuses with unsupported-spec and the
+		// recovery line (CEM-V1-210).
+		if _, e := cw.ParseStable(raw); e != nil {
+			return e
+		}
 		return fmt.Errorf("only cem/1.0 admitted by %s", StableProfile)
 	}
 	result, exit := verify.Stable(ctx, raw, verify.StableOptions{Repository: repoPath, ExpectedBase: r.Base, Target: r.Target, ArtifactRoot: artifactRoot})

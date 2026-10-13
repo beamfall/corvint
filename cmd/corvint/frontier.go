@@ -60,7 +60,7 @@ type frontierOptions struct {
 	observation string
 	report      string
 	// artifacts is the explicit artifact root a cem/1.0 map requires
-	// (V1-1304). It has no default and is refused for a cem/0.2 map.
+	// (V1-1304). It has no default and is refused with any other map.
 	artifacts string
 	json      bool
 }

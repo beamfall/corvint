@@ -285,10 +285,9 @@ adapters are Core host rows; Gemini CLI, OpenCode and Pi are companions:
 
 Corvint uses the `corvint-*` wire/profile namespace, `corvint.*` MCP tools, and canonical
 `.corvint` and `.context-corvint` repository paths. Those are protocol and state contracts and are
-versioned independently of the product. The frozen minimum CEM wire is `cem/0.2` with an N-1
-`cem/0.1` reader. The separate experimental `cem/0.3` adds structural mechanical reasons and
-optional test witnesses; it is not the default Core sidecar or a new stability claim
-([profile boundaries](docs/CHANGE-EVIDENCE-MAP.md)).
+versioned independently of the product. The CEM wire is `cem/1.0` (decision 0525): every
+consumer refuses a retired `cem/0.x` map with `unsupported-spec` and a recovery line, and the
+remaining `cem/0.x` producer options are being removed ([profile boundaries](docs/CHANGE-EVIDENCE-MAP.md)).
 
 ## The rest of the toolbox
 

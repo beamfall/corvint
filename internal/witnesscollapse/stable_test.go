@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -76,15 +77,19 @@ func TestStableCollapseRetainsFullMap(t *testing.T) {
 	}
 }
 
-// TestStableCollapseRefusals covers CEM-V1-074: the 0.x compiler keeps
-// refusing a stable map; a wrong base, a missing artifact root, edited map
+// TestStableCollapseRefusals covers CEM-V1-074 and CEM-V1-210: a retired
+// cem/0.x map refuses with unsupported-spec and the fix line; a wrong base, a missing artifact root, edited map
 // bytes and a tampered artifact refuse with the full verifier result retained
 // and no collapse; an unknown witness still fails after admission.
 func TestStableCollapseRefusals(t *testing.T) {
 	fixture, inputs := stableCollapseFixture(t)
 	ctx := context.Background()
-	if _, err := Compile(fixture.raw, nil); err == nil {
-		t.Fatal("the 0.x compiler accepted a stable map")
+	if _, err := CompileStable(ctx, []byte(`{"spec":"cem/0.2"}`), nil, inputs); CodeOf(err) != cemcode.UnsupportedSpec ||
+		!strings.Contains(err.Error(), wire.RetiredSpecFix) {
+		t.Fatalf("a retired map was not refused with unsupported-spec and the fix line: %v", err)
+	}
+	if _, err := CompileStable(ctx, []byte(`not json`), nil, inputs); CodeOf(err) != "not-stable" {
+		t.Fatalf("a non-map input error=%v, want not-stable", err)
 	}
 	refused := func(name string, raw []byte, inputs StableInputs) {
 		t.Helper()

@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,7 +15,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
@@ -109,6 +107,15 @@ type obligationDTO struct {
 	Ordinal    int      `json:"ordinal"`
 }
 
+// retiredRepositoryCases are the frozen corpus cases whose action reads an
+// embedded cem/0.x map the way the repository route did. cem/0.x is retired
+// (decision 0525) and that route refuses it (CEM-V1-210), so these four
+// expectations are superseded and not evaluated (CEM-V1-212); the corpus bytes,
+// manifest and registration stay frozen.
+var retiredRepositoryCases = map[string]bool{
+	"ocm.no-links": true, "context.01-explicit": true, "context.01-default": true, "failure.structural": true,
+}
+
 func TestConformanceCorpus(t *testing.T) {
 	document := loadCorpus(t)
 	expectedIDs := []string{
@@ -131,6 +138,12 @@ func TestConformanceCorpus(t *testing.T) {
 			t.Fatalf("coverage ID %d = %q, want %q", index, testCase.CoverageID, expectedIDs[index])
 		}
 		t.Run(testCase.CoverageID, func(t *testing.T) {
+			if action := decodeAction(t, testCase.Input).Action; action == "repository" || action == "repository-zero-links" {
+				if !retiredRepositoryCases[testCase.CoverageID] {
+					t.Fatalf("%s: repository action outside the retired set", testCase.CoverageID)
+				}
+				t.Skip("superseded (decision 0525 §6, CEM-V1-212): this case reads a cem/0.x map through the retired repository route")
+			}
 			first := observeCase(t, testCase)
 			second := observeCase(t, testCase)
 			if !bytes.Equal(first, second) {
@@ -255,7 +268,7 @@ func canonicalOCMContext() Context {
 	start, end := int64(0), int64(32)
 	intentDigest := strings.Repeat("d", 64)
 	return Context{
-		CEMSpec: wire.Spec02, CEMMapSHA256: strings.Repeat("a", 64), PatchSource: "canonical-derived",
+		CEMSpec: frozenContextSpec02, CEMMapSHA256: strings.Repeat("a", 64), PatchSource: "canonical-derived",
 		BaseRevision: strings.Repeat("1", 40), TargetRevision: &target, PatchSHA256: strings.Repeat("b", 64),
 		ExcludedPath: &excluded, OCMSpec: &ocmSpec, OCMMapSHA256: &ocmDigest, IntentPath: &intentPath,
 		IntentBlobOID: &intentBlob, IntentStart: &start, IntentEnd: &end, IntentSpanSHA256: &intentDigest,
@@ -336,10 +349,6 @@ func observeCase(t *testing.T, testCase corpusCase) []byte {
 		return observeMatrix(t, input)
 	case "repeat-process":
 		return observeRepeat(t, input)
-	case "repository":
-		return append(observeRepository(t, input), '\n')
-	case "repository-zero-links":
-		return observeZeroLinks(t, input)
 	case "commitment-mutation":
 		return observeMutation(t, input)
 	default:
@@ -478,98 +487,6 @@ func freshProcessBytes(t *testing.T, request *requestDTO, reverse bool) []byte {
 		t.Fatal(err)
 	}
 	return result
-}
-
-func observeRepository(t *testing.T, input actionInput) []byte {
-	t.Helper()
-	document, err := wire.ParseMap([]byte(input.CEM))
-	if err != nil {
-		return []byte(`{"error":` + wire.CanonicalString(cemcode.CodeOf(err)) + `,"exitCode":"2","stdout":null}`)
-	}
-	if document.Spec != wire.Spec01 || len(input.CommitOIDs) != 2 {
-		t.Fatal("repository harness case is outside the frozen projection fixture")
-	}
-	digest := sha256.Sum256([]byte(input.CEM))
-	patchSource := "explicit-out-of-band"
-	if input.PatchDefaulted {
-		patchSource = "default-out-of-band"
-	}
-	target := input.CommitOIDs[1]
-	request := Request{Context: Context{
-		CEMSpec: document.Spec, CEMMapSHA256: hex.EncodeToString(digest[:]), PatchSource: patchSource,
-		BaseRevision: document.BaseRevision, TargetRevision: &target, PatchSHA256: document.PatchSha256,
-	}}
-	result, err := Evaluate(request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	stdout := bytes.TrimSuffix(canonicalResultBytes(t, result), []byte{'\n'})
-	return append([]byte(`{"error":null,"exitCode":"0","stdout":`), append(stdout, '}')...)
-}
-
-func observeZeroLinks(t *testing.T, input actionInput) []byte {
-	t.Helper()
-	document, err := wire.ParseMap([]byte(input.CEM))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var ocm struct {
-		Spec           string `json:"spec"`
-		TargetRevision string `json:"targetRevision"`
-		CEM            struct {
-			MapSHA256   string `json:"mapSha256"`
-			PatchSHA256 string `json:"patchSha256"`
-		} `json:"cem"`
-		IntentScope struct {
-			Path       string `json:"path"`
-			BlobOID    string `json:"blobOid"`
-			SpanSHA256 string `json:"spanSha256"`
-			Span       struct {
-				Start int64 `json:"start"`
-				End   int64 `json:"end"`
-			} `json:"span"`
-		} `json:"intentScope"`
-		Obligations []struct {
-			Disposition string   `json:"disposition"`
-			HunkIDs     []string `json:"hunkIds"`
-		} `json:"obligations"`
-	}
-	if err := json.Unmarshal([]byte(input.OCM), &ocm); err != nil {
-		t.Fatal(err)
-	}
-	linked := 0
-	unknown := 0
-	for _, obligation := range ocm.Obligations {
-		if obligation.Disposition == "linked" {
-			linked++
-		} else if obligation.Disposition == "unknown" {
-			unknown++
-		}
-	}
-	if document.Spec != wire.Spec01 {
-		t.Fatal("zero-links fixture must bind CEM 0.1")
-	}
-	digest := sha256.Sum256([]byte(input.CEM))
-	ocmDigest := sha256.Sum256([]byte(input.OCM))
-	ocmMapSHA256 := hex.EncodeToString(ocmDigest[:])
-	request := Request{Context: Context{
-		CEMSpec: document.Spec, CEMMapSHA256: hex.EncodeToString(digest[:]), PatchSource: "explicit-out-of-band",
-		BaseRevision: document.BaseRevision, TargetRevision: &ocm.TargetRevision, PatchSHA256: document.PatchSha256,
-		OCMSpec: &ocm.Spec, OCMMapSHA256: &ocmMapSHA256,
-		IntentPath: &ocm.IntentScope.Path, IntentBlobOID: &ocm.IntentScope.BlobOID,
-		IntentStart: &ocm.IntentScope.Span.Start, IntentEnd: &ocm.IntentScope.Span.End,
-		IntentSpanSHA256: &ocm.IntentScope.SpanSHA256,
-	}}
-	_, compatibilityErr := Evaluate(request)
-	typed, ok := compatibilityErr.(*Error)
-	if !ok || typed.Code != "unsupported-lrf-context" {
-		t.Fatalf("OCM plus CEM 0.1 compatibility error = %v", compatibilityErr)
-	}
-	return []byte(fmt.Sprintf(
-		`{"error":%s,"exitCode":"2","linked":%s,"stdout":null,"unknown":%s}`+"\n",
-		wire.CanonicalString(typed.Code),
-		wire.CanonicalString(strconv.Itoa(linked)), wire.CanonicalString(strconv.Itoa(unknown)),
-	))
 }
 
 func canonicalResultBytes(t *testing.T, result Result) []byte {

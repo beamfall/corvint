@@ -88,9 +88,10 @@ func TestConsoleChainStableStale(t *testing.T) {
 	}
 }
 
-// TestConsoleChainStableRegistry covers CEM-V1-079: the profile registry is
-// closed. An unsupported profile and a cem/1.0 map the strict stable reader
-// refuses draw no chain; a 0.x map keeps its existing reading.
+// TestConsoleChainStableRegistry covers CEM-V1-079 and CEM-V1-210: the profile
+// registry is closed to cem/1.0. An unsupported profile and a cem/1.0 map the
+// strict stable reader refuses draw no chain, and a retired cem/0.x map is
+// refused with unsupported-spec and the recovery line.
 func TestConsoleChainStableRegistry(t *testing.T) {
 	raw := string(stablePacketMap(t))
 	for name, text := range map[string]string{
@@ -113,8 +114,12 @@ func TestConsoleChainStableRegistry(t *testing.T) {
 	if _, err := decodeSealed(&Blob{Text: raw}); err != nil {
 		t.Fatalf("the exact stable map was refused: %v", err)
 	}
-	if _, err := decodeSealed(&Blob{Text: `{"spec":"cem/0.3","baseRevision":"` + strings.Repeat("a", 40) + `"}`}); err != nil {
-		t.Fatalf("a 0.x map lost its reading: %v", err)
+	for _, spec := range []string{"cem/0.1", "cem/0.2", "cem/0.3"} {
+		_, err := decodeSealed(&Blob{Text: `{"spec":"` + spec + `","baseRevision":"` + strings.Repeat("a", 40) + `"}`})
+		if err == nil || !strings.HasPrefix(err.Error(), GapUnsupported) || !strings.Contains(err.Error(), "unsupported-spec") ||
+			!strings.Contains(err.Error(), wire.RetiredSpecFix) {
+			t.Fatalf("a retired %s map was not refused with the recovery line: %v", spec, err)
+		}
 	}
 }
 

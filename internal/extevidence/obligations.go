@@ -9,10 +9,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
-// ObligationsSchema names the Change Frontier sidecar this file composes (EFO-V0-003).
+// ObligationsSchema names the retired cem/0.2 Change Frontier sidecar (EFO-V0-003, CEM-V1-210).
 const ObligationsSchema = "external-frontier-obligations/0"
 
 // Sidecar states (EFO-V0-006).
@@ -28,22 +30,6 @@ var associationKinds = []string{"entity", "obligation", "test", "unknown"}
 // obligationsUntrusted names the provider-authored free text in the sidecar (EFO-V0-009).
 var obligationsUntrusted = []string{
 	"hunks[].associations[].summary", "hunks[].associations[].relation.rule", "hunks[].associations[].relation.reference",
-}
-
-const obligationsNote = "reference-only: each association proves identity, integrity, and freshness of an external reference; none states that an external record justifies the hunk; the frontier computes its own state from the CEM and never reads this sidecar"
-
-// cemHunks is the structural slice of a cem/0.2 document the sidecar cites.
-// It is not a verification: the frontier verifies the CEM (EFO-V0-002).
-type cemHunks struct {
-	Spec         string `json:"spec"`
-	BaseRevision string `json:"baseRevision"`
-	ExcludedPath string `json:"excludedPath"`
-	PatchSha256  string `json:"patchSha256"`
-	Hunks        []struct {
-		ID          string `json:"id"`
-		Path        string `json:"path"`
-		Disposition string `json:"disposition"`
-	} `json:"hunks"`
 }
 
 // impactReceipt is the structural slice of an impact receipt the sidecar joins.
@@ -67,48 +53,57 @@ type association struct {
 	relation                                                                                 map[string]any
 }
 
-// Obligations composes the external-frontier-obligations/0 sidecar from raw
-// CEM bytes and a raw `corvint impact` receipt (EFO-V0-002..EFO-V0-006). It
-// reads no repository and never verifies the CEM: it binds both inputs by
-// digest so a frontier document over the same CEM can be joined to it.
+// Obligations is the retired external-frontier-obligations/0 route. That
+// schema was defined over a cem/0.2 map, which is retired (decision 0525), so
+// it composes no sidecar: a cem/0.x map refuses with unsupported-spec and the
+// recovery line (CEM-V1-210), and any other input refuses with
+// invalid-obligations-input naming the stable route, the only one that reads a
+// cem/1.0 map (CEM-V1-134).
 func Obligations(cem, impact []byte, limit int) (map[string]any, error) {
-	var document cemHunks
-	if err := json.Unmarshal(cem, &document); err != nil || document.Spec != "cem/0.2" {
-		return nil, &gokernel.Error{Code: "invalid-obligations-input", Message: "cem input is not a cem/0.2 document"}
+	if err := refuseRetiredCEM(cem); err != nil {
+		return nil, err
 	}
+	return nil, &gokernel.Error{Code: "invalid-obligations-input", Message: "external-frontier-obligations/0 admits no map; a cem/1.0 map is read only by the stable sidecar (--repository, --expected-base, --target and --stable-artifact-root)"}
+}
+
+// refuseRetiredCEM returns the closed unsupported-spec refusal, with the
+// recovery line, for a retired cem/0.x map, and nil for any other bytes.
+func refuseRetiredCEM(cem []byte) error {
+	if wire.DeclaresStable(cem) {
+		return nil
+	}
+	if _, err := wire.ParseStable(cem); cemcode.CodeOf(err) == cemcode.UnsupportedSpec {
+		return &gokernel.Error{Code: cemcode.UnsupportedSpec, Message: cemcode.MessageOf(err)}
+	}
+	return nil
+}
+
+// joinedImpact is one impact receipt joined to a change's hunks: the provider
+// summary, the sidecar state and one row per hunk in the map's order
+// (EFO-V0-004..EFO-V0-006, EFO-V0-008).
+type joinedImpact struct {
+	providers     []any
+	state, reason string
+	hunks         []any
+}
+
+// joinImpact parses a raw corvint impact receipt and joins every hunk to its
+// context.external rows by path, keeping every unknown association.
+func joinImpact(impact []byte, hunks []wire.Hunk, limit int) (joinedImpact, error) {
 	var receipt impactReceipt
 	if err := json.Unmarshal(impact, &receipt); err != nil || receipt.Tool != "impact" {
-		return nil, &gokernel.Error{Code: "invalid-obligations-input", Message: "impact input is not a corvint impact receipt"}
+		return joinedImpact{}, &gokernel.Error{Code: "invalid-obligations-input", Message: "impact input is not a corvint impact receipt"}
 	}
 	external := receipt.Context.External
 	providers, freshness, missing := providerSummary(external)
 	state, reason := obligationsState(external, missing)
-	hunks := make([]any, 0, len(document.Hunks))
-	for _, hunk := range document.Hunks {
-		rows := associate(external, hunk.Path, freshness, missing)
-		kept, omitted := boundAssociations(rows, limit)
-		hunks = append(hunks, map[string]any{"hunk": hunk.ID, "path": hunk.Path, "disposition": hunk.Disposition, "associations": kept, "omitted": omitted})
+	rows := make([]any, 0, len(hunks))
+	for _, hunk := range hunks {
+		associations := associate(external, hunk.Path, freshness, missing)
+		kept, omitted := boundAssociations(associations, limit)
+		rows = append(rows, map[string]any{"hunk": hunk.ID, "path": hunk.Path, "disposition": hunk.Disposition, "associations": kept, "omitted": omitted})
 	}
-	out := map[string]any{
-		"schema":       ObligationsSchema,
-		"authority":    Authority,
-		"state":        state,
-		"state_reason": reason,
-		"binding": map[string]any{
-			"cem_sha256": digest(cem), "patch_sha256": document.PatchSha256, "base_revision": document.BaseRevision,
-			"excluded_path": document.ExcludedPath, "impact_sha256": digest(impact), "impact_tool": receipt.Tool,
-		},
-		"providers":             providers,
-		"hunks":                 hunks,
-		"note":                  obligationsNote,
-		"untrusted_text_fields": anyStrings(obligationsUntrusted),
-	}
-	encoded, err := gokernel.CanonicalJSON(out)
-	if err != nil {
-		return nil, err
-	}
-	out["id"] = "obligations:sha256:" + digest(encoded)
-	return out, nil
+	return joinedImpact{providers: providers, state: state, reason: reason, hunks: rows}, nil
 }
 
 func digest(data []byte) string {

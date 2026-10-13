@@ -15,8 +15,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/publish"
-	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/lrf"
 	"github.com/Beamfall/corvint/internal/pythonsyntax"
@@ -97,28 +95,6 @@ type ocmIntentContext struct {
 	requirements []string
 	scope        []byte
 	statements   map[string][]byte
-}
-
-// verifyOptionalOCM is the `lrf` command's OCM leg. It rejects Python claims for
-// the same reason the read slice does: no exact `python-ast/1` grammar exists in
-// Go, and GPK-V0-014 admits only that grammar or an abstention -- never the Go
-// host's own idea of Python syntax (GPK-V0-041, DR-0010).
-func verifyOptionalOCM(ctx context.Context, root *publish.Root, repository *gitauth.Repository, cem *wire.Map, cemRaw []byte, verified *verifiedCEM, options Options) (*verifiedOCM, error) {
-	if options.OCMPath == "" {
-		return nil, nil
-	}
-	raw, err := readRootInput(root, options.OCMPath, maxOCMBytes, "map-unavailable")
-	if err != nil {
-		return nil, err
-	}
-	document, err := parseOCM(raw)
-	if err != nil {
-		return nil, err
-	}
-	if err := refuseDeclaredIntentForm(document); err != nil {
-		return nil, err
-	}
-	return verifyOCM(ctx, repository, cem, cemRaw, verified, document, raw, options, true)
 }
 
 func parseOCM(raw []byte) (*ocmDocument, error) {
@@ -408,17 +384,6 @@ func firstError(errors ...error) error {
 	return nil
 }
 
-func verifyOCM(ctx context.Context, repository *gitauth.Repository, cem *wire.Map, cemRaw []byte, verified *verifiedCEM, document *ocmDocument, raw []byte, options Options, rejectPythonClaims bool) (*verifiedOCM, error) {
-	if err := verifyOCMBinding(ctx, repository, cem, cemRaw, verified, document, options); err != nil {
-		return nil, err
-	}
-	intentContext, err := verifyOCMIntent(ctx, repository, cem, document)
-	if err != nil {
-		return nil, err
-	}
-	return verifyOCMClosure(cem, document, raw, intentContext, rejectPythonClaims)
-}
-
 func verifyOCMBinding(ctx context.Context, repository *gitauth.Repository, cem *wire.Map, cemRaw []byte, verified *verifiedCEM, document *ocmDocument, options Options) error {
 	if sha256Hex(cemRaw) != document.cemMap {
 		return fail("cem-map-digest-mismatch", "CEM map digest does not match")
@@ -439,11 +404,7 @@ func verifyOCMBinding(ctx context.Context, repository *gitauth.Repository, cem *
 			return fail("target-mismatch", "caller target differs from OCM target")
 		}
 	}
-	if cem.Spec == wire.Spec01 {
-		if err := verifyLegacyOCMBinding(ctx, repository, cem, cemRaw, verified, document.target, options.ExpectedBase); err != nil {
-			return err
-		}
-	} else if verified.target != document.target {
+	if verified.target != document.target {
 		return fail("target-mismatch", "caller target differs from OCM target")
 	}
 	if sha256Hex(verified.patch) != document.cemPatch {
@@ -491,34 +452,6 @@ func verifyOCMClosure(cem *wire.Map, document *ocmDocument, raw []byte, intent *
 		spec: document.spec, mapSHA256: sha256Hex(raw), intent: document.intent,
 		obligations: obligations,
 	}, nil
-}
-
-func verifyLegacyOCMBinding(ctx context.Context, repository *gitauth.Repository, cem *wire.Map, cemRaw []byte, verified *verifiedCEM, target, expectedBase string) error {
-	entry, exists, err := repository.LookupTreeEntry(ctx, target, wire.ExcludedCEMPath)
-	if err != nil {
-		return err
-	}
-	if exists {
-		if entry.Type != "blob" || entry.Mode != "100644" {
-			return cemcode.New(cemcode.ExcludedArtifactMismatch, "target-side %s is not a regular 100644 blob", wire.ExcludedCEMPath)
-		}
-		stored, err := repository.BlobBytes(ctx, entry.OID)
-		if err != nil {
-			return err
-		}
-		if !bytes.Equal(stored, cemRaw) {
-			return cemcode.New(cemcode.ExcludedArtifactMismatch, "target-side %s bytes differ from the verified CEM input", wire.ExcludedCEMPath)
-		}
-	}
-	derived, err := repository.CanonicalDiff(ctx, verified.base, target)
-	if err != nil {
-		return err
-	}
-	if sha256Hex(derived) != cem.PatchSha256 {
-		return cemcode.New(cemcode.PatchDigestMismatch, "derived OCM patch does not match patchSha256")
-	}
-	_, err = verify.Exact(ctx, repository, cem, derived, verify.ExactOptions{ExpectedBase: expectedBase, Target: target})
-	return err
 }
 
 type ocmBlobReader struct {
