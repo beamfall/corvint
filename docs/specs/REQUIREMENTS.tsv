@@ -961,6 +961,10 @@ CEM-V1-222	docs/specs/cem-stable-v1.md	1954	`interop/cem01-go` MUST verify `cem/
 CEM-V1-223	docs/specs/cem-stable-v1.md	1960	`examples/cem` except the 0.x-free `examples/cem/experiments/` companion demo, i
 CEM-V1-224	docs/specs/cem-stable-v1.md	1964	The Core remnants MUST name no retired wire: the dogfood loop passes
 CEM-V1-225	docs/specs/cem-stable-v1.md	1969	The `cem/0.2`, `cem/0.3`, 0.1 Go portability probe and 0.1 external interop spec
+CEM-V1-226	docs/specs/cem-stable-v1.md	2011	The packet MUST carry one shared tamper matrix at
+CEM-V1-227	docs/specs/cem-stable-v1.md	2018	The native verifier (`internal/cem/verify`, `Stable`) and the portable consumer
+CEM-V1-228	docs/specs/cem-stable-v1.md	2022	Each `EXPECTED.json` case MUST carry `name`, `tamper`, `description`, `map`,
+CEM-V1-229	docs/specs/cem-stable-v1.md	2032	Swapping evidence IDs between hunks, when every record stays a valid digest-boun
 CEM-V1-230	docs/specs/cem-stable-v1.md	709	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278
 CEM-V1-231	docs/specs/cem-stable-v1.md	724	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278
 CEM-V1-232	docs/specs/cem-stable-v1.md	731	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) The migr
