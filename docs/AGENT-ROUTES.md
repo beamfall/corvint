@@ -12,6 +12,7 @@ Read the matching row, then expand only the relevant original sources.
 | What capability exists? | Select matching records from [INDEX.json](specs/INDEX.json); read that spec's Agent digest and its named sections. | Keep intent, delivery, dependencies, supersession and promotion evidence separate. An accepted spec can have no executable delivery. |
 | Which experimental verb answers this? | [Decision 0089](decisions/0089-agentic-completeness-wave-2026-09-11.md) names the eight wave verbs and their owning specs; read that spec's Agent digest, then `corvint VERB --help`. | Every one is `proposed` intent and `experimental` delivery: read its receipt, do not let another capability consume it. `depsource` abstains with `module-not-required` in this repository, `calibrate` returns empty buckets until `internal/trace/record.go` carries a packet stance, and `surprise` refuses on a dirty worktree. |
 | Does implementation meet intent? | Spec requirement → implementation/evidence table → exact definition and test named there. Use [REQUIREMENTS.tsv](specs/REQUIREMENTS.tsv) for the clause location. | Follow acceptance provenance to the owner decision when status conflicts. Code/tests cannot accept intent; a test mention is not a passing run. |
+| Which requirements has the owner not read back? | `make spec-acceptance-audit` (`ACCEPTANCE=owner` or `unrecorded` for the others), then the `acceptance` and `acceptedBy` columns of [REQUIREMENTS.tsv](specs/REQUIREMENTS.tsv) and the [mode rule](SPEC-DRIVEN-DEVELOPMENT.md#status-model). | `standing` is agent-written under the 2026-10-11 standing auto-accept, not owner-read. `UNPARSED_STANDING` rows stay `unrecorded` until their marker leads the line, and `NOT_PROMOTABLE` is a report, not a gate. Only an owner read-back, recorded in a build-log Owner acceptances entry in the same commit, turns a marker into `owner`. |
 | Why did a command fail? | Preserve the exact error/receipt; search its code with `rg -n -F 'ERROR_CODE' internal cmd`, then read the matching implementation, tests and owning requirement. | Check profile, revision and worktree preconditions before changing code. Unsupported-by-design is a boundary; never discard local work to satisfy a read command. |
 | Review a change | [CEM non-claims](CHANGE-EVIDENCE-MAP.md#positioning-and-non-claims), [OCM digest](specs/ocm-v0-dogfood.md#agent-digest), then [reviewer reports](DOGFOOD.md#6-review-what-another-reviewer-sees). | Inspect mapped hunks, every scoped requirement, unknowns and test witnesses. Structural closure does not establish semantic support, test adequacy or a passing gate. |
 | Run Corvint from CI, a git hook or a team automation | [Triggered automation contract](AUTOMATION.md) → the step's `corvint VERB --help` and the source lines that page cites. | Only the listed read-only steps; each is one foreground process and a run grants no authority. `cem report` and `dogfood-check` write local state, and `dogfood-check` fails in a fresh clone (V1-0182). |
@@ -133,13 +134,13 @@ pin Git identities when asserting evidence. A short answer must still expose an 
 nice -n 15 make spec-requirements-check requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check
 ```
 
-`spec-requirements-check` checks requirement locators and runs `internal/specindex` for
-index/header/digest/README consistency. The other Make targets check definitions, named tests,
-decision numbering and line-citation shape.
+`spec-requirements-check` compares REQUIREMENTS.tsv, INDEX.json and the README.md spec table with
+their regeneration and runs `internal/specindex` for index/header/digest/README consistency.
+The other Make targets check definitions, named tests, decision numbering and line-citation shape.
 Neither proves link meaning, semantic agreement, owner acceptance or exhaustive OCM enumeration.
-After moving clauses, regenerate the TSV with `script/gen-spec-requirements.sh` and inspect its
-diff. Keep IDs and historical decisions stable. Full verification remains [Makefile](../Makefile)
-and [DOGFOOD.md](DOGFOOD.md); report anything not run with its reason.
+After moving clauses or editing a spec header, run `make spec-requirements` and inspect the
+three generated diffs. Keep IDs and historical decisions stable. Full verification remains
+[Makefile](../Makefile) and [DOGFOOD.md](DOGFOOD.md); report anything not run with its reason.
 
 These checks read the Git index, not the worktree, so `git add` your edits before running them;
 an unstaged fix does not change their result. A line citation `path:N-M@hex` pins content: `hex`
