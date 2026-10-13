@@ -1276,6 +1276,9 @@ Usage:
     [--override-verifier PATH] BASE
   corvint [--root PATH] dogfood seal [--base-verifier PATH] [--tree-verifier PATH]
     [--override-verifier PATH] BASE
+  corvint [--root PATH] dogfood finish-lane --base BASE --citations FILE
+    [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
+    [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH]
   corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
@@ -1317,6 +1320,15 @@ docs/specs/REQUIREMENTS.tsv maps the ID to a spec BASE..HEAD modifies, it runs t
 tree verifier in both roles and records base-independence=NOT_PROVED with both
 stdout digests. The root, the current directory unless --root names one, must be
 the worktree top level.
+
+finish-lane runs the bind loop on a committed change: prepare, bind with the
+--citations plan, commit .corvint/change.cem.json as "chore: bind change evidence",
+rebind, check and seal, one stdout line per step, then every NOT_PRODUCED row and
+the check's SUMMARY and verdict. It stops at the first failing step with that
+step's own reason and fix line; rerun from a bind commit continues at rebind. It
+never pushes. --citations, --intents, --verify and --outcome take precedence over
+DOGFOOD_CITATIONS, DOGFOOD_INTENTS_FILE, DOGFOOD_VERIFY_FILE and DOGFOOD_OUTCOME
+(DCW-V0-060..062).
 
 batch-check is read-only. It checks that every commit in BASE..HEAD belongs to a
 sealed change the range adds, verifies each sealed CEM against its own base, and

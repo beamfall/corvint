@@ -1351,6 +1351,9 @@ DCW-V0-056	docs/specs/daily-change-evidence-workflow-v0.md	717	(accepted under t
 DCW-V0-057	docs/specs/daily-change-evidence-workflow-v0.md	728	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) A change	standing	2026-10-11; V1-1344
 DCW-V0-058	docs/specs/daily-change-evidence-workflow-v0.md	742	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a	standing	2026-10-11; V1-1344
 DCW-V0-059	docs/specs/daily-change-evidence-workflow-v0.md	760	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344)	standing	2026-10-11; V1-1344
+DCW-V0-060	docs/specs/daily-change-evidence-workflow-v0.md	771	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348)	standing	2026-10-11; V1-1348
+DCW-V0-061	docs/specs/daily-change-evidence-workflow-v0.md	791	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348)	standing	2026-10-11; V1-1348
+DCW-V0-062	docs/specs/daily-change-evidence-workflow-v0.md	804	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348) After it	standing	2026-10-11; V1-1348
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked	unrecorded	-
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and	unrecorded	-
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map	unrecorded	-
