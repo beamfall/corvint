@@ -1,0 +1,252 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// finishLaneIdentity makes every commit the finish-lane run writes match the
+// cemGit commits of a manual run byte for byte, so the two seal trees compare.
+var finishLaneIdentity = []string{"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_SYSTEM=" + os.DevNull,
+	"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.invalid", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.invalid",
+	"GIT_AUTHOR_DATE=2000-01-01T00:00:00+0000", "GIT_COMMITTER_DATE=2000-01-01T00:00:00+0000"}
+
+// finishLaneInputs writes the plan and intents and returns the bind-loop
+// environment of the manual recipe and the finish-lane arguments.
+func finishLaneInputs(t *testing.T, plan, intents string) ([]string, []string) {
+	t.Helper()
+	dir := t.TempDir()
+	citations, manifest := filepath.Join(dir, "citations.tsv"), filepath.Join(dir, "intents")
+	if err := os.WriteFile(citations, []byte(plan), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifest, []byte(intents), 0644); err != nil {
+		t.Fatal(err)
+	}
+	env := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + manifest}
+	return env, []string{"--citations", citations, "--intents", manifest, "--outcome", "passed"}
+}
+
+func finishLaneSubjects(t *testing.T, root, base string) string {
+	t.Helper()
+	return cemGit(t, root, "log", "--format=%s", base+"..HEAD")
+}
+
+// DCW-V0-060 and DCW-V0-062: one command runs prepare, bind, the bind commit,
+// rebind, check and seal, and its seal tree is the manual recipe's.
+func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	manual, base := portableDogfoodRepo(t)
+	root, finishBase := portableDogfoodRepo(t)
+	if base != finishBase {
+		t.Fatalf("fixtures differ: %s %s", base, finishBase)
+	}
+	env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "intent.md\n")
+	// The manual recipe of docs/DOGFOOD.md §4 "Repair".
+	if code, _, stderr := run.exec(t, manual, env[:3], "dogfood", "change", base); code != 1 || !strings.Contains(stderr, "  cem-cite: citation-plan-not-provided\n") {
+		t.Fatalf("pass 0 exit=%d stderr=%s", code, stderr)
+	}
+	if err := os.Remove(filepath.Join(manual, ".corvint/change.cem.json")); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, stderr := run.exec(t, manual, env, "dogfood", "change", base); code != 1 || !strings.HasSuffix(stderr, "  local-outcome: record-index-failed\n    fix: the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change "+base+"\n  full report: "+manual+"/.corvint/dogfood-report.json\n") {
+		t.Fatalf("pass 1 exit=%d stderr=%s", code, stderr)
+	}
+	cemGit(t, manual, "add", ".corvint/change.cem.json")
+	cemGit(t, manual, "commit", "-qm", "chore: bind change evidence")
+	if code, _, stderr := run.exec(t, manual, env, "dogfood", "change", base); code != 0 || stderr != absentAgentReceipts {
+		t.Fatalf("pass 2 exit=%d stderr=%s", code, stderr)
+	}
+	if code, stdout, stderr := run.exec(t, manual, append(append([]string{}, env...), finishLaneIdentity...), "dogfood", "seal", base); code != 0 {
+		t.Fatalf("manual seal exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+
+	code, stdout, stderr := run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
+	if code != 0 || stderr != absentAgentReceipts+"dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-absent\n" {
+		t.Fatalf("finish-lane exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	bind := cemGit(t, root, "rev-parse", "HEAD^")
+	seal := cemGit(t, root, "rev-parse", "HEAD")
+	detail := cemGit(t, root, "rev-parse", "--absolute-git-dir") + "/corvint/dogfood-check.stdout"
+	want := "dogfood-finish-lane: prepare PASS hunks=1\n" +
+		"dogfood-finish-lane: bind PASS\n" +
+		"dogfood-finish-lane: commit PASS bind=" + bind + "\n" +
+		"dogfood-finish-lane: rebind PASS\n" +
+		"dogfood-finish-lane: check PASS\n" +
+		"dogfood-finish-lane: seal PASS seal=" + seal + "\n" +
+		// DCW-V0-062: every row a pass did not produce stays listed, even
+		// the ones a later pass produced.
+		"dogfood-finish-lane: NOT_PRODUCED rows=4\n" +
+		"  prepare cem-cite NOT_PRODUCED citation-plan-not-provided\n" +
+		"  prepare cem-status NOT_PRODUCED not-ready\n" +
+		"  prepare local-outcome NOT_PRODUCED record-index-failed\n" +
+		"  bind local-outcome NOT_PRODUCED record-index-failed\n" +
+		"dogfood-check: SUMMARY cem=accepted hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review requirements=1 linked=1 unlinked=0 report=.corvint/dogfood-report.json detail=" + detail + "\n" +
+		"dogfood-check: PASS\n" +
+		"dogfood-seal: PASS sealed=.corvint/changes/" + bind + ".cem.json\n"
+	if stdout != want {
+		t.Fatalf("finish-lane stdout:\n%s\nwant:\n%s", stdout, want)
+	}
+	if got, manualTree := cemGit(t, root, "rev-parse", "HEAD^{tree}"), cemGit(t, manual, "rev-parse", "HEAD^{tree}"); got != manualTree || seal != cemGit(t, manual, "rev-parse", "HEAD") {
+		t.Fatalf("seal tree %s, manual %s", got, manualTree)
+	}
+	if subjects := finishLaneSubjects(t, root, base); subjects != "chore: seal change evidence\nchore: bind change evidence\nchange" {
+		t.Fatalf("subjects %q", subjects)
+	}
+	if status := cemGit(t, root, "status", "--porcelain", "--untracked-files=all"); status != "" {
+		t.Fatalf("status %q", status)
+	}
+	// A rerun on the seal commit has nothing left to do.
+	if code, stdout, _ = run.exec(t, root, finishLaneIdentity, append([]string{"dogfood", "finish-lane", "--base", base}, args...)...); code != 0 || stdout != "dogfood-finish-lane: seal SKIP already-sealed sealed=.corvint/changes/"+bind+".cem.json\n" {
+		t.Fatalf("sealed rerun exit=%d stdout=%s", code, stdout)
+	}
+}
+
+// DCW-V0-061: a uniform plan stops at bind with the existing reason and fix
+// line, commits nothing, and a rerun with the corrected plan continues.
+func TestDogfoodFinishLaneDCWV0061StopsOnUniformPlanAndResumes(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	cemWrite(t, root, "fixture/fixture_test.go", "package fixture\nimport \"testing\"\nfunc TestAnswer(t *testing.T) {\n t.Run(\"FIXTURE-LCP-001\",func(t *testing.T){ if Answer()!=2 { t.Fatal(\"two\") } })\n}\n")
+	cemGit(t, root, "commit", "-qam", "test")
+	head := cemGit(t, root, "rev-parse", "HEAD")
+	env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n2\tintent.md\t1:5\tspecification\n", "intent.md\n")
+	code, stdout, stderr := run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
+	if code != 1 || !strings.Contains(stderr, "\n  cem-cite: citation-plan-uniform\n    fix: the plan cites one span for every hunk: hunks=2 span=intent.md:1:5; ") ||
+		!strings.Contains(stdout, "dogfood-finish-lane: prepare PASS hunks=2\ndogfood-finish-lane: bind FAIL exit=1\ndogfood-finish-lane: NOT_PRODUCED rows=") ||
+		!strings.Contains(stdout, "\n  bind cem-cite NOT_PRODUCED citation-plan-uniform\n") {
+		t.Fatalf("uniform exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	if now := cemGit(t, root, "rev-parse", "HEAD"); now != head {
+		t.Fatalf("a stopped run committed: %s", now)
+	}
+	if status := cemGit(t, root, "status", "--porcelain", "--untracked-files=all"); status != "?? .corvint/change.cem.json" {
+		t.Fatalf("stopped status %q", status)
+	}
+	// The rerun removes the stopped run's sidecar and prepares again.
+	if err := os.WriteFile(args[1], []byte("1\tintent.md\t1:5\tspecification\n2\tintent.md\t5:5\tspecification\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr = run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
+	if code != 0 || !strings.HasSuffix(stdout, "\ndogfood-check: PASS\ndogfood-seal: PASS sealed=.corvint/changes/"+cemGit(t, root, "rev-parse", "HEAD^")+".cem.json\n") {
+		t.Fatalf("corrected rerun exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	if subjects := finishLaneSubjects(t, root, base); subjects != "chore: seal change evidence\nchore: bind change evidence\ntest\nchange" {
+		t.Fatalf("subjects %q", subjects)
+	}
+}
+
+// DCW-V0-061: an intent without one requirements section stops at bind with
+// the existing OCM reason and fix line.
+func TestDogfoodFinishLaneDCWV0061StopsOnInvalidRequirementsSection(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	head := cemGit(t, root, "rev-parse", "HEAD")
+	env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "AGENTS.md\n")
+	code, stdout, stderr := run.exec(t, root, env[:3], append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
+	if code != 1 || !strings.Contains(stderr, "\n  ocm-prepare-001: invalid-requirements-section\n    fix: intent must be a spec that exists at BASE and contains exactly one \"## Requirements\" heading\n") ||
+		!strings.Contains(stdout, "dogfood-finish-lane: bind FAIL exit=1\n") {
+		t.Fatalf("invalid intent exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	if now := cemGit(t, root, "rev-parse", "HEAD"); now != head {
+		t.Fatalf("a stopped run committed: %s", now)
+	}
+}
+
+// DCW-V0-061: a rerun from the bind commit continues at rebind and never
+// commits the sidecar twice.
+func TestDogfoodFinishLaneDCWV0061ContinuesFromBindCommit(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "intent.md\n")
+	if code, _, stderr := run.exec(t, root, env, "dogfood", "change", base); code != 1 {
+		t.Fatalf("bind exit=%d stderr=%s", code, stderr)
+	}
+	cemGit(t, root, "add", ".corvint/change.cem.json")
+	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
+	bind := cemGit(t, root, "rev-parse", "HEAD")
+	code, stdout, stderr := run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
+	if code != 0 || !strings.HasPrefix(stdout, "dogfood-finish-lane: prepare SKIP bind-commit="+bind+"\ndogfood-finish-lane: bind SKIP bind-commit="+bind+"\ndogfood-finish-lane: commit SKIP bind-commit="+bind+"\ndogfood-finish-lane: rebind PASS\ndogfood-finish-lane: check PASS\n") ||
+		!strings.Contains(stdout, "\ndogfood-finish-lane: NOT_PRODUCED rows=0\n") {
+		t.Fatalf("resume exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	if subjects := finishLaneSubjects(t, root, base); subjects != "chore: seal change evidence\nchore: bind change evidence\nchange" {
+		t.Fatalf("subjects %q", subjects)
+	}
+}
+
+// DCW-V0-060: uncommitted work, a HEAD at BASE and a missing plan are refused
+// before any step runs.
+func TestDogfoodFinishLaneDCWV0060RefusesBeforeAnyStep(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	_, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "intent.md\n")
+	cemWrite(t, root, "notes.txt", "draft\n")
+	code, stdout, stderr := run.exec(t, root, nil, append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
+	if code != 2 || stdout != "" || stderr != "dogfood-finish-lane: REFUSE dirty-worktree\n  fix: commit the change (finish-lane binds only committed work) and remove every other uncommitted path, then rerun corvint dogfood finish-lane --base "+base+"\n" {
+		t.Fatalf("dirty exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".corvint/dogfood-report.json")); !os.IsNotExist(err) {
+		t.Fatalf("a refused run wrote a report: %v", err)
+	}
+	if err := os.Remove(filepath.Join(root, "notes.txt")); err != nil {
+		t.Fatal(err)
+	}
+	head := cemGit(t, root, "rev-parse", "HEAD")
+	if code, _, stderr = run.exec(t, root, nil, append([]string{"dogfood", "finish-lane", "--base", head}, args...)...); code != 2 || !strings.HasPrefix(stderr, "dogfood-finish-lane: REFUSE head-not-ahead-of-base\n") {
+		t.Fatalf("at base exit=%d stderr=%s", code, stderr)
+	}
+	if code, _, stderr = run.exec(t, root, nil, "dogfood", "finish-lane", "--base", base); code != 2 || !strings.HasPrefix(stderr, "dogfood-finish-lane: REFUSE citation-plan-not-provided\n") {
+		t.Fatalf("no plan exit=%d stderr=%s", code, stderr)
+	}
+	if code, _, stderr = run.exec(t, root, nil, "dogfood", "finish-lane", base); code == 0 || !strings.Contains(stderr, "dogfood-base-required") {
+		t.Fatalf("positional base exit=%d stderr=%s", code, stderr)
+	}
+}
+
+// DCW-V0-061: a seal whose commit a hook rejects stops at seal; the rerun is
+// refused with the restore command until the staged rename is undone, then
+// seals, and a sealed HEAD is still admitted like its bind commit.
+func TestDogfoodFinishLaneDCWV0061ResumesAfterRejectedSeal(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "intent.md\n")
+	hook := filepath.Join(cemGit(t, root, "rev-parse", "--absolute-git-dir"), "hooks", "commit-msg")
+	if err := os.MkdirAll(filepath.Dir(hook), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\n! grep -q 'chore: seal change evidence' \"$1\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	finish := append([]string{"dogfood", "finish-lane", "--base", base}, args...)
+	code, stdout, stderr := run.exec(t, root, append(env[:3:3], finishLaneIdentity...), finish...)
+	bind := cemGit(t, root, "rev-parse", "HEAD")
+	if code != 2 || !strings.Contains(stdout, "dogfood-finish-lane: commit PASS bind="+bind+"\ndogfood-finish-lane: rebind PASS\ndogfood-finish-lane: check PASS\ndogfood-finish-lane: seal FAIL exit=2\n") ||
+		!strings.Contains(stdout, "\ndogfood-check: PASS\n") {
+		t.Fatalf("rejected seal exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	restore := "git restore --source=HEAD --staged --worktree -- .corvint/change.cem.json .corvint/changes/" + bind + ".cem.json"
+	if code, _, stderr = run.exec(t, root, finishLaneIdentity, finish...); code != 2 || !strings.HasPrefix(stderr, "dogfood-finish-lane: REFUSE dirty-worktree\n  fix: "+restore+", ") {
+		t.Fatalf("staged rename rerun exit=%d stderr=%s", code, stderr)
+	}
+	cemGit(t, root, strings.Fields(restore)[1:]...)
+	if err := os.Remove(hook); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr = run.exec(t, root, append(env[:3:3], finishLaneIdentity...), finish...)
+	if code != 0 || !strings.HasPrefix(stdout, "dogfood-finish-lane: prepare SKIP bind-commit="+bind+"\n") || !strings.HasSuffix(stdout, "dogfood-seal: PASS sealed=.corvint/changes/"+bind+".cem.json\n") {
+		t.Fatalf("resumed seal exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	cemWrite(t, root, "notes.txt", "draft\n")
+	if code, stdout, stderr = run.exec(t, root, nil, finish...); code != 2 || stdout != "" || stderr != "dogfood-finish-lane: REFUSE dirty-worktree\n  fix: HEAD is sealed; commit or remove every uncommitted path, then rerun corvint dogfood finish-lane --base "+base+"\n" {
+		t.Fatalf("dirty sealed rerun exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+}

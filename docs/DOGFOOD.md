@@ -323,6 +323,28 @@ remains operative and the private report records the anchor as `NOT_OBSERVED`:
 output; a host missing it gets a `REFUSE unsupported-environment-missing-rg` line instead of a
 misleading failure partway through the run.
 
+The default is one command. Write the citation plan (one row per hunk; prepare the map once to
+learn the hunk IDs, for example by running the command without a valid plan), then run
+
+```console
+$ make dogfood-finish BASE=BASE_SHA CITATIONS=cites.tsv INTENTS=intents.txt VERIFY=verify.txt OUTCOME=passed
+```
+
+`make dogfood-finish` builds the base and tree verifiers as `dogfood-seal` does and runs
+`corvint dogfood finish-lane --base BASE_SHA --citations FILE [--intents FILE] [--verify FILE]
+[--outcome VALUE]` (`DCW-V0-060..062`): prepare, bind with the plan, commit only
+`.corvint/change.cem.json` as `chore: bind change evidence`, rebind, check and seal, one
+`dogfood-finish-lane:` line per step, one `NOT_PRODUCED rows=N` block with every row a pass did not
+produce, then the check's `SUMMARY` and `PASS|FAIL` lines and the seal line. The flags take
+precedence over `DOGFOOD_CITATIONS`, `DOGFOOD_INTENTS_FILE`, `DOGFOOD_VERIFY_FILE` and
+`DOGFOOD_OUTCOME`. It requires a clean worktree (the sidecar a stopped run left is the one
+exception) and a committed change ahead of `BASE_SHA`, and it never pushes. At the first step that
+does not succeed it stops with that step's own reasons and `fix:` lines; fix the input and rerun the
+same command. A rerun from the bind commit continues at the rebind, and one from the seal commit
+prints `seal SKIP already-sealed`.
+
+Repair: the per-step commands remain for a step that needs a hand, in this order:
+
 ```console
 $ make dogfood-change BASE=BASE_SHA
 $ git add .corvint/change.cem.json

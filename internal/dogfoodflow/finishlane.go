@@ -1,0 +1,305 @@
+package dogfoodflow
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/gokernel"
+)
+
+// FinishLaneOptions are the inputs of one finish-lane run: the change passes
+// take Change, whose Citations names the plan, and the check and seal take
+// Check (DCW-V0-060).
+type FinishLaneOptions struct {
+	Change ChangeOptions
+	Check  CheckOptions
+}
+
+// finishLaneSidecar is the one path the bind loop writes and commits.
+const finishLaneSidecar = ".corvint/change.cem.json"
+
+// bindSubject is the bind commit's message, as docs/DOGFOOD.md §4 writes it.
+const bindSubject = "chore: bind change evidence"
+
+type finishLane struct {
+	flow
+	options FinishLaneOptions
+	stdout  io.Writer
+	// missing keeps every row a change pass did not produce, prefixed by the
+	// finish-lane step that ran it (DCW-V0-062).
+	missing []string
+	notes   map[string]bool
+}
+
+// FinishLane runs the docs/DOGFOOD.md §4 bind loop end to end on a committed
+// change: prepare, bind with the plan, commit the sidecar, rebind, check and
+// seal (DCW-V0-060). It stops at the first step that does not succeed, with that
+// step's own output, and a rerun continues from the bind commit (DCW-V0-061).
+func FinishLane(ctx context.Context, options FinishLaneOptions, stdout, stderr io.Writer) (int, error) {
+	run := &finishLane{flow: flow{ctx: ctx, prefix: "dogfood-finish-lane", root: options.Change.Root, stderr: stderr}, options: options, stdout: stdout, notes: map[string]bool{}}
+	defer run.releaseOperation()
+	return boundary(ctx, run.run, func() {})
+}
+
+func (l *finishLane) run() int {
+	l.requireRoot()
+	l.gitDir = l.gitValue("rev-parse", "--absolute-git-dir")
+	// One operation lock spans every step; each nested pass shares it.
+	l.acquireOperation()
+	l.base = l.gitValue("rev-parse", l.options.Change.Base+"^{commit}")
+	l.target = l.gitValue("rev-parse", "HEAD^{commit}")
+	if l.options.Change.Citations == "" {
+		l.say("%s: REFUSE citation-plan-not-provided\n", l.prefix)
+		l.say("  fix: pass --citations FILE, a TSV plan with one row per hunk of %s (docs/DOGFOOD.md §4)\n", finishLaneSidecar)
+		l.exit(2)
+	}
+	// A sealed HEAD is admitted like its bind commit, so a rerun with another
+	// base or a dirty tree is refused rather than reported as done.
+	sealed := l.isSealCommit(l.target)
+	bind := l.target
+	if sealed {
+		bind = l.gitValue("rev-parse", l.target+"^1")
+	}
+	resume := l.isBindCommit(bind)
+	change := bind
+	if resume {
+		change = l.gitValue("rev-parse", bind+"^1")
+	}
+	if change == l.base || !l.gitSucceeds("merge-base", "--is-ancestor", l.base, change) {
+		l.say("%s: REFUSE head-not-ahead-of-base\n", l.prefix)
+		l.say("  fix: commit the change on a branch whose history contains %s, then rerun corvint dogfood finish-lane --base %s\n", l.base, l.base)
+		l.exit(2)
+	}
+	l.requireCleanWorktree(resume || sealed, sealed)
+	if sealed {
+		l.line("seal SKIP already-sealed sealed=.corvint/changes/%s.cem.json", bind)
+		return 0
+	}
+	if resume {
+		l.line("prepare SKIP bind-commit=%s", l.target)
+		l.line("bind SKIP bind-commit=%s", l.target)
+		l.line("commit SKIP bind-commit=%s", l.target)
+	} else {
+		l.prepare()
+		l.bind()
+		l.commitBind()
+	}
+	l.rebind()
+	return l.checkAndSeal()
+}
+
+// line writes one step line to stdout.
+func (l *finishLane) line(format string, values ...any) {
+	_, _ = fmt.Fprintf(l.stdout, "%s: %s\n", l.prefix, fmt.Sprintf(format, values...))
+}
+
+// isBindCommit reports a one-parent commit titled as the bind commit that
+// changes only the sidecar: a previous run, or the manual recipe, already
+// committed it, so a rerun never commits it again (DCW-V0-061).
+func (l *finishLane) isBindCommit(commit string) bool {
+	if l.gitSucceeds("rev-parse", "--verify", "-q", commit+"^2") || !l.gitSucceeds("rev-parse", "--verify", "-q", commit+"^1") {
+		return false
+	}
+	if l.gitValue("log", "-1", "--format=%s", commit) != bindSubject {
+		return false
+	}
+	changed, _ := l.git(false, "diff-tree", "-r", "--no-renames", "--no-commit-id", "--name-only", commit+"^1", commit)
+	return chomp(changed) == finishLaneSidecar
+}
+
+// requireCleanWorktree reads the worktree through Core's hardened probe, as
+// the check does (DCW-V0-045). Before the bind commit only the sidecar a
+// stopped run left may differ; at the bind or seal commit nothing may.
+func (l *finishLane) requireCleanWorktree(committed, sealed bool) {
+	repository, err := gokernel.ProbeRepositoryContext(l.ctx, l.root)
+	l.checkpoint()
+	if err != nil {
+		l.say("%s: REFUSE worktree-status-unavailable\n  %s\n", l.prefix, oneLine(err.Error()))
+		l.say("  fix: remove the repository configuration the reason names, or run finish-lane in a plain clone (git clone --no-hardlinks)\n")
+		l.exit(2)
+	}
+	if repository.DirtyPathCount == 0 {
+		return
+	}
+	sidecarOnly, _ := gokernel.CanonicalJSON([]string{finishLaneSidecar})
+	if !committed && repository.DirtyPathCount == 1 && repository.DirtyPathsSHA == sha256Hex(sidecarOnly) {
+		return
+	}
+	l.say("%s: REFUSE dirty-worktree\n", l.prefix)
+	switch {
+	case sealed:
+		l.say("  fix: HEAD is sealed; commit or remove every uncommitted path, then rerun corvint dogfood finish-lane --base %s\n", l.base)
+	case committed:
+		// A seal whose commit failed leaves its staged rename; this restores
+		// the bind commit's sidecar and drops the rename (DCW-V0-061).
+		l.say("  fix: git restore --source=HEAD --staged --worktree -- %s .corvint/changes/%s.cem.json, commit or remove every other change, then rerun corvint dogfood finish-lane --base %s\n", finishLaneSidecar, l.target, l.base)
+	default:
+		l.say("  fix: commit the change (finish-lane binds only committed work) and remove every other uncommitted path, then rerun corvint dogfood finish-lane --base %s\n", l.base)
+	}
+	l.exit(2)
+}
+
+// pass runs one dogfood change pass in-process under this run's operation
+// lock. Its stderr is kept: a stopping step prints it unchanged, an accepted
+// one only its NOTE lines.
+func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
+	options := l.options.Change
+	options.Citations = citations
+	var captured bytes.Buffer
+	run := &change{flow: flow{ctx: l.ctx, prefix: "dogfood-change", root: options.Root, stderr: &captured}, options: options}
+	code, err := boundary(l.ctx, run.run, run.cleanup)
+	run.releaseOperation()
+	if err != nil {
+		l.exit(-1)
+	}
+	for _, row := range run.rows {
+		if row.status != "PRODUCED" {
+			l.missing = append(l.missing, name+" "+row.name+" "+row.status+" "+row.reason)
+		}
+	}
+	return code, run, captured.Bytes()
+}
+
+// accept keeps an accepted pass's NOTE lines, each once per run.
+func (l *finishLane) accept(output []byte) {
+	for _, text := range textLines(output) {
+		if strings.HasPrefix(text, "dogfood-change: NOTE ") && !l.notes[text] {
+			l.notes[text] = true
+			l.say("%s\n", text)
+		}
+	}
+}
+
+// stop ends the run at step: the step's own output is printed unchanged, then
+// the step line and every reason kept so far (DCW-V0-061, DCW-V0-062).
+func (l *finishLane) stop(name string, code int, output []byte) {
+	_, _ = l.stderr.Write(output)
+	if code == 0 {
+		code = 1
+	}
+	l.line("%s FAIL exit=%d", name, code)
+	l.reportMissing()
+	l.exit(code)
+}
+
+func (l *finishLane) reportMissing() {
+	l.line("NOT_PRODUCED rows=%d", len(l.missing))
+	for _, row := range l.missing {
+		_, _ = fmt.Fprintf(l.stdout, "  %s\n", row)
+	}
+}
+
+// removeSidecar is the recipe's rm -f before a pass, so a pass never resumes
+// a map an earlier pass or plan cited (DCW-V0-019).
+func (l *finishLane) removeSidecar(name string) {
+	if err := removeFile(l.root + "/" + finishLaneSidecar); err != nil {
+		l.say("%s: REFUSE sidecar-not-removed\n  %s\n", l.prefix, oneLine(err.Error()))
+		l.line("%s FAIL exit=2", name)
+		l.exit(2)
+	}
+}
+
+// prepare is pass 0: it prepares the map whose hunk IDs the plan names. Only
+// a refusal or an unprepared map stops it; the rows it cannot produce without
+// a plan or a committed sidecar are the bind's to decide.
+func (l *finishLane) prepare() {
+	l.removeSidecar("prepare")
+	code, run, output := l.pass("prepare", "")
+	prepared := code != 2 && isRegular(l.root+"/"+finishLaneSidecar)
+	for _, row := range run.rows {
+		if row.name == "cem-prepare" && row.status != "PRODUCED" {
+			prepared = false
+		}
+	}
+	if !prepared {
+		l.stop("prepare", code, output)
+	}
+	hunks := len(mapHunks(readFile(l.root + "/" + finishLaneSidecar)))
+	l.accept(output)
+	l.removeSidecar("prepare")
+	l.line("prepare PASS hunks=%d", hunks)
+}
+
+// bind cites the plan into a freshly prepared map. The only row it may leave
+// is the recorder's record-index-failed, which the uncommitted sidecar causes
+// and the bind commit clears (DCW-V0-015).
+func (l *finishLane) bind() {
+	code, run, output := l.pass("bind", l.options.Change.Citations)
+	if code == 1 {
+		for _, row := range run.rows {
+			if run.rowFailing(row) && row != (step{"local-outcome", "NOT_PRODUCED", "record-index-failed"}) {
+				l.stop("bind", code, output)
+			}
+		}
+	} else if code != 0 {
+		l.stop("bind", code, output)
+	}
+	l.accept(output)
+	l.line("bind PASS")
+}
+
+// commitBind commits only the sidecar, with the caller's Git identity, signing
+// and hooks, as the recipe's git commit does.
+func (l *finishLane) commitBind() {
+	if l.gitSucceeds("diff", "--quiet", "HEAD", "--", finishLaneSidecar) && l.gitSucceeds("cat-file", "-e", "HEAD:"+finishLaneSidecar) {
+		l.line("commit SKIP sidecar-unchanged")
+		return
+	}
+	if l.gitPassthrough("add", "--", finishLaneSidecar) != 0 || l.gitPassthrough("commit", "-q", "-m", bindSubject, "--", finishLaneSidecar) != 0 {
+		l.line("commit FAIL")
+		l.reportMissing()
+		l.exit(2)
+	}
+	l.target = l.gitValue("rev-parse", "HEAD^{commit}")
+	l.line("commit PASS bind=%s", l.target)
+}
+
+// gitPassthrough runs one Git write in the caller's environment, as the
+// seal's does; its output reaches stderr so stdout keeps only step lines.
+func (l *finishLane) gitPassthrough(args ...string) int {
+	command := exec.CommandContext(l.ctx, "git", append([]string{"-C", l.root}, args...)...)
+	command.Env = append(os.Environ(), "LC_ALL=C")
+	command.Stdout, command.Stderr = l.stderr, l.stderr
+	status := exitStatus(command.Run())
+	l.checkpoint()
+	return status
+}
+
+// rebind reruns the bind on the committed sidecar; it must complete.
+func (l *finishLane) rebind() {
+	code, _, output := l.pass("rebind", l.options.Change.Citations)
+	if code != 0 {
+		l.stop("rebind", code, output)
+	}
+	l.accept(output)
+	l.line("rebind PASS")
+}
+
+// checkAndSeal runs the seal, which runs the check first, and ends with the
+// check's own SUMMARY and verdict lines and the seal line.
+func (l *finishLane) checkAndSeal() int {
+	var verdict bytes.Buffer
+	code, err := Seal(l.ctx, l.options.Check, &verdict, l.stderr)
+	if err != nil {
+		l.exit(-1)
+	}
+	checked := hasLine(verdict.Bytes(), "dogfood-check: PASS")
+	switch {
+	case code == 0:
+		l.line("check PASS")
+		l.line("seal PASS seal=%s", l.gitValue("rev-parse", "HEAD^{commit}"))
+	case checked:
+		l.line("check PASS")
+		l.line("seal FAIL exit=%d", code)
+	default:
+		l.line("check FAIL exit=%d", code)
+	}
+	l.reportMissing()
+	_, _ = l.stdout.Write(verdict.Bytes())
+	return code
+}
