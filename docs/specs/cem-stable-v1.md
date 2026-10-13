@@ -6,7 +6,7 @@ Delivery status: planned
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed/planned; no stable delivery or promotion.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (proposed `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (proposed `CEM-V1-200..204`, V1-1278 S1); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (proposed `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (proposed `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (proposed `CEM-V1-220..225`, V1-1278 S3); one shared `cem/1.0` tamper matrix in the packet that the native and portable consumers both run with the same pinned verdicts (proposed `CEM-V1-226..229`, V1-1340); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (proposed `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (proposed `CEM-V1-200..204`, V1-1278 S1); local-completion sidecar-only reuse of a committed `cem/1.0` sidecar on a stable verifier `ACCEPT` over its exact bytes with the absolute repository root and full object IDs, with closed refusal reasons and `CEM-V1-150`'s fail-closed default otherwise (proposed `CEM-V1-205..209`, V1-1303); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (proposed `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (proposed `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (proposed `CEM-V1-220..225`, V1-1278 S3); one shared `cem/1.0` tamper matrix in the packet that the native and portable consumers both run with the same pinned verdicts (proposed `CEM-V1-226..229`, V1-1340); qualification remains bounded.
 - Blocked on: stable wire/consumer integration, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -62,6 +62,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-096..105 | Removed by V1-1278 (`CEM-V1-204`); satisfied by the frozen V1-1277 evidence; the converter no longer ships. Historically `internal/cem/convert`, `internal/cem/cli/convert.go` (`corvint cem convert`), `tools/cem-convert-parity`; `TestCEMV1096*`..`TestCEMV1104*` in `internal/cem/convert`, `cmd/corvint`, `tools/cem-convert-parity` and `interop/cem01-go`; full-corpus parity `docs/build-log/evidence/v1-1275/` | Committed maps converted by V1-1277 (`CEM-V1-230`); direct verification at a bind commit is `REJECT excluded-artifact-mismatch` until §5 sealing; cem/0.1 out-of-band patch parity limit; f0fda542 native and portable partial drift lists differ on the resource-limit abort; removal with 0.x is V1-1278 |
 | CEM-V1-230..232 | Migration commit `0b6f1bc245b44a8620c5e64f91e87f6d08da08d0`; since V1-1278 the committed corpus is checked by `TestCEMV1201*` (`internal/cem/wire`, `CEM-V1-201`); historically `script/cem-migrate-maps.sh`, `tools/cem-convert-parity --migrated`, `TestCEMV1100ConvertCorpusIdempotent`, `TestCEMV1230MigratedSourceChecks`; evidence `docs/build-log/evidence/v1-1277/` | Direct verification of a migrated map at its bind commit stays `REJECT excluded-artifact-mismatch`; checks run at T'; the in-tree citation tool has no T' target; a `cem/0.x` map landing later needs a follow-up migration commit; the corpus test is NOT_RUN where Git objects are absent |
 | CEM-V1-200..204 | `RetiredSpec`/`RetiredSpecFix` and the `ParseStable` refusal in `internal/cem/wire/stable.go`; `internal/cem/wire/corpus_test.go`; `verifySealedCEM`, `proves` and the retired-seal branch in `internal/dogfoodflow/batch.go` and `change.go`; the `verify-stable`-only dispatch in `internal/cem/cli/stable.go`; `TestCEMV1200*`, `TestCEMV1201*`, `TestCEMV1204*`, `TestBatchCheckCEMV1203*`, `TestBatchCheckDCWV0039RequiresStableVerification` | The `cem/0.x` wire, verifier, producers and their goldens remain until their consumers move (V1-1278 S2/S3); `cli-parity` `cem-begin-map` still pins `cem/0.1` |
+| CEM-V1-205..209 | `stableSidecarReuse` in `internal/localcompletion/sidecar_reuse.go`, `checkQualification` in `lifecycle.go` and the `reuseRefused` member of `CheckObservation`; `TestCEMV1205*`..`TestCEMV1208*` in `internal/localcompletion` | One verifier run per reusing check per evaluation; SHA-256 object-format repositories never reuse; `LCP-V0-004` text unchanged; skipped outside darwin and linux |
 | CEM-V1-210..214 | Consumer refusals in `internal/lrfrepo`, `internal/frontier*`, `internal/extevidence`, `cmd/corvint/prove.go`, `internal/attest`, `internal/gitnotes`, `internal/console`, `internal/cem/workflow/read.go`, `internal/receiptbundle`, `internal/witness*`, `internal/doccorpus`, `internal/criterionexperiment`, `internal/cemcandidate`, `internal/localcompletion`, `tools/local-authority`, `tools/cem-citation-baseline`; conformance supersessions in `conformance/ocm-v0`, `conformance/frontier-v0` and `conformance/cli-parity-v0`; tests in the consumer cem/1.0 admission traceability table | S2b deletes the 0.x wire, verifier, `patch`, producers and `cem` CLI routes; S3 the protocol and interop 0.x packets |
 | CEM-V1-215..219 | Deleted 0.x wire, verifier and producers in `internal/cem/wire`, `internal/cem/verify`, `internal/cem/workflow` and `internal/cem/cli`; retired `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes; `internal/attest/cem.go` retired-predicate refusal; regenerated `cmd/corvint/testdata/core-freeze` and `conformance/cli-parity-v0` declarations; tests listed under "Core 0.x removal traceability"; evidence `docs/build-log/2026-10-12-v1-1278-s2b-core-removal.md` | The `protocol/`, `interop/`, `examples/cem` and `conformance/cem-0.1` 0.x packets and their consumers remain for S3; the lrf-v0 corpus and frontier-v0 tier are retired whole, not ported |
 | CEM-V1-220..225 | Deleted `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`, `conformance/cem-0.2`, `examples/cem` (except the 0.x-free `experiments/` companion demo), `docs/CEM-CI.md`, `tools/cem-interop-runner` and `script/cem-recipes_test.sh`; `protocol/cem-1.0/stable/inherited/cem-0.3-algorithms.md`; `interop/cem01-go/testdata/inherited-vectors/`; the retired route in `interop/cem01-go/main.go`; `stableStatusArguments` in `internal/dogfoodflow/change.go`; tests listed under "Packet retirement traceability"; evidence `docs/build-log/2026-10-13-v1-1278-s3-retire-packets.md` | The 0.x packets stay readable in Git history only; the portable consumer verifies `cem/1.0` only; the retired specs keep their bodies and requirement IDs as history |
@@ -849,6 +850,72 @@ migration script and the 0.x `ready-for-ci` proof form return; `ParseStable` ref
 with the plain "stable profile required" message again; and a retired seal again verifies
 through the 0.x reader. No committed map, schema, packet or bind commit changes.
 
+## Local-completion stable sidecar reuse (V1-1303, decision 0525)
+
+Status: proposed; V1-1303. `CEM-V1-150` left local-completion sidecar-only reuse
+(`AllowCemSidecarOnlyReuse`) with no `cem/1.0` grant path, so a check observed before the CEM
+commit always ran again. This section supersedes `CEM-V1-150` for the grant path only: a
+passing observation made on an earlier target may stand for the current target when the only
+difference is a committed `cem/1.0` sidecar that the stable verifier accepts in process. Every
+other case keeps `CEM-V1-150`'s fail-closed default.
+
+- `CEM-V1-205`: A check whose plan sets `AllowCemSidecarOnlyReuse` and whose latest passing,
+  clean observation was made on another target MUST qualify on the current target only when
+  (a) the observation's content digest of the tree excluding `.corvint/change.cem.json` equals
+  the current one; (b) the plan's base and the current target are both full 40-hex object IDs;
+  (c) `verify.Stable` returns exit 0, outcome `ACCEPT` and `accept: true` for the sidecar with
+  `Repository` and `ArtifactRoot` both the absolute repository root, `ExpectedBase` the plan's
+  base and `Target` the current target; and (d) the result reports `sidecar: EXACT`,
+  `expectedBase` equal to the plan's base and `targetRevision` equal to the current target.
+- `CEM-V1-206`: The verifier MUST receive the exact bytes read from
+  `<root>/.corvint/change.cem.json` (bounded by `wire.MaxMapBytes`), never a re-encoding, and
+  the result's `mapSha256` MUST equal the SHA-256 of those bytes. A working-tree sidecar that
+  differs from the sidecar committed at the target is refused by the verifier or is not `EXACT`,
+  and grants nothing; a
+  committed sidecar is identified by its raw digest, so a committed whitespace-only re-encoding
+  that still verifies is those bytes and may grant.
+- `CEM-V1-207`: A refused reuse MUST leave the check unqualified (`selected-check-unverified`,
+  with the existing `dogfood verify` rerun action) and record one closed reason in the check
+  observation's additive `reuseRefused` member: `sidecar-content-changed` (a),
+  `sidecar-ids-not-full` (b), `sidecar-unavailable` (the sidecar cannot be read),
+  `sidecar-rejected` (verifier `REJECT`, for example a stale map, an edited digest or a wrong
+  base), `sidecar-unverifiable` (verifier `UNSUPPORTED` or refusal, for example a missing
+  artifact under the root) or `sidecar-binding-mismatch` (an accepted result that does not name
+  these exact bytes, this base and this target as `EXACT`). `reuseRefused` is omitted when the
+  plan does not allow reuse, when the check qualifies, or when no observation applies.
+- `CEM-V1-208`: Without `AllowCemSidecarOnlyReuse`, a check observed on another target MUST stay
+  `selected-check-unverified` and no verifier runs (`CEM-V1-150`). No reuse path may report an
+  internal error or grant silently: every verifier outcome other than the `CEM-V1-205` grant maps
+  to a `CEM-V1-207` reason.
+- `CEM-V1-209`: Each of `CEM-V1-205..208` MUST be traced to a named test in
+  `internal/localcompletion` that drives a real `cem prepare` stable map through the in-process
+  verifier.
+
+Non-goals: no change to the stable verifier, the wire, `cem prepare`, the dogfood bind loop or
+the plan format; no reuse for a repository whose object IDs are not 40-hex (SHA-256 object
+format); no caching of verifier results across evaluations; no change to `LCP-V0-004` text.
+
+Failure modes: a sidecar edited after the observation's target, a map from an earlier target, a
+wrong base or a missing artifact refuses with its closed reason and the check reruns; an
+abbreviated base refuses `sidecar-ids-not-full` before any verifier run; a source change after
+the observation refuses `sidecar-content-changed`; a host where structural hunks are outside the
+frozen runtime tuples gets `UNSUPPORTED` and refuses `sidecar-unverifiable`. Each reusing check
+costs one in-process verifier run per evaluation.
+
+Acceptance evidence:
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-205 | `TestCEMV1205StableSidecarAcceptGrantsReuse`, `TestCEMV1205ArtifactRootIsRepositoryRoot` (`internal/localcompletion`) | A committed `cem prepare` stable map grants reuse with no rerun; a map with runner artifacts under the root grants, and the same map with one artifact removed refuses `sidecar-unverifiable` |
+| CEM-V1-206 | `TestCEMV1206EditedSidecarRefusesReuse` (`internal/localcompletion`) | A committed `patchSha256` edit refuses `sidecar-rejected` (`patch-digest-mismatch`); an uncommitted re-spacing of the committed sidecar refuses `sidecar-rejected` (`excluded-artifact-mismatch`) |
+| CEM-V1-207 | `TestCEMV1207StaleSidecarRefusesReuse`, `TestCEMV1207WrongBaseSidecarRefusesReuse`, `TestCEMV1207UnboundSidecarRefusesReuse` (`internal/localcompletion`) | A map from the earlier target refuses `sidecar-rejected` (`patch-digest-mismatch`); a later source change refuses `sidecar-content-changed`; a wrong base refuses `sidecar-rejected` (`base-revision-mismatch`); no sidecar refuses `sidecar-unavailable`, an uncommitted sidecar `sidecar-binding-mismatch` and an abbreviated base `sidecar-ids-not-full`; each refusal names the `dogfood verify` rerun |
+| CEM-V1-208 | `TestCEMV1208SidecarReuseFailsClosedByDefault`, `TestCEMV1150StableSidecarGrantsNoReuse` (`internal/localcompletion`) | Without the plan flag a verifying committed sidecar leaves the check `selected-check-unverified` with no `reuseRefused` |
+| CEM-V1-209 | This table | Every test above passes on darwin; the suite skips on hosts other than darwin and linux |
+
+Rollback: revert the V1-1303 change. Sidecar-only reuse again grants nothing (`CEM-V1-150`),
+the `reuseRefused` member disappears and every check observed before the CEM commit reruns. No
+wire, schema, packet, plan or committed map changes.
+
 ## `cem/v2` statement (V1-1265, decision 0523 P1)
 
 Status: proposed. Decision 0523 P1. A `cem/v1` statement signs only the map's bytes, its base and
@@ -1388,7 +1455,8 @@ receipts, links, artifacts or provenance; it may carry a `role` (`CEM-V1-095`).
 - `CEM-V1-150`: Local-completion sidecar-only reuse (`AllowCemSidecarOnlyReuse`) MUST keep
   binding only a canonical `cem/0.x` sidecar. A `cem/1.0` sidecar grants no reuse: the check stays
   `selected-check-unverified` until it runs again on the current target. This fails closed and
-  costs a rerun; stable reuse needs its own requirement.
+  costs a rerun; stable reuse needs its own requirement (superseded for the grant path by
+  `CEM-V1-205`, V1-1303).
 - `CEM-V1-151`: `dogfood finish` MUST read a `cem/1.0` change map: its `cem status` (and the
   status it names in `nextActions`) adds `--artifacts <absolute repository root>` and keeps the
   ceilings (`CEM-V1-145`), and its `cem report` adds the same root and passes no ceilings, which a
@@ -1402,10 +1470,12 @@ receipts, links, artifacts or provenance; it may carry a `role` (`CEM-V1-095`).
 
 Non-goals: no removal of the `cem/0.x` readers, converter or `--spec cem/0.2` (V1-1278); no
 change to `cem begin`'s default, the frozen cli-parity cases, MCP, frontier or conformance
-producers; no stable LRF evaluation; no local-completion reuse of a `cem/1.0` CEM (`CEM-V1-150`).
+producers; no stable LRF evaluation; no local-completion reuse of a `cem/1.0` CEM (`CEM-V1-150`; V1-1303
+adds the grant path, `CEM-V1-205`).
 
 Failure modes: `internal/localcompletion` reads only canonical `cem/0.x` CEMs, so it reports no
-reuse for a `cem/1.0` change and fails closed (`CEM-V1-150`). A structural hunk on a host outside the frozen
+reuse for a `cem/1.0` change and fails closed (`CEM-V1-150`; since V1-1303 the stable grant path is
+`CEM-V1-205..208`). A structural hunk on a host outside the frozen
 structural runtime tuples is the verifier's `UNSUPPORTED`. The change alters the `cem status`
 output the loop records, so its own dogfood check declares `DOGFOOD_OUTPUT_CHANGE=DCW-V0-047`
 (V1-1279). A stable map with artifacts outside the repository root is not admitted by OCM.
@@ -1424,7 +1494,7 @@ Acceptance evidence:
 | CEM-V1-147 | `TestMapHunksReadsStableMap`, `TestCiteStepAdmitsStableMap`, `TestStableStatusArgumentsAddArtifactRoot`, `TestChangeDCWV0049MarksPreparedStableChoreMap` (`internal/dogfoodflow`) | Hunks and cited count match the parsed map; missing plans keep their reasons; the chore map is marked and never refused; live round trip in `docs/build-log/2026-10-12-v1-1276-dogfood-producer-cem-1-0.md` |
 | CEM-V1-148 | `TestBatchCheckAdmitsStableConstituent` (`internal/dogfoodflow`) | Stable ACCEPT admits with `--artifacts`; a 0.x line, a REJECT and another bind fail `constituent-unverified`; a stable line never proves a 0.x map |
 | CEM-V1-149 | `TestCEMV1149OCMPrepareAdmitsStableProducerMap`, `TestCEMV1149OCMLinkAdmitsStableProducerMap`, `TestCEMV1149OCMPrepareRefusesUnverifiedStableMap`, `TestCEMV1058LegacyOCMLRFAdmissionUnchanged` (`internal/lrfrepo`) | Prepare binds target and patch digest, status is not invalid, resume works; link records a cited stable hunk and the linked map reads valid; a wrong base and a tampered map write nothing; artifacts outside the root fail closed |
-| CEM-V1-150 | `TestCEMV1150StableSidecarGrantsNoReuse` (`internal/localcompletion`) | A committed default (`cem/1.0`) sidecar leaves the check `selected-check-unverified`; sidecar-only reuse bound only a retired `cem/0.x` map, so under `CEM-V1-210` no sidecar grants reuse and its 0.x reuse test is retired |
+| CEM-V1-150 | `TestCEMV1150StableSidecarGrantsNoReuse` (`internal/localcompletion`) | A committed default (`cem/1.0`) sidecar leaves the check `selected-check-unverified`; sidecar-only reuse bound only a retired `cem/0.x` map, so under `CEM-V1-210` no sidecar grants reuse and its 0.x reuse test is retired; since V1-1303 the test runs without the plan flag and the stable grant path is `CEM-V1-205` |
 | CEM-V1-151 | `TestDogfoodFinishRunsFromBinaryInForeignRepository`, `TestTraceGitignoreFinishThenChangeCheckSeal` (`cmd/corvint`) | The default prepare writes `cem/1.0`; finish reports, is reviewed and is satisfied, and the next change checks and seals |
 | CEM-V1-152 | `TestAggregateVerifierStableArtifactRoot` (`internal/dogfoodflow`); `TestAggregateFinishNativeForeignRepository`, `TestTransportAdaptedRecoveryNative` (`cmd/corvint`) | The worker root, or another spelling of it, is admitted; another, relative or NUL-bearing root, a misspelled flag, an extra flag and `--artifacts` on an OCM read are refused; the aggregate finish over a default `cem/1.0` map passes its final check |
 

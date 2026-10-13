@@ -83,7 +83,7 @@ func finishWithProfile(ctx context.Context, root, key, profile string, command P
 		return evaluation, nil
 	}
 	for _, check := range saved.Plan.Checks {
-		if !repo.checkQualifies(saved, check, snap) {
+		if !repo.checkQualifies(ctx, saved, check, snap) {
 			return evaluation, nil
 		}
 	}
@@ -383,7 +383,7 @@ func (repo *repository) revalidate(ctx context.Context, saved *state, before sna
 		return errors.New("completion-evidence-drift")
 	}
 	for _, check := range saved.Plan.Checks {
-		if !repo.checkQualifies(saved, check, now) {
+		if !repo.checkQualifies(ctx, saved, check, now) {
 			return errors.New("selected-check-unverified")
 		}
 	}
@@ -644,7 +644,7 @@ func (repo *repository) aggregatePrerequisites(ctx context.Context, saved *state
 		return errors.New("review-required")
 	}
 	for _, check := range saved.Plan.Checks {
-		if !repo.checkQualifies(saved, check, snap) {
+		if !repo.checkQualifies(gitrun.WithOperationBudget(ctx, nil), saved, check, snap) {
 			return errors.New("selected-check-unverified")
 		}
 	}

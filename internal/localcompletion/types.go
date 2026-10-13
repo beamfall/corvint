@@ -19,8 +19,7 @@ const (
 	maxAttempts      = 64
 )
 
-var keyPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
-var idPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
+var keyPattern, idPattern = regexp.MustCompile(`^[0-9a-f]{64}$`), regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 
 type Check struct {
 	ID                       string   `json:"id"`
@@ -80,6 +79,7 @@ type CheckObservation struct {
 	SecretScreened bool     `json:"secretScreened"`
 	Stdout         string   `json:"stdout,omitempty"`
 	Stderr         string   `json:"stderr,omitempty"`
+	ReuseRefused   string   `json:"reuseRefused,omitempty"` // closed sidecar-only reuse refusal (CEM-V1-207)
 }
 
 type artifact struct {
