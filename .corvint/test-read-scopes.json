@@ -192,6 +192,7 @@
       "protocol/cem-1.0/stable/neutral-criterion/",
       "protocol/cem-1.0/stable/receipt-authentication/",
       "protocol/cem-1.0/stable/repository-envelope-packet/",
+      "protocol/cem-1.0/stable/tamper-matrix/",
       "protocol/cem-1.0/structural-tuples/"
     ],
     "internal/cem/wire": [
