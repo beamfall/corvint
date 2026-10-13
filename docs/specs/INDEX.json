@@ -3530,14 +3530,16 @@
     "delivery": "experimental",
     "claim": "Native Tasks captures and verifies coherent claim-era criterion bindings; Core consumes only the Tasks wire contract.",
     "dependsOn": [
-      "docs/specs/cem-criterion-experiments-v0.md"
+      "docs/specs/cem-criterion-experiments-v0.md",
+      "docs/specs/cem-stable-v1.md"
     ],
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
       "internal/tasks/criterionbinding",
       "internal/tasks/cli/criterion_binding.go",
-      "internal/criterionexperiment/tasks.go"
+      "internal/criterionexperiment/tasks.go",
+      "internal/taskman/cem_verdict_gate.go"
     ]
   },
   {

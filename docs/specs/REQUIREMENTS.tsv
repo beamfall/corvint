@@ -3228,12 +3228,20 @@ TAT-V0-004	docs/specs/test-attack-v0.md	30	Budget interruption MUST retain every
 TAT-V0-005	docs/specs/test-attack-v0.md	31	Each observed survivor MUST name its operator, changed path, committed blob, one
 TAT-V0-006	docs/specs/test-attack-v0.md	32	The attack MUST preserve caller repository bytes and the existing sandbox, offli
 TAT-V0-007	docs/specs/test-attack-v0.md	33	Invocation without `--attack-tests` MUST retain existing output and execution se
-TCB-V0-001	docs/specs/tasks-criterion-binding-v0.md	18	Core MUST import only Tasks wire. Full ticket/attempt/policy validation stays Ta
-TCB-V0-002	docs/specs/tasks-criterion-binding-v0.md	20	`criterion-binding capture --ticket ID --attempt ID` MUST be a bounded read with
-TCB-V0-003	docs/specs/tasks-criterion-binding-v0.md	23	`criterion-binding verify` MUST consume a closed bounded capture on stdin with n
-TCB-V0-004	docs/specs/tasks-criterion-binding-v0.md	26	Verify outer current snapshot MUST be null; carried snapshot MUST be explicitly
-TCB-V0-005	docs/specs/tasks-criterion-binding-v0.md	29	The CEM companion MUST use only independently configured, pinned Tasks executabl
-TCB-V0-006	docs/specs/tasks-criterion-binding-v0.md	33	Unknown/repeated arguments, malformed/trailing/oversize payloads, nonregular exe
+TCB-V0-001	docs/specs/tasks-criterion-binding-v0.md	19	Core MUST import only Tasks wire. Full ticket/attempt/policy validation stays Ta
+TCB-V0-002	docs/specs/tasks-criterion-binding-v0.md	21	`criterion-binding capture --ticket ID --attempt ID` MUST be a bounded read with
+TCB-V0-003	docs/specs/tasks-criterion-binding-v0.md	24	`criterion-binding verify` MUST consume a closed bounded capture on stdin with n
+TCB-V0-004	docs/specs/tasks-criterion-binding-v0.md	27	Verify outer current snapshot MUST be null; carried snapshot MUST be explicitly
+TCB-V0-005	docs/specs/tasks-criterion-binding-v0.md	30	The CEM companion MUST use only independently configured, pinned Tasks executabl
+TCB-V0-006	docs/specs/tasks-criterion-binding-v0.md	34	Unknown/repeated arguments, malformed/trailing/oversize payloads, nonregular exe
+TCB-V0-007	docs/specs/tasks-criterion-binding-v0.md	38	The sealed-verdict gate (`taskman-cem-verdict-gate/0`) MUST take only native fac
+TCB-V0-008	docs/specs/tasks-criterion-binding-v0.md	42	The gate MUST read the sealed map from Git objects at the candidate commit, neve
+TCB-V0-009	docs/specs/tasks-criterion-binding-v0.md	46	Producer-written fields MUST agree with native recomputation or refuse
+TCB-V0-010	docs/specs/tasks-criterion-binding-v0.md	50	The gate MUST recompute the verdict in process through the stable consumer with
+TCB-V0-011	docs/specs/tasks-criterion-binding-v0.md	55	Predicates are closed: `touched-anchored` governs hunks under a touch key (a `di
+TCB-V0-012	docs/specs/tasks-criterion-binding-v0.md	59	Every outcome MUST emit one canonical, deterministic, host-path-free document pi
+TCB-V0-013	docs/specs/tasks-criterion-binding-v0.md	63	Re-verification MUST recompute from native inputs and GRANT only when the recomp
+TCB-V0-014	docs/specs/tasks-criterion-binding-v0.md	66	The gate MUST NOT mutate the repository, refs, objects, traces or a Tasks store.
 TCN-V0-001	docs/specs/test-consolidation-planner-v0.md	98	The planner MUST be a read-only local projection. `corvint test-plan consolidate
 TCN-V0-002	docs/specs/test-consolidation-planner-v0.md	106	The input MUST be one closed `test-consolidation-input/0` JSON document of at mo
 TCN-V0-003	docs/specs/test-consolidation-planner-v0.md	124	A variation MUST be abstained, never grouped, isolated, reused or deduplicated,
