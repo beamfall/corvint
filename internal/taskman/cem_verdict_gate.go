@@ -292,16 +292,17 @@ func (g *verdictGate) evaluate(ctx context.Context, in CEMVerdictInput) {
 // and admits only its agreement with the native recomputation (TCB-V0-017):
 // its outcome, its verdictSha256 claim, the digest recomputed from its own
 // result and its canonical citation block must all equal the native ones. A
-// consumer that cannot run or emits no readable result is unverifiable; any
-// readable difference is a disagreement, never a pass.
+// consumer that cannot run, emits no readable result or exits in a way its own
+// outcome does not explain is unverifiable; any readable difference is a
+// disagreement, never a pass.
 func (g *verdictGate) crossCheck(ctx context.Context, in CEMVerdictInput, target string, raw []byte, native verify.StableResult, verdict string) bool {
-	stdout, err := runPortableConsumer(ctx, in, target, raw)
+	stdout, status, err := runPortableConsumer(ctx, in, target, raw)
 	if err != nil {
 		g.refuse(CEMVerdictUnverifiable, "portable-consumer-failed")
 		return false
 	}
 	reading, ok := readPortable(stdout)
-	if !ok {
+	if !ok || !portableExitAgrees(reading.pin.Outcome, status) {
 		g.refuse(CEMVerdictUnverifiable, "portable-consumer-failed")
 		return false
 	}
@@ -324,21 +325,31 @@ func (g *verdictGate) crossCheck(ctx context.Context, in CEMVerdictInput, target
 }
 
 // runPortableConsumer hands the exact map bytes to the portable consumer
-// through one private temporary file and returns its stdout.
-func runPortableConsumer(ctx context.Context, in CEMVerdictInput, target string, raw []byte) ([]byte, error) {
+// through one private temporary file and returns its stdout and exit status.
+func runPortableConsumer(ctx context.Context, in CEMVerdictInput, target string, raw []byte) ([]byte, int, error) {
 	file, err := os.CreateTemp("", "corvint-cem-verdict-*.json")
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer os.Remove(file.Name())
 	if _, err := file.Write(raw); err != nil {
 		file.Close()
-		return nil, err
+		return nil, 0, err
 	}
 	if err := file.Close(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	return runPortable(ctx, in.PortableConsumer, in.Root, []string{portableRoute, "--repository", in.Root, "--map", file.Name(), "--expected-base", in.BaseCommit, "--target", target, "--artifacts", in.Root})
+}
+
+// portableExitAgrees reports whether the consumer's exit status matches its
+// outcome: verify-stable-canonical exits 0 exactly on ACCEPT, and 1 or 2 on a
+// REJECT or UNSUPPORTED result.
+func portableExitAgrees(outcome string, status int) bool {
+	if outcome == "ACCEPT" {
+		return status == 0
+	}
+	return status == 1 || status == 2
 }
 
 type portableReading struct {

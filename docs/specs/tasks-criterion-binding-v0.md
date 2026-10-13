@@ -84,12 +84,12 @@ for TCB-V0-007..019, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and
   stdout, and exits 2.
 - `TCB-V0-017`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1283) The gate MUST
   run the independent portable consumer at the absolute operator-supplied path (an `interop/cem01-go`
-  build) on the same sealed map bytes through `verify-stable-canonical`, and pin its route, outcome,
-  claimed `verdictSha256` and citation digest as `portable`. The portable outcome, claimed digest,
-  digest recomputed from its result and canonical citation block MUST each equal the native ones;
-  any difference refuses `CEM_VERDICT_VERIFIER_DISAGREEMENT` (`verifier-disagreement`), never a pass. A
-  consumer that cannot run or emits no readable result refuses `CEM_VERDICT_UNVERIFIABLE`
-  (`portable-consumer-failed`).
+  build) in the gate's process group on the same sealed map bytes through `verify-stable-canonical`,
+  and pin its route, outcome, claimed `verdictSha256` and citation digest as `portable`. The portable
+  outcome, claimed digest, recomputed digest and canonical citation block MUST each equal the native
+  ones; any difference refuses `CEM_VERDICT_VERIFIER_DISAGREEMENT` (`verifier-disagreement`). A
+  consumer that cannot run, emits no readable result, ends on a signal, or exits other than 0 on
+  ACCEPT and 1 or 2 otherwise refuses `CEM_VERDICT_UNVERIFIABLE` (`portable-consumer-failed`).
 - `TCB-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1283) The document MUST
   carry `paths`: each governed path once, in byte order, with the minimum recomputed citation tier of
   its governed hunks (`held` over `mechanical-proved` over `anchored` over `cited` over `unknown`) and
@@ -132,7 +132,7 @@ Capture includes canonical claim-era ticket bytes whose digest equals the attemp
 | TCB-V0-014 | `TestTCBV0014GateIsReadOnly` | Status, refs, HEAD and object counts are unchanged across GRANT and REFUSE evaluations |
 | TCB-V0-015 | `internal/tasks/store/lease_gate.go`; `TestTCBV0015_GateRunSubstitutesAttemptFacts` | Base, candidate HEAD and claim-era touch paths replace only whole entries; substituted argv binds the inputs digest; an edited ticket refuses `STALE_TICKET` |
 | TCB-V0-016 | `cmd/corvint/cem_gate_verdict.go`; `TestTCBV0016GateVerdictArgvIsClosed`, `TestTCBV0016GateVerdictRunsBothConsumers` | Twelve unreadable argv shapes exit 2 with one stderr code; on a sealed fixture the command, run with a built `interop/cem01-go`, prints the library's bytes, grants, and refuses a patched portable result |
-| TCB-V0-017 | `TestTCBV0017PortableConsumerMustRecomputeTheSameVerdict` | Agreement pins equal digests; a changed claim, raised tier or outcome disagrees; a missing, unreadable, other-profile or digest-less result is unverifiable |
+| TCB-V0-017 | `TestTCBV0017PortableConsumerMustRecomputeTheSameVerdict`, `TestTCBV0017PortableConsumerSharesTheGateProcessGroup` | Agreement pins equal digests; a changed claim, raised tier or outcome disagrees; a missing, unreadable, other-profile or digest-less result, or an ACCEPT that exits 1 or 2 or is killed, is unverifiable; the consumer runs in the gate's process group |
 | TCB-V0-018 | `TestTCBV0018PathsCarryTheMinimumRecomputedTier`, `TestTCBV0018ProducerEditedTierIsNeverAdmitted` | A path takes its lowest hunk tier; a sealed map with producer-written `held` tiers refuses `stable-not-accepted` with no predicate rows |
 | TCB-V0-019 | `TestTCBV0019_CEMVerdictPolicyEntryRunsAsDeclared` | The entry registers in a fixture policy; stand-in commands with its argv record PASSED and FAILED with the substituted argv as output evidence |
 
@@ -175,7 +175,7 @@ Failure modes. Every refusal pins one closed code and one closed reason:
 | `CEM_VERDICT_PRODUCER_MISMATCH` | none | Re-verified pinned bytes differ from the recomputation |
 | `CEM_VERDICT_UNVERIFIABLE` | `unsupported-platform` | The host is not Darwin or Linux |
 | `CEM_VERDICT_UNVERIFIABLE` | `git-read-failed` | The root is no readable repository or a bounded Git read failed |
-| `CEM_VERDICT_UNVERIFIABLE` | `portable-consumer-failed` | The portable consumer did not run, exceeded its bound or emitted no readable `cem-stable-verification/1` result |
+| `CEM_VERDICT_UNVERIFIABLE` | `portable-consumer-failed` | The portable consumer did not run, exceeded its bound, emitted no readable `cem-stable-verification/1` result, ended on a signal or exited with a status its outcome does not explain |
 | `CEM_VERDICT_UNVERIFIABLE` | `stable-not-accepted` | The stable consumer did not ACCEPT with an EXACT sidecar and citation |
 | `CEM_VERDICT_VERIFIER_DISAGREEMENT` | `verifier-disagreement` | The portable outcome, claimed or recomputed `verdictSha256`, or citation block differs from the native one |
 | `CEM_VERDICT_PREDICATE_FAILED` | `no-governed-hunk` | No hunk lies under the touch keys |

@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/verify"
@@ -70,11 +72,15 @@ func portableConsumer(t *testing.T) string {
 }
 
 // patchedConsumer wraps consumer so its result passes through one sed
-// expression: a deliberately wrong portable verdict.
-func patchedConsumer(t *testing.T, consumer, expression string) string {
+// expression and the wrapper exits with status; an empty status keeps the
+// consumer's own.
+func patchedConsumer(t *testing.T, consumer, expression, status string) string {
 	t.Helper()
+	if status == "" {
+		status = `"$status"`
+	}
 	path := filepath.Join(t.TempDir(), "patched-consumer")
-	script := "#!/bin/sh\n'" + consumer + "' \"$@\" | sed -e '" + expression + "'\n"
+	script := "#!/bin/sh\nout=$('" + consumer + "' \"$@\")\nstatus=$?\nprintf '%s\\n' \"$out\" | sed -e '" + expression + "'\nexit " + status + "\n"
 	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -94,18 +100,19 @@ func TestTCBV0017PortableConsumerMustRecomputeTheSameVerdict(t *testing.T) {
 	}
 	native := view.Verdict.VerdictSha256
 	for name, patch := range map[string]struct {
-		expression, claimed string
+		expression, claimed, status string
 	}{
 		// The consumer's own verdictSha256 claim differs.
-		"claimed verdict": {`s/"verdictSha256":"[0-9a-f]*"/"verdictSha256":"` + strings.Repeat("0", 64) + `"/`, strings.Repeat("0", 64)},
+		"claimed verdict": {`s/"verdictSha256":"[0-9a-f]*"/"verdictSha256":"` + strings.Repeat("0", 64) + `"/`, strings.Repeat("0", 64), ""},
 		// A raised tier under an unchanged claim: the recomputed digest and
 		// the citation block both differ.
-		"raised tier": {`s/"tier":"cited"/"tier":"anchored"/`, native},
-		// The outcome differs under an unchanged claim.
-		"outcome": {`s/"outcome":"ACCEPT"/"outcome":"REJECT"/`, native},
+		"raised tier": {`s/"tier":"cited"/"tier":"anchored"/`, native, ""},
+		// The outcome differs under an unchanged claim, with the exit status
+		// a REJECT carries.
+		"outcome": {`s/"outcome":"ACCEPT"/"outcome":"REJECT"/`, native, "1"},
 	} {
 		disagreeing := in
-		disagreeing.PortableConsumer = patchedConsumer(t, f.portable, patch.expression)
+		disagreeing.PortableConsumer = patchedConsumer(t, f.portable, patch.expression, patch.status)
 		view := requireVerdictRefusal(t, disagreeing, CEMVerdictVerifierDisagreement, "verifier-disagreement")
 		if view.Verdict == nil || view.Verdict.VerdictSha256 != native || view.Portable == nil || view.Portable.VerdictSha256 != patch.claimed || string(view.Citation) != "null" || len(view.Governed) != 0 || len(view.Paths) != 0 {
 			t.Fatalf("%s: a disagreement must pin both verdicts and evaluate no predicate: %+v %+v", name, view.Verdict, view.Portable)
@@ -115,17 +122,47 @@ func TestTCBV0017PortableConsumerMustRecomputeTheSameVerdict(t *testing.T) {
 	if err := os.WriteFile(garbage, []byte("#!/bin/sh\necho not-a-result\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	killed := filepath.Join(t.TempDir(), "killed-consumer")
+	if err := os.WriteFile(killed, []byte("#!/bin/sh\nout=$('"+f.portable+"' \"$@\")\nprintf '%s\\n' \"$out\"\nkill -KILL $$\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	for name, consumer := range map[string]string{
 		"missing executable": filepath.Join(t.TempDir(), "absent"),
 		"unreadable result":  garbage,
-		"other profile":      patchedConsumer(t, f.portable, `s/"profile":"cem-stable-verification\/1"/"profile":"other\/1"/`),
-		"no verdict digest":  patchedConsumer(t, f.portable, `s/"verdictSha256":"[0-9a-f]*"/"verdictSha256":"x"/`),
+		"other profile":      patchedConsumer(t, f.portable, `s/"profile":"cem-stable-verification\/1"/"profile":"other\/1"/`, ""),
+		"no verdict digest":  patchedConsumer(t, f.portable, `s/"verdictSha256":"[0-9a-f]*"/"verdictSha256":"x"/`, ""),
+		// An agreeing ACCEPT document whose process then fails is no result.
+		"accept, exit 2": patchedConsumer(t, f.portable, `s/^//`, "2"),
+		"accept, exit 1": patchedConsumer(t, f.portable, `s/^//`, "1"),
+		"accept, killed": killed,
 	} {
 		failing := in
 		failing.PortableConsumer = consumer
 		if view := requireVerdictRefusal(t, failing, CEMVerdictUnverifiable, "portable-consumer-failed"); view.Verdict == nil || view.Portable != nil {
 			t.Fatalf("%s: an unrunnable consumer pins the native verdict and no portable one: %+v %+v", name, view.Verdict, view.Portable)
 		}
+	}
+}
+
+// The portable consumer runs in the gate's own process group, so a supervisor
+// that kills that group, as the Tasks runner does on timeout, stops it too.
+func TestTCBV0017PortableConsumerSharesTheGateProcessGroup(t *testing.T) {
+	f := newVerdictFixture(t, nil)
+	in := f.input(PredicateTouchedAnchored, "src/")
+	group := filepath.Join(t.TempDir(), "group")
+	in.PortableConsumer = filepath.Join(t.TempDir(), "group-consumer")
+	if err := os.WriteFile(in.PortableConsumer, []byte("#!/bin/sh\nps -o pgid= -p $$ > '"+group+"'\nexec '"+f.portable+"' \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if result, _ := evaluateVerdict(t, in); !result.Granted {
+		t.Fatalf("the wrapped consumer must still grant: %s", result.Document)
+	}
+	raw, err := os.ReadFile(group)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pgid, err := strconv.Atoi(strings.TrimSpace(string(raw))); err != nil || pgid != syscall.Getpgrp() {
+		t.Fatalf("portable consumer group %q, gate group %d", raw, syscall.Getpgrp())
 	}
 }
 

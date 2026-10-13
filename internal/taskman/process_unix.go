@@ -31,25 +31,28 @@ func runRead(ctx context.Context, binary, root string, args []string) ([]byte, e
 }
 
 // runPortable runs the independent portable consumer (TCB-V0-017) with the
-// native read's environment and containment. It tolerates a nonzero exit,
-// since the consumer reports a refusal as its result document, and bounds the
-// run by the consumer's own whole-repository verification budget.
-func runPortable(ctx context.Context, binary, root string, args []string) ([]byte, error) {
+// native read's environment and returns its output and exit status. The
+// consumer stays in the caller's process group, so a supervisor that kills
+// the gate's group (the Tasks runner on timeout or cancellation) also stops
+// it and its descendants. Its own leader is killed at the consumer's
+// whole-repository verification budget, and the pipe drain is bounded as for
+// a read. A signal, an unbounded drain or an overflow is an error.
+func runPortable(ctx context.Context, binary, root string, args []string) ([]byte, int, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, args...)
 	cmd.Dir = root
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "LC_ALL=C", "LANG=C"}
-	containRead(cmd)
+	cmd.WaitDelay = time.Minute
 	out, stderr := &limitedBuffer{limit: 16 << 20}, &limitedBuffer{limit: 1 << 20}
 	cmd.Stdout = out
 	cmd.Stderr = stderr
-	e := groupreap.Run(cmd)
+	e := cmd.Run()
 	var exit *exec.ExitError
-	if e != nil && !errors.As(e, &exit) || ctx.Err() != nil || out.overflow || stderr.overflow {
-		return nil, errors.New("portable consumer failed or exceeded bound")
+	if e != nil && !errors.As(e, &exit) || ctx.Err() != nil || out.overflow || stderr.overflow || cmd.ProcessState.ExitCode() < 0 {
+		return nil, 0, errors.New("portable consumer failed or exceeded bound")
 	}
-	return out.raw, nil
+	return out.raw, cmd.ProcessState.ExitCode(), nil
 }
 
 // containRead owns the read's process group and bounds its pipe drain.
