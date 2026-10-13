@@ -27,8 +27,8 @@ refusal.
   (`CEM-V1-170`, `internal/cem/workflow/stable_read.go` `stableRecordPaths`). The predicate is
   duplicated there because `internal/cem` does not import `internal/dogfoodflow`; both comments
   name the other.
-- Binding (`DCW-V0-058`): an intents manifest naming only `docs/build-log/NAME.md` or
-  `docs/decisions/NAME.md` paths on a record change is published as the `DCW-V0-024` no-intent
+- Binding (`DCW-V0-058`): an intents manifest naming only `docs/build-log/NAME.md` entries the
+  change touches or `docs/decisions/NAME.md` files present at the target, on a record change, is published as the `DCW-V0-024` no-intent
   declaration, so OCM steps are `no-intent-declared` and `dogfood check`, unchanged, accepts it.
   Drift is still checked against the source manifest bytes. The uniform-plan refusal skips record
   changes. Evidence is a BASE decision or build-log entry with relation `decision`: `cem cite`
@@ -54,11 +54,18 @@ refusal.
 - The published intent snapshot is `#no-intent-declared`, so the record's entry name is not kept
   beyond the citation plan and the map's hunk paths.
 - A record that also edits a decision, spec or code is a change and keeps every refusal.
+- Independent review (Codex, one round) returned FAIL with three findings, all fixed in this lane:
+  an absent or unrelated record intent was accepted (now the entry must be in the change's diff and
+  a decision must be a blob at the target, else the manifest is assessed as path intents); the
+  duplicated predicates had no parity test (now `TestRecordChangeDCWV0057MatchesStatusClass`); and
+  drift on a record intent was untested (now a subtest rewrites the manifest during `cem cite` and
+  requires `intent-scope-drift` with nothing published).
 
 ## Acceptance evidence
 
-- `TestRecordChangeDCWV0057Classifies` and `TestChangeDCWV0058RecordBindsUniformPlanAndRecordIntent`
-  (`internal/dogfoodflow`). A mutation that disables `recordChange` fails the latter.
+- `TestRecordChangeDCWV0057Classifies`, `TestRecordChangeDCWV0057MatchesStatusClass` and
+  `TestChangeDCWV0058RecordBindsUniformPlanAndRecordIntent` (`internal/dogfoodflow`; six subtests:
+  record, record naming a decision, mixed, absent decision, untouched entry, drift). A mutation that disables `recordChange` fails the latter.
 - `TestCEMV1170StatusCitationClassRecord` (`internal/cem/cli`).
 - `TestBaselineDCWV0059SplitsRecordRows` (`tools/cem-citation-baseline`).
 - `TestDogfoodDCWV0058RecordChangeBindsChecksAndSeals` (`cmd/corvint`). It runs the built binary on a

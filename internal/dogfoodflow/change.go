@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -527,14 +528,25 @@ func (c *change) validateIntentManifest() string {
 }
 
 // recordIntent reports a record change whose manifest names only build-log
-// entries or decision files (DCW-V0-058).
+// entries the change itself touches and decision files present at the target
+// (DCW-V0-058).
 func (c *change) recordIntent(paths []string) bool {
+	changed := nonEmpty(strings.Split(c.gitValue("diff", "--no-renames", "--name-only", c.base, c.target), "\n"))
+	if !RecordChange(changed) {
+		return false
+	}
 	for _, path := range paths {
 		if !recordIntentPath(path) {
 			return false
 		}
+		if strings.HasPrefix(path, "docs/build-log/") && !slices.Contains(changed, path) {
+			return false
+		}
+		if kind, status := c.git(true, "cat-file", "-t", c.target+":"+path); status != 0 || kind != "blob\n" {
+			return false
+		}
 	}
-	return c.recordChange()
+	return true
 }
 
 func canonicalIntentPath(path string) bool {

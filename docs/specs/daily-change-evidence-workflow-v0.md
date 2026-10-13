@@ -741,8 +741,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   (`CEM-V1-170`).
 - `DCW-V0-058`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a
   record change, `dogfood change` MUST accept a `DOGFOOD_INTENTS_FILE` that names only build-log
-  entries (`docs/build-log/NAME.md`) or decision files (`docs/decisions/NAME.md`) as the intent:
-  it has no requirements section to assess, so the run reports the `DCW-V0-024` no-intent
+  entries (`docs/build-log/NAME.md`) the change adds or modifies, or decision files
+  (`docs/decisions/NAME.md`) present as files at the target, as the intent: it has no requirements section to assess, so the run reports the `DCW-V0-024` no-intent
   declaration (OCM steps `no-intent-declared`, `ocmStatus` `NOT_ASSESSED`), publishes
   `#no-intent-declared` as `.corvint/change.ocm-intents`, and never refuses
   `invalid-requirements-section`; the source manifest MUST still be unchanged when it publishes,
@@ -751,7 +751,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `cem cite` refuses an evidence path absent at `baseRevision`, a record's new entry cannot be its
   own evidence: each hunk cites, with relation `decision`, BASE lines of the decision or build-log
   entry the record reports on. The registered relations (`DCW-V0-041`) have no `evidence` relation.
-  The same manifest on a change that is not a record is read as path intents unchanged.
+  The same manifest on a change that is not a record, or one naming an entry the change does not
+  touch or a decision absent at the target, is read as path intents unchanged.
   Non-goals: retaining the named entry in the published intent snapshot; OCM assessment of a
   record.
   Failure modes: the published declaration does not name the record's entry, so the entry is
@@ -964,7 +965,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-055` (accepted under the owner's standing auto-accept (2026-10-11); V1-1336) | `tools/cem-citation-baseline/main.go` `armsSummary`, `pooled`, `killStatistic`; `TestBaselineDCWV0052ArmsPinTheAnchoredTierDefect` (pooled authored excess 0.666667 over four maps; kill statistic 4/4) | implemented; focused tests PASS; committed-corpus run in `docs/build-log/evidence/v1-1336/` |
 | `DCW-V0-056` (accepted under the owner's standing auto-accept (2026-10-11); V1-1336, V1-1337) | `tools/cem-citation-baseline/main.go` `readTargets`, `measure`; `TestBaselineDCWV0056TargetsVerifyAtTheNamedCommit` (refused at a stale-sidecar bind, accepted at the named target, malformed line exit 2); `docs/build-log/2026-10-13-cem-citation-prospective-registration.md` | implemented; focused tests PASS; the prospective 30-map run is NOT_OBSERVED until those maps are sealed |
 | `DCW-V0-057` (accepted under the owner's standing auto-accept (2026-10-11); V1-1344) | `internal/dogfoodflow/record.go` `RecordPath`, `RecordChange`; `TestRecordChangeDCWV0057Classifies` (record, evidence subdirectory, `.agent-evidence`, record with sidecars, mixed with code or a decision, sidecar-only, empty, quoted, bare directory) | implemented; focused tests PASS |
-| `DCW-V0-058` (accepted under the owner's standing auto-accept (2026-10-11); V1-1344) | `internal/dogfoodflow/change.go` `validateIntentManifest`, `recordIntent`, `uniformPlan`, `publishIntentManifest`; `internal/dogfoodflow/record.go` `recordIntentPath`; `TestChangeDCWV0058RecordBindsUniformPlanAndRecordIntent` (record accepts the uniform plan and publishes the declaration; mixed still refuses and assesses the intent); `TestDogfoodDCWV0058RecordChangeBindsChecksAndSeals` (built binary: change, bind, check PASS, seal, sealed map class `record`) | implemented; focused tests PASS |
+| `DCW-V0-058` (accepted under the owner's standing auto-accept (2026-10-11); V1-1344) | `internal/dogfoodflow/change.go` `validateIntentManifest`, `recordIntent`, `uniformPlan`, `publishIntentManifest`; `internal/dogfoodflow/record.go` `recordIntentPath`; `TestChangeDCWV0058RecordBindsUniformPlanAndRecordIntent` (record accepts the uniform plan and publishes the declaration; mixed still refuses and assesses the intent; an untouched entry or absent decision is assessed as a path intent; a manifest changed during the run is `intent-scope-drift`, never published); `TestRecordChangeDCWV0057MatchesStatusClass` (classifier parity with `cem status`); `TestDogfoodDCWV0058RecordChangeBindsChecksAndSeals` (built binary: change, bind, check PASS, seal, sealed map class `record`) | implemented; focused tests PASS |
 | `DCW-V0-059` (accepted under the owner's standing auto-accept (2026-10-11); V1-1344) | `tools/cem-citation-baseline/main.go` `classRecord`, `summarize`; `TestBaselineDCWV0059SplitsRecordRows`; decision 0527 amendment (2026-10-13) | implemented; focused tests PASS; the prospective run with the exclusion needs a new registration (NOT_OBSERVED) |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
