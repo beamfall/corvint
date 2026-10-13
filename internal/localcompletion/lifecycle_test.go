@@ -449,13 +449,12 @@ func TestActualVerificationAndSecretRefusal(t *testing.T) {
 	})
 }
 
-// TestCEMV1150StableSidecarGrantsNoReuse (CEM-V1-150, CEM-V1-210): sidecar-only
-// reuse bound only a canonical cem/0.x map, which is retired, so a committed
-// cem/1.0 sidecar of the same content leaves the check unverified until it
-// runs again (fail closed).
+// TestCEMV1150StableSidecarGrantsNoReuse (CEM-V1-150, CEM-V1-208): without the
+// plan's allowCemSidecarOnlyReuse a committed cem/1.0 sidecar of the same
+// content, which the stable verifier accepts, still leaves the check
+// unverified until it runs again (fail closed); the grant path is CEM-V1-205.
 func TestCEMV1150StableSidecarGrantsNoReuse(t *testing.T) {
 	root, key, plan := fixture(t, []string{"true"})
-	plan.Checks[0].AllowCemSidecarOnlyReuse = true
 	os.WriteFile(filepath.Join(root, "source.go"), []byte("package fixture\nconst Answer = 42\n"), 0600)
 	localGit(t, root, "add", "source.go")
 	localGit(t, root, "commit", "-qm", "change")
@@ -474,7 +473,7 @@ func TestCEMV1150StableSidecarGrantsNoReuse(t *testing.T) {
 	localGit(t, root, "add", "-f", ".corvint/change.cem.json")
 	localGit(t, root, "commit", "-qm", "sidecar")
 	result, err := Evaluate(context.Background(), root, key)
-	if err != nil || !hasUnmet(result, "selected-check-unverified") {
+	if err != nil || !hasUnmet(result, "selected-check-unverified") || result.Checks[0].Qualified || result.Checks[0].ReuseRefused != "" {
 		t.Fatalf("stable sidecar granted reuse: %#v %v", result, err)
 	}
 }

@@ -255,8 +255,8 @@ func (repo *repository) evaluateObserved(ctx context.Context, saved *state, pinn
 	repositoryReady := len(result.Unmet) == 0
 	var verificationActions [][]string
 	for _, check := range saved.Plan.Checks {
-		qualified := repo.checkQualifies(saved, check, snap)
-		summary := CheckObservation{ID: check.ID, Qualified: qualified, Argv: repo.executionArgv(saved, check), CurrentTarget: snap.target, Exit: -1}
+		qualified, refused := repo.checkQualification(ctx, saved, check, snap)
+		summary := CheckObservation{ID: check.ID, Qualified: qualified, Argv: repo.executionArgv(saved, check), CurrentTarget: snap.target, Exit: -1, ReuseRefused: refused}
 		if observed := repo.latest(saved, check.ID); observed != nil {
 			summary.TestedCommit = observed.Target
 			summary.Exit, _ = strconv.Atoi(observed.Exit)
@@ -348,21 +348,21 @@ func (repo *repository) latest(saved *state, checkID string) *observation {
 	return nil
 }
 
-func (repo *repository) checkQualifies(saved *state, check Check, snap snapshot) bool {
+func (repo *repository) checkQualification(ctx context.Context, saved *state, check Check, snap snapshot) (bool, string) {
 	observed := repo.latest(saved, check.ID)
 	if observed == nil || observed.CheckDigest != repo.executionDigest(saved, check) || !observed.Passed || !observed.Clean || observed.Exit != "0" || observed.TimedOut || observed.Cancelled || observed.Overflow || observed.SecretScreened {
-		return false
+		return false, ""
 	}
 	if !repo.artifactsCurrent([]artifact{observed.Stdout, observed.Stderr}) {
-		return false
+		return false, ""
 	}
-	if observed.Target == snap.target {
-		return observed.Tree == snap.tree
+	if observed.Target == snap.target || !check.AllowCemSidecarOnlyReuse {
+		return observed.Target == snap.target && observed.Tree == snap.tree, ""
 	}
-	// Sidecar-only reuse bound a canonical cem/0.x map, which is retired
-	// (CEM-V1-210), and a cem/1.0 sidecar grants none (CEM-V1-150): a check
-	// observed on another target runs again, whatever the plan allows.
-	return false
+	// Another target reruns (CEM-V1-150, CEM-V1-208) unless the plan allows
+	// sidecar-only reuse and the stable verifier accepts the sidecar (CEM-V1-205).
+	reason, _ := repo.stableSidecarReuse(ctx, saved, observed, snap)
+	return reason == "", reason
 }
 
 func (repo *repository) artifactsCurrent(items []artifact) bool {
@@ -521,7 +521,7 @@ func Review(ctx context.Context, root, key, reportDigest string) (Evaluation, er
 		return Evaluation{}, errors.New("report-set-stale")
 	}
 	for _, check := range saved.Plan.Checks {
-		if !repo.checkQualifies(saved, check, snap) {
+		if !repo.checkQualifies(ctx, saved, check, snap) {
 			return Evaluation{}, errors.New("selected-check-unverified")
 		}
 	}
