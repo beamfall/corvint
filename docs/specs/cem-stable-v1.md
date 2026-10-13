@@ -900,7 +900,7 @@ Acceptance evidence:
 | --- | --- | --- |
 | CEM-V1-065 | `TestCEMV1065StatementBytesAndSubjectOrder`, `TestCEMV1065VerifiesMapArtifactsAndTarget`, `TestCEMV1065RefusesSwappedReceiptArtifact`, `TestCEMV1065RefusesTargetThatIsNotTheSubject`, `TestCEMV1065PredicateIsClosed`, `TestCEMV1065V1UnchangedForStableMaps` (`internal/attest`) | Statement bytes and subject order over the public `receipt-authentication/` map; the receipt swap is refused under the old envelope both ways; a closed predicate; `cem/v1` still refuses a stable map |
 | CEM-V1-065 | `TestCEMV1065ProveEmitsAndVerifiesTheV2Statement`, `TestCEMV1065RefusesAReceiptSwapUnderTheOldEnvelope`, `TestCEMV1065RefusesATargetThatIsNotTheSubject`, `TestCEMV1065RefusesALegacyMap`, `TestCEMV1065RefusesConflictingFlags` (`cmd/corvint`) | `prove --attest-cem-v2` over the materialized public case emits four subjects and the accepted target, verifies VERIFIED on all three axes without mutation, and refuses the swap, a foreign target, a `cem/0.x` map and every flag conflict |
-| CEM-V1-065 | `TestCEMV1065AnchorStableMap`, `TestCEMV1065AnchorLegacyUnchanged` (`internal/gitnotes`) | A committed stable map anchors with `cem/1.0` and its sha256, and provenance reads it back verified without mutation; the `cem/0.x` pointer bytes are unchanged; walkthrough in `docs/build-log/2026-10-12-cem-v2-statement.md` |
+| CEM-V1-065 | `TestCEMV1065AnchorStableMap`, `TestCEMV1210AnchorRefusesARetiredMap` (`internal/gitnotes`) | A committed stable map anchors with `cem/1.0` and its sha256, and provenance reads it back verified without mutation; a committed retired `cem/0.x` map refuses `unsupported-spec` with the fix line and writes no note (`CEM-V1-210`); walkthrough in `docs/build-log/2026-10-12-cem-v2-statement.md` |
 
 Rollback: revert `internal/attest/cem_v2.go`, the `V2` field and the v2 parser entry in
 `internal/attest`, `internal/cem/wire/route.go` and its use in `internal/gitnotes/anchor.go`, the
@@ -1416,7 +1416,7 @@ Acceptance evidence:
 | CEM-V1-147 | `TestMapHunksReadsStableMap`, `TestCiteStepAdmitsStableMap`, `TestStableStatusArgumentsAddArtifactRoot`, `TestChangeDCWV0049MarksPreparedStableChoreMap` (`internal/dogfoodflow`) | Hunks and cited count match the parsed map; missing plans keep their reasons; the chore map is marked and never refused; live round trip in `docs/build-log/2026-10-12-v1-1276-dogfood-producer-cem-1-0.md` |
 | CEM-V1-148 | `TestBatchCheckAdmitsStableConstituent` (`internal/dogfoodflow`) | Stable ACCEPT admits with `--artifacts`; a 0.x line, a REJECT and another bind fail `constituent-unverified`; a stable line never proves a 0.x map |
 | CEM-V1-149 | `TestCEMV1149OCMPrepareAdmitsStableProducerMap`, `TestCEMV1149OCMLinkAdmitsStableProducerMap`, `TestCEMV1149OCMPrepareRefusesUnverifiedStableMap`, `TestCEMV1058LegacyOCMLRFAdmissionUnchanged` (`internal/lrfrepo`) | Prepare binds target and patch digest, status is not invalid, resume works; link records a cited stable hunk and the linked map reads valid; a wrong base and a tampered map write nothing; artifacts outside the root fail closed |
-| CEM-V1-150 | `TestCEMV1150StableSidecarGrantsNoReuse`, `TestExplicitSidecarReuseRequiresCanonicalMap` (`internal/localcompletion`) | A committed default (`cem/1.0`) sidecar leaves the check `selected-check-unverified`; a `--spec cem/0.2` sidecar is still reused and drift still refuses |
+| CEM-V1-150 | `TestCEMV1150StableSidecarGrantsNoReuse` (`internal/localcompletion`) | A committed default (`cem/1.0`) sidecar leaves the check `selected-check-unverified`; sidecar-only reuse bound only a retired `cem/0.x` map, so under `CEM-V1-210` no sidecar grants reuse and its 0.x reuse test is retired |
 | CEM-V1-151 | `TestDogfoodFinishRunsFromBinaryInForeignRepository`, `TestTraceGitignoreFinishThenChangeCheckSeal` (`cmd/corvint`) | The default prepare writes `cem/1.0`; finish reports, is reviewed and is satisfied, and the next change checks and seals |
 | CEM-V1-152 | `TestAggregateVerifierStableArtifactRoot` (`internal/dogfoodflow`); `TestAggregateFinishNativeForeignRepository`, `TestTransportAdaptedRecoveryNative` (`cmd/corvint`) | The worker root, or another spelling of it, is admitted; another, relative or NUL-bearing root, a misspelled flag, an extra flag and `--artifacts` on an OCM read are refused; the aggregate finish over a default `cem/1.0` map passes its final check |
 
@@ -1700,7 +1700,13 @@ and the 0.x `cem` CLI routes stay in this stage.
   `tools/cem-citation-baseline`) MUST admit a map only as `cem/1.0`. A map whose `spec` is
   `cem/0.1`, `cem/0.2` or `cem/0.3` MUST refuse with `unsupported-spec` and, where the consumer's
   error shape carries text, the `CEM-V1-200` recovery line (`wire.RetiredSpecFix`). It MUST
-  never be an internal error, a silent fallback to another reader, or a pass. A frozen 0.x
+  never be an internal error, a silent fallback to another reader, or a pass. Three routes keep
+  the code an accepted requirement already assigns: `prove --attest-cem-v2` refuses with
+  `attest-cem-v2-requires-stable-map` (`CEM-V1-065`) and `docs corpus cem-stable` with
+  `corpus-stable-refused` (`CEM-V1-076`), each naming the recovery line in its message, and the
+  MCP report preview maps `unsupported-spec` into its closed, text-free failure set as
+  `cem-map-invalid`. A signed `cem/0` or `cem/v1` attestation still verifies as a claim without
+  map bytes (`NOT_RUN`), and refuses every supplied map with `unsupported-spec`. A frozen 0.x
   profile whose result was defined over a 0.x map (`lrf/0`, `frontier/0`, `tcq/0`,
   `external-frontier-obligations/0`, the attest v0/v1 predicates) now admits no map: a 0.x map
   refuses as above, and a `cem/1.0` map refuses with `unsupported-spec` or takes that profile's
@@ -1720,7 +1726,10 @@ and the 0.x `cem` CLI routes stay in this stage.
   refusal for real; `conformance/cli-parity-v0` retires `lrf-evaluate-supported` with a pinned
   `retired` declaration under decision 0525 (`retiredCaseDecisions`), so replay prints `RETIRED
   ... decision=0525` and `SUMMARY parity=103 retired=30`; the `internal/lrf` conformance corpus
-  keeps its frozen 0.x cases as validator vectors and adds no 0.x consumer path; the core freeze
+  keeps its frozen bytes, runs its validator cases unchanged and skips, as superseded, the four
+  cases that read a 0.x map through the retired repository route (`ocm.no-links`,
+  `context.01-explicit`, `context.01-default`, `failure.structural`; recorded in
+  `docs/specs/lexical-relevance-floor-v0.md`), adding no 0.x consumer path; the core freeze
   retires its open `frontier --json` golden, because no admitted map produces `frontier/0`
   (`CEM-V1-210`), and keeps its 0.x `cem status`/`cem verify` goldens until the 0.x route goes. No
   suite regenerates an expectation from candidate output outside its own regeneration contract.
@@ -1754,7 +1763,7 @@ changes.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-210 | `TestCEMV1210LRFRefusesEveryMapBeforeAnyInput`, `TestCEMV1210OCMRefusesRetiredMap`, `TestCEMV1210FrontierRefusesARetiredMap`, `TestCEMV1210ProveRefusesEveryMapOutsideTheStableRoute`, `TestCEMV1210FrozenObligationsAdmitNoMap`, `TestCEMV1210AnchorRefusesARetiredMap`, `TestCEMV1210LegacyPredicatesRefuseEveryMap`, `TestCEMV1210FixtureRecomputeRefusesEveryMap`, `TestAssembleRefusesRetiredAndStableSources`, `TestExportRefusesRetiredMaps`, `TestReadCEMSourceRefusesRetiredMap`, `TestConsoleChainStableRegistry`, `TestStableCollapseRefusals`, `TestStableCEMProjectionRefusals`, `TestBaselineDCWV0049SplitsRowsByCitationClass`, `TestCEMV1150StableSidecarGrantsNoReuse` | Each retired spec refuses with `unsupported-spec` (and the recovery line where the error carries text); no consumer reads a 0.x map |
+| CEM-V1-210 | `TestCEMV1210LRFRefusesEveryMapBeforeAnyInput`, `TestCEMV1210OCMRefusesRetiredMap`, `TestCEMV1210FrontierRefusesARetiredMap`, `TestCEMV1210ProveRefusesEveryMapOutsideTheStableRoute`, `TestCEMV1210FrozenObligationsAdmitNoMap`, `TestCEMV1210AnchorRefusesARetiredMap`, `TestCEMV1210LegacyPredicatesRefuseEveryMap`, `TestCEMV1210FixtureRecomputeRefusesEveryMap`, `TestAssembleRefusesRetiredAndStableSources`, `TestExportRefusesRetiredMaps`, `TestReadCEMSourceRefusesRetiredMap`, `TestConsoleChainStableRegistry`, `TestStableCollapseRefusals`, `TestStableCEMProjectionRefusals`, `TestBaselineDCWV0049SplitsRowsByCitationClass`, `TestCEMV1150StableSidecarGrantsNoReuse`, `TestCEMV1137StableExperimentAdmission`, `TestCEMV1065RefusesALegacyMap`, `TestCEMReportToolNamesStableRefusals`, `TestCEMAttestationRoundTripsThroughTheExistingEnvelope`, `TestCEMV1StatementBindsBaseAndPatchAndVerifies` | Each retired spec refuses with `unsupported-spec` (and the recovery line where the error carries text); no consumer reads a 0.x map |
 | CEM-V1-211 | `TestCEMReportToolPreviewsCLIReportWithoutPublishing`, `TestCEMReportToolNamesStableRefusals`, `TestContextAndCEMReportAreBoundReadOnlyAndFramed`, `TestCEMV1058LegacyOCMLRFAdmissionUnchanged`, `TestConsoleChainPanelsAgreeOnObligationHunkEdges` | The MCP preview, OCM/LRF universe and console read the stable map; a retired map refuses |
 | CEM-V1-212 | `TestFrozenVectorsMatchTheRealProducer`, `TestRetiredCEMUniverseRefusesThroughTheEntryPoint`, `TestEveryCapabilityNamesWhyItIsOutOfReach`, `TestDecision0308DeclarationsAreClosed`, `TestGPKV0005ManifestWorkerDefault`, `TestConformanceCorpus`, `TestCoreVerbsEmitTheFrozenProfiles` | ocm-v0 vectors refrozen from the `cem/1.0` producer; frontier-v0 skips through `verified-retired-cem` and refuses for real; cli-parity retires one case under decision 0525; the core freeze retires its open-frontier golden |
 | CEM-V1-213 | `TestMarkChoreRoleDCWV0049WritesStableRoleOnly`, `TestStableStatusArgumentsAddArtifactRoot`, `TestBatchCheckCEMV1203RetiredSealHasNoCoverage` | A 0.x map gets no role and no `--artifacts`; a retired seal is not reverified |

@@ -624,6 +624,12 @@ contains the same IDs and one observed-result digest each; `PASS` is valid only 
 observed bytes equal the corresponding frozen expected bytes. A missing preimplementation plan or
 any non-`PASS` row makes the experiment `NOT_RUN`.
 
+Amendment 2026-10-12 (decision 0525 §6, `CEM-V1-212`): the four cases whose action reads a
+`cem/0.x` map through the retired repository route (`ocm.no-links`, `context.01-explicit`,
+`context.01-default`, `failure.structural`) are superseded. Their frozen bytes stay in the corpus
+unchanged; the runner reports them as skipped, so a results row for them is not `PASS` and this
+experiment stays `NOT_RUN` until a reviewed `cem/1.0` companion replaces the plan.
+
 The manifest and payload bundle MUST be an accepted spec-owned companion fixture, not generated or
 chosen by the implementer, producer, or custodian. Its registered exact manifest digest is
 `8509abd6780bb220449f25a85db3d170f4dc6f5a90217e6129995420772d8c6b`. The coverage-ID list alone is

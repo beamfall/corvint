@@ -215,7 +215,11 @@ func TestCEMV1137StableExperimentAdmission(t *testing.T) {
 			}
 		})
 	}
-	// CEM-V1-210: the frozen profile admitted only cem/0.2, which is retired.
+	// CEM-V1-210: the stable profile refuses a retired map with the recovery
+	// line, and the frozen profile admitted only cem/0.2, which is retired.
+	if e := admitCEM(ctx, f.dir, legacyAtTarget, f.legacy, f.stable.ArtifactRoot); cemcode.CodeOf(e) != cemcode.UnsupportedSpec || !strings.Contains(e.Error(), cw.RetiredSpecFix) {
+		t.Fatalf("stable over cem/0.2: %v", e)
+	}
 	if e := admitCEM(ctx, f.dir, frozen, f.legacy, ""); cemcode.CodeOf(e) != cemcode.UnsupportedSpec || !strings.Contains(e.Error(), cw.RetiredSpecFix) {
 		t.Fatalf("frozen over cem/0.2: %v", e)
 	}

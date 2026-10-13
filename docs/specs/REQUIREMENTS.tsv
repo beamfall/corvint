@@ -941,10 +941,10 @@ CEM-V1-202	docs/specs/cem-stable-v1.md	791	`dogfood batch-check` and `dogfood ch
 CEM-V1-203	docs/specs/cem-stable-v1.md	798	A sealed `cem/0.1`, `cem/0.2` or `cem/0.3` map that the range adds and whose
 CEM-V1-204	docs/specs/cem-stable-v1.md	815	The converter (`internal/cem/convert`), `corvint cem convert`
 CEM-V1-210	docs/specs/cem-stable-v1.md	1695	Every consumer outside `internal/cem` (LRF, OCM, the stable universe, frontier
-CEM-V1-211	docs/specs/cem-stable-v1.md	1710	The frontier, LRF/OCM, dashboard, console and MCP projections MUST read the
-CEM-V1-212	docs/specs/cem-stable-v1.md	1714	A frozen conformance suite whose expectations depend on a 0.x map changes only
-CEM-V1-213	docs/specs/cem-stable-v1.md	1727	The daily loop's admission (`CEM-V1-202`) stays `cem/1.0`-only on every route a
-CEM-V1-214	docs/specs/cem-stable-v1.md	1732	A test that guards behavior `cem/1.0` keeps MUST be ported to a `cem/1.0` map
+CEM-V1-211	docs/specs/cem-stable-v1.md	1716	The frontier, LRF/OCM, dashboard, console and MCP projections MUST read the
+CEM-V1-212	docs/specs/cem-stable-v1.md	1720	A frozen conformance suite whose expectations depend on a 0.x map changes only
+CEM-V1-213	docs/specs/cem-stable-v1.md	1736	The daily loop's admission (`CEM-V1-202`) stays `cem/1.0`-only on every route a
+CEM-V1-214	docs/specs/cem-stable-v1.md	1741	A test that guards behavior `cem/1.0` keeps MUST be ported to a `cem/1.0` map
 CEM-V1-230	docs/specs/cem-stable-v1.md	705	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278
 CEM-V1-231	docs/specs/cem-stable-v1.md	720	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278
 CEM-V1-232	docs/specs/cem-stable-v1.md	727	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) The migr

@@ -88,6 +88,18 @@ func TestProveCEMAcceptedMapProvesSupportedHunksAndWritesNothing(t *testing.T) {
 		t.Fatalf("proof: %v", receipt["proof"])
 	}
 	assertProofClaims(t, receipt)
+	verifyCode, verifyStdout, verifyStderr := runCLI(t, "--root", f.repo, "cem", "verify", "--map", "stable.json",
+		"--expected-base", f.base, "--target", f.target, "--artifacts", f.artifacts)
+	if verifyCode != 0 {
+		t.Fatalf("cem verify: %d %s", verifyCode, verifyStderr)
+	}
+	var verifyEnvelope map[string]any
+	if err := json.Unmarshal([]byte(verifyStdout), &verifyEnvelope); err != nil {
+		t.Fatal(err)
+	}
+	if embedded, expected := mustJSON(t, receipt["packet"]), mustJSON(t, verifyEnvelope); string(embedded) != string(expected) {
+		t.Fatalf("embedded document differs from cem verify:\n%s\n%s", embedded, expected)
+	}
 	if stringAt(receipt, "revision") != f.target {
 		t.Fatalf("revision %v is not the target %s", receipt["revision"], f.target)
 	}
@@ -252,6 +264,28 @@ func TestJudgeVerifierVerdicts(t *testing.T) {
 		if got := falsifierFor(proveRow{Kind: "cem-hunk", Authority: authority, Path: "src/app.txt"}); got != want {
 			t.Errorf("%s: got %s want %s", authority, got, want)
 		}
+	}
+}
+
+// TestCEMProofOfAnUnknownHunkIsNotAClaim checks the proof rows that the
+// stable route builds from an accepted map (compileStableCEMProof): an
+// unknown hunk is a cem-unknown row with no falsifier, NOT_RUN, counted as
+// unproven, and a map with no supported hunk is UNPROVEN, never READY. The
+// 0.x CLI test of this was retired with the 0.x route (CEM-V1-214).
+func TestCEMProofOfAnUnknownHunkIsNotAClaim(t *testing.T) {
+	t.Parallel()
+	accepted := map[string]any{"valid": true, "drift": []any{}}
+	document := wire.Map{Hunks: []wire.Hunk{{ID: "hunk:sha256:1", Path: "src/app.txt", NewRange: wire.Range{Start: 3}, Disposition: "unknown", Reason: "insufficient-evidence"}}}
+	rows := cemRows(&document)
+	for index := range rows {
+		rows[index].Falsified = judgeVerifier(rows[index], accepted)
+	}
+	if len(rows) != 1 || rows[0].Authority != "cem-unknown" || rows[0].Falsifier != falsifierNone || rows[0].Falsified != falsifiedNotRun {
+		t.Fatalf("rows = %+v, want one cem-unknown row with no falsifier, NOT_RUN", rows)
+	}
+	summary := summarizeCEMProof(rows)
+	if summary.UnprovenResults != 1 || summary.ProvenResults != 0 || cemState(accepted, summary) != "UNPROVEN" {
+		t.Fatalf("summary %+v state %s, want one unproven result and UNPROVEN", summary, cemState(accepted, summary))
 	}
 }
 

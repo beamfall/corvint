@@ -74,6 +74,11 @@ func admitCEM(ctx context.Context, repoPath string, r Request, raw []byte, artif
 // capture and verification.
 func validateStableCEM(ctx context.Context, repoPath string, r Request, raw []byte, artifactRoot string) error {
 	if !cw.DeclaresStable(raw) {
+		// A retired cem/0.x map refuses with unsupported-spec and the
+		// recovery line (CEM-V1-210).
+		if _, e := cw.ParseStable(raw); e != nil {
+			return e
+		}
 		return fmt.Errorf("only cem/1.0 admitted by %s", StableProfile)
 	}
 	result, exit := verify.Stable(ctx, raw, verify.StableOptions{Repository: repoPath, ExpectedBase: r.Base, Target: r.Target, ArtifactRoot: artifactRoot})

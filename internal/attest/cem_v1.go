@@ -103,11 +103,11 @@ func parseCEMStatementV1(payload []byte) (CEMVerification, error) {
 	})
 }
 
-// checkCEMV1Map refuses cem bytes, already matched to the signed digest: a v1
-// claim binds the base and patch of a cem/0.x map, which is retired, so no map
+// checkRetiredClaimMap refuses cem bytes, already matched to the signed
+// digest: a cem/0 or v1 claim names a cem/0.x map, which is retired, so no map
 // is read to confirm it (CEM-V1-210), and a cem/1.0 map still refuses
 // (CEM-V1-065).
-func checkCEMV1Map(_ CEMVerification, cem []byte) error {
+func checkRetiredClaimMap(cem []byte) error {
 	err := retiredPredicateMap(cem)
 	return fmt.Errorf("attest: attested CEM bytes are not an admissible map: %w", errors.Unwrap(err))
 }

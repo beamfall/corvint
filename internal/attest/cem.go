@@ -77,8 +77,8 @@ type cemStatement struct {
 // reference to that map: name, sha256 digest, byte size, and CEM spec. The
 // cem/0 predicate attests a cem/0.x map, which is retired, and never a cem/1.0
 // map (CEM-V1-065), so it now refuses an empty name and every map
-// (CEM-V1-210); VerifyCEM still checks an existing signed claim by digest and
-// size only.
+// (CEM-V1-210); VerifyCEM still verifies an existing signed claim, but refuses
+// every supplied map.
 func CEMStatement(name string, cem []byte) ([]byte, error) {
 	if name == "" {
 		return nil, errors.New("attest: CEM name must be non-empty")
@@ -113,9 +113,10 @@ func VerifyCEM(envelope []byte, publicKey ed25519.PublicKey, cem []byte) (CEMVer
 	return checkCEMBytes(claim, cem)
 }
 
-// checkCEMBytes returns claim NOT_RUN for nil cem, and otherwise VERIFIED when
-// cem has the signed sha256 and size and, for a CEMPredicateTypeV1 claim, the
-// signed baseRevision and patchSha256.
+// checkCEMBytes returns claim NOT_RUN for nil cem. Supplied bytes must have the
+// signed sha256 and size, and are then refused: a cem/0 or cem/v1 claim names
+// a retired cem/0.x map, so neither is ever VERIFIED against map bytes
+// (CEM-V1-210).
 func checkCEMBytes(claim CEMVerification, cem []byte) (CEMVerification, error) {
 	if cem == nil {
 		claim.Status, claim.Reason = CEMNotRun, cemBytesNotSupplied
@@ -128,13 +129,7 @@ func checkCEMBytes(claim CEMVerification, cem []byte) (CEMVerification, error) {
 	if int64(len(cem)) != claim.Size {
 		return CEMVerification{}, fmt.Errorf("%w: size", ErrCEMBytesMismatch)
 	}
-	if claim.PredicateType == CEMPredicateTypeV1 {
-		if err := checkCEMV1Map(claim, cem); err != nil {
-			return CEMVerification{}, err
-		}
-	}
-	claim.Status = CEMVerified
-	return claim, nil
+	return CEMVerification{}, checkRetiredClaimMap(cem)
 }
 
 // parseCEMStatement reads a verified payload as a CEM statement and returns

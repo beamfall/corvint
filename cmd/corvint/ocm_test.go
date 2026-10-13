@@ -1044,6 +1044,28 @@ func TestV11305StableReportOCM(t *testing.T) {
 		}
 	}
 
+	// CEM-PILOT-029/032 on the stable map: the invalid OCM keeps its verdict,
+	// state and escaped issue code in Markdown, binds the JSON record set and
+	// infers no obligation join.
+	invalidSet := review["recordSetSha256"]
+	code, envelope, stderr = report("markdown")
+	if code != 1 || envelope["ok"] != false || strings.Contains(stderr, "internal-error") {
+		t.Fatalf("invalid OCM markdown: exit %d envelope %v stderr %q", code, envelope, stderr)
+	}
+	path, _ := envelope["report"].(string)
+	text, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("invalid OCM markdown report %q: %v", path, err)
+	}
+	for _, want := range []string{"- OCM validity: `false`\n", "- OCM state: `invalid`\n", "`cem-map-digest-mismatch`", invalidSet.(string)} {
+		if !strings.Contains(string(text), want) {
+			t.Fatalf("invalid OCM markdown lacks %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(string(text), "Obligation `TM-V0-008`") {
+		t.Fatalf("invalid OCM markdown joined an obligation:\n%s", text)
+	}
+
 	cemWrite(t, root, ocmPath, string(stablefixture.RebindOCM(t, preparedOCM, stable.Target, stablefixture.Digest(stable.Map))))
 	code, envelope, stderr = report("json")
 	if code != 0 || envelope["ok"] != true || stderr != "" {

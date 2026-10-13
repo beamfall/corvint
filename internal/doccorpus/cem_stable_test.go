@@ -95,6 +95,9 @@ func TestStableCEMProjectionRefusals(t *testing.T) {
 		if !errors.As(err, &corpusErr) || corpusErr.Code != "corpus-stable-refused" || receipt["outcome"] != "REFUSED" || len(receipt["claims"].([]any)) != 0 {
 			t.Fatalf("%s: %v %v", name, err, receipt)
 		}
+		if retired := strings.Contains(string(data), `"spec":"cem/0.`); retired != strings.Contains(corpusErr.Message, wire.RetiredSpecFix) {
+			t.Fatalf("%s: message %q names the recovery line=%v, want %v (CEM-V1-210)", name, corpusErr.Message, !retired, retired)
+		}
 		if result := receipt["cem_verification"].(verify.StableResult); result.Outcome == "ACCEPT" {
 			t.Fatalf("%s: refused receipt carries an ACCEPT result", name)
 		}

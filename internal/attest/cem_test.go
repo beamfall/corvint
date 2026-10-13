@@ -78,8 +78,9 @@ func signedCEM(t *testing.T, cem []byte) ([]byte, ed25519.PublicKey) {
 
 // TestCEMAttestationRoundTripsThroughTheExistingEnvelope checks FPK-V0-030:
 // the CEM statement signs and verifies through Envelope/Verify, its subject and
-// predicate carry an independently computed digest, and VerifyCEM reports the
-// supplied bytes as VERIFIED.
+// predicate carry an independently computed digest, VerifyCEM reports the claim
+// NOT_RUN without bytes, and it refuses the matching retired map bytes
+// (CEM-V1-210).
 func TestCEMAttestationRoundTripsThroughTheExistingEnvelope(t *testing.T) {
 	cem := cemFixture(t)
 	envelope, publicKey := signedCEM(t, cem)
@@ -107,13 +108,16 @@ func TestCEMAttestationRoundTripsThroughTheExistingEnvelope(t *testing.T) {
 		t.Error("predicate embeds CEM bytes; FPK-V0-030 carries a content-addressed reference only")
 	}
 
-	got, err := VerifyCEM(envelope, publicKey, cem)
+	got, err := VerifyCEM(envelope, publicKey, nil)
 	if err != nil {
 		t.Fatalf("VerifyCEM: %v", err)
 	}
-	want := CEMVerification{Name: cemFixtureName, SHA256: wantDigest, Size: int64(len(cem)), Spec: "cem/0.1", Status: CEMVerified}
+	want := CEMVerification{Name: cemFixtureName, SHA256: wantDigest, Size: int64(len(cem)), Spec: "cem/0.1", Status: CEMNotRun, Reason: cemBytesNotSupplied}
 	if got != want {
 		t.Errorf("VerifyCEM = %#v, want %#v", got, want)
+	}
+	if got, err := VerifyCEM(envelope, publicKey, cem); cemcode.CodeOf(err) != cemcode.UnsupportedSpec || !strings.Contains(err.Error(), wire.RetiredSpecFix) {
+		t.Errorf("VerifyCEM over the retired map = %#v, %v; want unsupported-spec with the recovery line", got, err)
 	}
 }
 
@@ -323,8 +327,8 @@ func TestCEMAttestationAcceptsUnknownStatementMembers(t *testing.T) {
 		withExtension := strings.Replace(statement, `{"_type":`, `{"extension":{"a":1},"_type":`, 1)
 		return strings.Replace(withExtension, `"size":`, `"note":"x","size":`, 1)
 	})
-	got, err := VerifyCEM(envelope, publicKey, cemFixture(t))
-	if err != nil || got.Status != CEMVerified {
-		t.Fatalf("VerifyCEM = %#v, %v; want VERIFIED", got, err)
+	got, err := VerifyCEM(envelope, publicKey, nil)
+	if err != nil || got.Status != CEMNotRun {
+		t.Fatalf("VerifyCEM = %#v, %v; want the claim NOT_RUN", got, err)
 	}
 }

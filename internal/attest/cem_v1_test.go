@@ -103,13 +103,16 @@ func TestCEMV1StatementBindsBaseAndPatchAndVerifies(t *testing.T) {
 	}
 
 	v0Envelope, v0Key := signedCEM(t, cem)
-	v0Claim, err := VerifyCEM(v0Envelope, v0Key, cem)
+	v0Claim, err := VerifyCEM(v0Envelope, v0Key, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	v0Claim.PredicateType = CEMPredicateType
-	if got, err := VerifyCEMPredicate(v0Envelope, v0Key, cem); err != nil || got != v0Claim {
+	if got, err := VerifyCEMPredicate(v0Envelope, v0Key, nil); err != nil || got != v0Claim {
 		t.Errorf("VerifyCEMPredicate(v0) = %#v, %v; want %#v", got, err, v0Claim)
+	}
+	if got, err := VerifyCEMPredicate(v0Envelope, v0Key, cem); cemcode.CodeOf(err) != cemcode.UnsupportedSpec {
+		t.Errorf("VerifyCEMPredicate(v0 bytes) = %#v, %v; want the retired cem/0.x refusal", got, err)
 	}
 }
 
