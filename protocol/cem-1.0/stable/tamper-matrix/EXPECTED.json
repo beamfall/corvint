@@ -475,6 +475,18 @@
       "outcome": "REJECT",
       "stage": "verification",
       "tamper": "MechanicalClaim"
+    },
+    {
+      "citation": null,
+      "code": "invalid-field",
+      "description": "the first hunk repeats its own (evidenceId, relation) basis pair",
+      "exit": 2,
+      "issueCodes": [],
+      "map": "cases/basis-pair-duplicated.json",
+      "name": "basis-pair-duplicated",
+      "outcome": "REJECT",
+      "stage": "wire",
+      "tamper": "BasisPairDuplicate"
     }
   ],
   "profile": "cem-stable-tamper-matrix/1",

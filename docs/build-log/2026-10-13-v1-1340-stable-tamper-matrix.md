@@ -17,14 +17,14 @@ portable consumer kept its own separate cases. This lane adds one tamper matrix 
 
 - **Placement.** The matrix is `protocol/cem-1.0/stable/tamper-matrix/`, beside the other public
   stable cases (`neutral-criterion/`, `receipt-authentication/`), using the same recipe-repository
-  shape. Its 22 files are added to the stable `manifest.json`; no existing packet file changes.
+  shape. Its 23 files are added to the stable `manifest.json`; no existing packet file changes.
   The status label is the packet's own `PROPOSED / EXPERIMENTAL`; no frozen V1-1333 wording is
   touched.
 - **Fixture.** The two-commit greeting repository has a `SPEC.md` that defines `GRT-001` and
   `GRT-002`. Each target hunk names its requirement ID, and each cited line names the hunk's file.
   The clean map is therefore `anchored` on both hunks (anchors `id` and `path`, specificity 2), so
   a tamper that weakens the citation shows up as a tier change. The clean map came from
-  `corvint cem prepare` plus `cem cite`. The 18 tampered maps were built once from it by a scratch
+  `corvint cem prepare` plus `cem cite`. The 19 tampered maps were built once from it by a scratch
   script, with each evidence ID recomputed only where the case description says so. The script is
   not committed: the committed maps and `EXPECTED.json` are the contract.
 - **Expectation shape (`CEM-V1-228`).** Each case pins `exit`, `outcome`, `stage`, `code`,
@@ -57,6 +57,12 @@ portable consumer kept its own separate cases. This lane adds one tamper matrix 
   both canonical evidence loops refuse that span as `evidence-unavailable` before slicing. Both
   hunk-count checks emit `patch-hunk-count`. The old portable checks that came later stay in place
   as unreachable defence.
+- **Independent review (one Codex read-only round, `94a7d3dc..4e03ff0a`): CONCERNS, one finding,
+  confirmed and fixed.** The new portable wire check missed a basis pair repeated within one hunk.
+  The native decoder (`internal/cem/wire/map.go`, "duplicate basis pair") and the inherited text
+  refuse that at the wire stage as `invalid-field`, but the portable consumer reached verification
+  first. `stableEvidenceReferences` now refuses a repeated `(evidenceId, relation)` pair, and the
+  matrix gained case `basis-pair-duplicated`. Both consumers return wire `invalid-field` for it.
 
 ## Matrix
 
@@ -81,6 +87,7 @@ portable consumer kept its own separate cases. This lane adds one tamper matrix 
 | `extra-basis` | ExtraBasis | 0 | ACCEPT; anchored 2, specificity 1 |
 | `producer-tier-field` | ProducerTier | 2 | REJECT wire `unknown-field` |
 | `mechanical-unproven` | MechanicalClaim | 1 | REJECT verification `unproven-mechanical` |
+| `basis-pair-duplicated` | BasisPairDuplicate | 2 | REJECT wire `invalid-field` |
 
 ## Failure modes
 
@@ -97,15 +104,18 @@ portable consumer kept its own separate cases. This lane adds one tamper matrix 
 
 ## Acceptance evidence
 
-- `TestCEMV1226TamperMatrixNative` (`internal/cem/verify/stable_tamper_matrix_test.go`): PASS, 19 case
+- `TestCEMV1226TamperMatrixNative` (`internal/cem/verify/stable_tamper_matrix_test.go`): PASS, 20 case
   subtests. Run as part of
   `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/cem/... ./internal/frontier/... ./internal/cemcandidate/... ./tools/cem-stable-regen/...`:
   every package `ok`, except one flaky `internal/cem/gitrun` run (see Limits). That package is
-  untouched; a rerun of it alone passed (`ok internal/cem/gitrun 7.195s`).
+  untouched; a rerun of it alone passed (`ok internal/cem/gitrun 7.195s`). After the review fix,
+  `go test -count=1 -run 'TestCEMV1226|Manifest|Stable' ./internal/cem/verify/` gave
+  `ok internal/cem/verify 450.390s`, with 20 case subtests passing.
 - `TestCEMV1226TamperMatrixPortable` (`interop/cem01-go/stable_tamper_matrix_test.go`): PASS.
   Full portable suite `(cd interop/cem01-go && GOTOOLCHAIN=local go test -count=1 -timeout 30m ./...)`:
-  `ok interop/cem01-go 397.190s`. `go vet ./...` there: rc 0.
-- Before this change, a scratch differential run of both consumers over all 19 maps found five
+  `ok interop/cem01-go 397.190s`, and `ok interop/cem01-go 451.884s` after the review fix. `go vet ./...`
+  there: rc 0 both times.
+- Before this change, a scratch differential run of both consumers over the first 19 maps found five
   different results (the table above). After the portable alignment, every case agrees on the full
   stable result except `runtime`.
 - `make cem-stable-regen-check`: `PASS (56 cases x 23 keys; packet manifest 9423e789...)`. The new
@@ -143,6 +153,7 @@ portable consumer kept its own separate cases. This lane adds one tamper matrix 
 
 ## Rollback
 
-Revert the V1-1340 commit. The matrix directory and its 22 manifest entries are removed. The
-portable consumer goes back to its earlier codes for the five cases above. No committed map, seal,
+Revert the V1-1340 commits. The matrix directory and its 23 manifest entries are removed. The
+portable consumer goes back to its earlier codes for the five cases above and for a repeated
+basis pair. No committed map, seal,
 golden or task record depends on those codes or on the matrix.

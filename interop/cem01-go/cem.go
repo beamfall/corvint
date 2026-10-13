@@ -3178,8 +3178,9 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 
 // stableEvidenceReferences applies the map-local wire checks that the inherited
 // cem/0.3 algorithms keep for cem/1.0 (CEM-V1-228): a duplicate evidence ID, a
-// basis naming no evidence record and an uncited evidence record are all
-// `invalid-field` at the wire stage, before any repository read.
+// basis naming no evidence record, a duplicate basis pair within one hunk and an
+// uncited evidence record are all `invalid-field` at the wire stage, before any
+// repository read.
 func stableEvidenceReferences(m stableMap) *cemError {
 	ids, cited := map[string]bool{}, map[string]bool{}
 	for _, ev := range m.Evidence {
@@ -3189,10 +3190,13 @@ func stableEvidenceReferences(m stableMap) *cemError {
 		ids[ev.ID] = true
 	}
 	for _, h := range m.Hunks {
+		pairs := map[string]bool{}
 		for _, b := range h.Basis {
-			if !ids[b.EvidenceID] {
+			key := b.EvidenceID + "\x00" + b.Relation
+			if !ids[b.EvidenceID] || pairs[key] {
 				return invalid("invalid-field")
 			}
+			pairs[key] = true
 			cited[b.EvidenceID] = true
 		}
 	}

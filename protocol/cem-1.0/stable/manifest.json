@@ -193,13 +193,18 @@
     },
     {
       "path": "tamper-matrix/EXPECTED.json",
-      "sha256": "80a8d48636b0cdc74fadc287fb0ef231ee11904d835c77e13002f3e1fda58505",
-      "bytes": 14114
+      "sha256": "3f2d6ef52ef9efeee4a9518311a3186b14fa68549137df5f6f0a5299962d7a06",
+      "bytes": 14487
     },
     {
       "path": "tamper-matrix/README.md",
       "sha256": "f8a3971d2bdd583ad86c91efeb33b12d612b3693069878b043ac3e18e278ed79",
       "bytes": 2274
+    },
+    {
+      "path": "tamper-matrix/cases/basis-pair-duplicated.json",
+      "sha256": "5be05cb79aa4a245a51092004cca998118f7fa15b2e46dc9808bdf1aadaab9be",
+      "bytes": 1689
     },
     {
       "path": "tamper-matrix/cases/evidence-dropped.json",

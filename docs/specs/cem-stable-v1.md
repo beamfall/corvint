@@ -1953,8 +1953,9 @@ acceptance.
   `exit`, `outcome`, `stage`, `code`, `issueCodes` and `citation`. A REJECT pins the exact stage and
   closed code (`code` for the wire and references stages, `issueCodes` for verification) and a null
   `citation`. An ACCEPT pins the whole `cem-citation-support/0` block. The pinned codes follow the
-  inherited normative text: a duplicate evidence ID, a basis naming no evidence record, and an
-  evidence record no basis cites are map-local wire checks refused `invalid-field`. An empty or
+  inherited normative text: a duplicate evidence ID, a basis naming no evidence record, a basis
+  pair repeated within one hunk, and an evidence record no basis cites are map-local wire checks
+  refused `invalid-field`. An empty or
   reversed span is admitted by the wire and refused at verification as `evidence-unavailable`, as
   is a span past the end of its blob. A map whose hunk count differs from the canonical patch is
   the verification issue `patch-hunk-count`, the stable closed name for the inherited `uncited-hunk`.
@@ -1974,7 +1975,8 @@ required tamper class fails the coverage check in both tests.
 
 Rollback: revert the V1-1340 commit. The matrix directory and its manifest entries go away, and
 the portable consumer returns to `invalid-field` for a hunk-count mismatch, to `unresolved-reference`
-or verification `invalid-field` for an unknown basis or uncited evidence, and to a wire
+or verification `invalid-field` for an unknown basis, uncited evidence or a repeated basis pair,
+and to a wire
 `invalid-field` for an empty or reversed span. No committed map, seal or golden depends on those
 codes.
 
@@ -1983,6 +1985,6 @@ codes.
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-226 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Both check every matrix file against the stable manifest and the required tamper classes |
-| CEM-V1-227 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Each runs all 19 cases from `EXPECTED.json` as named subtests |
+| CEM-V1-227 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Each runs all 20 cases from `EXPECTED.json` as named subtests |
 | CEM-V1-228 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Exit, outcome, stage, code, issue codes and the full citation block are compared per case |
 | CEM-V1-229 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Subtest `evidence-ids-swapped` pins ACCEPT with anchored 0, cited 2 and specificity -2 |
