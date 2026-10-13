@@ -129,7 +129,11 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 		}
 		if options.Citation {
 			if document, _ := wire.ParseStable(raw); document != nil {
-				envelope["citationClass"] = StableCitationClass(document.EffectiveRole())
+				paths := make([]string, 0, len(document.Change.Hunks))
+				for _, hunk := range document.Change.Hunks {
+					paths = append(paths, hunk.Path)
+				}
+				envelope["citationClass"] = StableCitationClass(document.EffectiveRole(), paths)
 			}
 		}
 		if limited {
@@ -206,23 +210,53 @@ func (s *Session) stableReport(ctx context.Context, action, repository string, r
 	return envelope, nil
 }
 
-// Stable citation classes group `cem status --citation` maps by role: a
-// bind-chore or seal-chore map records evidence of the bind loop itself, so
-// its citation shape is never read as a change's (CEM-V1-106, DCW-V0-049).
+// Stable citation classes group `cem status --citation` maps: a bind-chore or
+// seal-chore map records evidence of the bind loop itself, and a record map
+// changes only evidence records, so neither citation shape is read as a
+// change's (CEM-V1-106, CEM-V1-170, DCW-V0-049, DCW-V0-057).
 const (
 	StableCitationClassChange = "change"
 	StableCitationClassChore  = "chore"
+	StableCitationClassRecord = "record"
 )
 
 // StableCitationClass returns the status citationClass member for an
-// effective role: class "change" for the change role and "chore" for any
-// other, beside the role itself.
-func StableCitationClass(role string) map[string]any {
+// effective role and the map's hunk paths: class "chore" for any role other
+// than change; for the change role, class "record" when the hunks name at
+// least one evidence-record path and every other hunk path is a CEM sidecar
+// path, and "change" otherwise; beside the role itself. The record rule is
+// internal/dogfoodflow.RecordChange applied to hunk paths; keep the two in
+// step (CEM-V1-170, DCW-V0-057).
+func StableCitationClass(role string, paths []string) map[string]any {
 	class := StableCitationClassChange
-	if role != wire.StableRoleChange {
+	switch {
+	case role != wire.StableRoleChange:
 		class = StableCitationClassChore
+	case stableRecordPaths(paths):
+		class = StableCitationClassRecord
 	}
 	return map[string]any{"class": class, "role": role}
+}
+
+// stableRecordPaths reports hunk paths that name at least one path under
+// docs/build-log/ or .agent-evidence/ and otherwise only
+// .corvint/change.cem.json or .corvint/changes/<NAME>.cem.json (DCW-V0-057).
+func stableRecordPaths(paths []string) bool {
+	record := false
+	for _, path := range paths {
+		build, isBuild := strings.CutPrefix(path, "docs/build-log/")
+		evidence, isEvidence := strings.CutPrefix(path, ".agent-evidence/")
+		name, isChanges := strings.CutPrefix(path, ".corvint/changes/")
+		stem, sealed := strings.CutSuffix(name, ".cem.json")
+		switch {
+		case isBuild && build != "", isEvidence && evidence != "":
+			record = true
+		case path == ".corvint/change.cem.json", isChanges && sealed && stem != "" && !strings.Contains(stem, "/"):
+		default:
+			return false
+		}
+	}
+	return record
 }
 
 // maxStableOCMBytes bounds a supplied OCM exactly as the 0.x review reader does.

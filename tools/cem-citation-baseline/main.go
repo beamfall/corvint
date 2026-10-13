@@ -10,11 +10,13 @@
 //
 // and writes one JSON row per map to stdout, in the baseline row shape plus a
 // "class" member. A cem/1.0 map takes its class from the status envelope's
-// citationClass (CEM-V1-106). A retired cem/0.x map is never read: its row is
+// citationClass: change, chore, or record for a map whose hunks change only
+// evidence records (CEM-V1-106, CEM-V1-170, DCW-V0-059). A retired cem/0.x map is never read: its row is
 // the stable reader's unsupported-spec refusal with its fix line and no class,
 // so the summary counts it as unclassified (CEM-V1-210). A map whose status
 // carries no citation block is an error row and an ERR line on stderr.
-// --summary writes the aggregate for all maps and for each class.
+// --summary writes the aggregate for all maps and for each class, record
+// separately from change.
 //
 // An accepted map row also carries three arms scored by the verifier's own
 // tier rules (DCW-V0-051..056): authored (the map's bases), grepbot (bases a
@@ -68,6 +70,7 @@ import (
 const (
 	classChange = "change"
 	classChore  = "chore"
+	classRecord = "record"
 )
 
 // tiers are the citation tiers, in the baseline's key order.
@@ -334,7 +337,8 @@ func summarize(rows []row) ordered {
 	for _, r := range rows {
 		byClass[r.class] = append(byClass[r.class], r)
 	}
-	out := ordered{{"all", aggregate(rows)}, {classChange, aggregate(byClass[classChange])}, {classChore, aggregate(byClass[classChore])}}
+	out := ordered{{"all", aggregate(rows)}, {classChange, aggregate(byClass[classChange])}, {classChore, aggregate(byClass[classChore])},
+		{classRecord, aggregate(byClass[classRecord])}}
 	if unresolved := byClass[""]; len(unresolved) > 0 {
 		out = append(out, member{"unclassified", aggregate(unresolved)})
 	}

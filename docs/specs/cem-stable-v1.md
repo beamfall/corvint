@@ -66,6 +66,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-210..214 | Consumer refusals in `internal/lrfrepo`, `internal/frontier*`, `internal/extevidence`, `cmd/corvint/prove.go`, `internal/attest`, `internal/gitnotes`, `internal/console`, `internal/cem/workflow/read.go`, `internal/receiptbundle`, `internal/witness*`, `internal/doccorpus`, `internal/criterionexperiment`, `internal/cemcandidate`, `internal/localcompletion`, `tools/local-authority`, `tools/cem-citation-baseline`; conformance supersessions in `conformance/ocm-v0`, `conformance/frontier-v0` and `conformance/cli-parity-v0`; tests in the consumer cem/1.0 admission traceability table | S2b deletes the 0.x wire, verifier, `patch`, producers and `cem` CLI routes; S3 the protocol and interop 0.x packets |
 | CEM-V1-215..219 | Deleted 0.x wire, verifier and producers in `internal/cem/wire`, `internal/cem/verify`, `internal/cem/workflow` and `internal/cem/cli`; retired `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes; `internal/attest/cem.go` retired-predicate refusal; regenerated `cmd/corvint/testdata/core-freeze` and `conformance/cli-parity-v0` declarations; tests listed under "Core 0.x removal traceability"; evidence `docs/build-log/2026-10-12-v1-1278-s2b-core-removal.md` | The `protocol/`, `interop/`, `examples/cem` and `conformance/cem-0.1` 0.x packets and their consumers remain for S3; the lrf-v0 corpus and frontier-v0 tier are retired whole, not ported |
 | CEM-V1-220..225 | Deleted `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`, `conformance/cem-0.2`, `examples/cem` (except the 0.x-free `experiments/` companion demo), `docs/CEM-CI.md`, `tools/cem-interop-runner` and `script/cem-recipes_test.sh`; `protocol/cem-1.0/stable/inherited/cem-0.3-algorithms.md`; `interop/cem01-go/testdata/inherited-vectors/`; the retired route in `interop/cem01-go/main.go`; `stableStatusArguments` in `internal/dogfoodflow/change.go`; tests listed under "Packet retirement traceability"; evidence `docs/build-log/2026-10-13-v1-1278-s3-retire-packets.md` | The 0.x packets stay readable in Git history only; the portable consumer verifies `cem/1.0` only; the retired specs keep their bodies and requirement IDs as history |
+| CEM-V1-170 | `internal/cem/workflow/stable_read.go` `StableCitationClass`, `stableRecordPaths`; `TestCEMV1170StatusCitationClassRecord` in `internal/cem/cli` | Committed record maps, which carry no role, are classified from their hunk paths retroactively; the portable consumer has no status envelope and is unchanged |
 | CEM-V1-106 | `internal/cem/workflow/stable_read.go` `StableCitationClass` and the `status` branch of `readStable`; `TestCEMV1106StatusCitationClassGroupsChoreMaps` in `internal/cem/cli` | No producer writes `role` before the V1-1276 cutover, so every committed map reads class `change`; the portable consumer has no status envelope and is unchanged |
 | CEM-V1-065 | `CEMStatementV2` and the v2 verifier in `internal/attest/cem_v2.go`; `prove --attest-cem-v2` and `--verify-cem-attestation --artifacts/--target` in `cmd/corvint/prove_attest_cem.go`; stable routing in `internal/gitnotes/anchor.go` (`wire.ParseStable`; the `wire.ParseRouted` 0.x router in `internal/cem/wire/route.go` was deleted by V1-1278 S2b, `CEM-V1-215`); `TestCEMV1065*` in `internal/attest`, `cmd/corvint` and `internal/gitnotes` | No verdict ledger; no signing producer or key management; v2 emission needs full-OID `--expected-base` and `--target` and an ACCEPT result; no independent consumer of `cem/v2` |
 
@@ -681,10 +682,18 @@ measure needs to keep those maps apart from change maps without reading the role
   parse, and every other read keep their envelope unchanged. `stableVerification` stays exactly
   what `cem verify-stable` reports for the same arguments; the class is not a result member, so
   "the result MUST NOT echo it" in `CEM-V1-095` still holds, and the role changes no outcome,
-  issue, tier or citation block.
+  issue, tier or citation block. Amended 2026-10-13 (V1-1344): for role `change`, `class` is
+  `record` when `CEM-V1-170` holds, otherwise `change`.
+- `CEM-V1-170`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a map
+  whose effective role is `change`, `citationClass.class` MUST be `record` when its hunk paths name
+  at least one path under `docs/build-log/` or `.agent-evidence/` (nonempty remainder) and every
+  other hunk path is `.corvint/change.cem.json` or `.corvint/changes/NAME.cem.json`, NAME one
+  nonempty segment (`DCW-V0-057`); `role` stays `change`. A bind-chore or seal-chore map stays
+  `chore` whatever its paths, and a map with no hunks is `change`.
 
 Non-goals: no `role` or class in `RESULT.schema.json`, the stable result struct, the 0.x
-verification object or the portable consumer; no class for a `cem/0.x` map, which has no role.
+verification object or the portable consumer; no class for a `cem/0.x` map, which has no role; no
+`record` role value.
 
 Failure modes: a map that fails verification still reports its class when its wire parses, so a
 rejected chore map stays out of the change-map measure; a map whose wire does not parse has no
@@ -694,11 +703,13 @@ Acceptance evidence:
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
+| CEM-V1-170 | `TestCEMV1170StatusCitationClassRecord` (`internal/cem/cli`); `TestDogfoodDCWV0058RecordChangeBindsChecksAndSeals` (`cmd/corvint`) | Rewritten hunk paths under `docs/build-log/` or `.agent-evidence/`, alone or with a sidecar path, give class `record` with role `change`; a code path or only a sidecar path gives `change`; a bind-chore role gives `chore`; a dogfood-sealed record map reads `record`; build log `docs/build-log/2026-10-13-v1-1344-record-citation-class.md` |
 | CEM-V1-106 | `TestCEMV1106StatusCitationClassGroupsChoreMaps` (`internal/cem/cli`) | Status without `--citation` has no `citationClass`; with it, a map with no role is class `change`, and re-encoded roles `change`, `bind-chore` and `seal-chore` give their class; each `stableVerification` equals `cem verify-stable` with no `role` key, and the outcome, issue codes and citation block match across roles; build log `docs/build-log/2026-10-12-dogfood-per-hunk-citations.md` |
 
 Rollback: revert the `--citation` branch of the stable `status` read and `StableCitationClass` in
 `internal/cem/workflow/stable_read.go`; the envelope loses `citationClass`, and no map, result or
-sealed artifact changes.
+sealed artifact changes. Roll back `CEM-V1-170` alone by reverting `stableRecordPaths`: record maps
+read class `change` again.
 
 ## Committed map migration (V1-1277, decision 0525 §3 step 6)
 

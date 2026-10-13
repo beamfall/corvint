@@ -177,6 +177,75 @@ func TestBaselineDCWV0049SplitsRowsByCitationClass(t *testing.T) {
 	}
 }
 
+// DCW-V0-059, CEM-V1-170: a map whose hunks change only evidence records is
+// a record row, summarized apart from change, and a change touching both a
+// build-log entry and code stays class change.
+func TestBaselineDCWV0059SplitsRecordRows(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "init", "-q", "-b", "main")
+	write(t, root, "docs/spec.md", "one\ntwo\nthree\n")
+	write(t, root, "a.txt", "a\n")
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "base")
+	base := git(t, root, "rev-parse", "HEAD")
+	write(t, root, "docs/build-log/2026-10-13-x.md", "entry\n")
+	write(t, root, ".agent-evidence/x/run.txt", "run\n")
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "record")
+	record := git(t, root, "rev-parse", "HEAD")
+	if err := os.MkdirAll(filepath.Join(root, ".corvint", "changes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	bindMap(t, root, base, record, "", 2)
+	write(t, root, "docs/build-log/2026-10-13-y.md", "entry\n")
+	write(t, root, "a.txt", "a\nmore a\n")
+	git(t, root, "add", "a.txt", "docs/build-log")
+	git(t, root, "commit", "-qm", "mixed")
+	mixed := git(t, root, "rev-parse", "HEAD")
+	bindMap(t, root, record, mixed, "", 2)
+
+	summaryPath := filepath.Join(t.TempDir(), "summary.json")
+	var stdout, stderr bytes.Buffer
+	if exit := run(context.Background(), []string{"--root", root, "--summary", summaryPath}, &stdout, &stderr); exit != 0 {
+		t.Fatalf("exit %d\n%s", exit, stderr.String())
+	}
+	rows := map[string]map[string]any{}
+	for _, line := range strings.Split(strings.TrimSpace(stdout.String()), "\n") {
+		var row map[string]any
+		if err := json.Unmarshal([]byte(line), &row); err != nil {
+			t.Fatalf("row %q: %v", line, err)
+		}
+		rows[row["map"].(string)] = row
+	}
+	if row := rows[record]; row["class"] != "record" || row["valid"] != true || row["hunksTotal"] != float64(2) {
+		t.Errorf("record row = %v", row)
+	}
+	if row := rows[mixed]; row["class"] != "change" || row["valid"] != true {
+		t.Errorf("mixed row = %v", row)
+	}
+	data, err := os.ReadFile(summaryPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var summary map[string]map[string]any
+	if err := json.Unmarshal(data, &summary); err != nil {
+		t.Fatal(err)
+	}
+	for _, check := range []struct {
+		class, key string
+		want       float64
+	}{
+		{"all", "maps", 2}, {"change", "maps", 1}, {"chore", "maps", 0}, {"record", "maps", 1}, {"record", "hunks", 2},
+	} {
+		if got := summary[check.class][check.key]; got != check.want {
+			t.Errorf("summary %s.%s = %v; want %v", check.class, check.key, got, check.want)
+		}
+	}
+}
+
 // The rows keep the baseline's Python json.dumps encoding, so a row for an
 // unchanged map compares byte for byte apart from its class member.
 func TestBaselineRowKeepsThePythonEncoding(t *testing.T) {
