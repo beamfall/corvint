@@ -11,6 +11,9 @@ import (
 // retiredFix is the remediation printed with every refusal of a retired cem/0.x map.
 const retiredFix = "cem/0.x is retired (decision 0525); regenerate the map as cem/1.0 and run verify-stable-canonical"
 
+// invocationFix is the remediation printed for every other invocation outside the cem/1.0 commands.
+const invocationFix = "use verify-stable-canonical, verify-stable or verify-candidate"
+
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == stableKeeperProtocol && stableKeeperControlPresent() {
 		stableKeeperMain()
@@ -25,9 +28,18 @@ func main() {
 		runCandidateCLI(os.Args[2:])
 	}
 	code, status := retiredRoute(os.Args[1:])
-	_, _ = fmt.Fprintf(os.Stderr, "cem01-go: %s; fix: %s\n", code, retiredFix)
+	_, _ = fmt.Fprintf(os.Stderr, "cem01-go: %s; fix: %s\n", code, refusalFix(code))
 	_, _ = fmt.Fprintln(os.Stdout, `{"accept":false,"spec":"`+stableSpec+`","code":"`+code+`"}`)
 	os.Exit(status)
+}
+
+// refusalFix names the retired-map remediation only for a cem/0.x map; any other invocation is
+// pointed at the cem/1.0 commands.
+func refusalFix(code string) string {
+	if code == "unsupported-spec" {
+		return retiredFix
+	}
+	return invocationFix
 }
 
 // retiredRoute refuses every invocation outside the cem/1.0 commands (CEM-V1-222). The cem/0.1

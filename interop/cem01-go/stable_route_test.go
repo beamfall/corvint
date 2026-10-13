@@ -71,4 +71,7 @@ func TestRetiredRouteRefusesEveryZeroXMap(t *testing.T) {
 			t.Fatalf("CEM-V1-222 %v: got %s/%d, want invocation/2", argv, code, status)
 		}
 	}
+	if refusalFix("unsupported-spec") != retiredFix || refusalFix("invocation") != invocationFix {
+		t.Fatal("CEM-V1-222: only a cem/0.x map refusal may print the retired-map fix line")
+	}
 }

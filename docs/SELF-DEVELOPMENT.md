@@ -112,14 +112,14 @@ For the experimental [corpus republish companion](specs/corpus-republish-v0.md),
 Follow [DOGFOOD §4](DOGFOOD.md#4-produce-the-cem) to commit source, bind and commit the CEM, and prepare
 every owning OCM on the same final target. Run frozen selected checks through the existing keyed
 `dogfood verify`. Before acknowledging its report set, read the CEM/OCM reports and relevant
-`frontier/0` queues together. Keep structural links, actual test results, local satisfaction and
+`frontier-stable-view/0` views together. Keep structural links, actual test results, local satisfaction and
 Frontier authority separate. An open advisory queue is not a command failure or a new Stop rule.
 
-[`examples/cem/recipes/`](../examples/cem/recipes/README.md) packages the same public commands for
-repositories other than Corvint: `review-change.sh` is the dogfood loop's `cem prepare`, strict
-status and report without Corvint's OCM, keyed verification or outcome recording, so it does not
-replace `make dogfood-change` or `make dogfood-check` here. `understand-change.sh` is a bounded
-pre-change orientation over a committed range, and `ci-verify.sh` runs the portable verifier.
+The `examples/cem/recipes/` scripts that packaged these public commands for other repositories
+read only `cem/0.x` maps and were removed by V1-1278 S3 (`CEM-V1-223`, decision 0525); Git history
+keeps them. Use `make dogfood-change` and `make dogfood-check` here, and the `cem/1.0` commands in
+[the automation reference](AUTOMATION.md) elsewhere. They never replaced the keyed verification,
+OCM or outcome recording of the dogfood loop.
 
 Independent review checks whether a material applicable family was missed and whether each claimed
 use has real evidence. Repair the omission or explain its boundary before acknowledgment. Reuse

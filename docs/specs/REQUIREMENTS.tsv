@@ -953,7 +953,7 @@ CEM-V1-219	docs/specs/cem-stable-v1.md	1833	The core compatibility freeze and cl
 CEM-V1-220	docs/specs/cem-stable-v1.md	1873	The `cem/0.x` protocol and conformance packets MUST be deleted:
 CEM-V1-221	docs/specs/cem-stable-v1.md	1878	`protocol/cem-1.0` MUST be self-contained. The 0.x normative text that `cem/1.0`
 CEM-V1-222	docs/specs/cem-stable-v1.md	1884	`interop/cem01-go` MUST verify `cem/1.0` only. The `cem/0.1` default `verify`
-CEM-V1-223	docs/specs/cem-stable-v1.md	1890	`examples/cem`, its recipe script test and gate member (`cem-recipes-test`), and
+CEM-V1-223	docs/specs/cem-stable-v1.md	1890	`examples/cem` except the 0.x-free `examples/cem/experiments/` companion demo, i
 CEM-V1-224	docs/specs/cem-stable-v1.md	1894	The Core remnants MUST name no retired wire: the dogfood loop passes
 CEM-V1-225	docs/specs/cem-stable-v1.md	1899	The `cem/0.2`, `cem/0.3`, 0.1 Go portability probe and 0.1 external interop spec
 CEM-V1-230	docs/specs/cem-stable-v1.md	708	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278

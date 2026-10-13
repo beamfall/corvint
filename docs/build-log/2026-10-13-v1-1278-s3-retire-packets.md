@@ -30,7 +30,7 @@ specs. Git history keeps every deleted byte; nothing here changes `cem/1.0` beha
   fix line naming `verify-stable-canonical`; every other non-1.0 invocation exits 2 with
   `invocation`. `ci.go`, `intoto.go`, `packet03_test.go`, `manifest_test.go` and their tests are
   deleted; the README is rewritten for 1.0.
-- `examples/cem`, `script/cem-recipes_test.sh` and its gate member `cem-recipes-test`, and
+- `examples/cem` (except `examples/cem/experiments/`, the 0.x-free `corvint-cem-experiments` demo, kept after review), `script/cem-recipes_test.sh` and its gate member `cem-recipes-test`, and
   `tools/cem-interop-runner` are deleted with their Makefile, gate-ledger, CI shard,
   test-read-scope and unbounded-reader entries (`CEM-V1-223`). `tools/cem-citation-baseline`
   needed no change: S2a (`744e8fc4`) already removed its 0.x fallback.
@@ -99,6 +99,13 @@ sealed `.corvint/changes` maps, `.taskman` records and the frozen
 
 Verification commands and results are recorded in the pull request body.
 
+One read-only Codex round (`d72617c4..HEAD`) returned CONCERNS with three findings, all confirmed and
+fixed: `docs/SELF-DEVELOPMENT.md` linked the deleted recipes and the deleted
+`examples/cem/experiments` demo, which is 0.x-free and is restored; it named `frontier/0` queues,
+now `frontier-stable-view/0` views; and `cem01-go` printed the retired-map fix line for every exit-2
+`invocation`, which now names the `cem/1.0` commands instead (`refusalFix`, asserted in
+`TestRetiredRouteRefusesEveryZeroXMap`).
+
 ## Limits
 
 - `protocol/cem-1.0/stable/ALGORITHMS.md` (around line 489) still says the Git recipe is
@@ -117,7 +124,7 @@ Verification commands and results are recorded in the pull request body.
 
 ## Rollback
 
-Revert the V1-1278 S3 commit. The packets, examples, runner, portable 0.x routes and spec states
+Revert the V1-1278 S3 commits. The packets, examples, runner, portable 0.x routes and spec states
 return unchanged; no committed map, seal, golden or task record depends on them.
 
 Decision 0525 §1 step 7 is complete.
