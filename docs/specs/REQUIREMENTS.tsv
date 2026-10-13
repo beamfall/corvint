@@ -3259,6 +3259,11 @@ TCB-V0-011	docs/specs/tasks-criterion-binding-v0.md	55	Predicates are closed: `t
 TCB-V0-012	docs/specs/tasks-criterion-binding-v0.md	59	Every outcome MUST emit one canonical, deterministic, host-path-free document pi	unrecorded	-
 TCB-V0-013	docs/specs/tasks-criterion-binding-v0.md	63	Re-verification MUST recompute from native inputs and GRANT only when the recomp	unrecorded	-
 TCB-V0-014	docs/specs/tasks-criterion-binding-v0.md	66	The gate MUST NOT mutate the repository, refs, objects, traces or a Tasks store.	unrecorded	-
+TCB-V0-015	docs/specs/tasks-criterion-binding-v0.md	69	(accepted under the owner's standing auto-accept (2026-10-11); V1-1283) A Tasks	standing	2026-10-11; V1-1283
+TCB-V0-016	docs/specs/tasks-criterion-binding-v0.md	77	(accepted under the owner's standing auto-accept (2026-10-11); V1-1283)	standing	2026-10-11; V1-1283
+TCB-V0-017	docs/specs/tasks-criterion-binding-v0.md	85	(accepted under the owner's standing auto-accept (2026-10-11); V1-1283) The gate	standing	2026-10-11; V1-1283
+TCB-V0-018	docs/specs/tasks-criterion-binding-v0.md	93	(accepted under the owner's standing auto-accept (2026-10-11); V1-1283) The docu	standing	2026-10-11; V1-1283
+TCB-V0-019	docs/specs/tasks-criterion-binding-v0.md	98	(accepted under the owner's standing auto-accept (2026-10-11); V1-1283) The gate	standing	2026-10-11; V1-1283
 TCN-V0-001	docs/specs/test-consolidation-planner-v0.md	98	The planner MUST be a read-only local projection. `corvint test-plan consolidate	unrecorded	-
 TCN-V0-002	docs/specs/test-consolidation-planner-v0.md	106	The input MUST be one closed `test-consolidation-input/0` JSON document of at mo	unrecorded	-
 TCN-V0-003	docs/specs/test-consolidation-planner-v0.md	124	A variation MUST be abstained, never grouped, isolated, reused or deduplicated,	unrecorded	-

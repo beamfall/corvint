@@ -433,3 +433,128 @@ func TestCALV0078_GateRunContentionAfterExecutionIsReported(t *testing.T) {
 		t.Fatalf("contended run recorded: %v", results)
 	}
 }
+
+// factsGate is a policy COMMAND gate that prints its arguments, which name the
+// TCB-V0-015 placeholders, one entry that only contains one, and a literal.
+func factsGate(id string) wire.Value {
+	argv := []string{"sh", "-c", `printf '%s|%s|%s|%s|%s' "$1" "$2" "$3" "$4" "$5"`, id, store.GateArgBaseCommit, store.GateArgCandidateCommit, store.GateArgTouchPaths, "x" + store.GateArgTouchPaths, "literal"}
+	return obj("gateId", str(id), "kind", str("COMMAND"), "argv", wire.Strings(argv), "cwd", str("WORKTREE"),
+		"env", wire.Strings(nil), "timeoutSeconds", str("30"), "expected", obj("exitCode", str("0"), "reducer", wire.Null()),
+		"evidence", wire.Strings([]string{"output"}), "inputs", wire.Strings(nil), "sharedResource", wire.Null(), "reusable", wire.Bool(false), "required", wire.Bool(true))
+}
+
+// TestTCBV0015_GateRunSubstitutesAttemptFacts: a whole-entry placeholder runs
+// as the attempt's base, the worktree HEAD commit or the claim-era
+// effects.touchPaths, a partial match runs as declared, and the substituted
+// argv joins the inputs digest while a declared argv keeps the old digest. A
+// ticket edited after the claim refuses STALE_TICKET before the gate runs.
+func TestTCBV0015_GateRunSubstitutesAttemptFacts(t *testing.T) {
+	t.Parallel()
+	s := newLeaseStore(t, factsGate("facts"), commandGate("verify", "printf ok", "30", true))
+	payload := createPayload("facts")
+	effects, _ := payload.Obj.Get("effects")
+	effects.Obj.Set("touchPaths", wire.Strings([]string{"docs/a.md", "src/"}))
+	created := mutate(t, s.repo, envelope("create-facts", mutation.OpCreate, "", "", payload))
+	if created.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("create: %+v", created)
+	}
+	s.t0 = now(t)
+	claim, commit := s.submitted(t, created.Ticket, "src", 0)
+	s.passes(t, "gate-facts", gateOf(claim, "facts"), 2)
+	s.passes(t, "gate-verify", gateOf(claim, "verify"), 3)
+	a := s.attempt(t, claim.AttemptID)
+	results := s.results(t, claim.AttemptID)
+	g := results["facts"]
+	touch := `["docs/a.md","src/"]`
+	if g == nil || g.State != "PASSED" {
+		t.Fatalf("facts: %+v", g)
+	}
+	want := a.BaseCommit + "|" + commit + "|" + touch + "|x" + store.GateArgTouchPaths + "|literal"
+	if out := string(s.evidence(t, string(g.Evidence[0].Sha256))); out != want {
+		t.Fatalf("output %q, want %q", out, want)
+	}
+	tree := *a.CandidateTreeOid
+	argv := []string{"sh", "-c", `printf '%s|%s|%s|%s|%s' "$1" "$2" "$3" "$4" "$5"`, "facts", a.BaseCommit, commit, touch, "x" + store.GateArgTouchPaths, "literal"}
+	if g.InputsSha256 != wire.Sum(wire.EncodeFile(obj("tree", str(tree), "inputs", wire.Array(), "argv", wire.Strings(argv)))) {
+		t.Fatalf("substituted inputs digest %s", g.InputsSha256)
+	}
+	if v := results["verify"]; v == nil || v.InputsSha256 != wire.Sum(wire.EncodeFile(obj("tree", str(tree), "inputs", wire.Array()))) {
+		t.Fatalf("declared inputs digest: %+v", v)
+	}
+	edited, err := store.Mutate(context.Background(), s.repo, operator(), envelope("edit-facts", mutation.OpPrioritize, created.Ticket, "1", obj("priority", str("P1"), "order", str("0"))), s.at(t, 4))
+	if err != nil || edited.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("edit: %+v %v", edited, err)
+	}
+	before := storeDigest(t, s.repo)
+	if report, err := s.gate(t, "gate-stale", gateOf(claim, "facts"), 5); wire.CodeOf(err) != wire.CodeStaleTicket || report.Unretryable {
+		t.Fatalf("edited ticket: %+v %v", report, err)
+	}
+	if storeDigest(t, s.repo) != before {
+		t.Fatal("a refused substitution changed the store")
+	}
+	auditOK(t, s.repo)
+}
+
+// cemVerdictGate is the TCB-V0-019 policy entry for command: the closed
+// corvint cem gate-verdict argv over the three TCB-V0-015 placeholders, with
+// PATH as its only environment, output evidence and no reuse.
+func cemVerdictGate(id string, command ...string) wire.Value {
+	argv := append(command, "cem", "gate-verdict", "--base", store.GateArgBaseCommit, "--candidate", store.GateArgCandidateCommit,
+		"--predicate", "touched-anchored", "--touch-paths", store.GateArgTouchPaths, "--portable-consumer", "/usr/local/libexec/cem01-go")
+	return obj("gateId", str(id), "kind", str("COMMAND"), "argv", wire.Strings(argv), "cwd", str("WORKTREE"),
+		"env", wire.Strings([]string{"PATH"}), "timeoutSeconds", str("1800"), "expected", obj("exitCode", str("0"), "reducer", wire.Null()),
+		"evidence", wire.Strings([]string{"output"}), "inputs", wire.Strings(nil), "sharedResource", wire.Null(), "reusable", wire.Bool(false), "required", wire.Bool(false))
+}
+
+// TestTCBV0019_CEMVerdictPolicyEntryRunsAsDeclared: the policy admits the
+// production cem-verdict entry, and the same entry shape run through stand-ins
+// for corvint's closed exit codes records PASSED on 0 (GRANT) and FAILED on 1
+// (REFUSE) with the substituted argv as the gate's output evidence.
+func TestTCBV0019_CEMVerdictPolicyEntryRunsAsDeclared(t *testing.T) {
+	t.Parallel()
+	standIn := func(exit string) []string {
+		return []string{"/bin/sh", "-c", `printf '%s\n' "$@"; exit ` + exit, "corvint"}
+	}
+	s := newLeaseStore(t)
+	// The policy permits the entry's one environment name, as the primary
+	// store's environment.allowedEnvKeys does.
+	v := fixture.PolicyValue()
+	v.Obj.Set("gates", wire.Array(cemVerdictGate("cem-verdict", "/usr/local/bin/corvint"),
+		cemVerdictGate("cem-verdict-grant", standIn("0")...), cemVerdictGate("cem-verdict-refuse", standIn("1")...)))
+	v.Obj.Set("environment", obj("allowedEnvKeys", wire.Strings([]string{"PATH"})))
+	v.Obj.Set("policyVersion", str("3"))
+	v.Obj.Set("capacity", obj("maxActiveAttempts", str("4"), "maxWorkersTotal", str("4"), "classes", wire.Array()))
+	budgets, _ := v.Obj.Get("budgets")
+	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
+	if r, err := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("policy-verdict", "2", wire.EncodeFile(v)), now(t)); err != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("policy: %+v %v", r, err)
+	}
+	payload := createPayload("verdict")
+	effects, _ := payload.Obj.Get("effects")
+	effects.Obj.Set("touchPaths", wire.Strings([]string{"src/"}))
+	created := mutate(t, s.repo, envelope("create-verdict", mutation.OpCreate, "", "", payload))
+	if created.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("create: %+v", created)
+	}
+	s.t0 = now(t)
+	claim, commit := s.submitted(t, created.Ticket, "src", 0)
+	s.passes(t, "gate-grant", gateOf(claim, "cem-verdict-grant"), 2)
+	s.passes(t, "gate-refuse", gateOf(claim, "cem-verdict-refuse"), 3)
+	a := s.attempt(t, claim.AttemptID)
+	results := s.results(t, claim.AttemptID)
+	want := strings.Join([]string{"cem", "gate-verdict", "--base", a.BaseCommit, "--candidate", commit, "--predicate", "touched-anchored",
+		"--touch-paths", `["src/"]`, "--portable-consumer", "/usr/local/libexec/cem01-go"}, "\n") + "\n"
+	for id, state := range map[string]string{"cem-verdict-grant": "PASSED", "cem-verdict-refuse": "FAILED"} {
+		g := results[id]
+		if g == nil || g.State != state || g.OutcomeClass != "EXIT" || len(g.Evidence) != 1 {
+			t.Fatalf("%s: %+v", id, g)
+		}
+		if out := string(s.evidence(t, string(g.Evidence[0].Sha256))); out != want {
+			t.Fatalf("%s output %q, want %q", id, out, want)
+		}
+	}
+	if results["cem-verdict-refuse"].ExitCode.Int() != 1 || results["cem-verdict"] != nil {
+		t.Fatalf("refuse %+v production %+v", results["cem-verdict-refuse"], results["cem-verdict"])
+	}
+	auditOK(t, s.repo)
+}

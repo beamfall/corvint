@@ -3,6 +3,8 @@ package taskman
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -22,31 +24,42 @@ const (
 	PredicateAllAnchored     = "all-anchored"
 )
 
-// The closed refusal codes (TCB-V0-007 to TCB-V0-013).
+// The closed refusal codes (TCB-V0-007 to TCB-V0-013, TCB-V0-017).
 const (
-	CEMVerdictInputInvalid     = "CEM_VERDICT_INPUT_INVALID"
-	CEMVerdictMapMissing       = "CEM_VERDICT_MAP_MISSING"
-	CEMVerdictMapAmbiguous     = "CEM_VERDICT_MAP_AMBIGUOUS"
-	CEMVerdictProducerMismatch = "CEM_VERDICT_PRODUCER_MISMATCH"
-	CEMVerdictUnverifiable     = "CEM_VERDICT_UNVERIFIABLE"
-	CEMVerdictPredicateFailed  = "CEM_VERDICT_PREDICATE_FAILED"
+	CEMVerdictInputInvalid         = "CEM_VERDICT_INPUT_INVALID"
+	CEMVerdictMapMissing           = "CEM_VERDICT_MAP_MISSING"
+	CEMVerdictMapAmbiguous         = "CEM_VERDICT_MAP_AMBIGUOUS"
+	CEMVerdictProducerMismatch     = "CEM_VERDICT_PRODUCER_MISMATCH"
+	CEMVerdictUnverifiable         = "CEM_VERDICT_UNVERIFIABLE"
+	CEMVerdictPredicateFailed      = "CEM_VERDICT_PREDICATE_FAILED"
+	CEMVerdictVerifierDisagreement = "CEM_VERDICT_VERIFIER_DISAGREEMENT"
 )
 
 // sealedMapDir holds the sealed maps `make dogfood-seal` names after their
 // bind commit (.corvint/changes/<target>.cem.json).
 const sealedMapDir = ".corvint/changes/"
 
+// The portable consumer's one route and result profile (TCB-V0-017).
+const (
+	portableRoute   = "verify-stable-canonical"
+	portableProfile = "cem-stable-verification/1"
+)
+
 // CEMVerdictInput carries only native facts (TCB-V0-007): Root is the
 // absolute, lexically clean checkout that is both the Git repository and the
 // artifact root; BaseCommit is the attempt's native base; CandidateCommit is
 // the commit whose tree is the attempt candidate; TouchPaths is the claim-era
 // ticket's effects.touchPaths. Nothing in it comes from the map.
+// PortableConsumer is the absolute path of the independent interop/cem01-go
+// executable that must recompute the same verdict (TCB-V0-017); it is an
+// operator fact, not evidence, so the document never names it.
 type CEMVerdictInput struct {
-	Root            string
-	BaseCommit      string
-	CandidateCommit string
-	TouchPaths      []string
-	Predicate       string
+	Root             string
+	BaseCommit       string
+	CandidateCommit  string
+	TouchPaths       []string
+	Predicate        string
+	PortableConsumer string
 }
 
 // CEMVerdictResult is one evaluation. Document is the canonical gate evidence
@@ -67,8 +80,10 @@ type cemVerdictDocument struct {
 	SealedMaps    []string          `json:"sealedMaps"`
 	Map           *cemVerdictMap    `json:"map"`
 	Verdict       *cemVerdictPin    `json:"verdict"`
+	Portable      *cemPortablePin   `json:"portable"`
 	Citation      *verify.Citation  `json:"citation"`
 	Governed      []cemVerdictHunk  `json:"governed"`
+	Paths         []cemVerdictPath  `json:"paths"`
 }
 
 type cemVerdictInputs struct {
@@ -95,8 +110,24 @@ type cemVerdictPin struct {
 	VerdictSha256 string   `json:"verdictSha256"`
 }
 
+// cemPortablePin is what the independent portable consumer reported for the
+// same map bytes: its own verdictSha256 claim and its citation block's digest.
+type cemPortablePin struct {
+	Route          string  `json:"route"`
+	Outcome        string  `json:"outcome"`
+	VerdictSha256  string  `json:"verdictSha256"`
+	CitationSha256 *string `json:"citationSha256"`
+}
+
 type cemVerdictHunk struct {
 	HunkID    string `json:"hunkId"`
+	Path      string `json:"path"`
+	Tier      string `json:"tier"`
+	Satisfied bool   `json:"satisfied"`
+}
+
+// cemVerdictPath is one governed path's minimum recomputed tier (TCB-V0-018).
+type cemVerdictPath struct {
 	Path      string `json:"path"`
 	Tier      string `json:"tier"`
 	Satisfied bool   `json:"satisfied"`
@@ -105,11 +136,14 @@ type cemVerdictHunk struct {
 // EvaluateCEMVerdictGate is the sealed cem/1.0 verdict gate (decision 0525
 // step 8). It reads the one sealed map the candidate adds from Git objects,
 // cross-checks every producer-named field against native facts, recomputes the
-// verdict through the in-process stable consumer, and evaluates one closed
-// predicate over the recomputed citation tiers. It writes nothing and never
-// raises a tier; completion authority stays with the native store.
+// verdict through the in-process stable consumer, requires the independent
+// portable consumer to recompute the same verdict, and evaluates one closed
+// predicate over the recomputed citation tiers. It writes nothing in the
+// repository (the portable consumer reads the map bytes from one private
+// temporary file it removes) and never raises a tier; completion authority
+// stays with the native store.
 func EvaluateCEMVerdictGate(ctx context.Context, in CEMVerdictInput) (CEMVerdictResult, error) {
-	g := &verdictGate{doc: cemVerdictDocument{Profile: CEMVerdictGateProfile, Outcome: "REFUSE", SealedMaps: []string{}, Governed: []cemVerdictHunk{}}}
+	g := &verdictGate{doc: cemVerdictDocument{Profile: CEMVerdictGateProfile, Outcome: "REFUSE", SealedMaps: []string{}, Governed: []cemVerdictHunk{}, Paths: []cemVerdictPath{}}}
 	g.evaluate(ctx, in)
 	raw, err := encode(g.doc)
 	if err != nil {
@@ -243,6 +277,9 @@ func (g *verdictGate) evaluate(ctx context.Context, in CEMVerdictInput) {
 	}
 	issues := append([]string{}, r.IssueCodes...)
 	g.doc.Verdict = &cemVerdictPin{Outcome: r.Outcome, Stage: r.Stage, Code: r.Code, IssueCodes: issues, Sidecar: r.Sidecar, VerdictSha256: verdict}
+	if !g.crossCheck(ctx, in, target, raw, r, verdict) {
+		return
+	}
 	if parseErr != nil || r.Outcome != "ACCEPT" || r.Sidecar != "EXACT" || r.Citation == nil {
 		g.refuse(CEMVerdictUnverifiable, "stable-not-accepted")
 		return
@@ -251,14 +288,140 @@ func (g *verdictGate) evaluate(ctx context.Context, in CEMVerdictInput) {
 	g.predicate(in.Predicate, touch, document.Change.Hunks, r.Citation)
 }
 
+// crossCheck runs the independent portable consumer over the same map bytes
+// and admits only its agreement with the native recomputation (TCB-V0-017):
+// its outcome, its verdictSha256 claim, the digest recomputed from its own
+// result and its canonical citation block must all equal the native ones. A
+// consumer that cannot run, emits no readable result or exits in a way its own
+// outcome does not explain is unverifiable; any readable difference is a
+// disagreement, never a pass.
+func (g *verdictGate) crossCheck(ctx context.Context, in CEMVerdictInput, target string, raw []byte, native verify.StableResult, verdict string) bool {
+	stdout, status, err := runPortableConsumer(ctx, in, target, raw)
+	if err != nil {
+		g.refuse(CEMVerdictUnverifiable, "portable-consumer-failed")
+		return false
+	}
+	reading, ok := readPortable(stdout)
+	if !ok || !portableExitAgrees(reading.pin.Outcome, status) {
+		g.refuse(CEMVerdictUnverifiable, "portable-consumer-failed")
+		return false
+	}
+	g.doc.Portable = &reading.pin
+	citation, err := json.Marshal(native.Citation)
+	if err != nil {
+		g.refuse(CEMVerdictUnverifiable, "portable-consumer-failed")
+		return false
+	}
+	nativeCitation, err := wire.Parse(citation)
+	if err != nil {
+		g.refuse(CEMVerdictUnverifiable, "portable-consumer-failed")
+		return false
+	}
+	if reading.pin.Outcome != native.Outcome || reading.pin.VerdictSha256 != verdict || reading.recomputed != verdict || !bytes.Equal(reading.citation, wire.CanonicalValue(nativeCitation)) {
+		g.refuse(CEMVerdictVerifierDisagreement, "verifier-disagreement")
+		return false
+	}
+	return true
+}
+
+// runPortableConsumer hands the exact map bytes to the portable consumer
+// through one private temporary file and returns its stdout and exit status.
+func runPortableConsumer(ctx context.Context, in CEMVerdictInput, target string, raw []byte) ([]byte, int, error) {
+	file, err := os.CreateTemp("", "corvint-cem-verdict-*.json")
+	if err != nil {
+		return nil, 0, err
+	}
+	defer os.Remove(file.Name())
+	if _, err := file.Write(raw); err != nil {
+		file.Close()
+		return nil, 0, err
+	}
+	if err := file.Close(); err != nil {
+		return nil, 0, err
+	}
+	return runPortable(ctx, in.PortableConsumer, in.Root, []string{portableRoute, "--repository", in.Root, "--map", file.Name(), "--expected-base", in.BaseCommit, "--target", target, "--artifacts", in.Root})
+}
+
+// portableExitAgrees reports whether the consumer's exit status matches its
+// outcome: verify-stable-canonical exits 0 exactly on ACCEPT, and 1 or 2 on a
+// REJECT or UNSUPPORTED result.
+func portableExitAgrees(outcome string, status int) bool {
+	if outcome == "ACCEPT" {
+		return status == 0
+	}
+	return status == 1 || status == 2
+}
+
+type portableReading struct {
+	pin        cemPortablePin
+	recomputed string
+	citation   []byte
+}
+
+// readPortable reads one cem-stable-verification/1 result and recomputes its
+// verdict digest: the canonical value of the result minus runtime,
+// repositoryEnvelope and verdictSha256 (CEM-V1-066).
+func readPortable(stdout []byte) (portableReading, bool) {
+	value, err := wire.Parse(stdout)
+	if err != nil || value.Kind != wire.KindObject {
+		return portableReading{}, false
+	}
+	member := func(key string, kind wire.Kind) (wire.Value, bool) {
+		v, ok := value.Obj.Get(key)
+		return v, ok && v.Kind == kind
+	}
+	profile, okProfile := member("profile", wire.KindString)
+	outcome, okOutcome := member("outcome", wire.KindString)
+	claimed, okClaimed := member("verdictSha256", wire.KindString)
+	citation, okCitation := value.Obj.Get("citation")
+	if !okProfile || !okOutcome || !okClaimed || !okCitation || profile.Str != portableProfile || !digest(claimed.Str) || citation.Kind != wire.KindObject && citation.Kind != wire.KindNull {
+		return portableReading{}, false
+	}
+	result := &wire.Object{Values: map[string]wire.Value{}}
+	for _, key := range value.Obj.Keys {
+		if key != "runtime" && key != "repositoryEnvelope" && key != "verdictSha256" {
+			result.Keys = append(result.Keys, key)
+			result.Values[key] = value.Obj.Values[key]
+		}
+	}
+	reading := portableReading{
+		pin:        cemPortablePin{Route: portableRoute, Outcome: outcome.Str, VerdictSha256: claimed.Str},
+		recomputed: sum(wire.CanonicalValue(wire.Value{Kind: wire.KindObject, Obj: result})),
+		citation:   wire.CanonicalValue(citation),
+	}
+	if citation.Kind == wire.KindObject {
+		citationSha256 := sum(reading.citation)
+		reading.pin.CitationSha256 = &citationSha256
+	}
+	return reading, true
+}
+
+// tierRank orders the recomputed tiers by precedence; a tier outside the
+// closed set ranks lowest.
+func tierRank(tier string) int {
+	switch tier {
+	case verify.TierHeld:
+		return 4
+	case verify.TierMechanicalProved:
+		return 3
+	case verify.TierAnchored:
+		return 2
+	case verify.TierCited:
+		return 1
+	}
+	return 0
+}
+
 // predicate reads tiers only from the recomputed citation block; hunk paths
 // come from the map the consumer just admitted against the recomputed patch.
+// Each governed path also reports its minimum tier (TCB-V0-018).
 func (g *verdictGate) predicate(name string, touch []string, hunks []wire.Hunk, citation *verify.Citation) {
 	paths := map[string]string{}
 	for _, hunk := range hunks {
 		paths[hunk.ID] = hunk.Path
 	}
 	satisfied := true
+	minimum := map[string]cemVerdictPath{}
 	for _, row := range citation.Hunks {
 		path := paths[row.HunkID]
 		if name == PredicateTouchedAnchored && !underTouchPath(path, touch) {
@@ -267,7 +430,14 @@ func (g *verdictGate) predicate(name string, touch []string, hunks []wire.Hunk, 
 		ok := row.Tier == verify.TierAnchored || row.Tier == verify.TierMechanicalProved || row.Tier == verify.TierHeld
 		g.doc.Governed = append(g.doc.Governed, cemVerdictHunk{HunkID: row.HunkID, Path: path, Tier: row.Tier, Satisfied: ok})
 		satisfied = satisfied && ok
+		if seen, found := minimum[path]; !found || tierRank(row.Tier) < tierRank(seen.Tier) {
+			minimum[path] = cemVerdictPath{Path: path, Tier: row.Tier, Satisfied: ok}
+		}
 	}
+	for _, row := range minimum {
+		g.doc.Paths = append(g.doc.Paths, row)
+	}
+	sort.Slice(g.doc.Paths, func(i, j int) bool { return g.doc.Paths[i].Path < g.doc.Paths[j].Path })
 	switch {
 	case len(g.doc.Governed) == 0:
 		g.refuse(CEMVerdictPredicateFailed, "no-governed-hunk")
@@ -282,6 +452,9 @@ func (g *verdictGate) predicate(name string, touch []string, hunks []wire.Hunk, 
 // well-formed input.
 func admitVerdictInput(in CEMVerdictInput) ([]string, bool) {
 	if !filepath.IsAbs(in.Root) || filepath.Clean(in.Root) != in.Root {
+		return nil, false
+	}
+	if !filepath.IsAbs(in.PortableConsumer) || filepath.Clean(in.PortableConsumer) != in.PortableConsumer {
 		return nil, false
 	}
 	if !wire.IsGitOid(in.BaseCommit) || !wire.IsGitOid(in.CandidateCommit) || len(in.BaseCommit) != len(in.CandidateCommit) {
