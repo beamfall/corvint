@@ -44,7 +44,7 @@ func loadRequirements(path string) ([]requirement, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(rows) < 2 || strings.Join(rows[0], "\t") != "id\tfile\tline\ttitle" {
+	if len(rows) < 2 || len(rows[0]) < 4 || strings.Join(rows[0][:4], "\t") != "id\tfile\tline\ttitle" {
 		return nil, fmt.Errorf("invalid requirement registry: %s", path)
 	}
 	out := []requirement{}

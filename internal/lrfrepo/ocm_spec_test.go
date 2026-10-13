@@ -142,7 +142,7 @@ func TestSessionContextDividendSpecEnumeratesEveryObligation(t *testing.T) {
 	}
 	registered := []string{}
 	for _, row := range strings.Split(string(registry), "\n") {
-		if fields := strings.Split(row, "\t"); len(fields) == 4 && fields[1] == path {
+		if fields := strings.Split(row, "\t"); len(fields) >= 4 && fields[1] == path {
 			registered = append(registered, fields[0])
 		}
 	}

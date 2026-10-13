@@ -7,14 +7,28 @@ set -eu
 # an untracked spec added a row no clone can reproduce, and a tracked spec deleted from the
 # worktree alone silently dropped its rows. `git add` is what publishes a spec to this index.
 # `decision-number-gate-v0.md` pins the rule; `check-decision-numbers.sh` is the reference.
+#
+# With no argument the script prints docs/specs/REQUIREMENTS.tsv. `--index` prints
+# docs/specs/INDEX.json and `--readme` prints docs/specs/README.md, each projected from the
+# staged spec headers onto the staged file (SRG-V0-012). Every mode writes stdout only.
+
+case ${1:-} in
+  '') mode=tsv ;;
+  --index) mode=index ;;
+  --readme) mode=readme ;;
+  *) printf 'usage: %s [--index | --readme]\n' "$0" >&2; exit 2 ;;
+esac
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 
-perl - <<'PERL'
+perl - "$mode" <<'PERL'
 use strict;
 use warnings;
 use IPC::Open2 qw(open2);
+use JSON::PP ();
+
+my $mode = shift @ARGV;
 
 # Every index read goes through one `git cat-file --batch` co-process, so a scan forks git once
 # instead of once per file. A path the batch cannot serve (a newline breaks its request framing;
@@ -64,12 +78,14 @@ sub batch_failed {
 }
 
 my @specs;
+my %tracked;
 {
     open my $paths, '-|', 'git', 'ls-files', '-z', '--', 'docs/specs'
         or die "git ls-files: $!\n";
     local $/ = "\0";
     while (my $path = <$paths>) {
         chomp $path;
+        $tracked{$path} = 1;
         next unless $path =~ m{\Adocs/specs/[^/]+\.md\z};
         next if $path eq 'docs/specs/README.md';
         push @specs, $path;
@@ -78,11 +94,93 @@ my @specs;
         or die $! ? "git ls-files: $!\n" : 'git ls-files failed: exit ' . ($? >> 8) . "\n";
 }
 
-my %best;
+# SRG-V0-009: a rank 0 definition records how its text was accepted in its leading parenthetical.
+# `standing` names a standing approval and wins over every other word, so a promotion to `owner`
+# must remove it; `owner` needs an affirmative accepted/approved or "owner decision" and an anchor,
+# a decision number or a date. A negated phrase such as "not (yet) accepted" or "not an owner
+# decision" does not count, even across an inner parenthesis. Anything else, including no
+# parenthetical, is `unrecorded` and inherits the spec header's intent status.
+sub acceptance {
+    my ($text) = @_;
+    return ('unrecorded', '-') unless $text =~ /\A\(/;
+    my ($depth, $end) = (0, length $text);
+    for my $i (0 .. length($text) - 1) {
+        my $char = substr($text, $i, 1);
+        if ($char eq '(') {
+            ++$depth;
+        } elsif ($char eq ')' && --$depth == 0) {
+            $end = $i;
+            last;
+        }
+    }
+    my $marker = substr($text, 1, $end - 1);
+    my $mode = 'unrecorded';
+    if ($marker =~ /\bstanding\b/i) {
+        $mode = 'standing';
+    } else {
+        (my $affirmed = $marker) =~ s/\b(?:not|never)\b[^;,]*?\b(?:accepted|approved|owner decision)\b//gi;
+        $mode = 'owner'
+            if $affirmed =~ /\b(?:accepted|approved|owner decision)\b/i
+            && $affirmed =~ /\bdecisions?\s+[0-9]{4}(?![-0-9])|\b[0-9]{4}-[0-9]{2}-[0-9]{2}\b/i;
+    }
+    return ($mode, '-') if $mode eq 'unrecorded';
+    my (@anchors, %seen);
+    while ($marker =~ /\bdecisions?\s+([0-9]{4})(?![-0-9])|\b([0-9]{4}-[0-9]{2}-[0-9]{2})\b|\b(V[0-9]+-[0-9]{4})\b|(#[0-9]+)\b/gi) {
+        my $anchor = defined $1 ? "decision $1" : $2 // $3 // $4;
+        push @anchors, $anchor unless $seen{$anchor}++;
+    }
+    return ($mode, @anchors ? join('; ', @anchors) : '-');
+}
+
+sub trim {
+    my ($text) = @_;
+    $text =~ s/\A\s+|\s+\z//g;
+    return $text;
+}
+
+# The header and digest readers mirror `header` and `checkDigest` in internal/specindex, which
+# test that INDEX.json and README.md agree with them: the first line anywhere in the file that,
+# after an optional "- ", starts with the plain or bold key, and the `Claim` of the Agent digest.
+sub header_value {
+    my ($blob, $key) = @_;
+    (my $bold = $key) =~ s/:\z//;
+    $bold = "**$bold:**";
+    return $blob =~ /^[^\S\n]*(?:- )?[^\S\n]*(?:\Q$key\E|\Q$bold\E)([^\n]*)/m ? trim($1) : undef;
+}
+
+sub digest_claim {
+    my ($blob) = @_;
+    $blob =~ /^[^\S\n]*## Agent digest[^\S\n]*(?:\n|\z)/mg or return undef;
+    my %values;
+    for my $line (split /\n/, substr($blob, pos $blob)) {
+        my $text = trim($line);
+        last if $text eq q();
+        next unless $text =~ s/\A- //;
+        my ($key, $value) = split /: /, $text, 2;
+        $values{$key} = $value if defined $value;
+    }
+    return $values{Claim};
+}
+
+my (%best, %header);
 for my $file (sort @specs) {
+    my $blob = index_blob($file);
+    if ($mode ne 'tsv') {
+        my ($title) = $blob =~ /^# ([^\n]+)/m;
+        $title = trim($title) if defined $title;
+        my $prefix = header_value($blob, 'Requirement prefix:');
+        $prefix =~ s/`//g if defined $prefix;
+        $header{$file} = {
+            title => $title,
+            prefix => $prefix,
+            intent => header_value($blob, 'Intent status:'),
+            delivery => header_value($blob, 'Delivery status:'),
+            claim => digest_claim($blob),
+        };
+    }
     my $line_number = 0;
     my $previous_blank = 1;
-    for my $line (split /^/, index_blob($file)) {
+    for my $line (split /^/, $blob) {
         ++$line_number;
         # SRG-V0-003: unmarked definitions start paragraphs, not wrapped prose.
         my $definition_boundary = $previous_blank || $line =~ /^\s*(?:[-*]\s+|\*\*|`)/;
@@ -110,6 +208,7 @@ for my $file (sort @specs) {
             }
             $title =~ s/[\t\r\n]+/ /g;
             $title =~ s/^\s+|\s+$//g;
+            my ($acceptance, $accepted_by) = $rank == 0 ? acceptance($title) : ('unrecorded', '-');
             # SRG-V0-005 counts characters: decode UTF-8 only around the cut so a multibyte
             # sequence is never split and the whitespace trims keep their byte semantics. Bytes
             # that are not valid UTF-8 cannot be decoded and are cut by byte.
@@ -122,15 +221,167 @@ for my $file (sort @specs) {
                 file => $file,
                 line => $line_number,
                 title => $title,
+                acceptance => $acceptance,
+                accepted_by => $accepted_by,
             };
         }
     }
 }
-close_index();
 
-print "id\tfile\tline\ttitle\n";
-for my $id (sort keys %best) {
-    my $row = $best{$id};
-    print join("\t", $id, $row->{file}, $row->{line}, $row->{title}), "\n";
+if ($mode eq 'tsv') {
+    close_index();
+    print "id\tfile\tline\ttitle\tacceptance\tacceptedBy\n";
+    for my $id (sort keys %best) {
+        my $row = $best{$id};
+        print join("\t", $id, @{$row}{qw(file line title acceptance accepted_by)}), "\n";
+    }
+    exit 0;
 }
+
+# SRG-V0-012: INDEX.json and the README.md spec table are projections. A spec header owns its
+# intent and delivery status and its Agent digest owns the claim; INDEX.json owns every other
+# field and README.md every other cell, which the projection keeps byte for byte. A spec with no
+# entry or row gains one built from its header, appended after the existing ones.
+for my $file (sort @specs) {
+    my $spec = $header{$file};
+    defined $spec->{intent} && defined $spec->{delivery}
+        or die "$file: declare Intent status and Delivery status before regenerating\n";
+    for my $field (qw(intent delivery claim)) {
+        next unless defined $spec->{$field};
+        utf8::decode($spec->{$field}) or die "$file: $field is not valid UTF-8\n";
+        $spec->{$field} =~ /[|\x00-\x1f]/
+            and die "$file: $field holds a table pipe or control character\n";
+    }
+    # The README description is the claim then any tail; a one-sentence claim is what lets the
+    # projection find where the old claim ends without reading INDEX.json.
+    next unless defined $spec->{claim};
+    $spec->{claim} =~ /[.?!]\z/ && $spec->{claim} !~ /[.?!]\s/
+        or die "$file: the Agent digest Claim must be one sentence ending in . ? or !\n";
+}
+
+sub default_prefix {
+    my ($file) = @_;
+    return $header{$file}{prefix} if defined $header{$file}{prefix};
+    my ($id) = grep { $best{$_}{file} eq $file && $best{$_}{key} =~ /\A0\0/ } sort keys %best;
+    return defined $id ? $id =~ s/-[0-9]{3}\z//r : '';
+}
+
+sub new_spec_title {
+    my ($file) = @_;
+    my $title = $header{$file}{title} // die "$file: a new spec needs a `# Title` line\n";
+    utf8::decode($title) or die "$file: title is not valid UTF-8\n";
+    defined $header{$file}{claim} or die "$file: a new spec needs an Agent digest Claim\n";
+    return $title;
+}
+
+if ($mode eq 'index') {
+    my @keys = qw(path title reqPrefix intent delivery claim dependsOn supersededBy closableToday implementation);
+    my $raw = $tracked{'docs/specs/INDEX.json'} ? index_blob('docs/specs/INDEX.json') : "[]\n";
+    close_index();
+    my $entries = eval { JSON::PP->new->utf8->decode($raw) };
+    ref $entries eq 'ARRAY' or die "docs/specs/INDEX.json: not a JSON array\n";
+    my %listed;
+    for my $entry (@$entries) {
+        ref $entry eq 'HASH' && join(',', sort keys %$entry) eq join(',', sort @keys)
+            or die "docs/specs/INDEX.json: every entry needs exactly the keys @keys\n";
+        my $path = $entry->{path};
+        !$listed{$path}++ or die "docs/specs/INDEX.json: duplicate entry $path\n";
+        my $spec = $header{$path} or die "docs/specs/INDEX.json: $path is not a tracked spec\n";
+        $entry->{$_} = $spec->{$_} for grep { defined $spec->{$_} } qw(intent delivery claim);
+    }
+    for my $file (grep { !$listed{$_} } sort @specs) {
+        my $prefix = default_prefix($file);
+        utf8::decode($prefix);
+        push @$entries, {
+            path => $file,
+            title => new_spec_title($file),
+            reqPrefix => $prefix,
+            intent => $header{$file}{intent},
+            delivery => $header{$file}{delivery},
+            claim => $header{$file}{claim},
+            dependsOn => [],
+            supersededBy => undef,
+            closableToday => JSON::PP::false,
+            implementation => [],
+        };
+    }
+    my $json_string = sub {
+        my ($text) = @_;
+        $text =~ s/(["\\])/\\$1/g;
+        $text =~ s/\n/\\n/g;
+        $text =~ s/\r/\\r/g;
+        $text =~ s/\t/\\t/g;
+        $text =~ s/([\x00-\x1f])/sprintf('\\u%04x', ord $1)/ge;
+        return qq("$text");
+    };
+    my $json_value = sub {
+        my ($value) = @_;
+        return 'null' unless defined $value;
+        return $value ? 'true' : 'false' if JSON::PP::is_bool($value);
+        return $json_string->($value) unless ref $value;
+        ref $value eq 'ARRAY' && !grep { ref || !defined } @$value
+            or die "docs/specs/INDEX.json: a value is neither a string, a boolean, null nor a string list\n";
+        return '[]' unless @$value;
+        return "[\n" . join(",\n", map { '      ' . $json_string->($_) } @$value) . "\n    ]";
+    };
+    my @objects = map {
+        my $entry = $_;
+        "  {\n" . join(",\n", map { qq(    "$_": ) . $json_value->($entry->{$_}) } @keys) . "\n  }";
+    } @$entries;
+    my $out = "[\n" . join(",\n", @objects) . "\n]\n";
+    utf8::encode($out);
+    print $out;
+    exit 0;
+}
+
+# README mode: rewrite the Intent and Delivery cells and the leading claim of the description in
+# every table row whose Contract cell links a spec without an anchor, the rows `readREADME` in
+# internal/specindex reads.
+$tracked{'docs/specs/README.md'} or die "docs/specs/README.md is not in the Git index\n";
+my @rows = split /^/, index_blob('docs/specs/README.md');
+close_index();
+my ($table) = grep { $rows[$_] =~ /\A\| Scope \| Contract \| Intent \| Delivery \|/ } 0 .. $#rows;
+defined $table or die "docs/specs/README.md: no `| Scope | Contract | Intent | Delivery |` table\n";
+my $end = $table;
+++$end while $end + 1 <= $#rows && $rows[$end + 1] =~ /\A\|/;
+my %rowed;
+my $cell = sub {
+    my ($column, $value) = @_;
+    $column =~ /\A(\s*)(.*?)(\s*)\z/s;
+    return "$1$value$3";
+};
+for my $i ($table + 2 .. $end) {
+    my $row = $rows[$i];
+    utf8::decode($row) or die "docs/specs/README.md:" . ($i + 1) . ": not valid UTF-8\n";
+    my $newline = $row =~ s/\n\z// ? "\n" : '';
+    my @columns = split /\|/, $row, -1;
+    next if @columns < 7;
+    my ($link, $anchor) = $columns[2] =~ /\]\(([^)#]+\.md)(#[^)]*)?\)/ or next;
+    next if defined $anchor;
+    my $path = $link =~ m{\A\.\./} ? $link : "docs/specs/$link";
+    my $spec = $header{$path} or next;
+    $rowed{$path} = 1;
+    $columns[3] = $cell->($columns[3], $spec->{intent});
+    $columns[4] = $cell->($columns[4], $spec->{delivery});
+    if (defined $spec->{claim}) {
+        my $description = trim($columns[5]);
+        $description =~ s/\A.*?[.?!](?=\s|\z)//s
+            or die "$path: its README row description does not start with a one-sentence claim\n";
+        $columns[5] = $cell->($columns[5], $spec->{claim} . $description);
+    }
+    $row = join('|', @columns) . $newline;
+    utf8::encode($row);
+    $rows[$i] = $row;
+}
+my @added;
+for my $file (grep { !$rowed{$_} } sort @specs) {
+    my $name = $file =~ s{\Adocs/specs/}{}r;
+    my $row = sprintf("| %s | [`%s`](%s) | %s | %s | %s |\n",
+        new_spec_title($file), $name, $name, @{$header{$file}}{qw(intent delivery claim)});
+    utf8::encode($row);
+    push @added, $row;
+}
+$rows[$end] .= "\n" if @added && $rows[$end] !~ /\n\z/;
+splice @rows, $end + 1, 0, @added;
+print @rows;
 PERL

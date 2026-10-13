@@ -3074,9 +3074,9 @@
     "path": "docs/specs/spec-requirement-index-generator-v0.md",
     "title": "Spec requirement index generator V0",
     "reqPrefix": "SRG-V0",
-    "intent": "accepted (decision 0105 amendment 2026-09-12)",
+    "intent": "accepted (history: REQUIREMENTS.tsv acceptance columns and docs/build-log)",
     "delivery": "implemented",
-    "claim": "One generated index names, for every requirement id in every tracked spec, the single best place that defines it.",
+    "claim": "One generator derives, from the staged specs, the requirement index with each requirement's acceptance mode and the INDEX.json and README.md status rows.",
     "dependsOn": [
       "docs/specs/decision-number-gate-v0.md",
       "docs/specs/requirement-definition-gate-v0.md"
@@ -3084,7 +3084,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "script/gen-spec-requirements.sh"
+      "script/gen-spec-requirements.sh",
+      "script/spec-acceptance-audit.sh"
     ]
   },
   {
