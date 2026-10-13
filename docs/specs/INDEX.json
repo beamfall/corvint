@@ -445,8 +445,7 @@
     "closableToday": false,
     "implementation": [
       "internal/cem",
-      "interop/cem01-go",
-      "examples/cem"
+      "interop/cem01-go"
     ]
   },
   {
