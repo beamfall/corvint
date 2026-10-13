@@ -620,9 +620,9 @@
     "path": "docs/specs/corvint-1.0-product-and-release-v1.md",
     "title": "Corvint 1.0 product and release scope V1",
     "reqPrefix": "PRS-V1",
-    "intent": "accepted (decisions 0373 and 0426, V1-0001 and V1-0461)",
+    "intent": "accepted (decisions 0373 and 0426, V1-0001 and V1-0461; PRS-V1-018 accepted (owner instruction 2026-10-13, V1-1344..V1-1348 at milestone v1-0))",
     "delivery": "partial; expanded 1.0 qualification pending",
-    "claim": "1.0 requires Core change evidence, Flows, safe navigation, docs, MCP, full Beamfall roadmap takeover by Tasks and automatic documentation.",
+    "claim": "1.0 requires Core change evidence, Flows, safe navigation, docs, MCP, Tasks roadmap takeover, automatic documentation and the PRS-V1-018 SDD improvements.",
     "dependsOn": [
       "docs/specs/public-release-v0.md",
       "docs/specs/daily-change-evidence-workflow-v0.md",

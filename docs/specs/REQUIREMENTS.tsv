@@ -2724,6 +2724,7 @@ PRS-V1-014	docs/specs/corvint-1.0-product-and-release-v1.md	324	Tasks MUST repla
 PRS-V1-015	docs/specs/corvint-1.0-product-and-release-v1.md	328	Automatic developer and user-facing flow documentation MUST use revision-pinned
 PRS-V1-016	docs/specs/corvint-1.0-product-and-release-v1.md	332	Before Beamfall production activation, the migration MUST reconcile active work,
 PRS-V1-017	docs/specs/corvint-1.0-product-and-release-v1.md	336	The expanded capabilities MUST retain exact-candidate acceptance evidence and
+PRS-V1-018	docs/specs/corvint-1.0-product-and-release-v1.md	340	Stable 1.0 MUST ship five spec-driven development improvements (owner instructio
 PSL-V0-001	docs/specs/pulse-snapshot-lease-v0.md	199	The coordinator MUST be one client-owned local Go process over stdio, one serial
 PSL-V0-002	docs/specs/pulse-snapshot-lease-v0.md	202	Requests and responses MUST use `corvint-pulse-snapshot/0`, strict bounded canon
 PSL-V0-003	docs/specs/pulse-snapshot-lease-v0.md	204	Initialization MUST create a fresh unpredictable session ID. Restart, disconnect
