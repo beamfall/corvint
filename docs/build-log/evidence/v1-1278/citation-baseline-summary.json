@@ -1,0 +1,612 @@
+{
+ "all": {
+  "maps": 635,
+  "withCitation": 634,
+  "invalidOrError": 1,
+  "hunks": 23873,
+  "tiers": {
+   "anchored": 1250,
+   "cited": 22580,
+   "held": 0,
+   "mechanical-proved": 0,
+   "unknown": 43
+  },
+  "annotationHunks": 35,
+  "invariantMaps": 200,
+  "specificity": {
+   "positive": 225,
+   "zero": 361,
+   "negative": 48
+  },
+  "specificityHistogram": {
+   "-5": 2,
+   "-4": 3,
+   "-3": 6,
+   "-2": 5,
+   "-1": 32,
+   "0": 361,
+   "1": 129,
+   "2": 41,
+   "3": 17,
+   "4": 13,
+   "5": 8,
+   "6": 3,
+   "7": 3,
+   "8": 1,
+   "9": 2,
+   "10": 1,
+   "12": 2,
+   "13": 2,
+   "14": 1,
+   "15": 1,
+   "18": 1
+  },
+  "maxFanOutHistogram": {
+   "1": 33,
+   "2": 40,
+   "3": 25,
+   "4": 25,
+   "5": 33,
+   "6": 20,
+   "7": 27,
+   "8": 21,
+   "9": 12,
+   "10": 23,
+   "11": 23,
+   "12": 16,
+   "13": 24,
+   "14": 16,
+   "15": 21,
+   "16": 8,
+   "17": 12,
+   "18": 7,
+   "19": 12,
+   "20": 15,
+   "21": 14,
+   "22": 7,
+   "23": 8,
+   "24": 4,
+   "25": 6,
+   "26": 6,
+   "27": 10,
+   "28": 7,
+   "29": 7,
+   "30": 4,
+   "31": 4,
+   "32": 4,
+   "33": 8,
+   "34": 4,
+   "35": 2,
+   "36": 7,
+   "37": 2,
+   "38": 3,
+   "39": 4,
+   "40": 7,
+   "41": 3,
+   "42": 6,
+   "43": 3,
+   "44": 3,
+   "45": 3,
+   "46": 2,
+   "47": 3,
+   "48": 4,
+   "50": 4,
+   "51": 4,
+   "52": 1,
+   "53": 4,
+   "54": 3,
+   "55": 2,
+   "56": 2,
+   "57": 1,
+   "59": 3,
+   "60": 1,
+   "63": 2,
+   "64": 1,
+   "65": 1,
+   "66": 2,
+   "71": 3,
+   "72": 1,
+   "73": 1,
+   "83": 1,
+   "84": 1,
+   "85": 1,
+   "86": 1,
+   "87": 3,
+   "88": 2,
+   "89": 1,
+   "90": 1,
+   "92": 1,
+   "94": 1,
+   "95": 2,
+   "96": 2,
+   "97": 2,
+   "101": 1,
+   "102": 1,
+   "105": 2,
+   "106": 1,
+   "110": 1,
+   "111": 2,
+   "145": 1,
+   "153": 1,
+   "158": 1,
+   "162": 2,
+   "169": 1,
+   "173": 1,
+   "180": 1,
+   "191": 1,
+   "207": 1,
+   "212": 1,
+   "227": 1,
+   "291": 1
+  },
+  "selfCitation": {
+   "maps": 634,
+   "supportedHunks": 23830,
+   "bases": 26314,
+   "samePathCitations": 2646,
+   "samePathBases": 2646,
+   "diffAdjacentBases": 855,
+   "samePathHunks": 2520,
+   "diffAdjacentHunks": 846,
+   "samePathBaseShare": 0.100555,
+   "diffAdjacentBaseShare": 0.032492,
+   "samePathHunkShare": 0.105749,
+   "diffAdjacentHunkShare": 0.035501
+  },
+  "arms": {
+   "maps": 634,
+   "armsIssueMaps": 0,
+   "nullMaps": 618,
+   "authored": {
+    "hunks": 23830,
+    "hunksWithBases": 23830,
+    "bases": 26314,
+    "anchored": 1250,
+    "anchoredShare": 0.052455,
+    "anchoredExclAdjacent": 1238,
+    "anchoredExcess": {
+     "maps": 618,
+     "hunks": 23814,
+     "excess": 460.915,
+     "pooled": 0.019355,
+     "ci95": [
+      0.015264,
+      0.023445
+     ]
+    },
+    "anchoredExcessExclAdjacent": {
+     "maps": 618,
+     "hunks": 23814,
+     "excess": 462.05,
+     "pooled": 0.019402,
+     "ci95": [
+      0.015376,
+      0.023429
+     ]
+    }
+   },
+   "grepbot": {
+    "hunks": 23830,
+    "hunksWithBases": 17743,
+    "bases": 19486,
+    "anchored": 17737,
+    "anchoredShare": 0.744314,
+    "anchoredExclAdjacent": 17627,
+    "anchoredExcess": {
+     "maps": 618,
+     "hunks": 23814,
+     "excess": 15990.24,
+     "pooled": 0.671464,
+     "ci95": [
+      0.646244,
+      0.696684
+     ]
+    },
+    "anchoredExcessExclAdjacent": {
+     "maps": 618,
+     "hunks": 23814,
+     "excess": 15893.925,
+     "pooled": 0.667419,
+     "ci95": [
+      0.642371,
+      0.692468
+     ]
+    }
+   },
+   "preimage": {
+    "hunks": 23830,
+    "hunksWithBases": 19600,
+    "bases": 19600,
+    "anchored": 295,
+    "anchoredShare": 0.012379,
+    "anchoredExclAdjacent": 0,
+    "anchoredExcess": {
+     "maps": 618,
+     "hunks": 23814,
+     "excess": -89.525,
+     "pooled": -0.003759,
+     "ci95": [
+      -0.006586,
+      -0.000933
+     ]
+    },
+    "anchoredExcessExclAdjacent": {
+     "maps": 618,
+     "hunks": 23814,
+     "excess": 0,
+     "pooled": 0,
+     "ci95": [
+      0,
+      0
+     ]
+    }
+   }
+  },
+  "killStatistic": {
+   "mapsCompared": 634,
+   "grepbotAtLeastAuthored": 634,
+   "share": 1
+  }
+ },
+ "change": {
+  "maps": 635,
+  "withCitation": 634,
+  "invalidOrError": 1,
+  "hunks": 23873,
+  "tiers": {
+   "anchored": 1250,
+   "cited": 22580,
+   "held": 0,
+   "mechanical-proved": 0,
+   "unknown": 43
+  },
+  "annotationHunks": 35,
+  "invariantMaps": 200,
+  "specificity": {
+   "positive": 225,
+   "zero": 361,
+   "negative": 48
+  },
+  "specificityHistogram": {
+   "-5": 2,
+   "-4": 3,
+   "-3": 6,
+   "-2": 5,
+   "-1": 32,
+   "0": 361,
+   "1": 129,
+   "2": 41,
+   "3": 17,
+   "4": 13,
+   "5": 8,
+   "6": 3,
+   "7": 3,
+   "8": 1,
+   "9": 2,
+   "10": 1,
+   "12": 2,
+   "13": 2,
+   "14": 1,
+   "15": 1,
+   "18": 1
+  },
+  "maxFanOutHistogram": {
+   "1": 33,
+   "2": 40,
+   "3": 25,
+   "4": 25,
+   "5": 33,
+   "6": 20,
+   "7": 27,
+   "8": 21,
+   "9": 12,
+   "10": 23,
+   "11": 23,
+   "12": 16,
+   "13": 24,
+   "14": 16,
+   "15": 21,
+   "16": 8,
+   "17": 12,
+   "18": 7,
+   "19": 12,
+   "20": 15,
+   "21": 14,
+   "22": 7,
+   "23": 8,
+   "24": 4,
+   "25": 6,
+   "26": 6,
+   "27": 10,
+   "28": 7,
+   "29": 7,
+   "30": 4,
+   "31": 4,
+   "32": 4,
+   "33": 8,
+   "34": 4,
+   "35": 2,
+   "36": 7,
+   "37": 2,
+   "38": 3,
+   "39": 4,
+   "40": 7,
+   "41": 3,
+   "42": 6,
+   "43": 3,
+   "44": 3,
+   "45": 3,
+   "46": 2,
+   "47": 3,
+   "48": 4,
+   "50": 4,
+   "51": 4,
+   "52": 1,
+   "53": 4,
+   "54": 3,
+   "55": 2,
+   "56": 2,
+   "57": 1,
+   "59": 3,
+   "60": 1,
+   "63": 2,
+   "64": 1,
+   "65": 1,
+   "66": 2,
+   "71": 3,
+   "72": 1,
+   "73": 1,
+   "83": 1,
+   "84": 1,
+   "85": 1,
+   "86": 1,
+   "87": 3,
+   "88": 2,
+   "89": 1,
+   "90": 1,
+   "92": 1,
+   "94": 1,
+   "95": 2,
+   "96": 2,
+   "97": 2,
+   "101": 1,
+   "102": 1,
+   "105": 2,
+   "106": 1,
+   "110": 1,
+   "111": 2,
+   "145": 1,
+   "153": 1,
+   "158": 1,
+   "162": 2,
+   "169": 1,
+   "173": 1,
+   "180": 1,
+   "191": 1,
+   "207": 1,
+   "212": 1,
+   "227": 1,
+   "291": 1
+  },
+  "selfCitation": {
+   "maps": 634,
+   "supportedHunks": 23830,
+   "bases": 26314,
+   "samePathCitations": 2646,
+   "samePathBases": 2646,
+   "diffAdjacentBases": 855,
+   "samePathHunks": 2520,
+   "diffAdjacentHunks": 846,
+   "samePathBaseShare": 0.100555,
+   "diffAdjacentBaseShare": 0.032492,
+   "samePathHunkShare": 0.105749,
+   "diffAdjacentHunkShare": 0.035501
+  },
+  "arms": {
+   "maps": 634,
+   "armsIssueMaps": 0,
+   "nullMaps": 618,
+   "authored": {
+    "hunks": 23830,
+    "hunksWithBases": 23830,
+    "bases": 26314,
+    "anchored": 1250,
+    "anchoredShare": 0.052455,
+    "anchoredExclAdjacent": 1238,
+    "anchoredExcess": {
+     "maps": 618,
+     "hunks": 23814,
+     "excess": 460.915,
+     "pooled": 0.019355,
+     "ci95": [
+      0.015264,
+      0.023445
+     ]
+    },
+    "anchoredExcessExclAdjacent": {
+     "maps": 618,
+     "hunks": 23814,
+     "excess": 462.05,
+     "pooled": 0.019402,
+     "ci95": [
+      0.015376,
+      0.023429
+     ]
+    }
+   },
+   "grepbot": {
+    "hunks": 23830,
+    "hunksWithBases": 17743,
+    "bases": 19486,
+    "anchored": 17737,
+    "anchoredShare": 0.744314,
+    "anchoredExclAdjacent": 17627,
+    "anchoredExcess": {
+     "maps": 618,
+     "hunks": 23814,
+     "excess": 15990.24,
+     "pooled": 0.671464,
+     "ci95": [
+      0.646244,
+      0.696684
+     ]
+    },
+    "anchoredExcessExclAdjacent": {
+     "maps": 618,
+     "hunks": 23814,
+     "excess": 15893.925,
+     "pooled": 0.667419,
+     "ci95": [
+      0.642371,
+      0.692468
+     ]
+    }
+   },
+   "preimage": {
+    "hunks": 23830,
+    "hunksWithBases": 19600,
+    "bases": 19600,
+    "anchored": 295,
+    "anchoredShare": 0.012379,
+    "anchoredExclAdjacent": 0,
+    "anchoredExcess": {
+     "maps": 618,
+     "hunks": 23814,
+     "excess": -89.525,
+     "pooled": -0.003759,
+     "ci95": [
+      -0.006586,
+      -0.000933
+     ]
+    },
+    "anchoredExcessExclAdjacent": {
+     "maps": 618,
+     "hunks": 23814,
+     "excess": 0,
+     "pooled": 0,
+     "ci95": [
+      0,
+      0
+     ]
+    }
+   }
+  },
+  "killStatistic": {
+   "mapsCompared": 634,
+   "grepbotAtLeastAuthored": 634,
+   "share": 1
+  }
+ },
+ "chore": {
+  "maps": 0,
+  "withCitation": 0,
+  "invalidOrError": 0,
+  "hunks": 0,
+  "tiers": {
+   "anchored": 0,
+   "cited": 0,
+   "held": 0,
+   "mechanical-proved": 0,
+   "unknown": 0
+  },
+  "annotationHunks": 0,
+  "invariantMaps": 0,
+  "specificity": {
+   "positive": 0,
+   "zero": 0,
+   "negative": 0
+  },
+  "specificityHistogram": {},
+  "maxFanOutHistogram": {},
+  "selfCitation": {
+   "maps": 0,
+   "supportedHunks": 0,
+   "bases": 0,
+   "samePathCitations": 0,
+   "samePathBases": 0,
+   "diffAdjacentBases": 0,
+   "samePathHunks": 0,
+   "diffAdjacentHunks": 0,
+   "samePathBaseShare": null,
+   "diffAdjacentBaseShare": null,
+   "samePathHunkShare": null,
+   "diffAdjacentHunkShare": null
+  },
+  "arms": {
+   "maps": 0,
+   "armsIssueMaps": 0,
+   "nullMaps": 0,
+   "authored": {
+    "hunks": 0,
+    "hunksWithBases": 0,
+    "bases": 0,
+    "anchored": 0,
+    "anchoredShare": null,
+    "anchoredExclAdjacent": 0,
+    "anchoredExcess": {
+     "maps": 0,
+     "hunks": 0,
+     "excess": 0,
+     "pooled": null,
+     "ci95": null
+    },
+    "anchoredExcessExclAdjacent": {
+     "maps": 0,
+     "hunks": 0,
+     "excess": 0,
+     "pooled": null,
+     "ci95": null
+    }
+   },
+   "grepbot": {
+    "hunks": 0,
+    "hunksWithBases": 0,
+    "bases": 0,
+    "anchored": 0,
+    "anchoredShare": null,
+    "anchoredExclAdjacent": 0,
+    "anchoredExcess": {
+     "maps": 0,
+     "hunks": 0,
+     "excess": 0,
+     "pooled": null,
+     "ci95": null
+    },
+    "anchoredExcessExclAdjacent": {
+     "maps": 0,
+     "hunks": 0,
+     "excess": 0,
+     "pooled": null,
+     "ci95": null
+    }
+   },
+   "preimage": {
+    "hunks": 0,
+    "hunksWithBases": 0,
+    "bases": 0,
+    "anchored": 0,
+    "anchoredShare": null,
+    "anchoredExclAdjacent": 0,
+    "anchoredExcess": {
+     "maps": 0,
+     "hunks": 0,
+     "excess": 0,
+     "pooled": null,
+     "ci95": null
+    },
+    "anchoredExcessExclAdjacent": {
+     "maps": 0,
+     "hunks": 0,
+     "excess": 0,
+     "pooled": null,
+     "ci95": null
+    }
+   }
+  },
+  "killStatistic": {
+   "mapsCompared": 0,
+   "grepbotAtLeastAuthored": 0,
+   "share": null
+  }
+ }
+}
