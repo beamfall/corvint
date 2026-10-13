@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/gitauth"
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/stablefixture"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/frontier"
@@ -161,30 +163,29 @@ func TestCEMV1123StableTCQMemoNeverBypasses(t *testing.T) {
 	}
 }
 
-// TestCEMV1121LegacyRoutesRefuseStable (CEM-V1-121, CEM-V1-124): tcq/0 and
-// frontier/0 still refuse a cem/1.0 map, and tcq-stable/0 refuses cem/0.2.
+// TestCEMV1121LegacyRoutesRefuseStable (CEM-V1-121, CEM-V1-124, CEM-V1-217):
+// tcq/0 and frontier/0 are deleted with the cem/0.x wire, so the stable
+// routes are the only routes, and each refuses a retired cem/0.2 map before
+// reading it: tcq-stable/0 with unsupported-cem-profile and the frontier
+// stable view with unsupported-frontier-context.
 func TestCEMV1121LegacyRoutesRefuseStable(t *testing.T) {
 	f := newStableFixture(t, true)
 	ctx := context.Background()
-	adapter := New(ctx, f.root)
-	repository, err := adapter.tree()
+	retired := []byte(`{"spec":"cem/0.2"}` + "\n")
+	repository, err := gitauth.Open(f.root, gitrun.NewDefaultBudget())
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tcq.Evaluate(repository, adapter, tcq.Request{CEM: f.stable.Map, OCM: f.ocm, ExpectedBase: f.base, Target: f.stable.Target})
-	if tcqCode(err) != tcq.CodeUnsupportedCEMProfile {
-		t.Fatalf("tcq/0 over cem/1.0: %v", err)
-	}
+	reader := treeReader{adapter: New(ctx, f.root), repository: repository}
 	verifier := &stableVerifier{ctx: ctx, options: lrfrepo.StableUniverseOptions{Root: f.root, ArtifactRoot: f.stable.ArtifactRoot}}
-	_, err = tcq.EvaluateStable(repository, verifier, tcq.Request{CEM: f.cemRaw, OCM: f.ocmRaw, ExpectedBase: f.base, Target: f.target})
+	_, err = tcq.EvaluateStable(reader, verifier, tcq.Request{CEM: retired, OCM: f.ocm, ExpectedBase: f.base, Target: f.stable.Target})
 	if tcqCode(err) != tcq.CodeUnsupportedCEMProfile {
 		t.Fatalf("tcq-stable/0 over cem/0.2: %v", err)
 	}
-	_, _, err = frontier.Compute(ctx, frontier.Request{
-		CEMBytes: f.stable.Map, OCMBytes: f.ocm, ExpectedBase: f.base, Target: f.stable.Target, Verifier: adapter, TCQ: adapter,
-	})
-	if frontier.CodeOf(err) != frontier.CodeUnsupportedContext {
-		t.Fatalf("frontier/0 over cem/1.0: %v", err)
+	request := f.viewRequest()
+	request.CEMBytes = retired
+	if _, encoded, err := frontier.ComputeStable(ctx, New(ctx, f.root), request); frontier.CodeOf(err) != frontier.CodeUnsupportedContext || encoded != nil {
+		t.Fatalf("frontier stable view over cem/0.2: %v", err)
 	}
 }
 
@@ -246,7 +247,7 @@ func TestV1304StableViewRefusals(t *testing.T) {
 		"tampered map":          {func(r *frontier.StableViewRequest) { r.CEMBytes = edited }, "excluded-artifact-mismatch"},
 		"wrong base":            {func(r *frontier.StableViewRequest) { r.ExpectedBase = f.target }, "base-revision-mismatch"},
 		"missing artifact root": {func(r *frontier.StableViewRequest) { r.ArtifactRoot = "" }, frontier.CodeInvalidInput},
-		"cem/0.2 map":           {func(r *frontier.StableViewRequest) { r.CEMBytes = f.cemRaw }, frontier.CodeUnsupportedContext},
+		"cem/0.2 map":           {func(r *frontier.StableViewRequest) { r.CEMBytes = []byte(`{"spec":"cem/0.2"}` + "\n") }, frontier.CodeUnsupportedContext},
 	}
 	ctx := context.Background()
 	for name, tc := range cases {

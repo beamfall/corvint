@@ -17,7 +17,7 @@ func evaluateWith(t *testing.T, mutate func(*Request)) error {
 	documents := loadDocuments(t)
 	request := newRequest(documents)
 	mutate(&request)
-	_, err := Evaluate(newFixtureRepository(documents), fixtureVerifier{base: documents.Base, target: documents.Target}, request)
+	_, err := EvaluateStable(newFixtureRepository(documents), fixtureVerifier{base: documents.Base, target: documents.Target}, request)
 	return err
 }
 
@@ -57,15 +57,17 @@ func TestPreflightPrecedesStrictParse(t *testing.T) {
 	}), CodeResourceExhausted)
 }
 
-// TestUpstreamProfileRefusals covers TCQ-V0-002 and TCQ-V0-004: legacy CEM and
-// an unknown extractor fail operationally and can produce no abstention.
+// TestUpstreamProfileRefusals covers TCQ-V0-002 and TCQ-V0-004: a retired
+// cem/0.x map and an unknown extractor fail operationally and can produce no
+// abstention.
 func TestUpstreamProfileRefusals(t *testing.T) {
 	documents := loadDocuments(t)
 	cases := map[string]struct {
 		mutate func(*Request)
 		code   string
 	}{
-		"cem-0.1": {func(request *Request) { request.CEM = []byte(documents.CEM01) }, CodeUnsupportedCEMProfile},
+		"cem-0.1": {func(request *Request) { request.CEM = []byte(`{"spec":"cem/0.1"}` + "\n") }, CodeUnsupportedCEMProfile},
+		"cem-0.2": {func(request *Request) { request.CEM = []byte(`{"spec":"cem/0.2"}` + "\n") }, CodeUnsupportedCEMProfile},
 		"ocm-profile": {func(request *Request) {
 			request.OCM = []byte(strings.Replace(documents.OCM, `"spec":"ocm/0.1-experimental"`, `"spec":"ocm/0.2-imaginary"`, 1))
 		}, CodeUnsupportedOCMProfile},
@@ -73,7 +75,7 @@ func TestUpstreamProfileRefusals(t *testing.T) {
 			request.OCM = []byte(strings.Replace(documents.OCM, `"extractor":"corvint-test-claim/1"`, `"extractor":"corvint-test-claim/9"`, 1))
 		}, CodeUnsupportedClaimExtractor},
 		"noncanonical-ocm": {func(request *Request) {
-			request.OCM = []byte(strings.Replace(documents.OCM, `{"cemSha256"`, `{ "cemSha256"`, 1))
+			request.OCM = []byte(strings.Replace(documents.OCM, `{"cem"`, `{ "cem"`, 1))
 		}, CodeNoncanonicalMap},
 		"ocm-too-large": {func(request *Request) {
 			request.OCM = make([]byte, maxOCMBytes+1)
@@ -95,7 +97,7 @@ func TestRevisionBinding(t *testing.T) {
 
 	request := newRequest(documents)
 	other := strings.Repeat("3", 40)
-	_, err := Evaluate(newFixtureRepository(documents), fixtureVerifier{base: documents.Base, target: other}, request)
+	_, err := EvaluateStable(newFixtureRepository(documents), fixtureVerifier{base: documents.Base, target: other}, request)
 	requireCode(t, err, CodeTargetMismatch)
 }
 
@@ -191,7 +193,7 @@ func TestTreeLookupFailureIsNotAnAbsentPath(t *testing.T) {
 			request := newRequest(documents)
 			request.Command, request.Observation, request.Report = []byte(documents.Command), []byte(documents.Observation), []byte(documents.Report)
 			repository := failingTreeEntry{newFixtureRepository(documents), path, lookupFailure}
-			_, err := Evaluate(repository, fixtureVerifier{base: documents.Base, target: documents.Target}, request)
+			_, err := EvaluateStable(repository, fixtureVerifier{base: documents.Base, target: documents.Target}, request)
 			if !errors.Is(err, lookupFailure) {
 				t.Fatalf("Evaluate error = %v, want the lookup failure", err)
 			}
@@ -219,7 +221,7 @@ func TestReportCommandInconsistent(t *testing.T) {
 	request.Command = command
 	request.Observation = observation
 	request.Report = []byte(failing)
-	result, err := Evaluate(repository, fixtureVerifier{base: documents.Base, target: documents.Target}, request)
+	result, err := EvaluateStable(repository, fixtureVerifier{base: documents.Base, target: documents.Target}, request)
 	if err != nil {
 		t.Fatalf("Evaluate: %v", err)
 	}

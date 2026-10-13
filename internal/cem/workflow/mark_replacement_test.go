@@ -29,7 +29,7 @@ func TestMarkReplacementAtFirstRead(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, _, err := writer.readMapInput(wire.ExcludedCEMPath); err != nil {
+			if _, _, err := writer.readProducerMap(wire.ExcludedCEMPath); err != nil {
 				t.Fatal(err)
 			}
 			observer := openSession(t, root)
@@ -87,7 +87,7 @@ func TestMarkReplacementAtFirstRead(t *testing.T) {
 			if err != nil {
 				t.Fatalf("mark across concurrent replacement failed: %v", err)
 			}
-			_, document, err := openSession(t, root).readMapInput(wire.ExcludedCEMPath)
+			_, document, err := openSession(t, root).readProducerMap(wire.ExcludedCEMPath)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -135,7 +135,7 @@ func TestMarkHostileInputPrecedence(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, _, readErr := session.readMapInput(wire.ExcludedCEMPath)
+			_, _, readErr := session.readProducerMap(wire.ExcludedCEMPath)
 			_, err = session.Mark(ctx(), MarkOptions{MapPath: wire.ExcludedCEMPath, Hunk: "1", Disposition: "unknown", Reason: "insufficient-evidence"})
 			expected := cemcode.PublishFailed
 			if malformed {

@@ -62,20 +62,19 @@ type cemAction struct {
 var readArguments = []string{"--map", "--patch", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--artifacts"}
 
 var cemActions = map[string]cemAction{
-	// --spec selects the producer profile (CEM-V1-140): prepare writes cem/1.0
-	// unless it names cem/0.2; begin keeps its frozen cem/0.1 default
-	// (cli-parity-v0 case cem-begin-map) unless it names cem/1.0.
+	// --spec admits only cem/1.0, the one producer profile; omitted, begin and
+	// prepare write cem/1.0 too (CEM-V1-140). The producer, not an argparse
+	// choice, judges the value, so a retired label refuses unsupported-spec with
+	// the recovery line and any other value invalid-arguments (CEM-V1-216).
 	"begin": {
 		arguments: []string{"--patch", "--base", "--output", "--spec"},
 		required:  []string{"--patch", "--output"},
-		choices:   map[string][]string{"--spec": {"cem/0.1", "cem/1.0"}},
 	},
 	"prepare": {
 		arguments: []string{"--base", "--target", "--map", "--patch", "--spec"},
 		required:  []string{"--base", "--target"},
 		booleans:  []string{"--replace"},
 		paths:     []string{"--map", "--patch"},
-		choices:   map[string][]string{"--spec": {"cem/1.0", "cem/0.2"}},
 	},
 	"cite": {
 		arguments: []string{"--map", "--hunk", "--evidence-path", "--bytes", "--lines", "--relation", "--output"},
@@ -340,22 +339,16 @@ func (f *cemFlags) limit(name string) (*int, error) {
 
 // Run executes one `corvint cem ACTION` invocation.
 func Run(ctx context.Context, root string, arguments []string, stdout, stderr io.Writer) int {
-	return RunWithOCM(ctx, root, arguments, stdout, stderr, nil)
+	return RunWithCallerRoot(ctx, root, root, arguments, stdout, stderr)
 }
 
-// RunWithOCM supplies the optional owning OCM verifier per invocation. The
-// standalone CEM dependency closure stays independent of that capability.
-func RunWithOCM(ctx context.Context, root string, arguments []string, stdout, stderr io.Writer, reader workflow.ReviewOCMReader) int {
-	return RunWithCallerRoot(ctx, root, root, arguments, stdout, stderr, reader)
-}
-
-// RunWithCallerRoot is RunWithOCM for an entry point that normalized the root
-// it was given. Every 0.x command reads root; a cem/1.0 status or verify passes
+// RunWithCallerRoot is Run for an entry point that normalized the root it was
+// given. Every producer command reads root; a cem/1.0 status or verify passes
 // callerRoot, the root byte for byte as the caller named it, to stable
 // admission, which judges it exactly as `cem verify-stable --repository` judges
 // the same string (CEM-V1-017).
-func RunWithCallerRoot(ctx context.Context, root, callerRoot string, arguments []string, stdout, stderr io.Writer, reader workflow.ReviewOCMReader) int {
-	envelope, err := dispatchCEMWithOCM(ctx, root, callerRoot, arguments, reader)
+func RunWithCallerRoot(ctx context.Context, root, callerRoot string, arguments []string, stdout, stderr io.Writer) int {
+	envelope, err := dispatchCEMWithCallerRoot(ctx, root, callerRoot, arguments)
 	if err != nil {
 		emitCEMError(stderr, err)
 		return 2
@@ -415,10 +408,10 @@ func appendUnicodeEscape(output []byte, character rune) []byte {
 }
 
 func dispatchCEM(ctx context.Context, root string, arguments []string) (map[string]any, error) {
-	return dispatchCEMWithOCM(ctx, root, root, arguments, nil)
+	return dispatchCEMWithCallerRoot(ctx, root, root, arguments)
 }
 
-func dispatchCEMWithOCM(ctx context.Context, root, callerRoot string, arguments []string, reader workflow.ReviewOCMReader) (map[string]any, error) {
+func dispatchCEMWithCallerRoot(ctx context.Context, root, callerRoot string, arguments []string) (map[string]any, error) {
 	action, spec, err := parseAction(arguments)
 	if err != nil {
 		return nil, err
@@ -446,7 +439,7 @@ func dispatchCEMWithOCM(ctx context.Context, root, callerRoot string, arguments 
 		return session.Prepare(ctx, workflow.PrepareOptions{
 			Base: flags.values["--base"], Target: flags.values["--target"],
 			MapPath: flags.values["--map"], Cache: flags.values["--patch"],
-			Replace: flags.booleans["--replace"], Spec: prepareSpec(flags),
+			Replace: flags.booleans["--replace"], Spec: flags.values["--spec"],
 		})
 	case "cite":
 		return session.Cite(ctx, workflow.CiteOptions{
@@ -490,10 +483,9 @@ func dispatchCEMWithOCM(ctx context.Context, root, callerRoot string, arguments 
 			return nil, err
 		}
 		return session.Read(ctx, action, workflow.ReadOptions{
-			MapPath: flags.values["--map"], PatchPath: flags.values["--patch"],
-			PatchGiven: flags.present["--patch"], ExpectedBase: flags.values["--expected-base"],
+			MapPath: flags.values["--map"], PatchGiven: flags.present["--patch"], ExpectedBase: flags.values["--expected-base"],
 			Target: flags.values["--target"], Output: flags.values["--output"],
-			Format: flags.values["--format"], OCMPath: flags.values["--ocm"], ReadOCM: reader,
+			Format: flags.values["--format"], OCMPath: flags.values["--ocm"],
 			OCMGiven:     flags.present["--ocm"],
 			Limits:       workflow.PolicyLimits{MaxUnknown: maxUnknown, MaxMechanical: maxMechanical},
 			ArtifactRoot: flags.values["--artifacts"], ArtifactsGiven: flags.present["--artifacts"],
@@ -501,15 +493,6 @@ func dispatchCEMWithOCM(ctx context.Context, root, callerRoot string, arguments 
 		})
 	}
 	return nil, invalidChoice("cem_command", action, cemActionOrder)
-}
-
-// prepareSpec is the CLI producer default: cem prepare writes cem/1.0 unless
-// --spec names cem/0.2, which stays until the 0.x removal (CEM-V1-140).
-func prepareSpec(flags *cemFlags) string {
-	if flags.present["--spec"] {
-		return flags.values["--spec"]
-	}
-	return wire.StableSpec
 }
 
 // oracleReadFailures keeps the oracle's fixed CLI-level read messages for the

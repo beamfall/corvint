@@ -57,7 +57,7 @@ func TestObservationEnvironmentIsAdditive(t *testing.T) {
 	evaluate := func(observation []byte) Result {
 		request := newRequest(documents)
 		request.Command, request.Observation, request.Report = command, observation, report
-		result, err := Evaluate(repository, verifier, request)
+		result, err := EvaluateStable(repository, verifier, request)
 		if err != nil {
 			t.Fatalf("Evaluate: %v", err)
 		}
@@ -85,7 +85,7 @@ func TestObservationEnvironmentIsAdditive(t *testing.T) {
 	for name, observation := range malformed {
 		request := newRequest(documents)
 		request.Command, request.Observation, request.Report = command, []byte(observation), report
-		_, err := Evaluate(repository, verifier, request)
+		_, err := EvaluateStable(repository, verifier, request)
 		if err == nil {
 			t.Errorf("%s: malformed environment was accepted", name)
 			continue
@@ -109,7 +109,7 @@ func TestSameRevisionDivergentOutcomesAreFlaky(t *testing.T) {
 	}
 	request := newRequest(documents)
 	request.Command, request.Observation, request.Report = command, []byte(documents.Observation), []byte(documents.Report)
-	baseline, err := Evaluate(repository, verifier, request)
+	baseline, err := EvaluateStable(repository, verifier, request)
 	if err != nil {
 		t.Fatalf("Evaluate baseline: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestSameRevisionDivergentOutcomesAreFlaky(t *testing.T) {
 		t.Fatal("baseline without priors produced no relation")
 	}
 	request.PriorObservations = [][]byte{prior}
-	result, err := Evaluate(repository, verifier, request)
+	result, err := EvaluateStable(repository, verifier, request)
 	if err != nil {
 		t.Fatalf("Evaluate with prior: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestPriorObservationVariantMismatchIsNotFlaky(t *testing.T) {
 			request.Command, request.Report = command, []byte(documents.Report)
 			request.Observation = observe(documents.Report, 0, testCase.current)
 			request.PriorObservations = [][]byte{observe(failingBetaReport, 1, testCase.prior)}
-			result, err := Evaluate(repository, verifier, request)
+			result, err := EvaluateStable(repository, verifier, request)
 			if err != nil {
 				t.Fatalf("Evaluate: %v", err)
 			}
@@ -205,7 +205,7 @@ func TestPriorObservationsRequireDynamicTupleAndTarget(t *testing.T) {
 	}
 	static := newRequest(documents)
 	static.PriorObservations = [][]byte{prior}
-	_, err = Evaluate(repository, verifier, static)
+	_, err = EvaluateStable(repository, verifier, static)
 	requireCode(t, err, CodeInvalidInput)
 
 	other := strings.Repeat("3", 40)
@@ -220,20 +220,20 @@ func TestPriorObservationsRequireDynamicTupleAndTarget(t *testing.T) {
 	dynamic := newRequest(documents)
 	dynamic.Command, dynamic.Observation, dynamic.Report = command, []byte(documents.Observation), []byte(documents.Report)
 	dynamic.PriorObservations = [][]byte{otherPrior}
-	_, err = Evaluate(repository, verifier, dynamic)
+	_, err = EvaluateStable(repository, verifier, dynamic)
 	requireCode(t, err, CodeObservationTargetMismatch)
 
 	dynamic.PriorObservations = nil
 	for range maxPriorObservations + 1 {
 		dynamic.PriorObservations = append(dynamic.PriorObservations, prior)
 	}
-	_, err = Evaluate(repository, verifier, dynamic)
+	_, err = EvaluateStable(repository, verifier, dynamic)
 	requireCode(t, err, CodeResourceExhausted)
 }
 
-func mustEvaluate(t *testing.T, repository Repository, verifier UpstreamVerifier, request Request) Result {
+func mustEvaluate(t *testing.T, repository Repository, verifier StableUpstreamVerifier, request Request) Result {
 	t.Helper()
-	result, err := Evaluate(repository, verifier, request)
+	result, err := EvaluateStable(repository, verifier, request)
 	if err != nil {
 		t.Fatalf("Evaluate: %v", err)
 	}

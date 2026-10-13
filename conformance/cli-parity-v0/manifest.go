@@ -817,7 +817,7 @@ func validExclusionCountDivergence(item parityCase) bool {
 // retiredCases is the closed set decision 0308 withdraws from execution: the
 // cases whose frozen argv, fixture or expectation address the oracle's
 // `.atlas/` or `.context-atlas/` state paths, plus the one whose frozen task
-// carries the retired product name as a tooling term; plus the one case
+// carries the retired product name as a tooling term; plus the two cases
 // decision 0525 retires (retiredCaseDecisions).
 var retiredCases = map[string]bool{
 	"cem-cite-empty-span": true, "cem-cite-evidence": true, "cem-cite-invalid-line-range": true,
@@ -830,14 +830,16 @@ var retiredCases = map[string]bool{
 	"ocm-prepare-resume": true, "ocm-verify-cem-binding": true, "ocm-verify-linked": true,
 	"query-repository-agent-tooling": true, "query-repository-trace-budget-selection": true,
 	"query-repository-trace-matching": true, "query-repository-trace-nonmatching-nonpassed": true,
-	"record-create-trace": true, "lrf-evaluate-supported": true,
+	"record-create-trace": true, "lrf-evaluate-supported": true, "cem-begin-map": true,
 }
 
 // retiredCaseDecisions names the pinned case retired under a decision other
-// than 0308: decision 0525 (CEM-V1-210, CEM-V1-212) admits cem/1.0 only, and the
-// case's frozen map is cem/0.x, so the consumer refuses it with
-// `unsupported-spec` and the frozen expectation cannot be reached.
-var retiredCaseDecisions = map[string]string{"lrf-evaluate-supported": "0525"}
+// than 0308: decision 0525 (CEM-V1-210, CEM-V1-212) admits cem/1.0 only. The
+// lrf case's frozen map is cem/0.x, so the consumer refuses it with
+// `unsupported-spec`; the cem begin case froze the cem/0.2 map begin wrote by
+// default, and begin now writes cem/1.0 (CEM-V1-216). Neither frozen
+// expectation can be reached; each stays in the manifest unchanged.
+var retiredCaseDecisions = map[string]string{"lrf-evaluate-supported": "0525", "cem-begin-map": "0525"}
 
 // validRetired admits a retirement only for a pinned case, only under its
 // pinned decision (0308 unless retiredCaseDecisions names another), and only

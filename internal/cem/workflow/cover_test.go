@@ -14,8 +14,8 @@ import (
 
 const whisperTarget = importReorderTarget + "\n// Whisper lower-cases s.\nfunc Whisper(s string) string { return strings.ToLower(s) }\n"
 
-// witnessMap is where a test writes the cem/0.3 map, which never replaces
-// the cem/0.2 input or lands on the Core sidecar path (V1-0335).
+// witnessMap is where a test writes the witnessed cem/1.0 map, which never
+// replaces the input map or lands on the Core sidecar path (V1-0335).
 const witnessMap = ".corvint/witness.cem.json"
 
 func readMap(t *testing.T, root string) *wire.Map {
@@ -29,22 +29,19 @@ func readMapAt(t *testing.T, root, relative string) *wire.Map {
 	if err != nil {
 		t.Fatal(err)
 	}
-	document, err := wire.ParseMap(data)
+	document, err := wire.ParseStable(data)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return document
+	return stableMechanics(document)
 }
 
-func reportText(t *testing.T, root, base string) string {
-	t.Helper()
-	return reportTextAt(t, root, base, wire.ExcludedCEMPath)
-}
-
-func reportTextAt(t *testing.T, root, base, mapPath string) string {
+// reportTextAt renders the stable report of one map with the repository root
+// as its artifact root and the full target object id.
+func reportTextAt(t *testing.T, root, base, target, mapPath string) string {
 	t.Helper()
 	result, err := openSession(t, root).Read(ctx(), "report", ReadOptions{
-		MapPath: mapPath, ExpectedBase: base, Target: "HEAD",
+		MapPath: mapPath, ExpectedBase: base, Target: target, ArtifactRoot: root, ArtifactsGiven: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -59,9 +56,9 @@ func reportTextAt(t *testing.T, root, base, mapPath string) string {
 // TestCoverRecordsCoverageWitnessAndReportDowngrades is TCQ-V0-051..054
 // end to end: cover intersects one explicit coverprofile with the hunk's
 // added lines and records a witness on every hunk (covered or uncovered,
-// never absent), the map becomes cem/0.3 and still verifies, and the reviewer
-// report downgrades a test claim without a covering witness with a visible
-// reason.
+// never absent), the cem/1.0 map still verifies, and the stable review
+// projection names each hunk's coverage state. The tcq/0 report downgrade
+// is retired with the 0.x report (CEM-V1-217).
 func TestCoverRecordsCoverageWitnessAndReportDowngrades(t *testing.T) {
 	root, base, target := makeGoRepo(t, importReorderTarget, whisperTarget)
 	session := openSession(t, root)
@@ -73,7 +70,7 @@ func TestCoverRecordsCoverageWitnessAndReportDowngrades(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if text := reportText(t, root, base); !strings.Contains(text, "downgraded from tested; reason `no-coverage-witness`") {
+	if text := reportTextAt(t, root, base, target, wire.ExcludedCEMPath); !strings.Contains(text, "Coverage `NOT_PRODUCED`") {
 		t.Fatalf("report without a witness:\n%s", text)
 	}
 
@@ -91,18 +88,15 @@ func TestCoverRecordsCoverageWitnessAndReportDowngrades(t *testing.T) {
 	}
 	document := readMapAt(t, root, witnessMap)
 	witness := document.Hunks[0].Coverage
-	if document.Spec != wire.Spec03 || witness == nil || witness.State != wire.CoverageCovered ||
+	if document.Spec != wire.StableSpec || witness == nil || witness.State != wire.CoverageCovered ||
 		witness.TestRun != "go test ./pkg/..." || witness.Mode != "set" || len(witness.Covered) != 1 ||
 		witness.Covered[0] != (wire.Range{Start: 12, Count: 1}) {
 		t.Fatalf("spec %s witness %+v", document.Spec, witness)
 	}
-	status, err := openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: witnessMap, ExpectedBase: base, Target: "HEAD",
-	})
-	if err != nil || status["state"] != "ready-for-ci" {
-		t.Fatalf("status after cover: %v %v", err, status)
+	if status := stableStatus(t, root, witnessMap, base, target, PolicyLimits{}); stableOutcome(status) != "ACCEPT" {
+		t.Fatalf("status after cover: %v", status)
 	}
-	if text := reportTextAt(t, root, base, witnessMap); !strings.Contains(text, "tested (test run `go test ./pkg/...`, coverprofile `"+hex.EncodeToString(digest[:])+"`)") {
+	if text := reportTextAt(t, root, base, target, witnessMap); !strings.Contains(text, "Coverage `covered`") {
 		t.Fatalf("report with a covering witness:\n%s", text)
 	}
 
@@ -118,7 +112,7 @@ func TestCoverRecordsCoverageWitnessAndReportDowngrades(t *testing.T) {
 	if witness == nil || witness.State != wire.CoverageUncovered || len(witness.Covered) != 0 || witness.Mode != "count" {
 		t.Fatalf("uncovered witness = %+v", witness)
 	}
-	if text := reportTextAt(t, root, base, witnessMap); !strings.Contains(text, "downgraded from tested; reason `coverage-witness-uncovered`") {
+	if text := reportTextAt(t, root, base, target, witnessMap); !strings.Contains(text, "Coverage `uncovered`") {
 		t.Fatalf("report with an uncovered witness:\n%s", text)
 	}
 }
@@ -149,7 +143,7 @@ func TestCoverRefusesAmbiguousAndInvalidInputs(t *testing.T) {
 			t.Errorf("%s: got %v, want invalid-arguments containing %q", name, err, tc.want)
 		}
 	}
-	if document := readMap(t, root); document.Spec != wire.Spec02 || document.Hunks[0].Coverage != nil {
+	if document := readMap(t, root); document.Spec != wire.StableSpec || document.Hunks[0].Coverage != nil {
 		t.Fatalf("refused cover mutated the map: %+v", document)
 	}
 }

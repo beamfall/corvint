@@ -7,11 +7,11 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 )
 
-// TestSpec03CoverageWitness is TCQ-V0-052: a cem/0.3 hunk may carry one
-// coverage witness, cem/0.1 and cem/0.2 reject the key as unknown, and a
+// TestInheritedCoverageWitness is TCQ-V0-052: a cem/1.0 hunk may carry one
+// coverage witness, the candidate profile rejects the key as unknown, and a
 // witness whose state and ranges disagree or whose ranges leave the hunk's
 // new-side range is an invalid field.
-func TestSpec03CoverageWitness(t *testing.T) {
+func TestInheritedCoverageWitness(t *testing.T) {
 	const digest = "3f5c1b2ac0d7e8f9a1b2c3d4e5f60718293a4b5c6d7e8f9012a3b4c5d6e7f809"
 	render := func(spec, coverage, excluded string) []byte {
 		return []byte(`{"spec":"` + spec + `","baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",` +
@@ -25,27 +25,24 @@ func TestSpec03CoverageWitness(t *testing.T) {
 		`"state":"covered","covered":[{"start":4,"count":1},{"start":6,"count":1}]}`
 	uncovered := `,"coverage":{"profileSha256":"` + digest + `","testRun":"go test ./pkg/...","mode":"count",` +
 		`"state":"uncovered","covered":[]}`
-	document, err := ParseMap(render(Spec03, covered, excluded))
+	document, err := parseMechanics(render(StableSpec, covered, excluded), true)
 	if err != nil {
-		t.Fatalf("cem/0.3 covered witness: %v", err)
+		t.Fatalf("covered witness: %v", err)
 	}
 	witness := document.Hunks[0].Coverage
 	if witness == nil || witness.State != CoverageCovered || witness.TestRun != "go test ./pkg/..." ||
 		witness.ProfileSha256 != digest || witness.Mode != "set" || len(witness.Covered) != 2 || witness.Covered[1].Start != 6 {
 		t.Fatalf("witness = %+v", witness)
 	}
-	document, err = ParseMap(render(Spec03, uncovered, excluded))
+	document, err = parseMechanics(render(StableSpec, uncovered, excluded), true)
 	if err != nil || document.Hunks[0].Coverage == nil || document.Hunks[0].Coverage.State != CoverageUncovered {
-		t.Fatalf("cem/0.3 uncovered witness: %v %+v", err, document)
+		t.Fatalf("uncovered witness: %v %+v", err, document)
 	}
-	if document, err := ParseMap(render(Spec03, "", excluded)); err != nil || document.Hunks[0].Coverage != nil {
-		t.Fatalf("cem/0.3 without a witness: %v %+v", err, document)
+	if document, err := parseMechanics(render(StableSpec, "", excluded), true); err != nil || document.Hunks[0].Coverage != nil {
+		t.Fatalf("without a witness: %v %+v", err, document)
 	}
-	for spec, path := range map[string]string{Spec01: "", Spec02: excluded} {
-		_, err := ParseMap(render(spec, covered, path))
-		if err == nil || cemcode.CodeOf(err) != cemcode.UnknownField {
-			t.Errorf("%s with a witness: got %v, want unknown-field", spec, err)
-		}
+	if _, err := parseMechanics(render(StableSpec, covered, excluded), false); cemcode.CodeOf(err) != cemcode.UnknownField {
+		t.Errorf("candidate with a witness: got %v, want unknown-field", err)
 	}
 	invalid := map[string]string{
 		"state-disagrees":   strings.Replace(covered, `"state":"covered"`, `"state":"uncovered"`, 1),
@@ -60,12 +57,12 @@ func TestSpec03CoverageWitness(t *testing.T) {
 		"bad-state":         strings.Replace(covered, `"state":"covered"`, `"state":"partial"`, 1),
 	}
 	for name, coverage := range invalid {
-		_, err := ParseMap(render(Spec03, coverage, excluded))
+		_, err := parseMechanics(render(StableSpec, coverage, excluded), true)
 		if err == nil || cemcode.CodeOf(err) != cemcode.InvalidField {
 			t.Errorf("%s: got %v, want invalid-field", name, err)
 		}
 	}
-	_, err = ParseMap(render(Spec03, strings.Replace(covered, `"mode":"set",`, `"mode":"set","extra":1,`, 1), excluded))
+	_, err = parseMechanics(render(StableSpec, strings.Replace(covered, `"mode":"set",`, `"mode":"set","extra":1,`, 1), excluded), true)
 	if err == nil || cemcode.CodeOf(err) != cemcode.UnknownField {
 		t.Errorf("surplus witness key: got %v, want unknown-field", err)
 	}

@@ -84,7 +84,7 @@ func TestCEMV1130StableObligationsAccepts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Contains(encoded, []byte(`"`+ObligationsSchema+`"`)) {
+	if bytes.Contains(encoded, []byte(`"external-frontier-obligations/0"`)) {
 		t.Fatal("stable sidecar relabels the frozen schema")
 	}
 }
@@ -111,7 +111,7 @@ func TestCEMV1132StableObligationsRefusals(t *testing.T) {
 	f := newStableObligationsFixture(t)
 	edited := append(bytes.TrimSuffix(append([]byte(nil), f.stable.Map...), []byte("\n")), ' ', '\n')
 	cases := map[string]func(*[]byte, *StableObligationsOptions){
-		"wrong base":            func(_ *[]byte, o *StableObligationsOptions) { o.ExpectedBase = f.change.LegacyTarget },
+		"wrong base":            func(_ *[]byte, o *StableObligationsOptions) { o.ExpectedBase = f.change.ProducerTarget },
 		"edited map bytes":      func(raw *[]byte, _ *StableObligationsOptions) { *raw = edited },
 		"missing artifact root": func(_ *[]byte, o *StableObligationsOptions) { o.ArtifactRoot = "" },
 	}
@@ -142,8 +142,9 @@ func requireStableObligationsRefusal(t *testing.T, document map[string]any, err 
 	}
 }
 
-// TestCEMV1134ObligationRoutesStayDisjoint (CEM-V1-134, CEM-V1-210): the
-// frozen sidecar refuses cem/1.0, and the stable sidecar refuses a retired
+// TestCEMV1134ObligationRoutesStayDisjoint (CEM-V1-134, CEM-V1-210,
+// CEM-V1-217): an invocation without the stable context refuses cem/1.0 as
+// the retired frozen route, and the stable sidecar refuses a retired
 // cem/0.2 map with unsupported-spec and the recovery line before any
 // verification.
 func TestCEMV1134ObligationRoutesStayDisjoint(t *testing.T) {
@@ -152,9 +153,11 @@ func TestCEMV1134ObligationRoutesStayDisjoint(t *testing.T) {
 		run  func() (map[string]any, error)
 		code string
 	}{
-		"frozen over cem/1.0": {func() (map[string]any, error) { return Obligations(f.stable.Map, stableObligationsReceipt(), 64) }, "invalid-obligations-input"},
+		"frozen over cem/1.0": {func() (map[string]any, error) {
+			return StableObligations(context.Background(), f.stable.Map, stableObligationsReceipt(), 64, StableObligationsOptions{})
+		}, "invalid-obligations-input"},
 		"stable over cem/0.2": {func() (map[string]any, error) {
-			return StableObligations(context.Background(), f.change.Legacy, stableObligationsReceipt(), 64, f.options())
+			return StableObligations(context.Background(), []byte(`{"spec":"cem/0.2","hunks":[]}`), stableObligationsReceipt(), 64, f.options())
 		}, cemcode.UnsupportedSpec},
 	} {
 		document, err := test.run()

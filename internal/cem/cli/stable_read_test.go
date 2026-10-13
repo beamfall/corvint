@@ -162,7 +162,7 @@ func materializeStableRead(t *testing.T) stableReadFixture {
 func runCoreRead(t *testing.T, root string, arguments ...string) (exit int, envelope, refusal map[string]any) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	exit = RunWithOCM(context.Background(), root, arguments, &stdout, &stderr, nil)
+	exit = Run(context.Background(), root, arguments, &stdout, &stderr)
 	if stdout.Len() != 0 {
 		if err := json.Unmarshal(stdout.Bytes(), &envelope); err != nil {
 			t.Fatalf("stdout is not one JSON envelope: %v: %s", err, stdout.Bytes())
@@ -299,8 +299,9 @@ func TestCoreStableReadKeepsVerifierExit(t *testing.T) {
 	}
 }
 
-// CEM-V1-018: a stable map refuses the 0.x-only inputs, and a 0.x map refuses
-// --artifacts, all before any verifier or Git work and with exit 2.
+// CEM-V1-018: a stable map refuses the 0.x-only inputs, and a retired 0.x map
+// refuses unsupported-spec (CEM-V1-215), all before any verifier or Git work
+// and with exit 2.
 func TestCoreStableReadExplicitRefusals(t *testing.T) {
 	f := materializeStableRead(t)
 	stable := func(action string, extra ...string) []string {
@@ -340,70 +341,12 @@ func TestCoreStableReadExplicitRefusals(t *testing.T) {
 	if cemcode.CodeOf(err) != cemcode.InvalidArguments || !strings.Contains(err.Error(), "cem/1.0 report-preview does not accept --patch") {
 		t.Fatalf("report preview refusal = %v", err)
 	}
-	// A 0.x map never takes --artifacts; the refusal follows the map read, so a
-	// malformed 0.x map keeps its own earlier failure.
+	// A retired 0.x map refuses unsupported-spec with the fix line whatever
+	// else is passed (CEM-V1-215).
 	exit, envelope, refusal := runCoreRead(t, f.repo, "verify", "--map", "legacy.cem.json", "--artifacts", f.artifacts)
-	if exit != 2 || envelope != nil || refusal["code"] == cemcode.InvalidArguments {
-		t.Fatalf("malformed 0.x map with --artifacts: exit %d refusal %v, want its own parse failure", exit, refusal)
+	if exit != 2 || envelope != nil || refusal["code"] != cemcode.UnsupportedSpec || !strings.Contains(refusal["error"].(string), wire.RetiredSpecFix) {
+		t.Fatalf("0.x map with --artifacts: exit %d refusal %v, want unsupported-spec with the fix line", exit, refusal)
 	}
-}
-
-// CEM-V1-018: an otherwise valid canonical 0.x map refuses --artifacts at
-// stage 3, before expected-base and target are required.
-func TestCoreStableReadRefusesArtifactsFor0x(t *testing.T) {
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "legacy.cem.json"), legacyCanonicalMap(t), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	for _, action := range []string{"verify", "status"} {
-		exit, envelope, refusal := runCoreRead(t, root, action, "--map", "legacy.cem.json", "--artifacts", "/artifacts")
-		if exit != 2 || envelope != nil || refusal["code"] != cemcode.InvalidArguments {
-			t.Fatalf("%s: exit %d refusal %v, want invalid-arguments", action, exit, refusal)
-		}
-		if message, _ := refusal["error"].(string); message != "cem/0.3 "+action+" does not accept --artifacts" {
-			t.Fatalf("%s refusal = %q", action, message)
-		}
-	}
-}
-
-// CEM-V1-019: the stable route opens only for an exact cem/1.0 root; the
-// candidate and every other refused spec keep their 0.x code and message.
-func TestCoreStableRead0xRefusalsUnchanged(t *testing.T) {
-	root := t.TempDir()
-	for name, document := range map[string]string{
-		"candidate.json": `{"spec":"cem/1.0-experimental.1"}`,
-		"other.json":     `{"spec":"cem/9"}`,
-		"padded.json":    `{"spec":"cem/1.0 "}`,
-		"number.json":    `{"spec":1}`,
-	} {
-		if err := os.WriteFile(filepath.Join(root, name), []byte(document), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		for _, action := range []string{"verify", "status"} {
-			exit, envelope, refusal := runCoreRead(t, root, action, "--map", name)
-			if exit != 2 || envelope != nil || refusal["code"] != cemcode.UnsupportedSpec {
-				t.Fatalf("%s %s: exit %d refusal %v", action, name, exit, refusal)
-			}
-			if refusal["error"] != `spec must be "cem/0.1", "cem/0.2", or "cem/0.3"` {
-				t.Fatalf("%s %s: refusal message changed: %v", action, name, refusal["error"])
-			}
-		}
-	}
-}
-
-// legacyCanonicalMap returns one parseable cem/0.3 map with a single unknown
-// hunk; the refusal under test precedes every repository read.
-func legacyCanonicalMap(t *testing.T) []byte {
-	t.Helper()
-	data := []byte(`{"spec":"cem/0.3","baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",` +
-		`"patchSha256":"dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c","excludedPath":".corvint/change.cem.json",` +
-		`"evidence":[],"hunks":[{"id":"hunk:sha256:07461a992e03e064986720e365dc4bb477da7cefe73da853f51bcb70e2c3100c",` +
-		`"path":"src/a.go","oldRange":{"start":1,"count":2},"newRange":{"start":4,"count":3},` +
-		`"disposition":"unknown","reason":"no-evidence","basis":[]}]}`)
-	if document, err := wire.ParseMap(data); err != nil || document.Spec != wire.Spec03 {
-		t.Fatalf("legacy fixture does not parse as cem/0.3: %v", err)
-	}
-	return data
 }
 
 // TestCEMV1145StatusCeilings checks the stable status policy ceilings: counts
@@ -443,5 +386,78 @@ func TestCEMV1145StatusCeilings(t *testing.T) {
 	exit, envelope, refusal = runCoreRead(t, f.repo, append(coreStableArguments("verify", f, f.artifacts), "--max-unknown", "0")...)
 	if exit != 2 || envelope != nil || refusal["code"] != cemcode.InvalidArguments {
 		t.Fatalf("verify ceiling: exit %d envelope %v refusal %v", exit, envelope, refusal)
+	}
+}
+
+// TestCEMV1215ReadsRefuseEveryNonStableSpec checks CEM-V1-215: verify, status
+// and report admit only an exact cem/1.0 root. A retired cem/0.x map refuses
+// unsupported-spec with the RetiredSpecFix line, with or without --artifacts,
+// and every other spec value refuses unsupported-spec; none reads Git.
+func TestCEMV1215ReadsRefuseEveryNonStableSpec(t *testing.T) {
+	root := t.TempDir()
+	documents := map[string]string{
+		"cem01.json":     `{"spec":"cem/0.1"}`,
+		"cem02.json":     `{"spec":"cem/0.2"}`,
+		"cem03.json":     `{"spec":"cem/0.3","hunks":[]}`,
+		"candidate.json": `{"spec":"cem/1.0-experimental.1"}`,
+		"other.json":     `{"spec":"cem/9"}`,
+		"padded.json":    `{"spec":"cem/1.0 "}`,
+		"number.json":    `{"spec":1}`,
+	}
+	for name, document := range documents {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(document), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, document := range documents {
+		retired := strings.HasPrefix(document, `{"spec":"cem/0.`)
+		for _, arguments := range [][]string{
+			{"verify", "--map", name}, {"status", "--map", name}, {"report", "--map", name, "--format", "json"},
+			{"verify", "--map", name, "--artifacts", "/artifacts"}, {"report", "--map", name, "--format", "markdown", "--artifacts", "/artifacts"},
+		} {
+			exit, envelope, refusal := runCoreRead(t, root, arguments...)
+			if exit != 2 || envelope != nil || refusal["code"] != cemcode.UnsupportedSpec {
+				t.Fatalf("%v: exit %d refusal %v, want unsupported-spec", arguments, exit, refusal)
+			}
+			message, _ := refusal["error"].(string)
+			if retired != strings.Contains(message, wire.RetiredSpecFix) {
+				t.Fatalf("%v: refusal %q, retired %v", arguments, message, retired)
+			}
+		}
+	}
+}
+
+// TestCEMV1216CommandSpecRefusals drives `cem begin` and `cem prepare` --spec
+// through the command parser: a retired label reaches the producer and refuses
+// unsupported-spec with the recovery line, any other non-stable value refuses
+// invalid-arguments, and neither writes a map (CEM-V1-216).
+func TestCEMV1216CommandSpecRefusals(t *testing.T) {
+	root := t.TempDir()
+	if output, err := exec.Command("git", "-C", root, "init", "-q", "-b", "main").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v: %s", err, output)
+	}
+	for _, c := range []struct{ spec, code string }{
+		{"cem/0.1", cemcode.UnsupportedSpec},
+		{"cem/0.2", cemcode.UnsupportedSpec},
+		{"cem/0.3", cemcode.UnsupportedSpec},
+		{"cem/1.0 ", cemcode.InvalidArguments},
+		{wire.CandidateSpec, cemcode.InvalidArguments},
+	} {
+		for _, arguments := range [][]string{
+			{"begin", "--patch", "change.patch", "--output", "refused.cem.json", "--spec", c.spec},
+			{"prepare", "--base", "HEAD", "--target", "HEAD", "--spec", c.spec},
+		} {
+			exit, envelope, refusal := runCoreRead(t, root, arguments...)
+			message, _ := refusal["error"].(string)
+			if exit != 2 || envelope != nil || refusal["code"] != c.code ||
+				(c.code == cemcode.UnsupportedSpec) != strings.Contains(message, wire.RetiredSpecFix) {
+				t.Fatalf("%s --spec %q: exit %d envelope %v refusal %v", arguments[0], c.spec, exit, envelope, refusal)
+			}
+		}
+	}
+	for _, written := range []string{"refused.cem.json", filepath.FromSlash(wire.ExcludedCEMPath)} {
+		if _, err := os.Lstat(filepath.Join(root, written)); !os.IsNotExist(err) {
+			t.Fatalf("a refused --spec wrote %s (%v)", written, err)
+		}
 	}
 }

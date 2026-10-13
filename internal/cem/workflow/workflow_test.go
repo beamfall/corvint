@@ -2,8 +2,6 @@ package workflow
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -69,6 +67,17 @@ func makeRepo(t *testing.T) (string, string, string) {
 	return root, base, target
 }
 
+// readProducerMap reads the raw bytes and mechanics view of a cem/1.0 producer
+// map exactly as a mutator does.
+func (s *Session) readProducerMap(relative string) ([]byte, *wire.Map, error) {
+	raw, err := s.readMapBytes(relative)
+	if err != nil {
+		return nil, nil, err
+	}
+	document, err := s.readMutableMap("test", relative)
+	return raw, document, err
+}
+
 func openSession(t *testing.T, root string) *Session {
 	t.Helper()
 	session, err := Open(root)
@@ -85,7 +94,7 @@ func citeAll(t *testing.T, root string) {
 	t.Helper()
 	for {
 		session := openSession(t, root)
-		_, document, err := session.readMapInput(wire.ExcludedCEMPath)
+		_, document, err := session.readProducerMap(wire.ExcludedCEMPath)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -110,7 +119,8 @@ func citeAll(t *testing.T, root string) {
 }
 
 // TestTwoPhaseCanonicalFlow is CEM-CB-AT-011 / EX-001: prepare, cite, commit
-// the candidate, then canonically verify HEAD with the exact envelope.
+// the candidate, then verify the committed revision through the stable status
+// with the exact next action argv (CEM-V1-215).
 func TestTwoPhaseCanonicalFlow(t *testing.T) {
 	root, base, target := makeRepo(t)
 	session := openSession(t, root)
@@ -123,7 +133,8 @@ func TestTwoPhaseCanonicalFlow(t *testing.T) {
 	}
 	action := prepared["nextActions"].([]any)[0].([]any)
 	rendered, _ := json.Marshal(action)
-	if strings.Contains(string(rendered), "--patch") || !strings.Contains(string(rendered), `"--target","HEAD"`) {
+	want, _ := json.Marshal(stableNextAction(base, target, root))
+	if strings.Contains(string(rendered), "--patch") || string(rendered) != string(want) {
 		t.Fatalf("canonical next action malformed: %s", rendered)
 	}
 	// CEM-CB-016 / decision 0122: argv[0] is the contract command name, not the build name.
@@ -132,40 +143,31 @@ func TestTwoPhaseCanonicalFlow(t *testing.T) {
 	}
 	citeAll(t, root)
 	// The worktree still holds the target checkout; commit the candidate to
-	// create the final revision the consumer independently resolves as HEAD.
+	// create the final revision the consumer independently resolves.
 	gitCmd(t, root, "add", wire.ExcludedCEMPath)
 	gitCmd(t, root, "commit", "-qm", "candidate")
+	head := strings.TrimSpace(gitCmd(t, root, "rev-parse", "HEAD"))
 	// CEM-CB-AT-001: the convenience cache is not patch authority.
 	if err := os.Remove(filepath.Join(session.gitRoot.Path(), "corvint", "change.patch")); err != nil {
 		t.Fatal(err)
 	}
-	result, err := openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result["ok"] != true || result["state"] != "ready-for-ci" {
+	result := stableStatus(t, root, wire.ExcludedCEMPath, base, head, PolicyLimits{})
+	if result["ok"] != true || stableOutcome(result) != "ACCEPT" {
 		encoded, _ := json.Marshal(result)
-		t.Fatalf("canonical status not green: %s", encoded)
+		t.Fatalf("stable status not green: %s", encoded)
 	}
-	if result["patch"] != nil || result["patchSource"] != "canonical-derived" ||
-		result["excludedPath"] != wire.ExcludedCEMPath || len(result["warnings"].([]any)) != 0 {
-		t.Fatalf("frozen 0.2 status envelope violated: %+v", result)
+	if _, present := result["patch"]; present {
+		t.Fatal("stable status carries a legacy patch field")
 	}
-	verification := result["verification"].(map[string]any)
-	if verification["assurance"] != "canonical" || verification["valid"] != true {
-		t.Fatalf("verification: %+v", verification)
-	}
-	// verify and report must not carry the legacy patch field.
 	verified, err := openSession(t, root).Read(ctx(), "verify", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
+		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: head,
+		ArtifactRoot: root, ArtifactsGiven: true,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, present := verified["patch"]; present {
-		t.Fatal("0.2 verify carries a legacy patch field")
+		t.Fatal("stable verify carries a legacy patch field")
 	}
 	if verified["ok"] != true {
 		encoded, _ := json.Marshal(verified)
@@ -173,46 +175,8 @@ func TestTwoPhaseCanonicalFlow(t *testing.T) {
 	}
 }
 
-func TestCanonicalArgumentPrecedence(t *testing.T) {
-	root, base, target := makeRepo(t)
-	session := openSession(t, root)
-	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
-		t.Fatal(err)
-	}
-	// CEM-CB-AT-003: --patch on a 0.2 read fails invalid-arguments.
-	_, err := session.Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, PatchGiven: true, PatchPath: "x.patch",
-		ExpectedBase: base, Target: "HEAD",
-	})
-	if cemcode.CodeOf(err) != cemcode.InvalidArguments {
-		t.Fatalf("got %v", err)
-	}
-	// CEM-CB-AT-004: expected-base before target.
-	_, err = session.Read(ctx(), "verify", ReadOptions{MapPath: wire.ExcludedCEMPath})
-	if cemcode.CodeOf(err) != cemcode.ExpectedBaseRequired {
-		t.Fatalf("got %v", err)
-	}
-	_, err = session.Read(ctx(), "verify", ReadOptions{MapPath: wire.ExcludedCEMPath, ExpectedBase: base})
-	if cemcode.CodeOf(err) != cemcode.TargetRequired {
-		t.Fatalf("got %v", err)
-	}
-	// CEM-CB-AT-007: substituted base fails before derivation, surfaced in the
-	// failure envelope (verification failures never emit a partial success).
-	mismatched, err := session.Read(ctx(), "verify", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: target, Target: "HEAD",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	verification := mismatched["verification"].(map[string]any)
-	code := verification["issues"].([]any)[0].(map[string]any)["code"]
-	if mismatched["ok"] != false || code != cemcode.BaseRevisionMismatch {
-		t.Fatalf("substituted base: ok=%v code=%v", mismatched["ok"], code)
-	}
-}
-
 // TestHiddenTargetChangeRejected is CEM-CB-AT-002: a target containing an
-// extra hunk fails patch-digest-mismatch.
+// extra hunk is rejected by the stable status.
 func TestHiddenTargetChangeRejected(t *testing.T) {
 	root, base, target := makeRepo(t)
 	session := openSession(t, root)
@@ -223,25 +187,22 @@ func TestHiddenTargetChangeRejected(t *testing.T) {
 	writeFile(t, root, "src/hidden.txt", "smuggled\n")
 	gitCmd(t, root, "add", ".")
 	gitCmd(t, root, "commit", "-qm", "candidate plus hidden change")
-	result, err := openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
-	})
-	if err != nil {
-		t.Fatal(err)
+	head := strings.TrimSpace(gitCmd(t, root, "rev-parse", "HEAD"))
+	result := stableStatus(t, root, wire.ExcludedCEMPath, base, head, PolicyLimits{})
+	verification, _ := result["stableVerification"].(StableVerification)
+	if result["ok"] != false || verification.Result.Outcome != "REJECT" || len(verification.Result.IssueCodes) == 0 {
+		encoded, _ := json.Marshal(result)
+		t.Fatalf("status did not surface the failure: %s", encoded)
 	}
-	verification := result["verification"].(map[string]any)
-	issues := verification["issues"].([]any)
-	if result["ok"] != false || verification["valid"] != false || len(issues) == 0 {
-		t.Fatalf("status did not surface the failure: %+v", verification)
-	}
-	code := issues[0].(map[string]any)["code"]
-	if code != cemcode.PatchDigestMismatch && code != cemcode.ExcludedArtifactMismatch {
+	if code := verification.Result.IssueCodes[0]; code != cemcode.PatchDigestMismatch && code != cemcode.ExcludedArtifactMismatch {
 		t.Fatalf("issue code %v", code)
 	}
 }
 
-// TestTargetSidecarRawBinding is CEM-CB-EX-005: byte-identical passes; a
-// one-byte mutation of the read input fails excluded-artifact-mismatch.
+// TestTargetSidecarRawBinding is CEM-CB-EX-005 on the one wire (CEM-V1-215):
+// the stable verifier accepts a byte-identical committed sidecar, and a
+// semantically equivalent reserialization of the read map fails
+// excluded-artifact-mismatch.
 func TestTargetSidecarRawBinding(t *testing.T) {
 	root, base, target := makeRepo(t)
 	session := openSession(t, root)
@@ -251,37 +212,34 @@ func TestTargetSidecarRawBinding(t *testing.T) {
 	citeAll(t, root)
 	gitCmd(t, root, "add", wire.ExcludedCEMPath)
 	gitCmd(t, root, "commit", "-qm", "candidate")
+	head := strings.TrimSpace(gitCmd(t, root, "rev-parse", "HEAD"))
 	mapPath := filepath.Join(root, ".corvint", "change.cem.json")
 	pristine, err := os.ReadFile(mapPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := openSession(t, root).Read(ctx(), "verify", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
-	}); err != nil {
-		t.Fatalf("byte-identical input rejected: %v", err)
+	if result := stableStatus(t, root, wire.ExcludedCEMPath, base, head, PolicyLimits{}); stableOutcome(result) != "ACCEPT" {
+		encoded, _ := json.Marshal(result)
+		t.Fatalf("byte-identical input rejected: %s", encoded)
 	}
-	// A semantically equivalent reserialization: one inserted space keeps the
-	// JSON valid but changes the raw bytes bound to the committed sidecar.
+	// One inserted space keeps the JSON valid but changes the raw bytes bound
+	// to the committed sidecar.
 	mutated := append([]byte("{ "), pristine[1:]...)
 	if err := os.WriteFile(mapPath, mutated, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	verification := result["verification"].(map[string]any)
-	code := verification["issues"].([]any)[0].(map[string]any)["code"]
-	if verification["valid"] != false || code != cemcode.ExcludedArtifactMismatch {
-		t.Fatalf("mutated input: valid=%v code=%v", verification["valid"], code)
+	result := stableStatus(t, root, wire.ExcludedCEMPath, base, head, PolicyLimits{})
+	verification, _ := result["stableVerification"].(StableVerification)
+	if result["ok"] != false || verification.Result.Outcome != "REJECT" || len(verification.Result.IssueCodes) != 1 || verification.Result.IssueCodes[0] != cemcode.ExcludedArtifactMismatch {
+		encoded, _ := json.Marshal(result)
+		t.Fatalf("mutated input: %s", encoded)
 	}
 }
 
-// TestResumeRules is CEM-CB-CO-004: resumed 0.1 maps derive only the current
-// invocation's patch selection, and non-default prepare maps are refused.
+// TestResumeRules is CEM-CB-CO-004 on the one wire (CEM-V1-215): a cem/1.0
+// map written by begin at the default path resumes, its next action is the
+// stable status, which never carries a --patch selection whether the cache was
+// omitted or named, and non-default prepare maps are refused.
 func TestResumeRules(t *testing.T) {
 	root, base, target := makeRepo(t)
 	session := openSession(t, root)
@@ -290,7 +248,7 @@ func TestResumeRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	cachePath := prepared["patch"].(string)
-	// Replace the 0.2 candidate with a 0.1 map over the same canonical bytes.
+	// Replace the prepared candidate with a begin map over the same bytes.
 	if err := os.Remove(filepath.Join(root, ".corvint", "change.cem.json")); err != nil {
 		t.Fatal(err)
 	}
@@ -310,13 +268,13 @@ func TestResumeRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	if first["resumed"] != true {
-		t.Fatal("0.1 map at default path did not resume")
+		t.Fatal("begin map at default path did not resume")
 	}
 	firstAction, _ := json.Marshal(first["nextActions"])
-	if strings.Contains(string(firstAction), "--patch") || strings.Contains(string(firstAction), "--expected-base") {
-		t.Fatalf("resumed 0.1 omitted-patch action: %s", firstAction)
+	if strings.Contains(string(firstAction), "--patch") || !strings.Contains(string(firstAction), `"cem","status"`) || !strings.Contains(string(firstAction), `"--artifacts"`) {
+		t.Fatalf("resumed omitted-patch action: %s", firstAction)
 	}
-	// Resume with explicit --patch: the action carries exactly that selection.
+	// Resume with explicit --patch: the stable action still carries none.
 	second, err := openSession(t, root).Prepare(ctx(), PrepareOptions{
 		Base: base, Target: target, Cache: "alt/cache.patch",
 	})
@@ -324,8 +282,8 @@ func TestResumeRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	secondAction, _ := json.Marshal(second["nextActions"])
-	if !strings.Contains(string(secondAction), `"--patch","alt/cache.patch"`) {
-		t.Fatalf("resumed 0.1 explicit-patch action: %s", secondAction)
+	if second["resumed"] != true || string(secondAction) != string(firstAction) {
+		t.Fatalf("resumed explicit-patch action: %s", secondAction)
 	}
 	// Non-default prepare map path fails invalid-arguments with no write.
 	_, err = openSession(t, root).Prepare(ctx(), PrepareOptions{
@@ -372,84 +330,6 @@ func TestMapReadThroughSymlinkedParentIsUnavailable(t *testing.T) {
 	}
 }
 
-// TestLegacyEnvelopeRows fixes the frozen 0.1 rows of the envelope table.
-func TestLegacyEnvelopeRows(t *testing.T) {
-	root, base, target := makeRepo(t)
-	session := openSession(t, root)
-	prepared, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cacheBytes, err := os.ReadFile(prepared["patch"].(string))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Remove(filepath.Join(root, ".corvint", "change.cem.json")); err != nil {
-		t.Fatal(err)
-	}
-	writeFile(t, root, "exact.patch", string(cacheBytes))
-	if _, err := openSession(t, root).Begin(ctx(), BeginOptions{
-		PatchPath: "exact.patch", Base: base, Output: wire.ExcludedCEMPath,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	// Explicit --patch row.
-	explicit, err := openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, PatchGiven: true, PatchPath: "exact.patch",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if explicit["patchSource"] != "explicit-out-of-band" || explicit["excludedPath"] != nil {
-		t.Fatalf("explicit row: %+v", explicit)
-	}
-	if warnings, _ := json.Marshal(explicit["warnings"]); string(warnings) != `["patch-supplied-out-of-band"]` {
-		t.Fatalf("explicit warnings: %s", warnings)
-	}
-	if explicit["patch"] != filepath.Join(root, "exact.patch") {
-		t.Fatalf("explicit patch field: %v", explicit["patch"])
-	}
-	verification := explicit["verification"].(map[string]any)
-	if verification["valid"] != true || verification["targetRevision"] != nil {
-		t.Fatalf("0.1 no-target verification: %+v", verification)
-	}
-	if _, present := verification["assurance"]; present {
-		t.Fatal("0.1 verification carries assurance")
-	}
-	// Omitted --patch row reads the per-worktree default written by prepare.
-	// (prepare wrote it before the map was replaced by the 0.1 begin).
-	omitted, err := openSession(t, root).Read(ctx(), "verify", ReadOptions{MapPath: wire.ExcludedCEMPath})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if omitted["patchSource"] != "default-out-of-band" {
-		t.Fatalf("omitted row: %+v", omitted)
-	}
-	if warnings, _ := json.Marshal(omitted["warnings"]); string(warnings) != `["patch-defaulted-out-of-band"]` {
-		t.Fatalf("omitted warnings: %s", warnings)
-	}
-	if _, present := omitted["patch"]; present {
-		t.Fatal("verify carries a legacy patch field")
-	}
-	// Optional matching expected base passes; mismatch fails.
-	if _, err := openSession(t, root).Read(ctx(), "verify", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base,
-	}); err != nil {
-		t.Fatalf("matching expected base: %v", err)
-	}
-	_, err = openSession(t, root).Read(ctx(), "verify", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: target,
-	})
-	failed, _ := openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: target,
-	})
-	failedVerification := failed["verification"].(map[string]any)
-	if failedVerification["valid"] != false {
-		t.Fatal("mismatched expected base accepted")
-	}
-	_ = err
-}
-
 // TestMutationPreservesProfile is CEM-CB-CO-003.
 func TestMutationPreservesProfile(t *testing.T) {
 	root, base, target := makeRepo(t)
@@ -466,12 +346,12 @@ func TestMutationPreservesProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	document, err := wire.ParseMap(data)
+	document, err := wire.ParseStable(data)
 	if err != nil {
-		t.Fatalf("mutated 0.2 map no longer parses: %v", err)
+		t.Fatalf("mutated cem/1.0 map no longer parses: %v", err)
 	}
-	if document.Spec != wire.Spec02 || document.ExcludedPath != wire.ExcludedCEMPath {
-		t.Fatal("mark dropped the 0.2 profile or excludedPath")
+	if document.Change.Spec != wire.StableSpec || document.Change.ExcludedPath != wire.ExcludedCEMPath {
+		t.Fatal("mark dropped the cem/1.0 profile or excludedPath")
 	}
 }
 
@@ -522,7 +402,7 @@ func TestConcurrentMarksAllSurvive(t *testing.T) {
 			t.Fatalf("concurrent mark failed: %v", err)
 		}
 	}
-	_, document, err := openSession(t, root).readMapInput(wire.ExcludedCEMPath)
+	_, document, err := openSession(t, root).readProducerMap(wire.ExcludedCEMPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1147,63 +1027,6 @@ func TestReportAbsoluteOutput(t *testing.T) {
 	}
 }
 
-// TestStagePrecedenceBeforeRepositoryValidation is CEM-CB-AT-008 for the
-// native build: with the repository boundary broken (a configured alternate),
-// stage-2 map validation, stage-3 profile-forbidden arguments, and stage-4
-// profile-required inputs all report their own codes; only a clean stage 1–4
-// pass reaches the stage-6 alternate denial.
-func TestStagePrecedenceBeforeRepositoryValidation(t *testing.T) {
-	root, base, target := makeRepo(t)
-	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
-		t.Fatal(err)
-	}
-	alternates := filepath.Join(root, ".git", "objects", "info", "alternates")
-	if err := os.WriteFile(alternates, nil, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	mapPath := filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath))
-	pristine, err := os.ReadFile(mapPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Stage 2 wins: a closed-schema violation reports before the alternate.
-	corrupted := strings.Replace(string(pristine), `"spec": "cem/0.2"`, `"spec": "cem/0.2", "surplus": true`, 1)
-	if err := os.WriteFile(mapPath, []byte(corrupted), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	_, err = openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
-	})
-	if cemcode.CodeOf(err) != cemcode.UnknownField {
-		t.Fatalf("stage 2 vs alternate: got %v", err)
-	}
-	if err := os.WriteFile(mapPath, pristine, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	// Stage 3 wins: --patch on 0.2 reports before the alternate.
-	_, err = openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, PatchGiven: true, PatchPath: "x.patch",
-		ExpectedBase: base, Target: "HEAD",
-	})
-	if cemcode.CodeOf(err) != cemcode.InvalidArguments {
-		t.Fatalf("stage 3 vs alternate: got %v", err)
-	}
-	// Stage 4 wins: a missing required input reports before the alternate.
-	_, err = openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, Target: "HEAD",
-	})
-	if cemcode.CodeOf(err) != cemcode.ExpectedBaseRequired {
-		t.Fatalf("stage 4 vs alternate: got %v", err)
-	}
-	// Clean stages 1–4 finally reach the stage-6 denial.
-	_, err = openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
-	})
-	if cemcode.CodeOf(err) != cemcode.UnsupportedObjectAlternates {
-		t.Fatalf("stage 6 denial: got %v", err)
-	}
-}
-
 // TestPrepareCacheAliasingRefused is CEM-PILOT-013: a convenience-cache
 // selection may never alias or shadow the frozen map path, fresh or resumed,
 // nor take the map's lock or interrupted-publication backup name, which a
@@ -1230,63 +1053,8 @@ func TestPrepareCacheAliasingRefused(t *testing.T) {
 		t.Fatalf("resumed aliasing: got %v", err)
 	}
 	data, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath)))
-	if readErr != nil || !strings.Contains(string(data), `"spec": "cem/0.2"`) {
+	if readErr != nil || !strings.Contains(string(data), `"spec":"cem/1.0"`) {
 		t.Fatalf("map clobbered by refused aliasing attempt: %v", readErr)
-	}
-}
-
-// TestFailureAssuranceTracksCanonicalBinding is the CEM-CB-014 boundary: a
-// failure before target binding and canonical derivation reports
-// structural-only assurance, while a failure after both completed keeps
-// canonical.
-func TestFailureAssuranceTracksCanonicalBinding(t *testing.T) {
-	root, base, target := makeRepo(t)
-	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
-		t.Fatal(err)
-	}
-	citeAll(t, root)
-	gitCmd(t, root, "add", wire.ExcludedCEMPath)
-	gitCmd(t, root, "commit", "-qm", "candidate")
-	// Pre-binding failure: the independent expected base disagrees with the
-	// map (stage 7, before target binding).
-	result, err := openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: target, Target: "HEAD",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	verification := result["verification"].(map[string]any)
-	issue := verification["issues"].([]any)[0].(map[string]any)
-	if issue["code"] != cemcode.BaseRevisionMismatch || verification["assurance"] != "structural-only" {
-		t.Fatalf("pre-binding failure: %+v", verification)
-	}
-	// Post-binding failure: the committed sidecar binds byte-exactly but its
-	// recorded digest is wrong (stage 8, after derivation).
-	mapPath := filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath))
-	data, readErr := os.ReadFile(mapPath)
-	if readErr != nil {
-		t.Fatal(readErr)
-	}
-	document, parseErr := wire.ParseMap(data)
-	if parseErr != nil {
-		t.Fatal(parseErr)
-	}
-	corrupted := strings.Replace(string(data), document.PatchSha256, strings.Repeat("0", 64), 1)
-	if err := os.WriteFile(mapPath, []byte(corrupted), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	gitCmd(t, root, "add", wire.ExcludedCEMPath)
-	gitCmd(t, root, "commit", "-qm", "digest corrupted")
-	result, err = openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	verification = result["verification"].(map[string]any)
-	issue = verification["issues"].([]any)[0].(map[string]any)
-	if issue["code"] != cemcode.PatchDigestMismatch || verification["assurance"] != "canonical" {
-		t.Fatalf("post-binding failure: %+v", verification)
 	}
 }
 
@@ -1309,83 +1077,6 @@ func TestPrepareCacheAliasingCaseVariants(t *testing.T) {
 	}
 	if _, err := os.Lstat(filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath))); !os.IsNotExist(err) {
 		t.Fatal("refused aliasing attempt still wrote the map path")
-	}
-}
-
-// TestEncodeMapMatchesPythonOracleWithLineSeparator pins mapSha256 parity for
-// the line- and paragraph-separator runes (code points 0x2028 and 0x2029):
-// encoding/json escapes both unconditionally even with SetEscapeHTML(false),
-// where the Python oracle's json.dumps(indent=2, sort_keys=True,
-// ensure_ascii=False) leaves them raw, forking the digest the two runtimes
-// must agree on. A second fixture covers the adjacent edge the naive fix (a
-// plain byte replace of the escape sequence) gets wrong: a path that already
-// contains a literal backslash immediately before the literal text "u2028" is
-// itself escaped to a doubled backslash by the encoder, and a substring
-// replace mistakes that pair's second backslash for a genuine rune escape.
-// Both expected digests were computed once by running the oracle's exact
-// json.dumps call over the equivalent document with python3's stdlib json and
-// hashlib.
-func TestEncodeMapMatchesPythonOracleWithLineSeparator(t *testing.T) {
-	lineSeparator := string(rune(0x2028))
-	backslash := string(rune(92))
-	cases := []struct {
-		name string
-		path string
-		want string
-	}{
-		{"rune", "src/example" + lineSeparator + "note.go", "63cdcae5012f761746e549bf218f4b9c375883cc6b4faeeca8841343a12ed6ac"},
-		{"literal backslash then u2028 text", "src/" + backslash + "u2028literal.go", "1ebad4d692d76416396404ec0852cfee3124eba40f73576aafdbf19f41ab653b"},
-	}
-	for _, item := range cases {
-		document := &wire.Map{
-			Spec:         wire.Spec01,
-			BaseRevision: strings.Repeat("a", 40),
-			PatchSha256:  strings.Repeat("b", 64),
-			Evidence: []wire.Evidence{{
-				ID:         "evidence:sha256:" + strings.Repeat("d", 64),
-				BlobOid:    strings.Repeat("c", 40),
-				Path:       item.path,
-				Span:       wire.Span{Start: 0, End: 10},
-				SpanSha256: strings.Repeat("e", 64),
-			}},
-		}
-		encoded := encodeMap(document)
-		digest := sha256.Sum256(encoded)
-		got := hex.EncodeToString(digest[:])
-		if got != item.want {
-			t.Errorf("%s: mapSha256 = %s, want %s (Python oracle digest for the identical document)\nencoded = %q", item.name, got, item.want, encoded)
-		}
-	}
-}
-
-// TestRenderReportTextFencesBacktickPath is a regression test for F7: a
-// repository path containing a backtick must not break out of the code span
-// wrapping it in the rendered CEM review report. wire.ValidatePath rejects
-// bytes below 0x20 but allows backticks, so a changed file's path can carry
-// one.
-func TestRenderReportTextFencesBacktickPath(t *testing.T) {
-	document := &wire.Map{Spec: wire.Spec01, BaseRevision: strings.Repeat("a", 40), PatchSha256: strings.Repeat("b", 64)}
-	verification := map[string]any{
-		"valid": true,
-		"drift": []any{map[string]any{
-			"evidenceId": "evidence:sha256:" + strings.Repeat("d", 64),
-			"path":       "a`b.go",
-			"status":     "stale",
-		}},
-	}
-	counts := map[string]any{"total": 1, "supported": 0, "unknown": 1, "mechanical": 0}
-	work := []any{map[string]any{
-		"selector": 1, "path": "a`b.go", "id": "hunk:sha256:" + strings.Repeat("c", 64),
-		"disposition": "unknown", "reason": "no-basis", "next": "cite evidence",
-	}}
-
-	report := renderReportText(document, verification, counts, work, nil)
-
-	if !strings.Contains(report, "``a`b.go``") {
-		t.Fatalf("expected the backtick path to be fenced with a longer run of backticks in both the drift and worklist sections:\n%s", report)
-	}
-	if strings.Count(report, "``a`b.go``") != 2 {
-		t.Fatalf("expected the fenced path in both the drift and worklist sections, got:\n%s", report)
 	}
 }
 
@@ -1529,150 +1220,9 @@ func makeGoRepo(t *testing.T, base, target string) (string, string, string) {
 const importReorderBase = "package pkg\n\nimport (\n\t\"strings\"\n\t\"fmt\"\n)\n\n// Shout upper-cases s.\nfunc Shout(s string) string { return fmt.Sprint(strings.ToUpper(s)) }\n"
 const importReorderTarget = "package pkg\n\nimport (\n\t\"fmt\"\n\t\"strings\"\n)\n\n// Shout upper-cases s.\nfunc Shout(s string) string { return fmt.Sprint(strings.ToUpper(s)) }\n"
 
-// markStructural prepares, marks hunk 1 mechanical with reason, commits the
-// map, and returns the status envelope (CEM-SM-006).
-func markStructural(t *testing.T, root, base, target, reason string) map[string]any {
-	t.Helper()
-	session := openSession(t, root)
-	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := session.Mark(ctx(), MarkOptions{
-		MapPath: wire.ExcludedCEMPath, Hunk: "1", Disposition: "mechanical", Reason: reason, Output: witnessMap,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(filepath.Join(root, witnessMap))
-	if err != nil {
-		t.Fatal(err)
-	}
-	document, err := wire.ParseMap(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if document.Spec != wire.Spec03 {
-		t.Fatalf("spec after structural mark = %q, want %q", document.Spec, wire.Spec03)
-	}
-	result, err := openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: witnessMap, ExpectedBase: base, Target: "HEAD",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return result
-}
-
-// TestMarkStructuralReasonUpgradesToSpec03AndVerifies is the end-to-end
-// cem/0.3 path: mark upgrades the map, and the LLM-free verifier proves the
-// import reorder from the base blob and patch alone.
-func TestMarkStructuralReasonUpgradesToSpec03AndVerifies(t *testing.T) {
-	root, base, target := makeGoRepo(t, importReorderBase, importReorderTarget)
-	result := markStructural(t, root, base, target, "import-reorder")
-	verification := result["verification"].(map[string]any)
-	if result["ok"] != true || verification["valid"] != true {
-		encoded, _ := json.Marshal(result)
-		t.Fatalf("structural status not green: %s", encoded)
-	}
-	if counts := result["counts"]; fmt.Sprint(counts) != "map[mechanical:1 supported:0 total:1 unknown:0]" {
-		t.Fatalf("counts = %v", counts)
-	}
-}
-
-// TestMarkStructuralReasonWrongClassIsRefused pins that a structural claim
-// the verifier cannot reproduce fails unproven-mechanical rather than being
-// accepted on the author's word.
-func TestMarkStructuralReasonWrongClassIsRefused(t *testing.T) {
-	root, base, target := makeGoRepo(t, importReorderBase, importReorderTarget)
-	result := markStructural(t, root, base, target, "rename")
-	verification := result["verification"].(map[string]any)
-	issues := verification["issues"].([]any)
-	if result["ok"] != false || verification["valid"] != false || len(issues) == 0 {
-		t.Fatalf("wrong-class claim accepted: %+v", verification)
-	}
-	if code := issues[0].(map[string]any)["code"]; code != cemcode.UnprovenMechanical {
-		t.Fatalf("issue code %v, want %s", code, cemcode.UnprovenMechanical)
-	}
-}
-
-// TestSpec03UpgradeNeverReplacesACoreMap pins V1-0335: structural mark,
-// cover and discriminate never write a cem/0.3 map over their cem/0.2 input or
-// onto the Core sidecar path that frontier and OCM read as cem/0.2, nor does a
-// cite or plain mark of a cem/0.3 map, and a refusal leaves the input untouched.
-func TestSpec03UpgradeNeverReplacesACoreMap(t *testing.T) {
-	root, base, target := makeGoRepo(t, importReorderBase, importReorderTarget)
-	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
-		t.Fatal(err)
-	}
-	before, err := os.ReadFile(filepath.Join(root, wire.ExcludedCEMPath))
-	if err != nil {
-		t.Fatal(err)
-	}
-	writeFile(t, root, "staged.cem.json", string(before))
-	writeFile(t, root, "cover.out", "mode: set\n")
-	structural := func(mapPath, output string) error {
-		_, err := openSession(t, root).Mark(ctx(), MarkOptions{
-			MapPath: mapPath, Hunk: "1", Disposition: "mechanical", Reason: "import-reorder", Output: output,
-		})
-		return err
-	}
-	cover := func(mapPath, output string) error {
-		_, err := openSession(t, root).Cover(ctx(), CoverOptions{
-			MapPath: mapPath, Coverprofile: "cover.out", TestRun: "go test", Output: output,
-		})
-		return err
-	}
-	discriminate := func(mapPath, output string) error {
-		_, err := openSession(t, root).Discriminate(ctx(), DiscriminateOptions{MapPath: mapPath, Target: target, Output: output})
-		return err
-	}
-	if err := structural("staged.cem.json", "upgraded.cem.json"); err != nil {
-		t.Fatal(err)
-	}
-	cite := func(output string) error {
-		_, err := openSession(t, root).Cite(ctx(), CiteOptions{
-			MapPath: "upgraded.cem.json", Hunk: "1", EvidencePath: "pkg/a.go", Lines: "8:9", Relation: "specification", Output: output,
-		})
-		return err
-	}
-	plain := func(output string) error {
-		_, err := openSession(t, root).Mark(ctx(), MarkOptions{
-			MapPath: "upgraded.cem.json", Hunk: "1", Disposition: "unknown", Reason: "no-evidence", Output: output,
-		})
-		return err
-	}
-	if err := cite("cited.cem.json"); err != nil {
-		t.Fatalf("cite of a cem/0.3 map onto another path: %v", err)
-	}
-	if err := plain("plain.cem.json"); err != nil {
-		t.Fatalf("plain mark of a cem/0.3 map onto another path: %v", err)
-	}
-	cases := map[string]error{
-		"cite-spec03-onto-sidecar":       cite(wire.ExcludedCEMPath),
-		"plain-mark-spec03-onto-sidecar": plain(wire.ExcludedCEMPath),
-		"mark-sidecar-in-place":          structural(wire.ExcludedCEMPath, ""),
-		"mark-other-map-in-place":        structural("staged.cem.json", ""),
-		"mark-onto-sidecar":              structural("staged.cem.json", wire.ExcludedCEMPath),
-		"cover-sidecar-in-place":         cover(wire.ExcludedCEMPath, ""),
-		"cover-onto-sidecar":             cover("staged.cem.json", wire.ExcludedCEMPath),
-		"discriminate-sidecar-in-place":  discriminate(wire.ExcludedCEMPath, ""),
-		"discriminate-onto-sidecar":      discriminate("staged.cem.json", wire.ExcludedCEMPath),
-	}
-	for name, err := range cases {
-		if cemcode.CodeOf(err) != cemcode.InvalidArguments {
-			t.Errorf("%s: got %v, want invalid-arguments", name, err)
-		}
-	}
-	for _, relative := range []string{wire.ExcludedCEMPath, "staged.cem.json"} {
-		after, err := os.ReadFile(filepath.Join(root, relative))
-		if err != nil || string(after) != string(before) {
-			t.Fatalf("a refused upgrade changed %s: %v", relative, err)
-		}
-	}
-}
-
-// TestMarkStructuralReasonRefusedOnSpec01 pins that a 0.1 map never gains
-// the structural vocabulary.
-func TestMarkStructuralReasonRefusedOnSpec01(t *testing.T) {
+// TestMarkRefusesARetiredMapBeforeMutation pins that a retired 0.1 map is
+// refused before any mutation, with the migration fix (CEM-V1-216).
+func TestMarkRefusesARetiredMapBeforeMutation(t *testing.T) {
 	root, _, _ := makeRepo(t)
 	writeFile(t, root, "staged.cem.json", `{"spec":"cem/0.1","baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",`+
 		`"patchSha256":"dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c",`+
@@ -1682,7 +1232,7 @@ func TestMarkStructuralReasonRefusedOnSpec01(t *testing.T) {
 	_, err := openSession(t, root).Mark(ctx(), MarkOptions{
 		MapPath: "staged.cem.json", Hunk: "1", Disposition: "mechanical", Reason: "rename", Output: "out.cem.json",
 	})
-	if cemcode.CodeOf(err) != cemcode.InvalidArguments {
-		t.Fatalf("got %v, want invalid-arguments", err)
+	if cemcode.CodeOf(err) != cemcode.UnsupportedSpec || !strings.Contains(err.Error(), "fix: "+wire.RetiredSpecFix) {
+		t.Fatalf("got %v, want unsupported-spec with the migration fix", err)
 	}
 }

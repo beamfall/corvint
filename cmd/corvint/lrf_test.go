@@ -22,15 +22,6 @@ type lrfFixture struct {
 
 func newLRFFixture(t *testing.T) lrfFixture {
 	t.Helper()
-	return newCEMSpecFixture(t, wire.StableSpec)
-}
-
-// newCEMSpecFixture builds the LRF fixture repository and prepares its map
-// with the given spec. Only the core freeze uses a spec other than cem/1.0: the
-// 0.x cem status and verify routes still ship until the 0.x producers are
-// removed (V1-1278 S2b), so their frozen goldens keep a cem/0.2 map.
-func newCEMSpecFixture(t *testing.T, spec string) lrfFixture {
-	t.Helper()
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -61,7 +52,7 @@ func newCEMSpecFixture(t *testing.T, spec string) lrfFixture {
 	}
 	// CEM-V1-214: the fixture map is cem/1.0, produced by the stable prepare.
 	mapPath := ".corvint/change.cem.json"
-	if code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--spec", spec, "--base", base, "--target", target); code != 0 {
+	if code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--base", base, "--target", target); code != 0 {
 		t.Fatalf("prepare: %s", stderr)
 	}
 	code, _, stderr := runCLI(t, "--root", root, "cem", "cite", "--map", mapPath, "--hunk", "1", "--evidence-path", "docs/rule.txt", "--lines", "1:1", "--relation", "specification")

@@ -855,14 +855,14 @@ non-authoritative and slated for separate removal.
 | `LRF-V0-007..011`, `012..016` | `src/context_corvint_lrf.py`, `src/corvint_cli.py`, `docs/lrf-0.schema.json` | OCM adversarial fixtures and current 12/12 failure |
 | Evaluation and kill gates | frozen labelled corpus and hash-only evaluation verifier | independent raw labels, canonical commitment vectors, and recorded `PASS`, `FAIL`, or `NOT_RUN` |
 
-Three clause parts have dedicated conformance cases, each shown to fail under a scratch mutation of
+Three clause parts had dedicated 0.x conformance cases, each shown to fail under a scratch mutation of
 `internal/lrf` that violates only that part (`docs/reviews/corpus-mutation-audit-2026-09-13.md`):
 `LRF-V0-005` one hunk/evidence pair under two relations yields one tuple per basis
-(`cem.relation-per-basis`, `conformance/lrf-v0/cases.json:2067@1496c01c`); `LRF-V0-012` exact
+(`cem.relation-per-basis`, `conformance/lrf-v0/cases.json` line 2067 at commit `52af6ee1`); `LRF-V0-012` exact
 duplicate basis tuples collapse to the single-tuple bytes (`determinism.duplicate-collapse`,
-`conformance/lrf-v0/cases.json:4929@219f067c`); and `LRF-V0-010` claim-path reuse leaves a
+`conformance/lrf-v0/cases.json` line 4929 at commit `52af6ee1`); and `LRF-V0-010` claim-path reuse leaves a
 four-row issue list byte-identical (`claim.reuse-issue-order`,
-`conformance/lrf-v0/cases.json:6496@6422be9c`).
+`conformance/lrf-v0/cases.json` line 6496 at commit `52af6ee1`; the 0.x case corpus was replaced by `conformance/lrf-v0/retired.json` in V1-1278 S2b).
 
 `LRF-V0-001` context precedence: lrf/0 evaluates no map since decision 0525 (CEM-V1-210). A retired
 cem/0.1, cem/0.2 or cem/0.3 map refuses `unsupported-spec` with the recovery line, and a cem/1.0 map

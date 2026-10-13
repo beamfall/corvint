@@ -509,64 +509,21 @@ func armsNeedCorvint(arms []string) bool {
 	return contains(arms, "treatment") || contains(arms, "seeded")
 }
 
-// buildArtefacts produces the map-carrying arms' artefacts from the withheld
-// patch bytes alone: the map from `cem begin`, the `cem status` worklist, and
-// `cem report`. `cem prepare` is never used, so nothing at or after the change
-// can reach the map (CRT-V0-005). When the seeded arm runs, it adds the
-// suggestions `corvint context --subject` retrieves at the base revision for
-// each presented source file (CRT-V0-012).
+// errRetiredMapArms refuses the map-carrying arms. They present the
+// all-unknown cem/0.1 worklist that `cem begin --patch` and
+// `cem status --patch` produced (CRT-V0-005, CRT-V0-014); cem/0.x is retired
+// (decision 0525 §1, CEM-V1-215), so the arms refuse before any map is written
+// into the prep clone. The control arm is unaffected.
+var errRetiredMapArms = errors.New("the treatment and seeded arms carry a cem/0.1 map, retired with cem/0.x (CEM-V1-215)")
+
+// buildArtefacts produced the map-carrying arms' artefacts from the withheld
+// patch bytes alone (CRT-V0-005). With cem/0.x retired it refuses whenever a
+// Corvint binary is configured for those arms.
 func buildArtefacts(ctx context.Context, configuration options, root, patch string, sourceFiles []string) (map[string]string, error) {
 	if configuration.corvintGo == "" {
 		return map[string]string{}, nil
 	}
-	suggestions := ""
-	if contains(configuration.arms, "seeded") {
-		rows, err := suggestEvidence(ctx, configuration, root, sourceFiles)
-		if err != nil {
-			return nil, err
-		}
-		encoded, err := json.MarshalIndent(rows, "", "  ")
-		if err != nil {
-			return nil, err
-		}
-		suggestions, _ = truncate(string(encoded), maxArtefactSize)
-	}
-	scratch, err := os.MkdirTemp("", "corvint-cem-trial-patch-")
-	if err != nil {
-		return nil, err
-	}
-	defer os.RemoveAll(scratch)
-	patchPath := filepath.Join(scratch, "change.patch")
-	if err := os.WriteFile(patchPath, []byte(patch), 0o644); err != nil {
-		return nil, err
-	}
-	begun, err := corvint(ctx, configuration, root, "cem", "begin", "--patch", patchPath, "--output", mapRelative)
-	if err != nil {
-		return nil, fmt.Errorf("cem begin: %w", err)
-	}
-	status, err := corvint(ctx, configuration, root, "cem", "status", "--map", mapRelative, "--patch", patchPath)
-	if err != nil {
-		return nil, fmt.Errorf("cem status: %w", err)
-	}
-	if _, err := corvint(ctx, configuration, root, "cem", "report", "--map", mapRelative, "--patch", patchPath, "--output", reportRelative); err != nil {
-		return nil, fmt.Errorf("cem report: %w", err)
-	}
-	rendered, err := os.ReadFile(filepath.Join(root, reportRelative))
-	if err != nil {
-		return nil, err
-	}
-	document, err := os.ReadFile(filepath.Join(root, mapRelative))
-	if err != nil {
-		return nil, err
-	}
-	// The prep clone is cloned into every lane: leave neither artefact behind.
-	_ = os.Remove(filepath.Join(root, mapRelative))
-	_ = os.Remove(filepath.Join(root, reportRelative))
-	_ = begun
-	body, _ := truncate(string(rendered), maxArtefactSize)
-	mapText, _ := truncate(string(document), maxArtefactSize)
-	statusText, _ := truncate(string(status), maxArtefactSize)
-	return map[string]string{"map": strings.TrimSpace(mapText), "status": strings.TrimSpace(statusText), "report": strings.TrimSpace(body), "suggestions": strings.TrimSpace(suggestions)}, nil
+	return nil, errRetiredMapArms
 }
 
 // suggestEvidence runs `corvint context --subject PATH` in the prep clone,
@@ -632,51 +589,11 @@ func suggestedPaths(rendered string) []string {
 	return paths
 }
 
-// applyCitations replays the treatment reply into the map the arm was given
-// and records what `cem status` and `cem verify` then say, beside the
-// harness's own independent replay of every citation.
+// applyCitations replayed the treatment reply into a cem/0.1 map. That map is
+// retired with cem/0.x (CEM-V1-215), so the cited state stays not observed;
+// buildArtefacts refuses the arm before a reply exists.
 func applyCitations(ctx context.Context, configuration options, root, patch string, item task, citations []citation) map[string]any {
-	state := map[string]any{"counts": map[string]any{}, "state": notObserved, "verify_ok": notObserved, "replay_ok": notObserved, "cited": len(citations)}
-	scratch, err := os.MkdirTemp("", "corvint-cem-trial-cite-")
-	if err != nil {
-		return state
-	}
-	defer os.RemoveAll(scratch)
-	patchPath := filepath.Join(scratch, "change.patch")
-	if err := os.WriteFile(patchPath, []byte(patch), 0o644); err != nil {
-		return state
-	}
-	if _, err := corvint(ctx, configuration, root, "cem", "begin", "--patch", patchPath, "--output", mapRelative); err != nil {
-		return state
-	}
-	accepted := 0
-	for _, one := range citations {
-		if _, err := corvint(ctx, configuration, root, "cem", "cite", "--map", mapRelative,
-			"--hunk", one.Hunk, "--evidence-path", one.Path, "--lines", one.Lines, "--relation", one.Relation); err == nil {
-			accepted++
-		}
-	}
-	state["accepted"] = accepted
-	if raw, err := corvint(ctx, configuration, root, "cem", "status", "--map", mapRelative, "--patch", patchPath); err == nil {
-		var envelope struct {
-			Counts map[string]any `json:"counts"`
-			State  string         `json:"state"`
-		}
-		if json.Unmarshal([]byte(raw), &envelope) == nil {
-			state["counts"], state["state"] = envelope.Counts, envelope.State
-		}
-	}
-	raw, err := corvint(ctx, configuration, root, "cem", "verify", "--map", mapRelative, "--patch", patchPath)
-	state["verify_ok"] = err == nil && verifyOK(raw)
-	state["replay_ok"] = replayCitations(ctx, root, item.BaseCommit, citations)
-	return state
-}
-
-func verifyOK(raw string) bool {
-	var envelope struct {
-		OK bool `json:"ok"`
-	}
-	return json.Unmarshal([]byte(raw), &envelope) == nil && envelope.OK
+	return map[string]any{"counts": map[string]any{}, "state": notObserved, "verify_ok": notObserved, "replay_ok": notObserved, "cited": len(citations)}
 }
 
 func corvint(ctx context.Context, configuration options, root string, arguments ...string) (string, error) {

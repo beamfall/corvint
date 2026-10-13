@@ -10,7 +10,6 @@ type adapterPolicy struct {
 
 var adapterPolicies = map[string]adapterPolicy{
 	"beamfall-shadow-v0": {stage: DeliveryUnsupported, verifier: "unsupported", issueCodes: []string{"SOURCE_UNSUPPORTED"}},
-	"cem-ocm-bundle-v0":  {profiles: []string{"cem/0.1+ocm/0.1", "cem/0.2+ocm/0.1"}, stage: DeliveryNotStarted, verifier: "go-cem-ocm-bundle-v0", issueCodes: []string{"SOURCE_UNSUPPORTED"}},
 	"frontier-usage-v0":  {stage: DeliveryUnsupported, verifier: "unsupported", issueCodes: []string{"SOURCE_UNSUPPORTED"}},
 	"go-live-usage-v0":   {stage: DeliveryUnsupported, verifier: "unsupported", issueCodes: []string{"SOURCE_UNSUPPORTED"}},
 	"harness-usage-v0":   {stage: DeliveryUnsupported, verifier: "unsupported", issueCodes: []string{"SOURCE_UNSUPPORTED"}},

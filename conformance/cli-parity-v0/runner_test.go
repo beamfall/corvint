@@ -155,7 +155,7 @@ func testGPKV0002ManifestReplay(t *testing.T) {
 		"PASS query-authority-start-limit-51\n",
 		"PASS-WITH-KNOWN-DIVERGENCE query-authority-start-non-ascii register=DR-0023 clause=GPK-V0-063 rewrites=1",
 		"PASS-WITH-KNOWN-DIVERGENCE query-repository-non-ascii register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"SUMMARY parity=103 retired=30 identity-renames=10 accepted-divergences=3 known-divergences=31 location-normalizations=1 structural-fields=0 unsupported-refusals=1 retired-refusals=2 full-gpk-v0-005=PARTIAL detached-descendants=NOT_RUN\n",
+		"SUMMARY parity=102 retired=31 identity-renames=10 accepted-divergences=3 known-divergences=31 location-normalizations=0 structural-fields=0 unsupported-refusals=1 retired-refusals=2 full-gpk-v0-005=PARTIAL detached-descendants=NOT_RUN\n",
 	} {
 		if !strings.Contains(output.String(), line) {
 			t.Fatalf("replay output missing %q:\n%s", line, &output)
@@ -1016,7 +1016,7 @@ func TestDecision0308DeclarationsAreClosed(t *testing.T) {
 			}
 		}
 	}
-	if retiredDeclared != len(retiredCases) || retiredDeclared != 30 || renamedDeclared != len(identityRenameDivergenceCases) || renamedDeclared != 10 {
+	if retiredDeclared != len(retiredCases) || retiredDeclared != 31 || renamedDeclared != len(identityRenameDivergenceCases) || renamedDeclared != 10 {
 		t.Fatalf("retired=%d/%d identity-renames=%d/%d", retiredDeclared, len(retiredCases), renamedDeclared, len(identityRenameDivergenceCases))
 	}
 	retiredRefusals := 0

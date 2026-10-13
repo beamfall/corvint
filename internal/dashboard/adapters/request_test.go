@@ -35,7 +35,7 @@ func TestPlanRequestSortsBeforeAssigningPathFreeOrdinals(t *testing.T) {
 	}
 }
 
-func TestPlanRequestRejectsDuplicatesTraversalAndPartialBundle(t *testing.T) {
+func TestPlanRequestRejectsDuplicatesAndTraversal(t *testing.T) {
 	root := filepath.Join(string(filepath.Separator), "repo")
 	base := ScanRequest{Root: root, ClockSource: "PROCESS", Authority: qualifiedAuthority(), SourceBudget: source.NewBudget(source.MaxAggregateBytes)}
 	tests := []ScanRequest{
@@ -51,8 +51,6 @@ func TestPlanRequestRejectsDuplicatesTraversalAndPartialBundle(t *testing.T) {
 		{Root: root, ClockSource: "PROCESS", Sources: []ConfiguredSource{{AdapterID: AdapterLocalTrace, RelativePath: "C:/x"}}},
 		{Root: root, ClockSource: "PROCESS", Sources: []ConfiguredSource{{AdapterID: AdapterLocalTrace, RelativePath: ".context-corvint/traces"}}},
 		{Root: root, ClockSource: "PROCESS", Sources: []ConfiguredSource{{AdapterID: AdapterLocalTrace, RelativePath: "x"}, {AdapterID: AdapterLocalTrace, RelativePath: "x"}}},
-		{Root: root, ClockSource: "PROCESS", CEMOCM: &CEMOCMBinding{CEMPath: "cem.json", OCMPath: "", ExpectedBase: testRevision, Target: testRevision}},
-		{Root: root, ClockSource: "PROCESS", CEMOCM: &CEMOCMBinding{CEMPath: "same.json", OCMPath: "same.json", ExpectedBase: testRevision, Target: testRevision}},
 	}
 	for index, request := range tests {
 		request.Authority = qualifiedAuthority()
@@ -66,24 +64,20 @@ func TestPlanRequestRejectsDuplicatesTraversalAndPartialBundle(t *testing.T) {
 	}
 }
 
-func TestPlanRequestRequiresCallerOwnedBudgetAuthorityAndExplicitBundleProfile(t *testing.T) {
+func TestPlanRequestRequiresCallerOwnedBudgetAndAuthority(t *testing.T) {
 	root := filepath.Join(string(filepath.Separator), "repo")
 	base := ScanRequest{Root: root, ClockSource: "PROCESS", Authority: qualifiedAuthority(), SourceBudget: source.NewBudget(source.MaxAggregateBytes)}
 	withoutAuthority := base
 	withoutAuthority.Authority = nil
 	withoutBudget := base
 	withoutBudget.SourceBudget = nil
-	missingProfile := base
-	missingProfile.CEMOCM = &CEMOCMBinding{CEMPath: "cem.json", OCMPath: "ocm.json", ExpectedBase: testRevision, Target: testRevision}
-	for index, request := range []ScanRequest{withoutAuthority, withoutBudget, missingProfile} {
+	for index, request := range []ScanRequest{withoutAuthority, withoutBudget} {
 		if _, failure := planRequest(request); failure == nil {
 			t.Fatalf("case %d accepted", index)
 		}
 	}
-	withBundle := base
-	withBundle.CEMOCM = &CEMOCMBinding{CEMPath: "cem.json", OCMPath: "ocm.json", ExpectedBase: testRevision, Target: testRevision, Profile: "cem/0.2+ocm/0.1"}
-	planned, failure := planRequest(withBundle)
-	if failure != nil || len(planned) != 2 || planned[1] != (plannedSource{adapterID: AdapterCEMOCMBundle, ordinal: 0, profile: "cem/0.2+ocm/0.1"}) {
+	planned, failure := planRequest(base)
+	if failure != nil || len(planned) != 1 || planned[0].adapterID != AdapterLocalTrace {
 		t.Fatalf("planned=%#v failure=%v", planned, failure)
 	}
 }

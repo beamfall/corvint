@@ -40,8 +40,8 @@ func candidateResult() CandidateResult {
 	return CandidateResult{Profile: "cem-candidate-verification/1", Spec: wire.CandidateSpec, Integrity: "NOT_VERIFIED", ReferenceIntegrity: "REFERENCE_INTEGRITY_ONLY", Limits: limits}
 }
 
-// ExperimentalCandidate verifies the explicit experimental profile without widening legacy
-// Canonical or ParseMap admission. It checks immutable Git binding and opaque
+// ExperimentalCandidate verifies the explicit experimental profile without widening the stable
+// ParseStable admission. It checks immutable Git binding and opaque
 // referenced bytes; it does not decode partial native Tasks or runner records.
 func ExperimentalCandidate(ctx context.Context, repository *gitauth.Repository, raw []byte, options CandidateOptions) (result CandidateResult, retErr error) {
 	result = candidateResult()

@@ -1,5 +1,7 @@
-// Package tcq implements Test Claim Qualification V0 (`tcq/0`) as specified in
-// docs/specs/test-claim-qualification-v0.md.
+// Package tcq implements Test Claim Qualification V0 as specified in
+// docs/specs/test-claim-qualification-v0.md. Its one entry point is the stable
+// route `tcq-stable/0` over a cem/1.0 map (CEM-V1-120..CEM-V1-124); the `tcq/0`
+// entry point over cem/0.2 was retired with the cem/0.x wire (CEM-V1-217).
 //
 // TCQ is a deterministic, source-body-free matcher over one verified OCM, only
 // its selected claim anchors, their exact target-tree test units, and optionally

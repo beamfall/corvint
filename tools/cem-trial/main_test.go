@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -248,46 +249,21 @@ func TestBothArmsShareTheSamePromptDigestApartFromThePrologue(t *testing.T) {
 	}
 }
 
-// CRT-V0-005: the map is built from the withheld bytes, never derived from
-// the change, so `cem prepare` never appears and no `.corvint` state survives.
-func TestTreatmentUsesCemBeginNotPrepare(t *testing.T) {
-	corvintGo := buildCorvint(t)
-	repo := fixtureRepo(t)
-	directory := t.TempDir()
-	set := selectPilot(t, repo, directory)
-	item := set.Tasks[0]
-	patch, err := readPatch(directory, item)
-	if err != nil {
-		t.Fatal(err)
+// CRT-V0-005, CEM-V1-215: the map-carrying arms presented a cem/0.1 map,
+// retired with cem/0.x, so buildArtefacts refuses before writing any map or
+// report into the prep clone. Without a Corvint binary it stays empty.
+func TestMapArmsRefuseTheRetiredWire(t *testing.T) {
+	root := t.TempDir()
+	artefacts, err := buildArtefacts(context.Background(), options{corvintGo: filepath.Join(root, "corvint"), arms: []string{"treatment", "seeded"}}, root, "patch", []string{"a.go"})
+	if !errors.Is(err, errRetiredMapArms) || artefacts != nil {
+		t.Fatalf("map arms: %v %v", artefacts, err)
 	}
-	root, err := cloneAtBase(context.Background(), repo, item.BaseCommit)
-	if err != nil {
-		t.Fatal(err)
+	entries, err := os.ReadDir(root)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("the refusal wrote into the prep clone: %v %v", entries, err)
 	}
-	defer os.RemoveAll(root)
-	artefacts, err := buildArtefacts(context.Background(), options{corvintGo: corvintGo}, root, patch, item.SourceFiles)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var document struct {
-		Spec         string `json:"spec"`
-		BaseRevision string `json:"baseRevision"`
-		PatchSha256  string `json:"patchSha256"`
-	}
-	if err := json.Unmarshal([]byte(artefacts["map"]), &document); err != nil {
-		t.Fatalf("the map is not JSON: %v", err)
-	}
-	if document.Spec != "cem/0.1" || document.BaseRevision != item.BaseCommit {
-		t.Fatalf("the map is not a cem/0.1 map at the base revision: %+v", document)
-	}
-	if document.PatchSha256 != item.PatchSHA256 {
-		t.Fatal("the map was not built over the withheld patch bytes")
-	}
-	if _, err := os.Stat(filepath.Join(root, mapRelative)); !os.IsNotExist(err) {
-		t.Fatal("the map was left in the prep clone every lane copies")
-	}
-	if !strings.Contains(artefacts["status"], "\"worklist\"") || !strings.Contains(artefacts["report"], "Worklist") {
-		t.Fatal("the treatment arm did not receive the status worklist and the report")
+	if artefacts, err := buildArtefacts(context.Background(), options{}, root, "patch", nil); err != nil || len(artefacts) != 0 {
+		t.Fatalf("control arm: %v %v", artefacts, err)
 	}
 }
 

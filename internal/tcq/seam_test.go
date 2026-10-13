@@ -83,7 +83,7 @@ func TestEveryEdgeIsCallerReported(t *testing.T) {
 	request.Command = []byte(documents.Command)
 	request.Observation = []byte(documents.Observation)
 	request.Report = []byte(documents.Report)
-	result, err := Evaluate(newFixtureRepository(documents), fixtureVerifier{base: documents.Base, target: documents.Target}, request)
+	result, err := EvaluateStable(newFixtureRepository(documents), fixtureVerifier{base: documents.Base, target: documents.Target}, request)
 	if err != nil {
 		t.Fatalf("Evaluate: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestEveryEdgeIsCallerReported(t *testing.T) {
 func TestResultIsSelfConsistent(t *testing.T) {
 	documents := loadDocuments(t)
 	request := newRequest(documents)
-	result, err := Evaluate(newFixtureRepository(documents), fixtureVerifier{base: documents.Base, target: documents.Target}, request)
+	result, err := EvaluateStable(newFixtureRepository(documents), fixtureVerifier{base: documents.Base, target: documents.Target}, request)
 	if err != nil {
 		t.Fatalf("Evaluate: %v", err)
 	}

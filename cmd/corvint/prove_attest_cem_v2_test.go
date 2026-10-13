@@ -304,9 +304,9 @@ func TestCEMV1065RefusesALegacyMap(t *testing.T) {
 }
 
 // TestCEMV1065RefusesConflictingFlags checks CEM-V1-065's grammar:
-// --attest-cem-v2 with a value, repeated, or combined with --attest-cem or
-// --attest-cem-v1 in either order, and --artifacts without it, exit 2 with
-// invalid-arguments and print nothing.
+// --attest-cem-v2 with a value, repeated, or combined with the retired
+// --attest-cem or --attest-cem-v1 (unrecognized, CEM-V1-218) in either order,
+// and --artifacts without it, exit 2 with invalid-arguments and print nothing.
 func TestCEMV1065RefusesConflictingFlags(t *testing.T) {
 	t.Parallel()
 	root, base := proveCEMRepository(t)

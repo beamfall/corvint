@@ -7,10 +7,10 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 )
 
-// TestSpec03DiscriminationWitness pins the cem/0.3 hunk discriminates member
-// (TCQ-V0-056): three states with counts that agree, cem/0.1 and cem/0.2
+// TestInheritedDiscriminationWitness pins the cem/1.0 hunk discriminates
+// member (TCQ-V0-056): three states with counts that agree, candidate-profile
 // rejection, and closed keys.
-func TestSpec03DiscriminationWitness(t *testing.T) {
+func TestInheritedDiscriminationWitness(t *testing.T) {
 	const digest = "3f5c1b2ac0d7e8f9a1b2c3d4e5f60718293a4b5c6d7e8f9012a3b4c5d6e7f809"
 	const revision = "4ca153370afd9bd8c6034ad73acc3925150ab681"
 	render := func(spec, witness, excluded string) []byte {
@@ -27,9 +27,9 @@ func TestSpec03DiscriminationWitness(t *testing.T) {
 	survived := head + `"mutants":5,"killed":3,"survived":1,"survivors":[{"operator":"negate-condition","line":5,` +
 		`"description":"negate-condition at src/a.go:5 passed every cited test"}],` + bounds + `,"state":"survived","detail":""}`
 	notRun := head + `"mutants":0,"killed":0,"survived":0,"survivors":[],` + bounds + `,"state":"not-run","detail":"hunk limit 1 reached"}`
-	document, err := ParseMap(render(Spec03, survived, excluded))
+	document, err := parseMechanics(render(StableSpec, survived, excluded), true)
 	if err != nil {
-		t.Fatalf("cem/0.3 survived witness: %v", err)
+		t.Fatalf("survived witness: %v", err)
 	}
 	witness := document.Hunks[0].Discriminates
 	if witness == nil || witness.State != DiscriminationSurvived || witness.TreeRevision != revision ||
@@ -38,19 +38,16 @@ func TestSpec03DiscriminationWitness(t *testing.T) {
 		t.Fatalf("witness = %+v", witness)
 	}
 	for name, member := range map[string]string{"discriminates": discriminates, "not-run": notRun} {
-		document, err := ParseMap(render(Spec03, member, excluded))
+		document, err := parseMechanics(render(StableSpec, member, excluded), true)
 		if err != nil || document.Hunks[0].Discriminates == nil || document.Hunks[0].Discriminates.State != name {
-			t.Fatalf("cem/0.3 %s witness: %v %+v", name, err, document)
+			t.Fatalf("%s witness: %v %+v", name, err, document)
 		}
 	}
-	if document, err := ParseMap(render(Spec03, "", excluded)); err != nil || document.Hunks[0].Discriminates != nil {
-		t.Fatalf("cem/0.3 without a witness: %v %+v", err, document)
+	if document, err := parseMechanics(render(StableSpec, "", excluded), true); err != nil || document.Hunks[0].Discriminates != nil {
+		t.Fatalf("without a witness: %v %+v", err, document)
 	}
-	for spec, path := range map[string]string{Spec01: "", Spec02: excluded} {
-		_, err := ParseMap(render(spec, discriminates, path))
-		if err == nil || cemcode.CodeOf(err) != cemcode.UnknownField {
-			t.Errorf("%s with a witness: got %v, want unknown-field", spec, err)
-		}
+	if _, err := parseMechanics(render(StableSpec, discriminates, excluded), false); cemcode.CodeOf(err) != cemcode.UnknownField {
+		t.Errorf("candidate with a witness: got %v, want unknown-field", err)
 	}
 	invalid := map[string]string{
 		"discriminates-with-survivor": strings.Replace(survived, `"state":"survived"`, `"state":"discriminates"`, 1),
@@ -67,7 +64,7 @@ func TestSpec03DiscriminationWitness(t *testing.T) {
 		"control-detail":              strings.Replace(notRun, `"hunk limit 1 reached"`, `"hunk\u0007limit"`, 1),
 	}
 	for name, member := range invalid {
-		_, err := ParseMap(render(Spec03, member, excluded))
+		_, err := parseMechanics(render(StableSpec, member, excluded), true)
 		if err == nil || cemcode.CodeOf(err) != cemcode.InvalidField {
 			t.Errorf("%s: got %v, want invalid-field", name, err)
 		}
@@ -78,7 +75,7 @@ func TestSpec03DiscriminationWitness(t *testing.T) {
 		"bounds":   strings.Replace(discriminates, `"maxHunks":8,`, `"maxHunks":8,"extra":1,`, 1),
 	}
 	for name, member := range surplus {
-		_, err := ParseMap(render(Spec03, member, excluded))
+		_, err := parseMechanics(render(StableSpec, member, excluded), true)
 		if err == nil || cemcode.CodeOf(err) != cemcode.UnknownField {
 			t.Errorf("surplus %s key: got %v, want unknown-field", name, err)
 		}

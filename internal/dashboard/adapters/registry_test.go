@@ -11,8 +11,8 @@ import (
 
 func TestRegistryIsClosedSortedAndDefensivelyCopied(t *testing.T) {
 	first := Registry()
-	if len(first) != 11 {
-		t.Fatalf("registry rows = %d, want 11", len(first))
+	if len(first) != 10 {
+		t.Fatalf("registry rows = %d, want 10", len(first))
 	}
 	ids := make([]string, len(first))
 	for index, descriptor := range first {
@@ -55,7 +55,7 @@ func TestRegistrationsProduceFrozenRegistryHash(t *testing.T) {
 
 func TestUndeliveredAdaptersAreExplicitlyNotObserved(t *testing.T) {
 	for _, adapterID := range []AdapterID{
-		AdapterCEMOCMBundle, AdapterQueryEnvelope, AdapterImpactEnvelope,
+		AdapterQueryEnvelope, AdapterImpactEnvelope,
 		AdapterHeadSpecIndex, AdapterBeamfallShadow, AdapterPulseDogfood,
 		AdapterHarnessUsage, AdapterGoLiveUsage, AdapterFrontierUsage,
 	} {
@@ -67,13 +67,10 @@ func TestUndeliveredAdaptersAreExplicitlyNotObserved(t *testing.T) {
 			t.Fatalf("dishonest unavailable state for %s: %+v", adapterID, state)
 		}
 	}
-	state, _ := Unavailable(AdapterCEMOCMBundle)
-	if state.DeliveryStage != DeliveryNotStarted || state.Validity != "UNSUPPORTED" {
-		t.Fatalf("CEM/OCM base state = %+v", state)
-	}
-	descriptor, _ := Lookup(AdapterCEMOCMBundle)
-	if descriptor.DefaultLocation != nil {
-		t.Fatal("CEM/OCM adapter must not discover a current-path bundle")
+	// The never-delivered cem/0.x bundle adapter is retired with the 0.x wire
+	// (CEM-V1-217); its identifier is no longer registered.
+	if _, ok := Lookup(AdapterID("cem-ocm-bundle-v0")); ok {
+		t.Fatal("retired cem-ocm-bundle-v0 adapter is still registered")
 	}
 	if _, ok := Unavailable(AdapterLocalTrace); ok {
 		t.Fatal("implemented trace adapter reported unavailable base state")

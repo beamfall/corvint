@@ -47,13 +47,30 @@ func caseArtifact(overrides map[string][]byte) func(string) ([]byte, error) {
 	}
 }
 
+// cemFixtureKey is a public, test-only Ed25519 key derived from a fixed seed
+// so the fixture envelopes are reproducible; it signs nothing else.
+func cemFixtureKey() ed25519.PrivateKey {
+	seed := sha256.Sum256([]byte("corvint FPK-V0-033 fixture key"))
+	return ed25519.NewKeyFromSeed(seed[:])
+}
+
+func signedFixtureStatement(t *testing.T, statement []byte) ([]byte, ed25519.PublicKey) {
+	t.Helper()
+	privateKey := cemFixtureKey()
+	envelope, err := Envelope(statement, privateKey)
+	if err != nil {
+		t.Fatalf("Envelope: %v", err)
+	}
+	return envelope, privateKey.Public().(ed25519.PublicKey)
+}
+
 func signedCEMV2(t *testing.T, cem []byte) ([]byte, []byte) {
 	t.Helper()
 	statement, err := CEMStatementV2(stableMapName, cem, fixtureV2Target)
 	if err != nil {
 		t.Fatalf("CEMStatementV2: %v", err)
 	}
-	envelope, _ := signedCEMV1(t, statement)
+	envelope, _ := signedFixtureStatement(t, statement)
 	return statement, envelope
 }
 
@@ -107,7 +124,7 @@ func TestCEMV1065StatementBytesAndSubjectOrder(t *testing.T) {
 func TestCEMV1065VerifiesMapArtifactsAndTarget(t *testing.T) {
 	cem := stableFixture(t)
 	_, envelope := signedCEMV2(t, cem)
-	publicKey := cemV1FixtureKey().Public().(ed25519.PublicKey)
+	publicKey := cemFixtureKey().Public().(ed25519.PublicKey)
 	target := fixtureV2Target
 	got, err := VerifyCEMPredicateWith(envelope, publicKey, CEMCheck{Map: cem, Artifact: caseArtifact(nil), Target: &target})
 	if err != nil {
@@ -137,7 +154,7 @@ func TestCEMV1065VerifiesMapArtifactsAndTarget(t *testing.T) {
 func TestCEMV1065RefusesSwappedReceiptArtifact(t *testing.T) {
 	cem := stableFixture(t)
 	_, envelope := signedCEMV2(t, cem)
-	publicKey := cemV1FixtureKey().Public().(ed25519.PublicKey)
+	publicKey := cemFixtureKey().Public().(ed25519.PublicKey)
 	const swapped = "artifacts/receipt-attestation.json"
 	original, err := os.ReadFile(stableCase + swapped)
 	if err != nil {
@@ -190,7 +207,7 @@ func TestCEMV1065RefusesSwappedReceiptArtifact(t *testing.T) {
 func TestCEMV1065RefusesTargetThatIsNotTheSubject(t *testing.T) {
 	cem := stableFixture(t)
 	_, envelope := signedCEMV2(t, cem)
-	publicKey := cemV1FixtureKey().Public().(ed25519.PublicKey)
+	publicKey := cemFixtureKey().Public().(ed25519.PublicKey)
 	for _, target := range []CEMTarget{
 		{GitCommit: fixtureV2Target.GitTree, GitTree: fixtureV2Target.GitTree},
 		{GitCommit: fixtureV2Target.GitCommit, GitTree: fixtureV2Target.GitCommit},
@@ -209,7 +226,7 @@ func signedEditedCEMV2(t *testing.T, cem []byte, edit func(string) string) ([]by
 	if edited == string(statement) {
 		t.Fatal("the edit changed nothing")
 	}
-	envelope, publicKey := signedCEMV1(t, []byte(edited))
+	envelope, publicKey := signedFixtureStatement(t, []byte(edited))
 	return envelope, publicKey
 }
 
@@ -247,31 +264,31 @@ func TestCEMV1065PredicateIsClosed(t *testing.T) {
 	}
 }
 
-// TestCEMV1065V1UnchangedForStableMaps checks CEM-V1-065: cem/0 and cem/v1
-// still refuse a stable map, cem/v2 refuses a 0.x map, and a v0 or v1 claim
-// refuses an artifact or target check rather than ignoring it.
-func TestCEMV1065V1UnchangedForStableMaps(t *testing.T) {
-	stable := stableFixture(t)
-	if _, err := CEMStatement(stableMapName, stable); err == nil {
-		t.Error("CEMStatement accepted a stable map")
-	}
-	if _, err := CEMStatementV1(stableMapName, stable); err == nil {
-		t.Error("CEMStatementV1 accepted a stable map")
-	}
-	legacy := cemFixture(t)
-	if _, err := CEMStatementV2(cemFixtureName, legacy, fixtureV2Target); !errors.Is(err, ErrCEMRequiresStableMap) {
+// TestCEMV1218RetiredPredicatesRefuse checks CEM-V1-218 and CEM-V1-065: a
+// cem/0.x map is never a cem/v2 subject, and a signed cem/0 or cem/v1
+// envelope is refused by name rather than read as a claim.
+func TestCEMV1218RetiredPredicatesRefuse(t *testing.T) {
+	legacy := []byte(`{"spec":"cem/0.2"}`)
+	if _, err := CEMStatementV2(stableMapName, legacy, fixtureV2Target); !errors.Is(err, ErrCEMRequiresStableMap) {
 		t.Errorf("CEMStatementV2 on a 0.x map: %v, want ErrCEMRequiresStableMap", err)
 	}
-	envelope, publicKey := signedCEMV1(t, buildCEMV1Statement(t))
-	target := fixtureV2Target
-	if _, err := VerifyCEMPredicateWith(envelope, publicKey, CEMCheck{Map: legacy, Artifact: caseArtifact(nil)}); !errors.Is(err, ErrCEMSubjectMismatch) {
-		t.Errorf("v1 claim with an artifact check: %v", err)
-	}
-	if _, err := VerifyCEMPredicateWith(envelope, publicKey, CEMCheck{Map: legacy, Target: &target}); !errors.Is(err, ErrCEMTargetMismatch) {
-		t.Errorf("v1 claim with a target check: %v", err)
-	}
-	got, err := VerifyCEMPredicate(envelope, publicKey, nil)
-	if err != nil || got.V2 != nil || got.PredicateType != CEMPredicateTypeV1 || got.Status != CEMNotRun {
-		t.Errorf("v1 verification = %#v, %v", got, err)
+	stable := stableFixture(t)
+	for _, predicateType := range []string{"https://corvint-context.dev/attestation/cem/0", "https://corvint-context.dev/attestation/cem/v1"} {
+		statement, err := canonicalMarshal(map[string]any{
+			"_type":         statementType,
+			"subject":       []any{map[string]any{"name": stableMapName, "digest": map[string]any{"sha256": sha256Hex(stable)}}},
+			"predicateType": predicateType,
+			"predicate":     map[string]any{"name": stableMapName},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		envelope, publicKey := signedFixtureStatement(t, statement)
+		for _, cem := range [][]byte{nil, stable} {
+			_, err := VerifyCEMPredicate(envelope, publicKey, cem)
+			if err == nil || !strings.Contains(err.Error(), "is retired; "+CEMPredicateTypeV2+" is the only CEM predicate") {
+				t.Errorf("%s envelope: %v, want the retired-predicate refusal", predicateType, err)
+			}
+		}
 	}
 }

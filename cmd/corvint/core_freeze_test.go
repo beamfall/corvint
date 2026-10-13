@@ -79,15 +79,17 @@ func jsonMember(document map[string]any, path string) (any, bool) {
 	return value, true
 }
 
-// coreEvidenceArguments builds a committed cem/0.2 map and bound OCM, and returns the read
+// coreEvidenceArguments builds a committed cem/1.0 map and bound OCM, and returns the read
 // arguments of one CEM, OCM or frontier mode against them.
 func coreEvidenceArguments(t *testing.T, verb string, extra ...string) []string {
 	t.Helper()
 	fixture := newOCMReadFixture(t)
 	if verb == "cem" {
-		// The frozen cem status/verify goldens describe the retired cem/0.2
-		// route, which ships until V1-1278 S2b removes it.
-		fixture = newCEMSpecFixture(t, "cem/0.2")
+		// Decision 0525 §6 supersedes decision 0357: the frozen cem status and
+		// verify goldens describe the cem/1.0 stable read, which needs the
+		// artifact root (CEM-V1-219).
+		fixture = newLRFFixture(t)
+		extra = append(extra, "--artifacts", fixture.root)
 	}
 	maps := map[string][]string{
 		"cem":      {"--map", fixture.mapPath},
@@ -215,9 +217,9 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			return []string{"--root", root, "prove", "--base", coreFreezeParent(t, root)}
 		}, 0, map[string]any{"tool": "prove", "profile": "falsifiable-packet/0", "packet.profile": "corvint-range-impact/0"}},
 		{"cem status", func(t *testing.T) []string { return coreEvidenceArguments(t, "cem", "status") }, 0,
-			map[string]any{"tool": "cem-status", "verification.spec": "cem/0.2"}},
+			map[string]any{"tool": "cem-status", "stableVerification.spec": "cem/1.0"}},
 		{"cem verify", func(t *testing.T) []string { return coreEvidenceArguments(t, "cem", "verify") }, 0,
-			map[string]any{"tool": "cem-verify", "verification.spec": "cem/0.2"}},
+			map[string]any{"tool": "cem-verify", "stableVerification.spec": "cem/1.0"}},
 		{"ocm status", func(t *testing.T) []string { return coreEvidenceArguments(t, "ocm", "status") }, 0,
 			map[string]any{"tool": "ocm-status", "verification.spec": "ocm/0.1-experimental"}},
 		{"ocm verify", func(t *testing.T) []string { return coreEvidenceArguments(t, "ocm", "verify") }, 0,
@@ -623,7 +625,7 @@ func TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching(t *testing.T) {
 		t.Fatal(err)
 	}
 	source, base, target := cemRepo(t)
-	completionCandidate(t, source, base, target)
+	head := completionCandidate(t, source, base, target)
 	cemGit(t, source, "config", "uploadpack.allowFilter", "true")
 	sentinel := filepath.Join(t.TempDir(), "fetch-attempted")
 	clone, err := filepath.EvalSymlinks(t.TempDir())
@@ -645,12 +647,17 @@ func TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching(t *testing.T) {
 			t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
 		}
 		for _, verb := range []string{"status", "verify"} {
-			code, stdout, stderr := runCLI(t, "--root", clone, "cem", verb, "--map", completionMap, "--expected-base", base, "--target", "HEAD")
+			arguments := completionStatus(clone, base, head, "1")
+			arguments[3] = verb
+			if verb == "verify" {
+				arguments = arguments[:len(arguments)-4] // a cem/1.0 verify takes no policy ceilings
+			}
+			code, stdout, stderr := runCLI(t, arguments...)
 			if _, err := os.Stat(sentinel); !errors.Is(err, os.ErrNotExist) {
 				t.Fatalf("drops guard %v: cem %s reached the promisor remote (sentinel stat: %v)", dropsLazyFetchGuard, verb, err)
 			}
-			if code != 2 || stdout != "" || !strings.Contains(stderr, "repository-object-unavailable") {
-				t.Errorf("drops guard %v: cem %s exit %d stdout %q stderr %s, want 2 with repository-object-unavailable", dropsLazyFetchGuard, verb, code, stdout, stderr)
+			if code != 2 || !strings.Contains(stdout+stderr, "repository-object-unavailable") {
+				t.Errorf("drops guard %v: cem %s exit %d stdout %s stderr %s, want 2 with repository-object-unavailable", dropsLazyFetchGuard, verb, code, stdout, stderr)
 			}
 		}
 	}

@@ -14,16 +14,14 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
-	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/frontier"
-	"github.com/Beamfall/corvint/internal/lrf"
 )
 
 // The canaries below are the CF-V0-024 privacy probes: distinctive strings
 // planted in a source body, a diff body, a command body, a report body, a
 // sibling path and an argv element. None of them may reach stdout or stderr in
-// either the valid or the failing run. They mirror
-// conformance/frontier-v0/fixtures/privacy-canaries/case.json.
+// either the valid or the failing run. They mirror the retired
+// conformance/frontier-v0 privacy-canaries fixture (CEM-V1-217).
 var frontierCanaries = []string{
 	"CORVINT-CANARY-SOURCE-BODY-3f1a",
 	"CORVINT-CANARY-DIFF-BODY-c40e",
@@ -40,82 +38,13 @@ func frontierHex(seed string) string {
 
 func frontierOID(seed string) string { return frontierHex(seed)[:40] }
 
-// stubFrontierVerifier stands in for the repository-backed shared CEM/OCM
-// verifier while the Git adapter lands separately.
-type stubFrontierVerifier struct {
-	universe frontier.VerifiedUniverse
-	err      error
-}
-
-func (stub stubFrontierVerifier) Verify(_ context.Context, _ frontier.VerifyRequest) (frontier.VerifiedUniverse, error) {
-	return stub.universe, stub.err
-}
-
-type stubFrontierTCQ struct{ id string }
-
-func (stub stubFrontierTCQ) Recompute(_ frontier.TCQRequest) (frontier.TCQResult, error) {
-	return frontier.TCQResult{ID: stub.id}, nil
-}
-
-// frontierUniverse builds the smallest verified universe that reaches item
-// projection. `hunks` of zero yields the CF-V0-004 EMPTY state; one `unknown`
-// hunk yields exactly one HUNK_BASIS item and the OPEN state. Both bodies and
-// the hunk path carry canaries, which CF-V0-024 keeps out of every rendering.
-func frontierUniverse(hunks int) frontier.VerifiedUniverse {
-	intentPath := "docs/specs/change-frontier-v0.md"
-	span := frontier.Span{Start: 0, End: 512}
-	cemMap := &wire.Map{
-		Spec:         frontier.AdmittedCEMSpec,
-		BaseRevision: frontierOID("base"),
-		PatchSha256:  frontierHex("patch"),
-		ExcludedPath: frontier.ExcludedPath,
-	}
-	for index := 0; index < hunks; index++ {
-		cemMap.Hunks = append(cemMap.Hunks, wire.Hunk{
-			ID:          wire.HunkPrefix + frontierHex("hunk"),
-			Path:        "src/CORVINT-CANARY-SOURCE-BODY-3f1a.go",
-			Disposition: frontier.CEMUnknown,
-			Reason:      "no-evidence",
-		})
-	}
-	return frontier.VerifiedUniverse{
-		CEM:            cemMap,
-		BaseRevision:   frontierOID("base"),
-		TargetRevision: frontierOID("target"),
-		ObjectFormat:   "sha1",
-		PatchSHA256:    frontierHex("patch"),
-		Intent: frontier.IntentScope{
-			BlobOID: frontierOID("intent-blob"), Path: intentPath,
-			Span: span, SpanSHA256: frontierHex("intent-span"),
-		},
-		LRFRequest: lrf.Request{Context: lrf.Context{
-			CEMSpec:          frontier.AdmittedCEMSpec,
-			CEMMapSHA256:     frontierHex("cem-map"),
-			PatchSource:      "canonical-derived",
-			BaseRevision:     frontierOID("base"),
-			TargetRevision:   frontierPointer(frontierOID("target")),
-			PatchSHA256:      frontierHex("patch"),
-			ExcludedPath:     frontierPointer(frontier.ExcludedPath),
-			OCMSpec:          frontierPointer(lrf.OCMSpec),
-			OCMMapSHA256:     frontierPointer(frontierHex("ocm-map")),
-			IntentPath:       frontierPointer(intentPath),
-			IntentBlobOID:    frontierPointer(frontierOID("intent-blob")),
-			IntentStart:      frontierPointer(span.Start),
-			IntentEnd:        frontierPointer(span.End),
-			IntentSpanSHA256: frontierPointer(frontierHex("intent-span")),
-		}},
-	}
-}
-
-func frontierPointer[T any](value T) *T { return &value }
-
 // registerFrontierAdapters returns a context whose invocations use the given
 // seam, so a test never writes frontierAdapters and never leaks an adapter
 // into another.
-func registerFrontierAdapters(t *testing.T, verifier frontier.Verifier, recomputer frontier.TCQRecomputer) context.Context {
+func registerFrontierAdapters(t *testing.T, viewer frontier.StableViewer) context.Context {
 	t.Helper()
-	return context.WithValue(t.Context(), frontierAdaptersKey{}, frontierSeam(func(context.Context, string) (frontier.Verifier, frontier.TCQRecomputer) {
-		return verifier, recomputer
+	return context.WithValue(t.Context(), frontierAdaptersKey{}, frontierSeam(func(context.Context, string) frontier.StableViewer {
+		return viewer
 	}))
 }
 
@@ -133,8 +62,8 @@ func frontierRepository(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	files := map[string]string{
-		"cem.json":         `{"spec":"cem/0.2","body":"CORVINT-CANARY-DIFF-BODY-c40e"}`,
-		"ocm.json":         `{"spec":"ocm/0.1-experimental","cem":{"spec":"cem/0.2"},"body":"CORVINT-CANARY-SOURCE-BODY-3f1a"}`,
+		"cem.json":         `{"spec":"cem/1.0","body":"CORVINT-CANARY-DIFF-BODY-c40e"}`,
+		"ocm.json":         `{"spec":"ocm/0.1-experimental","cem":{"spec":"cem/1.0"},"body":"CORVINT-CANARY-SOURCE-BODY-3f1a"}`,
 		"command.json":     `{"body":"CORVINT-CANARY-COMMAND-BODY-4c19"}`,
 		"observation.json": `{"body":"CORVINT-CANARY-EXCEPTION-TEXT-7e44"}`,
 		"report.xml":       `<testsuite name="CORVINT-CANARY-REPORT-BODY-9d02"/>`,
@@ -176,72 +105,6 @@ func assertNoFrontierCanary(t *testing.T, label, text string) {
 			t.Errorf("CF-V0-024: %s leaked canary %s", label, canary)
 		}
 	}
-}
-
-// CF-V0-004: exit 0 is a VALID empty frontier and exit 1 is a VALID open one.
-// Exit 1 must never be produced by an error path, and exit 2 is reserved for
-// operational failure alone.
-func TestRunFrontierExitCodesSeparateValidStatesFromFailure(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		name  string
-		hunks int
-		state string
-		exit  int
-	}{
-		{"empty is a successful zero", 0, "EMPTY", 0},
-		{"open is a successful one", 1, "OPEN", 1},
-	}
-	for _, testCase := range cases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			ctx := registerFrontierAdapters(t,
-				stubFrontierVerifier{universe: frontierUniverse(testCase.hunks)},
-				stubFrontierTCQ{id: "tcq:sha256:" + frontierHex("tcq")})
-			root := frontierRepository(t)
-			stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
-			exit := runContext(ctx, frontierArguments(root, "--json"), strings.NewReader(""), stdout, stderr)
-			if exit != testCase.exit {
-				t.Fatalf("exit = %d, want %d (stderr %q)", exit, testCase.exit, stderr.String())
-			}
-			if !strings.Contains(stdout.String(), `"frontierState":"`+testCase.state+`"`) {
-				t.Fatalf("stdout does not declare %s: %s", testCase.state, stdout.String())
-			}
-			if stderr.Len() != 0 {
-				t.Errorf("stderr must stay empty on a valid result: %q", stderr.String())
-			}
-			assertNoFrontierCanary(t, "valid stdout", stdout.String())
-		})
-	}
-}
-
-// CF-V0-026: JSON and human are two renderings of ONE computation, and
-// CF-V0-025 requires the human rendering to carry the assertion boundary.
-func TestRunFrontierHumanRenderingCarriesTheAssertionBoundary(t *testing.T) {
-	t.Parallel()
-	ctx := registerFrontierAdapters(t,
-		stubFrontierVerifier{universe: frontierUniverse(1)},
-		stubFrontierTCQ{id: "tcq:sha256:" + frontierHex("tcq")})
-	root := frontierRepository(t)
-	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
-	exit := runContext(ctx, frontierArguments(root), strings.NewReader(""), stdout, stderr)
-	if exit != 1 {
-		t.Fatalf("exit = %d, want 1 (stderr %q)", exit, stderr.String())
-	}
-	rendered := stdout.String()
-	for _, phrase := range []string{
-		"asserts only that no qualifying relation was accepted",
-		"not proof that evidence does not exist",
-		"that the repository was exhaustively searched",
-	} {
-		if !strings.Contains(rendered, phrase) {
-			t.Errorf("human rendering omits the CF-V0-025 boundary phrase %q", phrase)
-		}
-	}
-	if strings.Contains(rendered, `"frontierState"`) {
-		t.Error("human rendering must not be the JSON document")
-	}
-	assertNoFrontierCanary(t, "human stdout", rendered)
 }
 
 // CF-V0-022: an operational failure emits NO stdout, exit 2, and exactly one
@@ -288,9 +151,7 @@ func TestRunFrontierOperationalFailuresEmitOnlyTheBoundedEnvelope(t *testing.T) 
 			t.Parallel()
 			ctx := clearFrontierAdapters(t)
 			if testCase.adapters {
-				ctx = registerFrontierAdapters(t,
-					stubFrontierVerifier{universe: frontierUniverse(1)},
-					stubFrontierTCQ{id: "tcq:sha256:" + frontierHex("tcq")})
+				ctx = registerFrontierAdapters(t, stubStableViewer{})
 			}
 			stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
 			exit := runContext(ctx, testCase.arguments, strings.NewReader(""), stdout, stderr)
@@ -362,68 +223,38 @@ func TestFrontierAdaptersAreRegistered(t *testing.T) {
 	if frontierAdapters == nil {
 		t.Fatal("no repository-backed frontier adapter is registered")
 	}
-	verifier, recomputer := frontierAdapters(t.Context(), t.TempDir())
-	if verifier == nil || recomputer == nil {
-		t.Fatal("the registered seam returned no verifier or no recomputer")
+	if viewer := frontierAdapters(t.Context(), t.TempDir()); viewer == nil {
+		t.Fatal("the registered seam returned no stable viewer")
 	}
 }
 
-// TestCEMV1210FrontierRefusesARetiredMap (CEM-V1-210): through the REAL
-// adapter, a retired cem/0.2 map refuses with the bounded unsupported-spec
-// envelope before the repository is opened; the frontier/0 universe it named
-// admits no map since cem/0.x was retired (decision 0525). CF-V0-024 keeps the
-// envelope code-only, so the recovery line is not echoed here.
+// TestCEMV1210FrontierRefusesARetiredMap (CEM-V1-210, CEM-V1-217): through
+// the REAL adapter, a map that does not declare cem/1.0 refuses with the
+// bounded unsupported-spec envelope before the repository is opened; frontier/0
+// was deleted with the cem/0.x wire (decision 0525 §1), so no retired map
+// reaches any frontier computation. CF-V0-024 keeps the envelope code-only, so
+// the recovery line is not echoed here.
 func TestCEMV1210FrontierRefusesARetiredMap(t *testing.T) {
 	t.Parallel()
-	root := t.TempDir()
-	for name, body := range map[string]string{
-		"cem.json": `{"spec":"cem/0.2"}`,
-		"ocm.json": `{"spec":"ocm/0.1-experimental"}`,
-	} {
-		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o600); err != nil {
-			t.Fatalf("write %s: %v", name, err)
+	for _, spec := range []string{"cem/0.1", "cem/0.2", "cem/0.3"} {
+		root := t.TempDir()
+		for name, body := range map[string]string{
+			"cem.json": `{"spec":"` + spec + `"}`,
+			"ocm.json": `{"spec":"ocm/0.1-experimental"}`,
+		} {
+			if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o600); err != nil {
+				t.Fatalf("write %s: %v", name, err)
+			}
 		}
-	}
-	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
-	exit := runContext(t.Context(), frontierArguments(root, "--json"), strings.NewReader(""), stdout, stderr)
-	want := `{"code":"unsupported-spec","profile":"frontier-error/0"}` + "\n"
-	if exit != 2 || stdout.Len() != 0 || stderr.String() != want {
-		t.Fatalf("exit %d stdout %q stderr %q, want exit 2 and %q", exit, stdout.String(), stderr.String(), want)
+		stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+		exit := runContext(t.Context(), frontierArguments(root, "--json"), strings.NewReader(""), stdout, stderr)
+		want := `{"code":"unsupported-spec","profile":"frontier-error/0"}` + "\n"
+		if exit != 2 || stdout.Len() != 0 || stderr.String() != want {
+			t.Fatalf("%s: exit %d stdout %q stderr %q, want exit 2 and %q", spec, exit, stdout.String(), stderr.String(), want)
+		}
 	}
 }
 
-// End to end through the REAL adapter: an artifact that is not a `cem/0.2`
-// document must reach the cascade and come back as one bounded envelope, not
-// as a panic and not as a message-carrying error from the shared emitError.
-func TestRunFrontierReachesTheRegisteredAdapter(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	for name, body := range map[string]string{
-		"cem.json": `{"spec":"cem/0.1"}`,
-		"ocm.json": `{"spec":"ocm/0.1-experimental"}`,
-	} {
-		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o600); err != nil {
-			t.Fatalf("write %s: %v", name, err)
-		}
-	}
-	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
-	exit := runContext(t.Context(), frontierArguments(root, "--json"), strings.NewReader(""), stdout, stderr)
-	if exit != 2 {
-		t.Fatalf("exit = %d, want 2 (stdout %q)", exit, stdout.String())
-	}
-	if stdout.Len() != 0 {
-		t.Errorf("CF-V0-022 forbids stdout on operational failure: %q", stdout.String())
-	}
-	// CF-V0-001: CEM 0.1 is an unsupported context, and the Frontier-owned
-	// profile rejection runs before the repository is ever opened.
-	want := `{"code":"` + frontier.CodeUnsupportedContext + `","profile":"frontier-error/0"}` + "\n"
-	if stderr.String() != want {
-		t.Errorf("stderr = %q, want %q", stderr.String(), want)
-	}
-}
-
-// The interception must recognise `frontier` exactly where witness recognises
-// its own verb, and must not claim any other invocation.
 func TestParseFrontierInvocation(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -543,9 +374,8 @@ func TestRunFrontierHelpDoesNotEnterTheCascade(t *testing.T) {
 	}
 }
 
-// stubStableViewer is a verifier that also serves the V1-1304 stable route.
+// stubStableViewer serves the V1-1304 stable route.
 type stubStableViewer struct {
-	stubFrontierVerifier
 	err     error
 	request *frontier.StableViewRequest
 }
@@ -566,28 +396,14 @@ func (stub stubStableViewer) StableView(_ context.Context, request frontier.Stab
 	}, nil
 }
 
-func stableFrontierRepository(t *testing.T) string {
-	t.Helper()
-	root := frontierRepository(t)
-	for name, body := range map[string]string{
-		"cem.json": `{"spec":"cem/1.0"}`,
-		"ocm.json": `{"spec":"ocm/0.1-experimental","cem":{"spec":"cem/1.0"}}`,
-	} {
-		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return root
-}
-
 // V1-1304: a cem/1.0 map reaches the stable viewer with the explicit artifact
 // root and renders frontier-stable-view/0 with exit 1 (NOT_PRODUCED, never a
 // frontier/0 document); refusals and route misuse are exit-2 envelopes.
 func TestRunFrontierStableMapRoute(t *testing.T) {
 	t.Parallel()
-	root := stableFrontierRepository(t)
+	root := frontierRepository(t)
 	var seen frontier.StableViewRequest
-	ctx := registerFrontierAdapters(t, stubStableViewer{request: &seen}, stubFrontierTCQ{id: "tcq"})
+	ctx := registerFrontierAdapters(t, stubStableViewer{request: &seen})
 	before := repositoryBytesDigest(t, root)
 	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
 	if exit := runContext(ctx, frontierArguments(root, "--artifacts", ".", "--json"), strings.NewReader(""), stdout, stderr); exit != 1 {
@@ -618,10 +434,10 @@ func TestRunFrontierStableMapRoute(t *testing.T) {
 		args []string
 		code string
 	}{
-		{"wrong base", registerFrontierAdapters(t, stubStableViewer{err: cemcode.New("base-revision-mismatch", "refused")}, stubFrontierTCQ{}), root, []string{"--artifacts", "."}, "base-revision-mismatch"},
+		{"wrong base", registerFrontierAdapters(t, stubStableViewer{err: cemcode.New("base-revision-mismatch", "refused")}), root, []string{"--artifacts", "."}, "base-revision-mismatch"},
 		{"missing artifacts", ctx, root, nil, frontier.CodeInvalidInput},
-		{"artifacts with cem 0.2", ctx, frontierRepository(t), []string{"--artifacts", "."}, frontier.CodeInvalidInput},
-		{"verifier without stable route", registerFrontierAdapters(t, stubFrontierVerifier{}, stubFrontierTCQ{}), root, []string{"--artifacts", "."}, frontier.CodeUnsupportedContext},
+		{"artifacts with cem 0.2", ctx, retiredFrontierRepository(t), []string{"--artifacts", "."}, "unsupported-spec"},
+		{"no registered adapter", clearFrontierAdapters(t), root, []string{"--artifacts", "."}, frontier.CodeUnsupportedContext},
 	}
 	for _, refusal := range refusals {
 		stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
@@ -630,4 +446,14 @@ func TestRunFrontierStableMapRoute(t *testing.T) {
 			t.Fatalf("%s: exit %d stdout %q stderr %q", refusal.name, exit, stdout, stderr)
 		}
 	}
+}
+
+// retiredFrontierRepository is frontierRepository with a retired cem/0.2 map.
+func retiredFrontierRepository(t *testing.T) string {
+	t.Helper()
+	root := frontierRepository(t)
+	if err := os.WriteFile(filepath.Join(root, "cem.json"), []byte(`{"spec":"cem/0.2"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return root
 }

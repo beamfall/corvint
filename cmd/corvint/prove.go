@@ -118,16 +118,16 @@ var referenceLanguages = map[string]bool{".go": true, ".py": true, ".js": true, 
 // proveOptions carries the checkpoint file and CEM arguments: the map to judge, the
 // independent inputs the verifier demands, and the attestation request.
 // `attest` wraps the document as an in-toto Statement; `attestKey` names a
-// PKCS#8 Ed25519 PEM whose signature seals it in a DSSE envelope; `attestCEM`
-// adds the FPK-V0-031 CEM statement, `cem/v1` with `attestCEMV1` (FPK-V0-050),
-// `cem/v2` over a stable map with `attestCEMV2` (CEM-V1-065), which alone reads
-// the absolute `artifacts` root. `envelopePath` and `publicKeyPath` are the
-// verify-cem mode inputs.
+// PKCS#8 Ed25519 PEM whose signature seals it in a DSSE envelope;
+// `attestCEMV2` adds the `cem/v2` statement over a stable map (CEM-V1-065),
+// which alone reads the absolute `artifacts` root. The retired cem/0 and cem/v1
+// flags `--attest-cem` and `--attest-cem-v1` are unrecognized (CEM-V1-218).
+// `envelopePath` and `publicKeyPath` are the verify-cem mode inputs.
 type proveOptions struct {
-	mapPath, expectedBase, target, patch, attestKey         string
-	checkpointPath, envelopePath, publicKeyPath             string
-	artifacts                                               string
-	patchGiven, attest, attestCEM, attestCEMV1, attestCEMV2 bool
+	mapPath, expectedBase, target, patch, attestKey string
+	checkpointPath, envelopePath, publicKeyPath     string
+	artifacts                                       string
+	patchGiven, attest, attestCEMV2                 bool
 }
 
 // falsifierByAuthority is the closed assignment table. Authorities that cite
@@ -398,12 +398,12 @@ func parseProveCEMArguments(rootArguments, rest []string) (options, error) {
 	seen := map[string]bool{}
 	for index := 0; index < len(rest); {
 		name, value, inline := strings.Cut(rest[index], "=")
-		if name == "--attest" || attestCEMFlags[name] {
+		if name == "--attest" || name == "--attest-cem-v2" {
 			if inline {
 				return result, argumentError("argument " + name + ": ignored explicit argument " + value)
 			}
-			if refusal := attestFlagRefusal(seen, name); refusal != nil {
-				return result, refusal
+			if seen[name] {
+				return result, argumentError("argument " + name + ": may not be repeated")
 			}
 			seen[name] = true
 			index++
@@ -431,9 +431,8 @@ func parseProveCEMArguments(rootArguments, rest []string) (options, error) {
 		*field = value
 	}
 	result.prove.patchGiven = seen["--patch"]
-	result.prove.attestCEM = seen["--attest-cem"] || seen["--attest-cem-v1"] || seen["--attest-cem-v2"]
-	result.prove.attestCEMV1, result.prove.attestCEMV2 = seen["--attest-cem-v1"], seen["--attest-cem-v2"]
-	result.prove.attest = seen["--attest"] || seen["--attest-key"] || result.prove.attestCEM
+	result.prove.attestCEMV2 = seen["--attest-cem-v2"]
+	result.prove.attest = seen["--attest"] || seen["--attest-key"] || result.prove.attestCEMV2
 	if seen["--artifacts"] && !result.prove.attestCEMV2 {
 		return result, argumentError("argument --artifacts: requires --attest-cem-v2")
 	}

@@ -25,7 +25,7 @@ func TestCEMV1167CapsuleRefusesStableEnrollment(t *testing.T) {
 	if err := (objectSet{}).requireEvidencePaths(in); err == nil || err.Error() != "capsule CEM base" {
 		t.Fatalf("stable enrollment: %v, want the capsule CEM base refusal", err)
 	}
-	in.raw["cem.json"] = change.Legacy
+	in.raw["cem.json"] = []byte(`{"spec":"cem/0.2","hunks":[]}`)
 	err := (objectSet{}).requireEvidencePaths(in)
 	if cemcode.CodeOf(err) != cemcode.UnsupportedSpec || !strings.Contains(err.Error(), wire.RetiredSpecFix) {
 		t.Fatalf("0.x enrollment: %v, want unsupported-spec with the fix line", err)

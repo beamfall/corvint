@@ -39,17 +39,16 @@ func TestUseCaseHostileEvidenceCompletion(t *testing.T) {
 		}},
 		{"negative", "missing-anchors", "status against the wrong base is invalid", func(t *testing.T) {
 			root, base, target := cemRepo(t)
-			completionCandidate(t, root, base, target)
-			out := completionRefusal(t, 1, "base-revision-mismatch", "--root", root, "cem", "status", "--map", completionMap,
-				"--expected-base", target, "--target", "HEAD")
-			if state := decodeObject(t, []byte(out))["state"]; state != "invalid" {
-				t.Fatalf("state = %v, want invalid: %s", state, out)
+			head := completionCandidate(t, root, base, target)
+			out := completionRefusal(t, 1, "base-revision-mismatch", completionStatus(root, target, head, "1")...)
+			if state := decodeObject(t, []byte(out))["state"]; state != "rejected" {
+				t.Fatalf("state = %v, want rejected: %s", state, out)
 			}
 		}},
 		{"negative", "malformed-provider-records", "map with an unsupported spec is refused", func(t *testing.T) {
 			root, base, target := cemRepo(t)
 			completionPrepare(t, root, base, target)
-			rewriteRecord(t, filepath.Join(root, completionMap), `"spec": "cem/0.2"`, `"spec": "cem/9.9"`)
+			rewriteRecord(t, filepath.Join(root, completionMap), `"spec":"cem/1.0"`, `"spec":"cem/9.9"`)
 			completionRefusal(t, 2, "unsupported-spec", "--root", root, "cem", "verify", "--map", completionMap)
 		}},
 		{"negative", "dirty-worktree", "anchoring an uncommitted map is refused", func(t *testing.T) {
@@ -63,16 +62,15 @@ func TestUseCaseHostileEvidenceCompletion(t *testing.T) {
 			completionCandidate(t, root, base, target)
 			cemWrite(t, root, "src/app.txt", "alpha\nBETA\ngamma\n")
 			cemGit(t, root, "commit", "-qam", "later")
-			out := completionRefusal(t, 1, "patch-digest-mismatch", "--root", root, "cem", "status", "--map", completionMap,
-				"--expected-base", base, "--target", "HEAD")
-			if state := decodeObject(t, []byte(out))["state"]; state != "invalid" {
-				t.Fatalf("state = %v, want invalid: %s", state, out)
+			later := cemGit(t, root, "rev-parse", "HEAD")
+			out := completionRefusal(t, 1, "patch-digest-mismatch", completionStatus(root, base, later, "1")...)
+			if state := decodeObject(t, []byte(out))["state"]; state != "rejected" {
+				t.Fatalf("state = %v, want rejected: %s", state, out)
 			}
 		}},
 		{"hostile", "dirty-worktree", "status is derived from commits, not the worktree", func(t *testing.T) {
 			root, base, target := cemRepo(t)
-			completionCandidate(t, root, base, target)
-			arguments := []string{"--root", root, "cem", "status", "--map", completionMap, "--expected-base", base, "--target", "HEAD"}
+			arguments := completionStatus(root, base, completionCandidate(t, root, base, target), "1")
 			code, clean, stderr := runCLI(t, arguments...)
 			if code != 0 {
 				t.Fatalf("status exit %d: %s", code, stderr)
@@ -101,7 +99,7 @@ func TestUseCaseHostileEvidenceCompletion(t *testing.T) {
 		{"hostile", "malformed-provider-records", "map with a duplicate key is invalid JSON", func(t *testing.T) {
 			root, base, target := cemRepo(t)
 			completionPrepare(t, root, base, target)
-			rewriteRecord(t, filepath.Join(root, completionMap), `"spec": "cem/0.2"`, `"spec": "cem/0.2", "spec": "cem/0.2"`)
+			rewriteRecord(t, filepath.Join(root, completionMap), `"spec":"cem/1.0"`, `"spec":"cem/1.0","spec":"cem/1.0"`)
 			completionRefusal(t, 2, "invalid-json", "--root", root, "cem", "verify", "--map", completionMap)
 		}},
 		{"hostile", "symlinked-or-relocated-subjects", "symlinked evidence path is not evidence", func(t *testing.T) {
@@ -128,7 +126,7 @@ func TestUseCaseHostileEvidenceCompletion(t *testing.T) {
 		}},
 		{"hostile", "symlinked-or-relocated-subjects", "symlinked .git marker is refused", func(t *testing.T) {
 			root, base, target := cemRepo(t)
-			completionCandidate(t, root, base, target)
+			head := completionCandidate(t, root, base, target)
 			gitDirectory := filepath.Join(t.TempDir(), "git")
 			if err := os.Rename(filepath.Join(root, ".git"), gitDirectory); err != nil {
 				t.Fatal(err)
@@ -136,8 +134,7 @@ func TestUseCaseHostileEvidenceCompletion(t *testing.T) {
 			if err := os.Symlink(gitDirectory, filepath.Join(root, ".git")); err != nil {
 				t.Fatal(err)
 			}
-			completionRefusal(t, 2, "repository-object-unavailable", "--root", root, "cem", "status", "--map", completionMap,
-				"--expected-base", base, "--target", "HEAD")
+			completionRefusal(t, 2, "repository-object-unavailable", completionStatus(root, base, head, "1")...)
 		}},
 		{"hostile", "symlinked-or-relocated-subjects", "map relocated below a subdirectory root is refused", func(t *testing.T) {
 			root, base, target := cemRepo(t)
@@ -147,14 +144,14 @@ func TestUseCaseHostileEvidenceCompletion(t *testing.T) {
 				t.Fatal(err)
 			}
 			cemWrite(t, root, "docs/"+completionMap, string(body))
-			completionRefusal(t, 2, "repository-object-unavailable", "--root", filepath.Join(root, "docs"), "cem", "status",
-				"--map", completionMap, "--expected-base", base, "--target", "HEAD")
+			arguments := completionStatus(root, base, target, "1")
+			arguments[1] = filepath.Join(root, "docs")
+			completionRefusal(t, 2, "repository-object-unavailable", arguments...)
 		}},
 		// abstention: missing evidence is counted unknown, never complete.
 		{"abstention", "missing-anchors", "uncited hunk stays unknown", func(t *testing.T) {
 			root, base, target := cemRepo(t)
-			completionCandidate(t, root, base, target)
-			code, out, stderr := runCLI(t, "--root", root, "cem", "status", "--map", completionMap, "--expected-base", base, "--target", "HEAD")
+			code, out, stderr := runCLI(t, completionStatus(root, base, completionCandidate(t, root, base, target), "1")...)
 			if code != 0 {
 				t.Fatalf("status exit %d: %s", code, stderr)
 			}
@@ -165,9 +162,7 @@ func TestUseCaseHostileEvidenceCompletion(t *testing.T) {
 		}},
 		{"abstention", "missing-anchors", "uncited hunk fails a zero-unknown policy", func(t *testing.T) {
 			root, base, target := cemRepo(t)
-			completionCandidate(t, root, base, target)
-			completionRefusal(t, 1, "max-unknown-exceeded", "--root", root, "cem", "status", "--map", completionMap,
-				"--expected-base", base, "--target", "HEAD", "--max-unknown", "0")
+			completionRefusal(t, 1, "max-unknown-exceeded", completionStatus(root, base, completionCandidate(t, root, base, target), "0")...)
 		}},
 		{"abstention", "missing-anchors", "unenrolled worktree is not satisfied", func(t *testing.T) {
 			root, _, _ := cemRepo(t)
@@ -197,23 +192,31 @@ func TestUseCaseHostileEvidenceCompletion(t *testing.T) {
 	}
 }
 
-// completionPrepare pins cem/0.2: these use cases assert the 0.x status codes
-// and record shape, and resolve the target as HEAD, which a cem/1.0 read
-// refuses (V1-1276, CEM-V1-140).
+// completionPrepare writes the cem/1.0 map, the only producer profile since
+// V1-1278 S2b (CEM-V1-216); the use cases assert the stable status codes.
 func completionPrepare(t *testing.T, root, base, target string) {
 	t.Helper()
-	if code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target); code != 0 {
+	if code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--base", base, "--target", target); code != 0 {
 		t.Fatalf("prepare exit %d: %s", code, stderr)
 	}
 }
 
-// completionCandidate prepares the map and commits it as the candidate, so
-// status resolves the change from base to HEAD with one uncited hunk.
-func completionCandidate(t *testing.T, root, base, target string) {
+// completionCandidate prepares the map and commits it as the candidate, and
+// returns that commit, the target a stable status resolves from base with one
+// uncited hunk.
+func completionCandidate(t *testing.T, root, base, target string) string {
 	t.Helper()
 	completionPrepare(t, root, base, target)
 	cemGit(t, root, "add", completionMap)
 	cemGit(t, root, "commit", "-qm", "candidate")
+	return cemGit(t, root, "rev-parse", "HEAD")
+}
+
+// completionStatus is the stable status argv: a cem/1.0 read takes a full
+// target commit and the artifact root, and maxUnknown is its unknown ceiling.
+func completionStatus(root, base, target, maxUnknown string) []string {
+	return []string{"--root", root, "cem", "status", "--map", completionMap, "--expected-base", base, "--target", target,
+		"--artifacts", root, "--max-unknown", maxUnknown, "--max-mechanical", "0"}
 }
 
 func completionRefusal(t *testing.T, exit int, reason string, arguments ...string) string {

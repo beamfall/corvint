@@ -2,12 +2,14 @@ package extevidence
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
-	"github.com/Beamfall/corvint/internal/cem/wire"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
@@ -158,10 +160,10 @@ func TestObligationsDeterministicAndBounded(t *testing.T) {
 	}
 }
 
-// CEM-V1-210: the frozen external-frontier-obligations/0 route admits no map.
-// A retired cem/0.x map refuses with unsupported-spec and the recovery line; a
-// cem/1.0 map or other bytes refuse with invalid-obligations-input naming the
-// stable route. The shared join refuses a receipt that is not an impact
+// CEM-V1-210, CEM-V1-217: the retired external-frontier-obligations/0 route
+// (an invocation without the stable context) admits no map. A retired cem/0.x
+// map refuses with unsupported-spec and the recovery line; a cem/1.0 map or
+// other bytes refuse with invalid-obligations-input naming the stable route. The shared join refuses a receipt that is not an impact
 // receipt (EFO-V0-002).
 func TestCEMV1210FrozenObligationsAdmitNoMap(t *testing.T) {
 	t.Parallel()
@@ -175,7 +177,7 @@ func TestCEMV1210FrozenObligationsAdmitNoMap(t *testing.T) {
 		"not json": {[]byte(`{`), "invalid-obligations-input"},
 	}
 	for name, test := range cases {
-		document, err := Obligations(test.cem, obligationsReceipt(false), 64)
+		document, err := StableObligations(context.Background(), test.cem, obligationsReceipt(false), 64, StableObligationsOptions{})
 		var kernelErr *gokernel.Error
 		if document != nil || err == nil || !errors.As(err, &kernelErr) || kernelErr.Code != test.code {
 			t.Errorf("%s: document %v err %v", name, document, err)

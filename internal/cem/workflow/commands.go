@@ -21,21 +21,19 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
-// BeginOptions configure the low-level exact-patch producer entry.
+// BeginOptions configure the low-level exact-patch producer entry, which
+// writes a cem/1.0 producer map (CEM-V1-142, CEM-V1-216).
 type BeginOptions struct {
 	PatchPath string // out-of-band patch input; absolute or root-relative
 	Base      string // revision; empty means HEAD
 	Output    string // required root-relative map output
-	// Spec selects the written profile: empty or cem/0.1 is the legacy
-	// candidate, cem/1.0 the stable producer map (CEM-V1-140, CEM-V1-142).
+	// Spec must be empty or cem/1.0, the only producer profile (CEM-V1-216).
 	Spec string
 }
 
-// Begin builds a candidate from exact out-of-band patch bytes: a cem/0.1 map,
-// or with Spec cem/1.0 a stable producer map.
+// Begin builds a cem/1.0 producer map from exact out-of-band patch bytes.
 func (s *Session) Begin(ctx context.Context, options BeginOptions) (map[string]any, error) {
-	stable, err := producerSpec("begin", options.Spec, wire.Spec01)
-	if err != nil {
+	if err := producerSpec("begin", options.Spec); err != nil {
 		return nil, err
 	}
 	if options.PatchPath == "" {
@@ -63,22 +61,16 @@ func (s *Session) Begin(ctx context.Context, options BeginOptions) (map[string]a
 	if err != nil {
 		return nil, err
 	}
-	var document *wire.Map
-	var encoded []byte
-	if stable {
-		document = buildCandidate(wire.Spec02, base, patchBytes, parsed)
-		if encoded, err = encodeStableCandidate(document); err != nil {
-			return nil, err
-		}
-	} else {
-		document = buildCandidate(wire.Spec01, base, patchBytes, parsed)
-		encoded = encodeMap(document)
+	document := buildCandidate(base, patchBytes, parsed)
+	encoded, err := encodeStableCandidate(document)
+	if err != nil {
+		return nil, err
 	}
 	// CEM-V1-031: the non-mutating preflight refuses a stable destination before
 	// the lock creates anything; the output lock then spans the strict probe and
-	// publication, so no Core writer lands between them. A stable writer may
-	// replace only a stable producer map (CEM-V1-143).
-	if err := s.preflightDestination("begin", options.Output, stable); err != nil {
+	// publication, so no Core writer lands between them. Core replaces only a
+	// stable producer map (CEM-V1-143).
+	if err := s.preflightDestination("begin", options.Output); err != nil {
 		return nil, err
 	}
 	unlock, err := lockMap(s.workRoot, options.Output)
@@ -86,7 +78,7 @@ func (s *Session) Begin(ctx context.Context, options BeginOptions) (map[string]a
 		return nil, err
 	}
 	defer unlock()
-	if err := s.refuseStableEntry("begin", options.Output, "replace", stable); err != nil {
+	if err := s.refuseStableEntry("begin", options.Output, "replace"); err != nil {
 		return nil, err
 	}
 	if err := publish.Publish(publish.Output{Root: s.workRoot, Relative: options.Output, Data: encoded}); err != nil {
@@ -113,23 +105,21 @@ type PrepareOptions struct {
 	MapPath string // must be empty or the frozen default
 	Cache   string // optional root-relative convenience-cache selection
 	Replace bool
-	// Spec selects the written profile: empty or cem/0.2 is the legacy
-	// canonical candidate, cem/1.0 the stable producer map (CEM-V1-140,
-	// CEM-V1-141). The CLI selects cem/1.0 unless --spec names cem/0.2.
+	// Spec must be empty or cem/1.0, the only producer profile (CEM-V1-216).
 	Spec string
 }
 
-// producerSpec admits a producer profile selection: empty selects legacy, the
-// named legacy profile stays available until the 0.x removal, and cem/1.0
-// selects the stable producer. Any other value is refused (CEM-V1-140).
-func producerSpec(tool, spec, legacy string) (bool, error) {
-	switch spec {
-	case "", legacy:
-		return false, nil
-	case wire.StableSpec:
-		return true, nil
+// producerSpec admits a producer profile selection: empty or cem/1.0. A
+// retired cem/0.x profile is refused with unsupported-spec and the migration
+// fix, any other value as invalid arguments (CEM-V1-140, CEM-V1-216).
+func producerSpec(tool, spec string) error {
+	switch {
+	case spec == "" || spec == wire.StableSpec:
+		return nil
+	case wire.RetiredSpec(spec):
+		return cemcode.New(cemcode.UnsupportedSpec, "%s is retired; %s is the only stable wire; fix: %s", spec, wire.StableSpec, wire.RetiredSpecFix)
 	}
-	return false, invalidArguments("cem %s --spec must be %s or %s", tool, wire.StableSpec, legacy)
+	return invalidArguments("cem %s --spec must be %s", tool, wire.StableSpec)
 }
 
 // checkCacheAliasing rejects a convenience-cache selection that would alias
@@ -168,8 +158,7 @@ func (s *Session) Prepare(ctx context.Context, options PrepareOptions) (map[stri
 	if options.Base == "" || options.Target == "" {
 		return nil, invalidArguments("prepare requires --base and --target")
 	}
-	stable, err := producerSpec("prepare", options.Spec, wire.Spec02)
-	if err != nil {
+	if err := producerSpec("prepare", options.Spec); err != nil {
 		return nil, err
 	}
 	if options.MapPath != "" && options.MapPath != wire.ExcludedCEMPath {
@@ -212,11 +201,10 @@ func (s *Session) Prepare(ctx context.Context, options PrepareOptions) (map[stri
 	// and no concurrent cite or mark lands between read and replace. A stable
 	// sidecar or backup is refused first, before the lock or recovery touches
 	// either, and again under the lock before recovery or resume cleanup
-	// (CEM-V1-030); resumeCandidate re-checks the sidecar strictly. A stable
-	// prepare writes cem/1.0, so it downgrades no sidecar, but recovery or
-	// resume cleanup still restores or removes a backup: only a 0.x or stable
-	// producer backup is admitted (CEM-V1-141).
-	if err := s.preflightStableSidecar(stable); err != nil {
+	// (CEM-V1-030). Prepare writes cem/1.0, so it downgrades no sidecar, but
+	// recovery or resume cleanup still restores or removes a backup: only a
+	// non-stable or stable producer backup is admitted (CEM-V1-141).
+	if err := s.preflightStableSidecar(options.Replace); err != nil {
 		return nil, err
 	}
 	unlock, err := s.workRoot.Lock(wire.ExcludedCEMPath)
@@ -224,29 +212,23 @@ func (s *Session) Prepare(ctx context.Context, options PrepareOptions) (map[stri
 		return nil, err
 	}
 	defer unlock()
-	if err := s.preflightStableSidecar(stable); err != nil {
+	if err := s.preflightStableSidecar(options.Replace); err != nil {
 		return nil, err
 	}
 	if err := s.workRoot.RecoverPairBackup(wire.ExcludedCEMPath); err != nil {
 		return nil, err
 	}
-	if stable && options.Replace {
+	if options.Replace {
 		if err := s.refuseStableReplace(); err != nil {
 			return nil, err
 		}
 	}
-	var resumed bool
-	var document *wire.Map
-	if stable {
-		resumed, document, err = s.resumeStableCandidate(ctx, base, patchBytes, options.Replace)
-	} else {
-		resumed, document, err = s.resumeCandidate(ctx, base, patchBytes, options.Replace)
-	}
+	resumed, document, err := s.resumeStableCandidate(ctx, base, patchBytes, options.Replace)
 	if err != nil {
 		return nil, err
 	}
 	if document == nil {
-		document = buildCandidate(wire.Spec02, base, patchBytes, parsed)
+		document = buildCandidate(base, patchBytes, parsed)
 	}
 	cacheRoot, cacheRelative := s.gitRoot, defaultPatchRelative
 	if options.Cache != "" {
@@ -263,11 +245,9 @@ func (s *Session) Prepare(ctx context.Context, options PrepareOptions) (map[stri
 			return nil, err
 		}
 	} else {
-		encoded := encodeMap(document)
-		if stable {
-			if encoded, err = encodeStableCandidate(document); err != nil {
-				return nil, err
-			}
+		encoded, err := encodeStableCandidate(document)
+		if err != nil {
+			return nil, err
 		}
 		mapOutput := publish.Output{Root: s.workRoot, Relative: wire.ExcludedCEMPath, Data: encoded}
 		if err := publish.PublishPair(mapOutput, cacheOutput); err != nil {
@@ -281,10 +261,7 @@ func (s *Session) Prepare(ctx context.Context, options PrepareOptions) (map[stri
 		"map":     filepath.Join(s.workRoot.Path(), filepath.FromSlash(wire.ExcludedCEMPath)),
 		"patch":   filepath.Join(cacheRoot.Path(), filepath.FromSlash(cacheRelative)),
 		"resumed": resumed, "worklist": work, "nextHunk": firstOpen(work),
-		"nextActions": []any{nextAction(document, base, options.Cache)},
-	}
-	if stable {
-		result["nextActions"] = []any{stableNextAction(base, target, s.workRoot.Path())}
+		"nextActions": []any{stableNextAction(base, target, s.workRoot.Path())},
 	}
 	return result, nil
 }
@@ -298,23 +275,6 @@ func stableNextAction(base, target, artifactRoot string) []any {
 		"--max-unknown", "0", "--max-mechanical", "0"}
 }
 
-// nextAction renders the profile-correct verification action. A resumed 0.1
-// action reflects only the current invocation's cache selection; a 0.2 action
-// is always canonical with literal HEAD, run after committing the candidate.
-// argv[0] is the contract command name `corvint`, not the `corvint` build name
-// (CEM-CB-016, decision 0122): frozen cli-parity-v0 stdout pins it.
-func nextAction(document *wire.Map, base, cacheSelection string) []any {
-	action := []any{"corvint", "cem", "status", "--map", wire.ExcludedCEMPath}
-	if wire.Canonical(document.Spec) {
-		return append(action, "--expected-base", base, "--target", "HEAD",
-			"--max-unknown", "0", "--max-mechanical", "0")
-	}
-	if cacheSelection != "" {
-		action = append(action, "--patch", cacheSelection)
-	}
-	return action
-}
-
 func (s *Session) checkBaseSidecar(ctx context.Context, base string) error {
 	entry, exists, err := s.repository.LookupTreeEntry(ctx, base, wire.ExcludedCEMPath)
 	if err != nil {
@@ -326,54 +286,12 @@ func (s *Session) checkBaseSidecar(ctx context.Context, base string) error {
 	return nil
 }
 
-// resumeCandidate inspects existing bytes at the frozen map path. An unsafe
-// existing map — unreadable, unparseable, or outdated — is never overwritten
-// without an explicit replace.
-func (s *Session) resumeCandidate(ctx context.Context, base string, patchBytes []byte, replace bool) (bool, *wire.Map, error) {
-	// Absence is decided from the file system error itself, never from error
-	// text: a message embeds the repository path, which may contain any word.
-	if _, err := os.Lstat(filepath.Join(s.workRoot.Path(), filepath.FromSlash(wire.ExcludedCEMPath))); errors.Is(err, fs.ErrNotExist) {
-		return false, nil, nil
-	}
-	raw, err := s.workRoot.ReadBounded(wire.ExcludedCEMPath, wire.MaxMapBytes, cemcode.MapUnavailable)
-	if err != nil {
-		if !replace {
-			return false, nil, err
-		}
-		// CEM-V1-030: --replace regenerates only a sidecar whose spec resolves
-		// to something other than cem/1.0; unreadable bytes may be stable.
-		return false, nil, s.refuseStableDestination("prepare", wire.ExcludedCEMPath)
-	}
-	// CEM-V1-030: a stable sidecar is neither resumed nor replaced, so even an
-	// explicit --replace never downgrades it to a Core cem/0.x candidate.
-	if wire.DeclaresStable(raw) {
-		return false, nil, stableMutationRefusal("prepare", wire.ExcludedCEMPath)
-	}
-	if replace {
-		return false, nil, nil
-	}
-	document, err := wire.ParseMap(raw)
-	if err != nil {
-		return false, nil, cemcode.New(cemcode.MapUnavailable,
-			"existing map at %s is not a valid CEM document; pass --replace to regenerate: %v", wire.ExcludedCEMPath, err).
-			Guided("the existing map is not a valid CEM document; pass --replace to regenerate")
-	}
-	digest := sha256.Sum256(patchBytes)
-	if document.BaseRevision != base || document.PatchSha256 != hex.EncodeToString(digest[:]) {
-		return false, nil, cemcode.New(cemcode.MapUnavailable,
-			"existing map at %s records a different base or patch; pass --replace to regenerate", wire.ExcludedCEMPath).
-			Guided("the existing map records a different base or patch; pass --replace to regenerate")
-	}
-	if err := verify.Candidate(ctx, s.repository, document, patchBytes); err != nil {
-		return false, nil, err
-	}
-	return true, document, nil
-}
-
-// resumeStableCandidate is resumeCandidate for a stable prepare. Writing
-// cem/1.0 downgrades nothing, so --replace regenerates any existing bytes; a
-// resumed map must be a stable map for the same base and patch, and a 0.x map
-// is refused with the guided replace recovery (CEM-V1-141).
+// resumeStableCandidate inspects existing bytes at the frozen map path. An
+// unsafe existing map (unreadable, unparseable, or outdated) is never
+// overwritten without an explicit replace. Writing cem/1.0 downgrades nothing,
+// so --replace regenerates any existing bytes; a resumed map must be a stable
+// map for the same base and patch, and a retired cem/0.x map is refused with
+// the guided replace recovery (CEM-V1-141, CEM-V1-216).
 func (s *Session) resumeStableCandidate(ctx context.Context, base string, patchBytes []byte, replace bool) (bool, *wire.Map, error) {
 	if _, err := os.Lstat(filepath.Join(s.workRoot.Path(), filepath.FromSlash(wire.ExcludedCEMPath))); errors.Is(err, fs.ErrNotExist) {
 		return false, nil, nil
@@ -385,19 +303,14 @@ func (s *Session) resumeStableCandidate(ctx context.Context, base string, patchB
 	if replace {
 		return false, nil, nil
 	}
-	if !wire.DeclaresStable(raw) {
-		// Only a readable cem/0.x map is a different spec; any other bytes keep
-		// the invalid-document refusal a cem/0.x prepare gives them.
-		if _, err := wire.ParseMap(raw); err != nil {
-			return false, nil, cemcode.New(cemcode.MapUnavailable,
-				"existing map at %s is not a valid CEM document; pass --replace to regenerate: %v", wire.ExcludedCEMPath, err).
-				Guided("the existing map is not a valid CEM document; pass --replace to regenerate")
-		}
+	stableDocument, err := wire.ParseStable(raw)
+	if err != nil && cemcode.CodeOf(err) == cemcode.UnsupportedSpec && strings.Contains(cemcode.MessageOf(err), wire.RetiredSpecFix) {
+		// A retired cem/0.x map records a different spec; any other bytes,
+		// another unknown spec included, keep the invalid-document refusal.
 		return false, nil, cemcode.New(cemcode.MapUnavailable,
 			"existing map at %s records a different spec than %s; pass --replace to regenerate", wire.ExcludedCEMPath, wire.StableSpec).
 			Guided("the existing map records a different spec; pass --replace to regenerate")
 	}
-	stableDocument, err := wire.ParseStable(raw)
 	if err != nil {
 		return false, nil, cemcode.New(cemcode.MapUnavailable,
 			"existing map at %s is not a valid CEM document; pass --replace to regenerate: %v", wire.ExcludedCEMPath, err).
@@ -658,9 +571,8 @@ type MarkOptions struct {
 }
 
 // Mark records an explicit unknown or mechanical disposition and prunes
-// evidence left uncited, preserving the input profile. The one profile change
-// is additive (CEM-SM-006): a structural reason on a canonical map declares
-// cem/0.3, the vocabulary the map now uses; a cem/0.1 map cannot carry one.
+// evidence left uncited. A cem/1.0 producer map admits the structural
+// mechanical vocabulary and stays cem/1.0 (CEM-V1-144).
 func (s *Session) Mark(ctx context.Context, options MarkOptions) (map[string]any, error) {
 	document, unlock, err := s.lockedMapInput("mark", options.MapPath, options.Output)
 	if err != nil {
@@ -673,22 +585,9 @@ func (s *Session) Mark(ctx context.Context, options MarkOptions) (map[string]any
 	}
 	valid := (options.Disposition == "unknown" &&
 		(options.Reason == "no-evidence" || options.Reason == "insufficient-evidence" || options.Reason == "conflicting-evidence")) ||
-		(options.Disposition == "mechanical" && wire.MechanicalReason(wire.Spec03, options.Reason))
+		(options.Disposition == "mechanical" && wire.MechanicalReason(options.Reason))
 	if !valid {
 		return nil, invalidArguments("mark accepts unknown or mechanical dispositions with their registered reasons")
-	}
-	if wire.StructuralReasons[options.Reason] {
-		if !wire.Canonical(document.Spec) {
-			return nil, invalidArguments("structural mechanical reasons require a canonical (cem/0.2 or cem/0.3) map")
-		}
-		// A stable producer map already admits the structural vocabulary and
-		// stays cem/1.0 (CEM-V1-144).
-		if s.stableOf(document) == nil {
-			if err := checkSpec03Output(document, options.MapPath, options.Output); err != nil {
-				return nil, err
-			}
-			document.Spec = wire.Spec03
-		}
 	}
 	hunk := &document.Hunks[index]
 	hunk.Disposition, hunk.Reason, hunk.Basis = options.Disposition, options.Reason, nil
@@ -741,11 +640,9 @@ func (s *Session) lockedMapInput(tool, inputRelative, outputRelative string) (*w
 	}
 	// The non-mutating preflight refuses a stable input or destination before
 	// the lock creates its sibling file; the locked reads below re-check both.
-	// Only a stable producer map is mutated, and only a stable writer, one whose
-	// input is a stable producer map, replaces one (CEM-V1-031, CEM-V1-143).
-	stableInput, _ := s.stableClassAt(inputRelative)
+	// Only a stable producer map is mutated or replaced (CEM-V1-031, CEM-V1-143).
 	for _, relative := range []string{inputRelative, effectiveOutput} {
-		if err := s.preflightDestination(tool, relative, stableInput); err != nil {
+		if err := s.preflightDestination(tool, relative); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -762,7 +659,7 @@ func (s *Session) lockedMapInput(tool, inputRelative, outputRelative string) (*w
 	if err == nil && effectiveOutput != inputRelative {
 		// The output lock is held, so no Core writer changes it before
 		// publication; a case variant is checked too, since it may not alias.
-		err = s.refuseStableEntry(tool, effectiveOutput, "replace", s.stableOf(document) != nil)
+		err = s.refuseStableEntry(tool, effectiveOutput, "replace")
 	}
 	if err != nil {
 		unlock()
@@ -773,55 +670,34 @@ func (s *Session) lockedMapInput(tool, inputRelative, outputRelative string) (*w
 
 // readMutableMap reads a mutator's input map. A cem/1.0 producer map is read
 // through the stable parser and returned as its mechanics view, which writeMap
-// re-encodes as cem/1.0; any other cem/1.0 map, which the 0.x parser refuses,
-// is refused as one Core does not mutate rather than as malformed 0.x input;
-// every other refusal is returned unchanged (CEM-V1-031, CEM-V1-143).
+// re-encodes as cem/1.0; any other cem/1.0 map is refused as one Core does not
+// mutate; every other input, a retired cem/0.x map included, is refused by the
+// stable parser (CEM-V1-031, CEM-V1-143, CEM-V1-216).
 func (s *Session) readMutableMap(tool, relative string) (*wire.Map, error) {
 	raw, err := s.readMapBytes(relative)
 	if err != nil {
 		return nil, err
 	}
-	if wire.DeclaresStable(raw) {
-		stableDocument, err := wire.ParseStable(raw)
-		if err != nil {
-			return nil, err
-		}
-		if !stableProducerMap(stableDocument) {
-			return nil, stableMutationRefusal(tool, relative)
-		}
-		document := stableMechanics(stableDocument)
-		if s.stableHolders == nil {
-			s.stableHolders = map[*wire.Map]*wire.StableMap{}
-		}
-		s.stableHolders[document] = stableDocument
-		return document, nil
-	}
-	document, err := wire.ParseMap(raw)
+	stableDocument, err := wire.ParseStable(raw)
 	if err != nil {
-		if cemcode.CodeOf(err) == cemcode.UnsupportedSpec && wire.DeclaresStable(raw) {
-			return nil, stableMutationRefusal(tool, relative)
-		}
 		return nil, err
 	}
+	if !stableProducerMap(stableDocument) {
+		return nil, stableMutationRefusal(tool, relative)
+	}
+	document := stableMechanics(stableDocument)
+	if s.stableHolders == nil {
+		s.stableHolders = map[*wire.Map]*wire.StableMap{}
+	}
+	s.stableHolders[document] = stableDocument
 	return document, nil
-}
-
-// refuseStableDestination is the strict probe a caller runs while it holds the
-// output's lock (CEM-V1-030, CEM-V1-031). Only an absent path, a path that is
-// not a regular file (publication replaces the entry, never a link target),
-// or a regular file over the map bound (which DeclaresStable never selects)
-// resolves without reading. A regular file must be read and must not declare
-// cem/1.0: one whose bytes cannot be read is refused, since it may be stable.
-func (s *Session) refuseStableDestination(tool, relative string) error {
-	return s.refuseStableEntry(tool, relative, "replace", false)
 }
 
 // refuseStableEntry is the strict probe shared by destinations and
 // interrupted-publication backups; action names what the tool would otherwise
-// do to the entry. A stable writer may replace a stable producer map, never a
-// stable map carrying criteria, receipts, links, artifacts or provenance
-// (CEM-V1-143); a 0.x writer replaces no stable map.
-func (s *Session) refuseStableEntry(tool, relative, action string, stableWriter bool) error {
+// do to the entry. Core may replace a stable producer map, never a stable map
+// carrying criteria, receipts, links, artifacts or provenance (CEM-V1-143).
+func (s *Session) refuseStableEntry(tool, relative, action string) error {
 	info, err := os.Lstat(filepath.Join(s.workRoot.Path(), filepath.FromSlash(relative)))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -839,10 +715,8 @@ func (s *Session) refuseStableEntry(tool, relative, action string, stableWriter 
 			relative, tool, action, wire.StableSpec)
 	}
 	if wire.DeclaresStable(raw) {
-		if stableWriter {
-			if document, parseErr := wire.ParseStable(raw); parseErr == nil && stableProducerMap(document) {
-				return nil
-			}
+		if document, parseErr := wire.ParseStable(raw); parseErr == nil && stableProducerMap(document) {
+			return nil
 		}
 		return stableMutationRefusal(tool, relative)
 	}
@@ -850,12 +724,12 @@ func (s *Session) refuseStableEntry(tool, relative, action string, stableWriter 
 }
 
 // refuseStableReplace guards a cem/1.0 prepare --replace under the sidecar
-// lock: it regenerates a 0.x map, a stable producer map and bytes that declare
+// lock: it regenerates a non-stable map, a stable producer map and bytes that declare
 // cem/1.0 but do not parse, and refuses a valid stable map that carries
 // criteria, receipts, links, artifacts or provenance, or a regular sidecar it
 // cannot read, leaving it unchanged (CEM-V1-141).
 func (s *Session) refuseStableReplace() error {
-	err := s.refuseStableEntry("prepare", wire.ExcludedCEMPath, "replace", true)
+	err := s.refuseStableEntry("prepare", wire.ExcludedCEMPath, "replace")
 	if err == nil || cemcode.CodeOf(err) == cemcode.MapUnavailable {
 		return err
 	}
@@ -869,11 +743,11 @@ func (s *Session) refuseStableReplace() error {
 }
 
 // preflightDestination is the non-mutating preflight of one input or output
-// path: readable stable bytes there are refused unless the writer is stable
-// and the bytes are a stable producer map (CEM-V1-031, CEM-V1-143).
-func (s *Session) preflightDestination(tool, relative string, stableWriter bool) error {
+// path: readable stable bytes there are refused unless they are a stable
+// producer map (CEM-V1-031, CEM-V1-143).
+func (s *Session) preflightDestination(tool, relative string) error {
 	stable, producer := s.stableClassAt(relative)
-	if stable && !(stableWriter && producer) {
+	if stable && !producer {
 		return stableMutationRefusal(tool, relative)
 	}
 	return nil
@@ -902,23 +776,21 @@ func stableProducerMap(document *wire.StableMap) bool {
 		len(document.Artifacts) == 0 && document.Provenance == nil
 }
 
-// stableMechanics returns the mutable mechanics view of a stable map. The
-// view declares cem/0.3, the canonical legacy profile with the complete
-// mechanical, coverage and discrimination vocabulary, so every mutator rule
-// that gates on a canonical map applies unchanged; writeMap re-encodes the
-// view as cem/1.0 and never writes the view's spec (CEM-V1-143).
+// stableMechanics returns the mutable mechanics view of a stable map, with the
+// complete mechanical, coverage and discrimination vocabulary; writeMap
+// re-encodes the view as cem/1.0 (CEM-V1-143).
 func stableMechanics(document *wire.StableMap) *wire.Map {
 	view := wire.Map(document.Change)
-	view.Spec = wire.Spec03
 	return &view
 }
 
-// stableOf returns the stable holder of a mechanics view, or nil for a 0.x map.
+// stableOf returns the stable holder of a mechanics view, or nil for a view
+// no mutator read.
 func (s *Session) stableOf(document *wire.Map) *wire.StableMap {
 	return s.stableHolders[document]
 }
 
-// encodeStableCandidate wraps a freshly built canonical candidate in an empty
+// encodeStableCandidate wraps a freshly built candidate in an empty
 // stable producer map (CEM-V1-141, CEM-V1-142).
 func encodeStableCandidate(document *wire.Map) ([]byte, error) {
 	return encodeStableView(&wire.StableMap{
@@ -936,30 +808,21 @@ func encodeStableView(holder *wire.StableMap, document *wire.Map) ([]byte, error
 	return wire.EncodeStable(holder)
 }
 
-// stableAt is the non-mutating preflight: it reports whether readable bytes at
-// relative declare cem/1.0, before any lock, directory or backup recovery
-// touches the file system. Read failures are left to the locked strict probe.
-func (s *Session) stableAt(relative string) bool {
-	if relative == "" || filepath.IsAbs(relative) {
-		return false
-	}
-	raw, err := s.workRoot.ReadBounded(relative, wire.MaxMapBytes, cemcode.MapUnavailable)
-	return err == nil && wire.DeclaresStable(raw)
-}
-
 // preflightStableSidecar refuses prepare before it locks the sidecar or
 // restores an interrupted-publication backup when the sidecar, or a backup
 // that recovery would restore or resume cleanup would remove, declares
-// cem/1.0 (CEM-V1-030). A recognized backup gets the strict probe: one whose
-// bytes cannot be read is refused too, since it may be stable. Backup names
-// follow publish.RecoverPairBackup: "<map>.bak-" plus sixteen lowercase hex
-// digits, regular files only. A stable writer replaces no sidecar here
+// cem/1.0 (CEM-V1-030). A recognized backup gets the strict probe. Backup
+// names follow publish.RecoverPairBackup: "<map>.bak-" plus sixteen lowercase
+// hex digits, regular files only. Prepare replaces no sidecar here
 // (refuseStableReplace guards --replace) and admits a stable producer backup;
 // a stable backup carrying criteria, receipts, links, artifacts or provenance,
-// or an unreadable one, is still refused (CEM-V1-141).
-func (s *Session) preflightStableSidecar(stableWriter bool) error {
-	if !stableWriter && s.stableAt(wire.ExcludedCEMPath) {
-		return stableMutationRefusal("prepare", wire.ExcludedCEMPath)
+// or an unreadable one, is still refused (CEM-V1-141). With --replace, the
+// non-mutating replace guard runs here too, so its refusal precedes the lock.
+func (s *Session) preflightStableSidecar(replace bool) error {
+	if replace {
+		if err := s.refuseStableReplace(); err != nil {
+			return err
+		}
 	}
 	directory := path.Dir(wire.ExcludedCEMPath)
 	entries, err := os.ReadDir(filepath.Join(s.workRoot.Path(), filepath.FromSlash(directory)))
@@ -972,7 +835,7 @@ func (s *Session) preflightStableSidecar(stableWriter bool) error {
 		if !found || len(suffix) != 16 || strings.Trim(suffix, "0123456789abcdef") != "" || !entry.Type().IsRegular() {
 			continue
 		}
-		if err := s.refuseStableEntry("prepare", path.Join(directory, entry.Name()), "restore or remove", stableWriter); err != nil {
+		if err := s.refuseStableEntry("prepare", path.Join(directory, entry.Name()), "restore or remove"); err != nil {
 			return err
 		}
 	}
@@ -980,14 +843,14 @@ func (s *Session) preflightStableSidecar(stableWriter bool) error {
 }
 
 // stableMutationRefusal is the explicit refusal of a Core mutation of a stable
-// map that is not a stable producer map, or of a 0.x write over any stable map.
+// map that is not a stable producer map.
 // Core mutates only the producer map it writes; a bound map's criteria,
 // receipts, links, artifacts and provenance belong to the candidate assembler,
 // and the Core read is status or verify (CEM-V1-017, CEM-V1-143).
 func stableMutationRefusal(tool, relative string) error {
 	return cemcode.New(cemcode.UnsupportedSpec,
-		"%s is a %s map, which Core cem %s does not mutate or replace here: a cem/0.x write never replaces it, and a %s write mutates only a producer map without criteria, receipts, links, artifacts or provenance; read it with cem status or cem verify and --artifacts",
-		relative, wire.StableSpec, tool, wire.StableSpec)
+		"%s is a %s map, which Core cem %s does not mutate or replace here: Core mutates only a producer map without criteria, receipts, links, artifacts or provenance; read it with cem status or cem verify and --artifacts",
+		relative, wire.StableSpec, tool)
 }
 
 func (s *Session) writeMap(document *wire.Map, inputRelative, outputRelative string) (string, error) {
@@ -995,47 +858,16 @@ func (s *Session) writeMap(document *wire.Map, inputRelative, outputRelative str
 	if err != nil {
 		return "", err
 	}
-	// A stable producer map is re-encoded as cem/1.0 (CEM-V1-143).
-	if holder := s.stableOf(document); holder != nil {
-		encoded, err := encodeStableView(holder, document)
-		if err != nil {
-			return "", err
-		}
-		if err := publish.Publish(publish.Output{Root: s.workRoot, Relative: relative, Data: encoded}); err != nil {
-			return "", err
-		}
-		return filepath.Join(s.workRoot.Path(), filepath.FromSlash(relative)), nil
+	// Every mutator input is a stable producer map, re-encoded as cem/1.0
+	// (CEM-V1-143).
+	encoded, err := encodeStableView(s.stableOf(document), document)
+	if err != nil {
+		return "", err
 	}
-	// A cite or plain mark keeps a cem/0.3 input at cem/0.3, so every writer,
-	// not only an upgrading one, keeps it off the Core sidecar (CEM-SM-006).
-	if document.Spec == wire.Spec03 {
-		if err := checkSpec03Output(document, inputRelative, outputRelative); err != nil {
-			return "", err
-		}
-	}
-	encoded := encodeMap(document)
 	if err := publish.Publish(publish.Output{Root: s.workRoot, Relative: relative, Data: encoded}); err != nil {
 		return "", err
 	}
 	return filepath.Join(s.workRoot.Path(), filepath.FromSlash(relative)), nil
-}
-
-// checkSpec03Output refuses a cem/0.3 write that would replace a cem/0.2 input
-// map in place or land on the Core sidecar path, which frontier and OCM read as
-// cem/0.2 only (CEM-SM-006, V1-0335).
-func checkSpec03Output(document *wire.Map, inputRelative, outputRelative string) error {
-	output, err := mapOutputRelative(inputRelative, outputRelative)
-	if err != nil {
-		return err
-	}
-	output = path.Clean(output)
-	if strings.EqualFold(output, wire.ExcludedCEMPath) {
-		return invalidArguments("a cem/0.3 map must not be written to %s, which frontier and OCM read as cem/0.2; pass --output PATH", wire.ExcludedCEMPath)
-	}
-	if document.Spec == wire.Spec02 && strings.EqualFold(output, path.Clean(inputRelative)) {
-		return invalidArguments("upgrading a cem/0.2 map to cem/0.3 needs --output naming a different path")
-	}
-	return nil
 }
 
 func mapOutputRelative(inputRelative, outputRelative string) (string, error) {

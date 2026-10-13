@@ -96,12 +96,9 @@ func runObligations(options obligationsOptions, stdout, stderr io.Writer) int {
 		emitError(stderr, err)
 		return 2
 	}
-	var document map[string]any
-	if options.stableMode() {
-		document, err = extevidence.StableObligations(context.Background(), cem, impact, options.limit, options.stable)
-	} else {
-		document, err = extevidence.Obligations(cem, impact, options.limit)
-	}
+	// Without the stable context this refuses as the retired
+	// external-frontier-obligations/0 route (CEM-V1-217).
+	document, err := extevidence.StableObligations(context.Background(), cem, impact, options.limit, options.stable)
 	if err != nil {
 		emitError(stderr, err)
 		return 2

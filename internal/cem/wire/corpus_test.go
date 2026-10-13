@@ -159,7 +159,7 @@ func TestCEMV1200RetiredSpecRefusedWithMergeFix(t *testing.T) {
 	if n, failures, err := corpusFailures(dir); err != nil || n != 1 || len(failures) != 0 {
 		t.Fatalf("control: n=%d failures=%v err=%v", n, failures, err)
 	}
-	for _, spec := range []string{Spec01, Spec02, Spec03} {
+	for _, spec := range []string{"cem/0.1", "cem/0.2", "cem/0.3"} {
 		late := []byte(`{"spec":"` + spec + `","baseRevision":"` + strings.Repeat("b", 40) + `","hunks":[]}`)
 		_, err := ParseStable(late)
 		if cemcode.CodeOf(err) != cemcode.UnsupportedSpec || !strings.Contains(err.Error(), spec+" is retired") || !strings.Contains(err.Error(), "fix: "+RetiredSpecFix) {

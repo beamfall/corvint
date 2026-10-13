@@ -187,8 +187,8 @@ func TestStatementRejectsInvalidUTF8(t *testing.T) {
 	if _, err := Statement([]byte(fakeProveDocument), subjects); err == nil {
 		t.Error("Statement accepted invalid UTF-8 in a subject digest algorithm")
 	}
-	if _, err := CEMStatement("map\xff.cem.json", cemFixture(t)); err == nil {
-		t.Error("CEMStatement accepted invalid UTF-8 in the name")
+	if _, err := CEMStatementV2("map\xff.cem.json", stableFixture(t), fixtureV2Target); err == nil {
+		t.Error("CEMStatementV2 accepted invalid UTF-8 in the name")
 	}
 }
 

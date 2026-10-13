@@ -555,9 +555,9 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
 - `DOGFOOD-BIND-007`: a hunk whose intent no stable base content records (for example an intent
   added or removed inside the range) is not cited. A fixing commit that removes its backlog entry
   MUST cite a stable owning spec requirement or accepted decision instead. The producer reads a
-  requested span from `baseRevision` (`internal/cem/workflow/commands.go:452-469@d53a3b0c`), but
+  requested span from `baseRevision` (`internal/cem/workflow/commands.go:365-382@d53a3b0c`), but
   both its stability precheck and canonical target-drift verification reject that removed span
-  (`internal/cem/verify/verify.go:442-497@92b33007`). A backlog entry that was the only recorded
+  (`internal/cem/verify/verify.go:393-448@92b33007`). A backlog entry that was the only recorded
   intent therefore binds as `NOT_PRODUCED`, never as an
   invented citation, with an unknown `no-evidence` row. Its detail is the
   `removed-intent.<blob OID>.<start>-<end>` pin that the refused `cem cite` names (`CEM-CB-005`,

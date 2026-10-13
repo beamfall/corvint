@@ -65,7 +65,7 @@ its finding is that the action is not currently available.
   caller-controlled V0 bytes, clean-target statements, passing rows, and exit zero cannot upgrade
   that authority. A stronger harness relation requires a new TCQ and Frontier profile and MUST NOT
   reinterpret V0 bytes" (`:193-197`). The constant is `internal/tcq/canonical.go:17`; Frontier's copy
-  is `internal/frontier/closure.go:165`.
+  was `internal/frontier/closure.go` line 165 at commit `52af6ee1` (deleted by V1-1278 S2b).
 - `TCQ-V0-046` reserves the upgrade path: "Only a future WP6 authority root and new relation/profile
   can define stronger behavior; signatures over V0 caller-controlled bytes do not qualify"
   (`docs/specs/test-claim-qualification-v0.md:532-537`).

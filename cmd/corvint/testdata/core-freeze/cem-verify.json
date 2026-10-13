@@ -1,12 +1,62 @@
 {
-  "excludedPath": ".corvint/change.cem.json",
   "mutates": false,
   "ok": true,
-  "patchSource": "canonical-derived",
-  "tool": "cem-verify",
-  "verification": {
+  "stableVerification": {
+    "accept": true,
+    "artifactChecks": [],
     "assurance": "canonical",
-    "baseRevision": "61151eb4449d4798ad4875ffea7845238ef3c93e",
+    "axes": {
+      "authentication": "NOT_OBSERVED",
+      "changeIntegrity": "VERIFIED",
+      "coverageValidation": "ABSENT",
+      "criterionAdequacy": "NOT_OBSERVED",
+      "criterionDiscrimination": "NOT_OBSERVED",
+      "currentApplicability": "NOT_OBSERVED",
+      "dependencyClosure": "NOT_OBSERVED",
+      "discriminationValidation": "ABSENT",
+      "executionAtCommit": "NOT_OBSERVED",
+      "externalInteroperability": "NOT_OBSERVED",
+      "historicalValidity": "NOT_OBSERVED",
+      "nativeAuthority": "NOT_OBSERVED",
+      "referenceIntegrity": "EMPTY_REFERENCE_SET",
+      "runnerExecution": "NOT_OBSERVED",
+      "runnerReceiptSemantics": "NOT_OBSERVED",
+      "sourceGitBinding": "NOT_OBSERVED",
+      "sourceInventoryCompleteness": "NOT_OBSERVED",
+      "structuralProof": "NOT_REQUIRED"
+    },
+    "citation": {
+      "annotationHunks": 0,
+      "concentratedHunks": 1,
+      "distinctEvidence": 1,
+      "evidenceFanOut": [
+        [
+          "evidence:sha256:bbcac3a96e483e758db60117b0c16c47adb4b51e5b91cfacea77fdf12e42187e",
+          1
+        ]
+      ],
+      "hunks": [
+        {
+          "anchors": [],
+          "annotation": false,
+          "hunkId": "hunk:sha256:9ec6dc6bc71093b93b17def234a14e099d03f2f51239998c24fecc6ac6330826",
+          "tier": "cited"
+        }
+      ],
+      "hunksByClass": {
+        "anchored": 0,
+        "cited": 1,
+        "held": 0,
+        "mechanical-proved": 0,
+        "unknown": 0
+      },
+      "invariant": true,
+      "maxFanOut": 1,
+      "profile": "cem-citation-support/0",
+      "samePathCitations": 0,
+      "specificity": 0
+    },
+    "code": null,
     "drift": [
       {
         "baseBlobOid": "654fa2d53b5fd4c691c6fdcad977142808cf38b0",
@@ -20,13 +70,51 @@
         }
       }
     ],
-    "evidenceTotal": 1,
-    "hunksTotal": 1,
-    "issues": [],
+    "expectedBase": "61151eb4449d4798ad4875ffea7845238ef3c93e",
+    "hunks": [
+      {
+        "basis": [
+          {
+            "evidenceId": "evidence:sha256:bbcac3a96e483e758db60117b0c16c47adb4b51e5b91cfacea77fdf12e42187e",
+            "relation": "specification"
+          }
+        ],
+        "disposition": "supported",
+        "id": "hunk:sha256:9ec6dc6bc71093b93b17def234a14e099d03f2f51239998c24fecc6ac6330826",
+        "newRange": {
+          "count": 2,
+          "start": 1
+        },
+        "oldRange": {
+          "count": 1,
+          "start": 1
+        },
+        "path": "src/app.txt",
+        "reason": "evidence-backed"
+      }
+    ],
+    "issueCodes": [],
+    "mapSha256": "7c529fbd5136dc45ae7eeb942e5f23dca356b3a37150a4d7c3f3f4f90bdf7c99",
+    "outcome": "ACCEPT",
     "patchSha256": "994ec175c093271c0d5a98e810ed8f8c71c39d732690188822d3e4d76ab8285d",
-    "spec": "cem/0.2",
+    "profile": "cem-stable-verification/1",
+    "references": {
+      "artifacts": [],
+      "criterionBindings": [],
+      "criterionLinks": [],
+      "runnerReceipts": []
+    },
+    "repositoryEnvelope": "canonical-repository-bounded/1",
+    "runtime": {
+      "goVersion": "go1.27.2",
+      "structuralQualification": "NOT_REQUIRED"
+    },
+    "sidecar": "ABSENT",
+    "spec": "cem/1.0",
+    "stage": "complete",
     "targetRevision": "d00b90a6272539fa9d1dc14cc401ad296c0cd839",
-    "valid": true
+    "verdictSha256": "6aae68aa7fccb0c009dbe83b946d67cbf9fea560ec0f0df0916f96d41a85cd2e",
+    "verificationMode": "canonical-and-reference-integrity"
   },
-  "warnings": []
+  "tool": "cem-verify"
 }

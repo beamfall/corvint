@@ -89,14 +89,8 @@ func TestStableLegacyAdmissionAndOriginalBytes(t *testing.T) {
 	if !bytes.Equal(d.OriginalBytes(), saved) {
 		t.Fatal("getter exposed mutable original")
 	}
-	if _, e = ParseMap(saved); e == nil {
-		t.Fatal("legacy parser admitted stable")
-	}
 	if _, e = ParseCandidate(saved); e == nil {
 		t.Fatal("candidate parser admitted stable")
-	}
-	if Canonical(StableSpec) || MechanicalReason(StableSpec, "rename") {
-		t.Fatal("legacy capabilities widened")
 	}
 	encoded, e := EncodeStable(d)
 	if e != nil {

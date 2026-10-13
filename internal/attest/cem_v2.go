@@ -14,8 +14,8 @@ import (
 
 // CEMPredicateTypeV2 is the in-toto predicateType URI for an attestation about
 // one cem/1.0 stable map, its declared artifacts and the target commit it was
-// verified against (docs/specs/cem-stable-v1.md, CEM-V1-065). CEMPredicateType
-// and CEMPredicateTypeV1 are unchanged and never attest a stable map.
+// verified against (docs/specs/cem-stable-v1.md, CEM-V1-065). It is the
+// only CEM predicate: cem/0 and cem/v1 are retired (CEM-V1-218).
 const CEMPredicateTypeV2 = "https://corvint-context.dev/attestation/cem/v2"
 
 var (
@@ -30,6 +30,9 @@ var (
 	// differs from the signed target, or when a target check is asked of a
 	// claim that signs no target.
 	ErrCEMTargetMismatch = errors.New("attest: target does not match the attested target")
+	// ErrCEMPredicateRetired is wrapped when a verified envelope carries a
+	// retired cem/0 or cem/v1 predicateType (CEM-V1-218).
+	ErrCEMPredicateRetired = errors.New("attest: retired CEM predicate")
 )
 
 // CEMTarget is a commit and its tree, as full lowercase Git object IDs.
@@ -135,10 +138,10 @@ func checkCEMTarget(target CEMTarget) error {
 	return nil
 }
 
-// VerifyCEMPredicateWith is VerifyCEMPredicate for a statement of
-// CEMPredicateType, CEMPredicateTypeV1 or CEMPredicateTypeV2, checked against
-// check. A v0 or v1 claim signs no artifact or target, so asking it for either
-// check is refused with ErrCEMSubjectMismatch or ErrCEMTargetMismatch.
+// VerifyCEMPredicateWith verifies envelope with Verify, requires a
+// CEMPredicateTypeV2 statement, and checks it against check. A retired cem/0 or
+// cem/v1 envelope is refused by name (CEM-V1-218), as is any other
+// predicateType.
 func VerifyCEMPredicateWith(envelope []byte, publicKey ed25519.PublicKey, check CEMCheck) (CEMVerification, error) {
 	payload, err := Verify(envelope, publicKey)
 	if err != nil {
@@ -148,25 +151,18 @@ func VerifyCEMPredicateWith(envelope []byte, publicKey ed25519.PublicKey, check 
 	if err := strictUnmarshal(payload, &header); err != nil {
 		return CEMVerification{}, fmt.Errorf("attest: parse CEM statement: %w", err)
 	}
-	parse := cemClaimParsers[header.PredicateType]
-	if parse == nil {
+	if retiredCEMPredicateTypes[header.PredicateType] {
+		return CEMVerification{}, fmt.Errorf("%w: predicateType %q is retired; %s is the only CEM predicate", ErrCEMPredicateRetired, header.PredicateType, CEMPredicateTypeV2)
+	}
+	if header.PredicateType != CEMPredicateTypeV2 {
 		return CEMVerification{}, fmt.Errorf("attest: predicateType %q is not a CEM predicate", header.PredicateType)
 	}
-	claim, err := parse(payload)
+	claim, err := parseCEMStatementV2(payload)
 	if err != nil {
 		return CEMVerification{}, err
 	}
 	claim.PredicateType = header.PredicateType
-	if header.PredicateType == CEMPredicateTypeV2 {
-		return checkCEMV2(claim, check)
-	}
-	if check.Artifact != nil {
-		return CEMVerification{}, fmt.Errorf("%w: a %s claim has no artifact subjects", ErrCEMSubjectMismatch, header.PredicateType)
-	}
-	if check.Target != nil {
-		return CEMVerification{}, fmt.Errorf("%w: a %s claim signs no target", ErrCEMTargetMismatch, header.PredicateType)
-	}
-	return checkCEMBytes(claim, check.Map)
+	return checkCEMV2(claim, check)
 }
 
 // parseCEMStatementV2 reads a verified payload whose predicateType is

@@ -9,7 +9,6 @@ type AdapterID string
 const (
 	AdapterStableRead     AdapterID = "stable-read-v0"
 	AdapterLocalTrace     AdapterID = "local-trace-v1"
-	AdapterCEMOCMBundle   AdapterID = "cem-ocm-bundle-v0"
 	AdapterQueryEnvelope  AdapterID = "query-envelope-v1"
 	AdapterImpactEnvelope AdapterID = "impact-envelope-v1"
 	AdapterHeadSpecIndex  AdapterID = "head-spec-index-v0"
@@ -54,13 +53,6 @@ var registry = []Descriptor{
 		AdapterID: AdapterBeamfallShadow, AcceptedProfiles: nil, DefaultLocation: nil,
 		DeliveryStage: DeliveryUnsupported, IssueCodes: []string{"SOURCE_UNSUPPORTED"},
 		MaxBytes: "0", SourceKind: "BEAMFALL_SHADOW", VerifierID: "unsupported",
-	},
-	{
-		AdapterID:        AdapterCEMOCMBundle,
-		AcceptedProfiles: []string{"cem/0.1+ocm/0.1", "cem/0.2+ocm/0.1"},
-		DefaultLocation:  nil, DeliveryStage: DeliveryNotStarted,
-		IssueCodes: []string{"SOURCE_UNSUPPORTED"},
-		MaxBytes:   "0", SourceKind: "CEM_OCM_BUNDLE", VerifierID: "go-cem-ocm-bundle-v0",
 	},
 	{
 		AdapterID: AdapterFrontierUsage, AcceptedProfiles: nil, DefaultLocation: nil,

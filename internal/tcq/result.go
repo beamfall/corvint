@@ -40,16 +40,13 @@ type ClaimResult struct {
 	AuthorityClass string
 }
 
-// Result and ClaimResult are the producer side of the frozen seam declared in
-// internal/frontier/upstream.go. A shim converts Result.ID/Result.Claims into
-// frontier.TCQResult/TCQClaimResult field for field; this package deliberately
-// does not import frontier, which consumes it. Frontier's TCQRequest carries no
-// CEM bytes, so a shim must supply the canonical `cem/0.2` artifact the OCM
-// binds — TCQ-V0-001 requires it and TCQ-V0-002 refuses `cem/0.1`.
-//
-// Result is one `tcq/0` document. It is a recomputable local cache, never an
-// authority token or execution record (TCQ-V0-043): Raw is the canonical bytes
-// the identity commits to, and every consumer must recompute rather than trust.
+// Result is the computed TCQ document. The only emitted profile is
+// tcq-stable/0 (EvaluateStable), which re-envelopes the tcq/0 computation; the
+// tcq/0 route, its cem/0.2 admission and the frontier/0 seam that consumed it
+// were retired with the cem/0.x wire (CEM-V1-217). It is a recomputable local
+// cache, never an authority token or execution record (TCQ-V0-043): Raw is the
+// canonical bytes the identity commits to, and every consumer must recompute
+// rather than trust.
 type Result struct {
 	raw         []byte
 	id          string

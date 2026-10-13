@@ -14,8 +14,10 @@ import (
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
-// ObligationsSchema names the retired cem/0.2 Change Frontier sidecar (EFO-V0-003, CEM-V1-210).
-const ObligationsSchema = "external-frontier-obligations/0"
+// The impact join shared by the stable obligations sidecar (EFO-V0-004..009,
+// CEM-V1-131). The external-frontier-obligations/0 route that first used it
+// was defined over a cem/0.2 map and is retired with the cem/0.x wire
+// (CEM-V1-217); its successor is external-frontier-obligations-stable/0.
 
 // Sidecar states (EFO-V0-006).
 const (
@@ -51,19 +53,6 @@ type externalSection struct {
 type association struct {
 	kind, provider, entity, entityKind, summary, path, verification, freshness, reason, code string
 	relation                                                                                 map[string]any
-}
-
-// Obligations is the retired external-frontier-obligations/0 route. That
-// schema was defined over a cem/0.2 map, which is retired (decision 0525), so
-// it composes no sidecar: a cem/0.x map refuses with unsupported-spec and the
-// recovery line (CEM-V1-210), and any other input refuses with
-// invalid-obligations-input naming the stable route, the only one that reads a
-// cem/1.0 map (CEM-V1-134).
-func Obligations(cem, impact []byte, limit int) (map[string]any, error) {
-	if err := refuseRetiredCEM(cem); err != nil {
-		return nil, err
-	}
-	return nil, &gokernel.Error{Code: "invalid-obligations-input", Message: "external-frontier-obligations/0 admits no map; a cem/1.0 map is read only by the stable sidecar (--repository, --expected-base, --target and --stable-artifact-root)"}
 }
 
 // refuseRetiredCEM returns the closed unsupported-spec refusal, with the

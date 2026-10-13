@@ -21,7 +21,7 @@ const RetiredSpecFix = "committed 0.x maps were migrated in place by the migrati
 // stable wire, so the stable reader refuses these with unsupported-spec and
 // RetiredSpecFix (CEM-V1-200).
 func RetiredSpec(spec string) bool {
-	return spec == Spec01 || spec == Spec02 || spec == Spec03
+	return spec == "cem/0.1" || spec == "cem/0.2" || spec == "cem/0.3"
 }
 
 // DeclaresStable reports whether data is one bounded JSON object whose spec is

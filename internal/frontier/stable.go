@@ -2,17 +2,19 @@ package frontier
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"regexp"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/wp3codec"
 )
 
-// The stable frontier view (V1-1304). frontier/0 is frozen: it binds an lrf/0
-// digest and admits cem/0.2 only, and no stable LRF or frontier profile is
-// accepted (CEM-V1-121, CEM-V1-126). A cem/1.0 change map therefore never
-// yields a frontier/0 document. It yields this view instead: the stable
+// The stable frontier view (V1-1304). No stable LRF or frontier profile is
+// accepted (CEM-V1-126) and frontier/0 was deleted with the cem/0.x wire
+// (CEM-V1-217), so a cem/1.0 change map yields this view: the stable
 // verifier's ACCEPT over the exact map, the accepted map's unknown hunks, the
 // verified OCM obligations carried field for field, and the recomputed tcq-stable/0 identity, under a frontier
 // state that is always NOT_PRODUCED and never EMPTY or closed.
@@ -43,7 +45,7 @@ type StableViewRequest struct {
 }
 
 // StableViewer is the repository-backed seam onto the shipped stable route
-// (frontierrepo.RecomputeStable). Like Verifier it is an interface so the
+// (frontierrepo.RecomputeStable). It is an interface so the
 // admission order and translation stay testable without a repository.
 type StableViewer interface {
 	StableView(ctx context.Context, request StableViewRequest) (StableView, error)
@@ -105,13 +107,13 @@ func computeStable(ctx context.Context, viewer StableViewer, request StableViewR
 	if err != nil {
 		return StableView{}, nil, err
 	}
-	if err := validateRawCeilings(Request{CEMBytes: request.CEMBytes, OCMBytes: request.OCMBytes}); err != nil {
+	if err := validateRawCeilings(request); err != nil {
 		return StableView{}, nil, err
 	}
 	if err := validateStableProfiles(request); err != nil {
 		return StableView{}, nil, err
 	}
-	if err := validateRevisions(Request{ExpectedBase: request.ExpectedBase, Target: request.Target}); err != nil {
+	if err := validateRevisions(request); err != nil {
 		return StableView{}, nil, err
 	}
 	if request.ArtifactRoot == "" {
@@ -141,24 +143,64 @@ func validateStableCallShape(viewer StableViewer, request StableViewRequest) (Te
 	if viewer == nil {
 		return "", fail(CodeInvalidInput, "stable viewer is required")
 	}
-	return validateCallShape(Request{
-		CEMBytes: request.CEMBytes, OCMBytes: request.OCMBytes,
-		Command: request.Command, Observation: request.Observation, JUnitReport: request.JUnitReport,
-		Verifier: stableShapeOnly{}, TCQ: stableShapeOnly{},
-	})
+	if len(request.CEMBytes) == 0 || len(request.OCMBytes) == 0 {
+		return "", fail(CodeInvalidInput, "cem and ocm bytes are required")
+	}
+	present := 0
+	for _, part := range [][]byte{request.Command, request.Observation, request.JUnitReport} {
+		if part != nil {
+			present++
+		}
+	}
+	switch present {
+	case 0:
+		return TestModeStatic, nil
+	case 3:
+		return TestModeDynamicCallerReported, nil
+	}
+	return "", fail(CodeInvalidInput, "dynamic test input is all-or-none")
 }
 
-// stableShapeOnly lets the stable route reuse the frozen call-shape check; it
-// is never called.
-type stableShapeOnly struct{}
-
-func (stableShapeOnly) Verify(context.Context, VerifyRequest) (VerifiedUniverse, error) {
-	return VerifiedUniverse{}, fail(CodeInternalError, "shape-only seam")
+// validateRawCeilings applies the inherited raw byte ceilings and reports them
+// with the upstream producers' own codes (CF-V0-022 passes them through).
+func validateRawCeilings(request StableViewRequest) *Error {
+	if len(request.CEMBytes) > maxCEMRawBytes {
+		return fail("map-unavailable", "cem raw bytes exceed the inherited ceiling")
+	}
+	if len(request.OCMBytes) > maxOCMRawBytes {
+		return fail("map-too-large", "ocm raw bytes exceed the inherited ceiling")
+	}
+	return nil
 }
 
-func (stableShapeOnly) Recompute(TCQRequest) (TCQResult, error) {
-	return TCQResult{}, fail(CodeInternalError, "shape-only seam")
+// validateRevisions reports a missing base or target with the inherited codes.
+func validateRevisions(request StableViewRequest) *Error {
+	if request.ExpectedBase == "" {
+		return fail("expected-base-required", "an independent expected base is required")
+	}
+	if request.Target == "" {
+		return fail("target-required", "an independent caller target is required")
+	}
+	return nil
 }
+
+func admittedMember(object wire.Value, key, admitted string) *Error {
+	member, found := object.Obj.Get(key)
+	if !found || member.Kind != wire.KindString {
+		return nil
+	}
+	if member.Str != admitted {
+		return fail(CodeUnsupportedContext, "bound profile is not admitted")
+	}
+	return nil
+}
+
+func digest(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
+var lowerHex64 = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 // validateStableProfiles admits a map declaring exactly cem/1.0 and an OCM of
 // the admitted profile bound to cem/1.0. Anything else is
@@ -334,5 +376,5 @@ func RenderStableHuman(view StableView) string {
 	return out.String()
 }
 
-const stableBoundary = "no frontier document was produced: frontier/0 admits cem/0.2 only and no stable " +
+const stableBoundary = "no frontier document was produced: frontier/0 is retired and no stable " +
 	"LRF or frontier profile is accepted, so this view closes nothing and is never an empty frontier\n"

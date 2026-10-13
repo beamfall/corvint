@@ -50,7 +50,7 @@ func TestCEMV1160WitnessStableRoute(t *testing.T) {
 			t.Fatalf("%s: exit %d out %q stderr %q", name, code, out, stderr)
 		}
 	}
-	code, out, stderr = witnessCLI(change.LegacyTarget, "--stable-artifact-root", stable.ArtifactRoot)
+	code, out, stderr = witnessCLI(change.ProducerTarget, "--stable-artifact-root", stable.ArtifactRoot)
 	refused("wrong base", code, out, stderr, "stable verifier returned")
 	code, out, stderr = witnessCLI(change.Base)
 	refused("missing artifact root", code, out, stderr, "UNSUPPORTED")

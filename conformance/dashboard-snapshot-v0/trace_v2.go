@@ -18,7 +18,7 @@ func isTraceAdapter(value any) bool { return value == "local-trace-v1" || value 
 func expectedTraceRegistryDigest(sources []any) string {
 	for _, value := range sources {
 		if source, ok := value.(map[string]any); ok && source["adapterId"] == "local-trace-v2" {
-			return "sha256:477cf73e98c9ef9c70dcaea45ea4520e8957cac99ce9fea9886207a88df74738"
+			return "sha256:e046f10139be61ef37976cf210df77afce582fd75d42f2e5d2aec70adee0f7da"
 		}
 	}
 	return domainDigest("corvint-dashboard-adapter-registry/0", []byte(canonicalRegistry))

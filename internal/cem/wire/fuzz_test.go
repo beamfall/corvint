@@ -13,9 +13,9 @@ import (
 // FuzzParseAgreesWithEncodingJSON checks the strict reader against its package
 // contract: every accepted document is valid JSON that encoding/json decodes to
 // the same tree, and the canonical form of an accepted value reparses to the
-// same canonical bytes. ParseMap must refuse rather than panic on any input.
+// same canonical bytes. ParseStable must refuse rather than panic on any input.
 func FuzzParseAgreesWithEncodingJSON(f *testing.F) {
-	seeds, _ := filepath.Glob(filepath.Join("..", "..", "..", "interop", "cem-0.1", "maps", "*", "*.json"))
+	seeds, _ := filepath.Glob(filepath.Join("..", "..", "..", "protocol", "cem-1.0", "maps", "*.json"))
 	for _, seed := range seeds {
 		if data, err := os.ReadFile(seed); err == nil {
 			f.Add(data)
@@ -23,7 +23,7 @@ func FuzzParseAgreesWithEncodingJSON(f *testing.F) {
 	}
 	f.Add([]byte("{\"a\":[1,true,null,\"\\ud83d\\ude00\\u0000\"],\"b\":{}}"))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		_, _ = ParseMap(data)
+		_, _ = ParseStable(data)
 		value, err := Parse(data)
 		if err != nil {
 			return

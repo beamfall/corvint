@@ -281,7 +281,8 @@ func TestCoreStableReportPublishesRepositoryRefusals(t *testing.T) {
 // supplied flag is refused even when its value is empty; an --ocm naming an
 // absent file is map-unavailable (V1-1305); the `--flag=` spelling is not a CEM
 // argument and is refused by the argument parser. The refusals
-// before the verifier are marked as stable refusals, and 0.x refusals are not.
+// before the verifier are marked as stable refusals; a retired or unknown spec is an
+// unmarked unsupported-spec refusal (CEM-V1-215).
 func TestCoreStableReportRefusals(t *testing.T) {
 	f := materializeStableRead(t)
 	reportPath := filepath.Join(f.repo, ".git", "corvint", "cem-review.md")
@@ -332,7 +333,7 @@ func TestCoreStableReportRefusals(t *testing.T) {
 	if cemcode.CodeOf(err) != cemcode.InvalidArguments || !workflow.IsStableRefusal(err) {
 		t.Fatalf("preview ceiling refusal = %v (stable %v)", err, workflow.IsStableRefusal(err))
 	}
-	for name, document := range map[string]string{"other.json": `{"spec":"cem/9"}`, "legacy.json": string(legacyCanonicalMap(t))} {
+	for name, document := range map[string]string{"other.json": `{"spec":"cem/9"}`, "legacy.json": `{"spec":"cem/0.3","hunks":[]}`} {
 		if err := os.WriteFile(filepath.Join(f.repo, name), []byte(document), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -342,20 +343,8 @@ func TestCoreStableReportRefusals(t *testing.T) {
 		if err == nil || workflow.IsStableRefusal(err) {
 			t.Fatalf("0.x preview %s = %v, want an unmarked refusal", name, err)
 		}
-	}
-}
-
-// CEM-V1-036: a 0.x report refuses --artifacts at stage 3 exactly as status
-// and verify do.
-func TestCoreStableReportRefusesArtifactsFor0x(t *testing.T) {
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "legacy.cem.json"), legacyCanonicalMap(t), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	for _, format := range []string{"markdown", "json"} {
-		exit, envelope, refusal := runCoreRead(t, root, "report", "--map", "legacy.cem.json", "--format", format, "--artifacts", "/artifacts")
-		if exit != 2 || envelope != nil || refusal["error"] != "cem/0.3 report does not accept --artifacts" {
-			t.Fatalf("%s: exit %d refusal %v", format, exit, refusal)
+		if cemcode.CodeOf(err) != cemcode.UnsupportedSpec {
+			t.Fatalf("0.x preview %s = %v, want unsupported-spec", name, err)
 		}
 	}
 }

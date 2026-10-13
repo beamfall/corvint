@@ -205,18 +205,18 @@ if [[ $action == cem && $sub == prepare ]]; then
     printf '{"error": "cannot read CEM map: the existing map records a different base or patch; pass --replace to regenerate", "ok": false}\n' >&2
     exit 2
   fi
-  # The canonical map layout the plan check reads. By default hunk 1 is unknown and hunk 2
-  # already supported, so a one-row plan names every unknown hunk; DOGFOOD_TEST_CEM_HUNKS
-  # lists DISPOSITION:PATH entries instead.
+  # The compact cem/1.0 producer layout (CEM-V1-140), the only one prepare writes (CEM-V1-215).
+  # By default hunk 1 is unknown and hunk 2 already supported, so a one-row plan names every
+  # unknown hunk; DOGFOOD_TEST_CEM_HUNKS lists DISPOSITION:PATH entries instead.
   separator=
   {
-    printf '{\n  "hunks": [\n'
+    printf '{"hunks":['
     for entry in ${DOGFOOD_TEST_CEM_HUNKS:-unknown:script/source.sh supported:docs/specs/intent-b.md}; do
-      printf '%s    {\n      "disposition": "%s",\n      "id": "hunk:test:%s",\n      "path": "%s"\n    }' \
+      printf '%s{"disposition":"%s","id":"hunk:test:%s","path":"%s"}' \
         "$separator" "${entry%%:*}" "${entry#*:}" "${entry#*:}"
-      separator=$',\n'
+      separator=,
     done
-    printf '\n  ]\n}\n'
+    printf '],"spec":"cem/1.0"}\n'
   } > "$root/.corvint/change.cem.json"
   if [[ -n ${DOGFOOD_TEST_UNSAFE_MAP:-} ]]; then
     rm "$root/.corvint/change.cem.json"
@@ -947,7 +947,7 @@ unbound_commit() {
 }
 git -C "$unbound_repo" init -q -b main
 unbound_b0=$(unbound_commit b0)
-printf '{\n  "baseRevision": "%s",\n  "spec": "cem/0.2"\n}\n' "$unbound_b0" > "$unbound_repo/.corvint/change.cem.json"
+printf '{"baseRevision":"%s","hunks":[],"spec":"cem/1.0"}\n' "$unbound_b0" > "$unbound_repo/.corvint/change.cem.json"
 unbound_s1=$(unbound_commit s1)
 unbound_c1=$(unbound_commit c1)
 unbound_c2=$(unbound_commit c2)
@@ -972,7 +972,7 @@ sealed_commit() {
 }
 git -C "$sealed_repo" init -q -b main
 sealed_b0=$(sealed_commit b0)
-printf '{\n  "baseRevision": "%s",\n  "spec": "cem/0.2"\n}\n' "$sealed_b0" > "$sealed_repo/.corvint/change.cem.json"
+printf '{"baseRevision":"%s","hunks":[],"spec":"cem/1.0"}\n' "$sealed_b0" > "$sealed_repo/.corvint/change.cem.json"
 sealed_s1=$(sealed_commit s1)
 mkdir -p "$sealed_repo/.corvint/changes"
 git -C "$sealed_repo" mv .corvint/change.cem.json ".corvint/changes/$sealed_s1.cem.json"
@@ -1000,7 +1000,7 @@ if rg -q '^  review:'; then exit 1; fi <<< "$sealed_gap"
 sealed_none=$(cd "$sealed_repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$sealed_z1" 2>&1) || :
 if rg -q 'unbound'; then exit 1; fi <<< "$sealed_none"
 # A rename of a bound CEM to any other name is not a seal and is not covered.
-printf '{\n  "baseRevision": "%s",\n  "spec": "cem/0.2"\n}\n' "$sealed_c2" > "$sealed_repo/.corvint/change.cem.json"
+printf '{"baseRevision":"%s","hunks":[],"spec":"cem/1.0"}\n' "$sealed_c2" > "$sealed_repo/.corvint/change.cem.json"
 sealed_commit s2 >/dev/null
 git -C "$sealed_repo" mv .corvint/change.cem.json .corvint/changes/other.cem.json
 git -C "$sealed_repo" -c user.name=t -c user.email=t@example.invalid commit -qm misnamed

@@ -210,8 +210,10 @@ func TestImplementationCodecMatchesVectors(t *testing.T) {
 				}
 			case "document":
 				// A complete document carries a terminal LF, which codec() does
-				// not produce; the runner-level fixtures cover that surface.
-				t.Skip("document framing is asserted through the fixture runner, not the codec seam")
+				// not produce. The frontier/0 fixture runner that asserted it was
+				// retired (CEM-V1-217); TestCodecVectorsAgainstReferenceCodec
+				// still checks these vectors against the reference codec.
+				t.Skip("document framing is not a codec-seam property")
 			}
 		})
 	}

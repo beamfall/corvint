@@ -1,6 +1,6 @@
 package wire
 
-// validateDiscrimination checks one cem/0.3 hunk discrimination witness
+// validateDiscrimination checks one hunk discrimination witness
 // (TCQ-V0-056): closed keys, a full tree revision and selection digest,
 // consistent counts, one described survivor per survived mutant inside the
 // hunk's newRange, positive bounds, and a state that agrees with the counts.

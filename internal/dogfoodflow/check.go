@@ -275,14 +275,13 @@ func (c *check) requireCleanChange() {
 }
 
 var (
-	reportBase        = regexp.MustCompile(`^  "base": "([0-9a-f]*)",$`)
-	reportTarget      = regexp.MustCompile(`^  "target": "([0-9a-f]*)",$`)
-	outcomeDigest     = regexp.MustCompile(`^  ,"localOutcomeEvidenceSha256": "sha256:([0-9a-f]{64})"$`)
-	abstentionDigest  = regexp.MustCompile(`^  ,"contextAbstentionEvidenceSha256": "sha256:([0-9a-f]{64})"$`)
-	missingRow        = regexp.MustCompile(`^.*"name": "([^"]*)", "status": "NOT_PRODUCED", "reason": "([^"]*)".*$`)
-	abstentionRow     = regexp.MustCompile(`"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "([^"]*)"`)
-	cemBaseRevisionRE = regexp.MustCompile(`^  "baseRevision": "([0-9a-f]{40})",$`)
-	fullRevision      = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	reportBase       = regexp.MustCompile(`^  "base": "([0-9a-f]*)",$`)
+	reportTarget     = regexp.MustCompile(`^  "target": "([0-9a-f]*)",$`)
+	outcomeDigest    = regexp.MustCompile(`^  ,"localOutcomeEvidenceSha256": "sha256:([0-9a-f]{64})"$`)
+	abstentionDigest = regexp.MustCompile(`^  ,"contextAbstentionEvidenceSha256": "sha256:([0-9a-f]{64})"$`)
+	missingRow       = regexp.MustCompile(`^.*"name": "([^"]*)", "status": "NOT_PRODUCED", "reason": "([^"]*)".*$`)
+	abstentionRow    = regexp.MustCompile(`"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "([^"]*)"`)
+	fullRevision     = regexp.MustCompile(`^[0-9a-f]{40}$`)
 )
 
 // checkReport requires a complete report bound to this BASE, HEAD, anchor and
@@ -893,12 +892,52 @@ func (c *check) previousBinding() (string, bool) {
 
 func (c *check) cemBaseRevision(commit string) (string, bool) {
 	sidecar, status := c.git(true, "show", commit+":.corvint/change.cem.json")
-	value := allCaptures(cemBaseRevisionRE, []byte(sidecar))
-	if status != 0 || !fullRevision.MatchString(value) {
+	if status != 0 {
+		return "", false
+	}
+	value, ok := sidecarBaseRevision([]byte(sidecar))
+	if !ok || !fullRevision.MatchString(value) {
 		return "", false
 	}
 	_, status = c.git(false, "merge-base", "--is-ancestor", value, commit)
 	return value, status == 0
+}
+
+// sidecarBaseRevision reads the top-level baseRevision of a committed CEM
+// sidecar whatever its JSON layout, so the compact cem/1.0 map and an older
+// indented one both resolve (V1-1326). A document that is not one JSON object,
+// or that repeats or lacks the member, has no base.
+func sidecarBaseRevision(data []byte) (string, bool) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return "", false
+	}
+	value, found := "", false
+	for decoder.More() {
+		token, err := decoder.Token()
+		key, isKey := token.(string)
+		if err != nil || !isKey {
+			return "", false
+		}
+		if key != "baseRevision" {
+			var skipped json.RawMessage
+			if decoder.Decode(&skipped) != nil {
+				return "", false
+			}
+			continue
+		}
+		if found || decoder.Decode(&value) != nil {
+			return "", false
+		}
+		found = true
+	}
+	if token, err := decoder.Token(); err != nil || token != json.Delim('}') {
+		return "", false
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		return "", false
+	}
+	return value, found
 }
 
 func nonEmpty(lines []string) []string {

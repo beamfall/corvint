@@ -5,12 +5,9 @@
 package workflow
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -19,7 +16,6 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/publish"
-	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
@@ -112,14 +108,11 @@ func invalidArguments(format string, args ...any) *cemcode.Error {
 
 // --- document model helpers ---
 
-// buildCandidate constructs a fresh map document for the given profile with
+// buildCandidate constructs the mechanics of a fresh cem/1.0 producer map with
 // every hunk explicitly unknown.
-func buildCandidate(spec, base string, patchBytes []byte, parsed *patch.Patch) *wire.Map {
+func buildCandidate(base string, patchBytes []byte, parsed *patch.Patch) *wire.Map {
 	digest := sha256.Sum256(patchBytes)
-	document := &wire.Map{Spec: spec, BaseRevision: base, PatchSha256: hex.EncodeToString(digest[:])}
-	if wire.Canonical(spec) {
-		document.ExcludedPath = wire.ExcludedCEMPath
-	}
+	document := &wire.Map{Spec: wire.StableSpec, BaseRevision: base, PatchSha256: hex.EncodeToString(digest[:]), ExcludedPath: wire.ExcludedCEMPath}
 	for _, hunk := range parsed.Hunks {
 		document.Hunks = append(document.Hunks, wire.Hunk{
 			ID: hunk.ID, Path: hunk.DisplayPath, OldRange: hunk.OldRange, NewRange: hunk.NewRange,
@@ -127,110 +120,6 @@ func buildCandidate(spec, base string, patchBytes []byte, parsed *patch.Patch) *
 		})
 	}
 	return document
-}
-
-// encodeMap renders a map document exactly as the Python oracle does, which is
-// json.dumps(indent=2, sort_keys=True, ensure_ascii=False) plus a trailing
-// newline. The bytes matter beyond readability: OCM binds a map by mapSha256, so
-// a map written by one runtime must digest identically to the other's.
-func encodeMap(document *wire.Map) []byte {
-	evidence := make([]any, 0, len(document.Evidence))
-	for _, record := range document.Evidence {
-		evidence = append(evidence, map[string]any{
-			"blobOid": record.BlobOid, "id": record.ID, "path": record.Path,
-			"span":       map[string]any{"end": record.Span.End, "start": record.Span.Start},
-			"spanSha256": record.SpanSha256,
-		})
-	}
-	value := map[string]any{
-		"baseRevision": document.BaseRevision,
-		"evidence":     evidence,
-		"hunks":        documentHunks(document),
-		"patchSha256":  document.PatchSha256,
-		"spec":         document.Spec,
-	}
-	if wire.Canonical(document.Spec) {
-		value["excludedPath"] = document.ExcludedPath
-	}
-	return indentedCanonicalJSON(value)
-}
-
-// indentedCanonicalJSON matches Python's json.dumps(indent=2, sort_keys=True,
-// ensure_ascii=False) followed by a newline. encoding/json already sorts map
-// keys; SetEscapeHTML(false) is what stops Go escaping <, > and & where Python
-// does not. It still escapes the line- and paragraph-separator runes (code
-// points 0x2028 and 0x2029) unconditionally, a JS-safety carve-out with no
-// opt-out, where Python's ensure_ascii=False leaves both unescaped, so
-// unescapeLineSeparators undoes exactly that.
-func indentedCanonicalJSON(value any) []byte {
-	var buffer bytes.Buffer
-	encoder := json.NewEncoder(&buffer)
-	encoder.SetEscapeHTML(false)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(value); err != nil {
-		return nil
-	}
-	return unescapeLineSeparators(buffer.Bytes())
-}
-
-// lineSeparatorTail and paragraphSeparatorTail are the 5 ASCII bytes that
-// follow the backslash in encoding/json's escape of the line- and
-// paragraph-separator runes ("u2028"/"u2029"); lineSeparatorRune and
-// paragraphSeparatorRune are those same runes' literal UTF-8 encoding. Built
-// from byte and code-point values rather than source escape sequences so this
-// file never contains one.
-var (
-	lineSeparatorTail      = []byte{'u', '2', '0', '2', '8'}
-	paragraphSeparatorTail = []byte{'u', '2', '0', '2', '9'}
-	lineSeparatorRune      = []byte(string(rune(0x2028)))
-	paragraphSeparatorRune = []byte(string(rune(0x2029)))
-)
-
-// unescapeLineSeparators restores the line- and paragraph-separator runes to
-// their raw UTF-8 bytes wherever encoding/json escaped them. It counts each
-// run of consecutive backslashes rather than matching the escape as a fixed
-// substring: a source string that itself contains a literal backslash
-// immediately before the literal text "u2028" is escaped by the encoder to a
-// doubled backslash followed by that text, and the trailing single backslash
-// of that pair would otherwise look identical to a genuine rune escape. Only
-// an odd-length run ending right before the tail is the encoder's own escape;
-// an even-length run is that many literal backslashes plus unescaped literal
-// text, which must pass through unchanged. internal/gokernel/canonical.go
-// restoreJSONSeparators solves the identical Python-json.dumps parity problem
-// this way; this mirrors that algorithm rather than a plain byte replace.
-func unescapeLineSeparators(data []byte) []byte {
-	backslash := byte(92)
-	output := make([]byte, 0, len(data))
-	for index := 0; index < len(data); {
-		if data[index] != backslash {
-			output = append(output, data[index])
-			index++
-			continue
-		}
-		start := index
-		for index < len(data) && data[index] == backslash {
-			index++
-		}
-		run := index - start
-		var separator []byte
-		if run%2 == 1 && index+5 <= len(data) {
-			tail := data[index : index+5]
-			switch {
-			case bytes.Equal(tail, lineSeparatorTail):
-				separator = lineSeparatorRune
-			case bytes.Equal(tail, paragraphSeparatorTail):
-				separator = paragraphSeparatorRune
-			}
-		}
-		if separator == nil {
-			output = append(output, data[start:index]...)
-			continue
-		}
-		output = append(output, data[start:index-1]...)
-		output = append(output, separator...)
-		index += 5
-	}
-	return output
 }
 
 // --- counts, worklist, policy ---
@@ -350,108 +239,7 @@ func policyIssues(limits PolicyLimits, counts map[string]any) []any {
 	return issues
 }
 
-// --- verification envelopes ---
-
-func successVerification(document *wire.Map, outcome *verify.Outcome, driftRejected, citation bool) map[string]any {
-	result := map[string]any{
-		"valid": !driftRejected, "spec": document.Spec, "baseRevision": outcome.BaseRevision,
-		"targetRevision": nullableText(outcome.TargetRevision), "patchSha256": document.PatchSha256,
-		"hunksTotal": len(document.Hunks), "evidenceTotal": len(document.Evidence),
-		"issues": []any{}, "drift": driftRows(document, outcome),
-	}
-	if driftRejected {
-		result["issues"] = []any{map[string]any{"code": cemcode.EvidenceDrift, "message": "CEM evidence changed at target"}}
-	}
-	if wire.Canonical(document.Spec) {
-		result["assurance"] = "canonical"
-		// The consumer-computed support block (CEM-V1-080..082) is evidence
-		// shape only: it never changes valid, issues or drift. Its struct keeps
-		// the pinned cross-consumer key order inside the sorted envelope. It is
-		// opt-in (--citation) so default 0.x output stays frozen.
-		if citation && outcome.Citation != nil {
-			result["citation"] = outcome.Citation
-		}
-	}
-	return result
-}
-
-// failureVerification renders a failing verification object. Per CEM-CB-014,
-// "canonical" assurance may be claimed only after independent repository
-// derivation and target binding completed; a failure before that point
-// established structural assurance at most.
-func failureVerification(spec string, err error, canonicallyBound bool) map[string]any {
-	code := cemcode.CodeOf(err)
-	message := ""
-	if code == "" {
-		code = "internal-error"
-	}
-	if typed, ok := err.(*cemcode.Error); ok {
-		message = typed.Message
-	}
-	result := map[string]any{
-		"valid": false, "spec": spec, "baseRevision": "", "targetRevision": nil,
-		"patchSha256": "", "hunksTotal": 0, "evidenceTotal": 0,
-		"issues": []any{map[string]any{"code": code, "message": message}}, "drift": []any{},
-	}
-	if wire.Canonical(spec) {
-		result["assurance"] = "structural-only"
-		if canonicallyBound {
-			result["assurance"] = "canonical"
-		}
-	}
-	return result
-}
-
-func nullableText(value string) any {
-	if value == "" {
-		return nil
-	}
-	return value
-}
-
-// driftRows renders per-evidence drift rows sorted by evidence ID, retaining
-// full context even when the target check rejects.
-func driftRows(document *wire.Map, outcome *verify.Outcome) []any {
-	if outcome == nil || outcome.TargetRevision == "" {
-		return []any{}
-	}
-	byID := map[string]wire.Evidence{}
-	for _, record := range document.Evidence {
-		byID[record.ID] = record
-	}
-	items := append([]verify.DriftItem(nil), outcome.Drift...)
-	sort.Slice(items, func(left, right int) bool { return items[left].EvidenceID < items[right].EvidenceID })
-	rows := []any{}
-	for _, item := range items {
-		record := byID[item.EvidenceID]
-		row := map[string]any{
-			"evidenceId": item.EvidenceID, "path": record.Path, "baseBlobOid": record.BlobOid,
-			"status": string(item.Status), "targetBlobOid": nullableText(item.TargetBlobOid),
-			"targetSpan": nil,
-		}
-		if item.TargetSpan != nil {
-			row["targetSpan"] = map[string]any{"start": item.TargetSpan.Start, "end": item.TargetSpan.End}
-		}
-		rows = append(rows, row)
-	}
-	return rows
-}
-
 // --- shared input helpers ---
-
-// readMapInput reads and validates a root-relative CEM map without following
-// symlinks.
-func (s *Session) readMapInput(relative string) ([]byte, *wire.Map, error) {
-	raw, err := s.readMapBytes(relative)
-	if err != nil {
-		return nil, nil, err
-	}
-	document, err := wire.ParseMap(raw)
-	if err != nil {
-		return nil, nil, err
-	}
-	return raw, document, nil
-}
 
 // readMapBytes reads one bounded repository-relative map without parsing it.
 func (s *Session) readMapBytes(relative string) ([]byte, error) {

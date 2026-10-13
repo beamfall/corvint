@@ -84,8 +84,9 @@ func selectionOf(paths ...string) string {
 // TestDiscriminateRecordsWitnessAndReportDowngrades runs the bounded mutation
 // witness end to end (TCQ-V0-055..058): a strong cited test kills every
 // mutant of the first hunk, the hunk limit leaves the second hunk explicitly
-// not-run, and a weak cited test lets mutants survive, which the report shows
-// as a downgrade while status still succeeds.
+// not-run, and a weak cited test lets mutants survive, which the stable review
+// projection shows as the survived state while status still accepts. The
+// tcq/0 report downgrade is retired with the 0.x report (CEM-V1-217).
 func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	if _, err := mutate.HostSandbox(); err != nil {
 		t.Skipf("no sandbox on this host: %v", err)
@@ -113,7 +114,7 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	}
 	document := readMapAt(t, root, witnessMap)
 	first, second := document.Hunks[0].Discriminates, document.Hunks[1].Discriminates
-	if document.Spec != wire.Spec03 || first == nil || first.State != wire.DiscriminationDiscriminates ||
+	if document.Spec != wire.StableSpec || first == nil || first.State != wire.DiscriminationDiscriminates ||
 		first.Killed < 1 || first.Survived != 0 || first.Killed+first.Survived > first.Mutants ||
 		first.TreeRevision != head || first.SelectionSha256 != selection ||
 		first.Bounds != (wire.DiscriminationBounds{MaxHunks: 1, MaxMutants: 6, WallTimeSeconds: 300}) {
@@ -122,14 +123,11 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	if second == nil || second.State != wire.DiscriminationNotRun || second.Mutants != 0 || second.Detail != "hunk limit 1 reached" {
 		t.Fatalf("second witness %+v", second)
 	}
-	status, err := openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: witnessMap, ExpectedBase: base, Target: "HEAD",
-	})
-	if err != nil || status["state"] != "ready-for-ci" {
-		t.Fatalf("status after discriminate: %v %v", err, status)
+	if status := stableStatus(t, root, witnessMap, base, head, PolicyLimits{}); stableOutcome(status) != "ACCEPT" {
+		t.Fatalf("status after discriminate: %v", status)
 	}
-	text := reportTextAt(t, root, base, witnessMap)
-	if !strings.Contains(text, "; discriminates (killed") || !strings.Contains(text, "; mutation not-run (`hunk limit 1 reached`)") {
+	text := reportTextAt(t, root, base, head, witnessMap)
+	if !strings.Contains(text, "discrimination `discriminates`") || !strings.Contains(text, "discrimination `not-run`") {
 		t.Fatalf("report after a discriminating run:\n%s", text)
 	}
 
@@ -153,15 +151,11 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 		!strings.Contains(first.Survivors[0].Description, "pkg/calc/calc.go:") {
 		t.Fatalf("weak witness %+v", first)
 	}
-	status, err = openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: witnessMap, ExpectedBase: base, Target: "HEAD",
-	})
-	if err != nil || status["state"] != "ready-for-ci" {
-		t.Fatalf("status with survivors must still succeed: %v %v", err, status)
+	if status := stableStatus(t, root, witnessMap, base, head, PolicyLimits{}); stableOutcome(status) != "ACCEPT" {
+		t.Fatalf("status with survivors must still accept: %v", status)
 	}
-	text = reportTextAt(t, root, base, witnessMap)
-	if !strings.Contains(text, "downgraded from tested; reason `mutants-survived` (") ||
-		!strings.Contains(text, first.Survivors[0].Operator+" at `pkg/calc/calc.go`:") {
+	text = reportTextAt(t, root, base, head, witnessMap)
+	if !strings.Contains(text, "discrimination `survived`") {
 		t.Fatalf("report with survivors:\n%s", text)
 	}
 }

@@ -8,13 +8,13 @@
     ]
   },
   "evidenceClass": "implementation",
-  "repositoryRevision": "d3c5fa7a31925fb3a1f582ad0251e6ade6ca504a",
+  "repositoryRevision": "52af6ee1307f49a1e97906e9577d5f80d27c0847",
   "result": "PASS",
   "spec": "corvint-use-case-evidence/0",
   "subjects": [
     {
       "path": "cmd/corvint/main.go",
-      "sha256": "d22ef69d5b308336580b1e10bd5ccabd100a09c2d337751fdddc9daae15838a3"
+      "sha256": "f91316c7e846a3b5145b81ecb2e2f9e21db84fe0f054fd16131a84c0974674fa"
     },
     {
       "path": "cmd/corvint/cem_anchor.go",
@@ -26,7 +26,7 @@
     },
     {
       "path": "cmd/corvint/frontier.go",
-      "sha256": "2749c5b57f87ade76e35960799eae7db38dafccedf58136ea0d2b53054c3ce8f"
+      "sha256": "3681e4c71e2a20b7414b22becbff1c36e2e4bdbee42299d2237ace7836bc6bb8"
     },
     {
       "path": "cmd/corvint/dogfood_record.go",

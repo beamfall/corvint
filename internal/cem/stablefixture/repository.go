@@ -13,19 +13,19 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 )
 
-// Change is one minimal verified cem/0.2 change, built by the real prepare and
-// cite workflow, ready for Stabilize.
+// Change is one minimal verified cem/1.0 producer change, built by the real
+// prepare and cite workflow, ready for Stabilize.
 type Change struct {
-	Root, Base, LegacyTarget string
-	Legacy                   []byte
-	HunkID                   string
+	Root, Base, ProducerTarget string
+	Producer                   []byte
+	HunkID                     string
 	// Git runs git in Root with automatic maintenance and gc disabled.
 	Git func(args ...string) string
 }
 
 // NewChange builds a repository whose base holds docs/rule.txt and
 // src/app.txt, whose target changes src/app.txt by one line, and whose
-// cem/0.2 map cites docs/rule.txt line 1 as the specification of that hunk.
+// cem/1.0 producer map cites docs/rule.txt line 1 as the specification of that hunk.
 func NewChange(t testing.TB) Change {
 	t.Helper()
 	RequireStableHost(t)
@@ -75,7 +75,7 @@ func NewChange(t testing.TB) Change {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	legacy, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath)))
+	producer, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,14 +84,14 @@ func NewChange(t testing.TB) Change {
 			ID string `json:"id"`
 		} `json:"hunks"`
 	}
-	if err := json.Unmarshal(legacy, &document); err != nil || len(document.Hunks) != 1 {
+	if err := json.Unmarshal(producer, &document); err != nil || len(document.Hunks) != 1 {
 		t.Fatalf("fixture expects one hunk: %v", err)
 	}
-	return Change{Root: root, Base: base, LegacyTarget: target, Legacy: legacy, HunkID: document.Hunks[0].ID, Git: run}
+	return Change{Root: root, Base: base, ProducerTarget: target, Producer: producer, HunkID: document.Hunks[0].ID, Git: run}
 }
 
 // Stable converts the change with Stabilize, linking its one hunk.
 func (c Change) Stable(t testing.TB) Stable {
 	t.Helper()
-	return Stabilize(t, c.Root, c.Legacy, c.HunkID, c.Git)
+	return Stabilize(t, c.Root, c.Producer, c.HunkID, c.Git)
 }

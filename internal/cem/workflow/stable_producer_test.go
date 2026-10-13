@@ -56,40 +56,41 @@ func stableOutcome(result map[string]any) string {
 func intLimit(value int) *int { return &value }
 
 // TestCEMV1140ProducerSpecSelection pins the --spec selection: an empty spec
-// keeps each legacy producer, and any spec other than the legacy one or
-// cem/1.0 is refused before anything is written.
+// and cem/1.0 write a cem/1.0 producer map, a retired cem/0.x profile is
+// refused with unsupported-spec and the migration fix, and any other value is
+// refused as invalid arguments, before anything is written (CEM-V1-216).
 func TestCEMV1140ProducerSpecSelection(t *testing.T) {
 	root, base, target := makeRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)
 	}
-	if spec := readMap(t, root).Spec; spec != wire.Spec02 {
-		t.Fatalf("library default prepare wrote %s, want the legacy %s", spec, wire.Spec02)
-	}
+	readStableAt(t, root, wire.ExcludedCEMPath)
 	beginPatch(t, root, base, target)
-	if _, err := openSession(t, root).Begin(ctx(), BeginOptions{PatchPath: "exact.patch", Base: base, Output: "legacy.cem.json"}); err != nil {
+	if _, err := openSession(t, root).Begin(ctx(), BeginOptions{PatchPath: "exact.patch", Base: base, Output: "default.cem.json"}); err != nil {
 		t.Fatal(err)
 	}
-	if spec := readMapAt(t, root, "legacy.cem.json").Spec; spec != wire.Spec01 {
-		t.Fatalf("library default begin wrote %s, want %s", spec, wire.Spec01)
-	}
-	for _, spec := range []string{wire.Spec01, wire.Spec03, "cem/1.0 ", wire.CandidateSpec} {
+	readStableAt(t, root, "default.cem.json")
+	for _, c := range []struct{ spec, code, fragment string }{
+		{"cem/0.1", cemcode.UnsupportedSpec, "fix: " + wire.RetiredSpecFix},
+		{"cem/0.2", cemcode.UnsupportedSpec, "fix: " + wire.RetiredSpecFix},
+		{"cem/0.3", cemcode.UnsupportedSpec, "fix: " + wire.RetiredSpecFix},
+		{"cem/1.0 ", cemcode.InvalidArguments, "--spec must be cem/1.0"},
+		{wire.CandidateSpec, cemcode.InvalidArguments, "--spec must be cem/1.0"},
+	} {
 		fresh, freshBase, freshTarget := makeRepo(t)
-		_, err := openSession(t, fresh).Prepare(ctx(), PrepareOptions{Base: freshBase, Target: freshTarget, Spec: spec})
-		if cemcode.CodeOf(err) != cemcode.InvalidArguments || !strings.Contains(err.Error(), "cem prepare --spec must be cem/1.0 or cem/0.2") {
-			t.Fatalf("prepare --spec %q: %v", spec, err)
+		_, err := openSession(t, fresh).Prepare(ctx(), PrepareOptions{Base: freshBase, Target: freshTarget, Spec: c.spec})
+		if cemcode.CodeOf(err) != c.code || !strings.Contains(err.Error(), c.fragment) {
+			t.Fatalf("prepare --spec %q: %v", c.spec, err)
 		}
 		if _, statErr := os.Lstat(filepath.Join(fresh, filepath.FromSlash(wire.ExcludedCEMPath))); !os.IsNotExist(statErr) {
-			t.Fatalf("prepare --spec %q wrote a map (%v)", spec, statErr)
+			t.Fatalf("prepare --spec %q wrote a map (%v)", c.spec, statErr)
 		}
-	}
-	for _, spec := range []string{wire.Spec02, wire.Spec03, wire.CandidateSpec} {
-		_, err := openSession(t, root).Begin(ctx(), BeginOptions{PatchPath: "exact.patch", Base: base, Output: "refused.cem.json", Spec: spec})
-		if cemcode.CodeOf(err) != cemcode.InvalidArguments || !strings.Contains(err.Error(), "cem begin --spec must be cem/1.0 or cem/0.1") {
-			t.Fatalf("begin --spec %q: %v", spec, err)
+		_, err = openSession(t, root).Begin(ctx(), BeginOptions{PatchPath: "exact.patch", Base: base, Output: "refused.cem.json", Spec: c.spec})
+		if cemcode.CodeOf(err) != c.code || !strings.Contains(err.Error(), c.fragment) {
+			t.Fatalf("begin --spec %q: %v", c.spec, err)
 		}
 		if _, statErr := os.Lstat(filepath.Join(root, "refused.cem.json")); !os.IsNotExist(statErr) {
-			t.Fatalf("begin --spec %q wrote a map (%v)", spec, statErr)
+			t.Fatalf("begin --spec %q wrote a map (%v)", c.spec, statErr)
 		}
 	}
 }
@@ -129,15 +130,10 @@ func TestCEMV1141StablePrepareWritesResumesAndReplaces(t *testing.T) {
 	}
 	requireUntouched(t, root, wire.ExcludedCEMPath, written)
 
-	// A 0.x map at the sidecar is outdated by its spec until --replace.
+	// A retired 0.x map at the sidecar is outdated by its spec until --replace.
 	legacyRoot, legacyBase, legacyTarget := makeRepo(t)
-	if _, err := openSession(t, legacyRoot).Prepare(ctx(), PrepareOptions{Base: legacyBase, Target: legacyTarget}); err != nil {
-		t.Fatal(err)
-	}
-	legacy, err := os.ReadFile(filepath.Join(legacyRoot, filepath.FromSlash(wire.ExcludedCEMPath)))
-	if err != nil {
-		t.Fatal(err)
-	}
+	legacy := []byte(`{"spec":"cem/0.2","hunks":[]}` + "\n")
+	writeFile(t, legacyRoot, wire.ExcludedCEMPath, string(legacy))
 	_, err = openSession(t, legacyRoot).Prepare(ctx(), PrepareOptions{Base: legacyBase, Target: legacyTarget, Spec: wire.StableSpec})
 	if cemcode.CodeOf(err) != cemcode.MapUnavailable || cemcode.GuidanceOf(err) != "the existing map records a different spec; pass --replace to regenerate" {
 		t.Fatalf("0.x sidecar under a stable prepare: %v (guidance %q)", err, cemcode.GuidanceOf(err))
@@ -267,10 +263,13 @@ func TestCEMV1142StableBeginWritesProducerMap(t *testing.T) {
 	if status := stableStatus(t, root, "begin.cem.json", base, target, PolicyLimits{}); stableOutcome(status) != "ACCEPT" {
 		t.Fatalf("begin map does not verify: %v", status)
 	}
-	// Refusal control: a legacy begin never replaces the stable producer map.
+	// Refusal control: a retired-profile begin never replaces the stable
+	// producer map (CEM-V1-216).
 	written, _ := os.ReadFile(filepath.Join(root, "begin.cem.json"))
-	_, err := openSession(t, root).Begin(ctx(), BeginOptions{PatchPath: "exact.patch", Base: base, Output: "begin.cem.json"})
-	requireStableRefusal(t, err, "begin", root, "begin.cem.json", written)
+	_, err := openSession(t, root).Begin(ctx(), BeginOptions{PatchPath: "exact.patch", Base: base, Output: "begin.cem.json", Spec: "cem/0.1"})
+	if got, _ := os.ReadFile(filepath.Join(root, "begin.cem.json")); cemcode.CodeOf(err) != cemcode.UnsupportedSpec || !bytes.Equal(got, written) {
+		t.Fatalf("retired begin over a stable map: %v", err)
+	}
 }
 
 // TestCEMV1143StableProducerMutationsStayStable cites, marks, covers and

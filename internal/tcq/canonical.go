@@ -9,15 +9,14 @@ import (
 
 // Frozen profile and vocabulary constants (TCQ-V0-023, TCQ-V0-031, TCQ-V0-036).
 const (
-	Profile          = "tcq/0"
-	CommandSpec      = "test-command/0.1-experimental"
-	ObservationSpec  = "test-observation/0.1-experimental"
-	ReportFormat     = "junit-xml/corvint-v0"
-	AuthorityClass   = "CALLER_REPORTED"
-	MatchedRelation  = "test-report-matched-v0"
-	OCMSpec          = "ocm/0.1-experimental"
-	CEMCanonicalSpec = "cem/0.2"
-	ClaimExtractor   = "corvint-test-claim/1"
+	Profile         = "tcq/0"
+	CommandSpec     = "test-command/0.1-experimental"
+	ObservationSpec = "test-observation/0.1-experimental"
+	ReportFormat    = "junit-xml/corvint-v0"
+	AuthorityClass  = "CALLER_REPORTED"
+	MatchedRelation = "test-report-matched-v0"
+	OCMSpec         = "ocm/0.1-experimental"
+	ClaimExtractor  = "corvint-test-claim/1"
 
 	commandPrefix     = "test-command:sha256:"
 	observationPrefix = "test-observation:sha256:"

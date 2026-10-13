@@ -16,15 +16,12 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
-	"github.com/Beamfall/corvint/internal/frontier"
 )
 
-// These tests run a COMPLETE frontier computation over a real temporary Git
-// repository: real commits, a real canonical `cem/0.2` sidecar produced by the
-// real CEM workflow, a real OCM artifact bound to it, and a real intent scope
-// read out of a committed Markdown blob. Nothing is stubbed — the point is that
-// both seams are now implementations rather than doubles, so a defect in the
-// shared verifier composition surfaces here and not in a mock's expectations.
+// The fixture builds a real temporary Git repository: real commits, a real
+// cem/1.0 producer map from the real CEM workflow (CEM-V1-214), a real OCM
+// artifact bound to it, and a real intent scope read out of a committed
+// Markdown blob. stable_test.go converts it into the committed stable map.
 
 // requirementID is the one obligation the fixture's intent scope declares. It
 // appears verbatim in the intent Markdown, in the OCM obligation row, and
@@ -121,8 +118,8 @@ func digestHex(data []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// newFixture builds base and target commits, runs the real CEM 0.2 two-phase
-// workflow to produce the canonical sidecar, and then writes an OCM artifact
+// newFixture builds base and target commits, runs the real CEM two-phase
+// workflow to produce the cem/1.0 producer map, and then writes an OCM artifact
 // bound to that exact map and patch. `linked` selects the two OCM dispositions
 // the frontier projects differently: a linked obligation carries a test claim,
 // an unknown one carries a bounded reason and no references.
@@ -304,27 +301,3 @@ func encodeOCM(t *testing.T, document map[string]any) []byte {
 	return append(raw, '\n')
 }
 
-// TestLegacyCEMProfileFailsOperationally pins CF-V0-001 and TCQ-V0-002 at the
-// composition level: `cem/0.1` is refused operationally, never as an abstention
-// or an open item.
-func TestLegacyCEMProfileFailsOperationally(t *testing.T) {
-	f := newFixture(t, true)
-	legacy := bytes.Replace(f.cemRaw, []byte(`"cem/0.2"`), []byte(`"cem/0.1"`), 1)
-	if bytes.Equal(legacy, f.cemRaw) {
-		t.Fatal("fixture CEM does not declare cem/0.2")
-	}
-	adapter := New(context.Background(), f.root)
-	document, encoded, err := frontier.Compute(context.Background(), frontier.Request{
-		CEMBytes: legacy, OCMBytes: f.ocmRaw, ExpectedBase: f.base, Target: f.target,
-		Verifier: adapter, TCQ: adapter,
-	})
-	if err == nil {
-		t.Fatalf("cem/0.1 produced a frontier result: %+v", document)
-	}
-	if len(encoded) != 0 {
-		t.Error("CF-V0-022 forbids frontier output on operational failure")
-	}
-	if got := frontier.CodeOf(err); got != frontier.CodeUnsupportedContext {
-		t.Errorf("code = %q, want %q", got, frontier.CodeUnsupportedContext)
-	}
-}

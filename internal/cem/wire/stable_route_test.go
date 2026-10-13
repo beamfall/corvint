@@ -1,39 +1,8 @@
 package wire
 
 import (
-	"strings"
 	"testing"
-
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 )
-
-// CEM-V1-018: the 0.x parser refuses an exact cem/1.0 root as unsupported-spec
-// and names the stable read, never reporting it as malformed 0.x input.
-func TestParseMapStableRefusalNamesStableRead(t *testing.T) {
-	_, err := ParseMap([]byte(`{"spec":"cem/1.0","change":{}}`))
-	if cemcode.CodeOf(err) != cemcode.UnsupportedSpec {
-		t.Fatalf("code = %q, want %q", cemcode.CodeOf(err), cemcode.UnsupportedSpec)
-	}
-	for _, part := range []string{"cem/1.0 is read only by the stable verifier", "--artifacts", Spec01, Spec02, Spec03} {
-		if !strings.Contains(err.Error(), part) {
-			t.Errorf("refusal %q does not name %q", err.Error(), part)
-		}
-	}
-}
-
-// CEM-V1-019: every other refused spec, including the experimental candidate,
-// keeps the unchanged 0.x refusal text.
-func TestParseMapOtherSpecRefusalUnchanged(t *testing.T) {
-	const want = `spec must be "cem/0.1", "cem/0.2", or "cem/0.3"`
-	for _, document := range []string{
-		`{"spec":"cem/1.0-experimental.1"}`, `{"spec":"cem/1.0 "}`, `{"spec":"CEM/1.0"}`, `{"spec":1}`, `{"spec":null}`, `{"spec":["cem/1.0"]}`,
-	} {
-		_, err := ParseMap([]byte(document))
-		if cemcode.CodeOf(err) != cemcode.UnsupportedSpec || !strings.HasSuffix(err.Error(), want) {
-			t.Errorf("%s: %v, want unsupported-spec %q", document, err, want)
-		}
-	}
-}
 
 // CEM-V1-019: DeclaresStable selects the stable reader only for one JSON
 // object whose spec is exactly cem/1.0.

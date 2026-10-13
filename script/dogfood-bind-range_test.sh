@@ -25,7 +25,8 @@ printf 'one\ntwo\n' > "$repo/doc.md"
 
 # The fake models the two properties the coordinator relies on: prepare writes the fixed map in
 # its --root, and status accepts only a target whose committed sidecar equals that map. The map
-# has DOGFOOD_TEST_HUNKS unknown hunks (default 1) in the indent-2 layout the plan check reads.
+# has DOGFOOD_TEST_HUNKS unknown hunks (default 1) in the compact cem/1.0 producer layout
+# (CEM-V1-140); DOGFOOD_TEST_LEGACY=1 writes a retired cem/0.2 layout the plan check must refuse.
 cat > "$test_root/bin/corvint" <<'EOF'
 #!/usr/bin/env bash
 set -eu
@@ -35,24 +36,18 @@ printf '%s\n' "$action" >> "$DOGFOOD_TEST_LOG"
 case $action in
   'cem prepare')
     mkdir -p "$root/.corvint"
-    if [[ ${DOGFOOD_TEST_STABLE:-} == 1 ]]; then
-      # The cem/1.0 producer layout: compact JSON with sorted keys (CEM-V1-140).
-      {
-        printf '{"baseRevision":"%s","hunks":[' "$6"
-        for ((hunk = 1; hunk <= ${DOGFOOD_TEST_HUNKS:-1}; hunk++)); do
-          [[ $hunk == 1 ]] || printf ','
-          printf '{"basis":[],"disposition":"unknown","id":"hunk:test:%d","path":"a\\\"disposition\\\":\\\"x","reason":"no-evidence"}' "$hunk"
-        done
-        printf '],"spec":"cem/1.0"}\n'
-      } > "$root/.corvint/change.cem.json"
+    if [[ ${DOGFOOD_TEST_LEGACY:-} == 1 ]]; then
+      printf '{\n  "baseRevision": "%s",\n  "hunks": [\n    {\n      "disposition": "unknown",\n      "id": "hunk:test:1"\n    }\n  ],\n  "spec": "cem/0.2"\n}\n' \
+        "$6" > "$root/.corvint/change.cem.json"
       exit 0
     fi
     {
-      printf '{\n  "baseRevision": "%s",\n  "hunks": [\n' "$6"
+      printf '{"baseRevision":"%s","hunks":[' "$6"
       for ((hunk = 1; hunk <= ${DOGFOOD_TEST_HUNKS:-1}; hunk++)); do
-        printf '    {\n      "disposition": "unknown",\n      "id": "hunk:test:%d"\n    },\n' "$hunk"
+        [[ $hunk == 1 ]] || printf ','
+        printf '{"basis":[],"disposition":"unknown","id":"hunk:test:%d","path":"a\\\"disposition\\\":\\\"x","reason":"no-evidence"}' "$hunk"
       done
-      printf '  ],\n  "spec": "cem/0.2"\n}\n'
+      printf '],"spec":"cem/1.0"}\n'
     } > "$root/.corvint/change.cem.json"
     ;;
   'cem cite')
@@ -60,10 +55,13 @@ case $action in
       printf '{"code": "unknown-hunk-id", "error": "no such hunk", "ok": false}\n' >&2
       exit 2
     fi
-    printf 'cited %s\n' "$8" >> "$root/.corvint/change.cem.json"
+    # A cite or mark adds a member, so the sidecar stays one JSON object, as a real map does.
+    sed 's/}$/,"cited'"$8"'":true}/' "$root/.corvint/change.cem.json" > "$root/.corvint/edit.json"
+    mv "$root/.corvint/edit.json" "$root/.corvint/change.cem.json"
     ;;
   'cem mark')
-    printf 'marked %s %s %s\n' "$8" "${10}" "${12}" >> "$root/.corvint/change.cem.json"
+    sed 's/}$/,"marked'"$8 ${10} ${12}"'":true}/' "$root/.corvint/change.cem.json" > "$root/.corvint/edit.json"
+    mv "$root/.corvint/edit.json" "$root/.corvint/change.cem.json"
     ;;
   'cem status')
     printf 'max-unknown %s\n' "${12}" >> "$DOGFOOD_TEST_LOG"
@@ -94,7 +92,7 @@ git -C "$repo" init -q -b main
 b0=$(work b0)
 work c1 >/dev/null
 mkdir -p "$repo/.corvint"
-printf '{\n  "baseRevision": "%s",\n  "spec": "cem/0.2"\n}\n' "$b0" > "$repo/.corvint/change.cem.json"
+printf '{"baseRevision":"%s","hunks":[],"spec":"cem/1.0"}\n' "$b0" > "$repo/.corvint/change.cem.json"
 s1=$(git_commit s1)
 g1=$(work g1)
 g2=$(work g2)
@@ -134,8 +132,10 @@ if rg -q 'PASS|next:'; then exit 1; fi <<< "$output"
 test "$(git -C "$repo" worktree list | wc -l)" -eq 1
 if compgen -G "$evidence/dogfood-bind-range.*" >/dev/null; then exit 1; fi
 
-# V1-0228 / DCW-V0-019: a citation plan written for another map is refused before any cite, as in
-# the bind loop: an unknown hunk named by no plan, or an ordinal above the hunk count.
+# V1-0228 / DCW-V0-019 / CEM-V1-140: a citation plan written for another map is refused before any
+# cite, as in the bind loop: an unknown hunk named by no plan, or an ordinal above the hunk count.
+# The compact cem/1.0 hunks are counted exactly (an escaped "disposition" inside a string is not a
+# hunk), and a map that is not cem/1.0 is refused as a mismatch (CEM-V1-215).
 : > "$test_root/corvint.log"
 status=0
 output=$(bind DOGFOOD_TEST_HUNKS=2 DOGFOOD_CITATIONS="$test_root/citations.tsv" \
@@ -147,44 +147,33 @@ status=0
 output=$(bind DOGFOOD_CITATIONS="$test_root/citations-stale.tsv" script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
 test "$status" = 1
 test "$output" = 'dogfood-bind-range: FAIL cem-cite citation-plan-map-mismatch'
-if rg -q '^cem cite$' "$test_root/corvint.log"; then exit 1; fi
-
-# CEM-V1-140 / DCW-V0-019: the default cem/1.0 map is compact JSON; the plan check still counts its
-# hunks (an escaped "disposition" inside a string is not a hunk), and a matching plan binds with the
-# absolute worktree root as the stable verifier's artifact root.
+# The legacy plan names its hunk by ID, so only the cem/1.0 requirement refuses it.
+printf 'hunk:test:1\tdoc.md\t1:1\tspecification\n' > "$test_root/citations-id.tsv"
 status=0
-output=$(bind DOGFOOD_TEST_STABLE=1 DOGFOOD_TEST_HUNKS=2 DOGFOOD_CITATIONS="$test_root/citations.tsv" \
-  script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
-test "$status" = 1
-test "$output" = 'dogfood-bind-range: FAIL cem-cite citation-plan-map-mismatch'
-status=0
-output=$(bind DOGFOOD_TEST_STABLE=1 DOGFOOD_CITATIONS="$test_root/citations-stale.tsv" \
+output=$(bind DOGFOOD_TEST_LEGACY=1 DOGFOOD_CITATIONS="$test_root/citations-id.tsv" \
   script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
 test "$status" = 1
 test "$output" = 'dogfood-bind-range: FAIL cem-cite citation-plan-map-mismatch'
 if rg -q '^cem cite$' "$test_root/corvint.log"; then exit 1; fi
-output=$(bind DOGFOOD_TEST_STABLE=1 DOGFOOD_CITATIONS="$test_root/citations.tsv" \
-  script/dogfood-bind-range.sh "$s1" "$g2" 2>&1)
-rg -q "^dogfood-bind-range: PASS retroactive binding=[0-9a-f]{40} range=$s1\\.\\.$g2\$" <<< "$output"
-rg -q '^artifacts /.*/dogfood-bind-range\.[^/]*/worktree$' "$test_root/corvint.log"
-: > "$test_root/corvint.log"
 
 # DOGFOOD-011: a passing binding commit is the target's tree plus only the cited sidecar, carries
-# the retroactive trailer, abstains from pre-change context, and never writes the main worktree.
+# the retroactive trailer, abstains from pre-change context, never writes the main worktree, and
+# passes the absolute private worktree root as the stable verifier's artifact root.
 sidecar_before=$(git -C "$repo" hash-object .corvint/change.cem.json)
 output=$(bind DOGFOOD_CITATIONS="$test_root/citations.tsv" script/dogfood-bind-range.sh "$s1" "$g2" 2>&1)
 binding=$(printf '%s\n' "$output" | sed -n "s/^dogfood-bind-range: PASS retroactive binding=\\([0-9a-f]\\{40\\}\\) range=$s1\\.\\.$g2\$/\\1/p")
 test -n "$binding"
+rg -q '^artifacts /.*/dogfood-bind-range\.[^/]*/worktree$' "$test_root/corvint.log"
 for step in prechange-query prechange-impact local-outcome ocm-aggregate; do
   rg -q "^dogfood-bind-range: NOTE $step NOT_PRODUCED retroactive-binding\$" <<< "$output"
 done
 test "$(git -C "$repo" rev-parse "$binding^@")" = "$g2"
 test "$(git -C "$repo" diff --name-only "$g2" "$binding")" = .corvint/change.cem.json
 bound_cem=$(git -C "$repo" show "$binding:.corvint/change.cem.json")
-rg -q "^  \"baseRevision\": \"$s1\",\$" <<< "$bound_cem"
-rg -q '^cited 1$' <<< "$bound_cem"
+rg -q "^\{\"baseRevision\":\"$s1\"," <<< "$bound_cem"
+rg -qF '"cited1":true' <<< "$bound_cem"
 prepared="$evidence/bind-range.${s1:0:12}..${g2:0:12}.cem.json"
-rg -q "^  \"baseRevision\": \"$s1\",\$" "$prepared"
+rg -q "^\{\"baseRevision\":\"$s1\"," "$prepared"
 if rg -q cited "$prepared"; then exit 1; fi
 test "$(git -C "$repo" log -1 --format='%(trailers:key=Corvint-Dogfood-Binding,valueonly)' "$binding")" = retroactive
 test "$(git -C "$repo" hash-object .corvint/change.cem.json)" = "$sidecar_before"
@@ -205,7 +194,7 @@ output=$(bind DOGFOOD_TEST_HUNKS=2 DOGFOOD_CITATIONS="$test_root/citations.tsv" 
 rg -q '^dogfood-bind-range: NOTE cem-mark NOT_PRODUCED hunk=2 reason=no-evidence detail=intent-added-inside-the-range$' <<< "$output"
 marked=$(printf '%s\n' "$output" | sed -n 's/^dogfood-bind-range: PASS retroactive binding=\([0-9a-f]\{40\}\) .*/\1/p')
 marked_cem=$(git -C "$repo" show "$marked:.corvint/change.cem.json")
-rg -q '^marked 2 unknown no-evidence$' <<< "$marked_cem"
+rg -qF '"marked2 unknown no-evidence":true' <<< "$marked_cem"
 marked_message=$(git -C "$repo" log -1 --format=%B "$marked")
 rg -q '^NOT_PRODUCED hunk=2 reason=no-evidence detail=intent-added-inside-the-range$' <<< "$marked_message"
 test "$(git -C "$repo" log -1 --format='%(trailers:key=Corvint-Dogfood-Binding,valueonly)' "$marked")" = retroactive

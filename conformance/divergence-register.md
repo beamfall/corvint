@@ -3009,3 +3009,15 @@ suite's own contract the expectation is not regenerated: the case is `retired` w
 replay prints `RETIRED lrf-evaluate-supported decision=0525 reason=…`. The `SUMMARY` line moves from
 `parity=104 retired=29` to `parity=103 retired=30`; every other count is unchanged. The
 superseded freeze is recorded under 0525 §6 (`CEM-V1-212`). Rollback is reverting the stage commit.
+
+## cem/1.0-only producers retire one parity case (V1-1278 S2b, 2026-10-12)
+
+Decision 0525 §1 makes cem/1.0 the only wire, and `CEM-V1-216` has `cem begin` and `cem prepare`
+accept only `cem/1.0`. The frozen `cem-begin-map` expectation is the cem/0.2 map `begin` wrote by
+default, so its repository and stdout digests are unreachable. The expectation is not regenerated:
+the case is `retired` with `decision=0525`, pinned by `retiredCaseDecisions`, and replay prints
+`RETIRED cem-begin-map decision=0525 reason=…`. It carried the suite's only active location
+normalization, so the `SUMMARY` line moves from `parity=103 retired=30 … location-normalizations=1`
+to `parity=102 retired=31 … location-normalizations=0`; every other count is unchanged. Every other
+unretired `cem-*` case is a refusal or grammar case that still replays as before. The superseded
+freeze is recorded under 0525 §6 (`CEM-V1-219`). Rollback is reverting the stage commit.

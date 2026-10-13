@@ -9,8 +9,9 @@ import (
 )
 
 // StableObligationsSchema names the cem/1.0 obligation sidecar (CEM-V1-130).
-// external-frontier-obligations/0 is frozen and admits cem/0.2 only; a stable
-// map is projected only under this distinct schema and identity prefix.
+// It is the named successor of the retired external-frontier-obligations/0
+// sidecar (CEM-V1-217): a cem/1.0 map is projected only under this distinct
+// schema and identity prefix.
 const StableObligationsSchema = "external-frontier-obligations-stable/0"
 
 const stableObligationsNote = "reference-only: each association proves identity, integrity, and freshness of an external reference; none states that an external record justifies the hunk; declared criterion links are listed apart from the associations and close no obligation; the stable verifier's accept binds the map, patch and artifacts only"
@@ -51,7 +52,9 @@ func (e *StableObligationsRefusal) Unwrap() error {
 // StableObligations composes the external-frontier-obligations-stable/0
 // sidecar (CEM-V1-130..CEM-V1-134). In order it:
 //
-//  1. admits only raw bytes declaring cem/1.0;
+//  1. refuses a retired cem/0.x map with unsupported-spec, an invocation
+//     without the stable context as the retired frozen route, and any other
+//     bytes that do not declare cem/1.0;
 //  2. runs the shipped stable verifier over those exact bytes with the
 //     explicit repository, base, target and artifact root, and refuses with
 //     the full result unless it accepted with the exact committed sidecar;
@@ -64,6 +67,9 @@ func (e *StableObligationsRefusal) Unwrap() error {
 func StableObligations(ctx context.Context, cem, impact []byte, limit int, options StableObligationsOptions) (map[string]any, error) {
 	if err := refuseRetiredCEM(cem); err != nil {
 		return nil, err
+	}
+	if options == (StableObligationsOptions{}) {
+		return nil, &gokernel.Error{Code: "invalid-obligations-input", Message: "external-frontier-obligations/0 is retired; a cem/1.0 map is read only by the stable sidecar (--repository, --expected-base, --target and --stable-artifact-root)"}
 	}
 	if !wire.DeclaresStable(cem) {
 		return nil, &gokernel.Error{Code: "invalid-obligations-input", Message: "stable cem input is not a cem/1.0 document"}

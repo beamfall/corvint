@@ -55,9 +55,10 @@ not add a graphical interface. P1 frontend work remains blocked until all of the
 - Stored query and impact envelopes contain useful bounded fields but have no strict stored-envelope
   verifier, observation timestamp, latency, or full-call denominator. Until that verifier exists they
   are unsupported input, not usage receipts.
-- CEM and OCM are declared only as one explicit profiled bundle with independently caller-supplied
-  expected base and target. The V0 adapter is not delivered and reads no bytes; future checking must
-  preserve that binding. Default-path discovery would hide pairing authority.
+- CEM and OCM have no dashboard source. The never-delivered `cem-ocm-bundle-v0` adapter, its 0.x
+  profiles and its five bundle flags were retired with the cem/0.x wire (V1-1278, decision 0525 §1,
+  `CEM-V1-217`). A later accepted contract that adds a CEM source must take independently
+  caller-supplied expected base and target; default-path discovery would hide pairing authority.
 - Pulse, harness, Go live-test, and Change Frontier have no durable, dashboard-qualified receipt
   source at this base. Protocol transcripts, command stdout retained without an accepted storage
   profile, and conformance fixtures are not usage data.
@@ -99,24 +100,19 @@ P0 is the Go snapshot compiler only:
 
 ```text
 corvint-dashboard-snapshot snapshot --root ROOT \
-  [--source ADAPTER_ID=RELATIVE_PATH]... \
-  [--cem-ocm-profile cem/0.1+ocm/0.1|cem/0.2+ocm/0.1 \
-   --cem RELATIVE_PATH --ocm RELATIVE_PATH \
-   --expected-base OBJECT_ID --target OBJECT_ID]
+  [--source ADAPTER_ID=RELATIVE_PATH]...
 ```
 
-The five CEM/OCM flags are all-or-none, each may occur exactly once, and their relative CLI order is
-irrelevant. P0 writes one canonical snapshot to stdout and starts no server. Ordinary invocation uses
+The retired CEM/OCM bundle flags `--cem-ocm-profile`, `--cem`, `--ocm`, `--expected-base` and
+`--target` are unknown arguments: any of them is `DASHBOARD_INVALID_ARGUMENT` before any path opens
+(V1-1278). P0 writes one canonical snapshot to stdout and starts no server. Ordinary invocation uses
 the process clock for acquisition boundaries, reads `generatedAt` once after the scan, and records
 `clockSource: PROCESS`. The only deterministic black-box conformance invocation is:
 
 ```text
 corvint-dashboard-snapshot snapshot --conformance \
   --generated-at RFC3339_NANO_UTC --root ROOT \
-  [--source ADAPTER_ID=RELATIVE_PATH]... \
-  [--cem-ocm-profile cem/0.1+ocm/0.1|cem/0.2+ocm/0.1 \
-   --cem RELATIVE_PATH --ocm RELATIVE_PATH \
-   --expected-base OBJECT_ID --target OBJECT_ID]
+  [--source ADAPTER_ID=RELATIVE_PATH]...
 ```
 
 `--conformance` and `--generated-at` are required together. Either flag supplied without the other
@@ -131,16 +127,13 @@ bypass for clock injection. P1 exposes neither flag and uses its process clock.
 ### CLI argument and path grammar
 
 Every P0 path-bearing argument is bounded before any filesystem or repository operation. `ROOT`,
-each `RELATIVE_PATH` extracted from `--source ADAPTER_ID=RELATIVE_PATH`, `--cem`, and `--ocm` MUST be
+each `RELATIVE_PATH` extracted from `--source ADAPTER_ID=RELATIVE_PATH` MUST be
 a nonempty valid UTF-8 string of 1 through 4,096 bytes inclusive and contain no NUL or Unicode
 control character. The bound is the Go byte length of the argument value itself: 4,096 is accepted
 and 4,097 is `DASHBOARD_INVALID_ARGUMENT`. The adapter ID and `=` in a `--source` value do not count
 toward the relative-path bound; `ADAPTER_ID` is independently limited to 128 ASCII bytes and exactly
-`[a-z0-9]+(?:-[a-z0-9]+)*`. The `--cem-ocm-profile` value is bounded to 4,096 bytes before any
-filesystem or repository operation and MUST then equal exactly `cem/0.1+ocm/0.1` or
-`cem/0.2+ocm/0.1`. `--expected-base`, `--target`, and `--generated-at` use their fixed grammars above
-and are not path arguments. Any of the five CEM/OCM flags without all other four, a duplicate, or a
-profile outside that closed set is `DASHBOARD_INVALID_ARGUMENT` before any path open.
+`[a-z0-9]+(?:-[a-z0-9]+)*`. `--generated-at` uses its fixed grammar above and is not a path
+argument.
 
 `ROOT` MUST already be an absolute, lexically clean native path: under the target's Go 1.27.0
 `path/filepath` semantics, `IsAbs(ROOT)` is true and `Clean(ROOT)` is byte-for-byte `ROOT`. It is
@@ -187,7 +180,7 @@ identity failure:
 1. validate the adapter ID and delivery state without opening its optional path, then build one
    bounded stable-read envelope for each configured supported path;
 2. validate the durable local trace store;
-3. compile an explicitly declared CEM/OCM bundle as `UNSUPPORTED` without opening either path;
+3. (retired by V1-1278) compile no CEM/OCM bundle; its flags are invalid arguments;
 4. admit stored query/impact envelopes only after their strict verifier is implemented;
 5. admit a strict specification index only from the exact verified HEAD blob after its parser is
    accepted; and
@@ -200,7 +193,6 @@ The compiled registry is:
 |---|---|---|---|
 | `stable-read-v0` | internal `dashboard-stable-read/0` / `go-stable-read-v0` | wraps every configured source | byte count/digest only after safe complete read; never a usage source |
 | `local-trace-v1` | trace schema v1 / `go-local-trace-v1` | default exact worktree directory `.context-corvint/traces` | production-validated durable input: retained row count, revision, explicit outcome only |
-| `cem-ocm-bundle-v0` | caller-declared `cem/0.1+ocm/0.1|cem/0.2+ocm/0.1` / `go-cem-ocm-bundle-v0` | explicit five-flag bundle only; no default paths or reads | `NOT_STARTED`; `UNSUPPORTED` source and `NOT_OBSERVED` metrics |
 | `query-envelope-v1` | no accepted stored-envelope profile / `unsupported` | explicit only; no defaults | `UNSUPPORTED`; every metric `NOT_OBSERVED` until strict verifier delivery |
 | `impact-envelope-v1` | no accepted stored-envelope profile / `unsupported` | explicit only; no defaults | `UNSUPPORTED`; every metric `NOT_OBSERVED` until strict verifier delivery |
 | `head-spec-index-v0` | no accepted canonical parser / `unsupported` | exact verified HEAD blob only, never worktree Markdown | `UNSUPPORTED`; no row counting or stage inference |
@@ -219,7 +211,6 @@ adapter cannot admit bytes in this registry version: its source carries neither 
 ```json
 [
   {"acceptedProfiles":[],"adapterId":"beamfall-shadow-v0","defaultLocation":null,"deliveryStage":"UNSUPPORTED","issueCodes":["SOURCE_UNSUPPORTED"],"maxBytes":"0","sourceKind":"BEAMFALL_SHADOW","verifierId":"unsupported"},
-  {"acceptedProfiles":["cem/0.1+ocm/0.1","cem/0.2+ocm/0.1"],"adapterId":"cem-ocm-bundle-v0","defaultLocation":null,"deliveryStage":"NOT_STARTED","issueCodes":["SOURCE_UNSUPPORTED"],"maxBytes":"0","sourceKind":"CEM_OCM_BUNDLE","verifierId":"go-cem-ocm-bundle-v0"},
   {"acceptedProfiles":[],"adapterId":"frontier-usage-v0","defaultLocation":null,"deliveryStage":"UNSUPPORTED","issueCodes":["SOURCE_UNSUPPORTED"],"maxBytes":"0","sourceKind":"FRONTIER_RECEIPT","verifierId":"unsupported"},
   {"acceptedProfiles":[],"adapterId":"go-live-usage-v0","defaultLocation":null,"deliveryStage":"UNSUPPORTED","issueCodes":["SOURCE_UNSUPPORTED"],"maxBytes":"0","sourceKind":"GO_LIVE_RECEIPT","verifierId":"unsupported"},
   {"acceptedProfiles":[],"adapterId":"harness-usage-v0","defaultLocation":null,"deliveryStage":"UNSUPPORTED","issueCodes":["SOURCE_UNSUPPORTED"],"maxBytes":"0","sourceKind":"HARNESS_RECEIPT","verifierId":"unsupported"},
@@ -740,13 +731,11 @@ unverified JSON parsing. The
 process, pack, index, parent, intermediate-tree, status, and incidental traversal reads never enter
 product identity.
 
-`go-cem-ocm-bundle-v0` is `NOT_STARTED`, has `maxBytes: "0"`, and reads neither CEM nor OCM bytes.
-The mandatory `--cem-ocm-profile` is caller-declared only: it selects the configured source's exact
-registry profile but cannot upgrade delivery, authority, validity, or a metric from `NOT_OBSERVED`.
-No filename or file body may infer it. When the adapter is delivered under a later accepted contract,
-it MUST receive independent expected-base and target arguments, verify both maps and their pairing
-against those arguments, and reject a map-derived revision. The dashboard never repairs, rewrites,
-or implicitly pairs CEM/OCM. Current CEM/OCM bytes remain unread and absent from aggregates.
+The never-delivered `cem-ocm-bundle-v0` adapter and its `go-cem-ocm-bundle-v0` verifier are retired
+(V1-1278, decision 0525 §1): the registry has no CEM/OCM row and the dashboard reads no CEM or OCM
+bytes. A later accepted contract that adds one MUST receive independent expected-base and target
+arguments, verify both maps and their pairing against those arguments, and reject a map-derived
+revision. The dashboard never repairs, rewrites, or implicitly pairs CEM/OCM.
 
 A subprocess verifier remains forbidden. The bounded repository-authority Git process above is the
 sole exception and is not extensible into a general subprocess-verifier facility. Any other child
@@ -983,9 +972,7 @@ An invalid store with no admitted members, or any changed identity, has
 `repositoryReadsSha256: null` and contributes no trace metric. `displayLabel`
 is exactly ASCII `adapterId#configuredOrdinal`. `configuredOrdinal` is a canonical decimal string.
 The default trace store has ordinal `0`; additional explicit inputs for one adapter sort by raw UTF-8
-relative-path bytes and receive consecutive ordinals after any default. The five-flag CEM/OCM bundle
-is ordinal `0` and uses its exact caller-declared profile even while `NOT_STARTED`/`UNSUPPORTED`.
-Paths determine ordering only and never enter an ID or output.
+relative-path bytes and receive consecutive ordinals after any default. Paths determine ordering only and never enter an ID or output.
 Canonical snapshots never contain source paths. `cohortIds` and `exclusions` are sorted unique
 arrays. `members` is the exact trace-store aggregate body for `local-trace-v1` and null for every
 other V0 adapter. `observationStart` and `observationEnd` expose the successful stable-read interval
@@ -1340,6 +1327,9 @@ second are hard maxima.
   durable adapters are delivered.
 - `LOD-V0-009`: CEM/OCM metrics require the explicit independently revision-bound bundle. Empty
   universes are labelled empty and never 100% closed. No implicit current-path pairing is allowed.
+  Amended by V1-1278 (decision 0525 §1, `CEM-V1-217`): the 0.x bundle adapter is retired, so every
+  CEM/OCM metric stays `NOT_OBSERVED` and no bundle flag is accepted until a later accepted contract
+  registers a stable source.
 - `LOD-V0-010`: Pulse, live verification, harness, and Frontier remain `NOT_OBSERVED` until accepted
   durable receipt profiles exist. Protocol, conformance, and ephemeral stream bytes are not usage.
 - `LOD-V0-011`: Output MUST exclude trace task text, paths, commands, prompts, tool arguments/output,
@@ -1485,10 +1475,11 @@ This narrow owner-accepted amendment does not accept the remaining proposed dash
   admits both v1 and v2. Source byte counts and member SHA-256 bind physical bytes exactly once.
   The v2 registry extends the frozen registry with this one descriptor, keeping the trace location,
   bounds, issue codes, source kind and experimental delivery semantics. Its registry digest is
-  `sha256:477cf73e98c9ef9c70dcaea45ea4520e8957cac99ce9fea9886207a88df74738`.
+  `sha256:e046f10139be61ef37976cf210df77afce582fd75d42f2e5d2aec70adee0f7da`.
   A v1-only scan MUST use the unchanged registry digest
-  `sha256:2de98344235e7f432b1b486c14fa1023f9fdb08b41632bac04d3049592cf3bb3`
-  and unchanged snapshot bytes. Snapshot compilation and verification MUST require the registry
+  `sha256:e94ebdfa1e1ec154419589cc3ad4030c9675f609f88e76e7f1847788886905c0`
+  and unchanged snapshot bytes. (Both digests were regenerated once by V1-1278, which removed the
+  retired `cem-ocm-bundle-v0` row; the prior values were `sha256:477cf73e…` and `sha256:2de98344…`.) Snapshot compilation and verification MUST require the registry
   selected by their source set. Neither snapshot may disclose task text, paths or verification
   values. Rejected v2 rows MUST retain the existing partial/invalid accounting rules without
   upgrading their authority or claiming an admitted v2 source.
@@ -1555,11 +1546,11 @@ producer agree on a v1/v3 store).
    executions produce the same `repositoryReadsSha256`,
    incidental internal Git reads cannot change it, and a non-Git object parser cannot satisfy the
    profile. Spies confirm no writes, fetch, DNS, raw text, or implicit collection.
-4. `LOD-AT-P0-004` (`009`): each exact declared CEM/OCM profile with all five flags produces the
-   corresponding ordinal-`0` `UNSUPPORTED` source and only `NOT_OBSERVED` metrics without opening
-   either path. Every missing/duplicate flag, over-4,096-byte or unknown profile, and profile supplied
-   without the remaining required flags fails before a path open; flag order does not change bytes. Filename,
-   map-derived revision, current local pairing, and default-path discovery never select a profile.
+4. `LOD-AT-P0-004` (`009`): amended by V1-1278: every retired bundle flag and profile, including
+   `cem/1.0`, is `DASHBOARD_INVALID_ARGUMENT` with no stdout before any path opens, and the registry
+   has no `cem-ocm-bundle-v0` row or `cem/` profile (`TestCEMV1168DashboardRefusesStableBundle`).
+   Filename, map-derived revision, current local pairing, and default-path discovery never select a
+   profile.
 5. `LOD-AT-P0-005` (`024`): every pre-existing Corvint CLI golden and public verifier result is
    byte/decision identical with the dashboard package present and absent.
 
@@ -1585,7 +1576,7 @@ producer agree on a v1/v3 store).
 | mixed revision/cohort | separate cohorts; incompatible source excluded from single-cohort metrics |
 | missing source-owned time | age `UNKNOWN`; file time ignored |
 | unsupported adapter/profile | `UNSUPPORTED` source and null metrics; no inferred parser |
-| CEM/OCM not explicitly and independently bound | bundle rejected; current local OCM pairing remains untouched and uncounted |
+| CEM/OCM bundle flag supplied | `DASHBOARD_INVALID_ARGUMENT` (retired by V1-1278); current local OCM pairing remains untouched and uncounted |
 | historical collection disabled | retained inventory remains; total-use/rate/history `NOT_OBSERVED` |
 | server/session failure | terminate or require fresh process/token; never anonymous fallback |
 | unsupported browser | preserve P0 CLI snapshot; render no partial browser interpretation |

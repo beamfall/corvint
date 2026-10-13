@@ -8,9 +8,6 @@ import (
 
 // Frozen wire constants.
 const (
-	Spec01          = "cem/0.1"
-	Spec02          = "cem/0.2"
-	Spec03          = "cem/0.3"
 	ExcludedCEMPath = ".corvint/change.cem.json"
 
 	MaxMapBytes    = 4 << 20
@@ -36,20 +33,15 @@ var mechanicalReasons = map[string]bool{
 	"whitespace-only": true, "line-ending-only": true,
 }
 
-// StructuralReasons enumerates the cem/0.3 mechanical reasons proved by
-// Go structural comparison (CEM-SM-001); 0.1 and 0.2 documents reject them.
+// StructuralReasons enumerates the mechanical reasons proved by Go structural
+// comparison (CEM-SM-001).
 var StructuralReasons = map[string]bool{
 	"rename": true, "move": true, "import-reorder": true, "formatter-only": true,
 }
 
-// Canonical reports whether spec is a canonical committed-change profile:
-// cem/0.2, or cem/0.3 which adds the structural reason vocabulary and the
-// optional hunk coverage witness.
-func Canonical(spec string) bool { return spec == Spec02 || spec == Spec03 }
-
-// MechanicalReason reports whether reason is registered for spec.
-func MechanicalReason(spec, reason string) bool {
-	return mechanicalReasons[reason] || (spec == Spec03 && StructuralReasons[reason])
+// MechanicalReason reports whether reason is a registered mechanical reason.
+func MechanicalReason(reason string) bool {
+	return mechanicalReasons[reason] || StructuralReasons[reason]
 }
 
 // Span is a zero-based half-open raw-byte range.
@@ -73,7 +65,7 @@ type Basis struct {
 	Relation   string
 }
 
-// CoverageWitness is one hunk's optional cem/0.3 patch-coverage witness: the
+// CoverageWitness is one hunk's optional patch-coverage witness: the
 // added lines one identified test run executed according to one local
 // coverprofile (TCQ-V0-051). Covered ranges are one-based new-side line
 // ranges inside the hunk's newRange, ascending and non-adjacent; an empty
@@ -95,7 +87,7 @@ const (
 
 var coverageModes = map[string]bool{"set": true, "count": true, "atomic": true}
 
-// DiscriminationWitness is one hunk's optional cem/0.3 mutation witness: whether
+// DiscriminationWitness is one hunk's optional mutation witness: whether
 // the tests its test claims cite kill bounded mutants of the hunk's new-side
 // lines on one tree revision (TCQ-V0-056). Survivors describe every mutant
 // that lived; a hunk the run never judged carries State DiscriminationNotRun
@@ -135,7 +127,7 @@ const (
 )
 
 // Hunk is one mapped patch hunk. Coverage and Discriminates are nil unless a
-// cem/0.3 witness is recorded.
+// witness is recorded.
 type Hunk struct {
 	ID            string
 	Path          string
@@ -148,71 +140,18 @@ type Hunk struct {
 	Discriminates *DiscriminationWitness
 }
 
-// Map is a validated CEM 0.1, 0.2, or 0.3 document.
+// Map is the validated change mechanics a cem/1.0 document inherits.
 type Map struct {
 	Spec         string
 	BaseRevision string
 	PatchSha256  string
-	ExcludedPath string // empty for 0.1; the frozen literal for 0.2 and 0.3
+	ExcludedPath string // the frozen literal ExcludedCEMPath
 	Evidence     []Evidence
 	Hunks        []Hunk
 }
 
 func fieldError(format string, args ...any) *cemcode.Error {
 	return cemcode.New(cemcode.InvalidField, format, args...)
-}
-
-// ParseMap reads and validates one CEM wire document with the frozen stage-2
-// precedence: JSON errors, root object and spec, missing required fields,
-// unknown fields, then field values in normative wire order.
-func ParseMap(data []byte) (*Map, error) { return parseMap(data, "") }
-
-// ParseMapSpec is ParseMap for a single-profile operation: any spec other
-// than exactly want refuses unsupported-spec at the same precedence, before
-// the key-set check (CEM-SM-018).
-func ParseMapSpec(data []byte, want string) (*Map, error) { return parseMap(data, want) }
-
-func parseMap(data []byte, want string) (*Map, error) {
-	if len(data) > MaxMapBytes {
-		return nil, cemcode.New(cemcode.MapUnavailable, "map exceeds %d bytes", MaxMapBytes)
-	}
-	root, err := Parse(data)
-	if err != nil {
-		return nil, err
-	}
-	if root.Kind != KindObject {
-		return nil, cemcode.New(cemcode.NotAnObject, "CEM root must be a JSON object")
-	}
-	spec, present := root.Obj.Get("spec")
-	if !present {
-		return nil, cemcode.New(cemcode.MissingField, "spec is required")
-	}
-	if spec.Kind == KindString && spec.Str == StableSpec {
-		// CEM-V1-018: a stable map is refused here with a pointer to its reader,
-		// never as malformed 0.x input; every other refusal keeps its message.
-		return nil, cemcode.New(cemcode.UnsupportedSpec, "%s is read only by the stable verifier (cem status or cem verify with --artifacts); this command accepts %q, %q, or %q", StableSpec, Spec01, Spec02, Spec03)
-	}
-	if spec.Kind != KindString || (spec.Str != Spec01 && !Canonical(spec.Str)) {
-		return nil, cemcode.New(cemcode.UnsupportedSpec, "spec must be %q, %q, or %q", Spec01, Spec02, Spec03)
-	}
-	if want != "" && spec.Str != want {
-		return nil, cemcode.New(cemcode.UnsupportedSpec, "spec must be %q", want)
-	}
-	required := []string{"spec", "baseRevision", "patchSha256", "evidence", "hunks"}
-	if Canonical(spec.Str) {
-		required = []string{"spec", "baseRevision", "patchSha256", "excludedPath", "evidence", "hunks"}
-	}
-	if err := requireClosedKeys(root.Obj, required); err != nil {
-		return nil, err
-	}
-	result := &Map{Spec: spec.Str}
-	if err := validateFields(root.Obj, result); err != nil {
-		return nil, err
-	}
-	if err := validateReferences(result); err != nil {
-		return nil, err
-	}
-	return result, nil
 }
 
 func requireClosedKeys(object *Object, required []string) error {
@@ -231,16 +170,8 @@ func requireClosedKeys(object *Object, required []string) error {
 	return nil
 }
 
-func validateFields(object *Object, result *Map) error {
-	return validateCommonFields(object, result, Canonical(result.Spec))
-}
-
-// validateCommonFields reuses field mechanics without changing profile dispatch.
-func validateCommonFields(object *Object, result *Map, canonicalBinding bool) error {
-	return validateCommonCapabilities(object, result, canonicalBinding, result.Spec == Spec03)
-}
-
-// Private capabilities preserve old profile admission while sharing pure checks.
+// validateCommonCapabilities checks the inherited change mechanics; the
+// candidate profile admits no witnesses (fullWitnesses false).
 func validateCommonCapabilities(object *Object, result *Map, canonicalBinding, fullWitnesses bool) error {
 	base, _ := object.Get("baseRevision")
 	if base.Kind != KindString || !IsGitOid(base.Str) {
@@ -354,9 +285,6 @@ func validateRange(value Value, name string) (Range, error) {
 	return Range{Start: start.Int, Count: count.Int}, nil
 }
 
-func validateHunk(item Value, spec string) (Hunk, error) {
-	return validateHunkCapabilities(item, spec, spec == Spec03)
-}
 func validateHunkCapabilities(item Value, spec string, fullWitnesses bool) (Hunk, error) {
 	if item.Kind != KindObject {
 		return Hunk{}, fieldError("hunks items must be objects")
@@ -533,9 +461,6 @@ func validateBasis(entry Value) (Basis, error) {
 	return Basis{EvidenceID: id.Str, Relation: relation.Str}, nil
 }
 
-func validateDisposition(hunk Hunk, spec string) error {
-	return validateDispositionCapabilities(hunk, spec, spec == Spec03)
-}
 func validateDispositionCapabilities(hunk Hunk, spec string, fullWitnesses bool) error {
 	switch hunk.Disposition {
 	case "supported":

@@ -2719,9 +2719,7 @@
       "internal/receiptbundle/receiptbundle.go",
       "internal/receiptbundle/receiptbundle_test.go",
       "cmd/corvint/cem_export.go",
-      "cmd/corvint/cem_export_test.go",
-      "script/verify-receipt-bundle.sh",
-      "script/verify-receipt-bundle_test.sh"
+      "cmd/corvint/cem_export_test.go"
     ]
   },
   {

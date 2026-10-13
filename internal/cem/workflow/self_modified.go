@@ -28,8 +28,8 @@ func GoverningInstructionPath(value string) bool {
 // selfModifiedAuthority lists every governing instruction file the map's own
 // patch changes (CEM-CB-026): the hunks that change it, and every hunk basis
 // that cites it, which is a change citing the authority it rewrites. Status
-// reports these and does not change its state, so every map that was
-// ready-for-ci stays ready-for-ci. Empty when the patch changes no governing
+// reports these beside the stable verifier result and never changes its
+// state. Empty when the patch changes no governing
 // file; the caller then omits the member.
 func selfModifiedAuthority(document *wire.Map) []any {
 	changed := map[string][]any{}

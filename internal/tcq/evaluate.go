@@ -1,23 +1,11 @@
 package tcq
 
-import (
-	"github.com/Beamfall/corvint/internal/cem/wire"
-)
-
-// Resolved carries the two OIDs the shared CEM/OCM verifier resolved from the
+// Resolved carries the two OIDs the stable CEM/OCM verifier resolved from the
 // independent invocation inputs. TCQ-V0-036 binds these, never values learned
 // from an artifact.
 type Resolved struct {
 	BaseRevision   string
 	TargetRevision string
-}
-
-// UpstreamVerifier is the current OCM verifier, which in turn invokes the shared
-// CEM 0.2 canonical verifier. TCQ-V0-001 requires the same bounded raw byte
-// copies and both revision inputs to pass through it, and TCQ-V0-042 forbids
-// reordering any validation internal to it — hence a seam rather than a reimplementation.
-type UpstreamVerifier interface {
-	VerifyOCM(cemRaw, ocmRaw []byte, expectedBase, target string) (Resolved, error)
 }
 
 // Request is one TCQ invocation. Every artifact is caller-supplied immutable
@@ -41,37 +29,6 @@ type Request struct {
 	// TCQ-V0-050 flake rule. They require the dynamic tuple, bind the resolved
 	// target, and can only remove a relation, never add one.
 	PriorObservations [][]byte
-}
-
-// Evaluate computes one canonical TCQ result. Operational validation stops at
-// the first failing stage of TCQ-V0-042 and emits no partial artifact.
-func Evaluate(repository Repository, verifier UpstreamVerifier, request Request) (Result, error) {
-	inputs, err := copyInputs(request)
-	if err != nil {
-		return Result{}, err
-	}
-	document, err := parseArtifacts(inputs)
-	if err != nil {
-		return Result{}, err
-	}
-	if request.ExpectedBase == "" {
-		return Result{}, fail(CodeExpectedBaseRequired)
-	}
-	if request.Target == "" {
-		return Result{}, fail(CodeTargetRequired)
-	}
-	resolved, err := verifier.VerifyOCM(inputs.cem, inputs.ocm, request.ExpectedBase, request.Target)
-	if err != nil {
-		return Result{}, err
-	}
-	if err := bindRevisions(document, resolved); err != nil {
-		return Result{}, err
-	}
-	dynamic, err := verifyDynamic(repository, inputs, document, resolved)
-	if err != nil {
-		return Result{}, err
-	}
-	return assemble(repository, document, dynamic, resolved, inputs.expected)
 }
 
 // rawInputs holds the one private copy of each artifact TCQ-V0-044 requires;
@@ -175,12 +132,9 @@ type parsedDocuments struct {
 	priors      []observation
 }
 
-func parseArtifacts(inputs rawInputs) (parsedDocuments, error) {
-	return parseArtifactsWith(inputs, checkCEMProfile)
-}
-
-// parseArtifactsWith runs stage 3 with the CEM profile admission of one
-// explicit route: tcq/0 admits cem/0.2 only, tcq-stable/0 cem/1.0 only.
+// parseArtifactsWith runs stage 3 with the CEM profile admission of the one
+// remaining route: tcq-stable/0 admits cem/1.0 only. The tcq/0 route and its
+// cem/0.2 admission were retired with the cem/0.x wire (CEM-V1-217).
 func parseArtifactsWith(inputs rawInputs, checkCEM func([]byte) error) (parsedDocuments, error) {
 	if err := preflightArtifacts(inputs); err != nil {
 		return parsedDocuments{}, err
@@ -245,23 +199,6 @@ func preflightArtifacts(inputs rawInputs) error {
 		if err := preflightJSON(check.raw, check.bounds); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-// checkCEMProfile implements TCQ-V0-002: legacy `cem/0.1` is not a TCQ input. It
-// fails operationally and can produce neither an abstention nor a relation.
-func checkCEMProfile(raw []byte) error {
-	if err := preflightJSON(raw, cemBounds); err != nil {
-		return err
-	}
-	value, err := wire.Parse(raw)
-	if err != nil || value.Kind != wire.KindObject {
-		return fail(CodeInvalidTCQ)
-	}
-	spec, ok := value.Obj.Get("spec")
-	if !ok || spec.Kind != wire.KindString || spec.Str != CEMCanonicalSpec {
-		return fail(CodeUnsupportedCEMProfile)
 	}
 	return nil
 }

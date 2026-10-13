@@ -5,7 +5,10 @@ Method (`GPK-V0-034`): for each normative clause in
 that clause were violated**. Pass counts do not answer this. A clause with no falsifying case is
 `UNVERIFIED` no matter how green the suite is.
 
-Corpus: `conformance/lrf-v0/cases.json` — 41 cases, 41 distinct `coverageId`s, 75 hunks (3 deletions).
+Retired 2026-10-12 with the cem/0.x wire (CEM-V1-217): the corpus below no longer exists and
+`retired.json` lists its cases. This audit is kept as history.
+
+Corpus: `conformance/lrf-v0/cases.json` (removed) — 41 cases, 41 distinct `coverageId`s, 75 hunks (3 deletions).
 The table below predates the eleven cases added on 2026-09-13; the executed per-clause mutations and
 the clause parts still `UNVERIFIED` are in `docs/reviews/corpus-mutation-audit-2026-09-13.md`.
 

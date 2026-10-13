@@ -125,14 +125,16 @@ validate_unknown_plan() {
 # citation_plan_matches_map binds a nonempty citation plan to the map prepared in this run, as the
 # bind loop does (DCW-V0-019): a numeric selector must be a canonical ordinal no larger than the
 # hunk count, and every unknown hunk must be named by ordinal or ID in the citation or unknown plan.
-# A cem/1.0 map (the prepare default, CEM-V1-140) is compact JSON with sorted keys: after "hunks",
-# each hunk's own "disposition" is followed by its "id", and an escaped string never holds the
-# unescaped "disposition":" token.
+# cem/1.0 is the only map prepare writes (CEM-V1-215, V1-1278): compact JSON with sorted keys, so
+# after "hunks" each hunk's own "disposition" is followed by its "id", and an escaped string never
+# holds the unescaped "disposition":" token. Any other map, such as a retired cem/0.x layout, has no
+# stable line and is refused as a mismatch.
 citation_plan_matches_map() {
   local plans=("$run_tmp/citations.snapshot")
   [[ -z ${DOGFOOD_UNKNOWN:-} ]] || plans+=("$run_tmp/unknown.snapshot")
   awk -F '\t' '
     FILENAME == ARGV[1] && index($0, "\"spec\":\"cem/1.0\"") {
+      stable = 1
       rest = $0
       start = index(rest, "\"hunks\":[")
       if (!start) next
@@ -148,19 +150,11 @@ citation_plan_matches_map() {
       }
       next
     }
-    FILENAME == ARGV[1] {
-      if ($0 == "  \"hunks\": [") { inside = 1; next }
-      if (substr($0, 1, 3) == "  ]") inside = 0
-      if (!inside) next
-      if ($0 == "    {") count++
-      if ($0 ~ /^      "id": "/) { value = $0; sub(/^      "id": "/, "", value); sub(/",?$/, "", value); id[count] = value }
-      if ($0 ~ /^      "disposition": "unknown",?$/) owed[count] = 1
-      next
-    }
+    FILENAME == ARGV[1] { next }
     FILENAME == ARGV[2] && $1 ~ /^[+0-9]/ { if ($1 !~ /^[1-9][0-9]*$/ || $1 + 0 > count) bad = 1 }
     { named[$1] = 1 }
     END {
-      if (bad) exit 1
+      if (bad || !stable) exit 1
       for (hunk in owed) if (!(hunk in named) && !(id[hunk] in named)) exit 1
     }' "$map" "${plans[@]}"
 }
@@ -265,16 +259,12 @@ binding=$(git -C "$repo" commit-tree "$tree" -p "$target" \
   -m "chore: retroactively bind $range_label to a CEM" ${unknown_message[@]+"${unknown_message[@]}"} \
   -m 'Corvint-Dogfood-Binding: retroactive' 2> "$run_tmp/commit-tree.stderr") || fail binding-commit-failed
 
-# A cem/1.0 map (the prepare default, CEM-V1-140) is read with the absolute artifact root the
-# stable verifier requires; a producer map names no artifact, so it is never opened (CEM-V1-147).
-stable_artifacts=()
-if grep -q '"spec": *"cem/1.0"' "$map"; then
-  stable_artifacts=(--artifacts "$(cd "$worktree" && pwd -P)")
-fi
+# The cem/1.0 map is read with the absolute artifact root the stable verifier requires; a producer
+# map names no artifact, so it is never opened (CEM-V1-147).
 run_child "$run_tmp/cem-status.json" "$run_tmp/cem-status.stderr" \
   "$corvint_bin" --root "$worktree" cem status --map .corvint/change.cem.json \
   --expected-base "$base" --target "$binding" --max-unknown "$unknown_count" --max-mechanical 0 \
-  ${stable_artifacts[@]+"${stable_artifacts[@]}"}
+  --artifacts "$(cd "$worktree" && pwd -P)"
 cp "$run_tmp/cem-status.json" "$evidence/bind-range.$range_label.cem-status.json" || exit 2
 if [[ $child_status -ne 0 ]]; then
   if [[ -s $run_tmp/cem-status.json ]]; then

@@ -24,11 +24,11 @@ func TestCandidateClosedProfile(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if c.Change.Spec != CandidateSpec || Canonical(CandidateSpec) || len(c.Links) != 1 || len(c.Artifacts) != 5 {
+	if c.Change.Spec != CandidateSpec || len(c.Links) != 1 || len(c.Artifacts) != 5 {
 		t.Fatalf("candidate silently promoted: %+v", c)
 	}
-	if _, e = ParseMap(raw); cemcode.CodeOf(e) != cemcode.UnsupportedSpec {
-		t.Fatalf("legacy reader admitted candidate: %v", e)
+	if _, e = ParseStable(raw); cemcode.CodeOf(e) != cemcode.UnsupportedSpec {
+		t.Fatalf("stable reader admitted candidate: %v", e)
 	}
 	for _, name := range []string{"unknown-stable-profile.json", "unknown-field-killed.json", "criterion-hash-tamper.json", "duplicate-criterion.json", "duplicate-link-reference.json", "dangling-hunk.json", "unknown-receipt-profile.json", "invented-source-assurance.json", "missing-artifact-declaration.json", "duplicate-artifact-path.json", "artifact-path-escape.json", "artifact-role-conflict.json", "unsupported-coverage.json", "duplicate-json-key.json"} {
 		t.Run(name, func(t *testing.T) {

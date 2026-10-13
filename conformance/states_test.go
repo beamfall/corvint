@@ -18,11 +18,11 @@ import (
 // decision 0357 fixes for every OCM and frontier manifest.
 var decision0357States = []string{"stable", "relocated", "stale", "ambiguous", "deleted", "unknown"}
 
-// The frontier and OCM state validators each keep a copy of the vocabulary;
-// both copies must equal the decision's list so the validators accept the
-// same state names (V1-0134).
+// The OCM state validator keeps a copy of the vocabulary, which must equal the
+// decision's list (V1-0134). The frontier-v0 copy went with its fixture tier
+// and states coverage, retired with frontier/0 (CEM-V1-217).
 func TestStateValidatorsShareOneVocabulary(t *testing.T) {
-	for _, source := range []string{"frontier-v0/manifest.go", "ocm-v0/manifest.go"} {
+	for _, source := range []string{"ocm-v0/manifest.go"} {
 		if got := hostileStates(t, source); !slices.Equal(got, decision0357States) {
 			t.Errorf("%s hostileStates = %q, want %q", source, got, decision0357States)
 		}

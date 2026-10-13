@@ -33,7 +33,6 @@ const (
 
 var (
 	adapterPattern   = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
-	objectIDPattern  = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 	generatedPattern = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{9}Z$`)
 )
 
@@ -42,25 +41,15 @@ type sourceOption struct {
 	RelativePath string
 }
 
-type bundleOption struct {
-	CEM          string
-	OCM          string
-	Profile      string
-	ExpectedBase string
-	Target       string
-}
-
 type options struct {
 	Root        string
 	Sources     []sourceOption
-	Bundle      *bundleOption
 	GeneratedAt string
 }
 
 type compileRequest struct {
 	Root        string
 	Sources     []sourceOption
-	Bundle      *bundleOption
 	GeneratedAt string
 }
 
@@ -78,7 +67,6 @@ func parseArguments(arguments []string) (options, error) {
 
 	seen := make(map[string]bool)
 	sourcePairs := make(map[string]bool)
-	var cem, ocm, profile, expectedBase, target string
 	conformance := false
 	for index := 1; index < len(arguments); {
 		flag := arguments[index]
@@ -110,36 +98,6 @@ func parseArguments(arguments []string) (options, error) {
 			}
 			sourcePairs[value] = true
 			parsed.Sources = append(parsed.Sources, source)
-		case "--cem":
-			if seen[flag] || !validRelativePath(value) {
-				return options{}, &dashboardError{code: errorInvalidArgument}
-			}
-			seen[flag] = true
-			cem = value
-		case "--ocm":
-			if seen[flag] || !validRelativePath(value) {
-				return options{}, &dashboardError{code: errorInvalidArgument}
-			}
-			seen[flag] = true
-			ocm = value
-		case "--cem-ocm-profile":
-			if seen[flag] || !validCEMOCMProfile(value) {
-				return options{}, &dashboardError{code: errorInvalidArgument}
-			}
-			seen[flag] = true
-			profile = value
-		case "--expected-base":
-			if seen[flag] || !objectIDPattern.MatchString(value) {
-				return options{}, &dashboardError{code: errorInvalidArgument}
-			}
-			seen[flag] = true
-			expectedBase = value
-		case "--target":
-			if seen[flag] || !objectIDPattern.MatchString(value) {
-				return options{}, &dashboardError{code: errorInvalidArgument}
-			}
-			seen[flag] = true
-			target = value
 		case "--generated-at":
 			if seen[flag] || !validGeneratedAt(value) {
 				return options{}, &dashboardError{code: errorInvalidArgument}
@@ -154,21 +112,10 @@ func parseArguments(arguments []string) (options, error) {
 	if parsed.Root == "" {
 		return options{}, &dashboardError{code: errorInvalidArgument}
 	}
-	bundleCount := countPresent(cem, ocm, profile, expectedBase, target)
-	if bundleCount != 0 && bundleCount != 5 {
-		return options{}, &dashboardError{code: errorInvalidArgument}
-	}
-	if bundleCount == 5 {
-		parsed.Bundle = &bundleOption{CEM: cem, OCM: ocm, Profile: profile, ExpectedBase: expectedBase, Target: target}
-	}
 	if conformance != (parsed.GeneratedAt != "") {
 		return options{}, &dashboardError{code: errorInvalidArgument}
 	}
 	return parsed, nil
-}
-
-func validCEMOCMProfile(value string) bool {
-	return value == "cem/0.1+ocm/0.1" || value == "cem/0.2+ocm/0.1"
 }
 
 func parseSource(value string) (sourceOption, bool) {
@@ -230,16 +177,6 @@ func validGeneratedAt(value string) bool {
 	return err == nil
 }
 
-func countPresent(values ...string) int {
-	count := 0
-	for _, value := range values {
-		if value != "" {
-			count++
-		}
-	}
-	return count
-}
-
 func emitError(output io.Writer, code string) {
 	_, _ = io.WriteString(output, `{"code":"`+code+`","profile":"`+errorProfile+`"}`+"\n")
 }
@@ -279,7 +216,7 @@ func runContext(ctx context.Context, arguments []string, stdout, stderr io.Write
 		return 2
 	}
 	request := compileRequest{
-		Root: parsed.Root, Sources: parsed.Sources, Bundle: parsed.Bundle, GeneratedAt: parsed.GeneratedAt,
+		Root: parsed.Root, Sources: parsed.Sources, GeneratedAt: parsed.GeneratedAt,
 	}
 	encoded, err := compile(ctx, request)
 	if err != nil {

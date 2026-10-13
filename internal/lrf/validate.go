@@ -126,15 +126,15 @@ func validateRequest(request Request, admit ...func(Context) error) error {
 // builds such a request any more: the cem/0.x maps they name are retired and
 // lrfrepo refuses them (CEM-V1-210).
 const (
-	frozenContextSpec01 = "cem/0.1"
-	frozenContextSpec02 = "cem/0.2"
+	frozenContextCEM01 = "cem/0.1"
+	frozenContextCEM02 = "cem/0.2"
 )
 
 func validateContextSpec(context Context, spec string) error {
 	if !wire.IsSha256(context.CEMMapSHA256) || !wire.IsSha256(context.PatchSHA256) || !wire.IsGitOid(context.BaseRevision) {
 		return invalid("CEM context identity is invalid")
 	}
-	if context.CEMSpec == frozenContextSpec01 {
+	if context.CEMSpec == frozenContextCEM01 {
 		if context.PatchSource != "explicit-out-of-band" && context.PatchSource != "default-out-of-band" {
 			return unsupported("CEM 0.1 patch source is unsupported")
 		}
@@ -244,7 +244,7 @@ func validUTF8(value string) bool { return utf8.ValidString(value) }
 
 // validateContext is the frozen lrf/0 context admission: cem/0.1 or the
 // canonical-derived cem/0.2 row.
-func validateContext(context Context) error { return validateContextSpec(context, frozenContextSpec02) }
+func validateContext(context Context) error { return validateContextSpec(context, frozenContextCEM02) }
 
 // contextAdmission selects the context admission of one request validation:
 // the frozen lrf/0 admission unless a caller names its own.

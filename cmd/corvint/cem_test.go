@@ -91,7 +91,7 @@ func TestCEMHelpSurfaces(t *testing.T) {
 
 func TestCEMErrorPrecedence(t *testing.T) {
 	t.Parallel()
-	root, base, target := cemRepo(t)
+	root, base, _ := cemRepo(t)
 	// Stage 1: CLI syntax before anything else.
 	code, _, stderr := runCLI(t, "--root", root, "cem")
 	if code != 2 || !strings.Contains(stderr, `"code": "invalid-arguments"`) {
@@ -101,27 +101,21 @@ func TestCEMErrorPrecedence(t *testing.T) {
 	if code != 2 || !strings.Contains(stderr, "invalid-arguments") {
 		t.Fatalf("unknown flag: %d %s", code, stderr)
 	}
-	// Stage 2 (map read and closed schema) precedes stage 3 (--patch denial):
-	// an invalid 0.2 map plus a forbidden --patch reports the schema failure.
-	code, _, _ = runCLI(t, "--root", root, "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target)
-	if code != 0 {
-		t.Fatal("prepare failed")
-	}
-	mapPath := filepath.Join(root, ".corvint", "change.cem.json")
-	data, err := os.ReadFile(mapPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	corrupted := strings.Replace(string(data), `"spec": "cem/0.2"`, `"spec": "cem/0.2",\n  "surplus": true`, 1)
-	corrupted = strings.ReplaceAll(corrupted, `\n`, "\n")
-	if err := os.WriteFile(mapPath, []byte(corrupted), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	// Stage 2 (the map's spec) precedes stage 3 (--patch denial): a retired
+	// cem/0.x map plus a forbidden --patch reports the retired spec with its
+	// fix (CEM-V1-215), and a cem/1.0 map refuses --patch before the verifier
+	// runs.
+	cemWrite(t, root, "retired.cem.json", `{"spec":"cem/0.2","surplus":true}`)
 	code, _, stderr = runCLI(t, "--root", root, "cem", "verify",
-		"--map", ".corvint/change.cem.json", "--patch", "x.patch",
-		"--expected-base", base, "--target", "HEAD")
-	if code != 2 || !strings.Contains(stderr, "unknown-field") {
-		t.Fatalf("schema failure did not precede --patch denial: %d %s", code, stderr)
+		"--map", "retired.cem.json", "--patch", "x.patch", "--expected-base", base, "--target", "HEAD")
+	if code != 2 || !strings.Contains(stderr, "unsupported-spec") || !strings.Contains(stderr, "fix: ") {
+		t.Fatalf("retired spec did not precede --patch denial: %d %s", code, stderr)
+	}
+	cemWrite(t, root, "stable.cem.json", `{"spec":"cem/1.0","surplus":true}`)
+	code, _, stderr = runCLI(t, "--root", root, "cem", "verify",
+		"--map", "stable.cem.json", "--patch", "x.patch", "--expected-base", base, "--target", "HEAD")
+	if code != 2 || !strings.Contains(stderr, "does not accept --patch") {
+		t.Fatalf("stable --patch denial: %d %s", code, stderr)
 	}
 }
 
@@ -187,13 +181,14 @@ func TestCEMPrepareKeepsInheritedMapReplaceGuidance(t *testing.T) {
 	}
 }
 
-// TestCEMStatusCitationIsOptIn pins CEM-V1-080's --citation opt-in at the
-// CLI: default canonical status omits the citation block, keeping the frozen
-// 0.x goldens (decision 0357), and --citation adds it.
+// TestCEMStatusCitationIsOptIn pins the --citation opt-in at the CLI: an
+// accepted cem/1.0 status always carries the verifier's citation block, and
+// only --citation adds the map's citation class beside it (CEM-V1-080,
+// CEM-V1-095).
 func TestCEMStatusCitationIsOptIn(t *testing.T) {
 	t.Parallel()
 	root, base, target := cemRepo(t)
-	code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target)
+	code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--base", base, "--target", target)
 	if code != 0 {
 		t.Fatalf("prepare: %s", stderr)
 	}
@@ -206,25 +201,27 @@ func TestCEMStatusCitationIsOptIn(t *testing.T) {
 	cemGit(t, root, "add", ".corvint/change.cem.json")
 	cemGit(t, root, "commit", "-qm", "candidate")
 	status := []string{"--root", root, "cem", "status",
-		"--map", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD",
-		"--max-unknown", "0", "--max-mechanical", "0"}
+		"--map", ".corvint/change.cem.json", "--expected-base", base, "--target", cemGit(t, root, "rev-parse", "HEAD"),
+		"--artifacts", root, "--max-unknown", "0", "--max-mechanical", "0"}
 	code, out, stderr := runCLI(t, status...)
-	if code != 0 || strings.Contains(out, "\"citation\"") {
+	if code != 0 || !strings.Contains(out, "\"citation\":{") || strings.Contains(out, "\"citationClass\"") {
 		t.Fatalf("default status: %d %s\n%s", code, stderr, out)
 	}
 	code, out, stderr = runCLI(t, append(status, "--citation")...)
-	if code != 0 || !strings.Contains(out, "\"citation\":{") || !strings.Contains(out, "\"profile\":\"cem-citation-support/0\"") {
+	if code != 0 || !strings.Contains(out, "\"citationClass\"") || !strings.Contains(out, "\"profile\":\"cem-citation-support/0\"") {
 		t.Fatalf("--citation status: %d %s\n%s", code, stderr, out)
 	}
 }
 
 // TestCEMEndToEndAndGoldenEnvelope drives the full two-phase flow through the
-// CLI and freezes the canonical status envelope byte-for-byte (roots
-// normalized; every hash is deterministic from the fixed fixture).
+// CLI and freezes the cem/1.0 status envelope byte-for-byte (roots
+// normalized; every hash is deterministic from the fixed fixture). The 0.x
+// golden frozen by decision 0357 was regenerated from a cem/1.0 map under
+// decision 0525 section 6 (CEM-V1-219).
 func TestCEMEndToEndAndGoldenEnvelope(t *testing.T) {
 	t.Parallel()
 	root, base, target := cemRepo(t)
-	code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--spec", "cem/0.2", "--base", base, "--target", target)
+	code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--base", base, "--target", target)
 	if code != 0 {
 		t.Fatalf("prepare: %s", stderr)
 	}
@@ -236,9 +233,10 @@ func TestCEMEndToEndAndGoldenEnvelope(t *testing.T) {
 	}
 	cemGit(t, root, "add", ".corvint/change.cem.json")
 	cemGit(t, root, "commit", "-qm", "candidate")
+	head := cemGit(t, root, "rev-parse", "HEAD")
 	code, out, stderr := runCLI(t, "--root", root, "cem", "status",
-		"--map", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD",
-		"--max-unknown", "0", "--max-mechanical", "0")
+		"--map", ".corvint/change.cem.json", "--expected-base", base, "--target", head,
+		"--artifacts", root, "--max-unknown", "0", "--max-mechanical", "0")
 	if code != 0 {
 		t.Fatalf("status: %d %s", code, stderr)
 	}
@@ -267,8 +265,8 @@ func TestCEMEndToEndAndGoldenEnvelope(t *testing.T) {
 		t.Fatalf("mark: %s", out)
 	}
 	code, out, _ = runCLI(t, "--root", root, "cem", "status",
-		"--map", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD",
-		"--max-unknown", "0")
+		"--map", ".corvint/change.cem.json", "--expected-base", base, "--target", head,
+		"--artifacts", root, "--max-unknown", "0")
 	if code != 1 || !strings.Contains(out, "max-unknown-exceeded") {
 		t.Fatalf("policy failure: %d %s", code, out)
 	}
@@ -305,40 +303,28 @@ func TestCEMSeamsDependOnlyOnStdlibAndGit(t *testing.T) {
 }
 
 // TestCEMExplicitRootKeepsStagePrecedence: an explicit --root must get only
-// syntactic normalization — with no .git present at all, stage-2 map defects
-// and stage-4 missing inputs still report their own codes, and only a clean
-// stage 1–4 pass reaches the repository validation refusal.
+// syntactic normalization. With no .git present at all, a retired cem/0.x map
+// still reports unsupported-spec before the --patch denial, and a malformed
+// cem/1.0 map is rejected by the stable verifier's own wire admission before
+// any repository check (CEM-V1-017, CEM-V1-215).
 func TestCEMExplicitRootKeepsStagePrecedence(t *testing.T) {
 	t.Parallel()
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	valid := `{"spec":"cem/0.2","baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",` +
-		`"patchSha256":"dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c",` +
-		`"excludedPath":".corvint/change.cem.json","evidence":[],"hunks":[]}`
-	corrupt := strings.Replace(valid, `"spec":"cem/0.2"`, `"spec":"cem/0.2","surplus":true`, 1)
-	cemWrite(t, root, ".corvint/change.cem.json", corrupt)
-	// Stage 2 beats both the stage-3 --patch denial and any repository check.
+	base := "4ca153370afd9bd8c6034ad73acc3925150ab681"
+	cemWrite(t, root, ".corvint/change.cem.json", `{"spec":"cem/0.2","baseRevision":"`+base+`","surplus":true}`)
 	code, _, stderr := runCLI(t, "--root", root, "cem", "verify",
-		"--map", ".corvint/change.cem.json", "--patch", "x.patch",
-		"--expected-base", "4ca153370afd9bd8c6034ad73acc3925150ab681", "--target", "HEAD")
-	if code != 2 || !strings.Contains(stderr, "unknown-field") {
-		t.Fatalf("stage 2 vs missing .git: %d %s", code, stderr)
+		"--map", ".corvint/change.cem.json", "--patch", "x.patch", "--expected-base", base, "--target", "HEAD")
+	if code != 2 || !strings.Contains(stderr, "unsupported-spec") {
+		t.Fatalf("retired spec vs missing .git: %d %s", code, stderr)
 	}
-	cemWrite(t, root, ".corvint/change.cem.json", valid)
-	// Stage 4 beats the repository check.
-	code, _, stderr = runCLI(t, "--root", root, "cem", "verify",
+	cemWrite(t, root, ".corvint/change.cem.json", `{"spec":"cem/1.0","surplus":true}`)
+	code, out, stderr := runCLI(t, "--root", root, "cem", "verify",
 		"--map", ".corvint/change.cem.json", "--target", "HEAD")
-	if code != 2 || !strings.Contains(stderr, "expected-base-required") {
-		t.Fatalf("stage 4 vs missing .git: %d %s", code, stderr)
-	}
-	// Clean stages 1–4 finally reach the stage-5 repository refusal.
-	code, _, stderr = runCLI(t, "--root", root, "cem", "verify",
-		"--map", ".corvint/change.cem.json",
-		"--expected-base", "4ca153370afd9bd8c6034ad73acc3925150ab681", "--target", "HEAD")
-	if code != 2 || !strings.Contains(stderr, "repository-object-unavailable") {
-		t.Fatalf("stage 5 refusal: %d %s", code, stderr)
+	if code != 2 || !strings.Contains(out, `"stage":"wire"`) || !strings.Contains(out, `"outcome":"REJECT"`) {
+		t.Fatalf("stable wire admission vs missing .git: %d %s %s", code, out, stderr)
 	}
 }
 

@@ -1,8 +1,6 @@
 package wire
 
 import (
-	"encoding/json"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,100 +15,6 @@ func repoRoot(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return root
-}
-
-func readFixture(t *testing.T, parts ...string) []byte {
-	t.Helper()
-	data, err := os.ReadFile(filepath.Join(parts...))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return data
-}
-
-func TestFrozenValidMapsParse(t *testing.T) {
-	root := repoRoot(t)
-	fixtures := []string{
-		filepath.Join(root, "conformance", "cem-0.1", "valid.cem.json"),
-		filepath.Join(root, "interop", "cem-0.1", "maps", "valid", "supported-sha1.json"),
-		filepath.Join(root, "interop", "cem-0.1", "maps", "valid", "supported-sha256.json"),
-		filepath.Join(root, "interop", "cem-0.1", "maps", "valid", "topology.json"),
-		filepath.Join(root, "interop", "cem-0.1", "maps", "valid", "whitespace.json"),
-		filepath.Join(root, "interop", "cem-0.1", "maps", "valid", "line-ending.json"),
-		filepath.Join(root, "interop", "cem-0.1", "maps", "valid", "bytes.json"),
-		filepath.Join(root, "interop", "cem-0.1", "maps", "valid", "overlap-sha1.json"),
-	}
-	for _, fixture := range fixtures {
-		parsed, err := ParseMap(readFixture(t, fixture))
-		if err != nil {
-			t.Errorf("%s: %v", filepath.Base(fixture), err)
-			continue
-		}
-		if parsed.Spec != Spec01 {
-			t.Errorf("%s: spec %q", filepath.Base(fixture), parsed.Spec)
-		}
-	}
-}
-
-// TestGoldenEvidenceIdentities recomputes every evidence ID in the frozen valid
-// maps from its own fields; these are the mandatory canonical-encoding vectors.
-func TestGoldenEvidenceIdentities(t *testing.T) {
-	root := repoRoot(t)
-	pattern := filepath.Join(root, "interop", "cem-0.1", "maps", "valid", "*.json")
-	fixtures, err := filepath.Glob(pattern)
-	if err != nil || len(fixtures) == 0 {
-		t.Fatalf("no valid map fixtures: %v", err)
-	}
-	total := 0
-	for _, fixture := range fixtures {
-		parsed, err := ParseMap(readFixture(t, fixture))
-		if err != nil {
-			t.Fatalf("%s: %v", filepath.Base(fixture), err)
-		}
-		for _, record := range parsed.Evidence {
-			derived := EvidenceIdentity(record.BlobOid, record.Path, record.Span, record.SpanSha256)
-			if derived != record.ID {
-				t.Errorf("%s: evidence ID drift: derived %s recorded %s", filepath.Base(fixture), derived, record.ID)
-			}
-			total++
-		}
-	}
-	if total == 0 {
-		t.Fatal("no evidence identities exercised")
-	}
-}
-
-func TestStructuralInvalidMapsReject(t *testing.T) {
-	root := repoRoot(t)
-	cases := []struct {
-		fixture string
-		code    string
-	}{
-		{"duplicate-key.json", cemcode.InvalidJSON},
-		{"unknown-field.json", cemcode.UnknownField},
-		// unknown-spec.json carries spec cem/0.2; an upgraded consumer rejects it
-		// as a malformed 0.2 document (missing excludedPath), which is a valid
-		// rejection under the advisory-code rule.
-		{"unknown-spec.json", cemcode.MissingField},
-		{"path-traversal.json", cemcode.PathTraversal},
-		{"basis.json", cemcode.UnsupportedWithoutBasis},
-		{"orphan.json", cemcode.OrphanEvidence},
-		{"resource-integer.json", ""},
-		{"resource-path.json", ""},
-		// range.json mutates oldRange only; its rejection is hunk-identity
-		// recomputation during verification, not wire shape.
-	}
-	for _, testCase := range cases {
-		data := readFixture(t, filepath.Join(root, "interop", "cem-0.1", "maps", "invalid", testCase.fixture))
-		_, err := ParseMap(data)
-		if err == nil {
-			t.Errorf("%s: accepted", testCase.fixture)
-			continue
-		}
-		if testCase.code != "" && cemcode.CodeOf(err) != testCase.code {
-			t.Errorf("%s: code %q, want %q (%v)", testCase.fixture, cemcode.CodeOf(err), testCase.code, err)
-		}
-	}
 }
 
 func TestStrictJSONRejections(t *testing.T) {
@@ -231,51 +135,6 @@ func TestCanonicalStringEscapes(t *testing.T) {
 	}
 }
 
-func TestSpec02ExcludedPath(t *testing.T) {
-	base := `{"spec":"cem/0.2","baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",` +
-		`"patchSha256":"dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c",` +
-		`"excludedPath":%s,"evidence":[],"hunks":[{"id":"hunk:sha256:07461a992e03e064986720e365dc4bb477da7cefe73da853f51bcb70e2c3100c",` +
-		`"path":"src/app.py","oldRange":{"start":1,"count":2},"newRange":{"start":1,"count":2},` +
-		`"disposition":"unknown","reason":"no-evidence","basis":[]}]}`
-	render := func(excluded string) []byte {
-		document := base
-		return []byte(replaceOnce(document, "%s", excluded))
-	}
-	if _, err := ParseMap(render(`".corvint/change.cem.json"`)); err != nil {
-		t.Fatalf("exact excludedPath rejected: %v", err)
-	}
-	rejects := map[string]string{
-		`"custom.json"`:                cemcode.InvalidExcludedPath,
-		`".Corvint/change.cem.json"`:   cemcode.InvalidExcludedPath,
-		`".corvint/*.json"`:            cemcode.InvalidExcludedPath,
-		`[".corvint/change.cem.json"]`: cemcode.InvalidExcludedPath,
-		`null`:                         cemcode.InvalidExcludedPath,
-	}
-	for excluded, code := range rejects {
-		_, err := ParseMap(render(excluded))
-		if err == nil || cemcode.CodeOf(err) != code {
-			t.Errorf("excludedPath %s: got %v, want code %s", excluded, err, code)
-		}
-	}
-	missing := `{"spec":"cem/0.2","baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",` +
-		`"patchSha256":"dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c",` +
-		`"evidence":[],"hunks":[]}`
-	_, err := ParseMap([]byte(missing))
-	if err == nil || cemcode.CodeOf(err) != cemcode.MissingField {
-		t.Errorf("missing excludedPath: got %v, want missing-field", err)
-	}
-}
-
-// TestMissingSpecPrecedence proves a missing spec fails before unknown-field
-// evaluation, per the frozen stage-2 precedence.
-func TestMissingSpecPrecedence(t *testing.T) {
-	document := `{"surplus":true,"baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681"}`
-	_, err := ParseMap([]byte(document))
-	if err == nil || cemcode.CodeOf(err) != cemcode.MissingField {
-		t.Fatalf("got %v, want missing-field for spec", err)
-	}
-}
-
 func replaceOnce(text, marker, replacement string) string {
 	for index := 0; index+len(marker) <= len(text); index++ {
 		if text[index:index+len(marker)] == marker {
@@ -285,129 +144,70 @@ func replaceOnce(text, marker, replacement string) string {
 	return text
 }
 
-// TestConformance02CasesConsumed drives the structural 0.2 mutation suite
-// directly from the frozen conformance/cem-0.2/cases.json fixture, so corpus
-// drift or a schema regression fails this test rather than going unnoticed.
-func TestConformance02CasesConsumed(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join(repoRoot(t), "conformance", "cem-0.2", "cases.json"))
+// parseMechanics runs the shared validators a cem/1.0 map inherits from the
+// retired 0.x wire (ParseStable calls the same pair) without the stable
+// envelope; fullWitnesses false is the candidate profile's admission.
+func parseMechanics(data []byte, fullWitnesses bool) (*Map, error) {
+	root, err := Parse(data)
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
-	var suite struct {
-		ValidAssurance string `json:"validAssurance"`
-		Invalid        []struct {
-			Name          string `json:"name"`
-			Operation     string `json:"operation"`
-			Value         any    `json:"value"`
-			ReferenceCode string `json:"referenceCode"`
-		} `json:"invalid"`
+	result := &Map{Spec: StableSpec}
+	if err := validateCommonCapabilities(root.Obj, result, true, fullWitnesses); err != nil {
+		return nil, err
 	}
-	if err := json.Unmarshal(raw, &suite); err != nil {
-		t.Fatal(err)
+	if err := validateReferences(result); err != nil {
+		return nil, err
 	}
-	// The frozen structural assurance label is bound by CEM-CB-014; the
-	// workflow envelope tests assert the same literal on the wire.
-	if suite.ValidAssurance != "structural-only" {
-		t.Fatalf("validAssurance drifted: %q", suite.ValidAssurance)
+	return result, nil
+}
+
+// TestInheritedExcludedPath pins the excludedPath literal the inherited
+// mechanics require.
+func TestInheritedExcludedPath(t *testing.T) {
+	base := `{"baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",` +
+		`"patchSha256":"dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c",` +
+		`"excludedPath":%s,"evidence":[],"hunks":[{"id":"hunk:sha256:07461a992e03e064986720e365dc4bb477da7cefe73da853f51bcb70e2c3100c",` +
+		`"path":"src/app.py","oldRange":{"start":1,"count":2},"newRange":{"start":1,"count":2},` +
+		`"disposition":"unknown","reason":"no-evidence","basis":[]}]}`
+	render := func(excluded string) []byte { return []byte(replaceOnce(base, "%s", excluded)) }
+	if _, err := parseMechanics(render(`".corvint/change.cem.json"`), true); err != nil {
+		t.Fatalf("exact excludedPath rejected: %v", err)
 	}
-	// Closed vector list (CEM-CB-006/-021/-EX-003/-EX-004): pinned by name and
-	// count so a dropped or renamed vector fails here instead of leaving the
-	// loop below silently short one case.
-	expectedNames := []string{
-		"missing-excluded-path", "custom-excluded-path", "glob-excluded-path",
-		"array-excluded-path", "surplus-field",
-	}
-	if len(suite.Invalid) != len(expectedNames) {
-		t.Fatalf("invalid vector count = %d, want %d %v", len(suite.Invalid), len(expectedNames), expectedNames)
-	}
-	for index, vector := range suite.Invalid {
-		if vector.Name != expectedNames[index] {
-			t.Fatalf("invalid vector %d = %q, want %q", index, vector.Name, expectedNames[index])
-		}
-	}
-	base := func() map[string]any {
-		return map[string]any{
-			"spec":         "cem/0.2",
-			"baseRevision": "4ca153370afd9bd8c6034ad73acc3925150ab681",
-			"patchSha256":  "dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c",
-			"excludedPath": ".corvint/change.cem.json",
-			"evidence":     []any{},
-			"hunks": []any{map[string]any{
-				"id":          "hunk:sha256:07461a992e03e064986720e365dc4bb477da7cefe73da853f51bcb70e2c3100c",
-				"path":        "src/app.py",
-				"oldRange":    map[string]any{"start": 1, "count": 2},
-				"newRange":    map[string]any{"start": 1, "count": 2},
-				"disposition": "unknown",
-				"reason":      "no-evidence",
-				"basis":       []any{},
-			}},
-		}
-	}
-	valid, err := json.Marshal(base())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := ParseMap(valid); err != nil {
-		t.Fatalf("unmutated base document rejected: %v", err)
-	}
-	for _, vector := range suite.Invalid {
-		document := base()
-		switch vector.Operation {
-		case "remove":
-			delete(document, "excludedPath")
-		case "set":
-			document["excludedPath"] = vector.Value
-		case "surplus":
-			document["surplus"] = true
-		default:
-			t.Fatalf("%s: unknown operation %q", vector.Name, vector.Operation)
-		}
-		encoded, err := json.Marshal(document)
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, parseErr := ParseMap(encoded)
-		if cemcode.CodeOf(parseErr) != vector.ReferenceCode {
-			t.Errorf("%s: got %v, want code %s", vector.Name, parseErr, vector.ReferenceCode)
+	for _, excluded := range []string{`"custom.json"`, `".Corvint/change.cem.json"`, `".corvint/*.json"`, `[".corvint/change.cem.json"]`, `null`} {
+		_, err := parseMechanics(render(excluded), true)
+		if cemcode.CodeOf(err) != cemcode.InvalidExcludedPath {
+			t.Errorf("excludedPath %s: got %v, want code %s", excluded, err, cemcode.InvalidExcludedPath)
 		}
 	}
 }
 
-// TestSpec03StructuralReasons pins the additive cem/0.3 vocabulary: 0.3
-// accepts the structural reasons, 0.2 and 0.1 still reject them, and 0.3
-// keeps the 0.2 excludedPath obligation (CEM-SM-001).
-func TestSpec03StructuralReasons(t *testing.T) {
-	render := func(spec, reason, excluded string) []byte {
-		return []byte(`{"spec":"` + spec + `","baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",` +
-			`"patchSha256":"dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c",` + excluded +
+// TestInheritedStructuralReasons pins the structural mechanical vocabulary
+// (CEM-SM-001): the cem/1.0 mechanics accept it and the candidate profile,
+// which admits no witnesses, rejects it.
+func TestInheritedStructuralReasons(t *testing.T) {
+	render := func(reason string) []byte {
+		return []byte(`{"baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",` +
+			`"patchSha256":"dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c","excludedPath":".corvint/change.cem.json",` +
 			`"evidence":[],"hunks":[{"id":"hunk:sha256:07461a992e03e064986720e365dc4bb477da7cefe73da853f51bcb70e2c3100c",` +
 			`"path":"src/a.go","oldRange":{"start":1,"count":2},"newRange":{"start":1,"count":2},` +
 			`"disposition":"mechanical","reason":"` + reason + `","basis":[]}]}`)
 	}
-	excluded := `"excludedPath":".corvint/change.cem.json",`
 	for reason := range StructuralReasons {
-		if _, err := ParseMap(render(Spec03, reason, excluded)); err != nil {
-			t.Errorf("cem/0.3 %s: %v", reason, err)
+		if _, err := parseMechanics(render(reason), true); err != nil {
+			t.Errorf("%s: %v", reason, err)
 		}
-		for _, spec := range []string{Spec01, Spec02} {
-			path := excluded
-			if spec == Spec01 {
-				path = ""
-			}
-			_, err := ParseMap(render(spec, reason, path))
-			if err == nil || cemcode.CodeOf(err) != cemcode.InvalidField {
-				t.Errorf("%s %s: got %v, want invalid-field", spec, reason, err)
-			}
+		if _, err := parseMechanics(render(reason), false); cemcode.CodeOf(err) != cemcode.InvalidField {
+			t.Errorf("candidate %s: got %v, want invalid-field", reason, err)
+		}
+		if !MechanicalReason(reason) {
+			t.Errorf("MechanicalReason(%s) = false", reason)
 		}
 	}
-	if _, err := ParseMap(render(Spec03, "whitespace-only", excluded)); err != nil {
-		t.Errorf("cem/0.3 whitespace-only: %v", err)
+	if _, err := parseMechanics(render("whitespace-only"), false); err != nil {
+		t.Errorf("whitespace-only: %v", err)
 	}
-	_, err := ParseMap(render(Spec03, "rename", ""))
-	if err == nil || cemcode.CodeOf(err) != cemcode.MissingField {
-		t.Errorf("cem/0.3 without excludedPath: got %v, want missing-field", err)
-	}
-	if !MechanicalReason(Spec03, "move") || MechanicalReason(Spec02, "move") || !MechanicalReason(Spec01, "whitespace-only") {
-		t.Error("MechanicalReason vocabulary is not gated by spec")
+	if MechanicalReason("no-evidence") || !MechanicalReason("line-ending-only") {
+		t.Error("MechanicalReason vocabulary drifted")
 	}
 }
