@@ -9,8 +9,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-
-	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
 // The string-keyed registry dialect (NGI-V0-007 to NGI-V0-011) carries the
@@ -127,13 +125,6 @@ func declaredRegistries(index *Index) ([]RegistryDeclaration, int) {
 		declarations = append(declarations, members...)
 	}
 	return declarations, invalid
-}
-
-// strictJSON reports whether text is one JSON document without duplicate
-// members, the reading the application map's manifest decoder enforces.
-func strictJSON(text string) bool {
-	_, err := wire.Parse([]byte(text))
-	return err == nil
 }
 
 // registryToken is a web lexer token with the 1-based line it ends on.
