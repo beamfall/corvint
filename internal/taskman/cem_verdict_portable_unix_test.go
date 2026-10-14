@@ -7,7 +7,9 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
@@ -153,27 +155,38 @@ func TestTCBV0040PortableUnsupportedRefusesNamingTheRoute(t *testing.T) {
 	in := f.input(PredicateTouchedAnchored, "src/")
 	_, agreeing := evaluateVerdict(t, in)
 	native := agreeing.Verdict.VerdictSha256
-	unsupported := `s/"outcome":"ACCEPT"/"outcome":"UNSUPPORTED"/;s/"stage":"complete"/"stage":"repository"/;s/"code":null/"code":"git-read-failed"/`
-	for name, status := range map[string]string{"exit 2": "2", "exit 1": "1"} {
-		refusing := in
-		refusing.PortableConsumer = patchedConsumer(t, f.portable, unsupported, status)
-		view := requireVerdictRefusal(t, refusing, CEMVerdictUnverifiable, "portable-route-unsupported")
-		if view.Verdict == nil || view.Verdict.Outcome != "ACCEPT" || view.Verdict.VerdictSha256 != native || view.Portable == nil || view.Portable.Route != portableRoute || view.Portable.Outcome != "UNSUPPORTED" || view.Portable.Stage != "repository" || view.Portable.Code == nil || *view.Portable.Code != "git-read-failed" || view.Portable.VerdictSha256 != native || string(view.Citation) != "null" || len(view.Governed) != 0 || len(view.Paths) != 0 {
-			t.Fatalf("%s: an unsupported route must pin the native verdict and the consumer's stage and code, and evaluate no predicate: %+v %+v", name, view.Verdict, view.Portable)
-		}
+	// The hosted macos-15 condition: the git the consumer's PATH resolves
+	// rejects the stable diff's --attr-source option, so the consumer's own
+	// repository read fails and it answers UNSUPPORTED with its own code and
+	// a verdictSha256 that its result recomputes to (TCB-V0-041).
+	refusing := in
+	refusing.PortableConsumer = attrSourceRejectingConsumer(t, f.portable, "")
+	view := requireVerdictRefusal(t, refusing, CEMVerdictUnverifiable, "portable-route-unsupported")
+	if view.Verdict == nil || view.Verdict.Outcome != "ACCEPT" || view.Verdict.VerdictSha256 != native || view.Portable == nil || view.Portable.Route != portableRoute || view.Portable.Outcome != "UNSUPPORTED" || view.Portable.Stage != "repository" || view.Portable.Code == nil || *view.Portable.Code != "git-diff-failed" || view.Portable.VerdictSha256 == native || !digest(view.Portable.VerdictSha256) || view.Portable.CitationSha256 != nil || string(view.Citation) != "null" || len(view.Governed) != 0 || len(view.Paths) != 0 {
+		t.Fatalf("an unsupported route must pin the native verdict and the consumer's stage and code, and evaluate no predicate: %+v %+v", view.Verdict, view.Portable)
 	}
 	// UNSUPPORTED with the exit status of an ACCEPT is a result its process
 	// does not explain.
 	mismatched := in
-	mismatched.PortableConsumer = patchedConsumer(t, f.portable, unsupported, "0")
+	mismatched.PortableConsumer = attrSourceRejectingConsumer(t, f.portable, "0")
 	if view := requireVerdictRefusal(t, mismatched, CEMVerdictUnverifiable, "portable-consumer-failed"); view.Portable != nil {
 		t.Fatalf("exit 0: %+v", view.Portable)
 	}
+	// An UNSUPPORTED whose verdictSha256 claim is not the digest of its own
+	// result is not that consumer's answer: it is a disagreement, so the
+	// named refusal never pins a false claim.
+	claimed := in
+	claimed.PortableConsumer = patchedConsumer(t, f.portable, `s/"outcome":"ACCEPT"/"outcome":"UNSUPPORTED"/;s/"stage":"complete"/"stage":"repository"/;s/"code":null/"code":"git-diff-failed"/`, "2")
+	if view := requireVerdictRefusal(t, claimed, CEMVerdictVerifierDisagreement, "verifier-disagreement"); view.Portable == nil || view.Portable.VerdictSha256 != native {
+		t.Fatalf("false claim: %+v", view.Portable)
+	}
 	for name, expression := range map[string]string{
 		"open code":     `s/"code":null/"code":"Git read failed: \/usr\/bin\/git"/`,
+		"unknown code":  `s/"code":null/"code":"private-hostname"/`,
 		"empty code":    `s/"code":null/"code":""/`,
 		"numeric code":  `s/"code":null/"code":7/`,
 		"open stage":    `s/"stage":"complete"/"stage":"Repository Read"/`,
+		"unknown stage": `s/"stage":"complete"/"stage":"host"/`,
 		"missing stage": `s/"stage":"complete",//`,
 		"missing code":  `s/"code":null,//`,
 	} {
@@ -184,6 +197,65 @@ func TestTCBV0040PortableUnsupportedRefusesNamingTheRoute(t *testing.T) {
 			t.Fatalf("%s: an unreadable stage or code pins no portable result: %+v %+v", name, view.Verdict, view.Portable)
 		}
 	}
+}
+
+// The stage and code sets the gate admits into the document are exactly the
+// portable consumer's result contract (TCB-V0-040).
+func TestTCBV0040PortablePinSetsMatchTheResultSchema(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "protocol", "cem-1.0", "stable", "RESULT.schema.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var schema struct {
+		Properties struct {
+			Stage struct{ Enum []string }  `json:"stage"`
+			Code  struct{ Enum []*string } `json:"code"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		t.Fatal(err)
+	}
+	stages := closedSet(schema.Properties.Stage.Enum...)
+	codes := map[string]bool{}
+	for _, code := range schema.Properties.Code.Enum {
+		if code != nil {
+			codes[*code] = true
+		}
+	}
+	if len(stages) == 0 || len(codes) == 0 || !reflect.DeepEqual(stages, portableStages) || !reflect.DeepEqual(codes, portableCodes) {
+		t.Fatalf("schema stages %v codes %v; gate stages %v codes %v", stages, codes, portableStages, portableCodes)
+	}
+}
+
+// attrSourceRejectingConsumer wraps consumer so that the first git on its
+// PATH is a shim that rejects --attr-source as Git before 2.41 does and
+// otherwise runs the gate's own git; a non-empty status replaces the
+// consumer's exit status.
+func attrSourceRejectingConsumer(t *testing.T, consumer, status string) string {
+	t.Helper()
+	real, err := exec.LookPath("git")
+	if err != nil || !filepath.IsAbs(real) {
+		t.Fatalf("git: %q %v", real, err)
+	}
+	shim := filepath.Join(t.TempDir(), "old-git")
+	if err := os.MkdirAll(shim, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	git := "#!/bin/sh\nfor a in \"$@\"; do case \"$a\" in --attr-source=*) printf '%s\\n' \"error: unknown option \\`attr-source'\" >&2; exit 129;; esac; done\nexec '" + real + "' \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(shim, "git"), []byte(git), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "old-git-consumer")
+	script := "#!/bin/sh\nPATH='" + shim + ":/usr/bin:/bin'\nexport PATH\n"
+	if status == "" {
+		script += "exec '" + consumer + "' \"$@\"\n"
+	} else {
+		script += "'" + consumer + "' \"$@\"\nexit " + status + "\n"
+	}
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 // The portable consumer runs in the gate's own process group, so a supervisor
@@ -205,6 +277,55 @@ func TestTCBV0017PortableConsumerSharesTheGateProcessGroup(t *testing.T) {
 	}
 	if pgid, err := strconv.Atoi(strings.TrimSpace(string(raw))); err != nil || pgid != syscall.Getpgrp() {
 		t.Fatalf("portable consumer group %q, gate group %d", raw, syscall.Getpgrp())
+	}
+}
+
+// The portable consumer resolves git from the gate's own git first: the
+// directory exec.LookPath resolves in the gate's process, ahead of the fixed
+// /usr/bin:/bin, so both legs of the cross-check run one Git (TCB-V0-043).
+func TestTCBV0043PortableConsumerResolvesTheGateGit(t *testing.T) {
+	real, err := exec.LookPath("git")
+	if err != nil || !filepath.IsAbs(real) {
+		t.Fatalf("git: %q %v", real, err)
+	}
+	shimDir := filepath.Join(t.TempDir(), "bin")
+	if err := os.Mkdir(shimDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(shimDir, "git"), []byte("#!/bin/sh\nexec '"+real+"' \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", shimDir+":"+os.Getenv("PATH"))
+	if got := portablePath(); got != shimDir+":"+portableFixedPath {
+		t.Fatalf("portablePath %q want %q", got, shimDir+":"+portableFixedPath)
+	}
+	f := newVerdictFixture(t, nil)
+	in := f.input(PredicateTouchedAnchored, "src/")
+	seen := filepath.Join(t.TempDir(), "seen")
+	in.PortableConsumer = filepath.Join(t.TempDir(), "recording-consumer")
+	if err := os.WriteFile(in.PortableConsumer, []byte("#!/bin/sh\nprintf '%s\\n%s\\n' \"$PATH\" \"$(command -v git)\" > '"+seen+"'\nexec '"+f.portable+"' \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if result, _ := evaluateVerdict(t, in); !result.Granted {
+		t.Fatalf("the consumer under the gate's git must grant: %s", result.Document)
+	}
+	raw, err := os.ReadFile(seen)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := shimDir + ":" + portableFixedPath + "\n" + filepath.Join(shimDir, "git") + "\n"; string(raw) != want {
+		t.Fatalf("consumer saw %q want %q", raw, want)
+	}
+	// A git already under the fixed path, no git, or a relative lookup keeps
+	// the fixed path alone.
+	for name, path := range map[string]string{"fixed": portableFixedPath, "empty": "", "relative": "bin:" + portableFixedPath} {
+		t.Setenv("PATH", path)
+		if name == "relative" {
+			t.Chdir(filepath.Dir(shimDir))
+		}
+		if got := portablePath(); got != portableFixedPath {
+			t.Fatalf("%s: portablePath %q want %q", name, got, portableFixedPath)
+		}
 	}
 }
 

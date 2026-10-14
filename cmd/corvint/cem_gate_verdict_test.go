@@ -122,16 +122,13 @@ func TestTCBV0016GateVerdictRunsBothConsumers(t *testing.T) {
 	if code != 1 || stderr != "" || !strings.Contains(stdout, `"code":"`+taskman.CEMVerdictVerifierDisagreement+`"`) || !strings.Contains(stdout, `"reason":"verifier-disagreement"`) || !strings.Contains(stdout, `"outcome":"REFUSE"`) {
 		t.Fatalf("patched consumer: exit %d stderr %q\n%s", code, stderr, stdout)
 	}
-	// The real consumer answering UNSUPPORTED with its own code refuses under
-	// the route's name with that code pinned, never a grant and never a
-	// disagreement (TCB-V0-040, TCB-V0-041).
-	unsupported := filepath.Join(t.TempDir(), "unsupported-cem01-go")
-	script = "#!/bin/sh\n'" + consumer + "' \"$@\" | sed -e 's/\"outcome\":\"ACCEPT\"/\"outcome\":\"UNSUPPORTED\"/;s/\"stage\":\"complete\"/\"stage\":\"repository\"/;s/\"code\":null/\"code\":\"git-read-failed\"/'\nexit 2\n"
-	if err := os.WriteFile(unsupported, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	// The real consumer whose PATH resolves a git that rejects --attr-source
+	// (the hosted macos-15 condition) answers UNSUPPORTED with its own code,
+	// and the command refuses under the route's name with that code pinned,
+	// never a grant and never a disagreement (TCB-V0-040, TCB-V0-041).
+	unsupported := attrSourceRejectingConsumer(t, consumer)
 	code, stdout, stderr = runCLI(t, append([]string{"--root", root}, args(unsupported)...)...)
-	if code != 1 || stderr != "" || !strings.Contains(stdout, `"code":"`+taskman.CEMVerdictUnverifiable+`"`) || !strings.Contains(stdout, `"reason":"portable-route-unsupported"`) || !strings.Contains(stdout, `"outcome":"REFUSE"`) || !strings.Contains(stdout, `"code":"git-read-failed","outcome":"UNSUPPORTED","route":"verify-stable-canonical","stage":"repository","verdictSha256":"`+doc.Verdict.VerdictSha256+`"}`) || !strings.Contains(stdout, `"citation":null`) || !strings.Contains(stdout, `"paths":[]`) {
+	if code != 1 || stderr != "" || !strings.Contains(stdout, `"code":"`+taskman.CEMVerdictUnverifiable+`"`) || !strings.Contains(stdout, `"reason":"portable-route-unsupported"`) || !strings.Contains(stdout, `"outcome":"REFUSE"`) || !strings.Contains(stdout, `"citationSha256":null,"code":"git-diff-failed","outcome":"UNSUPPORTED","route":"verify-stable-canonical","stage":"repository","verdictSha256":"`) || strings.Contains(stdout, `"stage":"repository","verdictSha256":"`+doc.Verdict.VerdictSha256+`"`) || !strings.Contains(stdout, `"citation":null`) || !strings.Contains(stdout, `"paths":[]`) {
 		t.Fatalf("unsupported consumer: exit %d stderr %q\n%s", code, stderr, stdout)
 	}
 }
@@ -141,7 +138,7 @@ func TestTCBV0016GateVerdictRunsBothConsumers(t *testing.T) {
 // explains. A git there that accepts the stable diff's --attr-source option
 // (Git 2.41 or later) verifies the map and the gate grants; one that rejects
 // it, as Apple Git 2.39 on the hosted macos-15 image does, ends the consumer
-// at `repository` / `git-read-failed`, and the gate refuses under the route's
+// at `repository` / `git-diff-failed`, and the gate refuses under the route's
 // name with that code pinned. Either way the document names the host fact.
 func TestTCBV0042PortableConsumerUnderBareHostPath(t *testing.T) {
 	stablefixture.RequireStableHost(t)
@@ -179,7 +176,7 @@ func TestTCBV0042PortableConsumerUnderBareHostPath(t *testing.T) {
 		}
 		return
 	}
-	if result.Granted || doc.Code == nil || *doc.Code != taskman.CEMVerdictUnverifiable || doc.Reason == nil || *doc.Reason != "portable-route-unsupported" || doc.Portable == nil || doc.Portable.Outcome != "UNSUPPORTED" || doc.Portable.Stage != "repository" || doc.Portable.Code == nil || *doc.Portable.Code != "git-read-failed" {
+	if result.Granted || doc.Code == nil || *doc.Code != taskman.CEMVerdictUnverifiable || doc.Reason == nil || *doc.Reason != "portable-route-unsupported" || doc.Portable == nil || doc.Portable.Outcome != "UNSUPPORTED" || doc.Portable.Stage != "repository" || doc.Portable.Code == nil || *doc.Portable.Code != "git-diff-failed" {
 		t.Fatalf("a bare-PATH git that rejects --attr-source must refuse under the route's name with the consumer's code:\n%s\n%s", diagnostic, result.Document)
 	}
 }
@@ -204,6 +201,30 @@ func bareHostGitDiagnostic(root string) string {
 }
 
 // buildPortableConsumer builds the independent interop/cem01-go module.
+// attrSourceRejectingConsumer wraps consumer so that the first git on its
+// PATH is a shim that rejects --attr-source as Git before 2.41 does and
+// otherwise runs the gate's own git.
+func attrSourceRejectingConsumer(t *testing.T, consumer string) string {
+	t.Helper()
+	real, err := exec.LookPath("git")
+	if err != nil || !filepath.IsAbs(real) {
+		t.Fatalf("git: %q %v", real, err)
+	}
+	shim := filepath.Join(t.TempDir(), "old-git")
+	if err := os.MkdirAll(shim, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	git := "#!/bin/sh\nfor a in \"$@\"; do case \"$a\" in --attr-source=*) printf '%s\\n' \"error: unknown option \\`attr-source'\" >&2; exit 129;; esac; done\nexec '" + real + "' \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(shim, "git"), []byte(git), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "old-git-consumer")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\nPATH='"+shim+":/usr/bin:/bin'\nexport PATH\nexec '"+consumer+"' \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 func buildPortableConsumer(t *testing.T) string {
 	t.Helper()
 	module, err := filepath.Abs(filepath.Join("..", "..", "interop", "cem01-go"))

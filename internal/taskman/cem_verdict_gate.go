@@ -327,9 +327,12 @@ func (g *verdictGate) crossCheck(ctx context.Context, in CEMVerdictInput, target
 	// A consumer that could not run its route on this host answers
 	// UNSUPPORTED with its own closed code; that is the portable leg missing,
 	// not two verdicts differing, so the refusal names the route and keeps
-	// the pinned code (TCB-V0-041). Both legs answering UNSUPPORTED still go
-	// through the comparison and the native refusal below.
-	if reading.pin.Outcome == "UNSUPPORTED" && native.Outcome != "UNSUPPORTED" {
+	// the pinned code (TCB-V0-041). Only a result whose verdictSha256 claim is
+	// the digest recomputed from its own bytes is that consumer's answer: a
+	// claim its result does not recompute to is a disagreement below, so the
+	// named refusal never pins a false claim. Both legs answering
+	// UNSUPPORTED still go through the comparison and the native refusal.
+	if reading.pin.Outcome == "UNSUPPORTED" && native.Outcome != "UNSUPPORTED" && reading.pin.VerdictSha256 == reading.recomputed {
 		g.refuse(CEMVerdictUnverifiable, "portable-route-unsupported")
 		return false
 	}
@@ -368,21 +371,30 @@ func runPortableConsumer(ctx context.Context, in CEMVerdictInput, target string,
 	return runPortable(ctx, in.PortableConsumer, in.Root, []string{portableRoute, "--repository", in.Root, "--map", file.Name(), "--expected-base", in.BaseCommit, "--target", target, "--artifacts", in.Root})
 }
 
-// closedToken reports whether s has the shape of one closed result code or
-// stage name: 1 to 64 bytes of lower-case ASCII letters, digits and hyphens.
-// The gate pins the consumer's stage and code verbatim, so it admits no other
-// bytes into the document (TCB-V0-040).
-func closedToken(s string) bool {
-	if len(s) == 0 || len(s) > 64 {
-		return false
+// portableStages and portableCodes are the closed `stage` and `code` sets of
+// the portable consumer's result contract,
+// protocol/cem-1.0/stable/RESULT.schema.json, which the gate pins verbatim
+// (TCB-V0-040). TestTCBV0040PortablePinSetsMatchTheResultSchema pins them to
+// the schema; a stage or code outside them is not a readable result, so no
+// other bytes enter the document.
+var portableStages = closedSet("arguments", "input", "wire", "references", "authority-arguments", "runtime", "repository", "binding", "verification", "drift", "artifacts", "complete")
+
+var portableCodes = closedSet(
+	"artifact-resource-limit", "artifact-role-closure", "artifact-unavailable", "artifacts-required",
+	"duplicate-reference", "expected-base-required", "git-diff-failed", "git-read-failed", "git-timeout",
+	"invalid-arguments", "invalid-criterion-identity", "invalid-excluded-path", "invalid-field", "invalid-json",
+	"map-unavailable", "missing-field", "reference-coherence", "repository-object-unavailable", "target-required",
+	"unknown-field", "unresolved-reference", "unsupported-object-alternates", "unsupported-patch-inventory",
+	"unsupported-process-containment", "unsupported-repository-envelope", "unsupported-resource-limit",
+	"unsupported-spec", "unsupported-structural-runtime", "unsupported-tree-mode", "verification-timeout",
+)
+
+func closedSet(members ...string) map[string]bool {
+	set := make(map[string]bool, len(members))
+	for _, m := range members {
+		set[m] = true
 	}
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c != '-' && (c < 'a' || c > 'z') && (c < '0' || c > '9') {
-			return false
-		}
-	}
-	return true
+	return set
 }
 
 // portableExitAgrees reports whether the consumer's exit status matches its
@@ -422,9 +434,10 @@ func readPortable(stdout []byte) (portableReading, bool) {
 	if !okProfile || !okOutcome || !okStage || !okCode || !okClaimed || !okCitation || profile.Str != portableProfile || !digest(claimed.Str) || citation.Kind != wire.KindObject && citation.Kind != wire.KindNull {
 		return portableReading{}, false
 	}
-	// The stage and code are pinned verbatim, so they must be closed tokens:
-	// anything else is not a readable result (TCB-V0-040).
-	if !closedToken(stage.Str) || code.Kind != wire.KindNull && (code.Kind != wire.KindString || !closedToken(code.Str)) {
+	// The stage and code are pinned verbatim, so they must be members of the
+	// contract's closed sets: anything else is not a readable result
+	// (TCB-V0-040).
+	if !portableStages[stage.Str] || code.Kind != wire.KindNull && (code.Kind != wire.KindString || !portableCodes[code.Str]) {
 		return portableReading{}, false
 	}
 	result := &wire.Object{Values: map[string]wire.Value{}}

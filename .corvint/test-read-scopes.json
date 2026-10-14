@@ -316,7 +316,8 @@
     ],
     "internal/stepnegation": [],
     "internal/taskman": [
-      "internal/tasks/ticket/testdata/issue502-escalation-hold-cases.json"
+      "internal/tasks/ticket/testdata/issue502-escalation-hold-cases.json",
+      "protocol/cem-1.0/stable/RESULT.schema.json"
     ],
     "internal/tasks/archive": [],
     "internal/tasks/authority": [

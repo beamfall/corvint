@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-01
-Intent status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358)
+Intent status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358); TCB-V0-040..044 accepted under it (V1-1377)
 Delivery status: experimental
 Authoritative inputs: decision 0397, `docs/specs/cem-criterion-experiments-v0.md`, native V1-0575;
 for TCB-V0-007..023, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and native V1-1283 and V1-1356.
 
 ## Agent digest
 - Claim: Native Tasks captures and verifies coherent claim-era criterion bindings; Core consumes only the Tasks wire contract.
-- Status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358)/experimental delivery; owner release intent remains accepted separately.
-- Exists: `internal/tasks/criterionbinding`, compiled CLI read verbs and wire-owned projections; bounded independent repair review passed. Experimental sealed cem/1.0 verdict gate: library `internal/taskman/cem_verdict_gate.go` with a portable cross-check, `corvint cem gate-verdict`, Tasks argv placeholders and a policy entry (TCB-V0-007..019). A merged-forward lane is gated and completed at its seal commit, and an exact touch key naming a directory refuses (TCB-V0-020..023); the portable leg runs on Darwin and Linux amd64/arm64 (TCB-V0-030..031).
+- Status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358); TCB-V0-040..044 accepted under it (V1-1377)/experimental delivery; owner release intent remains accepted separately.
+- Exists: `internal/tasks/criterionbinding`, compiled CLI read verbs and wire-owned projections; bounded independent repair review passed. Experimental sealed cem/1.0 verdict gate: library `internal/taskman/cem_verdict_gate.go` with a portable cross-check, `corvint cem gate-verdict`, Tasks argv placeholders and a policy entry (TCB-V0-007..019). A merged-forward lane is gated and completed at its seal commit, and an exact touch key naming a directory refuses (TCB-V0-020..023); the portable leg runs on Darwin and Linux amd64/arm64 (TCB-V0-030..031); the document pins the consumer's stage and code, an unsupported portable route refuses `portable-route-unsupported` by name, and the consumer resolves the gate's own Git, which fixed the hosted macos-15 gate tests (TCB-V0-040..044).
 - Blocked on: full CEM1.0 live receipt/source join, integration and release qualification; installing the gate's two executables and registering its policy entry in the live store.
 - Read next: Requirements; Acceptance and rollback; Sealed cem/1.0 verdict gate; Merged-forward lanes.
 
@@ -327,3 +327,88 @@ wire contract, policy entry or gate digest changes.
 | --- | --- | --- |
 | TCB-V0-030 | `cmd/corvint/cem_gate_verdict_test.go` `TestTCBV0016GateVerdictRunsBothConsumers` | darwin/arm64 and linux/arm64 (go1.27.2, uid 1000, `-race`): native and portable `verdictSha256` both `14ac383d61741ab12c6a422d086701302b230295ff97babcb443aead1cb40476`, portable `ACCEPT`; linux/amd64 is the CI `go-product-shard` run |
 | TCB-V0-031 | `interop/cem01-go/stable_process_other.go`; `TestTCBV0017PortableConsumerMustRecomputeTheSameVerdict` | Other hosts refuse before admission (cross-`go vet` for linux/386, linux/riscv64, windows/amd64, freebsd/amd64); a differing portable outcome refuses `verifier-disagreement` |
+
+## Portable leg Git resolution and unsupported-route refusal (V1-1377, 2026-10-14)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-1377.
+Release-gates nightly run 38559681509 (job 115837380242, hosted `macos-15`) failed the TCB-V0-010..013,
+016, 017 and 018 tests with `CEM_VERDICT_VERIFIER_DISAGREEMENT`: the native leg accepted and the portable
+leg answered `UNSUPPORTED`, and the gate document said nothing more. The retained diagnostic output of
+the V1-1377 dispatch (run 38650914390, same job matrix, commit 22fca01e6) names the cause: under the
+consumer's fixed `PATH=/usr/bin:/bin` the hosted runner resolves Apple Git 2.39.5, which rejects the
+`--attr-source` option (Git 2.41 or later) that the stable repository diff passes, so the consumer
+answers `UNSUPPORTED` at stage `repository` with `git-diff-failed` (`docs/specs/cem-stable-v1.md`
+`CEM-V1-240`), while the gate's own reads and the native verifier resolve the runner's newer Git
+through the gate process's PATH. The two legs were running two different Gits. This section pins
+the consumer's stage and code in the document, refuses an unsupported portable route by name, and
+makes both legs resolve one Git. It supersedes the sentence above that the portable consumer "runs
+with `PATH=/usr/bin:/bin` whatever the gate's environment", and the TCB-V0-031 clause that an
+unsupported portable route keeps refusing `CEM_VERDICT_VERIFIER_DISAGREEMENT`: the gate still
+refuses, and still never substitutes a consumer, but the refusal names the unsupported route.
+
+- `TCB-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The gate
+  document's `portable` pin MUST carry the consumer's `stage` and `code` exactly as the
+  `cem-stable-verification/1` result states them: `stage` a member of the closed `stage`
+  enumeration and `code` either `null` or a member of the closed `code` enumeration of
+  `protocol/cem-1.0/stable/RESULT.schema.json`, which the gate holds as two sets that a test pins
+  to the schema. A result whose `stage` or `code` is anything else is unreadable and refuses
+  `CEM_VERDICT_UNVERIFIABLE` / `portable-consumer-failed` with no portable pin, as any other
+  unreadable result does. An agreeing `ACCEPT` pins `stage` `complete` and `code` `null`. No host
+  path, version string or free text enters the document.
+- `TCB-V0-041`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1377) When the
+  portable outcome is `UNSUPPORTED` and the native outcome is not, the gate MUST refuse
+  `CEM_VERDICT_UNVERIFIABLE` / `portable-route-unsupported` with the native verdict and the
+  portable `stage` and `code` pinned, a `null` citation and no governed hunks or paths. It MUST
+  NOT grant, and `CEM_VERDICT_VERIFIER_DISAGREEMENT` remains the refusal for every other
+  outcome, digest or citation mismatch, including both legs answering `UNSUPPORTED` with
+  different digests. The named refusal MUST pin only a result whose `verdictSha256` claim is the
+  digest recomputed from its own bytes; an `UNSUPPORTED` whose claim its result does not
+  recompute to is a disagreement under TCB-V0-017, so the document never carries a false claim
+  under the route's name. The consumer's exit status still has to be one its outcome explains
+  under TCB-V0-017 (non-zero for `UNSUPPORTED`); a `0` under `UNSUPPORTED` is
+  `portable-consumer-failed`.
+- `TCB-V0-042`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1377) A test
+  MUST run the real `interop/cem01-go` through a wrapper that fixes `PATH=/usr/bin:/bin` and
+  assert that the gate's answer is the one that path's Git explains: a bounded probe of
+  `git --version` and of `--attr-source` under that same PATH decides between `GRANT` with an
+  agreeing portable `ACCEPT` and `CEM_VERDICT_UNVERIFIABLE` / `portable-route-unsupported` with
+  portable `repository` / `git-diff-failed`. The TCB-V0-016 test MUST retain that probe's output
+  in its failure message, so a hosted failure names its cause rather than a disagreement.
+- `TCB-V0-043`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The
+  portable consumer MUST run with `PATH` set to the directory of the `git` the gate process
+  itself resolves, followed by `/usr/bin:/bin`, so that both legs of the cross-check run one Git.
+  When the gate resolves no `git`, resolves a relative path, or resolves one already under
+  `/usr/bin` or `/bin`, the consumer's PATH is `/usr/bin:/bin` alone. The resolved directory is
+  an operator fact that never enters the document. Native reads (`runRead`) keep the fixed PATH.
+- `TCB-V0-044`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The hosted
+  GitHub `macos-15` runner is a qualified host for the gate's portable leg under TCB-V0-030, and
+  the TCB-V0-010..018 and TCB-V0-040..043 tests MUST pass there without a skip, a stand-in
+  consumer or a relaxed refusal. The evidence is a retained `release-gates.yml` dispatch at the
+  delivered commit (see the traceability table), with the preceding dispatch that retained the
+  diagnostic cause.
+
+Non-goals: no change to the consumer's closed stage and code set or to `protocol/cem-1.0`; no
+`git --version` probe in the gate or the consumer (a version is not a capability proof, the
+diff's own failure is); no process-containment change, which V1-1358 qualified and which is not
+the cause; no search for Git beyond the gate's own resolution and the fixed path.
+
+Failure modes: a host whose only Git lacks `--attr-source` on both legs refuses through the
+native leg's `git-diff-failed` or, if the native leg accepts for any other reason while the
+portable leg cannot, `portable-route-unsupported`; a gate started with no `git` on its PATH
+refuses as before; a consumer that mis-states its stage or code as anything but a closed token is
+unreadable. Nothing in this section turns a refusal into a grant.
+
+Rollback: revert the V1-1377 commits. The document's `portable` pin loses `stage` and `code`,
+an unsupported portable route refuses `verifier-disagreement` again, and the consumer runs under
+the fixed PATH, which fails the hosted `macos-15` gate tests again. No Tasks schema, wire
+contract, policy entry or gate digest changes.
+
+### Portable leg Git resolution traceability
+
+| Requirement | Source and focused tests | Observed result / limit |
+| --- | --- | --- |
+| TCB-V0-040 | `internal/taskman/cem_verdict_gate.go` `cemPortablePin`, `readPortable`, `portableStages`, `portableCodes`; `TestTCBV0017PortableConsumerMustRecomputeTheSameVerdict`, `TestTCBV0040PortableUnsupportedRefusesNamingTheRoute`, `TestTCBV0040PortablePinSetsMatchTheResultSchema` | Agreement pins `complete` / `null`; an open, unknown, empty, numeric or missing `code` or `stage` is `portable-consumer-failed` with no pin; the two sets equal the schema's enumerations |
+| TCB-V0-041 | `internal/taskman/cem_verdict_gate.go` `crossCheck`; `TestTCBV0040PortableUnsupportedRefusesNamingTheRoute`, `TestTCBV0016GateVerdictRunsBothConsumers` (patched `UNSUPPORTED` case) | A consumer whose PATH resolves a git shim that rejects `--attr-source` refuses `portable-route-unsupported` with `repository` / `git-diff-failed` and its own recomputed digest pinned; exit 0 refuses `portable-consumer-failed`; an `UNSUPPORTED` carrying the native digest as its claim refuses `verifier-disagreement`; the CLI prints the same document |
+| TCB-V0-042 | `cmd/corvint/cem_gate_verdict_test.go` `TestTCBV0042PortableConsumerUnderBareHostPath`, `bareHostGitDiagnostic` | darwin/arm64 (Apple Git 2.54.0 at `/usr/bin/git`, `--attr-source` accepted): `GRANT`, portable `ACCEPT`; hosted `macos-15` run 38650914390 (Apple Git 2.39.5, `--attr-source` rejected): `portable-route-unsupported`, `repository` / `git-diff-failed` |
+| TCB-V0-043 | `internal/taskman/process_unix.go` `portablePath`; `TestTCBV0043PortableConsumerResolvesTheGateGit` | A shim `git` directory on the gate's PATH is what the consumer resolves first; no, relative, `/usr/bin` or `/bin` resolution keeps `/usr/bin:/bin` |
+| TCB-V0-044 | `release-gates.yml` dispatches 38650914390 (cause, commit 22fca01e6) and RUN2_ID (fix, commit RUN2_SHA) | RUN2_RESULT |
