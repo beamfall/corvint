@@ -5976,6 +5976,59 @@ Rollback: revert the CPU column and parsers in `internal/tasks/dispatch/process_
 baseline and the observe-then-stop split of `supervise` in `internal/tasks/dispatch/loop.go`, the tests and this amendment. No ledger, receipt or
 store state depends on the baseline.
 
+### V1-1352 lease writes settle a held pending receipt (issue 860)
+
+Status: accepted under the owner's standing auto-accept (2026-10-11) (V1-1352); implemented with
+focused tests and one independent review round. Human-owned input: GitHub issue 860
+and native ticket V1-1352. A writer killed after linking its receipt in and before renaming
+`head.json` (§5.2 crash point C2) leaves that receipt `REDO_PENDING`. Every lease command (claim,
+renew, `attempt heartbeat`, release, submit, `gate run`, complete, the pool verbs, reap, widen and
+health) probed the store once before writing, only to learn the queue, and returned the probe's
+error verbatim. So each of them refused the same retryable `REDO_PENDING` and never reached the
+lease writer, which settles a validated pending receipt under the store lock (`redoLeaseProof`).
+While no ticket mutation ran, five heartbeats about 360 seconds apart were all refused, and a
+caller fenced a healthy 36-minute command.
+
+- `CAL-V0-222`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1352) A lease command MUST NOT refuse a `REDO_PENDING` probe whose
+  head is readable: the probe only names the queue. The lease writer MUST then audit the receipt
+  chain and, when the audit reports a pending receipt, settle it under the store lock by the §5.2
+  redo (publish its posts, then rename `head.json`) before it models and commits the request.
+  `attempt heartbeat` MUST report the redo with the existing completed-redo warning; other lease
+  commands settle it the same way but need not carry the warning. A pending receipt the audit
+  does not validate as a redo MUST be refused with the audit's own error, unchanged. A writer
+  still holding the lock delays the lease
+  command only within `--lock-wait`, unchanged. Reads keep their bounded `REDO_PENDING` patience
+  and never settle a receipt.
+- `CAL-V0-223`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1352) Caller contract for a refused heartbeat. A heartbeat refused
+  for any reason MUST record no heartbeat signal (a fenced heartbeat records only its refusal,
+  TM-V0-011): it does not move `lastHeartbeatAt`, the work lease or the attempt generation, and
+  `holderStatus` stays derived from the last recorded heartbeat against
+  `holderLiveness.heartbeatTTLSeconds`. The verbose help of `attempt heartbeat` MUST state that a
+  pending receipt does not refuse it, that a refused heartbeat records no heartbeat signal and
+  extends no liveness, and that the caller retries the same request ID before the TTL elapses.
+
+Non-goals: changing the other writers whose pre-write probe still refuses `REDO_PENDING` (barrier,
+policy, import, cutover, escalation and the initial probe of `attempt run`); settling a pending
+receipt on read; changing read patience, the heartbeat TTL, the lease or the receipt format.
+
+Failure modes: a writer that is alive and still holds the lock is not preempted; the lease writer
+waits for the lock, sees the head move and retries its bounded rounds, and a lock held past
+`--lock-wait` is `LOCK_TIMEOUT` as before. A pending receipt at a forked or invalid position keeps
+the audit's refusal (for example `JOURNAL_FORKED`). Lease writes need the intent branch; a lease
+command run off it is refused as before, and the pending receipt stays until a writer on the
+branch settles it.
+
+Acceptance evidence: `TestCALV0222_HeartbeatSettlesHeldPendingReceipt` (three rounds: a heartbeat
+or renew receipt, with `head.json` and its attempt post rewound, held pending across two reads is
+settled by the next heartbeat, which commits its own signal; with the store lock held the heartbeat
+refuses `LOCK_TIMEOUT` and changes nothing; a fenced heartbeat leaves `lastHeartbeatAt` unchanged)
+and `TestCALV0223_HeartbeatHelpNamesRedoAndLiveness` (`internal/tasks/cli`);
+`docs/build-log/2026-10-13-gh-860-heartbeat-redo-pending.md`.
+
+Rollback: revert the probe condition in `internal/tasks/cli/lease.go`, the `attempt heartbeat`
+note in `internal/tasks/cli/command_help.go`, the tests and this amendment. No store, receipt or
+wire format depends on the change.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -6424,6 +6477,8 @@ and removes the new configuration members.
 | CAL-V0-219 | `TestCALV0219_ChangeGuardBoundedDescriptors`, `TestCALV0219_ChangeGuardManyDirectoriesAdmitted`, `TestCALV0219_ChangeGuardBudgetIsProcessWide` (`internal/tasks/authority`) |
 | CAL-V0-220 | `TestCALV0220_NativeDescriptorBound`, `TestCALV0220_RevisitedParentReusesPin` (`internal/tasks/journal`) |
 | CAL-V0-221 | `TestCALV0221_CompleteRouteBoundedDescriptors` (`internal/tasks/store`); `docs/build-log/2026-10-10-v1-0906-bounded-fds.md` |
+| CAL-V0-222 | `TestCALV0222_HeartbeatSettlesHeldPendingReceipt` (`internal/tasks/cli`); `docs/build-log/2026-10-13-gh-860-heartbeat-redo-pending.md` |
+| CAL-V0-223 | `TestCALV0223_HeartbeatHelpNamesRedoAndLiveness` (`internal/tasks/cli`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance
