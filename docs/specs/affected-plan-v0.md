@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361)
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371)
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,7 +11,7 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361)/experimental
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371)/experimental
 - Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile, and AFP-V0-041 (accepted, decision 0488) lets the full run split an owner-allowed package into test slices across those shards, and AFP-V0-048 makes the sharded PR driver run each slice on the shard the same helper assigns; AFP-V0-023 lets a project-owned `.corvint/test-read-scopes.json` take a root-locating package off the rule (d) floor, enforced in full CI by the Landlock wrapper `.github/testconfine`.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; for queue-backed narrowing, AFP-V0-028/029 shadow admission, reviewed tool pins and hosted observation of the V1-0760 queue-run reuse (AFP-V0-024; hosted enablement `NOT_OBSERVED`); the optional historical profile still requires genuine 200-row qualification and matching reviewed pins (AFP-V0-014/017), and its 201-commit prerequisite is met at `adf8358220769b8d6724ad27d27625602b8a7c62`, but no campaign PASS is implied.
 - Read next: Requirements; Non-goals and authority; Failure modes.
@@ -602,6 +602,8 @@ and container qualification; full fallback remains available.
   interrupts the group, kills every member still alive ten seconds later, and returns only once
   the group is empty, so no descendant outlives the command. CI never
   enumerates, and never consults the tested test binary for placement.
+  AFP-V0-049 combines a split package's per-slice outcomes in `generate` and `replay` and
+  supersedes the limit below that they read only whole runs.
   (6) The slice code, allow-list and slice file SHALL be part of the protected helper. That helper
   is built independently of tested module directives, and its profile digest (domain
   `corvint-ci-partition/2`) covers them, and so does the AFP-V0-014 frozen identity. The
@@ -1286,6 +1288,40 @@ and container qualification; full fallback remains available.
   count, or a top-level test of a selected split package with zero or two terminal outcomes over
   the shards. Rollback: revert the change, which restores the AFP-V0-041 (6) refusal.
 
+- **AFP-V0-049:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1371)
+  `tools/ci-test-slices generate` and `replay` SHALL combine the per-slice terminal outcomes of a
+  split package as AFP-V0-041 (8) does for `tools/ci-shard-costs refresh`, so a complete, passing
+  sliced run can regenerate the slice file and be replayed. The split set SHALL be the one the
+  tested tree ran with: `generate` reads the allow-list and slice file of the `--revision`
+  checkout and `replay` those of `--root`, through the same `SplitPackages` call over the
+  packages the logs name and the declared `--shards N`; `replay --slices` chooses only the
+  placement it predicts.
+  (1) A package the files split into K slices SHALL have exactly K terminal outcomes across the
+  logs. Its time is the sum of those outcomes and its top-level test times the union of theirs.
+  (2) Each outcome SHALL be attributed to one slice by its top-level tests: every top-level test
+  of the outcome SHALL belong to the slice that admits the first of them in byte order (the
+  catch-all admits every name that no named slice names), and no slice SHALL be attributed twice.
+  An outcome without top-level tests, such as a named slice whose tests the run no longer has,
+  counts toward K without a name.
+  (3) Every other AFP-V0-041 (5) refusal SHALL be kept, with exit 2 and no write: a repeated
+  outcome of a package the files do not split, including every package when the allow-list or
+  slice file is absent or unusable ("package P has two terminal outcomes"); a top-level test
+  with two terminal outcomes across the run; a test outside the slice its log ran; a slice
+  attributed twice; any count other than K, so a run made before the split or a run missing a
+  slice refuses ("N terminal outcomes for its K test slices"); and an allowed package that the
+  slice file splits into more slices than N.
+  (4) `replay` SHALL state that its sliced plan places every package of the run exactly once,
+  whole or as each of its slices ("units U placed exactly once"), and SHALL refuse a plan that
+  drops, repeats or adds a unit.
+  Non-goals: attributing subtests; changing which packages split; cost-table changes.
+  Limits: an outcome without top-level tests is attributed by count only, so which named slice it
+  was is not checked; the per-log lifecycle rule of AFP-V0-041 (5) is unchanged, so two slices of
+  one package in one shard log still refuse; the exactly-once line checks the helper's plan, not
+  the hosted run. Falsifier: an accepted run in which a top-level test has two terminal outcomes,
+  a slice runs twice, or a package the files do not split ends twice. Rollback: revert `combine`
+  and `placedOnce` in `tools/ci-test-slices/main.go`; `generate` and `replay` then refuse a sliced
+  run as before, and the committed slice file stays valid.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -1337,7 +1373,9 @@ than the declared shards, refuses the cost refresh and makes the drift report ab
 (AFP-V0-041 (8)). Shard logs that are not one per declared shard, or a shard log without any
 terminal package outcome, refuse slice generation and replay (AFP-V0-041 (5)). The sharded PR
 driver refuses, before execution, a placement that does not put every package or slice of the
-runtime universe on exactly one shard (AFP-V0-048).
+runtime universe on exactly one shard (AFP-V0-048). Slice generation and replay combine a split
+package's per-slice outcomes; any other repeated outcome, a test outside the slice its log ran,
+or a slice that ends twice still refuses (AFP-V0-049).
 
 Queue-backstopped PR narrowing failure modes (decision 0431): absent queue rule or unreadable
 rules API, an allowlist miss or a new frontier force FULL; missing selection at queue time
@@ -1400,6 +1438,7 @@ miss disable narrowing as AFP-V0-030 requires. Hosted auto-merge command compati
 | AFP-V0-046 | `admits` and `Decide` in `tools/ci-reuse-plan/main.go` (`--event merge_group`); the `reuse` step, its first-parent tool build and the record-step condition in `.github/workflows/ci.yml` | `TestAFPV0046QueueDecisionAdmitsOnlyThePullRequestRun`, `TestAFPV0046WorkflowWiresQueueReuse`, `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`; `actionlint`; local replay against the live API in `docs/build-log/2026-10-13-ci-identical-tree-reuse.md`; hosted REUSE queue run `NOT_OBSERVED` |
 | AFP-V0-047 | `CORVINT_TEST_SHADOW_SOURCE`, the shadow checkout and build, the selection document and the outcomes, rerun and upload steps in `.github/workflows/ci.yml`; the `forward-rows` job in `.github/workflows/ci-control-plane.yml`; `.github/forward-rows/` (`selection.jq`, `outcomes.sh`, `outcomes.jq`, `collect.sh`, `classify.sh`, `row.jq`, `bar.sh`, `bar.jq`) | `TestAFPV0047ShardOutcomes` (real flaky PR run 38476173623 shard 7 stream and its rerun; bound of 8), `TestAFPV0047SelectionDocument`, `TestAFPV0047CollectorNamesRows`, `TestAFPV0047BarCountsArtifactNames`, `TestAFPV0047WorkflowBindings`, `TestAFPV0029ForwardRowsAndShadowBar`, `TestSTRV0012CIConstantsMatchFullBranch`; `actionlint`; `make ci-least-privilege-check`; read-only replay against hosted runs in `docs/build-log/2026-10-13-ci-forward-rows.md`; hosted rows `NOT_OBSERVED` |
 | AFP-V0-048 | `planShards`, `shardLayout`, `shardUnits`, `sliceRun` and the slice loop of `execute` in `tools/corvint-pr-tests/main.go` | `TestAFPV0048DriverPlacesTheFullBranchUnits` (2 to 8 shards: each shard equals `PlanFrom`, every package or slice exactly once, narrowed selections with a split package), `TestAFPV0048ZeroSlicesKeepTheIntersect`, `TestAFPV0048MismatchedSliceFileMatchesTheFullBranch`, `TestAFPV0048CommittedSlicesArePlacedOnce`, `TestAFPV0048DriverRefusesAmbiguousPlacement`, `TestAFPV0048ShardedRunExecutesSlices` (real `go test`: FULL, narrowed and stale-name runs, each test once over the shards; a lost slice refuses with no execution record), `TestShardedPRExecution_AFPV0022`; a mutation check that drops the slice placement, in `docs/build-log/2026-10-14-v1-1361-driver-runs-slices.md`; hosted sharded driver run `NOT_OBSERVED` until V1-0812 sets the pin |
+| AFP-V0-049 | `observation.ends`, `combine` and `placedOnce` in `tools/ci-test-slices/main.go`; `generate` and `replay` read the tested tree's allow-list and slice file; `.github/cishards/test-slices.json` regenerated from hosted run 38485555207 (go1.27.2) | `TestAFPV0049ReplayCombinesSlicedRuns`, `TestAFPV0049GenerateRegeneratesFromASlicedRun`, `TestAFPV0049RefusesEveryOtherRepeat`, `TestAFPV0049ReplayRefusesAPlanThatMisplacesAUnit` in `tools/ci-test-slices/combine_test.go`; mutation check and before/after replay in build log 2026-10-14-v1-1371-slices-split-outcomes |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

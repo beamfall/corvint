@@ -2,17 +2,17 @@
 
 Owner: Russell Lewis
 Date: 2026-10-01
-Intent status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358)
+Intent status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358); TCB-V0-035..039 accepted under it (V1-1359)
 Delivery status: experimental
 Authoritative inputs: decision 0397, `docs/specs/cem-criterion-experiments-v0.md`, native V1-0575;
 for TCB-V0-007..023, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and native V1-1283 and V1-1356.
 
 ## Agent digest
 - Claim: Native Tasks captures and verifies coherent claim-era criterion bindings; Core consumes only the Tasks wire contract.
-- Status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358)/experimental delivery; owner release intent remains accepted separately.
-- Exists: `internal/tasks/criterionbinding`, compiled CLI read verbs and wire-owned projections; bounded independent repair review passed. Experimental sealed cem/1.0 verdict gate: library `internal/taskman/cem_verdict_gate.go` with a portable cross-check, `corvint cem gate-verdict`, Tasks argv placeholders and a policy entry (TCB-V0-007..019). A merged-forward lane is gated and completed at its seal commit, and an exact touch key naming a directory refuses (TCB-V0-020..023); the portable leg runs on Darwin and Linux amd64/arm64 (TCB-V0-030..031).
-- Blocked on: full CEM1.0 live receipt/source join, integration and release qualification; installing the gate's two executables and registering its policy entry in the live store.
-- Read next: Requirements; Acceptance and rollback; Sealed cem/1.0 verdict gate; Merged-forward lanes.
+- Status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358); TCB-V0-035..039 accepted under it (V1-1359)/experimental delivery; owner release intent remains accepted separately.
+- Exists: `internal/tasks/criterionbinding`, compiled CLI read verbs and wire-owned projections; bounded independent repair review passed. Experimental sealed cem/1.0 verdict gate: library `internal/taskman/cem_verdict_gate.go` with a portable cross-check, `corvint cem gate-verdict`, Tasks argv placeholders and a policy entry (TCB-V0-007..019). A merged-forward lane is gated and completed at its seal commit, and an exact touch key naming a directory refuses (TCB-V0-020..023); the portable leg runs on Darwin and Linux amd64/arm64 (TCB-V0-030..031). An optional `effects.verdictPaths`, a subset of `touchPaths`, is the gate's predicate domain through `{claim.verdictPaths}` in repository policy v10, falling back to `touchPaths` (TCB-V0-035..039).
+- Blocked on: full CEM1.0 live receipt/source join, integration and release qualification; installing the gate's two executables and registering its policy entry in the live store; installing a `corvint-tasks` with TCB-V0-037 before the store adopts policy v10.
+- Read next: Requirements; Acceptance and rollback; Sealed cem/1.0 verdict gate; Merged-forward lanes; Verdict predicate domain.
 
 ## Requirements
 
@@ -139,7 +139,8 @@ import-direction test MUST pass. Rollback removes optional verbs/adapter and pre
 existing Tasks schemas/policy and frozen CEM bytes do not change. TCB-V0-001..023 have experimental
 implementation and scoped acceptance evidence below. TCB-V0-015..023 are accepted under the owner's
 standing auto-accept; the rest of this proposed technical contract is not thereby accepted or
-promoted. No stable release or execution cutover is implied.
+promoted. No stable release or execution cutover is implied. TCB-V0-035..039 (Verdict predicate domain)
+have the same experimental status and are accepted under the same standing auto-accept (V1-1359).
 
 Capture includes canonical claim-era ticket bytes whose digest equals the attempt claim record, and compares the ordered criteria with the current ticket at the same acceptance revision. Body-only refinements remain admissible. Attempt phase and lease sequence numbers may not exceed the retained snapshot head. Historical audit provides bounded structural journal coherence; semantic authority and authentication remain NOT_OBSERVED. Earlier proposed captures without claim-era bytes remain unsupported by this verifier rather than being silently upgraded.
 
@@ -327,3 +328,89 @@ wire contract, policy entry or gate digest changes.
 | --- | --- | --- |
 | TCB-V0-030 | `cmd/corvint/cem_gate_verdict_test.go` `TestTCBV0016GateVerdictRunsBothConsumers` | darwin/arm64 and linux/arm64 (go1.27.2, uid 1000, `-race`): native and portable `verdictSha256` both `14ac383d61741ab12c6a422d086701302b230295ff97babcb443aead1cb40476`, portable `ACCEPT`; linux/amd64 is the CI `go-product-shard` run |
 | TCB-V0-031 | `interop/cem01-go/stable_process_other.go`; `TestTCBV0017PortableConsumerMustRecomputeTheSameVerdict` | Other hosts refuse before admission (cross-`go vet` for linux/386, linux/riscv64, windows/amd64, freebsd/amd64); a differing portable outcome refuses `verifier-disagreement` |
+
+## Verdict predicate domain
+
+Decision (V1-1359). The `cem-verdict` gate's predicate domain is a distinct, closed input from the claim
+scope. Under policy v9 `touched-anchored` governed `{claim.touchPaths}`, the ticket's `effects.touchPaths`,
+which is also the Tasks resource reservation. One field had two consumers and the narrower one won: an
+ordinary cited hunk never reaches `anchored`, so a ticket that declared its real write set could not pass,
+and V1-1348 had to declare only its generated spec projections and widen after the claim. A ticket now
+declares its full write set as `touchPaths` and, optionally, the narrower governed list as
+`effects.verdictPaths`, which the gate receives through the new `{claim.verdictPaths}` placeholder.
+Absent, the placeholder falls back to `touchPaths`, so every existing ticket, record byte and completion
+keeps its meaning. The detailed evidence is in `docs/build-log/2026-10-14-v1-1359-verdict-domain.md`.
+
+Rejected alternatives: a per-gate path list in the policy (the domain is a property of each ticket's
+change, not of the gate, and one policy list would govern every ticket the same way); deriving the
+domain from the CEM's own anchored set (circular: the evidence would choose what it is judged on, so
+every map would pass); and changing `touchPaths` semantics in place (it is the reservation that keeps
+concurrent lanes apart, so narrowing it breaks collision detection and widening it breaks the gate).
+Making `{claim.touchPaths}` prefer `verdictPaths` was also rejected: a placeholder would no longer name
+the fact it carries, and a gate that needs the claim scope could not get it.
+
+- `TCB-V0-035`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1359) A ticket's
+  `effects` MAY carry `verdictPaths`, the verdict predicate domain, in the `touchPaths` shape (a
+  sorted, duplicate-free set of at most 256 repository Paths). `touchPaths` stays the claim scope and
+  reservation, unchanged. A record or payload that omits the key keeps its earlier bytes; a present key
+  is encoded in canonical key order. The native codec, the mutation payload reader and Core's read-only
+  planner MUST admit exactly the shared lists `TicketEffectsKeys` and `TicketEffectsOptionalKeys`; the
+  planner reserves and plans on `touchPaths` alone.
+- `TCB-V0-036`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1359) A present
+  `verdictPaths` MUST be nonempty, and each path MUST be covered by a `touchPaths` key under the CAL-V0-021
+  PATH key rule (equal bytes, or a key ending in `/` that prefixes it). CREATE and SET_EFFECTS refuse an
+  empty list `MALFORMED` (`VERDICT_PATHS_EMPTY`) and an uncovered path `OUT_OF_SCOPE`
+  (`VERDICT_PATH_OUTSIDE_TOUCH_PATHS`) and write nothing; both ticket readers refuse such a record.
+  SET_EFFECTS replaces the whole `effects` object, so omitting the key restores the fallback. An exact
+  verdict key that names a directory draws the CAL-V0-211 warning a touch key draws.
+- `TCB-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1359) A fourth closed
+  argv placeholder, `{claim.verdictPaths}`, MUST be replaced with the claim-era ticket's
+  `effects.verdictPaths` as one canonical JSON string array, or its `effects.touchPaths` when it declares
+  none, under the TCB-V0-015 rules: whole entries only, `STALE_TICKET` for a ticket changed since the
+  claim, `UNSUPPORTED` for a multi-repository candidate, and the substituted argv joins the inputs
+  digest. `{claim.touchPaths}` keeps its meaning.
+- `TCB-V0-038`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1359) Given the
+  substituted verdict domain, `touched-anchored` MUST govern only the hunks under it: a ticket whose
+  `touchPaths` hold its full write set and whose `verdictPaths` hold the anchored subset is GRANTed,
+  while the same change judged on the write set alone keeps the earlier `tier-below-anchored` refusal.
+- `TCB-V0-039`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1359) The repository
+  policy `.taskman/policy.json` version 10 MUST register `cem-verdict` with `--touch-paths
+  {claim.verdictPaths}` and is otherwise the TCB-V0-019 entry of version 9. A store MUST adopt version 10
+  only after its installed `corvint-tasks` contains TCB-V0-037. An older runner passes the placeholder
+  literally, which `corvint cem gate-verdict` refuses as an unreadable argv (exit 2), so the gate fails
+  closed rather than governing another domain.
+
+Empty list. An empty `verdictPaths` is refused rather than read as absent: `touched-anchored` over no
+key is invalid gate input (TCB-V0-007), and one meaning with two encodings would break the canonical
+record. A ticket that wants the fallback omits the key.
+
+Directory keys. `verdictPaths` reuse the rule `touchPaths` use at BASE (`ticket.PathCovers`, now
+`wire.PathKeyCovers`, shared by both readers). V1-1356 (TCB-V0-020..023, PR #874) makes the gate refuse
+an exact touch key that names a directory. Verdict paths reach the gate as its `--touch-paths`
+argument, so that refusal applies to them unchanged; at create time the store can only warn
+(CAL-V0-211), because no tree is bound to a ticket.
+
+Non-goals: no new wire code, no change to claim, reservation, collision or scope checks, no Core-side
+choice between the two lists (the Tasks runner substitutes one array), and no re-run of a completed
+ticket. V1-1348 declared no `verdictPaths`, so its completion keeps the fallback meaning.
+
+| Failure | Refusal |
+| --- | --- |
+| Empty `verdictPaths` in a payload or record | `MALFORMED`, `VERDICT_PATHS_EMPTY` |
+| A verdict path no touch key covers | `OUT_OF_SCOPE`, `VERDICT_PATH_OUTSIDE_TOUCH_PATHS` |
+| Null, unsorted, duplicate or invalid paths, or an unknown `effects` member | `MALFORMED` |
+| Ticket edited since the claim when the placeholder is substituted | `STALE_TICKET`, before the gate runs |
+| Policy version 10 run by a runner without TCB-V0-037 | gate exit 2, `cem-gate-verdict-invalid-arguments`; the gate fails |
+
+| Requirement | Source and focused tests | Observed result / limit |
+| --- | --- | --- |
+| TCB-V0-035 | `internal/tasks/wire/ticketkeys.go`, `internal/tasks/ticket/verdict_paths.go`, `internal/taskman/decode.go`; `TestTCBV0035_RecordVerdictPathsKey`, `TestTCBV0035_ReaderAdmitsVerdictPaths` | A legacy record keeps its bytes; a carrier round-trips byte-identically and deterministically; Core decodes the codec's own fixture with and without the key |
+| TCB-V0-036 | `internal/tasks/mutation/mutation.go`, `internal/tasks/store/directory_keys.go`; `TestTCBV0036_RecordVerdictPathsRefusals`, `TestTCBV0036_ReaderRefusesMalformedVerdictPaths`, `TestTCBV0036_MutationsRefuseUncoveredOrEmptyVerdictPaths`, `TestTCBV0036_VerdictPathKeysWarnLikeTouchPaths` | Both readers refuse empty, uncovered (beneath an exact key, or a prefix without `/`), null and unsorted lists, and Core also duplicate and over-bound ones; CREATE refuses uncovered, empty, unsorted and duplicate lists and SET_EFFECTS uncovered and empty ones, each with no store change; SET_EFFECTS without the key drops it |
+| TCB-V0-037 | `internal/tasks/store/lease_gate.go`; `TestTCBV0037_VerdictPathsPlaceholder` | Declared: `["src/"]` beside `{claim.touchPaths}` `["lib/","src/"]`; absent: both substitute `["lib/","src/"]`; an edited ticket refuses `STALE_TICKET` |
+| TCB-V0-038 | `TestTCBV0038_VerdictDomainNarrowsTheGovernedSet` | On the dogfood-shaped fixture the write set refuses `tier-below-anchored` over two hunks and the verdict domain grants over the anchored hunk. Composed proof: the import boundary keeps the Tasks runner and the Core gate in separate tests joined by the same argv bytes |
+| TCB-V0-039 | `.taskman/policy.json` | Version 10 decodes with the Tasks policy decoder; `TestTCBV0016GateVerdictArgvIsClosed` ("touch not json") covers the literal placeholder's exit 2 |
+
+Rollback: restore `.taskman/policy.json` version 9 (a store that adopted version 10 takes a version 11
+with `{claim.touchPaths}`), then delete the `{claim.verdictPaths}` substitution, `verdict_paths.go`, the
+optional effects key lists and the Core admission, and these tests. A record that carries
+`verdictPaths` must first drop it by SET_EFFECTS, because a reader without the key refuses it.

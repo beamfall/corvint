@@ -1,6 +1,6 @@
 {
   "profile": "cem-stable-operation-proposal/1",
-  "status": "PROPOSED_EXPERIMENTAL_NOT_IMPLEMENTED",
+  "status": "IMPLEMENTED_CONTRACT_PROPOSED_NOT_PROMOTED",
   "command": "IMPLEMENTATION verify-stable --repository ABS_DIR --map ABS_FILE --expected-base FULL_OID --target FULL_OID --artifacts ABS_DIR",
   "nativeCLIProposal": "corvint cem verify-stable with the same five options; a future exact cem/1.0 read dispatcher may call this path only when explicit artifact-root context is supplied. Existing cem verify defaults remain unchanged in the first slice.",
   "argvPolicy": "Exactly five distinct named options, each once in any order; no positional fallback, stdin, patch override, implicit artifacts root or authority flags. Duplicate or unknown flag is invalid-arguments before reads. Missing expected-base/target/artifacts discovered after wire/reference checks, in that order.",
@@ -25,9 +25,11 @@
     "hunks",
     "references",
     "artifactChecks",
+    "citation",
     "axes",
     "runtime",
-    "repositoryEnvelope"
+    "repositoryEnvelope",
+    "verdictSha256"
   ],
   "stages": [
     {
@@ -90,7 +92,7 @@
         "unsupported-process-containment"
       ],
       "exit": 2,
-      "rule": "No structural runtime is qualified by this proposed contract. Prototype may expose exact go1.27.1 with EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS under recorded opt-in development scope only. Stable release admission needs pinned corpus/toolchain evidence. Unsupported tuple is explicit; no weakened proof fallback."
+      "rule": "No structural runtime is qualified for stable release by this proposed contract. The verifiers admit exactly go1.27.1 (prototype tuple) and go1.27.2 (decision 0522, sealed structural-tuples/go1.27.2 packet) and report both as EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS. Stable release admission needs pinned corpus/toolchain evidence. Unsupported tuple is explicit; no weakened proof fallback."
     },
     {
       "stage": "repository",

@@ -1,5 +1,7 @@
 package wire
 
+import "strings"
+
 // TicketRecordKeys is the closed taskman-ticket/0 record key set (SPEC §3.1),
 // in record order. Corvint Core's read-only planner imports it instead of
 // keeping a copy.
@@ -16,6 +18,43 @@ var TicketRecordKeys = []string{
 // omit. The native codec and Core's read-only planner both admit exactly
 // these, so a new optional key cannot reach one reader and not the other.
 var TicketRecordOptionalKeys = []string{"requiresPool", "requiredRoles", "escalations", "operatorNote", "externalReviews", "executionPrerequisites", "attachedEvidence", "knowHow", "obligations"}
+
+// TicketEffectsKeys is the closed `effects` key set of a taskman-ticket/0
+// record, and TicketEffectsOptionalKeys the members it may omit
+// (TCB-V0-035). Omitting verdictPaths preserves earlier record bytes. The
+// native codec and Core's read-only planner both admit exactly these.
+var (
+	TicketEffectsKeys         = []string{"coverage", "touchPaths", "resources", "externalUnbounded"}
+	TicketEffectsOptionalKeys = []string{"verdictPaths"}
+)
+
+// PathKeyCovers reports whether PATH key scope covers path under CAL-V0-021:
+// equal bytes, or scope is a directory key ending in "/" that prefixes path.
+func PathKeyCovers(scope, path string) bool {
+	if scope == path {
+		return true
+	}
+	return strings.HasSuffix(scope, "/") && strings.HasPrefix(path, scope)
+}
+
+// UncoveredVerdictPath is the index of the first verdict path that no touch
+// path covers under PathKeyCovers, or -1 when every one is covered
+// (TCB-V0-036). Both ticket readers refuse a record with such a path.
+func UncoveredVerdictPath(touchPaths, verdictPaths []string) int {
+	for i, p := range verdictPaths {
+		covered := false
+		for _, t := range touchPaths {
+			if PathKeyCovers(t, p) {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			return i
+		}
+	}
+	return -1
+}
 
 // EscalationMaxCurrentOpen bounds the OPEN questions of a ticket's current
 // acceptance revision (ESC-V0-002). Stale OPEN questions do not count toward

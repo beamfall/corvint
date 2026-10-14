@@ -1,15 +1,15 @@
 {
   "profile": "corvint-ci-test-slices/0",
   "source": {
-    "revision": "3b428343288ff46c34bb5223a0f707592e67413e",
-    "runURL": "https://github.com/beamfall/corvint/actions/runs/38078093034",
-    "goVersion": "go1.27.1"
+    "revision": "5163d1ed4b61084fc32cf79355848899c3e8a5bb",
+    "runURL": "https://github.com/beamfall/corvint/actions/runs/38485555207",
+    "goVersion": "go1.27.2"
   },
   "packages": {
     "github.com/Beamfall/corvint/internal/tasks/store": {
       "named": [
         {
-          "milliseconds": 496425,
+          "milliseconds": 448204,
           "tests": [
             "TestCALV0001_ImportMappedQueueStaysRefused",
             "TestCALV0001_NonFixtureQueueTakesEveryWrite",
@@ -41,6 +41,7 @@
             "TestCALV0017_CompletionRefusals",
             "TestCALV0018_LaterBatchesCheckTheirHeadAndPosts",
             "TestCALV0019KillChild",
+            "TestCALV0019_BarrierRemovesOrphanStage",
             "TestCALV0019_ConcurrentCollidingClaimsAdmitOne",
             "TestCALV0019_FaultAtEveryArtifactIsAllOrNothing",
             "TestCALV0019_FencedGenerationCannotMoveOrComplete",
@@ -54,6 +55,7 @@
             "TestCALV0022_NextDerivesOnlySelectedTicket",
             "TestCALV0023_CollidingClaimsAdmitOne",
             "TestCALV0023_DisjointPathScopesAreBothAdmitted",
+            "TestCALV0024_ExactPathKeyNamesTheDirectoryKeyCause",
             "TestCALV0024_SubmitOutsideTheScopeIsRefused",
             "TestCALV0025_WidenAddsPathsAndRefusesCollision",
             "TestCALV0025_WidenRefusedUnderAdmissionBarrier",
@@ -124,6 +126,8 @@
             "TestCALV0074_NoExecCrashTakeover",
             "TestCALV0074_OpenWorkflowRefusesHostBeforeMutation",
             "TestCALV0074_SpawnedFailureIsNotNoExec",
+            "TestCALV0074_WorkerRecoveryChild",
+            "TestCALV0074_WorkerRecoveryFromStopping",
             "TestCALV0075_ClaudeCodeProgramFakeHost",
             "TestCALV0075_ClaudeStageArgv",
             "TestCALV0076_CheckOpenCodeConfig",
@@ -151,11 +155,16 @@
             "TestCALV0087_DesignatedTargetChecked",
             "TestCALV0087_ExtraWorktreeCleanup",
             "TestCALV0087_GrantMustNameEveryTarget",
-            "TestCALV0087_InterruptedIntegrationLandsOnce"
+            "TestCALV0087_InterruptedIntegrationLandsOnce",
+            "TestCALV0087_UnchangedRepositoryNeedsNoDesignation",
+            "TestCALV0088_ExtraRepositoryContextRequired",
+            "TestCALV0089_CodexContinuationResumesPreservedSession",
+            "TestCALV0089_ContinuationBoundThenOperatorRestart",
+            "TestCALV0089_DrainStopsContinuation"
           ]
         }
       ],
-      "restMilliseconds": 509941
+      "restMilliseconds": 447372
     }
   }
 }
