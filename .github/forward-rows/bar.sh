@@ -3,6 +3,8 @@
 # AFP-V0-047: append the forward-row bar count to the step summary from the
 # repository's newest artifact names (at most BAR_PAGES pages of 100), with gh
 # and jq only. Environment: GH_TOKEN, REPO, FORWARD_EPOCH, GITHUB_STEP_SUMMARY.
+# Only an artifact of a run on `main` of this repository counts: the forward-rows
+# job runs there, while a pull-request or queue run can upload any name it likes.
 set -u
 BAR_PAGES=20
 here=$(cd "$(dirname "$0")" && pwd)
@@ -10,13 +12,17 @@ names="${RUNNER_TEMP:-/tmp}/forward-row-names"
 : > "$names"
 page=1 read=0 limit=""
 while [ "$page" -le "$BAR_PAGES" ]; do
-  # One "EXPIRED NAME" line per artifact, so a page full of expired artifacts still pages on.
-  if ! got=$(gh api "repos/$REPO/actions/artifacts?per_page=100&page=$page" --jq '.artifacts[] | "\(.expired) \(.name)"'); then
+  # One "STATE NAME" line per artifact, so a page of expired or other-branch artifacts still pages on.
+  if ! got=$(gh api "repos/$REPO/actions/artifacts?per_page=100&page=$page" --jq '.artifacts[]
+      | (if .expired then "expired"
+         elif .workflow_run.head_branch == "main" and .workflow_run.repository_id != null
+              and .workflow_run.head_repository_id == .workflow_run.repository_id then "main"
+         else "other" end) + " " + .name'); then
     limit="artifact page $page is unreadable; the count covers the pages before it"
     break
   fi
   read=$page
-  printf '%s\n' "$got" | sed -n 's/^false //p' >> "$names"
+  printf '%s\n' "$got" | sed -n 's/^main //p' >> "$names"
   [ "$(printf '%s\n' "$got" | grep -c .)" -ge 100 ] || break
   page=$((page + 1))
 done

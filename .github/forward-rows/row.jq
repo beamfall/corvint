@@ -9,6 +9,8 @@
 def num: if type == "string" and test("^[0-9]+$") then tonumber else null end;
 def str: if type == "string" and length > 0 then . else null end;
 def shortr: if length > 300 then .[0:300] + "..." else . end;
+def hex40: type == "string" and test("^[0-9a-f]{40}$");
+def digest: type == "string" and test("^sha256:[0-9a-f]{64}$");
 # A non-Go language without an adapter or declared full command is a limit of
 # the selection, not of its Go run set; every other gap makes the row incomplete.
 def limit_only: test("^[a-z][a-z0-9_+-]*: no qualified adapter and ") and (startswith("go: ") | not);
@@ -28,10 +30,15 @@ def coverage($docs; $n; $what):
 | [$selA[] | select(.unreadable | not) | .doc
    | select(type == "object" and .profile == "corvint-pr-selection/0" and .shards == $n
             and (.shard | type) == "number" and .shard >= 0 and .shard < $n
+            and (.toolSource | hex40) and (.toolDigest | digest) and (.head | hex40) and (.target | hex40)
+            and (.runId | type) == "number" and (.exit | type) == "number" and (.scope | type) == "string"
+            and (.manifestDigest | digest) and (.planDigest | digest) and (.partitionDigest | digest)
             and (.selected | type) == "array" and ((.incomplete // []) | type) == "array")] as $sel
 | [$outA[] | select(.unreadable | not) | .doc
    | select(type == "object" and .profile == "corvint-ci-outcomes/0" and .shards == $n
             and (.shard | type) == "number" and .shard >= 0 and .shard < $n
+            and (.event == "pull_request" or .event == "merge_group") and (.target | hex40)
+            and (.runId | type) == "number" and (.status | type) == "number"
             and (.outcomes | type) == "object" and (.rerun | type) == "object"
             and all(.outcomes[]; . == "pass" or . == "fail" or . == "skip" or . == "missing"))] as $out
 | ([$out[].target] | unique) as $targets

@@ -25,6 +25,7 @@ import (
 const (
 	queueSHA  = "5163d1ed4b61084fc32cf79355848899c3e8a5bb"
 	prHead    = "460fc31ae6d0134fa27f7a66336b99db88fc91c6"
+	mainBase  = "142f0e3e7bfb153f803fb6c4bad7989f87ee324a"
 	queueTree = "728e6e3f9907b941ceef18f92d3cb7117dbe45dd"
 	queueRun  = "38485555207"
 	prRun     = "38482995697"
@@ -337,7 +338,18 @@ func TestAFPV0029ForwardRowsAndShadowBar(t *testing.T) {
 		{"dry-run failure", "selection shard 5: corvint test --dry-run exited 2",
 			func(f *fixture) { f.sel[5]["exit"] = 2 }, nil},
 		{"manifest digests disagree", "selection shards disagree on the manifest digest",
-			func(f *fixture) { f.sel[6]["manifestDigest"] = "sha256:00" }, nil},
+			func(f *fixture) { f.sel[6]["manifestDigest"] = "sha256:" + strings.Repeat("0", 64) }, nil},
+		{"selections without digests", "8 selection document(s) fail the corvint-pr-selection/0 shape",
+			func(f *fixture) {
+				for k := range f.sel {
+					delete(f.sel[k], "manifestDigest")
+					delete(f.sel[k], "planDigest")
+				}
+			}, nil},
+		{"selection without tool source", "1 selection document(s) fail the corvint-pr-selection/0 shape",
+			func(f *fixture) { f.sel[2]["toolSource"] = nil }, nil},
+		{"outcomes without status", "1 outcomes document(s) fail the corvint-ci-outcomes/0 shape",
+			func(f *fixture) { delete(f.out[4], "status") }, nil},
 		{"outcomes of another commit", "outcomes shard 6 is merge_group of " + prHead,
 			func(f *fixture) { f.out[6]["target"] = prHead }, nil},
 		{"collector reason", "no successful pull_request run", nil,
@@ -554,9 +566,10 @@ func TestAFPV0047SelectionDocument(t *testing.T) {
 	}
 }
 
-// fakeGH writes a gh stand-in that answers collect.sh and bar.sh from DIR: `api` paths map to
-// canned (already --jq filtered) outputs, and `run download` copies the matching artifact
-// directories of DIR/runs/<id>.
+// fakeGH writes a gh stand-in that answers collect.sh and bar.sh from DIR: the commit,
+// compare and repository-artifact `api` paths run the script's own --jq filter over
+// API-shaped JSON, the other paths map to canned (already filtered) outputs, and
+// `run download` copies the matching artifact directories of DIR/runs/<id>.
 func fakeGH(t *testing.T, dir string) string {
 	bin := filepath.Join(dir, "bin")
 	writeFile(t, filepath.Join(bin, "gh"), []byte(`#!/bin/sh
@@ -564,10 +577,11 @@ set -eu
 d=`+dir+`
 if [ "$1" = api ]; then
   case "$2" in
-  */commits/*) cat "$d/parent" ;;
+  */commits/*) [ "$3" = --jq ]; jq -r "$4" "$d/commit.json" ;;
+  */compare/*) [ "$3" = --jq ]; jq -r "$4" "$d/compare.json" ;;
   */actions/runs/*/artifacts*) id=${2#*/actions/runs/}; id=${id%%/*}; cat "$d/names-$id" ;;
   */workflows/ci.yml/runs*) cat "$d/selection-run" ;;
-  */actions/artifacts*) case "$2" in *page=1) cat "$d/all-names" ;; esac ;;
+  */actions/artifacts*) [ "$3" = --jq ]; case "$2" in *page=1) jq -r "$4" "$d/all-artifacts.json" ;; esac ;;
   *) exit 1 ;;
   esac
   exit 0
@@ -599,10 +613,13 @@ done
 
 func TestAFPV0047CollectorNamesRows(t *testing.T) {
 	type result struct{ name, summary string }
+	// changed is the compare API's file list of the run's change set.
+	changed := []any{doc{"filename": "internal/contextindex/index.go"}}
 	collect := func(t *testing.T, f *fixture, runID, event, branch, pr string, reuse doc) result {
 		dir := t.TempDir()
 		gh := fakeGH(t, dir)
-		writeFile(t, filepath.Join(dir, "parent"), lines(prHead))
+		writeDoc(t, filepath.Join(dir, "commit.json"), doc{"parents": []any{doc{"sha": mainBase}, doc{"sha": prHead}}})
+		writeDoc(t, filepath.Join(dir, "compare.json"), doc{"files": changed})
 		writeFile(t, filepath.Join(dir, "selection-run"), lines(prRun))
 		selDir, outDir := f.write(t, filepath.Join(dir, "src"))
 		names := []string{}
@@ -646,7 +663,7 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 		cmd := exec.Command("sh", script(t, "collect.sh"))
 		cmd.Env = []string{"PATH=" + gh + string(os.PathListSeparator) + os.Getenv("PATH"), "HOME=" + dir,
 			"GH_TOKEN=x", "REPO=beamfall/corvint", "RUN_ID=" + runID, "EVENT=" + event, "HEAD_SHA=" + head,
-			"HEAD_BRANCH=" + branch, "PR_NUMBER=" + pr, "FORWARD_SHARDS=8", "FORWARD_EPOCH=1",
+			"HEAD_BRANCH=" + branch, "PR_NUMBER=" + pr, "PR_BASE_SHA=" + mainBase, "FORWARD_SHARDS=8", "FORWARD_EPOCH=1",
 			"RUNNER_TEMP=" + temp, "GITHUB_OUTPUT=" + output, "GITHUB_STEP_SUMMARY=" + summary}
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("collect.sh: %v\n%s", err, out)
@@ -693,6 +710,35 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 	if r := collect(t, queueFixture(t), queueRun, "merge_group", "gh-readonly-queue/release/pr-1-x", "", nil); r.name != "" {
 		t.Fatalf("a queue run of another branch produced row %q", r.name)
 	}
+
+	// A change that touches .github/ ran its own workflow and scripts, and a change set of 300
+	// files or more cannot be proved not to: neither run is a row. An unreadable change set
+	// is INCOMPLETE.
+	for _, files := range [][]any{
+		{doc{"filename": "internal/x.go"}, doc{"filename": ".github/workflows/ci.yml"}},
+		{doc{"filename": "docs/x.md", "previous_filename": ".github/forward-rows/row.jq"}},
+		func() []any {
+			many := make([]any, 300)
+			for i := range many {
+				many[i] = doc{"filename": fmt.Sprintf("docs/f%d.md", i)}
+			}
+			return many
+		}(),
+	} {
+		changed = files
+		if r := collect(t, prFixture(t), prRun, "pull_request", "claude/x", "868", nil); r.name != "" ||
+			!strings.Contains(r.summary, "touches .github/ or is too large") {
+			t.Fatalf("pull-request row of a change touching .github/ = %q\n%s", r.name, r.summary)
+		}
+		if r := collect(t, queueFixture(t), queueRun, "merge_group", queueBranch, "", full); r.name != "" {
+			t.Fatalf("queue row of a change touching .github/ = %q\n%s", r.name, r.summary)
+		}
+	}
+	changed = nil
+	if r := collect(t, prFixture(t), prRun, "pull_request", "claude/x", "868", nil); r.name !=
+		"ci-forward-INCOMPLETE-pr868-"+queueSHA+"-e1-f0" || !strings.Contains(r.summary, "is unreadable") {
+		t.Fatalf("pull-request row with an unreadable change set = %q\n%s", r.name, r.summary)
+	}
 }
 
 func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
@@ -702,12 +748,22 @@ func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
 	bar := func(t *testing.T, names []string) string {
 		dir := t.TempDir()
 		gh := fakeGH(t, dir)
-		var all []string
-		for _, n := range names {
-			all = append(all, "false "+n)
+		artifact := func(name string, expired bool, branch string, headRepo int) doc {
+			return doc{"name": name, "expired": expired,
+				"workflow_run": doc{"head_branch": branch, "repository_id": 1, "head_repository_id": headRepo}}
 		}
-		all = append(all, "true "+name("MISS", 999, "1", "1"), "false ci-shard-costs-0")
-		writeFile(t, filepath.Join(dir, "all-names"), lines(all...))
+		var all []any
+		for _, n := range names {
+			all = append(all, artifact(n, false, "main", 1))
+		}
+		// An expired row, a row a pull-request or queue run uploaded itself, a fork's
+		// `main` and an unrelated artifact never count.
+		all = append(all, artifact(name("MISS", 999, "1", "1"), true, "main", 1),
+			artifact(name("MISS", 998, "1", "1"), false, "claude/x", 1),
+			artifact(name("MISS", 997, "1", "1"), false, "gh-readonly-queue/main/pr-997-"+prHead, 1),
+			artifact(name("MISS", 996, "1", "1"), false, "main", 2),
+			artifact("ci-shard-costs-0", false, "main", 1))
+		writeDoc(t, filepath.Join(dir, "all-artifacts.json"), doc{"artifacts": all})
 		cmd := exec.Command("sh", script(t, "bar.sh"))
 		cmd.Env = []string{"PATH=" + gh + string(os.PathListSeparator) + os.Getenv("PATH"), "HOME=" + dir,
 			"GH_TOKEN=x", "REPO=beamfall/corvint", "FORWARD_EPOCH=1", "RUNNER_TEMP=" + dir,
@@ -771,7 +827,8 @@ func TestAFPV0047WorkflowBindings(t *testing.T) {
 		t.Fatalf("forward-rows permissions are not exactly actions: read and contents: read")
 	}
 	for _, want := range []string{"sparse-checkout: .github/forward-rows", "ref: ${{ github.sha }}",
-		"run: sh trusted/.github/forward-rows/collect.sh", "run: sh trusted/.github/forward-rows/bar.sh"} {
+		"run: sh trusted/.github/forward-rows/collect.sh", "run: sh trusted/.github/forward-rows/bar.sh",
+		"PR_BASE_SHA: ${{ github.event.workflow_run.pull_requests[0].base.sha }}"} {
 		if !strings.Contains(job, want) {
 			t.Fatalf("forward-rows job lacks %q", want)
 		}

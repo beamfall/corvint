@@ -1205,7 +1205,8 @@ and container qualification; full fallback remains available.
   failed shard. A shard whose tests failed SHALL rerun each failed package or AFP-V0-041 slice
   once under the same confinement, at most 8 invocations, recording `rerun.state` `RAN` with the
   rerun outcomes, `NOT_NEEDED`, `INTERRUPTED`, or `SKIPPED_BOUND` with no rerun above the bound;
-  the shard still fails. The `forward-rows` job of `.github/workflows/ci-control-plane.yml`, on a
+  the shard still fails; a failed outcomes setup leaves that shard without outcomes (so its rows
+  are INCOMPLETE) and never changes the shard's status. The `forward-rows` job of `.github/workflows/ci-control-plane.yml`, on a
   completed (`success` or `failure`) `merge_group` or `pull_request` run of CI, SHALL hold only
   `actions: read` and `contents: read`, run only the default-branch `.github/forward-rows` scripts
   through a sparse checkout of its own commit with `gh` and `jq`, and download only the
@@ -1213,10 +1214,16 @@ and container qualification; full fallback remains available.
   latest successful `pull_request` run of the queue commit's second parent and F from the queue
   run, or, for a REUSE queue run (AFP-V0-046), from the reused run its `ci-reuse` decision names,
   recording `outcomesSource` `reuse` (else `merge_group`, or `pull_request` for a PR row); a PR
-  row takes both from its own run and names its tested merge commit. A run on a branch that is not a queue branch of `main`, without a pull
-  request number, or a PR run that retained neither outcomes nor a shadow plan produces no row.
+  row takes both from its own run and names its tested merge commit. A run on a branch that is not
+  a queue branch of `main`, without a pull request number, or a PR run that retained neither
+  outcomes nor a shadow plan produces no row. Because a change to `.github/` runs its own
+  workflow and could upload any outcome, a run whose change set (the pull request's base to head,
+  or the queue commit's first parent to the commit, read through the compare API) touches a
+  `.github/` path, or lists 300 files or more, also produces no row; an unreadable change set
+  makes the row INCOMPLETE.
   The row SHALL be INCOMPLETE, never CLEAN, when any selection or outcomes shard is missing,
-  unreadable, misshapen or duplicated, when a shard count differs from the job's
+  unreadable, misshapen (including a tool source, head or target that is not a full commit id, or a
+  tool, manifest, plan or partition digest that is not `sha256:` hex) or duplicated, when a shard count differs from the job's
   `FORWARD_SHARDS`, when a document names another run, head or target than the row (or, for a
   REUSE row, another tree than the decision), when the
   dry-run exited other than 0 or 3, when shards disagree on the manifest digest, when the selection
@@ -1228,14 +1235,18 @@ and container qualification; full fallback remains available.
   `shards` and `truncated`, at most 64 KiB (package lists are cut and `truncated` set), uploaded
   with default retention as `ci-forward-<CLASS>-pr<N>-<sha>-e<EPOCH>-f<0|1>`, where `EPOCH` is
   `CORVINT_PR_FORWARD_EPOCH` and `f1` marks a row with failing packages. The job's step summary
-  SHALL count, from non-expired artifact names alone and without downloading, the latest 20 rows
+  SHALL count, from the names of non-expired artifacts that runs on `main` of this repository
+  uploaded (a pull-request or queue run can upload any name) and without downloading, the latest
+  20 rows
   of the current epoch (one per pull request and commit) against the 20 complete and 5 failing
   bar and the AFP-V0-030 thresholds, and SHALL say NOT MET while the window is short. Nothing in
   this requirement narrows a run or changes a required check. Limits: hosted row delivery is
   `NOT_OBSERVED` until the first queue run on `main` after the change; the rerun bound leaves a
   ninth failure without a rerun, so its misses are MISS; artifact listing reads at most 20 pages;
   shadow artifacts keep 14-day retention, so a queue run later than that is INCOMPLETE; fork pull
-  requests produce no row. Rollback: clear `CORVINT_TEST_SHADOW_SOURCE` (the shadow and its
+  requests produce no row; a pull request's own test code runs in its shards and could rewrite its
+  outcomes files, so a row is as trustworthy as the reviewed change, like any test result.
+  Rollback: clear `CORVINT_TEST_SHADOW_SOURCE` (the shadow and its
   selection stop) and remove the `forward-rows` job; no consumer reads the rows before V1-0812.
 
 ## Non-goals and authority

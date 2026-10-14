@@ -124,6 +124,7 @@ jobs:
           RUN_ID: ${{ github.event.workflow_run.id }}
           EVENT: ${{ github.event.workflow_run.event }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_BASE_SHA: ${{ github.event.workflow_run.pull_requests[0].base.sha }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
         run: sh trusted/.github/forward-rows/collect.sh

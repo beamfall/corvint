@@ -101,7 +101,28 @@ names `internal/tasks/store` slices, so setting the pin would fail every PR shar
   - 38487301206 (push): not a forward row.
   - 38482995697 (pull_request, DOCS): no row.
   - `bar.sh` over the live artifact list: 0 rows, NOT MET, kill switch clear.
+  - The compare filter of `collect.sh` reads PR #867 (which edits `.github/`) as `github` and the
+    queue commit of PR #868 against its first parent as `clean`.
 - Tests are listed in the AFP-V0-029 and AFP-V0-047 traceability rows.
+- The bar's trust filter relies on the artifact API's `workflow_run.head_branch`. The five latest
+  `workflow_run` runs of ci-control-plane (38492776084 to 38485475126) report `main` with equal
+  repository and head-repository ids, so the job's own rows pass the filter.
+
+## Independent review (one Codex round)
+
+Codex found the S/F split, `SELECTED_FAILED_IN_QUEUE` and the shell quoting correct, and three
+findings, all fixed in this change:
+1. High: an untrusted run could count toward the bar. A pull request that edits `ci.yml` or the
+   forward-row scripts could upload a CLEAN `ci-forward-*` name itself, or have the row job
+   classify outcomes its own workflow forged. Fixes: `bar.sh` counts only artifacts that runs on
+   `main` of this repository uploaded, and `collect.sh` writes no row for a change set that
+   touches `.github/` or lists 300 files or more (the compare API's limit). Tests cover a branch,
+   queue, fork and expired artifact, and both refusals.
+2. High: a selection or outcomes document missing its digests, ids or status could still be
+   CLEAN. Fix: `row.jq` requires full commit ids, `sha256:` digests, numeric run ids, exits and
+   statuses, and a known event, and treats any other document as misshapen (INCOMPLETE).
+3. Medium: a failed outcomes setup command could change the Go tests step's status. Fix: every
+   setup command sits in one `if` condition, and a failure only turns the outcomes off.
 
 ## Limits
 
@@ -120,8 +141,10 @@ Other retained limits:
 - PR rows and queue rows both count toward the bar.
 - Every selection carries the shell-adapter gap as a limit until `.github/cishards` declares a
   shell full command.
-- The `selection.json` builder runs from the tested checkout, as the PR's own workflow does.
-  Rows from a PR that edits `.github/` already need AFP-V0-016 consent.
+- The `selection.json` builder and the outcomes capture run from the tested checkout, as the PR's
+  own workflow does, and the PR's own test code runs in the same shard. A change that edits
+  `.github/` produces no row, but test code could still rewrite its outcomes files, so a row is
+  as trustworthy as the reviewed change.
 - The selection digest is `NOT_PRODUCED`.
 - Each PR shard pays one extra `./cmd/corvint` build.
 - `make gate` is `NOT_RUN`, by the owner's focused-test preference.

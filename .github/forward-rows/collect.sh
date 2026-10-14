@@ -4,11 +4,14 @@
 # The ci-control-plane forward-rows job runs this default-branch copy with gh and
 # jq only; it downloads small artifacts and never runs code of the tested commit.
 # Environment: GH_TOKEN, REPO, RUN_ID, EVENT (merge_group|pull_request), HEAD_SHA,
-# HEAD_BRANCH, PR_NUMBER (may be empty), FORWARD_SHARDS, FORWARD_EPOCH,
+# HEAD_BRANCH, PR_NUMBER and PR_BASE_SHA (may be empty), FORWARD_SHARDS, FORWARD_EPOCH,
 # RUNNER_TEMP, GITHUB_OUTPUT and GITHUB_STEP_SUMMARY. Writes
 # $RUNNER_TEMP/forward-row/row.json and the step output `name`; a run that is
 # not a forward row (not a queue branch of main, no pull request, or a run that
 # executed neither a full shard nor the shadow) writes neither and says why.
+# A change to any `.github/` path ran its own workflow and forward-row scripts,
+# so it could report any outcome it liked: such a run, or one whose change set
+# GitHub cannot list in full (300 files or more), is never a row either.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 dir="$RUNNER_TEMP/forward-row"
@@ -23,6 +26,12 @@ names() { gh api "repos/$REPO/actions/runs/$1/artifacts?per_page=100" --jq '.art
 fetch() { gh run download "$1" --repo "$REPO" --pattern "$2" --dir "$3" > /dev/null 2>&1; }
 hex40() { printf '%s' "$1" | grep -Eqx '[0-9a-f]{40}'; }
 digits() { printf '%s' "$1" | grep -Eqx '[0-9]+'; }
+# own BASE HEAD: prints clean, github (the change touches .github/) or unprovable.
+own() {
+  gh api "repos/$REPO/compare/$1...$2" --jq 'if (.files | length) >= 300 then "unprovable"
+    elif any(.files[]; (.filename | startswith(".github/")) or ((.previous_filename // "") | startswith(".github/")))
+    then "github" else "clean" end' 2> /dev/null
+}
 
 if ! digits "$RUN_ID" || ! hex40 "$HEAD_SHA"; then
   say "forward row: run $RUN_ID at $HEAD_SHA is not a well-formed run; no row"
@@ -41,11 +50,12 @@ merge_group)
   pr=${HEAD_BRANCH#gh-readonly-queue/main/pr-}
   pr=${pr%%-*}
   kind=queue sha=$HEAD_SHA
-  head=$(gh api "repos/$REPO/commits/$sha" --jq '.parents | if length == 2 then .[1].sha else empty end' 2> /dev/null) || head=""
-  hex40 "$head" || {
-    note "the second parent of queue commit $sha is unreadable or absent"
-    head=""
-  }
+  parents=$(gh api "repos/$REPO/commits/$sha" --jq '.parents | if length == 2 then "\(.[0].sha) \(.[1].sha)" else empty end' 2> /dev/null) || parents=""
+  base=${parents% *} head=${parents#* }
+  if ! hex40 "$base" || ! hex40 "$head"; then
+    note "the parents of queue commit $sha are unreadable or not two"
+    base="" head=""
+  fi
   if run_names=$(names "$RUN_ID"); then
     if printf '%s\n' "$run_names" | grep -qx ci-reuse; then
       if fetch "$RUN_ID" ci-reuse "$dir/reuse" && [ -f "$dir/reuse/ci-reuse/decision.json" ]; then
@@ -79,7 +89,11 @@ pull_request)
     say "forward row: run $RUN_ID names no pull request of this repository; no row"
     exit 0
   }
-  kind=pr head=$HEAD_SHA selection_run=$RUN_ID
+  kind=pr base=${PR_BASE_SHA:-} head=$HEAD_SHA selection_run=$RUN_ID
+  hex40 "$base" || {
+    note "pull_request run $RUN_ID names no base commit"
+    base=""
+  }
   if ! run_names=$(names "$RUN_ID"); then
     note "the artifacts of run $RUN_ID are unreadable"
   elif ! printf '%s\n' "$run_names" | grep -Eq '^(ci-outcomes-pull_request-|corvint-test-shadow-)'; then
@@ -96,6 +110,16 @@ digits "$pr" || {
   say "forward row: no pull request number in $HEAD_BRANCH; no row"
   exit 0
 }
+if [ -n "$base" ]; then
+  case $(own "$base" "${sha:-$head}") in
+  clean) ;;
+  github | unprovable)
+    say "forward row: the change $base...${sha:-$head} touches .github/ or is too large to prove it does not; no row"
+    exit 0
+    ;;
+  *) note "the change set $base...${sha:-$head} is unreadable" ;;
+  esac
+fi
 if [ -n "$outcomes_run" ]; then
   fetch "$outcomes_run" 'ci-outcomes-*' "$dir/outcomes" || note "run $outcomes_run retained no ci-outcomes artifact"
 fi

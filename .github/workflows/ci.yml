@@ -519,15 +519,20 @@ jobs:
             # AFP-V0-047: a pull-request or merge-queue shard retains package outcomes for the
             # forward rows; `expected` names each invocation's package, `whole` the packages
             # the rerun may name, and run_tests appends each failed slice to `failed-slices`.
+            # Every setup command sits in the `if` condition, so a failed write leaves the
+            # outcomes off and never changes this step's status.
             outcomes_dir=""
             case "$GITHUB_EVENT_NAME" in
               pull_request | merge_group)
-                if mkdir -p "$RUNNER_TEMP/forward-outcomes" 2> /dev/null; then
-                  outcomes_dir="$RUNNER_TEMP/forward-outcomes"
-                  # shellcheck disable=SC2086
-                  printf '%s\n' $packages | sed '/^$/d' > "$outcomes_dir/whole"
-                  { cat "$outcomes_dir/whole"; [ -z "$slices" ] || awk '{ print $3 }' <<< "$slices"; } > "$outcomes_dir/expected"
-                  : > "$outcomes_dir/failed-slices"
+                d="$RUNNER_TEMP/forward-outcomes"
+                # shellcheck disable=SC2086
+                if mkdir -p "$d" 2> /dev/null &&
+                  printf '%s\n' $packages | sed '/^$/d' > "$d/whole" 2> /dev/null &&
+                  { cat "$d/whole" && { [ -z "$slices" ] || awk '{ print $3 }' <<< "$slices"; }; } > "$d/expected" 2> /dev/null &&
+                  : > "$d/failed-slices" 2> /dev/null; then
+                  outcomes_dir="$d"
+                else
+                  echo "::warning::shard $SHARD: forward-row outcomes are off (setup failed)"
                 fi
                 ;;
             esac
