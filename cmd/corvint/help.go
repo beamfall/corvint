@@ -968,7 +968,7 @@ Usage:
   corvint [--root PATH] cem discriminate --map MAP --target REV [--max-hunks N]
     [--max-mutants N] [--wall-time DURATION] [--output MAP]
   corvint [--root PATH] cem anchor --map MAP [--commit REV]
-  corvint [--root PATH] cem provenance --commit REV
+  corvint [--root PATH] cem provenance --commit REV [--notes-tip OID]
   corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
     --artifacts DIR --output DIR
   corvint [--root PATH] cem verify-stable --repository PATH --map MAP
@@ -1000,11 +1000,11 @@ Actions:
            the test selection digest. The review projection shows each
            hunk's state; the run never fails the build.
   anchor   (experimental) Write a pointer to the map committed at HEAD as the
-           refs/notes/corvint note of REV (default HEAD); refuses a dirty,
-           untracked, or uncommitted map and never replaces a different note.
+           refs/notes/corvint note of REV (default HEAD); refuses a dirty or
+           uncommitted map, a map not describing REV's patch, a different note.
   provenance  (experimental, read-only) Report REV's Corvint anchor, Git AI
-           refs/notes/ai note, and Assisted-by/Agent-Logs-Url trailers as
-           untrusted repository-history rows; no URL is fetched.
+           note, Assisted-by/Agent-Logs-Url trailers as untrusted rows; with
+           --notes-tip OID, rollback when OID is not an ancestor of the ref.
   export   (read-only) Verify the cem/1.0 map as cem verify does (with
            --artifacts) and require the target to commit it, then copy the map
            as cem.json and each declared artifact under artifacts/ into the new

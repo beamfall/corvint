@@ -173,7 +173,7 @@ func TestObservedDescendantSnapshotLossIsRetried(t *testing.T) {
 		if _, err := ready.Read(make([]byte, 8)); err != nil {
 			t.Fatal(err)
 		}
-		started, err := startObserver(o, root.Process.Pid)
+		started, err := startObserver(context.Background(), o, root.Process.Pid)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -483,7 +483,7 @@ func TestV10689BoundedCancellation(t *testing.T) {
 	if err != nil || pgid != child.PID {
 		t.Fatalf("child session not independent: %d %v", pgid, err)
 	}
-	observer, err = startDescendantObserver(root.Process.Pid)
+	observer, err = startDescendantObserver(context.Background(), root.Process.Pid)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -595,12 +595,12 @@ func TestV10689BlockedStartupJoins(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			err = v10689Wait(root, 3*time.Second)
+			err = v10689Wait(root, descendantSnapshotTimeout+2*time.Second)
 			joined = true
 			if err != nil {
 				t.Fatal(err)
 			}
-			if time.Since(began) > 4*time.Second {
+			if time.Since(began) > descendantSnapshotTimeout+3*time.Second {
 				t.Fatal("startup failure cleanup exceeded its bound")
 			}
 			if _, err := os.Stat(filepath.Join(dir, "long-joined")); err != nil {

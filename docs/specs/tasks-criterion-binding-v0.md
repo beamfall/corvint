@@ -2,17 +2,17 @@
 
 Owner: Russell Lewis
 Date: 2026-10-01
-Intent status: proposed; TCB-V0-015..019 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283); TCB-V0-030..031 accepted under it (V1-1358)
+Intent status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358)
 Delivery status: experimental
 Authoritative inputs: decision 0397, `docs/specs/cem-criterion-experiments-v0.md`, native V1-0575;
-for TCB-V0-007..019, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and native V1-1283.
+for TCB-V0-007..023, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and native V1-1283 and V1-1356.
 
 ## Agent digest
 - Claim: Native Tasks captures and verifies coherent claim-era criterion bindings; Core consumes only the Tasks wire contract.
-- Status: proposed; TCB-V0-015..019 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283); TCB-V0-030..031 accepted under it (V1-1358)/experimental delivery; owner release intent remains accepted separately.
-- Exists: `internal/tasks/criterionbinding`, compiled CLI read verbs and wire-owned projections; bounded independent repair review passed. Experimental sealed cem/1.0 verdict gate: library `internal/taskman/cem_verdict_gate.go` with a portable cross-check, `corvint cem gate-verdict`, Tasks argv placeholders and a policy entry (TCB-V0-007..019); the portable leg runs on Darwin and Linux amd64/arm64 (TCB-V0-030..031).
+- Status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358)/experimental delivery; owner release intent remains accepted separately.
+- Exists: `internal/tasks/criterionbinding`, compiled CLI read verbs and wire-owned projections; bounded independent repair review passed. Experimental sealed cem/1.0 verdict gate: library `internal/taskman/cem_verdict_gate.go` with a portable cross-check, `corvint cem gate-verdict`, Tasks argv placeholders and a policy entry (TCB-V0-007..019). A merged-forward lane is gated and completed at its seal commit, and an exact touch key naming a directory refuses (TCB-V0-020..023); the portable leg runs on Darwin and Linux amd64/arm64 (TCB-V0-030..031).
 - Blocked on: full CEM1.0 live receipt/source join, integration and release qualification; installing the gate's two executables and registering its policy entry in the live store.
-- Read next: Requirements; Acceptance and rollback; Sealed cem/1.0 verdict gate.
+- Read next: Requirements; Acceptance and rollback; Sealed cem/1.0 verdict gate; Merged-forward lanes.
 
 ## Requirements
 
@@ -100,6 +100,35 @@ for TCB-V0-007..019, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and
   1800-second timeout, expected exit 0, `output` evidence, not reusable and `required: false`, so only a
   ticket that names it in `requiredGates` must pass it. A Tasks PASS records the gate document's digest
   as its output evidence; a FAIL records exit 1 and the refusal document, or exit 2.
+- `TCB-V0-020`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1356) For a ticket
+  that requires `cem-verdict`, the gate's candidate MUST be the lane's seal commit: the commit
+  `make dogfood-seal` made, whose tree is the bind commit's tree with only the sidecar renamed. The
+  attempt is claimed at the lane base that the sealed map's `baseRevision` names, not at a merge's
+  first parent; it submits the seal commit's tree, and the gate runs in a worktree whose HEAD is the
+  seal commit, so `{attempt.candidateCommit}` is the seal commit. The gate and completion bind trees,
+  not commit IDs: a later commit whose tree equals the seal commit's (an empty commit, or a change
+  reverted to the sealed tree) presents the same sealed content and is treated as the seal commit.
+- `TCB-V0-021`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1356) Native
+  completion of that attempt MUST pin the seal commit itself (`complete --commit <seal>`) under the
+  unchanged CAL-V0-017 rule: the commit's tree equals the candidate tree, and the queue's intent
+  branch (`main`) or its remote-tracking upstream contains the commit. A merge-commit integration
+  (AFP-V0-016) contains it through the merge's second parent, however far `main` moved and whatever
+  post-seal commits (such as a merge of `main` into the lane) follow it on the lane branch. The
+  merge commit and any post-seal commit whose tree differs refuse `STALE_TREE`; a seal commit `main` does not contain
+  refuses `STALE_TREE` with `COMMIT_NOT_INTEGRATED`. No quiescent `main` is required.
+- `TCB-V0-022`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1356)
+  `sealed-tree-mismatch` MUST stay the refusal for every candidate whose tree is not the sealed
+  target's tree plus the renamed sidecar, including a merge commit over a moved `main` and any
+  post-seal commit that changes the tree; the gate never reconstructs or credits a merge. A GRANT proves the sealed lane
+  change against the lane base, not the merge result: the merge's integration effects and the
+  content of any post-seal commit are proven only by the merge-queue CI run on the merge commit.
+- `TCB-V0-023`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1356) Under
+  `touched-anchored`, a touch key without a trailing `/` that names a directory in the base or the
+  candidate commit's tree MUST refuse `CEM_VERDICT_INPUT_INVALID` (`touch-key-names-directory`)
+  with the inputs and candidate tree pinned, before any map is read; the key is never widened to a
+  prefix. A directory listing that cannot be read refuses `CEM_VERDICT_UNVERIFIABLE`
+  (`git-read-failed`). A key naming a file or nothing keeps the exact-path rule, and `all-anchored`
+  does not check keys.
 
 ## Acceptance and rollback
 
@@ -107,8 +136,8 @@ Prove canonical capture, tamper/command/policy/snapshot negatives, verify with a
 read-only filesystem behavior, duplicate-flag refusal and current versus historical identity. Existing
 criterion behavior, focused tests/vet, actual compiled nonfixture native Tasks lifecycle and unchanged
 import-direction test MUST pass. Rollback removes optional verbs/adapter and preserves prior receipts;
-existing Tasks schemas/policy and frozen CEM bytes do not change. TCB-V0-001..019 have experimental
-implementation and scoped acceptance evidence below. TCB-V0-015..019 are accepted under the owner's
+existing Tasks schemas/policy and frozen CEM bytes do not change. TCB-V0-001..023 have experimental
+implementation and scoped acceptance evidence below. TCB-V0-015..023 are accepted under the owner's
 standing auto-accept; the rest of this proposed technical contract is not thereby accepted or
 promoted. No stable release or execution cutover is implied.
 
@@ -135,6 +164,9 @@ Capture includes canonical claim-era ticket bytes whose digest equals the attemp
 | TCB-V0-017 | `TestTCBV0017PortableConsumerMustRecomputeTheSameVerdict`, `TestTCBV0017PortableConsumerSharesTheGateProcessGroup` | Agreement pins equal digests; a changed claim, raised tier or outcome disagrees; a missing, unreadable, other-profile or digest-less result, or an ACCEPT that exits 1 or 2 or is killed, is unverifiable; the consumer runs in the gate's process group |
 | TCB-V0-018 | `TestTCBV0018PathsCarryTheMinimumRecomputedTier`, `TestTCBV0018ProducerEditedTierIsNeverAdmitted` | A path takes its lowest hunk tier; a sealed map with producer-written `held` tiers refuses `stable-not-accepted` with no predicate rows |
 | TCB-V0-019 | `TestTCBV0019_CEMVerdictPolicyEntryRunsAsDeclared` | The entry registers in a fixture policy; stand-in commands with its argv record PASSED and FAILED with the substituted argv as output evidence |
+| TCB-V0-020, TCB-V0-022 | `internal/taskman/cem_verdict_merge_forward_unix_test.go` `TestTCBV0020GateGrantsOnlyAtTheSealCommitOfAMergedForwardLane` | Over a moved `main`, the merge commit and a post-seal merge of `main` into the lane each refuse `sealed-tree-mismatch` naming the lane's sealed map, with no consumer run; the seal commit, the merge's second-parent ancestor, grants, and so does a tree-identical empty commit after it |
+| TCB-V0-021 | `internal/tasks/store/lease_gate_merge_forward_test.go` `TestTCBV0021_CompletePinsTheSealCommitOfAMergedForwardLane`; live V1-1348 completion (`docs/build-log/2026-10-14-v1-1283-native-completion-through-cem-verdict.md`) | The merge and post-seal commits refuse `STALE_TREE` alone and write nothing; the seal commit refuses `COMMIT_NOT_INTEGRATED` until `main` contains it, then completes with no Tasks code change |
+| TCB-V0-023 | `TestTCBV0023ExactKeyNamingADirectoryRefuses`, `TestTCBV0023DirectoryListingFramingFailsClosed`; amended `TestTCBV0011PredicateIsClosedAndNeverRaisesATier` | Directory keys at the base only, the candidate only or both refuse pinned before the map; file and absent keys grant; an unlistable candidate or a misframed listing refuses `git-read-failed`; `all-anchored` ignores keys |
 
 Independent repair review `/private/tmp/cem10-build/tasks-rereview.json` passed the original
 claim-digest and future-sequence counterexamples plus positive native lifecycle tests. The compiled
@@ -167,6 +199,7 @@ Failure modes. Every refusal pins one closed code and one closed reason:
 | --- | --- | --- |
 | `CEM_VERDICT_INPUT_INVALID` | `invalid-input` | Malformed root, commit ID, predicate, touch key or portable consumer path |
 | `CEM_VERDICT_INPUT_INVALID` | `commit-unavailable` | The base or candidate commit is not in the repository |
+| `CEM_VERDICT_INPUT_INVALID` | `touch-key-names-directory` | Under `touched-anchored`, a touch key without a trailing `/` names a directory at the base or candidate |
 | `CEM_VERDICT_MAP_MISSING` | none | No sealed map is added between base and candidate |
 | `CEM_VERDICT_MAP_AMBIGUOUS` | none | More than one sealed map is added |
 | `CEM_VERDICT_PRODUCER_MISMATCH` | `sealed-target-unavailable` | The sealed name's target is not a commit |
@@ -198,7 +231,8 @@ absolute ones, is:
 Both executables must be built from a commit that contains TCB-V0-015..019. `PATH` must be in the
 policy's `environment.allowedEnvKeys`. The portable consumer runs with `PATH=/usr/bin:/bin` whatever
 the gate's environment, and needs `git` there. The gate must run on the seal commit itself
-(`{attempt.candidateCommit}` is the worktree HEAD), because a later commit fails `sealed-tree-mismatch`.
+(`{attempt.candidateCommit}` is the worktree HEAD), because a later commit fails `sealed-tree-mismatch`;
+a lane that merged `main` forward follows TCB-V0-020 and TCB-V0-021 (see Merged-forward lanes).
 Preflight and batch runs keep placeholders literal, and the command then refuses
 `CEM_VERDICT_INPUT_INVALID`.
 
@@ -214,6 +248,54 @@ help, the placeholder substitution in `internal/tasks/store/lease_gate.go` and i
 `internal/taskman/cem_verdict_gate.go` with its tests, then remove any `cem-verdict` policy entry from
 a live store. No Tasks schema, wire contract or CEM byte changed. A gate result recorded with a
 substituted argv keeps its inputs digest; a declared argv's digest is unchanged.
+
+## Merged-forward lanes
+
+The requirements TCB-V0-020..023 amend this contract for a lane whose `main` moved before
+integration. The decision, the rejected alternatives and the live evidence are recorded in
+`docs/build-log/2026-10-14-v1-1356-cem-verdict-merge-forward.md`.
+
+Decision. The candidate is the lane's seal commit. The lane claims at the base its sealed map names,
+submits the seal commit's tree, runs `cem-verdict` with the seal commit as the worktree HEAD, and
+completes with `complete --commit <seal>` once `main` contains the seal commit. Under the merge
+queue's merge-commit method (AFP-V0-016) the seal commit stays reachable from `main` through the
+merge's second parent, so CAL-V0-017 accepts it unchanged. `sealed-tree-mismatch` stays the refusal
+for every candidate whose tree is not the target tree plus the renamed sidecar, which covers the
+merge commit and any later commit that changes the tree. Both checks bind trees, not commit IDs, so a
+tree-identical later commit is the same candidate.
+
+Limit. A GRANT proves the sealed lane change, not the merge result. Integration effects, including a
+post-seal commit or a merge resolution that alters lane content, are not seen by the gate; they
+belong to merge-queue CI (`docs/build-log/2026-10-12-merge-queue-enabled.md`).
+
+Rejected alternatives:
+
+- A merge-aware rule that accepts a merge commit by reconstructing the sealed tree from its parents.
+  It widens the trusted surface to merge reconstruction and conflict resolution, which the sealed
+  map does not bind.
+- A quiescent-`main` requirement that refuses unless `main` is still the lane base. It is unworkable
+  under the merge queue: every lane integrated on 2026-10-13 saw a moved `main`.
+
+Live evidence. V1-1348 completed natively through this rule (recorded in
+`docs/build-log/2026-10-14-v1-1283-native-completion-through-cem-verdict.md`): a gate at the merge
+commit refused `sealed-tree-mismatch`, the gate at the seal commit granted, `complete --commit <seal>`
+returned OK and `receipt audit` reported the store CONSISTENT.
+
+Directory keys. TCB-V0-023 refuses rather than normalizes a key without a trailing `/` that names a
+directory. Normalizing would give the gate a key meaning that Tasks does not share: under CAL-V0-021
+such a key governs only that exact path, for claims and resource collisions alike. CAL-V0-211's
+`EXACT_KEY_NAMES_DIRECTORY` warning at set-effects and claim time stays advisory; the gate is where
+the key's mismatch with the sealed change becomes a refusal.
+
+Interaction. V1-1359 (separating the predicate domain from claim scope) may change which keys the
+predicate reads. This amendment does not depend on it; TCB-V0-023 applies to whatever keys reach
+`--touch-paths`.
+
+Rollback: delete `exactKeyNamesDirectory` and its call in `internal/taskman/cem_verdict_gate.go`,
+`internal/taskman/cem_verdict_merge_forward_unix_test.go`,
+`internal/tasks/store/lease_gate_merge_forward_test.go`, and the `touch-key-names-directory` case in
+`TestTCBV0011PredicateIsClosedAndNeverRaisesATier`. No Tasks code, schema, wire contract or CEM byte
+changed.
 
 ## Portable leg qualified hosts (V1-1358, 2026-10-14)
 
