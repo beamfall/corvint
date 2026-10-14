@@ -431,6 +431,7 @@ BBF-V0-011	docs/specs/browser-behavior-falsification-v0.md	76	Synthetic conforma
 BBF-V0-012	docs/specs/browser-behavior-falsification-v0.md	79	Receipts are observations, not authenticated caller honesty, browser-behavior	unrecorded	-
 BBF-V0-013	docs/specs/browser-behavior-falsification-v0.md	83	The opt-in `execute-receipt` operation emits `corvint-browser-behavior-evidence/	unrecorded	-
 BBF-V0-014	docs/specs/browser-behavior-falsification-v0.md	85	accepted, decision 0507. In a sanitized acceptance	unrecorded	-
+BBF-V0-018	docs/specs/browser-behavior-falsification-v0.md	93	(accepted under the owner's standing auto-accept (2026-10-11); V1-1367) An	standing	2026-10-11; V1-1367
 BKM-V0-001	docs/specs/cross-repository-breakage-map-v0.md	53	The command MUST be explicit, read-only, local and experimental. It	unrecorded	-
 BKM-V0-002	docs/specs/cross-repository-breakage-map-v0.md	56	The manifest MUST be one strict bounded UTF-8 JSON document with no	unrecorded	-
 BKM-V0-003	docs/specs/cross-repository-breakage-map-v0.md	62	Each emitted source witness MUST name an immutable Git blob and	unrecorded	-

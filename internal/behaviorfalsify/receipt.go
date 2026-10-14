@@ -81,8 +81,12 @@ func ExecuteReceipt(ctx context.Context, plan Plan, approved string, tool ToolId
 	r.Approval.Digest = approvalDigest(r.Approval)
 	retainedBytes := len(planBytes)
 	unsafe := false
-	r.Report, err = execute(ctx, plan, approved, func(control PlannedControl, attempt int, raw []byte) {
-		entry := RawAttempt{ControlID: control.ID, Ordinal: control.Ordinal, Attempt: attempt, HookSHA256: digestBytes(raw), Omissions: []string{}}
+	r.Report, err = execute(ctx, plan, approved, func(control PlannedControl, attempt AttemptResult, raw []byte) {
+		if attempt.HookProcess.StdoutSHA256 == "" {
+			// No hook stdout was observed, so there is nothing to retain (BBF-V0-018).
+			return
+		}
+		entry := RawAttempt{ControlID: control.ID, Ordinal: control.Ordinal, Attempt: attempt.Attempt, HookSHA256: digestBytes(raw), Omissions: []string{}}
 		if !safeReceiptBytes(raw) {
 			unsafe = true
 		} else if retainedBytes+len(raw) > maxDocumentBytes/2 {
@@ -91,8 +95,9 @@ func ExecuteReceipt(ctx context.Context, plan Plan, approved string, tool ToolId
 			entry.HookBytes = bytes.Clone(raw)
 			retainedBytes += len(raw)
 		}
-		var hook HookReceipt
-		if Decode(raw, &hook) == nil {
+		// Only an admitted hook receipt declares a native report; an attempt without one retains
+		// its stdout alone and keeps its executor classification (BBF-V0-018).
+		if hook := attempt.Receipt; hook != nil {
 			for _, artifact := range hook.Artifacts {
 				if artifact.SHA256 != hook.NativeReceiptSHA256 {
 					continue
@@ -113,7 +118,7 @@ func ExecuteReceipt(ctx context.Context, plan Plan, approved string, tool ToolId
 				break
 			}
 		}
-		if entry.NativeBytes == nil {
+		if attempt.Receipt != nil && entry.NativeBytes == nil {
 			entry.Omissions = append(entry.Omissions, "native-report-unavailable")
 		}
 		r.RawAttempts = append(r.RawAttempts, entry)
@@ -296,7 +301,16 @@ func VerifyReceipt(r EvidenceReceipt, expectedPlan, expectedTool string) error {
 			raw := r.RawAttempts[rawIndex]
 			rawIndex++
 			if raw.Ordinal != control.Ordinal || raw.ControlID != control.ID || raw.Attempt != a.Attempt || len(raw.Omissions) != 0 ||
-				raw.HookSHA256 != digestBytes(raw.HookBytes) || raw.HookSHA256 != a.HookProcess.StdoutSHA256 || raw.NativeSHA256 != digestBytes(raw.NativeBytes) || raw.NativeBytes == nil {
+				raw.HookSHA256 != digestBytes(raw.HookBytes) || raw.HookSHA256 != a.HookProcess.StdoutSHA256 {
+				return invalid()
+			}
+			if a.Receipt == nil {
+				if !unadmittedAttemptVerifies(plan, control, a, raw) {
+					return invalid()
+				}
+				continue
+			}
+			if raw.NativeSHA256 != digestBytes(raw.NativeBytes) || raw.NativeBytes == nil {
 				return invalid()
 			}
 			var hook HookReceipt
@@ -356,6 +370,30 @@ func VerifyReceipt(r EvidenceReceipt, expectedPlan, expectedTool string) error {
 		return invalid()
 	}
 	return nil
+}
+
+// unadmittedAttemptVerifies checks an attempt whose retained stdout yielded no admitted hook
+// receipt (BBF-V0-018). Its raw stdout is already digest-bound; it retains no native report or
+// artifacts, the executor could not have admitted its bytes, and its status and reasons are
+// recomputed from its process and cleanup observations, so it is never a kill or a survivor.
+func unadmittedAttemptVerifies(plan Plan, control PlannedControl, a AttemptResult, raw RawAttempt) bool {
+	var hook HookReceipt
+	if raw.NativeBytes != nil || raw.NativeSHA256 != "" || len(a.RetainedArtifacts) != 0 || a.WorkspaceBefore != plan.WorkspaceSHA256 ||
+		processSucceeded(a.HookProcess) && Decode(raw.HookBytes, &hook) == nil {
+		return false
+	}
+	candidate := a
+	candidate.Reasons = []string{"hook-output-invalid"}
+	if !processSucceeded(a.HookProcess) {
+		candidate.Reasons = []string{"hook-process-failed"}
+	}
+	for _, reason := range a.Reasons {
+		if reason == "cleanup-budget-overrun" || reason == "workspace-cleanup-mismatch" {
+			candidate.Reasons = append(candidate.Reasons, reason)
+		}
+	}
+	status, reasons := classifyAttempt(plan, control, candidate)
+	return status != StatusKilled && status != StatusSurvived && status == a.Status && slices.Equal(reasons, a.Reasons)
 }
 
 func recountReport(r *Report, plan Plan) {

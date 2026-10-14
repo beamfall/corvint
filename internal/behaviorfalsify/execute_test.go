@@ -62,6 +62,9 @@ func runTestHelper() {
 		return
 	case "crash":
 		os.Exit(9)
+	case "partial-crash":
+		_, _ = os.Stdout.Write([]byte("partial hook output\n"))
+		os.Exit(9)
 	case "overflow":
 		chunk := bytes.Repeat([]byte("x"), 1<<20)
 		for index := 0; index < 33; index++ {

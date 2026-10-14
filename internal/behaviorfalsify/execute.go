@@ -36,7 +36,7 @@ func Execute(ctx context.Context, plan Plan, approvedDigest string) (Report, err
 	return execute(ctx, plan, approvedDigest, nil)
 }
 
-func execute(ctx context.Context, plan Plan, approvedDigest string, capture func(PlannedControl, int, []byte)) (Report, error) {
+func execute(ctx context.Context, plan Plan, approvedDigest string, capture func(PlannedControl, AttemptResult, []byte)) (Report, error) {
 	if approvedDigest == "" || approvedDigest != plan.Digest {
 		return Report{}, errors.New("operator-authorization-required")
 	}
@@ -105,7 +105,7 @@ func execute(ctx context.Context, plan Plan, approvedDigest string, capture func
 	return report, nil
 }
 
-func executeControl(ctx context.Context, plan Plan, control PlannedControl, deadline time.Time, capture func(PlannedControl, int, []byte)) ControlResult {
+func executeControl(ctx context.Context, plan Plan, control PlannedControl, deadline time.Time, capture func(PlannedControl, AttemptResult, []byte)) ControlResult {
 	result := ControlResult{ID: control.ID, Kind: control.Kind, Ordinal: control.Ordinal}
 	for attempt := 1; attempt <= plan.Request.Attempts; attempt++ {
 		if ctx.Err() != nil || time.Until(deadline) <= cleanupReserve {
@@ -121,7 +121,7 @@ func executeControl(ctx context.Context, plan Plan, control PlannedControl, dead
 	return result
 }
 
-func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, attempt int, deadline time.Time, capture func(PlannedControl, int, []byte)) AttemptResult {
+func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, attempt int, deadline time.Time, capture func(PlannedControl, AttemptResult, []byte)) AttemptResult {
 	result := AttemptResult{Attempt: attempt}
 	before, err := workspaceDigest(plan.Request.DisposableRoot)
 	if err != nil || before != plan.WorkspaceSHA256 {
@@ -142,9 +142,6 @@ func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, atte
 		return result
 	}
 	hookRaw, hookProcess := runPinned(ctx, *control.Hook, plan.Request.DisposableRoot, plan.Request.DeclaredEnvKeys, "control", input, timeout, receiptOutputLimit(plan, control))
-	if capture != nil {
-		capture(control, attempt, hookRaw)
-	}
 	result.HookProcess = hookProcess
 	var receipt HookReceipt
 	if processSucceeded(hookProcess) {
@@ -158,6 +155,10 @@ func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, atte
 		}
 	} else {
 		result.Reasons = append(result.Reasons, "hook-process-failed")
+	}
+	// Capture after admission, before cleanup removes declared native reports (BBF-V0-018).
+	if capture != nil {
+		capture(control, result, hookRaw)
 	}
 	cleanupTimeout := minDuration(cleanupExecutionTimeout, time.Until(deadline)-processShutdownAllowance)
 	if cleanupTimeout <= 0 {
