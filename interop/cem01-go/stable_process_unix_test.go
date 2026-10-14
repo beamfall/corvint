@@ -1,9 +1,9 @@
-//go:build darwin
+//go:build darwin || (linux && (amd64 || arm64))
 
 package main
 
-// Lifecycle tests for the Darwin process-group owner and the OQ-12 two-step
-// retirement rule. They need no packet; each uses a fresh minimal repository.
+// Lifecycle tests for the Darwin and Linux process-group owner and the OQ-12
+// two-step retirement rule. They need no packet; each uses a fresh minimal repository.
 
 import (
 	"bytes"
@@ -85,6 +85,29 @@ func TestStableLifecycleLingeringDescendantRetired(t *testing.T) {
 	}
 	pidGone(t, pid)
 	if s.hold {
+		t.Fatal("unexpected hold")
+	}
+}
+
+// A hostile Git child that ignores SIGTERM and leaves a forking grandchild
+// that also ignores it: retirement uses SIGKILL on the whole group, so no
+// descendant survives the transaction.
+func TestStableLifecycleHostileDescendantsRetired(t *testing.T) {
+	s, B := lifecycleSession(t, context.Background(), nil)
+	p1, p2 := filepath.Join(B, "grandchild.pid"), filepath.Join(B, "great.pid")
+	shim := lifecycleShim(t, B, "hostile", "trap '' TERM HUP INT\n"+
+		"/bin/sh -c \"trap '' TERM HUP INT; /bin/sleep 300 & echo \\$! > "+p2+"; wait\" &\n"+
+		"echo $! > "+p1+"\n"+
+		"while [ ! -s "+p2+" ]; do /bin/sleep 0.01; done\n"+
+		"exec "+s.git+` "$@"`)
+	s.hooks = &stableHooks{gitPath: func(*stableTx) string { return shim }}
+	tx := formatTx()
+	if _, e := s.transact(tx); e != nil {
+		t.Fatalf("format query: %s", e.code)
+	}
+	pidGone(t, p1)
+	pidGone(t, p2)
+	if s.hold || len(s.held) != 0 {
 		t.Fatal("unexpected hold")
 	}
 }
