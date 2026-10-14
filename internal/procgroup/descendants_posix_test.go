@@ -595,12 +595,12 @@ func TestV10689BlockedStartupJoins(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			err = v10689Wait(root, 3*time.Second)
+			err = v10689Wait(root, descendantSnapshotTimeout+2*time.Second)
 			joined = true
 			if err != nil {
 				t.Fatal(err)
 			}
-			if time.Since(began) > 4*time.Second {
+			if time.Since(began) > descendantSnapshotTimeout+3*time.Second {
 				t.Fatal("startup failure cleanup exceeded its bound")
 			}
 			if _, err := os.Stat(filepath.Join(dir, "long-joined")); err != nil {

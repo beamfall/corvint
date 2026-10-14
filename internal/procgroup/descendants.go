@@ -18,9 +18,13 @@ const (
 	descendantUnresolvedOmission = "Additional owned or potentially owned identities may be omitted; cleanup failure remains unresolved."
 	descendantInterval           = 20 * time.Millisecond
 	// A loaded host can starve one snapshot far past the sampling interval, so
-	// each snapshot has its own bound and the final sweep retries inside the
-	// settle window before it reports cleanup as incomplete.
-	descendantSnapshotTimeout = time.Second
+	// each snapshot has its own bound, and the first snapshot and the final
+	// sweep retry inside the settle window before they report it unavailable.
+	// Under CPU contention on a darwin host (load 50-130), /bin/ps took over
+	// 1 s in 14 of 80 samples, over 2.5 s in 4 and at most 5.5 s, with slow
+	// samples isolated (V1-1368). Half the settle window lets a slow ps finish
+	// and leaves room for a second attempt inside the window and the gap bound.
+	descendantSnapshotTimeout = descendantSettle / 2
 	descendantSettle          = 5 * time.Second
 	// Lost periodic snapshots are tolerated only while consecutive successful
 	// snapshots stay this close; a longer blind interval observed nothing.
@@ -98,7 +102,7 @@ func startDescendantObserver(pid int) (*descendantObserver, error) {
 
 func startObserver(o *descendantObserver, pid int) (*descendantObserver, error) {
 	o.root, o.stop, o.done = pid, make(chan struct{}), make(chan struct{})
-	rows, err := o.snapshot(context.Background())
+	rows, err := o.firstSnapshot()
 	if err != nil {
 		return nil, err
 	}
@@ -137,6 +141,24 @@ func startObserver(o *descendantObserver, pid int) (*descendantObserver, error) 
 		}
 	}()
 	return o, nil
+}
+
+// firstSnapshot retries an unavailable snapshot inside the settle window, as
+// the final sweep does, and returns the last failure when the window closes.
+func (o *descendantObserver) firstSnapshot() (map[int]ObservedProcess, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), descendantSettle)
+	defer cancel()
+	for {
+		rows, err := o.snapshot(ctx)
+		if err == nil {
+			return rows, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, err
+		case <-time.After(descendantInterval):
+		}
+	}
 }
 
 // observed records a successful snapshot and the blind interval it ended.
