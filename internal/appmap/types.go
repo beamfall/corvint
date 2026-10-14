@@ -3,6 +3,8 @@
 // E2E suite's import graph, and serves capped projections over it.
 package appmap
 
+import "github.com/Beamfall/corvint/internal/contextindex"
+
 // Wire identities (AMAP-V0-001, AMAP-V0-009, AMAP-V0-011).
 const (
 	ManifestSchema = "application-map-manifest/0"
@@ -52,6 +54,9 @@ type Manifest struct {
 	DIConstants []string `json:"di_constants,omitempty"`
 	// RouterGlobs declares the discovery scope compared with explicit routers (AMAP-V0-045).
 	RouterGlobs []string `json:"router_globs,omitempty"`
+	// Registries declares string-key registries and their accessors for non-Go syntax impact
+	// (NGI-V0-007); the application map itself does not read them.
+	Registries []contextindex.RegistryDeclaration `json:"registries,omitempty"`
 }
 
 // RouterFile names one router definition file and its dialect.

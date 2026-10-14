@@ -430,7 +430,7 @@ above stands with that substitution.
   most 256 KiB: `task` (visible intent text); `obligations` (spec/requirement ids the caller names);
   `repository` `{object_format, base_commit, base_tree, dirty_paths_sha256}`; `handles`, at most
   256, each `{path, blob_hash, line?, kind?, id?, authority?, reason?}`, the shape `evidence`
-  emits (`internal/contextindex/impact.go:535-537@fd0a67cc`) minus `confidence`, plus the result's
+  emits (`internal/contextindex/impact.go:561-563@fd0a67cc`) minus `confidence`, plus the result's
   `kind`/`id`, as FPK-V0-002's rows carry; `critical`, at most 256, selectors of the same shape
   naming handles that MUST survive; `unknowns` and `failed_approaches`, free text; `verification`,
   `[{command, observed_status, provenance}]`; and `provenance` `{receiptId?, packet_sha256?}`.
@@ -554,7 +554,7 @@ above stands with that substitution.
   so the document is refused rather than judged. Every
   handle MUST receive exactly one verdict, decided by this total order over all inputs, first match
   wins: (1) `unframable` — the path is not normalized
-  (`internal/contextindex/impact.go:522-532@00d37054`) or the LF-delimited `cat-file --batch` protocol cannot
+  (`internal/contextindex/impact.go:548-558@00d37054`) or the LF-delimited `cat-file --batch` protocol cannot
   carry it (`cmd/corvint/prove.go:1586-1590@7d324499`), so it is never sent to Git at all; (2) `unsupported` — the current
   tree lists the path at a non-blob mode, or lists it as a blob for which the path has no entry in
   `Index.Sources` (`internal/contextindex/index.go:209-215@aa5d6289`, `internal/contextindex/index.go:480-483@478ddf23`), whether because its kind
@@ -588,7 +588,7 @@ above stands with that substitution.
   the handle's authority class — re-derived at the CURRENT snapshot from the live classifier
   `documentResult` uses: `Record.Kind == "instructions"` → `project-instructions`; `"decision"`
   → `accepted-decision`/`non-binding-decision`; else `repository-spec`/`accepted-spec`
-  (`internal/contextindex/impact.go:544-557@6d7677dd`) — is instruction- or spec-authority; never keyed on
+  (`internal/contextindex/impact.go:570-583@6d7677dd`) — is instruction- or spec-authority; never keyed on
   the checkpoint's own `authority?` field, per AGENTS.md invariant 3. When present, that field is
   echoed as `claimed_authority`; its absence does not change the flag, which is computed only from
   the live class).
@@ -626,7 +626,7 @@ above stands with that substitution.
   refusal — the document is caller-owned and the refusal list of FPK-V0-024 stays closed. The
   typed reasons are therefore exactly six: the four ineligible handle verdicts, `handle-undeclared`,
   and `selector-unresolved` below. The gate is load-bearing: current evidence rows are compiled from the
-  committed tree (`internal/contextindex/impact.go:98-104@d2231c48`), so a dirty or unadmitted path still has
+  committed tree (`internal/contextindex/impact.go:104-110@d2231c48`), so a dirty or unadmitted path still has
   matching committed rows, and an ungated match would rehydrate committed bytes as if they were
   what the agent will read — the same reason `judgeHistory` declines to judge a dirty path at all
   (`cmd/corvint/prove.go:1097-1103@72ba1935`). For an eligible handle, selectors MUST be matched by identity,
@@ -635,19 +635,19 @@ above stands with that substitution.
   result constructors. It uses only eligible critical paths, never the stored task prose, and
   does not apply a query/impact receipt's result-count cap; constructor evidence bounds remain
   unchanged. Matching walks RESULTS, not rows: `kind` and `id` are members of the
-  enclosing result (`internal/contextindex/impact.go:200-203@ca66ec11`, `internal/contextindex/impact.go:247-253@b4e89879`, `internal/contextindex/impact.go:578-580@92896c26`), never of an evidence
+  enclosing result (`internal/contextindex/impact.go:226-229@ca66ec11`, `internal/contextindex/impact.go:273-279@b4e89879`, `internal/contextindex/impact.go:604-606@92896c26`), never of an evidence
   row, which carries exactly `path`, `line`, `blob_hash`, `reason`, `confidence`, and `authority`
-  (`evidence`, `internal/contextindex/impact.go:535-537@fd0a67cc`). A selector carrying `kind` and `id` therefore selects the
+  (`evidence`, `internal/contextindex/impact.go:561-563@fd0a67cc`). A selector carrying `kind` and `id` therefore selects the
   results whose `kind` and `id` equal its own, and within them the evidence rows at the selector's
   `path`; a selector carrying neither selects the evidence rows at that `path` in every result.
   Selecting by the result's identity and the row's `path` matters because a result's evidence rows
   need not sit at the result's own id — `documentResult` emits rows whose `path` is a referenced
-  file (`internal/contextindex/impact.go:574-576@25e804e8`). Identity does not single out one
+  file (`internal/contextindex/impact.go:600-602@25e804e8`). Identity does not single out one
   row — `impact` emits a reference row per changed path, so one result identity can supply a
-  row at the same `path` more than once (`internal/contextindex/impact.go:257-265@4e3f46b9`) — so a match
+  row at the same `path` more than once (`internal/contextindex/impact.go:283-291@4e3f46b9`) — so a match
   is the whole set of matching rows, never "the row". Byte-identical matched rows collapse to one,
   as FPK-V0-020's byte-identical `handles` entries do: `documentResult` emits one row per
-  `references` entry (`internal/contextindex/impact.go:569-576@2a45c822`), so a `references` list naming one path twice yields
+  `references` entry (`internal/contextindex/impact.go:595-602@2a45c822`), so a `references` list naming one path twice yields
   two rows equal in all six members, and they rehydrate as one row.
   All of them MUST be rehydrated, in the shape `query`/`impact` rows carry,
   ordered by ascending `line`, then lexicographic `reason`, then lexicographic `blob_hash`, then
