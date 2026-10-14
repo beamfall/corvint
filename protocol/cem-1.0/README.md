@@ -5,6 +5,15 @@ This Apache-2.0 packet specifies `cem/1.0-experimental.1`. It is not the stable
 Historical CEM 0.x packets and producer defaults are unchanged. Existing readers
 must reject this profile unless they implement its explicit candidate interface.
 
+Current status: the stable `cem/1.0` profile lives in [stable/](stable/README.md).
+It is implemented and produced on main: the Core producer writes it and both the
+native and the portable verifier read it. Its technical contract is proposed, not
+accepted and not promoted, and its qualification is bounded. The rest of this
+file is the history of the `cem/1.0-experimental.1` candidate as it was frozen.
+Since then the CEM 0.x packets have been retired, the producer default has become
+stable `cem/1.0`, and the consumer migration described below as future work has
+been carried out; `stable/` records it.
+
 The candidate joins immutable Git evidence and mapped hunks to references for
 native Tasks criteria and retained runner receipts. Verification proves canonical
 Git binding and reference integrity only. It does not verify native Tasks

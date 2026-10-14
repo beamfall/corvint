@@ -71,7 +71,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	if len(forbidden) != 0 {
 		result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, nil, limit, "OUT_OF_SCOPE")
 		if err == nil && syntaxFrontier {
-			err = attachNonGoImpactUnknowns(result, index, cleaned, 0)
+			err = attachNonGoImpactUnknowns(result, index, cleaned, 0, nil)
 		}
 		return result, nil, err
 	}
@@ -94,6 +94,12 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	// web specifier once per call, and only when a web path asks for it.
 	var webGraph *webImportGraph
 	webChanged := 0
+	// The declared string-key registry dialect (NGI-V0-007 to NGI-V0-011)
+	// is read once, and only under the syntax profile: the historical
+	// default receipt keeps its bytes.
+	var registries *registryDialect
+	var registryGraph *webImportGraph
+	registryUnknowns := map[string][]any{}
 	typeOnlyKinds := make(map[string]map[string]bool)
 	for _, changedPath := range cleaned {
 		source := index.Sources[changedPath]
@@ -124,6 +130,26 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 		}
 		packageReferences := samePackageReferencesWithDirIndex(index, changedPath, true, dirIndex)
 		testReferences := make(map[string]packageReference)
+		if syntaxFrontier && NonGoImpactLanguage(changedPath) != "" {
+			if registries == nil {
+				registries = loadRegistryDialect(index)
+			}
+			if registries.declared() {
+				// Registries and the modules they bind often live under a
+				// test tree, so this reads test paths too. Its own graph
+				// keeps the bare-import disclosure to the stage above.
+				if registryGraph == nil {
+					registryGraph = webGraph
+					if registryGraph == nil {
+						registryGraph = buildWebImportGraph(index)
+					}
+				}
+				importers := sortImporters(append(reverseImporters(index, changedPath), registryGraph.importers[changedPath]...))
+				rows, unknowns := registries.impact(index, changedPath, importers)
+				ranked = append(ranked, rows...)
+				registryUnknowns[changedPath] = unknowns
+			}
+		}
 		for _, reference := range packageReferences {
 			if isTestPath(reference.path) {
 				testReferences[reference.path] = reference
@@ -324,7 +350,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	}
 	result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, deduplicated, limit, "", disclosures...)
 	if err == nil && syntaxFrontier {
-		err = attachNonGoImpactUnknowns(result, index, cleaned, unresolvedImports)
+		err = attachNonGoImpactUnknowns(result, index, cleaned, unresolvedImports, registryUnknowns)
 	}
 	return result, disclosures, err
 }

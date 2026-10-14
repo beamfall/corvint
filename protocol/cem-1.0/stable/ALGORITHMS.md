@@ -1,14 +1,21 @@
-# Proposed stable CEM 1.0 algorithms
+# Stable CEM 1.0 algorithms
 
-Status: PROPOSED / EXPERIMENTAL, contract draft only. Owner intent is accepted; this
-technical contract is not accepted or implemented. Apache-2.0. No native AGPL
-implementation or native test body was copied into this packet.
+Status: the stable `cem/1.0` wire is implemented and produced on main: the Corvint
+producer writes it, and the native verifier (`corvint cem verify-stable`) and the
+portable consumer (`interop/cem01-go`) both verify it. The technical contract in
+this packet is still proposed. It is not accepted and not promoted to a stable
+release, and qualification is bounded (see CEM-V1-025..028 below). Owner scope is
+accepted. Apache-2.0. No native AGPL implementation or native test body was copied
+into this packet.
 
-`stable.schema.json`, `OPERATION.json` and `RESULT.schema.json` form one proposed
-contract. Schema validation alone is insufficient: strict JSON, byte limits,
-identities, relations, Git objects and rooted filesystem reads need the algorithms
-below. New requirement numbers CEM-V1-017..028 are proposed additions; existing
-CEM-V1-001..016 and the experimental candidate keep their original meanings.
+`stable.schema.json`, `OPERATION.json` and `RESULT.schema.json` form one contract.
+Schema validation alone is insufficient: strict JSON, byte limits, identities,
+relations, Git objects and rooted filesystem reads need the algorithms below.
+CEM-V1-017..028 were added with this packet; existing CEM-V1-001..016 and the
+experimental candidate keep their original meanings. The support tiers and
+citation block, the result serialization and verdict digest, and the canonical
+diff recipe are stated at the end of this file (CEM-V1-108..110), and
+`citation-vectors/` pins their byte-exact outputs (CEM-V1-111).
 
 ## CEM-V1-017: exact wire and absent evidence
 
@@ -486,8 +493,8 @@ execution flag, authority upgrade, version alias or Git-only fallback is admitte
 Authenticate independent full expected-base and target commits, require the map
 base equal expected-base, derive the canonical whole-repository patch excluding
 only `.corvint/change.cem.json`, and validate exact changed-tree inventory/replay.
-Canonical Git recipe and object hash rules are inherited from the corrected public
-0.3 packet. Empty-tree identity follows repository object format, never a fixed
+The canonical Git recipe is stated in full under "CEM-V1-110: canonical diff
+recipe" below. Empty-tree identity follows repository object format, never a fixed
 SHA1 constant transplanted into SHA256. Generic read failures remain git-read-failed;
 canonical diff failures are git-diff-failed; timeout/resource remain distinct.
 
@@ -507,31 +514,40 @@ Bundle relocation preserves internal paths and raw bytes under a new explicit ro
 
 ## CEM-V1-025..028: migration, admission, qualification and rollback
 
-MIGRATION.json records precise native/portable and all19 consumer-family decisions
-plus two later additions. Implement the smallest wire -> canonical/reference verify
--> explicit CLI vertical first, then mutators and dependent consumers. Gate A and
-independent review of this contract precede code. No current consumer is promoted
-by this draft or by recognizing a string token. A stable writer must own the full
+MIGRATION.json records the native/portable and all 19 consumer-family decisions
+plus two later additions, in the order they were planned: the wire ->
+canonical/reference verify -> explicit CLI vertical first, then mutators and
+dependent consumers. That order has been carried out on main; every consumer now
+reads `cem/1.0` only. Technical acceptance of this contract and independent
+review remain open. No consumer is promoted to a stable release by this packet or
+by recognizing a string token. A stable writer must own the full
 document; a projection-only reader retains the full input digest and all unknowns.
 Gate-facing routes must require full artifact verification and their separate
 native authority checks, not a convenient Git-only view.
 
 The portable source-build floor remains Go1.24. Structural parser/scanner/gofmt
-runtime support is a separate exact-tuple qualification; current go1.27.1 prototype
-is experimental. The P0 primary-clean-config-bounded/1 prototype refuses ordinary
+runtime support is a separate exact-tuple qualification. The verifiers admit
+exactly go1.27.1 (the prototype tuple) and go1.27.2 (decision 0522, sealed in
+`../structural-tuples/go1.27.2`), report both as
+`EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS`, and refuse every other release with
+`unsupported-structural-runtime`. The P0 primary-clean-config-bounded/1 prototype refuses ordinary
 clone metadata and linked worktrees; no false native-wide claim is inherited.
 Broader repository admission, safe process descendants, supported OS/architectures,
 SHA256 and resource ceilings need explicit evidence before support claims.
 
-The literal fixtures in fixtures/manifest.json are independently constructed
-proposed conformance inputs and expectations. Their Git objects/digests may be
-materialized and checked without a stable implementation. Native stable, portable
-stable and CLI observations remain NOT_RUN until implementations exist. They are
-Corvint-authored, not independent external adoption or actual runner execution.
+The literal fixtures in fixtures/manifest.json are Corvint-constructed
+conformance inputs and expectations from before the implementation existed. The
+executed stable suites are `tamper-matrix/`, `citation-vectors/`,
+`neutral-criterion/`, `receipt-authentication/` and `repository-envelope-packet/`:
+the native verifier and the portable consumer both run them with pinned verdicts.
+`R1-EXPECTED.json` is a declarative expectation set that no test reads or
+executes; it is kept as construction history and is not a conformance claim.
+All of this evidence is Corvint-authored, not independent external adoption or
+actual runner execution.
 All supported runner/platform and negative lifecycle matrices, external consumer
 conformance, matched external outcome evaluation and governing release gates
-remain mandatory OPEN. The six-role and result-axis decisions need technical
-acceptance before implementation. Rollback removes/disables only new opt-in stable
+remain mandatory OPEN. The six-role and result-axis decisions are implemented
+and still await technical acceptance. Rollback removes/disables only new opt-in stable
 routes, preserves old defaults, candidate/0.x bytes and native Tasks history, and
 retains failed evidence. Stable release/default cutover is a separate explicit act.
 
@@ -545,3 +561,214 @@ the low-level result. Decoded runner semantics require the later companion stage
 
 FIXTURES.pack.json transports the original fixtures losslessly. Paths cited above
 refer to its reconstructed tree, never to additional tracked files. See PACKING.md.
+
+## CEM-V1-108: support tiers and the citation block
+
+An ACCEPT result carries `citation`, a block with profile
+`cem-citation-support/0` that the consumer derives from the verified map, the
+parsed canonical patch and the bound evidence span bytes. A REJECT carries
+`citation: null`. No tier, count or anchor ever changes `outcome`, `stage`,
+`code`, `issueCodes` or `drift`. Everything below is byte arithmetic on ASCII:
+there is no case folding except where stated, no Unicode normalization and no
+locale.
+
+Inputs.
+
+- Hunk order. The map's hunks are sorted by `id`, comparing the strings as
+  bytes. Every list and every shifted position below uses this order.
+- Hunk path. Each map hunk is matched to the canonical patch hunk with the same
+  `id`. Its path is that patch file section's post-image path, or its pre-image
+  path when the section has no post-image path (a whole-file deletion). For a
+  deleted file the path is therefore the path the file had at the base.
+- Added bytes. Concatenate, in patch order, the payload of every `+` body line of
+  the hunk. A payload is the line after its one-byte `+` prefix, including its
+  terminating LF. The LF is kept even when a `\ No newline at end of file` marker
+  follows the line. Removed (`-`) and context (` `) lines contribute nothing.
+- Span bytes. For each evidence record, the bytes `[start, end)` of its base blob,
+  exactly as bound by `spanSha256`. A span may begin or end in the middle of a
+  line. All rules below read only these bytes, never the rest of the blob.
+
+Requirement ID tokens. Scan the added bytes left to right. A candidate starts at
+a byte `A`..`Z` whose preceding byte, if any, is not a boundary byte; the
+boundary bytes are `A`..`Z`, `a`..`z`, `0`..`9`, `_` and `-`. At a candidate,
+match the pattern `[A-Z][A-Z0-9-]{2,31}-[0-9]{3}` anchored at that byte, with
+the greedy, leftmost-first backtracking semantics of Perl, RE2 or Go `regexp`.
+If there is no match, or the byte after the match is a boundary byte, discard
+the candidate and continue at the next byte; a shorter match is not retried.
+Otherwise record the occurrence and continue after its last byte, so
+occurrences never overlap. The hunk's IDs are the distinct occurrence strings.
+
+Defining lines. A span defines ID `X` when some line of the span, after removing
+leading spaces and tabs, begins with the three bytes ``- ` `` (hyphen, space, backtick) followed by `X`, a
+backtick and a colon, with `X` non-empty and containing no backtick. Lines are
+the pieces of the span split on LF, so the first line starts at the first span
+byte even when the span begins mid-line, and the last line may lack an LF. A
+reader that looks at the whole blob line around the span instead of the span
+bytes gives different answers when the span starts mid-line.
+
+Anchors. A hunk with basis evidence IDs `E` has:
+
+- `id` when at least one of its IDs is defined by the span of at least one
+  member of `E`;
+- `path` when its path is non-empty and the span of at least one member of `E`
+  contains the full path as a byte substring, or contains the path's last
+  `/`-separated component when that component is at least 6 bytes long.
+
+`anchors` lists the kinds found, `id` before `path`; it is `[]` when none is
+found.
+
+Tiers.
+
+1. `mechanical-proved` when the hunk's disposition is `mechanical`.
+2. `unknown` when the hunk has no basis.
+3. Otherwise the hunk is supported: `anchored` when its own basis set gives at
+   least one anchor, else `cited`.
+
+`held` is a reserved count that is always 0. Mechanical and unknown hunks always
+have `anchors: []`.
+
+Annotation. A hunk's `annotation` is true when it has at least one `+` line and
+every token of its added bytes is neutral. To find the tokens, replace each
+requirement ID occurrence with spaces, then take every maximal run of
+`A`..`Z`, `a`..`z`, `0`..`9` and `_`. A token is neutral when it is shorter than
+3 bytes, or when its ASCII-lowercased bytes are one of these 60 stop terms:
+
+```text
+also been build change changed changes claim dist docs document
+documentation error evidence false from generated have hunk include
+into must only package packages print report reports requirement
+requirements return self shall should sidecar source sources string
+supported test testing tests that their then there these they
+this those true unknown value vendor vendored when where which
+while will with
+```
+
+Annotation is computed for every hunk, whatever its tier.
+
+Counts.
+
+- `hunksByClass`: the number of hunks in each tier.
+- `annotationHunks`: the number of hunks with `annotation: true`.
+- `evidenceFanOut`: for each evidence ID in the basis of at least one supported
+  hunk, the number of distinct supported hunks whose basis names it. Each entry
+  is the two-element array `[evidenceId, count]`. Entries are sorted by count,
+  highest first, then by evidence ID in byte order.
+- `distinctEvidence`: the number of `evidenceFanOut` entries.
+- `maxFanOut`: the largest count, or 0 when there are no entries.
+- `samePathCitations`: over the supported hunks, the number of basis entries
+  (each `(evidenceId, relation)` pair, not each distinct evidence ID) whose
+  evidence record `path` equals the hunk path. A deletion hunk compares against
+  its base path.
+- `concentratedHunks`: the number of supported hunks for which every distinct
+  basis evidence ID has a fan-out count equal to `maxFanOut`.
+
+Shift null. Let `S` be the supported hunks in hunk order and `B(h)` the sorted
+set of distinct basis evidence IDs of `h`. When `S` has fewer than 2 members,
+`invariant` is true and `specificity` is 0. Otherwise:
+
+- `invariant` is true when every `B(h)` equals `B(S[0])`, and false otherwise.
+- The shifted anchor count is the number of `i` in `0..|S|-1` for which hunk
+  `S[i]` (its own IDs and path) has at least one anchor against the basis set
+  `B(S[i-1])`. For `i = 0` use the last member's set, `B(S[|S|-1])`.
+- `specificity` is `hunksByClass.anchored` minus the shifted anchor count. It can
+  be negative.
+
+## CEM-V1-109: result serialization and the verdict digest
+
+The citation block. Its members appear in this order: `profile`, `hunks`,
+`hunksByClass`, `annotationHunks`, `distinctEvidence`, `evidenceFanOut`,
+`maxFanOut`, `samePathCitations`, `concentratedHunks`, `invariant`,
+`specificity`. Each `hunks` row has the members `hunkId`, `tier`, `anchors`,
+`annotation`, in that order. `hunksByClass` has `held`, `mechanical-proved`,
+`anchored`, `cited`, `unknown`, in that order. Empty lists are `[]`, never
+`null`. Integers are canonical decimal and booleans are `true` and `false`. The
+block is written compactly: `,` between members and elements and `:` after each
+member name, with no spaces or line breaks. Every string in the block is an
+identifier or a fixed token, so no escape occurs in it. `citation-vectors/`
+pins these bytes exactly.
+
+The result object. `verify-stable` writes one JSON object followed by one LF to
+standard output, compact as above. The top-level members appear in this order
+on every outcome: `profile`, `spec`, `verificationMode`, `outcome`, `accept`,
+`stage`, `code`, `issueCodes`, `assurance`, `expectedBase`, `targetRevision`,
+`mapSha256`, `patchSha256`, `sidecar`, `drift`, `hunks`, `references`,
+`artifactChecks`, `citation`, `axes`, `runtime`, `repositoryEnvelope`,
+`verdictSha256`. Strings use JSON escapes, and both consumers also write `<`,
+`>` and `&` as `\u003c`, `\u003e` and `\u0026`, and U+2028 and U+2029 as
+`\u2028` and `\u2029`. The member order inside the nested objects of `drift`,
+`hunks` and `references` is not fixed by this contract: the two reference
+consumers currently write them in different orders. A reader MUST compare
+results by `verdictSha256`, by the citation block bytes, or by parsed values,
+never by the bytes of the whole line.
+
+The verdict digest. `verdictSha256` is the lowercase hex SHA-256 of the
+canonical JSON of the result object with the members `runtime`,
+`repositoryEnvelope` and `verdictSha256` removed. Canonical JSON here is:
+
+- object members sorted by name, comparing the names as bytes;
+- no whitespace, `,` between members and elements, `:` after names;
+- strings with `"` and `\` escaped as `\"` and `\\`, the controls U+0008,
+  U+000C, U+000A, U+000D and U+0009 as `\b`, `\f`, `\n`, `\r` and `\t`, every
+  other code point below U+0020 as `\u00XX` with lowercase hex, and every other
+  code point, including `<`, `>` and `&`, as raw UTF-8;
+- integers in canonical decimal (the result carries no other numbers);
+- `true`, `false` and `null` as written.
+
+Because the members are sorted, the nested-order difference above does not reach
+the digest. The digest is computed for every outcome, ACCEPT or REJECT.
+
+## CEM-V1-110: canonical diff recipe
+
+The canonical patch is the standard output of this Git invocation, run in the
+repository under test, where `BASE` and `TARGET` are the full commit object IDs
+and `EMPTY` is the empty-tree ID of the repository's object format
+(`4b825dc642cb6eb9a060e54bf8d69288fbee4904` for SHA-1,
+`6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321` for
+SHA-256), and `GITDIR` is the repository's resolved absolute Git directory:
+
+```sh
+git --no-optional-locks --git-dir=GITDIR \
+  -c core.fsmonitor=false -c core.untrackedCache=false \
+  -c core.attributesFile=/dev/null -c credential.helper= \
+  -c core.quotePath=false -c diff.suppressBlankEmpty=false \
+  -c diff.orderFile=/dev/null -c diff.noprefix=false \
+  -c diff.mnemonicPrefix=false -c diff.renames=false \
+  -c diff.algorithm=myers -c diff.wsErrorHighlight=none \
+  -c diff.srcPrefix=a/ -c diff.dstPrefix=b/ -c diff.external= \
+  -c diff.ignoreSubmodules=none -c advice.graftFileDeprecated=false \
+  --attr-source=EMPTY diff --full-index --no-color --no-ext-diff \
+  --no-textconv --no-renames --no-indent-heuristic --diff-algorithm=myers \
+  --unified=3 --inter-hunk-context=0 --src-prefix=a/ --dst-prefix=b/ \
+  --ignore-submodules=none --end-of-options BASE TARGET \
+  -- . ':(exclude).corvint/change.cem.json'
+```
+
+The environment is cleared except for `PATH`, `SystemRoot`, `USERPROFILE` and
+the temporary directory variables `TMPDIR`, `TEMP` and `TMP`, and then set to: `LANG=C`, `LC_ALL=C`,
+`GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=/dev/null`,
+`GIT_CONFIG_SYSTEM=/dev/null`, `GIT_TERMINAL_PROMPT=0`, `GIT_OPTIONAL_LOCKS=0`,
+`GIT_NO_LAZY_FETCH=1`, `GIT_NO_REPLACE_OBJECTS=1`, `GIT_GRAFT_FILE=/dev/null`,
+`GIT_ASKPASS=`, `GIT_ATTR_NOSYSTEM=1` and `GCM_INTERACTIVE=never`. A consumer
+may add settings that only refuse network transports or hooks (the native
+verifier adds `GIT_ALLOW_PROTOCOL=` and `core.hooksPath=/dev/null`); none of
+them changes the patch bytes. A repository whose `info/attributes` file has an
+effective attribute line is refused with the public code
+`unsupported-repository-envelope` rather than diffed, because no option above can neutralize that file.
+
+The output is accepted as the canonical patch only after it is checked against
+the self-hashed base and target trees and blobs. Its file sections must match
+the changed entries one to one and in order, each header line must name the
+verified modes and object IDs, a binary section is pinned by its object IDs,
+and replaying each textual section against the verified base bytes must give
+the verified target bytes. Any other output is refused. The patch is then
+parsed as in item 6 of "CEM-V1-018 restated: 0.1 algorithms", and
+`patchSha256` is the SHA-256 of its bytes. Limit: the patch bytes are defined by this Git
+invocation. This packet does not restate Git's Myers diff, so a consumer that
+does not run Git has to reproduce Git's output for these options byte for byte.
+
+## CEM-V1-111: citation vectors
+
+`citation-vectors/` holds a repository recipe, one clean map, seven refused
+copies of it and `EXPECTED.json` (profile `cem-stable-citation-vectors/1`).
+The expected values were produced by the native verifier and are asserted by
+both consumers. The README lists the misreadings each case catches.

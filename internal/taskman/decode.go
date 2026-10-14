@@ -88,6 +88,48 @@ func ticketObject(v wire.Value) ([]string, error) {
 	return present, object(v, keys)
 }
 
+// effectsObject checks the closed effects object, admitting exactly the
+// optional members the native codec admits (TCB-V0-035).
+func effectsObject(v wire.Value) error {
+	keys := strings.Join(taskswire.TicketEffectsKeys, " ")
+	for _, k := range taskswire.TicketEffectsOptionalKeys {
+		if hasMember(v, k) {
+			keys += " " + k
+		}
+	}
+	return object(v, keys)
+}
+
+// verdictPaths checks an optional effects.verdictPaths as the native codec
+// does (TCB-V0-035, TCB-V0-036): a nonempty, canonical-byte sorted,
+// duplicate-free list of at most MaxTouchPaths valid paths, each covered by a
+// touch path. Core reads it only to admit the record; the planner reserves and
+// plans on touchPaths alone.
+func verdictPaths(effects wire.Value, touch []string) error {
+	if !hasMember(effects, "verdictPaths") {
+		return nil
+	}
+	paths, e := stringsAt(effects, "verdictPaths", taskswire.MaxTouchPaths)
+	if e != nil {
+		return e
+	}
+	if len(paths) == 0 {
+		return errors.New("empty verdict paths")
+	}
+	if e = taskswire.CheckSortedUnique("effects.verdictPaths", taskswire.Strings(paths).Arr); e != nil {
+		return e
+	}
+	for _, p := range paths {
+		if !validPath(p) {
+			return errors.New("verdict path")
+		}
+	}
+	if taskswire.UncoveredVerdictPath(touch, paths) >= 0 {
+		return errors.New("verdict path outside touch paths")
+	}
+	return nil
+}
+
 // escalationRefs checks the issue 502 reference (ESC-V0-002) as far as the
 // record alone allows: its shape, the event/transaction capacity, the
 // current-acceptance OPEN bound, and that it names no control write or
@@ -213,7 +255,7 @@ func decodeTicket(v wire.Value) (ticket, error) {
 		return t, e
 	}
 	effects := value(v, "effects")
-	if e = object(effects, "coverage touchPaths resources externalUnbounded"); e != nil {
+	if e = effectsObject(effects); e != nil {
 		return t, e
 	}
 	if e = boolField(effects, "externalUnbounded"); e != nil {
@@ -230,6 +272,9 @@ func decodeTicket(v wire.Value) (ticket, error) {
 		if !validPath(p) {
 			return t, errors.New("touch path")
 		}
+	}
+	if e = verdictPaths(effects, t.paths); e != nil {
+		return t, e
 	}
 	t.resources, e = resources(value(effects, "resources"))
 	if e != nil {

@@ -106,6 +106,9 @@ type webToken struct {
 	// but never a specifier: genericImport's character class admits only the
 	// two plain quotes, so accepting backticks would add edges.
 	quoted bool
+	// template marks a closed template literal without a `${...}`
+	// substitution; text is then its raw body. It is never a specifier.
+	template bool
 }
 
 // webLexer walks the source once, carrying the state that spans lines. The
@@ -228,19 +231,27 @@ func webEscapeEnd(text string, position int) int {
 // readTemplate consumes a template literal, including its `${...}`
 // substitutions and any template nested inside one. Nothing inside a template
 // can be a specifier under genericImport's quote set, so it yields one token.
+// A template without a substitution keeps its raw body, which only the
+// string-keyed registry dialect reads as a literal (NGI-V0-008).
 func (lexer *webLexer) readTemplate() webToken {
 	lexer.position++
+	start, substituted := lexer.position, false
 	for lexer.position < len(lexer.text) {
 		switch {
 		case lexer.text[lexer.position] == '\\':
 			lexer.position += 2
 		case lexer.hasAt("${"):
+			substituted = true
 			lexer.position += 2
 			lexer.previous = webToken{kind: webPunct, text: "{"}
 			lexer.skipSubstitution()
 		case lexer.text[lexer.position] == '`':
+			body := lexer.text[start:lexer.position]
 			lexer.position++
-			return webToken{kind: webString}
+			if substituted {
+				return webToken{kind: webString}
+			}
+			return webToken{kind: webString, text: body, template: true}
 		default:
 			lexer.position++
 		}

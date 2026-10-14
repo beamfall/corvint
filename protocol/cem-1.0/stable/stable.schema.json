@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://corvint.dev/protocol/cem-1.0/stable/stable.schema.json",
   "title": "PROPOSED stable CEM 1.0 document",
-  "description": "Closed exact cem/1.0 wire: ten required members plus the optional provenance and role members (CEM-V1-093, CEM-V1-095), neither of which carries authority. Technical contract PROPOSED/EXPERIMENTAL; native/portable implementations and release qualification are not delivered. ALGORITHMS.md supplies byte/identity/cross-record/Git rules not expressible here.",
+  "description": "Closed exact cem/1.0 wire: ten required members plus the optional provenance and role members (CEM-V1-093, CEM-V1-095), neither of which carries authority. Implemented and produced on main and verified by the native and portable consumers; technical contract proposed, not accepted and not promoted; release qualification is not delivered. ALGORITHMS.md supplies byte/identity/cross-record/Git rules not expressible here.",
   "$comment": "Apache-2.0. Derived only from public permissive CEM schemas, with independently authored stable rules. The separate candidate packet remains byte-identical.",
   "type": "object",
   "additionalProperties": false,
