@@ -952,6 +952,11 @@ CEM-V1-181	docs/specs/cem-stable-v1.md	2159	(accepted under the owner's standing
 CEM-V1-182	docs/specs/cem-stable-v1.md	2164	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The Linu	standing	2026-10-11; V1-1358
 CEM-V1-183	docs/specs/cem-stable-v1.md	2172	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) Linux	standing	2026-10-11; V1-1358
 CEM-V1-184	docs/specs/cem-stable-v1.md	2183	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On a	standing	2026-10-11; V1-1358
+CEM-V1-185	docs/specs/cem-stable-v1.md	2233	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The stab	standing	2026-10-11; V1-1377
+CEM-V1-186	docs/specs/cem-stable-v1.md	2241	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The	standing	2026-10-11; V1-1377
+CEM-V1-187	docs/specs/cem-stable-v1.md	2247	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) An	standing	2026-10-11; V1-1377
+CEM-V1-188	docs/specs/cem-stable-v1.md	2252	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The host	standing	2026-10-11; V1-1377
+CEM-V1-189	docs/specs/cem-stable-v1.md	2258	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) A test i	standing	2026-10-11; V1-1377
 CEM-V1-200	docs/specs/cem-stable-v1.md	787	`wire.ParseStable`, and so every stable read (`cem verify-stable`, a stable	unrecorded	-
 CEM-V1-201	docs/specs/cem-stable-v1.md	796	Every committed `.corvint/changes/<bind>.cem.json` MUST be accepted by	unrecorded	-
 CEM-V1-202	docs/specs/cem-stable-v1.md	807	`dogfood batch-check` and `dogfood change`'s sealed-CEM admission (`DCW-V0-039`	unrecorded	-
@@ -985,11 +990,6 @@ CEM-V1-229	docs/specs/cem-stable-v1.md	2044	Swapping evidence IDs between hunks,
 CEM-V1-230	docs/specs/cem-stable-v1.md	721	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
 CEM-V1-231	docs/specs/cem-stable-v1.md	736	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
 CEM-V1-232	docs/specs/cem-stable-v1.md	743	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) The migr	standing	2026-10-11; V1-1277
-CEM-V1-240	docs/specs/cem-stable-v1.md	2233	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The stab	standing	2026-10-11; V1-1377
-CEM-V1-241	docs/specs/cem-stable-v1.md	2241	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The	standing	2026-10-11; V1-1377
-CEM-V1-242	docs/specs/cem-stable-v1.md	2247	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) An	standing	2026-10-11; V1-1377
-CEM-V1-243	docs/specs/cem-stable-v1.md	2252	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The host	standing	2026-10-11; V1-1377
-CEM-V1-244	docs/specs/cem-stable-v1.md	2258	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) A test i	standing	2026-10-11; V1-1377
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	1139	(retired by V1-1278 S3) The default `verify` path refuses a strictly parsed JSON	unrecorded	-
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	1143	(retired by V1-1278 S3) `ci` reports such a map as verdict `unsupported-profile`	unrecorded	-
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	1146	(retired by V1-1278 S3) Only that exact case changes. A duplicate, non-string, d	unrecorded	-

@@ -338,7 +338,7 @@ the V1-1377 dispatch (run 38650914390, same job matrix, commit 22fca01e6) names 
 consumer's fixed `PATH=/usr/bin:/bin` the hosted runner resolves Apple Git 2.39.5, which rejects the
 `--attr-source` option (Git 2.41 or later) that the stable repository diff passes, so the consumer
 answers `UNSUPPORTED` at stage `repository` with `git-diff-failed` (`docs/specs/cem-stable-v1.md`
-`CEM-V1-240`), while the gate's own reads and the native verifier resolve the runner's newer Git
+`CEM-V1-185`), while the gate's own reads and the native verifier resolve the runner's newer Git
 through the gate process's PATH. The two legs were running two different Gits. This section pins
 the consumer's stage and code in the document, refuses an unsupported portable route by name, and
 makes both legs resolve one Git. It supersedes the sentence above that the portable consumer "runs

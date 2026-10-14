@@ -1,7 +1,7 @@
 # 2026-10-14 V1-1377: hosted macos-15 portable consumer `UNSUPPORTED` in the cem-verdict gate
 
 Lane V1-1377 (BUG, P1). Requirements `TCB-V0-040..044` (`docs/specs/tasks-criterion-binding-v0.md`)
-and `CEM-V1-240..244` (`docs/specs/cem-stable-v1.md`), accepted under the owner's standing
+and `CEM-V1-185..189` (`docs/specs/cem-stable-v1.md`), accepted under the owner's standing
 auto-accept of lane requirements (2026-10-11). Base `4c1ca0d0f94ec36e2ac141c5515742a1fb23a758`
 (origin/main after PR #878).
 
@@ -21,7 +21,7 @@ macos-15 run, and AC3 a truthful refusal that names an unsupported portable rout
   `stage` and `code` enumerations of `protocol/cem-1.0/stable/RESULT.schema.json`, held as two
   sets a test pins to the schema; `code` `null` on `ACCEPT`); anything else is an unreadable
   result (`portable-consumer-failed`, no pin). No host path or free text enters the document
-  (TCB-V0-040, CEM-V1-242).
+  (TCB-V0-040, CEM-V1-187).
 - Refuse an unsupported route by name. Portable `UNSUPPORTED` against a native non-`UNSUPPORTED`
   refuses `CEM_VERDICT_UNVERIFIABLE` / `portable-route-unsupported` with both legs pinned. This
   supersedes the TCB-V0-031 clause that kept `CEM_VERDICT_VERIFIER_DISAGREEMENT` for that case;
@@ -37,7 +37,7 @@ macos-15 run, and AC3 a truthful refusal that names an unsupported portable rout
   `git --version`, one `git --attr-source=HEAD diff HEAD HEAD` under `PATH=/usr/bin:/bin`) is
   retained in the TCB-V0-016 failure message, and `TestTCBV0042PortableConsumerUnderBareHostPath`
   runs the real consumer under that fixed PATH and accepts only the answer the probe explains
-  (TCB-V0-042, CEM-V1-244). Because the CI test run is non-verbose, a passing run retains no
+  (TCB-V0-042, CEM-V1-189). Because the CI test run is non-verbose, a passing run retains no
   log, so the lane dispatched release-gates twice: once at the diagnostic commit (expected to
   fail with the cause retained) and once at the fix.
 - Fix the cause in the gate. Go's `exec.Command("git")` resolves through the gate process's
@@ -46,7 +46,7 @@ macos-15 run, and AC3 a truthful refusal that names an unsupported portable rout
   `portablePath()` now puts the directory of the gate-resolved `git` ahead of `/usr/bin:/bin`
   (fixed path alone when unresolved, relative or already under it), so both legs run one Git.
   The directory never enters the document; `runRead` keeps the fixed PATH (TCB-V0-043,
-  CEM-V1-241).
+  CEM-V1-186).
 - Rejected: probing `git --version` and refusing below 2.41 (a version string is not a
   capability proof); adding a new consumer code (needs a packet change); making the consumer
   search Homebrew or Xcode paths (an unbounded search for an executable it then trusts).
