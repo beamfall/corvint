@@ -165,3 +165,31 @@ confirmed and fixed in this change:
 
 Rollback: revert the change commit; the `registries` member, the dialect and the five unknown
 codes disappear together and the default receipt is unaffected.
+
+## Repair: offline Tasks source archive (PUB-V0-012, PUB-V0-013)
+
+PR CI (`go-product-shard (5)`) failed
+`TestCurrentTasksSourceArchiveBuildsOffline/PUB-V0-012_PUB-V0-013_actual_Tasks_archive_dependency_closure`:
+the registry dialect made `internal/contextindex`, which is inside the exported corvint-tasks
+closure, import `internal/cem/wire`, which is not, so `go build ./cmd/corvint-tasks` in the
+offline archive could not resolve it. The closure was not widened (that is a spec change). The
+strictness check moved into `internal/contextindex/strict_json.go`, a validating reader that
+accepts exactly what `wire.Parse` accepts (UTF-8, one value, depth 64, non-negative integers up
+to 2^53-1 without leading zeros, closed escapes, paired surrogates, no raw control bytes, no
+duplicate decoded member). `TestStrictJSONMatchesWireParse` and `FuzzStrictJSONMatchesWireParse`
+pin the parity against `wire.Parse`; the test files may import outside the closure, as the
+package's existing tests already do (`gokernel`, `cem/workflow`). The new production file is an
+analyzer input, so the `TestAnalyzerSchemaInputs` digest was repinned under the same unreleased
+`corvint-analyzer/118`.
+
+Verification: the archive test PASS; `internal/contextindex`, `internal/appmap`,
+`internal/companionrelease` and `internal/tasks/cli` full packages PASS (contextindex after the
+repin); 60 s of the parity fuzzer found no mismatch; `-race` on the strict, registry and manifest
+tests PASS; `go vet ./internal/contextindex` clean; `gofmt -l` empty; the 12 CI doc gates pass.
+`corvint affected` against the sealed head selected 118 packages; the other 114 are `NOT_RUN`
+(focused-test policy; behavior is unchanged by construction and pinned by the parity test).
+
+Codex (one round): no acceptance difference and no remaining out-of-closure production import.
+Two low notes are recorded, not changed: the parity test cannot run from the extracted archive
+(as for the package's existing out-of-closure test imports; the archive contract is `go build`),
+and a suggested decoded-alias duplicate case is already present (`{"a": 1, "a": 2}`).
