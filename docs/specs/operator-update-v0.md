@@ -13,7 +13,7 @@ and implement V1-0505; `../../AGENTS.md` invariants 4 and 7; `../INSTALL.md` upg
 - Status: proposed technical contract under owner-requested V1-0505 outcome / experimental
 - Exists: separate `../../cmd/corvint-update` and `../../internal/update`; focused regression and actual macOS evidence are required before delivery.
 - Blocked on: final focused checks, independent review, actual published-archive lifecycle and native completion. Publisher identity and full Tasks qualification remain NOT_VERIFIED/NOT_OBSERVED.
-- Read next: Requirements; Trust boundary and limits; Acceptance evidence. A Core switch refreshes index snapshots of named and indexed enclosing checkouts (`UPD-V0-008`). `check` states the installed-to-available relation (`UPD-V0-009`).
+- Read next: Requirements; Trust boundary and limits; Acceptance evidence. A Core switch refreshes index snapshots of named and indexed enclosing checkouts (`UPD-V0-008`). `check` states the installed-to-available relation (`UPD-V0-009`). An unnumbered local install (build 0 or none) still checks, as `installedBuildStatus` `UNNUMBERED`, and `apply` refuses to replace it (`UPD-V0-010`).
 
 ## Human intent and current state
 
@@ -136,6 +136,29 @@ The baseline is manual archive verification and copying binaries, with external 
   install. Rollback of this requirement:
   remove `relate` and the four result fields; callers compare `installedVersion` and `availableTag`
   by hand, as before.
+- `UPD-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1364) An installed
+  version label that passes the component identity check and carries build 0 or no build marker
+  at all (a marker `build` followed by `.`, space, `=` or `:` that is not read as digits stays
+  `invalid numeric build`), as a local
+  build from source reports (`Corvint 1.0.0-rc.3 (build 0)`, `0.0.0-tcp01-unverified+build.0`), is an
+  unnumbered build, not an unknown identity. `check` MUST still report the available release
+  (`availableTag`, and `availableBuild` when a Tasks declaration is bound as in `UPD-V0-009`) with
+  freshness `RELEASE_OBSERVED`, set `installedBuildStatus` to `UNNUMBERED`, and state `relation`
+  `UNKNOWN` with no basis and a `relationReason` saying the installed build is unnumbered or local so
+  its freshness cannot be ordered against releases; it MUST NOT exit with only an opaque build error.
+  This narrows `UPD-V0-001`'s UNKNOWN freshness for an unavailable installed-build identity to labels
+  that fail the component identity check. `apply` MUST refuse to replace an unnumbered installed build
+  after release discovery and before any download, naming the reason, leave the destination
+  unchanged and create no transaction (the lock-held sweep of stale receipt-less transactions,
+  `UPD-V0-007`, still runs as for every apply); no flag overrides it, because force-downgrade is a non-goal, so the
+  operator who chooses to replace a local build does so by hand. A candidate whose own version label
+  is unnumbered stays an unknown build that `apply` refuses (`UPD-V0-004`). `rollback` is unchanged.
+  Failure modes: a numbered build that a local source build reuses is still compared as that number;
+  an unnumbered build newer than every release keeps reporting `UNKNOWN` until it is replaced.
+  Falsifier: a check of an unnumbered install that exits without `availableTag`, reports a relation
+  other than `UNKNOWN` or lacks `installedBuildStatus` `UNNUMBERED`; or an apply that replaces an
+  unnumbered install. Rollback of this requirement: restore the build-0 refusal in `version` and
+  remove `installedBuildStatus`; check then exits with `invalid numeric build` again.
 
 ## Non-goals
 
@@ -181,6 +204,7 @@ and callers restart them when the applicable host integration requires it.
 | UPD-V0-007 | `sweepIncomplete`, `retainCommitted`, state lock | `TestUPDV0007RetentionBoundInterruptedSweepAndRollback`: three padded applies keep one transaction's previous bytes (state constant instead of growing per apply), exact `removed`/`left`, other component kept, malformed receipt left and named, a fresh receipt-less transaction and a `transaction-notes` operator directory kept, a stale interrupted (receipt-less) transaction swept by the next rollback, rollback after pruning restores the exact previous digest, a held state lock refuses the run; `TestUPDV0005ApplyRollbackAndPreparedReceipt` tampers the retained transaction |
 | UPD-V0-008 | `refreshIndexes`, `--refresh-index` | `TestUPDV0008CoreSwitchRefreshesIndexedCheckouts`: an apply and a rollback refresh a named root once when it also encloses the working directory; outcomes `failed` (exit status and stderr line), `built`, `fresh` in order, an unindexed enclosing checkout `skipped` without a run, no outcome outside any checkout, exact argv, no refresh after an unchanged apply or a successful Tasks rollback; live: the installed Core build 404 reported `built` then `fresh` on a scratch indexed repository (2026-10-09) |
 | UPD-V0-009 | `relate`, `declaredTasksBuild`, `compareSemver` | `TestUPDV0009CheckStatesRelation`: Core `CURRENT`, `LOCAL_NEWER`, `UPDATE_AVAILABLE` (including a prerelease below its release, numeric prerelease order beyond machine integers, and build metadata ignored) and `UNKNOWN` for a non-semantic tag, leading zeros or a malformed installed label; Tasks `LOCAL_NEWER` with the downgrade reason (declared 202 against installed 407), `CURRENT`, `UPDATE_AVAILABLE`, and `UNKNOWN` for an unbound or missing declaration; no state written |
+| UPD-V0-010 | `version`, `errUnnumbered`, `relate`, apply refusal | `TestUPDV0010UnnumberedLocalBuild`: Core and Tasks installs with build 0 and with no build number check as `UNNUMBERED` / `UNKNOWN` with the available tag (and Tasks declared build 500), write no state, and apply refuses with the destination unchanged and no transaction created; a `build -1` label stays `invalid numeric build`; a build-0 candidate is refused as an unknown candidate build; live (2026-10-14): installed Core `1.0.0-rc.3 (build 0)` and Tasks `+build.0` reported `v1.0.0-rc.2` and `tasks-dev-20260929.2` (build 202) |
 | UPD-V0-006 | owned bounded process probes | `TestUPDV0006SubprocessCancellationCleanup`: timeout/interruption descendant cleanup |
 
 Actual macOS evidence MUST start disposable installs with retained Core/Tasks bytes, exercise the

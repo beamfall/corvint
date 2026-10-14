@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -52,7 +54,7 @@ func TestSTRV0006DeclarationMatchesMakefile(t *testing.T) {
 	if code := run(root, "Makefile", declaration, &stdout, &stderr); code != 0 {
 		t.Fatalf("repository declaration: code %d\n%s", code, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "Makefile go-test is exactly `go run ./tools/test-commands-run`, which runs .github/cishards/test-commands.json (GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go test -p 1 -timeout 30m -count=1 ./... in the repository root); ledger/go-test runs the declared go.env and go.flags through gate-ledger; no SHELL, .SHELLFLAGS, MAKEFLAGS or go-test variable in the Makefile; 1 declared make targets dry-run; no make gate step recipe runs a suite of [dotnet kotlin python ruby rust swift]") {
+	if !strings.Contains(stdout.String(), "Makefile go-test is exactly `go run ./tools/test-commands-run`, which runs .github/cishards/test-commands.json (GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go test -p 1 -timeout 30m -count=1 ./... in the repository root); ledger/go-test runs the declared go.env and go.flags through gate-ledger; no SHELL, .SHELLFLAGS, MAKEFLAGS or go-test variable in the Makefile; 2 declared make targets dry-run; no make gate step recipe runs a suite of [dotnet kotlin python ruby rust swift]") {
 		t.Fatalf("stdout %q", stdout.String())
 	}
 	// Every mutation is a readable declaration (the reader is not what fails)
@@ -221,5 +223,75 @@ func TestSTRV0006Classify(t *testing.T) {
 		if got := matchReason(word); got != want {
 			t.Errorf("matchReason(%q) = %q, want %q", word, got, want)
 		}
+	}
+}
+
+// STR-V0-004: shell declares `make shell-test`, whose prerequisites are
+// exactly the GATE_STEPS steps whose recipe runs a script/*_test.sh and which
+// adds no recipe of its own, so the declared shell full command runs the
+// shell suites make gate runs and no others (V1-1373).
+func TestSTRV0004ShellTestIsTheGateShellSteps(t *testing.T) {
+	root := requireMake(t)
+	declared := sessiontest.ReadDeclaredFile(filepath.Join(root, filepath.FromSlash(sessiontest.DeclarationPath)))
+	if entry, ok := declared.Command("shell"); !ok || strings.Join(entry.Argv, " ") != "make shell-test" {
+		t.Fatalf("languages.shell is %+v (declared %v), want [make shell-test]", entry, ok)
+	}
+	text, err := os.ReadFile(filepath.Join(root, "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(text), "\n")
+	rules := map[string][]int{}
+	var gateSteps []string
+	for index, line := range lines {
+		if value, ok := strings.CutPrefix(line, "GATE_STEPS = "); ok {
+			gateSteps = strings.Fields(value)
+		}
+		if target, _, ok := strings.Cut(line, ":"); ok && line != "" && !strings.ContainsAny(line[:1], "\t #") && !strings.ContainsAny(target, " =$%") {
+			rules[target] = append(rules[target], index)
+		}
+	}
+	if len(gateSteps) == 0 {
+		t.Fatal("no literal GATE_STEPS line")
+	}
+	recipe := func(index int) []string {
+		var recipeLines []string
+		for _, line := range lines[index+1:] {
+			if !strings.HasPrefix(line, "\t") {
+				break
+			}
+			recipeLines = append(recipeLines, line)
+		}
+		return recipeLines
+	}
+	// The recipe must start the script itself (after make's @, + or -
+	// prefixes), so a recipe that only names it, such as `@echo
+	// script/x_test.sh`, does not count as running it.
+	shellTest := regexp.MustCompile(`^\t[@+-]*script/[^\s/]+_test\.sh(\s|$)`)
+	var want []string
+	for _, step := range gateSteps {
+		if len(rules[step]) != 1 {
+			t.Fatalf("gate step %s has %d rules, want 1", step, len(rules[step]))
+		}
+		for _, line := range recipe(rules[step][0]) {
+			if shellTest.MatchString(line) {
+				want = append(want, step)
+				break
+			}
+		}
+	}
+	if len(rules["shell-test"]) != 1 {
+		t.Fatalf("Makefile has %d shell-test rules, want 1", len(rules["shell-test"]))
+	}
+	index := rules["shell-test"][0]
+	if extra := recipe(index); len(extra) != 0 {
+		t.Errorf("shell-test has recipe lines %q, want only prerequisites", extra)
+	}
+	_, prerequisites, _ := strings.Cut(lines[index], ":")
+	got := strings.Fields(prerequisites)
+	slices.Sort(got)
+	slices.Sort(want)
+	if !slices.Equal(got, want) {
+		t.Errorf("shell-test prerequisites %q, want the GATE_STEPS steps that run a script/*_test.sh %q", got, want)
 	}
 }

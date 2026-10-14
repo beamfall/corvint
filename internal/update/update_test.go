@@ -837,3 +837,75 @@ func TestUPDV0008CoreSwitchRefreshesIndexedCheckouts(t *testing.T) {
 		t.Fatal("tasks rollback did not switch")
 	}
 }
+
+// TestUPDV0010UnnumberedLocalBuild: an installed build 0 or a label without a
+// build number still checks against the available release with status
+// UNNUMBERED and relation UNKNOWN, and apply refuses to replace it.
+func TestUPDV0010UnnumberedLocalBuild(t *testing.T) {
+	e := fixtureEngine(t)
+	core := filepath.Join(e.config.BinDir, "corvint")
+	tasks := filepath.Join(e.config.BinDir, "corvint-tasks")
+	archive := "corvint-tasks_" + e.platform + ".tar.gz"
+	declaration := []byte(fmt.Sprintf(`{"profile":"corvint-tasks-archive/0","target":%q,"build":"500","archiveSha256":%q}`, strings.ReplaceAll(e.platform, "_", "/"), hash([]byte("archive"))))
+	tasksAssets := map[string][]byte{archive: []byte("archive"), "SHA256SUMS": []byte(hash([]byte("archive")) + "  " + archive + "\n"), "build-verification.json": declaration}
+	for _, c := range []struct{ name, component, label string }{
+		{"core build 0", "core", "Corvint 1.0.0-rc.3 (build 0)"},
+		{"core no build", "core", "Corvint 1.0.0-rc.3"},
+		{"tasks build 0", "tasks", "0.0.0-tcp01-unverified+build.0"},
+		{"tasks no build", "tasks", "0.0.0-tcp01-unverified"},
+	} {
+		e.config.Component = c.component
+		e.config.StateDir = filepath.Join(filepath.Dir(e.config.BinDir), "state-"+strings.ReplaceAll(c.name, " ", "-"))
+		dest, tag, wantBuild := core, "v1.0.0-rc.3", 0
+		body := "echo '" + c.label + "'"
+		if c.component == "tasks" {
+			dest, tag, wantBuild = tasks, "tasks-dev-20260929.2", 500
+			body = `echo '{"items":[{"version":"` + c.label + `"}],"profile":"taskman-command-result/0"}'`
+			relationClient(&e, tag, tasksAssets)
+		} else {
+			releaseClient(t, &e, 163)
+			tag = "v1.0.0-rc.1"
+		}
+		if err := os.WriteFile(dest, []byte("#!/bin/sh\n"+body+"\n"), 0700); err != nil {
+			t.Fatal(err)
+		}
+		r, err := e.run(context.Background(), "check")
+		if err != nil || r.AvailableTag != tag || r.InstalledVersion != c.label || r.InstalledBuild != 0 || r.InstalledBuildStatus != "UNNUMBERED" || r.Freshness != "RELEASE_OBSERVED" || r.Relation != "UNKNOWN" || r.RelationBasis != "" || !strings.Contains(r.RelationReason, "cannot be ordered against releases") || r.AvailableBuild != wantBuild {
+			t.Fatalf("%s check: %+v %v", c.name, r, err)
+		}
+		if _, err = os.Stat(e.config.StateDir); !os.IsNotExist(err) {
+			t.Fatalf("%s: check created state", c.name)
+		}
+		before, _ := digest(dest)
+		r, err = e.run(context.Background(), "apply")
+		if err == nil || !strings.Contains(err.Error(), "refusing to replace unnumbered installed build") || r.InstalledBuildStatus != "UNNUMBERED" || r.Action != "apply" || r.Receipt != "" {
+			t.Fatalf("%s apply: %+v %v", c.name, r, err)
+		}
+		if after, _ := digest(dest); after != before {
+			t.Fatalf("%s: refused apply changed destination", c.name)
+		}
+		if entries, _ := os.ReadDir(e.config.StateDir); len(entries) != 0 {
+			t.Fatalf("%s: refused apply created a transaction %v", c.name, entries)
+		}
+	}
+	// A malformed build marker is not an unnumbered build.
+	e.config.Component = "core"
+	if err := os.WriteFile(core, []byte("#!/bin/sh\necho 'Corvint 1.0.0-rc.3 (build -1)'\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if r, err := e.run(context.Background(), "check"); err == nil || err.Error() != "invalid numeric build" || r.InstalledBuildStatus != "" {
+		t.Fatalf("malformed build marker: %+v %v", r, err)
+	}
+	// A numbered install is unaffected, and a candidate without a build is
+	// still an unknown build that apply refuses.
+	e.config.Component = "core"
+	writeScript(t, core, 163)
+	releaseClient(t, &e, 0)
+	before, _ := digest(core)
+	if _, err := e.run(context.Background(), "apply"); err == nil || !strings.Contains(err.Error(), "candidate numeric build") {
+		t.Fatalf("build-0 candidate: %v", err)
+	}
+	if after, _ := digest(core); after != before {
+		t.Fatal("refused candidate changed destination")
+	}
+}
