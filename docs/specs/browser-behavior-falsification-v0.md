@@ -2,7 +2,7 @@
 
 - Owner: Russell Lewis
 - Date: 2026-09-21
-- Intent status: proposed; BBF-V0-015..017 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366)
+- Intent status: proposed; BBF-V0-015..018 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367)
 - Delivery status: experimental
 - Authoritative inputs: owner requests [issue 54](https://github.com/beamfall/corvint/issues/54) and [issue 167](https://github.com/beamfall/corvint/issues/167),
 `AGENTS.md`, `docs/specs/documentation-corpus-v1.md`, and
@@ -10,8 +10,8 @@
 
 ## Agent digest
 - Claim: An opt-in companion runs digest-approved caller hooks against a marked disposable workspace and emits fail-closed criterion-level falsification receipts.
-- Status: proposed; BBF-V0-015..017 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366)/experimental; no control result authenticates semantic adequacy or authorizes test-suite narrowing.
-- Exists: the separate experimental planner, approval gate, bounded runner, closed classifier, synthetic conformance fixtures, and opt-in approval-bound evidence export with offline verification; optional control application markers classify inert controls as NOT-APPLIED, list them separately and flag repeats across revisions (BBF-V0-015..017).
+- Status: proposed; BBF-V0-015..018 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367)/experimental; no control result authenticates semantic adequacy or authorizes test-suite narrowing.
+- Exists: the separate experimental planner, approval gate, bounded runner, closed classifier, synthetic conformance fixtures, and opt-in approval-bound evidence export with offline verification; optional control application markers classify inert controls as NOT-APPLIED, list them separately and flag repeats across revisions (BBF-V0-015..017); an attempt without an admitted hook receipt keeps its infrastructure or invalid classification with its stdout bound and still verifies (BBF-V0-018).
 - Blocked on: live adopter/browser evidence for each supported control kind and owner acceptance of the proposed contract.
 - Read next: Requirements; Trust and mutation boundary; Acceptance matrix.
 
@@ -130,6 +130,23 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   `repeated-not-applied` and its sorted revisions; repeats at one revision are not a defect. The
   result is deterministic and independent of receipt order.
 
+- `BBF-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1367) An
+  attempt whose hook stdout yields no admitted hook receipt (the hook timed out, crashed,
+  overflowed or otherwise failed its process boundary, or exited cleanly with undecodable output)
+  keeps its executor classification, `infrastructure_failed` or `invalid_control`, in
+  `execute-receipt`. Its exact stdout is retained and bound to `stdout_sha256` without a native
+  report, so no `native-report-unavailable` omission applies; an attempt whose hook never started
+  observes no stdout and retains no raw entry. The BBF-V0-013 missing-report rule applies only to
+  attempts with an admitted hook receipt. `verify-receipt` accepts an attempt without a receipt
+  only when its retained bytes match the raw and attempt digests, it carries no native report or
+  retained artifacts, its workspace baseline is the plan's, its retained bytes do not decode as a
+  hook receipt whatever its recorded process outcome, and its status and reasons recompute from
+  its process and cleanup observations. An attempt with no observed stdout verifies only when
+  its hook never started, it carries no receipt, retained artifacts or application, and its
+  status is `infrastructure_failed`, `invalid_control` or `not_run`. Neither kind ever verifies as
+  `killed`, as `survived`, or with a status outside the vocabulary. A retained-byte-bound omission
+  still refuses verification.
+
 ### Approval-bound evidence wire
 
 The closed envelope fields are `schema`, `plan_preimage`, `approval`, `tool`, `raw_attempts`,
@@ -212,6 +229,7 @@ always attempted with its own bounded context even after execution failure or ca
 | inert listing and compatibility | `TestBBFV0016InertControlsListedSeparately`, `TestBBFV0016LegacyWireUnchanged`, `TestBBFV0016InertControlAbstainsOnStrength`, `TestBBFV0016ControlApplicationSeparatesInertAndUnobserved` |
 | cross-revision inert defect | `TestBBFV0017RepeatedNotAppliedAcrossRevisions` |
 | approval-bound retained evidence | `TestBBFV0013OfflineReceipt`, `TestBBFV0013ReceiptTampering`, `TestBBFV0013ReceiptFailuresNeverKill`, `TestBBFV0013SecretOutputRefused`, `TestBBFV0013ReceiptApprovalAndBounds`; actual CLI export/verify smoke |
+| attempt without an admitted hook receipt | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
 
 Focused package and command tests run first. Repository completion additionally requires the
 canonical Go test/vet and interoperability gates, independent review, and the dogfood CEM/OCM
@@ -238,6 +256,7 @@ default commands remain unchanged.
 | BBF-V0-011..012 | conformance fixtures and report limitations | end-to-end synthetic command tests and independent review |
 | BBF-V0-015..016 | `internal/behaviorfalsify` classifier, receipt verifier; `internal/testacceptance` consumer | `TestBBFV0015ApplicationClassification`, `TestBBFV0015PlanMarkerValidation`, `TestBBFV0016InertControlsListedSeparately`, `TestBBFV0016LegacyWireUnchanged`, `TestBBFV0016InertControlAbstainsOnStrength` |
 | BBF-V0-017 | `internal/behaviorfalsify/history.go` | `TestBBFV0017RepeatedNotAppliedAcrossRevisions` |
+| BBF-V0-018 | `internal/behaviorfalsify/receipt.go` capture, `unobservedAttemptVerifies` and `unadmittedAttemptVerifies` | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
 
 ## Unresolved decisions and promotion criteria
 
