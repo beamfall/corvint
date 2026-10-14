@@ -9,11 +9,12 @@ import (
 	"testing"
 )
 
-// V1-1094: the reuse step, the advisory drift report, the qualification campaign and the
-// ci-test-slices default (AFP-V0-041) name the go-product-shard count separately. A count that
-// drifts from the matrix makes every main push FULL (no record name matches), every drift report
-// abstain, a qualification bind another partition, and a slice regeneration refuse the run's logs,
-// all silently; so each must equal the matrix length.
+// V1-1094: the reuse step, the advisory drift report, the qualification campaign, the
+// ci-test-slices default (AFP-V0-041) and the forward-rows job (AFP-V0-047) name the
+// go-product-shard count separately. A count that drifts from the matrix makes every main push
+// FULL (no record name matches), every drift report abstain, a qualification bind another
+// partition, a slice regeneration refuse the run's logs, and every forward row INCOMPLETE, all
+// silently; so each must equal the matrix length.
 func TestAFPV0024WorkflowShardCountsAgree(t *testing.T) {
 	read := func(path string) string {
 		b, err := os.ReadFile(path)
@@ -24,6 +25,7 @@ func TestAFPV0024WorkflowShardCountsAgree(t *testing.T) {
 	}
 	ci := read("../../.github/workflows/ci.yml")
 	qualification := read("../../.github/workflows/pr-tests-qualification.yml")
+	controlPlane := read("../../.github/workflows/ci-control-plane.yml")
 	slices := read("../ci-test-slices/main.go")
 	one := func(name, text, pattern string) string {
 		m := regexp.MustCompile(pattern).FindAllStringSubmatch(text, -1)
@@ -45,6 +47,7 @@ func TestAFPV0024WorkflowShardCountsAgree(t *testing.T) {
 		"qualification default":   one("qualification", qualification, `(?m)^      shards:\n(?:        .*\n)*?        default: "([0-9]+)"$`),
 		"qualification CI remark": one("qualification", qualification, `CI uses ([0-9]+);`),
 		"ci-test-slices default":  one("ci-test-slices", slices, `fs\.Int\("shards", ([0-9]+),`),
+		"forward-rows shards":     one("FORWARD_SHARDS", controlPlane, `(?m)^      FORWARD_SHARDS: "([0-9]+)"$`),
 	} {
 		if got != want {
 			t.Errorf("%s = %s, want the go-product-shard matrix length %s", name, got, want)
