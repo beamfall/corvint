@@ -2095,8 +2095,10 @@ AGPL native reaper, and the module stays Apache-2.0 under `LICENSING.md`.
   `pidfd_open(2)` succeeds on the owner itself (Linux 5.3 or later), `epoll_create1(2)` succeeds,
   and `/proc/self/stat` is readable and agrees with the owner's parent and process group.
 - `CEM-V1-182`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The Linux
-  keeper MUST watch its owner through a pidfd opened on its parent and re-check after opening that
-  the parent is unchanged. It MUST wait for control input and for its Git child (through a pidfd on
+  keeper MUST watch the owner PID that the owner names in the keeper's argument vector at spawn,
+  never whichever process is its parent when it runs. It MUST refuse a named PID that is not a
+  canonical decimal greater than 1 or is not its parent, then open a pidfd on that PID and
+  re-check after opening that its parent is still that PID. It MUST wait for control input and for its Git child (through a pidfd on
   the unreaped child) in one close-on-exec epoll set together with the owner's pidfd. Owner exit,
   a failed open or any epoll failure MUST end in the keeper killing its own group and exiting, the
   same fail-closed path as the Darwin kqueue watch.
@@ -2142,6 +2144,6 @@ Linux route.
 | --- | --- | --- |
 | CEM-V1-180 | `TestStableLifecycleLingeringDescendantRetired`, `TestStableLifecycleHostileDescendantsRetired`, `TestStableLifecycleCancelRetiresDescendants` (Darwin and Linux); build constraints of `stable_process_{unix,darwin,linux,other}.go` | `go vet` of the module for darwin/arm64, linux/amd64, linux/arm64, linux/386, linux/riscv64, windows/amd64 and freebsd/amd64 (build log) |
 | CEM-V1-181 | `TestStableLinuxOwnerSupported` | Linux arm64 container run as uid 1000 (build log) |
-| CEM-V1-182 | `TestStableLifecycleKeeperOwnerExitMidFrame`, `TestStableLifecycleKeeperOwnerExitWhileHolding`, `TestStableLifecycleKeeperOwnerExitWhileRunning` | Pass on Darwin and on Linux arm64 with `-race` |
+| CEM-V1-182 | `TestStableLifecycleKeeperOwnerExitMidFrame`, `TestStableLifecycleKeeperOwnerExitWhileHolding`, `TestStableLifecycleKeeperOwnerExitWhileRunning`, `TestStableLifecycleKeeperRefusesForeignOwner` | Pass on Darwin and on Linux arm64 with `-race` |
 | CEM-V1-183 | `TestStableLinuxZombieOnlyGroupRetires`, `TestStableLinuxLiveMemberBehindZombieLeaderHolds`, `TestStableLinuxQuietRequiresOwnZombieLeader`, `TestStableLinuxProcStatParsesHostileCommandName`, `TestStableLifecycleRetireTwoStep`, `TestStableLifecycleRetireBoundHold`, `TestStableLifecycleRetirePostReapBoundIsInsideOuterBound` | Signal 0 still succeeds on the zombie-only group while the `/proc` proof retires it |
 | CEM-V1-184 | `TestTCBV0016GateVerdictRunsBothConsumers`; `TestStableCanonicalFullResults`, `TestStableCanonicalLedgers`, `TestCEMV1226TamperMatrixPortable` | Native and portable `verdictSha256` both `14ac383d61741ab12c6a422d086701302b230295ff97babcb443aead1cb40476` on linux/arm64 and darwin/arm64 (build log); linux/amd64 is the CI `go-product-shard` run |

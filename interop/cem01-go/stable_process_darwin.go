@@ -16,18 +16,22 @@ func stableOwnerSupported() bool { return true }
 // the group is quiet once signal 0 no longer succeeds (OQ-12).
 func stableGroupQuiet(pgid int) bool { return syscall.Kill(-pgid, 0) != nil }
 
-// stableKeeperOwner watches the keeper's owner, its parent at start, so the
+// stableKeeperOwner watches the keeper's owner, the pid named at spawn, so the
 // keeper never outlives it. Control EOF alone is not enough: a copy of the
 // owner's control end leaked into any longer-lived process keeps fd 3 open
 // and would park the keeper forever.
 type stableKeeperOwner struct{ kq, pid int }
 
 // stableKeeperWatchOwner registers the owner's exit; false means the owner is
-// already gone or cannot be watched, and the keeper must not proceed.
-func stableKeeperWatchOwner() (stableKeeperOwner, bool) {
-	o := stableKeeperOwner{kq: -1, pid: os.Getppid()}
+// already gone, is not the keeper's parent, or cannot be watched, and the
+// keeper must not proceed.
+func stableKeeperWatchOwner(want int) (stableKeeperOwner, bool) {
+	o := stableKeeperOwner{kq: -1, pid: want}
+	if want <= 1 || os.Getppid() != want {
+		return o, false
+	}
 	kq, err := syscall.Kqueue()
-	if err != nil || o.pid <= 1 {
+	if err != nil {
 		return o, false
 	}
 	o.kq = kq
@@ -35,8 +39,9 @@ func stableKeeperWatchOwner() (stableKeeperOwner, bool) {
 	if _, err := syscall.Kevent(kq, ev, nil, nil); err != nil {
 		return o, false
 	}
-	// Reparenting on owner exit makes a race with registration visible here.
-	return o, os.Getppid() == o.pid
+	// The owner was the parent before and after registration, so the watched
+	// pid named it throughout: an owner exit reparents the keeper at once.
+	return o, os.Getppid() == want
 }
 
 // await blocks until the one-shot event (ident, filter) fires, returning

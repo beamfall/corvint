@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -317,7 +318,7 @@ func TestStableLifecycleKeeperProtocolError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(exe, stableKeeperProtocol)
+	cmd := exec.Command(exe, stableKeeperProtocol, strconv.Itoa(os.Getpid()))
 	cmd.ExtraFiles = []*os.File{keeper}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
@@ -334,6 +335,41 @@ func TestStableLifecycleKeeperProtocolError(t *testing.T) {
 	_ = cmd.Wait()
 	if n != 12 || string(st[:4]) != "CEMS" || st[5] != stableStatusProtocolError {
 		t.Fatalf("keeper status %q", st[:n])
+	}
+}
+
+// A keeper whose named owner is not its parent, as after an owner exit that
+// reparents it to a subreaper, retires before reading any frame: it answers
+// nothing, where a running keeper would answer a protocol error.
+func TestStableLifecycleKeeperRefusesForeignOwner(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{strconv.Itoa(os.Getppid()), "1", "0", "-1", "+" + strconv.Itoa(os.Getpid()), "x"} {
+		fds, err := lifecycleSocketpair()
+		if err != nil {
+			t.Fatal(err)
+		}
+		owner := os.NewFile(uintptr(fds[0]), "owner")
+		keeper := os.NewFile(uintptr(fds[1]), "keeper")
+		cmd := exec.Command(exe, stableKeeperProtocol, want)
+		cmd.ExtraFiles = []*os.File{keeper}
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		keeper.Close()
+		_, _ = owner.Write([]byte("GARBAGE!!!"))
+		_ = owner.SetReadDeadline(time.Now().Add(10 * time.Second))
+		n, rerr := owner.Read(make([]byte, 12))
+		owner.Close()
+		werr := cmd.Wait()
+		ws, _ := cmd.ProcessState.Sys().(syscall.WaitStatus)
+		// Linux reports a reset when the peer closes with our bytes unread.
+		if n != 0 || rerr != io.EOF && !errors.Is(rerr, syscall.ECONNRESET) || werr == nil || !ws.Signaled() || ws.Signal() != syscall.SIGKILL {
+			t.Fatalf("owner %q: read %d %v, wait %v", want, n, rerr, werr)
+		}
 	}
 }
 
@@ -362,7 +398,7 @@ func lifecycleOrphanOwner(git string) {
 	if err != nil {
 		os.Exit(3)
 	}
-	k := exec.Command(exe, stableKeeperProtocol)
+	k := exec.Command(exe, stableKeeperProtocol, strconv.Itoa(os.Getpid()))
 	for _, e := range os.Environ() {
 		if !strings.HasPrefix(e, lifecycleOrphanEnv+"=") {
 			k.Env = append(k.Env, e)

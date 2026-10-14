@@ -943,8 +943,8 @@ CEM-V1-170	docs/specs/cem-stable-v1.md	687	(accepted under the owner's standing 
 CEM-V1-180	docs/specs/cem-stable-v1.md	2085	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The	standing	2026-10-11; V1-1358
 CEM-V1-181	docs/specs/cem-stable-v1.md	2092	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On Linux	standing	2026-10-11; V1-1358
 CEM-V1-182	docs/specs/cem-stable-v1.md	2097	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The Linu	standing	2026-10-11; V1-1358
-CEM-V1-183	docs/specs/cem-stable-v1.md	2103	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) Linux	standing	2026-10-11; V1-1358
-CEM-V1-184	docs/specs/cem-stable-v1.md	2114	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On a	standing	2026-10-11; V1-1358
+CEM-V1-183	docs/specs/cem-stable-v1.md	2105	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) Linux	standing	2026-10-11; V1-1358
+CEM-V1-184	docs/specs/cem-stable-v1.md	2116	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On a	standing	2026-10-11; V1-1358
 CEM-V1-200	docs/specs/cem-stable-v1.md	786	`wire.ParseStable`, and so every stable read (`cem verify-stable`, a stable	unrecorded	-
 CEM-V1-201	docs/specs/cem-stable-v1.md	795	Every committed `.corvint/changes/<bind>.cem.json` MUST be accepted by	unrecorded	-
 CEM-V1-202	docs/specs/cem-stable-v1.md	806	`dogfood batch-check` and `dogfood change`'s sealed-CEM admission (`DCW-V0-039`	unrecorded	-

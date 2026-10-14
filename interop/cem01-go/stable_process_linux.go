@@ -193,18 +193,19 @@ func stableGroupQuiet(pgid int) bool {
 	return seen && leader()
 }
 
-// stableKeeperOwner watches the keeper's owner, its parent at start, so the
+// stableKeeperOwner watches the keeper's owner, the pid named at spawn, so the
 // keeper never outlives it. Control EOF alone is not enough: a copy of the
 // owner's control end leaked into any longer-lived process keeps fd 3 open
 // and would park the keeper forever.
 type stableKeeperOwner struct{ ep, pidfd, pid int }
 
 // stableKeeperWatchOwner registers the owner's exit; false means the owner is
-// already gone or cannot be watched, and the keeper must not proceed. The
-// pidfd and the epoll set are close-on-exec, so Git inherits neither.
-func stableKeeperWatchOwner() (stableKeeperOwner, bool) {
-	o := stableKeeperOwner{ep: -1, pidfd: -1, pid: os.Getppid()}
-	if o.pid <= 1 {
+// already gone, is not the keeper's parent, or cannot be watched, and the
+// keeper must not proceed. The pidfd and the epoll set are close-on-exec, so
+// Git inherits neither.
+func stableKeeperWatchOwner(want int) (stableKeeperOwner, bool) {
+	o := stableKeeperOwner{ep: -1, pidfd: -1, pid: want}
+	if want <= 1 || os.Getppid() != want {
 		return o, false
 	}
 	fd, err := stablePidfdOpen(o.pid)
@@ -220,9 +221,10 @@ func stableKeeperWatchOwner() (stableKeeperOwner, bool) {
 	if syscall.EpollCtl(ep, syscall.EPOLL_CTL_ADD, fd, &syscall.EpollEvent{Events: syscall.EPOLLIN, Fd: int32(fd)}) != nil {
 		return o, false
 	}
-	// The pidfd names whichever process held the pid when it was opened;
-	// reparenting on owner exit makes a race with the open visible here.
-	return o, os.Getppid() == o.pid
+	// The pidfd names whichever process held the pid when it was opened. The
+	// owner was the parent before and after the open, and its exit reparents
+	// the keeper before the pid can be reused, so the pidfd names the owner.
+	return o, os.Getppid() == want
 }
 
 // await blocks until fd is readable, returning true, or the owner exits,

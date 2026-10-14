@@ -25,8 +25,9 @@ as an interim.
   Darwin is unchanged: the step-1 loop was rewritten as `for !stableGroupQuiet(pgid)` over the
   same `kill(-pgid, 0) != nil` test.
 - The Linux keeper uses pidfds (`pidfd_open`, syscall 434 on amd64 and arm64) in one
-  close-on-exec epoll set. These watch the owner (its parent, re-checked after the open) and the
-  unreaped Git child, as the Darwin kqueue does. Owner exit or any failure takes the existing
+  close-on-exec epoll set. These watch the owner and the unreaped Git child, as the Darwin kqueue
+  does. The owner is the PID it named at spawn, which must be the keeper's parent before and after
+  the open (see the Codex review below). Owner exit or any failure takes the existing
   fail-closed path: the keeper SIGKILLs its own group and exits.
 - Linux step 1 reads `/proc` instead of signal 0 (V1-0668: Linux answers signal 0 successfully on
   a zombie-only group). With the keeper unreaped, the group is quiet only when the keeper is a
@@ -104,6 +105,34 @@ tar --no-xattrs --no-mac-metadata --exclude=./.git -C clone -cf - . | docker run
 - `corvint affected --base adf587fdb` selected 67 units, mostly path-literal readers of the test
   file. `tools/gate-ledger` timed out at Go's 600 s default under load. It passed alone with
   `-timeout 30m` in 62.6 s.
+
+## Codex review
+
+One read-only Codex round (`codex exec -s read-only` over `adf587fdb..e3f8503c4`) reported one P1
+and nothing else.
+
+- P1 (confirmed, fixed in a follow-up commit). The keeper learned its owner from `getppid()`. If
+  the owner exited before the keeper ran, a Linux keeper under a subreaper (PID greater than 1)
+  would take the subreaper as its owner. The pidfd and the re-check would both agree, and the
+  keeper could start Git with no owner left. Darwin had the same pattern, but there orphans go
+  to launchd (PID 1), which the `<= 1` check refused.
+- The fix binds the owner at spawn. `stableRun` passes `os.Getpid()` as the keeper's third
+  argument, and the dispatch in `main.go` and `TestMain` now requires exactly three arguments.
+  The shared keeper retires unless the argument is a canonical decimal. On both OSes,
+  `stableKeeperWatchOwner(want)` refuses `want <= 1` or `getppid() != want` before it registers
+  the watch, then re-checks `getppid() == want` afterwards. This is race-free. An owner exit
+  reparents the keeper at once, before the owner's PID can be reaped and reused, and the
+  subreaper is a different, older process. So a parent equal to `want` after registration means
+  the watch was opened on the owner itself.
+- `TestStableLifecycleKeeperRefusesForeignOwner` covers the fix. It starts a keeper naming a live
+  process that is not its parent, `1`, `0`, `-1`, a signed form and a non-number. Each keeper is
+  SIGKILLed with its group and answers no status, where a running keeper would answer
+  protocol-error to the garbage frame. Linux reports the closed peer as `ECONNRESET` and Darwin
+  as EOF. The test passed on Darwin and on linux/arm64 (`-race`, uid 1000), with 23/23
+  `TestStableLifecycle*`/`TestStableLinux*` passing. On linux/arm64 the full-results, ledger and
+  tamper suites and the TCB test passed again after the fix: native and portable
+  `verdictSha256` were both
+  `14ac383d61741ab12c6a422d086701302b230295ff97babcb443aead1cb40476`.
 
 ## Failure modes
 

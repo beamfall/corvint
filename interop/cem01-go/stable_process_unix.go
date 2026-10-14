@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -140,7 +141,14 @@ func stableKeeperRetire() {
 // group on control EOF or as soon as its owner exits, whichever comes first.
 func stableKeeperMain() {
 	syscall.CloseOnExec(3)
-	owner, alive := stableKeeperWatchOwner()
+	// The owner names its own pid at spawn; a keeper never adopts whichever
+	// process is its parent by the time it runs (a subreaper after an early
+	// owner exit).
+	want, err := strconv.Atoi(os.Args[2])
+	if err != nil || strconv.Itoa(want) != os.Args[2] {
+		stableKeeperRetire()
+	}
+	owner, alive := stableKeeperWatchOwner(want)
 	if !alive {
 		stableKeeperRetire()
 	}
@@ -306,7 +314,7 @@ func stableRun(s *stableSession, t *stableTx) *cemError {
 	ctl := os.NewFile(uintptr(fds[0]), "cem01-ctl")
 	ctlChild := os.NewFile(uintptr(fds[1]), "cem01-ctl-child")
 	h.point(t, "before-spawn")
-	proc, err := os.StartProcess(s.exe, []string{s.exe, stableKeeperProtocol}, &os.ProcAttr{
+	proc, err := os.StartProcess(s.exe, []string{s.exe, stableKeeperProtocol, strconv.Itoa(os.Getpid())}, &os.ProcAttr{
 		Dir: s.admin, Env: s.env, Files: []*os.File{inR, outW, errW, ctlChild}, Sys: &syscall.SysProcAttr{Setpgid: true},
 	})
 	inR.Close()
