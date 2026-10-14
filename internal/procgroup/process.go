@@ -332,7 +332,7 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	var afterStartErr error
 	var descendants *descendantObserver
 	if spec.ObserveDescendants {
-		descendants, afterStartErr = startDescendantObserver(command.Process.Pid)
+		descendants, afterStartErr = startDescendantObserver(ctx, command.Process.Pid)
 	}
 	if spec.AfterStart != nil {
 		hookContext, cancelHook := context.WithTimeout(context.Background(), min(time.Second, spec.ShutdownTimeout/2))
