@@ -1,0 +1,43 @@
+{
+  "profile": "cem-stable-neutral-repository/1",
+  "objectFormat": "sha1",
+  "note": "Flat-tree recipe, built exactly like ../neutral-criterion/repository.recipe.json: git hash-object -w, mktree (mode 100644, names sorted bytewise) and commit-tree, with GIT_CONFIG_GLOBAL=/dev/null, GIT_CONFIG_NOSYSTEM=1 and the fixed identity and date below for author and committer; the target's parent is the base. No .taskman/ or other Corvint file exists in either tree.",
+  "identity": {
+    "name": "Fixture",
+    "email": "fixture@invalid",
+    "date": "2026-10-01T00:00:00Z"
+  },
+  "commits": [
+    {
+      "name": "base",
+      "message": "vectors: initial files",
+      "files": {
+        "NOTES.md": "# Release notes\n",
+        "SPEC.md": "# Citation vectors\n\nRequirements:\n\n- `CVX-001`: parse.go MUST reject an empty header.\n- `CVX-002`: the renderer MUST emit one line per record.\nSee also - `CVX-003`: the encoder MUST escape tabs.\n- `CVX-004`: the decoder MUST keep trailing spaces.\n- `CVX-005`: legacy.txt MUST NOT be read by parse.go.\n- `CVX-006`: release notes MUST name each requirement.\n",
+        "VERSION": "1\n",
+        "decode.go": "package vectors\n\n// Decode unquotes a field.\nfunc Decode(field string) (string, error) {\n\treturn strconv.Unquote(field)\n}\n",
+        "encode.go": "package vectors\n\n// Encode quotes a field.\nfunc Encode(field string) string {\n\treturn strconv.Quote(field)\n}\n",
+        "keys&values.txt": "# keys&values.txt holds one key per line\nalpha=1\nbeta=2\ngamma=3\ndelta=4\n",
+        "legacy.txt": "legacy loader table\nkey=value\n",
+        "parse.go": "package vectors\n\n// Parse splits a header line.\nfunc Parse(line string) []string {\n\treturn strings.Fields(line)\n}\n",
+        "render.go": "package vectors\n\n// Render writes records.\nfunc Render(records []string) string {\n\treturn strings.Join(records, \"\")\n}\n",
+        "table.txt": "name  value\nalpha 1\n"
+      }
+    },
+    {
+      "name": "target",
+      "message": "vectors: cited changes",
+      "files": {
+        "NOTES.md": "# Release notes\n\nCVX-006: also been build change changed changes claim dist docs document documentation error evidence false from generated have hunk include into Must only package packages print report reports requirement requirements return self shall should sidecar source sources string supported test testing tests that their then there these they this those true unknown value vendor vendored when where which while will with.\n",
+        "SPEC.md": "# Citation vectors\n\nRequirements:\n\n- `CVX-001`: parse.go MUST reject an empty header.\n- `CVX-002`: the renderer MUST emit one line per record.\nSee also - `CVX-003`: the encoder MUST escape tabs.\n- `CVX-004`: the decoder MUST keep trailing spaces.\n- `CVX-005`: legacy.txt MUST NOT be read by parse.go.\n- `CVX-006`: release notes MUST name each requirement.\n",
+        "VERSION": "2\n",
+        "decode.go": "package vectors\n\n// Decode unquotes a field.\n// Trailing spaces are kept per CVX-004.\nfunc Decode(field string) (string, error) {\n\treturn strconv.Unquote(field)\n}\n",
+        "encode.go": "package vectors\n\n// Encode quotes a field.\n// Tabs are escaped per CVX-003.\nfunc Encode(field string) string {\n\treturn strconv.Quote(field)\n}\n",
+        "keys&values.txt": "# keys&values.txt holds one key per line\nalpha=1\ndelta=4\n",
+        "parse.go": "package vectors\n\n// Parse splits a header line.\nfunc Parse(line string) []string {\n\tif line == \"\" {\n\t\treturn nil // CVX-001\n\t}\n\treturn strings.Fields(line)\n}\n",
+        "render.go": "package vectors\n\n// Render writes one line per record: CVX-002\nfunc Render(records ...string) string {\n\treturn strings.Join(records, \"\\n\")\n}\n",
+        "table.txt": "name value\nalpha 1\n"
+      }
+    }
+  ]
+}
