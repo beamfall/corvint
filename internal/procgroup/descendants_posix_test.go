@@ -173,7 +173,7 @@ func TestObservedDescendantSnapshotLossIsRetried(t *testing.T) {
 		if _, err := ready.Read(make([]byte, 8)); err != nil {
 			t.Fatal(err)
 		}
-		started, err := startObserver(o, root.Process.Pid)
+		started, err := startObserver(context.Background(), o, root.Process.Pid)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -483,7 +483,7 @@ func TestV10689BoundedCancellation(t *testing.T) {
 	if err != nil || pgid != child.PID {
 		t.Fatalf("child session not independent: %d %v", pgid, err)
 	}
-	observer, err = startDescendantObserver(root.Process.Pid)
+	observer, err = startDescendantObserver(context.Background(), root.Process.Pid)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -96,13 +96,13 @@ func (o *descendantObserver) snapshot(parent context.Context) (map[int]ObservedP
 	return descendantSnapshot(ctx)
 }
 
-func startDescendantObserver(pid int) (*descendantObserver, error) {
-	return startObserver(&descendantObserver{}, pid)
+func startDescendantObserver(ctx context.Context, pid int) (*descendantObserver, error) {
+	return startObserver(ctx, &descendantObserver{}, pid)
 }
 
-func startObserver(o *descendantObserver, pid int) (*descendantObserver, error) {
+func startObserver(ctx context.Context, o *descendantObserver, pid int) (*descendantObserver, error) {
 	o.root, o.stop, o.done = pid, make(chan struct{}), make(chan struct{})
-	rows, err := o.firstSnapshot()
+	rows, err := o.firstSnapshot(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -145,16 +145,21 @@ func startObserver(o *descendantObserver, pid int) (*descendantObserver, error) 
 
 // firstSnapshot retries an unavailable snapshot inside the settle window, as
 // the final sweep does, and returns the last failure when the window closes.
-func (o *descendantObserver) firstSnapshot() (map[int]ObservedProcess, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), descendantSettle)
+// Caller cancellation stops further retries but not the attempt in flight, so
+// a cancelled start waits at most one snapshot bound and its outcome is the
+// one a single attempt would have produced.
+func (o *descendantObserver) firstSnapshot(caller context.Context) (map[int]ObservedProcess, error) {
+	window, cancel := context.WithTimeout(context.Background(), descendantSettle)
 	defer cancel()
 	for {
-		rows, err := o.snapshot(ctx)
+		rows, err := o.snapshot(window)
 		if err == nil {
 			return rows, nil
 		}
 		select {
-		case <-ctx.Done():
+		case <-window.Done():
+			return nil, err
+		case <-caller.Done():
 			return nil, err
 		case <-time.After(descendantInterval):
 		}

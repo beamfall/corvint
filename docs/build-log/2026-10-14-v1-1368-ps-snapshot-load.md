@@ -34,11 +34,14 @@ is between the 1x and 2x rows.
 ## Decision
 
 - Per-snapshot bound `descendantSnapshotTimeout = descendantSettle / 2` (2.5 s, was 1 s). This
-  covers the measured p90 at every contention level with headroom, and above it each attempt
-  still fits twice inside the 5 s settle window.
+  covers the measured p90 at every contention level with headroom and leaves room in the 5 s
+  settle window for a second attempt, which gets the remainder of the window (just under 2.5 s
+  after a full first attempt and the 20 ms retry delay).
 - The first snapshot, which binds the leader identity, now retries at the 20 ms interval inside
   the 5 s settle window, as the final sweep already did. Each attempt gets `min(2.5 s, remaining
-  window)`. When the window closes it returns the last failure unchanged.
+  window)`. When the window closes it returns the last failure unchanged. Caller cancellation
+  (the `Run` context) stops further retries but not the attempt in flight, so a cancelled start
+  waits at most one snapshot bound and gets the outcome a single attempt would have given.
 - Unchanged: the 5 s settle window, the 5 s blind-interval (`descendantMaxGap`) bound, periodic
   loss accounting, every error string and every caller's mapping. A start that never gets a
   snapshot is still `process-after-start-failed: descendant snapshot unavailable` with no
@@ -46,9 +49,12 @@ is between the 1x and 2x rows.
   gets one is still `Absent=false` with the `descendant snapshot unavailable` failure. Neither is
   ever an empty descendant set.
 
-Worst-case time to the unavailable outcome for a hung `ps` (stated bound, AC 2): startup refusal
-at 5 s plus the 100 ms `WaitDelay` (was about 1.1 s); final sweep at 5 s plus 100 ms (unchanged).
-A periodic snapshot is bounded at 2.5 s and is cancelled when `finish` starts.
+Worst-case time to the unavailable outcome for a hung `ps` (stated bound, AC 2): the observer
+refuses startup at 5 s plus the 100 ms `WaitDelay` (was about 1.1 s); `Run` then performs its
+normal shutdown of the started process, bounded by the caller's `ShutdownTimeout`, before it
+returns `process-after-start-failed`. The final sweep is 5 s plus 100 ms (unchanged). A periodic
+snapshot is bounded at 2.5 s and is cancelled when `finish` starts. A start cancelled by the caller
+waits at most 2.5 s plus 100 ms for the snapshot in flight (was 1.1 s).
 
 Rejected options:
 - **1 s with retries.** A host where `ps` takes a steady 1.5 s (the ticket's case) never
@@ -76,9 +82,10 @@ Rejected options:
 
 ## Acceptance evidence
 
-- `TestV11368SnapshotBoundUnderLoad` (`internal/procgroup`) has four cases: a 1.5 s snapshot
-  through the real command path binds the leader (it fails under the old 1 s bound, checked); an
-  unavailable first snapshot is retried; a hung command (`/bin/sleep 60` through
+- `TestV11368SnapshotBoundUnderLoad` (`internal/procgroup`) has five cases: a 1.2 s snapshot
+  through the real command path binds the leader (the 1.5 s version failed under the old 1 s
+  bound, checked); an unavailable first snapshot is retried; a cancelled start makes exactly one
+  attempt and is refused as unavailable; a hung command (`/bin/sleep 60` through
   `descendantSnapshotCommand`) refuses the start with exactly `descendant snapshot unavailable`
   within [5 s, 7 s]; a hung final sweep reports `Absent=false` with that failure within the
   same bound. The `-race` run passed.
@@ -100,9 +107,17 @@ Rejected options:
   pre-existing and is not changed here.
 - `go vet ./internal/procgroup/` and `gofmt -l` are clean.
 
+## Independent review
+
+One Codex read-only round over the change found no path from an unavailable snapshot to an empty
+descendant set and no timer or goroutine leak. Its three findings were fixed: caller cancellation
+could wait through the whole 5 s retry window (now it stops after the attempt in flight); the
+stated worst case omitted `Run`'s shutdown allowance and overstated the second attempt; the slow
+fixture had only about 1 s of margin under load (it now sleeps 1.2 s).
+
 ## Retained limits
 
-- At load 100-140 (2x contention plus other lanes), isolated `ps` runs over 5 s still fail closed:
+- At load near 100 and above (the 2x and 4x rows), isolated `ps` runs over 5 s still fail closed:
   `descendant snapshot unavailable` or the gap bound. That is the intended outcome beyond the
   design point, not a regression. 
 - A truly quiet host and Linux were not measured (NOT_RUN). The live `corvint-update check` was

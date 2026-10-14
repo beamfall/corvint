@@ -22,9 +22,9 @@ func TestV11368SnapshotBoundUnderLoad(t *testing.T) {
 	t.Run("a snapshot slower than one second binds the leader", func(t *testing.T) {
 		row := fmt.Sprintf("%d 1 Wed Oct 14 00:00:00 2026 S\\n", os.Getpid())
 		o := &descendantObserver{snap: func(ctx context.Context) (map[int]ObservedProcess, error) {
-			return descendantSnapshotCommand(exec.CommandContext(ctx, "/bin/sh", "-c", "/bin/sleep 1.5; printf '"+row+"'"))
+			return descendantSnapshotCommand(exec.CommandContext(ctx, "/bin/sh", "-c", "/bin/sleep 1.2; printf '"+row+"'"))
 		}}
-		started, err := startObserver(o, os.Getpid())
+		started, err := startObserver(context.Background(), o, os.Getpid())
 		if err != nil {
 			t.Fatalf("slow snapshot refused: %v", err)
 		}
@@ -43,7 +43,7 @@ func TestV11368SnapshotBoundUnderLoad(t *testing.T) {
 			}
 			return map[int]ObservedProcess{}, nil
 		}}
-		started, err := startObserver(o, os.Getpid())
+		started, err := startObserver(context.Background(), o, os.Getpid())
 		if err != nil || calls.Load() < 3 {
 			t.Fatalf("first snapshot not retried: calls=%d %v", calls.Load(), err)
 		}
@@ -56,13 +56,26 @@ func TestV11368SnapshotBoundUnderLoad(t *testing.T) {
 			return descendantSnapshotCommand(exec.CommandContext(ctx, "/bin/sleep", "60"))
 		}}
 		began := time.Now()
-		started, err := startObserver(o, os.Getpid())
+		started, err := startObserver(context.Background(), o, os.Getpid())
 		waited := time.Since(began)
 		if started != nil || err == nil || err.Error() != "descendant snapshot unavailable" {
 			t.Fatalf("hung snapshot accepted: %v %v", started, err)
 		}
 		if waited < descendantSettle || waited > descendantSettle+loadSlack {
 			t.Fatalf("startup refusal outside the bound: %v", waited)
+		}
+	})
+	t.Run("a cancelled start stops retrying after the attempt in flight", func(t *testing.T) {
+		var calls atomic.Int32
+		o := &descendantObserver{snap: func(ctx context.Context) (map[int]ObservedProcess, error) {
+			calls.Add(1)
+			return descendantSnapshotCommand(exec.CommandContext(ctx, "/bin/sh", "-c", "exit 1"))
+		}}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		started, err := startObserver(ctx, o, os.Getpid())
+		if started != nil || err == nil || err.Error() != "descendant snapshot unavailable" || calls.Load() != 1 {
+			t.Fatalf("cancelled start not refused after one attempt: calls=%d %v %v", calls.Load(), started, err)
 		}
 	})
 	t.Run("a hung ps in the final sweep reports unavailable, not an empty set", func(t *testing.T) {
