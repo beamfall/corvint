@@ -109,7 +109,7 @@ attempts carry a receipt, so the defect is the same on its head.
 - Codex review (one round) reported two P1 findings: the not_supported relabel and the hidden
   receipt. Both are fixed as described above.
 - Focused tests:
-  - The `corvint affected` units passed. Its 43 unbounded readers were not run.
+  - At the lane base, the `corvint affected` units passed. Its 43 unbounded readers were not run.
   - On the merged tree (057b19008 plus this change), `internal/behaviorfalsify`,
     `internal/testacceptance` and `cmd/corvint-behavior-falsify` passed.
   - `go test -race` of `internal/behaviorfalsify` and `internal/testacceptance` passed with no
