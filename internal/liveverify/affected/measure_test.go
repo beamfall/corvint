@@ -3,6 +3,8 @@ package affected_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"maps"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -53,9 +55,11 @@ func TestIncrementalSelectionMeetsTheLiveBudget(t *testing.T) {
 		t.Fatalf("too few representative edits: %v", edits)
 	}
 	samples := make([]time.Duration, 0, len(edits)*32)
+	probes := make([]time.Duration, 0, len(edits)*32)
 	var widest int
 	for round := 0; round < 32; round++ {
 		for _, edit := range edits {
+			probes = append(probes, timeCalibrationProbe())
 			start := time.Now()
 			plan := affected.Select(graph, []string{edit})
 			samples = append(samples, time.Since(start))
@@ -64,15 +68,103 @@ func TestIncrementalSelectionMeetsTheLiveBudget(t *testing.T) {
 			}
 		}
 	}
-	sort.Slice(samples, func(left, right int) bool { return samples[left] < samples[right] })
+	sortDurations(samples)
+	sortDurations(probes)
 	p50 := samples[len(samples)/2]
 	p95 := samples[len(samples)*95/100]
 	worst := samples[len(samples)-1]
-	t.Logf("incremental select over %d units: n=%d p50=%s p95=%s max=%s widest-plan=%d units",
-		len(graph.UnitIDs()), len(samples), p50, p95, worst, widest)
-	if p95 > IncrementalBudget {
-		t.Fatalf("incremental select p95=%s exceeds the %s budget", p95, IncrementalBudget)
+	probe95 := probes[len(probes)*95/100]
+	t.Logf("incremental select over %d units: n=%d p50=%s p95=%s max=%s widest-plan=%d units; probe p50=%s p95=%s",
+		len(graph.UnitIDs()), len(samples), p50, p95, worst, widest, probes[len(probes)/2], probe95)
+	// Both p95s come from interleaved samples, so a contended tail inflates
+	// both alike. On the reference host the ratio measures about 1.3.
+	enforceSelectionBudget(t, "incremental select p95", p95, probe95, referenceProbeP95)
+}
+
+// The calibration probe's p95 and median on the reference host (Apple
+// M-series, 12 cores, go1.27.2, no race detector), measured at 17.1-19.6 ms
+// and 13.6-14.3 ms and rounded up, so the bounds derived from them err strict.
+// The measurements and the rejected alternatives are in build log
+// 2026-10-14-v1-1343-live-budget-under-load.
+const (
+	referenceProbeP95    = 20 * time.Millisecond
+	referenceProbeMedian = 15 * time.Millisecond
+)
+
+// enforceSelectionBudget holds a measured selection time to IncrementalBudget.
+// A host that is contended, or slowed by the race detector, misses the
+// absolute budget without selection itself being slower; the probe, timed in
+// the same goroutine alongside the selections, slows with it. So a miss is
+// judged in probe units against IncrementalBudget/reference, where reference
+// is the reference host's value of the same probe statistic: a selection
+// above that many probes would also miss the 100 ms budget on the reference
+// host. Within the bound the absolute budget is skipped by name, with the
+// numbers, and never passed silently; beyond it selection itself is too slow
+// and the test fails on any host.
+func enforceSelectionBudget(t *testing.T, label string, measured, probe, reference time.Duration) {
+	t.Helper()
+	if measured <= IncrementalBudget {
+		return
 	}
+	bound := float64(IncrementalBudget) / float64(reference)
+	ratio := float64(measured) / float64(probe)
+	if ratio > bound {
+		t.Fatalf("%s=%s exceeds the %s budget and is %.2f calibration probes (probe=%s), above the %.2f bound: selection itself is too slow",
+			label, measured, IncrementalBudget, ratio, probe, bound)
+	}
+	t.Skipf("absolute %s budget NOT ENFORCED on this host: %s=%s, but the calibration probe took %s, so selection is %.2f probes, within the %.2f bound (V1-1343)",
+		IncrementalBudget, label, measured, probe, ratio, bound)
+}
+
+var probeSink int
+
+// timeCalibrationProbe times one run of a fixed, deterministic,
+// single-goroutine workload shaped like selection: string-keyed maps, witness
+// path copies, breadth-first frontiers and sorts over a synthetic 512-node
+// graph. It does not call the affected package; it shares only the Go
+// runtime's allocator and collector with Select.
+func timeCalibrationProbe() time.Duration {
+	start := time.Now()
+	const nodes = 512
+	names := make([]string, nodes)
+	for index := range names {
+		names[index] = fmt.Sprintf("unit/%04d", index)
+	}
+	edges := make(map[string][]string, nodes)
+	state := uint32(1)
+	for index, name := range names {
+		for range 6 {
+			state = state*1664525 + 1013904223
+			edges[name] = append(edges[name], names[(index+1+int(state>>8)%(nodes-1))%nodes])
+		}
+	}
+	total := 0
+	for seed := range 64 {
+		origin := names[(seed*7919)%nodes]
+		paths := map[string][]string{origin: {origin}}
+		frontier := []string{origin}
+		for len(frontier) != 0 {
+			next := make([]string, 0, len(frontier))
+			for _, id := range frontier {
+				for _, dependent := range edges[id] {
+					if _, seen := paths[dependent]; seen {
+						continue
+					}
+					paths[dependent] = append(append([]string(nil), paths[id]...), dependent)
+					next = append(next, dependent)
+				}
+			}
+			sort.Strings(next)
+			frontier = next
+		}
+		total += len(slices.Sorted(maps.Keys(paths)))
+	}
+	probeSink += total
+	return time.Since(start)
+}
+
+func sortDurations(values []time.Duration) {
+	sort.Slice(values, func(left, right int) bool { return values[left] < values[right] })
 }
 
 // representativeEdits picks units spanning the fan-out range, so the measured
@@ -125,11 +217,23 @@ func TestSelectionOnTheLiveDirtyWorktree(t *testing.T) {
 	t.Logf("git status capture: %s dirty=%d paths", statusElapsed.Round(time.Millisecond), len(dirty))
 
 	graph, cold := buildRepositoryGraph(t)
-	start = time.Now()
-	plan := affected.Select(graph, dirty)
-	selectElapsed := time.Since(start)
-	t.Logf("cold graph=%s select=%s scope=%s selected=%d excluded=%d unknown=%d",
-		cold.Round(time.Millisecond), selectElapsed, plan.Scope, len(plan.Selected), len(plan.Excluded), len(plan.Unknown))
+	// Five selections interleaved with five calibration probes, judged by
+	// their medians: under load one sample is a spike's hostage, while a
+	// slower Select slows every sample.
+	var plan affected.Plan
+	samples := make([]time.Duration, 0, 5)
+	probes := make([]time.Duration, 0, 5)
+	for range 5 {
+		probes = append(probes, timeCalibrationProbe())
+		start = time.Now()
+		plan = affected.Select(graph, dirty)
+		samples = append(samples, time.Since(start))
+	}
+	sortDurations(samples)
+	sortDurations(probes)
+	selectElapsed, probe := samples[len(samples)/2], probes[len(probes)/2]
+	t.Logf("cold graph=%s select median=%s max=%s probe median=%s scope=%s selected=%d excluded=%d unknown=%d",
+		cold.Round(time.Millisecond), selectElapsed, samples[len(samples)-1], probe, plan.Scope, len(plan.Selected), len(plan.Excluded), len(plan.Unknown))
 
 	if plan.GraphDigest != graph.Digest() {
 		t.Fatalf("plan is not bound to the graph it was computed from")
@@ -165,9 +269,7 @@ func TestSelectionOnTheLiveDirtyWorktree(t *testing.T) {
 			t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)
 		}
 	}
-	if selectElapsed > IncrementalBudget {
-		t.Fatalf("live-worktree select=%s exceeds the %s budget", selectElapsed, IncrementalBudget)
-	}
+	enforceSelectionBudget(t, "live-worktree select median", selectElapsed, probe, referenceProbeMedian)
 }
 
 // TestOverlaySelectionNeverTouchesTheWorktree proves LPCV-V0-002's second half
