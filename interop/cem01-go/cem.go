@@ -2944,7 +2944,7 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 		if v.Span.Start, ok = uint03(sp["start"]); !ok {
 			return m, invalid("invalid-field")
 		}
-		if v.Span.End, ok = uint03(sp["end"]); !ok || v.Span.End <= v.Span.Start {
+		if v.Span.End, ok = uint03(sp["end"]); !ok {
 			return m, invalid("invalid-field")
 		}
 		if v.SpanSHA256, e = stableString(o, "spanSha256", validDigest); e != nil {
@@ -3031,6 +3031,9 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 			}
 		}
 		m.Hunks = append(m.Hunks, v)
+	}
+	if e = stableEvidenceReferences(m); e != nil {
+		return m, e
 	}
 	cs, e := list03(root["criterionBindings"], 256)
 	if e != nil {
@@ -3172,6 +3175,37 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 	}
 	return m, nil
 }
+
+// stableEvidenceReferences applies the map-local wire checks that the inherited
+// cem/0.3 algorithms keep for cem/1.0 (CEM-V1-228): a duplicate evidence ID, a
+// basis naming no evidence record, a duplicate basis pair within one hunk and an
+// uncited evidence record are all `invalid-field` at the wire stage, before any
+// repository read.
+func stableEvidenceReferences(m stableMap) *cemError {
+	ids, cited := map[string]bool{}, map[string]bool{}
+	for _, ev := range m.Evidence {
+		if ids[ev.ID] {
+			return invalid("invalid-field")
+		}
+		ids[ev.ID] = true
+	}
+	for _, h := range m.Hunks {
+		pairs := map[string]bool{}
+		for _, b := range h.Basis {
+			key := b.EvidenceID + "\x00" + b.Relation
+			if !ids[b.EvidenceID] || pairs[key] {
+				return invalid("invalid-field")
+			}
+			pairs[key] = true
+			cited[b.EvidenceID] = true
+		}
+	}
+	if len(cited) != len(ids) {
+		return invalid("invalid-field")
+	}
+	return nil
+}
+
 func validateStableReferences(m *stableMap) *cemError {
 	criteria, tuples, groups, spans := map[string]bool{}, map[string]bool{}, map[string]string{}, map[string]bool{}
 	for _, c := range m.CriterionBindings {
@@ -3598,7 +3632,7 @@ func runStableTrusted(ctx context.Context, repo string, raw []byte, base, target
 		}
 	}
 	if len(m.Hunks) != len(ph) {
-		return failStable(&r, "verification", invalid("invalid-field"), true)
+		return failStable(&r, "verification", invalid("patch-hunk-count"), true)
 	}
 	seen := map[string]bool{}
 	for _, h := range m.Hunks {
@@ -3700,7 +3734,7 @@ func runStableTrusted(ctx context.Context, repo string, raw []byte, base, target
 		if e != nil {
 			return failStable(&r, "repository", e, false)
 		}
-		if item.Span.End > uint64(len(data)) {
+		if item.Span.End <= item.Span.Start || item.Span.End > uint64(len(data)) {
 			return failStable(&r, "verification", invalid("evidence-unavailable"), true)
 		}
 		item.data = append([]byte(nil), data[item.Span.Start:item.Span.End]...)

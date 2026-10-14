@@ -16,6 +16,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -70,8 +71,12 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		if err = atCandidate(worktree, *a.CandidateTreeOid, repos); err != nil {
 			return &Report{}, err
 		}
+		argv, substituted, err := gateArgv(def, proof, a, worktree, repos)
+		if err != nil {
+			return &Report{}, err
+		}
 		executed = true
-		run, err := runGate(ctx, def, policy, a, worktree, repos, clock)
+		run, err := runGate(ctx, def, argv, substituted, policy, a, worktree, repos, clock)
 		if err != nil {
 			return &Report{}, err
 		}
@@ -243,6 +248,67 @@ func atCandidate(worktree, candidate string, repos []snapshot.RepositoryRecord) 
 	return nil
 }
 
+// The closed gate argv placeholders (TCB-V0-015). An argv entry exactly equal
+// to one is replaced, just before the gate runs, with the native attempt fact
+// it names; any other entry, including one that merely contains a
+// placeholder, runs as declared.
+const (
+	GateArgBaseCommit      = "{attempt.baseCommit}"
+	GateArgCandidateCommit = "{attempt.candidateCommit}"
+	GateArgTouchPaths      = "{claim.touchPaths}"
+)
+
+// gateArgv is the argv GateRun executes: def.Argv with each whole-entry
+// placeholder replaced by its attempt fact, and whether any entry was
+// (TCB-V0-015). The base is the attempt's recorded base commit; the candidate
+// commit is the worktree HEAD, whose tree atCandidate has just proven is the
+// candidate; the touch paths are the claim-era ticket's effects.touchPaths as
+// one canonical JSON array, read only while the current ticket record is
+// byte for byte the one the claim pinned. A composite candidate has no single
+// base or commit, so placeholders on one refuse before the gate runs.
+func gateArgv(def *intent.GateDefinition, proof *journal.Result, a *snapshot.Attempt, worktree string, repos []snapshot.RepositoryRecord) ([]string, bool, error) {
+	argv := append([]string{}, def.Argv...)
+	substituted := false
+	for i, arg := range argv {
+		if arg != GateArgBaseCommit && arg != GateArgCandidateCommit && arg != GateArgTouchPaths {
+			continue
+		}
+		if len(repos) > 0 {
+			return nil, false, wire.Errorf(wire.CodeUnsupported, "gate", "gate %s substitutes attempt facts, which a multi-repository candidate does not have", def.GateID)
+		}
+		var fact string
+		var err error
+		switch arg {
+		case GateArgBaseCommit:
+			fact = a.BaseCommit
+		case GateArgCandidateCommit:
+			fact, err = resolveObject(worktree, "HEAD", "commit")
+		default:
+			fact, err = claimTouchPaths(proof, a)
+		}
+		if err != nil {
+			return nil, false, err
+		}
+		argv[i], substituted = fact, true
+	}
+	return argv, substituted, nil
+}
+
+// claimTouchPaths is the claim-era ticket's effects.touchPaths as a canonical
+// JSON array. A ticket edited since the claim refuses STALE_TICKET: the claim
+// pinned the record digest, not its bytes, so a re-claim restores the fact.
+func claimTouchPaths(proof *journal.Result, a *snapshot.Attempt) (string, error) {
+	record, ok := proof.Records["intent/tickets/"+a.TicketID.Local+".json"]
+	if !ok || record.Sha256 == nil || wire.Sum(record.Raw) != a.TicketRecordSha256 {
+		return "", wire.Errorf(wire.CodeStaleTicket, "gate", "ticket %s changed since its claim; re-claim to gate on its touch paths", a.TicketID.Raw)
+	}
+	rec, err := ticket.Decode(record.Raw)
+	if err != nil {
+		return "", err
+	}
+	return string(wire.Encode(wire.Strings(rec.Effects.TouchPaths))), nil
+}
+
 // cappedOutput keeps the first max bytes of combined output and kills the
 // process group on overflow. Zero max retains the executable gate's 16 MiB cap.
 type cappedOutput struct {
@@ -297,7 +363,12 @@ type execution struct {
 }
 
 func execute(ctx context.Context, def *intent.GateDefinition, worktree string, env []string, out *cappedOutput) execution {
-	cmd := exec.Command(def.Argv[0], def.Argv[1:]...)
+	return executeArgv(ctx, def, def.Argv, worktree, env, out)
+}
+
+// executeArgv is execute with the argv GateRun substituted (TCB-V0-015).
+func executeArgv(ctx context.Context, def *intent.GateDefinition, argv []string, worktree string, env []string, out *cappedOutput) execution {
+	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Dir, cmd.Env, cmd.Stdin = worktree, env, nil
 	cmd.Stdout, cmd.Stderr = out, out
 	cmd.WaitDelay = gateWaitDelay // a descendant that escaped the group cannot hold the pipe open
@@ -354,11 +425,11 @@ func gateState(run execution, expected wire.Count, clean, atCandidate bool) stri
 	return "PASSED"
 }
 
-func runGate(ctx context.Context, def *intent.GateDefinition, policy *intent.Policy, a *snapshot.Attempt, worktree string, repos []snapshot.RepositoryRecord, clock func() time.Time) (gateRun, error) {
+func runGate(ctx context.Context, def *intent.GateDefinition, argv []string, substituted bool, policy *intent.Policy, a *snapshot.Attempt, worktree string, repos []snapshot.RepositoryRecord, clock func() time.Time) (gateRun, error) {
 	env, envDigest := gateEnvironment(def.Env)
 	out := &cappedOutput{}
 	started := clock()
-	run := execute(ctx, def, worktree, env, out)
+	run := executeArgv(ctx, def, argv, worktree, env, out)
 	ended := clock()
 	tree, clean, err := observedCandidate(worktree, repos)
 	if err != nil {
@@ -367,7 +438,13 @@ func runGate(ctx context.Context, def *intent.GateDefinition, policy *intent.Pol
 	output := out.buf.Bytes()
 	cwd := "WORKTREE"
 	candidate := *a.CandidateTreeOid
-	inputs := wire.Sum(wire.EncodeFile(wire.ObjectValue(wire.NewObject().Set("tree", wire.String(candidate)).Set("inputs", wire.Array()))))
+	// A substituted argv joins the inputs digest, so the result binds the attempt
+	// facts the gate ran with; an argv run as declared keeps the old digest.
+	inputObject := wire.NewObject().Set("tree", wire.String(candidate)).Set("inputs", wire.Array())
+	if substituted {
+		inputObject.Set("argv", wire.Strings(argv))
+	}
+	inputs := wire.Sum(wire.EncodeFile(wire.ObjectValue(inputObject)))
 	g := snapshot.GateResult{GateID: def.GateID, AttemptID: a.AttemptID, Generation: a.Generation, TicketRevision: a.TicketRevision, DefinitionSha256: policy.GateDefinitionSha256(def.GateID), CandidateTreeOid: candidate, ExecutedTreeOid: &tree, ExecutedCwd: &cwd, PorcelainClean: &clean, InputsSha256: inputs, EnvironmentSha256: envDigest, PolicySha256: a.PolicySha256, ConfigSha256: a.ConfigSha256, StartedAt: stamp(started), EndedAt: stamp(ended), State: gateState(run, *def.ExpectedExit, clean, tree == candidate), OutcomeClass: run.class, ExitCode: run.exitCode, Signal: run.signal, Evidence: []snapshot.GateEvidence{{Label: "output", Sha256: wire.Sum(output), Bytes: wire.SizeOf(uint64(len(output)))}}}
 	record, err := g.Encode()
 	return gateRun{record: record, output: output}, err

@@ -866,7 +866,7 @@ func runStableCanonicalTrusted(ctx context.Context, repo string, raw []byte, bas
 		}
 	}
 	if len(m.Hunks) != len(ph) {
-		return fail("verification", invalid("invalid-field"), true)
+		return fail("verification", invalid("patch-hunk-count"), true)
 	}
 	seen := map[string]bool{}
 	for _, h := range m.Hunks {
@@ -961,7 +961,7 @@ func runStableCanonicalTrusted(ctx context.Context, repo string, raw []byte, bas
 		if e != nil {
 			return fail(stage, e, false)
 		}
-		if item.Span.End > uint64(len(data)) {
+		if item.Span.End <= item.Span.Start || item.Span.End > uint64(len(data)) {
 			return fail("verification", invalid("evidence-unavailable"), true)
 		}
 		item.data = append([]byte(nil), data[item.Span.Start:item.Span.End]...)

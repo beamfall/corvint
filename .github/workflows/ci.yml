@@ -2,8 +2,9 @@ name: CI
 
 on:
   pull_request:
-  # A merge-queue entry runs the complete suite on the exact commit that becomes main: every
-  # pull_request-gated narrowing below is off for it, so docs-plan selects FULL (AFP-V0-026).
+  # A merge-queue entry tests the exact commit that becomes main: every pull_request-gated
+  # narrowing below is off for it, so docs-plan selects FULL (AFP-V0-026) unless its tree is
+  # the one its pull-request run already tested in full (REUSE, AFP-V0-046).
   merge_group:
     types: [checks_requested]
   push:
@@ -117,13 +118,16 @@ jobs:
           name: docs-ci-plan
           path: ${{ runner.temp }}/docs-ci-plan.json
           if-no-files-found: ignore
-      - name: Find a passed pull-request result for this exact tree
-        # AFP-V0-024: a main push whose tree a successful pull-request run of this workflow
-        # already tested in full skips only the root race invocation. The decision tool is
-        # built from the pushed main commit; every failure here keeps FULL. REUSE_SHARDS
-        # must equal the go-product-shard matrix, or no record name matches and CI runs FULL.
+      - name: Find a passed result for this exact tree
+        # AFP-V0-024: a main push whose tree a successful pull-request run, or the merge-queue
+        # run of the pushed commit itself (V1-0760), already tested in full skips only the root
+        # race invocation; the decision tool is built from the pushed main commit. AFP-V0-046:
+        # a merge-queue entry whose tree a successful pull-request run of its second parent
+        # already tested in full does the same, only when its first parent is on main, with the
+        # tool built from that first parent. Every failure here keeps FULL. REUSE_SHARDS must
+        # equal the go-product-shard matrix, or no record name matches and CI runs FULL.
         id: reuse
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'merge_group'
         continue-on-error: true
         timeout-minutes: 5
         working-directory: trusted-docs
@@ -135,10 +139,24 @@ jobs:
           src="$GITHUB_WORKSPACE/source"
           tree=$(git -C "$src" rev-parse --verify -q "$GITHUB_SHA^{tree}")
           if ! head=$(git -C "$src" rev-parse --verify -q "$GITHUB_SHA^2") || git -C "$src" rev-parse --verify -q "$GITHUB_SHA^3" > /dev/null; then
-            echo 'Full CI: the pushed commit is not a two-parent merge.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Full CI: the tested commit is not a two-parent merge.' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-reuse-plan" ./tools/ci-reuse-plan
+          tool="$PWD"
+          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+            # Only the first entry on an unmoved main can have its pull-request run's tree; a
+            # later entry is built on a preceding queue commit and stays FULL. The tool comes
+            # from main code, never from the queue commit under test.
+            base=$(git -C "$src" rev-parse --verify -q "$GITHUB_SHA^1")
+            if ! git -C "$src" merge-base --is-ancestor "$base" refs/remotes/origin/main; then
+              echo 'Full CI: the queue commit is not built directly on main.' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            tool="$RUNNER_TEMP/ci-reuse-source"
+            mkdir -p "$tool"
+            git -C "$src" archive "$base" go.mod tools/ci-reuse-plan | tar -x -C "$tool"
+          fi
+          (cd "$tool" && go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-reuse-plan" ./tools/ci-reuse-plan)
           d="$RUNNER_TEMP/ci-reuse"
           mkdir -p "$d/artifacts"
           api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions"
@@ -149,14 +167,23 @@ jobs:
               -H "Authorization: Bearer $GH_TOKEN" -o "$2" "$1" ||
               curl -fsS --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' -o "$2" "$1"
           }
-          # An unreadable listing leaves an empty file, so the tool still retains a FULL decision.
-          get "$api/workflows/ci.yml/runs?head_sha=$head&event=pull_request&status=success&per_page=20" "$d/runs.json" ||
-            : > "$d/runs.json"
-          for id in $(jq -r '.workflow_runs[]?.id | select(type == "number")' "$d/runs.json" | head -n 5); do
-            get "$api/runs/$id/artifacts?per_page=100" "$d/artifacts/$id.json" || true
-          done
-          "$RUNNER_TEMP/ci-reuse-plan" --repository "$GITHUB_REPOSITORY" --tree "$tree" --head "$head" --shards "$REUSE_SHARDS" \
-            --runs "$d/runs.json" --artifacts "$d/artifacts" > "$d/decision.json.partial"
+          # An unreadable listing leaves an empty file that contributes no run, so the tool
+          # still retains a FULL decision when no listing is readable.
+          runs=()
+          list() {
+            get "$api/workflows/ci.yml/runs?$1&status=success&per_page=20" "$d/$2" || : > "$d/$2"
+            for id in $(jq -r '.workflow_runs[]?.id | select(type == "number")' "$d/$2" | head -n 5); do
+              get "$api/runs/$id/artifacts?per_page=100" "$d/artifacts/$id.json" || true
+            done
+            runs+=(--runs "$d/$2")
+          }
+          list "head_sha=$head&event=pull_request" runs.json
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            list "head_sha=$GITHUB_SHA&event=merge_group" queue-runs.json
+          fi
+          "$RUNNER_TEMP/ci-reuse-plan" --repository "$GITHUB_REPOSITORY" --event "$GITHUB_EVENT_NAME" --tree "$tree" \
+            --head "$head" --target "$GITHUB_SHA" --shards "$REUSE_SHARDS" "${runs[@]}" --artifacts "$d/artifacts" \
+            > "$d/decision.json.partial"
           mv "$d/decision.json.partial" "$d/decision.json"
           cat "$d/decision.json" >> "$GITHUB_STEP_SUMMARY"
           if jq -e --arg tree "$tree" --arg head "$head" --argjson shards "$REUSE_SHARDS" \
@@ -165,7 +192,7 @@ jobs:
             echo 'mode=REUSE' >> "$GITHUB_OUTPUT"
           fi
       - name: Retain reuse decision
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'merge_group'
         continue-on-error: true
         timeout-minutes: 2
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -221,9 +248,16 @@ jobs:
       CORVINT_PR_TOOL_SOURCE: ""
       CORVINT_PR_QUALIFICATION_SOURCE: ""
       CORVINT_PR_QUALIFICATION_SHA256: ""
+      # AFP-V0-047: the reviewed origin/main commit the shadow `corvint test` planner is built
+      # from. It only plans (--dry-run) and never decides, executes or narrows, so it is pinned
+      # apart from CORVINT_PR_TOOL_SOURCE: that pin also activates the deciding driver, which
+      # refuses AFP-V0-041 test slices, so it must stay empty while
+      # .github/cishards/test-slices.json names any slice. Empty stops the shadow.
+      CORVINT_TEST_SHADOW_SOURCE: "5163d1ed4b61084fc32cf79355848899c3e8a5bb"
       # AFP-V0-030: the forward-evidence epoch. Advanced to 1 when `corvint test` joined the
       # shadow (STR-V0-012 step 3), so no earlier row counts toward the AFP-V0-029 bar. The
-      # advance is vacuous: no forward shadow row exists in any epoch (the pins above are empty).
+      # first shadow rows of this epoch come from the AFP-V0-047 shadow pin above. Must equal
+      # FORWARD_EPOCH in ci-control-plane.yml, which names the rows.
       CORVINT_PR_FORWARD_EPOCH: "1"
       GOTOOLCHAIN: local
       GOPROXY: "off"
@@ -322,6 +356,23 @@ jobs:
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/corvint" ./cmd/corvint
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/selector" ./tools/gate-affected-select
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/driver" ./tools/corvint-pr-tests
+      - name: Capture the pinned shadow planner source outside tested checkout
+        continue-on-error: true
+        if: github.event_name == 'pull_request' && env.CORVINT_TEST_SHADOW_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: trusted-shadow
+          ref: ${{ env.CORVINT_TEST_SHADOW_SOURCE }}
+          persist-credentials: false
+      - name: Build the pinned shadow planner
+        # AFP-V0-047: only ./cmd/corvint, from the shadow pin, never from the tested checkout.
+        continue-on-error: true
+        if: github.event_name == 'pull_request' && env.CORVINT_TEST_SHADOW_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
+        working-directory: trusted-shadow
+        run: |
+          test "$(git rev-parse HEAD)" = "$CORVINT_TEST_SHADOW_SOURCE"
+          mkdir -p "$RUNNER_TEMP/corvint-shadow-bin"
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-shadow-bin/corvint" ./cmd/corvint
       - name: Build protected partition helper independently of PR module directives
         working-directory: source
         run: |
@@ -388,30 +439,43 @@ jobs:
           path: ${{ runner.temp }}/affected-share/share.json
           if-no-files-found: ignore
       - name: Shadow corvint test plan (never decides, executes or narrows)
-        # STR-V0-012 rollout step 3 under AFP-V0-029: the pinned corvint built above from
-        # CORVINT_PR_TOOL_SOURCE, outside the tested checkout, plans this shard with the ci
-        # profile and universe placement and prints its argv; --dry-run runs nothing but Git.
-        # The driver below keeps deciding and executing, and its result alone counts. With
-        # the pins empty this step never runs, so it adds no shadow row.
-        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
+        # STR-V0-012 rollout step 3 under AFP-V0-029 and AFP-V0-047: the corvint built above
+        # from CORVINT_TEST_SHADOW_SOURCE, outside the tested checkout, plans this shard with the
+        # ci profile and universe placement and prints its argv; --dry-run runs nothing but Git.
+        # The Go tests step below keeps executing the full shard, and its result alone counts.
+        # selection.json is this shard's retained S (corvint-pr-selection/0) for the forward rows.
+        if: github.event_name == 'pull_request' && env.CORVINT_TEST_SHADOW_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
         continue-on-error: true
         timeout-minutes: 5
         working-directory: source
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TESTED_MERGE: ${{ github.sha }}
           SHARD: ${{ strategy.job-index }}
           SHARDS: ${{ strategy.job-total }}
         run: |
-          test -x "$RUNNER_TEMP/corvint-pr-bin/corvint"
-          mkdir -p "$RUNNER_TEMP/corvint-test-shadow"
+          shadow="$RUNNER_TEMP/corvint-shadow-bin/corvint"
+          test -x "$shadow"
+          d="$RUNNER_TEMP/corvint-test-shadow"
+          mkdir -p "$d"
           status=0
-          "$RUNNER_TEMP/corvint-pr-bin/corvint" --root "$PWD" test --base "$PR_BASE" --profile ci \
+          "$shadow" --root "$PWD" test --base "$PR_BASE" --profile ci \
             --confine "$RUNNER_TEMP/test-confine" --placement universe --shard "$SHARD/$SHARDS" --dry-run \
-            --manifest "$RUNNER_TEMP/corvint-test-shadow/manifest.json" \
-            > "$RUNNER_TEMP/corvint-test-shadow/dry-run.json" < /dev/null || status=$?
+            --manifest "$d/manifest.json" > "$d/dry-run.json" < /dev/null || status=$?
           echo "corvint test --dry-run, shard $SHARD of $SHARDS, exited $status (shadow only)"
+          touch "$d/manifest.json"
+          shadow_tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}" || true)
+          jq -n -c --slurpfile dry "$d/dry-run.json" --slurpfile manifest "$d/manifest.json" \
+            --arg toolSource "$CORVINT_TEST_SHADOW_SOURCE" --arg toolDigest "sha256:$(sha256sum "$shadow" | cut -d' ' -f1)" \
+            --arg pr "$PR_NUMBER" --arg head "$PR_HEAD" --arg base "$PR_BASE" --arg target "$TESTED_MERGE" \
+            --arg tree "$shadow_tree" --arg runId "$GITHUB_RUN_ID" --arg runAttempt "$GITHUB_RUN_ATTEMPT" \
+            --arg shard "$SHARD" --arg shards "$SHARDS" --arg exit "$status" \
+            -f .github/forward-rows/selection.jq > "$d/selection.json"
+          jq -c '{scope, exit, selected: (.selected | length), manifestDigest, incomplete}' "$d/selection.json"
       - name: Retain corvint test shadow plan
-        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
+        if: github.event_name == 'pull_request' && env.CORVINT_TEST_SHADOW_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
         continue-on-error: true
         timeout-minutes: 2
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -452,6 +516,26 @@ jobs:
             # The protected helper validates each package as a typed, non-option word and
             # each slice pattern as one anchored element of plain test names.
             # Declared packages run confined to their read scopes (AFP-V0-023).
+            # AFP-V0-047: a pull-request or merge-queue shard retains package outcomes for the
+            # forward rows; `expected` names each invocation's package, `whole` the packages
+            # the rerun may name, and run_tests appends each failed slice to `failed-slices`.
+            # Every setup command sits in the `if` condition, so a failed write leaves the
+            # outcomes off and never changes this step's status.
+            outcomes_dir=""
+            case "$GITHUB_EVENT_NAME" in
+              pull_request | merge_group)
+                d="$RUNNER_TEMP/forward-outcomes"
+                # shellcheck disable=SC2086
+                if mkdir -p "$d" 2> /dev/null &&
+                  printf '%s\n' $packages | sed '/^$/d' > "$d/whole" 2> /dev/null &&
+                  { cat "$d/whole" && { [ -z "$slices" ] || awk '{ print $3 }' <<< "$slices"; }; } > "$d/expected" 2> /dev/null &&
+                  : > "$d/failed-slices" 2> /dev/null; then
+                  outcomes_dir="$d"
+                else
+                  echo "::warning::shard $SHARD: forward-row outcomes are off (setup failed)"
+                fi
+                ;;
+            esac
             run_tests() {
               # AFP-V0-041: every invocation runs, whole packages first and then each slice;
               # any failed invocation fails the shard.
@@ -462,10 +546,27 @@ jobs:
               fi
               if [ -n "$slices" ]; then
                 while read -r flag pattern pkg; do
-                  CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m "$flag" "$pattern" "$pkg" < /dev/null || failed=1
+                  CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m "$flag" "$pattern" "$pkg" < /dev/null || {
+                    failed=1
+                    [ -z "$outcomes_dir" ] || echo "$flag $pattern $pkg" >> "$outcomes_dir/failed-slices" || true
+                  }
                 done <<< "$slices"
               fi
               return "$failed"
+            }
+            # AFP-V0-047: derive this shard's outcomes, then rerun each failed whole package and
+            # failed slice once (at most 8, else SKIPPED_BOUND) and keep the rerun outcomes beside
+            # the first. The rerun never changes the step's status: a failed shard still fails.
+            forward_outcomes() {
+              OUTCOMES_TREE=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}" || true)
+              export OUTCOMES_TREE
+              sh .github/forward-rows/outcomes.sh first "$outcomes_dir" "$1" "$capture" || return 1
+              [ -s "$outcomes_dir/rerun-lines" ] || return 0
+              echo "AFP-V0-047: rerunning $(wc -l < "$outcomes_dir/rerun-lines") failed invocation(s) once; this shard still fails"
+              while read -r -a argv; do
+                CORVINT_CONFINE_ROOT="$PWD" go test -exec "$RUNNER_TEMP/test-confine" -json -p 1 -count=1 -race -timeout 50m "${argv[@]}" < /dev/null || true
+              done < "$outcomes_dir/rerun-lines" > "$outcomes_dir/rerun.stream"
+              sh .github/forward-rows/outcomes.sh rerun "$outcomes_dir" "$outcomes_dir/rerun.stream"
             }
             # AFP-V0-040: best-effort capture of the JSON stream for the advisory cost-drift
             # report. Only go test's own status decides this step: a capture file that cannot
@@ -476,14 +577,18 @@ jobs:
               run_tests | tee "$capture"
               status=${PIPESTATUS[0]}
               set -e
+              if [ -n "$outcomes_dir" ]; then
+                forward_outcomes "$status" || echo "::warning::shard $SHARD: forward-row outcomes incomplete"
+              fi
               [ "$status" = 0 ] || exit "$status"
               echo "costs=1" >> "$GITHUB_OUTPUT" || true
             else
               echo "::notice::shard $SHARD: package outcomes not captured; the cost-drift report will abstain"
               run_tests
             fi
-            # AFP-V0-024: only a complete pull-request shard that passed names the tested tree.
-            if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            # AFP-V0-024: only a complete pull-request or merge-queue (V1-0760) shard that passed
+            # names the tested tree; a narrowed, DOCS or REUSE shard never reaches this line.
+            if [ "$GITHUB_EVENT_NAME" = pull_request ] || [ "$GITHUB_EVENT_NAME" = merge_group ]; then
               tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}")
               mkdir -p "$RUNNER_TEMP/tested-tree"
               printf '{"profile":"corvint-ci-tested-tree/0","tree":"%s","target":"%s","shard":%s,"shards":%s,"runId":%s}\n' \
@@ -512,6 +617,18 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
           overwrite: true
+      - name: Retain package outcomes for the forward rows
+        # AFP-V0-047: the shard's corvint-ci-outcomes/0 document, also after a failed or
+        # interrupted shard; the ci-control-plane forward-rows job reads it.
+        if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-outcomes-${{ github.event_name }}-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/forward-outcomes/outcomes.json
+          if-no-files-found: ignore
+          overwrite: true
       - name: Selection audit
         if: always()
         run: |
@@ -523,7 +640,8 @@ jobs:
           fi
       - name: Expire cached test results before saving the build cache
         # Only a main push whose full race invocation passed writes the cache. A REUSE or DOCS
-        # push compiles nothing, and saving it would make the newest entry an empty one.
+        # push (AFP-V0-024, including a push that reuses its queue run) compiles nothing, skips
+        # the tests step, and saving it would make the newest entry an empty one.
         id: testcache
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.gocache.outcome == 'success' && steps.tests.outcome == 'success'
         continue-on-error: true

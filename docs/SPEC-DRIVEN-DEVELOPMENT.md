@@ -58,6 +58,33 @@ Delivery status:
 `implemented` never means useful in the market. `validated` names the exact gate and evidence. A
 failed held-out evaluation cannot be renamed development success.
 
+A spec header's `Intent status:` and its Agent digest `Status:` hold the current status only,
+optionally followed by the pointer `(history: REQUIREMENTS.tsv acceptance columns and
+docs/build-log)`. A change that accepts or amends requirements records that in each requirement's
+marker and in its build-log entry; it does not append to the header (`SRG-V0-011`). Older headers
+keep their tails until a change touches them.
+
+Requirement acceptance mode. Since the owner's standing auto-accept of 2026-10-11, `accepted` on a
+spec no longer separates intent the owner read from intent an agent wrote under that approval, so
+each requirement records its own mode in the leading parenthetical of its definition line, and
+`docs/specs/REQUIREMENTS.tsv` carries it in the `acceptance` and `acceptedBy` columns
+(`SRG-V0-009`). The modes are closed:
+
+- `owner`: the parenthetical says accepted or approved, or names an owner decision, and names a
+  decision number or a date, for example `(accepted, decision 0506)`;
+- `standing`: the parenthetical names a standing approval, for example `(accepted under the owner's
+  standing auto-accept (2026-10-11); V1-NNNN)`; the word `standing` decides whatever else it says;
+- `unrecorded`: anything else, including no parenthetical or a marker after the text; the
+  requirement inherits the spec header's intent status.
+
+A lane writes `standing` for its own requirements, never `owner`. A `standing` requirement becomes
+`owner` only when the owner reads it back: the marker is edited to name the read-back in the same
+commit as the build-log Owner acceptances entry that records it. `make spec-acceptance-audit` lists
+the requirements not yet read back, by spec, and reports a spec whose delivery is `validated` while
+it still holds a `standing` requirement as `NOT_PROMOTABLE` (`SRG-V0-010`). The mode is a record of
+what the marker says, not an approval: it is derived from the marker text and carries no authority
+of its own.
+
 ## Required capability-spec shape
 
 Every substantive capability spec contains:
@@ -95,6 +122,15 @@ For a behavior or wire-contract change, update the spec before or in the same co
 Tests cite requirement IDs in test names, docstrings, or the spec traceability table. Failed and
 `NOT_RUN` evidence stays visible. An agent may repair implementation to meet an accepted spec; it
 must request human review before changing accepted intent.
+
+`docs/specs/REQUIREMENTS.tsv`, `docs/specs/INDEX.json` and the `docs/specs/README.md` spec table are
+generated. A change edits its spec, stages it, and runs `make spec-requirements`, which regenerates
+the index and projects each header's intent and delivery status and its digest claim onto the two
+row files; `spec-requirements-check` fails when any of the three is stale (`SRG-V0-012`). The
+other INDEX.json fields and README.md cells stay hand-owned. Two changes adding requirements to one
+spec then conflict only in its requirement list and the index rows; resolve the spec and
+regenerate the index, never hand-merge it (`SRG-V0-013`). The generated rows are projections of
+the spec headers and never a source of intent.
 
 ## Backfill and generated documentation
 

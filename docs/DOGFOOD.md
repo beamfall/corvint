@@ -148,7 +148,7 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    report=.corvint/dogfood-report.json detail=<git-dir>/corvint/dogfood-check.stdout` line, then
    `dogfood-check: PASS` (`DCW-V0-033`). `unknownShare` is the map's unknown hunks over its material
    (non-mechanical) hunks, and `reasonedUnknown` the unknown hunks kept with a recorded reason
-   (`DCW-V0-046`).
+   (`DCW-V0-046`); section 6 explains its `requirements`, `linked` and `unlinked` members.
    The detail file holds the full CEM and OCM status JSON; `DOGFOOD_VERBOSE=1` prints that JSON
    in place of the summary, and a failing CEM policy always prints it. A base whose committed CEM names a base outside its history also prints
    `dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable`; a base whose
@@ -322,6 +322,28 @@ remains operative and the private report records the anchor as `NOT_OBSERVED`:
 `dogfood-change` and `dogfood-check` require `rg` (ripgrep) on `PATH` to assert on their own evidence
 output; a host missing it gets a `REFUSE unsupported-environment-missing-rg` line instead of a
 misleading failure partway through the run.
+
+The default is one command. Write the citation plan (one row per hunk; prepare the map once to
+learn the hunk IDs, for example by running the command without a valid plan), then run
+
+```console
+$ make dogfood-finish BASE=BASE_SHA CITATIONS=cites.tsv INTENTS=intents.txt VERIFY=verify.txt OUTCOME=passed
+```
+
+`make dogfood-finish` builds the base and tree verifiers as `dogfood-seal` does and runs
+`corvint dogfood finish-lane --base BASE_SHA --citations FILE [--intents FILE] [--verify FILE]
+[--outcome VALUE]` (`DCW-V0-060..062`): prepare, bind with the plan, commit only
+`.corvint/change.cem.json` as `chore: bind change evidence`, rebind, check and seal, one
+`dogfood-finish-lane:` line per step, one `NOT_PRODUCED rows=N` block with every row a pass did not
+produce, then the check's `SUMMARY` and `PASS|FAIL` lines and the seal line. The flags take
+precedence over `DOGFOOD_CITATIONS`, `DOGFOOD_INTENTS_FILE`, `DOGFOOD_VERIFY_FILE` and
+`DOGFOOD_OUTCOME`. It requires a clean worktree (the sidecar a stopped run left is the one
+exception) and a committed change ahead of `BASE_SHA`, and it never pushes. At the first step that
+does not succeed it stops with that step's own reasons and `fix:` lines; fix the input and rerun the
+same command. A rerun from the bind commit continues at the rebind, and one from the seal commit
+prints `seal SKIP already-sealed`.
+
+Repair: the per-step commands remain for a step that needs a hand, in this order:
 
 ```console
 $ make dogfood-change BASE=BASE_SHA
@@ -668,6 +690,9 @@ support with chore maps kept apart, run
 it writes one baseline row per map with its class, and a summary for all maps and for each
 class; a `cem/0.x` map is classed by its paths under the chore rule above.
 
+A record change touches only `docs/build-log/` or `.agent-evidence/` paths, with at most the two sidecar paths: name its build-log entry or decision in `DOGFOOD_INTENTS_FILE` (reported as `no-intent-declared`), and cite each hunk to BASE lines of the decision or entry it records with relation `decision`; one span may serve every hunk (`DCW-V0-057`, `DCW-V0-058`).
+Its sealed map has no role and reads `citationClass` `{"class": "record", "role": "change"}`, which the baseline summarizes apart from `change` (`CEM-V1-170`, `DCW-V0-059`).
+
 ### Staged binding of one oversized commit
 
 Accepted, decision 0510 (V1-1107; `DCW-V0-037`). The normal coordinator supports one
@@ -824,6 +849,18 @@ Read the report rather than trusting its exit code alone. It performs the same s
 policy verification as strict status; standalone `verify` is reserved for machine/CI use. The
 report stays local by default because
 paths and digests are sensitive even though source and diff bodies are omitted.
+
+The `dogfood-check: SUMMARY` members `requirements`, `linked` and `unlinked` after `ocm=STATE`
+describe only the requirements this change touches (`OCM-V0-019`): `requirements` counts the
+declared-intent requirements whose text a citation span covers or whose lines the diff adds or
+changes, `linked` those of them that a `*_test.go` or `*_test.sh` line, a traceability table row of
+the intent, or a `DOGFOOD_OCM_LINKS` obligation names as an exact ID, and `unlinked` the rest. A
+lane that adds four requirements with traced tests reads `requirements=4 linked=4 unlinked=0`; a
+code-only change that cites no requirement reads `requirements=0 linked=0 unlinked=0`
+(`OCM-V0-020`). A nonzero `unlinked` names requirements the change touched without a test or row
+naming them; it does not fail the check. `NOT_OBSERVED` in all three means an input could not be
+read. The intent-wide totals stay in `corvint ocm report` and the detail file's aggregate
+`coverage`.
 
 ### 7. Record the outcome
 

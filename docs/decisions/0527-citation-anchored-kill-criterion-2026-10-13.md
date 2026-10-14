@@ -72,6 +72,19 @@ Read against the registration's rules, the committed corpus would already be kil
 baseline the prospective set must move, not its result.
 
 
+## Amendment 2026-10-13: record maps leave the authored arm (V1-1344)
+
+Accepted under the owner's standing auto-accept (2026-10-11); V1-1344; `DCW-V0-057..059`,
+`CEM-V1-170`. A map whose hunks change only `docs/build-log/` or `.agent-evidence/` paths, with
+at most the CEM sidecar paths beside them, records evidence about other work rather than changing
+the product, and commonly cites one BASE decision for every hunk. `cem status --citation` now
+reads such a map as class `record`, and the authored arm of K2b counts `change`-class maps only,
+so record maps are excluded from it. The kill threshold and every other rule of point 1 are
+unchanged. The registration pins the scorer at the V1-1336 merge, where a record map still reads
+class `change`, and this amendment edits `tools/cem-citation-baseline/main.go`, so the exclusion
+reaches the prospective set only through a new dated registration made before any of its maps
+is read; until then the registered run stands as registered.
+
 ## Consequences
 
 - Reviewer-facing text cannot call an `anchored` hunk supported on the strength of this tier until

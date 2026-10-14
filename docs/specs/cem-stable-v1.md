@@ -6,7 +6,7 @@ Delivery status: planned
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed/planned; no stable delivery or promotion.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (proposed `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (proposed `CEM-V1-200..204`, V1-1278 S1); local-completion sidecar-only reuse of a committed `cem/1.0` sidecar on a stable verifier `ACCEPT` over its exact bytes with the absolute repository root and full object IDs, with closed refusal reasons and `CEM-V1-150`'s fail-closed default otherwise (proposed `CEM-V1-205..209`, V1-1303); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (proposed `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (proposed `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (proposed `CEM-V1-220..225`, V1-1278 S3); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (proposed `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (proposed `CEM-V1-200..204`, V1-1278 S1); local-completion sidecar-only reuse of a committed `cem/1.0` sidecar on a stable verifier `ACCEPT` over its exact bytes with the absolute repository root and full object IDs, with closed refusal reasons and `CEM-V1-150`'s fail-closed default otherwise (proposed `CEM-V1-205..209`, V1-1303); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (proposed `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (proposed `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (proposed `CEM-V1-220..225`, V1-1278 S3); one shared `cem/1.0` tamper matrix in the packet that the native and portable consumers both run with the same pinned verdicts (proposed `CEM-V1-226..229`, V1-1340); qualification remains bounded.
 - Blocked on: stable wire/consumer integration, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -57,7 +57,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-084 | `internal/cem/wire/stable_auth.go`, `internal/cem/verify/stable_auth.go`, `interop/cem01-go/stable_auth.go`; `--trusted-keys` in `internal/cem/cli/stable.go` and both portable commands; public case `protocol/cem-1.0/stable/receipt-authentication/`; `TestCEMV1084*` in `internal/cem/wire`, `internal/cem/verify`, `interop/cem01-go`, `internal/console` and `cmd/corvint` | No producer signs receipts (operator step, FPK-V0-036); `RESULT.schema.json` and the sealed S0E packet still name only `NOT_OBSERVED` for `authentication` and lack the four attestation issue codes (V1-1265); keys are TEST-ONLY; stranger time NOT_OBSERVED |
 | CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`; proof run in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` | V1-1265 added `citation` (CEM-V1-092) and `verdictSha256` (CEM-V1-066) through the tool |
 | CEM-V1-092 | `citation` member of `StableResult` (`internal/cem/verify/stable.go`) and `stableResult` (`interop/cem01-go/cem.go`, `stable_repository.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1092CitationOnlyOnAccept`, `TestCEMV1092SealedCasesCarryCitationOnlyOnAccept`, `TestCEMV1092RefuseAndRejectClearCitation` (native); `TestCEMV1092PortableCitationOnlyOnAccept`, `TestCEMV1082StableResultCarriesTheBlock`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file (case 21 derived natively on go1.27.2 with every other non-runtime key matching); ten envelope cells take `--cell-values` overrides |
-| CEM-V1-066 | `verdictSha256` member and `VerdictDigest` of `StableResult` (`internal/cem/verify/stable.go`, `stable_verdict.go`) and `stableResult` (`interop/cem01-go/cem.go`, `verdict.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1066SealedVerdictDigests`, `TestCEMV1066VerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066EveryOutcomeCarriesVerdictDigest` (native); `TestCEMV1066PortableSealedVerdictDigests`, `TestCEMV1066PortableVerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066PortableEveryOutcomeCarriesVerdictDigest`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file, computed from their sealed expectations; ten envelope cells take `--cell-values` overrides; no consumer reads the digest yet (decision 0525 step 8, V1-1283) |
+| CEM-V1-066 | `verdictSha256` member and `VerdictDigest` of `StableResult` (`internal/cem/verify/stable.go`, `stable_verdict.go`) and `stableResult` (`interop/cem01-go/cem.go`, `verdict.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1066SealedVerdictDigests`, `TestCEMV1066VerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066EveryOutcomeCarriesVerdictDigest` (native); `TestCEMV1066PortableSealedVerdictDigests`, `TestCEMV1066PortableVerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066PortableEveryOutcomeCarriesVerdictDigest`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file, computed from their sealed expectations; ten envelope cells take `--cell-values` overrides; the experimental Tasks verdict gate pins it and requires the portable consumer to recompute it (`docs/specs/tasks-criterion-binding-v0.md` TCB-V0-017; decision 0525 step 8, V1-1283) |
 | CEM-V1-093..095 | `internal/cem/wire/stable_provenance.go`, `interop/cem01-go/stable_provenance.go`; `provenance`, `role`, `sha1Oid` in `protocol/cem-1.0/stable/stable.schema.json`; re-homed 0.1/0.3 text in `protocol/cem-1.0/stable/ALGORITHMS.md`; shared vectors `interop/cem01-go/testdata/stable-map-members/cases.json`; `TestCEMV1093*`, `TestCEMV1094*`, `TestCEMV1095*` in `internal/cem/wire` and `interop/cem01-go` | The V1-1275 converter (CEM-V1-096..105) emits `provenance` but never `role`; `cem status --citation` role grouping is `CEM-V1-106` (V1-1281); provenance OIDs are SHA-1 only; the sealed S0E packet copy of `stable.schema.json` is unchanged; stranger time NOT_OBSERVED |
 | CEM-V1-096..105 | Removed by V1-1278 (`CEM-V1-204`); satisfied by the frozen V1-1277 evidence; the converter no longer ships. Historically `internal/cem/convert`, `internal/cem/cli/convert.go` (`corvint cem convert`), `tools/cem-convert-parity`; `TestCEMV1096*`..`TestCEMV1104*` in `internal/cem/convert`, `cmd/corvint`, `tools/cem-convert-parity` and `interop/cem01-go`; full-corpus parity `docs/build-log/evidence/v1-1275/` | Committed maps converted by V1-1277 (`CEM-V1-230`); direct verification at a bind commit is `REJECT excluded-artifact-mismatch` until §5 sealing; cem/0.1 out-of-band patch parity limit; f0fda542 native and portable partial drift lists differ on the resource-limit abort; removal with 0.x is V1-1278 |
 | CEM-V1-230..232 | Migration commit `0b6f1bc245b44a8620c5e64f91e87f6d08da08d0`; since V1-1278 the committed corpus is checked by `TestCEMV1201*` (`internal/cem/wire`, `CEM-V1-201`); historically `script/cem-migrate-maps.sh`, `tools/cem-convert-parity --migrated`, `TestCEMV1100ConvertCorpusIdempotent`, `TestCEMV1230MigratedSourceChecks`; evidence `docs/build-log/evidence/v1-1277/` | Direct verification of a migrated map at its bind commit stays `REJECT excluded-artifact-mismatch`; checks run at T'; the in-tree citation tool has no T' target; a `cem/0.x` map landing later needs a follow-up migration commit; the corpus test is NOT_RUN where Git objects are absent |
@@ -66,6 +66,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-210..214 | Consumer refusals in `internal/lrfrepo`, `internal/frontier*`, `internal/extevidence`, `cmd/corvint/prove.go`, `internal/attest`, `internal/gitnotes`, `internal/console`, `internal/cem/workflow/read.go`, `internal/receiptbundle`, `internal/witness*`, `internal/doccorpus`, `internal/criterionexperiment`, `internal/cemcandidate`, `internal/localcompletion`, `tools/local-authority`, `tools/cem-citation-baseline`; conformance supersessions in `conformance/ocm-v0`, `conformance/frontier-v0` and `conformance/cli-parity-v0`; tests in the consumer cem/1.0 admission traceability table | S2b deletes the 0.x wire, verifier, `patch`, producers and `cem` CLI routes; S3 the protocol and interop 0.x packets |
 | CEM-V1-215..219 | Deleted 0.x wire, verifier and producers in `internal/cem/wire`, `internal/cem/verify`, `internal/cem/workflow` and `internal/cem/cli`; retired `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes; `internal/attest/cem.go` retired-predicate refusal; regenerated `cmd/corvint/testdata/core-freeze` and `conformance/cli-parity-v0` declarations; tests listed under "Core 0.x removal traceability"; evidence `docs/build-log/2026-10-12-v1-1278-s2b-core-removal.md` | The `protocol/`, `interop/`, `examples/cem` and `conformance/cem-0.1` 0.x packets and their consumers remain for S3; the lrf-v0 corpus and frontier-v0 tier are retired whole, not ported |
 | CEM-V1-220..225 | Deleted `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`, `conformance/cem-0.2`, `examples/cem` (except the 0.x-free `experiments/` companion demo), `docs/CEM-CI.md`, `tools/cem-interop-runner` and `script/cem-recipes_test.sh`; `protocol/cem-1.0/stable/inherited/cem-0.3-algorithms.md`; `interop/cem01-go/testdata/inherited-vectors/`; the retired route in `interop/cem01-go/main.go`; `stableStatusArguments` in `internal/dogfoodflow/change.go`; tests listed under "Packet retirement traceability"; evidence `docs/build-log/2026-10-13-v1-1278-s3-retire-packets.md` | The 0.x packets stay readable in Git history only; the portable consumer verifies `cem/1.0` only; the retired specs keep their bodies and requirement IDs as history |
+| CEM-V1-170 | `internal/cem/workflow/stable_read.go` `StableCitationClass`, `stableRecordPaths`; `TestCEMV1170StatusCitationClassRecord` in `internal/cem/cli` | Committed record maps, which carry no role, are classified from their hunk paths retroactively; the portable consumer has no status envelope and is unchanged |
 | CEM-V1-106 | `internal/cem/workflow/stable_read.go` `StableCitationClass` and the `status` branch of `readStable`; `TestCEMV1106StatusCitationClassGroupsChoreMaps` in `internal/cem/cli` | No producer writes `role` before the V1-1276 cutover, so every committed map reads class `change`; the portable consumer has no status envelope and is unchanged |
 | CEM-V1-065 | `CEMStatementV2` and the v2 verifier in `internal/attest/cem_v2.go`; `prove --attest-cem-v2` and `--verify-cem-attestation --artifacts/--target` in `cmd/corvint/prove_attest_cem.go`; stable routing in `internal/gitnotes/anchor.go` (`wire.ParseStable`; the `wire.ParseRouted` 0.x router in `internal/cem/wire/route.go` was deleted by V1-1278 S2b, `CEM-V1-215`); `TestCEMV1065*` in `internal/attest`, `cmd/corvint` and `internal/gitnotes` | No verdict ledger; no signing producer or key management; v2 emission needs full-OID `--expected-base` and `--target` and an ACCEPT result; no independent consumer of `cem/v2` |
 
@@ -473,7 +474,7 @@ Acceptance evidence:
 Rollback: revert the `verdictSha256` regeneration (the packet files, both schema copies, the
 cells, the tuple packet and their manifests), the public `EXPECTED.json` members and stable
 manifest entries, `stable_verdict.go`, `interop/cem01-go/verdict.go` and the key-count changes in
-both consumers. No map changes; no consumer reads the digest yet.
+both consumers. No map changes; the Tasks verdict gate reads the digest (TCB-V0-012, TCB-V0-017).
 
 ## Stable map provenance, producer-only members and role (V1-1265, decision 0525)
 
@@ -681,10 +682,18 @@ measure needs to keep those maps apart from change maps without reading the role
   parse, and every other read keep their envelope unchanged. `stableVerification` stays exactly
   what `cem verify-stable` reports for the same arguments; the class is not a result member, so
   "the result MUST NOT echo it" in `CEM-V1-095` still holds, and the role changes no outcome,
-  issue, tier or citation block.
+  issue, tier or citation block. Amended 2026-10-13 (V1-1344): for role `change`, `class` is
+  `record` when `CEM-V1-170` holds, otherwise `change`.
+- `CEM-V1-170`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a map
+  whose effective role is `change`, `citationClass.class` MUST be `record` when its hunk paths name
+  at least one path under `docs/build-log/` or `.agent-evidence/` (nonempty remainder) and every
+  other hunk path is `.corvint/change.cem.json` or `.corvint/changes/NAME.cem.json`, NAME one
+  nonempty segment (`DCW-V0-057`); `role` stays `change`. A bind-chore or seal-chore map stays
+  `chore` whatever its paths, and a map with no hunks is `change`.
 
 Non-goals: no `role` or class in `RESULT.schema.json`, the stable result struct, the 0.x
-verification object or the portable consumer; no class for a `cem/0.x` map, which has no role.
+verification object or the portable consumer; no class for a `cem/0.x` map, which has no role; no
+`record` role value.
 
 Failure modes: a map that fails verification still reports its class when its wire parses, so a
 rejected chore map stays out of the change-map measure; a map whose wire does not parse has no
@@ -694,11 +703,13 @@ Acceptance evidence:
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
+| CEM-V1-170 | `TestCEMV1170StatusCitationClassRecord` (`internal/cem/cli`); `TestDogfoodDCWV0058RecordChangeBindsChecksAndSeals` (`cmd/corvint`) | Rewritten hunk paths under `docs/build-log/` or `.agent-evidence/`, alone or with a sidecar path, give class `record` with role `change`; a code path or only a sidecar path gives `change`; a bind-chore role gives `chore`; a dogfood-sealed record map reads `record`; build log `docs/build-log/2026-10-13-v1-1344-record-citation-class.md` |
 | CEM-V1-106 | `TestCEMV1106StatusCitationClassGroupsChoreMaps` (`internal/cem/cli`) | Status without `--citation` has no `citationClass`; with it, a map with no role is class `change`, and re-encoded roles `change`, `bind-chore` and `seal-chore` give their class; each `stableVerification` equals `cem verify-stable` with no `role` key, and the outcome, issue codes and citation block match across roles; build log `docs/build-log/2026-10-12-dogfood-per-hunk-citations.md` |
 
 Rollback: revert the `--citation` branch of the stable `status` read and `StableCitationClass` in
 `internal/cem/workflow/stable_read.go`; the envelope loses `citationClass`, and no map, result or
-sealed artifact changes.
+sealed artifact changes. Roll back `CEM-V1-170` alone by reverting `stableRecordPaths`: record maps
+read class `change` again.
 
 ## Committed map migration (V1-1277, decision 0525 §3 step 6)
 
@@ -1998,3 +2009,63 @@ return unchanged; no committed map, seal, golden or task record depends on them.
 | CEM-V1-223 | None; a deletion has no behavior to test | `make test-commands-check` reads the literal `GATE_STEPS` list without the removed member; the acceptance search finds no `examples/cem` path other than the kept `experiments/` demo, and no runner path, outside history |
 | CEM-V1-224 | `TestStableStatusArgumentsAddArtifactRoot`, `TestCEMV1210FixtureRecomputeRefusesEveryMap`, `TestFrozenInvalidPatches` | Codes unchanged; no 0.x name in the messages |
 | CEM-V1-225 | `TestIndexCoversSpecsAndHeaders` | The retired specs, `INDEX.json` supersession and `README.md` rows agree; `license-headers-check` passes |
+
+## Shared stable tamper matrix (V1-1340, 2026-10-13)
+
+Status: proposed; V1-1340. No native test on the stable path covered the classic tamper classes:
+the native tamper suites went through the retired `cem/0.1` path, and the portable consumer had its
+own cases. Running one shared matrix showed five tampers on which the consumers disagreed, and the
+matrix now pins the inherited normative disposition for each. Owner standing auto-accept of lane
+requirements (2026-10-11) applies; the requirements stay proposed until recorded under that
+acceptance.
+
+- `CEM-V1-226`: The packet MUST carry one shared tamper matrix at
+  `protocol/cem-1.0/stable/tamper-matrix/`: a repository recipe, one clean map (`stable.json`),
+  tampered copies of it under `cases/`, and `EXPECTED.json` (profile `cem-stable-tamper-matrix/1`),
+  every file listed in the stable `manifest.json` with its SHA-256 digest and byte count. It MUST
+  cover at least these tamper classes: `PatchDigestMismatch`, `FabricatedEvidenceID`, `UncitedHunk`,
+  `InvalidSpan`, `SpanOutOfRange`, `EvidenceIDSwap` (between hunks), `EvidenceDrop`, `HunkReorder` and
+  `SpanRangeEdit`, plus the clean `control`.
+- `CEM-V1-227`: The native verifier (`internal/cem/verify`, `Stable`) and the portable consumer
+  (`interop/cem01-go`, `verify-stable-canonical`) MUST each run every case of the matrix from the
+  packet files and return the pinned verdict. A case that only one consumer runs, or a disagreement
+  between them, is a failure.
+- `CEM-V1-228`: Each `EXPECTED.json` case MUST carry `name`, `tamper`, `description`, `map`,
+  `exit`, `outcome`, `stage`, `code`, `issueCodes` and `citation`. A REJECT pins the exact stage and
+  closed code (`code` for the wire and references stages, `issueCodes` for verification) and a null
+  `citation`. An ACCEPT pins the whole `cem-citation-support/0` block. The pinned codes follow the
+  inherited normative text: a duplicate evidence ID, a basis naming no evidence record, a basis
+  pair repeated within one hunk, and an evidence record no basis cites are map-local wire checks
+  refused `invalid-field`. An empty or
+  reversed span is admitted by the wire and refused at verification as `evidence-unavailable`, as
+  is a span past the end of its blob. A map whose hunk count differs from the canonical patch is
+  the verification issue `patch-hunk-count`, the stable closed name for the inherited `uncited-hunk`.
+- `CEM-V1-229`: Swapping evidence IDs between hunks, when every record stays a valid digest-bound
+  base span, MUST ACCEPT. A support tier never changes the verdict (`CEM-V1-080`). The matrix pins the
+  degraded tier instead: both hunks go from `anchored` to `cited`, `hunksByClass.anchored` from 2
+  to 0, and `specificity` from 2 to -2.
+
+Non-goals: no change to an existing packet file other than the stable `manifest.json` entries; no
+new closed code; no tier threshold or verdict that depends on a tier; no change to native verifier
+semantics.
+
+Failure modes: a case file that drifts from its manifest entry fails both consumers' manifest
+check. A recipe that no longer builds the pinned commits fails before any case runs. A consumer
+whose stage or code differs from the pinned value fails that case by name. A matrix that drops a
+required tamper class fails the coverage check in both tests.
+
+Rollback: revert the V1-1340 commit. The matrix directory and its manifest entries go away, and
+the portable consumer returns to `invalid-field` for a hunk-count mismatch, to `unresolved-reference`
+or verification `invalid-field` for an unknown basis, uncited evidence or a repeated basis pair,
+and to a wire
+`invalid-field` for an empty or reversed span. No committed map, seal or golden depends on those
+codes.
+
+### Shared tamper matrix traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-226 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Both check every matrix file against the stable manifest and the required tamper classes |
+| CEM-V1-227 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Each runs all 20 cases from `EXPECTED.json` as named subtests |
+| CEM-V1-228 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Exit, outcome, stage, code, issue codes and the full citation block are compared per case |
+| CEM-V1-229 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Subtest `evidence-ids-swapped` pins ACCEPT with anchored 0, cited 2 and specificity -2 |
