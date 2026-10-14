@@ -1,14 +1,15 @@
-//go:build darwin
+//go:build darwin || (linux && (amd64 || arm64))
 
 package main
 
-// Lifecycle tests for the Darwin process-group owner and the OQ-12 two-step
-// retirement rule. They need no packet; each uses a fresh minimal repository.
+// Lifecycle tests for the Darwin and Linux process-group owner and the OQ-12
+// two-step retirement rule. They need no packet; each uses a fresh minimal repository.
 
 import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -85,6 +86,29 @@ func TestStableLifecycleLingeringDescendantRetired(t *testing.T) {
 	}
 	pidGone(t, pid)
 	if s.hold {
+		t.Fatal("unexpected hold")
+	}
+}
+
+// A hostile Git child that ignores SIGTERM and leaves a forking grandchild
+// that also ignores it: retirement uses SIGKILL on the whole group, so no
+// descendant survives the transaction.
+func TestStableLifecycleHostileDescendantsRetired(t *testing.T) {
+	s, B := lifecycleSession(t, context.Background(), nil)
+	p1, p2 := filepath.Join(B, "grandchild.pid"), filepath.Join(B, "great.pid")
+	shim := lifecycleShim(t, B, "hostile", "trap '' TERM HUP INT\n"+
+		"/bin/sh -c \"trap '' TERM HUP INT; /bin/sleep 300 & echo \\$! > "+p2+"; wait\" &\n"+
+		"echo $! > "+p1+"\n"+
+		"while [ ! -s "+p2+" ]; do /bin/sleep 0.01; done\n"+
+		"exec "+s.git+` "$@"`)
+	s.hooks = &stableHooks{gitPath: func(*stableTx) string { return shim }}
+	tx := formatTx()
+	if _, e := s.transact(tx); e != nil {
+		t.Fatalf("format query: %s", e.code)
+	}
+	pidGone(t, p1)
+	pidGone(t, p2)
+	if s.hold || len(s.held) != 0 {
 		t.Fatal("unexpected hold")
 	}
 }
@@ -294,7 +318,7 @@ func TestStableLifecycleKeeperProtocolError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(exe, stableKeeperProtocol)
+	cmd := exec.Command(exe, stableKeeperProtocol, strconv.Itoa(os.Getpid()))
 	cmd.ExtraFiles = []*os.File{keeper}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
@@ -311,6 +335,41 @@ func TestStableLifecycleKeeperProtocolError(t *testing.T) {
 	_ = cmd.Wait()
 	if n != 12 || string(st[:4]) != "CEMS" || st[5] != stableStatusProtocolError {
 		t.Fatalf("keeper status %q", st[:n])
+	}
+}
+
+// A keeper whose named owner is not its parent, as after an owner exit that
+// reparents it to a subreaper, retires before reading any frame: it answers
+// nothing, where a running keeper would answer a protocol error.
+func TestStableLifecycleKeeperRefusesForeignOwner(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{strconv.Itoa(os.Getppid()), "1", "0", "-1", "+" + strconv.Itoa(os.Getpid()), "x"} {
+		fds, err := lifecycleSocketpair()
+		if err != nil {
+			t.Fatal(err)
+		}
+		owner := os.NewFile(uintptr(fds[0]), "owner")
+		keeper := os.NewFile(uintptr(fds[1]), "keeper")
+		cmd := exec.Command(exe, stableKeeperProtocol, want)
+		cmd.ExtraFiles = []*os.File{keeper}
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		keeper.Close()
+		_, _ = owner.Write([]byte("GARBAGE!!!"))
+		_ = owner.SetReadDeadline(time.Now().Add(10 * time.Second))
+		n, rerr := owner.Read(make([]byte, 12))
+		owner.Close()
+		werr := cmd.Wait()
+		ws, _ := cmd.ProcessState.Sys().(syscall.WaitStatus)
+		// Linux reports a reset when the peer closes with our bytes unread.
+		if n != 0 || rerr != io.EOF && !errors.Is(rerr, syscall.ECONNRESET) || werr == nil || !ws.Signaled() || ws.Signal() != syscall.SIGKILL {
+			t.Fatalf("owner %q: read %d %v, wait %v", want, n, rerr, werr)
+		}
 	}
 }
 
@@ -339,7 +398,7 @@ func lifecycleOrphanOwner(git string) {
 	if err != nil {
 		os.Exit(3)
 	}
-	k := exec.Command(exe, stableKeeperProtocol)
+	k := exec.Command(exe, stableKeeperProtocol, strconv.Itoa(os.Getpid()))
 	for _, e := range os.Environ() {
 		if !strings.HasPrefix(e, lifecycleOrphanEnv+"=") {
 			k.Env = append(k.Env, e)

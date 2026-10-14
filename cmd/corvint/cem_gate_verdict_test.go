@@ -67,12 +67,11 @@ func TestTCBV0016GateVerdictArgvIsClosed(t *testing.T) {
 // verifier-disagreement when the portable result is patched.
 func TestTCBV0016GateVerdictRunsBothConsumers(t *testing.T) {
 	stablefixture.RequireStableHost(t)
-	// interop/cem01-go answers verify-stable-canonical only where its process
-	// containment is qualified (stable_process_darwin.go); elsewhere it reports
-	// UNSUPPORTED and the gate refuses verifier-disagreement, so the real
-	// cross-check is observed on darwin and the stand-in consumer covers linux.
-	if runtime.GOOS != "darwin" {
-		t.Skip("NOT_RUN: interop/cem01-go process containment is not qualified on " + runtime.GOOS)
+	// interop/cem01-go qualifies its process containment on darwin and on
+	// linux amd64/arm64 (CEM-V1-180); there the real consumer must answer
+	// verify-stable-canonical with the native verdictSha256, never UNSUPPORTED.
+	if runtime.GOOS == "linux" && runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64" {
+		t.Skip("NOT_RUN: interop/cem01-go process containment is not qualified on linux/" + runtime.GOARCH)
 	}
 	consumer := buildPortableConsumer(t)
 	root, base, seal := sealedVerdictFixture(t)
@@ -107,6 +106,7 @@ func TestTCBV0016GateVerdictRunsBothConsumers(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &doc); err != nil {
 		t.Fatal(err)
 	}
+	t.Logf("%s/%s native verdictSha256 %s portable %s %s", runtime.GOOS, runtime.GOARCH, doc.Verdict.VerdictSha256, doc.Portable.Outcome, doc.Portable.VerdictSha256)
 	if doc.Outcome != "GRANT" || doc.Portable.Route != "verify-stable-canonical" || doc.Portable.Outcome != "ACCEPT" || doc.Portable.VerdictSha256 != doc.Verdict.VerdictSha256 || doc.Portable.CitationSha256 == nil {
 		t.Fatalf("pins: %+v", doc)
 	}
