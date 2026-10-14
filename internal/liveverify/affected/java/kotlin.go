@@ -3,6 +3,8 @@ package java
 import (
 	"path"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected/kotlin"
 )
 
 // jvmReferrer is the part of a Kotlin file needed to tell whether it can name
@@ -17,14 +19,14 @@ type jvmReferrer struct {
 }
 
 // kotlinReferrer reads a Kotlin file without a Kotlin parser. Headers and
-// qualified names come from the text with comments blanked when the Java
-// lexer can read it (Kotlin adds nested comments and raw strings), and from
-// the raw text otherwise. Words come from the raw text, so a word inside a
-// comment or string can only add a frontier, never remove one.
+// qualified names come from the text with comments blanked by the Kotlin
+// plugin's lexer, which nests block comments and reads raw strings, and from
+// the raw text when it does not lex. Words come from the raw text, so a word
+// inside a comment or string can only add a frontier, never remove one.
 func kotlinReferrer(relative, text string) jvmReferrer {
 	text = strings.TrimPrefix(text, "\ufeff")
 	header := text
-	if clean, _, ok := sourceText(text); ok {
+	if clean, ok := kotlin.SourceText(text); ok {
 		header = clean
 	}
 	referrer := jvmReferrer{words: map[string]bool{}, facade: kotlinFacade(relative)}

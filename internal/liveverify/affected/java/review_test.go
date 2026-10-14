@@ -119,6 +119,28 @@ func reviewCases() []reviewCase {
 			dirty: "src/main/kotlin/p/api.kt", control: "src/test/kotlin/p/ControlTest.kt", reached: missedJava, unknown: kotlin.FrontierJavaDependent},
 		{name: "9 spaced JvmName", files: facadeTree("api.kt", "@file:JvmName (\"Api\")\n", "import p.Api;", "Api.value();"),
 			dirty: "src/main/kotlin/p/api.kt", control: "src/test/kotlin/p/ControlTest.kt", reached: missedJava, unknown: kotlin.FrontierJavaDependent},
+		{name: "1 qualified annotation name", files: map[string]string{
+			"src/main/java/p/Core.java":     "package p;\npublic @interface Core {}\n",
+			"src/test/java/p/CoreTest.java": "package p;\n" + junit + "class CoreTest { @Core @Test void direct() {} }\n",
+			missedJava:                      "package q;\n" + junit + "class MissedTest { @p.Core @Test void t() {} }\n",
+		}, dirty: "src/main/java/p/Core.java", control: "src/test/java/p/CoreTest.java", reached: missedJava},
+		{name: "7 generated name also declared in an unrelated package", files: javaTree(map[string]string{
+			"src/main/java/com/other/Generated.java": "package com.other;\npublic class Generated {}\n",
+			missedJava:                               "package q;\nimport com.ex.core.*;\n" + junit + "class MissedTest { @Test void t(){new Generated().callCore();} }\n",
+		}), dirty: coreJava, control: coreJavaTest, reached: missedJava, reads: UnresolvedName},
+		{name: "8 Kotlin package header after a nested comment", files: javaTree(map[string]string{
+			"build.gradle.kts":                      kotlinBuild,
+			"src/main/kotlin/com/ex/core/Bridge.kt": "/* outer /* inner */ still outer */ package com.ex.core\nclass Bridge { fun run() = Core() }\n",
+			"src/test/kotlin/q/BridgeTest.kt":       "package q\nimport com.ex.core.Bridge\n" + kotlinJunit + "class BridgeTest { @Test fun t() { Bridge().run() } }\n",
+		}), dirty: coreJava, control: coreJavaTest, reached: "src/test/kotlin/q/BridgeTest.kt", unknown: FrontierKotlinDependent},
+		{name: "8 Java package header after an escaped line end", files: map[string]string{
+			"build.gradle.kts":                 kotlinBuild,
+			"src/main/kotlin/p/Core.kt":        "package p\nclass Core\n",
+			"src/test/kotlin/p/ControlTest.kt": "package p\n" + kotlinJunit + "class ControlTest { @Test fun direct() { Core() } }\n",
+			"src/test/java/p/MissedTest.java":  "// license \\u000a package p;\n" + junit + "class MissedTest { @Test void t(){new Core();} }\n",
+		}, dirty: "src/main/kotlin/p/Core.kt", control: "src/test/kotlin/p/ControlTest.kt", reached: "src/test/java/p/MissedTest.java", unknown: kotlin.FrontierJavaDependent},
+		{name: "9 comment-split JvmName", files: facadeTree("api.kt", "@file:JvmName/*comment*/(\"Api\")\n", "import p.Api;", "Api.value();"),
+			dirty: "src/main/kotlin/p/api.kt", control: "src/test/kotlin/p/ControlTest.kt", reached: missedJava, unknown: kotlin.FrontierJavaDependent},
 	}
 }
 
