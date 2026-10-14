@@ -3568,7 +3568,7 @@
     "title": "CEM stable 1.0",
     "reqPrefix": "CEM-V1",
     "intent": "owner scope accepted; technical contract proposed",
-    "delivery": "planned",
+    "delivery": "implemented and produced on main (decision 0525, CEM-V1-140..152, V1-1276); not promoted; qualification bounded",
     "claim": "Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.",
     "dependsOn": [
       "docs/specs/tasks-criterion-binding-v0.md",

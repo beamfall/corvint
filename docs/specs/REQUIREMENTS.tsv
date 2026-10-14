@@ -906,12 +906,12 @@ CEM-V1-103	docs/specs/cem-stable-v1.md	608	(V1-1278: satisfied by the frozen V1-
 CEM-V1-104	docs/specs/cem-stable-v1.md	612	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
 CEM-V1-105	docs/specs/cem-stable-v1.md	632	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
 CEM-V1-106	docs/specs/cem-stable-v1.md	678	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) `cem sta	standing	2026-10-11; V1-1281
-CEM-V1-107	docs/specs/cem-stable-v1.md	2228	Every status statement in `protocol/cem-1.0/README.md` and	unrecorded	-
-CEM-V1-108	docs/specs/cem-stable-v1.md	2234	`protocol/cem-1.0/stable/ALGORITHMS.md` MUST state, as new Apache-2.0 prose, eve	unrecorded	-
-CEM-V1-109	docs/specs/cem-stable-v1.md	2240	The same file MUST state the member order of the citation block and of the	unrecorded	-
-CEM-V1-110	docs/specs/cem-stable-v1.md	2246	The same file MUST carry the canonical diff recipe in full: Git options, `-c`	unrecorded	-
-CEM-V1-111	docs/specs/cem-stable-v1.md	2249	The packet MUST carry `protocol/cem-1.0/stable/citation-vectors/`: a repository	unrecorded	-
-CEM-V1-112	docs/specs/cem-stable-v1.md	2258	For each listed misreading (an LF-stripped join, citation or top-level member or	unrecorded	-
+CEM-V1-107	docs/specs/cem-stable-v1.md	2229	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) Every st	standing	2026-10-11; V1-1333
+CEM-V1-108	docs/specs/cem-stable-v1.md	2235	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) `protoco	standing	2026-10-11; V1-1333
+CEM-V1-109	docs/specs/cem-stable-v1.md	2241	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The same	standing	2026-10-11; V1-1333
+CEM-V1-110	docs/specs/cem-stable-v1.md	2247	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The same	standing	2026-10-11; V1-1333
+CEM-V1-111	docs/specs/cem-stable-v1.md	2250	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The pack	standing	2026-10-11; V1-1333
+CEM-V1-112	docs/specs/cem-stable-v1.md	2259	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) For each	standing	2026-10-11; V1-1333
 CEM-V1-120	docs/specs/cem-stable-v1.md	1532	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity	unrecorded	-
 CEM-V1-121	docs/specs/cem-stable-v1.md	1535	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly	unrecorded	-
 CEM-V1-122	docs/specs/cem-stable-v1.md	1539	The stable result MUST carry:	unrecorded	-
