@@ -52,7 +52,9 @@ longer refuses slices. V1-0812 edits that block when it sets the pin.
    - a split package that also runs whole;
    - a slice placed other than exactly once;
    - inconsistent slice counts;
-   - a malformed index, flag or pattern.
+   - a malformed index, flag or pattern;
+   - named slices of one package that overlap, or a catch-all that does not skip exactly their
+     union.
 
    A FULL fallback would execute the same placement, so it refuses too. Two conditions are not
    refused, because the full path tolerates them and the driver mirrors it:
@@ -76,7 +78,7 @@ longer refuses slices. V1-0812 edits that block when it sets the pin.
   affected packages stay whole.
 - `TestAFPV0048CommittedSlicesArePlacedOnce`: the committed files split `internal/tasks/store`
   over 8 shards. Each slice is placed exactly once and the package never runs whole.
-- `TestAFPV0048DriverRefusesAmbiguousPlacement` covers 12 broken placements, each refused with
+- `TestAFPV0048DriverRefusesAmbiguousPlacement` covers 15 broken placements, each refused with
   `AFP-V0-048`.
 - `TestAFPV0048ShardedRunExecutesSlices` runs real `go test` on the fixture repository over 2
   shards, for FULL, narrowed and stale-name runs:
@@ -84,12 +86,20 @@ longer refuses slices. V1-0812 edits that block when it sets the pin.
   - `b` runs only in FULL;
   - the slice argv equals the audited placement, and the exit codes follow the failing test;
   - a plan that loses the slices refuses in `execute` with exit 2 and no `execution.json`.
+- Runs on this host (load average near 57):
+  - `TestAFPV0048ShardedRunExecutesSlices` passed in 1379 s on commit b8bbd21d3, before the
+    Codex fix. Its fixture layouts are disjoint, so the later overlap check does not change them.
+  - With `-race`, the five pure AFP-V0-048 tests and both `TestSharded*_AFPV0022` tests passed
+    after the fix.
+  - Under `-race`, the rest of the package and the real-execution test were not rerun, because
+    of load. CI runs the package in full.
 - The existing `TestShardedPRExecution_AFPV0022` and `TestShardedSourceDrift_AFPV0022` still pass
   unchanged, which covers the zero-slice end-to-end path.
 - Mutation checks (temporary edits to `main.go`, reverted):
   - Dropping the slice placement in `shardUnits` fails `DriverPlacesTheFullBranchUnits` and
     `CommittedSlicesArePlacedOnce`.
   - Skipping the `shardLayout` checks fails `DriverRefusesAmbiguousPlacement`.
+  - Skipping only the overlap check (`partitionsTests`) fails its three cases.
   - Replacing `Plan` with the slice-blind `Partition` fails four of the five pure tests.
   - Dropping the slice invocations in `execute` was not mutation-run, because of host load.
     `ShardedRunExecutesSlices` asserts that `TestValue` terminates exactly once and that each
@@ -106,7 +116,15 @@ longer refuses slices. V1-0812 edits that block when it sets the pin.
 - `corvint-tasks ticket show V1-1361` refused from the lane clone ("ticket does not exist in this
   queue"), because the journal lives in the primary checkout. The lane worked from the charter
   text.
-- CODEX_PLACEHOLDER
+- One Codex round (`codex exec -s read-only`) over `adf587fdb..b8bbd21d3` returned two
+  findings:
+  - **P2 (fixed).** `shardLayout` accepted overlapping named slices, and a catch-all whose skip set
+    differed from their union. `partitionsTests` now refuses both, with three new refusal cases.
+  - **P1 (recorded, not fixed here).** Slice invocations run without the full path's
+    `-exec test-confine` and `CORVINT_CONFINE_ROOT`. This is not new: the driver's whole-package
+    invocation has the same gap at BASE, which is the AFP-V0-023 residual for the AFP-V0-013
+    driver. AFP-V0-028 already requires the full branch's wrapper before narrowing, so it belongs
+    to V1-0812. AFP-V0-048 states it as a limit.
 
 ## Rollback
 

@@ -924,6 +924,7 @@ func shardLayout(universe []string, shards int) ([]cishards.Shard, error) {
 	}
 	whole := map[string]int{}
 	split := map[string][]int{}
+	patterns := map[string][]string{}
 	for _, shard := range layout {
 		for _, p := range shard.Packages {
 			whole[p]++
@@ -937,11 +938,13 @@ func shardLayout(universe []string, shards int) ([]cishards.Shard, error) {
 			if counts == nil {
 				counts = make([]int, slice.Count)
 				split[slice.Package] = counts
+				patterns[slice.Package] = make([]string, slice.Count)
 			}
 			if len(counts) != slice.Count {
 				return refuse("inconsistent slice count for " + slice.Package)
 			}
 			counts[slice.Index]++
+			patterns[slice.Package][slice.Index] = slice.Pattern
 		}
 	}
 	listed := map[string]bool{}
@@ -959,6 +962,9 @@ func shardLayout(universe []string, shards int) ([]cishards.Shard, error) {
 				return refuse(p + " has a slice placed other than exactly once")
 			}
 		}
+		if sliced && !partitionsTests(patterns[p]) {
+			return refuse(p + " has named slices that overlap or a catch-all that does not skip exactly their names")
+		}
 	}
 	for p := range whole {
 		if !listed[p] {
@@ -971,6 +977,30 @@ func shardLayout(universe []string, shards int) ([]cishards.Shard, error) {
 		}
 	}
 	return layout, nil
+}
+
+// partitionsTests reports whether the named patterns of one package (all but
+// the last) are disjoint and the catch-all (last) skips exactly their union, so
+// every top-level test runs in exactly one slice.
+func partitionsTests(patterns []string) bool {
+	named := map[string]bool{}
+	for i, pattern := range patterns {
+		names := strings.Split(pattern[2:len(pattern)-2], "|")
+		if i == len(patterns)-1 {
+			skipped := map[string]bool{}
+			for _, name := range names {
+				skipped[name] = true
+			}
+			return len(names) == len(skipped) && equal(skipped, named)
+		}
+		for _, name := range names {
+			if named[name] {
+				return false
+			}
+			named[name] = true
+		}
+	}
+	return false
 }
 
 // shardUnits is one shard's part of a selection over the complete layout: the

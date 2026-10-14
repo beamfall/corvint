@@ -372,6 +372,21 @@ func TestAFPV0048DriverRefusesAmbiguousPlacement(t *testing.T) {
 			l[i].Slices[j].Pattern = "^(TestA|TestB)$|."
 			return l
 		},
+		"named slices overlap": func(l []cishards.Shard) []cishards.Shard {
+			i, j := find(l, 1)
+			l[i].Slices[j].Pattern = "^(TestA)$"
+			return l
+		},
+		"catch-all runs a named test": func(l []cishards.Shard) []cishards.Shard {
+			i, j := find(l, 2)
+			l[i].Slices[j].Pattern = "^(TestA|TestB)$"
+			return l
+		},
+		"catch-all skips an unnamed test": func(l []cishards.Shard) []cishards.Shard {
+			i, j := find(l, 2)
+			l[i].Slices[j].Pattern = "^(TestA|TestB|TestC|TestD)$"
+			return l
+		},
 		"inconsistent count": func(l []cishards.Shard) []cishards.Shard {
 			i, j := find(l, 0)
 			l[i].Slices[j].Count = 4

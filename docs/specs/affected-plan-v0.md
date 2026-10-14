@@ -1266,8 +1266,9 @@ and container qualification; full fallback remains available.
   slices, runs a split package whole as well, places a slice other than exactly once, gives one
   package two slice counts, or holds a slice whose index, flag (`-run` for a named slice, `-skip`
   for the catch-all) or pattern (an anchored alternation of plain `Test`, `Example` or `Fuzz`
-  names within `MaxPatternBytes`) is malformed. A FULL fallback executes the same placement, so
-  it refuses too. The AFP-V0-022 profile digest, shard source and source drift checks still
+  names within `MaxPatternBytes`) is malformed, or whose named slices of one package overlap or
+  whose catch-all does not skip exactly their union. A FULL fallback executes the same placement,
+  so it refuses too. The AFP-V0-022 profile digest, shard source and source drift checks still
   precede execution. A slice file whose names are stale needs no refusal: as in the full path, a
   removed name matches nothing and a new or renamed test runs in the catch-all slice; an unusable
   or unadmitted slice file leaves the affected package whole, as in the full path.
@@ -1275,7 +1276,10 @@ and container qualification; full fallback remains available.
   invocation's arguments and exit (`Slices`); with no split package both documents and the
   whole-package arguments are unchanged. Non-goals: selection authority from slices, slicing in
   qualification rows or the container profile (both stay unsharded), and a change to the
-  protected helper or workflow. Limits: hosted execution is `NOT_OBSERVED` until V1-0812 sets
+  protected helper or workflow. Limits: like the driver's whole-package invocation, each slice
+  invocation runs without the AFP-V0-023 `test-confine` wrapper that the full path applies (the
+  AFP-V0-023 residual for the AFP-V0-013 driver; AFP-V0-028 requires the full branch's wrapper
+  before narrowing); hosted execution is `NOT_OBSERVED` until V1-0812 sets
   `CORVINT_PR_TOOL_SOURCE`, and the `.github/workflows/ci.yml` comment beside that pin still
   describes the earlier refusal until V1-0812 edits it. Falsifier: a driver shard set whose union
   of whole packages and slices differs from the full path's for the same universe and shard
