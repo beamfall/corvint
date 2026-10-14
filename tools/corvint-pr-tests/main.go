@@ -54,6 +54,7 @@ type selection struct {
 	Identity                                                               identity
 	Packages                                                               []string
 	ShardPackages                                                          []string
+	ShardSlices                                                            []cishards.Slice `json:",omitempty"`
 	Shard, Shards                                                          int
 	PlanSHA, AuditSHA                                                      string
 }
@@ -65,6 +66,15 @@ type execution struct {
 	ElapsedSeconds    float64
 	Error             string
 	SkippedEmptyShard bool
+	Slices            []sliceRun `json:",omitempty"`
+}
+
+// sliceRun is one AFP-V0-041 slice invocation of a sharded run (AFP-V0-048).
+type sliceRun struct {
+	Package      string
+	Index, Count int
+	Args         []string
+	Exit         int
 }
 type receipt struct {
 	Profile, Tool, Revision string
@@ -710,6 +720,7 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 		s.Packages = []string{"./..."}
 	}
 	var universe []string
+	var layout []cishards.Shard
 	var universeHead, universeTree string
 	if o.mode == "run" && o.shards > 1 {
 		if o.partitionDigest != cishards.ProfileDigest() {
@@ -732,7 +743,7 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 		if err != nil {
 			return 2, err
 		}
-		if err = refuseSlices(universe, o.shards); err != nil {
+		if layout, err = shardLayout(universe, o.shards); err != nil {
 			return 2, err
 		}
 		if err = requireShardSource(ctx, o, universeHead, universeTree); err != nil {
@@ -762,22 +773,26 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 		}
 	}
 	executed := s.Packages
+	var slices []cishards.Slice
 	if universe != nil {
 		// FULL also needs this guard: a fallback cannot execute a stale package universe.
 		if err := requireShardSource(ctx, o, universeHead, universeTree); err != nil {
 			return 2, err
 		}
 		var err error
-		executed, err = cishards.Intersect(universe, s.Packages, o.shard, o.shards)
+		executed, slices, err = shardUnits(layout, universe, s.Packages, o.shard)
 		if err != nil {
 			return 2, err
 		}
-		s.ShardPackages, s.Shard, s.Shards = executed, o.shard, o.shards
+		s.ShardPackages, s.ShardSlices, s.Shard, s.Shards = executed, slices, o.shard, o.shards
 		if err = writeJSON(filepath.Join(o.out, "selection.json"), s); err != nil {
 			return 2, err
 		}
 	}
 	fmt.Fprintf(os.Stderr, "corvint-pr-tests: packages=%v shard-packages=%v fallback=%q\n", s.Packages, executed, s.Reason)
+	for _, slice := range slices {
+		fmt.Fprintf(os.Stderr, "corvint-pr-tests: shard-slice %s %d/%d %s %s\n", slice.Package, slice.Index+1, slice.Count, slice.Flag, slice.Pattern)
+	}
 	args := append(append([]string{}, testArgs...), executed...)
 	out, err := os.Create(filepath.Join(o.out, "go.json"))
 	if err != nil {
@@ -793,10 +808,29 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 	boundedErr := &cappedWriter{dst: stderr, remaining: maxStderr, cancel: cancelOutput}
 	start := time.Now()
 	code, runErr := 0, error(nil)
+	var runs []sliceRun
 	if ctx.Err() != nil {
 		code, runErr = 130, ctx.Err()
-	} else if len(executed) > 0 {
-		code, runErr = command(ctx, o.root, testEnv(o), boundedOut, boundedErr, 70*time.Minute, "go", args...)
+	} else {
+		// AFP-V0-048: whole packages in one invocation, then each slice in its own,
+		// as the full branch runs them; every invocation runs within one deadline,
+		// and any failed invocation fails the shard.
+		runCtx, cancelRun := context.WithTimeout(ctx, 70*time.Minute)
+		if len(executed) > 0 {
+			code, runErr = command(runCtx, o.root, testEnv(o), boundedOut, boundedErr, 70*time.Minute, "go", args...)
+		}
+		for _, slice := range slices {
+			if runErr != nil {
+				break
+			}
+			run := sliceRun{Package: slice.Package, Index: slice.Index, Count: slice.Count, Args: append(append([]string{}, testArgs...), slice.Flag, slice.Pattern, slice.Package)}
+			run.Exit, runErr = command(runCtx, o.root, testEnv(o), boundedOut, boundedErr, 70*time.Minute, "go", run.Args...)
+			runs = append(runs, run)
+			if run.Exit > code {
+				code = run.Exit
+			}
+		}
+		cancelRun()
 	}
 	if boundedOut.overflow || boundedErr.overflow {
 		runErr = errors.New("test output limit exceeded")
@@ -804,7 +838,7 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 	if ctx.Err() != nil && runErr == nil {
 		code, runErr = 130, ctx.Err()
 	}
-	e := execution{Env: testEnv(o), Selection: s, Args: args, Exit: code, ElapsedSeconds: time.Since(start).Seconds(), SkippedEmptyShard: len(executed) == 0}
+	e := execution{Env: testEnv(o), Selection: s, Args: args, Exit: code, ElapsedSeconds: time.Since(start).Seconds(), SkippedEmptyShard: len(executed) == 0 && len(slices) == 0, Slices: runs}
 	if runErr != nil {
 		e.Error = runErr.Error()
 	}
@@ -867,12 +901,148 @@ func (w *cappedWriter) Write(p []byte) (int, error) {
 	return n, errors.New("test output limit exceeded")
 }
 
-// refuseSlices fails closed while the protected helper splits a package into
-// test slices (AFP-V0-041): this driver places whole packages, and mixing its
-// shards with sliced fallback shards could run a split package nowhere.
-func refuseSlices(universe []string, shards int) error {
-	if cishards.Splits(universe, shards) {
-		return errors.New("test-level slices are active (AFP-V0-041); the package-level driver refuses sharded execution")
+// planShards is the protected helper's complete placement, the cishards.Plan
+// call the full branch's ci-shards makes; tests substitute PlanFrom fixtures.
+var planShards = cishards.Plan
+
+var slicePattern = regexp.MustCompile(`^\^\((?:Test|Example|Fuzz)[A-Za-z0-9_]*(?:\|(?:Test|Example|Fuzz)[A-Za-z0-9_]*)*\)\$$`)
+
+// shardLayout returns the full branch's placement of the complete universe
+// (AFP-V0-041, AFP-V0-048): each package whole in exactly one shard, or each of
+// its slices in exactly one shard and never whole. Any other plan refuses,
+// since a FULL fallback would execute the same placement.
+func shardLayout(universe []string, shards int) ([]cishards.Shard, error) {
+	layout, err := planShards(universe, shards)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	refuse := func(reason string) ([]cishards.Shard, error) {
+		return nil, errors.New("AFP-V0-048 test slice placement refused: " + reason)
+	}
+	if len(layout) != shards {
+		return refuse("shard count differs from the plan")
+	}
+	whole := map[string]int{}
+	split := map[string][]int{}
+	patterns := map[string][]string{}
+	for _, shard := range layout {
+		for _, p := range shard.Packages {
+			whole[p]++
+		}
+		for _, slice := range shard.Slices {
+			catchAll := slice.Index == slice.Count-1
+			if slice.Count < 2 || slice.Count > cishards.MaxSlices || slice.Index < 0 || slice.Index >= slice.Count || (catchAll && slice.Flag != "-skip") || (!catchAll && slice.Flag != "-run") || len(slice.Pattern) > cishards.MaxPatternBytes || !slicePattern.MatchString(slice.Pattern) {
+				return refuse("malformed slice of " + slice.Package)
+			}
+			counts := split[slice.Package]
+			if counts == nil {
+				counts = make([]int, slice.Count)
+				split[slice.Package] = counts
+				patterns[slice.Package] = make([]string, slice.Count)
+			}
+			if len(counts) != slice.Count {
+				return refuse("inconsistent slice count for " + slice.Package)
+			}
+			counts[slice.Index]++
+			patterns[slice.Package][slice.Index] = slice.Pattern
+		}
+	}
+	listed := map[string]bool{}
+	for _, p := range universe {
+		listed[p] = true
+		counts, sliced := split[p]
+		if sliced && whole[p] != 0 {
+			return refuse(p + " runs whole and as slices")
+		}
+		if !sliced && whole[p] != 1 {
+			return refuse(p + " is not placed exactly once")
+		}
+		for _, n := range counts {
+			if n != 1 {
+				return refuse(p + " has a slice placed other than exactly once")
+			}
+		}
+		if sliced && !partitionsTests(patterns[p]) {
+			return refuse(p + " has named slices that overlap or a catch-all that does not skip exactly their names")
+		}
+	}
+	for p := range whole {
+		if !listed[p] {
+			return refuse(p + " is outside the runtime universe")
+		}
+	}
+	for p := range split {
+		if !listed[p] {
+			return refuse(p + " is outside the runtime universe")
+		}
+	}
+	return layout, nil
+}
+
+// partitionsTests reports whether the named patterns of one package (all but
+// the last) are disjoint and the catch-all (last) skips exactly their union, so
+// every top-level test runs in exactly one slice.
+func partitionsTests(patterns []string) bool {
+	named := map[string]bool{}
+	for i, pattern := range patterns {
+		names := strings.Split(pattern[2:len(pattern)-2], "|")
+		if i == len(patterns)-1 {
+			skipped := map[string]bool{}
+			for _, name := range names {
+				skipped[name] = true
+			}
+			return len(names) == len(skipped) && equal(skipped, named)
+		}
+		for _, name := range names {
+			if named[name] {
+				return false
+			}
+			named[name] = true
+		}
+	}
+	return false
+}
+
+// shardUnits is one shard's part of a selection over the complete layout: the
+// whole packages and the slices placed there of every selected package. FULL
+// ("./...") is the whole shard. A selected split package therefore runs every
+// slice, each on the shard the layout assigns it, exactly as the full branch.
+func shardUnits(layout []cishards.Shard, universe, selected []string, shard int) ([]string, []cishards.Slice, error) {
+	if shard < 0 || shard >= len(layout) {
+		return nil, nil, errors.New("invalid shard index")
+	}
+	part := layout[shard]
+	if len(selected) == 1 && selected[0] == "./..." {
+		return part.Packages, part.Slices, nil
+	}
+	if len(selected) == 0 {
+		return nil, nil, errors.New("invalid package universe size")
+	}
+	all := map[string]bool{}
+	for _, p := range universe {
+		all[p] = true
+	}
+	set := map[string]bool{}
+	for _, p := range selected {
+		if !all[p] {
+			return nil, nil, errors.New("selected package absent from runtime universe")
+		}
+		if set[p] {
+			return nil, nil, errors.New("invalid or duplicate package argument")
+		}
+		set[p] = true
+	}
+	packages := []string{}
+	for _, p := range part.Packages {
+		if set[p] {
+			packages = append(packages, p)
+		}
+	}
+	var slices []cishards.Slice
+	for _, slice := range part.Slices {
+		if set[slice.Package] {
+			slices = append(slices, slice)
+		}
+	}
+	return packages, slices, nil
 }
