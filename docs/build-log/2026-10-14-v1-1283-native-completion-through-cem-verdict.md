@@ -1,7 +1,10 @@
-# 2026-10-14 A real ticket completed through the native cem-verdict gate (V1-1283 criterion 4)
+# 2026-10-14 A real ticket completed through the native cem-verdict gate on a native map (V1-1283 criterion 4, migrated-map clause unmet)
 
-Ticket V1-1283 criterion 4: one real ticket in this queue is completed through the sealed cem/1.0
-verdict gate and its receipt audit is retained in the build log. Gate wiring: PR #863 (merge
+Ticket V1-1283 criterion 4, verbatim: "One real ticket in this queue is completed through the gate on
+a migrated map and its receipt audit is retained in the build log." This entry retains the
+completion and the audit for a ticket whose map is a natively sealed cem/1.0 map. The "on a migrated
+map" clause is not met, and the gate as specified cannot meet it (see Retained limits); the
+disposition of that clause is the owner's. Gate wiring: PR #863 (merge
 b9b10b42d, entry `2026-10-13-v1-1283-gate-wiring.md`, `TCB-V0-015..019`); policy version 9 registers
 `cem-verdict` (kind COMMAND, `corvint cem gate-verdict --base {attempt.baseCommit} --candidate
 {attempt.candidateCommit} --predicate touched-anchored --touch-paths {claim.touchPaths}
@@ -63,10 +66,14 @@ scope is V1-1359.
 
 ## Retained limits
 
-- The completed map is a natively sealed cem/1.0 map, not a migrated one. The gate-wiring entry
-  records why a migrated map cannot pass this gate (the seal commit still holds cem/0.2 bytes); the
-  migrated-map leg of criterion 4 is covered only by that lane's command rehearsal on a migrated map
-  at its base, not by a native completion.
+- The completed map is a natively sealed cem/1.0 map, not a migrated one. No ticket was completed
+  through the gate on a migrated map, and none can be: the gate-wiring entry records that its
+  rehearsal on the migrated map `01cdbcb09…` (provenance cem/0.2, rewritten by 0b6f1bc24 for
+  V1-1277) failed at once with `CEM_VERDICT_UNVERIFIABLE` (`stable-not-accepted`, both consumers
+  REJECT at stage `wire` with `unsupported-spec`), because the seal commit still holds the cem/0.2
+  bytes. Admitting migrated maps needs a provenance-aware mode with its own contract. The
+  migrated-map clause of criterion 4 therefore stays unmet; V1-1283's native completion records
+  this as a deviation for the owner to accept or refuse.
 - The portable leg ran on darwin (V1-1358: `verify-stable-canonical` is darwin-only).
 - The gate's `{attempt.candidateCommit}` is the worktree HEAD, so the orchestrator, not the policy,
   guarantees that the worktree is at the seal commit.
