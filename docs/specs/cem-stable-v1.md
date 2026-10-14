@@ -6,7 +6,7 @@ Delivery status: planned
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed/planned; no stable delivery or promotion.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (proposed `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (proposed `CEM-V1-200..204`, V1-1278 S1); local-completion sidecar-only reuse of a committed `cem/1.0` sidecar on a stable verifier `ACCEPT` over its exact bytes with the absolute repository root and full object IDs, with closed refusal reasons and `CEM-V1-150`'s fail-closed default otherwise (proposed `CEM-V1-205..209`, V1-1303); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (proposed `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (proposed `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (proposed `CEM-V1-220..225`, V1-1278 S3); one shared `cem/1.0` tamper matrix in the packet that the native and portable consumers both run with the same pinned verdicts (proposed `CEM-V1-226..229`, V1-1340); truthful packet status, the citation rules, stop list, result serialization and diff recipe restated in the packet, and native-generated citation vectors both consumers run (proposed `CEM-V1-107..112`, V1-1333); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (proposed `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (proposed `CEM-V1-200..204`, V1-1278 S1); local-completion sidecar-only reuse of a committed `cem/1.0` sidecar on a stable verifier `ACCEPT` over its exact bytes with the absolute repository root and full object IDs, with closed refusal reasons and `CEM-V1-150`'s fail-closed default otherwise (proposed `CEM-V1-205..209`, V1-1303); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (proposed `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (proposed `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (proposed `CEM-V1-220..225`, V1-1278 S3); one shared `cem/1.0` tamper matrix in the packet that the native and portable consumers both run with the same pinned verdicts (proposed `CEM-V1-226..229`, V1-1340); `corvint-cem-anchor/1` anchor pointers that read `verified` only when the anchored map describes the commit's canonical patch, `unscoped` legacy `/0` pointers and a `--notes-tip` rollback read (accepted `CEM-V1-067`, V1-1260); truthful packet status, the citation rules, stop list, result serialization and diff recipe restated in the packet, and native-generated citation vectors both consumers run (proposed `CEM-V1-107..112`, V1-1333); qualification remains bounded.
 - Blocked on: stable wire/consumer integration, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -69,6 +69,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-170 | `internal/cem/workflow/stable_read.go` `StableCitationClass`, `stableRecordPaths`; `TestCEMV1170StatusCitationClassRecord` in `internal/cem/cli` | Committed record maps, which carry no role, are classified from their hunk paths retroactively; the portable consumer has no status envelope and is unchanged |
 | CEM-V1-106 | `internal/cem/workflow/stable_read.go` `StableCitationClass` and the `status` branch of `readStable`; `TestCEMV1106StatusCitationClassGroupsChoreMaps` in `internal/cem/cli` | No producer writes `role` before the V1-1276 cutover, so every committed map reads class `change`; the portable consumer has no status envelope and is unchanged |
 | CEM-V1-065 | `CEMStatementV2` and the v2 verifier in `internal/attest/cem_v2.go`; `prove --attest-cem-v2` and `--verify-cem-attestation --artifacts/--target` in `cmd/corvint/prove_attest_cem.go`; stable routing in `internal/gitnotes/anchor.go` (`wire.ParseStable`; the `wire.ParseRouted` 0.x router in `internal/cem/wire/route.go` was deleted by V1-1278 S2b, `CEM-V1-215`); `TestCEMV1065*` in `internal/attest`, `cmd/corvint` and `internal/gitnotes` | No verdict ledger; no signing producer or key management; v2 emission needs full-OID `--expected-base` and `--target` and an ACCEPT result; no independent consumer of `cem/v2` |
+| CEM-V1-067 | `corvint-cem-anchor/1` pointers, `describes` and `tree` in `internal/gitnotes/anchor.go`, the scope states and `ProvenanceWithNotesTip` in `internal/gitnotes/provenance.go`, `--notes-tip` in `internal/cem/cli/cli.go` and `cmd/corvint/cem_anchor.go`; tests under "Anchor pointer scope traceability" | No migration of existing `/0` notes; rollback detection needs an operator-retained tip; no independent consumer of the pointer profile |
 
 ## First portable candidate build contract
 
@@ -2069,6 +2070,72 @@ codes.
 | CEM-V1-227 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Each runs all 20 cases from `EXPECTED.json` as named subtests |
 | CEM-V1-228 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Exit, outcome, stage, code, issue codes and the full citation block are compared per case |
 | CEM-V1-229 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Subtest `evidence-ids-swapped` pins ACCEPT with anchored 0, cited 2 and specificity -2 |
+
+## Anchor pointer scope and notes-ref rollback (V1-1260, decision 0523 P1)
+
+Status: accepted under the owner's standing auto-accept (2026-10-11); V1-1260. Decision 0523
+proposed this as `CEM-V1-087`; the V1-1260 ticket and lane charter number it `CEM-V1-067`, and
+`CEM-V1-087` stays unassigned. The 1.0 scope is `PRS-V1-018` (1.0 scope per the V1-0020
+dependency). Before this change a `corvint-cem-anchor/0` pointer bound any commit: `cem anchor
+--commit REV` attached HEAD's committed map to REV, and `cem provenance` checked only the map
+path, blob and digest, so a sibling commit with the same parent read `verified`. A notes ref
+reset to its parent read as a missing anchor. The `wire.ParseMap` part of the ticket was already
+fixed by V1-1278 (`CEM-V1-065`, `CEM-V1-210..214`): anchoring and provenance parse the map with
+`wire.ParseStable`. Decision 0355 is not rewritten; the build log carries the superseding note
+for it and for the `/0` pointer text of `falsifiable-packet-v0.md` FPK-V0-037/038.
+
+- `CEM-V1-067`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1260) `cem
+  anchor` MUST write the pointer profile `corvint-cem-anchor/1`, which adds the members `base`
+  and `patch_sha256` (the map's `change.baseRevision` and `change.patchSha256`) and
+  `target_tree` (`REV^{tree}`) to the `/0` members. Anchor MUST refuse with
+  `anchor-scope-mismatch`, writing no note, when the canonical `base..REV` patch (the
+  `gitauth.CanonicalDiff` recipe every CEM consumer uses, which excludes the map sidecar) does
+  not hash to the map's `patchSha256`. `cem provenance` MUST report the anchor row `verified`
+  only when the note's map blob, path and digest check as before, the map parses as `cem/1.0`
+  with `baseRevision` and `patchSha256` equal to the pointer's, `REV^{tree}` equals
+  `target_tree`, and the canonical `base..REV` patch hashes to `patch_sha256`; otherwise it
+  reports `scope-mismatch`, or `scope-unavailable` when the patch cannot be derived (for example,
+  an absent base object). A `/0` pointer MUST stay readable and is reported `unscoped`, never
+  `verified`; a `/0` pointer naming any scope member (even empty or null), a `/1` pointer
+  missing one, or a note with bytes after its one pointer object, is `malformed`. `cem
+  provenance --commit REV --notes-tip OID` MUST add a `notes_tip` member
+  (`ref`, `pinned`, `live`, `state`) and report `state` `rollback`, with an anchor row in state
+  `rollback`, when OID is not an ancestor of the live `refs/notes/corvint` tip or the ref is
+  absent; otherwise `state` is `current`. Without `--notes-tip` the result has no `notes_tip`
+  member. OID MUST be a full lowercase hexadecimal object ID, because a revision name would
+  resolve to the live tip it is meant to check; anything else is refused `invalid-arguments`,
+  and an OID that names no commit is refused `repository-object-unavailable`. When
+  `refs/notes/corvint` moves between the tip comparison and the end of the read, provenance
+  MUST refuse with `provenance-notes-moved` rather than report rows from a different tip.
+  Provenance stays read-only: it writes no ref, note, object, index, config or worktree file.
+
+Wire and schema: the pointer profile changes from `/0` to `/1` for new notes and the
+`cem provenance` result gains the optional `notes_tip` member and the anchor states `unscoped`,
+`scope-mismatch`, `scope-unavailable` and `rollback`; the stable map, `cem-stable-verification/1`
+and every other provenance row are unchanged. Readers of `/0` notes keep working, so the change
+is additive for readers. It is not additive for a consumer that treated a `/0` `verified` row as
+trusted: that row is now `unscoped`.
+
+Non-goals: no default-on or automatic anchoring; anchoring stays an explicit operator step. No
+read command writes anything. `verified` does not imply that the map's citations or criteria
+verify, who wrote the change, or (without `--notes-tip`) that the notes ref was not rolled back.
+No automatic migration of existing `/0` notes.
+
+Failure modes: an existing `/0` note on REV blocks re-anchoring with `anchor-note-conflict`; the
+operator removes it deliberately (`git notes --ref=refs/notes/corvint remove REV`) and anchors
+again. A map whose base object is absent from the repository is refused by anchor and reads
+`scope-unavailable` in provenance. A `--notes-tip` the operator did not retain from a trusted
+source proves nothing about rollback; the pin is only as good as where it came from.
+
+Rollback: revert the V1-1260 commit. New anchors are written as `/0` again, provenance reports
+`/1` notes `malformed`, and `--notes-tip` becomes an unrecognized argument. No committed map,
+seal or golden depends on the pointer profile.
+
+### Anchor pointer scope traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-067 | `TestCEMV1067SiblingCommitIsScopeMismatch`, `TestCEMV1067VerifiedImpliesTheAnchoredPatchIsBaseToREV`, `TestCEMV1067ResetNotesRefIsRollback`, `TestCEMV1067LegacyPointerIsReadableAndUnscoped` (`internal/gitnotes`); `TestCEMAnchorAndProvenanceInteropThroughTheCLI` (`cmd/corvint`); `TestAnchorActionsParseLikeTheirSiblings` (`internal/cem/cli`) | A sibling commit is refused by anchor and every forged `/1` note on it reads `scope-mismatch`; each `verified` row's `patch_sha256` equals the recomputed canonical `base..REV` digest and `target_tree` equals `REV^{tree}`; a reset or deleted notes ref reads `rollback` under `--notes-tip`; a `/0` note reads `unscoped`; no ref moves on any read |
 
 ## Packet truthfulness and citation vectors (V1-1333, 2026-10-14)
 

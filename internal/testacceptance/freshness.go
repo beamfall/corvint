@@ -422,6 +422,11 @@ func classifyFreshness(report *Report, r Request) {
 			} else {
 				a.Reasons = append(a.Reasons, "native-control-join-incomplete")
 			}
+			if len(c.NotApplied) > 0 {
+				// An inert control is neither strength nor weakness evidence (BBF-V0-016).
+				a.Reasons = append(a.Reasons, "negative-control-not-applied")
+				a.Validity.Strength = testvalidity.Axis{State: testvalidity.StrengthNotMeasured, Reason: "negative-control-not-applied"}
+			}
 		}
 		a.Cleanup = worstCleanup(cleanupStates)
 		a.Order = orderEvidence(report.Runs, r, t.ID)
