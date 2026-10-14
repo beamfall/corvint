@@ -1,6 +1,6 @@
 {
   "profile": "cem-stable-protocol-manifest/1",
-  "status": "EXPERIMENTAL",
+  "status": "IMPLEMENTED_CONTRACT_PROPOSED_NOT_PROMOTED",
   "repositoryEnvelope": "canonical-repository-bounded/1",
   "license": "Apache-2.0 public specifications/data only; no native code",
   "publicAmendmentManifestSHA256": "9423e789c58b20079ffdc5f6d73de1a703ecd0b2f155d5b988e1fbeaafd05f07",
@@ -8,8 +8,8 @@
   "files": [
     {
       "path": "ALGORITHMS.md",
-      "sha256": "370fa6b25354b89d55eaf5c3b2a430d7d244f4b5507e12575bfde2be90c7bd83",
-      "bytes": 35066
+      "sha256": "0a7bf1fbee9af4d18d0e56ff7ad405863589f27913788ce9d9833a0d6c755001",
+      "bytes": 48079
     },
     {
       "path": "FIXTURES.pack.json",
@@ -28,8 +28,8 @@
     },
     {
       "path": "OPERATION.json",
-      "sha256": "dc0c38c95d478e7e45b2457fbabdea453932d0c8e84033b29b68b8724d75ee5d",
-      "bytes": 18263
+      "sha256": "9b8128eef32cd4b1fb172d51874cedc6d207397e75857ff905e2afe558dd922a",
+      "bytes": 18383
     },
     {
       "path": "PACKING.md",
@@ -43,8 +43,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "20e7f56b35b9b01d89cb022b38311b41e9b1d5549c165c1c84fabc47cedcd56c",
-      "bytes": 3517
+      "sha256": "94307e86334e99ec1d4ed69272b08119591eccca5a2ec91477ceccc283d7666b",
+      "bytes": 4271
     },
     {
       "path": "REPOSITORY-ENVELOPE.cells.json",
@@ -60,6 +60,61 @@
       "path": "RESULT.schema.json",
       "sha256": "2334f05dfbc4cb226ae53b5df22eba4ba0f94f3f7136b13e04b610e37bc14f2a",
       "bytes": 29300
+    },
+    {
+      "path": "citation-vectors/EXPECTED.json",
+      "sha256": "ee1d900ad178ca7d76de02b6fd7d70e580e905da48873e395df4709240402171",
+      "bytes": 8267
+    },
+    {
+      "path": "citation-vectors/README.md",
+      "sha256": "accc96649fb77b43b2428c5322cfebc79613aa803d4fb0d96672810ed9caacd5",
+      "bytes": 3987
+    },
+    {
+      "path": "citation-vectors/cases/base-revision-mismatch.json",
+      "sha256": "570bfcacd0f334e12d7e62b2ef84bac18f1d7bafe36fccae182b45bb6cd38197",
+      "bytes": 5429
+    },
+    {
+      "path": "citation-vectors/cases/duplicate-member.json",
+      "sha256": "580ee6f9df07c751a0e9d0fe60ecacf28d35db9a3e667f5d2761b2f3afc59f9a",
+      "bytes": 5446
+    },
+    {
+      "path": "citation-vectors/cases/evidence-stale.json",
+      "sha256": "b4ceda66111bde9fc54f4426b24153f9dbeea0d3e703b5e53c8859c8654a8b68",
+      "bytes": 5828
+    },
+    {
+      "path": "citation-vectors/cases/missing-field.json",
+      "sha256": "78c5f3e2e5917ae16fead6864e1023fb986c38bafd94778887dd980a63ede290",
+      "bytes": 5387
+    },
+    {
+      "path": "citation-vectors/cases/not-an-object.json",
+      "sha256": "84162c82467ea678d38f65751e9296db8233bd4f65fc575d88f872565f9fb611",
+      "bytes": 5431
+    },
+    {
+      "path": "citation-vectors/cases/same-path-deletion-cited.json",
+      "sha256": "28a03272e3b083511d88f6f3c23a1eec5519207aec2f66a169568835d80da16c",
+      "bytes": 5429
+    },
+    {
+      "path": "citation-vectors/cases/unsupported-spec.json",
+      "sha256": "342cd0c513d3181b769d87d378221277cf8111bcd56dd66dec2520b0fb27e671",
+      "bytes": 5429
+    },
+    {
+      "path": "citation-vectors/repository.recipe.json",
+      "sha256": "e46867b41d39986a258ac781dda91a44e1ae3e371bf16bf27cdfc9ab34f64787",
+      "bytes": 3818
+    },
+    {
+      "path": "citation-vectors/stable.json",
+      "sha256": "34a1952e36adf9e2c974989446e5de981c3231128944a3cc43f74e77f0658e68",
+      "bytes": 5429
     },
     {
       "path": "inherited/ALGORITHMS.md",
@@ -188,8 +243,8 @@
     },
     {
       "path": "stable.schema.json",
-      "sha256": "7f62c445a87296a5a0c8dd215d708954b380c2c8fab9a04ae7539f4df62cafe3",
-      "bytes": 20751
+      "sha256": "94279397fe14d0842d402cb93c54b221ec43e323da49edb734a2c5a4a8759a21",
+      "bytes": 20816
     },
     {
       "path": "tamper-matrix/EXPECTED.json",
@@ -198,8 +253,8 @@
     },
     {
       "path": "tamper-matrix/README.md",
-      "sha256": "f8a3971d2bdd583ad86c91efeb33b12d612b3693069878b043ac3e18e278ed79",
-      "bytes": 2274
+      "sha256": "3760bcb8962f0d95e3a5d9e2a25c34ce6b5b00f096dc875471766c86c31412ee",
+      "bytes": 2341
     },
     {
       "path": "tamper-matrix/cases/basis-pair-duplicated.json",
