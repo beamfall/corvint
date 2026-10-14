@@ -15,7 +15,7 @@ const retiredFix = "cem/0.x is retired (decision 0525); regenerate the map as ce
 const invocationFix = "use verify-stable-canonical, verify-stable or verify-candidate"
 
 func main() {
-	if len(os.Args) == 2 && os.Args[1] == stableKeeperProtocol && stableKeeperControlPresent() {
+	if len(os.Args) == 3 && os.Args[1] == stableKeeperProtocol && stableKeeperControlPresent() {
 		stableKeeperMain()
 	}
 	if len(os.Args) > 1 && os.Args[1] == "verify-stable-canonical" {

@@ -889,8 +889,8 @@ CEM-V1-081	docs/specs/cem-stable-v1.md	278	Anchor kinds and byte-level rules. `i
 CEM-V1-082	docs/specs/cem-stable-v1.md	288	The `citation` block and the shift null MUST be byte-identical across the native	unrecorded	-
 CEM-V1-083	docs/specs/cem-stable-v1.md	361	A `cem/1.0` criterion binding MUST take exactly one of two closed forms. The pla	unrecorded	-
 CEM-V1-084	docs/specs/cem-stable-v1.md	398	A runner receipt's `authentication` MUST take one of three closed forms: the sea	unrecorded	-
-CEM-V1-088	docs/specs/cem-stable-v1.md	2147	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) `held`	standing	2026-10-11; V1-1266
-CEM-V1-089	docs/specs/cem-stable-v1.md	2170	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) A row th	standing	2026-10-11; V1-1266
+CEM-V1-088	docs/specs/cem-stable-v1.md	2225	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) `held`	standing	2026-10-11; V1-1266
+CEM-V1-089	docs/specs/cem-stable-v1.md	2248	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) A row th	standing	2026-10-11; V1-1266
 CEM-V1-091	docs/specs/cem-stable-v1.md	238	A new top-level member of `cem-stable-verification/1` MUST be added only by	unrecorded	-
 CEM-V1-092	docs/specs/cem-stable-v1.md	324	The `cem-stable-verification/1` member `citation` MUST be the `CEM-V1-082` block	unrecorded	-
 CEM-V1-093	docs/specs/cem-stable-v1.md	486	A stable map MAY carry `provenance`, a closed object with exactly the required	unrecorded	-
@@ -948,6 +948,11 @@ CEM-V1-166	docs/specs/cem-stable-v1.md	1727	Without `-stable-artifact-root`, the
 CEM-V1-167	docs/specs/cem-stable-v1.md	1729	The protected local-authority consumer holds a Git object capsule and no	unrecorded	-
 CEM-V1-168	docs/specs/cem-stable-v1.md	1732	The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So	unrecorded	-
 CEM-V1-170	docs/specs/cem-stable-v1.md	688	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a ma	standing	2026-10-11; V1-1344
+CEM-V1-180	docs/specs/cem-stable-v1.md	2152	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The	standing	2026-10-11; V1-1358
+CEM-V1-181	docs/specs/cem-stable-v1.md	2159	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On Linux	standing	2026-10-11; V1-1358
+CEM-V1-182	docs/specs/cem-stable-v1.md	2164	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The Linu	standing	2026-10-11; V1-1358
+CEM-V1-183	docs/specs/cem-stable-v1.md	2172	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) Linux	standing	2026-10-11; V1-1358
+CEM-V1-184	docs/specs/cem-stable-v1.md	2183	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On a	standing	2026-10-11; V1-1358
 CEM-V1-200	docs/specs/cem-stable-v1.md	787	`wire.ParseStable`, and so every stable read (`cem verify-stable`, a stable	unrecorded	-
 CEM-V1-201	docs/specs/cem-stable-v1.md	796	Every committed `.corvint/changes/<bind>.cem.json` MUST be accepted by	unrecorded	-
 CEM-V1-202	docs/specs/cem-stable-v1.md	807	`dogfood batch-check` and `dogfood change`'s sealed-CEM admission (`DCW-V0-039`	unrecorded	-
@@ -3287,6 +3292,8 @@ TCB-V0-020	docs/specs/tasks-criterion-binding-v0.md	103	(accepted under the owne
 TCB-V0-021	docs/specs/tasks-criterion-binding-v0.md	111	(accepted under the owner's standing auto-accept (2026-10-11); V1-1356) Native	standing	2026-10-11; V1-1356
 TCB-V0-022	docs/specs/tasks-criterion-binding-v0.md	119	(accepted under the owner's standing auto-accept (2026-10-11); V1-1356)	standing	2026-10-11; V1-1356
 TCB-V0-023	docs/specs/tasks-criterion-binding-v0.md	125	(accepted under the owner's standing auto-accept (2026-10-11); V1-1356) Under	standing	2026-10-11; V1-1356
+TCB-V0-030	docs/specs/tasks-criterion-binding-v0.md	307	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The	standing	2026-10-11; V1-1358
+TCB-V0-031	docs/specs/tasks-criterion-binding-v0.md	314	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On any	standing	2026-10-11; V1-1358
 TCN-V0-001	docs/specs/test-consolidation-planner-v0.md	98	The planner MUST be a read-only local projection. `corvint test-plan consolidate	unrecorded	-
 TCN-V0-002	docs/specs/test-consolidation-planner-v0.md	106	The input MUST be one closed `test-consolidation-input/0` JSON document of at mo	unrecorded	-
 TCN-V0-003	docs/specs/test-consolidation-planner-v0.md	124	A variation MUST be abstained, never grouped, isolated, reused or deduplicated,	unrecorded	-
