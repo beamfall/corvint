@@ -2,12 +2,25 @@ package testacceptance
 
 import (
 	"fmt"
+	"github.com/Beamfall/corvint/internal/behaviorfalsify"
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 	"regexp"
 	"slices"
 	"strings"
 )
+
+// controlApplication separates a verified BBF receipt's inert controls from the controls
+// whose application is unobserved because they declare no marker (BBF-V0-016).
+func controlApplication(plan behaviorfalsify.Plan, receipt behaviorfalsify.EvidenceReceipt) (notApplied, unobserved []string) {
+	notApplied = slices.Clone(receipt.Report.InertControls)
+	for _, control := range plan.Controls {
+		if control.ApplicationMarker == nil {
+			unobserved = append(unobserved, control.ID)
+		}
+	}
+	return notApplied, unobserved
+}
 
 func classify(report *Report, r Request) {
 	if r.Schema == FreshRequestSchema {
@@ -85,6 +98,11 @@ func classify(report *Report, r Request) {
 			a.Validity.Strength = testvalidity.Axis{State: testvalidity.StrengthNotMeasured, Reason: "qualified-baseline-identity-unknown"}
 		} else {
 			a.Reasons = append(a.Reasons, "negative-control-incomplete")
+		}
+		if len(c.NotApplied) > 0 {
+			// An inert control is neither strength nor weakness evidence (BBF-V0-016).
+			a.Reasons = append(a.Reasons, "negative-control-not-applied")
+			a.Validity.Strength = testvalidity.Axis{State: testvalidity.StrengthNotMeasured, Reason: "negative-control-not-applied"}
 		}
 		if cleanupState(c.Cleanup) == "survivors" {
 			reject = true

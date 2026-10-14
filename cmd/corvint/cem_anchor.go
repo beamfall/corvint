@@ -13,7 +13,7 @@ func init() { cemcli.GitNotes = runCEMGitNotes }
 
 func runCEMGitNotes(ctx context.Context, root, action string, values map[string]string) (map[string]any, error) {
 	if action == "provenance" {
-		return gitnotes.Provenance(ctx, root, values["--commit"])
+		return gitnotes.ProvenanceWithNotesTip(ctx, root, values["--commit"], values["--notes-tip"])
 	}
 	commit := values["--commit"]
 	if commit == "" {
