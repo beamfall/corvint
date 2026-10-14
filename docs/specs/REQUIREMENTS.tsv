@@ -238,68 +238,68 @@ ALO-V0-023	docs/specs/aggregate-local-outcome-v0.md	87	Held recovery MAY replace
 ALO-V0-024	docs/specs/aggregate-local-outcome-v0.md	92	The request MUST be one closed canonical JSON value binding the selected session	unrecorded	-
 ALO-V0-025	docs/specs/aggregate-local-outcome-v0.md	97	BASE and TREE executables MUST be distinct regular files equal to the request an	unrecorded	-
 ALO-V0-026	docs/specs/aggregate-local-outcome-v0.md	100	The result names `TRANSPORT_ADAPTED_HISTORICAL` with the request digest. It neve	unrecorded	-
-AMAP-V0-001	docs/specs/application-map-v0.md	77	The map MUST be compiled from a closed `application-map-manifest/0` document	unrecorded	-
-AMAP-V0-002	docs/specs/application-map-v0.md	86	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and	unrecorded	-
-AMAP-V0-003	docs/specs/application-map-v0.md	98	Screens MUST be keyed by app plus template. Two resolved screens with the same	unrecorded	-
-AMAP-V0-004	docs/specs/application-map-v0.md	106	Each AFU-V1 navigation step MUST become a map step on the unique screen whose	unrecorded	-
-AMAP-V0-005	docs/specs/application-map-v0.md	113	Test files MUST be joined to screens through the contextindex import graph:	unrecorded	-
-AMAP-V0-006	docs/specs/application-map-v0.md	128	Each screen MUST aggregate permissions and flags (inherited from the nearest	unrecorded	-
-AMAP-V0-007	docs/specs/application-map-v0.md	132	Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`	unrecorded	-
-AMAP-V0-008	docs/specs/application-map-v0.md	151	Edges MUST come only from evidence: `flow-step` edges between adjacent	unrecorded	-
-AMAP-V0-009	docs/specs/application-map-v0.md	156	The map MUST be deterministic for one revision: sorted nodes, edges, files and	unrecorded	-
-AMAP-V0-010	docs/specs/application-map-v0.md	160	Every element MUST be pinned to the anchor it was read from. A projection MUST	unrecorded	-
-AMAP-V0-011	docs/specs/application-map-v0.md	175	`screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON	unrecorded	-
-AMAP-V0-012	docs/specs/application-map-v0.md	185	`find` MUST match a 2..128 byte query case-insensitively against element IDs and	unrecorded	-
-AMAP-V0-013	docs/specs/application-map-v0.md	190	`scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:	unrecorded	-
-AMAP-V0-014	docs/specs/application-map-v0.md	216	Learned facts MUST attach only through the overlay seam: an `Overlay` is asked o	unrecorded	-
-AMAP-V0-015	docs/specs/application-map-v0.md	225	Building and projecting MUST NOT write to the repository, the index, or any	unrecorded	-
-AMAP-V0-016	docs/specs/application-map-v0.md	230	A `.state()` name (positional or `name:`) or `parent` written as a member	unrecorded	-
-AMAP-V0-017	docs/specs/application-map-v0.md	249	A manifest MAY name the repository that holds its tests with `tests.repo`, a roo	unrecorded	-
-AMAP-V0-018	docs/specs/application-map-v0.md	258	A map built with an aliased root MUST pin it in `roots`	unrecorded	-
-AMAP-V0-019	docs/specs/application-map-v0.md	263	A build MUST refuse rather than join part of a tree when an alias the manifest	unrecorded	-
-AMAP-V0-020	docs/specs/application-map-v0.md	270	Projections, the scenario planner (AMSP-V0) and run verification (RVN-V0) read	unrecorded	-
-AMAP-V0-021	docs/specs/application-map-v0.md	277	A manifest MAY declare `di_constants`, 1..16 unique repository-relative paths	unrecorded	-
-AMAP-V0-022	docs/specs/application-map-v0.md	287	A `.state()` name (positional or `name:`) or `parent` written `X.Y` in a router	unrecorded	-
-AMAP-V0-023	docs/specs/application-map-v0.md	305	A name or parent the injection path cannot prove MUST stay `UNKNOWN`	unrecorded	-
-AMAP-V0-024	docs/specs/application-map-v0.md	326	A TypeScript `enum` or `const enum` that AMAP-V0-022 reads as an injected	unrecorded	-
-AMAP-V0-025	docs/specs/application-map-v0.md	334	When the tracked file the registering file's import of `T` resolves to (the	unrecorded	-
-AMAP-V0-026	docs/specs/application-map-v0.md	380	When the `di_constants` scope holds exactly one registration of an injected name	unrecorded	-
-AMAP-V0-040	docs/specs/application-map-v0.md	395	The experimental `rails-routes/0` and `react-router/0` dialects MUST	unrecorded	-
-AMAP-V0-041	docs/specs/application-map-v0.md	399	Rails literal `get`, `post`, `root` and `mount` declarations, `resources`	unrecorded	-
-AMAP-V0-042	docs/specs/application-map-v0.md	406	Rails expressions, interpolation, constraints, defaults, lambdas, unsupported	unrecorded	-
-AMAP-V0-043	docs/specs/application-map-v0.md	413	React `createBrowserRouter` literal object arrays and	unrecorded	-
-AMAP-V0-044	docs/specs/application-map-v0.md	419	React lazy routes, non-literal paths/IDs/index values, computed or repeated	unrecorded	-
-AMAP-V0-045	docs/specs/application-map-v0.md	424	Optional manifest `router_globs` MUST contain 1..64 unique safe repository-relat	unrecorded	-
-AMAP-V0-046	docs/specs/application-map-v0.md	431	All dialects MUST use shared normalized parameter and template collision keys;	unrecorded	-
-AMAP-V0-047	docs/specs/application-map-v0.md	437	Coverage discovery MUST read only bounded Git tree metadata (at most 20000	unrecorded	-
-AMAP-V0-048	docs/specs/application-map-v0.md	443	Focused committed fixtures MUST demonstrate mixed-dialect build, URL lookup,	unrecorded	-
-AMAP-V0-050	docs/specs/application-map-v0.md	448	`flows appmap entries --map FILE` MUST emit a deterministic static	unrecorded	-
-AMAP-V0-051	docs/specs/application-map-v0.md	453	Classification MUST be one of `deep-linkable`, `requires-parent-params`,	unrecorded	-
-AMAP-V0-052	docs/specs/application-map-v0.md	458	Required parameters MUST be the sorted unique union of path parameters on the	unrecorded	-
-AMAP-V0-053	docs/specs/application-map-v0.md	463	UI-router declarations MUST retain optional entry metadata distinguishing	unrecorded	-
-AMAP-V0-054	docs/specs/application-map-v0.md	469	Entry results MUST carry the map revision/digest and evaluated revision.	unrecorded	-
-AMAP-V0-055	docs/specs/application-map-v0.md	474	A changed template, guard, ancestor or manifest MUST make the projected	unrecorded	-
-AMAP-V0-056	docs/specs/application-map-v0.md	479	The projection MUST retain `proven_path` as an empty list with status UNKNOWN	unrecorded	-
-AMAP-V0-057	docs/specs/application-map-v0.md	484	Entries MUST use the existing bounded map loader and projection renderer,	unrecorded	-
-AMAP-V0-058	docs/specs/application-map-v0.md	488	Old maps without entry metadata MUST remain readable and project UNKNOWN	unrecorded	-
-AMAP-V0-059	docs/specs/application-map-v0.md	493	This slice MUST remain static and read-only: it MUST NOT visit URLs or run	unrecorded	-
-AMAP-V0-060	docs/specs/application-map-v0.md	500	`flows appmap stats --map FILE` MUST emit a deterministic	unrecorded	-
-AMAP-V0-061	docs/specs/application-map-v0.md	506	Every count MUST reconcile with the map: resolved plus unknown screens equals	unrecorded	-
-AMAP-V0-062	docs/specs/application-map-v0.md	510	Unknown reasons MUST be grouped by kind and reason (the `source` member is alway	unrecorded	-
-AMAP-V0-063	docs/specs/application-map-v0.md	515	Output MUST be capped like other projections (default 6144 bytes, `--budget`	unrecorded	-
-AMAP-V0-064	docs/specs/application-map-v0.md	518	`--min-resolved PCT` (0..100) MUST still write the report and then exit 1 when t	unrecorded	-
-AMAP-V0-065	docs/specs/application-map-v0.md	523	The report is a measure of the declared router and test scope only; it MUST NOT	unrecorded	-
-AMAP-V0-070	docs/specs/application-map-v0.md	527	An injected `.constant(...)` table imported through a directory specifier that	unrecorded	-
-AMAP-V0-071	docs/specs/application-map-v0.md	533	When several star exports of a barrel declare the imported name, the name MUST	unrecorded	-
-AMAP-V0-072	docs/specs/application-map-v0.md	538	A `di-constant` unknown with reason `not-read-whole` MUST carry `detail` naming	unrecorded	-
-AMAP-V0-075	docs/specs/application-map-v0.md	545	A manifest `tests.root` of exactly `"."` MUST be accepted and name the whole	unrecorded	-
-AMAP-V0-076	docs/specs/application-map-v0.md	549	With `tests.root` `"."` and an aliased test repository, dirty-root detection MUS	unrecorded	-
-AMAP-V0-077	docs/specs/application-map-v0.md	553	A manifest whose `tests.root` is not `"."` MUST compile to the same bytes and wi	unrecorded	-
-AMAP-V0-078	docs/specs/application-map-v0.md	556	`createBrowserRouter(NAME)` MUST compile the literal array bound by the one	unrecorded	-
-AMAP-V0-079	docs/specs/application-map-v0.md	566	When NAME in `createBrowserRouter(NAME)` is bound only by one named import	unrecorded	-
-AMAP-V0-080	docs/specs/application-map-v0.md	581	`flows appmap entries` MUST accept an optional `--ledger FILE` naming an	unrecorded	-
-AMAP-V0-081	docs/specs/application-map-v0.md	589	With a ledger, each row's `proven_path` MUST be the shortest screen sequence fro	unrecorded	-
-AMAP-V0-082	docs/specs/application-map-v0.md	598	A path MUST NOT start at, end at or cross a screen whose entry verification is n	unrecorded	-
+AMAP-V0-001	docs/specs/application-map-v0.md	82	The map MUST be compiled from a closed `application-map-manifest/0` document	unrecorded	-
+AMAP-V0-002	docs/specs/application-map-v0.md	91	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and	unrecorded	-
+AMAP-V0-003	docs/specs/application-map-v0.md	103	Screens MUST be keyed by app plus template. Two resolved screens with the same	unrecorded	-
+AMAP-V0-004	docs/specs/application-map-v0.md	111	Each AFU-V1 navigation step MUST become a map step on the unique screen whose	unrecorded	-
+AMAP-V0-005	docs/specs/application-map-v0.md	118	Test files MUST be joined to screens through the contextindex import graph:	unrecorded	-
+AMAP-V0-006	docs/specs/application-map-v0.md	133	Each screen MUST aggregate permissions and flags (inherited from the nearest	unrecorded	-
+AMAP-V0-007	docs/specs/application-map-v0.md	137	Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`	unrecorded	-
+AMAP-V0-008	docs/specs/application-map-v0.md	156	Edges MUST come only from evidence: `flow-step` edges between adjacent	unrecorded	-
+AMAP-V0-009	docs/specs/application-map-v0.md	161	The map MUST be deterministic for one revision: sorted nodes, edges, files and	unrecorded	-
+AMAP-V0-010	docs/specs/application-map-v0.md	165	Every element MUST be pinned to the anchor it was read from. A projection MUST	unrecorded	-
+AMAP-V0-011	docs/specs/application-map-v0.md	180	`screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON	unrecorded	-
+AMAP-V0-012	docs/specs/application-map-v0.md	190	`find` MUST match a 2..128 byte query case-insensitively against element IDs and	unrecorded	-
+AMAP-V0-013	docs/specs/application-map-v0.md	195	`scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:	unrecorded	-
+AMAP-V0-014	docs/specs/application-map-v0.md	221	Learned facts MUST attach only through the overlay seam: an `Overlay` is asked o	unrecorded	-
+AMAP-V0-015	docs/specs/application-map-v0.md	230	Building and projecting MUST NOT write to the repository, the index, or any	unrecorded	-
+AMAP-V0-016	docs/specs/application-map-v0.md	235	A `.state()` name (positional or `name:`) or `parent` written as a member	unrecorded	-
+AMAP-V0-017	docs/specs/application-map-v0.md	254	A manifest MAY name the repository that holds its tests with `tests.repo`, a roo	unrecorded	-
+AMAP-V0-018	docs/specs/application-map-v0.md	263	A map built with an aliased root MUST pin it in `roots`	unrecorded	-
+AMAP-V0-019	docs/specs/application-map-v0.md	268	A build MUST refuse rather than join part of a tree when an alias the manifest	unrecorded	-
+AMAP-V0-020	docs/specs/application-map-v0.md	275	Projections, the scenario planner (AMSP-V0) and run verification (RVN-V0) read	unrecorded	-
+AMAP-V0-021	docs/specs/application-map-v0.md	282	A manifest MAY declare `di_constants`, 1..16 unique repository-relative paths	unrecorded	-
+AMAP-V0-022	docs/specs/application-map-v0.md	292	A `.state()` name (positional or `name:`) or `parent` written `X.Y` in a router	unrecorded	-
+AMAP-V0-023	docs/specs/application-map-v0.md	310	A name or parent the injection path cannot prove MUST stay `UNKNOWN`	unrecorded	-
+AMAP-V0-024	docs/specs/application-map-v0.md	331	A TypeScript `enum` or `const enum` that AMAP-V0-022 reads as an injected	unrecorded	-
+AMAP-V0-025	docs/specs/application-map-v0.md	339	When the tracked file the registering file's import of `T` resolves to (the	unrecorded	-
+AMAP-V0-026	docs/specs/application-map-v0.md	385	When the `di_constants` scope holds exactly one registration of an injected name	unrecorded	-
+AMAP-V0-040	docs/specs/application-map-v0.md	400	The experimental `rails-routes/0` and `react-router/0` dialects MUST	unrecorded	-
+AMAP-V0-041	docs/specs/application-map-v0.md	404	Rails literal `get`, `post`, `root` and `mount` declarations, `resources`	unrecorded	-
+AMAP-V0-042	docs/specs/application-map-v0.md	411	Rails expressions, interpolation, constraints, defaults, lambdas, unsupported	unrecorded	-
+AMAP-V0-043	docs/specs/application-map-v0.md	418	React `createBrowserRouter` literal object arrays and	unrecorded	-
+AMAP-V0-044	docs/specs/application-map-v0.md	424	React lazy routes, non-literal paths/IDs/index values, computed or repeated	unrecorded	-
+AMAP-V0-045	docs/specs/application-map-v0.md	429	Optional manifest `router_globs` MUST contain 1..64 unique safe repository-relat	unrecorded	-
+AMAP-V0-046	docs/specs/application-map-v0.md	436	All dialects MUST use shared normalized parameter and template collision keys;	unrecorded	-
+AMAP-V0-047	docs/specs/application-map-v0.md	442	Coverage discovery MUST read only bounded Git tree metadata (at most 20000	unrecorded	-
+AMAP-V0-048	docs/specs/application-map-v0.md	448	Focused committed fixtures MUST demonstrate mixed-dialect build, URL lookup,	unrecorded	-
+AMAP-V0-050	docs/specs/application-map-v0.md	453	`flows appmap entries --map FILE` MUST emit a deterministic static	unrecorded	-
+AMAP-V0-051	docs/specs/application-map-v0.md	458	Classification MUST be one of `deep-linkable`, `requires-parent-params`,	unrecorded	-
+AMAP-V0-052	docs/specs/application-map-v0.md	463	Required parameters MUST be the sorted unique union of path parameters on the	unrecorded	-
+AMAP-V0-053	docs/specs/application-map-v0.md	468	UI-router declarations MUST retain optional entry metadata distinguishing	unrecorded	-
+AMAP-V0-054	docs/specs/application-map-v0.md	474	Entry results MUST carry the map revision/digest and evaluated revision.	unrecorded	-
+AMAP-V0-055	docs/specs/application-map-v0.md	479	A changed template, guard, ancestor or manifest MUST make the projected	unrecorded	-
+AMAP-V0-056	docs/specs/application-map-v0.md	484	The projection MUST retain `proven_path` as an empty list with status UNKNOWN	unrecorded	-
+AMAP-V0-057	docs/specs/application-map-v0.md	489	Entries MUST use the existing bounded map loader and projection renderer,	unrecorded	-
+AMAP-V0-058	docs/specs/application-map-v0.md	493	Old maps without entry metadata MUST remain readable and project UNKNOWN	unrecorded	-
+AMAP-V0-059	docs/specs/application-map-v0.md	498	This slice MUST remain static and read-only: it MUST NOT visit URLs or run	unrecorded	-
+AMAP-V0-060	docs/specs/application-map-v0.md	505	`flows appmap stats --map FILE` MUST emit a deterministic	unrecorded	-
+AMAP-V0-061	docs/specs/application-map-v0.md	511	Every count MUST reconcile with the map: resolved plus unknown screens equals	unrecorded	-
+AMAP-V0-062	docs/specs/application-map-v0.md	515	Unknown reasons MUST be grouped by kind and reason (the `source` member is alway	unrecorded	-
+AMAP-V0-063	docs/specs/application-map-v0.md	520	Output MUST be capped like other projections (default 6144 bytes, `--budget`	unrecorded	-
+AMAP-V0-064	docs/specs/application-map-v0.md	523	`--min-resolved PCT` (0..100) MUST still write the report and then exit 1 when t	unrecorded	-
+AMAP-V0-065	docs/specs/application-map-v0.md	528	The report is a measure of the declared router and test scope only; it MUST NOT	unrecorded	-
+AMAP-V0-070	docs/specs/application-map-v0.md	532	An injected `.constant(...)` table imported through a directory specifier that	unrecorded	-
+AMAP-V0-071	docs/specs/application-map-v0.md	538	When several star exports of a barrel declare the imported name, the name MUST	unrecorded	-
+AMAP-V0-072	docs/specs/application-map-v0.md	543	A `di-constant` unknown with reason `not-read-whole` MUST carry `detail` naming	unrecorded	-
+AMAP-V0-075	docs/specs/application-map-v0.md	550	A manifest `tests.root` of exactly `"."` MUST be accepted and name the whole	unrecorded	-
+AMAP-V0-076	docs/specs/application-map-v0.md	554	With `tests.root` `"."` and an aliased test repository, dirty-root detection MUS	unrecorded	-
+AMAP-V0-077	docs/specs/application-map-v0.md	558	A manifest whose `tests.root` is not `"."` MUST compile to the same bytes and wi	unrecorded	-
+AMAP-V0-078	docs/specs/application-map-v0.md	561	`createBrowserRouter(NAME)` MUST compile the literal array bound by the one	unrecorded	-
+AMAP-V0-079	docs/specs/application-map-v0.md	571	When NAME in `createBrowserRouter(NAME)` is bound only by one named import	unrecorded	-
+AMAP-V0-080	docs/specs/application-map-v0.md	586	`flows appmap entries` MUST accept an optional `--ledger FILE` naming an	unrecorded	-
+AMAP-V0-081	docs/specs/application-map-v0.md	594	With a ledger, each row's `proven_path` MUST be the shortest screen sequence fro	unrecorded	-
+AMAP-V0-082	docs/specs/application-map-v0.md	603	A path MUST NOT start at, end at or cross a screen whose entry verification is n	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -2499,6 +2499,11 @@ NGI-V0-003	docs/specs/non-go-impact-v0.md	37	Every Ruby/JS/TS changed path MUST 
 NGI-V0-004	docs/specs/non-go-impact-v0.md	51	Added paths MUST carry the same receipt/evidence envelope and	unrecorded	-
 NGI-V0-005	docs/specs/non-go-impact-v0.md	63	`impact --help` and MCP description MUST publish a per-language	unrecorded	-
 NGI-V0-006	docs/specs/non-go-impact-v0.md	67	Conformance MUST include each new suffix/language, negative	unrecorded	-
+NGI-V0-007	docs/specs/non-go-impact-v0.md	84	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) A	standing	2026-10-11; V1-1365
+NGI-V0-008	docs/specs/non-go-impact-v0.md	96	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) The	standing	2026-10-11; V1-1365
+NGI-V0-009	docs/specs/non-go-impact-v0.md	107	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) A call	standing	2026-10-11; V1-1365
+NGI-V0-010	docs/specs/non-go-impact-v0.md	117	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) Selectio	standing	2026-10-11; V1-1365
+NGI-V0-011	docs/specs/non-go-impact-v0.md	126	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365)	standing	2026-10-11; V1-1365
 NJB-001	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	44	each family is one exact profile/target tuple and a standalone CLI package; no	unrecorded	-
 NJB-002	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	46	canonical one-LF JSON input/output is bounded before decode, base64 decode, fact	unrecorded	-
 NJB-003	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	54	facts are typed, ordered, and digest-bound by the bridge-owned 14-field evidence	unrecorded	-

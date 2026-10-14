@@ -3464,6 +3464,8 @@
       "internal/contextindex/impact.go",
       "internal/contextindex/non_go_impact.go",
       "internal/contextindex/range_impact.go",
+      "internal/contextindex/registry_dialect.go",
+      "internal/appmap/manifest.go",
       "internal/mcp/bridge/bridge.go",
       "cmd/corvint/help.go"
     ]
