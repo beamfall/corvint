@@ -31,10 +31,13 @@ was about 11 hours on 2026-10-05.
 | `push` | cancelled | 7 | 420 | 3.5% |
 | Total | | 100 | 11,948 | |
 
+Rows are rounded independently, so they sum to 11,949; the total is the unrounded 716,890 seconds.
+
 Cancelled runs used 1,240 of 11,948 runner-minutes (10.4%). Before, they used 3,101 of 7,063
 (43.9%; the ticket's 42% adds the rounded 31% `pull_request` and 11% `push` shares).
-`go-product-shard` jobs account for 10,409 minutes (87%). The median successful run used 153 runner-minutes on `pull_request`, 139 on `merge_group` and
-20 on `push` (the AFP-V0-024 and V1-0760 reuse paths).
+`go-product-shard` jobs account for 10,409 minutes (87%; per-job query, not retained). The median
+successful run used 153 runner-minutes on `pull_request`, 139 on `merge_group` and 20 on
+`push` (the AFP-V0-024 and V1-0760 reuse paths).
 
 ## Criteria
 
@@ -48,7 +51,9 @@ Cancelled runs used 1,240 of 11,948 runner-minutes (10.4%). Before, they used 3,
    (`REUSE_SHARDS: "8"`). This measurement cannot separate those causes.
 3. `main` coverage: all 7 cancelled `push` runs were `main` pushes, and each commit has a
    successful `merge_group` run of the same `head_sha`: b9b10b42d, b8c22fb35, 3a1980dc1, 2e32f63d5,
-   6ca5aa6c3, 21758ccd8 and 8fb53b265. No `main` tree lost its full-suite evidence.
+   6ca5aa6c3, 21758ccd8 and 8fb53b265 (`actions/workflows/361349783/runs?head_sha=<sha>&event=merge_group`,
+   read 2026-10-14; the per-run table does not carry `head_sha`). `merge_group` runs stay FULL
+   (decision 0431 item 2), so no `main` tree lost its full-suite evidence.
 4. Required checks: ruleset 23699808 still requires `go-product`, `ci-control-plane` and `doc-gates`
    (read back 2026-10-14). This ticket narrows no test.
 
@@ -61,6 +66,16 @@ Cancelled runs used 1,240 of 11,948 runner-minutes (10.4%). Before, they used 3,
 - The `ci:batched` hosted path stays `NOT_OBSERVED`.
 - The run list is the API's view on 2026-10-14. Run logs and job records expire, so the per-run
   table is the retained evidence.
+- The per-run table keeps run totals only. The `go-product-shard` share and the criterion 3
+  `head_sha` matches come from API reads on 2026-10-14 that are not retained as files.
+- Local checks: the 12 CI doc gates passed. The affected plan (scope `UNKNOWN`) selected 44 Go
+  packages; 41 passed, two (`internal/postmergeworkflow`, `conformance/release-artifact-v0`) after a
+  rerun on a committed tree. `internal/liveverify/affected` failed its 100 ms latency budget
+  (p95 353 ms) on a host at load average 30, which this docs-only diff cannot affect.
+  `cmd/corvint` and `internal/tasks/store` were `NOT_RUN` locally (over 10 minutes under that load);
+  CI runs them.
+- One Codex read-only round found three gaps (row rounding, the unretained shard figure, the
+  unretained `head_sha` matches); all three are stated above.
 
 ## Rollback
 
