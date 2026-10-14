@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -160,6 +161,84 @@ func TestBBFV0018ForgedNilReceiptAttempts(t *testing.T) {
 			resealReceipt(&r, plan)
 			if VerifyReceipt(r, plan.Digest, receiptTool().Executable) == nil {
 				t.Fatal("forged nil-receipt attempt accepted")
+			}
+		})
+	}
+}
+
+func TestBBFV0018ForgedUnobservedAndHiddenReceipts(t *testing.T) {
+	killedPlan, killed := receiptFixture(t, "killed")
+	if killed.Report.Results[0].Status != StatusKilled {
+		t.Fatalf("killed fixture unavailable: %+v", killed.Report.Results[0])
+	}
+	// The staging fixture's TMPDIR override lasts for the rest of this test, so it runs last.
+	plan, staged := infraReceiptFixture(t, "crash", 5, true)
+	tests := []struct {
+		name    string
+		plan    Plan
+		receipt EvidenceReceipt
+		mutate  func(*EvidenceReceipt)
+	}{
+		{"unobserved attempt as not_supported", plan, staged, func(r *EvidenceReceipt) {
+			a := &r.Report.Results[0].Attempts[0]
+			a.Status, a.Reasons = StatusNotSupported, []string{"caller-hook-not-supported"}
+		}},
+		{"unobserved attempt with unknown status", plan, staged, func(r *EvidenceReceipt) {
+			a := &r.Report.Results[0].Attempts[0]
+			a.Status = Status("pending")
+		}},
+		{"unobserved attempt as wall-clock not_run", plan, staged, func(r *EvidenceReceipt) {
+			a := &r.Report.Results[0].Attempts[0]
+			a.Status, a.Reasons = StatusNotRun, []string{"wall-clock-budget-exhausted"}
+		}},
+		{"admitted receipt hidden behind forged timeout", killedPlan, killed, func(r *EvidenceReceipt) {
+			a := &r.Report.Results[0].Attempts[0]
+			a.Receipt, a.RetainedArtifacts = nil, []Artifact{}
+			a.HookProcess.TimedOut = true
+			a.Status, a.Reasons = StatusInfrastructureFailed, []string{"hook-process-failed", "execution-boundary-failed"}
+			r.RawAttempts[0].NativeBytes, r.RawAttempts[0].NativeSHA256 = nil, ""
+		}},
+	}
+	for _, tt := range tests {
+		t.Run("BBF-V0-018 rejects "+tt.name, func(t *testing.T) {
+			encoded, err := EncodeEvidence(tt.receipt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var r EvidenceReceipt
+			if err := Decode(encoded, &r); err != nil {
+				t.Fatal(err)
+			}
+			resealReceipt(&r, tt.plan)
+			if err := VerifyReceipt(r, tt.plan.Digest, receiptTool().Executable); err != nil {
+				t.Fatalf("resealed original refused: %v", err)
+			}
+			tt.mutate(&r)
+			resealReceipt(&r, tt.plan)
+			if VerifyReceipt(r, tt.plan.Digest, receiptTool().Executable) == nil {
+				t.Fatal("forged attempt accepted")
+			}
+		})
+	}
+}
+
+// The executor's two pre-hook attempt shapes (executeAttempt's baseline-drift and wall-clock
+// returns) observe no stdout and still verify; the staged receipt supplies the surrounding plan.
+func TestBBFV0018PreHookAttemptShapesVerify(t *testing.T) {
+	plan, staged := infraReceiptFixture(t, "crash", 5, true)
+	shapes := map[string]AttemptResult{
+		"workspace baseline drift": {Attempt: 1, Status: StatusInvalidControl, Reasons: []string{"workspace-baseline-drift"}, RetainedArtifacts: []Artifact{}},
+		"wall clock exhausted":     {Attempt: 1, Status: StatusNotRun, Reasons: []string{"wall-clock-budget-exhausted"}, WorkspaceBefore: plan.WorkspaceSHA256, RetainedArtifacts: []Artifact{}},
+	}
+	for name, shape := range shapes {
+		t.Run("BBF-V0-018 "+name, func(t *testing.T) {
+			r := staged
+			r.Report.Results = slices.Clone(staged.Report.Results)
+			r.Report.Results[0].Attempts = []AttemptResult{shape}
+			r.RawAttempts = nil
+			resealReceipt(&r, plan)
+			if err := VerifyReceipt(r, plan.Digest, receiptTool().Executable); err != nil {
+				t.Fatalf("pre-hook attempt refused: %v", err)
 			}
 		})
 	}

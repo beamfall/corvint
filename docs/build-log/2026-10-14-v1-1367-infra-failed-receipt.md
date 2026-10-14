@@ -43,8 +43,10 @@ attempts carry a receipt, so the defect is the same on its head.
     as a kill.
   - `invalid_control`, when the hook process succeeded but its stdout did not decode as a receipt
     (`hook-output-invalid`), or cleanup was invalid. This is safe because the verifier decodes the
-    bound stdout itself and refuses if the bytes would have produced an admitted receipt. So a
-    caller cannot hide a real receipt to drop an unfavourable outcome.
+    bound stdout itself and refuses whenever those bytes decode as a hook receipt, whatever process
+    outcome the attempt records. So retained receipt bytes cannot be hidden behind a forged process
+    failure. A hook that printed a decodable receipt and then failed still refuses offline
+    verification. That fails closed, exactly as BASE did for every unadmitted attempt.
 
   In both cases the verifier also refuses retained native bytes, a native digest, retained
   artifacts or a workspace baseline other than the plan's. The recomputed status and reasons must
@@ -53,15 +55,25 @@ attempts carry a receipt, so the defect is the same on its head.
   reclassification, unchanged from `BBF-V0-013`. `not_run` and `not_supported` attempts, and
   attempts refused for `workspace-baseline-drift`, start no hook and observe no stdout, so they
   never reach this path.
-- Attempts with no observed stdout keep the pre-existing skip path, which already refused
-  `killed` and `survived`. The new path is stricter than that path because its stdout is
-  digest-bound.
+- Attempts with no observed stdout (`unobservedAttemptVerifies`). At BASE this skip path refused
+  only `killed` and `survived` and accepted any other status string. A forger could relabel such an
+  attempt `not_supported`, or give it a status outside the vocabulary, and `aggregateAttempts`
+  would then count the control as killed. The verifier now accepts only two kinds:
+  - the executor's two exact pre-hook shapes: `invalid_control` with `workspace-baseline-drift`,
+    and `not_run` with `wall-clock-budget-exhausted`, each with zero process records;
+  - a hook that never started, whose `infrastructure_failed` status and reasons are recomputed.
+
+  Both kinds also refuse a receipt or retained artifacts.
 
 ## Failure modes and limits
 
 - A forger who replaces the stdout bytes and every digest still yields an unauthenticated
   observation (`BBF-V0-012`). The only thing such a forgery can claim is a non-kill, non-survivor
   outcome, which lowers no mutation score.
+- Downgrades cannot be prevented. A forger can still drop an attempt (`attempt-set-incomplete`)
+  or replace stdout wholesale, recompute every digest and record a process failure. Either turns
+  a kill or survivor into a non-scoring outcome. This was already possible at BASE, and only
+  authenticated hook output (`BBF-V0-012`) could close it.
 - An unadmitted attempt with any omission, including `retained-byte-bound`, still refuses
   verification. Retaining over-bound stdout is out of scope.
 - Unchanged and out of scope: for receipt-bearing attempts, the existing reclassification clears
@@ -81,7 +93,21 @@ attempts carry a receipt, so the defect is the same on its head.
   - an injected reason, a changed workspace baseline, and an omission.
 
   A mutation check against a weakened helper confirmed that each guard is exercised.
-- Focused tests: the `corvint affected` units passed. Its 43 unbounded readers were not run.
+- `TestBBFV0018ForgedUnobservedAndHiddenReceipts` rejects three relabellings of an unobserved
+  attempt: `not_supported`, an unknown status and `not_run`. It also rejects an admitted kill
+  whose receipt is hidden behind a forged timeout. All four cases fail against the pre-review
+  verifier.
+- `TestBBFV0018PreHookAttemptShapesVerify` confirms that both exact pre-hook shapes verify.
+- Codex review (one round) reported two P1 findings: the not_supported relabel and the hidden
+  receipt. Both are fixed as described above.
+- Focused tests:
+  - The `corvint affected` units passed. Its 43 unbounded readers were not run.
+  - After review, `internal/behaviorfalsify` and `cmd/corvint-behavior-falsify` passed.
+  - Under `-race -count=2`, the BBF-V0-004 failure matrix, BBF-V0-013 and BBF-V0-018 tests passed
+    with no data race.
+  - Full-package `-race` runs on this host (load average 40 to 130) failed only where procgroup
+    reported a descendant snapshot as unavailable. That host-load defect is V1-1368's, outside
+    this lane's scope.
 
 ## Rollback
 

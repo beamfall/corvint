@@ -290,7 +290,7 @@ func VerifyReceipt(r EvidenceReceipt, expectedPlan, expectedTool string) error {
 				return invalid()
 			}
 			if a.HookProcess.StdoutSHA256 == "" {
-				if a.Status == StatusKilled || a.Status == StatusSurvived {
+				if !unobservedAttemptVerifies(plan, control, a) {
 					return invalid()
 				}
 				continue
@@ -372,16 +372,40 @@ func VerifyReceipt(r EvidenceReceipt, expectedPlan, expectedTool string) error {
 	return nil
 }
 
+// unobservedAttemptVerifies checks an attempt with no observed hook stdout (BBF-V0-018). It is one
+// of the executor's pre-hook shapes, or a hook that never started, whose status is recomputed, so
+// no status value, including one outside the vocabulary, can aggregate into a kill or survivor.
+func unobservedAttemptVerifies(plan Plan, control PlannedControl, a AttemptResult) bool {
+	if a.Receipt != nil || len(a.RetainedArtifacts) != 0 || a.HookProcess.Started {
+		return false
+	}
+	if a.HookProcess == (ProcessEvidence{}) && a.CleanupProcess == (ProcessEvidence{}) && a.WorkspaceAfter == "" {
+		switch {
+		case a.Status == StatusInvalidControl && slices.Equal(a.Reasons, []string{"workspace-baseline-drift"}) && a.WorkspaceBefore == "":
+			return true
+		case a.Status == StatusNotRun && slices.Equal(a.Reasons, []string{"wall-clock-budget-exhausted"}) && a.WorkspaceBefore == plan.WorkspaceSHA256:
+			return true
+		}
+	}
+	return a.WorkspaceBefore == plan.WorkspaceSHA256 && unadmittedStatusVerifies(plan, control, a)
+}
+
 // unadmittedAttemptVerifies checks an attempt whose retained stdout yielded no admitted hook
 // receipt (BBF-V0-018). Its raw stdout is already digest-bound; it retains no native report or
-// artifacts, the executor could not have admitted its bytes, and its status and reasons are
-// recomputed from its process and cleanup observations, so it is never a kill or a survivor.
+// artifacts, and its bytes do not decode as a hook receipt whatever its recorded process
+// outcome, so an admitted receipt cannot be hidden behind a forged process failure.
 func unadmittedAttemptVerifies(plan Plan, control PlannedControl, a AttemptResult, raw RawAttempt) bool {
 	var hook HookReceipt
 	if raw.NativeBytes != nil || raw.NativeSHA256 != "" || len(a.RetainedArtifacts) != 0 || a.WorkspaceBefore != plan.WorkspaceSHA256 ||
-		processSucceeded(a.HookProcess) && Decode(raw.HookBytes, &hook) == nil {
+		Decode(raw.HookBytes, &hook) == nil {
 		return false
 	}
+	return unadmittedStatusVerifies(plan, control, a)
+}
+
+// unadmittedStatusVerifies recomputes the executor's classification of an attempt without an
+// admitted receipt from its process and cleanup observations; it is never a kill or a survivor.
+func unadmittedStatusVerifies(plan Plan, control PlannedControl, a AttemptResult) bool {
 	candidate := a
 	candidate.Reasons = []string{"hook-output-invalid"}
 	if !processSucceeded(a.HookProcess) {

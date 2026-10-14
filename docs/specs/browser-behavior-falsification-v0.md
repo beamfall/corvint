@@ -99,10 +99,13 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   observes no stdout and retains no raw entry. The BBF-V0-013 missing-report rule applies only to
   attempts with an admitted hook receipt. `verify-receipt` accepts an attempt without a receipt
   only when its retained bytes match the raw and attempt digests, it carries no native report or
-  retained artifacts, its workspace baseline is the plan's, the executor could not have admitted
-  those bytes (its recorded process failed or they do not decode) and its status and reasons
-  recompute from its process and cleanup observations; such an attempt never verifies as `killed`
-  or `survived`. A retained-byte-bound omission still refuses verification.
+  retained artifacts, its workspace baseline is the plan's, its retained bytes do not decode as a
+  hook receipt whatever its recorded process outcome, and its status and reasons recompute from
+  its process and cleanup observations. An attempt with no observed stdout verifies only as one of
+  the executor's exact pre-hook shapes (`workspace-baseline-drift` or
+  `wall-clock-budget-exhausted`) or with the status and reasons recomputed for a hook that never
+  started. Neither kind ever verifies as `killed` or `survived`, nor with a status outside the
+  executor's classification. A retained-byte-bound omission still refuses verification.
 
 ### Approval-bound evidence wire
 
@@ -181,7 +184,7 @@ always attempted with its own bounded context even after execution failure or ca
 | immutable binding | stale revision/config/hook/artifact and retry/ordinal adversarial fixtures |
 | aggregate | six raw status counts, nonzero raw mutation denominator and partial-support fallback |
 | approval-bound retained evidence | `TestBBFV0013OfflineReceipt`, `TestBBFV0013ReceiptTampering`, `TestBBFV0013ReceiptFailuresNeverKill`, `TestBBFV0013SecretOutputRefused`, `TestBBFV0013ReceiptApprovalAndBounds`; actual CLI export/verify smoke |
-| attempt without an admitted hook receipt | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts` |
+| attempt without an admitted hook receipt | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
 
 Focused package and command tests run first. Repository completion additionally requires the
 canonical Go test/vet and interoperability gates, independent review, and the dogfood CEM/OCM
@@ -206,7 +209,7 @@ default commands remain unchanged.
 | BBF-V0-014 | acceptance-safe TMPDIR transport | `TestBBFV0014TempRootTransport`, `TestBBFV0014TempRootInterruptedStaging` |
 | BBF-V0-013 | `internal/behaviorfalsify/receipt.go`; companion `execute-receipt` and `verify-receipt` | offline, tampering, missing evidence, secret and bound tests |
 | BBF-V0-011..012 | conformance fixtures and report limitations | end-to-end synthetic command tests and independent review |
-| BBF-V0-018 | `internal/behaviorfalsify/receipt.go` capture and `unadmittedAttemptVerifies` | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts` |
+| BBF-V0-018 | `internal/behaviorfalsify/receipt.go` capture, `unobservedAttemptVerifies` and `unadmittedAttemptVerifies` | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
 
 ## Unresolved decisions and promotion criteria
 
