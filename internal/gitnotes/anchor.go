@@ -13,27 +13,38 @@ import (
 )
 
 // Pointer is the one note body Anchor writes: the committed map's blob, its
-// digest, and the commit that holds it.
+// digest, and the commit that holds it, plus the scope the map describes: its
+// baseRevision, its patchSha256 and the anchored commit's tree (CEM-V1-067).
+// A legacy `/0` pointer has no scope members.
 type Pointer struct {
-	Schema    string `json:"schema"`
-	CEMCommit string `json:"cem_commit"`
-	MapPath   string `json:"map_path"`
-	MapBlob   string `json:"map_blob"`
-	MapSha256 string `json:"map_sha256"`
-	MapSpec   string `json:"map_spec"`
+	Schema      string `json:"schema"`
+	CEMCommit   string `json:"cem_commit"`
+	MapPath     string `json:"map_path"`
+	MapBlob     string `json:"map_blob"`
+	MapSha256   string `json:"map_sha256"`
+	MapSpec     string `json:"map_spec"`
+	Base        string `json:"base,omitempty"`
+	PatchSha256 string `json:"patch_sha256,omitempty"`
+	TargetTree  string `json:"target_tree,omitempty"`
 }
 
 func (p Pointer) fields() map[string]any {
-	return map[string]any{
+	fields := map[string]any{
 		"schema": p.Schema, "cem_commit": p.CEMCommit, "map_path": p.MapPath,
 		"map_blob": p.MapBlob, "map_sha256": p.MapSha256, "map_spec": p.MapSpec,
 	}
+	if p.Schema == PointerSchema {
+		fields["base"], fields["patch_sha256"], fields["target_tree"] = p.Base, p.PatchSha256, p.TargetTree
+	}
+	return fields
 }
 
 // Anchor records a pointer to the CEM committed at HEAD under mapPath as the
 // Corvint note of commit (FPK-V0-037). It refuses an untracked, dirty, or
-// uncommitted map and a map blob absent from the object database, never
-// replaces a different note, and reads the note back before reporting.
+// uncommitted map, a map blob absent from the object database, and a map
+// that does not describe commit (CEM-V1-067: the canonical base..commit patch
+// must hash to the map's patchSha256), never replaces a different note, and
+// reads the note back before reporting.
 func Anchor(ctx context.Context, root, mapPath, commit string) (map[string]any, error) {
 	repo, err := open(root)
 	if err != nil {
@@ -53,6 +64,17 @@ func Anchor(ctx context.Context, root, mapPath, commit string) (map[string]any, 
 	pointer, err := repo.committedPointer(ctx, head, mapPath)
 	if err != nil {
 		return nil, err
+	}
+	if pointer.TargetTree, err = repo.tree(ctx, target); err != nil {
+		return nil, err
+	}
+	matches, err := repo.describes(ctx, pointer, target)
+	if err != nil {
+		return nil, err
+	}
+	if !matches {
+		return nil, cemcode.New(CodeScopeMismatch, "map %s does not describe commit %s: the canonical %s..%s patch does not hash to its patchSha256",
+			mapPath, target, pointer.Base, target).Guided("anchor the map onto the commit it was built for")
 	}
 	body, err := json.Marshal(pointer)
 	if err != nil {
@@ -91,8 +113,9 @@ func (r *repository) requireCleanMap(ctx context.Context, mapPath string) error 
 }
 
 // committedPointer reads the map blob HEAD holds, requires it in the object
-// database and a valid CEM, and digests the exact bytes. Only a cem/1.0 map is
-// read, by the stable parser (CEM-V1-065); a retired cem/0.x map refuses with
+// database and a valid CEM, digests the exact bytes, and copies the map's
+// baseRevision and patchSha256 into the pointer. Only a cem/1.0 map is read,
+// by the stable parser (CEM-V1-065); a retired cem/0.x map refuses with
 // unsupported-spec and the migration fix line (CEM-V1-210), and no note is
 // written.
 func (r *repository) committedPointer(ctx context.Context, head, mapPath string) (Pointer, error) {
@@ -113,7 +136,39 @@ func (r *repository) committedPointer(ctx context.Context, head, mapPath string)
 	return Pointer{
 		Schema: PointerSchema, CEMCommit: head, MapPath: mapPath, MapBlob: blob,
 		MapSha256: hex.EncodeToString(digest[:]), MapSpec: parsed.Change.Spec,
+		Base: parsed.Change.BaseRevision, PatchSha256: parsed.Change.PatchSha256,
 	}, nil
+}
+
+// tree returns the tree object ID of commit.
+func (r *repository) tree(ctx context.Context, commit string) (string, error) {
+	out, err := r.git(ctx, 256, nil, "rev-parse", "--verify", "--end-of-options", commit+"^{tree}")
+	if err != nil {
+		return "", cemcode.New(cemcode.RepositoryObjectUnavailable, "commit %s has no readable tree", commit)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// describes reports whether the pointer's scope is the change commit carries
+// relative to the pointer's base: the canonical CEM patch of base..commit,
+// derived by the one recipe every CEM consumer uses, must hash to the
+// pointer's patch_sha256, and commit's tree must be target_tree. A patch that
+// cannot be derived (an absent base, a budget or Git failure) is an error,
+// never a match.
+func (r *repository) describes(ctx context.Context, p Pointer, commit string) (bool, error) {
+	tree, err := r.tree(ctx, commit)
+	if err != nil {
+		return false, err
+	}
+	if tree != p.TargetTree {
+		return false, nil
+	}
+	patchBytes, err := r.cem.CanonicalDiff(ctx, p.Base, commit)
+	if err != nil {
+		return false, err
+	}
+	digest := sha256.Sum256(patchBytes)
+	return hex.EncodeToString(digest[:]) == p.PatchSha256, nil
 }
 
 // writeNote stores body byte-exact as a blob and attaches it with `notes add

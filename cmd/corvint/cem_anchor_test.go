@@ -1,11 +1,17 @@
 package main
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/cem/gitauth"
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 )
 
 // TestCEMAnchorAndProvenanceInteropThroughTheCLI is the FPK-V0-040 fixture
@@ -21,13 +27,36 @@ func TestCEMAnchorAndProvenanceInteropThroughTheCLI(t *testing.T) {
 	}
 	cemGit(t, root, "init", "-q", "-b", "main")
 	cemWrite(t, root, "src/main.rs", "fn main() {}\n")
-	// The anchored map is the public cem/1.0 receipt-authentication fixture;
-	// a retired cem/0.x map is refused by anchor (CEM-V1-210).
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "base")
+	base := cemGit(t, root, "rev-parse", "HEAD")
+	cemWrite(t, root, "src/main.rs", "fn main() { println!(\"hi\"); }\n")
+	// The anchored map is the public cem/1.0 receipt-authentication fixture
+	// rebound to this change's canonical patch, so it describes the commit it
+	// is anchored on (CEM-V1-067); a retired cem/0.x map is refused by anchor
+	// (CEM-V1-210).
 	stable, err := os.ReadFile("../../protocol/cem-1.0/stable/receipt-authentication/stable.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cemWrite(t, root, ".corvint/change.cem.json", string(stable))
+	repo, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "change")
+	patch, err := repo.CanonicalDiff(context.Background(), base, cemGit(t, root, "rev-parse", "HEAD"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(patch)
+	rebound := strings.Replace(string(stable), `"baseRevision":"467cbb73c1102cd7df0299cd74a6bef96ee3a9a4"`, `"baseRevision":"`+base+`"`, 1)
+	rebound = strings.Replace(rebound, `"patchSha256":"9466aca391d358b6fd969537fd6fcc5088526e85d6b3f9fad13ecf35431f7ff8"`,
+		`"patchSha256":"`+hex.EncodeToString(digest[:])+`"`, 1)
+	if strings.Count(rebound, base)+strings.Count(rebound, hex.EncodeToString(digest[:])) != 2 {
+		t.Fatal("fixture map members moved")
+	}
+	cemWrite(t, root, ".corvint/change.cem.json", rebound)
 	cemGit(t, root, "add", ".")
 	cemGit(t, root, "commit", "-qm", "assisted change\n\nAssisted-by: Claude <noreply@anthropic.com>\n"+
 		"Agent-Logs-Url: https://example.invalid/logs/42")
@@ -65,8 +94,19 @@ func TestCEMAnchorAndProvenanceInteropThroughTheCLI(t *testing.T) {
 		read.Evidence[0]["state"] != "verified" || read.Evidence[1]["state"] != "parsed" {
 		t.Fatalf("provenance rows: %s", out)
 	}
+	tip := cemGit(t, root, "rev-parse", "refs/notes/corvint")
+	cemGit(t, root, "update-ref", "-d", "refs/notes/corvint")
+	code, out, stderr = runCLI(t, "--root", root, "cem", "provenance", "--commit", "HEAD", "--notes-tip", tip)
+	var rolled struct {
+		NotesTip map[string]any   `json:"notes_tip"`
+		Evidence []map[string]any `json:"evidence"`
+	}
+	if code != 0 || json.Unmarshal([]byte(out), &rolled) != nil || rolled.NotesTip["state"] != "rollback" ||
+		rolled.Evidence[0]["kind"] != "cem-anchor-note" || rolled.Evidence[0]["state"] != "rollback" {
+		t.Fatalf("provenance --notes-tip after a deleted notes ref: %d %s %s", code, out, stderr)
+	}
 	code, out, _ = runCLI(t, "cem", "anchor", "--help")
-	if code != 0 || !strings.Contains(out, "cem anchor --map MAP") || !strings.Contains(out, "cem provenance --commit REV") {
+	if code != 0 || !strings.Contains(out, "cem anchor --map MAP") || !strings.Contains(out, "cem provenance --commit REV [--notes-tip OID]") {
 		t.Fatalf("help: %d %s", code, out)
 	}
 }
