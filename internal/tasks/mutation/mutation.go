@@ -785,7 +785,7 @@ func readSource(r *wire.Reader) ticket.Source {
 }
 
 func readEffects(r *wire.Reader) ticket.Effects {
-	r.Closed("coverage", "touchPaths", "resources", "externalUnbounded")
+	r.Closed(wire.OptionalKeys(r.Value(), wire.TicketEffectsKeys, wire.TicketEffectsOptionalKeys...)...)
 	e := ticket.Effects{Resources: []ticket.Resource{}}
 	e.Coverage = r.Field("coverage").Enum(ticket.Coverages...)
 	e.TouchPaths = nonNil(r.Field("touchPaths").Strings(wire.MaxTouchPaths, false, (*wire.Reader).Path))
@@ -800,6 +800,7 @@ func readEffects(r *wire.Reader) ticket.Effects {
 		e.Resources = append(e.Resources, res)
 	}
 	e.ExternalUnbounded = r.Field("externalUnbounded").Bool()
+	e.VerdictPaths = ticket.ReadVerdictPaths(r, e.TouchPaths)
 	return e
 }
 
@@ -1053,6 +1054,7 @@ func effectsValue(e ticket.Effects) wire.Value {
 	}
 	eo.Set("resources", wire.Array(res...))
 	eo.Set("externalUnbounded", wire.Bool(e.ExternalUnbounded))
+	ticket.SetVerdictPaths(eo, e.VerdictPaths)
 	return wire.ObjectValue(eo)
 }
 

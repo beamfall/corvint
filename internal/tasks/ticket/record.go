@@ -73,6 +73,10 @@ type Effects struct {
 	TouchPaths        []string
 	Resources         []Resource
 	ExternalUnbounded bool
+	// VerdictPaths is the optional cem-verdict predicate domain
+	// (TCB-V0-035): nil when the record omits it, otherwise a nonempty set
+	// each of whose paths a TouchPaths key covers (TCB-V0-036).
+	VerdictPaths []string
 }
 
 // Hold is one `holds` entry.
@@ -281,7 +285,7 @@ func FromValue(v wire.Value) (*Record, error) {
 	rec.Source.SourceItemID = src.Field("sourceItemId").StringOrNull((*wire.Reader).Identifier)
 	rec.Source.SourceRevisionSha256 = src.Field("sourceRevisionSha256").DigestOrNull()
 	ef := r.Field("effects")
-	ef.Closed("coverage", "touchPaths", "resources", "externalUnbounded")
+	ef.Closed(wire.OptionalKeys(ef.Value(), wire.TicketEffectsKeys, wire.TicketEffectsOptionalKeys...)...)
 	rec.Effects.Coverage = ef.Field("coverage").Enum(Coverages...)
 	rec.Effects.TouchPaths = ef.Field("touchPaths").Strings(wire.MaxTouchPaths, false, (*wire.Reader).Path)
 	for _, rs := range ef.Field("resources").Array(wire.MaxResources, false) {
@@ -297,6 +301,7 @@ func FromValue(v wire.Value) (*Record, error) {
 		rec.Effects.Resources = append(rec.Effects.Resources, res)
 	}
 	rec.Effects.ExternalUnbounded = ef.Field("externalUnbounded").Bool()
+	rec.Effects.VerdictPaths = ReadVerdictPaths(ef, rec.Effects.TouchPaths)
 	rec.Capabilities = r.Field("capabilities").Strings(wire.MaxCapabilities, false, (*wire.Reader).Identifier)
 	rec.RequiredGates = r.Field("requiredGates").Strings(wire.MaxRequiredGates, false, (*wire.Reader).Label)
 	for _, h := range r.Field("holds").Array(wire.MaxHolds, true) {
@@ -588,6 +593,7 @@ func (rec *Record) Value() wire.Value {
 	}
 	eo.Set("resources", wire.Array(res...))
 	eo.Set("externalUnbounded", wire.Bool(rec.Effects.ExternalUnbounded))
+	SetVerdictPaths(eo, rec.Effects.VerdictPaths)
 	o.Set("effects", wire.ObjectValue(eo))
 	o.Set("capabilities", wire.Strings(rec.Capabilities))
 	o.Set("requiredGates", wire.Strings(rec.RequiredGates))
