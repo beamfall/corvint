@@ -13,6 +13,8 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/gitauth"
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
@@ -72,7 +74,8 @@ func writeFile(t *testing.T, root, path, content string) {
 	}
 }
 
-// fixtureRepo holds one committed CEM map at HEAD.
+// fixtureRepo holds a base commit, a change commit, and at HEAD a commit
+// adding the committed cem/1.0 map that describes the change (describingMap).
 func fixtureRepo(t *testing.T) string {
 	t.Helper()
 	root, err := filepath.EvalSymlinks(t.TempDir())
@@ -81,10 +84,49 @@ func fixtureRepo(t *testing.T) string {
 	}
 	fixtureGit(t, root, nil, "init", "-q", "-b", "main")
 	writeFile(t, root, "src/app.txt", "alpha\n")
-	writeFile(t, root, mapPath, fixtureMap)
 	fixtureGit(t, root, nil, "add", ".")
+	fixtureGit(t, root, nil, "commit", "-qm", "base")
+	base := fixtureGit(t, root, nil, "rev-parse", "HEAD")
+	writeFile(t, root, "src/app.txt", "beta\n")
+	fixtureGit(t, root, nil, "commit", "-qam", "change")
+	writeFile(t, root, mapPath, describingMap(t, root, base, "HEAD"))
+	fixtureGit(t, root, nil, "add", mapPath)
 	fixtureGit(t, root, nil, "commit", "-qm", "change with its map")
 	return root
+}
+
+// describingMap is the public receipt-authentication stable map with its
+// baseRevision and patchSha256 rebound to root's canonical base..target patch,
+// derived by the recipe every CEM consumer uses.
+func describingMap(t *testing.T, root, base, target string) string {
+	t.Helper()
+	repo, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	if err != nil {
+		t.Fatal(err)
+	}
+	patch, err := repo.CanonicalDiff(context.Background(), base, fixtureGit(t, root, nil, "rev-parse", target))
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(patch)
+	rebound := strings.Replace(fixtureMap, `"baseRevision":"467cbb73c1102cd7df0299cd74a6bef96ee3a9a4"`,
+		`"baseRevision":"`+base+`"`, 1)
+	rebound = strings.Replace(rebound, `"patchSha256":"9466aca391d358b6fd969537fd6fcc5088526e85d6b3f9fad13ecf35431f7ff8"`,
+		`"patchSha256":"`+hex.EncodeToString(digest[:])+`"`, 1)
+	if rebound == fixtureMap {
+		t.Fatal("fixture map members moved")
+	}
+	return rebound
+}
+
+// committedMap is the exact map bytes HEAD holds.
+func committedMap(t *testing.T, root string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(mapPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
 }
 
 // refState is every ref plus the porcelain status: what a read must not move.
@@ -111,7 +153,7 @@ func TestAnchorWritesAVerifiedPointerAndReadsItBack(t *testing.T) {
 	if err := json.Unmarshal([]byte(fixtureGit(t, root, nil, "notes", "--ref="+Ref, "show", head)), &stored); err != nil {
 		t.Fatal(err)
 	}
-	digest := sha256.Sum256([]byte(fixtureMap))
+	digest := sha256.Sum256(committedMap(t, root))
 	if stored.MapBlob != blob || stored.CEMCommit != head || stored.MapPath != mapPath || stored.Schema != PointerSchema ||
 		stored.MapSha256 != hex.EncodeToString(digest[:]) || stored.MapSpec != "cem/1.0" {
 		t.Fatalf("stored pointer: %+v", stored)
