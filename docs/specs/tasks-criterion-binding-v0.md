@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-01
-Intent status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356)
+Intent status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358)
 Delivery status: experimental
 Authoritative inputs: decision 0397, `docs/specs/cem-criterion-experiments-v0.md`, native V1-0575;
 for TCB-V0-007..023, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and native V1-1283 and V1-1356.
 
 ## Agent digest
 - Claim: Native Tasks captures and verifies coherent claim-era criterion bindings; Core consumes only the Tasks wire contract.
-- Status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356)/experimental delivery; owner release intent remains accepted separately.
-- Exists: `internal/tasks/criterionbinding`, compiled CLI read verbs and wire-owned projections; bounded independent repair review passed. Experimental sealed cem/1.0 verdict gate: library `internal/taskman/cem_verdict_gate.go` with a portable cross-check, `corvint cem gate-verdict`, Tasks argv placeholders and a policy entry (TCB-V0-007..019). A merged-forward lane is gated and completed at its seal commit, and an exact touch key naming a directory refuses (TCB-V0-020..023).
+- Status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358)/experimental delivery; owner release intent remains accepted separately.
+- Exists: `internal/tasks/criterionbinding`, compiled CLI read verbs and wire-owned projections; bounded independent repair review passed. Experimental sealed cem/1.0 verdict gate: library `internal/taskman/cem_verdict_gate.go` with a portable cross-check, `corvint cem gate-verdict`, Tasks argv placeholders and a policy entry (TCB-V0-007..019). A merged-forward lane is gated and completed at its seal commit, and an exact touch key naming a directory refuses (TCB-V0-020..023); the portable leg runs on Darwin and Linux amd64/arm64 (TCB-V0-030..031).
 - Blocked on: full CEM1.0 live receipt/source join, integration and release qualification; installing the gate's two executables and registering its policy entry in the live store.
 - Read next: Requirements; Acceptance and rollback; Sealed cem/1.0 verdict gate; Merged-forward lanes.
 
@@ -296,3 +296,34 @@ Rollback: delete `exactKeyNamesDirectory` and its call in `internal/taskman/cem_
 `internal/tasks/store/lease_gate_merge_forward_test.go`, and the `touch-key-names-directory` case in
 `TestTCBV0011PredicateIsClosedAndNeverRaisesATier`. No Tasks code, schema, wire contract or CEM byte
 changed.
+
+## Portable leg qualified hosts (V1-1358, 2026-10-14)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-1358.
+The portable consumer's process containment is now qualified on Darwin and Linux amd64/arm64
+(`docs/specs/cem-stable-v1.md` `CEM-V1-180..184`). This section supersedes the acceptance-evidence
+statement above that the TCB-V0-016 test runs only on Darwin and otherwise skips `NOT_RUN`.
+
+- `TCB-V0-030`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The
+  qualified hosts for the gate's portable leg (TCB-V0-017) MUST be Darwin and Linux amd64/arm64,
+  the hosts where `interop/cem01-go` qualifies process containment. On those hosts
+  `TestTCBV0016GateVerdictRunsBothConsumers` MUST run a freshly built `interop/cem01-go` and
+  pass, with the portable outcome and `verdictSha256` equal to the native ones, and it MUST log
+  both digests. It MAY skip `NOT_RUN` only on another Linux architecture or, as every stable
+  verifier test does, on an operating system other than Darwin and Linux.
+- `TCB-V0-031`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On any
+  other host the portable consumer still answers `UNSUPPORTED` with
+  `unsupported-process-containment`, and the gate MUST keep refusing
+  `CEM_VERDICT_VERIFIER_DISAGREEMENT`. It MUST NOT substitute a stand-in consumer or the native
+  verifier for the portable leg.
+
+Rollback: revert the V1-1358 commit. The TCB-V0-016 real-consumer test returns to skipping
+`NOT_RUN` off Darwin, and the gate on Linux refuses `verifier-disagreement` again. No Tasks schema,
+wire contract, policy entry or gate digest changes.
+
+### Portable leg qualified hosts traceability
+
+| Requirement | Source and focused tests | Observed result / limit |
+| --- | --- | --- |
+| TCB-V0-030 | `cmd/corvint/cem_gate_verdict_test.go` `TestTCBV0016GateVerdictRunsBothConsumers` | darwin/arm64 and linux/arm64 (go1.27.2, uid 1000, `-race`): native and portable `verdictSha256` both `14ac383d61741ab12c6a422d086701302b230295ff97babcb443aead1cb40476`, portable `ACCEPT`; linux/amd64 is the CI `go-product-shard` run |
+| TCB-V0-031 | `interop/cem01-go/stable_process_other.go`; `TestTCBV0017PortableConsumerMustRecomputeTheSameVerdict` | Other hosts refuse before admission (cross-`go vet` for linux/386, linux/riscv64, windows/amd64, freebsd/amd64); a differing portable outcome refuses `verifier-disagreement` |
