@@ -2,7 +2,8 @@
 
 Lane V1-1367, Corvint 1.0 scope `PRS-V1-018` (accepted, owner instruction 2026-10-13).
 Requirement `BBF-V0-018` (`docs/specs/browser-behavior-falsification-v0.md`), accepted under the
-owner's standing auto-accept (2026-10-11). Base 92c298a6e (origin/main after PR #873).
+owner's standing auto-accept (2026-10-11). Lane base 92c298a6e (origin/main after PR #873),
+merged forward to 057b19008 (after PRs #874 and #875); the change evidence binds against 057b19008.
 
 ## Intent
 
@@ -58,12 +59,16 @@ attempts carry a receipt, so the defect is the same on its head.
 - Attempts with no observed stdout (`unobservedAttemptVerifies`). At BASE this skip path refused
   only `killed` and `survived` and accepted any other status string. A forger could relabel such an
   attempt `not_supported`, or give it a status outside the vocabulary, and `aggregateAttempts`
-  would then count the control as killed. The verifier now accepts only two kinds:
-  - the executor's two exact pre-hook shapes: `invalid_control` with `workspace-baseline-drift`,
-    and `not_run` with `wall-clock-budget-exhausted`, each with zero process records;
-  - a hook that never started, whose `infrastructure_failed` status and reasons are recomputed.
-
-  Both kinds also refuse a receipt or retained artifacts.
+  would then count the control as killed. The verifier now accepts such an attempt only when its
+  hook never started and it carries no receipt, retained artifacts or application (BBF-V0-015).
+  Its status must be `infrastructure_failed`, `invalid_control` or `not_run`. Each of those keeps
+  `aggregateAttempts` from returning a kill or a survivor. The status is an allow-list, not a
+  recomputation, because `internal/testacceptance` builds synthetic unobserved attempts with empty
+  process records (`TestPTFV0ParentCompleteAttemptOutcome`), and that package is outside this
+  lane's scope. A relabel among the three non-scoring outcomes changes no score.
+- Merge with PR #875 (V1-1366, BBF-V0-015..017). `classifyAttempt` now also returns the attempt's
+  application. A nil-receipt attempt verifies only with an empty application, so application
+  markers cannot be attached to an attempt without an admitted receipt.
 
 ## Failure modes and limits
 
@@ -93,21 +98,24 @@ attempts carry a receipt, so the defect is the same on its head.
   - an injected reason, a changed workspace baseline, and an omission.
 
   A mutation check against a weakened helper confirmed that each guard is exercised.
-- `TestBBFV0018ForgedUnobservedAndHiddenReceipts` rejects three relabellings of an unobserved
-  attempt: `not_supported`, an unknown status and `not_run`. It also rejects an admitted kill
-  whose receipt is hidden behind a forged timeout. All four cases fail against the pre-review
-  verifier.
-- `TestBBFV0018PreHookAttemptShapesVerify` confirms that both exact pre-hook shapes verify.
+- `TestBBFV0018ForgedUnobservedAndHiddenReceipts` rejects five forgeries of an unobserved
+  attempt: relabelled `not_supported`, an unknown status, a kill, a started hook and an
+  application. It also rejects an admitted kill whose receipt is hidden behind a forged timeout.
+  The `not_supported`, unknown-status and hidden-receipt cases fail against the pre-review
+  verifier. `TestBBFV0018ForgedNilReceiptAttempts` also rejects an application on a nil-receipt
+  attempt.
+- `TestBBFV0018PreHookAttemptShapesVerify` confirms that the executor's two pre-hook shapes
+  (`workspace-baseline-drift` and `wall-clock-budget-exhausted`) verify.
 - Codex review (one round) reported two P1 findings: the not_supported relabel and the hidden
   receipt. Both are fixed as described above.
 - Focused tests:
   - The `corvint affected` units passed. Its 43 unbounded readers were not run.
-  - After review, `internal/behaviorfalsify` and `cmd/corvint-behavior-falsify` passed.
-  - Under `-race -count=2`, the BBF-V0-004 failure matrix, BBF-V0-013 and BBF-V0-018 tests passed
-    with no data race.
-  - Full-package `-race` runs on this host (load average 40 to 130) failed only where procgroup
-    reported a descendant snapshot as unavailable. That host-load defect is V1-1368's, outside
-    this lane's scope.
+  - On the merged tree (057b19008 plus this change), `internal/behaviorfalsify`,
+    `internal/testacceptance` and `cmd/corvint-behavior-falsify` passed.
+  - `go test -race` of `internal/behaviorfalsify` and `internal/testacceptance` passed with no
+    data race. Earlier `-race` runs under host load averages of 40 to 130 failed only where
+    procgroup reported a descendant snapshot as unavailable. That defect belongs to V1-1368 and is
+    outside this lane's scope.
 
 ## Rollback
 

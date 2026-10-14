@@ -431,7 +431,10 @@ BBF-V0-011	docs/specs/browser-behavior-falsification-v0.md	76	Synthetic conforma
 BBF-V0-012	docs/specs/browser-behavior-falsification-v0.md	79	Receipts are observations, not authenticated caller honesty, browser-behavior	unrecorded	-
 BBF-V0-013	docs/specs/browser-behavior-falsification-v0.md	83	The opt-in `execute-receipt` operation emits `corvint-browser-behavior-evidence/	unrecorded	-
 BBF-V0-014	docs/specs/browser-behavior-falsification-v0.md	85	accepted, decision 0507. In a sanitized acceptance	unrecorded	-
-BBF-V0-018	docs/specs/browser-behavior-falsification-v0.md	93	(accepted under the owner's standing auto-accept (2026-10-11); V1-1367) An	standing	2026-10-11; V1-1367
+BBF-V0-015	docs/specs/browser-behavior-falsification-v0.md	93	(accepted under the owner's standing auto-accept (2026-10-11); V1-1366) A	standing	2026-10-11; V1-1366
+BBF-V0-016	docs/specs/browser-behavior-falsification-v0.md	110	(accepted under the owner's standing auto-accept (2026-10-11); V1-1366) The	standing	2026-10-11; V1-1366
+BBF-V0-017	docs/specs/browser-behavior-falsification-v0.md	121	(accepted under the owner's standing auto-accept (2026-10-11); V1-1366) An	standing	2026-10-11; V1-1366
+BBF-V0-018	docs/specs/browser-behavior-falsification-v0.md	133	(accepted under the owner's standing auto-accept (2026-10-11); V1-1367) An	standing	2026-10-11; V1-1367
 BKM-V0-001	docs/specs/cross-repository-breakage-map-v0.md	53	The command MUST be explicit, read-only, local and experimental. It	unrecorded	-
 BKM-V0-002	docs/specs/cross-repository-breakage-map-v0.md	56	The manifest MUST be one strict bounded UTF-8 JSON document with no	unrecorded	-
 BKM-V0-003	docs/specs/cross-repository-breakage-map-v0.md	62	Each emitted source witness MUST name an immutable Git blob and	unrecorded	-
@@ -3276,6 +3279,10 @@ TCB-V0-016	docs/specs/tasks-criterion-binding-v0.md	77	(accepted under the owner
 TCB-V0-017	docs/specs/tasks-criterion-binding-v0.md	85	(accepted under the owner's standing auto-accept (2026-10-11); V1-1283) The gate	standing	2026-10-11; V1-1283
 TCB-V0-018	docs/specs/tasks-criterion-binding-v0.md	93	(accepted under the owner's standing auto-accept (2026-10-11); V1-1283) The docu	standing	2026-10-11; V1-1283
 TCB-V0-019	docs/specs/tasks-criterion-binding-v0.md	98	(accepted under the owner's standing auto-accept (2026-10-11); V1-1283) The gate	standing	2026-10-11; V1-1283
+TCB-V0-020	docs/specs/tasks-criterion-binding-v0.md	103	(accepted under the owner's standing auto-accept (2026-10-11); V1-1356) For a ti	standing	2026-10-11; V1-1356
+TCB-V0-021	docs/specs/tasks-criterion-binding-v0.md	111	(accepted under the owner's standing auto-accept (2026-10-11); V1-1356) Native	standing	2026-10-11; V1-1356
+TCB-V0-022	docs/specs/tasks-criterion-binding-v0.md	119	(accepted under the owner's standing auto-accept (2026-10-11); V1-1356)	standing	2026-10-11; V1-1356
+TCB-V0-023	docs/specs/tasks-criterion-binding-v0.md	125	(accepted under the owner's standing auto-accept (2026-10-11); V1-1356) Under	standing	2026-10-11; V1-1356
 TCN-V0-001	docs/specs/test-consolidation-planner-v0.md	98	The planner MUST be a read-only local projection. `corvint test-plan consolidate	unrecorded	-
 TCN-V0-002	docs/specs/test-consolidation-planner-v0.md	106	The input MUST be one closed `test-consolidation-input/0` JSON document of at mo	unrecorded	-
 TCN-V0-003	docs/specs/test-consolidation-planner-v0.md	124	A variation MUST be abstained, never grouped, isolated, reused or deduplicated,	unrecorded	-

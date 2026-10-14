@@ -349,8 +349,9 @@ func TestTCBV0011PredicateIsClosedAndNeverRaisesATier(t *testing.T) {
 	if view := requireVerdictRefusal(t, f.input(PredicateTouchedAnchored, "docs/"), CEMVerdictPredicateFailed, "no-governed-hunk"); len(view.Governed) != 0 {
 		t.Fatalf("no hunk lies under docs/: %+v", view.Governed)
 	}
-	// A key without the trailing slash governs only that exact path.
-	requireVerdictRefusal(t, f.input(PredicateTouchedAnchored, "src"), CEMVerdictPredicateFailed, "no-governed-hunk")
+	// A key without the trailing slash governs only that exact path, and one
+	// naming a directory refuses (TCB-V0-023).
+	requireVerdictRefusal(t, f.input(PredicateTouchedAnchored, "src"), CEMVerdictInputInvalid, "touch-key-names-directory")
 }
 
 func TestTCBV0012GrantPinsVerdictAndCitation(t *testing.T) {

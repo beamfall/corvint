@@ -138,11 +138,13 @@ func ExecuteReceipt(ctx context.Context, plan Plan, approved string, tool ToolId
 				if raw.Ordinal == control.Ordinal && raw.Attempt == a.Attempt && len(raw.Omissions) != 0 {
 					a.Reasons = uniqueReasons(append(a.Reasons, raw.Omissions...))
 					a.Status = StatusInvalidControl
+					a.Application = ""
 				}
 			}
 		}
 		if len(control.Attempts) != 0 {
 			control.Status, control.Reasons = aggregateAttempts(control.Attempts, plan.Request.Attempts)
+			control.Application = aggregateApplication(plan.Controls[i], control.Attempts, control.Status)
 		}
 	}
 	recountReport(&r.Report, plan)
@@ -290,7 +292,7 @@ func VerifyReceipt(r EvidenceReceipt, expectedPlan, expectedTool string) error {
 				return invalid()
 			}
 			if a.HookProcess.StdoutSHA256 == "" {
-				if !unobservedAttemptVerifies(plan, control, a) {
+				if !unobservedAttemptVerifies(a) {
 					return invalid()
 				}
 				continue
@@ -331,8 +333,8 @@ func VerifyReceipt(r EvidenceReceipt, expectedPlan, expectedTool string) error {
 			}
 			candidate := a
 			candidate.Reasons = nil
-			status, reasons := classifyAttempt(plan, control, candidate)
-			if status != a.Status || !slices.Equal(reasons, a.Reasons) {
+			status, reasons, application := classifyAttempt(plan, control, candidate)
+			if status != a.Status || !slices.Equal(reasons, a.Reasons) || application != a.Application {
 				return invalid()
 			}
 		}
@@ -359,6 +361,9 @@ func VerifyReceipt(r EvidenceReceipt, expectedPlan, expectedTool string) error {
 		default:
 			return invalid()
 		}
+		if result.Application != aggregateApplication(control, result.Attempts, result.Status) {
+			return invalid()
+		}
 	}
 	if rawIndex != len(r.RawAttempts) {
 		return invalid()
@@ -366,28 +371,21 @@ func VerifyReceipt(r EvidenceReceipt, expectedPlan, expectedTool string) error {
 	want := r.Report
 	recountReport(&want, plan)
 	want.CompleteVocabulary = completeVocabulary(plan.Controls)
-	if !reflect.DeepEqual(want.Counts, r.Report.Counts) || !slices.Equal(want.CoverageGaps, r.Report.CoverageGaps) || want.MutationScore != r.Report.MutationScore || want.Requested != r.Report.Requested || want.Executed != r.Report.Executed || want.Supported != r.Report.Supported || want.CompleteVocabulary != r.Report.CompleteVocabulary || r.Report.Fallback != "full-relevant-suite" {
+	if !reflect.DeepEqual(want.Counts, r.Report.Counts) || !slices.Equal(want.CoverageGaps, r.Report.CoverageGaps) || !slices.Equal(want.InertControls, r.Report.InertControls) || want.MutationScore != r.Report.MutationScore || want.Requested != r.Report.Requested || want.Executed != r.Report.Executed || want.Supported != r.Report.Supported || want.CompleteVocabulary != r.Report.CompleteVocabulary || r.Report.Fallback != "full-relevant-suite" {
 		return invalid()
 	}
 	return nil
 }
 
-// unobservedAttemptVerifies checks an attempt with no observed hook stdout (BBF-V0-018). It is one
-// of the executor's pre-hook shapes, or a hook that never started, whose status is recomputed, so
-// no status value, including one outside the vocabulary, can aggregate into a kill or survivor.
-func unobservedAttemptVerifies(plan Plan, control PlannedControl, a AttemptResult) bool {
-	if a.Receipt != nil || len(a.RetainedArtifacts) != 0 || a.HookProcess.Started {
+// unobservedAttemptVerifies checks an attempt with no observed hook stdout (BBF-V0-018). It
+// carries no receipt, artifacts, application or started hook, and its status is one of the
+// executor's non-scoring outcomes, so no status value, including one outside the vocabulary, can
+// aggregate into a kill or a survivor.
+func unobservedAttemptVerifies(a AttemptResult) bool {
+	if a.Receipt != nil || len(a.RetainedArtifacts) != 0 || a.HookProcess.Started || a.Application != "" {
 		return false
 	}
-	if a.HookProcess == (ProcessEvidence{}) && a.CleanupProcess == (ProcessEvidence{}) && a.WorkspaceAfter == "" {
-		switch {
-		case a.Status == StatusInvalidControl && slices.Equal(a.Reasons, []string{"workspace-baseline-drift"}) && a.WorkspaceBefore == "":
-			return true
-		case a.Status == StatusNotRun && slices.Equal(a.Reasons, []string{"wall-clock-budget-exhausted"}) && a.WorkspaceBefore == plan.WorkspaceSHA256:
-			return true
-		}
-	}
-	return a.WorkspaceBefore == plan.WorkspaceSHA256 && unadmittedStatusVerifies(plan, control, a)
+	return a.Status == StatusInfrastructureFailed || a.Status == StatusInvalidControl || a.Status == StatusNotRun
 }
 
 // unadmittedAttemptVerifies checks an attempt whose retained stdout yielded no admitted hook
@@ -416,19 +414,23 @@ func unadmittedStatusVerifies(plan Plan, control PlannedControl, a AttemptResult
 			candidate.Reasons = append(candidate.Reasons, reason)
 		}
 	}
-	status, reasons := classifyAttempt(plan, control, candidate)
-	return status != StatusKilled && status != StatusSurvived && status == a.Status && slices.Equal(reasons, a.Reasons)
+	status, reasons, application := classifyAttempt(plan, control, candidate)
+	return status != StatusKilled && status != StatusSurvived && status == a.Status && slices.Equal(reasons, a.Reasons) && application == a.Application
 }
 
 func recountReport(r *Report, plan Plan) {
 	r.Counts = allStatusCounts()
 	r.CoverageGaps = nil
+	r.InertControls = nil
 	r.Requested = len(r.Results)
 	r.Executed, r.Supported = 0, 0
 	for _, c := range r.Results {
 		r.Counts[c.Status]++
 		if c.Status != StatusKilled {
 			r.CoverageGaps = append(r.CoverageGaps, c.ID)
+		}
+		if c.Application == ApplicationNotApplied {
+			r.InertControls = append(r.InertControls, c.ID)
 		}
 		if controlExecuted(c) {
 			r.Executed++

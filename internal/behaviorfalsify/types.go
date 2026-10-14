@@ -72,14 +72,48 @@ type Command struct {
 	ExecutableSHA256 string `json:"executable_sha256"`
 }
 
+// Application classifications (BBF-V0-015). They are set only for a control that declares an
+// application marker; an executed control without one has unobserved application.
+const (
+	ApplicationAppliedFailed    = "APPLIED-FAILED"
+	ApplicationAppliedEarlyFail = "APPLIED-EARLY-FAIL"
+	ApplicationAppliedPassed    = "APPLIED-PASSED"
+	ApplicationNotApplied       = "NOT-APPLIED"
+)
+
+// Application marker kinds (BBF-V0-015).
+const (
+	MarkerAnnotation    = "annotation"
+	MarkerProviderEvent = "provider-event"
+)
+
+// maxMarkerObservations bounds the marker observations one hook receipt may report.
+const maxMarkerObservations = 64
+
+// ApplicationMarker is the observation a control declares it emits when its perturbation
+// takes effect: a test annotation type or a provider event name (BBF-V0-015).
+type ApplicationMarker struct {
+	Kind string `json:"kind"`
+	Type string `json:"type"`
+}
+
+// MarkerObservation is one application marker the hook observed during the attempt, naming
+// the control it was emitted for.
+type MarkerObservation struct {
+	Kind      string `json:"kind"`
+	Type      string `json:"type"`
+	ControlID string `json:"control_id"`
+}
+
 type ControlSpec struct {
-	ID                string            `json:"id"`
-	Kind              ControlKind       `json:"kind"`
-	Disposition       string            `json:"disposition"`
-	Definition        map[string]string `json:"definition"`
-	Hook              *Command          `json:"hook,omitempty"`
-	UnrelatedCriteria []string          `json:"unrelated_criteria"`
-	RequiredSetup     []string          `json:"required_setup"`
+	ID                string             `json:"id"`
+	Kind              ControlKind        `json:"kind"`
+	Disposition       string             `json:"disposition"`
+	Definition        map[string]string  `json:"definition"`
+	Hook              *Command           `json:"hook,omitempty"`
+	UnrelatedCriteria []string           `json:"unrelated_criteria"`
+	RequiredSetup     []string           `json:"required_setup"`
+	ApplicationMarker *ApplicationMarker `json:"application_marker,omitempty"`
 }
 
 type Request struct {
@@ -157,6 +191,7 @@ type HookReceipt struct {
 	Setup               []SetupObservation     `json:"setup"`
 	Infrastructure      *InfrastructureFailure `json:"infrastructure,omitempty"`
 	Artifacts           []Artifact             `json:"artifacts"`
+	Markers             []MarkerObservation    `json:"markers,omitempty"`
 }
 
 type ProcessEvidence struct {
@@ -183,15 +218,17 @@ type AttemptResult struct {
 	WorkspaceBefore   string          `json:"workspace_before"`
 	WorkspaceAfter    string          `json:"workspace_after"`
 	RetainedArtifacts []Artifact      `json:"retained_artifacts"`
+	Application       string          `json:"application,omitempty"`
 }
 
 type ControlResult struct {
-	ID       string          `json:"id"`
-	Kind     ControlKind     `json:"kind"`
-	Ordinal  int             `json:"ordinal"`
-	Status   Status          `json:"status"`
-	Reasons  []string        `json:"reasons"`
-	Attempts []AttemptResult `json:"attempts"`
+	ID          string          `json:"id"`
+	Kind        ControlKind     `json:"kind"`
+	Ordinal     int             `json:"ordinal"`
+	Status      Status          `json:"status"`
+	Reasons     []string        `json:"reasons"`
+	Attempts    []AttemptResult `json:"attempts"`
+	Application string          `json:"application,omitempty"`
 }
 
 type MutationScore struct {
@@ -213,6 +250,7 @@ type Report struct {
 	CoverageGaps       []string        `json:"coverage_gaps"`
 	Fallback           string          `json:"fallback"`
 	Limitations        []string        `json:"limitations"`
+	InertControls      []string        `json:"inert_controls,omitempty"`
 	Digest             string          `json:"digest"`
 }
 

@@ -2,7 +2,7 @@
 
 - Owner: Russell Lewis
 - Date: 2026-09-21
-- Intent status: proposed; BBF-V0-018 accepted under the owner's standing auto-accept (2026-10-11) (V1-1367)
+- Intent status: proposed; BBF-V0-015..018 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367)
 - Delivery status: experimental
 - Authoritative inputs: owner requests [issue 54](https://github.com/beamfall/corvint/issues/54) and [issue 167](https://github.com/beamfall/corvint/issues/167),
 `AGENTS.md`, `docs/specs/documentation-corpus-v1.md`, and
@@ -10,8 +10,8 @@
 
 ## Agent digest
 - Claim: An opt-in companion runs digest-approved caller hooks against a marked disposable workspace and emits fail-closed criterion-level falsification receipts.
-- Status: proposed; BBF-V0-018 accepted under the owner's standing auto-accept (2026-10-11) (V1-1367)/experimental; no control result authenticates semantic adequacy or authorizes test-suite narrowing.
-- Exists: the separate experimental planner, approval gate, bounded runner, closed classifier, synthetic conformance fixtures, and opt-in approval-bound evidence export with offline verification; an attempt without an admitted hook receipt keeps its infrastructure or invalid classification with its stdout bound and still verifies (BBF-V0-018).
+- Status: proposed; BBF-V0-015..018 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367)/experimental; no control result authenticates semantic adequacy or authorizes test-suite narrowing.
+- Exists: the separate experimental planner, approval gate, bounded runner, closed classifier, synthetic conformance fixtures, and opt-in approval-bound evidence export with offline verification; optional control application markers classify inert controls as NOT-APPLIED, list them separately and flag repeats across revisions (BBF-V0-015..017); an attempt without an admitted hook receipt keeps its infrastructure or invalid classification with its stdout bound and still verifies (BBF-V0-018).
 - Blocked on: live adopter/browser evidence for each supported control kind and owner acceptance of the proposed contract.
 - Read next: Requirements; Trust and mutation boundary; Acceptance matrix.
 
@@ -90,6 +90,46 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   and hard-coded output paths remain caller-reserved transitive uncertainties. Joined execution
   removes staging; the acceptance parent also removes residues after worker interruption.
 
+- `BBF-V0-015`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1366) A
+  control may declare an optional `application_marker` `{kind, type}`, where `kind` is
+  `annotation` (a test annotation type) or `provider-event` (a provider event name) and `type` is
+  an identifier; an invalid marker refuses the plan. The marker is part of the plan digest, not the
+  perturbation digest. A hook receipt may report at most 64 `markers` observations
+  `{kind, type, control_id}`; a malformed or oversized list is `invalid_control` with
+  `marker-observation-invalid`. For a marked control, an attempt is applied only when an observation
+  matches its kind, type and own control ID; repeats count once and another control's marker never
+  applies. An admitted attempt is then classified `APPLIED-FAILED` (killed), `APPLIED-PASSED`
+  (survived), `APPLIED-EARLY-FAIL` (applied, but a required setup observation failed first, which
+  stays `invalid_control`) or `NOT-APPLIED` (a kill or survivor without the marker). `NOT-APPLIED`
+  is `invalid_control` with `control-not-applied`, so it is never counted as a kill or a survivor
+  and stays outside the mutation-score denominator. Other invalid or infrastructure outcomes carry
+  no application value. A control's application aggregates its attempts: killed or survived
+  carries its applied value; otherwise any `NOT-APPLIED` attempt makes the control `NOT-APPLIED`.
+  The hook reports the markers; they are observations under BBF-V0-012, not independently
+  authenticated native evidence.
+- `BBF-V0-016`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1366) The
+  report lists `NOT-APPLIED` control IDs separately in `inert_controls`; they also remain coverage
+  gaps. Compatibility rule for this profile: `application_marker`, `markers`, `application` and
+  `inert_controls` are optional and omitted when empty, so a plan, report or evidence receipt with
+  no marker is byte-identical to its prior form and still verifies; the six statuses are unchanged.
+  `verify-receipt` recomputes every attempt and control application and the inert list. A control
+  without a marker keeps its prior status, and its application is unobserved, never claimed as
+  applied. The new-e2e acceptance consumer records verified inert controls as `not_applied` and
+  unmarked ones as `application_unobserved`; an inert control adds reason
+  `negative-control-not-applied` and its strength axis abstains as `NOT_MEASURED` with that reason,
+  while an unmarked control leaves the assessment unchanged.
+- `BBF-V0-017`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1366) An
+  inert-control history reads only caller-supplied retained evidence receipts, each with its
+  caller-pinned plan and executable digests, at most 64 per call; no store is read, created or
+  written. Every receipt must pass `verify-receipt`, otherwise the history is refused with
+  `history-receipt-invalid`; an empty or oversized history is refused with
+  `history-bound-exceeded`. The same control is the exact contract, criterion, assertion, test,
+  Playwright project, control ID, control kind and declared marker; hook and perturbation digests
+  are excluded. A revision is the plan's application and test revision pair. A control that is
+  `NOT-APPLIED` at two or more distinct revisions is a control defect with reason
+  `repeated-not-applied` and its sorted revisions; repeats at one revision are not a defect. The
+  result is deterministic and independent of receipt order.
+
 - `BBF-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1367) An
   attempt whose hook stdout yields no admitted hook receipt (the hook timed out, crashed,
   overflowed or otherwise failed its process boundary, or exited cleanly with undecodable output)
@@ -101,11 +141,11 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   only when its retained bytes match the raw and attempt digests, it carries no native report or
   retained artifacts, its workspace baseline is the plan's, its retained bytes do not decode as a
   hook receipt whatever its recorded process outcome, and its status and reasons recompute from
-  its process and cleanup observations. An attempt with no observed stdout verifies only as one of
-  the executor's exact pre-hook shapes (`workspace-baseline-drift` or
-  `wall-clock-budget-exhausted`) or with the status and reasons recomputed for a hook that never
-  started. Neither kind ever verifies as `killed` or `survived`, nor with a status outside the
-  executor's classification. A retained-byte-bound omission still refuses verification.
+  its process and cleanup observations. An attempt with no observed stdout verifies only when
+  its hook never started, it carries no receipt, retained artifacts or application, and its
+  status is `infrastructure_failed`, `invalid_control` or `not_run`. Neither kind ever verifies as
+  `killed`, as `survived`, or with a status outside the vocabulary. A retained-byte-bound omission
+  still refuses verification.
 
 ### Approval-bound evidence wire
 
@@ -172,6 +212,8 @@ always attempted with its own bounded context even after execution failure or ca
 | `receipt-plan-unsafe` | The canonical plan preimage cannot be encoded or fails the secret screen. |
 | `receipt-secret-shaped-data` | The envelope, raw hook output or native report contains secret-shaped data; export refuses without echoing the value. |
 | `receipt-tool-identity-invalid` | The executing companion's name, version, revision or executable digest is missing or malformed. |
+| `history-receipt-invalid` | An inert-control history receipt fails offline verification against its pinned digests. |
+| `history-bound-exceeded` | An inert-control history is empty or holds more than 64 receipts. |
 
 ## Acceptance matrix
 
@@ -183,6 +225,9 @@ always attempted with its own bounded context even after execution failure or ca
 | execution failures | timeout, crash, overflow, cancellation and descendant-cleanup fixtures |
 | immutable binding | stale revision/config/hook/artifact and retry/ordinal adversarial fixtures |
 | aggregate | six raw status counts, nonzero raw mutation denominator and partial-support fallback |
+| application markers | `TestBBFV0015ApplicationClassification`, `TestBBFV0015UnmarkedControlKeepsLegacyClassification`, `TestBBFV0015AggregateApplication`, `TestBBFV0015PlanMarkerValidation` |
+| inert listing and compatibility | `TestBBFV0016InertControlsListedSeparately`, `TestBBFV0016LegacyWireUnchanged`, `TestBBFV0016InertControlAbstainsOnStrength`, `TestBBFV0016ControlApplicationSeparatesInertAndUnobserved` |
+| cross-revision inert defect | `TestBBFV0017RepeatedNotAppliedAcrossRevisions` |
 | approval-bound retained evidence | `TestBBFV0013OfflineReceipt`, `TestBBFV0013ReceiptTampering`, `TestBBFV0013ReceiptFailuresNeverKill`, `TestBBFV0013SecretOutputRefused`, `TestBBFV0013ReceiptApprovalAndBounds`; actual CLI export/verify smoke |
 | attempt without an admitted hook receipt | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
 
@@ -209,6 +254,8 @@ default commands remain unchanged.
 | BBF-V0-014 | acceptance-safe TMPDIR transport | `TestBBFV0014TempRootTransport`, `TestBBFV0014TempRootInterruptedStaging` |
 | BBF-V0-013 | `internal/behaviorfalsify/receipt.go`; companion `execute-receipt` and `verify-receipt` | offline, tampering, missing evidence, secret and bound tests |
 | BBF-V0-011..012 | conformance fixtures and report limitations | end-to-end synthetic command tests and independent review |
+| BBF-V0-015..016 | `internal/behaviorfalsify` classifier, receipt verifier; `internal/testacceptance` consumer | `TestBBFV0015ApplicationClassification`, `TestBBFV0015PlanMarkerValidation`, `TestBBFV0016InertControlsListedSeparately`, `TestBBFV0016LegacyWireUnchanged`, `TestBBFV0016InertControlAbstainsOnStrength` |
+| BBF-V0-017 | `internal/behaviorfalsify/history.go` | `TestBBFV0017RepeatedNotAppliedAcrossRevisions` |
 | BBF-V0-018 | `internal/behaviorfalsify/receipt.go` capture, `unobservedAttemptVerifies` and `unadmittedAttemptVerifies` | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
 
 ## Unresolved decisions and promotion criteria

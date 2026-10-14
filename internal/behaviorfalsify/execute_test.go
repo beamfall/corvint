@@ -111,6 +111,9 @@ func runTestHelper() {
 	case "html-expansion":
 		receipt.Unrelated[0].AssertionID = strings.Repeat("<", 2<<20)
 	}
+	if marker := invocation.Control.ApplicationMarker; marker != nil && invocation.Control.Definition["markers"] == "self" {
+		receipt.Markers = []MarkerObservation{{Kind: marker.Kind, Type: marker.Type, ControlID: invocation.Control.ID}}
+	}
 	encoded, err := Encode(receipt)
 	if err != nil {
 		os.Exit(2)
@@ -228,7 +231,7 @@ func TestBBFV0011SyntheticConformance(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			result := cloneAttempt(base)
 			test.mutate(&result)
-			got, _ := classifyAttempt(plan, control, result)
+			got, _, _ := classifyAttempt(plan, control, result)
 			if got != test.want {
 				t.Fatalf("status = %q, want %q", got, test.want)
 			}
@@ -255,7 +258,7 @@ func TestBBFV0011DistinctSurvivorFixtures(t *testing.T) {
 			result := AttemptResult{Attempt: 1, Receipt: receiptPointer(classificationReceipt(plan, control)), HookProcess: successfulProcess(), CleanupProcess: successfulProcess(), WorkspaceBefore: digestN("workspace"), WorkspaceAfter: digestN("workspace")}
 			result.Receipt.NativeReceiptSHA256 = digestN(fixture.name)
 			survive(&result)
-			if got, _ := classifyAttempt(plan, control, result); got != StatusSurvived {
+			if got, _, _ := classifyAttempt(plan, control, result); got != StatusSurvived {
 				t.Fatalf("fixture %q status = %q", fixture.name, got)
 			}
 		})
@@ -277,7 +280,7 @@ func TestBBFV0006InfrastructureReceiptIsClosed(t *testing.T) {
 		return result
 	}
 	valid := makeInfrastructure()
-	if got, _ := classifyAttempt(plan, control, valid); got != StatusInfrastructureFailed {
+	if got, _, _ := classifyAttempt(plan, control, valid); got != StatusInfrastructureFailed {
 		t.Fatalf("valid infrastructure status = %q", got)
 	}
 	for _, mutate := range []func(*AttemptResult){
@@ -288,7 +291,7 @@ func TestBBFV0006InfrastructureReceiptIsClosed(t *testing.T) {
 	} {
 		candidate := makeInfrastructure()
 		mutate(&candidate)
-		if got, _ := classifyAttempt(plan, control, candidate); got != StatusInvalidControl {
+		if got, _, _ := classifyAttempt(plan, control, candidate); got != StatusInvalidControl {
 			t.Fatalf("contradictory infrastructure status = %q", got)
 		}
 	}
@@ -804,6 +807,7 @@ func cloneAttempt(in AttemptResult) AttemptResult {
 	receipt.Unrelated = append([]CriterionObservation(nil), in.Receipt.Unrelated...)
 	receipt.Setup = append([]SetupObservation(nil), in.Receipt.Setup...)
 	receipt.Artifacts = append([]Artifact(nil), in.Receipt.Artifacts...)
+	receipt.Markers = append([]MarkerObservation(nil), in.Receipt.Markers...)
 	out.Receipt = &receipt
 	out.Reasons = append([]string(nil), in.Reasons...)
 	return out

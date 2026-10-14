@@ -139,6 +139,7 @@ func TestBBFV0018ForgedNilReceiptAttempts(t *testing.T) {
 		}},
 		{"workspace baseline", func(r *EvidenceReceipt) { r.Report.Results[0].Attempts[0].WorkspaceBefore = digestN("other") }},
 		{"omission", func(r *EvidenceReceipt) { r.RawAttempts[0].Omissions = []string{"retained-byte-bound"} }},
+		{"application", func(r *EvidenceReceipt) { r.Report.Results[0].Attempts[0].Application = ApplicationAppliedFailed }},
 	}
 	t.Run("BBF-V0-018 resealed original verifies", func(t *testing.T) {
 		var r EvidenceReceipt
@@ -187,9 +188,15 @@ func TestBBFV0018ForgedUnobservedAndHiddenReceipts(t *testing.T) {
 			a := &r.Report.Results[0].Attempts[0]
 			a.Status = Status("pending")
 		}},
-		{"unobserved attempt as wall-clock not_run", plan, staged, func(r *EvidenceReceipt) {
+		{"unobserved attempt as kill", plan, staged, func(r *EvidenceReceipt) {
 			a := &r.Report.Results[0].Attempts[0]
-			a.Status, a.Reasons = StatusNotRun, []string{"wall-clock-budget-exhausted"}
+			a.Status, a.Reasons = StatusKilled, []string{"expected-assertion-failed"}
+		}},
+		{"unobserved attempt with started hook", plan, staged, func(r *EvidenceReceipt) {
+			r.Report.Results[0].Attempts[0].HookProcess.Started = true
+		}},
+		{"unobserved attempt with application", plan, staged, func(r *EvidenceReceipt) {
+			r.Report.Results[0].Attempts[0].Application = ApplicationAppliedFailed
 		}},
 		{"admitted receipt hidden behind forged timeout", killedPlan, killed, func(r *EvidenceReceipt) {
 			a := &r.Report.Results[0].Attempts[0]
