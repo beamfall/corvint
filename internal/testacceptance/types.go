@@ -104,6 +104,10 @@ type Control struct {
 	Status        string                           `json:"status"`
 	Unsupported   []string                         `json:"unsupported"`
 	Cleanup       Cleanup                          `json:"cleanup"`
+	// NotApplied lists verified BBF controls whose declared application marker was never
+	// observed; ApplicationUnobserved lists controls that declare no marker (BBF-V0-016).
+	NotApplied            []string `json:"not_applied,omitempty"`
+	ApplicationUnobserved []string `json:"application_unobserved,omitempty"`
 }
 type Assessment struct {
 	ID       string                  `json:"id"`

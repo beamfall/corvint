@@ -26,8 +26,13 @@ const (
 	Ref = "refs/notes/corvint"
 	// ForeignRef is the Git AI authorship-log notes ref, read only.
 	ForeignRef = "refs/notes/ai"
-	// PointerSchema names the one pointer shape Anchor writes.
-	PointerSchema = "corvint-cem-anchor/0"
+	// PointerSchema names the one pointer shape Anchor writes: the
+	// scope-bound pointer that also carries the map's base, its patch digest
+	// and the anchored commit's tree (CEM-V1-067).
+	PointerSchema = "corvint-cem-anchor/1"
+	// LegacyPointerSchema is the unscoped pointer Anchor wrote before
+	// CEM-V1-067. It stays readable and is never reported `verified`.
+	LegacyPointerSchema = "corvint-cem-anchor/0"
 	// Trust is contextindex.TrustRepositoryHistory: every row here is a
 	// relation read from history, never proof and never project authority.
 	Trust = "repository-history"
@@ -52,6 +57,8 @@ const (
 	CodeMapDirty        = "anchor-map-dirty"
 	CodeBlobUnavailable = "anchor-blob-unavailable"
 	CodeNoteConflict    = "anchor-note-conflict"
+	CodeScopeMismatch   = "anchor-scope-mismatch"
+	CodeNotesMoved      = "provenance-notes-moved"
 )
 
 // committer is the fixed identity of the notes commit Anchor creates: the
@@ -62,6 +69,9 @@ type repository struct {
 	root   string
 	gitDir string
 	budget *gitrun.Budget
+	// cem derives the canonical CEM patch with the one recipe every CEM
+	// consumer uses (gitauth.CanonicalDiff).
+	cem *gitauth.Repository
 }
 
 // open validates root with the CEM repository boundary (worktree, reciprocal
@@ -72,7 +82,7 @@ func open(root string) (*repository, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &repository{root: opened.Root, gitDir: opened.GitDir, budget: budget}, nil
+	return &repository{root: opened.Root, gitDir: opened.GitDir, budget: budget, cem: opened}, nil
 }
 
 func (r *repository) git(ctx context.Context, limit int, stdin []byte, args ...string) ([]byte, error) {
