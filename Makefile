@@ -435,3 +435,10 @@ tasks-build: go-version
 tasks-test: go-version
 	$(GO_TEST_COMMAND) ./cmd/corvint-tasks/... ./internal/tasks/...
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go vet ./cmd/corvint-tasks/... ./internal/tasks/...
+
+# shell-test is the shell full command .github/cishards/test-commands.json declares (STR-V0-004):
+# exactly the GATE_STEPS steps whose recipe runs a script/*_test.sh, so it runs the shell suites
+# make gate runs and no others. TestSTRV0004ShellTestIsTheGateShellSteps
+# (tools/test-commands-check) keeps the two lists equal.
+.PHONY: shell-test
+shell-test: go-format-test go-archive-gate-test spec-requirements-test traceability-tests-test decision-numbers-test instruction-conflicts-test eol-policy-test license-headers-test line-citations-test ci-least-privilege-test release-checklist-test gate-receipt-test error-code-ownership-test host-package-versions-test no-python-runtime-dependency-test

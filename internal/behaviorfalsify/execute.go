@@ -36,7 +36,7 @@ func Execute(ctx context.Context, plan Plan, approvedDigest string) (Report, err
 	return execute(ctx, plan, approvedDigest, nil)
 }
 
-func execute(ctx context.Context, plan Plan, approvedDigest string, capture func(PlannedControl, int, []byte)) (Report, error) {
+func execute(ctx context.Context, plan Plan, approvedDigest string, capture func(PlannedControl, AttemptResult, []byte)) (Report, error) {
 	if approvedDigest == "" || approvedDigest != plan.Digest {
 		return Report{}, errors.New("operator-authorization-required")
 	}
@@ -89,6 +89,9 @@ func execute(ctx context.Context, plan Plan, approvedDigest string, capture func
 		}
 		report.Results = append(report.Results, result)
 		report.Counts[result.Status]++
+		if result.Application == ApplicationNotApplied {
+			report.InertControls = append(report.InertControls, result.ID)
+		}
 		if result.Status != StatusKilled {
 			report.CoverageGaps = append(report.CoverageGaps, result.ID)
 		}
@@ -105,7 +108,7 @@ func execute(ctx context.Context, plan Plan, approvedDigest string, capture func
 	return report, nil
 }
 
-func executeControl(ctx context.Context, plan Plan, control PlannedControl, deadline time.Time, capture func(PlannedControl, int, []byte)) ControlResult {
+func executeControl(ctx context.Context, plan Plan, control PlannedControl, deadline time.Time, capture func(PlannedControl, AttemptResult, []byte)) ControlResult {
 	result := ControlResult{ID: control.ID, Kind: control.Kind, Ordinal: control.Ordinal}
 	for attempt := 1; attempt <= plan.Request.Attempts; attempt++ {
 		if ctx.Err() != nil || time.Until(deadline) <= cleanupReserve {
@@ -118,10 +121,11 @@ func executeControl(ctx context.Context, plan Plan, control PlannedControl, dead
 		}
 	}
 	result.Status, result.Reasons = aggregateAttempts(result.Attempts, plan.Request.Attempts)
+	result.Application = aggregateApplication(control, result.Attempts, result.Status)
 	return result
 }
 
-func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, attempt int, deadline time.Time, capture func(PlannedControl, int, []byte)) AttemptResult {
+func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, attempt int, deadline time.Time, capture func(PlannedControl, AttemptResult, []byte)) AttemptResult {
 	result := AttemptResult{Attempt: attempt}
 	before, err := workspaceDigest(plan.Request.DisposableRoot)
 	if err != nil || before != plan.WorkspaceSHA256 {
@@ -142,9 +146,6 @@ func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, atte
 		return result
 	}
 	hookRaw, hookProcess := runPinned(ctx, *control.Hook, plan.Request.DisposableRoot, plan.Request.DeclaredEnvKeys, "control", input, timeout, receiptOutputLimit(plan, control))
-	if capture != nil {
-		capture(control, attempt, hookRaw)
-	}
 	result.HookProcess = hookProcess
 	var receipt HookReceipt
 	if processSucceeded(hookProcess) {
@@ -159,6 +160,10 @@ func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, atte
 	} else {
 		result.Reasons = append(result.Reasons, "hook-process-failed")
 	}
+	// Capture after admission, before cleanup removes declared native reports (BBF-V0-018).
+	if capture != nil {
+		capture(control, result, hookRaw)
+	}
 	cleanupTimeout := minDuration(cleanupExecutionTimeout, time.Until(deadline)-processShutdownAllowance)
 	if cleanupTimeout <= 0 {
 		cleanupTimeout = time.Nanosecond
@@ -171,34 +176,91 @@ func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, atte
 	if digestErr != nil || after != before {
 		result.Reasons = append(result.Reasons, "workspace-cleanup-mismatch")
 	}
-	result.Status, result.Reasons = classifyAttempt(plan, control, result)
+	result.Status, result.Reasons, result.Application = classifyAttempt(plan, control, result)
 	return result
 }
 
-func classifyAttempt(plan Plan, control PlannedControl, result AttemptResult) (Status, []string) {
+// classifyAttempt returns the attempt status, its reasons and, for a control that declares an
+// application marker, its application classification (BBF-V0-015).
+func classifyAttempt(plan Plan, control PlannedControl, result AttemptResult) (Status, []string, string) {
 	reasons := slices.Clone(result.Reasons)
 	if !processSucceeded(result.HookProcess) {
-		return StatusInfrastructureFailed, uniqueReasons(append(reasons, "execution-boundary-failed"))
+		return StatusInfrastructureFailed, uniqueReasons(append(reasons, "execution-boundary-failed")), ""
 	}
 	if !processSucceeded(result.CleanupProcess) || result.WorkspaceAfter == "" || result.WorkspaceAfter != result.WorkspaceBefore {
-		return StatusInvalidControl, uniqueReasons(append(reasons, "cleanup-invalid"))
+		return StatusInvalidControl, uniqueReasons(append(reasons, "cleanup-invalid")), ""
 	}
 	if result.Receipt == nil || len(reasons) != 0 {
-		return StatusInvalidControl, uniqueReasons(reasons)
+		return StatusInvalidControl, uniqueReasons(reasons), ""
 	}
 	receipt := *result.Receipt
 	if receipt.Schema != HookSchema || receipt.PlanDigest != plan.Digest || receipt.PerturbationSHA256 != control.PerturbationSHA256 || receipt.Attempt != result.Attempt || receipt.Retry != 0 || !digestPattern.MatchString(receipt.NativeReceiptSHA256) {
-		return StatusInvalidControl, []string{"receipt-binding-mismatch"}
+		return StatusInvalidControl, []string{"receipt-binding-mismatch"}, ""
 	}
 	if !reflect.DeepEqual(receipt.Target, plan.Request.Target) || !reflect.DeepEqual(receipt.Runner, plan.Request.Runner) {
-		return StatusInvalidControl, []string{"execution-identity-mismatch"}
+		return StatusInvalidControl, []string{"execution-identity-mismatch"}, ""
+	}
+	if !validMarkerObservations(receipt.Markers) {
+		return StatusInvalidControl, []string{"marker-observation-invalid"}, ""
 	}
 	if receipt.Infrastructure != nil {
 		if !validInfrastructureReceipt(plan, receipt) {
-			return StatusInvalidControl, []string{"infrastructure-receipt-invalid"}
+			return StatusInvalidControl, []string{"infrastructure-receipt-invalid"}, ""
 		}
-		return StatusInfrastructureFailed, []string{"playwright-infrastructure"}
+		return StatusInfrastructureFailed, []string{"playwright-infrastructure"}, ""
 	}
+	status, reasons := classifyObservations(plan, control, receipt)
+	return classifyApplication(control, receipt, status, reasons)
+}
+
+// classifyApplication applies a declared application marker to an admitted receipt's outcome.
+// A target outcome without this control's own marker is NOT-APPLIED and never counts as a kill
+// or a survivor; an applied control whose required setup failed is APPLIED-EARLY-FAIL.
+func classifyApplication(control PlannedControl, receipt HookReceipt, status Status, reasons []string) (Status, []string, string) {
+	marker := control.ApplicationMarker
+	if marker == nil {
+		return status, reasons, ""
+	}
+	applied := false
+	for _, observed := range receipt.Markers {
+		if observed.Kind == marker.Kind && observed.Type == marker.Type && observed.ControlID == control.ID {
+			applied = true
+		}
+	}
+	earlyFailure := false
+	for _, setup := range receipt.Setup {
+		if setup.State == "failed" && slices.Contains(control.RequiredSetup, setup.ID) {
+			earlyFailure = true
+		}
+	}
+	switch {
+	case !applied && (status == StatusKilled || status == StatusSurvived):
+		return StatusInvalidControl, []string{"control-not-applied"}, ApplicationNotApplied
+	case !applied:
+		return status, reasons, ""
+	case status == StatusKilled:
+		return status, reasons, ApplicationAppliedFailed
+	case status == StatusSurvived:
+		return status, reasons, ApplicationAppliedPassed
+	case earlyFailure:
+		return status, reasons, ApplicationAppliedEarlyFail
+	}
+	return status, reasons, ""
+}
+
+func validMarkerObservations(markers []MarkerObservation) bool {
+	if len(markers) > maxMarkerObservations {
+		return false
+	}
+	for _, observed := range markers {
+		if !validMarker(observed.Kind, observed.Type) || !idPattern.MatchString(observed.ControlID) {
+			return false
+		}
+	}
+	return true
+}
+
+func classifyObservations(plan Plan, control PlannedControl, receipt HookReceipt) (Status, []string) {
 	if !observationsMatch(receipt.Unrelated, control.UnrelatedCriteria) {
 		return StatusInvalidControl, []string{"unrelated-criterion-failed-or-missing"}
 	}
@@ -381,6 +443,30 @@ func aggregateAttempts(attempts []AttemptResult, expected int) (Status, []string
 	return StatusKilled, []string{"every-attempt-killed"}
 }
 
+// aggregateApplication is a marked control's application over its attempts: a kill or survivor
+// carries its applied outcome; otherwise any NOT-APPLIED attempt makes the control inert.
+func aggregateApplication(control PlannedControl, attempts []AttemptResult, status Status) string {
+	if control.ApplicationMarker == nil {
+		return ""
+	}
+	switch status {
+	case StatusKilled:
+		return ApplicationAppliedFailed
+	case StatusSurvived:
+		return ApplicationAppliedPassed
+	}
+	application := ""
+	for _, attempt := range attempts {
+		if attempt.Application == ApplicationNotApplied {
+			return ApplicationNotApplied
+		}
+		if attempt.Application == ApplicationAppliedEarlyFail {
+			application = ApplicationAppliedEarlyFail
+		}
+	}
+	return application
+}
+
 func controlExecuted(result ControlResult) bool {
 	for _, attempt := range result.Attempts {
 		if attempt.HookProcess.Started {
@@ -409,9 +495,9 @@ func receiptOutputLimit(plan Plan, control PlannedControl) int {
 func acceptedReceiptBound(control PlannedControl) int {
 	// Every string the validators accept is at most 4096 bytes: 15 target, runner and
 	// target-observation identities, one infrastructure detail, 64 artifact paths, two IDs per
-	// unrelated observation and one per setup observation. The factor two leaves room for JSON
+	// unrelated observation, one per setup observation and three per marker observation. The factor two leaves room for JSON
 	// framing, digests and escaping.
-	strings := 15 + 1 + 64 + 2*len(control.UnrelatedCriteria) + len(control.RequiredSetup)
+	strings := 15 + 1 + 64 + 2*len(control.UnrelatedCriteria) + len(control.RequiredSetup) + 3*maxMarkerObservations
 	return 2 * strings * 4096
 }
 

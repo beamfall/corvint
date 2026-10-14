@@ -90,6 +90,10 @@ func canonicalRequest(request Request) Request {
 		request.Controls[index].RequiredSetup = append([]string(nil), request.Controls[index].RequiredSetup...)
 		slices.Sort(request.Controls[index].UnrelatedCriteria)
 		slices.Sort(request.Controls[index].RequiredSetup)
+		if marker := request.Controls[index].ApplicationMarker; marker != nil {
+			clone := *marker
+			request.Controls[index].ApplicationMarker = &clone
+		}
 	}
 	sort.Slice(request.Controls, func(i, j int) bool { return request.Controls[i].ID < request.Controls[j].ID })
 	request.Repositories.Application = resolvePath(request.Repositories.Application)
@@ -194,6 +198,9 @@ func validateControl(target TargetIdentity, control ControlSpec) error {
 	if len(control.UnrelatedCriteria) > maxControlListLength || len(control.RequiredSetup) > maxControlListLength {
 		return errors.New("unrelated criteria or required setup list too long")
 	}
+	if marker := control.ApplicationMarker; marker != nil && !validMarker(marker.Kind, marker.Type) {
+		return errors.New("invalid application marker")
+	}
 	switch control.Disposition {
 	case "run":
 		if control.Hook == nil {
@@ -210,6 +217,10 @@ func validateControl(target TargetIdentity, control ControlSpec) error {
 		return errors.New("invalid control disposition")
 	}
 	return nil
+}
+
+func validMarker(kind, markerType string) bool {
+	return (kind == MarkerAnnotation || kind == MarkerProviderEvent) && idPattern.MatchString(markerType)
 }
 
 func validateWorkspace(request Request) error {
