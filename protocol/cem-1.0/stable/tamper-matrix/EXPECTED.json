@@ -487,6 +487,88 @@
       "outcome": "REJECT",
       "stage": "wire",
       "tamper": "BasisPairDuplicate"
+    },
+    {
+      "citation": {
+        "annotationHunks": 0,
+        "concentratedHunks": 2,
+        "distinctEvidence": 2,
+        "evidenceFanOut": [
+          [
+            "evidence:sha256:512cfcdddc9043ee5d7a889448c1c8cfee758ff14d1aa70e9aafbc126eddd3ad",
+            1
+          ],
+          [
+            "evidence:sha256:9c6ad279a82176c4feff02d0b51a4b9847f6695747cc814492e59c03a48d22d4",
+            1
+          ]
+        ],
+        "hunks": [
+          {
+            "anchors": [
+              "id",
+              "path"
+            ],
+            "annotation": false,
+            "hunkId": "hunk:sha256:aa9222a34920b591beba13d439aac0bfe6526f0f7167adc6255d212ad18d0694",
+            "tier": "anchored"
+          },
+          {
+            "anchors": [
+              "id",
+              "path"
+            ],
+            "annotation": false,
+            "hunkId": "hunk:sha256:d335b764312c7f0e24670877e1a0b626142bf723bc9cae5a1e096eab2bd15eb8",
+            "tier": "anchored"
+          }
+        ],
+        "hunksByClass": {
+          "anchored": 2,
+          "cited": 0,
+          "held": 0,
+          "mechanical-proved": 0,
+          "unknown": 0
+        },
+        "invariant": false,
+        "maxFanOut": 1,
+        "profile": "cem-citation-support/0",
+        "samePathCitations": 0,
+        "specificity": 2
+      },
+      "code": null,
+      "description": "the first hunk carries a discriminates witness whose mutants equal bounds.maxMutants (1 of 1, killed); the boundary is admitted",
+      "exit": 0,
+      "issueCodes": [],
+      "map": "cases/discrimination-at-bound.json",
+      "name": "discrimination-at-bound",
+      "outcome": "ACCEPT",
+      "stage": "complete",
+      "tamper": "DiscriminationAtBound"
+    },
+    {
+      "citation": null,
+      "code": "invalid-field",
+      "description": "the first hunk claims 1000000 mutants, all killed, under bounds.maxMutants 1",
+      "exit": 2,
+      "issueCodes": [],
+      "map": "cases/discrimination-mutants-over-bound.json",
+      "name": "discrimination-mutants-over-bound",
+      "outcome": "REJECT",
+      "stage": "wire",
+      "tamper": "DiscriminationBoundExceeded"
+    },
+    {
+      "citation": null,
+      "code": "invalid-field",
+      "description": "the first hunk claims survived 2 but describes one survivor",
+      "exit": 2,
+      "issueCodes": [],
+      "map": "cases/discrimination-survivors-inconsistent.json",
+      "name": "discrimination-survivors-inconsistent",
+      "outcome": "REJECT",
+      "stage": "wire",
+      "tamper": "DiscriminationSurvivorMismatch"
     }
   ],
   "profile": "cem-stable-tamper-matrix/1",
