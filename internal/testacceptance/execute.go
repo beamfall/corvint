@@ -138,6 +138,7 @@ func RunWorker(ctx context.Context, j Job) WorkerResult {
 		if r.Schema == FreshRequestSchema {
 			c.Evidence = &receipt
 		}
+		c.NotApplied, c.ApplicationUnobserved = controlApplication(*t.Control, receipt)
 		c.Status = "blocked"
 		if receipt.Report.Counts[behaviorfalsify.StatusSurvived] > 0 {
 			c.Status = "survived"
