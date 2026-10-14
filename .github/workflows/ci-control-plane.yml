@@ -11,6 +11,12 @@ name: CI control plane
 # this check on their own head before they could be queued. The required context must also
 # report on that commit or the queue never merges, so the second job posts `success` on it,
 # only for a `merge_group` run whose branch is a queue branch of `main`.
+#
+# The forward-rows job (AFP-V0-047) records one AFP-V0-029 forward row per completed merge-queue
+# or pull-request run, as an artifact only. It holds `actions: read` and `contents: read`, posts
+# no status, reads small artifacts with gh and jq, and runs only `.github/forward-rows` from this
+# default-branch commit, never code of the tested commit. Nothing reads the rows to narrow tests
+# before V1-0812.
 
 on:
   workflow_run:
@@ -88,3 +94,50 @@ jobs:
             -f context=ci-control-plane -f description="merge-queue entry; each queued PR passed this check on its own head" \
             -f target_url="$RUN_URL" >/dev/null
           echo "ci-control-plane: success posted on merge-queue commit $HEAD"
+
+  forward-rows:
+    if: >-
+      (github.event.workflow_run.event == 'merge_group' || github.event.workflow_run.event == 'pull_request') &&
+      (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    env:
+      # Must equal the go-product-shard matrix length and CORVINT_PR_FORWARD_EPOCH in ci.yml.
+      FORWARD_SHARDS: "8"
+      FORWARD_EPOCH: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # The default-branch commit this workflow_run runs from, not the tested commit.
+          ref: ${{ github.sha }}
+          path: trusted
+          sparse-checkout: .github/forward-rows
+          persist-credentials: false
+      - name: Classify the run's forward row
+        id: row
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          EVENT: ${{ github.event.workflow_run.event }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: sh trusted/.github/forward-rows/collect.sh
+      - name: Retain the forward row
+        if: steps.row.outputs.name != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.row.outputs.name }}
+          path: ${{ runner.temp }}/forward-row/row.json
+          if-no-files-found: error
+      - name: Count the epoch's latest rows against the shadow bar (V1-0811)
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: sh trusted/.github/forward-rows/bar.sh

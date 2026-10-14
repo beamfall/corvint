@@ -83,8 +83,8 @@ func TestSTRV0012CIConstantsMatchFullBranch(t *testing.T) {
 			t.Fatalf("full-branch go test %q does not start with %q", strings.TrimSpace(line), prefix)
 		}
 	}
-	if invocations != 2 {
-		t.Fatalf("go-product-shard runs %d go test lines, want the whole-package and slice invocations", invocations)
+	if invocations != 3 {
+		t.Fatalf("go-product-shard runs %d go test lines, want the whole-package, slice and AFP-V0-047 rerun invocations", invocations)
 	}
 	// The shard budget ends before the job timeout, with room for checkout,
 	// toolchain and tool builds, so the runner, not the job, kills a slow shard.

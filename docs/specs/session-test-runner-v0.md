@@ -13,8 +13,8 @@ Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 
 ## Agent digest
 - Claim: `corvint test` plans from the diff, runs only selected tests through runner adapters, shards deterministically, and falls back alike locally and in CI.
 - Status: accepted (decision 0524; V1-0040)/experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate; slice 3: `make gate-affected` on `corvint test`, CI shadow dry-run beside the driver)
-- Exists: `corvint test` (`cmd/corvint/test.go`, `internal/sessiontest`), behind `make gate-affected` through `script/gate-affected-corvint.sh` (slice 3; `script/gate-affected.sh` stays as the rollback); in CI a shadow `--profile ci --dry-run` step beside the deciding driver `tools/corvint-pr-tests` with `tools/gate-affected-select`, inactive while the trusted pins are empty; `.github/cishards` (complete-universe partition and test slices), `cmd/corvint-go-test-provider` (experimental Go execute provider).
-- Blocked on: owner AFP-V0-016 consent for the slice-3 `.github/workflows/ci.yml` shadow step; the AFP-V0-029 shadow bar (zero shadow rows: the trusted pins are empty) before `corvint test` decides or narrows anything in CI; STR-V0-013 parity is measured over the retained `tools/str-parity/testdata/pairs-645304a2.txt` corpus (decision 0526; the AFP-V0-011 list and AFP-V0-029 rows stay `NOT_OBSERVED`); the full-suite commands are declared in `.github/cishards/test-commands.json`, kept equal to `make go-test` by `make test-commands-check`; AFP-V0-029 shadow bar for any CI narrowing, which this spec does not relax.
+- Exists: `corvint test` (`cmd/corvint/test.go`, `internal/sessiontest`), behind `make gate-affected` through `script/gate-affected-corvint.sh` (slice 3; `script/gate-affected.sh` stays as the rollback); in CI a shadow `--profile ci --dry-run` step beside the deciding driver `tools/corvint-pr-tests` with `tools/gate-affected-select`, built from its own pin `CORVINT_TEST_SHADOW_SOURCE` (AFP-V0-047) while the driver pins stay empty, so it plans and retains each PR shard's selection without deciding; `.github/cishards` (complete-universe partition and test slices), `cmd/corvint-go-test-provider` (experimental Go execute provider).
+- Blocked on: owner AFP-V0-016 consent for the slice-3 `.github/workflows/ci.yml` shadow step; the AFP-V0-029 shadow bar (rows accumulate from AFP-V0-047; hosted rows `NOT_OBSERVED`) before `corvint test` decides or narrows anything in CI; STR-V0-013 parity is measured over the retained `tools/str-parity/testdata/pairs-645304a2.txt` corpus (decision 0526; the AFP-V0-011 list and AFP-V0-029 rows stay `NOT_OBSERVED`); the full-suite commands are declared in `.github/cishards/test-commands.json`, kept equal to `make go-test` by `make test-commands-check`; AFP-V0-029 shadow bar for any CI narrowing, which this spec does not relax.
 - Read next: Requirements; Boundaries and failure modes; Rollout and rollback.
 
 ## User and verified baseline
@@ -229,8 +229,10 @@ of every requirement below and the binding gate until this spec is promoted.
   --placement universe --dry-run` for each shard, retained as an artifact, while
   `tools/corvint-pr-tests` keeps deciding and executing and CI narrowing is unchanged.
   `CORVINT_PR_FORWARD_EPOCH` is introduced at `1` in the `go-product-shard` job environment;
-  the advance is vacuous, since no forward shadow row exists in any epoch, and the shadow step
-  itself adds none while the trusted pins are empty.
+  the advance was vacuous, since no forward shadow row existed in any epoch. AFP-V0-047 builds
+  the shadow planner from its own pin `CORVINT_TEST_SHADOW_SOURCE`, so the shadow runs on every
+  PR shard while the driver pins stay empty, and its retained selections are the first rows of
+  epoch `1`; the shadow still never decides, executes or narrows.
 - `STR-V0-014`: A hangup, interrupt or termination SHALL kill every owned process group, exit
   nonzero and write an `INCOMPLETE` receipt; it MUST NOT start the fallback.
 - `STR-V0-015`: The run SHALL be bounded: the plan's existing walk and status bounds, at most 4096
@@ -353,9 +355,11 @@ above, which removes balanced placement only.
 2. Parity report (STR-V0-013); then `make gate-affected` calls `corvint test`. Done: the parity
    report (slice 2, decision 0526), and the call site (slice 3, `script/gate-affected-corvint.sh`).
 3. CI call site behind AFP-V0-016 consent with a new forward epoch; shadow first, as AFP-V0-029.
-   Slice 3 adds the shadow `--dry-run` step and `CORVINT_PR_FORWARD_EPOCH: "1"`, pending owner
-   consent; the step is inactive while the trusted pins are empty, so the AFP-V0-029 bar has zero
-   rows and the driver still decides.
+   Slice 3 adds the shadow `--dry-run` step and `CORVINT_PR_FORWARD_EPOCH: "1"`. The shadow now
+   runs: AFP-V0-047 builds it from `CORVINT_TEST_SHADOW_SOURCE`, outside the tested checkout and
+   apart from the empty driver pins, and retains each PR shard's selection for the AFP-V0-029
+   forward rows. Step 3 remains a shadow, NOT promoted: the Go tests step still executes every
+   shard in full, and nothing narrows until the AFP-V0-029 bar is met and V1-0812 lands.
 4. Balanced placement executes locally; in CI it is computed and retained while universe
    placement executes, until an accepted AFP-V0-028 amendment says otherwise.
 5. Further adapters, each with its own fixture qualification, before its language may narrow.
@@ -365,7 +369,7 @@ which this spec leaves in place until step 3 is promoted. For slice 3: point the
 target back at `GO_TEST_COMMAND='$(GO_TEST_COMMAND)' script/gate-affected.sh "$(BASE)"` (the
 script and its test stay in the tree, and `gate-affected-test` still runs it), and delete the two
 shadow steps and `CORVINT_PR_FORWARD_EPOCH` from `.github/workflows/ci.yml`, which changes no CI
-decision; `CORVINT_PR_NARROWING=off` restores full
+decision (clearing `CORVINT_TEST_SHADOW_SOURCE` alone stops the shadow, AFP-V0-047); `CORVINT_PR_NARROWING=off` restores full
 CI immediately (AFP-V0-030). Removing the command removes no other capability.
 
 ## Traceability
@@ -383,11 +387,11 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-009 | `internal/sessiontest/verify.go`, `corvint test verify-shards` | TestSTRV0009VerifyShardsMatrix, TestSTRV0009CLIShardsAndVerify |
 | STR-V0-010 | `Receipt`, `Finish`, `testWriteReceipt` | TestSTRV0011FinishResultAndSummary, TestSTRV0018ManifestStrictRoundTrip, TestSTRV0010CLIRunWritesReceipt |
 | STR-V0-011 | no reader other than `verify-shards` | by construction; no test asserts absence of other readers |
-| STR-V0-012 | `--profile ci` argv and environment on the same code path (`ciGoEnv`, `ciGoFlags` in `run.go`); the ci branch of `declaredLanguage` in `plan.go` (declared commands to `checks`); `gate-affected` in `Makefile` over `script/gate-affected-corvint.sh` | TestSTRV0006Invocations; `internal/sessiontest/ciconstants_test.go` TestSTRV0012CIConstantsMatchFullBranch (job env and both full-branch `go test` lines of `go-product-shard`); TestSTRV0003BuildVerdicts (two ci-profile cases: a declared command and a make target become `checks`); `script/gate-affected-corvint_test.sh` via `make gate-affected-test` (clean, narrowed, `go.mod` FULL, committed range, failing test, bad and option-shaped BASE, SIGTERM forwarding); `docs/build-log/2026-10-12-session-test-runner-slice-3.md` (a real `make gate-affected` run); CI admission (pinned build, queue backstop, trip) stays the driver's, and the shadow step has never run: `NOT_RUN` |
-| STR-V0-013 | `tools/str-parity` (offline replay of `corvint test --dry-run` against `script/gate-affected.sh` and `tools/corvint-pr-tests` over `tools/str-parity/testdata/pairs-645304a2.txt`); slice 3: the local call site switched, and the shadow steps and `CORVINT_PR_FORWARD_EPOCH` in `.github/workflows/ci.yml` | `tools/str-parity/main_test.go` TestSTRV0013ParityReading, TestSTRV0013CorpusReading; `docs/build-log/2026-10-11-session-test-runner-parity.md` and `docs/build-log/2026-10-12-session-test-runner-declaration.md`: the retained 50-pair corpus, no `UNEXPLAINED` difference; the AFP-V0-011 list and the AFP-V0-029 shadow rows are `NOT_OBSERVED`, and the AFP-V0-029 shadow bar is still owed before CI narrowing; `docs/build-log/2026-10-12-session-test-runner-slice-3.md`: zero shadow rows, a vacuous epoch advance |
+| STR-V0-012 | `--profile ci` argv and environment on the same code path (`ciGoEnv`, `ciGoFlags` in `run.go`); the ci branch of `declaredLanguage` in `plan.go` (declared commands to `checks`); `gate-affected` in `Makefile` over `script/gate-affected-corvint.sh` | TestSTRV0006Invocations; `internal/sessiontest/ciconstants_test.go` TestSTRV0012CIConstantsMatchFullBranch (job env and both full-branch `go test` lines of `go-product-shard`); TestSTRV0003BuildVerdicts (two ci-profile cases: a declared command and a make target become `checks`); `script/gate-affected-corvint_test.sh` via `make gate-affected-test` (clean, narrowed, `go.mod` FULL, committed range, failing test, bad and option-shaped BASE, SIGTERM forwarding); `docs/build-log/2026-10-12-session-test-runner-slice-3.md` (a real `make gate-affected` run); CI admission (pinned build, queue backstop, trip) stays the driver's, and the shadow step runs from `CORVINT_TEST_SHADOW_SOURCE` (AFP-V0-047; `TestAFPV0047WorkflowBindings`), with its first hosted run `NOT_OBSERVED` |
+| STR-V0-013 | `tools/str-parity` (offline replay of `corvint test --dry-run` against `script/gate-affected.sh` and `tools/corvint-pr-tests` over `tools/str-parity/testdata/pairs-645304a2.txt`); slice 3: the local call site switched, and the shadow steps and `CORVINT_PR_FORWARD_EPOCH` in `.github/workflows/ci.yml` | `tools/str-parity/main_test.go` TestSTRV0013ParityReading, TestSTRV0013CorpusReading; `docs/build-log/2026-10-11-session-test-runner-parity.md` and `docs/build-log/2026-10-12-session-test-runner-declaration.md`: the retained 50-pair corpus, no `UNEXPLAINED` difference; the AFP-V0-011 list and the AFP-V0-029 shadow rows are `NOT_OBSERVED`, and the AFP-V0-029 shadow bar is still owed before CI narrowing; `docs/build-log/2026-10-12-session-test-runner-slice-3.md`: zero shadow rows, a vacuous epoch advance; `docs/build-log/2026-10-13-ci-forward-rows.md`: the AFP-V0-047 shadow pin and forward rows, hosted rows `NOT_OBSERVED` |
 | STR-V0-014 | `internal/sessiontest/procgroup_unix.go`, `testExecute`; signal forwarding in `script/gate-affected-corvint.sh` | TestSTRV0014RunnerCancelAndBudgetKillGroup, TestSTRV0014CLISignalKillsRunAndExits; `script/gate-affected-corvint_test.sh` (SIGTERM reaches the running corvint, exit 143) |
 | STR-V0-015 | `MaxUnits`, `MaxDocumentBytes`, `DefaultBudget`, `CIBudget`, `Runner.ShardBudget` (one deadline per shard in `Execute`) | TestSTRV0015UnitBound, TestSTRV0014RunnerCancelAndBudgetKillGroup, TestSTRV0015BudgetBoundsTheShard, TestSTRV0012CIConstantsMatchFullBranch (the ci budget against the job's `timeout-minutes`) |
-| STR-V0-016 | local profile claims no containment (help text); the slice-3 shadow steps run under the workflow's existing read-only permissions with no persisted credentials | help text; `make ci-least-privilege-check`; no CI run has executed the shadow step: `NOT_RUN` |
+| STR-V0-016 | local profile claims no containment (help text); the slice-3 shadow steps run under the workflow's existing read-only permissions with no persisted credentials | help text; `make ci-least-privilege-check`; the AFP-V0-047 shadow checkout keeps `persist-credentials: false`; no hosted run of the shadow step is observed yet: `NOT_OBSERVED` |
 | STR-V0-017 | `internal/sessiontest/identity.go`, drift rechecks in `Execute` | TestSTRV0017Identify, TestSTRV0017RunnerDrift |
 | STR-V0-018 | `internal/sessiontest/manifest.go`, `--dry-run --manifest`, shard recompute match | TestSTRV0018ManifestStrictRoundTrip, TestSTRV0018CLIDryRunLaunchesNoRunner, TestSTRV0009CLIShardsAndVerify |
 

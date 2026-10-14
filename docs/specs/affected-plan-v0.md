@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783)
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811)
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,7 +11,7 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783)/experimental
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811)/experimental
 - Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile, and AFP-V0-041 (accepted, decision 0488) lets the full run split an owner-allowed package into test slices across those shards; AFP-V0-023 lets a project-owned `.corvint/test-read-scopes.json` take a root-locating package off the rule (d) floor, enforced in full CI by the Landlock wrapper `.github/testconfine`.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; for queue-backed narrowing, AFP-V0-028/029 shadow admission, reviewed tool pins and hosted observation of the V1-0760 queue-run reuse (AFP-V0-024; hosted enablement `NOT_OBSERVED`); the optional historical profile still requires genuine 200-row qualification and matching reviewed pins (AFP-V0-014/017), and its 201-commit prerequisite is met at `adf8358220769b8d6724ad27d27625602b8a7c62`, but no campaign PASS is implied.
 - Read next: Requirements; Non-goals and authority; Failure modes.
@@ -1183,6 +1183,60 @@ and container qualification; full fallback remains available.
   for a tree a full pull-request run already passed, and a narrowed PR run writes no record, so
   its queue run still runs in full. Rollback: restore the `push`-only condition on the `reuse` step and the
   `pull_request`-only record step.
+- **AFP-V0-047:** (accepted under the owner's standing auto-accept (2026-10-11); V1-0811) The
+  AFP-V0-029 shadow SHALL run without the deciding driver. `go-product-shard` SHALL carry
+  `CORVINT_TEST_SHADOW_SOURCE`, a full reviewed `main` commit id pinned apart from
+  `CORVINT_PR_TOOL_SOURCE` (whose deciding driver refuses AFP-V0-041 test slices); on a
+  `pull_request` run at a mode other than DOCS or REUSE, a step SHALL check out that commit outside
+  the tested checkout without credentials, verify `HEAD` equals the pin, build only `./cmd/corvint`
+  to `$RUNNER_TEMP/corvint-shadow-bin/corvint`, and the shadow `corvint test --dry-run` (STR-V0-012
+  step 3) SHALL use that binary; the Go tests step keeps executing the full shard, so no PR run
+  narrows. Each such shard SHALL retain, in its `corvint-test-shadow-<shard>` artifact beside
+  `dry-run.json` and `manifest.json`, a `selection.json` document `corvint-pr-selection/0` with
+  keys `profile`, `toolSource`, `toolDigest`, `pr`, `head`, `base`, `target`, `tree`, `runId`,
+  `runAttempt`, `shard`, `shards`, `exit`, `scope`, `reason`, `placement`, `shardIndex`,
+  `shardCount`, `incomplete`, `selected` (the shard's run set), `manifestDigest`, `manifestUnits`,
+  `planDigest`, `partitionDigest`, `sourceDigest` and `notProduced`, which names every digest the
+  dry-run does not print (the selection digest) instead of inventing it. Every `pull_request` and
+  `merge_group` full-branch shard SHALL retain `ci-outcomes-<event>-<shard>`, a
+  `corvint-ci-outcomes/0` document with keys `profile`, `event`, `runId`, `runAttempt`, `target`,
+  `head`, `tree`, `shard`, `shards`, `status`, `outcomes` (package-level `pass`, `fail`, `skip`, or
+  `missing` for an expected package or slice without a terminal event) and `rerun`, also after a
+  failed shard. A shard whose tests failed SHALL rerun each failed package or AFP-V0-041 slice
+  once under the same confinement, at most 8 invocations, recording `rerun.state` `RAN` with the
+  rerun outcomes, `NOT_NEEDED`, `INTERRUPTED`, or `SKIPPED_BOUND` with no rerun above the bound;
+  the shard still fails. The `forward-rows` job of `.github/workflows/ci-control-plane.yml`, on a
+  completed (`success` or `failure`) `merge_group` or `pull_request` run of CI, SHALL hold only
+  `actions: read` and `contents: read`, run only the default-branch `.github/forward-rows` scripts
+  through a sparse checkout of its own commit with `gh` and `jq`, and download only the
+  `ci-outcomes-*`, `corvint-test-shadow-*` and `ci-reuse` artifacts. A queue row takes S from the
+  latest successful `pull_request` run of the queue commit's second parent and F from the queue
+  run, or, for a REUSE queue run (AFP-V0-046), from the reused run its `ci-reuse` decision names,
+  recording `outcomesSource` `reuse` (else `merge_group`, or `pull_request` for a PR row); a PR
+  row takes both from its own run and names its tested merge commit. A run on a branch that is not a queue branch of `main`, without a pull
+  request number, or a PR run that retained neither outcomes nor a shadow plan produces no row.
+  The row SHALL be INCOMPLETE, never CLEAN, when any selection or outcomes shard is missing,
+  unreadable, misshapen or duplicated, when a shard count differs from the job's
+  `FORWARD_SHARDS`, when a document names another run, head or target than the row (or, for a
+  REUSE row, another tree than the decision), when the
+  dry-run exited other than 0 or 3, when shards disagree on the manifest digest, when the selection
+  records a gap other than a non-Go language without an adapter (retained in `selection.limits`),
+  when a failed shard names no failed package, or when the collector could not read an input.
+  The row is `corvint-pr-forward-row/0` with the closed keys `class`, `counts`, `epoch`, `failed`,
+  `flaky`, `head`, `incomplete`, `kind`, `missed`, `outcomesRunId`, `outcomesSource`, `pr`,
+  `profile`, `reruns`, `runId`, `selectedFailedInQueue`, `selection`, `selectionRunId`, `sha`,
+  `shards` and `truncated`, at most 64 KiB (package lists are cut and `truncated` set), uploaded
+  with default retention as `ci-forward-<CLASS>-pr<N>-<sha>-e<EPOCH>-f<0|1>`, where `EPOCH` is
+  `CORVINT_PR_FORWARD_EPOCH` and `f1` marks a row with failing packages. The job's step summary
+  SHALL count, from non-expired artifact names alone and without downloading, the latest 20 rows
+  of the current epoch (one per pull request and commit) against the 20 complete and 5 failing
+  bar and the AFP-V0-030 thresholds, and SHALL say NOT MET while the window is short. Nothing in
+  this requirement narrows a run or changes a required check. Limits: hosted row delivery is
+  `NOT_OBSERVED` until the first queue run on `main` after the change; the rerun bound leaves a
+  ninth failure without a rerun, so its misses are MISS; artifact listing reads at most 20 pages;
+  shadow artifacts keep 14-day retention, so a queue run later than that is INCOMPLETE; fork pull
+  requests produce no row. Rollback: clear `CORVINT_TEST_SHADOW_SOURCE` (the shadow and its
+  selection stop) and remove the `forward-rows` job; no consumer reads the rows before V1-0812.
 
 ## Non-goals and authority
 
@@ -1271,7 +1325,7 @@ miss disable narrowing as AFP-V0-030 requires. Hosted auto-merge command compati
 | AFP-V0-032 | `readAdviceSource`, `mandatoryAffectedChecks` in `cmd/corvint/affected.go` | `TestAffectedAdviceUnreadableDeclarationSuppressesNoGate` (`cmd/corvint/affected_advice_unix_test.go`) |
 | AFP-V0-033 | `unreasoned` in `tools/unbounded-readers`; the `reasons` of `.corvint/unbounded-readers.json` | `TestAFPV0033EveryUnitNamesItsUnboundedRead` (a live or stale unit without a reason fails and is named; both failures are reported together); `TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord` (each addition carries its reason); `make unbounded-readers-check` passes with a reason for every unit; per-package container measurements in build log 2026-10-06-unbounded-reader-reasons |
 | AFP-V0-028 | Not implemented; planned queue rules and PR narrowing integration | `TestAFPV0028QueueBackstoppedNarrowing` (PLANNED): three new FULL conditions, UNKNOWN allowlist, trusted pins without historical artifact, partition/argv/environment/confinement/cache parity and summaries; hosted queue checks, main identity/seal and V1-0760 prerequisite `NOT_OBSERVED` |
-| AFP-V0-029 | Not implemented; planned retained selections, queue outcomes and default-branch forward-row job | `TestAFPV0029ForwardRowsAndShadowBar` (PLANNED): S/F classification, reruns, missing inputs, 64 KiB bound and 20/5 shadow bar; hosted shadow/queue rows and delivery `NOT_OBSERVED` |
+| AFP-V0-029 | Retained selections, queue and PR outcomes and the default-branch `forward-rows` job of AFP-V0-047: `.github/forward-rows/row.jq` (classifier), `classify.sh`, `collect.sh` | `TestAFPV0029ForwardRowsAndShadowBar`: S/F classification on fixtures derived from queue run 38485555207 and PR run 38482995697, `SELECTED_FAILED_IN_QUEUE`, FLAKY, MISS (rerun failed, `SKIPPED_BOUND`, interrupted, missing), INCOMPLETE inputs, REUSE outcomes and the 64 KiB bound; the 20/5 bar in `TestAFPV0047BarCountsArtifactNames`; narrowing admission and hosted shadow/queue rows and delivery `NOT_OBSERVED` |
 | AFP-V0-030 | Not implemented; planned artifact-name kill switch, repository variable and epoch pin | `TestAFPV0030KillSwitchAndEpoch` (PLANNED): latest-20 window, 2 MISS/3 INCOMPLETE thresholds, listing failure, off variable and reviewed epoch re-arm; hosted disable/re-arm and first 20 narrowed rows with no trip `NOT_OBSERVED`; before/after metrics `NOT_OBSERVED` |
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active with the decision 0320 settings; the decision 0390 settings (no bypass, `doc-gates` required) and the admin-status consent path NOT_VERIFIED until the owner applies them; `failure` path NOT_RUN on a real PR |
@@ -1294,6 +1348,7 @@ miss disable narrowing as AFP-V0-030 requires. Hosted auto-merge command compati
 | AFP-V0-044 | `affectedMixedWarning` in `cmd/corvint/affected_freshness.go`; `Warning` in `affectedReceipt`, `playwrightAffectedReceipt`, `affectedCompactReceipt` | `TestAffectedMixedRangeWarning` (warning on /1 and /0 with a dirty path outside the range; none for a clean worktree, the worktree-only form or a range inside the dirty set; no mutable content), `TestAffectedPlaywrightFreshness` (Playwright receipt warning; none clean or worktree-only) |
 | AFP-V0-045 | `RequireClean` parsing in `parseAffectedOptions`; `affectedMixedWorktreeRefusal` in `compileAffected` and `compilePlaywrightAffected` | `TestAffectedRequireClean` (clean byte parity; untracked entry refuses on the worktree, `--full --base` and provider forms before the provider runs, with no write; value, repetition, `--snapshot` and `discovery` refused), `TestAffectedPlaywrightFreshness` (Playwright clean byte parity and dirty refusal with no write) |
 | AFP-V0-046 | `admits` and `Decide` in `tools/ci-reuse-plan/main.go` (`--event merge_group`); the `reuse` step, its first-parent tool build and the record-step condition in `.github/workflows/ci.yml` | `TestAFPV0046QueueDecisionAdmitsOnlyThePullRequestRun`, `TestAFPV0046WorkflowWiresQueueReuse`, `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`; `actionlint`; local replay against the live API in `docs/build-log/2026-10-13-ci-identical-tree-reuse.md`; hosted REUSE queue run `NOT_OBSERVED` |
+| AFP-V0-047 | `CORVINT_TEST_SHADOW_SOURCE`, the shadow checkout and build, the selection document and the outcomes, rerun and upload steps in `.github/workflows/ci.yml`; the `forward-rows` job in `.github/workflows/ci-control-plane.yml`; `.github/forward-rows/` (`selection.jq`, `outcomes.sh`, `outcomes.jq`, `collect.sh`, `classify.sh`, `row.jq`, `bar.sh`, `bar.jq`) | `TestAFPV0047ShardOutcomes` (real flaky PR run 38476173623 shard 7 stream and its rerun; bound of 8), `TestAFPV0047SelectionDocument`, `TestAFPV0047CollectorNamesRows`, `TestAFPV0047BarCountsArtifactNames`, `TestAFPV0047WorkflowBindings`, `TestAFPV0029ForwardRowsAndShadowBar`, `TestSTRV0012CIConstantsMatchFullBranch`; `actionlint`; `make ci-least-privilege-check`; read-only replay against hosted runs in `docs/build-log/2026-10-13-ci-forward-rows.md`; hosted rows `NOT_OBSERVED` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

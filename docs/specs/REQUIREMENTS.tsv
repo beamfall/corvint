@@ -80,6 +80,7 @@ AFP-V0-043	docs/specs/affected-plan-v0.md	1125	(accepted, decision 0505) Cost-ta
 AFP-V0-044	docs/specs/affected-plan-v0.md	1134	(accepted, decision 0519 (V1-1141); GitHub #783) When `--base`	owner	decision 0519; V1-1141; #783
 AFP-V0-045	docs/specs/affected-plan-v0.md	1145	(accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST	owner	decision 0519; V1-1141; #783
 AFP-V0-046	docs/specs/affected-plan-v0.md	1155	(accepted under the owner's standing auto-accept (2026-10-11); V1-1360) A	standing	2026-10-11; V1-1360
+AFP-V0-047	docs/specs/affected-plan-v0.md	1186	(accepted under the owner's standing auto-accept (2026-10-11); V1-0811) The	standing	2026-10-11; V1-0811
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data	unrecorded	-
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/	unrecorded	-
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and	unrecorded	-
@@ -3241,11 +3242,11 @@ STR-V0-010	docs/specs/session-test-runner-v0.md	186	Each shard, including an emp
 STR-V0-011	docs/specs/session-test-runner-v0.md	193	Receipts are evidence only. They MUST NOT feed ranking, selection, learning or	unrecorded	-
 STR-V0-012	docs/specs/session-test-runner-v0.md	195	Local and CI SHALL run the same binary code path. The CI profile adds only	unrecorded	-
 STR-V0-013	docs/specs/session-test-runner-v0.md	217	Neither `make gate-affected` nor `tools/corvint-pr-tests` SHALL switch to	unrecorded	-
-STR-V0-014	docs/specs/session-test-runner-v0.md	234	A hangup, interrupt or termination SHALL kill every owned process group, exit	unrecorded	-
-STR-V0-015	docs/specs/session-test-runner-v0.md	236	The run SHALL be bounded: the plan's existing walk and status bounds, at most 40	unrecorded	-
-STR-V0-016	docs/specs/session-test-runner-v0.md	249	Adapters execute repository code with the invoking user's authority. The local	unrecorded	-
-STR-V0-017	docs/specs/session-test-runner-v0.md	252	The source identity SHALL bind the bytes that execute: the HEAD commit and tree,	unrecorded	-
-STR-V0-018	docs/specs/session-test-runner-v0.md	257	Before execution the command SHALL derive one canonical `corvint-test-manifest/0	unrecorded	-
+STR-V0-014	docs/specs/session-test-runner-v0.md	236	A hangup, interrupt or termination SHALL kill every owned process group, exit	unrecorded	-
+STR-V0-015	docs/specs/session-test-runner-v0.md	238	The run SHALL be bounded: the plan's existing walk and status bounds, at most 40	unrecorded	-
+STR-V0-016	docs/specs/session-test-runner-v0.md	251	Adapters execute repository code with the invoking user's authority. The local	unrecorded	-
+STR-V0-017	docs/specs/session-test-runner-v0.md	254	The source identity SHALL bind the bytes that execute: the HEAD commit and tree,	unrecorded	-
+STR-V0-018	docs/specs/session-test-runner-v0.md	259	Before execution the command SHALL derive one canonical `corvint-test-manifest/0	unrecorded	-
 TAT-V0-001	docs/specs/test-attack-v0.md	27	`prove --base FULL_SHA --mutate --attack-tests` MUST be an explicit opt-in. The	unrecorded	-
 TAT-V0-002	docs/specs/test-attack-v0.md	28	The attack MUST reuse the immutable range export and changed-line spans, evaluat	unrecorded	-
 TAT-V0-003	docs/specs/test-attack-v0.md	29	Every judged mutation row MUST expose an additive `attack` object with `mutants`	unrecorded	-
