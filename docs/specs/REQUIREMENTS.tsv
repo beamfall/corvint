@@ -2650,6 +2650,7 @@ PGO-V0-007	docs/specs/process-group-owner-v0.md	38	Proposed (V1-0608). `RunConta
 PGO-V0-008	docs/specs/process-group-owner-v0.md	39	Proposed (V1-0373, V1-0652). Where waitid is available (Darwin and Linux), no le	unrecorded	-
 PGO-V0-009	docs/specs/process-group-owner-v0.md	40	(accepted, decision 0492; V1-1036, V1-1047, V1-1050, V1-1056) Where waitid is av	owner	decision 0492; V1-1036; V1-1047; V1-1050; V1-1056
 PGO-V0-010	docs/specs/process-group-owner-v0.md	42	accepted, decision 0507. POSIX descendant snapshots retain at most 4 MiB stdout	unrecorded	-
+PGO-V0-011	docs/specs/process-group-owner-v0.md	43	(accepted under the owner's standing auto-accept (2026-10-11); V1-0668) The Owne	standing	2026-10-11; V1-0668
 PLE-V0-001	docs/specs/protected-local-execution-v0.md	27	The optional `corvint-protected-execution/0` profile MUST preserve all legacy pr	unrecorded	-
 PLE-V0-002	docs/specs/protected-local-execution-v0.md	28	A protected immutable release and independently admitted root/policy MUST bind t	unrecorded	-
 PLE-V0-003	docs/specs/protected-local-execution-v0.md	29	Ingestion MUST bound and independently bind expected Git base/target/tree, CEM,	unrecorded	-
