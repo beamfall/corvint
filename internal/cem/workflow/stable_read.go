@@ -97,9 +97,16 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	}
 	var result verify.StableResult
 	var exit int
-	if filepath.IsAbs(repository) {
+	var revert *verify.HunkRevert
+	if options.HunkRevert && action != "verify" {
+		return nil, stableRefusal{invalidArguments("%s %s does not accept --hunk-revert", wire.StableSpec, action)}
+	}
+	switch {
+	case filepath.IsAbs(repository) && options.HunkRevert:
+		result, exit, revert = verify.StableWithHunkRevert(ctx, raw, stableOptions, verify.DefaultHunkRevertLimits)
+	case filepath.IsAbs(repository):
 		result, exit = verify.Stable(ctx, raw, stableOptions)
-	} else {
+	default:
 		// `cem verify-stable` refuses a relative or empty --repository before it
 		// reads the map. Named first, a value beginning with "--" also stops its
 		// argument parse, so that refusal keeps no other supplied value.
@@ -112,6 +119,12 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	envelope := map[string]any{
 		"ok": exit == 0, "mutates": false, "tool": "cem-" + action,
 		"stableVerification": StableVerification{Result: result, Exit: exit},
+	}
+	// The falsifier observation is beside, never inside, the verifier result:
+	// it depends on the host, so it never enters verdictSha256, and it is null
+	// unless the result accepted (CEM-V1-088).
+	if options.HunkRevert {
+		envelope["hunkRevert"] = revert
 	}
 	switch action {
 	case "status":

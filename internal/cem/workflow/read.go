@@ -28,6 +28,9 @@ type ReadOptions struct {
 	// Citation adds the map's citation class beside a cem/1.0 status result
 	// (CEM-V1-095, CEM-V1-106).
 	Citation bool
+	// HunkRevert runs the opt-in go test hunk-revert falsifier after a
+	// cem/1.0 verify accepts and reports it beside the result (CEM-V1-088).
+	HunkRevert bool
 }
 
 // ActionReportPreview renders the report without publishing it: the

@@ -883,6 +883,8 @@ CEM-V1-081	docs/specs/cem-stable-v1.md	277	Anchor kinds and byte-level rules. `i
 CEM-V1-082	docs/specs/cem-stable-v1.md	287	The `citation` block and the shift null MUST be byte-identical across the native	unrecorded	-
 CEM-V1-083	docs/specs/cem-stable-v1.md	360	A `cem/1.0` criterion binding MUST take exactly one of two closed forms. The pla	unrecorded	-
 CEM-V1-084	docs/specs/cem-stable-v1.md	397	A runner receipt's `authentication` MUST take one of three closed forms: the sea	unrecorded	-
+CEM-V1-088	docs/specs/cem-stable-v1.md	2080	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) `held`	standing	2026-10-11; V1-1266
+CEM-V1-089	docs/specs/cem-stable-v1.md	2103	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) A row th	standing	2026-10-11; V1-1266
 CEM-V1-091	docs/specs/cem-stable-v1.md	237	A new top-level member of `cem-stable-verification/1` MUST be added only by	unrecorded	-
 CEM-V1-092	docs/specs/cem-stable-v1.md	323	The `cem-stable-verification/1` member `citation` MUST be the `CEM-V1-082` block	unrecorded	-
 CEM-V1-093	docs/specs/cem-stable-v1.md	485	A stable map MAY carry `provenance`, a closed object with exactly the required	unrecorded	-
@@ -3411,6 +3413,8 @@ TCQ-V0-056	docs/specs/test-claim-qualification-v0.md	684	the witness is one opti
 TCQ-V0-057	docs/specs/test-claim-qualification-v0.md	695	candidates are, in map order, the hunks whose path is Go source (not a	unrecorded	-
 TCQ-V0-058	docs/specs/test-claim-qualification-v0.md	704	the reviewer report appends the witness to each `## Test claims` line: a	unrecorded	-
 TCQ-V0-059	docs/specs/test-claim-qualification-v0.md	712	(accepted 2026-10-08, decision 0463; ticket V1-0651) a runner failure whose whol	owner	2026-10-08; decision 0463; V1-0651
+TCQ-V0-060	docs/specs/test-claim-qualification-v0.md	741	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
+TCQ-V0-061	docs/specs/test-claim-qualification-v0.md	748	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
 TEA-V0-001	docs/specs/corvint-tasks-evidence-attachments-v0.md	38	`corvint-tasks ticket attach-evidence --target T --expected-revision N --payload	unrecorded	-
 TJAA-V0-001	docs/specs/typescript-javascript-affected-adapter-v0.md	31	`Owns` MUST claim exactly `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs`; it M	unrecorded	-
 TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normally file-addressable test MUST be one file unit. Its stable identity MUST	unrecorded	-

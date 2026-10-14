@@ -677,6 +677,17 @@ path being exactly `.corvint/change.cem.json` or `.corvint/changes/NAME.cem.json
 nonempty path segment. A path Git quotes, a nested `NAME` or any other path makes the change
 a non-chore.
 
+Cite the guarding test (offered, not forced; `TCQ-V0-060`). For a hunk of non-test Go source
+whose behavior a base `_test.go` test pins, add a `test-claim` row whose span contains that test's
+whole declaration header, `func TestName(t *testing.T)`, for example
+`2	internal/x/x_test.go	41:41	test-claim`. `cem verify --hunk-revert` then names exactly the
+top-level tests that span declares (`TCQ-V0-061`): a span that declares none, such as a helper or
+a subtest body, is reported `not-run` with reason `no-named-test`, and no test is inferred from the
+file name or the rest of the file. The flag reverse-applies only that one hunk in a disposable
+copy and reports `held` only when a named test passes at the target and fails with the hunk
+reverted (`CEM-V1-088`); its report sits beside the unchanged verifier result. A hunk no test
+guards stays cited or `unknown` as before.
+
 A chore change is a self-referential bind or seal: its map cites the map files the bind loop
 itself writes. Once `cem prepare` writes `cem/1.0`, `dogfood change` marks a chore's prepared
 map with the stable member `role`, `seal-chore` when a `.corvint/changes/` path is touched and
