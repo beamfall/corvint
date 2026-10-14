@@ -339,7 +339,7 @@
     "path": "docs/specs/browser-behavior-falsification-v0.md",
     "title": "Browser behavior falsification V0",
     "reqPrefix": "BBF-V0",
-    "intent": "proposed",
+    "intent": "proposed; BBF-V0-015..017 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366)",
     "delivery": "experimental",
     "claim": "An opt-in companion runs digest-approved caller hooks against a marked disposable workspace and emits fail-closed criterion-level falsification receipts.",
     "dependsOn": [
