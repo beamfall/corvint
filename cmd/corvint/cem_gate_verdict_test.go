@@ -87,7 +87,7 @@ func TestTCBV0016GateVerdictRunsBothConsumers(t *testing.T) {
 	t.Chdir(root)
 	code, stdout, stderr := runCLI(t, args(consumer)...)
 	if code != 0 || stderr != "" || stdout != string(library.Document) || !library.Granted {
-		t.Fatalf("exit %d stderr %q\ncommand %s\nlibrary %s", code, stderr, stdout, library.Document)
+		t.Fatalf("exit %d stderr %q\ncommand %s\nlibrary %s\n%s", code, stderr, stdout, library.Document, bareHostGitDiagnostic(root))
 	}
 	var doc struct {
 		Outcome string `json:"outcome"`
@@ -95,8 +95,8 @@ func TestTCBV0016GateVerdictRunsBothConsumers(t *testing.T) {
 			Outcome, VerdictSha256 string
 		} `json:"verdict"`
 		Portable struct {
-			Route, Outcome, VerdictSha256 string
-			CitationSha256                *string
+			Route, Outcome, Stage, VerdictSha256 string
+			Code, CitationSha256                 *string
 		} `json:"portable"`
 		Paths []struct {
 			Path, Tier string
@@ -107,7 +107,7 @@ func TestTCBV0016GateVerdictRunsBothConsumers(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("%s/%s native verdictSha256 %s portable %s %s", runtime.GOOS, runtime.GOARCH, doc.Verdict.VerdictSha256, doc.Portable.Outcome, doc.Portable.VerdictSha256)
-	if doc.Outcome != "GRANT" || doc.Portable.Route != "verify-stable-canonical" || doc.Portable.Outcome != "ACCEPT" || doc.Portable.VerdictSha256 != doc.Verdict.VerdictSha256 || doc.Portable.CitationSha256 == nil {
+	if doc.Outcome != "GRANT" || doc.Portable.Route != "verify-stable-canonical" || doc.Portable.Outcome != "ACCEPT" || doc.Portable.Stage != "complete" || doc.Portable.Code != nil || doc.Portable.VerdictSha256 != doc.Verdict.VerdictSha256 || doc.Portable.CitationSha256 == nil {
 		t.Fatalf("pins: %+v", doc)
 	}
 	if len(doc.Paths) != 1 || doc.Paths[0].Path != "src/app.txt" || doc.Paths[0].Tier != "anchored" || !doc.Paths[0].Satisfied {
@@ -122,6 +122,85 @@ func TestTCBV0016GateVerdictRunsBothConsumers(t *testing.T) {
 	if code != 1 || stderr != "" || !strings.Contains(stdout, `"code":"`+taskman.CEMVerdictVerifierDisagreement+`"`) || !strings.Contains(stdout, `"reason":"verifier-disagreement"`) || !strings.Contains(stdout, `"outcome":"REFUSE"`) {
 		t.Fatalf("patched consumer: exit %d stderr %q\n%s", code, stderr, stdout)
 	}
+	// The real consumer answering UNSUPPORTED with its own code refuses under
+	// the route's name with that code pinned, never a grant and never a
+	// disagreement (TCB-V0-040, TCB-V0-041).
+	unsupported := filepath.Join(t.TempDir(), "unsupported-cem01-go")
+	script = "#!/bin/sh\n'" + consumer + "' \"$@\" | sed -e 's/\"outcome\":\"ACCEPT\"/\"outcome\":\"UNSUPPORTED\"/;s/\"stage\":\"complete\"/\"stage\":\"repository\"/;s/\"code\":null/\"code\":\"git-read-failed\"/'\nexit 2\n"
+	if err := os.WriteFile(unsupported, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr = runCLI(t, append([]string{"--root", root}, args(unsupported)...)...)
+	if code != 1 || stderr != "" || !strings.Contains(stdout, `"code":"`+taskman.CEMVerdictUnverifiable+`"`) || !strings.Contains(stdout, `"reason":"portable-route-unsupported"`) || !strings.Contains(stdout, `"outcome":"REFUSE"`) || !strings.Contains(stdout, `"code":"git-read-failed","outcome":"UNSUPPORTED","route":"verify-stable-canonical","stage":"repository","verdictSha256":"`+doc.Verdict.VerdictSha256+`"}`) || !strings.Contains(stdout, `"citation":null`) || !strings.Contains(stdout, `"paths":[]`) {
+		t.Fatalf("unsupported consumer: exit %d stderr %q\n%s", code, stderr, stdout)
+	}
+}
+
+// TCB-V0-042: under the fixed PATH the consumer resolved git from before
+// TCB-V0-043 (/usr/bin:/bin), the real consumer's answer is the one that git
+// explains. A git there that accepts the stable diff's --attr-source option
+// (Git 2.41 or later) verifies the map and the gate grants; one that rejects
+// it, as Apple Git 2.39 on the hosted macos-15 image does, ends the consumer
+// at `repository` / `git-read-failed`, and the gate refuses under the route's
+// name with that code pinned. Either way the document names the host fact.
+func TestTCBV0042PortableConsumerUnderBareHostPath(t *testing.T) {
+	stablefixture.RequireStableHost(t)
+	if runtime.GOOS == "linux" && runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64" {
+		t.Skip("NOT_RUN: interop/cem01-go process containment is not qualified on linux/" + runtime.GOARCH)
+	}
+	consumer := buildPortableConsumer(t)
+	root, base, seal := sealedVerdictFixture(t)
+	bare := filepath.Join(t.TempDir(), "bare-path-cem01-go")
+	if err := os.WriteFile(bare, []byte("#!/bin/sh\nPATH=/usr/bin:/bin\nexport PATH\nexec '"+consumer+"' \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	in := taskman.CEMVerdictInput{Root: root, BaseCommit: base, CandidateCommit: seal, TouchPaths: []string{"src/"}, Predicate: taskman.PredicateTouchedAnchored, PortableConsumer: bare}
+	result, err := taskman.EvaluateCEMVerdictGate(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diagnostic := bareHostGitDiagnostic(root)
+	t.Logf("%s/%s %s\n%s", runtime.GOOS, runtime.GOARCH, diagnostic, result.Document)
+	var doc struct {
+		Outcome  string  `json:"outcome"`
+		Code     *string `json:"code"`
+		Reason   *string `json:"reason"`
+		Portable *struct {
+			Outcome, Stage string
+			Code           *string
+		} `json:"portable"`
+	}
+	if err := json.Unmarshal(result.Document, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(diagnostic, "attr-source: accepted") {
+		if !result.Granted || doc.Outcome != "GRANT" || doc.Portable == nil || doc.Portable.Outcome != "ACCEPT" {
+			t.Fatalf("a bare-PATH git that accepts --attr-source must verify the map:\n%s\n%s", diagnostic, result.Document)
+		}
+		return
+	}
+	if result.Granted || doc.Code == nil || *doc.Code != taskman.CEMVerdictUnverifiable || doc.Reason == nil || *doc.Reason != "portable-route-unsupported" || doc.Portable == nil || doc.Portable.Outcome != "UNSUPPORTED" || doc.Portable.Stage != "repository" || doc.Portable.Code == nil || *doc.Portable.Code != "git-read-failed" {
+		t.Fatalf("a bare-PATH git that rejects --attr-source must refuse under the route's name with the consumer's code:\n%s\n%s", diagnostic, result.Document)
+	}
+}
+
+// bareHostGitDiagnostic reports which git the fixed PATH /usr/bin:/bin
+// resolves in root, its version and whether it accepts the stable diff's
+// --attr-source option, so a hosted failure retains the host fact behind the
+// consumer's own code. The output is bounded and is test output only.
+func bareHostGitDiagnostic(root string) string {
+	command := exec.Command("/bin/sh", "-c", `command -v git; git --version; if out=$(git --attr-source=HEAD diff --no-color HEAD HEAD 2>&1 >/dev/null); then echo "attr-source: accepted"; else echo "attr-source: rejected exit $?"; printf '%s\n' "$out" | head -c 512; fi`)
+	command.Dir = root
+	command.Env = []string{"PATH=/usr/bin:/bin", "LC_ALL=C", "LANG=C", "HOME=" + root}
+	raw, err := command.CombinedOutput()
+	if len(raw) > 2048 {
+		raw = raw[:2048]
+	}
+	status := "exit 0"
+	if err != nil {
+		status = err.Error()
+	}
+	return "bare PATH=/usr/bin:/bin git diagnostic (" + status + "):\n" + string(raw)
 }
 
 // buildPortableConsumer builds the independent interop/cem01-go module.

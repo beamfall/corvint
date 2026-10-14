@@ -112,10 +112,14 @@ type cemVerdictPin struct {
 }
 
 // cemPortablePin is what the independent portable consumer reported for the
-// same map bytes: its own verdictSha256 claim and its citation block's digest.
+// same map bytes: its own verdictSha256 claim and its citation block's digest,
+// with the stage its result ended at and its closed result code (TCB-V0-040),
+// so an UNSUPPORTED answer names its own reason in the document.
 type cemPortablePin struct {
 	Route          string  `json:"route"`
 	Outcome        string  `json:"outcome"`
+	Stage          string  `json:"stage"`
+	Code           *string `json:"code"`
 	VerdictSha256  string  `json:"verdictSha256"`
 	CitationSha256 *string `json:"citationSha256"`
 }
@@ -305,8 +309,9 @@ func (g *verdictGate) evaluate(ctx context.Context, in CEMVerdictInput) {
 // its outcome, its verdictSha256 claim, the digest recomputed from its own
 // result and its canonical citation block must all equal the native ones. A
 // consumer that cannot run, emits no readable result or exits in a way its own
-// outcome does not explain is unverifiable; any readable difference is a
-// disagreement, never a pass.
+// outcome does not explain is unverifiable; one that answers UNSUPPORTED
+// against a native verdict is unverifiable under the route's name
+// (TCB-V0-041); any other readable difference is a disagreement, never a pass.
 func (g *verdictGate) crossCheck(ctx context.Context, in CEMVerdictInput, target string, raw []byte, native verify.StableResult, verdict string) bool {
 	stdout, status, err := runPortableConsumer(ctx, in, target, raw)
 	if err != nil {
@@ -319,6 +324,15 @@ func (g *verdictGate) crossCheck(ctx context.Context, in CEMVerdictInput, target
 		return false
 	}
 	g.doc.Portable = &reading.pin
+	// A consumer that could not run its route on this host answers
+	// UNSUPPORTED with its own closed code; that is the portable leg missing,
+	// not two verdicts differing, so the refusal names the route and keeps
+	// the pinned code (TCB-V0-041). Both legs answering UNSUPPORTED still go
+	// through the comparison and the native refusal below.
+	if reading.pin.Outcome == "UNSUPPORTED" && native.Outcome != "UNSUPPORTED" {
+		g.refuse(CEMVerdictUnverifiable, "portable-route-unsupported")
+		return false
+	}
 	citation, err := json.Marshal(native.Citation)
 	if err != nil {
 		g.refuse(CEMVerdictUnverifiable, "portable-consumer-failed")
@@ -354,6 +368,23 @@ func runPortableConsumer(ctx context.Context, in CEMVerdictInput, target string,
 	return runPortable(ctx, in.PortableConsumer, in.Root, []string{portableRoute, "--repository", in.Root, "--map", file.Name(), "--expected-base", in.BaseCommit, "--target", target, "--artifacts", in.Root})
 }
 
+// closedToken reports whether s has the shape of one closed result code or
+// stage name: 1 to 64 bytes of lower-case ASCII letters, digits and hyphens.
+// The gate pins the consumer's stage and code verbatim, so it admits no other
+// bytes into the document (TCB-V0-040).
+func closedToken(s string) bool {
+	if len(s) == 0 || len(s) > 64 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c != '-' && (c < 'a' || c > 'z') && (c < '0' || c > '9') {
+			return false
+		}
+	}
+	return true
+}
+
 // portableExitAgrees reports whether the consumer's exit status matches its
 // outcome: verify-stable-canonical exits 0 exactly on ACCEPT, and 1 or 2 on a
 // REJECT or UNSUPPORTED result.
@@ -384,9 +415,16 @@ func readPortable(stdout []byte) (portableReading, bool) {
 	}
 	profile, okProfile := member("profile", wire.KindString)
 	outcome, okOutcome := member("outcome", wire.KindString)
+	stage, okStage := member("stage", wire.KindString)
+	code, okCode := value.Obj.Get("code")
 	claimed, okClaimed := member("verdictSha256", wire.KindString)
 	citation, okCitation := value.Obj.Get("citation")
-	if !okProfile || !okOutcome || !okClaimed || !okCitation || profile.Str != portableProfile || !digest(claimed.Str) || citation.Kind != wire.KindObject && citation.Kind != wire.KindNull {
+	if !okProfile || !okOutcome || !okStage || !okCode || !okClaimed || !okCitation || profile.Str != portableProfile || !digest(claimed.Str) || citation.Kind != wire.KindObject && citation.Kind != wire.KindNull {
+		return portableReading{}, false
+	}
+	// The stage and code are pinned verbatim, so they must be closed tokens:
+	// anything else is not a readable result (TCB-V0-040).
+	if !closedToken(stage.Str) || code.Kind != wire.KindNull && (code.Kind != wire.KindString || !closedToken(code.Str)) {
 		return portableReading{}, false
 	}
 	result := &wire.Object{Values: map[string]wire.Value{}}
@@ -397,9 +435,13 @@ func readPortable(stdout []byte) (portableReading, bool) {
 		}
 	}
 	reading := portableReading{
-		pin:        cemPortablePin{Route: portableRoute, Outcome: outcome.Str, VerdictSha256: claimed.Str},
+		pin:        cemPortablePin{Route: portableRoute, Outcome: outcome.Str, Stage: stage.Str, VerdictSha256: claimed.Str},
 		recomputed: sum(wire.CanonicalValue(wire.Value{Kind: wire.KindObject, Obj: result})),
 		citation:   wire.CanonicalValue(citation),
+	}
+	if code.Kind == wire.KindString {
+		pinned := code.Str
+		reading.pin.Code = &pinned
 	}
 	if citation.Kind == wire.KindObject {
 		citationSha256 := sum(reading.citation)

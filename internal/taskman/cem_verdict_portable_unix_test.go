@@ -95,7 +95,7 @@ func TestTCBV0017PortableConsumerMustRecomputeTheSameVerdict(t *testing.T) {
 		t.Fatalf("agreeing consumers must grant and pin the portable verdict: %s", result.Document)
 	}
 	citationSha256 := sum(canonical(mustParse(t, view.Citation)))
-	if view.Portable.Route != portableRoute || view.Portable.Outcome != "ACCEPT" || view.Portable.VerdictSha256 != view.Verdict.VerdictSha256 || view.Portable.CitationSha256 == nil || *view.Portable.CitationSha256 != citationSha256 {
+	if view.Portable.Route != portableRoute || view.Portable.Outcome != "ACCEPT" || view.Portable.Stage != "complete" || view.Portable.Code != nil || view.Portable.VerdictSha256 != view.Verdict.VerdictSha256 || view.Portable.CitationSha256 == nil || *view.Portable.CitationSha256 != citationSha256 {
 		t.Fatalf("portable pin: %+v want verdict %s citation %s", view.Portable, view.Verdict.VerdictSha256, citationSha256)
 	}
 	native := view.Verdict.VerdictSha256
@@ -140,6 +140,48 @@ func TestTCBV0017PortableConsumerMustRecomputeTheSameVerdict(t *testing.T) {
 		failing.PortableConsumer = consumer
 		if view := requireVerdictRefusal(t, failing, CEMVerdictUnverifiable, "portable-consumer-failed"); view.Verdict == nil || view.Portable != nil {
 			t.Fatalf("%s: an unrunnable consumer pins the native verdict and no portable one: %+v %+v", name, view.Verdict, view.Portable)
+		}
+	}
+}
+
+// A consumer that cannot run its route on the host answers UNSUPPORTED with
+// its own closed code. The gate pins that stage and code (TCB-V0-040) and
+// refuses under the route's name, not as a disagreement (TCB-V0-041); a stage
+// or code outside the closed token shape is no readable result.
+func TestTCBV0040PortableUnsupportedRefusesNamingTheRoute(t *testing.T) {
+	f := newVerdictFixture(t, nil)
+	in := f.input(PredicateTouchedAnchored, "src/")
+	_, agreeing := evaluateVerdict(t, in)
+	native := agreeing.Verdict.VerdictSha256
+	unsupported := `s/"outcome":"ACCEPT"/"outcome":"UNSUPPORTED"/;s/"stage":"complete"/"stage":"repository"/;s/"code":null/"code":"git-read-failed"/`
+	for name, status := range map[string]string{"exit 2": "2", "exit 1": "1"} {
+		refusing := in
+		refusing.PortableConsumer = patchedConsumer(t, f.portable, unsupported, status)
+		view := requireVerdictRefusal(t, refusing, CEMVerdictUnverifiable, "portable-route-unsupported")
+		if view.Verdict == nil || view.Verdict.Outcome != "ACCEPT" || view.Verdict.VerdictSha256 != native || view.Portable == nil || view.Portable.Route != portableRoute || view.Portable.Outcome != "UNSUPPORTED" || view.Portable.Stage != "repository" || view.Portable.Code == nil || *view.Portable.Code != "git-read-failed" || view.Portable.VerdictSha256 != native || string(view.Citation) != "null" || len(view.Governed) != 0 || len(view.Paths) != 0 {
+			t.Fatalf("%s: an unsupported route must pin the native verdict and the consumer's stage and code, and evaluate no predicate: %+v %+v", name, view.Verdict, view.Portable)
+		}
+	}
+	// UNSUPPORTED with the exit status of an ACCEPT is a result its process
+	// does not explain.
+	mismatched := in
+	mismatched.PortableConsumer = patchedConsumer(t, f.portable, unsupported, "0")
+	if view := requireVerdictRefusal(t, mismatched, CEMVerdictUnverifiable, "portable-consumer-failed"); view.Portable != nil {
+		t.Fatalf("exit 0: %+v", view.Portable)
+	}
+	for name, expression := range map[string]string{
+		"open code":     `s/"code":null/"code":"Git read failed: \/usr\/bin\/git"/`,
+		"empty code":    `s/"code":null/"code":""/`,
+		"numeric code":  `s/"code":null/"code":7/`,
+		"open stage":    `s/"stage":"complete"/"stage":"Repository Read"/`,
+		"missing stage": `s/"stage":"complete",//`,
+		"missing code":  `s/"code":null,//`,
+	} {
+		// The consumer's own ACCEPT exit status, so only the pin is unreadable.
+		unreadable := in
+		unreadable.PortableConsumer = patchedConsumer(t, f.portable, expression, "")
+		if view := requireVerdictRefusal(t, unreadable, CEMVerdictUnverifiable, "portable-consumer-failed"); view.Verdict == nil || view.Portable != nil {
+			t.Fatalf("%s: an unreadable stage or code pins no portable result: %+v %+v", name, view.Verdict, view.Portable)
 		}
 	}
 }
