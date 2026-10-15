@@ -68,6 +68,10 @@ Load averages are from `uptime` on a darwin host shared with other lanes.
 | `./internal/tasks/authority/` | 1 load flake (below), then the failing test alone ok | 37-67, then 43 |
 | full `./internal/tasks/store/` (402 tests) | 30 m timeout, with PSR/pool failures (below) | 48-58 |
 | full `./internal/tasks/cli/` | 9 m cap reached, no failure before the cap | 41-65 |
+| after the Codex fixes: store `-run 'Gate\|CALV024\|Redo\|Recover\|ONV0006'` (46 tests) | ok, 363 s | 41-58 |
+| after the Codex fixes: store `-run 'CALV00[0-2]'` (66 tests) | ok, 527 s | 53-57 |
+| after the Codex fixes: cli focused pattern above (33 tests) | ok, 65 s | 55-42 |
+| after the Codex fixes: `./internal/tasks/transaction/`, cli `-run CALV024` | ok | 46-42 |
 
 Load flakes, with no gate code on their path:
 
@@ -96,6 +100,10 @@ Load flakes, with no gate code on their path:
 | store: tree | drop both tree comparisons and the inputs comparison | TestCALV0241/another_tree, different_inputs |
 | audit: receipt kind | `false && rc.Kind != "GATE_RESULT"` | TestCALV0243 `kind` |
 | audit: definition digest | drop the `GateDefinitionSha256` comparison | TestCALV0243 `changed definition` |
+| redo: reuse fold (F2) | skip the `GATE_RESULT` branch of `redoReviewBinding` | TestCALV0243_RedoBindsAPendingReuse (forged redo published) |
+| audit: retained record (F3) | `posted := false && a.accepted[d]` | TestCALV0243_ReuseRenamedAfterReturningToTheTree |
+| audit: undecodable reuse (F4) | `if false && claimsReuse(raw)` | TestCALV0243 `undecodable reuse` |
+| replay provenance (F5) | report nil instead of `recordedReuse` | TestCALV0240 replay check |
 
 Some checks are redundant with others:
 
@@ -107,6 +115,21 @@ Some checks are redundant with others:
   gained a `changed definition` case, so the digest comparison is tested on its own.
 - **Stale generation.** It is fenced before any reuse check (`forge-stale`, `REVISION_CONFLICT`
   `FENCED`, with no result recorded).
+
+## Independent review (one Codex round)
+
+`codex exec -s read-only` over `6457b86..a37eec13b` gave five findings. Each was checked against
+the code before disposition.
+
+| # | Finding | Disposition |
+|---|---|---|
+| F1 (P1) | The locked model does not recompute the requesting attempt's expected inputs and environment digests; it trusts the store's facts. | Accepted by design. The model cannot recompute them without the worktree, and it does not verify an executed result's inputs either: the store is the trusted computer of both. The substituted argv's base commit and claim paths are fixed at claim and generation-fenced, and a definition change moves the digest the model does check. The only forged-facts path is the test hook `GateReuseForTest`. |
+| F2 (P1) | `redoReviewBinding` folded only receipts that post a ticket, so redo of a pending reuse skipped the reuse audit. | Fixed: a `GATE_RESULT` receipt also runs `FoldReceiptBindings` before redo. New `TestCALV0243_RedoBindsAPendingReuse`. |
+| F3 (P2) | An attempt that reused a result, executed at another tree, then returned reuses the identical record; the receipt does not post the retained blob, and the audit refused `JOURNAL_FORKED` on a valid history. | Confirmed and fixed: the audit accepts a record it already accepted earlier in the fold, and still rechecks it in full. New `TestCALV0243_ReuseRenamedAfterReturningToTheTree`. |
+| F4 (P2) | A named result that does not decode was skipped even when it claimed a `reusedFrom`. | Fixed: such bytes are refused `JOURNAL_FORKED`; an undecodable result without `reusedFrom` is still left to the generic audit. New `undecodable reuse` audit case with a passing control. |
+| F5 (P2) | A replayed `gate run` reported `reusedFrom: null`. | Fixed: a replay reads the original receipt's attempt post and reports that result's source. TestCALV0240 now checks it. |
+
+The spec rows CAL-V0-240 and CAL-V0-243, new in this change, were updated to match.
 
 ## Deviations
 

@@ -215,11 +215,15 @@ func foldReceipts(repo *intent.Repository, last uint64, pending []byte, step fun
 }
 
 // redoReviewBinding refuses redo of a pending receipt that posts a ticket
-// record unless the whole history, the pending receipt included, passes the
-// review and escalation binding folds: the generic journal audit treats
-// their events as opaque blobs, so this is where a rehashed but untrue event
-// is caught.
+// record, or of a GATE_RESULT receipt (whose result may be a reuse,
+// CAL-V0-243), unless the whole history, the pending receipt included,
+// passes the material binding folds: the generic journal audit treats their
+// events and results as opaque blobs, so this is where a rehashed but untrue
+// one is caught.
 func redoReviewBinding(repo *intent.Repository, receipt *snapshot.Receipt, raw []byte) error {
+	if receipt.Kind == "GATE_RESULT" {
+		return FoldReceiptBindings(repo, receipt.Seq.Uint64()-1, raw)
+	}
 	for _, p := range receipt.Post {
 		if strings.HasPrefix(p.Path, "intent/tickets/") {
 			return FoldReceiptBindings(repo, receipt.Seq.Uint64()-1, raw)

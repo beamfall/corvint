@@ -104,8 +104,12 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	report, err = Lease(ctx, repo, actor, choice, now)
 	if report != nil {
 		report.Redone = report.Redone || redone
-		if choice.gate != nil && choice.gate.source != nil && err == nil && report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
+		switch {
+		case err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted:
+		case report.Kind == "Transaction" && choice.gate != nil && choice.gate.source != nil:
 			report.GateReusedFrom = gateReuseOf(choice.gate.source)
+		case report.Kind == "Replay" && report.Outcome.ReceiptSeq != nil:
+			report.GateReusedFrom = recordedReuse(repo, report.Outcome.ReceiptSeq.Uint64(), choice.Lease.AttemptID, choice.Lease.Gate)
 		}
 	}
 	return report, err
@@ -124,6 +128,49 @@ func gateReuseOf(source []byte) *GateReuse {
 		return nil
 	}
 	return &GateReuse{Result: wire.Sum(source), AttemptID: src.AttemptID}
+}
+
+// recordedReuse is the source of the result that GATE_RESULT receipt seq
+// recorded for the attempt's gate, nil when that result was executed or
+// cannot be read. A replayed gate run reports what the original receipt
+// recorded, not what this run would have chosen.
+func recordedReuse(repo *intent.Repository, seq uint64, attemptID, gate string) *GateReuse {
+	rc, err := readReceipt(repo, seq)
+	if err != nil || rc.Kind != "GATE_RESULT" {
+		return nil
+	}
+	blob := ExternalReviewBlob(repo)
+	for _, p := range rc.Post {
+		if p.Path != "attempts/"+attemptID+".json" || p.Sha256 == nil {
+			continue
+		}
+		var raw []byte
+		switch {
+		case p.Record != nil:
+			raw = wire.EncodeFile(*p.Record)
+		case p.BlobSha256 != nil:
+			raw, _ = blob(*p.BlobSha256)
+		}
+		at, err := snapshot.DecodeAttempt(raw)
+		if err != nil {
+			return nil
+		}
+		for _, d := range at.GateResults {
+			raw, ok := blob(wire.Digest(d))
+			g, err := snapshot.DecodeGateResult(raw)
+			if !ok || err != nil || g.GateID != gate {
+				continue
+			}
+			if g.ReusedFrom == nil {
+				return nil
+			}
+			if src, ok := blob(*g.ReusedFrom); ok {
+				return gateReuseOf(src)
+			}
+			return nil
+		}
+	}
+	return nil
 }
 
 // reusableRun finds an earlier result that satisfies this run of a

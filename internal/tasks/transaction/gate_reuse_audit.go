@@ -23,11 +23,16 @@ import (
 // unchanged. The generic journal audit treats evidence/ posts as opaque
 // blobs, so this is where a rehashed but untrue reuse is caught. It is
 // pure: blob returns retained evidence bytes by digest, and its memory is
-// the latest attempt and policy posts.
+// the latest attempt and policy posts and the reused results it accepted.
+// An attempt may name an identical reused record again (it returned to a
+// tree after executing elsewhere); the record is already retained, so that
+// receipt need not post it, and it is checked again in full. A named result
+// that does not decode but claims a reusedFrom is refused, never skipped.
 type GateReuseReceiptAudit struct {
 	attempts  map[string]*snapshot.Attempt
 	policy    *intent.Policy
 	policyErr string
+	accepted  map[string]bool
 }
 
 func (a *GateReuseReceiptAudit) fail(rc *snapshot.Receipt, f string, args ...any) error {
@@ -39,6 +44,7 @@ func (a *GateReuseReceiptAudit) fail(rc *snapshot.Receipt, f string, args ...any
 func (a *GateReuseReceiptAudit) Step(rc *snapshot.Receipt, _ wire.Digest, blob ExternalReviewBlob) error {
 	if a.attempts == nil {
 		a.attempts = map[string]*snapshot.Attempt{}
+		a.accepted = map[string]bool{}
 		a.policyErr = "no policy was posted"
 	}
 	next := map[string]*snapshot.Attempt{}
@@ -102,12 +108,19 @@ func (a *GateReuseReceiptAudit) bind(rc *snapshot.Receipt, at *snapshot.Attempt,
 			continue
 		}
 		g, err := snapshot.DecodeGateResult(raw)
-		if err != nil || g.ReusedFrom == nil {
+		if err != nil {
+			if claimsReuse(raw) {
+				return a.fail(rc, "reused gate result %s: %v", d, err)
+			}
+			continue
+		}
+		if g.ReusedFrom == nil {
 			continue
 		}
 		if err := a.reuse(rc, at, d, raw, g, blob); err != nil {
 			return err
 		}
+		a.accepted[d] = true
 	}
 	return nil
 }
@@ -117,12 +130,12 @@ func (a *GateReuseReceiptAudit) reuse(rc *snapshot.Receipt, at *snapshot.Attempt
 	if rc.Kind != "GATE_RESULT" {
 		return a.fail(rc, "reused gate result %s is named by a %s receipt", d, rc.Kind)
 	}
-	posted := false
+	posted := a.accepted[d]
 	for _, p := range rc.Post {
 		posted = posted || (p.Path == "evidence/"+d && p.Sha256 != nil && *p.Sha256 == wire.Digest(d))
 	}
 	if !posted {
-		return a.fail(rc, "reused gate result %s is not posted by the receipt that names it", d)
+		return a.fail(rc, "reused gate result %s is not posted by the receipt that names it or retained earlier", d)
 	}
 	srcRaw, ok := blob(*g.ReusedFrom)
 	if !ok || wire.Sum(srcRaw) != *g.ReusedFrom {
@@ -152,4 +165,15 @@ func (a *GateReuseReceiptAudit) reuse(rc *snapshot.Receipt, at *snapshot.Attempt
 		return a.fail(rc, "reused gate result %s is not its source rebound to attempt %s", d, at.AttemptID)
 	}
 	return nil
+}
+
+// claimsReuse reports whether undecodable gate result bytes still carry a
+// non-null reusedFrom, so a malformed reuse cannot pass as a skipped result.
+func claimsReuse(raw []byte) bool {
+	v, err := wire.Parse(raw)
+	if err != nil || v.Kind != wire.KindObject {
+		return false
+	}
+	r, ok := v.Obj.Get("reusedFrom")
+	return ok && r.Kind != wire.KindNull
 }

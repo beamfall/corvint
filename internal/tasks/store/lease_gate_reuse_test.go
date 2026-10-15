@@ -1,9 +1,11 @@
 package store_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
@@ -121,7 +123,7 @@ func TestCALV0240_ReusablePassSatisfiesAnotherAttemptAtTheTree(t *testing.T) {
 	if rc, err := snapshot.DecodeReceipt(raw); err != nil || rc.Kind != "GATE_RESULT" {
 		t.Fatalf("receipt: %+v %v", rc, err)
 	}
-	if again, err := s.gate(t, "gate-b", gateOf(b, "verify"), 4); err != nil || again.Kind != "Replay" || s.runs(t, "verify") != 1 {
+	if again, err := s.gate(t, "gate-b", gateOf(b, "verify"), 4); err != nil || again.Kind != "Replay" || s.runs(t, "verify") != 1 || again.GateReusedFrom == nil || *again.GateReusedFrom != *report.GateReusedFrom {
 		t.Fatalf("replay: %+v %v", again, err)
 	}
 	for i, c := range []*store.Report{b, a} {
@@ -140,6 +142,82 @@ func TestCALV0240_ReusablePassSatisfiesAnotherAttemptAtTheTree(t *testing.T) {
 	auditOK(t, s.repo)
 	if err := store.FoldReceiptBindings(s.repo, report.Outcome.ReceiptSeq.Uint64(), nil); err != nil {
 		t.Fatalf("binding fold: %v", err)
+	}
+}
+
+// TestCALV0243_ReuseRenamedAfterReturningToTheTree: an attempt that reused
+// a result, executed the gate at another tree, then returned to the first
+// tree reuses the identical record again; that receipt does not post the
+// already retained record, and the receipt audit still accepts the history.
+func TestCALV0243_ReuseRenamedAfterReturningToTheTree(t *testing.T) {
+	t.Parallel()
+	s := newLeaseStore(t, reuseGate("verify", "0", "30", true, true))
+	claims, _, tree := s.sharedTree(t, "src", "lib")
+	a, b := claims[0], claims[1]
+	s.passes(t, "gate-a", gateOf(a, "verify"), 2)
+	s.passes(t, "gate-b-1", gateOf(b, "verify"), 3)
+	reused := s.resultOf(t, b.AttemptID, "verify")
+	_, other := s.commit(t, "lib/b.go")
+	if r := s.lease(t, "submit-b-2", submitOf(b, other), 4, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("submit at another tree: %+v", r)
+	}
+	s.passes(t, "gate-b-2", gateOf(b, "verify"), 5)
+	gitRun(t, s.root, "rm", "-q", "lib/b.go")
+	gitRun(t, s.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "back")
+	if back := gitOut(t, s.root, "rev-parse", "HEAD^{tree}"); back != tree {
+		t.Fatalf("tree %s, want %s", back, tree)
+	}
+	if r := s.lease(t, "submit-b-3", submitOf(b, tree), 6, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("submit back: %+v", r)
+	}
+	report, err := s.gate(t, "gate-b-3", gateOf(b, "verify"), 7)
+	if err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted || report.GateReusedFrom == nil {
+		t.Fatalf("reuse again: %+v %v", report, err)
+	}
+	if s.runs(t, "verify") != 2 || s.resultOf(t, b.AttemptID, "verify") != reused {
+		t.Fatalf("runs %d, result %s, want 2 and %s", s.runs(t, "verify"), s.resultOf(t, b.AttemptID, "verify"), reused)
+	}
+	auditOK(t, s.repo)
+	if err := store.FoldReceiptBindings(s.repo, report.Outcome.ReceiptSeq.Uint64(), nil); err != nil {
+		t.Fatalf("binding fold: %v", err)
+	}
+}
+
+// TestCALV0243_RedoBindsAPendingReuse: a reuse receipt whose head was not
+// yet advanced is redone through the gate reuse binding, and the same
+// pending receipt without the reused result's evidence post is refused.
+func TestCALV0243_RedoBindsAPendingReuse(t *testing.T) {
+	t.Parallel()
+	for _, forged := range []bool{false, true} {
+		s := newLeaseStore(t, reuseGate("verify", "0", "30", true, true))
+		claims, _, _ := s.sharedTree(t, "src", "lib")
+		s.passes(t, "gate-a", gateOf(claims[0], "verify"), 2)
+		head := filepath.Join(s.repo.StateDir, "head.json")
+		headBefore := mustRead(t, head)
+		report, err := s.gate(t, "gate-b", gateOf(claims[1], "verify"), 3)
+		if err != nil || report.GateReusedFrom == nil {
+			t.Fatalf("reuse: %+v %v", report, err)
+		}
+		reused := s.resultOf(t, claims[1].AttemptID, "verify")
+		fixture.Write(t, head, headBefore)
+		if forged {
+			forgeReceipt(t, s.repo, report.Receipt, func(path string, rec wire.Value) (wire.Value, bool) {
+				return rec, path != "evidence/"+reused
+			})
+		}
+		next, err := s.gate(t, "gate-a-again", gateOf(claims[0], "verify"), 4)
+		if forged {
+			if wire.CodeOf(err) != wire.CodeJournalForked || !strings.Contains(err.Error(), "gate reuse binding") {
+				t.Fatalf("forged pending reuse = %+v, %v; want JOURNAL_FORKED from the gate reuse binding", next, err)
+			}
+			if !bytes.Equal(mustRead(t, head), headBefore) {
+				t.Fatal("refused redo moved head")
+			}
+			continue
+		}
+		if err != nil || !next.Redone || next.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatalf("redo = %+v, %v", next, err)
+		}
 	}
 }
 
@@ -435,4 +513,55 @@ func TestCALV0243_ReceiptAuditBindsEveryReuse(t *testing.T) {
 	}
 	forked("not reusable", repolicied(reuseGate("verify", "0", "30", false, true)), blob)
 	forked("changed definition", repolicied(reuseGate("verify", "0", "31", true, true)), blob)
+	// An undecodable result named in the reuse's place is skipped unless it
+	// still claims a reusedFrom.
+	undecodable := func(reusedFrom wire.Value) ([]*snapshot.Receipt, transaction.ExternalReviewBlob) {
+		t.Helper()
+		g, err := wire.Parse(s.evidence(t, reused))
+		if err != nil {
+			t.Fatal(err)
+		}
+		g.Obj.Set("state", wire.Array())
+		g.Obj.Set("reusedFrom", reusedFrom)
+		bad := wire.EncodeFile(g)
+		if _, err := snapshot.DecodeGateResult(bad); err == nil {
+			t.Fatal("the altered result still decodes")
+		}
+		badSum := wire.Sum(bad)
+		rcs := receipts()
+		renamed := false
+		for i, p := range rcs[last-1].Post {
+			if p.Path != "attempts/"+claims[1].AttemptID+".json" || p.Sha256 == nil {
+				continue
+			}
+			raw, ok := []byte(nil), true
+			if p.Record != nil {
+				raw = wire.EncodeFile(*p.Record)
+			} else {
+				raw, ok = blob(*p.BlobSha256)
+			}
+			v, err := wire.Parse(raw)
+			if !ok || err != nil {
+				t.Fatalf("attempt post: %v", err)
+			}
+			v.Obj.Set("gateResults", wire.Strings([]string{string(badSum)}))
+			sum := wire.Sum(wire.EncodeFile(v))
+			rcs[last-1].Post[i] = snapshot.PostEntry{Path: p.Path, Sha256: &sum, Record: &v}
+			renamed = true
+		}
+		if !renamed {
+			t.Fatal("no attempt post")
+		}
+		return rcs, func(d wire.Digest) ([]byte, bool) {
+			if d == badSum {
+				return bad, true
+			}
+			return blob(d)
+		}
+	}
+	if err := fold(undecodable(wire.Null())); err != nil {
+		t.Fatalf("an undecodable unreused result: %v", err)
+	}
+	forkedRcs, forkedBlob := undecodable(str(string(source)))
+	forked("undecodable reuse", forkedRcs, forkedBlob)
 }

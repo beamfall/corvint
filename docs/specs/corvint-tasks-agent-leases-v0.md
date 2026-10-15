@@ -6321,7 +6321,8 @@ tree, the receipt kind, a holder never reporting a pass) is unchanged.
   the source's `evidence/` blob remains the evidence. With several qualifying results the lowest
   digest is chosen. The `gate run` result item adds `reusedFrom`: `null` after an execution, else
   `{"result": <digest>, "attemptId": <source attempt>}`. `complete` (CAL-V0-017) accepts a reused
-  result as it accepts an executed one, and a retried request replays it. A gate not declared
+  result as it accepts an executed one, and a retried request replays it, reporting the
+  `reusedFrom` that the original receipt recorded. A gate not declared
   reusable, or with no qualifying result, runs as CAL-V0-016 requires. Surface: `gate run`
   short-circuits; no verb, receipt kind, record field or format is added.
 - `CAL-V0-241`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1415) A result
@@ -6352,13 +6353,16 @@ tree, the receipt kind, a holder never reporting a pass) is unchanged.
   inside the same request; the next `gate run` chooses again.
 - `CAL-V0-243`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1415) `receipt
   audit` MUST verify every reused result. Folding receipts in order, a gate result that an attempt
-  post newly names and whose `reusedFrom` is set MUST be posted as `evidence/<digest>` by the same
-  `GATE_RESULT` receipt; its source MUST be retained under its digest, be an executed `PASSED`
+  post newly names and whose `reusedFrom` is set MUST be named by a `GATE_RESULT` receipt that posts
+  it as `evidence/<digest>`, unless the fold already accepted that identical record (an attempt
+  returning to a tree names the retained record again without posting it); its source MUST be retained under its digest, be an executed `PASSED`
   result of the same gate that its own attempt names as folded before that receipt, and be at the
   attempt's candidate tree; the policy as last posted MUST declare the gate reusable with the
   source's definition digest; and the record MUST equal the source rebound to the attempt.
-  Otherwise the audit refuses `JOURNAL_FORKED` naming the receipt. Results without `reusedFrom`
-  are not examined, so journals written before this change fold unchanged.
+  A named result that does not decode but still carries a non-null `reusedFrom` is refused, not
+  skipped. Otherwise the audit refuses `JOURNAL_FORKED` naming the receipt. Redo of a pending
+  `GATE_RESULT` receipt runs the same fold first. Results without `reusedFrom` are not examined,
+  so journals written before this change fold unchanged.
 
 Compatibility: no format changes. `taskman-gate-result/0` already decodes `reusedFrom`, and the
 receipt, attempt and manifest shapes are unchanged. On a store holding a reused result and a
@@ -6380,8 +6384,9 @@ source attempt reruns the gate between the unlocked choice and the lock, the reu
 skipped, never trusted.
 
 Acceptance evidence: `TestCALV0240_ReusablePassSatisfiesAnotherAttemptAtTheTree`,
-`TestCALV0241_GateRunExecutesWithoutAQualifyingSource`, `TestCALV0242_ModelRefusesAnUnqualifiedReuse`
-and `TestCALV0243_ReceiptAuditBindsEveryReuse` (`internal/tasks/store`);
+`TestCALV0241_GateRunExecutesWithoutAQualifyingSource`, `TestCALV0242_ModelRefusesAnUnqualifiedReuse`,
+`TestCALV0243_ReceiptAuditBindsEveryReuse`, `TestCALV0243_ReuseRenamedAfterReturningToTheTree` and
+`TestCALV0243_RedoBindsAPendingReuse` (`internal/tasks/store`);
 `TestCALV0240_GateRunReportsReusedFrom` (`internal/tasks/cli`);
 `docs/build-log/2026-10-15-v1-1415-reusable-gate-results.md`.
 
@@ -6853,7 +6858,7 @@ and removes the new configuration members.
 | CAL-V0-240 | `TestCALV0240_ReusablePassSatisfiesAnotherAttemptAtTheTree` (`internal/tasks/store`); `TestCALV0240_GateRunReportsReusedFrom` (`internal/tasks/cli`); `docs/build-log/2026-10-15-v1-1415-reusable-gate-results.md` |
 | CAL-V0-241 | `TestCALV0241_GateRunExecutesWithoutAQualifyingSource` (`internal/tasks/store`) |
 | CAL-V0-242 | `TestCALV0242_ModelRefusesAnUnqualifiedReuse` (`internal/tasks/store`) |
-| CAL-V0-243 | `TestCALV0243_ReceiptAuditBindsEveryReuse`, `TestCALV0240_ReusablePassSatisfiesAnotherAttemptAtTheTree` (`internal/tasks/store`) |
+| CAL-V0-243 | `TestCALV0243_ReceiptAuditBindsEveryReuse`, `TestCALV0243_ReuseRenamedAfterReturningToTheTree`, `TestCALV0243_RedoBindsAPendingReuse`, `TestCALV0240_ReusablePassSatisfiesAnotherAttemptAtTheTree` (`internal/tasks/store`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance
