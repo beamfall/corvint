@@ -367,6 +367,12 @@ func TestGoActualBuildFailureStream(t *testing.T) {
 		"test event without Package":     `{"Action":"start"}`,
 		"duplicate ImportPath field":     `{"ImportPath":"p","importpath":"q","Action":"build-fail"}`,
 		"unknown build action":           `{"ImportPath":"p","Action":"build-pass"}`,
+		"unknown test event action":      `{"Package":"p","Action":"build-pass"}`,
+		"build event with empty Package": `{"ImportPath":"p","Package":"","Action":"build-output"}`,
+		"build event with null Test":     `{"ImportPath":"p","Test":null,"Action":"build-output"}`,
+		"build event with FailedBuild":   `{"ImportPath":"p","FailedBuild":"","Action":"build-fail"}`,
+		"build event with Elapsed":       `{"ImportPath":"p","Elapsed":-1,"Action":"build-output"}`,
+		"build event with lowercase key": `{"importpath":"p","Action":"build-output"}`,
 		"build output after build-fail":  build + fail + build,
 		"duplicate build-fail":           fail + fail,
 	} {

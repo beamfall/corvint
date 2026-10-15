@@ -747,7 +747,7 @@ func parseGo(b []byte, o *tr.Observation) error {
 		// GLTP-V0-014: Action selects the BuildEvent or TestEvent shape. BuildEvents are keyed
 		// by ImportPath only and never touch package or test accounting.
 		if e.Action == "build-output" || e.Action == "build-fail" {
-			if e.ImportPath == "" || e.Package != "" || e.Test != "" || e.FailedBuild != "" {
+			if e.ImportPath == "" || !goBuildEventFields(raw) {
 				return errors.New("Go build event shape invalid")
 			}
 			if failedBuilds[e.ImportPath] {
@@ -825,6 +825,21 @@ func parseGo(b []byte, o *tr.Observation) error {
 	return nil
 }
 
+// goBuildEventFields reports whether a BuildEvent carries only the closed GLTP-V0-014 fields
+// ImportPath, Action and Output, so a present Package, Test or FailedBuild is refused even when
+// empty or null.
+func goBuildEventFields(b []byte) bool {
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(b, &fields) != nil {
+		return false
+	}
+	for name := range fields {
+		if name != "ImportPath" && name != "Action" && name != "Output" {
+			return false
+		}
+	}
+	return true
+}
 func uniqueGoFields(b []byte) error {
 	d := json.NewDecoder(bytes.NewReader(b))
 	first, e := d.Token()
