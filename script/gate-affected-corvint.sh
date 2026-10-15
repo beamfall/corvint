@@ -36,10 +36,40 @@ printf 'gate-affected: base %s (%s)\n' "$base" "$base_request"
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/corvint-gate-affected.XXXXXX")
 child=""
-# A signal trap that returns lets the shell resume, so each signal is forwarded to the
-# running corvint (which kills its own process groups) and exits; EXIT cleans up.
+building=""
+# stop_tree freezes a process and every process below it, walking the process table until no
+# new child appears (a stopped process cannot fork, and children are found before their parent
+# dies and they are reparented), then terminates and resumes them all.
+stop_tree() {
+    tree=$1
+    pending=$1
+    while [ -n "$pending" ]; do
+        # shellcheck disable=SC2086
+        kill -s STOP $pending 2> /dev/null || true
+        pending=$(ps -A -o pid= -o ppid= | awk -v parents=" $pending " -v seen=" $tree " \
+            'BEGIN { ORS = " " } index(parents, " " $2 " ") && !index(seen, " " $1 " ") { print $1 }')
+        tree="$tree $pending"
+        pending=${pending% }
+    done
+    # shellcheck disable=SC2086
+    kill -s TERM $tree 2> /dev/null || true
+    # shellcheck disable=SC2086
+    kill -s CONT $tree 2> /dev/null || true
+}
+# A signal trap that returns lets the shell resume, so each signal exits with 128+N; EXIT
+# cleans up. During the build every process below it is terminated: an asynchronous child of
+# a non-interactive shell ignores SIGINT, and `go build` does not stop its compilers, so
+# forwarding the signal alone would leave the build running (V1-1310). During `corvint test`
+# the signal is forwarded to corvint, which kills its own process groups.
 interrupt() {
-    if [ -n "$child" ]; then
+    if [ -n "$building" ]; then
+        # $! covers a signal that lands after the fork but before child is assigned.
+        pid=${child:-$!}
+        if [ -n "$pid" ]; then
+            stop_tree "$pid"
+            wait "$pid" 2> /dev/null || true
+        fi
+    elif [ -n "$child" ]; then
         kill -s "$1" "$child" 2> /dev/null || true
         wait "$child" 2> /dev/null || true
     fi
@@ -53,15 +83,17 @@ trap 'interrupt TERM 143' TERM
 corvint=${CORVINT_TEST_BINARY:-}
 if [ -z "$corvint" ]; then
     corvint="$work/corvint"
-    # The build runs as a waited background child too, so a signal during it is forwarded
+    # The build runs as a waited background child, so a signal during it is handled at once
     # rather than deferred until a hung build returns.
-    build=0
+    build_status=0
+    building=1
     (cd "$source_root" && exec env GOCACHE="${CORVINT_GOCACHE:-/tmp/corvint-go-build-cache}" \
         GOTOOLCHAIN=local go build -trimpath -o "$corvint" ./cmd/corvint) &
     child=$!
-    wait "$child" || build=$?
+    wait "$child" || build_status=$?
     child=""
-    if [ "$build" -ne 0 ]; then
+    building=""
+    if [ "$build_status" -ne 0 ]; then
         printf 'gate-affected: corvint could not be built from %s\n' "$source_root" >&2
         exit 2
     fi

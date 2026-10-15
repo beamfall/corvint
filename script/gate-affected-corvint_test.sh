@@ -4,12 +4,23 @@ set -eu
 # Exercises script/gate-affected-corvint.sh (STR-V0-012 rollout step 2) on a two-package Go
 # repository with real go test: a clean tree runs nothing, an edit runs a narrowed set, a
 # dirty go.mod runs FULL, BASE joins the committed range, an unresolvable BASE is a usage
-# error, a failing test fails the run, the receipt lands under the Git directory, and SIGTERM
-# reaches the running corvint and the build before it.
+# error, a failing test fails the run, the receipt lands under the Git directory, SIGTERM
+# reaches the running corvint, and HUP, INT or TERM during the build stops the whole build.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-gate-affected-corvint-test.XXXXXX")
-cleanup() { rm -rf "$test_root"; }
+# cleanup also stops any build stand-in or sleeper a failed signal case left behind; a pid is
+# killed only while it still names one of those commands, never a reused unrelated pid.
+cleanup() {
+  for marker in "$test_root"/*.pid; do
+    [ -f "$marker" ] || continue
+    pid=$(cat "$marker")
+    case "$(ps -p "$pid" -o comm= 2> /dev/null)" in
+      *sh | *go | *sleep) kill -s KILL "$pid" 2> /dev/null || true ;;
+    esac
+  done
+  rm -rf "$test_root"
+}
 trap cleanup EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
@@ -115,25 +126,58 @@ expect_err "gate-affected: base --base is not a revision"
 
 # SIGTERM to the gate is forwarded to the running corvint, which owns and kills its process
 # groups, and the gate exits 143 without starting anything else.
-# shellcheck disable=SC2016
-printf '#!/bin/sh\ntrap '"'"'echo forwarded > "%s/forwarded"; exit 143'"'"' TERM\nkill -TERM "$PPID"\nsleep 30 &\nwait\n' "$test_root" > "$test_root/terminated-corvint"
+# The stand-in stops its own sleeper when the forwarded signal arrives.
+cat > "$test_root/terminated-corvint" <<'EOF_CORVINT'
+#!/bin/sh
+sleep 30 &
+sleeper=$!
+echo "$sleeper" > "$GATE_TEST_DIR/corvint-sleep.pid"
+trap 'echo forwarded > "$GATE_TEST_DIR/forwarded"; kill "$sleeper"; exit 143' TERM
+kill -TERM "$PPID"
+wait
+EOF_CORVINT
 chmod +x "$test_root/terminated-corvint"
 status=0
-(cd "$repository" && CORVINT_TEST_BINARY="$test_root/terminated-corvint" \
+(cd "$repository" && CORVINT_TEST_BINARY="$test_root/terminated-corvint" GATE_TEST_DIR="$test_root" \
   "$source_root/script/gate-affected-corvint.sh" > "$test_root/stdout" 2> "$test_root/stderr") || status=$?
 expect_status 143 "terminated"
 test -f "$test_root/forwarded" || fail "SIGTERM was not forwarded to corvint"
 
-# SIGTERM during the build of corvint is forwarded to the build too, rather than deferred
-# until a hung build returns.
+# A hangup, interrupt or termination during the build of corvint stops the build and every
+# process below it, and the gate exits 128+N without starting tests (V1-1310). The stand-in
+# build records its pid and a sleeping descendant's, signals the gate, and waits; it writes
+# build-finished only if it outlives its sleeper, which a deferred signal would allow. No
+# wall-clock bound is asserted, so a loaded host cannot fail the case.
 mkdir -p "$test_root/fake-go"
-# shellcheck disable=SC2016
-printf '#!/bin/sh\ntrap '"'"'echo forwarded > "%s/build-forwarded"; exit 143'"'"' TERM\nkill -TERM "$PPID"\nsleep 30 &\nwait\n' "$test_root" > "$test_root/fake-go/go"
+cat > "$test_root/fake-go/go" <<'EOF_GO'
+#!/bin/sh
+sleep 30 &
+echo "$!" > "$GATE_TEST_DIR/sleep.pid"
+echo "$$" > "$GATE_TEST_DIR/build.pid"
+kill -s "$GATE_TEST_SIGNAL" "$PPID"
+wait
+echo finished > "$GATE_TEST_DIR/build-finished"
+EOF_GO
 chmod +x "$test_root/fake-go/go"
-status=0
-(cd "$repository" && PATH="$test_root/fake-go:$PATH" \
-  "$source_root/script/gate-affected-corvint.sh" > "$test_root/stdout" 2> "$test_root/stderr") || status=$?
-expect_status 143 "terminated during the build"
-test -f "$test_root/build-forwarded" || fail "SIGTERM was not forwarded to the build"
+alive() { kill -0 "$1" 2> /dev/null; }
+for case in HUP:129 INT:130 TERM:143; do
+  signal=${case%%:*}
+  rm -f "$test_root/build.pid" "$test_root/sleep.pid" "$test_root/build-finished"
+  status=0
+  (cd "$repository" && PATH="$test_root/fake-go:$PATH" GATE_TEST_DIR="$test_root" GATE_TEST_SIGNAL="$signal" \
+    "$source_root/script/gate-affected-corvint.sh" > "$test_root/stdout" 2> "$test_root/stderr") || status=$?
+  expect_status "${case#*:}" "$signal during the build"
+  if test -f "$test_root/build-finished"; then fail "$signal during the build waited for the build to finish"; fi
+  test -s "$test_root/build.pid" && test -s "$test_root/sleep.pid" || fail "$signal: the build stand-in did not start"
+  if grep -qF "could not be built" "$test_root/stderr" || grep -qF "corvint-test" "$test_root/stderr"; then
+    fail "$signal during the build went on past the build"
+  fi
+  # The killed sleeper is reparented and reaped asynchronously; allow it two seconds.
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if alive "$(cat "$test_root/build.pid")" || alive "$(cat "$test_root/sleep.pid")"; then sleep 0.2; else break; fi
+  done
+  if alive "$(cat "$test_root/build.pid")"; then fail "$signal: the build outlived the gate"; fi
+  if alive "$(cat "$test_root/sleep.pid")"; then fail "$signal: a build descendant outlived the gate"; fi
+done
 
 echo "gate-affected-corvint tests passed"

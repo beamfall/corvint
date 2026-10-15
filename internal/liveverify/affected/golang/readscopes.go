@@ -2,11 +2,14 @@ package golang
 
 import (
 	"bytes"
+	"context"
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io/fs"
 
+	"github.com/Beamfall/corvint/internal/cem/gitauth"
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
@@ -65,6 +68,32 @@ func readScopes(root *affected.Source) (map[string][]string, error) {
 		}
 	}
 	return declared.Packages, nil
+}
+
+// CommittedReadScopes reads the read-scope declaration of commit from verified
+// immutable Git objects, never the worktree, as the base a declaration edit is
+// measured from (AFP-V0-050). An absent declaration is an empty map. A commit
+// or declaration that cannot be read, or a declaration that is invalid,
+// returns an error; the caller then keeps the edit bearing on every declared
+// unit.
+func CommittedReadScopes(ctx context.Context, root, commit string) (map[string][]string, error) {
+	repository, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	if err != nil {
+		return nil, err
+	}
+	defer repository.BeginObjectSession()()
+	source, err := repository.RevisionFS(ctx, commit, affected.MaxSourceBytes)
+	if err != nil {
+		return nil, err
+	}
+	scopes, err := readScopes(affected.FSSource(source))
+	if err != nil {
+		return nil, err
+	}
+	if scopes == nil {
+		scopes = map[string][]string{}
+	}
+	return scopes, nil
 }
 
 // applyReadScopes marks each declared unit, given each unit's directory. Any
