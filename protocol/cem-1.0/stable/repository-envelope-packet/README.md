@@ -83,3 +83,8 @@ CHANGES.md lists every repair6 change.
 Additive member revisions: each later revision adds one stable result
 member with `make cem-stable-regen` (CEM-V1-091), which keeps every frozen
 key, exit and case, re-binds the digests and appends a section to CHANGES.md.
+
+Recorded value re-emissions: a revision may also re-emit the value of an existing
+member with `make cem-stable-regen-replace` (CEM-V1-091, decision 0530), which
+keeps every other key, exit and case, records the predecessor digest of each
+replaced value and the reason, and appends a section to CHANGES.md.

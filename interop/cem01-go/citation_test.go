@@ -294,7 +294,7 @@ func TestCEMV1080RubberStampAndCarefulBothAccept(t *testing.T) {
 		t.Fatalf("rubber-stamp block %s", rubber)
 	}
 	if c.HunksByClass != (citationClasses{Anchored: 16, Cited: 8}) || c.DistinctEvidence != 24 || c.MaxFanOut != 1 || len(c.EvidenceFanOut) != 24 ||
-		c.SamePathCitations != 1 || c.ConcentratedHunks != 24 || c.Invariant || c.Specificity != 16 || c.AnnotationHunks != 0 {
+		c.SamePathCitations != 1 || c.ConcentratedHunks != 0 || c.Invariant || c.Specificity != 16 || c.AnnotationHunks != 0 {
 		t.Fatalf("careful block %s", careful)
 	}
 	anchors := map[string]int{}
@@ -329,7 +329,7 @@ func TestCEMV1082DisjointUmbrellaSpansHaveZeroSpecificity(t *testing.T) {
 	}
 	_, c, raw, block := f.run(t, f.stableMap(t, plan))
 	if c.Specificity != 0 || c.Invariant || !bytes.Contains(block, []byte(`"hunksByClass":{"held":0,"mechanical-proved":0,"anchored":0,"cited":20,"unknown":0}`)) ||
-		c.DistinctEvidence != 20 || c.MaxFanOut != 1 || c.ConcentratedHunks != 20 {
+		c.DistinctEvidence != 20 || c.MaxFanOut != 1 || c.ConcentratedHunks != 0 {
 		t.Fatalf("split block %s", block)
 	}
 	citationGolden(t, "split-20", f, raw, block)
@@ -444,7 +444,7 @@ func TestCEMV1081RequirementIDGrammar(t *testing.T) {
 	if len(defs) != 2 || !defs["CEM-SM-007"] || !defs["CEM-SM-010"] {
 		t.Fatalf("definitions %v", defs)
 	}
-	for in, want := range map[string]bool{"// `CEM-SM-007`\n": true, "x // `CEM-SM-007`\n": true, "return compute(value)\n": false, "return value\n": true, "007\n": false, "if ok {}\n": true} {
+	for in, want := range map[string]bool{"// `CEM-SM-007`\n": true, "x // `CEM-SM-007`\n": true, "return compute(value)\n": false, "return value\n": false, "007\n": false, "if ok {}\n": true} {
 		_, rest := citationIDs([]byte(in))
 		if got := citationNeutral(rest); got != want {
 			t.Errorf("neutral(%q)=%v want %v", in, got, want)

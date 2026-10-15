@@ -18,7 +18,7 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-commands-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-batch-check dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-check
+.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-commands-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-batch-check dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-check
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -134,6 +134,9 @@ interop-gate:
 #   make cem-stable-regen-capture CAPTURE=/tmp/member.jsonl
 #   make cem-stable-regen MEMBER=<name> SCHEMA=<fragment.json> CAPTURE=/tmp/member.jsonl [VALUES=<overrides.json>] \
 #     [CELL_VALUES=<cell-overrides.json>] NOTE="<driver>"
+# cem-stable-regen-replace re-emits recorded values of existing members (CEM-V1-091, decision 0530):
+#   make cem-stable-regen-replace MEMBER=<name[,name]> RECORD=<record.json> CAPTURE=/tmp/member.jsonl \
+#     [VALUES=<overrides.json>] [CELL_VALUES=<cell-overrides.json>]
 # cem-stable-regen-check verifies the sealed chain without writing.
 AFTER ?= artifactChecks
 
@@ -145,6 +148,10 @@ cem-stable-regen-capture:
 cem-stable-regen:
 	@test -n "$(MEMBER)" && test -n "$(SCHEMA)" && test -n "$(NOTE)" || { echo "set MEMBER, SCHEMA, NOTE and CAPTURE or VALUES" >&2; exit 2; }
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-stable-regen --member "$(MEMBER)" --schema "$(SCHEMA)" --after "$(AFTER)" $(if $(CAPTURE),--capture "$(CAPTURE)") $(if $(VALUES),--values "$(VALUES)") $(if $(CELL_VALUES),--cell-values "$(CELL_VALUES)") --note "$(NOTE)"
+
+cem-stable-regen-replace:
+	@test -n "$(MEMBER)" && test -n "$(RECORD)" || { echo "set MEMBER, RECORD and CAPTURE or VALUES" >&2; exit 2; }
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-stable-regen --replace --member "$(MEMBER)" --record "$(RECORD)" $(if $(CAPTURE),--capture "$(CAPTURE)") $(if $(VALUES),--values "$(VALUES)") $(if $(CELL_VALUES),--cell-values "$(CELL_VALUES)")
 
 cem-stable-regen-check:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-stable-regen --check
