@@ -64,18 +64,55 @@ Local host darwin/arm64, go1.27.2 (`GOTOOLCHAIN=local`), Apple Git 2.54.0 at `/u
   .github/cishards .github/testconfine`: empty.
 - `corvint affected --base 4c1ca0d0f` at lane start: `PLAN_ONLY` / `EMPTY_SELECTION` (no dirty
   paths yet); `corvint context` named the gate files and tests that were then edited.
-- Doc gates (12, after staging): DOC_GATES_RESULT.
+- Doc gates (12, after staging; `spec-requirements-check requirement-definitions-check
+  traceability-tests-check decision-numbers-check line-citations-check eol-policy-check
+  license-headers-check ci-least-privilege-check unbounded-readers-check test-commands-check
+  error-code-ownership-check use-case-receipts-check`): all rc 0, rerun after every docs edit.
 
 Hosted macos-15 evidence (`release-gates.yml` `workflow_dispatch`, inputs `sha` and the
 label-only `release`; the workflow pins, commits and publishes nothing):
 
 - Run 1, 38650914390 at 22fca01e63472971d367ce25519d5c8c5b592e2f (diagnostics and the named
-  refusal, no PATH fix): RUN1_RESULT
-- Run 2, RUN2_ID at RUN2_SHA (the PATH fix): RUN2_RESULT
+  refusal, no PATH fix): macos-15 full-gate job 116149186818 `failure`, as intended, with the
+  cause retained (AC1). cmd/corvint `TestTCBV0016GateVerdictRunsBothConsumers` and
+  `TestTCBV0042PortableConsumerUnderBareHostPath` failed at 23:31Z with the probe output
+  `/usr/bin/git`, `git version 2.39.5 (Apple Git-154)`, `attr-source: rejected exit 129`,
+  `unknown option: --attr-source=HEAD`, and the gate document
+  `"portable":{"citationSha256":null,"code":"git-diff-failed","outcome":"UNSUPPORTED","route":"verify-stable-canonical","stage":"repository",...}`
+  under `CEM_VERDICT_UNVERIFIABLE` (that commit still asserted `git-read-failed`, which the
+  retained document corrected to `git-diff-failed`). internal/taskman `TestTCBV0010..0013`,
+  `0017` (both), `0018`, `0020`, `0023` and `0040` failed at 00:10Z the same way (every
+  fixture `CEM_VERDICT_UNVERIFIABLE`, portable `repository` / `git-diff-failed`). The
+  ubuntu-24.04 full-gate job 116149186944 failed only `error-code-ownership-check`
+  (`portable-route-unsupported` was not yet named by a spec at that commit; the lane's spec
+  sections name it). linux-core, interop-gate, companion-release and focused-docs succeeded.
+  Retained log: `agent-1377/run1.log` (scratchpad).
+- Run 2, 38654510601 at 52ad86a368ae06520617b536b12f22d38102b362 (the PATH fix; the gate code is
+  identical to the PR head, later commits touch docs and `.corvint/` only): every job `success`
+  (AC2). macos-15 full-gate job 116160979035: `ok github.com/Beamfall/corvint/cmd/corvint
+  1015.682s`, `ok github.com/Beamfall/corvint/internal/taskman 28.989s`, no `FAIL`; the runner's
+  PATH git is `/opt/homebrew/bin/git` 2.55.0 (from the checkout step), its `/usr/bin/git` is
+  2.39.5, so the fix ran the consumer on the gate's 2.55.0 and both legs agreed. ubuntu-24.04
+  full-gate, interop-gate, companion-release, focused-docs and linux-core `success`. Retained
+  log: `agent-1377/run2.log` (scratchpad). Both permitted dispatches are used.
 
 ## Codex review
 
-CODEX_RESULT
+One read-only round (`codex exec -s read-only`, `agent-1377/codex.log`), verdict `REJECT`
+with four findings, all addressed before the hosted run 2:
+
+1. Blocking: the unsupported-route branch pinned a consumer document whose `verdictSha256`
+   claim was never compared with the gate's recomputed digest, so a consumer could name
+   `UNSUPPORTED` against a foreign verdict. Fixed: the named refusal requires the claim to
+   equal the recomputed digest; a false claim falls through to the comparison and refuses
+   `verifier-disagreement` (test case in `TestTCBV0040PortableUnsupportedRefusesNamingTheRoute`).
+2. Should-fix: `closedToken` accepted any lowercase word (for example `private-hostname`) as a
+   stage or code. Fixed: `portableStages` and `portableCodes` are the `RESULT.schema.json`
+   enumerations, pinned by `TestTCBV0040PortablePinSetsMatchTheResultSchema` (read scope added).
+3. Should-fix: TCB-V0-041 said `UNSUPPORTED` exits 2 while the gate accepts 1 or 2. Fixed in the
+   spec text: a non-zero exit under TCB-V0-017.
+4. Blocking: the hosted run 2 placeholders were unfilled at review time. Resolved by the run 2
+   evidence recorded above.
 
 ## Failure modes
 
