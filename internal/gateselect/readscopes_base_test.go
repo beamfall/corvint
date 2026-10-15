@@ -40,7 +40,7 @@ func baseRepository(t *testing.T, files, links map[string]string) (string, strin
 
 func fixtureGit(t *testing.T, root string, arguments ...string) string {
 	t.Helper()
-	command := exec.Command("git", append([]string{"-C", root}, arguments...)...)
+	command := exec.Command("git", append([]string{"-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 	command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
 	output, err := command.CombinedOutput()
 	if err != nil {
@@ -54,7 +54,7 @@ func fixtureGit(t *testing.T, root string, arguments ...string) string {
 func emptyTreeCommit(t *testing.T, root, base, name string) string {
 	t.Helper()
 	mktree := func(listing string) string {
-		command := exec.Command("git", "-C", root, "mktree", "-z")
+		command := exec.Command("git", "-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0", "mktree", "-z")
 		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
 		command.Stdin = strings.NewReader(listing)
 		output, err := command.Output()
