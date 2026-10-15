@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-22
-Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept)
+Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept), `OCM-V0-021` to `OCM-V0-023` (2026-10-14, V1-1049, V1-1048, V1-0522, owner's standing auto-accept)
 Delivery status: experimental
 Authoritative inputs: `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/CHANGE-EVIDENCE-MAP.md`,
 `docs/specs/cem-pilot-kit.md`, `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: OCM maps scoped requirements to exact change-and-test witnesses or explicit unknowns; ordered multi-intent dogfood coordination is experimental.
-- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept)/experimental; accepted amendments implemented without promotion
+- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept), `OCM-V0-021` to `OCM-V0-023` (2026-10-14, V1-1049, V1-1048, V1-0522, owner's standing auto-accept)/experimental; accepted amendments implemented without promotion
 - Exists: an `ocm/0.1-experimental` structural traceability profile, verifier, and evidence mapping.
 - Blocked on: ten-change dogfood and promotion gates; linked rows do not prove correctness or adequacy.
 - Read next: Verified starting state; Requirements; Acceptance and dogfood.
@@ -219,6 +219,25 @@ claim, and mutation ordering deltas below.
   traceability row, reports `requirements=N linked=N unlinked=0`; a change whose map cites no
   requirement and whose diff edits none reports `requirements=0 linked=0 unlinked=0`, never the
   intent's total with `linked=0`.
+- `OCM-V0-021`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1049) each
+  `OCM-V0-013` aggregate bound refusal, `map-too-large`, `too-many-claims` and
+  `too-many-obligations`, MUST name the observed summed total, the fixed bound and every scope's
+  share by its 1-based manifest line, as `<fixed text>: observed T, bound B; per scope 1=N1, 2=N2`.
+  The message carries at most 2 + 2 x 16 integers and no path, requirement body or map content. The
+  bound values, the bytes-then-claims-then-obligations precedence after `duplicate-requirement`, and
+  the success result bytes are unchanged.
+- `OCM-V0-022`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1048) when
+  `corvint dogfood finish` refuses because the aggregate refuses, its `policy.evidence` MUST carry
+  one `dogfood-ocm-status` row for `.corvint/change.ocm-intents` with the refusal `code` and, for
+  an `OCM-V0-021` bound refusal, a `detail` member holding that bounded message (dropped, never
+  truncated, above 512 bytes). The stderr envelope keeps the bare code, so no path or command text
+  reaches it, and the exit status is unchanged.
+- `OCM-V0-023`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0522) at an
+  aggregate bound refusal the operator chooses which intents to declare from the `OCM-V0-021`
+  per-scope shares, as `docs/DOGFOOD.md` section 5 describes. A refusal MUST NOT widen a bound, drop
+  or merge an obligation of a declared scope, or infer a larger or smaller gate from the scope
+  selection; every requirement of an omitted owning spec and every inherited constraint stays
+  explicit in the build log or review, not silently covered.
 
 ## Wire profile
 
@@ -407,10 +426,10 @@ check, in the order shown.
 | Code | First emitting site | At the cited site |
 |---|---|---|
 | `invalid-json` | `internal/dogfoodocm/aggregate.go:175` | "verified OCM map could not be decoded" |
-| `invalid-map` | `internal/dogfoodocm/aggregate.go:356` | "<value>: one OCM map failed verification", or the map path followed by the verification cause, when the failed map's first issue carries no code |
-| `map-too-large` | `internal/dogfoodocm/aggregate.go:249` | "aggregate OCM map bytes exceed the limit" (summed map bytes over 1 MiB) |
-| `too-many-claims` | `internal/dogfoodocm/aggregate.go:252` | "aggregate OCM claims exceed the limit" (summed claims over 512) |
-| `too-many-obligations` | `internal/dogfoodocm/aggregate.go:255` | "aggregate OCM obligations exceed the limit" (summed obligations over 256) |
+| `invalid-map` | `internal/dogfoodocm/aggregate.go:379` | "<value>: one OCM map failed verification", or the map path followed by the verification cause, when the failed map's first issue carries no code |
+| `map-too-large` | `internal/dogfoodocm/aggregate.go:255` | "aggregate OCM map bytes exceed the limit" (summed map bytes over 1 MiB), followed by `: observed T, bound B; per scope 1=N1, ...` (`OCM-V0-021`) |
+| `too-many-claims` | `internal/dogfoodocm/aggregate.go:258` | "aggregate OCM claims exceed the limit" (summed claims over 512), followed by `: observed T, bound B; per scope 1=N1, ...` (`OCM-V0-021`) |
+| `too-many-obligations` | `internal/dogfoodocm/aggregate.go:261` | "aggregate OCM obligations exceed the limit" (summed obligations over 256), followed by `: observed T, bound B; per scope 1=N1, ...` (`OCM-V0-021`) |
 
 ## Simpler baseline and non-goals
 
@@ -512,6 +531,9 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-018 | `internal/lrfrepo/ocm.go` (`extractableGoClaim`), `internal/lrfrepo/ocm_claims.go` (`enumerateClaims`), `internal/lrfrepo/ocm_write.go` (`goCaseAnchorShapes`) | `internal/lrfrepo/ocm_selector_test.go:TestOCMInlineGoRunCaseBoundary` |
 | OCM-V0-019 | `internal/dogfoodflow/ocm_coverage.go` (`changeCoverage`, `parseRequirements`, `namesRequirement`), `internal/dogfoodflow/check.go` (`checkSummary`) | `internal/dogfoodflow/check_test.go:TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces`, `internal/dogfoodflow/check_test.go:TestDCWV0033CheckSummaryAbstainsOnUnobservedFields`, `cmd/corvint/dogfood_flow_portable_test.go:TestDogfoodDailyPathRunsFromBinaryInForeignRepository` |
 | OCM-V0-020 | `internal/dogfoodflow/ocm_coverage.go` (`changeCoverage`, `changedLines`, `testsNaming`) | `internal/dogfoodflow/check_test.go:TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces` (`adds two traced IDs`, `cites none`), `cmd/corvint/dogfood_ocm_dcw_test.go:TestDogfoodDCWLinksSurviveRebind` |
+| OCM-V0-021 | `internal/dogfoodocm/aggregate.go` (`validateScopeBindings`, `boundMessage`) | `internal/dogfoodocm/aggregate_test.go:TestOCMV0021BoundRefusalsNameTotalsBoundAndScopes` |
+| OCM-V0-022 | `internal/localcompletion/finish.go` (`aggregateRefusal`), `internal/localcompletion/types.go` (`EvidenceWorklist.Detail`) | `internal/localcompletion/aggregate_refusal_test.go:TestOCMV0022FinishRetainsAggregateRefusalDetail` |
+| OCM-V0-023 | `docs/DOGFOOD.md` section 5 (choosing intents at an aggregate bound) | adjudication `docs/build-log/2026-10-14-batch5-refusal-diagnostics.md`; bounds pinned by `internal/dogfoodocm/aggregate_test.go:TestOCMV0021BoundRefusalsNameTotalsBoundAndScopes` |
 
 Native selector diagnostic amendment to `OCM-V0-007` (2026-09-08): the owner's Task 2
 follow-up explicitly requests printing the normalized fragment on a miss. A missing `/case:` selector retains
