@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
@@ -23,6 +24,25 @@ func GoverningInstructionPath(value string) bool {
 		return true
 	}
 	return len(parts) >= 2 && parts[0] == ".github" && parts[1] == "instructions" && strings.HasSuffix(name, ".instructions.md")
+}
+
+// refuseSelfModifiedAuthority refuses evidence on a governing instruction
+// file that the map's own patch changes (CEM-V1-114): a change cannot cite,
+// as authority for its own hunks, the governing file it rewrites. Status
+// still reports such a citation in a map written by any other route
+// (CEM-CB-026).
+func refuseSelfModifiedAuthority(document *wire.Map, evidencePath string) error {
+	if !GoverningInstructionPath(evidencePath) {
+		return nil
+	}
+	for _, hunk := range document.Hunks {
+		if hunk.Path == evidencePath {
+			return cemcode.New(cemcode.CiteSelfModifiedAuthority,
+				"evidence path %q is a governing instruction file this change modifies (hunk %s); it is not authority for this change's own hunks",
+				evidencePath, hunk.ID)
+		}
+	}
+	return nil
 }
 
 // selfModifiedAuthority lists every governing instruction file the map's own

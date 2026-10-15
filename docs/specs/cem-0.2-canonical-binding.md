@@ -334,8 +334,8 @@ the normative shape contract.
   (TCP-V0-057; threat recorded in `task-context-packet-v0.md`, V1-0414). The member is absent when
   the patch changes no governing file, so such a status envelope is byte-identical to before. The
   report does not change `state`, `ok`, `policyIssues`, the map or any other command's output: a
-  map that was `ready-for-ci` stays `ready-for-ci`, and refusing such citations is a policy the
-  owner has not accepted. A renamed governing file is reported only by its new path.
+  map that was `ready-for-ci` stays `ready-for-ci`. Status refuses nothing; `cem cite` refuses
+  writing such a citation under `CEM-V1-114` (`cem-stable-v1.md`, V1-0414, 2026-10-14). A renamed governing file is reported only by its new path.
 
 ## Exact patch-binding envelope
 
