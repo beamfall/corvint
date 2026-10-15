@@ -29,6 +29,21 @@ type Graph struct {
 	frontier   []string
 	frontierBy map[string][]string
 	digest     string
+	// priorReadScopes is the read-scope declaration a change is measured
+	// from, by package directory; nil means unknown (AFP-V0-050). It is a
+	// selection input, not part of the observed graph or its digest.
+	priorReadScopes map[string][]string
+}
+
+// WithReadScopeBase returns a copy of graph whose selection compares an edit
+// to the read-scope declaration against prior, the declaration at the commit
+// the change is measured from; an absent declaration is an empty map
+// (AFP-V0-050). A nil prior is unknown and keeps AFP-V0-023's rule that the
+// edit bears on every declared unit.
+func (graph *Graph) WithReadScopeBase(prior map[string][]string) *Graph {
+	copied := *graph
+	copied.priorReadScopes = prior
+	return &copied
 }
 
 // graphDigestDomain is hashed ahead of the digest body, so a graph digest

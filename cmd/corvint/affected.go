@@ -639,7 +639,9 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if revisionAfter, err := affectedHeadRevision(ctx, gitExecutable, root); err != nil || revisionAfter != revision {
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "HEAD changed while the plan was compiled"}
 	}
-	plan := affected.Select(graph, affected.NormalizePaths(append(append([]string{}, dirty...), committed...)))
+	changed := affected.NormalizePaths(append(append([]string{}, dirty...), committed...))
+	graph = graph.WithReadScopeBase(affectedPriorReadScopes(ctx, gitExecutable, root, invocation.Base, revision, changed))
+	plan := affected.Select(graph, changed)
 	provider := providerGoProjection(graph, plan)
 	advice := compileAffectedAdvice(root, plan, provider)
 	if invocation.SelectionProfile == appflows.E2ESafeProfile {
@@ -717,6 +719,34 @@ func affectedSelectionInput(invocation affectedInvocation, plan affected.Plan, d
 // affectedRangePaths resolves the requested base to a commit in this
 // repository and captures the tree diff base..HEAD. An empty base is the
 // worktree-only form and yields an empty, non-nil list.
+// affectedPriorReadScopes reads, when the change touches the read-scope
+// declaration, the declaration it is measured from: the base commit with
+// --base, else HEAD, from immutable Git objects (AFP-V0-050). It is nil,
+// unknown, otherwise and on any failure, which keeps an edit to the
+// declaration bearing on every declared unit.
+func affectedPriorReadScopes(ctx context.Context, gitExecutable, root, base, revision string, changed []string) map[string][]string {
+	touched := false
+	for _, path := range changed {
+		touched = touched || path == affected.ReadScopesPath
+	}
+	if !touched {
+		return nil
+	}
+	commit := revision
+	if base != "" {
+		resolved, err := affectedRevision(ctx, gitExecutable, root, base)
+		if err != nil {
+			return nil
+		}
+		commit = resolved
+	}
+	scopes, err := golang.CommittedReadScopes(ctx, root, commit)
+	if err != nil {
+		return nil
+	}
+	return scopes
+}
+
 func affectedRangePaths(ctx context.Context, gitExecutable, root, base string) ([]string, error) {
 	if base == "" {
 		return []string{}, nil

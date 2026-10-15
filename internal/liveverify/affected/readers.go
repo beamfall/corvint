@@ -2,6 +2,7 @@ package affected
 
 import (
 	"path"
+	"slices"
 	"strings"
 )
 
@@ -63,16 +64,27 @@ const ReadScopesPath = ".corvint/test-read-scopes.json"
 
 // scopedReadersOf selects each unit not already reached whose declared read
 // scope holds a dirty path, witnessed by the smallest such path (AFP-V0-023).
-// Like a reader it is not traversed.
+// Like a reader it is not traversed. When the declaration itself is dirty and
+// the graph knows the declaration it is measured from, only a Go unit whose
+// own declaration was added, changed or removed bears on that edit
+// (AFP-V0-050); otherwise every declared unit does.
 func (graph *Graph) scopedReadersOf(reached map[string]Witness, dirty []string) {
 	for _, id := range graph.order {
 		unit := graph.units[id]
-		if _, seen := reached[id]; seen || !unit.ReadScoped {
+		if _, seen := reached[id]; seen || (!unit.ReadScoped && graph.priorReadScopes == nil) {
 			continue
 		}
-		directory := relativeDirectory(append(append([]string(nil), unit.Sources...), unit.Tests...)[0])
+		files := append(append([]string(nil), unit.Sources...), unit.Tests...)
+		if len(files) == 0 {
+			continue
+		}
+		directory := relativeDirectory(files[0])
 		for _, dirtyPath := range dirty {
-			if InReadScope(directory, unit.ReadScope, dirtyPath) {
+			bears := unit.ReadScoped && InReadScope(directory, unit.ReadScope, dirtyPath)
+			if dirtyPath == ReadScopesPath && graph.priorReadScopes != nil {
+				bears = graph.declarationChanged(id, unit, directory) || (unit.ReadScoped && inDeclaredScope(directory, unit.ReadScope, dirtyPath))
+			}
+			if bears {
 				reached[id] = Witness{Kind: WitnessDeclaredReadScope, DirtyPath: dirtyPath, Via: []string{id}}
 				break
 			}
@@ -80,12 +92,32 @@ func (graph *Graph) scopedReadersOf(reached map[string]Witness, dirty []string) 
 	}
 }
 
+// declarationChanged reports whether a Go unit's read-scope declaration in
+// the observed tree differs from the one the change is measured from: added,
+// with different entries, or removed (AFP-V0-050).
+func (graph *Graph) declarationChanged(id string, unit Unit, directory string) bool {
+	if !strings.HasPrefix(id, "go:") {
+		return false
+	}
+	prior, declared := graph.priorReadScopes[directory]
+	if !unit.ReadScoped {
+		return declared
+	}
+	return !declared || !slices.Equal(prior, unit.ReadScope)
+}
+
 // InReadScope reports whether a dirty path bears on a package in directory
 // whose tests read only scope outside it: the declaration itself, a path in
 // the package's subtree, or a path that is a declared entry, lies in a
 // declared subtree, or is an ancestor of an entry (a directory record).
 func InReadScope(directory string, scope []string, dirtyPath string) bool {
-	if dirtyPath == ReadScopesPath || directory == "." || dirtyPath == directory || strings.HasPrefix(dirtyPath, directory+"/") {
+	return dirtyPath == ReadScopesPath || inDeclaredScope(directory, scope, dirtyPath)
+}
+
+// inDeclaredScope is InReadScope without the declaration itself: the package's
+// subtree and its declared entries only.
+func inDeclaredScope(directory string, scope []string, dirtyPath string) bool {
+	if directory == "." || dirtyPath == directory || strings.HasPrefix(dirtyPath, directory+"/") {
 		return true
 	}
 	for _, entry := range scope {
