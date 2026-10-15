@@ -290,3 +290,19 @@ func TestRequirementsAcceptanceColumns(t *testing.T) {
 		}
 	}
 }
+
+// TestIndexImplementationPathsExist refuses an INDEX.json implementation path that is absent from
+// the tree (V1-1342): a moved or deleted file otherwise stays named as the implementation.
+func TestIndexImplementationPathsExist(t *testing.T) {
+	var entries []entry
+	if err := json.Unmarshal(mustRead(t, "../../docs/specs/INDEX.json"), &entries); err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		for _, path := range e.Implementation {
+			if _, err := os.Stat(filepath.Join("../..", path)); err != nil {
+				t.Errorf("%s: implementation path %q is absent from the tree: %v", e.Path, path, err)
+			}
+		}
+	}
+}

@@ -196,7 +196,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   version `0.99.1`, surface `extension`, adapter version `0.3.2`, for the same four
   events only. It shares the sealed profile and bounds but never the protected Pi
   profile or its authority. Any other event refuses with `unsupported-dogfood-event`
-  (`cmd/corvint/local_completion_event.go:73,148`). Claude post-tool and
+  (`cmd/corvint/local_completion_event.go`, `dogfoodEventInput`). Claude post-tool and
   file-change retain the legacy harness profile, normalization and plain session hash; neither
   profile accepts an envelope from the other. A compact session start over a dirty worktree adds
   the `AHI-003` compaction block under the context packet's `compaction` key and its `compaction-*`
@@ -228,8 +228,8 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   output becomes one fixed degradation, never a truncated path, key, packet or resealed receipt.
   A budget that cannot retain the mandatory fields fails `unsupported-dogfood-context-budget`, and
   explicit-anchor context over its bounded candidate profile fails `unsupported-dogfood-context-bounds`
-  (`internal/contextindex/local_completion_context.go:247,627`); the native event reports either as
-  the fixed `dogfood-event-unavailable` (`cmd/corvint/local_completion_event.go:135`).
+  (`internal/contextindex/local_completion_context.go`, `failBounds` and `packet`); the native event reports either as
+  the fixed `dogfood-event-unavailable` (`cmd/corvint/local_completion_event.go`, `runLocalCompletionEvent`).
   Amendment (2026-10-07, accepted by decision 0441; V1-0939, V1-0942): the receipt rules
   above are unchanged, but the Claude Code and Codex adapters inject its `corvint-hook-context/0`
   projection (`AHI-045`); an anchorless prompt whose receipt holds only governance, current scope
@@ -375,96 +375,96 @@ elsewhere are not repeated.
 
 | Code | First emitting site | Condition at the cited site |
 |---|---|---|
-| `base-not-ancestor-of-target` | `internal/localcompletion/storage.go:451@f5e86618` | Git reports the plan base is not an ancestor of the enrollment-time `HEAD` commit (exit 1, empty stderr) |
+| `base-not-ancestor-of-target` | `internal/localcompletion/storage.go` (`requireBaseAncestor`) | Git reports the plan base is not an ancestor of the enrollment-time `HEAD` commit (exit 1, empty stderr) |
 | `base-unavailable` | `internal/localcompletion/lifecycle.go` (`Begin`) | the plan base does not resolve, or resolves to a different object |
-| `cem-bindings-required` | `internal/localcompletion/finish.go:192@09122998` | the public `cem status` run against the plan base and current target returned an error |
-| `check-executable-unavailable` | `internal/localcompletion/storage.go:529` | `exec.LookPath` cannot resolve a check's executable |
-| `completion-evidence-drift` | `internal/localcompletion/finish.go:410@b1202061` | after finishing, the tree is not clean, the target or tree differs from the pre-finish snapshot, or the saved report is no longer current |
-| `dogfood-coordination-failed` | `internal/localcompletion/finish.go:463` | the in-process `dogfood change` coordination run did not pass (`LCP-V0-014`) |
-| `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go:442` | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
-| `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:83` | the event's context deadline expired or was cancelled, or the Git repository probe's own fixed bound expired first (V1-0396), including during the stdin input read (V1-1391) |
-| `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go:81` | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, decision 0400); proposed 2026-09-26, not accepted: also reported before that build when the recorded `index` build cost does not fit the time left (`IDX-SNAP-V0-012`) |
-| `dogfood-event-input-unavailable` | `cmd/corvint/local_completion_event.go:588` | reading the event input from stdin failed before the event's deadline passed (V1-1391) |
-| `dogfood-event-native-budget` | `cmd/corvint/local_completion_event.go:498` | eight prompt-context attempts, each shrinking the budget, never fit the natively escaped response within the byte budget |
-| `dogfood-event-output-too-large` | `cmd/corvint/local_completion_event.go:523` | the canonical response plus a final LF exceeds the byte budget |
-| `dogfood-event-output-unavailable` | `cmd/corvint/local_completion_event.go:169` | writing the encoded response to stdout failed |
-| `dogfood-event-policy-drift` | `cmd/corvint/local_completion_event.go:323` | the evaluation's target is set and differs from the commit probed before the event |
-| `dogfood-event-repository-drift` | `cmd/corvint/local_completion_event.go:314` | the closing observation of the event's one bracket differs from the opening one (`gokernel.ErrRepositoryDrift`), or the commit differs from the expected target |
-| `dogfood-report-drift` | `internal/localcompletion/finish.go:624@524cf06b` | the dogfood report does not parse, is not complete, or names a base or target other than the plan base and current target |
-| `duplicate-local-completion-option` | `cmd/corvint/local_completion.go:161` | a `local-completion` option is given twice |
-| `enrollment-bound-exceeded` | `internal/localcompletion/storage.go:320@72a91813` | saved state has more than 64 observations, or its intent-pointer or executable count does not match the plan |
-| `enrollment-cancelled` | `internal/localcompletion/finish.go:61@20b07eb5` | the saved enrollment's lifecycle is `cancelled` |
-| `enrollment-drift` | `internal/localcompletion/storage.go:302@f4228dd7` | saved state names another session, or its plan digest does not match its plan |
+| `cem-bindings-required` | `internal/localcompletion/finish.go` (`prepareBindings`) | the public `cem status` run against the plan base and current target returned an error |
+| `check-executable-unavailable` | `internal/localcompletion/storage.go` (`resolveExecutable`) | `exec.LookPath` cannot resolve a check's executable |
+| `completion-evidence-drift` | `internal/localcompletion/finish.go` (`revalidate`) | after finishing, the tree is not clean, the target or tree differs from the pre-finish snapshot, or the saved report is no longer current |
+| `dogfood-coordination-failed` | `internal/localcompletion/finish.go` (`coordinate`) | the in-process `dogfood change` coordination run did not pass (`LCP-V0-014`) |
+| `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go` (`localEventContext`) | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
+| `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`) | the event's context deadline expired or was cancelled, or the Git repository probe's own fixed bound expired first (V1-0396), including during the stdin input read (V1-1391) |
+| `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`) | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, decision 0400); proposed 2026-09-26, not accepted: also reported before that build when the recorded `index` build cost does not fit the time left (`IDX-SNAP-V0-012`) |
+| `dogfood-event-input-unavailable` | `cmd/corvint/local_completion_event.go` (`dogfoodInputFailureCode`) | reading the event input from stdin failed before the event's deadline passed (V1-1391) |
+| `dogfood-event-native-budget` | `cmd/corvint/local_completion_event.go` (`localEventContext`) | eight prompt-context attempts, each shrinking the budget, never fit the natively escaped response within the byte budget |
+| `dogfood-event-output-too-large` | `cmd/corvint/local_completion_event.go` (`dogfoodEventBytes`) | the canonical response plus a final LF exceeds the byte budget |
+| `dogfood-event-output-unavailable` | `cmd/corvint/local_completion_event.go` (`runLocalCompletionEvent`) | writing the encoded response to stdout failed |
+| `dogfood-event-policy-drift` | `cmd/corvint/local_completion_event.go` (`localEventRead`) | the evaluation's target is set and differs from the commit probed before the event |
+| `dogfood-event-repository-drift` | `cmd/corvint/local_completion_event.go` (`localEventRead`) | the closing observation of the event's one bracket differs from the opening one (`gokernel.ErrRepositoryDrift`), or the commit differs from the expected target |
+| `dogfood-report-drift` | `internal/localcompletion/finish.go` (`checkCoordinatorContext`) | the dogfood report does not parse, is not complete, or names a base or target other than the plan base and current target |
+| `duplicate-local-completion-option` | `cmd/corvint/local_completion.go` (`localCompletionFlags`) | a `local-completion` option is given twice |
+| `enrollment-bound-exceeded` | `internal/localcompletion/storage.go` (`load`) | saved state has more than 64 observations, or its intent-pointer or executable count does not match the plan |
+| `enrollment-cancelled` | `internal/localcompletion/finish.go` (`finishWithProfile`) | the saved enrollment's lifecycle is `cancelled` |
+| `enrollment-drift` | `internal/localcompletion/storage.go` (`load`) | saved state names another session, or its plan digest does not match its plan |
 | `enrollment-generation-bound-exceeded` | `internal/localcompletion/lifecycle.go` (`archiveGeneration`) | 16 enrollment generations are already preserved for the session |
 | `enrollment-plan-conflict` | `internal/localcompletion/lifecycle.go` (`Begin`) | the session already has an active enrollment for a different plan digest |
-| `final-check-failed` | `internal/localcompletion/finish.go:121@a967963f` | the final in-process `dogfood check` did not pass (`LCP-V0-014`) |
-| `final-check-not-prerequisite` | `internal/localcompletion/storage.go:184` | a check argv element is `dogfood-check` or ends in `/dogfood-check.sh`, or the argv contains `dogfood check` or `dogfood seal` (`LCP-V0-015`) |
-| `immutable-base-required` | `internal/localcompletion/storage.go:145@ca703205` | the plan base is not a Git object id |
+| `final-check-failed` | `internal/localcompletion/finish.go` (`finishWithProfile`) | the final in-process `dogfood check` did not pass (`LCP-V0-014`) |
+| `final-check-not-prerequisite` | `internal/localcompletion/storage.go` (`validatePlan`) | a check argv element is `dogfood-check` or ends in `/dogfood-check.sh`, or the argv contains `dogfood check` or `dogfood seal` (`LCP-V0-015`) |
+| `immutable-base-required` | `internal/localcompletion/storage.go` (`validatePlan`) | the plan base is not a Git object id |
 | `initial-receipt-secret-screened` | `internal/localcompletion/lifecycle.go` (`Begin`) | a preserved pre-change query or impact receipt matches the secret screen; recorded as the `NOT_PRODUCED` reason in its refusal metadata |
-| `input-bound-exceeded` | `internal/localcompletion/storage.go:50@eb3bb1dc` | strict JSON input is empty or larger than its bound |
+| `input-bound-exceeded` | `internal/localcompletion/storage.go` (`strictJSON`) | strict JSON input is empty or larger than its bound |
 | `intent-path-not-found` | `internal/localcompletion/lifecycle.go` (`Begin`) | an intent path is absent from the tree of the current target commit |
-| `invalid-check-argv` | `internal/localcompletion/storage.go:171@62ffd2b6` | a check's first argv element is empty, or any element exceeds 4096 bytes or contains NUL |
-| `invalid-check-bound` | `internal/localcompletion/storage.go:167` | a check has fewer than 1 or more than 64 argv elements, or a timeout outside 1..3600 seconds |
-| `invalid-check-id` | `internal/localcompletion/storage.go:163@304d3553` | a check id does not match `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$` or repeats |
-| `invalid-dogfood-context` | `internal/contextindex/local_completion_context.go:61@81898529` | prompt context was requested without an index at an immutable revision |
-| `invalid-dogfood-event-arguments` | `cmd/corvint/local_completion_event.go:116@122ad135` | an event option is repeated |
-| `invalid-dogfood-event-budget` | `cmd/corvint/local_completion_event.go:129` | the requested byte budget exceeds the event maximum |
-| `invalid-dogfood-event-input` | `cmd/corvint/local_completion_event.go:202@8c68164b` | the event input exceeds the kernel input bound or is not valid UTF-8 |
-| `invalid-enrollment-generation` | `internal/localcompletion/storage.go:305` | the saved generation is not 68 bytes prefixed by the plan digest and `-` |
-| `invalid-enrollment-pointer` | `internal/localcompletion/storage.go:329` | a saved intent pointer names another path than its plan intent, or a revision or blob hash that is not a Git object id |
-| `invalid-execution-path` | `internal/localcompletion/storage.go:324@8ff31c64` | a saved executable path is not absolute, not clean, or longer than 4096 bytes |
-| `invalid-intent-scope` | `internal/localcompletion/storage.go:153@abbb5bca` | a plan intent is not a valid path or is not strictly after the previous intent; `error.message` names the sorted, de-duplicated 1-16 path rule (`LCP-V0-018`) |
-| `invalid-lifecycle` | `internal/localcompletion/storage.go:317@fbaa4cfb` | the saved lifecycle is not `active`, `satisfied` or `cancelled` |
-| `invalid-local-completion-action` | `cmd/corvint/local_completion.go:149` | the action is not `begin`, `verify`, `review`, `status`, `finish`, `cancel` or `handoff` |
-| `invalid-local-completion-json` | `internal/localcompletion/storage.go:55@a157754a` | strict JSON input does not parse |
-| `invalid-local-completion-option` | `cmd/corvint/local_completion.go:158`; `cmd/corvint/local_completion.go:179` | an option is not allowed for the action, or the mutually exclusive `--anchors` and `--receipt` are both given |
-| `invalid-local-completion-option-value` | `cmd/corvint/local_completion.go:171` | an option value is empty or longer than 4096 bytes |
-| `invalid-local-completion-schema` | `internal/localcompletion/storage.go:63@9df6e350` | strict JSON input parsed and passed the JSON type check, but decoding into the target type with unknown fields disallowed failed; the JSON type check emits the same code at `internal/localcompletion/storage.go:72`, and a required-field read of input that is not an object at `internal/localcompletion/storage.go:342` |
+| `invalid-check-argv` | `internal/localcompletion/storage.go` (`validatePlan`) | a check's first argv element is empty, or any element exceeds 4096 bytes or contains NUL |
+| `invalid-check-bound` | `internal/localcompletion/storage.go` (`validatePlan`) | a check has fewer than 1 or more than 64 argv elements, or a timeout outside 1..3600 seconds |
+| `invalid-check-id` | `internal/localcompletion/storage.go` (`validatePlan`) | a check id does not match `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$` or repeats |
+| `invalid-dogfood-context` | `internal/contextindex/local_completion_context.go` (`validateLocalPrompt`) | prompt context was requested without an index at an immutable revision |
+| `invalid-dogfood-event-arguments` | `cmd/corvint/local_completion_event.go` (`runLocalCompletionEvent`) | an event option is repeated |
+| `invalid-dogfood-event-budget` | `cmd/corvint/local_completion_event.go` (`runLocalCompletionEvent`) | the requested byte budget exceeds the event maximum |
+| `invalid-dogfood-event-input` | `cmd/corvint/local_completion_event.go` (`dogfoodEventInput`) | the event input exceeds the kernel input bound or is not valid UTF-8 |
+| `invalid-enrollment-generation` | `internal/localcompletion/storage.go` (`load`) | the saved generation is not 68 bytes prefixed by the plan digest and `-` |
+| `invalid-enrollment-pointer` | `internal/localcompletion/storage.go` (`load`) | a saved intent pointer names another path than its plan intent, or a revision or blob hash that is not a Git object id |
+| `invalid-execution-path` | `internal/localcompletion/storage.go` (`load`) | a saved executable path is not absolute, not clean, or longer than 4096 bytes |
+| `invalid-intent-scope` | `internal/localcompletion/storage.go` (`validatePlan`) | a plan intent is not a valid path or is not strictly after the previous intent; `error.message` names the sorted, de-duplicated 1-16 path rule (`LCP-V0-018`) |
+| `invalid-lifecycle` | `internal/localcompletion/storage.go` (`load`) | the saved lifecycle is not `active`, `satisfied` or `cancelled` |
+| `invalid-local-completion-action` | `cmd/corvint/local_completion.go` (`localCompletionFlags`) | the action is not `begin`, `verify`, `review`, `status`, `finish`, `cancel` or `handoff` |
+| `invalid-local-completion-json` | `internal/localcompletion/storage.go` (`strictJSON`) | strict JSON input does not parse |
+| `invalid-local-completion-option` | `cmd/corvint/local_completion.go` (`localCompletionFlags`) | an option is not allowed for the action, or the mutually exclusive `--anchors` and `--receipt` are both given |
+| `invalid-local-completion-option-value` | `cmd/corvint/local_completion.go` (`localCompletionFlags`) | an option value is empty or longer than 4096 bytes |
+| `invalid-local-completion-schema` | `internal/localcompletion/storage.go` (`strictJSON`) | strict JSON input parsed and passed the JSON type check, but decoding into the target type with unknown fields disallowed failed; the JSON type check emits the same code at `internal/localcompletion/storage.go` (`validateJSONTypes`), and a required-field read of input that is not an object at `internal/localcompletion/storage.go` (`requireFields`) |
 | `invalid-local-state-directory` | `internal/localcompletion/lifecycle.go` (`generationCount`) | the session's generation path exists and is not a directory |
-| `invalid-public-evidence-result` | `internal/localcompletion/finish.go:242` | a public evidence command exited zero but its stdout is not JSON with `ok: true` |
+| `invalid-public-evidence-result` | `internal/localcompletion/finish.go` (`public`) | a public evidence command exited zero but its stdout is not JSON with `ok: true` |
 | `invalid-report-set-digest` | `internal/localcompletion/lifecycle.go` (`Review`) | the review's report-set digest is not 64 lowercase hex |
-| `invalid-review-digest` | `internal/localcompletion/storage.go:342@d2acc89d` | a saved review digest is present and not 64 lowercase hex |
-| `invalid-session-key` | `internal/localcompletion/storage.go:39@35b08e1e` | the session key is not 64 lowercase hex |
-| `invalid-tree-listing` | `internal/localcompletion/storage.go:502` | a tree-listing row has no tab separator |
-| `invalid-verification-exit` | `internal/localcompletion/storage.go:335@e9bab10c` | a saved exit is not the canonical decimal of an integer in -1..255 |
-| `invalid-verification-observation` | `internal/localcompletion/storage.go:338` | a saved observation's log paths are not the check's numbered logs, or its target, tree, check digest or content digest is malformed |
-| `invalid-worktree-owner` | `internal/localcompletion/storage.go:414` | the worktree owner file does not hold a 64-hex key |
-| `local-completion-action-required` | `cmd/corvint/local_completion.go:57@df0e82dd` | `local-completion` is given no action argument |
-| `local-completion-failed` | `cmd/corvint/local_completion.go:239@e27e19ee` | the failure code to emit contains a character other than `a-z` or `-`, is empty, or is longer than 96 bytes, so it is replaced |
-| `local-completion-option-required` | `cmd/corvint/local_completion.go:176` | the action's required option is missing |
-| `local-completion-option-value-required` | `cmd/corvint/local_completion.go:166` | a non-inline option is the last argument, or its next token is option-like (`GPK-V0-064`, decision 0196) |
-| `local-outcome-evidence-drift` | `internal/localcompletion/finish.go:628@bb28a5ec` | the local outcome artifact is unreadable or its digest differs from the report's |
-| `local-state-bound-exceeded` | `internal/localcompletion/storage.go:234@f0a4234c` | a local state file is larger than its read bound |
-| `local-state-not-regular` | `internal/localcompletion/storage.go:218@ed38c56e` | a local state file is not a regular file |
-| `local-state-symlink` | `internal/localcompletion/storage.go:201@43e399db` | a local state path or one of its parents is a symlink |
-| `log-secret-screened` | `internal/localcompletion/finish.go:513@512a42ad` | a process's stdout or stderr matches the secret screen |
-| `missing-local-completion-field` | `internal/localcompletion/storage.go:357` | a required field is absent from the JSON input |
-| `ocm-bindings-required` | `internal/localcompletion/finish.go:165@3a562af0` | the dogfood OCM aggregate status is not OK |
+| `invalid-review-digest` | `internal/localcompletion/storage.go` (`load`) | a saved review digest is present and not 64 lowercase hex |
+| `invalid-session-key` | `internal/localcompletion/storage.go` (`open`) | the session key is not 64 lowercase hex |
+| `invalid-tree-listing` | `internal/localcompletion/storage.go` (`snapshotWithContent`) | a tree-listing row has no tab separator |
+| `invalid-verification-exit` | `internal/localcompletion/storage.go` (`load`) | a saved exit is not the canonical decimal of an integer in -1..255 |
+| `invalid-verification-observation` | `internal/localcompletion/storage.go` (`load`) | a saved observation's log paths are not the check's numbered logs, or its target, tree, check digest or content digest is malformed |
+| `invalid-worktree-owner` | `internal/localcompletion/storage.go` (`owner`) | the worktree owner file does not hold a 64-hex key |
+| `local-completion-action-required` | `cmd/corvint/local_completion.go` (`runLocalCompletion`) | `local-completion` is given no action argument |
+| `local-completion-failed` | `cmd/corvint/local_completion.go` (`emitLocalCompletionFailure`) | the failure code to emit contains a character other than `a-z` or `-`, is empty, or is longer than 96 bytes, so it is replaced |
+| `local-completion-option-required` | `cmd/corvint/local_completion.go` (`localCompletionFlags`) | the action's required option is missing |
+| `local-completion-option-value-required` | `cmd/corvint/local_completion.go` (`localCompletionFlags`) | a non-inline option is the last argument, or its next token is option-like (`GPK-V0-064`, decision 0196) |
+| `local-outcome-evidence-drift` | `internal/localcompletion/finish.go` (`checkCoordinatorContext`) | the local outcome artifact is unreadable or its digest differs from the report's |
+| `local-state-bound-exceeded` | `internal/localcompletion/storage.go` (`readFile`) | a local state file is larger than its read bound |
+| `local-state-not-regular` | `internal/localcompletion/storage.go` (`readFile`) | a local state file is not a regular file |
+| `local-state-symlink` | `internal/localcompletion/storage.go` (`checkParents`) | a local state path or one of its parents is a symlink |
+| `log-secret-screened` | `internal/localcompletion/finish.go` (`saveProcess`) | a process's stdout or stderr matches the secret screen |
+| `missing-local-completion-field` | `internal/localcompletion/storage.go` (`requireFields`) | a required field is absent from the JSON input |
+| `ocm-bindings-required` | `internal/localcompletion/finish.go` (`prepareBindings`) | the dogfood OCM aggregate status is not OK |
 | `operation-in-progress` | `internal/localcompletion/storage.go` (`lock`) | the final operation lock path already exists |
 | `operation-lock-permission-denied` | `internal/localcompletion/storage.go` (`operationLockFailure`) | permission denied creating the lock or its parent; underlying cause retained |
 | `operation-lock-create-failed` | `internal/localcompletion/storage.go` (`operationLockFailure`) | another lock creation failure; underlying cause retained |
-| `output-bound-exceeded` | `internal/localcompletion/finish.go:316@a0eab38a` | a bounded output buffer would exceed the artifact byte bound |
-| `plan-bound-exceeded` | `internal/localcompletion/storage.go:148@12c410df` | the plan has fewer than 1 or more than 16 intents or checks; `error.message` names both bounds (`LCP-V0-018`) |
-| `plan-unavailable` | `internal/localcompletion/storage.go:244@ddd42691` | the plan file's parent directory does not resolve |
+| `output-bound-exceeded` | `internal/localcompletion/finish.go` (`Write`) | a bounded output buffer would exceed the artifact byte bound |
+| `plan-bound-exceeded` | `internal/localcompletion/storage.go` (`validatePlan`) | the plan has fewer than 1 or more than 16 intents or checks; `error.message` names both bounds (`LCP-V0-018`) |
+| `plan-unavailable` | `internal/localcompletion/storage.go` (`ReadPlan`) | the plan file's parent directory does not resolve |
 | `prior-completion-stale` | `internal/localcompletion/lifecycle.go` (`Begin`) | the session's satisfied enrollment for a different plan no longer evaluates as satisfied |
-| `public-command-output-bound` | `internal/localcompletion/finish.go:227@03d70f77` | a public evidence command overflowed its stdout or stderr bound |
-| `public-evidence-command-failed` | `internal/localcompletion/finish.go:239@b0f37f66` | a public evidence command exited non-zero without a valid code on stderr |
-| `public-report-path-invalid` | `internal/localcompletion/finish.go:359@4ca026ff` | the report path is not an allowed path |
-| `public-report-path-missing` | `internal/localcompletion/finish.go:354` | the result has no string `report` field |
+| `public-command-output-bound` | `internal/localcompletion/finish.go` (`public`) | a public evidence command overflowed its stdout or stderr bound |
+| `public-evidence-command-failed` | `internal/localcompletion/finish.go` (`public`) | a public evidence command exited non-zero without a valid code on stderr |
+| `public-report-path-invalid` | `internal/localcompletion/finish.go` (`generateReports`) | the report path is not an allowed path |
+| `public-report-path-missing` | `internal/localcompletion/finish.go` (`generateReports`) | the result has no string `report` field |
 | `report-set-stale` | `internal/localcompletion/lifecycle.go` (`Review`) | at review, the tree is not clean, the saved report is not current, or the report-set digest differs |
-| `repository-identity-changed` | `internal/localcompletion/storage.go:519` | the repository root, Git directory or common directory changed since open |
+| `repository-identity-changed` | `internal/localcompletion/storage.go` (`refreshAuthority`) | the repository root, Git directory or common directory changed since open |
 | `repository-snapshot-drift` | `internal/localcompletion/lifecycle.go` (`evaluateObserved`) | the target, tree or cleanliness changed during evaluation |
-| `repository-unavailable` | `internal/localcompletion/storage.go:43@4399960a` | the Git authority for the repository root cannot be opened; the session key was already checked |
-| `secret-shaped-plan` | `internal/localcompletion/storage.go:156@b20c73e8` | a plan intent matches the secret screen |
-| `selected-check-unverified` | `internal/localcompletion/finish.go:414@116cd291` | a plan check has no qualifying observation for the current snapshot |
+| `repository-unavailable` | `internal/localcompletion/storage.go` (`open`) | the Git authority for the repository root cannot be opened; the session key was already checked |
+| `secret-shaped-plan` | `internal/localcompletion/storage.go` (`validatePlan`) | a plan intent matches the secret screen |
+| `selected-check-unverified` | `internal/localcompletion/finish.go` (`revalidate`) | a plan check has no qualifying observation for the current snapshot |
 | `session-identity-required` | `internal/localcompletion/types.go` (`SessionKey`) | no explicit session key and neither `CODEX_THREAD_ID` nor `CODEX_SESSION_ID` is set |
 | `uncommitted-work` | `internal/localcompletion/lifecycle.go` (`Verify`) | the tree is not clean before verification |
 | `unknown-selected-check` | `internal/localcompletion/lifecycle.go` (`Verify`) | the selected check id is not in the plan |
 | `verification-attempt-bound-exceeded` | `internal/localcompletion/lifecycle.go` | Verify refuses at 64 saved observations; evaluation also exposes this unmet reason when any selected check remains unqualified |
 | `verification-cancelled` | `internal/localcompletion/lifecycle.go` (`Verify`) | the context was cancelled after the observation was saved |
-| `verifier-disagreement` | `internal/localcompletion/finish.go:631@2a659081` | on the final read, the report's dogfood check outputs do not agree |
+| `verifier-disagreement` | `internal/localcompletion/finish.go` (`checkCoordinatorContext`) | on the final read, the report's dogfood check outputs do not agree |
 | `worktree-already-enrolled` | `internal/localcompletion/lifecycle.go` (`Begin`) | another session holds an active enrollment for the worktree |
-| `worktree-owner-mismatch` | `internal/localcompletion/storage.go:429@10792014` | the worktree owner is not this session |
+| `worktree-owner-mismatch` | `internal/localcompletion/storage.go` (`requireOwner`) | the worktree owner is not this session |
 | `worktree-prior-completion-stale` | `internal/localcompletion/lifecycle.go` (`Begin`) | another session's satisfied enrollment of the worktree no longer evaluates as satisfied |
 
 ### Resolution and Stop decision reasons
@@ -474,13 +474,13 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | Condition at the cited site |
 |---|---|---|
-| `ambiguous-anchor` | `internal/contextindex/local_completion_context.go:584@0e96865e` | the resolution `reason` when no earlier case applies and an anchor matched more than one candidate |
-| `anchor-evidence-unavailable` | `internal/contextindex/local_completion_context.go:580@b7524c52` | the resolution `reason` when anchors exist and a task-evidence candidate was unreadable or requirement definitions were capped |
-| `anchor-not-found` | `internal/contextindex/local_completion_context.go:582@07c6c8fe` | the resolution `reason` when no earlier case applies and an anchor matched no candidate |
-| `anchor-worktree-changed` | `internal/contextindex/local_completion_context.go:586@37e9b097` | the resolution `reason` when no earlier case applies and a task-evidence path is among the index's dirty paths |
-| `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go:392@50f727f3` | a `stop` event that would block has `stopHookActive` true; decision `release` |
-| `local-policy-incomplete` | `cmd/corvint/local_completion_event.go:390@3862af35` | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
-| `local-policy-other-session-active` | `cmd/corvint/local_completion_event.go:577@65149f9c` | a `stop` event whose inactive evaluation names another session's active enrollment as `owner`; decision `release`, and the completion carries `owner` |
+| `ambiguous-anchor` | `internal/contextindex/local_completion_context.go` (`resolution`) | the resolution `reason` when no earlier case applies and an anchor matched more than one candidate |
+| `anchor-evidence-unavailable` | `internal/contextindex/local_completion_context.go` (`resolution`) | the resolution `reason` when anchors exist and a task-evidence candidate was unreadable or requirement definitions were capped |
+| `anchor-not-found` | `internal/contextindex/local_completion_context.go` (`resolution`) | the resolution `reason` when no earlier case applies and an anchor matched no candidate |
+| `anchor-worktree-changed` | `internal/contextindex/local_completion_context.go` (`resolution`) | the resolution `reason` when no earlier case applies and a task-evidence path is among the index's dirty paths |
+| `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go` (`dogfoodCompletion`) | a `stop` event that would block has `stopHookActive` true; decision `release` |
+| `local-policy-incomplete` | `cmd/corvint/local_completion_event.go` (`dogfoodCompletion`) | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
+| `local-policy-other-session-active` | `cmd/corvint/local_completion_event.go` (`withOtherSessionOwner`) | a `stop` event whose inactive evaluation names another session's active enrollment as `owner`; decision `release`, and the completion carries `owner` |
 
 ## Resource and trust boundaries
 

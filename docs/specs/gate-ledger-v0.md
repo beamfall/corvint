@@ -201,7 +201,7 @@ literal names is outside rule (d)'s promise, not a gap this ledger can detect.
 ## Acceptance criteria and testing matrix
 
 `tools/gate-ledger/main_test.go` runs the tool inside a fixture repository with a private ledger
-directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` listing;
+directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing;
 `script/gate-receipt_test.sh` covers the gate wiring with the ledger off.
 
 | Requirement | Evidence |
@@ -223,12 +223,12 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 | GL-V0-001 | `key`, `inputs`, `worktreeDigest`, `tooling`, `scopes` in `tools/gate-ledger/main.go` | `TestRunStepSkipsOnlyRecordedIdenticalInputs`; `TestRunStepRecordsFromLinkedWorktree` |
 | GL-V0-002 | `runStep`, `runPackages`, `packageOutcomes`, `execute` | `TestRunStepSkipsOnlyRecordedIdenticalInputs`; `TestGoTestPartialPassRerun`; `TestPackageOutcomesRefusesIncomplete`; `TestPackageOutcomesRefusesUnfinishedTestsAtTerminal`; `TestPackageOutcomesAcceptsBenchmarkRuns`; `TestPackageOutcomesBenchmarkFailure`; `TestPackageOutcomesRepeatedBenchmarkTerminals`; `TestPackageOutcomesRefusesUnmatchedBenchmarkTerminals`; `TestPackageOutcomesRefusesFailedBuildPass`; `TestPackageOutcomesRefusesMalformedFieldTypes`; `TestPackageOutcomesAcceptsTypedFields`; `TestRunPackagesRefusesPartialOutput` |
 | GL-V0-003 | `scopes`, `key` | `TestRunStepSkipsOnlyRecordedIdenticalInputs` |
-| GL-V0-004 | `goTest`, `partition`; `unresolvedPackages` in `tools/gate-affected-select/main.go`; `GO_TEST_FLAGS` and `ledger/go-test` in `Makefile` | `TestGoTestFallsBackToOneUncachedRun`; `TestGoTestRunsUnresolvedAfterResolvedFailure`; `TestUnresolvedPackagesListsRootLocators` |
+| GL-V0-004 | `goTest`, `partition`; `unresolvedPackages` in `internal/gateselect/select.go`; `GO_TEST_FLAGS` and `ledger/go-test` in `Makefile` | `TestGoTestFallsBackToOneUncachedRun`; `TestGoTestRunsUnresolvedAfterResolvedFailure`; `TestUnresolvedPackagesListsRootLocators` |
 | GL-V0-005 | `worktreeDigest`, `hasFlaggedEntry`, `compiledIgnored` | `TestRunStepRefusesWhatItCannotDigest` |
 | GL-V0-006 | `ledgerDirectory`, `lookup`, `record`, `prune`; `ownedByInvokingUser` in `tools/gate-ledger/platform_unix.go` (`platform_other.go` refuses the directory on non-Unix hosts) | `TestRunStepRefusesWhatItCannotDigest` |
 | GL-V0-007 | `open`, `plan`; the `ledger/%` targets and their `off` branch in `Makefile` | `TestRunStepRefusesWhatItCannotDigest`; `script/gate-receipt_test.sh` |
 | GL-V0-008 | `lock`; `lockExclusive` in `tools/gate-ledger/platform_unix.go` (`platform_other.go` fails the lock on non-Unix hosts) | inspection |
-| GL-V0-009 | `packageKeys`, `packageKey`, `selectorBounds`, `listedFiles`, `runPackages`, `digestKey` in `tools/gate-ledger/main.go`; `packageBounds`, `attribute`, `attributeStructure` in `tools/gate-affected-select/main.go` and `pathMatcher` in `tools/gate-affected-select/readers.go` | `TestGoTestKeysResolvedPackagesPerPackage`; `TestPackageBoundsAttributesResolvedPackages`; `TestPathMatcherAgreesWithNamesPath` |
+| GL-V0-009 | `packageKeys`, `packageKey`, `selectorBounds`, `listedFiles`, `runPackages`, `digestKey` in `tools/gate-ledger/main.go`; `packageBounds`, `attribute`, `attributeStructure` in `internal/gateselect/select.go` and `pathMatcher` in `internal/gateselect/readers.go` | `TestGoTestKeysResolvedPackagesPerPackage`; `TestPackageBoundsAttributesResolvedPackages`; `TestPathMatcherAgreesWithNamesPath` |
 
 ## Rollout, rollback, and drift
 

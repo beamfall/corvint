@@ -1570,7 +1570,8 @@
       "tools/gate-ledger/main.go",
       "tools/gate-ledger/main_test.go",
       "tools/gate-affected-select/main.go",
-      "tools/gate-affected-select/readers.go"
+      "internal/gateselect/readers.go",
+      "internal/gateselect/select.go"
     ]
   },
   {
