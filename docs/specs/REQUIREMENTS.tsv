@@ -2605,7 +2605,7 @@ OCM-V0-009	docs/specs/ocm-v0-dogfood.md	123	same-change proposed intent MAY be a
 OCM-V0-010	docs/specs/ocm-v0-dogfood.md	134	default solo use MUST allow visible unknown obligations; a repository MAY opt in	unrecorded	-
 OCM-V0-011	docs/specs/ocm-v0-dogfood.md	136	maps and reports MUST contain no source, diff, prompt, command-output, ticket-bo	unrecorded	-
 OCM-V0-012	docs/specs/ocm-v0-dogfood.md	138	parsing, Git access, counts, spans, paths, files, and subprocesses MUST be bound	unrecorded	-
-OCM-V0-013	docs/specs/ocm-v0-dogfood.md	570	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
+OCM-V0-013	docs/specs/ocm-v0-dogfood.md	592	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
 OCM-V0-014	docs/specs/ocm-v0-dogfood.md	146	the `ocm/0.1-experimental` wire profile MUST be frozen by the conformance suite	unrecorded	-
 OCM-V0-015	docs/specs/ocm-v0-dogfood.md	157	from 2026-09-22 the frozen `ocm/0.1-experimental` suite MUST pin every file unde	unrecorded	-
 OCM-V0-016	docs/specs/ocm-v0-dogfood.md	172	(accepted 2026-09-25 by decision 0392, V1-0273) when the `OCM-V0-013` dogfood	owner	2026-09-25; decision 0392; V1-0273
@@ -2613,6 +2613,9 @@ OCM-V0-017	docs/specs/ocm-v0-dogfood.md	181	(accepted 2026-10-08, decision 0469;
 OCM-V0-018	docs/specs/ocm-v0-dogfood.md	191	(accepted 2026-10-08, decision 0469; V1-0520) a Go case anchor's parent test is	owner	2026-10-08; decision 0469; V1-0520
 OCM-V0-019	docs/specs/ocm-v0-dogfood.md	202	(accepted under the owner's standing auto-accept (2026-10-11); V1-1345) the	standing	2026-10-11; V1-1345
 OCM-V0-020	docs/specs/ocm-v0-dogfood.md	217	(accepted under the owner's standing auto-accept (2026-10-11); V1-1345) a bound	standing	2026-10-11; V1-1345
+OCM-V0-021	docs/specs/ocm-v0-dogfood.md	222	(accepted under the owner's standing auto-accept (2026-10-11); V1-1049) each	standing	2026-10-11; V1-1049
+OCM-V0-022	docs/specs/ocm-v0-dogfood.md	229	(accepted under the owner's standing auto-accept (2026-10-11); V1-1048) when	standing	2026-10-11; V1-1048
+OCM-V0-023	docs/specs/ocm-v0-dogfood.md	235	(accepted under the owner's standing auto-accept (2026-10-11); V1-0522) at an	standing	2026-10-11; V1-0522
 OIF-V0-001	docs/specs/ocm-intent-forms-v0.md	54	`corvint ocm prepare` accepts `--intent-form FORM`, where FORM is exactly `requi	unrecorded	-
 OIF-V0-002	docs/specs/ocm-intent-forms-v0.md	55	A non-default form is recorded as the string member `intentScope.form`; the defa	unrecorded	-
 OIF-V0-003	docs/specs/ocm-intent-forms-v0.md	56	Every OCM read and write action re-derives requirements, span, and span digest f	unrecorded	-

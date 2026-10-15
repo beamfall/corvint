@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -126,6 +127,85 @@ func TestOCMV0013DriftPrecedesDuplicate(t *testing.T) {
 	scopes[1].document.TargetRevision = strings.Repeat("b", 40)
 	_, err := aggregateVerified(manifest, manifest, scopes)
 	assertCode(t, err, "intent-scope-drift")
+}
+
+// TestOCMV0021BoundRefusalsNameTotalsBoundAndScopes covers OCM-V0-021: each
+// aggregate bound refusal names the observed total, the fixed bound and every
+// scope's share, keeps bytes-then-claims-then-obligations precedence, and an
+// aggregate at exactly the bounds still succeeds.
+func TestOCMV0021BoundRefusalsNameTotalsBoundAndScopes(t *testing.T) {
+	manifest := []byte("docs/specs/a.md\ndocs/specs/b.md\n")
+	identities := func(prefix string, count int) []string {
+		result := make([]string, count)
+		for index := range result {
+			result[index] = fmt.Sprintf("%s-V0-%03d", prefix, index+1)
+		}
+		return result
+	}
+	claims := func(count int) []json.RawMessage {
+		result := make([]json.RawMessage, count)
+		for index := range result {
+			result[index] = json.RawMessage(`{}`)
+		}
+		return result
+	}
+	pad := func(scope *verifiedScope, size int) {
+		scope.after = append(scope.after, make([]byte, size-len(scope.after))...)
+		scope.before = append([]byte(nil), scope.after...)
+	}
+	cases := []struct {
+		name  string
+		setup func(a, b *verifiedScope)
+		code  string
+		want  string
+	}{
+		{name: "OCM-V0-021 obligations", setup: func(a, b *verifiedScope) {
+			*a = fixtureScope("docs/specs/a.md", identities("A", 200))
+			*b = fixtureScope("docs/specs/b.md", identities("B", 57))
+		}, code: "too-many-obligations", want: "aggregate OCM obligations exceed the limit: observed 257, bound 256; per scope 1=200, 2=57"},
+		{name: "OCM-V0-021 claims", setup: func(a, b *verifiedScope) {
+			a.document.Claims = claims(300)
+			b.document.Claims = claims(213)
+		}, code: "too-many-claims", want: "aggregate OCM claims exceed the limit: observed 513, bound 512; per scope 1=300, 2=213"},
+		{name: "OCM-V0-021 map bytes precede claims and obligations", setup: func(a, b *verifiedScope) {
+			*a = fixtureScope("docs/specs/a.md", identities("A", 200))
+			*b = fixtureScope("docs/specs/b.md", identities("B", 57))
+			a.document.Claims = claims(513)
+			pad(a, 1<<19)
+			pad(b, 1<<19+1)
+		}, code: "map-too-large", want: "aggregate OCM map bytes exceed the limit: observed 1048577, bound 1048576; per scope 1=524288, 2=524289"},
+		{name: "OCM-V0-021 claims precede obligations", setup: func(a, b *verifiedScope) {
+			*a = fixtureScope("docs/specs/a.md", identities("A", 257))
+			a.document.Claims = claims(513)
+		}, code: "too-many-claims", want: "aggregate OCM claims exceed the limit: observed 513, bound 512; per scope 1=513, 2=0"},
+		{name: "OCM-V0-021 exactly at every bound succeeds", setup: func(a, b *verifiedScope) {
+			*a = fixtureScope("docs/specs/a.md", identities("A", 200))
+			*b = fixtureScope("docs/specs/b.md", identities("B", 56))
+			a.document.Claims = claims(256)
+			b.document.Claims = claims(256)
+			pad(a, 1<<19)
+			pad(b, 1<<19)
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a := fixtureScope("docs/specs/a.md", []string{"A-V0-001"})
+			b := fixtureScope("docs/specs/b.md", []string{"B-V0-001"})
+			b.document.Obligations = nil
+			tc.setup(&a, &b)
+			result, err := aggregateVerified(manifest, manifest, []verifiedScope{a, b})
+			if tc.code == "" {
+				if err != nil || !result.OK {
+					t.Fatalf("at-bound aggregate refused: %v", err)
+				}
+				return
+			}
+			assertCode(t, err, tc.code)
+			if message := err.(*lrfrepo.Error).Message; message != tc.want {
+				t.Fatalf("message = %q, want %q", message, tc.want)
+			}
+		})
+	}
 }
 
 func fixtureScope(path string, identities []string) verifiedScope {
