@@ -22,6 +22,11 @@
 //	ci-test-slices generate --root DIR --revision SHA --run-url URL [--shards 8] [--target 0] LOG...
 //	ci-test-slices replay [--root DIR] [--shards 8] [--costs FILE] [--slices FILE] LOG...
 //
+// A package that the allow-list and slice file of the tested tree (generate:
+// SHA; replay: DIR) split ran as test slices, so it ends once per slice, each in
+// another log, and its outcomes combine into one: the sum of the slice times and
+// the union of their tests (AFP-V0-049). Any other repeat across logs refuses.
+//
 // generate checks out the tracked tree of SHA from the repository at DIR into a
 // temporary directory through a temporary index, reads the allow-list there and
 // enumerates each allowed package there with `go test -race -list .`, so neither
@@ -38,7 +43,7 @@
 // count when the run has none; names the run lacks take the package median.
 // Whatever cannot be enumerated stays whole.
 //
-// replay places the observed run with and without the slice file and prints the
+// replay places the observed run with and without the --slices file and prints the
 // predicted per-shard sums of package time. A slice's predicted time is its
 // package's observed time scaled by its tests' share of the package's summed
 // top-level test time; that share model is an inference, not a measurement.
@@ -127,17 +132,26 @@ func run(ctx context.Context, mode string, args []string, out, notes io.Writer) 
 }
 
 type observation struct {
-	packages map[string]int64            // terminal package outcome, ms
-	tests    map[string]map[string]int64 // top-level test outcome, ms
+	ends     map[string][]end            // each log's terminal package outcome, in log order
+	packages map[string]int64            // combined package outcome, ms
+	tests    map[string]map[string]int64 // combined top-level test outcome, ms
 	files    []int64                     // summed package time per log, ms
 }
 
+// end is one log's terminal outcome of a package and the top-level test
+// outcomes of that lifecycle.
+type end struct {
+	ms    int64
+	tests map[string]int64
+}
+
 // observe reads one complete passing run, one log per shard. A failed, repeated,
-// missing or unterminated outcome, a damaged record, or a log without any
-// terminal package outcome is refused: the run is then not a complete, passing
-// measurement of the suite.
+// missing or unterminated outcome within a log, a damaged record, or a log
+// without any terminal package outcome is refused: the run is then not a
+// complete, passing measurement of the suite. combine then admits repeats
+// across logs only for test slices.
 func observe(paths []string) (*observation, error) {
-	o := &observation{packages: map[string]int64{}, tests: map[string]map[string]int64{}}
+	o := &observation{ends: map[string][]end{}}
 	for _, path := range paths {
 		sum, err := o.read(path)
 		if err == nil && sum == 0 {
@@ -174,8 +188,9 @@ func (o *observation) read(path string) (int64, error) {
 		closed = 2
 	)
 	var sum int64
-	state := map[string]int{}    // package lifecycle in this log
-	running := map[string]bool{} // "package test" run, subtests included, not yet ended
+	state := map[string]int{}              // package lifecycle in this log
+	running := map[string]bool{}           // "package test" run, subtests included, not yet ended
+	tests := map[string]map[string]int64{} // top-level test outcomes in this log
 	s := bufio.NewScanner(f)
 	s.Buffer(make([]byte, 0, 1<<16), 8<<20)
 	for n := 1; s.Scan(); n++ {
@@ -254,21 +269,18 @@ func (o *observation) read(path string) (int64, error) {
 			if t := first(running, func(t string) bool { return strings.HasPrefix(t, e.Package+" ") }); t != "" {
 				return 0, fmt.Errorf("test %s started but never ended (incomplete log)", t)
 			}
-			if _, seen := o.packages[e.Package]; seen {
-				return 0, fmt.Errorf("package %s has two terminal outcomes", e.Package)
-			}
-			o.packages[e.Package] = max(1, ms)
+			o.ends[e.Package] = append(o.ends[e.Package], end{max(1, ms), tests[e.Package]})
 			state[e.Package] = closed
 			sum += max(1, ms)
 			continue
 		}
-		if o.tests[e.Package] == nil {
-			o.tests[e.Package] = map[string]int64{}
+		if tests[e.Package] == nil {
+			tests[e.Package] = map[string]int64{}
 		}
-		if _, seen := o.tests[e.Package][e.Test]; seen {
+		if _, seen := tests[e.Package][e.Test]; seen {
 			return 0, fmt.Errorf("test %s %s has two terminal outcomes", e.Package, e.Test)
 		}
-		o.tests[e.Package][e.Test] = ms
+		tests[e.Package][e.Test] = ms
 	}
 	if err := s.Err(); err != nil {
 		return 0, err
@@ -284,6 +296,83 @@ func (o *observation) read(path string) (int64, error) {
 		return 0, fmt.Errorf("package %s has no terminal pass or skip (incomplete log)", unclosed[0])
 	}
 	return sum, nil
+}
+
+// combine sets each package's outcome from its per-log ends (AFP-V0-049),
+// with the allow-list and slice file of the tree the run tested. A package ends
+// once, unless those files split it over the declared shards exactly as the
+// partition does (AFP-V0-041): then it ends exactly once per test slice, and
+// each slice in a different log, since a log holds one lifecycle per package.
+// The top-level tests of each end all belong to one slice, no slice ends twice,
+// no test ends twice, and the package's time is the sum of its ends. A slice
+// whose tests the run lacks ends without tests and takes the slice left over.
+// Any other repeat refuses, as does an allowed package that the slice file
+// splits into more slices than shards. An unreadable or unusable allow-list or
+// slice file splits nothing, so a sliced run then refuses as a repeat.
+func (o *observation) combine(shards int, allowRaw, slicesRaw []byte) error {
+	universe := make([]string, 0, len(o.ends))
+	for p := range o.ends {
+		universe = append(universe, p)
+	}
+	sort.Strings(universe)
+	split := cishards.SplitPackages(universe, shards, allowRaw, slicesRaw)
+	declared := cishards.SplitPackages(universe, cishards.MaxSlices, allowRaw, slicesRaw)
+	o.packages, o.tests = map[string]int64{}, map[string]map[string]int64{}
+	for _, p := range universe {
+		ends, slices := o.ends[p], split[p]
+		switch {
+		case len(slices) == 0 && len(declared[p]) != 0:
+			return fmt.Errorf("package %s is split into %d test slices, more than --shards %d", p, len(declared[p]), shards)
+		case len(slices) == 0 && len(ends) > 1:
+			return fmt.Errorf("package %s has two terminal outcomes", p)
+		case len(slices) != 0 && len(ends) != len(slices):
+			return fmt.Errorf("package %s has %d terminal outcomes for its %d test slices", p, len(ends), len(slices))
+		}
+		in := make([]func(string) bool, len(slices))
+		for i, sl := range slices {
+			in[i] = member(sl)
+		}
+		ran := map[int]bool{}
+		for _, e := range ends {
+			o.packages[p] += e.ms
+			names := make([]string, 0, len(e.tests))
+			for name := range e.tests {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			for _, name := range names {
+				if o.tests[p] == nil {
+					o.tests[p] = map[string]int64{}
+				}
+				if _, seen := o.tests[p][name]; seen {
+					return fmt.Errorf("test %s %s has two terminal outcomes", p, name)
+				}
+				o.tests[p][name] = e.tests[name]
+			}
+			if len(slices) == 0 || len(names) == 0 {
+				continue
+			}
+			// The catch-all admits every name no named slice names, so the first
+			// name has exactly one slice; the bound only guards the index.
+			i := 0
+			for i < len(in) && !in[i](names[0]) {
+				i++
+			}
+			if i == len(in) {
+				return fmt.Errorf("test %s %s is outside every test slice", p, names[0])
+			}
+			for _, name := range names[1:] {
+				if !in[i](name) {
+					return fmt.Errorf("test %s %s is outside test slice %d/%d, which its shard log ran", p, name, i, len(slices))
+				}
+			}
+			if ran[i] {
+				return fmt.Errorf("test slice %d/%d of package %s ended twice", i, len(slices), p)
+			}
+			ran[i] = true
+		}
+	}
+	return nil
 }
 
 // first returns the smallest key of set that keep admits, or "".
@@ -404,6 +493,12 @@ func generate(ctx context.Context, obs *observation, root, revision, runURL stri
 	allowed, ok := cishards.Allowed(allowRaw)
 	if !ok {
 		return 2, errors.New("refused: the partition would reject the allow-list")
+	}
+	// The run tested this revision, so its slice file says which packages ran
+	// as slices; an absent one splits nothing.
+	runSlices, _ := os.ReadFile(filepath.Join(tree, slicesPath))
+	if err := obs.combine(shards, allowRaw, runSlices); err != nil {
+		return 2, err
 	}
 	limit := target.Milliseconds()
 	if limit == 0 {
@@ -631,6 +726,13 @@ func replace(path string, raw []byte) error {
 }
 
 func replay(obs *observation, root string, shards int, costsFile, slicesFile string, out io.Writer) (int, error) {
+	// ROOT is the tree the run tested: its allow-list and slice file say which
+	// packages ran as slices, whatever --slices places.
+	runAllow, _ := os.ReadFile(filepath.Join(root, allowPath))
+	runSlices, _ := os.ReadFile(filepath.Join(root, slicesPath))
+	if err := obs.combine(shards, runAllow, runSlices); err != nil {
+		return 2, err
+	}
 	if slicesFile == "" {
 		slicesFile = filepath.Join(root, slicesPath)
 	}
@@ -673,7 +775,12 @@ func replay(obs *observation, root string, shards int, costsFile, slicesFile str
 	if err != nil {
 		return 2, err
 	}
+	units, err := placedOnce(universe, sliced)
+	if err != nil {
+		return 2, err
+	}
 	fmt.Fprintf(out, "universe %d packages %.1fs ideal %.1fs over %d shards\n", len(universe), seconds(obs.total()), seconds(obs.total()/int64(shards)), shards)
+	fmt.Fprintf(out, "units    %s\n", units)
 	fmt.Fprintf(out, "observed %s\n", sums(obs.files))
 	fmt.Fprintf(out, "whole    %s\n", sums(predict(obs, whole)))
 	fmt.Fprintf(out, "sliced   %s\n", sums(predict(obs, sliced)))
@@ -683,6 +790,53 @@ func replay(obs *observation, root string, shards int, costsFile, slicesFile str
 		}
 	}
 	return 0, nil
+}
+
+// placedOnce reports that plan places every package of universe exactly once,
+// whole or as each of its test slices, and nothing else.
+func placedOnce(universe []string, plan []cishards.Shard) (string, error) {
+	want := map[string]bool{}
+	for _, p := range universe {
+		want[p] = true
+	}
+	whole, slices := map[string]int{}, map[string]map[int]int{}
+	counts := map[string]int{}
+	for _, s := range plan {
+		for _, p := range s.Packages {
+			whole[p]++
+		}
+		for _, sl := range s.Slices {
+			if slices[sl.Package] == nil {
+				slices[sl.Package] = map[int]int{}
+			}
+			if c, ok := counts[sl.Package]; ok && c != sl.Count {
+				return "", fmt.Errorf("plan splits package %s into both %d and %d test slices", sl.Package, c, sl.Count)
+			}
+			slices[sl.Package][sl.Index]++
+			counts[sl.Package] = sl.Count
+		}
+	}
+	n := 0
+	for p := range slices {
+		if !want[p] || whole[p] != 0 || len(slices[p]) != counts[p] {
+			return "", fmt.Errorf("plan places package %s other than once", p)
+		}
+		for i := 0; i < counts[p]; i++ {
+			if slices[p][i] != 1 {
+				return "", fmt.Errorf("plan places test slice %d/%d of package %s %d times", i, counts[p], p, slices[p][i])
+			}
+		}
+		n += counts[p]
+	}
+	for p, c := range whole {
+		if !want[p] || c != 1 {
+			return "", fmt.Errorf("plan places package %s other than once", p)
+		}
+	}
+	if len(whole)+len(slices) != len(universe) {
+		return "", fmt.Errorf("plan places %d of %d packages", len(whole)+len(slices), len(universe))
+	}
+	return fmt.Sprintf("%d placed exactly once: %d whole packages, %d test slices", len(whole)+n, len(whole), n), nil
 }
 
 func predict(obs *observation, plan []cishards.Shard) []int64 {

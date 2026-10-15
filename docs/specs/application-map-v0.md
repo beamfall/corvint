@@ -74,6 +74,11 @@ AMAP-V0-001 to AMAP-V0-015 are (accepted by decision 0446; V1-0956); AMAP-V0-016
 (decision 0460; V1-1027; GitHub #685); AMAP-V0-024 to AMAP-V0-026 are accepted (decision 0475;
 V1-1061; GitHub #705).
 
+Note (2026-10-14; V1-1365): the manifest admits an optional `registries` member, a list of
+`string-key-registry/0` declarations owned by `NGI-V0-007` in `non-go-impact-v0.md`. The map
+validates it with the same closed check and refuses an invalid one with `appmap-invalid-manifest`,
+but does not read it; only non-Go syntax impact does.
+
 - `AMAP-V0-001`: The map MUST be compiled from a closed `application-map-manifest/0` document
   (at most 256 KiB) read from Git at the evaluated revision: `app` matching
   `^[a-z0-9][a-z0-9._-]{0,63}$`, `hash_prefix` one of empty, `#` or `#!`, 1..64 `routers` each

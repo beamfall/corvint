@@ -1,6 +1,6 @@
 package ticket
 
-import "strings"
+import "github.com/Beamfall/corvint/internal/tasks/wire"
 
 // Collide reports whether two resource sets collide under TCP-00 §4.2 and
 // CAL-V0-023: WHOLE_REPOSITORY collides with every resource, PATH keys collide
@@ -40,8 +40,5 @@ func collides(x, y Resource) bool {
 // PathCovers reports whether PATH key scope covers path: equal bytes, or
 // scope is a directory key ending in "/" that prefixes path.
 func PathCovers(scope, path string) bool {
-	if scope == path {
-		return true
-	}
-	return strings.HasSuffix(scope, "/") && strings.HasPrefix(path, scope)
+	return wire.PathKeyCovers(scope, path)
 }

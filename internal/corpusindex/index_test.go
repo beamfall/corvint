@@ -224,10 +224,12 @@ func TestIndexedCorpusCapacityQualification(t *testing.T) {
 			t.Fatal("shared indexed/native query parity")
 		}
 		runtime.ReadMemStats(&after)
-		allocated := after.TotalAlloc - before.TotalAlloc
+		allocated, mallocs, cycles := after.TotalAlloc-before.TotalAlloc, after.Mallocs-before.Mallocs, after.NumGC-before.NumGC
 		// Race instrumentation changes allocation costs; it still exercises every functional check.
+		// TotalAlloc includes encoding/json/v2 buffer growth whose size depends on whether a pooled
+		// encoder survives GC cycles and P migration (V1-0587), so the failure names the measured bytes.
 		if !raceEnabled && allocated > 1<<30 {
-			t.Fatal("synthetic open/query exceeded 1GiB allocation ceiling")
+			t.Fatalf("synthetic open/query exceeded 1GiB allocation ceiling: open_query_total_alloc=%d open_query_mallocs=%d gc_cycles=%d", allocated, mallocs, cycles)
 		}
 		symbols := 0
 		for _, s := range native.Subjects {
@@ -243,7 +245,7 @@ func TestIndexedCorpusCapacityQualification(t *testing.T) {
 			measurementMode, ordinaryBudget = "race-instrumented", "NOT_RUN"
 		}
 		t.Logf("allocation_measurement=%s ordinary_allocation_budget=%s ordinary_allocation_ceiling_bytes=%d", measurementMode, ordinaryBudget, uint64(1<<30))
-		t.Logf("synthetic qualification claims=%d symbols=%d corpus_bytes=%d index_bytes=%d open_query_total_alloc=%d retained_heap=%d elapsed=%s external_utility=NOT_OBSERVED", len(native.Claims), symbols, len(corpus), len(raw), after.TotalAlloc-before.TotalAlloc, after.HeapAlloc, time.Since(started))
+		t.Logf("synthetic qualification claims=%d symbols=%d corpus_bytes=%d index_bytes=%d open_query_total_alloc=%d open_query_mallocs=%d gc_cycles=%d gomaxprocs=%d retained_heap=%d elapsed=%s external_utility=NOT_OBSERVED", len(native.Claims), symbols, len(corpus), len(raw), allocated, mallocs, cycles, runtime.GOMAXPROCS(0), after.HeapAlloc, time.Since(started))
 	})
 }
 func TestIndexedCorpusSwitchParity(t *testing.T) {

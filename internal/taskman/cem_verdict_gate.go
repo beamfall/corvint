@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -217,6 +218,17 @@ func (g *verdictGate) evaluate(ctx context.Context, in CEMVerdictInput) {
 	}
 	candidateTree := strings.TrimSuffix(string(tree), "\n")
 	g.doc.CandidateTree = &candidateTree
+	if in.Predicate == PredicateTouchedAnchored {
+		names, err := exactKeyNamesDirectory(git, touch, in.BaseCommit, in.CandidateCommit)
+		if err != nil {
+			g.refuse(CEMVerdictUnverifiable, "git-read-failed")
+			return
+		}
+		if names {
+			g.refuse(CEMVerdictInputInvalid, "touch-key-names-directory")
+			return
+		}
+	}
 	added, err := git("diff-tree", "-r", "-z", "--no-renames", "--no-commit-id", "--diff-filter=A", "--name-only", in.BaseCommit, in.CandidateCommit, "--", sealedMapDir)
 	if err != nil {
 		g.refuse(CEMVerdictUnverifiable, "git-read-failed")
@@ -489,6 +501,46 @@ func underTouchPath(path string, touch []string) bool {
 		}
 	}
 	return false
+}
+
+// exactKeyNamesDirectory reports whether a touch key without a trailing "/"
+// names a directory in any of commits (TCB-V0-023). Under the Tasks PATH key
+// rule such a key governs that one path and nothing beneath it, so the hunks
+// under the directory would go ungoverned without notice. The gate refuses
+// rather than widening the key, so a key means the same in Tasks and here.
+func exactKeyNamesDirectory(git func(...string) ([]byte, error), touch []string, commits ...string) (bool, error) {
+	exact := map[string]bool{}
+	for _, key := range touch {
+		if !strings.HasSuffix(key, "/") {
+			exact[key] = true
+		}
+	}
+	if len(exact) == 0 {
+		return false, nil
+	}
+	for _, commit := range commits {
+		out, err := git("ls-tree", "-r", "-d", "-z", "--full-tree", "--end-of-options", commit)
+		if err != nil {
+			return false, err
+		}
+		if len(out) == 0 {
+			continue
+		}
+		listing, terminated := strings.CutSuffix(string(out), "\x00")
+		if !terminated {
+			return false, errors.New("unterminated directory listing")
+		}
+		for _, entry := range strings.Split(listing, "\x00") {
+			meta, path, ok := strings.Cut(entry, "\t")
+			if fields := strings.Fields(meta); !ok || path == "" || len(fields) != 3 || fields[1] != "tree" {
+				return false, errors.New("unreadable directory listing")
+			}
+			if exact[path] {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 func sealedTarget(path string) string {

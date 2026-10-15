@@ -65,10 +65,10 @@ func ExactDirectoryKeyWarnings(root, rev string, keys []string) []string {
 	return warnings
 }
 
-// effectsPathKeys is every touchPath and PATH resource key effects e name,
-// whatever their coverage.
+// effectsPathKeys is every touchPath, verdictPath (TCB-V0-036) and PATH
+// resource key effects e name, whatever their coverage.
 func effectsPathKeys(e ticket.Effects) []string {
-	keys := append([]string{}, e.TouchPaths...)
+	keys := append(append([]string{}, e.TouchPaths...), e.VerdictPaths...)
 	return append(keys, pathKeys(e.Resources)...)
 }
 

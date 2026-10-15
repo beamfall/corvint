@@ -1,6 +1,7 @@
 # Neutral criterion public case (CEM-V1-083)
 
-Status: PROPOSED / EXPERIMENTAL, like the rest of `protocol/cem-1.0/stable/`.
+Status: like the rest of `protocol/cem-1.0/stable/`, implemented and run by both
+consumers; the technical contract is proposed and not promoted.
 
 This case shows a `cem/1.0` map whose only criterion binding is the plain,
 provider-neutral form `{id, criterionIndex, criterionSha256, evidenceId}`. The
@@ -34,7 +35,10 @@ cem01-go verify-stable-canonical --repository R --map CASE/stable.json \
 ```
 
 Both consumers must return the same result. The tests named `TestCEMV1083*` in
-`internal/cem/verify` and `interop/cem01-go` check this.
+`internal/cem/verify` and `interop/cem01-go` check this. `results/accept.json`
+is the exact ACCEPT line, nested member order included (CEM-V1-113 in
+`../ALGORITHMS.md`), as the native verifier wrote it with `runtime.goVersion`
+`go1.27.2`; both tests compare their own line with it byte for byte.
 The map was assembled by hand during the walkthrough recorded in
 `docs/build-log/2026-10-12-cem-neutral-criterion-walkthrough.md`, because no
 producer emits the plain form yet.
