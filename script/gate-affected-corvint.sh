@@ -39,8 +39,9 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/corvint-gate-affected.XXXXXX")
 child=""
 building=""
 # process_table prints one "pid ppid" line per process from ps or, where ps is missing or
-# fails, from /proc (V1-1400). A /proc stat line is "pid (comm) state ppid ...", and comm may
-# hold spaces and parentheses, so ppid is read after the last ") ".
+# fails, from /proc (V1-1400). A /proc stat record is "pid (comm) state ppid ...", and comm may
+# hold spaces, parentheses and newlines, so the whole record is joined onto one line and ppid
+# is read after the last ") ".
 process_table() {
     if ps_table=$(ps -A -o pid= -o ppid= 2> /dev/null); then
         printf '%s\n' "$ps_table"
@@ -48,7 +49,10 @@ process_table() {
     fi
     listed=""
     for stat in "${CORVINT_TEST_PROC_ROOT:-/proc}"/[0-9]*/stat; do
-        IFS= read -r line 2> /dev/null < "$stat" || continue
+        line=""
+        while IFS= read -r part || [ -n "$part" ]; do
+            line="$line$part "
+        done 2> /dev/null < "$stat" || continue
         fields=${line##*) }
         fields=${fields#* }
         printf '%s %s\n' "${line%% *}" "${fields%% *}"
