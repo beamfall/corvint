@@ -447,13 +447,60 @@ func (s *Session) requireCiteSpanStable(ctx context.Context, document *wire.Map,
 				"evidence span in %q would be %s after applying its CEM hunk group; removed base intent pin removed-intent.%s.%d-%d",
 				evidencePath, classification, baseBlobOID, span.Start, span.End)
 		}
+		// V1-1418, V1-1349: stability matches the span's text, not git's line
+		// alignment, so name the alignment used and, for lines no hunk touches,
+		// why an unchanged span is still refused (DCW-V0-063).
+		needle := baseBlob[span.Start:span.End]
+		occurrences := verify.SpanOccurrences(patchedBlob, needle)
+		if start, end := spanLines(baseBlob, span); spanOutsideHunks(group, start, end) {
+			return cemcode.New(cemcode.CiteSpanNotStable,
+				"evidence span in %q would be %s after applying its CEM hunk group; base lines %d:%d lie outside every hunk, so git's line alignment leaves them unchanged, but the stability check matches the span text, which occurs %d times in the changed file",
+				evidencePath, classification, start, end, occurrences)
+		}
 		return cemcode.New(cemcode.CiteSpanNotStable,
-			"evidence span in %q would be %s after applying its CEM hunk group", evidencePath, classification)
+			"evidence span in %q would be %s after applying its CEM hunk group; the stability check matches the span text, which occurs %d times in the changed file",
+			evidencePath, classification, occurrences)
 	}
 	if changedByDisplayPath {
 		return cemcode.New(cemcode.PatchDigestMismatch, "CEM patch has no hunk group for changed evidence path %q", evidencePath)
 	}
 	return nil
+}
+
+// spanLines returns the one-based inclusive base lines a non-empty span covers.
+func spanLines(blob []byte, span wire.Span) (int64, int64) {
+	start := int64(bytes.Count(blob[:span.Start], []byte("\n"))) + 1
+	end := int64(bytes.Count(blob[:span.End-1], []byte("\n"))) + 1
+	return start, end
+}
+
+// spanOutsideHunks reports base lines start..end that no hunk line of the
+// group removes or splits with an insertion, as git's own alignment places
+// them; context lines a hunk carries leave a line unchanged.
+func spanOutsideHunks(group *patch.Group, start, end int64) bool {
+	for _, hunk := range group.Hunks {
+		line := hunk.OldRange.Start
+		if hunk.OldRange.Count == 0 {
+			line++
+		}
+		for _, body := range hunk.Body {
+			switch body.Prefix {
+			case ' ':
+				line++
+			case '-':
+				if start <= line && line <= end {
+					return false
+				}
+				line++
+			case '+':
+				// An insertion before line `line` inside the span splits it.
+				if start < line && line <= end {
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 func (s *Session) citePatch(ctx context.Context, document *wire.Map) ([]byte, error) {
