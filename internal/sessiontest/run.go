@@ -185,14 +185,26 @@ type Runner struct {
 	// Universe is the planned Go universe the runner's own listing must
 	// equal before any Go unit runs.
 	Universe []string
+	// now is the shard clock, time.Now unless a test fixes it.
+	now func() time.Time
 }
+
+func (r *Runner) clock() time.Time {
+	if r.now != nil {
+		return r.now()
+	}
+	return time.Now()
+}
+
+// errDiscoveryBudget is a probe refused because the shard budget ran out.
+var errDiscoveryBudget = errors.New("the shard budget ran out before the probe")
 
 // Execute runs shard of m and returns its receipt. A cancelled ctx kills the
 // running group and launches nothing more; the receipt is then INCOMPLETE.
 func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string, shard int) Receipt {
 	receipt := NewReceipt(m, manifestDigest, shard, r.Tool)
 	budget := r.ShardBudget(m)
-	deadline := time.Now().Add(budget)
+	deadline := r.clock().Add(budget)
 	planned := Invocations(m, r.Declared, shard, r.Root, r.Confine)
 	if len(planned) != 0 && !groupsSupported {
 		receipt.Incomplete = append(receipt.Incomplete, "this platform cannot own and kill a process group; nothing ran")
@@ -208,7 +220,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 		if _, done := versions[key]; done {
 			continue
 		}
-		if !time.Now().Before(deadline) {
+		if !r.clock().Before(deadline) {
 			receipt.Incomplete = append(receipt.Incomplete, fmt.Sprintf("the shard's %s total budget ran out during runner discovery; nothing launched", budget))
 			planned = nil
 			break
@@ -218,7 +230,14 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			planned = withoutRunner(planned, key)
 			continue
 		}
-		runner, version, err := r.discover(discoverCtx, invocation)
+		runner, version, err := r.discover(discoverCtx, invocation, deadline)
+		if err != nil && (errors.Is(err, errDiscoveryBudget) || discoverCtx.Err() != nil) {
+			// The budget ended this runner's discovery: no later probe or
+			// adapter starts (V1-1311).
+			receipt.Incomplete = append(receipt.Incomplete, fmt.Sprintf("%s: the shard's %s total budget ran out during runner discovery; nothing launched", key, budget))
+			planned = nil
+			break
+		}
 		if err != nil {
 			receipt.Incomplete = append(receipt.Incomplete, key+": "+err.Error())
 			planned = withoutRunner(planned, key)
@@ -232,7 +251,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			receipt.Incomplete = append(receipt.Incomplete, "cancelled before every invocation launched")
 			break
 		}
-		if !time.Now().Before(deadline) {
+		if !r.clock().Before(deadline) {
 			receipt.Incomplete = append(receipt.Incomplete, fmt.Sprintf("the shard's %s total budget ran out before every invocation launched", budget))
 			break
 		}
@@ -376,7 +395,7 @@ func (r *Runner) drift(ctx context.Context, planned SourceIdentity) string {
 // path separator is a repository-relative path (STR-V0-003: commands run
 // from the repository root), so it is resolved against Root, never against
 // the caller's working directory; a bare name is looked up on PATH.
-func (r *Runner) discover(ctx context.Context, invocation Planned) (string, string, error) {
+func (r *Runner) discover(ctx context.Context, invocation Planned, deadline time.Time) (string, string, error) {
 	name, versionArgs, env := invocation.Argv[0], []string{"--version"}, invocation.Env
 	if name == "go" {
 		versionArgs = []string{"env", "GOVERSION"}
@@ -393,13 +412,19 @@ func (r *Runner) discover(ctx context.Context, invocation Planned) (string, stri
 	if err != nil {
 		return "", "", fmt.Errorf("runner %s not found", name)
 	}
-	output, err := r.probe(ctx, runner, env, versionArgs...)
+	output, err := r.probe(ctx, deadline, runner, env, versionArgs...)
 	version, _, _ := strings.Cut(strings.TrimSpace(string(output)), "\n")
+	if errors.Is(err, errDiscoveryBudget) {
+		return "", "", err
+	}
 	if err != nil || version == "" {
 		return "", "", errors.New("runner version cannot be read")
 	}
 	if invocation.Adapter == AdapterGo {
-		listed, err := r.probe(ctx, runner, env, "list", "./...")
+		listed, err := r.probe(ctx, deadline, runner, env, "list", "./...")
+		if errors.Is(err, errDiscoveryBudget) {
+			return "", "", err
+		}
 		if err != nil {
 			return "", "", errors.New("go list ./... failed; the Go universe cannot be confirmed")
 		}
@@ -410,7 +435,12 @@ func (r *Runner) discover(ctx context.Context, invocation Planned) (string, stri
 	return runner, version, nil
 }
 
-func (r *Runner) probe(ctx context.Context, runner string, env []string, args ...string) ([]byte, error) {
+// probe runs one discovery command within the remaining shard budget; none
+// starts once the shard deadline has passed (STR-V0-015).
+func (r *Runner) probe(ctx context.Context, deadline time.Time, runner string, env []string, args ...string) ([]byte, error) {
+	if !r.clock().Before(deadline) {
+		return nil, errDiscoveryBudget
+	}
 	probeCtx, cancel := context.WithTimeout(ctx, discoverDeadline)
 	defer cancel()
 	cmd := exec.CommandContext(probeCtx, runner, args...)

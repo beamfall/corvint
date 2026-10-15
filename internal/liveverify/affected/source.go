@@ -37,6 +37,21 @@ func (s *Source) cancelled() error {
 	}
 	return nil
 }
+
+// stopped is cancelled, or the retained fatal failure of an immutable source:
+// once a read has failed (an exhausted Git budget, say) every later read
+// returns that failure without consulting the filesystem, so a provider that
+// tolerates one failed read cannot keep walking the source (V1-1416).
+func (s *Source) stopped() error {
+	if err := s.cancelled(); err != nil {
+		return err
+	}
+	if s != nil && s.fsys != nil {
+		return s.Err()
+	}
+	return nil
+}
+
 func FSSource(source fs.FS) *Source { return &Source{fsys: source, walks: map[string]*sharedWalk{}} }
 
 // Err retains the first immutable read failure, including failures a provider ignores.
@@ -58,7 +73,7 @@ func (s *Source) Files(accept func(string) bool) ([]string, error) {
 	return files, err
 }
 func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (filesOut []string, boundedOut bool, errOut error) {
-	if err := s.cancelled(); err != nil {
+	if err := s.stopped(); err != nil {
 		return nil, false, err
 	}
 	defer func() { s.retain(errOut) }()
@@ -103,7 +118,7 @@ func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (f
 func (s *Source) ConcurrentReads() bool { return s != nil && s.fsys == nil }
 
 func (s *Source) Read(relative string) (bodyOut []byte, errOut error) {
-	if err := s.cancelled(); err != nil {
+	if err := s.stopped(); err != nil {
 		return nil, err
 	}
 	defer func() { s.retain(errOut) }()
@@ -142,7 +157,7 @@ func (s *Source) Read(relative string) (bodyOut []byte, errOut error) {
 // immutable backend to Stat or Open, either of which may allocate its body.
 // An opaque filesystem cannot establish that admission bound and is refused.
 func (s *Source) ReadBounded(relative string, limit int) (bodyOut []byte, errOut error) {
-	if err := s.cancelled(); err != nil {
+	if err := s.stopped(); err != nil {
 		return nil, err
 	}
 	defer func() { s.retain(errOut) }()
@@ -215,7 +230,7 @@ func (s *Source) ReadBounded(relative string, limit int) (bodyOut []byte, errOut
 }
 
 func (s *Source) Stat(relative string) (infoOut fs.FileInfo, errOut error) {
-	if err := s.cancelled(); err != nil {
+	if err := s.stopped(); err != nil {
 		return nil, err
 	}
 	defer func() { s.retain(errOut) }()
@@ -235,7 +250,7 @@ func (s *Source) Stat(relative string) (infoOut fs.FileInfo, errOut error) {
 	return os.Stat(filepath.Join(s.root, filepath.FromSlash(relative)))
 }
 func (s *Source) Lstat(relative string) (infoOut fs.FileInfo, errOut error) {
-	if err := s.cancelled(); err != nil {
+	if err := s.stopped(); err != nil {
 		return nil, err
 	}
 	defer func() { s.retain(errOut) }()
@@ -255,7 +270,7 @@ func (s *Source) Lstat(relative string) (infoOut fs.FileInfo, errOut error) {
 	return os.Lstat(filepath.Join(s.root, filepath.FromSlash(relative)))
 }
 func (s *Source) Walk(relative string, visit fs.WalkDirFunc) (errOut error) {
-	if err := s.cancelled(); err != nil {
+	if err := s.stopped(); err != nil {
 		return err
 	}
 	defer func() { s.retain(errOut) }()
@@ -266,6 +281,9 @@ func (s *Source) Walk(relative string, visit fs.WalkDirFunc) (errOut error) {
 		entries := 0
 		return fs.WalkDir(s.fsys, relative, func(current string, entry fs.DirEntry, err error) error {
 			s.retain(err)
+			if fatal := s.Err(); fatal != nil {
+				return fatal
+			}
 			entries++
 			if entries > MaxWalkEntries {
 				return ErrWalkLimit
