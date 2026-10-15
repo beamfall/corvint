@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344); DCW-V0-060..062 accepted under the owner's standing auto-accept (2026-10-11) (V1-1348)
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344); DCW-V0-060..062 accepted under the owner's standing auto-accept (2026-10-11) (V1-1348); DCW-V0-063 accepted under the owner's standing auto-accept (2026-10-11) (V1-1349, V1-1418)
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344); DCW-V0-060..062 accepted under the owner's standing auto-accept (2026-10-11) (V1-1348); experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344); DCW-V0-060..062 accepted under the owner's standing auto-accept (2026-10-11) (V1-1348); DCW-V0-063 accepted under the owner's standing auto-accept (2026-10-11) (V1-1349, V1-1418); experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -808,6 +808,24 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Non-goals: the check's and seal's reasons, which keep their own output.
   Failure modes: none beyond the passes' own rows; a refusal before the first pass prints no
   block.
+- `DCW-V0-063`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1349, V1-1418)
+  Under the `cem-cite` `cite-span-not-stable` reason, when no hunk of its path edits the refused
+  BASE span's lines (no hunk line removes them or inserts between them, as git's own line
+  alignment places them; hunk context lines do not edit) but the span text occurs more than once
+  in the changed file, the `cem cite` refusal message MUST say that no hunk edits the base lines
+  and that
+  the stability check matches the span text, naming its occurrence count, and the `dogfood-change`
+  `fix:` line MUST state that cause: no hunk edits the lines (at most hunk context), which git's line alignment
+  leaves unchanged, but their text occurs more than once in the changed file (another copy exists
+  or the change adds one), and the stability check matches text, not line positions; it MUST still
+  name the failing plan row (`DCW-V0-014`). Every other ambiguous refusal MUST name the text
+  match and its occurrence count. The refusal code, the step reason and the exit status do not
+  change.
+  Non-goals: accepting such a span; the drift classifier keeps refusing an ambiguous span
+  (`CEM-CB-005`), since the verifier could not relocate it either.
+  Failure modes: a span that a hunk edits, or a `stale` or `deleted` span, keeps the
+  `DCW-V0-014` fix line; the cause is read from the refusal message, so a cite refusal from an
+  older binary prints the `DCW-V0-014` line.
 
 ## Code vocabulary
 
@@ -1010,6 +1028,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-060` (accepted under the owner's standing auto-accept (2026-10-11); V1-1348) | `internal/dogfoodflow/finishlane.go` `FinishLane`, `requireCleanWorktree`, `prepare`, `bind`, `commitBind`, `rebind`, `checkAndSeal`; `cmd/corvint/dogfood_flow.go` `finish-lane`; `script/dogfood-finish.sh`; `Makefile` `dogfood-finish`; `TestDogfoodFinishLaneDCWV0060MatchesManualRecipe` (built binary: every step PASS, the seal commit and tree equal the manual recipe's in the same test, a rerun on the seal skips); `TestDogfoodFinishLaneDCWV0060RefusesBeforeAnyStep` (dirty worktree, HEAD at BASE, no plan, positional BASE) | implemented; focused tests PASS |
 | `DCW-V0-061` (accepted under the owner's standing auto-accept (2026-10-11); V1-1348) | `internal/dogfoodflow/finishlane.go` `stop`, `isBindCommit`, `run` (seal skip); `TestDogfoodFinishLaneDCWV0061StopsOnUniformPlanAndResumes` (stops at bind with the `citation-plan-uniform` fix line, no commit; the corrected rerun seals); `TestDogfoodFinishLaneDCWV0061StopsOnInvalidRequirementsSection`; `TestDogfoodFinishLaneDCWV0061ContinuesFromBindCommit`; `TestDogfoodFinishLaneDCWV0061ResumesAfterRejectedSeal` (a hook-rejected seal stops at `seal FAIL`, the rerun names the restore command, then seals; a dirty sealed HEAD is refused); `TestFinishLaneDCWV0061RecognizesOnlyTheBindCommit` | implemented; focused tests PASS |
 | `DCW-V0-062` (accepted under the owner's standing auto-accept (2026-10-11); V1-1348) | `internal/dogfoodflow/finishlane.go` `pass`, `reportMissing`; `TestDogfoodFinishLaneDCWV0060MatchesManualRecipe` (four rows from prepare and bind kept after the rebind produced them); `TestDogfoodFinishLaneDCWV0061StopsOnUniformPlanAndResumes` | implemented; focused tests PASS |
+| `DCW-V0-063` (accepted under the owner's standing auto-accept (2026-10-11); V1-1349, V1-1418) | `internal/cem/workflow/commands.go` `requireCiteSpanStable`, `spanLines`, `spanUneditedByHunks`; `internal/cem/verify/verify.go` `SpanOccurrences`; `internal/dogfoodflow/change.go` `cite`, `fixHint`; `TestCiteAmbiguousRefusalNamesTextAlignmentV11418` (repeated if/else/fi fixture; git -U0 leaves base lines 9:11 unchanged and the refusal names the text match and 3 occurrences); `TestSpanUneditedByHunksFollowsGitAlignmentV11418`; `TestChangeDCWV0063NamesUnalignedCiteSpanCause` (real `cem prepare`/`cem cite`: the cause fix line for a span no hunk edits, the `DCW-V0-014` line for an edited span) | implemented; focused tests PASS |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
@@ -1068,6 +1087,9 @@ CEM format changes, so nothing needs migrating.
 Roll back `DCW-V0-060..062` by reverting their change: `finish-lane`, its wrapper and the
 `dogfood-finish` target disappear and lanes run the per-step recipe again; the commits and maps
 it writes are the recipe's, so no report, map or sealed CEM format changes.
+Roll back `DCW-V0-063` by reverting its change: the ambiguous refusal loses its alignment
+detail and every `cite-span-not-stable` row prints the `DCW-V0-014` fix line again; no map,
+report or sealed CEM format changes.
 Roll back `DCW-V0-048` and `DCW-V0-049` by reverting their change: a uniform plan is cited
 again, a prepared stable chore map keeps no role, `cem status --citation` loses `citationClass`
 and the baseline tool disappears. No committed map carries a role before V1-1276, so nothing
