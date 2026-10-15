@@ -31,6 +31,12 @@ type Inventory struct {
 	dirs   map[string]bool
 	elided *Elided
 	miss   *bool
+	// incremental is set only on an ImportSequence-owned complete inventory
+	// and its capacity forks (CAL-V0-018); see import_cost.go.
+	incremental       *importCost
+	undoFiles         map[string]*archive.FileEntry
+	undoDirs          map[string]bool
+	reserveSimulation bool
 }
 
 // Elided summarizes the retained receipts 1..Receipts and the Requests request
@@ -307,6 +313,10 @@ func (i *Inventory) matches(p string, raw []byte) bool {
 	return ok && f.Sha256 == wire.Sum(raw) && f.Bytes.Uint64() == uint64(len(raw))
 }
 func (i *Inventory) clone() *Inventory {
+	if i.incremental != nil {
+		c := *i.incremental
+		return &Inventory{files: i.files, dirs: i.dirs, elided: i.elided, miss: i.miss, incremental: &c, undoFiles: map[string]*archive.FileEntry{}, undoDirs: map[string]bool{}}
+	}
 	out := &Inventory{files: map[string]archive.FileEntry{}, dirs: map[string]bool{}, elided: i.elided, miss: i.miss}
 	for p, f := range i.files {
 		out.files[p] = f
@@ -369,9 +379,32 @@ func (i *Inventory) put(f archive.FileEntry, exclusive bool) error {
 		}
 		return malformed("non-overwriting publication conflict")
 	}
+	if i.incremental != nil {
+		if i.undoFiles != nil {
+			if _, saved := i.undoFiles[f.Path]; !saved {
+				if exists {
+					copy := old
+					i.undoFiles[f.Path] = &copy
+				} else {
+					i.undoFiles[f.Path] = nil
+				}
+			}
+		}
+		if err := i.incremental.replace(old, exists, f); err != nil {
+			return err
+		}
+	}
 	i.files[f.Path] = f
+	if i.incremental != nil && !i.reserveSimulation {
+		i.updateReserve(f.Path)
+	}
 	if !strings.HasPrefix(f.Path, "intent/") {
 		for d := path.Dir(f.Path); d != "."; d = path.Dir(d) {
+			if i.undoDirs != nil {
+				if _, saved := i.undoDirs[d]; !saved {
+					i.undoDirs[d] = i.dirs[d]
+				}
+			}
 			i.dirs[d] = true
 		}
 	}
@@ -429,6 +462,9 @@ func journalReserve(c Cost, barrier bool, l limits) error {
 	return check(c, l)
 }
 func measure(i *Inventory, h *snapshot.Head, temporary, promised, stageNames uint64) (Cost, error) {
+	if i.incremental != nil {
+		return i.incremental.measure(i, h, temporary, promised, stageNames)
+	}
 	c := Cost{TemporaryBytes: temporary, PromisedBytes: promised, ScannedEntries: uint64(len(i.dirs))}
 	var e error
 	var prefix archive.FileSetCost
@@ -519,7 +555,8 @@ func checkCapacity(p *Plan, l limits) (Capacity, error) {
 		return out, e
 	}
 	working := p.base.clone()
-	working.dirs["staging"] = true
+	defer working.rollback()
+	working.stageDirectory()
 	baseHead := p.baseHead
 	if baseHead == nil {
 		baseHead = h
@@ -660,7 +697,9 @@ func checkCapacity(p *Plan, l limits) (Capacity, error) {
 // absent shard if available, then an unoccupied fixed-length digest path.
 func unpausePeak(base *Inventory, h *snapshot.Head, l limits) (Cost, error) {
 	i := base.clone()
-	i.dirs["staging"] = true
+	i.reserveSimulation = true
+	defer i.rollback()
+	i.stageDirectory()
 	c, e := measure(i, h, 0, 0, 0)
 	if e != nil {
 		return c, e
@@ -692,15 +731,21 @@ func unpausePeak(base *Inventory, h *snapshot.Head, l limits) (Cost, error) {
 		}
 	}
 	requestPath := ""
-	candidates := uint64(len(i.files))
-	if i.elided != nil {
-		candidates += i.elided.Requests
-	}
-	for x := uint64(0); x <= candidates; x++ {
-		candidate := "requests/" + shard + "/" + shard + fmt.Sprintf("%062x", x) + ".json"
-		if !i.Has(candidate) {
-			requestPath = candidate
-			break
+	if i.incremental != nil {
+		shardNumber := 0
+		fmt.Sscanf(shard, "%x", &shardNumber)
+		requestPath = "requests/" + shard + "/" + shard + fmt.Sprintf("%062x", i.incremental.reserveNext[shardNumber]) + ".json"
+	} else {
+		candidates := uint64(len(i.files))
+		if i.elided != nil {
+			candidates += i.elided.Requests
+		}
+		for x := uint64(0); x <= candidates; x++ {
+			candidate := "requests/" + shard + "/" + shard + fmt.Sprintf("%062x", x) + ".json"
+			if !i.Has(candidate) {
+				requestPath = candidate
+				break
+			}
 		}
 	}
 	if requestPath == "" {
