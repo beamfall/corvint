@@ -522,8 +522,8 @@ and found none. A free-text "none found" cannot be checked. TOL-V0-037..046 reco
 read as structured, digest-pinned review sources. They are review records, never witness
 evidence: they never credit, demote or block an obligation, satisfy a gate, or change a count.
 
-- `TOL-V0-037`: A folded entry MAY carry an optional `sources` list of 1..16 review sources, kept
-  in the order written. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
+- `TOL-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) A folded entry MAY carry an optional `sources` list of 1..16 review sources, kept
+  in the order written.
   - `{kind, ref, digest}` with `kind` `legacy-case`, `legacy-spec` or `manual-case` names a
     reviewed source. `ref` is 1..256 non-blank bytes: a case ID for `legacy-case` and
     `manual-case`, a repository path for `legacy-spec`. `digest` is the 64-lowercase-hex sha256
@@ -536,25 +536,23 @@ evidence: they never credit, demote or block an obligation, satisfy a gate, or c
     sources refuses `LIMIT_EXCEEDED`, the code of the sibling array bounds. The codec
     admits an empty `query` or `searched`; TOL-V0-041 refuses them under the policy, so a stored
     ledger stays readable when the policy changes.
-- `TOL-V0-038`: An `OBLIGATIONS_SET` change MAY carry `sources`. A change becomes `{id, state,
+- `TOL-V0-038`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) An `OBLIGATIONS_SET` change MAY carry `sources`. A change becomes `{id, state,
   core, reason, sources?}` and must name a state, a core flag, sources or a combination; `sources`
   replaces the entry's whole list and stamps `updatedAt`/`updatedBy` like any set. A sources-only
-  change leaves state and core as they are. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
-- `TOL-V0-039`: An entry or set change without sources MUST keep its exact pre-#813 bytes (the
+  change leaves state and core as they are.
+- `TOL-V0-039`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) An entry or set change without sources MUST keep its exact pre-#813 bytes (the
   member is absent, never null), and the `requireSourceReview` policy MUST NOT change any ledger
-  byte: the same writes fold to the same entries with the policy on and off. Status: accepted
-  under the owner's standing auto-accept (2026-10-11; GitHub #813).
-- `TOL-V0-040`: The policy key `obligations` becomes `{workerWitness, requireSourceReview?}`.
+  byte: the same writes fold to the same entries with the policy on and off.
+- `TOL-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) The policy key `obligations` becomes `{workerWitness, requireSourceReview?}`.
   With `requireSourceReview: true`, `preflight` (TOL-V0-025) MUST add a `SOURCE_REVIEW_MISSING`
   finding naming each OPEN, DEFECT or BLOCKED obligation that records no sources. WITNESSED and
-  DEFERRED obligations are not checked. A policy without the key keeps the check off. Status:
-  accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
-- `TOL-V0-041`: Under the same policy, `preflight` MUST add a `SOURCE_REVIEW_NONE_UNSEARCHED`
+  DEFERRED obligations are not checked. A policy without the key keeps the check off.
+- `TOL-V0-041`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) Under the same policy, `preflight` MUST add a `SOURCE_REVIEW_NONE_UNSEARCHED`
   finding naming each checked obligation that has a `none` source with a blank query (Unicode
   whitespace only) or an empty `searched` set. Each finding carries a remedy, and any finding refuses `PREFLIGHT_FAILED`
-  (TOL-V0-025). Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
-- `TOL-V0-042`: When some entry records sources, `ticket obligations show` and `ticket obligations
-  plan` MUST add `sourceReview`. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
+  (TOL-V0-025).
+- `TOL-V0-042`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) When some entry records sources, `ticket obligations show` and `ticket obligations
+  plan` MUST add `sourceReview`.
   - `sourceReview` is `{specCommit, staleCount, stale, unresolvedCount, unresolved}`. `stale`
     lists each legacy-case, legacy-spec or manual-case source whose current digest differs from
     the reviewed one, as `{id, state, kind, ref, reviewed, current}`. `unresolved` lists each
@@ -562,24 +560,22 @@ evidence: they never credit, demote or block an obligation, satisfy a gate, or c
   - Neither list changes a state: a WITNESSED obligation with a stale source stays WITNESSED.
     `plan`'s `ok` and exit code are unchanged.
   - A ledger without sources adds no member.
-- `TOL-V0-043`: `show` and `plan` take an optional `--legacy-cases FILE`, a
+- `TOL-V0-043`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) `show` and `plan` take an optional `--legacy-cases FILE`, a
   `corvint-legacy-cases/1` record from `corvint docs corpus import-cases` (DCP-V1-070), read up to
   32 MiB from a regular file; a symlink, FIFO, device or directory refuses `MALFORMED` without
   blocking. `legacy-case` and `manual-case` refs resolve by case ID to that record's case digest.
   A document that is not exactly one JSON value, a repeated object member, another schema, a case
   without a 64-hex digest or a repeated case ID refuses `MALFORMED`. Without
-  the flag, or for a case not in the record, the source is unresolved with the reason. Status:
-  accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
-- `TOL-V0-044`: A `legacy-spec` ref MUST resolve as a clean repository-relative path at `HEAD`,
+  the flag, or for a case not in the record, the source is unresolved with the reason.
+- `TOL-V0-044`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) A `legacy-spec` ref MUST resolve as a clean repository-relative path at `HEAD`,
   read from Git objects with the bounded TOL-V0-012 reader. Its current digest is the sha256 of
   the blob, and `specCommit` names the commit read. A ref that is not such a path, is absent, or is
-  over the read bound is unresolved with the reason. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
-- `TOL-V0-045`: Source refs, queries and searched ids MUST pass the TOL-V0-009 secret screen
-  before storage, refusing `SECRET_DETECTED` without echoing the value. Status: accepted under
-  the owner's standing auto-accept (2026-10-11; GitHub #813).
-- `TOL-V0-046`: `show`, `plan` and `preflight` stay reads: the review-source checks write no queue,
+  over the read bound is unresolved with the reason.
+- `TOL-V0-045`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) Source refs, queries and searched ids MUST pass the TOL-V0-009 secret screen
+  before storage, refusing `SECRET_DETECTED` without echoing the value.
+- `TOL-V0-046`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) `show`, `plan` and `preflight` stay reads: the review-source checks write no queue,
   intent or evidence state. Review sources never reach witness evidence, counts, high water, gates
-  or completion. Status: accepted under the owner's standing auto-accept (2026-10-11; GitHub #813).
+  or completion.
 
 ## Failure modes and trust
 

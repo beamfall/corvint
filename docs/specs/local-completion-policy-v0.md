@@ -376,7 +376,7 @@ elsewhere are not repeated.
 | Code | First emitting site | Condition at the cited site |
 |---|---|---|
 | `base-not-ancestor-of-target` | `internal/localcompletion/storage.go:451@f5e86618` | Git reports the plan base is not an ancestor of the enrollment-time `HEAD` commit (exit 1, empty stderr) |
-| `base-unavailable` | `internal/localcompletion/lifecycle.go:39` | the plan base does not resolve, or resolves to a different object |
+| `base-unavailable` | `internal/localcompletion/lifecycle.go` (`Begin`) | the plan base does not resolve, or resolves to a different object |
 | `cem-bindings-required` | `internal/localcompletion/finish.go:192@09122998` | the public `cem status` run against the plan base and current target returned an error |
 | `check-executable-unavailable` | `internal/localcompletion/storage.go:529` | `exec.LookPath` cannot resolve a check's executable |
 | `completion-evidence-drift` | `internal/localcompletion/finish.go:410@b1202061` | after finishing, the tree is not clean, the target or tree differs from the pre-finish snapshot, or the saved report is no longer current |
@@ -395,14 +395,14 @@ elsewhere are not repeated.
 | `enrollment-bound-exceeded` | `internal/localcompletion/storage.go:320@72a91813` | saved state has more than 64 observations, or its intent-pointer or executable count does not match the plan |
 | `enrollment-cancelled` | `internal/localcompletion/finish.go:61@20b07eb5` | the saved enrollment's lifecycle is `cancelled` |
 | `enrollment-drift` | `internal/localcompletion/storage.go:302@f4228dd7` | saved state names another session, or its plan digest does not match its plan |
-| `enrollment-generation-bound-exceeded` | `internal/localcompletion/lifecycle.go:574` | 16 enrollment generations are already preserved for the session |
-| `enrollment-plan-conflict` | `internal/localcompletion/lifecycle.go:69` | the session already has an active enrollment for a different plan digest |
+| `enrollment-generation-bound-exceeded` | `internal/localcompletion/lifecycle.go` (`archiveGeneration`) | 16 enrollment generations are already preserved for the session |
+| `enrollment-plan-conflict` | `internal/localcompletion/lifecycle.go` (`Begin`) | the session already has an active enrollment for a different plan digest |
 | `final-check-failed` | `internal/localcompletion/finish.go:121@a967963f` | the final in-process `dogfood check` did not pass (`LCP-V0-014`) |
 | `final-check-not-prerequisite` | `internal/localcompletion/storage.go:184` | a check argv element is `dogfood-check` or ends in `/dogfood-check.sh`, or the argv contains `dogfood check` or `dogfood seal` (`LCP-V0-015`) |
 | `immutable-base-required` | `internal/localcompletion/storage.go:145@ca703205` | the plan base is not a Git object id |
-| `initial-receipt-secret-screened` | `internal/localcompletion/lifecycle.go:147` | a preserved pre-change query or impact receipt matches the secret screen; recorded as the `NOT_PRODUCED` reason in its refusal metadata |
+| `initial-receipt-secret-screened` | `internal/localcompletion/lifecycle.go` (`Begin`) | a preserved pre-change query or impact receipt matches the secret screen; recorded as the `NOT_PRODUCED` reason in its refusal metadata |
 | `input-bound-exceeded` | `internal/localcompletion/storage.go:50@eb3bb1dc` | strict JSON input is empty or larger than its bound |
-| `intent-path-not-found` | `internal/localcompletion/lifecycle.go:127` | an intent path is absent from the tree of the current target commit |
+| `intent-path-not-found` | `internal/localcompletion/lifecycle.go` (`Begin`) | an intent path is absent from the tree of the current target commit |
 | `invalid-check-argv` | `internal/localcompletion/storage.go:171@62ffd2b6` | a check's first argv element is empty, or any element exceeds 4096 bytes or contains NUL |
 | `invalid-check-bound` | `internal/localcompletion/storage.go:167` | a check has fewer than 1 or more than 64 argv elements, or a timeout outside 1..3600 seconds |
 | `invalid-check-id` | `internal/localcompletion/storage.go:163@304d3553` | a check id does not match `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$` or repeats |
@@ -420,9 +420,9 @@ elsewhere are not repeated.
 | `invalid-local-completion-option` | `cmd/corvint/local_completion.go:158`; `cmd/corvint/local_completion.go:179` | an option is not allowed for the action, or the mutually exclusive `--anchors` and `--receipt` are both given |
 | `invalid-local-completion-option-value` | `cmd/corvint/local_completion.go:171` | an option value is empty or longer than 4096 bytes |
 | `invalid-local-completion-schema` | `internal/localcompletion/storage.go:63@9df6e350` | strict JSON input parsed and passed the JSON type check, but decoding into the target type with unknown fields disallowed failed; the JSON type check emits the same code at `internal/localcompletion/storage.go:72`, and a required-field read of input that is not an object at `internal/localcompletion/storage.go:342` |
-| `invalid-local-state-directory` | `internal/localcompletion/lifecycle.go:607` | the session's generation path exists and is not a directory |
+| `invalid-local-state-directory` | `internal/localcompletion/lifecycle.go` (`generationCount`) | the session's generation path exists and is not a directory |
 | `invalid-public-evidence-result` | `internal/localcompletion/finish.go:242` | a public evidence command exited zero but its stdout is not JSON with `ok: true` |
-| `invalid-report-set-digest` | `internal/localcompletion/lifecycle.go:495` | the review's report-set digest is not 64 lowercase hex |
+| `invalid-report-set-digest` | `internal/localcompletion/lifecycle.go` (`Review`) | the review's report-set digest is not 64 lowercase hex |
 | `invalid-review-digest` | `internal/localcompletion/storage.go:342@d2acc89d` | a saved review digest is present and not 64 lowercase hex |
 | `invalid-session-key` | `internal/localcompletion/storage.go:39@35b08e1e` | the session key is not 64 lowercase hex |
 | `invalid-tree-listing` | `internal/localcompletion/storage.go:502` | a tree-listing row has no tab separator |
@@ -446,26 +446,26 @@ elsewhere are not repeated.
 | `output-bound-exceeded` | `internal/localcompletion/finish.go:316@a0eab38a` | a bounded output buffer would exceed the artifact byte bound |
 | `plan-bound-exceeded` | `internal/localcompletion/storage.go:148@12c410df` | the plan has fewer than 1 or more than 16 intents or checks; `error.message` names both bounds (`LCP-V0-018`) |
 | `plan-unavailable` | `internal/localcompletion/storage.go:244@ddd42691` | the plan file's parent directory does not resolve |
-| `prior-completion-stale` | `internal/localcompletion/lifecycle.go:75` | the session's satisfied enrollment for a different plan no longer evaluates as satisfied |
+| `prior-completion-stale` | `internal/localcompletion/lifecycle.go` (`Begin`) | the session's satisfied enrollment for a different plan no longer evaluates as satisfied |
 | `public-command-output-bound` | `internal/localcompletion/finish.go:227@03d70f77` | a public evidence command overflowed its stdout or stderr bound |
 | `public-evidence-command-failed` | `internal/localcompletion/finish.go:239@b0f37f66` | a public evidence command exited non-zero without a valid code on stderr |
 | `public-report-path-invalid` | `internal/localcompletion/finish.go:359@4ca026ff` | the report path is not an allowed path |
 | `public-report-path-missing` | `internal/localcompletion/finish.go:354` | the result has no string `report` field |
-| `report-set-stale` | `internal/localcompletion/lifecycle.go:521` | at review, the tree is not clean, the saved report is not current, or the report-set digest differs |
+| `report-set-stale` | `internal/localcompletion/lifecycle.go` (`Review`) | at review, the tree is not clean, the saved report is not current, or the report-set digest differs |
 | `repository-identity-changed` | `internal/localcompletion/storage.go:519` | the repository root, Git directory or common directory changed since open |
-| `repository-snapshot-drift` | `internal/localcompletion/lifecycle.go:317` | the target, tree or cleanliness changed during evaluation |
+| `repository-snapshot-drift` | `internal/localcompletion/lifecycle.go` (`evaluateObserved`) | the target, tree or cleanliness changed during evaluation |
 | `repository-unavailable` | `internal/localcompletion/storage.go:43@4399960a` | the Git authority for the repository root cannot be opened; the session key was already checked |
 | `secret-shaped-plan` | `internal/localcompletion/storage.go:156@b20c73e8` | a plan intent matches the secret screen |
 | `selected-check-unverified` | `internal/localcompletion/finish.go:414@116cd291` | a plan check has no qualifying observation for the current snapshot |
-| `session-identity-required` | `internal/localcompletion/types.go:158` | no explicit session key and neither `CODEX_THREAD_ID` nor `CODEX_SESSION_ID` is set |
-| `uncommitted-work` | `internal/localcompletion/lifecycle.go:466` | the tree is not clean before verification |
-| `unknown-selected-check` | `internal/localcompletion/lifecycle.go:456` | the selected check id is not in the plan |
+| `session-identity-required` | `internal/localcompletion/types.go` (`SessionKey`) | no explicit session key and neither `CODEX_THREAD_ID` nor `CODEX_SESSION_ID` is set |
+| `uncommitted-work` | `internal/localcompletion/lifecycle.go` (`Verify`) | the tree is not clean before verification |
+| `unknown-selected-check` | `internal/localcompletion/lifecycle.go` (`Verify`) | the selected check id is not in the plan |
 | `verification-attempt-bound-exceeded` | `internal/localcompletion/lifecycle.go` | Verify refuses at 64 saved observations; evaluation also exposes this unmet reason when any selected check remains unqualified |
-| `verification-cancelled` | `internal/localcompletion/lifecycle.go:501` | the context was cancelled after the observation was saved |
+| `verification-cancelled` | `internal/localcompletion/lifecycle.go` (`Verify`) | the context was cancelled after the observation was saved |
 | `verifier-disagreement` | `internal/localcompletion/finish.go:631@2a659081` | on the final read, the report's dogfood check outputs do not agree |
-| `worktree-already-enrolled` | `internal/localcompletion/lifecycle.go:53` | another session holds an active enrollment for the worktree |
+| `worktree-already-enrolled` | `internal/localcompletion/lifecycle.go` (`Begin`) | another session holds an active enrollment for the worktree |
 | `worktree-owner-mismatch` | `internal/localcompletion/storage.go:429@10792014` | the worktree owner is not this session |
-| `worktree-prior-completion-stale` | `internal/localcompletion/lifecycle.go:59` | another session's satisfied enrollment of the worktree no longer evaluates as satisfied |
+| `worktree-prior-completion-stale` | `internal/localcompletion/lifecycle.go` (`Begin`) | another session's satisfied enrollment of the worktree no longer evaluates as satisfied |
 
 ### Resolution and Stop decision reasons
 

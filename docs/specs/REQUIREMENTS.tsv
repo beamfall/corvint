@@ -336,16 +336,16 @@ ANL-V0-033	docs/specs/application-navigation-ledger-v0.md	200	`test-plan page-st
 ANL-V0-034	docs/specs/application-navigation-ledger-v0.md	207	Several `--appmap-impact` reports may name one app when each comes from a differ	unrecorded	-
 ANL-V0-035	docs/specs/application-navigation-ledger-v0.md	213	`flows appmap build` classifies every `test-sequence` edge (AMAP-V0-008) by stat	unrecorded	-
 ANL-V0-036	docs/specs/application-navigation-ledger-v0.md	249	`test-plan prefixes` treats a derived `navigation-only` step as read-only withou	unrecorded	-
-ANL-V0-037	docs/specs/application-navigation-ledger-v0.md	257	Corvint ships a navigation-events producer as the repository file	unrecorded	-
-ANL-V0-038	docs/specs/application-navigation-ledger-v0.md	263	The config is loaded by the runner and by every worker; in each, `install` resol	unrecorded	-
-ANL-V0-039	docs/specs/application-navigation-ledger-v0.md	270	When a test's browser context closes (the before-close hook, or the context `clo	unrecorded	-
-ANL-V0-040	docs/specs/application-navigation-ledger-v0.md	279	Each URL commit of the test page's main frame (`framenavigated`) is one event,	unrecorded	-
-ANL-V0-041	docs/specs/application-navigation-ledger-v0.md	286	When the committed document's main-frame navigation request was reached through	unrecorded	-
-ANL-V0-042	docs/specs/application-navigation-ledger-v0.md	290	On the same run, `observe` over the producer's file yields the same visits and	unrecorded	-
-ANL-V0-043	docs/specs/application-navigation-ledger-v0.md	296	A test attempt that opens a second page (a popup or another context), closes a	unrecorded	-
-ANL-V0-044	docs/specs/application-navigation-ledger-v0.md	303	The producer reads only main-frame URLs, navigation request redirect chains and	unrecorded	-
-ANL-V0-045	docs/specs/application-navigation-ledger-v0.md	321	Its cost is one in-process listener call per Playwright call, two page event	unrecorded	-
-ANL-V0-046	docs/specs/application-navigation-ledger-v0.md	327	The runner process (where Playwright has not set `TEST_WORKER_INDEX`) loads the	unrecorded	-
+ANL-V0-037	docs/specs/application-navigation-ledger-v0.md	257	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) Corvi	standing	2026-10-11; #814
+ANL-V0-038	docs/specs/application-navigation-ledger-v0.md	263	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) The c	standing	2026-10-11; #814
+ANL-V0-039	docs/specs/application-navigation-ledger-v0.md	270	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) When	standing	2026-10-11; #814
+ANL-V0-040	docs/specs/application-navigation-ledger-v0.md	279	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) Each	standing	2026-10-11; #814
+ANL-V0-041	docs/specs/application-navigation-ledger-v0.md	286	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) When	standing	2026-10-11; #814
+ANL-V0-042	docs/specs/application-navigation-ledger-v0.md	290	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) On th	standing	2026-10-11; #814
+ANL-V0-043	docs/specs/application-navigation-ledger-v0.md	296	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) A tes	standing	2026-10-11; #814
+ANL-V0-044	docs/specs/application-navigation-ledger-v0.md	303	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) The p	standing	2026-10-11; #814
+ANL-V0-045	docs/specs/application-navigation-ledger-v0.md	320	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) Its c	standing	2026-10-11; #814
+ANL-V0-046	docs/specs/application-navigation-ledger-v0.md	326	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) The r	standing	2026-10-11; #814
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,	unrecorded	-
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use	unrecorded	-
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,	unrecorded	-
@@ -1125,17 +1125,17 @@ CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	45	Unit and selection. One change
 CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	55	Pairing. Every change runs in both arms; the estimate is within-change. The arm	unrecorded	-
 CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	58	Withheld-patch construction. The presented patch `P(C)` contains only the source	unrecorded	-
 CRT-V0-004	docs/specs/cem-reviewer-trial-v0.md	61	Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself	unrecorded	-
-CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	73	Arms. `control` receives the prompt skeleton, `P(C)`, the numbered hunk list, an	unrecorded	-
+CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	73	(Amended 2026-10-11: V1-1261, accepted under the owner's standing auto-accept (2	standing	2026-10-11; V1-1261
 CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	97	Reply grammar. Every reply MUST end with one fenced JSON block	unrecorded	-
-CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	110	Metrics. `miss(c,a) = |gold(c) \ citedPaths(c,a)| / |gold(c)|`. The primary esti	unrecorded	-
-CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	132	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering	unrecorded	-
-CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	161	Pilot. The pilot uses its own seed and partition; its changes are excluded from	unrecorded	-
-CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	164	Stopping and publication. There is no interim analysis: the scorer runs once, af	unrecorded	-
-CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	184	Invocation lifecycle (proposed). `runCommand` MUST share the	unrecorded	-
-CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	205	Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports	unrecorded	-
-CRT-V0-013	docs/specs/cem-reviewer-trial-v0.md	219	Cited-not-gold precision (V1-1261, decision 0523 P4;	unrecorded	-
-CRT-V0-014	docs/specs/cem-reviewer-trial-v0.md	240	Registration (V1-1261, decision 0523 P4, extends CRT-V0-010;	unrecorded	-
-CRT-V0-015	docs/specs/cem-reviewer-trial-v0.md	269	Treatment arm and pre-baseline runs (V1-1261, decision 0523 P4;	unrecorded	-
+CRT-V0-007	docs/specs/cem-reviewer-trial-v0.md	110	(Amended 2026-10-11: V1-1261, accepted under the owner's standing auto-accept (2	standing	2026-10-11; V1-1261
+CRT-V0-008	docs/specs/cem-reviewer-trial-v0.md	131	Power, pre-declared. 30 pairs is roughly 120 gold items per arm; with clustering	unrecorded	-
+CRT-V0-009	docs/specs/cem-reviewer-trial-v0.md	160	Pilot. The pilot uses its own seed and partition; its changes are excluded from	unrecorded	-
+CRT-V0-010	docs/specs/cem-reviewer-trial-v0.md	163	(Amended 2026-10-11: V1-1261, accepted under the owner's standing auto-accept (2	standing	2026-10-11; V1-1261
+CRT-V0-011	docs/specs/cem-reviewer-trial-v0.md	183	Invocation lifecycle (proposed). `runCommand` MUST share the	unrecorded	-
+CRT-V0-012	docs/specs/cem-reviewer-trial-v0.md	204	Seeded-arm decomposition (proposed 2026-10-01). A seeded run reports	unrecorded	-
+CRT-V0-013	docs/specs/cem-reviewer-trial-v0.md	218	(V1-1261, decision 0523 P4; accepted under the owner's standing auto-accept (202	standing	V1-1261; decision 0523; 2026-10-11
+CRT-V0-014	docs/specs/cem-reviewer-trial-v0.md	238	(V1-1261, decision 0523 P4, extends CRT-V0-010; accepted under the owner's stand	standing	V1-1261; decision 0523; 2026-10-11
+CRT-V0-015	docs/specs/cem-reviewer-trial-v0.md	266	(V1-1261, decision 0523 P4; accepted under the owner's standing auto-accept (202	standing	V1-1261; decision 0523; 2026-10-11
 CTR-V0-001	docs/specs/compat-trial-v0.md	32	Descriptor schema. The fields below are frozen; a runner MUST NOT add, rename or	unrecorded	-
 CTR-V0-002	docs/specs/compat-trial-v0.md	40	Comparison policy v0. Equality is exact bytes of stdout, stderr and exit status	unrecorded	-
 CTR-V0-003	docs/specs/compat-trial-v0.md	42	Resource profile, quoted verbatim from `P:237–241`: "64 KiB input, 1 MiB output	unrecorded	-
@@ -1305,35 +1305,35 @@ DCP-V1-050	docs/specs/documentation-corpus-v1.md	383	A witness is produced only 
 DCP-V1-051	docs/specs/documentation-corpus-v1.md	397	Every other registered test stays unwitnessed with exactly one named reason and	unrecorded	-
 DCP-V1-052	docs/specs/documentation-corpus-v1.md	406	Missing or untrustworthy shared evidence yields uncertainty for every test, neve	unrecorded	-
 DCP-V1-053	docs/specs/documentation-corpus-v1.md	412	`corvint docs --help`, and the `docs corpus discover-playwright --help` and	unrecorded	-
-DCP-V1-054	docs/specs/documentation-corpus-v1.md	1075	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
+DCP-V1-054	docs/specs/documentation-corpus-v1.md	1069	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 DCP-V1-055	docs/specs/documentation-corpus-v1.md	426	`discover-playwright` applies the `TJAA-V0-021` grep/grepInvert omission rules o	unrecorded	-
-DCP-V1-056	docs/specs/documentation-corpus-v1.md	438	`corvint help docs corpus` and `corvint docs corpus --help` (or `-h`) print one	unrecorded	-
-DCP-V1-057	docs/specs/documentation-corpus-v1.md	457	`corvint help TOPIC` with an unknown topic stays the `invalid-arguments` refusal	unrecorded	-
-DCP-V1-060	docs/specs/documentation-corpus-v1.md	464	`corvint docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMM	unrecorded	-
-DCP-V1-061	docs/specs/documentation-corpus-v1.md	473	Each statically named `it` (and its runner's aliases) under statically titled	unrecorded	-
-DCP-V1-062	docs/specs/documentation-corpus-v1.md	488	Assertions in a case body become ordinal criteria `c1..cn` with matcher, locator	unrecorded	-
-DCP-V1-063	docs/specs/documentation-corpus-v1.md	571	Preconditions are content-bound references. Every top-level call statement in an	unrecorded	-
-DCP-V1-064	docs/specs/documentation-corpus-v1.md	597	The record is pinned and deterministic: it names the repository identity and the	unrecorded	-
-DCP-V1-065	docs/specs/documentation-corpus-v1.md	600	With `--input REGISTRY.json` (a closed behavior registry) the record adds a	unrecorded	-
-DCP-V1-066	docs/specs/documentation-corpus-v1.md	606	The crosswalk re-checks every existing reviewed `legacy_criteria` mapping in the	unrecorded	-
-DCP-V1-067	docs/specs/documentation-corpus-v1.md	616	A target whose fixture identities differ from the legacy case's makes the mappin	unrecorded	-
-DCP-V1-068	docs/specs/documentation-corpus-v1.md	621	The producer refuses with `corpus-refused` an unknown runner, a revision that is	unrecorded	-
-DCP-V1-069	docs/specs/documentation-corpus-v1.md	633	`corvint docs --help` lists the `discover-legacy` usage and describes its output	unrecorded	-
-DCP-V1-070	docs/specs/documentation-corpus-v1.md	639	`corvint docs corpus import-cases --format testrail-json|csv --input EXPORT` rea	unrecorded	-
-DCP-V1-071	docs/specs/documentation-corpus-v1.md	649	Every imported case is a `BehaviorLegacyCase` in the existing legacy inventory s	unrecorded	-
-DCP-V1-072	docs/specs/documentation-corpus-v1.md	656	Preconditions, steps and expected results have HTML stripped before use: tags an	unrecorded	-
-DCP-V1-073	docs/specs/documentation-corpus-v1.md	663	`--content` is `ids-paths-titles` (default) or `full`. Under `ids-paths-titles`,	unrecorded	-
-DCP-V1-074	docs/specs/documentation-corpus-v1.md	668	Oversized fields are bounded, never silently truncated. A title over 1024 bytes,	unrecorded	-
-DCP-V1-075	docs/specs/documentation-corpus-v1.md	673	`corvint docs corpus search-cases --format F --input EXPORT --query TEXT [--limi	unrecorded	-
-DCP-V1-076	docs/specs/documentation-corpus-v1.md	680	Every search result is the auditable receipt `corvint-legacy-case-search/1`. It	unrecorded	-
-DCP-V1-077	docs/specs/documentation-corpus-v1.md	685	The separate `corvint-corpus-mcp`, started with `--legacy-cases`, lists the read	unrecorded	-
-DCP-V1-078	docs/specs/documentation-corpus-v1.md	690	Each of the following is refused with `corpus-refused` and no partial output:	unrecorded	-
-DCP-V1-079	docs/specs/documentation-corpus-v1.md	702	Manual legacy cases never count as runtime parity. `manual` joins `executable` a	unrecorded	-
-DCP-V1-080	docs/specs/documentation-corpus-v1.md	706	`corvint docs --help` and `corvint docs corpus witness-playwright --help` state	unrecorded	-
-DCP-V1-081	docs/specs/documentation-corpus-v1.md	722	`internal/doccorpus/behavior-events.cjs` is a Playwright fixture producer. It	unrecorded	-
-DCP-V1-082	docs/specs/documentation-corpus-v1.md	747	An unwitnessed test with an annotation-stage reason (`events-unobserved`,	unrecorded	-
-DCP-V1-083	docs/specs/documentation-corpus-v1.md	755	`behavior.expect` in `behavior-events.cjs` also records the closed set of valuel	unrecorded	-
-DCP-V1-084	docs/specs/documentation-corpus-v1.md	767	A reviewed expected outcome and a declared test assertion for a valueless state	unrecorded	-
+DCP-V1-056	docs/specs/documentation-corpus-v1.md	438	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #805)) `cor	standing	2026-10-11; #805
+DCP-V1-057	docs/specs/documentation-corpus-v1.md	456	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #805)) `cor	standing	2026-10-11; #805
+DCP-V1-060	docs/specs/documentation-corpus-v1.md	462	(accepted under the owner's standing auto-accept (2026-10-11) after Codex review	standing	2026-10-11; #811
+DCP-V1-061	docs/specs/documentation-corpus-v1.md	471	(accepted under the owner's standing auto-accept (2026-10-11) after Codex review	standing	2026-10-11; #811
+DCP-V1-062	docs/specs/documentation-corpus-v1.md	486	(accepted under the owner's standing auto-accept (2026-10-11) after Codex review	standing	2026-10-11; #811
+DCP-V1-063	docs/specs/documentation-corpus-v1.md	569	(accepted under the owner's standing auto-accept (2026-10-11) after Codex review	standing	2026-10-11; #811
+DCP-V1-064	docs/specs/documentation-corpus-v1.md	595	(accepted under the owner's standing auto-accept (2026-10-11) after Codex review	standing	2026-10-11; #811
+DCP-V1-065	docs/specs/documentation-corpus-v1.md	598	(accepted under the owner's standing auto-accept (2026-10-11) after Codex review	standing	2026-10-11; #811
+DCP-V1-066	docs/specs/documentation-corpus-v1.md	604	(accepted under the owner's standing auto-accept (2026-10-11) after Codex review	standing	2026-10-11; #811
+DCP-V1-067	docs/specs/documentation-corpus-v1.md	614	(accepted under the owner's standing auto-accept (2026-10-11) after Codex review	standing	2026-10-11; #811
+DCP-V1-068	docs/specs/documentation-corpus-v1.md	619	(accepted under the owner's standing auto-accept (2026-10-11) after Codex review	standing	2026-10-11; #811
+DCP-V1-069	docs/specs/documentation-corpus-v1.md	631	(accepted under the owner's standing auto-accept (2026-10-11) after Codex review	standing	2026-10-11; #811
+DCP-V1-070	docs/specs/documentation-corpus-v1.md	637	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #812)) `cor	standing	2026-10-11; #812
+DCP-V1-071	docs/specs/documentation-corpus-v1.md	647	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #812)) Ever	standing	2026-10-11; #812
+DCP-V1-072	docs/specs/documentation-corpus-v1.md	654	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #812)) Prec	standing	2026-10-11; #812
+DCP-V1-073	docs/specs/documentation-corpus-v1.md	661	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #812)) `--c	standing	2026-10-11; #812
+DCP-V1-074	docs/specs/documentation-corpus-v1.md	666	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #812)) Over	standing	2026-10-11; #812
+DCP-V1-075	docs/specs/documentation-corpus-v1.md	670	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #812)) `cor	standing	2026-10-11; #812
+DCP-V1-076	docs/specs/documentation-corpus-v1.md	677	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #812)) Ever	standing	2026-10-11; #812
+DCP-V1-077	docs/specs/documentation-corpus-v1.md	682	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #812)) The	standing	2026-10-11; #812
+DCP-V1-078	docs/specs/documentation-corpus-v1.md	686	Each of the following is refused with `corpus-refused` and no partial output:	unrecorded	-
+DCP-V1-079	docs/specs/documentation-corpus-v1.md	698	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #812)) Manu	standing	2026-10-11; #812
+DCP-V1-080	docs/specs/documentation-corpus-v1.md	702	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #835; V1-12	standing	2026-10-11; #835; V1-1222
+DCP-V1-081	docs/specs/documentation-corpus-v1.md	718	`internal/doccorpus/behavior-events.cjs` is a Playwright fixture producer. It	unrecorded	-
+DCP-V1-082	docs/specs/documentation-corpus-v1.md	743	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #835)) An u	standing	2026-10-11; #835
+DCP-V1-083	docs/specs/documentation-corpus-v1.md	751	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #845; V1-1	standing	2026-10-11; #845; V1-1318
+DCP-V1-084	docs/specs/documentation-corpus-v1.md	762	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #845; V1-1	standing	2026-10-11; #845; V1-1318
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,	unrecorded	-
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,	unrecorded	-
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide	unrecorded	-
@@ -1352,7 +1352,7 @@ DCW-V0-015	docs/specs/daily-change-evidence-workflow-v0.md	83	Dirty, stale, inte
 DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	97	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`	unrecorded	-
 DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	109	The `dogfood-check` verifier set and its `outputsAgree` result are author-only	unrecorded	-
 DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	118	`dogfood-change` MUST link an OCM obligation only from a row of the optional,	unrecorded	-
-DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	127	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan	unrecorded	-
+DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	127	(Amended 2026-10-11 by `DCW-V0-046`, V1-1258; accepted under the owner's standin	standing	2026-10-11; V1-1258
 DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	150	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a	owner	V1-0236; 2026-09-24
 DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	163	The subverbs MUST run at the worktree top level: the root is `--root` or the wor	unrecorded	-
 DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	166	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch	unrecorded	-
@@ -3537,16 +3537,16 @@ TOL-V0-033	docs/specs/corvint-tasks-obligation-ledger-v0.md	448	`qualify` MUST w
 TOL-V0-034	docs/specs/corvint-tasks-obligation-ledger-v0.md	476	A seed item MAY carry an optional adopter `alias`, so a suite that already names	unrecorded	-
 TOL-V0-035	docs/specs/corvint-tasks-obligation-ledger-v0.md	489	A seed MUST refuse, and write nothing, when an alias repeats an alias already in	unrecorded	-
 TOL-V0-036	docs/specs/corvint-tasks-obligation-ledger-v0.md	497	Wherever TOL-V0-010..013 and 022..029 find an obligation named in a report title	unrecorded	-
-TOL-V0-037	docs/specs/corvint-tasks-obligation-ledger-v0.md	525	A folded entry MAY carry an optional `sources` list of 1..16 review sources, kep	unrecorded	-
-TOL-V0-038	docs/specs/corvint-tasks-obligation-ledger-v0.md	539	An `OBLIGATIONS_SET` change MAY carry `sources`. A change becomes `{id, state,	unrecorded	-
-TOL-V0-039	docs/specs/corvint-tasks-obligation-ledger-v0.md	543	An entry or set change without sources MUST keep its exact pre-#813 bytes (the	unrecorded	-
-TOL-V0-040	docs/specs/corvint-tasks-obligation-ledger-v0.md	547	The policy key `obligations` becomes `{workerWitness, requireSourceReview?}`.	unrecorded	-
-TOL-V0-041	docs/specs/corvint-tasks-obligation-ledger-v0.md	552	Under the same policy, `preflight` MUST add a `SOURCE_REVIEW_NONE_UNSEARCHED`	unrecorded	-
-TOL-V0-042	docs/specs/corvint-tasks-obligation-ledger-v0.md	556	When some entry records sources, `ticket obligations show` and `ticket obligatio	unrecorded	-
-TOL-V0-043	docs/specs/corvint-tasks-obligation-ledger-v0.md	565	`show` and `plan` take an optional `--legacy-cases FILE`, a	unrecorded	-
-TOL-V0-044	docs/specs/corvint-tasks-obligation-ledger-v0.md	573	A `legacy-spec` ref MUST resolve as a clean repository-relative path at `HEAD`,	unrecorded	-
-TOL-V0-045	docs/specs/corvint-tasks-obligation-ledger-v0.md	577	Source refs, queries and searched ids MUST pass the TOL-V0-009 secret screen	unrecorded	-
-TOL-V0-046	docs/specs/corvint-tasks-obligation-ledger-v0.md	580	`show`, `plan` and `preflight` stay reads: the review-source checks write no que	unrecorded	-
+TOL-V0-037	docs/specs/corvint-tasks-obligation-ledger-v0.md	525	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) A fo	standing	2026-10-11; #813
+TOL-V0-038	docs/specs/corvint-tasks-obligation-ledger-v0.md	539	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) An `	standing	2026-10-11; #813
+TOL-V0-039	docs/specs/corvint-tasks-obligation-ledger-v0.md	543	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) An e	standing	2026-10-11; #813
+TOL-V0-040	docs/specs/corvint-tasks-obligation-ledger-v0.md	546	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) The	standing	2026-10-11; #813
+TOL-V0-041	docs/specs/corvint-tasks-obligation-ledger-v0.md	550	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) Unde	standing	2026-10-11; #813
+TOL-V0-042	docs/specs/corvint-tasks-obligation-ledger-v0.md	554	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) When	standing	2026-10-11; #813
+TOL-V0-043	docs/specs/corvint-tasks-obligation-ledger-v0.md	563	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) `sho	standing	2026-10-11; #813
+TOL-V0-044	docs/specs/corvint-tasks-obligation-ledger-v0.md	570	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) A `l	standing	2026-10-11; #813
+TOL-V0-045	docs/specs/corvint-tasks-obligation-ledger-v0.md	574	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) Sour	standing	2026-10-11; #813
+TOL-V0-046	docs/specs/corvint-tasks-obligation-ledger-v0.md	576	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) `sho	standing	2026-10-11; #813
 TPN-V0-001	docs/specs/trusted-project-navigation-v0.md	29	Execution requires explicit `--trusted-project`. Accept only the closed canonica	unrecorded	-
 TPN-V0-002	docs/specs/trusted-project-navigation-v0.md	32	Stage only the complete admitted immutable Git manifest, with regular files and	unrecorded	-
 TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-party configuration, check the interpreter and installed	unrecorded	-

@@ -254,20 +254,20 @@ are URL templates, not component source files. This slice makes neither missing 
   derived `state-effect` or `unknown` step; declared assertion targets and mutations still abstain
   as ANL-V0-010 states. An edge without a derived effect keeps the ANL-V0-010 sidecar rule.
   (accepted, decision 0520; V1-1164)
-- `ANL-V0-037`: Corvint ships a navigation-events producer as the repository file
+- `ANL-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11); issue #814) Corvint ships a navigation-events producer as the repository file
   `internal/appmap/navigation-events.cjs` (AGPL, like the other `internal/` reporters). A suite
   enables it with one line in its Playwright config,
   `require('<path>/navigation-events.cjs').install({outputDir: 'DIR'})`, and changes no spec, page
   object or fixture source. `install` and `createRecorder` without an `outputDir` throw at config
-  load. (accepted under the owner's standing auto-accept (2026-10-11); issue #814)
-- `ANL-V0-038`: The config is loaded by the runner and by every worker; in each, `install` resolves
+  load.
+- `ANL-V0-038`: (accepted under the owner's standing auto-accept (2026-10-11); issue #814) The config is loaded by the runner and by every worker; in each, `install` resolves
   the suite's own `playwright` and `playwright-core` from the working directory and adds one
   listener to Playwright's client instrumentation. It needs no trace, screenshot, video or reporter
   setting and is unaffected by them. When Playwright cannot be resolved or the instrumentation hook
   is absent, it writes one stderr line and records nothing, so no document is ever partial.
   Recording is per test attempt (`testInfo.testId`, `retry`); a context created outside a test
-  records nothing. (accepted under the owner's standing auto-accept (2026-10-11); issue #814)
-- `ANL-V0-039`: When a test's browser context closes (the before-close hook, or the context `close`
+  records nothing.
+- `ANL-V0-039`: (accepted under the owner's standing auto-accept (2026-10-11); issue #814) When a test's browser context closes (the before-close hook, or the context `close`
   event when `Browser.close()` or a crash closes it), the producer writes once one closed
   `playwright-navigation-events/0` document as one JSON line to `DIR/<testId>.json` (through a
   temporary file and rename), with `test_key` set to Playwright's stable test ID. A later attempt
@@ -275,32 +275,32 @@ are URL templates, not component source files. This slice makes neither missing 
   `observe --trace` accepts each file, and `DIR` itself while it holds at most 64 documents (the
   ANL-V0-006 directory limit); a larger run is observed file by file.
   The test key is not a qualified receipt test key; binding observations to receipts stays the
-  caller's mapping, as for `--test-key` (ANL-V0-022). (accepted under the owner's standing auto-accept (2026-10-11); issue #814)
-- `ANL-V0-040`: Each URL commit of the test page's main frame (`framenavigated`) is one event,
+  caller's mapping, as for `--test-key` (ANL-V0-022).
+- `ANL-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11); issue #814) Each URL commit of the test page's main frame (`framenavigated`) is one event,
   except an `about:` URL or a URL equal to the previous commit. The event carries an action only
   when a Playwright call is in flight (begun and not ended) and has not yet been credited with a
   commit: the most recently begun such call, as `kind` (its protocol method, the same name a trace
   `before` record carries, and only when it matches `^[A-Za-z][A-Za-z0-9]{0,63}$`) and `selector`
   (only a string of at most 1024 bytes). Any other commit carries no action and so reads `UNKNOWN`.
-  Sub-frame commits are ignored. (accepted under the owner's standing auto-accept (2026-10-11); issue #814)
-- `ANL-V0-041`: When the committed document's main-frame navigation request was reached through
+  Sub-frame commits are ignored.
+- `ANL-V0-041`: (accepted under the owner's standing auto-accept (2026-10-11); issue #814) When the committed document's main-frame navigation request was reached through
   HTTP redirects (its `redirectedFrom` chain, matched to the commit URL without the fragment), the
   first hop is the `navigate` event that carries the action and every later hop and the final URL
-  are `redirect` events. No other commit is labelled `redirect`. (accepted under the owner's standing auto-accept (2026-10-11); issue #814)
-- `ANL-V0-042`: On the same run, `observe` over the producer's file yields the same visits and
+  are `redirect` events. No other commit is labelled `redirect`.
+- `ANL-V0-042`: (accepted under the owner's standing auto-accept (2026-10-11); issue #814) On the same run, `observe` over the producer's file yields the same visits and
   edges as `observe --trace ZIP --test-key KEY` over that test's trace with the same key, once each
   redirect chain is folded to its final URL carrying the first hop's action; a run without HTTP
   redirects needs no folding. The producer is a superset where snapshots are blind: it shows
   redirect hops, and a call that commits more than one URL (a client-side redirect) yields one
-  event per commit where the trace shows only the last. (accepted under the owner's standing auto-accept (2026-10-11); issue #814)
-- `ANL-V0-043`: A test attempt that opens a second page (a popup or another context), closes a
+  event per commit where the trace shows only the last.
+- `ANL-V0-043`: (accepted under the owner's standing auto-accept (2026-10-11); issue #814) A test attempt that opens a second page (a popup or another context), closes a
   second browser context after its first, records more
   than 4096 events, commits a URL or redirect hop longer than 4096 bytes as committed (the
   ANL-V0-022 bound, checked before redaction) or after redaction, or whose document would exceed the 4 MiB
   reporter file limit gets no document: the producer removes
   any earlier file for that test and writes one stderr line naming the test and reason, mirroring the
-  ANL-V0-022 refusals instead of truncating. (accepted under the owner's standing auto-accept (2026-10-11); issue #814)
-- `ANL-V0-044`: The producer reads only main-frame URLs, navigation request redirect chains and each
+  ANL-V0-022 refusals instead of truncating.
+- `ANL-V0-044`: (accepted under the owner's standing auto-accept (2026-10-11); issue #814) The producer reads only main-frame URLs, navigation request redirect chains and each
   call's protocol method and selector. It never records typed or filled values, other call
   parameters, page content, headers or bodies. Before an event URL is kept it applies the ANL-V0-007
   redaction as `observe` parses the URL (byte-wise unescaping, Unicode simple case folding): URL
@@ -317,19 +317,17 @@ are URL templates, not component source files. This slice makes neither missing 
   followed by `?%` so the URL stays unparseable; such a route holding an encoded `?` is withheld.
   `observe` then decodes the
   same URL from the written URL as from the committed URL and resolves the same screen and status.
-  (accepted under the owner's standing auto-accept (2026-10-11); issue #814)
-- `ANL-V0-045`: Its cost is one in-process listener call per Playwright call, two page event
+- `ANL-V0-045`: (accepted under the owner's standing auto-accept (2026-10-11); issue #814) Its cost is one in-process listener call per Playwright call, two page event
   listeners and one small file write per test; it opens no network, process or browser. A written
   or withheld attempt keeps only its retry and page count, not its events. The
   measured overhead and the qualified Playwright version are recorded in the build log. It uses
   Playwright's private client instrumentation hook, qualified on Playwright 1.61.1 only; another
-  version needs a fresh live parity run before its output is trusted. (accepted under the owner's standing auto-accept (2026-10-11); issue #814)
-- `ANL-V0-046`: The runner process (where Playwright has not set `TEST_WORKER_INDEX`) loads the
+  version needs a fresh live parity run before its output is trusted.
+- `ANL-V0-046`: (accepted under the owner's standing auto-accept (2026-10-11); issue #814) The runner process (where Playwright has not set `TEST_WORKER_INDEX`) loads the
   config once before any worker starts; there `install` removes from `DIR`, not recursively, every
   regular `*.json` file that begins with `{"schema":"playwright-navigation-events/0"` and every
   `*.json.tmp` file, so `DIR` holds only the current run's documents. Other files are never
   removed. Any command that loads the config in the runner, including `--list`, clears `DIR`.
-  (accepted under the owner's standing auto-accept (2026-10-11); issue #814)
 
 ## Wire and limits
 
