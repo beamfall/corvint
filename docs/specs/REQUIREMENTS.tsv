@@ -56,34 +56,34 @@ AFP-V0-019	docs/specs/affected-plan-v0.md	411	(proposed technical contract imple
 AFP-V0-020	docs/specs/affected-plan-v0.md	437	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat	unrecorded	-
 AFP-V0-021	docs/specs/affected-plan-v0.md	451	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth	owner	decision 0376; V1-0126
 AFP-V0-022	docs/specs/affected-plan-v0.md	500	(accepted (decision 0431); amended by decision 0431; owner-directed experimental	owner	decision 0431
-AFP-V0-023	docs/specs/affected-plan-v0.md	664	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit	unrecorded	-
-AFP-V0-024	docs/specs/affected-plan-v0.md	703	(owner-directed, proposed, 2026-10-04; V1-0717; merge-queue amendment under the	standing	2026-10-04; V1-0717; 2026-10-11; V1-0760
-AFP-V0-025	docs/specs/affected-plan-v0.md	739	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL	unrecorded	-
-AFP-V0-026	docs/specs/affected-plan-v0.md	776	(accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04;	standing	decision 0431; 2026-10-04; V1-0752; 2026-10-11; V1-1360
-AFP-V0-027	docs/specs/affected-plan-v0.md	802	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled	unrecorded	-
-AFP-V0-028	docs/specs/affected-plan-v0.md	815	(accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHAL	owner	decision 0509; decision 0431
-AFP-V0-029	docs/specs/affected-plan-v0.md	848	(accepted, decision 0509; intent decision 0431) Every PR run computing a trusted	owner	decision 0509; decision 0431
-AFP-V0-030	docs/specs/affected-plan-v0.md	873	(accepted, decision 0509; intent decision 0431) PR runs SHALL return to FULL wit	owner	decision 0509; decision 0431
-AFP-V0-031	docs/specs/affected-plan-v0.md	890	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module	owner	decision 0438; V1-0867
-AFP-V0-032	docs/specs/affected-plan-v0.md	928	(accepted by decision 0438; V1-0865) Only a declaration path that	owner	decision 0438; V1-0865
-AFP-V0-033	docs/specs/affected-plan-v0.md	937	(accepted by decision 0438; V1-0868) Every `units` directory of	owner	decision 0438; V1-0868
-AFP-V0-034	docs/specs/affected-plan-v0.md	953	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R	owner	decision 0439; V1-0416
-AFP-V0-035	docs/specs/affected-plan-v0.md	970	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,	unrecorded	-
-AFP-V0-036	docs/specs/affected-plan-v0.md	989	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an	unrecorded	-
-AFP-V0-037	docs/specs/affected-plan-v0.md	1008	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil	unrecorded	-
-AFP-V0-038	docs/specs/affected-plan-v0.md	1038	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the	unrecorded	-
-AFP-V0-039	docs/specs/affected-plan-v0.md	1049	(proposed (V1-0662); no GitHub issue) A Go test fixture under	unrecorded	-
-AFP-V0-040	docs/specs/affected-plan-v0.md	1062	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL	owner	decision 0487; 2026-10-10
+AFP-V0-023	docs/specs/affected-plan-v0.md	664	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081; declaration-edit	unrecorded	-
+AFP-V0-024	docs/specs/affected-plan-v0.md	704	(owner-directed, proposed, 2026-10-04; V1-0717; merge-queue amendment under the	standing	2026-10-04; V1-0717; 2026-10-11; V1-0760
+AFP-V0-025	docs/specs/affected-plan-v0.md	740	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL	unrecorded	-
+AFP-V0-026	docs/specs/affected-plan-v0.md	777	(accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04;	standing	decision 0431; 2026-10-04; V1-0752; 2026-10-11; V1-1360
+AFP-V0-027	docs/specs/affected-plan-v0.md	803	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled	unrecorded	-
+AFP-V0-028	docs/specs/affected-plan-v0.md	816	(accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHAL	owner	decision 0509; decision 0431
+AFP-V0-029	docs/specs/affected-plan-v0.md	849	(accepted, decision 0509; intent decision 0431) Every PR run computing a trusted	owner	decision 0509; decision 0431
+AFP-V0-030	docs/specs/affected-plan-v0.md	874	(accepted, decision 0509; intent decision 0431) PR runs SHALL return to FULL wit	owner	decision 0509; decision 0431
+AFP-V0-031	docs/specs/affected-plan-v0.md	891	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module	owner	decision 0438; V1-0867
+AFP-V0-032	docs/specs/affected-plan-v0.md	929	(accepted by decision 0438; V1-0865) Only a declaration path that	owner	decision 0438; V1-0865
+AFP-V0-033	docs/specs/affected-plan-v0.md	938	(accepted by decision 0438; V1-0868) Every `units` directory of	owner	decision 0438; V1-0868
+AFP-V0-034	docs/specs/affected-plan-v0.md	954	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R	owner	decision 0439; V1-0416
+AFP-V0-035	docs/specs/affected-plan-v0.md	971	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,	unrecorded	-
+AFP-V0-036	docs/specs/affected-plan-v0.md	990	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an	unrecorded	-
+AFP-V0-037	docs/specs/affected-plan-v0.md	1009	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil	unrecorded	-
+AFP-V0-038	docs/specs/affected-plan-v0.md	1039	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the	unrecorded	-
+AFP-V0-039	docs/specs/affected-plan-v0.md	1050	(proposed (V1-0662); no GitHub issue) A Go test fixture under	unrecorded	-
+AFP-V0-040	docs/specs/affected-plan-v0.md	1063	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL	owner	decision 0487; 2026-10-10
 AFP-V0-041	docs/specs/affected-plan-v0.md	541	(accepted by decision 0488, 2026-10-10; V1-1096; no GitHub issue) Full	owner	decision 0488; 2026-10-10; V1-1096
-AFP-V0-042	docs/specs/affected-plan-v0.md	1108	(accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the	owner	decision 0496; V1-1117
-AFP-V0-043	docs/specs/affected-plan-v0.md	1128	(accepted, decision 0505) Cost-table	owner	decision 0505
-AFP-V0-044	docs/specs/affected-plan-v0.md	1137	(accepted, decision 0519 (V1-1141); GitHub #783) When `--base`	owner	decision 0519; V1-1141; #783
-AFP-V0-045	docs/specs/affected-plan-v0.md	1148	(accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST	owner	decision 0519; V1-1141; #783
-AFP-V0-046	docs/specs/affected-plan-v0.md	1158	(accepted under the owner's standing auto-accept (2026-10-11); V1-1360) A	standing	2026-10-11; V1-1360
-AFP-V0-047	docs/specs/affected-plan-v0.md	1189	(accepted under the owner's standing auto-accept (2026-10-11); V1-0811) The	standing	2026-10-11; V1-0811
-AFP-V0-048	docs/specs/affected-plan-v0.md	1255	(accepted under the owner's standing auto-accept (2026-10-11); V1-1361) A	standing	2026-10-11; V1-1361
-AFP-V0-049	docs/specs/affected-plan-v0.md	1292	(accepted under the owner's standing auto-accept (2026-10-11); V1-1371)	standing	2026-10-11; V1-1371
-AFP-V0-050	docs/specs/affected-plan-v0.md	1325	(accepted under the owner's standing auto-accept (2026-10-11); V1-1298) When	standing	2026-10-11; V1-1298
+AFP-V0-042	docs/specs/affected-plan-v0.md	1109	(accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the	owner	decision 0496; V1-1117
+AFP-V0-043	docs/specs/affected-plan-v0.md	1129	(accepted, decision 0505) Cost-table	owner	decision 0505
+AFP-V0-044	docs/specs/affected-plan-v0.md	1138	(accepted, decision 0519 (V1-1141); GitHub #783) When `--base`	owner	decision 0519; V1-1141; #783
+AFP-V0-045	docs/specs/affected-plan-v0.md	1149	(accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST	owner	decision 0519; V1-1141; #783
+AFP-V0-046	docs/specs/affected-plan-v0.md	1159	(accepted under the owner's standing auto-accept (2026-10-11); V1-1360) A	standing	2026-10-11; V1-1360
+AFP-V0-047	docs/specs/affected-plan-v0.md	1190	(accepted under the owner's standing auto-accept (2026-10-11); V1-0811) The	standing	2026-10-11; V1-0811
+AFP-V0-048	docs/specs/affected-plan-v0.md	1256	(accepted under the owner's standing auto-accept (2026-10-11); V1-1361) A	standing	2026-10-11; V1-1361
+AFP-V0-049	docs/specs/affected-plan-v0.md	1293	(accepted under the owner's standing auto-accept (2026-10-11); V1-1371)	standing	2026-10-11; V1-1371
+AFP-V0-050	docs/specs/affected-plan-v0.md	1326	(accepted under the owner's standing auto-accept (2026-10-11); V1-1298; (3)	standing	2026-10-11; V1-1298
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data	unrecorded	-
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/	unrecorded	-
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and	unrecorded	-
@@ -1162,6 +1162,7 @@ CTS-V0-006	docs/specs/corvint-tasks-store-init-v0.md	88	(requested 2026-10-01, i
 CTS-V0-007	docs/specs/corvint-tasks-store-init-v0.md	102	(proposed (V1-0759)) A re-import that writes the next revision of an `IMPORT` re	unrecorded	-
 CTS-V0-008	docs/specs/corvint-tasks-store-init-v0.md	107	(accepted, decision 0490; V1-0825) A native writer holds staging slots `staging/	owner	decision 0490; V1-0825
 CTS-V0-009	docs/specs/corvint-tasks-store-init-v0.md	127	(accepted, decision 0513) The initial journal-backed	owner	decision 0513
+CTS-V0-010	docs/specs/corvint-tasks-store-init-v0.md	136	(accepted under the owner's standing auto-accept (2026-10-11), V1-1379) When a	standing	2026-10-11; V1-1379
 CTW-V0-001	docs/specs/corvint-tasks-intent-worktree-v0.md	41	The intent root is the checkout whose `.taskman/` is the intent projection. Ever	unrecorded	-
 CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	47	When the primary worktree's HEAD does not name the intent branch from	unrecorded	-
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	54	The intent branch and queue ID used for routing are read from the primary worktr	unrecorded	-
@@ -1401,6 +1402,7 @@ DCW-V0-059	docs/specs/daily-change-evidence-workflow-v0.md	760	(accepted under t
 DCW-V0-060	docs/specs/daily-change-evidence-workflow-v0.md	771	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348)	standing	2026-10-11; V1-1348
 DCW-V0-061	docs/specs/daily-change-evidence-workflow-v0.md	791	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348)	standing	2026-10-11; V1-1348
 DCW-V0-062	docs/specs/daily-change-evidence-workflow-v0.md	804	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348) After it	standing	2026-10-11; V1-1348
+DCW-V0-063	docs/specs/daily-change-evidence-workflow-v0.md	811	(accepted under the owner's standing auto-accept (2026-10-11); V1-1349, V1-1418)	standing	2026-10-11; V1-1349; V1-1418
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked	unrecorded	-
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and	unrecorded	-
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map	unrecorded	-
@@ -1874,17 +1876,19 @@ GLTP-V0-038	docs/specs/go-live-test-provider-v0.md	804	A recorded plan ceiling t
 GLTP-V0-039	docs/specs/go-live-test-provider-v0.md	847	For an `Execute` call that launched a child, whose pre-run and post-run source a	unrecorded	-
 GLTP-V0-040	docs/specs/go-live-test-provider-v0.md	918	The identity boundary is qualified by three deterministic cases, one axis at a	unrecorded	-
 GLTP-V0-041	docs/specs/go-live-test-provider-v0.md	1103	Every normal-completion path — an `Execute` call whose child exits without	unrecorded	-
-GLTP-V0-042	docs/specs/go-live-test-provider-v0.md	1265	GLTP-V0-012 keeps `excluded` unconditionally `[]` in V0 and this clause does not	unrecorded	-
-GLTP-V0-043	docs/specs/go-live-test-provider-v0.md	1292	A shadow (non-blocking) full-verification run whose scope reaches an explicitly	unrecorded	-
-GLTP-V0-044	docs/specs/go-live-test-provider-v0.md	1302	Until an accepted containment profile exists, no command in `cmd/corvint` may	unrecorded	-
-GLTP-V0-045	docs/specs/go-live-test-provider-v0.md	1327	The session polls a bounded, explicitly enumerated file set (`Config.Files`) at	unrecorded	-
-GLTP-V0-046	docs/specs/go-live-test-provider-v0.md	1340	Exactly one run is active at a time. A newer settled identity detected while a r	unrecorded	-
-GLTP-V0-047	docs/specs/go-live-test-provider-v0.md	1355	The batch is every change settled since the last started run: a batch queued	unrecorded	-
-GLTP-V0-048	docs/specs/go-live-test-provider-v0.md	1374	Each run is executed via `gorunner.Run` — the same contained runner	unrecorded	-
-GLTP-V0-049	docs/specs/go-live-test-provider-v0.md	1399	The session publishes one JSON line per state transition	unrecorded	-
-GLTP-V0-050	docs/specs/go-live-test-provider-v0.md	1422	Every published event also carries `projection`: one	unrecorded	-
-GLTP-V0-051	docs/specs/go-live-test-provider-v0.md	1449	A terminal event whose run completed — classified `passed` or `failed` before an	unrecorded	-
-GLTP-V0-052	docs/specs/go-live-test-provider-v0.md	1480	A `skip` action MUST project the per-test execution axis `SKIPPED` with reason	unrecorded	-
+GLTP-V0-042	docs/specs/go-live-test-provider-v0.md	1267	GLTP-V0-012 keeps `excluded` unconditionally `[]` in V0 and this clause does not	unrecorded	-
+GLTP-V0-043	docs/specs/go-live-test-provider-v0.md	1294	A shadow (non-blocking) full-verification run whose scope reaches an explicitly	unrecorded	-
+GLTP-V0-044	docs/specs/go-live-test-provider-v0.md	1304	Until an accepted containment profile exists, no command in `cmd/corvint` may	unrecorded	-
+GLTP-V0-045	docs/specs/go-live-test-provider-v0.md	1371	The session polls a bounded, explicitly enumerated file set (`Config.Files`) at	unrecorded	-
+GLTP-V0-046	docs/specs/go-live-test-provider-v0.md	1384	Exactly one run is active at a time. A newer settled identity detected while a r	unrecorded	-
+GLTP-V0-047	docs/specs/go-live-test-provider-v0.md	1399	The batch is every change settled since the last started run: a batch queued	unrecorded	-
+GLTP-V0-048	docs/specs/go-live-test-provider-v0.md	1418	Each run is executed via `gorunner.Run` — the same contained runner	unrecorded	-
+GLTP-V0-049	docs/specs/go-live-test-provider-v0.md	1443	The session publishes one JSON line per state transition	unrecorded	-
+GLTP-V0-050	docs/specs/go-live-test-provider-v0.md	1466	Every published event also carries `projection`: one	unrecorded	-
+GLTP-V0-051	docs/specs/go-live-test-provider-v0.md	1493	A terminal event whose run completed — classified `passed` or `failed` before an	unrecorded	-
+GLTP-V0-052	docs/specs/go-live-test-provider-v0.md	1524	A `skip` action MUST project the per-test execution axis `SKIPPED` with reason	unrecorded	-
+GLTP-V0-053	docs/specs/go-live-test-provider-v0.md	1312	The production post-run authority bound MUST stay the fixed 15-second	unrecorded	-
+GLTP-V0-054	docs/specs/go-live-test-provider-v0.md	1338	`Execute` MUST refuse failed post-run authority (GLTP-V0-053's revalidation,	unrecorded	-
 GOC-V0-001	docs/specs/go-only-cutover-v0.md	62	The current tree MUST contain no legacy `src/corvint_cli.py` or	unrecorded	-
 GOC-V0-002	docs/specs/go-only-cutover-v0.md	65	Default Go verification MUST NOT execute, reconstruct from Git, or install the	unrecorded	-
 GOC-V0-003	docs/specs/go-only-cutover-v0.md	68	Removal of live comparisons MUST preserve unique positive, negative, malformed-i	unrecorded	-
@@ -2461,15 +2465,16 @@ MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	496	`corvint.cem.report` MUST r
 MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	467	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the	unrecorded	-
 MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	557	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,	unrecorded	-
 MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	565	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,	unrecorded	-
-MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	591	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review	unrecorded	-
-MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	599	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift	unrecorded	-
-MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	609	proposed (V1-0944; no GitHub issue). Each impact result carries at most four	unrecorded	-
-MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	616	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`	unrecorded	-
-MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	624	proposed (V1-0944; no GitHub issue). When a successful tool result carries	unrecorded	-
-MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	634	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c	unrecorded	-
+MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	602	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review	unrecorded	-
+MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	610	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift	unrecorded	-
+MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	620	proposed (V1-0944; no GitHub issue). Each impact result carries at most four	unrecorded	-
+MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	627	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`	unrecorded	-
+MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	635	proposed (V1-0944; no GitHub issue). When a successful tool result carries	unrecorded	-
+MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	645	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c	unrecorded	-
 MCPV0-035	docs/specs/mcp-server-2026-07-28-v0.md	107	accepted, decision 0512. Cancellation of an active	unrecorded	-
 MCPV0-036	docs/specs/mcp-server-2026-07-28-v0.md	514	proposed (V1-0632 S2). `corvint.cem.report` MUST accept one optional `artifacts`	unrecorded	-
 MCPV0-037	docs/specs/mcp-server-2026-07-28-v0.md	524	proposed (V1-0632 S2). A `cem/1.0` map refused before its stable verifier runs (	unrecorded	-
+MCPV0-038	docs/specs/mcp-server-2026-07-28-v0.md	579	A tool call whose Go repository probe exceeded its own bound while the request	unrecorded	-
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an	unrecorded	-
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered	unrecorded	-
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the	unrecorded	-
@@ -3595,26 +3600,26 @@ TRE-V0-020	docs/specs/test-runner-execution-v0.md	461	The dedicated parser MUST 
 TRE-V0-021	docs/specs/test-runner-execution-v0.md	531	A request MAY carry `expectedSelection` `{version, matcher,	unrecorded	-
 TRE-V0-022	docs/specs/test-runner-execution-v0.md	537	Plan and run admission MUST refuse, before any launch, a	unrecorded	-
 TRE-V0-023	docs/specs/test-runner-execution-v0.md	544	After native observation, shared `Normalize` MUST project each	unrecorded	-
-TRE-V0-024	docs/specs/test-runner-execution-v0.md	597	For runner `mocha`, `Parse` MUST reconcile the native inventory	unrecorded	-
-TRE-V0-025	docs/specs/test-runner-execution-v0.md	608	Every concrete JavaScript/TypeScript affected runner ID MUST	unrecorded	-
-TRE-V0-026	docs/specs/test-runner-execution-v0.md	645	VSTest and MTP TRX parsing MUST admit only the qualified	unrecorded	-
-TRE-V0-027	docs/specs/test-runner-execution-v0.md	678	The MTP profiles MUST refuse at build time, before launch, any	unrecorded	-
-TRE-V0-028	docs/specs/test-runner-execution-v0.md	705	The companion MUST refuse a request, plan or tools document that	unrecorded	-
-TRE-V0-029	docs/specs/test-runner-execution-v0.md	735	SwiftPM XCTest execution evidence MUST come only from the	unrecorded	-
-TRE-V0-030	docs/specs/test-runner-execution-v0.md	743	A plan whose invocation sets `retireDetachedDescendants` MUST,	unrecorded	-
-TRE-V0-031	docs/specs/test-runner-execution-v0.md	814	The `jasmine` profile MUST execute one independently pinned Jasmine CLI entry po	unrecorded	-
-TRE-V0-032	docs/specs/test-runner-execution-v0.md	828	The parser MUST accept exactly the `corvint-jasmine/0` record with its started a	unrecorded	-
-TRE-V0-033	docs/specs/test-runner-execution-v0.md	841	When selectors are present, every reported spec file MUST be one of the	unrecorded	-
+TRE-V0-024	docs/specs/test-runner-execution-v0.md	600	For runner `mocha`, `Parse` MUST reconcile the native inventory	unrecorded	-
+TRE-V0-025	docs/specs/test-runner-execution-v0.md	611	Every concrete JavaScript/TypeScript affected runner ID MUST	unrecorded	-
+TRE-V0-026	docs/specs/test-runner-execution-v0.md	648	VSTest and MTP TRX parsing MUST admit only the qualified	unrecorded	-
+TRE-V0-027	docs/specs/test-runner-execution-v0.md	681	The MTP profiles MUST refuse at build time, before launch, any	unrecorded	-
+TRE-V0-028	docs/specs/test-runner-execution-v0.md	708	The companion MUST refuse a request, plan or tools document that	unrecorded	-
+TRE-V0-029	docs/specs/test-runner-execution-v0.md	738	SwiftPM XCTest execution evidence MUST come only from the	unrecorded	-
+TRE-V0-030	docs/specs/test-runner-execution-v0.md	746	A plan whose invocation sets `retireDetachedDescendants` MUST,	unrecorded	-
+TRE-V0-031	docs/specs/test-runner-execution-v0.md	817	The `jasmine` profile MUST execute one independently pinned Jasmine CLI entry po	unrecorded	-
+TRE-V0-032	docs/specs/test-runner-execution-v0.md	831	The parser MUST accept exactly the `corvint-jasmine/0` record with its started a	unrecorded	-
+TRE-V0-033	docs/specs/test-runner-execution-v0.md	844	When selectors are present, every reported spec file MUST be one of the	unrecorded	-
 TRE-V0-034	docs/specs/test-runner-execution-v0.md	556	The Unix executor MUST run every phase through `groupreap.RunContained`	unrecorded	-
 TRE-V0-036	docs/specs/test-runner-execution-v0.md	112	`boost-test-junit` MUST execute the pinned test executable with	unrecorded	-
 TRE-V0-037	docs/specs/test-runner-execution-v0.md	127	The dedicated parser MUST accept exactly one `boost-junit.xml`	unrecorded	-
 TRE-V0-038	docs/specs/test-runner-execution-v0.md	138	A row without an outcome is `PASSED`; `skipped` is `SKIPPED`; a	unrecorded	-
 TRE-V0-039	docs/specs/test-runner-execution-v0.md	157	Maintained tests MUST replay the actual Boost 1.92.0 JUnit	unrecorded	-
-TRE-V0-040	docs/specs/test-runner-execution-v0.md	870	A receipt phase MUST record `exitCode` as the native exit	unrecorded	-
-TRE-V0-041	docs/specs/test-runner-execution-v0.md	880	Runner plan and receipt decoders (`DecodeDocument` and the CEM	unrecorded	-
-TRE-V0-042	docs/specs/test-runner-execution-v0.md	925	The `gradle-junit` profile MUST pass `--gradle-user-home`	unrecorded	-
-TRE-V0-043	docs/specs/test-runner-execution-v0.md	936	New `gradle-junit` plans MUST set `retireDetachedDescendants`	unrecorded	-
-TRE-V0-044	docs/specs/test-runner-execution-v0.md	982	For `storybook-test-runner`, an empty `Target` MUST leave the	unrecorded	-
+TRE-V0-040	docs/specs/test-runner-execution-v0.md	873	A receipt phase MUST record `exitCode` as the native exit	unrecorded	-
+TRE-V0-041	docs/specs/test-runner-execution-v0.md	883	Runner plan and receipt decoders (`DecodeDocument` and the CEM	unrecorded	-
+TRE-V0-042	docs/specs/test-runner-execution-v0.md	928	The `gradle-junit` profile MUST pass `--gradle-user-home`	unrecorded	-
+TRE-V0-043	docs/specs/test-runner-execution-v0.md	939	New `gradle-junit` plans MUST set `retireDetachedDescendants`	unrecorded	-
+TRE-V0-044	docs/specs/test-runner-execution-v0.md	985	(accepted under the owner's standing auto-accept (2026-10-11); V1-0612) For `sto	standing	2026-10-11; V1-0612
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	81	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack	unrecorded	-
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	86	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO	unrecorded	-
 TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	108	The key MUST NOT include a filesystem path, host, user, clock time, worker count	unrecorded	-

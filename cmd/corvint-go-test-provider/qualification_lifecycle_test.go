@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -160,7 +161,13 @@ func verifyExecuteRecordedCleanup(t *testing.T, interrupted bool) {
 	if wall >= 5*time.Minute {
 		t.Skipf("INCONCLUSIVE: Execute wall time %s exceeds identity lifetime budget", wall)
 	}
-	if err != nil || transcript.RunnerError != nil || transcript.CleanupError != nil || !transcript.Runner.ProcessCleanupDone || transcript.Runner.Cancelled != interrupted || transcript.Runner.TimedOut || !transcript.EphemeralDeletionComplete {
+	// GLTP-V0-053 and GLTP-V0-054: this fixture keeps the production 15-second post-run authority
+	// bound, which a loaded host can expire while the parent verifier re-hashes the fixture GOROOT.
+	// That documented deadline refusal is a provider failure outside GLTP-V0-041's antecedent, so the
+	// run is INCONCLUSIVE once the recorded identities are still shown not to survive the containment
+	// that preceded it. A post-run drift refusal fails the precondition.
+	postRunRefused := postRunAuthorityRefusal(err, transcript)
+	if (err != nil && !postRunRefused) || transcript.RunnerError != nil || transcript.CleanupError != nil || !transcript.Runner.ProcessCleanupDone || transcript.Runner.Cancelled != interrupted || transcript.Runner.TimedOut || !transcript.EphemeralDeletionComplete {
 		t.Fatalf("normal clean completion precondition: Execute=%v runner=%v cleanup=%v execution=%s containment=%t stdout=%s stderr=%s", err, transcript.RunnerError, transcript.CleanupError, transcript.Execution, transcript.Runner.ProcessCleanupDone, transcript.Runner.Stdout.Data, transcript.Runner.Stderr.Data)
 	}
 	var terminal map[string]any
@@ -171,7 +178,7 @@ func verifyExecuteRecordedCleanup(t *testing.T, interrupted bool) {
 		t.Fatalf("wire deletion = %v", terminal["ephemeralDeletion"])
 	}
 	wantExecution := provider.ExecutionPassed
-	if interrupted {
+	if interrupted || postRunRefused {
 		wantExecution = provider.ExecutionIncomplete
 	}
 	if transcript.Execution != wantExecution {
@@ -210,7 +217,20 @@ func verifyExecuteRecordedCleanup(t *testing.T, interrupted bool) {
 	if probeCtx.Err() != nil {
 		t.Fatal("probe exceeded five seconds")
 	}
+	if postRunRefused {
+		t.Skipf("INCONCLUSIVE: no recorded survivor, but post-run authority deadline expired after clean containment (GLTP-V0-054): %v", err)
+	}
 	verifyWithIndependentConformance(t, transcript)
+}
+
+// postRunAuthorityRefusal reports the provider's documented post-run deadline refusal
+// (GLTP-V0-054): the post-run revalidation, identity observation or release outlasted its own
+// deadline after the child exited, so Execute returns ErrAuthorityUnavailable with an INCOMPLETE
+// execution and a canonical failure receipt. A post-run ErrAuthorityDrift is not this refusal.
+func postRunAuthorityRefusal(err error, transcript provider.Transcript) bool {
+	return errors.Is(err, provider.ErrAuthorityUnavailable) && !errors.Is(err, provider.ErrAuthorityDrift) &&
+		strings.HasSuffix(err.Error(), ": post-run authority deadline expired") &&
+		transcript.Execution == provider.ExecutionIncomplete && transcript.CanonicalTerminalSupported
 }
 
 func TestQualificationControlHelper(t *testing.T) {

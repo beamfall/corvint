@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -47,7 +46,7 @@ func TestDogfoodEventSpawnsOneBracket(t *testing.T) {
 			root := ledgerRepository(t)
 			sharedObservationStates[test.state](t, root)
 			path, spawns := countingGit(t)
-			stdout, stderr, code := runCandidateWithEnvironment(t, test.input, []string{path}, dogfoodEventCLIArguments(root, test.event)...)
+			stdout, stderr, code := runCandidateWithEnvironment(t, test.input, []string{path, helperLiftedEventBounds + "=1"}, dogfoodEventCLIArguments(root, test.event)...)
 			if code != 0 {
 				t.Fatalf("%s exit %d: %s", test.event, code, stderr)
 			}
@@ -82,9 +81,9 @@ func TestDogfoodEventRefusesRepositoryDriftInsideTheBracket(t *testing.T) {
 		}
 		return index, nil
 	}
-	// A minute, not the production deadline: this verifies the refusal, not latency (decision 0082).
-	ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
-	ctx = context.WithValue(ctx, dogfoodEventBuildKey{}, drifting)
+	// Lifted event deadline and Git probe bound: this verifies the refusal, not latency; host load
+	// expired the probe's 10-second bound first (V1-0969, decision 0082).
+	ctx := context.WithValue(lifecycleDeadlineContext(), dogfoodEventBuildKey{}, drifting)
 	input := map[string]any{"startSource": "startup"}
 	_, err := localEventRead(ctx, options{root: root, host: "codex", event: "session-start", budgetBytes: 8000}, input, dogfoodEventEnvelope, dogfoodEventContext, "")
 	var kernelErr *gokernel.Error

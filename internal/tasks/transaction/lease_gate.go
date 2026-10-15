@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"bytes"
+	"slices"
 	"sort"
 	"strings"
 
@@ -28,10 +30,13 @@ var gateVerbs = map[string]bool{LeaseSubmit: true, LeaseGateRun: true, LeaseComp
 // was also checked ("" when none), and UnintegratedRepository the extra
 // repository whose candidate is not integrated when the intent side is.
 // GateResults holds the bytes of every gate result the attempt names,
-// keyed by digest; each must match its evidence/ file.
+// keyed by digest; each must match its evidence/ file. ReuseSource is the
+// earlier PASSED result a reused GateRecord names, which must match its
+// evidence/ file; a reuse carries no GateOutput (CAL-V0-240).
 type gateFacts struct {
 	ChangedPaths           []string
 	GateRecord, GateOutput []byte
+	ReuseSource            []byte
 	CommitTree             string
 	CommitReachable        bool
 	CommitUpstream         string
@@ -43,6 +48,29 @@ type gateFacts struct {
 // observers construct it.
 func GateFacts(changed []string, record, output []byte, commitTree string, reachable bool, results map[wire.Digest][]byte) LeaseFacts {
 	return LeaseFacts{gateFacts: gateFacts{ChangedPaths: changed, GateRecord: record, GateOutput: output, CommitTree: commitTree, CommitReachable: reachable, GateResults: results}}
+}
+
+// GateReuseFacts builds the facts of a gate run satisfied by reuse: the
+// rebound record and the source result it names, with no output
+// (CAL-V0-240).
+func GateReuseFacts(record, source []byte, results map[wire.Digest][]byte) LeaseFacts {
+	f := GateFacts(nil, record, nil, "", false, results)
+	f.ReuseSource = source
+	return f
+}
+
+// ReusedGateResult is the record a reuse of src (whose digest is from)
+// writes for attempt a: src rebound to a's attempt, generation, ticket
+// revision, policy and config, naming from as its source; every observed
+// field, the definition, inputs and environment digests and the evidence
+// are src's own (CAL-V0-240). The store builds it, and the model and the
+// receipt audit require the posted record to be exactly these bytes.
+func ReusedGateResult(src *snapshot.GateResult, from wire.Digest, a *snapshot.Attempt) snapshot.GateResult {
+	g := *src
+	g.AttemptID, g.Generation, g.TicketRevision, g.PolicySha256, g.ConfigSha256 = a.AttemptID, a.Generation, a.TicketRevision, a.PolicySha256, a.ConfigSha256
+	g.Evidence = append([]snapshot.GateEvidence{}, src.Evidence...)
+	g.ReusedFrom = &from
+	return g
 }
 
 // CompleteFacts builds the complete verb's facts: the commit's (composite)
@@ -207,8 +235,14 @@ func planGateRun(c leaseContext) leaseOutcome {
 	if e != nil {
 		return c.fail(e)
 	}
-	if g.GateID != c.l.Gate || !bound(g, a) || len(g.Evidence) != 1 || g.Evidence[0].Sha256 != wire.Sum(f.GateOutput) || g.Evidence[0].Bytes.Uint64() != uint64(len(f.GateOutput)) {
+	ran := g.ReusedFrom == nil && len(g.Evidence) == 1 && g.Evidence[0].Sha256 == wire.Sum(f.GateOutput) && g.Evidence[0].Bytes.Uint64() == uint64(len(f.GateOutput))
+	if g.GateID != c.l.Gate || !bound(g, a) || (g.ReusedFrom == nil && !ran) {
 		return c.fail(malformed("gate record does not describe this run"))
+	}
+	if g.ReusedFrom != nil {
+		if out := c.reuseRefusal(a, g); out != nil {
+			return *out
+		}
 	}
 	if g.CandidateTreeOid != *a.CandidateTreeOid {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeStaleTree, "the gate ran at "+g.CandidateTreeOid+", not the candidate "+*a.CandidateTreeOid)
@@ -239,9 +273,56 @@ func planGateRun(c leaseContext) leaseOutcome {
 	if out.result != nil {
 		return out
 	}
-	c.postEvidence(out.posts, f.GateOutput)
+	if g.ReusedFrom == nil {
+		c.postEvidence(out.posts, f.GateOutput)
+	}
 	c.postEvidence(out.posts, f.GateRecord)
 	return out
+}
+
+// reuseRefusal checks a reused gate result under the lock (CAL-V0-240..242):
+// the gate is declared reusable, and the source is an unreused PASSED
+// result of the same gate, still named by its own attempt, which the record
+// rebinds byte for byte. A reuse carries no output of its own. The record
+// so carries the source's tree and definition digest, which planGateRun
+// then checks as it does an executed result's (STALE_TREE, GATE_STALE).
+func (c leaseContext) reuseRefusal(a *snapshot.Attempt, g *snapshot.GateResult) *leaseOutcome {
+	f := c.in.LeaseFacts
+	from := string(*g.ReusedFrom)
+	if f.GateOutput != nil || f.ReuseSource == nil || wire.Sum(f.ReuseSource) != *g.ReusedFrom || !c.in.Inventory.matches("evidence/"+from, f.ReuseSource) {
+		out := c.fail(malformed("reused gate result source " + from + " differs from its evidence file"))
+		return &out
+	}
+	src, e := snapshot.DecodeGateResult(f.ReuseSource)
+	if e != nil {
+		out := c.fail(e)
+		return &out
+	}
+	refuse := func(code, detail string) *leaseOutcome {
+		out := c.refuse(mutation.OutcomeBlocked, code, detail)
+		return &out
+	}
+	def := c.st.policy.Gate(g.GateID)
+	switch {
+	case def == nil || !def.Reusable:
+		return refuse(wire.CodeUnsupported, "gate "+g.GateID+" is not declared reusable; run it")
+	case src.GateID != g.GateID || src.ReusedFrom != nil:
+		out := c.fail(malformed("reused gate result " + from + " is not an executed result of gate " + g.GateID))
+		return &out
+	case src.State != "PASSED":
+		return refuse(wire.CodeGateFailed, "the reused result "+from+" is "+src.State)
+	}
+	owner := c.st.attempts[src.AttemptID]
+	if owner == nil || !slices.Contains(owner.GateResults, from) {
+		return refuse(wire.CodeGateStale, "the reused result "+from+" is no longer named by attempt "+src.AttemptID+"; run the gate again")
+	}
+	want := ReusedGateResult(src, *g.ReusedFrom, a)
+	raw, e := want.Encode()
+	if e != nil || !bytes.Equal(raw, f.GateRecord) {
+		out := c.fail(malformed("reused gate result is not its source rebound to this attempt"))
+		return &out
+	}
+	return nil
 }
 
 // postEvidence posts raw under its digest unless the store already holds it.

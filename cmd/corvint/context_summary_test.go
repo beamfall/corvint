@@ -64,10 +64,13 @@ func gitFixture(t *testing.T, root string, arguments ...string) string {
 	return strings.TrimSpace(string(output))
 }
 
+// runContextCommand lifts the frozen 10-second source bound that --expand and each of its Git
+// reads share: these tests verify packets and refusals, not latency, and host load expired a
+// read as git-failed (V1-1398, decision 0082).
 func runContextCommand(t *testing.T, arguments ...string) (int, []byte, string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	code := runContext(context.Background(), arguments, strings.NewReader(""), &stdout, &stderr)
+	code := runContext(liftedSourceDeadline(context.Background()), arguments, strings.NewReader(""), &stdout, &stderr)
 	return code, stdout.Bytes(), stderr.String()
 }
 

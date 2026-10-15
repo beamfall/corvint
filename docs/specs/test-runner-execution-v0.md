@@ -209,7 +209,7 @@ following evidence supports the prototype, not stable acceptance or automatic ti
 | TRE-V0-001, 004 | Adapter `Build`/`Parse`; `cmd/corvint-test-runner` `TestClosedRequestAndPlanAdmission`, `TestActualGoPlanRunReceipt` | `runner-cli-rereview.json`: independently supplied tools, exact plan/template and fresh receipt reservation PASS |
 | TRE-V0-002..003, 005 | `execute_unix.go`; `TestExecuteIndependentBindings`, `TestExecuteFixedTemplatesAndReportInventory`, `TestBoundedReportEnumeration` | `shared-executor-rereview.json`: fixed phases/templates and bounded rooted report inventory PASS |
 | TRE-V0-002, 005 | `TestLargePinnedArtifactSeparateFromSourceBound` | `large-artifact-review.json`: streamed config/reporter pins up to 256 MiB; source/report bounds remain 4 MiB per file; no transitive dependency claim |
-| TRE-V0-006..007 | Adapter native-format and contradiction tests; `validate_test.go` `TestNormalizeBoundaryAndExitProfiles`, `TestAggregateInventoryDoesNotInventExecutedCases` | Dynamic/platform reviews and `native-trx-final-review.json` PASS; native retry/skip/count/error evidence retained |
+| TRE-V0-006..007 | Adapter native-format and contradiction tests; `validate_test.go` `TestNormalizeBoundaryAndExitProfiles`, `TestAggregateInventoryDoesNotInventExecutedCases`; `native_test.go` `TestGoActualBuildFailureStream` (captured go1.27.2 build-fail stream, V1-1375) | Dynamic/platform reviews and `native-trx-final-review.json` PASS; native retry/skip/count/error evidence retained |
 | TRE-V0-008 | `TestExecuteRetiresDescendants`, `TestExecuteEnvironmentAndArtifactBounds` | Shared executor review PASS for qualified ordinary process groups; hostile detached sessions and other OS containment unqualified |
 | TRE-V0-009 | Adapter READMEs, `testdata` provenance, opt-in `TestMTPLiveExecution` and `TestSQLLiveExecution` | PARTIAL live matrices; current JVM/SwiftPM/Robolectric requalification in `platform-latest-execution-proof.jsonl` and `jvm-latest-execution-proof.jsonl` |
 | TRE-V0-010 | Separate criterion experiment, Tasks native boundary and CEM candidate references | Cross-language native claim/source/runner join and semantic discrimination remain NOT_PRODUCED |
@@ -571,14 +571,17 @@ part, and historical plan, receipt and identity bytes are unchanged.
 | --- | --- | --- |
 | TRE-V0-021 | `selection.go`, `types.go`, `document.go`; `TestSelectionIsAdditiveToHistoricalBytes`, `TestHistoricalPlanAndReceiptBytesSurviveSelectionContract` | Frozen plan and receipt bytes generated at `0c94c66c` decode and re-encode byte-identically with an unchanged plan digest |
 | TRE-V0-022 | `AdmitSelection`, `registry.Build`; `TestSelectionAdmissionIsClosed`, `TestNightwatchSelectionPreAdmittedAcrossFreshSessions` | Invalid selections refuse at `plan` and at `run` before the report directory exists |
-| TRE-V0-023 | `selectionProblems`, `Normalize`; `TestSelectionMatchesFreshSessionsAndKeepsNativeIdentity`, `TestSelectionRefusesInexactMatches`, `TestNightwatchSelectionAcrossFreshSessions`, `TestNightwatchSelectionPreAdmittedAcrossFreshSessions` | Synthetic session IDs only: the runner-generated Nightwatch fixture replayed under two session IDs, and a pinned stand-in executable that picks its session at launch |
+| TRE-V0-023 | `selectionProblems`, `Normalize`; `TestSelectionMatchesFreshSessionsAndKeepsNativeIdentity`, `TestSelectionRefusesInexactMatches`, `TestNightwatchSelectionAcrossFreshSessions`, `TestNightwatchSelectionPreAdmittedAcrossFreshSessions` | Synthetic session IDs: the runner-generated Nightwatch fixture replayed under two session IDs, and a pinned stand-in executable that picks its session at launch; live: two real Nightwatch 3.16.0 / ChromeDriver 155.0.8059.79 / Chrome 155.0.8059.80 runs through `corvint-test-runner` under one admitted selection observed distinct WebDriver sessions, each complete PASSED/FAILED/SKIPPED, and a wrong selection stayed incomplete (2026-10-15 V1-0612/V1-0620 build log) |
 | TRE-V0-034 | `execute_unix.go` (`RunContained`, leader-only cancel, `containmentDetail`); `TestExecuteRetiresEscapedDetachedDescendants` (timeout, graceful timeout, interruption, normal exit); `TestRunContainedRetiringKeepsUnprovenOrphan`, `TestRunContainedRetiringRetiresHelperStoppedByFailedFreezes`, `TestFreezeOwnedReportsStoppedBeforeFailure` (batch F composition with `TRE-V0-030`) | Darwin arm64: fails at base (detached session survives), passes after; live Playwright 1.61.1 + Chromium 1228 through `corvint-test-runner`: a test-spawned detached browser left 9 (timeout) and 8 (SIGINT) survivors at base and none after, with normal, timeout and SIGINT runs retiring every observed process and no pre-existing Chrome process lost; Linux and exact Playwright 1.63 runs NOT_RUN |
 
-Recorded limits. A real pinned Nightwatch 3.16.0 browser run with fresh
-WebDriver sessions is NOT_RUN: no Nightwatch package or ChromeDriver was
-installed locally, and the earlier raw qualification file was no longer present.
-The matcher trusts the parser's structured fields; it does not prove that the
-session ID came from a live WebDriver server. Other session-bearing runners,
+Recorded limits. One live tuple was run on macOS arm64 (2026-10-15):
+Nightwatch 3.16.0 with ChromeDriver 155.0.8059.79 driving host Chrome
+155.0.8059.80, which deviates from the 154.0.8037.59 tuple the tickets
+recorded. Nightwatch names its shard after the browser version, so the
+explicit report manifest pins that version, and its ChromeDriver service
+needs `cat` on the executor's PATH (declared as a tool). The matcher still
+trusts the parser's structured fields; the live runs show those fields carry
+real WebDriver session IDs for this tuple only. Other session-bearing runners,
 including WebdriverIO, need their own matcher version.
 
 Rollback removes `expectedSelection`, `selection.go` and its admission call.
@@ -979,26 +982,27 @@ option, not forwarded to Jest; it sets `STORYBOOK_SKIP_TAGS`, which the runner
 splits on `,` and which overrides configured `tags.skip`, and it turns each
 matching story into a skipped Jest test.
 
-- `TRE-V0-044`: For `storybook-test-runner`, an empty `Target` MUST leave the
+- `TRE-V0-044`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0612) For `storybook-test-runner`, an empty `Target` MUST leave the
   historical argv byte-identical. A non-empty `Target` MUST be a
   comma-separated list of 1..16 distinct tags, each matching
   `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`, and MUST be appended as exactly one final
   `--skipTags <Target>` pair after any `--url`. Any other value, including
   option-like, empty, duplicated, whitespace, path, shell or non-ASCII members,
   MUST be refused before a plan exists, so no argv is injected and skip
-  semantics are never silently omitted. Status: proposed (V1-0612).
+  semantics are never silently omitted.
 
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
-| TRE-V0-044 | `dynamic/build.go` `storybookSkipTags`; `TestStorybookSkipTagsFixedArgv` | Failing before the change (base argv had no `--skipTags`); option semantics read from the 0.26.0 package source |
+| TRE-V0-044 | `dynamic/build.go` `storybookSkipTags`; `TestStorybookSkipTagsFixedArgv` | Failing before the change (base argv had no `--skipTags`); option semantics read from the 0.26.0 package source; live Storybook 10.6.1 / test-runner 0.26.0 / Jest 30.5.2 through `corvint-test-runner`: `Target=skip-test` gave complete PASSED, FAILED and SKIPPED with exit 1, an empty `Target` ran the tagged story, and no process survived (2026-10-15 V1-0612/V1-0620 build log) |
 
-Recorded limits. The real Storybook 10.6.1, test-runner 0.26.0 and Jest 30.5.2
-tuple was not rerun: its earlier qualification tree was removed and a reinstall
-needs a network download. The existing collection failure (`module.register`
-unsupported while loading optional `.storybook/test-runner` config) remains,
-so the profile's compatibility qualification stays BLOCKED, and pass, failure,
-tagged-skip, report-inventory and browser-descendant cleanup are NOT_OBSERVED.
-Include and exclude tags are not admitted.
+Recorded limits. One live tuple was run on macOS arm64 (2026-10-15) with
+Node 22.23.3 and host Chrome 155.0.8059.80, not the 154.0.8037.59 the tickets
+recorded. The tuple qualifies only without an optional
+`.storybook/test-runner` config: with one, collection still fails natively
+(`module.register` unsupported under Jest) and the profile reports it as
+incomplete, so that configuration stays BLOCKED. The original failure's input
+hashes were not retained; the reproduction's are in the build log. Include and
+exclude tags are not admitted.
 
 Rollback removes `storybookSkipTags` and the `--skipTags` append. A plan with a
 non-empty `Target` would then rebuild without the pair and be refused as not

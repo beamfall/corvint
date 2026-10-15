@@ -67,6 +67,10 @@ keys: the CLI canonicalizes whitespace, key order and escape form, and sorts set
 `labels`, `requirementRefs` and `touchPaths`, before the request digest. Ordered arrays such as
 `acceptanceCriteria` and `dependencies` keep the order given; duplicate set elements refuse.
 Files written into `.taskman/` (policy, queue) still must be canonical.
+Without `--issued-at` a mutation's `issuedAt` defaults to the current second and is part of the
+request digest, so pass a fixed `--issued-at` whenever a retry may follow. A retry that omitted it is
+refused `REQUEST_ID_CONFLICT`; when only `issuedAt` differs, the refusal names the recorded ticket and
+the `--issued-at` value whose retry replays it (CAL-V0-250).
 
 To choose a board ID, add optional `"localToken":"BT-002"` to the canonical CREATE payload.
 `BT-002`, `F0-5` and `FL-016.matrix` use the existing queue-local token grammar. The resulting

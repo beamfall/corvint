@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
@@ -173,6 +174,14 @@ func TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching(t *testing.T) {
 	}
 }
 
+// liftedProbeContext lifts the Git repository probe's fixed 10-second bound for the promisor
+// refusal tests below, which verify that a missing object is refused without a fetch, not probe
+// latency: at host load 53-67 the probe expired and the bridge served the complete-clone control as
+// repository-unavailable (V1-1421, decision 0082). Production keeps the 10-second bound.
+func liftedProbeContext() context.Context {
+	return gokernel.WithProbeBound(context.Background(), 10*time.Minute)
+}
+
 // V1-0349: corvint.flows.coverage, which reads the denominator's committed intents, refuses with a
 // coded error and never reaches the promisor remote when a blob:none sparse clone left the intent
 // blob there, including through a Git that ignores GIT_NO_LAZY_FETCH. A full blob:none clone of the
@@ -221,7 +230,7 @@ func TestMCPFlowsCoverageRefusesAMissingPromisorObjectWithoutFetching(t *testing
 			if callErr != nil {
 				t.Fatal(callErr)
 			}
-			result, callErr := registry.Call(context.Background(), ToolFlowsCoverage, arguments)
+			result, callErr := registry.Call(liftedProbeContext(), ToolFlowsCoverage, arguments)
 			if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
 				t.Fatalf("drops guard %v: coverage over the %s clone reached the promisor remote (sentinel stat: %v)", dropsLazyFetchGuard, test.name, err)
 			}
@@ -313,7 +322,7 @@ func TestMCPCEMReportRefusesAMissingCitedBlobWithAValidMapWithoutFetching(t *tes
 				t.Fatal(err)
 			}
 			before := rootDigest(t, test.root)
-			result, callErr := registry.Call(context.Background(), ToolCEMReport, arguments)
+			result, callErr := registry.Call(liftedProbeContext(), ToolCEMReport, arguments)
 			if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
 				t.Fatalf("drops guard %v: cem.report over the %s clone reached the promisor remote (sentinel stat: %v)", dropsLazyFetchGuard, test.name, err)
 			}
