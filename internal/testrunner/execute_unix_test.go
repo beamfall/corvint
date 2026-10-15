@@ -474,92 +474,119 @@ func TestExecuteRetainsCallerSelectionMetadata(t *testing.T) {
 }
 
 func TestGracefulInterruptLifecycle(t *testing.T) {
+	// The five-second native-cleanup grace is asserted exactly here. The
+	// wall-clock bound below only separates it from the one-minute hard
+	// fallback, because under host load an 8s bound measured from before
+	// Execute fired on a correct run (V1-1439, decision 0082).
+	probe := exec.Command("true")
+	containPhase(probe, true, nil)
+	if probe.WaitDelay != 5*time.Second {
+		t.Fatalf("graceful WaitDelay = %v, want the 5s native-cleanup grace", probe.WaitDelay)
+	}
 	for _, mode := range []string{"timeout", "interrupt", "overflow", "postbinding", "uncooperative", "normal"} {
 		t.Run(mode, func(t *testing.T) {
-			r, inv := executorRequest(t)
-			r.TimeoutSeconds = 1
-			inv.GracefulInterrupt = true
-			target := filepath.Join(r.Root, "heartbeat")
-			inv.Environment["CORVINT_EXEC_TARGET"] = target
-			inv.Environment["CORVINT_EXEC_MODE"] = "graceful"
-			if mode == "uncooperative" {
-				inv.Environment["CORVINT_EXEC_MODE"] = "ignore"
-			}
-			if mode == "normal" {
-				// The race runtime waits one second before a successful helper exit.
-				r.TimeoutSeconds = 5
-				inv.Environment["CORVINT_EXEC_MODE"] = ""
-			}
-			if mode == "overflow" {
-				inv.Environment["CORVINT_GRACE_OVERFLOW"] = "1"
-			}
-			if mode == "postbinding" {
-				inv.Environment["CORVINT_GRACE_MUTATE"] = filepath.Join(r.Root, "source")
-			}
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			done := make(chan struct{})
-			if mode == "interrupt" {
-				go func() {
-					defer close(done)
-					for {
-						if _, e := os.Stat(target); e == nil {
-							cancel()
-							return
-						}
-						select {
-						case <-ctx.Done():
-							return
-						case <-time.After(time.Millisecond * 5):
-						}
-					}
-				}()
-			} else {
-				close(done)
-			}
-			start := time.Now()
-			out, e := Execute(ctx, r, inv)
-			cancel()
-			<-done
-			if time.Since(start) > 8*time.Second {
-				t.Fatal("graceful fallback exceeded bound")
-			}
-			if mode == "postbinding" {
-				if e == nil || len(out.Input.ExecutionProblems) == 0 {
-					t.Fatal("post-cleanup input mutation escaped binding")
+			// Timeout-driven modes need the helper to install its SIGINT handling
+			// before the deadline, and a loaded host can take longer than one second
+			// to start it (V1-1439). An attempt whose helper never started its child
+			// is inconclusive and is repeated with a longer deadline.
+			for timeout := 1; ; timeout *= 4 {
+				r, inv := executorRequest(t)
+				r.TimeoutSeconds = timeout
+				inv.GracefulInterrupt = true
+				target := filepath.Join(r.Root, "heartbeat")
+				inv.Environment["CORVINT_EXEC_TARGET"] = target
+				inv.Environment["CORVINT_EXEC_MODE"] = "graceful"
+				if mode == "uncooperative" {
+					inv.Environment["CORVINT_EXEC_MODE"] = "ignore"
 				}
-			} else if e != nil {
-				t.Fatal(e)
-			}
-			if mode == "normal" {
-				if out.Input.ExitCode != 0 || out.Input.TimedOut || out.Input.Interrupted {
-					t.Fatal(out.Input)
+				if mode == "normal" {
+					// The race runtime waits one second before a successful helper exit.
+					r.TimeoutSeconds = 5
+					inv.Environment["CORVINT_EXEC_MODE"] = ""
+				}
+				if mode == "overflow" {
+					inv.Environment["CORVINT_GRACE_OVERFLOW"] = "1"
+				}
+				if mode == "postbinding" {
+					inv.Environment["CORVINT_GRACE_MUTATE"] = filepath.Join(r.Root, "source")
+				}
+				if mode == "interrupt" {
+					// Readiness drives the cancellation; the deadline only detects a hang.
+					r.TimeoutSeconds = 60
+				}
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				done := make(chan struct{})
+				if mode == "interrupt" {
+					go func() {
+						defer close(done)
+						for {
+							if _, e := os.Stat(target); e == nil {
+								cancel()
+								return
+							}
+							select {
+							case <-ctx.Done():
+								return
+							case <-time.After(time.Millisecond * 5):
+							}
+						}
+					}()
+				} else {
+					close(done)
+				}
+				start := time.Now()
+				out, e := Execute(ctx, r, inv)
+				cancel()
+				<-done
+				if elapsed := time.Since(start); elapsed > time.Duration(r.TimeoutSeconds)*time.Second+29*time.Second {
+					t.Fatalf("graceful fallback exceeded bound: %v", elapsed)
+				}
+				deadlineDriven := mode == "timeout" || mode == "postbinding" || mode == "uncooperative"
+				if st, err := os.Stat(target); deadlineDriven && (err != nil || st.Size() == 0) && timeout < 16 {
+					// The deadline's SIGINT may have reached the helper before
+					// it installed its handling, so this attempt proves nothing.
+					t.Logf("helper not ready within %ds; retrying with a longer deadline", timeout)
+					continue
+				}
+				if mode == "postbinding" {
+					if e == nil || len(out.Input.ExecutionProblems) == 0 {
+						t.Fatal("post-cleanup input mutation escaped binding")
+					}
+				} else if e != nil {
+					t.Fatal(e)
+				}
+				if mode == "normal" {
+					if out.Input.ExitCode != 0 || out.Input.TimedOut || out.Input.Interrupted {
+						t.Fatal(out.Input)
+					}
+					return
+				}
+				if mode == "interrupt" && !out.Input.Interrupted {
+					t.Fatal("missing interruption")
+				}
+				if mode == "overflow" && !out.Input.Overflow {
+					t.Fatal("missing overflow")
+				}
+				if mode == "timeout" && !out.Input.TimedOut {
+					t.Fatal("missing timeout")
+				}
+				o := Normalize(out.Input, Observation{Complete: true, RetryInformation: NotApplicable, Tests: []Test{{ID: "test", State: Passed}}})
+				if o.Complete {
+					t.Fatal("cancelled observation admitted complete")
+				}
+				{
+					a, _ := os.ReadFile(target)
+					time.Sleep(50 * time.Millisecond)
+					b, _ := os.ReadFile(target)
+					if len(a) != len(b) {
+						t.Fatal("detached child survived native cleanup")
+					}
+					if mode != "uncooperative" && mode != "overflow" && mode != "postbinding" && !strings.Contains(string(out.Input.Stdout), "native cleanup complete") {
+						t.Fatal("native shutdown did not finish")
+					}
 				}
 				return
-			}
-			if mode == "interrupt" && !out.Input.Interrupted {
-				t.Fatal("missing interruption")
-			}
-			if mode == "overflow" && !out.Input.Overflow {
-				t.Fatal("missing overflow")
-			}
-			if mode == "timeout" && !out.Input.TimedOut {
-				t.Fatal("missing timeout")
-			}
-			o := Normalize(out.Input, Observation{Complete: true, RetryInformation: NotApplicable, Tests: []Test{{ID: "test", State: Passed}}})
-			if o.Complete {
-				t.Fatal("cancelled observation admitted complete")
-			}
-			{
-				a, _ := os.ReadFile(target)
-				time.Sleep(50 * time.Millisecond)
-				b, _ := os.ReadFile(target)
-				if len(a) != len(b) {
-					t.Fatal("detached child survived native cleanup")
-				}
-				if mode != "uncooperative" && mode != "overflow" && mode != "postbinding" && !strings.Contains(string(out.Input.Stdout), "native cleanup complete") {
-					t.Fatal("native shutdown did not finish")
-				}
 			}
 		})
 	}
