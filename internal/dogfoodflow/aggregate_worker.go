@@ -247,6 +247,10 @@ func RunAggregateWorker(ctx context.Context, root, mode string, expected tracere
 	return bytes.Clone(receipt), nil
 }
 
+// newAggregateWorkTimer starts the owned process's work-deadline timer; tests
+// replace it to fire the deadline once a fixture is ready.
+var newAggregateWorkTimer = time.NewTimer
+
 // runAggregateOwnedProcess uses one retirement allowance for all cleanup stages.
 // Output is accepted only after observed RELEASED, including normal exit.
 func runAggregateOwnedProcess(ctx context.Context, command *exec.Cmd, stdoutLimit, stderrLimit int, workDeadline time.Time) ([]byte, []byte, int, error) {
@@ -277,7 +281,7 @@ func runAggregateOwnedProcess(ctx context.Context, command *exec.Cmd, stdoutLimi
 	if err != nil {
 		return nil, nil, -1, err
 	}
-	timer := time.NewTimer(time.Until(workDeadline))
+	timer := newAggregateWorkTimer(time.Until(workDeadline))
 	defer timer.Stop()
 	stopped := false
 	select {

@@ -288,7 +288,7 @@ func runReservedStream(ctx context.Context, perOp time.Duration, options Options
 		}
 	}
 
-	timer := time.NewTimer(perOp)
+	timer := newOperationTimer(perOp)
 	defer timer.Stop()
 	var failure *cemcode.Error
 	select {
@@ -348,6 +348,10 @@ func killGroupThenReap(command *exec.Cmd, waited <-chan error) {
 // a hang detector: a forced close makes Wait fail, so output is never silently
 // truncated.
 var pipeDrainDelay = DefaultPerOpTimeout
+
+// newOperationTimer starts a streamed operation's per-operation timer; tests
+// replace it to fire the timeout once a fixture is ready (V1-1293).
+var newOperationTimer = time.NewTimer
 
 func firstLine(data []byte) string {
 	for index, c := range data {
