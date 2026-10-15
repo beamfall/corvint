@@ -12,8 +12,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"unicode"
 	"unicode/utf8"
 
@@ -91,9 +94,14 @@ func scanTree(ctx context.Context, path string, namespace godiscovery.PathNamesp
 	rows := make([]treeRow, 0, 256)
 	metadata := make([]metadataRow, 0, 256)
 	inputs := make([]inputRow, 0, 256)
-	var entries, bytesRead uint64
+	hashing := startTreeHashers(ctx)
+	var entries uint64
 	var walk func(*os.Root, string) error
 	walk = func(directoryRoot *os.Root, directory string) error {
+		// Every file queued from this directory is read through directoryRoot, so the directory's
+		// own reads finish before the caller re-checks its identity and closes it.
+		var pending sync.WaitGroup
+		defer pending.Wait()
 		if err := ctx.Err(); err != nil {
 			return errors.Join(ErrUnavailable, err)
 		}
@@ -105,6 +113,10 @@ func scanTree(ctx context.Context, path string, namespace godiscovery.PathNamesp
 		for _, entry := range values {
 			if err := ctx.Err(); err != nil {
 				return errors.Join(ErrUnavailable, err)
+			}
+			if hashing.stopped.Load() {
+				// finish reports the queued file's failure or ErrLimit ahead of this.
+				return ErrUnavailable
 			}
 			if namespace == godiscovery.NamespaceSource && prefix == "." && directory == "." && entry.Name() == ".git" {
 				continue
@@ -157,15 +169,9 @@ func scanTree(ctx context.Context, path string, namespace godiscovery.PathNamesp
 				if fileLinkCount(info) != 1 {
 					return ErrUnavailable
 				}
-				digest, count, err := readStableFile(directoryRoot, entry.Name(), info)
-				if err != nil {
-					return err
-				}
-				if count > ^uint64(0)-bytesRead || bytesRead+count > MaxTreeBytes {
-					return ErrLimit
-				}
-				bytesRead += count
-				rows = append(rows, treeRow{Kind: "REGULAR", Mode: mode, Path: relative, RawSHA256: digest})
+				pending.Add(1)
+				hashing.queue(&fileTask{root: directoryRoot, name: entry.Name(), info: info, row: len(rows), input: len(inputs), done: &pending})
+				rows = append(rows, treeRow{Kind: "REGULAR", Mode: mode, Path: relative})
 				metadata = append(metadata, metadataFor("REGULAR", relative, info, ""))
 				logical := relative
 				if prefix != "." {
@@ -175,7 +181,7 @@ func scanTree(ctx context.Context, path string, namespace godiscovery.PathNamesp
 				if err != nil {
 					return err
 				}
-				inputs = append(inputs, inputRow{Mode: mode, PathSHA256: pathDigest, RawSHA256: digest, logical: logical})
+				inputs = append(inputs, inputRow{Mode: mode, PathSHA256: pathDigest, logical: logical})
 			case info.Mode()&os.ModeSymlink != 0 && !requireReadOnly:
 				target, err := directoryRoot.Readlink(entry.Name())
 				if err != nil || target == "" || !utf8.ValidString(target) {
@@ -195,7 +201,8 @@ func scanTree(ctx context.Context, path string, namespace godiscovery.PathNamesp
 		}
 		return nil
 	}
-	if err := walk(root, "."); err != nil {
+	walkErr := walk(root, ".")
+	if err := hashing.finish(walkErr, rows, inputs); err != nil {
 		return treeSnapshot{}, err
 	}
 	after, err := root.Stat(".")
@@ -314,6 +321,101 @@ func metadataFor(kind, path string, info os.FileInfo, target string) metadataRow
 		Kind: kind, Mode: info.Mode().String(), Modified: info.ModTime().UTC().Format("2006-01-02T15:04:05.999999999Z"),
 		Path: path, Size: fmt.Sprintf("%d", info.Size()), TargetSHA: target,
 	}
+}
+
+// maxTreeHashers bounds the goroutines that hash one tree's regular files. The walk itself stays
+// sequential and records every row in walk order; only the per-file reads run concurrently.
+const maxTreeHashers = 8
+
+// fileTask is one regular file the sequential walk queued for hashing, with the walk-order
+// positions of its tree and input rows.
+type fileTask struct {
+	root       *os.Root
+	name       string
+	info       os.FileInfo
+	row, input int
+	done       *sync.WaitGroup
+	digest     string
+	count      uint64
+	err        error
+}
+
+// treeHashers hashes queued files with readStableFile, unchanged, on a bounded worker pool. It
+// keeps every task in walk order so finish can report exactly the first failure a sequential walk
+// would have met. It stops reading once the files already hashed exceed MaxTreeBytes, and it stops
+// the walk once any file has failed or that bound is crossed.
+type treeHashers struct {
+	ctx      context.Context
+	work     chan *fileTask
+	workers  sync.WaitGroup
+	tasks    []*fileTask
+	total    atomic.Uint64
+	overflow atomic.Bool
+	stopped  atomic.Bool
+}
+
+func startTreeHashers(ctx context.Context) *treeHashers {
+	count := min(maxTreeHashers, max(1, runtime.GOMAXPROCS(0)))
+	hashing := &treeHashers{ctx: ctx, work: make(chan *fileTask, 4*count)}
+	hashing.workers.Add(count)
+	for range count {
+		go func() {
+			defer hashing.workers.Done()
+			for task := range hashing.work {
+				hashing.hash(task)
+			}
+		}()
+	}
+	return hashing
+}
+
+func (hashing *treeHashers) hash(task *fileTask) {
+	defer task.done.Done()
+	if err := hashing.ctx.Err(); err != nil {
+		task.err = errors.Join(ErrUnavailable, err)
+		return
+	}
+	if hashing.overflow.Load() {
+		task.err = ErrLimit
+		return
+	}
+	task.digest, task.count, task.err = readStableFile(task.root, task.name, task.info)
+	if task.err == nil && hashing.total.Add(task.count) > MaxTreeBytes {
+		hashing.overflow.Store(true)
+	}
+	if task.err != nil || hashing.overflow.Load() {
+		hashing.stopped.Store(true)
+	}
+}
+
+func (hashing *treeHashers) queue(task *fileTask) {
+	hashing.tasks = append(hashing.tasks, task)
+	hashing.work <- task
+}
+
+// finish waits for every queued file and then replays the sequential walk's checks in walk order:
+// a file's read failure, then the cumulative MaxTreeBytes bound, and only after every queued file
+// the walk's own failure, which a sequential walk met after all of them. A file skipped because
+// the hashed total already exceeded MaxTreeBytes reports ErrLimit. On success it fills each
+// file's digest into its rows.
+func (hashing *treeHashers) finish(walkErr error, rows []treeRow, inputs []inputRow) error {
+	close(hashing.work)
+	hashing.workers.Wait()
+	var bytesRead uint64
+	for _, task := range hashing.tasks {
+		if task.err != nil {
+			return task.err
+		}
+		if task.count > ^uint64(0)-bytesRead || bytesRead+task.count > MaxTreeBytes {
+			return ErrLimit
+		}
+		bytesRead += task.count
+		if walkErr == nil {
+			rows[task.row].RawSHA256 = task.digest
+			inputs[task.input].RawSHA256 = task.digest
+		}
+	}
+	return walkErr
 }
 
 func readStableFile(root *os.Root, relative string, expected os.FileInfo) (string, uint64, error) {
