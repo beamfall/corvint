@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
@@ -42,7 +43,7 @@ func sourceViewRepository(t *testing.T) (string, string, map[string]any) {
 
 func runSourceViewTest(t *testing.T, root, commit string, packet map[string]any, extra ...string) map[string]any {
 	t.Helper()
-	return runSourceViewTestContext(t, context.Background(), root, commit, packet, extra...)
+	return runSourceViewTestContext(t, liftedSourceDeadline(context.Background()), root, commit, packet, extra...)
 }
 
 func runSourceViewTestContext(t *testing.T, ctx context.Context, root, commit string, packet map[string]any, extra ...string) map[string]any {
@@ -91,7 +92,7 @@ func TestClaudeSourceHandoffCLI(t *testing.T) {
 	gitOutput(t, root, "add", "docs/specs/handoff.md")
 	gitOutput(t, root, "commit", "-qm", "handoff fixture")
 	before := repositoryBytesDigest(t, root)
-	ctx := adapterEnvContext(lifecycleDeadlineContext(), map[string]string{"CLAUDE_PROJECT_DIR": root})
+	ctx := adapterEnvContext(liftedSourceDeadline(lifecycleDeadlineContext()), map[string]string{"CLAUDE_PROJECT_DIR": root})
 	packetPath := filepath.Join(t.TempDir(), "packet.json")
 	output := runClaudeSourceHandoff(ctx, []string{"--packet-out", packetPath}, map[string]any{"session_id": "source-handoff", "prompt": "inspect the roadmap work queue"})
 	specific, ok := output["hookSpecificOutput"].(map[string]any)
@@ -127,7 +128,7 @@ func TestClaudeSourceHandoffCLI(t *testing.T) {
 	args := []string{"--root", root, "--packet", packetPath, "--packet-sha256", lead.SHA256, "--commit", lead.Commit,
 		"--result", fmt.Sprint(selector["result"]), "--evidence", fmt.Sprint(selector["evidence"]), "--lines", fmt.Sprintf("%v:%v", selector["line"], selector["line"])}
 	var viewRaw bytes.Buffer
-	if status := runSourceViewAdapter(context.Background(), args, &viewRaw); status != 0 {
+	if status := runSourceViewAdapter(liftedSourceDeadline(context.Background()), args, &viewRaw); status != 0 {
 		t.Fatalf("source view status=%d output=%s", status, &viewRaw)
 	}
 	if repositoryBytesDigest(t, root) != before {
@@ -154,7 +155,7 @@ func runHostileSourceView(t *testing.T, reason string) (int, string) {
 	}
 	args := []string{"--root", root, "--packet", packetPath, "--commit", commit, "--result", "0", "--evidence", "0", "--lines", "3:3"}
 	var stdout bytes.Buffer
-	status := runSourceViewAdapter(context.Background(), args, &stdout)
+	status := runSourceViewAdapter(liftedSourceDeadline(context.Background()), args, &stdout)
 	return status, stdout.String()
 }
 
@@ -284,7 +285,7 @@ func TestHostAdapterSourceViewPacketAndIdentityRefusals(t *testing.T) {
 func TestHostAdapterSourceHandoffPublicationRefusals(t *testing.T) {
 	t.Parallel()
 	root := queryCLIRepository(t)
-	ctx := adapterEnvContext(lifecycleDeadlineContext(), map[string]string{"CLAUDE_PROJECT_DIR": root})
+	ctx := adapterEnvContext(liftedSourceDeadline(lifecycleDeadlineContext()), map[string]string{"CLAUDE_PROJECT_DIR": root})
 	payload := map[string]any{"session_id": "s", "prompt": "inspect repository authority"}
 	for _, destination := range []string{filepath.Join(root, "packet"), filepath.Join(root, ".git", "packet")} {
 		output := runClaudeSourceHandoff(ctx, []string{"--packet-out", destination}, payload)
@@ -489,4 +490,14 @@ func TestSourceViewBindsObjectFormatAndOIDWidth(t *testing.T) {
 	if got := runSourceViewTest(t, root, commit, packet, "--lines", "3:3"); sourceViewCode(got) != "object-identity" {
 		t.Fatalf("SHA-256-width blob in a SHA-1 repository accepted: %v", got)
 	}
+}
+
+// liftedSourceDeadline lifts the source view's frozen 10-second bound for tests that verify
+// refusal semantics, not latency: on a loaded host the bound expired mid-view, through the
+// scripted Git stand-in's shell wrapper or real Git alike, and turned the asserted outcome into an
+// earlier command's refusal (blob-budget, stale-commit, stale-tree, missing-path; V1-1302,
+// decision 0082). The ten minutes are a hang detector; the frozen bound stays pinned by
+// TestSourceDeadlineReplacesFrozenBound.
+func liftedSourceDeadline(ctx context.Context) context.Context {
+	return context.WithValue(ctx, sourceDeadlineKey{}, 10*time.Minute)
 }

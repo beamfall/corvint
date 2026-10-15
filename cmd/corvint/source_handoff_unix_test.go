@@ -24,6 +24,18 @@ func sourceGitScript(t *testing.T, body string) string {
 	return path
 }
 
+// ESV-V0-003: the source view and each of its Git commands are bounded by the frozen 10 seconds
+// unless a test lifts the bound (V1-1302).
+func TestSourceDeadlineReplacesFrozenBound(t *testing.T) {
+	t.Parallel()
+	if got := sourceDeadline(context.Background()); got != 10*time.Second {
+		t.Fatalf("frozen source bound = %s, want 10s", got)
+	}
+	if got := sourceDeadline(liftedSourceDeadline(context.Background())); got != 10*time.Minute {
+		t.Fatalf("lifted source bound = %s, want 10m", got)
+	}
+}
+
 // ESV-V0-001: HEAD is verified again after extraction, so a HEAD that moves
 // during the read refuses instead of emitting success.
 func TestSourceViewReverifiesHeadBeforeSuccess(t *testing.T) {
@@ -35,7 +47,7 @@ if [ "$prev $last" = "rev-parse HEAD" ] && [ -e '`+seen+`' ]; then echo `+string
 if [ "$prev $last" = "rev-parse HEAD" ]; then : > '`+seen+`'; fi
 exec /usr/bin/git "$@"
 `)
-	ctx := context.WithValue(context.Background(), sourceGitExecutableKey{}, script)
+	ctx := liftedSourceDeadline(context.WithValue(context.Background(), sourceGitExecutableKey{}, script))
 	if got := runSourceViewTestContext(t, ctx, root, commit, packet, "--lines", "3:3"); sourceViewCode(got) != "stale-commit" || got["view"] != nil {
 		t.Fatalf("moved HEAD accepted: %v", got)
 	}
@@ -108,7 +120,7 @@ func TestSourceViewVerifiesBlobObjectDigest(t *testing.T) {
 	script := sourceGitScript(t, `case " $* " in *" cat-file blob "*) /usr/bin/git "$@" | tr c C; exit 0;; esac
 exec /usr/bin/git "$@"
 `)
-	ctx := context.WithValue(context.Background(), sourceGitExecutableKey{}, script)
+	ctx := liftedSourceDeadline(context.WithValue(context.Background(), sourceGitExecutableKey{}, script))
 	if got := runSourceViewTestContext(t, ctx, root, commit, packet, "--lines", "3:3"); sourceViewCode(got) != "stale-blob" || got["view"] != nil {
 		t.Fatalf("substituted blob bytes accepted: %v", got)
 	}
@@ -123,7 +135,7 @@ func TestSourceViewStaysWithinGitCommandBudget(t *testing.T) {
 	script := sourceGitScript(t, `echo >> '`+commands+`'
 exec /usr/bin/git "$@"
 `)
-	ctx := context.WithValue(context.Background(), sourceGitExecutableKey{}, script)
+	ctx := liftedSourceDeadline(context.WithValue(context.Background(), sourceGitExecutableKey{}, script))
 	got := runSourceViewTestContext(t, ctx, root, commit, packet, "--lines", "3:3")
 	raw, err := os.ReadFile(commands)
 	if err != nil || got["ok"] != true || strings.Count(string(raw), "\n") > 12 {

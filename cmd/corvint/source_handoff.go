@@ -84,7 +84,7 @@ func runClaudeSourceHandoff(ctx context.Context, arguments []string, payload map
 }
 
 func captureSourceHandoff(ctx context.Context, root, task, destination string) ([]byte, error) {
-	deadline, cancel := context.WithTimeout(ctx, 10*time.Second)
+	deadline, cancel := context.WithTimeout(ctx, sourceDeadline(ctx))
 	defer cancel()
 	commit, err := sourceGitText(deadline, root, 8192, "rev-parse", "HEAD")
 	if err != nil {
@@ -327,7 +327,7 @@ func executeSourceViewBytes(ctx context.Context, o sourceViewOptions, result map
 	if o.digest != "" && (!sourceHex(o.digest, 64) || o.digest != packetDigest) {
 		return result, sourceRefusal("packet-digest-mismatch")
 	}
-	deadline, cancel := context.WithTimeout(ctx, 10*time.Second)
+	deadline, cancel := context.WithTimeout(ctx, sourceDeadline(ctx))
 	defer cancel()
 	if !sourceIsToplevel(deadline, root) {
 		return result, sourceRefusal("repository-root")
@@ -583,7 +583,7 @@ func sourceGit(ctx context.Context, root string, limit int, arguments ...string)
 		executable = sourceGitPath
 	}
 	argv := append(append([]string{executable}, sourceGitOptions...), append([]string{"-C", directory}, arguments...)...)
-	observation := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: directory, Env: sourceGitEnvironment, Timeout: 10 * time.Second, ShutdownTimeout: sourceShutdownLimit, OutputLimit: limit, StderrLimit: 8192})
+	observation := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: directory, Env: sourceGitEnvironment, Timeout: sourceDeadline(ctx), ShutdownTimeout: sourceShutdownLimit, OutputLimit: limit, StderrLimit: 8192})
 	if observation.Err != nil || observation.ExitStatus != 0 {
 		return nil, sourceRefusal("git-failed")
 	}
@@ -687,4 +687,23 @@ func nullableSourceString(value string) any {
 func pathWithin(root, path string) bool {
 	relative, err := filepath.Rel(root, path)
 	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
+}
+
+// sourceGitDeadline is the frozen 10-second bound on one source view or handoff
+// capture and on each Git command it runs (ESV-V0-003).
+const sourceGitDeadline = 10 * time.Second
+
+// sourceDeadlineKey carries an in-process test replacement for sourceGitDeadline
+// through the context, so tests that verify refusal semantics rather than latency
+// cannot have host load expire the bound first (decision 0082, V1-1302); no
+// command-line path sets it.
+type sourceDeadlineKey struct{}
+
+// sourceDeadline is the bound under ctx: the sourceDeadlineKey replacement if set,
+// else sourceGitDeadline.
+func sourceDeadline(ctx context.Context) time.Duration {
+	if bound, ok := ctx.Value(sourceDeadlineKey{}).(time.Duration); ok {
+		return bound
+	}
+	return sourceGitDeadline
 }

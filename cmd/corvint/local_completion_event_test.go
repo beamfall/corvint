@@ -540,7 +540,10 @@ func TestDogfoodEventReadOnlyEnrolledStopAndPrompt(t *testing.T) {
 	})
 	t.Run("LCP-V0-001 authority", func(t *testing.T) {
 		request := gokernel.EventRequest{Root: root, Host: "codex", HostVersion: "unknown", Surface: "plugin", AdapterVersion: "0.1.0", Event: "stop", Input: []byte(`{}`), BudgetBytes: 8000}
-		before, err := gokernel.HandleEvent(request)
+		// The legacy harness reads carry the same lifted Git probe bound as the event between them:
+		// HandleEvent's fixed 10-second probe expired on a loaded host (V1-1393, decision 0082).
+		legacy := liftedProbeBound(context.Background())
+		before, err := gokernel.HandleEventContext(legacy, request)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -548,7 +551,7 @@ func TestDogfoodEventReadOnlyEnrolledStopAndPrompt(t *testing.T) {
 		if status := runLocalCompletionEvent(lifecycleDeadlineContext(), root, dogfoodEventArguments("stop"), strings.NewReader(`{"sessionIdSha256":"`+key+`"}`), &stdout, &stderr); status != 0 {
 			t.Fatalf("event: %d %s", status, &stderr)
 		}
-		after, err := gokernel.HandleEvent(request)
+		after, err := gokernel.HandleEventContext(legacy, request)
 		if err != nil || !reflect.DeepEqual(before, after) {
 			t.Fatalf("legacy harness changed: %v", err)
 		}
