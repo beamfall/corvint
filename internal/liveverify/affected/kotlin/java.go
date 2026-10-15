@@ -4,6 +4,9 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"unicode"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected/java/javalex"
 )
 
 // javaReferrer is the part of a Java file needed to tell whether it can name a
@@ -16,14 +19,16 @@ type javaReferrer struct {
 }
 
 // observeJava reads a Java file without a Java parser. Headers and qualified
-// names come from the text with comments blanked when it lexes, and from the
-// raw text otherwise; qualified names tolerate whitespace and comments around
-// each dot. Words come from the raw text, so a word inside a comment or string
-// can only add a frontier, never remove one.
+// names come from the text with comments blanked by the Java lexer when it
+// lexes, and from the raw text otherwise; qualified names tolerate whitespace
+// and comments around each dot. Words come from the raw text, so a word inside
+// a comment or string can only add a frontier, never remove one.
 func observeJava(text string) javaReferrer {
 	text = strings.TrimPrefix(text, "\ufeff")
 	header := text
-	if clean, ok := sourceText(text); ok {
+	// Java text is lexed as javac does: Unicode escapes are translated,
+	// CR ends a line comment and block comments do not nest.
+	if clean, _, ok := javalex.Blank(text); ok {
 		header = clean
 	}
 	referrer := javaReferrer{words: map[string]bool{}}
@@ -60,8 +65,36 @@ func observeJava(text string) javaReferrer {
 // inside a qualified name.
 var spacedDots = regexp.MustCompile(`\s*\.\s*`)
 
-// fileJvmName matches the @file:JvmName annotation, simple or qualified.
-var fileJvmName = regexp.MustCompile(`@file\s*:\s*(?:kotlin\s*\.\s*jvm\s*\.\s*)?JvmName\s*\(\s*"([^"]+)"`)
+// fileJvmName matches the @file:JvmName annotation, simple or qualified, up to
+// its opening parenthesis.
+var fileJvmName = regexp.MustCompile(`@file\s*:\s*(?:kotlin\s*\.\s*jvm\s*\.\s*)?JvmName\s*\(`)
+
+// fileJvmNameValue reads the @file:JvmName value. The annotation is matched in
+// the text with comments blanked, so a comment may sit anywhere inside it, and
+// the string is read from the raw text at the same offset, which the lexer
+// keeps. Text that does not lex is matched raw.
+func fileJvmNameValue(text string) (string, bool) {
+	if !strings.Contains(text, "JvmName") {
+		return "", false
+	}
+	clean, ok := sourceText(text)
+	if !ok {
+		clean = text
+	}
+	for _, match := range fileJvmName.FindAllStringIndex(clean, -1) {
+		at := match[1]
+		for at < len(text) && text[at] != '"' && unicode.IsSpace(rune(clean[at])) {
+			at++
+		}
+		if at >= len(text) || text[at] != '"' {
+			continue
+		}
+		if end := strings.IndexByte(text[at+1:], '"'); end > 0 {
+			return text[at+1 : at+1+end], true
+		}
+	}
+	return "", false
+}
 
 // markJavaDependents gives FrontierJavaDependent to every Kotlin unit a Java
 // file can reach. Java resolves Kotlin declarations by their JVM names: a class
@@ -92,8 +125,8 @@ func jvmNames(observation *sourceObservation, text string) []string {
 	for _, alias := range observation.aliases {
 		names = append(names, alias[strings.LastIndex(alias, ".")+1:])
 	}
-	if match := fileJvmName.FindStringSubmatch(text); match != nil {
-		names = append(names, match[1])
+	if name, ok := fileJvmNameValue(text); ok {
+		names = append(names, name)
 	}
 	return names
 }

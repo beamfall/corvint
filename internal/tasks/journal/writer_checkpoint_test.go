@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -218,6 +219,70 @@ func TestCALV0189_WriterAuditReadsIntentOnce(t *testing.T) {
 		if !ok || tk.Raw == nil || !bytes.Equal(tk.Raw, fixture.Ticket("C").Encode()) || tk.Sha256 == nil || *tk.Sha256 != wire.Sum(tk.Raw) {
 			t.Fatalf("forMutation=%v: selected ticket record %+v", forMutation, tk)
 		}
+	}
+}
+
+// TestCALV0224_WriterAuditWorkIsHistoryIndependent covers CAL-V0-224: at
+// two history sizes, one settled writer audit reads only the checkpoint's
+// receipt and the tail, and lists receipts/ once per capture; it never reads
+// a prefix receipt. It counts work and never asserts a duration. Both
+// listings stay exact: a temporary receipt name that appears during the walk
+// moves the attempt, and the fast route declines.
+func TestCALV0224_WriterAuditWorkIsHistoryIndependent(t *testing.T) {
+	const tail = 3
+	for _, history := range []int{4, 48} {
+		t.Run(fmt.Sprint(history), func(t *testing.T) {
+			repo, r := setup(t)
+			for i := 0; i < history; i++ {
+				id := fmt.Sprintf("H%d", i)
+				appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath(id): fixture.Ticket(id).Encode()}, "", true, true, false)
+			}
+			full, observed, err := r.AuditForWriteObserved()
+			if err != nil || full.Mode != ModeFull {
+				t.Fatalf("complete audit: %v", err)
+			}
+			wc, err := full.WriterCheckpoint(observed.Files)
+			if err != nil || wc == nil {
+				t.Fatalf("writer checkpoint: %v", err)
+			}
+			for i := 0; i < tail; i++ {
+				id := fmt.Sprintf("T%d", i)
+				appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath(id): fixture.Ticket(id).Encode()}, "", true, true, false)
+			}
+			listings, receipts := 0, 0
+			oldNames, oldRead := afterReadNames, afterNativeRead
+			t.Cleanup(func() { afterReadNames, afterNativeRead = oldNames, oldRead })
+			afterReadNames = func(p string) {
+				if p == "receipts" {
+					listings++
+				}
+			}
+			afterNativeRead = func(p string) {
+				if strings.HasPrefix(p, "receipts/") {
+					receipts++
+				}
+			}
+			for _, forMutation := range []bool{false, true} {
+				listings, receipts = 0, 0
+				res, _, err := r.AuditForWriter(wc, "", forMutation)
+				if err != nil || res.Mode != ModeWriter {
+					t.Fatalf("forMutation=%v: writer audit: %v", forMutation, err)
+				}
+				if listings != 2 || receipts != tail+1 {
+					t.Fatalf("forMutation=%v: %d receipts/ listings and %d receipt reads, want 2 and %d", forMutation, listings, receipts, tail+1)
+				}
+			}
+			stray, _ := snapshot.ReceiptName(uint64(history + tail + 1))
+			r.afterCapture = func() {
+				if listings == 1 {
+					fixture.Write(t, filepath.Join(repo.StateDir, "receipts", stray+".tmp-1-x"), []byte("x"))
+				}
+			}
+			listings = 0
+			if _, _, err := r.AuditForWriter(wc, "", true); err == nil {
+				t.Fatal("writer audit accepted a receipt name that appeared during its walk")
+			}
+		})
 	}
 }
 

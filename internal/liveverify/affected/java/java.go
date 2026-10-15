@@ -207,23 +207,25 @@ func parseImport(body string) (importRef, bool) {
 func resolve(observations []observation, frontier map[string]bool, kotlin []jvmReferrer) {
 	types := make(map[string]map[string]bool, len(observations)*2)
 	packages := make(map[string]map[string]bool, len(observations))
-	// known holds every simple name a first-party Java or Kotlin file can
-	// supply, so a name outside it is generated, external, or missing.
-	known := map[string]bool{}
+	// known holds the simple names first-party Java and Kotlin files can
+	// supply, by package and by declaring Java file, so a name a file cannot
+	// see from either is generated, external, or missing.
+	known := visibility{byPackage: map[string]map[string]bool{}, byUnit: map[string]map[string]bool{}, types: types}
 	for _, observed := range observations {
 		add(packages, observed.packageName, observed.unit.ID)
 		for _, name := range observed.types {
 			add(types, qualify(observed.packageName, name), observed.unit.ID)
 			for _, part := range strings.Split(name, ".") {
-				known[part] = true
+				add(known.byPackage, observed.packageName, part)
+				add(known.byUnit, observed.unit.ID, part)
 			}
 		}
 	}
 	for _, referrer := range kotlin {
 		for word := range referrer.words {
-			known[word] = true
+			add(known.byPackage, referrer.packageName, word)
 		}
-		known[referrer.facade] = true
+		add(known.byPackage, referrer.packageName, referrer.facade)
 	}
 	firstParty := sortedKeys(packages)
 	byPackage := make(map[string][]int, len(packages))
@@ -278,7 +280,7 @@ func resolve(observations []observation, frontier map[string]bool, kotlin []jvmR
 // imports one on demand, or no external on-demand import could explain it, so
 // it is a same-package type the graph cannot see (generated source). Behind an
 // external on-demand import the name is attributed to that package.
-func unresolvedName(observed *observation, known map[string]bool, packages map[string]map[string]bool, firstParty []string) bool {
+func unresolvedName(observed *observation, known visibility, packages map[string]map[string]bool, firstParty []string) bool {
 	external := false
 	firstPartyWildcard := false
 	local := map[string]bool{}
@@ -303,7 +305,46 @@ func unresolvedName(observed *observation, known map[string]bool, packages map[s
 		return false
 	}
 	for _, name := range observed.names {
-		if !known[name] && !local[name] && !javaLang[name] {
+		if !local[name] && !javaLang[name] && !known.visible(observed, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// visibility holds the simple names first-party source declares, by package
+// (Java type names and their nested parts, Kotlin words and facades) and by
+// declaring Java file.
+type visibility struct {
+	byPackage map[string]map[string]bool
+	byUnit    map[string]map[string]bool
+	types     map[string]map[string]bool
+}
+
+// visible reports whether a file can use name unqualified from first-party
+// source: its own package declares it, a package it imports on demand does,
+// or the file declaring a type it imports or names qualified does (a nested
+// or inherited member type). A same-named type in a package the file neither
+// imports nor names cannot supply it.
+func (known visibility) visible(observed *observation, name string) bool {
+	if known.byPackage[observed.packageName][name] {
+		return true
+	}
+	declares := func(qualified string) bool {
+		for id := range lookup(qualified, known.types) {
+			if known.byUnit[id][name] {
+				return true
+			}
+		}
+		return false
+	}
+	for _, ref := range observed.imports {
+		if ref.wildcard && !ref.static && known.byPackage[ref.name][name] || declares(ref.name) {
+			return true
+		}
+	}
+	for _, qualified := range observed.qualified {
+		if declares(qualified) {
 			return true
 		}
 	}
@@ -620,11 +661,12 @@ func wordAt(clean string, start int) string {
 }
 
 // qualifiedReferences lists dotted names with a lowercase first segment, the
-// shape of a qualified type reference (p.Core, com.ex.core.Core).
+// shape of a qualified type reference (p.Core, com.ex.core.Core), including
+// an annotation's (@p.Core).
 func qualifiedReferences(found []chain) []string {
 	values := make([]string, 0)
 	for _, name := range found {
-		if !name.annotation && len(name.parts) >= 2 && lowerInitial(name.parts[0]) {
+		if len(name.parts) >= 2 && lowerInitial(name.parts[0]) {
 			values = append(values, strings.Join(name.parts, "."))
 		}
 	}
