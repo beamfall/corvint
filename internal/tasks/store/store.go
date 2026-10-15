@@ -72,6 +72,9 @@ type Report struct {
 	// request would run that program again or replay the step without finishing
 	// it, so the result is never retryable (CAL-V0-078).
 	Unretryable bool
+	// GateReusedFrom names the earlier result a committed gate run reused
+	// instead of executing the gate, nil otherwise (CAL-V0-240).
+	GateReusedFrom *GateReuse
 	// Ticket is the ticket a committed mutation wrote, read back from the
 	// receipt rather than from the request: a CREATE that allocated a serial
 	// learns its own id here and nowhere else.

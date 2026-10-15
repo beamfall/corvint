@@ -29,8 +29,10 @@ const gateWaitDelay = 5 * time.Second
 // program ran and before its result is recorded; it is nil in production.
 var gateRecordFault func() error
 
-// gateRun is one finished gate run: its encoded result and captured output.
-type gateRun struct{ record, output []byte }
+// gateRun is one finished gate run: its encoded result and captured output,
+// or a reuse: the rebound record and the source result it names, with no
+// output (CAL-V0-240).
+type gateRun struct{ record, output, source []byte }
 
 // GateRun runs one policy command gate in worktree at the attempt's
 // candidate tree, then records it (CAL-V0-016). The gate runs before the
@@ -75,10 +77,15 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		if err != nil {
 			return &Report{}, err
 		}
-		executed = true
-		run, err := runGate(ctx, def, argv, substituted, policy, a, worktree, repos, clock)
+		run, reused, err := reusableRun(repo, proof, policy, def, a, argv, substituted)
 		if err != nil {
 			return &Report{}, err
+		}
+		if !reused {
+			executed = true
+			if run, err = runGate(ctx, def, argv, substituted, policy, a, worktree, repos, clock); err != nil {
+				return &Report{}, err
+			}
 		}
 		if err = ctx.Err(); err != nil {
 			return &Report{}, err
@@ -97,8 +104,89 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	report, err = Lease(ctx, repo, actor, choice, now)
 	if report != nil {
 		report.Redone = report.Redone || redone
+		if choice.gate != nil && choice.gate.source != nil && err == nil && report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
+			report.GateReusedFrom = gateReuseOf(choice.gate.source)
+		}
 	}
 	return report, err
+}
+
+// GateReuse names the earlier result a gate run reused: its digest and the
+// attempt that executed it (CAL-V0-240).
+type GateReuse struct {
+	Result    wire.Digest
+	AttemptID string
+}
+
+func gateReuseOf(source []byte) *GateReuse {
+	src, err := snapshot.DecodeGateResult(source)
+	if err != nil {
+		return nil
+	}
+	return &GateReuse{Result: wire.Sum(source), AttemptID: src.AttemptID}
+}
+
+// reusableRun finds an earlier result that satisfies this run of a
+// reusable gate without executing it (CAL-V0-240): a PASSED, unreused
+// result of the same gate that another attempt's record names, at the same
+// candidate tree, under the current definition digest, whose inputs and
+// environment digests equal the ones this run would record. The lowest
+// qualifying digest is chosen, so the choice does not depend on read order.
+// A gate not declared reusable, or no qualifying result, runs as before; an
+// unreadable or undecodable record is skipped, never trusted. The model
+// rechecks the choice under the lock.
+func reusableRun(repo *intent.Repository, proof *journal.Result, policy *intent.Policy, def *intent.GateDefinition, a *snapshot.Attempt, argv []string, substituted bool) (gateRun, bool, error) {
+	if !def.Reusable {
+		return gateRun{}, false, nil
+	}
+	candidate := *a.CandidateTreeOid
+	inputs := gateInputs(candidate, argv, substituted)
+	_, env := gateEnvironment(def.Env)
+	definition := policy.GateDefinitionSha256(def.GateID)
+	var best wire.Digest
+	var source []byte
+	var chosen *snapshot.GateResult
+	for path, record := range proof.Records {
+		if !strings.HasPrefix(path, "attempts/") || record.Sha256 == nil {
+			continue
+		}
+		owner, err := snapshot.DecodeAttempt(record.Raw)
+		if err != nil || owner.AttemptID == a.AttemptID || owner.CandidateTreeOid == nil || *owner.CandidateTreeOid != candidate {
+			continue
+		}
+		for _, d := range owner.GateResults {
+			if source != nil && wire.Digest(d) >= best {
+				continue
+			}
+			raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "evidence", d), snapshot.MaxGateRecordBytes)
+			if err != nil || wire.Sum(raw) != wire.Digest(d) {
+				continue
+			}
+			g, err := snapshot.DecodeGateResult(raw)
+			if err != nil || g.GateID != def.GateID || g.ReusedFrom != nil || g.State != "PASSED" || g.AttemptID != owner.AttemptID || g.CandidateTreeOid != candidate || g.DefinitionSha256 != definition || g.InputsSha256 != inputs || g.EnvironmentSha256 != env {
+				continue
+			}
+			best, source, chosen = wire.Digest(d), raw, g
+		}
+	}
+	if source == nil {
+		return gateRun{}, false, nil
+	}
+	g := transaction.ReusedGateResult(chosen, best, a)
+	record, err := g.Encode()
+	return gateRun{record: record, source: source}, err == nil, err
+}
+
+// gateInputs digests the candidate tree, the (empty) declared inputs and,
+// when any placeholder was substituted, the argv the gate runs with, so a
+// result binds the attempt facts it ran with; an argv run as declared keeps
+// the old digest.
+func gateInputs(candidate string, argv []string, substituted bool) wire.Digest {
+	inputObject := wire.NewObject().Set("tree", wire.String(candidate)).Set("inputs", wire.Array())
+	if substituted {
+		inputObject.Set("argv", wire.Strings(argv))
+	}
+	return wire.Sum(wire.EncodeFile(wire.ObjectValue(inputObject)))
 }
 
 // unlockedAttempt reads the attempt and policy without the store lock; the
@@ -446,13 +534,7 @@ func runGate(ctx context.Context, def *intent.GateDefinition, argv []string, sub
 	output := out.buf.Bytes()
 	cwd := "WORKTREE"
 	candidate := *a.CandidateTreeOid
-	// A substituted argv joins the inputs digest, so the result binds the attempt
-	// facts the gate ran with; an argv run as declared keeps the old digest.
-	inputObject := wire.NewObject().Set("tree", wire.String(candidate)).Set("inputs", wire.Array())
-	if substituted {
-		inputObject.Set("argv", wire.Strings(argv))
-	}
-	inputs := wire.Sum(wire.EncodeFile(wire.ObjectValue(inputObject)))
+	inputs := gateInputs(candidate, argv, substituted)
 	g := snapshot.GateResult{GateID: def.GateID, AttemptID: a.AttemptID, Generation: a.Generation, TicketRevision: a.TicketRevision, DefinitionSha256: policy.GateDefinitionSha256(def.GateID), CandidateTreeOid: candidate, ExecutedTreeOid: &tree, ExecutedCwd: &cwd, PorcelainClean: &clean, InputsSha256: inputs, EnvironmentSha256: envDigest, PolicySha256: a.PolicySha256, ConfigSha256: a.ConfigSha256, StartedAt: stamp(started), EndedAt: stamp(ended), State: gateState(run, *def.ExpectedExit, clean, tree == candidate), OutcomeClass: run.class, ExitCode: run.exitCode, Signal: run.signal, Evidence: []snapshot.GateEvidence{{Label: "output", Sha256: wire.Sum(output), Bytes: wire.SizeOf(uint64(len(output)))}}}
 	record, err := g.Encode()
 	return gateRun{record: record, output: output}, err
@@ -476,6 +558,9 @@ func gateFacts(repo *intent.Repository, choice LeaseChoice) claimObserver {
 			results, err := attemptGateResults(repo, proof, l.AttemptID)
 			if choice.gate == nil || err != nil {
 				return transaction.GateFacts(nil, nil, nil, "", false, results), err
+			}
+			if choice.gate.source != nil {
+				return transaction.GateReuseFacts(choice.gate.record, choice.gate.source, results), nil
 			}
 			return transaction.GateFacts(nil, choice.gate.record, choice.gate.output, "", false, results), nil
 		}
