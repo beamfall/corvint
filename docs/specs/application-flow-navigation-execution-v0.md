@@ -5,7 +5,7 @@ Delivery status: experimental; qualification pending
 
 ## Agent digest
 - Claim: An explicit companion can execute a bounded UI navigation packet against an owned cooperative local fixture.
-- Status: accepted technical profile under AFU-V1-029 (decision 0455; V1-0252); experimental; qualification pending; no API observation or per-test evidence authority.
+- Status: accepted technical profile under AFU-V1-029 (decision 0455; V1-0252); experimental; qualification pending. No API observation or per-test evidence authority.
 - Exists: immutable navigation packets, committed origin admission, bounded observer process ownership; `internal/appflows/navigation_execution.go` and `tools/web-flows/navigation.mjs` implement NEX-V0-001..007, locally qualified by `script/web-flows-gate` (2026-10-08 build log).
 - Blocked on: external/hosted qualification is not observed.
 - Read next: Requirements; Contract; Acceptance; Rollback.

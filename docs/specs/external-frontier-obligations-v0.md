@@ -12,7 +12,7 @@ Frontier").
 
 ## Agent digest
 - Claim: `corvint obligations` writes a reference-only sidecar joining each CEM hunk to the external obligations, tests, and unknowns an impact receipt reports.
-- Status: accepted (decision 0313, a delegated call on Beamfall/corvint#1)/experimental (file transport only); checked by `TestObligationsHunkAssociations` and `TestObligationsCommandRefusesRetiredMap`; since 2026-10-12 the cem/0.2 form admits no map (CEM-V1-210) and the shared join serves only the stable sidecar (CEM-V1-130).
+- Status: accepted (decision 0313, a delegated call on Beamfall/corvint#1)/experimental (file transport only). Checked by `TestObligationsHunkAssociations` and `TestObligationsCommandRefusesRetiredMap`; since 2026-10-12 the cem/0.2 form admits no map (CEM-V1-210) and the shared join serves only the stable sidecar (CEM-V1-130).
 - Exists: `internal/extevidence/obligations.go`, the `corvint obligations` verb in `cmd/corvint/obligations.go`.
 - Blocked on: an ACC-V0 provider profile before any executed transport; an independent adopter record before promotion.
 - Read next: Definitions; Requirements; Trust boundary, limits, and failure modes.
