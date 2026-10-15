@@ -285,7 +285,7 @@ func TestHostAdapterSourceViewPacketAndIdentityRefusals(t *testing.T) {
 func TestHostAdapterSourceHandoffPublicationRefusals(t *testing.T) {
 	t.Parallel()
 	root := queryCLIRepository(t)
-	ctx := adapterEnvContext(lifecycleDeadlineContext(), map[string]string{"CLAUDE_PROJECT_DIR": root})
+	ctx := adapterEnvContext(liftedSourceDeadline(lifecycleDeadlineContext()), map[string]string{"CLAUDE_PROJECT_DIR": root})
 	payload := map[string]any{"session_id": "s", "prompt": "inspect repository authority"}
 	for _, destination := range []string{filepath.Join(root, "packet"), filepath.Join(root, ".git", "packet")} {
 		output := runClaudeSourceHandoff(ctx, []string{"--packet-out", destination}, payload)
