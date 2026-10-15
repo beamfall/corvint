@@ -398,6 +398,7 @@ func TestPSRDispatchAsyncSupervision(t *testing.T) {
 	})
 	defer psrRetireWorkers(t, d)
 	q.obs.Tickets = []Ticket{ticket("one", "P1", 1)}
+	spawned := time.Now()
 	if e := d.Tick(context.Background()); e != nil {
 		t.Fatal(e)
 	}
@@ -432,8 +433,9 @@ func TestPSRDispatchAsyncSupervision(t *testing.T) {
 	// A stop that outlasts one tick's kill window continues on the next tick
 	// (killTree keeps its deadline on the worker); on a loaded host one
 	// process-table read can take most of that window, so the test ticks until
-	// the wall stop is observed, within a test-only bound.
-	for stop := time.Now().Add(2 * time.Minute); ; {
+	// the wall stop is observed, within a test-only bound. The bound ends before
+	// the workers' own 60s sleep could, so only a kill can stop them in time.
+	for stop := spawned.Add(50 * time.Second); ; {
 		if e := d.Tick(context.Background()); e != nil {
 			t.Fatal(e)
 		}
