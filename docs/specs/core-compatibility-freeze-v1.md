@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `CCF-V1`
-Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943)
+Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943)
 Delivery status: experimental
 Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), decision 0358, `AGENTS.md` invariants 1, 2, 4 and 8,
 `conformance/cli-parity-v0/manifest.json`, and the owning specs of each Core verb listed in CCF-V1-002.
 
 ## Agent digest
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
-- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); experimental delivery; the Core set is taken from accepted decision 0332
+- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); experimental delivery; the Core set is taken from accepted decision 0332
 - Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
 - Blocked on: pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
@@ -31,6 +31,8 @@ The N-1 baseline is the published 0.8.1 release (tag `v0.8.1`, commit 0e5d596), 
 (Amended 2026-09-25, panel blocker B6; accepted, decision 0401.) The contract was first written against 0.7.0
 (tag `v0.7.0`, commit 678c1b1) when `git diff v0.7.0 1894b9e -- cmd/corvint internal` was empty,
 but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see CCF-V1-007.
+(V1-0285) Accepted decision 0434 (item 3) later named the published `v1.0.0-rc.1` the N-1
+compatibility baseline; see the N-1 replay paragraph of CCF-V1-007 for how the replay selects it.
 
 ## Requirements
 
@@ -309,7 +311,15 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   and IDX-SNAP-V0-024 added the `unsafe-or-non-utf8-path` exclusion after that release. (proposed;
   V1-0943) The `affected worktree` and `affected committed range` defaults are skipped because 0.8.1
   predates `affected-plan/1`; their `affected full` counterparts replay without `--full`, which is the
-  N-1 default and the same `affected-plan/0` document. The target
+  N-1 default and the same `affected-plan/0` document. (accepted under the owner's standing
+  auto-accept (2026-10-11); V1-0285) The `cem status`, `cem verify`, `ocm status` and `ocm verify`
+  modes are skipped because decision 0525 §6 superseded the `cem/0.2` freeze and its N-1 reader:
+  their fixture is a `cem/1.0` map, which 0.8.1 cannot read (`cem` refuses `--artifacts`, `ocm`
+  reports `invalid-cem`). The `frontier --json` golden is retired (CEM-V1-212), so `frontier` is
+  replayed by no mode, and the replay reaches nine of the twelve Core verbs. The `CORE_N1_TAG`
+  default excludes pre-release tags and so still resolves to `v0.8.1`, while decision 0434 names
+  `v1.0.0-rc.1` the baseline; release-runbook step 8 passes the tag explicitly. On 2026-10-14 the
+  replay passed against `v0.8.1`, `v1.0.0-rc.1` and `v1.0.0-rc.2`. The target
   is opt-in, like `companion-release-gate`: release-runbook step 8 runs it, and it is not a
   `make gate` prerequisite. Making it one is an owner decision. This replaces the second NOT_PRODUCED
   above. A member, value or order that no fixture exercises stays unreplayed.
@@ -410,6 +420,8 @@ statements of CCF-V1-007; no stored state changes. Reverting only its exclusion-
 rows (accepted 2026-09-26, decision 0422; V1-0350) means deleting those three rows, the cases `query excluded sources`, `context
 reserved rows`, `impact path excluded sources` and `impact path non-utf8 source` with their helpers,
 N-1 skip and goldens; that restores the NOT_PRODUCED statement for those members.
+Reverting the V1-0285 skips deletes the four `cem`/`ocm` entries from `coreN1Skips`; `make core-n1-replay`
+against 0.8.1 then fails on those modes again. No stored state changes.
 Reverting CCF-V1-009 (V1-0945) restores the previous `rootHelp` text and its tests; root help is
 stdout text only, so no stored state changes.
 
