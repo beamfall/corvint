@@ -114,6 +114,17 @@ retain uncompiled residuals (mutants may exceed killed+survived); never turn tho
 residuals into kills. Caller treeRevision is not automatically the authenticated
 CEM target. Discriminates/survived/not-run/absence remain distinct.
 
+Discrimination witness bound (CEM-V1-090). The "mutants may exceed killed+survived"
+allowance above does not let `mutants` exceed the witness's own `bounds.maxMutants`:
+a `discriminates` witness whose `mutants` is greater than `bounds.maxMutants` is
+refused at the wire stage with `invalid-field`; `mutants` equal to `maxMutants` is
+admitted. A witness whose `survived` differs from the number of `survivors` entries,
+or whose survivor `line` lies outside the hunk's `newRange`, is likewise refused
+`invalid-field`. Survivors need not be distinct, and no `killed + survived = mutants`
+rule applies. These rules reproduce the tamper-matrix verdicts
+`discrimination-mutants-over-bound` and `discrimination-survivors-inconsistent`
+(wire, `invalid-field`) and the boundary control `discrimination-at-bound` (ACCEPT).
+
 Text bounds are measured in UTF-8 bytes. testRun is 1..256 bytes, operator 1..64,
 description 1..512 and detail 0..512; reject C0 and DEL, not all Unicode characters
 classified as controls or nonprinting. U+0085/U+2028 remain valid. Structural and

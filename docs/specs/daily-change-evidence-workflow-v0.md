@@ -124,14 +124,14 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   prepared map MUST be attempted and reported as `ocm-link-NNN`, NNN being its plan row, and a
   refused row MUST be NOT_PRODUCED with the refusal code. Each NOT_PRODUCED row MUST be followed by
   a `fix:` line and MUST block `"complete": true`; none withholds the OCM aggregate.
-- `DCW-V0-019`: Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan to
+- `DCW-V0-019`: (Amended 2026-10-11 by `DCW-V0-046`, V1-1258; accepted under the owner's standing auto-accept (2026-10-11)) Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan to
   the map prepared in the same run and refuse the whole plan as `cem-cite`
   `citation-plan-map-mismatch`, citing nothing, when a row names an ordinal above the map's hunk
   count, a numeric selector is not a canonical ordinal, or a hunk the map records as `unknown` is
   named by neither ordinal nor full hunk ID. The permitted omissions are a hunk whose path is an
   intent path absent at BASE (the bootstrap unknown of `docs/DOGFOOD.md` section 2), and any unknown
   hunk while more of them remain than one 256-row plan can name, so split plans stay usable. (Amended
-  2026-10-11 by `DCW-V0-046`, V1-1258; accepted under the owner's standing auto-accept (2026-10-11).) A row of the form `HUNK<TAB>unknown<TAB>REASON<TAB>NOTE` names
+  2026-10-11 by `DCW-V0-046`, V1-1258.) A row of the form `HUNK<TAB>unknown<TAB>REASON<TAB>NOTE` names
   its hunk as a citation row does and keeps it `unknown` with a recorded reason instead of citing it;
   only an unreasoned unknown hunk is refused. The plan format does not change: its first field already accepts a
   full hunk ID, which is derived from the hunk's content, and `cem cite` refuses an ID the map lacks

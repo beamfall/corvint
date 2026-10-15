@@ -8,8 +8,8 @@
   "files": [
     {
       "path": "ALGORITHMS.md",
-      "sha256": "6560743bd08c2d9e70dce82d7cc3b84b1002e5d9a7dc6656dcf4e0c0ca2925b8",
-      "bytes": 51784
+      "sha256": "132cc7e01ee2f9d5930e3ed1ad6a8692a4732611455e54525e1d6ae090d9d03e",
+      "bytes": 52598
     },
     {
       "path": "FIXTURES.pack.json",
@@ -548,8 +548,8 @@
     },
     {
       "path": "tamper-matrix/README.md",
-      "sha256": "3760bcb8962f0d95e3a5d9e2a25c34ce6b5b00f096dc875471766c86c31412ee",
-      "bytes": 2341
+      "sha256": "7a869475e1a2ba62b762c6d09f33776483c3244524df8c79c3d862d9906f2e54",
+      "bytes": 2407
     },
     {
       "path": "tamper-matrix/cases/basis-pair-duplicated.json",
