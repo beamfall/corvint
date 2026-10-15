@@ -1439,12 +1439,26 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 	res := success(cmd, rc)
 	if notFound != "" {
 		res.Outcome = wire.OutcomeRefused
-		res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue")
+		if rc.journalAbsent {
+			res.Warnings = append(res.Warnings, journalAbsentNotFound(rc, notFound))
+		} else {
+			res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue")
+		}
 		return res
 	}
 	res.Items = []wire.Value{*item}
 	res.Untrusted = true
 	return res
+}
+
+// journalAbsentNotFound is the CTS-V0-010 refusal: a journal-absent read
+// sees only this checkout's intent projection, which can be older than the
+// queue's journal, so a missing ticket is unobserved here, not proven absent.
+func journalAbsentNotFound(rc *readCtx, id string) string {
+	return "ticket " + id + " is not in this checkout's intent projection (.taskman tree sha256 " + string(rc.store.Tree.Sha256) +
+		"), and no journal exists at " + rc.repo.StateDir + ": a ticket created after the last committed .taskman snapshot is NOT_OBSERVED here, not proven absent. " +
+		"Read it from the checkout whose .git holds the queue's journal (the primary worktree or one of its linked worktrees), " +
+		"for example `cd PRIMARY_WORKTREE && corvint-tasks ticket show " + id + "`"
 }
 
 func queueStatus(env Env, args []string) *wire.Result {
