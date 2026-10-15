@@ -195,12 +195,17 @@ var errUnheldGroupUnproved = errors.New("leader exit not observed before shutdow
 // processWaitChannels holds test hooks; production passes none. groupProbe
 // replaces the signal function of every group signal run sends itself (the
 // termination signal, the pre-reap grace probe and SIGKILL); quietProof
-// replaces groupreap.HeldGroupQuiet.
+// replaces groupreap.HeldGroupQuiet; exitWait replaces the waitid goroutine's
+// waitProcessExitUnreaped, so a test can order a foreign reap before it
+// (V1-1378); descendantSnap replaces the descendant observer's snapshot, so a
+// test can wait until a snapshot has been applied (V1-1374).
 type processWaitChannels struct {
-	exitObserved <-chan error
-	waitDone     <-chan error
-	groupProbe   func(int, syscall.Signal) error
-	quietProof   func(int) (bool, error)
+	exitObserved   <-chan error
+	waitDone       <-chan error
+	groupProbe     func(int, syscall.Signal) error
+	quietProof     func(int) (bool, error)
+	exitWait       func(int) error
+	descendantSnap func(context.Context) (map[int]ObservedProcess, error)
 }
 
 func newProcessCapture(limit int, notify chan struct{}, policy OverflowPolicy) *processCapture {
@@ -332,7 +337,7 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	var afterStartErr error
 	var descendants *descendantObserver
 	if spec.ObserveDescendants {
-		descendants, afterStartErr = startDescendantObserver(ctx, command.Process.Pid)
+		descendants, afterStartErr = startObserver(ctx, &descendantObserver{snap: waitChannels.descendantSnap}, command.Process.Pid)
 	}
 	if spec.AfterStart != nil {
 		hookContext, cancelHook := context.WithTimeout(context.Background(), min(time.Second, spec.ShutdownTimeout/2))
@@ -346,8 +351,12 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	ownership := &groupOwnership{pid: command.Process.Pid, release: releaseProcessCommand}
 	groupProbe := ownership.signal(groupSignal(waitChannels.groupProbe, spec.JoinAncestorProcessGroup))
 	quietProof := ownership.proof(heldGroupProof(waitChannels.quietProof))
+	exitWait := waitProcessExitUnreaped
+	if waitChannels.exitWait != nil {
+		exitWait = waitChannels.exitWait
+	}
 	go func() {
-		observed := waitProcessExitUnreaped(command.Process.Pid)
+		observed := exitWait(command.Process.Pid)
 		if observed != nil {
 			// Another reaper may have collected the leader, so its group ID
 			// no longer names this group: forget it for the exit kill now,

@@ -100,6 +100,16 @@ func TestProcGroupQuietClassification(t *testing.T) {
 			f.process(101, "sleep", 'Z', 1, leader)
 			f.write("101/status", "Name:\tsleep\nState:\tZ\n")
 		}, ProbeLive, true},
+		{"zombie-member-released-during-status-read", func(f *fakeProc) {
+			f.process(leader, "sh", 'Z', parent, leader)
+			f.process(101, "sleep", 'Z', 1, leader)
+			f.write("101/status", "Name:\tsleep\nState:\tZ\nThreads:\t0\n")
+		}, ProbeQuiet, false},
+		{"zombie-member-negative-thread-count", func(f *fakeProc) {
+			f.process(leader, "sh", 'Z', parent, leader)
+			f.process(101, "sleep", 'Z', 1, leader)
+			f.write("101/status", "Name:\tsleep\nState:\tZ\nThreads:\t-1\n")
+		}, ProbeLive, true},
 		{"zombie-member-oversized-status", func(f *fakeProc) {
 			f.process(leader, "sh", 'Z', parent, leader)
 			f.process(101, "sleep", 'Z', 1, leader)
