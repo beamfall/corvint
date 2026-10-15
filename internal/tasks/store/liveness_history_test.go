@@ -17,11 +17,11 @@ import (
 // TestCALV0232_LivenessWritesNeverReadHistory covers CAL-V0-232: at two
 // history sizes, heartbeat and renew through Lease, each in a fresh lease
 // cache as a CLI process starts, commit on the writer-checkpoint route while
-// every receipt before the checkpoint is unreadable. Any read of a history
-// receipt, on any path the verbs take, fails the write. The two exact
-// receipts/ listings CAL-V0-116 and CAL-V0-224 require remain the only work
-// that grows with history; the journal test counts them. It never asserts a
-// duration.
+// every receipt before the checkpoint is unreadable, so a read of a history
+// receipt whose error reaches the write fails it. A read that discards its
+// error is not detected, and the CAL-V0-117 scheduled refresh and a declined
+// write's complete-route fallback, which read history by contract, are out of
+// scope. It never asserts a duration.
 func TestCALV0232_LivenessWritesNeverReadHistory(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("a cleared mode does not deny reads on windows")
