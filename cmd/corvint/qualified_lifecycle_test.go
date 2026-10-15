@@ -133,6 +133,15 @@ func TestQualifiedLifecycleStopComposition(t *testing.T) {
 	})
 }
 
+// qualifiedLiftedProbe lifts the Git repository probe's fixed 10-second bound for tests that call
+// qualifiedLifecycle directly to verify composition, not latency: with no invocation deadline that
+// bound was their latency bound, and host load expired it as qualified-lifecycle-unavailable
+// (V1-1398, decision 0082). The 1600 ms invocation deadline stays pinned by
+// TestQualifiedLifecycleInvocationDeadline.
+func qualifiedLiftedProbe() context.Context {
+	return liftedProbeBound(context.Background())
+}
+
 func TestQualifiedLifecycleContextBudgetAndReadOnly(t *testing.T) {
 	t.Parallel()
 	t.Run("QLF-V0-006 read only context budget", func(t *testing.T) {
@@ -158,7 +167,7 @@ func TestQualifiedLifecycleContextBudgetAndReadOnly(t *testing.T) {
 				}
 				return authoritystore.LifecycleResolution{Scope: scope}, nil
 			}
-			result, err := qualifiedLifecycle(context.Background(), qualifiedRequest{event: event, input: input}, resolve)
+			result, err := qualifiedLifecycle(qualifiedLiftedProbe(), qualifiedRequest{event: event, input: input}, resolve)
 			if err != nil {
 				t.Fatalf("%s: %v", event, err)
 			}
@@ -307,7 +316,7 @@ func TestQualifiedLifecycleCandidateNeverFullAndReservesFinalBudget(t *testing.T
 				}
 				return resolution, nil
 			}
-			result, err := qualifiedLifecycle(context.Background(), qualifiedRequest{event: event, input: input}, resolver)
+			result, err := qualifiedLifecycle(qualifiedLiftedProbe(), qualifiedRequest{event: event, input: input}, resolver)
 			if err != nil || calls != 1 {
 				t.Fatalf("%s candidate read: %v", event, err)
 			}
@@ -361,7 +370,7 @@ func TestQualifiedLifecycleCompactSessionStartRehydratesDirtyPaths(t *testing.T)
 				}
 				return authoritystore.LifecycleResolution{Scope: scope}, nil
 			}
-			result, err := qualifiedLifecycle(context.Background(), qualifiedRequest{event: "session-start", input: map[string]any{"startSource": "compact"}}, resolve)
+			result, err := qualifiedLifecycle(qualifiedLiftedProbe(), qualifiedRequest{event: "session-start", input: map[string]any{"startSource": "compact"}}, resolve)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -578,7 +587,7 @@ func main(){args:=append([]string(nil),os.Args[1:]...);pattern:=regexp.MustCompi
 			resolver := func(ctx context.Context, _ bool, observe authoritystore.LifecycleObserver) (authoritystore.LifecycleResolution, error) {
 				return authoritystore.LifecycleResolution{Scope: scope}, observe(ctx, scope)
 			}
-			if _, err := qualifiedLifecycle(context.Background(), qualifiedRequest{event: "user-prompt", input: map[string]any{"task": "AGENTS.md"}}, resolver); err != nil {
+			if _, err := qualifiedLifecycle(qualifiedLiftedProbe(), qualifiedRequest{event: "user-prompt", input: map[string]any{"task": "AGENTS.md"}}, resolver); err != nil {
 				t.Fatal(err)
 			}
 			calls, err := os.ReadFile(trace)
