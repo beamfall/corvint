@@ -26,8 +26,9 @@ audit saved that day. The orchestrator closes READY tickets against this change'
     and an absent revision. The test logs each refusal: `CONTEXT_UNAVAILABLE` for the first four
     and `UNSUPPORTED: git ...` for the absent cases.
   - Both are cited after CAL-V0-036 in the leases spec.
-  - Results: `go test -race -run TestWorkflowContext ./internal/tasks/store/` and
-    `go test ./internal/tasks/store/` both report ok.
+  - Results: `go test -race -run TestWorkflowContext ./internal/tasks/store/` reports ok. The
+    full-package run `go test ./internal/tasks/store/` is NOT_RUN: it timed out at the 600s and
+    then the 30m limit at host load 100-130, so CI is the full-package evidence.
 - Verdict: READY_TO_CLOSE.
 
 ## V1-1287: the stable manifest check covers every entry
@@ -114,7 +115,7 @@ audit saved that day. The orchestrator closes READY tickets against this change'
 ## Verification and review
 
 - The test units were selected with `corvint affected --base 495eda08c`. The focused tests and
-  `-race` runs listed above pass. `go vet` is clean on both touched packages. `gofmt -l` is empty.
+  `-race` runs listed above pass, except the full store package run, which is NOT_RUN. `go vet` is clean on both touched packages. `gofmt -l` is empty.
   The 12 CI doc gates pass after staging.
 - Codex review: one read-only round over `495eda08c..986202db0` returned APPROVE with no confirmed
   findings. It reran the focused tests and checked the v1-1336 rows and the linux-core job log.
