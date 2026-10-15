@@ -341,8 +341,9 @@ func PSRTestResponseFailure(ctx context.Context, hook func(LeaseChoice, *Report,
 }
 
 // PSRTestLiftObservationBounds lifts the fixed sweep Git and runner-identity
-// probe bounds to bound for a sweep run under ctx (V1-1324). Only tests whose
-// subject is not those bounds use it; cleanup proof bounds are unchanged.
+// probe bounds to bound for a sweep, pool preparation or pool cleanup run under
+// ctx (V1-1324). Only tests whose subject is not those bounds use it; cleanup
+// proof bounds are unchanged.
 func PSRTestLiftObservationBounds(ctx context.Context, bound time.Duration) context.Context {
 	return context.WithValue(ctx, sweepObservationBoundKey{}, bound)
 }

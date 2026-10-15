@@ -98,8 +98,12 @@ func (s *leaseStore) at(t *testing.T, minutes int) wire.Timestamp {
 
 func (s *leaseStore) lease(t *testing.T, requestID string, l transaction.LeaseRequest, minutes int, derive store.ScopeDeriver) *store.Report {
 	t.Helper()
+	return s.leaseWith(context.Background(), t, requestID, l, minutes, derive)
+}
+func (s *leaseStore) leaseWith(ctx context.Context, t *testing.T, requestID string, l transaction.LeaseRequest, minutes int, derive store.ScopeDeriver) *store.Report {
+	t.Helper()
 	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: requestID, Root: s.root, Lease: l, Derive: derive}
-	report, err := store.Lease(context.Background(), s.repo, operator(), choice, s.at(t, minutes))
+	report, err := store.Lease(ctx, s.repo, operator(), choice, s.at(t, minutes))
 	if err != nil {
 		t.Fatalf("lease %s: %v", requestID, err)
 	}

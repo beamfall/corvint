@@ -348,7 +348,9 @@ func TestIssue502_SupervisedAttemptIsUnsupported(t *testing.T) {
 	id := s.ticket(t, "supervised")
 	c := claimOf(id, "path")
 	c.Stage, c.Pool = "implement", "db"
-	claim := s.lease(t, "supervised-claim", c, 0, nil)
+	// The pooled claim's runner-identity probe is not the subject; lift its
+	// fixed bounds so a loaded host cannot fail the claim (V1-1324).
+	claim := s.leaseWith(psrLoaded(context.Background()), t, "supervised-claim", c, 0, nil)
 	p := snapshot.Program{CurrentAttempt: claim.AttemptID, CurrentGeneration: string(claim.Generation), Assignment: 1, ID: "program", Profile: snapshot.SupervisedProfile, OwnerPID: 99, OwnerStarted: "observed-test-identity", Epoch: 1, ConfigSHA256: digest, Phase: "ADMITTED", Base: "0123456789012345678901234567890123456789", Worktree: "/fixture"}
 	if r, e := store.ProgramTransition(context.Background(), s.repo, operator(), fixture.QueueID, "program-admit", p); e != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
 		t.Fatalf("program %+v %v", r, e)

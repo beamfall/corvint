@@ -44,9 +44,9 @@ type sweepRequestKey struct{}
 
 // Observation bound lifting is private to package tests (V1-1324). It replaces
 // only the fixed sweep source (Git) bound and the runner-identity probe's bound
-// and pipe delay, for a test whose subject is sweep retry or reconciliation, so
-// a loaded host cannot turn those observations into TIMEOUT or
-// QUIESCENCE_UNPROVED. No product caller sets it, and the group-cleanup proof
+// and pipe delay (in a sweep, and in pool preparation or cleanup), for a test
+// whose subject is not those observations, so a loaded host cannot turn them
+// into TIMEOUT, QUIESCENCE_UNPROVED or exec.ErrWaitDelay. No product caller sets it, and the group-cleanup proof
 // (its context.Background allowance and the command pipe delay) never reads it.
 type sweepObservationBoundKey struct{}
 
