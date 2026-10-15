@@ -395,6 +395,28 @@ func TestCompileRefsReadHonoursContext(t *testing.T) {
 			}
 		}
 	})
+	t.Run("V1-1411 cancellation wins over the close error when both are ready", func(t *testing.T) {
+		oldOpen, oldWait := openRefsFile, beforeRefsWait
+		defer func() { openRefsFile, beforeRefsWait = oldOpen, oldWait }()
+		for i := 0; i < 200; i++ {
+			stalled := &stalledRefs{entered: make(chan struct{}), closed: make(chan struct{}), released: make(chan struct{})}
+			openRefsFile = func(string) (io.ReadCloser, error) { return stalled, nil }
+			ctx, cancel := context.WithCancel(context.Background())
+			beforeRefsWait = func(done <-chan refsRead) {
+				<-stalled.entered
+				cancel()
+				deadline := time.Now().Add(5 * time.Second)
+				for len(done) == 0 && time.Now().Before(deadline) {
+					time.Sleep(100 * time.Microsecond)
+				}
+			}
+			_, _, e := readRefsContext(ctx, "/unused")
+			cancel()
+			if !errors.Is(e, context.Canceled) {
+				t.Fatalf("iteration %d error=%v", i, e)
+			}
+		}
+	})
 	t.Run("V1-1155 a completed read closes its descriptor", func(t *testing.T) {
 		closed := false
 		old := openRefsFile
