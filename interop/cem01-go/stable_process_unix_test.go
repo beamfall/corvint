@@ -157,6 +157,34 @@ func TestStableLifecycleOpTimeout(t *testing.T) {
 	}
 }
 
+// PGO-V0-012: a per-operation timeout retires a lingering descendant through
+// the same pre-reap group kill and two-step retirement as cancellation.
+func TestStableLifecycleOpTimeoutRetiresDescendants(t *testing.T) {
+	s, B := lifecycleSession(t, context.Background(), nil)
+	pid := filepath.Join(B, "timeout.pid")
+	shim := lifecycleShim(t, B, "slowlinger", "/bin/sleep 300 &\necho $! > "+pid+"\nexec /bin/sleep 300")
+	s.hooks = &stableHooks{gitPath: func(*stableTx) string { return shim }, opTimeout: func(*stableTx) time.Duration { return 500 * time.Millisecond }}
+	if _, e := s.transact(formatTx()); e == nil || e.code != "git-timeout" {
+		t.Fatalf("want git-timeout, got %v", e)
+	}
+	if s.hold || len(s.held) != 0 {
+		t.Fatal("unexpected hold")
+	}
+	// Observe only: the keeper is reaped, so the recorded PID is no longer
+	// pinned and the test must not signal it.
+	b, err := os.ReadFile(pid)
+	if err != nil {
+		t.Fatalf("descendant pid not recorded: %v", err)
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Kill(n, 0); err != syscall.ESRCH {
+		t.Fatalf("descendant %d still present after the timeout (kill 0: %v)", n, err)
+	}
+}
+
 func TestStableLifecycleOverflow(t *testing.T) {
 	s, B := lifecycleSession(t, context.Background(), nil)
 	shim := lifecycleShim(t, B, "big", "/usr/bin/head -c 100 /dev/zero")

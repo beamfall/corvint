@@ -751,6 +751,11 @@ containment. Frozen native qualification is recorded in docs/build-log/2026-09-2
   as one task argument; they add no inferred paths. Combined input exceeding Core's 8000-rune
   UTF-8 task bound refuses without truncation. READY, freshness and exact-tree checks remain required. Returned work retains
   feedback and candidate; missing or failed required gates MUST block before any target mutation.
+  Default-run regressions in `internal/tasks/store/workflow_context_test.go` (V1-0494):
+  `TestWorkflowContextKeepsUncertainNonGoFrontier` returns an uncertain READY packet whose only
+  relevant source is a non-Go frontier byte for byte with the query unchanged, and
+  `TestWorkflowContextRefusesIncompleteScopeAndAbsentSource` refuses partial or ambiguous scope, a
+  not-ok or revision-less packet, a directory with no repository and an absent revision.
 - `CAL-V0-037`: A live owner MUST NOT be stolen. Explicit quiescent owner release or native identity
   proof permits a fenced epoch transfer. Drain, cancel and recovery MUST retain uncertain scope,
   worker and pool resources; proved stage shutdown releases workers and quarantines its physical
