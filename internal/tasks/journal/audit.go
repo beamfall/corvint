@@ -202,7 +202,22 @@ type observation struct {
 	// intentRaw holds the intent bytes a writer capture read (AuditForWriter
 	// only), so the walk and the second capture do not read them again.
 	intentRaw map[string][]byte
+	// receiptsListed counts the receipts/ names a writer capture charged to
+	// its scan bound, receiptsStaging says a temporary name was among them,
+	// and receiptsQuiescent says the directory's modification time was at
+	// least receiptsQuiescence before the listing began, so a later change
+	// cannot keep its stamps (CAL-V0-224).
+	receiptsListed    int
+	receiptsStaging   bool
+	receiptsQuiescent bool
 }
+
+// receiptsQuiescence is how long receipts/ must have been unmodified before
+// a writer capture's listing for the second capture to reuse that listing
+// under unchanged directory stamps (CAL-V0-224): at least the coarsest
+// modification-time granularity of a filesystem that can hold the journal
+// (one second), so a change after the listing lands in a later stamp.
+const receiptsQuiescence = time.Second
 
 // Audit checks all current projections and returns selected canonical bytes.
 // Pending and uninitialized observations return a partial Result plus their
@@ -698,11 +713,38 @@ func (r Reader) scan(o *observation, dir string, remaining *int, optional bool) 
 // scanReceiptNames lists receipts/ without a per-entry lstat (AuditForWriter).
 // Every name is validated as scan validates it; a temporary name marks the
 // observation unsettled. Receipt files are opened only when walked.
+//
+// The second capture of a writer audit, which only confirms that nothing
+// moved during the walk, reuses the first capture's listing when that
+// listing began at least receiptsQuiescence after the directory's
+// modification time and the directory is still the same file with the same
+// mode, size, modification time and change time (CAL-V0-224). The writer
+// lock excludes every cooperating writer for the whole audit, and a foreign
+// change after a quiescent listing lands in a later stamp. The listing is
+// held only by this attempt: the next audit lists exactly again.
 func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
 	native, ok := r.Source.(*nativeRead)
 	if !ok {
 		return errCheckpoint("receipts", "writer checkpoint needs a native source")
 	}
+	if first := r.writerBefore; first != nil && first.receiptsQuiescent {
+		info, err := native.DirInfo("receipts")
+		if err != nil {
+			return err
+		}
+		if sameDirStamp(first.files["receipts"], info) {
+			if first.receiptsListed > *remaining {
+				return wire.Errorf(wire.CodeLimitExceeded, "receipts", "directory scan bound")
+			}
+			*remaining -= first.receiptsListed
+			o.files["receipts"] = info
+			o.receipts = append(o.receipts, first.receipts...)
+			o.receiptsListed, o.receiptsStaging = first.receiptsListed, first.receiptsStaging
+			o.staging = o.staging || first.receiptsStaging
+			return nil
+		}
+	}
+	listedAt := time.Now()
 	info, names, err := native.Names("receipts", *remaining)
 	if err != nil {
 		return err
@@ -715,7 +757,21 @@ func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
 	}
 	*remaining -= len(names)
 	o.files["receipts"] = info
+	o.receiptsListed = len(names)
+	o.receiptsQuiescent = !info.ModTime().Add(receiptsQuiescence).After(listedAt)
 	return receiptNames(o, names)
+}
+
+// sameDirStamp says the listed directory is still the same file with the
+// same mode, size, modification time and change time; a platform that
+// reports no change time never matches, so the listing is made again.
+func sameDirStamp(old, info os.FileInfo) bool {
+	if old == nil || info == nil || !os.SameFile(old, info) || old.Mode() != info.Mode() || old.Size() != info.Size() || !old.ModTime().Equal(info.ModTime()) {
+		return false
+	}
+	oldChange, ok := changeTime(old)
+	change, ok2 := changeTime(info)
+	return ok && ok2 && oldChange == change
 }
 
 // receiptNames validates listed receipt names in listing order with scan's
@@ -745,7 +801,7 @@ func receiptNames(o *observation, names []string) error {
 				return aliased()
 			}
 			temps[name] = struct{}{}
-			o.staging = true
+			o.staging, o.receiptsStaging = true, true
 			continue
 		}
 		seq, ok := receiptNameSeq(name)

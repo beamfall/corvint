@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
@@ -224,15 +225,19 @@ func TestCALV0189_WriterAuditReadsIntentOnce(t *testing.T) {
 
 // TestCALV0224_WriterAuditWorkIsHistoryIndependent covers CAL-V0-224: at
 // two history sizes, one settled writer audit reads only the checkpoint's
-// receipt and the tail, and lists receipts/ once per capture; it never reads
-// a prefix receipt. It counts work and never asserts a duration. Both
-// listings stay exact: a temporary receipt name that appears during the walk
-// moves the attempt, and the fast route declines.
+// receipt and the tail, and lists receipts/ exactly once when the directory
+// was quiescent at its first listing and twice when it was not; it never
+// reads a prefix receipt. It counts work and never asserts a duration. The
+// first listing is always exact, and a temporary receipt name that appears
+// during the walk changes the directory's stamps, so the second capture
+// lists again, the attempt moves and the fast route declines.
 func TestCALV0224_WriterAuditWorkIsHistoryIndependent(t *testing.T) {
 	const tail = 3
 	for _, history := range []int{4, 48} {
 		t.Run(fmt.Sprint(history), func(t *testing.T) {
 			repo, r := setup(t)
+			receipts := filepath.Join(repo.StateDir, "receipts")
+			past, future := time.Now().Add(-time.Hour), time.Now().Add(time.Hour)
 			for i := 0; i < history; i++ {
 				id := fmt.Sprintf("H%d", i)
 				appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath(id): fixture.Ticket(id).Encode()}, "", true, true, false)
@@ -249,7 +254,7 @@ func TestCALV0224_WriterAuditWorkIsHistoryIndependent(t *testing.T) {
 				id := fmt.Sprintf("T%d", i)
 				appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath(id): fixture.Ticket(id).Encode()}, "", true, true, false)
 			}
-			listings, receipts := 0, 0
+			listings, reads := 0, 0
 			oldNames, oldRead := afterReadNames, afterNativeRead
 			t.Cleanup(func() { afterReadNames, afterNativeRead = oldNames, oldRead })
 			afterReadNames = func(p string) {
@@ -259,28 +264,46 @@ func TestCALV0224_WriterAuditWorkIsHistoryIndependent(t *testing.T) {
 			}
 			afterNativeRead = func(p string) {
 				if strings.HasPrefix(p, "receipts/") {
-					receipts++
+					reads++
 				}
 			}
-			for _, forMutation := range []bool{false, true} {
-				listings, receipts = 0, 0
-				res, _, err := r.AuditForWriter(wc, "", forMutation)
-				if err != nil || res.Mode != ModeWriter {
-					t.Fatalf("forMutation=%v: writer audit: %v", forMutation, err)
-				}
-				if listings != 2 || receipts != tail+1 {
-					t.Fatalf("forMutation=%v: %d receipts/ listings and %d receipt reads, want 2 and %d", forMutation, listings, receipts, tail+1)
+			for _, c := range []struct {
+				name     string
+				stamp    time.Time
+				listings int
+			}{{"fresh", future, 2}, {"quiescent", past, 1}} {
+				for _, forMutation := range []bool{false, true} {
+					if err := os.Chtimes(receipts, c.stamp, c.stamp); err != nil {
+						t.Fatal(err)
+					}
+					listings, reads = 0, 0
+					res, _, err := r.AuditForWriter(wc, "", forMutation)
+					if err != nil || res.Mode != ModeWriter {
+						t.Fatalf("%s forMutation=%v: writer audit: %v", c.name, forMutation, err)
+					}
+					if listings != c.listings || reads != tail+1 {
+						t.Fatalf("%s forMutation=%v: %d receipts/ listings and %d receipt reads, want %d and %d", c.name, forMutation, listings, reads, c.listings, tail+1)
+					}
 				}
 			}
 			stray, _ := snapshot.ReceiptName(uint64(history + tail + 1))
 			r.afterCapture = func() {
 				if listings == 1 {
-					fixture.Write(t, filepath.Join(repo.StateDir, "receipts", stray+".tmp-1-x"), []byte("x"))
+					fixture.Write(t, filepath.Join(receipts, stray+".tmp-1-x"), []byte("x"))
 				}
 			}
+			if err := os.Chtimes(receipts, past, past); err != nil {
+				t.Fatal(err)
+			}
+			// The changed stamps make the second capture list again and move
+			// the attempt; the retried attempt lists the fresh directory twice
+			// and declines on the temporary name.
 			listings = 0
-			if _, _, err := r.AuditForWriter(wc, "", true); err == nil {
-				t.Fatal("writer audit accepted a receipt name that appeared during its walk")
+			if _, _, err := r.AuditForWriter(wc, "", true); err == nil || !strings.Contains(err.Error(), "not plainly settled") {
+				t.Fatalf("writer audit with a receipt name that appeared during its walk: %v, want a decline", err)
+			}
+			if listings != 4 {
+				t.Fatalf("%d receipts/ listings after a name appeared during the walk, want 4", listings)
 			}
 		})
 	}
