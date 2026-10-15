@@ -22,7 +22,7 @@ Accepting such a span would contradict `CEM-CB-005`. The verifier refuses ambigu
 so a map carrying the span would fail verification. The fix takes the ticket's second option: the
 refusal names the alignment it used. Every ambiguous refusal now names the text match and its
 occurrence count. When no hunk line removes the span's base lines or inserts between them, the
-message also says they lie outside every hunk. Context lines of the `--unified=3` canonical diff
+message also says no hunk edits them (at most hunk context). Context lines of the `--unified=3` canonical diff
 count as unchanged. `dogfood-change` reads that phrase from the cite stderr. It then prints a
 `DCW-V0-063` fix line stating the cause and naming the plan row. The refusal code, the step reason
 and the exit status are unchanged. A cite refusal without the phrase keeps the `DCW-V0-014` line.
@@ -32,8 +32,8 @@ That covers stale, deleted, in-hunk ambiguous and older-binary refusals.
 
 - BASE vs fix: with the BASE `commands.go` and `change.go`, `TestCiteAmbiguousRefusalNamesTextAlignmentV11418`
   and `TestChangeDCWV0063NamesUnalignedCiteSpanCause` fail (1/1 each). Both pass with the fix.
-- Mutations: removing the context-line advance in `spanOutsideHunks` fails
-  `TestCiteAmbiguousRefusalNamesTextAlignmentV11418` and `TestSpanOutsideHunksFollowsGitAlignmentV11418`.
+- Mutations: removing the context-line advance in `spanUneditedByHunks` fails
+  `TestCiteAmbiguousRefusalNamesTextAlignmentV11418` and `TestSpanUneditedByHunksFollowsGitAlignmentV11418`.
   Forcing `citeSpanUnaligned` false fails `TestChangeDCWV0063NamesUnalignedCiteSpanCause`.
 - Focused packages from `corvint affected`: `internal/cem/workflow`, `internal/dogfoodflow`,
   `internal/cem/cli` and `internal/cem/wire` pass. `internal/cem/verify` failed once with
@@ -41,3 +41,14 @@ That covers stale, deleted, in-hunk ambiguous and older-binary refusals.
   immediate rerun at the same load. The change only adds `SpanOccurrences` there.
 - Doc gates: the new `change` field moved `run`'s `--absolute-git-dir` line, so the
   `docs/DOGFOOD.md` citation now names `internal/dogfoodflow/change.go:105`, the line it describes.
+
+## Independent review
+
+One Codex round (`codex exec -s read-only`) on the change range. One P2 finding: the wording
+"outside every hunk" was false for a span that sits inside a hunk's context lines, which the
+`--unified=3` canonical diff includes. Fixed by saying "edited by no hunk (at most hunk context)"
+in the refusal, the fix line and DCW-V0-063, and by renaming the helper to `spanUneditedByHunks`.
+Codex confirmed the refusal code stays `cite-span-not-stable`, the CLI exit stays 2, and no
+accepted requirement text changed. Coverage gaps it noted, recorded rather than closed: no direct
+`spanLines` boundary test, no zero-count hunk or missing-final-newline case, and no explicit
+exit-status assertion in the new tests.

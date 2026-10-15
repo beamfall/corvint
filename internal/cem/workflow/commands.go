@@ -452,9 +452,9 @@ func (s *Session) requireCiteSpanStable(ctx context.Context, document *wire.Map,
 		// why an unchanged span is still refused (DCW-V0-063).
 		needle := baseBlob[span.Start:span.End]
 		occurrences := verify.SpanOccurrences(patchedBlob, needle)
-		if start, end := spanLines(baseBlob, span); spanOutsideHunks(group, start, end) {
+		if start, end := spanLines(baseBlob, span); spanUneditedByHunks(group, start, end) {
 			return cemcode.New(cemcode.CiteSpanNotStable,
-				"evidence span in %q would be %s after applying its CEM hunk group; base lines %d:%d lie outside every hunk, so git's line alignment leaves them unchanged, but the stability check matches the span text, which occurs %d times in the changed file",
+				"evidence span in %q would be %s after applying its CEM hunk group; base lines %d:%d are edited by no hunk (at most hunk context), so git's line alignment leaves them unchanged, but the stability check matches the span text, which occurs %d times in the changed file",
 				evidencePath, classification, start, end, occurrences)
 		}
 		return cemcode.New(cemcode.CiteSpanNotStable,
@@ -474,10 +474,10 @@ func spanLines(blob []byte, span wire.Span) (int64, int64) {
 	return start, end
 }
 
-// spanOutsideHunks reports base lines start..end that no hunk line of the
+// spanUneditedByHunks reports base lines start..end that no hunk line of the
 // group removes or splits with an insertion, as git's own alignment places
 // them; context lines a hunk carries leave a line unchanged.
-func spanOutsideHunks(group *patch.Group, start, end int64) bool {
+func spanUneditedByHunks(group *patch.Group, start, end int64) bool {
 	for _, hunk := range group.Hunks {
 		line := hunk.OldRange.Start
 		if hunk.OldRange.Count == 0 {

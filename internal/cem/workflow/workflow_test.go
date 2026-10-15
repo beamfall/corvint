@@ -887,7 +887,8 @@ func TestCiteAmbiguousRefusalNamesTextAlignmentV11418(t *testing.T) {
 	}
 	baseContent := "# head\n" + block("a") + block("b") + "# tail\n"
 	// Edit line 1 and insert a third block after line 12; base lines 9:11
-	// (else, skip, fi of block b) stay outside every hunk.
+	// (else, skip, fi of block b) stay unedited: git -U0 leaves them out, and
+	// the canonical -U3 hunk carries 10:11 only as context.
 	targetContent := "# HEAD\n" + block("a") + block("b") + "# tail\n" + block("c")
 	root, base, target := makeCiteSpanRepoFrom(t, baseContent, targetContent)
 	diff := gitCmd(t, root, "diff", "-U0", base, target, "--", "src/app.txt")
@@ -907,16 +908,16 @@ func TestCiteAmbiguousRefusalNamesTextAlignmentV11418(t *testing.T) {
 	if cemcode.CodeOf(err) != cemcode.CiteSpanNotStable {
 		t.Fatalf("got %v, want cite-span-not-stable", err)
 	}
-	want := "would be ambiguous after applying its CEM hunk group; base lines 9:11 lie outside every hunk, so git's line alignment leaves them unchanged, but the stability check matches the span text, which occurs 3 times in the changed file"
+	want := "would be ambiguous after applying its CEM hunk group; base lines 9:11 are edited by no hunk (at most hunk context), so git's line alignment leaves them unchanged, but the stability check matches the span text, which occurs 3 times in the changed file"
 	if !strings.Contains(cemcode.MessageOf(err), want) {
 		t.Fatalf("refusal %q, want %q", cemcode.MessageOf(err), want)
 	}
 }
 
-// TestSpanOutsideHunksFollowsGitAlignmentV11418 is V1-1418: context lines
+// TestSpanUneditedByHunksFollowsGitAlignmentV11418 is V1-1418: context lines
 // leave a base line unchanged; a removed line or an insertion inside the span
 // does not.
-func TestSpanOutsideHunksFollowsGitAlignmentV11418(t *testing.T) {
+func TestSpanUneditedByHunksFollowsGitAlignmentV11418(t *testing.T) {
 	// Old lines: 1 context, 2 removed, insertion before 3, 3 context,
 	// insertion before 4, 4 context.
 	group := &patch.Group{Hunks: []*patch.Hunk{{
@@ -929,7 +930,7 @@ func TestSpanOutsideHunksFollowsGitAlignmentV11418(t *testing.T) {
 		start, end int64
 		want       bool
 	}{{1, 1, true}, {2, 2, false}, {3, 3, true}, {3, 4, false}, {4, 4, true}, {1, 3, false}} {
-		if got := spanOutsideHunks(group, test.start, test.end); got != test.want {
+		if got := spanUneditedByHunks(group, test.start, test.end); got != test.want {
 			t.Fatalf("lines %d:%d outside=%v, want %v", test.start, test.end, got, test.want)
 		}
 	}

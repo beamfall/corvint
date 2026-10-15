@@ -12,8 +12,8 @@ import (
 	cemcli "github.com/Beamfall/corvint/internal/cem/cli"
 )
 
-// DCW-V0-063 (V1-1349, V1-1418): a plan row whose BASE span lies outside
-// every hunk, but whose text recurs in an added region, is refused with the
+// DCW-V0-063 (V1-1349, V1-1418): a plan row whose BASE span no hunk edits
+// (git -U0 leaves it unchanged), but whose text recurs in an added region, is refused with the
 // unchanged cite-span-not-stable code, and its fix line states that cause; a
 // span a hunk edits keeps the DCW-V0-014 fix line.
 func TestChangeDCWV0063NamesUnalignedCiteSpanCause(t *testing.T) {
@@ -49,7 +49,7 @@ func TestChangeDCWV0063NamesUnalignedCiteSpanCause(t *testing.T) {
 		name, lines, want string
 		unaligned         bool
 	}{
-		{"outside every hunk", "9:11", "plan row 1 cites BASE lines outside every hunk, which git's line alignment leaves unchanged, but their text occurs more than once in the changed file", true},
+		{"edited by no hunk", "9:11", "plan row 1 cites BASE lines that no hunk edits (at most hunk context), which git's line alignment leaves unchanged, but their text occurs more than once in the changed file", true},
 		{"edited by a hunk", "1:1", "plan row 1 cites BASE lines that this change edits or deletes", false},
 	} {
 		evidence := t.TempDir()
