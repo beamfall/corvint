@@ -115,7 +115,7 @@ above stands with that substitution.
   (`cmd/corvint/index_snapshot.go:241-243@097dbc58`, `LCP-V0-016`). The deferred seam's one call is `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:73-74@5959c784`). The
   snapshot seams' seven current production call sites are `snapshotIndex` (`cmd/corvint/index_snapshot.go:59-60@123f0830`) and batch (`cmd/corvint/batch.go:149@dbef447a`),
   answerability (`cmd/corvint/answerability.go:94-95@6278a445`) and surprise (`cmd/corvint/surprise.go:118-119@6278a445`),
-  context lookup (`cmd/corvint/context_lookup.go:75-79@9f1de421`) and local completion events (`cmd/corvint/local_completion_event.go:408-417@3ebad936`),
+  context lookup (`cmd/corvint/context_lookup.go:75-79@9f1de421`) and local completion events (`cmd/corvint/local_completion_event.go`, `localEventContext`),
   and the experimental host adapter (`cmd/corvint/host_adapter_experimental.go:44-49@b6d4dd7c`). The task-context path instead uses its separate
   `loadContextSnapshot` seam (`cmd/corvint/taskcontext.go:319-326@73708428`), backed by `LoadContextSnapshotDeferred` and the private loader (`internal/contextindex/observed_build.go:42-49@d916a414`).
   The `cmd/corvint` seam does not cover `LoadEventSnapshot` or `ProbeSnapshot`, called directly by the harness and index paths (`cmd/corvint/harness_context.go:33-35@44bd361a`, `cmd/corvint/index_snapshot.go:119-120@9a7d60f2`); the harness calls `LoadEventSnapshotDeferred` there too.
@@ -831,7 +831,7 @@ above stands with that substitution.
   (`cmd/corvint/answerability.go:94-95@6278a445`), surprise
   (`cmd/corvint/surprise.go:118-119@6278a445`), context lookup
   (`cmd/corvint/context_lookup.go:75-79@9f1de421`), local completion events through the observed
-  seam (`cmd/corvint/local_completion_event.go:408-417@3ebad936`), and the experimental host adapter
+  seam (`cmd/corvint/local_completion_event.go`, `localEventContext`), and the experimental host adapter
   (`cmd/corvint/host_adapter_experimental.go:44-49@b6d4dd7c`). The task-context path does not use
   that seam: it supplies `loadContextSnapshot` to `compileTaskContext`
   (`cmd/corvint/taskcontext.go:216-218@ccb78c62`), with that variable bound to
