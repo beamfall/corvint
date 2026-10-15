@@ -98,7 +98,7 @@ func TestGoStructuredStreamAndBuildFailure(t *testing.T) {
 	if e != nil || !o.Complete || len(o.Tests) != 1 {
 		t.Fatal(o, e)
 	}
-	o, e = Parse(tr.Input{Runner: "go-test", Stdout: []byte(`{"Action":"build-fail","Package":"p"}`), ExitCode: 1})
+	o, e = Parse(tr.Input{Runner: "go-test", Stdout: []byte(`{"ImportPath":"p [p.test]","Action":"build-fail"}`), ExitCode: 1})
 	if e != nil || o.Complete {
 		t.Fatal(o, e)
 	}
@@ -306,7 +306,7 @@ func TestNativeReportFixtureInventory(t *testing.T) {
 	if err := json.Unmarshal(raw, &inventory); err != nil {
 		t.Fatal(err)
 	}
-	if len(inventory) != 68 {
+	if len(inventory) != 69 {
 		t.Fatalf("unexpected report inventory: %d", len(inventory))
 	}
 	for name := range inventory {
@@ -324,6 +324,54 @@ func TestNativeReportFixtureInventory(t *testing.T) {
 		}
 		if _, err := readFixture(root, "capture"); err == nil {
 			t.Fatal("invalid declaration accepted")
+		}
+	}
+}
+
+// V1-1375: real go1.27 `go test -json` bytes for a package that fails to compile carry
+// BuildEvents keyed by ImportPath with no Package (GLTP-V0-014). They must decode into a
+// BUILD_FAILURE that names the import path, never an assertion failure or a pass (TRE-V0-003).
+func TestGoActualBuildFailureStream(t *testing.T) {
+	b, err := readFixture("testdata", "go-build-fail.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	o, err := Parse(tr.Input{Runner: "go-test", ExitCode: 1, Stdout: b})
+	if err != nil {
+		t.Fatalf("actual build-fail stream refused: %v", err)
+	}
+	if o.Complete || len(o.Tests) != 0 {
+		t.Fatalf("build failure admitted as complete or as tests: %+v", o)
+	}
+	want := map[string]bool{
+		"BUILD_FAILURE example.com/buildfailprobe [example.com/buildfailprobe.test]": true,
+		"BUILD_FAILURE example.com/buildfailprobe":                                   true,
+		"GO_PACKAGE_FAILURE example.com/buildfailprobe":                              true,
+		"NO_TESTS native runner reported no tests":                                   true,
+		"EXIT_REPORT_CONTRADICTION exit 1 does not agree with native cases":          true,
+	}
+	got := map[string]bool{}
+	for _, p := range o.Problems {
+		got[p.Code+" "+p.Detail] = true
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("problems = %v, want %v", got, want)
+	}
+	const build = `{"ImportPath":"p [p.test]","Action":"build-output","Output":"x\n"}` + "\n"
+	const fail = `{"ImportPath":"p [p.test]","Action":"build-fail"}` + "\n"
+	for name, raw := range map[string]string{
+		"build event with Package":       `{"ImportPath":"p","Package":"p","Action":"build-fail"}`,
+		"build event without ImportPath": `{"Package":"p","Action":"build-fail"}`,
+		"build event with Test":          `{"ImportPath":"p","Test":"T","Action":"build-output"}`,
+		"test event with ImportPath":     `{"ImportPath":"p","Package":"p","Action":"start"}`,
+		"test event without Package":     `{"Action":"start"}`,
+		"duplicate ImportPath field":     `{"ImportPath":"p","importpath":"q","Action":"build-fail"}`,
+		"unknown build action":           `{"ImportPath":"p","Action":"build-pass"}`,
+		"build output after build-fail":  build + fail + build,
+		"duplicate build-fail":           fail + fail,
+	} {
+		if o, err := Parse(tr.Input{Runner: "go-test", ExitCode: 1, Stdout: []byte(raw)}); err == nil {
+			t.Errorf("%s admitted: %+v", name, o)
 		}
 	}
 }
