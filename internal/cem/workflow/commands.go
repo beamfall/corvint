@@ -384,6 +384,9 @@ func (s *Session) Cite(ctx context.Context, options CiteOptions) (map[string]any
 	if err != nil {
 		return nil, err
 	}
+	if err := refuseSelfModifiedAuthority(document, options.EvidencePath); err != nil {
+		return nil, err
+	}
 	if err := s.requireCiteSpanStable(ctx, document, options.EvidencePath, entry.OID, blob, span); err != nil {
 		return nil, err
 	}

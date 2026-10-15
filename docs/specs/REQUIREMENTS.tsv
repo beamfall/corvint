@@ -915,6 +915,7 @@ CEM-V1-110	docs/specs/cem-stable-v1.md	2247	(accepted under the owner's standing
 CEM-V1-111	docs/specs/cem-stable-v1.md	2250	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The pack	standing	2026-10-11; V1-1333
 CEM-V1-112	docs/specs/cem-stable-v1.md	2259	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) For each	standing	2026-10-11; V1-1333
 CEM-V1-113	docs/specs/cem-stable-v1.md	2341	(accepted under the owner's standing auto-accept (2026-10-11); V1-1369) Every	standing	2026-10-11; V1-1369
+CEM-V1-114	docs/specs/cem-stable-v1.md	2452	(accepted under the owner's standing auto-accept (2026-10-11); V1-0414) `cem cit	standing	2026-10-11; V1-0414
 CEM-V1-120	docs/specs/cem-stable-v1.md	1532	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity	unrecorded	-
 CEM-V1-121	docs/specs/cem-stable-v1.md	1535	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly	unrecorded	-
 CEM-V1-122	docs/specs/cem-stable-v1.md	1539	The stable result MUST carry:	unrecorded	-
