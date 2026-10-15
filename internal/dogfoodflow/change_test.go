@@ -479,6 +479,8 @@ func TestChangeDCWV0041NamesCitationRowFix(t *testing.T) {
 	for reason, want := range map[string]string{
 		"invalid-arguments": "plan row 3: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim",
 		"missing-evidence":  "plan row 3 cites a path that is not a regular file at BASE; cite a source, test or spec file",
+		// V1-1385: CEM-V1-114 refuses citing authority the change modifies.
+		"cite-self-modified-authority": "plan row 3 cites a governing file (spec, decision or other authority) that this change itself modifies, which cannot govern it; cite a governing source the change leaves unmodified, or keep the hunk unknown",
 	} {
 		if hint := c.fixHint(step{name: "cem-cite", reason: reason}); !strings.Contains(hint, want) {
 			t.Fatalf("%s hint %q", reason, hint)
