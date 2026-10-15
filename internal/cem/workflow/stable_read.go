@@ -126,6 +126,13 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	if options.HunkRevert {
 		envelope["hunkRevert"] = revert
 	}
+	// A relative root or artifact root is refused, never resolved; the fix is
+	// named beside, never inside, the closed result (CEM-V1-117).
+	if result.Code != nil && *result.Code == "invalid-arguments" {
+		if fix := verify.RelativePathFix([2]string{"--root", repository}, [2]string{"--artifacts", options.ArtifactRoot}); fix != "" {
+			envelope["fix"] = fix
+		}
+	}
 	switch action {
 	case "status":
 		envelope["map"] = filepath.Join(s.workRoot.Path(), filepath.FromSlash(options.MapPath))
