@@ -146,10 +146,17 @@ func runCEMStableEntry(t *testing.T, args ...string) (int, map[string]any) {
 	t.Helper()
 	code, stdout, stderr := runCLI(t, args...)
 	var document map[string]any
-	if stderr != "" || json.Unmarshal([]byte(stdout), &document) != nil {
+	if json.Unmarshal([]byte(stdout), &document) != nil || (stderr != "" && !relativePathFixLine(document, stderr)) {
 		t.Fatalf("%v: exit %d stdout %q stderr %q", args, code, stdout, stderr)
 	}
 	return code, document
+}
+
+// relativePathFixLine reports whether stderr is only the CEM-V1-117 fix line
+// that verify-stable prints beside an invalid-arguments refusal of a relative
+// path option.
+func relativePathFixLine(document map[string]any, stderr string) bool {
+	return document["code"] == "invalid-arguments" && strings.HasPrefix(stderr, "corvint cem verify-stable: invalid-arguments: relative path option ") && strings.Count(stderr, "\n") == 1 && strings.HasSuffix(stderr, "\n")
 }
 
 // CEM-V1-017: stable admission judges the --root value byte for byte, as

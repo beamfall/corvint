@@ -56,6 +56,21 @@ hunk members. Within arrays, input order governs first failure. Graph precedence
 is criterion identity/uniqueness/coherence, runner uniqueness, link resolution,
 link/basis membership, then artifact role closure. OPERATION defines stages.
 
+CEM-V1-176 fixes the stage and code where the graph precedence above is easy to
+misread. A hunk basis that names no evidence record fails at the wire stage
+(`invalid-field`), before any reference check. A repeated hunk ID is
+`duplicate-reference`, checked after runner receipt uniqueness and before any
+link is resolved. Within each link, every one of its three ID arrays is checked
+for repeats before any ID is resolved, so a repeated unknown ID is
+`duplicate-reference`, not `unresolved-reference`. A declared
+criterion or runner receipt that no link names is `reference-coherence`, checked
+after link resolution and basis membership and before artifact role closure.
+In the artifact list, a repeated path or digest is `duplicate-reference`, checked
+per record before that record's role; a role mismatch or a missing or extra
+required artifact is `artifact-role-closure`. All of these, except the wire
+failure, are REJECT at the references stage. `reference-precedence/` pins one
+case of each for both consumers.
+
 ## CEM-V1-018: unchanged change semantics, with full 0.3 vocabulary
 
 The canonical JSON identity, canonical patch, hunk replay, evidence and drift

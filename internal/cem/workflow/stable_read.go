@@ -107,11 +107,18 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 			stableOptions = verify.StableOptions{Repository: repository}
 		}
 		result = verify.NewStableResult(stableOptions)
-		exit = result.Refuse("arguments", "invalid-arguments", false)
+		exit = result.Refuse("arguments", "invalid-arguments", true)
 	}
 	envelope := map[string]any{
 		"ok": exit == 0, "mutates": false, "tool": "cem-" + action,
 		"stableVerification": StableVerification{Result: result, Exit: exit},
+	}
+	// A relative root or artifact root is refused, never resolved; the fix is
+	// named beside, never inside, the closed result (CEM-V1-117).
+	if result.Code != nil && *result.Code == "invalid-arguments" {
+		if fix := verify.RelativePathFix([2]string{"--root", repository}, [2]string{"--artifacts", options.ArtifactRoot}); fix != "" {
+			envelope["fix"] = fix
+		}
 	}
 	switch action {
 	case "status":

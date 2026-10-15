@@ -388,13 +388,19 @@ func validateStableGraph(d *StableMap) error {
 			return stableGraphError("unresolved-reference")
 		}
 		usedCriteria[l.CriterionID] = true
-		for i, list := range [][]string{l.HunkIDs, l.EvidenceIDs, l.RunnerReceiptSha256s} {
+		lists := [][]string{l.HunkIDs, l.EvidenceIDs, l.RunnerReceiptSha256s}
+		// CEM-V1-176: uniqueness within all three arrays precedes resolution.
+		for _, list := range lists {
 			seen := map[string]bool{}
 			for _, id := range list {
 				if seen[id] {
 					return stableGraphError("duplicate-reference")
 				}
 				seen[id] = true
+			}
+		}
+		for i, list := range lists {
+			for _, id := range list {
 				valid := false
 				switch i {
 				case 0:

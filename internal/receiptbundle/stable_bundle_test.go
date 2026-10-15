@@ -463,8 +463,8 @@ func TestStableExportPublishesNothingForARefusedSource(t *testing.T) {
 			}
 			o.Artifacts = omitted
 		}},
-		{"no artifact root", "REJECT", 2, func(t *testing.T, o *Options) { o.Artifacts, o.ArtifactsGiven = "", false }},
-		{"relative repository", "REJECT", 2, func(t *testing.T, o *Options) { o.Repository = "repo" }},
+		{"no artifact root", "UNSUPPORTED", 2, func(t *testing.T, o *Options) { o.Artifacts, o.ArtifactsGiven = "", false }},
+		{"relative repository", "UNSUPPORTED", 2, func(t *testing.T, o *Options) { o.Repository = "repo" }},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

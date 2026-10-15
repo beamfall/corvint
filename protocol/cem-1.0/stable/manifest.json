@@ -8,8 +8,8 @@
   "files": [
     {
       "path": "ALGORITHMS.md",
-      "sha256": "b488845039c89180881c7b809791c6523c64e98be556728e14a65efa06e6cd35",
-      "bytes": 50768
+      "sha256": "6560743bd08c2d9e70dce82d7cc3b84b1002e5d9a7dc6656dcf4e0c0ca2925b8",
+      "bytes": 51784
     },
     {
       "path": "FIXTURES.pack.json",
@@ -43,8 +43,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "4816df564c0d4a420db5dd50ed80d4088f8dbf67c70eae0cae415f189df598dd",
-      "bytes": 4390
+      "sha256": "517f6b5e8c3ed38d0d68e184ce70cde0bc757fc241f32c8862b20cfe18e0cbe2",
+      "bytes": 4550
     },
     {
       "path": "REPOSITORY-ENVELOPE.cells.json",
@@ -285,6 +285,76 @@
       "path": "receipt-authentication/trusted-keys.json",
       "sha256": "56a91cc1d7e71e302de0d61a3a02e1bde87f9f2ebb2db1e61c4e128184f1d8f2",
       "bytes": 189
+    },
+    {
+      "path": "reference-precedence/EXPECTED.json",
+      "sha256": "1c07c01ff5921b1a3ce234dcaf2d2cca7c0c00e8bbd07d1c90862151718c10e1",
+      "bytes": 3176
+    },
+    {
+      "path": "reference-precedence/README.md",
+      "sha256": "6c8e35e8628afce38e9506accfa6885be6b1a0d2d6611da378528c89723e76fe",
+      "bytes": 1525
+    },
+    {
+      "path": "reference-precedence/cases/artifact-duplicated.json",
+      "sha256": "beda94ba5f9d60e07cb476f142a90794efc3450faa6975c5ddf0d355670d2caa",
+      "bytes": 2791
+    },
+    {
+      "path": "reference-precedence/cases/criterion-link-missing.json",
+      "sha256": "fe6d387cc221d61e078c505635d55b2bd517faf7ac2a88063985eb94265464b1",
+      "bytes": 3448
+    },
+    {
+      "path": "reference-precedence/cases/hunk-basis-unresolved.json",
+      "sha256": "23b35566bafd9a3b20575db103a15b8e5c35d2605e12f09e629102538a9bbb03",
+      "bytes": 2656
+    },
+    {
+      "path": "reference-precedence/cases/hunk-duplicated.json",
+      "sha256": "18e0d1dec9d5cb6dbc423aa1ac20299979d1ac6ab5892c5e1f694be0a8951aa4",
+      "bytes": 3014
+    },
+    {
+      "path": "reference-precedence/cases/link-ids-duplicated-unknown.json",
+      "sha256": "5476182fb3c5507c13327a8f22bafcc5a88b650b9c41e81b5ed5c938facf19e2",
+      "bytes": 2656
+    },
+    {
+      "path": "reference-precedence/cases/runner-link-missing.json",
+      "sha256": "e64b0555050d59554f62d850142a7ad23f549cd0f9082a13d47fea009e92102a",
+      "bytes": 2996
+    },
+    {
+      "path": "reference-precedence/results/artifact-duplicated.json",
+      "sha256": "3c9368306f1665bd526f4409a3ebd4d8702c099c705fee5107bc68e56c81d7b2",
+      "bytes": 1481
+    },
+    {
+      "path": "reference-precedence/results/criterion-link-missing.json",
+      "sha256": "3c703dd68f75031c0bbde36e644a209229e13ac69b6a25d323621751d4f79c78",
+      "bytes": 1481
+    },
+    {
+      "path": "reference-precedence/results/hunk-basis-unresolved.json",
+      "sha256": "a25b694a422a2f2898398f83c10d1159bb10ac2c079384a34326b937ae537092",
+      "bytes": 1484
+    },
+    {
+      "path": "reference-precedence/results/hunk-duplicated.json",
+      "sha256": "b2f544951ce7ca1cf6b532155b0fac25c4b82774fa558c079159cf996601d755",
+      "bytes": 1481
+    },
+    {
+      "path": "reference-precedence/results/link-ids-duplicated-unknown.json",
+      "sha256": "34b5261e4f18edae590042a75ebcd090b02550a80f7ede52dd63f067e27ff02b",
+      "bytes": 1481
+    },
+    {
+      "path": "reference-precedence/results/runner-link-missing.json",
+      "sha256": "a5f682b5afc26c96e5d5456b7a5310ea0e1f918e766339ad1e23f4e3abd65eb4",
+      "bytes": 1481
     },
     {
       "path": "repository-envelope-packet/CHANGES.md",
