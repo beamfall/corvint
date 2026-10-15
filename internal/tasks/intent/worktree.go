@@ -226,7 +226,7 @@ func readBounded(path string, max int) ([]byte, error) {
 	if beforeBoundedRead != nil {
 		beforeBoundedRead(path)
 	}
-	return readBoundedUsing(path, max, func() (os.FileInfo, error) { return os.Lstat(path) }, func() (*os.File, error) { return openReadFile(path) })
+	return readBoundedUsing(path, max, func() (os.FileInfo, error) { return os.Lstat(path) }, func() (*os.File, error) { return openPath(path) })
 }
 
 func readBoundedUsing(path string, max int, stat func() (os.FileInfo, error), open func() (*os.File, error)) ([]byte, error) {
@@ -257,6 +257,9 @@ func readBoundedInfo(path string, max int, stat func() (os.FileInfo, error), ope
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil, err
+		}
+		if errors.Is(err, errRelativePath) {
+			return nil, nil, wire.Errorf(wire.CodeMalformed, path, "relative path; resolve it against the working directory before reading")
 		}
 		return nil, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, path, "cannot open: %v", err)
 	}
@@ -325,11 +328,23 @@ func ReadFile(path string, max int) ([]byte, error) {
 // taken from the same descriptor before its bytes are read, so a caller can
 // pair the bytes with the identity and timestamps they were read from.
 func ReadFileWithInfo(path string, max int) ([]byte, os.FileInfo, error) {
-	return readBoundedInfo(path, max, func() (os.FileInfo, error) { return os.Lstat(path) }, func() (*os.File, error) { return openReadFile(path) })
+	return readBoundedInfo(path, max, func() (os.FileInfo, error) { return os.Lstat(path) }, func() (*os.File, error) { return openPath(path) })
 }
 
 // Replaced only by deterministic stat/open race tests.
 var openReadFile = safeopen.File
+
+// errRelativePath is a path-syntax refusal, not a filesystem property
+// (CAL-V0-225): the safe open takes an absolute path, so the caller must
+// resolve a relative one against its working directory first.
+var errRelativePath = errors.New("relative path")
+
+func openPath(path string) (*os.File, error) {
+	if !filepath.IsAbs(path) {
+		return nil, errRelativePath
+	}
+	return openReadFile(path)
+}
 
 // ReadFileFromRoot reads one basename beneath an already pinned parent. The
 // label is diagnostic only; validation, identity checks and byte bounds match

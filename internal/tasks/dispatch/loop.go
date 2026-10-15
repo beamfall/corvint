@@ -147,7 +147,14 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		lock.Close()
 		return nil, fmt.Errorf("another dispatcher holds %s: %w", dir, err)
 	}
-	// A prior unresolved reader refuses before owner/ledger/event writes or adoption.
+	// A host reboot is the one automatic containment proof (CAL-V0-227); it
+	// is recorded before the marker goes. Any other prior unresolved reader
+	// refuses before owner/ledger/event writes or adoption.
+	recovered, err := resolveReaderByReboot(dir, program, time.Now())
+	if err != nil {
+		lock.Close()
+		return nil, fmt.Errorf("%w: the reboot proof was not recorded: %v", ErrReaderQuiescence, err)
+	}
 	if err := checkReaderQuarantine(dir, program); err != nil {
 		lock.Close()
 		return nil, err
@@ -191,6 +198,9 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		l.Pressure.Sample = PressureSample{}
 	}
 	d.emit(Event{Kind: "started", Message: fmt.Sprintf("dispatcher started for program %s with %d recorded worker(s)", program, len(l.Workers))})
+	if recovered != nil {
+		d.emit(Event{Kind: "reader-recovered", Message: fmt.Sprintf("reader run %s quarantine lifted: %s (%s); recorded in %s", recovered.Run, recovered.Reason, recovered.Evidence, readerRecoveryDir), Detail: map[string]string{"kind": recovered.Kind, "run": recovered.Run}})
+	}
 	for _, w := range l.Workers {
 		msg := fmt.Sprintf("adopted %s worker %s (pid %d) on %s; its exit code will not be observed", w.Role, w.ID, w.PID, d.keyText(w.Key))
 		if id, err := supervisor.ProcessIdentity(w.PID); err == nil && id != w.LeaderIdentity {

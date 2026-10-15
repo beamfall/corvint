@@ -543,7 +543,7 @@ CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	589	`claim`, `renew`, `at
 CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1463	`store.Mutate` MUST take its request lookup and its canonical intent records fro	unrecorded	-
 CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1862	The optional policy `supervision` object MAY carry `repositories`, a closed obje	unrecorded	-
 CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1880	After `implement`, each repository with changes MUST receive a candidate commit	unrecorded	-
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	6561	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	6679	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
 CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	2042	The optional policy `supervision` object MAY carry `host`, whose admitted	unrecorded	-
 CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2125	A `claude-code` stage MUST invoke the pinned executable with the prompt on	unrecorded	-
 CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2259	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be	unrecorded	-
@@ -570,7 +570,7 @@ CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2944	A policy MAY carry t
 CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2978	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes	unrecorded	-
 CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3102	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a	unrecorded	-
 CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3158	When the dispatcher has a work-state reader, a ticket MUST count as held exactly	unrecorded	-
-CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	6746	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
+CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	6864	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
 CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3199	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici	unrecorded	-
 CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3245	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio	unrecorded	-
 CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1363	On macOS the memory signal MUST be the kernel memory-pressure level	unrecorded	-
@@ -647,7 +647,7 @@ CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4790	(accepted by decisio
 CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4801	(accepted by decision 0447; V1-0966) The dispatcher MUST count, per	owner	decision 0447; V1-0966
 CAL-V0-186	docs/specs/corvint-tasks-agent-leases-v0.md	5104	(proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh	unrecorded	-
 CAL-V0-187	docs/specs/corvint-tasks-agent-leases-v0.md	4893	proposed (V1-0980; GitHub #668) A build writing `taskman-dispatch-state/3` MUST	unrecorded	-
-CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	6813	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
+CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	6931	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
 CAL-V0-189	docs/specs/corvint-tasks-agent-leases-v0.md	4945	(proposed; V1-0915; GitHub #641) Single intent read in the writer audit. A	unrecorded	-
 CAL-V0-190	docs/specs/corvint-tasks-agent-leases-v0.md	4958	(proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.	unrecorded	-
 CAL-V0-191	docs/specs/corvint-tasks-agent-leases-v0.md	5141	(proposed; V1-1016) A role MAY carry `expiredLeaseGraceSeconds`, an integer	unrecorded	-
@@ -682,6 +682,11 @@ CAL-V0-220	docs/specs/corvint-tasks-agent-leases-v0.md	5701	(accepted, decision 
 CAL-V0-221	docs/specs/corvint-tasks-agent-leases-v0.md	5707	(accepted, decision 0519 (V1-0906)) Regression evidence shall bound	owner	decision 0519; V1-0906
 CAL-V0-222	docs/specs/corvint-tasks-agent-leases-v0.md	5992	(accepted under the owner's standing auto-accept (2026-10-11), V1-1352) A lease	standing	2026-10-11; V1-1352
 CAL-V0-223	docs/specs/corvint-tasks-agent-leases-v0.md	6002	(accepted under the owner's standing auto-accept (2026-10-11), V1-1352) Caller c	standing	2026-10-11; V1-1352
+CAL-V0-225	docs/specs/corvint-tasks-agent-leases-v0.md	6044	(accepted under the owner's standing auto-accept (2026-10-11), V1-1386) A relati	standing	2026-10-11; V1-1386
+CAL-V0-226	docs/specs/corvint-tasks-agent-leases-v0.md	6051	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710)	standing	2026-10-11; V1-0710
+CAL-V0-227	docs/specs/corvint-tasks-agent-leases-v0.md	6070	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) A marker	standing	2026-10-11; V1-0710
+CAL-V0-228	docs/specs/corvint-tasks-agent-leases-v0.md	6084	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The	standing	2026-10-11; V1-0710
+CAL-V0-229	docs/specs/corvint-tasks-agent-leases-v0.md	6090	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The mark	standing	2026-10-11; V1-0710
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha	unrecorded	-
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring	unrecorded	-
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla	unrecorded	-
