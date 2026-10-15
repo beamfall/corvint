@@ -143,3 +143,53 @@ func TestCTS002ProjectionRaces(t *testing.T) {
 		}
 	})
 }
+
+// TestCTSV0010_JournalAbsentShowNamesTheStaleSnapshot: a plain clone has the
+// committed .taskman snapshot and no journal. A ticket the primary's journal
+// holds but the clone's snapshot does not is refused as unobserved in this
+// checkout, naming the snapshot and how to reach the journal, never as a
+// ticket that does not exist (V1-1379). A journal-backed miss keeps its wording.
+func TestCTSV0010_JournalAbsentShowNamesTheStaleSnapshot(t *testing.T) {
+	primary := fixture.TempRepo(t)
+	fixture.Write(t, filepath.Join(primary.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(primary.IntentDir, "policy.json"), fixture.PolicyBytes())
+	clone := fixture.TempRepo(t)
+	fixture.Write(t, filepath.Join(clone.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(clone.IntentDir, "policy.json"), fixture.PolicyBytes())
+	if got := projectionRead(t, Env{Cwd: primary.Root, Args: []string{"init"}}); got.Outcome != wire.OutcomeOK {
+		t.Fatalf("init: %+v", got)
+	}
+	payload := `{"acceptanceCriteria":["it exists"],"body":null,"capabilities":[],"dependencies":[],"dueDate":null,` +
+		`"effects":{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":[]},"estimateMinutes":null,` +
+		`"executionClass":"AUTONOMOUS","kind":"FEATURE","labels":[],"milestone":null,"order":"0","owner":null,"priority":"P2",` +
+		`"requiredGates":[],"requirementRefs":[],"source":{"kind":"NATIVE","sourceItemId":null,"sourceQueueId":"queue:acme:main",` +
+		`"sourceRevisionSha256":null},"supersededBy":null,"supersedes":null,"title":"Created after the snapshot"}`
+	created := projectionRead(t, Env{Cwd: primary.Root, Args: []string{"ticket", "create", "--request-id", "after-snapshot", "--issued-at", "2026-10-15T12:00:00Z", "--payload", payload}})
+	if created.Outcome != wire.OutcomeOK {
+		t.Fatalf("create: %+v", created)
+	}
+	id, _ := created.Items[0].Obj.Get("ticketId")
+	if got := projectionRead(t, Env{Cwd: primary.Root, Args: []string{"ticket", "show", id.Str}}); got.Outcome != wire.OutcomeOK {
+		t.Fatalf("primary cannot read its own ticket: %+v", got)
+	}
+
+	got := projectionRead(t, Env{Cwd: clone.Root, Args: []string{"ticket", "show", id.Str}})
+	text := strings.Join(got.Warnings, " ")
+	if got.Outcome != wire.OutcomeRefused || len(got.Items) != 0 || got.Snapshot != nil {
+		t.Fatalf("clone read: %+v", got)
+	}
+	for _, want := range []string{"journal-absent", "is not in this checkout's intent projection", ".taskman tree sha256 ", clone.StateDir,
+		"created after the last committed .taskman snapshot is NOT_OBSERVED here, not proven absent", "corvint-tasks ticket show " + id.Str} {
+		if !strings.Contains(text, want) {
+			t.Errorf("clone refusal lacks %q: %s", want, text)
+		}
+	}
+	if strings.Contains(text, "does not exist in this queue") {
+		t.Errorf("clone refusal still claims absence: %s", text)
+	}
+
+	miss := projectionRead(t, Env{Cwd: primary.Root, Args: []string{"ticket", "show", "ZZ-999"}})
+	if miss.Outcome != wire.OutcomeRefused || !strings.Contains(strings.Join(miss.Warnings, " "), "does not exist in this queue") {
+		t.Fatalf("journal-backed miss: %+v", miss)
+	}
+}

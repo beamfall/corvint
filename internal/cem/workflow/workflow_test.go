@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/publish"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
@@ -780,13 +781,18 @@ func TestCiteNoLongerRefusesChangedEvidencePath(t *testing.T) {
 
 func makeCiteSpanRepo(t *testing.T, targetContent string) (string, string, string) {
 	t.Helper()
+	return makeCiteSpanRepoFrom(t, "alpha\nbeta\ngamma\n", targetContent)
+}
+
+func makeCiteSpanRepoFrom(t *testing.T, baseContent, targetContent string) (string, string, string) {
+	t.Helper()
 	root := t.TempDir()
 	root, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	gitCmd(t, root, "init", "-q", "-b", "main")
-	writeFile(t, root, "src/app.txt", "alpha\nbeta\ngamma\n")
+	writeFile(t, root, "src/app.txt", baseContent)
 	gitCmd(t, root, "add", ".")
 	gitCmd(t, root, "commit", "-qm", "base")
 	base := gitCmd(t, root, "rev-parse", "HEAD")
@@ -868,6 +874,65 @@ func TestCiteRefusesAmbiguousEvidenceSpan(t *testing.T) {
 	}
 	if !strings.Contains(cemcode.MessageOf(err), "ambiguous") {
 		t.Fatalf("ambiguous refusal omitted classification: %v", err)
+	}
+}
+
+// TestCiteAmbiguousRefusalNamesTextAlignmentV11418 is V1-1418 and
+// DCW-V0-063: base lines next to repeated if/else/fi lines that git -U0
+// leaves unchanged are still refused, because stability matches text and the
+// change adds another copy; the refusal names that alignment and the cause.
+func TestCiteAmbiguousRefusalNamesTextAlignmentV11418(t *testing.T) {
+	block := func(name string) string {
+		return "if " + name + "; then\n  run " + name + "\nelse\n  skip\nfi\n"
+	}
+	baseContent := "# head\n" + block("a") + block("b") + "# tail\n"
+	// Edit line 1 and insert a third block after line 12; base lines 9:11
+	// (else, skip, fi of block b) stay unedited: git -U0 leaves them out, and
+	// the canonical -U3 hunk carries 10:11 only as context.
+	targetContent := "# HEAD\n" + block("a") + block("b") + "# tail\n" + block("c")
+	root, base, target := makeCiteSpanRepoFrom(t, baseContent, targetContent)
+	diff := gitCmd(t, root, "diff", "-U0", base, target, "--", "src/app.txt")
+	for _, header := range []string{"@@ -1 +1 @@", "@@ -12,0 +13,5 @@"} {
+		if !strings.Contains(diff, header) {
+			t.Fatalf("git -U0 alignment changed, want %q in:\n%s", header, diff)
+		}
+	}
+	session := openSession(t, root)
+	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := session.Cite(ctx(), CiteOptions{
+		MapPath: wire.ExcludedCEMPath, Hunk: "1", EvidencePath: "src/app.txt",
+		Lines: "9:11", Relation: "implementation",
+	})
+	if cemcode.CodeOf(err) != cemcode.CiteSpanNotStable {
+		t.Fatalf("got %v, want cite-span-not-stable", err)
+	}
+	want := "would be ambiguous after applying its CEM hunk group; base lines 9:11 are edited by no hunk (at most hunk context), so git's line alignment leaves them unchanged, but the stability check matches the span text, which occurs 3 times in the changed file"
+	if !strings.Contains(cemcode.MessageOf(err), want) {
+		t.Fatalf("refusal %q, want %q", cemcode.MessageOf(err), want)
+	}
+}
+
+// TestSpanUneditedByHunksFollowsGitAlignmentV11418 is V1-1418: context lines
+// leave a base line unchanged; a removed line or an insertion inside the span
+// does not.
+func TestSpanUneditedByHunksFollowsGitAlignmentV11418(t *testing.T) {
+	// Old lines: 1 context, 2 removed, insertion before 3, 3 context,
+	// insertion before 4, 4 context.
+	group := &patch.Group{Hunks: []*patch.Hunk{{
+		OldRange: wire.Range{Start: 1, Count: 4},
+		Body: []patch.BodyLine{
+			{Prefix: ' '}, {Prefix: '-'}, {Prefix: '+'}, {Prefix: ' '}, {Prefix: '+'}, {Prefix: ' '},
+		},
+	}}}
+	for _, test := range []struct {
+		start, end int64
+		want       bool
+	}{{1, 1, true}, {2, 2, false}, {3, 3, true}, {3, 4, false}, {4, 4, true}, {1, 3, false}} {
+		if got := spanUneditedByHunks(group, test.start, test.end); got != test.want {
+			t.Fatalf("lines %d:%d outside=%v, want %v", test.start, test.end, got, test.want)
+		}
 	}
 }
 

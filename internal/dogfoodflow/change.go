@@ -50,6 +50,7 @@ type change struct {
 	citationStageOwned   bool
 	citationCount        int
 	citationFailedRow    int
+	citeSpanUnaligned    bool // no hunk edits the refused span (DCW-V0-063)
 	linkObservedRows     int
 	citedOver            bool
 	intentPublishTmp     string

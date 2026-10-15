@@ -544,7 +544,7 @@ CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	594	`claim`, `renew`, `at
 CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1473	`store.Mutate` MUST take its request lookup and its canonical intent records fro	unrecorded	-
 CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1872	The optional policy `supervision` object MAY carry `repositories`, a closed obje	unrecorded	-
 CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1890	After `implement`, each repository with changes MUST receive a candidate commit	unrecorded	-
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	6945	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	6959	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
 CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	2052	The optional policy `supervision` object MAY carry `host`, whose admitted	unrecorded	-
 CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2135	A `claude-code` stage MUST invoke the pinned executable with the prompt on	unrecorded	-
 CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2269	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be	unrecorded	-
@@ -571,7 +571,7 @@ CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2954	A policy MAY carry t
 CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2988	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes	unrecorded	-
 CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3112	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a	unrecorded	-
 CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3168	When the dispatcher has a work-state reader, a ticket MUST count as held exactly	unrecorded	-
-CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	7130	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
+CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	7144	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
 CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3209	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici	unrecorded	-
 CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3255	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio	unrecorded	-
 CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1373	On macOS the memory signal MUST be the kernel memory-pressure level	unrecorded	-
@@ -648,7 +648,7 @@ CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4800	(accepted by decisio
 CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4811	(accepted by decision 0447; V1-0966) The dispatcher MUST count, per	owner	decision 0447; V1-0966
 CAL-V0-186	docs/specs/corvint-tasks-agent-leases-v0.md	5114	(proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh	unrecorded	-
 CAL-V0-187	docs/specs/corvint-tasks-agent-leases-v0.md	4903	proposed (V1-0980; GitHub #668) A build writing `taskman-dispatch-state/3` MUST	unrecorded	-
-CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	7197	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
+CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	7211	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
 CAL-V0-189	docs/specs/corvint-tasks-agent-leases-v0.md	4955	(proposed; V1-0915; GitHub #641) Single intent read in the writer audit. A	unrecorded	-
 CAL-V0-190	docs/specs/corvint-tasks-agent-leases-v0.md	4968	(proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.	unrecorded	-
 CAL-V0-191	docs/specs/corvint-tasks-agent-leases-v0.md	5151	(proposed; V1-1016) A role MAY carry `expiredLeaseGraceSeconds`, an integer	unrecorded	-
@@ -696,6 +696,7 @@ CAL-V0-240	docs/specs/corvint-tasks-agent-leases-v0.md	6314	(accepted under the 
 CAL-V0-241	docs/specs/corvint-tasks-agent-leases-v0.md	6328	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) A result	standing	2026-10-11; V1-1415
 CAL-V0-242	docs/specs/corvint-tasks-agent-leases-v0.md	6345	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) The	standing	2026-10-11; V1-1415
 CAL-V0-243	docs/specs/corvint-tasks-agent-leases-v0.md	6354	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) `receipt	standing	2026-10-11; V1-1415
+CAL-V0-250	docs/specs/corvint-tasks-agent-leases-v0.md	6366	(accepted under the owner's standing auto-accept (2026-10-11), V1-1384) A CLI	standing	2026-10-11; V1-1384
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha	unrecorded	-
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring	unrecorded	-
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla	unrecorded	-
@@ -1165,6 +1166,7 @@ CTS-V0-006	docs/specs/corvint-tasks-store-init-v0.md	88	(requested 2026-10-01, i
 CTS-V0-007	docs/specs/corvint-tasks-store-init-v0.md	102	(proposed (V1-0759)) A re-import that writes the next revision of an `IMPORT` re	unrecorded	-
 CTS-V0-008	docs/specs/corvint-tasks-store-init-v0.md	107	(accepted, decision 0490; V1-0825) A native writer holds staging slots `staging/	owner	decision 0490; V1-0825
 CTS-V0-009	docs/specs/corvint-tasks-store-init-v0.md	127	(accepted, decision 0513) The initial journal-backed	owner	decision 0513
+CTS-V0-010	docs/specs/corvint-tasks-store-init-v0.md	136	(accepted under the owner's standing auto-accept (2026-10-11), V1-1379) When a	standing	2026-10-11; V1-1379
 CTW-V0-001	docs/specs/corvint-tasks-intent-worktree-v0.md	41	The intent root is the checkout whose `.taskman/` is the intent projection. Ever	unrecorded	-
 CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	47	When the primary worktree's HEAD does not name the intent branch from	unrecorded	-
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	54	The intent branch and queue ID used for routing are read from the primary worktr	unrecorded	-
@@ -1882,18 +1884,19 @@ GLTP-V0-038	docs/specs/go-live-test-provider-v0.md	804	A recorded plan ceiling t
 GLTP-V0-039	docs/specs/go-live-test-provider-v0.md	847	For an `Execute` call that launched a child, whose pre-run and post-run source a	unrecorded	-
 GLTP-V0-040	docs/specs/go-live-test-provider-v0.md	918	The identity boundary is qualified by three deterministic cases, one axis at a	unrecorded	-
 GLTP-V0-041	docs/specs/go-live-test-provider-v0.md	1103	Every normal-completion path — an `Execute` call whose child exits without	unrecorded	-
-GLTP-V0-042	docs/specs/go-live-test-provider-v0.md	1265	GLTP-V0-012 keeps `excluded` unconditionally `[]` in V0 and this clause does not	unrecorded	-
-GLTP-V0-043	docs/specs/go-live-test-provider-v0.md	1292	A shadow (non-blocking) full-verification run whose scope reaches an explicitly	unrecorded	-
-GLTP-V0-044	docs/specs/go-live-test-provider-v0.md	1302	Until an accepted containment profile exists, no command in `cmd/corvint` may	unrecorded	-
-GLTP-V0-045	docs/specs/go-live-test-provider-v0.md	1352	The session polls a bounded, explicitly enumerated file set (`Config.Files`) at	unrecorded	-
-GLTP-V0-046	docs/specs/go-live-test-provider-v0.md	1365	Exactly one run is active at a time. A newer settled identity detected while a r	unrecorded	-
-GLTP-V0-047	docs/specs/go-live-test-provider-v0.md	1380	The batch is every change settled since the last started run: a batch queued	unrecorded	-
-GLTP-V0-048	docs/specs/go-live-test-provider-v0.md	1399	Each run is executed via `gorunner.Run` — the same contained runner	unrecorded	-
-GLTP-V0-049	docs/specs/go-live-test-provider-v0.md	1424	The session publishes one JSON line per state transition	unrecorded	-
-GLTP-V0-050	docs/specs/go-live-test-provider-v0.md	1447	Every published event also carries `projection`: one	unrecorded	-
-GLTP-V0-051	docs/specs/go-live-test-provider-v0.md	1474	A terminal event whose run completed — classified `passed` or `failed` before an	unrecorded	-
-GLTP-V0-052	docs/specs/go-live-test-provider-v0.md	1505	A `skip` action MUST project the per-test execution axis `SKIPPED` with reason	unrecorded	-
-GLTP-V0-053	docs/specs/go-live-test-provider-v0.md	1310	The production post-run authority bound MUST stay the fixed 15-second	unrecorded	-
+GLTP-V0-042	docs/specs/go-live-test-provider-v0.md	1267	GLTP-V0-012 keeps `excluded` unconditionally `[]` in V0 and this clause does not	unrecorded	-
+GLTP-V0-043	docs/specs/go-live-test-provider-v0.md	1294	A shadow (non-blocking) full-verification run whose scope reaches an explicitly	unrecorded	-
+GLTP-V0-044	docs/specs/go-live-test-provider-v0.md	1304	Until an accepted containment profile exists, no command in `cmd/corvint` may	unrecorded	-
+GLTP-V0-045	docs/specs/go-live-test-provider-v0.md	1371	The session polls a bounded, explicitly enumerated file set (`Config.Files`) at	unrecorded	-
+GLTP-V0-046	docs/specs/go-live-test-provider-v0.md	1384	Exactly one run is active at a time. A newer settled identity detected while a r	unrecorded	-
+GLTP-V0-047	docs/specs/go-live-test-provider-v0.md	1399	The batch is every change settled since the last started run: a batch queued	unrecorded	-
+GLTP-V0-048	docs/specs/go-live-test-provider-v0.md	1418	Each run is executed via `gorunner.Run` — the same contained runner	unrecorded	-
+GLTP-V0-049	docs/specs/go-live-test-provider-v0.md	1443	The session publishes one JSON line per state transition	unrecorded	-
+GLTP-V0-050	docs/specs/go-live-test-provider-v0.md	1466	Every published event also carries `projection`: one	unrecorded	-
+GLTP-V0-051	docs/specs/go-live-test-provider-v0.md	1493	A terminal event whose run completed — classified `passed` or `failed` before an	unrecorded	-
+GLTP-V0-052	docs/specs/go-live-test-provider-v0.md	1524	A `skip` action MUST project the per-test execution axis `SKIPPED` with reason	unrecorded	-
+GLTP-V0-053	docs/specs/go-live-test-provider-v0.md	1312	The production post-run authority bound MUST stay the fixed 15-second	unrecorded	-
+GLTP-V0-054	docs/specs/go-live-test-provider-v0.md	1338	`Execute` MUST refuse failed post-run authority (GLTP-V0-053's revalidation,	unrecorded	-
 GOC-V0-001	docs/specs/go-only-cutover-v0.md	62	The current tree MUST contain no legacy `src/corvint_cli.py` or	unrecorded	-
 GOC-V0-002	docs/specs/go-only-cutover-v0.md	65	Default Go verification MUST NOT execute, reconstruct from Git, or install the	unrecorded	-
 GOC-V0-003	docs/specs/go-only-cutover-v0.md	68	Removal of live comparisons MUST preserve unique positive, negative, malformed-i	unrecorded	-
@@ -2470,15 +2473,16 @@ MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	496	`corvint.cem.report` MUST r
 MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	467	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the	unrecorded	-
 MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	557	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,	unrecorded	-
 MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	565	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,	unrecorded	-
-MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	591	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review	unrecorded	-
-MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	599	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift	unrecorded	-
-MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	609	proposed (V1-0944; no GitHub issue). Each impact result carries at most four	unrecorded	-
-MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	616	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`	unrecorded	-
-MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	624	proposed (V1-0944; no GitHub issue). When a successful tool result carries	unrecorded	-
-MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	634	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c	unrecorded	-
+MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	602	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review	unrecorded	-
+MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	610	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift	unrecorded	-
+MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	620	proposed (V1-0944; no GitHub issue). Each impact result carries at most four	unrecorded	-
+MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	627	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`	unrecorded	-
+MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	635	proposed (V1-0944; no GitHub issue). When a successful tool result carries	unrecorded	-
+MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	645	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c	unrecorded	-
 MCPV0-035	docs/specs/mcp-server-2026-07-28-v0.md	107	accepted, decision 0512. Cancellation of an active	unrecorded	-
 MCPV0-036	docs/specs/mcp-server-2026-07-28-v0.md	514	proposed (V1-0632 S2). `corvint.cem.report` MUST accept one optional `artifacts`	unrecorded	-
 MCPV0-037	docs/specs/mcp-server-2026-07-28-v0.md	524	proposed (V1-0632 S2). A `cem/1.0` map refused before its stable verifier runs (	unrecorded	-
+MCPV0-038	docs/specs/mcp-server-2026-07-28-v0.md	579	A tool call whose Go repository probe exceeded its own bound while the request	unrecorded	-
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an	unrecorded	-
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered	unrecorded	-
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the	unrecorded	-
