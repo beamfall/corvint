@@ -143,7 +143,7 @@ var admittedDogfoodErrorCodes = codeSet(
 	"ambiguous-claim-selector", "base-mismatch", "base-revision-mismatch", "binary-patch",
 	"bootstrap-intent-not-unknown", "bundle-map-uncommitted", "bundle-output-refused",
 	"cem-map-digest-mismatch", "cem-patch-digest-mismatch",
-	"changed-path-acquisition-failed", "cite-span-not-stable", "claim-conflict", "claim-not-reextractable",
+	"changed-path-acquisition-failed", "cite-self-modified-authority", "cite-span-not-stable", "claim-conflict", "claim-not-reextractable",
 	"claim-obligation-mismatch", "claim-selector-out-of-range", "diff-metadata-mismatch",
 	"duplicate-claim", "duplicate-claim-reference", "duplicate-hunk-reference", "duplicate-key",
 	"duplicate-obligation", "duplicate-or-unsorted-claims", "duplicate-or-unsorted-reference",

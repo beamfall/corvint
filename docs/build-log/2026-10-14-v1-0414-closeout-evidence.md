@@ -53,8 +53,10 @@ governing file that the same change modifies. Scope: 1.0 scope per the V1-0020 d
 - Not screened: a renamed governing file's old path, governing names `documentKind` does not
   classify, a hand-written map (reported by status only), and non-governing specs the change edits.
 - Follow-up outside this lane's scope: `internal/dogfoodflow` has no `fix:` hint for
-  `cem-cite:cite-self-modified-authority` (the runner falls back to no hint), and
-  `internal/observations` does not admit the code in the self-observation ledger.
+  `cem-cite:cite-self-modified-authority` (the runner falls back to no hint).
+- CI found that `TestDogfoodReasonAdmitsEveryRegisteredCEMCode` refused the new code as a dogfood
+  reason, so `internal/observations` `admittedDogfoodErrorCodes` now admits
+  `cite-self-modified-authority` (V1-1385).
 
 ## Acceptance evidence
 
