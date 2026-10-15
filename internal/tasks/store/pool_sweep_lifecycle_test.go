@@ -568,7 +568,7 @@ func TestPSRRequestConflictAndOrphan(t *testing.T) {
 	t.Run("live-unknown-gone", func(t *testing.T) {
 		marker := filepath.Join(t.TempDir(), "runner")
 		s, a := psrFixtureConfigured(t, "echo $$ > "+marker+"; sleep 60", "printf verified", "verified", "1", false, func(v wire.Value) { _, r := psrReuse(v); r.Set("timeoutSeconds", str("20")) })
-		cmd := exec.Command(os.Args[0], "-test.run=^TestPSRNativeOrphanChild$", "-test.timeout=60s")
+		cmd := exec.Command(psrTestExecutable(t), "-test.run=^TestPSRNativeOrphanChild$", "-test.timeout=60s")
 		cmd.Dir = s.root
 		cmd.Env = append(os.Environ(), "PSR_ORPHAN_REPO="+s.repo.PrimaryWorktree, "PSR_ORPHAN_ROOT="+s.root)
 		cmd.WaitDelay = time.Second
@@ -989,7 +989,7 @@ func (o *psrOwnedOrphan) retire(t *testing.T) {
 func TestPSROrphanEarlyInitializationCleanup(t *testing.T) {
 	marker := filepath.Join(t.TempDir(), "runner")
 	s, _ := psrFixtureConfigured(t, "echo $$ > "+marker+"; sleep 60", "printf verified", "verified", "1", false, func(v wire.Value) { _, r := psrReuse(v); r.Set("timeoutSeconds", str("20")) })
-	cmd := exec.Command(os.Args[0], "-test.run=^TestPSRNativeOrphanChild$", "-test.timeout=60s")
+	cmd := exec.Command(psrTestExecutable(t), "-test.run=^TestPSRNativeOrphanChild$", "-test.timeout=60s")
 	cmd.Dir = s.root
 	cmd.Env = append(os.Environ(), "PSR_ORPHAN_REPO="+s.repo.PrimaryWorktree, "PSR_ORPHAN_ROOT="+s.root)
 	cmd.WaitDelay = time.Second
@@ -1105,4 +1105,15 @@ func TestPSRReconcileOwnerReleaseRace(t *testing.T) {
 	if raw, _ := os.ReadFile(marker); string(raw) != "x" {
 		t.Fatal("reset not reached once", string(raw))
 	}
+}
+
+// psrTestExecutable resolves the running test binary to an absolute path: the
+// children run with cmd.Dir set, where a relative os.Args[0] no longer resolves.
+func psrTestExecutable(t *testing.T) string {
+	t.Helper()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return exe
 }
