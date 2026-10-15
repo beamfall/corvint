@@ -25,6 +25,10 @@ type listingHarness struct {
 	next     string
 	listings *int
 	attempts *int
+	// captures records the cumulative listing count after each attempt's
+	// first capture, so a first capture that reused a listing shows as no
+	// listing of its own.
+	captures *[]int
 	during   func() // runs after each attempt's first capture
 }
 
@@ -49,10 +53,11 @@ func newListingHarness(t *testing.T) *listingHarness {
 		id := fmt.Sprintf("T%d", i)
 		last = appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath(id): fixture.Ticket(id).Encode()}, "", true, true, false)
 	}
-	h := &listingHarness{repo: repo, r: r, wc: wc, receipts: filepath.Join(repo.StateDir, "receipts"), listings: new(int), attempts: new(int)}
+	h := &listingHarness{repo: repo, r: r, wc: wc, receipts: filepath.Join(repo.StateDir, "receipts"), listings: new(int), attempts: new(int), captures: new([]int)}
 	h.next, _ = snapshot.ReceiptName(last + 1)
 	h.r.afterCapture = func() {
 		*h.attempts++
+		*h.captures = append(*h.captures, *h.listings)
 		if h.during != nil {
 			h.during()
 		}
@@ -80,10 +85,15 @@ func (h *listingHarness) quiesce(t *testing.T) {
 
 func (h *listingHarness) audit(t *testing.T) error {
 	t.Helper()
-	*h.listings, *h.attempts = 0, 0
+	*h.listings, *h.attempts, *h.captures = 0, 0, nil
 	res, _, err := h.r.AuditForWriter(h.wc, "", true)
 	if err == nil && res.Mode != ModeWriter {
 		t.Fatalf("writer audit ran in mode %s", res.Mode)
+	}
+	for i, n := range *h.captures {
+		if want := 2*i + 1; n != want {
+			t.Fatalf("attempt %d's first capture ended at %d cumulative listings, want %d: every first capture lists exactly once", i+1, n, want)
+		}
 	}
 	return err
 }
@@ -94,8 +104,10 @@ func (h *listingHarness) audit(t *testing.T) error {
 // head.json untouched, changes the directory's stamps, so the second
 // capture lists again and the attempt moves instead of reusing the stale
 // listing; the retried attempt lists the fresh directory twice and declines
-// on the extra name. Mutation: a sameDirStamp that ignores the stamps
-// accepts the first attempt with the foreign receipt unseen.
+// on the extra name. Mutation: a reuse that ignores the stamps and keeps the
+// first capture's directory metadata accepts the first attempt with the
+// foreign receipt unseen; one that ignores only the comparison is still
+// caught by the inventory digest's directory stamp, with one listing fewer.
 func TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing(t *testing.T) {
 	h := newListingHarness(t)
 	if err := h.audit(t); err != nil || *h.listings != 1 || *h.attempts != 1 {
@@ -121,7 +133,7 @@ func TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing(t *testing.T) {
 // nothing changed, and the temporary name a killed writer left behind under
 // restored directory stamps is found by that exact listing and declines the
 // fast route. Mutation: a listing retained across attempts makes the second
-// audit list zero times.
+// audit's first capture list zero times.
 func TestCALV0224_ListingNeverOutlivesItsAttempt(t *testing.T) {
 	h := newListingHarness(t)
 	for i := 0; i < 2; i++ {
