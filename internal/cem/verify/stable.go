@@ -26,6 +26,9 @@ type StableOptions struct {
 	// --trusted-keys; nil means no file was supplied (CEM-V1-084).
 	TrustedKeys map[string]ed25519.PublicKey
 	seam        *stableSeam
+	// capture, set only by StableWithHunkRevert, receives the admitted
+	// mechanics of an accepted call; it never changes the result.
+	capture *stableCapture
 }
 
 // stableSeam is the in-package test seam of one Stable call. A nil seam is
@@ -490,6 +493,9 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 	b := true
 	r.Accept = &b
 	r.Stage = "complete"
+	if o.capture != nil {
+		*o.capture = stableCapture{change: &change, parsed: parsed, target: target}
+	}
 	return r, 0
 }
 

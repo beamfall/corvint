@@ -13,7 +13,7 @@ Authoritative inputs: `docs/specs/ocm-v0-dogfood.md`,
 ## Agent digest
 - Claim: TCQ deterministically qualifies selected OCM test anchors and caller-supplied JUnit matches without proving adequacy or correctness.
 - Status: proposed/implementation-candidate; promotion evidence NOT_RUN
-- Exists: deterministic reference implementation and vectors for selected OCM claim qualification; an optional declared environment variant per observation and a shared same-revision flake rule (`TCQ-V0-048..050`); a per-hunk patch coverage witness from one local coverprofile with a visible reviewer-report downgrade (`TCQ-V0-051..054`); a bounded per-hunk mutation discrimination witness reusing the `prove --mutate` runner, with survivors as a visible downgrade that never fails the build (`TCQ-V0-055..058`); a fixed sandbox-unavailable not-run reason when the macOS launcher refuses a nested profile (`TCQ-V0-059`, accepted by decision 0463).
+- Exists: deterministic reference implementation and vectors for selected OCM claim qualification; an optional declared environment variant per observation and a shared same-revision flake rule (`TCQ-V0-048..050`); a per-hunk patch coverage witness from one local coverprofile with a visible reviewer-report downgrade (`TCQ-V0-051..054`); a bounded per-hunk mutation discrimination witness reusing the `prove --mutate` runner, with survivors as a visible downgrade that never fails the build (`TCQ-V0-055..058`); a fixed sandbox-unavailable not-run reason when the macOS launcher refuses a nested profile (`TCQ-V0-059`, accepted by decision 0463); an offered "cite the guarding test" producer step whose cited span alone names the tests the consumer hunk-revert falsifier runs (`TCQ-V0-060..061`, V1-1266).
 - Blocked on: a WP6 authority root, 60-edge labelled corpus, reporter compatibility, and promotion gates.
 - Read next: Threat model and claim boundary; Requirements; Acceptance and adversarial matrix.
 
@@ -731,6 +731,30 @@ bounded run took 5.7 s on a quiet host and 30.5–32.8 s while seven other agent
 testing on the same host; the run is dominated by one `go test` per mutant inside the sandbox.
 The refusal path runs no mutant and completes in under a second per refusal.
 
+### Guarding-test citation for the hunk-revert falsifier
+
+Status: proposed; V1-1266, decision 0523 P2. `TCQ-V0-057` selects only hunks that already cite a
+`_test.go` span as `test-claim`, and before this step no dogfood map named a test that way, so the
+consumer falsifier `cem verify --hunk-revert` (`CEM-V1-088..089` in `cem-stable-v1.md`) had
+nothing to run.
+
+- `TCQ-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The
+  dogfood producer contract (`docs/DOGFOOD.md` section 4) MUST offer a "cite the guarding test"
+  step: for a hunk of non-test Go source that a base test pins, add a citation-plan row
+  `HUNK<TAB>PATH_test.go<TAB>START:END<TAB>test-claim` whose span contains that test's
+  declaration header, from `func` through its parameter list. The step is offered, not forced: a plan without it is admitted unchanged, a
+  hunk no test guards stays cited or `unknown` as before, and no producer, check or seal refuses
+  or downgrades a map for lacking it.
+- `TCQ-V0-061`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The
+  consumer MUST name a guarding test only from declarations the cited span holds: it parses the
+  cited base file as Go and names each top-level `func TestX(t *testing.T)` declaration whose
+  header, from `func` through its parameter list, lies inside the span and whose name `go test`
+  runs (`Test` followed by nothing or by a rune that is not a lower-case letter), sorted, run in the
+  cited file's package directory. Declaration-shaped text in a comment or a string is never a
+  declaration, and a file that does not parse names none. A span that declares none, such as a
+  helper, a comment that mentions a test or a subtest body, is reported `not-run` with reason
+  `no-named-test`; no test is inferred from the file name, the rest of the file or the hunk.
+
 ## Canonical conditional-state table
 
 Every row below carries `authorityClass: CALLER_REPORTED`.
@@ -821,7 +845,9 @@ unchanged by their presence or removal because the runner's additive `Report.Sur
 read only by `discriminate`, every map written without `discriminate` is unchanged, and a map
 that carries the member fails closed as `unknown-field` rather than being read as discriminated. `TCQ-V0-059`
 rolls back by removing `ErrSandboxUnavailable` and `launcherRefused`; the refusal then reads as
-`mutate: run ended without a verdict` again and no wire, state, or exit status changes.
+`mutate: run ended without a verdict` again and no wire, state, or exit status changes. `TCQ-V0-060..061`
+roll back with the V1-1266 code commit: the `DOGFOOD.md` paragraph goes, and a plan that cites a
+guarding test stays an ordinary `test-claim` citation.
 
 ## Traceability
 
@@ -849,6 +875,8 @@ non-authoritative and slated for separate removal.
 | `TCQ-V0-057` | `internal/cem/workflow/discriminate.go`, `internal/cem/workflow/workflow.go`, `internal/cemdiscriminate/cemdiscriminate.go`, `internal/liveverify/mutate/mutate.go` | `TestDiscriminateRecordsWitnessAndReportDowngrades` |
 | `TCQ-V0-058` | `internal/cem/workflow/read.go`, `internal/cemdiscriminate/cemdiscriminate.go` | `TestDiscriminateRecordsWitnessAndReportDowngrades` |
 | `TCQ-V0-059` | `internal/liveverify/mutate/gotest.go` (`inconclusive`, `launcherRefused`, `ErrSandboxUnavailable`) | `TestInconclusiveNamesALauncherRefusalWithoutEchoingIt`, `TestRunReportsASandboxLauncherRefusalAsUnavailable`, `TestInconclusiveDoesNotExposeTestOutput`, `TestRunRefusesToJudgeARunWithoutAVerdict`; measured 2026-10-08 inside a deny-default outer `sandbox-exec` profile: `TestDiscriminateRecordsWitnessAndReportDowngrades` witness detail `mutation runner failed for pkg/calc/calc_test.go: mutate: sandbox unavailable: the host refused to apply the sandbox-exec profile` |
+| `TCQ-V0-060` | `docs/DOGFOOD.md` section 4 "Cite the guarding test" | `TestCEMV1088HeldOnlyFromConsumerReexecution` (a plan citing the guarding test's declaration line yields `held`) |
+| `TCQ-V0-061` | `declaredTests` and `revertCandidates` in `internal/cem/verify/hunkrevert.go` | `TestCEMV1088DeclaredTestsAreWhatGoTestRuns`, `TestCEMV1088ForgedWitnessNeverCounts` (a span declaring no test is `no-named-test`) |
 
 The implementation and deterministic reference vectors are delivered as a candidate. The labelled
 corpus, reporter compatibility measurements, independent implementation, and ten-change dogfood
