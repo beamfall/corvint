@@ -138,4 +138,9 @@ or gate digest changes.
   is made about other GitHub images.
 - A later nightly on a main containing d3be74b06 was not re-run by this lane; run 1 at commit
   22fca01e6 (which contains it) reproduced the failure with the cause retained.
-- CEM bind/seal: BIND_SEAL_RESULT
+- CEM bind/seal (cem/1.0, `make dogfood-change` / `dogfood-check` / `dogfood-seal` against
+  base 4c1ca0d0f): bound in the commit after this one and sealed in the next;
+  `dogfood-check: PASS`, `cem=accepted hunks=27 supported=27 unknown=0 mechanical=0`,
+  `ocm=ready-for-review requirements=2 linked=2 unlinked=0`. `prechange-query` and
+  `prechange-impact` `NOT_OBSERVED` (`agent-receipt-absent`: no agent receipt was recorded for
+  the pre-change reads).
