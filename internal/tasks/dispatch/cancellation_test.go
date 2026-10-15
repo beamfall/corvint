@@ -15,6 +15,10 @@ import (
 	"time"
 )
 
+// cancellationTestBound bounds this file's waits for observed events. It is a
+// hang detector for a loaded host, not a product allowance.
+const cancellationTestBound = time.Minute
+
 // An exec-ed reader isolates tick cancellation from descendant cleanup,
 // which has separate lifecycle witnesses.
 func TestCALV0053_CancelledTickKeepsState(t *testing.T) {
@@ -49,11 +53,18 @@ func TestCALV0053_CancelledTickKeepsState(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.WorkState = &WorkState{Kind: "command", Argv: []string{reader}}
+	// V1-1392: this test is about what a cancelled tick keeps, not the
+	// reader's one-second retirement allowance (TestCALV0053_ReaderFixedRetirementBound
+	// and the reader quiescence tests own it). At host load above 100 the
+	// killed leader's exit was observed after that second, so the tick
+	// reported QUIESCENCE_UNPROVED instead of its cancellation. The test bound
+	// below only waits on observed events; the product allowance is unchanged.
+	d.readerAllowance = cancellationTestBound
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	result := make(chan error, 1)
 	go func() { result <- d.Tick(ctx) }()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(cancellationTestBound)
 	for {
 		if _, err := os.Stat(ready); err == nil {
 			break
@@ -71,7 +82,7 @@ func TestCALV0053_CancelledTickKeepsState(t *testing.T) {
 		if !errors.Is(err, context.Canceled) {
 			t.Errorf("Tick error %v, want context.Canceled", err)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(cancellationTestBound):
 		t.Fatal("cancelled tick did not return")
 	}
 	if !reflect.DeepEqual(*d.ledger.Seen, seen) {

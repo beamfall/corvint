@@ -42,6 +42,21 @@ type sweepResponseKey struct{}
 // writer, so an injected error leaves nothing committed.
 type sweepRequestKey struct{}
 
+// Observation bound lifting is private to package tests (V1-1324). It replaces
+// only the fixed sweep source (Git) bound and the runner-identity probe's bound
+// and pipe delay (in a sweep, and in pool preparation or cleanup), for a test
+// whose subject is not those observations, so a loaded host cannot turn them
+// into TIMEOUT, QUIESCENCE_UNPROVED or exec.ErrWaitDelay. No product caller sets it, and the group-cleanup proof
+// (its context.Background allowance and the command pipe delay) never reads it.
+type sweepObservationBoundKey struct{}
+
+func sweepObservationBound(ctx context.Context, fixed time.Duration) time.Duration {
+	if bound, ok := ctx.Value(sweepObservationBoundKey{}).(time.Duration); ok && bound > fixed {
+		return bound
+	}
+	return fixed
+}
+
 type sweepMember struct {
 	en     snapshot.PoolEntry
 	config intent.MemberConfig
@@ -157,7 +172,7 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 		if e != nil {
 			return transaction.LeaseFacts{}, e
 		}
-		probe, cancel := context.WithTimeout(run, time.Second)
+		probe, cancel := context.WithTimeout(run, sweepObservationBound(run, time.Second))
 		defer cancel()
 		identity, e := poolRunnerIdentityContext(probe, os.Getpid())
 		if e != nil || identity == "" {
@@ -579,7 +594,8 @@ func sweepGit(ctx context.Context, root string, args ...string) ([]byte, error) 
 		return nil, e
 	}
 	argv := append([]string{git, "-c", "credential.helper=", "-c", "core.fsmonitor=false"}, args...)
-	result := executePoolCaptured(ctx, &intent.PoolCommand{Argv: argv, TimeoutSeconds: "2"}, root, gitEnvironment())
+	bound := wire.CountOf(int64(sweepObservationBound(ctx, 2*time.Second) / time.Second))
+	result := executePoolCaptured(ctx, &intent.PoolCommand{Argv: argv, TimeoutSeconds: bound}, root, gitEnvironment())
 	if !result.Clean || result.Class != "EXIT_ZERO" {
 		e = wire.Errorf(wire.CodeUnsupported, "sweep git", "bounded observation failed: %s", result.Class)
 		if result.Clean && (result.Class == "TIMEOUT" || result.Class == "INTERRUPTED") {

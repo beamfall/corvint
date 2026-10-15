@@ -218,9 +218,21 @@ func TestCALV0191_StopAfterReapIsRecoveredAfterRestart(t *testing.T) {
 	if again.ID != w.ID || again.State != "KILLING" || again.KillReason != "LEASE_EXPIRED" {
 		t.Fatalf("restarted worker %+v", again)
 	}
-	tick(t, restarted)
+	// killTree keeps its kill deadline on the worker so a later tick continues
+	// the stop (V1-1392). One tick sufficed only on a quiet host: at load above
+	// 100 a single process-table read took over three seconds, so the tick's
+	// post-grace window closed before the killed tree was observed empty. The
+	// test now ticks until the stop is observed, within a test-only bound; the
+	// product grace and window are unchanged, and the restart still issues no
+	// second reap.
+	for stop := time.Now().Add(2 * time.Minute); restarted.Running() != 0 && time.Now().Before(stop); {
+		tick(t, restarted)
+	}
 	if !gone(w.PID) || restarted.Running() != 0 {
 		t.Fatalf("the worker survived the restart: running %d", restarted.Running())
+	}
+	if len(q.requests) != 1 || len(q.reaped) != 1 {
+		t.Fatalf("the stop re-reaped: requests %v reaped %v", q.requests, q.reaped)
 	}
 }
 

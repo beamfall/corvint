@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -211,7 +210,7 @@ func expandContextHandle(ctx context.Context, root, text string, maxBytes int) (
 	if err != nil {
 		return nil, err
 	}
-	deadline, cancel := context.WithTimeout(ctx, 10*time.Second)
+	deadline, cancel := context.WithTimeout(ctx, sourceDeadline(ctx))
 	defer cancel()
 	if !sourceIsToplevel(deadline, root) {
 		return nil, contextHandleError("repository-root", "the root is not its Git toplevel")
