@@ -44,6 +44,9 @@ type Dispatcher struct {
 	readerErr error
 	// Tests inject faults through the real creation-owned API.
 	readerStart func(*exec.Cmd) (*groupreap.Owner, error)
+	// Tests that do not exercise the reader retirement allowance lift it;
+	// zero is the product's fixed one second.
+	readerAllowance time.Duration
 	// Tests place cancellation exactly across the checked atomic write.
 	progressSave  func(*Ledger, string) error
 	poolSweepSave func(*Ledger, string) error

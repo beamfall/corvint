@@ -406,18 +406,40 @@ func TestPSRDispatchAsyncSupervision(t *testing.T) {
 		t.Fatal("sweep required idle dispatcher")
 	}
 	q.obs.Tickets = append(q.obs.Tickets, ticket("two", "P1", 2))
-	start := time.Now()
-	if e := d.Tick(context.Background()); e != nil {
-		t.Fatal(e)
+	// V1-1392: the sweep stays blocked until release is closed, so a tick that
+	// returns at all, and admits the second ticket, did not wait on it. The old
+	// one-second wall-clock bound measured the host instead: at load above 100
+	// an ordinary admitting tick (launch plus process-table reads) took longer.
+	// The test bound below is only a hang detector.
+	ticked := make(chan error, 1)
+	go func() { ticked <- d.Tick(context.Background()) }()
+	select {
+	case e := <-ticked:
+		if e != nil {
+			t.Fatal(e)
+		}
+	case <-time.After(2 * time.Minute):
+		close(release)
+		<-ticked
+		t.Fatal("blocked sweep prevented other admission")
 	}
-	if time.Since(start) > time.Second || d.Running() != 2 {
+	if d.Running() != 2 {
 		t.Fatal("blocked sweep prevented other admission")
 	}
 	q.obs.Tickets = nil
 	future := time.Now().Add(61 * time.Second)
 	d.Now = func() time.Time { return future }
-	if e := d.Tick(context.Background()); e != nil {
-		t.Fatal(e)
+	// A stop that outlasts one tick's kill window continues on the next tick
+	// (killTree keeps its deadline on the worker); on a loaded host one
+	// process-table read can take most of that window, so the test ticks until
+	// the wall stop is observed, within a test-only bound.
+	for stop := time.Now().Add(2 * time.Minute); ; {
+		if e := d.Tick(context.Background()); e != nil {
+			t.Fatal(e)
+		}
+		if d.Running() == 0 || time.Now().After(stop) {
+			break
+		}
 	}
 	if d.Running() != 0 || !has(kinds(t, d), "killed") {
 		t.Fatal("active sweep hid worker wall enforcement")

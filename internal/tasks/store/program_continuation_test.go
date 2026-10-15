@@ -91,7 +91,7 @@ case " $* " in
       printf 'partial\n' > hello.txt
       echo '{"type":"thread.started","thread_id":"implement-session"}'
       echo '{"type":"turn.started"}'
-      if [ -f "$S/stall-implement" ]; then : > "$S/started"; exec sleep 120; fi
+      if [ -f "$S/stall-implement" ]; then : > "$S/started"; exec sleep 600; fi
       printf 'changed\n' > hello.txt
       echo '{"type":"item.completed","item":{"type":"agent_message","text":"{\"kind\":\"BUILT\",\"summary\":\"built\",\"nextAction\":\"review\"}"}}'
       ;;
@@ -655,9 +655,19 @@ func TestCALV0089_IntegrateCheckpointRestartKeepsGrant(t *testing.T) {
 // TestCALV0089_ProgramWallExpiryEndsContinuation proves a stage stopped by
 // the shared program wall, not its own stage wall, does not continue, and a
 // later operator retry is refused by the expired program wall.
+//
+// V1-1324: the shared program wall runs from OpenWorkflow, so the stage is
+// stopped by it only when fixture setup and stage admission finish inside it.
+// With a one-minute wall that held only on a quiet host: at load 160-180 setup
+// took over a minute, so SPAWNING was refused LIMIT_EXCEEDED before the stage
+// ran (2 of 4 base runs). The wall is now three minutes, a test-only tolerance
+// for setup. The fresh implement stall now sleeps 600s, so it outlasts the
+// program wall and only a wall stops it, and the 600s stage wall stays above
+// the program wall, so the program wall is still what ends the stage. A setup
+// slower than three minutes still fails, as LIMIT_EXCEEDED, not silently.
 func TestCALV0089_ProgramWallExpiryEndsContinuation(t *testing.T) {
 	t.Parallel()
-	f := newContinuationFixture(t, continuationOptions{continuations: "3", programWall: "1", wallSeconds: 600})
+	f := newContinuationFixture(t, continuationOptions{continuations: "3", programWall: "3", wallSeconds: 600})
 	f.touch(t, "stall-implement")
 	a, err := f.open(t).RunRole(context.Background(), "implementer", "")
 	if !errors.Is(err, context.DeadlineExceeded) {

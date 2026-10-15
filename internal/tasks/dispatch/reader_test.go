@@ -87,7 +87,7 @@ func TestCALV0053_ReaderReleased(t *testing.T) {
 func TestCALV0053_ReaderFixedRetirementBound(t *testing.T) {
 	now := time.Now()
 	for _, deadline := range []time.Time{now.Add(time.Hour), now.Add(-time.Second / 2)} {
-		got := readerRetirementDeadline(deadline, now)
+		got := readerRetirementDeadline(deadline, now, (&Dispatcher{}).readerRetirementAllowance())
 		want := now.Add(time.Second)
 		if deadline.Add(time.Second).Before(want) {
 			want = deadline.Add(time.Second)
@@ -100,37 +100,54 @@ func TestCALV0053_ReaderFixedRetirementBound(t *testing.T) {
 
 func TestCALV0053_ReaderExpiredBeforeRetirement(t *testing.T) {
 	d, _ := readerDispatcher(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
 	var cmd *exec.Cmd
 	var primitives atomic.Int32
 	var collected atomic.Bool
 	t.Cleanup(func() {
-		if cmd != nil && !collected.Load() {
+		// A start refused by an already expired context leaves no process.
+		if cmd != nil && cmd.Process != nil && !collected.Load() {
 			_ = cmd.Process.Kill()
 			_ = cmd.Wait()
 		}
 	})
-	d.readerStart = func(c *exec.Cmd) (*groupreap.Owner, error) {
-		cmd = c
-		owner, err := groupreap.StartWith(c, groupreap.Primitives{
-			KillGroup: func(int) error { primitives.Add(1); return errors.New("must not signal after expiry") },
-			ProbeGroup: func(int) (groupreap.Probe, error) {
-				primitives.Add(1)
-				return groupreap.ProbeLive, errors.New("must not probe after expiry")
-			},
-			Reap: func(c *exec.Cmd) error { primitives.Add(1); err := c.Wait(); collected.Store(true); return err },
-		})
-		if err == nil {
-			deadline, _ := ctx.Deadline()
-			time.Sleep(time.Until(deadline.Add(time.Second + 50*time.Millisecond)))
+	// V1-1392: the subject needs a reader that starts before its command
+	// deadline and is retired after that deadline's allowance. A 50ms deadline
+	// was reached before the start on a loaded host (CI shard: "context deadline
+	// exceeded", then a nil Process in cleanup). The test now observes whether
+	// the reader started and, only when the deadline won that race, retries
+	// with a longer test margin; the product allowance is unchanged.
+	for _, margin := range []time.Duration{50 * time.Millisecond, 500 * time.Millisecond, 5 * time.Second, 30 * time.Second} {
+		ctx, cancel := context.WithTimeout(context.Background(), margin)
+		started := false
+		d.readerStart = func(c *exec.Cmd) (*groupreap.Owner, error) {
+			cmd = c
+			owner, err := groupreap.StartWith(c, groupreap.Primitives{
+				KillGroup: func(int) error { primitives.Add(1); return errors.New("must not signal after expiry") },
+				ProbeGroup: func(int) (groupreap.Probe, error) {
+					primitives.Add(1)
+					return groupreap.ProbeLive, errors.New("must not probe after expiry")
+				},
+				Reap: func(c *exec.Cmd) error { primitives.Add(1); err := c.Wait(); collected.Store(true); return err },
+			})
+			if err == nil {
+				started = true
+				deadline, _ := ctx.Deadline()
+				time.Sleep(time.Until(deadline.Add(time.Second + 50*time.Millisecond)))
+			}
+			return owner, err
 		}
-		return owner, err
+		_, err := d.stateCommand(ctx, d.Config.WorkRoot, []string{"/bin/sleep", "5"})
+		cancel()
+		if !started && errors.Is(err, context.DeadlineExceeded) && d.reader == nil {
+			t.Logf("the %v command deadline expired before the reader started; retrying", margin)
+			continue
+		}
+		if !errors.Is(err, ErrReaderQuiescence) || primitives.Load() != 0 || d.reader == nil || d.reader.result.State != groupreap.Hold || !d.reader.bound.Expired() {
+			t.Fatalf("expired retirement admitted work: %v calls=%d", err, primitives.Load())
+		}
+		return
 	}
-	_, err := d.stateCommand(ctx, d.Config.WorkRoot, []string{"/bin/sleep", "5"})
-	if !errors.Is(err, ErrReaderQuiescence) || primitives.Load() != 0 || d.reader == nil || d.reader.result.State != groupreap.Hold || !d.reader.bound.Expired() {
-		t.Fatalf("expired retirement admitted work: %v calls=%d", err, primitives.Load())
-	}
+	t.Fatal("the reader never started before its command deadline")
 }
 
 // Faults are injected through the actual Owner, never a fabricated result.
