@@ -585,13 +585,19 @@ func sweepGit(ctx context.Context, root string, args ...string) ([]byte, error) 
 		if result.Clean && (result.Class == "TIMEOUT" || result.Class == "INTERRUPTED") {
 			return nil, sweepGitBounded{class: result.Class, err: e}
 		}
+		// PSR-V0-022: a probe whose own group cleanup is unproved observed
+		// nothing about the source; it records the runner's UNKNOWN class.
+		if !result.Clean {
+			return nil, sweepGitBounded{class: "UNKNOWN", err: e}
+		}
 		return nil, e
 	}
 	return result.Stdout, nil
 }
 
-// sweepGitBounded marks a Git source observation that hit its bound, so a slow
-// host records TIMEOUT/INTERRUPTED rather than claiming the source changed.
+// sweepGitBounded marks a Git source observation that hit its bound or whose
+// cleanup is unproved, so a slow host records TIMEOUT, INTERRUPTED or UNKNOWN
+// rather than claiming the source changed.
 type sweepGitBounded struct {
 	class string
 	err   error

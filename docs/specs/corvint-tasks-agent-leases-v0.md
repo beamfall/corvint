@@ -136,6 +136,7 @@ one.
 | V1-1081 | CAL-V0-017 (amended) | Proposed: `complete` also accepts a commit reachable from the intent branch's configured remote-tracking upstream when the local branch is behind; never fetches or moves a ref; an unintegrated commit refuses `STALE_TREE` plus `COMMIT_NOT_INTEGRATED`; focused tests |
 | V1-0853 | CAL-V0-105 | Dispatcher replans with the tickets its work state holds deferred `WORK_STATE_HELD` outside the selection window; UNKNOWN, NONE and no reader keep today's window; focused tests |
 | V1-0772 | CAL-V0-086 | Supervised stage worktree path recorded as PathText (4096 bytes), refused before mutation when longer; an unproved stage drain ends the role `SURVIVORS` instead of `FINISHED`; drain re-probes `EPERM`; bounded watcher read tolerance; focused tests |
+| V1-1402 | CAL-V0-236 | Accepted (standing auto-accept, orchestrator decision 2026-10-15): a replayed lease result whose attempt moved to another generation carries one advisory warning naming the current generation; the replayed result is otherwise byte-identical; focused tests |
 | V1-1313 | CAL-V0-231 | Accepted (standing auto-accept, orchestrator decision 2026-10-15): a successful current-generation `renew` records `lastHeartbeatAt`, so a renewing holder is not `STALE_HOLDER`; focused tests |
 | V1-1320 | CAL-V0-230 | Accepted (standing auto-accept, orchestrator decision 2026-10-15): a fresh superseded-generation renew or heartbeat after re-claim is fenced and moves nothing; same-request replay documented; focused tests |
 | V1-1321 | none (stopped) | Claim scope union conflicts with the CAL-V0-021 precedence; needs an amendment first; not implemented |
@@ -6253,6 +6254,55 @@ Rollback: revert the two lines in `planRenew` (`internal/tasks/transaction/lease
 help note and this amendment. Attempts a renew already wrote keep a valid `lastHeartbeatAt`; an
 older binary reads them unchanged.
 
+### V1-1402 advisory warning on a superseded-generation replay
+
+Status: CAL-V0-236 accepted under the owner's standing auto-accept (2026-10-11) on the
+orchestrator's lane decision of 2026-10-15 (V1-1402); implemented with focused tests. Human-owned
+input: native ticket V1-1402, filed from the V1-1313/V1-1320/V1-1321 lane. The V1-1320 finding above
+showed that a same-request replay after a release and re-claim reads as an OK renew at the
+superseded generation, and an operator reading it cannot tell that the lease has moved on.
+
+- `CAL-V0-236`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1402) When
+  `claim`, `renew` or `attempt heartbeat` (and every other verb the lease writer `store.Lease`
+  serves whose replayed receipt names an attempt and generation) replays a recorded request
+  (TM-V0-006, CAL-V0-048, CAL-V0-230), and the journal audit that served the replay records that
+  attempt at a generation other than the replayed one, the result MUST carry one additional
+  `warnings` entry that begins `advisory, not authoritative`, names the replayed generation and
+  the attempt's current generation, and tells the caller to use a fresh request ID. Every other
+  member of the result, the replayed outcome and its original generation included, MUST be
+  byte-identical to the same replay without the warning; the replay still writes nothing. The
+  warning is an observation for the operator, never an input to fencing, admission, ranking or
+  evidence. When the generations agree, or that audit does not show the attempt, no such warning
+  is added. The complete and writer-checkpoint routes MUST give the same warning. The verbose help
+  of `renew` MUST state it.
+
+This adds a warning beside the replay and amends no accepted text: CAL-V0-048 and CAL-V0-230 still
+return the original result without a write, and the V1-1320 non-goal "refusing or warning on a
+same-request replay" scoped that slice, not later ones. The warnings an original result derived
+(CAL-V0-107, CAL-V0-211, CAL-V0-214) are still not repeated on its replay; this one is observed at
+replay time.
+
+Non-goals: refusing or changing a replay; a warning on `gate run`, `pool health` or `pool cleanup`
+replays, which do not pass through the lease writer's replay path; a new outcome or detail code; a
+change to the request, receipt, journal or result key set.
+
+Failure modes: the warning reflects the audit that served the replay; a release or re-claim
+committed after it is not shown, as with any read. A replay whose attempt record is unreadable in
+that audit carries no warning rather than a guessed one. An older binary prints no warning. A
+caller that compares whole replay stdout across a re-claim sees one more `warnings` entry; the
+items and outcome are unchanged.
+
+Acceptance evidence: `TestCALV0236_SupersededReplayCarriesAdvisoryWarning` (`internal/tasks/store`,
+claim, renew and heartbeat replays before and after a release and re-claim on the complete and
+writer-checkpoint routes; the report minus the warning is deep-equal to the earlier replay);
+`TestCALV0236_SupersededReplayWarningLeavesResultBytes` (`internal/tasks/cli`: renew and heartbeat
+replay stdout minus the warning is byte-identical to the replay before the release; verbose help);
+`docs/build-log/2026-10-15-tasks-replay-warning-psr-cleanup-1402-1406.md`.
+
+Rollback: remove `supersededReplayWarnings` and its call in `leaseOnce`
+(`internal/tasks/store/lease.go`), the `ReplayWarnings` report field and its append in
+`leaseResult`, the help sentence and this amendment. No stored byte depends on it.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -6709,6 +6759,7 @@ and removes the new configuration members.
 | CAL-V0-227 | `TestCALV0227_RebootProofLiftsQuarantine`, `TestCALV0227_NoProofWithoutEvidence`, `TestCALV0227_RebootRecordMustMatchMarker` (`internal/tasks/dispatch`); `TestCALV0227_DispatchRecoverReaderByReboot` (`internal/tasks/cli`) |
 | CAL-V0-228 | `TestCALV0228_DispatchHelpNamesRecovery` (`internal/tasks/cli`); diagnostic text asserted in `TestCALV0227_RebootProofLiftsQuarantine` and `TestCALV0226_LiveEvidenceKeepsQuarantine` |
 | CAL-V0-229 | `TestCALV0229_RecoverRefusesNewerVersions` (`internal/tasks/dispatch`), `TestCALV0131_EveryLiveFormatRefusesANewerVersion`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`) |
+| CAL-V0-236 | `TestCALV0236_SupersededReplayCarriesAdvisoryWarning` (`internal/tasks/store`); `TestCALV0236_SupersededReplayWarningLeavesResultBytes` (`internal/tasks/cli`) |
 | CAL-V0-230 | `TestCALV0230_SupersededGenerationRenewIsFencedAfterReclaim` (`internal/tasks/store`); `TestCALV0231_RenewKeepsHolderFresh` (`internal/tasks/cli`) |
 | CAL-V0-231 | `TestCALV0231_RenewRecordsLastHeartbeat` (`internal/tasks/store`); `TestCALV0231_RenewKeepsHolderFresh` (`internal/tasks/cli`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |

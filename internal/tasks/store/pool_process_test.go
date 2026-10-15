@@ -324,6 +324,38 @@ func TestCALV0188_GroupListingOverrun(t *testing.T) {
 		t.Fatalf("surviving member admitted: clean=%v listings=%d", clean, listings)
 	}
 }
+
+// PSR-V0-022: a Git source probe whose own group cleanup is unproved (here a
+// pipe holder outlives the leader past the wait delay) records UNKNOWN, never
+// SOURCE_CHANGED; the post-exit proof lets it replace only a passing class.
+func TestPSRV0022_UnprovedProbeCleanupRecordsUnknown(t *testing.T) {
+	bin := t.TempDir()
+	if e := os.WriteFile(filepath.Join(bin, "git"), []byte("#!/bin/sh\n/bin/sleep 3 &\nexit 0\n"), 0o755); e != nil {
+		t.Fatal(e)
+	}
+	t.Setenv("PATH", bin)
+	_, _, e := sweepSource(context.Background(), t.TempDir())
+	if e == nil || sweepSourceClass(e) != "UNKNOWN" {
+		t.Fatalf("unproved probe cleanup: want UNKNOWN got %s (%v)", sweepSourceClass(e), e)
+	}
+	if got := poolPostClass("EXIT_ZERO", true, e); got != "UNKNOWN" {
+		t.Fatalf("post-exit proof on a passing class: want UNKNOWN got %s", got)
+	}
+	if got := poolPostClass("EXIT_NONZERO", false, e); got != "EXIT_NONZERO" {
+		t.Fatalf("post-exit proof on a failing class: want EXIT_NONZERO got %s", got)
+	}
+	// The pinned-cwd proof keeps the probe's own error rather than claiming
+	// the path is not a Git worktree.
+	pin, e := filepath.EvalSymlinks(t.TempDir())
+	if e != nil {
+		t.Fatal(e)
+	}
+	def := &intent.PoolCommand{Argv: []string{"/usr/bin/true"}, TimeoutSeconds: "3", Pinned: &intent.PinnedCwd{Path: pin, Revision: strings.Repeat("a", 40)}}
+	if _, _, e = poolCommandDir(context.Background(), def, t.TempDir()); wire.CodeOf(e) != wire.CodeUnsupported || sweepSourceClass(e) != "UNKNOWN" {
+		t.Fatalf("pinned probe: want UNSUPPORTED/UNKNOWN got %s/%s (%v)", wire.CodeOf(e), sweepSourceClass(e), e)
+	}
+}
+
 func TestPSRCapturedOutputLimit(t *testing.T) {
 	result := executePoolCaptured(context.Background(), &intent.PoolCommand{Argv: []string{"/bin/sh", "-c", "while :; do printf 1234567890123456789012345678901234567890; done"}, TimeoutSeconds: "3"}, t.TempDir(), nil)
 	if result.Class != "OUTPUT_LIMIT" || len(result.Stdout)+len(result.Stderr) > 65536 {

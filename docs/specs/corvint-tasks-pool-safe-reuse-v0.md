@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -51,6 +51,7 @@ Job: explicit foreground operator-defined reset and verification recover a quara
 - `PSR-V0-019`: Sharing excludes the two paths whose effect spans a whole allocation: an attempt that is shared or whose allocation binds shared attempts cannot ATTACH to a supervisor (UNSUPPORTED), because a supervised stage stop quarantines the allocation; and a shared allocation is never released lane-untouched (CAL-V0-067): the attestation refuses while the entry binds shared attempts, and after any hand-over or unbind the entry's `changedSeq` no longer matches the original admission. Status: (proposed, pending owner acceptance; V1-0946; GitHub #653).
 - `PSR-V0-020`: The binding is visible in pure reads (PSR-V0-015, TM-V0-008). `pool status` gives each member a `boundAttempts` array: empty unless ALLOCATED with an attempt, else `{attemptId, generation, role}` with role PRIMARY for the entry's attempt then SHARED in binding order. `attempt show` of an attempt with a `poolAllocation` adds the derived observation `poolBinding` `{allocationId, state, role, boundAttempts}` from audited pools.json: role is PRIMARY, SHARED or null when the attempt is no longer bound, and state is FREE when pools.json no longer holds the allocation. A shared claim's result carries `sharedAllocation`. Neither read takes a lock or writes any file; canonical attempt captures without observations are unchanged. Status: (proposed, pending owner acceptance; V1-0946; GitHub #653).
 - `PSR-V0-021`: The encoding is additive: pools.json entries gain the optional `shared` key only when non-empty, and attempt records gain the optional `sharedAllocation` key only on shared attempts, so every record without a binding keeps identical bytes and digests, and the lease request preimage gains `shareAllocation` only when present. `shared` is non-empty, at most 3 items, only on an ALLOCATED entry, and names distinct same-queue attempts other than the entry's own; `sharedAllocation` needs a `poolAllocation`, no `directPoolAdmission`, another same-queue source attempt and a positive `boundSeq`. Both decoders are closed, so a binary that predates these keys refuses a store holding them with `MALFORMED` (unknown key) on its first audited read instead of misreading occupancy; it cannot operate that queue until the bindings end. Status: (proposed, pending owner acceptance; V1-0946; GitHub #653).
+- `PSR-V0-022`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1406) A bounded Git source probe (the sweep source observation, the PSR-V0-012 pinned-cwd proof and the config read) whose own owned-group cleanup the runner does not prove, including one that also hit its bound, is an observation that saw nothing about the source: it records `UNKNOWN`, the explicit unknown class of PSR-V0-007 that the runner already gives any command whose cleanup is unproved, never `SOURCE_CHANGED`, which PSR-V0-012 keeps for shown drift. It takes the PSR-V0-004 TIMEOUT/INTERRUPTED path: before launch it runs nothing and the member stays quarantined (terminal, not retried); after exit it replaces only an exit class that could satisfy the phase predicate and otherwise keeps the command's own failure; an admission or preparation proof that meets it refuses with the probe's own `UNSUPPORTED` error rather than claiming the pinned path is not a worktree. No class, code, field or encoding is added; observations and receipts without such a probe keep identical bytes.
 
 ## Acceptance evidence
 
@@ -66,7 +67,7 @@ Baseline remains explicit pool cleanup and operator confirm-safe. No physical ow
 
 Omitted safeReuse preserves old policy bytes/manual confirmation authority. Explicit new delegated operator profile amends CAL-V0-030 only for exact owned successful observation. Disable opt-in while preserving quarantine, pending runner ownership, receipts and private log evidence. No historical preimage rewrite, projection stripping or freeing by TTL. Older decoder rejection is recorded compatibility limit, including a pinned cwd object or a timeoutSeconds above 300. To roll back PSR-V0-011/012, free or clean every member whose occupied definition uses them (occupied definitions are immutable), then publish policy with `cwd:"REPOSITORY"` and timeoutSeconds within 1..300; source reversion of the decoder must follow that policy change. Reversion requires observed process retirement or explicit proved-orphan recovery; terminal shared spec/index/catalog updates record delivered evidence and remaining dispatcher/live/Linux limitations. To roll back PSR-V0-016..021, stop issuing `--share-allocation` and let every shared attempt end (or release them), which removes every `shared` list and leaves `sharedAllocation` only on terminal attempt records; then revert the source. A reverted or older binary still refuses a store whose retained attempt records carry `sharedAllocation`; that is a recorded compatibility limit of rollback once any share was admitted, and no historical receipt, record or preimage is rewritten to lift it.
 
-## Traceability (PSR-V0-016..021)
+## Traceability (PSR-V0-016..022)
 
 | Requirement | Evidence |
 | --- | --- |
@@ -76,3 +77,4 @@ Omitted safeReuse preserves old policy bytes/manual confirmation authority. Expl
 | PSR-V0-019 | `TestPSRV0019_SharedAttachRefused`, `TestPSRV0019_ShareExcludesLaneUntouched` |
 | PSR-V0-020 | `TestPSRV0016_ShareBindsAndReads`, `TestPSRV0018_ShareReleaseOrders` |
 | PSR-V0-021 | `TestPSRV0021_SharedCodec` |
+| PSR-V0-022 | `TestPSRV0022_UnprovedProbeCleanupRecordsUnknown`, `TestPSRSweepSourceBoundClass` |
