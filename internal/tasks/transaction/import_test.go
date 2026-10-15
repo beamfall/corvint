@@ -11,7 +11,7 @@ import (
 )
 
 // roadmapInitialized is initialized over a ROADMAP-written fixture queue.
-func roadmapInitialized(t *testing.T) Input {
+func roadmapInitialized(t testing.TB) Input {
 	t.Helper()
 	inv, e := NewInventory(nil, nil)
 	if e != nil {
