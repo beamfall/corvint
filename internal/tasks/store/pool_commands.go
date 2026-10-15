@@ -69,7 +69,7 @@ func poolConfig(root string, ref *intent.ConfigRef) error {
 	}
 	return nil
 }
-func poolFacts(repo *intent.Repository, choice LeaseChoice) claimObserver {
+func poolFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice) claimObserver {
 	return func(proof *journal.Result, in *transaction.Input) (transaction.LeaseFacts, error) {
 		f := transaction.LeaseFacts{Pool: choice.pool}
 		l := choice.Lease
@@ -91,7 +91,12 @@ func poolFacts(repo *intent.Repository, choice LeaseChoice) claimObserver {
 			if _, _, e = poolCommandDir(context.Background(), poolMemberCommand(p, l.Member, kind), leaseRoot(repo, choice)); e != nil {
 				return f, e
 			}
-			identity, e := poolRunnerIdentity(os.Getpid())
+			// The probe keeps poolRunnerIdentity's fixed bounds and ignores
+			// the caller's cancellation; only a package test's lifted
+			// observation bound changes them (V1-1324).
+			probe, cancel := context.WithTimeout(context.WithoutCancel(ctx), sweepObservationBound(ctx, time.Second))
+			identity, e := poolRunnerIdentityContext(probe, os.Getpid())
+			cancel()
 			if e != nil {
 				return f, e
 			}

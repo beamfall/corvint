@@ -156,7 +156,9 @@ func TestPoolHealthSkipsFailedMember(t *testing.T) {
 	id := s.ticket(t, "health")
 	c := claimOf(id, "one")
 	c.Pool, c.Stage = "db", "review"
-	a := s.lease(t, "health-claim", c, 0, nil)
+	// The subject is member choice, not the runner-identity probe that pool
+	// preparation runs; a loaded host overran its 250ms pipe delay (V1-1324).
+	a := s.leaseWith(psrLoaded(context.Background()), t, "health-claim", c, 0, nil)
 	if a.PoolAllocation == nil || a.PoolAllocation.MemberID != "a" {
 		t.Fatalf("health claim %+v", a)
 	}
@@ -177,7 +179,7 @@ func TestPoolHealthSkipsFailedMember(t *testing.T) {
 	if !foundFailedReservation {
 		t.Fatalf("failed reserved health probe not retained: %+v", state.Entries)
 	}
-	replay := s.lease(t, "health-claim", c, 0, nil)
+	replay := s.leaseWith(psrLoaded(context.Background()), t, "health-claim", c, 0, nil)
 	if replay.Kind != "Replay" || replay.PoolAllocation == nil || replay.PoolAllocation.MemberID != a.PoolAllocation.MemberID || replay.PoolAllocation.AllocationID != a.PoolAllocation.AllocationID {
 		t.Fatalf("replay %+v", replay)
 	}

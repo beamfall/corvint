@@ -4,11 +4,11 @@ CORVINT_GOCACHE ?= /tmp/corvint-go-build-cache
 CORVINT_BIN ?= corvint
 .DEFAULT_GOAL := gate
 # GO_TEST_TIMEOUT is the per-package hang detector, not a performance budget (decision 0082).
-# cmd/corvint measured 596.0s against Go's former implicit 10m package deadline. Frozen replay
-# has a separate 9m context covering cold candidate build and replay; the 30m package deadline
-# does not extend it. Root -p 1 serializes top-level Go build/test programs as a bounded scheduling
-# experiment; nested build flags and intra-package concurrency remain unchanged. Cost is tracked
-# in docs/agent-memory/optimizations.md; neither deadline is changed by this experiment.
+# cmd/corvint measured 596.0s and internal/tasks/store 1,304-1,448s (V1-1294) against Go's former
+# implicit 10m package deadline. Frozen replay has a separate 9m context covering cold candidate
+# build and replay; the 30m package deadline does not extend it. Root -p 1 serializes top-level Go
+# build/test programs as a bounded scheduling experiment; nested build flags and intra-package
+# concurrency remain unchanged. Cost: docs/agent-memory/optimizations.md; no deadline changes here.
 GO_TEST_TIMEOUT ?= 30m
 
 # GO_TEST_COMMAND is the go test invocation of the specindex, core-n1 and tasks targets; go-test

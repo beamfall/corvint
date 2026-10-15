@@ -159,10 +159,10 @@ func executePoolGuarded(ctx context.Context, def *intent.PoolCommand, root strin
 
 // poolProbe is injectable only for reached-path bounded-probe tests.
 var poolProbe = func(ctx context.Context, argv ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	ctx, cancel := context.WithTimeout(ctx, sweepObservationBound(ctx, time.Second))
 	defer cancel()
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
-	cmd.WaitDelay = 250 * time.Millisecond
+	cmd.WaitDelay = sweepObservationBound(ctx, 250*time.Millisecond)
 	out := &sweepCapture{max: 1 << 20, kill: cancel}
 	cmd.Stdout = sweepWriter{out: true, c: out}
 	cmd.Stderr = sweepWriter{out: false, c: out}
