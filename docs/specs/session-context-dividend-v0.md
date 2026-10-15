@@ -258,6 +258,18 @@ qualify a receiving host, agent benefit or cross-host continuity; those remain N
 separately recorded. The Tasks supervisor is independently Codex-only under CAL-V0-035..041;
 this bundle neither changes its adapters nor imports its retained sessions or grants.
 
+Live receiving-host qualification (2026-10-15, V1-0500 criterion 4; status and evidence only, no
+requirement text changed): `docs/build-log/2026-10-15-v1-0500-live-handoff.md`, raw evidence
+`docs/experiments/v1-0500-live-handoff-20261015.json`. In one disposable checkout, a Claude Code
+session exported the bundle and real Codex CLI 0.162.0 sessions received it. Codex `workspace-write`:
+`OBSERVED` for exact consumption (exit 0, original task state, matching packet digest) and for
+wrong-key (exit 2) and HEAD/tree/anchor drift (exit 1) refusals that withhold task state and
+packet. Codex `read-only`: unavailable host (exit 2 `local-completion-failed`; the Git status
+private scratch directory under `TMPDIR` cannot be created; V1-0514); wrong-key still refuses.
+Headless Claude Code receiving: `NOT_OBSERVED` (the CLI held no login on this host). Codex to
+Claude Code, cross-checkout or cross-host continuity and agent benefit stay `NOT_OBSERVED`; no
+mocked host was used. Delivery stays experimental; promotion is an owner decision.
+
 ## Event shapes
 
 The externally submitted event is one strict object. The writer adds session, sequence, previous
