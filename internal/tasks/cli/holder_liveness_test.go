@@ -45,9 +45,10 @@ func holderTTLPolicy(t *testing.T, root, ttl string) {
 	}
 }
 
-// TestCALV0120_PolicyTTLDrivesHolderReads: a claim-initialized signal about
-// six minutes old under a renewed (live) work lease reads FRESH_HOLDER under
-// the 600-second default and STALE_HOLDER under a 300-second policy TTL.
+// TestCALV0120_PolicyTTLDrivesHolderReads: a signal about five and a half
+// minutes old, recorded by the renew that keeps the work lease live
+// (CAL-V0-231), reads FRESH_HOLDER under the 600-second default and
+// STALE_HOLDER under a 300-second policy TTL.
 // The stale observation is derived on read: reads write nothing, the
 // attempt keeps its lease, phase and reservation, and another holder still
 // cannot claim the ticket. A current-generation heartbeat makes it fresh
@@ -61,7 +62,7 @@ func TestCALV0120_PolicyTTLDrivesHolderReads(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	renewAt, err := wire.ParseTimestamp("recordedAt", now.Add(-3*time.Minute).Format("2006-01-02T15:04:05Z"))
+	renewAt, err := wire.ParseTimestamp("recordedAt", now.Add(-330*time.Second).Format("2006-01-02T15:04:05Z"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +124,7 @@ func TestCALV0121_StaleHolderCoordinatorHandoff(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	renewAt, err := wire.ParseTimestamp("recordedAt", now.Add(-3*time.Minute).Format("2006-01-02T15:04:05Z"))
+	renewAt, err := wire.ParseTimestamp("recordedAt", now.Add(-330*time.Second).Format("2006-01-02T15:04:05Z"))
 	if err != nil {
 		t.Fatal(err)
 	}

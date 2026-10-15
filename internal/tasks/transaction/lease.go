@@ -646,6 +646,10 @@ func planRenew(c leaseContext) leaseOutcome {
 	}
 	next := *a
 	next.Lease = &snapshot.Lease{Holder: a.Lease.Holder, GrantedSeq: c.seq, ExpiresAt: addMinutes(c.in.RecordedAt, c.l.LeaseMinutes)}
+	// CAL-V0-231: a renew by the current holder at the current generation is
+	// also a liveness signal, so it records lastHeartbeatAt like a heartbeat.
+	at := c.in.RecordedAt
+	next.LastHeartbeatAt = &at
 	return c.write(&next, nil, "TRANSITION", false)
 }
 
