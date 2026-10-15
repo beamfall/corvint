@@ -1014,7 +1014,7 @@ inside the DISCOVER call, which `internal/liveverify/provider/provider.go:351-35
 `ErrAuthorityUnavailable` today. The mutation MUST be performed inside the ACQUIRE-side parent
 process itself, by test-side code that runs after that process has answered ACQUIRE and before it
 exits. That is the only constructible mechanism: the verifier executable is the test binary
-(`cmd/corvint-go-test-provider/main_test.go:473`), re-exec'd once per attachment call by `TestMain`
+(`cmd/corvint-go-test-provider/main_test.go:483`), re-exec'd once per attachment call by `TestMain`
 (`cmd/corvint-go-test-provider/main_test.go:67-79`), so each exchange is a fresh process and `Execute`
 offers no fixture seam between ACQUIRE and DISCOVER. That hook has no environment channel: the
 re-exec'd parent is handed exactly one variable
@@ -1036,7 +1036,7 @@ matches.
 file, so this is not a second production change. Both exchanges MUST route to the real
 `runProductionAuthority` — which `runQualificationAuthority` calls directly at
 `cmd/corvint-go-test-provider/qualification_test.go:27` and `:38` — and never to the stateless
-`runAuthorityHelper` (`cmd/corvint-go-test-provider/main_test.go:544-600`), which always answers
+`runAuthorityHelper` (`cmd/corvint-go-test-provider/main_test.go:554-636`), which always answers
 `Status:"OK"` and sets no `ErrorCode`: a fixture-written `AUTHORITY_DRIFT` string would exercise
 none of `internal/liveverify/parentverify/discovery.go:40`,
 `internal/liveverify/parentverify/snapshot.go:136-142`, or
@@ -1307,6 +1307,31 @@ adds no terminal member and changes no wire byte. Once a containment profile is 
 new profile version, `Execute` MUST refuse to launch with `EXECUTION_CONTAINMENT` whenever the host
 sandbox is unavailable.
 
+- **GLTP-V0-053.** The production post-run authority bound MUST stay the fixed 15-second
+`postAuthorityTimeout` that GLTP-V0-027 and GLTP-V0-041 describe. (Added 2026-10-15 for V1-1420
+and accepted under the owner's 2026-10-11 standing auto-accept of lane requirements; it amends no
+earlier clause.)
+`provider.WithPostAuthorityBound` is a test-only seam that replaces it for one `Execute` call: each
+post-run call (revalidation, identity observation and lease release) still runs under its own
+fresh deadline, independent of the caller's cancellation and of the run budget, and a
+non-positive value leaves the 15-second default. No production path sets the seam.
+`cmd/corvint-go-test-provider` reaches it only through the test-set `commandPostAuthorityBound`.
+(a) A fixture that verifies binding or receipt semantics rather than post-run latency MAY lift
+the bound. Under host load the production parent verifier's single-threaded GOROOT re-hash
+outlasted 15 seconds on each post-run call: at load 50-65 one observation took up to 25 s. The
+in-process and CLI paths of `TestProviderCommandUsesPinnedLiveParentAuthorityE2E`, and
+`TestProductionParentBindsNonASCIIRepositoryPath` (GLTP-V0-004), therefore lift it to ten
+minutes. (b) The GLTP-V0-041 fixture (`verifyExecuteRecordedCleanup`) does not lift it, so its
+wall budget stays the one GLTP-V0-041 describes. When post-run authority fails there,
+`Execute` returns `ErrAuthorityDrift` ending in `: post-run revalidation`, an `INCOMPLETE`
+execution and a canonical failure receipt. That is a provider failure, outside GLTP-V0-041's
+antecedent. The fixture MUST still assert every other precondition, MUST still probe every
+recorded identity and the control, and MUST fail on any survivor; only then does it abort as
+INCONCLUSIVE instead of running the PASSED-receipt conformance check. (c)
+`TestPostAuthorityBoundDefaultsToFifteenSecondsAndSeamReplacesIt` pins three things: the
+15-second default, the refusal of a non-positive seam value, and the deadline each of the three
+post-run calls receives, both with and without the seam.
+
 **Non-goals for this section.** General untrusted external-execution containment is AT-10's
 (`tools/compat-trial`) scope, not this slice; additional-language qualification and the LPCV P1-P4
 promotion gates (`live-proof-carrying-verification-v0.md`) also remain out of scope here.
@@ -1552,3 +1577,4 @@ asserts action `none` with `UNSUPPORTED/no-execution-input` rather than a ghost 
 | GLTP-V0-007 parent plan binding refuses an environment outside the profile | delivered 2026-09-13 | `internal/liveverify/parentverify/verifier_test.go`'s `TestCanonicalBindingRefusesEnvironmentOutsideProfile` calls `BindCanonical` with the closed profile environment (bound), then a two-name partial array, a `GOFLAGS` digest other than `-mod=readonly`, and an added `USER` name, each self-consistent with its `environmentSha256`, and asserts all three return `ErrInvalid`; before the fix all three were bound into a plan. |
 | GLTP-V0-004 native path digest agrees across the parent boundary | delivered 2026-09-13 | `cmd/corvint-go-test-provider/main_test.go`'s `TestProductionParentBindsNonASCIIRepositoryPath` runs `executeProvider` against the production parent on a repository path containing U+00A0 and asserts the canonical plan binds; before the fix the provider hashed the path body with Go `%q` quoting, which escapes U+00A0, so the parent's `cwdPathSha256` differed and `BindCanonical` refused. |
 | GLTP-V0-009 parent lease binds the module-cache and `go.work` paths | delivered 2026-09-13 | `internal/liveverify/parentverify/verifier_test.go`'s `TestLeaseRevalidationRefusesAnotherSelectedPath` acquires a workspace-mode lease, then calls `Revalidate` with the same lease ID under a content-identical module-cache copy and under a second `go.work` in the repository, and asserts `ErrDrift` for both; before the fix both revalidated and returned a binding naming the other path. |
+| GLTP-V0-053 test-only post-run authority bound seam | delivered 2026-10-15 (V1-1420) | `internal/liveverify/provider/postbound_test.go`'s `TestPostAuthorityBoundDefaultsToFifteenSecondsAndSeamReplacesIt` pins the 15-second default and the deadline at all three post-run sites. A one-nanosecond lift reproduces the load failure "execution authority changed: post-run revalidation" deterministically in `TestProductionParentBindsNonASCIIRepositoryPath`. `TestExecuteNormalCompletionHasNoRecordedSurvivors`, with the same injected expiry, probes the identities and aborts INCONCLUSIVE; it fails when the refusal classification is disabled. |
