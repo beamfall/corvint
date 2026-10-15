@@ -10,8 +10,9 @@ Ticket: V1-1411. Governing requirement: `UCL1142-V0-004` in `docs/specs/upgrade-
 On cancellation the `context.AfterFunc` callback closes the descriptor, so the stalled read returns
 `os.ErrClosed` and the reader sends it on `done`. When both `done` and `ctx.Done()` were ready at
 the final `select`, Go chose one at random and the `done` case returned "file already closed". The
-`done` case now prefers `ctx.Err()` when the read failed. A successful read that finishes as the
-context ends still returns its data. The V1-1155 guarantees are unchanged: the callback stays armed
+`done` case now prefers `ctx.Err()` when the read failed. A successful read whose `done` case wins
+still returns its data; if `ctx.Done()` wins instead, the caller gets the cancellation, as before.
+The V1-1155 guarantees are unchanged: the callback stays armed
 on cancellation, closes the descriptor, and nothing waits for an uninterruptible read.
 
 Both callers (`Compile` refs scan and the PR-state file) already check `ctx.Err()` before the read
@@ -42,3 +43,13 @@ All runs used `-run TestCompileRefsReadHonoursContext ./internal/upgradechanges/
 | Fix with the new subtest, `-count=100` | 100 | 0 | 73.9 to 52.4 |
 | Mutation (preference disabled), existing test only, `-count=20` | 20 | 0 (shows the old test's weak bite) | 32 to 37 |
 | Mutation with the new subtest, `-count=20` | 20 | 20 (new subtest; 0 in the V1-1155 subtest) | 80.9 to 73.9 |
+| After review fixes: fix, `-count=20`; `-race -count=3` | 23 | 0 | 34.7 |
+| After review fixes: mutation, `-count=20` | 20 | 20 (new subtest) | 35.7 to 37.4 |
+
+## Review
+
+One Codex round (read-only, diff range above) found two issues. Both are fixed. P2: the test hook's
+wait for the stalled read had no bound, and its wait for the buffered result ended without failing.
+Both waits are now bounded, and the subtest fails unless both cases were ready. P3: this entry said a
+successful read always returns its data, which it does only when the `done` case wins. The text is
+corrected. Codex also ran the subtest under `-race -count=3`, which passed.

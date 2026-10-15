@@ -402,16 +402,26 @@ func TestCompileRefsReadHonoursContext(t *testing.T) {
 			stalled := &stalledRefs{entered: make(chan struct{}), closed: make(chan struct{}), released: make(chan struct{})}
 			openRefsFile = func(string) (io.ReadCloser, error) { return stalled, nil }
 			ctx, cancel := context.WithCancel(context.Background())
+			ready := false
 			beforeRefsWait = func(done <-chan refsRead) {
-				<-stalled.entered
+				select {
+				case <-stalled.entered:
+				case <-time.After(30 * time.Second):
+					stalled.Close()
+					return
+				}
 				cancel()
 				deadline := time.Now().Add(5 * time.Second)
 				for len(done) == 0 && time.Now().Before(deadline) {
 					time.Sleep(100 * time.Microsecond)
 				}
+				ready = len(done) == 1
 			}
 			_, _, e := readRefsContext(ctx, "/unused")
 			cancel()
+			if !ready {
+				t.Fatalf("iteration %d: the read result and the cancellation were not both ready", i)
+			}
 			if !errors.Is(e, context.Canceled) {
 				t.Fatalf("iteration %d error=%v", i, e)
 			}
