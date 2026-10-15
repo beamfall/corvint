@@ -327,12 +327,13 @@ func metadataFor(kind, path string, info os.FileInfo, target string) metadataRow
 // sequential and records every row in walk order; only the per-file reads run concurrently.
 const maxTreeHashers = 8
 
-// fileTask is one regular file the sequential walk queued for hashing, with the walk-order
-// positions of its tree and input rows.
+// fileTask is one regular file the sequential walk queued for hashing, with its position among
+// the queued files and the walk-order positions of its tree and input rows.
 type fileTask struct {
 	root       *os.Root
 	name       string
 	info       os.FileInfo
+	seq        int
 	row, input int
 	done       *sync.WaitGroup
 	digest     string
@@ -342,16 +343,21 @@ type fileTask struct {
 
 // treeHashers hashes queued files with readStableFile, unchanged, on a bounded worker pool. It
 // keeps every task in walk order so finish can report exactly the first failure a sequential walk
-// would have met. It stops reading once the files already hashed exceed MaxTreeBytes, and it stops
-// the walk once any file has failed or that bound is crossed.
+// would have met. Once the files already hashed exceed MaxTreeBytes it skips only files queued
+// after every file counted so far, because the sequential walk refuses at or before the last of
+// them and never reads those; it stops the walk once any file has failed or that bound is crossed.
 type treeHashers struct {
-	ctx      context.Context
-	work     chan *fileTask
-	workers  sync.WaitGroup
-	tasks    []*fileTask
-	total    atomic.Uint64
-	overflow atomic.Bool
-	stopped  atomic.Bool
+	ctx     context.Context
+	work    chan *fileTask
+	workers sync.WaitGroup
+	tasks   []*fileTask
+	stopped atomic.Bool
+
+	mu      sync.Mutex // guards total, counted, limited and limitAt
+	total   uint64
+	counted int  // the highest seq whose bytes are in total
+	limited bool // total exceeded MaxTreeBytes
+	limitAt int  // counted when total first exceeded MaxTreeBytes
 }
 
 func startTreeHashers(ctx context.Context) *treeHashers {
@@ -375,29 +381,49 @@ func (hashing *treeHashers) hash(task *fileTask) {
 		task.err = errors.Join(ErrUnavailable, err)
 		return
 	}
-	if hashing.overflow.Load() {
+	if hashing.beyondLimit(task.seq) {
 		task.err = ErrLimit
 		return
 	}
 	task.digest, task.count, task.err = readStableFile(task.root, task.name, task.info)
-	if task.err == nil && hashing.total.Add(task.count) > MaxTreeBytes {
-		hashing.overflow.Store(true)
+	if task.err != nil {
+		hashing.stopped.Store(true)
+		return
 	}
-	if task.err != nil || hashing.overflow.Load() {
+	hashing.mu.Lock()
+	hashing.total = min(hashing.total, MaxTreeBytes+1) + min(task.count, MaxTreeBytes+1)
+	hashing.counted = max(hashing.counted, task.seq)
+	if hashing.total > MaxTreeBytes && !hashing.limited {
+		hashing.limited, hashing.limitAt = true, hashing.counted
+	}
+	limited := hashing.limited
+	hashing.mu.Unlock()
+	if limited {
 		hashing.stopped.Store(true)
 	}
 }
 
+// beyondLimit reports whether the files queued up to and including limitAt already exceed
+// MaxTreeBytes and seq comes after them: the sequential walk refuses at or before limitAt, so a
+// later file's result can never be reported and need not be read. Files at or before limitAt are
+// always read, so their own failures still come first.
+func (hashing *treeHashers) beyondLimit(seq int) bool {
+	hashing.mu.Lock()
+	defer hashing.mu.Unlock()
+	return hashing.limited && seq > hashing.limitAt
+}
+
 func (hashing *treeHashers) queue(task *fileTask) {
+	task.seq = len(hashing.tasks)
 	hashing.tasks = append(hashing.tasks, task)
 	hashing.work <- task
 }
 
 // finish waits for every queued file and then replays the sequential walk's checks in walk order:
 // a file's read failure, then the cumulative MaxTreeBytes bound, and only after every queued file
-// the walk's own failure, which a sequential walk met after all of them. A file skipped because
-// the hashed total already exceeded MaxTreeBytes reports ErrLimit. On success it fills each
-// file's digest into its rows.
+// the walk's own failure, which a sequential walk met after all of them. A file skipped by
+// beyondLimit reports ErrLimit but is never reached, because the replay refuses at or before
+// limitAt. On success it fills each file's digest into its rows.
 func (hashing *treeHashers) finish(walkErr error, rows []treeRow, inputs []inputRow) error {
 	close(hashing.work)
 	hashing.workers.Wait()

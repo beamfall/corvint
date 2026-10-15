@@ -88,3 +88,47 @@ func TestTreeHashersFinishReportsFirstFailureInWalkOrder(t *testing.T) {
 		})
 	}
 }
+
+// V1-1429 review: a file queued before the position whose prefix crossed MaxTreeBytes is still
+// read, so its own failure is the one reported, while a file queued after that position is
+// skipped. The hashes run in the adversarial order: the later file crosses the bound first.
+func TestTreeHashersReadEveryFileBeforeTheLimitPosition(t *testing.T) {
+	directory := resolved(t, t.TempDir())
+	for name, body := range map[string]string{"drifted": "first", "other": "second", "small": "0123456789"} {
+		if err := os.WriteFile(filepath.Join(directory, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root, err := os.OpenRoot(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	info := func(name string) os.FileInfo {
+		t.Helper()
+		value, err := os.Lstat(filepath.Join(directory, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return value
+	}
+	var done sync.WaitGroup
+	done.Add(3)
+	earlier := &fileTask{root: root, name: "drifted", info: info("other"), seq: 0, done: &done}
+	crossing := &fileTask{root: root, name: "small", info: info("small"), seq: 1, done: &done}
+	later := &fileTask{root: root, name: "absent", info: info("small"), seq: 2, done: &done}
+	hashing := &treeHashers{ctx: context.Background(), work: make(chan *fileTask), tasks: []*fileTask{earlier, crossing, later}}
+	hashing.total = MaxTreeBytes - 5
+	hashing.hash(crossing)
+	hashing.hash(earlier)
+	hashing.hash(later)
+	if !errors.Is(earlier.err, ErrDrift) {
+		t.Fatalf("file before the limit position = %v, want its own ErrDrift", earlier.err)
+	}
+	if !errors.Is(later.err, ErrLimit) {
+		t.Fatalf("file after the limit position = %v, want skipped with ErrLimit", later.err)
+	}
+	if err := hashing.finish(nil, nil, nil); !errors.Is(err, ErrDrift) {
+		t.Fatalf("finish = %v, want the earlier file's ErrDrift", err)
+	}
+}
