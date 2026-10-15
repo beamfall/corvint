@@ -14,8 +14,9 @@ relations, Git objects and rooted filesystem reads need the algorithms below.
 CEM-V1-017..028 were added with this packet; existing CEM-V1-001..016 and the
 experimental candidate keep their original meanings. The support tiers and
 citation block, the result serialization and verdict digest, and the canonical
-diff recipe are stated at the end of this file (CEM-V1-108..110), and
-`citation-vectors/` pins their byte-exact outputs (CEM-V1-111).
+diff recipe are stated at the end of this file (CEM-V1-108..110, with the
+nested result member order as CEM-V1-113), and `citation-vectors/` pins their
+byte-exact outputs (CEM-V1-111).
 
 ## CEM-V1-017: exact wire and absent evidence
 
@@ -54,6 +55,21 @@ listed in the schema's required array; optional witness objects follow required
 hunk members. Within arrays, input order governs first failure. Graph precedence
 is criterion identity/uniqueness/coherence, runner uniqueness, link resolution,
 link/basis membership, then artifact role closure. OPERATION defines stages.
+
+CEM-V1-176 fixes the stage and code where the graph precedence above is easy to
+misread. A hunk basis that names no evidence record fails at the wire stage
+(`invalid-field`), before any reference check. A repeated hunk ID is
+`duplicate-reference`, checked after runner receipt uniqueness and before any
+link is resolved. Within each link, every one of its three ID arrays is checked
+for repeats before any ID is resolved, so a repeated unknown ID is
+`duplicate-reference`, not `unresolved-reference`. A declared
+criterion or runner receipt that no link names is `reference-coherence`, checked
+after link resolution and basis membership and before artifact role closure.
+In the artifact list, a repeated path or digest is `duplicate-reference`, checked
+per record before that record's role; a role mismatch or a missing or extra
+required artifact is `artifact-role-closure`. All of these, except the wire
+failure, are REJECT at the references stage. `reference-precedence/` pins one
+case of each for both consumers.
 
 ## CEM-V1-018: unchanged change semantics, with full 0.3 vocabulary
 
@@ -693,13 +709,55 @@ on every outcome: `profile`, `spec`, `verificationMode`, `outcome`, `accept`,
 `stage`, `code`, `issueCodes`, `assurance`, `expectedBase`, `targetRevision`,
 `mapSha256`, `patchSha256`, `sidecar`, `drift`, `hunks`, `references`,
 `artifactChecks`, `citation`, `axes`, `runtime`, `repositoryEnvelope`,
-`verdictSha256`. Strings use JSON escapes, and both consumers also write `<`,
-`>` and `&` as `\u003c`, `\u003e` and `\u0026`, and U+2028 and U+2029 as
-`\u2028` and `\u2029`. The member order inside the nested objects of `drift`,
-`hunks` and `references` is not fixed by this contract: the two reference
-consumers currently write them in different orders. A reader MUST compare
-results by `verdictSha256`, by the citation block bytes, or by parsed values,
-never by the bytes of the whole line.
+`verdictSha256`. Strings, integers, `true`, `false` and `null` are written as
+in the canonical JSON of the verdict digest below, with one difference: `<`,
+`>` and `&` are written as `\u003c`, `\u003e` and `\u0026`, and U+2028 and
+U+2029 as `\u2028` and `\u2029`. So `/`, U+007F and every other code point
+at or above U+0080 are raw UTF-8. The member order inside
+nested objects is fixed too (CEM-V1-113, below), so the whole line is
+reproducible byte for byte.
+
+The nested member order (CEM-V1-113). Arrays keep their element order. Object
+members appear in this order:
+
+- each `drift` entry: `evidenceId`, `path`, `baseBlobOid`, `status`,
+  `targetBlobOid` (a string or `null`), `targetSpan` (`null`, or an object
+  with `end` first and then `start`);
+- each `hunks` entry: in every object of the entry, at any depth, the members
+  are sorted by name, comparing the names as bytes, as in the canonical JSON
+  below. For a hunk this is `basis`, `coverage`, `discriminates`,
+  `disposition`, `id`, `newRange`, `oldRange`, `path`, `reason`, where
+  `coverage` and `discriminates` appear only when the map carries them. A range
+  is `count`, `start`, and a `basis` entry is `evidenceId`, `relation`. The
+  witness objects and their `covered`, `bounds` and `survivors` contents are
+  sorted the same way. A member's value is the map's value, re-encoded
+  compactly, and an empty array is `[]`;
+- `references`: `artifacts`, `criterionBindings`, `criterionLinks`,
+  `runnerReceipts`. An `artifacts` entry is `kind`, `path`, `sha256`. A
+  `criterionBindings` entry is `id`, `ticketId`, `acceptanceRevision`,
+  `criterionIndex`, `acceptanceSha256`, `criterionSha256`, `captureSha256`,
+  `verificationSha256`, `claimTicketSha256`, `snapshotHeadReceiptSha256`,
+  `snapshotHeadArtifactSha256`, `evidenceId`. Every member except `id`,
+  `criterionIndex` and `criterionSha256` is left out when the map has no value
+  for it, so the Tasks form carries the eight Tasks members and the plain form
+  carries `evidenceId`. A `criterionLinks` entry is `criterionId`, `hunkIds`,
+  `evidenceIds`, `runnerReceiptSha256s`. A `runnerReceipts` entry is `sha256`,
+  `profile`, `planSha256`, `sourceGitBinding`, `executionAuthority`,
+  `dependencyClosure`, `authentication`. The `authentication` value is the
+  string `"NOT_OBSERVED"` for the legacy form, the object `method` for
+  `{"method":"none"}`, or the object `envelopeSha256`, `keyid`, `method` for
+  `dsse-ed25519` (CEM-V1-084);
+- each `artifactChecks` entry: `kind`, `path`, `sha256`, `byteLength`;
+- `axes`: sorted by name, comparing the names as bytes;
+- `runtime`: `goVersion`, `structuralQualification`;
+- `citation`: as stated above.
+
+`citation-vectors/results/` and `neutral-criterion/results/accept.json` pin
+whole result lines: every citation vector case, and the neutral criterion
+ACCEPT with its references and artifact checks. Each file is exactly the line
+a consumer writes, including the final LF. Only `runtime.goVersion` names the
+toolchain that runs the consumer, and the pins carry `go1.27.2`. To compare
+under any other admitted toolchain, substitute its name there first.
 
 The verdict digest. `verdictSha256` is the lowercase hex SHA-256 of the
 canonical JSON of the result object with the members `runtime`,
@@ -714,8 +772,8 @@ canonical JSON of the result object with the members `runtime`,
 - integers in canonical decimal (the result carries no other numbers);
 - `true`, `false` and `null` as written.
 
-Because the members are sorted, the nested-order difference above does not reach
-the digest. The digest is computed for every outcome, ACCEPT or REJECT.
+Because the members are sorted, the digest does not depend on the member order
+of the written line. The digest is computed for every outcome, ACCEPT or REJECT.
 
 ## CEM-V1-110: canonical diff recipe
 

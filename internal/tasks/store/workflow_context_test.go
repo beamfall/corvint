@@ -252,3 +252,71 @@ func TestWorkflowContextRefusesHeldOutputPipe(t *testing.T) {
 		t.Fatalf("held pipe refused only after %s", elapsed)
 	}
 }
+
+// V1-0494, CAL-V0-036: a READY, fresh, exact-tree packet whose only relevant
+// source is a non-Go frontier and whose coverage is uncertain is returned
+// byte for byte, so the uncertainty survives; the query still carries only
+// the title and canonical ID, never a path the packet names.
+func TestWorkflowContextKeepsUncertainNonGoFrontier(t *testing.T) {
+	title := "Characterize and resolve TV DSP tail latency"
+	w, root, _ := contextWorkflow(t, title)
+	tree := contextGit(t, root, "rev-parse", "HEAD^{tree}")
+	raw := []byte("{\"ok\":true,\"context\":{\"state\":\"READY\",\"revision\":\"" + tree + "\",\"freshness\":{\"state\":\"fresh\"}," +
+		"\"results\":[{\"id\":\"crates/oscillux-dsp/src/tail.rs\",\"language\":\"rust\"}]," +
+		"\"coverage\":{\"uncertainty\":[\"non-Go frontier: rust symbols unresolved\",\"syntax only; coverage unknown\"]}}}\n")
+	if err := os.WriteFile(filepath.Join(root, "context-packet"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := w.context(context.Background(), root, "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, raw) {
+		t.Fatalf("uncertain non-Go packet changed:\n%s", got)
+	}
+	args, err := os.ReadFile(filepath.Join(root, "context-args"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual := strings.Split(strings.TrimSuffix(string(args), "\x00"), "\x00")
+	expected := []string{"query", "--task", title + " " + w.record.TicketID.Raw, "--budget-bytes", "8000"}
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("argv=%q want=%q", actual, expected)
+	}
+}
+
+// V1-0494, CAL-V0-036: incomplete scope and absent source are refused, never
+// promoted to READY, even when the packet keeps its uncertainty.
+func TestWorkflowContextRefusesIncompleteScopeAndAbsentSource(t *testing.T) {
+	for _, name := range []string{"partial-scope", "ambiguous-scope", "not-ok", "no-revision", "absent-repository", "absent-revision"} {
+		t.Run(name, func(t *testing.T) {
+			w, root, raw := contextWorkflow(t, "Investigate DSP")
+			tree := contextGit(t, root, "rev-parse", "HEAD^{tree}")
+			queryRoot, revision := root, "HEAD"
+			switch name {
+			case "partial-scope":
+				raw = bytes.ReplaceAll(raw, []byte("READY"), []byte("PARTIAL"))
+			case "ambiguous-scope":
+				raw = bytes.ReplaceAll(raw, []byte("READY"), []byte("AMBIGUOUS_BINDING"))
+			case "not-ok":
+				raw = bytes.ReplaceAll(raw, []byte("\"ok\":true"), []byte("\"ok\":false"))
+			case "no-revision":
+				raw = bytes.ReplaceAll(raw, []byte(tree), nil)
+			case "absent-repository":
+				// The same READY packet, answered from a directory with no
+				// repository, cannot bind the tree it names.
+				queryRoot = t.TempDir()
+			case "absent-revision":
+				revision = "refs/heads/absent"
+			}
+			if err := os.WriteFile(filepath.Join(queryRoot, "context-packet"), raw, 0600); err != nil {
+				t.Fatal(err)
+			}
+			if got, err := w.context(context.Background(), queryRoot, revision); err == nil {
+				t.Fatalf("incomplete context accepted: %s", got)
+			} else {
+				t.Logf("refused: %v", err)
+			}
+		})
+	}
+}

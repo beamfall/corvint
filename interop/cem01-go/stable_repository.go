@@ -737,7 +737,7 @@ func runStableCanonicalTrusted(ctx context.Context, repo string, raw []byte, bas
 		return failStable(&r, "references", e, false)
 	}
 	r.Hunks = m.Hunks
-	r.References = m.stableReferences
+	r.References = resultReferences(m.stableReferences)
 	if base == "" {
 		return failStable(&r, "authority-arguments", operational("expected-base-required"), false)
 	}
@@ -1155,5 +1155,8 @@ func runStableCanonicalCLI(argv []string) {
 	r, status := executeStableCanonicalCLI(ctx, argv)
 	cancel()
 	_ = json.NewEncoder(os.Stdout).Encode(r)
+	if fix := stableRelativePathFix(r, argv); fix != "" {
+		fmt.Fprintln(os.Stderr, "cem01-go verify-stable-canonical: "+fix)
+	}
 	os.Exit(status)
 }

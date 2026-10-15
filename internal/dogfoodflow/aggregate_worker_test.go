@@ -224,13 +224,21 @@ func TestAggregateOwnedProcessRetiresDescendants(t *testing.T) {
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+			// The deadline and the cancellation fire only once the fixture has
+			// written the descendant's pid, so a loaded host cannot stop the shell
+			// before it forks; the 30s pid wait is a hang detector only.
 			work := time.Now().Add(5 * time.Second)
 			if mode == "deadline" {
-				work = time.Now().Add(250 * time.Millisecond)
+				original := newAggregateWorkTimer
+				newAggregateWorkTimer = func(time.Duration) *time.Timer {
+					timer := time.NewTimer(time.Hour)
+					go func() { _ = awaitAggregatePIDFile(pidFile); timer.Reset(0) }()
+					return timer
+				}
+				defer func() { newAggregateWorkTimer = original }()
 			}
 			if mode == "cancel" {
-				timer := time.AfterFunc(250*time.Millisecond, cancel)
-				defer timer.Stop()
+				go func() { _ = awaitAggregatePIDFile(pidFile); cancel() }()
 			}
 			command := exec.Command("/bin/sh", "-c", script, "fixture", pidFile)
 			_, _, status, err := runAggregateOwnedProcess(ctx, command, 1024, 1024, work)
@@ -257,6 +265,24 @@ func TestAggregateOwnedProcessRetiresDescendants(t *testing.T) {
 				t.Fatalf("owned descendant %d survived %s", pid, mode)
 			}
 		})
+	}
+}
+
+// awaitAggregatePIDFile polls path for a parseable pid; its 30s bound is a
+// hang detector only.
+func awaitAggregatePIDFile(path string) error {
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		raw, err := os.ReadFile(path)
+		if err == nil {
+			if _, err = strconv.Atoi(string(raw)); err == nil {
+				return nil
+			}
+		}
+		if time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

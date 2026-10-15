@@ -40,6 +40,7 @@ func programCommand(env Env, verb string, args []string) *wire.Result {
 	if values["--program"] == "" || values["--config"] == "" {
 		return usage(cmd, "run requires --program and --config")
 	}
+	values["--config"] = commandPath(env.Cwd, values["--config"])
 	raw, e := intent.ReadFile(values["--config"], 65536)
 	if e != nil {
 		return errorResult(cmd, e)

@@ -186,7 +186,7 @@ type taskContextCompiler struct {
 func (compiler *taskContextCompiler) startHistory(ctx context.Context) {
 	compiler.historyReady = make(chan struct{})
 	go func() {
-		defer close(compiler.historyReady)
+		defer taskContextReaderDone("history-read", compiler.historyReady)
 		compiler.history, compiler.historyErr = readCoChangeHistory(ctx, compiler.index)
 	}()
 }
@@ -3497,4 +3497,14 @@ func (verdict answerability) reason() string {
 	}
 	return fmt.Sprintf("%d sources name at least %d of the %d known specific terms together",
 		verdict.supporting, verdict.required, verdict.known)
+}
+
+// taskContextReaderDone ends a history or recency reader goroutine: it reports
+// the reader's finish to taskContextStage, when a test has set it, before it
+// closes the ready channel that join awaits (V1-1362).
+func taskContextReaderDone(stage string, ready chan struct{}) {
+	if taskContextStage != nil {
+		taskContextStage(stage)
+	}
+	close(ready)
 }

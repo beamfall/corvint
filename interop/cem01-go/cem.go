@@ -2710,8 +2710,8 @@ type stableResult struct {
 	PatchSHA256        *string               `json:"patchSha256"`
 	Sidecar            string                `json:"sidecar"`
 	Drift              []drift03             `json:"drift"`
-	Hunks              []hunk03              `json:"hunks"`
-	References         stableReferences      `json:"references"`
+	Hunks              resultHunks           `json:"hunks"`
+	References         resultReferences      `json:"references"`
 	ArtifactChecks     []stableArtifactCheck `json:"artifactChecks"`
 	Citation           *citationBlock        `json:"citation"`
 	Axes               map[string]string     `json:"axes"`
@@ -2732,7 +2732,7 @@ func newStableResult(base, target string) stableResult {
 	for _, key := range []string{"nativeAuthority", "historicalValidity", "currentApplicability", "sourceGitBinding", "sourceInventoryCompleteness", "executionAtCommit", "runnerReceiptSemantics", "runnerExecution", "authentication", "dependencyClosure", "criterionAdequacy", "criterionDiscrimination", "externalInteroperability"} {
 		axes[key] = "NOT_OBSERVED"
 	}
-	r := stableResult{Profile: "cem-stable-verification/1", Spec: stableSpec, VerificationMode: "canonical-and-reference-integrity", Outcome: "UNSUPPORTED", Stage: "arguments", IssueCodes: []string{}, Sidecar: "NOT_CHECKED", Drift: []drift03{}, Hunks: []hunk03{}, References: emptyStableReferences(), ArtifactChecks: []stableArtifactCheck{}, Axes: axes, Runtime: runtime03{runtime.Version(), "NOT_REQUIRED"}, RepositoryEnvelope: "primary-clean-config-bounded/1"}
+	r := stableResult{Profile: "cem-stable-verification/1", Spec: stableSpec, VerificationMode: "canonical-and-reference-integrity", Outcome: "UNSUPPORTED", Stage: "arguments", IssueCodes: []string{}, Sidecar: "NOT_CHECKED", Drift: []drift03{}, Hunks: resultHunks{}, References: resultReferences(emptyStableReferences()), ArtifactChecks: []stableArtifactCheck{}, Axes: axes, Runtime: runtime03{runtime.Version(), "NOT_REQUIRED"}, RepositoryEnvelope: "primary-clean-config-bounded/1"}
 	if base != "" {
 		r.ExpectedBase = string03(base)
 	}
@@ -3243,6 +3243,9 @@ func validateStableReferences(m *stableMap) *cemError {
 	hunks := map[string]hunk03{}
 	evidenceIDs := map[string]bool{}
 	for _, h := range m.Hunks {
+		if _, ok := hunks[h.ID]; ok {
+			return invalid("duplicate-reference")
+		}
 		hunks[h.ID] = h
 	}
 	spanDigests := map[string]string{}
@@ -3298,9 +3301,6 @@ func validateStableReferences(m *stableMap) *cemError {
 			linkedRunners[id] = true
 		}
 	}
-	if len(linkedCriteria) != len(criteria) || len(linkedRunners) != len(runners) {
-		return invalid("unresolved-reference")
-	}
 	for _, l := range m.CriterionLinks {
 		basisIDs := map[string]bool{}
 		for _, id := range l.HunkIDs {
@@ -3320,6 +3320,11 @@ func validateStableReferences(m *stableMap) *cemError {
 				return invalid("unresolved-reference")
 			}
 		}
+	}
+	// CEM-V1-176: an unused criterion or runner fails coherence after
+	// link/basis membership and before artifact role closure.
+	if len(linkedCriteria) != len(criteria) || len(linkedRunners) != len(runners) {
+		return invalid("reference-coherence")
 	}
 	required := map[string]string{}
 	want := func(digest, kind string) bool {
@@ -3356,7 +3361,11 @@ func validateStableReferences(m *stableMap) *cemError {
 	}
 	paths, digests := map[string]bool{}, map[string]bool{}
 	for _, a := range m.Artifacts {
-		if paths[a.Path] || digests[a.SHA256] || required[a.SHA256] != a.Kind {
+		// CEM-V1-176: a repeated path or digest precedes the record's kind.
+		if paths[a.Path] || digests[a.SHA256] {
+			return invalid("duplicate-reference")
+		}
+		if required[a.SHA256] != a.Kind {
 			return invalid("artifact-role-closure")
 		}
 		paths[a.Path] = true
@@ -3544,7 +3553,7 @@ func runStableTrusted(ctx context.Context, repo string, raw []byte, base, target
 		return failStable(&r, "references", e, false)
 	}
 	r.Hunks = m.Hunks
-	r.References = m.stableReferences
+	r.References = resultReferences(m.stableReferences)
 	if base == "" {
 		return failStable(&r, "authority-arguments", operational("expected-base-required"), false)
 	}
@@ -3890,5 +3899,31 @@ func runStableCLI(argv []string) {
 	defer cancel()
 	r, status := executeStableCLI(ctx, argv)
 	_ = json.NewEncoder(os.Stdout).Encode(r)
+	if fix := stableRelativePathFix(r, argv); fix != "" {
+		fmt.Fprintln(os.Stderr, "cem01-go verify-stable: "+fix)
+	}
 	os.Exit(status)
+}
+
+// stableRelativePathFix names the recovery for an invalid-arguments refusal
+// whose cause is a relative path option, in the native consumer's words
+// (CEM-V1-117). It goes to stderr, never into the closed result; a relative
+// path is refused, never resolved.
+func stableRelativePathFix(r stableResult, argv []string) string {
+	if r.Code == nil || *r.Code != "invalid-arguments" {
+		return ""
+	}
+	var relative []string
+	for _, name := range []string{"--repository", "--map", "--artifacts", "--trusted-keys"} {
+		for i := 0; i+1 < len(argv); i += 2 {
+			if argv[i] == name && argv[i+1] != "" && !filepath.IsAbs(argv[i+1]) {
+				relative = append(relative, name)
+				break
+			}
+		}
+	}
+	if len(relative) == 0 {
+		return ""
+	}
+	return "invalid-arguments: relative path option " + strings.Join(relative, ", ") + "; fix: pass each as an absolute path such as \"$PWD/<path>\"; a relative path is refused, never resolved"
 }

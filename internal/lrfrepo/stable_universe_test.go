@@ -309,7 +309,7 @@ func TestCEMV1052StableUniverseAuthorityArguments(t *testing.T) {
 		options := f.options()
 		tc.mutate(&options)
 		universe, err := VerifyStableUniverse(ctx, f.stable, f.stableOCM, options)
-		refusal := requireStableRefusal(t, universe, err, "REJECT", tc.code)
+		refusal := requireStableRefusal(t, universe, err, "UNSUPPORTED", tc.code) // CEM-V1-116
 		if refusal.Exit != 2 || refusal.Result.Stage != "authority-arguments" {
 			t.Fatalf("%s: exit=%d stage=%s", tc.name, refusal.Exit, refusal.Result.Stage)
 		}

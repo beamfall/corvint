@@ -1,6 +1,7 @@
 # Receipt authentication public case (CEM-V1-084)
 
-Status: PROPOSED / EXPERIMENTAL, like the rest of `protocol/cem-1.0/stable/`.
+Status: like the rest of `protocol/cem-1.0/stable/`, implemented and run by both
+consumers; the technical contract is proposed and not promoted.
 
 This case reuses the neutral-criterion repository and runner artifacts and signs
 its one runner receipt with a DSSE Ed25519 envelope over an in-toto Statement

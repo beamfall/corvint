@@ -255,42 +255,67 @@ func TestV11055QuiescenceProvedWhileLeaderHeld(t *testing.T) {
 // the leader during timeout cleanup, so the waitid goroutine fails and
 // releases the group while run still signals it. No numeric group operation
 // may follow that release, and the cleanup stays unproved.
+//
+// V1-1378: the interleaving is forced, not raced. The waitid goroutine starts
+// only after BeforeStop's foreign reap, so it always fails; BeforeStop returns
+// only after that goroutine released the group; and run's own exit-observation
+// channel is withheld, so run proceeds to signal the group as if the release
+// had landed just after its non-blocking check. Every group operation run then
+// attempts must be refused, not sent.
 func TestV11055NoGroupOperationAfterConcurrentRelease(t *testing.T) {
 	previous := releaseProcessCommand
 	t.Cleanup(func() { releaseProcessCommand = previous })
-	var released atomic.Bool
-	releaseProcessCommand = func(pid int) { released.Store(true); previous(pid) }
-	for attempt := 0; attempt < 20; attempt++ {
-		released.Store(false)
-		var calls, late atomic.Int64
-		observation := run(context.Background(), Spec{
-			Argv: []string{"/bin/sleep", "30"}, Dir: t.TempDir(), Env: []string{"PATH=/usr/bin:/bin"},
-			Timeout: 20 * time.Millisecond, ShutdownTimeout: 500 * time.Millisecond,
-		}, processWaitChannels{groupProbe: func(pid int, signal syscall.Signal) error {
-			if calls.Add(1) == 1 {
-				_ = syscall.Kill(pid, syscall.SIGKILL)
-				var status syscall.WaitStatus
-				_, _ = syscall.Wait4(pid, &status, 0, nil)
-				for deadline := time.Now().Add(200 * time.Millisecond); !released.Load() && time.Now().Before(deadline); {
-					time.Sleep(time.Millisecond)
-				}
-				return nil
-			}
-			if released.Load() {
-				late.Add(1)
-			}
-			return signalOwnedProcessGroup(pid, signal)
-		}})
-		if n := late.Load(); n != 0 {
-			t.Fatalf("%d numeric group operations after the group was released", n)
+	released := make(chan struct{})
+	var releases atomic.Int64
+	releaseProcessCommand = func(pid int) {
+		if releases.Add(1) == 1 {
+			close(released)
 		}
-		if !processErrorHasCode(observation.Err, "process-exit-observation-failed") {
-			continue // waitid saw the exit before the foreign reap: no concurrent release
-		}
-		if observation.OwnedProcessGroupCleanup {
-			t.Fatalf("cleanup proved after a foreign reap: %+v", observation)
-		}
-		return
+		previous(pid)
 	}
-	t.Fatal("the foreign reap never preceded the exit observation")
+	reaped := make(chan struct{})
+	var exitWaitErr error
+	var sent atomic.Int64
+	observation := run(context.Background(), Spec{
+		Argv: []string{"/bin/sleep", "30"}, Dir: t.TempDir(), Env: []string{"PATH=/usr/bin:/bin"},
+		Timeout: 20 * time.Millisecond, ShutdownTimeout: 200 * time.Millisecond,
+		BeforeStop: func(_ context.Context, pid int) error {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+			var status syscall.WaitStatus
+			_, _ = syscall.Wait4(pid, &status, 0, nil)
+			close(reaped)
+			select { // hang detector only: the release follows the reap at once
+			case <-released:
+			case <-time.After(30 * time.Second):
+				t.Error("the waitid goroutine never released the group after the foreign reap")
+			}
+			return nil
+		},
+	}, processWaitChannels{
+		exitObserved: make(chan error), // withheld: run does not see the failure before signalling
+		exitWait: func(pid int) error {
+			<-reaped
+			exitWaitErr = waitProcessExitUnreaped(pid)
+			return exitWaitErr
+		},
+		groupProbe: func(pid int, signal syscall.Signal) error {
+			sent.Add(1)
+			return signalOwnedProcessGroup(pid, signal)
+		},
+	})
+	if exitWaitErr == nil {
+		t.Fatal("the exit observation succeeded after the foreign reap")
+	}
+	if n := sent.Load(); n != 0 {
+		t.Fatalf("%d numeric group operations sent after the group was released", n)
+	}
+	if !errors.Is(observation.Err, errGroupOwnershipReleased) {
+		t.Fatalf("run's group signal after the release was not refused: %v", observation.Err)
+	}
+	if observation.OwnedProcessGroupCleanup {
+		t.Fatalf("cleanup proved after a foreign reap: %+v", observation)
+	}
+	if n := releases.Load(); n != 1 {
+		t.Fatalf("group released %d times, want once", n)
+	}
 }

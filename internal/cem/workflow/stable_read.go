@@ -114,7 +114,7 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 			stableOptions = verify.StableOptions{Repository: repository}
 		}
 		result = verify.NewStableResult(stableOptions)
-		exit = result.Refuse("arguments", "invalid-arguments", false)
+		exit = result.Refuse("arguments", "invalid-arguments", true)
 	}
 	envelope := map[string]any{
 		"ok": exit == 0, "mutates": false, "tool": "cem-" + action,

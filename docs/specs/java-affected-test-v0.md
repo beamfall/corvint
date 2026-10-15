@@ -48,8 +48,9 @@ This slice plans only. It runs no compiler, build tool, annotation processor or 
   (resolved by the longest dotted prefix that names a declared type, so `p.Outer.Inner` reaches
   `p.Outer`); a static import (`import static p.C.m` and `p.C.*` reach `p.C`); a type-import-on-demand
   `import p.*` (only the types of `p` the file names by simple identifier); a same-package type
-  named by simple identifier; a dotted reference in code of at least two segments with a lowercase
-  first segment (a qualified name), with whitespace or comments allowed around each dot; and the
+  named by simple identifier; a dotted reference in code, an annotation name included (`@p.Core`), of
+  at least two segments with a lowercase first segment (a qualified name), with whitespace or
+  comments allowed around each dot; and the
   string literal argument of `Class.forName`, read as a binary name, so `p.Outer$Inner` also
   reaches `p.Outer`.
   Declared types include classes, interfaces, enums, records and annotation types, with nested types
@@ -68,12 +69,16 @@ This slice plans only. It runs no compiler, build tool, annotation processor or 
   segments with such a package when that package has more than two. This covers generated and
   annotation-processed source, which the graph cannot see. An unresolved import outside first-party
   packages is an external dependency and adds nothing. A file that names a capitalised simple
-  identifier (an uppercase initial and a lowercase letter, not after a `.`) that no observed Java
-  file declares, no Kotlin file mentions, no single-type import names and `java.lang` does not
-  hold MUST set `UnboundedReads` to `java:unresolved-name`, with `LocatesRoot` on a non-test unit,
+  identifier (an uppercase initial and a lowercase letter, not after a `.`) that the file cannot see
+  from first-party source, that no single-type import names and that `java.lang` does not hold MUST
+  set `UnboundedReads` to `java:unresolved-name`, with `LocatesRoot` on a non-test unit,
   when a first-party package could supply it: the file imports a first-party package on demand, or
   has no external on-demand import. Behind an external on-demand import alone the name is
-  attributed to that package; a generated same-package type there is a known gap.
+  attributed to that package; a generated same-package type there is a known gap. A file sees a
+  name when a Java type in its own package or in a package it imports on demand declares it (with
+  its nested types), a Kotlin file in one of those packages mentions it or has it as facade, or the
+  file declaring a type it imports or names qualified declares it. A same-named type in any other
+  package does not hide the name (V1-1316).
 - `JAT-V0-007`: A file that loads classes or members by computed name MUST set `UnboundedReads` to
   `java:reflection`, and a non-test unit MUST also set `LocatesRoot`. The triggers are a
   `Class.forName` call without one literal dotted argument, `ServiceLoader`, `loadClass`,
@@ -90,8 +95,11 @@ This slice plans only. It runs no compiler, build tool, annotation processor or 
     can reach carries `kotlin:java-dependent`. Java reaches Kotlin by JVM names: a declaration's own
     name, or the file facade (the capitalised stem with `Kt`, so `core.kt` is `CoreKt`, or the
     `@file:JvmName` value, simple or `kotlin.jvm`-qualified, with any spacing).
-  - Each side reads the other's package and import headers after blanking comments, and qualified
-    names with whitespace allowed around each dot.
+  - Each side reads the other's package and import headers after blanking comments with the
+    other language's own lexer, and qualified names with whitespace allowed around each dot. Java
+    text is lexed as javac does (Unicode escapes translated, CR ends a line comment, block comments
+    do not nest); Kotlin text as kotlinc does (block comments nest). The `@file:JvmName` annotation
+    may also hold comments (V1-1316).
   A reached unit carrying either frontier makes the plan UNKNOWN. A plan that reaches neither kind of
   unit stays bounded in a mixed JVM tree.
 - `JAT-V0-009`: The plugin MUST NOT execute repository code, a compiler, a build tool or an
@@ -142,5 +150,6 @@ Rollback: remove `java.New()` from `languages.All()`, the conformance list and
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | `JAT-V0-001..009` | `internal/liveverify/affected/java/` | `internal/liveverify/affected/java` package tests |
-| `JAT-V0-008` | `internal/liveverify/affected/kotlin/java.go` | `TestJavaSiblingSourceWidensCrossLanguageDependency`, `TestJavaReachesFacadesAndCommentedHeaders` |
+| `JAT-V0-008` | `internal/liveverify/affected/kotlin/java.go`, `internal/liveverify/affected/java/javalex/` | `TestJavaSiblingSourceWidensCrossLanguageDependency`, `TestJavaReachesFacadesAndCommentedHeaders` |
+| `JAT-V0-002..008` (V1-1316 review variants) | `internal/liveverify/affected/java/`, `internal/liveverify/affected/kotlin/java.go` | `TestReviewFindingsKeepReachableTests_V1_1316` |
 | `JAT-V0-010` | `internal/liveverify/affected/languages/` | `TestSeamSelectsTheDependencyClosureInEveryLanguage` and the shared seam tests |

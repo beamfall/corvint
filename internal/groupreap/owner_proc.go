@@ -113,9 +113,12 @@ func procThreadLive(root string, pid int) (bool, error) {
 			continue
 		}
 		threads, err := strconv.Atoi(string(bytes.TrimSpace(value)))
-		if err != nil || threads < 1 {
+		if err != nil || threads < 0 {
 			break
 		}
+		// Linux prints Threads 0 when the task was released (reaped) between
+		// opening status and reading its signal state: it has no thread left,
+		// as if status had vanished (PGO-V0-016, V1-1244).
 		return threads > 1, nil
 	}
 	return false, fmt.Errorf("%w: no thread count for %d", errProcProof, pid)

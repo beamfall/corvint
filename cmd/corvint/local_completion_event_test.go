@@ -141,7 +141,7 @@ func TestDogfoodEventStrictInputAndDeadline(t *testing.T) {
 			}
 			// The repository has no snapshot, so expiry in its in-memory build names that (AHI-031).
 			stale := strings.Contains(stderr.String(), `"dogfood-event-index-snapshot-stale"`)
-			if !stale && !strings.Contains(stderr.String(), `"dogfood-event-deadline"`) && !strings.Contains(stderr.String(), `"dogfood-event-input-unavailable"`) {
+			if !stale && !strings.Contains(stderr.String(), `"dogfood-event-deadline"`) {
 				t.Fatalf("%s expiry was not reported as a time bound: %s", deadline, &stderr)
 			}
 			expired = expired || stale || strings.Contains(stderr.String(), `"dogfood-event-deadline"`)
@@ -153,9 +153,13 @@ func TestDogfoodEventStrictInputAndDeadline(t *testing.T) {
 	t.Run("LCP-V0-008 expiry does not wait for an uncancellable read", func(t *testing.T) {
 		release := make(chan struct{})
 		defer close(release)
-		ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 10 * time.Millisecond })
+		// The deadline expires only inside the read stage, so a loaded host cannot expire it during
+		// the input read instead (V1-1391, decision 0082); the minute is a hang detector.
+		parent, expire := workFinalInterruption("expired")
+		ctx := context.WithValue(parent, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
 		// Like the in-memory index compile, this read never observes cancellation.
 		ctx = context.WithValue(ctx, dogfoodEventReadKey{}, func(context.Context, options, map[string]any) (map[string]any, error) {
+			expire()
 			<-release
 			return nil, errors.New("released")
 		})
@@ -173,6 +177,19 @@ func TestDogfoodEventStrictInputAndDeadline(t *testing.T) {
 			}
 		case <-time.After(time.Minute): // hang detector, not a latency budget (decision 0082)
 			t.Fatal("expired event waited for a read that ignores cancellation")
+		}
+	})
+	t.Run("LCP-V0-008 expiry during the input read is the time bound", func(t *testing.T) {
+		// A host that holds stdin open past the deadline: the read fails with the expired
+		// context, which is the event's time bound, not unavailable input (V1-1391).
+		release := make(chan struct{})
+		defer close(release)
+		parent, expire := workFinalInterruption("expired")
+		ctx := context.WithValue(parent, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+		var stdout, stderr bytes.Buffer
+		status := runLocalCompletionEvent(ctx, queryCLIRepository(t), dogfoodEventArguments("session-start"), expiringReader{expire, release}, &stdout, &stderr)
+		if status != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"dogfood-event-deadline"`) {
+			t.Fatalf("an input read that outlived the deadline was not reported as a time bound: %d %s", status, &stderr)
 		}
 	})
 	t.Run("LCP-V0-008 Git probe expiry", func(t *testing.T) {
@@ -647,4 +664,17 @@ func TestPiLocalCompletionTuple(t *testing.T) {
 	if after := repositoryBytesDigest(t, root); before != after {
 		t.Fatal("Pi automatic event mutated state")
 	}
+}
+
+// expiringReader is stdin from a host that holds it open past the event deadline: its read expires
+// the deadline, then blocks until released, ignoring cancellation.
+type expiringReader struct {
+	expire  func()
+	release <-chan struct{}
+}
+
+func (reader expiringReader) Read([]byte) (int, error) {
+	reader.expire()
+	<-reader.release
+	return 0, io.EOF
 }

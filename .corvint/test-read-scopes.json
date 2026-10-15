@@ -192,6 +192,7 @@
       "protocol/cem-1.0/stable/manifest.json",
       "protocol/cem-1.0/stable/neutral-criterion/",
       "protocol/cem-1.0/stable/receipt-authentication/",
+      "protocol/cem-1.0/stable/reference-precedence/",
       "protocol/cem-1.0/stable/repository-envelope-packet/",
       "protocol/cem-1.0/stable/tamper-matrix/",
       "protocol/cem-1.0/structural-tuples/"
@@ -317,7 +318,8 @@
     ],
     "internal/stepnegation": [],
     "internal/taskman": [
-      "internal/tasks/ticket/testdata/issue502-escalation-hold-cases.json"
+      "internal/tasks/ticket/testdata/issue502-escalation-hold-cases.json",
+      "protocol/cem-1.0/stable/RESULT.schema.json"
     ],
     "internal/tasks/archive": [],
     "internal/tasks/authority": [

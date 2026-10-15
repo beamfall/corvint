@@ -21,6 +21,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
@@ -28,13 +29,16 @@ import (
 )
 
 // dispatchCommand routes `dispatch`, `dispatch status` and `dispatch unpark`
-// (CAL-V0-052).
+// (CAL-V0-052), and `dispatch recover-reader` (CAL-V0-226).
 func dispatchCommand(env Env, args []string) *wire.Result {
 	if len(args) > 0 && (args[0] == "status" || args[0] == "unpark") {
 		return dispatchAux(env, args[0], args[1:])
 	}
+	if len(args) > 0 && args[0] == "recover-reader" {
+		return dispatchRecoverReader(env, args[1:])
+	}
 	cmd := []string{"dispatch"}
-	values, err := dispatchFlags(args, map[string]bool{"--program": true, "--config": true, "--ticks": true}, map[string]bool{"--once": true})
+	values, err := dispatchFlags(env.Cwd, args, map[string]bool{"--program": true, "--config": true, "--ticks": true}, map[string]bool{"--once": true})
 	if err != "" {
 		return usage(cmd, err)
 	}
@@ -104,6 +108,51 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	return out
 }
 
+// dispatchRecoverReader is the operator recovery of a quarantined reader
+// (CAL-V0-226): the attestation is recorded before the marker is removed,
+// and a running dispatcher for the program refuses it.
+func dispatchRecoverReader(env Env, args []string) *wire.Result {
+	cmd := []string{"dispatch", "recover-reader"}
+	values, bad := dispatchFlags(env.Cwd, args, map[string]bool{"--program": true, "--config": true, "--reason": true, "--evidence": true, "--request-id": true}, nil)
+	if bad != "" {
+		return usage(cmd, bad)
+	}
+	reason, err := wire.ParseProse("--reason", values["--reason"], 1, 4096)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	evidence, err := wire.ParseIdentifier("--evidence", values["--evidence"])
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	requestID, err := mutation.ParseRequestID("--request-id", values["--request-id"])
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	c, _, res := dispatchConfig(cmd, values)
+	if res != nil {
+		return res
+	}
+	rec, replayed, err := dispatch.RecoverReader(c, values["--program"], dispatch.ReaderRecoveryRequest{RequestID: requestID, Reason: reason, Evidence: evidence}, time.Now())
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	o := wire.NewObject()
+	o.Set("profile", wire.String("taskman-dispatch-reader-recover/0"))
+	o.Set("program", wire.String(rec.Program))
+	o.Set("kind", wire.String(rec.Kind))
+	o.Set("requestId", wire.String(rec.RequestID))
+	o.Set("run", wire.String(rec.Run))
+	o.Set("markerSha256", wire.String(rec.MarkerSHA256))
+	o.Set("recordedAt", wire.String(rec.RecordedAt))
+	o.Set("replayed", wire.Bool(replayed))
+	containment, quarantined, diagnostic := dispatch.ReaderContainment(dispatch.ProgramDir(c, values["--program"]), values["--program"])
+	o.Set("readerContainment", wire.String(containment))
+	o.Set("readerQuarantined", wire.Bool(quarantined))
+	o.Set("readerDiagnostic", wire.String(diagnostic))
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{wire.ObjectValue(o)}}
+}
+
 func dispatchReaderError(cmd []string, err error) *wire.Result {
 	if errors.Is(err, dispatch.ErrReaderQuiescence) {
 		return errorResult(cmd, wire.Errorf(wire.CodeQuiescenceUnproved, "reader", "%v", err))
@@ -111,7 +160,9 @@ func dispatchReaderError(cmd []string, err error) *wire.Result {
 	return errorResult(cmd, err)
 }
 
-func dispatchFlags(args []string, valued, bare map[string]bool) (map[string]string, string) {
+// dispatchFlags parses the dispatch flags and resolves --config with
+// commandPath, so every later read, watch and stat names one file.
+func dispatchFlags(cwd string, args []string, valued, bare map[string]bool) (map[string]string, string) {
 	values := map[string]string{}
 	for i := 0; i < len(args); i++ {
 		f := args[i]
@@ -134,7 +185,20 @@ func dispatchFlags(args []string, valued, bare map[string]bool) (map[string]stri
 	if !dispatch.ValidName(values["--program"]) {
 		return nil, "program name must match [a-z][a-z0-9-]{0,23}"
 	}
+	values["--config"] = commandPath(cwd, values["--config"])
 	return values, ""
+}
+
+// commandPath is the one rule for a file-path flag (CAL-V0-225): a relative
+// path is joined to the command's working directory, and the result is
+// cleaned lexically, so `..` is resolved against the spelled path before any
+// filesystem access. The safe open then refuses a symlink in every component
+// of that cleaned path, so the file read is the one the cleaned path names.
+func commandPath(cwd, path string) string {
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(cwd, path)
+	}
+	return filepath.Clean(path)
 }
 
 func dispatchConfig(cmd []string, values map[string]string) (*dispatch.Config, []byte, *wire.Result) {
@@ -184,7 +248,7 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 	if verb == "unpark" {
 		valued = map[string]bool{"--program": true, "--config": true, "--key": true}
 	}
-	values, err := dispatchFlags(args, valued, nil)
+	values, err := dispatchFlags(env.Cwd, args, valued, nil)
 	if err != "" {
 		return usage(cmd, err)
 	}

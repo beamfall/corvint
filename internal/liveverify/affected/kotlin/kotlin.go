@@ -910,6 +910,10 @@ func sortedKeys[Value any](values map[string]Value) []string {
 	return keys
 }
 
+// SourceText is the Kotlin lexer the Java plugin uses to read the header of a
+// Kotlin file, so nested comments and raw strings are read as kotlinc does.
+func SourceText(text string) (string, bool) { return sourceText(text) }
+
 // sourceText removes comments and string/character contents while preserving
 // identifiers and newlines. An unterminated lexical construct is not guessed.
 func sourceText(text string) (string, bool) {

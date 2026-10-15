@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
@@ -118,6 +119,25 @@ func NewStableResult(o StableOptions) StableResult {
 	}
 	return StableResult{Profile: "cem-stable-verification/1", Spec: wire.StableSpec, VerificationMode: "canonical-and-reference-integrity", Outcome: "UNSUPPORTED", Stage: "arguments", IssueCodes: []string{}, ExpectedBase: nullableStable(o.ExpectedBase), TargetRevision: nullableStable(o.Target), Sidecar: "NOT_CHECKED", Drift: []StableDrift{}, Hunks: []any{}, References: map[string]any{"criterionBindings": []any{}, "runnerReceipts": []any{}, "criterionLinks": []any{}, "artifacts": []any{}}, ArtifactChecks: []StableArtifactCheck{}, Axes: axes, Runtime: StableRuntime{runtime.Version(), "NOT_REQUIRED"}, RepositoryEnvelope: "canonical-repository-bounded/1"}
 }
+
+// RelativePathFix names the recovery for an invalid-arguments refusal whose
+// cause is a relative path option (CEM-V1-117). Each pair is an option name and
+// its supplied value; empty values are absent. It returns "" when every
+// supplied path is absolute. A relative path is refused, never resolved
+// (CEM-V1-017), so the fix is the caller's.
+func RelativePathFix(options ...[2]string) string {
+	var relative []string
+	for _, o := range options {
+		if o[1] != "" && !filepath.IsAbs(o[1]) {
+			relative = append(relative, o[0])
+		}
+	}
+	if len(relative) == 0 {
+		return ""
+	}
+	return "invalid-arguments: relative path option " + strings.Join(relative, ", ") + "; fix: pass each as an absolute path such as \"$PWD/<path>\"; a relative path is refused, never resolved"
+}
+
 func (r *StableResult) Refuse(stage, code string, unsupported bool) int {
 	r.Citation = nil
 	r.Stage = stage
@@ -181,19 +201,19 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 	r.Hunks = d.StableHunks()
 	r.References = d.StableReferences()
 	if o.ExpectedBase == "" {
-		exit = r.Refuse("authority-arguments", "expected-base-required", false)
+		exit = r.Refuse("authority-arguments", "expected-base-required", true)
 		return r, exit
 	}
 	if o.Target == "" {
-		exit = r.Refuse("authority-arguments", "target-required", false)
+		exit = r.Refuse("authority-arguments", "target-required", true)
 		return r, exit
 	}
 	if o.ArtifactRoot == "" {
-		exit = r.Refuse("authority-arguments", "artifacts-required", false)
+		exit = r.Refuse("authority-arguments", "artifacts-required", true)
 		return r, exit
 	}
 	if !wire.IsGitOid(o.ExpectedBase) || !wire.IsGitOid(o.Target) || len(o.ExpectedBase) != len(o.Target) || !filepath.IsAbs(o.Repository) || !filepath.IsAbs(o.ArtifactRoot) {
-		exit = r.Refuse("authority-arguments", "invalid-arguments", false)
+		exit = r.Refuse("authority-arguments", "invalid-arguments", true)
 		return r, exit
 	}
 	mechanical, structural := false, false

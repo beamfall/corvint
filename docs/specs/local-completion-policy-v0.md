@@ -162,7 +162,9 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   (or `dogfood-event-index-snapshot-stale` once the read fell back to the in-memory build of a
   snapshot miss; accepted 2026-09-25 with `AHI-031`, decision 0400), never the generic `dogfood-event-unavailable`, even when the expiry first surfaces as a failed
   repository or policy read. The Git repository probe's own fixed bound expiring first
-  (`repository-probe-timeout`) is the same time bound and reports the same code (V1-0396). That code
+  (`repository-probe-timeout`) is the same time bound and reports the same code (V1-0396), as does
+  an event input read from stdin that ends with the deadline passed, never
+  `dogfood-event-input-unavailable` (amended 2026-10-15, V1-1391). That code
   MUST be returned once the deadline passes, without waiting
   for a read stage that does not observe cancellation (the in-memory index compile of a snapshot
   miss); the abandoned read writes nothing. `dogfood-event-policy-drift` is reserved for an observed
@@ -380,9 +382,9 @@ elsewhere are not repeated.
 | `completion-evidence-drift` | `internal/localcompletion/finish.go:383@b1202061` | after finishing, the tree is not clean, the target or tree differs from the pre-finish snapshot, or the saved report is no longer current |
 | `dogfood-coordination-failed` | `internal/localcompletion/finish.go:411` | the in-process `dogfood change` coordination run did not pass (`LCP-V0-014`) |
 | `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go:442` | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
-| `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:83` | the event's context deadline expired or was cancelled, or the Git repository probe's own fixed bound expired first (V1-0396) |
+| `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:83` | the event's context deadline expired or was cancelled, or the Git repository probe's own fixed bound expired first (V1-0396), including during the stdin input read (V1-1391) |
 | `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go:81` | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, decision 0400); proposed 2026-09-26, not accepted: also reported before that build when the recorded `index` build cost does not fit the time left (`IDX-SNAP-V0-012`) |
-| `dogfood-event-input-unavailable` | `cmd/corvint/local_completion_event.go:138` | reading the event input from stdin failed |
+| `dogfood-event-input-unavailable` | `cmd/corvint/local_completion_event.go:588` | reading the event input from stdin failed before the event's deadline passed (V1-1391) |
 | `dogfood-event-native-budget` | `cmd/corvint/local_completion_event.go:498` | eight prompt-context attempts, each shrinking the budget, never fit the natively escaped response within the byte budget |
 | `dogfood-event-output-too-large` | `cmd/corvint/local_completion_event.go:523` | the canonical response plus a final LF exceeds the byte budget |
 | `dogfood-event-output-unavailable` | `cmd/corvint/local_completion_event.go:169` | writing the encoded response to stdout failed |
@@ -503,7 +505,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-005 | `TestLocalCompletionRealEvidenceWorkflow`; actual CEM/OCM/coordinator/checker fixture |
 | LCP-V0-006 | `TestLocalCompletionRealEvidenceWorkflow`; generated-but-unread/stale report refusals |
 | LCP-V0-007 | `TestLocalCompletionRealEvidenceWorkflow`; strict-check and repeated-finish assertions |
-| LCP-V0-008 | `TestDogfoodEventStopLifecycle`; `TestDogfoodEventReadOnlyEnrolledStopAndPrompt` other-session release and notice; `TestQualifiedLifecycleStopComposition` closed completion; `TestDogfoodEventStrictInputAndDeadline` deadline code and uncancellable-read expiry; native first/recursive Stop regressions |
+| LCP-V0-008 | `TestDogfoodEventStopLifecycle`; `TestDogfoodEventReadOnlyEnrolledStopAndPrompt` other-session release and notice; `TestQualifiedLifecycleStopComposition` closed completion; `TestDogfoodEventStrictInputAndDeadline` deadline code, uncancellable-read expiry and input-read expiry (V1-1391); native first/recursive Stop regressions, with the Git probe bound lifted beside the event deadline (`gokernel.WithProbeBound`, V1-1391) |
 | LCP-V0-009 | `TestDogfoodEventGoPythonWireAndSession`; `TestDogfoodEventStrictInputAndDeadline`; `TestAdapterRejectedReasonSurfacesEngineErrorCode`; `TestRejectedEventReasonAppendsEngineCode`; `TestAdapterErrorTailIsBounded` |
 | LCP-V0-010 | `TestDogfoodPromptFrozenAnchors`; `TestDogfoodPromptScopeDoesNotResolveAndPreservesStaleness`; frozen follow-up and explicit/unknown/ambiguous anchors |
 | LCP-V0-011 | `TestDogfoodPromptPrivacyNoHistoryAndNonmutation`; `TestDogfoodPromptCriticalBudgetAndImpossibleEnvelope`; accepted adapter amendment (decision 0441): `TestClaudeNativeDogfoodLifecycle` (AHI-046 and AHI-047 subtests), `TestAHI047GuidanceIsMainThreadSessionStartOnly` |

@@ -222,7 +222,7 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 			_, err := dispatch.LoadLedger(dir, "prog")
 			return err
 		},
-		"taskman-dispatch-reader-lifecycle/0": func(t *testing.T, p string) error {
+		"taskman-dispatch-reader-lifecycle/1": func(t *testing.T, p string) error {
 			dir := resolvedTempDir(t)
 			if err := os.WriteFile(filepath.Join(dir, "reader-lifecycle.json"), enc(t, p), 0o600); err != nil {
 				t.Fatal(err)
@@ -233,6 +233,25 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 			}
 			code, _, _ := strings.Cut(why, ":")
 			return wire.Errorf(code, "", "%s", why)
+		},
+		dispatch.ReaderRecoveryProfile: func(t *testing.T, p string) error {
+			dir := resolvedTempDir(t)
+			if err := os.MkdirAll(filepath.Join(dir, "reader-recoveries"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "reader-recoveries", "reboot-0123456789abcdef0123456789abcdef.json"), enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := dispatch.ReadReaderRecovery(dir, "reboot-0123456789abcdef0123456789abcdef.json")
+			return err
+		},
+		dispatch.ReaderLeaderProfile: func(t *testing.T, p string) error {
+			dir := resolvedTempDir(t)
+			if err := os.WriteFile(filepath.Join(dir, "reader-leader.json"), enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := dispatch.ReadReaderLeader(dir, "prog")
+			return err
 		},
 		"taskman-dispatch-detached-run/0": func(t *testing.T, p string) error {
 			dir := resolvedTempDir(t)
