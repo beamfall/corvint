@@ -633,6 +633,10 @@ var openRefsFile = func(path string) (io.ReadCloser, error) {
 	return file, nil
 }
 
+// beforeRefsWait is replaceable so a test can hold readRefsContext until both
+// the read result and the cancellation are ready (V1-1411).
+var beforeRefsWait = func(<-chan refsRead) {}
+
 type refsRead struct {
 	data []byte
 	cut  bool
@@ -691,9 +695,17 @@ func readRefsContext(ctx context.Context, path string) ([]byte, bool, error) {
 		}
 		done <- refsRead{raw, false, err}
 	}()
+	beforeRefsWait(done)
 	select {
 	case r := <-done:
 		stop()
+		// A read failed by the cancellation close (os.ErrClosed) can win the
+		// select against ctx.Done; report the cancellation, not the close (V1-1411).
+		if r.err != nil {
+			if err := ctx.Err(); err != nil {
+				return nil, false, err
+			}
+		}
 		return r.data, r.cut, r.err
 	case <-ctx.Done():
 		return nil, false, ctx.Err()
