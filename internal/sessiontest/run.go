@@ -231,7 +231,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			continue
 		}
 		runner, version, err := r.discover(discoverCtx, invocation, deadline)
-		if err != nil && (errors.Is(err, errDiscoveryBudget) || discoverCtx.Err() != nil) {
+		if err != nil && (errors.Is(err, errDiscoveryBudget) || (ctx.Err() == nil && discoverCtx.Err() != nil)) {
 			// The budget ended this runner's discovery: no later probe or
 			// adapter starts (V1-1311).
 			receipt.Incomplete = append(receipt.Incomplete, fmt.Sprintf("%s: the shard's %s total budget ran out during runner discovery; nothing launched", key, budget))

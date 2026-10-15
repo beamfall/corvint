@@ -58,13 +58,8 @@ func (b *budgetFS) Stat(name string) (fs.FileInfo, error) {
 // during file reads, the Go observer attempts at most one further operation
 // and returns that fatal failure instead of a partial unit set.
 func TestUnitsSourceStopsAtGitBudgetExhaustion_V11416(t *testing.T) {
-	files := fstest.MapFS{"go.mod": {Data: []byte("module example.test/m\n")}}
 	const packages = 40
-	for index := range packages {
-		directory := fmt.Sprintf("p%02d", index)
-		files[directory+"/a.go"] = &fstest.MapFile{Data: []byte("package " + directory + "\n")}
-		files[directory+"/a_test.go"] = &fstest.MapFile{Data: []byte("package " + directory + "\n")}
-	}
+	files := budgetFixture(packages)
 	unlimited := &budgetFS{files: files, limit: 1 << 30}
 	if _, err := golang.New().UnitsSource(affected.FSSource(unlimited)); err != nil {
 		t.Fatalf("unbounded observation: %v", err)
@@ -86,5 +81,46 @@ func TestUnitsSourceStopsAtGitBudgetExhaustion_V11416(t *testing.T) {
 	}
 	if exhausted.afterFailure > 1 {
 		t.Fatalf("%d operations after git-budget-exceeded; want at most one", exhausted.afterFailure)
+	}
+}
+
+func budgetFixture(packages int) fstest.MapFS {
+	files := fstest.MapFS{"go.mod": {Data: []byte("module example.test/m\n")}}
+	for index := range packages {
+		directory := fmt.Sprintf("p%02d", index)
+		files[directory+"/a.go"] = &fstest.MapFile{Data: []byte("package " + directory + "\n")}
+		files[directory+"/a_test.go"] = &fstest.MapFile{Data: []byte("package " + directory + "\n")}
+	}
+	return files
+}
+
+// V1-1416: a read inside a walk that exhausts the budget ends the walk at the
+// next entry, and every later read, stat and walk of the source returns the
+// retained failure without reaching the backend.
+func TestSourceShortCircuitsAfterFatalRead_V11416(t *testing.T) {
+	exhausted := &budgetFS{files: budgetFixture(40), limit: 5}
+	source := affected.FSSource(exhausted)
+	err := source.Walk(".", func(name string, entry fs.DirEntry, err error) error {
+		if err == nil && !entry.IsDir() {
+			_, _ = source.Read(name) // a provider that tolerates a failed read
+		}
+		return nil
+	})
+	if cemcode.CodeOf(err) != cemcode.GitBudgetExceeded || exhausted.afterFailure > 1 {
+		t.Fatalf("Walk = %v after %d operations past the failure; want git-budget-exceeded and at most one", err, exhausted.afterFailure)
+	}
+	spent := exhausted.ops
+	_, statErr := source.Stat("go.mod")
+	_, lstatErr := source.Lstat("go.mod")
+	_, readErr := source.ReadBounded("go.mod", 64)
+	_, filesErr := source.Files(func(string) bool { return true })
+	walkErr := source.Walk(".", func(string, fs.DirEntry, error) error { return nil })
+	for _, err := range []error{statErr, lstatErr, readErr, filesErr, walkErr} {
+		if cemcode.CodeOf(err) != cemcode.GitBudgetExceeded {
+			t.Fatalf("later access returned %v; want the retained git-budget-exceeded", err)
+		}
+	}
+	if exhausted.ops != spent {
+		t.Fatalf("later accesses reached the backend %d times", exhausted.ops-spent)
 	}
 }

@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -190,13 +189,13 @@ func committedPackageDirectory(source fs.FS, listed map[string]module, directory
 	return false, nil
 }
 
-// gitFailure is err when it is a coded Git failure of the revision source,
-// and nil for an ordinary absence or unreadable entry.
+// gitFailure is err when the revision source failed (a Git failure or an
+// exhausted bound), and nil for an absent path or an entry of the wrong type.
 func gitFailure(err error) error {
-	if cemcode.CodeOf(err) != "" {
-		return err
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid) {
+		return nil
 	}
-	return nil
+	return err
 }
 
 // committedOwner is enclosingModule over the commit: the nearest listed module
