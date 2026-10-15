@@ -3,7 +3,8 @@ package wire
 // validateDiscrimination checks one hunk discrimination witness
 // (TCQ-V0-056): closed keys, a full tree revision and selection digest,
 // consistent counts, one described survivor per survived mutant inside the
-// hunk's newRange, positive bounds, and a state that agrees with the counts.
+// hunk's newRange, positive bounds that the mutant count does not exceed
+// (CEM-V1-090), and a state that agrees with the counts.
 func validateDiscrimination(value Value, newRange Range) (DiscriminationWitness, error) {
 	if value.Kind != KindObject {
 		return DiscriminationWitness{}, fieldError("hunk discriminates must be an object")
@@ -39,6 +40,9 @@ func validateDiscrimination(value Value, newRange Range) (DiscriminationWitness,
 	bounds, err := validateDiscriminationBounds(boundsValue)
 	if err != nil {
 		return DiscriminationWitness{}, err
+	}
+	if counts[0] > bounds.MaxMutants {
+		return DiscriminationWitness{}, fieldError("discriminates mutants must not exceed bounds maxMutants")
 	}
 	state, _ := value.Obj.Get("state")
 	if state.Kind != KindString || !discriminationStateAgrees(state.Str, counts) {

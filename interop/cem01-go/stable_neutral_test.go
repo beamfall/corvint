@@ -208,6 +208,7 @@ func TestCEMV1083NeutralCriterionPublicCase(t *testing.T) {
 		b, _ := json.Marshal(r)
 		t.Fatalf("runStableCanonical exit=%d result=%s, want the public expected ACCEPT", exit, b)
 	}
+	checkResultBytes(t, filepath.Join(dir, "results", "accept.json"), r)
 	if len(want.Refusals) != 7 {
 		t.Fatalf("public refusals = %d, want 7", len(want.Refusals))
 	}

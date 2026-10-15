@@ -109,3 +109,60 @@ func writeCanonicalJSON(b *strings.Builder, v any) error {
 	}
 	return nil
 }
+
+// The nested member order of the stable result is normative (CEM-V1-113): a
+// drift entry keeps its declared order with targetSpan as end then start, every
+// object inside a hunk has its members sorted by name, and references lists
+// artifacts, criterionBindings, criterionLinks, runnerReceipts. These encoders
+// apply that order to the result only; the map types keep their own encoding.
+
+func (d drift03) MarshalJSON() ([]byte, error) {
+	type span struct {
+		End   uint64 `json:"end"`
+		Start uint64 `json:"start"`
+	}
+	out := struct {
+		EvidenceID    string  `json:"evidenceId"`
+		Path          string  `json:"path"`
+		BaseBlobOID   string  `json:"baseBlobOid"`
+		Status        string  `json:"status"`
+		TargetBlobOID *string `json:"targetBlobOid"`
+		TargetSpan    *span   `json:"targetSpan"`
+	}{EvidenceID: d.EvidenceID, Path: d.Path, BaseBlobOID: d.BaseBlobOID, Status: d.Status, TargetBlobOID: d.TargetBlobOID}
+	if d.TargetSpan != nil {
+		out.TargetSpan = &span{End: d.TargetSpan.End, Start: d.TargetSpan.Start}
+	}
+	return json.Marshal(out)
+}
+
+// resultHunks are the hunks echoed in a stable result.
+type resultHunks []hunk03
+
+// MarshalJSON re-encodes the hunks as generic JSON values, which sorts the
+// members of every nested object by name and keeps each integer's digits.
+func (h resultHunks) MarshalJSON() ([]byte, error) {
+	raw, err := json.Marshal([]hunk03(h))
+	if err != nil {
+		return nil, err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		return nil, err
+	}
+	return json.Marshal(value)
+}
+
+// resultReferences are the references echoed in a stable result. A method on
+// stableReferences itself would be promoted onto stableMap, which embeds it.
+type resultReferences stableReferences
+
+func (r resultReferences) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Artifacts         []stableArtifact  `json:"artifacts"`
+		CriterionBindings []stableCriterion `json:"criterionBindings"`
+		CriterionLinks    []stableLink      `json:"criterionLinks"`
+		RunnerReceipts    []stableRunner    `json:"runnerReceipts"`
+	}{r.Artifacts, r.CriterionBindings, r.CriterionLinks, r.RunnerReceipts})
+}
