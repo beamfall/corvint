@@ -1406,9 +1406,9 @@ DCW-V0-061	docs/specs/daily-change-evidence-workflow-v0.md	791	(accepted under t
 DCW-V0-062	docs/specs/daily-change-evidence-workflow-v0.md	804	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348) After it	standing	2026-10-11; V1-1348
 DCW-V0-064	docs/specs/daily-change-evidence-workflow-v0.md	811	(accepted under the owner's standing auto-accept (2026-10-11); V1-1354) Every Gi	standing	2026-10-11; V1-1354
 DCW-V0-065	docs/specs/daily-change-evidence-workflow-v0.md	821	(accepted under the owner's standing auto-accept (2026-10-11); V1-1341) The	standing	2026-10-11; V1-1341
-DCW-V0-066	docs/specs/daily-change-evidence-workflow-v0.md	827	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) When	standing	2026-10-11; V1-1397
-DCW-V0-067	docs/specs/daily-change-evidence-workflow-v0.md	838	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) When	standing	2026-10-11; V1-1397
-DCW-V0-068	docs/specs/daily-change-evidence-workflow-v0.md	846	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) A CEM	standing	2026-10-11; V1-1397
+DCW-V0-066	docs/specs/daily-change-evidence-workflow-v0.md	828	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) When	standing	2026-10-11; V1-1397
+DCW-V0-067	docs/specs/daily-change-evidence-workflow-v0.md	839	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) When	standing	2026-10-11; V1-1397
+DCW-V0-068	docs/specs/daily-change-evidence-workflow-v0.md	849	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) A CEM	standing	2026-10-11; V1-1397
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked	unrecorded	-
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and	unrecorded	-
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map	unrecorded	-

@@ -75,6 +75,9 @@ type change struct {
 	// staleBinding names the row whose hunk moved since the citation-plan
 	// binding was recorded against an earlier map (DCW-V0-066).
 	staleBinding string
+	// citationFailedMap is the map the failing cite command read: the staged
+	// citation map after the first row (DCW-V0-068).
+	citationFailedMap string
 }
 
 // Change runs the pre-change context, binding and status steps and writes
@@ -708,6 +711,7 @@ func (c *change) cite(plan []byte, citeOutput string) (string, string) {
 		errorFile := c.evidence + "/cem-cite.stderr"
 		if status := c.exec(args, part, errorFile); status != 0 {
 			c.citationFailedRow = index + 1
+			c.citationFailedMap = citeMap
 			return "NOT_PRODUCED", failureReason(readFile(errorFile), status)
 		}
 		// Intermediate receipts truthfully name the stage; only the last cite
@@ -1062,14 +1066,14 @@ func (c *change) ordinalsMoved(plan []byte, hunks []map[string]string) bool {
 	for index, hunk := range hunks {
 		current[hunk["id"]] = index + 1
 	}
-	for _, line := range textLines(plan) {
+	for index, line := range textLines(plan) {
 		selector, _, _ := strings.Cut(line, "\t")
 		value, err := strconv.Atoi(selector)
 		if !ordinal.MatchString(selector) || err != nil || value >= len(recorded) {
 			continue
 		}
 		if now, found := current[recorded[value]]; found && now != value {
-			c.staleBinding = fmt.Sprintf("row %d named hunk %s, which the current map holds at ordinal %d", value, recorded[value], now)
+			c.staleBinding = fmt.Sprintf("plan row %d (ordinal %d) named hunk %s, which the current map holds at ordinal %d", index+1, value, recorded[value], now)
 			return true
 		}
 	}
@@ -1434,6 +1438,15 @@ const uncommittedHint = "the worktree has uncommitted changes (often the prepare
 // refusal came from a binding recorded against an earlier map (DCW-V0-066).
 const staleBindingHint = "stale binding: {evidence}/citation-plan-binding was recorded when these same plan bytes were cited against an earlier map, and {staleBinding}; if the plan was kept from that map, rewrite it from the current .corvint/change.cem.json; if it was rewritten for the current map and only repeats the earlier bytes, remove {evidence}/citation-plan-binding and rerun (DCW-V0-066)"
 
+// failedMap is the map a failing CEM step read: the cite command's own map,
+// else the change's sidecar.
+func (c *change) failedMap() string {
+	if c.citationFailedMap != "" {
+		return c.citationFailedMap
+	}
+	return ".corvint/change.cem.json"
+}
+
 func (c *change) fixHint(row step) string {
 	value := row.name + ":" + row.reason
 	if value == "cem-cite:citation-plan-map-mismatch" && c.staleBinding != "" {
@@ -1446,7 +1459,7 @@ func (c *change) fixHint(row step) string {
 			matched = len(value) >= len(prefix)+len(suffix) && strings.HasPrefix(value, prefix) && strings.HasSuffix(value, suffix)
 		}
 		if matched {
-			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{map}", c.path(".corvint/change.cem.json"), "{row}", strconv.Itoa(c.citationFailedRow), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows), "{uniformHunks}", strconv.Itoa(c.uniformHunks), "{uniformSpan}", c.uniformSpan).Replace(entry.hint)
+			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{map}", c.path(c.failedMap()), "{row}", strconv.Itoa(c.citationFailedRow), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows), "{uniformHunks}", strconv.Itoa(c.uniformHunks), "{uniformSpan}", c.uniformSpan).Replace(entry.hint)
 		}
 	}
 	return ""

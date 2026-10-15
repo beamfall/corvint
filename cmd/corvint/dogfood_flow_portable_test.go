@@ -421,6 +421,11 @@ func TestDogfoodChangeNamesVerifySyntaxRemediation(t *testing.T) {
 	t.Parallel()
 	run := portableDogfoodRunner(t)
 	root, base := portableDogfoodRepo(t)
+	// The escape's script is committed with the change; the recorder checks
+	// only the listed command's syntax, so committing it is the caller's part.
+	cemWrite(t, root, "fixture/verify-split.sh", "go test ./fixture -run '^Test[A-C]'\n")
+	cemGit(t, root, "add", "fixture/verify-split.sh")
+	cemGit(t, root, "commit", "-qm", "verify script")
 	verify := filepath.Join(t.TempDir(), "verify")
 	if err := os.WriteFile(verify, []byte("go test ./fixture -run ^TestAnswer$\ngo test ./fixture -run '^Test[A-C]'\n"), 0644); err != nil {
 		t.Fatal(err)

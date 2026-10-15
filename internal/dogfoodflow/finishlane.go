@@ -174,15 +174,16 @@ func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
 	run := &change{flow: flow{ctx: l.ctx, prefix: "dogfood-change", root: options.Root, stderr: &captured}, options: options}
 	code, err := boundary(l.ctx, run.run, run.cleanup)
 	run.releaseOperation()
-	if err != nil {
-		// The interrupted pass's own output is kept, as a stopping one's is.
-		_, _ = l.stderr.Write(captured.Bytes())
-		l.exit(-1)
-	}
 	for _, row := range run.rows {
 		if row.status != "PRODUCED" {
 			l.missing = append(l.missing, name+" "+row.name+" "+row.status+" "+row.reason)
 		}
+	}
+	if err != nil {
+		// The interrupted pass's own output and rows are kept, as a stopping
+		// one's are.
+		_, _ = l.stderr.Write(captured.Bytes())
+		l.exit(-1)
 	}
 	return code, run, captured.Bytes()
 }
@@ -309,10 +310,10 @@ func (l *finishLane) checkAndSeal() int {
 	l.step = "check"
 	var verdict bytes.Buffer
 	code, err := Seal(l.ctx, l.options.Check, &verdict, l.stderr)
-	if err != nil {
-		l.exit(-1)
-	}
 	checked := hasLine(verdict.Bytes(), "dogfood-check: PASS")
+	if err != nil {
+		l.sealInterrupted(verdict.Bytes())
+	}
 	switch {
 	case code == 0:
 		l.line("check PASS")
@@ -326,4 +327,15 @@ func (l *finishLane) checkAndSeal() int {
 	l.reportMissing()
 	_, _ = l.stdout.Write(verdict.Bytes())
 	return code
+}
+
+// sealInterrupted unwinds an interrupted check and seal. An interruption after
+// the check passed stopped the seal, so the step is named seal; the verdict
+// lines captured so far are kept (DCW-V0-067).
+func (l *finishLane) sealInterrupted(verdict []byte) {
+	if hasLine(verdict, "dogfood-check: PASS") {
+		l.step = "seal"
+	}
+	_, _ = l.stdout.Write(verdict)
+	l.exit(-1)
 }

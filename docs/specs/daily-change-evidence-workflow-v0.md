@@ -823,12 +823,13 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   grammar cannot express: write the command in a script committed with the change and list it
   as `sh path/to/script.sh`. The grammar itself is unchanged.
   Non-goals: quoting, globbing or regular-expression syntax in the verify file.
-  Failure modes: none; a script that is not committed is refused by the recorder as before.
+  Failure modes: the recorder checks only the listed command's syntax, so committing the script
+  is the caller's part; a script that is missing fails only when the command is run.
 - `DCW-V0-066`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) When
   `DCW-V0-029` refuses a citation plan as `citation-plan-map-mismatch` because a recorded binding
   of the same plan bytes names a hunk the current map holds at another ordinal, the fix line MUST
-  say the binding is stale, name `citation-plan-binding` under the Git directory, the first row
-  whose hunk moved and both ordinals, and give both remedies: rewrite a plan kept from the
+  say the binding is stale, name `citation-plan-binding` under the Git directory, the first plan
+  row whose hunk moved, that row's ordinal and the hunk's current ordinal, and give both remedies: rewrite a plan kept from the
   earlier map, or remove the binding and rerun when the plan was rewritten for the current map.
   The reason code is unchanged (`DCW-V0-014`).
   Non-goals: telling the two cases apart; identical plan bytes cannot show which map they were
@@ -838,13 +839,16 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
 - `DCW-V0-067`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) When
   `finish-lane` is interrupted, it MUST print `dogfood-finish-lane: STEP INTERRUPTED`, naming the
   step that was running (`start` before the first), followed by its `DCW-V0-062` block, and the
-  interrupted pass MUST print the output it captured from that step, as a stopping pass does. An
-  interrupted run exits as before.
+  interrupted pass MUST print the output it captured from that step, as a stopping pass does,
+  and its `NOT_PRODUCED` rows MUST be in the block. A seal interrupted after its check passed is
+  named `seal`, and the check's verdict lines it captured are printed. An interrupted run exits
+  as before.
   Non-goals: a signal that kills the process outright, which prints nothing, or the
   `script/dogfood-finish.sh` builds that run before `finish-lane`.
   Failure modes: none beyond the passes' own rows.
 - `DCW-V0-068`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) A CEM
-  step that is `NOT_PRODUCED` as `map-unavailable` MUST print a fix line naming the map path, the
+  step that is `NOT_PRODUCED` as `map-unavailable` MUST print a fix line naming the map path the
+  failing command read (a staged citation map after the first row), the
   step's retained stderr and both remedies: restore the committed map, or rerun `dogfood change`
   to prepare it again. The CEM command's own message is unchanged.
   Non-goals: changing the frozen `cannot read CEM map` text of the CEM commands.
@@ -1053,10 +1057,10 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-061` (accepted under the owner's standing auto-accept (2026-10-11); V1-1348) | `internal/dogfoodflow/finishlane.go` `stop`, `isBindCommit`, `run` (seal skip); `TestDogfoodFinishLaneDCWV0061StopsOnUniformPlanAndResumes` (stops at bind with the `citation-plan-uniform` fix line, no commit; the corrected rerun seals); `TestDogfoodFinishLaneDCWV0061StopsOnInvalidRequirementsSection`; `TestDogfoodFinishLaneDCWV0061ContinuesFromBindCommit`; `TestDogfoodFinishLaneDCWV0061ResumesAfterRejectedSeal` (a hook-rejected seal stops at `seal FAIL`, the rerun names the restore command, then seals; a dirty sealed HEAD is refused); `TestFinishLaneDCWV0061RecognizesOnlyTheBindCommit` | implemented; focused tests PASS |
 | `DCW-V0-062` (accepted under the owner's standing auto-accept (2026-10-11); V1-1348) | `internal/dogfoodflow/finishlane.go` `pass`, `reportMissing`; `TestDogfoodFinishLaneDCWV0060MatchesManualRecipe` (four rows from prepare and bind kept after the rebind produced them); `TestDogfoodFinishLaneDCWV0061StopsOnUniformPlanAndResumes` | implemented; focused tests PASS |
 | `DCW-V0-064` (accepted under the owner's standing auto-accept (2026-10-11); V1-1354) | `internal/dogfoodflow/flow.go` `git`, `boundedGit`, `readGit`, `cappedOutput`; `internal/dogfoodflow/batch.go` `runScratch`; `internal/dogfoodflow/ocm_coverage.go` (callers of `boundedGit`); `TestDCWV0064GitReadOverItsBoundRefusesOrIsUnbounded` (a 4096-byte blob past a 256-byte test bound: `boundedGit` keeps nothing and reports unbounded, a small read stays bounded, `git` refuses exit 2 with `REFUSE git-output-over-bound`) | implemented; focused tests PASS |
-| `DCW-V0-065` (accepted under the owner's standing auto-accept (2026-10-11); V1-1341) | `internal/dogfoodflow/change.go` `fixHints` (`local-outcome:unsupported-verify-syntax`); `cmd/corvint/dogfood_flow_portable_test.go` `TestDogfoodChangeNamesVerifySyntaxRemediation` (a quoted `-run '^Test[A-C]'` group refuses with the script escape on its fix line; the same check as `sh fixture/verify-split.sh` produces `local-outcome`) | implemented; focused tests PASS |
-| `DCW-V0-066` (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) | `internal/dogfoodflow/change.go` `ordinalsMoved`, `staleBindingHint`, `fixHint`; `TestChangeRefusesAPlanWhoseOrdinalsMoved` (the fix line names the binding path, row 1, hunk and both ordinals, and both remedies; the generic mismatch line is absent) | implemented; focused tests PASS |
-| `DCW-V0-067` (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) | `internal/dogfoodflow/finishlane.go` `FinishLane`, `interrupted`, `pass`; `TestFinishLaneDCWV0067NamesTheInterruptedStep` (a context ended during prepare prints `prepare INTERRUPTED` and the `NOT_PRODUCED rows=0` block; at the base both streams were empty) | implemented; focused tests PASS |
-| `DCW-V0-068` (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) | `internal/dogfoodflow/change.go` `fixHints` (`cem-*:map-unavailable`); `TestFinishLaneDCWV0068NamesTheUnreadableMap` (the sidecar removed during the bind: the bind row is `NOT_PRODUCED map-unavailable` and its fix line names the map path) | implemented; focused tests PASS |
+| `DCW-V0-065` (accepted under the owner's standing auto-accept (2026-10-11); V1-1341) | `internal/dogfoodflow/change.go` `fixHints` (`local-outcome:unsupported-verify-syntax`); `cmd/corvint/dogfood_flow_portable_test.go` `TestDogfoodChangeNamesVerifySyntaxRemediation` (a quoted `-run '^Test[A-C]'` group refuses with the script escape on its fix line; the same check as `sh fixture/verify-split.sh`, a script the fixture commits, produces `local-outcome`) | implemented; focused tests PASS |
+| `DCW-V0-066` (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) | `internal/dogfoodflow/change.go` `ordinalsMoved`, `staleBindingHint`, `fixHint`; `TestChangeRefusesAPlanWhoseOrdinalsMoved` (a plan whose row 1 cites ordinal 2: the fix line names the binding path, plan row 1, its ordinal 2, the hunk and its current ordinal 1, and both remedies; the generic mismatch line is absent) | implemented; focused tests PASS |
+| `DCW-V0-067` (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) | `internal/dogfoodflow/finishlane.go` `FinishLane`, `interrupted`, `pass`, `sealInterrupted`; `TestFinishLaneDCWV0067NamesTheInterruptedStep` (a context ended during prepare prints `prepare INTERRUPTED` and the `NOT_PRODUCED rows=0` block; at the base both streams were empty; a row recorded before the interruption stays in the block); `TestFinishLaneDCWV0067NamesAnInterruptedSeal` (after a passing check the step is `seal` and the verdict lines are kept; before it, `check`) | implemented; focused tests PASS |
+| `DCW-V0-068` (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) | `internal/dogfoodflow/change.go` `fixHints` (`cem-*:map-unavailable`), `failedMap`; `TestFinishLaneDCWV0068NamesTheUnreadableMap` (the sidecar removed during the bind: the bind row is `NOT_PRODUCED map-unavailable` and its fix line names the map path); `TestChangeDCWV0068NamesTheStagedMapOfALaterRow` (a second row's failing cite names the staged citation map it read) | implemented; focused tests PASS |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |

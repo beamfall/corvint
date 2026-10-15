@@ -115,8 +115,10 @@ func TestChangeRefusesAPlanWhoseOrdinalsMoved(t *testing.T) {
 		t.Fatal(err)
 	}
 	testGit(t, root, "commit", "-q", "-am", "change")
+	// Row 1 cites ordinal 2, so the fix line must tell the plan row from the
+	// ordinal it names.
 	plan := filepath.Join(t.TempDir(), "cites.tsv")
-	if err := os.WriteFile(plan, []byte("1\ta.txt\t1:1\tspecification\n2\tb.txt\t1:1\tspecification\n"), 0o666); err != nil {
+	if err := os.WriteFile(plan, []byte("2\tb.txt\t1:1\tspecification\n1\ta.txt\t1:1\tspecification\n"), 0o666); err != nil {
 		t.Fatal(err)
 	}
 	cemMap := func(ids ...string) string {
@@ -169,7 +171,7 @@ func TestChangeRefusesAPlanWhoseOrdinalsMoved(t *testing.T) {
 	}
 	binding := filepath.Join(testGit(t, root, "rev-parse", "--absolute-git-dir"), "corvint", "citation-plan-binding")
 	for _, want := range []string{
-		"fix: stale binding: " + binding + " was recorded when these same plan bytes were cited against an earlier map, and row 1 named hunk hunk:a, which the current map holds at ordinal 2;",
+		"fix: stale binding: " + binding + " was recorded when these same plan bytes were cited against an earlier map, and plan row 1 (ordinal 2) named hunk hunk:b, which the current map holds at ordinal 1;",
 		"rewrite it from the current .corvint/change.cem.json",
 		"remove " + binding + " and rerun (DCW-V0-066)",
 	} {
