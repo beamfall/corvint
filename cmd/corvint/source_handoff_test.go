@@ -92,7 +92,7 @@ func TestClaudeSourceHandoffCLI(t *testing.T) {
 	gitOutput(t, root, "add", "docs/specs/handoff.md")
 	gitOutput(t, root, "commit", "-qm", "handoff fixture")
 	before := repositoryBytesDigest(t, root)
-	ctx := adapterEnvContext(lifecycleDeadlineContext(), map[string]string{"CLAUDE_PROJECT_DIR": root})
+	ctx := adapterEnvContext(liftedSourceDeadline(lifecycleDeadlineContext()), map[string]string{"CLAUDE_PROJECT_DIR": root})
 	packetPath := filepath.Join(t.TempDir(), "packet.json")
 	output := runClaudeSourceHandoff(ctx, []string{"--packet-out", packetPath}, map[string]any{"session_id": "source-handoff", "prompt": "inspect the roadmap work queue"})
 	specific, ok := output["hookSpecificOutput"].(map[string]any)
@@ -128,7 +128,7 @@ func TestClaudeSourceHandoffCLI(t *testing.T) {
 	args := []string{"--root", root, "--packet", packetPath, "--packet-sha256", lead.SHA256, "--commit", lead.Commit,
 		"--result", fmt.Sprint(selector["result"]), "--evidence", fmt.Sprint(selector["evidence"]), "--lines", fmt.Sprintf("%v:%v", selector["line"], selector["line"])}
 	var viewRaw bytes.Buffer
-	if status := runSourceViewAdapter(context.Background(), args, &viewRaw); status != 0 {
+	if status := runSourceViewAdapter(liftedSourceDeadline(context.Background()), args, &viewRaw); status != 0 {
 		t.Fatalf("source view status=%d output=%s", status, &viewRaw)
 	}
 	if repositoryBytesDigest(t, root) != before {
@@ -155,7 +155,7 @@ func runHostileSourceView(t *testing.T, reason string) (int, string) {
 	}
 	args := []string{"--root", root, "--packet", packetPath, "--commit", commit, "--result", "0", "--evidence", "0", "--lines", "3:3"}
 	var stdout bytes.Buffer
-	status := runSourceViewAdapter(context.Background(), args, &stdout)
+	status := runSourceViewAdapter(liftedSourceDeadline(context.Background()), args, &stdout)
 	return status, stdout.String()
 }
 
