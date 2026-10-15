@@ -100,6 +100,12 @@ func (s *leaseStore) lease(t *testing.T, requestID string, l transaction.LeaseRe
 	t.Helper()
 	return s.leaseWith(context.Background(), t, requestID, l, minutes, derive)
 }
+
+// psrLoaded lifts the fixed observation probe bounds for a test whose subject
+// is not those bounds (V1-1324).
+func psrLoaded(ctx context.Context) context.Context {
+	return store.PSRTestLiftObservationBounds(ctx, time.Minute)
+}
 func (s *leaseStore) leaseWith(ctx context.Context, t *testing.T, requestID string, l transaction.LeaseRequest, minutes int, derive store.ScopeDeriver) *store.Report {
 	t.Helper()
 	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: requestID, Root: s.root, Lease: l, Derive: derive}

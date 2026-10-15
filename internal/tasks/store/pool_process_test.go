@@ -340,14 +340,6 @@ func PSRTestResponseFailure(ctx context.Context, hook func(LeaseChoice, *Report,
 	return context.WithValue(ctx, sweepResponseKey{}, hook)
 }
 
-// PSRTestLiftObservationBounds lifts the fixed sweep Git and runner-identity
-// probe bounds to bound for a sweep, pool preparation or pool cleanup run under
-// ctx (V1-1324). Only tests whose subject is not those bounds use it; cleanup
-// proof bounds are unchanged.
-func PSRTestLiftObservationBounds(ctx context.Context, bound time.Duration) context.Context {
-	return context.WithValue(ctx, sweepObservationBoundKey{}, bound)
-}
-
 // PSRTestRequestFailure fails a sweep write before its writer runs, as
 // contention that commits nothing would.
 func PSRTestRequestFailure(ctx context.Context, hook func(LeaseChoice) error) context.Context {

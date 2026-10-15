@@ -105,9 +105,6 @@ func psrLoadTolerant(v wire.Value) {
 	_, reuse := psrReuse(v)
 	reuse.Set("timeoutSeconds", str("120"))
 }
-func psrLoaded(ctx context.Context) context.Context {
-	return store.PSRTestLiftObservationBounds(ctx, time.Minute)
-}
 func psrRunLoaded(s *leaseStore, id string) (*store.PoolSweepReport, error) {
 	return store.PoolSweep(psrLoaded(context.Background()), s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: id, Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds})
 }
