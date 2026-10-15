@@ -2,6 +2,7 @@ package gokernel
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sync"
 	"testing"
@@ -233,19 +234,26 @@ func TestProbeBoundReplacesGitDeadline(t *testing.T) {
 	}
 	for name, probe := range probes {
 		for _, lifted := range []bool{false, true} {
-			ctx := context.Background()
+			ctx, bound := context.Background(), gitDeadline
 			if lifted {
-				ctx = WithProbeBound(ctx, time.Hour)
+				ctx, bound = WithProbeBound(ctx, time.Hour), time.Hour
 			}
+			// The probe's deadline is its start plus the bound, and its start lies between these
+			// two instants, so the check holds at any host load.
+			start := time.Now()
 			var mutex sync.Mutex
-			var remaining []time.Duration
+			var offending []string
+			reads := 0
 			run := func(ctx context.Context, _ string, _ int, arguments ...string) ([]byte, error) {
 				deadline, ok := ctx.Deadline()
 				if !ok {
 					return nil, newError("test-deadline-missing", "Git probe context has no deadline")
 				}
 				mutex.Lock()
-				remaining = append(remaining, time.Until(deadline))
+				reads++
+				if deadline.Before(start.Add(bound)) || deadline.After(time.Now().Add(bound)) {
+					offending = append(offending, fmt.Sprintf("%s left of a %s bound", time.Until(deadline), bound))
+				}
 				mutex.Unlock()
 				switch arguments[0] {
 				case "rev-parse":
@@ -258,13 +266,8 @@ func TestProbeBoundReplacesGitDeadline(t *testing.T) {
 			if err := probe(ctx, run); err != nil {
 				t.Fatalf("%s lifted=%v: %v", name, lifted, err)
 			}
-			for _, left := range remaining {
-				if lifted != (left > gitDeadline) {
-					t.Fatalf("%s lifted=%v: a Git read had %s left of a %s fixed bound", name, lifted, left, gitDeadline)
-				}
-			}
-			if len(remaining) == 0 {
-				t.Fatalf("%s issued no Git read", name)
+			if reads == 0 || len(offending) != 0 {
+				t.Fatalf("%s lifted=%v: %d Git reads, deadlines outside the bound: %v", name, lifted, reads, offending)
 			}
 		}
 	}

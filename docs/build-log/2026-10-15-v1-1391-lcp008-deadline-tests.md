@@ -82,6 +82,24 @@ Mutations (each applied alone, restored afterwards):
 | M2 | restore BASE `dogfood-event-input-unavailable` on any input-read failure | `LCP-V0-008 expiry during the input read is the time bound` |
 | M3 | `liftedProbeBound` uses 1 ns (the probe expires first, as under load) | `LCP-V0-008 first and recursive Stop`: `first Stop did not block` with the `dogfood-event-deadline` fallback, the gate symptom |
 | M4 | `probeBound` ignores the context value | `TestProbeBoundReplacesGitDeadline` |
+| M5 | `probeBound` defaults to `gitDeadline / 2` | `TestProbeBoundReplacesGitDeadline` (unlifted case) |
+
+## Independent review
+
+One Codex round (`codex exec -s read-only`, range `c76e3d79..00b5c168`) reported three findings:
+
+- P2: the classification depends on scheduling. A stdin read that fails just before the deadline
+  but is examined after it reports the time bound. This is intended: it is the rule LCP-V0-008
+  already applies to every later read ("even when the expiry first surfaces as a failed read").
+  The reviewer also found that input which finished reading as the deadline passed but is
+  malformed still reports `invalid-dogfood-event-input`. That is a deterministic fault in the input
+  itself, not an expiry surfacing as a failed read, so it is recorded and not changed.
+- P2: the seam test checked only "more than 10 s left", so a shorter default would have passed.
+  Fixed: the test now checks that every Git read's deadline lies between the probe's start plus
+  the bound and the read's own time plus the bound, which holds at any host load (mutation M5).
+- P3: `WithProbeBound` is exported from a non-test file. It has no non-test caller. This is
+  accepted and recorded, on the same footing as the existing `dogfoodEventDeadlineKey` test seam.
+  A repository scan test was not added, because it would make `gokernel` an unbounded reader.
 
 ## Residual
 
