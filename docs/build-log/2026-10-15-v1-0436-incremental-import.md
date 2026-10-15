@@ -73,10 +73,11 @@ sub-benchmark closure, and none to `Prepare`.
 
 Tests. Transaction: `TestCALV0018_SequenceParityAndOwnership`, `SequenceRefusalParity`,
 `SequenceInvalidation`, `SequenceBatchGrowth`, `SequenceCapacityPrefixes`,
-`ReserveProbeOwnership`. Store: `TestCALV0018_ImportPublicationFailureRestarts`,
+`SequenceMixedBatches`, `SequenceInventoryBoundaries`, `ReserveProbeOwnership`. Store: `TestCALV0018_ImportPublicationFailureRestarts`,
 `ImportCancellationAndProjectionDrift`, plus the existing `LaterBatchesCheckTheirHeadAndPosts`
 and the CTS-V0-003 import tests. Focused run `-run 'CALV0018|CTSV0003'` over store and
-transaction: 16 PASS, 0 FAIL (load 37 to 42). The transaction package passes in full; the
+transaction: 16 PASS, 0 FAIL (load 37 to 42); 18 PASS, 0 FAIL after the review fixes below
+(load 40 to 42; the transaction package passes in full in 41 s at load 39 to 40). The
 `internal/tasks/cli` import, cutover and CAL-V0-020 tests pass.
 
 Mutations, each reverted:
@@ -96,13 +97,44 @@ exporter. The source branch recorded an early matched pair on that input at quie
 cancellation and preimage guards and is not evidence for this source.
 
 The prepared run is `script/measure-import-cal018.sh EXPORT OUTDIR`. It verifies the export digest,
-builds `corvint-tasks` from HEAD, initializes a fresh ROADMAP fixture store, reads the load before
-and after, times the import with `/usr/bin/time -p`, runs `receipt audit`, and checks that an
-immediate reimport leaves every store byte unchanged. It prints QUALIFYING PASS only for the
-pinned digest, every load reading below the CPU count and a wall time under 300 s; expected
+builds `corvint-tasks` from `git archive HEAD`, initializes a fresh ROADMAP fixture store, reads the
+load before and after, and times the import with `/usr/bin/time -p`. It then requires `receipt audit`
+OK/CONSISTENT/AGREES and an immediate reimport that writes nothing and leaves every store byte
+unchanged; any of those failing is FAIL. It prints QUALIFYING PASS only for the pinned digest (a
+constant, not an override), every load reading below the CPU count and a wall time under 300 s; expected
 outcome is 414 receipts, head 415, CONSISTENT/AGREES. `--allow-loaded` runs the procedure as a
 NONQUALIFYING smoke check: on a 30-record synthetic export at load 50 it wrote 30 tickets in
 5 receipts, audit CONSISTENT/AGREES, reimport 30 unchanged with store bytes unchanged.
+
+## Independent review
+
+One Codex round (`codex exec -s read-only`, diff 3337f5f6d..d8e32a676) found no core transaction
+regression and four P2 findings, all fixed in this change:
+
+- The measurement script discarded audit and reimport failures, so a failed audit or a refused
+  reimport could still print QUALIFYING PASS. Both now gate the verdict (checked against
+  INCONSISTENT, written-nonzero and REFUSED fixtures; the 30-record smoke run still passes).
+- The script built the working tree while claiming HEAD, and `EXPECT_SHA256` let another input
+  qualify. It now builds from `git archive HEAD` and the digest is a constant.
+- Prefix parity used one record per batch. `SequenceMixedBatches` posts additions with growing
+  and shrinking replacements across the 511/512/513/7,000-byte boundaries, with and without the
+  barrier, and compares every prefix, the receipt, head and final files and directories.
+- Refusal parity omitted the sequence's hand-maintained replacements for `ticket.NewInventory`.
+  `SequenceRefusalParity` gains same-batch and stored case-fold collisions and now compares
+  refusal codes (except the actor case, which refuses as a sequence binding mismatch).
+  `SequenceInventoryBoundaries` covers a fold against a ticket posted by an earlier batch and the
+  exact `MaxTicketsPerQueue` boundary (store at 9,999: one addition admits, two refuse with the
+  full model's code). The limit case builds a 9,999-ticket store and took 23 to 40 s at load
+  48 to 55; it skips under `-short`.
+
+Mutations for the new tests, each reverted (load 50 to 55): disabling the same-batch fold check
+fails `SequenceRefusalParity`; raising the ticket limit by one fails `SequenceInventoryBoundaries`;
+a rollback that keeps forked replacements fails `SequenceMixedBatches` with four other CAL-V0-018
+tests.
+
+The Codex session also ran `corvint-tasks ticket create` against the primary checkout's queue and
+filed V1-1423 (script findings) and V1-1424 (test findings), despite the read-only sandbox. Both
+are delivered here; their disposition belongs to the queue owner.
 
 ## Rollback
 

@@ -6,6 +6,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -113,7 +114,7 @@ func testCALV0018SequenceRefusal(t *testing.T) {
 		t.Fatal("zero cursor admitted")
 	}
 
-	for _, name := range []string{"native-holder", "revision", "actor", "branch", "replay", "queue", "clock"} {
+	for _, name := range []string{"native-holder", "revision", "actor", "branch", "replay", "queue", "clock", "fold-store", "fold-batch"} {
 		t.Run(name, func(t *testing.T) {
 			in := roadmapInitialized(t)
 			r := importRequest(imported("BF-1", "one"))
@@ -125,6 +126,11 @@ func testCALV0018SequenceRefusal(t *testing.T) {
 				pre.Source.SourceQueueID = r.QueueID
 				pre.ShadowOverlay = false
 				in = withTicket(t, in, pre, pre.Encode())
+			}
+			if name == "fold-store" {
+				pre := imported("BF-1", "one")
+				in = withTicket(t, in, pre, pre.Encode())
+				r = importRequest(imported("bf-1", "one"))
 			}
 			seq, err := NewImportSequence(r.QueueID, r.Actor, in)
 			if err != nil {
@@ -145,11 +151,20 @@ func testCALV0018SequenceRefusal(t *testing.T) {
 				r.QueueID = "queue:other:main"
 			case "clock":
 				in.RecordedAt = "not-time"
+			case "fold-batch":
+				r = importRequest(imported("BF-2", "two"), imported("bf-2", "two"))
 			}
 			full := Model(r, in)
 			fast, batch := seq.Prepare(r, in)
 			if full.Kind == "Transaction" || batch != nil || fast.Kind == "Transaction" {
 				t.Fatalf("refusal missing: full=%+v fast=%+v", full, fast)
+			}
+			if strings.HasPrefix(name, "fold-") && (len(fast.Outcome.Codes) != 1 || fast.Outcome.Codes[0] != wire.CodeDuplicateID) {
+				t.Fatalf("case-fold refusal: %v %s", fast.Outcome.Codes, fast.Detail)
+			}
+			// The sequence is bound to its actor, so a changed actor refuses as a binding mismatch.
+			if name != "actor" && !reflect.DeepEqual(full.Outcome.Codes, fast.Outcome.Codes) {
+				t.Fatalf("refusal codes differ: full=%v (%s) fast=%v (%s)", full.Outcome.Codes, full.Detail, fast.Outcome.Codes, fast.Detail)
 			}
 			if _, batch = seq.Prepare(importRequest(imported("BF-2", "two")), in); batch != nil {
 				t.Fatal("refused cursor reusable")
@@ -282,4 +297,67 @@ func testCALV0018BatchGrowth(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCALV0018_SequenceInventoryBoundaries(t *testing.T) {
+	t.Run("CAL-V0-018 incremental inventory boundaries", testCALV0018InventoryBoundaries)
+}
+
+// The sequence replaces ticket.NewInventory's whole-store checks with its
+// owned indexes; a case-fold collision with a ticket posted by an earlier batch
+// and the exact ticket-count limit must refuse with the full model's code and
+// close the sequence.
+func testCALV0018InventoryBoundaries(t *testing.T) {
+	t.Run("fold-cross-batch", func(t *testing.T) {
+		in := roadmapInitialized(t)
+		r := importRequest(imported("BF-3", "three"))
+		seq, err := NewImportSequence(r.QueueID, r.Actor, in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer seq.Close()
+		oracle := Model(r, in)
+		_, batch := seq.Prepare(r, in)
+		if oracle.Plan == nil || batch == nil || seq.Advance(batch) != nil {
+			t.Fatal("first batch refused")
+		}
+		in = commitModel(t, in, oracle.Plan)
+		in.HeadReceipt = oracle.Plan.Receipt()
+		in.CanonicalTickets = [][]byte{imported("BF-3", "three").Encode()}
+		r = importRequest(imported("bf-3", "three"))
+		r.RequestID = "import-2"
+		full := Model(r, in)
+		fast, batch := seq.Prepare(r, in)
+		if batch != nil || full.Kind == "Transaction" || !reflect.DeepEqual(full.Outcome.Codes, fast.Outcome.Codes) || fast.Outcome.Codes[0] != wire.CodeDuplicateID {
+			t.Fatalf("cross-batch fold: full=%v fast=%v", full.Outcome.Codes, fast.Outcome.Codes)
+		}
+		if _, batch = seq.Prepare(importRequest(imported("BF-4", "four")), in); batch != nil {
+			t.Fatal("refused cursor reusable")
+		}
+	})
+	t.Run("ticket-limit", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("builds a store at the ticket-count limit")
+		}
+		in := importBenchStore(t, wire.MaxTicketsPerQueue-1)
+		for _, tc := range []struct {
+			records int
+			admit   bool
+		}{{1, true}, {2, false}} {
+			r := importRequest()
+			for k := 0; k < tc.records; k++ {
+				r.Records = append(r.Records, imported(fmt.Sprintf("NEW-%d", k), "limit").Encode())
+			}
+			seq, err := NewImportSequence(r.QueueID, r.Actor, in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			full := Model(r, in)
+			fast, batch := seq.Prepare(r, in)
+			seq.Close()
+			if (full.Plan != nil) != tc.admit || (batch != nil) != tc.admit || !reflect.DeepEqual(full.Outcome.Codes, fast.Outcome.Codes) {
+				t.Fatalf("%d records: full=%v %s fast=%v %s", tc.records, full.Outcome.Codes, full.Detail, fast.Outcome.Codes, fast.Detail)
+			}
+		}
+	})
 }

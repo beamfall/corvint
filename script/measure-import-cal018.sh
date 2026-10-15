@@ -3,14 +3,15 @@
 # Re-measures CAL-V0-018 criterion 2 (V1-0436): the first `corvint-tasks import`
 # of the 2,894-item Beamfall export into a fresh ROADMAP fixture store must take
 # under 5 minutes on a host whose load is below its CPU count. EXPORT is the
-# corvint-tasks-import/0 JSONL export; its SHA-256 must equal EXPECT_SHA256
-# (default: the recovered export pinned in
-# docs/build-log/2026-10-15-v1-0436-incremental-import.md). OUTDIR must not
-# exist; the binary, fixture store and results are written only there.
+# corvint-tasks-import/0 JSONL export. Only the export pinned in
+# docs/build-log/2026-10-15-v1-0436-incremental-import.md (SHA-256 `pinned`
+# below, not overridable) can qualify. OUTDIR must not exist; the source tree,
+# binary, fixture store and results are written only there.
 #
-# The script builds corvint-tasks from this checkout's HEAD, creates the store
-# (init is outside the timed span), times the import, then runs `receipt
-# audit` and an immediate reimport that must leave every store byte unchanged.
+# The script builds corvint-tasks from `git archive HEAD` (uncommitted edits
+# never reach the binary), creates the store (init is outside the timed span),
+# times the import, then requires `receipt audit` OK/CONSISTENT/AGREES and an
+# immediate reimport that writes nothing and leaves every store byte unchanged.
 # Load averages are read before and after the import; no background sampler is
 # started. The run is QUALIFYING only when the input digest matches, every load
 # reading is below the CPU count and the import took under 300 s. With
@@ -22,7 +23,7 @@ export LC_ALL=C
 export_file=${1:?usage: measure-import-cal018.sh EXPORT OUTDIR [--allow-loaded]}
 out=${2:?usage: measure-import-cal018.sh EXPORT OUTDIR [--allow-loaded]}
 allow_loaded=${3:-}
-expect=${EXPECT_SHA256:-be368b0524acacf375dcd28bf104646b691f9a88382f892ac58c6556c07c3d01}
+pinned=be368b0524acacf375dcd28bf104646b691f9a88382f892ac58c6556c07c3d01
 queue_id=${QUEUE_ID:-queue:beamfall:main}
 prefix=${PREFIX:-BF}
 repo=$(git rev-parse --show-toplevel)
@@ -53,12 +54,14 @@ note() { echo "$1" | tee -a "$summary"; }
 
 digest=$(sha256 "$export_file")
 ncpu=$(cpus)
-note "source: $(git -C "$repo" rev-parse HEAD) dirty=$(git -C "$repo" status --porcelain | wc -l | tr -d ' ')"
+note "source: $(git -C "$repo" rev-parse HEAD) (built from git archive HEAD)"
 note "go: $(GOTOOLCHAIN=local go env GOVERSION) $(go env GOOS)/$(go env GOARCH)"
 note "export: $export_file sha256=$digest bytes=$(wc -c <"$export_file" | tr -d ' ') lines=$(wc -l <"$export_file" | tr -d ' ')"
 note "cpus: $ncpu"
 
-GOTOOLCHAIN=local go build -C "$repo" -o "$out/corvint-tasks" ./cmd/corvint-tasks
+mkdir "$out/src"
+git -C "$repo" archive HEAD | tar -x -C "$out/src"
+GOTOOLCHAIN=local go build -C "$out/src" -o "$out/corvint-tasks" ./cmd/corvint-tasks
 
 root="$out/store"
 mkdir -p "$root/.taskman"
@@ -100,21 +103,26 @@ grep -E '^(real|user|sys) ' "$out/import.time" | tee -a "$summary"
 real=$(awk '$1 == "real" { print $2 }' "$out/import.time")
 note "import: $(jq -c '{outcome, written: .items[0].written, unchanged: .items[0].unchanged, receipts: (.items[0].receipts | length)}' "$out/import.json")"
 
-(cd "$root" && "$out/corvint-tasks" receipt audit >"$out/audit.json") || true
+audit_rc=0
+(cd "$root" && "$out/corvint-tasks" receipt audit >"$out/audit.json") || audit_rc=$?
 note "receipt audit: $(jq -c '{outcome, item: (.items[0] | {headSeq, structuralConsistency, projectionAgreement})}' "$out/audit.json" 2>/dev/null || echo unreadable)"
 
 pre=$(tree_sum "$root")
-(cd "$root" && "$out/corvint-tasks" import --file "$export_file" >"$out/reimport.json") || true
+reimport_rc=0
+(cd "$root" && "$out/corvint-tasks" import --file "$export_file" >"$out/reimport.json") || reimport_rc=$?
 post=$(tree_sum "$root")
 note "reimport: $(jq -c '{outcome, written: .items[0].written, unchanged: .items[0].unchanged}' "$out/reimport.json") store-bytes-unchanged=$([ "$pre" = "$post" ] && echo yes || echo no)"
 
-if [ "$rc" -ne 0 ] || ! jq -e '.outcome == "OK"' "$out/import.json" >/dev/null || [ "$pre" != "$post" ]; then
-  note "verdict: FAIL (import or reimport did not complete cleanly)"
+if [ "$rc" -ne 0 ] || ! jq -e '.outcome == "OK"' "$out/import.json" >/dev/null ||
+  [ "$audit_rc" -ne 0 ] || ! jq -e '.outcome == "OK" and .items[0].structuralConsistency == "CONSISTENT" and .items[0].projectionAgreement == "AGREES"' "$out/audit.json" >/dev/null ||
+  [ "$reimport_rc" -ne 0 ] || ! jq -e '.outcome == "OK" and (.items[0].written | tonumber) == 0' "$out/reimport.json" >/dev/null ||
+  [ "$pre" != "$post" ]; then
+  note "verdict: FAIL (import, audit or reimport did not complete cleanly)"
   exit 1
 fi
-if [ "$digest" = "$expect" ] && below "$before $after" "$ncpu" && awk -v r="$real" 'BEGIN { exit !(r < 300) }'; then
+if [ "$digest" = "$pinned" ] && below "$before $after" "$ncpu" && awk -v r="$real" 'BEGIN { exit !(r < 300) }'; then
   note "verdict: QUALIFYING PASS (${real}s under 300 s; every load reading below $ncpu CPUs)"
-elif [ "$digest" = "$expect" ] && below "$before $after" "$ncpu"; then
+elif [ "$digest" = "$pinned" ] && below "$before $after" "$ncpu"; then
   note "verdict: QUALIFYING FAIL (${real}s is not under 300 s)"
   exit 1
 else

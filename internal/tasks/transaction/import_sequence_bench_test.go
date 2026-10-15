@@ -11,7 +11,7 @@ const importBenchBatch = 7
 
 // importBenchStore returns an ordinary Input holding n imported tickets, built
 // through an ImportSequence, plus the next unused ticket number.
-func importBenchStore(b *testing.B, n int) Input {
+func importBenchStore(b testing.TB, n int) Input {
 	b.Helper()
 	in := roadmapInitialized(b)
 	r := importRequest()

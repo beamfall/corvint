@@ -1,8 +1,10 @@
 package transaction
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/Beamfall/corvint/internal/tasks/archive"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"math"
 	"reflect"
@@ -189,5 +191,86 @@ func testCALV0018ReserveOwnership(t *testing.T) {
 	}
 	if seq.input.Inventory.incremental.reserveNext[0] != 129 {
 		t.Fatal("real insertion did not advance contiguous probe prefix")
+	}
+}
+
+func TestCALV0018_SequenceMixedBatches(t *testing.T) {
+	t.Run("CAL-V0-018 mixed batch prefixes", testCALV0018MixedBatches)
+}
+
+// Each batch mixes additions with growing and shrinking replacements across
+// archive block boundaries; every prefix, the receipt and the final metadata
+// must equal the full recomputation.
+func testCALV0018MixedBatches(t *testing.T) {
+	plan := [][][2]int{ // {ticket, body bytes}
+		{{1, 1}, {2, 7000}, {3, 511}},
+		{{1, 7000}, {2, 1}, {4, 512}},
+		{{1, 511}, {3, 513}, {4, 1}, {5, 7000}},
+		{{1, 1}, {2, 513}, {3, 7000}, {4, 512}, {5, 1}, {6, 511}},
+	}
+	for _, barrier := range []bool{false, true} {
+		t.Run(fmt.Sprint(barrier), func(t *testing.T) {
+			in := roadmapInitialized(t)
+			if barrier {
+				p := Model(admin(Pause, "pause"), in)
+				in = commitModel(t, in, p.Plan)
+				in.HeadReceipt = p.Plan.Receipt()
+			}
+			seq, err := NewImportSequence(admin(ImportApply, "x").QueueID, admin(ImportApply, "x").Actor, in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer seq.Close()
+			current := map[string]*ticket.Record{}
+			for n, batchPlan := range plan {
+				request := importRequest()
+				request.RequestID = fmt.Sprintf("mixed-%d", n)
+				next := map[string]*ticket.Record{}
+				for _, item := range batchPlan {
+					local := fmt.Sprintf("BF-%d", item[0])
+					rec := imported(local, "body")
+					body := strings.Repeat("y", item[1])
+					rec.Body = &body
+					if prev := current[local]; prev != nil {
+						hash := prev.FileDigest()
+						rec.PreviousRecordSha256 = &hash
+						rec.Revision = wire.CountOf(prev.Revision.Int() + 1)
+						rec.AcceptanceRevision = rec.Revision
+					}
+					request.Records = append(request.Records, rec.Encode())
+					next[local] = rec
+				}
+				oracle := Model(request, in)
+				if oracle.Plan == nil {
+					t.Fatalf("oracle %d: %+v", n, oracle)
+				}
+				full, err := CheckCapacity(oracle.Plan)
+				if err != nil {
+					t.Fatal(err)
+				}
+				result, batch := seq.Prepare(request, in)
+				if batch == nil {
+					t.Fatalf("sequence %d: %+v", n, result)
+				}
+				if !reflect.DeepEqual(full.Prefixes, batch.Prefixes()) || !bytes.Equal(batch.Receipt(), oracle.Plan.Receipt()) || !bytes.Equal(batch.Head(), oracle.Plan.Head()) {
+					t.Fatalf("batch %d differs from full model", n)
+				}
+				if err = seq.Advance(batch); err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(seq.input.Inventory.Files(), full.Final.Files()) || !reflect.DeepEqual(seq.input.Inventory.Directories(), full.Final.Directories()) {
+					t.Fatalf("batch %d final metadata differs", n)
+				}
+				in = commitModel(t, in, oracle.Plan)
+				in.HeadReceipt = oracle.Plan.Receipt()
+				for local, rec := range next {
+					current[local] = rec
+				}
+				in.CanonicalTickets = nil
+				for _, rec := range current {
+					in.CanonicalTickets = append(in.CanonicalTickets, rec.Encode())
+				}
+			}
+		})
 	}
 }
