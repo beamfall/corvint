@@ -287,6 +287,21 @@ func TestCALV0188_GroupListingOverrun(t *testing.T) {
 		}
 		return original(ctx, argv...)
 	}
+	// V1-1294: the post-reap signal 0 is answered for the state each phase
+	// models, because the real answer races the kernel. Darwin briefly answers
+	// EPERM for a group whose only process was just reaped (13 of 200 reaps
+	// at load 95), and the group SIGKILL before the leader's reap (V1-1036)
+	// kills the survivor phase's member, so once launchd or init collects it
+	// the answer is ESRCH. Signal 0 sends nothing; other signals are real.
+	originalSignal := poolGroupSignal
+	t.Cleanup(func() { poolGroupSignal = originalSignal })
+	probeAnswer := syscall.ESRCH // the group the kernel already reports empty
+	poolGroupSignal = func(pid int, signal syscall.Signal) error {
+		if signal == 0 {
+			return probeAnswer
+		}
+		return originalSignal(pid, signal)
+	}
 	done := &intent.PoolCommand{Argv: []string{"/usr/bin/true"}, TimeoutSeconds: "3"}
 	if class, clean, _ := executePool(context.Background(), done, t.TempDir(), nil); class != "EXIT_ZERO" || !clean || listings != 0 {
 		t.Fatalf("retired group unproved: %s clean=%v listings=%d", class, clean, listings)
@@ -294,6 +309,7 @@ func TestCALV0188_GroupListingOverrun(t *testing.T) {
 	if r := executePoolCaptured(context.Background(), done, t.TempDir(), nil); r.Class != "EXIT_ZERO" || !r.Clean || listings != 0 {
 		t.Fatalf("retired captured group unproved: %s clean=%v listings=%d", r.Class, r.Clean, listings)
 	}
+	probeAnswer = syscall.EPERM // a group that still has a member, as Darwin answers
 	marker := filepath.Join(t.TempDir(), "child")
 	survivor := &intent.PoolCommand{Argv: []string{"/bin/sh", "-c", "/bin/sleep 60 </dev/null >/dev/null 2>&1 & echo $! > " + marker}, TimeoutSeconds: "3"}
 	_, clean, _ := executePool(context.Background(), survivor, t.TempDir(), nil)

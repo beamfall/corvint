@@ -112,6 +112,9 @@ func processAlive(pid int) bool {
 	return syscall.Kill(pid, 0) == nil
 }
 
+// waitForDeath fails when pid outlives its 30s hang detector, so a leak
+// fixture's grandchild must sleep longer than that (V1-1293): one that exits
+// on its own inside the bound hides a missed group kill.
 func waitForDeath(t *testing.T, pid int) {
 	t.Helper()
 	deadline := time.Now().Add(30 * time.Second)
@@ -140,25 +143,52 @@ func TestDescendantCleanupAfterNormalExit(t *testing.T) {
 }
 
 // TestDescendantCleanupOnTimeout proves the whole process group dies on the
-// timeout path, where the group is killed before the child is reaped.
+// timeout path, where the group is killed before the child is reaped. The
+// timeout fires once the grandchild exists (V1-1293): a wall-clock timeout
+// could fire before the shell forked it, leaving nothing to sweep.
 func TestDescendantCleanupOnTimeout(t *testing.T) {
 	options := shell()
 	options.PerOpTimeout = 300 * time.Millisecond
 	options.Dir = t.TempDir()
+	previous := newOperationTimer
+	t.Cleanup(func() { newOperationTimer = previous })
+	newOperationTimer = func(time.Duration) *time.Timer {
+		timer := time.NewTimer(time.Hour)
+		go func() { _, _ = awaitPIDFile(options.Dir + "/grandchild"); timer.Reset(0) }()
+		return timer
+	}
 	_, err := Run(context.Background(), NewDefaultBudget(), options, "-c",
-		"sleep 30 >/dev/null 2>&1 & echo $! > grandchild; sleep 30")
+		"sleep 300 >/dev/null 2>&1 & echo $! > grandchild; sleep 30")
 	if cemcode.CodeOf(err) != cemcode.GitTimeout {
 		t.Fatalf("got %v", err)
 	}
-	data, readErr := readAll(options.Dir + "/grandchild")
-	if readErr != nil {
-		t.Fatal(readErr)
+	waitForDeath(t, readPIDWithRetry(t, options.Dir+"/grandchild"))
+}
+
+// cancelWhenPIDFile cancels once path holds a parseable pid, so cancellation
+// follows the grandchild's fork instead of a wall-clock delay (V1-1293).
+func cancelWhenPIDFile(path string, cancel context.CancelFunc) {
+	go func() { _, _ = awaitPIDFile(path); cancel() }()
+}
+
+// awaitPIDFile polls path for a parseable pid; its 30s bound is a hang
+// detector only.
+func awaitPIDFile(path string) (int, error) {
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		data, err := readAll(path)
+		if err == nil {
+			pid, convErr := strconv.Atoi(strings.TrimSpace(data))
+			if convErr == nil {
+				return pid, nil
+			}
+			err = convErr
+		}
+		if time.Now().After(deadline) {
+			return 0, err
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	pid, convErr := strconv.Atoi(strings.TrimSpace(data))
-	if convErr != nil {
-		t.Fatal(convErr)
-	}
-	waitForDeath(t, pid)
 }
 
 func readAll(path string) (string, error) {
@@ -183,21 +213,14 @@ func TestDescendantCleanupOnCancellation(t *testing.T) {
 	options := shell()
 	options.Dir = t.TempDir()
 	ctx, cancel := context.WithCancel(context.Background())
-	go func() { time.Sleep(150 * time.Millisecond); cancel() }()
+	defer cancel()
+	cancelWhenPIDFile(options.Dir+"/grandchild", cancel)
 	_, err := Run(ctx, NewDefaultBudget(), options, "-c",
-		"sleep 30 >/dev/null 2>&1 & echo $! > grandchild; sleep 30")
+		"sleep 300 >/dev/null 2>&1 & echo $! > grandchild; sleep 30")
 	if cemcode.CodeOf(err) != cemcode.GitCancelled {
 		t.Fatalf("got %v", err)
 	}
-	data, readErr := readAll(options.Dir + "/grandchild")
-	if readErr != nil {
-		t.Fatal(readErr)
-	}
-	pid, convErr := strconv.Atoi(strings.TrimSpace(data))
-	if convErr != nil {
-		t.Fatal(convErr)
-	}
-	waitForDeath(t, pid)
+	waitForDeath(t, readPIDWithRetry(t, options.Dir+"/grandchild"))
 }
 
 // TestStdinPathDescendantCleanupOnCancellation covers the cat-file --batch
@@ -207,18 +230,14 @@ func TestStdinPathDescendantCleanupOnCancellation(t *testing.T) {
 	options.Dir = t.TempDir()
 	options.Stdin = bytes.Repeat([]byte("object-id\n"), 1024)
 	ctx, cancel := context.WithCancel(context.Background())
-	go func() { time.Sleep(150 * time.Millisecond); cancel() }()
+	defer cancel()
+	cancelWhenPIDFile(options.Dir+"/grandchild", cancel)
 	_, err := Run(ctx, NewDefaultBudget(), options, "-c",
-		"sleep 30 >/dev/null 2>&1 & echo $! > grandchild; sleep 30; cat")
+		"sleep 300 >/dev/null 2>&1 & echo $! > grandchild; sleep 30; cat")
 	if cemcode.CodeOf(err) != cemcode.GitCancelled {
 		t.Fatalf("got %v", err)
 	}
-	// The 150ms cancel fires on a fixed wall-clock delay independent of
-	// whether the shell has forked and written the grandchild pid file yet;
-	// under heavy host load that fork/write can lag past 150ms, so poll for
-	// the file instead of a single read.
-	pid := readPIDWithRetry(t, options.Dir+"/grandchild")
-	waitForDeath(t, pid)
+	waitForDeath(t, readPIDWithRetry(t, options.Dir+"/grandchild"))
 }
 
 func readPIDWithRetry(t *testing.T, path string) int {

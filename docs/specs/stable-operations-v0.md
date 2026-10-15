@@ -15,7 +15,7 @@ Authoritative inputs: `../../AGENTS.md` invariants 4 and 7, `../decisions/0341-s
 - Claim: Install lifecycle, corrupted-snapshot recovery and a named hostile-regression matrix run locally as release-blocking checks with NOT_COVERED gaps stated.
 - Status: accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23) / implemented
 - Exists: `script/check-install-lifecycle.sh` + `_test.sh`, `script/check-hostile-regressions.sh` + `_test.sh`, their `make` targets, `docs/RELEASE-RUNBOOK.md`, the support window in `SECURITY.md`, the recovery contract in `docs/INSTALL.md`.
-- Blocked on: linux amd64 lifecycle evidence (NOT_RUN); native linux hardware (linux arm64 ran in a container); darwin amd64 ran only under Rosetta 2; whole-process resident memory (`memory-resident`) has no regression.
+- Blocked on: native linux arm64 hardware (linux arm64 ran in a container); darwin amd64 ran only under Rosetta 2; whole-process resident memory (`memory-resident`) has no regression.
 - Read next: Requirements; Acceptance criteria and testing matrix.
 
 ## Human intent and scope
@@ -244,7 +244,18 @@ step, so they are release-blocking through runbook step 8.
 
 ## Unresolved
 
-Linux amd64 is NOT_RUN (no amd64 container image on the measuring host), linux arm64 ran only in a
+Linux amd64 ran on a hosted x64 runner (run 38654510601, below); linux arm64 ran only in a
 container and darwin amd64 only under Rosetta 2; `memory-resident` needs a whole-process measure
 before it leaves NOT_COVERED; whether a rebuilt snapshot should be byte-identical to its first build
 is a question for `index-snapshot-v0.md`.
+
+Linux amd64 on an amd64 host, recorded on 2026-10-14 (V1-0150): hosted
+`release-gates` run 38654510601 at 52ad86a368ae06520617b536b12f22d38102b362, job `linux-core` on
+the GitHub-hosted `ubuntu-24.04` image, whose log reports `platform Linux x86_64`, `GOHOSTARCH=amd64`
+and `os=linux/amd64` (an x64 hosted runner). Over the `corvint_linux_amd64.tar.gz` archive
+built in that run (1.0.0-rc.3, build 524) `install-lifecycle` ends `SUMMARY status=PASS` with
+`upgrade-b` `same-bytes`; the N-1 run from the published 1.0.0-rc.2 (build 360) archive ends
+`SUMMARY status=PASS` with `packet=identical`; the cli, codex and claude-code host-lifecycle runs pass
+9 of 9 cases each; `check-hostile-regressions: PASS`, with 27 of 30 category and package
+rows PASS, the two case-fold rows NOT_RUN on the case-sensitive filesystem and `memory-resident`
+NOT_COVERED. The job log is retained by GitHub, not in this repository.

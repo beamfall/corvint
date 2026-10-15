@@ -175,6 +175,10 @@ const (
 	CiteSpanNotStable   = "cite-span-not-stable"
 	GitDiffFailed       = "git-diff-failed"
 	GitDiffTimeout      = "git-diff-timeout"
+
+	// CiteSelfModifiedAuthority refuses a citation of a governing instruction
+	// file that the map's own patch changes (CEM-V1-114, V1-0414).
+	CiteSelfModifiedAuthority = "cite-self-modified-authority"
 )
 
 // Typed bounded-runner codes.

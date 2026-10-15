@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -44,13 +45,40 @@ func TestObservedDescendantHelper(t *testing.T) {
 	time.Sleep(time.Minute)
 }
 
+// V1-1374: cancellation waits until the observer has applied a snapshot that
+// contains the escaped child, instead of sleeping a fixed interval: under host
+// load a sleep could end before any snapshot saw the child, which the report
+// truthfully discloses as a limitation of sampled observation.
 func TestObservedDescendantCancellationReapsEscapedChild(t *testing.T) {
 	pidPath := t.TempDir() + "/child.pid"
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	var leader, child atomic.Int64
+	var childSeen atomic.Bool
+	expanded := make(chan struct{})
+	var expandedOnce sync.Once
+	snap := func(ctx context.Context) (map[int]ObservedProcess, error) {
+		// The observer applies each snapshot before taking the next, so a call
+		// after one that held the child proves the child was offered to expand.
+		if childSeen.Load() {
+			expandedOnce.Do(func() { close(expanded) })
+		}
+		rows, err := descendantSnapshot(ctx)
+		if err == nil && child.Load() != 0 {
+			if row, ok := rows[int(child.Load())]; ok && int64(row.ParentPID) == leader.Load() {
+				childSeen.Store(true)
+			}
+		}
+		return rows, err
+	}
 	done := make(chan Observation, 1)
 	go func() {
-		done <- Run(ctx, Spec{Argv: []string{os.Args[0], "-test.run=^TestObservedDescendantHelper$"}, Dir: filepath.Dir(pidPath), Env: append(os.Environ(), "CORVINT_OBSERVED_DESCENDANT_HELPER=parent", "CORVINT_DESCENDANT_PID="+pidPath), Timeout: 5 * time.Second, ObserveDescendants: true})
+		done <- run(ctx, Spec{
+			Argv: []string{os.Args[0], "-test.run=^TestObservedDescendantHelper$"}, Dir: filepath.Dir(pidPath),
+			Env:     append(os.Environ(), "CORVINT_OBSERVED_DESCENDANT_HELPER=parent", "CORVINT_DESCENDANT_PID="+pidPath),
+			Timeout: 5 * time.Second, ObserveDescendants: true,
+			AfterStart: func(_ context.Context, pid int) error { leader.Store(int64(pid)); return nil },
+		}, processWaitChannels{descendantSnap: snap})
 	}()
 	var data []byte
 	deadline := time.Now().Add(3 * time.Second)
@@ -71,12 +99,21 @@ func TestObservedDescendantCancellationReapsEscapedChild(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+	child.Store(int64(pid))
 	if pgid, err := syscall.Getpgid(pid); err != nil || pgid != pid {
 		cancel()
 		<-done
 		t.Fatalf("child did not escape group: %d %v", pgid, err)
 	}
-	time.Sleep(100 * time.Millisecond)
+	select {
+	case <-expanded:
+	case o := <-done:
+		t.Fatalf("run ended before a snapshot containing the escaped child was applied: %+v", o)
+	case <-time.After(30 * time.Second): // hang detector only
+		cancel()
+		<-done
+		t.Fatal("no descendant snapshot containing the escaped child was applied")
+	}
 	cancel()
 	o := <-done
 	if !o.Cancelled || o.DescendantObservation == nil || !o.DescendantObservation.Absent || len(o.DescendantObservation.Processes) == 0 {
