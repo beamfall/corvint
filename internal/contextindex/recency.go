@@ -54,7 +54,7 @@ func startContextRecency(ctx context.Context, index *Index) *contextRecency {
 	}
 	recency := &contextRecency{ctx: ctx, index: index, ready: make(chan struct{}), blame: map[string]blameTouch{}}
 	go func() {
-		defer close(recency.ready)
+		defer taskContextReaderDone("recency-read", recency.ready)
 		recency.read()
 	}()
 	return recency

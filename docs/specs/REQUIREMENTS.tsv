@@ -543,7 +543,7 @@ CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	589	`claim`, `renew`, `at
 CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1463	`store.Mutate` MUST take its request lookup and its canonical intent records fro	unrecorded	-
 CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1862	The optional policy `supervision` object MAY carry `repositories`, a closed obje	unrecorded	-
 CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1880	After `implement`, each repository with changes MUST receive a candidate commit	unrecorded	-
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	6561	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	6603	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
 CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	2042	The optional policy `supervision` object MAY carry `host`, whose admitted	unrecorded	-
 CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2125	A `claude-code` stage MUST invoke the pinned executable with the prompt on	unrecorded	-
 CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2259	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be	unrecorded	-
@@ -570,7 +570,7 @@ CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2944	A policy MAY carry t
 CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2978	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes	unrecorded	-
 CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3102	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a	unrecorded	-
 CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3158	When the dispatcher has a work-state reader, a ticket MUST count as held exactly	unrecorded	-
-CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	6746	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
+CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	6788	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
 CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3199	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici	unrecorded	-
 CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3245	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio	unrecorded	-
 CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1363	On macOS the memory signal MUST be the kernel memory-pressure level	unrecorded	-
@@ -647,7 +647,7 @@ CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4790	(accepted by decisio
 CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4801	(accepted by decision 0447; V1-0966) The dispatcher MUST count, per	owner	decision 0447; V1-0966
 CAL-V0-186	docs/specs/corvint-tasks-agent-leases-v0.md	5104	(proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh	unrecorded	-
 CAL-V0-187	docs/specs/corvint-tasks-agent-leases-v0.md	4893	proposed (V1-0980; GitHub #668) A build writing `taskman-dispatch-state/3` MUST	unrecorded	-
-CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	6813	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
+CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	6855	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
 CAL-V0-189	docs/specs/corvint-tasks-agent-leases-v0.md	4945	(proposed; V1-0915; GitHub #641) Single intent read in the writer audit. A	unrecorded	-
 CAL-V0-190	docs/specs/corvint-tasks-agent-leases-v0.md	4958	(proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.	unrecorded	-
 CAL-V0-191	docs/specs/corvint-tasks-agent-leases-v0.md	5141	(proposed; V1-1016) A role MAY carry `expiredLeaseGraceSeconds`, an integer	unrecorded	-
@@ -682,6 +682,7 @@ CAL-V0-220	docs/specs/corvint-tasks-agent-leases-v0.md	5701	(accepted, decision 
 CAL-V0-221	docs/specs/corvint-tasks-agent-leases-v0.md	5707	(accepted, decision 0519 (V1-0906)) Regression evidence shall bound	owner	decision 0519; V1-0906
 CAL-V0-222	docs/specs/corvint-tasks-agent-leases-v0.md	5992	(accepted under the owner's standing auto-accept (2026-10-11), V1-1352) A lease	standing	2026-10-11; V1-1352
 CAL-V0-223	docs/specs/corvint-tasks-agent-leases-v0.md	6002	(accepted under the owner's standing auto-accept (2026-10-11), V1-1352) Caller c	standing	2026-10-11; V1-1352
+CAL-V0-224	docs/specs/corvint-tasks-agent-leases-v0.md	6044	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887)	standing	2026-10-11; V1-0887
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha	unrecorded	-
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring	unrecorded	-
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla	unrecorded	-
@@ -697,15 +698,15 @@ CATN-V0-012	docs/specs/cross-audience-truth-nondivergence-v0.md	127	V0 is bounde
 CATN-V0-013	docs/specs/cross-audience-truth-nondivergence-v0.md	134	This profile MUST NOT be presented as HDC delivery, audience usefulness,	unrecorded	-
 CATN-V0-014	docs/specs/cross-audience-truth-nondivergence-v0.md	137	A `CONFLICTED` claim MUST carry at least two evidence anchors with distinct	unrecorded	-
 CATN-V0-015	docs/specs/cross-audience-truth-nondivergence-v0.md	147	The truth-digest input and the canonical bundle bytes MUST be exactly the	unrecorded	-
-CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	37	The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context	unrecorded	-
-CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	44	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout	unrecorded	-
-CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	86	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised	unrecorded	-
-CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	99	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu	unrecorded	-
-CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	153	The admission, freshness, omission and abstention members MUST keep their names,	unrecorded	-
-CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	172	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j	unrecorded	-
-CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	182	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.	owner	2026-09-25; decision 0401
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	316	Root help MUST carry a `Command maturity:` section that lists the Core verbs of	unrecorded	-
-CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	323	(proposed (V1-0945; no GitHub issue), not accepted) Root help is a compact verb	unrecorded	-
+CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	39	The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context	unrecorded	-
+CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	46	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout	unrecorded	-
+CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	88	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised	unrecorded	-
+CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	101	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu	unrecorded	-
+CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	155	The admission, freshness, omission and abstention members MUST keep their names,	unrecorded	-
+CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	174	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j	unrecorded	-
+CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	184	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.	owner	2026-09-25; decision 0401
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	326	Root help MUST carry a `Command maturity:` section that lists the Core verbs of	unrecorded	-
+CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	333	(proposed (V1-0945; no GitHub issue), not accepted) Root help is a compact verb	unrecorded	-
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -914,6 +915,7 @@ CEM-V1-110	docs/specs/cem-stable-v1.md	2247	(accepted under the owner's standing
 CEM-V1-111	docs/specs/cem-stable-v1.md	2250	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The pack	standing	2026-10-11; V1-1333
 CEM-V1-112	docs/specs/cem-stable-v1.md	2259	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) For each	standing	2026-10-11; V1-1333
 CEM-V1-113	docs/specs/cem-stable-v1.md	2341	(accepted under the owner's standing auto-accept (2026-10-11); V1-1369) Every	standing	2026-10-11; V1-1369
+CEM-V1-114	docs/specs/cem-stable-v1.md	2452	(accepted under the owner's standing auto-accept (2026-10-11); V1-0414) `cem cit	standing	2026-10-11; V1-0414
 CEM-V1-120	docs/specs/cem-stable-v1.md	1532	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity	unrecorded	-
 CEM-V1-121	docs/specs/cem-stable-v1.md	1535	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly	unrecorded	-
 CEM-V1-122	docs/specs/cem-stable-v1.md	1539	The stable result MUST carry:	unrecorded	-
@@ -2664,7 +2666,8 @@ PGO-V0-008	docs/specs/process-group-owner-v0.md	39	Proposed (V1-0373, V1-0652). 
 PGO-V0-009	docs/specs/process-group-owner-v0.md	40	(accepted, decision 0492; V1-1036, V1-1047, V1-1050, V1-1056) Where waitid is av	owner	decision 0492; V1-1036; V1-1047; V1-1050; V1-1056
 PGO-V0-010	docs/specs/process-group-owner-v0.md	42	accepted, decision 0507. POSIX descendant snapshots retain at most 4 MiB stdout	unrecorded	-
 PGO-V0-011	docs/specs/process-group-owner-v0.md	43	(accepted under the owner's standing auto-accept (2026-10-11); V1-0668) The Owne	standing	2026-10-11; V1-0668
-PGO-V0-016	docs/specs/process-group-owner-v0.md	44	(accepted under the owner's standing auto-accept (2026-10-11); V1-1244). In the	standing	2026-10-11; V1-1244
+PGO-V0-012	docs/specs/process-group-owner-v0.md	44	(accepted under the owner's standing auto-accept (2026-10-11); cem1-producer-har	standing	2026-10-11
+PGO-V0-016	docs/specs/process-group-owner-v0.md	45	(accepted under the owner's standing auto-accept (2026-10-11); V1-1244). In the	standing	2026-10-11; V1-1244
 PLE-V0-001	docs/specs/protected-local-execution-v0.md	27	The optional `corvint-protected-execution/0` profile MUST preserve all legacy pr	unrecorded	-
 PLE-V0-002	docs/specs/protected-local-execution-v0.md	28	A protected immutable release and independently admitted root/policy MUST bind t	unrecorded	-
 PLE-V0-003	docs/specs/protected-local-execution-v0.md	29	Ingestion MUST bound and independently bind expected Git base/target/tree, CEM,	unrecorded	-
