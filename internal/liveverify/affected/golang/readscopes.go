@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
@@ -77,7 +79,9 @@ func readScopes(root *affected.Source) (map[string][]string, error) {
 // or declaration that cannot be read, or a declaration that is invalid,
 // returns an error; the caller then keeps the edit bearing on every declared
 // unit. Like matchReadScopes, a declared directory must hold a package at the
-// commit: one outside testdata that directly holds a regular .go file.
+// commit: one the observer's walk reaches, that the observed module set owns
+// (a nested module's packages are not units), outside that module's testdata,
+// that directly holds a regular .go file.
 func CommittedReadScopes(ctx context.Context, root, commit string) (map[string][]string, error) {
 	repository, err := gitauth.Open(root, gitrun.NewDefaultBudget())
 	if err != nil {
@@ -88,23 +92,36 @@ func CommittedReadScopes(ctx context.Context, root, commit string) (map[string][
 	if err != nil {
 		return nil, err
 	}
-	scopes, err := readScopes(affected.FSSource(source))
+	base := affected.FSSource(source)
+	scopes, err := readScopes(base)
 	if err != nil {
 		return nil, err
 	}
 	if scopes == nil {
 		scopes = map[string][]string{}
 	}
+	workspace, err := workspaceDirectories(base, map[string]bool{})
+	if err != nil {
+		return nil, err
+	}
+	listed := make(map[string]module, len(workspace))
+	for _, directory := range workspace {
+		listed[directory] = module{dir: directory, listed: true}
+	}
 	for directory := range scopes {
-		if !committedPackageDirectory(source, directory) {
+		if !committedPackageDirectory(source, listed, directory) {
 			return nil, fmt.Errorf("%s at %s declares %q, which holds no Go package", affected.ReadScopesPath, commit, directory)
 		}
 	}
 	return scopes, nil
 }
 
-func committedPackageDirectory(source fs.FS, directory string) bool {
-	if inTestdata(directory) {
+func committedPackageDirectory(source fs.FS, listed map[string]module, directory string) bool {
+	if !walkedDirectory(directory) {
+		return false
+	}
+	owner, observed := committedOwner(source, listed, directory)
+	if !observed || inTestdata(relativeTo(directory, owner.dir)) {
 		return false
 	}
 	entries, err := fs.ReadDir(source, directory)
@@ -117,6 +134,45 @@ func committedPackageDirectory(source fs.FS, directory string) bool {
 		}
 	}
 	return false
+}
+
+// committedOwner is enclosingModule over the commit: the nearest listed module
+// or go.mod at or above directory, as observeModules assigns them. A go.mod
+// below a listed module's testdata is fixture data and owns nothing; any other
+// unlisted go.mod, or one that cannot be checked, owns its subtree for a module
+// this plugin does not observe.
+func committedOwner(source fs.FS, listed map[string]module, directory string) (module, bool) {
+	for {
+		if owner, known := listed[directory]; known {
+			return owner, true
+		}
+		info, err := fs.Stat(source, path.Join(directory, "go.mod"))
+		switch {
+		case errors.Is(err, fs.ErrNotExist), err == nil && info.IsDir():
+			// No manifest here: the observer collects only go.mod files.
+		case err != nil || !info.Mode().IsRegular() || !fixtureOfObservedModule(directory, listed):
+			return module{}, false
+		}
+		if directory == "." {
+			return module{}, false
+		}
+		directory = path.Dir(directory)
+	}
+}
+
+// walkedDirectory reports whether the observer's walk descends into directory:
+// no component is hidden or skipped (affected.SkippedDirectories) unless this
+// plugin admits it.
+func walkedDirectory(directory string) bool {
+	if directory == "." {
+		return true
+	}
+	for _, name := range strings.Split(directory, "/") {
+		if strings.HasPrefix(name, ".") || (affected.SkippedDirectories[name] && !slices.Contains(includedDirectories, name)) {
+			return false
+		}
+	}
+	return true
 }
 
 // applyReadScopes marks each declared unit, given each unit's directory. Any

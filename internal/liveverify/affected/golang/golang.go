@@ -111,12 +111,16 @@ func (language Language) Units(ctx context.Context, root string) (affected.Resul
 	return language.UnitsSource(affected.DiskSourceContext(ctx, root))
 }
 
+// includedDirectories are the affected.SkippedDirectories names that can hold
+// first-party Go source, so the walk descends them.
+var includedDirectories = []string{"build", "dist", "target"}
+
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
 	frontier := map[string]bool{}
 	observed, includedDirectoryBounded, err := root.FilesIncluding(func(name string) bool {
 		return strings.HasSuffix(name, ".go") || name == "go.mod"
-	}, "build", "dist", "target")
+	}, includedDirectories...)
 	if err != nil {
 		return affected.Result{}, err
 	}
