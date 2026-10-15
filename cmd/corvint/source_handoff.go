@@ -46,25 +46,6 @@ var (
 // /usr/bin/git through the context; no command-line path sets it.
 type sourceGitExecutableKey struct{}
 
-// sourceGitDeadline is the frozen 10-second bound on one source view or handoff
-// capture and on each Git command it runs (ESV-V0-003).
-const sourceGitDeadline = 10 * time.Second
-
-// sourceDeadlineKey carries an in-process test replacement for sourceGitDeadline
-// through the context, so tests that verify refusal semantics rather than latency
-// cannot have host load expire the bound first (decision 0082, V1-1302); no
-// command-line path sets it.
-type sourceDeadlineKey struct{}
-
-// sourceDeadline is the bound under ctx: the sourceDeadlineKey replacement if set,
-// else sourceGitDeadline.
-func sourceDeadline(ctx context.Context) time.Duration {
-	if bound, ok := ctx.Value(sourceDeadlineKey{}).(time.Duration); ok {
-		return bound
-	}
-	return sourceGitDeadline
-}
-
 type sourceRefusal string
 
 func (e sourceRefusal) Error() string { return string(e) }
@@ -706,4 +687,23 @@ func nullableSourceString(value string) any {
 func pathWithin(root, path string) bool {
 	relative, err := filepath.Rel(root, path)
 	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
+}
+
+// sourceGitDeadline is the frozen 10-second bound on one source view or handoff
+// capture and on each Git command it runs (ESV-V0-003).
+const sourceGitDeadline = 10 * time.Second
+
+// sourceDeadlineKey carries an in-process test replacement for sourceGitDeadline
+// through the context, so tests that verify refusal semantics rather than latency
+// cannot have host load expire the bound first (decision 0082, V1-1302); no
+// command-line path sets it.
+type sourceDeadlineKey struct{}
+
+// sourceDeadline is the bound under ctx: the sourceDeadlineKey replacement if set,
+// else sourceGitDeadline.
+func sourceDeadline(ctx context.Context) time.Duration {
+	if bound, ok := ctx.Value(sourceDeadlineKey{}).(time.Duration); ok {
+		return bound
+	}
+	return sourceGitDeadline
 }
