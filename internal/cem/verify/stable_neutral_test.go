@@ -212,6 +212,7 @@ func TestCEMV1083NeutralCriterionPublicCase(t *testing.T) {
 	if got := neutralResult(t, result); exit != c.expect.Accept.Exit || !reflect.DeepEqual(got, c.expect.Accept.Result) {
 		t.Fatalf("Stable exit=%d result=%s, want the public expected ACCEPT", exit, stableResultDebug(result))
 	}
+	checkResultBytes(t, filepath.Join(c.root, "results", "accept.json"), result)
 	if len(c.expect.Refusals) != 7 {
 		t.Fatalf("public refusals = %d, want 7", len(c.expect.Refusals))
 	}

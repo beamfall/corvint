@@ -79,6 +79,7 @@ func TestCEMV1111CitationVectorsNative(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			checkResultBytes(t, filepath.Join(c.root, "results", tc.Name+".json"), result)
 			if members := topLevelMembers(t, encoded); !reflect.DeepEqual(members, want.ResultMembers) {
 				t.Fatalf("result members %v, want %v", members, want.ResultMembers)
 			}
@@ -178,6 +179,27 @@ func citationVectorDeletionAnchored(t *testing.T, path, citation string) bool {
 		}
 	}
 	return false
+}
+
+// checkResultBytes renders result as both consumers write it, one compact
+// object and an LF, and compares the whole line, nested members included, with
+// the packet's pinned bytes (CEM-V1-113). The one environment member that can
+// vary is runtime.goVersion: the pin carries go1.27.2, and another admitted
+// toolchain's name is substituted before comparing.
+func checkResultBytes(t *testing.T, path string, result any) {
+	t.Helper()
+	var line bytes.Buffer
+	if err := json.NewEncoder(&line).Encode(result); err != nil {
+		t.Fatal(err)
+	}
+	got := bytes.Replace(line.Bytes(), []byte(`"goVersion":"`+runtime.Version()+`"`), []byte(`"goVersion":"go1.27.2"`), 1)
+	want, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("result bytes differ from %s:\ngot  %s\nwant %s", path, got, want)
+	}
 }
 
 func topLevelMembers(t *testing.T, encoded []byte) []string {

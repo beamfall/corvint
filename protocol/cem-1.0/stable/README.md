@@ -29,7 +29,9 @@ authorized.
   `receipt-authentication/` and `repository-envelope-packet/`: sealed suites that
   the native verifier and the portable consumer both run with pinned verdicts.
   `citation-vectors/` (CEM-V1-111) pins anchored hunks, nonzero specificity, a
-  same-path deletion and the exact citation block bytes.
+  same-path deletion and the exact citation block bytes. Its `results/` and
+  `neutral-criterion/results/` pin whole result lines, nested member order
+  included (CEM-V1-113).
 - `inherited/`: unchanged pinned public algorithm/schema inputs, now historical
   provenance only. `ALGORITHMS.md` restates their pure algorithms, the 0.3 hunk
   vocabulary and structural reasons as the 1.0-normative text; their
