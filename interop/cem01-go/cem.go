@@ -3243,6 +3243,9 @@ func validateStableReferences(m *stableMap) *cemError {
 	hunks := map[string]hunk03{}
 	evidenceIDs := map[string]bool{}
 	for _, h := range m.Hunks {
+		if _, ok := hunks[h.ID]; ok {
+			return invalid("duplicate-reference")
+		}
 		hunks[h.ID] = h
 	}
 	spanDigests := map[string]string{}
@@ -3298,9 +3301,6 @@ func validateStableReferences(m *stableMap) *cemError {
 			linkedRunners[id] = true
 		}
 	}
-	if len(linkedCriteria) != len(criteria) || len(linkedRunners) != len(runners) {
-		return invalid("unresolved-reference")
-	}
 	for _, l := range m.CriterionLinks {
 		basisIDs := map[string]bool{}
 		for _, id := range l.HunkIDs {
@@ -3320,6 +3320,11 @@ func validateStableReferences(m *stableMap) *cemError {
 				return invalid("unresolved-reference")
 			}
 		}
+	}
+	// CEM-V1-176: an unused criterion or runner fails coherence after
+	// link/basis membership and before artifact role closure.
+	if len(linkedCriteria) != len(criteria) || len(linkedRunners) != len(runners) {
+		return invalid("reference-coherence")
 	}
 	required := map[string]string{}
 	want := func(digest, kind string) bool {
@@ -3356,7 +3361,11 @@ func validateStableReferences(m *stableMap) *cemError {
 	}
 	paths, digests := map[string]bool{}, map[string]bool{}
 	for _, a := range m.Artifacts {
-		if paths[a.Path] || digests[a.SHA256] || required[a.SHA256] != a.Kind {
+		// CEM-V1-176: a repeated path or digest precedes the record's kind.
+		if paths[a.Path] || digests[a.SHA256] {
+			return invalid("duplicate-reference")
+		}
+		if required[a.SHA256] != a.Kind {
 			return invalid("artifact-role-closure")
 		}
 		paths[a.Path] = true
@@ -3890,5 +3899,31 @@ func runStableCLI(argv []string) {
 	defer cancel()
 	r, status := executeStableCLI(ctx, argv)
 	_ = json.NewEncoder(os.Stdout).Encode(r)
+	if fix := stableRelativePathFix(r, argv); fix != "" {
+		fmt.Fprintln(os.Stderr, "cem01-go verify-stable: "+fix)
+	}
 	os.Exit(status)
+}
+
+// stableRelativePathFix names the recovery for an invalid-arguments refusal
+// whose cause is a relative path option, in the native consumer's words
+// (CEM-V1-117). It goes to stderr, never into the closed result; a relative
+// path is refused, never resolved.
+func stableRelativePathFix(r stableResult, argv []string) string {
+	if r.Code == nil || *r.Code != "invalid-arguments" {
+		return ""
+	}
+	var relative []string
+	for _, name := range []string{"--repository", "--map", "--artifacts", "--trusted-keys"} {
+		for i := 0; i+1 < len(argv); i += 2 {
+			if argv[i] == name && argv[i+1] != "" && !filepath.IsAbs(argv[i+1]) {
+				relative = append(relative, name)
+				break
+			}
+		}
+	}
+	if len(relative) == 0 {
+		return ""
+	}
+	return "invalid-arguments: relative path option " + strings.Join(relative, ", ") + "; fix: pass each as an absolute path such as \"$PWD/<path>\"; a relative path is refused, never resolved"
 }

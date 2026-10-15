@@ -37,7 +37,7 @@ Tasks gate:
 // runCEMInvocation runs the cem commands that own their whole argv before the
 // general router: the stable verifier and the Tasks verdict gate.
 func runCEMInvocation(ctx context.Context, args []string, stdout, stderr io.Writer) (int, bool) {
-	if code, handled := cemcli.RunStableInvocation(ctx, args, stdout); handled {
+	if code, handled := cemcli.RunStableInvocation(ctx, args, stdout, stderr); handled {
 		return code, true
 	}
 	return runCEMGateVerdictInvocation(ctx, args, stdout, stderr)

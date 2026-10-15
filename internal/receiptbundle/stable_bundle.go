@@ -613,7 +613,7 @@ func stableVerifySource(ctx context.Context, raw []byte, options Options) (verif
 		stableOptions = verify.StableOptions{Repository: options.Repository}
 	}
 	result := verify.NewStableResult(stableOptions)
-	return result, result.Refuse("arguments", "invalid-arguments", false)
+	return result, result.Refuse("arguments", "invalid-arguments", true)
 }
 
 // exportStable is `cem export` over an exact cem/1.0 map (CEM-V1-060..063). It

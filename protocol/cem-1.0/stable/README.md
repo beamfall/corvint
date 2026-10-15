@@ -31,7 +31,9 @@ authorized.
   `citation-vectors/` (CEM-V1-111) pins anchored hunks, nonzero specificity, a
   same-path deletion and the exact citation block bytes. Its `results/` and
   `neutral-criterion/results/` pin whole result lines, nested member order
-  included (CEM-V1-113).
+  included (CEM-V1-113). `reference-precedence/` (CEM-V1-177) pins the stage,
+  code and whole result line of six graph mutations whose precedence
+  `ALGORITHMS.md` fixes (CEM-V1-176).
 - `inherited/`: unchanged pinned public algorithm/schema inputs, now historical
   provenance only. `ALGORITHMS.md` restates their pure algorithms, the 0.3 hunk
   vocabulary and structural reasons as the 1.0-normative text; their

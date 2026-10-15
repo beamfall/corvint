@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -185,7 +186,7 @@ func runVerifyStable(t *testing.T, f stableReadFixture, artifacts string) (int, 
 		arguments = append(arguments, "--artifacts", artifacts)
 	}
 	var out bytes.Buffer
-	exit, handled := RunStableInvocation(context.Background(), arguments, &out)
+	exit, handled := RunStableInvocation(context.Background(), arguments, &out, io.Discard)
 	if !handled {
 		t.Fatal("verify-stable was not dispatched")
 	}

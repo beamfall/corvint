@@ -6,7 +6,7 @@ Delivery status: implemented and produced on main (decision 0525, CEM-V1-140..15
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed; implemented and produced on main (decision 0525, CEM-V1-140..152, V1-1276); not promoted; qualification bounded.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (proposed `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (proposed `CEM-V1-200..204`, V1-1278 S1); local-completion sidecar-only reuse of a committed `cem/1.0` sidecar on a stable verifier `ACCEPT` over its exact bytes with the absolute repository root and full object IDs, with closed refusal reasons and `CEM-V1-150`'s fail-closed default otherwise (proposed `CEM-V1-205..209`, V1-1303); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (proposed `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (proposed `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (proposed `CEM-V1-220..225`, V1-1278 S3); one shared `cem/1.0` tamper matrix in the packet that the native and portable consumers both run with the same pinned verdicts (proposed `CEM-V1-226..229`, V1-1340); `corvint-cem-anchor/1` anchor pointers that read `verified` only when the anchored map describes the commit's canonical patch, `unscoped` legacy `/0` pointers and a `--notes-tip` rollback read (accepted `CEM-V1-067`, V1-1260); the portable consumer's process containment qualified on Darwin and Linux amd64/arm64 through a pidfd/epoll keeper and a `/proc` quiet proof, with every other host still refusing `unsupported-process-containment` (accepted `CEM-V1-180..184`, V1-1358); truthful packet status, the citation rules, stop list, result serialization and diff recipe restated in the packet, and native-generated citation vectors both consumers run (accepted `CEM-V1-107..112`, V1-1333); a discrimination witness whose `mutants` exceeds `bounds.maxMutants` refused `invalid-field` by both consumers (accepted `CEM-V1-090`, V1-1259); a normative nested result member order with pinned whole result lines both consumers reproduce (accepted `CEM-V1-113`, V1-1369); the consumer's Git capability contract (`--attr-source`, Git 2.41 or later, else `repository` / `git-diff-failed`), its PATH-only Git resolution and the hosted `macos-15` qualification through the Tasks gate's own Git (accepted `CEM-V1-185..189`, V1-1377); `cem cite` refusing a governing instruction file the map's own patch changes with `cite-self-modified-authority` (accepted `CEM-V1-114`, V1-0414); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (proposed `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (proposed `CEM-V1-200..204`, V1-1278 S1); local-completion sidecar-only reuse of a committed `cem/1.0` sidecar on a stable verifier `ACCEPT` over its exact bytes with the absolute repository root and full object IDs, with closed refusal reasons and `CEM-V1-150`'s fail-closed default otherwise (proposed `CEM-V1-205..209`, V1-1303); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (proposed `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (proposed `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (proposed `CEM-V1-220..225`, V1-1278 S3); one shared `cem/1.0` tamper matrix in the packet that the native and portable consumers both run with the same pinned verdicts (proposed `CEM-V1-226..229`, V1-1340); `corvint-cem-anchor/1` anchor pointers that read `verified` only when the anchored map describes the commit's canonical patch, `unscoped` legacy `/0` pointers and a `--notes-tip` rollback read (accepted `CEM-V1-067`, V1-1260); the portable consumer's process containment qualified on Darwin and Linux amd64/arm64 through a pidfd/epoll keeper and a `/proc` quiet proof, with every other host still refusing `unsupported-process-containment` (accepted `CEM-V1-180..184`, V1-1358); truthful packet status, the citation rules, stop list, result serialization and diff recipe restated in the packet, and native-generated citation vectors both consumers run (accepted `CEM-V1-107..112`, V1-1333); a discrimination witness whose `mutants` exceeds `bounds.maxMutants` refused `invalid-field` by both consumers (accepted `CEM-V1-090`, V1-1259); a normative nested result member order with pinned whole result lines both consumers reproduce (accepted `CEM-V1-113`, V1-1369); the consumer's Git capability contract (`--attr-source`, Git 2.41 or later, else `repository` / `git-diff-failed`), its PATH-only Git resolution and the hosted `macos-15` qualification through the Tasks gate's own Git (accepted `CEM-V1-185..189`, V1-1377); `cem cite` refusing a governing instruction file the map's own patch changes with `cite-self-modified-authority` (accepted `CEM-V1-114`, V1-0414); `UNSUPPORTED` argument refusals with a stderr or envelope absolute-path fix and a pinned reference precedence, so both consumers return the same outcome, stage and code for the same input (accepted `CEM-V1-115..117`, `CEM-V1-176..177`, V1-1291/V1-1306/V1-1289); qualification remains bounded.
 - Blocked on: technical contract acceptance and stable promotion, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -70,6 +70,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-106 | `internal/cem/workflow/stable_read.go` `StableCitationClass` and the `status` branch of `readStable`; `TestCEMV1106StatusCitationClassGroupsChoreMaps` in `internal/cem/cli` | No producer writes `role` before the V1-1276 cutover, so every committed map reads class `change`; the portable consumer has no status envelope and is unchanged |
 | CEM-V1-065 | `CEMStatementV2` and the v2 verifier in `internal/attest/cem_v2.go`; `prove --attest-cem-v2` and `--verify-cem-attestation --artifacts/--target` in `cmd/corvint/prove_attest_cem.go`; stable routing in `internal/gitnotes/anchor.go` (`wire.ParseStable`; the `wire.ParseRouted` 0.x router in `internal/cem/wire/route.go` was deleted by V1-1278 S2b, `CEM-V1-215`); `TestCEMV1065*` in `internal/attest`, `cmd/corvint` and `internal/gitnotes` | No verdict ledger; no signing producer or key management; v2 emission needs full-OID `--expected-base` and `--target` and an ACCEPT result; no independent consumer of `cem/v2` |
 | CEM-V1-067 | `corvint-cem-anchor/1` pointers, `describes` and `tree` in `internal/gitnotes/anchor.go`, the scope states and `ProvenanceWithNotesTip` in `internal/gitnotes/provenance.go`, `--notes-tip` in `internal/cem/cli/cli.go` and `cmd/corvint/cem_anchor.go`; tests under "Anchor pointer scope traceability" | No migration of existing `/0` notes; rollback detection needs an operator-retained tip; no independent consumer of the pointer profile |
+| CEM-V1-115..117, 176..177 | `Refuse(..., true)` for both argument stages and `RelativePathFix` in `internal/cem/verify/stable.go`, the stderr line in `internal/cem/cli/stable.go`, the envelope `fix` in `internal/cem/workflow/stable_read.go`; the per-link uniqueness pass in `internal/cem/wire/stable.go`; `validateStableReferences` and `stableRelativePathFix` in `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/reference-precedence/`; `TestCEMV1115*`, `TestCEMV1117*`, `TestCEMV1177*` in `internal/cem/cli`, `internal/cem/verify` and `interop/cem01-go` | V1-1295 (partial drift on a resource-limit result) and V1-1297 (a separate missing-object code) stay open because sealed S0E vectors pin the current answers; technical contract acceptance and promotion |
 
 ## First portable candidate build contract
 
@@ -429,6 +430,11 @@ plan or tree is refused even without a trusted-keys file; a bad signature under 
 is not checked and leaves UNTRUSTED_KEY, never VERIFIED; a bad trusted-keys file refuses the whole
 run rather than silently lowering the axis.
 
+Decision (V1-1291, 2026-10-14): that `invalid-arguments` refusal, like every `arguments` and
+`authority-arguments` refusal, is `UNSUPPORTED` with `accept` `null` and exit 2 in both consumers
+(CEM-V1-115, CEM-V1-116). A relative `--trusted-keys` path also prints the absolute-path fix on
+stderr (CEM-V1-117).
+
 Acceptance evidence:
 
 | Requirement | Test | Evidence |
@@ -645,7 +651,11 @@ with a bounded code and no output; a sidecar that is a different blob at the bin
 instead of attributing a map to the wrong commit; an unreadable repository never changes the
 output and never becomes a verdict; an existing `--output` file is never overwritten; a
 consumer-only divergence on a resource-limit abort (the partial drift list) is retained as a
-`nativePortableDiffer` row, not hidden by the class.
+`nativePortableDiffer` row, not hidden by the class. V1-1295 (2026-10-14) kept that partial drift
+list in the result: the sealed S0E full-result cases `ledger-337-evidence` and
+`partial-drift-one-item-cancel` pin a partial list on `UNSUPPORTED` results (335 items on a
+resource limit, one on a timeout), so the row stays a recorded difference
+(`docs/build-log/2026-10-14-batch4-cem-parity.md`).
 
 Acceptance evidence:
 
@@ -1008,7 +1018,7 @@ one owning specification. A code reports a bounded check and never upgrades auth
 | Stage | Codes | Outcome |
 | --- | --- | --- |
 | references | `invalid-criterion-identity`, `duplicate-reference`, `unresolved-reference`, `reference-coherence`, `artifact-role-closure` | Exit 2; the decoded reference graph is rejected without filesystem or native authority inference |
-| authority-arguments | `artifacts-required` | Exit 2; the explicit artifact root is required even for an empty reference set |
+| authority-arguments | `artifacts-required` | Exit 2 (`UNSUPPORTED`, CEM-V1-116); the explicit artifact root is required even for an empty reference set |
 | runtime | `unsupported-structural-runtime`, `unsupported-process-containment` | Exit 2; an unqualified runtime or containment tuple is explicit and has no weakened fallback |
 | repository | `unsupported-resource-limit`, `unsupported-repository-envelope`, `verification-timeout` | Exit 2; operational limits stay distinct from invalid evidence |
 | repository | `unsupported-patch-inventory` | Exit 2 (`UNSUPPORTED`); a create destination lacks an authenticated base-entry proof, so absence is not inferred |
@@ -2436,6 +2446,82 @@ the fixed PATH and the hosted `macos-15` gate tests fail again with `verifier-di
 | CEM-V1-187 | `TestTCBV0040PortableUnsupportedRefusesNamingTheRoute`, `TestTCBV0016GateVerdictRunsBothConsumers` | The pinned `stage` and `code` are closed tokens; any other shape is unreadable |
 | CEM-V1-188 | `TestTCBV0016GateVerdictRunsBothConsumers`, `TestTCBV0017PortableConsumerMustRecomputeTheSameVerdict` on hosted `macos-15` | Release-gates dispatch 38654510601 at 52ad86a36: macos-15 full-gate `success` (`ok internal/taskman`, `ok cmd/corvint`); dispatch 38650914390 at 22fca01e6 retained the bare-PATH answer `repository` / `git-diff-failed` under Apple Git 2.39.5 |
 | CEM-V1-189 | `TestTCBV0042PortableConsumerUnderBareHostPath` | Passes on darwin/arm64 (`GRANT`) and on hosted `macos-15` (`portable-route-unsupported`) with the probe output logged |
+
+## Stable consumer argument and reference parity (V1-1291, V1-1306, V1-1289, 2026-10-14)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-1291,
+V1-1306, V1-1289. Measured at `ee27168739ec1b65dd5a653d720cf811338c37ae`, the native verifier and
+the portable consumer gave different results for the same input in two places. An `arguments` or
+`authority-arguments` refusal was `REJECT` (`accept` `false`) natively and `UNSUPPORTED` (`accept`
+`null`) in the portable consumer. Four reference-graph mutations got a different `references` code
+from each consumer. `OPERATION.json` fixes the stage and exit of both argument stages but not their
+outcome, and `ALGORITHMS.md` states the graph precedence only coarsely. This section fixes both
+answers so the two consumers agree. The scope is the 1.0 packet scope of the product requirement
+`PRS-V1-018` (1.0 scope per V1-0020 dependency).
+
+- `CEM-V1-115`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A
+  `verify-stable` refusal at stage `arguments` MUST be `UNSUPPORTED` with `accept` `null`,
+  `assurance` `null` and exit 2 in every stable entry point: the native `cem verify-stable`, the
+  Core stable read and export, the internal stable universe admission and both portable commands.
+  A bad invocation proves nothing about the change, so it is never a rejection of the evidence.
+- `CEM-V1-116`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A
+  `verify-stable` refusal at stage `authority-arguments` (`expected-base-required`,
+  `target-required`, `artifacts-required`, `invalid-arguments`) MUST likewise be `UNSUPPORTED` with
+  `accept` `null`, `assurance` `null` and exit 2 in both consumers. Its stage, code and the members
+  already decoded (hunks, references) are unchanged.
+- `CEM-V1-117`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1306) When an
+  `invalid-arguments` refusal follows a relative path option (`--root`, `--repository`, `--map`,
+  `--artifacts` or `--trusted-keys`), the consumer MUST keep refusing it (CEM-V1-017: a relative path
+  is refused, never resolved) and MUST name the fix beside the result, never inside it
+  (CEM-V1-187): one stderr line `<command>: invalid-arguments: relative path option <options>;
+  fix: pass each as an absolute path such as "$PWD/<path>"; a relative path is refused, never
+  resolved` for the native and portable commands, and the same text in a `fix` member of the Core
+  stable read envelope. The absolute form of the same invocation MUST pass both argument stages and
+  print no fix line. A repeated option is still refused, and the fix names a relative value in any
+  of its occurrences. The closed result bytes are unchanged.
+- `CEM-V1-176`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1289) Both
+  consumers MUST apply the reference precedence the CEM-V1-176 paragraph of
+  `protocol/cem-1.0/stable/ALGORITHMS.md` states. A hunk basis that names no evidence record is
+  `wire` / `invalid-field`. A repeated hunk ID is `duplicate-reference`, after runner receipt
+  uniqueness and before any link is resolved. A repeated ID inside one link array is
+  `duplicate-reference` before any ID of that link is resolved. A declared criterion or runner receipt that no link names is
+  `reference-coherence`, after link resolution and basis membership and before artifact role
+  closure. A repeated artifact path or digest is `duplicate-reference`, before that record's role
+  check. The other cases are `REJECT` at stage `references` with exit 2.
+- `CEM-V1-177`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1289) The packet
+  MUST carry one public case per CEM-V1-176 rule under
+  `protocol/cem-1.0/stable/reference-precedence/`, added by the manifest extension rule (new
+  directory and new `manifest.json` entries; no existing vector byte or digest changes), with the
+  whole result line each consumer must write. Both consumers MUST run every case and match its line
+  byte for byte, `runtime.goVersion` excepted.
+
+Non-goals: no new stage or code; no change to an `ACCEPT` or a Git-reading result; no change to any
+sealed S0E cell, full-result case or committed map result; the fix line is not a machine contract
+beyond its prefix and is never part of `verdictSha256`; a relative path is still never resolved.
+V1-1295 (partial drift on an `UNSUPPORTED` resource-limit result) and V1-1297 (a separate code for
+a missing pinned object) are not decided here; the build log
+`docs/build-log/2026-10-14-batch4-cem-parity.md` records why both stay open.
+
+Failure modes: a caller that branched on `accept` `false` for a bad invocation now sees `null`;
+every in-repository caller (receipt bundle export, stable universe, Tasks gate verdict) already
+treated exit 2 as not accepted. A consumer that checks a link's IDs one at a time, or the role
+before the artifact repeat, fails the pinned `reference-precedence` line for that case by name in
+both consumers' tests. A stderr reader that expected silence on a refusal sees one line.
+
+Rollback: revert the V1-1291 commit. The native verifier then returns `REJECT` for argument
+refusals again, the reference order and the fix line are removed from both consumers, and the
+`reference-precedence/` directory and its manifest entries are deleted. No committed map, seal or
+digest depends on these answers.
+
+### Stable consumer argument and reference parity traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-115 | `TestCEMV1115ArgumentRefusalsNative` (`internal/cem/cli`); `TestCEMV1115ArgumentRefusalsPortable` (`interop/cem01-go`); `TestStableExportPublishesNothingForARefusedSource` (`internal/receiptbundle`) | The same argv gives `UNSUPPORTED` `arguments` / `invalid-arguments`, `accept` `null`, exit 2 on the native command and both portable commands; at base the native command answered `REJECT` |
+| CEM-V1-116 | `TestCEMV1115ArgumentRefusalsNative`, `TestCEMV1115ArgumentRefusalsPortable`; `TestCEMV1052StableUniverseAuthorityArguments` (`internal/lrfrepo`) | `artifacts-required` and a relative `--artifacts` are `UNSUPPORTED` `authority-arguments` in both consumers |
+| CEM-V1-117 | `TestCEMV1115ArgumentRefusalsNative`, `TestCEMV1117CoreReadNamesRelativePathFix` (`internal/cem/cli`); `TestCEMV1115ArgumentRefusalsPortable`; `TestCEMStableReadKeepsCallerRoot`, `TestCEMV1084VerifyStableTrustedKeysFlag` (`cmd/corvint`) | Relative `--root`, `--repository`, `--artifacts` and `--trusted-keys` print the fix line (envelope `fix` in the Core read), also when the relative value is the second of a repeated option; each absolute form passes both argument stages with empty stderr |
+| CEM-V1-176 | `TestCEMV1177ReferencePrecedenceNative` (`internal/cem/verify`); `TestCEMV1177ReferencePrecedencePortable` (`interop/cem01-go`) | At base five of the six cases differed: portable `REJECT` `verification` (issue `patch-hunk-count`, exit 1) against native `references` / `duplicate-reference` for a repeated hunk ID, native `unresolved-reference` against portable `duplicate-reference` for a repeated unknown link ID, portable `unresolved-reference` against native `reference-coherence` for an unused criterion or runner receipt, and portable `artifact-role-closure` against native `duplicate-reference` for a repeated artifact |
+| CEM-V1-177 | `TestCEMV1177ReferencePrecedenceNative`, `TestCEMV1177ReferencePrecedencePortable`; `TestStableS0EPublicCases`, `TestStableCanonicalFullResults` (unchanged) | Six cases and pinned lines under `protocol/cem-1.0/stable/reference-precedence/`, listed in the stable manifest; existing vectors byte-identical |
 
 ## Self-modified governing authority is never cited (V1-0414, 2026-10-14)
 

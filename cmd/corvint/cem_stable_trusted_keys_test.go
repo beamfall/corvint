@@ -33,7 +33,7 @@ func TestCEMV1084VerifyStableTrustedKeysFlag(t *testing.T) {
 		var out, errout bytes.Buffer
 		exit := runContext(context.Background(), []string{"cem", "verify-stable", "--repository", filepath.Join(dir, "repo"), "--map", filepath.Join(dir, "missing-map.json"), "--trusted-keys", keys}, nil, &out, &errout)
 		var result map[string]any
-		if e := json.Unmarshal(out.Bytes(), &result); e != nil || errout.Len() != 0 {
+		if e := json.Unmarshal(out.Bytes(), &result); e != nil || (errout.Len() != 0 && !relativePathFixLine(result, errout.String())) {
 			t.Fatalf("--trusted-keys %s: %v %s %s", keys, e, out.String(), errout.String())
 		}
 		return exit, result

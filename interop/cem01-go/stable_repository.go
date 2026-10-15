@@ -1155,5 +1155,8 @@ func runStableCanonicalCLI(argv []string) {
 	r, status := executeStableCanonicalCLI(ctx, argv)
 	cancel()
 	_ = json.NewEncoder(os.Stdout).Encode(r)
+	if fix := stableRelativePathFix(r, argv); fix != "" {
+		fmt.Fprintln(os.Stderr, "cem01-go verify-stable-canonical: "+fix)
+	}
 	os.Exit(status)
 }

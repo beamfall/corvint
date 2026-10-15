@@ -15,7 +15,10 @@ import (
 
 // RunStableInvocation handles only the explicit Core stable command, before
 // generic Core root resolution, worktree opening or observation side effects.
-func RunStableInvocation(ctx context.Context, args []string, out io.Writer) (int, bool) {
+// The closed result goes to out; an invalid-arguments refusal caused by a
+// relative path option also names the absolute-path fix on errout
+// (CEM-V1-117), never inside the result.
+func RunStableInvocation(ctx context.Context, args []string, out, errout io.Writer) (int, bool) {
 	at := -1
 	for i := 0; i+1 < len(args); i++ {
 		if args[i] == "cem" && args[i+1] == "verify-stable" {
@@ -80,16 +83,32 @@ func RunStableInvocation(ctx context.Context, args []string, out io.Writer) (int
 		if e := json.NewEncoder(out).Encode(r); e != nil {
 			return 2, true
 		}
+		if r.Code != nil && *r.Code == "invalid-arguments" {
+			// Scan the supplied argv, not the parsed values, so a relative path in
+			// a repeated option is still named, as the portable consumer does.
+			relative := func(name string, from, to int) [2]string {
+				for i := from; i+1 < to; i += 2 {
+					if args[i] == name && args[i+1] != "" && !filepath.IsAbs(args[i+1]) {
+						return [2]string{name, args[i+1]}
+					}
+				}
+				return [2]string{name, ""}
+			}
+			paths := [][2]string{relative("--root", 0, at), relative("--repository", at+2, len(args)), relative("--map", at+2, len(args)), relative("--artifacts", at+2, len(args)), relative("--trusted-keys", at+2, len(args))}
+			if fix := verify.RelativePathFix(paths...); fix != "" {
+				_, _ = io.WriteString(errout, "corvint cem verify-stable: "+fix+"\n")
+			}
+		}
 		return exit, true
 	}
 	if bad || !filepath.IsAbs(options.Repository) || !filepath.IsAbs(values["--map"]) || globalRoot != "" && (!filepath.IsAbs(globalRoot) || filepath.Clean(globalRoot) != globalRoot || filepath.Clean(options.Repository) != globalRoot) {
-		exit = r.Refuse("arguments", "invalid-arguments", false)
+		exit = r.Refuse("arguments", "invalid-arguments", true)
 		return emit()
 	}
 	if path, ok := values["--trusted-keys"]; ok {
 		keys, e := readTrustedKeys(path)
 		if e != nil {
-			exit = r.Refuse("arguments", "invalid-arguments", false)
+			exit = r.Refuse("arguments", "invalid-arguments", true)
 			return emit()
 		}
 		options.TrustedKeys = keys
