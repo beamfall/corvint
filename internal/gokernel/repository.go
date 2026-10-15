@@ -356,7 +356,7 @@ func observeRepository(ctx context.Context, run gitRunner, root string) (reposit
 }
 
 func probeRepositoryContext(parent context.Context, root string, run gitRunner) (Repository, error) {
-	ctx, cancel := context.WithTimeout(parent, gitDeadline)
+	ctx, cancel := context.WithTimeout(parent, probeBound(parent))
 	defer cancel()
 	// The three stages below stay strictly sequential: the profile read is
 	// issued only after a complete observation, and the second complete
@@ -471,7 +471,7 @@ func ProbeRepositoryAround(parent context.Context, root string, read func(contex
 }
 
 func probeRepositoryAround(parent context.Context, root string, run gitRunner, read func(context.Context, Observation) error) (Repository, error) {
-	ctx, cancel := context.WithTimeout(parent, gitDeadline)
+	ctx, cancel := context.WithTimeout(parent, probeBound(parent))
 	defer cancel()
 	before, err := observeRepository(ctx, run, root)
 	if err != nil {
@@ -511,7 +511,7 @@ type sharedRead func(context.Context, Observation) (func() error, error)
 // held until the closing observation so the bracket's own failures keep their
 // precedence over the context block's, as the concurrent default path reports.
 func probeRepositorySharing(parent context.Context, root string, run gitRunner, read sharedRead, wantProfile bool) (Repository, error) {
-	ctx, cancel := context.WithTimeout(parent, gitDeadline)
+	ctx, cancel := context.WithTimeout(parent, probeBound(parent))
 	defer cancel()
 	for attempt := 0; attempt < 3; attempt++ {
 		before, err := observeRepository(ctx, run, root)
@@ -557,4 +557,23 @@ func waitGitProcess(command *exec.Cmd) error {
 		return command.Wait()
 	}
 	return groupreap.Wait(command)
+}
+
+// probeBoundKey carries a per-invocation replacement for gitDeadline.
+type probeBoundKey struct{}
+
+// WithProbeBound replaces the Git repository probe's fixed bound for probes run under ctx. Tests
+// that verify lifecycle semantics rather than latency set it beside their lifted event deadline,
+// so host load cannot expire the probe first (decision 0082, V1-1391); no production path sets it.
+func WithProbeBound(ctx context.Context, bound time.Duration) context.Context {
+	return context.WithValue(ctx, probeBoundKey{}, bound)
+}
+
+// probeBound is the Git repository probe's bound under ctx: the WithProbeBound replacement if
+// set, else gitDeadline.
+func probeBound(ctx context.Context) time.Duration {
+	if bound, ok := ctx.Value(probeBoundKey{}).(time.Duration); ok {
+		return bound
+	}
+	return gitDeadline
 }

@@ -2,6 +2,7 @@ package gokernel
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sync"
 	"testing"
@@ -211,5 +212,63 @@ func TestProbePersistentInstabilityStopsAfterThreeAttempts(t *testing.T) {
 	mutex.Unlock()
 	if gotStatusCalls != 6 {
 		t.Fatalf("status calls = %d, want 6", gotStatusCalls)
+	}
+}
+
+// TestProbeBoundReplacesGitDeadline pins the V1-1391 seam: every probe entry point bounds its Git
+// reads by WithProbeBound when set, and by the fixed gitDeadline otherwise.
+func TestProbeBoundReplacesGitDeadline(t *testing.T) {
+	probes := map[string]func(context.Context, gitRunner) error{
+		"context": func(ctx context.Context, run gitRunner) error {
+			_, err := probeRepositoryContext(ctx, t.TempDir(), run)
+			return err
+		},
+		"around": func(ctx context.Context, run gitRunner) error {
+			_, err := probeRepositoryAround(ctx, t.TempDir(), run, func(context.Context, Observation) error { return nil })
+			return err
+		},
+		"sharing": func(ctx context.Context, run gitRunner) error {
+			_, err := probeRepositorySharing(ctx, t.TempDir(), run, func(context.Context, Observation) (func() error, error) { return nil, nil }, false)
+			return err
+		},
+	}
+	for name, probe := range probes {
+		for _, lifted := range []bool{false, true} {
+			ctx, bound := context.Background(), gitDeadline
+			if lifted {
+				ctx, bound = WithProbeBound(ctx, time.Hour), time.Hour
+			}
+			// The probe's deadline is its start plus the bound, and its start lies between these
+			// two instants, so the check holds at any host load.
+			start := time.Now()
+			var mutex sync.Mutex
+			var offending []string
+			reads := 0
+			run := func(ctx context.Context, _ string, _ int, arguments ...string) ([]byte, error) {
+				deadline, ok := ctx.Deadline()
+				if !ok {
+					return nil, newError("test-deadline-missing", "Git probe context has no deadline")
+				}
+				mutex.Lock()
+				reads++
+				if deadline.Before(start.Add(bound)) || deadline.After(time.Now().Add(bound)) {
+					offending = append(offending, fmt.Sprintf("%s left of a %s bound", time.Until(deadline), bound))
+				}
+				mutex.Unlock()
+				switch arguments[0] {
+				case "rev-parse":
+					return testIdentityOutput(), nil
+				case "status", "ls-tree":
+					return []byte{}, nil
+				}
+				return nil, newError("test-command", "unexpected Git command")
+			}
+			if err := probe(ctx, run); err != nil {
+				t.Fatalf("%s lifted=%v: %v", name, lifted, err)
+			}
+			if reads == 0 || len(offending) != 0 {
+				t.Fatalf("%s lifted=%v: %d Git reads, deadlines outside the bound: %v", name, lifted, reads, offending)
+			}
+		}
 	}
 }

@@ -2204,18 +2204,18 @@ LCP-V0-005	docs/specs/local-completion-policy-v0.md	109	`finish` MUST reuse the 
 LCP-V0-006	docs/specs/local-completion-policy-v0.md	130	Once maps are ready, `finish` MUST generate the CEM reviewer report and every sc	unrecorded	-
 LCP-V0-007	docs/specs/local-completion-policy-v0.md	138	Terminal success MUST require all selected checks to pass, current report inspec	unrecorded	-
 LCP-V0-008	docs/specs/local-completion-policy-v0.md	149	Codex and Claude Code Stop, and the exact ordinary Pi final-settlement boundary,	unrecorded	-
-LCP-V0-009	docs/specs/local-completion-policy-v0.md	184	`corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope a	unrecorded	-
-LCP-V0-010	docs/specs/local-completion-policy-v0.md	208	New-profile prompt context MUST separate project governance, declared enrollment	unrecorded	-
-LCP-V0-011	docs/specs/local-completion-policy-v0.md	218	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix	unrecorded	-
-LCP-V0-012	docs/specs/local-completion-policy-v0.md	236	Private plans, observations and report sets MUST have explicit byte/count limits	unrecorded	-
-LCP-V0-013	docs/specs/local-completion-policy-v0.md	242	Prompt context MUST accept a task mention as an explicit anchor. A mention is on	unrecorded	-
-LCP-V0-014	docs/specs/local-completion-policy-v0.md	267	`finish` MUST run the daily change (coordination) and the final strict check in	unrecorded	-
-LCP-V0-015	docs/specs/local-completion-policy-v0.md	280	A selected check MUST NOT run the final check itself. Besides the `dogfood-check	unrecorded	-
-LCP-V0-016	docs/specs/local-completion-policy-v0.md	283	(accepted by decision 0439; V1-0881; no GitHub issue)	owner	decision 0439; V1-0881
-LCP-V0-017	docs/specs/local-completion-policy-v0.md	296	(accepted, decision 0465; V1-1012) The top-level `ok` of a `corvint-local-comple	owner	decision 0465; V1-1012
-LCP-V0-018	docs/specs/local-completion-policy-v0.md	306	(accepted, decision 0472; V1-1043) A `dogfood begin` plan refusal of `invalid-in	owner	decision 0472; V1-1043
-LCP-V0-019	docs/specs/local-completion-policy-v0.md	316	(accepted, decision 0508) An enrolled dogfood event	owner	decision 0508
-LCP-V0-020	docs/specs/local-completion-policy-v0.md	328	accepted, decision 0510. Every `dogfood status`	unrecorded	-
+LCP-V0-009	docs/specs/local-completion-policy-v0.md	186	`corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope a	unrecorded	-
+LCP-V0-010	docs/specs/local-completion-policy-v0.md	210	New-profile prompt context MUST separate project governance, declared enrollment	unrecorded	-
+LCP-V0-011	docs/specs/local-completion-policy-v0.md	220	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix	unrecorded	-
+LCP-V0-012	docs/specs/local-completion-policy-v0.md	238	Private plans, observations and report sets MUST have explicit byte/count limits	unrecorded	-
+LCP-V0-013	docs/specs/local-completion-policy-v0.md	244	Prompt context MUST accept a task mention as an explicit anchor. A mention is on	unrecorded	-
+LCP-V0-014	docs/specs/local-completion-policy-v0.md	269	`finish` MUST run the daily change (coordination) and the final strict check in	unrecorded	-
+LCP-V0-015	docs/specs/local-completion-policy-v0.md	282	A selected check MUST NOT run the final check itself. Besides the `dogfood-check	unrecorded	-
+LCP-V0-016	docs/specs/local-completion-policy-v0.md	285	(accepted by decision 0439; V1-0881; no GitHub issue)	owner	decision 0439; V1-0881
+LCP-V0-017	docs/specs/local-completion-policy-v0.md	298	(accepted, decision 0465; V1-1012) The top-level `ok` of a `corvint-local-comple	owner	decision 0465; V1-1012
+LCP-V0-018	docs/specs/local-completion-policy-v0.md	308	(accepted, decision 0472; V1-1043) A `dogfood begin` plan refusal of `invalid-in	owner	decision 0472; V1-1043
+LCP-V0-019	docs/specs/local-completion-policy-v0.md	318	(accepted, decision 0508) An enrolled dogfood event	owner	decision 0508
+LCP-V0-020	docs/specs/local-completion-policy-v0.md	330	accepted, decision 0510. Every `dogfood status`	unrecorded	-
 LEC-V0-001	docs/specs/lsp-editor-context-v0.md	25	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper	unrecorded	-
 LEC-V0-002	docs/specs/lsp-editor-context-v0.md	26	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively	unrecorded	-
 LEC-V0-003	docs/specs/lsp-editor-context-v0.md	27	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result	unrecorded	-

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/localcompletion"
 
 	"github.com/Beamfall/corvint/internal/runtimeenv"
@@ -52,7 +53,7 @@ func TestClaudeNativeDogfoodLifecycle(t *testing.T) {
 	t.Run("LCP-V0-008 HLQ-V1-009 an enrolled incomplete Stop past its deadline fails open with no decision", func(t *testing.T) {
 		parent, expire := workFinalInterruption("expired")
 		var evaluated map[string]any
-		ctx := context.WithValue(parent, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 10 * time.Minute })
+		ctx := liftedProbeBound(context.WithValue(parent, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 10 * time.Minute }))
 		ctx = context.WithValue(ctx, dogfoodEventReadKey{}, func(ctx context.Context, options options, input map[string]any) (map[string]any, error) {
 			result, err := dogfoodEvent(ctx, options, input)
 			if err != nil {
@@ -188,7 +189,15 @@ func TestClaudeNativeDogfoodLifecycle(t *testing.T) {
 // lifecycle semantics, not host latency; the production deadline stays pinned by
 // TestDogfoodEventDeadlineBelowDeclaredHostKill.
 func lifecycleDeadlineContext() context.Context {
-	return context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 10 * time.Minute })
+	return liftedProbeBound(context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 10 * time.Minute }))
+}
+
+// liftedProbeBound also lifts the Git repository probe's fixed 10-second bound, which otherwise
+// stays the event's latency bound once its deadline is lifted: a loaded host expired it and turned
+// an enrolled Stop into the dogfood-event-deadline fallback (V1-1391, decision 0082). Its
+// classification stays pinned by the "LCP-V0-008 Git probe expiry" test.
+func liftedProbeBound(ctx context.Context) context.Context {
+	return gokernel.WithProbeBound(ctx, 10*time.Minute)
 }
 
 // adapterEnvContext supplies the adapter's process-boundary variables from env alone, so a
