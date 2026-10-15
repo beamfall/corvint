@@ -159,10 +159,7 @@ func (repo *repository) prepareBindings(ctx context.Context, saved *state, snap 
 	}
 	aggregate, err := dogfoodocm.Status(ctx, dogfoodocm.Options{Root: repo.auth.Root, CEMPath: ".corvint/change.cem.json", ExpectedBase: saved.Plan.Base, Target: snap.target})
 	if err != nil {
-		if code := lrfrepo.CodeOf(err); code != "" {
-			return 0, errors.New(code)
-		}
-		return 0, err
+		return 0, aggregateRefusal(evaluation, err)
 	}
 	if !aggregate.OK {
 		return 0, errors.New("ocm-bindings-required")
@@ -258,6 +255,36 @@ func validCode(code string) bool {
 	}
 	return true
 }
+
+// aggregateBoundCodes are the OCM-V0-013 aggregate bound refusals whose
+// message is a fixed text plus at most 2+2*16 integers (OCM-V0-021).
+var aggregateBoundCodes = map[string]bool{"map-too-large": true, "too-many-claims": true, "too-many-obligations": true}
+
+// maxAggregateDetail caps the retained refusal detail; a bound message is far
+// shorter, so a longer one is dropped rather than truncated.
+const maxAggregateDetail = 512
+
+// aggregateRefusal keeps the OCM aggregate refusal on the finish evidence
+// (OCM-V0-022): the code always, and for a bound refusal its bounded counts,
+// so the operator sees the total, bound and per-scope shares instead of only
+// the bare code that the returned error carries.
+func aggregateRefusal(evaluation *Evaluation, err error) error {
+	code := lrfrepo.CodeOf(err)
+	if code == "" {
+		return err
+	}
+	item := EvidenceWorklist{Tool: "dogfood-ocm-status", Map: ".corvint/change.ocm-intents", Worklist: []any{}}
+	if validCode(code) {
+		item.Code = code
+	}
+	var refusal *lrfrepo.Error
+	if aggregateBoundCodes[code] && errors.As(err, &refusal) && refusal.Code == code && len(refusal.Message) <= maxAggregateDetail {
+		item.Detail = refusal.Message
+	}
+	evaluation.Evidence = append(evaluation.Evidence, item)
+	return errors.New(code)
+}
+
 func appendEvidence(evaluation *Evaluation, tool, mapPath string, result map[string]any, err error) {
 	item := EvidenceWorklist{Tool: tool, Map: mapPath, Worklist: []any{}}
 	if err != nil && validCode(err.Error()) {

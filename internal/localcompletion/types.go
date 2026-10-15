@@ -63,6 +63,7 @@ type EvidenceWorklist struct {
 	Tool     string `json:"tool"`
 	Map      string `json:"map"`
 	Code     string `json:"code,omitempty"`
+	Detail   string `json:"detail,omitempty"`
 	Worklist []any  `json:"worklist"`
 	Omitted  int    `json:"omitted"`
 }

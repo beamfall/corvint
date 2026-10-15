@@ -814,6 +814,29 @@ refusal `ocm link` appends which byte adjoins the ID and a space-separated examp
 itself is unchanged (`OCM-V0-005`, `OCM-V0-017`). OCM is local-only in V0 and must not be added to its own
 mapped patch. Structural closure remains distinct from whether the project gate ran or passed.
 
+#### Choosing intents when the aggregate refuses a bound
+
+The multi-intent aggregate (`OCM-V0-013`) sums every declared scope and refuses above 1 MiB of map
+bytes, 512 claims or 256 obligations. The refusal names the observed total, the bound and each
+scope's share by its line in `.corvint/change.ocm-intents`, for example
+`too-many-obligations: aggregate OCM obligations exceed the limit: observed 300, bound 256; per scope
+1=230, 2=70` (`OCM-V0-021`); `corvint dogfood finish` keeps the same text in the `detail` member of
+its `dogfood-ocm-status` evidence row (`OCM-V0-022`). To get under the bound (`OCM-V0-023`):
+
+1. Keep the owning spec, the one whose requirements this change adds or implements. Use the
+   per-scope shares to find the large scope that the change only inherits constraints from.
+2. Drop an inherited-constraint spec from `DOGFOOD_INTENTS_FILE` instead, and cite the lines the
+   change relies on from it in `DOGFOOD_CITATIONS` (relation `specification`). Record in the build
+   log which spec was omitted and which of its requirements or constraints still apply; omission is
+   not a claim that they hold.
+3. When several owning specs together exceed the bound, split the change by owning intent into
+   separately bound changes, then check them as a merge batch. One spec over 256 requirements is
+   refused earlier, by `ocm prepare` for its own map, and needs an owner-reviewed restructuring of
+   that spec, not a different scope selection.
+
+Never shrink an owning spec, merge or drop obligation rows, or read a smaller scope set as a
+smaller gate: the bounds are fixed and the refusal widens nothing.
+
 ### 6. Review what another reviewer sees
 
 A reviewer receives the sealed branch. At the seal head the seal has moved the map to

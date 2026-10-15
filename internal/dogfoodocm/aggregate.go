@@ -225,6 +225,9 @@ func validateScopeBindings(paths []string, scopes []verifiedScope) error {
 	totalBytes := 0
 	totalClaims := 0
 	totalObligations := 0
+	scopeBytes := make([]int, len(scopes))
+	scopeClaims := make([]int, len(scopes))
+	scopeObligations := make([]int, len(scopes))
 	firstTarget := scopes[0].document.TargetRevision
 	firstCEMMap := scopes[0].document.CEM.MapSHA256
 	firstCEMPatch := scopes[0].document.CEM.PatchSHA256
@@ -238,23 +241,43 @@ func validateScopeBindings(paths []string, scopes []verifiedScope) error {
 		if scope.document.TargetRevision != firstTarget || scope.document.CEM.MapSHA256 != firstCEMMap || scope.document.CEM.PatchSHA256 != firstCEMPatch {
 			return fail("intent-scope-drift", "OCM revision or CEM bindings differ across scopes")
 		}
-		totalBytes += len(scope.after)
-		totalClaims += len(scope.document.Claims)
-		totalObligations += len(scope.document.Obligations)
+		scopeBytes[index] = len(scope.after)
+		scopeClaims[index] = len(scope.document.Claims)
+		scopeObligations[index] = len(scope.document.Obligations)
+		totalBytes += scopeBytes[index]
+		totalClaims += scopeClaims[index]
+		totalObligations += scopeObligations[index]
 	}
 	if err := rejectDuplicateRequirements(scopes); err != nil {
 		return err
 	}
 	if totalBytes > maxMapBytes {
-		return fail("map-too-large", "aggregate OCM map bytes exceed the limit")
+		return fail("map-too-large", boundMessage("aggregate OCM map bytes exceed the limit", totalBytes, maxMapBytes, scopeBytes))
 	}
 	if totalClaims > maxClaims {
-		return fail("too-many-claims", "aggregate OCM claims exceed the limit")
+		return fail("too-many-claims", boundMessage("aggregate OCM claims exceed the limit", totalClaims, maxClaims, scopeClaims))
 	}
 	if totalObligations > maxObligations {
-		return fail("too-many-obligations", "aggregate OCM obligations exceed the limit")
+		return fail("too-many-obligations", boundMessage("aggregate OCM obligations exceed the limit", totalObligations, maxObligations, scopeObligations))
 	}
 	return nil
+}
+
+// boundMessage names the observed total, the fixed bound and each scope's
+// share by its 1-based manifest line (OCM-V0-021). At most 2+2*maxScopes
+// integers follow the fixed text, so the message stays bounded and carries no path,
+// requirement body or map content; the manifest line names the intent.
+func boundMessage(text string, total, bound int, perScope []int) string {
+	var output strings.Builder
+	fmt.Fprintf(&output, "%s: observed %d, bound %d; per scope", text, total, bound)
+	for index, count := range perScope {
+		separator := ","
+		if index == 0 {
+			separator = ""
+		}
+		fmt.Fprintf(&output, "%s %d=%d", separator, index+1, count)
+	}
+	return output.String()
 }
 
 func rejectDuplicateRequirements(scopes []verifiedScope) error {
