@@ -2,7 +2,6 @@ package store_test
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -150,6 +149,14 @@ func TestCALV0236_SupersededReplayCarriesAdvisoryWarning(t *testing.T) {
 					t.Fatalf("%s replay at the current generation: %+v", r.id, before[i])
 				}
 			}
+			// A refused original names a generation the attempt never held; its
+			// replay is not a supersession and carries no warning.
+			future := renewOf(first)
+			future.Generation = wire.Size("99")
+			refusedWith(t, s.lease(t, "renew-future", future, 3, nil), mutation.OutcomeRevisionConflict, wire.CodeFenced)
+			if r := s.lease(t, "renew-future", future, 3, nil); !r.Outcome.Replayed || len(r.ReplayWarnings) != 0 {
+				t.Fatalf("fenced replay at the current generation: %+v", r)
+			}
 			if r := s.lease(t, "release-1", releaseOf(first), 4, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
 				t.Fatalf("release: %+v", r)
 			}
@@ -158,9 +165,12 @@ func TestCALV0236_SupersededReplayCarriesAdvisoryWarning(t *testing.T) {
 				t.Fatalf("re-claim did not take the next generation: %+v", second)
 			}
 			live := s.attempt(t, second.AttemptID)
+			want := "advisory, not authoritative: this replays the original result of generation " + string(first.Generation) +
+				"; attempt " + first.AttemptID + " is now at generation " + string(second.Generation) +
+				", so the replayed result does not describe the live lease; use a fresh request ID to act on generation " + string(second.Generation)
 			for i, r := range requests {
 				after := s.lease(t, r.id, r.l, 6, nil)
-				if len(after.ReplayWarnings) != 1 || !strings.Contains(after.ReplayWarnings[0], "advisory, not authoritative") || !strings.Contains(after.ReplayWarnings[0], "now at generation "+string(second.Generation)) || !strings.Contains(after.ReplayWarnings[0], "generation "+string(first.Generation)) {
+				if len(after.ReplayWarnings) != 1 || after.ReplayWarnings[0] != want {
 					t.Fatalf("%s superseded replay warnings: %q", r.id, after.ReplayWarnings)
 				}
 				after.ReplayWarnings = nil
@@ -168,6 +178,13 @@ func TestCALV0236_SupersededReplayCarriesAdvisoryWarning(t *testing.T) {
 					t.Fatalf("%s replayed report changed:\nbefore %+v\nafter  %+v", r.id, before[i], after)
 				}
 				sameLiveness(t, r.id+" replay", live, s.attempt(t, second.AttemptID))
+			}
+			// Other verbs and refused originals add nothing (CAL-V0-236 scope).
+			if r := s.lease(t, "release-1", releaseOf(first), 6, nil); !r.Outcome.Replayed || len(r.ReplayWarnings) != 0 {
+				t.Fatalf("release replay after re-claim: %+v", r)
+			}
+			if r := s.lease(t, "renew-future", future, 6, nil); !r.Outcome.Replayed || len(r.ReplayWarnings) != 0 {
+				t.Fatalf("fenced replay after re-claim: %+v", r)
 			}
 			auditOK(t, s.repo)
 		})

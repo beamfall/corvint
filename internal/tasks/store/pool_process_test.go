@@ -341,8 +341,37 @@ func TestPSRV0022_UnprovedProbeCleanupRecordsUnknown(t *testing.T) {
 	if got := poolPostClass("EXIT_ZERO", true, e); got != "UNKNOWN" {
 		t.Fatalf("post-exit proof on a passing class: want UNKNOWN got %s", got)
 	}
-	if got := poolPostClass("EXIT_NONZERO", false, e); got != "EXIT_NONZERO" {
-		t.Fatalf("post-exit proof on a failing class: want EXIT_NONZERO got %s", got)
+	// Unproved cleanup is terminal: a retryable failure class is replaced so
+	// the retry planner cannot launch another attempt (PSR-V0-004).
+	for _, failed := range []string{"EXIT_NONZERO", "STDOUT_MISMATCH"} {
+		if got := poolPostClass(failed, false, e); got != "UNKNOWN" {
+			t.Fatalf("post-exit proof on %s: want UNKNOWN got %s", failed, got)
+		}
+	}
+	// A probe that hit its bound and whose cleanup is also unproved keeps the
+	// PSR-V0-004 bound class, and is still terminal after exit; a clean bound
+	// keeps the command's own failure as before.
+	for _, c := range []struct {
+		result poolCommandResult
+		source string
+		post   string
+	}{
+		{poolCommandResult{Class: "UNKNOWN", Bound: "TIMEOUT"}, "TIMEOUT", "TIMEOUT"},
+		{poolCommandResult{Class: "UNKNOWN", Bound: "INTERRUPTED"}, "INTERRUPTED", "INTERRUPTED"},
+		{poolCommandResult{Class: "UNKNOWN"}, "UNKNOWN", "UNKNOWN"},
+		{poolCommandResult{Class: "TIMEOUT", Bound: "TIMEOUT", Clean: true}, "TIMEOUT", "EXIT_NONZERO"},
+		{poolCommandResult{Class: "EXIT_NONZERO", Clean: true}, "SOURCE_CHANGED", "SOURCE_CHANGED"},
+	} {
+		failure := sweepGitFailure(c.result)
+		if got := sweepSourceClass(failure); got != c.source {
+			t.Fatalf("%+v: source class want %s got %s", c.result, c.source, got)
+		}
+		if got := poolPostClass("EXIT_NONZERO", false, failure); got != c.post {
+			t.Fatalf("%+v: post class want %s got %s", c.result, c.post, got)
+		}
+	}
+	if timed := executePoolCaptured(context.Background(), &intent.PoolCommand{Argv: []string{"/bin/sleep", "5"}, TimeoutSeconds: "1"}, t.TempDir(), nil); timed.Class != "TIMEOUT" || timed.Bound != "TIMEOUT" {
+		t.Fatalf("runner bound: want TIMEOUT/TIMEOUT got %s/%s", timed.Class, timed.Bound)
 	}
 	// The pinned-cwd proof keeps the probe's own error rather than claiming
 	// the path is not a Git worktree.

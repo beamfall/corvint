@@ -119,17 +119,24 @@ func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 	if err = replayedAttempt(repo, report); err != nil {
 		return report, err
 	}
-	report.ReplayWarnings = supersededReplayWarnings(proof, report)
+	report.ReplayWarnings = supersededReplayWarnings(proof, lease.Verb, report)
 	return report, nil
 }
 
-// supersededReplayWarnings is the CAL-V0-236 advisory on a replayed lease
-// result: when the audit the replay was served from shows the replayed
-// attempt at another generation, it names that generation. It is an
-// observation for the operator, never authority: the replayed outcome is
-// unchanged, and an unobserved attempt adds nothing.
-func supersededReplayWarnings(proof *journal.Result, report *Report) []string {
-	if proof == nil || report.AttemptID == "" || report.Generation == "" {
+// supersededReplayWarnings is the CAL-V0-236 advisory on a replayed completed
+// claim, renew or heartbeat: when the audit the replay was served from shows
+// the attempt at another generation, it names that generation. A completed
+// result held the live generation and generations only advance, so a
+// difference is a supersession. It is an observation for the operator, never
+// authority: the replayed outcome is unchanged, and an unobserved attempt, a
+// refused original or another verb adds nothing.
+func supersededReplayWarnings(proof *journal.Result, verb string, report *Report) []string {
+	switch verb {
+	case transaction.LeaseClaim, transaction.LeaseClaimNext, transaction.LeaseRenew, transaction.LeaseHeartbeat:
+	default:
+		return nil
+	}
+	if proof == nil || report.Outcome.Outcome != mutation.OutcomeCompleted || report.AttemptID == "" || report.Generation == "" {
 		return nil
 	}
 	a, ok := lockedAttempt(proof, report.AttemptID)
