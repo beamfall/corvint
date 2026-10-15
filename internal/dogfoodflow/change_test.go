@@ -96,6 +96,8 @@ func TestChangeKeepsAgentPrechangeReceipts(t *testing.T) {
 
 // V1-0239: rerunning the same ordinal plan after a later commit reordered the
 // map's hunks keeps its row count but would cite each row against another hunk.
+// DCW-V0-066 (V1-1397): the refusal's fix line names the stale binding, the
+// moved hunk and both remedies, not the generic mismatch causes.
 func TestChangeRefusesAPlanWhoseOrdinalsMoved(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -125,6 +127,7 @@ func TestChangeRefusesAPlanWhoseOrdinalsMoved(t *testing.T) {
 		return "{\n  \"hunks\": [\n" + strings.Join(hunks, ",\n") + "\n  ]\n}\n"
 	}
 	cemPrepared := ""
+	var stderr bytes.Buffer
 	steps := Runner{Path: "corvint", Run: func(_ context.Context, _ string, args []string, _, _ io.Writer) int {
 		switch {
 		case len(args) > 1 && args[0] == "cem" && args[1] == "prepare":
@@ -142,7 +145,7 @@ func TestChangeRefusesAPlanWhoseOrdinalsMoved(t *testing.T) {
 	}}
 	citeRow := func(ids ...string) string {
 		cemPrepared = cemMap(ids...)
-		var stderr bytes.Buffer
+		stderr.Reset()
 		if _, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan}, &stderr); err != nil {
 			t.Fatal(err)
 		}
@@ -163,6 +166,19 @@ func TestChangeRefusesAPlanWhoseOrdinalsMoved(t *testing.T) {
 	}
 	if got := citeRow("hunk:b", "hunk:a"); !strings.Contains(got, `"reason": "citation-plan-map-mismatch"`) {
 		t.Errorf("rerun after the hunks swapped: cem-cite = %s; want citation-plan-map-mismatch", got)
+	}
+	binding := filepath.Join(testGit(t, root, "rev-parse", "--absolute-git-dir"), "corvint", "citation-plan-binding")
+	for _, want := range []string{
+		"fix: stale binding: " + binding + " was recorded when these same plan bytes were cited against an earlier map, and row 1 named hunk hunk:a, which the current map holds at ordinal 2;",
+		"rewrite it from the current .corvint/change.cem.json",
+		"remove " + binding + " and rerun (DCW-V0-066)",
+	} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Errorf("stale-binding stderr lacks %q:\n%s", want, stderr.String())
+		}
+	}
+	if strings.Contains(stderr.String(), "a row names an ordinal past its hunks") {
+		t.Errorf("stale binding reported with the generic mismatch fix line:\n%s", stderr.String())
 	}
 }
 

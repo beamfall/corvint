@@ -3,6 +3,7 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -34,6 +35,9 @@ type finishLane struct {
 	// finish-lane step that ran it (DCW-V0-062).
 	missing []string
 	notes   map[string]bool
+	// step is the finish-lane step running now, named if the run is
+	// interrupted (DCW-V0-067).
+	step string
 }
 
 // FinishLane runs the docs/DOGFOOD.md §4 bind loop end to end on a committed
@@ -43,7 +47,22 @@ type finishLane struct {
 func FinishLane(ctx context.Context, options FinishLaneOptions, stdout, stderr io.Writer) (int, error) {
 	run := &finishLane{flow: flow{ctx: ctx, prefix: "dogfood-finish-lane", root: options.Change.Root, stderr: stderr}, options: options, stdout: stdout, notes: map[string]bool{}}
 	defer run.releaseOperation()
-	return boundary(ctx, run.run, func() {})
+	code, err := boundary(ctx, run.run, func() {})
+	if errors.Is(err, ErrInterrupted) {
+		run.interrupted()
+	}
+	return code, err
+}
+
+// interrupted names the step an ended context stopped and every reason kept
+// so far, so an interrupted run never ends silently (DCW-V0-067).
+func (l *finishLane) interrupted() {
+	step := l.step
+	if step == "" {
+		step = "start"
+	}
+	l.line("%s INTERRUPTED", step)
+	l.reportMissing()
 }
 
 func (l *finishLane) run() int {
@@ -148,6 +167,7 @@ func (l *finishLane) requireCleanWorktree(committed, sealed bool) {
 // lock. Its stderr is kept: a stopping step prints it unchanged, an accepted
 // one only its NOTE lines.
 func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
+	l.step = name
 	options := l.options.Change
 	options.Citations = citations
 	var captured bytes.Buffer
@@ -155,6 +175,8 @@ func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
 	code, err := boundary(l.ctx, run.run, run.cleanup)
 	run.releaseOperation()
 	if err != nil {
+		// The interrupted pass's own output is kept, as a stopping one's is.
+		_, _ = l.stderr.Write(captured.Bytes())
 		l.exit(-1)
 	}
 	for _, row := range run.rows {
@@ -246,6 +268,7 @@ func (l *finishLane) bind() {
 // commitBind commits only the sidecar, with the caller's Git identity, signing
 // and hooks, as the recipe's git commit does.
 func (l *finishLane) commitBind() {
+	l.step = "commit"
 	if l.gitSucceeds("diff", "--quiet", "HEAD", "--", finishLaneSidecar) && l.gitSucceeds("cat-file", "-e", "HEAD:"+finishLaneSidecar) {
 		l.line("commit SKIP sidecar-unchanged")
 		return
@@ -283,6 +306,7 @@ func (l *finishLane) rebind() {
 // checkAndSeal runs the seal, which runs the check first, and ends with the
 // check's own SUMMARY and verdict lines and the seal line.
 func (l *finishLane) checkAndSeal() int {
+	l.step = "check"
 	var verdict bytes.Buffer
 	code, err := Seal(l.ctx, l.options.Check, &verdict, l.stderr)
 	if err != nil {
