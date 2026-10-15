@@ -1,7 +1,7 @@
 # Corvint Tasks store initialization V0
 
 Owner: Russell Lewis
-Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28; CTS-V0-006 requested 2026-10-01 in issue 433; CTS-V0-008 proposed 2026-10-10 in V1-0825 and accepted 2026-10-10, decision 0490)
+Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28; CTS-V0-006 requested 2026-10-01 in issue 433; CTS-V0-008 proposed 2026-10-10 in V1-0825 and accepted 2026-10-10, decision 0490; CTS-V0-010 accepted 2026-10-15 under the owner's standing auto-accept, V1-1379)
 Intent status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corvint/issues/336), decision 0397 (corvint-tasks built in tree), `AGENTS.md`,
@@ -11,7 +11,7 @@ Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corv
 
 ## Agent digest
 - Claim: `corvint-tasks init` refuses an intent store that already holds records, and works in a repository reached through a symlinked ancestor such as macOS `/tmp`.
-- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates; CTS-V0-006 makes journal-backed reads wait out an in-flight writer (issue 433) instead of failing `REDO_PENDING` or `SNAPSHOT_MOVED` at once; CTS-V0-008 (accepted, decision 0490; V1-0825) makes an unlocked journal audit or archive export wait out a writer's descriptor-less staging slots before refusing `MALFORMED`, while an audit made under the writer lock still refuses them at once.
+- Status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28); experimental. CTS-V0-001 through CTS-V0-004 are implemented; CTS-V0-002 permits only four unaudited inventory reads when the journal directory is absent; CTS-V0-005 adds tested non-fixture external-agent setup templates; CTS-V0-006 makes journal-backed reads wait out an in-flight writer (issue 433) instead of failing `REDO_PENDING` or `SNAPSHOT_MOVED` at once; CTS-V0-008 (accepted, decision 0490; V1-0825) makes an unlocked journal audit or archive export wait out a writer's descriptor-less staging slots before refusing `MALFORMED`, while an audit made under the writer lock still refuses them at once. CTS-V0-010 (V1-1379) makes a journal-absent `ticket show` miss name the stale `.taskman` snapshot and the journal it lacks instead of claiming the ticket does not exist.
 - Exists: journal-absent inventory reads with no audit identity, the coded init refusal, the ancestor resolution, the `corvint-tasks import` verb with its `IMPORT_APPLY` stage operation, and their store, transaction and CLI tests.
 - Blocked on: broader task-store authority recovery (V1-0310) remains open; CTS-V0-002 has narrow independent owner acceptance. For a non-fixture import writer, V1-0398.
 - Read next: Requirements; Import export and batching; Failure modes; Traceability.
@@ -133,6 +133,17 @@ drains, the import-map writer, and writing or changing the foreign export.
   naming the wait and stating that the read is retryable. Attach MUST NOT write, lock, redo
   the receipt, or extend the budget; non-transient failures remain immediate. This journal
   patience applies even with `--wait 0`, which bounds waiting for the run, not its head read.
+- `CTS-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1379) When a
+  journal-absent `ticket show` (CTS-V0-002) does not find the requested ticket in the captured intent
+  projection, its refusal MUST NOT say the ticket does not exist in the queue. The projection is the
+  checkout's `.taskman` snapshot, which a plain clone holds without the queue's journal and which can
+  predate tickets the journal holds. The refusal MUST keep outcome `REFUSED` with no code, no item,
+  `snapshot: null` and the CTS-V0-002 journal-absent warning, and add one warning that names the
+  ticket, the projection's intent tree SHA-256 and the absent journal path, says a ticket created
+  after the last committed `.taskman` snapshot is `NOT_OBSERVED` there rather than proven absent, and
+  names reading it from the checkout whose `.git` holds the journal (the primary worktree or one of
+  its linked worktrees). The reader MUST NOT search for, open or trust any other store: a plain clone
+  has no recorded link to the primary worktree. A journal-backed miss keeps its existing wording.
 
 ## Import export and batching
 
@@ -274,5 +285,6 @@ format or wire code changes.
 | CTS-V0-005 | `docs/TASKS-EXTERNAL-AGENTS.md`, `internal/tasks/cli/testdata/external-agents/`, CLI help | TestExternalAgentTemplatesRequireQualification |
 | CTS-V0-006 | `internal/tasks/snapshot/probe.go` (`Reader.Read`, `Reader.Patience`, `DefaultPatience`, `readBackoff`, `afterWait`), `internal/tasks/fixture/fixture.go` (`init`, `ApplyReceipt`) | TestCTSV0006_ReadWaitsForInFlightWriter, TestCTSV0006_ReadReportsPendingAfterPatience, TestCTSV0006_MovedReadsPauseBetweenAttempts, TestCTSV0006_ReadVerbsWaitForWriterToApplyReceipt, TestCTSV0006_ReadVerbsUnderConcurrentWriter; unchanged attempt counts: TestTMV0008_AS36_ReadRetriesThenSnapshotMoved, TestTMV0008_AS07_ReadsLeaveStoreByteIdentical |
 | CTS-V0-007 | `internal/tasks/importer/importer.go` (`record`) | TestCTSV0007_ReimportKeepsRefinedPoolAndRoles |
+| CTS-V0-010 | `internal/tasks/cli/cli.go` (`ticketShow`, `journalAbsentNotFound`) | TestCTSV0010_JournalAbsentShowNamesTheStaleSnapshot; `docs/build-log/2026-10-15-v1-1384-1379-tasks-cli-refusals.md` |
 | CTS-V0-009 | `internal/tasks/cli/attempt_detach.go` (`attemptAttach`), `internal/tasks/snapshot/probe.go` (`Reader.Read`) | TestCTSV0009_AttachWaitsForReceiptLinkBeforeHeadRename, TestCTSV0009_AttachReportsPendingAfterPatience; loaded qualification: TestATRV0008_DetachedRunSurvivesItsLauncher |
 | CTS-V0-008 | `internal/tasks/snapshot/stage_slot_wait.go` (`StageSlotWait`), `internal/tasks/journal/stage_read.go` (`readStage`, `slotsInFlight`), `internal/tasks/journal/audit.go` (`audit`, `Reader.WriterLocked`, `stageSleep`), `internal/tasks/store/guards.go` (`lockedJournalReader`) and its writer-locked call sites, `internal/tasks/archive/stage_read.go` (`readStage`, `slotsInFlight`, `readArchive`) | TestCTSV0008_StageSlotWaitBackoffAndBudget, TestCTSV0008_AuditWaitsForWriterHeldStageSlot, TestCTSV0008_OrphanStageSlotStillMalformedAfterBoundedWait, TestCTSV0008_UnassignedSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_WriterLockedAuditRefusesOrphanSlotWithoutPause, TestCTSV0008_MovedObservationsAndSpentWaitCompose, TestCTSV0008_LockedReconcileRefusesOrphanSlotWithoutWaiting, TestCTSV0008_ArchiveWaitsForWriterHeldStageSlot, TestCTSV0008_ArchiveOrphanSlotMalformedAfterBoundedWait, TestCTSV0008_ArchiveSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_ArchiveMovedAttemptsAndSpentWaitCompose, TestCTSV0008_ArchiveStagePauseLeavesPatienceForPending; unchanged refusal order: TestCALV0114_DivergentProjectionRefusalIsDeterministic |

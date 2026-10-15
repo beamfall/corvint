@@ -6447,6 +6447,19 @@ tree, the receipt kind, a holder never reporting a pass) is unchanged.
   skipped. Otherwise the audit refuses `JOURNAL_FORKED` naming the receipt. Redo of a pending
   `GATE_RESULT` receipt runs the same fold first. Results without `reusedFrom` are not examined,
   so journals written before this change fold unchanged.
+- `CAL-V0-250`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1384) A CLI
+  ticket mutation (`ticket create` and the other `submitMutation` verbs) that runs without
+  `--issued-at` defaults `issuedAt` to the current second, and `issuedAt` is part of the TM-V0-006
+  request digest, so a byte-identical retry in a later second is still `REQUEST_ID_CONFLICT`; this is
+  unchanged, and the CLI MUST NOT synthesize the original `issuedAt` into a write. Its refusal MUST add
+  one warning. When the request index names the recorded ticket and an envelope rebuilt from this
+  invocation with that ticket's `createdAt` or `updatedAt`, or a second up to two seconds before
+  either, has exactly the recorded mutation digest, the warning MUST name the request, the ticket,
+  `issuedAt` as the only differing input, the original and defaulted values, and the retry
+  `--issued-at ORIGINAL` that replays. Otherwise it MUST name the digest inputs, the defaulted
+  `issuedAt`, and that a retry replays only with the original `--issued-at`; it never attributes a
+  different payload, actor, target or revision to `issuedAt`. The diagnosis is read-only and adds no
+  wire code, result field or journal format.
 
 Compatibility: no format changes. `taskman-gate-result/0` already decodes `reusedFrom`, and the
 receipt, attempt and manifest shapes are unchanged. On a store holding a reused result and a
@@ -6945,6 +6958,7 @@ and removes the new configuration members.
 | CAL-V0-241 | `TestCALV0241_GateRunExecutesWithoutAQualifyingSource` (`internal/tasks/store`) |
 | CAL-V0-242 | `TestCALV0242_ModelRefusesAnUnqualifiedReuse` (`internal/tasks/store`) |
 | CAL-V0-243 | `TestCALV0243_ReceiptAuditBindsEveryReuse`, `TestCALV0243_ReuseRenamedAfterReturningToTheTree`, `TestCALV0243_RedoBindsAPendingReuse`, `TestCALV0240_ReusablePassSatisfiesAnotherAttemptAtTheTree` (`internal/tasks/store`) |
+| CAL-V0-250 | `TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference` (`internal/tasks/cli`); `docs/build-log/2026-10-15-v1-1384-1379-tasks-cli-refusals.md` |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance

@@ -1088,6 +1088,9 @@ func normalizeFailure(ctx context.Context, err error) *Error {
 		return failure("cancelled")
 	}
 	code := errorCode(err)
+	if code == "repository-probe-timeout" { // MCPV0-038: a bounded probe overrun is not a missing repository
+		return &Error{Code: code, ReasonClass: reasonClass(err)}
+	}
 	if strings.HasPrefix(code, "repository-") || code == "unsupported-git-object-format" || strings.HasPrefix(err.Error(), "Git ") {
 		return &Error{Code: "repository-unavailable", ReasonClass: reasonClass(err)}
 	}
