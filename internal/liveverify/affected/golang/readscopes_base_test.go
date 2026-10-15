@@ -101,7 +101,8 @@ func TestReadScopeEditSelectsOnlyChangedDeclarations_AFPV0050(t *testing.T) {
 }
 
 // AFP-V0-050: a base that holds no declaration is empty, so every declared
-// unit is an added key; a base whose declaration is invalid is unknown.
+// unit is an added key; a base whose declaration is invalid, including one
+// naming a directory that holds no package at the base, is unknown.
 func TestCommittedReadScopesFailClosed_AFPV0050(t *testing.T) {
 	ctx := context.Background()
 	root, base := readScopeBaseRepository(t, "")
@@ -121,6 +122,7 @@ func TestCommittedReadScopesFailClosed_AFPV0050(t *testing.T) {
 	for name, body := range map[string]string{
 		"malformed":     "{",
 		"wrong profile": `{"profile":"corvint-test-read-scopes/1","packages":{}}`,
+		"no package":    `{"profile":"corvint-test-read-scopes/0","packages":{"kept":[],"missing":[]}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			root, base := readScopeBaseRepository(t, body)

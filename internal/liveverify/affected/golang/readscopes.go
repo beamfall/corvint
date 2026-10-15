@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
@@ -75,7 +76,8 @@ func readScopes(root *affected.Source) (map[string][]string, error) {
 // measured from (AFP-V0-050). An absent declaration is an empty map. A commit
 // or declaration that cannot be read, or a declaration that is invalid,
 // returns an error; the caller then keeps the edit bearing on every declared
-// unit.
+// unit. Like matchReadScopes, a declared directory must hold a package at the
+// commit: one outside testdata that directly holds a regular .go file.
 func CommittedReadScopes(ctx context.Context, root, commit string) (map[string][]string, error) {
 	repository, err := gitauth.Open(root, gitrun.NewDefaultBudget())
 	if err != nil {
@@ -93,7 +95,28 @@ func CommittedReadScopes(ctx context.Context, root, commit string) (map[string][
 	if scopes == nil {
 		scopes = map[string][]string{}
 	}
+	for directory := range scopes {
+		if !committedPackageDirectory(source, directory) {
+			return nil, fmt.Errorf("%s at %s declares %q, which holds no Go package", affected.ReadScopesPath, commit, directory)
+		}
+	}
 	return scopes, nil
+}
+
+func committedPackageDirectory(source fs.FS, directory string) bool {
+	if inTestdata(directory) {
+		return false
+	}
+	entries, err := fs.ReadDir(source, directory)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.Type().IsRegular() && strings.HasSuffix(entry.Name(), ".go") {
+			return true
+		}
+	}
+	return false
 }
 
 // applyReadScopes marks each declared unit, given each unit's directory. Any

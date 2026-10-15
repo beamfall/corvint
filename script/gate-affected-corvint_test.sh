@@ -129,7 +129,11 @@ expect_err "gate-affected: base --base is not a revision"
 # The stand-in stops its own sleeper when the forwarded signal arrives.
 cat > "$test_root/terminated-corvint" <<'EOF_CORVINT'
 #!/bin/sh
-sleep 30 &
+if [ -n "$GATE_TEST_IGNORE_TERM" ]; then
+  (trap '' TERM && exec sleep 30) &
+else
+  sleep 30 &
+fi
 sleeper=$!
 echo "$sleeper" > "$GATE_TEST_DIR/corvint-sleep.pid"
 trap 'echo forwarded > "$GATE_TEST_DIR/forwarded"; kill "$sleeper"; exit 143' TERM
@@ -146,12 +150,17 @@ test -f "$test_root/forwarded" || fail "SIGTERM was not forwarded to corvint"
 # A hangup, interrupt or termination during the build of corvint stops the build and every
 # process below it, and the gate exits 128+N without starting tests (V1-1310). The stand-in
 # build records its pid and a sleeping descendant's, signals the gate, and waits; it writes
-# build-finished only if it outlives its sleeper, which a deferred signal would allow. No
-# wall-clock bound is asserted, so a loaded host cannot fail the case.
+# build-finished only if it outlives its sleeper, which a deferred signal would allow. The last
+# case's sleeper ignores TERM, so only the gate's bounded KILL stops it. No wall-clock bound is
+# asserted, so a loaded host cannot fail the case.
 mkdir -p "$test_root/fake-go"
 cat > "$test_root/fake-go/go" <<'EOF_GO'
 #!/bin/sh
-sleep 30 &
+if [ -n "$GATE_TEST_IGNORE_TERM" ]; then
+  (trap '' TERM && exec sleep 30) &
+else
+  sleep 30 &
+fi
 echo "$!" > "$GATE_TEST_DIR/sleep.pid"
 echo "$$" > "$GATE_TEST_DIR/build.pid"
 kill -s "$GATE_TEST_SIGNAL" "$PPID"
@@ -160,13 +169,16 @@ echo finished > "$GATE_TEST_DIR/build-finished"
 EOF_GO
 chmod +x "$test_root/fake-go/go"
 alive() { kill -0 "$1" 2> /dev/null; }
-for case in HUP:129 INT:130 TERM:143; do
+for case in HUP:129: INT:130: TERM:143: INT:130:ignore; do
   signal=${case%%:*}
+  code=${case#*:}
+  ignore=${code#*:}
+  code=${code%%:*}
   rm -f "$test_root/build.pid" "$test_root/sleep.pid" "$test_root/build-finished"
   status=0
-  (cd "$repository" && PATH="$test_root/fake-go:$PATH" GATE_TEST_DIR="$test_root" GATE_TEST_SIGNAL="$signal" \
+  (cd "$repository" && PATH="$test_root/fake-go:$PATH" GATE_TEST_DIR="$test_root" GATE_TEST_SIGNAL="$signal" GATE_TEST_IGNORE_TERM="$ignore" \
     "$source_root/script/gate-affected-corvint.sh" > "$test_root/stdout" 2> "$test_root/stderr") || status=$?
-  expect_status "${case#*:}" "$signal during the build"
+  expect_status "$code" "$signal during the build"
   if test -f "$test_root/build-finished"; then fail "$signal during the build waited for the build to finish"; fi
   test -s "$test_root/build.pid" && test -s "$test_root/sleep.pid" || fail "$signal: the build stand-in did not start"
   if grep -qF "could not be built" "$test_root/stderr" || grep -qF "corvint-test" "$test_root/stderr"; then

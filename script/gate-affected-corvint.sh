@@ -39,14 +39,20 @@ child=""
 building=""
 # stop_tree freezes a process and every process below it, walking the process table until no
 # new child appears (a stopped process cannot fork, and children are found before their parent
-# dies and they are reparented), then terminates and resumes them all.
+# dies and they are reparented), then terminates and resumes them all. A process still alive
+# about two seconds later is killed. Without a process table only the build itself is killed.
 stop_tree() {
     tree=$1
     pending=$1
     while [ -n "$pending" ]; do
         # shellcheck disable=SC2086
         kill -s STOP $pending 2> /dev/null || true
-        pending=$(ps -A -o pid= -o ppid= | awk -v parents=" $pending " -v seen=" $tree " \
+        if ! table=$(ps -A -o pid= -o ppid=); then
+            echo "gate-affected: cannot list processes; killing the build only" >&2
+            kill -s KILL "$1" 2> /dev/null || true
+            return
+        fi
+        pending=$(printf '%s\n' "$table" | awk -v parents=" $pending " -v seen=" $tree " \
             'BEGIN { ORS = " " } index(parents, " " $2 " ") && !index(seen, " " $1 " ") { print $1 }')
         tree="$tree $pending"
         pending=${pending% }
@@ -55,6 +61,20 @@ stop_tree() {
     kill -s TERM $tree 2> /dev/null || true
     # shellcheck disable=SC2086
     kill -s CONT $tree 2> /dev/null || true
+    # shellcheck disable=SC2086
+    survivors=$(echo $tree | tr ' ' ',')
+    tries=0
+    while [ -n "$survivors" ] && [ "$tries" -lt 20 ]; do
+        sleep 0.1
+        tries=$((tries + 1))
+        # A zombie has exited; a failed listing keeps the previous survivors.
+        listed=$(ps -o pid= -o stat= -p "$survivors") || continue
+        survivors=$(printf '%s\n' "$listed" | awk '$2 !~ /^Z/ { printf "%s%s", sep, $1; sep = "," }')
+    done
+    if [ -n "$survivors" ]; then
+        # shellcheck disable=SC2046
+        kill -s KILL $(echo "$survivors" | tr ',' ' ') 2> /dev/null || true
+    fi
 }
 # A signal trap that returns lets the shell resume, so each signal exits with 128+N; EXIT
 # cleans up. During the build every process below it is terminated: an asynchronous child of
@@ -64,7 +84,7 @@ stop_tree() {
 interrupt() {
     if [ -n "$building" ]; then
         # $! covers a signal that lands after the fork but before child is assigned.
-        pid=${child:-$!}
+        pid=${child:-${!:-}}
         if [ -n "$pid" ]; then
             stop_tree "$pid"
             wait "$pid" 2> /dev/null || true

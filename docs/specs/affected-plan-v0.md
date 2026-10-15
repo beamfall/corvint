@@ -1323,10 +1323,9 @@ and container qualification; full fallback remains available.
   and `placedOnce` in `tools/ci-test-slices/main.go`; `generate` and `replay` then refuse a sliced
   run as before, and the committed slice file stays valid.
 - **AFP-V0-050:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1298) When
-  `.corvint/test-read-scopes.json` is among the changed paths, `corvint affected` (and every
-  command that shares its plan, such as `corvint test`) SHALL read the declaration the change is
-  measured from, at the `--base` commit when one is given and at HEAD otherwise, from verified
-  immutable Git objects and never the worktree; a commit that holds no declaration is an empty
+  `.corvint/test-read-scopes.json` is among the changed paths, `corvint affected` SHALL read
+  the declaration the change is measured from, at the `--base` commit when one is given and at
+  HEAD otherwise, from verified immutable Git objects and never the worktree; a commit that holds no declaration is an empty
   declaration. Against that base, the declaration path SHALL bear, with witness
   `DECLARED_READ_SCOPE`, only on (1) a Go package whose own key was added, whose entries changed,
   or whose key was removed, and (2) a declared package whose subtree or declared entries hold the
@@ -1334,12 +1333,14 @@ and container qualification; full fallback remains available.
   is unchanged is no longer selected by the edit alone, so an edit that only adds keys selects
   the packages it declares, which a new package's own source edit already selects.
   (3) Fail closed: a base commit or base declaration that cannot be read, is oversized or is
-  invalid is unknown, and the AFP-V0-023 rule applies unchanged (every declared package bears on
+  invalid, or that declares a directory holding no Go package at the base (outside testdata,
+  directly holding a regular `.go` file), is unknown, and the AFP-V0-023 rule applies unchanged (every declared package bears on
   the edit); an invalid declaration in the observed tree still declares nothing and raises
   `go:test-read-scopes-invalid`, so every package the base declared counts as removed and is
   selected. Rules (a) to (d), every other dirty path, and the readers that name the declaration
   by literal (rule (c)) are unchanged.
-  Non-goals: the AFP-V0-012 selector of the fast tier (`tools/gate-affected-select`) and the
+  Non-goals: the AFP-V0-012 selector of the fast tier (`tools/gate-affected-select`), the
+  `corvint test` Go selection that passes the plan through it (`internal/gateselect`), and the
   `--snapshot` form keep the AFP-V0-023 rule; `.corvint/unbounded-readers.json` is a ratchet
   record (AFP-V0-025), not a selection input, and is unaffected.
   Limits: the base is the commit the range is diffed from (`git diff BASE HEAD`), so a base that
@@ -1468,7 +1469,7 @@ miss disable narrowing as AFP-V0-030 requires. Hosted auto-merge command compati
 | AFP-V0-047 | `CORVINT_TEST_SHADOW_SOURCE`, the shadow checkout and build, the selection document and the outcomes, rerun and upload steps in `.github/workflows/ci.yml`; the `forward-rows` job in `.github/workflows/ci-control-plane.yml`; `.github/forward-rows/` (`selection.jq`, `outcomes.sh`, `outcomes.jq`, `collect.sh`, `classify.sh`, `row.jq`, `bar.sh`, `bar.jq`) | `TestAFPV0047ShardOutcomes` (real flaky PR run 38476173623 shard 7 stream and its rerun; bound of 8), `TestAFPV0047SelectionDocument`, `TestAFPV0047CollectorNamesRows`, `TestAFPV0047BarCountsArtifactNames`, `TestAFPV0047WorkflowBindings`, `TestAFPV0029ForwardRowsAndShadowBar`, `TestSTRV0012CIConstantsMatchFullBranch`; `actionlint`; `make ci-least-privilege-check`; read-only replay against hosted runs in `docs/build-log/2026-10-13-ci-forward-rows.md`; hosted rows `NOT_OBSERVED` |
 | AFP-V0-048 | `planShards`, `shardLayout`, `shardUnits`, `sliceRun` and the slice loop of `execute` in `tools/corvint-pr-tests/main.go` | `TestAFPV0048DriverPlacesTheFullBranchUnits` (2 to 8 shards: each shard equals `PlanFrom`, every package or slice exactly once, narrowed selections with a split package), `TestAFPV0048ZeroSlicesKeepTheIntersect`, `TestAFPV0048MismatchedSliceFileMatchesTheFullBranch`, `TestAFPV0048CommittedSlicesArePlacedOnce`, `TestAFPV0048DriverRefusesAmbiguousPlacement`, `TestAFPV0048ShardedRunExecutesSlices` (real `go test`: FULL, narrowed and stale-name runs, each test once over the shards; a lost slice refuses with no execution record), `TestShardedPRExecution_AFPV0022`; a mutation check that drops the slice placement, in `docs/build-log/2026-10-14-v1-1361-driver-runs-slices.md`; hosted sharded driver run `NOT_OBSERVED` until V1-0812 sets the pin |
 | AFP-V0-049 | `observation.ends`, `combine` and `placedOnce` in `tools/ci-test-slices/main.go`; `generate` and `replay` read the tested tree's allow-list and slice file; `.github/cishards/test-slices.json` regenerated from hosted run 38485555207 (go1.27.2) | `TestAFPV0049ReplayCombinesSlicedRuns`, `TestAFPV0049GenerateRegeneratesFromASlicedRun`, `TestAFPV0049RefusesEveryOtherRepeat`, `TestAFPV0049ReplayRefusesAPlanThatMisplacesAUnit` in `tools/ci-test-slices/combine_test.go`; mutation check and before/after replay in build log 2026-10-14-v1-1371-slices-split-outcomes |
-| AFP-V0-050 | `Graph.WithReadScopeBase`, `Graph.declarationChanged`, `inDeclaredScope` and `Graph.scopedReadersOf` in `internal/liveverify/affected`; `CommittedReadScopes` in `internal/liveverify/affected/golang/readscopes.go`; `affectedPriorReadScopes` in `cmd/corvint/affected.go` | `TestReadScopeEditSelectsOnlyChangedDeclarations_AFPV0050` (added, changed and removed keys, a package declaring the declaration's directory, unchanged keys left out, the unknown-base fallback), `TestCommittedReadScopesFailClosed_AFPV0050` (absent, malformed, wrong-profile and missing-commit bases), `TestAffectedAdditiveReadScopeEditSelectsOnlyTheNewPackage_AFPV0050` (CLI `--base` over an additive commit and a changed key); mutation checks and the 199 to 67 unit re-measurement in build log 2026-10-15-affected-batch-1309-1310-1298 |
+| AFP-V0-050 | `Graph.WithReadScopeBase`, `Graph.declarationChanged`, `inDeclaredScope` and `Graph.scopedReadersOf` in `internal/liveverify/affected`; `CommittedReadScopes` in `internal/liveverify/affected/golang/readscopes.go`; `affectedPriorReadScopes` in `cmd/corvint/affected.go` | `TestReadScopeEditSelectsOnlyChangedDeclarations_AFPV0050` (added, changed and removed keys, a package declaring the declaration's directory, unchanged keys left out, the unknown-base fallback), `TestCommittedReadScopesFailClosed_AFPV0050` (absent, malformed, wrong-profile, packageless-directory and missing-commit bases), `TestAffectedAdditiveReadScopeEditSelectsOnlyTheNewPackage_AFPV0050` (CLI `--base` over an additive commit and a changed key); mutation checks and the 199 to 67 unit re-measurement in build log 2026-10-15-affected-batch-1309-1310-1298 |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
