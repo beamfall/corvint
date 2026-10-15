@@ -213,3 +213,59 @@ func TestProbePersistentInstabilityStopsAfterThreeAttempts(t *testing.T) {
 		t.Fatalf("status calls = %d, want 6", gotStatusCalls)
 	}
 }
+
+// TestProbeBoundReplacesGitDeadline pins the V1-1391 seam: every probe entry point bounds its Git
+// reads by WithProbeBound when set, and by the fixed gitDeadline otherwise.
+func TestProbeBoundReplacesGitDeadline(t *testing.T) {
+	probes := map[string]func(context.Context, gitRunner) error{
+		"context": func(ctx context.Context, run gitRunner) error {
+			_, err := probeRepositoryContext(ctx, t.TempDir(), run)
+			return err
+		},
+		"around": func(ctx context.Context, run gitRunner) error {
+			_, err := probeRepositoryAround(ctx, t.TempDir(), run, func(context.Context, Observation) error { return nil })
+			return err
+		},
+		"sharing": func(ctx context.Context, run gitRunner) error {
+			_, err := probeRepositorySharing(ctx, t.TempDir(), run, func(context.Context, Observation) (func() error, error) { return nil, nil }, false)
+			return err
+		},
+	}
+	for name, probe := range probes {
+		for _, lifted := range []bool{false, true} {
+			ctx := context.Background()
+			if lifted {
+				ctx = WithProbeBound(ctx, time.Hour)
+			}
+			var mutex sync.Mutex
+			var remaining []time.Duration
+			run := func(ctx context.Context, _ string, _ int, arguments ...string) ([]byte, error) {
+				deadline, ok := ctx.Deadline()
+				if !ok {
+					return nil, newError("test-deadline-missing", "Git probe context has no deadline")
+				}
+				mutex.Lock()
+				remaining = append(remaining, time.Until(deadline))
+				mutex.Unlock()
+				switch arguments[0] {
+				case "rev-parse":
+					return testIdentityOutput(), nil
+				case "status", "ls-tree":
+					return []byte{}, nil
+				}
+				return nil, newError("test-command", "unexpected Git command")
+			}
+			if err := probe(ctx, run); err != nil {
+				t.Fatalf("%s lifted=%v: %v", name, lifted, err)
+			}
+			for _, left := range remaining {
+				if lifted != (left > gitDeadline) {
+					t.Fatalf("%s lifted=%v: a Git read had %s left of a %s fixed bound", name, lifted, left, gitDeadline)
+				}
+			}
+			if len(remaining) == 0 {
+				t.Fatalf("%s issued no Git read", name)
+			}
+		}
+	}
+}

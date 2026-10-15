@@ -135,7 +135,7 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 	ctx = context.WithValue(ctx, dogfoodEventMissKey{}, missed)
 	raw, err := readInput(ctx, stdin)
 	if err != nil {
-		emitError(stderr, dogfoodEventError("dogfood-event-input-unavailable"))
+		emitError(stderr, dogfoodEventError(dogfoodInputFailureCode(ctx, missed)))
 		return 2
 	}
 	input, err := dogfoodEventInput(options.event, raw)
@@ -575,4 +575,15 @@ func withOtherSessionOwner(completion map[string]any, event string, evaluation l
 		return completion
 	}
 	return map[string]any{"decision": "release", "reason": "local-policy-other-session-active", "owner": evaluation.Owner}
+}
+
+// dogfoodInputFailureCode is the code a failed stdin read reports. The read returns the context's
+// error once the deadline passes, so a read that ends with the deadline passed reports the event's
+// time bound, as an expiry in any later read does (LCP-V0-008, V1-1391); otherwise the input is
+// unavailable.
+func dogfoodInputFailureCode(ctx context.Context, missed *atomic.Bool) string {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return dogfoodExpiryCode(missed)
+	}
+	return "dogfood-event-input-unavailable"
 }
