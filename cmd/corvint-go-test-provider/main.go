@@ -165,7 +165,7 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	}
 	ctx, cancel := providerContext()
 	defer cancel()
-	transcript, err := executeProvider(ctx, bundle)
+	transcript, err := executeProvider(commandContext(ctx), bundle)
 	if transcript.CanonicalTerminalSupported && len(transcript.Receipt.Transcript) != 0 {
 		if _, writeErr := stdout.Write(transcript.Receipt.Transcript); writeErr != nil {
 			return 1
@@ -721,4 +721,18 @@ func bareID(kind, profile string, body []byte) string {
 	_, _ = digest.Write(length64[:])
 	_, _ = digest.Write(body)
 	return hex.EncodeToString(digest.Sum(nil))
+}
+
+// commandPostAuthorityBound, when positive, lifts run's post-run authority bound through
+// provider.WithPostAuthorityBound. Only a test that verifies the command's receipt rather than
+// post-run latency sets it (GLTP-V0-053, V1-1420); no production path does, and no test in this
+// package runs in parallel with one that sets it.
+var commandPostAuthorityBound time.Duration
+
+// commandContext is run's Execute context.
+func commandContext(ctx context.Context) context.Context {
+	if commandPostAuthorityBound > 0 {
+		return provider.WithPostAuthorityBound(ctx, commandPostAuthorityBound)
+	}
+	return ctx
 }

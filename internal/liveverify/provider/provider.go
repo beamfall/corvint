@@ -318,7 +318,7 @@ func Execute(ctx context.Context, config Config) (transcript Transcript, returnE
 	released := false
 	defer func() {
 		if !released {
-			if releaseErr := releaseWithTimeout(lease); releaseErr != nil {
+			if releaseErr := releaseWithTimeout(ctx, lease); releaseErr != nil {
 				transcript.AuthorityError = fmt.Errorf("%w: release execution authority", ErrAuthorityDrift)
 				transcript.Execution = ExecutionIncomplete
 				returnErr = errors.Join(returnErr, transcript.AuthorityError)
@@ -451,18 +451,18 @@ func Execute(ctx context.Context, config Config) (transcript Transcript, returnE
 		transcript.AuthorityError = layoutErr
 	}
 
-	postContext, cancelPost := context.WithTimeout(context.Background(), postAuthorityTimeout)
+	postContext, cancelPost := context.WithTimeout(context.Background(), postAuthorityBound(ctx))
 	transcript.AuthorityError = errors.Join(transcript.AuthorityError, lease.Revalidate(postContext))
 	cancelPost()
 	var receiptPost ReceiptIdentityObservation
-	postContext, cancelPost = context.WithTimeout(context.Background(), postAuthorityTimeout)
+	postContext, cancelPost = context.WithTimeout(context.Background(), postAuthorityBound(ctx))
 	receiptPost, err = receiptLease.ObserveReceiptIdentities(postContext)
 	cancelPost()
 	if err != nil || !validLowerDigest(receiptPost.SourceSHA256) || !validLowerDigest(receiptPost.ToolchainSHA256) {
 		receiptPost = ReceiptIdentityObservation{}
 		transcript.AuthorityError = errors.Join(transcript.AuthorityError, errors.New("canonical post-identities unavailable"))
 	}
-	if releaseErr := releaseWithTimeout(lease); releaseErr != nil {
+	if releaseErr := releaseWithTimeout(ctx, lease); releaseErr != nil {
 		transcript.AuthorityError = errors.Join(transcript.AuthorityError, releaseErr)
 	}
 	released = true
@@ -508,8 +508,8 @@ func Execute(ctx context.Context, config Config) (transcript Transcript, returnE
 	return transcript, returnErr
 }
 
-func releaseWithTimeout(lease ExecutionLease) error {
-	ctx, cancel := context.WithTimeout(context.Background(), postAuthorityTimeout)
+func releaseWithTimeout(caller context.Context, lease ExecutionLease) error {
+	ctx, cancel := context.WithTimeout(context.Background(), postAuthorityBound(caller))
 	defer cancel()
 	return lease.Release(ctx)
 }
@@ -1235,4 +1235,26 @@ func executableName(goos string) string {
 
 func invalid(detail string) error {
 	return fmt.Errorf("%w: %s", ErrInvalidConfig, detail)
+}
+
+// postAuthorityBoundKey carries a per-invocation replacement for postAuthorityTimeout.
+type postAuthorityBoundKey struct{}
+
+// WithPostAuthorityBound replaces the fixed post-run authority deadline (post-run revalidation,
+// post-run identity observation and lease release) for an Execute call run under ctx. Each of
+// those calls still runs under its own fresh deadline, independent of ctx's cancellation and of
+// the run budget. Tests that verify binding or receipt semantics rather than post-run latency set
+// it, so host load cannot expire the production parent verifier's GOROOT walk first (GLTP-V0-053,
+// V1-1420); no production path sets it, and a non-positive bound leaves the 15-second default.
+func WithPostAuthorityBound(ctx context.Context, bound time.Duration) context.Context {
+	return context.WithValue(ctx, postAuthorityBoundKey{}, bound)
+}
+
+// postAuthorityBound is the post-run authority deadline under ctx: the WithPostAuthorityBound
+// replacement if positive, else postAuthorityTimeout.
+func postAuthorityBound(ctx context.Context) time.Duration {
+	if bound, ok := ctx.Value(postAuthorityBoundKey{}).(time.Duration); ok && bound > 0 {
+		return bound
+	}
+	return postAuthorityTimeout
 }

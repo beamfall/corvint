@@ -163,6 +163,8 @@ func TestProviderCommandUsesPinnedLiveParentAuthorityE2E(t *testing.T) {
 	var executeErr error
 	var nonGitStdout, nonGitStderr bytes.Buffer
 	var nonGitExit int
+	commandPostAuthorityBound = liftedPostAuthorityBound
+	t.Cleanup(func() { commandPostAuthorityBound = 0 })
 	var group sync.WaitGroup
 	group.Add(3)
 	go func() {
@@ -171,7 +173,7 @@ func TestProviderCommandUsesPinnedLiveParentAuthorityE2E(t *testing.T) {
 	}()
 	go func() {
 		defer group.Done()
-		transcript, executeErr = executeProvider(context.Background(), fixtures[1].bundle)
+		transcript, executeErr = executeProvider(liftedPostAuthority(context.Background()), fixtures[1].bundle)
 	}()
 	go func() {
 		defer group.Done()
@@ -694,8 +696,19 @@ func TestProductionParentBindsNonASCIIRepositoryPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	bundle.RepositoryRoot = renamed
-	transcript, err := executeProvider(context.Background(), bundle)
+	transcript, err := executeProvider(liftedPostAuthority(context.Background()), bundle)
 	if err != nil || !transcript.CanonicalTerminalSupported {
 		t.Fatalf("repository path with U+00A0 was not bound: %v", err)
 	}
+}
+
+// liftedPostAuthorityBound replaces the fixed 15-second post-run authority bound for fixtures that
+// verify binding or receipt semantics rather than post-run latency (GLTP-V0-053, V1-1420). The
+// production parent verifier re-hashes the whole fixture GOROOT on every post-run call, which took
+// up to 25 s at host load 50-65; the production bound stays pinned by
+// TestPostAuthorityBoundDefaultsToFifteenSecondsAndSeamReplacesIt.
+const liftedPostAuthorityBound = 10 * time.Minute
+
+func liftedPostAuthority(ctx context.Context) context.Context {
+	return provider.WithPostAuthorityBound(ctx, liftedPostAuthorityBound)
 }
