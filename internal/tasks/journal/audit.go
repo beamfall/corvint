@@ -5,7 +5,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -488,8 +490,13 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 	sort.Strings(paths)
 	inventory := sha256.New()
 	if o.writer {
+		// The same bytes Fprintf("receipt-name\x00%s\n") wrote, without a
+		// format pass per receipt (V1-1410).
+		prefix, nl := []byte("receipt-name\x00"), []byte{'\n'}
 		for _, name := range o.receipts {
-			fmt.Fprintf(inventory, "receipt-name\x00%s\n", name)
+			inventory.Write(prefix)
+			io.WriteString(inventory, name)
+			inventory.Write(nl)
 		}
 	}
 	var intents []intent.File
@@ -708,18 +715,56 @@ func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
 	}
 	*remaining -= len(names)
 	o.files["receipts"] = info
-	seen := make(map[string]bool, len(names))
+	return receiptNames(o, names)
+}
+
+// receiptNames validates listed receipt names in listing order with scan's
+// checks and first-error order, marks the observation unsettled on a
+// temporary name and appends every settled name to o.receipts (V1-1410). A
+// settled name is fixed-format, so its duplicates are tracked by sequence
+// without hashing or formatting a string per name; temporary names keep a
+// map, and any other name refuses at its own position before any later
+// name is examined.
+func receiptNames(o *observation, names []string) error {
+	aliased := func() error {
+		return wire.Errorf(wire.CodeJournalForked, "receipts", "duplicate or aliased inventory name")
+	}
+	dense := make([]bool, len(names)+1)
+	var sparse map[uint64]struct{}
+	var temps map[string]struct{}
+	o.receipts = slices.Grow(o.receipts, len(names))
 	for _, name := range names {
-		if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") || seen[name] {
-			return wire.Errorf(wire.CodeJournalForked, "receipts", "duplicate or aliased inventory name")
+		if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") {
+			return aliased()
 		}
-		seen[name] = true
-		if isTemp("receipts/" + name) {
+		if strings.Contains(name, ".tmp-") {
+			if temps == nil {
+				temps = map[string]struct{}{}
+			}
+			if _, dup := temps[name]; dup {
+				return aliased()
+			}
+			temps[name] = struct{}{}
 			o.staging = true
 			continue
 		}
-		if _, err := receiptSeq(name); err != nil {
-			return err
+		seq, ok := receiptNameSeq(name)
+		if !ok {
+			return wire.Errorf(wire.CodeJournalForked, name, "invalid receipt filename")
+		}
+		if seq < uint64(len(dense)) {
+			if dense[seq] {
+				return aliased()
+			}
+			dense[seq] = true
+		} else {
+			if sparse == nil {
+				sparse = map[uint64]struct{}{}
+			}
+			if _, dup := sparse[seq]; dup {
+				return aliased()
+			}
+			sparse[seq] = struct{}{}
 		}
 		o.receipts = append(o.receipts, name)
 	}
@@ -739,13 +784,27 @@ func allowedDir(p string) bool {
 }
 
 func receiptSeq(name string) (uint64, error) {
-	if len(name) != 17 || !strings.HasSuffix(name, ".json") {
-		return 0, wire.Errorf(wire.CodeJournalForked, name, "invalid receipt filename")
-	}
-	n, err := strconv.ParseUint(name[:12], 10, 64)
-	canonical, _ := snapshot.ReceiptName(n)
-	if err != nil || n == 0 || canonical != name {
+	n, ok := receiptNameSeq(name)
+	if !ok {
 		return 0, wire.Errorf(wire.CodeJournalForked, name, "invalid receipt filename")
 	}
 	return n, nil
+}
+
+// receiptNameSeq parses a canonical receipt name, twelve ASCII digits that
+// are not all zero followed by ".json", without formatting or allocating:
+// exactly the names snapshot.ReceiptName produces for 1..999999999999.
+func receiptNameSeq(name string) (uint64, bool) {
+	if len(name) != 17 || name[12:] != ".json" {
+		return 0, false
+	}
+	var n uint64
+	for i := 0; i < 12; i++ {
+		c := name[i]
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+		n = n*10 + uint64(c-'0')
+	}
+	return n, n != 0
 }
