@@ -106,7 +106,21 @@ Evidence:
 
 ## Verification and residuals
 
-Focused packages: FOCUSED_RESULTS.
+Focused packages (go1.27.2, darwin, 12 cores, `-count=1`, host load 40 to 65 from other lanes):
+
+- `internal/tasks/store`, 400 tests in 8 shards at the final code: 4 shards ok, 4 with load
+  failures. Every failure was rerun in isolation. All pass except `TestPSRConcurrentSweeps`
+  (failed once more at load 46, then 4/4 at BASE and 4/4 at HEAD at load 50),
+  `TestCALV0089_CodexContinuationResumesPreservedSession` and `TestCALV0086_UnprovedStopIsNotFinished`.
+  Those two also fail at BASE `0d9a9ca08` under the same load (1/2 each, the same
+  `after_the_stage_wall` MALFORMED message). They exercise the program stop path, which this
+  change does not touch. The whole package does not finish in 30 minutes at load 45.
+- `internal/tasks/cli`: ok before the Codex fixes (1138 s). After them, the CAL-V0-236, CAL-V0-048,
+  CAL-V0-230/231 and help tests are ok.
+- `internal/tasks/transaction`, `internal/specindex`, `internal/tasks/service` and
+  `internal/tasks/scale` are ok.
+- `go vet` passes for store and cli on darwin, windows/amd64 and linux/arm64. `gofmt -l` is clean.
+- The CI doc-gates list passes.
 
 Not run: `make gate` and full `go test ./...` (lane charter). PR #920 merged during this lane, so the four
 status replicas of the leases spec (header, digest, INDEX.json, README) now list CAL-V0-236; the PSR
