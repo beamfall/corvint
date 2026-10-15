@@ -2864,7 +2864,8 @@ func stableDiscrimination(raw json.RawMessage, hr lineRange) (*discrimination03,
 	if d.Detail, e = stableString(o, "detail", func(s string) bool { return textBound03(s, 0, 512) }); e != nil {
 		return nil, e
 	}
-	if d.Killed > d.Mutants || d.Survived > d.Mutants-d.Killed || uint64(len(d.Survivors)) != d.Survived {
+	// CEM-V1-090: mutants never exceeds the declared bounds.maxMutants.
+	if d.Mutants > d.Bounds.MaxMutants || d.Killed > d.Mutants || d.Survived > d.Mutants-d.Killed || uint64(len(d.Survivors)) != d.Survived {
 		return nil, invalid("invalid-field")
 	}
 	switch d.State {

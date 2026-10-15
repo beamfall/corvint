@@ -890,8 +890,9 @@ CEM-V1-081	docs/specs/cem-stable-v1.md	278	Anchor kinds and byte-level rules. `i
 CEM-V1-082	docs/specs/cem-stable-v1.md	288	The `citation` block and the shift null MUST be byte-identical across the native	unrecorded	-
 CEM-V1-083	docs/specs/cem-stable-v1.md	361	A `cem/1.0` criterion binding MUST take exactly one of two closed forms. The pla	unrecorded	-
 CEM-V1-084	docs/specs/cem-stable-v1.md	398	A runner receipt's `authentication` MUST take one of three closed forms: the sea	unrecorded	-
-CEM-V1-088	docs/specs/cem-stable-v1.md	2296	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) `held`	standing	2026-10-11; V1-1266
-CEM-V1-089	docs/specs/cem-stable-v1.md	2319	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) A row th	standing	2026-10-11; V1-1266
+CEM-V1-088	docs/specs/cem-stable-v1.md	2334	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) `held`	standing	2026-10-11; V1-1266
+CEM-V1-089	docs/specs/cem-stable-v1.md	2357	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) A row th	standing	2026-10-11; V1-1266
+CEM-V1-090	docs/specs/cem-stable-v1.md	2297	(accepted under the owner's standing auto-accept (2026-10-11); V1-1259) A	standing	2026-10-11; V1-1259
 CEM-V1-091	docs/specs/cem-stable-v1.md	238	A new top-level member of `cem-stable-verification/1` MUST be added only by	unrecorded	-
 CEM-V1-092	docs/specs/cem-stable-v1.md	324	The `cem-stable-verification/1` member `citation` MUST be the `CEM-V1-082` block	unrecorded	-
 CEM-V1-093	docs/specs/cem-stable-v1.md	486	A stable map MAY carry `provenance`, a closed object with exactly the required	unrecorded	-
@@ -2658,6 +2659,7 @@ PGO-V0-007	docs/specs/process-group-owner-v0.md	38	Proposed (V1-0608). `RunConta
 PGO-V0-008	docs/specs/process-group-owner-v0.md	39	Proposed (V1-0373, V1-0652). Where waitid is available (Darwin and Linux), no le	unrecorded	-
 PGO-V0-009	docs/specs/process-group-owner-v0.md	40	(accepted, decision 0492; V1-1036, V1-1047, V1-1050, V1-1056) Where waitid is av	owner	decision 0492; V1-1036; V1-1047; V1-1050; V1-1056
 PGO-V0-010	docs/specs/process-group-owner-v0.md	42	accepted, decision 0507. POSIX descendant snapshots retain at most 4 MiB stdout	unrecorded	-
+PGO-V0-011	docs/specs/process-group-owner-v0.md	43	(accepted under the owner's standing auto-accept (2026-10-11); V1-0668) The Owne	standing	2026-10-11; V1-0668
 PLE-V0-001	docs/specs/protected-local-execution-v0.md	27	The optional `corvint-protected-execution/0` profile MUST preserve all legacy pr	unrecorded	-
 PLE-V0-002	docs/specs/protected-local-execution-v0.md	28	A protected immutable release and independently admitted root/policy MUST bind t	unrecorded	-
 PLE-V0-003	docs/specs/protected-local-execution-v0.md	29	Ingestion MUST bound and independently bind expected Git base/target/tree, CEM,	unrecorded	-

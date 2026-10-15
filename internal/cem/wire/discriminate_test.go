@@ -43,6 +43,11 @@ func TestInheritedDiscriminationWitness(t *testing.T) {
 			t.Fatalf("%s witness: %v %+v", name, err, document)
 		}
 	}
+	// CEM-V1-090: mutants equal to bounds.maxMutants is admitted; one more is invalid-field (below).
+	atBound := strings.Replace(discriminates, `"maxMutants":8`, `"maxMutants":5`, 1)
+	if document, err := parseMechanics(render(StableSpec, atBound, excluded), true); err != nil || document.Hunks[0].Discriminates.Bounds.MaxMutants != 5 {
+		t.Fatalf("witness at its maxMutants bound: %v %+v", err, document)
+	}
 	if document, err := parseMechanics(render(StableSpec, "", excluded), true); err != nil || document.Hunks[0].Discriminates != nil {
 		t.Fatalf("without a witness: %v %+v", err, document)
 	}
@@ -58,6 +63,7 @@ func TestInheritedDiscriminationWitness(t *testing.T) {
 		"survivor-outside-new-range":  strings.Replace(survived, `"line":5`, `"line":7`, 1),
 		"empty-operator":              strings.Replace(survived, `"operator":"negate-condition"`, `"operator":""`, 1),
 		"zero-bound":                  strings.Replace(survived, `"maxHunks":8`, `"maxHunks":0`, 1),
+		"mutants-exceed-max-mutants":  strings.Replace(discriminates, `"maxMutants":8`, `"maxMutants":4`, 1),
 		"bad-state":                   strings.Replace(discriminates, `"state":"discriminates"`, `"state":"killed"`, 1),
 		"bad-revision":                strings.Replace(discriminates, revision, "abc", 1),
 		"bad-selection":               strings.Replace(discriminates, digest, "abc", 1),
