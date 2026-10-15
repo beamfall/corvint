@@ -56,8 +56,19 @@ func TestCandidateHelperProcess(t *testing.T) {
 	if separator == 0 {
 		os.Exit(125)
 	}
-	os.Exit(run(os.Args[separator:], os.Stdin, os.Stdout, os.Stderr))
+	ctx := context.Background()
+	if os.Getenv(helperLiftedEventBounds) == "1" {
+		ctx = lifecycleDeadlineContext()
+	}
+	os.Exit(runContext(ctx, os.Args[separator:], os.Stdin, os.Stdout, os.Stderr))
 }
+
+// helperLiftedEventBounds, set to 1 in a helper process's environment, runs the candidate under
+// lifecycleDeadlineContext: a subprocess test that verifies event semantics rather than latency
+// cannot otherwise reach the context-key seams, and host load expired the 1.6 s event deadline
+// (V1-0969, decision 0082). Only this test file reads it; the production deadline stays pinned by
+// TestDogfoodEventDeadlineBelowDeclaredHostKill.
+const helperLiftedEventBounds = "CORVINT_TEST_HELPER_LIFTED_EVENT_BOUNDS"
 
 func testEnvironment(overrides ...string) []string {
 	replaced := make(map[string]bool, len(overrides))

@@ -343,6 +343,18 @@ func TestDogfoodEventDeadlineBelowDeclaredHostKill(t *testing.T) {
 			}
 		}
 	})
+	// The test seams (dogfoodEventDeadlineKey, helperLiftedEventBounds) lift only their own
+	// contexts: an unseamed context keeps the production values (V1-0969).
+	t.Run("production deadline unchanged by the test seams", func(t *testing.T) {
+		for _, pair := range []struct {
+			host, event string
+			want        time.Duration
+		}{{"codex", "stop", 1600 * time.Millisecond}, {"claude-code", "user-prompt", 1600 * time.Millisecond}, {"claude-code", "session-end", 600 * time.Millisecond}} {
+			if got := dogfoodEventDeadlineOf(context.Background(), pair.host, pair.event); got != pair.want {
+				t.Fatalf("%s %s: production deadline %s, want %s", pair.host, pair.event, got, pair.want)
+			}
+		}
+	})
 }
 
 func TestDogfoodEventFailedPolicyReReadIsNotDrift(t *testing.T) {
