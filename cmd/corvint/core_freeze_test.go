@@ -271,7 +271,16 @@ var coreN1Skips = map[string]string{
 	"TestCoreVerbsEmitTheFrozenProfiles/impact_path_non-utf8_source":      "0.8.1 refused a repository with a non-UTF-8 path; IDX-SNAP-V0-024 added the exclusion after it",
 	"TestCoreVerbsEmitTheFrozenProfiles/affected_worktree":                "the affected-plan/1 default is new here (AFP-V0-035); the N-1 affected-plan/0 default replays against the affected full worktree mode",
 	"TestCoreVerbsEmitTheFrozenProfiles/affected_committed_range":         "the affected-plan/1 default is new here (AFP-V0-035); the N-1 affected-plan/0 default replays against the affected full committed range mode",
+	"TestCoreVerbsEmitTheFrozenProfiles/cem_status":                       coreN1CEMOnlySkip,
+	"TestCoreVerbsEmitTheFrozenProfiles/cem_verify":                       coreN1CEMOnlySkip,
+	"TestCoreVerbsEmitTheFrozenProfiles/ocm_status":                       coreN1CEMOnlySkip,
+	"TestCoreVerbsEmitTheFrozenProfiles/ocm_verify":                       coreN1CEMOnlySkip,
 }
+
+// coreN1CEMOnlySkip is why the N-1 replay skips the cem and ocm read modes (V1-0285): their fixture
+// is a cem/1.0 map, which 0.8.1 cannot read (cem status/verify refuse --artifacts; ocm reports
+// invalid-cem), and decision 0525 §6 superseded the cem/0.2 freeze and its N-1 reader.
+const coreN1CEMOnlySkip = "decision 0525 §6 superseded the cem/0.2 freeze and its N-1 reader; the cem/1.0 fixture map is unreadable to 0.8.1"
 
 // coreN1WithoutFull names the modes whose N-1 equivalent is the same command line without
 // `--full`: N-1 had no such option and emitted the affected-plan/0 wire by default (AFP-V0-035).
