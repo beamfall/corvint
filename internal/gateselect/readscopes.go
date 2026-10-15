@@ -176,6 +176,7 @@ const (
 	baseGitDeadline     = 30 * time.Second
 	regularFileMode     = "100644"
 	executableFileMode  = "100755"
+	treeMode            = "040000"
 	workspaceManifest   = "go.work"
 	moduleManifestName  = "go.mod"
 	baseTreeEntryFields = 3
@@ -207,7 +208,7 @@ func baseReadScopes(plan Receipt, root string) map[string][]string {
 	if plan.Snapshot != nil || !fullObjectID.MatchString(commit) {
 		return nil
 	}
-	listing, err := baseGit(root, maxBaseTreeBytes, "ls-tree", "-r", "-z", "--full-tree", commit+"^{commit}")
+	listing, err := baseGit(root, maxBaseTreeBytes, "ls-tree", "-r", "-t", "-z", "--full-tree", commit+"^{commit}")
 	if err != nil {
 		return nil
 	}
@@ -245,7 +246,8 @@ func baseReadScopes(plan Receipt, root string) map[string][]string {
 	return scopes
 }
 
-// parseBaseTree reads `git ls-tree -r -z` records, `<mode> <type> <object>\t<path>`.
+// parseBaseTree reads `git ls-tree -r -t -z` records, `<mode> <type> <object>\t<path>`.
+// Trees are listed too, so an empty directory is an entry, not an absence.
 func parseBaseTree(listing []byte) (map[string]baseTreeEntry, bool) {
 	entries := map[string]baseTreeEntry{}
 	for _, record := range strings.Split(strings.TrimSuffix(string(listing), "\x00"), "\x00") {
@@ -254,7 +256,7 @@ func parseBaseTree(listing []byte) (map[string]baseTreeEntry, bool) {
 		}
 		header, name, found := strings.Cut(record, "\t")
 		fields := strings.Fields(header)
-		if !found || len(fields) != baseTreeEntryFields || len(entries) >= maxIndexEntries {
+		if _, duplicate := entries[name]; duplicate || !found || len(fields) != baseTreeEntryFields || len(entries) >= maxIndexEntries {
 			return nil, false
 		}
 		entries[name] = baseTreeEntry{mode: fields[0], object: fields[2]}
@@ -330,7 +332,8 @@ func baseOwner(entries map[string]baseTreeEntry, listed map[string]bool, directo
 		if listed[directory] {
 			return directory, true
 		}
-		if entry, found := entries[path.Join(directory, moduleManifestName)]; found &&
+		// A directory named go.mod is no manifest: the observer collects files.
+		if entry, found := entries[path.Join(directory, moduleManifestName)]; found && entry.mode != treeMode &&
 			(!regularMode(entry.mode) || !baseFixtureModule(listed, directory)) {
 			return "", false
 		}

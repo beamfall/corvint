@@ -21,7 +21,7 @@ owner's testdata, and directly holding a regular `.go` file.
 - **Standard library and git plumbing.** `tools/gate-ledger` copies `select.go`, `readers.go` and
   `readscopes.go` into an isolated fixture module and builds them, so `internal/gateselect`
   cannot import `internal/liveverify/affected/golang` or `gitauth`. The base reader therefore
-  lives in `readscopes.go` and runs `git ls-tree -r -z --full-tree <commit>^{commit}` and
+  lives in `readscopes.go` and runs `git ls-tree -r -t -z --full-tree <commit>^{commit}` and
   `git cat-file blob`. It uses the hermetic environment `cmd/corvint` uses: no system or global
   config, no replace objects, no lazy fetch, no optional locks, a 30 s deadline, and bounded
   output (64 MiB tree, 1 MiB declaration, 4 MiB `go.work`). Limit: unlike `CommittedReadScopes`,
@@ -81,3 +81,36 @@ Focused tests passed on the fix:
 The new tests read only temporary directories, which the CI confinement (`.github/testconfine`)
 grants, so `.corvint/test-read-scopes.json` is unchanged. `make gate` and the full
 `go test ./...` are `NOT_RUN`, by the owner's standing preference for scoped issue work.
+
+## Review
+
+There was one Codex round (`codex exec -s read-only`) over `321a66f71..cc2e1dbb8`. It reported
+two P2 findings and reproduced both with overlay probes. It also confirmed that the production
+imports stay standard-library only and found no issue in the Git invocation.
+
+1. **Fixed: an empty tree at `go.work` read as absent.**
+   - Cause: `git ls-tree -r` omits trees, so an empty tree at `go.work` looked like no file
+     there. The selector then narrowed against a base the planner refuses: it declared only
+     `added` where the `AFP-V0-023` fallback runs `kept` and `added`.
+   - Fix: the listing now passes `-t`, so trees are entries. A tree at `go.work` or at the
+     declaration is not a regular file, so the base is unknown. A tree named `go.mod` is still
+     no manifest in `baseOwner`, as in `committedOwner`.
+   - Hardening: `parseBaseTree` now refuses a tree that names one path twice, which the
+     planner's verified reader rejects as malformed.
+   - New parity cases, built with `git mktree` and `commit-tree`: an empty tree at `go.work`,
+     at the declaration, and named `go.mod`. A duplicate-name parser test was added too.
+   - Mutations M19 (`-t` dropped), M20 (tree `go.mod` treated as a manifest) and M21
+     (duplicate admitted) were all killed, at load averages 45 to 46.
+2. **Recorded, not changed: a listed owner's `go.mod` is not checked.**
+   - `baseOwner`, like the planner's `committedOwner`, accepts a `go.work`-listed module (or
+     the root) as owner without checking its manifest.
+   - This matches the observer. `observeModules` keeps a listed module whose `go.mod` is
+     missing and raises `FrontierModulePath`, and does not drop it.
+   - The two readers agree, so the selector is no less sound than the planner.
+   - The amended `AFP-V0-050` (3) wording ("that module's manifest is a regular `go.mod`")
+     says more than either reader checks for a listed owner. Either the wording narrows to the
+     unlisted `go.mod` files on the path, or both readers check the listed manifest. Both are
+     amendments of owner-approved text, so this is left as an owner decision, tracked by
+     V1-1425.
+   - The review run, not this lane, filed V1-1425 in the primary checkout's task store.
+

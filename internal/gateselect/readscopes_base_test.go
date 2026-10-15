@@ -5,6 +5,7 @@ import (
 	"maps"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -46,6 +47,43 @@ func fixtureGit(t *testing.T, root string, arguments ...string) string {
 		t.Fatalf("git %v: %v\n%s", arguments, err, output)
 	}
 	return string(output)
+}
+
+// emptyTreeCommit commits, on top of base, an empty tree at name, which the
+// index cannot hold, replacing any entry already at name.
+func emptyTreeCommit(t *testing.T, root, base, name string) string {
+	t.Helper()
+	mktree := func(listing string) string {
+		command := exec.Command("git", "-C", root, "mktree", "-z")
+		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+		command.Stdin = strings.NewReader(listing)
+		output, err := command.Output()
+		if err != nil {
+			t.Fatalf("git mktree: %v", err)
+		}
+		return strings.TrimSpace(string(output))
+	}
+	// with is the tree at directory in base, absent or not, with leaf set to entry.
+	with := func(directory, leaf, entry string) string {
+		listing := ""
+		if output, err := exec.Command("git", "-C", root, "ls-tree", "-z", base+":"+directory).Output(); err == nil {
+			for _, record := range strings.Split(string(output), "\x00") {
+				if _, name, _ := strings.Cut(record, "\t"); record != "" && name != leaf {
+					listing += record + "\x00"
+				}
+			}
+		}
+		return mktree(listing + "040000 tree " + entry + "\t" + leaf + "\x00")
+	}
+	entry := mktree("")
+	for directory := name; directory != "."; directory = path.Dir(directory) {
+		parent := path.Dir(directory)
+		if parent == "." {
+			parent = ""
+		}
+		entry = with(parent, path.Base(directory), entry)
+	}
+	return strings.TrimSpace(fixtureGit(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit-tree", entry, "-p", base, "-m", "empty tree"))
 }
 
 func declaration(packages string) string {
@@ -143,6 +181,8 @@ func TestBaseReadScopesFollowCommittedReadScopes_AFPV0050(t *testing.T) {
 		links    map[string]string
 		absent   bool
 		known    bool
+		// emptyTree names an empty directory committed on top.
+		emptyTree string
 	}{
 		"the root module's package":       {packages: `"kept":[]`, known: true},
 		"no declaration":                  {absent: true, known: true},
@@ -163,6 +203,10 @@ func TestBaseReadScopesFollowCommittedReadScopes_AFPV0050(t *testing.T) {
 		// Git stores a symlink's target text as its blob: here that text is
 		// itself a valid declaration, which only the mode check refuses.
 		"a symlinked declaration": {absent: true, links: map[string]string{readScopesPath: declaration(`"kept":[]`)}},
+		// `git ls-tree -r` alone omits an empty tree, which would read as absent.
+		"an empty tree at go.work":         {packages: `"kept":[]`, emptyTree: workspaceManifest},
+		"an empty tree at the declaration": {absent: true, emptyTree: readScopesPath},
+		"an empty tree named go.mod":       {packages: `"solo":[]`, extra: map[string]string{"solo/solo.go": "package solo\n"}, emptyTree: "solo/go.mod", known: true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			files := maps.Clone(common)
@@ -171,6 +215,9 @@ func TestBaseReadScopesFollowCommittedReadScopes_AFPV0050(t *testing.T) {
 				files[readScopesPath] = declaration(test.packages)
 			}
 			root, base := baseRepository(t, files, test.links)
+			if test.emptyTree != "" {
+				base = emptyTreeCommit(t, root, base, test.emptyTree)
+			}
 			var plan Receipt
 			plan.Revision = base
 			scopes := baseReadScopes(plan, root)
@@ -182,6 +229,19 @@ func TestBaseReadScopesFollowCommittedReadScopes_AFPV0050(t *testing.T) {
 				t.Fatalf("CommittedReadScopes = %v, %v; selector = %v", committed, err, scopes)
 			}
 		})
+	}
+}
+
+// A tree naming one path twice is malformed: the planner's verified reader
+// refuses it, so the selector's base is unknown too.
+func TestParseBaseTreeRefusesADuplicateName(t *testing.T) {
+	object := strings.Repeat("1", 40)
+	record := "100644 blob " + object + "\t" + readScopesPath + "\x00"
+	if _, ok := parseBaseTree([]byte(record)); !ok {
+		t.Fatal("a single record is refused")
+	}
+	if _, ok := parseBaseTree([]byte(record + record)); ok {
+		t.Fatal("a duplicate name is admitted")
 	}
 }
 
