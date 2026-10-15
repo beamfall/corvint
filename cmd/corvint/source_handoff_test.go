@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
@@ -42,7 +43,7 @@ func sourceViewRepository(t *testing.T) (string, string, map[string]any) {
 
 func runSourceViewTest(t *testing.T, root, commit string, packet map[string]any, extra ...string) map[string]any {
 	t.Helper()
-	return runSourceViewTestContext(t, context.Background(), root, commit, packet, extra...)
+	return runSourceViewTestContext(t, liftedSourceDeadline(context.Background()), root, commit, packet, extra...)
 }
 
 func runSourceViewTestContext(t *testing.T, ctx context.Context, root, commit string, packet map[string]any, extra ...string) map[string]any {
@@ -489,4 +490,14 @@ func TestSourceViewBindsObjectFormatAndOIDWidth(t *testing.T) {
 	if got := runSourceViewTest(t, root, commit, packet, "--lines", "3:3"); sourceViewCode(got) != "object-identity" {
 		t.Fatalf("SHA-256-width blob in a SHA-1 repository accepted: %v", got)
 	}
+}
+
+// liftedSourceDeadline lifts the source view's frozen 10-second bound for tests that verify
+// refusal semantics, not latency: on a loaded host the bound expired mid-view, through the
+// scripted Git stand-in's shell wrapper or real Git alike, and turned the asserted outcome into an
+// earlier command's refusal (blob-budget, stale-commit, stale-tree, missing-path; V1-1302,
+// decision 0082). The ten minutes are a hang detector; the frozen bound stays pinned by
+// TestSourceDeadlineReplacesFrozenBound.
+func liftedSourceDeadline(ctx context.Context) context.Context {
+	return context.WithValue(ctx, sourceDeadlineKey{}, 10*time.Minute)
 }

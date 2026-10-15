@@ -24,15 +24,6 @@ func sourceGitScript(t *testing.T, body string) string {
 	return path
 }
 
-// liftedSourceDeadline lifts the source view's frozen 10-second bound for tests whose scripted
-// Git stand-in verifies refusal semantics, not latency: on a loaded host the shell wrapper per
-// command expired the bound mid-view and turned the asserted refusal into an earlier command's
-// (blob-budget, stale-tree, missing-path; V1-1302, decision 0082). The ten minutes are a hang
-// detector; the frozen bound stays pinned by TestSourceDeadlineReplacesFrozenBound.
-func liftedSourceDeadline(ctx context.Context) context.Context {
-	return context.WithValue(ctx, sourceDeadlineKey{}, 10*time.Minute)
-}
-
 // ESV-V0-003: the source view and each of its Git commands are bounded by the frozen 10 seconds
 // unless a test lifts the bound (V1-1302).
 func TestSourceDeadlineReplacesFrozenBound(t *testing.T) {
