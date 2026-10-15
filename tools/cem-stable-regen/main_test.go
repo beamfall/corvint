@@ -221,6 +221,27 @@ func TestCheckPassesOnRepositoryPacket(t *testing.T) {
 	}
 }
 
+// TestCheckCoversEveryStableManifestEntry drifts stable files that no other
+// check reads: --check must name each of them, not only RESULT.schema.json
+// (V1-1287).
+func TestCheckCoversEveryStableManifestEntry(t *testing.T) {
+	for _, name := range []string{"PACKING.md", "tamper-matrix/README.md"} {
+		root := copyProtocol(t)
+		file := filepath.Join(root, filepath.FromSlash(stableDir+"/"+name))
+		b, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, append(b, '\n'), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		want := stableDir + "/" + name + " differs from its manifest entry"
+		if code, out := runTool(t, "--check", "--root", root); code != 1 || !strings.Contains(out, want) {
+			t.Fatalf("check on drifted %s: code %d, want %q\n%s", name, code, want, out)
+		}
+	}
+}
+
 func TestRegenerateRealPacketCopy(t *testing.T) {
 	root := copyProtocol(t)
 	before := snapshot(t, root)
