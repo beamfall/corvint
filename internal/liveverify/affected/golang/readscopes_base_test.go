@@ -16,8 +16,9 @@ const readScopeBaseDeclaration = `{"profile":"corvint-test-read-scopes/0","packa
 
 // readScopeBaseRepository commits a module whose declaration names a
 // root-locating package, three plain packages and a package that reads the
-// declaration's own directory, and returns the root and that commit.
-func readScopeBaseRepository(t *testing.T, declaration string) (string, string) {
+// declaration's own directory, plus any extra files, and returns the root and
+// that commit.
+func readScopeBaseRepository(t *testing.T, declaration string, extra ...map[string]string) (string, string) {
 	t.Helper()
 	gitExecutable, err := exec.LookPath("git")
 	if err != nil {
@@ -30,6 +31,9 @@ func readScopeBaseRepository(t *testing.T, declaration string) (string, string) 
 		files[name+"/"+name+"_test.go"] = "package " + name + "\n"
 	}
 	writeFiles(t, root, files)
+	for _, more := range extra {
+		writeFiles(t, root, more)
+	}
 	runGit(t, gitExecutable, root, "init", "-q")
 	runGit(t, gitExecutable, root, "add", "-A")
 	runGit(t, gitExecutable, root, "commit", "-q", "-m", "base")
@@ -133,5 +137,58 @@ func TestCommittedReadScopesFailClosed_AFPV0050(t *testing.T) {
 	}
 	if prior, err := golang.CommittedReadScopes(ctx, root, strings.Repeat("0", 40)); err == nil || prior != nil {
 		t.Fatalf("missing commit = %v, %v; want unknown", prior, err)
+	}
+}
+
+// AFP-V0-050 (V1-1400): a package of a nested module is not a unit of the
+// observed module, so a base declaring a directory a nested go.mod owns is
+// unknown, as the observed tree's declaration would be invalid. A go.work that
+// lists the nested module makes its packages observed, and a go.mod below a
+// listed module's testdata is fixture data that owns nothing.
+func TestCommittedReadScopesFollowModuleOwnership_AFPV0050(t *testing.T) {
+	ctx := context.Background()
+	nested := map[string]string{
+		"nested/go.mod":        "module example.test/nested\n",
+		"nested/x/x.go":        "package x\n",
+		"nested/x/x_test.go":   "package x\n",
+		"inner/go.mod":         "module example.test/inner\n",
+		"inner/inner.go":       "package inner\n",
+		"kept/testdata/go.mod": "module example.test/fixture\n",
+		"kept/testdata/f/f.go": "package f\n",
+	}
+	for name, test := range map[string]struct {
+		declaration string
+		workspace   string
+		known       bool
+	}{
+		"below a nested module":           {declaration: `{"profile":"corvint-test-read-scopes/0","packages":{"kept":[],"nested/x":[]}}`},
+		"a nested module's root":          {declaration: `{"profile":"corvint-test-read-scopes/0","packages":{"inner":[],"kept":[]}}`},
+		"in a fixture module":             {declaration: `{"profile":"corvint-test-read-scopes/0","packages":{"kept/testdata/f":[]}}`},
+		"a workspace-listed module":       {declaration: `{"profile":"corvint-test-read-scopes/0","packages":{"kept":[],"nested/x":[]}}`, workspace: "go 1.27\n\nuse (\n\t.\n\t./nested\n)\n", known: true},
+		"the root module beside them":     {declaration: `{"profile":"corvint-test-read-scopes/0","packages":{"kept":[]}}`, known: true},
+		"an unlisted root in a workspace": {declaration: `{"profile":"corvint-test-read-scopes/0","packages":{"kept":[]}}`, workspace: "go 1.27\n\nuse ./nested\n"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			files := maps.Clone(nested)
+			if test.workspace != "" {
+				files["go.work"] = test.workspace
+			}
+			root, base := readScopeBaseRepository(t, test.declaration, files)
+			prior, err := golang.CommittedReadScopes(ctx, root, base)
+			if test.known && (err != nil || prior == nil) {
+				t.Fatalf("base declaration = %v, %v; want it read", prior, err)
+			}
+			if !test.known && (err == nil || prior != nil) {
+				t.Fatalf("base declaration = %v, %v; want unknown", prior, err)
+			}
+			// The same tree observed on disk agrees on whether it declares anything.
+			observed, err := golang.New().Units(ctx, root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if invalid := slices.Contains(observed.Frontier, golang.FrontierReadScopesInvalid); invalid == test.known {
+				t.Errorf("observed frontier = %v; base read = %v", observed.Frontier, test.known)
+			}
+		})
 	}
 }

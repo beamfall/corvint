@@ -15,7 +15,8 @@ set -eu
 # An empty BASE is HEAD, so only the dirty worktree is tested. A BASE that does not resolve
 # is a usage error (exit 2): the run never widens or narrows on a guessed base.
 #
-# Environment: CORVINT_TEST_BINARY (a prebuilt corvint; fixture tests only) and
+# Environment: CORVINT_TEST_BINARY (a prebuilt corvint; fixture tests only),
+# CORVINT_TEST_PROC_ROOT (a stand-in for /proc; fixture tests only) and
 # CORVINT_GOCACHE (the build cache, default /tmp/corvint-go-build-cache).
 
 base_request=${1:-}
@@ -37,6 +38,24 @@ printf 'gate-affected: base %s (%s)\n' "$base" "$base_request"
 work=$(mktemp -d "${TMPDIR:-/tmp}/corvint-gate-affected.XXXXXX")
 child=""
 building=""
+# process_table prints one "pid ppid" line per process from ps or, where ps is missing or
+# fails, from /proc (V1-1400). A /proc stat line is "pid (comm) state ppid ...", and comm may
+# hold spaces and parentheses, so ppid is read after the last ") ".
+process_table() {
+    if ps_table=$(ps -A -o pid= -o ppid= 2> /dev/null); then
+        printf '%s\n' "$ps_table"
+        return 0
+    fi
+    listed=""
+    for stat in "${CORVINT_TEST_PROC_ROOT:-/proc}"/[0-9]*/stat; do
+        IFS= read -r line 2> /dev/null < "$stat" || continue
+        fields=${line##*) }
+        fields=${fields#* }
+        printf '%s %s\n' "${line%% *}" "${fields%% *}"
+        listed=1
+    done
+    [ -n "$listed" ]
+}
 # stop_tree freezes a process and every process below it, walking the process table until no
 # new child appears (a stopped process cannot fork, and children are found before their parent
 # dies and they are reparented), then terminates and resumes them all. A process still alive
@@ -47,7 +66,7 @@ stop_tree() {
     while [ -n "$pending" ]; do
         # shellcheck disable=SC2086
         kill -s STOP $pending 2> /dev/null || true
-        if ! table=$(ps -A -o pid= -o ppid=); then
+        if ! table=$(process_table); then
             echo "gate-affected: cannot list processes; killing the build only" >&2
             kill -s KILL "$1" 2> /dev/null || true
             return

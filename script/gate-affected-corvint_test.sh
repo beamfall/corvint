@@ -151,9 +151,11 @@ test -f "$test_root/forwarded" || fail "SIGTERM was not forwarded to corvint"
 # process below it, and the gate exits 128+N without starting tests (V1-1310). The stand-in
 # build records its pid and a sleeping descendant's, signals the gate, and waits; it writes
 # build-finished only if it outlives its sleeper, which a deferred signal would allow. The last
-# case's sleeper ignores TERM, so only the gate's bounded KILL stops it. No wall-clock bound is
-# asserted, so a loaded host cannot fail the case.
-mkdir -p "$test_root/fake-go"
+# case's sleeper ignores TERM, so only the gate's bounded KILL stops it. In the no-ps case `ps`
+# fails, so the gate walks a stand-in /proc tree that the build writes, with a command name
+# holding a space and a parenthesis (V1-1400). No wall-clock bound is asserted, so a loaded
+# host cannot fail the case.
+mkdir -p "$test_root/fake-go" "$test_root/no-ps"
 cat > "$test_root/fake-go/go" <<'EOF_GO'
 #!/bin/sh
 if [ -n "$GATE_TEST_IGNORE_TERM" ]; then
@@ -163,20 +165,37 @@ else
 fi
 echo "$!" > "$GATE_TEST_DIR/sleep.pid"
 echo "$$" > "$GATE_TEST_DIR/build.pid"
+if [ -n "$CORVINT_TEST_PROC_ROOT" ]; then
+  mkdir -p "$CORVINT_TEST_PROC_ROOT/$$" "$CORVINT_TEST_PROC_ROOT/$!"
+  echo "$$ (go) S $PPID $$ 0" > "$CORVINT_TEST_PROC_ROOT/$$/stat"
+  echo "$! (sl) eep) S $$ $$ 0" > "$CORVINT_TEST_PROC_ROOT/$!/stat"
+fi
 kill -s "$GATE_TEST_SIGNAL" "$PPID"
 wait
 echo finished > "$GATE_TEST_DIR/build-finished"
 EOF_GO
 chmod +x "$test_root/fake-go/go"
+printf '#!/bin/sh
+echo "ps: unavailable" >&2
+exit 1
+' > "$test_root/no-ps/ps"
+chmod +x "$test_root/no-ps/ps"
 alive() { kill -0 "$1" 2> /dev/null; }
-for case in HUP:129: INT:130: TERM:143: INT:130:ignore; do
-  signal=${case%%:*}
-  code=${case#*:}
-  ignore=${code#*:}
-  code=${code%%:*}
+for case in HUP:129:: INT:130:: TERM:143:: INT:130:ignore: TERM:143::no-ps; do
+  IFS=: read -r signal code ignore no_ps << EOF_CASE
+$case
+EOF_CASE
   rm -f "$test_root/build.pid" "$test_root/sleep.pid" "$test_root/build-finished"
+  rm -rf "$test_root/proc"
+  search_path="$test_root/fake-go:$PATH"
+  proc_root=""
+  if [ -n "$no_ps" ]; then
+    search_path="$test_root/no-ps:$search_path"
+    proc_root="$test_root/proc"
+  fi
   status=0
-  (cd "$repository" && PATH="$test_root/fake-go:$PATH" GATE_TEST_DIR="$test_root" GATE_TEST_SIGNAL="$signal" GATE_TEST_IGNORE_TERM="$ignore" \
+  (cd "$repository" && PATH="$search_path" GATE_TEST_DIR="$test_root" GATE_TEST_SIGNAL="$signal" GATE_TEST_IGNORE_TERM="$ignore" \
+    CORVINT_TEST_PROC_ROOT="$proc_root" \
     "$source_root/script/gate-affected-corvint.sh" > "$test_root/stdout" 2> "$test_root/stderr") || status=$?
   expect_status "$code" "$signal during the build"
   if test -f "$test_root/build-finished"; then fail "$signal during the build waited for the build to finish"; fi
@@ -190,6 +209,7 @@ for case in HUP:129: INT:130: TERM:143: INT:130:ignore; do
   done
   if alive "$(cat "$test_root/build.pid")"; then fail "$signal: the build outlived the gate"; fi
   if alive "$(cat "$test_root/sleep.pid")"; then fail "$signal: a build descendant outlived the gate"; fi
+  if grep -qF "cannot list processes" "$test_root/stderr"; then fail "$signal: the gate found no process table"; fi
 done
 
 echo "gate-affected-corvint tests passed"
