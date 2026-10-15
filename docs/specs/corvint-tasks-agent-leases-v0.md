@@ -58,7 +58,7 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:634@afae0d34`), and until S1 the writer refused every queue
+(`internal/tasks/transaction/model.go:639@afae0d34`), and until S1 the writer refused every queue
 that was not a fixture.
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
@@ -6063,9 +6063,11 @@ fencing and refusals stay in the audited journal; no liveness record moves out o
   listing when that listing was quiescent and the directory is unchanged, and MUST list exactly
   otherwise, so a receipt or temporary name that appears or leaves during the walk moves the attempt
   and the fast route declines.
-  - Quiescent: the directory's modification time was at least `receiptsQuiescence` (one second,
-    at least the coarsest modification-time granularity of a filesystem that can hold the journal)
-    before the first listing began, so a later change cannot share its stamp.
+  - Quiescent: the directory's modification time and change time (`ctime`) were both at least
+    `receiptsQuiescence` (one second, at least the coarsest stamp granularity of a filesystem that
+    can hold the journal) before the first listing began, so a later change lands in a strictly
+    later change time even where stamps are whole seconds, and a restored modification time
+    cannot hide it. A platform without a change time is never quiescent.
   - Unchanged: the directory observed from the second capture's own no-follow handle is the same
     file (`os.SameFile`) with the same mode, size, modification time and change time (`ctime`) as
     the first listing's. A platform without a change time never reuses a listing.
@@ -6074,11 +6076,12 @@ fencing and refusals stay in the audited journal; no liveness record moves out o
     even under restored directory stamps, is found by that exact listing and declines the fast route.
   - Reuse is not evidence that the names are current beyond the walk. The writer lock excludes
     every cooperating writer for the whole audit; a foreign process that adds, renames or removes a
-    name after a quiescent listing lands in a later modification time and change time, which the
-    second capture sees, and the inventory digest already binds the directory stamp, so such an
+    name after a quiescent listing lands in a later change time, which `utimes` cannot restore and
+    the second capture sees, and the inventory digest already binds the directory stamp, so such an
     attempt moves (`SNAPSHOT_MOVED`) and its retry lists the fresh directory exactly.
-  A maintained test MUST show the read count and both listing counts (two for a fresh directory,
-  one for a quiescent one) at two history sizes by counting reads and listings, never durations.
+  A maintained test MUST show the read count and the listing counts (two for a fresh directory,
+  two for a modification time restored under a fresh change time, one for a quiescent one) at two
+  history sizes by counting reads and listings, never durations.
   The remaining listing is the history-proportional part of a fast heartbeat or renew; it is kept
   because `CAL-V0-116` requires the names on disk to be exactly 1..head and a crash-left temporary
   name to decline the fast route.
@@ -6100,8 +6103,9 @@ formats; a probe-only receipt check; stamp evidence that survives an attempt or 
 replaces the first exact listing.
 
 Acceptance evidence: `TestCALV0224_WriterAuditWorkIsHistoryIndependent` (`internal/tasks/journal`;
-two listings for a fresh directory, one for a quiescent one, k + 1 reads at two history sizes, and a
-temporary name under a quiescent stamp declines),
+two listings for a fresh directory and for a modification time restored under a fresh change time,
+one for a quiescent one, k + 1 reads at two history sizes, and a temporary name that appears during
+the walk declines),
 `TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing` (a settled-looking receipt a foreign
 process adds after a quiescent listing moves the attempt and the retry declines) and
 `TestCALV0224_ListingNeverOutlivesItsAttempt` (every attempt's first capture lists exactly; an
@@ -6160,21 +6164,29 @@ recorded in the build log);
 Rollback: delete the test and this amendment. No code, store, receipt or wire format depends on it.
 
 - `CAL-V0-233`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-15)
-  Liveness ticket binding without decoding. A HEARTBEAT or RENEW reads no ticket, so the transaction
-  model MUST bind the canonical ticket set to its `intent/tickets/` projections without decoding any
-  ticket record: every canonical record must be byte-identical (digest and length) to a distinct
-  projection and the projections must be exactly the canonical set, under the same intent-tree byte
-  bound. A record that matches no projection is decoded only to name the refusal the decoding
-  route gives, so a divergent, missing, extra or repeated projection is refused with the same code
-  and message as before. Every other verb and operation still decodes the set and takes the ticket
-  inventory it did. The validated state of a liveness verb carries no ticket inventory.
+  Liveness ticket binding without decoding. A HEARTBEAT or RENEW reads no ticket, so when the
+  caller names each canonical record's `intent/tickets/` projection path (`CanonicalTicketPaths`,
+  which the store's lease routes supply from the audited record paths) the transaction model MUST
+  bind the canonical ticket set to those projections without decoding any ticket record: every
+  canonical record must be byte-identical (digest and length) to the projection at its named
+  path, the named identities must be distinct exactly and under ASCII case folding, and the
+  projections must be exactly the canonical set, under the same intent-tree byte bound. A record
+  that is refused is decoded only to name the refusal the decoding route gives, in that route's
+  order: a missing, divergent or swapped projection is `MALFORMED`, a repeated identity is
+  `DUPLICATE_ID`, a projection outside the canonical set is `MALFORMED`, each with the message the
+  decoding route gives. A record that binds is not decoded, so this route does not re-validate its
+  content: the mutation that wrote it did, and the next decoding verb does again. A caller that
+  names no paths, and every other verb and operation, still decodes the set and takes the ticket
+  inventory it did. The validated state of a bound liveness verb carries no ticket inventory.
 
 Non-goals: changing which verbs read tickets; a cached or cross-process ticket inventory; any
 change to the receipt or wire formats.
 
 Acceptance evidence: `TestCALV0233_LivenessLeaseBindsTicketsWithoutDecoding`
-(`internal/tasks/transaction`), which fails when the liveness route decodes a record or when a
-divergent, missing, extra or repeated projection is not refused `MALFORMED`;
+(`internal/tasks/transaction`), a differential against the decoding route that fails when the
+liveness route decodes a bound record, when a divergent, swapped, missing, extra, repeated or
+case-folded projection is not refused with the decoding route's code and message, or when a caller
+that names no paths is not decoded;
 `docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md`.
 
 Rollback: route the liveness verbs back through `loadTickets` in `internal/tasks/transaction` and

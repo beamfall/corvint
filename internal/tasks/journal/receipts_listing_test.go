@@ -73,12 +73,26 @@ func newListingHarness(t *testing.T) *listingHarness {
 	return h
 }
 
-// quiesce sets the receipts/ modification time an hour into the past, so
-// the next listing finds the directory quiescent.
+// quiesce sets the receipts/ modification time an hour into the past and
+// waits until the change time that setting it stamped is also old enough,
+// so the next listing finds the directory quiescent.
 func (h *listingHarness) quiesce(t *testing.T) {
 	t.Helper()
 	past := time.Now().Add(-time.Hour)
 	if err := os.Chtimes(h.receipts, past, past); err != nil {
+		t.Fatal(err)
+	}
+	awaitQuiescent(t, h.receipts)
+}
+
+// freshen sets the receipts/ modification time an hour into the future, as
+// a foreign change during the walk would leave a fresh stamp, so the
+// retried attempt's listing is never quiescent however long the retry
+// takes and the listing count is deterministic.
+func (h *listingHarness) freshen(t *testing.T) {
+	t.Helper()
+	future := time.Now().Add(time.Hour)
+	if err := os.Chtimes(h.receipts, future, future); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -104,7 +118,9 @@ func (h *listingHarness) audit(t *testing.T) error {
 // head.json untouched, changes the directory's stamps, so the second
 // capture lists again and the attempt moves instead of reusing the stale
 // listing; the retried attempt lists the fresh directory twice and declines
-// on the extra name. Mutation: a reuse that ignores the stamps and keeps the
+// on the extra name. The foreign write leaves a future modification time so
+// the retry's listing is fresh however late it runs (the count is 4 in 2
+// attempts, never 3). Mutation: a reuse that ignores the stamps and keeps the
 // first capture's directory metadata accepts the first attempt with the
 // foreign receipt unseen; one that ignores only the comparison is still
 // caught by the inventory digest's directory stamp, with one listing fewer.
@@ -116,6 +132,7 @@ func TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing(t *testing.T) {
 	h.during = func() {
 		if *h.attempts == 1 {
 			fixture.Write(t, filepath.Join(h.receipts, h.next), []byte("x"))
+			h.freshen(t)
 		}
 	}
 	err := h.audit(t)

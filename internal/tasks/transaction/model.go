@@ -123,6 +123,11 @@ type Input struct {
 	Attempts    [][]byte
 	HeadReceipt []byte
 	LeaseFacts  LeaseFacts
+	// CanonicalTicketPaths names the intent/tickets/ projection of each
+	// CanonicalTickets record, in the same order. The lease routes supply it
+	// so a heartbeat or renew binds the set by path without decoding a
+	// record (CAL-V0-233); a caller that leaves it nil decodes the set.
+	CanonicalTicketPaths []string
 	// HandoffPolicy is optional structural history from the writer's additional
 	// full audit. It never changes persistent attempt identities or coverage.
 	HandoffPolicy *HandoffPolicyObservation
@@ -905,9 +910,9 @@ func validateInput(r Request, in Input) (inputState, error) {
 	} else if _, ok := in.Inventory.files["barrier.json"]; ok {
 		return st, malformed("barrier observation missing")
 	}
-	if LivenessLease(r) {
+	if LivenessLease(r) && in.CanonicalTicketPaths != nil {
 		// CAL-V0-233: a heartbeat or renew reads no ticket, so the canonical
-		// set is bound to its projections by digest and length without
+		// set is bound to its named projections by digest and length without
 		// decoding, and st.tickets stays nil for this closed verb set.
 		if e = bindTicketProjections(in); e != nil {
 			return st, e
@@ -963,7 +968,7 @@ func validateInput(r Request, in Input) (inputState, error) {
 
 // LivenessLease reports a heartbeat or renew: the closed set of lease verbs
 // that read no ticket and whose model therefore binds the canonical ticket
-// inventory to its projections without decoding it (CAL-V0-233).
+// inventory to its named projections without decoding it (CAL-V0-233).
 func LivenessLease(r Request) bool {
 	return r.Operation == Lease && r.Lease != nil && (r.Lease.Verb == LeaseHeartbeat || r.Lease.Verb == LeaseRenew)
 }
@@ -1008,45 +1013,71 @@ func loadTickets(r Request, in Input, queueID wire.QueueID) (*ticket.Inventory, 
 }
 
 // bindTicketProjections is the liveness form of loadTickets (CAL-V0-233):
-// every canonical ticket record must be byte-identical to a distinct
-// intent/tickets/ projection, matched by digest and length, and the
-// projections must be exactly the canonical set. No record is decoded; a
-// record that matches no projection is decoded only to name the refusal
-// loadTickets would have given.
+// every canonical ticket record must be byte-identical (digest and length)
+// to the intent/tickets/ projection the caller names for it, the named
+// paths must be distinct ticket identities exactly and under ASCII case
+// folding, and the projections must be exactly the canonical set, under
+// the same intent-tree byte bound. A record that binds is not decoded. A
+// record that is refused is decoded only to name the refusal loadTickets
+// gives, in its order: a record without a projection or with a divergent
+// one, then a repeated identity (DUPLICATE_ID), then a projection outside
+// the canonical set.
 func bindTicketProjections(in Input) error {
-	type shape struct {
-		sum   wire.Digest
-		bytes uint64
-	}
-	unbound := map[shape]int{}
-	for path, f := range in.Inventory.files {
-		if strings.HasPrefix(path, "intent/tickets/") {
-			unbound[shape{f.Sha256, f.Bytes.Uint64()}]++
-		}
+	if len(in.CanonicalTicketPaths) != len(in.CanonicalTickets) {
+		return malformed("canonical ticket paths do not name every record")
 	}
 	var total uint64
-	for _, raw := range in.CanonicalTickets {
+	for i, raw := range in.CanonicalTickets {
 		if uint64(len(raw)) > wire.MaxIntentTreeBytes-total {
 			return limit("canonical inventory bytes")
 		}
 		total += uint64(len(raw))
-		key := shape{wire.Sum(raw), uint64(len(raw))}
-		if unbound[key] == 0 {
-			rec, e := ticket.Decode(raw)
+		path := in.CanonicalTicketPaths[i]
+		f, ok := in.Inventory.files[path]
+		if !ok || !strings.HasPrefix(path, "intent/tickets/") || f.Sha256 != wire.Sum(raw) || f.Bytes.Uint64() != uint64(len(raw)) {
+			return refuseTicketProjection(in, raw)
+		}
+	}
+	bound := make(map[string]struct{}, len(in.CanonicalTicketPaths))
+	folded := make(map[string]string, len(in.CanonicalTicketPaths))
+	for i, path := range in.CanonicalTicketPaths {
+		if _, dup := bound[path]; dup {
+			rec, e := ticket.Decode(in.CanonicalTickets[i])
 			if e != nil {
 				return e
 			}
-			if _, ok := in.Inventory.files["intent/tickets/"+rec.TicketID.Local+".json"]; !ok {
-				return malformed("canonical ticket has no physical projection")
-			}
-			return malformed("unselected divergent ticket")
+			return wire.Errorf(wire.CodeDuplicateID, "/ticketId", "duplicate ticket %s", rec.TicketID.Raw)
 		}
-		unbound[key]--
+		bound[path] = struct{}{}
+		local := strings.TrimSuffix(strings.TrimPrefix(path, "intent/tickets/"), ".json")
+		f := wire.FoldToken(local)
+		if other, dup := folded[f]; dup {
+			return wire.Errorf(wire.CodeDuplicateID, "/ticketId", "local tokens %q and %q collide under ASCII case folding", other, local)
+		}
+		folded[f] = local
 	}
 	if countTicketProjections(in) != len(in.CanonicalTickets) {
 		return malformed("incomplete canonical ticket inventory")
 	}
 	return nil
+}
+
+// refuseTicketProjection names the refusal loadTickets gives a canonical
+// record whose named projection is absent or diverges: the record's own
+// decode or canonical-form error first, then the projection derived from
+// its decoded identity.
+func refuseTicketProjection(in Input, raw []byte) error {
+	rec, e := ticket.Decode(raw)
+	if e != nil {
+		return e
+	}
+	if e = canonical(raw); e != nil {
+		return e
+	}
+	if _, ok := in.Inventory.files["intent/tickets/"+rec.TicketID.Local+".json"]; !ok {
+		return malformed("canonical ticket has no physical projection")
+	}
+	return malformed("unselected divergent ticket")
 }
 
 func countTicketProjections(in Input) int {

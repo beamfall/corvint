@@ -43,11 +43,18 @@ about 70 ms, observation bind about 37 ms; about 31 ms of the 48 ms history grow
 ## Phase A and B: CAL-V0-233 and CAL-V0-234 (commit `4c0283ba4`)
 
 - CAL-V0-233: a HEARTBEAT or RENEW reads no ticket, so `transaction.validateInput` binds the
-  canonical ticket set to its `intent/tickets/` projections by digest and length
-  (`bindTicketProjections`) instead of decoding every record. Refusals (`MALFORMED` for a divergent,
-  missing, extra or repeated projection) and every ticket-reading verb are unchanged. Test:
-  `TestCALV0233_LivenessLeaseBindsTicketsWithoutDecoding` (`internal/tasks/transaction`).
-  Mutation: `LivenessLease` returning false (liveness verbs back on the decoding route) fails it.
+  canonical ticket set to the `intent/tickets/` projections the lease routes name for it
+  (`Input.CanonicalTicketPaths`), by digest and length per path (`bindTicketProjections`), instead
+  of decoding every record. Refusals follow the decoding route's codes, messages and order
+  (`MALFORMED` for a missing, divergent or swapped projection and for an extra projection,
+  `DUPLICATE_ID` for a repeated or case-folded identity); every ticket-reading verb, and a liveness
+  caller that names no paths, decode as before. The first cut bound by a digest multiset, which
+  accepted swapped projections and refused a repeated record `MALFORMED`; the review below found it
+  and the per-path binding replaced it. Test: `TestCALV0233_LivenessLeaseBindsTicketsWithoutDecoding`
+  (`internal/tasks/transaction`), a differential against the decoding route. Mutations:
+  `LivenessLease` returning false (liveness verbs back on the decoding route) fails it; M5, binding
+  by digest anywhere in the tree instead of at the named path, fails its swapped case ("unselected
+  divergent ticket: liveness <nil>, decoding route MALFORMED").
 - CAL-V0-234: the authority fixture session pins a request shard the first time a target under it
   is used (`pinShard`) instead of opening and re-verifying all 256 shards per operation. Test:
   `TestCALV0234_RequestShardsPinnedOnFirstUse` (`internal/tasks/authority`). Mutation: restoring
@@ -119,8 +126,8 @@ decode is a residual for V1-0915.
 ## CAL-V0-224 amendment: quiescent listing reuse (commits `765ac2107`, `1d514ac6f`)
 
 Design: the writer audit's first capture lists `receipts/` exactly and records whether the
-directory was quiescent (modification time at least `receiptsQuiescence` = 1 s before the listing
-began). The second capture, which only confirms that nothing moved during the walk, stats the
+directory was quiescent (modification time and change time both at least `receiptsQuiescence` =
+1 s before the listing began, `quiescentDir`). The second capture, which only confirms that nothing moved during the walk, stats the
 directory from its own no-follow handle (`nativeRead.DirInfo`) and reuses the first listing when the
 directory is the same file with the same mode, size, modification time and change time
 (`sameDirStamp`; `changeTime` is `Ctimespec` on Darwin and `Ctim` on Linux, and reports no change
@@ -129,25 +136,33 @@ observation with its staging flag, so the inventory digest and the settled check
 first listing. The listing lives in the attempt's `writerBefore` value and never outlives it.
 
 Why the stamps suffice: the writer lock excludes every cooperating writer for the whole audit, so
-only a foreign process can change `receipts/` during the walk. Its change lands in a modification
-time at or after the listing start, which is strictly later than a quiescent stamp on any filesystem
-whose granularity is at most 1 s (APFS nanoseconds, Linux jiffies, HFS+ 1 s; FAT cannot hold the
-journal, which needs hard links), and in a new change time, which `utimes` cannot restore. APFS also
-changes the directory size with its entry count. The one case the stamps do not separate is a clock
-stepped back by more than one second during one sub-second attempt together with a foreign change
-in that window; the complete route still refuses such a journal. The inventory digest already bound
+only a foreign process can change `receipts/` during the walk. A listing is reused only when the
+directory's modification time and change time were both at least 1 s old when the listing began, so
+a change after that start lands in a strictly later change time on any filesystem whose stamp
+granularity is at most 1 s (APFS nanoseconds, Linux jiffies, HFS+ whole seconds; FAT cannot hold the
+journal, which needs hard links), and `utimes` can restore the modification time but not the change
+time, which records the restoration itself. Requiring the change time to be quiescent closes the
+whole-second case the first cut left open, where a change in the listing's own second under a
+restored modification time would have kept both stamps (review finding below). APFS also changes
+the directory size with its entry count. The one case the stamps do not separate is a clock stepped
+back by more than one second during one sub-second attempt together with a foreign change in that
+window; the complete route still refuses such a journal. The inventory digest already bound
 the directory's `mode\0size\0mtime` before this change, so a reuse that compared nothing but
 identity would still have been caught by `sameObservation`; the comparison is kept explicit so the
 reuse never depends on that digest.
 
 Tests (`internal/tasks/journal`): `TestCALV0224_WriterAuditWorkIsHistoryIndependent` (two listings
-for a fresh directory, one for a quiescent one, k + 1 reads, at history 4 and 48; a temporary name
-under a quiescent stamp declines), `TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing`
+for a fresh directory and for a modification time restored under a fresh change time, one for a
+quiescent one, k + 1 reads, at history 4 and 48; a temporary name that appears during the walk
+declines after 4 listings), `TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing`
 (a settled-looking receipt written after a quiescent first listing: the attempt moves, the retry
 lists the fresh directory twice and declines `receipt names differ from head`; 4 listings in 2
 attempts), `TestCALV0224_ListingNeverOutlivesItsAttempt` (two settled audits list exactly once
 each; an orphaned temporary name under restored stamps declines `not plainly settled` with one
-listing). The listing harness also pins that every attempt's first capture lists exactly once.
+listing). The listing harness also pins that every attempt's first capture lists exactly once. A
+quiescent directory is reached by waiting for its change time to age (`awaitQuiescent`), never by
+restoring stamps, and a foreign name injected during a walk leaves a future modification time, so
+the retried attempt's listing count does not depend on scheduling.
 
 Mutations, each reverted after its run:
 
@@ -161,6 +176,9 @@ Mutations, each reverted after its run:
   ("3 listings in 2 attempts ..., want 4 in 2").
 - M3, listing retained across attempts: `TestCALV0224_ListingNeverOutlivesItsAttempt` fails
   ("attempt 1's first capture ended at 0 cumulative listings, want 1").
+- M4, quiescence judged from the modification time alone (`quiescentDir` ignoring the change
+  time): `TestCALV0224_WriterAuditWorkIsHistoryIndependent` fails ("restored forMutation=false: 1
+  receipts/ listings and 4 receipt reads, want 2 and 4").
 
 Journal format, receipt names, refusal codes and replay bytes are unchanged, so the journal stays
 readable by the released `corvint-tasks` without migration.
@@ -206,12 +224,65 @@ commit about 22 ms.
   edited (one sentence for the owner to update).
 - Low-load measurement: none was possible during the lane (ambient load 44 to 60 from other lanes).
 
+## Independent review (Codex 0.162.0, one read-only round)
+
+Run against the sealed lane (`91d334547`). A first invocation hung reading stdin (`codex exec`
+needs stdin closed) and produced no review; the rerun completed and is the lane's one round.
+Findings and dispositions, fixed in the commit that follows the seal:
+
+- P1, listing reuse under whole-second stamps (CAL-V0-224): quiescence was judged from the
+  modification time alone, so on a filesystem with whole-second change times a foreign process
+  that changed `receipts/` in the listing's own second and restored the modification time kept
+  both stamps, and the second capture could reuse a stale listing. Fixed: a listing is quiescent
+  only when the modification time and the change time are both at least `receiptsQuiescence` old
+  (`quiescentDir`), so a change after the listing start lands in a strictly later change time at
+  any granularity up to one second; the spec text and the safety argument above say so. Test: the
+  "restored" case of `TestCALV0224_WriterAuditWorkIsHistoryIndependent`; mutation M4.
+- P2, liveness ticket binding by digest multiset (CAL-V0-233): swapped projections (each file
+  holding the other's bytes) bound where the decoding route refuses `unselected divergent ticket`,
+  and a repeated record was refused `MALFORMED` where the decoding route gives `DUPLICATE_ID`,
+  while the spec and this log claimed identical refusals. Fixed: the lease routes name each
+  canonical record's path (`Input.CanonicalTicketPaths`), the model binds per path with the
+  decoding route's refusals and order, and the test is a differential against that route;
+  mutation M5.
+- P2, listing-count assertions depended on scheduling: a retry more than one second after an
+  injected foreign name found a quiescent directory and reused its listing (3 listings, not 4).
+  Fixed: the tests stamp a future modification time after the injected name, and the quiescent
+  harness waits for the change time to age instead of restoring the modification time alone.
+- CAL-V0-232's "two exact listings" sentence contradicts the amended CAL-V0-224; it is an
+  accepted row and stays an owner decision (Residuals above).
+
+## Post-review CLI A/B (fixed binary; median of 7, load 30.5 before and 42.8 after; every outcome OK)
+
+Same method as the final A/B above, run after the review fixes against the BASE binary on the
+three synthetic stores (generation 3 after a re-claim; the 600-minute scratch leases had expired).
+Wall and CPU in ms; stages are the CLI's own `--timing` medians (snapshot read / validation /
+journal write / fsync).
+
+| store | verb | base wall / CPU | base stages | lane wall / CPU | lane stages |
+| --- | --- | --- | --- | --- | --- |
+| 3k | heartbeat | 450 / 440 | 76 / 199 / 103 / 18 | 190 / 160 | 66 / 33 / 19 / 19 |
+| 3k | renew | 500 / 440 | 97 / 232 / 101 / 21 | 210 / 180 | 74 / 33 / 18 / 20 |
+| 6k | heartbeat | 450 / 440 | 74 / 186 / 106 / 20 | 190 / 160 | 64 / 33 / 19 / 19 |
+| 6k | renew | 510 / 460 | 101 / 203 / 117 / 19 | 230 / 190 | 88 / 38 / 22 / 20 |
+| 13k | heartbeat | 470 / 460 | 95 / 201 / 107 / 20 | 210 / 170 | 72 / 32 / 20 / 20 |
+| 13k | renew | 510 / 480 | 112 / 203 / 112 / 22 | 260 / 190 | 83 / 34 / 25 / 27 |
+
+Validation (ticket decode) fell from ~200 ms to ~33 ms and is flat; the journal write (second
+capture) from ~105 ms to ~20 ms. Lane CPU is 160 to 190 ms and moves at most 10 ms from 3k to 13k
+on either verb; wall moves 20 ms (heartbeat) and 50 ms (renew) under a load that rose from 30 to 43
+during the series. The snapshot read (first exact listing, intent reads, tree digest) is now the
+largest stage at 64 to 88 ms and is the CAL-V0-116 floor named under Residuals. The 50 ms target
+stays unmet.
+
 ## Verification
 
 Focused tests from the affected plan: `internal/tasks/journal` (whole package), and the lease,
 writer-checkpoint, liveness and fixture-session selections of `internal/tasks/transaction`,
 `internal/tasks/authority`, `internal/tasks/store` and `internal/tasks/cli`, BASE and lane with
-counts; `go vet` and cross-OS vet (linux, windows) for the touched packages; `gofmt -l`; the local
+counts; after the review fixes, the whole `internal/tasks/journal` and `internal/tasks/transaction`
+packages and the lease, writer, checkpoint, liveness and attempt selection of `internal/tasks/store`,
+with mutations M4 and M5; `go vet` and cross-OS vet (linux, windows) for the touched packages; `gofmt -l`; the local
 doc gates (spec-requirements, requirement definitions, traceability, line citations, unbounded
 readers, use-case receipts, test commands). `make gate` and the full `go test ./...` were not run
 (owner's standing preference for scoped issue work). Dogfood: CEM bound, `dogfood-check` and

@@ -14,26 +14,42 @@ func livenessLease(verb string) Request {
 	return r
 }
 
-func expectMalformed(t *testing.T, r Request, in Input, detail string) {
+// named returns in with CanonicalTicketPaths set, as the lease routes supply
+// it, naming each canonical record's projection.
+func named(in Input, paths ...string) Input {
+	in.CanonicalTicketPaths = paths
+	return in
+}
+
+// sameRefusal runs the liveness binding and the decoding route (PAUSE) on
+// the same input and requires the same refusal from both: code and message,
+// with detail in the message.
+func sameRefusal(t *testing.T, in Input, code, detail string) {
 	t.Helper()
-	_, e := validateInput(r, in)
-	if e == nil || wire.CodeOf(e) != wire.CodeMalformed || !strings.Contains(e.Error(), detail) {
-		t.Fatalf("%s %s: got %v, want MALFORMED %q", r.Operation, r.RequestID, e, detail)
+	_, live := validateInput(livenessLease(LeaseHeartbeat), in)
+	_, full := validateInput(admin(Pause, "pause-ref"), in)
+	if live == nil || full == nil || wire.CodeOf(live) != code || live.Error() != full.Error() || !strings.Contains(live.Error(), detail) {
+		t.Fatalf("%s: liveness %v, decoding route %v, want the same %s refusal mentioning %q", detail, live, full, code, detail)
 	}
 }
 
 // TestCALV0233_LivenessLeaseBindsTicketsWithoutDecoding covers CAL-V0-233: a
-// HEARTBEAT or RENEW binds the canonical ticket set to its intent/tickets/
-// projections by digest and length and decodes no record, so its validated
-// state carries no ticket inventory, while every other verb and operation
-// still decodes the set. The binding keeps the same refusals as the decoding
-// route: a divergent projection, a missing projection, an extra projection
-// and a repeated canonical record are each MALFORMED.
+// HEARTBEAT or RENEW whose caller names each canonical record's projection
+// binds the set to those intent/tickets/ projections by digest and length
+// and decodes no record, so its validated state carries no ticket
+// inventory, while every other verb and operation, and a liveness verb
+// whose caller names no paths, still decodes the set. The binding gives the
+// decoding route's refusals, code and message alike: a divergent, swapped
+// or missing projection and an extra projection are MALFORMED, a repeated
+// record or a case-folded identity collision is DUPLICATE_ID, a divergent
+// record is refused before a repeated one, and a refused record that does
+// not decode gives its decode error. Mutation: binding by a digest multiset
+// instead of by path accepts the swapped projections.
 func TestCALV0233_LivenessLeaseBindsTicketsWithoutDecoding(t *testing.T) {
 	in, _ := initialized(t)
 	rec := fixture.Ticket("T-1")
 	path := "intent/tickets/T-1.json"
-	bound := withTicket(t, in, rec, rec.Encode())
+	bound := named(withTicket(t, in, rec, rec.Encode()), path)
 	for _, verb := range []string{LeaseHeartbeat, LeaseRenew} {
 		st, e := validateInput(livenessLease(verb), bound)
 		if e != nil {
@@ -47,14 +63,20 @@ func TestCALV0233_LivenessLeaseBindsTicketsWithoutDecoding(t *testing.T) {
 	if e != nil || st.tickets == nil {
 		t.Fatalf("PAUSE bound: %v, inventory %v", e, st.tickets)
 	}
+	unnamed := bound
+	unnamed.CanonicalTicketPaths = nil
+	if st, e := validateInput(livenessLease(LeaseHeartbeat), unnamed); e != nil || st.tickets == nil {
+		t.Fatalf("HEARTBEAT without named paths: %v, inventory %v, want the decoding route", e, st.tickets)
+	}
 
-	// Undecodable bytes that are byte-identical to their projection bind
-	// without decoding; the decoding verbs refuse them.
+	// Undecodable bytes that are byte-identical to their named projection
+	// bind without decoding; the decoding verbs refuse them.
 	raw := []byte("{")
 	opaque := in
 	opaque.Inventory = in.Inventory.clone()
 	opaque.Inventory.files[path] = bytesEntry(path, raw)
 	opaque.CanonicalTickets = [][]byte{raw}
+	opaque = named(opaque, path)
 	for _, verb := range []string{LeaseHeartbeat, LeaseRenew} {
 		st, e := validateInput(livenessLease(verb), opaque)
 		if e != nil || st.tickets != nil {
@@ -67,26 +89,53 @@ func TestCALV0233_LivenessLeaseBindsTicketsWithoutDecoding(t *testing.T) {
 		}
 	}
 
-	divergent := withTicket(t, in, rec, append(rec.Encode(), '\n'))
-	expectMalformed(t, livenessLease(LeaseHeartbeat), divergent, "unselected divergent ticket")
+	divergent := named(withTicket(t, in, rec, append(rec.Encode(), '\n')), path)
+	sameRefusal(t, divergent, wire.CodeMalformed, "unselected divergent ticket")
 
-	missing := in
+	other := fixture.Ticket("T-2")
+	otherPath := "intent/tickets/T-2.json"
+	swapped := withTicket(t, in, rec, other.Encode())
+	swapped.Inventory.files[otherPath] = bytesEntry(otherPath, rec.Encode())
+	swapped.CanonicalTickets = [][]byte{rec.Encode(), other.Encode()}
+	swapped = named(swapped, path, otherPath)
+	sameRefusal(t, swapped, wire.CodeMalformed, "unselected divergent ticket")
+
+	missing := named(in, path)
 	missing.CanonicalTickets = [][]byte{rec.Encode()}
-	expectMalformed(t, livenessLease(LeaseRenew), missing, "canonical ticket has no physical projection")
+	sameRefusal(t, missing, wire.CodeMalformed, "canonical ticket has no physical projection")
 
 	extra := withTicket(t, in, rec, rec.Encode())
-	extra.Inventory = extra.Inventory.clone()
-	other := fixture.Ticket("T-2")
-	extra.Inventory.files["intent/tickets/T-2.json"] = bytesEntry("intent/tickets/T-2.json", other.Encode())
-	expectMalformed(t, livenessLease(LeaseHeartbeat), extra, "incomplete canonical ticket inventory")
+	extra.Inventory.files[otherPath] = bytesEntry(otherPath, other.Encode())
+	sameRefusal(t, named(extra, path), wire.CodeMalformed, "incomplete canonical ticket inventory")
 
 	repeated := withTicket(t, in, rec, rec.Encode())
 	repeated.CanonicalTickets = [][]byte{rec.Encode(), rec.Encode()}
-	expectMalformed(t, livenessLease(LeaseRenew), repeated, "unselected divergent ticket")
+	sameRefusal(t, named(repeated, path, path), wire.CodeDuplicateID, "duplicate ticket "+rec.TicketID.Raw)
 
-	undecodable := in
+	folded := fixture.Ticket("t-1")
+	foldedPath := "intent/tickets/t-1.json"
+	collision := withTicket(t, in, rec, rec.Encode())
+	collision.Inventory.files[foldedPath] = bytesEntry(foldedPath, folded.Encode())
+	collision.CanonicalTickets = [][]byte{rec.Encode(), folded.Encode()}
+	sameRefusal(t, named(collision, path, foldedPath), wire.CodeDuplicateID, "collide under ASCII case folding")
+
+	// The decoding route refuses every record's projection before it finds
+	// a repeated identity; so does the binding.
+	ordered := withTicket(t, in, rec, rec.Encode())
+	ordered.Inventory.files[otherPath] = bytesEntry(otherPath, append(other.Encode(), '\n'))
+	ordered.CanonicalTickets = [][]byte{rec.Encode(), rec.Encode(), other.Encode()}
+	sameRefusal(t, named(ordered, path, path, otherPath), wire.CodeMalformed, "unselected divergent ticket")
+
+	undecodable := named(in, path)
 	undecodable.CanonicalTickets = [][]byte{raw}
-	if _, e := validateInput(livenessLease(LeaseHeartbeat), undecodable); e == nil {
-		t.Fatal("HEARTBEAT accepted an undecodable canonical record with no projection")
+	_, live := validateInput(livenessLease(LeaseHeartbeat), undecodable)
+	_, full := validateInput(admin(Pause, "pause-undecodable"), undecodable)
+	if live == nil || full == nil || live.Error() != full.Error() {
+		t.Fatalf("undecodable canonical record with no projection: liveness %v, decoding route %v, want the same decode error", live, full)
+	}
+
+	short := named(repeated, path)
+	if _, e := validateInput(livenessLease(LeaseRenew), short); e == nil || wire.CodeOf(e) != wire.CodeMalformed || !strings.Contains(e.Error(), "canonical ticket paths") {
+		t.Fatalf("paths that do not name every record: %v, want MALFORMED", e)
 	}
 }

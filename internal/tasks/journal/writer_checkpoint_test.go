@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -227,11 +228,18 @@ func TestCALV0189_WriterAuditReadsIntentOnce(t *testing.T) {
 // two history sizes, one settled writer audit reads only the checkpoint's
 // receipt and the tail, and lists receipts/ exactly once when the directory
 // was quiescent at its first listing and twice when it was not; it never
-// reads a prefix receipt. It counts work and never asserts a duration. The
-// first listing is always exact, and a temporary receipt name that appears
-// during the walk changes the directory's stamps, so the second capture
-// lists again, the attempt moves and the fast route declines.
+// reads a prefix receipt. It counts work and never asserts a duration. A
+// directory is quiescent only when its modification time and its change
+// time are both old: a modification time restored into the past under a
+// fresh change time ("restored", as a foreign process that hides its change
+// on a filesystem with whole-second stamps would leave it) still lists
+// twice. The first listing is always exact, and a temporary receipt name
+// that appears during the walk changes the directory's stamps, so the
+// second capture lists again, the attempt moves and the fast route declines.
 func TestCALV0224_WriterAuditWorkIsHistoryIndependent(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("a listing is never reused without a change time (CAL-V0-224)")
+	}
 	const tail = 3
 	for _, history := range []int{4, 48} {
 		t.Run(fmt.Sprint(history), func(t *testing.T) {
@@ -270,12 +278,16 @@ func TestCALV0224_WriterAuditWorkIsHistoryIndependent(t *testing.T) {
 			for _, c := range []struct {
 				name     string
 				stamp    time.Time
+				await    bool
 				listings int
-			}{{"fresh", future, 2}, {"quiescent", past, 1}} {
+			}{{"fresh", future, false, 2}, {"restored", past, false, 2}, {"quiescent", past, true, 1}} {
+				if err := os.Chtimes(receipts, c.stamp, c.stamp); err != nil {
+					t.Fatal(err)
+				}
+				if c.await {
+					awaitQuiescent(t, receipts)
+				}
 				for _, forMutation := range []bool{false, true} {
-					if err := os.Chtimes(receipts, c.stamp, c.stamp); err != nil {
-						t.Fatal(err)
-					}
 					listings, reads = 0, 0
 					res, _, err := r.AuditForWriter(wc, "", forMutation)
 					if err != nil || res.Mode != ModeWriter {
@@ -286,18 +298,21 @@ func TestCALV0224_WriterAuditWorkIsHistoryIndependent(t *testing.T) {
 					}
 				}
 			}
+			// The directory is still quiescent from the last case. A temporary
+			// name written after the first capture changes the stamps, so the
+			// second capture lists again and moves the attempt; the retried
+			// attempt lists the fresh directory twice and declines on the
+			// temporary name. The future stamp keeps that directory fresh
+			// however late the retry runs, so the count is 4, never 3.
 			stray, _ := snapshot.ReceiptName(uint64(history + tail + 1))
 			r.afterCapture = func() {
 				if listings == 1 {
 					fixture.Write(t, filepath.Join(receipts, stray+".tmp-1-x"), []byte("x"))
+					if err := os.Chtimes(receipts, future, future); err != nil {
+						t.Fatal(err)
+					}
 				}
 			}
-			if err := os.Chtimes(receipts, past, past); err != nil {
-				t.Fatal(err)
-			}
-			// The changed stamps make the second capture list again and move
-			// the attempt; the retried attempt lists the fresh directory twice
-			// and declines on the temporary name.
 			listings = 0
 			if _, _, err := r.AuditForWriter(wc, "", true); err == nil || !strings.Contains(err.Error(), "not plainly settled") {
 				t.Fatalf("writer audit with a receipt name that appeared during its walk: %v, want a decline", err)
@@ -306,6 +321,26 @@ func TestCALV0224_WriterAuditWorkIsHistoryIndependent(t *testing.T) {
 				t.Fatalf("%d receipts/ listings after a name appeared during the walk, want 4", listings)
 			}
 		})
+	}
+}
+
+// awaitQuiescent waits until dir's modification and change times are both
+// at least receiptsQuiescence old. The change time cannot be set, so a
+// quiescent directory is reached by waiting, never by restoring stamps.
+func awaitQuiescent(t *testing.T, dir string) {
+	t.Helper()
+	for deadline := time.Now().Add(5 * receiptsQuiescence); ; {
+		info, err := os.Lstat(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if quiescentDir(info, time.Now()) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("%s did not become quiescent within %v", dir, 5*receiptsQuiescence)
+		}
+		time.Sleep(receiptsQuiescence / 20)
 	}
 }
 

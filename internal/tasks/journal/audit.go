@@ -204,19 +204,20 @@ type observation struct {
 	intentRaw map[string][]byte
 	// receiptsListed counts the receipts/ names a writer capture charged to
 	// its scan bound, receiptsStaging says a temporary name was among them,
-	// and receiptsQuiescent says the directory's modification time was at
-	// least receiptsQuiescence before the listing began, so a later change
-	// cannot keep its stamps (CAL-V0-224).
+	// and receiptsQuiescent says the directory's modification and change
+	// times were both at least receiptsQuiescence before the listing began,
+	// so a later change cannot keep its stamps (CAL-V0-224).
 	receiptsListed    int
 	receiptsStaging   bool
 	receiptsQuiescent bool
 }
 
-// receiptsQuiescence is how long receipts/ must have been unmodified before
-// a writer capture's listing for the second capture to reuse that listing
-// under unchanged directory stamps (CAL-V0-224): at least the coarsest
-// modification-time granularity of a filesystem that can hold the journal
-// (one second), so a change after the listing lands in a later stamp.
+// receiptsQuiescence is how long receipts/ must have been unmodified and
+// unchanged before a writer capture's listing for the second capture to
+// reuse that listing under unchanged directory stamps (CAL-V0-224): at
+// least the coarsest stamp granularity of a filesystem that can hold the
+// journal (one second), so a change after the listing lands in a strictly
+// later change time even where stamps are whole seconds.
 const receiptsQuiescence = time.Second
 
 // Audit checks all current projections and returns selected canonical bytes.
@@ -717,10 +718,11 @@ func (r Reader) scan(o *observation, dir string, remaining *int, optional bool) 
 // The second capture of a writer audit, which only confirms that nothing
 // moved during the walk, reuses the first capture's listing when that
 // listing began at least receiptsQuiescence after the directory's
-// modification time and the directory is still the same file with the same
-// mode, size, modification time and change time (CAL-V0-224). The writer
-// lock excludes every cooperating writer for the whole audit, and a foreign
-// change after a quiescent listing lands in a later stamp. The listing is
+// modification and change times and the directory is still the same file
+// with the same mode, size, modification time and change time (CAL-V0-224).
+// The writer lock excludes every cooperating writer for the whole audit,
+// and a foreign change after a quiescent listing lands in a later change
+// time, which restoring the modification time cannot hide. The listing is
 // held only by this attempt: the next audit lists exactly again.
 func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
 	native, ok := r.Source.(*nativeRead)
@@ -758,8 +760,22 @@ func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
 	*remaining -= len(names)
 	o.files["receipts"] = info
 	o.receiptsListed = len(names)
-	o.receiptsQuiescent = !info.ModTime().Add(receiptsQuiescence).After(listedAt)
+	o.receiptsQuiescent = quiescentDir(info, listedAt)
 	return receiptNames(o, names)
+}
+
+// quiescentDir says the listed directory's modification time and change
+// time were both at least receiptsQuiescence before listedAt, so a change
+// after the listing lands in a strictly later change time even on a
+// filesystem with whole-second stamps, and a restored modification time
+// cannot hide it. A platform without a change time is never quiescent.
+func quiescentDir(info os.FileInfo, listedAt time.Time) bool {
+	change, ok := changeTime(info)
+	if !ok {
+		return false
+	}
+	bound := listedAt.Add(-receiptsQuiescence)
+	return !info.ModTime().After(bound) && !time.Unix(0, change).After(bound)
 }
 
 // sameDirStamp says the listed directory is still the same file with the
