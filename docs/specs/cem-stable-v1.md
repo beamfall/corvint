@@ -2077,7 +2077,7 @@ codes.
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-226 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Both check every matrix file against the stable manifest and the required tamper classes |
-| CEM-V1-227 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Each runs all 20 cases from `EXPECTED.json` as named subtests |
+| CEM-V1-227 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Each runs every case listed in `EXPECTED.json` as a named subtest (the case count is that file's, not restated here) |
 | CEM-V1-228 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Exit, outcome, stage, code, issue codes and the full citation block are compared per case |
 | CEM-V1-229 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Subtest `evidence-ids-swapped` pins ACCEPT with anchored 0, cited 2 and specificity -2 |
 
@@ -2334,7 +2334,7 @@ count, and the three matrix cases and their manifest entries go away.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-090 | `TestInheritedDiscriminationWitness` (`internal/cem/wire`); `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Subtests `discrimination-mutants-over-bound` and `discrimination-survivors-inconsistent` pin wire `invalid-field` and `discrimination-at-bound` pins ACCEPT on both consumers; without the bound check both consumers fail `discrimination-mutants-over-bound`; the matrix now runs 23 cases (the count of 20 in the CEM-V1-227 row predates V1-1259) |
+| CEM-V1-090 | `TestInheritedDiscriminationWitness` (`internal/cem/wire`); `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Subtests `discrimination-mutants-over-bound` and `discrimination-survivors-inconsistent` pin wire `invalid-field` and `discrimination-at-bound` pins ACCEPT on both consumers; without the bound check both consumers fail `discrimination-mutants-over-bound`; the matrix runs the 23 cases of `EXPECTED.json` (the CEM-V1-227 row no longer restates a count) |
 
 ## Consumer hunk-revert falsifier (V1-1266, decision 0523 P2)
 
