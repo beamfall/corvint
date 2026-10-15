@@ -1014,7 +1014,7 @@ inside the DISCOVER call, which `internal/liveverify/provider/provider.go:351-35
 `ErrAuthorityUnavailable` today. The mutation MUST be performed inside the ACQUIRE-side parent
 process itself, by test-side code that runs after that process has answered ACQUIRE and before it
 exits. That is the only constructible mechanism: the verifier executable is the test binary
-(`cmd/corvint-go-test-provider/main_test.go:473`), re-exec'd once per attachment call by `TestMain`
+(`cmd/corvint-go-test-provider/main_test.go:483`), re-exec'd once per attachment call by `TestMain`
 (`cmd/corvint-go-test-provider/main_test.go:67-79`), so each exchange is a fresh process and `Execute`
 offers no fixture seam between ACQUIRE and DISCOVER. That hook has no environment channel: the
 re-exec'd parent is handed exactly one variable
@@ -1036,7 +1036,7 @@ matches.
 file, so this is not a second production change. Both exchanges MUST route to the real
 `runProductionAuthority` — which `runQualificationAuthority` calls directly at
 `cmd/corvint-go-test-provider/qualification_test.go:27` and `:38` — and never to the stateless
-`runAuthorityHelper` (`cmd/corvint-go-test-provider/main_test.go:544-600`), which always answers
+`runAuthorityHelper` (`cmd/corvint-go-test-provider/main_test.go:554-636`), which always answers
 `Status:"OK"` and sets no `ErrorCode`: a fixture-written `AUTHORITY_DRIFT` string would exercise
 none of `internal/liveverify/parentverify/discovery.go:40`,
 `internal/liveverify/parentverify/snapshot.go:136-142`, or
@@ -1176,14 +1176,16 @@ unblocks and exits as soon as the observer has read the identities, plus the sha
 shutdown deadline GLTP-V0-027 fixes (`internal/liveverify/gorunner/runner.go:195-213`), plus the
 post-run work GLTP-V0-027 names as the fourth term of invocation return: post-run lease
 revalidation, post-run identity observation, and lease release, each bounded by the 15-second
-`postAuthorityTimeout` (`internal/liveverify/provider/provider.go:43`, applied at `:454`, `:458`,
-and `:512`), the coverage merge and receipt composition, and the run-root removal
+`postAuthorityTimeout` (`internal/liveverify/provider/provider.go:43`, applied at `:454`, `:457`,
+and `:1279`), the coverage merge and receipt composition, and the run-root removal
 (`internal/liveverify/provider/provider.go:474-476`), which carries no timeout at all; then the
 5-second probe window below. Because the run-root removal is unbounded, that budget is not a proof,
 so the fixture MUST record the wall time from the `Execute` call to its return and MUST abort as
 inconclusive, not fail, unless it stayed under 5 minutes: each of ACQUIRE and the post-run
 observation walks the whole GOROOT and module cache into a fresh per-run build cache
-(`internal/liveverify/parentverify/snapshot.go:65-76`), which a slow or cold host can legitimately
+(`internal/liveverify/parentverify/snapshot.go:65-76`), hashing each tree's regular files on at
+most eight concurrent readers whose results are applied in walk order, so the identity and the
+first refusal reported are the sequential walk's (amended 2026-10-15 for V1-1429), which a slow or cold host can legitimately
 exceed with every descendant correctly cleaned up, mirroring the `/bin/ps`-failure rule below. That
 wall assertion, not a cap the fixture has no seam to set, is what
 keeps the 10-minute lifetime ahead of the last probe, so no recorded process can
@@ -1306,6 +1308,48 @@ existing nested `execution.containment` emission is the only containment stateme
 adds no terminal member and changes no wire byte. Once a containment profile is accepted under a
 new profile version, `Execute` MUST refuse to launch with `EXECUTION_CONTAINMENT` whenever the host
 sandbox is unavailable.
+
+- **GLTP-V0-053.** The production post-run authority bound MUST stay the fixed 15-second
+`postAuthorityTimeout` that GLTP-V0-027 and GLTP-V0-041 describe. (Added 2026-10-15 for V1-1420
+and accepted under the owner's 2026-10-11 standing auto-accept of lane requirements; it amends no
+earlier clause.)
+`provider.WithPostAuthorityBound` is a test-only seam that replaces it for one `Execute` call: each
+post-run call (revalidation, identity observation and lease release) still runs under its own
+fresh deadline, independent of the caller's cancellation and of the run budget, and a
+non-positive value leaves the 15-second default. No production path sets the seam.
+`cmd/corvint-go-test-provider` reaches it only through the test-set `commandPostAuthorityBound`.
+(a) A fixture that verifies binding or receipt semantics rather than post-run latency MAY lift
+the bound. Under host load the production parent verifier's single-threaded GOROOT re-hash
+outlasted 15 seconds on each post-run call: at load 50-65 one observation took up to 25 s. The
+in-process and CLI paths of `TestProviderCommandUsesPinnedLiveParentAuthorityE2E`, and
+`TestProductionParentBindsNonASCIIRepositoryPath` (GLTP-V0-004), therefore lift it to ten
+minutes. (b) The GLTP-V0-041 fixture (`verifyExecuteRecordedCleanup`) does not lift it, so its
+wall budget stays the one GLTP-V0-041 describes. When post-run authority only outlasts its
+deadline there, `Execute` returns `ErrAuthorityUnavailable` ending in
+`: post-run authority deadline expired` (GLTP-V0-054; amended 2026-10-15 for V1-1428), an
+`INCOMPLETE` execution and a canonical failure receipt. That is a provider failure, outside
+GLTP-V0-041's antecedent; a post-run `ErrAuthorityDrift` fails the fixture's precondition. The fixture MUST still assert every other precondition, MUST still probe every
+recorded identity and the control, and MUST fail on any survivor; only then does it abort as
+INCONCLUSIVE instead of running the PASSED-receipt conformance check. (c)
+`TestPostAuthorityBoundDefaultsToFifteenSecondsAndSeamReplacesIt` pins three things: the
+15-second default, the refusal of a non-positive seam value, and the deadline each of the three
+post-run calls receives, both with and without the seam.
+
+- **GLTP-V0-054.** `Execute` MUST refuse failed post-run authority (GLTP-V0-053's revalidation,
+identity observation and lease release) with `ErrAuthorityUnavailable` ending in
+`: post-run authority deadline expired` exactly when every one of those calls that failed returned
+after its own deadline had passed, none of their errors is or wraps `ErrAuthorityDrift`, any failed
+identity observation returned an error rather than malformed digests, and no run-root layout failure
+preceded them. Every other post-run failure stays `ErrAuthorityDrift` ending in
+`: post-run revalidation`. The deadline refusal records only that the parent verifier did not answer
+in time, which shows nothing about whether the authority changed, so it MUST NOT be reported as
+drift; a typed drift report, even one returned after the deadline, and any failure returned before
+the deadline remain drift. Either refusal leaves an `INCOMPLETE` execution, a removed run root and the
+canonical failure receipt the drift refusal already produced; no wire byte changes, because a
+post-launch refusal emits no `go-live-error/0` diagnostic. The deferred release on an early exit
+before the post-run sequence keeps its drift mapping. (Added 2026-10-15 for V1-1428 under the owner
+approval "approve V1-1427, V1-1428 and V1-1429 amendments"; it amends GLTP-V0-053(b)'s refusal
+sentence and GLTP-V0-041's citations.)
 
 **Non-goals for this section.** General untrusted external-execution containment is AT-10's
 (`tools/compat-trial`) scope, not this slice; additional-language qualification and the LPCV P1-P4
@@ -1552,3 +1596,6 @@ asserts action `none` with `UNSUPPORTED/no-execution-input` rather than a ghost 
 | GLTP-V0-007 parent plan binding refuses an environment outside the profile | delivered 2026-09-13 | `internal/liveverify/parentverify/verifier_test.go`'s `TestCanonicalBindingRefusesEnvironmentOutsideProfile` calls `BindCanonical` with the closed profile environment (bound), then a two-name partial array, a `GOFLAGS` digest other than `-mod=readonly`, and an added `USER` name, each self-consistent with its `environmentSha256`, and asserts all three return `ErrInvalid`; before the fix all three were bound into a plan. |
 | GLTP-V0-004 native path digest agrees across the parent boundary | delivered 2026-09-13 | `cmd/corvint-go-test-provider/main_test.go`'s `TestProductionParentBindsNonASCIIRepositoryPath` runs `executeProvider` against the production parent on a repository path containing U+00A0 and asserts the canonical plan binds; before the fix the provider hashed the path body with Go `%q` quoting, which escapes U+00A0, so the parent's `cwdPathSha256` differed and `BindCanonical` refused. |
 | GLTP-V0-009 parent lease binds the module-cache and `go.work` paths | delivered 2026-09-13 | `internal/liveverify/parentverify/verifier_test.go`'s `TestLeaseRevalidationRefusesAnotherSelectedPath` acquires a workspace-mode lease, then calls `Revalidate` with the same lease ID under a content-identical module-cache copy and under a second `go.work` in the repository, and asserts `ErrDrift` for both; before the fix both revalidated and returned a binding naming the other path. |
+| GLTP-V0-054 post-run deadline refusal is not drift | delivered 2026-10-15 (V1-1428) | `internal/liveverify/provider/postclass_test.go`'s `TestPostRunDeadlineIsUnavailableNotDrift` runs `Execute` with `WithPostAuthorityBound` at one nanosecond or 20 ms over a lease whose post-run calls wait out their deadline: all three or release alone overrunning yields `ErrAuthorityUnavailable` and not drift; a drift report after the deadline, or an in-time failure joined to an overrun, yields `ErrAuthorityDrift`; every case is `INCOMPLETE` with an empty run root. `TestPostRunAuthorityDriftMakesTranscriptIncompleteAndCleans` and `TestLeaseReleaseFailureMakesTranscriptIncompleteAndCleans` still assert drift. Mutations: an unconditional drift refusal fails the two overrun cases; ignoring a drift claim after the deadline fails the drift case. |
+| GLTP-V0-041 parent re-hash cost | delivered 2026-10-15 (V1-1429); production bound unchanged | `internal/liveverify/parentverify/tree_hashers_test.go`'s `TestScanTreeConcurrentHashingMatchesOneHasher` (identical snapshot under one and eight hashers, each input row carrying its own file's digest) and `TestTreeHashersFinishReportsFirstFailureInWalkOrder`. Measurements and the BASE comparison are in `docs/build-log/2026-10-15-v1-1427-1429-timeout-classes.md`. |
+| GLTP-V0-053 test-only post-run authority bound seam | delivered 2026-10-15 (V1-1420) | `internal/liveverify/provider/postbound_test.go`'s `TestPostAuthorityBoundDefaultsToFifteenSecondsAndSeamReplacesIt` pins the 15-second default and the deadline at all three post-run sites. A one-nanosecond lift reproduces the load failure deterministically in `TestProductionParentBindsNonASCIIRepositoryPath`; it read "execution authority changed: post-run revalidation" until GLTP-V0-054 and now reads "execution authority is unavailable: post-run authority deadline expired". `TestExecuteNormalCompletionHasNoRecordedSurvivors`, with the same injected expiry, probes the identities and aborts INCONCLUSIVE; it fails when the refusal classification is disabled. |

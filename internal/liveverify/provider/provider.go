@@ -318,7 +318,7 @@ func Execute(ctx context.Context, config Config) (transcript Transcript, returnE
 	released := false
 	defer func() {
 		if !released {
-			if releaseErr := releaseWithTimeout(lease); releaseErr != nil {
+			if releaseErr := releaseWithTimeout(ctx, lease); releaseErr != nil {
 				transcript.AuthorityError = fmt.Errorf("%w: release execution authority", ErrAuthorityDrift)
 				transcript.Execution = ExecutionIncomplete
 				returnErr = errors.Join(returnErr, transcript.AuthorityError)
@@ -450,24 +450,24 @@ func Execute(ctx context.Context, config Config) (transcript Transcript, returnE
 	if layoutErr := runRoot.validateLayout(); layoutErr != nil {
 		transcript.AuthorityError = layoutErr
 	}
-
-	postContext, cancelPost := context.WithTimeout(context.Background(), postAuthorityTimeout)
-	transcript.AuthorityError = errors.Join(transcript.AuthorityError, lease.Revalidate(postContext))
+	post := postRunFailure{deadlineOnly: transcript.AuthorityError == nil}
+	postContext, cancelPost := context.WithTimeout(context.Background(), postAuthorityBound(ctx))
+	transcript.AuthorityError = errors.Join(transcript.AuthorityError, post.note(postContext, lease.Revalidate(postContext)))
 	cancelPost()
-	var receiptPost ReceiptIdentityObservation
-	postContext, cancelPost = context.WithTimeout(context.Background(), postAuthorityTimeout)
-	receiptPost, err = receiptLease.ObserveReceiptIdentities(postContext)
+	postContext, cancelPost = context.WithTimeout(context.Background(), postAuthorityBound(ctx))
+	receiptPost, err := receiptLease.ObserveReceiptIdentities(postContext)
+	err = post.note(postContext, err)
 	cancelPost()
 	if err != nil || !validLowerDigest(receiptPost.SourceSHA256) || !validLowerDigest(receiptPost.ToolchainSHA256) {
-		receiptPost = ReceiptIdentityObservation{}
+		receiptPost, post.deadlineOnly = ReceiptIdentityObservation{}, post.deadlineOnly && err != nil
 		transcript.AuthorityError = errors.Join(transcript.AuthorityError, errors.New("canonical post-identities unavailable"))
 	}
-	if releaseErr := releaseWithTimeout(lease); releaseErr != nil {
+	if releaseErr := post.release(ctx, lease); releaseErr != nil {
 		transcript.AuthorityError = errors.Join(transcript.AuthorityError, releaseErr)
 	}
 	released = true
 	if transcript.AuthorityError != nil {
-		transcript.AuthorityError = fmt.Errorf("%w: post-run revalidation", ErrAuthorityDrift)
+		transcript.AuthorityError = post.refusal()
 	}
 
 	transcript.Execution = classify(transcript)
@@ -508,8 +508,8 @@ func Execute(ctx context.Context, config Config) (transcript Transcript, returnE
 	return transcript, returnErr
 }
 
-func releaseWithTimeout(lease ExecutionLease) error {
-	ctx, cancel := context.WithTimeout(context.Background(), postAuthorityTimeout)
+func releaseWithTimeout(caller context.Context, lease ExecutionLease) error {
+	ctx, cancel := context.WithTimeout(context.Background(), postAuthorityBound(caller))
 	defer cancel()
 	return lease.Release(ctx)
 }
@@ -1235,4 +1235,65 @@ func executableName(goos string) string {
 
 func invalid(detail string) error {
 	return fmt.Errorf("%w: %s", ErrInvalidConfig, detail)
+}
+
+// postAuthorityBoundKey carries a per-invocation replacement for postAuthorityTimeout.
+type postAuthorityBoundKey struct{}
+
+// WithPostAuthorityBound replaces the fixed post-run authority deadline (post-run revalidation,
+// post-run identity observation and lease release) for an Execute call run under ctx. Each of
+// those calls still runs under its own fresh deadline, independent of ctx's cancellation and of
+// the run budget. Tests that verify binding or receipt semantics rather than post-run latency set
+// it, so host load cannot expire the production parent verifier's GOROOT walk first (GLTP-V0-053,
+// V1-1420); no production path sets it, and a non-positive bound leaves the 15-second default.
+func WithPostAuthorityBound(ctx context.Context, bound time.Duration) context.Context {
+	return context.WithValue(ctx, postAuthorityBoundKey{}, bound)
+}
+
+// postAuthorityBound is the post-run authority deadline under ctx: the WithPostAuthorityBound
+// replacement if positive, else postAuthorityTimeout.
+func postAuthorityBound(ctx context.Context) time.Duration {
+	if bound, ok := ctx.Value(postAuthorityBoundKey{}).(time.Duration); ok && bound > 0 {
+		return bound
+	}
+	return postAuthorityTimeout
+}
+
+// postRunFailure classifies the post-run authority calls' failures (GLTP-V0-054). A run whose every
+// post-run failure came back after that call's own deadline had expired, with no drift claim among
+// them and no run-root layout failure before them, is refused as ErrAuthorityUnavailable: the
+// authority did not answer in time, which shows nothing about whether it changed. Every other
+// post-run failure stays ErrAuthorityDrift.
+type postRunFailure struct{ deadlineOnly bool }
+
+// note records one post-run call's result under that call's own context and returns err unchanged.
+func (post *postRunFailure) note(ctx context.Context, err error) error {
+	if err != nil && (errors.Is(err, ErrAuthorityDrift) || !deadlineExpired(ctx)) {
+		post.deadlineOnly = false
+	}
+	return err
+}
+
+// release releases lease under a fresh post-run deadline and records the result.
+func (post *postRunFailure) release(caller context.Context, lease ExecutionLease) error {
+	ctx, cancel := context.WithTimeout(context.Background(), postAuthorityBound(caller))
+	defer cancel()
+	return post.note(ctx, lease.Release(ctx))
+}
+
+// refusal is the single named sentinel Execute reports for the post-run failures recorded.
+func (post *postRunFailure) refusal() error {
+	if post.deadlineOnly {
+		return fmt.Errorf("%w: post-run authority deadline expired", ErrAuthorityUnavailable)
+	}
+	return fmt.Errorf("%w: post-run revalidation", ErrAuthorityDrift)
+}
+
+// deadlineExpired reports whether ctx's deadline has passed, whether or not its timer has fired.
+func deadlineExpired(ctx context.Context) bool {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return true
+	}
+	deadline, ok := ctx.Deadline()
+	return ok && !time.Now().Before(deadline)
 }

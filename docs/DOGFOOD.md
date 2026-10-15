@@ -933,7 +933,7 @@ are shared. A different session must use its own worktree or wait for explicit c
 
 A linked Git worktree is a supported checkout for the loop; it is run at that worktree's top level
 like any other and does not refuse. The loop resolves its private evidence and session directory
-with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:102`), which for a linked
+with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:105`), which for a linked
 worktree (whose `.git` is a file) is that worktree's own directory under the main repository's
 `.git/worktrees/NAME`, so sessions and evidence stay per worktree.
 The `.corvint/` outputs live in the worktree root. Repository-wide Git state (objects, refs, and
@@ -1063,3 +1063,12 @@ direct wrapper invocation. Empty values fall through to the next choice. The sel
 is used as supplied; no cache is cleaned. Base/current source selection, version checks and
 strict verification stay unchanged. This does not establish containment for prior runs or cover
 other build/cache paths outside these wrappers.
+
+## Reading a ticket from a lane clone
+
+A plain lane clone has the committed `.taskman` snapshot but not the queue's journal, which lives in
+the primary checkout's `.git/taskman`. Its `corvint-tasks ticket show` answers from that snapshot
+only, so a ticket created after the last committed snapshot is refused as `NOT_OBSERVED` in this
+checkout, not as nonexistent (CTS-V0-010). A lane reads its own ticket read-only from the primary
+worktree or one of its linked worktrees (`cd PRIMARY_WORKTREE && corvint-tasks ticket show ID`), or
+from the ticket text its charter carries; it never runs Tasks mutations from the clone.

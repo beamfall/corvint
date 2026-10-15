@@ -329,6 +329,9 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 		return errorResult(cmd, err)
 	}
 	res := mutateResult(cmd, report)
+	if report.Outcome.Outcome == mutation.OutcomeRequestIDConflict && flags.issuedAt == "" {
+		res.Warnings = append(res.Warnings, defaultedIssuedAtConflict(repo, store0, operation, actor, flags, payload, issued))
+	}
 	if report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
 		if w := unboundedEffectsWarning(store0, operation, payload, report.Ticket); w != "" {
 			res.Warnings = append(res.Warnings, w)

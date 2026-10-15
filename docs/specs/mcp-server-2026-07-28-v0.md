@@ -576,6 +576,16 @@ meaning. The profile's black-box vectors are `conformance/mcp-2026-07-28/cases-r
 The in-process bridge (`internal/mcp/bridge`) emits the kebab-case codes below (decision 0100).
 Each row cites the first emitting site and states only the condition checked there.
 
+- `MCPV0-038`: A tool call whose Go repository probe exceeded its own bound while the request
+  context was still live MUST fail with `code` `repository-probe-timeout`, not
+  `repository-unavailable`: the repository may be present and healthy, and only the bounded probe
+  ran out of time. The value comes only from the typed gokernel code, never from message text. A
+  probe stopped by the caller's cancellation or deadline stays `cancelled`, and every other
+  repository refusal keeps `repository-unavailable`. Under `corvint-mcp-tool-error/1` the error
+  carries `reasonClass` `unclassified`, because a probe overrun has no `MCPV0-028` status class, so
+  decision 0383's closed set is unchanged. (Added 2026-10-15 for V1-1427 under the owner approval
+  "approve V1-1427, V1-1428 and V1-1429 amendments", which accepts this wire change.)
+
 | Code | First emitting site | At the cited site |
 |---|---|---|
 | `invalid-registry` | `internal/mcp/bridge/bridge.go:450@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
@@ -584,6 +594,7 @@ Each row cites the first emitting site and states only the condition checked the
 | `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:719@f5156052` | an invalid-arguments refusal that is not a `cem/1.0` stable refusal; since `CEM-V1-210` no retired 0.x map reaches it (a 0.x map is `cem-map-invalid`), so the report preview has no observed route to it |
 | `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:741@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
 | `cem-map-invalid` | `internal/mcp/bridge/bridge.go:720@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:1091@b39a4b7a` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe outlasted its bound while the request context was live (`MCPV0-038`) |
 | `flows-refused` | `internal/mcp/bridge/flows.go:267@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ### Explicit Go LSP descendant (V1-0476)
@@ -727,6 +738,7 @@ that focused run.
 | `MCPV0-033` | `bridge.Result.TextJSON`, `cmd/corvint-mcp` `structuredResult` | `TestMCPV0033TextSummaryProjectsRowsAndKeepsEnvelopeFields`, `TestToolCallWrapsRepositoryFreeTextInUntrustedDataEnvelope`, `TestToolCallEnvelopeEscapesHiddenCharactersAndRefusesTerminator`, conformance `assertToolReceipt` |
 | `MCPV0-035` | `affected.Build`, context-bound `affected.Source`, `callFlowsImpact` | `TestAFUV1059FlowsImpactCancelledMidWalk` |
 | `MCPV0-036`, `MCPV0-037` | `callCEMReport`, `validCEMPath`, `cemFailure`; `internal/cem/workflow` (`readStable`, `stableReport`) | `TestCEMReportToolAdvertisesArtifacts`, `TestCEMReportToolResolvesArtifactsUnderTheRoot`, `TestCEMReportToolNamesStableRefusals`, `TestCEMReportToolPreviewsStableMap`, `TestCEMReportToolRefusesMapsOutsideTheRoot` (retired 0.x maps, `CEM-V1-210`), `TestCEMReportToolAdmitsTheCallerNamedRoot`; `cmd/corvint-mcp/testdata/tools-list-task-review.golden.jsonl` |
+| `MCPV0-038` | `normalizeFailure` | `internal/mcp/bridge/probe_timeout_test.go`'s `TestMCPV0038ProbeTimeoutHasDistinctCode` injects a probe overrun with `gokernel.WithProbeBound` at one nanosecond on a live request context and asserts `repository-probe-timeout` with no typed class; restoring the `repository-unavailable` mapping fails it |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria
