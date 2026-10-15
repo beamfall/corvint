@@ -10,8 +10,10 @@ every case: `TestCEMV1111CitationVectorsNative` and
 `TestCEMV1111CitationVectorsPortable`. For each case they check the exit code,
 `outcome`, `stage`, `code`, `issueCodes`, the drift `[path, status]` pairs,
 `verdictSha256`, the top-level member order (`resultMembers`) and, for the
-ACCEPT, the exact bytes of the citation block. The rules these values follow
-are in `../ALGORITHMS.md`, CEM-V1-108 to CEM-V1-110.
+ACCEPT, the exact bytes of the citation block. They also compare the whole
+result line with `results/<name>.json`, nested member order included
+(CEM-V1-113). The rules these values follow are in `../ALGORITHMS.md`,
+CEM-V1-108 to CEM-V1-110 and CEM-V1-113.
 
 - `repository.recipe.json`: two flat SHA-1 commits, built exactly like
   `../neutral-criterion/repository.recipe.json`. The change edits code and
@@ -30,6 +32,9 @@ are in `../ALGORITHMS.md`, CEM-V1-108 to CEM-V1-110.
   commit IDs the recipe must reproduce; the result member order; and one record
   per case, whose `citation` is the compact citation block as a JSON string, or
   `null` for a REJECT.
+- `results/<name>.json`: the exact result line the native verifier wrote for
+  each case, one compact object and its LF, with `runtime.goVersion`
+  `go1.27.2`. Under another admitted toolchain only that value differs.
 
 | Case | Class | Exit | Result |
 | --- | --- | --- | --- |
@@ -44,10 +49,13 @@ are in `../ALGORITHMS.md`, CEM-V1-108 to CEM-V1-110.
 
 ## Misreadings these vectors catch
 
-Each row is a reading of CEM-V1-108 or CEM-V1-109 that a consumer could
-plausibly make. Each was applied as a one-line change to the native verifier,
-and the native vector test then failed on the cases named (V1-1333 build log,
-2026-10-14).
+Each row is a reading of CEM-V1-108, CEM-V1-109 or CEM-V1-113 that a consumer
+could plausibly make. The rows before the last three were each applied as a
+one-line change to the native verifier, and the native vector test then failed
+on the cases named (V1-1333 build log, 2026-10-14). The last three rows are the
+portable consumer's own order before V1-1369. Each was restored separately, and
+the portable test then failed on the cases named, plus the neutral criterion
+ACCEPT (V1-1369 build log, 2026-10-14).
 
 | Misreading | Failing cases |
 | --- | --- |
@@ -64,3 +72,6 @@ and the native vector test then failed on the cases named (V1-1333 build log,
 | A deletion hunk given no path (post-image path only) | `clean` |
 | `samePathCitations` counting distinct evidence instead of basis entries | `clean` |
 | A cited file deleted by the change not treated as drift | `same-path-deletion-cited` |
+| `targetSpan` written as `start`, `end` | `clean`, `evidence-stale`, `same-path-deletion-cited` |
+| Hunk members in map order (`id`, `path`, `oldRange`, ...) instead of sorted | `clean`, `evidence-stale`, `same-path-deletion-cited`, `base-revision-mismatch` |
+| `references` members in map order (`criterionBindings` first) | all eight |

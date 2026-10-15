@@ -2710,8 +2710,8 @@ type stableResult struct {
 	PatchSHA256        *string               `json:"patchSha256"`
 	Sidecar            string                `json:"sidecar"`
 	Drift              []drift03             `json:"drift"`
-	Hunks              []hunk03              `json:"hunks"`
-	References         stableReferences      `json:"references"`
+	Hunks              resultHunks           `json:"hunks"`
+	References         resultReferences      `json:"references"`
 	ArtifactChecks     []stableArtifactCheck `json:"artifactChecks"`
 	Citation           *citationBlock        `json:"citation"`
 	Axes               map[string]string     `json:"axes"`
@@ -2732,7 +2732,7 @@ func newStableResult(base, target string) stableResult {
 	for _, key := range []string{"nativeAuthority", "historicalValidity", "currentApplicability", "sourceGitBinding", "sourceInventoryCompleteness", "executionAtCommit", "runnerReceiptSemantics", "runnerExecution", "authentication", "dependencyClosure", "criterionAdequacy", "criterionDiscrimination", "externalInteroperability"} {
 		axes[key] = "NOT_OBSERVED"
 	}
-	r := stableResult{Profile: "cem-stable-verification/1", Spec: stableSpec, VerificationMode: "canonical-and-reference-integrity", Outcome: "UNSUPPORTED", Stage: "arguments", IssueCodes: []string{}, Sidecar: "NOT_CHECKED", Drift: []drift03{}, Hunks: []hunk03{}, References: emptyStableReferences(), ArtifactChecks: []stableArtifactCheck{}, Axes: axes, Runtime: runtime03{runtime.Version(), "NOT_REQUIRED"}, RepositoryEnvelope: "primary-clean-config-bounded/1"}
+	r := stableResult{Profile: "cem-stable-verification/1", Spec: stableSpec, VerificationMode: "canonical-and-reference-integrity", Outcome: "UNSUPPORTED", Stage: "arguments", IssueCodes: []string{}, Sidecar: "NOT_CHECKED", Drift: []drift03{}, Hunks: resultHunks{}, References: resultReferences(emptyStableReferences()), ArtifactChecks: []stableArtifactCheck{}, Axes: axes, Runtime: runtime03{runtime.Version(), "NOT_REQUIRED"}, RepositoryEnvelope: "primary-clean-config-bounded/1"}
 	if base != "" {
 		r.ExpectedBase = string03(base)
 	}
@@ -3543,7 +3543,7 @@ func runStableTrusted(ctx context.Context, repo string, raw []byte, base, target
 		return failStable(&r, "references", e, false)
 	}
 	r.Hunks = m.Hunks
-	r.References = m.stableReferences
+	r.References = resultReferences(m.stableReferences)
 	if base == "" {
 		return failStable(&r, "authority-arguments", operational("expected-base-required"), false)
 	}
