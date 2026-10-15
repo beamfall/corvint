@@ -211,9 +211,10 @@ func TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot(t *testing.T) {
 	t.Parallel()
 	root := queryCLIRepository(t)
 	// The deadline expires only once the build starts, so a loaded host cannot expire the event
-	// before the miss (decision 0082); the minute is a hang detector.
+	// before the miss (decision 0082); the minute is a hang detector. The Git probe's bound is
+	// lifted too, or host load expires it before the miss (V1-0969).
 	parent, expire := workFinalInterruption("expired")
-	ctx := context.WithValue(parent, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+	ctx := context.WithValue(liftedProbeBound(parent), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
 	ctx = context.WithValue(ctx, dogfoodEventBuildKey{}, func(ctx context.Context, _, _ string) (*contextindex.Index, error) {
 		expire()
 		<-ctx.Done() // outlasts the event deadline, as the real build does on a large repository
@@ -227,10 +228,9 @@ func TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot(t *testing.T) {
 	if runContext(context.Background(), []string{"--root", root, "index", "--if-stale"}, strings.NewReader(""), io.Discard, &stderr) != 0 {
 		t.Fatalf("index --if-stale: %s", &stderr)
 	}
-	// A minute and a refused build: this verifies the snapshot hit, not latency, so a loaded
-	// host cannot expire it (decision 0082).
-	refreshed := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
-	refreshed = context.WithValue(refreshed, dogfoodEventBuildKey{}, func(context.Context, string, string) (*contextindex.Index, error) {
+	// Lifted event and Git probe bounds and a refused build: this verifies the snapshot hit, not
+	// latency, so a loaded host cannot expire it (decision 0082, V1-0969).
+	refreshed := context.WithValue(lifecycleDeadlineContext(), dogfoodEventBuildKey{}, func(context.Context, string, string) (*contextindex.Index, error) {
 		return nil, errors.New("refreshed snapshot started a build")
 	})
 	if runLocalCompletionEvent(refreshed, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr) != 0 {
@@ -260,8 +260,9 @@ func staleSnapshotRepository(t *testing.T) string {
 // recorded cost fits, as on a small repository, the miss still builds within the deadline.
 func TestDogfoodEventSnapshotMissUsesRecordedBuildCost(t *testing.T) {
 	t.Parallel()
-	// A minute, not the production deadline: these cases verify the decision, not latency (decision 0082).
-	deadline := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+	// A minute, not the production deadline, and a lifted Git probe bound: these cases verify the
+	// decision, not latency (decision 0082, V1-0969).
+	deadline := liftedProbeBound(context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute }))
 	t.Run("recorded cost outlasts the deadline", func(t *testing.T) {
 		t.Parallel()
 		root := staleSnapshotRepository(t)
