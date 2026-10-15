@@ -181,10 +181,9 @@ func (t *tree) parse(rel string) (*document, error) {
 	return &document{name: rel, src: src, root: root}, nil
 }
 
-// manifestProblems checks the {path, sha256, bytes} entries of dir/manifest.json:
-// every entry, or only the named ones when only is not nil. Each required
-// name must be listed.
-func manifestProblems(t *tree, dir string, only map[string]bool, required ...string) []string {
+// manifestProblems checks every {path, sha256, bytes} entry of
+// dir/manifest.json. Each required name must be listed.
+func manifestProblems(t *tree, dir string, required ...string) []string {
 	m, err := t.parse(dir + "/manifest.json")
 	if err != nil {
 		return []string{err.Error()}
@@ -198,9 +197,6 @@ func manifestProblems(t *tree, dir string, only map[string]bool, required ...str
 	for _, entry := range files.elems {
 		name := entry.get("path").text(m.src)
 		listed[name] = true
-		if only != nil && !only[name] {
-			continue
-		}
 		if name == "" || path.IsAbs(name) || strings.Contains(name, "..") {
 			problems = append(problems, fmt.Sprintf("%s/manifest.json: unsafe path %q", dir, name))
 			continue
@@ -255,11 +251,11 @@ func stringList(d *document, n *jnode) []string {
 func check(t *tree) []string {
 	var problems []string
 	add := func(format string, args ...any) { problems = append(problems, fmt.Sprintf(format, args...)) }
-	problems = append(problems, manifestProblems(t, packetDir, nil, schemaName, casesName, inheritedCells, readmeName, changesName)...)
-	// The stable manifest's cells and prose entries have been stale since the
-	// packet seal (V1-1287). A regeneration re-binds them, but only the schema
-	// entry is part of the checked chain until that repair lands.
-	problems = append(problems, manifestProblems(t, stableDir, map[string]bool{schemaName: true}, schemaName)...)
+	problems = append(problems, manifestProblems(t, packetDir, schemaName, casesName, inheritedCells, readmeName, changesName)...)
+	// Every stable manifest entry is checked, not only the schema: the two
+	// envelope entries stale since the packet seal were re-bound by the first
+	// regeneration (af8f466dd), so the restriction is gone (V1-1287).
+	problems = append(problems, manifestProblems(t, stableDir, schemaName)...)
 	packetManifest, err := t.read(packetDir + "/manifest.json")
 	if err != nil {
 		return append(problems, err.Error())
@@ -329,7 +325,7 @@ func check(t *tree) []string {
 		add("%s: %v", tupleRoot, err)
 	}
 	for _, dir := range tuples {
-		problems = append(problems, manifestProblems(t, dir, nil, "TUPLE.json")...)
+		problems = append(problems, manifestProblems(t, dir, "TUPLE.json")...)
 		tuple, err := t.parse(dir + "/TUPLE.json")
 		if err != nil {
 			add("%v", err)
@@ -641,7 +637,23 @@ func regenerate(t *tree, o options) (string, error) {
 	prose = bytes.ReplaceAll(bytes.ReplaceAll(prose, []byte(oldSum), []byte(newSum)), []byte(digest(casesOld)), []byte(digest(casesNew)))
 	t.set(stableDir+"/"+envelopeMD, prose)
 	stable, _ := t.parse(stableDir + "/manifest.json")
-	edits, err = rebindManifest(stable, map[string][]byte{schemaName: schemaNew, cellsName: cellsNew, envelopeMD: prose})
+	// The stable manifest may also list the packet's files: re-bind each listed
+	// changed packet file and the packet manifest under its relative prefix.
+	stableChanged := map[string][]byte{schemaName: schemaNew, cellsName: cellsNew, envelopeMD: prose}
+	inStable := map[string]bool{}
+	for _, entry := range stable.root.get("files").elems {
+		inStable[entry.get("path").text(stable.src)] = true
+	}
+	prefix := strings.TrimPrefix(packetDir, stableDir+"/") + "/"
+	for name, b := range packetChanged {
+		if inStable[prefix+name] {
+			stableChanged[prefix+name] = b
+		}
+	}
+	if inStable[prefix+"manifest.json"] {
+		stableChanged[prefix+"manifest.json"] = packetManifestNew
+	}
+	edits, err = rebindManifest(stable, stableChanged)
 	if err != nil {
 		return "", err
 	}
