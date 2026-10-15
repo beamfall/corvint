@@ -319,15 +319,18 @@ func deliveryClauseProblem(status, delivery string) string {
 	if !strings.ContainsAny(delivery, " ;(") {
 		return ""
 	}
-	status, delivery = normalize(status), normalize(delivery)
 	index := strings.Index(status, delivery)
-	if index < 0 {
+	if index < 0 || (index > 0 && isWordByte(status[index-1])) {
 		return "does not carry the qualified delivery header"
 	}
 	if rest := strings.TrimSpace(status[index+len(delivery):]); rest != "" && !strings.HasPrefix(rest, ".") {
 		return "continues the qualified delivery header beyond a sentence boundary"
 	}
 	return ""
+}
+
+func isWordByte(b byte) bool {
+	return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9' || b == '-'
 }
 
 func TestDeliveryClauseConvention(t *testing.T) {
@@ -341,6 +344,9 @@ func TestDeliveryClauseConvention(t *testing.T) {
 		{"stale prefix", "accepted / experimental; slice A; slice B", "experimental; slice A", true},
 		{"stale prefix words", "accepted / experimental source implementation and tests", "experimental source implementation", true},
 		{"absent", "accepted / experimental", "experimental; slice A", true},
+		{"punctuation dropped", "accepted / experimental file only", "experimental (file only)", true},
+		{"punctuation extended", "accepted / experimental (file only); more", "experimental (file only)", true},
+		{"inside a word", "accepted / unimplemented locally", "implemented locally", true},
 	} {
 		if got := deliveryClauseProblem(c.status, c.delivery) != ""; got != c.bad {
 			t.Errorf("%s: problem=%v, want %v", c.name, got, c.bad)
