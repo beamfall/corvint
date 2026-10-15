@@ -339,10 +339,21 @@ func (d *Dispatcher) poisonReader(err error) error {
 	return d.readerErr
 }
 
-func readerRetirementDeadline(commandDeadline, trigger time.Time) time.Time {
-	deadline := trigger.Add(time.Second)
-	if commandDeadline.Add(time.Second).Before(deadline) {
-		deadline = commandDeadline.Add(time.Second)
+// readerRetirementAllowance is the fixed one-second reader retirement
+// allowance. Only a test that does not exercise the allowance replaces it, per
+// dispatcher, so a loaded host cannot turn its cancellation into a HOLD
+// (V1-1392); the product value never changes.
+func (d *Dispatcher) readerRetirementAllowance() time.Duration {
+	if d.readerAllowance > 0 {
+		return d.readerAllowance
+	}
+	return time.Second
+}
+
+func readerRetirementDeadline(commandDeadline, trigger time.Time, allowance time.Duration) time.Time {
+	deadline := trigger.Add(allowance)
+	if commandDeadline.Add(allowance).Before(deadline) {
+		deadline = commandDeadline.Add(allowance)
 	}
 	return deadline
 }
@@ -398,7 +409,7 @@ func (d *Dispatcher) stateCommand(parent context.Context, dir string, argv []str
 	case <-ctx.Done():
 	}
 	commandDeadline, _ := ctx.Deadline()
-	slot.deadline = readerRetirementDeadline(commandDeadline, time.Now())
+	slot.deadline = readerRetirementDeadline(commandDeadline, time.Now(), d.readerRetirementAllowance())
 	retirement, stop := context.WithDeadline(context.Background(), slot.deadline)
 	defer stop()
 	slot.bound = groupreap.RetirementBound{Done: retirement.Done(), Expired: func() bool { return !time.Now().Before(slot.deadline) }}

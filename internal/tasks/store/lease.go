@@ -104,7 +104,7 @@ func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 	request := transaction.Request{Operation: transaction.Lease, QueueID: choice.QueueID, RequestID: choice.RequestID, Actor: actor, Lease: &lease}
 	facts := gateFacts(repo, choice)
 	if strings.HasPrefix(lease.Verb, "POOL_") {
-		facts = poolFacts(repo, choice)
+		facts = poolFacts(ctx, repo, choice)
 	}
 	if lease.Verb == transaction.LeaseClaim || lease.Verb == transaction.LeaseClaimNext {
 		facts = claimFacts(ctx, repo, choice)

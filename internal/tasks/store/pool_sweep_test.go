@@ -84,6 +84,31 @@ func psrRun(s *leaseStore, id string) (*store.PoolSweepReport, error) {
 	return store.PoolSweep(context.Background(), s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: id, Root: s.root, TimeoutSeconds: "15"})
 }
 
+// V1-1324: the retry and reconciliation tests below assumed every sweep
+// observation finished inside the product's fixed bounds (2s per Git read, 1s
+// per process probe) and every phase inside this fixture's 3s attempt bound.
+// That holds only on a quiet host: at load 60-70 a single git rev-parse took
+// 1-2s and a ps listing 3.3s, so the sweep failed with TIMEOUT or
+// QUIESCENCE_UNPROVED before the retry or response loss under test was reached
+// (20/20 failures under 24 CPU burners). Their subject is not those bounds
+// (TestPSRDeadlineRetryMatrix and the probe tests own them), so they lift the
+// two observation bounds through a test-only context value, give the attempt
+// and the sweep load-tolerant test bounds, and wait on the observed result.
+// The product bounds are unchanged, and group-cleanup proof never reads the
+// lifted value. One quiet-host assumption remains: each Git observation still
+// proves its own group cleanup inside the fixed pipe delay and cleanup
+// allowance, and at load 170-200 an unproved one (UNKNOWN, recorded as
+// SOURCE_CHANGED) ended a retry in 2 of 18 runs; see the V1-1324 build-log entry.
+const psrLoadedSweepSeconds = "300"
+
+func psrLoadTolerant(v wire.Value) {
+	_, reuse := psrReuse(v)
+	reuse.Set("timeoutSeconds", str("120"))
+}
+func psrRunLoaded(s *leaseStore, id string) (*store.PoolSweepReport, error) {
+	return store.PoolSweep(psrLoaded(context.Background()), s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: id, Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds})
+}
+
 // PSR-V0-009: the same request replays the original result after env file
 // deletion and successor allocation, without execution or touching the successor.
 func TestPSRSweepSuccessReplaySuccessor(t *testing.T) {
@@ -129,8 +154,8 @@ func TestPSRSweepSuccessReplaySuccessor(t *testing.T) {
 func TestPSRSweepMismatchRetries(t *testing.T) {
 	t.Parallel()
 	marker := filepath.Join(t.TempDir(), "reached")
-	s, _ := psrFixture(t, "printf x >> "+marker, "printf wrong", "expected", "2", false)
-	out, e := psrRun(s, "mismatch")
+	s, _ := psrFixtureConfigured(t, "printf x >> "+marker, "printf wrong", "expected", "2", false, psrLoadTolerant)
+	out, e := psrRunLoaded(s, "mismatch")
 	if e != nil || out.Pending {
 		t.Fatalf("result %+v %v", out, e)
 	}
@@ -140,7 +165,7 @@ func TestPSRSweepMismatchRetries(t *testing.T) {
 	}
 	raw, e := os.ReadFile(marker)
 	if e != nil || string(raw) != "xx" {
-		t.Fatalf("injected retry not reached %q %v", raw, e)
+		t.Fatalf("injected retry not reached %q %v pool=%s", raw, e, psrEntryStates(p))
 	}
 }
 func TestPSRSweepOwnerBarrier(t *testing.T) {
@@ -230,7 +255,7 @@ func TestPSRAmbiguousResponseReconciliation(t *testing.T) {
 	for _, mode := range []string{"confirm-response", "confirm-and-readback-response", "finish-response"} {
 		t.Run(mode, func(t *testing.T) {
 			marker := filepath.Join(t.TempDir(), "runs")
-			s, a := psrFixture(t, "printf x >> "+marker, "printf verified", "verified", "1", false)
+			s, a := psrFixtureConfigured(t, "printf x >> "+marker, "printf verified", "verified", "1", false, psrLoadTolerant)
 			if state := psrPools(t, s); len(state.Entries) != 1 || state.Entries[0].State != "QUARANTINED" {
 				t.Fatal("fixture not quarantined")
 			}
@@ -239,7 +264,7 @@ func TestPSRAmbiguousResponseReconciliation(t *testing.T) {
 			if mode == "finish-response" {
 				target = transaction.LeasePoolSweepFinish
 			}
-			ctx := store.PSRTestResponseFailure(context.Background(), func(c store.LeaseChoice, r *store.Report, e error) error {
+			ctx := store.PSRTestResponseFailure(psrLoaded(context.Background()), func(c store.LeaseChoice, r *store.Report, e error) error {
 				if c.Lease.Verb == target && r != nil && r.Outcome.Outcome == mutation.OutcomeCompleted && r.Outcome.ReceiptSeq != nil && calls < map[string]int{"confirm-response": 1, "confirm-and-readback-response": 2, "finish-response": 1}[mode] {
 					if state := psrPools(t, s); len(state.Entries) != 0 {
 						t.Fatal("response injection before durable confirm")
@@ -249,7 +274,7 @@ func TestPSRAmbiguousResponseReconciliation(t *testing.T) {
 				}
 				return e
 			})
-			out, e := store.PoolSweep(ctx, s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "ambiguous", Root: s.root, TimeoutSeconds: "15"})
+			out, e := store.PoolSweep(ctx, s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "ambiguous", Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds})
 			if mode == "confirm-and-readback-response" {
 				if e == nil || !out.Pending || calls != 2 {
 					t.Fatalf("readback failure path: %+v %v %d", out, e, calls)
@@ -282,11 +307,11 @@ func TestPSRAmbiguousResponseReconciliation(t *testing.T) {
 			if err = os.RemoveAll(s.root); err != nil {
 				t.Fatal(err)
 			}
-			replay, err := psrRun(s, "ambiguous")
+			replay, err := psrRunLoaded(s, "ambiguous")
 			if err != nil || replay.Pending || len(replay.Result) == 0 {
 				t.Fatalf("historical reconcile: %+v %v", replay, err)
 			}
-			again, err := psrRun(s, "ambiguous")
+			again, err := psrRunLoaded(s, "ambiguous")
 			if err != nil || !bytes.Equal(replay.Result, again.Result) || (len(out.Result) > 0 && !bytes.Equal(out.Result, replay.Result)) {
 				t.Fatal("historical terminal differs", err)
 			}
