@@ -473,8 +473,8 @@
     },
     {
       "path": "tamper-matrix/EXPECTED.json",
-      "sha256": "3f2d6ef52ef9efeee4a9518311a3186b14fa68549137df5f6f0a5299962d7a06",
-      "bytes": 14487
+      "sha256": "17bdcce2c2cbb09aafd61e4ebf6658ba282802c61cd891422a0516613383404a",
+      "bytes": 17048
     },
     {
       "path": "tamper-matrix/README.md",
@@ -485,6 +485,21 @@
       "path": "tamper-matrix/cases/basis-pair-duplicated.json",
       "sha256": "5be05cb79aa4a245a51092004cca998118f7fa15b2e46dc9808bdf1aadaab9be",
       "bytes": 1689
+    },
+    {
+      "path": "tamper-matrix/cases/discrimination-at-bound.json",
+      "sha256": "a4ecb540ffa14a4aff183ec76245fcf1d81fe8534d59040deacee8ae292d389e",
+      "bytes": 1873
+    },
+    {
+      "path": "tamper-matrix/cases/discrimination-mutants-over-bound.json",
+      "sha256": "d765bbf721dde177e4172027470cf744782a120c60c17069febea0b13d2b7e4d",
+      "bytes": 1885
+    },
+    {
+      "path": "tamper-matrix/cases/discrimination-survivors-inconsistent.json",
+      "sha256": "4b3a20113972701e8ae349f6195c401e703721d3535281a594cac833599ca60b",
+      "bytes": 1979
     },
     {
       "path": "tamper-matrix/cases/evidence-dropped.json",
