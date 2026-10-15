@@ -56,31 +56,33 @@ AFP-V0-019	docs/specs/affected-plan-v0.md	411	(proposed technical contract imple
 AFP-V0-020	docs/specs/affected-plan-v0.md	437	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat	unrecorded	-
 AFP-V0-021	docs/specs/affected-plan-v0.md	451	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth	owner	decision 0376; V1-0126
 AFP-V0-022	docs/specs/affected-plan-v0.md	500	(accepted (decision 0431); amended by decision 0431; owner-directed experimental	owner	decision 0431
-AFP-V0-023	docs/specs/affected-plan-v0.md	662	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit	unrecorded	-
-AFP-V0-024	docs/specs/affected-plan-v0.md	700	(owner-directed, proposed, 2026-10-04; V1-0717; merge-queue amendment under the	standing	2026-10-04; V1-0717; 2026-10-11; V1-0760
-AFP-V0-025	docs/specs/affected-plan-v0.md	736	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL	unrecorded	-
-AFP-V0-026	docs/specs/affected-plan-v0.md	773	(accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04;	standing	decision 0431; 2026-10-04; V1-0752; 2026-10-11; V1-1360
-AFP-V0-027	docs/specs/affected-plan-v0.md	799	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled	unrecorded	-
-AFP-V0-028	docs/specs/affected-plan-v0.md	812	(accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHAL	owner	decision 0509; decision 0431
-AFP-V0-029	docs/specs/affected-plan-v0.md	845	(accepted, decision 0509; intent decision 0431) Every PR run computing a trusted	owner	decision 0509; decision 0431
-AFP-V0-030	docs/specs/affected-plan-v0.md	870	(accepted, decision 0509; intent decision 0431) PR runs SHALL return to FULL wit	owner	decision 0509; decision 0431
-AFP-V0-031	docs/specs/affected-plan-v0.md	887	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module	owner	decision 0438; V1-0867
-AFP-V0-032	docs/specs/affected-plan-v0.md	925	(accepted by decision 0438; V1-0865) Only a declaration path that	owner	decision 0438; V1-0865
-AFP-V0-033	docs/specs/affected-plan-v0.md	934	(accepted by decision 0438; V1-0868) Every `units` directory of	owner	decision 0438; V1-0868
-AFP-V0-034	docs/specs/affected-plan-v0.md	950	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R	owner	decision 0439; V1-0416
-AFP-V0-035	docs/specs/affected-plan-v0.md	967	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,	unrecorded	-
-AFP-V0-036	docs/specs/affected-plan-v0.md	986	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an	unrecorded	-
-AFP-V0-037	docs/specs/affected-plan-v0.md	1005	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil	unrecorded	-
-AFP-V0-038	docs/specs/affected-plan-v0.md	1035	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the	unrecorded	-
-AFP-V0-039	docs/specs/affected-plan-v0.md	1046	(proposed (V1-0662); no GitHub issue) A Go test fixture under	unrecorded	-
-AFP-V0-040	docs/specs/affected-plan-v0.md	1059	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL	owner	decision 0487; 2026-10-10
+AFP-V0-023	docs/specs/affected-plan-v0.md	664	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081) A project MAY commit	unrecorded	-
+AFP-V0-024	docs/specs/affected-plan-v0.md	702	(owner-directed, proposed, 2026-10-04; V1-0717; merge-queue amendment under the	standing	2026-10-04; V1-0717; 2026-10-11; V1-0760
+AFP-V0-025	docs/specs/affected-plan-v0.md	738	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL	unrecorded	-
+AFP-V0-026	docs/specs/affected-plan-v0.md	775	(accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04;	standing	decision 0431; 2026-10-04; V1-0752; 2026-10-11; V1-1360
+AFP-V0-027	docs/specs/affected-plan-v0.md	801	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled	unrecorded	-
+AFP-V0-028	docs/specs/affected-plan-v0.md	814	(accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHAL	owner	decision 0509; decision 0431
+AFP-V0-029	docs/specs/affected-plan-v0.md	847	(accepted, decision 0509; intent decision 0431) Every PR run computing a trusted	owner	decision 0509; decision 0431
+AFP-V0-030	docs/specs/affected-plan-v0.md	872	(accepted, decision 0509; intent decision 0431) PR runs SHALL return to FULL wit	owner	decision 0509; decision 0431
+AFP-V0-031	docs/specs/affected-plan-v0.md	889	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module	owner	decision 0438; V1-0867
+AFP-V0-032	docs/specs/affected-plan-v0.md	927	(accepted by decision 0438; V1-0865) Only a declaration path that	owner	decision 0438; V1-0865
+AFP-V0-033	docs/specs/affected-plan-v0.md	936	(accepted by decision 0438; V1-0868) Every `units` directory of	owner	decision 0438; V1-0868
+AFP-V0-034	docs/specs/affected-plan-v0.md	952	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R	owner	decision 0439; V1-0416
+AFP-V0-035	docs/specs/affected-plan-v0.md	969	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,	unrecorded	-
+AFP-V0-036	docs/specs/affected-plan-v0.md	988	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an	unrecorded	-
+AFP-V0-037	docs/specs/affected-plan-v0.md	1007	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil	unrecorded	-
+AFP-V0-038	docs/specs/affected-plan-v0.md	1037	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the	unrecorded	-
+AFP-V0-039	docs/specs/affected-plan-v0.md	1048	(proposed (V1-0662); no GitHub issue) A Go test fixture under	unrecorded	-
+AFP-V0-040	docs/specs/affected-plan-v0.md	1061	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL	owner	decision 0487; 2026-10-10
 AFP-V0-041	docs/specs/affected-plan-v0.md	541	(accepted by decision 0488, 2026-10-10; V1-1096; no GitHub issue) Full	owner	decision 0488; 2026-10-10; V1-1096
-AFP-V0-042	docs/specs/affected-plan-v0.md	1105	(accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the	owner	decision 0496; V1-1117
-AFP-V0-043	docs/specs/affected-plan-v0.md	1125	(accepted, decision 0505) Cost-table	owner	decision 0505
-AFP-V0-044	docs/specs/affected-plan-v0.md	1134	(accepted, decision 0519 (V1-1141); GitHub #783) When `--base`	owner	decision 0519; V1-1141; #783
-AFP-V0-045	docs/specs/affected-plan-v0.md	1145	(accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST	owner	decision 0519; V1-1141; #783
-AFP-V0-046	docs/specs/affected-plan-v0.md	1155	(accepted under the owner's standing auto-accept (2026-10-11); V1-1360) A	standing	2026-10-11; V1-1360
-AFP-V0-047	docs/specs/affected-plan-v0.md	1186	(accepted under the owner's standing auto-accept (2026-10-11); V1-0811) The	standing	2026-10-11; V1-0811
+AFP-V0-042	docs/specs/affected-plan-v0.md	1107	(accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the	owner	decision 0496; V1-1117
+AFP-V0-043	docs/specs/affected-plan-v0.md	1127	(accepted, decision 0505) Cost-table	owner	decision 0505
+AFP-V0-044	docs/specs/affected-plan-v0.md	1136	(accepted, decision 0519 (V1-1141); GitHub #783) When `--base`	owner	decision 0519; V1-1141; #783
+AFP-V0-045	docs/specs/affected-plan-v0.md	1147	(accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST	owner	decision 0519; V1-1141; #783
+AFP-V0-046	docs/specs/affected-plan-v0.md	1157	(accepted under the owner's standing auto-accept (2026-10-11); V1-1360) A	standing	2026-10-11; V1-1360
+AFP-V0-047	docs/specs/affected-plan-v0.md	1188	(accepted under the owner's standing auto-accept (2026-10-11); V1-0811) The	standing	2026-10-11; V1-0811
+AFP-V0-048	docs/specs/affected-plan-v0.md	1254	(accepted under the owner's standing auto-accept (2026-10-11); V1-1361) A	standing	2026-10-11; V1-1361
+AFP-V0-049	docs/specs/affected-plan-v0.md	1291	(accepted under the owner's standing auto-accept (2026-10-11); V1-1371)	standing	2026-10-11; V1-1371
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data	unrecorded	-
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/	unrecorded	-
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and	unrecorded	-
@@ -236,68 +238,68 @@ ALO-V0-023	docs/specs/aggregate-local-outcome-v0.md	87	Held recovery MAY replace
 ALO-V0-024	docs/specs/aggregate-local-outcome-v0.md	92	The request MUST be one closed canonical JSON value binding the selected session	unrecorded	-
 ALO-V0-025	docs/specs/aggregate-local-outcome-v0.md	97	BASE and TREE executables MUST be distinct regular files equal to the request an	unrecorded	-
 ALO-V0-026	docs/specs/aggregate-local-outcome-v0.md	100	The result names `TRANSPORT_ADAPTED_HISTORICAL` with the request digest. It neve	unrecorded	-
-AMAP-V0-001	docs/specs/application-map-v0.md	77	The map MUST be compiled from a closed `application-map-manifest/0` document	unrecorded	-
-AMAP-V0-002	docs/specs/application-map-v0.md	86	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and	unrecorded	-
-AMAP-V0-003	docs/specs/application-map-v0.md	98	Screens MUST be keyed by app plus template. Two resolved screens with the same	unrecorded	-
-AMAP-V0-004	docs/specs/application-map-v0.md	106	Each AFU-V1 navigation step MUST become a map step on the unique screen whose	unrecorded	-
-AMAP-V0-005	docs/specs/application-map-v0.md	113	Test files MUST be joined to screens through the contextindex import graph:	unrecorded	-
-AMAP-V0-006	docs/specs/application-map-v0.md	128	Each screen MUST aggregate permissions and flags (inherited from the nearest	unrecorded	-
-AMAP-V0-007	docs/specs/application-map-v0.md	132	Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`	unrecorded	-
-AMAP-V0-008	docs/specs/application-map-v0.md	151	Edges MUST come only from evidence: `flow-step` edges between adjacent	unrecorded	-
-AMAP-V0-009	docs/specs/application-map-v0.md	156	The map MUST be deterministic for one revision: sorted nodes, edges, files and	unrecorded	-
-AMAP-V0-010	docs/specs/application-map-v0.md	160	Every element MUST be pinned to the anchor it was read from. A projection MUST	unrecorded	-
-AMAP-V0-011	docs/specs/application-map-v0.md	175	`screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON	unrecorded	-
-AMAP-V0-012	docs/specs/application-map-v0.md	185	`find` MUST match a 2..128 byte query case-insensitively against element IDs and	unrecorded	-
-AMAP-V0-013	docs/specs/application-map-v0.md	190	`scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:	unrecorded	-
-AMAP-V0-014	docs/specs/application-map-v0.md	216	Learned facts MUST attach only through the overlay seam: an `Overlay` is asked o	unrecorded	-
-AMAP-V0-015	docs/specs/application-map-v0.md	225	Building and projecting MUST NOT write to the repository, the index, or any	unrecorded	-
-AMAP-V0-016	docs/specs/application-map-v0.md	230	A `.state()` name (positional or `name:`) or `parent` written as a member	unrecorded	-
-AMAP-V0-017	docs/specs/application-map-v0.md	249	A manifest MAY name the repository that holds its tests with `tests.repo`, a roo	unrecorded	-
-AMAP-V0-018	docs/specs/application-map-v0.md	258	A map built with an aliased root MUST pin it in `roots`	unrecorded	-
-AMAP-V0-019	docs/specs/application-map-v0.md	263	A build MUST refuse rather than join part of a tree when an alias the manifest	unrecorded	-
-AMAP-V0-020	docs/specs/application-map-v0.md	270	Projections, the scenario planner (AMSP-V0) and run verification (RVN-V0) read	unrecorded	-
-AMAP-V0-021	docs/specs/application-map-v0.md	277	A manifest MAY declare `di_constants`, 1..16 unique repository-relative paths	unrecorded	-
-AMAP-V0-022	docs/specs/application-map-v0.md	287	A `.state()` name (positional or `name:`) or `parent` written `X.Y` in a router	unrecorded	-
-AMAP-V0-023	docs/specs/application-map-v0.md	305	A name or parent the injection path cannot prove MUST stay `UNKNOWN`	unrecorded	-
-AMAP-V0-024	docs/specs/application-map-v0.md	326	A TypeScript `enum` or `const enum` that AMAP-V0-022 reads as an injected	unrecorded	-
-AMAP-V0-025	docs/specs/application-map-v0.md	334	When the tracked file the registering file's import of `T` resolves to (the	unrecorded	-
-AMAP-V0-026	docs/specs/application-map-v0.md	380	When the `di_constants` scope holds exactly one registration of an injected name	unrecorded	-
-AMAP-V0-040	docs/specs/application-map-v0.md	395	The experimental `rails-routes/0` and `react-router/0` dialects MUST	unrecorded	-
-AMAP-V0-041	docs/specs/application-map-v0.md	399	Rails literal `get`, `post`, `root` and `mount` declarations, `resources`	unrecorded	-
-AMAP-V0-042	docs/specs/application-map-v0.md	406	Rails expressions, interpolation, constraints, defaults, lambdas, unsupported	unrecorded	-
-AMAP-V0-043	docs/specs/application-map-v0.md	413	React `createBrowserRouter` literal object arrays and	unrecorded	-
-AMAP-V0-044	docs/specs/application-map-v0.md	419	React lazy routes, non-literal paths/IDs/index values, computed or repeated	unrecorded	-
-AMAP-V0-045	docs/specs/application-map-v0.md	424	Optional manifest `router_globs` MUST contain 1..64 unique safe repository-relat	unrecorded	-
-AMAP-V0-046	docs/specs/application-map-v0.md	431	All dialects MUST use shared normalized parameter and template collision keys;	unrecorded	-
-AMAP-V0-047	docs/specs/application-map-v0.md	437	Coverage discovery MUST read only bounded Git tree metadata (at most 20000	unrecorded	-
-AMAP-V0-048	docs/specs/application-map-v0.md	443	Focused committed fixtures MUST demonstrate mixed-dialect build, URL lookup,	unrecorded	-
-AMAP-V0-050	docs/specs/application-map-v0.md	448	`flows appmap entries --map FILE` MUST emit a deterministic static	unrecorded	-
-AMAP-V0-051	docs/specs/application-map-v0.md	453	Classification MUST be one of `deep-linkable`, `requires-parent-params`,	unrecorded	-
-AMAP-V0-052	docs/specs/application-map-v0.md	458	Required parameters MUST be the sorted unique union of path parameters on the	unrecorded	-
-AMAP-V0-053	docs/specs/application-map-v0.md	463	UI-router declarations MUST retain optional entry metadata distinguishing	unrecorded	-
-AMAP-V0-054	docs/specs/application-map-v0.md	469	Entry results MUST carry the map revision/digest and evaluated revision.	unrecorded	-
-AMAP-V0-055	docs/specs/application-map-v0.md	474	A changed template, guard, ancestor or manifest MUST make the projected	unrecorded	-
-AMAP-V0-056	docs/specs/application-map-v0.md	479	The projection MUST retain `proven_path` as an empty list with status UNKNOWN	unrecorded	-
-AMAP-V0-057	docs/specs/application-map-v0.md	484	Entries MUST use the existing bounded map loader and projection renderer,	unrecorded	-
-AMAP-V0-058	docs/specs/application-map-v0.md	488	Old maps without entry metadata MUST remain readable and project UNKNOWN	unrecorded	-
-AMAP-V0-059	docs/specs/application-map-v0.md	493	This slice MUST remain static and read-only: it MUST NOT visit URLs or run	unrecorded	-
-AMAP-V0-060	docs/specs/application-map-v0.md	500	`flows appmap stats --map FILE` MUST emit a deterministic	unrecorded	-
-AMAP-V0-061	docs/specs/application-map-v0.md	506	Every count MUST reconcile with the map: resolved plus unknown screens equals	unrecorded	-
-AMAP-V0-062	docs/specs/application-map-v0.md	510	Unknown reasons MUST be grouped by kind and reason (the `source` member is alway	unrecorded	-
-AMAP-V0-063	docs/specs/application-map-v0.md	515	Output MUST be capped like other projections (default 6144 bytes, `--budget`	unrecorded	-
-AMAP-V0-064	docs/specs/application-map-v0.md	518	`--min-resolved PCT` (0..100) MUST still write the report and then exit 1 when t	unrecorded	-
-AMAP-V0-065	docs/specs/application-map-v0.md	523	The report is a measure of the declared router and test scope only; it MUST NOT	unrecorded	-
-AMAP-V0-070	docs/specs/application-map-v0.md	527	An injected `.constant(...)` table imported through a directory specifier that	unrecorded	-
-AMAP-V0-071	docs/specs/application-map-v0.md	533	When several star exports of a barrel declare the imported name, the name MUST	unrecorded	-
-AMAP-V0-072	docs/specs/application-map-v0.md	538	A `di-constant` unknown with reason `not-read-whole` MUST carry `detail` naming	unrecorded	-
-AMAP-V0-075	docs/specs/application-map-v0.md	545	A manifest `tests.root` of exactly `"."` MUST be accepted and name the whole	unrecorded	-
-AMAP-V0-076	docs/specs/application-map-v0.md	549	With `tests.root` `"."` and an aliased test repository, dirty-root detection MUS	unrecorded	-
-AMAP-V0-077	docs/specs/application-map-v0.md	553	A manifest whose `tests.root` is not `"."` MUST compile to the same bytes and wi	unrecorded	-
-AMAP-V0-078	docs/specs/application-map-v0.md	556	`createBrowserRouter(NAME)` MUST compile the literal array bound by the one	unrecorded	-
-AMAP-V0-079	docs/specs/application-map-v0.md	566	When NAME in `createBrowserRouter(NAME)` is bound only by one named import	unrecorded	-
-AMAP-V0-080	docs/specs/application-map-v0.md	581	`flows appmap entries` MUST accept an optional `--ledger FILE` naming an	unrecorded	-
-AMAP-V0-081	docs/specs/application-map-v0.md	589	With a ledger, each row's `proven_path` MUST be the shortest screen sequence fro	unrecorded	-
-AMAP-V0-082	docs/specs/application-map-v0.md	598	A path MUST NOT start at, end at or cross a screen whose entry verification is n	unrecorded	-
+AMAP-V0-001	docs/specs/application-map-v0.md	82	The map MUST be compiled from a closed `application-map-manifest/0` document	unrecorded	-
+AMAP-V0-002	docs/specs/application-map-v0.md	91	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and	unrecorded	-
+AMAP-V0-003	docs/specs/application-map-v0.md	103	Screens MUST be keyed by app plus template. Two resolved screens with the same	unrecorded	-
+AMAP-V0-004	docs/specs/application-map-v0.md	111	Each AFU-V1 navigation step MUST become a map step on the unique screen whose	unrecorded	-
+AMAP-V0-005	docs/specs/application-map-v0.md	118	Test files MUST be joined to screens through the contextindex import graph:	unrecorded	-
+AMAP-V0-006	docs/specs/application-map-v0.md	133	Each screen MUST aggregate permissions and flags (inherited from the nearest	unrecorded	-
+AMAP-V0-007	docs/specs/application-map-v0.md	137	Selectors MUST carry a kind and strength: `getByTestId` and a `data-testid`	unrecorded	-
+AMAP-V0-008	docs/specs/application-map-v0.md	156	Edges MUST come only from evidence: `flow-step` edges between adjacent	unrecorded	-
+AMAP-V0-009	docs/specs/application-map-v0.md	161	The map MUST be deterministic for one revision: sorted nodes, edges, files and	unrecorded	-
+AMAP-V0-010	docs/specs/application-map-v0.md	165	Every element MUST be pinned to the anchor it was read from. A projection MUST	unrecorded	-
+AMAP-V0-011	docs/specs/application-map-v0.md	180	`screen`, `flow`, `find` and `scaffold` projections MUST each return one JSON	unrecorded	-
+AMAP-V0-012	docs/specs/application-map-v0.md	190	`find` MUST match a 2..128 byte query case-insensitively against element IDs and	unrecorded	-
+AMAP-V0-013	docs/specs/application-map-v0.md	195	`scaffold` MUST draft a skeleton for one flow beside the closest asserting spec:	unrecorded	-
+AMAP-V0-014	docs/specs/application-map-v0.md	221	Learned facts MUST attach only through the overlay seam: an `Overlay` is asked o	unrecorded	-
+AMAP-V0-015	docs/specs/application-map-v0.md	230	Building and projecting MUST NOT write to the repository, the index, or any	unrecorded	-
+AMAP-V0-016	docs/specs/application-map-v0.md	235	A `.state()` name (positional or `name:`) or `parent` written as a member	unrecorded	-
+AMAP-V0-017	docs/specs/application-map-v0.md	254	A manifest MAY name the repository that holds its tests with `tests.repo`, a roo	unrecorded	-
+AMAP-V0-018	docs/specs/application-map-v0.md	263	A map built with an aliased root MUST pin it in `roots`	unrecorded	-
+AMAP-V0-019	docs/specs/application-map-v0.md	268	A build MUST refuse rather than join part of a tree when an alias the manifest	unrecorded	-
+AMAP-V0-020	docs/specs/application-map-v0.md	275	Projections, the scenario planner (AMSP-V0) and run verification (RVN-V0) read	unrecorded	-
+AMAP-V0-021	docs/specs/application-map-v0.md	282	A manifest MAY declare `di_constants`, 1..16 unique repository-relative paths	unrecorded	-
+AMAP-V0-022	docs/specs/application-map-v0.md	292	A `.state()` name (positional or `name:`) or `parent` written `X.Y` in a router	unrecorded	-
+AMAP-V0-023	docs/specs/application-map-v0.md	310	A name or parent the injection path cannot prove MUST stay `UNKNOWN`	unrecorded	-
+AMAP-V0-024	docs/specs/application-map-v0.md	331	A TypeScript `enum` or `const enum` that AMAP-V0-022 reads as an injected	unrecorded	-
+AMAP-V0-025	docs/specs/application-map-v0.md	339	When the tracked file the registering file's import of `T` resolves to (the	unrecorded	-
+AMAP-V0-026	docs/specs/application-map-v0.md	385	When the `di_constants` scope holds exactly one registration of an injected name	unrecorded	-
+AMAP-V0-040	docs/specs/application-map-v0.md	400	The experimental `rails-routes/0` and `react-router/0` dialects MUST	unrecorded	-
+AMAP-V0-041	docs/specs/application-map-v0.md	404	Rails literal `get`, `post`, `root` and `mount` declarations, `resources`	unrecorded	-
+AMAP-V0-042	docs/specs/application-map-v0.md	411	Rails expressions, interpolation, constraints, defaults, lambdas, unsupported	unrecorded	-
+AMAP-V0-043	docs/specs/application-map-v0.md	418	React `createBrowserRouter` literal object arrays and	unrecorded	-
+AMAP-V0-044	docs/specs/application-map-v0.md	424	React lazy routes, non-literal paths/IDs/index values, computed or repeated	unrecorded	-
+AMAP-V0-045	docs/specs/application-map-v0.md	429	Optional manifest `router_globs` MUST contain 1..64 unique safe repository-relat	unrecorded	-
+AMAP-V0-046	docs/specs/application-map-v0.md	436	All dialects MUST use shared normalized parameter and template collision keys;	unrecorded	-
+AMAP-V0-047	docs/specs/application-map-v0.md	442	Coverage discovery MUST read only bounded Git tree metadata (at most 20000	unrecorded	-
+AMAP-V0-048	docs/specs/application-map-v0.md	448	Focused committed fixtures MUST demonstrate mixed-dialect build, URL lookup,	unrecorded	-
+AMAP-V0-050	docs/specs/application-map-v0.md	453	`flows appmap entries --map FILE` MUST emit a deterministic static	unrecorded	-
+AMAP-V0-051	docs/specs/application-map-v0.md	458	Classification MUST be one of `deep-linkable`, `requires-parent-params`,	unrecorded	-
+AMAP-V0-052	docs/specs/application-map-v0.md	463	Required parameters MUST be the sorted unique union of path parameters on the	unrecorded	-
+AMAP-V0-053	docs/specs/application-map-v0.md	468	UI-router declarations MUST retain optional entry metadata distinguishing	unrecorded	-
+AMAP-V0-054	docs/specs/application-map-v0.md	474	Entry results MUST carry the map revision/digest and evaluated revision.	unrecorded	-
+AMAP-V0-055	docs/specs/application-map-v0.md	479	A changed template, guard, ancestor or manifest MUST make the projected	unrecorded	-
+AMAP-V0-056	docs/specs/application-map-v0.md	484	The projection MUST retain `proven_path` as an empty list with status UNKNOWN	unrecorded	-
+AMAP-V0-057	docs/specs/application-map-v0.md	489	Entries MUST use the existing bounded map loader and projection renderer,	unrecorded	-
+AMAP-V0-058	docs/specs/application-map-v0.md	493	Old maps without entry metadata MUST remain readable and project UNKNOWN	unrecorded	-
+AMAP-V0-059	docs/specs/application-map-v0.md	498	This slice MUST remain static and read-only: it MUST NOT visit URLs or run	unrecorded	-
+AMAP-V0-060	docs/specs/application-map-v0.md	505	`flows appmap stats --map FILE` MUST emit a deterministic	unrecorded	-
+AMAP-V0-061	docs/specs/application-map-v0.md	511	Every count MUST reconcile with the map: resolved plus unknown screens equals	unrecorded	-
+AMAP-V0-062	docs/specs/application-map-v0.md	515	Unknown reasons MUST be grouped by kind and reason (the `source` member is alway	unrecorded	-
+AMAP-V0-063	docs/specs/application-map-v0.md	520	Output MUST be capped like other projections (default 6144 bytes, `--budget`	unrecorded	-
+AMAP-V0-064	docs/specs/application-map-v0.md	523	`--min-resolved PCT` (0..100) MUST still write the report and then exit 1 when t	unrecorded	-
+AMAP-V0-065	docs/specs/application-map-v0.md	528	The report is a measure of the declared router and test scope only; it MUST NOT	unrecorded	-
+AMAP-V0-070	docs/specs/application-map-v0.md	532	An injected `.constant(...)` table imported through a directory specifier that	unrecorded	-
+AMAP-V0-071	docs/specs/application-map-v0.md	538	When several star exports of a barrel declare the imported name, the name MUST	unrecorded	-
+AMAP-V0-072	docs/specs/application-map-v0.md	543	A `di-constant` unknown with reason `not-read-whole` MUST carry `detail` naming	unrecorded	-
+AMAP-V0-075	docs/specs/application-map-v0.md	550	A manifest `tests.root` of exactly `"."` MUST be accepted and name the whole	unrecorded	-
+AMAP-V0-076	docs/specs/application-map-v0.md	554	With `tests.root` `"."` and an aliased test repository, dirty-root detection MUS	unrecorded	-
+AMAP-V0-077	docs/specs/application-map-v0.md	558	A manifest whose `tests.root` is not `"."` MUST compile to the same bytes and wi	unrecorded	-
+AMAP-V0-078	docs/specs/application-map-v0.md	561	`createBrowserRouter(NAME)` MUST compile the literal array bound by the one	unrecorded	-
+AMAP-V0-079	docs/specs/application-map-v0.md	571	When NAME in `createBrowserRouter(NAME)` is bound only by one named import	unrecorded	-
+AMAP-V0-080	docs/specs/application-map-v0.md	586	`flows appmap entries` MUST accept an optional `--ledger FILE` naming an	unrecorded	-
+AMAP-V0-081	docs/specs/application-map-v0.md	594	With a ledger, each row's `proven_path` MUST be the shortest screen sequence fro	unrecorded	-
+AMAP-V0-082	docs/specs/application-map-v0.md	603	A path MUST NOT start at, end at or cross a screen whose entry verification is n	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -431,6 +433,10 @@ BBF-V0-011	docs/specs/browser-behavior-falsification-v0.md	76	Synthetic conforma
 BBF-V0-012	docs/specs/browser-behavior-falsification-v0.md	79	Receipts are observations, not authenticated caller honesty, browser-behavior	unrecorded	-
 BBF-V0-013	docs/specs/browser-behavior-falsification-v0.md	83	The opt-in `execute-receipt` operation emits `corvint-browser-behavior-evidence/	unrecorded	-
 BBF-V0-014	docs/specs/browser-behavior-falsification-v0.md	85	accepted, decision 0507. In a sanitized acceptance	unrecorded	-
+BBF-V0-015	docs/specs/browser-behavior-falsification-v0.md	93	(accepted under the owner's standing auto-accept (2026-10-11); V1-1366) A	standing	2026-10-11; V1-1366
+BBF-V0-016	docs/specs/browser-behavior-falsification-v0.md	110	(accepted under the owner's standing auto-accept (2026-10-11); V1-1366) The	standing	2026-10-11; V1-1366
+BBF-V0-017	docs/specs/browser-behavior-falsification-v0.md	121	(accepted under the owner's standing auto-accept (2026-10-11); V1-1366) An	standing	2026-10-11; V1-1366
+BBF-V0-018	docs/specs/browser-behavior-falsification-v0.md	133	(accepted under the owner's standing auto-accept (2026-10-11); V1-1367) An	standing	2026-10-11; V1-1367
 BKM-V0-001	docs/specs/cross-repository-breakage-map-v0.md	53	The command MUST be explicit, read-only, local and experimental. It	unrecorded	-
 BKM-V0-002	docs/specs/cross-repository-breakage-map-v0.md	56	The manifest MUST be one strict bounded UTF-8 JSON document with no	unrecorded	-
 BKM-V0-003	docs/specs/cross-repository-breakage-map-v0.md	62	Each emitted source witness MUST name an immutable Git blob and	unrecorded	-
@@ -835,148 +841,167 @@ CEM-V1-007	docs/specs/cem-stable-v1.md	32	Migrate Core producers/validators/revi
 CEM-V1-008	docs/specs/cem-stable-v1.md	33	Retain independent external consumer conformance and matched external outcome ev	unrecorded	-
 CEM-V1-009	docs/specs/cem-stable-v1.md	34	Promote only with the native release's compatibility, focused documentation, int	unrecorded	-
 CEM-V1-010	docs/specs/cem-stable-v1.md	35	Rollback preserves original0.x producer defaults and emitted historical packets,	unrecorded	-
-CEM-V1-011	docs/specs/cem-stable-v1.md	77	Reject missing, duplicate, unknown or escaping reference/artifact identities. Re	unrecorded	-
-CEM-V1-012	docs/specs/cem-stable-v1.md	78	Publish the candidate schema and algorithms before the standalone consumer. Nati	unrecorded	-
-CEM-V1-013	docs/specs/cem-stable-v1.md	79	Never translate candidate spec labels to earlier0.x profiles to bypass consumer	unrecorded	-
-CEM-V1-014	docs/specs/cem-stable-v1.md	80	Inventory every existing consumer's profile and migration disposition. An unsupp	unrecorded	-
-CEM-V1-015	docs/specs/cem-stable-v1.md	90	Candidate assembly MUST require independently supplied immutable base and target	unrecorded	-
-CEM-V1-016	docs/specs/cem-stable-v1.md	91	Assembly MUST compare each declared runner source input with its self-hashed imm	unrecorded	-
-CEM-V1-017	docs/specs/cem-stable-v1.md	1024	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab	unrecorded	-
-CEM-V1-018	docs/specs/cem-stable-v1.md	1025	A stable read MUST refuse `--patch` with `invalid-arguments`, and `cem verify` M	unrecorded	-
-CEM-V1-019	docs/specs/cem-stable-v1.md	1026	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b	unrecorded	-
-CEM-V1-030	docs/specs/cem-stable-v1.md	1057	A `cem/0.x` Core `cem prepare` MUST refuse an existing map at the fixed sidecar	unrecorded	-
-CEM-V1-031	docs/specs/cem-stable-v1.md	1058	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c	unrecorded	-
-CEM-V1-032	docs/specs/cem-stable-v1.md	1059	(superseded by `CEM-V1-147` and `CEM-V1-148`, V1-1276) The daily bind loop MUST	unrecorded	-
-CEM-V1-033	docs/specs/cem-stable-v1.md	1060	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem	unrecorded	-
-CEM-V1-034	docs/specs/cem-stable-v1.md	1102	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable	unrecorded	-
-CEM-V1-035	docs/specs/cem-stable-v1.md	1103	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render	unrecorded	-
-CEM-V1-036	docs/specs/cem-stable-v1.md	1104	(amended by V1-1278 S1 for V1-1305 under the owner's standing auto-accept of lan	standing	V1-1278; V1-1305; 2026-10-11
-CEM-V1-050	docs/specs/cem-stable-v1.md	217	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable	unrecorded	-
-CEM-V1-051	docs/specs/cem-stable-v1.md	1186	`lrfrepo.VerifyStableUniverse` MUST admit a map whose bytes declare exactly	unrecorded	-
-CEM-V1-052	docs/specs/cem-stable-v1.md	1196	The repository root, expected base, target and artifact root are explicit, with	unrecorded	-
-CEM-V1-053	docs/specs/cem-stable-v1.md	1202	The OCM MUST bind the exact original stable map digest, the accepted target and	unrecorded	-
-CEM-V1-054	docs/specs/cem-stable-v1.md	1206	The projection is read-only. It never exposes a legacy `*wire.Map` or any 0.x	unrecorded	-
-CEM-V1-055	docs/specs/cem-stable-v1.md	1210	`lrf/0` stays frozen. `lrf.Evaluate` MUST keep refusing a `cem/1.0` context with	unrecorded	-
-CEM-V1-056	docs/specs/cem-stable-v1.md	1216	A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1	unrecorded	-
-CEM-V1-057	docs/specs/cem-stable-v1.md	1224	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in	unrecorded	-
-CEM-V1-058	docs/specs/cem-stable-v1.md	1227	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,	unrecorded	-
-CEM-V1-059	docs/specs/cem-stable-v1.md	1233	A stable universe verification is a read. It MUST NOT change the repository HEAD	unrecorded	-
-CEM-V1-060	docs/specs/cem-stable-v1.md	1272	Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first ru	unrecorded	-
-CEM-V1-061	docs/specs/cem-stable-v1.md	1276	An accepted export MUST write a new directory outside the worktree (the 0.x outp	unrecorded	-
-CEM-V1-062	docs/specs/cem-stable-v1.md	1283	The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem	unrecorded	-
-CEM-V1-063	docs/specs/cem-stable-v1.md	1287	`ReadStable` MUST refuse a bundle with a missing declared file	unrecorded	-
-CEM-V1-064	docs/specs/cem-stable-v1.md	1313	A stable export MUST refuse `--witness` with `invalid-arguments` before	unrecorded	-
-CEM-V1-065	docs/specs/cem-stable-v1.md	936	`internal/attest.CEMStatementV2(name, map, target)` MUST accept only bytes that	unrecorded	-
-CEM-V1-066	docs/specs/cem-stable-v1.md	448	Every `cem-stable-verification/1` result MUST carry `verdictSha256` after	unrecorded	-
-CEM-V1-070	docs/specs/cem-stable-v1.md	1365	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the	unrecorded	-
-CEM-V1-071	docs/specs/cem-stable-v1.md	1366	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v	unrecorded	-
-CEM-V1-072	docs/specs/cem-stable-v1.md	1367	A report built over a stable source MUST take profile `corvint-witness-stable/0`	unrecorded	-
-CEM-V1-073	docs/specs/cem-stable-v1.md	1368	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`	unrecorded	-
-CEM-V1-074	docs/specs/cem-stable-v1.md	1369	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a	unrecorded	-
-CEM-V1-075	docs/specs/cem-stable-v1.md	1370	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab	unrecorded	-
-CEM-V1-076	docs/specs/cem-stable-v1.md	1371	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and	unrecorded	-
-CEM-V1-077	docs/specs/cem-stable-v1.md	1372	The console chain pane MUST admit `cem/1.0` in its closed profile registry only	unrecorded	-
-CEM-V1-078	docs/specs/cem-stable-v1.md	1373	Each criterion binding, runner receipt (with its execution authority, source bin	unrecorded	-
-CEM-V1-079	docs/specs/cem-stable-v1.md	1374	The registry stays closed: an unsupported profile, a near-stable spec, an unknow	unrecorded	-
-CEM-V1-080	docs/specs/cem-stable-v1.md	269	Support tiers are consumer-derived. The native (`internal/cem/verify`, `support.	unrecorded	-
-CEM-V1-081	docs/specs/cem-stable-v1.md	277	Anchor kinds and byte-level rules. `id`: an ASCII requirement ID	unrecorded	-
-CEM-V1-082	docs/specs/cem-stable-v1.md	287	The `citation` block and the shift null MUST be byte-identical across the native	unrecorded	-
-CEM-V1-083	docs/specs/cem-stable-v1.md	360	A `cem/1.0` criterion binding MUST take exactly one of two closed forms. The pla	unrecorded	-
-CEM-V1-084	docs/specs/cem-stable-v1.md	397	A runner receipt's `authentication` MUST take one of three closed forms: the sea	unrecorded	-
-CEM-V1-091	docs/specs/cem-stable-v1.md	237	A new top-level member of `cem-stable-verification/1` MUST be added only by	unrecorded	-
-CEM-V1-092	docs/specs/cem-stable-v1.md	323	The `cem-stable-verification/1` member `citation` MUST be the `CEM-V1-082` block	unrecorded	-
-CEM-V1-093	docs/specs/cem-stable-v1.md	485	A stable map MAY carry `provenance`, a closed object with exactly the required	unrecorded	-
-CEM-V1-094	docs/specs/cem-stable-v1.md	495	The producer-only stable map members are exactly this closed list:	unrecorded	-
-CEM-V1-095	docs/specs/cem-stable-v1.md	508	A stable map MAY carry `role`, a closed string enum of `change` (the meaning whe	unrecorded	-
-CEM-V1-096	docs/specs/cem-stable-v1.md	557	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-097	docs/specs/cem-stable-v1.md	563	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-098	docs/specs/cem-stable-v1.md	579	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-099	docs/specs/cem-stable-v1.md	585	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-100	docs/specs/cem-stable-v1.md	591	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-101	docs/specs/cem-stable-v1.md	594	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-102	docs/specs/cem-stable-v1.md	598	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-103	docs/specs/cem-stable-v1.md	607	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-104	docs/specs/cem-stable-v1.md	611	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-105	docs/specs/cem-stable-v1.md	631	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-106	docs/specs/cem-stable-v1.md	677	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) `cem sta	standing	2026-10-11; V1-1281
-CEM-V1-120	docs/specs/cem-stable-v1.md	1531	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity	unrecorded	-
-CEM-V1-121	docs/specs/cem-stable-v1.md	1534	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly	unrecorded	-
-CEM-V1-122	docs/specs/cem-stable-v1.md	1538	The stable result MUST carry:	unrecorded	-
-CEM-V1-123	docs/specs/cem-stable-v1.md	1547	The verifier binding MUST name the SHA-256 of the exact input map bytes, and the	unrecorded	-
-CEM-V1-124	docs/specs/cem-stable-v1.md	1552	The 0.x TCQ and frontier routes are unchanged. `parseArtifacts` keeps the	unrecorded	-
-CEM-V1-125	docs/specs/cem-stable-v1.md	1555	`frontierrepo.RecomputeStable` MUST:	unrecorded	-
-CEM-V1-126	docs/specs/cem-stable-v1.md	1564	No stable frontier document is produced. `frontier/0` binds an `lrf/0` digest, a	unrecorded	-
-CEM-V1-127	docs/specs/cem-stable-v1.md	1568	Each of the following MUST refuse, keeping the stable verifier's full result and	unrecorded	-
-CEM-V1-130	docs/specs/cem-stable-v1.md	1574	`extevidence.StableObligations` MUST emit `external-frontier-obligations-stable/	unrecorded	-
-CEM-V1-131	docs/specs/cem-stable-v1.md	1582	Hunk associations MUST be computed exactly as in the frozen sidecar, with the sa	unrecorded	-
-CEM-V1-132	docs/specs/cem-stable-v1.md	1585	A verifier refusal MUST return a `StableObligationsRefusal` that holds the	unrecorded	-
-CEM-V1-133	docs/specs/cem-stable-v1.md	1589	The map's declared criterion links MUST be listed in a separate `criteria` membe	unrecorded	-
-CEM-V1-134	docs/specs/cem-stable-v1.md	1592	The frozen sidecar MUST keep refusing `cem/1.0`, and the stable sidecar MUST ref	unrecorded	-
-CEM-V1-135	docs/specs/cem-stable-v1.md	1594	`corvint obligations` MUST select the stable sidecar only when all four of these	unrecorded	-
-CEM-V1-136	docs/specs/cem-stable-v1.md	1604	The criterion experiment companion MUST add the explicit input mode	unrecorded	-
-CEM-V1-137	docs/specs/cem-stable-v1.md	1608	Stable admission MUST:	unrecorded	-
-CEM-V1-138	docs/specs/cem-stable-v1.md	1617	Plan, run and verify MUST each re-admit the plan's map through the stable verifi	unrecorded	-
-CEM-V1-139	docs/specs/cem-stable-v1.md	1622	The two modes never cross:	unrecorded	-
-CEM-V1-140	docs/specs/cem-stable-v1.md	1409	`corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps th	unrecorded	-
-CEM-V1-141	docs/specs/cem-stable-v1.md	1416	A `cem/1.0` prepare MUST write the canonical stable encoding of a producer map	unrecorded	-
-CEM-V1-142	docs/specs/cem-stable-v1.md	1430	`cem begin --spec cem/1.0` MUST write the canonical stable producer map of the	unrecorded	-
-CEM-V1-143	docs/specs/cem-stable-v1.md	1433	`cem cite`, `cem mark`, `cem cover` and `cem discriminate` over a stable produce	unrecorded	-
-CEM-V1-144	docs/specs/cem-stable-v1.md	1437	A structural `cem mark` on a stable producer map writes the claimed reason; the	unrecorded	-
-CEM-V1-145	docs/specs/cem-stable-v1.md	1440	`cem status` over a `cem/1.0` map MUST admit `--max-unknown` and	unrecorded	-
-CEM-V1-146	docs/specs/cem-stable-v1.md	1446	A stable prepare's `nextActions` MUST be the single `cem status` argv with the	unrecorded	-
-CEM-V1-147	docs/specs/cem-stable-v1.md	1449	The daily bind loop MUST cite, count, check and seal a `cem/1.0` map like a	unrecorded	-
-CEM-V1-148	docs/specs/cem-stable-v1.md	1455	`dogfood batch-check` MUST admit a sealed `cem/1.0` constituent when the verifie	unrecorded	-
-CEM-V1-149	docs/specs/cem-stable-v1.md	1460	`ocm prepare`, `ocm read` (status) and `ocm link` MUST admit a `cem/1.0` map onl	unrecorded	-
-CEM-V1-150	docs/specs/cem-stable-v1.md	1466	Local-completion sidecar-only reuse (`AllowCemSidecarOnlyReuse`) MUST keep	unrecorded	-
-CEM-V1-151	docs/specs/cem-stable-v1.md	1471	`dogfood finish` MUST read a `cem/1.0` change map: its `cem status` (and the	unrecorded	-
-CEM-V1-152	docs/specs/cem-stable-v1.md	1476	The aggregate verifier worker's closed argv grammar (`ALO-V0-018`) MUST admit th	unrecorded	-
-CEM-V1-160	docs/specs/cem-stable-v1.md	1685	`corvint witness --stable-artifact-root DIR` MUST pass the absolute artifact roo	unrecorded	-
-CEM-V1-161	docs/specs/cem-stable-v1.md	1689	The witness route MUST fail closed with exit 2, no stdout and the code	unrecorded	-
-CEM-V1-162	docs/specs/cem-stable-v1.md	1696	`corvint docs corpus cem-stable` MUST require `--artifact`, `--cem`,	unrecorded	-
-CEM-V1-163	docs/specs/cem-stable-v1.md	1701	A `cem-stable` refusal MUST exit 2 with no stdout and the code	unrecorded	-
-CEM-V1-164	docs/specs/cem-stable-v1.md	1704	`corvint-console -stable-artifact-root DIR` MUST select the chain pane's verifie	unrecorded	-
-CEM-V1-165	docs/specs/cem-stable-v1.md	1714	In verified mode, the pane MUST replace the chain with a refusal, drawing no cha	unrecorded	-
-CEM-V1-166	docs/specs/cem-stable-v1.md	1726	Without `-stable-artifact-root`, the display-only NOT_RUN pane of `CEM-V1-077` M	unrecorded	-
-CEM-V1-167	docs/specs/cem-stable-v1.md	1728	The protected local-authority consumer holds a Git object capsule and no	unrecorded	-
-CEM-V1-168	docs/specs/cem-stable-v1.md	1731	The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So	unrecorded	-
-CEM-V1-170	docs/specs/cem-stable-v1.md	687	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a ma	standing	2026-10-11; V1-1344
-CEM-V1-200	docs/specs/cem-stable-v1.md	786	`wire.ParseStable`, and so every stable read (`cem verify-stable`, a stable	unrecorded	-
-CEM-V1-201	docs/specs/cem-stable-v1.md	795	Every committed `.corvint/changes/<bind>.cem.json` MUST be accepted by	unrecorded	-
-CEM-V1-202	docs/specs/cem-stable-v1.md	806	`dogfood batch-check` and `dogfood change`'s sealed-CEM admission (`DCW-V0-039`	unrecorded	-
-CEM-V1-203	docs/specs/cem-stable-v1.md	813	A sealed `cem/0.1`, `cem/0.2` or `cem/0.3` map that the range adds and whose	unrecorded	-
-CEM-V1-204	docs/specs/cem-stable-v1.md	830	The converter (`internal/cem/convert`), `corvint cem convert`	unrecorded	-
-CEM-V1-205	docs/specs/cem-stable-v1.md	873	A check whose plan sets `AllowCemSidecarOnlyReuse` and whose latest passing,	unrecorded	-
-CEM-V1-206	docs/specs/cem-stable-v1.md	881	The verifier MUST receive the exact bytes read from	unrecorded	-
-CEM-V1-207	docs/specs/cem-stable-v1.md	888	A refused reuse MUST leave the check unqualified (`selected-check-unverified`,	unrecorded	-
-CEM-V1-208	docs/specs/cem-stable-v1.md	897	Without `AllowCemSidecarOnlyReuse`, a check observed on another target MUST stay	unrecorded	-
-CEM-V1-209	docs/specs/cem-stable-v1.md	901	Each of `CEM-V1-205..208` MUST be traced to a named test in	unrecorded	-
-CEM-V1-210	docs/specs/cem-stable-v1.md	1788	Every consumer outside `internal/cem` (LRF, OCM, the stable universe, frontier	unrecorded	-
-CEM-V1-211	docs/specs/cem-stable-v1.md	1811	The frontier, LRF/OCM, dashboard, console and MCP projections MUST read the	unrecorded	-
-CEM-V1-212	docs/specs/cem-stable-v1.md	1815	A frozen conformance suite whose expectations depend on a 0.x map changes only	unrecorded	-
-CEM-V1-213	docs/specs/cem-stable-v1.md	1836	The daily loop's admission (`CEM-V1-202`) stays `cem/1.0`-only on every route a	unrecorded	-
-CEM-V1-214	docs/specs/cem-stable-v1.md	1841	A test that guards behavior `cem/1.0` keeps MUST be ported to a `cem/1.0` map	unrecorded	-
-CEM-V1-215	docs/specs/cem-stable-v1.md	1886	The product MUST ship one CEM wire, `cem/1.0`. No Go package outside the frozen	unrecorded	-
-CEM-V1-216	docs/specs/cem-stable-v1.md	1895	`cem begin` and `cem prepare` MUST accept only `--spec cem/1.0` (the default). A	unrecorded	-
-CEM-V1-217	docs/specs/cem-stable-v1.md	1899	The frozen 0.x projection routes MUST be retired, each with its stable successor	unrecorded	-
-CEM-V1-218	docs/specs/cem-stable-v1.md	1908	Only the `cem/v2` attestation predicate (`CEMStatementV2`, `CEM-V1-065`)	unrecorded	-
-CEM-V1-219	docs/specs/cem-stable-v1.md	1914	The core compatibility freeze and cli-parity-v0 MUST change only under decision	unrecorded	-
-CEM-V1-220	docs/specs/cem-stable-v1.md	1954	The `cem/0.x` protocol and conformance packets MUST be deleted:	unrecorded	-
-CEM-V1-221	docs/specs/cem-stable-v1.md	1959	`protocol/cem-1.0` MUST be self-contained. The 0.x normative text that `cem/1.0`	unrecorded	-
-CEM-V1-222	docs/specs/cem-stable-v1.md	1965	`interop/cem01-go` MUST verify `cem/1.0` only. The `cem/0.1` default `verify`	unrecorded	-
-CEM-V1-223	docs/specs/cem-stable-v1.md	1971	`examples/cem` except the 0.x-free `examples/cem/experiments/` companion demo, i	unrecorded	-
-CEM-V1-224	docs/specs/cem-stable-v1.md	1975	The Core remnants MUST name no retired wire: the dogfood loop passes	unrecorded	-
-CEM-V1-225	docs/specs/cem-stable-v1.md	1980	The `cem/0.2`, `cem/0.3`, 0.1 Go portability probe and 0.1 external interop spec	unrecorded	-
-CEM-V1-226	docs/specs/cem-stable-v1.md	2022	The packet MUST carry one shared tamper matrix at	unrecorded	-
-CEM-V1-227	docs/specs/cem-stable-v1.md	2029	The native verifier (`internal/cem/verify`, `Stable`) and the portable consumer	unrecorded	-
-CEM-V1-228	docs/specs/cem-stable-v1.md	2033	Each `EXPECTED.json` case MUST carry `name`, `tamper`, `description`, `map`,	unrecorded	-
-CEM-V1-229	docs/specs/cem-stable-v1.md	2043	Swapping evidence IDs between hunks, when every record stays a valid digest-boun	unrecorded	-
-CEM-V1-230	docs/specs/cem-stable-v1.md	720	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
-CEM-V1-231	docs/specs/cem-stable-v1.md	735	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
-CEM-V1-232	docs/specs/cem-stable-v1.md	742	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) The migr	standing	2026-10-11; V1-1277
-CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	1138	(retired by V1-1278 S3) The default `verify` path refuses a strictly parsed JSON	unrecorded	-
-CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	1142	(retired by V1-1278 S3) `ci` reports such a map as verdict `unsupported-profile`	unrecorded	-
-CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	1145	(retired by V1-1278 S3) Only that exact case changes. A duplicate, non-string, d	unrecorded	-
-CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	1149	(retired by V1-1278 S3) `examples/cem/verify-portable.sh` runs `verify-stable-ca	unrecorded	-
+CEM-V1-011	docs/specs/cem-stable-v1.md	78	Reject missing, duplicate, unknown or escaping reference/artifact identities. Re	unrecorded	-
+CEM-V1-012	docs/specs/cem-stable-v1.md	79	Publish the candidate schema and algorithms before the standalone consumer. Nati	unrecorded	-
+CEM-V1-013	docs/specs/cem-stable-v1.md	80	Never translate candidate spec labels to earlier0.x profiles to bypass consumer	unrecorded	-
+CEM-V1-014	docs/specs/cem-stable-v1.md	81	Inventory every existing consumer's profile and migration disposition. An unsupp	unrecorded	-
+CEM-V1-015	docs/specs/cem-stable-v1.md	91	Candidate assembly MUST require independently supplied immutable base and target	unrecorded	-
+CEM-V1-016	docs/specs/cem-stable-v1.md	92	Assembly MUST compare each declared runner source input with its self-hashed imm	unrecorded	-
+CEM-V1-017	docs/specs/cem-stable-v1.md	1025	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab	unrecorded	-
+CEM-V1-018	docs/specs/cem-stable-v1.md	1026	A stable read MUST refuse `--patch` with `invalid-arguments`, and `cem verify` M	unrecorded	-
+CEM-V1-019	docs/specs/cem-stable-v1.md	1027	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b	unrecorded	-
+CEM-V1-030	docs/specs/cem-stable-v1.md	1058	A `cem/0.x` Core `cem prepare` MUST refuse an existing map at the fixed sidecar	unrecorded	-
+CEM-V1-031	docs/specs/cem-stable-v1.md	1059	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c	unrecorded	-
+CEM-V1-032	docs/specs/cem-stable-v1.md	1060	(superseded by `CEM-V1-147` and `CEM-V1-148`, V1-1276) The daily bind loop MUST	unrecorded	-
+CEM-V1-033	docs/specs/cem-stable-v1.md	1061	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem	unrecorded	-
+CEM-V1-034	docs/specs/cem-stable-v1.md	1103	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable	unrecorded	-
+CEM-V1-035	docs/specs/cem-stable-v1.md	1104	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render	unrecorded	-
+CEM-V1-036	docs/specs/cem-stable-v1.md	1105	(amended by V1-1278 S1 for V1-1305 under the owner's standing auto-accept of lan	standing	V1-1278; V1-1305; 2026-10-11
+CEM-V1-050	docs/specs/cem-stable-v1.md	218	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable	unrecorded	-
+CEM-V1-051	docs/specs/cem-stable-v1.md	1187	`lrfrepo.VerifyStableUniverse` MUST admit a map whose bytes declare exactly	unrecorded	-
+CEM-V1-052	docs/specs/cem-stable-v1.md	1197	The repository root, expected base, target and artifact root are explicit, with	unrecorded	-
+CEM-V1-053	docs/specs/cem-stable-v1.md	1203	The OCM MUST bind the exact original stable map digest, the accepted target and	unrecorded	-
+CEM-V1-054	docs/specs/cem-stable-v1.md	1207	The projection is read-only. It never exposes a legacy `*wire.Map` or any 0.x	unrecorded	-
+CEM-V1-055	docs/specs/cem-stable-v1.md	1211	`lrf/0` stays frozen. `lrf.Evaluate` MUST keep refusing a `cem/1.0` context with	unrecorded	-
+CEM-V1-056	docs/specs/cem-stable-v1.md	1217	A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1	unrecorded	-
+CEM-V1-057	docs/specs/cem-stable-v1.md	1225	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in	unrecorded	-
+CEM-V1-058	docs/specs/cem-stable-v1.md	1228	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,	unrecorded	-
+CEM-V1-059	docs/specs/cem-stable-v1.md	1234	A stable universe verification is a read. It MUST NOT change the repository HEAD	unrecorded	-
+CEM-V1-060	docs/specs/cem-stable-v1.md	1273	Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first ru	unrecorded	-
+CEM-V1-061	docs/specs/cem-stable-v1.md	1277	An accepted export MUST write a new directory outside the worktree (the 0.x outp	unrecorded	-
+CEM-V1-062	docs/specs/cem-stable-v1.md	1284	The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem	unrecorded	-
+CEM-V1-063	docs/specs/cem-stable-v1.md	1288	`ReadStable` MUST refuse a bundle with a missing declared file	unrecorded	-
+CEM-V1-064	docs/specs/cem-stable-v1.md	1314	A stable export MUST refuse `--witness` with `invalid-arguments` before	unrecorded	-
+CEM-V1-065	docs/specs/cem-stable-v1.md	937	`internal/attest.CEMStatementV2(name, map, target)` MUST accept only bytes that	unrecorded	-
+CEM-V1-066	docs/specs/cem-stable-v1.md	449	Every `cem-stable-verification/1` result MUST carry `verdictSha256` after	unrecorded	-
+CEM-V1-067	docs/specs/cem-stable-v1.md	2087	(accepted under the owner's standing auto-accept (2026-10-11); V1-1260) `cem	standing	2026-10-11; V1-1260
+CEM-V1-070	docs/specs/cem-stable-v1.md	1366	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the	unrecorded	-
+CEM-V1-071	docs/specs/cem-stable-v1.md	1367	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v	unrecorded	-
+CEM-V1-072	docs/specs/cem-stable-v1.md	1368	A report built over a stable source MUST take profile `corvint-witness-stable/0`	unrecorded	-
+CEM-V1-073	docs/specs/cem-stable-v1.md	1369	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`	unrecorded	-
+CEM-V1-074	docs/specs/cem-stable-v1.md	1370	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a	unrecorded	-
+CEM-V1-075	docs/specs/cem-stable-v1.md	1371	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab	unrecorded	-
+CEM-V1-076	docs/specs/cem-stable-v1.md	1372	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and	unrecorded	-
+CEM-V1-077	docs/specs/cem-stable-v1.md	1373	The console chain pane MUST admit `cem/1.0` in its closed profile registry only	unrecorded	-
+CEM-V1-078	docs/specs/cem-stable-v1.md	1374	Each criterion binding, runner receipt (with its execution authority, source bin	unrecorded	-
+CEM-V1-079	docs/specs/cem-stable-v1.md	1375	The registry stays closed: an unsupported profile, a near-stable spec, an unknow	unrecorded	-
+CEM-V1-080	docs/specs/cem-stable-v1.md	270	Support tiers are consumer-derived. The native (`internal/cem/verify`, `support.	unrecorded	-
+CEM-V1-081	docs/specs/cem-stable-v1.md	278	Anchor kinds and byte-level rules. `id`: an ASCII requirement ID	unrecorded	-
+CEM-V1-082	docs/specs/cem-stable-v1.md	288	The `citation` block and the shift null MUST be byte-identical across the native	unrecorded	-
+CEM-V1-083	docs/specs/cem-stable-v1.md	361	A `cem/1.0` criterion binding MUST take exactly one of two closed forms. The pla	unrecorded	-
+CEM-V1-084	docs/specs/cem-stable-v1.md	398	A runner receipt's `authentication` MUST take one of three closed forms: the sea	unrecorded	-
+CEM-V1-090	docs/specs/cem-stable-v1.md	2299	(accepted under the owner's standing auto-accept (2026-10-11); V1-1259) A	standing	2026-10-11; V1-1259
+CEM-V1-091	docs/specs/cem-stable-v1.md	238	A new top-level member of `cem-stable-verification/1` MUST be added only by	unrecorded	-
+CEM-V1-092	docs/specs/cem-stable-v1.md	324	The `cem-stable-verification/1` member `citation` MUST be the `CEM-V1-082` block	unrecorded	-
+CEM-V1-093	docs/specs/cem-stable-v1.md	486	A stable map MAY carry `provenance`, a closed object with exactly the required	unrecorded	-
+CEM-V1-094	docs/specs/cem-stable-v1.md	496	The producer-only stable map members are exactly this closed list:	unrecorded	-
+CEM-V1-095	docs/specs/cem-stable-v1.md	509	A stable map MAY carry `role`, a closed string enum of `change` (the meaning whe	unrecorded	-
+CEM-V1-096	docs/specs/cem-stable-v1.md	558	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-097	docs/specs/cem-stable-v1.md	564	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-098	docs/specs/cem-stable-v1.md	580	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-099	docs/specs/cem-stable-v1.md	586	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-100	docs/specs/cem-stable-v1.md	592	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-101	docs/specs/cem-stable-v1.md	595	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-102	docs/specs/cem-stable-v1.md	599	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-103	docs/specs/cem-stable-v1.md	608	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-104	docs/specs/cem-stable-v1.md	612	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-105	docs/specs/cem-stable-v1.md	632	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-106	docs/specs/cem-stable-v1.md	678	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) `cem sta	standing	2026-10-11; V1-1281
+CEM-V1-107	docs/specs/cem-stable-v1.md	2229	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) Every st	standing	2026-10-11; V1-1333
+CEM-V1-108	docs/specs/cem-stable-v1.md	2235	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) `protoco	standing	2026-10-11; V1-1333
+CEM-V1-109	docs/specs/cem-stable-v1.md	2241	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The same	standing	2026-10-11; V1-1333
+CEM-V1-110	docs/specs/cem-stable-v1.md	2247	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The same	standing	2026-10-11; V1-1333
+CEM-V1-111	docs/specs/cem-stable-v1.md	2250	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The pack	standing	2026-10-11; V1-1333
+CEM-V1-112	docs/specs/cem-stable-v1.md	2259	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) For each	standing	2026-10-11; V1-1333
+CEM-V1-113	docs/specs/cem-stable-v1.md	2341	(accepted under the owner's standing auto-accept (2026-10-11); V1-1369) Every	standing	2026-10-11; V1-1369
+CEM-V1-120	docs/specs/cem-stable-v1.md	1532	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity	unrecorded	-
+CEM-V1-121	docs/specs/cem-stable-v1.md	1535	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly	unrecorded	-
+CEM-V1-122	docs/specs/cem-stable-v1.md	1539	The stable result MUST carry:	unrecorded	-
+CEM-V1-123	docs/specs/cem-stable-v1.md	1548	The verifier binding MUST name the SHA-256 of the exact input map bytes, and the	unrecorded	-
+CEM-V1-124	docs/specs/cem-stable-v1.md	1553	The 0.x TCQ and frontier routes are unchanged. `parseArtifacts` keeps the	unrecorded	-
+CEM-V1-125	docs/specs/cem-stable-v1.md	1556	`frontierrepo.RecomputeStable` MUST:	unrecorded	-
+CEM-V1-126	docs/specs/cem-stable-v1.md	1565	No stable frontier document is produced. `frontier/0` binds an `lrf/0` digest, a	unrecorded	-
+CEM-V1-127	docs/specs/cem-stable-v1.md	1569	Each of the following MUST refuse, keeping the stable verifier's full result and	unrecorded	-
+CEM-V1-130	docs/specs/cem-stable-v1.md	1575	`extevidence.StableObligations` MUST emit `external-frontier-obligations-stable/	unrecorded	-
+CEM-V1-131	docs/specs/cem-stable-v1.md	1583	Hunk associations MUST be computed exactly as in the frozen sidecar, with the sa	unrecorded	-
+CEM-V1-132	docs/specs/cem-stable-v1.md	1586	A verifier refusal MUST return a `StableObligationsRefusal` that holds the	unrecorded	-
+CEM-V1-133	docs/specs/cem-stable-v1.md	1590	The map's declared criterion links MUST be listed in a separate `criteria` membe	unrecorded	-
+CEM-V1-134	docs/specs/cem-stable-v1.md	1593	The frozen sidecar MUST keep refusing `cem/1.0`, and the stable sidecar MUST ref	unrecorded	-
+CEM-V1-135	docs/specs/cem-stable-v1.md	1595	`corvint obligations` MUST select the stable sidecar only when all four of these	unrecorded	-
+CEM-V1-136	docs/specs/cem-stable-v1.md	1605	The criterion experiment companion MUST add the explicit input mode	unrecorded	-
+CEM-V1-137	docs/specs/cem-stable-v1.md	1609	Stable admission MUST:	unrecorded	-
+CEM-V1-138	docs/specs/cem-stable-v1.md	1618	Plan, run and verify MUST each re-admit the plan's map through the stable verifi	unrecorded	-
+CEM-V1-139	docs/specs/cem-stable-v1.md	1623	The two modes never cross:	unrecorded	-
+CEM-V1-140	docs/specs/cem-stable-v1.md	1410	`corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps th	unrecorded	-
+CEM-V1-141	docs/specs/cem-stable-v1.md	1417	A `cem/1.0` prepare MUST write the canonical stable encoding of a producer map	unrecorded	-
+CEM-V1-142	docs/specs/cem-stable-v1.md	1431	`cem begin --spec cem/1.0` MUST write the canonical stable producer map of the	unrecorded	-
+CEM-V1-143	docs/specs/cem-stable-v1.md	1434	`cem cite`, `cem mark`, `cem cover` and `cem discriminate` over a stable produce	unrecorded	-
+CEM-V1-144	docs/specs/cem-stable-v1.md	1438	A structural `cem mark` on a stable producer map writes the claimed reason; the	unrecorded	-
+CEM-V1-145	docs/specs/cem-stable-v1.md	1441	`cem status` over a `cem/1.0` map MUST admit `--max-unknown` and	unrecorded	-
+CEM-V1-146	docs/specs/cem-stable-v1.md	1447	A stable prepare's `nextActions` MUST be the single `cem status` argv with the	unrecorded	-
+CEM-V1-147	docs/specs/cem-stable-v1.md	1450	The daily bind loop MUST cite, count, check and seal a `cem/1.0` map like a	unrecorded	-
+CEM-V1-148	docs/specs/cem-stable-v1.md	1456	`dogfood batch-check` MUST admit a sealed `cem/1.0` constituent when the verifie	unrecorded	-
+CEM-V1-149	docs/specs/cem-stable-v1.md	1461	`ocm prepare`, `ocm read` (status) and `ocm link` MUST admit a `cem/1.0` map onl	unrecorded	-
+CEM-V1-150	docs/specs/cem-stable-v1.md	1467	Local-completion sidecar-only reuse (`AllowCemSidecarOnlyReuse`) MUST keep	unrecorded	-
+CEM-V1-151	docs/specs/cem-stable-v1.md	1472	`dogfood finish` MUST read a `cem/1.0` change map: its `cem status` (and the	unrecorded	-
+CEM-V1-152	docs/specs/cem-stable-v1.md	1477	The aggregate verifier worker's closed argv grammar (`ALO-V0-018`) MUST admit th	unrecorded	-
+CEM-V1-160	docs/specs/cem-stable-v1.md	1686	`corvint witness --stable-artifact-root DIR` MUST pass the absolute artifact roo	unrecorded	-
+CEM-V1-161	docs/specs/cem-stable-v1.md	1690	The witness route MUST fail closed with exit 2, no stdout and the code	unrecorded	-
+CEM-V1-162	docs/specs/cem-stable-v1.md	1697	`corvint docs corpus cem-stable` MUST require `--artifact`, `--cem`,	unrecorded	-
+CEM-V1-163	docs/specs/cem-stable-v1.md	1702	A `cem-stable` refusal MUST exit 2 with no stdout and the code	unrecorded	-
+CEM-V1-164	docs/specs/cem-stable-v1.md	1705	`corvint-console -stable-artifact-root DIR` MUST select the chain pane's verifie	unrecorded	-
+CEM-V1-165	docs/specs/cem-stable-v1.md	1715	In verified mode, the pane MUST replace the chain with a refusal, drawing no cha	unrecorded	-
+CEM-V1-166	docs/specs/cem-stable-v1.md	1727	Without `-stable-artifact-root`, the display-only NOT_RUN pane of `CEM-V1-077` M	unrecorded	-
+CEM-V1-167	docs/specs/cem-stable-v1.md	1729	The protected local-authority consumer holds a Git object capsule and no	unrecorded	-
+CEM-V1-168	docs/specs/cem-stable-v1.md	1732	The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So	unrecorded	-
+CEM-V1-170	docs/specs/cem-stable-v1.md	688	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a ma	standing	2026-10-11; V1-1344
+CEM-V1-180	docs/specs/cem-stable-v1.md	2152	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The	standing	2026-10-11; V1-1358
+CEM-V1-181	docs/specs/cem-stable-v1.md	2159	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On Linux	standing	2026-10-11; V1-1358
+CEM-V1-182	docs/specs/cem-stable-v1.md	2164	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The Linu	standing	2026-10-11; V1-1358
+CEM-V1-183	docs/specs/cem-stable-v1.md	2172	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) Linux	standing	2026-10-11; V1-1358
+CEM-V1-184	docs/specs/cem-stable-v1.md	2183	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On a	standing	2026-10-11; V1-1358
+CEM-V1-185	docs/specs/cem-stable-v1.md	2388	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The stab	standing	2026-10-11; V1-1377
+CEM-V1-186	docs/specs/cem-stable-v1.md	2396	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The	standing	2026-10-11; V1-1377
+CEM-V1-187	docs/specs/cem-stable-v1.md	2402	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) An	standing	2026-10-11; V1-1377
+CEM-V1-188	docs/specs/cem-stable-v1.md	2407	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The host	standing	2026-10-11; V1-1377
+CEM-V1-189	docs/specs/cem-stable-v1.md	2413	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) A test i	standing	2026-10-11; V1-1377
+CEM-V1-200	docs/specs/cem-stable-v1.md	787	`wire.ParseStable`, and so every stable read (`cem verify-stable`, a stable	unrecorded	-
+CEM-V1-201	docs/specs/cem-stable-v1.md	796	Every committed `.corvint/changes/<bind>.cem.json` MUST be accepted by	unrecorded	-
+CEM-V1-202	docs/specs/cem-stable-v1.md	807	`dogfood batch-check` and `dogfood change`'s sealed-CEM admission (`DCW-V0-039`	unrecorded	-
+CEM-V1-203	docs/specs/cem-stable-v1.md	814	A sealed `cem/0.1`, `cem/0.2` or `cem/0.3` map that the range adds and whose	unrecorded	-
+CEM-V1-204	docs/specs/cem-stable-v1.md	831	The converter (`internal/cem/convert`), `corvint cem convert`	unrecorded	-
+CEM-V1-205	docs/specs/cem-stable-v1.md	874	A check whose plan sets `AllowCemSidecarOnlyReuse` and whose latest passing,	unrecorded	-
+CEM-V1-206	docs/specs/cem-stable-v1.md	882	The verifier MUST receive the exact bytes read from	unrecorded	-
+CEM-V1-207	docs/specs/cem-stable-v1.md	889	A refused reuse MUST leave the check unqualified (`selected-check-unverified`,	unrecorded	-
+CEM-V1-208	docs/specs/cem-stable-v1.md	898	Without `AllowCemSidecarOnlyReuse`, a check observed on another target MUST stay	unrecorded	-
+CEM-V1-209	docs/specs/cem-stable-v1.md	902	Each of `CEM-V1-205..208` MUST be traced to a named test in	unrecorded	-
+CEM-V1-210	docs/specs/cem-stable-v1.md	1789	Every consumer outside `internal/cem` (LRF, OCM, the stable universe, frontier	unrecorded	-
+CEM-V1-211	docs/specs/cem-stable-v1.md	1812	The frontier, LRF/OCM, dashboard, console and MCP projections MUST read the	unrecorded	-
+CEM-V1-212	docs/specs/cem-stable-v1.md	1816	A frozen conformance suite whose expectations depend on a 0.x map changes only	unrecorded	-
+CEM-V1-213	docs/specs/cem-stable-v1.md	1837	The daily loop's admission (`CEM-V1-202`) stays `cem/1.0`-only on every route a	unrecorded	-
+CEM-V1-214	docs/specs/cem-stable-v1.md	1842	A test that guards behavior `cem/1.0` keeps MUST be ported to a `cem/1.0` map	unrecorded	-
+CEM-V1-215	docs/specs/cem-stable-v1.md	1887	The product MUST ship one CEM wire, `cem/1.0`. No Go package outside the frozen	unrecorded	-
+CEM-V1-216	docs/specs/cem-stable-v1.md	1896	`cem begin` and `cem prepare` MUST accept only `--spec cem/1.0` (the default). A	unrecorded	-
+CEM-V1-217	docs/specs/cem-stable-v1.md	1900	The frozen 0.x projection routes MUST be retired, each with its stable successor	unrecorded	-
+CEM-V1-218	docs/specs/cem-stable-v1.md	1909	Only the `cem/v2` attestation predicate (`CEMStatementV2`, `CEM-V1-065`)	unrecorded	-
+CEM-V1-219	docs/specs/cem-stable-v1.md	1915	The core compatibility freeze and cli-parity-v0 MUST change only under decision	unrecorded	-
+CEM-V1-220	docs/specs/cem-stable-v1.md	1955	The `cem/0.x` protocol and conformance packets MUST be deleted:	unrecorded	-
+CEM-V1-221	docs/specs/cem-stable-v1.md	1960	`protocol/cem-1.0` MUST be self-contained. The 0.x normative text that `cem/1.0`	unrecorded	-
+CEM-V1-222	docs/specs/cem-stable-v1.md	1966	`interop/cem01-go` MUST verify `cem/1.0` only. The `cem/0.1` default `verify`	unrecorded	-
+CEM-V1-223	docs/specs/cem-stable-v1.md	1972	`examples/cem` except the 0.x-free `examples/cem/experiments/` companion demo, i	unrecorded	-
+CEM-V1-224	docs/specs/cem-stable-v1.md	1976	The Core remnants MUST name no retired wire: the dogfood loop passes	unrecorded	-
+CEM-V1-225	docs/specs/cem-stable-v1.md	1981	The `cem/0.2`, `cem/0.3`, 0.1 Go portability probe and 0.1 external interop spec	unrecorded	-
+CEM-V1-226	docs/specs/cem-stable-v1.md	2023	The packet MUST carry one shared tamper matrix at	unrecorded	-
+CEM-V1-227	docs/specs/cem-stable-v1.md	2030	The native verifier (`internal/cem/verify`, `Stable`) and the portable consumer	unrecorded	-
+CEM-V1-228	docs/specs/cem-stable-v1.md	2034	Each `EXPECTED.json` case MUST carry `name`, `tamper`, `description`, `map`,	unrecorded	-
+CEM-V1-229	docs/specs/cem-stable-v1.md	2044	Swapping evidence IDs between hunks, when every record stays a valid digest-boun	unrecorded	-
+CEM-V1-230	docs/specs/cem-stable-v1.md	721	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
+CEM-V1-231	docs/specs/cem-stable-v1.md	736	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
+CEM-V1-232	docs/specs/cem-stable-v1.md	743	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) The migr	standing	2026-10-11; V1-1277
+CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	1139	(retired by V1-1278 S3) The default `verify` path refuses a strictly parsed JSON	unrecorded	-
+CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	1143	(retired by V1-1278 S3) `ci` reports such a map as verdict `unsupported-profile`	unrecorded	-
+CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	1146	(retired by V1-1278 S3) Only that exact case changes. A duplicate, non-string, d	unrecorded	-
+CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	1150	(retired by V1-1278 S3) `examples/cem/verify-portable.sh` runs `verify-stable-ca	unrecorded	-
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench	unrecorded	-
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,	unrecorded	-
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and	unrecorded	-
@@ -2487,6 +2512,11 @@ NGI-V0-003	docs/specs/non-go-impact-v0.md	37	Every Ruby/JS/TS changed path MUST 
 NGI-V0-004	docs/specs/non-go-impact-v0.md	51	Added paths MUST carry the same receipt/evidence envelope and	unrecorded	-
 NGI-V0-005	docs/specs/non-go-impact-v0.md	63	`impact --help` and MCP description MUST publish a per-language	unrecorded	-
 NGI-V0-006	docs/specs/non-go-impact-v0.md	67	Conformance MUST include each new suffix/language, negative	unrecorded	-
+NGI-V0-007	docs/specs/non-go-impact-v0.md	84	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) A	standing	2026-10-11; V1-1365
+NGI-V0-008	docs/specs/non-go-impact-v0.md	96	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) The	standing	2026-10-11; V1-1365
+NGI-V0-009	docs/specs/non-go-impact-v0.md	107	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) A call	standing	2026-10-11; V1-1365
+NGI-V0-010	docs/specs/non-go-impact-v0.md	117	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) Selectio	standing	2026-10-11; V1-1365
+NGI-V0-011	docs/specs/non-go-impact-v0.md	126	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365)	standing	2026-10-11; V1-1365
 NJB-001	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	44	each family is one exact profile/target tuple and a standalone CLI package; no	unrecorded	-
 NJB-002	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	46	canonical one-LF JSON input/output is bounded before decode, base64 decode, fact	unrecorded	-
 NJB-003	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	54	facts are typed, ordered, and digest-bound by the bridge-owned 14-field evidence	unrecorded	-
@@ -2633,6 +2663,7 @@ PGO-V0-007	docs/specs/process-group-owner-v0.md	38	Proposed (V1-0608). `RunConta
 PGO-V0-008	docs/specs/process-group-owner-v0.md	39	Proposed (V1-0373, V1-0652). Where waitid is available (Darwin and Linux), no le	unrecorded	-
 PGO-V0-009	docs/specs/process-group-owner-v0.md	40	(accepted, decision 0492; V1-1036, V1-1047, V1-1050, V1-1056) Where waitid is av	owner	decision 0492; V1-1036; V1-1047; V1-1050; V1-1056
 PGO-V0-010	docs/specs/process-group-owner-v0.md	42	accepted, decision 0507. POSIX descendant snapshots retain at most 4 MiB stdout	unrecorded	-
+PGO-V0-011	docs/specs/process-group-owner-v0.md	43	(accepted under the owner's standing auto-accept (2026-10-11); V1-0668) The Owne	standing	2026-10-11; V1-0668
 PLE-V0-001	docs/specs/protected-local-execution-v0.md	27	The optional `corvint-protected-execution/0` profile MUST preserve all legacy pr	unrecorded	-
 PLE-V0-002	docs/specs/protected-local-execution-v0.md	28	A protected immutable release and independently admitted root/policy MUST bind t	unrecorded	-
 PLE-V0-003	docs/specs/protected-local-execution-v0.md	29	Ingestion MUST bound and independently bind expected Git base/target/tree, CEM,	unrecorded	-
@@ -3275,6 +3306,22 @@ TCB-V0-016	docs/specs/tasks-criterion-binding-v0.md	77	(accepted under the owner
 TCB-V0-017	docs/specs/tasks-criterion-binding-v0.md	85	(accepted under the owner's standing auto-accept (2026-10-11); V1-1283) The gate	standing	2026-10-11; V1-1283
 TCB-V0-018	docs/specs/tasks-criterion-binding-v0.md	93	(accepted under the owner's standing auto-accept (2026-10-11); V1-1283) The docu	standing	2026-10-11; V1-1283
 TCB-V0-019	docs/specs/tasks-criterion-binding-v0.md	98	(accepted under the owner's standing auto-accept (2026-10-11); V1-1283) The gate	standing	2026-10-11; V1-1283
+TCB-V0-020	docs/specs/tasks-criterion-binding-v0.md	103	(accepted under the owner's standing auto-accept (2026-10-11); V1-1356) For a ti	standing	2026-10-11; V1-1356
+TCB-V0-021	docs/specs/tasks-criterion-binding-v0.md	111	(accepted under the owner's standing auto-accept (2026-10-11); V1-1356) Native	standing	2026-10-11; V1-1356
+TCB-V0-022	docs/specs/tasks-criterion-binding-v0.md	119	(accepted under the owner's standing auto-accept (2026-10-11); V1-1356)	standing	2026-10-11; V1-1356
+TCB-V0-023	docs/specs/tasks-criterion-binding-v0.md	125	(accepted under the owner's standing auto-accept (2026-10-11); V1-1356) Under	standing	2026-10-11; V1-1356
+TCB-V0-030	docs/specs/tasks-criterion-binding-v0.md	308	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The	standing	2026-10-11; V1-1358
+TCB-V0-031	docs/specs/tasks-criterion-binding-v0.md	315	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On any	standing	2026-10-11; V1-1358
+TCB-V0-035	docs/specs/tasks-criterion-binding-v0.md	352	(accepted under the owner's standing auto-accept (2026-10-11); V1-1359) A ticket	standing	2026-10-11; V1-1359
+TCB-V0-036	docs/specs/tasks-criterion-binding-v0.md	359	(accepted under the owner's standing auto-accept (2026-10-11); V1-1359) A presen	standing	2026-10-11; V1-1359
+TCB-V0-037	docs/specs/tasks-criterion-binding-v0.md	366	(accepted under the owner's standing auto-accept (2026-10-11); V1-1359) A fourth	standing	2026-10-11; V1-1359
+TCB-V0-038	docs/specs/tasks-criterion-binding-v0.md	372	(accepted under the owner's standing auto-accept (2026-10-11); V1-1359) Given th	standing	2026-10-11; V1-1359
+TCB-V0-039	docs/specs/tasks-criterion-binding-v0.md	376	(accepted under the owner's standing auto-accept (2026-10-11); V1-1359) The repo	standing	2026-10-11; V1-1359
+TCB-V0-040	docs/specs/tasks-criterion-binding-v0.md	436	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The gate	standing	2026-10-11; V1-1377
+TCB-V0-041	docs/specs/tasks-criterion-binding-v0.md	445	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) When the	standing	2026-10-11; V1-1377
+TCB-V0-042	docs/specs/tasks-criterion-binding-v0.md	457	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) A test	standing	2026-10-11; V1-1377
+TCB-V0-043	docs/specs/tasks-criterion-binding-v0.md	464	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The	standing	2026-10-11; V1-1377
+TCB-V0-044	docs/specs/tasks-criterion-binding-v0.md	470	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The host	standing	2026-10-11; V1-1377
 TCN-V0-001	docs/specs/test-consolidation-planner-v0.md	98	The planner MUST be a read-only local projection. `corvint test-plan consolidate	unrecorded	-
 TCN-V0-002	docs/specs/test-consolidation-planner-v0.md	106	The input MUST be one closed `test-consolidation-input/0` JSON document of at mo	unrecorded	-
 TCN-V0-003	docs/specs/test-consolidation-planner-v0.md	124	A variation MUST be abstained, never grouped, isolated, reused or deduplicated,	unrecorded	-
@@ -3601,6 +3648,7 @@ UPD-V0-006	docs/specs/operator-update-v0.md	57	Owned executable probes MUST isol
 UPD-V0-007	docs/specs/operator-update-v0.md	60	(accepted by decision 0440; V1-0929) The state directory MUST	owner	decision 0440; V1-0929
 UPD-V0-008	docs/specs/operator-update-v0.md	91	(proposed (V1-1078)) An index snapshot is keyed by the Core executable's digest	unrecorded	-
 UPD-V0-009	docs/specs/operator-update-v0.md	117	(proposed (V1-0639)) Every `check` result that observes a release MUST state	unrecorded	-
+UPD-V0-010	docs/specs/operator-update-v0.md	139	(accepted under the owner's standing auto-accept (2026-10-11); V1-1364) An insta	standing	2026-10-11; V1-1364
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	31	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a	unrecorded	-
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	46	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and	unrecorded	-
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	65	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker	unrecorded	-

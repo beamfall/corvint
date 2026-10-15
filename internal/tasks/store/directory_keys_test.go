@@ -6,6 +6,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 )
 
 // TestCALV0211_ClaimWarnsOnExactDirectoryKey: a fresh claim whose scope holds
@@ -59,5 +60,18 @@ func TestCALV0211_ExactDirectoryKeyWarnings(t *testing.T) {
 	}
 	if got := store.ExactDirectoryKeyWarnings(s.root, "refs/heads/absent", []string{"src"}); got != nil {
 		t.Fatalf("unreadable revision warned: %q", got)
+	}
+}
+
+// TestTCBV0036_VerdictPathKeysWarnLikeTouchPaths: an exact verdictPaths key
+// that names a directory gets the CAL-V0-211 warning a touchPaths key gets,
+// once, since a covered directory key governs only that exact path.
+func TestTCBV0036_VerdictPathKeysWarnLikeTouchPaths(t *testing.T) {
+	s := newGateStore(t)
+	s.commit(t, "src/deep/a.go")
+	e := ticket.Effects{TouchPaths: []string{"src/"}, VerdictPaths: []string{"src/deep"}, Resources: []ticket.Resource{}}
+	got := store.EffectsDirectoryKeyWarnings(s.root, "HEAD", e)
+	if len(got) != 1 || !strings.Contains(got[0], "PATH key src/deep ") {
+		t.Fatalf("warnings = %q", got)
 	}
 }

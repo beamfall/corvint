@@ -935,6 +935,9 @@ func copyEffects(e ticket.Effects) ticket.Effects {
 	out := ticket.Effects{Coverage: e.Coverage, TouchPaths: copyStrings(e.TouchPaths), ExternalUnbounded: e.ExternalUnbounded}
 	out.Resources = make([]ticket.Resource, len(e.Resources))
 	copy(out.Resources, e.Resources)
+	if e.VerdictPaths != nil {
+		out.VerdictPaths = copyStrings(e.VerdictPaths)
+	}
 	return out
 }
 

@@ -114,9 +114,15 @@ func stream(t *testing.T) []string {
 
 func repo(t *testing.T, allow string) (string, string) {
 	t.Helper()
+	return repoWith(t, allow, "{}\n")
+}
+
+// repoWith commits the allow-list and slice file a run tested.
+func repoWith(t *testing.T, allow, slices string) (string, string) {
+	t.Helper()
 	root := t.TempDir()
 	write(t, filepath.Join(root, allowPath), allow)
-	write(t, filepath.Join(root, slicesPath), "{}\n")
+	write(t, filepath.Join(root, slicesPath), slices)
 	for _, args := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@example.org", "commit", "-q", "-m", "fixture"}} {
 		if out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v %s", args, err, out)
@@ -463,7 +469,7 @@ func TestAFPV0041ObserveRefusesIncompleteOrFailedLogs(t *testing.T) {
 		}
 		hosted.WriteString(l)
 	}
-	if o, err := observe([]string{write(t, filepath.Join(t.TempDir(), "hosted.log"), hosted.String())}); err != nil || o.packages["example.org/big"] != 2000 {
+	if o, err := observe([]string{write(t, filepath.Join(t.TempDir(), "hosted.log"), hosted.String())}); err != nil || len(o.ends["example.org/big"]) != 1 || o.ends["example.org/big"][0].ms != 2000 {
 		t.Fatalf("prefixed passing log: %+v, %v", o, err)
 	}
 	for name, c := range map[string]struct{ log, want string }{
@@ -589,9 +595,11 @@ func TestAFPV0041ReplayPredictsShardSums(t *testing.T) {
 	write(t, filepath.Join(root, allowPath), allowBig)
 	slices := `{"profile":"corvint-ci-test-slices/0","source":{"revision":"0123456789abcdef0123456789abcdef01234567","runURL":"` + runURL + `","goVersion":"go1.27.1"},
 "packages":{"example.org/big":{"named":[{"milliseconds":17500,"tests":["TestA","TestB","TestC"]}],"restMilliseconds":17500}}}`
-	write(t, filepath.Join(root, slicesPath), slices)
+	// ROOT's slice file is the one the whole run ran with; --slices is the candidate.
+	write(t, filepath.Join(root, slicesPath), "{}\n")
+	candidate := write(t, filepath.Join(t.TempDir(), "candidate.json"), slices)
 	var out bytes.Buffer
-	if code, err := run(context.Background(), "replay", append([]string{"--root", root, "--shards", "2"}, stream(t)...), &out, &bytes.Buffer{}); code != 0 || err != nil {
+	if code, err := run(context.Background(), "replay", append([]string{"--root", root, "--shards", "2", "--slices", candidate}, stream(t)...), &out, &bytes.Buffer{}); code != 0 || err != nil {
 		t.Fatalf("replay code=%d err=%v", code, err)
 	}
 	// big: 35 s over 70 ms of top-level tests; A..C are 30 ms (15 s), D..F 40 ms (20 s).

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -111,10 +112,14 @@ type cemVerdictPin struct {
 }
 
 // cemPortablePin is what the independent portable consumer reported for the
-// same map bytes: its own verdictSha256 claim and its citation block's digest.
+// same map bytes: its own verdictSha256 claim and its citation block's digest,
+// with the stage its result ended at and its closed result code (TCB-V0-040),
+// so an UNSUPPORTED answer names its own reason in the document.
 type cemPortablePin struct {
 	Route          string  `json:"route"`
 	Outcome        string  `json:"outcome"`
+	Stage          string  `json:"stage"`
+	Code           *string `json:"code"`
 	VerdictSha256  string  `json:"verdictSha256"`
 	CitationSha256 *string `json:"citationSha256"`
 }
@@ -217,6 +222,17 @@ func (g *verdictGate) evaluate(ctx context.Context, in CEMVerdictInput) {
 	}
 	candidateTree := strings.TrimSuffix(string(tree), "\n")
 	g.doc.CandidateTree = &candidateTree
+	if in.Predicate == PredicateTouchedAnchored {
+		names, err := exactKeyNamesDirectory(git, touch, in.BaseCommit, in.CandidateCommit)
+		if err != nil {
+			g.refuse(CEMVerdictUnverifiable, "git-read-failed")
+			return
+		}
+		if names {
+			g.refuse(CEMVerdictInputInvalid, "touch-key-names-directory")
+			return
+		}
+	}
 	added, err := git("diff-tree", "-r", "-z", "--no-renames", "--no-commit-id", "--diff-filter=A", "--name-only", in.BaseCommit, in.CandidateCommit, "--", sealedMapDir)
 	if err != nil {
 		g.refuse(CEMVerdictUnverifiable, "git-read-failed")
@@ -293,8 +309,9 @@ func (g *verdictGate) evaluate(ctx context.Context, in CEMVerdictInput) {
 // its outcome, its verdictSha256 claim, the digest recomputed from its own
 // result and its canonical citation block must all equal the native ones. A
 // consumer that cannot run, emits no readable result or exits in a way its own
-// outcome does not explain is unverifiable; any readable difference is a
-// disagreement, never a pass.
+// outcome does not explain is unverifiable; one that answers UNSUPPORTED
+// against a native verdict is unverifiable under the route's name
+// (TCB-V0-041); any other readable difference is a disagreement, never a pass.
 func (g *verdictGate) crossCheck(ctx context.Context, in CEMVerdictInput, target string, raw []byte, native verify.StableResult, verdict string) bool {
 	stdout, status, err := runPortableConsumer(ctx, in, target, raw)
 	if err != nil {
@@ -307,6 +324,18 @@ func (g *verdictGate) crossCheck(ctx context.Context, in CEMVerdictInput, target
 		return false
 	}
 	g.doc.Portable = &reading.pin
+	// A consumer that could not run its route on this host answers
+	// UNSUPPORTED with its own closed code; that is the portable leg missing,
+	// not two verdicts differing, so the refusal names the route and keeps
+	// the pinned code (TCB-V0-041). Only a result whose verdictSha256 claim is
+	// the digest recomputed from its own bytes is that consumer's answer: a
+	// claim its result does not recompute to is a disagreement below, so the
+	// named refusal never pins a false claim. Both legs answering
+	// UNSUPPORTED still go through the comparison and the native refusal.
+	if reading.pin.Outcome == "UNSUPPORTED" && native.Outcome != "UNSUPPORTED" && reading.pin.VerdictSha256 == reading.recomputed {
+		g.refuse(CEMVerdictUnverifiable, "portable-route-unsupported")
+		return false
+	}
 	citation, err := json.Marshal(native.Citation)
 	if err != nil {
 		g.refuse(CEMVerdictUnverifiable, "portable-consumer-failed")
@@ -342,6 +371,32 @@ func runPortableConsumer(ctx context.Context, in CEMVerdictInput, target string,
 	return runPortable(ctx, in.PortableConsumer, in.Root, []string{portableRoute, "--repository", in.Root, "--map", file.Name(), "--expected-base", in.BaseCommit, "--target", target, "--artifacts", in.Root})
 }
 
+// portableStages and portableCodes are the closed `stage` and `code` sets of
+// the portable consumer's result contract,
+// protocol/cem-1.0/stable/RESULT.schema.json, which the gate pins verbatim
+// (TCB-V0-040). TestTCBV0040PortablePinSetsMatchTheResultSchema pins them to
+// the schema; a stage or code outside them is not a readable result, so no
+// other bytes enter the document.
+var portableStages = closedSet("arguments", "input", "wire", "references", "authority-arguments", "runtime", "repository", "binding", "verification", "drift", "artifacts", "complete")
+
+var portableCodes = closedSet(
+	"artifact-resource-limit", "artifact-role-closure", "artifact-unavailable", "artifacts-required",
+	"duplicate-reference", "expected-base-required", "git-diff-failed", "git-read-failed", "git-timeout",
+	"invalid-arguments", "invalid-criterion-identity", "invalid-excluded-path", "invalid-field", "invalid-json",
+	"map-unavailable", "missing-field", "reference-coherence", "repository-object-unavailable", "target-required",
+	"unknown-field", "unresolved-reference", "unsupported-object-alternates", "unsupported-patch-inventory",
+	"unsupported-process-containment", "unsupported-repository-envelope", "unsupported-resource-limit",
+	"unsupported-spec", "unsupported-structural-runtime", "unsupported-tree-mode", "verification-timeout",
+)
+
+func closedSet(members ...string) map[string]bool {
+	set := make(map[string]bool, len(members))
+	for _, m := range members {
+		set[m] = true
+	}
+	return set
+}
+
 // portableExitAgrees reports whether the consumer's exit status matches its
 // outcome: verify-stable-canonical exits 0 exactly on ACCEPT, and 1 or 2 on a
 // REJECT or UNSUPPORTED result.
@@ -372,9 +427,17 @@ func readPortable(stdout []byte) (portableReading, bool) {
 	}
 	profile, okProfile := member("profile", wire.KindString)
 	outcome, okOutcome := member("outcome", wire.KindString)
+	stage, okStage := member("stage", wire.KindString)
+	code, okCode := value.Obj.Get("code")
 	claimed, okClaimed := member("verdictSha256", wire.KindString)
 	citation, okCitation := value.Obj.Get("citation")
-	if !okProfile || !okOutcome || !okClaimed || !okCitation || profile.Str != portableProfile || !digest(claimed.Str) || citation.Kind != wire.KindObject && citation.Kind != wire.KindNull {
+	if !okProfile || !okOutcome || !okStage || !okCode || !okClaimed || !okCitation || profile.Str != portableProfile || !digest(claimed.Str) || citation.Kind != wire.KindObject && citation.Kind != wire.KindNull {
+		return portableReading{}, false
+	}
+	// The stage and code are pinned verbatim, so they must be members of the
+	// contract's closed sets: anything else is not a readable result
+	// (TCB-V0-040).
+	if !portableStages[stage.Str] || code.Kind != wire.KindNull && (code.Kind != wire.KindString || !portableCodes[code.Str]) {
 		return portableReading{}, false
 	}
 	result := &wire.Object{Values: map[string]wire.Value{}}
@@ -385,9 +448,13 @@ func readPortable(stdout []byte) (portableReading, bool) {
 		}
 	}
 	reading := portableReading{
-		pin:        cemPortablePin{Route: portableRoute, Outcome: outcome.Str, VerdictSha256: claimed.Str},
+		pin:        cemPortablePin{Route: portableRoute, Outcome: outcome.Str, Stage: stage.Str, VerdictSha256: claimed.Str},
 		recomputed: sum(wire.CanonicalValue(wire.Value{Kind: wire.KindObject, Obj: result})),
 		citation:   wire.CanonicalValue(citation),
+	}
+	if code.Kind == wire.KindString {
+		pinned := code.Str
+		reading.pin.Code = &pinned
 	}
 	if citation.Kind == wire.KindObject {
 		citationSha256 := sum(reading.citation)
@@ -489,6 +556,46 @@ func underTouchPath(path string, touch []string) bool {
 		}
 	}
 	return false
+}
+
+// exactKeyNamesDirectory reports whether a touch key without a trailing "/"
+// names a directory in any of commits (TCB-V0-023). Under the Tasks PATH key
+// rule such a key governs that one path and nothing beneath it, so the hunks
+// under the directory would go ungoverned without notice. The gate refuses
+// rather than widening the key, so a key means the same in Tasks and here.
+func exactKeyNamesDirectory(git func(...string) ([]byte, error), touch []string, commits ...string) (bool, error) {
+	exact := map[string]bool{}
+	for _, key := range touch {
+		if !strings.HasSuffix(key, "/") {
+			exact[key] = true
+		}
+	}
+	if len(exact) == 0 {
+		return false, nil
+	}
+	for _, commit := range commits {
+		out, err := git("ls-tree", "-r", "-d", "-z", "--full-tree", "--end-of-options", commit)
+		if err != nil {
+			return false, err
+		}
+		if len(out) == 0 {
+			continue
+		}
+		listing, terminated := strings.CutSuffix(string(out), "\x00")
+		if !terminated {
+			return false, errors.New("unterminated directory listing")
+		}
+		for _, entry := range strings.Split(listing, "\x00") {
+			meta, path, ok := strings.Cut(entry, "\t")
+			if fields := strings.Fields(meta); !ok || path == "" || len(fields) != 3 || fields[1] != "tree" {
+				return false, errors.New("unreadable directory listing")
+			}
+			if exact[path] {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 func sealedTarget(path string) string {

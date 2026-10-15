@@ -1,8 +1,9 @@
 # Shared tamper matrix (CEM-V1-226..229)
 
-Status: PROPOSED / EXPERIMENTAL, like the rest of `protocol/cem-1.0/stable/`.
+Status: like the rest of `protocol/cem-1.0/stable/`, implemented and run by both
+consumers; the technical contract is proposed and not promoted.
 
-One clean `cem/1.0` map and eighteen tampered copies of it, each with the one
+One clean `cem/1.0` map and nineteen tampered copies of it, each with the one
 verdict every stable consumer must return. The native verifier
 (`internal/cem/verify`) and the portable consumer (`interop/cem01-go`) both
 load this directory and assert every case; the tests are named

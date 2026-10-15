@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appflows"
+	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/rootalias"
 )
@@ -50,6 +51,9 @@ func decodeManifest(raw []byte) (Manifest, error) {
 	}
 	if err := validateRouterGlobs(m.RouterGlobs); err != nil {
 		return m, err
+	}
+	if err := contextindex.ValidateRegistryDeclarations(m.Registries); err != nil {
+		return m, invalidManifest("manifest %v", err)
 	}
 	if m.Flows != "" && !safeRelative(m.Flows) {
 		return m, invalidManifest("manifest flows must be a repository-relative directory")

@@ -10,8 +10,8 @@ semantics; issue intent does not accept generated implementation detail.
 
 ## Agent digest
 - Claim: Ruby, JavaScript and TypeScript path/range impact binds syntax evidence and explicitly names unresolved dynamic dispatch.
-- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending.
-- Exists: Ruby/JS/TS versioned positional, committed-range and MCP admission; bounded structured unknowns; existing JS/TS import rules.
+- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending. NGI-V0-007..011 (declared `string-key-registry/0` dialect: literal registry keys to the tests passing them) are accepted under the owner's standing auto-accept (2026-10-11; V1-1365) and implemented over synthetic repositories.
+- Exists: Ruby/JS/TS versioned positional, committed-range and MCP admission; bounded structured unknowns; existing JS/TS import rules; a declared string-keyed registry dialect for syntax-profile path impact.
 - Blocked on: shared registry/CEM closeout, draft publication, integration and owner acceptance; no runtime-dispatch qualification.
 - Read next: Requirements; Trust and failure boundaries; Acceptance and traceability.
 
@@ -72,6 +72,65 @@ test closure. The useful result is bounded evidence with an open semantic fronti
   tested for invalid/repeated values and mutually exclusive profiles. No test execution or qualification is implied
   by an impact receipt.
 
+### Declared string-keyed registries (V1-1365; GitHub #871)
+
+A module registered in an exported object literal and reached by tests only
+through an accessor that takes the literal key has no import edge to those tests.
+This narrow dialect, declared like the application map's router dialects, binds
+the key instead. It is read only by syntax-profile path impact (positional
+`--language-profile non-go-syntax-v0` and MCP); the historical default receipt
+and range impact are unchanged.
+
+- `NGI-V0-007`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1365) A
+  registry MUST be declared as an entry of the optional `registries` member of a committed
+  `application-map-manifest/0` document: `path` (a clean repository-relative JS/TS path with
+  no backslash and no `.git` first segment),
+  `export` (an identifier), `dialect` exactly `string-key-registry/0`, and 1..16 unique
+  identifier `accessors`; at most 64 entries, unique by path and export. The application map
+  validates the member with the same closed check and refuses an invalid one with
+  `appmap-invalid-manifest` but does not read it. Impact reads every indexed manifest at the
+  evaluated revision; a member that does not decode or validate, or a manifest that mentions
+  `registries` but exceeds 256 KiB or is not strict JSON (a duplicate member included), is
+  counted as `registry-declaration-invalid` on every JS/TS changed path and contributes no edge.
+  No accessor or registry is ever inferred.
+- `NGI-V0-008`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1365) The
+  dialect MUST read the declared export as `export const|let|var NAME [: Type] = { ... }` with
+  the existing web lexer. An entry gives a key -> module edge only when its key is a quoted
+  string, a template literal without substitution, an identifier, or a computed key holding
+  exactly one such literal, and its value is `X`, `ns.X`, `new X(...)` or `new ns.X(...)`
+  (optionally followed by `as` or `satisfies`) where `X` or `ns` is a value binding of a static
+  import; the edge's module is that import's specifier as resolved by the existing reverse-import
+  rules. Every other entry (a spread, a computed key needing evaluation, a template with a
+  substitution, a method, an escaped or overlong key, a value that is not an imported binding)
+  is counted, never dropped. A declared file whose export is not such an object literal (for
+  example a re-export) or is unreadable has no known key.
+- `NGI-V0-009`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1365) A call
+  site is a call of a declared accessor, by name or by a local alias from an import clause,
+  in any indexed JS/TS source; a declaration of the method or function is not one, and an
+  uncalled member reference (`dp.accessor` passed on) is a call site with a non-literal key. Its
+  key is literal only when the first argument is a closed quoted string or substitution-free
+  template followed by `,` or `)`. For a changed path the registry imports, impact MUST return each
+  calling file whose literal key the registry maps to that path, as a `test` result (a test path)
+  or `reference` result, with two `high`/`syntax` evidence rows pinned to Git blobs: the registry
+  entry line and the call-site line. The same key in another registry selects only through that
+  registry's accessors.
+- `NGI-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1365) Selection
+  MUST fail closed. A non-literal key at any call site of a registry's accessor adds
+  `accessor-key-nonliteral` (count of such calls, with `registry` and `accessor`); an
+  unresolved entry adds `registry-key-unresolved` (count, with `registry`); an unresolved export
+  adds `registry-export-unresolved` and applies to every JS/TS changed path. Each of these, and
+  a change to the registry file itself, MUST widen selection to every caller of that registry's
+  accessors with `medium` call-site evidence. A source that names an accessor but cannot be
+  read or lexed completely adds `registry-caller-unavailable`. These rows sit in structured
+  unknowns, independent of the result limit.
+- `NGI-V0-011`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1365)
+  Conformance MUST cover the issue-shaped fixture (several entries, literal-key specs, a spec
+  with a computed key, a change to the registry file), a registered module under a test tree,
+  and the hostile cases: a spread entry, a re-exported registry, an aliased accessor import,
+  template keys with and without substitution, a key collision across two registries, an
+  invalid declaration, and an unchanged default-profile receipt. The real CLI output on the
+  fixture is retained in the build log.
+
 ## Trust and failure boundaries
 
 Core performs bounded local immutable reads; it adds no network, process provider,
@@ -95,9 +154,16 @@ for languages not admitted by this new range capability.
 | `autoload-unresolved` | Ruby autoload was observed without resolved runtime semantics. |
 | `dynamic-load-unresolved` | A load argument is dynamic, interpolated or concatenated. |
 | `bare-import-unresolved` | Bare JS/TS import specifiers resolve to no repository file or declared package, so reverse importers are not closed; `count` is the repository-wide specifier count (`GPK-V0-080`, proposed). |
+| `registry-declaration-invalid` | A manifest `registries` member does not decode or validate; `count` is the number of such manifests (`NGI-V0-007`). |
+| `registry-key-unresolved` | Entries of the declared registry `registry` have no literal key or imported-binding value; selection is widened (`NGI-V0-008`, `NGI-V0-010`). |
+| `registry-export-unresolved` | The declared export of `registry` is not a readable object literal, so none of its keys are known; selection is widened (`NGI-V0-008`, `NGI-V0-010`). |
+| `accessor-key-nonliteral` | `count` calls of `accessor` pass a key that is not a literal; selection is widened to every caller (`NGI-V0-010`). |
+| `registry-caller-unavailable` | Sources naming a declared accessor could not be read or lexed completely (`NGI-V0-010`). |
 
 These codes are uncertainty, never execution evidence. The versioned receipt
 names `language_profile: non-go-syntax-v0`; line 0 denotes a baseline frontier.
+The registry rows' `registry` and `accessor` fields carry only a declared path
+and a validated declared identifier, never source text.
 
 ## Acceptance and traceability
 
@@ -109,6 +175,11 @@ names `language_profile: non-go-syntax-v0`; line 0 denotes a baseline frontier.
 | `NGI-V0-004` | existing range bindings/reducer | `TestNonGoRangeImpactLegacyGoBytes`, `TestNonGoRangeImpactGoModuleValidationPriority`, `TestNonGoImpactCLIProfile` |
 | `NGI-V0-005` | impactHelp and MCP description | `TestNonGoImpactMCPAdmission`; actual CLI help check in the build-log |
 | `NGI-V0-006` | committed fixture conformance | `TestNonGoRangeImpactMixed`, `TestNonGoRangeImpactRefusals`; tests above and existing range/impact regressions |
+| `NGI-V0-007` | `ValidateRegistryDeclarations`, `declaredRegistries` (`internal/contextindex/registry_dialect.go`); `decodeManifest` (`internal/appmap/manifest.go`) | `TestValidateRegistryDeclarations`, `TestRegistryDialectDeclarationFailures`, `TestManifestRegistriesMember` |
+| `NGI-V0-008` | `parseRegistry`, `registryImports`, `registryEntryOf`; template body in `readTemplate` (`webimports.go`) | `TestRegistryDialectSelectsTestsPassingTheKey`, `TestRegistryDialectUnresolvedRegistryWidens`, `TestRegistryDialectReexportedRegistryIsUnresolved` |
+| `NGI-V0-009` | `registryCallSites`, `registryDialect.impact`; wiring in `impact` | `TestRegistryDialectSelectsTestsPassingTheKey`, `TestRegistryDialectAliasedAccessorImport`, `TestRegistryDialectKeyCollisionAcrossRegistries` |
+| `NGI-V0-010` | `registryDialect.impact`; `extra` rows in `nonGoImpactUnknowns` | `TestRegistryDialectNonLiteralKeyWidens`, `TestRegistryDialectChangedRegistrySelectsEveryCaller`, `TestRegistryDialectUnresolvedRegistryWidens`, `TestRegistryDialectReexportedRegistryIsUnresolved` |
+| `NGI-V0-011` | `internal/contextindex/registry_dialect_test.go`, `internal/appmap/registries_test.go` | tests above; real CLI output in `../build-log/2026-10-14-v1-1365-string-keyed-registry.md` |
 
 Names in this matrix identify evidence rather than implying passing execution.
 Observed execution and independent findings are retained in
@@ -119,7 +190,11 @@ Observed execution and independent findings are retained in
 No Ruby runtime call-graph resolver, compiler/type-checker, complete dynamic
 semantic impact, dynamic capacity increase, test executor, new provider transport
 or working-tree non-Go admission. Existing wider positional suffix support is not
-removed. The implementation stays experimental pending human acceptance and
+removed. The registry dialect performs no runtime evaluation, infers no accessor
+or registry, and folds no constant across files or beyond a single literal; it
+does not follow destructured or reassigned accessors, bracket-string member
+calls, or registries assembled at runtime, and it does not change range impact.
+Roll it back by removing the `registries` declarations or the dialect code. The implementation stays experimental pending human acceptance and
 integration. Revert task-owned code/spec changes to roll back; preserve original
 receipts and the failed/unsupported outcomes. Kill or repair the extension if it
 changes legacy Go bytes, invents semantic closure or weakens immutable binding.

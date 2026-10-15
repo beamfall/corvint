@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -22,11 +21,8 @@ const stableFixture = "../../protocol/cem-1.0/stable/receipt-authentication/stab
 // reads the pointer back as verified without moving a ref or the worktree.
 func TestCEMV1065AnchorStableMap(t *testing.T) {
 	t.Parallel()
-	stable, err := os.ReadFile(stableFixture)
-	if err != nil {
-		t.Fatal(err)
-	}
-	root := fixtureRepo(t) // commits stableFixture as the map
+	root := fixtureRepo(t) // commits stableFixture, rebound to its change, as the map
+	stable := committedMap(t, root)
 	ctx := context.Background()
 	receipt, err := Anchor(ctx, root, mapPath, "HEAD")
 	if err != nil {
@@ -76,9 +72,16 @@ func TestCEMV1210AnchorRefusesARetiredMap(t *testing.T) {
 	}
 	head := fixtureGit(t, root, nil, "rev-parse", "HEAD")
 	blob := fixtureGit(t, root, nil, "rev-parse", "HEAD:"+mapPath)
-	digest := sha256.Sum256([]byte(fixtureMap))
-	want := `{"schema":"corvint-cem-anchor/0","cem_commit":"` + head + `","map_path":"` + mapPath +
-		`","map_blob":"` + blob + `","map_sha256":"` + hex.EncodeToString(digest[:]) + `","map_spec":"cem/1.0"}`
+	committed := committedMap(t, root)
+	digest := sha256.Sum256(committed)
+	parsed, err := wire.ParseStable(committed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"schema":"corvint-cem-anchor/1","cem_commit":"` + head + `","map_path":"` + mapPath +
+		`","map_blob":"` + blob + `","map_sha256":"` + hex.EncodeToString(digest[:]) + `","map_spec":"cem/1.0"` +
+		`,"base":"` + parsed.Change.BaseRevision + `","patch_sha256":"` + parsed.Change.PatchSha256 +
+		`","target_tree":"` + fixtureGit(t, root, nil, "rev-parse", "HEAD^{tree}") + `"}`
 	if got := fixtureGit(t, root, nil, "notes", "--ref="+Ref, "show", head); got != want {
 		t.Fatalf("pointer bytes:\n got %s\nwant %s", got, want)
 	}

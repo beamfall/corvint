@@ -188,6 +188,7 @@
       "protocol/cem-1.0/maps/",
       "protocol/cem-1.0/patches/",
       "protocol/cem-1.0/repository/",
+      "protocol/cem-1.0/stable/citation-vectors/",
       "protocol/cem-1.0/stable/manifest.json",
       "protocol/cem-1.0/stable/neutral-criterion/",
       "protocol/cem-1.0/stable/receipt-authentication/",
@@ -316,7 +317,8 @@
     ],
     "internal/stepnegation": [],
     "internal/taskman": [
-      "internal/tasks/ticket/testdata/issue502-escalation-hold-cases.json"
+      "internal/tasks/ticket/testdata/issue502-escalation-hold-cases.json",
+      "protocol/cem-1.0/stable/RESULT.schema.json"
     ],
     "internal/tasks/archive": [],
     "internal/tasks/authority": [

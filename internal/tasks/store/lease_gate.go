@@ -248,14 +248,15 @@ func atCandidate(worktree, candidate string, repos []snapshot.RepositoryRecord) 
 	return nil
 }
 
-// The closed gate argv placeholders (TCB-V0-015). An argv entry exactly equal
-// to one is replaced, just before the gate runs, with the native attempt fact
-// it names; any other entry, including one that merely contains a
-// placeholder, runs as declared.
+// The closed gate argv placeholders (TCB-V0-015, TCB-V0-037). An argv entry
+// exactly equal to one is replaced, just before the gate runs, with the
+// native attempt fact it names; any other entry, including one that merely
+// contains a placeholder, runs as declared.
 const (
 	GateArgBaseCommit      = "{attempt.baseCommit}"
 	GateArgCandidateCommit = "{attempt.candidateCommit}"
 	GateArgTouchPaths      = "{claim.touchPaths}"
+	GateArgVerdictPaths    = "{claim.verdictPaths}"
 )
 
 // gateArgv is the argv GateRun executes: def.Argv with each whole-entry
@@ -264,13 +265,15 @@ const (
 // commit is the worktree HEAD, whose tree atCandidate has just proven is the
 // candidate; the touch paths are the claim-era ticket's effects.touchPaths as
 // one canonical JSON array, read only while the current ticket record is
-// byte for byte the one the claim pinned. A composite candidate has no single
-// base or commit, so placeholders on one refuse before the gate runs.
+// byte for byte the one the claim pinned, and the verdict paths its
+// effects.verdictPaths, or its touchPaths when it declares none. A composite
+// candidate has no single base or commit, so placeholders on one refuse
+// before the gate runs.
 func gateArgv(def *intent.GateDefinition, proof *journal.Result, a *snapshot.Attempt, worktree string, repos []snapshot.RepositoryRecord) ([]string, bool, error) {
 	argv := append([]string{}, def.Argv...)
 	substituted := false
 	for i, arg := range argv {
-		if arg != GateArgBaseCommit && arg != GateArgCandidateCommit && arg != GateArgTouchPaths {
+		if arg != GateArgBaseCommit && arg != GateArgCandidateCommit && arg != GateArgTouchPaths && arg != GateArgVerdictPaths {
 			continue
 		}
 		if len(repos) > 0 {
@@ -284,7 +287,7 @@ func gateArgv(def *intent.GateDefinition, proof *journal.Result, a *snapshot.Att
 		case GateArgCandidateCommit:
 			fact, err = resolveObject(worktree, "HEAD", "commit")
 		default:
-			fact, err = claimTouchPaths(proof, a)
+			fact, err = claimPaths(proof, a, arg == GateArgVerdictPaths)
 		}
 		if err != nil {
 			return nil, false, err
@@ -294,10 +297,11 @@ func gateArgv(def *intent.GateDefinition, proof *journal.Result, a *snapshot.Att
 	return argv, substituted, nil
 }
 
-// claimTouchPaths is the claim-era ticket's effects.touchPaths as a canonical
-// JSON array. A ticket edited since the claim refuses STALE_TICKET: the claim
-// pinned the record digest, not its bytes, so a re-claim restores the fact.
-func claimTouchPaths(proof *journal.Result, a *snapshot.Attempt) (string, error) {
+// claimPaths is the claim-era ticket's effects.touchPaths as a canonical JSON
+// array, or with verdict its effects.verdictPaths when declared (TCB-V0-037).
+// A ticket edited since the claim refuses STALE_TICKET: the claim pinned the
+// record digest, not its bytes, so a re-claim restores the fact.
+func claimPaths(proof *journal.Result, a *snapshot.Attempt, verdict bool) (string, error) {
 	record, ok := proof.Records["intent/tickets/"+a.TicketID.Local+".json"]
 	if !ok || record.Sha256 == nil || wire.Sum(record.Raw) != a.TicketRecordSha256 {
 		return "", wire.Errorf(wire.CodeStaleTicket, "gate", "ticket %s changed since its claim; re-claim to gate on its touch paths", a.TicketID.Raw)
@@ -306,7 +310,11 @@ func claimTouchPaths(proof *journal.Result, a *snapshot.Attempt) (string, error)
 	if err != nil {
 		return "", err
 	}
-	return string(wire.Encode(wire.Strings(rec.Effects.TouchPaths))), nil
+	paths := rec.Effects.TouchPaths
+	if verdict && rec.Effects.VerdictPaths != nil {
+		paths = rec.Effects.VerdictPaths
+	}
+	return string(wire.Encode(wire.Strings(paths))), nil
 }
 
 // cappedOutput keeps the first max bytes of combined output and kills the

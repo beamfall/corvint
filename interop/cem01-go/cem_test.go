@@ -1065,7 +1065,7 @@ func TestStableSidecarFailureStates(t *testing.T) {
 				expected.MapSHA256 = string03(shaHex(raw))
 				expected.Sidecar = tc.want
 				expected.Hunks = m.Hunks
-				expected.References = m.stableReferences
+				expected.References = resultReferences(m.stableReferences)
 				expected.Axes["changeIntegrity"] = "FAILED"
 				expected.Axes["coverageValidation"] = "ABSENT"
 				expected.Axes["discriminationValidation"] = "ABSENT"

@@ -45,7 +45,11 @@ type Result struct {
 	Component        string `json:"component"`
 	InstalledVersion string `json:"installedVersion,omitempty"`
 	InstalledBuild   int    `json:"installedBuild,omitempty"`
-	AvailableTag     string `json:"availableTag,omitempty"`
+	// InstalledBuildStatus is UNNUMBERED when the installed version label
+	// carries build 0 or no build number: a local build whose freshness
+	// cannot be ordered against releases (UPD-V0-010).
+	InstalledBuildStatus string `json:"installedBuildStatus,omitempty"`
+	AvailableTag         string `json:"availableTag,omitempty"`
 	// AvailableBuild is the build a Tasks release declares in its archive
 	// manifest. Relation compares installed with available on RelationBasis
 	// (build or version), or is UNKNOWN with RelationReason (UPD-V0-009).
@@ -289,6 +293,10 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 	}
 	// Check uses the existing directory and HOME: no staging or receipts are created.
 	r.InstalledVersion, r.InstalledBuild, err = version(ctx, destination, "", c.Component)
+	unnumbered := errors.Is(err, errUnnumbered)
+	if unnumbered {
+		r.InstalledBuildStatus, err = "UNNUMBERED", nil
+	}
 	if err != nil {
 		return r, err
 	}
@@ -301,6 +309,11 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 		r.Freshness = "RELEASE_OBSERVED"
 		e.relate(ctx, selected, &r)
 		return r, nil
+	}
+	if unnumbered {
+		// No flag replaces an unnumbered build: the spec admits no
+		// force-downgrade, so the operator replaces it by hand (UPD-V0-010).
+		return r, errors.New("refusing to replace unnumbered installed build: " + unnumberedReason)
 	}
 	stage, err := os.MkdirTemp(c.StateDir, "transaction-")
 	if err != nil {
@@ -383,6 +396,9 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 		return r, err
 	}
 	candidateVersion, build, err := version(ctx, candidate, home, c.Component)
+	if errors.Is(err, errUnnumbered) {
+		err = errors.New("unknown or zero candidate numeric build")
+	}
 	if err != nil {
 		return r, err
 	}
@@ -663,6 +679,13 @@ func (e engine) discover(ctx context.Context) (release, error) {
 // precedence. Neither is fetched past metadataLimit or written to disk.
 func (e engine) relate(ctx context.Context, rel release, r *Result) {
 	r.Relation = "UNKNOWN"
+	if r.InstalledBuildStatus == "UNNUMBERED" {
+		r.RelationReason = unnumberedReason
+		if e.config.Component == "tasks" {
+			r.AvailableBuild, _ = e.declaredTasksBuild(ctx, rel)
+		}
+		return
+	}
 	var cmp int
 	if e.config.Component == "tasks" {
 		build, err := e.declaredTasksBuild(ctx, rel)
@@ -822,6 +845,16 @@ func digest(p string) (string, error) {
 
 var buildRE = regexp.MustCompile(`build[. =:]([0-9]+)`)
 
+// buildMarkRE finds a build marker; one that buildRE cannot read (such as
+// "build -1") is a malformed label, not an unnumbered one.
+var buildMarkRE = regexp.MustCompile(`build[. =:]`)
+
+// errUnnumbered is version's result for a well-formed label whose build is 0
+// or absent, as a local build from source reports (UPD-V0-010).
+var errUnnumbered = errors.New("unnumbered build")
+
+const unnumberedReason = "the installed build is unnumbered (build 0 or no build number, a local build); its freshness cannot be ordered against releases"
+
 func version(ctx context.Context, binary, home, component string) (string, int, error) {
 	arg := "--version"
 	if component == "tasks" {
@@ -838,16 +871,22 @@ func version(ctx context.Context, binary, home, component string) (string, int, 
 			return "", 0, err
 		}
 	}
-	m := buildRE.FindStringSubmatch(s)
-	if m == nil {
-		return s, 0, errors.New("unknown installed/candidate numeric build")
-	}
-	n, err := strconv.Atoi(m[1])
-	if err != nil || n <= 0 {
-		return s, 0, errors.New("invalid numeric build")
-	}
 	if component == "core" && !strings.Contains(strings.ToLower(s), "corvint") {
 		return s, 0, errors.New("unexpected Core version identity")
+	}
+	m := buildRE.FindStringSubmatch(s)
+	if m == nil && buildMarkRE.MatchString(s) {
+		return s, 0, errors.New("invalid numeric build")
+	}
+	if m == nil {
+		return s, 0, errUnnumbered
+	}
+	n, err := strconv.Atoi(m[1])
+	if err != nil {
+		return s, 0, errors.New("invalid numeric build")
+	}
+	if n == 0 {
+		return s, 0, errUnnumbered
 	}
 	return s, n, nil
 }

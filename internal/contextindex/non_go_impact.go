@@ -79,7 +79,10 @@ func staticImpactLoadArgument(tail, language string) bool {
 // that resolve to no repository file or declared package (GPK-V0-080,
 // proposed). It is reported once per web path, because any of them may name
 // that path, so the path's reverse importers are not closed.
-func nonGoImpactUnknowns(index *Index, paths []string, unresolvedImports int) []any {
+//
+// extra holds each path's declared-registry rows (NGI-V0-010), appended after
+// the path's lexical rows so they stay independent of the result limit.
+func nonGoImpactUnknowns(index *Index, paths []string, unresolvedImports int, extra map[string][]any) []any {
 	rows := []any{}
 	for _, name := range paths {
 		language := NonGoImpactLanguage(name)
@@ -108,6 +111,7 @@ func nonGoImpactUnknowns(index *Index, paths []string, unresolvedImports int) []
 		text, valid, loaded := source.Text()
 		if !exists || !valid || !loaded {
 			add("source-analysis-unavailable", 0)
+			rows = append(rows, extra[name]...)
 			continue
 		}
 		masked := FlowCodeLines(language, text)
@@ -136,12 +140,13 @@ func nonGoImpactUnknowns(index *Index, paths []string, unresolvedImports int) []
 				}
 			}
 		}
+		rows = append(rows, extra[name]...)
 	}
 	return rows
 }
 
-func attachNonGoImpactUnknowns(result map[string]any, index *Index, paths []string, unresolvedImports int) error {
-	unknowns := nonGoImpactUnknowns(index, paths, unresolvedImports)
+func attachNonGoImpactUnknowns(result map[string]any, index *Index, paths []string, unresolvedImports int, extra map[string][]any) error {
+	unknowns := nonGoImpactUnknowns(index, paths, unresolvedImports, extra)
 	if len(unknowns) == 0 {
 		return nil
 	}
