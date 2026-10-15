@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
@@ -220,6 +221,15 @@ func TestCALV0053_DispatchReaderCLICrashRetainsQuarantine(t *testing.T) {
 	if err != nil {
 		t.Fatal("pre-spawn marker absent", err)
 	}
+	// The leader record names the reader after the spawn (CAL-V0-226).
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		if leader, e := dispatch.ReadReaderLeader(dir, "prog"); e == nil && leader.ReaderPID == readerPID {
+			break
+		}
+	}
+	if leader, e := dispatch.ReadReaderLeader(dir, "prog"); e != nil || leader.ReaderPID != readerPID || leader.ReaderStart != readerIdentity {
+		t.Fatal("leader record does not name the reader", leader, e)
+	}
 	if err := cmd.Process.Kill(); err != nil {
 		t.Fatal(err)
 	}
@@ -241,5 +251,36 @@ func TestCALV0053_DispatchReaderCLICrashRetainsQuarantine(t *testing.T) {
 	}
 	if strings.Contains(output.String(), "left running for the next dispatcher") {
 		t.Fatal("crash reported graceful handoff")
+	}
+	// CAL-V0-226: the leader record names the reader that still runs, so an
+	// operator attestation is refused; once that reader is gone the
+	// attestation lifts the quarantine and the next start runs.
+	recoverCrash := []string{"dispatch", "recover-reader", "--program", "prog", "--config", config, "--reason", "crash fixture reader killed", "--evidence", "crash-fixture", "--request-id", "crash-recover"}
+	if r := atm(t, root, nil, recoverCrash...); !hasCode(r.res, wire.CodeQuiescenceUnproved) {
+		t.Fatalf("live reader attested away: %s", r.stdout)
+	}
+	if id, _ := supervisor.ProcessIdentity(readerPID); id == readerIdentity {
+		_ = syscall.Kill(readerPID, syscall.SIGKILL)
+	}
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		if id, e := supervisor.ProcessIdentity(readerPID); e == nil && id != readerIdentity {
+			break
+		}
+	}
+	if r := atm(t, root, nil, recoverCrash...); r.res.Outcome != wire.OutcomeOK || field(r.res.Items[0], "readerQuarantined").Bool {
+		t.Fatalf("recovery after the reader exited: %s", r.stdout)
+	}
+	var value map[string]any
+	raw, err := os.ReadFile(config)
+	if err != nil || json.Unmarshal(raw, &value) != nil {
+		t.Fatal("config", err)
+	}
+	value["workState"] = map[string]any{"kind": "command", "argv": []string{"/bin/sh", "-c", "printf '{}'"}}
+	if raw, err = json.Marshal(value); err != nil {
+		t.Fatal(err)
+	}
+	fixture.Write(t, config, raw)
+	if r := atm(t, root, nil, "dispatch", "--once", "--program", "prog", "--config", config); r.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("restart after recovery: %s %s", r.stdout, r.stderr)
 	}
 }

@@ -73,7 +73,7 @@ var ReadVerbs = []string{
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
-	"dispatch", "dispatch status", "dispatch unpark",
+	"dispatch", "dispatch recover-reader", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "doctor", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe", "pool acquire", "pool release",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"ticket know-how add", "ticket know-how retract", "ticket know-how reconfirm", "ticket know-how list",
@@ -448,7 +448,7 @@ func LiveFormats() []string {
 		ticket.ObligationEventProfile, ticket.ObligationPlanProfile,
 		release.Profile, release.AttestationProfile, release.MutationProfile,
 		transaction.RunOutcomeProfile, runRecordProfile,
-		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/0", "taskman-dispatch-detached-run/0",
+		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/0",
 		service.ProfileName, service.ManifestName, service.ControlName, service.PulseName, service.OperationName,
 		service.RequestsName, service.HelperRecordName, service.ResumeOperationName,
 	}

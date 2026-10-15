@@ -79,7 +79,10 @@ func descend(parent *os.File, rel string, flags int, perm os.FileMode) (*os.File
 // constructor. The source descriptor stays pinned until conversion AND identity
 // comparison finish. An absent or non-equivalent bridge fails closed.
 func Root(path string) (*os.Root, error) {
-	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
+	if !filepath.IsAbs(path) {
+		return nil, fmt.Errorf("directory %q is relative; an absolute path is required", path)
+	}
+	if filepath.Clean(path) != path {
 		return nil, fmt.Errorf("unclean absolute directory %q", path)
 	}
 	anchor, err := os.OpenFile("/", traversalFlags|syscall.O_NOFOLLOW, 0)

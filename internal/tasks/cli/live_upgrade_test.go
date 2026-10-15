@@ -275,7 +275,7 @@ func TestCALV0130_RollbackAcrossDifferentFormatsRefuses(t *testing.T) {
 // outputOnlyProfiles are written only to stdout and never decoded again, so
 // they are not part of the CAL-V0-131 format set.
 var outputOnlyProfiles = []string{
-	"taskman-critical-path/0", "taskman-dispatch-run/0", "taskman-doctor/0", "taskman-dispatch-status/0", "taskman-dispatch-unpark/0",
+	"taskman-critical-path/0", "taskman-dispatch-run/0", "taskman-dispatch-reader-recover/0", "taskman-doctor/0", "taskman-dispatch-status/0", "taskman-dispatch-unpark/0",
 	"taskman-lease-timing/0", "taskman-plan-selected/0", "taskman-plan-summary/0", "taskman-plan/0", "taskman-pool-status/0",
 	"taskman-priority-first/0",
 	"taskman-user-service-install/0", "taskman-user-service-resume/0", "taskman-user-service-run-helper/0",
@@ -285,9 +285,10 @@ var outputOnlyProfiles = []string{
 
 // adoptOnlyProfiles are older versions this build only adopts once and never
 // writes, such as a drained taskman-dispatch-state/1, /2 or /3 ledger
-// (CAL-V0-132, proposed amendment); they are not part of the CAL-V0-131
-// format set.
-var adoptOnlyProfiles = []string{"taskman-dispatch-state/1", "taskman-dispatch-state/2", "taskman-dispatch-state/3"}
+// (CAL-V0-132, proposed amendment), or a taskman-dispatch-reader-lifecycle/0
+// marker an older build left, read only to report and recover it
+// (CAL-V0-227); they are not part of the CAL-V0-131 format set.
+var adoptOnlyProfiles = []string{"taskman-dispatch-reader-lifecycle/0", "taskman-dispatch-state/1", "taskman-dispatch-state/2", "taskman-dispatch-state/3"}
 
 // CAL-V0-131 and CAL-V0-134: the reported set is sorted and unique, holds the
 // store version, and holds every profile the tasks packages name except the
