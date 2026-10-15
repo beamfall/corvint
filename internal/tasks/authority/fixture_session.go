@@ -295,13 +295,9 @@ func newFixtureSession(repo *intent.Repository, lock *Lock) (_ *fixtureSession, 
 			return nil, err
 		}
 	}
-	if s.parents["requests"] != nil {
-		for i := 0; i < 256; i++ {
-			if err = s.pinExisting(fmt.Sprintf("requests/%02x", i)); err != nil {
-				return nil, err
-			}
-		}
-	}
+	// Request shards are pinned on first use (pinShard, CAL-V0-234): a
+	// session that publishes into one shard does not open and re-verify
+	// all 256 on every operation.
 	if err = s.check(); err != nil {
 		return nil, err
 	}
@@ -781,15 +777,37 @@ func (s *fixtureSession) source(stage *fixtureStage, t fixtureTarget) (*os.File,
 	if t.role == fixtureDescriptor && stage.slot != "active.json.tmp" {
 		return nil, "", "", fixtureRefused
 	}
-	p := s.parents[key]
-	if p == nil {
-		return nil, "", "", fixtureRefused
+	p, err := s.pinShard(key)
+	if err != nil {
+		return nil, "", "", err
 	}
 	if p.mount != s.parents["staging"].mount {
 		return nil, "", "", fixtureRefused
 	}
 	f, err := s.checkedFile("staging", string(stage.slot), stage.info, stage.size, stage.digest)
 	return f, key, name, err
+}
+
+// pinShard returns the retained parent for key, pinning an existing request
+// shard the first time a target under it is used (CAL-V0-234). The caller
+// holds mu and the lock. The pin observes the shard through the retained
+// requests/ root exactly as construction would have, and every later check
+// re-verifies it with the other parents; a shard that does not exist is not
+// created here (mkdir owns that) and refuses as before.
+func (s *fixtureSession) pinShard(key string) (*fixtureParent, error) {
+	if p := s.parents[key]; p != nil {
+		return p, nil
+	}
+	if !strings.HasPrefix(key, "requests/") {
+		return nil, fixtureRefused
+	}
+	if err := s.pinExisting(key); err != nil {
+		return nil, err
+	}
+	if p := s.parents[key]; p != nil {
+		return p, nil
+	}
+	return nil, fixtureRefused
 }
 func (s *fixtureSession) link(stage *fixtureStage, t fixtureTarget) error {
 	return s.operation(func() (err error) {

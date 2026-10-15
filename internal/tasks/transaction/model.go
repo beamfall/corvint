@@ -905,42 +905,15 @@ func validateInput(r Request, in Input) (inputState, error) {
 	} else if _, ok := in.Inventory.files["barrier.json"]; ok {
 		return st, malformed("barrier observation missing")
 	}
-	records := make([]*ticket.Record, 0, len(in.CanonicalTickets))
-	var total uint64
-	for _, raw := range in.CanonicalTickets {
-		if uint64(len(raw)) > wire.MaxIntentTreeBytes-total {
-			return st, limit("canonical inventory bytes")
-		}
-		total += uint64(len(raw))
-		rec, e := ticket.Decode(raw)
-		if e != nil {
+	if LivenessLease(r) {
+		// CAL-V0-233: a heartbeat or renew reads no ticket, so the canonical
+		// set is bound to its projections by digest and length without
+		// decoding, and st.tickets stays nil for this closed verb set.
+		if e = bindTicketProjections(in); e != nil {
 			return st, e
 		}
-		if e = canonical(raw); e != nil {
-			return st, e
-		}
-		path := "intent/tickets/" + rec.TicketID.Local + ".json"
-		f, ok := in.Inventory.files[path]
-		if !ok {
-			return st, malformed("canonical ticket has no physical projection")
-		}
-		if r.Operation != Unpause && rec.TicketID.Raw != r.TargetID && (f.Sha256 != rec.FileDigest() || f.Bytes.Uint64() != uint64(len(raw))) {
-			return st, malformed("unselected divergent ticket")
-		}
-		records = append(records, rec)
-	}
-	st.tickets, e = ticket.NewInventory(q.QueueID, records)
-	if e != nil {
+	} else if st.tickets, e = loadTickets(r, in, q.QueueID); e != nil {
 		return st, e
-	}
-	count := 0
-	for path := range in.Inventory.files {
-		if strings.HasPrefix(path, "intent/tickets/") {
-			count++
-		}
-	}
-	if count != len(records) {
-		return st, malformed("incomplete canonical ticket inventory")
 	}
 	st.releases = map[string]*release.Record{}
 	for _, raw := range in.CanonicalReleases {
@@ -986,6 +959,104 @@ func validateInput(r Request, in Input) (inputState, error) {
 		st.pools, e = loadPools(r, in, st)
 	}
 	return st, e
+}
+
+// LivenessLease reports a heartbeat or renew: the closed set of lease verbs
+// that read no ticket and whose model therefore binds the canonical ticket
+// inventory to its projections without decoding it (CAL-V0-233).
+func LivenessLease(r Request) bool {
+	return r.Operation == Lease && r.Lease != nil && (r.Lease.Verb == LeaseHeartbeat || r.Lease.Verb == LeaseRenew)
+}
+
+// loadTickets decodes every canonical ticket record, requires each to be
+// canonical bytes with a physical projection, refuses an unselected record
+// whose projection diverges, and requires the projections to be exactly the
+// canonical set.
+func loadTickets(r Request, in Input, queueID wire.QueueID) (*ticket.Inventory, error) {
+	records := make([]*ticket.Record, 0, len(in.CanonicalTickets))
+	var total uint64
+	for _, raw := range in.CanonicalTickets {
+		if uint64(len(raw)) > wire.MaxIntentTreeBytes-total {
+			return nil, limit("canonical inventory bytes")
+		}
+		total += uint64(len(raw))
+		rec, e := ticket.Decode(raw)
+		if e != nil {
+			return nil, e
+		}
+		if e = canonical(raw); e != nil {
+			return nil, e
+		}
+		path := "intent/tickets/" + rec.TicketID.Local + ".json"
+		f, ok := in.Inventory.files[path]
+		if !ok {
+			return nil, malformed("canonical ticket has no physical projection")
+		}
+		if r.Operation != Unpause && rec.TicketID.Raw != r.TargetID && (f.Sha256 != rec.FileDigest() || f.Bytes.Uint64() != uint64(len(raw))) {
+			return nil, malformed("unselected divergent ticket")
+		}
+		records = append(records, rec)
+	}
+	inv, e := ticket.NewInventory(queueID, records)
+	if e != nil {
+		return nil, e
+	}
+	if countTicketProjections(in) != len(records) {
+		return nil, malformed("incomplete canonical ticket inventory")
+	}
+	return inv, nil
+}
+
+// bindTicketProjections is the liveness form of loadTickets (CAL-V0-233):
+// every canonical ticket record must be byte-identical to a distinct
+// intent/tickets/ projection, matched by digest and length, and the
+// projections must be exactly the canonical set. No record is decoded; a
+// record that matches no projection is decoded only to name the refusal
+// loadTickets would have given.
+func bindTicketProjections(in Input) error {
+	type shape struct {
+		sum   wire.Digest
+		bytes uint64
+	}
+	unbound := map[shape]int{}
+	for path, f := range in.Inventory.files {
+		if strings.HasPrefix(path, "intent/tickets/") {
+			unbound[shape{f.Sha256, f.Bytes.Uint64()}]++
+		}
+	}
+	var total uint64
+	for _, raw := range in.CanonicalTickets {
+		if uint64(len(raw)) > wire.MaxIntentTreeBytes-total {
+			return limit("canonical inventory bytes")
+		}
+		total += uint64(len(raw))
+		key := shape{wire.Sum(raw), uint64(len(raw))}
+		if unbound[key] == 0 {
+			rec, e := ticket.Decode(raw)
+			if e != nil {
+				return e
+			}
+			if _, ok := in.Inventory.files["intent/tickets/"+rec.TicketID.Local+".json"]; !ok {
+				return malformed("canonical ticket has no physical projection")
+			}
+			return malformed("unselected divergent ticket")
+		}
+		unbound[key]--
+	}
+	if countTicketProjections(in) != len(in.CanonicalTickets) {
+		return malformed("incomplete canonical ticket inventory")
+	}
+	return nil
+}
+
+func countTicketProjections(in Input) int {
+	count := 0
+	for path := range in.Inventory.files {
+		if strings.HasPrefix(path, "intent/tickets/") {
+			count++
+		}
+	}
+	return count
 }
 
 // WorkerAttemptMutation reports a WORKER KNOWHOW_ADD (KHN-V0-021) or
