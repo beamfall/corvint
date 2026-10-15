@@ -41,7 +41,7 @@ func TestSelectorNarrowsDeclarationEditAgainstThePlanBase_AFPV0050(t *testing.T)
 		}
 	}
 	git := func(arguments ...string) string {
-		command := exec.Command("git", append([]string{"-C", root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false"}, arguments...)...)
+		command := exec.Command("git", append([]string{"-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false"}, arguments...)...)
 		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
 		output, err := command.CombinedOutput()
 		if err != nil {
