@@ -499,19 +499,40 @@ func TestRegistryDialectLazyEntriesResolve(t *testing.T) {
 
 // TestRegistryDialectLazyEntriesStayClosed: an arrow the lazy rule does not
 // read, or whose specifier names no indexed JS/TS source, is counted as
-// registry-key-unresolved and widens every caller.
+// registry-key-unresolved and widens every caller. So is an entry that may
+// reach a second module (a constructor argument, a callback, an expression
+// after an assertion) or a require the file may rebind.
 func TestRegistryDialectLazyEntriesStayClosed(t *testing.T) {
+	rebound := map[string]string{
+		"shadowed require": "const require = (name: string) => ({ Czeta: Calpha });\n",
+		"declared require": "function require(name: string) { return { Czeta: Calpha }; }\n",
+		"escaped require":  "const \\u0072equire = (name: string) => ({ Czeta: Calpha });\n",
+	}
+	for name, prelude := range rebound {
+		files := registryLazyFormFiles()
+		files["tests/data/registry.ts"] = strings.Replace(files["tests/data/registry.ts"], "};\n", "  'ctx:x': () => require('../../src/contexts/zeta').Czeta,\n};\n", 1) + prelude
+		receipt := registryImpact(t, files, "src/contexts/alpha.ts")
+		// The zeta, eta and theta require entries and the new one are open.
+		if found := registryUnknownRows(receipt, "registry-key-unresolved"); len(found) != 1 || found[0]["count"] != 4 {
+			t.Errorf("%s: unknowns = %v, want registry-key-unresolved count 4", name, receipt["unknowns"])
+		}
+	}
 	for name, entry := range map[string]string{
-		"computed specifier": "  'ctx:x': () => require('../../src/contexts/' + name).X,\n",
-		"substituted":        "  'ctx:x': () => require(`../../src/contexts/${name}`).X,\n",
-		"bare specifier":     "  'ctx:x': () => require('contexts/zeta').X,\n",
-		"missing module":     "  'ctx:x': () => require('../../src/contexts/missing').X,\n",
-		"parameter":          "  'ctx:x': (seed) => new (require('../../src/contexts/zeta').Czeta)(seed),\n",
-		"async arrow":        "  'ctx:x': async () => require('../../src/contexts/zeta').Czeta,\n",
-		"block body":         "  'ctx:x': () => { return require('../../src/contexts/zeta').Czeta; },\n",
-		"called module":      "  'ctx:x': () => require('../../src/contexts/zeta')(),\n",
-		"import then catch":  "  'ctx:x': () => import('../../src/contexts/zeta').catch(fail),\n",
-		"trailing call":      "  'ctx:x': () => require('../../src/contexts/zeta').Czeta.make(),\n",
+		"callback reads another binding":   "  'ctx:x': () => import('../../src/contexts/zeta').then(() => Calpha),\n",
+		"callback argument":                "  'ctx:x': () => import('../../src/contexts/zeta').then(m => new m.Czeta(Calpha)),\n",
+		"constructor argument":             "  'ctx:x': () => new (require('../../src/contexts/zeta').Czeta)(new Calpha()),\n",
+		"expression after assertion":       "  'ctx:x': () => require('../../src/contexts/zeta').Czeta as unknown && Calpha,\n",
+		"eager expression after assertion": "  'ctx:x': Calpha as unknown && Other,\n",
+		"computed specifier":               "  'ctx:x': () => require('../../src/contexts/' + name).X,\n",
+		"substituted":                      "  'ctx:x': () => require(`../../src/contexts/${name}`).X,\n",
+		"bare specifier":                   "  'ctx:x': () => require('contexts/zeta').X,\n",
+		"missing module":                   "  'ctx:x': () => require('../../src/contexts/missing').X,\n",
+		"parameter":                        "  'ctx:x': (seed) => new (require('../../src/contexts/zeta').Czeta)(seed),\n",
+		"async arrow":                      "  'ctx:x': async () => require('../../src/contexts/zeta').Czeta,\n",
+		"block body":                       "  'ctx:x': () => { return require('../../src/contexts/zeta').Czeta; },\n",
+		"called module":                    "  'ctx:x': () => require('../../src/contexts/zeta')(),\n",
+		"import then catch":                "  'ctx:x': () => import('../../src/contexts/zeta').catch(fail),\n",
+		"trailing call":                    "  'ctx:x': () => require('../../src/contexts/zeta').Czeta.make(),\n",
 	} {
 		files := registryLazyFormFiles()
 		files["tests/data/registry.ts"] = strings.Replace(files["tests/data/registry.ts"], "};\n", entry+"};\n", 1)
@@ -536,16 +557,25 @@ func TestRegistryDialectNonExportedRegistry(t *testing.T) {
 	if rows := registryRows(receipt); len(rows) != 1 || !hasEvidence(rows["tests/zeta.spec.ts"], "tests/data/registry.ts", 4, "high") {
 		t.Errorf("rows = %v, unknowns = %v, want only the zeta spec", rows, receipt["unknowns"])
 	}
-	files["tests/data/registry.ts"] = "export function createTestData<T>(key: string): T {\n" +
-		"  const registry = { 'ctx:zeta': () => require('../../src/contexts/zeta').Czeta };\n" +
-		"  return (registry as any)[key]();\n" +
-		"}\n"
-	receipt = registryImpact(t, files, "src/contexts/zeta.ts")
-	if found := registryUnknownRows(receipt, "registry-export-unresolved"); len(found) != 1 {
-		t.Errorf("nested: unknowns = %v, want registry-export-unresolved", receipt["unknowns"])
-	}
-	if rows := registryRows(receipt); rows["tests/alpha.spec.ts"] == nil || rows["tests/zeta.spec.ts"] == nil {
-		t.Errorf("nested: rows = %v, want every caller widened", rows)
+	private := files["tests/data/registry.ts"]
+	for name, text := range map[string]string{
+		"nested": "export function createTestData<T>(key: string): T {\n" +
+			"  const registry = { 'ctx:zeta': () => require('../../src/contexts/zeta').Czeta };\n" +
+			"  return (registry as any)[key]();\n" +
+			"}\n",
+		// The module's export named registry is another binding.
+		"export clause": private + "const other = { 'ctx:zeta': Calpha };\nexport { other as registry };\n",
+		"export star":   private + "export * from './more';\n",
+		"commonjs":      private + "module.exports.registry = {};\n",
+	} {
+		files["tests/data/registry.ts"] = text
+		receipt = registryImpact(t, files, "src/contexts/zeta.ts")
+		if found := registryUnknownRows(receipt, "registry-export-unresolved"); len(found) != 1 {
+			t.Errorf("%s: unknowns = %v, want registry-export-unresolved", name, receipt["unknowns"])
+		}
+		if rows := registryRows(receipt); rows["tests/alpha.spec.ts"] == nil || rows["tests/zeta.spec.ts"] == nil {
+			t.Errorf("%s: rows = %v, want every caller widened", name, rows)
+		}
 	}
 }
 
@@ -599,6 +629,8 @@ func TestRegistryDialectConstAccessorKeyStaysNonLiteral(t *testing.T) {
 		"with statement":      "const KEY = 'ctx:alpha';\nwith (scope) { new DataProvider().createTestData(KEY); }\n",
 		"typed":               "const KEY: string = 'ctx:alpha';\n" + call,
 		"accessor definition": "const KEY = 'ctx:alpha';\nclass P { createTestData(KEY) { return KEY; } }\n" + call,
+		"rest parameter":      "const KEY = 'ctx:alpha';\nconst run = (...KEY) => new DataProvider().createTestData(KEY);\n",
+		"escaped shadow":      "const KEY = 'ctx:alpha';\nconst run = (\\u004bEY) => new DataProvider().createTestData(KEY);\n",
 	} {
 		files := registryIssueFiles()
 		files["tests/key.spec.ts"] = head + body

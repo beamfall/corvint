@@ -12,18 +12,22 @@ NGI-V0-007..011, V1-1365) for GitHub #945, #946 and #947. Base `f81114713c96cf62
   NGI-V0-010 and invariant 2.
 - `NGI-V0-013` (V1-1456, #946). Four lazy entry forms give a key -> module edge:
   `() => new (require(S).X)(...)`, `() => require(S).X` (including `.default`), and
-  `() => import(S).then(...)`, optionally with a trailing `as`/`satisfies`. S must be a closed
+  `() => import(S).then(...)`, optionally with a trailing `as`/`satisfies`. After review the
+  constructor takes no arguments, the callback is only `P => P.X` or `P => new P.X()`, the
+  assertion names only a type, and `require` must be unbound in the file. S must be a closed
   literal, and the specifier must be relative or a profile alias, resolved from the registry
   file by reverse-import rule (c) to an indexed JS/TS source. Bare specifiers, unindexed
   targets, parameterised or block arrows, and dynamic S stay unresolved, which under 012 widens.
 - `NGI-V0-014` (V1-1456). The declared `export` may name a top-level `const` the file does not
   export. A nested or member-access binding is not the registry and stays
-  `registry-export-unresolved`.
+  `registry-export-unresolved`. So does a file whose module export NAME may be another binding
+  (an `export { ... }` clause naming NAME, `export *`, `export =`, or an `exports` word).
 - `NGI-V0-015` (V1-1457, #947). An accessor argument that is a lone identifier is a literal key
   when the same file binds it by a top-level `const NAME = L` (optionally `as const`) ending the
   statement, and every other non-member occurrence of NAME is also a lone accessor argument.
   Shadowing, `let`/`var`, assignment, import, any other read, a type annotation, substitution,
-  concatenation, a continued line and a file containing `with (...)` all keep it non-literal.
+  concatenation, a continued line, and a file containing `with (...)` or an identifier escape
+  all keep it non-literal. A rest `...NAME` counts as an occurrence.
 
 All four rows are new IDs (no collision on origin/main or in the open PRs). They are accepted under
 the owner's standing auto-accept of lane requirements (2026-10-11).
@@ -39,6 +43,12 @@ the owner's standing auto-accept of lane requirements (2026-10-11).
   rather than editing their text. Any shape the accepted rows already recognised selects
   exactly as before. The owner should confirm that this additive reading does not amend the
   meaning of 008/009.
+- **Owner decision (reported): eager assertion tail.** NGI-V0-008 admits a value "optionally
+  followed by `as` or `satisfies`". On BASE the reader accepted anything after `as`, so
+  `'k': X as unknown && Other` bound only X. The fix accepts only a dotted type name after the
+  assertion; anything else is an unresolved entry and widens. This narrows nothing: it only
+  widens, and it matches the row's text. A generic type (`as Record<K, V>`) now also widens.
+  The owner should confirm the reading.
 - **Existing test changed.** `TestRegistryDialectNonLiteralKeyWidens` declared its non-literal key
   as `const key = 'ctx:alpha'`. Under NGI-V0-015 that form is literal, so the test now uses
   `let key`, which keeps it non-literal and keeps the test's intent.
@@ -58,6 +68,44 @@ Load averages are 1/5/15-minute figures on a shared 12-core host.
 | M4 (015): occurrence-check delete replaced by a no-op | fails ConstAccessorKeyStaysNonLiteral, load 87.75 |
 
 Each mutation was restored and checked byte-identical against the fixed file.
+
+### After the Codex review
+
+| Check | Result |
+|---|---|
+| New review cases against the pre-review `registry_dialect.go` (commit `d9ae306`) | 3 tests FAIL, all 13 new cases: shadowed, declared and escaped `require`; callback reading another binding; callback argument; constructor argument; expression after assertion (lazy and eager); `export { other as registry }`; `export *`; `module.exports`; rest parameter; escaped shadow. 30.6s, load 53.44 to 49.55. |
+| Fixed: `-run Registry` | 18/18 PASS, 191s, load 51.62 to 53.04 |
+| Fixed: `-race -run Registry` | PASS, 281s wall, load 64.82 to 53.14 |
+| Fixed: adjacent `NonGo|ImpactResolvesWeb|ImpactWebAlias|WebImportTarget|ImpactResolvesPython|ImpactCitesTheRelative` | 16/16 PASS, 540s, load 60.79 to 66.16 |
+| M5 `registryRequireFree` returns true | fails the 3 rebound-`require` cases, load 55.06 |
+| M6 `registryAssertionTail` returns true | fails both assertion cases and `trailing call`, load 54.55 |
+| M7 `registryThenCallback` returns true | fails both callback cases, load 61.35 |
+| M8 `registryExportedOtherwise` returns false | fails the 3 export cases, load 58.16 |
+| M9 `registryMember` treats `...` as member access | fails `rest parameter`, load 65.02 |
+| M10 constructor arguments skipped to the close paren | fails `constructor argument`, load 66.01 |
+| M11 identifier-escape check in `registryConstants` removed | fails `escaped shadow`, load 60.75 |
+| Live CLI, all six #945/#947 commands, rebuilt binary | result ids, scores and unknowns identical to the outputs below |
+
+A wider run (`-run 'NonGo|Impact|Web|Registry'`, 90+18 tests) hit the 30-minute test timeout
+at 11% CPU under load above 60. The goroutine dump was inside a registry fixture build, so this
+was slowness, not a proven hang. It is recorded as NOT_RUN; the chunks above replace it. The other
+74 `Impact` tests (Go and range impact) do not reach the dialect and were not run.
+
+## Codex review (one round)
+
+Six P1 findings. Each was a fail-open path, and each is fixed and covered by a test above.
+
+1. A file-local `require` (declared, assigned or escaped) could rebind the lazy loader. Fixed:
+   the `require` forms apply only when `require` is unbound in the file.
+2. A `.then` callback or a constructor argument could reach a second module. Fixed: no
+   constructor arguments, and only `P => P.X` or `P => new P.X()` callbacks.
+3. `as`/`satisfies` consumed the rest of the value, including runtime code (lazy, and the eager
+   NGI-V0-008 reader on BASE). Fixed: only a dotted type name may follow.
+4. A private `const registry` was accepted although the module export `registry` was another
+   binding. Fixed: refused on an export clause naming it, `export *`, `export =` or `exports`.
+5. A rest parameter `...KEY` was read as a member access, so the shadow went unseen. Fixed.
+6. An identifier escape (`\u004bEY`) could shadow a const key unseen. Fixed: such a file has
+   no closed names.
 
 ## Real CLI output (retained)
 
@@ -173,3 +221,8 @@ test tests/alpha.spec.ts 640
   NGI-V0-010 says JS/TS. That behaviour predates this change; NGI-V0-012 itself is JS/TS only.
 - **Imported const keys.** A const key imported from another module stays non-literal, as #947
   scopes it.
+- **Eager constructor arguments.** Accepted NGI-V0-008 binds `new X(args)` to X's module only;
+  the arguments may reference other modules. This predates the change and is a possible
+  fail-open.
+- **Declared `require`.** A TypeScript `declare const require` makes every lazy `require` entry
+  unresolved. This is conservative: it widens.

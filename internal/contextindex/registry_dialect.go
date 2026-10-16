@@ -273,7 +273,8 @@ func registryObject(tokens []registryToken, export string) (int, int, bool) {
 			if word := tokens[keyword]; !isRegistryWord(word, "const") && !isRegistryWord(word, "let") && !isRegistryWord(word, "var") {
 				continue
 			}
-		case nesting == 0 && isRegistryWord(tokens[at], "const") && (at == 0 || !isRegistryWord(tokens[at-1], "export")):
+		case nesting == 0 && isRegistryWord(tokens[at], "const") && (at == 0 || !isRegistryWord(tokens[at-1], "export")) &&
+			!registryExportedOtherwise(tokens, export):
 			keyword = at
 		default:
 			continue
@@ -308,6 +309,32 @@ func registryObject(tokens []registryToken, export string) (int, int, bool) {
 		return 0, 0, false
 	}
 	return 0, 0, false
+}
+
+// registryExportedOtherwise reports whether the file may export some other
+// binding under name, so that a non-exported `const name` is not what the
+// declaration names: an `export { ... }` clause mentioning name, an
+// `export *`, an `export =`, or a CommonJS `exports` reference.
+func registryExportedOtherwise(tokens []registryToken, name string) bool {
+	for at, token := range tokens {
+		if isRegistryWord(token, "exports") {
+			return true
+		}
+		if !isRegistryWord(token, "export") || registryMember(tokens, at) || at+1 >= len(tokens) {
+			continue
+		}
+		if next := tokens[at+1]; isRegistryPunct(next, "*") || isRegistryPunct(next, "=") {
+			return true
+		} else if !isRegistryPunct(next, "{") {
+			continue
+		}
+		for inner := at + 2; inner < len(tokens) && !isRegistryPunct(tokens[inner], "}"); inner++ {
+			if isRegistryWord(tokens[inner], name) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // registryEntry is one resolved `key -> imported binding` edge of a registry.
@@ -351,6 +378,7 @@ func parseRegistry(index *Index, declaration RegistryDeclaration) registryFacts 
 		return facts
 	}
 	bindings := registryImports(tokens)
+	loader := registryRequireFree(tokens)
 	for at := open + 1; at < close; {
 		end := at
 		for end < close && !isRegistryPunct(tokens[end], ",") {
@@ -364,7 +392,7 @@ func parseRegistry(index *Index, declaration RegistryDeclaration) registryFacts 
 			break
 		}
 		if end > at {
-			entry, ok := registryEntryOf(tokens[at:end], bindings)
+			entry, ok := registryEntryOf(tokens[at:end], bindings, loader)
 			if ok && entry.lazy {
 				entry.target, ok = registryLazyTarget(index, declaration.Path, entry.binding.specifier)
 			}
@@ -382,7 +410,7 @@ func parseRegistry(index *Index, declaration RegistryDeclaration) registryFacts 
 // registryEntryOf reads one property: a literal, identifier or single-literal
 // computed key, then `new X(...)`, `X` or a shorthand `X`, where X (or the
 // namespace before its first dot) is an imported binding.
-func registryEntryOf(property []registryToken, bindings map[string]registryBinding) (registryEntry, bool) {
+func registryEntryOf(property []registryToken, bindings map[string]registryBinding, loader bool) (registryEntry, bool) {
 	first := property[0]
 	key, ok, value := "", false, []registryToken(nil)
 	switch {
@@ -407,7 +435,7 @@ func registryEntryOf(property []registryToken, bindings map[string]registryBindi
 	if isRegistryPunct(value[0], ":") {
 		value = value[1:]
 	}
-	if binding, ok := registryLazyBinding(value); ok {
+	if binding, ok := registryLazyBinding(value, loader); ok {
 		return registryEntry{key: key, line: first.line, binding: binding, lazy: true}, true
 	}
 	binding, ok := registryValueBinding(value, bindings)
@@ -415,10 +443,13 @@ func registryEntryOf(property []registryToken, bindings map[string]registryBindi
 }
 
 // registryLazyBinding reads a lazy loader value (NGI-V0-013): an arrow with
-// no parameters whose body is `new (require(S).X)(...)`, `require(S).X` or
-// `import(S).then(...)`, optionally followed by `as` or `satisfies`, where S
-// is a closed string literal. Any other arrow stays unresolved.
-func registryLazyBinding(value []registryToken) (registryBinding, bool) {
+// no parameters whose body is `new (require(S).X)()`, `require(S).X` or
+// `import(S).then(P => P.X)` (or `P => new P.X()`), optionally followed by
+// `as` or `satisfies` assertions, where S is a closed string literal. The
+// require forms count only when loader reports that `require` in this file
+// can only be the module loader. Constructor arguments and any other callback
+// may reach another module, so any other arrow stays unresolved.
+func registryLazyBinding(value []registryToken, loader bool) (registryBinding, bool) {
 	if len(value) < 4 || !isRegistryPunct(value[0], "(") || !isRegistryPunct(value[1], ")") ||
 		!isRegistryPunct(value[2], "=") || !isRegistryPunct(value[3], ">") {
 		return registryBinding{}, false
@@ -438,27 +469,109 @@ func registryLazyBinding(value []registryToken) (registryBinding, bool) {
 		return body[at+1].text, true
 	}
 	binding, at, ok := registryBinding{}, 0, false
-	if specifier, next, loaded := load(2, "require"); loaded && isRegistryWord(body[0], "new") && isRegistryPunct(body[1], "(") {
-		// new (require(S).X)(...)
+	if specifier, next, loaded := load(2, "require"); loader && loaded && isRegistryWord(body[0], "new") && isRegistryPunct(body[1], "(") {
+		// new (require(S).X)()
 		name, named := member(next)
-		if ok = named && next+3 < len(body) && isRegistryPunct(body[next+2], ")") && isRegistryPunct(body[next+3], "("); ok {
-			binding, at = registryBinding{specifier, name}, registryClose(body, next+3)+1
+		if ok = named && next+4 < len(body) && isRegistryPunct(body[next+2], ")") && isRegistryPunct(body[next+3], "(") &&
+			isRegistryPunct(body[next+4], ")"); ok {
+			binding, at = registryBinding{specifier, name}, next+5
 		}
-	} else if specifier, next, loaded := load(0, "require"); loaded {
+	} else if specifier, next, loaded := load(0, "require"); loader && loaded {
 		// require(S).X
 		name, named := member(next)
 		binding, at, ok = registryBinding{specifier, name}, next+2, named
 	} else if specifier, next, loaded := load(0, "import"); loaded {
-		// import(S).then(...)
+		// import(S).then(P => P.X)
 		name, named := member(next)
 		if ok = named && name == "then" && next+2 < len(body) && isRegistryPunct(body[next+2], "("); ok {
-			binding, at = registryBinding{specifier, "*"}, registryClose(body, next+2)+1
+			close := registryClose(body, next+2)
+			ok = close < len(body) && registryThenCallback(body[next+3:close])
+			binding, at = registryBinding{specifier, "*"}, close+1
 		}
 	}
-	if ok && at < len(body) && (isRegistryWord(body[at], "as") || isRegistryWord(body[at], "satisfies")) {
-		at = len(body)
+	return binding, ok && registryAssertionTail(body, at)
+}
+
+// registryThenCallback admits only `P => P.X` and `P => new P.X()`, P
+// optionally parenthesised: a callback that reads nothing but the loaded
+// module.
+func registryThenCallback(callback []registryToken) bool {
+	at := 0
+	parenthesised := len(callback) > 0 && isRegistryPunct(callback[0], "(")
+	if parenthesised {
+		at++
 	}
-	return binding, ok && at == len(body)
+	if at >= len(callback) || callback[at].kind != webWord {
+		return false
+	}
+	parameter := callback[at].text
+	at++
+	if parenthesised {
+		if at >= len(callback) || !isRegistryPunct(callback[at], ")") {
+			return false
+		}
+		at++
+	}
+	if at+1 >= len(callback) || !isRegistryPunct(callback[at], "=") || !isRegistryPunct(callback[at+1], ">") {
+		return false
+	}
+	at += 2
+	constructed := at < len(callback) && isRegistryWord(callback[at], "new")
+	if constructed {
+		at++
+	}
+	if at+2 >= len(callback) || !isRegistryWord(callback[at], parameter) || !isRegistryPunct(callback[at+1], ".") || callback[at+2].kind != webWord {
+		return false
+	}
+	at += 3
+	if constructed {
+		if at+1 >= len(callback) || !isRegistryPunct(callback[at], "(") || !isRegistryPunct(callback[at+1], ")") {
+			return false
+		}
+		at += 2
+	}
+	return at == len(callback)
+}
+
+// registryAssertionTail reports whether value[at:] is empty or only `as T` and
+// `satisfies T` assertions, T a dotted type name. Anything else (a generic, an
+// operator, a call) may continue the runtime expression past the binding.
+func registryAssertionTail(value []registryToken, at int) bool {
+	for at < len(value) {
+		if !(isRegistryWord(value[at], "as") || isRegistryWord(value[at], "satisfies")) || at+1 >= len(value) || value[at+1].kind != webWord {
+			return false
+		}
+		for at += 2; at+1 < len(value) && isRegistryPunct(value[at], ".") && value[at+1].kind == webWord; at += 2 {
+		}
+	}
+	return true
+}
+
+// registryRequireFree reports whether `require` in this file can only be the
+// module loader: the file has no identifier escape, and every occurrence
+// outside a member access is a call that does not declare a function. Any
+// other occurrence (a declaration, parameter, import or assignment) may bind
+// the name to something else.
+func registryRequireFree(tokens []registryToken) bool {
+	for at, token := range tokens {
+		if isRegistryPunct(token, "\\") {
+			return false
+		}
+		if !isRegistryWord(token, "require") || registryMember(tokens, at) {
+			continue
+		}
+		if at+1 >= len(tokens) || !isRegistryPunct(tokens[at+1], "(") ||
+			at > 0 && (isRegistryWord(tokens[at-1], "function") || isRegistryPunct(tokens[at-1], "*")) {
+			return false
+		}
+	}
+	return true
+}
+
+// registryMember reports whether the token at at follows a member-access dot.
+// The lexer splits a spread or rest `...` into three dots, which is not one.
+func registryMember(tokens []registryToken, at int) bool {
+	return at > 0 && isRegistryPunct(tokens[at-1], ".") && !(at > 1 && isRegistryPunct(tokens[at-2], "."))
 }
 
 // registryLazyTarget resolves a lazy entry's specifier from the registry file
@@ -496,11 +609,8 @@ func registryValueBinding(value []registryToken, bindings map[string]registryBin
 	if constructed && at < len(value) && isRegistryPunct(value[at], "(") {
 		at = registryClose(value, at) + 1
 	}
-	if at < len(value) && (isRegistryWord(value[at], "as") || isRegistryWord(value[at], "satisfies")) {
-		at = len(value)
-	}
 	binding, imported := bindings[head]
-	return binding, imported && at == len(value)
+	return binding, imported && registryAssertionTail(value, at)
 }
 
 // registrySite is one call of a declared accessor: literal when its first
@@ -635,9 +745,10 @@ func registryConstants(tokens []registryToken, arguments map[int]int) map[string
 	constants, declared, nesting := map[string]string{}, map[string]int{}, 0
 	for at, token := range tokens {
 		// A sloppy-mode `with (object)` statement may resolve any name to a
-		// property of object, so no name of the file is closed.
-		if isRegistryWord(token, "with") && at+1 < len(tokens) && isRegistryPunct(tokens[at+1], "(") &&
-			(at == 0 || !isRegistryPunct(tokens[at-1], ".")) {
+		// property of object, and an identifier escape (`\u004bEY`) may spell
+		// a name the lexer does not see, so no name of such a file is closed.
+		if isRegistryPunct(token, "\\") ||
+			isRegistryWord(token, "with") && at+1 < len(tokens) && isRegistryPunct(tokens[at+1], "(") && !registryMember(tokens, at) {
 			return nil
 		}
 		if token.kind == webPunct && strings.Contains("([{", token.text) {
@@ -645,7 +756,7 @@ func registryConstants(tokens []registryToken, arguments map[int]int) map[string
 		} else if token.kind == webPunct && strings.Contains(")]}", token.text) && nesting > 0 {
 			nesting--
 		}
-		if nesting != 0 || !isRegistryWord(token, "const") || (at > 0 && isRegistryPunct(tokens[at-1], ".")) ||
+		if nesting != 0 || !isRegistryWord(token, "const") || registryMember(tokens, at) ||
 			at+3 >= len(tokens) || tokens[at+1].kind != webWord || !isRegistryPunct(tokens[at+2], "=") {
 			continue
 		}
@@ -670,7 +781,7 @@ func registryConstants(tokens []registryToken, arguments map[int]int) map[string
 	}
 	for at, token := range tokens {
 		position, named := declared[token.text]
-		if token.kind != webWord || !named || at == position || allowed[at] || (at > 0 && isRegistryPunct(tokens[at-1], ".")) {
+		if token.kind != webWord || !named || at == position || allowed[at] || registryMember(tokens, at) {
 			continue
 		}
 		delete(constants, token.text)

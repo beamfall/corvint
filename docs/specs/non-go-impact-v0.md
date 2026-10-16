@@ -142,19 +142,26 @@ stays counted and widened under NGI-V0-010 (GitHub #945, #946, #947).
   path, as an unresolved export already does, and not only to paths the registry imports. A
   changed path in another language gets no registry row.
 - `NGI-V0-013`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1456) An entry
-  value that is an arrow with no parameters whose whole body is `new (require(S).X)(...)`,
-  `require(S).X` (including `.default`) or `import(S).then(...)`, optionally followed by `as` or
-  `satisfies`, with S a closed quoted string or substitution-free template, MUST give a key ->
-  module edge when S is a relative or profile-alias specifier that the existing reverse-import
-  rule (c) resolves, from the registry file, to an indexed JS/TS source (directly or as a
-  directory `index`). The edge binds a changed path exactly as rule (c) binds an importer to it.
-  A bare or unresolvable specifier, an arrow with parameters or a block body, a dynamic or
-  concatenated S, and any other body shape stay unresolved entries.
+  value that is an arrow with no parameters whose whole body is `new (require(S).X)()` with no
+  constructor arguments, `require(S).X` (including `.default`), or `import(S).then(CB)` where CB
+  is `P => P.X` or `P => new P.X()` (P optionally parenthesised), optionally followed by `as` or
+  `satisfies` and a dotted type name (repeatable), with S a closed quoted string or
+  substitution-free template, MUST give a key -> module edge when S is a relative or
+  profile-alias specifier that the existing reverse-import rule (c) resolves, from the registry
+  file, to an indexed JS/TS source (directly or as a directory `index`). The `require` forms
+  apply only when `require` is unbound in the registry file: the file has no identifier escape
+  (`\`), and every occurrence of `require` outside a member access is a call that is not a
+  function declaration. The edge binds a changed path exactly as rule (c) binds an importer to
+  it. A bare or unresolvable specifier, an arrow with parameters or a block body, a dynamic or
+  concatenated S, constructor or callback arguments, any other callback, an expression after
+  the assertion, and any other body shape stay unresolved entries.
 - `NGI-V0-014`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1456) The
   declared `export` identifier MAY also name a top-level `const NAME [: Type] = { ... }` the file
   does not export (read through an accessor the file defines); no manifest field changes. A
   `const` nested in a block, function or call, or a member access ending in NAME, is not the
-  registry, which then stays `registry-export-unresolved`.
+  registry, which then stays `registry-export-unresolved`. So does a file whose module export
+  NAME may be another binding: one with an `export { ... }` clause naming NAME, `export *`,
+  `export =`, or any `exports` word.
 - `NGI-V0-015`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1457) A call
   site's key is also literal when its first argument, followed by `,` or `)`, is an identifier
   bound in the same file by a top-level `const NAME = L` (optionally `as const`) that ends the
@@ -163,7 +170,8 @@ stays counted and widened under NGI-V0-010 (GitHub #945, #946, #947).
   argument. Any other occurrence (an assignment, a parameter, catch or block binding, a nested
   or repeated declaration, an import, another read), a type annotation, a `let` or `var`
   binding, a template with a substitution, a concatenation, a binding continued past the literal,
-  and any file containing a `with (...)` statement keep the key non-literal.
+  and any file containing a `with (...)` statement or an identifier escape (`\`) keep the key
+  non-literal. A rest or spread `...NAME` is an occurrence, not a member access.
 
 ## Trust and failure boundaries
 
@@ -215,9 +223,9 @@ and a validated declared identifier, never source text.
 | `NGI-V0-010` | `registryDialect.impact`; `extra` rows in `nonGoImpactUnknowns` | `TestRegistryDialectNonLiteralKeyWidens`, `TestRegistryDialectChangedRegistrySelectsEveryCaller`, `TestRegistryDialectUnresolvedRegistryWidens`, `TestRegistryDialectReexportedRegistryIsUnresolved` |
 | `NGI-V0-011` | `internal/contextindex/registry_dialect_test.go`, `internal/appmap/registries_test.go` | tests above; real CLI output in `../build-log/2026-10-14-v1-1365-string-keyed-registry.md` |
 | `NGI-V0-012` | `registryDialect.impact` (`openEntry`) | `TestRegistryDialectLazyRequireNeverFailsOpen`, `TestRegistryDialectUnresolvedEntryAppliesToEveryPath`; real CLI output in `../build-log/2026-10-15-registry-dialect-lazy-const.md` |
-| `NGI-V0-013` | `registryLazyBinding`, `registryLazyTarget`, `parseRegistry`; `bound` in `registryDialect.impact` | `TestRegistryDialectLazyEntriesResolve`, `TestRegistryDialectLazyEntriesStayClosed` |
-| `NGI-V0-014` | `registryObject` | `TestRegistryDialectNonExportedRegistry` |
-| `NGI-V0-015` | `registryCallSites`, `registryConstants` | `TestRegistryDialectConstAccessorKey`, `TestRegistryDialectConstAccessorKeyStaysNonLiteral`, `TestRegistryDialectNonLiteralKeyWidens`; real CLI output in `../build-log/2026-10-15-registry-dialect-lazy-const.md` |
+| `NGI-V0-013` | `registryLazyBinding`, `registryThenCallback`, `registryAssertionTail`, `registryRequireFree`, `registryLazyTarget`, `parseRegistry`; `bound` in `registryDialect.impact` | `TestRegistryDialectLazyEntriesResolve`, `TestRegistryDialectLazyEntriesStayClosed` |
+| `NGI-V0-014` | `registryObject`, `registryExportedOtherwise` | `TestRegistryDialectNonExportedRegistry` |
+| `NGI-V0-015` | `registryCallSites`, `registryConstants`, `registryMember` | `TestRegistryDialectConstAccessorKey`, `TestRegistryDialectConstAccessorKeyStaysNonLiteral`, `TestRegistryDialectNonLiteralKeyWidens`; real CLI output in `../build-log/2026-10-15-registry-dialect-lazy-const.md` |
 
 Names in this matrix identify evidence rather than implying passing execution.
 Observed execution and independent findings are retained in
