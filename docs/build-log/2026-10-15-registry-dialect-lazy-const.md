@@ -37,18 +37,21 @@ the owner's standing auto-accept of lane requirements (2026-10-11).
 - **Fork (#946): non-exported registry.** Accepted with no schema change. The existing `export`
   field names the binding, and only a top-level `const` qualifies. Lane decision under the
   delegated in-task forks.
-- **Owner decision (reported, not self-accepted).** NGI-V0-008 says an entry gives an edge "only
+- **Owner decision: additive reading. Accepted 2026-10-16 (owner delegated to the
+  orchestrator).** NGI-V0-008 says an entry gives an edge "only
   when" its value is an imported binding. NGI-V0-009 says a key is literal "only when" the
   argument is a quoted string or template. Rows 013..015 add new shapes beside those lists
   rather than editing their text. Any shape the accepted rows already recognised selects
-  exactly as before. The owner should confirm that this additive reading does not amend the
-  meaning of 008/009.
-- **Owner decision (reported): eager assertion tail.** NGI-V0-008 admits a value "optionally
+  exactly as before. This additive reading does not amend the meaning of 008/009.
+- **Owner decision: eager assertion tail. Accepted 2026-10-16 (owner delegated to the
+  orchestrator).** NGI-V0-008 admits a value "optionally
   followed by `as` or `satisfies`". On BASE the reader accepted anything after `as`, so
   `'k': X as unknown && Other` bound only X. The fix accepts only a dotted type name after the
   assertion; anything else is an unresolved entry and widens. This narrows nothing: it only
   widens, and it matches the row's text. A generic type (`as Record<K, V>`) now also widens.
-  The owner should confirm the reading.
+- **Analyzer schema bump.** The reader change is an extraction input under `IDX-SNAP-V0-017`,
+  so `analyzerSchemaID` moves from `corvint-analyzer/118` to `corvint-analyzer/119` and the
+  audit digest in `TestAnalyzerSchemaInputs` is repinned. CI shard 4 failed on the stale pin.
 - **Existing test changed.** `TestRegistryDialectNonLiteralKeyWidens` declared its non-literal key
   as `const key = 'ctx:alpha'`. Under NGI-V0-015 that form is literal, so the test now uses
   `let key`, which keeps it non-literal and keeps the test's intent.
