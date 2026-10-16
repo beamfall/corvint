@@ -1337,3 +1337,64 @@ func TestStableCanonicalEnvelopeCells(t *testing.T) {
 		})
 	}
 }
+
+// TestStableResolveMissingPinnedObjectUnavailable covers V1-1297 (decision
+// 0534, CEM-V1-103): when Git cannot read a pinned commit, one charged
+// `cat-file -e` existence probe names an object absent from the local store
+// repository-object-unavailable; a present object that is corrupt or not a
+// commit stays git-read-failed, and a readable commit is never probed.
+func TestStableResolveMissingPinnedObjectUnavailable(t *testing.T) {
+	if !stableOwnerSupported() {
+		t.Skip("process containment is not qualified on " + runtime.GOOS)
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name   string
+		damage func(r *s0eRun, G string) string
+		want   string
+		ops    []string
+	}{
+		{"present", func(*s0eRun, string) string { return s0eBase }, "", []string{"resolve-commit"}},
+		{"missing", func(_ *s0eRun, G string) string {
+			if err := os.Remove(s0eObjectPath(G, s0eBase)); err != nil {
+				t.Fatal(err)
+			}
+			return s0eBase
+		}, "repository-object-unavailable", []string{"resolve-commit", "object-existence-probe"}},
+		{"corrupt", func(_ *s0eRun, G string) string {
+			s0eWrite(t, s0eObjectPath(G, s0eBase), []byte("corrupt\x00not zlib"), 0o444)
+			return s0eBase
+		}, "git-read-failed", []string{"resolve-commit", "object-existence-probe"}},
+		{"not a commit", func(r *s0eRun, _ string) string {
+			_, blob := s0eTreeEntry(t, r.files, "sha1", r.target, "app.txt")
+			return blob
+		}, "git-read-failed", []string{"resolve-commit", "object-existence-probe"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newS0eRun(t)
+			rev := tc.damage(r, filepath.Join(r.R, ".git"))
+			adm, e := stableAdmit(r.repo, r.hooks)
+			if e != nil {
+				t.Fatalf("admit: %s", e.code)
+			}
+			var ops []string
+			r.hooks.ledger = func(row stableLedgerRow) { ops = append(ops, row.Operation) }
+			s := &stableSession{ctx: r.ctx, hooks: r.hooks, exe: exe, git: r.git, admin: adm.admin, env: stableGitEnv(), oidLen: len(s0eBase), charged: map[string]bool{}}
+			defer stableClose(s)
+			_, stage, e := s.resolve("expected-base", rev)
+			got := ""
+			if e != nil {
+				got = e.code
+				if stage != "repository" {
+					t.Errorf("stage %q, want repository", stage)
+				}
+			}
+			if got != tc.want || strings.Join(ops, ",") != strings.Join(tc.ops, ",") {
+				t.Fatalf("code %q ops %v, want %q %v", got, ops, tc.want, tc.ops)
+			}
+		})
+	}
+}
