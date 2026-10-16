@@ -44,6 +44,15 @@ agent lanes. Decision `0536-pool-sweep-observation-bounds-scale-with-budget-2026
   - In isolation at load ~75, `TestPSRSweepStderrIsNotStdout`, `TestPSRSweepSuccessReplaySuccessor`
     and `TestPSRDispatchAllocationFence` pass on both binaries.
 
+## Independent review
+
+One Codex round (read-only, diff range) found one issue, which is fixed. `sweepGit` truncated the
+scaled Git bound to the whole seconds a pool command carries, so at a 14 s budget the bound was 2 s
+instead of 2.8 s. `sweepGitBoundSeconds` now rounds up, keeping the 2 s floor and the 10 s cap, and
+PSR-V0-023 says so. The table test checks budgets 0, 14, 15, 30 and 1800 s. A mutation back to
+truncation fails it (14 s: got 2s want 3s). After the fix, the CLI target passed one `-race` run at
+load 57-58.
+
 ## Not run
 
 `make gate`; a quiet-host run of the whole `internal/tasks/store` package (one loaded

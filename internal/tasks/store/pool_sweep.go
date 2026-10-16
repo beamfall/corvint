@@ -632,12 +632,19 @@ func sweepGit(ctx context.Context, root string, args ...string) ([]byte, error) 
 		return nil, e
 	}
 	argv := append([]string{git, "-c", "credential.helper=", "-c", "core.fsmonitor=false"}, args...)
-	bound := wire.CountOf(int64(sweepObservationBound(ctx, 2*time.Second) / time.Second))
-	result := executePoolCaptured(ctx, &intent.PoolCommand{Argv: argv, TimeoutSeconds: bound}, root, gitEnvironment())
+	result := executePoolCaptured(ctx, &intent.PoolCommand{Argv: argv, TimeoutSeconds: sweepGitBoundSeconds(ctx)}, root, gitEnvironment())
 	if !result.Clean || result.Class != "EXIT_ZERO" {
 		return nil, sweepGitFailure(result)
 	}
 	return result.Stdout, nil
+}
+
+// sweepGitBoundSeconds is the Git probe's 2 s bound in the whole seconds a
+// pool command carries. PSR-V0-023: a fractional scaled bound rounds up, never
+// below the scaled value.
+func sweepGitBoundSeconds(ctx context.Context) wire.Count {
+	bound := sweepObservationBound(ctx, 2*time.Second)
+	return wire.CountOf(int64((bound + time.Second - 1) / time.Second))
 }
 
 // sweepGitFailure classifies a failed Git source probe.

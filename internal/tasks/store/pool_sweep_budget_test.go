@@ -30,6 +30,12 @@ func TestPSRV0023SweepBoundsScaleWithBudget(t *testing.T) {
 			t.Errorf("budget %v fixed %v: got %v want %v", tc.budget, tc.fixed, got, tc.want)
 		}
 	}
+	// The Git probe carries whole seconds and rounds a fractional bound up.
+	for budget, want := range map[time.Duration]int64{0: 2, 14 * time.Second: 3, 15 * time.Second: 3, 30 * time.Second: 6, 1800 * time.Second: 10} {
+		if got := sweepGitBoundSeconds(withSweepBudget(context.Background(), budget)).Int(); got != want {
+			t.Errorf("git bound at budget %v: got %ds want %ds", budget, got, want)
+		}
+	}
 	// Outside a sweep there is no budget: the fixed bound applies.
 	if got := sweepScaledBound(context.Background(), time.Second); got != time.Second {
 		t.Fatalf("no budget: %v", got)
