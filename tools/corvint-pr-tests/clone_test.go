@@ -104,7 +104,9 @@ func TestCloneTrustEncodingAndLifetime(t *testing.T) {
 		root := filepath.Join(dir, `space #;"\source`)
 		err := withCloneTrust(path, root, 0600, func(config string) error {
 			var b bytes.Buffer
-			code, e := command(context.Background(), dir, []string{"PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull}, &b, &b, time.Second, "git", "config", "--file", config, "--get-all", "safe.directory")
+			// The read's bound only detects a hung Git; a loaded host's Git
+			// start-up alone took 1.6 to 2.9 seconds (V1-1465).
+			code, e := command(context.Background(), dir, []string{"PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull}, &b, &b, time.Minute, "git", "config", "--file", config, "--get-all", "safe.directory")
 			if e != nil || code != 0 || b.String() != root+"\n"+root+"/.git\n" {
 				t.Fatalf("unsafe encoding: %d %v %q", code, e, b.String())
 			}

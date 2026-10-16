@@ -5,6 +5,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -27,6 +28,44 @@ func psrWaitFile(t *testing.T, p string) {
 	}
 	t.Fatalf("command fixture not reached: %s", p)
 }
+
+// psrSweepObserver forwards to the real native adapter and reports when that
+// sweep returns, so a fixture wait ends with the operation that runs the
+// fixture rather than at a margin for a slow host (V1-1000).
+type psrSweepObserver struct {
+	dispatchQueue
+	returned chan string
+}
+
+func (q *psrSweepObserver) PoolSweep(ctx context.Context, r dispatch.PoolSweepRequest) (dispatch.PoolSweepResult, error) {
+	out, e := q.dispatchQueue.PoolSweep(ctx, r)
+	select {
+	case q.returned <- fmt.Sprintf("%+v %v", out, e):
+	default:
+	}
+	return out, e
+}
+
+// psrAwaitSweepFixture waits until the sweep's reset fixture writes p. The
+// sweep reaches it or returns within its declared bound: one that returns
+// first fails at once with its result, and the backstop past that bound only
+// detects an overrun.
+func psrAwaitSweepFixture(t *testing.T, p string, q *psrSweepObserver, bound time.Duration) {
+	t.Helper()
+	backstop := time.After(bound + psrSignalHangAllowance)
+	for {
+		if _, e := os.Stat(p); e == nil {
+			return
+		}
+		select {
+		case result := <-q.returned:
+			t.Fatalf("pool sweep returned before the command fixture %s: %s", p, result)
+		case <-backstop:
+			t.Fatalf("command fixture not reached: %s", p)
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+}
 func psrNativeConfig(root, state, script string) *dispatch.Config {
 	return &dispatch.Config{Profile: dispatch.ConfigProfile, StateDir: state, WorkRoot: root, TickSeconds: 1, GlobalCap: 2, KillGraceSeconds: 1,
 		PoolSweep: &dispatch.PoolSweepConfig{TimeoutSeconds: 15, IntervalSeconds: 1},
@@ -42,7 +81,8 @@ func TestPSRDispatchNativeAdapter(t *testing.T) {
 		marker := filepath.Join(scratch, "started")
 		repo, root := psrCLIReady(t, "echo reached > '"+marker+"'; sleep 60")
 		c := psrNativeConfig(root, filepath.Join(scratch, "dispatch"), "true")
-		d, e := dispatch.Open("bound", c, dispatchQueue{env: Env{Cwd: root, Stdout: io.Discard, Stderr: io.Discard}}, io.Discard)
+		observed := &psrSweepObserver{dispatchQueue: dispatchQueue{env: Env{Cwd: root, Stdout: io.Discard, Stderr: io.Discard}}, returned: make(chan string, 1)}
+		d, e := dispatch.Open("bound", c, observed, io.Discard)
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -50,7 +90,7 @@ func TestPSRDispatchNativeAdapter(t *testing.T) {
 		if e = d.Tick(context.Background()); e != nil {
 			t.Fatal(e)
 		}
-		psrWaitFile(t, marker)
+		psrAwaitSweepFixture(t, marker, observed, time.Duration(c.PoolSweep.TimeoutSeconds)*time.Second)
 		lock, e := authority.AcquireLock(context.Background(), repo, authority.LockOptions{Wait: time.Second})
 		if e != nil {
 			t.Fatal(e)

@@ -300,10 +300,10 @@ func TestCALV0078_PoolCommandReportsExecution(t *testing.T) {
 	choice := func(id, member string) store.LeaseChoice {
 		return store.LeaseChoice{QueueID: fixture.QueueID, RequestID: id, Root: s.root, Lease: transaction.LeaseRequest{Member: member}}
 	}
-	if rep, e := store.PoolCommand(context.Background(), s.repo, operator(), choice("probe-none", "absent"), "health"); wire.CodeOf(e) != wire.CodeUnsupported || rep == nil || rep.Unretryable {
+	if rep, e := store.PoolCommand(psrLoaded(context.Background()), s.repo, operator(), choice("probe-none", "absent"), "health"); wire.CodeOf(e) != wire.CodeUnsupported || rep == nil || rep.Unretryable {
 		t.Fatalf("refused before running: %+v %v", rep, e)
 	}
-	if rep, e := store.PoolCommand(context.Background(), s.repo, operator(), choice("probe-a", "a"), "health"); e != nil || rep == nil || !rep.Unretryable {
+	if rep, e := store.PoolCommand(psrLoaded(context.Background()), s.repo, operator(), choice("probe-a", "a"), "health"); e != nil || rep == nil || !rep.Unretryable {
 		t.Fatalf("health ran: %+v %v", rep, e)
 	}
 }
@@ -328,7 +328,7 @@ func TestCALV0078_PreparedPoolCommandIsNotRetryable(t *testing.T) {
 	restore := store.SetPoolPreparedFaultForTest(func() error {
 		return wire.Errorf(wire.CodeRedoPending, "head", "injected post-preparation read failure")
 	})
-	rep, e := store.PoolCommand(context.Background(), s.repo, operator(), choice, "health")
+	rep, e := store.PoolCommand(psrLoaded(context.Background()), s.repo, operator(), choice, "health")
 	restore()
 	if wire.CodeOf(e) != wire.CodeRedoPending || rep == nil || !rep.Unretryable {
 		t.Fatalf("committed preparation reported retryable: %+v %v", rep, e)
@@ -339,7 +339,7 @@ func TestCALV0078_PreparedPoolCommandIsNotRetryable(t *testing.T) {
 	if entries := psrPools(t, s).Entries; len(entries) != 1 || entries[0].State == "FREE" {
 		t.Fatalf("preparation not committed: %+v", entries)
 	}
-	replay, e := store.PoolCommand(context.Background(), s.repo, operator(), choice, "health")
+	replay, e := store.PoolCommand(psrLoaded(context.Background()), s.repo, operator(), choice, "health")
 	if e != nil || replay == nil || replay.Kind != "Replay" {
 		t.Fatalf("same-request retry: %+v %v", replay, e)
 	}

@@ -293,11 +293,12 @@ func TestPSRV0012PinnedSweep(t *testing.T) {
 				reuse, _ := member.Obj.Get("safeReuse")
 				reuse.Obj.Set("cwd", gh628Pin(ext, revision))
 				// Each phase adds bounded pin probes before and after it, all
-				// inside the shared member deadline.
-				reuse.Obj.Set("timeoutSeconds", str("60"))
+				// inside the shared member deadline; the lifted probe bounds
+				// let a loaded host spend more of it (V1-1465).
+				reuse.Obj.Set("timeoutSeconds", str("120"))
 				member.Obj.Set("cleanup", obj("argv", wire.Strings([]string{"/bin/sh", "-c", "pwd >> " + marker}), "env", wire.Strings(nil), "cwd", gh628Pin(ext, revision), "timeoutSeconds", str("3600")))
 			})
-			out, e := store.PoolSweep(context.Background(), s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "pinned-sweep", Root: s.root, TimeoutSeconds: "120"})
+			out, e := store.PoolSweep(psrLoaded(context.Background()), s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "pinned-sweep", Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds})
 			if scenario == "pinned" {
 				if e != nil || out.Report == nil || out.Report.Outcome.Outcome != mutation.OutcomeCompleted || len(psrPools(t, s).Entries) != 0 {
 					t.Fatalf("pinned sweep %+v %v %+v", out, e, psrPools(t, s).Entries)

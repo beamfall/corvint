@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -30,9 +31,40 @@ func psrObject(pairs ...interface{}) wire.Value {
 	}
 	return wire.ObjectValue(o)
 }
+
+// psrSignalSweepSeconds is the helper sweep's declared --timeout-seconds
+// bound; psrSignalSweepArgs is that sweep and its pending replay.
+const psrSignalSweepSeconds = 30
+
+var psrSignalSweepArgs = []string{"--request-id", "signal-sweep", "--timeout-seconds", strconv.Itoa(psrSignalSweepSeconds), "--role", "OWNER"}
+
+// psrSignalHangAllowance is added to the helper's declared bound only to
+// detect a helper that overruns it; it is not a margin for a slow host.
+const psrSignalHangAllowance = 30 * time.Second
+
+// psrLockedOutput is the helper's combined output. os/exec's copier goroutine
+// writes it until Wait returns, and a failure may report it before that, so
+// every access holds the lock (V1-1464).
+type psrLockedOutput struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (o *psrLockedOutput) Write(p []byte) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.buf.Write(p)
+}
+
+func (o *psrLockedOutput) String() string {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.buf.String()
+}
+
 func TestPSRForegroundSignalHelper(t *testing.T) {
 	if root := os.Getenv("PSR_SIGNAL_ROOT"); root != "" {
-		r := poolSweepCommand(Env{Cwd: root}, []string{"--request-id", "signal-sweep", "--timeout-seconds", "30", "--role", "OWNER"})
+		r := poolSweepCommand(Env{Cwd: root}, psrSignalSweepArgs)
 		if r.Outcome != wire.OutcomeOK {
 			t.Fatalf("helper: %+v", r)
 		}
@@ -98,7 +130,7 @@ func TestPSRForegroundSignals(t *testing.T) {
 			cmd := exec.Command(os.Args[0], "-test.run=^TestPSRForegroundSignalHelper$", "-test.v")
 			cmd.Env = append(os.Environ(), "PSR_SIGNAL_ROOT="+r.Root, "CORVINT_TASKS_ACTOR=tester", "ATM_ACTOR=tester")
 			cmd.WaitDelay = time.Second
-			var output bytes.Buffer
+			var output psrLockedOutput
 			cmd.Stdout = &output
 			cmd.Stderr = &output
 			if e = cmd.Start(); e != nil {
@@ -125,7 +157,11 @@ func TestPSRForegroundSignals(t *testing.T) {
 					}
 				}
 			})
-			deadline := time.Now().Add(4 * time.Second)
+			// The helper reaches the injected path or returns within its own
+			// declared sweep bound, so a loaded host only delays the fixture
+			// (V1-1000). A helper that returns first fails at once with its
+			// result; the backstop only detects one that overruns its bound.
+			backstop := time.After(psrSignalSweepSeconds*time.Second + psrSignalHangAllowance)
 			var pids []string
 			for {
 				raw, _ := os.ReadFile(marker)
@@ -133,10 +169,14 @@ func TestPSRForegroundSignals(t *testing.T) {
 				if len(pids) == 2 {
 					break
 				}
-				if time.Now().After(deadline) {
+				select {
+				case e = <-done:
+					joined = true
+					t.Fatalf("helper returned before the injected signal path: %v %s", e, output.String())
+				case <-backstop:
 					t.Fatalf("injected signal path not reached: %s", output.String())
+				case <-time.After(10 * time.Millisecond):
 				}
-				time.Sleep(10 * time.Millisecond)
 			}
 			// The live child marker proves this is a pending original replay,
 			// rather than a replay after terminal completion.
@@ -146,7 +186,7 @@ func TestPSRForegroundSignals(t *testing.T) {
 			}
 			t.Setenv("CORVINT_TASKS_ACTOR", "tester")
 			t.Setenv("ATM_ACTOR", "tester")
-			pending := poolSweepCommand(Env{Cwd: r.Root}, []string{"--request-id", "signal-sweep", "--timeout-seconds", "30", "--role", "OWNER"})
+			pending := poolSweepCommand(Env{Cwd: r.Root}, psrSignalSweepArgs)
 			if pending.Outcome != wire.OutcomeNotRun || len(pending.Items) == 0 {
 				t.Fatalf("pending hidden: %+v", pending)
 			}
