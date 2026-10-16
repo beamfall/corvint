@@ -256,6 +256,7 @@ func check(t *tree) []string {
 	// envelope entries stale since the packet seal were re-bound by the first
 	// regeneration (af8f466dd), so the restriction is gone (V1-1287).
 	problems = append(problems, manifestProblems(t, stableDir, schemaName)...)
+	problems = append(problems, pointerProblems(t.root, recordedDanglingPointers)...)
 	packetManifest, err := t.read(packetDir + "/manifest.json")
 	if err != nil {
 		return append(problems, err.Error())

@@ -186,7 +186,8 @@ func inherited(ctx context.Context, repository *gitauth.Repository, document *wi
 	if err := checkHunkCoverage(document, parsed); err != nil {
 		return nil, err
 	}
-	if _, err := checkEvidence(ctx, repository, document, baseOID); err != nil {
+	spans, err := checkEvidence(ctx, repository, document, baseOID)
+	if err != nil {
 		return nil, err
 	}
 	if err := checkMechanical(document, parsed, source); err != nil {
@@ -194,7 +195,7 @@ func inherited(ctx context.Context, repository *gitauth.Repository, document *wi
 	}
 	outcome := &Outcome{BaseRevision: baseOID}
 	if target != "" {
-		if err := checkDrift(ctx, repository, document, baseOID, target, outcome); err != nil {
+		if err := checkDrift(ctx, repository, document, spans, target, outcome); err != nil {
 			// A drift rejection keeps its context: the populated outcome rides
 			// beside the error so envelopes never lose the per-item rows.
 			return outcome, err
@@ -391,8 +392,11 @@ func stripHorizontal(record []byte) []byte {
 }
 
 // checkDrift applies the frozen same-path drift algorithm and fails the target
-// check on any stale, ambiguous, or deleted item.
-func checkDrift(ctx context.Context, repository *gitauth.Repository, document *wire.Map, baseOID, target string, outcome *Outcome) error {
+// check on any stale, ambiguous, or deleted item. spans holds the base span
+// bytes checkEvidence authenticated: drift never re-reads a base blob, so each
+// item costs one target path lookup plus one target blob read only for a
+// changed regular-file entry (CEM-V1-240).
+func checkDrift(ctx context.Context, repository *gitauth.Repository, document *wire.Map, spans map[string][]byte, target string, outcome *Outcome) error {
 	targetOID, err := repository.Resolve(ctx, target)
 	if err != nil {
 		return err
@@ -400,7 +404,7 @@ func checkDrift(ctx context.Context, repository *gitauth.Repository, document *w
 	outcome.TargetRevision = targetOID
 	rejected := false
 	for _, record := range document.Evidence {
-		item, err := driftItem(ctx, repository, record, baseOID, targetOID)
+		item, err := driftItem(ctx, repository, record, spans[record.ID], targetOID)
 		if err != nil {
 			return err
 		}
@@ -415,7 +419,7 @@ func checkDrift(ctx context.Context, repository *gitauth.Repository, document *w
 	return nil
 }
 
-func driftItem(ctx context.Context, repository *gitauth.Repository, record wire.Evidence, baseOID, targetOID string) (DriftItem, error) {
+func driftItem(ctx context.Context, repository *gitauth.Repository, record wire.Evidence, needle []byte, targetOID string) (DriftItem, error) {
 	item := DriftItem{EvidenceID: record.ID}
 	entry, exists, err := repository.LookupTreeEntry(ctx, targetOID, record.Path)
 	if err != nil {
@@ -435,11 +439,9 @@ func driftItem(ctx context.Context, repository *gitauth.Repository, record wire.
 		item.TargetBlobOid = ""
 		return item, nil
 	}
-	baseData, err := repository.BlobBytes(ctx, record.BlobOid)
-	if err != nil {
-		return item, err
+	if int64(len(needle)) != record.Span.End-record.Span.Start {
+		return item, cemcode.New(cemcode.EvidenceUnavailable, "drift for %q has no authenticated base span", record.Path)
 	}
-	needle := baseData[record.Span.Start:record.Span.End]
 	targetData, err := repository.BlobBytes(ctx, entry.OID)
 	if err != nil {
 		return item, err

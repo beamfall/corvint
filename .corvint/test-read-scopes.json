@@ -189,6 +189,7 @@
       "protocol/cem-1.0/patches/",
       "protocol/cem-1.0/repository/",
       "protocol/cem-1.0/stable/citation-vectors/",
+      "protocol/cem-1.0/stable/drift-resource-limit/",
       "protocol/cem-1.0/stable/manifest.json",
       "protocol/cem-1.0/stable/neutral-criterion/",
       "protocol/cem-1.0/stable/receipt-authentication/",
