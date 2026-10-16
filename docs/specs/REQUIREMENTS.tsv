@@ -2361,30 +2361,34 @@ LPCV-V0-053	docs/specs/live-proof-carrying-verification-v0.md	338	`corvint [--ro
 LPCV-V0-054	docs/specs/live-proof-carrying-verification-v0.md	356	a discovered document's freshness MUST be bound to the worktree as it is now,	unrecorded	-
 LPCV-V0-055	docs/specs/live-proof-carrying-verification-v0.md	373	producer retention (decision 0218) MUST be opt-in and bounded.	unrecorded	-
 LPCV-V0-056	docs/specs/live-proof-carrying-verification-v0.md	397	(accepted by decision 0448; V1-0976) discovery MUST say why it yields no	owner	decision 0448; V1-0976
-LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	637	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
-LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	649	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
-LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	659	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
-LPCV-V0-060	docs/specs/live-proof-carrying-verification-v0.md	670	(accepted (decision 0458; V1-1024; GitHub #682)) Faults are installed by a Corvi	owner	decision 0458; V1-1024; #682
-LPCV-V0-061	docs/specs/live-proof-carrying-verification-v0.md	678	(accepted (decision 0458; V1-1024; GitHub #682)) Network fault derivation. The w	owner	decision 0458; V1-1024; #682
-LPCV-V0-062	docs/specs/live-proof-carrying-verification-v0.md	699	(accepted (decision 0458; V1-1024; GitHub #682)) DOM fault derivation applies wh	owner	decision 0458; V1-1024; #682
-LPCV-V0-063	docs/specs/live-proof-carrying-verification-v0.md	711	(accepted (decision 0458; V1-1024; GitHub #682)) Single-step pass rule: each fau	owner	decision 0458; V1-1024; #682
-LPCV-V0-064	docs/specs/live-proof-carrying-verification-v0.md	733	(accepted (decision 0458; V1-1024; GitHub #682)) `--all-steps` performs the base	owner	decision 0458; V1-1024; #682
-LPCV-V0-065	docs/specs/live-proof-carrying-verification-v0.md	747	(accepted (decision 0458; V1-1024; GitHub #682)) negate emits one closed canonic	owner	decision 0458; V1-1024; #682
-LPCV-V0-066	docs/specs/live-proof-carrying-verification-v0.md	768	(accepted (decision 0458; V1-1024; GitHub #682)) The common `binding` records th	owner	decision 0458; V1-1024; #682
-LPCV-V0-067	docs/specs/live-proof-carrying-verification-v0.md	785	(accepted (decision 0458; V1-1024; GitHub #682)) Retention is atomic and confine	owner	decision 0458; V1-1024; #682
-LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	794	(accepted (decision 0458; V1-1024; GitHub #682)) This requirement covers project	owner	decision 0458; V1-1024; #682
-LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	812	(accepted (decision 0458; V1-1024; GitHub #682)) Safety. negate runs the user's	owner	decision 0458; V1-1024; #682
-LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	831	(accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnost	owner	decision 0458; V1-1024; #682
-LPCV-V0-071	docs/specs/live-proof-carrying-verification-v0.md	824	`corvint-js-test-provider --help`, `-h`, `-help` and `help` MUST exit 0 and prin	unrecorded	-
-LPCV-V0-072	docs/specs/live-proof-carrying-verification-v0.md	921	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) The opti	standing	2026-10-11; V1-1458
-LPCV-V0-073	docs/specs/live-proof-carrying-verification-v0.md	953	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) When an	standing	2026-10-11; V1-1458
-LPCV-V0-074	docs/specs/live-proof-carrying-verification-v0.md	967	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458)	standing	2026-10-11; V1-1458
-LPCV-V0-075	docs/specs/live-proof-carrying-verification-v0.md	972	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) A retain	standing	2026-10-11; V1-1458
+LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	638	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
+LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	650	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
+LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	660	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
+LPCV-V0-060	docs/specs/live-proof-carrying-verification-v0.md	671	(accepted (decision 0458; V1-1024; GitHub #682)) Faults are installed by a Corvi	owner	decision 0458; V1-1024; #682
+LPCV-V0-061	docs/specs/live-proof-carrying-verification-v0.md	679	(accepted (decision 0458; V1-1024; GitHub #682)) Network fault derivation. The w	owner	decision 0458; V1-1024; #682
+LPCV-V0-062	docs/specs/live-proof-carrying-verification-v0.md	700	(accepted (decision 0458; V1-1024; GitHub #682)) DOM fault derivation applies wh	owner	decision 0458; V1-1024; #682
+LPCV-V0-063	docs/specs/live-proof-carrying-verification-v0.md	712	(accepted (decision 0458; V1-1024; GitHub #682)) Single-step pass rule: each fau	owner	decision 0458; V1-1024; #682
+LPCV-V0-064	docs/specs/live-proof-carrying-verification-v0.md	734	(accepted (decision 0458; V1-1024; GitHub #682)) `--all-steps` performs the base	owner	decision 0458; V1-1024; #682
+LPCV-V0-065	docs/specs/live-proof-carrying-verification-v0.md	748	(accepted (decision 0458; V1-1024; GitHub #682)) negate emits one closed canonic	owner	decision 0458; V1-1024; #682
+LPCV-V0-066	docs/specs/live-proof-carrying-verification-v0.md	769	(accepted (decision 0458; V1-1024; GitHub #682)) The common `binding` records th	owner	decision 0458; V1-1024; #682
+LPCV-V0-067	docs/specs/live-proof-carrying-verification-v0.md	786	(accepted (decision 0458; V1-1024; GitHub #682)) Retention is atomic and confine	owner	decision 0458; V1-1024; #682
+LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	795	(accepted (decision 0458; V1-1024; GitHub #682)) This requirement covers project	owner	decision 0458; V1-1024; #682
+LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	813	(accepted (decision 0458; V1-1024; GitHub #682)) Safety. negate runs the user's	owner	decision 0458; V1-1024; #682
+LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	832	(accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnost	owner	decision 0458; V1-1024; #682
+LPCV-V0-071	docs/specs/live-proof-carrying-verification-v0.md	825	`corvint-js-test-provider --help`, `-h`, `-help` and `help` MUST exit 0 and prin	unrecorded	-
+LPCV-V0-072	docs/specs/live-proof-carrying-verification-v0.md	922	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) The opti	standing	2026-10-11; V1-1458
+LPCV-V0-073	docs/specs/live-proof-carrying-verification-v0.md	954	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) When an	standing	2026-10-11; V1-1458
+LPCV-V0-074	docs/specs/live-proof-carrying-verification-v0.md	968	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458)	standing	2026-10-11; V1-1458
+LPCV-V0-075	docs/specs/live-proof-carrying-verification-v0.md	973	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) A retain	standing	2026-10-11; V1-1458
+LPCV-V0-076	docs/specs/live-proof-carrying-verification-v0.md	987	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475) The	standing	2026-10-11; V1-1475
+LPCV-V0-077	docs/specs/live-proof-carrying-verification-v0.md	1004	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475) When ask	standing	2026-10-11; V1-1475
+LPCV-V0-078	docs/specs/live-proof-carrying-verification-v0.md	1014	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475; decision	standing	2026-10-11; V1-1475
+LPCV-V0-079	docs/specs/live-proof-carrying-verification-v0.md	1018	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475) A retain	standing	2026-10-11; V1-1475
 LPCVD-V0-001	docs/specs/live-proof-carrying-verification-v0.md	416	(accepted, decision 0518; V1-1140) Extend	owner	decision 0518; V1-1140
 LPCVD-V0-002	docs/specs/live-proof-carrying-verification-v0.md	426	(accepted, decision 0518; V1-1140) Extend the closed	owner	decision 0518; V1-1140
 LPCVD-V0-003	docs/specs/live-proof-carrying-verification-v0.md	449	(accepted, decision 0518; V1-1140) Discovery MUST expose	owner	decision 0518; V1-1140
 LPCVD-V0-004	docs/specs/live-proof-carrying-verification-v0.md	438	(accepted, decision 0518; V1-1140) When the selected	owner	decision 0518; V1-1140
-LPCVD-V0-005	docs/specs/live-proof-carrying-verification-v0.md	899	(accepted, decision 0519 (V1-1156)) A one-shot JS	owner	decision 0519; V1-1156
+LPCVD-V0-005	docs/specs/live-proof-carrying-verification-v0.md	900	(accepted, decision 0519 (V1-1156)) A one-shot JS	owner	decision 0519; V1-1156
 LQP-V0-001	docs/specs/lsp-quality-platform-v0.md	44	Each consumer MUST select an explicit, versioned profile and report the exact su	unrecorded	-
 LQP-V0-002	docs/specs/lsp-quality-platform-v0.md	45	Agent CLI and MCP MUST remain off by default for upstream semantic work and keep	unrecorded	-
 LQP-V0-003	docs/specs/lsp-quality-platform-v0.md	46	The shared engine MUST distinguish immutable Git identity `(repository/root, obj	unrecorded	-

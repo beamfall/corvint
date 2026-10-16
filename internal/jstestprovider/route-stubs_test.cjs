@@ -27,14 +27,42 @@ class Context extends Router {
   async newPage() { const page = new Page(); this.list.push(page); this.emit('page', page); return page; }
 }
 
+class Browser {
+  constructor() { this.contexts = []; }
+  async newContext() { const context = new Context(); this.contexts.push(context); return context; }
+  async newPage() { const context = await this.newContext(); return context.newPage().then(page => { page.context = () => context; return page; }); }
+}
+
+// fixturesOf returns the fixtures extend registers on a stand-in Playwright test.
+function fixturesOf(warn) {
+  let fixtures;
+  extend({ extend(f) { fixtures = f; return {}; } }, { warn });
+  return fixtures;
+}
+
+// attempt runs one test the way Playwright does: the automatic session fixture wraps the body,
+// which receives the `context` fixture only when it asks for one (`context: null` means it does not).
+async function attempt(fixtures, testInfo, context, body) {
+  const [session, sessionOptions] = fixtures._corvintRouteStubs;
+  assert.deepEqual(sessionOptions, { auto: true });
+  await session({}, async observed => {
+    if (context === null) return body();
+    return fixtures.context({ context, _corvintRouteStubs: observed }, async ctx => body(ctx));
+  }, testInfo);
+}
+
 // run executes one attempt body against the extended `context` fixture and returns the annotations.
-async function run(body, { annotations = [], rootDir = __dirname, context = new Context() } = {}) {
-  let fixture;
-  const base = { extend(fixtures) { fixture = fixtures.context; return {}; } };
+async function run(body, { annotations = [], rootDir = __dirname, context = new Context(), browser } = {}) {
   const warnings = [];
-  extend(base, { warn: message => warnings.push(message) });
+  const fixtures = fixturesOf(message => warnings.push(message));
   const testInfo = { annotations: annotations.slice(), config: { rootDir } };
-  await fixture({ context }, async ctx => body(ctx), testInfo);
+  if (!browser) {
+    await attempt(fixtures, testInfo, context, body);
+    return { annotations: testInfo.annotations, warnings, context };
+  }
+  const [worker, workerOptions] = fixtures.browser;
+  assert.deepEqual(workerOptions, { scope: 'worker' });
+  await worker({ browser }, async observed => attempt(fixtures, testInfo, context, ctx => body(ctx, observed)));
   return { annotations: testInfo.annotations, warnings, context };
 }
 
@@ -141,10 +169,9 @@ test('a page that resolves after teardown is not instrumented', async () => {
 });
 
 test('the record is published even when the test body throws', async () => {
-  let fixture;
-  extend({ extend(f) { fixture = f.context; } }, { warn() {} });
+  const fixtures = fixturesOf(() => {});
   const testInfo = { annotations: [], config: { rootDir: __dirname } };
-  await assert.rejects(fixture({ context: new Context() }, async ctx => { await ctx.route('**/y', () => {}); throw new Error('boom'); }, testInfo));
+  await assert.rejects(attempt(fixtures, testInfo, new Context(), async ctx => { await ctx.route('**/y', () => {}); throw new Error('boom'); }));
   assert.equal(record(testInfo.annotations).stubs[0].hits, 0);
 });
 
@@ -157,6 +184,95 @@ test('long patterns are clipped inside the bound and stack frames resolve', () =
   assert.deepEqual(frameLocation('    at Object.<anonymous> (/tmp/x y/spec.ts:12:5)'), { file: '/tmp/x y/spec.ts', line: 12 });
   assert.deepEqual(frameLocation(`    at ${new URL('file:///tmp/spec.mjs')}:7:1`), { file: path.resolve('/tmp/spec.mjs'), line: 7 });
   assert.equal(frameLocation('    at node:internal/process/task_queues:95:5'), null);
+  assert.deepEqual(frameLocation('    at async /tmp/spec.cjs:9:3'), { file: '/tmp/spec.cjs', line: 9 });
+});
+
+// LPCV-V0-076: contexts the test creates, routeWebSocket and routeFromHAR.
+test('contexts created with browser.newContext and browser.newPage are recorded', async () => {
+  const browser = new Browser();
+  const { annotations } = await run(async (_, observed) => {
+    const own = await observed.newContext();
+    await own.route('**/own', route => route.fulfill());
+    const page = await own.newPage();
+    await page.route('**/own-page', route => route.fulfill());
+    await page.request('http://127.0.0.1/own-page');
+    const solo = await observed.newPage();
+    await solo.route('**/solo', route => route.fulfill());
+  }, { context: null, browser });
+  assert.deepEqual(record(annotations).stubs.map(s => [s.target, s.pattern, s.hits]), [
+    ['context', '**/own', 0],
+    ['page', '**/own-page', 1],
+    ['page', '**/solo', 0],
+  ]);
+  assert.ok(!Object.hasOwn(browser, 'newContext') && !Object.hasOwn(browser, 'newPage'), 'worker teardown restores the browser');
+  for (const context of browser.contexts) assert.ok(!Object.hasOwn(context, 'route'), 'test teardown restores created contexts');
+});
+
+test('a browser whose newPage bypasses its own newContext is still recorded', async () => {
+  const browser = new Browser();
+  browser.newPage = async function () {
+    const context = new Context();
+    this.contexts.push(context);
+    const page = await context.newPage();
+    page.context = () => context;
+    return page;
+  };
+  const { annotations } = await run(async (_, observed) => {
+    const solo = await observed.newPage();
+    await solo.route('**/solo', route => route.fulfill());
+  }, { context: null, browser });
+  assert.deepEqual(record(annotations).stubs.map(s => [s.target, s.pattern, s.hits]), [['page', '**/solo', 0]]);
+  assert.equal(typeof browser.newPage, 'function');
+  assert.ok(Object.hasOwn(browser, 'newPage') && !Object.hasOwn(browser, 'newContext'), 'teardown restores the own newPage');
+});
+
+test('a test without a browser fixture or created context publishes no record', async () => {
+  const { annotations } = await run(async () => {}, { context: null });
+  assert.equal(annotations.length, 0);
+});
+
+test('a context created outside a running test is not recorded', async () => {
+  const browser = new Browser();
+  const restore = _internal.observeBrowser(browser);
+  const outside = await browser.newContext();
+  restore();
+  assert.ok(!Object.hasOwn(outside, 'route'));
+  assert.ok(!Object.hasOwn(browser, 'newContext'));
+});
+
+test('routeWebSocket registrations are recorded with their api and hits', async () => {
+  class SocketPage extends Page {
+    async routeWebSocket(url, handler) { this.sockets = (this.sockets || []).concat({ url, handler }); }
+    async open(href) { for (const s of this.sockets || []) if (href.includes(s.url.replaceAll('*', ''))) s.handler({ url: () => href }); }
+  }
+  const context = new Context();
+  context.newPage = async function () { const page = new SocketPage(); this.list.push(page); this.emit('page', page); return page; };
+  const { annotations } = await run(async ctx => {
+    const page = await ctx.newPage();
+    await page.routeWebSocket('**/live', ws => ws);
+    await page.routeWebSocket('**/never', ws => ws);
+    await page.routeWebSocket('**/no-handler');
+    await page.open('ws://127.0.0.1/live');
+  }, { context });
+  assert.deepEqual(record(annotations).stubs.map(s => [s.target, s.api, s.pattern, s.hits]), [
+    ['page', 'routeWebSocket', '**/live', 1],
+    ['page', 'routeWebSocket', '**/never', 0],
+  ]);
+});
+
+test('a route registered from inside Playwright routeFromHAR is named routeFromHAR', () => {
+  const stack = [
+    'Error',
+    `    at callStack (${require.resolve('./route-stubs.cjs')}:1:1)`,
+    '    at HarRouter.addPageRoute (/p/node_modules/playwright-core/lib/coreBundle.js:10:5)',
+    '    at Page.routeFromHAR (/p/node_modules/playwright-core/lib/coreBundle.js:20:5)',
+    '    at async /repo/tests/har.spec.cjs:7:3',
+  ].join('\n');
+  assert.deepEqual(_internal.callSite('/repo', stack), { file: 'tests/har.spec.cjs', line: 7, har: true });
+  const plain = stack.replace(' at Page.routeFromHAR', ' at Page.goto');
+  assert.deepEqual(_internal.callSite('/repo', plain), { file: 'tests/har.spec.cjs', line: 7 });
+  const ownHelper = stack.replace('/p/node_modules/playwright-core/lib/coreBundle.js:20:5', '/repo/helpers.cjs:20:5');
+  assert.deepEqual(_internal.callSite('/repo', ownHelper), { file: 'helpers.cjs', line: 20 }, 'a routeFromHAR outside node_modules is the call site, not Playwright');
 });
 
 test('extend refuses a non-Playwright test', () => {

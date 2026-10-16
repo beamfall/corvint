@@ -94,3 +94,36 @@ func TestTestValidityRefusesNonReceiptInput(t *testing.T) {
 		})
 	}
 }
+
+// LPCV-V0-077: --route-stubs states a receipt without any route-stub producer record as
+// NOT_PRODUCED with an explicit reason; the default output of the same receipt omits the member.
+func TestTestValidityRouteStubsStatesProducerAbsent(t *testing.T) {
+	t.Parallel()
+	path := writeTestValidityInput(t, `{"receipt":{"kind":"e2e","tests":[{"name":"a","state":"passed","attemptDetails":[{"state":"passed","retry":0,"durationMs":1}]}]},"testProjections":[],"runProjection":{}}`)
+	code, plain, stderr := runTestValidityCLI(t, "--receipt", path)
+	if code != 0 || stderr != "" || strings.Contains(plain, "routeStubs") {
+		t.Fatalf("default: exit=%d stderr=%s stdout=%s", code, stderr, plain)
+	}
+	code, stdout, stderr := runTestValidityCLI(t, "--receipt", path, "--route-stubs")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit=%d stderr=%s", code, stderr)
+	}
+	var document testValidityDocument
+	if err := json.Unmarshal([]byte(stdout), &document); err != nil {
+		t.Fatal(err)
+	}
+	if got := document.Tests[0].RouteStubs; got == nil || got.State != "NOT_PRODUCED" || got.Reason != "route-stub-producer-absent" {
+		t.Fatalf("routeStubs = %+v", got)
+	}
+	for name, arguments := range map[string][]string{
+		"without receipt": {"--route-stubs"},
+		"with discover":   {"--discover", "--route-stubs"},
+		"twice":           {"--receipt", path, "--route-stubs", "--route-stubs"},
+		"with a value":    {"--receipt", path, "--route-stubs=yes"},
+	} {
+		code, stdout, stderr := runTestValidityCLI(t, arguments...)
+		if code != 2 || stdout != "" || !strings.Contains(stderr, "route-stubs") {
+			t.Errorf("%s: exit=%d stdout=%q stderr=%s", name, code, stdout, stderr)
+		}
+	}
+}

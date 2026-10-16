@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948)
-Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..075 experimental (V1-1458)
+Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534)
+Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
 `docs/specs/test-claim-qualification-v0.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.
-- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..075 experimental (V1-1458)
+- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475)
 - Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered.
 - Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; their strength join stays gated off until the `LPCV-V0-070` live matrix is retained on a qualified tuple.
 - Read next: User and measurable job; Competitive and novelty boundary; V0 system boundary.
@@ -607,6 +607,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-055` opt-in bounded atomic producer retention | delivered at experimental tier (decision 0218); no real-provider Electron run and no qualified Go session matrix has retained evidence (`NOT_RUN`) | `cmd/corvint-js-test-provider`'s `TestEmitRetainsStdoutBytesPrunesAndRefusesSymlink` and `cmd/corvint-go-test-provider`'s `TestSessionRetainsCompletedEventBytesPrunesAndRefusesSymlink` (retained bytes equal stdout, 32 kept, a foreign entry untouched, a symlinked `.corvint` refused with stdout still emitted); `internal/testevidence`'s `TestRetainReportsDocumentItsPruneRemoved` (a document named behind 32 own names is pruned and reported as a failure) and `TestRetainPrunesCrashLeftoverTemporaries` (225 own temporaries named below the oldest kept document are removed, a newer and a foreign temporary kept); `cmd/corvint`'s `TestTestValidityDiscoverSelectsProducerRetainedDocument` (a retained document is the one `test-validity --discover` selects, `CURRENT`).; the VS Code extension passes the flag only behind `corvint.liveTests.retainEvidence` (decision 0230, `VSC-V0-070`), unit-tested, with no Electron run. |
 | `LPCV-V0-071` provider CLI help | accepted (decision 0519; V1-1196; GitHub #794); implemented | `cmd/corvint-js-test-provider`'s `TestProviderHelpPrintsEverySubcommandUsage` (`--help`, `-h` and `help` exit 0 with each subcommand's usage and flags; an unknown subcommand exits 2) and `TestDocsHelpProducerExampleUsesE2EFlags`. |
 | `LPCV-V0-072..075` request-stub hit evidence | accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); implemented at experimental tier; unprofiled receipts only | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (runs `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed`, `TestLPCVV0072RecordIsSecretScreened`, `TestLPCVV0072MalformedAnnotationKeepsReport`, `TestLPCVV0072ProfiledReceiptsRefuseRouteStubs` and `TestLPCVV0072LiveRecordParses` (the retained Playwright 1.61.1 run, `LPCV-V0-075`); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`conformance/test-validity-v0/route-stubs.json`), `TestLPCVV0073ReceiptWithoutProducerKeepsBytes`, `TestLPCVV0073RetainedRecordIsClosed` and `TestLPCVV0073FindingLeavesAxesUnchanged`. |
+| `LPCV-V0-076..079` request-stub residuals | accepted under the owner's standing auto-accept (2026-10-11) (V1-1475); no external profile revision for 1.0 (decision 0534); implemented at experimental tier | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (the `newContext`/`newPage`, outside-a-test, `routeWebSocket`, `routeFromHAR` call-site and `async` frame cases of `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed` (`api` cases), `TestLPCVV0076AnnotationNamesAPI` and `TestLPCVV0079LiveResidualsParse` (the retained residual run); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`websocket-and-har`, `api-invalid`, `producer-absent-requested`, `recorded-requested`), `TestLPCVV0077RequestedMemberKeepsDefaultBytes` and `TestLPCVV0078ProfiledReceiptRequestedIsExternalProfile`; `cmd/corvint`'s `TestTestValidityRouteStubsStatesProducerAbsent`. |
 | `LPCV-V0-056` typed discovery abstention reason | accepted by decision 0448 (V1-0976, issue #665); experimental tier | `internal/testvaliditydoc`'s `TestDiscoverAbstentionReasons` (missing location, no `*.json`, only undecodable entries, unqualified and unobserved Node tuple, qualified tuple and plain unit receipt without abstention) and `TestDiscoverAbstentionWithholdsUnboundedObservedVersion`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument` (CLI and MCP byte-equal); live control `PWP-V0-009 unqualified-node-control-abstains` in `TestQualifiedPlaywrightLive`. |
 | `LPCVD-V0-001` missing producer guidance | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverProducerGuidance`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vectors `discover-no-evidence-guidance` and `discover-unusable-guidance`. |
 | `LPCVD-V0-002` stale abstention | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverStaleEvidenceGuidance` and `TestDiscoverRetainedRevision`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vector `discover-stale-guidance`. |
@@ -949,7 +950,7 @@ evidence of adequacy.
 
   The member is unprofiled-only. A receipt with an external profile (`/0` to `/3`) that carries it is
   refused with `external-profile-has-route-stubs`. Those profiles gain it only through another
-  profile revision.
+  profile revision; `LPCV-V0-078` records that there is none for 1.0.
 - `LPCV-V0-073`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1458) When an
   unprofiled JavaScript receipt's attempts carry at least one record, every test of the
   `corvint-test-validity/0` document MUST carry `routeStubs`, read from the test's last attempt:
@@ -979,11 +980,60 @@ Acceptance evidence: the tests in the traceability row. The live run is
 `internal/jstestprovider/testdata/route-stubs/live-1.61.1/`: Playwright 1.61.1, Node v22.23.3,
 the installed chromium-headless-shell 1228, darwin arm64.
 
+The residuals of V1-1458 (V1-1475) are `LPCV-V0-076` to `LPCV-V0-079`, accepted under the owner's
+standing auto-accept (2026-10-11). The external-profile question was decided by decision 0534
+(item 5): no profile revision for 1.0.
+
+- `LPCV-V0-076`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1475) The
+  producer MUST also record:
+  - `route` calls on a context made by `browser.newContext()` or `browser.newPage()` while a test
+    with the producer runs, and on that context's pages. It does so through a worker-scoped
+    `browser` fixture override that is restored after the worker. A context created outside a
+    running test is not recorded;
+  - `page.routeWebSocket` and `context.routeWebSocket` calls with a handler, with `api`
+    `routeWebSocket` and `hits` the number of sockets its handler received;
+  - the routes `routeFromHAR` registers, with `api` `routeFromHAR`, when a `node_modules` stack
+    frame between the producer and the caller names `routeFromHAR`. The file and line are the
+    caller's.
+
+  A plain `route` record omits `api`. A stub record MAY carry `api`; when present it MUST be
+  `routeWebSocket` or `routeFromHAR`, and an empty, null or other value is refused by the closed
+  decoding. A `stub-never-matched` finding carries the stub's `api`. Teardown restores `newContext`,
+  `newPage` and `routeWebSocket` like the other overrides. A stack frame prefixed `async ` is
+  resolved like any other.
+- `LPCV-V0-077`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1475) When asked
+  explicitly with `corvint test-validity --receipt FILE --route-stubs` (Go:
+  `testvaliditydoc.ProjectRouteStubs`), every test MUST carry `routeStubs`, even when the member
+  of `LPCV-V0-073` would be omitted:
+  - `NOT_PRODUCED`, reason `route-stub-producer-absent`, when no attempt of an unprofiled receipt
+    carries a record;
+  - `NOT_PRODUCED`, reason `route-stub-external-profile`, for a receipt with an external profile.
+
+  Otherwise the requested document equals the default one. Without the flag every byte stays as
+  in `LPCV-V0-073`. `--route-stubs` takes no value, may be given once and requires `--receipt`.
+- `LPCV-V0-078`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1475; decision
+  0534) There is no external receipt profile revision (`/0` to `/3`) for 1.0. The record stays on
+  unprofiled receipts, `external-profile-has-route-stubs` stays a refusal, and a profiled receipt
+  states its absence only through the `LPCV-V0-077` reason.
+- `LPCV-V0-079`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1475) A retained,
+  unedited live Playwright run MUST show:
+  - a hit and a never-matched stub on a `browser.newContext()` context;
+  - a never-matched stub on a `browser.newPage()` page;
+  - a hit and a never-matched `routeWebSocket` stub;
+  - a hit and a never-matched `routeFromHAR` stub;
+  - a test without a browser fixture that publishes no record.
+
+  It uses an already-installed browser, is diagnostic and does not qualify a `PWP-V0-008` tuple.
+  The run is `internal/jstestprovider/testdata/route-stubs/live-1.61.1-residuals/`, on the same
+  tuple as `LPCV-V0-075`.
+
 Non-goals:
 - stubs registered only on a negative-control path (GitHub #872);
-- routes on contexts the test creates itself;
-- `routeWebSocket`, and `routeFromHAR` beyond whatever reaches the instrumented `route`;
-- profiled receipts;
+- contexts created outside a running test (`beforeAll`, worker fixtures), by
+  `launchPersistentContext`, or on a browser the test launches itself;
+- `routeFromHAR` with `update: true`, which records a HAR and registers no stub;
+- profiled receipts, and an external profile revision for 1.0 (decision 0534);
+- the explicit `LPCV-V0-077` member in the MCP bridge and in `--discover`;
 - the TypeScript mirror;
 - treating a never-matched stub as a failure.
 
@@ -1000,9 +1050,14 @@ Failure modes, each prevented by the cited requirement:
 | A hit in a failed earlier attempt hides a never-matched stub in the passing one. | `LPCV-V0-073` last attempt |
 | A failing test is reported as a never-matched stub. | `LPCV-V0-073` `test-not-passed` |
 | A stub pattern leaks a secret. | `LPCV-V0-072` secret screen |
-| A legacy document changes bytes. | `LPCV-V0-073` omission |
+| A legacy document changes bytes. | `LPCV-V0-073` omission; `LPCV-V0-077` is opt-in |
+| A stub on a context the test creates is silently missing. | `LPCV-V0-076` `newContext`/`newPage` adoption |
+| A WebSocket or HAR stub is read as a plain route. | `LPCV-V0-076` closed `api` |
+| An absent producer is indistinguishable from a legacy document. | `LPCV-V0-077` explicit reason |
 
-Rollback: remove the producer, the annotation parse and both `routeStubs` members. Receipts without
+Rollback: remove the producer, the annotation parse and both `routeStubs` members. Rolling back
+only `LPCV-V0-076` to `LPCV-V0-079` removes the `browser` override, the `api` member and the
+`--route-stubs` flag; a retained record that carries `api` is then refused as unknown-field input. Receipts without
 the member and their documents keep their bytes. Decoding is closed, so a retained receipt that
 carries the member is then refused as unknown-field input until it is regenerated without the
 producer. A reader older than this slice refuses such receipts in the same way.

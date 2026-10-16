@@ -49,6 +49,45 @@ func TestLPCVV0072LiveRecordParses(t *testing.T) {
 	}
 }
 
+// LPCV-V0-079: the retained Playwright 1.61.1 run records stubs on browser.newContext() and
+// browser.newPage() contexts, routeWebSocket and routeFromHAR, with hits and registration lines.
+func TestLPCVV0079LiveResidualsParse(t *testing.T) {
+	byName := map[string]TestOutcome{}
+	for _, o := range loadPW(t, "route-stubs/live-1.61.1-residuals/report.json") {
+		byName[o.Name] = o
+	}
+	want := map[string]*RouteStubRecord{
+		"browser.newContext stubs are recorded": {Stubs: []RouteStub{
+			{Target: "context", Kind: "glob", Pattern: "**/api/items", Hits: 1, File: "residuals.spec.cjs", Line: 10},
+			{Target: "page", Kind: "glob", Pattern: "**/api/never", Hits: 0, File: "residuals.spec.cjs", Line: 12},
+		}},
+		"browser.newPage stubs are recorded": {Stubs: []RouteStub{
+			{Target: "page", Kind: "glob", Pattern: "**/api/itmes", Hits: 0, File: "residuals.spec.cjs", Line: 20},
+		}},
+		"routeWebSocket stubs are recorded": {Stubs: []RouteStub{
+			{Target: "page", API: "routeWebSocket", Kind: "glob", Pattern: "**/live", Hits: 1, File: "residuals.spec.cjs", Line: 27},
+			{Target: "page", API: "routeWebSocket", Kind: "glob", Pattern: "**/never-socket", Hits: 0, File: "residuals.spec.cjs", Line: 28},
+		}},
+		"routeFromHAR stubs are recorded": {Stubs: []RouteStub{
+			{Target: "page", API: "routeFromHAR", Kind: "glob", Pattern: "**/api/items", Hits: 1, File: "residuals.spec.cjs", Line: 34},
+			{Target: "context", API: "routeFromHAR", Kind: "glob", Pattern: "**/api/never", Hits: 0, File: "residuals.spec.cjs", Line: 35},
+		}},
+		"no browser fixture": nil,
+	}
+	if len(byName) != len(want) {
+		t.Fatalf("tests = %d, want %d", len(byName), len(want))
+	}
+	for name, record := range want {
+		o, ok := byName[name]
+		if !ok || o.State != StatePassed || len(o.AttemptDetails) != 1 {
+			t.Fatalf("%q: %+v", name, o)
+		}
+		if got := o.AttemptDetails[0].RouteStubs; !reflect.DeepEqual(got, record) {
+			t.Errorf("%q record = %+v, want %+v", name, got, record)
+		}
+	}
+}
+
 func routeStubAnnotation(description string) playwrightAnnotation {
 	return playwrightAnnotation{Type: RouteStubsAnnotation, Description: description}
 }
@@ -90,10 +129,34 @@ func TestLPCVV0072AnnotationIsClosed(t *testing.T) {
 		"duplicate hits":  {routeStubAnnotation(`{"stubs":[{"target":"page","kind":"glob","pattern":"x","hits":3,"hits":0}]}`)},
 		"duplicate stubs": {routeStubAnnotation(valid[:len(valid)-1] + `,"stubs":[]}`)},
 		"non-string":      {{Type: RouteStubsAnnotation, Description: valid, malformed: true}},
+		"empty api":       {routeStubAnnotation(`{"stubs":[{"target":"page","api":"","kind":"glob","pattern":"x","hits":0}]}`)},
+		"null api":        {routeStubAnnotation(`{"stubs":[{"target":"page","api":null,"kind":"glob","pattern":"x","hits":0}]}`)},
+		"unknown api":     {routeStubAnnotation(`{"stubs":[{"target":"page","api":"routeFromHTTP","kind":"glob","pattern":"x","hits":0}]}`)},
+		"route api":       {routeStubAnnotation(`{"stubs":[{"target":"page","api":"route","kind":"glob","pattern":"x","hits":0}]}`)},
 	} {
 		if got := routeStubRecord(annotations); got != nil {
 			t.Errorf("%s: record = %+v", name, got)
 		}
+	}
+}
+
+// LPCV-V0-076: a stub may name routeWebSocket or routeFromHAR; a plain route omits the member.
+func TestLPCVV0076AnnotationNamesAPI(t *testing.T) {
+	record := routeStubRecord([]playwrightAnnotation{routeStubAnnotation(`{"stubs":[{"target":"page","api":"routeWebSocket","kind":"glob","pattern":"**/ws","hits":1},{"target":"context","api":"routeFromHAR","kind":"glob","pattern":"**/*","hits":0},{"target":"page","kind":"glob","pattern":"**/a","hits":2}]}`)})
+	if record == nil || len(record.Stubs) != 3 {
+		t.Fatalf("record = %+v", record)
+	}
+	for i, want := range []string{"routeWebSocket", "routeFromHAR", ""} {
+		if record.Stubs[i].API != want {
+			t.Errorf("stub %d api = %q, want %q", i, record.Stubs[i].API, want)
+		}
+	}
+	encoded, err := json.Marshal(record.Stubs[2])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), `"api"`) {
+		t.Fatalf("plain route encodes an api member: %s", encoded)
 	}
 }
 
