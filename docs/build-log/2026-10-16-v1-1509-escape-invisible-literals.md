@@ -5,7 +5,7 @@ Date: 2026-10-16. Ticket V1-1509 (P3 CHORE, found by Codex review on V1-0414, PR
 ## Decision
 
 Literal U+2028, U+2029, U+202E, U+200B and U+200E code points inside Go string and rune
-literals hide intent from reviewers. They are replaced with Go escapes (` ` and so on)
+literals hide intent from reviewers. They are replaced with Go escapes (`\u2028` and so on)
 so the compiled strings are unchanged. No requirement is added or amended (no spec governs
 test-fixture source layout), so no requirement IDs apply.
 
@@ -20,7 +20,7 @@ paragraph separators in canonicalisation and separator tests): `internal/appmap/
 `internal/liveverify/jsresolve/jsresolve_test.go`. After the change the same scan finds 0 hits.
 
 `internal/attest/fuzz_test.go` held the character inside a raw (backquoted) string, where
-` ` would not be an escape; it is split as raw + `" "` + raw.
+`\u2028` would not be an escape; it is split as raw + `"\u2028"` + raw.
 
 ## Evidence
 
