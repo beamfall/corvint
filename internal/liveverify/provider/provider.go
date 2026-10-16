@@ -318,9 +318,9 @@ func Execute(ctx context.Context, config Config) (transcript Transcript, returnE
 	released := false
 	defer func() {
 		if !released {
-			// GLTP-V0-054 (decision 0533): a release whose only failure is its own expired
-			// deadline is refused as unavailable; drift or an in-time failure stays drift.
-			early := postRunFailure{deadlineOnly: true}
+			// GLTP-V0-054 (decision 0533): only a deadline-only release on an exit that saw no
+			// drift is refused as unavailable; drift or an in-time failure stays drift.
+			early := postRunFailure{deadlineOnly: !errors.Is(returnErr, ErrAuthorityDrift)}
 			if releaseErr := early.release(ctx, lease); releaseErr != nil {
 				transcript.AuthorityError = fmt.Errorf("%w: release execution authority", ErrAuthorityDrift)
 				if early.deadlineOnly {

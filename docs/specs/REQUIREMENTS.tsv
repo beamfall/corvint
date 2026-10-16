@@ -1893,14 +1893,14 @@ GLTP-V0-041	docs/specs/go-live-test-provider-v0.md	1103	Every normal-completion 
 GLTP-V0-042	docs/specs/go-live-test-provider-v0.md	1267	GLTP-V0-012 keeps `excluded` unconditionally `[]` in V0 and this clause does not	unrecorded	-
 GLTP-V0-043	docs/specs/go-live-test-provider-v0.md	1294	A shadow (non-blocking) full-verification run whose scope reaches an explicitly	unrecorded	-
 GLTP-V0-044	docs/specs/go-live-test-provider-v0.md	1304	Until an accepted containment profile exists, no command in `cmd/corvint` may	unrecorded	-
-GLTP-V0-045	docs/specs/go-live-test-provider-v0.md	1378	The session polls a bounded, explicitly enumerated file set (`Config.Files`) at	unrecorded	-
-GLTP-V0-046	docs/specs/go-live-test-provider-v0.md	1391	Exactly one run is active at a time. A newer settled identity detected while a r	unrecorded	-
-GLTP-V0-047	docs/specs/go-live-test-provider-v0.md	1406	The batch is every change settled since the last started run: a batch queued	unrecorded	-
-GLTP-V0-048	docs/specs/go-live-test-provider-v0.md	1425	Each run is executed via `gorunner.Run` — the same contained runner	unrecorded	-
-GLTP-V0-049	docs/specs/go-live-test-provider-v0.md	1450	The session publishes one JSON line per state transition	unrecorded	-
-GLTP-V0-050	docs/specs/go-live-test-provider-v0.md	1473	Every published event also carries `projection`: one	unrecorded	-
-GLTP-V0-051	docs/specs/go-live-test-provider-v0.md	1500	A terminal event whose run completed — classified `passed` or `failed` before an	unrecorded	-
-GLTP-V0-052	docs/specs/go-live-test-provider-v0.md	1531	A `skip` action MUST project the per-test execution axis `SKIPPED` with reason	unrecorded	-
+GLTP-V0-045	docs/specs/go-live-test-provider-v0.md	1379	The session polls a bounded, explicitly enumerated file set (`Config.Files`) at	unrecorded	-
+GLTP-V0-046	docs/specs/go-live-test-provider-v0.md	1392	Exactly one run is active at a time. A newer settled identity detected while a r	unrecorded	-
+GLTP-V0-047	docs/specs/go-live-test-provider-v0.md	1407	The batch is every change settled since the last started run: a batch queued	unrecorded	-
+GLTP-V0-048	docs/specs/go-live-test-provider-v0.md	1426	Each run is executed via `gorunner.Run` — the same contained runner	unrecorded	-
+GLTP-V0-049	docs/specs/go-live-test-provider-v0.md	1451	The session publishes one JSON line per state transition	unrecorded	-
+GLTP-V0-050	docs/specs/go-live-test-provider-v0.md	1474	Every published event also carries `projection`: one	unrecorded	-
+GLTP-V0-051	docs/specs/go-live-test-provider-v0.md	1501	A terminal event whose run completed — classified `passed` or `failed` before an	unrecorded	-
+GLTP-V0-052	docs/specs/go-live-test-provider-v0.md	1532	A `skip` action MUST project the per-test execution axis `SKIPPED` with reason	unrecorded	-
 GLTP-V0-053	docs/specs/go-live-test-provider-v0.md	1312	The production post-run authority bound MUST stay the fixed 15-second	unrecorded	-
 GLTP-V0-054	docs/specs/go-live-test-provider-v0.md	1338	`Execute` MUST refuse failed post-run authority (GLTP-V0-053's revalidation,	unrecorded	-
 GOC-V0-001	docs/specs/go-only-cutover-v0.md	62	The current tree MUST contain no legacy `src/corvint_cli.py` or	unrecorded	-

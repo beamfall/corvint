@@ -37,7 +37,8 @@ because changing them amends accepted rows, and listed them as owner decisions:
 3. **Early-exit release.** The deferred release on an early exit is classified as one post-run
    call (`postRunFailure`). If its only failure is its own expired deadline, it reports
    `ErrAuthorityUnavailable: release execution authority deadline expired`. A typed drift report,
-   even one returned late, and any failure returned in time keep `ErrAuthorityDrift`. Every case
+   even one returned late, any failure returned in time, and any release failure on an exit that
+   already observed drift keep `ErrAuthorityDrift`. Every case
    stays `INCOMPLETE`, so the refusal remains fail-closed. The pre-launch `go-live-error/0`
    detail can move from `PARENT_AUTHORITY_DRIFT` to the existing
    `PARENT_AUTHORITY_UNAVAILABLE`. Amends `GLTP-V0-054`.
