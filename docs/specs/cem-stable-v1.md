@@ -53,7 +53,8 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-051..059 | `lrfrepo.VerifyStableUniverse`, `StableUniverse`, `StableRefusal`, `lrf.ValidateStableRequest`; explicit `cem/1.0` refusals in `VerifyUniverse`, `readOCMBytes`, `PrepareOCM`; tests in the OCM/LRF stable admission traceability table | Stable LRF evaluation needs an accepted stable LRF profile; no CLI or MCP route; OCM writers stay `cem/0.x` only; C06..C09 and C17 consumers remain open |
 | CEM-V1-050 | `structuralRuntimeAdmitted` in `internal/cem/verify/stable.go` and `interop/cem01-go/cem.go`; sealed `protocol/cem-1.0/structural-tuples/go1.27.2/`; `TestCEMV1050StructuralTupleAdmission` (native and portable); S0E, linked-control, ledger and cell tests bound through the tuple packet | Linux and Windows hosts, CI-hosted go1.27.2 runs and the full structural corpus remain NOT_RUN |
 | CEM-V1-080..082 | `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` and `testdata/citation/`; `TestCEMV1080*`, `TestCEMV1081*`, `TestCEMV1082*` in `internal/cem/verify`, `internal/cem/workflow` and `interop/cem01-go` | Recorded limits: `held` never produced, no `symbol` anchors, no threshold or cut-off, stable-result emission is CEM-V1-092; historical 591-map report in the build log |
-| CEM-V1-083 | Plain criterion form in `internal/cem/wire/stable.go` and `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/neutral-criterion/`; `TestCEMV1083*` in `internal/cem/wire`, `internal/cem/verify` and `interop/cem01-go` | No producer emits the plain form (`corvint-cem-candidate assemble-stable` accepts only Tasks-bound `cem-stable-assembly/1`); the public map was hand-assembled; stranger time NOT_OBSERVED |
+| CEM-V1-083 | Plain criterion form in `internal/cem/wire/stable.go` and `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/neutral-criterion/`; `TestCEMV1083*` in `internal/cem/wire`, `internal/cem/verify` and `interop/cem01-go` | The plain form is produced by the experimental `cem-stable-plain-assembly/1` request of `corvint-cem-candidate assemble-stable` (`CEM-V1-240`, V1-1290); no default `corvint cem` verb emits it; stranger time NOT_OBSERVED |
+| CEM-V1-240 | `AssemblePlain` in `internal/cemcandidate/plain.go` and the profile dispatch in `cmd/corvint-cem-candidate/stable.go`; `TestCEMV1240*` in `internal/cemcandidate` and `cmd/corvint-cem-candidate`; timed run in `docs/build-log/2026-10-15-cem-plain-criterion-producer.md` | Experimental companion, not promoted; the runner plan and receipt are opaque inputs checked only by SHA-256, so receipt authority and execution at the target stay `NOT_OBSERVED`; one runner receipt per map; stranger time NOT_OBSERVED |
 | CEM-V1-084 | `internal/cem/wire/stable_auth.go`, `internal/cem/verify/stable_auth.go`, `interop/cem01-go/stable_auth.go`; `--trusted-keys` in `internal/cem/cli/stable.go` and both portable commands; public case `protocol/cem-1.0/stable/receipt-authentication/`; `TestCEMV1084*` in `internal/cem/wire`, `internal/cem/verify`, `interop/cem01-go`, `internal/console` and `cmd/corvint` | No producer signs receipts (operator step, FPK-V0-036); `RESULT.schema.json` and the sealed S0E packet still name only `NOT_OBSERVED` for `authentication` and lack the four attestation issue codes (V1-1265); keys are TEST-ONLY; stranger time NOT_OBSERVED |
 | CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestCheckCoversEveryStableManifestEntry`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`; proof run in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` | V1-1265 added `citation` (CEM-V1-092) and `verdictSha256` (CEM-V1-066) through the tool; since V1-1287 `--check` verifies every stable manifest entry (see "Stable manifest entry repair") |
 | CEM-V1-092 | `citation` member of `StableResult` (`internal/cem/verify/stable.go`) and `stableResult` (`interop/cem01-go/cem.go`, `stable_repository.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1092CitationOnlyOnAccept`, `TestCEMV1092SealedCasesCarryCitationOnlyOnAccept`, `TestCEMV1092RefuseAndRejectClearCitation` (native); `TestCEMV1092PortableCitationOnlyOnAccept`, `TestCEMV1082StableResultCarriesTheBlock`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file (case 21 derived natively on go1.27.2 with every other non-runtime key matching); ten envelope cells take `--cell-values` overrides |
@@ -390,6 +391,73 @@ Rollback: revert the plain branch in `internal/cem/wire/stable.go` and `interop/
 (restore the eleven required keys), the `criterionBinding` `oneOf` in `stable.schema.json`, the
 CEM-V1-083 text in `ALGORITHMS.md`, the `neutral-criterion/` case and its manifest entries. Tasks
 maps need no migration.
+
+## Provider-neutral producer (V1-1290, decision 0523 P1)
+
+Status: proposed technical contract; `CEM-V1-240` accepted under the owner's standing auto-accept
+(2026-10-11); V1-1290. An experimental companion request, not promoted. It adds a producer for the
+plain criterion form of `CEM-V1-083` and leaves that requirement's text unchanged.
+
+- `CEM-V1-240`: `corvint-cem-candidate assemble-stable --experimental --request R --out-dir D`
+  MUST route a request whose `profile` is `cem-stable-plain-assembly/1` to a closed decoder of
+  `{profile, repository, expectedBase, target, sourceMap, runnerPlan, runnerReceipt, criteria}`.
+  Each pinned input is `{path, sha256}` with an absolute clean path and the raw SHA-256. Each of 1
+  to 256 criteria is `{criterionEvidenceId, hunkIds, evidenceIds}`, with 1 to 32 IDs in each list.
+  The request names no ticket, attempt, capture, snapshot or source prefix, and the producer reads
+  no Corvint Tasks store. Every other profile keeps the Tasks-bound `cem-stable-assembly/1` path.
+  The source map MUST be a `cem/1.0` producer map, as written by `corvint cem prepare` and
+  `corvint cem cite`. It has no criterion binding, runner receipt, criterion link, artifact or
+  provenance, and its change members and `role` are copied unchanged. Request criterion `i` becomes
+  the plain criterion of `CEM-V1-083` with `criterionIndex` `i`. Its `evidenceId` is
+  `criterionEvidenceId`, which MUST name an evidence record of the source map. Its
+  `criterionSha256` is that record's `spanSha256`. It gets one criterion link
+  `{criterionId, hunkIds, evidenceIds, runnerReceiptSha256s}` naming the one receipt.
+  The map carries one runner receipt record with `profile` `corvint-test-runner-receipt/0`, the
+  receipt and plan digests, `executionAuthority` `CALLER_OBSERVED`, and `sourceGitBinding`,
+  `dependencyClosure` and `authentication` `NOT_OBSERVED`. It also carries the artifacts
+  `runner-plan` and `runner-receipt`, at `artifacts/runner-plan.json` and
+  `artifacts/runner-receipt.json`. The bundle D MUST be a new absolute directory outside the
+  repository whose parent has no symlink alias. The producer writes the two artifacts into D and
+  verifies the encoded map with the native stable verifier against D. It writes `D/stable.json`
+  only after an ACCEPT, and only if every pinned input still matches its digest.
+  From the recipe repository of `protocol/cem-1.0/stable/neutral-criterion/`, after `cem prepare`,
+  one `cem cite` per hunk, and with that case's two runner artifacts, it MUST re-produce the case's
+  `stable.json` and artifacts byte for byte.
+
+Non-goals:
+- no new or changed `corvint cem` verb, CLI frozen surface or MCP tool
+- no change to the wire, the verifier, `CEM-V1-083` or the Tasks-bound request
+- no runner execution: the plan and receipt are opaque caller inputs, checked only by SHA-256 as
+  the verifier checks them
+- no receipt signing (`FPK-V0-036`)
+- no more than one runner receipt per map
+
+The result `cem-stable-plain-assembly-result/1` reports `receiptAuthority` and `executionAtCommit`
+as `NOT_OBSERVED`. An ACCEPT says nothing more than `CEM-V1-083` and the stable verifier already
+say; decision 0523 §6 lists what it does not establish.
+
+Failure modes:
+- request shape, profile or pin form: refused before any read
+- changed pinned input: refused, before the build and again before the map is written
+- a source that is not a producer map: refused
+- an unknown criterion evidence ID: refused
+- duplicate criterion evidence: refused by the stable encoder (`duplicate-reference`)
+- an unresolved hunk or evidence ID: refused by the stable encoder (`unresolved-reference`)
+- a bundle inside the repository or already present: refused
+- any verifier REFUSE or REJECT: refused, naming its stage and code
+
+No refusal writes `stable.json`. A refusal after the bundle was created leaves at most the two
+runner artifacts in D.
+
+Acceptance evidence:
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-240 | `TestCEMV1240PlainAssemblyReproducesNeutralCriterionCase`, `TestCEMV1240PlainAssemblyRefusals` (`internal/cemcandidate`); `TestCEMV1240PlainProfileSelectsPlainDecoder` (`cmd/corvint-cem-candidate`) | The produced map, plan and receipt equal the public `neutral-criterion` case byte for byte, on a recipe repository with no `.taskman/`. The native verifier ACCEPTs it inside the producer. The public case's `TestCEMV1083NeutralCriterionPublicCase` ACCEPTs the same bytes on both consumers. The timed producer and both-consumer run is in `docs/build-log/2026-10-15-cem-plain-criterion-producer.md`. |
+
+Rollback: remove `internal/cemcandidate/plain.go`, the profile dispatch in
+`cmd/corvint-cem-candidate/stable.go`, and their tests. Plain maps already produced stay valid
+`cem/1.0` maps under `CEM-V1-083`.
 
 ## Runner receipt authentication (V1-1264, decision 0523 P1)
 

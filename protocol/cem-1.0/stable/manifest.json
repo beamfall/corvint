@@ -188,8 +188,8 @@
     },
     {
       "path": "neutral-criterion/README.md",
-      "sha256": "c279110bcca4850952fa33e7225d1dcb3d8eb905dbe72a53cd50b0ac42e239e3",
-      "bytes": 2443
+      "sha256": "d0c4a448b93f64ca07b07bcc89d2a159228aedc0bb62bc931917772617820e05",
+      "bytes": 3011
     },
     {
       "path": "neutral-criterion/artifacts/runner-plan.json",

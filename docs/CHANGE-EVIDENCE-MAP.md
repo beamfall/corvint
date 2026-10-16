@@ -47,6 +47,36 @@ Schenk-Hana's July 2026 [Proof-Carrying Coding](https://realitygraph.dev/proof-c
 CEM borrows the producer-attaches/consumer-verifies asymmetry while deliberately making a smaller
 claim than formal proof.
 
+### What a `cem/1.0` ACCEPT does not establish (decision 0523 §6)
+
+Decision 0523 ([`0523`](decisions/0523-cem-1-0-rc3-verifier-computed-support-2026-10-11.md))
+lists what a consumer still MUST NOT conclude from an ACCEPT. Do not conclude:
+
+- that any test ran, ran at this commit, or ran on these inputs;
+- that Corvint or the change author produced the map;
+- that receipt outcomes are genuine: a forged PASS receipt hashed into the map verifies;
+- that an anchor `verified` row covers its commit; or
+- that a valid signature proves execution rather than who made the claim.
+
+The P1 wire changes (receipt `authentication` with consumer-supplied trusted keys, and the anchor
+pointer scope) narrow the last two. None of the P0..P4 moves removes the first three. No rc.3 text
+says CEM "helps reviewers" or is "groundbreaking" until a first trial report whose registration
+predates its first lane reads "met" under `CRT-V0-008`. That trial is post-rc.3 and `NOT_RUN`.
+
+### Kill criteria (decision 0523 §5)
+
+Where the decision names a consequence, it follows the criterion:
+
+- K1: fewer than 25% of non-mechanical Go code hunks are `held` across the next 30 dogfood changes
+  after P2 lands. The hunk-revert headline is dropped from rc.3 text, and P0 ships alone.
+- K2: the rubber-stamp and careful maps of the same patch produce the same `citation` block or the
+  same tiers. P0 is not done.
+- K3: more than 5% of 50 audited `held` witnesses are not behavioural test failures.
+- K4: a stranger cannot produce and verify a `cem/1.0` map on a non-Corvint repository within one
+  engineer-day with no Tasks store. The adoption claim is withdrawn.
+- K5: median dogfood change latency rises by more than 10% with P0 and P2 on.
+- K6: native and portable `verdictSha256` differ on any public case.
+
 ## Document
 
 A `cem/0.1` document has five required fields:
