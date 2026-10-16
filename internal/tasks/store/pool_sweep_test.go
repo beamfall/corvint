@@ -190,21 +190,10 @@ func TestPSRSweepOwnerBarrier(t *testing.T) {
 		err error
 	}
 	done := make(chan sweepResult, 1)
-	go func() { out, e := psrRunLoaded(s, "barrier"); done <- sweepResult{out, e} }()
 	bound := psrTestBound(t)
-	for {
-		if _, e := os.Stat(marker); e == nil {
-			break
-		}
-		select {
-		case r := <-done:
-			t.Fatalf("sweep returned before the verify barrier: %+v %v pool=%s", r.out, r.err, psrEntryStates(psrPools(t, s)))
-		case <-bound:
-			t.Fatal("verify barrier not reached before the test deadline")
-		case <-time.After(10 * time.Millisecond):
-		}
-	}
 	joined := false
+	// Registered before the sweep starts, so every exit releases verify and
+	// joins the sweep before the fixture directories are removed.
 	t.Cleanup(func() {
 		os.WriteFile(release, nil, 0600)
 		if joined {
@@ -216,6 +205,20 @@ func TestPSRSweepOwnerBarrier(t *testing.T) {
 			t.Error("sweep unjoined")
 		}
 	})
+	go func() { out, e := psrRunLoaded(s, "barrier"); done <- sweepResult{out, e} }()
+	for {
+		if _, e := os.Stat(marker); e == nil {
+			break
+		}
+		select {
+		case r := <-done:
+			joined = true
+			t.Fatalf("sweep returned before the verify barrier: %+v %v pool=%s", r.out, r.err, psrEntryStates(psrPools(t, s)))
+		case <-bound:
+			t.Fatal("verify barrier not reached before the test deadline")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
 	for i, verb := range []string{transaction.LeasePoolSafe, transaction.LeasePoolCleanup} {
 		request := transaction.LeaseRequest{Verb: verb, Member: "a", Allocation: string(a.PoolAllocation.AllocationID)}
 		if verb == transaction.LeasePoolSafe {
@@ -226,7 +229,9 @@ func TestPSRSweepOwnerBarrier(t *testing.T) {
 		// command is recorded at the wall clock too: a fixture time behind the
 		// owner's receipt is refused as STORAGE_FAILED by the clock check
 		// before the barrier is consulted, which is not the barrier refusal.
-		r, e := store.Lease(context.Background(), s.repo, operator(), store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "manual" + string(rune('a'+i)), Root: s.root, Lease: request}, now(t))
+		// The lifted observation bounds keep pool-cleanup's runner probe from
+		// timing out before it reaches the owner check.
+		r, e := store.Lease(psrLoaded(context.Background()), s.repo, operator(), store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "manual" + string(rune('a'+i)), Root: s.root, Lease: request}, now(t))
 		if e != nil {
 			t.Fatalf("manual %s: %v", verb, e)
 		}
@@ -257,16 +262,18 @@ func TestPSRSweepOwnerBarrier(t *testing.T) {
 	}
 }
 
-// psrTestBound closes shortly before the test binary's -timeout so a hung
-// sweep fails this test with its own message; without a deadline it never
-// closes and the sweep's own bound applies.
-func psrTestBound(t *testing.T) <-chan time.Time {
+// psrTestBound is closed shortly before the test binary's -timeout, so a hung
+// sweep fails this test with its own message and every wait on it fires; with
+// no test deadline it is never closed and the sweep's own bound applies.
+func psrTestBound(t *testing.T) <-chan struct{} {
 	t.Helper()
 	deadline, ok := t.Deadline()
 	if !ok {
 		return nil
 	}
-	return time.After(time.Until(deadline) * 9 / 10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Until(deadline)*9/10)
+	t.Cleanup(cancel)
+	return ctx.Done()
 }
 
 // PSR-V0-005: stderr cannot satisfy the stdout literal.

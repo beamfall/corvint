@@ -22,16 +22,26 @@ product deadline, budget or allowance was changed.
 
 - The sweep uses the V1-1324 load-tolerant test bounds (`psrLoadTolerant`, `psrRunLoaded`).
 - The test waits for either the verify marker or the sweep's own bounded return. A return before the
-  marker fails with the sweep report and pool states. The join waits end at 90% of `t.Deadline()`.
-- The manual commands run at the wall clock (`now(t)`). Each must be refused `BLOCKED` with exactly
-  `RESOURCE_COLLISION`, which is the PSR-V0-003 owner refusal.
+  marker fails with the sweep report and pool states. Every wait also ends when a context closes at
+  90% of `t.Deadline()`. The release-and-join cleanup is registered before the sweep starts.
+- The manual commands run at the wall clock (`now(t)`) with the lifted observation bounds. Each must
+  be refused `BLOCKED` with exactly `RESOURCE_COLLISION`, which is the PSR-V0-003 owner refusal.
+- Remaining dependence: the 120s attempt and 300s sweep test bounds, and a wall clock that does not
+  step backwards while the test runs.
+
+## Review
+
+One Codex round found three P2 issues, all fixed before binding. The manual commands kept the fixed
+1s cleanup runner probe. The `time.After` bound fired only once, so it could not end both joins. The
+cleanup was registered after the marker wait, so an early failure left the sweep unjoined.
 
 ## Evidence
 
 - BASE, `-count=20`, load 57-53 (start) to 52-62 (end): 11/20 FAIL, all `verify barrier not reached`.
-- Fixed, `-count=20`, load 44-58 to 52-56: 20/20 PASS (2.4s-15.2s). Final version, load 102-80 to
-  78-90: 20/20 PASS.
-- Mutations, each restored after the run:
+- Fixed, `-count=20`: timing fix only, load 44-58 to 52-56, 20/20 PASS (2.4s-15.2s); with the
+  strict refusal assertion, load 102-80 to 78-90, 20/20 PASS; final version after review, load 52-63
+  to 58-62, 20/20 PASS.
+- Mutations against the final version, each restored after the run:
   - `planPoolSweepSafe` completes for a non-owner: 2/2 FAIL `manual POOL_CONFIRM_SAFE stole owner`.
   - `planPoolCleanup` skips its `Sweep != nil` refusal: 2/2 FAIL `manual POOL_CLEANUP not refused
     by the sweep owner` (`QUIESCENCE_UNPROVED`).
