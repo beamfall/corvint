@@ -17,7 +17,7 @@ declared test-link vocabulary) and `docs/specs/live-proof-carrying-verification-
 - Claim: A read-only planner could group variations sharing fixture state, screen and user into fewer focused tests, as a fail-closed checkable table with reasons.
 - Status: accepted (decision 0457; V1-1023; GitHub #681); experimental. Acceptance settles intent only.
 - Exists: `internal/testplan`, `corvint test-plan consolidate|check` and, with `--consolidation`, `corvint-corpus-mcp` tool `corvint.consolidate_tests`; TCN-V0-001..012 each have passing focused tests (Deterministic acceptance and traceability).
-- Blocked on: owner-run qualification on a real labelled variation set (`NOT_RUN`); `REUSED` is not reachable from real provider documents in V0 (Implementation notes).
+- Blocked on: owner-run qualification on the adopter's labelled variation set (`NOT_RUN`); a lane qualification on this repository's console tests ran (44 variations, 31 new tests; Repository qualification); `REUSED` is not reachable from real provider documents in V0 (Implementation notes).
 - Read next: Requirements; Grouping algorithm; Implementation notes; Owner questions.
 
 ## User and measurable job
@@ -355,8 +355,8 @@ Evidence is the focused tests below (`internal/testplan`, `cmd/corvint`, `cmd/co
 | TCN-V0-006 | `TestIsolationReasons`. |
 | TCN-V0-007 | `TestPrecedenceOrderAndSets` (`x=0`, `x=1`, `x=1` give two tests), `TestCycleReplanned`, `TestEdgeBoundRefuses`. |
 | TCN-V0-008 | `TestMaxStepsCutAndNumbering`, `TestInputOrderDoesNotChangeOutput`. |
-| TCN-V0-009 | `TestGoldenWorkedExample` (`testdata/worked-example.json`), `TestEveryVariationAccountedOnce` (40 random inputs), `TestOutputBoundRefuses`. |
-| TCN-V0-010 | `TestGoldenWorkedExample` (`testdata/worked-example.table`, the worked example above). |
+| TCN-V0-009 | `TestGoldenWorkedExample` (`testdata/worked-example.json`), `TestConsoleQualificationGolden` (the repository qualification below: counts and status), `TestEveryVariationAccountedOnce` (40 random inputs), `TestOutputBoundRefuses`. |
+| TCN-V0-010 | `TestGoldenWorkedExample` (`testdata/worked-example.table`, the worked example above), `TestConsoleQualificationGolden` (`testdata/console-qualification.table`, digest-pinned and checked against its own plan). |
 | TCN-V0-011 | `TestCheck` (exact table inside Markdown; edited, reordered, added, dropped and changed rows; edited header; missing and doubled header; max-steps, revision and map disagreement; `INCOMPLETE`), `TestTestPlanCheckExitCodes`. |
 | TCN-V0-012 | `TestTCNV0012CorpusMCPConsolidateTests` (strict decoding, listing gated by `--consolidation`, root confinement, byte parity with the library plan the CLI prints, check mode, the one-message bound); `TestRunWithinConfinesReads` (an escaping link, a parent replaced by an outside link, a FIFO and `..` are refused at read time; a link inside the root is read); `TestToolsExposeOnlyDeliveredClosedReadSurface` and the unchanged `cmd/corvint-mcp` keep the `corvint-mcp` tool list. |
 
@@ -367,6 +367,16 @@ the test-level `corvint test-validity` projection plus per-variation outcome evi
 `flows coverage` report (AFU-V1-049..051), with the written test declared as each grouped variation's test.
 `corvint test-validity` alone is test-level and cannot show that each step's assertion ran. Until
 that run it stays `NOT_RUN`.
+
+Repository qualification (V1-1023 lane, 2026-10-16): 44 variations labelled from the HTTP-route
+subtests of this repository's console tests (`internal/console`, at `a0b4c4108`) produce 31 new
+tests against `baseline_one_per_row` 44 (19 grouped, 25 isolated, 0 reused, 0 duplicates, 0
+abstained; `COMPLETE`, `anchors=NOT_RUN`); the check refused every edited, reordered, dropped and
+`INCOMPLETE` case. Input and table are pinned by `TestConsoleQualificationGolden`; selection rule,
+digests and the table excerpt are in
+`docs/build-log/2026-10-16-v1-1023-1024-console-qualification.md`. It is the lane's own labelled
+set, not the adopter's; it exercises neither `--map` nor `--tests`, and no grouped test was written
+or run, so it does not meet the promotion criteria below.
 
 ### Implementation notes (V1-1023, 2026-10-08)
 

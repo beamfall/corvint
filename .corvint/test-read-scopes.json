@@ -189,6 +189,7 @@
       "protocol/cem-1.0/patches/",
       "protocol/cem-1.0/repository/",
       "protocol/cem-1.0/stable/citation-vectors/",
+      "protocol/cem-1.0/stable/drift-resource-limit/",
       "protocol/cem-1.0/stable/manifest.json",
       "protocol/cem-1.0/stable/neutral-criterion/",
       "protocol/cem-1.0/stable/receipt-authentication/",
@@ -364,7 +365,9 @@
     "internal/testrunner/native": [],
     "internal/testrunner/platform": [],
     "internal/testrunner/registry": [],
-    "internal/testvaliditydoc": [],
+    "internal/testvaliditydoc": [
+      "conformance/test-validity-v0/route-stubs.json"
+    ],
     "internal/trace": [],
     "internal/unplannedread": [],
     "internal/witness": [

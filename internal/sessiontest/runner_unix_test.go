@@ -20,6 +20,7 @@ import (
 // version and universe probes, and for `test` records its argv, then passes,
 // fails, passes after seven seconds, or starts a grandchild and sleeps.
 const fakeGo = `#!/bin/sh
+case "$1" in env|list) echo "$1" >> "$FAKE_DIR/probes";; esac
 case "$1" in
 env) [ "$FAKE_MODE" = noversion ] && exit 1; [ "$FAKE_MODE" = slowenv ] && exec sleep 60; echo go1.27.1; exit 0;;
 list) echo m/a; [ "$FAKE_MODE" = extra ] && echo m/x; exit 0;;
@@ -220,6 +221,45 @@ func TestSTRV0015BudgetBoundsTheShard(t *testing.T) {
 	}
 	if got := (&Runner{}).ShardBudget(Manifest{RunnerProfile: ProfileLocal}); got != DefaultBudget {
 		t.Fatalf("local default budget %s", got)
+	}
+}
+
+// V1-1311 (STR-V0-015): discovery probes spend the remaining shard budget.
+// A fixed clock expires the budget as soon as the first probe runs: the Go
+// universe probe and the declared runner's version probe never start, nothing
+// launches, and the receipt is INCOMPLETE.
+func TestSTRV0015DiscoveryStopsAtShardDeadline_V11311(t *testing.T) {
+	runner, m, _, dir := runnerFixture(t, "pass")
+	script := filepath.Join(dir, "tools", "fake-tests")
+	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho declared >> \"$FAKE_DIR/probes\"\necho fake-tests 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runner.Declared.Languages = []LanguageCommand{{Language: "python", Argv: []string{"./tools/fake-tests"}}}
+	m.Units = append(m.Units, Unit{Adapter: AdapterDeclared, Shard: 0, Slice: SliceWhole, Unit: "declared:python"})
+	digest, _ := Digest(m)
+	probes := filepath.Join(dir, "probes")
+	start := time.Now()
+	runner.Budget = time.Hour
+	runner.now = func() time.Time {
+		if _, err := os.Stat(probes); err == nil {
+			return start.Add(2 * runner.Budget)
+		}
+		return start
+	}
+	receipt := runner.Execute(context.Background(), m, digest, 0)
+	ran, _ := os.ReadFile(probes)
+	if string(ran) != "env\n" {
+		t.Fatalf("probes after the shard deadline: %q; want only the first version probe", ran)
+	}
+	want := "go: the shard's 1h0m0s total budget ran out during runner discovery; nothing launched"
+	if receipt.Result != ResultIncomplete || len(receipt.Invocations) != 0 || len(receipt.Incomplete) == 0 || receipt.Incomplete[0] != want {
+		t.Fatalf("receipt %s %d %q", receipt.Result, len(receipt.Invocations), receipt.Incomplete)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "argv")); err == nil {
+		t.Fatal("an adapter launched after the shard deadline")
 	}
 }
 

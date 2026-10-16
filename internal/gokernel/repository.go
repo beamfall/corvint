@@ -355,7 +355,7 @@ func observeRepository(ctx context.Context, run gitRunner, root string) (reposit
 	return repositoryObservation{identity: identity, dirty: dirty, statusRaw: statusRaw}, nil
 }
 
-func probeRepositoryContext(parent context.Context, root string, run gitRunner) (Repository, error) {
+func probeRepositoryContext(parent context.Context, root string, run gitRunner) (_ Repository, unstable error) {
 	ctx, cancel := context.WithTimeout(parent, probeBound(parent))
 	defer cancel()
 	// The three stages below stay strictly sequential: the profile read is
@@ -380,12 +380,12 @@ func probeRepositoryContext(parent context.Context, root string, run gitRunner) 
 		if err != nil {
 			return Repository{}, err
 		}
-		if before.identity != after.identity || !slices.Equal(before.dirty, after.dirty) {
+		if unstable = unstableRepository(before, after); unstable != nil {
 			continue
 		}
 		return repositoryFromObservation(after, profileID)
 	}
-	return Repository{}, newError("repository-state-unstable", "repository HEAD changed while probing repository state")
+	return Repository{}, unstable
 }
 
 // finishConcurrently starts the read stage's continuation, if any, and
@@ -510,7 +510,7 @@ type sharedRead func(context.Context, Observation) (func() error, error)
 // re-runs the read against the new opening observation. The read's error is
 // held until the closing observation so the bracket's own failures keep their
 // precedence over the context block's, as the concurrent default path reports.
-func probeRepositorySharing(parent context.Context, root string, run gitRunner, read sharedRead, wantProfile bool) (Repository, error) {
+func probeRepositorySharing(parent context.Context, root string, run gitRunner, read sharedRead, wantProfile bool) (_ Repository, unstable error) {
 	ctx, cancel := context.WithTimeout(parent, probeBound(parent))
 	defer cancel()
 	for attempt := 0; attempt < 3; attempt++ {
@@ -532,7 +532,7 @@ func probeRepositorySharing(parent context.Context, root string, run gitRunner, 
 		if err != nil {
 			return Repository{}, err
 		}
-		if before.identity != after.identity || !slices.Equal(before.dirty, after.dirty) {
+		if unstable = unstableRepository(before, after); unstable != nil {
 			continue
 		}
 		if readErr != nil {
@@ -543,7 +543,7 @@ func probeRepositorySharing(parent context.Context, root string, run gitRunner, 
 		}
 		return repositoryFromObservation(after, profileID)
 	}
-	return Repository{}, newError("repository-state-unstable", "repository HEAD changed while probing repository state")
+	return Repository{}, unstable
 }
 
 // pipeDrainDelay bounds how long a Git call waits for its output pipes after
@@ -576,4 +576,17 @@ func probeBound(ctx context.Context) time.Duration {
 		return bound
 	}
 	return gitDeadline
+}
+
+// unstableRepository is the repository-state-unstable refusal for one observation pair, or nil
+// when the pair is equal. The message names what moved, so a reader can tell a commit or checkout
+// (HEAD) from worktree churn (the dirty-path set) without re-probing (V1-0880).
+func unstableRepository(before, after repositoryObservation) error {
+	if before.identity == after.identity && slices.Equal(before.dirty, after.dirty) {
+		return nil
+	}
+	if before.identity != after.identity {
+		return newError("repository-state-unstable", "repository HEAD changed while probing repository state")
+	}
+	return newError("repository-state-unstable", "repository dirty-path set changed while probing repository state")
 }

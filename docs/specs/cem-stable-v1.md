@@ -52,14 +52,15 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-008..010 | Historical defaults and packets retained; optional-profile rollback defined | Independent external consumer, matched external outcomes and terminal release/promotion evidence remain open |
 | CEM-V1-051..059 | `lrfrepo.VerifyStableUniverse`, `StableUniverse`, `StableRefusal`, `lrf.ValidateStableRequest`; explicit `cem/1.0` refusals in `VerifyUniverse`, `readOCMBytes`, `PrepareOCM`; tests in the OCM/LRF stable admission traceability table | Stable LRF evaluation needs an accepted stable LRF profile; no CLI or MCP route; OCM writers stay `cem/0.x` only; C06..C09 and C17 consumers remain open |
 | CEM-V1-050 | `structuralRuntimeAdmitted` in `internal/cem/verify/stable.go` and `interop/cem01-go/cem.go`; sealed `protocol/cem-1.0/structural-tuples/go1.27.2/`; `TestCEMV1050StructuralTupleAdmission` (native and portable); S0E, linked-control, ledger and cell tests bound through the tuple packet | Linux and Windows hosts, CI-hosted go1.27.2 runs and the full structural corpus remain NOT_RUN |
-| CEM-V1-080..082 | `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` and `testdata/citation/`; `TestCEMV1080*`, `TestCEMV1081*`, `TestCEMV1082*` in `internal/cem/verify`, `internal/cem/workflow` and `interop/cem01-go` | Recorded limits: `held` never produced, no `symbol` anchors, no threshold or cut-off, stable-result emission is CEM-V1-092; historical 591-map report in the build log |
-| CEM-V1-083 | Plain criterion form in `internal/cem/wire/stable.go` and `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/neutral-criterion/`; `TestCEMV1083*` in `internal/cem/wire`, `internal/cem/verify` and `interop/cem01-go` | No producer emits the plain form (`corvint-cem-candidate assemble-stable` accepts only Tasks-bound `cem-stable-assembly/1`); the public map was hand-assembled; stranger time NOT_OBSERVED |
+| CEM-V1-080..082 | `internal/cem/verify/support.go`, `interop/cem01-go/citation.go` and `testdata/citation/`; `TestCEMV1080*`, `TestCEMV1081*`, `TestCEMV1082*` in `internal/cem/verify`, `internal/cem/workflow` and `interop/cem01-go`, including `TestCEMV1082MeasureVectorsNative` and `TestCEMV1082MeasureVectorsPortable` over `protocol/cem-1.0/stable/citation-vectors/measures.json` (V1-1331, V1-1335, V1-1332 under decision 0530; mutations in `docs/build-log/2026-10-15-v1-1331-1335-1332-citation-measures.md`) | Recorded limits: `held` never produced, no `symbol` anchors, no threshold or cut-off, stable-result emission is CEM-V1-092; historical 591-map report in the build log, computed before the decision 0530 amendments |
+| CEM-V1-083 | Plain criterion form in `internal/cem/wire/stable.go` and `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/neutral-criterion/`; `TestCEMV1083*` in `internal/cem/wire`, `internal/cem/verify` and `interop/cem01-go` | The plain form is produced by the experimental `cem-stable-plain-assembly/1` request of `corvint-cem-candidate assemble-stable` (`CEM-V1-240`, V1-1290); no default `corvint cem` verb emits it; stranger time NOT_OBSERVED |
+| CEM-V1-240 | `AssemblePlain` in `internal/cemcandidate/plain.go` and the profile dispatch in `cmd/corvint-cem-candidate/stable.go`; `TestCEMV1240*` in `internal/cemcandidate` and `cmd/corvint-cem-candidate`; timed run in `docs/build-log/2026-10-15-cem-plain-criterion-producer.md` | Experimental companion, not promoted; the runner plan and receipt are opaque inputs checked only by SHA-256, so receipt authority and execution at the target stay `NOT_OBSERVED`; one runner receipt per map; stranger time NOT_OBSERVED |
 | CEM-V1-084 | `internal/cem/wire/stable_auth.go`, `internal/cem/verify/stable_auth.go`, `interop/cem01-go/stable_auth.go`; `--trusted-keys` in `internal/cem/cli/stable.go` and both portable commands; public case `protocol/cem-1.0/stable/receipt-authentication/`; `TestCEMV1084*` in `internal/cem/wire`, `internal/cem/verify`, `interop/cem01-go`, `internal/console` and `cmd/corvint` | No producer signs receipts (operator step, FPK-V0-036); `RESULT.schema.json` and the sealed S0E packet still name only `NOT_OBSERVED` for `authentication` and lack the four attestation issue codes (V1-1265); keys are TEST-ONLY; stranger time NOT_OBSERVED |
-| CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestCheckCoversEveryStableManifestEntry`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`; proof run in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` | V1-1265 added `citation` (CEM-V1-092) and `verdictSha256` (CEM-V1-066) through the tool; since V1-1287 `--check` verifies every stable manifest entry (see "Stable manifest entry repair") |
+| CEM-V1-091 | `tools/cem-stable-regen` and the `CEM_STABLE_REGEN_CAPTURE` hook in `internal/cem/verify/stable_repository_test.go`; `TestCheckPassesOnRepositoryPacket`, `TestCheckCoversEveryStableManifestEntry`, `TestRegenerateRealPacketCopy`, `TestRegenerateRefusals`, `TestRegenerateSyntheticPacket`, `TestReplaceRealPacketCopy`, `TestReplaceRefusals`; proof runs in `docs/build-log/2026-10-11-cem-stable-regen-tooling.md` and `docs/build-log/2026-10-15-v1-1331-1335-1332-citation-measures.md` | V1-1265 added `citation` (CEM-V1-092) and `verdictSha256` (CEM-V1-066) through the tool; since V1-1287 `--check` verifies every stable manifest entry (see "Stable manifest entry repair"); V1-1331 re-emitted `citation` and `verdictSha256` of 3 cases and 11 envelope cells with `--replace` under decision 0530 |
 | CEM-V1-092 | `citation` member of `StableResult` (`internal/cem/verify/stable.go`) and `stableResult` (`interop/cem01-go/cem.go`, `stable_repository.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1092CitationOnlyOnAccept`, `TestCEMV1092SealedCasesCarryCitationOnlyOnAccept`, `TestCEMV1092RefuseAndRejectClearCitation` (native); `TestCEMV1092PortableCitationOnlyOnAccept`, `TestCEMV1082StableResultCarriesTheBlock`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file (case 21 derived natively on go1.27.2 with every other non-runtime key matching); ten envelope cells take `--cell-values` overrides |
 | CEM-V1-066 | `verdictSha256` member and `VerdictDigest` of `StableResult` (`internal/cem/verify/stable.go`, `stable_verdict.go`) and `stableResult` (`interop/cem01-go/cem.go`, `verdict.go`), regenerated into the sealed packet and the public `neutral-criterion` and `receipt-authentication` expectations; `TestCEMV1066SealedVerdictDigests`, `TestCEMV1066VerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066EveryOutcomeCarriesVerdictDigest` (native); `TestCEMV1066PortableSealedVerdictDigests`, `TestCEMV1066PortableVerdictDigestCoversOnlyTheVerdict`, `TestCEMV1066PortableEveryOutcomeCarriesVerdictDigest`, `TestStableCanonicalFullResults` (portable) | The go1.24.13 cases 21 and 22 were not run on this host: their values come from the override file, computed from their sealed expectations; ten envelope cells take `--cell-values` overrides; the experimental Tasks verdict gate pins it and requires the portable consumer to recompute it (`docs/specs/tasks-criterion-binding-v0.md` TCB-V0-017; decision 0525 step 8, V1-1283) |
 | CEM-V1-093..095 | `internal/cem/wire/stable_provenance.go`, `interop/cem01-go/stable_provenance.go`; `provenance`, `role`, `sha1Oid` in `protocol/cem-1.0/stable/stable.schema.json`; re-homed 0.1/0.3 text in `protocol/cem-1.0/stable/ALGORITHMS.md`; shared vectors `interop/cem01-go/testdata/stable-map-members/cases.json`; `TestCEMV1093*`, `TestCEMV1094*`, `TestCEMV1095*` in `internal/cem/wire` and `interop/cem01-go` | The V1-1275 converter (CEM-V1-096..105) emits `provenance` but never `role`; `cem status --citation` role grouping is `CEM-V1-106` (V1-1281); provenance OIDs are SHA-1 only; the sealed S0E packet copy of `stable.schema.json` is unchanged; stranger time NOT_OBSERVED |
-| CEM-V1-096..105 | Removed by V1-1278 (`CEM-V1-204`); satisfied by the frozen V1-1277 evidence; the converter no longer ships. Historically `internal/cem/convert`, `internal/cem/cli/convert.go` (`corvint cem convert`), `tools/cem-convert-parity`; `TestCEMV1096*`..`TestCEMV1104*` in `internal/cem/convert`, `cmd/corvint`, `tools/cem-convert-parity` and `interop/cem01-go`; full-corpus parity `docs/build-log/evidence/v1-1275/` | Committed maps converted by V1-1277 (`CEM-V1-230`); direct verification at a bind commit is `REJECT excluded-artifact-mismatch` until §5 sealing; cem/0.1 out-of-band patch parity limit; f0fda542 native and portable partial drift lists differ on the resource-limit abort; removal with 0.x is V1-1278 |
+| CEM-V1-096..105 | Removed by V1-1278 (`CEM-V1-204`); satisfied by the frozen V1-1277 evidence; the converter no longer ships. Historically `internal/cem/convert`, `internal/cem/cli/convert.go` (`corvint cem convert`), `tools/cem-convert-parity`; `TestCEMV1096*`..`TestCEMV1104*` in `internal/cem/convert`, `cmd/corvint`, `tools/cem-convert-parity` and `interop/cem01-go`; full-corpus parity `docs/build-log/evidence/v1-1275/` | Committed maps converted by V1-1277 (`CEM-V1-230`); direct verification at a bind commit is `REJECT excluded-artifact-mismatch` until §5 sealing; cem/0.1 out-of-band patch parity limit (kept, decision 0532); the f0fda542 partial drift difference on the resource-limit abort was a native drift charge, fixed by `CEM-V1-240` (V1-1295); removal with 0.x is V1-1278 |
 | CEM-V1-230..232 | Migration commit `0b6f1bc245b44a8620c5e64f91e87f6d08da08d0`; since V1-1278 the committed corpus is checked by `TestCEMV1201*` (`internal/cem/wire` and `internal/cem/corpusbinding`, `CEM-V1-201`); historically `script/cem-migrate-maps.sh`, `tools/cem-convert-parity --migrated`, `TestCEMV1100ConvertCorpusIdempotent`, `TestCEMV1230MigratedSourceChecks`; evidence `docs/build-log/evidence/v1-1277/` | Direct verification of a migrated map at its bind commit stays `REJECT excluded-artifact-mismatch`; checks run at T'; the in-tree citation tool has no T' target; a `cem/0.x` map landing later needs a follow-up migration commit; the binding test is NOT_RUN where Git objects are absent outside CI and fails under `CI=true` (V1-1334) |
 | CEM-V1-200..204 | `RetiredSpec`/`RetiredSpecFix` and the `ParseStable` refusal in `internal/cem/wire/stable.go`; `internal/cem/wire/corpus_test.go`, `internal/cem/corpusbinding/binding_test.go`; `verifySealedCEM`, `proves` and the retired-seal branch in `internal/dogfoodflow/batch.go` and `change.go`; the `verify-stable`-only dispatch in `internal/cem/cli/stable.go`; `TestCEMV1200*`, `TestCEMV1201*`, `TestCEMV1204*`, `TestBatchCheckCEMV1203*`, `TestBatchCheckDCWV0039RequiresStableVerification` | The `cem/0.x` wire, verifier, producers and their goldens remain until their consumers move (V1-1278 S2/S3); `cli-parity` `cem-begin-map` still pins `cem/0.1` |
 | CEM-V1-205..209 | `stableSidecarReuse` in `internal/localcompletion/sidecar_reuse.go`, `checkQualification` in `lifecycle.go` and the `reuseRefused` member of `CheckObservation`; `TestCEMV1205*`..`TestCEMV1208*` in `internal/localcompletion` | One verifier run per reusing check per evaluation; SHA-256 object-format repositories never reuse; `LCP-V0-004` text unchanged; skipped outside darwin and linux |
@@ -70,7 +71,7 @@ Stable acceptance remains OPEN until the native tickets retain complete qualific
 | CEM-V1-106 | `internal/cem/workflow/stable_read.go` `StableCitationClass` and the `status` branch of `readStable`; `TestCEMV1106StatusCitationClassGroupsChoreMaps` in `internal/cem/cli` | No producer writes `role` before the V1-1276 cutover, so every committed map reads class `change`; the portable consumer has no status envelope and is unchanged |
 | CEM-V1-065 | `CEMStatementV2` and the v2 verifier in `internal/attest/cem_v2.go`; `prove --attest-cem-v2` and `--verify-cem-attestation --artifacts/--target` in `cmd/corvint/prove_attest_cem.go`; stable routing in `internal/gitnotes/anchor.go` (`wire.ParseStable`; the `wire.ParseRouted` 0.x router in `internal/cem/wire/route.go` was deleted by V1-1278 S2b, `CEM-V1-215`); `TestCEMV1065*` in `internal/attest`, `cmd/corvint` and `internal/gitnotes` | No verdict ledger; no signing producer or key management; v2 emission needs full-OID `--expected-base` and `--target` and an ACCEPT result; no independent consumer of `cem/v2` |
 | CEM-V1-067 | `corvint-cem-anchor/1` pointers, `describes` and `tree` in `internal/gitnotes/anchor.go`, the scope states and `ProvenanceWithNotesTip` in `internal/gitnotes/provenance.go`, `--notes-tip` in `internal/cem/cli/cli.go` and `cmd/corvint/cem_anchor.go`; tests under "Anchor pointer scope traceability" | No migration of existing `/0` notes; rollback detection needs an operator-retained tip; no independent consumer of the pointer profile |
-| CEM-V1-115..117, 176..177 | `Refuse(..., true)` for both argument stages and `RelativePathFix` in `internal/cem/verify/stable.go`, the stderr line in `internal/cem/cli/stable.go`, the envelope `fix` in `internal/cem/workflow/stable_read.go`; the per-link uniqueness pass in `internal/cem/wire/stable.go`; `validateStableReferences` and `stableRelativePathFix` in `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/reference-precedence/`; `TestCEMV1115*`, `TestCEMV1117*`, `TestCEMV1177*` in `internal/cem/cli`, `internal/cem/verify` and `interop/cem01-go` | V1-1295 (partial drift on a resource-limit result) and V1-1297 (a separate missing-object code) stay open because sealed S0E vectors pin the current answers; technical contract acceptance and promotion |
+| CEM-V1-115..117, 176..177 | `Refuse(..., true)` for both argument stages and `RelativePathFix` in `internal/cem/verify/stable.go`, the stderr line in `internal/cem/cli/stable.go`, the envelope `fix` in `internal/cem/workflow/stable_read.go`; the per-link uniqueness pass in `internal/cem/wire/stable.go`; `validateStableReferences` and `stableRelativePathFix` in `interop/cem01-go/cem.go`; public case `protocol/cem-1.0/stable/reference-precedence/`; `TestCEMV1115*`, `TestCEMV1117*`, `TestCEMV1177*` in `internal/cem/cli`, `internal/cem/verify` and `interop/cem01-go` | V1-1295 (partial drift on a resource-limit result) is resolved by `CEM-V1-240`; V1-1297 keeps `git-read-failed` for a missing pinned object (decision 0532); technical contract acceptance and promotion |
 
 ## First portable candidate build contract
 
@@ -225,7 +226,8 @@ the stable verifier admits it only on an exact qualified tuple and otherwise ref
   `repository-envelope-packet` manifest and result files by SHA-256, records the stdlib source and
   behavioural byte-identity comparison against its predecessor, and admits exactly one
   substitution: `expectedResult.runtime.goVersion` from the predecessor to the new tuple. The
-  frozen packet is never rewritten except by an additive member regeneration (`CEM-V1-091`). Tests run the S0E cases, linked control, ledgers and envelope
+  frozen packet is never rewritten except by an additive member regeneration or a recorded value
+  re-emission of an existing member (`CEM-V1-091`). Tests run the S0E cases, linked control, ledgers and envelope
   cells on an admitted tuple only through that binding and report NOT_RUN otherwise.
   Qualification stays `EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS`; admitting a tuple does not complete
   the full corpus. Rollback removes the tuple from both lists and its packet; the frozen packet and
@@ -260,6 +262,19 @@ every frozen S0E expectation, so it cannot land by hand edits to sealed case fil
   on any mismatch. Native and portable consumers then raise
   their closed key count in the same change; a native/portable value disagreement is a consumer
   defect, never a reason to edit captured values. `INPUTS.json` repair-era pins stay historical.
+  An existing member MAY instead receive a recorded value re-emission, only through
+  `make cem-stable-regen-replace` (`--replace`), when an accepted amendment changes that member's
+  values: the values come from the capture or override files as above (an override object names
+  only the re-emitted members, and a member it omits keeps its value; a cell no case matches takes
+  a `--cell-values` entry, which may be empty), every other key, exit, case, the schema and the key
+  count stay unchanged, and a `--record` file gives the reason and, for every case and cell value
+  that changes, the SHA-256 of the compact JSON of the value it replaces. A changed value the record
+  does not name, a recorded value that does not change or a predecessor digest that differs MUST be
+  refused before any write. The re-emission re-binds the same chain, sets the packet status to
+  `MEMBER_VALUE_REEMITTED` and appends a `CHANGES.md` section with the reason, the record digest,
+  the value provenance and a predecessor and new digest per value. (Amended by V1-1331 under
+  decision 0530, owner approval of 2026-10-15: the frozen packet was additive-only, so no accepted
+  correction to an existing member's values could reach it.)
   Rollback is a Git revert of the regenerated files and the consumer change.
 
 ## Consumer-computed support tiers (V1-1262, decision 0523 P0)
@@ -269,21 +284,32 @@ canonical patch and cited spans alone, how strongly each hunk is supported. No m
 or changed. Nothing here is a verdict, threshold or published cut-off.
 
 - `CEM-V1-080`: Support tiers are consumer-derived. The native (`internal/cem/verify`, `support.go`)
-  and portable (`interop/cem01-go`, `citation.go`) verifiers MUST assign each hunk of a `cem/0.2` or
-  `cem/0.3` map exactly one tier, by precedence `held`, `mechanical-proved`, `anchored`, `cited`,
+  and portable (`interop/cem01-go`, `citation.go`) verifiers MUST assign each hunk of a verified
+  `cem/1.0` map exactly one tier, by precedence `held`, `mechanical-proved`, `anchored`, `cited`,
   `unknown`, plus an `annotation` flag. A supported hunk is one with at least one basis;
   `mechanical-proved` is the `mechanical` disposition after re-proof; `unknown` is a non-mechanical
   hunk with no basis. `held` is reserved and never produced until the go-test hunk-revert falsifier
   lands. No producer-written field can raise a tier. The tier MUST NOT change the verdict, the
-  codes or drift. Frozen `cem/0.1` never carries a tier.
+  codes or drift. A retired `cem/0.1`, `cem/0.2` or `cem/0.3` map is refused `unsupported-spec`
+  (`CEM-V1-210`) and never carries a tier. (Amended by V1-1332 under decision 0530: the text named
+  `cem/0.2` and `cem/0.3` maps after the `cem/1.0` cutover.)
 - `CEM-V1-081`: Anchor kinds and byte-level rules. `id`: an ASCII requirement ID
   (`[A-Z][A-Z0-9-]{2,31}-[0-9]{3}`, token boundaries where the adjacent bytes are not in
   `[A-Za-z0-9_-]`) occurs in the hunk's added bytes and the cited span contains a defining line
-  (optional leading spaces or tabs, then ``- `ID`:``). `path`: the span contains the hunk's
-  post-image path (the old path for a pure deletion) or its basename when the basename is at least
-  6 bytes. `annotation`: the hunk has added lines and, after every boundary-valid requirement ID in
-  the added bytes is masked to spaces, every remaining token (maximal `[A-Za-z0-9_]` run) is shorter
-  than 3 bytes or is a `lexical-relevance-floor-v0` stop term. A hunk's anchors are the union over
+  (optional leading spaces or tabs, then ``- `ID`:``). The hunk path is the post-image path of the
+  hunk's canonical patch file section, or its pre-image (base) path when the section has none (a
+  whole-file deletion); every rule below that names a hunk's path uses it. `path`: the span
+  contains the hunk path or its basename when the basename is at least 6 bytes. `annotation`: the
+  hunk has added lines and, after every boundary-valid requirement ID in the added bytes is masked
+  to spaces, every remaining token (maximal `[A-Za-z0-9_]` run) is shorter than 3 bytes or is, after
+  ASCII lowercasing, one of the 39 annotation stop terms listed in
+  `protocol/cem-1.0/stable/ALGORITHMS.md`: the `lexical-relevance-floor-v0` stop list without the
+  21 terms that are a keyword, reserved word, predeclared identifier or builtin in a common
+  programming language (`error`, `false`, `from`, `include`, `into`, `package`, `print`, `return`,
+  `self`, `source`, `string`, `test`, `then`, `this`, `true`, `unknown`, `value`, `when`, `where`,
+  `while`, `with`). A hunk adding only `return value - 1` is not an annotation. (Amended by V1-1335
+  and V1-1332 under decision 0530: annotation used the full `lexical-relevance-floor-v0` list, and the
+  hunk path was stated only for the `path` anchor.) A hunk's anchors are the union over
   its distinct cited spans. A `symbol` anchor is a recorded limit (Go-only, deferred) and is never
   produced.
 - `CEM-V1-082`: The `citation` block and the shift null MUST be byte-identical across the native and
@@ -304,9 +330,13 @@ or changed. Nothing here is a verdict, threshold or published cut-off.
   `hunks` is sorted by `hunkId` bytewise and each `anchors` list is sorted. `distinctEvidence` is the
   count of distinct cited evidence IDs. `evidenceFanOut` lists `[id, distinct citing hunks]` sorted
   by count descending then ID ascending; `maxFanOut` is the largest count or 0. `samePathCitations`
-  counts basis entries whose evidence path equals the hunk's post-image path (the same evidence
-  under two relations counts twice). `concentratedHunks` counts supported hunks whose every basis
-  cites an evidence ID at `maxFanOut`. The shift null sorts supported hunks by `hunkId`, gives hunk
+  counts basis entries whose evidence path equals the hunk path of `CEM-V1-081`, so a deletion hunk
+  compares against its base path (the same evidence under two relations counts twice).
+  `concentratedHunks` is 0 when `maxFanOut` is below 2, and otherwise counts supported hunks whose
+  every basis cites an evidence ID at `maxFanOut`: concentration needs an evidence item two hunks
+  share. (Amended by V1-1332 and V1-1331 under decision 0530: `samePathCitations` named the
+  post-image path, which a pure deletion lacks, and `concentratedHunks` equalled the supported-hunk
+  count whenever no evidence was shared.) The shift null sorts supported hunks by `hunkId`, gives hunk
   i the basis set of hunk i-1 (hunk 0 takes the last) and recomputes `anchored`. `invariant` is true
   when all supported hunks' evidence-ID sets are equal (true below two supported hunks).
   `specificity` is `anchored` minus `anchored` after the shift (0 below two supported hunks).
@@ -390,6 +420,73 @@ Rollback: revert the plain branch in `internal/cem/wire/stable.go` and `interop/
 (restore the eleven required keys), the `criterionBinding` `oneOf` in `stable.schema.json`, the
 CEM-V1-083 text in `ALGORITHMS.md`, the `neutral-criterion/` case and its manifest entries. Tasks
 maps need no migration.
+
+## Provider-neutral producer (V1-1290, decision 0523 P1)
+
+Status: proposed technical contract; `CEM-V1-240` accepted under the owner's standing auto-accept
+(2026-10-11); V1-1290. An experimental companion request, not promoted. It adds a producer for the
+plain criterion form of `CEM-V1-083` and leaves that requirement's text unchanged.
+
+- `CEM-V1-240`: `corvint-cem-candidate assemble-stable --experimental --request R --out-dir D`
+  MUST route a request whose `profile` is `cem-stable-plain-assembly/1` to a closed decoder of
+  `{profile, repository, expectedBase, target, sourceMap, runnerPlan, runnerReceipt, criteria}`.
+  Each pinned input is `{path, sha256}` with an absolute clean path and the raw SHA-256. Each of 1
+  to 256 criteria is `{criterionEvidenceId, hunkIds, evidenceIds}`, with 1 to 32 IDs in each list.
+  The request names no ticket, attempt, capture, snapshot or source prefix, and the producer reads
+  no Corvint Tasks store. Every other profile keeps the Tasks-bound `cem-stable-assembly/1` path.
+  The source map MUST be a `cem/1.0` producer map, as written by `corvint cem prepare` and
+  `corvint cem cite`. It has no criterion binding, runner receipt, criterion link, artifact or
+  provenance, and its change members and `role` are copied unchanged. Request criterion `i` becomes
+  the plain criterion of `CEM-V1-083` with `criterionIndex` `i`. Its `evidenceId` is
+  `criterionEvidenceId`, which MUST name an evidence record of the source map. Its
+  `criterionSha256` is that record's `spanSha256`. It gets one criterion link
+  `{criterionId, hunkIds, evidenceIds, runnerReceiptSha256s}` naming the one receipt.
+  The map carries one runner receipt record with `profile` `corvint-test-runner-receipt/0`, the
+  receipt and plan digests, `executionAuthority` `CALLER_OBSERVED`, and `sourceGitBinding`,
+  `dependencyClosure` and `authentication` `NOT_OBSERVED`. It also carries the artifacts
+  `runner-plan` and `runner-receipt`, at `artifacts/runner-plan.json` and
+  `artifacts/runner-receipt.json`. The bundle D MUST be a new absolute directory outside the
+  repository whose parent has no symlink alias. The producer writes the two artifacts into D and
+  verifies the encoded map with the native stable verifier against D. It writes `D/stable.json`
+  only after an ACCEPT, and only if every pinned input still matches its digest.
+  From the recipe repository of `protocol/cem-1.0/stable/neutral-criterion/`, after `cem prepare`,
+  one `cem cite` per hunk, and with that case's two runner artifacts, it MUST re-produce the case's
+  `stable.json` and artifacts byte for byte.
+
+Non-goals:
+- no new or changed `corvint cem` verb, CLI frozen surface or MCP tool
+- no change to the wire, the verifier, `CEM-V1-083` or the Tasks-bound request
+- no runner execution: the plan and receipt are opaque caller inputs, checked only by SHA-256 as
+  the verifier checks them
+- no receipt signing (`FPK-V0-036`)
+- no more than one runner receipt per map
+
+The result `cem-stable-plain-assembly-result/1` reports `receiptAuthority` and `executionAtCommit`
+as `NOT_OBSERVED`. An ACCEPT says nothing more than `CEM-V1-083` and the stable verifier already
+say; decision 0523 §6 lists what it does not establish.
+
+Failure modes:
+- request shape, profile or pin form: refused before any read
+- changed pinned input: refused, before the build and again before the map is written
+- a source that is not a producer map: refused
+- an unknown criterion evidence ID: refused
+- duplicate criterion evidence: refused by the stable encoder (`duplicate-reference`)
+- an unresolved hunk or evidence ID: refused by the stable encoder (`unresolved-reference`)
+- a bundle inside the repository or already present: refused
+- any verifier REFUSE or REJECT: refused, naming its stage and code
+
+No refusal writes `stable.json`. A refusal after the bundle was created leaves at most the two
+runner artifacts in D.
+
+Acceptance evidence:
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-240 | `TestCEMV1240PlainAssemblyReproducesNeutralCriterionCase`, `TestCEMV1240PlainAssemblyRefusals`, `TestCEMV1240PlainAssemblyRechecksPinsAfterVerify` (`internal/cemcandidate`); `TestCEMV1240PlainProfileSelectsPlainDecoder` (`cmd/corvint-cem-candidate`) | The produced map, plan and receipt equal the public `neutral-criterion` case byte for byte, on a recipe repository with no `.taskman/`. The native verifier ACCEPTs it inside the producer. Each pinned input changed after that ACCEPT is refused with no `stable.json`. The public case's `TestCEMV1083NeutralCriterionPublicCase` ACCEPTs the same bytes on both consumers. The timed producer and both-consumer run is in `docs/build-log/2026-10-15-cem-plain-criterion-producer.md`. |
+
+Rollback: remove `internal/cemcandidate/plain.go`, the profile dispatch in
+`cmd/corvint-cem-candidate/stable.go`, and their tests. Plain maps already produced stay valid
+`cem/1.0` maps under `CEM-V1-083`.
 
 ## Runner receipt authentication (V1-1264, decision 0523 P1)
 
@@ -614,7 +711,10 @@ behind `corvint cem convert`.
 - `CEM-V1-103`: (V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ships) A map whose pinned objects are unavailable still converts from its bytes alone
   (binding `UNAVAILABLE`, output identical to a reachable conversion). Verifying it gives an
   explicit `UNSUPPORTED` result at the `repository` stage on both consumers, never a verdict; the
-  observed code is `git-read-failed`, the same code the 0.2 verifier gives the source.
+  observed code is `git-read-failed`, the same code the 0.2 verifier gives the source. Decision 0532
+  (V1-1297) keeps that code on both consumers: the sealed S0E cells `missing-base` and
+  `shallow-missing` pin it, and a distinct code needs an object probe that changes the sealed
+  operation ledger, which is an owner decision.
 - `CEM-V1-104`: (V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ships) Verdict parity is measured per committed map at the substituted target T', the
   bind commit's tree with only `.corvint/change.cem.json` replaced by the converted bytes, written
   only into a scratch clone. The 0.x native verifier runs on the source at the bind commit; the
@@ -634,7 +734,8 @@ behind `corvint cem convert`.
   carries an out-of-band patch digest that the canonical diff does not reproduce, so its
   conversion verifies as `REJECT` `patch-digest-mismatch`, the same result `verify.Exact` gives the
   source with canonical-diff bytes. cem/1.0 has no out-of-band patch member; the committed corpus
-  holds no cem/0.1 map.
+  holds no cem/0.1 map. Decision 0532 (V1-1299) keeps this recorded limit and adds no `CEM-V1-101`
+  refusal code: the converter no longer ships (`CEM-V1-204`), so no producer can reach the case.
 - `CEM-V1-105`: (V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ships) The converter exists only to migrate cem/0.x maps. It is removed with the 0.x
   readers by V1-1278; after that removal `corvint cem convert` is an unknown action and no
   cem/1.0 producer depends on it. V1-1278 S1 removes the converter ahead of the 0.x readers
@@ -655,7 +756,9 @@ consumer-only divergence on a resource-limit abort (the partial drift list) is r
 list in the result: the sealed S0E full-result cases `ledger-337-evidence` and
 `partial-drift-one-item-cancel` pin a partial list on `UNSUPPORTED` results (335 items on a
 resource limit, one on a timeout), so the row stays a recorded difference
-(`docs/build-log/2026-10-14-batch4-cem-parity.md`).
+(`docs/build-log/2026-10-14-batch4-cem-parity.md`). V1-1295 (2026-10-15) traced the difference to
+the native drift stage re-reading each changed record's base blob; `CEM-V1-260` removes the re-read
+and both consumers now write the same 102 rows and `verdictSha256` (decision 0532).
 
 Acceptance evidence:
 
@@ -2573,7 +2676,8 @@ sealed S0E cell, full-result case or committed map result; the fix line is not a
 beyond its prefix and is never part of `verdictSha256`; a relative path is still never resolved.
 V1-1295 (partial drift on an `UNSUPPORTED` resource-limit result) and V1-1297 (a separate code for
 a missing pinned object) are not decided here; the build log
-`docs/build-log/2026-10-14-batch4-cem-parity.md` records why both stay open.
+`docs/build-log/2026-10-14-batch4-cem-parity.md` records why both stayed open. Decision 0532 later
+resolves V1-1295 with `CEM-V1-260` and keeps `git-read-failed` for V1-1297.
 
 Failure modes: a caller that branched on `accept` `false` for a bad invocation now sees `null`;
 every in-repository caller (receipt bundle export, stable universe, Tasks gate verdict) already
@@ -2658,3 +2762,109 @@ rewrites and the packet `manifest.json` there too (`TestRegenerateRealPacketCopy
 result); without that a regenerated copy fails its own widened check. No sealed byte changed in
 this repair. Rollback: restore the schema-only filter in `check()` and drop the packet-entry
 re-binding from the stable manifest step; the manifest needs no change.
+
+## Drift Git accounting parity (V1-1295, decision 0532, 2026-10-15)
+
+Status: `CEM-V1-260` accepted under the owner's standing auto-accept (2026-10-11); V1-1295.
+
+Intent: two stable consumers that read the same map at the same commits under the same 1,024
+logical Git operation limit write the same result, including a result the limit cuts short in the
+drift stage. V1-1295 measured the f0fda542 map ending `UNSUPPORTED` `repository`
+`unsupported-resource-limit` with 68 drift rows on the native verifier and 102 on the portable
+consumer, so their `verdictSha256` differed. V1-1295 (2026-10-14) had already kept the partial drift
+list in an `UNSUPPORTED` result, because the sealed S0E full-result cases pin one; what remained
+unpinned was the drift stage's own per-record charge. The native verifier read each changed
+record's base blob a second time (three operations per record); the portable consumer searched the
+span bytes the evidence stage had already authenticated (two). With the native re-read removed both
+consumers write 102 rows and verdict
+`92747a603414f0d4a08dd4ce10df19afeec2d00bbec18e7a2d6eda16a4db2d10`, byte-identical results.
+
+- `CEM-V1-260`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1295) Drift
+  (`protocol/cem-1.0/stable/ALGORITHMS.md` item 12) MUST charge, for each evidence record in
+  evidence-ID order, one target path lookup, and one target blob read only when the target entry is
+  a 100644 or 100755 blob whose OID differs from the record's `blobOid`. The span bytes it searches
+  MUST be the bytes the evidence stage authenticated; drift MUST NOT read a base blob. When the
+  operation limit refuses an operation during drift, the result is `UNSUPPORTED` `repository`
+  `unsupported-resource-limit` and keeps exactly the rows completed before the refused operation, so
+  every conforming consumer writes the same `drift` list and `verdictSha256`. The packet MUST carry
+  the public case `protocol/cem-1.0/stable/drift-resource-limit/`, added by the manifest extension
+  rule (a new directory and new `manifest.json` entries; no existing vector byte or digest changes
+  other than `ALGORITHMS.md`, whose item 12 states the charge), with the whole result line. The case
+  declares a lowered operation limit (`operations`, 113) that each consumer applies only through its
+  in-package test seam (`stableSeam.operations` natively, `stableHooks.callLimit` in
+  `interop/cem01-go`); production always uses 1,024. Both consumers MUST run it and match the line
+  byte for byte, `runtime.goVersion` excepted.
+
+Non-goals: no change to the limit, to any other stage's charge, to the drift statuses or to an
+`ACCEPT`, `REJECT` or completed drift result; no change to any sealed S0E cell or full-result case
+(their partial lists hold only `stable` rows, which read no blob, so both charges agree on them); no
+dropping of the partial drift list from an `UNSUPPORTED` result.
+
+Failure modes: a consumer that re-reads a base blob or skips a record's target lookup stops at a
+different row on this case and fails it. Every record of the case cites a changed blob, so a
+consumer that also read the target blob of an unchanged record (identical OID) is not caught by
+it. A record whose authenticated span length is not its declared span length fails closed
+`evidence-unavailable` rather than searching other bytes. A case that spent the full 1,024
+operations was too slow to run (14 minutes natively; the portable consumer passed the 30-minute
+verification deadline at load 65 to 76), hence the lowered seam limit; a charge difference that
+shows only past operation 113 is caught by the f0fda542 re-run above, not by the case. The case is
+skipped only where stable process containment is not qualified.
+
+Acceptance evidence: on the case (limit 113) the fixed native verifier and the portable consumer
+write byte-identical lines, 13 drift rows and verdict
+`a5611d4da50659d8f87988a89f7515413b6ed12df21abc801760b866f17d33d6`; restoring the base re-read
+makes the native verifier write 8 rows and fail its case test. At the full 1,024 limit on a 340-record
+form of the same map the BASE native verifier (253d6341f) wrote 103 rows and the fixed one 154.
+Build log `docs/build-log/2026-10-15-cem-stable-consumer-residuals.md`.
+
+Rollback: revert the change commit. The native verifier then re-reads base blobs in drift again, the
+case and its manifest entries go, and V1-1295 reopens as a recorded difference.
+
+### Drift Git accounting traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-260 | `TestCEMV1260DriftResourceLimitNative` (`internal/cem/verify`); `TestCEMV1260DriftResourceLimitPortable` (`interop/cem01-go`); `checkDrift`, `driftItem` in `internal/cem/verify/verify.go` | f0fda542: native 68 to 102 rows, byte-identical to portable; the public case: native and portable 13 rows, byte-identical; base re-read mutation 8 rows; build log `2026-10-15-cem-stable-consumer-residuals.md` |
+
+## Protocol pointer gate (V1-1296, decision 0532, 2026-10-15)
+
+Status: `CEM-V1-261` accepted under the owner's standing auto-accept (2026-10-11); V1-1296.
+
+Intent: a digest-pinned file pointer in the `protocol/cem-1.0` packet either resolves or is a
+recorded, explained exception. V1-1296 found `stable/MIGRATION.json` naming a missing
+`../migration-plan.json`; the scan also found the same member in the packet's inherited S0E copy and
+`repository-envelope-packet/INPUTS.json` naming a missing `../REVIEW-of-repair5.json`. All three sit
+in sealed packet bytes, pinned by the stable manifest and the packet's input list, and are marked
+informative there. Removing them rewrites sealed bytes, so decision 0532 records them and leaves
+their removal to the owner.
+
+- `CEM-V1-261`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1296)
+  `tools/cem-stable-regen --check` MUST refuse a dangling protocol pointer. A pointer is a string
+  member `K` of a JSON object under `protocol/cem-1.0` whose object also has a `K` + `SHA256` or
+  `K` + `Sha256` string, or a `path` member starting `../` beside a `sha256` string; a document
+  whose top-level `spec` starts `cem/` is wire data and is not scanned, and a file that is not JSON
+  carries no pointer. Each pointer MUST resolve, relative to its file's directory and inside the
+  repository with no symbolic link on the way, to a regular file whose SHA-256 is the pinned one. The only exceptions are the recorded
+  dangling pointers, each named by file and JSON pointer with its exact text; a recorded pointer
+  that resolves, changes text or disappears from a file that still exists is itself refused, so the
+  record cannot outlive its reason.
+
+Non-goals: no change to any sealed packet byte, manifest or digest; no pointer kinds outside the
+two shapes above; no scan outside `protocol/cem-1.0`.
+
+Failure modes: a pointer written in another shape is not checked; the recorded exceptions stay
+dangling until the owner decides their removal (decision 0532).
+
+Acceptance evidence: `--check` passes on the repository with the three recorded pointers and
+reports exactly three problems without the record. Removing the gate call from `check` makes
+`TestCEMV1261CheckRunsPointerGate` fail, and reading the target without the symbolic-link check
+makes `TestCEMV1261PointerSymlinkRefused` fail. Build log
+`docs/build-log/2026-10-15-cem-stable-consumer-residuals.md`.
+
+Rollback: revert the change commit; `--check` then ignores protocol pointers.
+
+### Protocol pointer gate traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-261 | `TestCEMV1261PointerProblems`, `TestCEMV1261RepositoryPointersRecorded`, `TestCEMV1261PointerSymlinkRefused`, `TestCEMV1261CheckRunsPointerGate` (`tools/cem-stable-regen`); `pointerProblems` in `tools/cem-stable-regen/pointers.go` | Three recorded sealed pointers; build log `2026-10-15-cem-stable-consumer-residuals.md` |

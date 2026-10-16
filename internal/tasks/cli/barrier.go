@@ -5,7 +5,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
-	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -40,7 +39,7 @@ func barrierCommand(env Env, verb string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	observed, err := snapshot.Probe(repo.StateDir)
+	observed, _, err := writerProbe(nil, repo.StateDir)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

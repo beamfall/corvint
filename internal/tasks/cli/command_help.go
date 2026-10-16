@@ -108,6 +108,9 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if lockWaitVerbs[name] {
 		o.Set("lockWait", wire.String(lockWaitHelp))
 	}
+	if redoSettlingVerbs[name] {
+		o.Set("redoPending", wire.String(redoPendingHelp))
+	}
 	if name == "policy update" {
 		o.Set("fileFormat", wire.String("Canonical UTF-8 JSON: sorted object keys, no insignificant whitespace, and exactly one trailing LF."))
 		o.Set("versionRule", wire.String("The file policyVersion must equal --expected-policy-version plus one; the flag names the current version."))
@@ -125,7 +128,7 @@ func fullCommandHelp(cmd []string) *wire.Result {
 		o.Set("note", wire.String("Generation-fenced recorded signal. Reads classify it against the policy holderLiveness.heartbeatTTLSeconds (300..86400, default 600 when omitted). Does not renew the work lease or prove process liveness. Use a fresh request ID for each heartbeat; replay never refreshes the timestamp. A committed receipt that head.json does not name yet (REDO_PENDING) does not refuse it: the writer settles that receipt under the store lock, then records the signal, so only a writer still holding the lock delays it (bounded by --lock-wait). A refused heartbeat records no heartbeat signal (a fenced one records only its refusal) and extends no liveness: the holder is classified from the last recorded heartbeat against heartbeatTTLSeconds, so retry the same request ID before the TTL elapses (CAL-V0-222, CAL-V0-223)."))
 	}
 	if name == "renew" {
-		o.Set("note", wire.String("Extends the work lease to now plus --lease-minutes. A successful renew by the current holder at the current generation also records lastHeartbeatAt, so a holder that renews within holderLiveness.heartbeatTTLSeconds is not STALE_HOLDER without a separate attempt heartbeat (CAL-V0-231). A renew with any generation other than the attempt's current one, or after the lease expired, is refused REVISION_CONFLICT FENCED and leaves the lease and lastHeartbeatAt unchanged (CAL-V0-009, CAL-V0-230). Use a fresh request ID for each renew: reusing a request ID replays its original committed result, including its original generation, without a write."))
+		o.Set("note", wire.String("Extends the work lease to now plus --lease-minutes. A successful renew by the current holder at the current generation also records lastHeartbeatAt, so a holder that renews within holderLiveness.heartbeatTTLSeconds is not STALE_HOLDER without a separate attempt heartbeat (CAL-V0-231). A renew with any generation other than the attempt's current one, or after the lease expired, is refused REVISION_CONFLICT FENCED and leaves the lease and lastHeartbeatAt unchanged (CAL-V0-009, CAL-V0-230). Use a fresh request ID for each renew: reusing a request ID replays its original committed result, including its original generation, without a write; when the attempt has since moved to another generation the replay also carries an advisory warning naming the current generation (CAL-V0-236)."))
 	}
 	if name == "pool sweep" {
 		o.Set("note", wire.String("Requires explicit timeoutSeconds 1..1800 and OWNER or an explicit OPERATOR policy grant. Replays return the original receipt or PENDING without repeating commands. Private logs can contain command-emitted secrets; explicit archive export includes evidence. FREE records operator-declared reset and verification, not proof of external physical safety."))
@@ -193,6 +196,16 @@ func fullCommandHelp(cmd []string) *wire.Result {
 // lockWaitHelp documents the CAL-V0-111 --lock-wait of every lockWaitVerbs
 // command (CAL-V0-216, decision 0518, adds the other preparation-admitted writes).
 const lockWaitHelp = "--lock-wait SECONDS (whole seconds, 1..300; anything else refuses MALFORMED) waits up to that long for preparation admission and the store lock instead of the default 30 seconds, for this command only. It is not part of the request: after LOCK_TIMEOUT, resubmit the same request ID with the same arguments; that commits once or replays the committed receipt."
+
+// redoSettlingVerbs are the writers outside lockWaitVerbs whose pre-write
+// probe accepts a pending receipt and whose store writer settles it
+// (CAL-V0-260, CAL-V0-261); redoPendingHelp is their help (CAL-V0-262).
+var redoSettlingVerbs = map[string]bool{
+	"pause": true, "unpause": true, "policy update": true, "import": true, "cutover": true,
+	"ticket escalate": true, "ticket answer": true, "run": true, "health": true, "pool cleanup": true,
+}
+
+const redoPendingHelp = "A committed receipt that head.json does not name yet (REDO_PENDING, left by an interrupted writer) does not refuse this command: its writer settles that receipt under the store lock before its own write and reports the completed redo in a warning. A pending receipt the receipt audit does not validate as a redo is refused with the audit's own error. attempt run settles it at its first lease write, before launch; run --attach and every other read never settle one. Over a pending receipt, the policy update handoff fence preview is NOT_OBSERVED (REDO_PENDING) (CAL-V0-260..262)."
 
 // Usage is the single help inventory for each command's supported inputs.
 // Omitted verbs deliberately have no invented execution flags.

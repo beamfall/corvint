@@ -277,7 +277,7 @@
           ],
           "maxFanOut": 1,
           "samePathCitations": 0,
-          "concentratedHunks": 1,
+          "concentratedHunks": 0,
           "invariant": true,
           "specificity": 0
         },
@@ -306,7 +306,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
+        "verdictSha256": "2657cf1a18b419b14e92ac450d28e116ab75f4449955ef4ca7247f22162c18c1"
       }
     },
     {
@@ -582,7 +582,7 @@
           ],
           "maxFanOut": 1,
           "samePathCitations": 0,
-          "concentratedHunks": 1,
+          "concentratedHunks": 0,
           "invariant": true,
           "specificity": 0
         },
@@ -611,7 +611,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
+        "verdictSha256": "2657cf1a18b419b14e92ac450d28e116ab75f4449955ef4ca7247f22162c18c1"
       }
     },
     {
@@ -887,7 +887,7 @@
           ],
           "maxFanOut": 1,
           "samePathCitations": 0,
-          "concentratedHunks": 1,
+          "concentratedHunks": 0,
           "invariant": true,
           "specificity": 0
         },
@@ -916,7 +916,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
+        "verdictSha256": "2657cf1a18b419b14e92ac450d28e116ab75f4449955ef4ca7247f22162c18c1"
       }
     },
     {
@@ -1192,7 +1192,7 @@
           ],
           "maxFanOut": 1,
           "samePathCitations": 0,
-          "concentratedHunks": 1,
+          "concentratedHunks": 0,
           "invariant": true,
           "specificity": 0
         },
@@ -1221,7 +1221,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
+        "verdictSha256": "2657cf1a18b419b14e92ac450d28e116ab75f4449955ef4ca7247f22162c18c1"
       }
     },
     {
@@ -1497,7 +1497,7 @@
           ],
           "maxFanOut": 1,
           "samePathCitations": 0,
-          "concentratedHunks": 1,
+          "concentratedHunks": 0,
           "invariant": true,
           "specificity": 0
         },
@@ -1526,7 +1526,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "4c9591650d95dc8606a56b7c556869865c6816cf062fd1ab0251ff1338c95fda"
+        "verdictSha256": "fedc8aee70291df512ef671d558f9204f3e075507d97da8897dd80266c277704"
       }
     },
     {
@@ -1802,7 +1802,7 @@
           ],
           "maxFanOut": 1,
           "samePathCitations": 0,
-          "concentratedHunks": 1,
+          "concentratedHunks": 0,
           "invariant": true,
           "specificity": 0
         },
@@ -1831,7 +1831,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "4c9591650d95dc8606a56b7c556869865c6816cf062fd1ab0251ff1338c95fda"
+        "verdictSha256": "fedc8aee70291df512ef671d558f9204f3e075507d97da8897dd80266c277704"
       }
     },
     {
@@ -2107,7 +2107,7 @@
           ],
           "maxFanOut": 1,
           "samePathCitations": 0,
-          "concentratedHunks": 1,
+          "concentratedHunks": 0,
           "invariant": true,
           "specificity": 0
         },
@@ -2136,7 +2136,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "4c9591650d95dc8606a56b7c556869865c6816cf062fd1ab0251ff1338c95fda"
+        "verdictSha256": "fedc8aee70291df512ef671d558f9204f3e075507d97da8897dd80266c277704"
       }
     },
     {
@@ -2412,7 +2412,7 @@
           ],
           "maxFanOut": 1,
           "samePathCitations": 0,
-          "concentratedHunks": 1,
+          "concentratedHunks": 0,
           "invariant": true,
           "specificity": 0
         },
@@ -2441,7 +2441,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "4c9591650d95dc8606a56b7c556869865c6816cf062fd1ab0251ff1338c95fda"
+        "verdictSha256": "fedc8aee70291df512ef671d558f9204f3e075507d97da8897dd80266c277704"
       }
     },
     {
@@ -2937,7 +2937,7 @@
           ],
           "maxFanOut": 1,
           "samePathCitations": 0,
-          "concentratedHunks": 1,
+          "concentratedHunks": 0,
           "invariant": true,
           "specificity": 0
         },
@@ -2966,7 +2966,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
+        "verdictSha256": "2657cf1a18b419b14e92ac450d28e116ab75f4449955ef4ca7247f22162c18c1"
       }
     },
     {
@@ -4122,7 +4122,7 @@
           ],
           "maxFanOut": 1,
           "samePathCitations": 0,
-          "concentratedHunks": 1,
+          "concentratedHunks": 0,
           "invariant": true,
           "specificity": 0
         },
@@ -4151,7 +4151,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
+        "verdictSha256": "2657cf1a18b419b14e92ac450d28e116ab75f4449955ef4ca7247f22162c18c1"
       }
     },
     {
@@ -5087,7 +5087,7 @@
           ],
           "maxFanOut": 1,
           "samePathCitations": 0,
-          "concentratedHunks": 1,
+          "concentratedHunks": 0,
           "invariant": true,
           "specificity": 0
         },
@@ -5116,7 +5116,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
+        "verdictSha256": "2657cf1a18b419b14e92ac450d28e116ab75f4449955ef4ca7247f22162c18c1"
       }
     },
     {
@@ -7565,11 +7565,11 @@
   "amendment": {
     "profile": "cem-stable-repository-envelope-amendment-index/1",
     "status": "EXPERIMENTAL",
-    "publicManifestSHA256": "9423e789c58b20079ffdc5f6d73de1a703ecd0b2f155d5b988e1fbeaafd05f07",
+    "publicManifestSHA256": "259a294acb88a797e6f3b6f628c895f86871898177f102969826b125f6f3b4fa",
     "fullResultCases": {
       "path": "FULL-RESULT-CASES.json",
-      "sha256": "25d4155c2235c3034146093d0c844e0e448281429c74bad5f19abf215d672146",
-      "bytes": 1119384,
+      "sha256": "045b8fd32d81d09d79d9d157213bcbb6cf133c006f6b6f102b3a0f680816819c",
+      "bytes": 1119383,
       "count": 56
     },
     "logicalLedgers": {

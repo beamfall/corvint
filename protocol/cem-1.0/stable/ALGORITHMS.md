@@ -193,7 +193,11 @@ and 0.2 specifications remain their historical identities; the text below is the
     overlapping matches: zero is `stale`, one is `relocated` with that span, two
     or more is `ambiguous`. There is no normalization or fuzzy matching. The drift
     row keeps `baseBlobOid`; the target blob and span are null when absent. Rows
-    are ordered by evidence ID.
+    are ordered by evidence ID. Each record costs one target path lookup, plus
+    one target blob read only for a 100644/100755 blob whose OID differs; the
+    searched bytes are the span the evidence stage authenticated, and no base
+    blob is read again. When the operation limit refuses an operation here, the
+    result keeps exactly the rows completed before it (CEM-V1-260).
 
 ## CEM-V1-018 restated: 0.3 hunk vocabulary, structural reasons and witnesses
 
@@ -658,17 +662,22 @@ Annotation. A hunk's `annotation` is true when it has at least one `+` line and
 every token of its added bytes is neutral. To find the tokens, replace each
 requirement ID occurrence with spaces, then take every maximal run of
 `A`..`Z`, `a`..`z`, `0`..`9` and `_`. A token is neutral when it is shorter than
-3 bytes, or when its ASCII-lowercased bytes are one of these 60 stop terms:
+3 bytes, or when its ASCII-lowercased bytes are one of these 39 stop terms:
 
 ```text
 also been build change changed changes claim dist docs document
-documentation error evidence false from generated have hunk include
-into must only package packages print report reports requirement
-requirements return self shall should sidecar source sources string
-supported test testing tests that their then there these they
-this those true unknown value vendor vendored when where which
-while will with
+documentation evidence generated have hunk must only packages report
+reports requirement requirements shall should sidecar sources supported
+testing tests that their there these they those vendor vendored which
+will
 ```
+
+The list is the `lexical-relevance-floor-v0` stop list without the 21 terms that
+are a keyword, reserved word, predeclared identifier or builtin in a common
+programming language (`error`, `false`, `from`, `include`, `into`, `package`,
+`print`, `return`, `self`, `source`, `string`, `test`, `then`, `this`, `true`,
+`unknown`, `value`, `when`, `where`, `while`, `with`), so a short code line such
+as `return value - 1` is not an annotation.
 
 Annotation is computed for every hunk, whatever its tier.
 
@@ -686,8 +695,10 @@ Counts.
   (each `(evidenceId, relation)` pair, not each distinct evidence ID) whose
   evidence record `path` equals the hunk path. A deletion hunk compares against
   its base path.
-- `concentratedHunks`: the number of supported hunks for which every distinct
-  basis evidence ID has a fan-out count equal to `maxFanOut`.
+- `concentratedHunks`: 0 when `maxFanOut` is below 2; otherwise the number of
+  supported hunks for which every distinct basis evidence ID has a fan-out count
+  equal to `maxFanOut`. Concentration needs an evidence record that two hunks
+  share, so a map whose hunks all cite distinct evidence reports 0.
 
 Shift null. Let `S` be the supported hunks in hunk order and `B(h)` the sorted
 set of distinct basis evidence IDs of `h`. When `S` has fewer than 2 members,

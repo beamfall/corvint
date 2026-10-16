@@ -39,6 +39,13 @@ Both consumers must return the same result. The tests named `TestCEMV1083*` in
 is the exact ACCEPT line, nested member order included (CEM-V1-113 in
 `../ALGORITHMS.md`), as the native verifier wrote it with `runtime.goVersion`
 `go1.27.2`; both tests compare their own line with it byte for byte.
-The map was assembled by hand during the walkthrough recorded in
-`docs/build-log/2026-10-12-cem-neutral-criterion-walkthrough.md`, because no
-producer emits the plain form yet.
+The map was first assembled by hand during the walkthrough recorded in
+`docs/build-log/2026-10-12-cem-neutral-criterion-walkthrough.md`. Since V1-1290
+the experimental producer re-produces it byte for byte (`CEM-V1-240`): on the
+recipe repository run `corvint cem prepare --base BASE --target TARGET`, then
+`corvint cem cite --map .corvint/change.cem.json --hunk N --evidence-path SPEC.md
+--lines 6:6 --relation specification` for hunks 1 and 2, and pass that map and
+the two files under `artifacts/` to `corvint-cem-candidate assemble-stable
+--experimental` with a `cem-stable-plain-assembly/1` request naming the one
+evidence record as the criterion and both hunks in its link. See
+`docs/build-log/2026-10-15-cem-plain-criterion-producer.md`.

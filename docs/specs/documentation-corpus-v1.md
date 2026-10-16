@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -767,6 +767,16 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `assertion-contradiction` and `missing-assertion-event`. An empty reviewed outcome or declared
   check value is not compared at all: the adapter refuses it as an invalid declaration, as for
   every matcher. The adapter, the witness wire and every reason code are unchanged.
+- `DCP-V1-085`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-1380)) The
+  canonical-form checks of `doccorpus.ParseArtifact` and `corpusindex.Open`, and the digest that
+  `doccorpus` computes over an encoded value, stream the deterministic encoding through a comparer or
+  hash instead of materializing it, and the re-encodes `corpusindex.Open` keeps are built in a buffer
+  pre-sized from the input. No whole encoded output is buffered by the json/v2 encoder pool, which a
+  GC cycle, a P migration or race instrumentation empties, so allocation follows the input size; the
+  encoder's working buffer still grows to the largest single token, and only that part can depend on
+  pool state. The encoded bytes, digests, output bounds and refusal messages are unchanged: a value
+  whose encoding exceeds its bound is still refused with `output bound exceeded`. The `DCP-V1-040`
+  1 GiB ordinary allocation ceiling and its race guard are unchanged.
 
 ## Input and authority boundary
 
@@ -1162,6 +1172,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-082 | `internal/doccorpus/behavior_playwright_witness.go` | `TestPlaywrightWitnessImporter` (`DCP-V1-082 zero-witness result names the missing annotation types per test`), `TestDCPV1081LiveProducerIsWitnessed` |
 | DCP-V1-083 | `internal/doccorpus/behavior-events.cjs`, `docs/DOCUMENTATION-CORPUS.md` | `TestDCPV1081ProducerNodeUnit` (Node cases `DCP-V1-083: valueless state matchers record their canonical state name after they pass`, `DCP-V1-083: state options, extra arguments, .not and failures record nothing; hidden options never reach a recorded matcher`); live Playwright state-matcher run `NOT_RUN` |
 | DCP-V1-084 | `internal/doccorpus/behavior_adapter.go` (unchanged byte-for-byte comparison) | `TestDCPV1084StateMatcherAssertionIsWitnessed` (canonical pair witnessed; non-empty other value mismatches; empty value refused) |
+| DCP-V1-085 | `internal/doccorpus/encoding.go`, `internal/corpusindex/index.go` | `TestDCPV1085StreamedEncodingIsEncode`, `TestDCPV1085ParseAllocationIgnoresEncoderPool`, `TestDCPV1085OpenAllocationIgnoresEncoderPool`, `TestIndexedCorpusCapacityQualification` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions

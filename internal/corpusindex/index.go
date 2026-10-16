@@ -79,11 +79,13 @@ func Open(ctx context.Context, raw []byte, expected string) (*Reader, error) {
 	if a.Schema != Schema || a.Corpus == nil || a.Corpus.Schema != doccorpus.SchemaV2 || a.Index == nil || a.ProducerValidation != "source-rederived-at-producer; producer authentication NOT_OBSERVED" {
 		return nil, fmt.Errorf("unsupported indexed profile")
 	}
-	canonical, e := Encode(a)
-	if e != nil || !bytes.Equal(raw, canonical) {
+	// raw is at most MaxBytes, so a match is within Encode's bound. The comparisons stream and the
+	// re-encodes are pre-sized from raw, which keeps allocation independent of json/v2 encoder pool
+	// state (V1-1380).
+	if !doccorpus.EncodedEqual(a, raw) {
 		return nil, fmt.Errorf("noncanonical indexed artifact")
 	}
-	corpus, e := doccorpus.Encode(a.Corpus)
+	corpus, e := doccorpus.EncodeSized(a.Corpus, len(raw))
 	if e != nil {
 		return nil, e
 	}
@@ -95,12 +97,12 @@ func Open(ctx context.Context, raw []byte, expected string) (*Reader, error) {
 	if e != nil {
 		return nil, e
 	}
-	wanted, e := Encode(derived)
+	// The supplied index is a member of raw beside the corpus, so it fits in what raw has left.
+	wanted, e := encodeSized(derived, len(raw)-len(corpus)+1)
 	if e != nil {
 		return nil, e
 	}
-	supplied, e := Encode(a.Index)
-	if e != nil || !bytes.Equal(wanted, supplied) {
+	if !doccorpus.EncodedEqual(a.Index, wanted) {
 		return nil, fmt.Errorf("indexed offsets or postings differ from corpus")
 	}
 	validated.RuntimeIndex = derived
@@ -152,4 +154,19 @@ func ParseRequest(raw []byte) (doccorpus.Request, error) {
 		return q, fmt.Errorf("query arguments do not apply to operation")
 	}
 	return q, nil
+}
+
+// encodeSized is Encode with its output buffer pre-sized to sizeHint bytes (V1-1380).
+func encodeSized(v any, sizeHint int) ([]byte, error) {
+	var out bytes.Buffer
+	out.Grow(max(sizeHint, 0))
+	n, e := doccorpus.EncodeTo(&out, v)
+	if e != nil {
+		return nil, e
+	}
+	if n+1 > MaxBytes {
+		return nil, fmt.Errorf("indexed artifact output bound exceeded")
+	}
+	out.WriteByte('\n')
+	return out.Bytes(), nil
 }

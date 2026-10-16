@@ -25,6 +25,9 @@ import (
 type ImportReport struct {
 	Items, Planned int
 	Batches        []*Report
+	// Redone reports that the import settled a pending receipt first, even
+	// when it then planned no batch (CAL-V0-260).
+	Redone bool
 }
 
 // Import writes a foreign export's new and changed items as shadow IMPORT
@@ -85,6 +88,7 @@ func importWith(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 	if err != nil {
 		return importRefused(out, "", err)
 	}
+	out.Redone = redone
 	st, err := auditImport(repo, head)
 	if err != nil {
 		return out, err

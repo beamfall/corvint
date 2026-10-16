@@ -368,14 +368,14 @@ func TestPSRFirstCleanupProbeFailureRetiresChild(t *testing.T) {
 func TestCALV0078_SweepResponseLossAfterExecutionIsNotRetryable(t *testing.T) {
 	t.Parallel()
 	marker := filepath.Join(t.TempDir(), "reached")
-	s, _ := psrFixture(t, "printf x >> "+marker, "printf ok", "ok", "1", false)
-	ctx := store.PSRTestResponseFailure(context.Background(), func(c store.LeaseChoice, r *store.Report, e error) error {
+	s, _ := psrFixtureConfigured(t, "printf x >> "+marker, "printf ok", "ok", "1", false, psrLoadTolerant)
+	ctx := store.PSRTestResponseFailure(psrLoaded(context.Background()), func(c store.LeaseChoice, r *store.Report, e error) error {
 		if c.Lease.Verb == transaction.LeasePoolObserve {
 			return wire.Errorf(wire.CodeLockTimeout, "lock", "injected contention after execution")
 		}
 		return e
 	})
-	choice := store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "contended", Root: s.root, TimeoutSeconds: "15"}
+	choice := store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "contended", Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds}
 	out, e := store.PoolSweep(ctx, s.repo, operator(), choice)
 	if wire.CodeOf(e) != wire.CodeLockTimeout || out == nil || !out.Unretryable {
 		t.Fatalf("response loss after execution reported retryable: %+v %v", out, e)
@@ -383,7 +383,7 @@ func TestCALV0078_SweepResponseLossAfterExecutionIsNotRetryable(t *testing.T) {
 	if raw, _ := os.ReadFile(marker); string(raw) != "x" {
 		t.Fatalf("reset not reached once: %q", raw)
 	}
-	replay, e := store.PoolSweep(context.Background(), s.repo, operator(), choice)
+	replay, e := store.PoolSweep(psrLoaded(context.Background()), s.repo, operator(), choice)
 	if raw, _ := os.ReadFile(marker); string(raw) != "x" {
 		t.Fatalf("same-request retry reran the phase: %q (%+v %v)", raw, replay, e)
 	}
@@ -411,14 +411,14 @@ func psrOwnerPhase(t *testing.T, s *leaseStore) string {
 func TestCALV0078_SweepContentionBeforeOwnerCommitIsRetryable(t *testing.T) {
 	t.Parallel()
 	marker := filepath.Join(t.TempDir(), "reached")
-	s, _ := psrFixture(t, "printf x >> "+marker, "printf ok", "ok", "1", false)
-	ctx := store.PSRTestRequestFailure(context.Background(), func(c store.LeaseChoice) error {
+	s, _ := psrFixtureConfigured(t, "printf x >> "+marker, "printf ok", "ok", "1", false, psrLoadTolerant)
+	ctx := store.PSRTestRequestFailure(psrLoaded(context.Background()), func(c store.LeaseChoice) error {
 		if c.Lease.Verb == transaction.LeasePoolSweep {
 			return wire.Errorf(wire.CodeLockTimeout, "lock", "injected contention before commit")
 		}
 		return nil
 	})
-	choice := store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "precommit", Root: s.root, TimeoutSeconds: "15"}
+	choice := store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "precommit", Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds}
 	out, e := store.PoolSweep(ctx, s.repo, operator(), choice)
 	if wire.CodeOf(e) != wire.CodeLockTimeout || (out != nil && out.Unretryable) {
 		t.Fatalf("uncommitted contention reported not retryable: %+v %v", out, e)
@@ -429,7 +429,7 @@ func TestCALV0078_SweepContentionBeforeOwnerCommitIsRetryable(t *testing.T) {
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Fatalf("phase ran before the owner committed: %v", err)
 	}
-	retry, e := store.PoolSweep(context.Background(), s.repo, operator(), choice)
+	retry, e := store.PoolSweep(psrLoaded(context.Background()), s.repo, operator(), choice)
 	if e != nil || retry.Pending || len(retry.Result) == 0 || retry.Unretryable {
 		t.Fatalf("same-request retry: %+v %v", retry, e)
 	}
@@ -448,14 +448,14 @@ func TestCALV0078_SweepContentionBeforeOwnerCommitIsRetryable(t *testing.T) {
 func TestCALV0078_SweepContentionBeforeObservationCommitIsNotRetryable(t *testing.T) {
 	t.Parallel()
 	marker := filepath.Join(t.TempDir(), "reached")
-	s, _ := psrFixture(t, "printf x >> "+marker, "printf ok", "ok", "1", false)
-	ctx := store.PSRTestRequestFailure(context.Background(), func(c store.LeaseChoice) error {
+	s, _ := psrFixtureConfigured(t, "printf x >> "+marker, "printf ok", "ok", "1", false, psrLoadTolerant)
+	ctx := store.PSRTestRequestFailure(psrLoaded(context.Background()), func(c store.LeaseChoice) error {
 		if c.Lease.Verb == transaction.LeasePoolObserve {
 			return wire.Errorf(wire.CodeLockTimeout, "lock", "injected contention before the observation commit")
 		}
 		return nil
 	})
-	choice := store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "observe", Root: s.root, TimeoutSeconds: "15"}
+	choice := store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "observe", Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds}
 	out, e := store.PoolSweep(ctx, s.repo, operator(), choice)
 	if wire.CodeOf(e) != wire.CodeLockTimeout || out == nil || !out.Unretryable {
 		t.Fatalf("contention after execution reported retryable: %+v %v", out, e)
@@ -466,7 +466,7 @@ func TestCALV0078_SweepContentionBeforeObservationCommitIsNotRetryable(t *testin
 	if phase := psrOwnerPhase(t, s); phase != "reset" {
 		t.Fatalf("reset observation committed despite contention: phase %q", phase)
 	}
-	retry, e := store.PoolSweep(context.Background(), s.repo, operator(), choice)
+	retry, e := store.PoolSweep(psrLoaded(context.Background()), s.repo, operator(), choice)
 	if e != nil || retry == nil || !retry.Pending {
 		t.Fatalf("same-request retry did not stay pending: %+v %v", retry, e)
 	}

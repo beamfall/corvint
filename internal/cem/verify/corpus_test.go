@@ -106,7 +106,6 @@ func TestDriftSymlinkSameOIDIsStable(t *testing.T) {
 	}
 	gitAt(t, root, author, email, date, "add", ".")
 	gitAt(t, root, author, email, date, "commit", "-qm", "base")
-	base := gitAt(t, root, author, email, date, "rev-parse", "HEAD^{tree}")
 	blob := gitAt(t, root, author, email, date, "rev-parse", "HEAD:f")
 	if err := os.Remove(filepath.Join(root, "f")); err != nil {
 		t.Fatal(err)
@@ -123,7 +122,7 @@ func TestDriftSymlinkSameOIDIsStable(t *testing.T) {
 		t.Fatal(err)
 	}
 	item, err := driftItem(context.Background(), repository,
-		wire.Evidence{ID: "e1", BlobOid: blob, Path: "f", Span: wire.Span{Start: 0, End: 6}}, base, target)
+		wire.Evidence{ID: "e1", BlobOid: blob, Path: "f", Span: wire.Span{Start: 0, End: 6}}, nil, target)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +180,6 @@ func TestDriftNonRegularTargetEntryIsDeleted(t *testing.T) {
 			}
 			gitAt(t, root, author, email, date, "add", ".")
 			gitAt(t, root, author, email, date, "commit", "-qm", "base")
-			base := gitAt(t, root, author, email, date, "rev-parse", "HEAD^{tree}")
 			blob := gitAt(t, root, author, email, date, "rev-parse", "HEAD:f")
 			replace(t, root, path)
 			target := gitAt(t, root, author, email, date, "write-tree")
@@ -191,7 +189,7 @@ func TestDriftNonRegularTargetEntryIsDeleted(t *testing.T) {
 				t.Fatal(err)
 			}
 			item, err := driftItem(context.Background(), repository,
-				wire.Evidence{ID: "e1", BlobOid: blob, Path: "f", Span: wire.Span{Start: 0, End: 8}}, base, target)
+				wire.Evidence{ID: "e1", BlobOid: blob, Path: "f", Span: wire.Span{Start: 0, End: 8}}, nil, target)
 			if err != nil {
 				t.Fatal(err)
 			}

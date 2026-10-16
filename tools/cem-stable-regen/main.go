@@ -1,9 +1,9 @@
 // Command cem-stable-regen adds one additive member to the sealed cem/1.0 stable
-// result and re-binds every digest that seals it (docs/specs/cem-stable-v1.md,
-// CEM-V1-091). It edits only by splicing new bytes into the existing text, so
-// every untouched byte of every file stays identical, and it refuses verdict
-// drift, a missing value, an existing member or a packet that is not already
-// self-consistent. The predecessor files stay in Git history; each regenerated
+// result, or re-emits recorded values of existing members, and re-binds every
+// digest that seals it (docs/specs/cem-stable-v1.md, CEM-V1-091). It edits only
+// by splicing new bytes into the existing text, so every untouched byte of every
+// file stays identical, and it refuses verdict drift, a missing value, an
+// unrecorded value change or a packet that is not already self-consistent. The predecessor files stay in Git history; each regenerated
 // file records the digest of the bytes it replaces.
 //
 // Usage:
@@ -11,7 +11,17 @@
 //	cem-stable-regen --member NAME --schema FRAGMENT.json --capture CAPTURE.jsonl
 //	                 [--values OVERRIDES.json] [--cell-values CELLS.json] [--after MEMBER]
 //	                 --note TEXT [--root DIR]
+//	cem-stable-regen --replace --member NAME[,NAME...] --record RECORD.json
+//	                 --capture CAPTURE.jsonl [--values OVERRIDES.json]
+//	                 [--cell-values CELLS.json] [--root DIR]
 //	cem-stable-regen --check [--root DIR]
+//
+// --replace re-emits the values of existing members in place (CEM-V1-091 as
+// amended by decision 0530). Overrides map an id to an object of member values;
+// a member an override omits keeps its value. RECORD.json is
+// {"reason": TEXT, "cases": {ID: {MEMBER: SHA256}}, "cells": {...}} and must
+// name exactly the values that change, each with the sha256 of the compact JSON
+// of the value it replaces; any other change is refused.
 //
 // CAPTURE.jsonl is written by the native S0E harness with
 // CEM_STABLE_REGEN_CAPTURE set (internal/cem/verify requireS0EResult).
@@ -56,8 +66,8 @@ func main() {
 }
 
 type options struct {
-	root, member, schema, after, capture, values, cellValues, note, date string
-	check                                                                bool
+	root, member, schema, after, capture, values, cellValues, note, date, record string
+	check, replace                                                               bool
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -74,6 +84,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	flags.StringVar(&o.note, "note", "", "one-line driver note for CHANGES.md")
 	flags.StringVar(&o.date, "date", time.Now().UTC().Format("2006-01-02"), "date recorded in CHANGES.md")
 	flags.BoolVar(&o.check, "check", false, "verify the sealed chain and write nothing")
+	flags.BoolVar(&o.replace, "replace", false, "re-emit the values of existing members (comma-separated --member) under --record")
+	flags.StringVar(&o.record, "record", "", "with --replace: JSON record of the reason and each replaced value's predecessor digest")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -90,11 +102,21 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, "cem-stable-regen check: PASS "+t.summary)
 		return 0
 	}
-	if o.member == "" || o.schema == "" || o.note == "" || (o.capture == "" && o.values == "") {
+	var report string
+	var err error
+	switch {
+	case o.replace:
+		if o.member == "" || o.record == "" || o.schema != "" || (o.capture == "" && o.values == "") {
+			fmt.Fprintln(stderr, "cem-stable-regen: --replace needs --member, --record and --capture or --values, and takes no --schema")
+			return 2
+		}
+		report, err = reemit(t, o)
+	case o.member == "" || o.schema == "" || o.note == "" || (o.capture == "" && o.values == ""):
 		fmt.Fprintln(stderr, "cem-stable-regen: --member, --schema, --note and --capture or --values are required (or --check)")
 		return 2
+	default:
+		report, err = regenerate(t, o)
 	}
-	report, err := regenerate(t, o)
 	if err != nil {
 		fmt.Fprintln(stderr, "cem-stable-regen: refused: "+err.Error())
 		return 1
@@ -256,6 +278,7 @@ func check(t *tree) []string {
 	// envelope entries stale since the packet seal were re-bound by the first
 	// regeneration (af8f466dd), so the restriction is gone (V1-1287).
 	problems = append(problems, manifestProblems(t, stableDir, schemaName)...)
+	problems = append(problems, pointerProblems(t.root, recordedDanglingPointers)...)
 	packetManifest, err := t.read(packetDir + "/manifest.json")
 	if err != nil {
 		return append(problems, err.Error())
@@ -500,7 +523,7 @@ func regenerate(t *tree, o options) (string, error) {
 		case hasCapture && override != nil:
 			return "", fmt.Errorf("case %s has both a captured value and a --values override", id)
 		case hasCapture:
-			if err := compareCapture(cases, c, capturedCase, o.member, substitutions); err != nil {
+			if err := compareCapture(cases, c, capturedCase, map[string]bool{o.member: true}, substitutions); err != nil {
 				return "", fmt.Errorf("case %s: %w", id, err)
 			}
 			node := capturedCase.result.get(o.member)
@@ -566,144 +589,22 @@ func regenerate(t *tree, o options) (string, error) {
 		t.set(packetDir+"/"+readmeName, readmeNew)
 		packetChanged[readmeName] = readmeNew
 	}
-
-	// 5. CHANGES.md, which records the predecessor digest of every file the
-	// regeneration replaces, inside and outside the packet.
-	changesOld, err := t.read(packetDir + "/" + changesName)
-	if err != nil {
-		return "", err
-	}
-	outside := map[string][]byte{}
-	tuples, err := t.tuples()
-	if err != nil {
-		return "", err
-	}
-	outsideNames := []string{stableDir + "/manifest.json", stableDir + "/" + cellsName, stableDir + "/" + envelopeMD}
-	for _, dir := range tuples {
-		outsideNames = append(outsideNames, dir+"/TUPLE.json", dir+"/manifest.json")
-	}
-	for _, name := range outsideNames {
-		if outside[name], err = t.read(name); err != nil {
-			return "", err
-		}
-	}
-	changesNew := append(append([]byte(nil), changesOld...), changesSection(o, t, packetManifestOld, fragmentSrc, values, tuplesSeen, overridden, cellsOutcome, len(list.elems), oldKeys, outside, map[string][2][]byte{
-		schemaName:     {schemaOld, schemaNew},
-		casesName:      {casesOld, casesNew},
-		inheritedCells: {inheritedOld, inheritedNew},
-		readmeName:     {readmeOld, packetChanged[readmeName]},
-		changesName:    {changesOld, nil},
-	})...)
-	t.set(packetDir+"/"+changesName, changesNew)
-	packetChanged[changesName] = changesNew
-
-	// 6. Packet manifest.
-	manifest, _ := t.parse(packetDir + "/manifest.json")
-	edits, err = rebindManifest(manifest, packetChanged)
-	if err != nil {
-		return "", err
-	}
-	for key, value := range map[string]string{"predecessorPublicManifestSHA256": digest(packetManifestOld), "status": regenStatus} {
-		node := manifest.root.get(key)
-		if node == nil {
-			return "", fmt.Errorf("packet manifest has no %s", key)
-		}
-		edits = append(edits, replaceValue(node, quote(value)))
-	}
-	packetManifestNew, err := applySplices(manifest.src, edits)
-	if err != nil {
-		return "", err
-	}
-	t.set(packetDir+"/manifest.json", packetManifestNew)
-	oldSum, newSum := digest(packetManifestOld), digest(packetManifestNew)
-
-	// 7. Stable cells copy and amendment index, its prose and the stable manifest.
 	cells, _ := t.parse(stableDir + "/" + cellsName)
-	amendment := cells.root.get("amendment")
-	index := amendment.get("fullResultCases")
-	cellsNew, err := applySplices(cells.src, append([]splice{
-		replaceValue(amendment.get("publicManifestSHA256"), quote(newSum)),
-		replaceValue(index.get("sha256"), quote(digest(casesNew))),
-		replaceValue(index.get("bytes"), strconv.Itoa(len(casesNew))),
-	}, append(stableCellEdits, bumpCount(cells, amendment.get("note"), oldKeys)...)...))
-	if err != nil {
-		return "", err
-	}
-	t.set(stableDir+"/"+cellsName, cellsNew)
-	prose, err := t.read(stableDir + "/" + envelopeMD)
-	if err != nil {
-		return "", err
-	}
-	prose = bytes.ReplaceAll(bytes.ReplaceAll(prose, []byte(oldSum), []byte(newSum)), []byte(digest(casesOld)), []byte(digest(casesNew)))
-	t.set(stableDir+"/"+envelopeMD, prose)
-	stable, _ := t.parse(stableDir + "/manifest.json")
-	// The stable manifest may also list the packet's files: re-bind each listed
-	// changed packet file and the packet manifest under its relative prefix.
-	stableChanged := map[string][]byte{schemaName: schemaNew, cellsName: cellsNew, envelopeMD: prose}
-	inStable := map[string]bool{}
-	for _, entry := range stable.root.get("files").elems {
-		inStable[entry.get("path").text(stable.src)] = true
-	}
-	prefix := strings.TrimPrefix(packetDir, stableDir+"/") + "/"
-	for name, b := range packetChanged {
-		if inStable[prefix+name] {
-			stableChanged[prefix+name] = b
-		}
-	}
-	if inStable[prefix+"manifest.json"] {
-		stableChanged[prefix+"manifest.json"] = packetManifestNew
-	}
-	edits, err = rebindManifest(stable, stableChanged)
-	if err != nil {
-		return "", err
-	}
-	edits = append(edits, replaceValue(stable.root.get("publicAmendmentManifestSHA256"), quote(newSum)))
-	stableNew, err := applySplices(stable.src, edits)
-	if err != nil {
-		return "", err
-	}
-	t.set(stableDir+"/manifest.json", stableNew)
+	stableCellEdits = append(stableCellEdits, bumpCount(cells, cells.root.get("amendment").get("note"), oldKeys)...)
 
-	// 8. Every sealed structural-tuple packet.
-	for _, dir := range tuples {
-		tuple, err := t.parse(dir + "/TUPLE.json")
-		if err != nil {
-			return "", err
-		}
-		inherited := tuple.root.get("inherited")
-		edits := []splice{replaceValue(inherited.get("manifestSha256"), quote(newSum))}
-		if prior := inherited.get("predecessorManifestSha256"); prior != nil {
-			edits = append(edits, replaceValue(prior, quote(oldSum)))
-		} else {
-			edit, err := insertMember(tuple.src, inherited, "manifestSha256", "predecessorManifestSha256", func(string) string { return quote(oldSum) })
-			if err != nil {
-				return "", fmt.Errorf("%s/TUPLE.json: %w", dir, err)
-			}
-			edits = append(edits, edit)
-		}
-		files := inherited.get("files")
-		for i, name := range files.keys {
-			if b, ok := packetChanged[name]; ok {
-				edits = append(edits, replaceValue(files.elems[i], quote(digest(b))))
-			}
-		}
-		tupleNew, err := applySplices(tuple.src, edits)
-		if err != nil {
-			return "", err
-		}
-		t.set(dir+"/TUPLE.json", tupleNew)
-		tm, _ := t.parse(dir + "/manifest.json")
-		edits, err = rebindManifest(tm, map[string][]byte{"TUPLE.json": tupleNew})
-		if err != nil {
-			return "", err
-		}
-		tmNew, err := applySplices(tm.src, edits)
-		if err != nil {
-			return "", err
-		}
-		t.set(dir+"/manifest.json", tmNew)
+	// 5-8. CHANGES.md, the packet manifest, the stable bindings and every tuple.
+	oldSum, newSum, err := sealChain(t, packetManifestOld, packetChanged, casesOld, casesNew, stableCellEdits, regenStatus, func(changesOld []byte, outside map[string][]byte) []byte {
+		return changesSection(o, t, packetManifestOld, fragmentSrc, values, tuplesSeen, overridden, cellsOutcome, len(list.elems), oldKeys, outside, map[string][2][]byte{
+			schemaName:     {schemaOld, schemaNew},
+			casesName:      {casesOld, casesNew},
+			inheritedCells: {inheritedOld, inheritedNew},
+			readmeName:     {readmeOld, packetChanged[readmeName]},
+			changesName:    {changesOld, nil},
+		})
+	})
+	if err != nil {
+		return "", err
 	}
-
 	// The regenerated chain must pass the same check, with one more key per case.
 	if problems := check(t); len(problems) > 0 {
 		return "", fmt.Errorf("regenerated packet fails its own check: %s", strings.Join(problems, "; "))
@@ -764,23 +665,29 @@ func tupleSubstitutions(t *tree) (map[[2]string]bool, error) {
 }
 
 // compareCapture refuses any drift between a captured native result and the
-// frozen expectation: every frozen key, the exit, and no extra key but member.
-// runtime.goVersion may differ only by an admitted tuple substitution.
-func compareCapture(cases *document, c *jnode, got *captured, member string, substitutions map[[2]string]bool) error {
+// frozen expectation: every frozen key but the regenerated members, the exit,
+// and no extra key but a member. runtime.goVersion may differ only by an
+// admitted tuple substitution.
+func compareCapture(cases *document, c *jnode, got *captured, members map[string]bool, substitutions map[[2]string]bool) error {
 	expectedExit, _ := strconv.Atoi(string(c.get("expectedExit").raw(cases.src)))
 	if got.exit != expectedExit {
 		return fmt.Errorf("verdict drift: exit %d, frozen %d", got.exit, expectedExit)
 	}
 	expected := c.get("expectedResult")
 	for _, key := range got.result.keys {
-		if key != member && expected.index(key) < 0 {
+		if !members[key] && expected.index(key) < 0 {
 			return fmt.Errorf("capture carries key %q that is neither frozen nor --member", key)
 		}
 	}
-	if got.result.get(member) == nil {
-		return fmt.Errorf("capture has no %q member", member)
+	for _, member := range sortedKeys(members) {
+		if got.result.get(member) == nil {
+			return fmt.Errorf("capture has no %q member", member)
+		}
 	}
 	for i, key := range expected.keys {
+		if members[key] {
+			continue
+		}
 		node := got.result.get(key)
 		if node == nil {
 			return fmt.Errorf("verdict drift: capture lacks frozen key %q", key)
@@ -836,26 +743,37 @@ func changesSection(o options, t *tree, manifestOld, fragment []byte, values *do
 		fmt.Fprintf(&b, "- Cell values from the cell override file (sha256 %s) for: %s.\n", digest(cells.overrides.src), strings.Join(cells.overridden, ", "))
 	}
 	fmt.Fprintf(&b, "- No frozen key, expectedExit, recipe or status changed; every captured\n  result matched its frozen expectation on all %d frozen keys and its exit\n  (runtime.goVersion only through a sealed structural-tuple substitution).\n  The case count stays %d.\n\n", oldKeys, count)
+	writeFileTables(&b, manifestOld, outside, files)
+	fmt.Fprintf(&b, "| %s/%s | identical to %s/%s |\n", stableDir, schemaName, packetDir, schemaName)
+	return []byte(b.String())
+}
+
+// writeFileTables appends the changed-file table, with the old and new digest
+// of every replaced packet file, and the predecessor digest of each re-bound
+// file outside the packet.
+func writeFileTables(b *strings.Builder, manifestOld []byte, outside map[string][]byte, files map[string][2][]byte) {
 	b.WriteString("## Changed files\n\n| File | Old sha256 | New sha256 |\n| --- | --- | --- |\n")
 	for _, name := range []string{schemaName, casesName, inheritedCells, readmeName, changesName} {
 		pair := files[name]
 		switch {
 		case name == changesName:
-			fmt.Fprintf(&b, "| %s | %s | See manifest.json; this file cannot contain its own final digest. |\n", name, digest(pair[0]))
+			fmt.Fprintf(b, "| %s | %s | See manifest.json; this file cannot contain its own final digest. |\n", name, digest(pair[0]))
 		case pair[1] != nil:
-			fmt.Fprintf(&b, "| %s | %s | %s |\n", name, digest(pair[0]), digest(pair[1]))
+			fmt.Fprintf(b, "| %s | %s | %s |\n", name, digest(pair[0]), digest(pair[1]))
 		}
 	}
-	fmt.Fprintf(&b, "| manifest.json | %s | See ../manifest.json publicAmendmentManifestSHA256; manifest.json is not listed inside its own file list. |\n\n", digest(manifestOld))
+	fmt.Fprintf(b, "| manifest.json | %s | See ../manifest.json publicAmendmentManifestSHA256; manifest.json is not listed inside its own file list. |\n\n", digest(manifestOld))
 	b.WriteString("Files not listed above are byte-identical to the base packet. INPUTS.json\nkeeps its repair-era pins as history.\n\n## Re-bound files outside the packet\n\nThese files are re-bound to the digests above; their new digests depend on this\nfile and are recorded in Git, in ../manifest.json and in each tuple manifest.\n\n| File | Predecessor sha256 |\n| --- | --- |\n")
-	names = names[:0]
-	for name := range outside {
+	for _, name := range sortedKeys(outside) {
+		fmt.Fprintf(b, "| %s | %s |\n", name, digest(outside[name]))
+	}
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	names := make([]string, 0, len(m))
+	for name := range m {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	for _, name := range names {
-		fmt.Fprintf(&b, "| %s | %s |\n", name, digest(outside[name]))
-	}
-	fmt.Fprintf(&b, "| %s/%s | identical to %s/%s |\n", stableDir, schemaName, packetDir, schemaName)
-	return []byte(b.String())
+	return names
 }

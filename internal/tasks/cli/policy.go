@@ -61,7 +61,7 @@ func policyCommand(env Env, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	observed, err := snapshot.Probe(repo.StateDir)
+	observed, pending, err := writerProbe(nil, repo.StateDir)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -69,7 +69,13 @@ func policyCommand(env Env, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	fences, fenceErr := handoffFencePreview(env, raw)
+	// The preview is a read: over a pending receipt it is not observed
+	// rather than waiting out read patience the writer does not need.
+	var fences wire.Value
+	var fenceErr error = wire.Errorf(wire.CodeRedoPending, "head.json", "a committed receipt is not settled yet")
+	if !pending {
+		fences, fenceErr = handoffFencePreview(env, raw)
+	}
 	report, err := store.PolicyUpdate(writerContext(), repo, actor, store.PolicyRequest{QueueID: observed.Head.QueueID.Raw, RequestID: request, ExpectedPolicyVersion: version, Policy: raw}, now)
 	if err != nil {
 		return errorResult(cmd, err)

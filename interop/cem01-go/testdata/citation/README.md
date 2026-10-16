@@ -6,7 +6,8 @@ expected `citation` block. Rebuild a repository by committing `base` then `targe
 committer `Fixture <fixture@example.invalid>`, date `2026-10-11T00:00:00Z`, `GIT_CONFIG_GLOBAL=/dev/null`
 and messages `base` / `target`; the commit IDs must equal `revisions.txt`. `map.json` must ACCEPT
 under `verify-stable` (empty artifacts directory); the block is then computed from `map.json`,
-`patch.diff` and the base span bytes. The sealed stable result does not carry it (V1-1265).
+`patch.diff` and the base span bytes. An ACCEPT stable result carries the same block as its
+`citation` member (CEM-V1-092); a REJECT or refusal carries none.
 `citation_test.go` regenerates every file with `CEM01_CITATION_UPDATE=1`.
 
 - `rubber-stamp`: 24-hunk PATCH-24 citing one umbrella span; expected block `rubber-stamp/citation.json`.

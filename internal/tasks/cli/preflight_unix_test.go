@@ -248,15 +248,26 @@ func TestTOLV0027_PreflightDeepCleanStatusRetiresItsGroup(t *testing.T) {
 	}
 }
 
+// statusPastTimeoutSeconds is the gate timeout that also bounds the
+// post-gate check. It must outlast the gate, two Git resolves and the
+// status's start up to the clean filter, which took 5 to 8 seconds at load
+// 60 to 68 (V1-1465), and stay far below the filter's ten-minute sleep.
+const statusPastTimeoutSeconds = 20
+
+// statusPastTimeoutAllowance covers the temporary worktree's creation and
+// removal around the bounded check; a preflight that waited for the filter
+// instead would take its full ten minutes.
+const statusPastTimeoutAllowance = 60 * time.Second
+
 // TestTOLV0027_PreflightDeepStatusPastTheGateTimeoutFails: a post-gate
 // status that does not finish within the gate's timeout is killed and the
 // gate is a DEEP_CHECK_FAILED finding, never a clean pass; the worktree is
 // removed.
 func TestTOLV0027_PreflightDeepStatusPastTheGateTimeoutFails(t *testing.T) {
-	r, id, pidFile := slowCleanFilterRepo(t, deepGate("touch", "printf 'SLOW\\n' > slow.txt", "2"))
+	r, id, pidFile := slowCleanFilterRepo(t, deepGate("touch", "printf 'SLOW\\n' > slow.txt", strconv.Itoa(statusPastTimeoutSeconds)))
 	started := time.Now()
 	x := atm(t, r.Root, nil, "preflight", id, "--deep", "--gate", "touch")
-	if elapsed := time.Since(started); elapsed > 60*time.Second {
+	if elapsed := time.Since(started); elapsed > statusPastTimeoutSeconds*time.Second+statusPastTimeoutAllowance {
 		t.Fatalf("preflight took %s", elapsed)
 	}
 	if x.res.Outcome != wire.OutcomeRefused || len(x.res.Items) != 1 {
