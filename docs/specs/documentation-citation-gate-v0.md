@@ -75,7 +75,8 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
 
 - `DCG-V0-001`: accepted, decision 0506. The gate MUST check every backticked citation in `docs/specs/*.md`,
   `docs/agent-memory/*.md`, `docs/decisions/*.md`, and the current-contract documents `README.md`,
-  `docs/DOGFOOD.md`, `docs/AGENT-ROUTES.md`, `docs/SELF-DEVELOPMENT.md`, `docs/SPEC-TOOLCHAIN-INTEGRATION.md`, and `conformance/*/README.md` (one directory
+  `docs/DOGFOOD.md`, `docs/AGENT-ROUTES.md`, `docs/SELF-DEVELOPMENT.md`, `docs/SPEC-TOOLCHAIN-INTEGRATION.md`, `docs/RELEASE-NOTES-*.md`
+  (amended by decision 0534, V1-1480), and `conformance/*/README.md` (one directory
   below `conformance/`, so a dated results README beneath it is not scanned), covering the forms `dir/file.ext:N`, `dir/file.ext:N-M`,
   `dir/file.ext:N,M`, a basename
   the Git index tracks at the repository root such as `ROADMAP.md:343`, and a bare `:N` or `:N-M`
@@ -275,6 +276,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-019 | decision 0105's `Makefile@3c41cad3` conversion, verified by inspection of the citation-token regex (every alternative requires a trailing `:digit`, so a suffix-less `path@hash` never matches) and by `line-citations-check` passing with that citation present |
 | DCG-V0-020 | `line-citation-drift-waivers.txt`'s decision 0170 rows (pre-existing) and decision 0158 rows (added by decision 0176); `line-citations-check` passing with all 5 rows present |
 | DCG-V0-001 (V1-0178 amendment) | test case 22, skipped-basename notes preserve passing and failing results and do not exempt tracked root basenames |
+| DCG-V0-001 (V1-1480 amendment, decision 0534) | test case 23, a pinned citation in a `docs/RELEASE-NOTES-*.md` fixture passing and then failing, naming the release notes, once the cited line changes; a local mutation shifting `docs/CHANGE-EVIDENCE-MAP.md` by one line failed `line-citations-check` on `docs/RELEASE-NOTES-alpha.md:127` and passed with the base checker |
 | DCG-V0-021 | test case 21, an unstaged edit to a cited file passing with a note naming it, an unstaged file the gate never read left unnamed, and the note gone once the edit is staged |
 
 ## Traceability

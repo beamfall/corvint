@@ -1238,26 +1238,26 @@ CWT-V0-012	docs/specs/confidently-wrong-trial-v0.md	169	Unseen set generation. `
 CWT-V0-013	docs/specs/confidently-wrong-trial-v0.md	190	Retrieval-native metrics (decision 0034). Beside the agent's outcome, each	unrecorded	-
 CWT-V0-014	docs/specs/confidently-wrong-trial-v0.md	211	Invocation lifecycle (proposed). On Darwin and Linux, `runCommand`	unrecorded	-
 DCG-V0-001	docs/specs/documentation-citation-gate-v0.md	76	accepted, decision 0506. The gate MUST check every backticked citation in `docs/	unrecorded	-
-DCG-V0-002	docs/specs/documentation-citation-gate-v0.md	88	For every checked citation the gate MUST fail when the named file is not tracked	unrecorded	-
-DCG-V0-003	docs/specs/documentation-citation-gate-v0.md	93	The gate MUST additionally fail when a cited line is blank or contains only	unrecorded	-
-DCG-V0-004	docs/specs/documentation-citation-gate-v0.md	96	A bare continuation MUST resolve only to an anchor its own paragraph states: the	unrecorded	-
-DCG-V0-005	docs/specs/documentation-citation-gate-v0.md	100	Content inside a fenced code block MUST be exempt, and a Go standard-library pat	unrecorded	-
-DCG-V0-006	docs/specs/documentation-citation-gate-v0.md	102	A citation MAY carry a content anchor written as `@<hex>` appended to its line	unrecorded	-
-DCG-V0-007	docs/specs/documentation-citation-gate-v0.md	107	The anchor value MUST be the SHA-256 of the cited lines, each stripped of traili	unrecorded	-
-DCG-V0-008	docs/specs/documentation-citation-gate-v0.md	111	The anchored line set MUST be the span the citation reads: for `N-M` the inclusi	unrecorded	-
-DCG-V0-009	docs/specs/documentation-citation-gate-v0.md	113	A written anchor MUST compare equal when it is a prefix of the full digest, so t	unrecorded	-
-DCG-V0-010	docs/specs/documentation-citation-gate-v0.md	116	When a pinned citation's content no longer matches, the gate MUST fail and MUST	unrecorded	-
-DCG-V0-011	docs/specs/documentation-citation-gate-v0.md	120	The gate MUST offer `--hash <path:line[-line][,line]> ...`, which prints each	unrecorded	-
-DCG-V0-012	docs/specs/documentation-citation-gate-v0.md	124	The gate MUST be read-only over the repository on every path, including every	unrecorded	-
-DCG-V0-013	docs/specs/documentation-citation-gate-v0.md	126	Every path the gate reads MUST be resolved against the Git index and never the	unrecorded	-
-DCG-V0-014	docs/specs/documentation-citation-gate-v0.md	135	A citation from any scanned document into `docs/BUILD-LOG.md` or a one-level	unrecorded	-
-DCG-V0-015	docs/specs/documentation-citation-gate-v0.md	145	The gate MUST also check an extensionless path followed by `:N`, `:N-M`, or	unrecorded	-
-DCG-V0-016	docs/specs/documentation-citation-gate-v0.md	152	A backticked token whose prefix is an exact tracked path in the DCG-V0-001 or	unrecorded	-
-DCG-V0-017	docs/specs/documentation-citation-gate-v0.md	159	The gate MUST count every checked citation that carries no content anchor and MU	unrecorded	-
-DCG-V0-018	docs/specs/documentation-citation-gate-v0.md	165	`script/line-citation-legacy-documents.txt` MUST be the closed allowlist of scan	unrecorded	-
-DCG-V0-019	docs/specs/documentation-citation-gate-v0.md	179	A citation a citing document explicitly frames as historical — reviewed once aga	unrecorded	-
-DCG-V0-020	docs/specs/documentation-citation-gate-v0.md	185	`script/line-citation-drift-waivers.txt` MAY name one citation, as	unrecorded	-
-DCG-V0-021	docs/specs/documentation-citation-gate-v0.md	193	When a file the gate read from the index (a scanned document, a cited file, or o	unrecorded	-
+DCG-V0-002	docs/specs/documentation-citation-gate-v0.md	89	For every checked citation the gate MUST fail when the named file is not tracked	unrecorded	-
+DCG-V0-003	docs/specs/documentation-citation-gate-v0.md	94	The gate MUST additionally fail when a cited line is blank or contains only	unrecorded	-
+DCG-V0-004	docs/specs/documentation-citation-gate-v0.md	97	A bare continuation MUST resolve only to an anchor its own paragraph states: the	unrecorded	-
+DCG-V0-005	docs/specs/documentation-citation-gate-v0.md	101	Content inside a fenced code block MUST be exempt, and a Go standard-library pat	unrecorded	-
+DCG-V0-006	docs/specs/documentation-citation-gate-v0.md	103	A citation MAY carry a content anchor written as `@<hex>` appended to its line	unrecorded	-
+DCG-V0-007	docs/specs/documentation-citation-gate-v0.md	108	The anchor value MUST be the SHA-256 of the cited lines, each stripped of traili	unrecorded	-
+DCG-V0-008	docs/specs/documentation-citation-gate-v0.md	112	The anchored line set MUST be the span the citation reads: for `N-M` the inclusi	unrecorded	-
+DCG-V0-009	docs/specs/documentation-citation-gate-v0.md	114	A written anchor MUST compare equal when it is a prefix of the full digest, so t	unrecorded	-
+DCG-V0-010	docs/specs/documentation-citation-gate-v0.md	117	When a pinned citation's content no longer matches, the gate MUST fail and MUST	unrecorded	-
+DCG-V0-011	docs/specs/documentation-citation-gate-v0.md	121	The gate MUST offer `--hash <path:line[-line][,line]> ...`, which prints each	unrecorded	-
+DCG-V0-012	docs/specs/documentation-citation-gate-v0.md	125	The gate MUST be read-only over the repository on every path, including every	unrecorded	-
+DCG-V0-013	docs/specs/documentation-citation-gate-v0.md	127	Every path the gate reads MUST be resolved against the Git index and never the	unrecorded	-
+DCG-V0-014	docs/specs/documentation-citation-gate-v0.md	136	A citation from any scanned document into `docs/BUILD-LOG.md` or a one-level	unrecorded	-
+DCG-V0-015	docs/specs/documentation-citation-gate-v0.md	146	The gate MUST also check an extensionless path followed by `:N`, `:N-M`, or	unrecorded	-
+DCG-V0-016	docs/specs/documentation-citation-gate-v0.md	153	A backticked token whose prefix is an exact tracked path in the DCG-V0-001 or	unrecorded	-
+DCG-V0-017	docs/specs/documentation-citation-gate-v0.md	160	The gate MUST count every checked citation that carries no content anchor and MU	unrecorded	-
+DCG-V0-018	docs/specs/documentation-citation-gate-v0.md	166	`script/line-citation-legacy-documents.txt` MUST be the closed allowlist of scan	unrecorded	-
+DCG-V0-019	docs/specs/documentation-citation-gate-v0.md	180	A citation a citing document explicitly frames as historical — reviewed once aga	unrecorded	-
+DCG-V0-020	docs/specs/documentation-citation-gate-v0.md	186	`script/line-citation-drift-waivers.txt` MAY name one citation, as	unrecorded	-
+DCG-V0-021	docs/specs/documentation-citation-gate-v0.md	194	When a file the gate read from the index (a scanned document, a cited file, or o	unrecorded	-
 DCI-V0-001	docs/specs/documentation-ci-v0.md	33	The classifier MUST read a clean checkout at the full captured target SHA, requi	unrecorded	-
 DCI-V0-002	docs/specs/documentation-ci-v0.md	40	The closed path scope MUST be modified existing mode-100644 `README.md` and,	unrecorded	-
 DCI-V0-003	docs/specs/documentation-ci-v0.md	44	README fenced and indented code bytes MUST remain identical. The admitted Markdo	unrecorded	-
