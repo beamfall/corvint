@@ -134,7 +134,7 @@ hardware). Archive digests are in `../BUILD-LOG.md` (2026-09-24 V1-0190).
   only on such a scheduled failure, and it MUST run only `.github/nightly-signal/` from the scheduled
   commit, checked out without persisted credentials. A dispatched run and a passing scheduled run
   MUST NOT write any issue. A failed read or write MUST fail the job instead of passing silently.
-  The schedule is decision 0435's.
+  Signal jobs of different runs MUST NOT run concurrently. The schedule is decision 0435's.
 
 ## Non-goals and simpler baseline
 

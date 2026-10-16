@@ -28,8 +28,9 @@ jq -r --arg url "$RUN_URL" --arg sha "$SHA" -f "$here/body.jq" "$dir/jobs.json" 
 gh label create "$label" --repo "$REPO" --force --color B60205 \
   --description "A scheduled release-gates run on main failed" > /dev/null ||
   die "cannot ensure the $label label"
-number=$(gh issue list --repo "$REPO" --label "$label" --state open --limit 100 --json number \
-  --jq 'map(.number) | min // empty') || die "cannot list open $label issues"
+# The oldest open issue first; the REST list also returns pull requests, which never count.
+number=$(gh api "repos/$REPO/issues?labels=$label&state=open&sort=created&direction=asc&per_page=100" \
+  --jq 'map(select(.pull_request | not)) | .[0].number // empty') || die "cannot list open $label issues"
 if [ -n "$number" ]; then
   gh issue comment "$number" --repo "$REPO" --body-file "$dir/body.md" > /dev/null ||
     die "cannot comment on issue #$number"

@@ -23,7 +23,8 @@ but no signal).
   commit, so the code is trusted), with `persist-credentials: false`. No `${{ }}` reaches the script
   text: every value is passed through `env`.
 - Dedup: `.github/nightly-signal/signal.sh` (sh, gh, jq) ensures the `nightly-triage` label
-  (`gh label create --force`), then comments on the oldest open issue with that label, or opens
+  (`gh label create --force`), then comments on the oldest open issue with that label (REST
+  `issues?labels=nightly-triage&state=open&sort=created&direction=asc`, pull requests dropped), or opens
   `Nightly release gates failing on main` when none is open. One open issue therefore collects every
   failed nightly until the triage owner (the release owner) closes it after a passing nightly.
 - Body (`body.jq`): the attempt URL, the gated commit, and each job with a failing conclusion
@@ -48,6 +49,21 @@ but no signal).
 - The script lives under `.github/`, like `.github/forward-rows`, so changing it needs
   AFP-V0-016 admin consent.
 
+- The job has `concurrency: {group: nightly-failure-signal, cancel-in-progress: false}`, so a rerun
+  that overlaps the next nightly cannot run list-then-create twice in parallel. GitHub keeps one
+  pending job per group, so a third overlapping signal would be cancelled (visibly) rather than
+  duplicated.
+
+## Independent review
+
+One Codex round (`codex exec -s read-only`) over the diff. Findings, both fixed in this change:
+
+- P2: list-then-create was not serialized; overlapping runs could open two issues. Fixed with the
+  job-level concurrency group above, held by `TestSOPV0013WorkflowBinding`.
+- P3: `gh issue list --limit 100` plus `min` did not guarantee the oldest open issue. Fixed by the
+  oldest-first REST listing; the test's fake answers only that exact URL and includes a labelled
+  pull request that must be skipped.
+
 ## Evidence
 
 - Fixtures: `gh run view <run> --attempt 1 --json jobs` of runs 37628218263 and 38052349384,
@@ -58,7 +74,8 @@ but no signal).
 - Mutations, each one failing its named test and then reverted: always opening instead of
   commenting fails `TestSOPV0013CommentsOnTheOldestOpenIssue`; a body without failing steps fails
   `TestSOPV0013OpensOneIssueWhenNoneIsOpen`; `issues: write` at workflow level fails
-  `TestSOPV0013WorkflowBinding`.
+  `TestSOPV0013WorkflowBinding`; dropping the pull-request filter from the issue listing fails
+  `TestSOPV0013CommentsOnTheOldestOpenIssue` (it comments on the labelled pull request #5).
 - `actionlint` (all workflows) and `make ci-least-privilege-check` pass.
 - NOT_RUN: a real scheduled failure after merge. The first failed nightly after merge is the live
   check, and its issue or comment should be read back then.

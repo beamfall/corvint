@@ -41,7 +41,8 @@ func read(t *testing.T, path string) string {
 }
 
 // fakeGH writes a gh stand-in into DIR/bin. `run view` prints DIR/jobs-<run>.json (absent: exit 1),
-// `issue list` runs the script's --jq filter over DIR/issues.json (absent: exit 1), and every
+// the oldest-first open nightly-triage issue listing runs the script's --jq filter over
+// DIR/issues.json (absent: exit 1), and every
 // write (`label create`, `issue comment`, `issue create`) appends its argv to DIR/writes and copies
 // the body file to DIR/comment-<n>.md or DIR/created.md instead of posting anything.
 func fakeGH(t *testing.T, dir string) string {
@@ -61,13 +62,9 @@ case "$1 $2" in
 "run view")
   [ "$4 $5 $6" = "--repo beamfall/corvint --attempt" ] && [ "$8 $9" = "--json jobs" ] || exit 1
   cat "$d/jobs-$3.json" ;;
-"issue list")
-  q=""
-  while [ $# -gt 0 ]; do
-    [ "$1" = --jq ] && q=$2
-    shift
-  done
-  jq -r "$q" "$d/issues.json" ;;
+"api repos/beamfall/corvint/issues?labels=nightly-triage&state=open&sort=created&direction=asc&per_page=100")
+  [ "$3" = --jq ] || exit 1
+  jq -r "$4" "$d/issues.json" ;;
 "label create"|"issue comment"|"issue create")
   echo "$*" >> "$d/writes"
   case "$1 $2" in
@@ -107,8 +104,9 @@ func signal(t *testing.T, dir, run string) (string, error) {
 	return out.String(), err
 }
 
-// setup copies the recorded jobs of RUN, appending EXTRA job objects, and writes ISSUES (nil: the
-// issue listing fails).
+// setup copies the recorded jobs of RUN, appending EXTRA job objects, and writes ISSUES, already
+// in the API's oldest-first order, as the open issue listing (nil: the listing fails). A negative
+// number stands for a pull request carrying the label, which the REST listing also returns.
 func setup(t *testing.T, run string, issues []int, extra ...map[string]any) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -127,9 +125,13 @@ func setup(t *testing.T, run string, issues []int, extra ...map[string]any) stri
 	}
 	writeFile(t, filepath.Join(dir, "jobs-"+run+".json"), b)
 	if issues != nil {
-		list := make([]map[string]int, 0, len(issues))
+		list := make([]map[string]any, 0, len(issues))
 		for _, n := range issues {
-			list = append(list, map[string]int{"number": n})
+			if n < 0 {
+				list = append(list, map[string]any{"number": -n, "pull_request": map[string]any{}})
+				continue
+			}
+			list = append(list, map[string]any{"number": n})
 		}
 		b, err := json.Marshal(list)
 		if err != nil {
@@ -188,7 +190,7 @@ func TestSOPV0013CommentsOnTheOldestOpenIssue(t *testing.T) {
 		"url": "https://example.invalid/slow", "steps": []any{
 			map[string]any{"name": "Set up job", "conclusion": "success"},
 			map[string]any{"name": "Wait", "conclusion": "cancelled"}}}
-	dir := setup(t, runB, []int{41, 17, 23}, running, timedOut)
+	dir := setup(t, runB, []int{-5, 17, 23, 41}, running, timedOut)
 	if out, err := signal(t, dir, runB); err != nil {
 		t.Fatalf("signal: %v\n%s", err, out)
 	}
@@ -266,6 +268,7 @@ func TestSOPV0013WorkflowBinding(t *testing.T) {
 		contains(t, "nightly-failure-signal if", cond, want)
 	}
 	contains(t, "nightly-failure-signal job", job, "    needs: [gate, linux-core]\n", "ref: ${{ github.sha }}",
+		"    concurrency:\n      group: nightly-failure-signal\n      cancel-in-progress: false\n",
 		"sparse-checkout: .github/nightly-signal\n", "persist-credentials: false\n",
 		"\n        run: sh trusted/.github/nightly-signal/signal.sh\n")
 	if strings.Count(job, "uses:") != 1 || strings.Count(job, "run:") != 1 {

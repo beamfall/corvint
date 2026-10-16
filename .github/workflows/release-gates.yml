@@ -290,6 +290,11 @@ jobs:
       (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    # One signal job at a time across runs (a rerun can overlap the next nightly), so two runs
+    # never both find no open issue and both open one.
+    concurrency:
+      group: nightly-failure-signal
+      cancel-in-progress: false
     permissions:
       actions: read
       contents: read
