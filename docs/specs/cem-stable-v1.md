@@ -201,9 +201,12 @@ passes the five scoped packages and all 54 applicable public full-result cases,
 with exact recursive comparison of all 21 frozen fields. The two historical
 Go 1.24.13 cases separately pass the original portable comparator on Darwin arm64;
 they are not Linux results. The repair build log retains these distinct runtime
-observations and the initial failed qualification harness runs. Linux amd64,
-portable standalone Linux, cross-device topology and escaped-session behaviour
-remain pending; external consumers, default promotion and release readiness are
+observations and the initial failed qualification harness runs. On 2026-10-16
+(V1-0650) cases 21 and 22 pass again on current source under the official Go 1.24.13
+toolchain on Darwin arm64, and the hosted ubuntu-24.04 amd64 `go-interop` job passes the
+portable package at package level (`docs/build-log/2026-10-16-s0e-go1.24.13-and-linux-lifecycle.md`).
+Per-test Linux amd64 results stay NOT_OBSERVED; cross-device topology and escaped-session
+behaviour remain NOT_RUN; all three are excluded from 1.0; external consumers, default promotion and release readiness are
 not claimed. Legacy Wait/Run is separate from the new Owner qualification. Canonical ordered fixtures do not qualify ordinary
 checkouts. Rollback disables the new optional operation and preserves earlier
 command defaults, candidate assembly, native task history and historical packet

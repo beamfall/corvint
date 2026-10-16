@@ -262,8 +262,9 @@ line-citations-check:
 line-citations-test:
 	@script/check-line-citations_test.sh
 
-# ci-least-privilege-check fails when .github/workflows/ci.yml's workflow-level permissions
-# stop being exactly `contents: read` (or a job-level block grants more), an actions/checkout step stops disabling persisted
+# ci-least-privilege-check fails when any tracked .github/workflows/*.yml workflow-level permissions
+# stop being exactly `contents: read` (or a job-level block grants more) without a matching row in
+# script/ci-least-privilege-exceptions.tsv, an actions/checkout step stops disabling persisted
 # credentials, or any `uses:` reference stops being pinned to a full 40-character commit SHA
 # (ARTIFACT-V0-008, docs/specs/release-artifact-integrity-v0.md).
 ci-least-privilege-check:

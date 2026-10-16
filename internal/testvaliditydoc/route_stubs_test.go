@@ -7,13 +7,16 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/jstestprovider"
 )
 
 type routeStubVectors struct {
 	Cases []struct {
-		Name     string            `json:"name"`
-		Receipt  json.RawMessage   `json:"receipt"`
-		Expected []json.RawMessage `json:"expected"`
+		Name                string            `json:"name"`
+		RouteStubsRequested bool              `json:"routeStubsRequested"`
+		Receipt             json.RawMessage   `json:"receipt"`
+		Expected            []json.RawMessage `json:"expected"`
 	} `json:"cases"`
 }
 
@@ -22,8 +25,18 @@ func routeStubDocument(t *testing.T, receipt []byte) Document {
 	return projectDocument(t, `{"receipt":`+string(receipt)+`,"testProjections":[],"runProjection":{}}`)
 }
 
-// LPCV-V0-073 LPCV-V0-074: every shared vector's routeStubs members, test by test, including the
-// required hit, zero-hit and record-absent cases.
+func requestedRouteStubDocument(t *testing.T, receipt []byte) Document {
+	t.Helper()
+	input, err := Decode([]byte(`{"receipt":` + string(receipt) + `,"testProjections":[],"runProjection":{}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ProjectRouteStubs(input)
+}
+
+// LPCV-V0-073 LPCV-V0-074 LPCV-V0-076 LPCV-V0-077: every shared vector's routeStubs members, test
+// by test, including the required hit, zero-hit, record-absent, websocket-and-har and
+// producer-absent-requested cases.
 func TestLPCVV0074RouteStubVectors(t *testing.T) {
 	raw, err := os.ReadFile("../../conformance/test-validity-v0/route-stubs.json")
 	if err != nil {
@@ -38,6 +51,9 @@ func TestLPCVV0074RouteStubVectors(t *testing.T) {
 		seen[vector.Name] = true
 		t.Run(vector.Name, func(t *testing.T) {
 			document := routeStubDocument(t, vector.Receipt)
+			if vector.RouteStubsRequested {
+				document = requestedRouteStubDocument(t, vector.Receipt)
+			}
 			if len(document.Tests) != len(vector.Expected) {
 				t.Fatalf("tests=%d expected=%d", len(document.Tests), len(vector.Expected))
 			}
@@ -56,7 +72,7 @@ func TestLPCVV0074RouteStubVectors(t *testing.T) {
 			}
 		})
 	}
-	for _, name := range []string{"hit", "zero-hit", "record-absent"} {
+	for _, name := range []string{"hit", "zero-hit", "record-absent", "websocket-and-har", "producer-absent-requested"} {
 		if !seen[name] {
 			t.Errorf("route-stubs.json is missing the required case %q", name)
 		}
@@ -111,5 +127,43 @@ func TestLPCVV0073RetainedRecordIsClosed(t *testing.T) {
 		if _, err := Decode([]byte(body)); err == nil {
 			t.Errorf("%s: retained record accepted", name)
 		}
+	}
+}
+
+// LPCV-V0-077: requesting the member states the producer-absent case explicitly, while the default
+// projection of the same receipt keeps every legacy byte and the request changes no other member.
+func TestLPCVV0077RequestedMemberKeepsDefaultBytes(t *testing.T) {
+	legacy := []byte(`{"kind":"e2e","tests":[{"name":"a","state":"passed","attemptDetails":[{"state":"passed","retry":0,"durationMs":1}]}]}`)
+	plain, err := json.Marshal(routeStubDocument(t, legacy))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(plain), "routeStubs") {
+		t.Fatalf("default projection gained routeStubs: %s", plain)
+	}
+	requested := requestedRouteStubDocument(t, legacy)
+	if got := requested.Tests[0].RouteStubs; got == nil || got.State != RouteStubsNotProduced || got.Reason != RouteStubProducerAbsent {
+		t.Fatalf("requested member = %+v", got)
+	}
+	requested.Tests[0].RouteStubs = nil
+	again, err := json.Marshal(requested)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(plain, again) {
+		t.Fatalf("request changed another member:\n%s\n%s", plain, again)
+	}
+}
+
+// LPCV-V0-077 LPCV-V0-078: a profiled receipt never carries the record, so a request states it as
+// NOT_PRODUCED with route-stub-external-profile; the default projection still omits the member.
+func TestLPCVV0078ProfiledReceiptRequestedIsExternalProfile(t *testing.T) {
+	receipt := jstestprovider.Receipt{Profile: jstestprovider.ExternalProfile, Kind: "e2e", Tests: []jstestprovider.TestOutcome{{Name: "a", State: jstestprovider.StatePassed}}}
+	if got := Project(Input{js: &receipt}).Tests[0].RouteStubs; got != nil {
+		t.Fatalf("default projection of a profiled receipt carries routeStubs: %+v", got)
+	}
+	got := ProjectRouteStubs(Input{js: &receipt}).Tests[0].RouteStubs
+	if got == nil || got.State != RouteStubsNotProduced || got.Reason != RouteStubExternalProfile {
+		t.Fatalf("requested member = %+v", got)
 	}
 }
