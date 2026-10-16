@@ -4,7 +4,8 @@ name: Release gates
 # platform as CI (decision 0320, AFP-V0-017). Each gate runs in its own job at the exact `sha`
 # input; `full-gate` runs on ubuntu-24.04 and macos-15. `release-checklist` reads the private
 # witnesses `make gate` records in its own clone, so it runs after `make gate` in each full-gate
-# job. `linux-core` runs the linux/amd64 Core platform evidence natively (decision 0420 item 2).
+# job. The `core-n1-replay-*` gates run the CCF-V1-007 N-1 replay (runbook step 8). `linux-core`
+# runs the linux/amd64 Core platform evidence natively (decision 0420 item 2).
 # Every log is an artifact with its sha256 beside it; nothing here pins, commits, or publishes.
 # `full-gate` runs `make -k gate`, so one failed step does not hide the steps after it, and the
 # schedule runs every job nightly on main's head under the release label `nightly`, without the
@@ -68,6 +69,17 @@ jobs:
             os: ubuntu-24.04
             timeout: 60
             command: make interop-gate
+          # Runbook step 8's CCF-V1-007 N-1 replay against each documented N-1 baseline, named
+          # explicitly rather than by ancestry: v1.0.0-rc.1 (decision 0434 item 3) and v0.8.1 (the
+          # CCF-V1-007 text and the CORE_N1_TAG default). Change them with that record (V1-1382).
+          - gate: core-n1-replay-v1.0.0-rc.1
+            os: ubuntu-24.04
+            timeout: 90
+            command: make core-n1-replay CORE_N1_TAG=v1.0.0-rc.1
+          - gate: core-n1-replay-v0.8.1
+            os: ubuntu-24.04
+            timeout: 90
+            command: make core-n1-replay CORE_N1_TAG=v0.8.1
           # The companion bundle targets darwin/arm64 and smoke-runs its installed binaries.
           - gate: companion-release
             os: macos-15
