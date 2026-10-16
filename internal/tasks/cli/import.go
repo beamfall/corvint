@@ -6,7 +6,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/importer"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
-	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -47,7 +46,7 @@ func importCommand(env Env, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	observed, err := snapshot.Probe(repo.StateDir)
+	observed, _, err := writerProbe(nil, repo.StateDir)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

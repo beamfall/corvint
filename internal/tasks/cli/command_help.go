@@ -108,6 +108,9 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if lockWaitVerbs[name] {
 		o.Set("lockWait", wire.String(lockWaitHelp))
 	}
+	if redoSettlingVerbs[name] {
+		o.Set("redoPending", wire.String(redoPendingHelp))
+	}
 	if name == "policy update" {
 		o.Set("fileFormat", wire.String("Canonical UTF-8 JSON: sorted object keys, no insignificant whitespace, and exactly one trailing LF."))
 		o.Set("versionRule", wire.String("The file policyVersion must equal --expected-policy-version plus one; the flag names the current version."))
@@ -193,6 +196,16 @@ func fullCommandHelp(cmd []string) *wire.Result {
 // lockWaitHelp documents the CAL-V0-111 --lock-wait of every lockWaitVerbs
 // command (CAL-V0-216, decision 0518, adds the other preparation-admitted writes).
 const lockWaitHelp = "--lock-wait SECONDS (whole seconds, 1..300; anything else refuses MALFORMED) waits up to that long for preparation admission and the store lock instead of the default 30 seconds, for this command only. It is not part of the request: after LOCK_TIMEOUT, resubmit the same request ID with the same arguments; that commits once or replays the committed receipt."
+
+// redoSettlingVerbs are the writers outside lockWaitVerbs whose pre-write
+// probe accepts a pending receipt and whose store writer settles it
+// (CAL-V0-260, CAL-V0-261); redoPendingHelp is their help (CAL-V0-262).
+var redoSettlingVerbs = map[string]bool{
+	"pause": true, "unpause": true, "policy update": true, "import": true, "cutover": true,
+	"ticket escalate": true, "ticket answer": true, "run": true, "health": true, "pool cleanup": true,
+}
+
+const redoPendingHelp = "A committed receipt that head.json does not name yet (REDO_PENDING, left by an interrupted writer) does not refuse this command: its writer settles that receipt under the store lock before its own write and reports the completed redo in a warning. A pending receipt the receipt audit does not validate as a redo is refused with the audit's own error. attempt run settles it at its first lease write, before launch; run --attach and every other read never settle one. Over a pending receipt, the policy update handoff fence preview is NOT_OBSERVED (REDO_PENDING) (CAL-V0-260..262)."
 
 // Usage is the single help inventory for each command's supported inputs.
 // Omitted verbs deliberately have no invented execution flags.

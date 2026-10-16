@@ -280,17 +280,13 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 	if err != nil {
 		return fail(err)
 	}
-	probe := env.leaseProbe
-	if probe == nil {
-		probe = snapshot.Probe
-	}
 	// The probe only names the queue. A committed receipt head.json does not
 	// name yet (REDO_PENDING) is not refused here: the lease writer settles
 	// it under the store lock before modelling this request, so a receipt a
 	// killed writer left cannot refuse every heartbeat while no other writer
 	// runs (CAL-V0-222, issue 860).
-	observed, err := probe(repo.StateDir)
-	if err != nil && !(wire.CodeOf(err) == wire.CodeRedoPending && observed != nil && observed.Head != nil) {
+	observed, _, err := writerProbe(env.leaseProbe, repo.StateDir)
+	if err != nil {
 		return fail(err)
 	}
 	queueID := observed.Head.QueueID.Raw
