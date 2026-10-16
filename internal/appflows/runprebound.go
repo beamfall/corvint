@@ -5,14 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 )
 
 // The Playwright adapters apply the AFU-V1-037 record, attempt, link and traversal bounds in one
 // streaming token pass before any document is decoded, so an over-bound report is never decoded.
-// The pass counts what the decode keeps: member names match case-insensitively and a repeated member
-// replaces the earlier one, as encoding/json decodes them, and it names the bound the decode would hit
-// first.
+// The pass counts what the decode keeps, matching member names case-insensitively as encoding/json
+// does, and names the bound the decode would hit first. A counted member that repeats in one object is
+// merged into the earlier value by the decode, which the pass does not model: it then abstains and
+// the post-decode checks apply.
 
 var errRunJSON = errors.New("run report is not valid JSON")
 
@@ -51,8 +53,9 @@ func (t runTally) check(appendFirst bool) error {
 // runScan reads a JSON run report token by token, refusing nesting deeper than maxRunDepth as it
 // descends.
 type runScan struct {
-	d     *json.Decoder
-	depth int
+	d        *json.Decoder
+	depth    int
+	repeated bool
 }
 
 func (s *runScan) token() (json.Token, error) {
@@ -87,12 +90,14 @@ func (s *runScan) skip(tok json.Token) error {
 	return nil
 }
 
-// object hands each member of the object tok opens to member with its key and first value token;
-// any other value is skipped.
-func (s *runScan) object(tok json.Token, member func(key string, tok json.Token) error) error {
+// object hands each member of the object tok opens whose name case-folds to names[i] to member with i
+// and its first value token, skipping every other member, and marks the scan repeated when one of
+// names occurs twice; any other value is skipped.
+func (s *runScan) object(tok json.Token, names []string, member func(i int, tok json.Token) error) error {
 	if tok != json.Delim('{') {
 		return s.skip(tok)
 	}
+	seen := make([]bool, len(names))
 	for {
 		key, err := s.token()
 		if err != nil || key == json.Delim('}') {
@@ -102,7 +107,15 @@ func (s *runScan) object(tok json.Token, member func(key string, tok json.Token)
 		if err != nil {
 			return err
 		}
-		if err = member(key.(string), value); err != nil {
+		i := slices.IndexFunc(names, func(name string) bool { return strings.EqualFold(key.(string), name) })
+		if i < 0 {
+			err = s.skip(value)
+		} else {
+			s.repeated = s.repeated || seen[i]
+			seen[i] = true
+			err = member(i, value)
+		}
+		if err != nil {
 			return err
 		}
 	}
@@ -127,12 +140,7 @@ func (s *runScan) array(tok json.Token, elem func(tok json.Token) error) error {
 
 // member reads the single member name of the object tok opens with read, skipping the rest.
 func (s *runScan) member(tok json.Token, name string, read func(tok json.Token) error) error {
-	return s.object(tok, func(key string, value json.Token) error {
-		if strings.EqualFold(key, name) {
-			return read(value)
-		}
-		return s.skip(value)
-	})
+	return s.object(tok, []string{name}, func(_ int, value json.Token) error { return read(value) })
 }
 
 // attempts reads one test's attempt array and returns the first attempt or link bound it breaks, in
@@ -171,6 +179,8 @@ func scanRun(raw []byte, appendFirst bool, root func(s *runScan, tok json.Token)
 	for first := true; ; first = false {
 		tok, err := s.token()
 		switch {
+		case err == io.EOF && s.repeated:
+			return nil
 		case err == io.EOF:
 			return tally.check(appendFirst)
 		case err != nil:
@@ -202,14 +212,11 @@ func (s *runScan) playwrightSuites(tok json.Token) (runTally, error) {
 	var all runTally
 	err := s.array(tok, func(tok json.Token) error {
 		var specs, nested runTally
-		err := s.object(tok, func(key string, tok json.Token) (err error) {
-			switch {
-			case strings.EqualFold(key, "specs"):
+		err := s.object(tok, []string{"specs", "suites"}, func(i int, tok json.Token) (err error) {
+			if i == 0 {
 				specs, err = s.playwrightSpecs(tok)
-			case strings.EqualFold(key, "suites"):
+			} else {
 				nested, err = s.playwrightSuites(tok)
-			default:
-				err = s.skip(tok)
 			}
 			return err
 		})
@@ -224,7 +231,6 @@ func (s *runScan) playwrightSpecs(tok json.Token) (runTally, error) {
 	err := s.array(tok, func(tok json.Token) error {
 		var tests runTally
 		err := s.member(tok, "tests", func(tok json.Token) error {
-			tests = runTally{}
 			return s.array(tok, func(tok json.Token) error {
 				bound := ""
 				err := s.member(tok, "results", func(tok json.Token) (err error) {
@@ -245,12 +251,11 @@ func (s *runScan) playwrightSpecs(tok json.Token) (runTally, error) {
 // located entries of errors, or of error when errors is empty.
 func (s *runScan) playwrightLinks(tok json.Token) (int, error) {
 	attachments, errs, located, fallback := 0, 0, 0, 0
-	err := s.object(tok, func(key string, tok json.Token) (err error) {
-		switch {
-		case strings.EqualFold(key, "attachments"):
+	err := s.object(tok, []string{"attachments", "errors", "error"}, func(i int, tok json.Token) (err error) {
+		switch i {
+		case 0:
 			attachments, err = s.count(tok)
-		case strings.EqualFold(key, "errors"):
-			errs, located = 0, 0
+		case 1:
 			err = s.array(tok, func(tok json.Token) error {
 				errs++
 				ok, err := s.playwrightLocated(tok)
@@ -259,15 +264,11 @@ func (s *runScan) playwrightLinks(tok json.Token) (int, error) {
 				}
 				return err
 			})
-		case strings.EqualFold(key, "error"):
+		default:
 			var ok bool
-			ok, err = s.playwrightLocated(tok)
-			fallback = 0
-			if ok {
+			if ok, err = s.playwrightLocated(tok); ok {
 				fallback = 1
 			}
-		default:
-			err = s.skip(tok)
 		}
 		return err
 	})
@@ -293,7 +294,6 @@ func playwrightReceiptBounded(raw []byte) error {
 	return scanRun(raw, false, func(s *runScan, tok json.Token) (tally runTally, err error) {
 		err = s.member(tok, "receipt", func(tok json.Token) error {
 			return s.member(tok, "tests", func(tok json.Token) error {
-				tally = runTally{}
 				return s.array(tok, func(tok json.Token) error {
 					bound := ""
 					err := s.member(tok, "attemptDetails", func(tok json.Token) (err error) {
@@ -312,20 +312,15 @@ func playwrightReceiptBounded(raw []byte) error {
 // receiptLinks counts one attempt detail's anchor and artifacts.
 func (s *runScan) receiptLinks(tok json.Token) (int, error) {
 	anchor, artifacts := 0, 0
-	err := s.object(tok, func(key string, tok json.Token) (err error) {
-		switch {
-		case strings.EqualFold(key, "anchor"):
-			anchor = 0
-			if tok == json.Delim('{') {
-				anchor = 1
-			}
-			err = s.skip(tok)
-		case strings.EqualFold(key, "artifacts"):
+	err := s.object(tok, []string{"anchor", "artifacts"}, func(i int, tok json.Token) (err error) {
+		if i == 1 {
 			artifacts, err = s.count(tok)
-		default:
-			err = s.skip(tok)
+			return err
 		}
-		return err
+		if tok == json.Delim('{') {
+			anchor = 1
+		}
+		return s.skip(tok)
 	})
 	return anchor + artifacts, err
 }

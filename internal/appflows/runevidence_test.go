@@ -349,6 +349,10 @@ func TestAFUV1RunEvidenceBoundsIncomplete(t *testing.T) {
 	// keeping its attempts, the receipt keeps them first, and each names the bound its decode hits first.
 	playwrightLast := strings.TrimSuffix(playwright(maxRunRecords, 1, 0), `]}]}`) + "," +
 		strings.TrimPrefix(playwright(1, maxRunAttempts+1, 0), `{"suites":[{"file":"f.spec.ts","specs":[`)
+	// The decode keeps the first error's location when a repeated error member omits it.
+	mergedError := strings.Replace(playwright(1, maxRunAttempts+1, 0), `{"status":"passed","attachments":[]}`,
+		strings.TrimSuffix(strings.TrimPrefix(playwright(1, 1, maxRunLinks), `{"suites":[{"file":"f.spec.ts","specs":[{"title":"t","tests":[{"results":[`), `}]}]}]}]}`)+
+			`,"error":{"location":{"file":"f","line":1}},"error":{}}`, 1)
 	receiptLast := strings.TrimSuffix(receipt(maxRunRecords, 1, 0), `]}}`) + "," + strings.TrimPrefix(receipt(1, maxRunAttempts+1, 0), `{"receipt":{"tests":[`)
 	cases := []struct{ format, raw, code string }{
 		{FormatGoTestJSON, strings.Repeat(" ", MaxBytes+1), BoundBytes},
@@ -371,6 +375,7 @@ func TestAFUV1RunEvidenceBoundsIncomplete(t *testing.T) {
 		{FormatPlaywrightReceipt, receipt(1, 1, maxRunLinks), BoundLinks},
 		{FormatPlaywrightReceipt, `{"receipt":` + nested + `}`, BoundTraversal},
 		{FormatPlaywrightJSON, playwrightLast, BoundRecords},
+		{FormatPlaywrightJSON, mergedError, BoundLinks},
 		{FormatPlaywrightReceipt, receiptLast, BoundAttempts},
 		{FormatJUnitXML, junitCases(maxRunRecords+1, ""), BoundRecords},
 		{FormatJUnitXML, junitCases(1, strings.Repeat(`<rerunFailure/>`, maxRunAttempts+1)), BoundAttempts},
@@ -383,8 +388,9 @@ func TestAFUV1RunEvidenceBoundsIncomplete(t *testing.T) {
 			t.Errorf("%s %s (%d bytes): got %q with %d records, err %v", c.format, c.code, len(c.raw), got.Incomplete, len(got.Records), err)
 		}
 	}
-	// The pre-decode pass counts what the decode keeps: unlocated errors are not links, a repeated
-	// member replaces the earlier one, and member names match case-insensitively.
+	// The pre-decode pass counts what the decode keeps: unlocated errors are not links and member names
+	// match case-insensitively. The decode merges a repeated member into the earlier value, so the pass
+	// abstains there and the post-decode checks decide.
 	unlocated := strings.Repeat(`{"message":"x"},`, maxRunLinks) + `{"message":"x"}`
 	repeated := func(name string) string {
 		return strings.TrimSuffix(playwright(1, maxRunAttempts+1, 0), `}]}]}]}`) + `,"` + name + `":[{"status":"passed"}]}]}]}]}`
@@ -398,6 +404,8 @@ func TestAFUV1RunEvidenceBoundsIncomplete(t *testing.T) {
 		strings.Replace(playwright(1, 1, 0), `"attachments":[]`, `"errors":[`+unlocated+`],"error":{"location":{"file":"a","line":1}}`, 1),
 		repeated("results"),
 		repeated("RESULTS"),
+		strings.Replace(strings.TrimSuffix(playwright(1, 1, maxRunLinks), `}]}]}]}]}`), `{"results":[`, `{"results":[{"errors":[{}]}],"results":[`, 1) +
+			`,"error":{"location":{"file":"f","line":1}}}]}]}]}]}`,
 	} {
 		got, err := IngestRunEvidence(FormatPlaywrightJSON, []byte(raw), runHeader())
 		if err != nil || got.Incomplete != "" || len(got.Records) == 0 {
