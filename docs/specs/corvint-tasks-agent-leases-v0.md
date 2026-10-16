@@ -6671,8 +6671,9 @@ makes the effective value visible and states when a heartbeat is redundant.
 - `CAL-V0-277`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1511) The verbose
   help of `attempt heartbeat` MUST state that a successful current-generation `renew` records the
   same signal (CAL-V0-231), so a holder that renews more often than the effective
-  `heartbeatTTLSeconds` need not also send a heartbeat, and that a heartbeat in the same tick as a
-  renew writes the same `lastHeartbeatAt` and changes no `holderStatus`. It MUST also state that
+  `heartbeatTTLSeconds` need not also send a heartbeat, and that a heartbeat recorded at the same
+  instant as a renew writes the same `lastHeartbeatAt` and changes no `holderStatus` (separate CLI
+  calls sample their own time, so a paired heartbeat only moves the signal by the gap). It MUST also state that
   freshness follows the last recorded signal, not the work lease: a holder whose lease outlasts the
   TTL reads `STALE_HOLDER` once the TTL passes without a renew or heartbeat. The verbose help of
   `renew` MUST say not to pair a heartbeat with each renew, and that a renew-only holder never reads
@@ -6693,8 +6694,8 @@ Non-goals: a new policy key or new TTL bounds (CAL-V0-120 owns both); changing t
 renew writers, the `attempt run` 240-second heartbeat interval, or receipt retention (V1-1508);
 automatic hand-off of stale holders (CAL-V0-121).
 
-Failure modes: a caller that lengthens `--lease-minutes` past the TTL and drops its heartbeats reads
-`STALE_HOLDER` between renews; the help states the condition. A TTL change is a policy change.
+Failure modes: a caller that lengthens `--lease-minutes` past the TTL, drops its heartbeats and renews
+less often than the TTL reads `STALE_HOLDER` between renews; the help states the condition. A TTL change is a policy change.
 CAL-V0-123 makes it compatible with evidence handoffs, but `complete` of an attempt claimed under
 the earlier policy still refuses `STALE_POLICY` (the claim binds `policySha256`), so set the TTL
 before claims. An older binary refuses a policy carrying `holderLiveness` (CAL-V0-120 rollback).
@@ -6702,7 +6703,7 @@ before claims. An older binary refuses a policy carrying `holderLiveness` (CAL-V
 Acceptance evidence: `TestCALV0277_RenewOnlyHolderNeverReadsStale` classifies every second of a
 backdated four-holder timeline under the default TTL. The renew-only holder never reads
 `STALE_HOLDER`, before or after its last renew. The paired holder records the same signal and
-status at every second. The 30-minute-lease holder renewing every 540 s never reads stale. The
+status at every second. The 30-minute-lease holder renewing every 540 s never reads stale while it keeps renewing. The
 holder renewing every 1080 s reads stale for exactly 1680 s inside its lease.
 `TestCALV0278_PolicyShowEffectiveTTL` holds the default policy bytes and digest unchanged with
 `heartbeatTTLSeconds` `"600"`. In it, a 1500-second heartbeat cadence reads stale 1800 of 3000

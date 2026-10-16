@@ -667,7 +667,7 @@ observation TTL is 600 seconds unless the policy sets `{"holderLiveness":{"heart
 with N from 300 to 86400 (CAL-V0-120); reads and `policy show` report the effective value as
 `heartbeatTTLSeconds` (CAL-V0-278). Heartbeat does not renew the work lease. A successful
 current-generation renew records the same signal (CAL-V0-231), so a holder that renews more often
-than the TTL need not also heartbeat: a heartbeat in the same tick as a renew changes no status.
+than the TTL need not also heartbeat: a paired heartbeat only records the signal again.
 Freshness follows the last signal, not the lease, so a lease longer than the TTL still needs a renew
 or heartbeat within each TTL (CAL-V0-277). `attempt show` and
 `queue status` report FRESH_HOLDER or STALE_HOLDER for a recorded signal with a live work lease,

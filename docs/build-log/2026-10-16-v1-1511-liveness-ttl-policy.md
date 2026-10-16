@@ -35,7 +35,8 @@ So this lane adds no policy key and no bound, and changes no writer.
 
 - CAL-V0-277 (help). The heartbeat help states:
   - a renew records the same signal;
-  - a heartbeat sent in the same tick as a renew changes no `holderStatus`;
+  - a heartbeat recorded at the same instant as a renew changes no `holderStatus`; a paired call a
+    moment later only moves the signal by that gap;
   - freshness follows the last signal, not the lease.
 
   The renew help says not to pair the two. It also states the exact condition under which a
@@ -47,8 +48,9 @@ So this lane adds no policy key and no bound, and changes no writer.
   its lease. That is the documented meaning of the observation (a missing recent signal), not a
   defect, and the help now says so.
 - CAL-V0-278 (`policy show`). The item gains a sibling `heartbeatTTLSeconds` member holding the
-  effective value. It sits outside `policy`, so the policy bytes, `policySha256` and the CAL-V0-050
-  item shape stay unchanged for existing policies.
+  effective value. It sits outside `policy`, so for existing policies the policy bytes,
+  `policySha256` and every CAL-V0-050 member stay unchanged; the new member is an additive output
+  extension.
 - `docs/TASKS-EXTERNAL-AGENTS.md`:
   - It now carries the same guidance.
   - It corrects a stale sentence that said a TTL change fences live evidence handoffs
@@ -65,7 +67,7 @@ So this lane adds no policy key and no bound, and changes no writer.
   - The renew-only holder (10-minute lease) never reads stale.
   - The holder that pairs a heartbeat with each renew records the identical `lastHeartbeatAt` after
     every tick and the identical status at every second.
-  - A 30-minute-lease holder renewing every 540 s never reads stale.
+  - A 30-minute-lease holder renewing every 540 s never reads stale while it keeps renewing.
   - A 30-minute-lease holder renewing every 1080 s reads stale for exactly 1680 s inside its lease.
   - Live `attempt show` reads agree: FRESH, FRESH, FRESH, then STALE under TTL `"600"`.
 - `TestCALV0278_PolicyShowEffectiveTTL` checks three things:
@@ -89,3 +91,18 @@ Limits:
 - No live fleet or keeper qualification was run (NOT_RUN).
 - The keeper's pairing is the caller's code and is not changed here.
 - The 240 s `attempt run` heartbeat interval is unchanged.
+
+## Review
+
+One Codex round (read-only) found no functional defect and three wording findings, all fixed:
+
+1. Medium. "Same tick" overclaimed identical signals: separate CLI calls sample their own time. The
+   help, spec and docs now limit equality to a heartbeat recorded at the same instant, and say a
+   paired call a moment later only moves the signal by that gap. The test still writes both at one
+   `recordedAt`, which is the case it proves.
+2. Low. Two statements about long leases were not qualified by renew cadence. The failure mode now
+   requires renews less often than the TTL, and the 540 s holder claim is limited to while it keeps
+   renewing.
+3. Low. This entry called the `policy show` item shape unchanged; it now says the existing members
+   are unchanged and the new member is an additive extension.
+
