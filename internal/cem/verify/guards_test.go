@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/patch"
@@ -105,6 +106,31 @@ func TestTCQV0062CitationNeedsAStableBaseHeader(t *testing.T) {
 	pkg = loadGoPackage(tree, "p", func(string) []byte { return []byte(guardTests) })
 	if got := pkg.citation(tree, []string{"TestOther"}); got != nil {
 		t.Fatalf("ambiguous header cited: %+v", got)
+	}
+}
+
+// TestTCQV0063PlanRowRespectsTheCiteSpanBound pins that a guard whose header
+// span exceeds the cem cite bound, wire.MaxCitationSpanBytes, is never
+// printed, the next guard by name is cited instead, and a header exactly at
+// the bound is still cited.
+func TestTCQV0063PlanRowRespectsTheCiteSpanBound(t *testing.T) {
+	header := func(size int) string {
+		prefix, suffix := "func TestBig(t *testing.T /*", "*/) {\n"
+		return prefix + strings.Repeat("x", size-len(prefix)-len(suffix)) + suffix + "\t_ = Other()\n}\n"
+	}
+	for _, c := range []struct {
+		size int
+		want *GuardCitation
+	}{
+		{wire.MaxCitationSpanBytes, &GuardCitation{Path: "p/p_test.go", Lines: "29:29", Test: "TestBig"}},
+		{wire.MaxCitationSpanBytes + 1, &GuardCitation{Path: "p/p_test.go", Lines: "11:11", Test: "TestOther"}},
+	} {
+		tests := guardTests + "\n" + header(c.size)
+		tree := writeGuardTree(t, map[string]string{"p/p.go": guardSource, "p/p_test.go": tests})
+		pkg := loadGoPackage(tree, "p", func(string) []byte { return []byte(tests) })
+		if got := pkg.citation(tree, []string{"TestBig", "TestOther"}); !reflect.DeepEqual(got, c.want) {
+			t.Fatalf("header of %d bytes: citation = %+v, want %+v", c.size, got, c.want)
+		}
 	}
 }
 

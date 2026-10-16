@@ -19,6 +19,10 @@ const (
 	HunkPrefix     = "hunk:sha256:"
 )
 
+// MaxCitationSpanBytes bounds one evidence span: cem cite refuses a longer
+// span and the guarding-test search never prints one (TCQ-V0-063).
+const MaxCitationSpanBytes = 1 << 20
+
 // Relations enumerates the frozen basis relations.
 var Relations = map[string]bool{
 	"call-site": true, "decision": true, "dependency": true, "implementation": true,

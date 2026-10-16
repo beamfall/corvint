@@ -377,8 +377,8 @@ func (s *Session) Cite(ctx context.Context, options CiteOptions) (map[string]any
 	if err != nil {
 		return nil, err
 	}
-	if span.End-span.Start > maxCitationSpanBytes {
-		return nil, invalidArguments("evidence spans are limited to %d bytes", maxCitationSpanBytes)
+	if span.End-span.Start > wire.MaxCitationSpanBytes {
+		return nil, invalidArguments("evidence spans are limited to %d bytes", wire.MaxCitationSpanBytes)
 	}
 	index, err := resolveHunk(document, options.Hunk)
 	if err != nil {

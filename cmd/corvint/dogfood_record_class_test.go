@@ -49,7 +49,7 @@ func TestDogfoodDCWV0058RecordChangeBindsChecksAndSeals(t *testing.T) {
 		`{"name": "cem-cite", "status": "PRODUCED", "reason": "none"}`,
 		"\n  \"ocmStatus\": {\"state\": \"NOT_ASSESSED\", \"reason\": \"no-intent-declared\"}\n",
 	} {
-		if code != 0 || stdout != "" || stderr != absentAgentReceipts || !strings.Contains(string(report), want) {
+		if code != 0 || stdout != "" || dropGuardingNote(stderr) != absentAgentReceipts || !strings.Contains(string(report), want) {
 			t.Fatalf("change exit=%d stderr=%s want %s in report=%s", code, stderr, want, report)
 		}
 	}
