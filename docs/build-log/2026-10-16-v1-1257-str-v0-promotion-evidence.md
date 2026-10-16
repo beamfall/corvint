@@ -1,4 +1,4 @@
-# 2026-10-16 STR-V0 promotion evidence: Session Test Runner V0 to implemented (V1-1257)
+# 2026-10-16 STR-V0 promotion evidence: measurements met, status stays experimental (V1-1257)
 
 Human-owned intent: `docs/specs/session-test-runner-v0.md`, "Acceptance evidence: promotion and
 kill criteria". Promotion from experimental needs:
@@ -28,7 +28,7 @@ left a shell declaration gap; V1-1373 (merged `c77b51c6`, 2026-10-14T19:14:09Z) 
 | AC1 parity | Met. 50 local pairs and 142 hosted shadow runs. 0 `UNEXPLAINED`, 0 `MISS`, 0 `TARGET_MISMATCH`. |
 | AC2 20-PR bar | Met, 20 of 20: #914-#938 after the trip cleared, all with complete `CLEAN` PR and queue rows, no shadow limits and no AFP-V0-030 trip during their span. One owner reading is flagged below. |
 | AC3 timing | Met as observed: three windows with their sample sizes. Hosted billing and queue time are `NOT_OBSERVED`. |
-| AC4 promotion | Done, with the status written as `implemented`, qualified (wording flagged below). |
+| AC4 promotion | NOT done. AC1 to AC3 are met, but `implemented` needs executable evidence for every in-scope requirement, and STR-V0-004's versioned capability manifest and STR-V0-011 have none. The status stays `experimental`, with the evidence cited. |
 | AC5 balanced placement | Unpromoted. The local bar is `NOT_RUN`; there is no accepted AFP-V0-028 amendment. No `.github/` edit. |
 | Kill criteria | Not fired: no unexplained parity difference, no runner-caused queue `MISS`, and no balanced-placement measurement. |
 
@@ -95,7 +95,7 @@ The hosted comparison is `shadow-parity.tsv`, produced by `scripts/parity.sh` ov
 This `parity.sh` copy differs from the earlier lane's in one way: a missing document produces a
 `NOT_OBSERVED` row instead of a stop.
 
-Coverage: 142 runs and 1137 shard rows. 1115 rows are `subset`. 21 are `NOT_OBSERVED`:
+Coverage: 142 runs and 1136 shard rows (142 x 8). 1115 rows are `subset`. 21 are `NOT_OBSERVED`:
 
 - runs 38753717156 and 38891438019 retained no outcomes;
 - runs 38677974865 and 38796527286 each lack 2 outcomes;
@@ -105,12 +105,12 @@ Results:
 
 - 0 `TARGET_MISMATCH`, 0 `UNEXPLAINED`, 0 `MISS`;
 - selected-not-executed is 0;
-- the argv prefix is identical everywhere;
+- the argv prefix is identical in every observed comparison;
 - all 16 driver package failures were selected (failed-not-selected 0);
 - executed-not-selected totals 14,265, because the driver still runs every shard in full.
 
-Shadow exit 3 occurs only for the pre-V1-1373 shell limit: 184 shards in 23 runs. Every other
-shard exits 0. Slice identity was not rechecked; the 2026-10-14 entry covered it.
+Among observed shards, shadow exit 3 occurs only for the pre-V1-1373 shell limit: 184 shards in 23
+runs. Every other observed shard exits 0. Slice identity was not rechecked; the 2026-10-14 entry covered it.
 
 ## AC2: switch, epoch and the 20-PR count
 
@@ -144,7 +144,7 @@ AFP-V0-030 has no runtime implementation yet; `.github/forward-rows/bar.jq` comp
 advisory count. `bar-replay.tsv` replays `bar.jq` over the newest-first row names at every row's
 creation time.
 
-- It reads `TRIPPED` (3 `INCOMPLETE`, 0 `MISS`) at 22 replay points, from 2026-10-15T05:46:08Z to
+- It reads `TRIPPED` (3 to 7 `INCOMPLETE`, 0 `MISS`) at 22 replay points, from 2026-10-15T05:46:08Z to
   13:23:10Z.
 - It reads clear at every point since.
 - Latest state: 20 complete, 1 failing, clear.
@@ -237,26 +237,33 @@ and post; the Go tests step is excluded.
 - runs before 2026-10-11;
 - wall time of pushes before the final head.
 
-## AC4: promotion
+## AC4: promotion not made
 
-`Delivery status` moves from `experimental` to `implemented`, qualified. The edits are:
+AC1 to AC3 are met, but the status cannot honestly move. `docs/SPEC-DRIVEN-DEVELOPMENT.md`
+defines `implemented` as all in-scope requirements having executable evidence, and two
+requirements lack it:
 
-- the spec header and digest status, and the `README.md` and `INDEX.json` rows generated from them
-  by `make spec-requirements`;
-- the digest "Blocked on" line;
-- a promotion note in rollout step 3;
-- the STR-V0-013 and STR-V0-016 traceability cells, since hosted shadow runs are now observed.
+- **STR-V0-004** requires a versioned capability manifest per adapter, the LPCV-V0-021 subset. Its
+  traceability row says there is "no versioned LPCV-V0-021 capability manifest yet (partial)".
+- **STR-V0-011** (no reader other than `verify-shards`) holds "by construction"; no test asserts it.
+
+The independent review found this (finding 1 below). Building the manifest is adapter code outside
+this evidence lane. Narrowing STR-V0-004 would amend an accepted requirement, which needs the owner.
+
+What changed instead:
+
+- **Status:** `Delivery status` stays `experimental`. Its qualifier now cites this entry and names
+  the gap; the digest status matches it, and `README.md` and `INDEX.json` are regenerated.
+- **Digest "Blocked on" line:** it names the STR-V0-004 and STR-V0-011 evidence, the AFP-V0-029 bar
+  for CI narrowing, and the balanced-placement bars. The bar was met at 2026-10-14T17:59:52Z and
+  reads NOT MET again at 1/5 failing rows.
+- **Rollout step 3:** it records the promotion measurements.
+- **Traceability:** the STR-V0-013 and STR-V0-016 cells cite this evidence; hosted shadow runs are
+  now observed.
 
 No requirement text changed.
 
-The qualification keeps three facts visible:
-
-- In CI, `corvint test` is still a shadow dry-run that decides nothing.
-- Narrowing still waits for the AFP-V0-029 bar and V1-0812. The bar was met at
-  2026-10-14T17:59:52Z and is NOT MET again at 1/5 failing rows.
-- Balanced placement is unpromoted.
-
-Rollback: revert this entry's status commit. It changes no code, CI configuration or selection.
+Rollback: revert this entry's commit. It changes no code, CI configuration or selection.
 
 ## AC5: balanced placement
 
@@ -274,7 +281,10 @@ Rollback: revert this entry's status commit. It changes no code, CI configuratio
    - A latching reading would need a new epoch (an `.github/` change) and 20 more PRs.
    - The trip came from hosted "Set up job" failures, with 0 `MISS`.
 2. **Wording.** The ticket and the charter say "delivered". `docs/SPEC-DRIVEN-DEVELOPMENT.md` has no
-   such status, so the closest status, `implemented`, is used.
+   such status; the closest is `implemented`.
+3. **STR-V0-004 and STR-V0-011.** Choose one:
+   - fund the versioned Go adapter capability manifest and a test for STR-V0-011, then promote; or
+   - accept an amendment that scopes the manifest out of V0, then promote on this evidence.
 
 ## Residuals
 
@@ -290,4 +300,24 @@ Rollback: revert this entry's status commit. It changes no code, CI configuratio
 
 ## Review
 
-Pending: one Codex round.
+One Codex round (`codex exec -s read-only`, diff `08195a48..13ab87aa5`) reported three findings.
+
+1. **High.** `implemented` contradicted STR-V0-004's partial traceability row and the vocabulary's
+   "all in-scope requirements" definition.
+   - Fixed: the status was reverted to a qualified `experimental` (AC4 above). STR-V0-011 was
+     found in the same pass.
+2. **Low.** The hosted row count included the TSV header, and the claims of identical argv and
+   exit 0 were not limited to observed shards.
+   - Fixed: 1136 rows, and the claims are now limited to observed comparisons.
+3. **Low.** The tripped replay points carry 3 to 7 `INCOMPLETE` rows, not 3.
+   - Fixed.
+
+Codex reproduced these:
+
+- 219 `CLEAN` and 7 `INCOMPLETE` forward rows;
+- the counted 20 PRs' rows;
+- the 307 parity differences over 50 pairs;
+- the timing medians and p90s;
+- the shadow-step cost.
+
+It confirmed that no accepted requirement text changed.

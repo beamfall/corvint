@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-11
 Requirement prefix: `STR-V0`
 Intent status: accepted (decision 0524; V1-0040)
-Delivery status: implemented (V1-1257 promotion evidence, `docs/build-log/2026-10-16-v1-1257-str-v0-promotion-evidence.md`: STR-V0-013 parity with no `UNEXPLAINED` difference, 20 queue-merged PRs on the epoch-1 CI shadow call site with complete forward rows and no AFP-V0-030 trip, PR wall time and runner-minutes before and after; `make gate-affected` runs `corvint test`; in CI it stays a shadow dry-run that narrows nothing before the AFP-V0-029 bar and V1-0812; balanced placement unpromoted)
+Delivery status: experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate; slice 3: `make gate-affected` on `corvint test`, CI shadow dry-run beside the driver; V1-1257: the promotion measurements are met, `docs/build-log/2026-10-16-v1-1257-str-v0-promotion-evidence.md`, but STR-V0-004's versioned capability manifest and STR-V0-011 have no executable evidence yet)
 Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 2026-10-11);
 `docs/specs/affected-plan-v0.md` (AFP-V0-011..013, 022, 023, 028..030, 041);
 `docs/specs/live-proof-carrying-verification-v0.md` (LPCV-V0-021..026);
@@ -12,9 +12,9 @@ Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 
 
 ## Agent digest
 - Claim: `corvint test` plans from the diff, runs only selected tests through runner adapters, shards deterministically, and falls back alike locally and in CI.
-- Status: accepted (decision 0524; V1-0040)/implemented (V1-1257 promotion evidence, `docs/build-log/2026-10-16-v1-1257-str-v0-promotion-evidence.md`: STR-V0-013 parity with no `UNEXPLAINED` difference, 20 queue-merged PRs on the epoch-1 CI shadow call site with complete forward rows and no AFP-V0-030 trip, PR wall time and runner-minutes before and after; `make gate-affected` runs `corvint test`; in CI it stays a shadow dry-run that narrows nothing before the AFP-V0-029 bar and V1-0812; balanced placement unpromoted)
+- Status: accepted (decision 0524; V1-0040)/experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate; slice 3: `make gate-affected` on `corvint test`, CI shadow dry-run beside the driver; V1-1257: the promotion measurements are met, `docs/build-log/2026-10-16-v1-1257-str-v0-promotion-evidence.md`, but STR-V0-004's versioned capability manifest and STR-V0-011 have no executable evidence yet)
 - Exists: `corvint test` (`cmd/corvint/test.go`, `internal/sessiontest`), behind `make gate-affected` through `script/gate-affected-corvint.sh` (slice 3; `script/gate-affected.sh` stays as the rollback); in CI a shadow `--profile ci --dry-run` step beside the deciding driver `tools/corvint-pr-tests` with `tools/gate-affected-select`, built from its own pin `CORVINT_TEST_SHADOW_SOURCE` (AFP-V0-047) while the driver pins stay empty, so it plans and retains each PR shard's selection without deciding; `.github/cishards` (complete-universe partition and test slices), `cmd/corvint-go-test-provider` (experimental Go execute provider).
-- Blocked on: CI narrowing waits for the AFP-V0-029 shadow bar (met at 2026-10-14T17:59:52Z, NOT MET again at 1/5 failing rows on 2026-10-16) and V1-0812 before `corvint test` decides or narrows anything in CI; balanced placement stays unpromoted until the local 20% bar is measured or an accepted AFP-V0-028 amendment defines the CI comparison; the AFP-V0-011 list stays `NOT_OBSERVED`; the full-suite commands are declared in `.github/cishards/test-commands.json`, kept equal to `make go-test` by `make test-commands-check`.
+- Blocked on: `implemented` waits for executable evidence of STR-V0-004's versioned LPCV-V0-021 capability manifest and of STR-V0-011 (no other `corvint test` reader), or an owner amendment narrowing them; CI narrowing waits for the AFP-V0-029 shadow bar (met at 2026-10-14T17:59:52Z, NOT MET again at 1/5 failing rows on 2026-10-16) and V1-0812 before `corvint test` decides or narrows anything in CI; balanced placement stays unpromoted until the local 20% bar is measured or an accepted AFP-V0-028 amendment defines the CI comparison; the AFP-V0-011 list stays `NOT_OBSERVED`; the full-suite commands are declared in `.github/cishards/test-commands.json`, kept equal to `make go-test` by `make test-commands-check`.
 - Read next: Requirements; Boundaries and failure modes; Rollout and rollback.
 
 ## User and verified baseline
@@ -362,13 +362,14 @@ above, which removes balanced placement only.
    shard in full, and nothing narrows until the AFP-V0-029 bar is met and V1-0812 lands.
    Promotion evidence (V1-1257, 2026-10-16): parity over the retained corpus and 142 hosted shadow
    runs with no `UNEXPLAINED` difference or `MISS`, 20 queue-merged epoch-1 PRs with complete
-   forward rows and no AFP-V0-030 trip, and observed before and after timing; the delivery status
-   moves to implemented while this step stays a shadow.
+   forward rows and no AFP-V0-030 trip, and observed before and after timing. The delivery status
+   stays experimental until the STR-V0-004 manifest and STR-V0-011 have executable evidence; this
+   step stays a shadow.
 4. Balanced placement executes locally; in CI it is computed and retained while universe
    placement executes, until an accepted AFP-V0-028 amendment says otherwise.
 5. Further adapters, each with its own fixture qualification, before its language may narrow.
 
-Rollback of the V1-1257 status change: revert its commit; it changes no code, CI or selection.
+Rollback of the V1-1257 evidence edits: revert their commit; they change no code, CI or selection.
 Rollback: restore the previous call site (`script/gate-affected.sh`, `tools/corvint-pr-tests`),
 which this spec leaves in place until step 3 is promoted. For slice 3: point the `gate-affected`
 target back at `GO_TEST_COMMAND='$(GO_TEST_COMMAND)' script/gate-affected.sh "$(BASE)"` (the
