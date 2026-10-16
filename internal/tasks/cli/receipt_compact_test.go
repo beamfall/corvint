@@ -11,12 +11,12 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestCALV0272_ReceiptCompactCLI: `receipt compact` is opt-in and refuses
+// TestCALV0302_ReceiptCompactCLI: `receipt compact` is opt-in and refuses
 // any argument but --dry-run. A dry run reports the superseded heartbeats
 // and writes nothing; the real run elides them, after which receipt audit,
 // doctor and a replay of an elided heartbeat still succeed, and a rerun
 // finds nothing new.
-func TestCALV0272_ReceiptCompactCLI(t *testing.T) {
+func TestCALV0302_ReceiptCompactCLI(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	// leaseCLIStore claims at base+10m with a five-minute lease.
 	root, claims := leaseCLIStore(t, 1, now.Add(-11*time.Minute))

@@ -87,7 +87,7 @@ func reviewInputs(repo *intent.Repository, env *mutation.Envelope, records map[s
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		// An elided liveness receipt (CAL-V0-270) changes only its
+		// An elided liveness receipt (CAL-V0-300) changes only its
 		// attempt's liveness members, so it posts no BUILT phase and no
 		// artifact link; its chain link is still checked.
 		if at > seq {
@@ -192,7 +192,7 @@ func ReceiptBindingFold(repo *intent.Repository) func(*snapshot.Receipt, wire.Di
 
 func foldReceipts(repo *intent.Repository, last uint64, pending []byte, step func(*snapshot.Receipt, wire.Digest) error) (err error) {
 	// The walk starts at receipt 1, so an elided liveness receipt is folded
-	// as its restored original (CAL-V0-271).
+	// as its restored original (CAL-V0-301).
 	restore := &snapshot.ReceiptRestorer{}
 	fold := func(raw []byte) error {
 		rc, original, err := restore.Next(raw)

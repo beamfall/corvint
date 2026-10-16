@@ -32,7 +32,7 @@ type chain struct {
 	// request paths are retained history the tail must not repeat.
 	elided *WriterCheckpoint
 	// restore rebuilds elided liveness receipts (taskman-receipt/1,
-	// CAL-V0-271) on a complete walk from receipt 1. A walk resumed from a
+	// CAL-V0-301) on a complete walk from receipt 1. A walk resumed from a
 	// checkpoint has none: it refuses a tombstone as an unusable checkpoint so
 	// the caller falls back to the complete walk.
 	restore *snapshot.ReceiptRestorer

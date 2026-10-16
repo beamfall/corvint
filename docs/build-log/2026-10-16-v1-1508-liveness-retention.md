@@ -3,7 +3,7 @@
 V1-1508 ([issue 982](https://github.com/beamfall/corvint/issues/982)) reports that heartbeat and
 renew receipts are kept forever. On one real queue they were 61 % of receipts and 67 % of receipt
 bytes. The owner chose option 2, "elide in place", opt-in (owner, 2026-10-16, in-session choice).
-That choice is recorded as decision 0538 and as the spec amendment CAL-V0-270..274 in
+That choice is recorded as decision 0538 and as the spec amendment CAL-V0-300..274 in
 `docs/specs/corvint-tasks-agent-leases-v0.md`. TCP-00 J1 is relaxed to "contiguous names and
 digests; content may be elided after supersession".
 
@@ -42,7 +42,7 @@ during this work, mostly 45 to 70.
 
 ## BASE vs fixed bytes
 
-`TestCALV0274_CompactLivenessIssueShape` builds an issue-shaped store: four attempts, six rounds of
+`TestCALV0304_CompactLivenessIssueShape` builds an issue-shaped store: four attempts, six rounds of
 interleaved heartbeats and renews, then two releases.
 
 | Store | Receipts | Liveness | Receipt bytes |
@@ -58,7 +58,7 @@ and complete-audit cost are unchanged; both are out of scope (#967, issue 982 it
 ## Evidence
 
 - New tests:
-  - `TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing`:
+  - `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing`:
     - a dry run writes nothing;
     - receipt audit and archive export/verify pass before and after compaction;
     - replays of an elided heartbeat and an elided renew return the original attempt and
@@ -66,16 +66,16 @@ and complete-audit cost are unchanged; both are out of scope (#967, issue 982 it
     - wrong-generation, expired-lease and reaped-generation writes are still `FENCED`;
     - a rerun continues;
     - rollback from the pre-compaction export passes a strict decode and the audit.
-  - `TestCALV0270_ElisionScopeAndTamper`:
+  - `TestCALV0300_ElisionScopeAndTamper`:
     - only heartbeat and renew receipts are elidable;
     - a holder change is not elidable;
     - tampered digest or liveness members, or a missing predecessor, are `JOURNAL_FORKED`.
-  - `TestCALV0270_UnsupersededTombstoneRefused`: a hand-elided latest record of an attempt is
+  - `TestCALV0300_UnsupersededTombstoneRefused`: a hand-elided latest record of an attempt is
     refused by the complete audit, archive export and archive verify.
-  - `TestCALV0272_CompactLivenessBoundsElidedRuns`: with a run bound of 4, two of eleven superseded
+  - `TestCALV0302_CompactLivenessBoundsElidedRuns`: with a run bound of 4, two of eleven superseded
     heartbeats stay whole and no tombstone lies 4 or more receipts after a whole record.
-  - `TestCALV0274_CompactLivenessIssueShape`.
-  - `TestCALV0272_ReceiptCompactCLI`: usage refusal, dry run, compaction, receipt audit, a doctor
+  - `TestCALV0304_CompactLivenessIssueShape`.
+  - `TestCALV0302_ReceiptCompactCLI`: usage refusal, dry run, compaction, receipt audit, a doctor
     scan with no stop, replay and rerun.
 - Mutations, one per fix. Each one failed the named test and was then reverted:
   - publish without waiting for supersession: the head was elided;

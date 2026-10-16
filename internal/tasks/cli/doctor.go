@@ -108,7 +108,7 @@ type doctorScan struct {
 	runningSessions int
 	completions24h  string
 	// elidedBases caches, per attempt path, the retained record an elided
-	// liveness receipt in the walk restores from (CAL-V0-270).
+	// liveness receipt in the walk restores from (CAL-V0-300).
 	elidedBases map[string]doctorBase
 }
 
@@ -324,9 +324,9 @@ type doctorBase struct {
 }
 
 // doctorElidedRecord restores the attempt record an elided liveness receipt
-// at seq omits (CAL-V0-270) from the latest retained record of the attempt
+// at seq omits (CAL-V0-300) from the latest retained record of the attempt
 // before it, read backward within the receipt bound. Compaction keeps that
-// record within snapshot.MaxElidedRun receipts (CAL-V0-272), well inside it.
+// record within snapshot.MaxElidedRun receipts (CAL-V0-302), well inside it.
 func doctorElidedRecord(src journal.Native, seq uint64, tombstone []byte, path string, scan *doctorScan) ([]byte, error) {
 	if b, ok := scan.elidedBases[path]; ok && b.seq < seq {
 		return snapshot.ElidedRecord(tombstone, b.raw)

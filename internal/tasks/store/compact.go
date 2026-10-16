@@ -13,7 +13,7 @@ import (
 )
 
 // CompactReport is what one liveness compaction found and did
-// (CAL-V0-272). Byte counts are the physical sizes of receipts 1..HeadSeq.
+// (CAL-V0-302). Byte counts are the physical sizes of receipts 1..HeadSeq.
 type CompactReport struct {
 	DryRun bool
 	// HeadSeq is the settled head the compaction audited and walked.
@@ -36,7 +36,7 @@ type candidate struct {
 var compactStage = func(string) {}
 
 // CompactLiveness rewrites every superseded liveness receipt of a settled
-// journal as its taskman-receipt/1 form (CAL-V0-270..CAL-V0-272, decision
+// journal as its taskman-receipt/1 form (CAL-V0-300..CAL-V0-302, decision
 // 0538). It is opt-in and runs only when an operator asks: no write path
 // calls it. Under the writer lock it requires a complete settled audit,
 // drops both checkpoints, walks receipts 1..head with the restorer, and

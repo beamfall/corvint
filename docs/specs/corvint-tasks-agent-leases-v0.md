@@ -919,8 +919,9 @@ derived from the installed CLI source and is not live-qualified; see
   running workers and the backoff skip set. Roles match tickets by labels, kinds, an ID glob, work
   states, excluded states, statuses and plan selection, or lane roles match quarantined members of
   one pool. A ticket with any live attempt is never a candidate; an expired lease becomes free only
-  after a reap. Candidates order by pin, role priority, P-rank, plan order, key and role index. The
-  global cap, then the per-role cap, bound the result, and each assignment takes the lowest free slot.
+  after a reap. Candidates order by pin, role priority (ascending; lower wins), P-rank, plan order,
+  key and role index. The global cap, then the per-role cap, bound the result, and each assignment
+  takes the lowest free slot.
   One key holds at most one worker. An assignment of an escalating role carries the CAL-V0-057 tier
   computed from the ledger's escalation record; a tier with a `cap` admits a candidate only while
   fewer running and newly assigned workers of that role hold that tier, and a candidate at a full
@@ -6687,6 +6688,10 @@ is documented and a configuration that hides a role is reported.
   warning per shadow. A shadowed role still launches a ticket its shadow cannot take (the shadow's
   cap, a tier cap or budget, or a CAL-V0-149 relaunch kept on the shadowed role).
 
+CAL-V0-054 amendment (owner, 2026-10-16, V1-1518): "role priority" in its candidate order now reads
+"role priority (ascending; lower wins)". The wording states the existing direction and changes no
+roster decision.
+
 Non-goals: changing launch order or refusing any configuration; reporting equal-priority overlaps
 (the earlier role wins by index, which is visible in the configuration order); `dispatch explain`
 output; proving glob-into-glob containment.
@@ -7544,10 +7549,10 @@ heartbeat and renew receipts were 61 % of the receipts and 67 % of receipt bytes
 whole attempt record, and the journal could only grow. This amendment amends the TCP-00 journal
 clause J1. "Retained contiguous history" becomes "contiguous names and digests; content may be
 elided after supersession". Complete audit and archive verify gain the elision step in
-CAL-V0-271. Heartbeat and renew write paths, fencing, lease expiry, request and replay rules are
+CAL-V0-301. Heartbeat and renew write paths, fencing, lease expiry, request and replay rules are
 unchanged. A store that is never compacted keeps its bytes and behaviour.
 
-- `CAL-V0-270`: (accepted, decision 0538; V1-1508) A receipt MAY be
+- `CAL-V0-300`: (accepted, decision 0538; V1-1508) A receipt MAY be
   elided only when all of the following hold:
   - It is a completed `TRANSITION` with no codes.
   - It posts exactly its attempt record and its request.
@@ -7559,7 +7564,7 @@ unchanged. A store that is never compacted keeps its bytes and behaviour.
   reap, widen, submit, gate, complete), ticket and administrative receipts, the head receipt, and
   the latest receipt of each attempt. A complete audit or archive verify that reaches the head
   with an elided receipt still the latest post of its attempt MUST refuse it as `JOURNAL_FORKED`.
-- `CAL-V0-271`: (accepted, decision 0538; V1-1508) An elided receipt is
+- `CAL-V0-301`: (accepted, decision 0538; V1-1508) An elided receipt is
   `taskman-receipt/1`. It is the original receipt with that attempt post's `record` set to null,
   plus `receiptSha256` (the SHA-256 of the original bytes) and
   `elided {path, lastHeartbeatAt, lease}`. Every walk from receipt 1 MUST restore each elided
@@ -7572,7 +7577,7 @@ unchanged. A store that is never compacted keeps its bytes and behaviour.
   treats an elided receipt as an unusable checkpoint and falls back to the complete walk. A
   replay of a request whose receipt is elided returns the original result, read from the retained
   header.
-- `CAL-V0-272`: (accepted, decision 0538; V1-1508)
+- `CAL-V0-302`: (accepted, decision 0538; V1-1508)
   `corvint-tasks receipt compact [--dry-run]` is the only writer of `taskman-receipt/1`. Nothing
   runs it implicitly. Under the writer lock it MUST:
   - require a complete settled audit with no staging slot, and refuse `REDO_PENDING` otherwise;
@@ -7588,12 +7593,12 @@ unchanged. A store that is never compacted keeps its bytes and behaviour.
   `receiptBytesAfter`. `--dry-run` writes nothing. A tombstone and its original are
   interchangeable to this binary, so an interrupted run leaves a valid journal and a rerun
   continues.
-- `CAL-V0-273`: (accepted, decision 0538; V1-1508) `taskman-receipt/1`
+- `CAL-V0-303`: (accepted, decision 0538; V1-1508) `taskman-receipt/1`
   joins `LiveFormats`, and a strict `taskman-receipt/0` decode MUST refuse it as
   `UNSUPPORTED_VERSION` (CAL-V0-131). A binary without this amendment therefore refuses an elided
   store and never misreads it. Because the live format set changes, moving between a binary with
   this amendment and one without it needs one drain (CAL-V0-130).
-- `CAL-V0-274`: (accepted, decision 0538; V1-1508) An issue-shaped fixture
+- `CAL-V0-304`: (accepted, decision 0538; V1-1508) An issue-shaped fixture
   MUST show the receipt bytes before and after compaction. The fixture has four attempts with
   interleaved heartbeats and renews, then two releases, with liveness making up two thirds of the
   receipts.
@@ -7627,8 +7632,8 @@ after this restore.
 
 | Requirement | Evidence |
 | --- | --- |
-| CAL-V0-270 | `TestCALV0270_ElisionScopeAndTamper`, `TestCALV0270_UnsupersededTombstoneRefused` (`internal/tasks/store`) |
-| CAL-V0-271 | `TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0270_ElisionScopeAndTamper` (`internal/tasks/store`); `TestCALV0272_ReceiptCompactCLI` (`internal/tasks/cli`) |
-| CAL-V0-272 | `TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0272_CompactLivenessBoundsElidedRuns` (`internal/tasks/store`); `TestCALV0272_ReceiptCompactCLI` (`internal/tasks/cli`) |
-| CAL-V0-273 | `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`); the strict-decode check in `TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing` |
-| CAL-V0-274 | `TestCALV0274_CompactLivenessIssueShape` (`internal/tasks/store`); `docs/build-log/2026-10-16-v1-1508-liveness-retention.md` |
+| CAL-V0-300 | `TestCALV0300_ElisionScopeAndTamper`, `TestCALV0300_UnsupersededTombstoneRefused` (`internal/tasks/store`) |
+| CAL-V0-301 | `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0300_ElisionScopeAndTamper` (`internal/tasks/store`); `TestCALV0302_ReceiptCompactCLI` (`internal/tasks/cli`) |
+| CAL-V0-302 | `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0302_CompactLivenessBoundsElidedRuns` (`internal/tasks/store`); `TestCALV0302_ReceiptCompactCLI` (`internal/tasks/cli`) |
+| CAL-V0-303 | `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`); the strict-decode check in `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing` |
+| CAL-V0-304 | `TestCALV0304_CompactLivenessIssueShape` (`internal/tasks/store`); `docs/build-log/2026-10-16-v1-1508-liveness-retention.md` |

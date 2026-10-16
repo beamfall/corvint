@@ -275,7 +275,7 @@ func checkStore(m *Manifest, files map[string][]byte, res *VerifyResult) error {
 	}
 	var prev *wire.Digest
 	var prevGen uint64
-	// An elided liveness receipt (CAL-V0-271) is restored to its original
+	// An elided liveness receipt (CAL-V0-301) is restored to its original
 	// bytes, proven against its recorded digest, before it is linked.
 	restore := &snapshot.ReceiptRestorer{}
 	for seq := uint64(1); seq <= lastSeq; seq++ {

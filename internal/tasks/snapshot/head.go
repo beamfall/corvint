@@ -191,7 +191,7 @@ func DecodeReceipt(data []byte) (*Receipt, error) {
 }
 
 // decodeReceiptValue decodes one parsed receipt of profile. elided names the
-// one attempt post whose record a taskman-receipt/1 omits (CAL-V0-273); it
+// one attempt post whose record a taskman-receipt/1 omits (CAL-V0-303); it
 // is empty for a taskman-receipt/0, where every non-null post carries its
 // record or blob.
 func decodeReceiptValue(v wire.Value, profile, elided string) (*Receipt, error) {

@@ -75,14 +75,14 @@ func isElided(raw []byte) bool {
 	return bytes.Contains(raw, []byte(`"`+snapshot.ProfileElidedReceipt+`"`))
 }
 
-// TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing (CAL-V0-270..CAL-V0-274):
+// TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing (CAL-V0-300..CAL-V0-304):
 // an opt-in compaction rewrites only superseded heartbeat and renew receipts;
 // the complete audit and archive verify pass before and after; the strict
 // (old-binary) decoder refuses a tombstone; a request replay whose receipt is
 // a tombstone returns the original result; fencing and expiry are unchanged;
 // a rerun is idempotent; restoring the original bytes over the tombstones
 // (the documented rollback) leaves a valid journal even after later appends.
-func TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing(t *testing.T) {
+func TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing(t *testing.T) {
 	t.Parallel()
 	s := newLeaseStore(t)
 	id := s.ticket(t, "compact")
@@ -212,11 +212,11 @@ func TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing(t *testing.T) {
 	compactAuditOK(t, s, "rolled back")
 }
 
-// TestCALV0274_CompactLivenessIssueShape (CAL-V0-274) measures BASE against
+// TestCALV0304_CompactLivenessIssueShape (CAL-V0-304) measures BASE against
 // fixed receipt bytes on a journal of the #982 shape: several concurrent
 // attempts whose receipts are mostly heartbeats and renews among ownership
 // transitions. BASE has no compaction, so its bytes are BytesBefore.
-func TestCALV0274_CompactLivenessIssueShape(t *testing.T) {
+func TestCALV0304_CompactLivenessIssueShape(t *testing.T) {
 	t.Parallel()
 	s := newLeaseStore(t)
 	var ids []string
@@ -298,12 +298,12 @@ func archiveMember(t *testing.T, stream []byte, path string) []byte {
 	}
 }
 
-// TestCALV0270_ElisionScopeAndTamper (CAL-V0-270, CAL-V0-271): only heartbeat
+// TestCALV0300_ElisionScopeAndTamper (CAL-V0-300, CAL-V0-301): only heartbeat
 // and renew receipts are elidable; claims, releases, ticket and policy
 // receipts never are. A tombstone restores to its original bytes and digest,
 // and a changed recorded digest, changed liveness member or wrong
 // predecessor record refuses with JOURNAL_FORKED instead of restoring.
-func TestCALV0270_ElisionScopeAndTamper(t *testing.T) {
+func TestCALV0300_ElisionScopeAndTamper(t *testing.T) {
 	t.Parallel()
 	s := newLeaseStore(t)
 	id := s.ticket(t, "scope")
@@ -447,11 +447,11 @@ func TestCALV0270_ElisionScopeAndTamper(t *testing.T) {
 	}
 }
 
-// TestCALV0270_UnsupersededTombstoneRefused (CAL-V0-270, CAL-V0-271): a
+// TestCALV0300_UnsupersededTombstoneRefused (CAL-V0-300, CAL-V0-301): a
 // tombstone that restores exactly but is still the latest post of its
 // attempt is refused by the complete audit and by archive verify, so a
 // hand-elided latest record never passes as a valid compacted store.
-func TestCALV0270_UnsupersededTombstoneRefused(t *testing.T) {
+func TestCALV0300_UnsupersededTombstoneRefused(t *testing.T) {
 	t.Parallel()
 	s := newLeaseStore(t)
 	id := s.ticket(t, "latest")
@@ -573,11 +573,11 @@ func replaceArchiveMember(t *testing.T, stream []byte, path string, data []byte)
 	return out.Bytes()
 }
 
-// TestCALV0272_CompactLivenessBoundsElidedRuns (CAL-V0-272): compaction keeps
+// TestCALV0302_CompactLivenessBoundsElidedRuns (CAL-V0-302): compaction keeps
 // a superseded liveness receipt whole when the latest whole record of its
 // attempt is the run bound or more receipts back, so every tombstone can be
 // restored by a backward reader within that bound.
-func TestCALV0272_CompactLivenessBoundsElidedRuns(t *testing.T) {
+func TestCALV0302_CompactLivenessBoundsElidedRuns(t *testing.T) {
 	t.Parallel()
 	s := newLeaseStore(t)
 	id := s.ticket(t, "runs")

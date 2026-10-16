@@ -51,7 +51,7 @@ func receiptAudit(env Env, args []string) *wire.Result {
 }
 
 // receiptCompact rewrites superseded liveness receipts as their elided
-// taskman-receipt/1 form (CAL-V0-272). It is the only command that does;
+// taskman-receipt/1 form (CAL-V0-302). It is the only command that does;
 // nothing runs it implicitly.
 func receiptCompact(env Env, args []string) *wire.Result {
 	cmd := []string{"receipt", "compact"}

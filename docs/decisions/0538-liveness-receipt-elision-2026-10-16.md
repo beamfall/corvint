@@ -4,7 +4,7 @@ Date: 2026-10-16. Status: accepted. Authority: owner, 2026-10-16, in-session cho
 orchestrator for ticket V1-1508).
 Tickets: V1-1508 ([issue 982](https://github.com/beamfall/corvint/issues/982)). Amends the TCP-00
 journal clause J1 ("retained contiguous history") as recorded in
-`docs/specs/corvint-tasks-agent-leases-v0.md` (CAL-V0-270..274).
+`docs/specs/corvint-tasks-agent-leases-v0.md` (CAL-V0-300..274).
 
 ## Context
 

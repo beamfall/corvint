@@ -8,7 +8,7 @@ import (
 )
 
 // ProfileElidedReceipt is a retained receipt whose superseded liveness
-// attempt record is elided (CAL-V0-270, CAL-V0-273, decision 0538). It is the
+// attempt record is elided (CAL-V0-300, CAL-V0-303, decision 0538). It is the
 // taskman-receipt/0 it replaces under the same name with three changes: the
 // profile, the elided attempt post's record set to null, and two added
 // members: receiptSha256, the digest of the original bytes that the next
@@ -183,7 +183,7 @@ func (f *elidedForm) restore(rc *Receipt, base []byte) ([]byte, error) {
 
 // MaxElidedRun bounds how far back the latest whole record of an attempt may
 // lie before one of its elided receipts: liveness compaction keeps a
-// superseded receipt whole rather than exceed it (CAL-V0-272), so a reader
+// superseded receipt whole rather than exceed it (CAL-V0-302), so a reader
 // that restores by reading backward, such as doctor, needs at most this many
 // receipts.
 const MaxElidedRun = 1024
@@ -192,7 +192,7 @@ const MaxElidedRun = 1024
 // 1 and returns each one's original taskman-receipt/0 bytes: a
 // taskman-receipt/0 as read, a taskman-receipt/1 rebuilt from the latest
 // retained record of its attempt and proven against its recorded digest
-// (CAL-V0-271). It retains the latest inline record of each attempt that
+// (CAL-V0-301). It retains the latest inline record of each attempt that
 // holds a lease, the only records an elided receipt can follow. The zero
 // value is ready to use.
 type ReceiptRestorer struct {
@@ -241,7 +241,7 @@ func (r *ReceiptRestorer) Next(raw []byte) (*Receipt, []byte, error) {
 }
 
 // Superseded refuses a walk that reached the head with an elided receipt
-// still the latest post of its attempt. CAL-V0-270 elides only superseded
+// still the latest post of its attempt. CAL-V0-300 elides only superseded
 // receipts, so the head receipt and the latest record of every attempt are
 // always whole; a store that breaks this is JOURNAL_FORKED.
 func (r *ReceiptRestorer) Superseded() error {
@@ -286,7 +286,7 @@ func (r *ReceiptRestorer) observe(rc *Receipt) {
 }
 
 // ElideLiveness returns the taskman-receipt/1 form of original when it is an
-// elidable liveness receipt (CAL-V0-270): a completed TRANSITION with no
+// elidable liveness receipt (CAL-V0-300): a completed TRANSITION with no
 // codes that posts exactly its attempt record inline and its request
 // afterimage, where the record differs from base, the attempt's previous
 // record, only in lastHeartbeatAt and in the lease's grantedSeq and
