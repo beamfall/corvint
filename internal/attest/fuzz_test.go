@@ -13,7 +13,7 @@ import (
 // be valid JSON whose predicate decodes to exactly the tree the prove document
 // decodes to, in a canonical form that re-encoding leaves byte-identical.
 func FuzzStatementPredicateIsTheDocumentCanonically(f *testing.F) {
-	f.Add([]byte(`{"profile":"falsifiable-packet/0","revision":"abc","n":1.50,"s":"a <&>","a":[null,true,{"z":{},"y":[]}]}`))
+	f.Add([]byte(`{"profile":"falsifiable-packet/0","revision":"abc","n":1.50,"s":"a` + "\u2028" + `<&>","a":[null,true,{"z":{},"y":[]}]}`))
 	f.Add([]byte(`{"profile":"falsifiable-packet/0","revision":"r","k":"\ud800"}`))
 	subjects := []Subject{{Name: "packet.json", Digest: map[string]string{"sha256": "00"}}}
 	f.Fuzz(func(t *testing.T, document []byte) {

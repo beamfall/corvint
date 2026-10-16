@@ -237,7 +237,7 @@ func TestWebImportsReadsPastBindingNamedFrom(t *testing.T) {
 // a literal and do not end it (GPK-V0-027(c)).
 func TestWebImportsEndsUnclosedQuoteAtCarriageReturn(t *testing.T) {
 	assertEdges(t, webEdges(t, "src/carriage.js", "const s = 'open\rimport { real } from \"./real\";\n"), "./real")
-	for _, separator := range []string{" ", " "} {
+	for _, separator := range []string{"\u2028", "\u2029"} {
 		text := "const s = 'a" + separator + "import \"./ghost\";'; import { real } from \"./real\";\n"
 		assertEdges(t, webEdges(t, "src/separated.js", text), "./real")
 	}

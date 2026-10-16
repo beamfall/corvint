@@ -16,8 +16,8 @@ var lineSeparators = strings.NewReplacer(
 	"\r\n", " ",
 	"\r", " ",
 	"\n", " ",
-	" ", " ",
-	" ", " ",
+	"\u2028", " ",
+	"\u2029", " ",
 )
 
 // CodeSpan renders value as a single CommonMark inline code span that cannot

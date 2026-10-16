@@ -428,7 +428,7 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 	}
 	for _, s := range steps {
 		if t := strings.TrimSpace(s); t == "" || len(s) > maxPlanStepBytes || !utf8.ValidString(s) ||
-			strings.ContainsFunc(s, func(r rune) bool { return unicode.IsControl(r) || r == ' ' || r == ' ' }) {
+			strings.ContainsFunc(s, func(r rune) bool { return unicode.IsControl(r) || r == '\u2028' || r == '\u2029' }) {
 			return nil, planQueryError("each map_plan step must be 1 to %d bytes of single-line UTF-8 text", maxPlanStepBytes)
 		}
 	}
@@ -993,7 +993,7 @@ func urlRegex(url, capture string) string {
 	return b.String()
 }
 
-var commentSafe = strings.NewReplacer("\r", " ", "\n", " ", " ", " ", " ", " ")
+var commentSafe = strings.NewReplacer("\r", " ", "\n", " ", "\u2028", " ", "\u2029", " ")
 
 // draft writes the Playwright skeleton: one browser context per app, one test.step per request
 // step, reused page-object calls, guarded navigation, captured handoff parameters and each named
