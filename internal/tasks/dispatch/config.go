@@ -202,9 +202,14 @@ type WorkState struct {
 // Role is one roster rule. Exactly one of Match (ticket work) and Lane
 // (pool member work) is present.
 type Role struct {
-	Name        string `json:"name"`
-	Host        string `json:"host"`
-	Cap         int    `json:"cap"`
+	Name string `json:"name"`
+	Host string `json:"host"`
+	Cap  int    `json:"cap"`
+	// Priority (0..1000) is an ascending sort key: when several roles
+	// match one ticket, the role with the LOWER value is preferred, and an
+	// equal value falls back to the earlier role in roles (CAL-V0-054,
+	// CAL-V0-290). RoleShadows reports a role whose match a lower-valued
+	// role provably covers.
 	Priority    int    `json:"priority"`
 	Match       *Match `json:"match,omitempty"`
 	Lane        *Lane  `json:"lane,omitempty"`

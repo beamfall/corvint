@@ -200,6 +200,16 @@ func (d *Dispatcher) reloadConfig() {
 		detail["removedRoles"] = strings.Join(removed, ",")
 	}
 	d.emit(Event{Kind: "config", Message: msg, Detail: detail})
+	d.warnRoleShadows()
+}
+
+// warnRoleShadows appends one CAL-V0-290 `config` warning event per
+// shadowed role of the applied configuration, at start and after an applied
+// reload. It changes no roster decision.
+func (d *Dispatcher) warnRoleShadows() {
+	for _, s := range d.Config.RoleShadows() {
+		d.emit(Event{Kind: "config", Role: s.Role, Message: s.Message(), Detail: map[string]string{"outcome": "ROLE_SHADOWED", "shadowedBy": s.ShadowedBy}})
+	}
 }
 
 func (d *Dispatcher) workersOf(roles []string) int {
