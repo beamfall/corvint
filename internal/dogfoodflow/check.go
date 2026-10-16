@@ -73,9 +73,10 @@ type check struct {
 	overrideSHA string
 	// outputChange is the admitted DOGFOOD_OUTPUT_CHANGE requirement ID, and
 	// baseStatusSHA and treeStatusSHA the digests of the base and tree
-	// verifiers' `cem status` stdout it records (DCW-V0-047); all are empty
-	// without a declaration.
-	outputChange, baseStatusSHA, treeStatusSHA string
+	// verifiers' `cem status` stdout it records (DCW-V0-047), and
+	// baseRefusal the base verifier's refusal code when it refused the read
+	// instead, its digest then empty; all are empty without a declaration.
+	outputChange, baseStatusSHA, treeStatusSHA, baseRefusal string
 }
 
 type verification struct {
@@ -561,13 +562,19 @@ func (c *check) requirementSpec(id string) string {
 // verifyStatus is verifyAll for `cem status`. Under an admitted output-change
 // declaration the tree verifier fills both roles, the base verifier still
 // runs, and the digests of both stdouts are kept: the change proves its own
-// verifier deterministic, not independent of its base (DCW-V0-047).
+// verifier deterministic, not independent of its base (DCW-V0-047). A base
+// verifier that refuses the read (an exit status other than 0 or 1) produced
+// no status, so its refusal code is kept instead of a digest of its absent
+// output (V1-1307, decision 0534).
 func (c *check) verifyStatus(args ...string) (verification, bool) {
 	if c.outputChange == "" {
 		return c.verifyAll(args...)
 	}
 	base, tree, agreed := c.verifyDeclared(args...)
-	c.baseStatusSHA, c.treeStatusSHA = sha256Hex(base.stdout), sha256Hex(tree.stdout)
+	c.baseStatusSHA, c.baseRefusal, c.treeStatusSHA = sha256Hex(base.stdout), "", sha256Hex(tree.stdout)
+	if base.status != 0 && base.status != 1 {
+		c.baseStatusSHA, c.baseRefusal = "", failureReason(base.stderr, base.status)
+	}
 	return tree, agreed
 }
 
@@ -592,7 +599,11 @@ func (c *check) baseIndependence() string {
 	if c.outputChange == "" || c.treeStatusSHA == "" {
 		return ""
 	}
-	return "base-independence=NOT_PROVED base=sha256:" + c.baseStatusSHA + " tree=sha256:" + c.treeStatusSHA + " declared=" + c.outputChange
+	base := "base=sha256:" + c.baseStatusSHA
+	if c.baseRefusal != "" {
+		base = "base=NOT_PRODUCED base-refusal=" + c.baseRefusal
+	}
+	return "base-independence=NOT_PROVED " + base + " tree=sha256:" + c.treeStatusSHA + " declared=" + c.outputChange
 }
 
 func (c *check) verifyAbstention() {
@@ -843,8 +854,12 @@ func (c *check) record(agreed bool, bootstrap int) error {
 	if c.baseIndependence() != "" {
 		// outputsAgree then means the tree verifier agreed with itself and any
 		// override, as in LCP-V0-014; the member says what stays unproved (DCW-V0-047).
-		replacement = strings.TrimSuffix(replacement, "}") + fmt.Sprintf(`, "baseIndependence": {"state": "NOT_PROVED", "declared": "%s", "baseStatusStdoutSha256": "sha256:%s", "treeStatusStdoutSha256": "sha256:%s"}}`,
-			c.outputChange, c.baseStatusSHA, c.treeStatusSHA)
+		base := fmt.Sprintf(`"baseStatusStdoutSha256": "sha256:%s"`, c.baseStatusSHA)
+		if c.baseRefusal != "" {
+			base = fmt.Sprintf(`"baseStatus": "NOT_PRODUCED", "baseRefusal": "%s"`, c.baseRefusal)
+		}
+		replacement = strings.TrimSuffix(replacement, "}") + fmt.Sprintf(`, "baseIndependence": {"state": "NOT_PROVED", "declared": "%s", %s, "treeStatusStdoutSha256": "sha256:%s"}}`,
+			c.outputChange, base, c.treeStatusSHA)
 	}
 	data, err := os.ReadFile(c.report)
 	if err != nil {
