@@ -334,4 +334,23 @@ case $output in
 *) fail "skip note or existing failure missing: $output" ;;
 esac
 
+# 23. DCG-V0-001 (V1-1480): docs/RELEASE-NOTES-*.md is a scanned document class, so a pinned
+#     citation in release notes fails once the cited lines change, naming the release notes.
+cite "internal/demo/demo.go:3"
+write_source 1
+notes_pin=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/demo.go:3)
+# shellcheck disable=SC2016
+printf '# Release notes\n\nThe claim rests on `%s`.\n' "$notes_pin" \
+  > "$test_root/docs/RELEASE-NOTES-fixture.md"
+stage docs/RELEASE-NOTES-fixture.md
+run >/dev/null || fail "a pinned citation in release notes did not pass"
+write_source 2
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "a drifted release-notes citation exited $rc, not 1: $output"
+case $output in
+*'docs/RELEASE-NOTES-fixture.md:3'*'cited content changed'*) ;;
+*) fail "the release-notes drift was not reported: $output" ;;
+esac
+
 echo "check-line-citations_test.sh: ok"

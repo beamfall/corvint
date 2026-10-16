@@ -993,6 +993,15 @@ The final checker is outside the selected prerequisite check set. Coordinator `c
 `outputsAgree` alone are insufficient. Original pre-change receipts stay archived; a later
 coordination query is never evidence of earlier chronology.
 
+The enrolled workflow ends at the bind commit (decision 0534, V1-1490 option (a)). Once `finish`
+reports satisfied there, the enrollment is complete; the later `make dogfood-seal` commit is outside
+it. After the seal, `status` can offer `verify` again, because the seal moved the bound CEM out of
+the shared path. Do not run that `verify`: it clears the satisfied record and leads to a `finish`
+that cannot succeed, and the only way out is `cancel`, which records non-success over a completion
+that succeeded. Leave the sealed worktree as it is, and begin the next enrollment with
+`corvint dogfood begin` in a fresh worktree or clone. Adding a sealed-terminal state would amend
+LCP-V0-002, 003 and 020, and decision 0534 does not adopt it.
+
 `status` and native events are read-only. An enrolled incomplete Stop permits one remediation;
 recursive Stop releases with an unresolved notice. `cancel` explicitly records non-success and is
 not a way to disguise a blocked gate. All local observations and inspection remain caller-owned;
