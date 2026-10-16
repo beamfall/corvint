@@ -29,7 +29,7 @@ paragraph separators in canonicalisation and separator tests): `internal/appmap/
   for 10 of 11 files; `fuzz_test.go` differs only in literal count (15 vs 17) because of the
   raw/escape split, and its concatenated value is the same by construction.
 - Tests (focused, go1.27.2): attest, doccompiler, contextindex, liveverify/affected/typescript,
-  liveverify/jsresolve, tasks/ticket pass; integrations/testfixture has no failing output;
+  liveverify/jsresolve, tasks/ticket pass; integrations/testfixture has no test files (compiled by build);
   `internal/appmap` full package hit the default 600s timeout under host load (load average ~40),
   so the plan-related subset (`-run 'Plan|Comment|Safe'`) was run and passed.
   windows/amd64 vet of changed test packages is clean.
