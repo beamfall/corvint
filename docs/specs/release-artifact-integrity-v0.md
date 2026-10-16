@@ -125,7 +125,9 @@ provenance assets needed for a deliberate source-release policy. No sdist is in 
   the declared exceptions are that job, `ci-control-plane.yml`'s workflow level
   (`statuses: write`, AFP-V0-016) and its `forward-rows` job (`actions: read`, AFP-V0-047). A
   block that differs from its declared set, an undeclared grant, or a row that matches no block
-  fails. Still live:
+  fails. The check reads workflow text line by line, not as parsed YAML: a flow-style block, or a
+  block under a job id it cannot name (a quoted id), cannot match an exception and so fails unless
+  it is exactly `contents: read`. Still live:
   `.github/workflows/ci.yml` is unaffected by decision 0088 and, confirmed 2026-09-12, still
   declares `permissions: contents: read` (line 12) and `persist-credentials: false` (lines 22, 56,
   80) with 40-character action pins. This requirement never depended on the wheel. The Python test

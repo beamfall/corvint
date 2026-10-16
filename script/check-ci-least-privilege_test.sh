@@ -1,13 +1,15 @@
 #!/bin/sh
 set -eu
 
-# Nine cases on a fixture repository. Cases 1-2 pin that the check measures the Git index rather
+# Twelve cases on a fixture repository. Cases 1-2 pin that the check measures the Git index rather
 # than the worktree: a violation present only on disk passes, and a violation staged while the disk
 # copy is clean fails and is named. Cases 3-5 are ARTIFACT-V0-008 shapes: the compliant workflow
 # passes, a `name:`-first checkout step is still held to `persist-credentials: false`, and a
 # job-level permissions block broader than `contents: read` fails. Cases 6-9 pin V1-1469: a
 # workflow other than ci.yml is checked at both levels, a declared per-job exception passes only
-# for its exact permission set, and an exception that matches no block fails.
+# for its exact permission set, and an exception that matches no block fails. Cases 10-12 pin parser
+# bypasses found in review: a blank line inside the workflow-level block, a quoted `permissions`
+# key, and a quoted job id following a declared job.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-ci-least-privilege-test.XXXXXX")
@@ -179,4 +181,78 @@ case $output in
     *) fail "the failure did not name the stale exception: $output" ;;
 esac
 
-printf 'ci least-privilege test: 9 cases passed\n'
+# stage_release_gates: stages stdin as release-gates.yml and expects the check to fail naming $1.
+stage_release_gates() {
+    cat > "$test_root/.github/workflows/release-gates.yml"
+    git -C "$test_root" add .github/workflows/release-gates.yml
+    if output=$(run); then
+        fail "$2 passed"
+    fi
+    case $output in
+        *"$1"*) ;;
+        *) fail "the failure for $2 did not name $1: $output" ;;
+    esac
+}
+exceptions "$row"
+
+# 10. A blank line inside the workflow-level block does not hide a later write.
+stage_release_gates 'issues: write' 'a write after a blank line in the workflow-level block' <<'WORKFLOW'
+name: release gates
+permissions:
+  contents: read
+
+  issues: write
+jobs:
+  signal:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - run: echo ok
+WORKFLOW
+
+# 11. A quoted `permissions` key is still a job-level block.
+stage_release_gates 'pull-requests: write' 'a quoted job-level permissions key' <<'WORKFLOW'
+name: release gates
+permissions:
+  contents: read
+jobs:
+  signal:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - run: echo ok
+  other:
+    runs-on: ubuntu-latest
+    "permissions":
+      pull-requests: write
+    steps:
+      - run: echo ok
+WORKFLOW
+
+# 12. A quoted job id after the declared job does not inherit that job's exception.
+stage_release_gates '(not a job)' 'a quoted job id after a declared job' <<'WORKFLOW'
+name: release gates
+permissions:
+  contents: read
+jobs:
+  signal:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - run: echo ok
+  "other":
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - run: echo ok
+WORKFLOW
+
+printf 'ci least-privilege test: 12 cases passed\n'

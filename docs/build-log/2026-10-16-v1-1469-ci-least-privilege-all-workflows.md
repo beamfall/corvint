@@ -31,8 +31,17 @@ orchestrator (2026-10-16), and its decision record is written by the orchestrato
 - Mutations staged on the real tree: workflow-level `issues: write` in `release-gates.yml` fails
   (`release-gates.yml:35`); an undeclared job-level `contents: write` on `intake-containment.yml`
   `containment` fails. Both restored; the check then passes.
-- `script/check-ci-least-privilege_test.sh`: 9 cases pass (4 new: a non-`ci.yml` workflow-level
-  write, an undeclared job-level write, a job widened past its exception, a stale row).
+- `script/check-ci-least-privilege_test.sh`: 12 cases pass (7 new: a non-`ci.yml` workflow-level
+  write, an undeclared job-level write, a job widened past its exception, a stale row, and the
+  three review findings below).
+
+## Independent review
+
+One Codex round (gpt-6-astra, read-only) found three parser bypasses, all reproduced and fixed
+with a regression case each: a blank line ended the workflow-level block early, so a later
+`issues: write` passed (pre-existing); a quoted `"permissions":` key was ignored (pre-existing);
+and a quoted job id kept the previous job's name, so it could consume that job's exception (new).
+The spec now states that the check is line-oriented and fails closed on blocks it cannot name.
 
 ## Rollback
 

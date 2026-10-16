@@ -112,12 +112,14 @@ for my $path (@workflows) {
     # --- 1. workflow-level permissions is exactly `contents: read` -----------------------
     my @top_level_blocks;
     for (my $i = 0; $i < @lines; $i++) {
-        next unless $lines[$i] =~ /^permissions:\s*(?:#.*)?$/;
+        next unless $lines[$i] =~ /^(["']?)permissions\1:\s*(?:#.*)?$/;
+        # The block runs to the next line indented no deeper than the key; blank and comment
+        # lines inside it do not end it.
         my @block;
-        my $j = $i + 1;
-        while ($j < @lines && $lines[$j] =~ /^(\s+)\S/) {
-            push @block, $lines[$j] unless $lines[$j] =~ /^\s*#/;
-            $j++;
+        for (my $j = $i + 1; $j < @lines; $j++) {
+            next if $lines[$j] =~ /^\s*(?:#.*)?$/;
+            last unless $lines[$j] =~ /^\s+\S/;
+            push @block, $lines[$j];
         }
         push @top_level_blocks, [$i + 1, \@block];
     }
@@ -147,9 +149,13 @@ for my $path (@workflows) {
     for (my $i = 0; $i < @lines; $i++) {
         if ($lines[$i] =~ /^jobs:\s*(?:#.*)?$/) { $jobs_line = $i; next }
         if ($lines[$i] =~ /^\S/) { $jobs_line = undef; $job = undef; next }
-        if (defined $jobs_line && $lines[$i] =~ /^  ([A-Za-z_][A-Za-z0-9_-]*):\s*(?:#.*)?$/) { $job = $1; next }
-        next unless $lines[$i] =~ /^(\s+)permissions:\s*(.*?)\s*$/;
-        my ($indent, $inline) = (length($1), $2);
+        # Any two-space key under `jobs:` starts a new job; one whose id is not a plain YAML key
+        # (quoted, say) is no job an exception can name, so its block can only be `contents: read`.
+        if (defined $jobs_line && $lines[$i] =~ /^  \S/) {
+            $job = $lines[$i] =~ /^  ([A-Za-z_][A-Za-z0-9_-]*):\s*(?:#.*)?$/ ? $1 : undef;
+        }
+        next unless $lines[$i] =~ /^(\s+)(["']?)permissions\2:\s*(.*?)\s*$/;
+        my ($indent, $inline) = (length($1), $3);
         $inline =~ s/\s*#.*$//;
         next if $inline eq '{}';
         my @entries;
