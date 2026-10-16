@@ -139,20 +139,20 @@ AFU-V1-039	docs/specs/application-flow-understanding-v1.md	668	A committed fixtu
 AFU-V1-040	docs/specs/application-flow-understanding-v1.md	671	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing	unrecorded	-
 AFU-V1-041	docs/specs/application-flow-understanding-v1.md	206	The planned repetition ordinals, the planned or manual run kind, the infrastruct	unrecorded	-
 AFU-V1-042	docs/specs/application-flow-understanding-v1.md	211	`corvint flows stability` MUST report, per registry aggregate, the selected scop	unrecorded	-
-AFU-V1-043	docs/specs/application-flow-understanding-v1.md	883	`docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`	unrecorded	-
-AFU-V1-044	docs/specs/application-flow-understanding-v1.md	891	Logical flow and paragraph IDs depend on provider namespace, repository-relative	unrecorded	-
-AFU-V1-045	docs/specs/application-flow-understanding-v1.md	897	`docs flows check --revision FULL_SHA --previous GENERATION_JSON	unrecorded	-
-AFU-V1-046	docs/specs/application-flow-understanding-v1.md	903	Materialization requires a new directory under existing nonsymlink parents and	unrecorded	-
-AFU-V1-047	docs/specs/application-flow-understanding-v1.md	909	Optional `--corpus FILE` is revalidated with corpus Open and must retain the exa	unrecorded	-
-AFU-V1-048	docs/specs/application-flow-understanding-v1.md	915	`docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA	unrecorded	-
-AFU-V1-049	docs/specs/application-flow-understanding-v1.md	952	`flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`	unrecorded	-
-AFU-V1-050	docs/specs/application-flow-understanding-v1.md	959	Proof admits original canonical `/3` bytes and rederives exact test/config/packa	unrecorded	-
-AFU-V1-051	docs/specs/application-flow-understanding-v1.md	968	Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.	unrecorded	-
-AFU-V1-052	docs/specs/application-flow-understanding-v1.md	974	CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 o	unrecorded	-
-AFU-V1-053	docs/specs/application-flow-understanding-v1.md	980	Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even	unrecorded	-
-AFU-V1-054	docs/specs/application-flow-understanding-v1.md	1012	(proposed (V1-0985)) The `/1` behavior provider and the `/1`-family wires that s	unrecorded	-
-AFU-V1-055	docs/specs/application-flow-understanding-v1.md	1016	(proposed (V1-0985)) A `/2` provider record, and the corpus report built from it	unrecorded	-
-AFU-V1-056	docs/specs/application-flow-understanding-v1.md	1020	(proposed (V1-0985)) A `/2` producer request that carries the legacy /1 member i	unrecorded	-
+AFU-V1-043	docs/specs/application-flow-understanding-v1.md	884	`docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`	unrecorded	-
+AFU-V1-044	docs/specs/application-flow-understanding-v1.md	892	Logical flow and paragraph IDs depend on provider namespace, repository-relative	unrecorded	-
+AFU-V1-045	docs/specs/application-flow-understanding-v1.md	898	`docs flows check --revision FULL_SHA --previous GENERATION_JSON	unrecorded	-
+AFU-V1-046	docs/specs/application-flow-understanding-v1.md	904	Materialization requires a new directory under existing nonsymlink parents and	unrecorded	-
+AFU-V1-047	docs/specs/application-flow-understanding-v1.md	910	Optional `--corpus FILE` is revalidated with corpus Open and must retain the exa	unrecorded	-
+AFU-V1-048	docs/specs/application-flow-understanding-v1.md	916	`docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA	unrecorded	-
+AFU-V1-049	docs/specs/application-flow-understanding-v1.md	953	`flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`	unrecorded	-
+AFU-V1-050	docs/specs/application-flow-understanding-v1.md	960	Proof admits original canonical `/3` bytes and rederives exact test/config/packa	unrecorded	-
+AFU-V1-051	docs/specs/application-flow-understanding-v1.md	969	Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.	unrecorded	-
+AFU-V1-052	docs/specs/application-flow-understanding-v1.md	975	CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 o	unrecorded	-
+AFU-V1-053	docs/specs/application-flow-understanding-v1.md	981	Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even	unrecorded	-
+AFU-V1-054	docs/specs/application-flow-understanding-v1.md	1013	(proposed (V1-0985)) The `/1` behavior provider and the `/1`-family wires that s	unrecorded	-
+AFU-V1-055	docs/specs/application-flow-understanding-v1.md	1017	(proposed (V1-0985)) A `/2` provider record, and the corpus report built from it	unrecorded	-
+AFU-V1-056	docs/specs/application-flow-understanding-v1.md	1021	(proposed (V1-0985)) A `/2` producer request that carries the legacy /1 member i	unrecorded	-
 AFU-V1-057	docs/specs/application-flow-understanding-v1.md	511	(accepted, decision 0512) Navigation traffic	owner	decision 0512
 AFU-V1-058	docs/specs/application-flow-understanding-v1.md	515	(accepted, decision 0512) Navigation MUST index traffic	owner	decision 0512
 AFU-V1-059	docs/specs/application-flow-understanding-v1.md	635	accepted, decision 0512. Impact graph construction MUST	unrecorded	-
