@@ -733,7 +733,8 @@ The refusal path runs no mutant and completes in under a second per refusal.
 
 ### Guarding-test citation for the hunk-revert falsifier
 
-Status: proposed; V1-1266, decision 0523 P2. `TCQ-V0-057` selects only hunks that already cite a
+Status: accepted; `TCQ-V0-060..062` under the owner's standing auto-accept (2026-10-11), V1-1266;
+`TCQ-V0-063` under the same standing auto-accept, V1-1453. Decision 0523 P2. `TCQ-V0-057` selects only hunks that already cite a
 `_test.go` span as `test-claim`, and before this step no dogfood map named a test that way, so the
 consumer falsifier `cem verify --hunk-revert` (`CEM-V1-088..089` in `cem-stable-v1.md`) had
 nothing to run.
@@ -780,6 +781,12 @@ nothing to run.
   consumer's own `--hunk-revert` run (`CEM-V1-088`), and a printed row is guidance the producer may
   cite or drop (`TCQ-V0-060`). `status` and `report` refuse the flag `invalid-arguments`, and
   `verify` refuses it beside `--hunk-revert`, so one run never both suggests a test and credits it.
+- `TCQ-V0-063`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1453) A
+  `TCQ-V0-062` plan row MUST respect the `cem cite` span bound, one shared constant
+  (`wire.MaxCitationSpanBytes`, 1 MiB) that `cem cite` and the search both read: a guard whose base
+  header span exceeds it is skipped at emission and the next guard by name whose header fits and is
+  stable or relocated is cited instead; with none, the row stays `guarded` with no citation and no
+  plan row is printed. A header exactly at the bound is cited.
 
 Recorded limits of `TCQ-V0-062`: candidates match identifier names, so they over-approximate and
 the revert run decides; only tests in the hunk's own directory are candidates, so a test elsewhere
@@ -791,9 +798,9 @@ seconds in total), and a package whose candidate run exceeds them is `not-run: t
 394 candidates. Reverting one hunk of a change whose hunks depend on each other often breaks the
 build, and such a hunk is never guarded. The search executes the target's tests unconfined with the caller's privileges,
 exactly as `--hunk-revert` does, and like it creates the disposable export under the system
-temporary directory, so a `TMPDIR` inside the repository places the export there until it is
-removed. A plan row is not checked against the `cem cite` span bound, so a test header over that
-bound prints a row `cem cite` refuses.
+temporary directory through the shared helper that refuses one inside the repository (`CEM-V1-250`
+in `cem-stable-v1.md`, V1-1452). The plan row respects the `cem cite` span bound (`TCQ-V0-063`,
+V1-1453).
 
 ## Canonical conditional-state table
 
@@ -889,7 +896,9 @@ rolls back by removing `ErrSandboxUnavailable` and `launcherRefused`; the refusa
 roll back with the V1-1266 code commit: the `DOGFOOD.md` paragraph goes, and a plan that cites a
 guarding test stays an ordinary `test-claim` citation. `TCQ-V0-062` rolls back by removing the `--guarding-tests`
 flag, `internal/cem/verify/guards.go` and its `DOGFOOD.md` command; no committed map, seal, golden or
-public case depends on them, and a row already cited stays an ordinary `test-claim` citation.
+public case depends on them, and a row already cited stays an ordinary `test-claim` citation. `TCQ-V0-063`
+rolls back with the V1-1453 code commit: the search again prints a row over the bound, which
+`cem cite` refuses.
 
 ## Traceability
 
@@ -920,6 +929,7 @@ non-authoritative and slated for separate removal.
 | `TCQ-V0-060` | `docs/DOGFOOD.md` section 4 "Cite the guarding test" | `TestCEMV1088HeldOnlyFromConsumerReexecution` (a plan citing the guarding test's declaration line yields `held`) |
 | `TCQ-V0-061` | `declaredTests` and `revertCandidates` in `internal/cem/verify/hunkrevert.go` | `TestCEMV1088DeclaredTestsAreWhatGoTestRuns`, `TestCEMV1088ForgedWitnessNeverCounts` (a span declaring no test is `no-named-test`) |
 | `TCQ-V0-062` | `internal/cem/verify/guards.go`, `internal/cem/workflow/stable_read.go`, `internal/cem/cli/cli.go` | `TestTCQV0062GuardingTestsNameObservedGuards`, `TestTCQV0062FlagIsVerifyOnly` (`internal/cem/workflow`); `TestTCQV0062VerifyGuardingTestsIsOptIn` (`internal/cem/cli`); `TestTCQV0062CandidatesFollowThePackageClosure`, `TestTCQV0062CitationNeedsAStableBaseHeader`, `TestTCQV0062LineDirectivesKeepPhysicalLines`, `TestTCQV0062ChangedLinesFindTheEditedDeclaration`, `TestTCQV0062SpentBudgetKeepsNoCandidateReason` (`internal/cem/verify`): on an uncited prepared map the search guards the Clamp hunk with its one asserting test only, keeps a revert that breaks the build and a test failing without the revert `not-run`, prints the plan row `cem cite` admits, and the consumer then holds the hunk |
+| `TCQ-V0-063` | `goPackage.citation` in `internal/cem/verify/guards.go`; `wire.MaxCitationSpanBytes` read by `cem cite` in `internal/cem/workflow/commands.go` | `TestTCQV0063PlanRowRespectsTheCiteSpanBound` (`internal/cem/verify`): a guard header of exactly 1 MiB is cited, one byte over is skipped and the next guard by name is cited |
 
 The implementation and deterministic reference vectors are delivered as a candidate. The labelled
 corpus, reporter compatibility measurements, independent implementation, and ten-change dogfood

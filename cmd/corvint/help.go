@@ -1036,6 +1036,16 @@ Verification options:
   --max-mechanical N   Policy ceiling on mechanical hunks.
   --citation           status adds the map's citation class beside the result;
                        an accepted result always carries its citation block.
+  --guarding-tests     verify only, opt-in: after an ACCEPT, search the base
+                       tests of each uncited Go source hunk's directory for one
+                       that passes at the target and fails with only that hunk
+                       reverted in a disposable export; adds the guardingTests
+                       report (cem-guarding-tests/0) with citation-plan rows. It
+                       sets no tier and writes nothing. Bounds: 300 s per go
+                       test run, 1200 s in total. It executes the target's own
+                       tests UNCONFINED, with the caller's privileges; a TMPDIR
+                       inside the repository is refused. Not with --hunk-revert;
+                       status and report refuse it.
   --artifacts DIR      Required: the artifact root the stable verifier reads;
                        status also applies the ceilings to an accepted map.
   --hunk-revert        verify only, opt-in: after an ACCEPT, reverse-apply each
@@ -1332,7 +1342,8 @@ seal, DOGFOOD_OUTPUT_CHANGE=REQUIREMENT-ID declares a change whose cem status ou
 differs from the base verifier's by construction: admitted only when HEAD's
 docs/specs/REQUIREMENTS.tsv maps the ID to a spec BASE..HEAD modifies, it runs the
 tree verifier in both roles and records base-independence=NOT_PROVED with both
-stdout digests. The root, the current directory unless --root names one, must be
+stdout digests, or base=NOT_PRODUCED and its refusal code when the base verifier
+refuses the read. The root, the current directory unless --root names one, must be
 the worktree top level.
 
 finish-lane runs the bind loop on a committed change: prepare, bind with the

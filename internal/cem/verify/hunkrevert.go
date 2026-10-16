@@ -152,7 +152,7 @@ func runHunkRevert(ctx context.Context, repository string, c *stableCapture, cit
 	if !runnable {
 		// Every row is decided before any file is read: no copy is exported.
 		judgeCandidates(total, "", candidates, rows, limits, run)
-	} else if workspace, mkErr := os.MkdirTemp("", "corvint-hunk-revert-"); mkErr != nil {
+	} else if workspace, mkErr := disposableWorkspace(total, repository, "corvint-hunk-revert-"); mkErr != nil {
 		err = mkErr
 	} else {
 		// The disposable copy is removed on every exit path; the caller's

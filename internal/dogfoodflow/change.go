@@ -53,6 +53,7 @@ type change struct {
 	citeSpanUnaligned    bool // no hunk edits the refused span (DCW-V0-063)
 	linkObservedRows     int
 	citedOver            bool
+	guardHunks           int // hunks the guarding-test search would select (DCW-V0-069)
 	intentPublishTmp     string
 	mapKeepTmp           string
 	localOutcomeSHA      string
@@ -149,6 +150,7 @@ func (c *change) run() int {
 	c.manifestReason = c.validateIntentManifest()
 	c.manifestValid = c.manifestReason == ""
 	c.citeStep()
+	c.guardingTestsStep()
 	_ = os.WriteFile(c.path(".corvint/change.ocm-status.json"), nil, 0o666)
 	switch {
 	case c.noIntent:
@@ -630,6 +632,75 @@ func (c *change) citeStep() {
 		status, reason = "NOT_PRODUCED", "citation-stage-cleanup-failed"
 	}
 	c.addStep("cem-cite", status, reason)
+}
+
+// guardingTestsStep records the guarding-test search (TCQ-V0-062) as
+// NOT_PRODUCED when the map holds a hunk that search would select. The search
+// runs the target's tests unconfined for up to 1200 seconds, so dogfood change
+// never runs it; the row and its note keep the step visible without blocking
+// completion (DCW-V0-069).
+func (c *change) guardingTestsStep() {
+	data, err := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
+	if err != nil {
+		return
+	}
+	if c.guardHunks = guardingTestHunks(data); c.guardHunks > 0 {
+		c.addStep(guardingTestsStepName, "NOT_PRODUCED", guardingTestsNotRun)
+	}
+}
+
+const (
+	guardingTestsStepName = "guarding-tests"
+	guardingTestsNotRun   = "guarding-tests-not-run"
+)
+
+// shellWord quotes value as one POSIX shell word, so a NOTE command stays
+// copyable when the repository path holds spaces or quotes.
+func shellWord(value string) string {
+	if value != "" && strings.Trim(value, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_./-:@+=,") == "" {
+		return value
+	}
+	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
+}
+
+// guardingTestHunks counts the hunks cem verify --guarding-tests searches: not
+// mechanical, in non-test Go source, and citing no _test.go span as test-claim.
+func guardingTestHunks(data []byte) int {
+	var decoded struct {
+		Evidence []struct {
+			ID   string `json:"id"`
+			Path string `json:"path"`
+		} `json:"evidence"`
+		Hunks []struct {
+			Disposition string `json:"disposition"`
+			Path        string `json:"path"`
+			Basis       []struct {
+				EvidenceID string `json:"evidenceId"`
+				Relation   string `json:"relation"`
+			} `json:"basis"`
+		} `json:"hunks"`
+	}
+	if json.Unmarshal(data, &decoded) != nil {
+		return 0
+	}
+	paths := map[string]string{}
+	for _, record := range decoded.Evidence {
+		paths[record.ID] = record.Path
+	}
+	count := 0
+	for _, hunk := range decoded.Hunks {
+		if hunk.Disposition == "mechanical" || !strings.HasSuffix(hunk.Path, ".go") || strings.HasSuffix(hunk.Path, "_test.go") {
+			continue
+		}
+		cites := false
+		for _, basis := range hunk.Basis {
+			cites = cites || basis.Relation == "test-claim" && strings.HasSuffix(paths[basis.EvidenceID], "_test.go")
+		}
+		if !cites {
+			count++
+		}
+	}
+	return count
 }
 
 // uniformPlan reports, and keeps for the fix hint, a plan that cites one span
@@ -1279,6 +1350,8 @@ func failing(row step) bool {
 		return false
 	case row.reason == "no-intent-declared":
 		return false
+	case row == step{guardingTestsStepName, "NOT_PRODUCED", guardingTestsNotRun}:
+		return false
 	}
 	return true
 }
@@ -1530,6 +1603,10 @@ func (c *change) reportFailures() int {
 	}
 	if c.queryAbstentionSHA != "" {
 		c.say("dogfood-change: NOTE %s NOT_PRODUCED %s\n", queryStep, queryAbstentionReason)
+	}
+	if c.guardHunks > 0 {
+		c.say("dogfood-change: NOTE %s NOT_PRODUCED %s hunks=%d: to cite an observed guarding test, run corvint cem verify --map .corvint/change.cem.json --expected-base %s --target %s --artifacts %s --guarding-tests and add its guardingTests.plan rows to the citation plan; it runs the change's tests unconfined for up to 1200 seconds (docs/DOGFOOD.md section 4)\n",
+			guardingTestsStepName, guardingTestsNotRun, c.guardHunks, c.base, c.target, shellWord(stableArtifactRoot(c.root)))
 	}
 	c.noteAgentReceipts()
 	if c.complete() {

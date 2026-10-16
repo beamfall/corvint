@@ -57,7 +57,7 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	}
 	cemGit(t, manual, "add", ".corvint/change.cem.json")
 	cemGit(t, manual, "commit", "-qm", "chore: bind change evidence")
-	if code, _, stderr := run.exec(t, manual, env, "dogfood", "change", base); code != 0 || stderr != absentAgentReceipts {
+	if code, _, stderr := run.exec(t, manual, env, "dogfood", "change", base); code != 0 || dropGuardingNote(stderr) != absentAgentReceipts {
 		t.Fatalf("pass 2 exit=%d stderr=%s", code, stderr)
 	}
 	if code, stdout, stderr := run.exec(t, manual, append(append([]string{}, env...), finishLaneIdentity...), "dogfood", "seal", base); code != 0 {
@@ -65,7 +65,7 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	}
 
 	code, stdout, stderr := run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
-	if code != 0 || stderr != absentAgentReceipts+"dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-absent\n" {
+	if code != 0 || dropGuardingNote(stderr) != absentAgentReceipts+"dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-absent\n" {
 		t.Fatalf("finish-lane exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	bind := cemGit(t, root, "rev-parse", "HEAD^")
@@ -79,11 +79,16 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 		"dogfood-finish-lane: seal PASS seal=" + seal + "\n" +
 		// DCW-V0-062: every row a pass did not produce stays listed, even
 		// the ones a later pass produced.
-		"dogfood-finish-lane: NOT_PRODUCED rows=4\n" +
+		// DCW-V0-069: the advisory guarding-tests row is listed by each
+		// pass that prints it, though it never blocks completion.
+		"dogfood-finish-lane: NOT_PRODUCED rows=7\n" +
 		"  prepare cem-cite NOT_PRODUCED citation-plan-not-provided\n" +
+		"  prepare guarding-tests NOT_PRODUCED guarding-tests-not-run\n" +
 		"  prepare cem-status NOT_PRODUCED not-ready\n" +
 		"  prepare local-outcome NOT_PRODUCED record-index-failed\n" +
+		"  bind guarding-tests NOT_PRODUCED guarding-tests-not-run\n" +
 		"  bind local-outcome NOT_PRODUCED record-index-failed\n" +
+		"  rebind guarding-tests NOT_PRODUCED guarding-tests-not-run\n" +
 		"dogfood-check: SUMMARY cem=accepted hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review requirements=1 linked=1 unlinked=0 report=.corvint/dogfood-report.json detail=" + detail + "\n" +
 		"dogfood-check: PASS\n" +
 		"dogfood-seal: PASS sealed=.corvint/changes/" + bind + ".cem.json\n"
@@ -173,7 +178,7 @@ func TestDogfoodFinishLaneDCWV0061ContinuesFromBindCommit(t *testing.T) {
 	bind := cemGit(t, root, "rev-parse", "HEAD")
 	code, stdout, stderr := run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
 	if code != 0 || !strings.HasPrefix(stdout, "dogfood-finish-lane: prepare SKIP bind-commit="+bind+"\ndogfood-finish-lane: bind SKIP bind-commit="+bind+"\ndogfood-finish-lane: commit SKIP bind-commit="+bind+"\ndogfood-finish-lane: rebind PASS\ndogfood-finish-lane: check PASS\n") ||
-		!strings.Contains(stdout, "\ndogfood-finish-lane: NOT_PRODUCED rows=0\n") {
+		!strings.Contains(stdout, "\ndogfood-finish-lane: NOT_PRODUCED rows=1\n  rebind guarding-tests NOT_PRODUCED guarding-tests-not-run\n") {
 		t.Fatalf("resume exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	if subjects := finishLaneSubjects(t, root, base); subjects != "chore: seal change evidence\nchore: bind change evidence\nchange" {

@@ -113,7 +113,7 @@ func runGuardingTests(ctx context.Context, repository string, c *stableCapture, 
 	for i, h := range hunks {
 		rows[i] = GuardRow{HunkID: h.mapped.ID, Path: h.mapped.Path, Candidates: []string{}, Result: GuardNotRun, Guards: []string{}}
 	}
-	workspace, err := os.MkdirTemp("", "corvint-guarding-tests-")
+	workspace, err := disposableWorkspace(total, repository, "corvint-guarding-tests-")
 	if err == nil {
 		// The disposable copy is removed on every exit path; the caller's
 		// repository is only read (product invariant 4).
@@ -449,6 +449,11 @@ func (p *goPackage) citation(tree string, guards []string) *GuardCitation {
 			}
 			needle := bytes.Join(lines[start-1:end], nil)
 			span := wire.Span{Start: offset, End: offset + int64(len(needle))}
+			if span.End-span.Start > wire.MaxCitationSpanBytes {
+				// cem cite would refuse this span, so it is never printed
+				// (TCQ-V0-063); a later guard by name may still fit.
+				continue
+			}
 			status, _ := ClassifySpan(true, bytes.Equal(base, target), target, needle, span)
 			if status == DriftStable || status == DriftRelocated {
 				return &GuardCitation{Path: d.file, Lines: strconv.FormatInt(start, 10) + ":" + strconv.FormatInt(end, 10), Test: guard}

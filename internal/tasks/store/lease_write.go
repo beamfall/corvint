@@ -291,7 +291,8 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 
 // leaseWrite carries immutable audit and model results to a bounded critical
 // section. Contention invalidates the entire preparation, including refusals
-// and replays. No fallback scans the store while holding the lock.
+// and replays. No fallback scans the store while holding the lock or the
+// preparation gate (CAL-V0-263).
 func leaseWrite(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error, facts claimObserver) (report *Report, proof *journal.Result, err error) {
 	report = &Report{}
 	if repo == nil {
@@ -307,36 +308,25 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 	if _, err := authority.Qualify(repo.CommonDir); err != nil {
 		return report, nil, err
 	}
-	// Serializing cooperating preparations prevents each successful lease commit
-	// from discarding other lease writers' full inventory/audit work. This gate is
-	// not writer authority: noncooperating writers and settlement still require
-	// every existing guarded observation and locked rebind below.
-	timing, admission := leaseTimingOf(ctx), time.Now()
+	// The preparation gate serializes cooperating lease writers' bounded
+	// critical sections only: the writer-checkpoint route and the locked
+	// commit of a planned complete-route write (CAL-V0-263). The complete
+	// audit, the model and every refusal it decides run before the gate, and
+	// commitLease's locked recheck binds them, so a commit that moved the
+	// head fails as SNAPSHOT_MOVED and the next round samples again. The gate
+	// is not writer authority: noncooperating writers and settlement still
+	// require every existing guarded observation and locked rebind below.
+	timing := leaseTimingOf(ctx)
 	timing.Transactions++
-	// The scheduled complete audit runs after the preparation gate and the
-	// writer lock are released (CAL-V0-117).
+	// The scheduled checkpoint refresh runs after the preparation gate and
+	// the writer lock are released (CAL-V0-117).
 	refresh := false
 	defer func() {
 		if refresh {
 			refreshWriterCheckpoint(ctx, repo)
 		}
 	}()
-	preparation, err := authority.AcquirePreparation(ctx, repo, authority.LockOptions{CallerWait: leaseLockWaitOf(ctx)})
-	timing.AdmissionWait += time.Since(admission)
-	if err != nil {
-		return report, nil, err
-	}
 	hooks := hooksForInventory(ctx)
-	var terminal *preparedLease
-	defer func() {
-		closeErr := hooks.closePreparation(preparation)
-		if terminal != nil {
-			terminal.recordCleanup("preparation gate close", closeErr)
-			proof, err = nil, terminal.fatalError()
-		} else if closeErr != nil {
-			err = errors.Join(err, closeErr)
-		}
-	}()
 	for round := 0; round < 16; round++ {
 		if err := ctx.Err(); err != nil {
 			return report, nil, err
@@ -358,19 +348,36 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		if err != nil {
 			return guardFailureAudit(report, request.RequestID, err)
 		}
-		// CAL-V0-116 (proposed): a retained writer checkpoint serves the write
-		// under one lock; every decline prepares the complete route below.
-		handled, due, fast, err := leaseWriter(ctx, repo, request, now, beforeCommit, facts, report)
-		if handled {
-			if err != nil {
-				return guardFailureAudit(report, request.RequestID, err)
+		// CAL-V0-116: a retained writer checkpoint serves the write under one
+		// lock; every decline prepares the complete route below, outside the
+		// gate (CAL-V0-263).
+		if writerRouteReady(repo, request) {
+			var handled, due bool
+			var fast *journal.Result
+			var routeErr error
+			ran, gateErr := underPreparation(ctx, repo, hooks, timing, func() {
+				handled, due, fast, routeErr = leaseWriter(ctx, repo, request, now, beforeCommit, facts, report)
+			})
+			if !ran {
+				return report, nil, gateErr
 			}
-			refresh = due
-			return report, fast, nil
+			if handled {
+				if routeErr != nil {
+					report, _, routeErr = guardFailureAudit(report, request.RequestID, routeErr)
+					return report, nil, errors.Join(routeErr, gateErr)
+				}
+				if gateErr != nil {
+					return report, nil, gateErr
+				}
+				refresh = due
+				return report, fast, nil
+			}
+			if gateErr != nil {
+				return report, nil, gateErr
+			}
 		}
 		p, err := prepareLease(ctx, repo, request, now, facts)
 		if p != nil && len(p.fatalCleanup) > 0 {
-			terminal = p
 			p.recordCleanup("change guard close", hooks.closeGuard(p.guard))
 			return report, nil, p.fatalError()
 		}
@@ -380,17 +387,40 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 			}
 			return guardFailureAudit(report, request.RequestID, err)
 		}
-		err = commitLease(ctx, repo, request, p, report, beforeCommit)
-		monitor := time.Now()
-		closeErr := hooks.closeGuard(p.guard) // thousands of descriptors, always unlocked
-		timing.MonitorClose += time.Since(monitor)
+		// The sweep re-reads over-budget files outside the lock and the gate;
+		// the locked checks in commitLease only poll events, so guard work
+		// under either does not grow with the store.
+		hooks.commitStage("sweep")
+		p.guard.Sweep()
+		var closeErr error
+		commit := func() {
+			err = commitLease(ctx, repo, request, p, report, beforeCommit)
+			monitor := time.Now()
+			closeErr = hooks.closeGuard(p.guard) // thousands of descriptors, always unlocked
+			timing.MonitorClose += time.Since(monitor)
+		}
+		var gateErr error
+		if p.pending || (p.result.Kind == "Transaction" && p.result.Plan != nil) {
+			var ran bool
+			if ran, gateErr = underPreparation(ctx, repo, hooks, timing, commit); !ran {
+				p.recordCleanup("change guard close", hooks.closeGuard(p.guard))
+				if len(p.fatalCleanup) > 0 {
+					return report, nil, p.fatalError()
+				}
+				return report, nil, gateErr
+			}
+		} else {
+			// A replay or refusal writes nothing: decided before the gate, it
+			// is reported under the writer lock without entering it.
+			commit()
+		}
 		if len(p.fatalCleanup) > 0 {
-			terminal = p
 			p.recordCleanup("change guard close", closeErr)
+			p.recordCleanup("preparation gate close", gateErr)
 			return report, nil, p.fatalError()
 		}
-		if closeErr != nil {
-			return report, nil, errors.Join(err, closeErr)
+		if closeErr != nil || gateErr != nil {
+			return report, nil, errors.Join(err, closeErr, gateErr)
 		}
 		if wire.CodeOf(err) == wire.CodeSnapshotMoved {
 			continue
@@ -417,13 +447,8 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	if len(p.fatalCleanup) > 0 {
 		return p.fatalError()
 	}
-	// The sweep re-reads over-budget files outside the lock; the locked checks
-	// below only poll events, so guard work under the lock does not grow with
-	// the store.
-	stage := hooksForInventory(ctx).commitStage
-	stage("sweep")
-	p.guard.Sweep()
-	stage("lock")
+	// The caller swept the guard before the gate (CAL-V0-263).
+	hooksForInventory(ctx).commitStage("lock")
 	timing, wait := leaseTimingOf(ctx), time.Now()
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{CallerWait: leaseLockWaitOf(ctx)})
 	timing.LockWait += time.Since(wait)
@@ -501,4 +526,20 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	setLeaseReport(report, p.result)
 	report.Receipt, err = applyBeforeCommit(repo, session, p.result.Plan, beforeCommit)
 	return err
+}
+
+// underPreparation runs f holding the preparation gate (CAL-V0-263). ran is
+// false, with f not run, when admission failed; err is then the admission
+// error, and otherwise the gate close error. Only bounded work runs in f: the
+// writer-checkpoint route, or the locked commit of a prepared write and its
+// monitor teardown, so the gate is released after the monitor as before.
+func underPreparation(ctx context.Context, repo *intent.Repository, hooks inventoryHooks, timing *LeaseTiming, f func()) (ran bool, err error) {
+	admission := time.Now()
+	gate, err := authority.AcquirePreparation(ctx, repo, authority.LockOptions{CallerWait: leaseLockWaitOf(ctx)})
+	timing.AdmissionWait += time.Since(admission)
+	if err != nil {
+		return false, err
+	}
+	f()
+	return true, hooks.closePreparation(gate)
 }

@@ -426,7 +426,9 @@ The declaration is admitted only when `REQUIREMENTS.tsv` at `HEAD` maps the ID t
 still runs the base verifier, and requires the tree verifier to agree with itself and with any
 `CORVINT_BIN` override. The SUMMARY line carries `base-independence=NOT_PROVED base=sha256:B
 tree=sha256:T declared=ID` before `report=`, B and T being the digests of the two verifiers'
-`cem status` stdout; the report's `dogfoodCheck` adds a `baseIndependence` member with the same
+`cem status` stdout. A base verifier that refuses the read (an exit status other than 0 or
+1, for example `unsupported-spec` for a map its release cannot read) records `base=NOT_PRODUCED
+base-refusal=CODE` instead of its digest (V1-1307, decision 0535); the report's `dogfoodCheck` adds a `baseIndependence` member with the same
 values, its `outputsAgree` then meaning the tree verifier's self-agreement, and the seal's PASS
 line keeps the fields. The reviewer compares the two outputs against the declared requirement:
 the declaration admits any `cem status` difference, not only the intended one. The OCM status and
@@ -577,7 +579,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
 - `DOGFOOD-BIND-007`: a hunk whose intent no stable base content records (for example an intent
   added or removed inside the range) is not cited. A fixing commit that removes its backlog entry
   MUST cite a stable owning spec requirement or accepted decision instead. The producer reads a
-  requested span from `baseRevision` (`internal/cem/workflow/commands.go:365-382@d53a3b0c`), but
+  requested span from `baseRevision` (`internal/cem/workflow/commands.go:365-382@c79ac767`), but
   both its stability precheck and canonical target-drift verification reject that removed span
   (`internal/cem/verify/verify.go:394-450@07119cea`). A backlog entry that was the only recorded
   intent therefore binds as `NOT_PRODUCED`, never as an
@@ -701,7 +703,11 @@ Each row names, by full hunk ID, a base test
 of the hunk's own directory that the search observed pass at the target and fail with only that
 hunk reverted; a hunk whose row is `unguarded` or `not-run` gets no row. The search writes
 nothing and sets no tier: `held` still comes only from a later `--hunk-revert` run. It executes
-the change's tests unconfined, with the same bounds as `--hunk-revert`.
+the change's tests unconfined, with the same bounds as `--hunk-revert`, and refuses a `TMPDIR`
+inside the repository (`CEM-V1-250`). `dogfood change` never runs it: while the map holds a hunk
+the search would select, the report carries `guarding-tests` `NOT_PRODUCED`
+`guarding-tests-not-run`, which does not block completion, and a `NOTE` prints this command with
+the run's base and target (`DCW-V0-069`).
 
 A chore change is a self-referential bind or seal: its map cites the map files the bind loop
 itself writes. Once `cem prepare` writes `cem/1.0`, `dogfood change` marks a chore's prepared

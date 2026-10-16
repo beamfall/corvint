@@ -2,10 +2,13 @@
 # AFP-V0-047: one corvint-pr-forward-row/0 from the bundle classify.sh assembles.
 # Input (jq -n): JSON lines {kind: selection|outcomes|reuse, name, doc} or
 # {kind, name, unreadable: true}. Arguments: kind (queue|pr), pr, sha, head,
-# runId, selectionRunId, outcomesRunId, shards, epoch and collect (newline-
-# separated reasons the collector already found). Every missing, unreadable
-# or inconsistent input is an incomplete reason; a row with any reason is
-# INCOMPLETE and never CLEAN.
+# runId, selectionRunId, outcomesRunId, shards, epoch, collect (newline-
+# separated reasons the collector already found) and infra (newline-separated
+# shard numbers whose go-product-shard job of the outcomes run failed at "Set
+# up job"). Every missing, unreadable or inconsistent input is an incomplete
+# reason; a row with any reason is INCOMPLETE and never CLEAN. AFP-V0-052: a
+# row is INFRA instead when its only reasons are those hosted set-up failures
+# and the coverage gap of exactly their shards, and it has no non-FLAKY miss.
 def num: if type == "string" and test("^[0-9]+$") then tonumber else null end;
 def str: if type == "string" and length > 0 then . else null end;
 def shortr: if length > 300 then .[0:300] + "..." else . end;
@@ -18,6 +21,7 @@ def coverage($docs; $n; $what):
   ($docs | map(.shard)) as $s
   | if ($s | sort) == [range(0; $n)] then empty
     else "\($what) cover shards \($s | sort | map(tostring) | join(",")) of \($n), want each of 0..\($n - 1) once" end;
+def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - $gone);
 
 [inputs] as $in
 | ($shards | num) as $n
@@ -44,6 +48,14 @@ def coverage($docs; $n; $what):
 | ([$out[].target] | unique) as $targets
 | (if $kind == "pr" then (if ($targets | length) == 1 then $targets[0] else null end) else ($sha | str) end) as $rowSha
 | ([$sel[] | (.incomplete // [])[] | select(type == "string")] | unique) as $gaps
+| ([$infra | split("\n")[] | select(test("^[0-9]+$")) | tonumber] | unique) as $infraShards
+| [$infraShards[] | "infrastructure: go-product-shard (\(.)) of run \($outcomesRunId) failed at Set up job"] as $infrastructure
+| (if $n == null then [] else [coverage($sel; $n; "selection documents"), coverage($out; $n; "outcomes documents")] end) as $coverage
+# The hosted failures explain the coverage gap only when the outcomes miss exactly their shards
+# and the selection is whole, or, for a row whose selection is the same run, misses them too.
+| ($n != null and ($infraShards | length) > 0 and all($infraShards[]; . < $n)
+   and covers($out; $n; $infraShards)
+   and (covers($sel; $n; []) or ($selectionRunId == $outcomesRunId and covers($sel; $n; $infraShards)))) as $explained
 | [ ($collect | split("\n")[] | select(length > 0)),
     (if $n == null then "shard count \($shards) is not a number" else empty end),
     (if $kind != "queue" and $kind != "pr" then "row kind \($kind) is unknown" else empty end),
@@ -54,7 +66,7 @@ def coverage($docs; $n; $what):
     ($reuseA[] | select(.unreadable) | "reuse decision \(.name) is unreadable"),
     (if ($selA | length) != ($sel | length) then "\(($selA | length) - ($sel | length)) selection document(s) fail the corvint-pr-selection/0 shape or shard count" else empty end),
     (if ($outA | length) != ($out | length) then "\(($outA | length) - ($out | length)) outcomes document(s) fail the corvint-ci-outcomes/0 shape or shard count" else empty end),
-    (if $n != null then coverage($sel; $n; "selection documents"), coverage($out; $n; "outcomes documents") else empty end),
+    $coverage[],
     ($sel[] | select(.runId != ($selectionRunId | num)) | "selection shard \(.shard) is run \(.runId), want \($selectionRunId)"),
     ($out[] | select(.runId != ($outcomesRunId | num)) | "outcomes shard \(.shard) is run \(.runId), want \($outcomesRunId)"),
     ($sel[] | select(.head != $head) | "selection shard \(.shard) planned head \(.head), want \($head)"),
@@ -73,8 +85,10 @@ def coverage($docs; $n; $what):
        ($out[] | select(.runId != $reuse.runId or .tree != $reuse.tree) | "outcomes shard \(.shard) is not run \($reuse.runId) of tree \($reuse.tree)")
      else
        ($out[] | select(.event != "merge_group" or .target != $sha) | "outcomes shard \(.shard) is \(.event) of \(.target), want merge_group of \($sha)")
-     end)
+     end),
+    $infrastructure[]
   ] as $incomplete
+| ($incomplete - $infrastructure - (if $explained then $coverage else [] end)) as $unexplained
 | ([$sel[].selected[] | select(type == "string")] | unique) as $S
 | ([$out[] | .outcomes | to_entries[] | select(.value == "fail" or .value == "missing") | .key] | unique) as $F
 | ($F - $S) as $missed
@@ -83,7 +97,8 @@ def coverage($docs; $n; $what):
    | select([$out[] | select(.outcomes[$p] == "fail" or .outcomes[$p] == "missing")]
             | all(.rerun.state == "RAN" and .rerun.outcomes[$p] == "pass"))
    | $p] as $flaky
-| (if ($incomplete | length) > 0 then "INCOMPLETE"
+| (if ($incomplete | length) > 0 then
+     (if $explained and ($unexplained | length) == 0 and ($missed - $flaky | length) == 0 then "INFRA" else "INCOMPLETE" end)
    elif ($missed - $flaky | length) > 0 then "MISS"
    elif ($flaky | length) > 0 then "FLAKY"
    else "CLEAN" end) as $class
@@ -118,5 +133,6 @@ def coverage($docs; $n; $what):
      flaky: $flaky[0:$k],
      selectedFailedInQueue: $both[0:$k],
      incomplete: ($incomplete | map(shortr))[0:$k],
+     infrastructure: $infrastructure,
      truncated: ([$F, $missed, $flaky, $both, $incomplete] | any(length > $k))};
   first((1000000, 200, 50, 10, 0) as $k | row($k) | select(tojson | utf8bytelength <= 65536))

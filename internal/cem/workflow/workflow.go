@@ -23,7 +23,6 @@ import (
 const (
 	defaultPatchRelative  = "corvint/change.patch"
 	defaultReportRelative = "corvint/cem-review.md"
-	maxCitationSpanBytes  = 1 << 20
 	maxReportBytes        = 8 << 20
 )
 

@@ -195,25 +195,29 @@ func reemit(t *tree, o options) (string, error) {
 			}
 		}
 	}
-	if len(edits) == 0 {
-		return "", errors.New("no case value changes; nothing to re-emit")
+	// A re-emission that changes no case value (only cells no case matches)
+	// leaves the case file and its predecessorSHA256 byte-identical (decision
+	// 0535).
+	casesOld, casesNew, casesChanged := cases.src, cases.src, len(edits) > 0
+	if casesChanged {
+		predecessor := cases.root.get("predecessorSHA256")
+		if predecessor == nil {
+			return "", fmt.Errorf("%s has no predecessorSHA256", casesName)
+		}
+		edits = append(edits, replaceValue(predecessor, quote(digest(casesOld))))
+		if casesNew, err = applySplices(cases.src, edits); err != nil {
+			return "", err
+		}
+		t.set(packetDir+"/"+casesName, casesNew)
 	}
-	casesOld := cases.src
-	predecessor := cases.root.get("predecessorSHA256")
-	if predecessor == nil {
-		return "", fmt.Errorf("%s has no predecessorSHA256", casesName)
-	}
-	edits = append(edits, replaceValue(predecessor, quote(digest(casesOld))))
-	casesNew, err := applySplices(cases.src, edits)
-	if err != nil {
-		return "", err
-	}
-	t.set(packetDir+"/"+casesName, casesNew)
 
 	// 2. Both envelope cell copies.
 	cellEdits, stableCellEdits, cellsOutcome, err := reemitCells(t, o, r, members, casesNew)
 	if err != nil {
 		return "", err
+	}
+	if len(r.changes) == 0 {
+		return "", errors.New("no value changes; nothing to re-emit")
 	}
 	for kind, entries := range map[string]map[string]map[string]string{"case": rec.Cases, "cell": rec.Cells} {
 		for id, byMember := range entries {
@@ -236,7 +240,10 @@ func reemit(t *tree, o options) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	packetChanged := map[string][]byte{casesName: casesNew, inheritedCells: inheritedNew}
+	packetChanged := map[string][]byte{inheritedCells: inheritedNew}
+	if casesChanged {
+		packetChanged[casesName] = casesNew
+	}
 	if !bytes.Contains(readmeOld, []byte(replacePointer)) {
 		readmeNew := append(append([]byte(nil), readmeOld...), []byte("\n"+replacePointer+" a revision may also re-emit the value of an existing\nmember with `make cem-stable-regen-replace` (CEM-V1-091, decision 0530), which\nkeeps every other key, exit and case, records the predecessor digest of each\nreplaced value and the reason, and appends a section to CHANGES.md.\n")...)
 		t.set(packetDir+"/"+readmeName, readmeNew)
@@ -270,7 +277,7 @@ func reemit(t *tree, o options) (string, error) {
 		}
 		b.WriteString("\n")
 		writeFileTables(&b, packetManifestOld, outside, map[string][2][]byte{
-			casesName:      {casesOld, casesNew},
+			casesName:      {casesOld, packetChanged[casesName]},
 			inheritedCells: {inheritedOld, inheritedNew},
 			readmeName:     {readmeOld, packetChanged[readmeName]},
 			changesName:    {changesOld, nil},
@@ -297,9 +304,10 @@ func reemit(t *tree, o options) (string, error) {
 }
 
 // reemitCells re-emits members in both envelope cell copies. A cell takes the
-// values of the re-emitted cases whose exit and other keys equal its own; all
-// such cases must agree. A cell no case matches needs a --cell-values entry
-// (an empty object keeps every value), and a matched cell may not have one.
+// values of the re-emitted cases whose exit and other keys equal its own when
+// all such cases agree. A cell no case matches, or whose matching cases
+// disagree, needs a --cell-values entry (an empty object keeps every value);
+// a cell its agreeing cases determine may not have one.
 func reemitCells(t *tree, o options, r *reemitter, members map[string]bool, casesNew []byte) (packet, stable []splice, outcome cellOutcome, err error) {
 	memberList := sortedKeys(members)
 	cases, err := parseJSON(casesNew)
@@ -334,20 +342,29 @@ func reemitCells(t *tree, o options, r *reemitter, members map[string]bool, case
 		}
 		matches := byVerdict[key]
 		override := outcome.overrides.lookup(id)
-		switch {
-		case len(matches) > 0 && override != nil:
-			return nil, nil, outcome, fmt.Errorf("cell %s matches a case's verdict and also has a --cell-values override", id)
-		case len(matches) > 0:
-			for _, m := range memberList {
-				first, _ := matches[0].get(m).decode(casesNew)
-				for _, other := range matches[1:] {
-					if v, _ := other.get(m).decode(casesNew); !reflect.DeepEqual(first, v) {
-						return nil, nil, outcome, fmt.Errorf("cell %s: cases with its verdict disagree on %q", id, m)
-					}
+		// Cases that disagree on a re-emitted member do not determine the
+		// cell's value, so it takes an explicit entry (decision 0535).
+		disagree := ""
+		for _, m := range memberList {
+			if disagree != "" || len(matches) == 0 {
+				break
+			}
+			first, _ := matches[0].get(m).decode(casesNew)
+			for _, other := range matches[1:] {
+				if v, _ := other.get(m).decode(casesNew); !reflect.DeepEqual(first, v) {
+					disagree = m
+					break
 				}
 			}
+		}
+		switch {
+		case len(matches) > 0 && disagree == "" && override != nil:
+			return nil, nil, outcome, fmt.Errorf("cell %s matches a case's verdict and also has a --cell-values override", id)
+		case len(matches) > 0 && disagree == "":
 			values[id] = source{casesNew, matches[0]}
 			outcome.derived++
+		case disagree != "" && override == nil:
+			return nil, nil, outcome, fmt.Errorf("cell %s: cases with its verdict disagree on %q; it needs a --cell-values entry", id, disagree)
 		case override != nil:
 			values[id] = source{outcome.overrides.src, override}
 			outcome.overridden = append(outcome.overridden, id)
