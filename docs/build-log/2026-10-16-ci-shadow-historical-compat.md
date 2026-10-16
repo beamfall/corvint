@@ -74,17 +74,28 @@ required equal in rows. Repository-local config belongs to the tested checkout o
 repositories tests create.
 
 New evidence: `frozenWithoutGit`, run from `TestSelectedFailureAndFallback`, writes a valid
-200-pair corpus under two identities: one with no Git field (the shape frozen before PR #462)
-and one with a different Git. It asserts that `shadow` resume refuses with an identity mismatch
-before creating a checkout, and that `validateRow` refuses the observed row relabelled with
-either identity. Mutation: with the `!equal(id, c.Identity)` check in `shadow` replaced by a
-no-op, the test fails at `main_test.go:207` ("no Git field: corpus resumed under the current
-runtime: git exited 128 ...") because the resume proceeds to clone and check out the frozen
-pair. The row half of the test is defence in depth: `validateRow` also rejects through the
-selection file's identity, so removing only the row-identity comparison does not make the test
-fail, and no such mutation is claimed. `qualify` needs no new guard, because it refuses any corpus
-whose frozen driver digest differs from the running qualifier, and drivers that predate the Git
-field have different digests.
+200-pair corpus under two identities: one with an empty Git field (the shape a corpus frozen
+before PR #462 decodes to) and one with a different Git. It asserts that `shadow` resume refuses
+with an identity mismatch before creating a checkout, and that `validateRow` refuses the observed
+row relabelled with either identity while its files and the current identity stay unchanged.
+Two mutations, each run alone:
+
+- With the `!equal(id, c.Identity)` check in `shadow` replaced by a no-op, the test fails at
+  `main_test.go:207` ("no Git field: corpus resumed under the current runtime: git exited 128
+  ..."), because the resume proceeds to clone and check out the frozen pair.
+- With only the `!equal(r.Identity, id)` comparison removed from `validateRow`, the test fails at
+  `main_test.go:207` ("no Git field: row reused under the current identity"; 636.9 s, load 89.90
+  73.00 64.37). The relabelled row keeps the original files, so this comparison is the only guard
+  that rejects it.
+
+`qualify` needs no new guard, because it refuses any corpus whose frozen driver digest differs
+from the running qualifier, and drivers that predate the Git field have different digests.
+
+Review: one Codex round found that an earlier draft of this paragraph called the row assertion
+defence in depth and said the row-only mutation would not bite. The second mutation above
+disproves that; the paragraph was corrected. Codex also noted that the helper writes an empty
+`"Git": ""` rather than omitting the field; both decode to the same value, and the wording now
+says so. No other findings.
 
 ## Execution profile (criterion 2): owner fork
 
@@ -103,7 +114,7 @@ With (c), criterion 2 remains only partly met.
 
 - `go test -count=1 -run TestSelectedFailureAndFallback ./tools/corvint-pr-tests/` passes:
   357.8 s at load about 46 to 57.
-- The mutation above fails it.
+- Each mutation above fails it.
 - The doc gates, `go vet`, `gofmt` and the cross-OS vet are listed in the PR.
 
 ## Limits
