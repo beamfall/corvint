@@ -315,7 +315,27 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 	if svc, ok := serviceHost().DispatchService(values["--program"], c.StateDir); ok {
 		status.Obj.Set("service", wire.ObjectValue(svc))
 	}
-	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{status}}
+	// CAL-V0-290: each shadowed role is also a result warning.
+	var warnings []string
+	for _, s := range c.RoleShadows() {
+		warnings = append(warnings, prose(s.Message()))
+	}
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{status}, Warnings: warnings}
+}
+
+// dispatchRoleShadowsValue is the CAL-V0-290 status view of the shadowed
+// roles of the configuration file, in role order.
+func dispatchRoleShadowsValue(shadows []dispatch.RoleShadow) wire.Value {
+	rows := make([]wire.Value, 0, len(shadows))
+	for _, s := range shadows {
+		o := wire.NewObject()
+		o.Set("role", wire.String(s.Role))
+		o.Set("priority", wire.String(strconv.Itoa(s.Priority)))
+		o.Set("shadowedBy", wire.String(s.ShadowedBy))
+		o.Set("shadowedByPriority", wire.String(strconv.Itoa(s.ShadowedByPriority)))
+		rows = append(rows, wire.ObjectValue(o))
+	}
+	return wire.Array(rows...)
 }
 
 func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, events []dispatch.Event, now time.Time) wire.Value {
@@ -424,6 +444,9 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 		o.Set("config", dispatchConfigRecordValue(l.Config))
 	}
 	o.Set("budget", dispatchBudgetValue(c, l, now))
+	if shadows := c.RoleShadows(); len(shadows) > 0 {
+		o.Set("roleShadows", dispatchRoleShadowsValue(shadows))
+	}
 	o.Set("lastEventSeq", str(strconv.FormatUint(l.EventSeq, 10)))
 	o.Set("events", wire.Value{Kind: wire.KindArray, Arr: evs})
 	return wire.Value{Kind: wire.KindObject, Obj: o}

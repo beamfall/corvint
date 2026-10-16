@@ -201,6 +201,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		l.Pressure.Sample = PressureSample{}
 	}
 	d.emit(Event{Kind: "started", Message: fmt.Sprintf("dispatcher started for program %s with %d recorded worker(s)", program, len(l.Workers))})
+	d.warnRoleShadows()
 	if recovered != nil {
 		d.emit(Event{Kind: "reader-recovered", Message: fmt.Sprintf("reader run %s quarantine lifted: %s (%s); recorded in %s", recovered.Run, recovered.Reason, recovered.Evidence, readerRecoveryDir), Detail: map[string]string{"kind": recovered.Kind, "run": recovered.Run}})
 	}
