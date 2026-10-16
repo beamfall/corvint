@@ -74,7 +74,7 @@ func importCommand(env Env, args []string) *wire.Result {
 	o.Set("unchanged", wire.String(string(wire.CountOf(int64(report.Items-report.Planned)))))
 	o.Set("receipts", wire.Strings(receipts))
 	res := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
-	if len(report.Batches) > 0 && report.Batches[0].Redone {
+	if report.Redone {
 		res.Warnings = append(res.Warnings,
 			"a receipt left pending by an interrupted run was completed before this import (§5.2 redo)")
 	}

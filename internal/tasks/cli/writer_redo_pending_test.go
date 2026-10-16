@@ -233,6 +233,22 @@ func TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt(t *testing.T) {
 		})
 		settledBy(t, root, atm(t, root, nil, "import", "--file", export(t)), seq, 2)
 	})
+	t.Run("import retry", func(t *testing.T) {
+		// The pending receipt is the import's own last batch: the retry of
+		// the same export settles it and plans nothing, and still reports it.
+		root := roadmap(t)
+		path := export(t)
+		seq := holdPending(t, root, func() {
+			if x := atm(t, root, nil, "import", "--file", path); x.code != 0 {
+				t.Fatalf("import: %s", x.stdout)
+			}
+		})
+		x := atm(t, root, nil, "import", "--file", path)
+		settledBy(t, root, x, seq, 1)
+		if w := field(x.res.Items[0], "written").Str; w != "0" {
+			t.Fatalf("retried import wrote %s records, want 0: %s", w, x.stdout)
+		}
+	})
 	t.Run("cutover", func(t *testing.T) {
 		// The pending receipt is the import the cutover follows.
 		root := roadmap(t)

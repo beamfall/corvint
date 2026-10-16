@@ -39,3 +39,28 @@ func TestCALV0260_AttemptRunSettlesHeldPendingReceipt(t *testing.T) {
 		t.Fatalf("read after the run: %v", err)
 	}
 }
+
+// TestCALV0260_AttemptRunRefusalReportsSettledRedo: when the run's first
+// heartbeat settles a pending release of its own attempt, the heartbeat is
+// then refused and nothing starts, but the refusal still reports the
+// completed redo.
+func TestCALV0260_AttemptRunRefusalReportsSettledRedo(t *testing.T) {
+	root, a := attemptStore(t)
+	t.Setenv("CORVINT_TASKS_ACTOR", "holder")
+	holdPending(t, root, func() {
+		t.Helper()
+		if x := atm(t, root, nil, "release", "--attempt", a.AttemptID, "--generation", gen(a), "--request-id", "release-held"); x.code != 0 {
+			t.Fatalf("release: %s", x.stdout)
+		}
+	})
+	r := runAttempt(t, root, a, gen(a), []string{"--timeout", "30"}, "/bin/sh", "-c", "exit 0")
+	if r.code == 0 || r.res.Outcome != wire.OutcomeRefused || hasCode(r.res, wire.CodeRedoPending) {
+		t.Fatalf("attempt run after a held pending release: %s\n%s", r.stdout, r.stderr)
+	}
+	if !bytes.Contains(r.stdout, []byte(redoWarning)) {
+		t.Fatalf("refused attempt run does not report the redo: %s", r.stdout)
+	}
+	if _, err := cli.ObserveTickets(root); err != nil {
+		t.Fatalf("read after the refusal: %v", err)
+	}
+}

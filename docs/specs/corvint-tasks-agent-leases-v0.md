@@ -6057,8 +6057,10 @@ and `pool cleanup` already settled such a receipt but did not report the redo.
   escalate`, `ticket answer` and `attempt run` MUST NOT refuse a `REDO_PENDING` pre-write probe
   whose head is readable. Their store writer MUST settle the pending receipt under the store lock
   by the §5.2 redo before it models and commits its own request, and the result MUST carry the
-  existing completed-redo warning. `attempt run` settles it at its first pre-launch lease write and
-  reports it in the run's envelope. The `policy update` handoff fence preview (CAL-V0-124) is a read
+  existing completed-redo warning, also when the command then writes nothing (an `import` retry
+  whose export is already applied) or is refused after the settle. `attempt run` settles it at its
+  first pre-launch lease write and reports it in the run's envelope, including a refusal before
+  launch. The `policy update` handoff fence preview (CAL-V0-124) is a read
   taken before the writer. Over a pending receipt it MUST report itself `NOT_OBSERVED
   (REDO_PENDING)` without waiting out read patience. A pending receipt that the receipt audit does
   not validate as a redo MUST be refused with the audit's own error, unchanged. Reads, including
@@ -6941,7 +6943,7 @@ and removes the new configuration members.
 | CAL-V0-242 | `TestCALV0242_ModelRefusesAnUnqualifiedReuse` (`internal/tasks/store`) |
 | CAL-V0-243 | `TestCALV0243_ReceiptAuditBindsEveryReuse`, `TestCALV0243_ReuseRenamedAfterReturningToTheTree`, `TestCALV0243_RedoBindsAPendingReuse`, `TestCALV0240_ReusablePassSatisfiesAnotherAttemptAtTheTree` (`internal/tasks/store`) |
 | CAL-V0-250 | `TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference` (`internal/tasks/cli`); `docs/build-log/2026-10-15-v1-1384-1379-tasks-cli-refusals.md` |
-| CAL-V0-260 | `TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt`, `TestCALV0260_AttemptRunSettlesHeldPendingReceipt` (`internal/tasks/cli`); `docs/build-log/2026-10-15-tasks-redo-barrier-1353-1059.md` |
+| CAL-V0-260 | `TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt`, `TestCALV0260_AttemptRunSettlesHeldPendingReceipt`, `TestCALV0260_AttemptRunRefusalReportsSettledRedo` (`internal/tasks/cli`); `docs/build-log/2026-10-15-tasks-redo-barrier-1353-1059.md` |
 | CAL-V0-261 | `TestCALV0261_PoolCommandReportsSettledRedo` (`internal/tasks/store`) |
 | CAL-V0-262 | `TestCALV0262_WriterHelpNamesRedo` (`internal/tasks/cli`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
