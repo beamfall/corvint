@@ -428,7 +428,7 @@ still runs the base verifier, and requires the tree verifier to agree with itsel
 tree=sha256:T declared=ID` before `report=`, B and T being the digests of the two verifiers'
 `cem status` stdout. A base verifier that refuses the read (an exit status other than 0 or
 1, for example `unsupported-spec` for a map its release cannot read) records `base=NOT_PRODUCED
-base-refusal=CODE` instead of its digest (V1-1307, decision 0534); the report's `dogfoodCheck` adds a `baseIndependence` member with the same
+base-refusal=CODE` instead of its digest (V1-1307, decision 0535); the report's `dogfoodCheck` adds a `baseIndependence` member with the same
 values, its `outputsAgree` then meaning the tree verifier's self-agreement, and the seal's PASS
 line keeps the fields. The reviewer compares the two outputs against the declared requirement:
 the declaration admits any `cem status` difference, not only the intended one. The OCM status and

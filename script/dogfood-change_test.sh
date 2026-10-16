@@ -1043,7 +1043,7 @@ seal_check_out="dogfood-check: SUMMARY cem=ready-for-ci ocm=NOT_ASSESSED $seal_f
 seal_declared=$(cd "$seal_repo" && SEAL_TEST_CHECK_OUTPUT=$seal_check_out GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid \
   GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid script/dogfood-seal.sh HEAD)
 test "$seal_declared" = "${seal_check_out}dogfood-seal: PASS sealed=.corvint/changes/$seal_declared_bind.cem.json $seal_fields"
-# V1-1307 (decision 0534): a base verifier that refused the read is kept as
+# V1-1307 (decision 0535): a base verifier that refused the read is kept as
 # NOT_PRODUCED with its refusal code, not as a digest.
 printf '{"declared":"refused"}\n' > "$seal_repo/.corvint/change.cem.json"
 git -C "$seal_repo" add -A

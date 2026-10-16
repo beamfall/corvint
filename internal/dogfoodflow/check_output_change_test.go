@@ -272,7 +272,7 @@ func TestCheckDCWV0047DeclaredOCMStatus(t *testing.T) {
 	}
 }
 
-// TestCheckDCWV0047RefusedBaseNotProduced covers V1-1307 (decision 0534,
+// TestCheckDCWV0047RefusedBaseNotProduced covers V1-1307 (decision 0535,
 // superseding DCW-V0-072): under an admitted declaration a base verifier that
 // refuses the `cem status` read (exit 2, for example `unsupported-spec` for a
 // cem/1.0 map its release cannot read) records NOT_PRODUCED and its refusal

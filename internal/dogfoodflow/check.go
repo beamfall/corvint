@@ -565,7 +565,7 @@ func (c *check) requirementSpec(id string) string {
 // verifier deterministic, not independent of its base (DCW-V0-047). A base
 // verifier that refuses the read (an exit status other than 0 or 1) produced
 // no status, so its refusal code is kept instead of a digest of its absent
-// output (V1-1307, decision 0534).
+// output (V1-1307, decision 0535).
 func (c *check) verifyStatus(args ...string) (verification, bool) {
 	if c.outputChange == "" {
 		return c.verifyAll(args...)

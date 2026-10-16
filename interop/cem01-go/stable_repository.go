@@ -441,7 +441,7 @@ func (s *stableSession) resolve(phase, rev string) (string, string, *cemError) {
 			// One charged `cat-file -e` probe names an object absent from the
 			// local store, lazy fetch disabled; a present object that Git
 			// cannot read as a commit keeps git-read-failed (V1-1297, decision
-			// 0534, CEM-V1-103), as the native consumer's Resolve does.
+			// 0535, CEM-V1-103), as the native consumer's Resolve does.
 			p := &stableTx{Operation: "object-existence-probe", Phase: phase, input: map[string]any{"oid": rev}, op: stableOpExists, fields: []string{rev}, limit: stableFormatLimit}
 			if pstage, pe := s.transact(p); pe != nil {
 				return "", pstage, pe

@@ -1339,7 +1339,7 @@ func TestStableCanonicalEnvelopeCells(t *testing.T) {
 }
 
 // TestStableResolveMissingPinnedObjectUnavailable covers V1-1297 (decision
-// 0534, CEM-V1-103): when Git cannot read a pinned commit, one charged
+// 0535, CEM-V1-103): when Git cannot read a pinned commit, one charged
 // `cat-file -e` existence probe names an object absent from the local store
 // repository-object-unavailable; a present object that is corrupt or not a
 // commit stays git-read-failed, and a readable commit is never probed.

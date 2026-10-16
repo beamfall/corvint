@@ -581,7 +581,7 @@ func TestBlobBudgetExactLimitAllowsChargedReread(t *testing.T) {
 	}
 }
 
-// TestResolveMissingPinnedObjectUnavailable covers V1-1297 (decision 0534,
+// TestResolveMissingPinnedObjectUnavailable covers V1-1297 (decision 0535,
 // CEM-V1-103): a pinned full object ID whose object is absent from the local
 // object store is repository-object-unavailable, while a present object that
 // Git cannot resolve to a commit, corrupt or of another type, stays

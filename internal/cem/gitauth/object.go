@@ -287,7 +287,7 @@ func (r *Repository) Resolve(ctx context.Context, revision string) (string, erro
 // store, lazy fetch being disabled, is repository-object-unavailable; any
 // other unresolved revision, a present but corrupt or non-commit object
 // included, is git-read-failed. Both messages are fixed and never echo the
-// caller's revision back (V1-1297, decision 0534, CEM-V1-103).
+// caller's revision back (V1-1297, decision 0535, CEM-V1-103).
 func (r *Repository) unresolvedRevision(ctx context.Context, revision string) error {
 	if wire.IsGitOid(revision) {
 		if _, err := r.git(ctx, 64, "cat-file", "-e", revision); err != nil {
