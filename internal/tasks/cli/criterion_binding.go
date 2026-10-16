@@ -165,7 +165,9 @@ func (s *claimedTicketSource) Read(path string, max int) ([]byte, error) {
 	if e != nil || !strings.HasPrefix(path, "receipts/") {
 		return raw, e
 	}
-	receipt, e := snapshot.DecodeReceipt(raw)
+	// An elided liveness receipt (CAL-V0-270) posts only an attempt record
+	// and its request, never a ticket.
+	receipt, _, _, e := snapshot.DecodeRetainedReceipt(raw)
 	if e != nil {
 		return nil, e
 	}

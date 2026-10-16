@@ -173,6 +173,7 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 		snapshot.ProfileHead:                plain(func(b []byte) error { _, e := snapshot.DecodeHead(b); return e }),
 		snapshot.ProfileBarrier:             plain(func(b []byte) error { _, e := snapshot.DecodeBarrier(b); return e }),
 		snapshot.ProfileReceipt:             plain(func(b []byte) error { _, e := snapshot.DecodeReceipt(b); return e }),
+		snapshot.ProfileElidedReceipt:       plain(func(b []byte) error { _, _, _, e := snapshot.DecodeRetainedReceipt(b); return e }),
 		snapshot.ProfileInit:                plain(func(b []byte) error { _, e := snapshot.DecodeInit(b); return e }),
 		snapshot.ProfileAttempt:             plain(func(b []byte) error { _, e := snapshot.DecodeAttempt(b); return e }),
 		snapshot.ProfileReservations:        plain(func(b []byte) error { _, e := snapshot.DecodeReservations(b); return e }),
