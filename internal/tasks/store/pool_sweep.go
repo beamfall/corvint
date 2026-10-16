@@ -597,20 +597,37 @@ func sweepGit(ctx context.Context, root string, args ...string) ([]byte, error) 
 	bound := wire.CountOf(int64(sweepObservationBound(ctx, 2*time.Second) / time.Second))
 	result := executePoolCaptured(ctx, &intent.PoolCommand{Argv: argv, TimeoutSeconds: bound}, root, gitEnvironment())
 	if !result.Clean || result.Class != "EXIT_ZERO" {
-		e = wire.Errorf(wire.CodeUnsupported, "sweep git", "bounded observation failed: %s", result.Class)
-		if result.Clean && (result.Class == "TIMEOUT" || result.Class == "INTERRUPTED") {
-			return nil, sweepGitBounded{class: result.Class, err: e}
-		}
-		return nil, e
+		return nil, sweepGitFailure(result)
 	}
 	return result.Stdout, nil
 }
 
-// sweepGitBounded marks a Git source observation that hit its bound, so a slow
-// host records TIMEOUT/INTERRUPTED rather than claiming the source changed.
+// sweepGitFailure classifies a failed Git source probe.
+func sweepGitFailure(result poolCommandResult) error {
+	e := wire.Errorf(wire.CodeUnsupported, "sweep git", "bounded observation failed: %s", result.Class)
+	if result.Clean && (result.Class == "TIMEOUT" || result.Class == "INTERRUPTED") {
+		return sweepGitBounded{class: result.Class, err: e}
+	}
+	// PSR-V0-022: a probe whose own group cleanup is unproved observed
+	// nothing about the source. It records UNKNOWN, or the PSR-V0-004
+	// TIMEOUT/INTERRUPTED it also hit, and is terminal after exit too.
+	if !result.Clean {
+		class := "UNKNOWN"
+		if result.Bound != "" {
+			class = result.Bound
+		}
+		return sweepGitBounded{class: class, unclean: true, err: e}
+	}
+	return e
+}
+
+// sweepGitBounded marks a Git source observation that hit its bound or whose
+// cleanup is unproved, so a slow host records TIMEOUT, INTERRUPTED or UNKNOWN
+// rather than claiming the source changed. unclean marks unproved cleanup.
 type sweepGitBounded struct {
-	class string
-	err   error
+	class   string
+	unclean bool
+	err     error
 }
 
 func (e sweepGitBounded) Error() string { return e.err.Error() }

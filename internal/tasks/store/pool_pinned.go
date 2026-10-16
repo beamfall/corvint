@@ -125,15 +125,17 @@ func pinnedDirectory(path string) (os.FileInfo, error) {
 // shown drift (a non-bounded failure) becomes SOURCE_CHANGED; a bounded probe
 // TIMEOUT/INTERRUPTED replaces any class that could satisfy the phase's
 // success predicate (mayPass) and otherwise keeps the command's own terminal
-// failure. Callers must also refuse to pass a phase whose proof failed. The
-// post-exit proof is detection only.
+// failure. A probe with unproved cleanup always replaces it (PSR-V0-022), so
+// a retryable failure class cannot launch another attempt. Callers must also
+// refuse to pass a phase whose proof failed. The post-exit proof is detection
+// only.
 func poolPostClass(class string, mayPass bool, e error) string {
 	if e == nil {
 		return class
 	}
 	var bounded sweepGitBounded
 	if errors.As(e, &bounded) {
-		if mayPass {
+		if mayPass || bounded.unclean {
 			return bounded.class
 		}
 		return class

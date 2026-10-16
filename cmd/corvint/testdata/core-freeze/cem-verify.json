@@ -27,7 +27,7 @@
     },
     "citation": {
       "annotationHunks": 0,
-      "concentratedHunks": 1,
+      "concentratedHunks": 0,
       "distinctEvidence": 1,
       "evidenceFanOut": [
         [
@@ -113,7 +113,7 @@
     "spec": "cem/1.0",
     "stage": "complete",
     "targetRevision": "d00b90a6272539fa9d1dc14cc401ad296c0cd839",
-    "verdictSha256": "6aae68aa7fccb0c009dbe83b946d67cbf9fea560ec0f0df0916f96d41a85cd2e",
+    "verdictSha256": "eaca3248bcb05e0ddedfb3aee606196f034f2eb9a550a203509fea0699cb4351",
     "verificationMode": "canonical-and-reference-integrity"
   },
   "tool": "cem-verify"

@@ -171,3 +171,84 @@ file and are recorded in Git, in ../manifest.json and in each tuple manifest.
 | protocol/cem-1.0/structural-tuples/go1.27.2/TUPLE.json | 707309ef2145c56f3acc1f3583fb9f6b63659f949d4c9317ca6bf6e5624e8d76 |
 | protocol/cem-1.0/structural-tuples/go1.27.2/manifest.json | 13ba55835e1349fb05e6c231eae4805c608fc81a6b02bb4b54a836a056202b55 |
 | protocol/cem-1.0/stable/RESULT.schema.json | identical to protocol/cem-1.0/stable/repository-envelope-packet/RESULT.schema.json |
+
+# Recorded value re-emission of `citation`, `verdictSha256` (2026-10-15)
+
+Base: the public packet with manifest sha256
+9423e789c58b20079ffdc5f6d73de1a703ecd0b2f155d5b988e1fbeaafd05f07.
+Reason: CEM-V1-080/081/082 amendments approved by the owner on 2026-10-15 (decision 0530): concentratedHunks is 0 when maxFanOut is below 2 (V1-1331), so every sealed value whose citation counted a concentrated hunk at fan-out 1 is re-emitted with concentratedHunks 0 and its recomputed verdictSha256; recorded re-emission approved by the owner on 2026-10-15 (option (a)).
+Record file sha256: aba7c010bd47772949dbf00016baae65b06b2f38aa00b4bfa51c9c0b4c0a5fa5.
+Produced by `make cem-stable-regen-replace` (tools/cem-stable-regen, CEM-V1-091
+as amended by decision 0530).
+
+- Members re-emitted in place: `citation`, `verdictSha256`. No key is added or removed and
+  RESULT.schema.json is unchanged.
+- Values captured from the native verifier on go1.27.2 for 54 cases.
+- Values from the override file (sha256 c8c837ae36134ebd1c6e8046ec31c9f30c0aacf0bd8d3ea9ba125f8282347ba5) for: go1.24.13-nonstructural-positive, go1.24.13-structural-refusal.
+- Envelope cells (inherited/s0e/REPOSITORY-ENVELOPE.cells.json and its ../REPOSITORY-ENVELOPE.cells.json copy):
+  19 cells take the values of the cases with the same exit and other keys.
+- Cell values from the cell override file (sha256 ce08087f9ea547dfb9ebf2fa8854f456e59d8a1c5e49b370df4184a00c2184b6) for: ordinary-sha256, origin-sha256, linked-sha256, relative-sha256, attributes, shallow-missing, missing-base, corrupt-base, linked-attributes, missing-promisor.
+- Every other key and expectedExit is unchanged; every captured result
+  matched its frozen expectation on them (runtime.goVersion only through a
+  sealed structural-tuple substitution). The case count stays 56.
+
+## Re-emitted values
+
+Each digest is the sha256 of the value's compact JSON.
+
+| Kind | Id | Member | Predecessor sha256 | New sha256 |
+| --- | --- | --- | --- | --- |
+| case | normal-exit-lingering-descendant-contained | citation | 5c0b2fa6ba8a806151afdd83718471934ac262955fb9fb9b789b879a0de1a387 | 3118a3c4d75ffde1583c9bbf69fabb04fc39bcdcbb63c1790d7c1b03b9dbca8f |
+| case | normal-exit-lingering-descendant-contained | verdictSha256 | 9049c8dde3fc2229b9d11b28f52616d151c4c6f767c8ffdf4884dc9248b67039 | 25341552c6c1efdef200be504ead7d476a8121ce1b5d2eb92df675e92b0e1f11 |
+| case | go1.24.13-nonstructural-positive | citation | 0e3296fbb0e2a6c14a0d658a77159e853861e146a5317051ee4a090aede161a8 | 503dfa2da5ef8f833e335921c0658647c8fd6b243d706178876961ffd818b5ce |
+| case | go1.24.13-nonstructural-positive | verdictSha256 | 7839bbcac5693cbfd553b915401431a7a93790492370d2af1f6e8623f5cc9e2c | 2ec89552aba0406b03ec0e3c322262ec9ecde228197ad7c6901c6c6a284835aa |
+| case | ledger-336-evidence | citation | d00418c18f225bc8310ab2c8e1beb1d3aa2587d5f2c12bd27e59dc011c0fd027 | 81d58a163267c297f06a6022b8dcff8b7f66c9ec334b95b97a31ccaf2cea5df9 |
+| case | ledger-336-evidence | verdictSha256 | d8f0c3fd3dfe6a504ad8594fac0f782c5faa71703e2224393d8332de607e04bb | bfaaa9546b0cda23c875bba6c192c9c31f2488fb30181bc7d2372c84e480febc |
+| cell | ordinary-sha1 | citation | 5c0b2fa6ba8a806151afdd83718471934ac262955fb9fb9b789b879a0de1a387 | 3118a3c4d75ffde1583c9bbf69fabb04fc39bcdcbb63c1790d7c1b03b9dbca8f |
+| cell | ordinary-sha1 | verdictSha256 | 9049c8dde3fc2229b9d11b28f52616d151c4c6f767c8ffdf4884dc9248b67039 | 25341552c6c1efdef200be504ead7d476a8121ce1b5d2eb92df675e92b0e1f11 |
+| cell | origin-sha1 | citation | 5c0b2fa6ba8a806151afdd83718471934ac262955fb9fb9b789b879a0de1a387 | 3118a3c4d75ffde1583c9bbf69fabb04fc39bcdcbb63c1790d7c1b03b9dbca8f |
+| cell | origin-sha1 | verdictSha256 | 9049c8dde3fc2229b9d11b28f52616d151c4c6f767c8ffdf4884dc9248b67039 | 25341552c6c1efdef200be504ead7d476a8121ce1b5d2eb92df675e92b0e1f11 |
+| cell | linked-sha1 | citation | 5c0b2fa6ba8a806151afdd83718471934ac262955fb9fb9b789b879a0de1a387 | 3118a3c4d75ffde1583c9bbf69fabb04fc39bcdcbb63c1790d7c1b03b9dbca8f |
+| cell | linked-sha1 | verdictSha256 | 9049c8dde3fc2229b9d11b28f52616d151c4c6f767c8ffdf4884dc9248b67039 | 25341552c6c1efdef200be504ead7d476a8121ce1b5d2eb92df675e92b0e1f11 |
+| cell | relative-sha1 | citation | 5c0b2fa6ba8a806151afdd83718471934ac262955fb9fb9b789b879a0de1a387 | 3118a3c4d75ffde1583c9bbf69fabb04fc39bcdcbb63c1790d7c1b03b9dbca8f |
+| cell | relative-sha1 | verdictSha256 | 9049c8dde3fc2229b9d11b28f52616d151c4c6f767c8ffdf4884dc9248b67039 | 25341552c6c1efdef200be504ead7d476a8121ce1b5d2eb92df675e92b0e1f11 |
+| cell | ordinary-sha256 | citation | 79738518c3cea1ed314910aa1cd6d160d55b9ba4e97c9d4feecd7e6d71788001 | 24adfe1b3e382d2b0b8ab4abdb7fcad789a41f61e17f855c1fbf9cdd37c27e90 |
+| cell | ordinary-sha256 | verdictSha256 | e26d39c58e1794dbad64e28ec05896593a367f8eb14b84dd81c0c0700fec5ca9 | 5f374fa32236c88089c6644ddb4d8d0b256f87819ac8540f10014da962c0514e |
+| cell | origin-sha256 | citation | 79738518c3cea1ed314910aa1cd6d160d55b9ba4e97c9d4feecd7e6d71788001 | 24adfe1b3e382d2b0b8ab4abdb7fcad789a41f61e17f855c1fbf9cdd37c27e90 |
+| cell | origin-sha256 | verdictSha256 | e26d39c58e1794dbad64e28ec05896593a367f8eb14b84dd81c0c0700fec5ca9 | 5f374fa32236c88089c6644ddb4d8d0b256f87819ac8540f10014da962c0514e |
+| cell | linked-sha256 | citation | 79738518c3cea1ed314910aa1cd6d160d55b9ba4e97c9d4feecd7e6d71788001 | 24adfe1b3e382d2b0b8ab4abdb7fcad789a41f61e17f855c1fbf9cdd37c27e90 |
+| cell | linked-sha256 | verdictSha256 | e26d39c58e1794dbad64e28ec05896593a367f8eb14b84dd81c0c0700fec5ca9 | 5f374fa32236c88089c6644ddb4d8d0b256f87819ac8540f10014da962c0514e |
+| cell | relative-sha256 | citation | 79738518c3cea1ed314910aa1cd6d160d55b9ba4e97c9d4feecd7e6d71788001 | 24adfe1b3e382d2b0b8ab4abdb7fcad789a41f61e17f855c1fbf9cdd37c27e90 |
+| cell | relative-sha256 | verdictSha256 | e26d39c58e1794dbad64e28ec05896593a367f8eb14b84dd81c0c0700fec5ca9 | 5f374fa32236c88089c6644ddb4d8d0b256f87819ac8540f10014da962c0514e |
+| cell | comments | citation | 5c0b2fa6ba8a806151afdd83718471934ac262955fb9fb9b789b879a0de1a387 | 3118a3c4d75ffde1583c9bbf69fabb04fc39bcdcbb63c1790d7c1b03b9dbca8f |
+| cell | comments | verdictSha256 | 9049c8dde3fc2229b9d11b28f52616d151c4c6f767c8ffdf4884dc9248b67039 | 25341552c6c1efdef200be504ead7d476a8121ce1b5d2eb92df675e92b0e1f11 |
+| cell | shallow-complete | citation | 5c0b2fa6ba8a806151afdd83718471934ac262955fb9fb9b789b879a0de1a387 | 3118a3c4d75ffde1583c9bbf69fabb04fc39bcdcbb63c1790d7c1b03b9dbca8f |
+| cell | shallow-complete | verdictSha256 | 9049c8dde3fc2229b9d11b28f52616d151c4c6f767c8ffdf4884dc9248b67039 | 25341552c6c1efdef200be504ead7d476a8121ce1b5d2eb92df675e92b0e1f11 |
+| cell | hostile | citation | 5c0b2fa6ba8a806151afdd83718471934ac262955fb9fb9b789b879a0de1a387 | 3118a3c4d75ffde1583c9bbf69fabb04fc39bcdcbb63c1790d7c1b03b9dbca8f |
+| cell | hostile | verdictSha256 | 9049c8dde3fc2229b9d11b28f52616d151c4c6f767c8ffdf4884dc9248b67039 | 25341552c6c1efdef200be504ead7d476a8121ce1b5d2eb92df675e92b0e1f11 |
+
+## Changed files
+
+| File | Old sha256 | New sha256 |
+| --- | --- | --- |
+| FULL-RESULT-CASES.json | 25d4155c2235c3034146093d0c844e0e448281429c74bad5f19abf215d672146 | 045b8fd32d81d09d79d9d157213bcbb6cf133c006f6b6f102b3a0f680816819c |
+| inherited/s0e/REPOSITORY-ENVELOPE.cells.json | 03c55a3222d694df390724587b192170dca17bf6799bae80d86e7d706f670811 | d89a96828e888c285085b92cb339eb34e09b0558617ce04f76feba633969c5f3 |
+| README.md | 34f8ca92caec4392da9d731fd5941ea8c0f58403da8d697b56286879fcbf7c00 | 47febbf4da14a86b2733015731ed91d916817a2b1d3a5818f46838cdb5f93f96 |
+| CHANGES.md | 6f0673a52f0df49d3065d7e16ff0cab83c0ef27afdedaef462e1bb559adf5d2a | See manifest.json; this file cannot contain its own final digest. |
+| manifest.json | 9423e789c58b20079ffdc5f6d73de1a703ecd0b2f155d5b988e1fbeaafd05f07 | See ../manifest.json publicAmendmentManifestSHA256; manifest.json is not listed inside its own file list. |
+
+Files not listed above are byte-identical to the base packet. INPUTS.json
+keeps its repair-era pins as history.
+
+## Re-bound files outside the packet
+
+These files are re-bound to the digests above; their new digests depend on this
+file and are recorded in Git, in ../manifest.json and in each tuple manifest.
+
+| File | Predecessor sha256 |
+| --- | --- |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.cells.json | 4baad2604240eb80f77c468ff1d11eccb76e885344756552b9a6cf841a6b4239 |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.md | 2c160dd526905f48c65dbfb1fc732b947dfcd429b236a1cd4b6dbffc78b6fe38 |
+| protocol/cem-1.0/stable/manifest.json | 87a0baa70505c162f19998da1ad41caef5508e7d38f1c4e0fecd1537741e0e71 |
+| protocol/cem-1.0/structural-tuples/go1.27.2/TUPLE.json | 4c048beee50d0ef5ae9fc32073138c54923e6f94e8e11504c988dc12346abfdf |
+| protocol/cem-1.0/structural-tuples/go1.27.2/manifest.json | 61f7961652c94b3019fe492fd1995f13f6f06bf59b1c71da9d6b87890ca2da43 |
