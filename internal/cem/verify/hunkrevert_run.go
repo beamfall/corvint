@@ -168,6 +168,45 @@ func insideDirectory(directory, candidate string) bool {
 	return err != nil || relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
+// disposableWorkspace creates the disposable export directory both
+// --hunk-revert and --guarding-tests use, under the system temporary
+// directory, and refuses one that resolves inside the repository's worktree
+// or Git directory (CEM-V1-240): a repository-local TMPDIR would otherwise
+// place the export, and the tests' own writes, inside the repository the
+// read command must leave untouched (product invariant 4).
+func disposableWorkspace(ctx context.Context, repository, prefix string) (string, error) {
+	temp, err := filepath.Abs(os.TempDir())
+	if err == nil {
+		temp, err = filepath.EvalSymlinks(temp)
+	}
+	if err != nil {
+		return "", fmt.Errorf("temporary directory: %w", err)
+	}
+	// --show-cdup prints the worktree top relative to repository (an empty
+	// line at the top), then the absolute common Git directory follows.
+	output, err := gitOutput(ctx, repository, nil, "rev-parse", "--show-cdup", "--path-format=absolute", "--git-common-dir")
+	if err != nil {
+		return "", err
+	}
+	lines := strings.Split(strings.TrimSuffix(string(output), "\n"), "\n")
+	if len(lines) != 2 {
+		return "", fmt.Errorf("repository roots: unexpected git rev-parse output %q", output)
+	}
+	top, err := filepath.Abs(filepath.Join(repository, lines[0]))
+	if err != nil {
+		return "", fmt.Errorf("repository roots: %w", err)
+	}
+	for _, root := range []string{top, lines[1]} {
+		if resolved, err := filepath.EvalSymlinks(root); err == nil {
+			root = resolved
+		}
+		if insideDirectory(root, temp) {
+			return "", fmt.Errorf("temporary directory %s lies inside the repository %s", temp, root)
+		}
+	}
+	return os.MkdirTemp(temp, prefix)
+}
+
 // timedOutPanic is the go test binary's own -timeout panic.
 const timedOutPanic = "panic: test timed out after "
 

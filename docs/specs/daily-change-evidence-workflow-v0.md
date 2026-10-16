@@ -871,6 +871,18 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   to prepare it again. The CEM command's own message is unchanged.
   Non-goals: changing the frozen `cannot read CEM map` text of the CEM commands.
   Failure modes: none.
+- `DCW-V0-069`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1449) After
+  `cem-cite`, `dogfood change` MUST report the row `guarding-tests` `NOT_PRODUCED`
+  `guarding-tests-not-run` whenever `.corvint/change.cem.json` holds a hunk the guarding-test
+  search (`TCQ-V0-062`) would select: not `mechanical`, in a `.go` file that is not `_test.go`, and
+  citing no `_test.go` span as `test-claim`. It MUST send the row to the observation ledger like
+  every other row, print one `NOTE` naming the hunk count and the exact
+  `cem verify ... --guarding-tests` command, and MUST NOT count the row against
+  `"complete": true`. A map with no such hunk reports no row.
+  Non-goals: running the search inside `dogfood change`; it executes the change's tests unconfined
+  for up to 1200 seconds, and each bind loop runs `dogfood change` several times.
+  Failure modes: a map that cannot be read or decoded reports no row; its `cem-prepare` or
+  `cem-cite` row already fails.
 
 ## Code vocabulary
 
@@ -919,8 +931,11 @@ Base anchoring, refused by every subverb:
 - `ocm-map-not-prepared`: the `ocm-link-NNN` row's intent map did not prepare, so the row was not
   run (`DCW-V0-028`, proposed).
 - `no-intent-declared`: the change declared no intent (`DCW-V0-024`); the `ocm-prepare`,
-  `ocm-status` and `ocm-aggregate` rows carry it and, unlike every other code here, it does not
-  block `"complete": true`.
+  `ocm-status` and `ocm-aggregate` rows carry it and, unlike every other code here except
+  `guarding-tests-not-run`, it does not block `"complete": true`.
+- `guarding-tests-not-run`: the map holds a hunk the guarding-test search would select, and
+  `dogfood change` does not run that search; the `NOTE` names the command (`DCW-V0-069`). It does
+  not block `"complete": true`.
 
 `dogfood check`:
 
@@ -1080,6 +1095,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-066` (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) | `internal/dogfoodflow/change.go` `ordinalsMoved`, `staleBindingHint`, `fixHint`; `TestChangeRefusesAPlanWhoseOrdinalsMoved` (a plan whose row 1 cites ordinal 2: the fix line names the binding path, plan row 1, its ordinal 2, the hunk and its current ordinal 1, and both remedies; the generic mismatch line is absent); the V1-0239 `swapped-ordinals` case of `script/dogfood-change_test.sh` (plan row 1, ordinal 1, current ordinal 2; no generic line) | implemented; focused tests PASS |
 | `DCW-V0-067` (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) | `internal/dogfoodflow/finishlane.go` `FinishLane`, `interrupted`, `pass`, `sealInterrupted`; `TestFinishLaneDCWV0067NamesTheInterruptedStep` (a context ended during prepare prints `prepare INTERRUPTED` and the `NOT_PRODUCED rows=0` block; at the base both streams were empty; a row recorded before the interruption stays in the block); `TestFinishLaneDCWV0067NamesAnInterruptedSeal` (after a passing check the step is `seal` and the verdict lines are kept; before it, `check`) | implemented; focused tests PASS |
 | `DCW-V0-068` (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) | `internal/dogfoodflow/change.go` `fixHints` (`cem-*:map-unavailable`), `failedMap`; `TestFinishLaneDCWV0068NamesTheUnreadableMap` (the sidecar removed during the bind: the bind row is `NOT_PRODUCED map-unavailable` and its fix line names the map path); `TestChangeDCWV0068NamesTheStagedMapOfALaterRow` (a second row's failing cite names the staged citation map it read) | implemented; focused tests PASS |
+| `DCW-V0-069` (accepted under the owner's standing auto-accept (2026-10-11); V1-1449) | `internal/dogfoodflow/change.go` `guardingTestsStep`, `guardingTestHunks`, `failing`; `internal/observations/observations.go` step and reason allowlists; `TestChangeDCWV0069RecordsGuardingTestsNotRun` (a map with two searched hunks reports the row after `cem-cite`, observes it, prints the `NOTE` with `hunks=2` and never lists it as a failure; a map whose Go hunks all cite a `_test.go` test-claim reports no row) |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
@@ -1096,7 +1112,8 @@ current alpha candidate assembler requires companions, and every candidate requi
 Core-only 0.6 packaging still needs an explicit compatible contract before release. This spec does not change that
 wire by implication. If any gate fails, preserve its evidence and keep the affected jobs UNPROVEN.
 Retain the previous working installed binary and public release. Do not rewrite historical receipts.
-Roll back `DCW-V0-018` by unsetting `DOGFOOD_OCM_LINKS`: no link runs and every requirement
+Roll back `DCW-V0-069` with the V1-1449 code commit: the row and its `NOTE` go away, and ledger
+rows already written keep their admitted step and reason. Roll back `DCW-V0-018` by unsetting `DOGFOOD_OCM_LINKS`: no link runs and every requirement
 returns to `unassessed` on the next pass.
 Roll back `DCW-V0-024` by reverting its change: the declaration then refuses
 `missing-intent-scope` as any other invalid manifest did, and a report written under it fails

@@ -577,7 +577,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
 - `DOGFOOD-BIND-007`: a hunk whose intent no stable base content records (for example an intent
   added or removed inside the range) is not cited. A fixing commit that removes its backlog entry
   MUST cite a stable owning spec requirement or accepted decision instead. The producer reads a
-  requested span from `baseRevision` (`internal/cem/workflow/commands.go:365-382@d53a3b0c`), but
+  requested span from `baseRevision` (`internal/cem/workflow/commands.go:365-382@c79ac767`), but
   both its stability precheck and canonical target-drift verification reject that removed span
   (`internal/cem/verify/verify.go:393-448@92b33007`). A backlog entry that was the only recorded
   intent therefore binds as `NOT_PRODUCED`, never as an
@@ -701,7 +701,11 @@ Each row names, by full hunk ID, a base test
 of the hunk's own directory that the search observed pass at the target and fail with only that
 hunk reverted; a hunk whose row is `unguarded` or `not-run` gets no row. The search writes
 nothing and sets no tier: `held` still comes only from a later `--hunk-revert` run. It executes
-the change's tests unconfined, with the same bounds as `--hunk-revert`.
+the change's tests unconfined, with the same bounds as `--hunk-revert`, and refuses a `TMPDIR`
+inside the repository (`CEM-V1-240`). `dogfood change` never runs it: while the map holds a hunk
+the search would select, the report carries `guarding-tests` `NOT_PRODUCED`
+`guarding-tests-not-run`, which does not block completion, and a `NOTE` prints this command with
+the run's base and target (`DCW-V0-069`).
 
 A chore change is a self-referential bind or seal: its map cites the map files the bind loop
 itself writes. Once `cem prepare` writes `cem/1.0`, `dogfood change` marks a chore's prepared
