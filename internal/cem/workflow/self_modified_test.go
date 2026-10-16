@@ -129,7 +129,7 @@ func TestCiteRefusesSelfModifiedGoverningAuthority(t *testing.T) {
 	}
 }
 
-// TestStatusReportsSelfModifiedAuthority is CEM-CB-026: a change that edits a
+// TestStatusReportsSelfModifiedAuthority is CEM-V1-270: a change that edits a
 // governing instruction file and cites that file is reported, naming the
 // changing hunk and every citing basis, without changing the status state.
 func TestStatusReportsSelfModifiedAuthority(t *testing.T) {

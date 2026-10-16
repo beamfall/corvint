@@ -32,6 +32,22 @@ Before sharing diagnostics, inspect them for repository paths, source contents a
 existing secret-screening regressions cover traces and product evidence; suppression of candidate
 probe output adds a narrower boundary, not a guarantee that arbitrary diagnostics are secret-free.
 
+Governing instruction files are an injection path. Corvint gives `AGENTS.md`, `CLAUDE.md` and
+the other governing files its packet reserves the project's top authority, so a poisoned file would
+inherit it. Two published attacks show the path: Pillar Security's "Rules File Backdoor" hid agent
+instructions in invisible Unicode inside rule files that review shows as clean, and Backslash
+Security showed an `AGENTS.md` injection that made OpenAI Codex CLI stage local credentials for
+exfiltration before the user's task. `corvint context` therefore downgrades, with a named
+`hidden-unicode` warning, a reserved row whose pinned text holds a zero-width (invisible operators
+included), bidi-control or tag code point, and with `self-modified-authority` one the working tree
+modifies; `cem status` reports a governing file the change itself edits as
+`selfModifiedAuthority`, and `cem cite` refuses to cite it as authority for that change. The exact
+code points, limits and non-goals are in
+[Task-Context Packet V0](specs/task-context-packet-v0.md) ("Authority screen for reserved rows",
+TCP-V0-055..058) and [CEM stable 1.0](specs/cem-stable-v1.md) (`CEM-V1-114`, `CEM-V1-270`). The
+screen is not a general Unicode policy: homoglyphs, variation selectors and ordinary rows are not
+screened, and absence of a warning is not evidence that a file is benign.
+
 Release-blocking regressions for hostile repositories, paths, symlinks, case folds, bounded output,
 memory, time, interruption cleanup and secret screening are the matrix in
 [Stable operations V0](specs/stable-operations-v0.md), run by `make hostile-regressions-check`.
