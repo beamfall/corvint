@@ -400,7 +400,8 @@ func writerParity(t *testing.T, repo *intent.Repository, write func(context.Cont
 }
 
 // CAL-V0-116 and CAL-V0-119 (proposed): a create, a first and a superseding
-// note, and the claim, renew, heartbeat and release writes the route serves
+// note, and the claim, widen, renew, heartbeat, release and reap writes the
+// route serves
 // commit the same bytes, retain the same read checkpoint and report the same
 // outcome as the complete route.
 func TestCALV0116_WriterRouteParity(t *testing.T) {
@@ -454,10 +455,16 @@ func TestCALV0116_WriterRouteParity(t *testing.T) {
 			return Lease(ctx, repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: id, Root: root, Lease: l}, now)
 		}
 	}
-	claim := writerParity(t, repo, lease("parity-claim", transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: created.Ticket, Holder: "agent-1", LeaseMinutes: "60"}))
-	writerParity(t, repo, lease("parity-renew", transaction.LeaseRequest{Verb: transaction.LeaseRenew, AttemptID: claim.AttemptID, Generation: claim.Generation, LeaseMinutes: "60"}))
-	writerParity(t, repo, lease("parity-heartbeat", transaction.LeaseRequest{Verb: transaction.LeaseHeartbeat, AttemptID: claim.AttemptID, Generation: claim.Generation}))
-	writerParity(t, repo, lease("parity-release", transaction.LeaseRequest{Verb: transaction.LeaseRelease, AttemptID: claim.AttemptID, Generation: claim.Generation}))
+	claim := writerParity(t, repo, lease("parity-claim", transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: created.Ticket, Holder: "agent-1", LeaseMinutes: "60", Scope: []string{"src/"}}))
+	widened := writerParity(t, repo, lease("parity-widen", transaction.LeaseRequest{Verb: transaction.LeaseWiden, AttemptID: claim.AttemptID, Generation: claim.Generation, Scope: []string{"docs/"}}))
+	writerParity(t, repo, lease("parity-renew", transaction.LeaseRequest{Verb: transaction.LeaseRenew, AttemptID: claim.AttemptID, Generation: widened.Generation, LeaseMinutes: "60"}))
+	writerParity(t, repo, lease("parity-heartbeat", transaction.LeaseRequest{Verb: transaction.LeaseHeartbeat, AttemptID: claim.AttemptID, Generation: widened.Generation}))
+	writerParity(t, repo, lease("parity-release", transaction.LeaseRequest{Verb: transaction.LeaseRelease, AttemptID: claim.AttemptID, Generation: widened.Generation}))
+	// CAL-V0-263 (proposed): reap takes the route too, here of a lease the
+	// clock has passed.
+	short := writerParity(t, repo, lease("parity-short-claim", transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: created.Ticket, Holder: "agent-2", LeaseMinutes: "5"}))
+	now = wire.Timestamp(time.Now().UTC().Add(10 * time.Minute).Format("2006-01-02T15:04:05Z"))
+	writerParity(t, repo, lease("parity-reap", transaction.LeaseRequest{Verb: transaction.LeaseReap, AttemptID: short.AttemptID, Generation: short.Generation}))
 }
 
 // fixedEntropy reads as an endless run of one byte.

@@ -79,3 +79,39 @@ func TestCALV0205_PoolConfirmSafeTakesWriterRoute(t *testing.T) {
 	}
 	sameDecision(t, run, writerOracle(t, repo, safe("pool-safe-oracle", string(alloc.AllocationID))))
 }
+
+// CAL-V0-263 (proposed): the pool family takes the writer-checkpoint route
+// like the liveness verbs. A pooled claim, an acquire on a live attempt and
+// its pool release commit the same bytes and report as the complete route.
+func TestCALV0263_PoolFamilyTakesWriterRoute(t *testing.T) {
+	repo := writerStore(t, 70)
+	entropy := attemptEntropy
+	attemptEntropy = fixedEntropy(9)
+	t.Cleanup(func() { attemptEntropy = entropy })
+	poolLeasePolicy(t, repo)
+	if run := writerMutate(t, repo, "pool-family-reseed", nil); !run.completed() {
+		t.Fatalf("reseed: %+v %v", run.rep, run.err)
+	}
+	root := filepath.Join(filepath.Dir(repo.PrimaryWorktree), "worktree")
+	holdGit(t, root, "init", "-q", "-b", "main")
+	holdGit(t, root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "base")
+	now := WallClock()
+	pooled := writerParity(t, repo, writerCreate(repo, "pool-family-a", now))
+	plain := writerParity(t, repo, writerCreate(repo, "pool-family-b", now))
+	lease := func(id string, l transaction.LeaseRequest) func(context.Context) (*Report, error) {
+		return func(ctx context.Context) (*Report, error) {
+			return Lease(ctx, repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: id, Root: root, Lease: l}, now)
+		}
+	}
+	claim := writerParity(t, repo, lease("pool-family-claim", transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: pooled.Ticket, Holder: "agent-1", LeaseMinutes: "60", Pool: "db", Stage: "implement", Scope: []string{"src/"}}))
+	if claim.PoolAllocation == nil {
+		t.Fatalf("pooled claim allocated nothing: %+v", claim)
+	}
+	attemptEntropy = fixedEntropy(10) // a distinct attempt ID, on both routes
+	other := writerParity(t, repo, lease("pool-family-plain", transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: plain.Ticket, Holder: "agent-2", LeaseMinutes: "60", Scope: []string{"docs/"}}))
+	acquired := writerParity(t, repo, lease("pool-family-acquire", transaction.LeaseRequest{Verb: transaction.LeasePoolAcquire, AttemptID: other.AttemptID, Generation: other.Generation, Pool: "db"}))
+	if acquired.PoolAllocation == nil {
+		t.Fatalf("acquire allocated nothing: %+v", acquired)
+	}
+	writerParity(t, repo, lease("pool-family-release", transaction.LeaseRequest{Verb: transaction.LeasePoolRelease, AttemptID: other.AttemptID, Generation: acquired.Generation, Allocation: string(acquired.PoolAllocation.AllocationID)}))
+}

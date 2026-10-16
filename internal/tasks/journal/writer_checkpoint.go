@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"math"
+	"os"
 	"sort"
 	"strings"
 
@@ -278,7 +279,7 @@ func (res *Result) WriterCheckpoint(physical map[string]PhysicalFile) (*WriterCh
 	var w *WriterCheckpoint
 	from := uint64(1)
 	switch {
-	case res.Mode == ModeFull && res.StructuralConsistency == "CONSISTENT":
+	case (res.Mode == ModeFull || res.Mode == ModePrefix) && res.StructuralConsistency == "CONSISTENT":
 		w = &WriterCheckpoint{FullSeq: res.LastSeq.Uint64()}
 	case res.Mode == ModeWriter && res.StructuralConsistency == ModeWriter && res.writerBase != nil:
 		base := res.writerBase
@@ -497,6 +498,129 @@ func (r Reader) AuditForWriter(wc *WriterCheckpoint, requestID string, forMutati
 		return result, observation, nil
 	}
 	return nil, observation, moved("/")
+}
+
+// ModePrefix is Result.Mode for the scheduled writer-checkpoint refresh's
+// prefix walk (CAL-V0-265, proposed): every receipt 1..H of the head H its
+// capture observed, walked exactly as the complete audit walks them, and
+// every request, evidence and pinned afterimage they leave latest read and
+// compared by digest. It does not compare the private and intent
+// projections or list strays at H: every writer audit resumed from the
+// checkpoint compares them at its own head.
+const ModePrefix = "COMPLETE_PREFIX"
+
+// AuditWriterRefresh is the scheduled refresh's audit (CAL-V0-117,
+// CAL-V0-265, proposed). It first runs one attempt of AuditForWriteObserved;
+// any result other than SNAPSHOT_MOVED is returned as that audit returns it,
+// so on a journal that holds still the refresh accepts, refuses and retains
+// exactly as before. Only when the journal moved under that attempt does it
+// walk the prefix to the head it captured (ModePrefix): a prefix walk that
+// succeeded stands when every receipt 1..H is still the same file
+// afterwards, and a refusal only when the whole observation is unchanged,
+// so no refusal is derived from a moving journal. A prefix result supports
+// only Result.WriterCheckpoint: it is not a complete audit and never a read
+// checkpoint.
+func (r Reader) AuditWriterRefresh() (*Result, PhysicalObservation, error) {
+	observation := PhysicalObservation{}
+	switch r.Source.(type) {
+	case Native, *Native:
+	default:
+		return nil, observation, errCheckpoint("source", "writer refresh needs a native source")
+	}
+	full := r
+	full.writerCache, full.physical, full.fullAttempts = true, &observation, 1
+	result, err := full.audit(nil, "", profileLimits, true)
+	if wire.CodeOf(err) != wire.CodeSnapshotMoved {
+		return result, observation, err
+	}
+	observation = PhysicalObservation{}
+	r.physical, r.prefix, r.Checkpoint, r.handoffPolicy = &observation, true, nil, nil
+	for attempt := 0; attempt < 4; attempt++ {
+		result, err := r.auditAttempt(nil, "", profileLimits, true, nil)
+		if wire.CodeOf(err) == wire.CodeSnapshotMoved {
+			continue
+		}
+		return result, observation, err
+	}
+	return nil, observation, moved("receipts")
+}
+
+// walkPrefix is AuditWriterRefresh's body; see there.
+func (r Reader) walkPrefix(o *observation, lim limits) (*Result, error) {
+	result := &Result{Identity: o.identity, Head: o.head, Mode: ModePrefix, Records: map[string]Record{}, StructuralConsistency: "NOT_OBSERVED", ProjectionAgreement: "NOT_OBSERVED", SemanticCoverage: "NOT_OBSERVED", HistoricalAcceptance: "NOT_OBSERVED", ActorAuthentication: "NOT_OBSERVED", Liveness: "NOT_OBSERVED", RuntimeQualification: "NOT_OBSERVED"}
+	if o.head == nil {
+		return result, errCheckpoint("head.json", "no settled head")
+	}
+	if o.head.QueueID != r.QueueID || o.head.PrimaryWorktree != r.PrimaryWorktree {
+		return result, wire.Errorf(wire.CodeJournalForked, "head.json", "selected queue/primary differs from head; relocation unsupported")
+	}
+	headSeq := o.head.LastSeq.Uint64()
+	if headSeq == 0 || uint64(len(o.receipts)) < headSeq {
+		return result, wire.Errorf(wire.CodeJournalForked, "receipts", "receipt count is below head")
+	}
+	for i, name := range o.receipts[:headSeq] {
+		seq, err := receiptSeq(name)
+		if err != nil {
+			return result, err
+		}
+		if seq != uint64(i+1) {
+			return result, wire.Errorf(wire.CodeJournalForked, name, "receipt gap or late extra")
+		}
+	}
+	st := &chain{canonical: map[string]latest{}}
+	for i, name := range o.receipts[:headSeq] {
+		if err := r.step(o, st, result, name, uint64(i+1), headSeq, nil, "", lim); err != nil {
+			return result, err
+		}
+	}
+	result.chain = st
+	result.StructuralConsistency = "CONSISTENT"
+	if result.SemanticCoverage != "UNKNOWN" {
+		result.SemanticCoverage = "KNOWN_CODECS"
+	}
+	// Request afterimages are written once and evidence and pinned blobs are
+	// content-addressed, so their latest afterimage at H is still what a
+	// later head projects unless a later receipt posted it again; that
+	// mismatch is a refusal only on an unchanged observation (samePrefix).
+	for _, p := range sortedPaths(st.canonical) {
+		if !strings.HasPrefix(p, "requests/") && !strings.HasPrefix(p, "evidence/") && !strings.HasPrefix(p, "pinned/") {
+			continue
+		}
+		digest, _, err := r.projected(o, p, false)
+		if err != nil {
+			return result, err
+		}
+		if !equalDigest(digest, st.canonical[p].digest) {
+			return result, wire.Errorf(wire.CodeJournalForked, p, "projection differs from latest canonical afterimage")
+		}
+	}
+	return result, nil
+}
+
+// prefixHeld reports whether a successful prefix walk over before still
+// stands: a fresh listing of receipts/ shows every walked receipt 1..H as
+// the same file with the same mode, size and modification time. Receipts
+// after H, head.json and every other path may have moved.
+func prefixHeld(source Native, before *observation, lim limits) (bool, error) {
+	headSeq := before.head.LastSeq.Uint64()
+	if uint64(len(before.receipts)) < headSeq {
+		return false, nil
+	}
+	listing, err := source.List("receipts", lim.scan)
+	if err != nil {
+		return false, err
+	}
+	now := make(map[string]os.FileInfo, len(listing.Entries))
+	for _, e := range listing.Entries {
+		now[e.Name] = e.Info
+	}
+	for _, name := range before.receipts[:headSeq] {
+		a, b := before.files["receipts/"+name], now[name]
+		if a == nil || b == nil || !os.SameFile(a, b) || a.Mode() != b.Mode() || a.Size() != b.Size() || !a.ModTime().Equal(b.ModTime()) {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // walkWriter is AuditForWriter's body; see there.

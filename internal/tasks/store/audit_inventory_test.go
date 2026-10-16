@@ -284,10 +284,11 @@ func TestCALV0026_AuditInventoryFatalCleanup(t *testing.T) {
 			ctx := context.WithValue(context.Background(), inventoryHooksKey{}, hooks)
 			ctx = authority.WithLockObserver(ctx, func(time.Duration) { acquires++ })
 			report, err := Lease(ctx, repo, actor, choice, fixture.Timestamp)
+			// The audit runs while preparing, before the gate (CAL-V0-263).
 			if calls != 1 {
 				t.Fatalf("audit hook reached %d times; expected one terminal attempt", calls)
 			}
-			if wire.CodeOf(err) != wire.CodeUnsupportedFilesystem || report.Receipt != "" || acquires != 0 || guardCloses != 1 || prepCloses != 1 {
+			if wire.CodeOf(err) != wire.CodeUnsupportedFilesystem || report.Receipt != "" || acquires != 0 || guardCloses != 1 || prepCloses != 0 {
 				t.Fatalf("fatal precedence %+v %v acquire%d guard%d prep%d", report, err, acquires, guardCloses, prepCloses)
 			}
 			if possibleLeaseAudit(repo, headBefore) {

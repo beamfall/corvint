@@ -25,7 +25,8 @@ type inventoryHooks struct {
 	read             func(*os.Root, string, string, int) ([]byte, error)
 	closeGuard       func(*authority.ChangeGuard) error
 	closePreparation func(*authority.PreparationLock) error
-	// commitStage observes commitLease reaching "sweep" and then "lock".
+	// commitStage observes leaseWrite's guard sweep, before the preparation
+	// gate ("sweep"), and then commitLease reaching the writer lock ("lock").
 	commitStage func(string)
 }
 
