@@ -9,11 +9,11 @@ import (
 	"testing"
 )
 
-// TestCEMV1240WorkspaceRefusesEverySpellingOfTheRepository pins the shared
+// TestCEMV1250WorkspaceRefusesEverySpellingOfTheRepository pins the shared
 // helper both flags use: a TMPDIR inside the worktree, inside the Git
 // directory, or naming the worktree through a case alias on a
 // case-insensitive volume is refused, and one outside is used.
-func TestCEMV1240WorkspaceRefusesEverySpellingOfTheRepository(t *testing.T) {
+func TestCEMV1250WorkspaceRefusesEverySpellingOfTheRepository(t *testing.T) {
 	parent := t.TempDir()
 	root := filepath.Join(parent, "repo")
 	if err := os.Mkdir(root, 0o700); err != nil {

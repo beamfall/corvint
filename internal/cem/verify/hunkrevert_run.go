@@ -171,7 +171,7 @@ func insideDirectory(directory, candidate string) bool {
 // disposableWorkspace creates the disposable export directory both
 // --hunk-revert and --guarding-tests use, under the system temporary
 // directory, and refuses one that resolves inside the repository's worktree
-// or Git directory (CEM-V1-240): a repository-local TMPDIR would otherwise
+// or Git directory (CEM-V1-250): a repository-local TMPDIR would otherwise
 // place the export, and the tests' own writes, inside the repository the
 // read command must leave untouched (product invariant 4).
 func disposableWorkspace(ctx context.Context, repository, prefix string) (string, error) {

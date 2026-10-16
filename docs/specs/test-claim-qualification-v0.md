@@ -798,7 +798,7 @@ seconds in total), and a package whose candidate run exceeds them is `not-run: t
 394 candidates. Reverting one hunk of a change whose hunks depend on each other often breaks the
 build, and such a hunk is never guarded. The search executes the target's tests unconfined with the caller's privileges,
 exactly as `--hunk-revert` does, and like it creates the disposable export under the system
-temporary directory through the shared helper that refuses one inside the repository (`CEM-V1-240`
+temporary directory through the shared helper that refuses one inside the repository (`CEM-V1-250`
 in `cem-stable-v1.md`, V1-1452). The plan row respects the `cem cite` span bound (`TCQ-V0-063`,
 V1-1453).
 

@@ -2436,7 +2436,7 @@ count, and the three matrix cases and their manifest entries go away.
 ## Consumer hunk-revert falsifier (V1-1266, decision 0523 P2)
 
 Status: accepted; `CEM-V1-088..089` under the owner's standing auto-accept (2026-10-11), V1-1266;
-`CEM-V1-240` under the same standing auto-accept, V1-1452. Decision 0523 P2 makes `held` the one support tier that a consumer
+`CEM-V1-250` under the same standing auto-accept, V1-1452. Decision 0523 P2 makes `held` the one support tier that a consumer
 observes rather than reads: the consumer reverse-applies one hunk and runs the tests the map names
 for it. The verifier result and its `verdictSha256` (`CEM-V1-066`) stay exactly as they are; the
 falsifier reports beside them, opt-in, under the fixed `go test` runner profile.
@@ -2474,7 +2474,7 @@ falsifier reports beside them, opt-in, under the fixed `go test` runner profile.
   output bound), `no-named-test` (the cited span declares no top-level test), `not-a-modification`
   (an added or deleted file) and `revert-mismatch` (the target bytes at the hunk's new range are
   not its new side). The report records both bounds and its elapsed seconds.
-- `CEM-V1-240`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1452) The
+- `CEM-V1-250`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1452) The
   disposable export of `--hunk-revert`, and of `cem verify --guarding-tests` (`TCQ-V0-062`), MUST
   be created by one shared helper under the system temporary directory, and that helper MUST
   refuse a temporary directory that is, or lies below, the repository's worktree or Git common
@@ -2503,11 +2503,11 @@ named only from the cited span; a subtest is never named on its own. The flag ex
 test code with the caller's privileges and no filesystem confinement, exactly as `go test` would:
 Corvint itself only reads the caller's repository, but code under test can write anywhere the caller
 can, and code under test that deliberately fails when its source is reverted makes a row `held`.
-Run the flag only on a change whose tests you would run. `CEM-V1-240` keeps Corvint's own export
+Run the flag only on a change whose tests you would run. `CEM-V1-250` keeps Corvint's own export
 out of the repository; it does not confine what the tests themselves write.
 
 Rollback: revert the V1-1266 code commit. The flag, the `hunkRevert` member and the falsifier code
-go away; no committed map, seal, golden or public case depends on them. `CEM-V1-240` rolls back with
+go away; no committed map, seal, golden or public case depends on them. `CEM-V1-250` rolls back with
 the V1-1452 code commit: both flags again create the export wherever `TMPDIR` points.
 
 ### Hunk-revert falsifier traceability
@@ -2516,7 +2516,7 @@ the V1-1452 code commit: both flags again create the export wherever `TMPDIR` po
 | --- | --- | --- |
 | CEM-V1-088 | `TestCEMV1088HeldOnlyFromConsumerReexecution`, `TestCEMV1088ForgedWitnessNeverCounts`, `TestCEMV1088FlagIsVerifyOnly` (`internal/cem/workflow`); `TestCEMV1088VerifyHunkRevertIsOptIn` (`internal/cem/cli`); `TestCEMV1088JudgeRevertsOnlyInsideTheCopy`, `TestCEMV1088ReverseHunkAppliesExactlyOneHunk`, `TestCEMV1088GoTestProfileMatchesNative`, `TestCEMV1088ExportTreeReadsOnlyObjects`, `TestCEMV1088CopyWritesNeverFollowSymlinks`, `TestCEMV1088CountMovesOnlyAcceptedTiers` (`internal/cem/verify`) | Held only from a consumer-decoded failure; a forged `discriminates` witness on a weak test stays `survived`; the caller's tree including `.git` hashes identically before and after; the stable result is byte-identical with and without the flag |
 | CEM-V1-089 | `TestCEMV1088HeldOnlyFromConsumerReexecution` (`internal/cem/workflow`); `TestCEMV1089ClassifyRevert`, `TestCEMV1089DecodeGoTestJSON`, `TestCEMV1088JudgeRevertsOnlyInsideTheCopy` (`internal/cem/verify`) | Real `go test` runs: a revert that breaks compilation and a named test that fails without the revert are both `not-run`; a printed test failure in a passing package (the recorded go1.27.2 stream) is never `held`; timeout, total limit, mismatch, skip and infrastructure reasons pinned |
-| CEM-V1-240 | `TestCEMV1240HunkRevertRefusesRepositoryTMPDIR`, `TestCEMV1240GuardingTestsRefusesRepositoryTMPDIR` (`internal/cem/workflow`); `TestCEMV1240WorkspaceRefusesEverySpellingOfTheRepository` (`internal/cem/verify`: worktree, subdirectory, Git directory and, where the volume is case-insensitive, a case alias are refused; a directory outside is used) | With `TMPDIR` set to an existing directory inside the worktree, every row of both flags is `not-run: infrastructure`, no plan row prints, and nothing is written there; without the refusal the same runs export into it and judge the rows |
+| CEM-V1-250 | `TestCEMV1250HunkRevertRefusesRepositoryTMPDIR`, `TestCEMV1250GuardingTestsRefusesRepositoryTMPDIR` (`internal/cem/workflow`); `TestCEMV1250WorkspaceRefusesEverySpellingOfTheRepository` (`internal/cem/verify`: worktree, subdirectory, Git directory and, where the volume is case-insensitive, a case alias are refused; a directory outside is used) | With `TMPDIR` set to an existing directory inside the worktree, every row of both flags is `not-run: infrastructure`, no plan row prints, and nothing is written there; without the refusal the same runs export into it and judge the rows |
 
 ## Normative nested result member order (V1-1369, 2026-10-14)
 

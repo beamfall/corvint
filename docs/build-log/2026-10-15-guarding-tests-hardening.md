@@ -9,7 +9,7 @@ New requirements, all accepted under the owner's standing auto-accept (2026-10-1
 | Ticket | Requirement | Contract |
 |--------|-------------|----------|
 | V1-1453 | `TCQ-V0-063` | A guarding-test plan row never names a span longer than `cem cite` accepts (1 MiB). |
-| V1-1452 | `CEM-V1-240` | `--hunk-revert` and `--guarding-tests` refuse a `TMPDIR` inside the repository. |
+| V1-1452 | `CEM-V1-250` | `--hunk-revert` and `--guarding-tests` refuse a `TMPDIR` inside the repository. |
 | V1-1449 | `DCW-V0-069` | The dogfood bind path records the guarding-test step as `NOT_PRODUCED guarding-tests-not-run`. |
 
 The IDs were checked as free against `origin/main` and every open PR branch.
@@ -74,10 +74,10 @@ Load averages were recorded with each run.
   - Mutations:
     - Removing the check fails the over-bound case.
     - Changing `>` to `>=` fails the exact-bound case.
-- **`CEM-V1-240`.**
+- **`CEM-V1-250`.**
   - Both tests pass at load 73.39/71.88/69.04, inside a package run of 553.7 s:
-    - `TestCEMV1240HunkRevertRefusesRepositoryTMPDIR`, 99.65 s.
-    - `TestCEMV1240GuardingTestsRefusesRepositoryTMPDIR`, 54.69 s.
+    - `TestCEMV1250HunkRevertRefusesRepositoryTMPDIR`, 99.65 s.
+    - `TestCEMV1250GuardingTestsRefusesRepositoryTMPDIR`, 54.69 s.
   - Mutation: disabling the inside-repository check fails both tests (rows become held or judged)
     at load 68.58/69.02/69.53.
 - **`DCW-V0-069`.**
@@ -94,7 +94,7 @@ Load averages were recorded with each run.
   - The helper now compares the file identity (`os.SameFile`) of the temporary directory and each
     ancestor with the worktree and the Git common directory. This also stops a root on another
     volume from being mistaken for an ancestor, which was Codex finding 3.
-  - `TestCEMV1240WorkspaceRefusesEverySpellingOfTheRepository` covers the worktree, a
+  - `TestCEMV1250WorkspaceRefusesEverySpellingOfTheRepository` covers the worktree, a
     subdirectory, the Git directory and a case alias, plus a directory outside that is used.
   - Mutation: a text comparison of the resolved roots fails the case-alias row.
 - **P2, fixed: the NOTE command broke on repository paths with spaces.**

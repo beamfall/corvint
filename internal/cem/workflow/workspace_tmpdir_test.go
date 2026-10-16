@@ -34,10 +34,10 @@ func assertNothingExported(t *testing.T, inside string) {
 	}
 }
 
-// TestCEMV1240HunkRevertRefusesRepositoryTMPDIR pins that --hunk-revert never
+// TestCEMV1250HunkRevertRefusesRepositoryTMPDIR pins that --hunk-revert never
 // exports into a TMPDIR inside the repository: every row is not-run
 // infrastructure and nothing is written there.
-func TestCEMV1240HunkRevertRefusesRepositoryTMPDIR(t *testing.T) {
+func TestCEMV1250HunkRevertRefusesRepositoryTMPDIR(t *testing.T) {
 	root, base, target := makeRevertRepo(t)
 	hunks := prepareRevert(t, root, base, target, [3][3]string{
 		{"pkg/calc/calc_test.go", "5:5", "test-claim"},
@@ -57,10 +57,10 @@ func TestCEMV1240HunkRevertRefusesRepositoryTMPDIR(t *testing.T) {
 	assertNothingExported(t, inside)
 }
 
-// TestCEMV1240GuardingTestsRefusesRepositoryTMPDIR pins the same refusal,
+// TestCEMV1250GuardingTestsRefusesRepositoryTMPDIR pins the same refusal,
 // through the same helper, for --guarding-tests: no row is guarded and no
 // plan row is printed.
-func TestCEMV1240GuardingTestsRefusesRepositoryTMPDIR(t *testing.T) {
+func TestCEMV1250GuardingTestsRefusesRepositoryTMPDIR(t *testing.T) {
 	root, base, target := makeRevertRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)

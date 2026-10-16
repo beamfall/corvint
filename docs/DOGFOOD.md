@@ -702,7 +702,7 @@ of the hunk's own directory that the search observed pass at the target and fail
 hunk reverted; a hunk whose row is `unguarded` or `not-run` gets no row. The search writes
 nothing and sets no tier: `held` still comes only from a later `--hunk-revert` run. It executes
 the change's tests unconfined, with the same bounds as `--hunk-revert`, and refuses a `TMPDIR`
-inside the repository (`CEM-V1-240`). `dogfood change` never runs it: while the map holds a hunk
+inside the repository (`CEM-V1-250`). `dogfood change` never runs it: while the map holds a hunk
 the search would select, the report carries `guarding-tests` `NOT_PRODUCED`
 `guarding-tests-not-run`, which does not block completion, and a `NOTE` prints this command with
 the run's base and target (`DCW-V0-069`).

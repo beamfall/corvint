@@ -7,7 +7,7 @@ import (
 
 // TestCEMHelpNamesGuardingTestsBounds pins that cem help documents
 // --guarding-tests with its run bounds, its unconfined execution and its
-// repository-TMPDIR refusal (V1-1376, TCQ-V0-062, CEM-V1-240).
+// repository-TMPDIR refusal (V1-1376, TCQ-V0-062, CEM-V1-250).
 func TestCEMHelpNamesGuardingTestsBounds(t *testing.T) {
 	t.Parallel()
 	code, out, _ := runCLI(t, "cem", "--help")
