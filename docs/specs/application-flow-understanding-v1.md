@@ -817,6 +817,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-015..018 | implemented: `internal/appflows/query.go`, `impact.go`, `runingest.go` (`IngestRunFile`), `cmd/corvint/flows.go` |
 | AFU-V1-025..029 | implemented (029 observer integration through the experimental NEX-V0 companion; see the matrix): `internal/appflows/navigate.go`, `origins.go`, `navigation_execution.go`, the `navigation` member in `intent.go`, `cmd/corvint/flows_navigate.go`, `tools/web-flows/navigation.mjs` |
 | AFU-V1-030..033 | implemented: `internal/appflows/docs.go` (`RenderDocs`, `CheckDocs`, `ReplaceConfined`), `cmd/corvint/flows_docs.go` |
+| AFU-V1-036 | implemented (tests in the matrix): `internal/appflows/input.go` (`ReadFile` and `readSource` read only after `Lstat` shows a regular file; `WriteConfined` creates with `O_EXCL` under `os.OpenRoot` after `confinedName` and `realParents`; `gitPath` and the `git-path-refused` code), used by `record` (`report.go`) and `import` (`import.go`); `internal/appflows/docs.go` (`ReplaceConfined`, a confined temporary file and rename); `internal/appflows/intent.go` (`FlowsDir`, a real `--flows` directory) |
 | AFU-V1-039 | implemented and locally qualified (limits above): `cmd/corvint/testdata/flows/acceptance`, `cmd/corvint/flows_acceptance_test.go` |
 | AFU-V1-006 | partial (see the matrix): `internal/doccorpus/behavior.go` |
 | AFU-V1-054..056 | proposed (V1-0985): `internal/doccorpus/behavior.go` (`BehaviorRevisions`), `behavior_v2.go` |
