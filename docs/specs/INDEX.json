@@ -3,7 +3,7 @@
     "path": "docs/specs/core-compatibility-freeze-v1.md",
     "title": "Core Compatibility Freeze V1",
     "reqPrefix": "CCF-V1",
-    "intent": "accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943)",
+    "intent": "accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); CCF-V1-010 accepted under the owner's standing auto-accept of 2026-10-11 (V1-0285)",
     "delivery": "experimental",
     "claim": "The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.",
     "dependsOn": [
@@ -735,7 +735,7 @@
     "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
     "title": "Corvint Tasks pool safe reuse V0",
     "reqPrefix": "PSR-V0",
-    "intent": "accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406)",
+    "intent": "accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492)",
     "delivery": "experimental",
     "claim": "Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.",
     "dependsOn": [

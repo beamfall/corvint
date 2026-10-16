@@ -139,20 +139,20 @@ AFU-V1-039	docs/specs/application-flow-understanding-v1.md	668	A committed fixtu
 AFU-V1-040	docs/specs/application-flow-understanding-v1.md	671	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing	unrecorded	-
 AFU-V1-041	docs/specs/application-flow-understanding-v1.md	206	The planned repetition ordinals, the planned or manual run kind, the infrastruct	unrecorded	-
 AFU-V1-042	docs/specs/application-flow-understanding-v1.md	211	`corvint flows stability` MUST report, per registry aggregate, the selected scop	unrecorded	-
-AFU-V1-043	docs/specs/application-flow-understanding-v1.md	883	`docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`	unrecorded	-
-AFU-V1-044	docs/specs/application-flow-understanding-v1.md	891	Logical flow and paragraph IDs depend on provider namespace, repository-relative	unrecorded	-
-AFU-V1-045	docs/specs/application-flow-understanding-v1.md	897	`docs flows check --revision FULL_SHA --previous GENERATION_JSON	unrecorded	-
-AFU-V1-046	docs/specs/application-flow-understanding-v1.md	903	Materialization requires a new directory under existing nonsymlink parents and	unrecorded	-
-AFU-V1-047	docs/specs/application-flow-understanding-v1.md	909	Optional `--corpus FILE` is revalidated with corpus Open and must retain the exa	unrecorded	-
-AFU-V1-048	docs/specs/application-flow-understanding-v1.md	915	`docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA	unrecorded	-
-AFU-V1-049	docs/specs/application-flow-understanding-v1.md	952	`flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`	unrecorded	-
-AFU-V1-050	docs/specs/application-flow-understanding-v1.md	959	Proof admits original canonical `/3` bytes and rederives exact test/config/packa	unrecorded	-
-AFU-V1-051	docs/specs/application-flow-understanding-v1.md	968	Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.	unrecorded	-
-AFU-V1-052	docs/specs/application-flow-understanding-v1.md	974	CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 o	unrecorded	-
-AFU-V1-053	docs/specs/application-flow-understanding-v1.md	980	Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even	unrecorded	-
-AFU-V1-054	docs/specs/application-flow-understanding-v1.md	1012	(proposed (V1-0985)) The `/1` behavior provider and the `/1`-family wires that s	unrecorded	-
-AFU-V1-055	docs/specs/application-flow-understanding-v1.md	1016	(proposed (V1-0985)) A `/2` provider record, and the corpus report built from it	unrecorded	-
-AFU-V1-056	docs/specs/application-flow-understanding-v1.md	1020	(proposed (V1-0985)) A `/2` producer request that carries the legacy /1 member i	unrecorded	-
+AFU-V1-043	docs/specs/application-flow-understanding-v1.md	884	`docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`	unrecorded	-
+AFU-V1-044	docs/specs/application-flow-understanding-v1.md	892	Logical flow and paragraph IDs depend on provider namespace, repository-relative	unrecorded	-
+AFU-V1-045	docs/specs/application-flow-understanding-v1.md	898	`docs flows check --revision FULL_SHA --previous GENERATION_JSON	unrecorded	-
+AFU-V1-046	docs/specs/application-flow-understanding-v1.md	904	Materialization requires a new directory under existing nonsymlink parents and	unrecorded	-
+AFU-V1-047	docs/specs/application-flow-understanding-v1.md	910	Optional `--corpus FILE` is revalidated with corpus Open and must retain the exa	unrecorded	-
+AFU-V1-048	docs/specs/application-flow-understanding-v1.md	916	`docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA	unrecorded	-
+AFU-V1-049	docs/specs/application-flow-understanding-v1.md	953	`flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`	unrecorded	-
+AFU-V1-050	docs/specs/application-flow-understanding-v1.md	960	Proof admits original canonical `/3` bytes and rederives exact test/config/packa	unrecorded	-
+AFU-V1-051	docs/specs/application-flow-understanding-v1.md	969	Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.	unrecorded	-
+AFU-V1-052	docs/specs/application-flow-understanding-v1.md	975	CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 o	unrecorded	-
+AFU-V1-053	docs/specs/application-flow-understanding-v1.md	981	Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even	unrecorded	-
+AFU-V1-054	docs/specs/application-flow-understanding-v1.md	1013	(proposed (V1-0985)) The `/1` behavior provider and the `/1`-family wires that s	unrecorded	-
+AFU-V1-055	docs/specs/application-flow-understanding-v1.md	1017	(proposed (V1-0985)) A `/2` provider record, and the corpus report built from it	unrecorded	-
+AFU-V1-056	docs/specs/application-flow-understanding-v1.md	1021	(proposed (V1-0985)) A `/2` producer request that carries the legacy /1 member i	unrecorded	-
 AFU-V1-057	docs/specs/application-flow-understanding-v1.md	511	(accepted, decision 0512) Navigation traffic	owner	decision 0512
 AFU-V1-058	docs/specs/application-flow-understanding-v1.md	515	(accepted, decision 0512) Navigation MUST index traffic	owner	decision 0512
 AFU-V1-059	docs/specs/application-flow-understanding-v1.md	635	accepted, decision 0512. Impact graph construction MUST	unrecorded	-
@@ -729,6 +729,7 @@ CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	174	Breaking-change rule. 
 CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	184	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.	owner	2026-09-25; decision 0401
 CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	326	Root help MUST carry a `Command maturity:` section that lists the Core verbs of	unrecorded	-
 CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	333	(proposed (V1-0945; no GitHub issue), not accepted) Root help is a compact verb	unrecorded	-
+CCF-V1-010	docs/specs/core-compatibility-freeze-v1.md	341	(accepted under the owner's standing auto-accept of 2026-10-11; V1-0285, panel	standing	2026-10-11; V1-0285
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -1030,9 +1031,9 @@ CEM-V1-230	docs/specs/cem-stable-v1.md	837	(accepted under the owner's standing 
 CEM-V1-231	docs/specs/cem-stable-v1.md	852	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
 CEM-V1-232	docs/specs/cem-stable-v1.md	859	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) The migr	standing	2026-10-11; V1-1277
 CEM-V1-240	docs/specs/cem-stable-v1.md	433	`corvint-cem-candidate assemble-stable --experimental --request R --out-dir D`	unrecorded	-
-CEM-V1-250	docs/specs/cem-stable-v1.md	2486	(accepted under the owner's standing auto-accept (2026-10-11); V1-1452) The	standing	2026-10-11; V1-1452
-CEM-V1-260	docs/specs/cem-stable-v1.md	2797	(accepted under the owner's standing auto-accept (2026-10-11); V1-1295) Drift	standing	2026-10-11; V1-1295
-CEM-V1-261	docs/specs/cem-stable-v1.md	2856	(accepted under the owner's standing auto-accept (2026-10-11); V1-1296)	standing	2026-10-11; V1-1296
+CEM-V1-260	docs/specs/cem-stable-v1.md	2827	(accepted under the owner's standing auto-accept (2026-10-11); V1-1295) Drift	standing	2026-10-11; V1-1295
+CEM-V1-261	docs/specs/cem-stable-v1.md	2886	(accepted under the owner's standing auto-accept (2026-10-11); V1-1296)	standing	2026-10-11; V1-1296
+CEM-V1-270	docs/specs/cem-stable-v1.md	2759	(accepted under the owner's standing auto-accept (2026-10-11), 2026-10-16; V1-04	standing	2026-10-11; 2026-10-16; V1-0414
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	1255	(retired by V1-1278 S3) The default `verify` path refuses a strictly parsed JSON	unrecorded	-
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	1259	(retired by V1-1278 S3) `ci` reports such a map as verdict `unsupported-profile`	unrecorded	-
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	1262	(retired by V1-1278 S3) Only that exact case changes. A duplicate, non-string, d	unrecorded	-
@@ -2900,6 +2901,7 @@ PSR-V0-019	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	51	Sharing excludes th
 PSR-V0-020	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	52	The binding is visible in pure reads (PSR-V0-015, TM-V0-008). `pool status` give	unrecorded	-
 PSR-V0-021	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	53	The encoding is additive: pools.json entries gain the optional `shared` key only	unrecorded	-
 PSR-V0-022	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	54	(accepted under the owner's standing auto-accept (2026-10-11), V1-1406) A bounde	standing	2026-10-11; V1-1406
+PSR-V0-023	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	55	(owner delegated to the orchestrator (2026-10-16), decision 0536, V1-1492) Withi	unrecorded	-
 PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled disposable synthetic Git fixture in a new	unrecorded	-
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and	unrecorded	-
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use	unrecorded	-
@@ -3457,17 +3459,17 @@ TCP-V0-051	docs/specs/task-context-packet-v0.md	909	`context --task` accepts at 
 TCP-V0-052	docs/specs/task-context-packet-v0.md	915	CLI and the explicit MCP descendant use one shared attachment. Before and after	unrecorded	-
 TCP-V0-053	docs/specs/task-context-packet-v0.md	921	Required live qualification fails when gopls is missing. Compiled CLI and MCP	unrecorded	-
 TCP-V0-054	docs/specs/task-context-packet-v0.md	927	(experimental, V1-0482) When Go LSP enrichment has an explicit task subject,	unrecorded	-
-TCP-V0-055	docs/specs/task-context-packet-v0.md	949	(experimental, V1-0414) Before reservation, every reserved row (TCP-V0-008	unrecorded	-
-TCP-V0-056	docs/specs/task-context-packet-v0.md	962	(experimental, V1-0414) A row with any TCP-V0-055 or TCP-V0-057 warning is	unrecorded	-
-TCP-V0-057	docs/specs/task-context-packet-v0.md	973	(experimental, V1-0414) The packet's diff under review is the working tree	unrecorded	-
-TCP-V0-058	docs/specs/task-context-packet-v0.md	979	(experimental, V1-0414) The screen adds no input other than the pinned blob and	unrecorded	-
-TCP-V0-059	docs/specs/task-context-packet-v0.md	983	(proposed 2026-10-06 and amended the same day with the gate, V1-0859;	unrecorded	-
-TCP-V0-060	docs/specs/task-context-packet-v0.md	1016	(proposed 2026-10-06, V1-0431 criterion 1 and V1-0859; experimental) A lexical o	unrecorded	-
-TCP-V0-061	docs/specs/task-context-packet-v0.md	1024	(proposed 2026-10-06, V1-0859; experimental) When the walk produced lexical hits	unrecorded	-
-TCP-V0-062	docs/specs/task-context-packet-v0.md	1047	(proposed (V1-0993), 2026-10-07; experimental) When `--task` is absent, exactly	unrecorded	-
-TCP-V0-063	docs/specs/task-context-packet-v0.md	1058	(proposed 2026-10-08, V1-0859 and V1-0431; experimental) A lexical hit whose pat	unrecorded	-
-TCP-V0-064	docs/specs/task-context-packet-v0.md	1082	(accepted 2026-10-08, decision 0470; V1-0485; experimental) `TaskContext` observ	owner	2026-10-08; decision 0470; V1-0485
-TCP-V0-065	docs/specs/task-context-packet-v0.md	1093	(accepted, decision 0516 (V1-0315); experimental) A task-context	owner	decision 0516; V1-0315
+TCP-V0-055	docs/specs/task-context-packet-v0.md	951	(accepted 2026-10-16 under the owner's standing auto-accept (2026-10-11); V1-041	standing	2026-10-16; 2026-10-11; V1-0414
+TCP-V0-056	docs/specs/task-context-packet-v0.md	965	(accepted 2026-10-16 under the owner's standing auto-accept (2026-10-11); V1-041	standing	2026-10-16; 2026-10-11; V1-0414
+TCP-V0-057	docs/specs/task-context-packet-v0.md	977	(accepted 2026-10-16 under the owner's standing auto-accept (2026-10-11); V1-041	standing	2026-10-16; 2026-10-11; V1-0414
+TCP-V0-058	docs/specs/task-context-packet-v0.md	985	(accepted 2026-10-16 under the owner's standing auto-accept (2026-10-11); V1-041	standing	2026-10-16; 2026-10-11; V1-0414
+TCP-V0-059	docs/specs/task-context-packet-v0.md	990	(proposed 2026-10-06 and amended the same day with the gate, V1-0859;	unrecorded	-
+TCP-V0-060	docs/specs/task-context-packet-v0.md	1023	(proposed 2026-10-06, V1-0431 criterion 1 and V1-0859; experimental) A lexical o	unrecorded	-
+TCP-V0-061	docs/specs/task-context-packet-v0.md	1031	(proposed 2026-10-06, V1-0859; experimental) When the walk produced lexical hits	unrecorded	-
+TCP-V0-062	docs/specs/task-context-packet-v0.md	1054	(proposed (V1-0993), 2026-10-07; experimental) When `--task` is absent, exactly	unrecorded	-
+TCP-V0-063	docs/specs/task-context-packet-v0.md	1065	(proposed 2026-10-08, V1-0859 and V1-0431; experimental) A lexical hit whose pat	unrecorded	-
+TCP-V0-064	docs/specs/task-context-packet-v0.md	1089	(accepted 2026-10-08, decision 0470; V1-0485; experimental) `TaskContext` observ	owner	2026-10-08; decision 0470; V1-0485
+TCP-V0-065	docs/specs/task-context-packet-v0.md	1100	(accepted, decision 0516 (V1-0315); experimental) A task-context	owner	decision 0516; V1-0315
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its	unrecorded	-
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as	unrecorded	-
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul	unrecorded	-

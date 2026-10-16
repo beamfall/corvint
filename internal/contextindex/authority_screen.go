@@ -41,10 +41,11 @@ var hiddenClassOrder = []string{hiddenZeroWidth, hiddenBidiControl, hiddenTag}
 // hiddenUnicodeClass names the class of one code point at byte offset, or ""
 // for a visible one. The sets are exactly the TCP-V0-055 sets: a byte order
 // mark at offset 0 is an encoding signature and is exempt; anywhere else it
-// is a zero-width no-break space.
+// is a zero-width no-break space. U+2061..U+2064 are the invisible operators,
+// which render as nothing.
 func hiddenUnicodeClass(r rune, offset int) string {
 	switch {
-	case r == 0x200B, r == 0x200C, r == 0x200D, r == 0x2060:
+	case r == 0x200B, r == 0x200C, r == 0x200D, r >= 0x2060 && r <= 0x2064:
 		return hiddenZeroWidth
 	case r == 0xFEFF:
 		if offset == 0 {

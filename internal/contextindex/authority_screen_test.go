@@ -16,7 +16,7 @@ import (
 func TestHiddenUnicodeClassesAreExactlyTheSpecSets(t *testing.T) {
 	t.Parallel()
 	want := map[string][]rune{
-		hiddenZeroWidth:   {0x200B, 0x200C, 0x200D, 0x2060},
+		hiddenZeroWidth:   {0x200B, 0x200C, 0x200D, 0x2060, 0x2061, 0x2062, 0x2063, 0x2064},
 		hiddenBidiControl: {0x061C, 0x200E, 0x200F},
 		hiddenTag:         {},
 	}
@@ -36,7 +36,7 @@ func TestHiddenUnicodeClassesAreExactlyTheSpecSets(t *testing.T) {
 			}
 		}
 	}
-	for _, r := range []rune{'a', '\t', 0x061B, 0x061D, 0x200A, 0x2010, 0x2029, 0x202F, 0x205F, 0x2061, 0x2065, 0x206A, 0xDFFFF, 0xE0080, 0xFEFE, 0xFF00} {
+	for _, r := range []rune{'a', '\t', 0x061B, 0x061D, 0x200A, 0x2010, 0x2029, 0x202F, 0x205F, 0x2065, 0x206A, 0xDFFFF, 0xE0080, 0xFEFE, 0xFF00} {
 		if got := hiddenUnicodeClass(r, 5); got != "" {
 			t.Fatalf("visible U+%04X classed %q", r, got)
 		}
@@ -148,6 +148,31 @@ func TestTaskContextDowngradesAGoverningFileHidingUnicode(t *testing.T) {
 	}
 	if codes := refused[0]["warnings"].([]any); len(codes) != 1 || codes[0] != HiddenUnicodeWarning {
 		t.Fatalf("refusal warnings = %v", refused[0]["warnings"])
+	}
+}
+
+// TestTaskContextDowngradesAGoverningFileHidingAnInvisibleOperator is the
+// 2026-10-16 TCP-V0-055 widening end to end: a governing file whose only
+// hidden code point is an invisible operator (U+2062 INVISIBLE TIMES) is
+// downgraded under the zero-width class.
+func TestTaskContextDowngradesAGoverningFileHidingAnInvisibleOperator(t *testing.T) {
+	t.Parallel()
+	index := screenFixture(t, "# Rules\n\nKeep it\u2062 short.\n", nil)
+	packet, err := TaskContext(context.Background(), index, "format the ledger output", "", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, evidence := packetRow(t, packet, governingRelation, "AGENTS.md")
+	warnings := mapsFromAny(evidence["warnings"])
+	if evidence["authority"] != DowngradedAuthority || len(warnings) != 1 || warnings[0]["code"] != HiddenUnicodeWarning ||
+		warnings[0]["count"] != 1 || warnings[0]["first_line"] != 3 || warnings[0]["first_code_point"] != "U+2062" {
+		t.Fatalf("evidence = %v", evidence)
+	}
+	if classes := warnings[0]["classes"].([]any); len(classes) != 1 || classes[0] != hiddenZeroWidth {
+		t.Fatalf("classes = %v", classes)
+	}
+	if coverage := contextCoverage(t, packet); coverage["governance"] != "unresolved" {
+		t.Fatalf("governance = %v, want unresolved", coverage["governance"])
 	}
 }
 
@@ -385,7 +410,7 @@ func TestScreenPathDowngradesAnUnreadableRow(t *testing.T) {
 }
 
 // TestCEMGoverningInstructionRuleMatchesThePacket: cem status names the same
-// governing instruction files the packet reserves (CEM-CB-026, TCP-V0-057).
+// governing instruction files the packet reserves (CEM-V1-270, TCP-V0-057).
 func TestCEMGoverningInstructionRuleMatchesThePacket(t *testing.T) {
 	t.Parallel()
 	for _, candidate := range []string{
