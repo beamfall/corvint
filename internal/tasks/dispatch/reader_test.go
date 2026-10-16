@@ -396,8 +396,9 @@ func TestCALV0053_ReaderLocalTimeout(t *testing.T) {
 	if elapsed := time.Since(started); elapsed < stateTimeout || elapsed > stateTimeout+10*time.Second {
 		t.Fatalf("not local timeout: %v", elapsed)
 	}
-	if !strings.Contains(d.ledger.Seen.Tickets["ticket:a:q:t"], "|UNKNOWN|") || d.readerErr != nil {
-		t.Fatal("local timeout did not remain ordinary reader failure")
+	// CAL-V0-274: an ordinary reader failure, named as the timeout.
+	if h := d.ledger.WorkState; h == nil || h.OK || !strings.Contains(h.LastError, "timed out after 60s") || d.readerErr != nil {
+		t.Fatalf("local timeout did not remain ordinary reader failure: %+v", d.ledger.WorkState)
 	}
 }
 

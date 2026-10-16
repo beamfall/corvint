@@ -21,15 +21,18 @@ import (
 
 const (
 	ConfigProfile = "taskman-dispatch/0"
-	StateProfile  = "taskman-dispatch-state/4"
+	StateProfile  = "taskman-dispatch-state/5"
 	// drainedStateProfile and drainedState2Profile are the previous ledger
 	// versions, each adopted only when it records no worker (CAL-V0-132,
 	// proposed amendment; CAL-V0-185 added version 3). Version 3 is adopted
 	// as recorded, with every stall count's TOL-V0-021 high-water baseline
-	// absent (version 4).
+	// absent (version 4). Version 4 is adopted as recorded, with no
+	// CAL-V0-270 work-state health and no worker's CAL-V0-272 mark
+	// (version 5).
 	drainedStateProfile  = "taskman-dispatch-state/1"
 	drainedState2Profile = "taskman-dispatch-state/2"
 	drainedState3Profile = "taskman-dispatch-state/3"
+	drainedState4Profile = "taskman-dispatch-state/4"
 	EventProfile         = "taskman-dispatch-event/0"
 	MaxConfig            = 256 << 10
 )
@@ -197,6 +200,37 @@ type WorkState struct {
 	Path string   `json:"path,omitempty"`
 	Key  string   `json:"key,omitempty"`
 	Argv []string `json:"argv,omitempty"`
+	// EscalateAfterTicks (CAL-V0-271, optional, 1..1440, absent is 3) is
+	// how many consecutive ticks with a failed read raise the one
+	// needs-owner escalation of a failure episode.
+	EscalateAfterTicks int `json:"escalateAfterTicks,omitempty"`
+	// HoldLaunchesAfterTicks (CAL-V0-273, optional, 1..1440, absent is
+	// off) holds every new launch once that many consecutive ticks failed
+	// to read the work state, until a read succeeds.
+	HoldLaunchesAfterTicks int `json:"holdLaunchesAfterTicks,omitempty"`
+	// TimeoutSeconds (CAL-V0-275, optional, 1..600, absent is CAL-V0-053's
+	// 60) bounds one command read.
+	TimeoutSeconds int `json:"timeoutSeconds,omitempty"`
+	// StaleAfterSeconds (CAL-V0-276, optional, 1..86400, absent is one
+	// tick) is how long a failing reader leaves each ticket's last known
+	// work state in the state-event baseline, marked stale.
+	StaleAfterSeconds int `json:"staleAfterSeconds,omitempty"`
+}
+
+// EscalateAfter is the CAL-V0-271 escalation threshold in ticks.
+func (w *WorkState) EscalateAfter() int {
+	if w.EscalateAfterTicks == 0 {
+		return defaultWorkStateEscalateAfter
+	}
+	return w.EscalateAfterTicks
+}
+
+// Timeout is the command reader's limit (CAL-V0-053, CAL-V0-275).
+func (w *WorkState) Timeout() time.Duration {
+	if w.TimeoutSeconds == 0 {
+		return stateTimeout
+	}
+	return time.Duration(w.TimeoutSeconds) * time.Second
 }
 
 // Role is one roster rule. Exactly one of Match (ticket work) and Lane
@@ -506,6 +540,12 @@ func (c *Config) validate() error {
 			}
 		default:
 			return fail("workState kind must be status-line or command")
+		}
+		if w.EscalateAfterTicks < 0 || w.EscalateAfterTicks > maxWorkStateTicks || w.HoldLaunchesAfterTicks < 0 || w.HoldLaunchesAfterTicks > maxWorkStateTicks {
+			return fail("workState escalateAfterTicks and holdLaunchesAfterTicks need 1..%d", maxWorkStateTicks)
+		}
+		if w.TimeoutSeconds < 0 || w.TimeoutSeconds > maxWorkStateTimeout || w.StaleAfterSeconds < 0 || w.StaleAfterSeconds > maxWorkStateStale {
+			return fail("workState timeoutSeconds needs 1..%d and staleAfterSeconds 1..%d", maxWorkStateTimeout, maxWorkStateStale)
 		}
 	}
 	if len(c.Roles) == 0 || len(c.Roles) > 32 {
