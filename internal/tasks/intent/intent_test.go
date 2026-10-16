@@ -574,7 +574,7 @@ func TestTMV0002_AS01_QueueAndPolicyRules(t *testing.T) {
 	v = fixture.PolicyValue()
 	gates, _ = v.Obj.Get("gates")
 	gate = gates.Arr[0]
-	gate.Obj.Set("timeoutSeconds", wire.String("7201"))
+	gate.Obj.Set("timeoutSeconds", wire.String("14401"))
 	if _, err := intent.DecodePolicy(wire.EncodeFile(v)); code(err) != wire.CodeLimitExceeded {
 		t.Errorf("gate timeout over max: %v", err)
 	}

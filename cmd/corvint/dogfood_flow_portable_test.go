@@ -414,17 +414,23 @@ func TestDogfoodChangeNamesAlternatesRemediation(t *testing.T) {
 	}
 }
 
-// V1-0354, DCW-V0-014: a verification line with shell anchors is refused
-// unsupported-verify-syntax, and its fix line names the admitted syntax.
+// V1-0354, DCW-V0-014, DCW-V0-065 (V1-1341): a verification line with shell
+// anchors or a quoted, bracketed -run group is refused unsupported-verify-syntax,
+// and its fix line names the admitted syntax and the committed-script escape.
 func TestDogfoodChangeNamesVerifySyntaxRemediation(t *testing.T) {
 	t.Parallel()
 	run := portableDogfoodRunner(t)
 	root, base := portableDogfoodRepo(t)
+	// The escape's script is committed with the change; the recorder checks
+	// only the listed command's syntax, so committing it is the caller's part.
+	cemWrite(t, root, "fixture/verify-split.sh", "go test ./fixture -run '^Test[A-C]'\n")
+	cemGit(t, root, "add", "fixture/verify-split.sh")
+	cemGit(t, root, "commit", "-qm", "verify script")
 	verify := filepath.Join(t.TempDir(), "verify")
-	if err := os.WriteFile(verify, []byte("go test ./fixture -run ^TestAnswer$\n"), 0644); err != nil {
+	if err := os.WriteFile(verify, []byte("go test ./fixture -run ^TestAnswer$\ngo test ./fixture -run '^Test[A-C]'\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	fix := "\n  local-outcome: unsupported-verify-syntax\n    fix: each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax; write -run TestName instead of -run '^TestName$'\n"
+	fix := "\n  local-outcome: unsupported-verify-syntax\n    fix: each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax; write -run TestName instead of -run '^TestName$'; a command that needs quotes or regular-expression syntax, such as a split -run '^Test[A-C]' group, goes in a script committed with the change and is listed as sh path/to/script.sh (DCW-V0-065)\n"
 	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_OUTCOME=passed", "DOGFOOD_VERIFY_FILE=" + verify}
 	// Bind the sidecar to verify the post-commit refusal as well.
 	run.exec(t, root, inputs, "dogfood", "change", base)
@@ -433,6 +439,15 @@ func TestDogfoodChangeNamesVerifySyntaxRemediation(t *testing.T) {
 	code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
 	if code != 1 || !strings.Contains(stderr, fix) {
 		t.Fatalf("verify syntax exit=%d stderr=%s", code, stderr)
+	}
+	// The escape the fix line names passes the same grammar.
+	if err := os.WriteFile(verify, []byte("go test ./fixture -run TestAnswer\nsh fixture/verify-split.sh\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, _, stderr = run.exec(t, root, inputs, "dogfood", "change", base)
+	report, err := os.ReadFile(filepath.Join(root, ".corvint", "dogfood-report.json"))
+	if err != nil || strings.Contains(stderr, "unsupported-verify-syntax") || !strings.Contains(string(report), `{"name": "local-outcome", "status": "PRODUCED", "reason": "none"}`) {
+		t.Fatalf("escape refused: err=%v report=%s stderr=%s", err, report, stderr)
 	}
 }
 

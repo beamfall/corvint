@@ -688,6 +688,21 @@ copy and reports `held` only when a named test passes at the target and fails wi
 reverted (`CEM-V1-088`); its report sits beside the unchanged verifier result. A hunk no test
 guards stays cited or `unknown` as before.
 
+Find the guarding test by observation rather than by guess (`TCQ-V0-062`). After `cem prepare`,
+run the search and append its `guardingTests.plan` rows to the citation plan beside each hunk's
+other citation:
+
+```sh
+corvint cem verify --map .corvint/change.cem.json --expected-base BASE \
+  --target "$(git rev-parse HEAD)" --artifacts "$PWD" --guarding-tests | jq -r '.guardingTests.plan[]'
+```
+
+Each row names, by full hunk ID, a base test
+of the hunk's own directory that the search observed pass at the target and fail with only that
+hunk reverted; a hunk whose row is `unguarded` or `not-run` gets no row. The search writes
+nothing and sets no tier: `held` still comes only from a later `--hunk-revert` run. It executes
+the change's tests unconfined, with the same bounds as `--hunk-revert`.
+
 A chore change is a self-referential bind or seal: its map cites the map files the bind loop
 itself writes. Once `cem prepare` writes `cem/1.0`, `dogfood change` marks a chore's prepared
 map with the stable member `role`, `seal-chore` when a `.corvint/changes/` path is touched and
@@ -906,7 +921,9 @@ from `DOGFOOD_VERIFY`, one command per line with blank lines skipped, or from th
 `DOGFOOD_VERIFY_FILE` (same shape; it takes precedence, and a missing file emits `local-outcome
 NOT_PRODUCED verify-file-unavailable`). Each line becomes one recorder `--verify`, so the recorder's
 512-character, shell-syntax-free grammar applies per command; a refused command names its first
-offending byte and the admitted set. The outcome comes from `DOGFOOD_OUTCOME`. The commands and
+offending byte and the admitted set. A command that needs quotes or regular-expression syntax, such
+as a split `-run '^Test[A-C]'` group, goes in a script committed with the change and is listed as
+`sh path/to/script.sh`; the refusal's fix line names this escape (`DCW-V0-065`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
 the outcome must both be non-empty, or the step records nothing and emits `local-outcome
 NOT_PRODUCED outcome-input-not-provided`. A successful classification with no
 admitted source emits `local-outcome NOT_PRODUCED no-source-paths`, writes no trace, and does not by
@@ -933,7 +950,7 @@ are shared. A different session must use its own worktree or wait for explicit c
 
 A linked Git worktree is a supported checkout for the loop; it is run at that worktree's top level
 like any other and does not refuse. The loop resolves its private evidence and session directory
-with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:105`), which for a linked
+with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:111`), which for a linked
 worktree (whose `.git` is a file) is that worktree's own directory under the main repository's
 `.git/worktrees/NAME`, so sessions and evidence stay per worktree.
 The `.corvint/` outputs live in the worktree root. Repository-wide Git state (objects, refs, and

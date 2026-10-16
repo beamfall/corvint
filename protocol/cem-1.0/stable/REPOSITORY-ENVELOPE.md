@@ -98,9 +98,9 @@ uses CEM_STABLE_FIXTURE_ROOT for the unchanged original materialized packet.
 ## Expanded admission amendment (S0E repair 6)
 
 Status: experimental. This section incorporates the public amendment packet with
-manifest SHA-256 9423e789c58b20079ffdc5f6d73de1a703ecd0b2f155d5b988e1fbeaafd05f07
+manifest SHA-256 259a294acb88a797e6f3b6f628c895f86871898177f102969826b125f6f3b4fa
 and its 56 full-result cases (FULL-RESULT-CASES.json, SHA-256
-25d4155c2235c3034146093d0c844e0e448281429c74bad5f19abf215d672146). Where this
+045b8fd32d81d09d79d9d157213bcbb6cf133c006f6b6f102b3a0f680816819c). Where this
 section and an earlier section disagree, this section governs; the earlier text is
 retained as history. The 56 complete expectations are bound by digest and indexed
 in REPOSITORY-ENVELOPE.cells.json under `amendment`. The publicrepair6 packet adds

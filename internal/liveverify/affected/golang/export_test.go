@@ -37,3 +37,11 @@ func NestedModules(t testing.TB, root *affected.Source) []NestedModule {
 	}
 	return evidence
 }
+
+// SetReadScopeOperations lowers the committed declaration's Git operation
+// base and per-component allowance for one test.
+func SetReadScopeOperations(t testing.TB, base, component int) {
+	previousBase, previousComponent := readScopeBaseOperations, readScopeComponentOperations
+	readScopeBaseOperations, readScopeComponentOperations = base, component
+	t.Cleanup(func() { readScopeBaseOperations, readScopeComponentOperations = previousBase, previousComponent })
+}

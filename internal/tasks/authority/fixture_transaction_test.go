@@ -92,6 +92,13 @@ func (h *ftHarness) open() error {
 	if err != nil {
 		return errors.Join(err, l.Close())
 	}
+	// The harness observes the tree through the session's pinned parents;
+	// the session itself pins a request shard on first use (CAL-V0-234).
+	for i := 0; i < 256; i++ {
+		if err := s.pinExisting(fmt.Sprintf("requests/%02x", i)); err != nil {
+			return errors.Join(err, s.close())
+		}
+	}
 	h.s = s
 	return nil
 }

@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `SOP-V0`
-Intent status: accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23)
+Intent status: accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23; `SOP-V0-013` accepted under the owner's standing auto-accept, 2026-10-11, V1-1114)
 Delivery status: implemented
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 7, `../decisions/0341-stable-operations-qualification-2026-09-22.md`,
 `../decisions/0360-cross-version-lifecycle-and-memory-rows-2026-09-23.md`,
@@ -13,8 +13,8 @@ Authoritative inputs: `../../AGENTS.md` invariants 4 and 7, `../decisions/0341-s
 
 ## Agent digest
 - Claim: Install lifecycle, corrupted-snapshot recovery and a named hostile-regression matrix run locally as release-blocking checks with NOT_COVERED gaps stated.
-- Status: accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23) / implemented
-- Exists: `script/check-install-lifecycle.sh` + `_test.sh`, `script/check-hostile-regressions.sh` + `_test.sh`, their `make` targets, `docs/RELEASE-RUNBOOK.md`, the support window in `SECURITY.md`, the recovery contract in `docs/INSTALL.md`.
+- Status: accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23; `SOP-V0-013` accepted under the owner's standing auto-accept, 2026-10-11, V1-1114) / implemented
+- Exists: `script/check-install-lifecycle.sh` + `_test.sh`, `script/check-hostile-regressions.sh` + `_test.sh`, their `make` targets, `docs/RELEASE-RUNBOOK.md`, the support window in `SECURITY.md`, the recovery contract in `docs/INSTALL.md`, and the release-gates `nightly-failure-signal` job with `.github/nightly-signal/` and its tests in `tools/ci-nightly-signal`.
 - Blocked on: native linux arm64 hardware (linux arm64 ran in a container); darwin amd64 ran only under Rosetta 2; whole-process resident memory (`memory-resident`) has no regression.
 - Read next: Requirements; Acceptance criteria and testing matrix.
 
@@ -124,6 +124,17 @@ hardware). Archive digests are in `../BUILD-LOG.md` (2026-09-24 V1-0190).
   clone through toolchain check, gate, archive production, checksum manifest, reproducibility check,
   lifecycle check, hostile matrix, release-notes entry and tag, plus the rollback of a bad release,
   citing only scripts that exist in the tree. It MUST NOT authorize publication, signing or upload.
+- `SOP-V0-013`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1114) A
+  scheduled `release-gates` run on `main` whose `gate` or `linux-core` job fails or is cancelled
+  MUST leave one visible, deduplicated signal with a named triage owner: a comment on
+  the oldest open issue labelled `nightly-triage`, or, when none is open, one new issue with that
+  label. The text MUST name the run attempt's URL, the gated commit, and each failing job with its
+  failing step names and job URL. Only the `nightly-failure-signal` job may hold `issues: write`; its
+  permissions MUST be exactly `actions: read`, `contents: read` and `issues: write`, it MUST run
+  only on such a scheduled failure, and it MUST run only `.github/nightly-signal/` from the scheduled
+  commit, checked out without persisted credentials. A dispatched run and a passing scheduled run
+  MUST NOT write any issue. A failed read or write MUST fail the job instead of passing silently.
+  Signal jobs of different runs MUST NOT run concurrently. The schedule is decision 0435's.
 
 ## Non-goals and simpler baseline
 
@@ -154,6 +165,9 @@ tree; neither check reads the network.
 | Matrix test renamed or deleted | the wrapper test fails naming it; the check itself reports NOT_RUN (SOP-V0-008) |
 | Corrupt data outside `.corvint/index` (tickets, traces, evidence) | out of scope; `docs/INSTALL.md` requires a consistent backup |
 | Host without a recorded run | NOT_RUN, not implied; 2026-09-23 runs are listed under Verified current state |
+| A nightly failure while a `nightly-triage` issue is open | a comment on the oldest open one; no second issue (SOP-V0-013) |
+| The jobs of the run, the issue list or an issue write cannot be read or made | `nightly-failure-signal` exits 1 naming the call; the run shows the job failed (SOP-V0-013) |
+| A scheduled run cancelled by hand | treated as a failure: one comment or issue, which the triage owner closes |
 
 ## Acceptance criteria and testing matrix
 
@@ -175,6 +189,7 @@ Lifecycle steps are `install-a`, `first-index`, `upgrade-b`, `rollback-a`, `unin
 | SOP-V0-010 | review of `SECURITY.md` "Supported versions" |
 | SOP-V0-011 | review of `docs/RELEASE-NOTES.md` and runbook step 9 |
 | SOP-V0-012 | review of `docs/RELEASE-RUNBOOK.md`; every cited script resolves under `script/` or `conformance/` |
+| SOP-V0-013 | `tools/ci-nightly-signal`: `TestSOPV0013OpensOneIssueWhenNoneIsOpen` and `TestSOPV0013CommentsOnTheOldestOpenIssue` over the recorded jobs of failed nightly runs 37628218263 and 38052349384; `TestSOPV0013FailsVisiblyWithoutWriting`; `TestSOPV0013WorkflowBinding` (permissions, condition, checkout); `actionlint` |
 
 Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints the same rows):
 
@@ -230,6 +245,7 @@ cleanup `internal/releasecandidate/operations_test.go:160@155b3bc9`.
 | SOP-V0-010 | `SECURITY.md` | review |
 | SOP-V0-011 | `docs/RELEASE-NOTES.md`; runbook step 9 | review |
 | SOP-V0-012 | `docs/RELEASE-RUNBOOK.md` | review |
+| SOP-V0-013 | `.github/nightly-signal/signal.sh`, `body.jq`; the `nightly-failure-signal` job in `.github/workflows/release-gates.yml` | `tools/ci-nightly-signal` tests; no scheduled failure observed after merge yet (NOT_RUN) |
 
 ## Rollout, rollback, and drift
 
@@ -240,7 +256,9 @@ wire. The wrapper tests fail when a matrix test is renamed, so a rename edits th
 spec's table and the anchor in the same change. A snapshot format change that alters the rebuilt
 size fails `corrupt-*` and must update `SOP-V0-006`. The `make` targets `install-lifecycle-test`,
 `hostile-regressions-check` and `hostile-regressions-test` run the checks; none is a `make gate`
-step, so they are release-blocking through runbook step 8.
+step, so they are release-blocking through runbook step 8. Rolling back `SOP-V0-013` removes the
+`nightly-failure-signal` job, `.github/nightly-signal/` and `tools/ci-nightly-signal`; an open
+`nightly-triage` issue and the label stay until closed or deleted by hand.
 
 ## Unresolved
 

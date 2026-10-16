@@ -27,6 +27,13 @@ func fixtureMust(t *testing.T, err error) {
 }
 func fixtureHarness(t *testing.T) (*fixtureSession, *fixture.Repo) {
 	t.Helper()
+	return fixtureHarnessWith(t, nil)
+}
+
+// fixtureHarnessWith lays out the fixture tree, lets prepare extend it, and
+// then opens the session over the result.
+func fixtureHarnessWith(t *testing.T, prepare func(r *fixture.Repo)) (*fixtureSession, *fixture.Repo) {
+	t.Helper()
 	r := fixture.TempRepo(t)
 	repo, err := intent.Resolve(r.Root)
 	fixtureMust(t, err)
@@ -41,6 +48,9 @@ func fixtureHarness(t *testing.T) (*fixtureSession, *fixture.Repo) {
 		fixtureMust(t, os.MkdirAll(filepath.Join(r.StateDir, path), 0700))
 	}
 	fixtureMust(t, os.MkdirAll(filepath.Join(r.IntentDir, "tickets"), 0700))
+	if prepare != nil {
+		prepare(r)
+	}
 	lock, err := AcquireLock(context.Background(), repo, LockOptions{})
 	fixtureMust(t, err)
 	s, err := newFixtureSession(repo, lock)

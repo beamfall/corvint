@@ -1,0 +1,209 @@
+{
+  "config": {
+    "argv": [
+      "/opt/homebrew/Cellar/node@22/22.23.3_2/bin/node",
+      "/private/tmp/claude-501/-Users-russelllewis-projects-corvint/b89960c8-2163-4353-8ea9-7b6117332c1b/scratchpad/agent-stub/repo/internal/jstestprovider/testdata/route-stubs/live-1.61.1/node_modules/playwright/cli.js",
+      "test",
+      "--config",
+      "playwright.config.cjs"
+    ],
+    "configFile": "/private/tmp/claude-501/-Users-russelllewis-projects-corvint/b89960c8-2163-4353-8ea9-7b6117332c1b/scratchpad/agent-stub/repo/internal/jstestprovider/testdata/route-stubs/live-1.61.1/playwright.config.cjs",
+    "rootDir": "/private/tmp/claude-501/-Users-russelllewis-projects-corvint/b89960c8-2163-4353-8ea9-7b6117332c1b/scratchpad/agent-stub/repo/internal/jstestprovider/testdata/route-stubs/live-1.61.1/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/private/tmp/claude-501/-Users-russelllewis-projects-corvint/b89960c8-2163-4353-8ea9-7b6117332c1b/scratchpad/agent-stub/repo/internal/jstestprovider/testdata/route-stubs/live-1.61.1/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "alpha",
+        "name": "alpha",
+        "testDir": "/private/tmp/claude-501/-Users-russelllewis-projects-corvint/b89960c8-2163-4353-8ea9-7b6117332c1b/scratchpad/agent-stub/repo/internal/jstestprovider/testdata/route-stubs/live-1.61.1/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "*.spec.cjs"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json",
+        {
+          "outputFile": "report.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": {
+      "command": "PORT=4879 node server.cjs",
+      "url": "http://127.0.0.1:4879/ready",
+      "reuseExistingServer": false
+    }
+  },
+  "suites": [
+    {
+      "title": "stubs.spec.cjs",
+      "file": "stubs.spec.cjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "stub is hit",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "corvint-route-stubs",
+                  "description": "{\"stubs\":[{\"target\":\"page\",\"kind\":\"glob\",\"pattern\":\"**/api/items\",\"hits\":1,\"file\":\"stubs.spec.cjs\",\"line\":5}]}"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "alpha",
+              "projectName": "alpha",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3160,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T03:03:37.655Z",
+                  "annotations": [
+                    {
+                      "type": "corvint-route-stubs",
+                      "description": "{\"stubs\":[{\"target\":\"page\",\"kind\":\"glob\",\"pattern\":\"**/api/items\",\"hits\":1,\"file\":\"stubs.spec.cjs\",\"line\":5}]}"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "62bbbb275cce47b2ab2d-6b77620539c41ef64aa6",
+          "file": "stubs.spec.cjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "title": "stub never matched but the test passes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "corvint-route-stubs",
+                  "description": "{\"stubs\":[{\"target\":\"page\",\"kind\":\"glob\",\"pattern\":\"**/api/itmes\",\"hits\":0,\"file\":\"stubs.spec.cjs\",\"line\":11},{\"target\":\"context\",\"kind\":\"regexp\",\"pattern\":\"/\\\\/api\\\\/v2\\\\//\",\"hits\":0,\"file\":\"stubs.spec.cjs\",\"line\":12}]}"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "alpha",
+              "projectName": "alpha",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 755,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T03:03:42.688Z",
+                  "annotations": [
+                    {
+                      "type": "corvint-route-stubs",
+                      "description": "{\"stubs\":[{\"target\":\"page\",\"kind\":\"glob\",\"pattern\":\"**/api/itmes\",\"hits\":0,\"file\":\"stubs.spec.cjs\",\"line\":11},{\"target\":\"context\",\"kind\":\"regexp\",\"pattern\":\"/\\\\/api\\\\/v2\\\\//\",\"hits\":0,\"file\":\"stubs.spec.cjs\",\"line\":12}]}"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "62bbbb275cce47b2ab2d-05fd484dd43e4da1b522",
+          "file": "stubs.spec.cjs",
+          "line": 10,
+          "column": 1
+        },
+        {
+          "title": "no browser fixture",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "alpha",
+              "projectName": "alpha",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T03:03:43.453Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "62bbbb275cce47b2ab2d-e4abba976395cfee7f41",
+          "file": "stubs.spec.cjs",
+          "line": 17,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-16T03:03:30.121Z",
+    "duration": 13391.33,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

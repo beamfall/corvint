@@ -15,19 +15,18 @@ import (
 
 const citationProfile = "cem-citation-support/0"
 
-// citationStopTerms is the lexical-relevance-floor-v0 stop list, copied
-// verbatim and kept sorted.
+// citationStopTerms are the CEM-V1-081 annotation stop terms: the
+// lexical-relevance-floor-v0 stop list less the 21 terms that are code
+// keywords or builtins (V1-1335), kept sorted.
 var citationStopTerms = map[string]bool{}
 
 func init() {
 	for _, w := range []string{
 		"also", "been", "build", "change", "changed", "changes", "claim", "dist", "docs", "document",
-		"documentation", "error", "evidence", "false", "from", "generated", "have", "hunk", "include",
-		"into", "must", "only", "package", "packages", "print", "report", "reports", "requirement",
-		"requirements", "return", "self", "shall", "should", "sidecar", "source", "sources", "string",
-		"supported", "test", "testing", "tests", "that", "their", "then", "there", "these", "they", "this",
-		"those", "true", "unknown", "value", "vendor", "vendored", "when", "where", "which", "while",
-		"will", "with",
+		"documentation", "evidence", "generated", "have", "hunk", "must", "only", "packages", "report",
+		"reports", "requirement", "requirements", "shall", "should", "sidecar", "sources", "supported",
+		"testing", "tests", "that", "their", "there", "these", "they", "those", "vendor", "vendored",
+		"which", "will",
 	} {
 		citationStopTerms[w] = true
 	}
@@ -325,7 +324,11 @@ func computeCitation(hunks []mappedHunk, patch map[string]*patchHunk, evidence [
 		}
 		return a.EvidenceID < b.EvidenceID
 	})
+	// No shared evidence (maxFanOut below 2) means no concentration (V1-1331).
 	for _, x := range supported {
+		if c.MaxFanOut < 2 {
+			break
+		}
 		all := true
 		for _, eid := range x.evidence {
 			if fan[eid] != c.MaxFanOut {

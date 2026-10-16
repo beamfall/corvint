@@ -488,8 +488,7 @@ func declaredTests(file []byte, span wire.Span) []string {
 	var names []string
 	for _, decl := range parsed.Decls {
 		function, ok := decl.(*ast.FuncDecl)
-		if !ok || function.Recv != nil || function.Type.TypeParams != nil || function.Type.Results != nil ||
-			!testName(function.Name.Name) || !testingTParameter(function.Type.Params) {
+		if !ok || !goTestDecl(function) {
 			continue
 		}
 		start := int64(fileSet.Position(function.Pos()).Offset)
@@ -500,6 +499,12 @@ func declaredTests(file []byte, span wire.Span) []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// goTestDecl reports a top-level func TestX(t *testing.T) that go test runs.
+func goTestDecl(function *ast.FuncDecl) bool {
+	return function.Recv == nil && function.Type.TypeParams == nil && function.Type.Results == nil &&
+		testName(function.Name.Name) && testingTParameter(function.Type.Params)
 }
 
 // testName reports whether go test runs a function of this name: Test followed
