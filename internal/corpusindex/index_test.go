@@ -226,8 +226,8 @@ func TestIndexedCorpusCapacityQualification(t *testing.T) {
 		runtime.ReadMemStats(&after)
 		allocated, mallocs, cycles := after.TotalAlloc-before.TotalAlloc, after.Mallocs-before.Mallocs, after.NumGC-before.NumGC
 		// Race instrumentation changes allocation costs; it still exercises every functional check.
-		// TotalAlloc includes encoding/json/v2 buffer growth whose size depends on whether a pooled
-		// encoder survives GC cycles and P migration (V1-0587), so the failure names the measured bytes.
+		// Open no longer draws its re-encodes from the json/v2 encoder pool (V1-1380, DCP-V1-085), so
+		// TotalAlloc stays steady across GC cycles and P migration; the failure names the measured bytes.
 		if !raceEnabled && allocated > 1<<30 {
 			t.Fatalf("synthetic open/query exceeded 1GiB allocation ceiling: open_query_total_alloc=%d open_query_mallocs=%d gc_cycles=%d", allocated, mallocs, cycles)
 		}

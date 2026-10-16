@@ -102,7 +102,9 @@ const (
 	MaxReconcileAttempt = 3
 	MinEvidenceDays     = 30
 	MaxLaneWallMinutes  = 240
-	MaxGateTimeoutSecs  = 120 * 60
+	// MaxGateTimeoutSecs bounds a policy gate's timeoutSeconds (CAL-V0-255).
+	// It stays inside MaxLeaseMinutes, so one claim can outlive a gate run.
+	MaxGateTimeoutSecs = 240 * 60
 	// MaxGateOutputBytes bounds one gate run's captured output; a run that
 	// writes more ends OUTPUT_LIMIT (CAL-V0-016).
 	MaxGateOutputBytes = 16 * MiB

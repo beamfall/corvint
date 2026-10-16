@@ -16,6 +16,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // treeDigest hashes every regular file under root except .git, ignored files
@@ -1018,5 +1020,73 @@ func TestAFPV0038CompactAdviceReferencesProviderPackages(t *testing.T) {
 	if checks[0].Command != adviceAdvisoryGoTest || checks[0].Arguments != affectedAdvisoryArguments ||
 		checks[1].Command != advice.Checks[1].Command || checks[1].Arguments != "" || checks[2].Command != "make gate" || checks[2].Arguments != "" {
 		t.Fatalf("compact checks %+v", checks)
+	}
+}
+
+// AFP-V0-009 (decision 0531, V1-0682): a sentence of the AGENTS.md Verify
+// section that names a declared command in backticks and states a condition
+// labels that command conditional, with the sentence in its reason. Anything
+// else, an unscoped project included, stays mandatory.
+func TestAffectedAdviceLabelsScopedGateConditional_V1_0682(t *testing.T) {
+	t.Parallel()
+	makefile := ".PHONY: gate\ngate:\n\t@true\n"
+	scope := "Do not start `make gate` unless the owner asks for it or a governing release policy explicitly requires repository-wide validation."
+	wrapped := "Use focused tests. Do not start `make gate` unless the owner asks\nfor it or a governing release policy explicitly requires repository-wide validation.\n"
+	fence := "```sh\nGOTOOLCHAIN=local go vet ./...\n```\n"
+	cases := []struct {
+		name, agents string
+		want         []string
+		reason       string
+	}{
+		{name: "scoped", agents: "## Verify\n\n" + wrapped + "\n" + fence,
+			want: []string{"conditional make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}, reason: scope},
+		{name: "unscoped", agents: "## Verify\n\nRun `make gate` before merging.\n\n" + fence,
+			want: []string{"mandatory make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}},
+		{name: "outside Verify", agents: "## Etiquette\n\n" + wrapped + "\n## Verify\n\n" + fence,
+			want: []string{"mandatory make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}},
+		{name: "names a Verify command", agents: "## Verify\n\nRun `GOTOOLCHAIN=local go vet ./...` only when Go files change.\n\n" + fence,
+			want: []string{"mandatory make gate", "conditional GOTOOLCHAIN=local go vet ./..."}, reason: "Run `GOTOOLCHAIN=local go vet ./...` only when Go files change."},
+		{name: "no AGENTS.md", want: []string{"mandatory make gate"}},
+		{name: "only the scoped gate", agents: "## Verify\n\n" + wrapped,
+			want: []string{"conditional make gate"}, reason: scope},
+		{name: "parenthesized only if", agents: "## Verify\n\nRun `make gate` (only if release validation is requested).\n\n" + fence,
+			want: []string{"conditional make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}, reason: "Run `make gate` (only if release validation is requested)."},
+		{name: "separate list items", agents: "## Verify\n\n- Always run `make gate`\n- Run `make lint` only if lint configuration changes\n\n" + fence,
+			want: []string{"mandatory make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}},
+		{name: "tilde fence example", agents: "## Verify\n\n~~~text\nRun `make gate` only if requested.\n~~~\n\n" + fence,
+			want: []string{"mandatory make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}},
+	}
+	for _, tc := range cases {
+		root := t.TempDir()
+		files := map[string]string{"Makefile": makefile}
+		if tc.agents != "" {
+			files["AGENTS.md"] = tc.agents
+		}
+		writeAffectedFiles(t, root, files)
+		advice := compileAffectedAdvice(root, affected.Plan{}, affectedGoProvider{State: providerStateEmpty})
+		got := []string{}
+		for _, check := range advice.Checks {
+			got = append(got, check.Kind+" "+check.Command)
+			if check.Kind == adviceKindConditional && check.Reason != fmt.Sprintf(adviceConditionalReason, check.Source, tc.reason) {
+				t.Errorf("%s: conditional reason = %q, want the sentence %q", tc.name, check.Reason, tc.reason)
+			}
+		}
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("%s: declared checks = %q, want %q", tc.name, got, tc.want)
+		}
+		if slices.Contains(advice.Unknown, adviceNoGateUnknown) {
+			t.Errorf("%s: a scoped gate is still a declared gate", tc.name)
+		}
+	}
+	// The wire carries the label and the quoted condition end to end.
+	root := affectedFixtureRepository(t)
+	writeAffectedFiles(t, root, map[string]string{"Makefile": makefile, "AGENTS.md": "## Verify\n\n" + wrapped})
+	receipt, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	first := affectedChecks(t, receipt)[0]
+	if first["kind"] != adviceKindConditional || first["command"] != "make gate" || first["reason"] != fmt.Sprintf(adviceConditionalReason, "Makefile", scope) {
+		t.Fatalf("receipt check = %v, want the conditional make gate quoting %q", first, scope)
 	}
 }

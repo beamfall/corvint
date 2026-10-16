@@ -365,7 +365,9 @@
     "internal/testrunner/native": [],
     "internal/testrunner/platform": [],
     "internal/testrunner/registry": [],
-    "internal/testvaliditydoc": [],
+    "internal/testvaliditydoc": [
+      "conformance/test-validity-v0/route-stubs.json"
+    ],
     "internal/trace": [],
     "internal/unplannedread": [],
     "internal/witness": [

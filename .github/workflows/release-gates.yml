@@ -7,6 +7,8 @@ name: Release gates
 # job. The `core-n1-replay-*` gates run the CCF-V1-007 N-1 replay (runbook step 8). `linux-core`
 # runs the linux/amd64 Core platform evidence natively (decision 0420 item 2).
 # Every log is an artifact with its sha256 beside it; nothing here pins, commits, or publishes.
+# A failed scheduled run comments on, or opens, one `nightly-triage` issue (SOP-V0-013); that job
+# alone may write issues.
 # `full-gate` runs `make -k gate`, so one failed step does not hide the steps after it, and the
 # schedule runs every job nightly on main's head under the release label `nightly`, without the
 # `release-checklist` step (decision 0435).
@@ -275,3 +277,41 @@ jobs:
             ${{ runner.temp }}/evidence/
             ${{ runner.temp }}/host-lifecycle/
           if-no-files-found: error
+
+  # SOP-V0-013 (V1-1114): a scheduled run on main that fails gets one deduplicated, visible signal,
+  # a comment on the open `nightly-triage` issue or a new one, naming the failing jobs and steps
+  # and the run URL. Only this job holds `issues: write`, and it runs only on a scheduled run whose
+  # gate or linux-core job failed or was cancelled. It runs `.github/nightly-signal` from the
+  # scheduled commit itself, with gh and jq, and checks out nothing else.
+  nightly-failure-signal:
+    needs: [gate, linux-core]
+    if: >-
+      always() && github.event_name == 'schedule' && github.ref == 'refs/heads/main' &&
+      (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    # One signal job at a time across runs (a rerun can overlap the next nightly), so two runs
+    # never both find no open issue and both open one.
+    concurrency:
+      group: nightly-failure-signal
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          sparse-checkout: .github/nightly-signal
+          persist-credentials: false
+      - name: Open or update the nightly-triage issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+          SHA: ${{ github.sha }}
+        run: sh trusted/.github/nightly-signal/signal.sh

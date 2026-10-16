@@ -49,6 +49,8 @@ type Test struct {
 	Package    string                          `json:"package,omitempty"`
 	State      string                          `json:"state"`
 	Projection testvalidity.Projection         `json:"projection"`
+	// RouteStubs is present only when the receipt carries a route-stub record (LPCV-V0-073).
+	RouteStubs *RouteStubs `json:"routeStubs,omitempty"`
 }
 
 var jsKinds = map[string]bool{"unit": true, "e2e": true}
@@ -199,8 +201,13 @@ func Project(input Input) Document {
 
 func projectJavaScript(receipt jstestprovider.Receipt) Document {
 	tests := make([]Test, 0, len(receipt.Tests))
-	for _, outcome := range receipt.Tests {
-		tests = append(tests, Test{ID: outcome.ID, Project: outcome.Project, Attempts: outcome.Attempts, Name: outcome.Name, State: string(outcome.State), Projection: jstestprovider.ReceiptTestProjection(receipt, outcome)})
+	stubs := routeStubEvidence(receipt)
+	for i, outcome := range receipt.Tests {
+		test := Test{ID: outcome.ID, Project: outcome.Project, Attempts: outcome.Attempts, Name: outcome.Name, State: string(outcome.State), Projection: jstestprovider.ReceiptTestProjection(receipt, outcome)}
+		if stubs != nil {
+			test.RouteStubs = stubs[i]
+		}
+		tests = append(tests, test)
 	}
 	var playwright *jstestprovider.Receipt
 	if receipt.Profile == jstestprovider.ExternalProfile || receipt.Profile == jstestprovider.AttestedExternalProfile || receipt.Profile == jstestprovider.SensitiveExternalProfile || receipt.Profile == jstestprovider.AttemptExternalProfile {

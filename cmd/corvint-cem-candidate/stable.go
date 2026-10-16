@@ -36,11 +36,28 @@ func stableCommand(ctx context.Context, args []string, out, errout io.Writer) in
 	if e != nil {
 		return fail(e)
 	}
-	var r cc.StableRequest
-	if e := cc.Decode(raw, &r); e != nil {
+	// The profile only selects the closed decoder; each decoder refuses
+	// unknown and missing members on its own.
+	var head struct {
+		Profile string `json:"profile"`
+	}
+	if e := json.Unmarshal(raw, &head); e != nil {
 		return fail(e)
 	}
-	result, e := cc.AssembleStable(ctx, r, *output)
+	var result any
+	if head.Profile == cc.PlainAssemblyProfile {
+		var r cc.PlainRequest
+		if e := cc.Decode(raw, &r); e != nil {
+			return fail(e)
+		}
+		result, e = cc.AssemblePlain(ctx, r, *output)
+	} else {
+		var r cc.StableRequest
+		if e := cc.Decode(raw, &r); e != nil {
+			return fail(e)
+		}
+		result, e = cc.AssembleStable(ctx, r, *output)
+	}
 	if e != nil {
 		return fail(e)
 	}
