@@ -545,7 +545,7 @@ CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	595	`claim`, `renew`, `at
 CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1474	`store.Mutate` MUST take its request lookup and its canonical intent records fro	unrecorded	-
 CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1873	The optional policy `supervision` object MAY carry `repositories`, a closed obje	unrecorded	-
 CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1891	After `implement`, each repository with changes MUST receive a candidate commit	unrecorded	-
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	7141	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	7214	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
 CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	2053	The optional policy `supervision` object MAY carry `host`, whose admitted	unrecorded	-
 CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2136	A `claude-code` stage MUST invoke the pinned executable with the prompt on	unrecorded	-
 CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2270	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be	unrecorded	-
@@ -572,7 +572,7 @@ CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2955	A policy MAY carry t
 CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2989	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes	unrecorded	-
 CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3113	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a	unrecorded	-
 CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3169	When the dispatcher has a work-state reader, a ticket MUST count as held exactly	unrecorded	-
-CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	7326	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
+CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	7399	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
 CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3210	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici	unrecorded	-
 CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3256	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio	unrecorded	-
 CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1374	On macOS the memory signal MUST be the kernel memory-pressure level	unrecorded	-
@@ -649,7 +649,7 @@ CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4801	(accepted by decisio
 CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4812	(accepted by decision 0447; V1-0966) The dispatcher MUST count, per	owner	decision 0447; V1-0966
 CAL-V0-186	docs/specs/corvint-tasks-agent-leases-v0.md	5115	(proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh	unrecorded	-
 CAL-V0-187	docs/specs/corvint-tasks-agent-leases-v0.md	4904	proposed (V1-0980; GitHub #668) A build writing `taskman-dispatch-state/3` MUST	unrecorded	-
-CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	7393	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
+CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	7466	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
 CAL-V0-189	docs/specs/corvint-tasks-agent-leases-v0.md	4956	(proposed; V1-0915; GitHub #641) Single intent read in the writer audit. A	unrecorded	-
 CAL-V0-190	docs/specs/corvint-tasks-agent-leases-v0.md	4969	(proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.	unrecorded	-
 CAL-V0-191	docs/specs/corvint-tasks-agent-leases-v0.md	5152	(proposed; V1-1016) A role MAY carry `expiredLeaseGraceSeconds`, an integer	unrecorded	-
@@ -684,24 +684,27 @@ CAL-V0-220	docs/specs/corvint-tasks-agent-leases-v0.md	5712	(accepted, decision 
 CAL-V0-221	docs/specs/corvint-tasks-agent-leases-v0.md	5718	(accepted, decision 0519 (V1-0906)) Regression evidence shall bound	owner	decision 0519; V1-0906
 CAL-V0-222	docs/specs/corvint-tasks-agent-leases-v0.md	6003	(accepted under the owner's standing auto-accept (2026-10-11), V1-1352) A lease	standing	2026-10-11; V1-1352
 CAL-V0-223	docs/specs/corvint-tasks-agent-leases-v0.md	6013	(accepted under the owner's standing auto-accept (2026-10-11), V1-1352) Caller c	standing	2026-10-11; V1-1352
-CAL-V0-224	docs/specs/corvint-tasks-agent-leases-v0.md	6055	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended	standing	2026-10-11; V1-0887; 2026-10-15
-CAL-V0-225	docs/specs/corvint-tasks-agent-leases-v0.md	6224	(accepted under the owner's standing auto-accept (2026-10-11), V1-1386) A relati	standing	2026-10-11; V1-1386
-CAL-V0-226	docs/specs/corvint-tasks-agent-leases-v0.md	6231	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710)	standing	2026-10-11; V1-0710
-CAL-V0-227	docs/specs/corvint-tasks-agent-leases-v0.md	6250	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) A marker	standing	2026-10-11; V1-0710
-CAL-V0-228	docs/specs/corvint-tasks-agent-leases-v0.md	6264	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The	standing	2026-10-11; V1-0710
-CAL-V0-229	docs/specs/corvint-tasks-agent-leases-v0.md	6270	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The mark	standing	2026-10-11; V1-0710
-CAL-V0-230	docs/specs/corvint-tasks-agent-leases-v0.md	6331	(accepted under the owner's standing auto-accept (2026-10-11), V1-1320) After a	standing	2026-10-11; V1-1320
-CAL-V0-231	docs/specs/corvint-tasks-agent-leases-v0.md	6341	(accepted under the owner's standing auto-accept (2026-10-11), V1-1313) A	standing	2026-10-11; V1-1313
-CAL-V0-232	docs/specs/corvint-tasks-agent-leases-v0.md	6119	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
-CAL-V0-233	docs/specs/corvint-tasks-agent-leases-v0.md	6163	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
-CAL-V0-234	docs/specs/corvint-tasks-agent-leases-v0.md	6192	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
-CAL-V0-236	docs/specs/corvint-tasks-agent-leases-v0.md	6395	(accepted under the owner's standing auto-accept (2026-10-11), V1-1402) When	standing	2026-10-11; V1-1402
-CAL-V0-240	docs/specs/corvint-tasks-agent-leases-v0.md	6452	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) When the	standing	2026-10-11; V1-1415
-CAL-V0-241	docs/specs/corvint-tasks-agent-leases-v0.md	6466	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) A result	standing	2026-10-11; V1-1415
-CAL-V0-242	docs/specs/corvint-tasks-agent-leases-v0.md	6483	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) The	standing	2026-10-11; V1-1415
-CAL-V0-243	docs/specs/corvint-tasks-agent-leases-v0.md	6492	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) `receipt	standing	2026-10-11; V1-1415
-CAL-V0-250	docs/specs/corvint-tasks-agent-leases-v0.md	6504	(accepted under the owner's standing auto-accept (2026-10-11), V1-1384) A CLI	standing	2026-10-11; V1-1384
-CAL-V0-255	docs/specs/corvint-tasks-agent-leases-v0.md	6556	(accepted under the owner's standing auto-accept (2026-10-11), V1-1460) A policy	standing	2026-10-11; V1-1460
+CAL-V0-224	docs/specs/corvint-tasks-agent-leases-v0.md	6125	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended	standing	2026-10-11; V1-0887; 2026-10-15
+CAL-V0-225	docs/specs/corvint-tasks-agent-leases-v0.md	6294	(accepted under the owner's standing auto-accept (2026-10-11), V1-1386) A relati	standing	2026-10-11; V1-1386
+CAL-V0-226	docs/specs/corvint-tasks-agent-leases-v0.md	6301	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710)	standing	2026-10-11; V1-0710
+CAL-V0-227	docs/specs/corvint-tasks-agent-leases-v0.md	6320	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) A marker	standing	2026-10-11; V1-0710
+CAL-V0-228	docs/specs/corvint-tasks-agent-leases-v0.md	6334	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The	standing	2026-10-11; V1-0710
+CAL-V0-229	docs/specs/corvint-tasks-agent-leases-v0.md	6340	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The mark	standing	2026-10-11; V1-0710
+CAL-V0-230	docs/specs/corvint-tasks-agent-leases-v0.md	6401	(accepted under the owner's standing auto-accept (2026-10-11), V1-1320) After a	standing	2026-10-11; V1-1320
+CAL-V0-231	docs/specs/corvint-tasks-agent-leases-v0.md	6411	(accepted under the owner's standing auto-accept (2026-10-11), V1-1313) A	standing	2026-10-11; V1-1313
+CAL-V0-232	docs/specs/corvint-tasks-agent-leases-v0.md	6189	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
+CAL-V0-233	docs/specs/corvint-tasks-agent-leases-v0.md	6233	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
+CAL-V0-234	docs/specs/corvint-tasks-agent-leases-v0.md	6262	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
+CAL-V0-236	docs/specs/corvint-tasks-agent-leases-v0.md	6465	(accepted under the owner's standing auto-accept (2026-10-11), V1-1402) When	standing	2026-10-11; V1-1402
+CAL-V0-240	docs/specs/corvint-tasks-agent-leases-v0.md	6522	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) When the	standing	2026-10-11; V1-1415
+CAL-V0-241	docs/specs/corvint-tasks-agent-leases-v0.md	6536	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) A result	standing	2026-10-11; V1-1415
+CAL-V0-242	docs/specs/corvint-tasks-agent-leases-v0.md	6553	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) The	standing	2026-10-11; V1-1415
+CAL-V0-243	docs/specs/corvint-tasks-agent-leases-v0.md	6562	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) `receipt	standing	2026-10-11; V1-1415
+CAL-V0-250	docs/specs/corvint-tasks-agent-leases-v0.md	6574	(accepted under the owner's standing auto-accept (2026-10-11), V1-1384) A CLI	standing	2026-10-11; V1-1384
+CAL-V0-255	docs/specs/corvint-tasks-agent-leases-v0.md	6626	(accepted under the owner's standing auto-accept (2026-10-11), V1-1460) A policy	standing	2026-10-11; V1-1460
+CAL-V0-260	docs/specs/corvint-tasks-agent-leases-v0.md	6056	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `pause`,	standing	2026-10-11; V1-1353
+CAL-V0-261	docs/specs/corvint-tasks-agent-leases-v0.md	6069	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `health`	standing	2026-10-11; V1-1353
+CAL-V0-262	docs/specs/corvint-tasks-agent-leases-v0.md	6072	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) The verb	standing	2026-10-11; V1-1353
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha	unrecorded	-
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring	unrecorded	-
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla	unrecorded	-
@@ -867,52 +870,52 @@ CEM-V1-013	docs/specs/cem-stable-v1.md	82	Never translate candidate spec labels 
 CEM-V1-014	docs/specs/cem-stable-v1.md	83	Inventory every existing consumer's profile and migration disposition. An unsupp	unrecorded	-
 CEM-V1-015	docs/specs/cem-stable-v1.md	93	Candidate assembly MUST require independently supplied immutable base and target	unrecorded	-
 CEM-V1-016	docs/specs/cem-stable-v1.md	94	Assembly MUST compare each declared runner source input with its self-hashed imm	unrecorded	-
-CEM-V1-017	docs/specs/cem-stable-v1.md	1132	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab	unrecorded	-
-CEM-V1-018	docs/specs/cem-stable-v1.md	1133	A stable read MUST refuse `--patch` with `invalid-arguments`, and `cem verify` M	unrecorded	-
-CEM-V1-019	docs/specs/cem-stable-v1.md	1134	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b	unrecorded	-
-CEM-V1-030	docs/specs/cem-stable-v1.md	1165	A `cem/0.x` Core `cem prepare` MUST refuse an existing map at the fixed sidecar	unrecorded	-
-CEM-V1-031	docs/specs/cem-stable-v1.md	1166	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c	unrecorded	-
-CEM-V1-032	docs/specs/cem-stable-v1.md	1167	(superseded by `CEM-V1-147` and `CEM-V1-148`, V1-1276) The daily bind loop MUST	unrecorded	-
-CEM-V1-033	docs/specs/cem-stable-v1.md	1168	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem	unrecorded	-
-CEM-V1-034	docs/specs/cem-stable-v1.md	1210	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable	unrecorded	-
-CEM-V1-035	docs/specs/cem-stable-v1.md	1211	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render	unrecorded	-
-CEM-V1-036	docs/specs/cem-stable-v1.md	1212	(amended by V1-1278 S1 for V1-1305 under the owner's standing auto-accept of lan	standing	V1-1278; V1-1305; 2026-10-11
+CEM-V1-017	docs/specs/cem-stable-v1.md	1138	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab	unrecorded	-
+CEM-V1-018	docs/specs/cem-stable-v1.md	1139	A stable read MUST refuse `--patch` with `invalid-arguments`, and `cem verify` M	unrecorded	-
+CEM-V1-019	docs/specs/cem-stable-v1.md	1140	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b	unrecorded	-
+CEM-V1-030	docs/specs/cem-stable-v1.md	1171	A `cem/0.x` Core `cem prepare` MUST refuse an existing map at the fixed sidecar	unrecorded	-
+CEM-V1-031	docs/specs/cem-stable-v1.md	1172	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c	unrecorded	-
+CEM-V1-032	docs/specs/cem-stable-v1.md	1173	(superseded by `CEM-V1-147` and `CEM-V1-148`, V1-1276) The daily bind loop MUST	unrecorded	-
+CEM-V1-033	docs/specs/cem-stable-v1.md	1174	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem	unrecorded	-
+CEM-V1-034	docs/specs/cem-stable-v1.md	1216	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable	unrecorded	-
+CEM-V1-035	docs/specs/cem-stable-v1.md	1217	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render	unrecorded	-
+CEM-V1-036	docs/specs/cem-stable-v1.md	1218	(amended by V1-1278 S1 for V1-1305 under the owner's standing auto-accept of lan	standing	V1-1278; V1-1305; 2026-10-11
 CEM-V1-050	docs/specs/cem-stable-v1.md	220	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable	unrecorded	-
-CEM-V1-051	docs/specs/cem-stable-v1.md	1294	`lrfrepo.VerifyStableUniverse` MUST admit a map whose bytes declare exactly	unrecorded	-
-CEM-V1-052	docs/specs/cem-stable-v1.md	1304	The repository root, expected base, target and artifact root are explicit, with	unrecorded	-
-CEM-V1-053	docs/specs/cem-stable-v1.md	1310	The OCM MUST bind the exact original stable map digest, the accepted target and	unrecorded	-
-CEM-V1-054	docs/specs/cem-stable-v1.md	1314	The projection is read-only. It never exposes a legacy `*wire.Map` or any 0.x	unrecorded	-
-CEM-V1-055	docs/specs/cem-stable-v1.md	1318	`lrf/0` stays frozen. `lrf.Evaluate` MUST keep refusing a `cem/1.0` context with	unrecorded	-
-CEM-V1-056	docs/specs/cem-stable-v1.md	1324	A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1	unrecorded	-
-CEM-V1-057	docs/specs/cem-stable-v1.md	1332	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in	unrecorded	-
-CEM-V1-058	docs/specs/cem-stable-v1.md	1335	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,	unrecorded	-
-CEM-V1-059	docs/specs/cem-stable-v1.md	1341	A stable universe verification is a read. It MUST NOT change the repository HEAD	unrecorded	-
-CEM-V1-060	docs/specs/cem-stable-v1.md	1380	Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first ru	unrecorded	-
-CEM-V1-061	docs/specs/cem-stable-v1.md	1384	An accepted export MUST write a new directory outside the worktree (the 0.x outp	unrecorded	-
-CEM-V1-062	docs/specs/cem-stable-v1.md	1391	The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem	unrecorded	-
-CEM-V1-063	docs/specs/cem-stable-v1.md	1395	`ReadStable` MUST refuse a bundle with a missing declared file	unrecorded	-
-CEM-V1-064	docs/specs/cem-stable-v1.md	1421	A stable export MUST refuse `--witness` with `invalid-arguments` before	unrecorded	-
-CEM-V1-065	docs/specs/cem-stable-v1.md	1044	`internal/attest.CEMStatementV2(name, map, target)` MUST accept only bytes that	unrecorded	-
+CEM-V1-051	docs/specs/cem-stable-v1.md	1300	`lrfrepo.VerifyStableUniverse` MUST admit a map whose bytes declare exactly	unrecorded	-
+CEM-V1-052	docs/specs/cem-stable-v1.md	1310	The repository root, expected base, target and artifact root are explicit, with	unrecorded	-
+CEM-V1-053	docs/specs/cem-stable-v1.md	1316	The OCM MUST bind the exact original stable map digest, the accepted target and	unrecorded	-
+CEM-V1-054	docs/specs/cem-stable-v1.md	1320	The projection is read-only. It never exposes a legacy `*wire.Map` or any 0.x	unrecorded	-
+CEM-V1-055	docs/specs/cem-stable-v1.md	1324	`lrf/0` stays frozen. `lrf.Evaluate` MUST keep refusing a `cem/1.0` context with	unrecorded	-
+CEM-V1-056	docs/specs/cem-stable-v1.md	1330	A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1	unrecorded	-
+CEM-V1-057	docs/specs/cem-stable-v1.md	1338	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in	unrecorded	-
+CEM-V1-058	docs/specs/cem-stable-v1.md	1341	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,	unrecorded	-
+CEM-V1-059	docs/specs/cem-stable-v1.md	1347	A stable universe verification is a read. It MUST NOT change the repository HEAD	unrecorded	-
+CEM-V1-060	docs/specs/cem-stable-v1.md	1386	Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first ru	unrecorded	-
+CEM-V1-061	docs/specs/cem-stable-v1.md	1390	An accepted export MUST write a new directory outside the worktree (the 0.x outp	unrecorded	-
+CEM-V1-062	docs/specs/cem-stable-v1.md	1397	The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem	unrecorded	-
+CEM-V1-063	docs/specs/cem-stable-v1.md	1401	`ReadStable` MUST refuse a bundle with a missing declared file	unrecorded	-
+CEM-V1-064	docs/specs/cem-stable-v1.md	1427	A stable export MUST refuse `--witness` with `invalid-arguments` before	unrecorded	-
+CEM-V1-065	docs/specs/cem-stable-v1.md	1050	`internal/attest.CEMStatementV2(name, map, target)` MUST accept only bytes that	unrecorded	-
 CEM-V1-066	docs/specs/cem-stable-v1.md	552	Every `cem-stable-verification/1` result MUST carry `verdictSha256` after	unrecorded	-
-CEM-V1-067	docs/specs/cem-stable-v1.md	2194	(accepted under the owner's standing auto-accept (2026-10-11); V1-1260) `cem	standing	2026-10-11; V1-1260
-CEM-V1-070	docs/specs/cem-stable-v1.md	1473	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the	unrecorded	-
-CEM-V1-071	docs/specs/cem-stable-v1.md	1474	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v	unrecorded	-
-CEM-V1-072	docs/specs/cem-stable-v1.md	1475	A report built over a stable source MUST take profile `corvint-witness-stable/0`	unrecorded	-
-CEM-V1-073	docs/specs/cem-stable-v1.md	1476	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`	unrecorded	-
-CEM-V1-074	docs/specs/cem-stable-v1.md	1477	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a	unrecorded	-
-CEM-V1-075	docs/specs/cem-stable-v1.md	1478	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab	unrecorded	-
-CEM-V1-076	docs/specs/cem-stable-v1.md	1479	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and	unrecorded	-
-CEM-V1-077	docs/specs/cem-stable-v1.md	1480	The console chain pane MUST admit `cem/1.0` in its closed profile registry only	unrecorded	-
-CEM-V1-078	docs/specs/cem-stable-v1.md	1481	Each criterion binding, runner receipt (with its execution authority, source bin	unrecorded	-
-CEM-V1-079	docs/specs/cem-stable-v1.md	1482	The registry stays closed: an unsupported profile, a near-stable spec, an unknow	unrecorded	-
+CEM-V1-067	docs/specs/cem-stable-v1.md	2200	(accepted under the owner's standing auto-accept (2026-10-11); V1-1260) `cem	standing	2026-10-11; V1-1260
+CEM-V1-070	docs/specs/cem-stable-v1.md	1479	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the	unrecorded	-
+CEM-V1-071	docs/specs/cem-stable-v1.md	1480	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v	unrecorded	-
+CEM-V1-072	docs/specs/cem-stable-v1.md	1481	A report built over a stable source MUST take profile `corvint-witness-stable/0`	unrecorded	-
+CEM-V1-073	docs/specs/cem-stable-v1.md	1482	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`	unrecorded	-
+CEM-V1-074	docs/specs/cem-stable-v1.md	1483	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a	unrecorded	-
+CEM-V1-075	docs/specs/cem-stable-v1.md	1484	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab	unrecorded	-
+CEM-V1-076	docs/specs/cem-stable-v1.md	1485	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and	unrecorded	-
+CEM-V1-077	docs/specs/cem-stable-v1.md	1486	The console chain pane MUST admit `cem/1.0` in its closed profile registry only	unrecorded	-
+CEM-V1-078	docs/specs/cem-stable-v1.md	1487	Each criterion binding, runner receipt (with its execution authority, source bin	unrecorded	-
+CEM-V1-079	docs/specs/cem-stable-v1.md	1488	The registry stays closed: an unsupported profile, a near-stable spec, an unknow	unrecorded	-
 CEM-V1-080	docs/specs/cem-stable-v1.md	286	Support tiers are consumer-derived. The native (`internal/cem/verify`, `support.	unrecorded	-
 CEM-V1-081	docs/specs/cem-stable-v1.md	296	Anchor kinds and byte-level rules. `id`: an ASCII requirement ID	unrecorded	-
 CEM-V1-082	docs/specs/cem-stable-v1.md	315	The `citation` block and the shift null MUST be byte-identical across the native	unrecorded	-
 CEM-V1-083	docs/specs/cem-stable-v1.md	392	A `cem/1.0` criterion binding MUST take exactly one of two closed forms. The pla	unrecorded	-
 CEM-V1-084	docs/specs/cem-stable-v1.md	496	A runner receipt's `authentication` MUST take one of three closed forms: the sea	unrecorded	-
-CEM-V1-088	docs/specs/cem-stable-v1.md	2444	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) `held`	standing	2026-10-11; V1-1266
-CEM-V1-089	docs/specs/cem-stable-v1.md	2467	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) A row th	standing	2026-10-11; V1-1266
-CEM-V1-090	docs/specs/cem-stable-v1.md	2406	(accepted under the owner's standing auto-accept (2026-10-11); V1-1259) A	standing	2026-10-11; V1-1259
+CEM-V1-088	docs/specs/cem-stable-v1.md	2450	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) `held`	standing	2026-10-11; V1-1266
+CEM-V1-089	docs/specs/cem-stable-v1.md	2473	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) A row th	standing	2026-10-11; V1-1266
+CEM-V1-090	docs/specs/cem-stable-v1.md	2412	(accepted under the owner's standing auto-accept (2026-10-11); V1-1259) A	standing	2026-10-11; V1-1259
 CEM-V1-091	docs/specs/cem-stable-v1.md	241	A new top-level member of `cem-stable-verification/1` MUST be added only by	unrecorded	-
 CEM-V1-092	docs/specs/cem-stable-v1.md	355	The `cem-stable-verification/1` member `citation` MUST be the `CEM-V1-082` block	unrecorded	-
 CEM-V1-093	docs/specs/cem-stable-v1.md	589	A stable map MAY carry `provenance`, a closed object with exactly the required	unrecorded	-
@@ -926,112 +929,114 @@ CEM-V1-100	docs/specs/cem-stable-v1.md	695	(V1-1278: satisfied by the frozen V1-
 CEM-V1-101	docs/specs/cem-stable-v1.md	698	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
 CEM-V1-102	docs/specs/cem-stable-v1.md	702	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
 CEM-V1-103	docs/specs/cem-stable-v1.md	711	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-104	docs/specs/cem-stable-v1.md	715	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-105	docs/specs/cem-stable-v1.md	735	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-106	docs/specs/cem-stable-v1.md	785	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) `cem sta	standing	2026-10-11; V1-1281
-CEM-V1-107	docs/specs/cem-stable-v1.md	2336	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) Every st	standing	2026-10-11; V1-1333
-CEM-V1-108	docs/specs/cem-stable-v1.md	2342	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) `protoco	standing	2026-10-11; V1-1333
-CEM-V1-109	docs/specs/cem-stable-v1.md	2348	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The same	standing	2026-10-11; V1-1333
-CEM-V1-110	docs/specs/cem-stable-v1.md	2354	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The same	standing	2026-10-11; V1-1333
-CEM-V1-111	docs/specs/cem-stable-v1.md	2357	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The pack	standing	2026-10-11; V1-1333
-CEM-V1-112	docs/specs/cem-stable-v1.md	2366	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) For each	standing	2026-10-11; V1-1333
-CEM-V1-113	docs/specs/cem-stable-v1.md	2533	(accepted under the owner's standing auto-accept (2026-10-11); V1-1369) Every	standing	2026-10-11; V1-1369
-CEM-V1-114	docs/specs/cem-stable-v1.md	2720	(accepted under the owner's standing auto-accept (2026-10-11); V1-0414) `cem cit	standing	2026-10-11; V1-0414
-CEM-V1-115	docs/specs/cem-stable-v1.md	2644	(accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A	standing	2026-10-11; V1-1291
-CEM-V1-116	docs/specs/cem-stable-v1.md	2649	(accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A	standing	2026-10-11; V1-1291
-CEM-V1-117	docs/specs/cem-stable-v1.md	2654	(accepted under the owner's standing auto-accept (2026-10-11); V1-1306) When an	standing	2026-10-11; V1-1306
-CEM-V1-120	docs/specs/cem-stable-v1.md	1639	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity	unrecorded	-
-CEM-V1-121	docs/specs/cem-stable-v1.md	1642	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly	unrecorded	-
-CEM-V1-122	docs/specs/cem-stable-v1.md	1646	The stable result MUST carry:	unrecorded	-
-CEM-V1-123	docs/specs/cem-stable-v1.md	1655	The verifier binding MUST name the SHA-256 of the exact input map bytes, and the	unrecorded	-
-CEM-V1-124	docs/specs/cem-stable-v1.md	1660	The 0.x TCQ and frontier routes are unchanged. `parseArtifacts` keeps the	unrecorded	-
-CEM-V1-125	docs/specs/cem-stable-v1.md	1663	`frontierrepo.RecomputeStable` MUST:	unrecorded	-
-CEM-V1-126	docs/specs/cem-stable-v1.md	1672	No stable frontier document is produced. `frontier/0` binds an `lrf/0` digest, a	unrecorded	-
-CEM-V1-127	docs/specs/cem-stable-v1.md	1676	Each of the following MUST refuse, keeping the stable verifier's full result and	unrecorded	-
-CEM-V1-130	docs/specs/cem-stable-v1.md	1682	`extevidence.StableObligations` MUST emit `external-frontier-obligations-stable/	unrecorded	-
-CEM-V1-131	docs/specs/cem-stable-v1.md	1690	Hunk associations MUST be computed exactly as in the frozen sidecar, with the sa	unrecorded	-
-CEM-V1-132	docs/specs/cem-stable-v1.md	1693	A verifier refusal MUST return a `StableObligationsRefusal` that holds the	unrecorded	-
-CEM-V1-133	docs/specs/cem-stable-v1.md	1697	The map's declared criterion links MUST be listed in a separate `criteria` membe	unrecorded	-
-CEM-V1-134	docs/specs/cem-stable-v1.md	1700	The frozen sidecar MUST keep refusing `cem/1.0`, and the stable sidecar MUST ref	unrecorded	-
-CEM-V1-135	docs/specs/cem-stable-v1.md	1702	`corvint obligations` MUST select the stable sidecar only when all four of these	unrecorded	-
-CEM-V1-136	docs/specs/cem-stable-v1.md	1712	The criterion experiment companion MUST add the explicit input mode	unrecorded	-
-CEM-V1-137	docs/specs/cem-stable-v1.md	1716	Stable admission MUST:	unrecorded	-
-CEM-V1-138	docs/specs/cem-stable-v1.md	1725	Plan, run and verify MUST each re-admit the plan's map through the stable verifi	unrecorded	-
-CEM-V1-139	docs/specs/cem-stable-v1.md	1730	The two modes never cross:	unrecorded	-
-CEM-V1-140	docs/specs/cem-stable-v1.md	1517	`corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps th	unrecorded	-
-CEM-V1-141	docs/specs/cem-stable-v1.md	1524	A `cem/1.0` prepare MUST write the canonical stable encoding of a producer map	unrecorded	-
-CEM-V1-142	docs/specs/cem-stable-v1.md	1538	`cem begin --spec cem/1.0` MUST write the canonical stable producer map of the	unrecorded	-
-CEM-V1-143	docs/specs/cem-stable-v1.md	1541	`cem cite`, `cem mark`, `cem cover` and `cem discriminate` over a stable produce	unrecorded	-
-CEM-V1-144	docs/specs/cem-stable-v1.md	1545	A structural `cem mark` on a stable producer map writes the claimed reason; the	unrecorded	-
-CEM-V1-145	docs/specs/cem-stable-v1.md	1548	`cem status` over a `cem/1.0` map MUST admit `--max-unknown` and	unrecorded	-
-CEM-V1-146	docs/specs/cem-stable-v1.md	1554	A stable prepare's `nextActions` MUST be the single `cem status` argv with the	unrecorded	-
-CEM-V1-147	docs/specs/cem-stable-v1.md	1557	The daily bind loop MUST cite, count, check and seal a `cem/1.0` map like a	unrecorded	-
-CEM-V1-148	docs/specs/cem-stable-v1.md	1563	`dogfood batch-check` MUST admit a sealed `cem/1.0` constituent when the verifie	unrecorded	-
-CEM-V1-149	docs/specs/cem-stable-v1.md	1568	`ocm prepare`, `ocm read` (status) and `ocm link` MUST admit a `cem/1.0` map onl	unrecorded	-
-CEM-V1-150	docs/specs/cem-stable-v1.md	1574	Local-completion sidecar-only reuse (`AllowCemSidecarOnlyReuse`) MUST keep	unrecorded	-
-CEM-V1-151	docs/specs/cem-stable-v1.md	1579	`dogfood finish` MUST read a `cem/1.0` change map: its `cem status` (and the	unrecorded	-
-CEM-V1-152	docs/specs/cem-stable-v1.md	1584	The aggregate verifier worker's closed argv grammar (`ALO-V0-018`) MUST admit th	unrecorded	-
-CEM-V1-160	docs/specs/cem-stable-v1.md	1793	`corvint witness --stable-artifact-root DIR` MUST pass the absolute artifact roo	unrecorded	-
-CEM-V1-161	docs/specs/cem-stable-v1.md	1797	The witness route MUST fail closed with exit 2, no stdout and the code	unrecorded	-
-CEM-V1-162	docs/specs/cem-stable-v1.md	1804	`corvint docs corpus cem-stable` MUST require `--artifact`, `--cem`,	unrecorded	-
-CEM-V1-163	docs/specs/cem-stable-v1.md	1809	A `cem-stable` refusal MUST exit 2 with no stdout and the code	unrecorded	-
-CEM-V1-164	docs/specs/cem-stable-v1.md	1812	`corvint-console -stable-artifact-root DIR` MUST select the chain pane's verifie	unrecorded	-
-CEM-V1-165	docs/specs/cem-stable-v1.md	1822	In verified mode, the pane MUST replace the chain with a refusal, drawing no cha	unrecorded	-
-CEM-V1-166	docs/specs/cem-stable-v1.md	1834	Without `-stable-artifact-root`, the display-only NOT_RUN pane of `CEM-V1-077` M	unrecorded	-
-CEM-V1-167	docs/specs/cem-stable-v1.md	1836	The protected local-authority consumer holds a Git object capsule and no	unrecorded	-
-CEM-V1-168	docs/specs/cem-stable-v1.md	1839	The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So	unrecorded	-
-CEM-V1-170	docs/specs/cem-stable-v1.md	795	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a ma	standing	2026-10-11; V1-1344
-CEM-V1-176	docs/specs/cem-stable-v1.md	2664	(accepted under the owner's standing auto-accept (2026-10-11); V1-1289) Both	standing	2026-10-11; V1-1289
-CEM-V1-177	docs/specs/cem-stable-v1.md	2673	(accepted under the owner's standing auto-accept (2026-10-11); V1-1289) The pack	standing	2026-10-11; V1-1289
-CEM-V1-180	docs/specs/cem-stable-v1.md	2259	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The	standing	2026-10-11; V1-1358
-CEM-V1-181	docs/specs/cem-stable-v1.md	2266	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On Linux	standing	2026-10-11; V1-1358
-CEM-V1-182	docs/specs/cem-stable-v1.md	2271	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The Linu	standing	2026-10-11; V1-1358
-CEM-V1-183	docs/specs/cem-stable-v1.md	2279	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) Linux	standing	2026-10-11; V1-1358
-CEM-V1-184	docs/specs/cem-stable-v1.md	2290	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On a	standing	2026-10-11; V1-1358
-CEM-V1-185	docs/specs/cem-stable-v1.md	2580	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The stab	standing	2026-10-11; V1-1377
-CEM-V1-186	docs/specs/cem-stable-v1.md	2588	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The	standing	2026-10-11; V1-1377
-CEM-V1-187	docs/specs/cem-stable-v1.md	2594	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) An	standing	2026-10-11; V1-1377
-CEM-V1-188	docs/specs/cem-stable-v1.md	2599	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The host	standing	2026-10-11; V1-1377
-CEM-V1-189	docs/specs/cem-stable-v1.md	2605	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) A test i	standing	2026-10-11; V1-1377
-CEM-V1-200	docs/specs/cem-stable-v1.md	894	`wire.ParseStable`, and so every stable read (`cem verify-stable`, a stable	unrecorded	-
-CEM-V1-201	docs/specs/cem-stable-v1.md	903	Every committed `.corvint/changes/<bind>.cem.json` MUST be accepted by	unrecorded	-
-CEM-V1-202	docs/specs/cem-stable-v1.md	914	`dogfood batch-check` and `dogfood change`'s sealed-CEM admission (`DCW-V0-039`	unrecorded	-
-CEM-V1-203	docs/specs/cem-stable-v1.md	921	A sealed `cem/0.1`, `cem/0.2` or `cem/0.3` map that the range adds and whose	unrecorded	-
-CEM-V1-204	docs/specs/cem-stable-v1.md	938	The converter (`internal/cem/convert`), `corvint cem convert`	unrecorded	-
-CEM-V1-205	docs/specs/cem-stable-v1.md	981	A check whose plan sets `AllowCemSidecarOnlyReuse` and whose latest passing,	unrecorded	-
-CEM-V1-206	docs/specs/cem-stable-v1.md	989	The verifier MUST receive the exact bytes read from	unrecorded	-
-CEM-V1-207	docs/specs/cem-stable-v1.md	996	A refused reuse MUST leave the check unqualified (`selected-check-unverified`,	unrecorded	-
-CEM-V1-208	docs/specs/cem-stable-v1.md	1005	Without `AllowCemSidecarOnlyReuse`, a check observed on another target MUST stay	unrecorded	-
-CEM-V1-209	docs/specs/cem-stable-v1.md	1009	Each of `CEM-V1-205..208` MUST be traced to a named test in	unrecorded	-
-CEM-V1-210	docs/specs/cem-stable-v1.md	1896	Every consumer outside `internal/cem` (LRF, OCM, the stable universe, frontier	unrecorded	-
-CEM-V1-211	docs/specs/cem-stable-v1.md	1919	The frontier, LRF/OCM, dashboard, console and MCP projections MUST read the	unrecorded	-
-CEM-V1-212	docs/specs/cem-stable-v1.md	1923	A frozen conformance suite whose expectations depend on a 0.x map changes only	unrecorded	-
-CEM-V1-213	docs/specs/cem-stable-v1.md	1944	The daily loop's admission (`CEM-V1-202`) stays `cem/1.0`-only on every route a	unrecorded	-
-CEM-V1-214	docs/specs/cem-stable-v1.md	1949	A test that guards behavior `cem/1.0` keeps MUST be ported to a `cem/1.0` map	unrecorded	-
-CEM-V1-215	docs/specs/cem-stable-v1.md	1994	The product MUST ship one CEM wire, `cem/1.0`. No Go package outside the frozen	unrecorded	-
-CEM-V1-216	docs/specs/cem-stable-v1.md	2003	`cem begin` and `cem prepare` MUST accept only `--spec cem/1.0` (the default). A	unrecorded	-
-CEM-V1-217	docs/specs/cem-stable-v1.md	2007	The frozen 0.x projection routes MUST be retired, each with its stable successor	unrecorded	-
-CEM-V1-218	docs/specs/cem-stable-v1.md	2016	Only the `cem/v2` attestation predicate (`CEMStatementV2`, `CEM-V1-065`)	unrecorded	-
-CEM-V1-219	docs/specs/cem-stable-v1.md	2022	The core compatibility freeze and cli-parity-v0 MUST change only under decision	unrecorded	-
-CEM-V1-220	docs/specs/cem-stable-v1.md	2062	The `cem/0.x` protocol and conformance packets MUST be deleted:	unrecorded	-
-CEM-V1-221	docs/specs/cem-stable-v1.md	2067	`protocol/cem-1.0` MUST be self-contained. The 0.x normative text that `cem/1.0`	unrecorded	-
-CEM-V1-222	docs/specs/cem-stable-v1.md	2073	`interop/cem01-go` MUST verify `cem/1.0` only. The `cem/0.1` default `verify`	unrecorded	-
-CEM-V1-223	docs/specs/cem-stable-v1.md	2079	`examples/cem` except the 0.x-free `examples/cem/experiments/` companion demo, i	unrecorded	-
-CEM-V1-224	docs/specs/cem-stable-v1.md	2083	The Core remnants MUST name no retired wire: the dogfood loop passes	unrecorded	-
-CEM-V1-225	docs/specs/cem-stable-v1.md	2088	The `cem/0.2`, `cem/0.3`, 0.1 Go portability probe and 0.1 external interop spec	unrecorded	-
-CEM-V1-226	docs/specs/cem-stable-v1.md	2130	The packet MUST carry one shared tamper matrix at	unrecorded	-
-CEM-V1-227	docs/specs/cem-stable-v1.md	2137	The native verifier (`internal/cem/verify`, `Stable`) and the portable consumer	unrecorded	-
-CEM-V1-228	docs/specs/cem-stable-v1.md	2141	Each `EXPECTED.json` case MUST carry `name`, `tamper`, `description`, `map`,	unrecorded	-
-CEM-V1-229	docs/specs/cem-stable-v1.md	2151	Swapping evidence IDs between hunks, when every record stays a valid digest-boun	unrecorded	-
-CEM-V1-230	docs/specs/cem-stable-v1.md	828	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
-CEM-V1-231	docs/specs/cem-stable-v1.md	843	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
-CEM-V1-232	docs/specs/cem-stable-v1.md	850	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) The migr	standing	2026-10-11; V1-1277
+CEM-V1-104	docs/specs/cem-stable-v1.md	718	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-105	docs/specs/cem-stable-v1.md	739	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-106	docs/specs/cem-stable-v1.md	791	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) `cem sta	standing	2026-10-11; V1-1281
+CEM-V1-107	docs/specs/cem-stable-v1.md	2342	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) Every st	standing	2026-10-11; V1-1333
+CEM-V1-108	docs/specs/cem-stable-v1.md	2348	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) `protoco	standing	2026-10-11; V1-1333
+CEM-V1-109	docs/specs/cem-stable-v1.md	2354	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The same	standing	2026-10-11; V1-1333
+CEM-V1-110	docs/specs/cem-stable-v1.md	2360	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The same	standing	2026-10-11; V1-1333
+CEM-V1-111	docs/specs/cem-stable-v1.md	2363	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The pack	standing	2026-10-11; V1-1333
+CEM-V1-112	docs/specs/cem-stable-v1.md	2372	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) For each	standing	2026-10-11; V1-1333
+CEM-V1-113	docs/specs/cem-stable-v1.md	2539	(accepted under the owner's standing auto-accept (2026-10-11); V1-1369) Every	standing	2026-10-11; V1-1369
+CEM-V1-114	docs/specs/cem-stable-v1.md	2727	(accepted under the owner's standing auto-accept (2026-10-11); V1-0414) `cem cit	standing	2026-10-11; V1-0414
+CEM-V1-115	docs/specs/cem-stable-v1.md	2650	(accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A	standing	2026-10-11; V1-1291
+CEM-V1-116	docs/specs/cem-stable-v1.md	2655	(accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A	standing	2026-10-11; V1-1291
+CEM-V1-117	docs/specs/cem-stable-v1.md	2660	(accepted under the owner's standing auto-accept (2026-10-11); V1-1306) When an	standing	2026-10-11; V1-1306
+CEM-V1-120	docs/specs/cem-stable-v1.md	1645	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity	unrecorded	-
+CEM-V1-121	docs/specs/cem-stable-v1.md	1648	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly	unrecorded	-
+CEM-V1-122	docs/specs/cem-stable-v1.md	1652	The stable result MUST carry:	unrecorded	-
+CEM-V1-123	docs/specs/cem-stable-v1.md	1661	The verifier binding MUST name the SHA-256 of the exact input map bytes, and the	unrecorded	-
+CEM-V1-124	docs/specs/cem-stable-v1.md	1666	The 0.x TCQ and frontier routes are unchanged. `parseArtifacts` keeps the	unrecorded	-
+CEM-V1-125	docs/specs/cem-stable-v1.md	1669	`frontierrepo.RecomputeStable` MUST:	unrecorded	-
+CEM-V1-126	docs/specs/cem-stable-v1.md	1678	No stable frontier document is produced. `frontier/0` binds an `lrf/0` digest, a	unrecorded	-
+CEM-V1-127	docs/specs/cem-stable-v1.md	1682	Each of the following MUST refuse, keeping the stable verifier's full result and	unrecorded	-
+CEM-V1-130	docs/specs/cem-stable-v1.md	1688	`extevidence.StableObligations` MUST emit `external-frontier-obligations-stable/	unrecorded	-
+CEM-V1-131	docs/specs/cem-stable-v1.md	1696	Hunk associations MUST be computed exactly as in the frozen sidecar, with the sa	unrecorded	-
+CEM-V1-132	docs/specs/cem-stable-v1.md	1699	A verifier refusal MUST return a `StableObligationsRefusal` that holds the	unrecorded	-
+CEM-V1-133	docs/specs/cem-stable-v1.md	1703	The map's declared criterion links MUST be listed in a separate `criteria` membe	unrecorded	-
+CEM-V1-134	docs/specs/cem-stable-v1.md	1706	The frozen sidecar MUST keep refusing `cem/1.0`, and the stable sidecar MUST ref	unrecorded	-
+CEM-V1-135	docs/specs/cem-stable-v1.md	1708	`corvint obligations` MUST select the stable sidecar only when all four of these	unrecorded	-
+CEM-V1-136	docs/specs/cem-stable-v1.md	1718	The criterion experiment companion MUST add the explicit input mode	unrecorded	-
+CEM-V1-137	docs/specs/cem-stable-v1.md	1722	Stable admission MUST:	unrecorded	-
+CEM-V1-138	docs/specs/cem-stable-v1.md	1731	Plan, run and verify MUST each re-admit the plan's map through the stable verifi	unrecorded	-
+CEM-V1-139	docs/specs/cem-stable-v1.md	1736	The two modes never cross:	unrecorded	-
+CEM-V1-140	docs/specs/cem-stable-v1.md	1523	`corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps th	unrecorded	-
+CEM-V1-141	docs/specs/cem-stable-v1.md	1530	A `cem/1.0` prepare MUST write the canonical stable encoding of a producer map	unrecorded	-
+CEM-V1-142	docs/specs/cem-stable-v1.md	1544	`cem begin --spec cem/1.0` MUST write the canonical stable producer map of the	unrecorded	-
+CEM-V1-143	docs/specs/cem-stable-v1.md	1547	`cem cite`, `cem mark`, `cem cover` and `cem discriminate` over a stable produce	unrecorded	-
+CEM-V1-144	docs/specs/cem-stable-v1.md	1551	A structural `cem mark` on a stable producer map writes the claimed reason; the	unrecorded	-
+CEM-V1-145	docs/specs/cem-stable-v1.md	1554	`cem status` over a `cem/1.0` map MUST admit `--max-unknown` and	unrecorded	-
+CEM-V1-146	docs/specs/cem-stable-v1.md	1560	A stable prepare's `nextActions` MUST be the single `cem status` argv with the	unrecorded	-
+CEM-V1-147	docs/specs/cem-stable-v1.md	1563	The daily bind loop MUST cite, count, check and seal a `cem/1.0` map like a	unrecorded	-
+CEM-V1-148	docs/specs/cem-stable-v1.md	1569	`dogfood batch-check` MUST admit a sealed `cem/1.0` constituent when the verifie	unrecorded	-
+CEM-V1-149	docs/specs/cem-stable-v1.md	1574	`ocm prepare`, `ocm read` (status) and `ocm link` MUST admit a `cem/1.0` map onl	unrecorded	-
+CEM-V1-150	docs/specs/cem-stable-v1.md	1580	Local-completion sidecar-only reuse (`AllowCemSidecarOnlyReuse`) MUST keep	unrecorded	-
+CEM-V1-151	docs/specs/cem-stable-v1.md	1585	`dogfood finish` MUST read a `cem/1.0` change map: its `cem status` (and the	unrecorded	-
+CEM-V1-152	docs/specs/cem-stable-v1.md	1590	The aggregate verifier worker's closed argv grammar (`ALO-V0-018`) MUST admit th	unrecorded	-
+CEM-V1-160	docs/specs/cem-stable-v1.md	1799	`corvint witness --stable-artifact-root DIR` MUST pass the absolute artifact roo	unrecorded	-
+CEM-V1-161	docs/specs/cem-stable-v1.md	1803	The witness route MUST fail closed with exit 2, no stdout and the code	unrecorded	-
+CEM-V1-162	docs/specs/cem-stable-v1.md	1810	`corvint docs corpus cem-stable` MUST require `--artifact`, `--cem`,	unrecorded	-
+CEM-V1-163	docs/specs/cem-stable-v1.md	1815	A `cem-stable` refusal MUST exit 2 with no stdout and the code	unrecorded	-
+CEM-V1-164	docs/specs/cem-stable-v1.md	1818	`corvint-console -stable-artifact-root DIR` MUST select the chain pane's verifie	unrecorded	-
+CEM-V1-165	docs/specs/cem-stable-v1.md	1828	In verified mode, the pane MUST replace the chain with a refusal, drawing no cha	unrecorded	-
+CEM-V1-166	docs/specs/cem-stable-v1.md	1840	Without `-stable-artifact-root`, the display-only NOT_RUN pane of `CEM-V1-077` M	unrecorded	-
+CEM-V1-167	docs/specs/cem-stable-v1.md	1842	The protected local-authority consumer holds a Git object capsule and no	unrecorded	-
+CEM-V1-168	docs/specs/cem-stable-v1.md	1845	The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So	unrecorded	-
+CEM-V1-170	docs/specs/cem-stable-v1.md	801	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a ma	standing	2026-10-11; V1-1344
+CEM-V1-176	docs/specs/cem-stable-v1.md	2670	(accepted under the owner's standing auto-accept (2026-10-11); V1-1289) Both	standing	2026-10-11; V1-1289
+CEM-V1-177	docs/specs/cem-stable-v1.md	2679	(accepted under the owner's standing auto-accept (2026-10-11); V1-1289) The pack	standing	2026-10-11; V1-1289
+CEM-V1-180	docs/specs/cem-stable-v1.md	2265	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The	standing	2026-10-11; V1-1358
+CEM-V1-181	docs/specs/cem-stable-v1.md	2272	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On Linux	standing	2026-10-11; V1-1358
+CEM-V1-182	docs/specs/cem-stable-v1.md	2277	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The Linu	standing	2026-10-11; V1-1358
+CEM-V1-183	docs/specs/cem-stable-v1.md	2285	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) Linux	standing	2026-10-11; V1-1358
+CEM-V1-184	docs/specs/cem-stable-v1.md	2296	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On a	standing	2026-10-11; V1-1358
+CEM-V1-185	docs/specs/cem-stable-v1.md	2586	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The stab	standing	2026-10-11; V1-1377
+CEM-V1-186	docs/specs/cem-stable-v1.md	2594	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The	standing	2026-10-11; V1-1377
+CEM-V1-187	docs/specs/cem-stable-v1.md	2600	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) An	standing	2026-10-11; V1-1377
+CEM-V1-188	docs/specs/cem-stable-v1.md	2605	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The host	standing	2026-10-11; V1-1377
+CEM-V1-189	docs/specs/cem-stable-v1.md	2611	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) A test i	standing	2026-10-11; V1-1377
+CEM-V1-200	docs/specs/cem-stable-v1.md	900	`wire.ParseStable`, and so every stable read (`cem verify-stable`, a stable	unrecorded	-
+CEM-V1-201	docs/specs/cem-stable-v1.md	909	Every committed `.corvint/changes/<bind>.cem.json` MUST be accepted by	unrecorded	-
+CEM-V1-202	docs/specs/cem-stable-v1.md	920	`dogfood batch-check` and `dogfood change`'s sealed-CEM admission (`DCW-V0-039`	unrecorded	-
+CEM-V1-203	docs/specs/cem-stable-v1.md	927	A sealed `cem/0.1`, `cem/0.2` or `cem/0.3` map that the range adds and whose	unrecorded	-
+CEM-V1-204	docs/specs/cem-stable-v1.md	944	The converter (`internal/cem/convert`), `corvint cem convert`	unrecorded	-
+CEM-V1-205	docs/specs/cem-stable-v1.md	987	A check whose plan sets `AllowCemSidecarOnlyReuse` and whose latest passing,	unrecorded	-
+CEM-V1-206	docs/specs/cem-stable-v1.md	995	The verifier MUST receive the exact bytes read from	unrecorded	-
+CEM-V1-207	docs/specs/cem-stable-v1.md	1002	A refused reuse MUST leave the check unqualified (`selected-check-unverified`,	unrecorded	-
+CEM-V1-208	docs/specs/cem-stable-v1.md	1011	Without `AllowCemSidecarOnlyReuse`, a check observed on another target MUST stay	unrecorded	-
+CEM-V1-209	docs/specs/cem-stable-v1.md	1015	Each of `CEM-V1-205..208` MUST be traced to a named test in	unrecorded	-
+CEM-V1-210	docs/specs/cem-stable-v1.md	1902	Every consumer outside `internal/cem` (LRF, OCM, the stable universe, frontier	unrecorded	-
+CEM-V1-211	docs/specs/cem-stable-v1.md	1925	The frontier, LRF/OCM, dashboard, console and MCP projections MUST read the	unrecorded	-
+CEM-V1-212	docs/specs/cem-stable-v1.md	1929	A frozen conformance suite whose expectations depend on a 0.x map changes only	unrecorded	-
+CEM-V1-213	docs/specs/cem-stable-v1.md	1950	The daily loop's admission (`CEM-V1-202`) stays `cem/1.0`-only on every route a	unrecorded	-
+CEM-V1-214	docs/specs/cem-stable-v1.md	1955	A test that guards behavior `cem/1.0` keeps MUST be ported to a `cem/1.0` map	unrecorded	-
+CEM-V1-215	docs/specs/cem-stable-v1.md	2000	The product MUST ship one CEM wire, `cem/1.0`. No Go package outside the frozen	unrecorded	-
+CEM-V1-216	docs/specs/cem-stable-v1.md	2009	`cem begin` and `cem prepare` MUST accept only `--spec cem/1.0` (the default). A	unrecorded	-
+CEM-V1-217	docs/specs/cem-stable-v1.md	2013	The frozen 0.x projection routes MUST be retired, each with its stable successor	unrecorded	-
+CEM-V1-218	docs/specs/cem-stable-v1.md	2022	Only the `cem/v2` attestation predicate (`CEMStatementV2`, `CEM-V1-065`)	unrecorded	-
+CEM-V1-219	docs/specs/cem-stable-v1.md	2028	The core compatibility freeze and cli-parity-v0 MUST change only under decision	unrecorded	-
+CEM-V1-220	docs/specs/cem-stable-v1.md	2068	The `cem/0.x` protocol and conformance packets MUST be deleted:	unrecorded	-
+CEM-V1-221	docs/specs/cem-stable-v1.md	2073	`protocol/cem-1.0` MUST be self-contained. The 0.x normative text that `cem/1.0`	unrecorded	-
+CEM-V1-222	docs/specs/cem-stable-v1.md	2079	`interop/cem01-go` MUST verify `cem/1.0` only. The `cem/0.1` default `verify`	unrecorded	-
+CEM-V1-223	docs/specs/cem-stable-v1.md	2085	`examples/cem` except the 0.x-free `examples/cem/experiments/` companion demo, i	unrecorded	-
+CEM-V1-224	docs/specs/cem-stable-v1.md	2089	The Core remnants MUST name no retired wire: the dogfood loop passes	unrecorded	-
+CEM-V1-225	docs/specs/cem-stable-v1.md	2094	The `cem/0.2`, `cem/0.3`, 0.1 Go portability probe and 0.1 external interop spec	unrecorded	-
+CEM-V1-226	docs/specs/cem-stable-v1.md	2136	The packet MUST carry one shared tamper matrix at	unrecorded	-
+CEM-V1-227	docs/specs/cem-stable-v1.md	2143	The native verifier (`internal/cem/verify`, `Stable`) and the portable consumer	unrecorded	-
+CEM-V1-228	docs/specs/cem-stable-v1.md	2147	Each `EXPECTED.json` case MUST carry `name`, `tamper`, `description`, `map`,	unrecorded	-
+CEM-V1-229	docs/specs/cem-stable-v1.md	2157	Swapping evidence IDs between hunks, when every record stays a valid digest-boun	unrecorded	-
+CEM-V1-230	docs/specs/cem-stable-v1.md	834	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
+CEM-V1-231	docs/specs/cem-stable-v1.md	849	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
+CEM-V1-232	docs/specs/cem-stable-v1.md	856	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) The migr	standing	2026-10-11; V1-1277
 CEM-V1-240	docs/specs/cem-stable-v1.md	430	`corvint-cem-candidate assemble-stable --experimental --request R --out-dir D`	unrecorded	-
-CEM-V1-250	docs/specs/cem-stable-v1.md	2477	(accepted under the owner's standing auto-accept (2026-10-11); V1-1452) The	standing	2026-10-11; V1-1452
-CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	1246	(retired by V1-1278 S3) The default `verify` path refuses a strictly parsed JSON	unrecorded	-
-CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	1250	(retired by V1-1278 S3) `ci` reports such a map as verdict `unsupported-profile`	unrecorded	-
-CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	1253	(retired by V1-1278 S3) Only that exact case changes. A duplicate, non-string, d	unrecorded	-
-CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	1257	(retired by V1-1278 S3) `examples/cem/verify-portable.sh` runs `verify-stable-ca	unrecorded	-
+CEM-V1-250	docs/specs/cem-stable-v1.md	2483	(accepted under the owner's standing auto-accept (2026-10-11); V1-1452) The	standing	2026-10-11; V1-1452
+CEM-V1-260	docs/specs/cem-stable-v1.md	2794	(accepted under the owner's standing auto-accept (2026-10-11); V1-1295) Drift	standing	2026-10-11; V1-1295
+CEM-V1-261	docs/specs/cem-stable-v1.md	2853	(accepted under the owner's standing auto-accept (2026-10-11); V1-1296)	standing	2026-10-11; V1-1296
+CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	1252	(retired by V1-1278 S3) The default `verify` path refuses a strictly parsed JSON	unrecorded	-
+CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	1256	(retired by V1-1278 S3) `ci` reports such a map as verdict `unsupported-profile`	unrecorded	-
+CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	1259	(retired by V1-1278 S3) Only that exact case changes. A duplicate, non-string, d	unrecorded	-
+CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	1263	(retired by V1-1278 S3) `examples/cem/verify-portable.sh` runs `verify-stable-ca	unrecorded	-
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench	unrecorded	-
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,	unrecorded	-
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and	unrecorded	-
@@ -1421,6 +1426,7 @@ DCW-V0-066	docs/specs/daily-change-evidence-workflow-v0.md	846	(accepted under t
 DCW-V0-067	docs/specs/daily-change-evidence-workflow-v0.md	857	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) When	standing	2026-10-11; V1-1397
 DCW-V0-068	docs/specs/daily-change-evidence-workflow-v0.md	867	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) A CEM	standing	2026-10-11; V1-1397
 DCW-V0-069	docs/specs/daily-change-evidence-workflow-v0.md	874	(accepted under the owner's standing auto-accept (2026-10-11); V1-1449) After	standing	2026-10-11; V1-1449
+DCW-V0-072	docs/specs/daily-change-evidence-workflow-v0.md	887	(accepted under the owner's standing auto-accept (2026-10-11); V1-1307, decision	standing	2026-10-11; V1-1307
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked	unrecorded	-
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and	unrecorded	-
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map	unrecorded	-
@@ -3184,6 +3190,7 @@ SDD-V0-007	docs/specs/source-documentation-draft-v0.md	101	An explicitly enabled
 SDD-V0-008	docs/specs/source-documentation-draft-v0.md	117	Eligibility is decided by comparing the draft's cited source identities — each	unrecorded	-
 SDD-V0-009	docs/specs/source-documentation-draft-v0.md	125	`--preview` computes and returns the proposed page bytes, a unified diff against	unrecorded	-
 SDD-V0-010	docs/specs/source-documentation-draft-v0.md	137	The session never runs unless `--enable` is given together with exactly one of	unrecorded	-
+SDD-V0-011	docs/specs/source-documentation-draft-v0.md	146	When `contextindex.BuildContext` refuses because its own Git deadline expired	unrecorded	-
 SEA-V0-001	docs/specs/source-evidence-axes-v0.md	168	The source MUST assign all six axes with a claim, exact scalar scope, witnesses,	unrecorded	-
 SEA-V0-002	docs/specs/source-evidence-axes-v0.md	170	The source MUST preserve the six independent vocabularies and initial assignment	unrecorded	-
 SEA-V0-003	docs/specs/source-evidence-axes-v0.md	172	The opted-in wrapper MUST bind the unchanged payload and captured producer/Git/i	unrecorded	-

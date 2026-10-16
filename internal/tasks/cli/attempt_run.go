@@ -91,6 +91,9 @@ type attemptRunner struct {
 	// beatErrors counts heartbeat writes that failed without a refusal.
 	beatErrors int
 	lastBeat   error
+	// redone reports that a pre-launch lease write settled a receipt an
+	// interrupted writer left pending (CAL-V0-260).
+	redone bool
 	// role is the binding's role, passed on to a detached supervisor.
 	role string
 	// detach and supervise select the detached modes (ATR-V0-008); supervise
@@ -147,11 +150,11 @@ func (r *attemptRunner) run(argv []string) int {
 	signal.Notify(interrupts, runnerSignals...)
 	defer signal.Stop(interrupts)
 	if code, res := r.prepare(); res != nil {
-		return emitCode(r.env.Stdout, res, code)
+		return emitCode(r.env.Stdout, r.withRedo(res), code)
 	}
 	select {
 	case sig := <-interrupts:
-		return emitCode(r.env.Stdout, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Warnings: []string{"interrupted before launch; the command was not started and no outcome was recorded"}}, 128+signalNumber(sig))
+		return emitCode(r.env.Stdout, r.withRedo(&wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Warnings: []string{"interrupted before launch; the command was not started and no outcome was recorded"}}), 128+signalNumber(sig))
 	default:
 	}
 	outcome := r.execute(argv, interrupts)
@@ -222,7 +225,7 @@ func parseAttemptRun(env Env, args []string) (*attemptRunner, []string, *wire.Re
 	if err != nil {
 		return nil, nil, errorResult(cmd, err)
 	}
-	observed, err := snapshot.Probe(repo.StateDir)
+	observed, _, err := writerProbe(nil, repo.StateDir)
 	if err != nil {
 		return nil, nil, errorResult(cmd, err)
 	}
@@ -315,6 +318,7 @@ func (r *attemptRunner) prepare() (int, *wire.Result) {
 	if err != nil {
 		return 1, errorResult(cmd, err)
 	}
+	r.redone = report.Redone
 	if why := refusal(report); why != "" {
 		return lost(why)
 	}
@@ -336,6 +340,7 @@ func (r *attemptRunner) prepare() (int, *wire.Result) {
 		if err != nil {
 			return 1, errorResult(cmd, err)
 		}
+		r.redone = r.redone || report.Redone
 		if why := refusal(report); why != "" {
 			return lost(why)
 		}
@@ -348,6 +353,16 @@ func (r *attemptRunner) prepare() (int, *wire.Result) {
 		return refuse(1, []string{wire.CodeLimitExceeded}, "the lease does not cover the timeout and cleanup")
 	}
 	return 0, nil
+}
+
+// withRedo adds the completed-redo warning to any result of a run whose
+// pre-launch lease write settled a pending receipt, including a refusal
+// before launch (CAL-V0-260).
+func (r *attemptRunner) withRedo(res *wire.Result) *wire.Result {
+	if r.redone {
+		res.Warnings = append(res.Warnings, "a receipt left pending by an interrupted run was completed before this run's first lease write (§5.2 redo)")
+	}
+	return res
 }
 
 func covers(a *snapshot.Attempt, generation wire.Size, until time.Time) bool {
@@ -540,6 +555,7 @@ func (r *attemptRunner) finish(out transaction.RunOutcome) int {
 		}
 	}
 	status := runStatus(out, r.interrupt)
+	r.withRedo(res)
 	if r.beatErrors > 0 {
 		res.Warnings = append(res.Warnings, prose(strconv.Itoa(r.beatErrors)+" heartbeat write(s) failed and were not retried; the lease covered the run before launch; last error: "+r.lastBeat.Error()))
 	}

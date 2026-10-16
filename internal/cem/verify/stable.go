@@ -38,6 +38,10 @@ type StableOptions struct {
 type stableSeam struct {
 	git   gitrun.Seam
 	fault gitauth.StableFault
+	// operations, when positive, replaces gitrun.DefaultOperations so a
+	// shared case can reach the operation limit with a small map
+	// (CEM-V1-260).
+	operations int
 }
 
 // StableOuterDeadline is the one wall deadline of a Stable verification.
@@ -246,7 +250,11 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 	if seam.git.Now != nil {
 		now = seam.git.Now
 	}
-	budget := gitrun.NewStableBudget(gitrun.DefaultOperations, now().Add(StableOuterDeadline), cancel, seam.git)
+	operations := gitrun.DefaultOperations
+	if seam.operations > 0 {
+		operations = seam.operations
+	}
+	budget := gitrun.NewStableBudget(operations, now().Add(StableOuterDeadline), cancel, seam.git)
 	if seam.git.Now == nil {
 		timer := time.AfterFunc(StableOuterDeadline, func() { budget.OuterExpired() })
 		defer timer.Stop()
@@ -416,7 +424,7 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 	driftChange.Evidence = append([]wire.Evidence(nil), change.Evidence...)
 	sort.Slice(driftChange.Evidence, func(i, j int) bool { return driftChange.Evidence[i].ID < driftChange.Evidence[j].ID })
 	outcome := &Outcome{BaseRevision: d.Change.BaseRevision}
-	err = checkDrift(ctx, repo, &driftChange, d.Change.BaseRevision, target, outcome)
+	err = checkDrift(ctx, repo, &driftChange, spans, target, outcome)
 	evidence := map[string]wire.Evidence{}
 	for _, e := range d.Change.Evidence {
 		evidence[e.ID] = e

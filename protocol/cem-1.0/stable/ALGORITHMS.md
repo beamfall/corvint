@@ -193,7 +193,11 @@ and 0.2 specifications remain their historical identities; the text below is the
     overlapping matches: zero is `stale`, one is `relocated` with that span, two
     or more is `ambiguous`. There is no normalization or fuzzy matching. The drift
     row keeps `baseBlobOid`; the target blob and span are null when absent. Rows
-    are ordered by evidence ID.
+    are ordered by evidence ID. Each record costs one target path lookup, plus
+    one target blob read only for a 100644/100755 blob whose OID differs; the
+    searched bytes are the span the evidence stage authenticated, and no base
+    blob is read again. When the operation limit refuses an operation here, the
+    result keeps exactly the rows completed before it (CEM-V1-260).
 
 ## CEM-V1-018 restated: 0.3 hunk vocabulary, structural reasons and witnesses
 

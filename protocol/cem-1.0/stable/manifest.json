@@ -8,8 +8,8 @@
   "files": [
     {
       "path": "ALGORITHMS.md",
-      "sha256": "3eb5ba61b2eada23a86a4ff6064d80cc633e3486e5eb68c1c86a98e35ea711a9",
-      "bytes": 53077
+      "sha256": "5edf0930a9fcb887ebce4345cd31718f1677ca9736a1549524138465db6eb1b9",
+      "bytes": 53428
     },
     {
       "path": "FIXTURES.pack.json",
@@ -160,6 +160,31 @@
       "path": "citation-vectors/stable.json",
       "sha256": "34a1952e36adf9e2c974989446e5de981c3231128944a3cc43f74e77f0658e68",
       "bytes": 5429
+    },
+    {
+      "path": "drift-resource-limit/EXPECTED.json",
+      "sha256": "a234b6ee9614f9f4a7aa90040ae5251a237b2f32e2cad95df34ae62205f749c8",
+      "bytes": 440
+    },
+    {
+      "path": "drift-resource-limit/README.md",
+      "sha256": "b55b9e88f1c35303580e196d2d9c31c81081167532abcd08e5730a6d1516da8d",
+      "bytes": 2886
+    },
+    {
+      "path": "drift-resource-limit/repository.recipe.json",
+      "sha256": "0dde77b5b8230dff576c0b3beb17a1cddb1dbc88f1444095792630534691ba9d",
+      "bytes": 33943
+    },
+    {
+      "path": "drift-resource-limit/result.json",
+      "sha256": "4dd59d4d0bc9f674af71c08fbbd93f222f30a22e18f030b132343f6cc1e0ed3e",
+      "bytes": 11631
+    },
+    {
+      "path": "drift-resource-limit/stable.json",
+      "sha256": "fecaba7e6000f6bd244d8824dacd42b66c7e111ba607b2bf8521e79fd6d25288",
+      "bytes": 13679
     },
     {
       "path": "inherited/ALGORITHMS.md",

@@ -264,11 +264,21 @@ func transportOrToolFailure(ctx context.Context, err error) *Error {
 	if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return failure("cancelled")
 	}
+	if indexDeadline(err) { // SDD-V0-011: the index's own bound expired; the repository is not missing
+		return failure("repository-index-timeout")
+	}
 	code := errorCode(err)
 	if strings.HasPrefix(code, "repository-") || code == "unsupported-git-object-format" || strings.HasPrefix(err.Error(), "Git ") {
 		return failure("repository-unavailable")
 	}
 	return failure("internal-error")
+}
+
+// indexDeadline reports the source index's own deadline from its typed Cause; the caller's
+// context is already known live here, so the bound that expired was the index's.
+func indexDeadline(err error) bool {
+	var contextFailure *contextindex.Error
+	return errors.As(err, &contextFailure) && errors.Is(contextFailure.Cause, context.DeadlineExceeded)
 }
 
 func errorCode(err error) string {

@@ -14,7 +14,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
-	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
@@ -145,7 +144,7 @@ func escalationWriter(env Env, fl map[string]string) (mutation.Binding, *intent.
 	if err != nil {
 		return actor, nil, "", err
 	}
-	observed, err := snapshot.Probe(repo.StateDir)
+	observed, _, err := writerProbe(nil, repo.StateDir)
 	if err != nil {
 		return actor, nil, "", err
 	}
