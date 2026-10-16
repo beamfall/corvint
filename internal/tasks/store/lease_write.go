@@ -242,6 +242,7 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		switch {
 		case strings.HasPrefix(path, "intent/tickets/"):
 			input.CanonicalTickets = append(input.CanonicalTickets, record.Raw)
+			input.CanonicalTicketPaths = append(input.CanonicalTicketPaths, path)
 		case strings.HasPrefix(path, "intent/releases/"):
 			input.CanonicalReleases = append(input.CanonicalReleases, record.Raw)
 		case strings.HasPrefix(path, "attempts/"):

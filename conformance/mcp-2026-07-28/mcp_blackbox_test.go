@@ -26,6 +26,11 @@ const (
 	protocolVersion = "2026-07-28"
 	maxLineBytes    = 1 << 20
 	maxJSONDepth    = 64
+	// responseHangBound detects a server that never answers. Flow tools run
+	// Git and repository reads per call, and under host load a 5s bound fired
+	// before a correct response arrived (V1-1433), so this is a hang detector,
+	// not a latency budget (decision 0082). Exit promptness keeps its own bound.
+	responseHangBound = 2 * time.Minute
 )
 
 var serverBinary string
@@ -883,7 +888,7 @@ func (client *stdioClient) readMessage(t *testing.T) map[string]any {
 			t.Fatalf("jsonrpc=%v", message["jsonrpc"])
 		}
 		return message
-	case <-time.After(5 * time.Second):
+	case <-time.After(responseHangBound):
 		_ = client.command.Process.Kill()
 		t.Fatalf("timeout waiting for response; stderr=%q", client.stderr.String())
 	}

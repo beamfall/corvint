@@ -18,7 +18,7 @@ import (
 
 // fakeGo is a `go` on PATH whose behaviour FAKE_MODE selects: it answers the
 // version and universe probes, and for `test` records its argv, then passes,
-// fails, passes after a second, or starts a grandchild and sleeps.
+// fails, passes after seven seconds, or starts a grandchild and sleeps.
 const fakeGo = `#!/bin/sh
 case "$1" in
 env) [ "$FAKE_MODE" = noversion ] && exit 1; [ "$FAKE_MODE" = slowenv ] && exec sleep 60; echo go1.27.1; exit 0;;
@@ -31,7 +31,7 @@ sleep)
   touch "$FAKE_DIR/started"
   sleep 60;;
 fail) echo '{"Action":"fail","Package":"m/a"}'; exit 1;;
-slow) sleep 1; echo '{"Action":"pass","Package":"m/a"}';;
+slow) sleep 7; echo '{"Action":"pass","Package":"m/a"}';;
 *) echo '{"Action":"pass","Package":"m/a"}';;
 esac
 `
@@ -142,8 +142,8 @@ func TestSTRV0014RunnerCancelAndBudgetKillGroup(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		if budget {
 			// Long enough for the fake go to start its grandchild on a
-			// loaded host; 300ms was racy.
-			runner.Budget = 2 * time.Second
+			// loaded host; 300ms was racy, and 2s still was (V1-1439).
+			runner.Budget = 10 * time.Second
 		} else {
 			go func() {
 				for deadline := time.Now().Add(20 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
@@ -162,7 +162,7 @@ func TestSTRV0014RunnerCancelAndBudgetKillGroup(t *testing.T) {
 		}
 		want := "cancelled while an adapter ran; its process group was killed"
 		if budget {
-			want = "the shard exceeded its 2s total budget while an adapter ran; its process group was killed"
+			want = "the shard exceeded its 10s total budget while an adapter ran; its process group was killed"
 		}
 		if receipt.Result != ResultIncomplete || len(receipt.Invocations) != 1 || receipt.Incomplete[0] != want {
 			t.Fatalf("budget=%v: %s %d %v", budget, receipt.Result, len(receipt.Invocations), receipt.Incomplete)
@@ -182,16 +182,18 @@ func TestSTRV0014RunnerCancelAndBudgetKillGroup(t *testing.T) {
 }
 
 // STR-V0-015: the budget bounds the whole shard, not each invocation. Two
-// invocations of one second each pass a 1.6s per-invocation bound but not a
-// 1.6s shard bound: the second is killed at the shard deadline, and once the
-// deadline has passed nothing further launches.
+// invocations of seven seconds each pass a 12s per-invocation bound but not a
+// 12s shard bound: the second is killed at the shard deadline, and once the
+// deadline has passed nothing further launches. The 5s margin absorbs
+// discovery and launch under host load, where 1s runs in a 1.6s budget left
+// 0.6s and failed (V1-1439).
 func TestSTRV0015BudgetBoundsTheShard(t *testing.T) {
 	runner, m, _, _ := runnerFixture(t, "slow")
 	m.Units = append(m.Units, Unit{Adapter: AdapterGo, Flag: "-run", Pattern: "^T$", Shard: 0, Slice: "0/2", Unit: "go:m/a"})
 	digest, _ := Digest(m)
-	runner.Budget = 1600 * time.Millisecond
+	runner.Budget = 12 * time.Second
 	receipt := runner.Execute(context.Background(), m, digest, 0)
-	want := "the shard exceeded its 1.6s total budget while an adapter ran; its process group was killed"
+	want := "the shard exceeded its 12s total budget while an adapter ran; its process group was killed"
 	if receipt.Result != ResultIncomplete || len(receipt.Invocations) != 2 || receipt.Invocations[0].Outcomes[0].Outcome != OutcomePass ||
 		receipt.Incomplete[0] != want {
 		t.Fatalf("shard budget: %s %d %v", receipt.Result, len(receipt.Invocations), receipt.Incomplete)

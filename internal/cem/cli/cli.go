@@ -97,7 +97,7 @@ var cemActions = map[string]cemAction{
 			},
 		},
 	},
-	"verify": {arguments: readArguments, required: []string{"--map"}, booleans: []string{"--citation", "--hunk-revert"}},
+	"verify": {arguments: readArguments, required: []string{"--map"}, booleans: []string{"--citation", "--hunk-revert", "--guarding-tests"}},
 	"status": {arguments: readArguments, required: []string{"--map"}, booleans: []string{"--citation"}},
 	"report": {
 		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--format", "--ocm", "--artifacts"},
@@ -490,6 +490,7 @@ func dispatchCEMWithCallerRoot(ctx context.Context, root, callerRoot string, arg
 			Limits:       workflow.PolicyLimits{MaxUnknown: maxUnknown, MaxMechanical: maxMechanical},
 			ArtifactRoot: flags.values["--artifacts"], ArtifactsGiven: flags.present["--artifacts"],
 			Citation: flags.booleans["--citation"], HunkRevert: flags.booleans["--hunk-revert"],
+			GuardingTests: flags.booleans["--guarding-tests"],
 		})
 	}
 	return nil, invalidChoice("cem_command", action, cemActionOrder)

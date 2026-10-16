@@ -84,6 +84,7 @@ AFP-V0-047	docs/specs/affected-plan-v0.md	1190	(accepted under the owner's stand
 AFP-V0-048	docs/specs/affected-plan-v0.md	1256	(accepted under the owner's standing auto-accept (2026-10-11); V1-1361) A	standing	2026-10-11; V1-1361
 AFP-V0-049	docs/specs/affected-plan-v0.md	1293	(accepted under the owner's standing auto-accept (2026-10-11); V1-1371)	standing	2026-10-11; V1-1371
 AFP-V0-050	docs/specs/affected-plan-v0.md	1326	(accepted under the owner's standing auto-accept (2026-10-11); V1-1298; (3)	standing	2026-10-11; V1-1298
+AFP-V0-051	docs/specs/affected-plan-v0.md	1375	(accepted under the owner's standing auto-accept (2026-10-11); V1-1351) A local	standing	2026-10-11; V1-1351
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data	unrecorded	-
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/	unrecorded	-
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and	unrecorded	-
@@ -544,7 +545,7 @@ CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	594	`claim`, `renew`, `at
 CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1473	`store.Mutate` MUST take its request lookup and its canonical intent records fro	unrecorded	-
 CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1872	The optional policy `supervision` object MAY carry `repositories`, a closed obje	unrecorded	-
 CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1890	After `implement`, each repository with changes MUST receive a candidate commit	unrecorded	-
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	6959	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	7045	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
 CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	2052	The optional policy `supervision` object MAY carry `host`, whose admitted	unrecorded	-
 CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2135	A `claude-code` stage MUST invoke the pinned executable with the prompt on	unrecorded	-
 CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2269	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be	unrecorded	-
@@ -571,7 +572,7 @@ CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2954	A policy MAY carry t
 CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2988	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes	unrecorded	-
 CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3112	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a	unrecorded	-
 CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3168	When the dispatcher has a work-state reader, a ticket MUST count as held exactly	unrecorded	-
-CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	7144	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
+CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	7230	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
 CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3209	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici	unrecorded	-
 CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3255	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio	unrecorded	-
 CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1373	On macOS the memory signal MUST be the kernel memory-pressure level	unrecorded	-
@@ -648,7 +649,7 @@ CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4800	(accepted by decisio
 CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4811	(accepted by decision 0447; V1-0966) The dispatcher MUST count, per	owner	decision 0447; V1-0966
 CAL-V0-186	docs/specs/corvint-tasks-agent-leases-v0.md	5114	(proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh	unrecorded	-
 CAL-V0-187	docs/specs/corvint-tasks-agent-leases-v0.md	4903	proposed (V1-0980; GitHub #668) A build writing `taskman-dispatch-state/3` MUST	unrecorded	-
-CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	7211	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
+CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	7297	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
 CAL-V0-189	docs/specs/corvint-tasks-agent-leases-v0.md	4955	(proposed; V1-0915; GitHub #641) Single intent read in the writer audit. A	unrecorded	-
 CAL-V0-190	docs/specs/corvint-tasks-agent-leases-v0.md	4968	(proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.	unrecorded	-
 CAL-V0-191	docs/specs/corvint-tasks-agent-leases-v0.md	5151	(proposed; V1-1016) A role MAY carry `expiredLeaseGraceSeconds`, an integer	unrecorded	-
@@ -683,20 +684,22 @@ CAL-V0-220	docs/specs/corvint-tasks-agent-leases-v0.md	5711	(accepted, decision 
 CAL-V0-221	docs/specs/corvint-tasks-agent-leases-v0.md	5717	(accepted, decision 0519 (V1-0906)) Regression evidence shall bound	owner	decision 0519; V1-0906
 CAL-V0-222	docs/specs/corvint-tasks-agent-leases-v0.md	6002	(accepted under the owner's standing auto-accept (2026-10-11), V1-1352) A lease	standing	2026-10-11; V1-1352
 CAL-V0-223	docs/specs/corvint-tasks-agent-leases-v0.md	6012	(accepted under the owner's standing auto-accept (2026-10-11), V1-1352) Caller c	standing	2026-10-11; V1-1352
-CAL-V0-224	docs/specs/corvint-tasks-agent-leases-v0.md	6054	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887)	standing	2026-10-11; V1-0887
-CAL-V0-225	docs/specs/corvint-tasks-agent-leases-v0.md	6139	(accepted under the owner's standing auto-accept (2026-10-11), V1-1386) A relati	standing	2026-10-11; V1-1386
-CAL-V0-226	docs/specs/corvint-tasks-agent-leases-v0.md	6146	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710)	standing	2026-10-11; V1-0710
-CAL-V0-227	docs/specs/corvint-tasks-agent-leases-v0.md	6165	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) A marker	standing	2026-10-11; V1-0710
-CAL-V0-228	docs/specs/corvint-tasks-agent-leases-v0.md	6179	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The	standing	2026-10-11; V1-0710
-CAL-V0-229	docs/specs/corvint-tasks-agent-leases-v0.md	6185	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The mark	standing	2026-10-11; V1-0710
-CAL-V0-230	docs/specs/corvint-tasks-agent-leases-v0.md	6246	(accepted under the owner's standing auto-accept (2026-10-11), V1-1320) After a	standing	2026-10-11; V1-1320
-CAL-V0-231	docs/specs/corvint-tasks-agent-leases-v0.md	6256	(accepted under the owner's standing auto-accept (2026-10-11), V1-1313) A	standing	2026-10-11; V1-1313
-CAL-V0-232	docs/specs/corvint-tasks-agent-leases-v0.md	6083	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
-CAL-V0-240	docs/specs/corvint-tasks-agent-leases-v0.md	6314	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) When the	standing	2026-10-11; V1-1415
-CAL-V0-241	docs/specs/corvint-tasks-agent-leases-v0.md	6328	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) A result	standing	2026-10-11; V1-1415
-CAL-V0-242	docs/specs/corvint-tasks-agent-leases-v0.md	6345	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) The	standing	2026-10-11; V1-1415
-CAL-V0-243	docs/specs/corvint-tasks-agent-leases-v0.md	6354	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) `receipt	standing	2026-10-11; V1-1415
-CAL-V0-250	docs/specs/corvint-tasks-agent-leases-v0.md	6366	(accepted under the owner's standing auto-accept (2026-10-11), V1-1384) A CLI	standing	2026-10-11; V1-1384
+CAL-V0-224	docs/specs/corvint-tasks-agent-leases-v0.md	6054	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended	standing	2026-10-11; V1-0887; 2026-10-15
+CAL-V0-225	docs/specs/corvint-tasks-agent-leases-v0.md	6223	(accepted under the owner's standing auto-accept (2026-10-11), V1-1386) A relati	standing	2026-10-11; V1-1386
+CAL-V0-226	docs/specs/corvint-tasks-agent-leases-v0.md	6230	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710)	standing	2026-10-11; V1-0710
+CAL-V0-227	docs/specs/corvint-tasks-agent-leases-v0.md	6249	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) A marker	standing	2026-10-11; V1-0710
+CAL-V0-228	docs/specs/corvint-tasks-agent-leases-v0.md	6263	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The	standing	2026-10-11; V1-0710
+CAL-V0-229	docs/specs/corvint-tasks-agent-leases-v0.md	6269	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The mark	standing	2026-10-11; V1-0710
+CAL-V0-230	docs/specs/corvint-tasks-agent-leases-v0.md	6330	(accepted under the owner's standing auto-accept (2026-10-11), V1-1320) After a	standing	2026-10-11; V1-1320
+CAL-V0-231	docs/specs/corvint-tasks-agent-leases-v0.md	6340	(accepted under the owner's standing auto-accept (2026-10-11), V1-1313) A	standing	2026-10-11; V1-1313
+CAL-V0-232	docs/specs/corvint-tasks-agent-leases-v0.md	6118	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
+CAL-V0-233	docs/specs/corvint-tasks-agent-leases-v0.md	6162	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
+CAL-V0-234	docs/specs/corvint-tasks-agent-leases-v0.md	6191	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
+CAL-V0-240	docs/specs/corvint-tasks-agent-leases-v0.md	6398	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) When the	standing	2026-10-11; V1-1415
+CAL-V0-241	docs/specs/corvint-tasks-agent-leases-v0.md	6412	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) A result	standing	2026-10-11; V1-1415
+CAL-V0-242	docs/specs/corvint-tasks-agent-leases-v0.md	6429	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) The	standing	2026-10-11; V1-1415
+CAL-V0-243	docs/specs/corvint-tasks-agent-leases-v0.md	6438	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) `receipt	standing	2026-10-11; V1-1415
+CAL-V0-250	docs/specs/corvint-tasks-agent-leases-v0.md	6450	(accepted under the owner's standing auto-accept (2026-10-11), V1-1384) A CLI	standing	2026-10-11; V1-1384
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha	unrecorded	-
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring	unrecorded	-
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla	unrecorded	-
@@ -1407,6 +1410,11 @@ DCW-V0-060	docs/specs/daily-change-evidence-workflow-v0.md	771	(accepted under t
 DCW-V0-061	docs/specs/daily-change-evidence-workflow-v0.md	791	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348)	standing	2026-10-11; V1-1348
 DCW-V0-062	docs/specs/daily-change-evidence-workflow-v0.md	804	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348) After it	standing	2026-10-11; V1-1348
 DCW-V0-063	docs/specs/daily-change-evidence-workflow-v0.md	811	(accepted under the owner's standing auto-accept (2026-10-11); V1-1349, V1-1418)	standing	2026-10-11; V1-1349; V1-1418
+DCW-V0-064	docs/specs/daily-change-evidence-workflow-v0.md	829	(accepted under the owner's standing auto-accept (2026-10-11); V1-1354) Every Gi	standing	2026-10-11; V1-1354
+DCW-V0-065	docs/specs/daily-change-evidence-workflow-v0.md	839	(accepted under the owner's standing auto-accept (2026-10-11); V1-1341) The	standing	2026-10-11; V1-1341
+DCW-V0-066	docs/specs/daily-change-evidence-workflow-v0.md	846	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) When	standing	2026-10-11; V1-1397
+DCW-V0-067	docs/specs/daily-change-evidence-workflow-v0.md	857	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) When	standing	2026-10-11; V1-1397
+DCW-V0-068	docs/specs/daily-change-evidence-workflow-v0.md	867	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) A CEM	standing	2026-10-11; V1-1397
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked	unrecorded	-
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and	unrecorded	-
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map	unrecorded	-
@@ -3493,6 +3501,7 @@ TCQ-V0-058	docs/specs/test-claim-qualification-v0.md	704	the reviewer report app
 TCQ-V0-059	docs/specs/test-claim-qualification-v0.md	712	(accepted 2026-10-08, decision 0463; ticket V1-0651) a runner failure whose whol	owner	2026-10-08; decision 0463; V1-0651
 TCQ-V0-060	docs/specs/test-claim-qualification-v0.md	741	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
 TCQ-V0-061	docs/specs/test-claim-qualification-v0.md	748	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
+TCQ-V0-062	docs/specs/test-claim-qualification-v0.md	757	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
 TEA-V0-001	docs/specs/corvint-tasks-evidence-attachments-v0.md	38	`corvint-tasks ticket attach-evidence --target T --expected-revision N --payload	unrecorded	-
 TJAA-V0-001	docs/specs/typescript-javascript-affected-adapter-v0.md	31	`Owns` MUST claim exactly `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs`; it M	unrecorded	-
 TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normally file-addressable test MUST be one file unit. Its stable identity MUST	unrecorded	-
