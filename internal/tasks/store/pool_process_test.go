@@ -324,6 +324,67 @@ func TestCALV0188_GroupListingOverrun(t *testing.T) {
 		t.Fatalf("surviving member admitted: clean=%v listings=%d", clean, listings)
 	}
 }
+
+// PSR-V0-022: a Git source probe whose own group cleanup is unproved (here a
+// pipe holder outlives the leader past the wait delay) records UNKNOWN, never
+// SOURCE_CHANGED; the post-exit proof lets it replace only a passing class.
+func TestPSRV0022_UnprovedProbeCleanupRecordsUnknown(t *testing.T) {
+	bin := t.TempDir()
+	if e := os.WriteFile(filepath.Join(bin, "git"), []byte("#!/bin/sh\n/bin/sleep 3 &\nexit 0\n"), 0o755); e != nil {
+		t.Fatal(e)
+	}
+	t.Setenv("PATH", bin)
+	_, _, e := sweepSource(context.Background(), t.TempDir())
+	if e == nil || sweepSourceClass(e) != "UNKNOWN" {
+		t.Fatalf("unproved probe cleanup: want UNKNOWN got %s (%v)", sweepSourceClass(e), e)
+	}
+	if got := poolPostClass("EXIT_ZERO", true, e); got != "UNKNOWN" {
+		t.Fatalf("post-exit proof on a passing class: want UNKNOWN got %s", got)
+	}
+	// Unproved cleanup is terminal: a retryable failure class is replaced so
+	// the retry planner cannot launch another attempt (PSR-V0-004).
+	for _, failed := range []string{"EXIT_NONZERO", "STDOUT_MISMATCH"} {
+		if got := poolPostClass(failed, false, e); got != "UNKNOWN" {
+			t.Fatalf("post-exit proof on %s: want UNKNOWN got %s", failed, got)
+		}
+	}
+	// A probe that hit its bound and whose cleanup is also unproved keeps the
+	// PSR-V0-004 bound class, and is still terminal after exit; a clean bound
+	// keeps the command's own failure as before.
+	for _, c := range []struct {
+		result poolCommandResult
+		source string
+		post   string
+	}{
+		{poolCommandResult{Class: "UNKNOWN", Bound: "TIMEOUT"}, "TIMEOUT", "TIMEOUT"},
+		{poolCommandResult{Class: "UNKNOWN", Bound: "INTERRUPTED"}, "INTERRUPTED", "INTERRUPTED"},
+		{poolCommandResult{Class: "UNKNOWN"}, "UNKNOWN", "UNKNOWN"},
+		{poolCommandResult{Class: "TIMEOUT", Bound: "TIMEOUT", Clean: true}, "TIMEOUT", "EXIT_NONZERO"},
+		{poolCommandResult{Class: "EXIT_NONZERO", Clean: true}, "SOURCE_CHANGED", "SOURCE_CHANGED"},
+	} {
+		failure := sweepGitFailure(c.result)
+		if got := sweepSourceClass(failure); got != c.source {
+			t.Fatalf("%+v: source class want %s got %s", c.result, c.source, got)
+		}
+		if got := poolPostClass("EXIT_NONZERO", false, failure); got != c.post {
+			t.Fatalf("%+v: post class want %s got %s", c.result, c.post, got)
+		}
+	}
+	if timed := executePoolCaptured(context.Background(), &intent.PoolCommand{Argv: []string{"/bin/sleep", "5"}, TimeoutSeconds: "1"}, t.TempDir(), nil); timed.Class != "TIMEOUT" || timed.Bound != "TIMEOUT" {
+		t.Fatalf("runner bound: want TIMEOUT/TIMEOUT got %s/%s", timed.Class, timed.Bound)
+	}
+	// The pinned-cwd proof keeps the probe's own error rather than claiming
+	// the path is not a Git worktree.
+	pin, e := filepath.EvalSymlinks(t.TempDir())
+	if e != nil {
+		t.Fatal(e)
+	}
+	def := &intent.PoolCommand{Argv: []string{"/usr/bin/true"}, TimeoutSeconds: "3", Pinned: &intent.PinnedCwd{Path: pin, Revision: strings.Repeat("a", 40)}}
+	if _, _, e = poolCommandDir(context.Background(), def, t.TempDir()); wire.CodeOf(e) != wire.CodeUnsupported || sweepSourceClass(e) != "UNKNOWN" {
+		t.Fatalf("pinned probe: want UNSUPPORTED/UNKNOWN got %s/%s (%v)", wire.CodeOf(e), sweepSourceClass(e), e)
+	}
+}
+
 func TestPSRCapturedOutputLimit(t *testing.T) {
 	result := executePoolCaptured(context.Background(), &intent.PoolCommand{Argv: []string{"/bin/sh", "-c", "while :; do printf 1234567890123456789012345678901234567890; done"}, TimeoutSeconds: "3"}, t.TempDir(), nil)
 	if result.Class != "OUTPUT_LIMIT" || len(result.Stdout)+len(result.Stderr) > 65536 {

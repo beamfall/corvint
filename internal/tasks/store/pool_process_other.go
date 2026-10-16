@@ -17,9 +17,12 @@ func executePoolGuarded(context.Context, *intent.PoolCommand, string, []string, 
 }
 
 type poolCommandResult struct {
-	Timing         snapshot.PoolSweepTiming
-	Signal         *wire.Count
-	Class          string
+	Timing snapshot.PoolSweepTiming
+	Signal *wire.Count
+	Class  string
+	// Bound is the run-context class (TIMEOUT or INTERRUPTED) that an
+	// unproved cleanup overrides with UNKNOWN; it is never encoded.
+	Bound          string
 	Clean          bool
 	Exit           *wire.Count
 	Stdout, Stderr []byte
