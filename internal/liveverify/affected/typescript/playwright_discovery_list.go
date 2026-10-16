@@ -38,20 +38,22 @@ type playwrightListing struct {
 }
 
 type playwrightListSuite struct {
-	File  string `json:"file"`
-	Title string `json:"title"`
-	Specs []struct {
-		ID     string   `json:"id"`
-		Title  string   `json:"title"`
-		Tags   []string `json:"tags"`
-		File   string   `json:"file"`
-		Line   int      `json:"line"`
-		Column int      `json:"column"`
-		Tests  []struct {
-			ProjectName *string `json:"projectName"`
-		} `json:"tests"`
-	} `json:"specs"`
+	File   string                `json:"file"`
+	Title  string                `json:"title"`
+	Specs  []playwrightListSpec  `json:"specs"`
 	Suites []playwrightListSuite `json:"suites"`
+}
+
+type playwrightListSpec struct {
+	ID     string   `json:"id"`
+	Title  string   `json:"title"`
+	Tags   []string `json:"tags"`
+	File   string   `json:"file"`
+	Line   int      `json:"line"`
+	Column int      `json:"column"`
+	Tests  []struct {
+		ProjectName *string `json:"projectName"`
+	} `json:"tests"`
 }
 
 // PlaywrightDiscoveryFromList converts the JSON report of an unfiltered
@@ -75,7 +77,13 @@ func PlaywrightDiscoveryFromList(root, configPath, revision string, listing []by
 	}
 	seen := map[PlaywrightDiscoveryUnit]bool{}
 	cases := map[string][]playwrightListCase{}
-	if err := collectPlaywrightListUnits(realRoot, report.Config.RootDir, "", nil, report.Suites, 0, seen, cases); err != nil {
+	if err := walkPlaywrightListing(realRoot, report.Config.RootDir, report.Suites, cases, func(listed playwrightListedSpec) error {
+		projects, err := playwrightSpecProjects(listed)
+		for _, project := range projects {
+			seen[PlaywrightDiscoveryUnit{Project: project, Test: listed.path}] = true
+		}
+		return err
+	}); err != nil {
 		return nil, err
 	}
 	configBytes, sourceDigest, omissions, err := observePlaywrightListMembership(root, configPath, seen, nil, cases)
@@ -453,52 +461,6 @@ func unfilteredPlaywrightArgv(argv []string) error {
 	}
 	if !listed {
 		return errors.New("playwright listing argv lacks --list; an execution report is not a discovery listing")
-	}
-	return nil
-}
-
-// collectPlaywrightListUnits records every listed (project, file) pair in seen and, when cases is
-// not nil, each listed case under its file: the enclosing suite titles (file, then describes) and
-// the spec title, and the reported tags with their `@` restored.
-func collectPlaywrightListUnits(realRoot, rootDir, file string, titles []string, suites []playwrightListSuite, depth int, seen map[PlaywrightDiscoveryUnit]bool, cases map[string][]playwrightListCase) error {
-	if depth > playwrightListMaxDepth {
-		return errors.New("playwright listing suites nest too deeply")
-	}
-	for _, suite := range suites {
-		suiteFile := file
-		if suite.File != "" {
-			suiteFile = suite.File
-		}
-		suiteTitles := append(slices.Clip(titles), suite.Title)
-		for _, spec := range suite.Specs {
-			specFile := suiteFile
-			if spec.File != "" {
-				specFile = spec.File
-			}
-			if playwrightPathOutsideMatcherModel(rootDir) || playwrightPathOutsideMatcherModel(specFile) {
-				return fmt.Errorf("playwright listing file %q contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently; the listing's membership cannot be checked", specFile)
-			}
-			test, ok := playwrightListPath(realRoot, filepath.Join(rootDir, filepath.FromSlash(specFile)))
-			if !ok || !hasSourceExtension(test) || playwrightPathOutsideMatcherModel(test) {
-				return fmt.Errorf("playwright listing file %q under rootDir is not a repository-relative source path", specFile)
-			}
-			for _, entry := range spec.Tests {
-				if entry.ProjectName == nil {
-					return fmt.Errorf("playwright listing test in %q has no projectName", specFile)
-				}
-				seen[PlaywrightDiscoveryUnit{Project: *entry.ProjectName, Test: test}] = true
-			}
-			if cases != nil {
-				listCase := playwrightListCase{titles: append(slices.Clone(suiteTitles), spec.Title)}
-				for _, tag := range spec.Tags {
-					listCase.tags = append(listCase.tags, "@"+tag)
-				}
-				cases[test] = append(cases[test], listCase)
-			}
-		}
-		if err := collectPlaywrightListUnits(realRoot, rootDir, suiteFile, suiteTitles, suite.Suites, depth+1, seen, cases); err != nil {
-			return err
-		}
 	}
 	return nil
 }

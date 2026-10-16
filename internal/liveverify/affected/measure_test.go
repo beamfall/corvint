@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -239,37 +241,167 @@ func TestSelectionOnTheLiveDirtyWorktree(t *testing.T) {
 		t.Fatalf("plan is not bound to the graph it was computed from")
 	}
 	// Every selected unit's witness must resolve, on the live worktree, not
-	// only on the fixture. A reader witness resolves to a unit whose path
-	// literals name its dirty path (AFP-V0-021).
+	// only on the fixture.
 	for _, selection := range plan.Selected {
-		if selection.Witness.Kind == affected.WitnessPathLiteralReader {
-			if !slices.Contains(graph.Namers(selection.Witness.DirtyPath), selection.UnitID) {
-				t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)
-			}
-			continue
-		}
-		if selection.Witness.Kind == affected.WitnessUnboundedReader {
-			if !slices.Contains(graph.UnboundedReaders(), selection.UnitID) {
-				t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)
-			}
-			continue
-		}
-		// A declared-scope witness resolves to a declared unit whose scope
-		// holds its dirty path (AFP-V0-023).
-		if selection.Witness.Kind == affected.WitnessDeclaredReadScope {
-			unit, found := graph.Unit(selection.UnitID)
-			files := append(append([]string(nil), unit.Sources...), unit.Tests...)
-			if !found || !unit.ReadScoped || len(files) == 0 || !affected.InReadScope(path.Dir(files[0]), unit.ReadScope, selection.Witness.DirtyPath) {
-				t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)
-			}
-			continue
-		}
-		owner, owned := graph.OwnerOf(selection.Witness.DirtyPath)
-		if !owned || owner != selection.Witness.Via[0] {
+		if !witnessResolves(graph, selection) {
 			t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)
 		}
 	}
 	enforceSelectionBudget(t, "live-worktree select median", selectElapsed, probe, referenceProbeMedian)
+}
+
+// TestWitnessesResolveUnderTheGoStructuralRules_V1_0564_V1_0739 is the bounded
+// fixture for the live-worktree check: an unowned data file inside a package
+// yields an ENCLOSING_PACKAGE witness and a DEPENDENCY_PATH chain from that
+// package, and a Go file of an absent package yields a DEPENDENCY_PATH witness
+// at its importer. Each must resolve under its own rule, and a witness no rule
+// produced must not.
+func TestWitnessesResolveUnderTheGoStructuralRules_V1_0564_V1_0739(t *testing.T) {
+	root := t.TempDir()
+	for name, body := range map[string]string{
+		"go.mod":            "module example.test/witness\n\ngo 1.27\n",
+		"core/core.go":      "package core\n",
+		"core/core_test.go": "package core\n\nimport \"testing\"\n\nfunc TestCore(*testing.T) {}\n",
+		"core/fixture.txt":  "data\n",
+		"user/user.go":      "package user\n\nimport _ \"example.test/witness/gone\"\n",
+		"user/user_test.go": "package user\n\nimport \"testing\"\n\nfunc TestUser(*testing.T) {}\n",
+		"app/app.go":        "package app\n\nimport _ \"example.test/witness/core\"\n",
+		"app/app_test.go":   "package app\n\nimport \"testing\"\n\nfunc TestApp(*testing.T) {}\n",
+	} {
+		full := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const core, user, app = "go:example.test/witness/core", "go:example.test/witness/user", "go:example.test/witness/app"
+	plan := affected.Select(graph, []string{"core/fixture.txt", "gone/gone.go"})
+	got := make(map[string]affected.Witness, len(plan.Selected))
+	for _, selection := range plan.Selected {
+		got[selection.UnitID] = selection.Witness
+		if !witnessResolves(graph, selection) {
+			t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)
+		}
+	}
+	want := map[string]affected.Witness{
+		core: {Kind: affected.WitnessEnclosingPackage, DirtyPath: "core/fixture.txt", Via: []string{core}},
+		app:  {Kind: affected.WitnessDependency, DirtyPath: "core/fixture.txt", Via: []string{core, app}},
+		user: {Kind: affected.WitnessDependency, DirtyPath: "gone/gone.go", Via: []string{user}},
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("witnesses = %+v, want %+v", got, want)
+	}
+	for _, forged := range []affected.Selection{
+		{UnitID: core, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "gone/gone.go", Via: []string{core}}},
+		{UnitID: app, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "gone/gone.go", Via: []string{user, core}}},
+		{UnitID: app, Witness: affected.Witness{Kind: affected.WitnessEnclosingPackage, DirtyPath: "core/fixture.txt", Via: []string{app}}},
+		{UnitID: app, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "user/fixture.txt", Via: []string{core, app}}},
+		{UnitID: user, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "core/core.go", Via: []string{user}}},
+		{UnitID: app, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "core/fixture.txt", Via: []string{core}}},
+	} {
+		if witnessResolves(graph, forged) {
+			t.Fatalf("%s resolved a witness no rule produced: %+v", forged.UnitID, forged.Witness)
+		}
+	}
+}
+
+// witnessResolves checks one selection's witness against the rule that can
+// produce its kind. A reader witness resolves to a unit whose path literals
+// name its dirty path (AFP-V0-021); a declared-scope witness to a declared unit
+// whose scope holds it (AFP-V0-023). Every other witness is a chain ending at
+// the selected unit whose first unit the dirty path reaches by a rule: it owns
+// the path, or a Go structural rule of AFP-V0-012 selects it (V1-0564,
+// V1-0739). An ENCLOSING_PACKAGE witness is selected without traversal, so its
+// chain is the enclosing package alone.
+func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
+	witness := selection.Witness
+	switch witness.Kind {
+	case affected.WitnessPathLiteralReader:
+		return slices.Contains(graph.Namers(witness.DirtyPath), selection.UnitID)
+	case affected.WitnessUnboundedReader:
+		return slices.Contains(graph.UnboundedReaders(), selection.UnitID)
+	case affected.WitnessDeclaredReadScope:
+		unit, found := graph.Unit(selection.UnitID)
+		files := append(append([]string(nil), unit.Sources...), unit.Tests...)
+		return found && unit.ReadScoped && len(files) != 0 && affected.InReadScope(path.Dir(files[0]), unit.ReadScope, witness.DirtyPath)
+	}
+	if len(witness.Via) == 0 || witness.Via[len(witness.Via)-1] != selection.UnitID {
+		return false
+	}
+	origin := witness.Via[0]
+	if witness.Kind == affected.WitnessEnclosingPackage {
+		return len(witness.Via) == 1 && enclosesDataPath(graph, origin, witness.DirtyPath, false)
+	}
+	owner, owned := graph.OwnerOf(witness.DirtyPath)
+	switch {
+	case owned && owner == origin:
+		return true
+	case golang.New().Owns(witness.DirtyPath):
+		return !owned && goSourceOrigin(graph, origin, witness.DirtyPath)
+	}
+	// Rule (b) traverses from the package directly holding the data path and
+	// from every enclosing package that embeds.
+	return enclosesDataPath(graph, origin, witness.DirtyPath, true)
+}
+
+// enclosesDataPath reports that id is a Go package whose directory encloses a
+// dirty path that is not Go source; another language may own it. With
+// traversed, the package must also sit in the path's own directory or embed,
+// the rule (b) condition for reaching its dependents.
+func enclosesDataPath(graph *affected.Graph, id, dirtyPath string, traversed bool) bool {
+	if golang.New().Owns(dirtyPath) {
+		return false
+	}
+	directory, found := goPackageDirectory(graph, id)
+	if !found || (directory != "." && !strings.HasPrefix(dirtyPath, directory+"/")) {
+		return false
+	}
+	unit, _ := graph.Unit(id)
+	return !traversed || directory == path.Dir(dirtyPath) || unit.Embeds
+}
+
+// goSourceOrigin is rule (a) for an unindexed Go path: the package in its
+// directory, or, with none there, a unit importing an absent Go package named
+// by the directory's last component (any absent package at the root).
+func goSourceOrigin(graph *affected.Graph, id, dirtyPath string) bool {
+	directory := path.Dir(dirtyPath)
+	for _, candidate := range graph.UnitIDs() {
+		if present, found := goPackageDirectory(graph, candidate); found && present == directory {
+			return candidate == id
+		}
+	}
+	unit, found := graph.Unit(id)
+	if !found {
+		return false
+	}
+	for _, target := range append(append([]string(nil), unit.Imports...), unit.TestImports...) {
+		if _, known := graph.Unit(target); known || !strings.HasPrefix(target, "go:") {
+			continue
+		}
+		if directory == "." || path.Base(target) == path.Base(directory) || target == "go:"+path.Base(directory) {
+			return true
+		}
+	}
+	return false
+}
+
+// goPackageDirectory is the directory of a Go unit's files.
+func goPackageDirectory(graph *affected.Graph, id string) (string, bool) {
+	unit, found := graph.Unit(id)
+	if !found || !strings.HasPrefix(id, "go:") {
+		return "", false
+	}
+	files := append(append([]string(nil), unit.Sources...), unit.Tests...)
+	if len(files) == 0 {
+		return "", false
+	}
+	return path.Dir(files[0]), true
 }
 
 // TestOverlaySelectionNeverTouchesTheWorktree proves LPCV-V0-002's second half

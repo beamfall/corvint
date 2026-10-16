@@ -41,7 +41,17 @@ func PlaywrightListedTests(root, configPath string, listing []byte, revisionPath
 	}
 	tests := []PlaywrightListedTest{}
 	cases := map[string][]playwrightListCase{}
-	if err := collectPlaywrightListedTests(realRoot, report.Config.RootDir, "", nil, nil, report.Suites, 0, &tests, cases); err != nil {
+	if err := walkPlaywrightListing(realRoot, report.Config.RootDir, report.Suites, cases, func(listed playwrightListedSpec) error {
+		spec := listed.spec
+		if !playwrightListText(spec.ID) || !playwrightListText(spec.Title) || spec.Line < 1 || spec.Column < 1 {
+			return fmt.Errorf("playwright listing spec in %q lacks its id, title or location", listed.file)
+		}
+		projects, err := playwrightSpecProjects(listed)
+		for _, project := range projects {
+			tests = append(tests, PlaywrightListedTest{ID: spec.ID, Path: listed.path, Line: spec.Line, Column: spec.Column, Project: project, Title: spec.Title, Describe: listed.describe})
+		}
+		return err
+	}); err != nil {
 		return nil, err
 	}
 	seen := map[string]bool{}
@@ -77,11 +87,27 @@ func PlaywrightListedTests(root, configPath string, listing []byte, revisionPath
 	return tests, nil
 }
 
-// collectPlaywrightListedTests appends each listed execution to tests and, for the grep omission
-// rules (TJAA-V0-021), each spec that has an execution to cases under its file, so membership is
-// checked against exactly the files and cases it returns. caseTitles is the title path the grep
-// rules match: every enclosing suite's title, as discovery builds it, independent of file inheritance.
-func collectPlaywrightListedTests(realRoot, rootDir, file string, caseTitles, describe []string, suites []playwrightListSuite, depth int, tests *[]PlaywrightListedTest, cases map[string][]playwrightListCase) error {
+// playwrightListedSpec is one spec of a listing as the shared walker attributes it: its listing
+// file, its repository-relative path and its enclosing describe titles, outermost first.
+type playwrightListedSpec struct {
+	spec     *playwrightListSpec
+	file     string
+	path     string
+	describe []string
+}
+
+// walkPlaywrightListing is the one listing walker behind affected discovery and the corpus
+// entry point (V1-1234). A spec's file is its own `file`, else its top-level suite's: a nested
+// suite's `file` is not the spec's. Its describe titles are the nested suites' titles. It calls
+// visit for each spec and records, for the grep omission rules (TJAA-V0-021), each spec that has
+// an execution under its file in cases, with every enclosing suite's title (the title path the
+// grep rules match, independent of file inheritance), the spec title and its tags with their `@`
+// restored; a spec with no execution explains no omission.
+func walkPlaywrightListing(realRoot, rootDir string, suites []playwrightListSuite, cases map[string][]playwrightListCase, visit func(playwrightListedSpec) error) error {
+	return walkPlaywrightSuites(realRoot, rootDir, "", nil, nil, suites, 0, cases, visit)
+}
+
+func walkPlaywrightSuites(realRoot, rootDir, file string, caseTitles, describe []string, suites []playwrightListSuite, depth int, cases map[string][]playwrightListCase, visit func(playwrightListedSpec) error) error {
 	if depth > playwrightListMaxDepth {
 		return errors.New("playwright listing suites nest too deeply")
 	}
@@ -93,7 +119,8 @@ func collectPlaywrightListedTests(realRoot, rootDir, file string, caseTitles, de
 		} else if suite.Title != "" {
 			titles = append(append([]string{}, describe...), suite.Title)
 		}
-		for _, spec := range suite.Specs {
+		for index := range suite.Specs {
+			spec := &suite.Specs[index]
 			specFile := suiteFile
 			if spec.File != "" {
 				specFile = spec.File
@@ -105,14 +132,8 @@ func collectPlaywrightListedTests(realRoot, rootDir, file string, caseTitles, de
 			if !ok || !hasSourceExtension(path) || playwrightPathOutsideMatcherModel(path) {
 				return fmt.Errorf("playwright listing file %q under rootDir is not a repository-relative source path", specFile)
 			}
-			if !playwrightListText(spec.ID) || !playwrightListText(spec.Title) || spec.Line < 1 || spec.Column < 1 {
-				return fmt.Errorf("playwright listing spec in %q lacks its id, title or location", specFile)
-			}
-			for _, entry := range spec.Tests {
-				if entry.ProjectName == nil || !utf8.ValidString(*entry.ProjectName) {
-					return fmt.Errorf("playwright listing test in %q has no projectName", specFile)
-				}
-				*tests = append(*tests, PlaywrightListedTest{ID: spec.ID, Path: path, Line: spec.Line, Column: spec.Column, Project: *entry.ProjectName, Title: spec.Title, Describe: titles})
+			if err := visit(playwrightListedSpec{spec: spec, file: specFile, path: path, describe: titles}); err != nil {
+				return err
 			}
 			if len(spec.Tests) != 0 {
 				listCase := playwrightListCase{titles: append(slices.Clone(suiteCaseTitles), spec.Title)}
@@ -122,11 +143,24 @@ func collectPlaywrightListedTests(realRoot, rootDir, file string, caseTitles, de
 				cases[path] = append(cases[path], listCase)
 			}
 		}
-		if err := collectPlaywrightListedTests(realRoot, rootDir, suiteFile, suiteCaseTitles, titles, suite.Suites, depth+1, tests, cases); err != nil {
+		if err := walkPlaywrightSuites(realRoot, rootDir, suiteFile, suiteCaseTitles, titles, suite.Suites, depth+1, cases, visit); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// playwrightSpecProjects returns the project of each listed execution of a spec, refusing an
+// execution with no valid projectName.
+func playwrightSpecProjects(listed playwrightListedSpec) ([]string, error) {
+	projects := make([]string, 0, len(listed.spec.Tests))
+	for _, entry := range listed.spec.Tests {
+		if entry.ProjectName == nil || !utf8.ValidString(*entry.ProjectName) {
+			return nil, fmt.Errorf("playwright listing test in %q has no projectName", listed.file)
+		}
+		projects = append(projects, *entry.ProjectName)
+	}
+	return projects, nil
 }
 
 func playwrightListText(value string) bool {
