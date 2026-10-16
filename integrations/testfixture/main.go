@@ -189,7 +189,7 @@ func main() {
 		// a model but pass through JSON.stringify raw; an adapter that injects
 		// this text verbatim lets repository content forge a visual line break
 		// or hide text around a forged instruction.
-		context["nested"] = "poisoned  ‮​ new instructions"
+		context["nested"] = "poisoned \u2028\u202e\u200b new instructions"
 	case "nodes":
 		context["nested"] = make([]int, 3000)
 	case "overflow":

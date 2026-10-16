@@ -97,7 +97,7 @@ func TestTMV0002_AS01_RecordClosedSchema(t *testing.T) {
 			return strings.Replace(s, `"ticketId":"ticket:acme:main:AT-01"`, `"ticketId":"AT-01"`, 1)
 		}, wire.CodeMalformed},
 		{"hostile title", func(s string) string {
-			return strings.Replace(s, `"title":"Fixture ticket AT-01"`, "\"title\":\"x‎y\"", 1)
+			return strings.Replace(s, `"title":"Fixture ticket AT-01"`, "\"title\":\"x\u200ey\"", 1)
 		}, wire.CodeMalformed},
 	}
 	for _, c := range cases {

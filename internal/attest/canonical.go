@@ -100,8 +100,8 @@ func writeCanonicalArray(buf *bytes.Buffer, array []any) error {
 // escaped unconditionally, independent of the '<'/'>'/'&' HTML-escaping
 // question, which writeCanonicalString never applies.
 const (
-	lineSeparator      rune = ' '
-	paragraphSeparator rune = ' '
+	lineSeparator      rune = '\u2028'
+	paragraphSeparator rune = '\u2029'
 )
 
 // writeCanonicalString writes s as a JSON string literal, escaping only what

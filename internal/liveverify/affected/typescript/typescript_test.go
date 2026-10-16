@@ -616,7 +616,7 @@ func TestWorkspacePackageImportReachesTheImportingTest_V1_0283(t *testing.T) {
 // GitHub #709 review round 4: U+2028 and U+2029 are ECMAScript line terminators, so they end a
 // `//` comment and start a line for import declarations and triple-slash references.
 func TestUnicodeLineTerminatorsEndCommentsAndLines(t *testing.T) {
-	for _, terminator := range []string{" ", " "} {
+	for _, terminator := range []string{"\u2028", "\u2029"} {
 		refs, _, err := scanImports("", "// note"+terminator+"const a = require('./a');\nconst b = 1;"+terminator+"import './b';\n/* x */"+terminator+"/// <reference path=\"./c.d.ts\" />\n")
 		if err != nil {
 			t.Fatal(err)
