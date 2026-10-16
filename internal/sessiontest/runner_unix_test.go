@@ -298,3 +298,61 @@ func TestSTRV0003DeclaredRelativeCommandResolvesAgainstRoot(t *testing.T) {
 		t.Fatalf("absent receipt %s %+v", receipt.Result, receipt.Incomplete)
 	}
 }
+
+// STR-V0-004: Execute discovers and launches only an adapter whose capability
+// manifest is registered and current; another unit's adapter still runs.
+func TestSTRV0004RunnerRefusesAdapterWithoutManifest(t *testing.T) {
+	missing := map[string]AdapterManifest{AdapterDeclared: AdapterManifests()[AdapterDeclared]}
+	stale := AdapterManifests()
+	stale[AdapterGo] = AdapterManifest{Adapter: AdapterGo, Operations: stale[AdapterGo].Operations, Profile: "corvint-test-adapter/1"}
+	for name, test := range map[string]struct {
+		manifests map[string]AdapterManifest
+		reason    string
+	}{
+		"absent":     {missing, "go: no registered capability manifest; nothing launched for it"},
+		"mismatched": {stale, `go: capability manifest "corvint-test-adapter/1" is not corvint-test-adapter/0; nothing launched for it`},
+	} {
+		runner, m, digest, dir := runnerFixture(t, "pass")
+		runner.adapters = test.manifests
+		receipt := runner.Execute(context.Background(), m, digest, 0)
+		for _, file := range []string{"probes", "argv"} {
+			if _, err := os.Stat(filepath.Join(dir, file)); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("%s: the go adapter was discovered or launched (%s exists)", name, file)
+			}
+		}
+		if receipt.Result != ResultIncomplete || len(receipt.Invocations) != 0 || len(receipt.Incomplete) == 0 || receipt.Incomplete[0] != test.reason {
+			t.Fatalf("%s: %s %v %+v", name, receipt.Result, receipt.Incomplete, receipt.Invocations)
+		}
+	}
+	// A unit of an adapter nobody registered is refused by name, and the
+	// registered Go adapter in the same shard still runs.
+	runner, m, _, _ := runnerFixture(t, "pass")
+	m.Units = append(m.Units, Unit{Adapter: "rust", Shard: 0, Slice: SliceWhole, Unit: "rust:crate"})
+	digest, _ := Digest(m)
+	receipt := runner.Execute(context.Background(), m, digest, 0)
+	if receipt.Result != ResultIncomplete || len(receipt.Incomplete) == 0 || receipt.Incomplete[0] != "rust: no registered capability manifest; nothing launched for it" ||
+		len(receipt.Invocations) != 1 || receipt.Invocations[0].Outcomes[0].Outcome != OutcomePass {
+		t.Fatalf("unregistered adapter: %s %v %+v", receipt.Result, receipt.Incomplete, receipt.Invocations)
+	}
+	// The declared adapter is held to its own manifest: without it, the
+	// declared command is neither probed nor run.
+	runner, m, _, dir := runnerFixture(t, "pass")
+	script := filepath.Join(dir, "tools", "fake-tests")
+	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(script, []byte("#!/bin/sh\ntouch \"$FAKE_DIR/declared\"\necho fake-tests 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runner.Declared.Languages = []LanguageCommand{{Language: "python", Argv: []string{"./tools/fake-tests"}}}
+	runner.adapters = map[string]AdapterManifest{AdapterGo: AdapterManifests()[AdapterGo]}
+	m.Scope, m.Units = ScopeFull, []Unit{{Adapter: AdapterDeclared, Shard: 0, Slice: SliceWhole, Unit: "declared:python"}}
+	digest, _ = Digest(m)
+	receipt = runner.Execute(context.Background(), m, digest, 0)
+	if _, err := os.Stat(filepath.Join(dir, "declared")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("the declared adapter was discovered or launched without its manifest")
+	}
+	if receipt.Result != ResultIncomplete || len(receipt.Invocations) != 0 || len(receipt.Incomplete) == 0 || receipt.Incomplete[0] != "declared: no registered capability manifest; nothing launched for it" {
+		t.Fatalf("declared without manifest: %s %v %+v", receipt.Result, receipt.Incomplete, receipt.Invocations)
+	}
+}

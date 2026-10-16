@@ -430,7 +430,7 @@ func stableRun(s *stableSession, t *stableTx) *cemError {
 			case stableStatusExited:
 				terminal = true
 				if v != 0 {
-					set(func() { flags.nonzero = true })
+					set(func() { flags.nonzero, flags.exitOne = true, v == 1 })
 				}
 				if !t.held {
 					kill()
