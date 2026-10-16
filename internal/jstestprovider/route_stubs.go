@@ -104,8 +104,8 @@ var regexpEscapes = strings.NewReplacer(`\/`, "/", `\.`, ".", `\:`, ":", `\@`, "
 // and every stub must state its hit count, so a missing or null count is never read as zero hits.
 // It serves both the producer annotation and a retained receipt's routeStubs member.
 func (r *RouteStubRecord) UnmarshalJSON(data []byte) error {
-	if duplicateJSONMember(data) {
-		return errors.New("route-stub record has a duplicate member")
+	if irregularJSONMember(data) {
+		return errors.New("route-stub record has a duplicate or inexact member")
 	}
 	var wire struct {
 		Stubs []struct {
@@ -145,9 +145,13 @@ func (r *RouteStubRecord) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// duplicateJSONMember reports whether any object in data names a member twice, or data is not one
-// well-formed JSON value.
-func duplicateJSONMember(data []byte) bool {
+// routeStubMembers are the exact member names of a record. encoding/json matches names without
+// regard to case, so a case variant such as "API" would otherwise overwrite a refused "api".
+var routeStubMembers = map[string]bool{"stubs": true, "target": true, "api": true, "kind": true, "pattern": true, "hits": true, "file": true, "line": true}
+
+// irregularJSONMember reports whether any object in data names a member twice or by a name that is
+// not exactly a record member, or data is not one well-formed JSON value.
+func irregularJSONMember(data []byte) bool {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	var walk func() bool
 	walk = func() bool {
@@ -161,7 +165,7 @@ func duplicateJSONMember(data []byte) bool {
 			for decoder.More() {
 				key, err := decoder.Token()
 				name, ok := key.(string)
-				if err != nil || !ok || seen[name] {
+				if err != nil || !ok || seen[name] || !routeStubMembers[name] {
 					return true
 				}
 				seen[name] = true

@@ -44,11 +44,24 @@ Control-path stubs (#872) stay out of scope.
   browser was downloaded. `TestLPCVV0079LiveResidualsParse` reads it. A rerun of the V1-1458 suite
   with the new producer gave records identical to the retained `live-1.61.1` ones.
 - Mutations, each killed by the focused tests and reverted: `newContext` adoption, `newPage`
-  adoption, `routeWebSocket` hit counting, HAR call-site detection, `async ` frame stripping, `api`
-  allow-list, empty/null `api` refusal, the requested producer-absent member, the
-  external-profile reason, the finding's `api`, and `--route-stubs` requiring `--receipt`.
+  adoption, late adoption by the next test, `routeWebSocket` hit counting, HAR call-site
+  detection, `async ` frame stripping, the `api` allow-list, empty/null `api` refusal, exact member
+  names, the requested producer-absent member, the external-profile reason, the finding's `api`,
+  and `--route-stubs` requiring `--receipt`.
 - `NOT_RUN`: no qualified `PWP-V0-008` tuple, no Linux or Windows run, the TypeScript mirror, and
   `make gate` (not requested).
+
+## Independent review
+
+One Codex round (gpt-6-astra, read-only) on the diff found two P2 issues, both fixed with a test and
+a killed mutation:
+
+1. `observeBrowser` read the global session after awaiting creation, so a context that resolved
+   after its test ended could be adopted by the next test. The session is now taken before the
+   await, and the ended session's closed guard refuses it.
+2. `encoding/json` matches member names without regard to case, so `"api":null,"API":"..."`
+   passed the exact-name duplicate check and overwrote the refused `api`. Member names must now
+   match exactly; this also closes the same gap for `hits` that V1-1458 left.
 
 ## Limits
 

@@ -240,15 +240,19 @@ function observeBrowser(browser) {
   const newPage = browser && browser.newPage;
   if (typeof newContext === 'function') {
     override(restore, browser, 'newContext', async function (...args) {
+      // The session is taken before the await, so a context that resolves after its test ended is
+      // refused by that session's closed guard instead of adopted by the next test.
+      const session = active;
       const context = await newContext.apply(this, args);
-      if (active) active.adopt(context);
+      if (session) session.adopt(context);
       return context;
     });
   }
   if (typeof newPage === 'function') {
     override(restore, browser, 'newPage', async function (...args) {
+      const session = active;
       const page = await newPage.apply(this, args);
-      if (active && page && typeof page.context === 'function') active.adopt(page.context());
+      if (session && page && typeof page.context === 'function') session.adopt(page.context());
       return page;
     });
   }

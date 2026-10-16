@@ -2381,9 +2381,9 @@ LPCV-V0-073	docs/specs/live-proof-carrying-verification-v0.md	954	(accepted unde
 LPCV-V0-074	docs/specs/live-proof-carrying-verification-v0.md	968	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458)	standing	2026-10-11; V1-1458
 LPCV-V0-075	docs/specs/live-proof-carrying-verification-v0.md	973	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) A retain	standing	2026-10-11; V1-1458
 LPCV-V0-076	docs/specs/live-proof-carrying-verification-v0.md	987	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475) The	standing	2026-10-11; V1-1475
-LPCV-V0-077	docs/specs/live-proof-carrying-verification-v0.md	1004	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475) When ask	standing	2026-10-11; V1-1475
-LPCV-V0-078	docs/specs/live-proof-carrying-verification-v0.md	1014	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475; decision	standing	2026-10-11; V1-1475
-LPCV-V0-079	docs/specs/live-proof-carrying-verification-v0.md	1018	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475) A retain	standing	2026-10-11; V1-1475
+LPCV-V0-077	docs/specs/live-proof-carrying-verification-v0.md	1006	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475) When ask	standing	2026-10-11; V1-1475
+LPCV-V0-078	docs/specs/live-proof-carrying-verification-v0.md	1016	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475; decision	standing	2026-10-11; V1-1475
+LPCV-V0-079	docs/specs/live-proof-carrying-verification-v0.md	1020	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475) A retain	standing	2026-10-11; V1-1475
 LPCVD-V0-001	docs/specs/live-proof-carrying-verification-v0.md	416	(accepted, decision 0518; V1-1140) Extend	owner	decision 0518; V1-1140
 LPCVD-V0-002	docs/specs/live-proof-carrying-verification-v0.md	426	(accepted, decision 0518; V1-1140) Extend the closed	owner	decision 0518; V1-1140
 LPCVD-V0-003	docs/specs/live-proof-carrying-verification-v0.md	449	(accepted, decision 0518; V1-1140) Discovery MUST expose	owner	decision 0518; V1-1140

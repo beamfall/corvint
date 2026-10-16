@@ -989,7 +989,8 @@ standing auto-accept (2026-10-11). The external-profile question was decided by 
   - `route` calls on a context made by `browser.newContext()` or `browser.newPage()` while a test
     with the producer runs, and on that context's pages. It does so through a worker-scoped
     `browser` fixture override that is restored after the worker. A context created outside a
-    running test is not recorded;
+    running test is not recorded, and one whose creation began in a test that has since ended is
+    not adopted by the next test;
   - `page.routeWebSocket` and `context.routeWebSocket` calls with a handler, with `api`
     `routeWebSocket` and `hits` the number of sockets its handler received;
   - the routes `routeFromHAR` registers, with `api` `routeFromHAR`, when a `node_modules` stack
@@ -998,7 +999,8 @@ standing auto-accept (2026-10-11). The external-profile question was decided by 
 
   A plain `route` record omits `api`. A stub record MAY carry `api`; when present it MUST be
   `routeWebSocket` or `routeFromHAR`, and an empty, null or other value is refused by the closed
-  decoding. A `stub-never-matched` finding carries the stub's `api`. Teardown restores `newContext`,
+  decoding. Member names must match exactly, so a case variant such as `API` is refused rather
+  than allowed to overwrite a refused `api`. A `stub-never-matched` finding carries the stub's `api`. Teardown restores `newContext`,
   `newPage` and `routeWebSocket` like the other overrides. A stack frame prefixed `async ` is
   resolved like any other.
 - `LPCV-V0-077`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1475) When asked
@@ -1053,6 +1055,8 @@ Failure modes, each prevented by the cited requirement:
 | A legacy document changes bytes. | `LPCV-V0-073` omission; `LPCV-V0-077` is opt-in |
 | A stub on a context the test creates is silently missing. | `LPCV-V0-076` `newContext`/`newPage` adoption |
 | A WebSocket or HAR stub is read as a plain route. | `LPCV-V0-076` closed `api` |
+| A case-variant member overwrites a refused one. | `LPCV-V0-076` exact member names |
+| A context created late in one test is credited to the next. | `LPCV-V0-076` session taken at creation |
 | An absent producer is indistinguishable from a legacy document. | `LPCV-V0-077` explicit reason |
 
 Rollback: remove the producer, the annotation parse and both `routeStubs` members. Rolling back

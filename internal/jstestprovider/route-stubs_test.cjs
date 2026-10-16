@@ -231,6 +231,28 @@ test('a test without a browser fixture or created context publishes no record', 
   assert.equal(annotations.length, 0);
 });
 
+test('a context that resolves after its test ended is not adopted by the next test', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const browser = new Browser();
+  browser.newContext = async function () { await gate; return Browser.prototype.newContext.call(this); };
+  const fixtures = fixturesOf(() => {});
+  const [worker] = fixtures.browser;
+  const first = { annotations: [], config: { rootDir: __dirname } };
+  const second = { annotations: [], config: { rootDir: __dirname } };
+  let late;
+  await worker({ browser }, async observed => {
+    await attempt(fixtures, first, null, async () => { late = observed.newContext(); });
+    await attempt(fixtures, second, null, async () => {
+      release();
+      const context = await late;
+      await context.route('**/late', route => route.fulfill());
+    });
+  });
+  assert.equal(first.annotations.length, 0);
+  assert.equal(second.annotations.length, 0);
+});
+
 test('a context created outside a running test is not recorded', async () => {
   const browser = new Browser();
   const restore = _internal.observeBrowser(browser);
