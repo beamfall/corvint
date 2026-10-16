@@ -3281,6 +3281,7 @@ SOP-V0-009	docs/specs/stable-operations-v0.md	112	A category with no tracked reg
 SOP-V0-010	docs/specs/stable-operations-v0.md	117	`SECURITY.md` MUST state the private reporting channel, the acknowledgment windo	unrecorded	-
 SOP-V0-011	docs/specs/stable-operations-v0.md	120	`docs/RELEASE-NOTES.md` is the changelog. Each published release MUST have an en	unrecorded	-
 SOP-V0-012	docs/specs/stable-operations-v0.md	123	`docs/RELEASE-RUNBOOK.md` MUST be an ordered list of exact commands from a clean	unrecorded	-
+SOP-V0-013	docs/specs/stable-operations-v0.md	127	(accepted under the owner's standing auto-accept (2026-10-11); V1-1114) A	standing	2026-10-11; V1-1114
 SRG-V0-001	docs/specs/spec-requirement-index-generator-v0.md	89	The generator MUST derive its input set from the paths Git reports as tracked	unrecorded	-
 SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	93	accepted, decision 0506. The generator MUST recognise a requirement id as a toke	unrecorded	-
 SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	98	accepted, decision 0506. The generator MUST classify each occurrence of an id in	unrecorded	-
