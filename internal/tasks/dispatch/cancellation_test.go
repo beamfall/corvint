@@ -147,11 +147,14 @@ func TestCALV0053_ReaderFailureAndRealUnknownRemainObservable(t *testing.T) {
 	if err := d.Tick(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if got := d.LastEvent() - seq; got != 2 {
-		t.Fatalf("reader error events %d, want alert and state", got)
+	// The alert, which opens the outage (CAL-V0-274); within the CAL-V0-276
+	// window the state-event baseline keeps the last known state, so no
+	// per-ticket state event follows, while the reader health is failing.
+	if got := d.LastEvent() - seq; got != 1 {
+		t.Fatalf("reader error events %d, want the alert", got)
 	}
-	if got := d.ledger.Seen.Tickets[q.obs.Tickets[0].ID]; !strings.Contains(got, "|UNKNOWN|") {
-		t.Fatalf("error state %q", got)
+	if got := d.ledger.Seen.Tickets[q.obs.Tickets[0].ID]; !strings.Contains(got, "|NONE|") || d.ledger.WorkState == nil || d.ledger.WorkState.OK {
+		t.Fatalf("error state %q health %+v", got, d.ledger.WorkState)
 	}
 	if err := d.Close(); err != nil {
 		t.Fatal(err)
@@ -166,8 +169,9 @@ func TestCALV0053_ReaderFailureAndRealUnknownRemainObservable(t *testing.T) {
 	if err := d.Tick(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if d.LastEvent()-seq != 1 {
-		t.Fatal("recovery state transition lost")
+	// The state transition and the one CAL-V0-271 recovery alert.
+	if d.LastEvent()-seq != 2 {
+		t.Fatal("recovery state transition or recovery alert lost")
 	}
 	write("echo '{\"t\":\"UNKNOWN\"}'")
 	seq = d.LastEvent()
