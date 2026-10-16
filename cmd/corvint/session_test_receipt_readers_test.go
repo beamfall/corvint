@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -30,7 +31,8 @@ var receiptLiteral = regexp.MustCompile(`corvint-test-run/0|test-run[.\[]`)
 // retained evidence, state stores and fixtures.
 var receiptScanSkip = map[string]bool{".git": true, ".corvint": true, ".taskman": true, "docs": true, "evidence": true, "node_modules": true, "testdata": true, "vendor": true}
 
-// receiptScanExtensions are the non-Go files that can read a file.
+// receiptScanExtensions are the non-Go files that can read a file. An
+// extensionless file is scanned when it starts with a `#!` interpreter line.
 var receiptScanExtensions = map[string]bool{".bash": true, ".cjs": true, ".jq": true, ".js": true, ".mjs": true, ".mk": true, ".py": true, ".rb": true, ".sh": true, ".ts": true, ".yaml": true, ".yml": true}
 
 // receiptSites returns one "path decl symbol" site for every place the file
@@ -48,7 +50,8 @@ func receiptSites(t *testing.T, rel string, source []byte) []string {
 		}
 		return nil
 	}
-	if !receiptLiteral.Match(source) && !strings.Contains(string(source), strconv.Quote(sessiontestImport)) && path.Dir(rel) != "internal/sessiontest" {
+	// The bare path matches a double-quoted or a raw-string import.
+	if !receiptLiteral.Match(source) && !strings.Contains(string(source), sessiontestImport) && path.Dir(rel) != "internal/sessiontest" {
 		return nil
 	}
 	file, err := parser.ParseFile(token.NewFileSet(), rel, source, parser.SkipObjectResolution)
@@ -175,6 +178,8 @@ func TestSTRV0011ReceiptsHaveNoOtherReader(t *testing.T) {
 		"internal/rank/rank.go":       "package rank\nimport st \"" + sessiontestImport + "\"\nfunc Weight(n string) { r, _ := st.ReadReceipt(n); _ = r }\n",
 		"internal/rank/decode.go":     "package rank\nimport \"" + sessiontestImport + "\"\nvar last sessiontest.Receipt\n",
 		"internal/rank/dot.go":        "package rank\nimport . \"" + sessiontestImport + "\"\n",
+		"internal/rank/raw_import.go": "package rank\nimport st `" + sessiontestImport + "`\nfunc Weight(n string) { _, _ = st.ReadReceipt(n) }\n",
+		"script/learn":                "#!/bin/sh\njq .result \"$GIT_DIR/corvint/test-run.json\"\n",
 		"internal/rank/raw.go":        "package rank\nconst receipt = \".git/corvint/test-run.json\"\n",
 		"internal/sessiontest/x.go":   "package sessiontest\nfunc widen() { _, _ = ReadReceipt(\"r\") }\n",
 		"script/learn.sh":             "jq .result \"$GIT_DIR/corvint/test-run.0.json\"\n",
@@ -208,7 +213,7 @@ func TestSTRV0011ReceiptsHaveNoOtherReader(t *testing.T) {
 			return nil
 		}
 		ext := filepath.Ext(name)
-		if !entry.Type().IsRegular() || (ext != ".go" && !receiptScanExtensions[ext] && entry.Name() != "Makefile") {
+		if !entry.Type().IsRegular() || (ext != ".go" && ext != "" && !receiptScanExtensions[ext]) {
 			return nil
 		}
 		rel, err := filepath.Rel(root, name)
@@ -218,6 +223,9 @@ func TestSTRV0011ReceiptsHaveNoOtherReader(t *testing.T) {
 		source, err := os.ReadFile(name)
 		if err != nil {
 			return err
+		}
+		if ext == "" && entry.Name() != "Makefile" && !bytes.HasPrefix(source, []byte("#!")) {
+			return nil
 		}
 		sites = append(sites, receiptSites(t, filepath.ToSlash(rel), source)...)
 		return nil
