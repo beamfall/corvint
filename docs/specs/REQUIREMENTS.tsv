@@ -2367,9 +2367,9 @@ LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	812	(accepted (dec
 LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	831	(accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnost	owner	decision 0458; V1-1024; #682
 LPCV-V0-071	docs/specs/live-proof-carrying-verification-v0.md	824	`corvint-js-test-provider --help`, `-h`, `-help` and `help` MUST exit 0 and prin	unrecorded	-
 LPCV-V0-072	docs/specs/live-proof-carrying-verification-v0.md	921	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) The opti	standing	2026-10-11; V1-1458
-LPCV-V0-073	docs/specs/live-proof-carrying-verification-v0.md	944	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) When an	standing	2026-10-11; V1-1458
-LPCV-V0-074	docs/specs/live-proof-carrying-verification-v0.md	958	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458)	standing	2026-10-11; V1-1458
-LPCV-V0-075	docs/specs/live-proof-carrying-verification-v0.md	963	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) A retain	standing	2026-10-11; V1-1458
+LPCV-V0-073	docs/specs/live-proof-carrying-verification-v0.md	953	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) When an	standing	2026-10-11; V1-1458
+LPCV-V0-074	docs/specs/live-proof-carrying-verification-v0.md	967	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458)	standing	2026-10-11; V1-1458
+LPCV-V0-075	docs/specs/live-proof-carrying-verification-v0.md	972	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) A retain	standing	2026-10-11; V1-1458
 LPCVD-V0-001	docs/specs/live-proof-carrying-verification-v0.md	416	(accepted, decision 0518; V1-1140) Extend	owner	decision 0518; V1-1140
 LPCVD-V0-002	docs/specs/live-proof-carrying-verification-v0.md	426	(accepted, decision 0518; V1-1140) Extend the closed	owner	decision 0518; V1-1140
 LPCVD-V0-003	docs/specs/live-proof-carrying-verification-v0.md	449	(accepted, decision 0518; V1-1140) Discovery MUST expose	owner	decision 0518; V1-1140

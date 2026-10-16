@@ -74,9 +74,9 @@ See the spec's request-stub failure-mode table. The main ones:
 
   | Package | BASE | This change |
   |---|---|---|
-  | `internal/jstestprovider` | 332 pass, 7 skip | 337 pass, 7 skip, `-race` |
-  | `internal/testvaliditydoc` | 94 pass | 104 pass, `-race` |
-- **Mutations.** 14 of 14 were killed by the new tests. One mutation was applied per behaviour:
+  | `internal/jstestprovider` | 332 pass, 7 skip | 338 pass, 7 skip, `-race` |
+  | `internal/testvaliditydoc` | 94 pass | 105 pass, `-race` |
+- **Mutations.** 14 of 14 were killed by the new tests, and 8 of 8 for the review fixes. One mutation was applied per behaviour:
   - producer: hit count, registration line, over-64 suppression;
   - parser: absent stays absent, duplicate refused, secret screen;
   - profiled refusal;
@@ -85,7 +85,22 @@ See the spec's request-stub failure-mode table. The main ones:
 
 ## Independent review
 
-One Codex round (see the PR).
+One Codex round (read-only, `codex exec -s read-only`) reviewed the first commit and reported
+eight findings. All eight were fixed in a follow-up commit. Each fix has a regression test and one
+mutation that the test kills:
+
+1. A missing or null `hits` decoded as zero. Decoding is now presence-aware, through
+   `RouteStubRecord.UnmarshalJSON`, on both the annotation path and the retained-receipt path.
+2. A credential in an escaped RegExp pattern (`https:\/\/user:pass@`) passed the screen. The
+   pattern is now also screened with its escapes removed.
+3. Repeated JSON members were accepted. They are now refused at every level.
+4. Teardown deleted own-property overrides installed by another fixture. They are now restored.
+5. `unroute` missed registrations made before instrumentation. They are now removed as well.
+6. A foreign annotation stayed trusted. The producer now adds its own record beside it, and the
+   consumer refuses the duplicate.
+7. A page resolving after teardown was instrumented. The session now closes first.
+8. A non-string annotation description failed the whole report. Annotations now decode
+   tolerantly.
 
 ## Limits and residuals
 

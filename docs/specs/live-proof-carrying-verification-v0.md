@@ -606,7 +606,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-054` discovered freshness is bound to current digests | delivered at experimental tier; Go events stay preview and never `CURRENT` | `TestDiscoverUnmatchedIdentityIsNeverCurrent` (changed and removed test file `STALE`, outside-worktree path and Go session `UNKNOWN`, stale Go session `STALE`, each with its reason) and `TestDiscoverSelectsNewestRetainedEvidence` (matched digest `CURRENT`); package and app-build digests are not recomputed, so they are `UNKNOWN` by construction, not measured. |
 | `LPCV-V0-055` opt-in bounded atomic producer retention | delivered at experimental tier (decision 0218); no real-provider Electron run and no qualified Go session matrix has retained evidence (`NOT_RUN`) | `cmd/corvint-js-test-provider`'s `TestEmitRetainsStdoutBytesPrunesAndRefusesSymlink` and `cmd/corvint-go-test-provider`'s `TestSessionRetainsCompletedEventBytesPrunesAndRefusesSymlink` (retained bytes equal stdout, 32 kept, a foreign entry untouched, a symlinked `.corvint` refused with stdout still emitted); `internal/testevidence`'s `TestRetainReportsDocumentItsPruneRemoved` (a document named behind 32 own names is pruned and reported as a failure) and `TestRetainPrunesCrashLeftoverTemporaries` (225 own temporaries named below the oldest kept document are removed, a newer and a foreign temporary kept); `cmd/corvint`'s `TestTestValidityDiscoverSelectsProducerRetainedDocument` (a retained document is the one `test-validity --discover` selects, `CURRENT`).; the VS Code extension passes the flag only behind `corvint.liveTests.retainEvidence` (decision 0230, `VSC-V0-070`), unit-tested, with no Electron run. |
 | `LPCV-V0-071` provider CLI help | accepted (decision 0519; V1-1196; GitHub #794); implemented | `cmd/corvint-js-test-provider`'s `TestProviderHelpPrintsEverySubcommandUsage` (`--help`, `-h` and `help` exit 0 with each subcommand's usage and flags; an unknown subcommand exits 2) and `TestDocsHelpProducerExampleUsesE2EFlags`. |
-| `LPCV-V0-072..075` request-stub hit evidence | accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); implemented at experimental tier; unprofiled receipts only | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (runs `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed`, `TestLPCVV0072RecordIsSecretScreened`, `TestLPCVV0072ProfiledReceiptsRefuseRouteStubs` and `TestLPCVV0072LiveRecordParses` (the retained Playwright 1.61.1 run, `LPCV-V0-075`); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`conformance/test-validity-v0/route-stubs.json`), `TestLPCVV0073ReceiptWithoutProducerKeepsBytes` and `TestLPCVV0073FindingLeavesAxesUnchanged`. |
+| `LPCV-V0-072..075` request-stub hit evidence | accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); implemented at experimental tier; unprofiled receipts only | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (runs `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed`, `TestLPCVV0072RecordIsSecretScreened`, `TestLPCVV0072MalformedAnnotationKeepsReport`, `TestLPCVV0072ProfiledReceiptsRefuseRouteStubs` and `TestLPCVV0072LiveRecordParses` (the retained Playwright 1.61.1 run, `LPCV-V0-075`); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`conformance/test-validity-v0/route-stubs.json`), `TestLPCVV0073ReceiptWithoutProducerKeepsBytes`, `TestLPCVV0073RetainedRecordIsClosed` and `TestLPCVV0073FindingLeavesAxesUnchanged`. |
 | `LPCV-V0-056` typed discovery abstention reason | accepted by decision 0448 (V1-0976, issue #665); experimental tier | `internal/testvaliditydoc`'s `TestDiscoverAbstentionReasons` (missing location, no `*.json`, only undecodable entries, unqualified and unobserved Node tuple, qualified tuple and plain unit receipt without abstention) and `TestDiscoverAbstentionWithholdsUnboundedObservedVersion`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument` (CLI and MCP byte-equal); live control `PWP-V0-009 unqualified-node-control-abstains` in `TestQualifiedPlaywrightLive`. |
 | `LPCVD-V0-001` missing producer guidance | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverProducerGuidance`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vectors `discover-no-evidence-guidance` and `discover-unusable-guidance`. |
 | `LPCVD-V0-002` stale abstention | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverStaleEvidenceGuidance` and `TestDiscoverRetainedRevision`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vector `discover-stale-guidance`. |
@@ -932,11 +932,20 @@ evidence of adequacy.
 
   At fixture teardown, including after a failed body, it MUST publish exactly one
   `corvint-route-stubs` annotation. The annotation's description is the closed JSON
-  `{"stubs":[...]}`. It MUST publish none when the attempt registered more than 64 stubs or another
-  writer already published that type. `ParsePlaywrightJSON` MUST read exactly one closed,
-  in-bounds annotation into the attempt's `routeStubs`, with pattern and file passed through the
-  product secret screen. A missing, duplicate, malformed or out-of-bound annotation leaves the
-  member absent. An absent record means not produced, never zero hits.
+  `{"stubs":[...]}`. It MUST publish none when the attempt registered more than 64 stubs. When
+  another writer already published that type, it MUST still add its own, so the duplicate is
+  refused rather than the foreign record trusted. Teardown MUST restore any own `route`, `unroute`
+  or `newPage` property the instance already had, and a page that resolves after teardown MUST
+  stay uninstrumented. `unroute(url, handler)` MUST also remove a registration of `handler` made
+  before instrumentation.
+
+  `ParsePlaywrightJSON` MUST read exactly one closed, in-bounds annotation into the attempt's
+  `routeStubs`. Closed means unknown or repeated members at any level are refused, and every stub
+  states a non-null integer `hits`. Pattern and file pass through the product secret screen; a
+  pattern is also screened with its regular-expression escapes removed. A missing, duplicate,
+  malformed or out-of-bound annotation leaves the member absent, and the same closed decoding
+  refuses a retained receipt's member. An annotation of an unexpected shape never fails the report.
+  An absent record means not produced, never zero hits.
 
   The member is unprofiled-only. A receipt with an external profile (`/0` to `/3`) that carries it is
   refused with `external-profile-has-route-stubs`. Those profiles gain it only through another
@@ -983,7 +992,11 @@ Failure modes, each prevented by the cited requirement:
 | Failure mode | Prevented by |
 |---|---|
 | A test without the producer reads as zero hits. | `LPCV-V0-072` absent record, `LPCV-V0-073` `NOT_PRODUCED` |
-| A forged or duplicated annotation reads as a record. | `LPCV-V0-072` exactly one closed annotation |
+| A forged or duplicated annotation reads as a record. | `LPCV-V0-072` exactly one closed annotation; the producer adds its own beside a foreign one |
+| A missing, null or repeated hit count reads as zero hits. | `LPCV-V0-072` closed decoding |
+| A credential in an escaped RegExp pattern survives the screen. | `LPCV-V0-072` escape-removed screen |
+| Teardown removes another fixture's override, or a late page stays patched. | `LPCV-V0-072` restore and closed session |
+| One malformed annotation fails the whole report. | `LPCV-V0-072` tolerant annotation decoding |
 | A hit in a failed earlier attempt hides a never-matched stub in the passing one. | `LPCV-V0-073` last attempt |
 | A failing test is reported as a never-matched stub. | `LPCV-V0-073` `test-not-passed` |
 | A stub pattern leaks a secret. | `LPCV-V0-072` secret screen |

@@ -98,3 +98,18 @@ func TestLPCVV0073FindingLeavesAxesUnchanged(t *testing.T) {
 		t.Fatalf("finding rewrote the projection:\n%+v\n%+v", plain.Tests[0].Projection, stubbed.Tests[0].Projection)
 	}
 }
+
+// LPCV-V0-073: a retained receipt whose record omits a hit count, sets it null or repeats a member
+// is refused, never read as zero hits.
+func TestLPCVV0073RetainedRecordIsClosed(t *testing.T) {
+	for name, stub := range map[string]string{
+		"missing hits":   `{"target":"page","kind":"glob","pattern":"x"}`,
+		"null hits":      `{"target":"page","kind":"glob","pattern":"x","hits":null}`,
+		"duplicate hits": `{"target":"page","kind":"glob","pattern":"x","hits":3,"hits":0}`,
+	} {
+		body := `{"receipt":{"kind":"e2e","tests":[{"name":"a","state":"passed","attemptDetails":[{"state":"passed","retry":0,"durationMs":1,"routeStubs":{"stubs":[` + stub + `]}}]}]},"testProjections":[],"runProjection":{}}`
+		if _, err := Decode([]byte(body)); err == nil {
+			t.Errorf("%s: retained record accepted", name)
+		}
+	}
+}

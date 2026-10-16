@@ -98,6 +98,18 @@ function session({ context, testInfo, warn }) {
   const stubs = [];
   const restore = [];
   const pages = new WeakSet();
+  let closed = false;
+
+  // override replaces one method on the instance; undo restores an own property the instance
+  // already had (another fixture's override) and otherwise deletes the producer's own.
+  const override = (target, name, replacement) => {
+    const own = Object.getOwnPropertyDescriptor(target, name);
+    target[name] = replacement;
+    restore.push(() => {
+      if (own) Object.defineProperty(target, name, own);
+      else delete target[name];
+    });
+  };
 
   // instrument replaces target.route and target.unroute on the instance. Each handler is wrapped
   // so a call counts as a hit; unroute(url, handler) still finds the wrappers of that handler.
@@ -109,7 +121,7 @@ function session({ context, testInfo, warn }) {
       return;
     }
     const wrappers = new Map();
-    target.route = function (url, handler, options) {
+    override(target, 'route', function (url, handler, options) {
       if (typeof handler !== 'function') return route.call(this, url, handler, options);
       const stub = { target: kind, ...describe(url), hits: 0, ...callSite(rootDir) };
       stubs.push(stub);
@@ -120,34 +132,32 @@ function session({ context, testInfo, warn }) {
       if (!wrappers.has(handler)) wrappers.set(handler, []);
       wrappers.get(handler).push(wrapper);
       return route.call(this, url, wrapper, options);
-    };
-    if (typeof unroute === 'function') {
-      target.unroute = async function (url, handler) {
-        if (typeof handler !== 'function' || !wrappers.has(handler)) return unroute.call(this, url, handler);
-        for (const wrapper of wrappers.get(handler)) await unroute.call(this, url, wrapper);
-        return undefined;
-      };
-    }
-    restore.push(() => {
-      delete target.route;
-      if (typeof unroute === 'function') delete target.unroute;
     });
+    if (typeof unroute === 'function') {
+      // unroute(url, handler) removes the producer's wrappers of handler and then any registration
+      // of handler itself made before instrumentation.
+      override(target, 'unroute', async function (url, handler) {
+        if (typeof handler === 'function' && wrappers.has(handler)) {
+          for (const wrapper of wrappers.get(handler)) await unroute.call(this, url, wrapper);
+        }
+        return unroute.call(this, url, handler);
+      });
+    }
   };
 
   const track = page => {
-    if (!page || pages.has(page)) return;
+    if (closed || !page || pages.has(page)) return;
     pages.add(page);
     instrument(page, 'page');
   };
   instrument(context, 'context');
   const newPage = context.newPage;
   if (typeof newPage === 'function') {
-    context.newPage = async function (...args) {
+    override(context, 'newPage', async function (...args) {
       const page = await newPage.apply(this, args);
       track(page);
       return page;
-    };
-    restore.push(() => { delete context.newPage; });
+    });
   }
   if (typeof context.on === 'function') {
     context.on('page', track);
@@ -157,14 +167,16 @@ function session({ context, testInfo, warn }) {
 
   return {
     finish() {
+      closed = true;
       for (const undo of restore.reverse()) undo();
       if (stubs.length > maxStubs) {
         warn('overflow', `more than ${maxStubs} request stubs; no route-stub record is published`);
         return;
       }
       if (testInfo.annotations.some(a => a && a.type === annotationType)) {
-        warn('foreign', `a ${annotationType} annotation was published outside the producer; no record is added`);
-        return;
+        // The producer's own record is still added: two annotations are refused by the consumer, so
+        // the attempt reads as NOT_PRODUCED instead of trusting the foreign record.
+        warn('foreign', `a ${annotationType} annotation was published outside the producer; the attempt's record is refused`);
       }
       const record = stubs.map(({ target, kind, pattern, hits, file, line }) => (file ? { target, kind, pattern, hits, file, line } : { target, kind, pattern, hits }));
       testInfo.annotations.push({ type: annotationType, description: JSON.stringify({ stubs: record }) });

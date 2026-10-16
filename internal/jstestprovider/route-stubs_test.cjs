@@ -28,12 +28,11 @@ class Context extends Router {
 }
 
 // run executes one attempt body against the extended `context` fixture and returns the annotations.
-async function run(body, { annotations = [], rootDir = __dirname } = {}) {
+async function run(body, { annotations = [], rootDir = __dirname, context = new Context() } = {}) {
   let fixture;
   const base = { extend(fixtures) { fixture = fixtures.context; return {}; } };
   const warnings = [];
   extend(base, { warn: message => warnings.push(message) });
-  const context = new Context();
   const testInfo = { annotations: annotations.slice(), config: { rootDir } };
   await fixture({ context }, async ctx => body(ctx), testInfo);
   return { annotations: testInfo.annotations, warnings, context };
@@ -97,11 +96,48 @@ test('more than 64 stubs publish no record', async () => {
   assert.match(warnings.join('\n'), /more than 64/);
 });
 
-test('a foreign record is not joined by a second one', async () => {
+test('a foreign record is refused by adding the producer record beside it', async () => {
   const foreign = { type: 'corvint-route-stubs', description: '{"stubs":[]}' };
   const { annotations, warnings } = await run(async context => { await context.route('**/x', () => {}); }, { annotations: [foreign] });
-  assert.deepEqual(annotations, [foreign]);
+  assert.equal(annotations.filter(a => a.type === 'corvint-route-stubs').length, 2, 'two records make the consumer report NOT_PRODUCED');
   assert.match(warnings.join('\n'), /outside the producer/);
+});
+
+test('teardown restores own-property overrides another fixture installed', async () => {
+  const context = new Context();
+  const page = await context.newPage();
+  const own = { context: { route: context.route.bind(context), unroute: context.unroute.bind(context), newPage: context.newPage.bind(context) }, page: { route: page.route.bind(page), unroute: page.unroute.bind(page) } };
+  Object.assign(context, own.context);
+  Object.assign(page, own.page);
+  await run(async ctx => { await ctx.route('**/a', () => {}); await page.route('**/b', () => {}); }, { context });
+  for (const name of ['route', 'unroute', 'newPage']) assert.equal(context[name], own.context[name], `context.${name}`);
+  for (const name of ['route', 'unroute']) assert.equal(page[name], own.page[name], `page.${name}`);
+});
+
+test('unroute also removes a registration made before instrumentation', async () => {
+  const context = new Context();
+  const handler = route => route.fulfill();
+  await context.route('**/before', handler);
+  const { annotations } = await run(async ctx => {
+    await ctx.route('**/after', handler);
+    await ctx.unroute('**/before', handler);
+    await ctx.unroute('**/after', handler);
+  }, { context });
+  assert.equal(context.routes.length, 0);
+  assert.equal(record(annotations).stubs.length, 1);
+});
+
+test('a page that resolves after teardown is not instrumented', async () => {
+  const context = new Context();
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const original = context.newPage;
+  context.newPage = async function () { await gate; return original.call(this); };
+  let pending;
+  await run(async ctx => { pending = ctx.newPage(); }, { context });
+  release();
+  const late = await pending;
+  assert.ok(!Object.hasOwn(late, 'route') && !Object.hasOwn(late, 'unroute'), 'late page left untouched');
 });
 
 test('the record is published even when the test body throws', async () => {

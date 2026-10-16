@@ -48,12 +48,44 @@ type playwrightResult struct {
 	Error       *playwrightError       `json:"error"`
 	Errors      []playwrightError      `json:"errors"`
 	Attachments []playwrightAttachment `json:"attachments"`
-	Annotations []playwrightAnnotation `json:"annotations"`
+	Annotations playwrightAnnotations  `json:"annotations"`
 }
 
+// playwrightAnnotation is one result annotation. Decoding never fails the report: a member of an
+// unexpected shape marks a corvint-route-stubs annotation malformed and is otherwise ignored, as
+// annotations were before LPCV-V0-072.
 type playwrightAnnotation struct {
-	Type        string `json:"type"`
-	Description string `json:"description"`
+	Type        string
+	Description string
+	malformed   bool
+}
+
+func (a *playwrightAnnotation) UnmarshalJSON(data []byte) error {
+	var wire struct {
+		Type        json.RawMessage `json:"type"`
+		Description json.RawMessage `json:"description"`
+	}
+	*a = playwrightAnnotation{}
+	if json.Unmarshal(data, &wire) != nil || json.Unmarshal(wire.Type, &a.Type) != nil {
+		a.Type = ""
+		return nil
+	}
+	if len(wire.Description) > 0 && json.Unmarshal(wire.Description, &a.Description) != nil {
+		a.malformed = true
+	}
+	return nil
+}
+
+// playwrightAnnotations decodes a result's annotations; a value that is not an array is ignored.
+type playwrightAnnotations []playwrightAnnotation
+
+func (a *playwrightAnnotations) UnmarshalJSON(data []byte) error {
+	var list []playwrightAnnotation
+	if json.Unmarshal(data, &list) != nil {
+		list = nil
+	}
+	*a = list
+	return nil
 }
 
 type playwrightError struct {

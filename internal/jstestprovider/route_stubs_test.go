@@ -85,6 +85,11 @@ func TestLPCVV0072AnnotationIsClosed(t *testing.T) {
 		"too many stubs":  {routeStubAnnotation(`{"stubs":[` + strings.Join(many, ",") + `]}`)},
 		"oversized":       {routeStubAnnotation(`{"stubs":[]}` + strings.Repeat(" ", maxRouteStubDescription))},
 		"fractional hits": {routeStubAnnotation(`{"stubs":[{"target":"page","kind":"glob","pattern":"x","hits":0.5}]}`)},
+		"missing hits":    {routeStubAnnotation(`{"stubs":[{"target":"page","kind":"glob","pattern":"x"}]}`)},
+		"null hits":       {routeStubAnnotation(`{"stubs":[{"target":"page","kind":"glob","pattern":"x","hits":null}]}`)},
+		"duplicate hits":  {routeStubAnnotation(`{"stubs":[{"target":"page","kind":"glob","pattern":"x","hits":3,"hits":0}]}`)},
+		"duplicate stubs": {routeStubAnnotation(valid[:len(valid)-1] + `,"stubs":[]}`)},
+		"non-string":      {{Type: RouteStubsAnnotation, Description: valid, malformed: true}},
 	} {
 		if got := routeStubRecord(annotations); got != nil {
 			t.Errorf("%s: record = %+v", name, got)
@@ -92,12 +97,44 @@ func TestLPCVV0072AnnotationIsClosed(t *testing.T) {
 	}
 }
 
-// LPCV-V0-072: patterns and registration paths pass the product secret screen.
+// LPCV-V0-072: patterns and registration paths pass the product secret screen, including a
+// credential written with regular-expression escapes.
 func TestLPCVV0072RecordIsSecretScreened(t *testing.T) {
 	token := "ghp_abcdefghijklmnopqrst"
 	got := routeStubRecord([]playwrightAnnotation{routeStubAnnotation(`{"stubs":[{"target":"page","kind":"glob","pattern":"**/api?key=` + token + `","hits":0,"file":"` + token + `.spec.ts","line":1}]}`)})
 	if got == nil || strings.Contains(got.Stubs[0].Pattern, token) || strings.Contains(got.Stubs[0].File, token) {
 		t.Fatalf("record not screened: %+v", got)
+	}
+	regexp := routeStubRecord([]playwrightAnnotation{routeStubAnnotation(`{"stubs":[{"target":"page","kind":"regexp","pattern":"/https:\\/\\/alice:hunter2@example\\.test\\/api/","hits":0}]}`)})
+	if regexp == nil || strings.Contains(regexp.Stubs[0].Pattern, "hunter2") {
+		t.Fatalf("escaped credential not screened: %+v", regexp)
+	}
+	plain := routeStubRecord([]playwrightAnnotation{routeStubAnnotation(`{"stubs":[{"target":"page","kind":"regexp","pattern":"/\\/api\\/v2\\//","hits":0}]}`)})
+	if plain == nil || plain.Stubs[0].Pattern != `/\/api\/v2\//` {
+		t.Fatalf("clean regexp rewritten: %+v", plain)
+	}
+}
+
+// LPCV-V0-072: an annotation of an unexpected shape never fails the report; only the route-stub
+// record it would carry is absent.
+func TestLPCVV0072MalformedAnnotationKeepsReport(t *testing.T) {
+	const annotations = `[{"type":"note","description":7},{"type":"corvint-route-stubs","description":"{\"stubs\":[]}"}]`
+	report := `{"suites":[{"title":"a.spec.ts","file":"a.spec.ts","specs":[{"title":"t","ok":true,"tests":[{"status":"expected","results":[{"status":"passed","retry":0,"duration":1,"annotations":` + annotations + `}]}]}]}],"errors":[]}`
+	parse := func(name, report string) *RouteStubRecord {
+		outcomes, _, err := ParsePlaywrightJSON([]byte(report))
+		if err != nil || len(outcomes) != 1 || outcomes[0].State != StatePassed {
+			t.Fatalf("%s: outcomes=%+v err=%v", name, outcomes, err)
+		}
+		return outcomes[0].AttemptDetails[0].RouteStubs
+	}
+	if got := parse("unrelated malformed", report); got == nil || got.Stubs == nil {
+		t.Fatalf("an unrelated malformed annotation dropped the record: %+v", got)
+	}
+	if got := parse("object description", strings.Replace(report, `"description":"{\"stubs\":[]}"`, `"description":{"stubs":[]}`, 1)); got != nil {
+		t.Fatalf("object description read as a record: %+v", got)
+	}
+	if got := parse("non-array", strings.Replace(report, annotations, `5`, 1)); got != nil {
+		t.Fatalf("non-array annotations: %+v", got)
 	}
 }
 

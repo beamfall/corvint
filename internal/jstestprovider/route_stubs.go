@@ -72,35 +72,122 @@ func routeStubText(value string) bool {
 }
 
 // ScreenRouteStubRecord applies the product secret screen to every pattern and registration path.
+// A pattern is also screened with its regular-expression escapes removed, so a credential written
+// as `https:\/\/user:pass@host` is caught; a hit there replaces the pattern with that screened form.
 func ScreenRouteStubRecord(record RouteStubRecord) RouteStubRecord {
 	stubs := make([]RouteStub, len(record.Stubs))
 	for i, stub := range record.Stubs {
-		stub.Pattern, _ = secretscreen.Screen(stub.Pattern)
+		stub.Pattern = screenRouteStubPattern(stub.Pattern)
 		stub.File, _ = secretscreen.Screen(stub.File)
 		stubs[i] = stub
 	}
 	return RouteStubRecord{Stubs: stubs}
 }
 
+func screenRouteStubPattern(pattern string) string {
+	screened, _ := secretscreen.Screen(pattern)
+	if unescaped, hit := secretscreen.Screen(regexpEscapes.Replace(pattern)); hit {
+		return unescaped
+	}
+	return screened
+}
+
+var regexpEscapes = strings.NewReplacer(`\/`, "/", `\.`, ".", `\:`, ":", `\@`, "@", `\?`, "?", `\=`, "=", `\&`, "&", `\-`, "-")
+
+// UnmarshalJSON decodes a record closed: unknown and duplicate members are refused at every level,
+// and every stub must state its hit count, so a missing or null count is never read as zero hits.
+// It serves both the producer annotation and a retained receipt's routeStubs member.
+func (r *RouteStubRecord) UnmarshalJSON(data []byte) error {
+	if duplicateJSONMember(data) {
+		return errors.New("route-stub record has a duplicate member")
+	}
+	var wire struct {
+		Stubs []struct {
+			Target  string `json:"target"`
+			Kind    string `json:"kind"`
+			Pattern string `json:"pattern"`
+			Hits    *int   `json:"hits"`
+			File    string `json:"file"`
+			Line    int    `json:"line"`
+		} `json:"stubs"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&wire); err != nil {
+		return err
+	}
+	record := RouteStubRecord{}
+	if wire.Stubs != nil {
+		record.Stubs = make([]RouteStub, len(wire.Stubs))
+	}
+	for i, stub := range wire.Stubs {
+		if stub.Hits == nil {
+			return errors.New("route stub has no hit count")
+		}
+		record.Stubs[i] = RouteStub{Target: stub.Target, Kind: stub.Kind, Pattern: stub.Pattern, Hits: *stub.Hits, File: stub.File, Line: stub.Line}
+	}
+	*r = record
+	return nil
+}
+
+// duplicateJSONMember reports whether any object in data names a member twice, or data is not one
+// well-formed JSON value.
+func duplicateJSONMember(data []byte) bool {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	var walk func() bool
+	walk = func() bool {
+		token, err := decoder.Token()
+		if err != nil {
+			return true
+		}
+		switch token {
+		case json.Delim('{'):
+			seen := map[string]bool{}
+			for decoder.More() {
+				key, err := decoder.Token()
+				name, ok := key.(string)
+				if err != nil || !ok || seen[name] {
+					return true
+				}
+				seen[name] = true
+				if walk() {
+					return true
+				}
+			}
+			_, err = decoder.Token()
+			return err != nil
+		case json.Delim('['):
+			for decoder.More() {
+				if walk() {
+					return true
+				}
+			}
+			_, err = decoder.Token()
+			return err != nil
+		}
+		return false
+	}
+	return walk()
+}
+
 // routeStubRecord reads the attempt's corvint-route-stubs annotation. Only exactly one closed,
 // in-bounds annotation is a record; none, a duplicate or a malformed one yields nil, so the
 // consumer reports NOT_PRODUCED rather than zero hits.
 func routeStubRecord(annotations []playwrightAnnotation) *RouteStubRecord {
-	var description *string
+	var found *playwrightAnnotation
 	for i := range annotations {
 		if annotations[i].Type != RouteStubsAnnotation {
 			continue
 		}
-		if description != nil {
+		if found != nil {
 			return nil
 		}
-		description = &annotations[i].Description
+		found = &annotations[i]
 	}
-	if description == nil || len(*description) > maxRouteStubDescription {
+	if found == nil || found.malformed || len(found.Description) > maxRouteStubDescription {
 		return nil
 	}
-	decoder := json.NewDecoder(bytes.NewReader([]byte(*description)))
-	decoder.DisallowUnknownFields()
+	decoder := json.NewDecoder(bytes.NewReader([]byte(found.Description)))
 	var record RouteStubRecord
 	if decoder.Decode(&record) != nil {
 		return nil
