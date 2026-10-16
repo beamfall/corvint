@@ -537,3 +537,45 @@ func TestSTRV0008CLIBalancedShards(t *testing.T) {
 		t.Fatal("the ci dry run launched go test")
 	}
 }
+
+// AFP-V0-050 (V1-1399): `corvint test` narrows an edit of the read-scope
+// declaration against the plan's base, as the planner does: declaring a new
+// package runs only that package, not every declared one.
+func TestCorvintTestNarrowsReadScopeDeclarationEdit_AFPV0050(t *testing.T) {
+	root, _, _ := sessionFixture(t, "pass")
+	declaration := func(packages string) string {
+		return `{"profile":"corvint-test-read-scopes/0","packages":{` + packages + `}}`
+	}
+	for name, body := range map[string]string{
+		"c/c.go":                         "package c\n\nfunc C() int { return 4 }\n",
+		"c/c_test.go":                    "package c\n\nimport \"testing\"\n\nfunc TestC(t *testing.T) { _ = C() }\n",
+		".corvint/test-read-scopes.json": declaration(`"a":["docs/"],"b":["docs/"]`),
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "declare a and b")
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	if err := os.WriteFile(filepath.Join(root, ".corvint/test-read-scopes.json"), []byte(declaration(`"a":["docs/"],"b":["docs/"],"c":["docs/"]`)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "commit", "-qam", "declare c")
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--manifest", filepath.Join(t.TempDir(), "manifest.json"))
+	var printed struct {
+		Invocations []struct{ Argv []string } `json:"invocations"`
+	}
+	if code != 0 {
+		t.Fatalf("code %d stderr %q", code, stderr)
+	}
+	if err := json.Unmarshal([]byte(stdout), &printed); err != nil {
+		t.Fatal(err)
+	}
+	if len(printed.Invocations) != 1 || strings.Join(printed.Invocations[0].Argv, " ") != "go test -json -p 1 -count=1 example.test/m/c" {
+		t.Fatalf("dry run printed %s", stdout)
+	}
+}

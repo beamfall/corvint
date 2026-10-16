@@ -1,5 +1,30 @@
 # Release notes
 
+## 1.0.0-rc.3 (unreleased): recorded limits
+
+This section is untagged. It records the limits of the CEM 1.0 hunk-revert work (V1-1266) that the
+rc.3 notes must carry. It is not a claim that rc.3 qualifies them.
+
+- `cem verify --hunk-revert` (opt-in, `CEM-V1-088`/`089`) is the only source of the `held` tier.
+  It reverse-applies one cited hunk in a disposable copy and runs the tests that the hunk's
+  `test-claim` span declares. `cem verify --guarding-tests` (opt-in, `TCQ-V0-062`) is the producer
+  step that finds those tests. It names the base tests in the hunk's own directory that were seen to
+  fail with only that hunk reverted. It writes nothing and sets no tier.
+- Both run under `go test` only. No other test runner is supported or qualified. A non-Go hunk is
+  never held and never searched. The portable consumer (`interop/cem01-go`) does not re-execute.
+- Both execute the target's test code with the caller's privileges and no filesystem
+  confinement, as `go test` would. They also reuse the host Go module and build caches. Run them
+  only on a change whose tests you would run yourself.
+- The guarding-test search has these further limits:
+  - It matches identifiers, so it over-approximates its candidates.
+  - It looks only in the hunk's own directory. A guard in another package, such as `cmd/corvint`
+    for `internal/...`, is not found.
+  - It skips tests that the change itself adds.
+  - Its bounds are 300 s per run and 1200 s in total.
+- K1 is open. The goal is that held hunks are at least 25% of non-mechanical Go code hunks across 30
+  dogfood changes. The tally starts at
+  `docs/build-log/2026-10-15-v1-1266-guarding-tests-k1.md`.
+
 ## 1.0.0-rc.2 release candidate
 
 `v1.0.0-rc.2` is the second 1.0 release candidate. It carries the fixes for the rc.1

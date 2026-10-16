@@ -720,11 +720,13 @@ func parseGo(b []byte, o *tr.Observation) error {
 	type event struct {
 		Action      string
 		Package     string
+		ImportPath  string
 		Test        string
 		Output      string
 		FailedBuild string
 	}
 	active := map[string]bool{}
+	failedBuilds := map[string]bool{}
 	finishedPackages := map[string]bool{}
 	packageFailed := map[string]bool{}
 	packages := map[string]bool{}
@@ -742,12 +744,27 @@ func parseGo(b []byte, o *tr.Observation) error {
 		if err := json.Unmarshal(raw, &e); err != nil {
 			return err
 		}
-		if e.Package == "" {
+		// GLTP-V0-014: Action selects the BuildEvent or TestEvent shape. BuildEvents are keyed
+		// by ImportPath only and never touch package or test accounting.
+		if e.Action == "build-output" || e.Action == "build-fail" {
+			if e.ImportPath == "" || !goBuildEventFields(raw) {
+				return errors.New("Go build event shape invalid")
+			}
+			if failedBuilds[e.ImportPath] {
+				return errors.New("Go build event after build terminal")
+			}
+			if e.Action == "build-fail" {
+				failedBuilds[e.ImportPath] = true
+				o.Problems = append(o.Problems, tr.Problem{Code: "BUILD_FAILURE", Detail: e.ImportPath})
+			}
+			continue
+		}
+		if e.Package == "" || e.ImportPath != "" {
 			return errors.New("Go event package missing")
 		}
 		packages[e.Package] = true
 		switch e.Action {
-		case "start", "run", "pause", "cont", "output", "pass", "fail", "skip", "build-output", "build-fail":
+		case "start", "run", "pause", "cont", "output", "pass", "fail", "skip":
 		default:
 			return errors.New("unknown Go event action")
 		}
@@ -764,7 +781,7 @@ func parseGo(b []byte, o *tr.Observation) error {
 					packageFailed[e.Package] = true
 				}
 			}
-			if e.Action == "build-fail" || e.FailedBuild != "" {
+			if e.FailedBuild != "" {
 				o.Problems = append(o.Problems, tr.Problem{Code: "BUILD_FAILURE", Detail: e.Package})
 			}
 			continue
@@ -808,6 +825,21 @@ func parseGo(b []byte, o *tr.Observation) error {
 	return nil
 }
 
+// goBuildEventFields reports whether a BuildEvent carries only the closed GLTP-V0-014 fields
+// ImportPath, Action and Output, so a present Package, Test or FailedBuild is refused even when
+// empty or null.
+func goBuildEventFields(b []byte) bool {
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(b, &fields) != nil {
+		return false
+	}
+	for name := range fields {
+		if name != "ImportPath" && name != "Action" && name != "Output" {
+			return false
+		}
+	}
+	return true
+}
 func uniqueGoFields(b []byte) error {
 	d := json.NewDecoder(bytes.NewReader(b))
 	first, e := d.Token()

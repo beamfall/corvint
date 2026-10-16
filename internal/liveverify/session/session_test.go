@@ -91,6 +91,13 @@ func (l *eventLog) snapshot() []Event {
 	return append([]Event(nil), l.events...)
 }
 
+// hangBound bounds every wait on a session event and each fixture run's
+// Config.Timeout. Each test compiles its fixture with a cold GOCACHE, and
+// under host load a 20s bound fired before that compile finished (V1-1433,
+// V1-1439), so these are hang detectors, not performance budgets (decision
+// 0082). Product timing a test asserts keeps its own bound.
+const hangBound = 5 * time.Minute
+
 func waitFor(t *testing.T, log *eventLog, deadline time.Duration, match func(Event) bool) Event {
 	t.Helper()
 	end := time.Now().Add(deadline)
@@ -130,7 +137,7 @@ func baseConfig(t *testing.T, dir, modPath, testPath string, log *eventLog) Conf
 		Environment:      testEnvironment(dir),
 		Interval:         30 * time.Millisecond,
 		Debounce:         60 * time.Millisecond,
-		Timeout:          20 * time.Second,
+		Timeout:          hangBound,
 		OutputLimitBytes: gorunner.MaxOutputBytes,
 		Publish:          log.publish,
 	}
@@ -208,7 +215,7 @@ func TestPassWithoutRunAbstains(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, cfg) }()
 
-	passed := waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 1 && e.State == StatePassed })
+	passed := waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 1 && e.State == StatePassed })
 	cancel()
 	if err := <-done; err != nil && !errors.Is(err, context.Canceled) {
 		t.Fatalf("Run returned unexpected error: %v", err)
@@ -233,7 +240,7 @@ func TestExitZeroWithFailedTestIsInfrastructure(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, cfg) }()
 
-	terminal := waitFor(t, log, 20*time.Second, func(e Event) bool { return e.Sequence == 1 && e.State != StateRunning })
+	terminal := waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 1 && e.State != StateRunning })
 	if terminal.State != StateInfrastructure {
 		t.Fatalf("exit 0 with a failed test published %s, want infrastructure", terminal.State)
 	}
@@ -256,7 +263,7 @@ func TestFramedPassCannotMaskFailedTest(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, cfg) }()
 
-	terminal := waitFor(t, log, 20*time.Second, func(e Event) bool { return e.Sequence == 1 && e.State != StateRunning })
+	terminal := waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 1 && e.State != StateRunning })
 	cancel()
 	<-done
 	if terminal.State != StateFailed {
@@ -294,7 +301,7 @@ func TestStaleOnLateArrival(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, cfg) }()
 
-	waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 1 && e.State == StateRunning })
+	waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 1 && e.State == StateRunning })
 
 	// Edit while run 1 is still sleeping: this changes the identity but must
 	// not disturb the in-flight go test process, whose compiled behavior is
@@ -304,14 +311,14 @@ func TestStaleOnLateArrival(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stale := waitFor(t, log, 20*time.Second, func(e Event) bool { return e.Sequence == 1 && (e.State == StateStale || e.State == StatePassed) })
+	stale := waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 1 && (e.State == StateStale || e.State == StatePassed) })
 	if stale.State != StateStale {
 		t.Fatalf("expected run 1 to be reported STALE after a later edit, got %s", stale.State)
 	}
 	assertProjection(t, stale, testvalidity.ExecutionInfrastructure, "STALE", testvalidity.FreshnessStale)
 
-	waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 2 && e.State == StateRunning })
-	waitFor(t, log, 20*time.Second, func(e Event) bool { return e.Sequence == 2 && e.State == StatePassed })
+	waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 2 && e.State == StateRunning })
+	waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 2 && e.State == StatePassed })
 
 	cancel()
 	<-done
@@ -334,7 +341,7 @@ func TestDebounceDuringActiveRunRace(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, cfg) }()
 
-	waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 1 && e.State == StateRunning })
+	waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 1 && e.State == StateRunning })
 
 	for i := 0; i < 3; i++ {
 		time.Sleep(150 * time.Millisecond)
@@ -344,9 +351,9 @@ func TestDebounceDuringActiveRunRace(t *testing.T) {
 		}
 	}
 
-	waitFor(t, log, 20*time.Second, func(e Event) bool { return e.Sequence == 1 && (e.State == StateStale || e.State == StatePassed) })
-	waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 2 && e.State == StateRunning })
-	waitFor(t, log, 20*time.Second, func(e Event) bool { return e.Sequence == 2 && e.State == StatePassed })
+	waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 1 && (e.State == StateStale || e.State == StatePassed) })
+	waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 2 && e.State == StateRunning })
+	waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 2 && e.State == StatePassed })
 
 	cancel()
 	<-done
@@ -378,7 +385,7 @@ func TestCancellationLeavesNoDescendants(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, cfg) }()
 
-	waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 1 && e.State == StateRunning })
+	waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 1 && e.State == StateRunning })
 
 	pid := waitChildPID(t, log, pidfile)
 
@@ -388,7 +395,7 @@ func TestCancellationLeavesNoDescendants(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("session did not shut down after cancellation")
 	}
-	waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 1 && e.State == StateCancelled })
+	waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 1 && e.State == StateCancelled })
 	assertGone(t, pid)
 }
 
@@ -520,7 +527,7 @@ func TestQueuedNarrowSettleKeepsEarlierFallback(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, cfg) }()
 
-	waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 1 && e.State == StateRunning })
+	waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 1 && e.State == StateRunning })
 	if err := os.WriteFile(sourcePath, []byte("package fixture\n\nconst edited = 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -531,7 +538,7 @@ func TestQueuedNarrowSettleKeepsEarlierFallback(t *testing.T) {
 	if ended := runEnded(log, 1); ended != nil {
 		t.Fatalf("run 1 ended before both edits settled: %+v", *ended)
 	}
-	second := waitFor(t, log, 60*time.Second, func(e Event) bool { return e.Sequence == 2 && e.State == StateRunning })
+	second := waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 2 && e.State == StateRunning })
 	if len(second.Scope) != 1 || second.Scope[0] != "./..." {
 		t.Fatalf("queued run scope = %v, want full scope for the earlier non-test edit", second.Scope)
 	}
@@ -554,7 +561,7 @@ func TestFailedDigestSettleKeepsFallback(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, cfg) }()
 
-	waitFor(t, log, 60*time.Second, func(e Event) bool { return e.Sequence == 1 && e.State == StatePassed })
+	waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 1 && e.State == StatePassed })
 	if err := os.WriteFile(sourcePath, []byte("package fixture\n\nconst edited = 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -565,7 +572,7 @@ func TestFailedDigestSettleKeepsFallback(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte(passing+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	second := waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 2 && e.State == StateRunning })
+	second := waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 2 && e.State == StateRunning })
 	if len(second.Scope) != 1 || second.Scope[0] != "./..." {
 		t.Fatalf("run scope after a failed settle = %v, want full scope for the non-test edit", second.Scope)
 	}
@@ -595,8 +602,8 @@ func TestEditBeforeBaselineSnapshotIsDetected(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, cfg) }()
 
-	idle := waitFor(t, log, 5*time.Second, func(e Event) bool { return e.State == StateIdle })
-	second := waitFor(t, log, 60*time.Second, func(e Event) bool { return e.Sequence == 2 && e.State == StateRunning })
+	idle := waitFor(t, log, hangBound, func(e Event) bool { return e.State == StateIdle })
+	second := waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 2 && e.State == StateRunning })
 	if second.Identity == idle.Identity {
 		t.Fatalf("second run identity = baseline identity %s despite the edit", idle.Identity)
 	}
@@ -631,11 +638,11 @@ func TestUnsettledEditAtCompletionIsStale(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, cfg) }()
 
-	first := waitFor(t, log, 60*time.Second, func(e Event) bool { return e.Sequence == 1 && e.State != StateRunning })
+	first := waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 1 && e.State != StateRunning })
 	if first.State != StateStale {
 		t.Fatalf("run 1 completed with an unsettled edit on disk as %s, want stale", first.State)
 	}
-	second := waitFor(t, log, 60*time.Second, func(e Event) bool { return e.Sequence == 2 && e.State == StatePassed })
+	second := waitFor(t, log, hangBound, func(e Event) bool { return e.Sequence == 2 && e.State == StatePassed })
 	if second.Identity != first.Identity {
 		t.Fatalf("rerun identity = %s, want the reverted identity %s", second.Identity, first.Identity)
 	}

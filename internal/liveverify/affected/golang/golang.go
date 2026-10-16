@@ -180,6 +180,12 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	resolve(units, imports, testImports, modulePaths(modules))
 	applyReadScopes(root, units, unitDirectories, frontier)
 	applyBinaryExecs(root, units, unitDirectories, owners, commands, frontier)
+	// A read this plugin tolerates (an unparsed file, an invalid declaration)
+	// may be an immutable source's fatal failure; surface it rather than a
+	// partial unit set (V1-1416, DLT-V0-002).
+	if err := root.Err(); err != nil {
+		return affected.Result{}, err
+	}
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
@@ -372,6 +378,20 @@ func pathTokens(body []byte, modulePath string, aliases map[string]string, dotIm
 			scan.tokens = append(scan.tokens, rootAnchored(name, modulePath))
 		}
 	}
+}
+
+// FilePathTokens is the AFP-V0-021 lexicon over one Go file, as
+// observeDirectory reads it: the path tokens of every string literal after the
+// file's import declarations, with an import path under modulePath rewritten to
+// a "/"-anchored directory. A file that does not parse or lex is an error.
+func FilePathTokens(name string, body []byte, modulePath string) ([]string, error) {
+	fileSet := token.NewFileSet()
+	file, err := parser.ParseFile(fileSet, name, body, parser.ImportsOnly)
+	if err != nil {
+		return nil, err
+	}
+	scan := pathTokens(body[importsEnd(fileSet, file):], modulePath, nil, nil)
+	return scan.tokens, scan.err
 }
 
 // rootAnchored rewrites an import path under the module to its directory

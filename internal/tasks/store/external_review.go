@@ -151,9 +151,10 @@ func FoldExternalReviews(repo *intent.Repository, last uint64, pending []byte) (
 
 // FoldReceiptBindings folds receipts 1..last, then pending when it is not
 // nil, through every material binding audit in one pass: the ERG-V0-009
-// review binding, the ESC-V0-010 escalation binding and the TOL-V0-013
-// obligation-ledger binding. Receipt audit and redo use it, so a rehashed
-// but untrue review, escalation or ledger event refuses as JOURNAL_FORKED.
+// review binding, the ESC-V0-010 escalation binding, the TOL-V0-013
+// obligation-ledger binding and the CAL-V0-243 gate reuse binding. Receipt
+// audit and redo use it, so a rehashed but untrue review, escalation, ledger
+// event or gate reuse refuses as JOURNAL_FORKED.
 func FoldReceiptBindings(repo *intent.Repository, last uint64, pending []byte) error {
 	return foldReceipts(repo, last, pending, ReceiptBindingFold(repo))
 }
@@ -169,6 +170,7 @@ func ReceiptBindingFold(repo *intent.Repository) func(*snapshot.Receipt, wire.Di
 		return FilesAtCommit(repo.PrimaryWorktree, commit, paths)
 	}}
 	memo := &transaction.TicketPosts{}
+	reuses := &transaction.GateReuseReceiptAudit{}
 	return func(rc *snapshot.Receipt, sum wire.Digest) error {
 		if err := reviews.StepPosts(rc, sum, blob, memo); err != nil {
 			return err
@@ -176,7 +178,10 @@ func ReceiptBindingFold(repo *intent.Repository) func(*snapshot.Receipt, wire.Di
 		if err := escalations.StepPosts(rc, sum, blob, memo); err != nil {
 			return err
 		}
-		return obligations.Step(rc, sum, blob)
+		if err := obligations.Step(rc, sum, blob); err != nil {
+			return err
+		}
+		return reuses.Step(rc, sum, blob)
 	}
 }
 
@@ -210,11 +215,15 @@ func foldReceipts(repo *intent.Repository, last uint64, pending []byte, step fun
 }
 
 // redoReviewBinding refuses redo of a pending receipt that posts a ticket
-// record unless the whole history, the pending receipt included, passes the
-// review and escalation binding folds: the generic journal audit treats
-// their events as opaque blobs, so this is where a rehashed but untrue event
-// is caught.
+// record, or of a GATE_RESULT receipt (whose result may be a reuse,
+// CAL-V0-243), unless the whole history, the pending receipt included,
+// passes the material binding folds: the generic journal audit treats their
+// events and results as opaque blobs, so this is where a rehashed but untrue
+// one is caught.
 func redoReviewBinding(repo *intent.Repository, receipt *snapshot.Receipt, raw []byte) error {
+	if receipt.Kind == "GATE_RESULT" {
+		return FoldReceiptBindings(repo, receipt.Seq.Uint64()-1, raw)
+	}
 	for _, p := range receipt.Post {
 		if strings.HasPrefix(p.Path, "intent/tickets/") {
 			return FoldReceiptBindings(repo, receipt.Seq.Uint64()-1, raw)

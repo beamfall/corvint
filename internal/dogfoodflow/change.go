@@ -50,6 +50,7 @@ type change struct {
 	citationStageOwned   bool
 	citationCount        int
 	citationFailedRow    int
+	citeSpanUnaligned    bool // no hunk edits the refused span (DCW-V0-063)
 	linkObservedRows     int
 	citedOver            bool
 	intentPublishTmp     string
@@ -72,6 +73,12 @@ type change struct {
 	linkPlanRows         int
 	uniformHunks         int
 	uniformSpan          string
+	// staleBinding names the row whose hunk moved since the citation-plan
+	// binding was recorded against an earlier map (DCW-V0-066).
+	staleBinding string
+	// citationFailedMap is the map the failing cite command read: the staged
+	// citation map after the first row (DCW-V0-068).
+	citationFailedMap string
 }
 
 // Change runs the pre-change context, binding and status steps and writes
@@ -705,7 +712,10 @@ func (c *change) cite(plan []byte, citeOutput string) (string, string) {
 		errorFile := c.evidence + "/cem-cite.stderr"
 		if status := c.exec(args, part, errorFile); status != 0 {
 			c.citationFailedRow = index + 1
-			return "NOT_PRODUCED", failureReason(readFile(errorFile), status)
+			c.citationFailedMap = citeMap
+			stderr := readFile(errorFile)
+			c.citeSpanUnaligned = bytes.Contains(stderr, []byte(citeSpanUnedited))
+			return "NOT_PRODUCED", failureReason(stderr, status)
 		}
 		// Intermediate receipts truthfully name the stage; only the last cite
 		// publishes the original map. Keep their raw stdout as private evidence.
@@ -1059,13 +1069,14 @@ func (c *change) ordinalsMoved(plan []byte, hunks []map[string]string) bool {
 	for index, hunk := range hunks {
 		current[hunk["id"]] = index + 1
 	}
-	for _, line := range textLines(plan) {
+	for index, line := range textLines(plan) {
 		selector, _, _ := strings.Cut(line, "\t")
 		value, err := strconv.Atoi(selector)
 		if !ordinal.MatchString(selector) || err != nil || value >= len(recorded) {
 			continue
 		}
 		if now, found := current[recorded[value]]; found && now != value {
+			c.staleBinding = fmt.Sprintf("plan row %d (ordinal %d) named hunk %s, which the current map holds at ordinal %d", index+1, value, recorded[value], now)
 			return true
 		}
 	}
@@ -1387,6 +1398,7 @@ func (c *change) packetCoverage(name string) string {
 // STEP:REASON pattern wins and "*" matches any text.
 var fixHints = []struct{ pattern, hint string }{
 	{"*:git-budget-exceeded", "the change is larger than one 1,024-Git-operation verifier pass; bind and seal it as smaller changes on their own branches, merge them, and check the merge batch with corvint dogfood batch-check {base} instead of rebinding it (DCW-V0-039, DCW-V0-040)"},
+	{"cem-*:map-unavailable", "the CEM map {map} could not be read ({evidence}/{step}.stderr says cannot read CEM map): it is missing, not a regular file or not a valid map, often because it was removed or edited while the run was in progress; restore a committed map with git restore --source=HEAD -- .corvint/change.cem.json, or rerun corvint dogfood change {base} to prepare it again (DCW-V0-068)"},
 	{"cem-cite:citation-plan-not-provided", "set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json"},
 	{"cem-cite:citation-plan-unavailable", "DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves"},
 	{"cem-cite:empty-citation-plan", "DOGFOOD_CITATIONS names an empty file but .corvint/change.cem.json still has unknown hunks; write one row per unknown hunk, or unset DOGFOOD_CITATIONS to prepare the map without citing"},
@@ -1419,14 +1431,40 @@ var fixHints = []struct{ pattern, hint string }{
 	{"local-outcome:outcome-input-not-provided", "set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)"},
 	{"local-outcome:verify-file-unavailable", "DOGFOOD_VERIFY_FILE must be the path of a regular file holding one verification command per line, not the commands themselves"},
 	{"local-outcome:verify-file-over-bound", "DOGFOOD_VERIFY_FILE is larger than 64 KiB; keep at most 50 verification commands of at most 512 characters, one per line"},
-	{"local-outcome:unsupported-verify-syntax", "each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax; write -run TestName instead of -run '^TestName$'"},
+	{"local-outcome:unsupported-verify-syntax", "each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax; write -run TestName instead of -run '^TestName$'; a command that needs quotes or regular-expression syntax, such as a split -run '^Test[A-C]' group, goes in a script committed with the change and is listed as sh path/to/script.sh (DCW-V0-065)"},
 	{"local-outcome:record-failed", "read {evidence}/local-outcome.stderr for the cause; DOGFOOD_VERIFY_FILE holds at most 50 commands of at most 512 characters each, so split a longer command into several lines"},
 }
 
 const uncommittedHint = "the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change {base}"
 
+// citeSpanUnedited is the cem cite refusal phrase for a span whose base
+// lines no hunk edits but whose text recurs in the changed file.
+const citeSpanUnedited = "are edited by no hunk"
+
+// citeSpanUnalignedHint is the DCW-V0-063 fix line for that refusal.
+const citeSpanUnalignedHint = "plan row {row} cites BASE lines that no hunk edits (at most hunk context), which git's line alignment leaves unchanged, but their text occurs more than once in the changed file (another copy exists or the change adds one), and the stability check matches text, not line positions; cite a span whose text occurs once in the changed file, for example by widening it to a neighbouring distinct line (DCW-V0-063)"
+
+// staleBindingHint replaces the citation-plan-map-mismatch fix line when the
+// refusal came from a binding recorded against an earlier map (DCW-V0-066).
+const staleBindingHint = "stale binding: {evidence}/citation-plan-binding was recorded when these same plan bytes were cited against an earlier map, and {staleBinding}; if the plan was kept from that map, rewrite it from the current .corvint/change.cem.json; if it was rewritten for the current map and only repeats the earlier bytes, remove {evidence}/citation-plan-binding and rerun (DCW-V0-066)"
+
+// failedMap is the map a failing CEM step read: the cite command's own map,
+// else the change's sidecar.
+func (c *change) failedMap() string {
+	if c.citationFailedMap != "" {
+		return c.citationFailedMap
+	}
+	return ".corvint/change.cem.json"
+}
+
 func (c *change) fixHint(row step) string {
 	value := row.name + ":" + row.reason
+	if value == "cem-cite:citation-plan-map-mismatch" && c.staleBinding != "" {
+		return strings.NewReplacer("{evidence}", c.evidence, "{staleBinding}", c.staleBinding).Replace(staleBindingHint)
+	}
+	if value == "cem-cite:cite-span-not-stable" && c.citeSpanUnaligned {
+		return strings.ReplaceAll(citeSpanUnalignedHint, "{row}", strconv.Itoa(c.citationFailedRow))
+	}
 	for _, entry := range fixHints {
 		prefix, suffix, star := strings.Cut(entry.pattern, "*")
 		matched := value == entry.pattern
@@ -1434,7 +1472,7 @@ func (c *change) fixHint(row step) string {
 			matched = len(value) >= len(prefix)+len(suffix) && strings.HasPrefix(value, prefix) && strings.HasSuffix(value, suffix)
 		}
 		if matched {
-			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{row}", strconv.Itoa(c.citationFailedRow), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows), "{uniformHunks}", strconv.Itoa(c.uniformHunks), "{uniformSpan}", c.uniformSpan).Replace(entry.hint)
+			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{map}", c.path(c.failedMap()), "{row}", strconv.Itoa(c.citationFailedRow), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows), "{uniformHunks}", strconv.Itoa(c.uniformHunks), "{uniformSpan}", c.uniformSpan).Replace(entry.hint)
 		}
 	}
 	return ""

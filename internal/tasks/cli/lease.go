@@ -369,6 +369,14 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	if report.SharedAllocation != nil {
 		o.Set("sharedAllocation", snapshot.SharedAllocationValue(report.SharedAllocation))
 	}
+	if strings.Join(cmd, " ") == "gate run" {
+		// CAL-V0-240: the earlier result a reuse names, null when the gate ran.
+		reused := wire.Null()
+		if r := report.GateReusedFrom; r != nil {
+			reused = wire.ObjectValue(wire.NewObject().Set("result", wire.String(string(r.Result))).Set("attemptId", wire.String(r.AttemptID)))
+		}
+		o.Set("reusedFrom", reused)
+	}
 	if report.LaneUntouchedAttestation != nil {
 		o.Set("laneUntouchedAttestation", snapshot.LaneUntouchedAttestationValue(report.LaneUntouchedAttestation))
 	}
@@ -386,6 +394,7 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	// explicit members rather than on recorded ones.
 	res.Warnings = append(res.Warnings, report.AuthorExclusion.Notes()...)
 	res.Warnings = append(res.Warnings, report.ScopeWarnings...)
+	res.Warnings = append(res.Warnings, report.ReplayWarnings...)
 	return res
 }
 

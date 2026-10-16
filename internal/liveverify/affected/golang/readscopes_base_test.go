@@ -2,12 +2,15 @@ package golang_test
 
 import (
 	"context"
+	json "encoding/json/v2"
+	"fmt"
 	"maps"
 	"os/exec"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
@@ -196,5 +199,56 @@ func TestCommittedReadScopesFollowModuleOwnership_AFPV0050(t *testing.T) {
 				t.Errorf("observed frontier = %v; base read = %v", observed.Frontier, test.known)
 			}
 		})
+	}
+}
+
+// V1-1417 (AFP-V0-050): checking the committed declaration costs Git
+// operations per declared directory, so a fixed operation count exhausts on a
+// large declaration (the frozen 1,024 default did at 1,100 directories) and
+// every base turns unknown. With the base count lowered to a small fixture's
+// fixed cost, the scaled budget reads 48 flat and 16 depth-three directories
+// back intact; with no per-directory allowance the exhaustion surfaces as
+// git-budget-exceeded, never as a declaration naming no Go package.
+func TestCommittedReadScopesBudgetScalesWithDeclaration_V11417(t *testing.T) {
+	gitExecutable, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is unavailable")
+	}
+	root := t.TempDir()
+	files := map[string]string{"go.mod": "module example.test/m\n"}
+	packages := map[string][]string{}
+	for index := range 48 {
+		packages[fmt.Sprintf("d%02d", index)] = []string{"data/"}
+	}
+	for index := range 16 {
+		packages[fmt.Sprintf("a%02d/b/c", index)] = []string{"data/"}
+	}
+	for directory := range packages {
+		files[directory+"/x.go"] = "package x\n"
+	}
+	declaration, err := json.Marshal(map[string]any{"profile": golang.ReadScopesProfile, "packages": packages})
+	if err != nil {
+		t.Fatal(err)
+	}
+	files[affected.ReadScopesPath] = string(declaration)
+	writeFiles(t, root, files)
+	runGit(t, gitExecutable, root, "init", "-q")
+	runGit(t, gitExecutable, root, "add", "-A")
+	runGit(t, gitExecutable, root, "commit", "-q", "-m", "base")
+	head, err := exec.Command(gitExecutable, "-C", root, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	commit := strings.TrimSpace(string(head))
+	// 16 operations cover the commit, the root, .corvint and declaration
+	// reads and go.mod, but not one listing per declared directory.
+	golang.SetReadScopeOperations(t, 16, 2)
+	prior, err := golang.CommittedReadScopes(context.Background(), root, commit)
+	if err != nil || len(prior) != len(packages) {
+		t.Fatalf("scaled budget: CommittedReadScopes = %d packages, %v; want %d", len(prior), err, len(packages))
+	}
+	golang.SetReadScopeOperations(t, 16, 0)
+	if _, err := golang.CommittedReadScopes(context.Background(), root, commit); cemcode.CodeOf(err) != cemcode.GitBudgetExceeded {
+		t.Fatalf("unscaled budget: CommittedReadScopes error %v; want git-budget-exceeded", err)
 	}
 }

@@ -2,15 +2,11 @@ package dogfoodflow
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os/exec"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
 // changeCoverage is what the check SUMMARY's requirements, linked and
@@ -361,33 +357,4 @@ func (f *flow) testsNaming(referenced, traced map[string]bool) bool {
 		}
 	}
 	return true
-}
-
-// boundedGit is flow.git with its stdout capped at maxRequirementsBytes; a
-// longer output stops the read and reports it unbounded (NOT_OBSERVED).
-func (f *flow) boundedGit(args ...string) (string, int, bool) {
-	f.checkpoint()
-	stdout := &cappedOutput{limit: maxRequirementsBytes}
-	command := exec.CommandContext(f.ctx, "git", append([]string{"--no-optional-locks", "-C", f.root, "-c", "credential.helper=",
-		"-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false"}, args...)...)
-	command.Env = gokernel.SanitizedGitEnvironment()
-	command.Stdout = stdout
-	status := exitStatus(command.Run())
-	f.checkpoint()
-	return stdout.text.String(), status, !stdout.overflow
-}
-
-// cappedOutput keeps at most limit bytes and refuses the write that exceeds it.
-type cappedOutput struct {
-	text     strings.Builder
-	limit    int
-	overflow bool
-}
-
-func (output *cappedOutput) Write(data []byte) (int, error) {
-	if output.text.Len()+len(data) > output.limit {
-		output.overflow = true
-		return 0, errors.New("git output exceeds its bound")
-	}
-	return output.text.Write(data)
 }

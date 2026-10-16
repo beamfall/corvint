@@ -72,6 +72,9 @@ type Report struct {
 	// request would run that program again or replay the step without finishing
 	// it, so the result is never retryable (CAL-V0-078).
 	Unretryable bool
+	// GateReusedFrom names the earlier result a committed gate run reused
+	// instead of executing the gate, nil otherwise (CAL-V0-240).
+	GateReusedFrom *GateReuse
 	// Ticket is the ticket a committed mutation wrote, read back from the
 	// receipt rather than from the request: a CREATE that allocated a serial
 	// learns its own id here and nowhere else.
@@ -102,6 +105,10 @@ type Report struct {
 	// ScopeWarnings are the CAL-V0-211 warnings of a fresh claim: each
 	// exact PATH key of its scope that names a directory at its base commit.
 	ScopeWarnings []string
+	// ReplayWarnings are the CAL-V0-236 advisories of a replayed lease
+	// command whose attempt has since moved to another generation. They are
+	// outside the replayed outcome, which stays the original.
+	ReplayWarnings []string
 }
 
 // ReapReceipt identifies one fresh per-attempt reap transaction.
