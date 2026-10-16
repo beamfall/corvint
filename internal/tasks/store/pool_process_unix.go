@@ -251,7 +251,9 @@ func executePoolCapturedGuarded(ctx context.Context, def *intent.PoolCommand, ro
 	cmd := exec.CommandContext(run, def.Argv[0], def.Argv[1:]...)
 	cmd.Dir = root
 	cmd.Env = env
-	cmd.WaitDelay = time.Second
+	// PSR-V0-023: a sweep's pipe delay scales with its budget; outside a
+	// sweep it stays the fixed 1s, and an expired delay is still UNKNOWN.
+	cmd.WaitDelay = sweepScaledBound(ctx, time.Second)
 	// Cancellation and overflow kill only the leader; Drain SIGKILLs the
 	// group after the output drains (a pipe holder past the delay is still
 	// exec.ErrWaitDelay) and while the exited leader is unreaped (V1-1036).
@@ -311,7 +313,9 @@ func executePoolCapturedGuarded(ctx context.Context, def *intent.PoolCommand, ro
 		}
 		result.Bound = result.Class
 	}
-	cleanup, cancelCleanup := context.WithTimeout(context.Background(), poolCleanupAllowance)
+	// The allowance stays the recorded 5s; only its group probes keep the
+	// sweep's scaled bounds (PSR-V0-023), never a test lift.
+	cleanup, cancelCleanup := context.WithTimeout(sweepBudgetOnly(ctx), poolCleanupAllowance)
 	defer cancelCleanup()
 	// Observation only: no group signal follows the reap.
 	live, probeErr := poolGroupLiveContext(cleanup, cmd.Process.Pid)
