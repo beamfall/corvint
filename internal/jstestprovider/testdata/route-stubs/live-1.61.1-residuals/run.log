@@ -1,0 +1,9 @@
+
+Running 5 tests using 1 worker
+
+[1/5] [alpha] › tests/residuals.spec.cjs:8:1 › browser.newContext stubs are recorded
+[2/5] [alpha] › tests/residuals.spec.cjs:18:1 › browser.newPage stubs are recorded
+[3/5] [alpha] › tests/residuals.spec.cjs:26:1 › routeWebSocket stubs are recorded
+[4/5] [alpha] › tests/residuals.spec.cjs:33:1 › routeFromHAR stubs are recorded
+[5/5] [alpha] › tests/residuals.spec.cjs:40:1 › no browser fixture
+  5 passed (2.2s)

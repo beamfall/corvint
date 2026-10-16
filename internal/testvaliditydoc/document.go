@@ -191,7 +191,7 @@ func hasQualifiedMetadata(r jstestprovider.Receipt) bool {
 // observations. No carried projection is consulted.
 func Project(input Input) Document {
 	if input.js != nil {
-		return projectJavaScript(*input.js)
+		return projectJavaScript(*input.js, false)
 	}
 	if input.goSession != nil {
 		return projectGoSession(*input.goSession)
@@ -199,9 +199,20 @@ func Project(input Input) Document {
 	return Unsupported()
 }
 
-func projectJavaScript(receipt jstestprovider.Receipt) Document {
+// ProjectRouteStubs is Project with the routeStubs member requested (LPCV-V0-077): every test of a
+// JavaScript receipt carries it, so a receipt without any producer record, or a profiled one, states
+// NOT_PRODUCED with an explicit reason instead of omitting the member. Project keeps the omission
+// and every legacy byte.
+func ProjectRouteStubs(input Input) Document {
+	if input.js != nil {
+		return projectJavaScript(*input.js, true)
+	}
+	return Project(input)
+}
+
+func projectJavaScript(receipt jstestprovider.Receipt, routeStubsRequested bool) Document {
 	tests := make([]Test, 0, len(receipt.Tests))
-	stubs := routeStubEvidence(receipt)
+	stubs := routeStubEvidence(receipt, routeStubsRequested)
 	for i, outcome := range receipt.Tests {
 		test := Test{ID: outcome.ID, Project: outcome.Project, Attempts: outcome.Attempts, Name: outcome.Name, State: string(outcome.State), Projection: jstestprovider.ReceiptTestProjection(receipt, outcome)}
 		if stubs != nil {

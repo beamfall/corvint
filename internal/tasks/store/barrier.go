@@ -21,8 +21,11 @@ type BarrierRequest struct{ QueueID, RequestID, Operation string }
 
 // Barrier applies a settled fixture pause/unpause under the recorded local
 // operator premise. A pending receipt is settled first (§5.2 redo); active
-// staging requires separate recovery.
-func Barrier(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice BarrierRequest, now wire.Timestamp) (*Report, error) {
+// staging requires separate recovery. An intent-location refusal, which the
+// barrier meets only through that redo, carries the CTW-V0-007 repair text
+// (V1-1059).
+func Barrier(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice BarrierRequest, now wire.Timestamp) (out *Report, outErr error) {
+	defer func() { out, outErr = intentFix(repo, out, outErr) }()
 	return barrier(ctx, repo, actor, choice, now, nil, nil)
 }
 
