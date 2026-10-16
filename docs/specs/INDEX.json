@@ -3654,7 +3654,7 @@
     "title": "Session Test Runner V0",
     "reqPrefix": "STR-V0",
     "intent": "accepted (decision 0524; V1-0040)",
-    "delivery": "experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate; slice 3: `make gate-affected` on `corvint test`, CI shadow dry-run beside the driver)",
+    "delivery": "experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate; slice 3: `make gate-affected` on `corvint test`, CI shadow dry-run beside the driver; V1-1257: the promotion measurements are met, `docs/build-log/2026-10-16-v1-1257-str-v0-promotion-evidence.md`, but STR-V0-004's versioned capability manifest and STR-V0-011 have no executable evidence yet)",
     "claim": "`corvint test` plans from the diff, runs only selected tests through runner adapters, shards deterministically, and falls back alike locally and in CI.",
     "dependsOn": [
       "docs/specs/affected-plan-v0.md",

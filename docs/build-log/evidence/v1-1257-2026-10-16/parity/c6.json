@@ -1,0 +1,1251 @@
+{
+ "categories": {
+  "ci-admission-no-qualification": 16,
+  "ci-closed-environment": 8,
+  "ci-exec-confine": 8,
+  "local-json-flag": 8,
+  "str-v0-004-declared-language": 8
+ },
+ "declarationDigest": "fd182c12dec41bba13fe869f1714f51f97c29467b885f96ab0018c7f53adf292",
+ "end": "e5298bc573e540f2406ef479e25b20356072644a",
+ "pairs": [
+  {
+   "base": "dd90cfa6d8ffe2a0384a79cb77f789dc874a43f2",
+   "ci": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CC=/usr/bin/cc",
+     "CGO_ENABLED=1",
+     "GIT_CONFIG_COUNT=1",
+     "GIT_CONFIG_GLOBAL=/dev/null",
+     "GIT_CONFIG_KEY_0=advice.graftFileDeprecated",
+     "GIT_CONFIG_NOSYSTEM=1",
+     "GIT_CONFIG_VALUE_0=false",
+     "GIT_GRAFT_FILE=/dev/null",
+     "GIT_NO_REPLACE_OBJECTS=1",
+     "GIT_TERMINAL_PROMPT=0",
+     "GOCACHE=$WORK/ci-runtime/cache",
+     "GOENV=off",
+     "GOFLAGS=",
+     "GOMAXPROCS=2",
+     "GOMODCACHE=$WORK/ci-runtime/modules",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off",
+     "HOME=$WORK/ci-runtime/home",
+     "LANG=C",
+     "LC_ALL=C",
+     "PATH=$WORK/bin:/usr/bin:/bin",
+     "TEMP=$WORK/ci-runtime/tmp",
+     "TMP=$WORK/ci-runtime/tmp",
+     "TMPDIR=$WORK/ci-runtime/tmp",
+     "TZ=UTC"
+    ],
+    "packageCount": 319,
+    "reason": "qualification unavailable: no trusted qualification pin",
+    "scope": "FULL"
+   },
+   "ciPlanned": "NARROWED",
+   "corvintCI": {
+    "argv": [
+     "test",
+     "-exec",
+     "/str-parity/test-confine",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CGO_ENABLED=1",
+     "CORVINT_CONFINE_ROOT=$WORK/clone",
+     "GOFLAGS=",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off"
+    ],
+    "packageCount": 136,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "corvintLocal": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 136,
+    "reason": "",
+    "scope": "NARROWED",
+    "declared": [
+     "make shell-test"
+    ]
+   },
+   "differences": [
+    {
+     "category": "local-json-flag",
+     "detail": "corvint [test -json -p 1 -timeout 30m -count=1], driver [test -p 1 -timeout 30m -count=1]",
+     "field": "argv",
+     "profile": "local"
+    },
+    {
+     "category": "str-v0-004-declared-language",
+     "detail": "corvint also runs [make shell-test]",
+     "field": "declared",
+     "profile": "local"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver plans NARROWED and executes FULL: qualification unavailable: no trusted qualification pin",
+     "field": "admission",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver executes 319 packages: corvint only 0 []; driver only 183 [github.com/Beamfall/corvint/benchmarks github.com/Beamfall/corvint/benchmarks/dogfood-measure github.com/Beamfall/corvint/benchmarks/dogfood-workers github.com/Beamfall/corvint/cmd/corvint-analyzer-c-jni github.com/Beamfall/corvint/cmd/corvint-analyzer-dotnet] ...",
+     "field": "executed",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-exec-confine",
+     "detail": "corvint [test -exec /str-parity/test-confine -json -p 1 -count=1 -race -timeout 50m], driver [test -json -p 1 -count=1 -race -timeout 50m]",
+     "field": "argv",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-closed-environment",
+     "detail": "corvint [CGO_ENABLED=1 CORVINT_CONFINE_ROOT=$WORK/clone GOFLAGS= GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off], driver [CC=/usr/bin/cc CGO_ENABLED=1 GIT_CONFIG_COUNT=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_KEY_0=advice.graftFileDeprecated GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_VALUE_0=false GIT_GRAFT_FILE=/dev/null GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 GOCACHE=$WORK/ci-runtime/cache GOENV=off GOFLAGS= GOMAXPROCS=2 GOMODCACHE=$WORK/ci-runtime/modules GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off HOME=$WORK/ci-runtime/home LANG=C LC_ALL=C PATH=$WORK/bin:/usr/bin:/bin TEMP=$WORK/ci-runtime/tmp TMP=$WORK/ci-runtime/tmp TMPDIR=$WORK/ci-runtime/tmp TZ=UTC]",
+     "field": "env",
+     "profile": "ci"
+    }
+   ],
+   "head": "05db1ec8b00bbab69eb1685fab2db59a124ed7ce",
+   "local": {
+    "argv": [
+     "test",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 136,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "target": "99f6a03f25e0c7680d7d17d0d5dbb4bc87a19d99",
+   "ciPlannedPackageCount": 136,
+   "universeCount": 319
+  },
+  {
+   "base": "99f6a03f25e0c7680d7d17d0d5dbb4bc87a19d99",
+   "ci": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CC=/usr/bin/cc",
+     "CGO_ENABLED=1",
+     "GIT_CONFIG_COUNT=1",
+     "GIT_CONFIG_GLOBAL=/dev/null",
+     "GIT_CONFIG_KEY_0=advice.graftFileDeprecated",
+     "GIT_CONFIG_NOSYSTEM=1",
+     "GIT_CONFIG_VALUE_0=false",
+     "GIT_GRAFT_FILE=/dev/null",
+     "GIT_NO_REPLACE_OBJECTS=1",
+     "GIT_TERMINAL_PROMPT=0",
+     "GOCACHE=$WORK/ci-runtime/cache",
+     "GOENV=off",
+     "GOFLAGS=",
+     "GOMAXPROCS=2",
+     "GOMODCACHE=$WORK/ci-runtime/modules",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off",
+     "HOME=$WORK/ci-runtime/home",
+     "LANG=C",
+     "LC_ALL=C",
+     "PATH=$WORK/bin:/usr/bin:/bin",
+     "TEMP=$WORK/ci-runtime/tmp",
+     "TMP=$WORK/ci-runtime/tmp",
+     "TMPDIR=$WORK/ci-runtime/tmp",
+     "TZ=UTC"
+    ],
+    "packageCount": 319,
+    "reason": "qualification unavailable: no trusted qualification pin",
+    "scope": "FULL"
+   },
+   "ciPlanned": "NARROWED",
+   "corvintCI": {
+    "argv": [
+     "test",
+     "-exec",
+     "/str-parity/test-confine",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CGO_ENABLED=1",
+     "CORVINT_CONFINE_ROOT=$WORK/clone",
+     "GOFLAGS=",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off"
+    ],
+    "packageCount": 198,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "corvintLocal": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 198,
+    "reason": "",
+    "scope": "NARROWED",
+    "declared": [
+     "make shell-test"
+    ]
+   },
+   "differences": [
+    {
+     "category": "local-json-flag",
+     "detail": "corvint [test -json -p 1 -timeout 30m -count=1], driver [test -p 1 -timeout 30m -count=1]",
+     "field": "argv",
+     "profile": "local"
+    },
+    {
+     "category": "str-v0-004-declared-language",
+     "detail": "corvint also runs [make shell-test]",
+     "field": "declared",
+     "profile": "local"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver plans NARROWED and executes FULL: qualification unavailable: no trusted qualification pin",
+     "field": "admission",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver executes 319 packages: corvint only 0 []; driver only 121 [github.com/Beamfall/corvint/benchmarks/dogfood-measure github.com/Beamfall/corvint/cmd/corvint-analyzer-dotnet github.com/Beamfall/corvint/cmd/corvint-analyzer-go github.com/Beamfall/corvint/cmd/corvint-analyzer-html-css github.com/Beamfall/corvint/cmd/corvint-analyzer-js] ...",
+     "field": "executed",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-exec-confine",
+     "detail": "corvint [test -exec /str-parity/test-confine -json -p 1 -count=1 -race -timeout 50m], driver [test -json -p 1 -count=1 -race -timeout 50m]",
+     "field": "argv",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-closed-environment",
+     "detail": "corvint [CGO_ENABLED=1 CORVINT_CONFINE_ROOT=$WORK/clone GOFLAGS= GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off], driver [CC=/usr/bin/cc CGO_ENABLED=1 GIT_CONFIG_COUNT=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_KEY_0=advice.graftFileDeprecated GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_VALUE_0=false GIT_GRAFT_FILE=/dev/null GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 GOCACHE=$WORK/ci-runtime/cache GOENV=off GOFLAGS= GOMAXPROCS=2 GOMODCACHE=$WORK/ci-runtime/modules GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off HOME=$WORK/ci-runtime/home LANG=C LC_ALL=C PATH=$WORK/bin:/usr/bin:/bin TEMP=$WORK/ci-runtime/tmp TMP=$WORK/ci-runtime/tmp TMPDIR=$WORK/ci-runtime/tmp TZ=UTC]",
+     "field": "env",
+     "profile": "ci"
+    }
+   ],
+   "head": "d2d38f2f0d2ccf8844eae991a38120f80d30493e",
+   "local": {
+    "argv": [
+     "test",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 198,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "target": "1120e565a0c55d6dff4b6cbdc16462b1253d2363",
+   "ciPlannedPackageCount": 198,
+   "universeCount": 319
+  },
+  {
+   "base": "1120e565a0c55d6dff4b6cbdc16462b1253d2363",
+   "ci": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CC=/usr/bin/cc",
+     "CGO_ENABLED=1",
+     "GIT_CONFIG_COUNT=1",
+     "GIT_CONFIG_GLOBAL=/dev/null",
+     "GIT_CONFIG_KEY_0=advice.graftFileDeprecated",
+     "GIT_CONFIG_NOSYSTEM=1",
+     "GIT_CONFIG_VALUE_0=false",
+     "GIT_GRAFT_FILE=/dev/null",
+     "GIT_NO_REPLACE_OBJECTS=1",
+     "GIT_TERMINAL_PROMPT=0",
+     "GOCACHE=$WORK/ci-runtime/cache",
+     "GOENV=off",
+     "GOFLAGS=",
+     "GOMAXPROCS=2",
+     "GOMODCACHE=$WORK/ci-runtime/modules",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off",
+     "HOME=$WORK/ci-runtime/home",
+     "LANG=C",
+     "LC_ALL=C",
+     "PATH=$WORK/bin:/usr/bin:/bin",
+     "TEMP=$WORK/ci-runtime/tmp",
+     "TMP=$WORK/ci-runtime/tmp",
+     "TMPDIR=$WORK/ci-runtime/tmp",
+     "TZ=UTC"
+    ],
+    "packageCount": 320,
+    "reason": "qualification unavailable: no trusted qualification pin",
+    "scope": "FULL"
+   },
+   "ciPlanned": "NARROWED",
+   "corvintCI": {
+    "argv": [
+     "test",
+     "-exec",
+     "/str-parity/test-confine",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CGO_ENABLED=1",
+     "CORVINT_CONFINE_ROOT=$WORK/clone",
+     "GOFLAGS=",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off"
+    ],
+    "packageCount": 253,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "corvintLocal": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 253,
+    "reason": "",
+    "scope": "NARROWED",
+    "declared": [
+     "make shell-test"
+    ]
+   },
+   "differences": [
+    {
+     "category": "local-json-flag",
+     "detail": "corvint [test -json -p 1 -timeout 30m -count=1], driver [test -p 1 -timeout 30m -count=1]",
+     "field": "argv",
+     "profile": "local"
+    },
+    {
+     "category": "str-v0-004-declared-language",
+     "detail": "corvint also runs [make shell-test]",
+     "field": "declared",
+     "profile": "local"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver plans NARROWED and executes FULL: qualification unavailable: no trusted qualification pin",
+     "field": "admission",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver executes 320 packages: corvint only 0 []; driver only 67 [github.com/Beamfall/corvint/benchmarks/dogfood-workers github.com/Beamfall/corvint/cmd/corvint-analyzer-dotnet github.com/Beamfall/corvint/cmd/corvint-analyzer-kotlin-android github.com/Beamfall/corvint/cmd/corvint-analyzer-python github.com/Beamfall/corvint/cmd/corvint-analyzer-ruby] ...",
+     "field": "executed",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-exec-confine",
+     "detail": "corvint [test -exec /str-parity/test-confine -json -p 1 -count=1 -race -timeout 50m], driver [test -json -p 1 -count=1 -race -timeout 50m]",
+     "field": "argv",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-closed-environment",
+     "detail": "corvint [CGO_ENABLED=1 CORVINT_CONFINE_ROOT=$WORK/clone GOFLAGS= GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off], driver [CC=/usr/bin/cc CGO_ENABLED=1 GIT_CONFIG_COUNT=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_KEY_0=advice.graftFileDeprecated GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_VALUE_0=false GIT_GRAFT_FILE=/dev/null GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 GOCACHE=$WORK/ci-runtime/cache GOENV=off GOFLAGS= GOMAXPROCS=2 GOMODCACHE=$WORK/ci-runtime/modules GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off HOME=$WORK/ci-runtime/home LANG=C LC_ALL=C PATH=$WORK/bin:/usr/bin:/bin TEMP=$WORK/ci-runtime/tmp TMP=$WORK/ci-runtime/tmp TMPDIR=$WORK/ci-runtime/tmp TZ=UTC]",
+     "field": "env",
+     "profile": "ci"
+    }
+   ],
+   "head": "1efab362224ca0977d29264305e458586b934edf",
+   "local": {
+    "argv": [
+     "test",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 253,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "target": "684cca5f7c0e3e4b4900e07203f63949bc73984f",
+   "ciPlannedPackageCount": 253,
+   "universeCount": 320
+  },
+  {
+   "base": "684cca5f7c0e3e4b4900e07203f63949bc73984f",
+   "ci": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CC=/usr/bin/cc",
+     "CGO_ENABLED=1",
+     "GIT_CONFIG_COUNT=1",
+     "GIT_CONFIG_GLOBAL=/dev/null",
+     "GIT_CONFIG_KEY_0=advice.graftFileDeprecated",
+     "GIT_CONFIG_NOSYSTEM=1",
+     "GIT_CONFIG_VALUE_0=false",
+     "GIT_GRAFT_FILE=/dev/null",
+     "GIT_NO_REPLACE_OBJECTS=1",
+     "GIT_TERMINAL_PROMPT=0",
+     "GOCACHE=$WORK/ci-runtime/cache",
+     "GOENV=off",
+     "GOFLAGS=",
+     "GOMAXPROCS=2",
+     "GOMODCACHE=$WORK/ci-runtime/modules",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off",
+     "HOME=$WORK/ci-runtime/home",
+     "LANG=C",
+     "LC_ALL=C",
+     "PATH=$WORK/bin:/usr/bin:/bin",
+     "TEMP=$WORK/ci-runtime/tmp",
+     "TMP=$WORK/ci-runtime/tmp",
+     "TMPDIR=$WORK/ci-runtime/tmp",
+     "TZ=UTC"
+    ],
+    "packageCount": 320,
+    "reason": "qualification unavailable: no trusted qualification pin",
+    "scope": "FULL"
+   },
+   "ciPlanned": "NARROWED",
+   "corvintCI": {
+    "argv": [
+     "test",
+     "-exec",
+     "/str-parity/test-confine",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CGO_ENABLED=1",
+     "CORVINT_CONFINE_ROOT=$WORK/clone",
+     "GOFLAGS=",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off"
+    ],
+    "packageCount": 246,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "corvintLocal": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 246,
+    "reason": "",
+    "scope": "NARROWED",
+    "declared": [
+     "make shell-test",
+     "make host-adapter-test"
+    ]
+   },
+   "differences": [
+    {
+     "category": "local-json-flag",
+     "detail": "corvint [test -json -p 1 -timeout 30m -count=1], driver [test -p 1 -timeout 30m -count=1]",
+     "field": "argv",
+     "profile": "local"
+    },
+    {
+     "category": "str-v0-004-declared-language",
+     "detail": "corvint also runs [make shell-test make host-adapter-test]",
+     "field": "declared",
+     "profile": "local"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver plans NARROWED and executes FULL: qualification unavailable: no trusted qualification pin",
+     "field": "admission",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver executes 320 packages: corvint only 0 []; driver only 74 [github.com/Beamfall/corvint/cmd/corvint-cem-candidate github.com/Beamfall/corvint/cmd/corvint-cem-experiments github.com/Beamfall/corvint/cmd/corvint-companion-release github.com/Beamfall/corvint/cmd/corvint-go-toolchain-receipt github.com/Beamfall/corvint/cmd/corvint-intake] ...",
+     "field": "executed",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-exec-confine",
+     "detail": "corvint [test -exec /str-parity/test-confine -json -p 1 -count=1 -race -timeout 50m], driver [test -json -p 1 -count=1 -race -timeout 50m]",
+     "field": "argv",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-closed-environment",
+     "detail": "corvint [CGO_ENABLED=1 CORVINT_CONFINE_ROOT=$WORK/clone GOFLAGS= GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off], driver [CC=/usr/bin/cc CGO_ENABLED=1 GIT_CONFIG_COUNT=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_KEY_0=advice.graftFileDeprecated GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_VALUE_0=false GIT_GRAFT_FILE=/dev/null GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 GOCACHE=$WORK/ci-runtime/cache GOENV=off GOFLAGS= GOMAXPROCS=2 GOMODCACHE=$WORK/ci-runtime/modules GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off HOME=$WORK/ci-runtime/home LANG=C LC_ALL=C PATH=$WORK/bin:/usr/bin:/bin TEMP=$WORK/ci-runtime/tmp TMP=$WORK/ci-runtime/tmp TMPDIR=$WORK/ci-runtime/tmp TZ=UTC]",
+     "field": "env",
+     "profile": "ci"
+    }
+   ],
+   "head": "b3a65ec55e903d292a220a39379489df85902bcc",
+   "local": {
+    "argv": [
+     "test",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 246,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "target": "3503617bc74edd90eadeb943308cae2d0603d2d3",
+   "ciPlannedPackageCount": 246,
+   "universeCount": 320
+  },
+  {
+   "base": "3503617bc74edd90eadeb943308cae2d0603d2d3",
+   "ci": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CC=/usr/bin/cc",
+     "CGO_ENABLED=1",
+     "GIT_CONFIG_COUNT=1",
+     "GIT_CONFIG_GLOBAL=/dev/null",
+     "GIT_CONFIG_KEY_0=advice.graftFileDeprecated",
+     "GIT_CONFIG_NOSYSTEM=1",
+     "GIT_CONFIG_VALUE_0=false",
+     "GIT_GRAFT_FILE=/dev/null",
+     "GIT_NO_REPLACE_OBJECTS=1",
+     "GIT_TERMINAL_PROMPT=0",
+     "GOCACHE=$WORK/ci-runtime/cache",
+     "GOENV=off",
+     "GOFLAGS=",
+     "GOMAXPROCS=2",
+     "GOMODCACHE=$WORK/ci-runtime/modules",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off",
+     "HOME=$WORK/ci-runtime/home",
+     "LANG=C",
+     "LC_ALL=C",
+     "PATH=$WORK/bin:/usr/bin:/bin",
+     "TEMP=$WORK/ci-runtime/tmp",
+     "TMP=$WORK/ci-runtime/tmp",
+     "TMPDIR=$WORK/ci-runtime/tmp",
+     "TZ=UTC"
+    ],
+    "packageCount": 320,
+    "reason": "qualification unavailable: no trusted qualification pin",
+    "scope": "FULL"
+   },
+   "ciPlanned": "NARROWED",
+   "corvintCI": {
+    "argv": [
+     "test",
+     "-exec",
+     "/str-parity/test-confine",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CGO_ENABLED=1",
+     "CORVINT_CONFINE_ROOT=$WORK/clone",
+     "GOFLAGS=",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off"
+    ],
+    "packageCount": 234,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "corvintLocal": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 234,
+    "reason": "",
+    "scope": "NARROWED",
+    "declared": [
+     "make shell-test",
+     "make host-adapter-test"
+    ]
+   },
+   "differences": [
+    {
+     "category": "local-json-flag",
+     "detail": "corvint [test -json -p 1 -timeout 30m -count=1], driver [test -p 1 -timeout 30m -count=1]",
+     "field": "argv",
+     "profile": "local"
+    },
+    {
+     "category": "str-v0-004-declared-language",
+     "detail": "corvint also runs [make shell-test make host-adapter-test]",
+     "field": "declared",
+     "profile": "local"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver plans NARROWED and executes FULL: qualification unavailable: no trusted qualification pin",
+     "field": "admission",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver executes 320 packages: corvint only 0 []; driver only 86 [github.com/Beamfall/corvint/benchmarks/dogfood-measure github.com/Beamfall/corvint/cmd/corvint-analyzer-c-jni github.com/Beamfall/corvint/cmd/corvint-analyzer-dotnet github.com/Beamfall/corvint/cmd/corvint-analyzer-java github.com/Beamfall/corvint/cmd/corvint-analyzer-js] ...",
+     "field": "executed",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-exec-confine",
+     "detail": "corvint [test -exec /str-parity/test-confine -json -p 1 -count=1 -race -timeout 50m], driver [test -json -p 1 -count=1 -race -timeout 50m]",
+     "field": "argv",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-closed-environment",
+     "detail": "corvint [CGO_ENABLED=1 CORVINT_CONFINE_ROOT=$WORK/clone GOFLAGS= GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off], driver [CC=/usr/bin/cc CGO_ENABLED=1 GIT_CONFIG_COUNT=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_KEY_0=advice.graftFileDeprecated GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_VALUE_0=false GIT_GRAFT_FILE=/dev/null GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 GOCACHE=$WORK/ci-runtime/cache GOENV=off GOFLAGS= GOMAXPROCS=2 GOMODCACHE=$WORK/ci-runtime/modules GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off HOME=$WORK/ci-runtime/home LANG=C LC_ALL=C PATH=$WORK/bin:/usr/bin:/bin TEMP=$WORK/ci-runtime/tmp TMP=$WORK/ci-runtime/tmp TMPDIR=$WORK/ci-runtime/tmp TZ=UTC]",
+     "field": "env",
+     "profile": "ci"
+    }
+   ],
+   "head": "a9004d910408368592936fc0a53853a17de50ef1",
+   "local": {
+    "argv": [
+     "test",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 234,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "target": "136d905e4a06cb41dfbc8534e6cd24a5fe380eb7",
+   "ciPlannedPackageCount": 234,
+   "universeCount": 320
+  },
+  {
+   "base": "136d905e4a06cb41dfbc8534e6cd24a5fe380eb7",
+   "ci": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CC=/usr/bin/cc",
+     "CGO_ENABLED=1",
+     "GIT_CONFIG_COUNT=1",
+     "GIT_CONFIG_GLOBAL=/dev/null",
+     "GIT_CONFIG_KEY_0=advice.graftFileDeprecated",
+     "GIT_CONFIG_NOSYSTEM=1",
+     "GIT_CONFIG_VALUE_0=false",
+     "GIT_GRAFT_FILE=/dev/null",
+     "GIT_NO_REPLACE_OBJECTS=1",
+     "GIT_TERMINAL_PROMPT=0",
+     "GOCACHE=$WORK/ci-runtime/cache",
+     "GOENV=off",
+     "GOFLAGS=",
+     "GOMAXPROCS=2",
+     "GOMODCACHE=$WORK/ci-runtime/modules",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off",
+     "HOME=$WORK/ci-runtime/home",
+     "LANG=C",
+     "LC_ALL=C",
+     "PATH=$WORK/bin:/usr/bin:/bin",
+     "TEMP=$WORK/ci-runtime/tmp",
+     "TMP=$WORK/ci-runtime/tmp",
+     "TMPDIR=$WORK/ci-runtime/tmp",
+     "TZ=UTC"
+    ],
+    "packageCount": 320,
+    "reason": "qualification unavailable: no trusted qualification pin",
+    "scope": "FULL"
+   },
+   "ciPlanned": "NARROWED",
+   "corvintCI": {
+    "argv": [
+     "test",
+     "-exec",
+     "/str-parity/test-confine",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CGO_ENABLED=1",
+     "CORVINT_CONFINE_ROOT=$WORK/clone",
+     "GOFLAGS=",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off"
+    ],
+    "packageCount": 130,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "corvintLocal": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 130,
+    "reason": "",
+    "scope": "NARROWED",
+    "declared": [
+     "make shell-test",
+     "make host-adapter-test"
+    ]
+   },
+   "differences": [
+    {
+     "category": "local-json-flag",
+     "detail": "corvint [test -json -p 1 -timeout 30m -count=1], driver [test -p 1 -timeout 30m -count=1]",
+     "field": "argv",
+     "profile": "local"
+    },
+    {
+     "category": "str-v0-004-declared-language",
+     "detail": "corvint also runs [make shell-test make host-adapter-test]",
+     "field": "declared",
+     "profile": "local"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver plans NARROWED and executes FULL: qualification unavailable: no trusted qualification pin",
+     "field": "admission",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver executes 320 packages: corvint only 0 []; driver only 190 [github.com/Beamfall/corvint/benchmarks github.com/Beamfall/corvint/benchmarks/dogfood-measure github.com/Beamfall/corvint/benchmarks/dogfood-workers github.com/Beamfall/corvint/cmd/corvint-analyzer-c-jni github.com/Beamfall/corvint/cmd/corvint-analyzer-dotnet] ...",
+     "field": "executed",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-exec-confine",
+     "detail": "corvint [test -exec /str-parity/test-confine -json -p 1 -count=1 -race -timeout 50m], driver [test -json -p 1 -count=1 -race -timeout 50m]",
+     "field": "argv",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-closed-environment",
+     "detail": "corvint [CGO_ENABLED=1 CORVINT_CONFINE_ROOT=$WORK/clone GOFLAGS= GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off], driver [CC=/usr/bin/cc CGO_ENABLED=1 GIT_CONFIG_COUNT=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_KEY_0=advice.graftFileDeprecated GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_VALUE_0=false GIT_GRAFT_FILE=/dev/null GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 GOCACHE=$WORK/ci-runtime/cache GOENV=off GOFLAGS= GOMAXPROCS=2 GOMODCACHE=$WORK/ci-runtime/modules GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off HOME=$WORK/ci-runtime/home LANG=C LC_ALL=C PATH=$WORK/bin:/usr/bin:/bin TEMP=$WORK/ci-runtime/tmp TMP=$WORK/ci-runtime/tmp TMPDIR=$WORK/ci-runtime/tmp TZ=UTC]",
+     "field": "env",
+     "profile": "ci"
+    }
+   ],
+   "head": "ae80d3367df05c801aecf47d6e92105cfdcec670",
+   "local": {
+    "argv": [
+     "test",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 130,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "target": "016bbd17488c9cc821d1fcc4b5f934efa5a1421f",
+   "ciPlannedPackageCount": 130,
+   "universeCount": 320
+  },
+  {
+   "base": "016bbd17488c9cc821d1fcc4b5f934efa5a1421f",
+   "ci": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CC=/usr/bin/cc",
+     "CGO_ENABLED=1",
+     "GIT_CONFIG_COUNT=1",
+     "GIT_CONFIG_GLOBAL=/dev/null",
+     "GIT_CONFIG_KEY_0=advice.graftFileDeprecated",
+     "GIT_CONFIG_NOSYSTEM=1",
+     "GIT_CONFIG_VALUE_0=false",
+     "GIT_GRAFT_FILE=/dev/null",
+     "GIT_NO_REPLACE_OBJECTS=1",
+     "GIT_TERMINAL_PROMPT=0",
+     "GOCACHE=$WORK/ci-runtime/cache",
+     "GOENV=off",
+     "GOFLAGS=",
+     "GOMAXPROCS=2",
+     "GOMODCACHE=$WORK/ci-runtime/modules",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off",
+     "HOME=$WORK/ci-runtime/home",
+     "LANG=C",
+     "LC_ALL=C",
+     "PATH=$WORK/bin:/usr/bin:/bin",
+     "TEMP=$WORK/ci-runtime/tmp",
+     "TMP=$WORK/ci-runtime/tmp",
+     "TMPDIR=$WORK/ci-runtime/tmp",
+     "TZ=UTC"
+    ],
+    "packageCount": 320,
+    "reason": "qualification unavailable: no trusted qualification pin",
+    "scope": "FULL"
+   },
+   "ciPlanned": "NARROWED",
+   "corvintCI": {
+    "argv": [
+     "test",
+     "-exec",
+     "/str-parity/test-confine",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CGO_ENABLED=1",
+     "CORVINT_CONFINE_ROOT=$WORK/clone",
+     "GOFLAGS=",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off"
+    ],
+    "packageCount": 176,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "corvintLocal": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 176,
+    "reason": "",
+    "scope": "NARROWED",
+    "declared": [
+     "make shell-test"
+    ]
+   },
+   "differences": [
+    {
+     "category": "local-json-flag",
+     "detail": "corvint [test -json -p 1 -timeout 30m -count=1], driver [test -p 1 -timeout 30m -count=1]",
+     "field": "argv",
+     "profile": "local"
+    },
+    {
+     "category": "str-v0-004-declared-language",
+     "detail": "corvint also runs [make shell-test]",
+     "field": "declared",
+     "profile": "local"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver plans NARROWED and executes FULL: qualification unavailable: no trusted qualification pin",
+     "field": "admission",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver executes 320 packages: corvint only 0 []; driver only 144 [github.com/Beamfall/corvint/benchmarks github.com/Beamfall/corvint/benchmarks/dogfood-measure github.com/Beamfall/corvint/benchmarks/dogfood-workers github.com/Beamfall/corvint/cmd/corvint-analyzer-dotnet github.com/Beamfall/corvint/cmd/corvint-analyzer-html-css] ...",
+     "field": "executed",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-exec-confine",
+     "detail": "corvint [test -exec /str-parity/test-confine -json -p 1 -count=1 -race -timeout 50m], driver [test -json -p 1 -count=1 -race -timeout 50m]",
+     "field": "argv",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-closed-environment",
+     "detail": "corvint [CGO_ENABLED=1 CORVINT_CONFINE_ROOT=$WORK/clone GOFLAGS= GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off], driver [CC=/usr/bin/cc CGO_ENABLED=1 GIT_CONFIG_COUNT=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_KEY_0=advice.graftFileDeprecated GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_VALUE_0=false GIT_GRAFT_FILE=/dev/null GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 GOCACHE=$WORK/ci-runtime/cache GOENV=off GOFLAGS= GOMAXPROCS=2 GOMODCACHE=$WORK/ci-runtime/modules GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off HOME=$WORK/ci-runtime/home LANG=C LC_ALL=C PATH=$WORK/bin:/usr/bin:/bin TEMP=$WORK/ci-runtime/tmp TMP=$WORK/ci-runtime/tmp TMPDIR=$WORK/ci-runtime/tmp TZ=UTC]",
+     "field": "env",
+     "profile": "ci"
+    }
+   ],
+   "head": "98fe9d2f4ed075f3bb38f0951837ef54f448a808",
+   "local": {
+    "argv": [
+     "test",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 176,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "target": "8a0959922aa08d70bcb7151efffc604cc584b482",
+   "ciPlannedPackageCount": 176,
+   "universeCount": 320
+  },
+  {
+   "base": "8a0959922aa08d70bcb7151efffc604cc584b482",
+   "ci": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CC=/usr/bin/cc",
+     "CGO_ENABLED=1",
+     "GIT_CONFIG_COUNT=1",
+     "GIT_CONFIG_GLOBAL=/dev/null",
+     "GIT_CONFIG_KEY_0=advice.graftFileDeprecated",
+     "GIT_CONFIG_NOSYSTEM=1",
+     "GIT_CONFIG_VALUE_0=false",
+     "GIT_GRAFT_FILE=/dev/null",
+     "GIT_NO_REPLACE_OBJECTS=1",
+     "GIT_TERMINAL_PROMPT=0",
+     "GOCACHE=$WORK/ci-runtime/cache",
+     "GOENV=off",
+     "GOFLAGS=",
+     "GOMAXPROCS=2",
+     "GOMODCACHE=$WORK/ci-runtime/modules",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off",
+     "HOME=$WORK/ci-runtime/home",
+     "LANG=C",
+     "LC_ALL=C",
+     "PATH=$WORK/bin:/usr/bin:/bin",
+     "TEMP=$WORK/ci-runtime/tmp",
+     "TMP=$WORK/ci-runtime/tmp",
+     "TMPDIR=$WORK/ci-runtime/tmp",
+     "TZ=UTC"
+    ],
+    "packageCount": 320,
+    "reason": "qualification unavailable: no trusted qualification pin",
+    "scope": "FULL"
+   },
+   "ciPlanned": "NARROWED",
+   "corvintCI": {
+    "argv": [
+     "test",
+     "-exec",
+     "/str-parity/test-confine",
+     "-json",
+     "-p",
+     "1",
+     "-count=1",
+     "-race",
+     "-timeout",
+     "50m"
+    ],
+    "env": [
+     "CGO_ENABLED=1",
+     "CORVINT_CONFINE_ROOT=$WORK/clone",
+     "GOFLAGS=",
+     "GOPROXY=off",
+     "GOSUMDB=off",
+     "GOTOOLCHAIN=local",
+     "GOWORK=off"
+    ],
+    "packageCount": 200,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "corvintLocal": {
+    "argv": [
+     "test",
+     "-json",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 200,
+    "reason": "",
+    "scope": "NARROWED",
+    "declared": [
+     "make shell-test",
+     "make host-adapter-test"
+    ]
+   },
+   "differences": [
+    {
+     "category": "local-json-flag",
+     "detail": "corvint [test -json -p 1 -timeout 30m -count=1], driver [test -p 1 -timeout 30m -count=1]",
+     "field": "argv",
+     "profile": "local"
+    },
+    {
+     "category": "str-v0-004-declared-language",
+     "detail": "corvint also runs [make shell-test make host-adapter-test]",
+     "field": "declared",
+     "profile": "local"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver plans NARROWED and executes FULL: qualification unavailable: no trusted qualification pin",
+     "field": "admission",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-admission-no-qualification",
+     "detail": "driver executes 320 packages: corvint only 0 []; driver only 120 [github.com/Beamfall/corvint/benchmarks/dogfood-measure github.com/Beamfall/corvint/benchmarks/dogfood-workers github.com/Beamfall/corvint/cmd/corvint-analyzer-dotnet github.com/Beamfall/corvint/cmd/corvint-analyzer-kotlin-android github.com/Beamfall/corvint/cmd/corvint-analyzer-python] ...",
+     "field": "executed",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-exec-confine",
+     "detail": "corvint [test -exec /str-parity/test-confine -json -p 1 -count=1 -race -timeout 50m], driver [test -json -p 1 -count=1 -race -timeout 50m]",
+     "field": "argv",
+     "profile": "ci"
+    },
+    {
+     "category": "ci-closed-environment",
+     "detail": "corvint [CGO_ENABLED=1 CORVINT_CONFINE_ROOT=$WORK/clone GOFLAGS= GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off], driver [CC=/usr/bin/cc CGO_ENABLED=1 GIT_CONFIG_COUNT=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_KEY_0=advice.graftFileDeprecated GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_VALUE_0=false GIT_GRAFT_FILE=/dev/null GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 GOCACHE=$WORK/ci-runtime/cache GOENV=off GOFLAGS= GOMAXPROCS=2 GOMODCACHE=$WORK/ci-runtime/modules GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOWORK=off HOME=$WORK/ci-runtime/home LANG=C LC_ALL=C PATH=$WORK/bin:/usr/bin:/bin TEMP=$WORK/ci-runtime/tmp TMP=$WORK/ci-runtime/tmp TMPDIR=$WORK/ci-runtime/tmp TZ=UTC]",
+     "field": "env",
+     "profile": "ci"
+    }
+   ],
+   "head": "ddfc4a2ee471216957ad4cc38e3fe60d2e80e36c",
+   "local": {
+    "argv": [
+     "test",
+     "-p",
+     "1",
+     "-timeout",
+     "30m",
+     "-count=1"
+    ],
+    "env": [
+     "GOCACHE=/tmp/corvint-go-build-cache",
+     "GOTOOLCHAIN=local"
+    ],
+    "packageCount": 200,
+    "reason": "",
+    "scope": "NARROWED"
+   },
+   "target": "e5298bc573e540f2406ef479e25b20356072644a",
+   "ciPlannedPackageCount": 200,
+   "universeCount": 320
+  }
+ ],
+ "profile": "corvint-str-parity/0",
+ "source": "08195a48314d9cf0a8bdeeeb92ba8ab932b52c9a"
+}
