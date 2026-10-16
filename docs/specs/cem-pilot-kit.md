@@ -242,8 +242,11 @@ Walkthrough pointer (V1-1263, `CEM-V1-083`, informative): the timed run from `ce
 non-Corvint repository with no `.taskman/` to a provider-neutral `cem/1.0` map accepted by both
 `corvint cem verify-stable` and `cem01-go verify-stable-canonical` is recorded in
 `docs/build-log/2026-10-12-cem-neutral-criterion-walkthrough.md`, with every refusal met on the
-way. No producer emits the plain criterion form yet, so that step is hand-assembled; the public
-case is `protocol/cem-1.0/stable/neutral-criterion/`.
+way; its map was hand-assembled. Since V1-1290 (`CEM-V1-240`) the walkthrough to follow is
+`docs/build-log/2026-10-15-cem-plain-criterion-producer.md`: after `cem prepare` and `cem cite`,
+`corvint-cem-candidate assemble-stable --experimental` with a `cem-stable-plain-assembly/1` request
+emits the plain map with no Tasks store and no hand-assembly step. The public case is
+`protocol/cem-1.0/stable/neutral-criterion/`, which the producer re-produces byte for byte.
 
 ### Workflow recipes
 
