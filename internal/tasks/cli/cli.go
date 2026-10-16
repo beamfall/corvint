@@ -377,7 +377,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks pending; corvint-tasks program show",
 		"corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 		"corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
-		"corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]",
+		"corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]   (ticket fields such as body and acceptanceCriteria live under record.: --fields record.body,record.acceptanceCriteria; an unknown key is refused naming the valid keys)",
 		"corvint-tasks ticket blockers <ticketId|local>",
 		"corvint-tasks ticket export [--offset N] [--limit N]",
 		"corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]",
