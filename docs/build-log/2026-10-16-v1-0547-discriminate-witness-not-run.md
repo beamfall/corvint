@@ -35,9 +35,11 @@ There are two causes, and both produce the same envelope.
    enforcement can be relaxed without running mutants unsandboxed.
 2. Host load, a test defect found while reproducing. The runner gives each `go test` the limit
    `wallTime / (maxMutants + 1)`, and the command is killed 5 s after that. The test passed
-   `WallTime: "5m"`, so the limit was 300/7 = 42.9 s. Every run builds from a fresh `GOCACHE`. A
-   cold sandboxed `go test` of the fixture package with the runner's exact environment and
-   profile measured 74.5 s at load 58-62, and 6.5 s warm. The killed run has no verdict, so
+   `WallTime: "5m"`, so the limit was 300/7 = 42.9 s. Each discrimination request opens one
+   workspace whose build cache starts empty and is shared by that request's runs (`mutate.Open`,
+   `Export.Judge`; `resetScratch` clears only scratch), so the request's first `go test` builds
+   cold. A cold sandboxed `go test` of the fixture package with the runner's exact environment
+   and profile measured 74.5 s at load 58-62, and 6.5 s warm. The killed run has no verdict, so
    `runBroken` reports `run ended without a verdict`. With a 30-minute wall time, the same probe
    at load 71-77 returned `discriminates 1` (Mutants 4, Killed 4) and `notRun 1` in 2 min 27 s.
 
@@ -47,15 +49,19 @@ There are two causes, and both produce the same envelope.
   performance budget (decision 0082). That gives each run a limit of about 171 s, above the
   measured 74.5 s cold build. The asserted `Bounds.WallTimeSeconds` is 1200.
 - When the strong run's first witness detail ends with `mutate.ErrSandboxUnavailable`'s fixed
-  text, the test skips with that detail. The detail is the runner's own fixed sentinel
+  text and its state is `not-run`, the test skips with that detail. The skip comes after the
+  assertions that do not depend on the sandbox: envelope and witness tree revision, selection
+  digest, bounds, spec and the second hunk's `hunk limit 1 reached` witness. The detail is the
+  runner's own fixed sentinel
   (`TCQ-V0-059`), and the fixture package is the test's own, so repository output cannot reach
   the skip. On any other envelope mismatch, the test now prints both witnesses instead of the
   bare counts.
 - Rejected: probing nesting in `HostSandbox`. That would turn a nested host from `not-run
   (sandbox unavailable)` into `cited tests cannot be sandboxed`, which changes
   `prove --mutate`'s exit contract. V1-0651 rejected the same change for that reason.
-- Rejected: a shared or warm `GOCACHE` across mutant runs. That would weaken run isolation and
-  is a product change outside this spike.
+- Rejected: seeding the request's cache from a warm cache. `Request.CacheDir` must never be the
+  host's own build cache, and any change to cache provisioning is a product change outside this
+  spike.
 
 ## Evidence
 
@@ -67,10 +73,13 @@ There are two causes, and both produce the same envelope.
 | fixed | this change | nested `codex sandbox -P :workspace` | 63-69 | SKIP `host refused the nested sandbox: mutation runner failed for pkg/calc/calc_test.go: mutate: sandbox unavailable: ...` |
 | mutation 1: skip removed | this change minus the skip | nested | 63-69 | FAIL; the first witness printed carries the sandbox-unavailable detail, the second `hunk limit 1 reached` |
 | mutation 2: wall time 5m/300 | this change with the old bound | default shell | 66-60 | FAIL `run ended without a verdict`, strong 58.1 s |
+| fixed after review | invariants before the skip | nested | 83-71 | SKIP, same detail, after the invariant assertions passed |
+| mutation 3: expected bounds 300 s | review fix with a wrong bounds expectation | nested | 68-70 | FAIL on the first witness bounds instead of SKIP |
+| fixed after review | invariants before the skip | default shell | 64-79 | PASS 253.3 s (strong 1 min 28 s, weak 1 min 23 s) |
 
 ## Non-goals
 
-- Changes to the mutation runner's per-run limit, its fresh `GOCACHE`, `HostSandbox` or
+- Changes to the mutation runner's per-run limit, its per-request build cache, `HostSandbox` or
   `prove --mutate`.
 - Linux `bwrap` nesting, which was not observed on a Linux host.
 
@@ -78,6 +87,17 @@ There are two causes, and both produce the same envelope.
 
 1. The runner reports a per-run timeout kill as the generic `run ended without a verdict`
    instead of naming the timeout.
-2. The per-run limit is charged with a cold build from a fresh `GOCACHE`. Under host load, a
-   mutant run can time out before the first test executes.
+2. The per-run limit also covers the cold build of a request's first run, from its empty
+   per-request cache. Under host load, that run can time out before the first test executes.
 3. `HostSandbox` cannot tell an available launcher from one an enclosing sandbox refuses.
+
+## Review
+
+One Codex round (read-only) on the diff from BASE. Findings and dispositions:
+
+1. P2: the skip ran before assertions that hold without a sandbox, so a wrong target, selection,
+   bounds or hunk-limit witness on a nested host would have read as SKIP. Fixed: those assertions
+   now run first, and mutation 3 shows a bounds mismatch fails on a nested host.
+2. P2: the diagnosis said every run builds from a fresh `GOCACHE`. The cache is per request and
+   shared by its runs. Fixed in this entry and the test comment. The 20-minute bound still holds,
+   because the killed run was the request's first, cold run.

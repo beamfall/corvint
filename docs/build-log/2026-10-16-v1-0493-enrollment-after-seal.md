@@ -61,8 +61,10 @@ post-seal `status` offers.
 - So no enrollment can evaluate satisfied on a sealed `HEAD`. Post-seal stale is the result the
   contract requires, not a defect. The completion record is the satisfied evaluation on the bind
   commit, whose persisted terminal binds that target. The seal is the later transport step
-  (`DCW-V0-013`). The immutable check binding is intact: nothing re-verifies or reuses a check on
-  the seal commit.
+  (`DCW-V0-013`). The immutable check binding is intact: no observation from the bind commit is
+  reused for the seal commit. An explicit post-seal `verify` does run the check on the seal
+  commit and records a new observation for it (the table above), but `finish` still cannot reach
+  satisfied there.
 
 ## Friction that the contract does not settle (owner decision)
 
@@ -71,8 +73,12 @@ post-seal `status` offers.
    it clears the terminal record (`Verify` sets `active`) and leads to a `finish` that cannot
    succeed. The worktree is then held as `worktree-already-enrolled` until an explicit `cancel`,
    which records non-success over a completion that did succeed.
-2. A successor enrollment in a sealed worktree is refused as stale. Only `cancel` or a fresh
-   worktree releases it. Lanes that use one clone per change are not affected.
+2. While `HEAD` stays on the seal commit, a successor enrollment in that worktree is refused as
+   stale, and only `cancel` or a fresh worktree releases it. Before any post-seal `verify`,
+   checking out the bind commit again should restore current satisfaction if the retained
+   artifacts are unchanged, and `begin` would then admit a successor (code reading of `Begin`,
+   not run). After a post-seal `verify` clears the terminal, only `cancel` releases the
+   worktree. Lanes that use one clone per change are not affected.
 
 Removing either point means amending accepted requirements: `LCP-V0-002` (re-enrollment after
 "current satisfaction"), `LCP-V0-003` (next actions) and `LCP-V0-020` (no-action reasons). The
@@ -89,3 +95,9 @@ lane stops here. The options for the owner:
 
 Recommendation: close V1-0493 as answered, and file the choice between (a) and (b) as an owner
 question.
+
+## Review
+
+One Codex round (read-only) on the diff from BASE. Two P3 findings, both fixed in this entry: the
+binding paragraph now separates refused reuse from an explicit post-seal re-verification, and the
+recovery paragraph is qualified to a sealed `HEAD` and to before or after a post-seal `verify`.

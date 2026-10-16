@@ -93,11 +93,13 @@ const discriminateWallTime = "20m"
 // projection shows as the survived state while status still accepts. The
 // tcq/0 report downgrade is retired with the 0.x report (CEM-V1-217).
 //
-// The wall time is a hang bound, not a performance budget (V1-0547): every
-// go test the runner starts builds from a fresh cache and its per-run limit
-// is the wall time over maxMutants+1, so five minutes left a cold build on a
-// loaded host killed as a run without a verdict. A host whose enclosing
-// sandbox refuses the nested one skips with the runner's own reason.
+// The wall time is a hang bound, not a performance budget (V1-0547): each
+// discrimination request starts from an empty build cache, so its first go test
+// builds cold, and the per-run limit is the wall time over maxMutants+1, so
+// five minutes left that cold build on a loaded host killed as a run without a
+// verdict. A host whose enclosing sandbox refuses the nested one skips with the
+// runner's own reason, but only after the witness identities, bounds and hunk
+// limit that do not depend on the sandbox have been checked.
 func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	if _, err := mutate.HostSandbox(); err != nil {
 		t.Skipf("no sandbox on this host: %v", err)
@@ -121,21 +123,23 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	selection := selectionOf("pkg/calc/calc_test.go")
 	document := readMapAt(t, root, witnessMap)
 	first, second := document.Hunks[0].Discriminates, document.Hunks[1].Discriminates
-	if first != nil && strings.HasSuffix(first.Detail, ": "+mutate.ErrSandboxUnavailable.Error()) {
-		t.Skipf("host refused the nested sandbox: %s", first.Detail)
-	}
-	if result["discriminates"] != 1 || result["notRun"] != 1 || result["survived"] != 0 ||
-		result["treeRevision"] != head || result["selectionSha256"] != selection {
-		t.Fatalf("discriminate envelope = %v\nfirst witness %+v\nsecond witness %+v", result, first, second)
-	}
-	if document.Spec != wire.StableSpec || first == nil || first.State != wire.DiscriminationDiscriminates ||
-		first.Killed < 1 || first.Survived != 0 || first.Killed+first.Survived > first.Mutants ||
-		first.TreeRevision != head || first.SelectionSha256 != selection ||
+	if result["treeRevision"] != head || result["selectionSha256"] != selection || document.Spec != wire.StableSpec ||
+		first == nil || first.TreeRevision != head || first.SelectionSha256 != selection ||
 		first.Bounds != (wire.DiscriminationBounds{MaxHunks: 1, MaxMutants: 6, WallTimeSeconds: 1200}) {
-		t.Fatalf("spec %s first witness %+v", document.Spec, first)
+		t.Fatalf("discriminate envelope = %v\nspec %s first witness %+v", result, document.Spec, first)
 	}
 	if second == nil || second.State != wire.DiscriminationNotRun || second.Mutants != 0 || second.Detail != "hunk limit 1 reached" {
 		t.Fatalf("second witness %+v", second)
+	}
+	if first.State == wire.DiscriminationNotRun && strings.HasSuffix(first.Detail, ": "+mutate.ErrSandboxUnavailable.Error()) {
+		t.Skipf("host refused the nested sandbox: %s", first.Detail)
+	}
+	if result["discriminates"] != 1 || result["notRun"] != 1 || result["survived"] != 0 {
+		t.Fatalf("discriminate envelope = %v\nfirst witness %+v\nsecond witness %+v", result, first, second)
+	}
+	if first.State != wire.DiscriminationDiscriminates ||
+		first.Killed < 1 || first.Survived != 0 || first.Killed+first.Survived > first.Mutants {
+		t.Fatalf("first witness %+v", first)
 	}
 	if status := stableStatus(t, root, witnessMap, base, head, PolicyLimits{}); stableOutcome(status) != "ACCEPT" {
 		t.Fatalf("status after discriminate: %v", status)
