@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -203,16 +205,73 @@ func checkCompactFields(items []wire.Value, fields []string) string {
 			}
 		}
 		if !present {
+			msg := unknownFieldMessage(items, key, nested)
 			if key == "retries" {
-				return "field \"retries\" is not in this item; queue status includes it only with --retries"
+				msg += "; queue status includes \"retries\" only with --retries"
 			}
-			return "field " + quoteField(key) + " is not in this read's items"
+			return msg
 		}
 		if nested && containers > 0 && !found {
-			return "field " + quoteField(f) + " is not in any element of " + quoteField(key)
+			msg := "field " + quoteField(f) + " is not in any element of " + quoteField(key)
+			if subs := subKeys(items, key); len(subs) > 0 {
+				msg += "; its sub-keys are " + strings.Join(subs, ", ")
+			}
+			return msg
 		}
 	}
 	return ""
+}
+
+// unknownFieldMessage names an absent key, lists the items' top-level keys
+// and, for a plain key, suggests each `parent.key` path that exists one level
+// down, such as `record.body` on ticket show (CAL-V0-310).
+func unknownFieldMessage(items []wire.Value, key string, nested bool) string {
+	top := map[string]bool{}
+	var paths []string
+	for _, item := range items {
+		for _, k := range item.Obj.Keys {
+			top[k] = true
+		}
+	}
+	keys := slices.Sorted(maps.Keys(top))
+	if !nested {
+		for _, k := range keys {
+			if slices.Contains(subKeys(items, k), key) {
+				paths = append(paths, quoteField(k+"."+key))
+			}
+		}
+	}
+	msg := "field " + quoteField(key) + " is not in this read's items; its keys are " + strings.Join(keys, ", ")
+	if len(paths) > 0 {
+		msg += "; did you mean " + strings.Join(paths, " or ") + "?"
+	}
+	return msg
+}
+
+// subKeys lists, sorted, the keys of every object value of key, or of every
+// object element of an array value of key, across items.
+func subKeys(items []wire.Value, key string) []string {
+	seen := map[string]bool{}
+	add := func(v wire.Value) {
+		if v.Kind == wire.KindObject {
+			for _, k := range v.Obj.Keys {
+				seen[k] = true
+			}
+		}
+	}
+	for _, item := range items {
+		v, ok := item.Obj.Get(key)
+		if !ok {
+			continue
+		}
+		add(v)
+		if v.Kind == wire.KindArray {
+			for _, el := range v.Arr {
+				add(el)
+			}
+		}
+	}
+	return slices.Sorted(maps.Keys(seen))
 }
 
 // projectFields keeps the named keys in the requested order. Sub-keys of one
