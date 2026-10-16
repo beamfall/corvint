@@ -196,32 +196,27 @@ func (s *nativeRead) Names(p string, max int) (os.FileInfo, []string, error) {
 	return info, names, err
 }
 
-func (s *nativeRead) names(p string, max int) (info os.FileInfo, names []string, root *os.Root, err error) {
-	root, e := s.parent(p)
-	if os.IsNotExist(e) {
-		s.absent[p] = true
-		return nil, nil, nil, e
-	}
+// DirInfo is the directory metadata Names returns, from the same no-follow
+// handle and identity check, without listing the children. AuditForWriter's
+// second capture compares it with its first listing's (CAL-V0-224).
+func (s *nativeRead) DirInfo(p string) (info os.FileInfo, err error) {
+	dir, _, e := s.openDir(p)
 	if e != nil {
-		return nil, nil, nil, e
+		return nil, e
 	}
-	if s.absent[p] {
-		return nil, nil, nil, moved(p)
-	}
-	if e = s.binding(p, root); e != nil {
-		return nil, nil, nil, e
-	}
-	dir, e := safeopen.InRoot(root, ".", os.O_RDONLY, 0, true)
+	defer func() { err = s.closed(err, closeReadFile(dir)) }()
+	return s.dirStat(p, dir)
+}
+
+func (s *nativeRead) names(p string, max int) (info os.FileInfo, names []string, root *os.Root, err error) {
+	dir, root, e := s.openDir(p)
 	if e != nil {
 		return nil, nil, nil, e
 	}
 	defer func() { err = s.closed(err, closeReadFile(dir)) }()
-	info, e = dir.Stat()
+	info, e = s.dirStat(p, dir)
 	if e != nil {
 		return nil, nil, nil, e
-	}
-	if old := s.listed[p]; old != nil && !os.SameFile(old, info) {
-		return nil, nil, nil, moved(p)
 	}
 	names, e = intent.ReadDirNames(dir, p, p, max)
 	if e != nil {
@@ -231,6 +226,43 @@ func (s *nativeRead) names(p string, max int) (info os.FileInfo, names []string,
 		afterReadNames(p)
 	}
 	return info, names, root, nil
+}
+
+// openDir opens directory p read-only without following links, after the
+// parent binding and absence checks every listing makes.
+func (s *nativeRead) openDir(p string) (*os.File, *os.Root, error) {
+	root, e := s.parent(p)
+	if os.IsNotExist(e) {
+		s.absent[p] = true
+		return nil, nil, e
+	}
+	if e != nil {
+		return nil, nil, e
+	}
+	if s.absent[p] {
+		return nil, nil, moved(p)
+	}
+	if e = s.binding(p, root); e != nil {
+		return nil, nil, e
+	}
+	dir, e := safeopen.InRoot(root, ".", os.O_RDONLY, 0, true)
+	if e != nil {
+		return nil, nil, e
+	}
+	return dir, root, nil
+}
+
+// dirStat is the open directory's metadata, refused as moved when p was
+// listed before as another file.
+func (s *nativeRead) dirStat(p string, dir *os.File) (os.FileInfo, error) {
+	info, e := dir.Stat()
+	if e != nil {
+		return nil, e
+	}
+	if old := s.listed[p]; old != nil && !os.SameFile(old, info) {
+		return nil, moved(p)
+	}
+	return info, nil
 }
 
 func (s *nativeRead) Read(p string, max int) (raw []byte, err error) {

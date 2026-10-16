@@ -5,7 +5,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -200,7 +202,23 @@ type observation struct {
 	// intentRaw holds the intent bytes a writer capture read (AuditForWriter
 	// only), so the walk and the second capture do not read them again.
 	intentRaw map[string][]byte
+	// receiptsListed counts the receipts/ names a writer capture charged to
+	// its scan bound, receiptsStaging says a temporary name was among them,
+	// and receiptsQuiescent says the directory's modification and change
+	// times were both at least receiptsQuiescence before the listing began,
+	// so a later change cannot keep its stamps (CAL-V0-224).
+	receiptsListed    int
+	receiptsStaging   bool
+	receiptsQuiescent bool
 }
+
+// receiptsQuiescence is how long receipts/ must have been unmodified and
+// unchanged before a writer capture's listing for the second capture to
+// reuse that listing under unchanged directory stamps (CAL-V0-224): at
+// least the coarsest stamp granularity of a filesystem that can hold the
+// journal (one second), so a change after the listing lands in a strictly
+// later change time even where stamps are whole seconds.
+const receiptsQuiescence = time.Second
 
 // Audit checks all current projections and returns selected canonical bytes.
 // Pending and uninitialized observations return a partial Result plus their
@@ -488,8 +506,13 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 	sort.Strings(paths)
 	inventory := sha256.New()
 	if o.writer {
+		// The same bytes Fprintf("receipt-name\x00%s\n") wrote, without a
+		// format pass per receipt (V1-1410).
+		prefix, nl := []byte("receipt-name\x00"), []byte{'\n'}
 		for _, name := range o.receipts {
-			fmt.Fprintf(inventory, "receipt-name\x00%s\n", name)
+			inventory.Write(prefix)
+			io.WriteString(inventory, name)
+			inventory.Write(nl)
 		}
 	}
 	var intents []intent.File
@@ -691,11 +714,39 @@ func (r Reader) scan(o *observation, dir string, remaining *int, optional bool) 
 // scanReceiptNames lists receipts/ without a per-entry lstat (AuditForWriter).
 // Every name is validated as scan validates it; a temporary name marks the
 // observation unsettled. Receipt files are opened only when walked.
+//
+// The second capture of a writer audit, which only confirms that nothing
+// moved during the walk, reuses the first capture's listing when that
+// listing began at least receiptsQuiescence after the directory's
+// modification and change times and the directory is still the same file
+// with the same mode, size, modification time and change time (CAL-V0-224).
+// The writer lock excludes every cooperating writer for the whole audit,
+// and a foreign change after a quiescent listing lands in a later change
+// time, which restoring the modification time cannot hide. The listing is
+// held only by this attempt: the next audit lists exactly again.
 func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
 	native, ok := r.Source.(*nativeRead)
 	if !ok {
 		return errCheckpoint("receipts", "writer checkpoint needs a native source")
 	}
+	if first := r.writerBefore; first != nil && first.receiptsQuiescent {
+		info, err := native.DirInfo("receipts")
+		if err != nil {
+			return err
+		}
+		if sameDirStamp(first.files["receipts"], info) {
+			if first.receiptsListed > *remaining {
+				return wire.Errorf(wire.CodeLimitExceeded, "receipts", "directory scan bound")
+			}
+			*remaining -= first.receiptsListed
+			o.files["receipts"] = info
+			o.receipts = append(o.receipts, first.receipts...)
+			o.receiptsListed, o.receiptsStaging = first.receiptsListed, first.receiptsStaging
+			o.staging = o.staging || first.receiptsStaging
+			return nil
+		}
+	}
+	listedAt := time.Now()
 	info, names, err := native.Names("receipts", *remaining)
 	if err != nil {
 		return err
@@ -708,18 +759,84 @@ func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
 	}
 	*remaining -= len(names)
 	o.files["receipts"] = info
-	seen := make(map[string]bool, len(names))
+	o.receiptsListed = len(names)
+	o.receiptsQuiescent = quiescentDir(info, listedAt)
+	return receiptNames(o, names)
+}
+
+// quiescentDir says the listed directory's modification time and change
+// time were both at least receiptsQuiescence before listedAt, so a change
+// after the listing lands in a strictly later change time even on a
+// filesystem with whole-second stamps, and a restored modification time
+// cannot hide it. A platform without a change time is never quiescent.
+func quiescentDir(info os.FileInfo, listedAt time.Time) bool {
+	change, ok := changeTime(info)
+	if !ok {
+		return false
+	}
+	bound := listedAt.Add(-receiptsQuiescence)
+	return !info.ModTime().After(bound) && !time.Unix(0, change).After(bound)
+}
+
+// sameDirStamp says the listed directory is still the same file with the
+// same mode, size, modification time and change time; a platform that
+// reports no change time never matches, so the listing is made again.
+func sameDirStamp(old, info os.FileInfo) bool {
+	if old == nil || info == nil || !os.SameFile(old, info) || old.Mode() != info.Mode() || old.Size() != info.Size() || !old.ModTime().Equal(info.ModTime()) {
+		return false
+	}
+	oldChange, ok := changeTime(old)
+	change, ok2 := changeTime(info)
+	return ok && ok2 && oldChange == change
+}
+
+// receiptNames validates listed receipt names in listing order with scan's
+// checks and first-error order, marks the observation unsettled on a
+// temporary name and appends every settled name to o.receipts (V1-1410). A
+// settled name is fixed-format, so its duplicates are tracked by sequence
+// without hashing or formatting a string per name; temporary names keep a
+// map, and any other name refuses at its own position before any later
+// name is examined.
+func receiptNames(o *observation, names []string) error {
+	aliased := func() error {
+		return wire.Errorf(wire.CodeJournalForked, "receipts", "duplicate or aliased inventory name")
+	}
+	dense := make([]bool, len(names)+1)
+	var sparse map[uint64]struct{}
+	var temps map[string]struct{}
+	o.receipts = slices.Grow(o.receipts, len(names))
 	for _, name := range names {
-		if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") || seen[name] {
-			return wire.Errorf(wire.CodeJournalForked, "receipts", "duplicate or aliased inventory name")
+		if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") {
+			return aliased()
 		}
-		seen[name] = true
-		if isTemp("receipts/" + name) {
-			o.staging = true
+		if strings.Contains(name, ".tmp-") {
+			if temps == nil {
+				temps = map[string]struct{}{}
+			}
+			if _, dup := temps[name]; dup {
+				return aliased()
+			}
+			temps[name] = struct{}{}
+			o.staging, o.receiptsStaging = true, true
 			continue
 		}
-		if _, err := receiptSeq(name); err != nil {
-			return err
+		seq, ok := receiptNameSeq(name)
+		if !ok {
+			return wire.Errorf(wire.CodeJournalForked, name, "invalid receipt filename")
+		}
+		if seq < uint64(len(dense)) {
+			if dense[seq] {
+				return aliased()
+			}
+			dense[seq] = true
+		} else {
+			if sparse == nil {
+				sparse = map[uint64]struct{}{}
+			}
+			if _, dup := sparse[seq]; dup {
+				return aliased()
+			}
+			sparse[seq] = struct{}{}
 		}
 		o.receipts = append(o.receipts, name)
 	}
@@ -739,13 +856,27 @@ func allowedDir(p string) bool {
 }
 
 func receiptSeq(name string) (uint64, error) {
-	if len(name) != 17 || !strings.HasSuffix(name, ".json") {
-		return 0, wire.Errorf(wire.CodeJournalForked, name, "invalid receipt filename")
-	}
-	n, err := strconv.ParseUint(name[:12], 10, 64)
-	canonical, _ := snapshot.ReceiptName(n)
-	if err != nil || n == 0 || canonical != name {
+	n, ok := receiptNameSeq(name)
+	if !ok {
 		return 0, wire.Errorf(wire.CodeJournalForked, name, "invalid receipt filename")
 	}
 	return n, nil
+}
+
+// receiptNameSeq parses a canonical receipt name, twelve ASCII digits that
+// are not all zero followed by ".json", without formatting or allocating:
+// exactly the names snapshot.ReceiptName produces for 1..999999999999.
+func receiptNameSeq(name string) (uint64, bool) {
+	if len(name) != 17 || name[12:] != ".json" {
+		return 0, false
+	}
+	var n uint64
+	for i := 0; i < 12; i++ {
+		c := name[i]
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+		n = n*10 + uint64(c-'0')
+	}
+	return n, n != 0
 }

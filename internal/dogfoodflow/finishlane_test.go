@@ -3,6 +3,9 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -71,5 +74,194 @@ func TestFinishLaneDCWV0061RecognizesOnlyTheBindCommit(t *testing.T) {
 	write("notes.txt", "draft\n")
 	if code, out := clean(false); code != 2 || !strings.HasPrefix(out, "dogfood-finish-lane: REFUSE dirty-worktree\n  fix: commit the change ") {
 		t.Fatalf("dirty exit=%d stderr=%q", code, out)
+	}
+}
+
+// DCW-V0-067 (V1-1397): a finish-lane run whose context ends during a pass
+// names the interrupted step and the reasons kept so far instead of exiting
+// with no output.
+func TestFinishLaneDCWV0067NamesTheInterruptedStep(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("a\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "a.txt")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("b\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "commit", "-q", "-am", "change")
+	plan := filepath.Join(t.TempDir(), "cites.tsv")
+	if err := os.WriteFile(plan, []byte("1\ta.txt\t1:1\tspecification\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// The first step command the prepare pass runs ends the context, as a
+	// SIGINT or SIGTERM delivered to the CLI does.
+	steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
+		cancel()
+		return 1
+	}}
+	var stdout, stderr bytes.Buffer
+	_, err := FinishLane(ctx, FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan}}, &stdout, &stderr)
+	if !errors.Is(err, ErrInterrupted) {
+		t.Fatalf("FinishLane error = %v, want ErrInterrupted", err)
+	}
+	if want := "dogfood-finish-lane: prepare INTERRUPTED\ndogfood-finish-lane: NOT_PRODUCED rows=0\n"; stdout.String() != want {
+		t.Fatalf("stdout = %q, want %q (stderr %q)", stdout.String(), want, stderr.String())
+	}
+	// A row the pass recorded before the interruption stays in the block.
+	ctx, cancel = context.WithCancel(context.Background())
+	defer cancel()
+	calls := 0
+	steps.Run = func(context.Context, string, []string, io.Writer, io.Writer) int {
+		calls++
+		if calls > 1 {
+			cancel()
+		}
+		return 1
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if _, err = FinishLane(ctx, FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan}}, &stdout, &stderr); !errors.Is(err, ErrInterrupted) {
+		t.Fatalf("second FinishLane error = %v, want ErrInterrupted", err)
+	}
+	if out := stdout.String(); !strings.HasPrefix(out, "dogfood-finish-lane: prepare INTERRUPTED\ndogfood-finish-lane: NOT_PRODUCED rows=") || strings.Contains(out, "rows=0") || !strings.Contains(out, "\n  prepare ") {
+		t.Fatalf("interrupted run lost the recorded rows: %q (stderr %q)", out, stderr.String())
+	}
+}
+
+// DCW-V0-067: a seal interrupted after its check passed is named seal and keeps
+// the check's verdict lines; one interrupted during the check is named check.
+func TestFinishLaneDCWV0067NamesAnInterruptedSeal(t *testing.T) {
+	for _, tc := range []struct{ verdict, step string }{
+		{"dogfood-check: SUMMARY hunks=1\ndogfood-check: PASS\n", "seal"},
+		{"dogfood-check: SUMMARY hunks=1\n", "check"},
+	} {
+		var stdout bytes.Buffer
+		lane := &finishLane{flow: flow{ctx: context.Background(), prefix: "dogfood-finish-lane", stderr: io.Discard}, stdout: &stdout, step: "check"}
+		if _, err := boundary(context.Background(), func() int { lane.sealInterrupted([]byte(tc.verdict)); return 0 }, func() {}); !errors.Is(err, ErrInterrupted) {
+			t.Fatalf("sealInterrupted error = %v, want ErrInterrupted", err)
+		}
+		lane.interrupted()
+		if want := tc.verdict + "dogfood-finish-lane: " + tc.step + " INTERRUPTED\ndogfood-finish-lane: NOT_PRODUCED rows=0\n"; stdout.String() != want {
+			t.Errorf("stdout = %q, want %q", stdout.String(), want)
+		}
+	}
+}
+
+// DCW-V0-068 (V1-1397): a sidecar removed while the bind pass cites it stops
+// finish-lane at bind with the map-unavailable row and a fix line naming the
+// map path, not only the CEM command's fixed "cannot read CEM map".
+func TestFinishLaneDCWV0068NamesTheUnreadableMap(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("a\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "a.txt")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("b\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "commit", "-q", "-am", "change")
+	plan := filepath.Join(t.TempDir(), "cites.tsv")
+	if err := os.WriteFile(plan, []byte("1\ta.txt\t1:1\tspecification\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	sidecar := filepath.Join(root, finishLaneSidecar)
+	steps := Runner{Path: "corvint", Run: func(_ context.Context, _ string, args []string, _, stderr io.Writer) int {
+		switch {
+		case len(args) > 1 && args[0] == "cem" && args[1] == "prepare":
+			if err := os.MkdirAll(filepath.Dir(sidecar), 0o777); err != nil {
+				return 1
+			}
+			if err := os.WriteFile(sidecar, []byte("{\n  \"hunks\": [\n    {\n      \"disposition\": \"unknown\",\n      \"id\": \"hunk:a\",\n      \"path\": \"a.txt\"\n    }\n  ]\n}\n"), 0o666); err != nil {
+				return 1
+			}
+			return 0
+		case len(args) > 1 && args[0] == "cem" && args[1] == "cite":
+			// The operator removes the sidecar while the pass runs.
+			if err := os.Remove(sidecar); err != nil {
+				return 1
+			}
+			_, _ = io.WriteString(stderr, `{"code": "map-unavailable", "error": "cannot read CEM map", "ok": false}`+"\n")
+			return 2
+		}
+		return 1
+	}}
+	var stdout, stderr bytes.Buffer
+	code, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan}}, &stdout, &stderr)
+	if err != nil || code == 0 {
+		t.Fatalf("FinishLane = (%d, %v), want a failing exit", code, err)
+	}
+	if !strings.Contains(stdout.String(), "dogfood-finish-lane: prepare PASS hunks=1\n") || !strings.Contains(stdout.String(), "dogfood-finish-lane: bind FAIL exit=") ||
+		!strings.Contains(stdout.String(), "  bind cem-cite NOT_PRODUCED map-unavailable\n") {
+		t.Fatalf("stdout does not name the bind step and code:\n%s", stdout.String())
+	}
+	if want := "  cem-cite: map-unavailable\n    fix: the CEM map " + root + "/" + finishLaneSidecar + " could not be read ("; !strings.Contains(stderr.String(), want) {
+		t.Fatalf("stderr lacks %q:\n%s", want, stderr.String())
+	}
+}
+
+// DCW-V0-068: when a later citation row fails, its cite command read the staged
+// citation map, so the fix line names that map, not the sidecar.
+func TestChangeDCWV0068NamesTheStagedMapOfALaterRow(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	for _, name := range []string{"a.txt", "b.txt"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte("a\n"), 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	testGit(t, root, "add", "a.txt", "b.txt")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	for _, name := range []string{"a.txt", "b.txt"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte("b\n"), 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	testGit(t, root, "commit", "-q", "-am", "change")
+	plan := filepath.Join(t.TempDir(), "cites.tsv")
+	if err := os.WriteFile(plan, []byte("1\ta.txt\t1:1\tspecification\n2\tb.txt\t1:1\tspecification\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	sidecar := filepath.Join(root, finishLaneSidecar)
+	var citedMaps []string
+	steps := Runner{Path: "corvint", Run: func(_ context.Context, _ string, args []string, _, stderr io.Writer) int {
+		switch {
+		case len(args) > 1 && args[0] == "cem" && args[1] == "prepare":
+			if err := os.MkdirAll(filepath.Dir(sidecar), 0o777); err != nil {
+				return 1
+			}
+			hunk := "    {\n      \"disposition\": \"unknown\",\n      \"id\": \"hunk:%s\",\n      \"path\": \"%s.txt\"\n    }"
+			if err := os.WriteFile(sidecar, []byte("{\n  \"hunks\": [\n"+fmt.Sprintf(hunk, "a", "a")+",\n"+fmt.Sprintf(hunk, "b", "b")+"\n  ]\n}\n"), 0o666); err != nil {
+				return 1
+			}
+			return 0
+		case len(args) > 3 && args[0] == "cem" && args[1] == "cite":
+			citedMaps = append(citedMaps, args[3])
+			if len(citedMaps) == 1 {
+				return 0
+			}
+			_, _ = io.WriteString(stderr, `{"code": "map-unavailable", "error": "cannot read CEM map", "ok": false}`+"\n")
+			return 2
+		}
+		return 1
+	}}
+	var stderr bytes.Buffer
+	if _, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan}, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if len(citedMaps) != 2 || citedMaps[1] == finishLaneSidecar {
+		t.Fatalf("cite maps = %q, want the second row to read the staged map", citedMaps)
+	}
+	if want := "  cem-cite: map-unavailable\n    fix: the CEM map " + root + "/" + citedMaps[1] + " could not be read ("; !strings.Contains(stderr.String(), want) {
+		t.Fatalf("stderr lacks %q:\n%s", want, stderr.String())
 	}
 }

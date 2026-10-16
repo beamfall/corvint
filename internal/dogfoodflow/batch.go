@@ -498,14 +498,14 @@ func (b *batch) scratchGit(args ...string) (string, int) {
 }
 
 func (b *batch) runScratch(args ...string) (string, int) {
-	var stdout bytes.Buffer
 	command := exec.CommandContext(b.ctx, "git", append([]string{"-c", "credential.helper="}, args...)...)
 	command.Dir = b.scratch
 	command.Env = append(gokernel.SanitizedGitEnvironment(), "GIT_ATTR_NOSYSTEM=1", "GIT_CEILING_DIRECTORIES="+filepath.Dir(b.scratch))
-	command.Stdout = &stdout
-	status := exitStatus(command.Run())
-	b.checkpoint()
-	return stdout.String(), status
+	output, status, bounded := b.readGit(command)
+	if !bounded {
+		b.refuse(gitOutputOverBound)
+	}
+	return output, status
 }
 
 func (b *batch) finish(commits, constituents int) int {

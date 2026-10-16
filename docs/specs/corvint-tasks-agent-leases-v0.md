@@ -58,7 +58,7 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:646@afae0d34`), and until S1 the writer refused every queue
+(`internal/tasks/transaction/model.go:651@afae0d34`), and until S1 the writer refused every queue
 that was not a fixture.
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
@@ -6052,34 +6052,69 @@ each of its two captures. The tail receipts it reads, and its model, bind and co
 grow with receipts; model and commit are proportional to tickets. The receipt chain, generation
 fencing and refusals stay in the audited journal; no liveness record moves out of it.
 
-- `CAL-V0-224`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887)
+- `CAL-V0-224`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended 2026-10-15 by owner approval relayed by the orchestrator ("yes, approve amending CAL-V0-224 for this"; V1-0887))
   Characterization and regression guard for liveness write work. A settled `CAL-V0-116` writer
   audit with a tail of k receipts MUST read exactly k + 1 receipt files (the checkpoint's receipt
-  and the tail), whatever the history, and MUST list `receipts/` exactly, once in each capture, so
-  a receipt or temporary name that appears or leaves during its walk moves the attempt and the fast
-  route declines. A maintained test MUST show both at two history sizes by counting reads and
-  listings, never durations. The listings remain the history-proportional part of a fast heartbeat
-  or renew; they are kept because `CAL-V0-116` requires the names on disk to be exactly 1..head and
-  a crash-left temporary name to decline the fast route.
+  and the tail), whatever the history. Its first capture MUST list `receipts/` exactly. Its second
+  capture, which only confirms that nothing moved during the walk, MAY reuse the first capture's
+  listing when that listing was quiescent and the directory is unchanged, and MUST list exactly
+  otherwise, so a receipt or temporary name that appears or leaves during the walk moves the attempt
+  and the fast route declines.
+  - Quiescent: the directory's modification time and change time (`ctime`) were both at least
+    `receiptsQuiescence` (one second, at least the coarsest stamp granularity of a filesystem that
+    can hold the journal) before the first listing began, so a later change lands in a strictly
+    later change time even where stamps are whole seconds, and a restored modification time
+    cannot hide it. A platform without a change time is never quiescent.
+  - Unchanged: the directory observed from the second capture's own no-follow handle is the same
+    file (`os.SameFile`) with the same mode, size, modification time and change time (`ctime`) as
+    the first listing's. A platform without a change time never reuses a listing.
+  - The listing is held by the attempt that made it and never outlives it: a retried or later
+    attempt's first capture lists exactly again, so a temporary name a killed writer left behind,
+    even under restored directory stamps, is found by that exact listing and declines the fast route.
+  - Reuse is not evidence that the names are current beyond the walk. The writer lock excludes
+    every cooperating writer for the whole audit; a foreign process that adds, renames or removes a
+    name after a quiescent listing lands in a later change time, which `utimes` cannot restore and
+    the second capture sees, and the inventory digest already binds the directory stamp, so such an
+    attempt moves (`SNAPSHOT_MOVED`) and its retry lists the fresh directory exactly.
+  A maintained test MUST show the read count and the listing counts (two for a fresh directory,
+  two for a modification time restored under a fresh change time, one for a quiescent one) at two
+  history sizes by counting reads and listings, never durations.
+  The remaining listing is the history-proportional part of a fast heartbeat or renew; it is kept
+  because `CAL-V0-116` requires the names on disk to be exactly 1..head and a crash-left temporary
+  name to decline the fast route.
 
-Residual (not met): a heartbeat or renew is not yet milliseconds or flat. Two options were
-measured or reviewed and rejected. Probing only for the next receipt name instead of listing would
-let a fast write commit where the complete route refuses a missing, stray or temporary name.
-Reusing the first capture's listing in the second capture when the directory's identity, mode,
-size and modification time are unchanged would save one listing, about half of the observe
-stage's growth, but a name change that keeps those stamps, under a coarse or restored
-modification time, would go unseen, and unlike `CAL-V0-189` intent bytes there is no content recheck before effects. The
-ticket-proportional model and commit cost recorded by V1-0915 and the 512-receipt refresh spike
-remain. See `docs/build-log/2026-10-14-v1-0887-liveness-o1.md`.
+Residual (not met): a heartbeat or renew is not yet milliseconds or flat. Probing only for the
+next receipt name instead of listing was rejected because a fast write would commit where the
+complete route refuses a missing, stray or temporary name. The first listing remains, about 2 µs
+per name under host load about 50 (about 27 ms at 13,000 receipts), and avoiding it needs a
+`CAL-V0-116` change (a next-name probe, stamp evidence that survives an attempt, or a sharded
+`receipts/` layout), which is an owner decision. The reads that stay proportional to tickets
+(the intent tree read in the first capture and digested again before effects per `CAL-V0-189`,
+capacity measurement, the authority session's per-operation check and the checkpoint's embedded
+ticket inventory) are recorded by V1-0915 and `docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md`.
+A clock stepped back by more than one second during one attempt, combined with a foreign change
+in that window, is the one case the stamps do not separate; the complete route still refuses it.
 
 Non-goals: moving liveness records out of the journal; changing the receipt, checkpoint or wire
-formats; stat-stamp evidence of an unchanged listing; a probe-only receipt check.
+formats; a probe-only receipt check; stamp evidence that survives an attempt or a write, or that
+replaces the first exact listing.
 
-Acceptance evidence: `TestCALV0224_WriterAuditWorkIsHistoryIndependent` (`internal/tasks/journal`);
-the existing writer fast-route and fencing suites in `internal/tasks/journal` and
-`internal/tasks/store`; `docs/build-log/2026-10-14-v1-0887-liveness-o1.md`.
+Acceptance evidence: `TestCALV0224_WriterAuditWorkIsHistoryIndependent` (`internal/tasks/journal`;
+two listings for a fresh directory and for a modification time restored under a fresh change time,
+one for a quiescent one, k + 1 reads at two history sizes, and a temporary name that appears during
+the walk declines),
+`TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing` (a settled-looking receipt a foreign
+process adds after a quiescent listing moves the attempt and the retry declines) and
+`TestCALV0224_ListingNeverOutlivesItsAttempt` (every attempt's first capture lists exactly; an
+orphaned temporary name under restored stamps declines), each with one recorded mutation; the
+existing writer fast-route and fencing suites in `internal/tasks/journal` and `internal/tasks/store`;
+`docs/build-log/2026-10-14-v1-0887-liveness-o1.md`;
+`docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md`.
 
-Rollback: delete the test and this amendment. No code, store, receipt or wire format depends on it.
+Rollback: revert the reuse branch of `scanReceiptNames`, `sameDirStamp`, `receiptsQuiescence`, the
+`change_time_*.go` files and `DirInfo` in `internal/tasks/journal`, the quiescent cases of the three
+tests, and this amendment's text; the original two-listing text then holds again. No store,
+receipt or wire format depends on it.
 
 - `CAL-V0-232`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-15)
   End-to-end guard for liveness writes. At two history sizes, an `attempt heartbeat` and a `renew`
@@ -6124,6 +6159,55 @@ recorded in the build log);
 `docs/build-log/2026-10-15-v1-0887-1403-liveness-guard.md`.
 
 Rollback: delete the test and this amendment. No code, store, receipt or wire format depends on it.
+
+- `CAL-V0-233`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-15)
+  Liveness ticket binding without decoding. A HEARTBEAT or RENEW reads no ticket, so when the
+  caller names each canonical record's `intent/tickets/` projection path (`CanonicalTicketPaths`,
+  which the store's lease routes supply from the audited record paths) the transaction model MUST
+  bind the canonical ticket set to those projections without decoding any ticket record: every
+  canonical record must be byte-identical (digest and length) to the projection at its named
+  path, the named identities must be distinct exactly and under ASCII case folding, and the
+  projections must be exactly the canonical set, under the same intent-tree byte bound. A record
+  that is refused is decoded only to name the refusal the decoding route gives, in that route's
+  order: a missing, divergent or swapped projection is `MALFORMED`, a repeated identity is
+  `DUPLICATE_ID`, a projection outside the canonical set is `MALFORMED`, each with the message the
+  decoding route gives. A record that binds is not decoded, so this route does not re-validate its
+  content: the mutation that wrote it did, and the next decoding verb does again. A caller that
+  names no paths, and every other verb and operation, still decodes the set and takes the ticket
+  inventory it did. The validated state of a bound liveness verb carries no ticket inventory.
+
+Non-goals: changing which verbs read tickets; a cached or cross-process ticket inventory; any
+change to the receipt or wire formats.
+
+Acceptance evidence: `TestCALV0233_LivenessLeaseBindsTicketsWithoutDecoding`
+(`internal/tasks/transaction`), a differential against the decoding route that fails when the
+liveness route decodes a bound record, when a divergent, swapped, missing, extra, repeated or
+case-folded projection is not refused with the decoding route's code and message, or when a caller
+that names no paths is not decoded;
+`docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md`.
+
+Rollback: route the liveness verbs back through `loadTickets` in `internal/tasks/transaction` and
+delete the test and this requirement. No store, receipt or wire format depends on it.
+
+- `CAL-V0-234`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-15)
+  Request shards pinned on first use. The authority fixture session MUST NOT open or verify the
+  256 `requests/` shards when it opens; it MUST pin a shard, through the retained `requests/` root
+  exactly as opening would have, the first time a target under that shard is used, and every later
+  per-operation check re-verifies the pinned shards with the other retained parents. A shard that
+  does not exist or is not a directory refuses the operation as before and pins nothing; creation
+  stays with the directory-making operation.
+
+Non-goals: changing the shard layout or count; relaxing the per-operation re-verification of a
+pinned parent; any change to the request path or wire formats.
+
+Acceptance evidence: `TestCALV0234_RequestShardsPinnedOnFirstUse` (`internal/tasks/authority`),
+which fails when opening a session pins a shard, when the first link pins more than its own shard,
+or when a missing or non-directory shard is pinned or linked; the existing fixture session and
+transaction suites; `docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md`.
+
+Rollback: restore the shard pins in the session constructor of
+`internal/tasks/authority/fixture_session.go` and delete `pinShard`, the test and this requirement.
+No store, receipt or wire format depends on it.
 
 ### V1-1386 and V1-0710 dispatch config paths and reader recovery (issues 900 and 899)
 
@@ -6641,6 +6725,8 @@ The `SECRET_DETECTED` and `PROVENANCE_UNVERIFIED` detail codes (76 codes) are am
 | A writer commits between the scheduled refresh's audit and its lock | The refresh observed an older head | It retains the writer checkpoint bound to the head it audited unless the retained one descends from a later complete audit, and the read checkpoint only when `head.json` is unchanged; the next writer walks the rest as tail (CAL-V0-117) |
 | The intent worktree switches to another branch with identical intent contents after a fast writer observed it | A fast lease would commit on the wrong branch | The fast route rechecks the branch before effects and declines; the complete route decides (CAL-V0-116) |
 | A tail receipt changes or removes the note reference of a ticket last posted before the writer checkpoint, without its note event | A fast writer would accept a note change the complete audit refuses | The writer audit binds the post to the checkpoint's note reference and declines; the complete route refuses `JOURNAL_FORKED` (CAL-V0-116) |
+| A foreign process adds, renames or removes a `receipts/` name after the writer audit's quiescent first listing | A reused listing would hide it from the second capture | The change lands in a later modification and change time; the second capture lists again, the attempt moves and the retry lists the fresh directory exactly (CAL-V0-224) |
+| A killed writer leaves a temporary name in `receipts/` and the directory stamps are later restored | A listing retained across attempts would miss it | A listing never outlives its attempt; every attempt's first capture lists exactly and declines the fast route on the stray (CAL-V0-224) |
 | An older refresh's audit succeeds after a newer refresh refused and removed the writer checkpoint | The older refresh would reinstall it | The newer refusal replaced the invalidation token, so the older refresh publishes nothing (`refresh.superseded`) (CAL-V0-117) |
 | The invalidation token cannot be written | A refusal is not recorded for older refreshes | The checkpoint is still removed; an older refresh may reinstall it until the next scheduled refresh refuses and removes it again (CAL-V0-117) |
 | A refusing refresh stops after replacing the invalidation token and before removing the writer checkpoint | The checkpoint over the known corruption stays on disk | Its invalidation digest no longer matches the token, so the next write declines and the complete route refuses; the removal is only cleanup (CAL-V0-117) |
@@ -6913,7 +6999,7 @@ and removes the new configuration members.
 | CAL-V0-221 | `TestCALV0221_CompleteRouteBoundedDescriptors` (`internal/tasks/store`); `docs/build-log/2026-10-10-v1-0906-bounded-fds.md` |
 | CAL-V0-222 | `TestCALV0222_HeartbeatSettlesHeldPendingReceipt` (`internal/tasks/cli`); `docs/build-log/2026-10-13-gh-860-heartbeat-redo-pending.md` |
 | CAL-V0-223 | `TestCALV0223_HeartbeatHelpNamesRedoAndLiveness` (`internal/tasks/cli`) |
-| CAL-V0-224 | `TestCALV0224_WriterAuditWorkIsHistoryIndependent` (`internal/tasks/journal`); `docs/build-log/2026-10-14-v1-0887-liveness-o1.md` |
+| CAL-V0-224 | `TestCALV0224_WriterAuditWorkIsHistoryIndependent`, `TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing`, `TestCALV0224_ListingNeverOutlivesItsAttempt` (`internal/tasks/journal`); `docs/build-log/2026-10-14-v1-0887-liveness-o1.md`; `docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md` |
 | CAL-V0-225 | `TestCALV0225_DispatchConfigPathForms` (`internal/tasks/cli`), `TestCALV0225_RelativeReadIsMalformed` (`internal/tasks/intent`); `docs/build-log/2026-10-14-gh-899-900-dispatch.md` |
 | CAL-V0-226 | `TestCALV0226_OperatorRecovery`, `TestCALV0226_LiveEvidenceKeepsQuarantine`, `TestCALV0226_UnreadableMarkers`, `TestCALV0226_ClearTakesMarkerAside` (`internal/tasks/dispatch`); `TestCALV0053_DispatchReaderCLIClearFailure`, `TestCALV0226_DispatchRecoverReaderOperator`, `TestCALV0226_DispatchRecoverReaderLiveEvidence`, `TestCALV0053_DispatchReaderCLICrashRetainsQuarantine` (`internal/tasks/cli`) |
 | CAL-V0-227 | `TestCALV0227_RebootProofLiftsQuarantine`, `TestCALV0227_NoProofWithoutEvidence`, `TestCALV0227_RebootRecordMustMatchMarker` (`internal/tasks/dispatch`); `TestCALV0227_DispatchRecoverReaderByReboot` (`internal/tasks/cli`) |
