@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -146,6 +147,9 @@ func digestOrNull(d wire.Digest) wire.Value {
 }
 
 // policyShow binds the effective bytes, version and digest to one audited read.
+// heartbeatTTLSeconds is the effective holder observation TTL every holder
+// read uses (CAL-V0-278); it sits beside the policy, so the policy bytes and
+// digest stay those of the stored file.
 func policyShow(env Env, args []string) *wire.Result {
 	cmd := []string{"policy", "show"}
 	if len(args) != 0 {
@@ -157,7 +161,7 @@ func policyShow(env Env, args []string) *wire.Result {
 		if err != nil {
 			return err
 		}
-		item = wire.ObjectValue(wire.NewObject().Set("policy", p).Set("policyVersion", wire.String(string(rc.store.Policy.PolicyVersion))).Set("policySha256", wire.String(string(rc.store.Policy.PolicySha256()))))
+		item = wire.ObjectValue(wire.NewObject().Set("policy", p).Set("policyVersion", wire.String(string(rc.store.Policy.PolicyVersion))).Set("policySha256", wire.String(string(rc.store.Policy.PolicySha256()))).Set("heartbeatTTLSeconds", wire.String(strconv.FormatInt(rc.store.Policy.HeartbeatTTLSeconds(), 10))))
 		return nil
 	})
 	if err != nil {

@@ -8,7 +8,8 @@
 # ROW_EPOCH, ROW_SELECTION_DIR and ROW_OUTCOMES_DIR (gh run download trees:
 # corvint-test-shadow-*/selection.json and ci-outcomes-*/outcomes.json),
 # ROW_REUSE (a ci-reuse decision.json, or empty) and ROW_COLLECT (newline-
-# separated reasons the collector already found). Each file is read on its
+# separated reasons the collector already found) and ROW_INFRA (newline-separated
+# shards whose job failed at "Set up job", AFP-V0-052). Each file is read on its
 # own, so one unreadable artifact marks itself and never hides the others. The
 # row is always written: when classification fails or the row exceeds 64 KiB,
 # a minimal INCOMPLETE row replaces it. Prints the class. The intermediate
@@ -36,7 +37,7 @@ done
 if ! jq -n -c --arg kind "${ROW_KIND:-}" --arg pr "${ROW_PR:-}" --arg sha "${ROW_SHA:-}" \
   --arg head "${ROW_HEAD:-}" --arg runId "${ROW_RUN:-}" --arg selectionRunId "${ROW_SELECTION_RUN:-}" \
   --arg outcomesRunId "${ROW_OUTCOMES_RUN:-}" --arg shards "${ROW_SHARDS:-}" --arg epoch "${ROW_EPOCH:-}" \
-  --arg collect "${ROW_COLLECT:-}" -f "$here/row.jq" < "$bundle" > "$out.tmp" 2> "$out.err" ||
+  --arg collect "${ROW_COLLECT:-}" --arg infra "${ROW_INFRA:-}" -f "$here/row.jq" < "$bundle" > "$out.tmp" 2> "$out.err" ||
   [ "$(wc -l < "$out.tmp")" -ne 1 ] || [ "$(wc -c < "$out.tmp")" -gt 65536 ]; then
   reason="row classification failed: $(head -c 200 "$out.err" 2> /dev/null | tr -d '\n')"
   jq -n -c --arg kind "${ROW_KIND:-}" --arg pr "${ROW_PR:-}" --arg sha "${ROW_SHA:-}" --arg reason "$reason" \

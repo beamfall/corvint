@@ -379,7 +379,11 @@ func advanceWriterCheckpoint(repo *intent.Repository, w *writerObservation) (ref
 // lock only to replace the checkpoint with one bound to the receipt head it
 // audited; a writer that appended meanwhile is walked as tail by the next
 // writer, and a checkpoint whose named receipt no longer matches is refused
-// when that writer rebinds it. A refusal other than a moved snapshot removes
+// when that writer rebinds it. When the journal moves under the complete
+// audit, the refresh walks the prefix to the head it captured instead of
+// abandoning (CAL-V0-265, proposed); every writer audit resumed from that
+// checkpoint compares the projections at its own head, and a prefix result
+// never retains a read checkpoint. A refusal other than a moved snapshot removes
 // the checkpoint, so the next writer runs the complete audit and refuses
 // too. An intent-only divergence keeps the checkpoint for the intent repair.
 // A refresh publishes nothing if another refresh invalidated the checkpoint
@@ -390,7 +394,7 @@ func refreshWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
 	if err != nil {
 		return
 	}
-	proof, obs, err := journalReader(repo, head).AuditForWriteObserved()
+	proof, obs, err := journalReader(repo, head).AuditWriterRefresh()
 	if obs.Cleanup != nil || wire.CodeOf(err) == wire.CodeSnapshotMoved {
 		return
 	}
@@ -421,6 +425,9 @@ func refreshWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
 		return
 	}
 	retainWriterCheckpoint(repo, next, token)
+	if proof.Mode != journal.ModeFull {
+		return
+	}
 	if raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "head.json"), wire.MaxJournalHeadBytes); err == nil && wire.Sum(raw) == proof.Identity.HeadSha256 {
 		retainCheckpoint(repo, proof)
 	}

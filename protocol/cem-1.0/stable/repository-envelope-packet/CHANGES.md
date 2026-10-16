@@ -252,3 +252,60 @@ file and are recorded in Git, in ../manifest.json and in each tuple manifest.
 | protocol/cem-1.0/stable/manifest.json | 87a0baa70505c162f19998da1ad41caef5508e7d38f1c4e0fecd1537741e0e71 |
 | protocol/cem-1.0/structural-tuples/go1.27.2/TUPLE.json | 4c048beee50d0ef5ae9fc32073138c54923e6f94e8e11504c988dc12346abfdf |
 | protocol/cem-1.0/structural-tuples/go1.27.2/manifest.json | 61f7961652c94b3019fe492fd1995f13f6f06bf59b1c71da9d6b87890ca2da43 |
+
+# Recorded value re-emission of `code`, `verdictSha256` (2026-10-16)
+
+Base: the public packet with manifest sha256
+259a294acb88a797e6f3b6f628c895f86871898177f102969826b125f6f3b4fa.
+Reason: V1-1297 (decision 0535): a pinned Git object that is absent locally is repository-object-unavailable, not git-read-failed; the cells whose pinned object is absent re-emit code and the verdict digest that binds it.
+Record file sha256: a4b12a309a161f1f4a4cc326a84a1c563e42457f819adf3f6109d30636a70ec6.
+Produced by `make cem-stable-regen-replace` (tools/cem-stable-regen, CEM-V1-091
+as amended by decision 0530).
+
+- Members re-emitted in place: `code`, `verdictSha256`. No key is added or removed and
+  RESULT.schema.json is unchanged.
+- Values captured from the native verifier on go1.27.2 for 54 cases.
+- Values from the override file (sha256 67c5b8063feb8dba964d86b836aec8773ae0c7efef3fe1e2239b796a3de9f15f) for: go1.24.13-nonstructural-positive, go1.24.13-structural-refusal.
+- Envelope cells (inherited/s0e/REPOSITORY-ENVELOPE.cells.json and its ../REPOSITORY-ENVELOPE.cells.json copy):
+  7 cells take the values of the cases with the same exit and other keys.
+- Cell values from the cell override file (sha256 6c8abfc161b90db9a643aeae0f3845921e9f851dca4b16b240b3ed419b5c3da2) for: ordinary-sha256, origin-sha256, linked-sha256, relative-sha256, attributes, alternates, bad-marker, object-link, root-link, shallow-missing, missing-base, corrupt-base, ambient-alternates, linked-wrong-backpointer, linked-missing-common, linked-attributes, pack-link, info-link, missing-promisor, missing-target-tree, missing-target-blob, corrupt-target-blob.
+- Every other key and expectedExit is unchanged; every captured result
+  matched its frozen expectation on them (runtime.goVersion only through a
+  sealed structural-tuple substitution). The case count stays 56.
+
+## Re-emitted values
+
+Each digest is the sha256 of the value's compact JSON.
+
+| Kind | Id | Member | Predecessor sha256 | New sha256 |
+| --- | --- | --- | --- | --- |
+| cell | shallow-missing | code | 8c87ea14986d150d0ee6f8c97e3646df1813b544c1148d59e0fa4a508f9d1f67 | 9b53d41cef49cffaf469ffc4698a4e5240de871c936e46c478815279763d7e00 |
+| cell | shallow-missing | verdictSha256 | b77d442c21f7c2fadde9c9d44e7e49fce055bbb8e35d8084a055184055f478c8 | ea6fba19161e2dcc738dd626e0c0872d27d866959f0312b76d9054c9f44e2e01 |
+| cell | missing-base | code | 8c87ea14986d150d0ee6f8c97e3646df1813b544c1148d59e0fa4a508f9d1f67 | 9b53d41cef49cffaf469ffc4698a4e5240de871c936e46c478815279763d7e00 |
+| cell | missing-base | verdictSha256 | b77d442c21f7c2fadde9c9d44e7e49fce055bbb8e35d8084a055184055f478c8 | ea6fba19161e2dcc738dd626e0c0872d27d866959f0312b76d9054c9f44e2e01 |
+| cell | missing-promisor | code | 8c87ea14986d150d0ee6f8c97e3646df1813b544c1148d59e0fa4a508f9d1f67 | 9b53d41cef49cffaf469ffc4698a4e5240de871c936e46c478815279763d7e00 |
+| cell | missing-promisor | verdictSha256 | b77d442c21f7c2fadde9c9d44e7e49fce055bbb8e35d8084a055184055f478c8 | ea6fba19161e2dcc738dd626e0c0872d27d866959f0312b76d9054c9f44e2e01 |
+
+## Changed files
+
+| File | Old sha256 | New sha256 |
+| --- | --- | --- |
+| inherited/s0e/REPOSITORY-ENVELOPE.cells.json | d89a96828e888c285085b92cb339eb34e09b0558617ce04f76feba633969c5f3 | aff583ede3f3dd083aaaf4321efb9cc7d3d6413a280058db445b6df322cb6d5b |
+| CHANGES.md | 43fce8bacebaf36510f4208861bcf83ac35e328d8a06c06b72584dfc78051a02 | See manifest.json; this file cannot contain its own final digest. |
+| manifest.json | 259a294acb88a797e6f3b6f628c895f86871898177f102969826b125f6f3b4fa | See ../manifest.json publicAmendmentManifestSHA256; manifest.json is not listed inside its own file list. |
+
+Files not listed above are byte-identical to the base packet. INPUTS.json
+keeps its repair-era pins as history.
+
+## Re-bound files outside the packet
+
+These files are re-bound to the digests above; their new digests depend on this
+file and are recorded in Git, in ../manifest.json and in each tuple manifest.
+
+| File | Predecessor sha256 |
+| --- | --- |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.cells.json | 443a350e0c7f14ada93b74141b181e8be3d77f268b9ccb8b6472145ceb0835bd |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.md | 1be9e931e7ef3fa9e1a184250a073d9ef8d802a280f0675d2f947939d790c175 |
+| protocol/cem-1.0/stable/manifest.json | 90c71102e2f03631f70d0382dc18fffb976c35b042384cb601183b0d610ab1d3 |
+| protocol/cem-1.0/structural-tuples/go1.27.2/TUPLE.json | 31d7adcd19c95f2fbcbfef62a0b86c7d69c44630403c45205e285c01efef8cb7 |
+| protocol/cem-1.0/structural-tuples/go1.27.2/manifest.json | 2172d7ce6511ace2212b37b3ce3acef1af042e60972df010a80b4ac7072e34d8 |
