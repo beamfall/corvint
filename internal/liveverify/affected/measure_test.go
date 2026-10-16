@@ -304,6 +304,8 @@ func TestWitnessesResolveUnderTheGoStructuralRules_V1_0564_V1_0739(t *testing.T)
 		{UnitID: app, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "user/fixture.txt", Via: []string{core, app}}},
 		{UnitID: user, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "core/core.go", Via: []string{user}}},
 		{UnitID: app, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "core/fixture.txt", Via: []string{core}}},
+		{UnitID: user, Witness: affected.Witness{Kind: affected.WitnessDirectSource, DirtyPath: "gone/gone.go", Via: []string{user}}},
+		{UnitID: core, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "core/fixture.txt", Via: []string{core}}},
 	} {
 		if witnessResolves(graph, forged) {
 			t.Fatalf("%s resolved a witness no rule produced: %+v", forged.UnitID, forged.Witness)
@@ -343,11 +345,16 @@ func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 	case owned && owner == origin:
 		return true
 	case golang.New().Owns(witness.DirtyPath):
-		return !owned && goSourceOrigin(graph, origin, witness.DirtyPath)
+		if owned {
+			return false
+		}
+		kind, found := goSourceOrigin(graph, origin, witness.DirtyPath)
+		return found && (len(witness.Via) > 1 || witness.Kind == kind)
 	}
 	// Rule (b) traverses from the package directly holding the data path and
-	// from every enclosing package that embeds.
-	return enclosesDataPath(graph, origin, witness.DirtyPath, true)
+	// from every enclosing package that embeds; the package itself carries the
+	// ENCLOSING_PACKAGE witness, so a chain from it reaches past it.
+	return len(witness.Via) > 1 && enclosesDataPath(graph, origin, witness.DirtyPath, true)
 }
 
 // enclosesDataPath reports that id is a Go package whose directory encloses a
@@ -367,28 +374,30 @@ func enclosesDataPath(graph *affected.Graph, id, dirtyPath string, traversed boo
 }
 
 // goSourceOrigin is rule (a) for an unindexed Go path: the package in its
-// directory, or, with none there, a unit importing an absent Go package named
-// by the directory's last component (any absent package at the root).
-func goSourceOrigin(graph *affected.Graph, id, dirtyPath string) bool {
+// directory, a DIRECT_SOURCE_CHANGE, or, with none there, a unit importing an
+// absent Go package named by the directory's last component (any absent
+// package at the root), a DEPENDENCY_PATH. It returns the kind the rule gives
+// id, and whether the rule selects id at all.
+func goSourceOrigin(graph *affected.Graph, id, dirtyPath string) (string, bool) {
 	directory := path.Dir(dirtyPath)
 	for _, candidate := range graph.UnitIDs() {
 		if present, found := goPackageDirectory(graph, candidate); found && present == directory {
-			return candidate == id
+			return affected.WitnessDirectSource, candidate == id
 		}
 	}
 	unit, found := graph.Unit(id)
 	if !found {
-		return false
+		return "", false
 	}
 	for _, target := range append(append([]string(nil), unit.Imports...), unit.TestImports...) {
 		if _, known := graph.Unit(target); known || !strings.HasPrefix(target, "go:") {
 			continue
 		}
 		if directory == "." || path.Base(target) == path.Base(directory) || target == "go:"+path.Base(directory) {
-			return true
+			return affected.WitnessDependency, true
 		}
 	}
-	return false
+	return "", false
 }
 
 // goPackageDirectory is the directory of a Go unit's files.

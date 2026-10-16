@@ -27,11 +27,15 @@ does not call the product rule:
   be the package in the path's directory, or, with none there, an importer of an absent package
   named by that directory. For a non-Go path, it must be the package directly holding the path or an
   embedding enclosing package.
+- A structural chain must also have the shape its rule produces. A one-unit chain for an unowned Go
+  path carries the kind of its rule: `DIRECT_SOURCE_CHANGE` for the package in the directory,
+  `DEPENDENCY_PATH` for an absent-package importer. A chain for a non-Go path that is not
+  `ENCLOSING_PACKAGE` has at least two units.
 
 `TestWitnessesResolveUnderTheGoStructuralRules_V1_0564_V1_0739` is the bounded fixture. A temp
 module has a data file in `core`, a dependent `app`, and a `user` that imports an absent `gone`. It
 checks that the three produced witnesses are exactly the expected ones and resolve. It also checks
-that six forged witnesses, which no rule produces, do not resolve.
+that eight forged witnesses, which no rule produces, do not resolve.
 
 ## V1-1234: one listing walker
 
@@ -75,6 +79,21 @@ One mutation per fix, each restored afterwards:
 | Absent-package origin disabled | The fixture fails on `user`'s `DEPENDENCY_PATH` witness. |
 | Empty spec recorded as a case | Both entry points fail the empty-spec subtest. |
 | Nested suite `file` attributed | Both entry points fail the nested-suite subtest. |
+| Kind check for a one-unit Go chain removed | The fixture accepts the forged `DIRECT_SOURCE_CHANGE` for `user`. |
+| Two-unit minimum for a non-Go chain removed | The fixture accepts the forged one-unit `DEPENDENCY_PATH` for `core`. |
+
+Production callers of the changed walker passed when run alone at load 60 to 76:
+`TestAffectedPlaywright{ProfileEmitsProjectDistinctUnits,ArgumentsFailClosed,DiscoveryFallback,DiscoveryProducer_GH709}`
+and `TestDocsCorpusPlaywrightProducersCLI` in `cmd/corvint`, and
+`TestPlaywrightDiscoveryProducer{RoundTrip,Refusals}` and `TestPlaywrightWitnessImporter` in
+`internal/doccorpus`. Whole-package runs of those two packages hit the 30-minute hang detector at
+load 70 to 110 while still progressing, so they are not run.
+
+## Review
+
+One Codex round found one P2 issue: the structural fallbacks accepted kinds and chain shapes that
+no rule produces, such as `DIRECT_SOURCE_CHANGE` from an absent-package importer. The shape check
+above fixes it, and the two forged witnesses that exposed it are in the fixture.
 
 ## Limits
 
