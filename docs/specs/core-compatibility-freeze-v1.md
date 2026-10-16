@@ -60,7 +60,7 @@ compatibility baseline; see the N-1 replay paragraph of CCF-V1-007 for how the r
   | `prove --task`, `prove PATH...`, `prove --base FULL_COMMIT_ID` | `tool=prove`; `profile` = `falsifiable-packet/0`; with `--base`, `packet.profile` = `corvint-range-impact/0` |
   | `index` | `command=index`; `profile` = `corvint-index-snapshot/1`; `mutates=true` (the snapshot write) |
   | `index --if-stale` with a fresh snapshot | `state=fresh`, `mutates=false`; no `ok`, `profile` or `command` member |
-  | `cem status` / `cem verify` on a committed map | `tool` = `cem-status` / `cem-verify`; `verification.spec` = `cem/0.2` |
+  | `cem status` / `cem verify` on a committed map | `tool` = `cem-status` / `cem-verify`; `stableVerification.spec` = `cem/1.0` (decision 0525) |
   | `ocm status` / `ocm verify` | `tool` = `ocm-status` / `ocm-verify`; `verification.spec` = `ocm/0.1-experimental` |
   | `frontier --json` | exit 0 for an empty and 1 for an open frontier; `profile` = `frontier/0`; `frontierState`; no `ok` or `mutates` member (superseded: an admitted `cem/1.0` map produces no `frontier/0` result, so the open-frontier golden is retired under decision 0525, `CEM-V1-212`) |
   | `dogfood status` (the retained local outcome) | `tool=dogfood-status`; `profile` = `corvint-local-completion/0`; `claim` = `caller-owned-selected-workflow-only` |

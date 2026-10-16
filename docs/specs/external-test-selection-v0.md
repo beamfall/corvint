@@ -11,7 +11,7 @@ Beamfall/corvint#5.
 
 ## Agent digest
 - Claim: `corvint affected --provider FILE` adds `advice.test_selection`: fail-closed advice on whether external verification relations allow a narrower test run.
-- Status: accepted (decision 0311, a delegated call on Beamfall/corvint#5)/experimental (file transport only); checked by `TestSelectionConformance`, `TestSelectionEvaluation`, and `TestAffectedSelectionAddsOneMemberAndKeepsEverythingElse`.
+- Status: accepted (decision 0311, a delegated call on Beamfall/corvint#5)/experimental (file transport only). Checked by `TestSelectionConformance`, `TestSelectionEvaluation`, and `TestAffectedSelectionAddsOneMemberAndKeepsEverythingElse`.
 - Exists: `internal/extevidence/selection.go`, the `--provider`, `--repository`, and `--selection-profile` options of `corvint affected`, and conformance fixtures under `internal/extevidence/testdata/conformance-selection/`.
 - Blocked on: an ACC-V0 provider profile before any executed transport; an independent adopter record before promotion.
 - Read next: Definitions; Requirements; Trust boundary, limits, and failure modes.

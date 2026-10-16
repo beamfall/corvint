@@ -10,7 +10,7 @@ Beamfall/corvint#3.
 
 ## Agent digest
 - Claim: `corvint impact --provider FILE --repository ID=DIR` composes repository-qualified relations across root-commit-identified repositories in `context.external`.
-- Status: accepted (decision 0310, a delegated call on Beamfall/corvint#3)/experimental (file transport only); checked by `TestTwoRepositoryProviderComposes` and `TestImpactProviderV1CrossRepository`.
+- Status: accepted (decision 0310, a delegated call on Beamfall/corvint#3)/experimental (file transport only). Checked by `TestTwoRepositoryProviderComposes` and `TestImpactProviderV1CrossRepository`.
 - Exists: `internal/extevidence/record1.go` and `repository.go`, the `--repository` option in `cmd/corvint`, and conformance fixtures under `internal/extevidence/testdata/conformance-v1/`.
 - Blocked on: an ACC-V0 provider profile before any executed transport; path-to-path composition is the opt-in V2 profile (`docs/specs/external-evidence-provider-v2.md`).
 - Read next: Definitions; Requirements; Trust boundary, limits, and failure modes.

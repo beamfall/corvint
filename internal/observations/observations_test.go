@@ -1079,3 +1079,11 @@ func TestDogfoodPlanRowLimitObservationsPersist(t *testing.T) {
 		})
 	}
 }
+
+// SOL-V0-010 (V1-0880, decision 0533): the worktree-churn rejection keeps its code in the ledger.
+func TestAdapterDegradationAdmitsWorktreeChurn(t *testing.T) {
+	row := AdapterDegradationEvent("codex", "user-prompt", "corvint-event-rejected:dogfood-event-worktree-churn", "1.0.0", time.Date(2026, 10, 16, 0, 0, 0, 0, time.UTC))
+	if len(row.AdapterCodes) != 1 || row.AdapterCodes[0] != "corvint-event-rejected:dogfood-event-worktree-churn" {
+		t.Fatalf("adapter codes %v", row.AdapterCodes)
+	}
+}
