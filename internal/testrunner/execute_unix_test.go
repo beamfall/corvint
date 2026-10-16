@@ -543,11 +543,14 @@ func TestGracefulInterruptLifecycle(t *testing.T) {
 					t.Fatalf("graceful fallback exceeded bound: %v", elapsed)
 				}
 				deadlineDriven := mode == "timeout" || mode == "postbinding" || mode == "uncooperative"
-				if st, err := os.Stat(target); deadlineDriven && (err != nil || st.Size() == 0) && timeout < 16 {
-					// The deadline's SIGINT may have reached the helper before
-					// it installed its handling, so this attempt proves nothing.
-					t.Logf("helper not ready within %ds; retrying with a longer deadline", timeout)
-					continue
+				if st, err := os.Stat(target); deadlineDriven && (err != nil || st.Size() == 0) {
+					if timeout < 16 {
+						// The deadline's SIGINT may have reached the helper before
+						// it installed its handling, so this attempt proves nothing.
+						t.Logf("helper not ready within %ds; retrying with a longer deadline", timeout)
+						continue
+					}
+					t.Fatalf("helper never started its child within a %ds deadline", timeout)
 				}
 				if mode == "postbinding" {
 					if e == nil || len(out.Input.ExecutionProblems) == 0 {
