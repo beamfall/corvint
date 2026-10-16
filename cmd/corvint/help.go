@@ -683,7 +683,9 @@ before the range diff, graph walk or provider; a clean worktree is unchanged.
 advice reads the repository's own declarations - a Makefile gate target and the
 AGENTS.md Verify block - and lists them as mandatory checks, followed by one
 advisory go test command over the selected packages and the unknown frontier
-that qualifies it. The advice is static: no check is executed, nothing is
+that qualifies it. A declared command that a sentence of the AGENTS.md Verify
+section names in backticks with "unless", "only when" or "only if" is a
+conditional check instead, and its reason quotes that sentence. The advice is static: no check is executed, nothing is
 derived from an exclusion, and every mandatory check remains required whatever
 the advisory list says.
 

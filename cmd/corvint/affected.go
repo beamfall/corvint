@@ -837,6 +837,7 @@ func mandatoryAffectedChecks(root string) (checks []affectedCheck, unknown []str
 	for _, command := range commands {
 		admit(agentsCheck(command))
 	}
+	scopeConditionalChecks(checks, agentsVerifyScopes(agents))
 	for _, heading := range unrecognized {
 		unknown = append(unknown, fmt.Sprintf("MANDATORY_DECLARATION_UNRECOGNIZED: %s heading %q is not %q, so its commands are not checks", adviceAgentsName, heading, adviceVerifyHeading))
 	}
@@ -844,6 +845,84 @@ func mandatoryAffectedChecks(root string) (checks []affectedCheck, unknown []str
 		unknown = append(unknown, fmt.Sprintf("MANDATORY_DECLARATION_CAPPED: %s declared more than %d commands", cappedSource, adviceMaxMandatoryChecks))
 	}
 	return append(checks, launches...), unknown, truncated
+}
+
+// scopeConditionalChecks relabels a mandatory check conditional when a
+// scoping sentence of the AGENTS.md Verify section names its exact command in
+// backticks, and puts that sentence in the reason (AFP-V0-009, decision 0531).
+// A check no sentence names stays mandatory.
+func scopeConditionalChecks(checks []affectedCheck, scopes []string) {
+	for index, check := range checks {
+		if check.Kind != adviceKindMandatory {
+			continue
+		}
+		for _, sentence := range scopes {
+			if strings.Contains(sentence, "`"+check.Command+"`") {
+				checks[index].Kind = adviceKindConditional
+				checks[index].Reason = fmt.Sprintf(adviceConditionalReason, check.Source, sentence)
+				break
+			}
+		}
+	}
+}
+
+// A scoped declared command is conditional (AFP-V0-009, decision 0531).
+const (
+	adviceKindConditional   = "conditional"
+	adviceConditionalReason = "the repository %s declares this command, but its AGENTS.md Verify section scopes it, so run it only when this condition holds: %s"
+)
+
+// adviceConditionPhrases mark a sentence that scopes a command to a condition.
+var adviceConditionPhrases = []string{" unless ", " only when ", " only if "}
+
+// agentsVerifyScopes returns, in order, each prose sentence under a heading
+// whose text is exactly "Verify", outside fences, that states a condition with
+// "unless", "only when" or "only if". A paragraph's lines are joined before it
+// is split into sentences at ".", "!" or "?" followed by a space or its end.
+func agentsVerifyScopes(body string) []string {
+	scopes := []string{}
+	paragraph := []string{}
+	flush := func() {
+		text := strings.Join(paragraph, " ")
+		paragraph = paragraph[:0]
+		for len(text) > 0 {
+			end := len(text)
+			for index := 0; index < len(text); index++ {
+				if strings.IndexByte(".!?", text[index]) >= 0 && (index+1 == len(text) || text[index+1] == ' ') {
+					end = index + 1
+					break
+				}
+			}
+			sentence := strings.TrimSpace(text[:end])
+			text = text[end:]
+			lower := " " + strings.ToLower(sentence) + " "
+			for _, phrase := range adviceConditionPhrases {
+				if strings.Contains(lower, phrase) {
+					scopes = append(scopes, sentence)
+					break
+				}
+			}
+		}
+	}
+	underVerify, inFence := false, false
+	for _, line := range strings.Split(body, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(trimmed, "```"):
+			flush()
+			inFence = !inFence
+		case inFence:
+		case strings.HasPrefix(trimmed, "#"):
+			flush()
+			underVerify = strings.EqualFold(strings.TrimSpace(strings.Trim(trimmed, "#")), adviceVerifyHeading)
+		case trimmed == "":
+			flush()
+		case underVerify:
+			paragraph = append(paragraph, trimmed)
+		}
+	}
+	flush()
+	return scopes
 }
 
 // agentsCheck is a Verify-block command as a check: advisory when it does not
@@ -867,10 +946,11 @@ func nonTerminatingCommand(command string) bool {
 	return background || adviceLaunchers[fields[0]]
 }
 
-// declaresMandatoryCheck reports whether any check is mandatory.
+// declaresMandatoryCheck reports whether any check is mandatory or
+// conditional: a scoped gate is still a declared gate.
 func declaresMandatoryCheck(checks []affectedCheck) bool {
 	for _, check := range checks {
-		if check.Kind == adviceKindMandatory {
+		if check.Kind == adviceKindMandatory || check.Kind == adviceKindConditional {
 			return true
 		}
 	}

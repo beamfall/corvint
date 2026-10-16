@@ -1020,3 +1020,61 @@ func TestAFPV0038CompactAdviceReferencesProviderPackages(t *testing.T) {
 		t.Fatalf("compact checks %+v", checks)
 	}
 }
+
+// AFP-V0-009 (decision 0531, V1-0682): a sentence of the AGENTS.md Verify
+// section that names a declared command in backticks and states a condition
+// labels that command conditional, with the sentence in its reason. Anything
+// else, an unscoped project included, stays mandatory.
+func TestAffectedAdviceLabelsScopedGateConditional_V1_0682(t *testing.T) {
+	t.Parallel()
+	makefile := ".PHONY: gate\ngate:\n\t@true\n"
+	scope := "Do not start `make gate` unless the owner asks for it or a governing release policy explicitly requires repository-wide validation."
+	wrapped := "Use focused tests. Do not start `make gate` unless the owner asks\nfor it or a governing release policy explicitly requires repository-wide validation.\n"
+	fence := "```sh\nGOTOOLCHAIN=local go vet ./...\n```\n"
+	cases := []struct {
+		name, agents string
+		want         []string
+		reason       string
+	}{
+		{name: "scoped", agents: "## Verify\n\n" + wrapped + "\n" + fence,
+			want: []string{"conditional make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}, reason: scope},
+		{name: "unscoped", agents: "## Verify\n\nRun `make gate` before merging.\n\n" + fence,
+			want: []string{"mandatory make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}},
+		{name: "outside Verify", agents: "## Etiquette\n\n" + wrapped + "\n## Verify\n\n" + fence,
+			want: []string{"mandatory make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}},
+		{name: "names a Verify command", agents: "## Verify\n\nRun `GOTOOLCHAIN=local go vet ./...` only when Go files change.\n\n" + fence,
+			want: []string{"mandatory make gate", "conditional GOTOOLCHAIN=local go vet ./..."}, reason: "Run `GOTOOLCHAIN=local go vet ./...` only when Go files change."},
+		{name: "no AGENTS.md", want: []string{"mandatory make gate"}},
+	}
+	for _, tc := range cases {
+		root := affectedFixtureRepository(t)
+		files := map[string]string{"Makefile": makefile}
+		if tc.agents != "" {
+			files["AGENTS.md"] = tc.agents
+		}
+		writeAffectedFiles(t, root, files)
+		receipt, _, stderr, code := runAffectedCLI(t, root)
+		if code != 0 {
+			t.Fatalf("%s: exit %d: %s", tc.name, code, stderr)
+		}
+		got := []string{}
+		for _, check := range affectedChecks(t, receipt) {
+			if check["source"] == adviceSourcePlan {
+				continue
+			}
+			got = append(got, fmt.Sprint(check["kind"], " ", check["command"]))
+			if check["kind"] == adviceKindConditional {
+				want := fmt.Sprintf(adviceConditionalReason, check["source"], tc.reason)
+				if check["reason"] != want {
+					t.Errorf("%s: conditional reason = %q, want %q", tc.name, check["reason"], want)
+				}
+			}
+		}
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("%s: declared checks = %q, want %q", tc.name, got, tc.want)
+		}
+		if slices.Contains(affectedAdviceUnknown(t, receipt), adviceNoGateUnknown) {
+			t.Errorf("%s: a scoped gate is still a declared gate", tc.name)
+		}
+	}
+}
