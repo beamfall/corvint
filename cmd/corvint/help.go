@@ -1035,6 +1035,15 @@ Verification options:
                        an accepted result always carries its citation block.
   --artifacts DIR      Required: the artifact root the stable verifier reads;
                        status also applies the ceilings to an accepted map.
+  --hunk-revert        verify only, opt-in: after an ACCEPT, reverse-apply each
+                       test-cited Go source hunk in a disposable export of the
+                       target and re-run its named tests; adds the hunkRevert
+                       report (cem-hunk-revert/0), and only a consumer-observed
+                       failure counts as held. Bounds: 300 s per go test run,
+                       1200 s in total (reasons timeout, total-limit). It
+                       executes the target's own tests UNCONFINED: no sandbox,
+                       with the caller's privileges; use it only on a target
+                       you trust. status and report refuse it.
 
 cem/1.0 is the only wire. Verification derives the canonical
 whole-repository patch itself excluding exactly .corvint/change.cem.json. A

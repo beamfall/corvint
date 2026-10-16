@@ -15,7 +15,7 @@ scripts still without an owning spec).
 - Claim: One generator derives, from the staged specs, the requirement index with each requirement's acceptance mode and the INDEX.json and README.md status rows.
 - Status: accepted (history: REQUIREMENTS.tsv acceptance columns and docs/build-log) / implemented
 - Exists: `script/gen-spec-requirements.sh` (the index, `--index`, `--readme`), `script/spec-acceptance-audit.sh`, `make` targets `spec-requirements`, `spec-requirements-check` and `spec-requirements-test` (the last two in `make gate`) and `spec-acceptance-audit` (a report).
-- Blocked on: nothing for this gate. Decision 0105 withheld acceptance on `SRG-V0-005`; its amendment (2026-09-12) accepted the spec once character truncation landed with evidence. SRG-V0-009..013 are `standing` until the owner reads them back.
+- Blocked on: nothing for this gate. Decision 0105 withheld acceptance on `SRG-V0-005`; its amendment (2026-09-12) accepted the spec once character truncation landed with evidence. SRG-V0-009..014 are `standing` until the owner reads them back.
 - Read next: Verified current state; Requirements; Trust boundary, limits, and failure modes.
 
 ## Human intent and scope
@@ -178,6 +178,13 @@ No requirement below diverges from the implementation.
   resolved by resolving the spec and regenerating, never by hand, and a change on another spec MUST
   merge with no conflict. `script/spec-requirements-conflict_test.sh` MUST show this through the
   real `make` target.
+- `SRG-V0-014`: (accepted under the owner's standing auto-accept (2026-10-15); V1-1409) A spec whose
+  `Delivery status:` header holds more than one word (a qualified delivery) MUST have its Agent
+  digest `Status:` carry that header text verbatim, followed by nothing or by a sentence boundary
+  (`.`). Anything else after it, a `;`, `,` or further words, is a stale or truncated header and
+  `TestIndexCoversSpecsAndHeaders` MUST fail. A one-word header (`experimental`, `deferred`) may be
+  elaborated in the digest `Status:` after the word. Elaboration after a qualified header starts a
+  new sentence.
 
 ## Non-goals and simpler baseline
 
@@ -260,6 +267,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-011 | this spec's own header and digest, the worked example; `TestIndexCoversSpecsAndHeaders` still requires the digest `Status:` to hold both statuses |
 | SRG-V0-012 | `script/gen-spec-requirements_test.sh` case 7: projection, kept fields and cells, appended entry and row, fixed point and the refused two-sentence claim; byte-identical `--index` and `--readme` output at `523fa4ce` |
 | SRG-V0-013 | `script/spec-requirements-conflict_test.sh`: the conflicted paths are exactly the spec and `REQUIREMENTS.tsv`, every marker sits in the requirement list or between new TSV rows, regeneration resolves the TSV, and a lane on another spec merges cleanly |
+| SRG-V0-014 | `TestDeliveryClauseConvention` (rule table with the stale-prefix case) and `TestIndexCoversSpecsAndHeaders` over every spec |
 
 ## Traceability
 
@@ -278,6 +286,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-011 | `docs/SPEC-DRIVEN-DEVELOPMENT.md` Status model; this spec's header | `TestIndexCoversSpecsAndHeaders` |
 | SRG-V0-012 | the `--index` and `--readme` modes and the `spec-requirements` and `spec-requirements-check` recipes | `spec-requirements-test`; `spec-requirements-check` |
 | SRG-V0-013 | `script/spec-requirements-conflict_test.sh` | `spec-requirements-test` |
+| SRG-V0-014 | `internal/specindex` tests | `TestIndexCoversSpecsAndHeaders` |
 
 ## Rollout, rollback, and drift
 
