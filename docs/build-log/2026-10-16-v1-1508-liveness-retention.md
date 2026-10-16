@@ -3,7 +3,7 @@
 V1-1508 ([issue 982](https://github.com/beamfall/corvint/issues/982)) reports that heartbeat and
 renew receipts are kept forever. On one real queue they were 61 % of receipts and 67 % of receipt
 bytes. The owner chose option 2, "elide in place", opt-in (owner, 2026-10-16, in-session choice).
-That choice is recorded as decision 0538 and as the spec amendment CAL-V0-300..274 in
+That choice is recorded as decision 0538 and as the spec amendment CAL-V0-300..304 in
 `docs/specs/corvint-tasks-agent-leases-v0.md`. TCP-00 J1 is relaxed to "contiguous names and
 digests; content may be elided after supersession".
 
