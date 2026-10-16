@@ -16,6 +16,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // treeDigest hashes every regular file under root except .git, ignored files
@@ -1045,36 +1047,46 @@ func TestAffectedAdviceLabelsScopedGateConditional_V1_0682(t *testing.T) {
 		{name: "names a Verify command", agents: "## Verify\n\nRun `GOTOOLCHAIN=local go vet ./...` only when Go files change.\n\n" + fence,
 			want: []string{"mandatory make gate", "conditional GOTOOLCHAIN=local go vet ./..."}, reason: "Run `GOTOOLCHAIN=local go vet ./...` only when Go files change."},
 		{name: "no AGENTS.md", want: []string{"mandatory make gate"}},
+		{name: "only the scoped gate", agents: "## Verify\n\n" + wrapped,
+			want: []string{"conditional make gate"}, reason: scope},
+		{name: "parenthesized only if", agents: "## Verify\n\nRun `make gate` (only if release validation is requested).\n\n" + fence,
+			want: []string{"conditional make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}, reason: "Run `make gate` (only if release validation is requested)."},
+		{name: "separate list items", agents: "## Verify\n\n- Always run `make gate`\n- Run `make lint` only if lint configuration changes\n\n" + fence,
+			want: []string{"mandatory make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}},
+		{name: "tilde fence example", agents: "## Verify\n\n~~~text\nRun `make gate` only if requested.\n~~~\n\n" + fence,
+			want: []string{"mandatory make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}},
 	}
 	for _, tc := range cases {
-		root := affectedFixtureRepository(t)
+		root := t.TempDir()
 		files := map[string]string{"Makefile": makefile}
 		if tc.agents != "" {
 			files["AGENTS.md"] = tc.agents
 		}
 		writeAffectedFiles(t, root, files)
-		receipt, _, stderr, code := runAffectedCLI(t, root)
-		if code != 0 {
-			t.Fatalf("%s: exit %d: %s", tc.name, code, stderr)
-		}
+		advice := compileAffectedAdvice(root, affected.Plan{}, affectedGoProvider{State: providerStateEmpty})
 		got := []string{}
-		for _, check := range affectedChecks(t, receipt) {
-			if check["source"] == adviceSourcePlan {
-				continue
-			}
-			got = append(got, fmt.Sprint(check["kind"], " ", check["command"]))
-			if check["kind"] == adviceKindConditional {
-				want := fmt.Sprintf(adviceConditionalReason, check["source"], tc.reason)
-				if check["reason"] != want {
-					t.Errorf("%s: conditional reason = %q, want %q", tc.name, check["reason"], want)
-				}
+		for _, check := range advice.Checks {
+			got = append(got, check.Kind+" "+check.Command)
+			if check.Kind == adviceKindConditional && check.Reason != fmt.Sprintf(adviceConditionalReason, check.Source, tc.reason) {
+				t.Errorf("%s: conditional reason = %q, want the sentence %q", tc.name, check.Reason, tc.reason)
 			}
 		}
 		if !slices.Equal(got, tc.want) {
 			t.Errorf("%s: declared checks = %q, want %q", tc.name, got, tc.want)
 		}
-		if slices.Contains(affectedAdviceUnknown(t, receipt), adviceNoGateUnknown) {
+		if slices.Contains(advice.Unknown, adviceNoGateUnknown) {
 			t.Errorf("%s: a scoped gate is still a declared gate", tc.name)
 		}
+	}
+	// The wire carries the label and the quoted condition end to end.
+	root := affectedFixtureRepository(t)
+	writeAffectedFiles(t, root, map[string]string{"Makefile": makefile, "AGENTS.md": "## Verify\n\n" + wrapped})
+	receipt, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	first := affectedChecks(t, receipt)[0]
+	if first["kind"] != adviceKindConditional || first["command"] != "make gate" || first["reason"] != fmt.Sprintf(adviceConditionalReason, "Makefile", scope) {
+		t.Fatalf("receipt check = %v, want the conditional make gate quoting %q", first, scope)
 	}
 }

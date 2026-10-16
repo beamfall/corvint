@@ -34,11 +34,33 @@ amendment is in `docs/build-log/2026-10-15-gate-tooling.md`.
 - Same command with the lane build: `make gate` `conditional`, reason quoting "Do not start
   `make gate` unless the owner asks for it or a governing release policy explicitly requires
   repository-wide validation." The four Verify commands stay `mandatory`.
-- `TestAffectedAdviceLabelsScopedGateConditional_V1_0682` covers five cases: scoped (wrapped
-  across lines), unscoped, sentence outside Verify, a sentence naming a Verify fence command, and
-  no AGENTS.md. Only the scoped cases are `conditional`.
-- Mutation: removing the `scopeConditionalChecks` call fails the scoped and Verify-command cases
-  (1 test, 2 failing cases); restored, it passes.
+- `TestAffectedAdviceLabelsScopedGateConditional_V1_0682` runs nine cases through
+  `compileAffectedAdvice` (no Git, so host load cannot cancel it): scoped (wrapped across lines),
+  unscoped, sentence outside Verify, a sentence naming a Verify fence command, no AGENTS.md, a
+  scoped gate as the only declaration, a parenthesized "only if", separate list items, and a `~~~`
+  fenced example. One more case checks the CLI receipt end to end.
+- Mutations, each restored afterwards (load averages 56 to 67):
+  - Removing the `scopeConditionalChecks` call fails four cases and the receipt check.
+  - `declaresMandatoryCheck` ignoring `conditional` fails the only-scoped-gate case.
+  - Dropping the list-item paragraph break fails the list-item case.
+  - Space-delimited phrase matching fails the parenthesized case.
+  - Ignoring `~~~` fences fails the tilde-fence case.
+
+## Review
+
+One Codex round on `f81114713..ed35f3b9c` reported four findings, all fixed in this change:
+
+- (P2) `~~~` fences and longer backtick fences were not tracked, so a fenced example could relax a
+  check. Fences now close only on the same character repeated at least as often.
+- (P2) Separate list items were joined into one sentence, so one item's condition leaked into the
+  previous item. A list item now starts a paragraph.
+- (P2) "(only if ...)" was missed because phrases needed literal spaces. Phrases now match whole
+  words.
+- (P3) No case had a conditional entry as the only declaration. The only-scoped-gate case covers
+  it.
+
+Codex confirmed that ETS selection, `corvint test` and the compact output treat `conditional`
+consistently.
 - `go test -run 'TestAffectedAdvice|TestAffectedReceiptMembers|TestShellQuote' ./cmd/corvint`
   passed with `-parallel 1` (409.7 s, load averages 62 to 66 on 12 cores). The default parallelism
   failed six existing advice tests with `git-cancelled` at load 69; that is host load, not this

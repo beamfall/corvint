@@ -873,12 +873,15 @@ const (
 )
 
 // adviceConditionPhrases mark a sentence that scopes a command to a condition.
+// They are matched as whole words: every non-letter of the sentence is a space.
 var adviceConditionPhrases = []string{" unless ", " only when ", " only if "}
 
 // agentsVerifyScopes returns, in order, each prose sentence under a heading
-// whose text is exactly "Verify", outside fences, that states a condition with
-// "unless", "only when" or "only if". A paragraph's lines are joined before it
-// is split into sentences at ".", "!" or "?" followed by a space or its end.
+// whose text is exactly "Verify", outside ``` and ~~~ fences, that states a
+// condition with "unless", "only when" or "only if". A paragraph's lines are
+// joined before it is split into sentences at ".", "!" or "?" followed by a
+// space or its end; a blank line, a heading, a fence or a list item ends a
+// paragraph.
 func agentsVerifyScopes(body string) []string {
 	scopes := []string{}
 	paragraph := []string{}
@@ -895,34 +898,75 @@ func agentsVerifyScopes(body string) []string {
 			}
 			sentence := strings.TrimSpace(text[:end])
 			text = text[end:]
-			lower := " " + strings.ToLower(sentence) + " "
+			words := strings.Join(strings.Fields(strings.Map(func(r rune) rune {
+				if r >= 'a' && r <= 'z' {
+					return r
+				}
+				return ' '
+			}, strings.ToLower(sentence))), " ")
 			for _, phrase := range adviceConditionPhrases {
-				if strings.Contains(lower, phrase) {
+				if strings.Contains(" "+words+" ", phrase) {
 					scopes = append(scopes, sentence)
 					break
 				}
 			}
 		}
 	}
-	underVerify, inFence := false, false
+	underVerify, fence := false, ""
 	for _, line := range strings.Split(body, "\n") {
 		trimmed := strings.TrimSpace(line)
+		marker := markdownFence(trimmed)
 		switch {
-		case strings.HasPrefix(trimmed, "```"):
+		case fence != "":
+			if marker != "" && marker[0] == fence[0] && len(marker) >= len(fence) && strings.TrimSpace(trimmed[len(marker):]) == "" {
+				fence = ""
+			}
+		case marker != "":
 			flush()
-			inFence = !inFence
-		case inFence:
+			fence = marker
 		case strings.HasPrefix(trimmed, "#"):
 			flush()
 			underVerify = strings.EqualFold(strings.TrimSpace(strings.Trim(trimmed, "#")), adviceVerifyHeading)
 		case trimmed == "":
 			flush()
 		case underVerify:
+			if markdownListItem(trimmed) {
+				flush()
+			}
 			paragraph = append(paragraph, trimmed)
 		}
 	}
 	flush()
 	return scopes
+}
+
+// markdownListItem reports a line that opens a Markdown list item ("-", "*",
+// "+", or digits then "." or ")", followed by a space), which starts a new
+// paragraph.
+func markdownListItem(trimmed string) bool {
+	digits := 0
+	for digits < len(trimmed) && trimmed[digits] >= '0' && trimmed[digits] <= '9' {
+		digits++
+	}
+	marker := digits == 0 && len(trimmed) > 0 && strings.IndexByte("-*+", trimmed[0]) >= 0
+	marker = marker || digits > 0 && digits < len(trimmed) && strings.IndexByte(".)", trimmed[digits]) >= 0
+	width := digits + 1
+	return marker && width < len(trimmed) && (trimmed[width] == ' ' || trimmed[width] == '\t')
+}
+
+// markdownFence returns the run of three or more backticks or tildes that
+// opens or closes a fenced block on a trimmed line, or "".
+func markdownFence(trimmed string) string {
+	for _, char := range []byte{'`', '~'} {
+		length := 0
+		for length < len(trimmed) && trimmed[length] == char {
+			length++
+		}
+		if length >= 3 {
+			return trimmed[:length]
+		}
+	}
+	return ""
 }
 
 // agentsCheck is a Verify-block command as a check: advisory when it does not
