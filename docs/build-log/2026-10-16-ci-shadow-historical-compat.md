@@ -99,12 +99,13 @@ says so. No other findings.
 
 ## Execution profile (criterion 2): owner fork
 
-AFP-V0-052 is drafted as **proposed**. It is not self-accepted, because the lane rules reserve a new
+AFP-V0-053 is drafted as **proposed**. It is not self-accepted, because the lane rules reserve a new
 execution profile for the owner. It states the Git identity, the config-through-environment
 binding, the single advice entry, the no-relabel rule and the controlled-replay classification
-rule. Options for the owner:
+rule. It was first drafted as AFP-V0-052 and renumbered before publication, because open PR #992
+(V1-1514) claims AFP-V0-052. Options for the owner:
 
-- (a) Accept AFP-V0-052 as written.
+- (a) Accept AFP-V0-053 as written.
 - (b) Fold it into AFP-V0-014 as an amendment of accepted text. Amendments need an owner decision.
 - (c) Leave it proposed, so the shipped `testEnv` stays an implementation note.
 
