@@ -175,9 +175,12 @@ var poolProbe = func(ctx context.Context, argv ...string) ([]byte, error) {
 }
 
 type poolCommandResult struct {
-	Timing         snapshot.PoolSweepTiming
-	Signal         *wire.Count
-	Class          string
+	Timing snapshot.PoolSweepTiming
+	Signal *wire.Count
+	Class  string
+	// Bound is the run-context class (TIMEOUT or INTERRUPTED) that an
+	// unproved cleanup overrides with UNKNOWN; it is never encoded.
+	Bound          string
 	Clean          bool
 	Exit           *wire.Count
 	Stdout, Stderr []byte
@@ -306,6 +309,7 @@ func executePoolCapturedGuarded(ctx context.Context, def *intent.PoolCommand, ro
 		if errors.Is(run.Err(), context.DeadlineExceeded) {
 			result.Class = "TIMEOUT"
 		}
+		result.Bound = result.Class
 	}
 	cleanup, cancelCleanup := context.WithTimeout(context.Background(), poolCleanupAllowance)
 	defer cancelCleanup()
