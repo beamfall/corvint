@@ -6506,13 +6506,15 @@ declare more than 7200 seconds.
   and `TIMEOUT` class as before. The bound relates to the other limits as follows, and none of them
   changes: 14400 seconds is 240 minutes, inside `MaxLeaseMinutes` (1440), so one claim or renewal
   can cover a whole gate run. `gate run` holds no writer lock and writes no heartbeat while the
-  command runs, and it records the result only under a live lease (CAL-V0-016). A holder whose lease
-  is shorter than the run therefore renews or heartbeats from another process, as before. The
-  detached `attempt run --timeout` bound (`MaxLeaseMinutes*60-130` seconds) is separate and still
-  larger. A gate that a supervised program runs is also cancelled by the program run's
-  `wallSeconds` deadline, which policy bounds by the stage wall (at most `MaxLaneWallMinutes`, 240),
-  whichever ends first. A dispatcher role that runs a gate needs
-  `wallSeconds` and `idleSeconds` above the gate timeout; that is operator configuration.
+  command runs, and an unsupervised attempt records the result only while its lease is unexpired
+  (CAL-V0-016). A holder whose lease would expire during the run therefore claims with enough
+  `--lease-minutes` or renews before expiry from another process; a heartbeat alone does not extend
+  the lease. The detached `attempt run --timeout` bound (`MaxLeaseMinutes*60-130` seconds) is
+  separate and still larger. The supervised workflow runs its review-stage gates after the stage's
+  wall deadline has been released, so `MaxLaneWallMinutes` (240) and a program's `wallSeconds` do not
+  bound a gate run; the gate's own `timeoutSeconds` does. A dispatcher worker that runs a gate needs
+  its role's `wallSeconds` (from worker start) and `idleSeconds` (from last activity) to allow the
+  gate timeout; that is operator configuration.
 
 Non-goals: changing any lease, heartbeat, wall, detach or output limit; changing a store's policy.
 The orchestrator raises `full-gate` through a policy update after a rebuilt binary is installed.

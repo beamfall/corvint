@@ -21,15 +21,18 @@ The survey covered every limit that could depend on the gate timeout, at base `b
 - Lease: `MaxLeaseMinutes` is 1440. `gate run` holds no writer lock and writes no heartbeat while the
   command runs. It records only while the lease is live (`runnable` before the run, the fence in
   `planGateRun` at record time). 14400 s is 240 min, so one claim or renewal can cover a run.
-  Shorter leases need concurrent renewal, the same as with 7200 s.
+  Shorter leases need renewal before expiry, the same as with 7200 s. A heartbeat records liveness
+  only and does not extend `ExpiresAt` (`planHeartbeat` compared with `planRenew`).
 - Detached runs: `attempt run --timeout` is bounded by `maxRunTimeoutSeconds =
   MaxLeaseMinutes*60-130` (86270 s), and `attempt_detach.go` re-checks it on read. This is separate
   from the gate bound, and it is still larger.
-- Supervised workflow: `program_run.go` wraps a program run in a `wallSeconds` deadline that policy
-  bounds by `StageWallSeconds`, which is at most `MaxLaneWallMinutes` (240 min). A supervised gate is
-  cancelled at that deadline, whichever ends first.
-- Dispatcher: role `idleSeconds` 30..86400 and `wallSeconds` 60..604800 come from operator
-  configuration. A worker that runs a gate needs them set above the gate timeout.
+- Supervised workflow: `program_run.go` and `Workflow.stage` apply a `wallSeconds`/lane-wall deadline
+  to the agent stage only. `RunRole` calls `GateRun` for review-stage gates with the caller's
+  context once that stage returns, so `MaxLaneWallMinutes` (240 min) does not bound a gate run. Only
+  the gate's `timeoutSeconds` does.
+- Dispatcher: role `idleSeconds` 30..86400 (from last activity) and `wallSeconds` 60..604800 (from
+  worker start) come from operator configuration. A worker that runs a gate needs both to allow the
+  gate timeout.
 - Record validators: `GATE_RESULT` records carry no `timeoutSeconds`. A definition is bound by its
   digest, and no receipt or evidence check re-derives the bound. The journal audit
   (`journal/records.go`) re-decodes every posted policy through `intent.DecodePolicy`, so it follows
@@ -52,6 +55,19 @@ rebuilt `corvint-tasks` is installed.
 Recommended store policy change (v11 to v12): in the `full-gate` gate object only, set
 `"timeoutSeconds":"14400"` (from `"7200"`) and `"policyVersion":"12"`. Leave every other byte of the
 canonical policy unchanged.
+
+## Independent review
+
+One Codex round (read-only, `b1ee552b3..520afe636`) found no runtime dependency on the old bound and
+raised two P2 documentation defects, both fixed in CAL-V0-255 and in this entry:
+
+1. The text said a holder may "renew or heartbeat" to outlast a run, but a heartbeat does not extend
+   the lease.
+2. The text said supervised gates are cancelled by the stage wall. In fact the wall deadline wraps
+   only the agent stage.
+
+The review also noted that no test covers historical rejection by an older binary. That limit is
+recorded rather than tested, because an older binary is not built in this change.
 
 ## Evidence
 
