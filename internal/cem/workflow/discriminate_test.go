@@ -81,12 +81,23 @@ func selectionOf(paths ...string) string {
 	return hex.EncodeToString(digest[:])
 }
 
+// discriminateWallTime bounds each end-to-end discrimination run: a per-run
+// limit of about 171 seconds against a cold build measured at 74.5 seconds
+// under a load average near 60 on the 12-core reference host.
+const discriminateWallTime = "20m"
+
 // TestDiscriminateRecordsWitnessAndReportDowngrades runs the bounded mutation
 // witness end to end (TCQ-V0-055..058): a strong cited test kills every
 // mutant of the first hunk, the hunk limit leaves the second hunk explicitly
 // not-run, and a weak cited test lets mutants survive, which the stable review
 // projection shows as the survived state while status still accepts. The
 // tcq/0 report downgrade is retired with the 0.x report (CEM-V1-217).
+//
+// The wall time is a hang bound, not a performance budget (V1-0547): every
+// go test the runner starts builds from a fresh cache and its per-run limit
+// is the wall time over maxMutants+1, so five minutes left a cold build on a
+// loaded host killed as a run without a verdict. A host whose enclosing
+// sandbox refuses the nested one skips with the runner's own reason.
 func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	if _, err := mutate.HostSandbox(); err != nil {
 		t.Skipf("no sandbox on this host: %v", err)
@@ -100,7 +111,7 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 
 	started := time.Now()
 	result, err := openSession(t, root).Discriminate(ctx(), DiscriminateOptions{
-		MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxHunks: "1", MaxMutants: "6", WallTime: "5m", Output: witnessMap,
+		MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxHunks: "1", MaxMutants: "6", WallTime: discriminateWallTime, Output: witnessMap,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -108,16 +119,19 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	t.Logf("strong run: %s", time.Since(started).Round(time.Millisecond))
 	head := gitCmd(t, root, "rev-parse", "HEAD")
 	selection := selectionOf("pkg/calc/calc_test.go")
-	if result["discriminates"] != 1 || result["notRun"] != 1 || result["survived"] != 0 ||
-		result["treeRevision"] != head || result["selectionSha256"] != selection {
-		t.Fatalf("discriminate envelope = %v", result)
-	}
 	document := readMapAt(t, root, witnessMap)
 	first, second := document.Hunks[0].Discriminates, document.Hunks[1].Discriminates
+	if first != nil && strings.HasSuffix(first.Detail, ": "+mutate.ErrSandboxUnavailable.Error()) {
+		t.Skipf("host refused the nested sandbox: %s", first.Detail)
+	}
+	if result["discriminates"] != 1 || result["notRun"] != 1 || result["survived"] != 0 ||
+		result["treeRevision"] != head || result["selectionSha256"] != selection {
+		t.Fatalf("discriminate envelope = %v\nfirst witness %+v\nsecond witness %+v", result, first, second)
+	}
 	if document.Spec != wire.StableSpec || first == nil || first.State != wire.DiscriminationDiscriminates ||
 		first.Killed < 1 || first.Survived != 0 || first.Killed+first.Survived > first.Mutants ||
 		first.TreeRevision != head || first.SelectionSha256 != selection ||
-		first.Bounds != (wire.DiscriminationBounds{MaxHunks: 1, MaxMutants: 6, WallTimeSeconds: 300}) {
+		first.Bounds != (wire.DiscriminationBounds{MaxHunks: 1, MaxMutants: 6, WallTimeSeconds: 1200}) {
 		t.Fatalf("spec %s first witness %+v", document.Spec, first)
 	}
 	if second == nil || second.State != wire.DiscriminationNotRun || second.Mutants != 0 || second.Detail != "hunk limit 1 reached" {
@@ -139,13 +153,16 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	citeTest(t, root, "2", "pkg/calc/calc_test.go")
 	started = time.Now()
 	result, err = openSession(t, root).Discriminate(ctx(), DiscriminateOptions{
-		MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxHunks: "1", MaxMutants: "6", WallTime: "5m", Output: witnessMap,
+		MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxHunks: "1", MaxMutants: "6", WallTime: discriminateWallTime, Output: witnessMap,
 	})
-	if err != nil || result["survived"] != 1 || result["notRun"] != 1 {
-		t.Fatalf("weak envelope: %v %v", err, result)
+	if err != nil {
+		t.Fatal(err)
 	}
 	t.Logf("weak run: %s", time.Since(started).Round(time.Millisecond))
 	first = readMapAt(t, root, witnessMap).Hunks[0].Discriminates
+	if result["survived"] != 1 || result["notRun"] != 1 {
+		t.Fatalf("weak envelope = %v\nfirst witness %+v", result, first)
+	}
 	if first == nil || first.State != wire.DiscriminationSurvived || first.Survived < 1 ||
 		int64(len(first.Survivors)) != first.Survived || first.Survivors[0].Operator == "" ||
 		!strings.Contains(first.Survivors[0].Description, "pkg/calc/calc.go:") {
