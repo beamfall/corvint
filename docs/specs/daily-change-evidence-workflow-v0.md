@@ -877,6 +877,19 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   to prepare it again. The CEM command's own message is unchanged.
   Non-goals: changing the frozen `cannot read CEM map` text of the CEM commands.
   Failure modes: none.
+- `DCW-V0-069`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1449) After
+  `cem-cite`, `dogfood change` MUST report the row `guarding-tests` `NOT_PRODUCED`
+  `guarding-tests-not-run` whenever `.corvint/change.cem.json` holds a hunk the guarding-test
+  search (`TCQ-V0-062`) would select: not `mechanical`, in a `.go` file that is not `_test.go`, and
+  citing no `_test.go` span as `test-claim`. It MUST send the row to the observation ledger like
+  every other row, print one `NOTE` naming the hunk count and the exact
+  `cem verify ... --guarding-tests` command, with the artifact root quoted as one POSIX shell
+  word, and MUST NOT count the row against
+  `"complete": true`. A map with no such hunk reports no row.
+  Non-goals: running the search inside `dogfood change`; it executes the change's tests unconfined
+  for up to 1200 seconds, and each bind loop runs `dogfood change` several times.
+  Failure modes: a map that cannot be read or decoded reports no row; its `cem-prepare` or
+  `cem-cite` row already fails.
 - `DCW-V0-072`: (superseded by the V1-1307 amendment of `DCW-V0-047`, decision 0535; was accepted
   under the owner's standing auto-accept (2026-10-11); V1-1307, decision 0532) Under an admitted `DCW-V0-047` declaration the recorded base digest B MUST be the SHA-256 of
   the base verifier's `cem status` stdout whatever its exit status. A base verifier that refuses the
@@ -1102,6 +1115,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-066` (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) | `internal/dogfoodflow/change.go` `ordinalsMoved`, `staleBindingHint`, `fixHint`; `TestChangeRefusesAPlanWhoseOrdinalsMoved` (a plan whose row 1 cites ordinal 2: the fix line names the binding path, plan row 1, its ordinal 2, the hunk and its current ordinal 1, and both remedies; the generic mismatch line is absent); the V1-0239 `swapped-ordinals` case of `script/dogfood-change_test.sh` (plan row 1, ordinal 1, current ordinal 2; no generic line) | implemented; focused tests PASS |
 | `DCW-V0-067` (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) | `internal/dogfoodflow/finishlane.go` `FinishLane`, `interrupted`, `pass`, `sealInterrupted`; `TestFinishLaneDCWV0067NamesTheInterruptedStep` (a context ended during prepare prints `prepare INTERRUPTED` and the `NOT_PRODUCED rows=0` block; at the base both streams were empty; a row recorded before the interruption stays in the block); `TestFinishLaneDCWV0067NamesAnInterruptedSeal` (after a passing check the step is `seal` and the verdict lines are kept; before it, `check`) | implemented; focused tests PASS |
 | `DCW-V0-068` (accepted under the owner's standing auto-accept (2026-10-11); V1-1397) | `internal/dogfoodflow/change.go` `fixHints` (`cem-*:map-unavailable`), `failedMap`; `TestFinishLaneDCWV0068NamesTheUnreadableMap` (the sidecar removed during the bind: the bind row is `NOT_PRODUCED map-unavailable` and its fix line names the map path); `TestChangeDCWV0068NamesTheStagedMapOfALaterRow` (a second row's failing cite names the staged citation map it read) | implemented; focused tests PASS |
+| `DCW-V0-069` (accepted under the owner's standing auto-accept (2026-10-11); V1-1449) | `internal/dogfoodflow/change.go` `guardingTestsStep`, `guardingTestHunks`, `failing`; `internal/observations/observations.go` step and reason allowlists; `TestChangeDCWV0069RecordsGuardingTestsNotRun` (a map with two searched hunks reports the row after `cem-cite`, observes it, prints the `NOTE` with `hunks=2` and never lists it as a failure; a map whose Go hunks all cite a `_test.go` test-claim reports no row); `TestShellWordQuotesOnlyWhenNeeded` (a root with spaces or quotes stays one shell word) |
 | `DCW-V0-072` (superseded by the V1-1307 amendment of `DCW-V0-047`, decision 0535) | `internal/dogfoodflow/check.go` `verifyStatus`, `baseIndependence`, `record`; `TestCheckDCWV0047RefusedBaseNotProduced` (a base verifier that exits 2 with an `unsupported-spec` stderr line records `base=NOT_PRODUCED base-refusal=unsupported-spec` and `"baseStatus": "NOT_PRODUCED", "baseRefusal": "unsupported-spec"`, one that exits 3 with no code `base-refusal=exit-3`, and one that exits 1 with a status keeps its stdout digest; treating every nonzero exit as a refusal, or no exit as one, fails it); `script/dogfood-seal.sh` with `script/dogfood-change_test.sh` (the PASS line keeps the `NOT_PRODUCED` fields) | superseded; the amended behavior implemented; focused tests PASS |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
