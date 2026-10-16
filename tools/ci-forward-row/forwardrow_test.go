@@ -221,7 +221,7 @@ func wantIncomplete(t *testing.T, row doc, fragment string) {
 	t.Fatalf("incomplete = %q, want a reason containing %q", row["incomplete"], fragment)
 }
 
-var rowKeys = []string{"class", "counts", "epoch", "failed", "flaky", "head", "incomplete", "kind", "missed",
+var rowKeys = []string{"class", "counts", "epoch", "failed", "flaky", "head", "incomplete", "infrastructure", "kind", "missed",
 	"outcomesRunId", "outcomesSource", "pr", "profile", "reruns", "runId", "selectedFailedInQueue", "selection",
 	"selectionRunId", "sha", "shards", "truncated"}
 
@@ -377,6 +377,86 @@ func TestAFPV0029ForwardRowsAndShadowBar(t *testing.T) {
 		wantIncomplete(t, row, "selection documents cover")
 		if num(sub(row, "counts")["missed"]) != 1 {
 			t.Fatalf("counts = %v, want the miss still counted", row["counts"])
+		}
+	})
+
+	// AFP-V0-052 (V1-1514): merge-queue run 38686348902 lost go-product-shard (5) at the hosted
+	// "Set up job" step, so the shard retained no outcomes. The hosted failure is INFRA only when
+	// it explains every gap of the row.
+	infraReason := "infrastructure: go-product-shard (5) of run " + queueRun + " failed at Set up job"
+	t.Run("INFRA: a shard lost at Set up job (run 38686348902)", func(t *testing.T) {
+		f := queueFixture(t)
+		delete(f.out, 5)
+		row, _ := f.classify(t, map[string]string{"ROW_INFRA": "5\n"})
+		if row["class"] != "INFRA" || fmt.Sprint(strs(row["infrastructure"])) != fmt.Sprint([]string{infraReason}) {
+			t.Fatalf("row = %v, want INFRA naming shard 5", row)
+		}
+		if got := strs(row["incomplete"]); len(got) != 2 || got[0] != "outcomes documents cover shards 0,1,2,3,4,6,7 of 8, want each of 0..7 once" ||
+			got[1] != infraReason {
+			t.Fatalf("incomplete = %q, want the coverage gap and its hosted cause", got)
+		}
+	})
+	t.Run("INFRA: a pull-request row loses the shard's selection too", func(t *testing.T) {
+		f := prFixture(t)
+		delete(f.out, 5)
+		delete(f.sel, 5)
+		row, _ := f.classify(t, map[string]string{
+			"ROW_KIND": "pr", "ROW_SHA": "", "ROW_RUN": prRun, "ROW_OUTCOMES_RUN": prRun, "ROW_INFRA": "5"})
+		if row["class"] != "INFRA" || len(strs(row["incomplete"])) != 3 {
+			t.Fatalf("row = %v, want INFRA", row)
+		}
+	})
+	t.Run("no hosted failure named: the lost shard stays INCOMPLETE", func(t *testing.T) {
+		f := queueFixture(t)
+		delete(f.out, 5)
+		row, _ := f.classify(t, nil)
+		wantIncomplete(t, row, "outcomes documents cover shards 0,1,2,3,4,6,7 of 8")
+		if len(strs(row["infrastructure"])) != 0 {
+			t.Fatalf("infrastructure = %v, want none", row["infrastructure"])
+		}
+	})
+	for _, tc := range []struct {
+		name, fragment, infra string
+		mutate                func(*fixture)
+		env                   map[string]string
+	}{
+		{"another shard is also missing", "outcomes documents cover shards 0,1,2,4,6,7 of 8", "5",
+			func(f *fixture) { delete(f.out, 5); delete(f.out, 3) }, nil},
+		{"the named shard retained outcomes", infraReason, "5", nil, nil},
+		{"a queue row's selection misses the shard", "selection documents cover shards 0,1,2,3,4,6,7 of 8", "5",
+			func(f *fixture) { delete(f.out, 5); delete(f.sel, 5) }, nil},
+		{"a collector reason beside it", "no successful pull_request run", "5",
+			func(f *fixture) { delete(f.out, 5) },
+			map[string]string{"ROW_COLLECT": "no successful pull_request run of head " + prHead + " is readable, so no selection\n"}},
+		{"a shard beyond the count", "go-product-shard (9) of run", "9", nil, nil},
+		{"a non-FLAKY miss on the shards that ran", infraReason, "5",
+			func(f *fixture) {
+				delete(f.out, 5)
+				unselect(f.sel[7], flakyPkg)
+				fail(f.out[7], flakyPkg, "fail", "RAN", "fail")
+			}, nil},
+	} {
+		t.Run("INCOMPLETE beside a hosted failure: "+tc.name, func(t *testing.T) {
+			f := queueFixture(t)
+			if tc.mutate != nil {
+				tc.mutate(f)
+			}
+			env := map[string]string{"ROW_INFRA": tc.infra}
+			for k, v := range tc.env {
+				env[k] = v
+			}
+			row, _ := f.classify(t, env)
+			wantIncomplete(t, row, tc.fragment)
+		})
+	}
+	t.Run("INFRA keeps a FLAKY package on the shards that ran", func(t *testing.T) {
+		f := queueFixture(t)
+		delete(f.out, 5)
+		unselect(f.sel[7], flakyPkg)
+		fail(f.out[7], flakyPkg, "fail", "RAN", "pass")
+		row, _ := f.classify(t, map[string]string{"ROW_INFRA": "5"})
+		if row["class"] != "INFRA" || num(sub(row, "counts")["flaky"]) != 1 {
+			t.Fatalf("row = %v, want INFRA with the flaky package counted", row)
 		}
 	})
 
@@ -567,7 +647,7 @@ func TestAFPV0047SelectionDocument(t *testing.T) {
 }
 
 // fakeGH writes a gh stand-in that answers collect.sh and bar.sh from DIR: the commit,
-// compare and repository-artifact `api` paths run the script's own --jq filter over
+// compare, run-jobs and repository-artifact `api` paths run the script's own --jq filter over
 // API-shaped JSON, the other paths map to canned (already filtered) outputs, and
 // `run download` copies the matching artifact directories of DIR/runs/<id>.
 func fakeGH(t *testing.T, dir string) string {
@@ -579,6 +659,7 @@ if [ "$1" = api ]; then
   case "$2" in
   */commits/*) [ "$3" = --jq ]; jq -r "$4" "$d/commit.json" ;;
   */compare/*) [ "$3" = --jq ]; jq -r "$4" "$d/compare.json" ;;
+  */actions/runs/*/jobs*) id=${2#*/actions/runs/}; id=${id%%/*}; [ "$3" = --jq ]; jq -r "$4" "$d/jobs-$id.json" ;;
   */actions/runs/*/artifacts*) id=${2#*/actions/runs/}; id=${id%%/*}; cat "$d/names-$id" ;;
   */workflows/ci.yml/runs*) cat "$d/selection-run" ;;
   */actions/artifacts*) [ "$3" = --jq ]; case "$2" in *page=1) jq -r "$4" "$d/all-artifacts.json" ;; esac ;;
@@ -615,6 +696,8 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 	type result struct{ name, summary string }
 	// changed is the compare API's file list of the run's change set.
 	changed := []any{doc{"filename": "internal/contextindex/index.go"}}
+	// jobs is the run-jobs API response served for the outcomes run, or nil for an unreadable list.
+	var jobs []byte
 	collect := func(t *testing.T, f *fixture, runID, event, branch, pr string, reuse doc) result {
 		dir := t.TempDir()
 		gh := fakeGH(t, dir)
@@ -654,6 +737,9 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 			}
 		}
 		writeFile(t, filepath.Join(dir, "names-"+runID), lines(names...))
+		if jobs != nil {
+			writeFile(t, filepath.Join(dir, "jobs-"+outRun+".json"), jobs)
+		}
 		temp, output, summary := filepath.Join(dir, "temp"), filepath.Join(dir, "output"), filepath.Join(dir, "summary")
 		writeFile(t, output, nil)
 		head := queueSHA
@@ -702,6 +788,30 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 		"ci-forward-CLEAN-pr868-"+queueSHA+"-e1-f0" {
 		t.Fatalf("pull-request row = %q\n%s", r.name, r.summary)
 	}
+	// AFP-V0-052: the real job list of run 38686348902, whose go-product-shard (5) failed at
+	// "Set up job" while every other shard succeeded, names shard 5 of the outcomes run.
+	realJobs, err := os.ReadFile(filepath.Join("testdata", "jobs", "merge_group38686348902.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	f = queueFixture(t)
+	delete(f.out, 5)
+	if r := collect(t, f, queueRun, "merge_group", queueBranch, "", full); r.name !=
+		"ci-forward-INCOMPLETE-pr868-"+queueSHA+"-e1-f0" || !strings.Contains(r.summary, "jobs of run "+queueRun+" are unreadable") {
+		t.Fatalf("queue row of a lost shard without a job list = %q\n%s", r.name, r.summary)
+	}
+	jobs = realJobs
+	f = queueFixture(t)
+	delete(f.out, 5)
+	if r := collect(t, f, queueRun, "merge_group", queueBranch, "", full); r.name !=
+		"ci-forward-INFRA-pr868-"+queueSHA+"-e1-f0" || !strings.Contains(r.summary, "go-product-shard (5) of run "+queueRun) {
+		t.Fatalf("queue row of a shard lost at Set up job = %q\n%s", r.name, r.summary)
+	}
+	if r := collect(t, queueFixture(t), queueRun, "merge_group", queueBranch, "", full); r.name !=
+		"ci-forward-INCOMPLETE-pr868-"+queueSHA+"-e1-f0" {
+		t.Fatalf("queue row whose named shard retained outcomes = %q\n%s", r.name, r.summary)
+	}
+	jobs = nil
 	empty := &fixture{sel: map[int]doc{}, out: map[int]doc{}, rawOut: map[int]string{}, event: "pull_request"}
 	if r := collect(t, empty, prRun, "pull_request", "claude/x", "868", nil); r.name != "" ||
 		!strings.Contains(r.summary, "executed no full shard and no shadow plan") {
@@ -794,6 +904,17 @@ func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
 	}
 	if s := bar(t, names[1:]); !strings.Contains(s, ": MET (20/20 complete, 5/5 failing)") {
 		t.Fatalf("summary:\n%s", s)
+	}
+	// AFP-V0-052: INFRA rows are counted on their own, never trip the INCOMPLETE switch and
+	// take no place in the window, so the 20 complete rows behind them still meet the bar.
+	infra := append([]string{name("INFRA", 40, "1", "0"), name("INFRA", 41, "1", "0"), name("INFRA", 42, "1", "1")}, names[1:]...)
+	s = bar(t, infra)
+	for _, want := range []string{"Latest 20 row(s) of the epoch: 20 complete, 5 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE.",
+		"Hosted infrastructure failures (AFP-V0-052): 3 INFRA row(s)", ": MET (20/20 complete, 5/5 failing)",
+		"3 INCOMPLETE in the latest 20): clear."} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("summary lacks %q:\n%s", want, s)
+		}
 	}
 	tripped := append([]string{name("MISS", 30, "1", "1"), name("MISS", 31, "1", "1")}, names[1:]...)
 	if s := bar(t, tripped); !strings.Contains(s, "NOT MET") || !strings.Contains(s, "TRIPPED") || !strings.Contains(s, "2 MISS") {
