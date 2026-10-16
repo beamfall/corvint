@@ -165,7 +165,9 @@ func ParseArtifact(data []byte) (*Artifact, error) {
 // EncodeTo streams the Encode bytes of value, without the trailing newline, to w and returns
 // how many it wrote. It applies no output bound. json.Marshal draws its output buffer from a
 // sync.Pool, so its growth cost depended on whether a GC cycle or a P migration had emptied the
-// pool (V1-1380); the streaming encoder only keeps a bounded 4 KiB working buffer. Wrapping w
+// pool (V1-1380). The streaming encoder never buffers the whole output: its working buffer
+// starts at 4 KiB and grows only to hold the largest single token, such as one long string, so
+// what still depends on the pool is bounded by that token, not by the output. Wrapping w
 // also hides a *bytes.Buffer from jsontext, whose bytes.Buffer path regrows the buffer whenever
 // less than a quarter of its length is free and would defeat a pre-sized Grow.
 func EncodeTo(w io.Writer, value any) (int64, error) {

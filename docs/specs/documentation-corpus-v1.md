@@ -771,11 +771,12 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   canonical-form checks of `doccorpus.ParseArtifact` and `corpusindex.Open`, and the digest that
   `doccorpus` computes over an encoded value, stream the deterministic encoding through a comparer or
   hash instead of materializing it, and the re-encodes `corpusindex.Open` keeps are built in a buffer
-  pre-sized from the input. Their allocation therefore follows the input size, not the state of the
-  json/v2 pooled encoder that a GC cycle, a P migration or race instrumentation empties. The encoded
-  bytes, digests, output bounds and refusal messages are unchanged: a value whose encoding exceeds its
-  bound is still refused with `output bound exceeded`. The `DCP-V1-040` 1 GiB ordinary allocation
-  ceiling and its race guard are unchanged.
+  pre-sized from the input. No whole encoded output is buffered by the json/v2 encoder pool, which a
+  GC cycle, a P migration or race instrumentation empties, so allocation follows the input size; the
+  encoder's working buffer still grows to the largest single token, and only that part can depend on
+  pool state. The encoded bytes, digests, output bounds and refusal messages are unchanged: a value
+  whose encoding exceeds its bound is still refused with `output bound exceeded`. The `DCP-V1-040`
+  1 GiB ordinary allocation ceiling and its race guard are unchanged.
 
 ## Input and authority boundary
 

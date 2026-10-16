@@ -1317,7 +1317,7 @@ DCP-V1-050	docs/specs/documentation-corpus-v1.md	383	A witness is produced only 
 DCP-V1-051	docs/specs/documentation-corpus-v1.md	397	Every other registered test stays unwitnessed with exactly one named reason and	unrecorded	-
 DCP-V1-052	docs/specs/documentation-corpus-v1.md	406	Missing or untrustworthy shared evidence yields uncertainty for every test, neve	unrecorded	-
 DCP-V1-053	docs/specs/documentation-corpus-v1.md	412	`corvint docs --help`, and the `docs corpus discover-playwright --help` and	unrecorded	-
-DCP-V1-054	docs/specs/documentation-corpus-v1.md	1078	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
+DCP-V1-054	docs/specs/documentation-corpus-v1.md	1079	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 DCP-V1-055	docs/specs/documentation-corpus-v1.md	426	`discover-playwright` applies the `TJAA-V0-021` grep/grepInvert omission rules o	unrecorded	-
 DCP-V1-056	docs/specs/documentation-corpus-v1.md	438	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #805)) `cor	standing	2026-10-11; #805
 DCP-V1-057	docs/specs/documentation-corpus-v1.md	456	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #805)) `cor	standing	2026-10-11; #805
