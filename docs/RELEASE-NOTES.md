@@ -80,9 +80,11 @@ P1 narrows the last two. Nothing in rc.3 removes the first three.
 
 ### Kill criteria (decision 0523 §5)
 
-Each is measured and not yet met or refuted:
+These are the criteria rc.3 is evaluated against. None is recorded as met at this writing, and
+several are not yet measured:
 - K1: under 25% of non-mechanical Go code hunks `held` across 30 dogfood changes after P2. The
-  headline is then dropped. The tally is open, as noted above.
+  hunk-revert headline is then dropped from rc.3 text, and P0 ships alone. The tally is open, as
+  noted above.
 - K2: rubber-stamp and careful maps of one patch give the same `citation` block or the same tiers.
   P0 is then not done.
 - K3: over 5% of 50 audited `held` witnesses are not behavioural test failures.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -234,5 +235,40 @@ func TestCEMV1240PlainAssemblyRefusals(t *testing.T) {
 				t.Fatalf("refusal wrote stable.json: %v", e)
 			}
 		})
+	}
+}
+
+// TestCEMV1240PlainAssemblyRechecksPinsAfterVerify proves each pinned input
+// that changes after the stable verifier ACCEPTs, but before the map is
+// written, is refused and leaves no stable.json.
+func TestCEMV1240PlainAssemblyRechecksPinsAfterVerify(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("stable process containment is only supported on Darwin/Linux")
+	}
+	r, out, _ := plainFixture(t)
+	t.Cleanup(func() { afterPlainVerify = nil })
+	for i, pin := range r.inputs() {
+		original, e := os.ReadFile(pin.Path)
+		if e != nil {
+			t.Fatal(e)
+		}
+		reached := false
+		afterPlainVerify = func() {
+			reached = true
+			if e := os.WriteFile(pin.Path, []byte("{}\n"), 0o600); e != nil {
+				t.Error(e)
+			}
+		}
+		o := fmt.Sprintf("%s-%d", out, i)
+		result, e := AssemblePlain(context.Background(), r, o)
+		if !reached || e == nil || !strings.Contains(e.Error(), "input digest changed: "+pin.Path) || result.StablePath != "" || result.Verification.Outcome != "ACCEPT" {
+			t.Fatalf("%s: reached=%v AssemblePlain = %+v, %v; want ACCEPT then refusal", pin.Path, reached, result, e)
+		}
+		if _, e := os.Lstat(filepath.Join(o, "stable.json")); !os.IsNotExist(e) {
+			t.Fatalf("%s: refusal wrote stable.json: %v", pin.Path, e)
+		}
+		if e := os.WriteFile(pin.Path, original, 0o600); e != nil {
+			t.Fatal(e)
+		}
 	}
 }

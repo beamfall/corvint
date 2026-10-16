@@ -80,8 +80,16 @@ Timed run on 2026-10-15 at 22:16 (load 33.06 45.32 45.06). It used binaries buil
 - Focused packages pass (load 54 to 64): `internal/cemcandidate`, `cmd/corvint-cem-candidate`,
   `tools/cem-stable-regen`, `tools/test-read-scopes-check`, `internal/doccompiler`,
   `internal/cem/wire`, `internal/cem/cli` and `internal/specindex`. In `internal/cem/verify`, the
-  neutral, manifest and arguments tests pass. `interop/cem01-go` runs through its own `go test` and
-  `go vet`.
+  neutral, manifest and arguments tests pass.
+- `interop/cem01-go`: `go vet` passes, and `-run 'Neutral|Manifest'` passes in 40 s. The full
+  package run fails, and the failure is not caused by this change:
+  - `TestStableLifecycleOpTimeoutRetiresDescendants` fails with `descendant pid not recorded`
+    (`timeout.pid` absent). It fails the same way alone, and also on a `git archive` of the base
+    `f8111471`, at loads near 60. A 500 ms operation timeout fires before the shim records its
+    pid.
+  - The package then hit the 30-minute hang detector while it ran
+    `TestCEMV1094PortableProducerOnlyEmptyAccept`. That test passes alone in 53 s.
+  - This change adds no `interop/cem01-go` code.
 - Mutations, one per fix. Each was restored after the run.
   - Producer: `criterionIndex` set to `i + 1`. The verifier still ACCEPTs that self-consistent map,
     and the reproduction test fails on the byte comparison of `stable.json`.
@@ -91,11 +99,54 @@ Timed run on 2026-10-15 at 22:16 (load 33.06 45.32 45.06). It used binaries buil
   and size change. The `publicAmendmentManifestSHA256` binds only the packet manifest and is
   unchanged. `tools/cem-stable-regen` passes.
 
+## Independent review (one Codex round)
+
+One read-only Codex round reviewed `f8111471..62c6012e`. It reported four findings. All four are
+fixed or recorded here, and there is no second round.
+
+1. Medium: a write, sync or close failure in `writeNew` left `stable.json` behind, which
+   contradicts "No refusal writes `stable.json`". Fixed: `writeNew` now removes the file it created
+   when any of the three fails. No test injects a write failure. Codex proposed a temporary sibling
+   and an atomic rename; that is not done, and the remove-on-failure path is the recorded limit.
+2. Medium: bundle containment is checked by pathname. The parent can change between
+   `EvalSymlinks` and `os.OpenRoot`, and a bundle renamed after verification is still written
+   through the old handle while the result names the original path. Recorded as a limit, not
+   fixed. The Tasks-bound `cem-stable-assembly/1` path has the same rule. The caller owns the
+   bundle parent, and the map's own digests, not the path, carry its identity.
+3. Medium: the second pin check had no regression coverage. Fixed:
+   - A package hook, `afterPlainVerify`, is nil in production. It runs after the verifier result.
+   - `TestCEMV1240PlainAssemblyRechecksPinsAfterVerify` uses the hook to change each of the three
+     pinned inputs in turn after an `ACCEPT`. Each run must be refused with
+     `input digest changed: PATH`, and no `stable.json` may be written.
+   - Mutation: with the re-check removed, that test fails (load 79.68 73.20 68.15). The mutation
+     was restored.
+4. Low: the release-note kill section said "Each is measured" and dropped "P0 ships alone" from
+   K1. Fixed: the section now says none is recorded as met and several are not yet measured. K1
+   carries its full consequence.
+
+## Dogfood and gates
+
+- `make dogfood-finish BASE=f8111471` over `62c6012e`. Prepare, bind, rebind, check and seal all
+  PASS. The bind commit is `8ed41b16` and the seal commit is `e19ec2fd`. The check summary is
+  `cem=accepted`, 18 of 18 hunks supported, 0 unknown, 0 mechanical, and `ocm=ready-for-review`.
+- `NOT_PRODUCED` rows, which stay visible:
+  - `prepare cem-cite citation-plan-not-provided`.
+  - `prepare cem-status not-ready`.
+  - `prepare local-outcome record-index-failed` and `bind local-outcome record-index-failed`.
+  - Pre-change `query` and `impact` are `NOT_OBSERVED` (`agent-receipt-absent`).
+- The review fixes are a separate commit, bound by a second `dogfood-finish` from the first seal.
+- Doc gates pass: `spec-requirements-check`, `line-citations-check`, `unbounded-readers-check`,
+  `test-commands-check`, `use-case-receipts-check`, `use-case-receipts-test` and `gofmt -l`.
+- `make gate` and the full `go test ./...` were not run (`NOT_RUN`), under the lane rule.
+
 ## Limits and residuals
 
 - K4 is not met by this change. The producer removes the hand-assembly step, but stranger time on a
   non-Corvint repository is `NOT_OBSERVED`.
 - One runner receipt per map. No producer runs the runner or signs the receipt (`FPK-V0-036`).
+- Bundle path identity is not pinned across verification (review finding 2 above).
+- The interop timeout test is load-sensitive at the base (see Evidence). It is a residual for the
+  backlog, not part of this change.
 - Open PR #941 edits the `CEM-V1-080`..`082` trace rows next to the `CEM-V1-083` row changed here,
   and it regenerates `REQUIREMENTS.tsv`. Whichever lands second needs a `git merge origin/main`
   and a fresh `make spec-requirements`.

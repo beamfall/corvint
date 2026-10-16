@@ -118,6 +118,9 @@ func AssemblePlain(ctx context.Context, r PlainRequest, out string) (PlainAssemb
 	}
 	checked, status := verify.Stable(ctx, stable, opts)
 	result.Verification = checked
+	if afterPlainVerify != nil {
+		afterPlainVerify()
+	}
 	if status != 0 {
 		code := ""
 		if checked.Code != nil {
@@ -211,6 +214,12 @@ func newBundle(repository, out string) (*os.Root, error) {
 	return parentRoot.OpenRoot(name)
 }
 
+// afterPlainVerify is nil in production. Tests set it to change a pinned
+// input between verification and the final pin check.
+var afterPlainVerify func()
+
+// writeNew creates name exclusively and removes it again if the write, sync or
+// close fails, so a failed write leaves no partial map behind.
 func writeNew(root *os.Root, name string, raw []byte) error {
 	f, e := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if e != nil {
@@ -220,9 +229,11 @@ func writeNew(root *os.Root, name string, raw []byte) error {
 	if e == nil {
 		e = f.Sync()
 	}
-	closed := f.Close()
-	if e != nil {
-		return e
+	if closed := f.Close(); e == nil {
+		e = closed
 	}
-	return closed
+	if e != nil {
+		_ = root.Remove(name)
+	}
+	return e
 }
