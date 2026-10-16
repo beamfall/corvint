@@ -440,6 +440,9 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	if l.Pressure != nil {
 		o.Set("pressure", dispatchPressureValue(l.Pressure, c.Pressure))
 	}
+	if c.WorkState != nil || l.WorkState != nil {
+		o.Set("workState", dispatchWorkStateValue(c, l.WorkState, now))
+	}
 	if l.Config != nil {
 		o.Set("config", dispatchConfigRecordValue(l.Config))
 	}
@@ -450,6 +453,54 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	o.Set("lastEventSeq", str(strconv.FormatUint(l.EventSeq, 10)))
 	o.Set("events", wire.Value{Kind: wire.KindArray, Arr: evs})
 	return wire.Value{Kind: wire.KindObject, Obj: o}
+}
+
+// dispatchWorkStateValue is the CAL-V0-270 health of the work-state reader:
+// health OK, FAILING or NOT_OBSERVED (configured, never read), and once
+// read ok, since, lastError ("NONE" before any failure), failedTicks,
+// escalated and launchesHeld, with the configured thresholds.
+func dispatchWorkStateValue(c *dispatch.Config, h *dispatch.WorkStateHealth, now time.Time) wire.Value {
+	str := wire.String
+	o := wire.NewObject()
+	health := "NOT_OBSERVED"
+	if h != nil {
+		health = "FAILING"
+		if h.OK {
+			health = "OK"
+		}
+	}
+	o.Set("health", str(health))
+	if h != nil {
+		last := h.LastError
+		if last == "" {
+			last = "NONE"
+		}
+		o.Set("ok", wire.Bool(h.OK))
+		o.Set("since", str(h.Since.UTC().Format(time.RFC3339)))
+		o.Set("lastError", str(prose(last)))
+		o.Set("failedTicks", str(strconv.Itoa(h.FailedTicks)))
+		o.Set("escalated", wire.Bool(h.Escalated))
+		o.Set("launchesHeld", wire.Bool(dispatch.WorkStateHoldsLaunches(c, h)))
+		// CAL-V0-276: state events still show each ticket's last known work
+		// state, which is stale while this holds.
+		o.Set("stale", wire.Bool(dispatch.WorkStateStale(c, h, now)))
+	}
+	escalate, hold, timeout, stale := "NONE", "NONE", "NONE", "NONE"
+	if w := c.WorkState; w != nil {
+		escalate = strconv.Itoa(w.EscalateAfter())
+		if w.HoldLaunchesAfterTicks > 0 {
+			hold = strconv.Itoa(w.HoldLaunchesAfterTicks)
+		}
+		if w.Kind == "command" {
+			timeout = strconv.Itoa(int(w.Timeout() / time.Second))
+		}
+		stale = strconv.Itoa(int(w.StaleAfter(c.TickSeconds) / time.Second))
+	}
+	o.Set("escalateAfterTicks", str(escalate))
+	o.Set("holdLaunchesAfterTicks", str(hold))
+	o.Set("timeoutSeconds", str(timeout))
+	o.Set("staleAfterSeconds", str(stale))
+	return wire.ObjectValue(o)
 }
 
 // dispatchWorkerUsageValue is a running worker's CAL-V0-157 token account so

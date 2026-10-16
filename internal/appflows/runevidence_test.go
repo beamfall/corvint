@@ -333,6 +333,27 @@ func TestAFUV1RunEvidenceBoundsIncomplete(t *testing.T) {
 		return `{"suites":[{"file":"f.spec.ts","specs":[` + spec + `]}]}`
 	}
 	escaping := `<testcase name="e"><failure>` + strings.Repeat(`"`, MaxBytes*3/5) + `</failure></testcase>`
+	// undecodable makes the decode refuse the report, so only a bound applied before it is reported.
+	undecodable := func(raw string) string { return strings.Replace(raw, `"title":"t"`, `"title":1`, 1) }
+	receipt := func(tests, details, artifacts int) string {
+		artifact := strings.TrimSuffix(strings.Repeat(`{"name":"a","path":"a.png"},`, artifacts), ",")
+		detail := strings.TrimSuffix(strings.Repeat(`{"anchor":{"file":"a.spec.ts","line":1},"artifacts":[`+artifact+`]},`, details), ",")
+		test := strings.TrimSuffix(strings.Repeat(`{"attemptDetails":[`+detail+`]},`, tests), ",")
+		return `{"receipt":{"tests":[` + test + `]}}`
+	}
+	junitCases := func(cases int, body string) string {
+		return `<testsuite>` + strings.Repeat(`<testcase name="t">`+body+`</testcase>`, cases) + `</testsuite>`
+	}
+	nested := strings.Repeat("[", maxRunDepth+1) + strings.Repeat("]", maxRunDepth+1)
+	// The test past the record bound breaks the attempt bound too: Playwright JSON appends a test before
+	// keeping its attempts, the receipt keeps them first, and each names the bound its decode hits first.
+	playwrightLast := strings.TrimSuffix(playwright(maxRunRecords, 1, 0), `]}]}`) + "," +
+		strings.TrimPrefix(playwright(1, maxRunAttempts+1, 0), `{"suites":[{"file":"f.spec.ts","specs":[`)
+	// The decode keeps the first error's location when a repeated error member omits it.
+	mergedError := strings.Replace(playwright(1, maxRunAttempts+1, 0), `{"status":"passed","attachments":[]}`,
+		strings.TrimSuffix(strings.TrimPrefix(playwright(1, 1, maxRunLinks), `{"suites":[{"file":"f.spec.ts","specs":[{"title":"t","tests":[{"results":[`), `}]}]}]}]}`)+
+			`,"error":{"location":{"file":"f","line":1}},"error":{}}`, 1)
+	receiptLast := strings.TrimSuffix(receipt(maxRunRecords, 1, 0), `]}}`) + "," + strings.TrimPrefix(receipt(1, maxRunAttempts+1, 0), `{"receipt":{"tests":[`)
 	cases := []struct{ format, raw, code string }{
 		{FormatGoTestJSON, strings.Repeat(" ", MaxBytes+1), BoundBytes},
 		{FormatJUnitXML, escaping, BoundBytes},
@@ -344,11 +365,51 @@ func TestAFUV1RunEvidenceBoundsIncomplete(t *testing.T) {
 		{FormatGoTestJSON, links.String(), BoundLinks},
 		{FormatPlaywrightJSON, strings.Repeat("[", maxRunDepth+1) + strings.Repeat("]", maxRunDepth+1), BoundTraversal},
 		{FormatJUnitXML, strings.Repeat("<a>", maxRunDepth+1) + strings.Repeat("</a>", maxRunDepth+1), BoundTraversal},
+		{FormatPlaywrightJSON, playwright(1, 1, 0) + strings.Repeat(" ", MaxBytes), BoundBytes},
+		{FormatPlaywrightReceipt, strings.Repeat(" ", MaxBytes+1), BoundBytes},
+		{FormatPlaywrightJSON, undecodable(playwright(maxRunRecords+1, 1, 0)), BoundRecords},
+		{FormatPlaywrightJSON, undecodable(playwright(1, maxRunAttempts+1, 0)), BoundAttempts},
+		{FormatPlaywrightJSON, undecodable(playwright(1, 1, maxRunLinks+1)), BoundLinks},
+		{FormatPlaywrightReceipt, receipt(maxRunRecords+1, 1, 0), BoundRecords},
+		{FormatPlaywrightReceipt, receipt(1, maxRunAttempts+1, 0), BoundAttempts},
+		{FormatPlaywrightReceipt, receipt(1, 1, maxRunLinks), BoundLinks},
+		{FormatPlaywrightReceipt, `{"receipt":` + nested + `}`, BoundTraversal},
+		{FormatPlaywrightJSON, playwrightLast, BoundRecords},
+		{FormatPlaywrightJSON, mergedError, BoundLinks},
+		{FormatPlaywrightReceipt, receiptLast, BoundAttempts},
+		{FormatJUnitXML, junitCases(maxRunRecords+1, ""), BoundRecords},
+		{FormatJUnitXML, junitCases(1, strings.Repeat(`<rerunFailure/>`, maxRunAttempts+1)), BoundAttempts},
+		{FormatJUnitXML, junitCases(1, `<system-out>`+strings.Repeat(`[[ATTACHMENT|a.png]]`, maxRunLinks+1)+`</system-out>`), BoundLinks},
+		{FormatGoTestJSON, nested, BoundTraversal},
 	}
 	for _, c := range cases {
 		got, err := IngestRunEvidence(c.format, []byte(c.raw), runHeader())
 		if err != nil || got.Incomplete != c.code || len(got.Records) != 0 {
-			t.Fatalf("%s: got %q with %d records, err %v", c.code, got.Incomplete, len(got.Records), err)
+			t.Errorf("%s %s (%d bytes): got %q with %d records, err %v", c.format, c.code, len(c.raw), got.Incomplete, len(got.Records), err)
+		}
+	}
+	// The pre-decode pass counts what the decode keeps: unlocated errors are not links and member names
+	// match case-insensitively. The decode merges a repeated member into the earlier value, so the pass
+	// abstains there and the post-decode checks decide.
+	unlocated := strings.Repeat(`{"message":"x"},`, maxRunLinks) + `{"message":"x"}`
+	repeated := func(name string) string {
+		return strings.TrimSuffix(playwright(1, maxRunAttempts+1, 0), `}]}]}]}`) + `,"` + name + `":[{"status":"passed"}]}]}]}]}`
+	}
+	var atBound strings.Builder
+	for i := range maxRunRecords {
+		fmt.Fprintf(&atBound, `,{"title":"t%d","tests":[{"results":[{"status":"passed"}]}]}`, i)
+	}
+	for _, raw := range []string{
+		`{"suites":[{"file":"f.spec.ts","specs":[` + atBound.String()[1:] + `]}]}`,
+		strings.Replace(playwright(1, 1, 0), `"attachments":[]`, `"errors":[`+unlocated+`],"error":{"location":{"file":"a","line":1}}`, 1),
+		repeated("results"),
+		repeated("RESULTS"),
+		strings.Replace(strings.TrimSuffix(playwright(1, 1, maxRunLinks), `}]}]}]}]}`), `{"results":[`, `{"results":[{"errors":[{}]}],"results":[`, 1) +
+			`,"error":{"location":{"file":"f","line":1}}}]}]}]}]}`,
+	} {
+		got, err := IngestRunEvidence(FormatPlaywrightJSON, []byte(raw), runHeader())
+		if err != nil || got.Incomplete != "" || len(got.Records) == 0 {
+			t.Errorf("in-bound report: got %q with %d records, err %v", got.Incomplete, len(got.Records), err)
 		}
 	}
 }

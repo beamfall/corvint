@@ -65,6 +65,10 @@ type Worker struct {
 	// Usage is the token account of a role that declares a usage format
 	// (CAL-V0-157); without one the worker's usage is UNKNOWN.
 	Usage *WorkerUsage `json:"usage,omitempty"`
+	// WorkStateUnknown records that some read during this worker's run,
+	// from its launch to its finish, left its ticket's work state UNKNOWN
+	// (CAL-V0-272): its finish events then record that state.
+	WorkStateUnknown bool `json:"workStateUnknown,omitempty"`
 }
 
 // EscalationState is the CAL-V0-057 ladder record of one ticket: the
@@ -159,13 +163,14 @@ type OpenRequest struct {
 	RecordedAt string `json:"recordedAt"`
 }
 
-// Ledger is the dispatcher's private taskman-dispatch-state/4 file. It is
+// Ledger is the dispatcher's private taskman-dispatch-state/5 file. It is
 // never an input to the native store. Version 1 added the CAL-V0-127 config
 // record and the CAL-V0-125 CPU sample fields to version 0 (CAL-V0-131);
 // version 2 added the CAL-V0-156 budget history and the worker effort and
 // usage members (CAL-V0-160); version 3 added the CAL-V0-185 stall counts;
-// version 4 adds the TOL-V0-021 stall baseline and the TOL-V0-017 observed
-// obligation counts.
+// version 4 added the TOL-V0-021 stall baseline and the TOL-V0-017 observed
+// obligation counts; version 5 adds the CAL-V0-270 work-state health and
+// the worker's CAL-V0-272 work-state mark.
 type Ledger struct {
 	PoolSweeps map[string]*PoolSweepRecord `json:"poolSweeps,omitempty"`
 	Profile    string                      `json:"profile"`
@@ -191,6 +196,9 @@ type Ledger struct {
 	// ticket since its native status last changed, present once a launched
 	// live ticket has one.
 	Stall map[string]*StallState `json:"stall,omitempty"`
+	// WorkState is the CAL-V0-270 health of the configured work-state
+	// reader, present once a configured reader was read.
+	WorkState *WorkStateHealth `json:"workState,omitempty"`
 	// durable is the digest of the bytes this ledger last saved with every
 	// step durable, zero when unknown (CAL-V0-139). It is never encoded.
 	durable [sha256.Size]byte
@@ -350,14 +358,16 @@ func ledgerFormat(raw []byte, members map[string]json.RawMessage) (drained strin
 // added the CAL-V0-156 budget history and the worker effort and usage
 // (CAL-V0-160); version 3 added the CAL-V0-185 stall counts; version 4
 // added each count's TOL-V0-021 high-water baseline and the TOL-V0-017
-// observed obligation counts.
+// observed obligation counts; version 5 added the CAL-V0-270 work-state
+// health and the worker's CAL-V0-272 mark.
 var laterMembers = map[string]map[reflect.Type][]string{
 	drainedStateProfile: {
-		reflect.TypeFor[Ledger](): {"budget", "stall"},
-		reflect.TypeFor[Worker](): {"effort", "usage"},
+		reflect.TypeFor[Ledger](): {"budget", "stall", "workState"},
+		reflect.TypeFor[Worker](): {"effort", "usage", "workStateUnknown"},
 	},
-	drainedState2Profile: {reflect.TypeFor[Ledger](): {"stall"}},
-	drainedState3Profile: {reflect.TypeFor[StallState](): {"witnessed"}, reflect.TypeFor[Seen](): {"obligations"}},
+	drainedState2Profile: {reflect.TypeFor[Ledger](): {"stall", "workState"}, reflect.TypeFor[Worker](): {"workStateUnknown"}},
+	drainedState3Profile: {reflect.TypeFor[StallState](): {"witnessed"}, reflect.TypeFor[Seen](): {"obligations"}, reflect.TypeFor[Ledger](): {"workState"}, reflect.TypeFor[Worker](): {"workStateUnknown"}},
+	drainedState4Profile: {reflect.TypeFor[Ledger](): {"workState"}, reflect.TypeFor[Worker](): {"workStateUnknown"}},
 }
 
 // exactLedger walks the ledger's JSON tokens against the Ledger type, because
@@ -619,6 +629,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err := l.validateSeenObligations(); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
+	if err := l.WorkState.validate(); err != nil {
+		return nil, fmt.Errorf("dispatch state: %w", err)
+	}
 	if err := l.validateSeenRequests(); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
 	}
@@ -734,7 +747,9 @@ func strictProgressJSON(raw []byte) bool {
 			var fields []string
 			switch schema {
 			case "ledger":
-				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation", "infraRetry", "config", "budget", "stall"}
+				fields = []string{"profile", "program", "launchSeq", "eventSeq", "workers", "backoff", "seen", "progress", "poolSweeps", "pressure", "escalation", "infraRetry", "config", "budget", "stall", "workState"}
+			case "work-state":
+				fields = []string{"ok", "since", "lastError", "failedTicks", "escalated"} // CAL-V0-270
 			case "stall-state":
 				fields = []string{"status", "sessions", "changed", "witnessed"}
 			case "stall-witnessed":
@@ -744,7 +759,7 @@ func strictProgressJSON(raw []byte) bool {
 			case "sweep-result":
 				fields = []string{"pending", "evidence", "receipt", "receiptSeq", "outcome"}
 			case "worker":
-				fields = []string{"id", "role", "host", "slot", "key", "ticket", "pool", "member", "pid", "leaderIdentity", "members", "started", "lastActive", "logBytes", "activityPaths", "activityMtime", "state", "killReason", "killDeadline", "fingerprint", "baseFingerprint", "progressDigest", "tier", "model", "effort", "usage"}
+				fields = []string{"id", "role", "host", "slot", "key", "ticket", "pool", "member", "pid", "leaderIdentity", "members", "started", "lastActive", "logBytes", "activityPaths", "activityMtime", "state", "killReason", "killDeadline", "fingerprint", "baseFingerprint", "progressDigest", "tier", "model", "effort", "usage", "workStateUnknown"}
 			case "usage":
 				fields = []string{"format", "offset", "input", "output", "records", "lost", "malformed", "failed", "skipping", "open", "stopped"}
 			case "budget":
@@ -787,6 +802,9 @@ func strictProgressJSON(raw []byte) bool {
 				case "ledger":
 					if key == "workers" || key == "backoff" || key == "seen" || key == "progress" || key == "poolSweeps" || key == "escalation" || key == "infraRetry" || key == "config" || key == "budget" || key == "stall" {
 						child = key
+					}
+					if key == "workState" {
+						child = "work-state"
 					}
 				case "config":
 					if key == "refused" {
