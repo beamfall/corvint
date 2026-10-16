@@ -57,7 +57,7 @@ func TestCanonicalJSONEmitsBytesTheVerifierAccepts(t *testing.T) {
 	}
 	documents := []any{
 		nil, true, int64(-9223372036854775808), "",
-		"<>&  /\x7f\x00\x1f\"\\\b\t\n\f\ré",
+		"<>&\u2028\u2029/\x7f\x00\x1f\"\\\b\t\n\f\ré",
 		shape{Z: "last", A: []any{1, "two", nil, map[string]any{"b": 1, "a": 2}}, M: map[string]int64{"é": 1, "Z": 2, "a": 3}},
 		minimalReceipt(),
 		PatchPlan{Profile: ExperimentalPatchPlanProfile, Documents: []DocumentPatch{{Path: "docs/<a&b>.md"}}},

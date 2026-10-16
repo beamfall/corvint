@@ -205,7 +205,7 @@ func TestMultiLineBlockCommentIsAStatementBoundary(t *testing.T) {
 }
 
 func TestEveryLineTerminatorIsAStatementBoundary(t *testing.T) {
-	for _, terminator := range []string{"\r", " ", " "} {
+	for _, terminator := range []string{"\r", "\u2028", "\u2029"} {
 		bare := []byte("x()" + terminator + "function b() {}\nuse(b)\n")
 		comment := []byte("const a = 1 /*" + terminator + "*/ const b = 2\nuse(b)\n")
 		for name, source := range map[string][]byte{"bare": bare, "block comment": comment} {
@@ -224,7 +224,7 @@ func TestUnclosedQuoteEndsAtCarriageReturnOnly(t *testing.T) {
 	if !DeclaresAtTopLevel(carriage, "b") || !IdentifierAtLine(carriage, "use", 2) {
 		t.Errorf("an unclosed quote swallowed the code after a bare \\r")
 	}
-	for _, separator := range []string{" ", " "} {
+	for _, separator := range []string{"\u2028", "\u2029"} {
 		source := []byte("const s = 'a" + separator + "b'; function c() {}\nuse(c)\n")
 		if !DeclaresAtTopLevel(source, "c") || !IdentifierAtLine(source, "c", 1) {
 			t.Errorf("%q: the quoted literal ended at the separator", separator)

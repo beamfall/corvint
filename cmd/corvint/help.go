@@ -1332,7 +1332,8 @@ seal, DOGFOOD_OUTPUT_CHANGE=REQUIREMENT-ID declares a change whose cem status ou
 differs from the base verifier's by construction: admitted only when HEAD's
 docs/specs/REQUIREMENTS.tsv maps the ID to a spec BASE..HEAD modifies, it runs the
 tree verifier in both roles and records base-independence=NOT_PROVED with both
-stdout digests. The root, the current directory unless --root names one, must be
+stdout digests, or base=NOT_PRODUCED and its refusal code when the base verifier
+refuses the read. The root, the current directory unless --root names one, must be
 the worktree top level.
 
 finish-lane runs the bind loop on a committed change: prepare, bind with the

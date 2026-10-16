@@ -306,11 +306,12 @@ func TestRequestMemoFailuresAndEviction(t *testing.T) {
 		}
 		count := countMemoGit(t)
 		for i := 0; i < 2; i++ {
-			if _, err := reader.Resolve(context.Background(), strings.Repeat("f", 40)); cemcode.CodeOf(err) != cemcode.GitReadFailed {
+			if _, err := reader.Resolve(context.Background(), strings.Repeat("f", 40)); cemcode.CodeOf(err) != cemcode.RepositoryObjectUnavailable {
 				t.Fatalf("resolution failure: %v", err)
 			}
 		}
-		if count() != 2 {
+		// Each attempt is the rev-parse and the V1-1297 existence probe.
+		if count() != 4 {
 			t.Fatal("resolution error cached")
 		}
 		corruptLoose(t, memo.root, entry.OID, "blob", []byte("forged\n"))
