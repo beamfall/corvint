@@ -25,6 +25,79 @@ rc.3 notes must carry. It is not a claim that rc.3 qualifies them.
   dogfood changes. The tally starts at
   `docs/build-log/2026-10-15-v1-1266-guarding-tests-k1.md`.
 
+### Decision 0523 recorded limits (V1-1267)
+
+Under decision 0521 §2 and
+[decision 0523](decisions/0523-cem-1-0-rc3-verifier-computed-support-2026-10-11.md), each item
+below ships in rc.3 as a recorded limit. It is named here with its limit and is never reported as
+qualified.
+
+- Anchors (0523 P0): the verifier derives only the `id` and `path` anchor kinds. The Go-only
+  `symbol` kind is not shipped.
+- Receipt signing (0523 P1): consumers verify `dsse-ed25519` receipt authentication against
+  caller-supplied trusted keys. No producer signs receipts; signing stays an operator step
+  (`FPK-V0-036`).
+- Hunk-revert runners (0523 P2): the `held` tier runs under `go test` only, as listed above. Every
+  other runner is a recorded limit.
+- Discriminating links (0523 P2): pre-mutation registration digests for `discriminating` links are
+  a recorded limit, for Go only.
+- Runner tickets (0523 §3): these ship as recorded limits and receive no further rc.3 capacity. Their
+  runners and lifecycles are not qualified:
+  - V1-0592: JavaScript/TypeScript, Python and Ruby runners.
+  - V1-0593, except the `go test` runner: Rust, .NET and C/C++ runners.
+  - V1-0594: JVM, Apple, Android and remaining supported domains.
+  - V1-0612: Storybook `skipTags` qualification.
+  - V1-0620: Nightwatch session-bearing native IDs.
+  - V1-0622: Gradle isolated single-use daemon ownership.
+
+Other scope changes (0523 §3):
+- The `CEM-V1-006` "all main runners" matrix is decoupled from the V1-0595 wire freeze. Receipts are
+  opaque digests on the wire, so runner breadth is a qualification limit, not a freeze input.
+- V1-0632 is reduced to `verify`, `status` and `report` plus the portable consumer, and keeps the
+  S3 refusals.
+- V1-0596 promotion stays owner-blocked.
+- The 0521 §2 blockers are unchanged, and none of P0..P4 closes one. They are `CEM-V1-008`
+  independent consumers, owner promotion and device tuples.
+
+Post-rc.3 (0523 §2): these are not in rc.3.
+- frozen mutant-operator enumeration
+- pinning the coverprofile as a Git blob
+- the P4 evaluation run, which stays `NOT_RUN`
+
+No rc.3 text says CEM "helps reviewers" or is "groundbreaking" until a first trial report whose
+registration predates its first lane reads "met" under `CRT-V0-008`.
+
+### What a `cem/1.0` ACCEPT does not establish (decision 0523 §6)
+
+An ACCEPT does not establish any of the following:
+- that any test ran, ran at this commit, or ran on these inputs
+- that Corvint or the change author produced the map
+- that receipt outcomes are genuine: a forged PASS receipt hashed into the map verifies
+- that an anchor `verified` row covers its commit
+- that a valid signature proves execution rather than who made the claim
+
+P1 narrows the last two. Nothing in rc.3 removes the first three.
+
+### Kill criteria (decision 0523 §5)
+
+These are the criteria rc.3 is evaluated against. None is recorded as met at this writing, and
+several are not yet measured:
+- K1: under 25% of non-mechanical Go code hunks `held` across 30 dogfood changes after P2. The
+  hunk-revert headline is then dropped from rc.3 text, and P0 ships alone. The tally is open, as
+  noted above.
+- K2: rubber-stamp and careful maps of one patch give the same `citation` block or the same tiers.
+  P0 is then not done.
+- K3: over 5% of 50 audited `held` witnesses are not behavioural test failures.
+- K4: a stranger cannot produce and verify a `cem/1.0` map on a non-Corvint repository within one
+  engineer-day with no Tasks store. The adoption claim is then withdrawn. The plain-criterion
+  producer `cem-stable-plain-assembly/1` (`CEM-V1-240`, V1-1290) removes the hand-assembly step.
+  Stranger time stays `NOT_OBSERVED`.
+- K5: median dogfood change latency rises over 10% with P0 and P2 on.
+- K6: native and portable `verdictSha256` differ on any public case.
+
+[`docs/CHANGE-EVIDENCE-MAP.md`](CHANGE-EVIDENCE-MAP.md) carries the same §6 list and kill criteria
+in its positioning section.
+
 ## 1.0.0-rc.2 release candidate
 
 `v1.0.0-rc.2` is the second 1.0 release candidate. It carries the fixes for the rc.1
