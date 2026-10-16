@@ -124,3 +124,37 @@ func TestPostRunDeadlineIsUnavailableNotDrift(t *testing.T) {
 		})
 	}
 }
+
+// GLTP-V0-054 (V1-1432 site 3, decision 0533): the deferred release on an early exit before the
+// post-run sequence is refused as ErrAuthorityUnavailable when its only failure is its own expired
+// deadline; a drift report or an in-time failure keeps ErrAuthorityDrift. The early exit is an
+// invalid source identity in the acquired binding, so the runner never starts.
+func TestEarlyExitReleaseDeadlineIsUnavailableNotDrift(t *testing.T) {
+	for _, test := range []struct {
+		mode  string
+		drift bool
+	}{
+		{"stall", false},
+		{"stall-drift", true},
+		{"fail", true},
+	} {
+		t.Run(test.mode, func(t *testing.T) {
+			fixture := newFixture(t, false)
+			fixture.authority.binding.SourceIdentity = "not-a-source-identity"
+			fixture.config.Authority = &stallingAuthority{ExecutionAuthority: fixture.config.Authority, mode: map[string]string{"release": test.mode}}
+			transcript, err := Execute(WithPostAuthorityBound(context.Background(), 20*time.Millisecond), fixture.config)
+			if transcript.Runner.Started || transcript.AuthorityError == nil || transcript.Execution != ExecutionIncomplete {
+				t.Fatalf("early exit transcript = %+v (err %v)", transcript, err)
+			}
+			if test.drift {
+				if !errors.Is(transcript.AuthorityError, ErrAuthorityDrift) || !errors.Is(err, ErrAuthorityDrift) {
+					t.Fatalf("release refusal = %v, want ErrAuthorityDrift", transcript.AuthorityError)
+				}
+			} else if !errors.Is(transcript.AuthorityError, ErrAuthorityUnavailable) || errors.Is(err, ErrAuthorityDrift) ||
+				!strings.HasSuffix(transcript.AuthorityError.Error(), ": release execution authority deadline expired") {
+				t.Fatalf("release refusal = %v (joined %v), want ErrAuthorityUnavailable release deadline", transcript.AuthorityError, err)
+			}
+			assertDirectoryEmpty(t, fixture.temporaryParent)
+		})
+	}
+}

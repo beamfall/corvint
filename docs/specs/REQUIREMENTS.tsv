@@ -1893,14 +1893,14 @@ GLTP-V0-041	docs/specs/go-live-test-provider-v0.md	1103	Every normal-completion 
 GLTP-V0-042	docs/specs/go-live-test-provider-v0.md	1267	GLTP-V0-012 keeps `excluded` unconditionally `[]` in V0 and this clause does not	unrecorded	-
 GLTP-V0-043	docs/specs/go-live-test-provider-v0.md	1294	A shadow (non-blocking) full-verification run whose scope reaches an explicitly	unrecorded	-
 GLTP-V0-044	docs/specs/go-live-test-provider-v0.md	1304	Until an accepted containment profile exists, no command in `cmd/corvint` may	unrecorded	-
-GLTP-V0-045	docs/specs/go-live-test-provider-v0.md	1371	The session polls a bounded, explicitly enumerated file set (`Config.Files`) at	unrecorded	-
-GLTP-V0-046	docs/specs/go-live-test-provider-v0.md	1384	Exactly one run is active at a time. A newer settled identity detected while a r	unrecorded	-
-GLTP-V0-047	docs/specs/go-live-test-provider-v0.md	1399	The batch is every change settled since the last started run: a batch queued	unrecorded	-
-GLTP-V0-048	docs/specs/go-live-test-provider-v0.md	1418	Each run is executed via `gorunner.Run` — the same contained runner	unrecorded	-
-GLTP-V0-049	docs/specs/go-live-test-provider-v0.md	1443	The session publishes one JSON line per state transition	unrecorded	-
-GLTP-V0-050	docs/specs/go-live-test-provider-v0.md	1466	Every published event also carries `projection`: one	unrecorded	-
-GLTP-V0-051	docs/specs/go-live-test-provider-v0.md	1493	A terminal event whose run completed — classified `passed` or `failed` before an	unrecorded	-
-GLTP-V0-052	docs/specs/go-live-test-provider-v0.md	1524	A `skip` action MUST project the per-test execution axis `SKIPPED` with reason	unrecorded	-
+GLTP-V0-045	docs/specs/go-live-test-provider-v0.md	1378	The session polls a bounded, explicitly enumerated file set (`Config.Files`) at	unrecorded	-
+GLTP-V0-046	docs/specs/go-live-test-provider-v0.md	1391	Exactly one run is active at a time. A newer settled identity detected while a r	unrecorded	-
+GLTP-V0-047	docs/specs/go-live-test-provider-v0.md	1406	The batch is every change settled since the last started run: a batch queued	unrecorded	-
+GLTP-V0-048	docs/specs/go-live-test-provider-v0.md	1425	Each run is executed via `gorunner.Run` — the same contained runner	unrecorded	-
+GLTP-V0-049	docs/specs/go-live-test-provider-v0.md	1450	The session publishes one JSON line per state transition	unrecorded	-
+GLTP-V0-050	docs/specs/go-live-test-provider-v0.md	1473	Every published event also carries `projection`: one	unrecorded	-
+GLTP-V0-051	docs/specs/go-live-test-provider-v0.md	1500	A terminal event whose run completed — classified `passed` or `failed` before an	unrecorded	-
+GLTP-V0-052	docs/specs/go-live-test-provider-v0.md	1531	A `skip` action MUST project the per-test execution axis `SKIPPED` with reason	unrecorded	-
 GLTP-V0-053	docs/specs/go-live-test-provider-v0.md	1312	The production post-run authority bound MUST stay the fixed 15-second	unrecorded	-
 GLTP-V0-054	docs/specs/go-live-test-provider-v0.md	1338	`Execute` MUST refuse failed post-run authority (GLTP-V0-053's revalidation,	unrecorded	-
 GOC-V0-001	docs/specs/go-only-cutover-v0.md	62	The current tree MUST contain no legacy `src/corvint_cli.py` or	unrecorded	-
@@ -2229,18 +2229,18 @@ LCP-V0-005	docs/specs/local-completion-policy-v0.md	109	`finish` MUST reuse the 
 LCP-V0-006	docs/specs/local-completion-policy-v0.md	130	Once maps are ready, `finish` MUST generate the CEM reviewer report and every sc	unrecorded	-
 LCP-V0-007	docs/specs/local-completion-policy-v0.md	138	Terminal success MUST require all selected checks to pass, current report inspec	unrecorded	-
 LCP-V0-008	docs/specs/local-completion-policy-v0.md	149	Codex and Claude Code Stop, and the exact ordinary Pi final-settlement boundary,	unrecorded	-
-LCP-V0-009	docs/specs/local-completion-policy-v0.md	186	`corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope a	unrecorded	-
-LCP-V0-010	docs/specs/local-completion-policy-v0.md	210	New-profile prompt context MUST separate project governance, declared enrollment	unrecorded	-
-LCP-V0-011	docs/specs/local-completion-policy-v0.md	220	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix	unrecorded	-
-LCP-V0-012	docs/specs/local-completion-policy-v0.md	238	Private plans, observations and report sets MUST have explicit byte/count limits	unrecorded	-
-LCP-V0-013	docs/specs/local-completion-policy-v0.md	244	Prompt context MUST accept a task mention as an explicit anchor. A mention is on	unrecorded	-
-LCP-V0-014	docs/specs/local-completion-policy-v0.md	269	`finish` MUST run the daily change (coordination) and the final strict check in	unrecorded	-
-LCP-V0-015	docs/specs/local-completion-policy-v0.md	282	A selected check MUST NOT run the final check itself. Besides the `dogfood-check	unrecorded	-
-LCP-V0-016	docs/specs/local-completion-policy-v0.md	285	(accepted by decision 0439; V1-0881; no GitHub issue)	owner	decision 0439; V1-0881
-LCP-V0-017	docs/specs/local-completion-policy-v0.md	298	(accepted, decision 0465; V1-1012) The top-level `ok` of a `corvint-local-comple	owner	decision 0465; V1-1012
-LCP-V0-018	docs/specs/local-completion-policy-v0.md	308	(accepted, decision 0472; V1-1043) A `dogfood begin` plan refusal of `invalid-in	owner	decision 0472; V1-1043
-LCP-V0-019	docs/specs/local-completion-policy-v0.md	318	(accepted, decision 0508) An enrolled dogfood event	owner	decision 0508
-LCP-V0-020	docs/specs/local-completion-policy-v0.md	330	accepted, decision 0510. Every `dogfood status`	unrecorded	-
+LCP-V0-009	docs/specs/local-completion-policy-v0.md	190	`corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope a	unrecorded	-
+LCP-V0-010	docs/specs/local-completion-policy-v0.md	214	New-profile prompt context MUST separate project governance, declared enrollment	unrecorded	-
+LCP-V0-011	docs/specs/local-completion-policy-v0.md	224	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix	unrecorded	-
+LCP-V0-012	docs/specs/local-completion-policy-v0.md	242	Private plans, observations and report sets MUST have explicit byte/count limits	unrecorded	-
+LCP-V0-013	docs/specs/local-completion-policy-v0.md	248	Prompt context MUST accept a task mention as an explicit anchor. A mention is on	unrecorded	-
+LCP-V0-014	docs/specs/local-completion-policy-v0.md	273	`finish` MUST run the daily change (coordination) and the final strict check in	unrecorded	-
+LCP-V0-015	docs/specs/local-completion-policy-v0.md	286	A selected check MUST NOT run the final check itself. Besides the `dogfood-check	unrecorded	-
+LCP-V0-016	docs/specs/local-completion-policy-v0.md	289	(accepted by decision 0439; V1-0881; no GitHub issue)	owner	decision 0439; V1-0881
+LCP-V0-017	docs/specs/local-completion-policy-v0.md	303	(accepted, decision 0465; V1-1012) The top-level `ok` of a `corvint-local-comple	owner	decision 0465; V1-1012
+LCP-V0-018	docs/specs/local-completion-policy-v0.md	313	(accepted, decision 0472; V1-1043) A `dogfood begin` plan refusal of `invalid-in	owner	decision 0472; V1-1043
+LCP-V0-019	docs/specs/local-completion-policy-v0.md	323	(accepted, decision 0508) An enrolled dogfood event	owner	decision 0508
+LCP-V0-020	docs/specs/local-completion-policy-v0.md	335	accepted, decision 0510. Every `dogfood status`	unrecorded	-
 LEC-V0-001	docs/specs/lsp-editor-context-v0.md	25	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper	unrecorded	-
 LEC-V0-002	docs/specs/lsp-editor-context-v0.md	26	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively	unrecorded	-
 LEC-V0-003	docs/specs/lsp-editor-context-v0.md	27	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result	unrecorded	-
@@ -2477,18 +2477,18 @@ MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	420	Legacy calls MUST reuse eac
 MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	484	`corvint.context` MUST compile the same packet as `corvint context` in process,	unrecorded	-
 MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	496	`corvint.cem.report` MUST render the `corvint cem report` Markdown and the stabl	unrecorded	-
 MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	467	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the	unrecorded	-
-MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	557	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,	unrecorded	-
-MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	565	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,	unrecorded	-
-MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	602	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review	unrecorded	-
-MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	610	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift	unrecorded	-
-MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	620	proposed (V1-0944; no GitHub issue). Each impact result carries at most four	unrecorded	-
-MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	627	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`	unrecorded	-
-MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	635	proposed (V1-0944; no GitHub issue). When a successful tool result carries	unrecorded	-
-MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	645	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c	unrecorded	-
+MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	560	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,	unrecorded	-
+MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	568	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,	unrecorded	-
+MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	608	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review	unrecorded	-
+MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	616	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift	unrecorded	-
+MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	626	proposed (V1-0944; no GitHub issue). Each impact result carries at most four	unrecorded	-
+MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	633	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`	unrecorded	-
+MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	641	proposed (V1-0944; no GitHub issue). When a successful tool result carries	unrecorded	-
+MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	651	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c	unrecorded	-
 MCPV0-035	docs/specs/mcp-server-2026-07-28-v0.md	107	accepted, decision 0512. Cancellation of an active	unrecorded	-
-MCPV0-036	docs/specs/mcp-server-2026-07-28-v0.md	514	proposed (V1-0632 S2). `corvint.cem.report` MUST accept one optional `artifacts`	unrecorded	-
-MCPV0-037	docs/specs/mcp-server-2026-07-28-v0.md	524	proposed (V1-0632 S2). A `cem/1.0` map refused before its stable verifier runs (	unrecorded	-
-MCPV0-038	docs/specs/mcp-server-2026-07-28-v0.md	579	A tool call whose Go repository probe exceeded its own bound while the request	unrecorded	-
+MCPV0-036	docs/specs/mcp-server-2026-07-28-v0.md	517	proposed (V1-0632 S2). `corvint.cem.report` MUST accept one optional `artifacts`	unrecorded	-
+MCPV0-037	docs/specs/mcp-server-2026-07-28-v0.md	527	proposed (V1-0632 S2). A `cem/1.0` map refused before its stable verifier runs (	unrecorded	-
+MCPV0-038	docs/specs/mcp-server-2026-07-28-v0.md	582	A tool call whose Go repository probe exceeded its own bound while the request	unrecorded	-
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an	unrecorded	-
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered	unrecorded	-
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the	unrecorded	-
