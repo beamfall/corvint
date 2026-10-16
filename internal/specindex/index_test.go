@@ -182,6 +182,9 @@ func checkDigest(t *testing.T, e entry, text string) {
 	if !strings.Contains(status, normalize(e.Intent)) || !strings.Contains(status, normalize(e.Delivery)) {
 		t.Errorf("%s digest status %q does not agree with %q/%q", e.Path, values["Status"], e.Intent, e.Delivery)
 	}
+	if problem := deliveryClauseProblem(values["Status"], e.Delivery); problem != "" {
+		t.Errorf("%s digest status %q %s %q", e.Path, values["Status"], problem, e.Delivery)
+	}
 }
 
 type readmeRow struct {
@@ -303,6 +306,50 @@ func TestIndexImplementationPathsExist(t *testing.T) {
 			if _, err := os.Stat(filepath.Join("../..", path)); err != nil {
 				t.Errorf("%s: implementation path %q is absent from the tree: %v", e.Path, path, err)
 			}
+		}
+	}
+}
+
+// deliveryClauseProblem reports how a digest Status disagrees with a qualified
+// Delivery status header (SRG-V0-014), or "" when it agrees. A one-word header
+// may be elaborated in the digest; a longer one must appear verbatim, followed
+// by nothing or by a sentence boundary, so a stale or truncated header that is
+// only a prefix of the digest clause is caught.
+func deliveryClauseProblem(status, delivery string) string {
+	if !strings.ContainsAny(delivery, " ;(") {
+		return ""
+	}
+	index := strings.Index(status, delivery)
+	if index < 0 || (index > 0 && isWordByte(status[index-1])) {
+		return "does not carry the qualified delivery header"
+	}
+	if rest := strings.TrimSpace(status[index+len(delivery):]); rest != "" && !strings.HasPrefix(rest, ".") {
+		return "continues the qualified delivery header beyond a sentence boundary"
+	}
+	return ""
+}
+
+func isWordByte(b byte) bool {
+	return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9' || b == '-'
+}
+
+func TestDeliveryClauseConvention(t *testing.T) {
+	for _, c := range []struct {
+		name, status, delivery string
+		bad                    bool
+	}{
+		{"one word elaborated", "accepted / experimental delivery; more", "experimental", false},
+		{"qualified exact", "accepted / experimental; milestone NOT_QUALIFIED", "experimental; milestone NOT_QUALIFIED", false},
+		{"qualified then sentence", "accepted / experimental (file only). Checked by X", "experimental (file only)", false},
+		{"stale prefix", "accepted / experimental; slice A; slice B", "experimental; slice A", true},
+		{"stale prefix words", "accepted / experimental source implementation and tests", "experimental source implementation", true},
+		{"absent", "accepted / experimental", "experimental; slice A", true},
+		{"punctuation dropped", "accepted / experimental file only", "experimental (file only)", true},
+		{"punctuation extended", "accepted / experimental (file only); more", "experimental (file only)", true},
+		{"inside a word", "accepted / unimplemented locally", "implemented locally", true},
+	} {
+		if got := deliveryClauseProblem(c.status, c.delivery) != ""; got != c.bad {
+			t.Errorf("%s: problem=%v, want %v", c.name, got, c.bad)
 		}
 	}
 }

@@ -95,7 +95,7 @@ func TestDogfoodEventRefusesRepositoryDriftInsideTheBracket(t *testing.T) {
 	}
 	var stdout, stderr bytes.Buffer
 	code := runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{"startSource":"startup"}`), &stdout, &stderr)
-	if code != 2 || !strings.Contains(stderr.String(), `"dogfood-event-unavailable"`) || stdout.Len() != 0 {
+	if code != 2 || !strings.Contains(stderr.String(), `"dogfood-event-worktree-churn"`) || stdout.Len() != 0 {
 		t.Fatalf("native surface answered through drift: exit %d, stdout %q, stderr %s", code, stdout.String(), &stderr)
 	}
 }

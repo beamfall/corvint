@@ -170,7 +170,11 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   miss); the abandoned read writes nothing. `dogfood-event-policy-drift` is reserved for an observed
   change: the policy target moved or both policy reads succeeded and disagree. A failed policy re-read
   observed no drift and reports as a read failure (`dogfood-event-unavailable`, or
-  `dogfood-event-deadline` on expiry). A supplied `stop_hook_active` MUST be boolean. Expensive
+  `dogfood-event-deadline` on expiry). A read refused because the worktree moved under it
+  (`repository-state-unstable` from the probe, `dogfood-event-repository-drift` or
+  `dogfood-event-context-drift`) reports the fixed `dogfood-event-worktree-churn` code, and
+  `dogfood-event-policy-drift` keeps its own code; every other read failure stays
+  `dogfood-event-unavailable` (amended 2026-10-16, decision 0533, V1-0880). A supplied `stop_hook_active` MUST be boolean. Expensive
   verification and mutations never run in Stop. User interruption remains effective.
   The owner’s 2026-09-29 Pi build request additionally admits Pi 0.99.1 / extension
   0.3.2. Its `agent_before_settle` handler evaluates only a trusted completed activity
@@ -291,7 +295,8 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   identity or status read of its own, and MUST NOT issue the `ls-tree` profile read, which no
   event envelope emits. A closing observation whose identity or dirty set differs from the
   opening one is refused as `dogfood-event-repository-drift` and never retried; the native
-  surface reports it as its fixed `dogfood-event-unavailable` refusal with no envelope, as before.
+  surface reports it as its fixed `dogfood-event-worktree-churn` refusal with no envelope
+  (amended 2026-10-16, decision 0533, V1-0880; it was `dogfood-event-unavailable`).
   Every other refusal, the envelope bytes and the context packet are unchanged. Measured in the
   fixture: four Git processes per event where `stop` took ten and an index-backed event
   thirteen. Rollback: revert the change; the two-probe path keeps no persistent state.
@@ -390,6 +395,7 @@ elsewhere are not repeated.
 | `dogfood-event-output-unavailable` | `cmd/corvint/local_completion_event.go` (`runLocalCompletionEvent`) | writing the encoded response to stdout failed |
 | `dogfood-event-policy-drift` | `cmd/corvint/local_completion_event.go` (`localEventRead`) | the evaluation's target is set and differs from the commit probed before the event |
 | `dogfood-event-repository-drift` | `cmd/corvint/local_completion_event.go` (`localEventRead`) | the closing observation of the event's one bracket differs from the opening one (`gokernel.ErrRepositoryDrift`), or the commit differs from the expected target |
+| `dogfood-event-worktree-churn` | `cmd/corvint/local_completion_event.go` (`dogfoodReadFailureCode`) | the event's repository read was refused as `repository-state-unstable`, `dogfood-event-repository-drift` or `dogfood-event-context-drift`: the worktree moved under the read (`LCP-V0-008`, decision 0533, V1-0880) |
 | `dogfood-report-drift` | `internal/localcompletion/finish.go` (`checkCoordinatorContext`) | the dogfood report does not parse, is not complete, or names a base or target other than the plan base and current target |
 | `duplicate-local-completion-option` | `cmd/corvint/local_completion.go` (`localCompletionFlags`) | a `local-completion` option is given twice |
 | `enrollment-bound-exceeded` | `internal/localcompletion/storage.go` (`load`) | saved state has more than 64 observations, or its intent-pointer or executable count does not match the plan |
@@ -505,7 +511,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-005 | `TestLocalCompletionRealEvidenceWorkflow`; actual CEM/OCM/coordinator/checker fixture |
 | LCP-V0-006 | `TestLocalCompletionRealEvidenceWorkflow`; generated-but-unread/stale report refusals |
 | LCP-V0-007 | `TestLocalCompletionRealEvidenceWorkflow`; strict-check and repeated-finish assertions |
-| LCP-V0-008 | `TestDogfoodEventStopLifecycle`; `TestDogfoodEventReadOnlyEnrolledStopAndPrompt` other-session release and notice; `TestQualifiedLifecycleStopComposition` closed completion; `TestDogfoodEventStrictInputAndDeadline` deadline code, uncancellable-read expiry and input-read expiry (V1-1391); native first/recursive Stop regressions, with the Git probe bound lifted beside the event deadline (`gokernel.WithProbeBound`, V1-1391) |
+| LCP-V0-008 | `TestDogfoodEventStopLifecycle`; `TestDogfoodEventReadOnlyEnrolledStopAndPrompt` other-session release and notice; `TestQualifiedLifecycleStopComposition` closed completion; `TestDogfoodEventStrictInputAndDeadline` deadline code, uncancellable-read expiry and input-read expiry (V1-1391); `TestV10880WorktreeChurnHasNamedCode` and `TestV10880AdapterReasonNamesChurnAndKeepsUnavailable` (`cmd/corvint/worktree_churn_test.go`) churn, policy-drift and unlisted-read codes (decision 0533); native first/recursive Stop regressions, with the Git probe bound lifted beside the event deadline (`gokernel.WithProbeBound`, V1-1391) |
 | LCP-V0-009 | `TestDogfoodEventGoPythonWireAndSession`; `TestDogfoodEventStrictInputAndDeadline`; `TestAdapterRejectedReasonSurfacesEngineErrorCode`; `TestRejectedEventReasonAppendsEngineCode`; `TestAdapterErrorTailIsBounded` |
 | LCP-V0-010 | `TestDogfoodPromptFrozenAnchors`; `TestDogfoodPromptScopeDoesNotResolveAndPreservesStaleness`; frozen follow-up and explicit/unknown/ambiguous anchors |
 | LCP-V0-011 | `TestDogfoodPromptPrivacyNoHistoryAndNonmutation`; `TestDogfoodPromptCriticalBudgetAndImpossibleEnvelope`; accepted adapter amendment (decision 0441): `TestClaudeNativeDogfoodLifecycle` (AHI-046 and AHI-047 subtests), `TestAHI047GuidanceIsMainThreadSessionStartOnly` |
@@ -513,7 +519,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-013 | `TestDogfoodPromptMentionAnchors` (frozen `mention-cases.json`); `TestDogfoodPromptMentionIdentityAndRefusals`; `TestUseCaseHostileTaskOrientation` prompt-mention cases |
 | LCP-V0-014 | `TestDogfoodFinishRunsFromBinaryInForeignRepository` (built binary, non-Corvint repository with no `script/`, `VERSION` or `cmd/corvint`, poisoned `DOGFOOD_*`, `CORVINT_BIN` and `PATH`); `TestLocalCompletionRealEvidenceWorkflow` (in-tree) |
 | LCP-V0-015 | `storage.go` `runsDogfoodCheck` guard; `final-check-not-prerequisite` refusal row; `TestValidatePlanRefusesFinalCheckInAnyForm` (script name, make target, `dogfood check` and `dogfood seal` refused; `dogfood change` and a non-adjacent pair admitted) |
-| LCP-V0-016 | `localEventRead` in `cmd/corvint/local_completion_event.go` running its reads inside `gokernel.ProbeRepositoryAround` (`GPK-V0-076`), and `localEventContext` loading the snapshot through `contextindex.LoadSnapshotObserved` against the opening observation | `TestDogfoodEventSpawnsOneBracket` (`cmd/corvint/dogfood_event_bracket_test.go`), which counts four Git spawns through a PATH shim for `stop`, `user-prompt` and both `session-start` sources over clean and dirty snapshot-present fixtures; `TestDogfoodEventRefusesRepositoryDriftInsideTheBracket`, which writes a file during the miss build and pins the `dogfood-event-repository-drift` error and the native surface's refusal; `TestProbeAroundSpawnsFourGitProcessesAndRefusesDrift` (`internal/gokernel/repository_around_test.go`); the before/after hook timings in `docs/build-log/2026-10-06-v1-0881-single-event-bracket.md` |
+| LCP-V0-016 | `localEventRead` in `cmd/corvint/local_completion_event.go` running its reads inside `gokernel.ProbeRepositoryAround` (`GPK-V0-076`), and `localEventContext` loading the snapshot through `contextindex.LoadSnapshotObserved` against the opening observation | `TestDogfoodEventSpawnsOneBracket` (`cmd/corvint/dogfood_event_bracket_test.go`), which counts four Git spawns through a PATH shim for `stop`, `user-prompt` and both `session-start` sources over clean and dirty snapshot-present fixtures; `TestDogfoodEventRefusesRepositoryDriftInsideTheBracket`, which writes a file during the miss build and pins the `dogfood-event-repository-drift` error and the native surface's `dogfood-event-worktree-churn` refusal (decision 0533); `TestProbeAroundSpawnsFourGitProcessesAndRefusesDrift` (`internal/gokernel/repository_around_test.go`); the before/after hook timings in `docs/build-log/2026-10-06-v1-0881-single-event-bracket.md` |
 | LCP-V0-017 | `localCompletionExit` and the shared envelope in `cmd/corvint/local_completion.go`; `TestLocalCompletionVerifyOKMirrorsCheckResult` (a selected check exiting 1 yields exit 1, `ok:false`, `qualified:false`, `exit:1`; a passing check yields exit 0 and `ok:true`); `TestDogfoodFinishRunsFromBinaryInForeignRepository` (pre-review finish exit 1 with `ok:false`, satisfied finish `ok:true`); the before/after envelopes in `docs/build-log/2026-10-08-v1-1012-verify-ok-mirrors-exit.md` |
 | LCP-V0-020 | `TestCompletionNoActionReasons`; `TestLocalCompletionFrontierUnavailableNextActionOrReason`; `TestLocalCompletionUnavailableEvaluationReason`; `TestLocalCompletionRealEvidenceWorkflow` (satisfied status and finish JSON) |
 | LCP-V0-018 | `localCompletionRemedies` in `cmd/corvint/local_completion.go`; `TestDogfoodBeginPlanIntentRefusalNamesTheRule` (`cmd/corvint/local_completion_test.go`) over unsorted, duplicated, empty and 17-path intents arrays |

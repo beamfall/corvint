@@ -64,6 +64,11 @@ docs/build-log)`. A change that accepts or amends requirements records that in e
 marker and in its build-log entry; it does not append to the header (`SRG-V0-011`). Older headers
 keep their tails until a change touches them.
 
+A qualified `Delivery status:` header (more than one word, for example `experimental (file transport
+only)`) appears verbatim in the digest `Status:`; the digest may add only a new sentence after it,
+never a `;`, `,` or further words, so a stale truncated header is caught (`SRG-V0-014`). A one-word
+header may be elaborated.
+
 Requirement acceptance mode. Since the owner's standing auto-accept of 2026-10-11, `accepted` on a
 spec no longer separates intent the owner read from intent an agent wrote under that approval, so
 each requirement records its own mode in the leading parenthetical of its definition line, and
