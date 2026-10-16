@@ -126,11 +126,25 @@ fi
 if [ -n "$selection_run" ]; then
   fetch "$selection_run" 'corvint-test-shadow-*' "$dir/selection" || note "run $selection_run retained no corvint-test-shadow artifact"
 fi
+# AFP-V0-052: a go-product-shard job whose first step, "Set up job", failed never started a
+# step of its own: the hosted runner failed before the job ran. Its shard numbers go to the
+# classifier, which reads them as infrastructure only when they are exactly the missing shards.
+# An unreadable job list names none, so the row stays INCOMPLETE.
+infra=""
+if [ -n "$outcomes_run" ]; then
+  infra=$(gh api "repos/$REPO/actions/runs/$outcomes_run/jobs?filter=latest&per_page=100" --jq '.jobs[]
+    | select((.name | test("^go-product-shard \\([0-9]+\\)$")) and .conclusion == "failure"
+             and .steps[0].name == "Set up job" and .steps[0].conclusion == "failure")
+    | .name | capture("\\((?<n>[0-9]+)\\)$").n' 2> /dev/null) || {
+    say "forward row: the jobs of run $outcomes_run are unreadable, so no hosted set-up failure is named"
+    infra=""
+  }
+fi
 class=$(ROW_KIND=$kind ROW_PR=$pr ROW_SHA=$sha ROW_HEAD=$head ROW_RUN=$RUN_ID ROW_SELECTION_RUN=$selection_run \
   ROW_OUTCOMES_RUN=$outcomes_run ROW_SHARDS=$FORWARD_SHARDS ROW_EPOCH=$FORWARD_EPOCH \
-  ROW_SELECTION_DIR="$dir/selection" ROW_OUTCOMES_DIR="$dir/outcomes" ROW_REUSE=$reuse ROW_COLLECT=$collect \
+  ROW_SELECTION_DIR="$dir/selection" ROW_OUTCOMES_DIR="$dir/outcomes" ROW_REUSE=$reuse ROW_COLLECT=$collect ROW_INFRA=$infra \
   sh "$here/classify.sh" "$dir/row.json")
-case "$class" in CLEAN | FLAKY | MISS | INCOMPLETE) ;; *) class=INCOMPLETE ;; esac
+case "$class" in CLEAN | FLAKY | MISS | INCOMPLETE | INFRA) ;; *) class=INCOMPLETE ;; esac
 row_sha=$(jq -r '.sha // empty' "$dir/row.json" 2> /dev/null) || row_sha=""
 hex40 "$row_sha" || row_sha=$HEAD_SHA
 failing=$(jq -r 'if (.counts.failed // 0) > 0 then 1 else 0 end' "$dir/row.json" 2> /dev/null) || failing=0

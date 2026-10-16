@@ -3,23 +3,30 @@
 # forward-row artifact names alone (V1-0811 AC4); nothing is downloaded.
 # Usage: jq -R -s -r --arg epoch E -f bar.jq < NAMES (newest first, one per line)
 # A row counts once per (pull request, commit): a re-run row of the same pair
-# replaces the older one. Only the latest 20 rows of the epoch count.
+# replaces the older one. Only the latest 20 rows of the epoch count. An INFRA
+# row (AFP-V0-052, a hosted set-up failure) is neither complete nor INCOMPLETE:
+# it takes no place in the window and is reported on its own.
 [split("\n")[]
- | capture("^ci-forward-(?<class>CLEAN|FLAKY|MISS|INCOMPLETE)-pr(?<pr>[0-9]+)-(?<sha>[0-9a-f]{40})-e(?<epoch>[0-9]+)-f(?<f>[01])$")
+ | capture("^ci-forward-(?<class>CLEAN|FLAKY|MISS|INCOMPLETE|INFRA)-pr(?<pr>[0-9]+)-(?<sha>[0-9a-f]{40})-e(?<epoch>[0-9]+)-f(?<f>[01])$")
  | select(.epoch == $epoch)] as $all
 | (reduce $all[] as $r ({seen: {}, rows: []};
     ($r.pr + "-" + $r.sha) as $k
     | if .seen[$k] then . else .seen[$k] = true | .rows += [$r] end) | .rows) as $unique
-| $unique[0:20] as $w
-| ([$w[] | select(.class != "INCOMPLETE")]) as $complete
+| (reduce $unique[] as $r ({rows: [], infra: 0};
+    if (.rows | length) >= 20 then . elif $r.class == "INFRA" then .infra += 1 else .rows += [$r] end)) as $window
+| $window.rows as $w
+| ([$w[] | select(.class != "INCOMPLETE" and .class != "INFRA")]) as $complete
 | {rows: ($w | length), complete: ($complete | length),
    failing: ([$complete[] | select(.f == "1")] | length),
    miss: ([$w[] | select(.class == "MISS")] | length),
    flaky: ([$w[] | select(.class == "FLAKY")] | length),
-   incomplete: ([$w[] | select(.class == "INCOMPLETE")] | length)} as $c
+   incomplete: ([$w[] | select(.class == "INCOMPLETE")] | length),
+   infra: $window.infra} as $c
 | "### AFP-V0-029 forward rows, epoch \($epoch)",
   "",
   "Latest \($c.rows) row(s) of the epoch: \($c.complete) complete, \($c.failing) complete with failing packages, \($c.flaky) FLAKY, \($c.miss) MISS, \($c.incomplete) INCOMPLETE.",
+  "",
+  "Hosted infrastructure failures (AFP-V0-052): \($c.infra) INFRA row(s) between them, outside the window and neither complete nor INCOMPLETE.",
   "",
   "Shadow bar (20 complete rows, at least 5 with failing packages, no non-FLAKY miss): "
     + (if $c.complete >= 20 and $c.failing >= 5 and $c.miss == 0 then "MET" else "NOT MET" end)
