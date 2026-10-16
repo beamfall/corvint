@@ -182,10 +182,20 @@ var poolPreparedFault func() error
 
 // PoolCommand explicitly probes a free member or cleans a quarantined allocation.
 // The preparation receipt precedes execution; replay never repeats execution.
+// A pending receipt it settles first is reported as Redone (CAL-V0-261).
 func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, kind string) (*Report, error) {
-	if _, e := settleLease(ctx, repo); e != nil {
+	redone, e := settleLease(ctx, repo)
+	if e != nil {
 		return &Report{}, e
 	}
+	report, e := poolCommand(ctx, repo, actor, choice, kind)
+	if redone && report != nil {
+		report.Redone = true
+	}
+	return report, e
+}
+
+func poolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, kind string) (*Report, error) {
 	p, state, e := poolSnapshot(ctx, repo)
 	if e != nil {
 		return &Report{}, e

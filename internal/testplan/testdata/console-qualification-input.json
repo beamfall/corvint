@@ -1,0 +1,1058 @@
+{
+ "revision": "a0b4c4108e4ce3a1ccc51127b06741e9315a1108",
+ "schema": "test-consolidation-input/0",
+ "variations": [
+  {
+   "action": [
+    "GET:/"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "board.title",
+    "board.tool-attribution",
+    "snapshot.binary"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.help=ok",
+    "tool.ticket-list=ok"
+   ],
+   "route": "/",
+   "screen": "screen:corvint-console:board",
+   "setup": "stub:help+list",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.boundary.standalone"
+  },
+  {
+   "action": [
+    "GET:/",
+    "GET:/"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "board.refusal-code",
+    "board.ticket-row"
+   ],
+   "changes": [
+    "tool.ticket-list=ok"
+   ],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.help=ok",
+    "tool.ticket-list=refusal"
+   ],
+   "route": "/",
+   "screen": "screen:corvint-console:board",
+   "setup": "stub:rewritable",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.boundary.no-state"
+  },
+  {
+   "action": [
+    "GET:/"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "board.invocation",
+    "board.observation-boundary",
+    "board.unstated-axes"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.help=ok",
+    "tool.ticket-list=ok"
+   ],
+   "route": "/",
+   "screen": "screen:corvint-console:board",
+   "setup": "stub:help+list",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.axis.invocation-boundary"
+  },
+  {
+   "action": [
+    "POST:/mutate@verb=archive"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "mutate.refusal-reason",
+    "tool.archive-not-invoked"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.help=ok"
+   ],
+   "route": "/mutate",
+   "screen": "screen:corvint-console:mutate",
+   "setup": "stub:help+archive-marker",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.mutate.unimplemented-not-invoked"
+  },
+  {
+   "action": [
+    "POST:/mutate@verb=hold"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "tool.argv.expected-revision",
+    "tool.argv.request-id",
+    "tool.argv.target"
+   ],
+   "changes": [
+    "tool.argv=recorded"
+   ],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.help=ok",
+    "ticket.AT-1.revision=3"
+   ],
+   "route": "/mutate",
+   "screen": "screen:corvint-console:mutate",
+   "setup": "stub:help+argv-recorder",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.mutate.sends-shown-revision"
+  },
+  {
+   "action": [
+    "GET:/mutate"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "mutate.status-405"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.help=ok"
+   ],
+   "route": "/mutate",
+   "screen": "screen:corvint-console:mutate",
+   "setup": "stub:help",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.mutate.post-only"
+  },
+  {
+   "action": [
+    "GET:/"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "board.columns",
+    "board.unmapped-status",
+    "board.unknowns"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.help=ok",
+    "tool.ticket-list=ok"
+   ],
+   "route": "/",
+   "screen": "screen:corvint-console:board",
+   "setup": "stub:help+list",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.render.columns"
+  },
+  {
+   "action": [
+    "GET:/"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "board.refusal-code",
+    "board.refusal-warning",
+    "board.no-columns"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.help=ok",
+    "tool.ticket-list=refusal"
+   ],
+   "route": "/",
+   "screen": "screen:corvint-console:board",
+   "setup": "stub:help+list-refusal",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.render.refusal"
+  },
+  {
+   "action": [
+    "GET:/"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "board.escaped-title",
+    "board.untrusted-note"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.help=ok",
+    "tool.ticket-list=hostile"
+   ],
+   "route": "/",
+   "screen": "screen:corvint-console:board",
+   "setup": "stub:help+list-hostile",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.render.untrusted-inert"
+  },
+  {
+   "action": [
+    "GET:/evidence"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "evidence.axis-values",
+    "evidence.measured-value"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "snapshot=document"
+   ],
+   "route": "/evidence",
+   "screen": "screen:corvint-console:evidence",
+   "setup": "snapshot:document",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.evidence.axes-as-stated"
+  },
+  {
+   "action": [
+    "GET:/evidence"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "evidence.unstated-axis"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "snapshot=document"
+   ],
+   "route": "/evidence",
+   "screen": "screen:corvint-console:evidence",
+   "setup": "snapshot:document",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.evidence.unknown-vocabulary"
+  },
+  {
+   "action": [
+    "GET:/evidence"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "evidence.no-value-measured"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "snapshot=document"
+   ],
+   "route": "/evidence",
+   "screen": "screen:corvint-console:evidence",
+   "setup": "snapshot:document",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.evidence.unmeasured"
+  },
+  {
+   "action": [
+    "GET:/evidence"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "evidence.refusal-code",
+    "evidence.no-metrics-panel"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "snapshot=refusal"
+   ],
+   "route": "/evidence",
+   "screen": "screen:corvint-console:evidence",
+   "setup": "snapshot:refusal",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.evidence.compiler-refusal"
+  },
+  {
+   "action": [
+    "GET:/evidence"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "evidence.invalid-family"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "snapshot=undecodable-family"
+   ],
+   "route": "/evidence",
+   "screen": "screen:corvint-console:evidence",
+   "setup": "snapshot:undecodable-family",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.evidence.undecodable-family"
+  },
+  {
+   "action": [
+    "GET:/evidence@case=null-family",
+    "GET:/evidence@case=null-metric"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "evidence.invalid-family",
+    "evidence.no-metrics-panel"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "snapshot=null-family+null-metric"
+   ],
+   "route": "/evidence",
+   "screen": "screen:corvint-console:evidence",
+   "setup": "snapshot:null-family+null-metric",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.evidence.null-family"
+  },
+  {
+   "action": [
+    "GET:/dogfood"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "dogfood.not-observed",
+    "dogfood.portable-hint"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "dogfood-report=absent"
+   ],
+   "route": "/dogfood",
+   "screen": "screen:corvint-console:dogfood",
+   "setup": "repo:empty",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.dogfood.absent"
+  },
+  {
+   "action": [
+    "GET:/dogfood"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "dogfood.not-produced-reason",
+    "dogfood.incomplete-count",
+    "dogfood.attribution"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "dogfood-report=incomplete"
+   ],
+   "route": "/dogfood",
+   "screen": "screen:corvint-console:dogfood",
+   "setup": "repo:report-incomplete",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.dogfood.shared-attribution"
+  },
+  {
+   "action": [
+    "GET:/dogfood"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "dogfood.predates-packet-coverage"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "dogfood-report=historical"
+   ],
+   "route": "/dogfood",
+   "screen": "screen:corvint-console:dogfood",
+   "setup": "repo:report-historical",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.dogfood.historical-report"
+  },
+  {
+   "action": [
+    "GET:/dogfood"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "dogfood.packet-coverage-fields"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "dogfood-report=packet-coverage"
+   ],
+   "route": "/dogfood",
+   "screen": "screen:corvint-console:dogfood",
+   "setup": "repo:report-packet-coverage",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.dogfood.packet-coverage"
+  },
+  {
+   "action": [
+    "GET:/dogfood"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "dogfood.aggregate-refusal"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "dogfood-report=aggregate"
+   ],
+   "route": "/dogfood",
+   "screen": "screen:corvint-console:dogfood",
+   "setup": "repo:report-aggregate",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.dogfood.aggregate-refused"
+  },
+  {
+   "action": [
+    "GET:/backlogs@path=AGENTS.md"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "backlogs.no-read"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "repo=corvint-head"
+   ],
+   "route": "/backlogs",
+   "screen": "screen:corvint-console:backlogs",
+   "setup": "repo:corvint-head",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.listing.unlisted-path"
+  },
+  {
+   "action": [
+    "GET:/backlogs@path=bugs.md"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "backlogs.pre",
+    "backlogs.escaped"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "repo=corvint-head"
+   ],
+   "route": "/backlogs",
+   "screen": "screen:corvint-console:backlogs",
+   "setup": "repo:corvint-head",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.listing.inert-text"
+  },
+  {
+   "action": [
+    "GET:/backlogs@path=cafe.md"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "backlogs.non-ascii-listed",
+    "backlogs.non-ascii-read"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "repo=non-ascii-name"
+   ],
+   "route": "/backlogs",
+   "screen": "screen:corvint-console:backlogs",
+   "setup": "repo:non-ascii-name",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.listing.non-ascii"
+  },
+  {
+   "action": [
+    "GET:/benchmarks"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "benchmarks.results"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "repo=corvint-head"
+   ],
+   "route": "/benchmarks",
+   "screen": "screen:corvint-console:benchmarks",
+   "setup": "repo:corvint-head",
+   "spec": "internal/console/console_test.go",
+   "user": "operator",
+   "variation_id": "con.listing.benchmarks"
+  },
+  {
+   "action": [
+    "GET:/roadmap"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "roadmap.groups",
+    "roadmap.blockers"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.roadmap=ok",
+    "tool.blockers=ok"
+   ],
+   "route": "/roadmap",
+   "screen": "screen:corvint-console:roadmap",
+   "setup": "stub:roadmap+blockers",
+   "spec": "internal/console/roadmap_test.go",
+   "user": "operator",
+   "variation_id": "rm.grouping-blockers"
+  },
+  {
+   "action": [
+    "GET:/roadmap"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "roadmap.gate-not-observed"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.roadmap=ok",
+    "tool.blockers=ok"
+   ],
+   "route": "/roadmap",
+   "screen": "screen:corvint-console:roadmap",
+   "setup": "stub:roadmap+blockers",
+   "spec": "internal/console/roadmap_test.go",
+   "user": "operator",
+   "variation_id": "rm.gate-results-not-observed"
+  },
+  {
+   "action": [
+    "GET:/roadmap@page=2",
+    "GET:/",
+    "GET:/roadmap@page=2+refresh=off",
+    "GET:/roadmap@server=refusal"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "roadmap.recheck-meta",
+    "board.no-refresh",
+    "roadmap.refresh-paused-resume",
+    "roadmap.refusal-recheck-active",
+    "roadmap.refusal-hard-stops"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.roadmap=ok",
+    "tool.blockers=ok",
+    "tool.help=ok",
+    "tool.ticket-list=ok",
+    "tool.roadmap-second-server=refusal"
+   ],
+   "route": "/roadmap",
+   "screen": "screen:corvint-console:roadmap",
+   "setup": "stub:roadmap+blockers+help+list+roadmap-refusal",
+   "spec": "internal/console/roadmap_test.go",
+   "user": "operator",
+   "variation_id": "rm.safe-auto-recheck"
+  },
+  {
+   "action": [
+    "POST:/mutate@verb=set-dependencies"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "mutate.refusal",
+    "mutate.entries-kept"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.set-dependencies=stale-revision"
+   ],
+   "route": "/mutate",
+   "screen": "screen:corvint-console:mutate",
+   "setup": "stub:set-deps-help+stale-refusal",
+   "spec": "internal/console/roadmap_test.go",
+   "user": "operator",
+   "variation_id": "rm.set-deps.stale-revision"
+  },
+  {
+   "action": [
+    "POST:/mutate@verb=set-dependencies"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "mutate.refusal",
+    "mutate.entries-kept"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.set-dependencies=cycle"
+   ],
+   "route": "/mutate",
+   "screen": "screen:corvint-console:mutate",
+   "setup": "stub:set-deps-help+cycle-refusal",
+   "spec": "internal/console/roadmap_test.go",
+   "user": "operator",
+   "variation_id": "rm.set-deps.cycle"
+  },
+  {
+   "action": [
+    "POST:/mutate@verb=prioritize"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "mutate.refusal",
+    "mutate.entries-kept"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.prioritize=stale-revision"
+   ],
+   "route": "/mutate",
+   "screen": "screen:corvint-console:mutate",
+   "setup": "stub:prioritize-help+refusal",
+   "spec": "internal/console/roadmap_test.go",
+   "user": "operator",
+   "variation_id": "rm.prioritize.stale-revision"
+  },
+  {
+   "action": [
+    "GET:/ticket@id=ticket:acme:main:AT-1"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "ticket.one-prioritize-form"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.ticket-show=ok"
+   ],
+   "route": "/ticket",
+   "screen": "screen:corvint-console:ticket",
+   "setup": "stub:prioritize-help+show",
+   "spec": "internal/console/roadmap_test.go",
+   "user": "operator",
+   "variation_id": "rm.ticket.one-prioritize-form"
+  },
+  {
+   "action": [
+    "GET:/roadmap",
+    "GET:/ticket@id=ticket:acme:main:AT-1"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "roadmap.keyboard-controls",
+    "ticket.keyboard-controls"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.roadmap=ok",
+    "tool.blockers=ok",
+    "tool.ticket-show=ok"
+   ],
+   "route": "/roadmap",
+   "screen": "screen:corvint-console:roadmap",
+   "setup": "stub:roadmap+blockers+help+show",
+   "spec": "internal/console/roadmap_test.go",
+   "user": "operator",
+   "variation_id": "rm.keyboard-operable"
+  },
+  {
+   "action": [
+    "GET:/@case=foreign-host"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "response.status-403",
+    "response.protections",
+    "tool.not-invoked"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.marker=absent"
+   ],
+   "route": "/",
+   "screen": "screen:corvint-console:board",
+   "setup": "stub:marker-tool",
+   "spec": "internal/console/security_test.go",
+   "user": "untrusted-browser",
+   "variation_id": "sec.boundary.foreign-host"
+  },
+  {
+   "action": [
+    "GET:/@case=wrong-port"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "response.status-403",
+    "response.protections",
+    "tool.not-invoked"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.marker=absent"
+   ],
+   "route": "/",
+   "screen": "screen:corvint-console:board",
+   "setup": "stub:marker-tool",
+   "spec": "internal/console/security_test.go",
+   "user": "untrusted-browser",
+   "variation_id": "sec.boundary.wrong-port"
+  },
+  {
+   "action": [
+    "GET:/@case=foreign-origin"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "response.status-403",
+    "response.protections",
+    "tool.not-invoked"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.marker=absent"
+   ],
+   "route": "/",
+   "screen": "screen:corvint-console:board",
+   "setup": "stub:marker-tool",
+   "spec": "internal/console/security_test.go",
+   "user": "untrusted-browser",
+   "variation_id": "sec.boundary.foreign-origin"
+  },
+  {
+   "action": [
+    "GET:/@case=null-origin"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "response.status-403",
+    "response.protections",
+    "tool.not-invoked"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.marker=absent"
+   ],
+   "route": "/",
+   "screen": "screen:corvint-console:board",
+   "setup": "stub:marker-tool",
+   "spec": "internal/console/security_test.go",
+   "user": "untrusted-browser",
+   "variation_id": "sec.boundary.null-origin"
+  },
+  {
+   "action": [
+    "POST:/@case=write-read-route"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "response.status-405",
+    "response.protections",
+    "tool.not-invoked"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.marker=absent"
+   ],
+   "route": "/",
+   "screen": "screen:corvint-console:board",
+   "setup": "stub:marker-tool",
+   "spec": "internal/console/security_test.go",
+   "user": "untrusted-browser",
+   "variation_id": "sec.boundary.write-read-route"
+  },
+  {
+   "action": [
+    "POST:/mutate@case=missing-token"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "response.status-403",
+    "response.protections",
+    "tool.not-invoked"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.marker=absent"
+   ],
+   "route": "/mutate",
+   "screen": "screen:corvint-console:mutate",
+   "setup": "stub:marker-tool",
+   "spec": "internal/console/security_test.go",
+   "user": "untrusted-browser",
+   "variation_id": "sec.boundary.missing-token"
+  },
+  {
+   "action": [
+    "POST:/mutate@case=token-query-insufficient"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "response.status-403",
+    "response.protections",
+    "tool.not-invoked"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.marker=absent"
+   ],
+   "route": "/mutate",
+   "screen": "screen:corvint-console:mutate",
+   "setup": "stub:marker-tool",
+   "spec": "internal/console/security_test.go",
+   "user": "untrusted-browser",
+   "variation_id": "sec.boundary.token-query-insufficient"
+  },
+  {
+   "action": [
+    "POST:/mutate@case=oversized"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "response.status-400",
+    "response.protections",
+    "tool.not-invoked"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.marker=absent"
+   ],
+   "route": "/mutate",
+   "screen": "screen:corvint-console:mutate",
+   "setup": "stub:marker-tool",
+   "spec": "internal/console/security_test.go",
+   "user": "untrusted-browser",
+   "variation_id": "sec.boundary.oversized"
+  },
+  {
+   "action": [
+    "POST:/mutate@case=unreviewed"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "response.status-400",
+    "response.protections",
+    "tool.not-invoked"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.marker=absent"
+   ],
+   "route": "/mutate",
+   "screen": "screen:corvint-console:mutate",
+   "setup": "stub:marker-tool",
+   "spec": "internal/console/security_test.go",
+   "user": "untrusted-browser",
+   "variation_id": "sec.boundary.unreviewed"
+  },
+  {
+   "action": [
+    "GET:/",
+    "GET:/ticket@id=ticket:acme:main:AT-1",
+    "POST:/mutate@verb=refine+title=Changed",
+    "POST:/mutate@verb=create+title=New",
+    "POST:/mutate@verb=refine+title="
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "forms.structured",
+    "mutate.refine-refused",
+    "mutate.create-accepted",
+    "mutate.empty-invalid"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.help=create-refine",
+    "tool.ticket-show=ok"
+   ],
+   "route": "/",
+   "screen": "screen:corvint-console:board",
+   "setup": "stub:help+list+show+queue",
+   "spec": "internal/console/security_test.go",
+   "user": "operator",
+   "variation_id": "sec.structured-forms"
+  },
+  {
+   "action": [
+    "GET:/code@path=tracked.txt"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "code.committed-blob",
+    "code.head-object",
+    "git.filter-not-run"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "repo=filter-trap",
+    "env.ambient-git=redirecting"
+   ],
+   "route": "/code",
+   "screen": "screen:corvint-console:code",
+   "setup": "repo:filter-trap+ambient-git",
+   "spec": "internal/console/security_test.go",
+   "user": "operator",
+   "variation_id": "sec.git-reads.no-filter-redirect"
+  },
+  {
+   "action": [
+    "POST:/mutate@verb=create"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "mutate.form-limit-refusal"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "tool.help=create"
+   ],
+   "route": "/mutate",
+   "screen": "screen:corvint-console:mutate",
+   "setup": "stub:help-with-create",
+   "spec": "internal/console/security_test.go",
+   "user": "operator",
+   "variation_id": "sec.form-limits"
+  }
+ ]
+}

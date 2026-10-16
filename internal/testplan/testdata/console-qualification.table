@@ -1,0 +1,34 @@
+<!-- corvint test-consolidation-table/0 input=sha256:da5b6fd2e480fa68db4146edb6943fe29ed2b4ab0d4d254c56b8ef6dc91d28b5 tests=none maps=none revision=none anchors=NOT_RUN max-steps=8 status=COMPLETE -->
+| test | spec | variation ids | isolated reason |
+| --- | --- | --- | --- |
+| T001 | internal/console/console_test.go | con.axis.invocation-boundary, con.boundary.standalone, con.render.columns | - |
+| T002 | internal/console/console_test.go | con.boundary.no-state | unique-context |
+| T003 | internal/console/console_test.go | con.dogfood.absent | unique-context |
+| T004 | internal/console/console_test.go | con.dogfood.aggregate-refused | unique-context |
+| T005 | internal/console/console_test.go | con.dogfood.historical-report | unique-context |
+| T006 | internal/console/console_test.go | con.dogfood.packet-coverage | unique-context |
+| T007 | internal/console/console_test.go | con.dogfood.shared-attribution | unique-context |
+| T008 | internal/console/console_test.go | con.evidence.axes-as-stated, con.evidence.unknown-vocabulary, con.evidence.unmeasured | - |
+| T009 | internal/console/console_test.go | con.evidence.compiler-refusal | unique-context |
+| T010 | internal/console/console_test.go | con.evidence.null-family | unique-context |
+| T011 | internal/console/console_test.go | con.evidence.undecodable-family | unique-context |
+| T012 | internal/console/console_test.go | con.listing.benchmarks | unique-context |
+| T013 | internal/console/console_test.go | con.listing.inert-text, con.listing.unlisted-path | - |
+| T014 | internal/console/console_test.go | con.listing.non-ascii | unique-context |
+| T015 | internal/console/console_test.go | con.mutate.post-only | unique-context |
+| T016 | internal/console/console_test.go | con.mutate.sends-shown-revision | unique-context |
+| T017 | internal/console/console_test.go | con.mutate.unimplemented-not-invoked | unique-context |
+| T018 | internal/console/console_test.go | con.render.refusal | unique-context |
+| T019 | internal/console/console_test.go | con.render.untrusted-inert | unique-context |
+| T020 | internal/console/roadmap_test.go | rm.gate-results-not-observed, rm.grouping-blockers | - |
+| T021 | internal/console/roadmap_test.go | rm.keyboard-operable | unique-context |
+| T022 | internal/console/roadmap_test.go | rm.prioritize.stale-revision | unique-context |
+| T023 | internal/console/roadmap_test.go | rm.safe-auto-recheck | unique-context |
+| T024 | internal/console/roadmap_test.go | rm.set-deps.cycle | unique-context |
+| T025 | internal/console/roadmap_test.go | rm.set-deps.stale-revision | unique-context |
+| T026 | internal/console/roadmap_test.go | rm.ticket.one-prioritize-form | unique-context |
+| T027 | internal/console/security_test.go | sec.boundary.foreign-host, sec.boundary.foreign-origin, sec.boundary.null-origin, sec.boundary.write-read-route, sec.boundary.wrong-port | - |
+| T028 | internal/console/security_test.go | sec.boundary.missing-token, sec.boundary.oversized, sec.boundary.token-query-insufficient, sec.boundary.unreviewed | - |
+| T029 | internal/console/security_test.go | sec.form-limits | unique-context |
+| T030 | internal/console/security_test.go | sec.git-reads.no-filter-redirect | unique-context |
+| T031 | internal/console/security_test.go | sec.structured-forms | unique-context |
