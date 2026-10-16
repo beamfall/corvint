@@ -70,3 +70,49 @@ func TestCEMV1241RepositoryPointersRecorded(t *testing.T) {
 		t.Fatalf("unrecorded scan found %d dangling pointers, want the %d recorded: %v", len(problems), len(recordedDanglingPointers), problems)
 	}
 }
+
+// TestCEMV1241PointerSymlinkRefused proves a pointer cannot reach a file
+// outside the repository through a symbolic link that lies inside it, even
+// when the outside file has the pinned digest.
+func TestCEMV1241PointerSymlinkRefused(t *testing.T) {
+	root := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "plan.json")
+	plan := []byte("{}\n")
+	if err := os.WriteFile(outside, plan, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(root, "protocol", "cem-1.0", "s")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "protocol", "cem-1.0", "plan.json")); err != nil {
+		t.Skipf("symbolic links unavailable: %v", err)
+	}
+	doc := `{"parentPlan":"../plan.json","parentPlanSHA256":"` + digest(plan) + `"}`
+	if err := os.WriteFile(filepath.Join(dir, "m.json"), []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(pointerProblems(root, nil), "\n")
+	if !strings.Contains(got, "not a regular file inside the repository") {
+		t.Fatalf("pointerProblems = %q, want the symlinked target refused", got)
+	}
+}
+
+// TestCEMV1241CheckRunsPointerGate proves --check itself applies the pointer
+// scan: on a tree holding only a dangling protocol pointer, check reports it
+// among the problems of the otherwise missing packet.
+func TestCEMV1241CheckRunsPointerGate(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "protocol", "cem-1.0", "s")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	doc := `{"parentPlan":"../plan.json","parentPlanSHA256":"00"}`
+	if err := os.WriteFile(filepath.Join(dir, "m.json"), []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(check(&tree{root: root, next: map[string][]byte{}}), "\n")
+	if !strings.Contains(got, "protocol/cem-1.0/s/m.json#/parentPlan: dangling pointer") {
+		t.Fatalf("check problems do not include the dangling pointer:\n%s", got)
+	}
+}

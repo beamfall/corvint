@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -83,11 +84,15 @@ func pointerProblems(root string, recorded map[string]string) []string {
 			problems = append(problems, fmt.Sprintf("%s: pointer %q leaves the repository", key, ptr.value))
 			continue
 		}
-		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(target)))
+		b, err := readContained(root, target)
 		if recordedValue, ok := recorded[key]; ok && recordedValue == ptr.value {
 			if err == nil {
 				problems = append(problems, fmt.Sprintf("%s: recorded dangling pointer %q now resolves; drop its record", key, ptr.value))
 			}
+			continue
+		}
+		if errors.Is(err, errNotContained) {
+			problems = append(problems, fmt.Sprintf("%s: pointer %q is not a regular file inside the repository", key, ptr.value))
 			continue
 		}
 		if err != nil {
@@ -113,6 +118,36 @@ func pointerProblems(root string, recorded map[string]string) []string {
 		}
 	}
 	return problems
+}
+
+// errNotContained marks a pointer target that is a symbolic link, not a
+// regular file, or reached through a directory link outside the repository.
+var errNotContained = errors.New("not a regular file inside the repository")
+
+// readContained reads the repository-relative regular file target. The
+// lexical containment check in pointerProblems is not enough on its own: a
+// symbolic link inside the repository could still lead outside it.
+func readContained(root, target string) ([]byte, error) {
+	full := filepath.Join(root, filepath.FromSlash(target))
+	info, err := os.Lstat(full)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, errNotContained
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, err
+	}
+	resolved, err := filepath.EvalSymlinks(full)
+	if err != nil {
+		return nil, err
+	}
+	if rel, err := filepath.Rel(resolvedRoot, resolved); err != nil || filepath.ToSlash(rel) != target {
+		return nil, errNotContained
+	}
+	return os.ReadFile(full)
 }
 
 // collectPointers appends every digest-pinned pointer under v in a stable

@@ -57,8 +57,10 @@ informative:
 
 They are recorded by exact text; a record that resolves, changes or disappears is refused.
 Removing them rewrites sealed bytes and re-pins two manifests and `INPUTS.json`, so that is left to
-the owner. `--check` passes with the record and reports exactly three problems without it. With the
-gate call removed, `TestCEMV1241PointerProblems` and `TestCEMV1241RepositoryPointersRecorded` fail.
+the owner. `--check` passes with the record and reports exactly three problems without it. A
+pointer target must be a regular file reached with no symbolic link on the way. Removing the gate
+call from `check` fails `TestCEMV1241CheckRunsPointerGate`; reading the target without the link
+check fails `TestCEMV1241PointerSymlinkRefused`.
 
 ## V1-1297 and V1-1299: kept as recorded
 
@@ -97,4 +99,17 @@ work).
 
 ## Review
 
-One Codex round; findings below.
+One Codex round (`codex exec -s read-only`, range `a0b4c4108..ee1f9fa60`), two findings, both fixed:
+
+- P2: the pointer scan checked containment lexically and then followed symbolic links, so an
+  in-repository link to an outside file with the pinned digest would pass. Fixed: the target must
+  be a regular file whose resolved path is the lexical one (`readContained`). Test
+  `TestCEMV1241PointerSymlinkRefused`; with the plain read restored it fails.
+- P3: the spec claimed that removing the gate failed both pointer tests, but they call
+  `pointerProblems` directly. Fixed with `TestCEMV1241CheckRunsPointerGate`, which runs `check` on a
+  tree with one dangling pointer; with the call removed from `check` it fails. The `CEM-V1-240`
+  failure modes also claimed the case catches a target blob read for an unchanged record; every
+  record cites a changed blob, so the claim is narrowed and the gap is a residual.
+
+No findings on the authenticated-span reuse, the span-length refusal, the operation charges, the
+seam isolation or `DCW-V0-069`; Codex recomputed the case's manifest hashes, revisions and digests.

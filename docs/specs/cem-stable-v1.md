@@ -2732,9 +2732,10 @@ Non-goals: no change to the limit, to any other stage's charge, to the drift sta
 (their partial lists hold only `stable` rows, which read no blob, so both charges agree on them); no
 dropping of the partial drift list from an `UNSUPPORTED` result.
 
-Failure modes: a consumer that re-reads a base blob, skips the target lookup for an unchanged
-record or reads the target blob of an identical OID stops at a different row on this case and
-fails it. A record whose authenticated span length is not its declared span length fails closed
+Failure modes: a consumer that re-reads a base blob or skips a record's target lookup stops at a
+different row on this case and fails it. Every record of the case cites a changed blob, so a
+consumer that also read the target blob of an unchanged record (identical OID) is not caught by
+it. A record whose authenticated span length is not its declared span length fails closed
 `evidence-unavailable` rather than searching other bytes. A case that spent the full 1,024
 operations was too slow to run (14 minutes natively; the portable consumer passed the 30-minute
 verification deadline at load 65 to 76), hence the lowered seam limit; a charge difference that
@@ -2775,7 +2776,7 @@ their removal to the owner.
   `K` + `Sha256` string, or a `path` member starting `../` beside a `sha256` string; a document
   whose top-level `spec` starts `cem/` is wire data and is not scanned, and a file that is not JSON
   carries no pointer. Each pointer MUST resolve, relative to its file's directory and inside the
-  repository, to a file whose SHA-256 is the pinned one. The only exceptions are the recorded
+  repository with no symbolic link on the way, to a regular file whose SHA-256 is the pinned one. The only exceptions are the recorded
   dangling pointers, each named by file and JSON pointer with its exact text; a recorded pointer
   that resolves, changes text or disappears from a file that still exists is itself refused, so the
   record cannot outlive its reason.
@@ -2787,7 +2788,9 @@ Failure modes: a pointer written in another shape is not checked; the recorded e
 dangling until the owner decides their removal (decision 0531).
 
 Acceptance evidence: `--check` passes on the repository with the three recorded pointers and
-reports exactly three problems without the record; removing the gate makes both tests fail. Build log
+reports exactly three problems without the record. Removing the gate call from `check` makes
+`TestCEMV1241CheckRunsPointerGate` fail, and reading the target without the symbolic-link check
+makes `TestCEMV1241PointerSymlinkRefused` fail. Build log
 `docs/build-log/2026-10-15-cem-stable-consumer-residuals.md`.
 
 Rollback: revert the change commit; `--check` then ignores protocol pointers.
@@ -2796,4 +2799,4 @@ Rollback: revert the change commit; `--check` then ignores protocol pointers.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-241 | `TestCEMV1241PointerProblems`, `TestCEMV1241RepositoryPointersRecorded` (`tools/cem-stable-regen`); `pointerProblems` in `tools/cem-stable-regen/pointers.go` | Three recorded sealed pointers; build log `2026-10-15-cem-stable-consumer-residuals.md` |
+| CEM-V1-241 | `TestCEMV1241PointerProblems`, `TestCEMV1241RepositoryPointersRecorded`, `TestCEMV1241PointerSymlinkRefused`, `TestCEMV1241CheckRunsPointerGate` (`tools/cem-stable-regen`); `pointerProblems` in `tools/cem-stable-regen/pointers.go` | Three recorded sealed pointers; build log `2026-10-15-cem-stable-consumer-residuals.md` |
