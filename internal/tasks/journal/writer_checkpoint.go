@@ -599,9 +599,11 @@ func (r Reader) walkPrefix(o *observation, lim limits) (*Result, error) {
 
 // prefixHeld reports whether a successful prefix walk over before still
 // stands: a fresh listing of receipts/ shows every walked receipt 1..H as
-// the same file with the same mode, size and modification time. Receipts
-// after H, head.json and every other path may have moved.
-func prefixHeld(source Native, before *observation, lim limits) (bool, error) {
+// the same file with the same mode, size and modification time, and every
+// request, evidence and pinned afterimage the walk compared is still the
+// file the capture observed (or still absent). Receipts after H, head.json
+// and every other path may have moved.
+func prefixHeld(source Native, before *observation, result *Result, lim limits) (bool, error) {
 	headSeq := before.head.LastSeq.Uint64()
 	if uint64(len(before.receipts)) < headSeq {
 		return false, nil
@@ -616,11 +618,33 @@ func prefixHeld(source Native, before *observation, lim limits) (bool, error) {
 	}
 	for _, name := range before.receipts[:headSeq] {
 		a, b := before.files["receipts/"+name], now[name]
-		if a == nil || b == nil || !os.SameFile(a, b) || a.Mode() != b.Mode() || a.Size() != b.Size() || !a.ModTime().Equal(b.ModTime()) {
+		if !sameStat(a, b) {
+			return false, nil
+		}
+	}
+	for _, p := range sortedPaths(result.chain.canonical) {
+		if !strings.HasPrefix(p, "requests/") && !strings.HasPrefix(p, "evidence/") && !strings.HasPrefix(p, "pinned/") {
+			continue
+		}
+		full, err := source.path(p)
+		if err != nil {
+			return false, err
+		}
+		b, err := os.Lstat(full)
+		if err != nil && !os.IsNotExist(err) {
+			return false, err
+		}
+		if a := before.files[p]; (a == nil) != (b == nil) || a != nil && !sameStat(a, b) {
 			return false, nil
 		}
 	}
 	return true, nil
+}
+
+// sameStat reports whether a and b observe the same file with the same mode,
+// size and modification time.
+func sameStat(a, b os.FileInfo) bool {
+	return a != nil && b != nil && os.SameFile(a, b) && a.Mode() == b.Mode() && a.Size() == b.Size() && a.ModTime().Equal(b.ModTime())
 }
 
 // walkWriter is AuditForWriter's body; see there.

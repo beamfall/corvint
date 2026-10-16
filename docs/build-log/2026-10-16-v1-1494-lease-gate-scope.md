@@ -106,6 +106,25 @@ The retained reports are `docs/build-log/evidence/v1-1494/lease-gate-load-base-2
 host load before and after, and setup time (base about 13 minutes, branch about 12 minutes to build
 the store).
 
+## Independent review (one Codex round)
+
+- Major, open owner decision: CAL-V0-264 routes widen, reap and the pool family through the
+  writer route. Those verbs then inherit the accepted CAL-V0-116 trade-off: a fast writer does not
+  detect a rewrite of the receipt prefix before its checkpoint, which their complete audit used
+  to refuse. This changes what those verbs' audit refuses, so it needs owner acceptance. Without
+  CAL-V0-264, CAL-V0-263 alone still keeps every complete audit outside the gate. But under
+  sustained appends, widen, reap and pool writes would then prepare the complete route each
+  round and can end `SNAPSHOT_MOVED` after 16 rounds, where they used to succeed by holding the
+  gate.
+- Major, fixed: the prefix walk's recheck covered only receipts. `prefixHeld` now also requires
+  every compared request, evidence and pinned afterimage to be the observed file (or still
+  absent). `TestCALV0265_PrefixRecheckAfterWalk` pins this and fails when the blob recheck is
+  removed.
+- Minor, fixed: added negative recheck coverage and the `Checkpoint() == nil` assertion for a
+  prefix result.
+- Minor, fixed: the spec's failure modes now list the writer-route declines that still prepare
+  the complete route.
+
 ## Proposals not delivered (not filed here)
 
 - Proposal 2, remainder: a single-owner background refresh, and removing the `WriterFullBound`

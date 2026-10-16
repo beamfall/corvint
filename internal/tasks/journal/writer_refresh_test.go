@@ -121,3 +121,40 @@ func TestCALV0265_RefreshRefusesOnlyHeldJournal(t *testing.T) {
 		t.Fatalf("held refresh: %v, want %v", err, wantErr)
 	}
 }
+
+// TestCALV0265_PrefixRecheckAfterWalk covers CAL-V0-265 (proposed): a
+// prefix result never yields a read checkpoint, and a walked receipt or a
+// compared request afterimage that changes between the walk and the
+// recheck fails the walk SNAPSHOT_MOVED instead of binding a checkpoint.
+func TestCALV0265_PrefixRecheckAfterWalk(t *testing.T) {
+	request, _ := snapshot.RequestPath("refresh-2")
+	second, _ := snapshot.ReceiptName(2)
+	for _, tc := range []struct {
+		name string
+		path string
+	}{
+		{"none", ""},
+		{"rewritten-request", request},
+		{"rewritten-receipt", "receipts/" + second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo, prefix := refreshStore(t)
+			obs := PhysicalObservation{}
+			prefix.physical, prefix.prefix = &obs, true
+			if tc.path != "" {
+				p := filepath.Join(repo.StateDir, tc.path)
+				prefix.afterPrefixWalk = func() { fixture.Write(t, p, append(read(t, p), '\n')) }
+			}
+			walked, err := prefix.auditAttempt(nil, "", profileLimits, true, nil)
+			if tc.path == "" {
+				if err != nil || walked.Mode != ModePrefix || walked.Checkpoint() != nil {
+					t.Fatalf("prefix walk: %v, read checkpoint %v", err, walked.Checkpoint() != nil)
+				}
+				return
+			}
+			if wire.CodeOf(err) != wire.CodeSnapshotMoved {
+				t.Fatalf("change after the walk: %+v %v", walked, err)
+			}
+		})
+	}
+}

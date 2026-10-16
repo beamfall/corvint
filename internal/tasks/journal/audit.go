@@ -137,6 +137,7 @@ type Reader struct {
 	// so its outer reader re-probes instead (V1-1060).
 	ExpectHeadSha256 wire.Digest
 	afterCapture     func() // deterministic capture/body boundary witness
+	afterPrefixWalk  func() // deterministic prefix walk/recheck boundary witness
 	divergentIntent  string // set only on a value copy by Reconciliation
 	unpauseTickets   bool   // set only on a value copy by BarrierRemoval or PendingBarrierRemoval
 	pendingUnpause   bool   // set only on a value copy by PendingBarrierRemoval
@@ -427,7 +428,10 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	if r.prefix && bodyErr == nil {
 		// A prefix walk that succeeded stands while receipts 1..H do; a
 		// refusal needs the whole observation unchanged, below (CAL-V0-265).
-		held, e := prefixHeld(native.native, before, lim)
+		if r.afterPrefixWalk != nil {
+			r.afterPrefixWalk()
+		}
+		held, e := prefixHeld(native.native, before, result, lim)
 		if e != nil {
 			return nil, e
 		}

@@ -6701,7 +6701,9 @@ sections, not by journal size, with unchanged receipts, audit verdicts and order
   makes one complete audit attempt. If the journal moved under it (`SNAPSHOT_MOVED`), the refresh
   MUST walk receipts 1..H for the head H it captured, with the complete audit's per-receipt
   validators, instead of abandoning. The prefix result MUST be accepted only when a fresh listing
-  shows receipts 1..H unchanged (same file, mode, size and modification time) after the walk. A
+  shows receipts 1..H unchanged (same file, mode, size and modification time) after the walk, and
+  every request, evidence and pinned afterimage the walk compared is still the file the capture
+  observed (or still absent). A
   prefix walk that finds a fault refuses only when the whole observation is unchanged; on a
   journal that moved it is `SNAPSHOT_MOVED` and publishes nothing, as before. A prefix result
   retains a writer checkpoint bound to H and never a read checkpoint. Every writer audit resumed
@@ -6720,7 +6722,9 @@ a complete audit, only behind other bounded critical sections.
 Failure modes: a preparation outside the gate can be invalidated by any commit, so a complete-route
 writer on a store that appends faster than it prepares can exhaust its 16 rounds and fail
 `SNAPSHOT_MOVED` (retryable) where it used to wait at the gate. CAL-V0-264 keeps that rare: with a
-bound checkpoint no lease verb prepares the complete route. Without a bound checkpoint (a new store,
+bound checkpoint a lease verb prepares the complete route only when the writer route declines (a
+model that reads an elided path, an incomplete history input, a handoff-policy candidate, or an
+observation-binding or branch change). Without a bound checkpoint (a new store,
 a head below the route floor, a tail beyond 256 receipts, a head 4,096 or more receipts past
 `FullSeq`, or an unsettled journal) lease writes still run the complete audit, now outside the gate,
 and contend on the writer lock's recheck instead. The refresh's prefix walk costs one more pass over
@@ -6731,8 +6735,8 @@ Acceptance evidence: `TestCALV0263_NoCompleteAuditUnderGate`, `TestCALV0026_Prep
 when the preparation is moved back inside the gate, and the first fails on the base commit;
 `TestCALV0116_WriterRouteParity` (widen and reap),
 `TestCALV0263_PoolFamilyTakesWriterRoute` (pooled claim, pool acquire and pool release);
-`TestCALV0265_RefreshPrefixWalk`, `TestCALV0265_RefreshRefusesOnlyHeldJournal`
-(`internal/tasks/journal`); the opt-in harness `TestCALV0263_LeaseGateLoad`
+`TestCALV0265_RefreshPrefixWalk`, `TestCALV0265_RefreshRefusesOnlyHeldJournal`,
+`TestCALV0265_PrefixRecheckAfterWalk` (`internal/tasks/journal`); the opt-in harness `TestCALV0263_LeaseGateLoad`
 (`CORVINT_TASKS_LEASE_GATE_LOAD=<report>`) with before and after numbers in
 `docs/build-log/2026-10-16-v1-1494-lease-gate-scope.md`. At 40,000 receipts and 15 writers on
 local Darwin (12 CPUs, host load 37 to 50), `LOCK_TIMEOUT` fell from 42 of 71 calls on the base to 0
@@ -7218,7 +7222,7 @@ and removes the new configuration members.
 | CAL-V0-262 | `TestCALV0262_WriterHelpNamesRedo` (`internal/tasks/cli`) |
 | CAL-V0-263 | `TestCALV0263_NoCompleteAuditUnderGate`, `TestCALV0026_PreparationGateStore`, `TestGH494PreparationAdmissionStore` (`internal/tasks/store`); opt-in `TestCALV0263_LeaseGateLoad`; `docs/build-log/2026-10-16-v1-1494-lease-gate-scope.md` |
 | CAL-V0-264 | `TestCALV0116_WriterRouteParity`, `TestCALV0263_PoolFamilyTakesWriterRoute`, `TestCALV0205_PoolConfirmSafeTakesWriterRoute` (`internal/tasks/store`) |
-| CAL-V0-265 | `TestCALV0265_RefreshPrefixWalk`, `TestCALV0265_RefreshRefusesOnlyHeldJournal` (`internal/tasks/journal`); `TestCALV0117_WriterAdvanceAndScheduledRefresh` (`internal/tasks/store`) |
+| CAL-V0-265 | `TestCALV0265_RefreshPrefixWalk`, `TestCALV0265_RefreshRefusesOnlyHeldJournal`, `TestCALV0265_PrefixRecheckAfterWalk` (`internal/tasks/journal`); `TestCALV0117_WriterAdvanceAndScheduledRefresh` (`internal/tasks/store`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance
