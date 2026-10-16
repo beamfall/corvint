@@ -506,7 +506,10 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
   `target` are full lowercase 40- or 64-hex object IDs; a symbolic revision is `-32602`. A retired
   `cem/0.1`, `cem/0.2` or `cem/0.3` map fails as `cem-map-invalid` before any other judgment
   (`CEM-V1-210`); a malformed map is `cem-map-invalid`; a `maxUnknown` ceiling on a `cem/1.0` map is
-  `cem-map-stable-refused` (`MCPV0-037`); Git read failures are `repository-unavailable`. The repository probe brackets the
+  `cem-map-stable-refused` (`MCPV0-037`); a CEM Git read that ran out of its own bound
+  (`GitTimeout`, `GitDiffTimeout`) on a live request is `repository-probe-timeout` (`MCPV0-038`), and
+  every other Git read failure is `repository-unavailable` (amended 2026-10-16, decision 0533,
+  V1-1432). The repository probe brackets the
   read, and a changed probe is `REPOSITORY_STATE_UNSTABLE`. Report Markdown carries repository-authored
   hunk paths, so it travels only inside the `MCPV0-008` envelope, and a report containing the
   terminator is refused with `corvint-envelope-terminator-collision`. The CEM Git runner is pinned to
@@ -581,7 +584,10 @@ Each row cites the first emitting site and states only the condition checked the
   `repository-unavailable`: the repository may be present and healthy, and only the bounded probe
   ran out of time. The value comes only from the typed gokernel code, never from message text. A
   probe stopped by the caller's cancellation or deadline stays `cancelled`, and every other
-  repository refusal keeps `repository-unavailable`. Under `corvint-mcp-tool-error/1` the error
+  repository refusal keeps `repository-unavailable`. The same code covers a CEM report's Git read
+  that exceeded its own bound (`cemcode.GitTimeout`, `cemcode.GitDiffTimeout`) and a context
+  index refusal whose typed cause is its own Git deadline; caller cancellation is checked first
+  and still yields `cancelled` (amended 2026-10-16, decision 0533, V1-1432 sites 2 and 2b). Under `corvint-mcp-tool-error/1` the error
   carries `reasonClass` `unclassified`, because a probe overrun has no `MCPV0-028` status class, so
   decision 0383's closed set is unchanged. (Added 2026-10-15 for V1-1427 under the owner approval
   "approve V1-1427, V1-1428 and V1-1429 amendments", which accepts this wire change.)
@@ -590,11 +596,11 @@ Each row cites the first emitting site and states only the condition checked the
 |---|---|---|
 | `invalid-registry` | `internal/mcp/bridge/bridge.go:450@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
 | `unsupported-tool` | `internal/mcp/bridge/bridge.go:459@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the `ToolFlows*` tools under `flows` (`MCPV0-026`) |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:719@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:719@f5156052` | an invalid-arguments refusal that is not a `cem/1.0` stable refusal; since `CEM-V1-210` no retired 0.x map reaches it (a 0.x map is `cem-map-invalid`), so the report preview has no observed route to it |
-| `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:741@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:720@b2fd0644` | the map fails CEM strict decoding or field validation |
-| `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:1091@b39a4b7a` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe outlasted its bound while the request context was live (`MCPV0-038`) |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:720@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:720@f5156052` | an invalid-arguments refusal that is not a `cem/1.0` stable refusal; since `CEM-V1-210` no retired 0.x map reaches it (a 0.x map is `cem-map-invalid`), so the report preview has no observed route to it |
+| `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:742@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:721@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:1092@8c7cfeb6` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe, a CEM Git read or the context index's Git read outlasted its own bound while the request context was live (`MCPV0-038`, decision 0533) |
 | `flows-refused` | `internal/mcp/bridge/flows.go:267@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ### Explicit Go LSP descendant (V1-0476)
@@ -738,7 +744,7 @@ that focused run.
 | `MCPV0-033` | `bridge.Result.TextJSON`, `cmd/corvint-mcp` `structuredResult` | `TestMCPV0033TextSummaryProjectsRowsAndKeepsEnvelopeFields`, `TestToolCallWrapsRepositoryFreeTextInUntrustedDataEnvelope`, `TestToolCallEnvelopeEscapesHiddenCharactersAndRefusesTerminator`, conformance `assertToolReceipt` |
 | `MCPV0-035` | `affected.Build`, context-bound `affected.Source`, `callFlowsImpact` | `TestAFUV1059FlowsImpactCancelledMidWalk` |
 | `MCPV0-036`, `MCPV0-037` | `callCEMReport`, `validCEMPath`, `cemFailure`; `internal/cem/workflow` (`readStable`, `stableReport`) | `TestCEMReportToolAdvertisesArtifacts`, `TestCEMReportToolResolvesArtifactsUnderTheRoot`, `TestCEMReportToolNamesStableRefusals`, `TestCEMReportToolPreviewsStableMap`, `TestCEMReportToolRefusesMapsOutsideTheRoot` (retired 0.x maps, `CEM-V1-210`), `TestCEMReportToolAdmitsTheCallerNamedRoot`; `cmd/corvint-mcp/testdata/tools-list-task-review.golden.jsonl` |
-| `MCPV0-038` | `normalizeFailure` | `internal/mcp/bridge/probe_timeout_test.go`'s `TestMCPV0038ProbeTimeoutHasDistinctCode` injects a probe overrun with `gokernel.WithProbeBound` at one nanosecond on a live request context and asserts `repository-probe-timeout` with no typed class; restoring the `repository-unavailable` mapping fails it |
+| `MCPV0-038` | `normalizeFailure` | `internal/mcp/bridge/probe_timeout_test.go`'s `TestMCPV0038ProbeTimeoutHasDistinctCode` injects a probe overrun with `gokernel.WithProbeBound` at one nanosecond on a live request context and asserts `repository-probe-timeout` with no typed class; restoring the `repository-unavailable` mapping fails it; `internal/mcp/bridge/git_timeout_test.go`'s `TestMCPV0038CEMGitTimeoutHasDistinctCode` and `TestMCPV0038IndexDeadlineHasDistinctCode` pin the CEM Git timeouts and the index Git deadline to `repository-probe-timeout`, a plain Git failure to `repository-unavailable`, and caller cancellation or deadline to `cancelled` (decision 0533) |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria

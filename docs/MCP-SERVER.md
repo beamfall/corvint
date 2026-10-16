@@ -144,9 +144,9 @@ this profile into logs.
 | `-32603` | Sanitized unexpected server failure | Treat the operation as unobserved; inspect local process health |
 | `ABSTAINED` | Corvint could not safely produce the requested bounded receipt | Preserve the receipt's reason and gaps; widen through an explicit supported operation |
 
-A tool error with `code` `repository-probe-timeout` means the repository probe outlasted its bound
-while the request was still live; the repository may be healthy, so retrying on a quieter host is
-reasonable (`MCPV0-038`). `repository-unavailable` remains every other repository refusal.
+A tool error with `code` `repository-probe-timeout` means the repository probe, a CEM report's Git
+read or the context index's Git read outlasted its own bound while the request was still live; the
+repository may be healthy, so retrying on a quieter host is reasonable (`MCPV0-038`). `repository-unavailable` remains every other repository refusal.
 
 Errors never include request bodies, repository paths, task text, environment values, Git output,
 Corvint output, or secrets. stdout is exclusively MCP. Fixed startup, invalid-argument,
