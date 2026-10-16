@@ -10,6 +10,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
@@ -83,7 +84,20 @@ func readScopes(root *affected.Source) (map[string][]string, error) {
 // (a nested module's packages are not units), outside that module's testdata,
 // that directly holds a regular .go file.
 func CommittedReadScopes(ctx context.Context, root, commit string) (map[string][]string, error) {
-	repository, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	started := time.Now()
+	scopes, err := committedDeclaration(ctx, root, commit)
+	if err != nil {
+		return nil, err
+	}
+	// Checking each declared directory lists its ancestors, so a large
+	// declaration would exhaust the frozen default and leave every base
+	// unknown (V1-1417): the second pass's operation count scales with the
+	// declaration, and both passes share one default wall budget.
+	remaining := gitrun.DefaultTotalBudget - time.Since(started)
+	if remaining <= 0 {
+		return nil, fmt.Errorf("%s at %s: Git verification budget elapsed", affected.ReadScopesPath, commit)
+	}
+	repository, err := gitauth.Open(root, gitrun.NewBudget(readScopeOperations(scopes), remaining))
 	if err != nil {
 		return nil, err
 	}
@@ -92,15 +106,7 @@ func CommittedReadScopes(ctx context.Context, root, commit string) (map[string][
 	if err != nil {
 		return nil, err
 	}
-	base := affected.FSSource(source)
-	scopes, err := readScopes(base)
-	if err != nil {
-		return nil, err
-	}
-	if scopes == nil {
-		scopes = map[string][]string{}
-	}
-	workspace, err := workspaceDirectories(base, map[string]bool{})
+	workspace, err := workspaceDirectories(affected.FSSource(source), map[string]bool{})
 	if err != nil {
 		return nil, err
 	}
@@ -109,52 +115,110 @@ func CommittedReadScopes(ctx context.Context, root, commit string) (map[string][
 		listed[directory] = module{dir: directory, listed: true}
 	}
 	for directory := range scopes {
-		if !committedPackageDirectory(source, listed, directory) {
+		held, err := committedPackageDirectory(source, listed, directory)
+		if err != nil {
+			return nil, err
+		}
+		if !held {
 			return nil, fmt.Errorf("%s at %s declares %q, which holds no Go package", affected.ReadScopesPath, commit, directory)
 		}
 	}
 	return scopes, nil
 }
 
-func committedPackageDirectory(source fs.FS, listed map[string]module, directory string) bool {
-	if !walkedDirectory(directory) {
-		return false
+// committedDeclaration reads and validates the declaration at commit under
+// the frozen default budget; an absent declaration is an empty map.
+func committedDeclaration(ctx context.Context, root, commit string) (map[string][]string, error) {
+	repository, err := gitauth.Open(root, gitrun.NewBudget(readScopeBaseOperations, gitrun.DefaultTotalBudget))
+	if err != nil {
+		return nil, err
 	}
-	owner, observed := committedOwner(source, listed, directory)
-	if !observed || inTestdata(relativeTo(directory, owner.dir)) {
-		return false
+	defer repository.BeginObjectSession()()
+	source, err := repository.RevisionFS(ctx, commit, affected.MaxSourceBytes)
+	if err != nil {
+		return nil, err
+	}
+	scopes, err := readScopes(affected.FSSource(source))
+	if err != nil || scopes != nil {
+		return scopes, err
+	}
+	return map[string][]string{}, nil
+}
+
+// readScopeBaseOperations is the frozen default Git operation count and
+// readScopeComponentOperations the second pass's allowance per declared path
+// component: listing that ancestor once and reading at most one go.mod blob
+// there. A test lowers them to reach the boundary with a small fixture.
+var (
+	readScopeBaseOperations      = gitrun.DefaultOperations
+	readScopeComponentOperations = 2
+)
+
+// readScopeOperations bounds the second pass: the default count for the
+// commit, go.work and go.mod reads, plus each declared directory's path
+// components.
+func readScopeOperations(scopes map[string][]string) int {
+	operations := readScopeBaseOperations
+	for directory := range scopes {
+		operations += readScopeComponentOperations * (strings.Count(directory, "/") + 1)
+	}
+	return operations
+}
+
+// committedPackageDirectory reports whether directory holds a Go package the
+// observer would list. A Git failure (an exhausted budget, say) is returned
+// rather than read as "no package", so it is never misreported as an invalid
+// declaration (V1-1417).
+func committedPackageDirectory(source fs.FS, listed map[string]module, directory string) (bool, error) {
+	if !walkedDirectory(directory) {
+		return false, nil
+	}
+	owner, observed, err := committedOwner(source, listed, directory)
+	if err != nil || !observed || inTestdata(relativeTo(directory, owner.dir)) {
+		return false, err
 	}
 	entries, err := fs.ReadDir(source, directory)
 	if err != nil {
-		return false
+		return false, gitFailure(err)
 	}
 	for _, entry := range entries {
 		if entry.Type().IsRegular() && strings.HasSuffix(entry.Name(), ".go") {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
+}
+
+// gitFailure is err when the revision source failed (a Git failure or an
+// exhausted bound), and nil for an absent path or an entry of the wrong type.
+func gitFailure(err error) error {
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid) {
+		return nil
+	}
+	return err
 }
 
 // committedOwner is enclosingModule over the commit: the nearest listed module
 // or go.mod at or above directory, as observeModules assigns them. A go.mod
 // below a listed module's testdata is fixture data and owns nothing; any other
 // unlisted go.mod, or one that cannot be checked, owns its subtree for a module
-// this plugin does not observe.
-func committedOwner(source fs.FS, listed map[string]module, directory string) (module, bool) {
+// this plugin does not observe. A coded Git failure is returned instead.
+func committedOwner(source fs.FS, listed map[string]module, directory string) (module, bool, error) {
 	for {
 		if owner, known := listed[directory]; known {
-			return owner, true
+			return owner, true, nil
 		}
 		info, err := fs.Stat(source, path.Join(directory, "go.mod"))
 		switch {
 		case errors.Is(err, fs.ErrNotExist), err == nil && info.IsDir():
 			// No manifest here: the observer collects only go.mod files.
-		case err != nil || !info.Mode().IsRegular() || !fixtureOfObservedModule(directory, listed):
-			return module{}, false
+		case err != nil:
+			return module{}, false, gitFailure(err)
+		case !info.Mode().IsRegular() || !fixtureOfObservedModule(directory, listed):
+			return module{}, false, nil
 		}
 		if directory == "." {
-			return module{}, false
+			return module{}, false, nil
 		}
 		directory = path.Dir(directory)
 	}

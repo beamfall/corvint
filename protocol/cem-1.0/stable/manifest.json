@@ -3,13 +3,13 @@
   "status": "IMPLEMENTED_CONTRACT_PROPOSED_NOT_PROMOTED",
   "repositoryEnvelope": "canonical-repository-bounded/1",
   "license": "Apache-2.0 public specifications/data only; no native code",
-  "publicAmendmentManifestSHA256": "9423e789c58b20079ffdc5f6d73de1a703ecd0b2f155d5b988e1fbeaafd05f07",
+  "publicAmendmentManifestSHA256": "259a294acb88a797e6f3b6f628c895f86871898177f102969826b125f6f3b4fa",
   "note": "Recursive hashes of every regular file under protocol/cem-1.0/stable except this manifest.",
   "files": [
     {
       "path": "ALGORITHMS.md",
-      "sha256": "394e2a9eb7ac67c295d77531c67846b19d6dcdf6a8bf0db7512b7d6bf130a2d2",
-      "bytes": 52949
+      "sha256": "2eeaaef31f3ea05f9714c7508cc07e03b5c28e7b58f874d2ff20e7572c93f1ae",
+      "bytes": 53428
     },
     {
       "path": "FIXTURES.pack.json",
@@ -48,12 +48,12 @@
     },
     {
       "path": "REPOSITORY-ENVELOPE.cells.json",
-      "sha256": "4baad2604240eb80f77c468ff1d11eccb76e885344756552b9a6cf841a6b4239",
+      "sha256": "443a350e0c7f14ada93b74141b181e8be3d77f268b9ccb8b6472145ceb0835bd",
       "bytes": 318806
     },
     {
       "path": "REPOSITORY-ENVELOPE.md",
-      "sha256": "2c160dd526905f48c65dbfb1fc732b947dfcd429b236a1cd4b6dbffc78b6fe38",
+      "sha256": "1be9e931e7ef3fa9e1a184250a073d9ef8d802a280f0675d2f947939d790c175",
       "bytes": 10003
     },
     {
@@ -63,13 +63,13 @@
     },
     {
       "path": "citation-vectors/EXPECTED.json",
-      "sha256": "ee1d900ad178ca7d76de02b6fd7d70e580e905da48873e395df4709240402171",
-      "bytes": 8267
+      "sha256": "dee4223020a758ec90b845c3850a9bb9e748cf16e67e62d0a5ba6838e9c5e8a6",
+      "bytes": 8268
     },
     {
       "path": "citation-vectors/README.md",
-      "sha256": "25c998874d54de4f018fdbda16275cf629917c048111423792efee1009b743ea",
-      "bytes": 4939
+      "sha256": "4eff49c4d7351a98d60af714b054ab2b1c4c7b6462509fc58911f73386627196",
+      "bytes": 5845
     },
     {
       "path": "citation-vectors/cases/base-revision-mismatch.json",
@@ -107,6 +107,11 @@
       "bytes": 5429
     },
     {
+      "path": "citation-vectors/measures.json",
+      "sha256": "07c2c332989da77c936ede47a859b8d5f006ec4fff61bbf35e413d2d0a9096bb",
+      "bytes": 13149
+    },
+    {
       "path": "citation-vectors/repository.recipe.json",
       "sha256": "e46867b41d39986a258ac781dda91a44e1ae3e371bf16bf27cdfc9ab34f64787",
       "bytes": 3818
@@ -118,8 +123,8 @@
     },
     {
       "path": "citation-vectors/results/clean.json",
-      "sha256": "446abc0e1a1c0d115c2800ed9f490a07bc7f6d75c7cadd3ff2aec2a098ff5e96",
-      "bytes": 8983
+      "sha256": "7ba1a603f0767437593a7c019bb5c5e100ff91e5a686333c68477066c8b4cd9a",
+      "bytes": 8984
     },
     {
       "path": "citation-vectors/results/duplicate-member.json",
@@ -383,13 +388,13 @@
     },
     {
       "path": "repository-envelope-packet/CHANGES.md",
-      "sha256": "6f0673a52f0df49d3065d7e16ff0cab83c0ef27afdedaef462e1bb559adf5d2a",
-      "bytes": 11598
+      "sha256": "43fce8bacebaf36510f4208861bcf83ac35e328d8a06c06b72584dfc78051a02",
+      "bytes": 20364
     },
     {
       "path": "repository-envelope-packet/FULL-RESULT-CASES.json",
-      "sha256": "25d4155c2235c3034146093d0c844e0e448281429c74bad5f19abf215d672146",
-      "bytes": 1119384
+      "sha256": "045b8fd32d81d09d79d9d157213bcbb6cf133c006f6b6f102b3a0f680816819c",
+      "bytes": 1119383
     },
     {
       "path": "repository-envelope-packet/GAP-DISPOSITIONS.json",
@@ -438,8 +443,8 @@
     },
     {
       "path": "repository-envelope-packet/README.md",
-      "sha256": "34f8ca92caec4392da9d731fd5941ea8c0f58403da8d697b56286879fcbf7c00",
-      "bytes": 5175
+      "sha256": "47febbf4da14a86b2733015731ed91d916817a2b1d3a5818f46838cdb5f93f96",
+      "bytes": 5482
     },
     {
       "path": "repository-envelope-packet/REQUIRED-REPAIRS.json",
@@ -518,7 +523,7 @@
     },
     {
       "path": "repository-envelope-packet/inherited/s0e/REPOSITORY-ENVELOPE.cells.json",
-      "sha256": "03c55a3222d694df390724587b192170dca17bf6799bae80d86e7d706f670811",
+      "sha256": "d89a96828e888c285085b92cb339eb34e09b0558617ce04f76feba633969c5f3",
       "bytes": 304672
     },
     {
@@ -538,8 +543,8 @@
     },
     {
       "path": "repository-envelope-packet/manifest.json",
-      "sha256": "9423e789c58b20079ffdc5f6d73de1a703ecd0b2f155d5b988e1fbeaafd05f07",
-      "bytes": 6635
+      "sha256": "259a294acb88a797e6f3b6f628c895f86871898177f102969826b125f6f3b4fa",
+      "bytes": 6630
     },
     {
       "path": "repository-envelope-packet/sha1-ledger-336-evidence.json",
@@ -568,7 +573,7 @@
     },
     {
       "path": "tamper-matrix/EXPECTED.json",
-      "sha256": "17bdcce2c2cbb09aafd61e4ebf6658ba282802c61cd891422a0516613383404a",
+      "sha256": "808c6b6f4cf0a7d2a78c74081aaa818f6c74516a2399eb794c5919a5af2d6c64",
       "bytes": 17048
     },
     {

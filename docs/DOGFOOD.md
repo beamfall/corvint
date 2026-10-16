@@ -688,6 +688,21 @@ copy and reports `held` only when a named test passes at the target and fails wi
 reverted (`CEM-V1-088`); its report sits beside the unchanged verifier result. A hunk no test
 guards stays cited or `unknown` as before.
 
+Find the guarding test by observation rather than by guess (`TCQ-V0-062`). After `cem prepare`,
+run the search and append its `guardingTests.plan` rows to the citation plan beside each hunk's
+other citation:
+
+```sh
+corvint cem verify --map .corvint/change.cem.json --expected-base BASE \
+  --target "$(git rev-parse HEAD)" --artifacts "$PWD" --guarding-tests | jq -r '.guardingTests.plan[]'
+```
+
+Each row names, by full hunk ID, a base test
+of the hunk's own directory that the search observed pass at the target and fail with only that
+hunk reverted; a hunk whose row is `unguarded` or `not-run` gets no row. The search writes
+nothing and sets no tier: `held` still comes only from a later `--hunk-revert` run. It executes
+the change's tests unconfined, with the same bounds as `--hunk-revert`.
+
 A chore change is a self-referential bind or seal: its map cites the map files the bind loop
 itself writes. Once `cem prepare` writes `cem/1.0`, `dogfood change` marks a chore's prepared
 map with the stable member `role`, `seal-chore` when a `.corvint/changes/` path is touched and

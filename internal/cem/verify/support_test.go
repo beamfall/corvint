@@ -139,7 +139,8 @@ func TestCEMV1081Annotation(t *testing.T) {
 	}{
 		{"id comment", []string{"// `CEM-SM-007`\n"}, true},
 		{"short token and id", []string{"x // `CEM-SM-007`\n"}, true},
-		{"stop terms and punctuation", []string{"# This value MUST return: true.\n", "\n"}, true},
+		{"stop terms and punctuation", []string{"# They MUST also have: these.\n", "\n"}, true},
+		{"short code line of code-word terms", []string{"\treturn value - 1\n"}, false},
 		{"real identifier", []string{"return compute(value)\n"}, false},
 		{"bounded id is the only neutral long token", []string{"// CEM-SM-0070x\n"}, false},
 		{"no added lines", nil, false},
