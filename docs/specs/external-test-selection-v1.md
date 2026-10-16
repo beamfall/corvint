@@ -10,7 +10,7 @@ decisions 0311 and 0315, and the feature request Beamfall/corvint#12.
 
 ## Agent digest
 - Claim: `advice.test_selection` walks provider-declared entity relations transitively within fixed bounds and reads each bound checkout's worktree; both only widen.
-- Status: accepted (decision 0315, a delegated call on Beamfall/corvint#12)/experimental (file transport only); checked by `TestSelectionConformance`, `TestSelectionEvaluation`, `TestSelectionExtensionsOnlyWiden`, and `TestAffectedSelectionInspectsCheckout`.
+- Status: accepted (decision 0315, a delegated call on Beamfall/corvint#12)/experimental (file transport only). Checked by `TestSelectionConformance`, `TestSelectionEvaluation`, `TestSelectionExtensionsOnlyWiden`, and `TestAffectedSelectionInspectsCheckout`.
 - Exists: `walk`, `truncate`, `inspect`, and `checkoutCode` in `internal/extevidence/selection.go`; the `CheckoutStatus` reader `corvint affected` passes; `multihop*.json`, `cycle.json`, `deep.json`, and the `checkout-*` cases under `internal/extevidence/testdata/conformance-selection/`.
 - Blocked on: an independent adopter record before promotion, as for ETS-V0.
 - Read next: Requirements; Trust boundary, limits, and failure modes.

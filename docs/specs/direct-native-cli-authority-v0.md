@@ -9,7 +9,7 @@ Authoritative inputs: `docs/specs/protected-local-execution-v0.md`, `docs/specs/
 
 ## Agent digest
 - Claim: One closed direct-native Codex CLI topology reuses protected lifecycle computation without inheriting Desktop qualification or execution authority.
-- Status: prospective implementation profile; root Gate A approved bounded implementation 2026-09-15; experimental; no operator admission; no accepted execution root or completed native qualification.
+- Status: prospective implementation profile; root Gate A approved bounded implementation 2026-09-15; experimental; no operator admission. No accepted execution root or completed native qualification.
 - Exists: actual installed Codex CLI 0.153.2 hook parent feasibility; bounded implementation under review.
 - Blocked on: independent implementation review, exact native qualification, independent admission and operator activation.
 - Read next: Requirements; Wire contract; Acceptance and rollback.
