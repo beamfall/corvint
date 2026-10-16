@@ -3312,6 +3312,7 @@ SRG-V0-010	docs/specs/spec-requirement-index-generator-v0.md	143	(accepted under
 SRG-V0-011	docs/specs/spec-requirement-index-generator-v0.md	155	(accepted under the owner's standing auto-accept (2026-10-11); V1-1346) A spec	standing	2026-10-11; V1-1346
 SRG-V0-012	docs/specs/spec-requirement-index-generator-v0.md	161	(accepted under the owner's standing auto-accept (2026-10-11); V1-1346)	standing	2026-10-11; V1-1346
 SRG-V0-013	docs/specs/spec-requirement-index-generator-v0.md	174	(accepted under the owner's standing auto-accept (2026-10-11); V1-1346) Two chan	standing	2026-10-11; V1-1346
+SRG-V0-014	docs/specs/spec-requirement-index-generator-v0.md	181	(accepted under the owner's standing auto-accept (2026-10-15); V1-1409) A spec w	standing	2026-10-15; V1-1409
 SRR-V1-001	docs/specs/stable-readiness-record-v1.md	53	The record MUST be one JSON document with profile `corvint-stable-readiness-reco	unrecorded	-
 SRR-V1-002	docs/specs/stable-readiness-record-v1.md	57	The identity MUST come from a candidate admitted by `VerifyContext`: version, ta	unrecorded	-
 SRR-V1-003	docs/specs/stable-readiness-record-v1.md	62	The core section MUST record the candidate profile and the SHA-256 of the	unrecorded	-

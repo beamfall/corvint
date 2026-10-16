@@ -10,7 +10,7 @@ decisions 0310 and 0311, and the feature request Beamfall/corvint#7.
 
 ## Agent digest
 - Claim: An `external-evidence-provider/2` record may relate two repository-qualified paths; each side is verified on its own and the relation takes the worse state.
-- Status: accepted (decision 0312, a delegated call on Beamfall/corvint#7)/experimental (file transport only); checked by `TestSelectionConformance`, `TestSelectionEvaluation`, `TestPathRelationsImpact`, and `TestAffectedSelectionPathRelation`.
+- Status: accepted (decision 0312, a delegated call on Beamfall/corvint#7)/experimental (file transport only). Checked by `TestSelectionConformance`, `TestSelectionEvaluation`, `TestPathRelationsImpact`, and `TestAffectedSelectionPathRelation`.
 - Exists: `Schema2` in `internal/extevidence/record1.go`, `pathRelationsOf` in `compose.go`, `pathTest`, `scopeTest`, `widenPaths`, and `pathRow` in `selection.go`, `checkScope2` in `record1.go`, and the independent two-repository fixture under `internal/extevidence/testdata/conformance-path/`.
 - Blocked on: an ACC-V0 provider profile before any executed transport; an independent adopter record before promotion.
 - Read next: Requirements; Trust boundary, limits, and failure modes.

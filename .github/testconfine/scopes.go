@@ -1,7 +1,7 @@
 // Package testconfine enforces the repository's declared test read scopes
 // (AFP-V0-023). Its declaration grammar mirrors
 // internal/liveverify/affected/golang/readscopes.go and
-// tools/gate-affected-select/readscopes.go, which narrow selection by it; this
+// internal/gateselect/readscopes.go, which narrow selection by it; this
 // owner-protected copy is the one CI trusts to confine what a test reads.
 package testconfine
 

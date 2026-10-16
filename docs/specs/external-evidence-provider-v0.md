@@ -10,7 +10,7 @@ Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 
 ## Agent digest
 - Claim: `corvint impact --provider FILE` attaches provider records in a separated `context.external` section and changes nothing in the core receipt.
-- Status: accepted (decision 0309)/experimental (file records and local authoring kit; kit promotion blocked on V1-0013); checked by `TestImpactProviderSectionSeparation`.
+- Status: accepted (decision 0309)/experimental (file records and local authoring kit; kit promotion blocked on V1-0013). Checked by `TestImpactProviderSectionSeparation`.
 - Exists: experimental authoring kit `examples/evidence-provider/v0` and exact-pin consumer `internal/extevidence/pin.go`; `internal/extevidence` and the `--provider` option in `cmd/corvint`; provider items carry the Core-assigned `external-provider` authority, Git-ancestry freshness, and per-path reference verification; `EEP-V0-023..026` (proposed, experimental, decision 0371) add the Core-owned in-process gopls provider `internal/lspprovider`, off unless `CORVINT_CONTEXT_LSP=gopls`.
 - Blocked on: nothing for a local command, which is `external-evidence-provider-transports-v0.md` (decision 0316); Kit promotion needs V1-0013 and owner acceptance; kit MCP remains proposed. Separately accepted MCP/remote profiles are unchanged. Cross-repository relationships are `external-evidence-provider-v1.md` (decision 0310).
 - Read next: Definitions; Requirements; Non-goals and simpler baseline.
