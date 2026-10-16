@@ -155,7 +155,8 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 // request: the liveness and claim writes that dominate queue traffic
 // (V1-0887), and pool confirm-safe, which otherwise ran the complete-history
 // audit under the preparation gate (CAL-V0-205, V1-1045). Every
-// other lease verb keeps the complete route.
+// other lease verb keeps the complete route, which prepares outside the
+// preparation gate (CAL-V0-263).
 func writerLeaseVerb(request transaction.Request) bool {
 	if request.Operation != transaction.Lease || request.Lease == nil {
 		return false
@@ -167,6 +168,30 @@ func writerLeaseVerb(request transaction.Request) bool {
 	return false
 }
 
+// writerRouteReady is the lock-free precheck of the writer-checkpoint route:
+// a lease verb, a head at or above the route's floor and a retained writer
+// checkpoint file. It grants nothing; leaseWriter binds every input under the
+// writer lock. leaseWrite takes the preparation gate for the route only when
+// it holds, so a store the route cannot serve prepares the complete route
+// without entering the gate (CAL-V0-263).
+func writerRouteReady(repo *intent.Repository, request transaction.Request) bool {
+	if !writerLeaseVerb(request) {
+		return false
+	}
+	if head, err := readHead(repo); err != nil || head.LastSeq.Uint64() < writerCheckpointMin(repo) {
+		return false
+	}
+	_, err := os.Lstat(journal.WriterCheckpointPath(repo.StateDir))
+	return err == nil
+}
+
+// leaseDeclined reports a writer-route decline as a fast.declined stage, as
+// mutateWriter does, and hands the write to the complete route.
+func leaseDeclined(ctx context.Context, request transaction.Request, why string) (bool, bool, *journal.Result, error) {
+	mutationStage(ctx, "fast.declined: lease "+request.Lease.Verb+": "+why)
+	return false, false, nil, nil
+}
+
 // leaseWriter is leaseWrite's writer-checkpoint route (CAL-V0-116, proposed):
 // it observes, models and commits under one writer lock, with no change guard
 // and no complete inventory. The lock excludes cooperating writers, and
@@ -175,13 +200,7 @@ func writerLeaseVerb(request transaction.Request) bool {
 // declines; leaseWrite then prepares the complete route as before. refresh
 // reports that the scheduled complete audit is due.
 func leaseWriter(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error, facts claimObserver, report *Report) (handled, refresh bool, proof *journal.Result, err error) {
-	if !writerLeaseVerb(request) {
-		return false, false, nil, nil
-	}
-	if head, err := readHead(repo); err != nil || head.LastSeq.Uint64() < writerCheckpointMin(repo) {
-		return false, false, nil, nil
-	}
-	if _, err := os.Lstat(journal.WriterCheckpointPath(repo.StateDir)); err != nil {
+	if !writerRouteReady(repo, request) {
 		return false, false, nil, nil
 	}
 	timing, wait := leaseTimingOf(ctx), time.Now()
@@ -201,7 +220,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	}()
 	headState, err := writerGuards(repo, guardOperation(request))
 	if err != nil || headState.QueueID.Raw != request.QueueID {
-		return false, false, nil, nil
+		return leaseDeclined(ctx, request, "guards")
 	}
 	read := time.Now()
 	w, decline, terminal := observeWriter(repo, headState, request.RequestID, false)
@@ -210,7 +229,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		return true, false, nil, terminal
 	}
 	if decline != nil {
-		return false, false, nil, nil
+		return leaseDeclined(ctx, request, "observe: "+decline.Error())
 	}
 	validate := writerStage(ctx, "lease.observe", read)
 	if w.replay != nil {
@@ -239,7 +258,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		return true, false, nil, err
 	}
 	if err := leaseInput(w.proof, input.Attempts, facts, &input); err != nil {
-		return false, false, nil, nil
+		return leaseDeclined(ctx, request, "facts: "+err.Error())
 	}
 	result := transaction.Model(request, input)
 	timing.Validation += time.Since(validate)
@@ -247,17 +266,20 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	planned := result.Kind == "Transaction" && result.Plan != nil
 	// A STALE_POLICY refusal the complete route may convert through the
 	// handoff history keeps that route.
-	if w.inv.Incomplete() || (!planned && transaction.HandoffPolicyCandidate(request, input, result) != nil) {
-		return false, false, nil, nil
+	if w.inv.Incomplete() {
+		return leaseDeclined(ctx, request, "model read an elided path")
+	}
+	if !planned && transaction.HandoffPolicyCandidate(request, input, result) != nil {
+		return leaseDeclined(ctx, request, "handoff policy candidate")
 	}
 	if err := bindObservation(repo, w.proof.Identity, guardOperation(request)); err != nil {
-		return false, false, nil, nil
+		return leaseDeclined(ctx, request, "bind")
 	}
 	// As commitLease does under the lock: the modeled branch is still the
 	// intent worktree's, so a switch that left the intent tree unchanged
 	// cannot commit (the complete route then decides it).
 	if branch, err := primaryBranch(repo); err != nil || branch != w.branch {
-		return false, false, nil, nil
+		return leaseDeclined(ctx, request, "branch")
 	}
 	bound := writerStage(ctx, "lease.bind", modeled)
 	if !planned {

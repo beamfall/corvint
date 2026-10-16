@@ -137,6 +137,7 @@ type Reader struct {
 	// so its outer reader re-probes instead (V1-1060).
 	ExpectHeadSha256 wire.Digest
 	afterCapture     func() // deterministic capture/body boundary witness
+	afterPrefixWalk  func() // deterministic prefix walk/recheck boundary witness
 	divergentIntent  string // set only on a value copy by Reconciliation
 	unpauseTickets   bool   // set only on a value copy by BarrierRemoval or PendingBarrierRemoval
 	pendingUnpause   bool   // set only on a value copy by PendingBarrierRemoval
@@ -147,6 +148,8 @@ type Reader struct {
 	observedIntent   bool              // AuditForMutation: select queue, policy and observed tickets/releases
 	writer           *WriterCheckpoint // AuditForWriter only
 	writerBefore     *observation      // AuditForWriter's first capture, set for its second only
+	prefix           bool              // AuditWriterRefresh's prefix walk only
+	fullAttempts     int               // AuditWriterRefresh: complete attempts before the prefix walk
 }
 
 // AuditForWrite carries one verified snapshot through request lookup and
@@ -324,7 +327,11 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 		}
 	}
 	var wait snapshot.StageSlotWait
-	for attempt := 0; attempt < 4; {
+	attempts := 4
+	if r.fullAttempts > 0 {
+		attempts = r.fullAttempts
+	}
+	for attempt := 0; attempt < attempts; {
 		result, err := r.auditAttempt(selected, request, lim, checkIntent, nil)
 		if err == errHeadPassed {
 			return nil, err
@@ -380,7 +387,7 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 			}
 			if r.physical != nil {
 				r.physical.Cleanup = cleanup
-				if err == nil && result != nil && (result.Mode == ModeFull || result.Mode == ModeWriter) && !result.Pending && !result.StagingPresent && result.IntentError == nil && result.selectErr == nil && result.intentErr == nil {
+				if err == nil && result != nil && (result.Mode == ModeFull || result.Mode == ModeWriter || result.Mode == ModePrefix) && !result.Pending && !result.StagingPresent && result.IntentError == nil && result.selectErr == nil && result.intentErr == nil {
 					r.physical.Files = native.physical.files
 				}
 			}
@@ -405,6 +412,8 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	var bodyErr error
 	if r.writer != nil {
 		result, bodyErr = r.walkWriter(before, r.writer, selected, request, lim)
+	} else if r.prefix {
+		result, bodyErr = r.walkPrefix(before, lim)
 	} else if cp != nil {
 		result, bodyErr = r.walkTail(before, cp, selected, lim)
 	} else {
@@ -415,6 +424,21 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	}
 	if r.writer != nil {
 		r.writerBefore = before
+	}
+	if r.prefix && bodyErr == nil {
+		// A prefix walk that succeeded stands while receipts 1..H do; a
+		// refusal needs the whole observation unchanged, below (CAL-V0-265).
+		if r.afterPrefixWalk != nil {
+			r.afterPrefixWalk()
+		}
+		held, e := prefixHeld(native.native, before, result, lim)
+		if e != nil {
+			return nil, e
+		}
+		if !held {
+			return nil, moved("receipts")
+		}
+		return result, nil
 	}
 	after, e := r.capture(lim, cp != nil)
 	if e != nil {

@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -14,7 +15,10 @@ import (
 // TestCALV0216_LockWaitAdmissionVerbs: claim, renew, submit, pool acquire,
 // pool confirm-safe and pool release accept --lock-wait with the CAL-V0-111
 // value rules and help, and a contended command waits for the caller's bound
-// on preparation admission, not the 30-second default, without a write.
+// on preparation admission and on the writer lock, not the 30-second default,
+// without a write. Under CAL-V0-263 a planned write (renew here) enters the
+// preparation gate, while a refusal (the other five verbs in this fixture)
+// is reported under the writer lock without entering it, so both are held.
 func TestCALV0216_LockWaitAdmissionVerbs(t *testing.T) {
 	root, repo, _, attempt, generation := lockWaitStore(t)
 	digest := strings.Repeat("a", 64)
@@ -51,10 +55,22 @@ func TestCALV0216_LockWaitAdmissionVerbs(t *testing.T) {
 
 	held := holdPreparation(t, repo)
 	defer held.Close()
-	for _, base := range verbs {
+	writer, err := authority.AcquireLock(context.Background(), repo, authority.LockOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer writer.Close()
+	for i, base := range verbs {
 		start := time.Now()
 		x := atm(t, root, nil, append(append([]string{}, base...), "--lock-wait", "1")...)
 		lockTimedOut(t, x, time.Since(start), time.Second)
+		// The planned renew waited on preparation admission itself.
+		if i == 1 && !strings.Contains(string(x.stdout), "preparation acquisition exceeded") {
+			t.Fatalf("renew timed out outside preparation admission: %s", x.stdout)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
 	}
 	if !fixture.SameTree(before, fixture.TreeSnapshot(t, repo.StateDir)) {
 		t.Fatal("a timed-out --lock-wait command wrote state")

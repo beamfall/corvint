@@ -225,7 +225,7 @@ func inventoryClaimRepo(t *testing.T) (*intent.Repository, LeaseChoice) {
 }
 func TestCALV0026_GuardedInventoryLeaseFailureOwnership(t *testing.T) {
 	actor := mutation.Binding{ID: "tester", Role: "OWNER"}
-	for _, kind := range []string{"transition-close", "final-close", "absent-close", "guard-close", "preparation-close", "parent-enoent", "parent-stat", "rebind-enoent", "rebind-stat"} {
+	for _, kind := range []string{"transition-close", "final-close", "absent-close", "guard-close", "parent-enoent", "parent-stat", "rebind-enoent", "rebind-stat"} {
 		t.Run(kind, func(t *testing.T) {
 			repo, choice := inventoryClaimRepo(t)
 			primeAuditInventory(t, repo)
@@ -278,7 +278,7 @@ func TestCALV0026_GuardedInventoryLeaseFailureOwnership(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				target := kind == "transition-close" || kind == "absent-close" || kind == "guard-close" || kind == "preparation-close" || kind == "final-close" && strings.HasSuffix(path, "/tickets")
+				target := kind == "transition-close" || kind == "absent-close" || kind == "guard-close" || kind == "final-close" && strings.HasSuffix(path, "/tickets")
 				if target && !injected {
 					injected = true // Dirty observation without changing accepted bytes.
 					head := filepath.Join(repo.StateDir, "head.json")
@@ -319,11 +319,7 @@ func TestCALV0026_GuardedInventoryLeaseFailureOwnership(t *testing.T) {
 			}
 			hooks.closePreparation = func(p *authority.PreparationLock) error {
 				prepCloses++
-				err := p.Close()
-				if err == nil && kind == "preparation-close" {
-					return errors.New("injected preparation close")
-				}
-				return err
+				return p.Close()
 			}
 			ctx := context.WithValue(context.Background(), inventoryHooksKey{}, hooks)
 			ctx = authority.WithLockObserver(ctx, func(time.Duration) { writerAcquires++ })
@@ -340,7 +336,9 @@ func TestCALV0026_GuardedInventoryLeaseFailureOwnership(t *testing.T) {
 			if len(live) != 0 {
 				t.Errorf("unretired roots: %d", len(live))
 			}
-			if guardCloses != 1 || prepCloses != 1 {
+			// Inventory failures happen while preparing, before the gate
+			// (CAL-V0-263); TestGH494PreparationAdmissionStore covers gate close.
+			if guardCloses != 1 || prepCloses != 0 {
 				t.Errorf("cleanup counts: guard=%d preparation=%d", guardCloses, prepCloses)
 			}
 			actual := fixture.TreeSnapshot(t, repo.StateDir)
@@ -370,9 +368,6 @@ func TestCALV0026_GuardedInventoryLeaseFailureOwnership(t *testing.T) {
 			}
 			if kind == "guard-close" && !strings.Contains(detail, "injected guard close") {
 				t.Errorf("missing guard diagnostic: %v", err)
-			}
-			if kind == "preparation-close" && !strings.Contains(detail, "injected preparation close") {
-				t.Errorf("missing preparation diagnostic: %v", err)
 			}
 			// Each stable parent's first + rebind opens happen once in a single round.
 			for path, n := range openCounts {
