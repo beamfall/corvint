@@ -181,6 +181,9 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if name == "receipt audit" {
 		o.Set("note", wire.String("Always the complete audit from receipt 1, never resumed from a checkpoint; it never reads, creates, replaces or removes the derived checkpoints <state directory>.checkpoint.json (reads) and <state directory>.writer-checkpoint (writers), where the state directory is <git common dir>/taskman. Removing <state directory>.writer-checkpoint forces the next write through the complete audit, which refuses a tampered prefix that a checkpointed writer does not re-read; removing <state directory>.checkpoint.json costs the next read one complete audit. Neither removal changes any journal, intent or archive bytes."))
 	}
+	if name == "receipt compact" {
+		o.Set("note", wire.String("Opt-in maintenance write under the writer lock (CAL-V0-272): after a complete settled audit it rewrites each superseded heartbeat or renew receipt as an elided taskman-receipt/1 that keeps the header, chain digests and request afterimage and drops the attempt record it can rebuild; it never touches ownership or outcome receipts, the head receipt or the latest receipt of an attempt, and it removes both derived checkpoints. --dry-run reports the counts and bytes and writes nothing. Run archive export first: a binary without CAL-V0-273 refuses an elided receipt as UNSUPPORTED_VERSION, and rollback is the pre-compaction archive's receipts/ files restored over the state directory, then the older binary."))
+	}
 	if name == "archive verify" {
 		o.Set("note", wire.String("Reads FILE, or stdin when FILE is absent or -. Help reads neither."))
 	}
@@ -225,6 +228,7 @@ var commandUsage = map[string]string{
 	"gate list":               "corvint-tasks gate list",
 	"gate show":               "corvint-tasks gate show <gateId>",
 	"receipt audit":           "corvint-tasks receipt audit",
+	"receipt compact":         "corvint-tasks receipt compact [--dry-run]",
 	"reconcile inspect":       "corvint-tasks reconcile inspect <ticketId>",
 	"reconcile intent":        "corvint-tasks reconcile intent (--keep-journal | --adopt-file) --request-id ID --target TICKET|RELEASE --file FILE|- [--canonical-sha256 SHA256] [--role OWNER|OPERATOR]",
 	"archive export":          "corvint-tasks archive export [--staging DIR]",

@@ -7483,3 +7483,92 @@ on it.
 | Requirement | Evidence |
 | --- | --- |
 | CAL-V0-188 | `TestCALV0188_GroupListingOverrun` (`internal/tasks/store`); `TestCALV0065_NativeFixture` (`internal/tasks/cli`) under load; `docs/build-log/2026-10-07-v1-0989-calv0065-flake.md` |
+
+## V1-1508 liveness receipt elision amendment
+
+Status: accepted (owner, 2026-10-16, in-session choice; decision 0538). It is implemented with
+focused tests. Authoritative input: native ticket V1-1508 and
+[issue 982](https://github.com/beamfall/corvint/issues/982). On one real queue over 18 days,
+heartbeat and renew receipts were 61 % of the receipts and 67 % of receipt bytes. Each carried the
+whole attempt record, and the journal could only grow. This amendment amends the TCP-00 journal
+clause J1. "Retained contiguous history" becomes "contiguous names and digests; content may be
+elided after supersession". Complete audit and archive verify gain the elision step in
+CAL-V0-271. Heartbeat and renew write paths, fencing, lease expiry, request and replay rules are
+unchanged. A store that is never compacted keeps its bytes and behaviour.
+
+- `CAL-V0-270`: (accepted, decision 0538; V1-1508) A receipt MAY be
+  elided only when all of the following hold:
+  - It is a completed `TRANSITION` with no codes.
+  - It posts exactly its attempt record and its request.
+  - Its attempt post differs from the previous record of that attempt only in `lastHeartbeatAt`
+    and in a `lease` whose holder is unchanged.
+  - A later receipt posts the same attempt path.
+
+  These receipts MUST NOT be elided: ownership or outcome receipts (claim, release, handoff,
+  reap, widen, submit, gate, complete), ticket and administrative receipts, the head receipt, and
+  the latest receipt of each attempt.
+- `CAL-V0-271`: (accepted, decision 0538; V1-1508) An elided receipt is
+  `taskman-receipt/1`. It is the original receipt with that attempt post's `record` set to null,
+  plus `receiptSha256` (the SHA-256 of the original bytes) and
+  `elided {path, lastHeartbeatAt, lease}`. Every walk from receipt 1 MUST restore each elided
+  receipt to its original bytes before chaining, folding or linking it. This covers complete
+  audit, the writer replay, archive verify, the receipt binding fold, external review inputs and
+  doctor. The restored attempt record is the latest earlier record of that attempt with the two
+  liveness members replaced. The restored receipt MUST match `pre`, `post` and `receiptSha256`;
+  a mismatch, or a missing earlier record, is `JOURNAL_FORKED`. Chain links and the head digest
+  are computed over the original bytes. A walk resumed from a checkpoint MUST NOT restore: it
+  treats an elided receipt as an unusable checkpoint and falls back to the complete walk. A
+  replay of a request whose receipt is elided returns the original result, read from the retained
+  header.
+- `CAL-V0-272`: (accepted, decision 0538; V1-1508)
+  `corvint-tasks receipt compact [--dry-run]` is the only writer of `taskman-receipt/1`. Nothing
+  runs it implicitly. Under the writer lock it MUST:
+  - require a complete settled audit with no staging slot, and refuse `REDO_PENDING` otherwise;
+  - remove both derived checkpoints;
+  - prove each tombstone restores to its original bytes, then publish it by write, fsync and
+    rename;
+  - sync the receipts directory and close with a complete audit.
+
+  It reports `dryRun`, `headSeq`, `elided`, `alreadyElided`, `receiptBytesBefore` and
+  `receiptBytesAfter`. `--dry-run` writes nothing. A tombstone and its original are
+  interchangeable to this binary, so an interrupted run leaves a valid journal and a rerun
+  continues.
+- `CAL-V0-273`: (accepted, decision 0538; V1-1508) `taskman-receipt/1`
+  joins `LiveFormats`, and a strict `taskman-receipt/0` decode MUST refuse it as
+  `UNSUPPORTED_VERSION` (CAL-V0-131). A binary without this amendment therefore refuses an elided
+  store and never misreads it. Because the live format set changes, moving between a binary with
+  this amendment and one without it needs one drain (CAL-V0-130).
+- `CAL-V0-274`: (accepted, decision 0538; V1-1508) An issue-shaped fixture
+  MUST show the receipt bytes before and after compaction. The fixture has four attempts with
+  interleaved heartbeats and renews, then two releases, with liveness making up two thirds of the
+  receipts.
+
+Non-goals:
+- Moving liveness out of the journal (issue 982 option 1).
+- Sealed segments, a retention policy or deleting receipts (options 2 and 3).
+- Compacting request files (item 4).
+- Changing complete-audit cost (#967).
+- Any automatic compaction.
+- Eliding any receipt other than superseded liveness.
+
+Failure modes:
+- A tombstone whose digest or liveness members were altered is refused as `JOURNAL_FORKED` by
+  audit and verify.
+- An interrupted compaction leaves a mix of originals and tombstones, which audits clean.
+- A compaction over a pending receipt is refused as `REDO_PENDING`.
+- An older binary refuses the elided store as `UNSUPPORTED_VERSION`. The operator rolls back.
+
+Rollback: run `archive export` before compacting. To roll back, restore that archive's
+`receipts/<name>` members over the state directory's `receipts/`, remove
+`<state directory>.checkpoint.json` and `<state directory>.writer-checkpoint`, then run the older
+binary. The originals carry the digests the chain already binds, so this rollback also holds
+after later writes. Reverting the code is safe only for a store that was never compacted, or
+after this restore.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-270 | `TestCALV0270_ElisionScopeAndTamper` (`internal/tasks/store`) |
+| CAL-V0-271 | `TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0270_ElisionScopeAndTamper` (`internal/tasks/store`); `TestCALV0272_ReceiptCompactCLI` (`internal/tasks/cli`) |
+| CAL-V0-272 | `TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing` (`internal/tasks/store`); `TestCALV0272_ReceiptCompactCLI` (`internal/tasks/cli`) |
+| CAL-V0-273 | `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`); the strict-decode check in `TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing` |
+| CAL-V0-274 | `TestCALV0274_CompactLivenessIssueShape` (`internal/tasks/store`); `docs/build-log/2026-10-16-v1-1508-liveness-retention.md` |

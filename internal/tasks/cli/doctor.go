@@ -107,6 +107,9 @@ type doctorScan struct {
 	lanesTotal      int
 	runningSessions int
 	completions24h  string
+	// elidedBases caches, per attempt path, the retained record an elided
+	// liveness receipt in the walk restores from (CAL-V0-270).
+	elidedBases map[string]doctorBase
 }
 
 func doctorUsage() error {
@@ -243,7 +246,7 @@ func doctorScanReceipts(src journal.Native, head uint64, scan *doctorScan) {
 			scan.truncated = true
 			break
 		}
-		ev, recorded, err := doctorReadReceipt(src, seq)
+		ev, recorded, err := doctorReadReceipt(src, seq, scan)
 		if err != nil {
 			scan.truncated = true
 			scan.warnings = append(scan.warnings, prose(fmt.Sprintf("doctor scan stopped at receipt %d: %v", seq, err)))
@@ -262,7 +265,7 @@ func doctorScanReceipts(src journal.Native, head uint64, scan *doctorScan) {
 	scan.events = events
 }
 
-func doctorReadReceipt(src journal.Native, seq uint64) (doctorEvent, time.Time, error) {
+func doctorReadReceipt(src journal.Native, seq uint64, scan *doctorScan) (doctorEvent, time.Time, error) {
 	ev := doctorEvent{seq: seq}
 	name, err := snapshot.ReceiptName(seq)
 	if err != nil {
@@ -272,7 +275,7 @@ func doctorReadReceipt(src journal.Native, seq uint64) (doctorEvent, time.Time, 
 	if err != nil {
 		return ev, time.Time{}, err
 	}
-	r, err := snapshot.DecodeReceipt(raw)
+	r, _, _, err := snapshot.DecodeRetainedReceipt(raw)
 	if err != nil {
 		return ev, time.Time{}, err
 	}
@@ -289,7 +292,12 @@ func doctorReadReceipt(src journal.Native, seq uint64) (doctorEvent, time.Time, 
 		if p.Sha256 == nil || (p.Path != "pools.json" && !strings.HasPrefix(p.Path, "attempts/")) {
 			continue
 		}
-		b, err := doctorPostBytes(src, p)
+		var b []byte
+		if p.Record == nil && p.BlobSha256 == nil {
+			b, err = doctorElidedRecord(src, seq, raw, p.Path, scan)
+		} else {
+			b, err = doctorPostBytes(src, p)
+		}
 		if err != nil {
 			return ev, at, err
 		}
@@ -307,6 +315,53 @@ func doctorReadReceipt(src journal.Native, seq uint64) (doctorEvent, time.Time, 
 		ev.fresh = append(ev.fresh, created[p.Path])
 	}
 	return ev, at, nil
+}
+
+// doctorBase is the latest retained record of one attempt before seq.
+type doctorBase struct {
+	seq uint64
+	raw []byte
+}
+
+// doctorElidedRecord restores the attempt record an elided liveness receipt
+// at seq omits (CAL-V0-270) from the latest retained record of the attempt
+// before it, read backward within the receipt bound.
+func doctorElidedRecord(src journal.Native, seq uint64, tombstone []byte, path string, scan *doctorScan) ([]byte, error) {
+	if b, ok := scan.elidedBases[path]; ok && b.seq < seq {
+		return snapshot.ElidedRecord(tombstone, b.raw)
+	}
+	for at := seq - 1; at >= 1 && seq-at <= doctorMaxReceipts; at-- {
+		name, err := snapshot.ReceiptName(at)
+		if err != nil {
+			return nil, err
+		}
+		raw, err := src.Read("receipts/"+name, wire.MaxReceiptFileBytes)
+		if err != nil {
+			return nil, err
+		}
+		rc, _, _, err := snapshot.DecodeRetainedReceipt(raw)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range rc.Post {
+			if p.Path != path || (p.Sha256 != nil && p.Record == nil && p.BlobSha256 == nil) {
+				continue
+			}
+			if p.Sha256 == nil {
+				return nil, fmt.Errorf("%s: elided receipt %d follows a deletion", path, seq)
+			}
+			b, err := doctorPostBytes(src, p)
+			if err != nil {
+				return nil, err
+			}
+			if scan.elidedBases == nil {
+				scan.elidedBases = map[string]doctorBase{}
+			}
+			scan.elidedBases[path] = doctorBase{seq: at, raw: b}
+			return snapshot.ElidedRecord(tombstone, b)
+		}
+	}
+	return nil, fmt.Errorf("%s: no retained record within %d receipts before elided receipt %d", path, doctorMaxReceipts, seq)
 }
 
 func doctorPostBytes(src journal.Native, p snapshot.PostEntry) ([]byte, error) {

@@ -275,6 +275,9 @@ func checkStore(m *Manifest, files map[string][]byte, res *VerifyResult) error {
 	}
 	var prev *wire.Digest
 	var prevGen uint64
+	// An elided liveness receipt (CAL-V0-271) is restored to its original
+	// bytes, proven against its recorded digest, before it is linked.
+	restore := &snapshot.ReceiptRestorer{}
 	for seq := uint64(1); seq <= lastSeq; seq++ {
 		name, err := snapshot.ReceiptName(seq)
 		if err != nil {
@@ -284,7 +287,7 @@ func checkStore(m *Manifest, files map[string][]byte, res *VerifyResult) error {
 		if !ok {
 			return wire.Errorf(wire.CodeJournalForked, "receipts/"+name, "receipt %d is missing from the chain", seq)
 		}
-		rc, err := snapshot.DecodeReceipt(raw)
+		rc, raw, err := restore.Next(raw)
 		if err != nil {
 			return prefixWhere(err, "receipts/"+name)
 		}

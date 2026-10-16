@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -47,4 +48,34 @@ func receiptAudit(env Env, args []string) *wire.Result {
 	result := success(cmd, rc)
 	result.Items = []wire.Value{wire.ObjectValue(item)}
 	return result
+}
+
+// receiptCompact rewrites superseded liveness receipts as their elided
+// taskman-receipt/1 form (CAL-V0-272). It is the only command that does;
+// nothing runs it implicitly.
+func receiptCompact(env Env, args []string) *wire.Result {
+	cmd := []string{"receipt", "compact"}
+	dryRun := false
+	for _, a := range args {
+		if a != "--dry-run" || dryRun {
+			return usage(cmd, "receipt compact accepts only --dry-run")
+		}
+		dryRun = true
+	}
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
+	report, err := store.CompactLiveness(writerContext(), repo, dryRun)
+	if err != nil {
+		return failure(cmd, &readCtx{repo: repo}, err)
+	}
+	item := wire.NewObject()
+	item.Set("dryRun", wire.Bool(report.DryRun))
+	item.Set("headSeq", wire.String(string(wire.SizeOf(report.HeadSeq))))
+	item.Set("elided", wire.String(string(wire.CountOf(int64(report.Elided)))))
+	item.Set("alreadyElided", wire.String(string(wire.CountOf(int64(report.AlreadyElided)))))
+	item.Set("receiptBytesBefore", wire.String(string(wire.SizeOf(uint64(report.BytesBefore)))))
+	item.Set("receiptBytesAfter", wire.String(string(wire.SizeOf(uint64(report.BytesAfter)))))
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(item)}}
 }
