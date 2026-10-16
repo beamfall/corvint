@@ -38,7 +38,10 @@ The corpus is 755 maps under `.corvint/changes/`, all `cem/1.0`, with 27,039 hun
 
 The coverage and discrimination witnesses are wire-valid in `cem/1.0`
 (`internal/cem/wire/stable_encode.go`) and remain `WIRE_VALIDATED_ONLY` in the verifier
-(`internal/cem/verify/stable.go`). The coverage witness pins `profileSha256` only.
+(`internal/cem/verify/stable.go`). The coverage witness pins `profileSha256` only. Producers
+exist: `cem cover` and `cem discriminate` write the witnesses into a `cem/1.0` map
+(`internal/cem/workflow/cover.go`, `internal/cem/workflow/discriminate.go`). But the dogfood loop
+runs neither, and no committed map carries their output.
 
 ### Mutant-operator table
 
@@ -91,11 +94,14 @@ and the committed corpus already reads as one.
 
 ## Decisions
 
-- **Item 1 gets a ticket, not a decision.** Decision 0523 conditions it on a labelled held-out set
-  from another repository, and this repository cannot supply external labels.
-  - The anchored statistic is binary per (hunk, basis). Inference: a rank against K nulls of a
-    binary statistic therefore reduces to the pooled excess the scorer already reports. A per-hunk
-    BH fraction adds information only with a graded statistic.
+- **Item 1 gets a ticket, not a decision.** The condition comes from the 2026-10-11 panel entry
+  ("Seeded K-null permutation rank is post-rc.3 pending a held-out set") and from the V1-1268
+  ticket body ("needs a labelled held-out set from another repository"). Decision 0523 itself
+  does not state the condition. This repository cannot supply external labels.
+  - A per-hunk rank against K nulls keeps per-observation information that the pooled excess
+    discards: two anchored hunks with null-hit counts (0, 100) and (50, 50) of 200 give the same
+    pooled excess but different ranks and BH discoveries. The axis can therefore add
+    information, but whether that information tracks real support needs labels.
   - The ticket is gated on V1-1337 reading "improve". If V1-1337 reads "kill", the consumer axis
     has nothing to rank.
   - The orchestrator payload is `item1-seeded-null-rank.json`.
@@ -112,7 +118,8 @@ and the committed corpus already reads as one.
   - Decision 0523 tied both to cases in the 0.3 packet. That packet has since been deleted
     (`CEM-V1-220..225`), and no committed map carries either witness.
   - Freezing the operator table or adding a blob OID to the coverage witness would fix wire or
-    packet text for an input no producer emits. Under `CEM-CB-025` that text could not be revised
+    packet text for an input that no committed map carries and that the dogfood loop never
+    produces. Under `CEM-CB-025` that text could not be revised
     without a new profile.
   - Reopen either item when the first committed map carries the matching witness, or when a
     consumer re-executes discrimination or replays coverage instead of reporting
@@ -120,7 +127,8 @@ and the committed corpus already reads as one.
 - **Item 5 is the existing V1-0836.**
   - The "about 180 pairs" figure in the V1-1268 ticket body is the original `CRT-V0-008`
     single-repeat power estimate. V1-0836 already carries the run at about 55 pairs with two
-    repeats, under the amended `CRT-V0-008`.
+    repeats. That figure comes from the 2026-10-01 `CRT-V0-008` amendment, which is proposed and
+    not accepted, so the pair count stays an open design choice for that ticket.
   - Filing a second trial ticket would compete with it. Instead, the update request
     `item5-V1-0836-update-request.json` adds what 0523 P4 contributes:
     - V1-0836 depends on V1-1266 and V1-1449, so the run waits for a K1 baseline.
@@ -138,10 +146,26 @@ table or enumeration, coverprofile blob pin, reviewer trial, "180 pairs", "helps
 
 - **rc.3 release notes.** The `1.0.0-rc.3 (unreleased): recorded limits` section mentions only
   `held` through `--hunk-revert` and states that "K1 is open".
-- **Reviewer-trial matches.** These are the 2026-09 preregistration note, the pilot published as
-  invalid, and specs that name the trial as a future gate.
+- **Reviewer-trial matches.** These are the 2026-09 preregistration note, the 2026-09-03 pilot
+  published as invalid, the valid 2026-09-04 five-pair pilot re-run (`delta: 0.04`, explicitly
+  not an outcome run), and specs that name the trial as a future gate.
 - **Discrimination and coverage matches.** These describe the existing witnesses, not a frozen
   table or a blob pin.
+
+## Review (one Codex round)
+
+One read-only Codex round reviewed `a0b4c4108..124fb8772`. It confirmed every corpus, witness,
+relation, tamper-case, operator-table, K1 and cited baseline count. It also found no README,
+release-notes, spec or packet text that claims delivery. Its five findings were all fixed in this
+entry:
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 1 | `cem cover` and `cem discriminate` do produce `cem/1.0` witnesses, so "no producer emits" was false | Reworded: no committed map carries a witness and the dogfood loop runs neither command |
+| 2 | The 55-pair figure is a proposed, not accepted, `CRT-V0-008` amendment | Stated as proposed |
+| 3 | A per-hunk K-null rank does not reduce to the pooled excess, because per-observation null rates differ | Inference removed; the payload's criteria no longer require a graded statistic |
+| 4 | Decision 0523 does not state item 1's held-out-set condition | Attributed to the panel entry and the ticket body |
+| 5 | The search summary omitted the valid 2026-09-04 pilot re-run | Added |
 
 ## Residual (not this ticket)
 
