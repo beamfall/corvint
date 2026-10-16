@@ -2890,6 +2890,7 @@ PSR-V0-019	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	51	Sharing excludes th
 PSR-V0-020	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	52	The binding is visible in pure reads (PSR-V0-015, TM-V0-008). `pool status` give	unrecorded	-
 PSR-V0-021	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	53	The encoding is additive: pools.json entries gain the optional `shared` key only	unrecorded	-
 PSR-V0-022	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	54	(accepted under the owner's standing auto-accept (2026-10-11), V1-1406) A bounde	standing	2026-10-11; V1-1406
+PSR-V0-023	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	55	(owner delegated to the orchestrator (2026-10-16), decision 0536, V1-1492) Withi	unrecorded	-
 PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled disposable synthetic Git fixture in a new	unrecorded	-
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and	unrecorded	-
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use	unrecorded	-

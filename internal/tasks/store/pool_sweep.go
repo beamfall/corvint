@@ -50,11 +50,47 @@ type sweepRequestKey struct{}
 // (its context.Background allowance and the command pipe delay) never reads it.
 type sweepObservationBoundKey struct{}
 
+// sweepBudgetKey carries a foreground sweep's --timeout-seconds budget to its
+// observations (PSR-V0-023). Only PoolSweep sets it; pool preparation and
+// cleanup outside a sweep have no budget and keep the fixed bounds.
+type sweepBudgetKey struct{}
+
+// PSR-V0-023: a sweep's fixed observation bounds scale by budget/10s, never
+// below 1 (the fixed value is the floor) and never above 5 (the cap).
+const (
+	sweepBudgetUnit     = 10 * time.Second
+	sweepBudgetMaxScale = 5
+)
+
+func withSweepBudget(ctx context.Context, budget time.Duration) context.Context {
+	return context.WithValue(ctx, sweepBudgetKey{}, budget)
+}
+
+// sweepBudgetOnly is a fresh context carrying only ctx's sweep budget, so a
+// detached cleanup proof keeps the scaled bounds but never a test lift.
+func sweepBudgetOnly(ctx context.Context) context.Context {
+	if budget, ok := ctx.Value(sweepBudgetKey{}).(time.Duration); ok {
+		return withSweepBudget(context.Background(), budget)
+	}
+	return context.Background()
+}
+
+// sweepScaledBound is fixed scaled by the sweep budget under ctx (PSR-V0-023).
+// An expired scaled bound keeps every fixed-bound outcome class.
+func sweepScaledBound(ctx context.Context, fixed time.Duration) time.Duration {
+	budget, ok := ctx.Value(sweepBudgetKey{}).(time.Duration)
+	if !ok || budget <= sweepBudgetUnit {
+		return fixed
+	}
+	return min(time.Duration(float64(fixed)*(float64(budget)/float64(sweepBudgetUnit))), fixed*sweepBudgetMaxScale)
+}
+
 func sweepObservationBound(ctx context.Context, fixed time.Duration) time.Duration {
-	if bound, ok := ctx.Value(sweepObservationBoundKey{}).(time.Duration); ok && bound > fixed {
+	scaled := sweepScaledBound(ctx, fixed)
+	if bound, ok := ctx.Value(sweepObservationBoundKey{}).(time.Duration); ok && bound > scaled {
 		return bound
 	}
-	return fixed
+	return scaled
 }
 
 type sweepMember struct {
@@ -125,7 +161,9 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 	if e != nil {
 		return &PoolSweepReport{}, e
 	}
-	run, cancel := context.WithTimeout(ctx, time.Duration(c.TimeoutSeconds.Int())*time.Second)
+	budget := time.Duration(c.TimeoutSeconds.Int()) * time.Second
+	ctx = withSweepBudget(ctx, budget)
+	run, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	// Normal recording shares the invocation deadline. After execution cleanup,
 	// every cancellation/finalization write shares ONE detached writer allowance.
