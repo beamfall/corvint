@@ -187,6 +187,8 @@ type Runner struct {
 	Universe []string
 	// now is the shard clock, time.Now unless a test fixes it.
 	now func() time.Time
+	// adapters replaces AdapterManifests when a test sets it.
+	adapters map[string]AdapterManifest
 }
 
 func (r *Runner) clock() time.Time {
@@ -206,6 +208,13 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 	budget := r.ShardBudget(m)
 	deadline := r.clock().Add(budget)
 	planned := Invocations(m, r.Declared, shard, r.Root, r.Confine)
+	// STR-V0-004: only an adapter with a registered capability manifest of
+	// this version is discovered or launched.
+	manifests := r.adapters
+	if manifests == nil {
+		manifests = AdapterManifests()
+	}
+	planned = refuseUnmanifested(&receipt, manifests, m, shard, planned)
 	if len(planned) != 0 && !groupsSupported {
 		receipt.Incomplete = append(receipt.Incomplete, "this platform cannot own and kill a process group; nothing ran")
 		planned = nil

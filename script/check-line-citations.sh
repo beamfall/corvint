@@ -3,7 +3,7 @@ set -eu
 
 # Every backticked `path:line` citation in the DCG-V0-001 document set (docs/specs,
 # docs/agent-memory, README.md, docs/DOGFOOD.md, docs/AGENT-ROUTES.md, docs/SELF-DEVELOPMENT.md,
-# docs/SPEC-TOOLCHAIN-INTEGRATION.md, and conformance/*/README.md) must name a file that exists, a
+# docs/SPEC-TOOLCHAIN-INTEGRATION.md, docs/RELEASE-NOTES-*.md, and conformance/*/README.md) must name a file that exists, a
 # line inside it, and a line that carries something to cite. Specs are written against a
 # working tree and committed later in the same change as the code they cite, so a citation
 # can be stale the moment it lands: the 2026-09-05 audit repinned 330 of them across nine
@@ -181,7 +181,7 @@ sub log_or_backlog_doc {
 
 sub scanned_doc {
     my ($path) = @_;
-    return $path =~ m{^(?:docs/(?:specs|agent-memory|decisions)/[^/]+\.md|README\.md|docs/(?:DOGFOOD|AGENT-ROUTES|SELF-DEVELOPMENT|SPEC-TOOLCHAIN-INTEGRATION)\.md|conformance/[^/]+/README\.md)$};
+    return $path =~ m{^(?:docs/(?:specs|agent-memory|decisions)/[^/]+\.md|README\.md|docs/(?:DOGFOOD|AGENT-ROUTES|SELF-DEVELOPMENT|SPEC-TOOLCHAIN-INTEGRATION|RELEASE-NOTES-[^/]*)\.md|conformance/[^/]+/README\.md)$};
 }
 
 my @failures;

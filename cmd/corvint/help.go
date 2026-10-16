@@ -392,7 +392,7 @@ stdout.
 const testValidityHelp = `Project test-level results through the shared test-validity shape.
 
 Usage:
-  corvint [--root PATH] test-validity [--receipt FILE | --discover]
+  corvint [--root PATH] test-validity [--receipt FILE [--route-stubs] | --discover]
   corvint [--root PATH] test-validity negate --provider ABSOLUTE_FILE --spec S --test T
       [--project P] (--step TITLE | --all-steps) [--max-runs N] [--baseline-repeat N]
       [external-server provider options]
@@ -406,7 +406,10 @@ and a PASSED execution axis states no strength: strength stays NOT_MEASURED
 until a mutation run supplies a witness.
 
 Without --receipt there is no test-level evidence: tests is empty and every
-run axis is UNSUPPORTED with reason no-input-supplied. An unreadable, oversized,
+run axis is UNSUPPORTED with reason no-input-supplied. --route-stubs makes every
+JavaScript test carry routeStubs: a receipt with no route-stub producer record
+then states NOT_PRODUCED with reason route-stub-producer-absent, and a profiled
+receipt states route-stub-external-profile, instead of omitting the member. An unreadable, oversized,
 malformed or receipt-less FILE exits 2 with no stdout.
 
 --discover instead reads the newest completed provider document retained as a
@@ -1329,7 +1332,8 @@ seal, DOGFOOD_OUTPUT_CHANGE=REQUIREMENT-ID declares a change whose cem status ou
 differs from the base verifier's by construction: admitted only when HEAD's
 docs/specs/REQUIREMENTS.tsv maps the ID to a spec BASE..HEAD modifies, it runs the
 tree verifier in both roles and records base-independence=NOT_PROVED with both
-stdout digests. The root, the current directory unless --root names one, must be
+stdout digests, or base=NOT_PRODUCED and its refusal code when the base verifier
+refuses the read. The root, the current directory unless --root names one, must be
 the worktree top level.
 
 finish-lane runs the bind loop on a committed change: prepare, bind with the

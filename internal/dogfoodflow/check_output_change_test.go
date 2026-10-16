@@ -272,14 +272,13 @@ func TestCheckDCWV0047DeclaredOCMStatus(t *testing.T) {
 	}
 }
 
-// TestCheckDCWV0072RefusedBaseStatusDigest covers V1-1307: under an admitted
-// declaration a base verifier that refuses the `cem status` read (it cannot
-// read a cem/1.0 map) writes no stdout, so the recorded base digest is the
-// SHA-256 of empty input whatever its exit status. A successful `cem status`
-// always writes its canonical line, so that digest names an absent output,
-// never a successful empty read.
-func TestCheckDCWV0072RefusedBaseStatusDigest(t *testing.T) {
-	const emptySHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+// TestCheckDCWV0047RefusedBaseNotProduced covers V1-1307 (decision 0535,
+// superseding DCW-V0-072): under an admitted declaration a base verifier that
+// refuses the `cem status` read (exit 2, for example `unsupported-spec` for a
+// cem/1.0 map its release cannot read) records NOT_PRODUCED and its refusal
+// code instead of a digest of its absent stdout. A base verifier that reads
+// the map, even one that exits 1, keeps its stdout digest.
+func TestCheckDCWV0047RefusedBaseNotProduced(t *testing.T) {
 	treeStatus := `{"state":"ready-for-ci"}` + "\n"
 	runner := func(role string, run func(stdout, stderr io.Writer) int) Runner {
 		path := filepath.Join(t.TempDir(), role)
@@ -290,28 +289,64 @@ func TestCheckDCWV0072RefusedBaseStatusDigest(t *testing.T) {
 			return run(stdout, stderr)
 		}}
 	}
-	base := runner("base", func(_, stderr io.Writer) int {
-		_, _ = io.WriteString(stderr, `{"code": "unsupported-spec", "ok": false}`+"\n")
-		return 2
-	})
 	tree := runner("tree", func(stdout, _ io.Writer) int {
 		_, _ = io.WriteString(stdout, treeStatus)
 		return 0
 	})
-	var stdout, stderr bytes.Buffer
-	c := newCheck(context.Background(), "dogfood-check", CheckOptions{Root: t.TempDir(), BaseVerifier: base, TreeVerifier: tree, OutputChange: "DCW-V0-072"}, &stdout, &stderr)
-	c.outputChange = "DCW-V0-072"
-	var agreed bool
-	code, err := boundary(c.ctx, func() int {
-		c.resolveVerifiers()
-		_, agreed = c.verifyStatus("cem", "status")
-		return 0
-	}, func() {})
-	if err != nil || code != 0 || !agreed {
-		t.Fatalf("exit=%d err=%v agreed=%v stderr=%q", code, err, agreed, stderr.String())
-	}
-	want := "base-independence=NOT_PROVED base=sha256:" + emptySHA256 + " tree=sha256:" + sha256Hex([]byte(treeStatus)) + " declared=DCW-V0-072"
-	if got := c.baseIndependence(); got != want {
-		t.Fatalf("baseIndependence = %q; want %q", got, want)
+	treeSHA := sha256Hex([]byte(treeStatus))
+	for _, tc := range []struct {
+		name               string
+		base               func(stdout, stderr io.Writer) int
+		fields, recordWant string
+	}{
+		{"refused", func(_, stderr io.Writer) int {
+			_, _ = io.WriteString(stderr, `{"code": "unsupported-spec", "ok": false}`+"\n")
+			return 2
+		}, "base=NOT_PRODUCED base-refusal=unsupported-spec", `"baseStatus": "NOT_PRODUCED", "baseRefusal": "unsupported-spec"`},
+		{"refused without a code", func(_, _ io.Writer) int { return 3 },
+			"base=NOT_PRODUCED base-refusal=exit-3", `"baseStatus": "NOT_PRODUCED", "baseRefusal": "exit-3"`},
+		{"rejected", func(stdout, _ io.Writer) int {
+			_, _ = io.WriteString(stdout, `{"state":"rejected"}`+"\n")
+			return 1
+		}, "base=sha256:" + sha256Hex([]byte(`{"state":"rejected"}`+"\n")),
+			`"baseStatusStdoutSha256": "sha256:` + sha256Hex([]byte(`{"state":"rejected"}`+"\n")) + `"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(root, ".git"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			reportPath := filepath.Join(root, "report.json")
+			if err := os.WriteFile(reportPath, []byte("{\n  ,\"dogfoodCheck\": null\n}\n"), 0o666); err != nil {
+				t.Fatal(err)
+			}
+			var stdout, stderr bytes.Buffer
+			c := newCheck(context.Background(), "dogfood-check", CheckOptions{Root: root, BaseVerifier: runner("base", tc.base), TreeVerifier: tree, OutputChange: "DCW-V0-047"}, &stdout, &stderr)
+			c.outputChange, c.report, c.gitDir = "DCW-V0-047", reportPath, filepath.Join(root, ".git")
+			var agreed bool
+			code, err := boundary(c.ctx, func() int {
+				c.resolveVerifiers()
+				_, agreed = c.verifyStatus("cem", "status")
+				if err := c.record(agreed, 0); err != nil {
+					t.Fatal(err)
+				}
+				return 0
+			}, func() {})
+			if err != nil || code != 0 || !agreed {
+				t.Fatalf("exit=%d err=%v agreed=%v stderr=%q", code, err, agreed, stderr.String())
+			}
+			want := "base-independence=NOT_PROVED " + tc.fields + " tree=sha256:" + treeSHA + " declared=DCW-V0-047"
+			if got := c.baseIndependence(); got != want {
+				t.Fatalf("baseIndependence = %q; want %q", got, want)
+			}
+			data, err := os.ReadFile(reportPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			recorded := `"baseIndependence": {"state": "NOT_PROVED", "declared": "DCW-V0-047", ` + tc.recordWant + `, "treeStatusStdoutSha256": "sha256:` + treeSHA + `"}}`
+			if !strings.Contains(string(data), recorded) {
+				t.Fatalf("report=%q; want %q", data, recorded)
+			}
+		})
 	}
 }

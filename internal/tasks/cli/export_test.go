@@ -275,3 +275,9 @@ func SetRunConfigOpenForTest(open func(string) (io.ReadCloser, error)) func() {
 	runConfigOpen = open
 	return func() { runConfigOpen = was }
 }
+
+// HolderStatus classifies a recorded heartbeat at now against ttlSeconds,
+// exactly as attempt show and queue status do (CAL-V0-048, CAL-V0-120).
+func HolderStatus(a *snapshot.Attempt, now time.Time, ttlSeconds int64) string {
+	return holderStatus(a, now, ttlSeconds)
+}

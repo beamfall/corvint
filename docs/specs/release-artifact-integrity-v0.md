@@ -113,9 +113,21 @@ provenance assets needed for a deliberate source-release policy. No sdist is in 
   verify `corvint --version` and a real read-only query" — is `GPK-V0-018`. Full coverage of the same
   obligation, translated from "every module imports" (Python) to "the single static binary runs",
   but the successor lives in a different spec than the other nine rows in this family.
-- `ARTIFACT-V0-008`: Pull-request CI MUST grant only `contents: read`, disable persisted checkout
-  credentials, use full-commit action pins, set bounded timeouts, and expose no secret, release,
-  publishing, signing, or artifact-upload step to untrusted pull-request code. Still live:
+- `ARTIFACT-V0-008`: Every CI workflow (`.github/workflows/*.yml`) MUST grant only `contents: read`
+  at the workflow level and in every job-level block, except a block declared with its exact
+  permission set and a reason in `script/ci-least-privilege-exceptions.tsv`; MUST disable persisted
+  checkout credentials, use full-commit action pins, set bounded timeouts, and expose no secret,
+  release, publishing, signing, or artifact-upload step to untrusted pull-request code. Amended
+  2026-10-16 by V1-1469 (owner delegated to the orchestrator (2026-10-16)): the requirement
+  previously covered pull-request CI (`ci.yml`) only, so the one job holding `issues: write`
+  (`release-gates.yml` job `nightly-failure-signal`, SOP-V0-013) and the `ci-control-plane.yml`
+  status writer were outside any least-privilege check. The check now reads every tracked workflow;
+  the declared exceptions are that job, `ci-control-plane.yml`'s workflow level
+  (`statuses: write`, AFP-V0-016) and its `forward-rows` job (`actions: read`, AFP-V0-047). A
+  block that differs from its declared set, an undeclared grant, or a row that matches no block
+  fails. The check reads workflow text line by line, not as parsed YAML: a flow-style block, or a
+  block under a job id it cannot name (a quoted id), cannot match an exception and so fails unless
+  it is exactly `contents: read`. Still live:
   `.github/workflows/ci.yml` is unaffected by decision 0088 and, confirmed 2026-09-12, still
   declares `permissions: contents: read` (line 12) and `persist-credentials: false` (lines 22, 56,
   80) with 40-character action pins. This requirement never depended on the wheel. The Python test
@@ -124,7 +136,9 @@ provenance assets needed for a deliberate source-release policy. No sdist is in 
   a `gate` prerequisite) is the replacement, added 2026-09-12. It reads the workflow from the Git
   index, not the worktree, so it measures what a fresh clone contains;
   `script/check-ci-least-privilege_test.sh` (`ci-least-privilege-test`, also a `gate` prerequisite)
-  pins both directions and holds a checkout step to it whichever key the step opens with.
+  pins both directions and holds a checkout step to it whichever key the step opens with, and
+  (V1-1469) fails a workflow-level or undeclared job-level write in a workflow other than `ci.yml`,
+  a job widened past its declared exception, and a stale exception row.
 - `ARTIFACT-V0-009`: `docs/extraction-manifest.json` MUST NOT be represented as release-manifest
   verification. It records original Beamfall source hashes but has no destination mapping and
   requires the source repository to verify; that work remains part of the provenance decision.
@@ -231,7 +245,7 @@ The implementation is accepted for this experimental slice when:
    workflow has the required least-privilege, exact-runtime, conformance, formatting, cross-build,
    cancellation, and fresh-builder boundaries — `script/check-ci-least-privilege.sh` (Makefile
    target `ci-least-privilege-check`, a `gate` prerequisite) covers the least-privilege share of
-   this: exact `contents: read` workflow permissions and no job-level block granting more, `persist-credentials: false` on every
+   this, for every tracked workflow: exact `contents: read` workflow permissions and no job-level block granting more, unless declared in `script/ci-least-privilege-exceptions.tsv`, `persist-credentials: false` on every
    `actions/checkout` step, and a full 40-character commit SHA on every `uses:` reference;
 4. `NOT_PRODUCED` (retired 2026-09-12 by decision 0088): `make release-wheel-witness`,
    `tools/release_artifact.py`, and `requirements/release-build.txt` were removed by `54735d98` and
@@ -269,7 +283,7 @@ an independent rebuild remain separate gates.
 | `ARTIFACT-V0-005` | (superseded by `ARTIFACT-GO-V0-005` and `ARTIFACT-GO-V0-007`, decision 0088) independent-build comparison and private atomic promotion removed with the wheel checker; now the archive double-build/double-assembly and atomic-promotion path | historical: mismatch, smoke-failure cleanup, symlink-output, and real local checks (deleted); current: `ARTIFACT-GO-V0-005` descriptor-derived pair separation and five real byte-identical build/assembly pairs; `ARTIFACT-GO-V0-007` racing-destination/collision/cleanup/cancellation tests |
 | `ARTIFACT-V0-006` | (superseded by `ARTIFACT-GO-V0-003`, decision 0088) canonical `SHA256SUMS` writer/verifier removed with the wheel checker; now the archive `SHA256SUMS` writer/binder | historical: one-byte mutation test and real local check (deleted); current: `ARTIFACT-GO-V0-003` hostile loose-gate report/byte mismatch and checksum/member mutation tests; the "not authentication" disclaimer is stated in `ARTIFACT-GO-V0-008`, accepted by decision 0108 |
 | `ARTIFACT-V0-007` | (superseded by `GPK-V0-018` in `docs/specs/go-production-kernel-migration-v0.md`, decision 0088 — not an `ARTIFACT-GO-V0-0NN` row) fresh-environment smoke path removed with the wheel checker; now `conformance/release-artifact-v0/smoke.go` (`--version` plus real read-only query) invoked from `conformance/release-artifact-v0/gate.go` | historical: real local and CI artifact check (deleted); current: `GPK-V0-018`'s build-and-smoke-test requirement; `TestQueryMustResolveExpectedIntentAndLeaveRepositoryUnchanged` and `TestSummaryCountsNotRunSmokeSeparately` in `conformance/release-artifact-v0/gate_test.go` |
-| `ARTIFACT-V0-008` | `.github/workflows/ci.yml` (unaffected by decision 0088; live) | static least-privilege workflow test — the original test lived in the deleted `tests/test_release_artifact.py`; replaced 2026-09-12 by `script/check-ci-least-privilege.sh` (Makefile target `ci-least-privilege-check`, a `gate` prerequisite) |
+| `ARTIFACT-V0-008` | every `.github/workflows/*.yml` (unaffected by decision 0088; live; widened from `ci.yml` by V1-1469) | static least-privilege workflow test — the original test lived in the deleted `tests/test_release_artifact.py`; replaced 2026-09-12 by `script/check-ci-least-privilege.sh` (Makefile target `ci-least-privilege-check`, a `gate` prerequisite) |
 | `ARTIFACT-V0-009` | explicit exclusion in this contract; `docs/extraction-manifest.json` still present (unaffected by decision 0088; live) | no extraction-manifest claim in checker output |
 | `ARTIFACT-V0-010` | (retired 2026-09-12, decision 0088) no successor; sdist has no Go-archive analog | historical: no-sdist static and surplus-output tests (deleted with `tools/release_artifact.py`/`tests/test_release_artifact.py`); none applicable going forward |
 

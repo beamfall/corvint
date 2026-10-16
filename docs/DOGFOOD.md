@@ -426,7 +426,9 @@ The declaration is admitted only when `REQUIREMENTS.tsv` at `HEAD` maps the ID t
 still runs the base verifier, and requires the tree verifier to agree with itself and with any
 `CORVINT_BIN` override. The SUMMARY line carries `base-independence=NOT_PROVED base=sha256:B
 tree=sha256:T declared=ID` before `report=`, B and T being the digests of the two verifiers'
-`cem status` stdout; the report's `dogfoodCheck` adds a `baseIndependence` member with the same
+`cem status` stdout. A base verifier that refuses the read (an exit status other than 0 or
+1, for example `unsupported-spec` for a map its release cannot read) records `base=NOT_PRODUCED
+base-refusal=CODE` instead of its digest (V1-1307, decision 0535); the report's `dogfoodCheck` adds a `baseIndependence` member with the same
 values, its `outputsAgree` then meaning the tree verifier's self-agreement, and the seal's PASS
 line keeps the fields. The reviewer compares the two outputs against the declared requirement:
 the declaration admits any `cem status` difference, not only the intended one. The OCM status and
@@ -992,6 +994,16 @@ verification. Status becomes satisfied only after the checker succeeds and bindi
 The final checker is outside the selected prerequisite check set. Coordinator `complete` and
 `outputsAgree` alone are insufficient. Original pre-change receipts stay archived; a later
 coordination query is never evidence of earlier chronology.
+
+The enrolled workflow ends at the bind commit (decision 0534, V1-1490 option (a)). Once `finish`
+reports satisfied there, the enrollment is complete; the later `make dogfood-seal` commit is outside
+it. After the seal, `status` can offer `verify` again, because the seal moved the bound CEM out of
+the shared path. Do not run that `verify`: it clears the satisfied record, and a `finish` cannot
+succeed while `HEAD` is the seal commit. Completion can then be rerun only from the bind commit
+(`git checkout --detach HEAD^`), and `cancel` would record non-success over a completion that
+succeeded. Leave the sealed worktree as it is, and begin the next enrollment with
+`corvint dogfood begin` in a fresh worktree or clone. Adding a sealed-terminal state would amend
+LCP-V0-002, 003 and 020, and decision 0534 does not adopt it.
 
 `status` and native events are read-only. An enrolled incomplete Stop permits one remediation;
 recursive Stop releases with an unresolved notice. `cancel` explicitly records non-success and is

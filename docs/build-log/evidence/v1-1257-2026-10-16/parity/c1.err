@@ -1,0 +1,10 @@
+str-parity: 1/10 97c3a4bd03bb corvint=NARROWED local=NARROWED ci=NARROWED/FULL differences=6
+str-parity: 2/10 55aa6bb9f1e9 corvint=NARROWED local=NARROWED ci=NARROWED/FULL differences=6
+str-parity: 3/10 00dd22075397 corvint=NARROWED local=NARROWED ci=NARROWED/FULL differences=6
+str-parity: 4/10 8b6591424929 corvint=NARROWED local=NARROWED ci=NARROWED/FULL differences=6
+str-parity: 5/10 10efc02d16e6 corvint=NARROWED local=NARROWED ci=NARROWED/FULL differences=6
+str-parity: 6/10 8f032d969f26 corvint=NARROWED local=NARROWED ci=NARROWED/FULL differences=6
+str-parity: 7/10 3b123d3def82 corvint=NARROWED local=NARROWED ci=NARROWED/FULL differences=6
+str-parity: 8/10 a0e56f3c1403 corvint=NARROWED local=NARROWED ci=NARROWED/FULL differences=6
+str-parity: 9/10 01f95dbe4620 corvint=FULL local=NARROWED ci=NARROWED/FULL differences=9
+str-parity: 10/10 645304a2fb71 corvint=FULL local=FULL ci=FULL/FULL differences=4

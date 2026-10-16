@@ -78,9 +78,11 @@ other clause are unchanged. The owner accepted this amendment on 2026-10-04; the
   `CTW-V0-005`, and `git worktree remove`.
 - `CTW-V0-007`: Repair text is appended only to `INTENT_BRANCH_MISMATCH` and `INTENT_DIVERGED`
   refusals: to the error or report detail of the store writers `Init`, `Mutate` (ticket
-  mutations), `PolicyUpdate`, `Release` and `Lease` (every lease command, claim included), and to
-  a read's warning. Other writers (cutover, execution cutover, reconcile, import, barrier, lease
-  recovery and redo) keep their refusal text without the fix. The code, location and
+  mutations), `PolicyUpdate`, `Release`, `Lease` (every lease command, claim included) and
+  `Barrier` (pause and unpause, whose only intent-branch refusal is the pending-receipt redo it
+  settles first), to the redo refusal of `Import`, and to a read's warning. Other writers and
+  import's own refusals (cutover, execution cutover, reconcile, import outside its redo, and lease
+  recovery) keep their refusal text without the fix (V1-1059 amendment, 2026-10-16). The code, location and
   original message are kept, with the fix after `; `. For `INTENT_DIVERGED` at a linked intent root
   the fix names the linked `.taskman` path, carrying or committing the changes, and
   `corvint-tasks reconcile inspect`. A dirty intent worktree, whose projection no longer equals the
@@ -169,7 +171,7 @@ format changed, so no migration or repair is needed.
 | `CTW-V0-004` | `TestCTWV0004_StaleOrForeignIntentWorktreeIsNotAdmitted`, `TestCTWV0004_StaleIntentWorktreeRefusesWithTheFix` |
 | `CTW-V0-005` | `TestCTWV0005_NoIntentWorktreeNamesTheFix`, `TestCTWV0005_MissingIntentWorktreeRefusesWithTheFix`, `TestCTWV0002_TicketCreateFromAFeatureBranch` |
 | `CTW-V0-006` | `TestCTWV0006_TwoIntentWorktreesAreAmbiguous` |
-| `CTW-V0-007` | `TestCTWV0007_DirtyIntentWorktreeRefusesWithTheFix`, `TestCTWV0005_NoIntentWorktreeNamesTheFix`, `TestCTWV0007_RepairCommandsUseShellQuoting` |
+| `CTW-V0-007` | `TestCTWV0007_DirtyIntentWorktreeRefusesWithTheFix`, `TestCTWV0005_NoIntentWorktreeNamesTheFix`, `TestCTWV0007_RepairCommandsUseShellQuoting`, `TestCTWV0007_BarrierRedoRefusesWithTheFix`, `TestCTWV0007_ImportRedoRefusesWithTheFix` |
 | `CTW-V0-008` | `TestCTWV0008_SessionPinsTheLinkedIntentWorktree`, `TestCTWV0008_LinkedIntentWorktreeOnAnotherMountIsRefused`, `TestCTWV0008_SwappedLinkedIntentWorktreeIsRefused` |
 | `CTW-V0-009` | `TestCTWV0009_IntentBranchPrimaryKeepsThePrimaryRoot`, `TestCTWV0009_IntentBranchPrimaryRefusalsAreUnchanged`, `TestTMV0007_AS29_LinkedCallerUsesPrimaryHEAD` (the refusal test checks that repair text is absent, not byte equality of the whole message) |
 | `CTW-V0-010` | Design statement; no runtime test asserts a trust boundary. |

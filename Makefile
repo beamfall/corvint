@@ -262,8 +262,9 @@ line-citations-check:
 line-citations-test:
 	@script/check-line-citations_test.sh
 
-# ci-least-privilege-check fails when .github/workflows/ci.yml's workflow-level permissions
-# stop being exactly `contents: read` (or a job-level block grants more), an actions/checkout step stops disabling persisted
+# ci-least-privilege-check fails when any tracked .github/workflows/*.yml workflow-level permissions
+# stop being exactly `contents: read` (or a job-level block grants more) without a matching row in
+# script/ci-least-privilege-exceptions.tsv, an actions/checkout step stops disabling persisted
 # credentials, or any `uses:` reference stops being pinned to a full 40-character commit SHA
 # (ARTIFACT-V0-008, docs/specs/release-artifact-integrity-v0.md).
 ci-least-privilege-check:
@@ -394,7 +395,8 @@ public-release-check:
 
 # core-n1-replay is the opt-in CCF-V1-007 N-1 replay and is not a `make gate` prerequisite. It
 # builds CORE_N1_TAG, by default the newest release tag before HEAD, from `git archive` and runs
-# every frozen Core mode under it beside this build (TestCoreVerbsEmitTheFrozenProfiles).
+# every frozen Core mode under it beside this build (TestCoreVerbsEmitTheFrozenProfiles), then each
+# Core verb's refusal under it (TestCoreRefusalsKeepTheFrozenEnvelope, CCF-V1-010).
 CORE_N1_TAG ?= $(shell git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-*' HEAD^ 2>/dev/null)
 
 core-n1-replay:
@@ -402,7 +404,7 @@ core-n1-replay:
 	@tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && mkdir "$$tmp/src" && \
 	git archive -o "$$tmp/src.tar" "$(CORE_N1_TAG)" && tar -x -C "$$tmp/src" -f "$$tmp/src.tar" && \
 	(cd "$$tmp/src" && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -o "$$tmp/corvint" ./cmd/corvint) && \
-	CORVINT_CORE_N1_BINARY="$$tmp/corvint" $(GO_TEST_COMMAND) -run '^TestCoreVerbsEmitTheFrozenProfiles$$' ./cmd/corvint
+	CORVINT_CORE_N1_BINARY="$$tmp/corvint" $(GO_TEST_COMMAND) -run '^(TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope)$$' ./cmd/corvint
 
 dogfood-change:
 	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }

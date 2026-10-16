@@ -4169,7 +4169,7 @@
         "outcome": "UNSUPPORTED",
         "accept": null,
         "stage": "repository",
-        "code": "git-read-failed",
+        "code": "repository-object-unavailable",
         "issueCodes": [],
         "assurance": null,
         "expectedBase": "bff36ef7f94a44f0b43dd71ba7125e0185f01fe1",
@@ -4371,7 +4371,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "507b799824cf9a827fa91f39ae9e921ab442912a79a9c1b83c44e94214a7c8c8"
+        "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
       }
     },
     {
@@ -4389,7 +4389,7 @@
         "outcome": "UNSUPPORTED",
         "accept": null,
         "stage": "repository",
-        "code": "git-read-failed",
+        "code": "repository-object-unavailable",
         "issueCodes": [],
         "assurance": null,
         "expectedBase": "bff36ef7f94a44f0b43dd71ba7125e0185f01fe1",
@@ -4591,7 +4591,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "507b799824cf9a827fa91f39ae9e921ab442912a79a9c1b83c44e94214a7c8c8"
+        "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
       }
     },
     {
@@ -6454,7 +6454,7 @@
         "outcome": "UNSUPPORTED",
         "accept": null,
         "stage": "repository",
-        "code": "git-read-failed",
+        "code": "repository-object-unavailable",
         "issueCodes": [],
         "assurance": null,
         "expectedBase": "bff36ef7f94a44f0b43dd71ba7125e0185f01fe1",
@@ -6656,7 +6656,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "507b799824cf9a827fa91f39ae9e921ab442912a79a9c1b83c44e94214a7c8c8"
+        "verdictSha256": "a9ae2c5eee6d2ab67c75a2c746fdd855f444f13c93b252e7ef1640c70eca3f26"
       }
     },
     {
@@ -7565,7 +7565,7 @@
   "amendment": {
     "profile": "cem-stable-repository-envelope-amendment-index/1",
     "status": "EXPERIMENTAL",
-    "publicManifestSHA256": "259a294acb88a797e6f3b6f628c895f86871898177f102969826b125f6f3b4fa",
+    "publicManifestSHA256": "f0cfb65c79a4621811eb8ae790787eaa7b99f1568fb23cf0125b437de71b4c16",
     "fullResultCases": {
       "path": "FULL-RESULT-CASES.json",
       "sha256": "045b8fd32d81d09d79d9d157213bcbb6cf133c006f6b6f102b3a0f680816819c",

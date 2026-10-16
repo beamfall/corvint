@@ -320,7 +320,7 @@ func TestPlaywrightUseValueSideEffects_V1_1065(t *testing.T) {
 // GitHub #709 review round 4: ECMAScript ends a `//` comment at U+2028 and U+2029 as well as at
 // LF and CR, so `'safe' // c<U+2028> + mutate()` evaluates mutate() before the device spread.
 func TestPlaywrightUseValueUnicodeLineTerminator_V1_1065(t *testing.T) {
-	for _, terminator := range []string{" ", " "} {
+	for _, terminator := range []string{"\u2028", "\u2029"} {
 		source := "import { defineConfig, devices } from '@playwright/test';\nconst mutate = () => { devices['Desktop Chrome'].defaultBrowserType = 'firefox'; return ''; };\n" +
 			"export default defineConfig({\n  use: { baseURL: 'safe' // comment" + terminator + " + mutate()\n  },\n  projects: [{ name: 'p', use: { ...devices['Desktop Chrome'] } }],\n});\n"
 		if _, _, unknown := parsePlaywrightConfig("playwright.config.ts", source); !hasPlaywrightUnknownReason(unknown, PlaywrightUnknownBrowserIdentity) {

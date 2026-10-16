@@ -139,20 +139,20 @@ AFU-V1-039	docs/specs/application-flow-understanding-v1.md	668	A committed fixtu
 AFU-V1-040	docs/specs/application-flow-understanding-v1.md	671	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing	unrecorded	-
 AFU-V1-041	docs/specs/application-flow-understanding-v1.md	206	The planned repetition ordinals, the planned or manual run kind, the infrastruct	unrecorded	-
 AFU-V1-042	docs/specs/application-flow-understanding-v1.md	211	`corvint flows stability` MUST report, per registry aggregate, the selected scop	unrecorded	-
-AFU-V1-043	docs/specs/application-flow-understanding-v1.md	883	`docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`	unrecorded	-
-AFU-V1-044	docs/specs/application-flow-understanding-v1.md	891	Logical flow and paragraph IDs depend on provider namespace, repository-relative	unrecorded	-
-AFU-V1-045	docs/specs/application-flow-understanding-v1.md	897	`docs flows check --revision FULL_SHA --previous GENERATION_JSON	unrecorded	-
-AFU-V1-046	docs/specs/application-flow-understanding-v1.md	903	Materialization requires a new directory under existing nonsymlink parents and	unrecorded	-
-AFU-V1-047	docs/specs/application-flow-understanding-v1.md	909	Optional `--corpus FILE` is revalidated with corpus Open and must retain the exa	unrecorded	-
-AFU-V1-048	docs/specs/application-flow-understanding-v1.md	915	`docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA	unrecorded	-
-AFU-V1-049	docs/specs/application-flow-understanding-v1.md	952	`flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`	unrecorded	-
-AFU-V1-050	docs/specs/application-flow-understanding-v1.md	959	Proof admits original canonical `/3` bytes and rederives exact test/config/packa	unrecorded	-
-AFU-V1-051	docs/specs/application-flow-understanding-v1.md	968	Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.	unrecorded	-
-AFU-V1-052	docs/specs/application-flow-understanding-v1.md	974	CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 o	unrecorded	-
-AFU-V1-053	docs/specs/application-flow-understanding-v1.md	980	Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even	unrecorded	-
-AFU-V1-054	docs/specs/application-flow-understanding-v1.md	1012	(proposed (V1-0985)) The `/1` behavior provider and the `/1`-family wires that s	unrecorded	-
-AFU-V1-055	docs/specs/application-flow-understanding-v1.md	1016	(proposed (V1-0985)) A `/2` provider record, and the corpus report built from it	unrecorded	-
-AFU-V1-056	docs/specs/application-flow-understanding-v1.md	1020	(proposed (V1-0985)) A `/2` producer request that carries the legacy /1 member i	unrecorded	-
+AFU-V1-043	docs/specs/application-flow-understanding-v1.md	884	`docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`	unrecorded	-
+AFU-V1-044	docs/specs/application-flow-understanding-v1.md	892	Logical flow and paragraph IDs depend on provider namespace, repository-relative	unrecorded	-
+AFU-V1-045	docs/specs/application-flow-understanding-v1.md	898	`docs flows check --revision FULL_SHA --previous GENERATION_JSON	unrecorded	-
+AFU-V1-046	docs/specs/application-flow-understanding-v1.md	904	Materialization requires a new directory under existing nonsymlink parents and	unrecorded	-
+AFU-V1-047	docs/specs/application-flow-understanding-v1.md	910	Optional `--corpus FILE` is revalidated with corpus Open and must retain the exa	unrecorded	-
+AFU-V1-048	docs/specs/application-flow-understanding-v1.md	916	`docs flows finalize --previous GENERATION_JSON --provider-revision FULL_SHA	unrecorded	-
+AFU-V1-049	docs/specs/application-flow-understanding-v1.md	953	`flows coverage --denominator FILE --receipts FILE [--revision FULL_SHA]`	unrecorded	-
+AFU-V1-050	docs/specs/application-flow-understanding-v1.md	960	Proof admits original canonical `/3` bytes and rederives exact test/config/packa	unrecorded	-
+AFU-V1-051	docs/specs/application-flow-understanding-v1.md	969	Closed statuses are PROVEN, API_PROVEN, FLAKY, STALE, MISSING_TEST and EXCLUDED.	unrecorded	-
+AFU-V1-052	docs/specs/application-flow-understanding-v1.md	975	CLI exits1 for any missing/flaky/stale row,2 for malformed/incomplete inputs,0 o	unrecorded	-
+AFU-V1-053	docs/specs/application-flow-understanding-v1.md	981	Explicit `--write-back FRESH_DIR` creates confined no-clobber documentation even	unrecorded	-
+AFU-V1-054	docs/specs/application-flow-understanding-v1.md	1013	(proposed (V1-0985)) The `/1` behavior provider and the `/1`-family wires that s	unrecorded	-
+AFU-V1-055	docs/specs/application-flow-understanding-v1.md	1017	(proposed (V1-0985)) A `/2` provider record, and the corpus report built from it	unrecorded	-
+AFU-V1-056	docs/specs/application-flow-understanding-v1.md	1021	(proposed (V1-0985)) A `/2` producer request that carries the legacy /1 member i	unrecorded	-
 AFU-V1-057	docs/specs/application-flow-understanding-v1.md	511	(accepted, decision 0512) Navigation traffic	owner	decision 0512
 AFU-V1-058	docs/specs/application-flow-understanding-v1.md	515	(accepted, decision 0512) Navigation MUST index traffic	owner	decision 0512
 AFU-V1-059	docs/specs/application-flow-understanding-v1.md	635	accepted, decision 0512. Impact graph construction MUST	unrecorded	-
@@ -348,24 +348,24 @@ ANL-V0-043	docs/specs/application-navigation-ledger-v0.md	296	(accepted under th
 ANL-V0-044	docs/specs/application-navigation-ledger-v0.md	303	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) The p	standing	2026-10-11; #814
 ANL-V0-045	docs/specs/application-navigation-ledger-v0.md	320	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) Its c	standing	2026-10-11; #814
 ANL-V0-046	docs/specs/application-navigation-ledger-v0.md	326	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) The r	standing	2026-10-11; #814
-ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,	unrecorded	-
-ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use	unrecorded	-
-ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,	unrecorded	-
-ARTIFACT-GO-V0-004	docs/specs/release-artifact-integrity-v0.md	156	archive metadata is canonical rather than inherited. Regular-file modes are	unrecorded	-
-ARTIFACT-GO-V0-005	docs/specs/release-artifact-integrity-v0.md	162	every target binary MUST be built twice with separate cold caches, and each	unrecorded	-
-ARTIFACT-GO-V0-006	docs/specs/release-artifact-integrity-v0.md	166	verification MUST be offline and independent of the assembler. From archive	unrecorded	-
-ARTIFACT-GO-V0-007	docs/specs/release-artifact-integrity-v0.md	171	all build and candidate output stays outside the repository. Only after every	unrecorded	-
-ARTIFACT-GO-V0-008	docs/specs/release-artifact-integrity-v0.md	287	Archive checksums prove integrity only. This profile creates no signature,	unrecorded	-
-ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	293	The untracked-path allowance of decision 0142 MUST NOT apply to the loose	unrecorded	-
-ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	332	`script/release-checklist` MUST be deterministic and read-only. It prints	unrecorded	-
-ARTIFACT-RDY-V0-002	docs/specs/release-artifact-integrity-v0.md	355	native-runtime is owned by `GOC-V0-001`; native-performance is owned by	unrecorded	-
-ARTIFACT-RDY-V0-003	docs/specs/release-artifact-integrity-v0.md	363	a tag row reports only an exact release tag already pointing at the	unrecorded	-
-ARTIFACT-RDY-V0-004	docs/specs/release-artifact-integrity-v0.md	371	publication is `PASS` only with a repository-owner-approved receipt that	unrecorded	-
-ARTIFACT-RDY-V0-005	docs/specs/release-artifact-integrity-v0.md	375	promotion is `PASS` only with a repository-owner acceptance record naming	unrecorded	-
-ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	387	the receipt is the blob at `docs/releases/<tag>/publication-receipt.json`	unrecorded	-
-ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	399	the release revision is the receipt's `revision`, not `HEAD`. `PASS`	unrecorded	-
-ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	407	every attached digest MUST be witnessed locally by the private archive	unrecorded	-
-ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	416	the reader is read-only and offline. It invokes only local `git`, with the	unrecorded	-
+ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	155	the archive builder MUST consume the exact clean commit, target matrix,	unrecorded	-
+ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	160	one archive MUST be produced per manifest target. Darwin and Linux use	unrecorded	-
+ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	166	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,	unrecorded	-
+ARTIFACT-GO-V0-004	docs/specs/release-artifact-integrity-v0.md	170	archive metadata is canonical rather than inherited. Regular-file modes are	unrecorded	-
+ARTIFACT-GO-V0-005	docs/specs/release-artifact-integrity-v0.md	176	every target binary MUST be built twice with separate cold caches, and each	unrecorded	-
+ARTIFACT-GO-V0-006	docs/specs/release-artifact-integrity-v0.md	180	verification MUST be offline and independent of the assembler. From archive	unrecorded	-
+ARTIFACT-GO-V0-007	docs/specs/release-artifact-integrity-v0.md	185	all build and candidate output stays outside the repository. Only after every	unrecorded	-
+ARTIFACT-GO-V0-008	docs/specs/release-artifact-integrity-v0.md	301	Archive checksums prove integrity only. This profile creates no signature,	unrecorded	-
+ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	307	The untracked-path allowance of decision 0142 MUST NOT apply to the loose	unrecorded	-
+ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	346	`script/release-checklist` MUST be deterministic and read-only. It prints	unrecorded	-
+ARTIFACT-RDY-V0-002	docs/specs/release-artifact-integrity-v0.md	369	native-runtime is owned by `GOC-V0-001`; native-performance is owned by	unrecorded	-
+ARTIFACT-RDY-V0-003	docs/specs/release-artifact-integrity-v0.md	377	a tag row reports only an exact release tag already pointing at the	unrecorded	-
+ARTIFACT-RDY-V0-004	docs/specs/release-artifact-integrity-v0.md	385	publication is `PASS` only with a repository-owner-approved receipt that	unrecorded	-
+ARTIFACT-RDY-V0-005	docs/specs/release-artifact-integrity-v0.md	389	promotion is `PASS` only with a repository-owner acceptance record naming	unrecorded	-
+ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	401	the receipt is the blob at `docs/releases/<tag>/publication-receipt.json`	unrecorded	-
+ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	413	the release revision is the receipt's `revision`, not `HEAD`. `PASS`	unrecorded	-
+ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	421	every attached digest MUST be witnessed locally by the private archive	unrecorded	-
+ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	430	the reader is read-only and offline. It invokes only local `git`, with the	unrecorded	-
 ARTIFACT-V0-001	docs/specs/release-artifact-integrity-v0.md	42	(superseded 2026-09-12 by decision 0088; obligation now carried by	unrecorded	-
 ARTIFACT-V0-002	docs/specs/release-artifact-integrity-v0.md	52	(superseded 2026-09-12 by decision 0088; obligation now carried by	unrecorded	-
 ARTIFACT-V0-003	docs/specs/release-artifact-integrity-v0.md	65	(superseded 2026-09-12 by decision 0088; obligation now carried by	unrecorded	-
@@ -373,9 +373,9 @@ ARTIFACT-V0-004	docs/specs/release-artifact-integrity-v0.md	71	(superseded 2026-
 ARTIFACT-V0-005	docs/specs/release-artifact-integrity-v0.md	86	(superseded 2026-09-12 by decision 0088; obligation now carried by	unrecorded	-
 ARTIFACT-V0-006	docs/specs/release-artifact-integrity-v0.md	95	(superseded 2026-09-12 by decision 0088; obligation now carried by	unrecorded	-
 ARTIFACT-V0-007	docs/specs/release-artifact-integrity-v0.md	103	(superseded 2026-09-12 by decision 0088; obligation now carried by	unrecorded	-
-ARTIFACT-V0-008	docs/specs/release-artifact-integrity-v0.md	116	Pull-request CI MUST grant only `contents: read`, disable persisted checkout	unrecorded	-
-ARTIFACT-V0-009	docs/specs/release-artifact-integrity-v0.md	128	`docs/extraction-manifest.json` MUST NOT be represented as release-manifest	unrecorded	-
-ARTIFACT-V0-010	docs/specs/release-artifact-integrity-v0.md	133	(retired 2026-09-12 by decision 0088) Corvint MUST NOT build or publish an sdist	unrecorded	-
+ARTIFACT-V0-008	docs/specs/release-artifact-integrity-v0.md	116	Every CI workflow (`.github/workflows/*.yml`) MUST grant only `contents: read`	unrecorded	-
+ARTIFACT-V0-009	docs/specs/release-artifact-integrity-v0.md	142	`docs/extraction-manifest.json` MUST NOT be represented as release-manifest	unrecorded	-
+ARTIFACT-V0-010	docs/specs/release-artifact-integrity-v0.md	147	(retired 2026-09-12 by decision 0088) Corvint MUST NOT build or publish an sdist	unrecorded	-
 ASD-V0-001	docs/specs/corvint-self-development-v0.md	34	One shared repository-owned stage guide maps every inventoried family to an appl	unrecorded	-
 ASD-V0-002	docs/specs/corvint-self-development-v0.md	35	Both generic host skills use the shared guide only when repository-owned instruc	unrecorded	-
 ASD-V0-003	docs/specs/corvint-self-development-v0.md	36	A real source-change slice captures original task context, appropriate impact an	unrecorded	-
@@ -545,7 +545,7 @@ CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	596	`claim`, `renew`, `at
 CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1475	`store.Mutate` MUST take its request lookup and its canonical intent records fro	unrecorded	-
 CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1874	The optional policy `supervision` object MAY carry `repositories`, a closed obje	unrecorded	-
 CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1892	After `implement`, each repository with changes MUST receive a candidate commit	unrecorded	-
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	7300	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	7273	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
 CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	2054	The optional policy `supervision` object MAY carry `host`, whose admitted	unrecorded	-
 CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2137	A `claude-code` stage MUST invoke the pinned executable with the prompt on	unrecorded	-
 CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2271	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be	unrecorded	-
@@ -572,7 +572,7 @@ CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2956	A policy MAY carry t
 CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2990	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes	unrecorded	-
 CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3114	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a	unrecorded	-
 CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3170	When the dispatcher has a work-state reader, a ticket MUST count as held exactly	unrecorded	-
-CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	7485	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
+CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	7458	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
 CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3211	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici	unrecorded	-
 CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3257	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio	unrecorded	-
 CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1375	On macOS the memory signal MUST be the kernel memory-pressure level	unrecorded	-
@@ -584,129 +584,129 @@ CAL-V0-114	docs/specs/corvint-tasks-agent-leases-v0.md	3361	When the journal aud
 CAL-V0-115	docs/specs/corvint-tasks-agent-leases-v0.md	3459	(accepted by decision 0439) Writer checkpoint file. The writer checkpoint is der	owner	decision 0439
 CAL-V0-116	docs/specs/corvint-tasks-agent-leases-v0.md	3511	(accepted by decision 0439) Writer audit and fast route.	owner	decision 0439
 CAL-V0-117	docs/specs/corvint-tasks-agent-leases-v0.md	3575	(accepted by decision 0439) Counts, advance and scheduled refresh.	owner	decision 0439
-CAL-V0-118	docs/specs/corvint-tasks-agent-leases-v0.md	3613	(accepted by decision 0439) Writer cost measurement. The opt-in profile	owner	decision 0439
-CAL-V0-119	docs/specs/corvint-tasks-agent-leases-v0.md	3629	(accepted by decision 0439) Read checkpoint from a writer audit.	owner	decision 0439
+CAL-V0-118	docs/specs/corvint-tasks-agent-leases-v0.md	3612	(accepted by decision 0439) Writer cost measurement. The opt-in profile	owner	decision 0439
+CAL-V0-119	docs/specs/corvint-tasks-agent-leases-v0.md	3628	(accepted by decision 0439) Read checkpoint from a writer audit.	owner	decision 0439
 CAL-V0-120	docs/specs/corvint-tasks-agent-leases-v0.md	3397	A policy MAY carry the optional top-level key `holderLiveness`, a closed object	unrecorded	-
 CAL-V0-121	docs/specs/corvint-tasks-agent-leases-v0.md	3409	`STALE_HOLDER` is advisory input, not release authority. `release --help` MUST s	unrecorded	-
-CAL-V0-122	docs/specs/corvint-tasks-agent-leases-v0.md	3752	Accepted by decision 0439 (V1-0888; GitHub #643). The issue 482 projection MUST,	unrecorded	-
-CAL-V0-123	docs/specs/corvint-tasks-agent-leases-v0.md	3764	Accepted by decision 0439 (V1-0882; GitHub #643). A change limited to the option	unrecorded	-
-CAL-V0-124	docs/specs/corvint-tasks-agent-leases-v0.md	3769	Accepted by decision 0439 (V1-0888; GitHub #643). A COMPLETED `policy update` MU	unrecorded	-
-CAL-V0-125	docs/specs/corvint-tasks-agent-leases-v0.md	3822	accepted by decision 0439 (V1-0891; GitHub #646). The Linux pressure sample MUST	unrecorded	-
-CAL-V0-126	docs/specs/corvint-tasks-agent-leases-v0.md	3844	accepted by decision 0439 (V1-0891; GitHub #646). The `pressure` object MAY carr	unrecorded	-
-CAL-V0-127	docs/specs/corvint-tasks-agent-leases-v0.md	3881	accepted by decision 0439 (V1-0890; GitHub #645). A running `dispatch` MUST re-r	unrecorded	-
-CAL-V0-128	docs/specs/corvint-tasks-agent-leases-v0.md	3908	accepted by decision 0439 (V1-0890; GitHub #645). A role `cap` MAY be 0. A role	unrecorded	-
-CAL-V0-129	docs/specs/corvint-tasks-agent-leases-v0.md	3914	accepted by decision 0439 (V1-0890; GitHub #645). A lane MAY carry `minAgeSecond	unrecorded	-
-CAL-V0-130	docs/specs/corvint-tasks-agent-leases-v0.md	3951	accepted by decision 0439 (V1-0889; GitHub #644). Replacing build N with build N	unrecorded	-
-CAL-V0-131	docs/specs/corvint-tasks-agent-leases-v0.md	3963	accepted by decision 0439 (V1-0889; GitHub #644). `version` MUST report `formats	unrecorded	-
-CAL-V0-132	docs/specs/corvint-tasks-agent-leases-v0.md	3987	accepted by decision 0439 (V1-0889; GitHub #644). A dispatcher ledger whose prof	unrecorded	-
-CAL-V0-133	docs/specs/corvint-tasks-agent-leases-v0.md	4013	accepted by decision 0439 (V1-0889; GitHub #644). Build N processes that outlive	unrecorded	-
-CAL-V0-134	docs/specs/corvint-tasks-agent-leases-v0.md	4023	accepted by decision 0439 (V1-0889; GitHub #644). Supervised Codex, Claude Code	unrecorded	-
-CAL-V0-135	docs/specs/corvint-tasks-agent-leases-v0.md	4061	accepted by decision 0439 (V1-0893; GitHub #641). A whole-history receipt bindin	unrecorded	-
-CAL-V0-136	docs/specs/corvint-tasks-agent-leases-v0.md	4068	accepted by decision 0439 (V1-0894; GitHub #641). On Darwin arm64 and amd64 the	unrecorded	-
-CAL-V0-137	docs/specs/corvint-tasks-agent-leases-v0.md	4076	accepted by decision 0439 (V1-0894; GitHub #641). The supervisor's host exit cap	unrecorded	-
-CAL-V0-138	docs/specs/corvint-tasks-agent-leases-v0.md	4080	accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher (`di	unrecorded	-
-CAL-V0-139	docs/specs/corvint-tasks-agent-leases-v0.md	4094	accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher whos	unrecorded	-
-CAL-V0-140	docs/specs/corvint-tasks-agent-leases-v0.md	4111	accepted by decision 0439 (V1-0893; GitHub #641). Within one snapshot-pinned rea	unrecorded	-
-CAL-V0-141	docs/specs/corvint-tasks-agent-leases-v0.md	4117	accepted by decision 0439 (V1-0893; GitHub #641). The full `plan preview` result	unrecorded	-
-CAL-V0-142	docs/specs/corvint-tasks-agent-leases-v0.md	4125	accepted by decision 0439 (V1-0894; GitHub #641). `service run` MUST build its d	unrecorded	-
-CAL-V0-143	docs/specs/corvint-tasks-agent-leases-v0.md	4183	(accepted by decision 0440; V1-0930) On every supervising tick, right after it c	owner	decision 0440; V1-0930
-CAL-V0-144	docs/specs/corvint-tasks-agent-leases-v0.md	4198	(accepted by decision 0440; V1-0930) When a tick finishes at least one worker, a	owner	decision 0440; V1-0930
-CAL-V0-145	docs/specs/corvint-tasks-agent-leases-v0.md	4491	(accepted by decision 0441; V1-0936, V1-0858) On Darwin and Linux, the	owner	decision 0441; V1-0936; V1-0858
-CAL-V0-146	docs/specs/corvint-tasks-agent-leases-v0.md	4505	(accepted by decision 0441; V1-0936) When `heal.handoff` is on and a	owner	decision 0441; V1-0936
-CAL-V0-147	docs/specs/corvint-tasks-agent-leases-v0.md	4523	(accepted by decision 0441; V1-0936) Each deferral MUST be recorded before	owner	decision 0441; V1-0936
-CAL-V0-148	docs/specs/corvint-tasks-agent-leases-v0.md	4541	(accepted by decision 0441; V1-0936) The `finished` event of a worker whose	owner	decision 0441; V1-0936
-CAL-V0-149	docs/specs/corvint-tasks-agent-leases-v0.md	4548	(accepted by decision 0441; V1-0936) When a deferred run is `FINISHED` and	owner	decision 0441; V1-0936
-CAL-V0-150	docs/specs/corvint-tasks-agent-leases-v0.md	4570	(accepted by decision 0441; V1-0936) `corvint-tasks dispatch status` MUST	owner	decision 0441; V1-0936
-CAL-V0-151	docs/specs/corvint-tasks-agent-leases-v0.md	4576	(accepted by decision 0441; V1-0936) A record that fails any CAL-V0-145	owner	decision 0441; V1-0936
-CAL-V0-152	docs/specs/corvint-tasks-agent-leases-v0.md	4580	(accepted by decision 0441; V1-0936) The CAL-V0-139 idle gate MUST NOT	owner	decision 0441; V1-0936
-CAL-V0-153	docs/specs/corvint-tasks-agent-leases-v0.md	4582	(accepted by decision 0441; V1-0936) On other platforms no supervisor is	owner	decision 0441; V1-0936
-CAL-V0-154	docs/specs/corvint-tasks-agent-leases-v0.md	4588	(accepted by decision 0441; V1-0936) The dispatcher MUST NOT signal, adopt,	owner	decision 0441; V1-0936
-CAL-V0-155	docs/specs/corvint-tasks-agent-leases-v0.md	4305	(accepted by decision 0441; V1-0937) A role MAY declare `budget` and the	owner	decision 0441; V1-0937
-CAL-V0-156	docs/specs/corvint-tasks-agent-leases-v0.md	4342	(accepted by decision 0441; V1-0937) The dispatcher MUST record every	owner	decision 0441; V1-0937
-CAL-V0-157	docs/specs/corvint-tasks-agent-leases-v0.md	4352	(accepted by decision 0441; V1-0937) A role MAY declare `usageFormat`:	owner	decision 0441; V1-0937
-CAL-V0-158	docs/specs/corvint-tasks-agent-leases-v0.md	4386	(accepted by decision 0441; V1-0937) A launch tick MUST record each	owner	decision 0441; V1-0937
-CAL-V0-159	docs/specs/corvint-tasks-agent-leases-v0.md	4406	(accepted by decision 0441; V1-0937) A role MAY declare `effort`, matching	owner	decision 0441; V1-0937
-CAL-V0-160	docs/specs/corvint-tasks-agent-leases-v0.md	4414	(accepted by decision 0441; V1-0937) Configuration validation MUST refuse	owner	decision 0441; V1-0937
-CAL-V0-161	docs/specs/corvint-tasks-agent-leases-v0.md	4423	(accepted by decision 0441; V1-0937) The dispatcher ledger moves to	owner	decision 0441; V1-0937
-CAL-V0-165	docs/specs/corvint-tasks-agent-leases-v0.md	4659	(accepted by decision 0441; V1-0935) `queue status`, `attempt show`,	owner	decision 0441; V1-0935
-CAL-V0-166	docs/specs/corvint-tasks-agent-leases-v0.md	4665	(accepted by decision 0441; V1-0935) A `--fields` value MUST hold 1 to 32	owner	decision 0441; V1-0935
-CAL-V0-167	docs/specs/corvint-tasks-agent-leases-v0.md	4674	(accepted by decision 0441; V1-0935) `--summary` on the same four reads	owner	decision 0441; V1-0935
-CAL-V0-168	docs/specs/corvint-tasks-agent-leases-v0.md	4691	(accepted by decision 0441; V1-0935) Projection and summary MUST run only	owner	decision 0441; V1-0935
-CAL-V0-169	docs/specs/corvint-tasks-agent-leases-v0.md	4695	(accepted by decision 0441; V1-0935) `queue status` MUST omit the	owner	decision 0441; V1-0935
-CAL-V0-170	docs/specs/corvint-tasks-agent-leases-v0.md	4701	(accepted by decision 0441; V1-0935 and V1-0941) An exact trailing	owner	decision 0441; V1-0935; V1-0941
-CAL-V0-171	docs/specs/corvint-tasks-agent-leases-v0.md	4712	(accepted by decision 0441; V1-0935 and V1-0941) The byte effect MUST be	owner	decision 0441; V1-0935; V1-0941
-CAL-V0-172	docs/specs/corvint-tasks-agent-leases-v0.md	4714	(accepted by decision 0441; V1-0935) `docs/TASKS-EXTERNAL-AGENTS.md`	owner	decision 0441; V1-0935
-CAL-V0-173	docs/specs/corvint-tasks-agent-leases-v0.md	4717	(accepted by decision 0441; V1-0941) `ticket list` and `ticket search`	owner	decision 0441; V1-0941
-CAL-V0-174	docs/specs/corvint-tasks-agent-leases-v0.md	4723	(accepted by decision 0441; V1-0941) `ticket list`, `ticket search` and	owner	decision 0441; V1-0941
-CAL-V0-175	docs/specs/corvint-tasks-agent-leases-v0.md	5071	(accepted by decision 0442; V1-0954) A `taskman-dispatch/0`	owner	decision 0442; V1-0954
-CAL-V0-176	docs/specs/corvint-tasks-agent-leases-v0.md	5078	(accepted by decision 0442; V1-0954) A string `prompt` MUST decode and	owner	decision 0442; V1-0954
-CAL-V0-177	docs/specs/corvint-tasks-agent-leases-v0.md	5083	(accepted by decision 0442; V1-0954) Decoding MUST refuse, with the	owner	decision 0442; V1-0954
-CAL-V0-178	docs/specs/corvint-tasks-agent-leases-v0.md	5089	(accepted by decision 0442; V1-0954) Every role prompt check (known	owner	decision 0442; V1-0954
-CAL-V0-181	docs/specs/corvint-tasks-agent-leases-v0.md	4784	(accepted by decision 0447; V1-0966) `ticket list` MUST accept	owner	decision 0447; V1-0966
-CAL-V0-182	docs/specs/corvint-tasks-agent-leases-v0.md	4791	(accepted by decision 0447; V1-0966) `ticket list` and `ticket search`	owner	decision 0447; V1-0966
-CAL-V0-183	docs/specs/corvint-tasks-agent-leases-v0.md	4797	(accepted by decision 0447; V1-0966) `ticket list` items MUST carry	owner	decision 0447; V1-0966
-CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4803	(accepted by decision 0447; V1-0966) `queue status` and	owner	decision 0447; V1-0966
-CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4814	(accepted by decision 0447; V1-0966) The dispatcher MUST count, per	owner	decision 0447; V1-0966
-CAL-V0-186	docs/specs/corvint-tasks-agent-leases-v0.md	5117	(proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh	unrecorded	-
-CAL-V0-187	docs/specs/corvint-tasks-agent-leases-v0.md	4906	proposed (V1-0980; GitHub #668) A build writing `taskman-dispatch-state/3` MUST	unrecorded	-
-CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	7552	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
-CAL-V0-189	docs/specs/corvint-tasks-agent-leases-v0.md	4958	(proposed; V1-0915; GitHub #641) Single intent read in the writer audit. A	unrecorded	-
-CAL-V0-190	docs/specs/corvint-tasks-agent-leases-v0.md	4971	(proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.	unrecorded	-
-CAL-V0-191	docs/specs/corvint-tasks-agent-leases-v0.md	5154	(proposed; V1-1016) A role MAY carry `expiredLeaseGraceSeconds`, an integer	unrecorded	-
-CAL-V0-192	docs/specs/corvint-tasks-agent-leases-v0.md	5245	(proposed (V1-1021, issue 679)) When `corvint-tasks ticket create`,	unrecorded	-
-CAL-V0-193	docs/specs/corvint-tasks-agent-leases-v0.md	5257	(proposed (V1-1021, issue 679)) A `plan preview` entry deferred for	unrecorded	-
-CAL-V0-194	docs/specs/corvint-tasks-agent-leases-v0.md	5358	(proposed; V1-0672) When a tick's final ledger save fails (any step of the write	unrecorded	-
-CAL-V0-195	docs/specs/corvint-tasks-agent-leases-v0.md	5300	(accepted (decision 0459; V1-1026)) A policy MAY carry the optional top-level ke	owner	decision 0459; V1-1026
-CAL-V0-196	docs/specs/corvint-tasks-agent-leases-v0.md	5314	(accepted (decision 0459; V1-1026)) `queue status` MUST report `openWithoutMiles	owner	decision 0459; V1-1026
-CAL-V0-197	docs/specs/corvint-tasks-agent-leases-v0.md	5418	(accepted (decision 0467; V1-0827)) `run --role ROLE` and `admit --role ROLE` MU	owner	decision 0467; V1-0827
-CAL-V0-198	docs/specs/corvint-tasks-agent-leases-v0.md	5461	(accepted (decision 0472; V1-1042)) `corvint-tasks pool acquire --attempt ID --g	owner	decision 0472; V1-1042
-CAL-V0-199	docs/specs/corvint-tasks-agent-leases-v0.md	5472	(accepted (decision 0472; V1-1042)) Acquire MUST admit a member by the pooled-cl	owner	decision 0472; V1-1042
-CAL-V0-200	docs/specs/corvint-tasks-agent-leases-v0.md	5482	(accepted (decision 0472; V1-1042)) `--exclude-authors[=all]` on acquire MUST ap	owner	decision 0472; V1-1042
-CAL-V0-201	docs/specs/corvint-tasks-agent-leases-v0.md	5486	(accepted (decision 0472; V1-1042)) `corvint-tasks pool release --attempt ID --g	owner	decision 0472; V1-1042
-CAL-V0-202	docs/specs/corvint-tasks-agent-leases-v0.md	5500	(accepted (decision 0472; V1-1042)) The lifecycle verbs (renew, heartbeat, run,	owner	decision 0472; V1-1042
-CAL-V0-203	docs/specs/corvint-tasks-agent-leases-v0.md	5506	(accepted (decision 0472; V1-1042)) An ended generation that returned its alloca	owner	decision 0472; V1-1042
-CAL-V0-204	docs/specs/corvint-tasks-agent-leases-v0.md	5510	(accepted (decision 0472; V1-1042)) A `pool acquire` result MUST carry `poolAllo	owner	decision 0472; V1-1042
-CAL-V0-205	docs/specs/corvint-tasks-agent-leases-v0.md	5556	(accepted (decision 0471; V1-1045)) `POOL_CONFIRM_SAFE` MUST be served by the	owner	decision 0471; V1-1045
-CAL-V0-206	docs/specs/corvint-tasks-agent-leases-v0.md	5594	(accepted, decision 0476) `ticket search`, `ticket list` and `roadmap` MUST acce	owner	decision 0476
-CAL-V0-207	docs/specs/corvint-tasks-agent-leases-v0.md	5611	(accepted, decision 0476) The same verbs MUST accept `--count`, which returns th	owner	decision 0476
-CAL-V0-208	docs/specs/corvint-tasks-agent-leases-v0.md	5616	(accepted, decision 0476) The `release readiness` item MUST add `memberCounts` a	owner	decision 0476
-CAL-V0-209	docs/specs/corvint-tasks-agent-leases-v0.md	5624	(accepted, decision 0476) `release readiness` for a release without a candidate	owner	decision 0476
-CAL-V0-210	docs/specs/corvint-tasks-agent-leases-v0.md	5658	(accepted (decision 0473; V1-0795)) A program transition that changes the owner	owner	decision 0473; V1-0795
-CAL-V0-211	docs/specs/corvint-tasks-agent-leases-v0.md	5743	(accepted, decision 0499; V1-1118) When `corvint-tasks ticket set-effects` commi	owner	decision 0499; V1-1118
-CAL-V0-212	docs/specs/corvint-tasks-agent-leases-v0.md	5670	(accepted, decision 0502; V1-0628) The top-level `help` usage MUST NOT	owner	decision 0502; V1-0628
-CAL-V0-214	docs/specs/corvint-tasks-agent-leases-v0.md	5758	(accepted, decision 0513) When `corvint-tasks ticket create`	owner	decision 0513
-CAL-V0-215	docs/specs/corvint-tasks-agent-leases-v0.md	5823	(accepted, decision 0519 (V1-1129)) The shared Tasks error classifier	owner	decision 0519; V1-1129
-CAL-V0-216	docs/specs/corvint-tasks-agent-leases-v0.md	5901	(accepted, decision 0518; V1-1130) `claim`, `renew`, `submit`,	owner	decision 0518; V1-1130
-CAL-V0-217	docs/specs/corvint-tasks-agent-leases-v0.md	5792	(accepted, decision 0518; V1-0913) Amends CAL-V0-139. The safety-net interval	owner	decision 0518; V1-0913
-CAL-V0-218	docs/specs/corvint-tasks-agent-leases-v0.md	5950	(accepted, decision 0519 (V1-1195)) Amends what CAL-V0-056 counts as	owner	decision 0519; V1-1195
-CAL-V0-219	docs/specs/corvint-tasks-agent-leases-v0.md	5706	(accepted, decision 0519 (V1-0906)) Change observation on Darwin	owner	decision 0519; V1-0906
-CAL-V0-220	docs/specs/corvint-tasks-agent-leases-v0.md	5714	(accepted, decision 0519 (V1-0906)) Characterization: a native journal	owner	decision 0519; V1-0906
-CAL-V0-221	docs/specs/corvint-tasks-agent-leases-v0.md	5720	(accepted, decision 0519 (V1-0906)) Regression evidence shall bound	owner	decision 0519; V1-0906
-CAL-V0-222	docs/specs/corvint-tasks-agent-leases-v0.md	6005	(accepted under the owner's standing auto-accept (2026-10-11), V1-1352) A lease	standing	2026-10-11; V1-1352
-CAL-V0-223	docs/specs/corvint-tasks-agent-leases-v0.md	6015	(accepted under the owner's standing auto-accept (2026-10-11), V1-1352) Caller c	standing	2026-10-11; V1-1352
-CAL-V0-224	docs/specs/corvint-tasks-agent-leases-v0.md	6127	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended	standing	2026-10-11; V1-0887; 2026-10-15
-CAL-V0-225	docs/specs/corvint-tasks-agent-leases-v0.md	6296	(accepted under the owner's standing auto-accept (2026-10-11), V1-1386) A relati	standing	2026-10-11; V1-1386
-CAL-V0-226	docs/specs/corvint-tasks-agent-leases-v0.md	6303	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710)	standing	2026-10-11; V1-0710
-CAL-V0-227	docs/specs/corvint-tasks-agent-leases-v0.md	6322	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) A marker	standing	2026-10-11; V1-0710
-CAL-V0-228	docs/specs/corvint-tasks-agent-leases-v0.md	6336	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The	standing	2026-10-11; V1-0710
-CAL-V0-229	docs/specs/corvint-tasks-agent-leases-v0.md	6342	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The mark	standing	2026-10-11; V1-0710
-CAL-V0-230	docs/specs/corvint-tasks-agent-leases-v0.md	6403	(accepted under the owner's standing auto-accept (2026-10-11), V1-1320) After a	standing	2026-10-11; V1-1320
-CAL-V0-231	docs/specs/corvint-tasks-agent-leases-v0.md	6413	(accepted under the owner's standing auto-accept (2026-10-11), V1-1313) A	standing	2026-10-11; V1-1313
-CAL-V0-232	docs/specs/corvint-tasks-agent-leases-v0.md	6191	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
-CAL-V0-233	docs/specs/corvint-tasks-agent-leases-v0.md	6235	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
-CAL-V0-234	docs/specs/corvint-tasks-agent-leases-v0.md	6264	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
-CAL-V0-236	docs/specs/corvint-tasks-agent-leases-v0.md	6467	(accepted under the owner's standing auto-accept (2026-10-11), V1-1402) When	standing	2026-10-11; V1-1402
-CAL-V0-240	docs/specs/corvint-tasks-agent-leases-v0.md	6524	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) When the	standing	2026-10-11; V1-1415
-CAL-V0-241	docs/specs/corvint-tasks-agent-leases-v0.md	6538	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) A result	standing	2026-10-11; V1-1415
-CAL-V0-242	docs/specs/corvint-tasks-agent-leases-v0.md	6555	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) The	standing	2026-10-11; V1-1415
-CAL-V0-243	docs/specs/corvint-tasks-agent-leases-v0.md	6564	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) `receipt	standing	2026-10-11; V1-1415
-CAL-V0-250	docs/specs/corvint-tasks-agent-leases-v0.md	6576	(accepted under the owner's standing auto-accept (2026-10-11), V1-1384) A CLI	standing	2026-10-11; V1-1384
-CAL-V0-255	docs/specs/corvint-tasks-agent-leases-v0.md	6628	(accepted under the owner's standing auto-accept (2026-10-11), V1-1460) A policy	standing	2026-10-11; V1-1460
-CAL-V0-260	docs/specs/corvint-tasks-agent-leases-v0.md	6058	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `pause`,	standing	2026-10-11; V1-1353
-CAL-V0-261	docs/specs/corvint-tasks-agent-leases-v0.md	6071	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `health`	standing	2026-10-11; V1-1353
-CAL-V0-262	docs/specs/corvint-tasks-agent-leases-v0.md	6074	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) The verb	standing	2026-10-11; V1-1353
-CAL-V0-263	docs/specs/corvint-tasks-agent-leases-v0.md	6674	(proposed; V1-1494) No lease write MUST run a complete-history audit while it	unrecorded	-
-CAL-V0-265	docs/specs/corvint-tasks-agent-leases-v0.md	6689	(proposed; V1-1494) Amendment to CAL-V0-117 step 2. The scheduled refresh first	unrecorded	-
+CAL-V0-122	docs/specs/corvint-tasks-agent-leases-v0.md	3751	Accepted by decision 0439 (V1-0888; GitHub #643). The issue 482 projection MUST,	unrecorded	-
+CAL-V0-123	docs/specs/corvint-tasks-agent-leases-v0.md	3763	Accepted by decision 0439 (V1-0882; GitHub #643). A change limited to the option	unrecorded	-
+CAL-V0-124	docs/specs/corvint-tasks-agent-leases-v0.md	3768	Accepted by decision 0439 (V1-0888; GitHub #643). A COMPLETED `policy update` MU	unrecorded	-
+CAL-V0-125	docs/specs/corvint-tasks-agent-leases-v0.md	3821	accepted by decision 0439 (V1-0891; GitHub #646). The Linux pressure sample MUST	unrecorded	-
+CAL-V0-126	docs/specs/corvint-tasks-agent-leases-v0.md	3843	accepted by decision 0439 (V1-0891; GitHub #646). The `pressure` object MAY carr	unrecorded	-
+CAL-V0-127	docs/specs/corvint-tasks-agent-leases-v0.md	3880	accepted by decision 0439 (V1-0890; GitHub #645). A running `dispatch` MUST re-r	unrecorded	-
+CAL-V0-128	docs/specs/corvint-tasks-agent-leases-v0.md	3907	accepted by decision 0439 (V1-0890; GitHub #645). A role `cap` MAY be 0. A role	unrecorded	-
+CAL-V0-129	docs/specs/corvint-tasks-agent-leases-v0.md	3913	accepted by decision 0439 (V1-0890; GitHub #645). A lane MAY carry `minAgeSecond	unrecorded	-
+CAL-V0-130	docs/specs/corvint-tasks-agent-leases-v0.md	3950	accepted by decision 0439 (V1-0889; GitHub #644). Replacing build N with build N	unrecorded	-
+CAL-V0-131	docs/specs/corvint-tasks-agent-leases-v0.md	3962	accepted by decision 0439 (V1-0889; GitHub #644). `version` MUST report `formats	unrecorded	-
+CAL-V0-132	docs/specs/corvint-tasks-agent-leases-v0.md	3986	accepted by decision 0439 (V1-0889; GitHub #644). A dispatcher ledger whose prof	unrecorded	-
+CAL-V0-133	docs/specs/corvint-tasks-agent-leases-v0.md	4012	accepted by decision 0439 (V1-0889; GitHub #644). Build N processes that outlive	unrecorded	-
+CAL-V0-134	docs/specs/corvint-tasks-agent-leases-v0.md	4022	accepted by decision 0439 (V1-0889; GitHub #644). Supervised Codex, Claude Code	unrecorded	-
+CAL-V0-135	docs/specs/corvint-tasks-agent-leases-v0.md	4060	accepted by decision 0439 (V1-0893; GitHub #641). A whole-history receipt bindin	unrecorded	-
+CAL-V0-136	docs/specs/corvint-tasks-agent-leases-v0.md	4067	accepted by decision 0439 (V1-0894; GitHub #641). On Darwin arm64 and amd64 the	unrecorded	-
+CAL-V0-137	docs/specs/corvint-tasks-agent-leases-v0.md	4075	accepted by decision 0439 (V1-0894; GitHub #641). The supervisor's host exit cap	unrecorded	-
+CAL-V0-138	docs/specs/corvint-tasks-agent-leases-v0.md	4079	accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher (`di	unrecorded	-
+CAL-V0-139	docs/specs/corvint-tasks-agent-leases-v0.md	4093	accepted by decision 0439 (V1-0894; GitHub #641). A long-running dispatcher whos	unrecorded	-
+CAL-V0-140	docs/specs/corvint-tasks-agent-leases-v0.md	4110	accepted by decision 0439 (V1-0893; GitHub #641). Within one snapshot-pinned rea	unrecorded	-
+CAL-V0-141	docs/specs/corvint-tasks-agent-leases-v0.md	4116	accepted by decision 0439 (V1-0893; GitHub #641). The full `plan preview` result	unrecorded	-
+CAL-V0-142	docs/specs/corvint-tasks-agent-leases-v0.md	4124	accepted by decision 0439 (V1-0894; GitHub #641). `service run` MUST build its d	unrecorded	-
+CAL-V0-143	docs/specs/corvint-tasks-agent-leases-v0.md	4182	(accepted by decision 0440; V1-0930) On every supervising tick, right after it c	owner	decision 0440; V1-0930
+CAL-V0-144	docs/specs/corvint-tasks-agent-leases-v0.md	4197	(accepted by decision 0440; V1-0930) When a tick finishes at least one worker, a	owner	decision 0440; V1-0930
+CAL-V0-145	docs/specs/corvint-tasks-agent-leases-v0.md	4490	(accepted by decision 0441; V1-0936, V1-0858) On Darwin and Linux, the	owner	decision 0441; V1-0936; V1-0858
+CAL-V0-146	docs/specs/corvint-tasks-agent-leases-v0.md	4504	(accepted by decision 0441; V1-0936) When `heal.handoff` is on and a	owner	decision 0441; V1-0936
+CAL-V0-147	docs/specs/corvint-tasks-agent-leases-v0.md	4522	(accepted by decision 0441; V1-0936) Each deferral MUST be recorded before	owner	decision 0441; V1-0936
+CAL-V0-148	docs/specs/corvint-tasks-agent-leases-v0.md	4540	(accepted by decision 0441; V1-0936) The `finished` event of a worker whose	owner	decision 0441; V1-0936
+CAL-V0-149	docs/specs/corvint-tasks-agent-leases-v0.md	4547	(accepted by decision 0441; V1-0936) When a deferred run is `FINISHED` and	owner	decision 0441; V1-0936
+CAL-V0-150	docs/specs/corvint-tasks-agent-leases-v0.md	4569	(accepted by decision 0441; V1-0936) `corvint-tasks dispatch status` MUST	owner	decision 0441; V1-0936
+CAL-V0-151	docs/specs/corvint-tasks-agent-leases-v0.md	4575	(accepted by decision 0441; V1-0936) A record that fails any CAL-V0-145	owner	decision 0441; V1-0936
+CAL-V0-152	docs/specs/corvint-tasks-agent-leases-v0.md	4579	(accepted by decision 0441; V1-0936) The CAL-V0-139 idle gate MUST NOT	owner	decision 0441; V1-0936
+CAL-V0-153	docs/specs/corvint-tasks-agent-leases-v0.md	4581	(accepted by decision 0441; V1-0936) On other platforms no supervisor is	owner	decision 0441; V1-0936
+CAL-V0-154	docs/specs/corvint-tasks-agent-leases-v0.md	4587	(accepted by decision 0441; V1-0936) The dispatcher MUST NOT signal, adopt,	owner	decision 0441; V1-0936
+CAL-V0-155	docs/specs/corvint-tasks-agent-leases-v0.md	4304	(accepted by decision 0441; V1-0937) A role MAY declare `budget` and the	owner	decision 0441; V1-0937
+CAL-V0-156	docs/specs/corvint-tasks-agent-leases-v0.md	4341	(accepted by decision 0441; V1-0937) The dispatcher MUST record every	owner	decision 0441; V1-0937
+CAL-V0-157	docs/specs/corvint-tasks-agent-leases-v0.md	4351	(accepted by decision 0441; V1-0937) A role MAY declare `usageFormat`:	owner	decision 0441; V1-0937
+CAL-V0-158	docs/specs/corvint-tasks-agent-leases-v0.md	4385	(accepted by decision 0441; V1-0937) A launch tick MUST record each	owner	decision 0441; V1-0937
+CAL-V0-159	docs/specs/corvint-tasks-agent-leases-v0.md	4405	(accepted by decision 0441; V1-0937) A role MAY declare `effort`, matching	owner	decision 0441; V1-0937
+CAL-V0-160	docs/specs/corvint-tasks-agent-leases-v0.md	4413	(accepted by decision 0441; V1-0937) Configuration validation MUST refuse	owner	decision 0441; V1-0937
+CAL-V0-161	docs/specs/corvint-tasks-agent-leases-v0.md	4422	(accepted by decision 0441; V1-0937) The dispatcher ledger moves to	owner	decision 0441; V1-0937
+CAL-V0-165	docs/specs/corvint-tasks-agent-leases-v0.md	4658	(accepted by decision 0441; V1-0935) `queue status`, `attempt show`,	owner	decision 0441; V1-0935
+CAL-V0-166	docs/specs/corvint-tasks-agent-leases-v0.md	4664	(accepted by decision 0441; V1-0935) A `--fields` value MUST hold 1 to 32	owner	decision 0441; V1-0935
+CAL-V0-167	docs/specs/corvint-tasks-agent-leases-v0.md	4673	(accepted by decision 0441; V1-0935) `--summary` on the same four reads	owner	decision 0441; V1-0935
+CAL-V0-168	docs/specs/corvint-tasks-agent-leases-v0.md	4690	(accepted by decision 0441; V1-0935) Projection and summary MUST run only	owner	decision 0441; V1-0935
+CAL-V0-169	docs/specs/corvint-tasks-agent-leases-v0.md	4694	(accepted by decision 0441; V1-0935) `queue status` MUST omit the	owner	decision 0441; V1-0935
+CAL-V0-170	docs/specs/corvint-tasks-agent-leases-v0.md	4700	(accepted by decision 0441; V1-0935 and V1-0941) An exact trailing	owner	decision 0441; V1-0935; V1-0941
+CAL-V0-171	docs/specs/corvint-tasks-agent-leases-v0.md	4711	(accepted by decision 0441; V1-0935 and V1-0941) The byte effect MUST be	owner	decision 0441; V1-0935; V1-0941
+CAL-V0-172	docs/specs/corvint-tasks-agent-leases-v0.md	4713	(accepted by decision 0441; V1-0935) `docs/TASKS-EXTERNAL-AGENTS.md`	owner	decision 0441; V1-0935
+CAL-V0-173	docs/specs/corvint-tasks-agent-leases-v0.md	4716	(accepted by decision 0441; V1-0941) `ticket list` and `ticket search`	owner	decision 0441; V1-0941
+CAL-V0-174	docs/specs/corvint-tasks-agent-leases-v0.md	4722	(accepted by decision 0441; V1-0941) `ticket list`, `ticket search` and	owner	decision 0441; V1-0941
+CAL-V0-175	docs/specs/corvint-tasks-agent-leases-v0.md	5070	(accepted by decision 0442; V1-0954) A `taskman-dispatch/0`	owner	decision 0442; V1-0954
+CAL-V0-176	docs/specs/corvint-tasks-agent-leases-v0.md	5077	(accepted by decision 0442; V1-0954) A string `prompt` MUST decode and	owner	decision 0442; V1-0954
+CAL-V0-177	docs/specs/corvint-tasks-agent-leases-v0.md	5082	(accepted by decision 0442; V1-0954) Decoding MUST refuse, with the	owner	decision 0442; V1-0954
+CAL-V0-178	docs/specs/corvint-tasks-agent-leases-v0.md	5088	(accepted by decision 0442; V1-0954) Every role prompt check (known	owner	decision 0442; V1-0954
+CAL-V0-181	docs/specs/corvint-tasks-agent-leases-v0.md	4783	(accepted by decision 0447; V1-0966) `ticket list` MUST accept	owner	decision 0447; V1-0966
+CAL-V0-182	docs/specs/corvint-tasks-agent-leases-v0.md	4790	(accepted by decision 0447; V1-0966) `ticket list` and `ticket search`	owner	decision 0447; V1-0966
+CAL-V0-183	docs/specs/corvint-tasks-agent-leases-v0.md	4796	(accepted by decision 0447; V1-0966) `ticket list` items MUST carry	owner	decision 0447; V1-0966
+CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4802	(accepted by decision 0447; V1-0966) `queue status` and	owner	decision 0447; V1-0966
+CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4813	(accepted by decision 0447; V1-0966) The dispatcher MUST count, per	owner	decision 0447; V1-0966
+CAL-V0-186	docs/specs/corvint-tasks-agent-leases-v0.md	5116	(proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh	unrecorded	-
+CAL-V0-187	docs/specs/corvint-tasks-agent-leases-v0.md	4905	proposed (V1-0980; GitHub #668) A build writing `taskman-dispatch-state/3` MUST	unrecorded	-
+CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	7525	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
+CAL-V0-189	docs/specs/corvint-tasks-agent-leases-v0.md	4957	(proposed; V1-0915; GitHub #641) Single intent read in the writer audit. A	unrecorded	-
+CAL-V0-190	docs/specs/corvint-tasks-agent-leases-v0.md	4970	(proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.	unrecorded	-
+CAL-V0-191	docs/specs/corvint-tasks-agent-leases-v0.md	5153	(proposed; V1-1016) A role MAY carry `expiredLeaseGraceSeconds`, an integer	unrecorded	-
+CAL-V0-192	docs/specs/corvint-tasks-agent-leases-v0.md	5244	(proposed (V1-1021, issue 679)) When `corvint-tasks ticket create`,	unrecorded	-
+CAL-V0-193	docs/specs/corvint-tasks-agent-leases-v0.md	5256	(proposed (V1-1021, issue 679)) A `plan preview` entry deferred for	unrecorded	-
+CAL-V0-194	docs/specs/corvint-tasks-agent-leases-v0.md	5357	(proposed; V1-0672) When a tick's final ledger save fails (any step of the write	unrecorded	-
+CAL-V0-195	docs/specs/corvint-tasks-agent-leases-v0.md	5299	(accepted (decision 0459; V1-1026)) A policy MAY carry the optional top-level ke	owner	decision 0459; V1-1026
+CAL-V0-196	docs/specs/corvint-tasks-agent-leases-v0.md	5313	(accepted (decision 0459; V1-1026)) `queue status` MUST report `openWithoutMiles	owner	decision 0459; V1-1026
+CAL-V0-197	docs/specs/corvint-tasks-agent-leases-v0.md	5417	(accepted (decision 0467; V1-0827)) `run --role ROLE` and `admit --role ROLE` MU	owner	decision 0467; V1-0827
+CAL-V0-198	docs/specs/corvint-tasks-agent-leases-v0.md	5460	(accepted (decision 0472; V1-1042)) `corvint-tasks pool acquire --attempt ID --g	owner	decision 0472; V1-1042
+CAL-V0-199	docs/specs/corvint-tasks-agent-leases-v0.md	5471	(accepted (decision 0472; V1-1042)) Acquire MUST admit a member by the pooled-cl	owner	decision 0472; V1-1042
+CAL-V0-200	docs/specs/corvint-tasks-agent-leases-v0.md	5481	(accepted (decision 0472; V1-1042)) `--exclude-authors[=all]` on acquire MUST ap	owner	decision 0472; V1-1042
+CAL-V0-201	docs/specs/corvint-tasks-agent-leases-v0.md	5485	(accepted (decision 0472; V1-1042)) `corvint-tasks pool release --attempt ID --g	owner	decision 0472; V1-1042
+CAL-V0-202	docs/specs/corvint-tasks-agent-leases-v0.md	5499	(accepted (decision 0472; V1-1042)) The lifecycle verbs (renew, heartbeat, run,	owner	decision 0472; V1-1042
+CAL-V0-203	docs/specs/corvint-tasks-agent-leases-v0.md	5505	(accepted (decision 0472; V1-1042)) An ended generation that returned its alloca	owner	decision 0472; V1-1042
+CAL-V0-204	docs/specs/corvint-tasks-agent-leases-v0.md	5509	(accepted (decision 0472; V1-1042)) A `pool acquire` result MUST carry `poolAllo	owner	decision 0472; V1-1042
+CAL-V0-205	docs/specs/corvint-tasks-agent-leases-v0.md	5555	(accepted (decision 0471; V1-1045)) `POOL_CONFIRM_SAFE` MUST be served by the	owner	decision 0471; V1-1045
+CAL-V0-206	docs/specs/corvint-tasks-agent-leases-v0.md	5593	(accepted, decision 0476) `ticket search`, `ticket list` and `roadmap` MUST acce	owner	decision 0476
+CAL-V0-207	docs/specs/corvint-tasks-agent-leases-v0.md	5610	(accepted, decision 0476) The same verbs MUST accept `--count`, which returns th	owner	decision 0476
+CAL-V0-208	docs/specs/corvint-tasks-agent-leases-v0.md	5615	(accepted, decision 0476) The `release readiness` item MUST add `memberCounts` a	owner	decision 0476
+CAL-V0-209	docs/specs/corvint-tasks-agent-leases-v0.md	5623	(accepted, decision 0476) `release readiness` for a release without a candidate	owner	decision 0476
+CAL-V0-210	docs/specs/corvint-tasks-agent-leases-v0.md	5657	(accepted (decision 0473; V1-0795)) A program transition that changes the owner	owner	decision 0473; V1-0795
+CAL-V0-211	docs/specs/corvint-tasks-agent-leases-v0.md	5742	(accepted, decision 0499; V1-1118) When `corvint-tasks ticket set-effects` commi	owner	decision 0499; V1-1118
+CAL-V0-212	docs/specs/corvint-tasks-agent-leases-v0.md	5669	(accepted, decision 0502; V1-0628) The top-level `help` usage MUST NOT	owner	decision 0502; V1-0628
+CAL-V0-214	docs/specs/corvint-tasks-agent-leases-v0.md	5757	(accepted, decision 0513) When `corvint-tasks ticket create`	owner	decision 0513
+CAL-V0-215	docs/specs/corvint-tasks-agent-leases-v0.md	5822	(accepted, decision 0519 (V1-1129)) The shared Tasks error classifier	owner	decision 0519; V1-1129
+CAL-V0-216	docs/specs/corvint-tasks-agent-leases-v0.md	5900	(accepted, decision 0518; V1-1130) `claim`, `renew`, `submit`,	owner	decision 0518; V1-1130
+CAL-V0-217	docs/specs/corvint-tasks-agent-leases-v0.md	5791	(accepted, decision 0518; V1-0913) Amends CAL-V0-139. The safety-net interval	owner	decision 0518; V1-0913
+CAL-V0-218	docs/specs/corvint-tasks-agent-leases-v0.md	5949	(accepted, decision 0519 (V1-1195)) Amends what CAL-V0-056 counts as	owner	decision 0519; V1-1195
+CAL-V0-219	docs/specs/corvint-tasks-agent-leases-v0.md	5705	(accepted, decision 0519 (V1-0906)) Change observation on Darwin	owner	decision 0519; V1-0906
+CAL-V0-220	docs/specs/corvint-tasks-agent-leases-v0.md	5713	(accepted, decision 0519 (V1-0906)) Characterization: a native journal	owner	decision 0519; V1-0906
+CAL-V0-221	docs/specs/corvint-tasks-agent-leases-v0.md	5719	(accepted, decision 0519 (V1-0906)) Regression evidence shall bound	owner	decision 0519; V1-0906
+CAL-V0-222	docs/specs/corvint-tasks-agent-leases-v0.md	6004	(accepted under the owner's standing auto-accept (2026-10-11), V1-1352) A lease	standing	2026-10-11; V1-1352
+CAL-V0-223	docs/specs/corvint-tasks-agent-leases-v0.md	6014	(accepted under the owner's standing auto-accept (2026-10-11), V1-1352) Caller c	standing	2026-10-11; V1-1352
+CAL-V0-224	docs/specs/corvint-tasks-agent-leases-v0.md	6126	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended	standing	2026-10-11; V1-0887; 2026-10-15
+CAL-V0-225	docs/specs/corvint-tasks-agent-leases-v0.md	6295	(accepted under the owner's standing auto-accept (2026-10-11), V1-1386) A relati	standing	2026-10-11; V1-1386
+CAL-V0-226	docs/specs/corvint-tasks-agent-leases-v0.md	6302	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710)	standing	2026-10-11; V1-0710
+CAL-V0-227	docs/specs/corvint-tasks-agent-leases-v0.md	6321	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) A marker	standing	2026-10-11; V1-0710
+CAL-V0-228	docs/specs/corvint-tasks-agent-leases-v0.md	6335	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The	standing	2026-10-11; V1-0710
+CAL-V0-229	docs/specs/corvint-tasks-agent-leases-v0.md	6341	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The mark	standing	2026-10-11; V1-0710
+CAL-V0-230	docs/specs/corvint-tasks-agent-leases-v0.md	6402	(accepted under the owner's standing auto-accept (2026-10-11), V1-1320) After a	standing	2026-10-11; V1-1320
+CAL-V0-231	docs/specs/corvint-tasks-agent-leases-v0.md	6412	(accepted under the owner's standing auto-accept (2026-10-11), V1-1313) A	standing	2026-10-11; V1-1313
+CAL-V0-232	docs/specs/corvint-tasks-agent-leases-v0.md	6190	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
+CAL-V0-233	docs/specs/corvint-tasks-agent-leases-v0.md	6234	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
+CAL-V0-234	docs/specs/corvint-tasks-agent-leases-v0.md	6263	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
+CAL-V0-236	docs/specs/corvint-tasks-agent-leases-v0.md	6466	(accepted under the owner's standing auto-accept (2026-10-11), V1-1402) When	standing	2026-10-11; V1-1402
+CAL-V0-240	docs/specs/corvint-tasks-agent-leases-v0.md	6523	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) When the	standing	2026-10-11; V1-1415
+CAL-V0-241	docs/specs/corvint-tasks-agent-leases-v0.md	6537	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) A result	standing	2026-10-11; V1-1415
+CAL-V0-242	docs/specs/corvint-tasks-agent-leases-v0.md	6554	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) The	standing	2026-10-11; V1-1415
+CAL-V0-243	docs/specs/corvint-tasks-agent-leases-v0.md	6563	(accepted under the owner's standing auto-accept (2026-10-11), V1-1415) `receipt	standing	2026-10-11; V1-1415
+CAL-V0-250	docs/specs/corvint-tasks-agent-leases-v0.md	6575	(accepted under the owner's standing auto-accept (2026-10-11), V1-1384) A CLI	standing	2026-10-11; V1-1384
+CAL-V0-255	docs/specs/corvint-tasks-agent-leases-v0.md	6627	(accepted under the owner's standing auto-accept (2026-10-11), V1-1460) A policy	standing	2026-10-11; V1-1460
+CAL-V0-260	docs/specs/corvint-tasks-agent-leases-v0.md	6057	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `pause`,	standing	2026-10-11; V1-1353
+CAL-V0-261	docs/specs/corvint-tasks-agent-leases-v0.md	6070	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `health`	standing	2026-10-11; V1-1353
+CAL-V0-262	docs/specs/corvint-tasks-agent-leases-v0.md	6073	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) The verb	standing	2026-10-11; V1-1353
+CAL-V0-277	docs/specs/corvint-tasks-agent-leases-v0.md	6671	(accepted under the owner's standing auto-accept (2026-10-11), V1-1511) The verb	standing	2026-10-11; V1-1511
+CAL-V0-278	docs/specs/corvint-tasks-agent-leases-v0.md	6684	(accepted under the owner's standing auto-accept (2026-10-11), V1-1511) `policy	standing	2026-10-11; V1-1511
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha	unrecorded	-
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring	unrecorded	-
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla	unrecorded	-
@@ -731,6 +731,7 @@ CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	174	Breaking-change rule. 
 CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	184	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.	owner	2026-09-25; decision 0401
 CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	326	Root help MUST carry a `Command maturity:` section that lists the Core verbs of	unrecorded	-
 CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	333	(proposed (V1-0945; no GitHub issue), not accepted) Root help is a compact verb	unrecorded	-
+CCF-V1-010	docs/specs/core-compatibility-freeze-v1.md	341	(accepted under the owner's standing auto-accept of 2026-10-11; V1-0285, panel	standing	2026-10-11; V1-0285
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -872,172 +873,173 @@ CEM-V1-013	docs/specs/cem-stable-v1.md	82	Never translate candidate spec labels 
 CEM-V1-014	docs/specs/cem-stable-v1.md	83	Inventory every existing consumer's profile and migration disposition. An unsupp	unrecorded	-
 CEM-V1-015	docs/specs/cem-stable-v1.md	93	Candidate assembly MUST require independently supplied immutable base and target	unrecorded	-
 CEM-V1-016	docs/specs/cem-stable-v1.md	94	Assembly MUST compare each declared runner source input with its self-hashed imm	unrecorded	-
-CEM-V1-017	docs/specs/cem-stable-v1.md	1138	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab	unrecorded	-
-CEM-V1-018	docs/specs/cem-stable-v1.md	1139	A stable read MUST refuse `--patch` with `invalid-arguments`, and `cem verify` M	unrecorded	-
-CEM-V1-019	docs/specs/cem-stable-v1.md	1140	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b	unrecorded	-
-CEM-V1-030	docs/specs/cem-stable-v1.md	1171	A `cem/0.x` Core `cem prepare` MUST refuse an existing map at the fixed sidecar	unrecorded	-
-CEM-V1-031	docs/specs/cem-stable-v1.md	1172	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c	unrecorded	-
-CEM-V1-032	docs/specs/cem-stable-v1.md	1173	(superseded by `CEM-V1-147` and `CEM-V1-148`, V1-1276) The daily bind loop MUST	unrecorded	-
-CEM-V1-033	docs/specs/cem-stable-v1.md	1174	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem	unrecorded	-
-CEM-V1-034	docs/specs/cem-stable-v1.md	1216	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable	unrecorded	-
-CEM-V1-035	docs/specs/cem-stable-v1.md	1217	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render	unrecorded	-
-CEM-V1-036	docs/specs/cem-stable-v1.md	1218	(amended by V1-1278 S1 for V1-1305 under the owner's standing auto-accept of lan	standing	V1-1278; V1-1305; 2026-10-11
-CEM-V1-050	docs/specs/cem-stable-v1.md	220	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable	unrecorded	-
-CEM-V1-051	docs/specs/cem-stable-v1.md	1300	`lrfrepo.VerifyStableUniverse` MUST admit a map whose bytes declare exactly	unrecorded	-
-CEM-V1-052	docs/specs/cem-stable-v1.md	1310	The repository root, expected base, target and artifact root are explicit, with	unrecorded	-
-CEM-V1-053	docs/specs/cem-stable-v1.md	1316	The OCM MUST bind the exact original stable map digest, the accepted target and	unrecorded	-
-CEM-V1-054	docs/specs/cem-stable-v1.md	1320	The projection is read-only. It never exposes a legacy `*wire.Map` or any 0.x	unrecorded	-
-CEM-V1-055	docs/specs/cem-stable-v1.md	1324	`lrf/0` stays frozen. `lrf.Evaluate` MUST keep refusing a `cem/1.0` context with	unrecorded	-
-CEM-V1-056	docs/specs/cem-stable-v1.md	1330	A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1	unrecorded	-
-CEM-V1-057	docs/specs/cem-stable-v1.md	1338	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in	unrecorded	-
-CEM-V1-058	docs/specs/cem-stable-v1.md	1341	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,	unrecorded	-
-CEM-V1-059	docs/specs/cem-stable-v1.md	1347	A stable universe verification is a read. It MUST NOT change the repository HEAD	unrecorded	-
-CEM-V1-060	docs/specs/cem-stable-v1.md	1386	Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first ru	unrecorded	-
-CEM-V1-061	docs/specs/cem-stable-v1.md	1390	An accepted export MUST write a new directory outside the worktree (the 0.x outp	unrecorded	-
-CEM-V1-062	docs/specs/cem-stable-v1.md	1397	The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem	unrecorded	-
-CEM-V1-063	docs/specs/cem-stable-v1.md	1401	`ReadStable` MUST refuse a bundle with a missing declared file	unrecorded	-
-CEM-V1-064	docs/specs/cem-stable-v1.md	1427	A stable export MUST refuse `--witness` with `invalid-arguments` before	unrecorded	-
-CEM-V1-065	docs/specs/cem-stable-v1.md	1050	`internal/attest.CEMStatementV2(name, map, target)` MUST accept only bytes that	unrecorded	-
-CEM-V1-066	docs/specs/cem-stable-v1.md	552	Every `cem-stable-verification/1` result MUST carry `verdictSha256` after	unrecorded	-
-CEM-V1-067	docs/specs/cem-stable-v1.md	2200	(accepted under the owner's standing auto-accept (2026-10-11); V1-1260) `cem	standing	2026-10-11; V1-1260
-CEM-V1-070	docs/specs/cem-stable-v1.md	1479	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the	unrecorded	-
-CEM-V1-071	docs/specs/cem-stable-v1.md	1480	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v	unrecorded	-
-CEM-V1-072	docs/specs/cem-stable-v1.md	1481	A report built over a stable source MUST take profile `corvint-witness-stable/0`	unrecorded	-
-CEM-V1-073	docs/specs/cem-stable-v1.md	1482	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`	unrecorded	-
-CEM-V1-074	docs/specs/cem-stable-v1.md	1483	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a	unrecorded	-
-CEM-V1-075	docs/specs/cem-stable-v1.md	1484	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab	unrecorded	-
-CEM-V1-076	docs/specs/cem-stable-v1.md	1485	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and	unrecorded	-
-CEM-V1-077	docs/specs/cem-stable-v1.md	1486	The console chain pane MUST admit `cem/1.0` in its closed profile registry only	unrecorded	-
-CEM-V1-078	docs/specs/cem-stable-v1.md	1487	Each criterion binding, runner receipt (with its execution authority, source bin	unrecorded	-
-CEM-V1-079	docs/specs/cem-stable-v1.md	1488	The registry stays closed: an unsupported profile, a near-stable spec, an unknow	unrecorded	-
-CEM-V1-080	docs/specs/cem-stable-v1.md	286	Support tiers are consumer-derived. The native (`internal/cem/verify`, `support.	unrecorded	-
-CEM-V1-081	docs/specs/cem-stable-v1.md	296	Anchor kinds and byte-level rules. `id`: an ASCII requirement ID	unrecorded	-
-CEM-V1-082	docs/specs/cem-stable-v1.md	315	The `citation` block and the shift null MUST be byte-identical across the native	unrecorded	-
-CEM-V1-083	docs/specs/cem-stable-v1.md	392	A `cem/1.0` criterion binding MUST take exactly one of two closed forms. The pla	unrecorded	-
-CEM-V1-084	docs/specs/cem-stable-v1.md	496	A runner receipt's `authentication` MUST take one of three closed forms: the sea	unrecorded	-
-CEM-V1-088	docs/specs/cem-stable-v1.md	2449	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) `held`	standing	2026-10-11; V1-1266
-CEM-V1-089	docs/specs/cem-stable-v1.md	2472	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) A row th	standing	2026-10-11; V1-1266
-CEM-V1-090	docs/specs/cem-stable-v1.md	2412	(accepted under the owner's standing auto-accept (2026-10-11); V1-1259) A	standing	2026-10-11; V1-1259
-CEM-V1-091	docs/specs/cem-stable-v1.md	241	A new top-level member of `cem-stable-verification/1` MUST be added only by	unrecorded	-
-CEM-V1-092	docs/specs/cem-stable-v1.md	355	The `cem-stable-verification/1` member `citation` MUST be the `CEM-V1-082` block	unrecorded	-
-CEM-V1-093	docs/specs/cem-stable-v1.md	589	A stable map MAY carry `provenance`, a closed object with exactly the required	unrecorded	-
-CEM-V1-094	docs/specs/cem-stable-v1.md	599	The producer-only stable map members are exactly this closed list:	unrecorded	-
-CEM-V1-095	docs/specs/cem-stable-v1.md	612	A stable map MAY carry `role`, a closed string enum of `change` (the meaning whe	unrecorded	-
-CEM-V1-096	docs/specs/cem-stable-v1.md	661	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-097	docs/specs/cem-stable-v1.md	667	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-098	docs/specs/cem-stable-v1.md	683	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-099	docs/specs/cem-stable-v1.md	689	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-100	docs/specs/cem-stable-v1.md	695	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-101	docs/specs/cem-stable-v1.md	698	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-102	docs/specs/cem-stable-v1.md	702	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-103	docs/specs/cem-stable-v1.md	711	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-104	docs/specs/cem-stable-v1.md	718	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-105	docs/specs/cem-stable-v1.md	739	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
-CEM-V1-106	docs/specs/cem-stable-v1.md	791	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) `cem sta	standing	2026-10-11; V1-1281
-CEM-V1-107	docs/specs/cem-stable-v1.md	2342	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) Every st	standing	2026-10-11; V1-1333
-CEM-V1-108	docs/specs/cem-stable-v1.md	2348	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) `protoco	standing	2026-10-11; V1-1333
-CEM-V1-109	docs/specs/cem-stable-v1.md	2354	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The same	standing	2026-10-11; V1-1333
-CEM-V1-110	docs/specs/cem-stable-v1.md	2360	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The same	standing	2026-10-11; V1-1333
-CEM-V1-111	docs/specs/cem-stable-v1.md	2363	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The pack	standing	2026-10-11; V1-1333
-CEM-V1-112	docs/specs/cem-stable-v1.md	2372	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) For each	standing	2026-10-11; V1-1333
-CEM-V1-113	docs/specs/cem-stable-v1.md	2527	(accepted under the owner's standing auto-accept (2026-10-11); V1-1369) Every	standing	2026-10-11; V1-1369
-CEM-V1-114	docs/specs/cem-stable-v1.md	2715	(accepted under the owner's standing auto-accept (2026-10-11); V1-0414) `cem cit	standing	2026-10-11; V1-0414
-CEM-V1-115	docs/specs/cem-stable-v1.md	2638	(accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A	standing	2026-10-11; V1-1291
-CEM-V1-116	docs/specs/cem-stable-v1.md	2643	(accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A	standing	2026-10-11; V1-1291
-CEM-V1-117	docs/specs/cem-stable-v1.md	2648	(accepted under the owner's standing auto-accept (2026-10-11); V1-1306) When an	standing	2026-10-11; V1-1306
-CEM-V1-120	docs/specs/cem-stable-v1.md	1645	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity	unrecorded	-
-CEM-V1-121	docs/specs/cem-stable-v1.md	1648	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly	unrecorded	-
-CEM-V1-122	docs/specs/cem-stable-v1.md	1652	The stable result MUST carry:	unrecorded	-
-CEM-V1-123	docs/specs/cem-stable-v1.md	1661	The verifier binding MUST name the SHA-256 of the exact input map bytes, and the	unrecorded	-
-CEM-V1-124	docs/specs/cem-stable-v1.md	1666	The 0.x TCQ and frontier routes are unchanged. `parseArtifacts` keeps the	unrecorded	-
-CEM-V1-125	docs/specs/cem-stable-v1.md	1669	`frontierrepo.RecomputeStable` MUST:	unrecorded	-
-CEM-V1-126	docs/specs/cem-stable-v1.md	1678	No stable frontier document is produced. `frontier/0` binds an `lrf/0` digest, a	unrecorded	-
-CEM-V1-127	docs/specs/cem-stable-v1.md	1682	Each of the following MUST refuse, keeping the stable verifier's full result and	unrecorded	-
-CEM-V1-130	docs/specs/cem-stable-v1.md	1688	`extevidence.StableObligations` MUST emit `external-frontier-obligations-stable/	unrecorded	-
-CEM-V1-131	docs/specs/cem-stable-v1.md	1696	Hunk associations MUST be computed exactly as in the frozen sidecar, with the sa	unrecorded	-
-CEM-V1-132	docs/specs/cem-stable-v1.md	1699	A verifier refusal MUST return a `StableObligationsRefusal` that holds the	unrecorded	-
-CEM-V1-133	docs/specs/cem-stable-v1.md	1703	The map's declared criterion links MUST be listed in a separate `criteria` membe	unrecorded	-
-CEM-V1-134	docs/specs/cem-stable-v1.md	1706	The frozen sidecar MUST keep refusing `cem/1.0`, and the stable sidecar MUST ref	unrecorded	-
-CEM-V1-135	docs/specs/cem-stable-v1.md	1708	`corvint obligations` MUST select the stable sidecar only when all four of these	unrecorded	-
-CEM-V1-136	docs/specs/cem-stable-v1.md	1718	The criterion experiment companion MUST add the explicit input mode	unrecorded	-
-CEM-V1-137	docs/specs/cem-stable-v1.md	1722	Stable admission MUST:	unrecorded	-
-CEM-V1-138	docs/specs/cem-stable-v1.md	1731	Plan, run and verify MUST each re-admit the plan's map through the stable verifi	unrecorded	-
-CEM-V1-139	docs/specs/cem-stable-v1.md	1736	The two modes never cross:	unrecorded	-
-CEM-V1-140	docs/specs/cem-stable-v1.md	1523	`corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps th	unrecorded	-
-CEM-V1-141	docs/specs/cem-stable-v1.md	1530	A `cem/1.0` prepare MUST write the canonical stable encoding of a producer map	unrecorded	-
-CEM-V1-142	docs/specs/cem-stable-v1.md	1544	`cem begin --spec cem/1.0` MUST write the canonical stable producer map of the	unrecorded	-
-CEM-V1-143	docs/specs/cem-stable-v1.md	1547	`cem cite`, `cem mark`, `cem cover` and `cem discriminate` over a stable produce	unrecorded	-
-CEM-V1-144	docs/specs/cem-stable-v1.md	1551	A structural `cem mark` on a stable producer map writes the claimed reason; the	unrecorded	-
-CEM-V1-145	docs/specs/cem-stable-v1.md	1554	`cem status` over a `cem/1.0` map MUST admit `--max-unknown` and	unrecorded	-
-CEM-V1-146	docs/specs/cem-stable-v1.md	1560	A stable prepare's `nextActions` MUST be the single `cem status` argv with the	unrecorded	-
-CEM-V1-147	docs/specs/cem-stable-v1.md	1563	The daily bind loop MUST cite, count, check and seal a `cem/1.0` map like a	unrecorded	-
-CEM-V1-148	docs/specs/cem-stable-v1.md	1569	`dogfood batch-check` MUST admit a sealed `cem/1.0` constituent when the verifie	unrecorded	-
-CEM-V1-149	docs/specs/cem-stable-v1.md	1574	`ocm prepare`, `ocm read` (status) and `ocm link` MUST admit a `cem/1.0` map onl	unrecorded	-
-CEM-V1-150	docs/specs/cem-stable-v1.md	1580	Local-completion sidecar-only reuse (`AllowCemSidecarOnlyReuse`) MUST keep	unrecorded	-
-CEM-V1-151	docs/specs/cem-stable-v1.md	1585	`dogfood finish` MUST read a `cem/1.0` change map: its `cem status` (and the	unrecorded	-
-CEM-V1-152	docs/specs/cem-stable-v1.md	1590	The aggregate verifier worker's closed argv grammar (`ALO-V0-018`) MUST admit th	unrecorded	-
-CEM-V1-160	docs/specs/cem-stable-v1.md	1799	`corvint witness --stable-artifact-root DIR` MUST pass the absolute artifact roo	unrecorded	-
-CEM-V1-161	docs/specs/cem-stable-v1.md	1803	The witness route MUST fail closed with exit 2, no stdout and the code	unrecorded	-
-CEM-V1-162	docs/specs/cem-stable-v1.md	1810	`corvint docs corpus cem-stable` MUST require `--artifact`, `--cem`,	unrecorded	-
-CEM-V1-163	docs/specs/cem-stable-v1.md	1815	A `cem-stable` refusal MUST exit 2 with no stdout and the code	unrecorded	-
-CEM-V1-164	docs/specs/cem-stable-v1.md	1818	`corvint-console -stable-artifact-root DIR` MUST select the chain pane's verifie	unrecorded	-
-CEM-V1-165	docs/specs/cem-stable-v1.md	1828	In verified mode, the pane MUST replace the chain with a refusal, drawing no cha	unrecorded	-
-CEM-V1-166	docs/specs/cem-stable-v1.md	1840	Without `-stable-artifact-root`, the display-only NOT_RUN pane of `CEM-V1-077` M	unrecorded	-
-CEM-V1-167	docs/specs/cem-stable-v1.md	1842	The protected local-authority consumer holds a Git object capsule and no	unrecorded	-
-CEM-V1-168	docs/specs/cem-stable-v1.md	1845	The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So	unrecorded	-
-CEM-V1-170	docs/specs/cem-stable-v1.md	801	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a ma	standing	2026-10-11; V1-1344
-CEM-V1-176	docs/specs/cem-stable-v1.md	2658	(accepted under the owner's standing auto-accept (2026-10-11); V1-1289) Both	standing	2026-10-11; V1-1289
-CEM-V1-177	docs/specs/cem-stable-v1.md	2667	(accepted under the owner's standing auto-accept (2026-10-11); V1-1289) The pack	standing	2026-10-11; V1-1289
-CEM-V1-180	docs/specs/cem-stable-v1.md	2265	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The	standing	2026-10-11; V1-1358
-CEM-V1-181	docs/specs/cem-stable-v1.md	2272	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On Linux	standing	2026-10-11; V1-1358
-CEM-V1-182	docs/specs/cem-stable-v1.md	2277	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The Linu	standing	2026-10-11; V1-1358
-CEM-V1-183	docs/specs/cem-stable-v1.md	2285	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) Linux	standing	2026-10-11; V1-1358
-CEM-V1-184	docs/specs/cem-stable-v1.md	2296	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On a	standing	2026-10-11; V1-1358
-CEM-V1-185	docs/specs/cem-stable-v1.md	2574	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The stab	standing	2026-10-11; V1-1377
-CEM-V1-186	docs/specs/cem-stable-v1.md	2582	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The	standing	2026-10-11; V1-1377
-CEM-V1-187	docs/specs/cem-stable-v1.md	2588	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) An	standing	2026-10-11; V1-1377
-CEM-V1-188	docs/specs/cem-stable-v1.md	2593	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The host	standing	2026-10-11; V1-1377
-CEM-V1-189	docs/specs/cem-stable-v1.md	2599	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) A test i	standing	2026-10-11; V1-1377
-CEM-V1-200	docs/specs/cem-stable-v1.md	900	`wire.ParseStable`, and so every stable read (`cem verify-stable`, a stable	unrecorded	-
-CEM-V1-201	docs/specs/cem-stable-v1.md	909	Every committed `.corvint/changes/<bind>.cem.json` MUST be accepted by	unrecorded	-
-CEM-V1-202	docs/specs/cem-stable-v1.md	920	`dogfood batch-check` and `dogfood change`'s sealed-CEM admission (`DCW-V0-039`	unrecorded	-
-CEM-V1-203	docs/specs/cem-stable-v1.md	927	A sealed `cem/0.1`, `cem/0.2` or `cem/0.3` map that the range adds and whose	unrecorded	-
-CEM-V1-204	docs/specs/cem-stable-v1.md	944	The converter (`internal/cem/convert`), `corvint cem convert`	unrecorded	-
-CEM-V1-205	docs/specs/cem-stable-v1.md	987	A check whose plan sets `AllowCemSidecarOnlyReuse` and whose latest passing,	unrecorded	-
-CEM-V1-206	docs/specs/cem-stable-v1.md	995	The verifier MUST receive the exact bytes read from	unrecorded	-
-CEM-V1-207	docs/specs/cem-stable-v1.md	1002	A refused reuse MUST leave the check unqualified (`selected-check-unverified`,	unrecorded	-
-CEM-V1-208	docs/specs/cem-stable-v1.md	1011	Without `AllowCemSidecarOnlyReuse`, a check observed on another target MUST stay	unrecorded	-
-CEM-V1-209	docs/specs/cem-stable-v1.md	1015	Each of `CEM-V1-205..208` MUST be traced to a named test in	unrecorded	-
-CEM-V1-210	docs/specs/cem-stable-v1.md	1902	Every consumer outside `internal/cem` (LRF, OCM, the stable universe, frontier	unrecorded	-
-CEM-V1-211	docs/specs/cem-stable-v1.md	1925	The frontier, LRF/OCM, dashboard, console and MCP projections MUST read the	unrecorded	-
-CEM-V1-212	docs/specs/cem-stable-v1.md	1929	A frozen conformance suite whose expectations depend on a 0.x map changes only	unrecorded	-
-CEM-V1-213	docs/specs/cem-stable-v1.md	1950	The daily loop's admission (`CEM-V1-202`) stays `cem/1.0`-only on every route a	unrecorded	-
-CEM-V1-214	docs/specs/cem-stable-v1.md	1955	A test that guards behavior `cem/1.0` keeps MUST be ported to a `cem/1.0` map	unrecorded	-
-CEM-V1-215	docs/specs/cem-stable-v1.md	2000	The product MUST ship one CEM wire, `cem/1.0`. No Go package outside the frozen	unrecorded	-
-CEM-V1-216	docs/specs/cem-stable-v1.md	2009	`cem begin` and `cem prepare` MUST accept only `--spec cem/1.0` (the default). A	unrecorded	-
-CEM-V1-217	docs/specs/cem-stable-v1.md	2013	The frozen 0.x projection routes MUST be retired, each with its stable successor	unrecorded	-
-CEM-V1-218	docs/specs/cem-stable-v1.md	2022	Only the `cem/v2` attestation predicate (`CEMStatementV2`, `CEM-V1-065`)	unrecorded	-
-CEM-V1-219	docs/specs/cem-stable-v1.md	2028	The core compatibility freeze and cli-parity-v0 MUST change only under decision	unrecorded	-
-CEM-V1-220	docs/specs/cem-stable-v1.md	2068	The `cem/0.x` protocol and conformance packets MUST be deleted:	unrecorded	-
-CEM-V1-221	docs/specs/cem-stable-v1.md	2073	`protocol/cem-1.0` MUST be self-contained. The 0.x normative text that `cem/1.0`	unrecorded	-
-CEM-V1-222	docs/specs/cem-stable-v1.md	2079	`interop/cem01-go` MUST verify `cem/1.0` only. The `cem/0.1` default `verify`	unrecorded	-
-CEM-V1-223	docs/specs/cem-stable-v1.md	2085	`examples/cem` except the 0.x-free `examples/cem/experiments/` companion demo, i	unrecorded	-
-CEM-V1-224	docs/specs/cem-stable-v1.md	2089	The Core remnants MUST name no retired wire: the dogfood loop passes	unrecorded	-
-CEM-V1-225	docs/specs/cem-stable-v1.md	2094	The `cem/0.2`, `cem/0.3`, 0.1 Go portability probe and 0.1 external interop spec	unrecorded	-
-CEM-V1-226	docs/specs/cem-stable-v1.md	2136	The packet MUST carry one shared tamper matrix at	unrecorded	-
-CEM-V1-227	docs/specs/cem-stable-v1.md	2143	The native verifier (`internal/cem/verify`, `Stable`) and the portable consumer	unrecorded	-
-CEM-V1-228	docs/specs/cem-stable-v1.md	2147	Each `EXPECTED.json` case MUST carry `name`, `tamper`, `description`, `map`,	unrecorded	-
-CEM-V1-229	docs/specs/cem-stable-v1.md	2157	Swapping evidence IDs between hunks, when every record stays a valid digest-boun	unrecorded	-
-CEM-V1-230	docs/specs/cem-stable-v1.md	834	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
-CEM-V1-231	docs/specs/cem-stable-v1.md	849	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
-CEM-V1-232	docs/specs/cem-stable-v1.md	856	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) The migr	standing	2026-10-11; V1-1277
-CEM-V1-240	docs/specs/cem-stable-v1.md	430	`corvint-cem-candidate assemble-stable --experimental --request R --out-dir D`	unrecorded	-
-CEM-V1-260	docs/specs/cem-stable-v1.md	2782	(accepted under the owner's standing auto-accept (2026-10-11); V1-1295) Drift	standing	2026-10-11; V1-1295
-CEM-V1-261	docs/specs/cem-stable-v1.md	2841	(accepted under the owner's standing auto-accept (2026-10-11); V1-1296)	standing	2026-10-11; V1-1296
-CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	1252	(retired by V1-1278 S3) The default `verify` path refuses a strictly parsed JSON	unrecorded	-
-CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	1256	(retired by V1-1278 S3) `ci` reports such a map as verdict `unsupported-profile`	unrecorded	-
-CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	1259	(retired by V1-1278 S3) Only that exact case changes. A duplicate, non-string, d	unrecorded	-
-CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	1263	(retired by V1-1278 S3) `examples/cem/verify-portable.sh` runs `verify-stable-ca	unrecorded	-
+CEM-V1-017	docs/specs/cem-stable-v1.md	1157	Core `cem status` and `cem verify` over an exact `cem/1.0` map MUST run the stab	unrecorded	-
+CEM-V1-018	docs/specs/cem-stable-v1.md	1158	A stable read MUST refuse `--patch` with `invalid-arguments`, and `cem verify` M	unrecorded	-
+CEM-V1-019	docs/specs/cem-stable-v1.md	1159	0.x reads MUST keep their arguments, precedence, symlink-resolved root, output b	unrecorded	-
+CEM-V1-030	docs/specs/cem-stable-v1.md	1190	A `cem/0.x` Core `cem prepare` MUST refuse an existing map at the fixed sidecar	unrecorded	-
+CEM-V1-031	docs/specs/cem-stable-v1.md	1191	Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `c	unrecorded	-
+CEM-V1-032	docs/specs/cem-stable-v1.md	1192	(superseded by `CEM-V1-147` and `CEM-V1-148`, V1-1276) The daily bind loop MUST	unrecorded	-
+CEM-V1-033	docs/specs/cem-stable-v1.md	1193	Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem	unrecorded	-
+CEM-V1-034	docs/specs/cem-stable-v1.md	1235	Core `cem report --format json` over an exact `cem/1.0` map MUST run the stable	unrecorded	-
+CEM-V1-035	docs/specs/cem-stable-v1.md	1236	Core `cem report` (markdown) over a `cem/1.0` map MUST publish the review render	unrecorded	-
+CEM-V1-036	docs/specs/cem-stable-v1.md	1237	(amended by V1-1278 S1 for V1-1305 under the owner's standing auto-accept of lan	standing	V1-1278; V1-1305; 2026-10-11
+CEM-V1-050	docs/specs/cem-stable-v1.md	223	The native (`internal/cem/verify`) and portable (`interop/cem01-go`) stable	unrecorded	-
+CEM-V1-051	docs/specs/cem-stable-v1.md	1319	`lrfrepo.VerifyStableUniverse` MUST admit a map whose bytes declare exactly	unrecorded	-
+CEM-V1-052	docs/specs/cem-stable-v1.md	1329	The repository root, expected base, target and artifact root are explicit, with	unrecorded	-
+CEM-V1-053	docs/specs/cem-stable-v1.md	1335	The OCM MUST bind the exact original stable map digest, the accepted target and	unrecorded	-
+CEM-V1-054	docs/specs/cem-stable-v1.md	1339	The projection is read-only. It never exposes a legacy `*wire.Map` or any 0.x	unrecorded	-
+CEM-V1-055	docs/specs/cem-stable-v1.md	1343	`lrf/0` stays frozen. `lrf.Evaluate` MUST keep refusing a `cem/1.0` context with	unrecorded	-
+CEM-V1-056	docs/specs/cem-stable-v1.md	1349	A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1	unrecorded	-
+CEM-V1-057	docs/specs/cem-stable-v1.md	1357	Profile swaps refuse in both directions. A `cem/0.x` or relabeled map refuses in	unrecorded	-
+CEM-V1-058	docs/specs/cem-stable-v1.md	1360	The old OCM/LRF admission is unchanged for `cem/0.x`: `VerifyUniverse`,	unrecorded	-
+CEM-V1-059	docs/specs/cem-stable-v1.md	1366	A stable universe verification is a read. It MUST NOT change the repository HEAD	unrecorded	-
+CEM-V1-060	docs/specs/cem-stable-v1.md	1405	Core `cem export` over a map whose bytes declare exactly `cem/1.0` MUST first ru	unrecorded	-
+CEM-V1-061	docs/specs/cem-stable-v1.md	1409	An accepted export MUST write a new directory outside the worktree (the 0.x outp	unrecorded	-
+CEM-V1-062	docs/specs/cem-stable-v1.md	1416	The bundle MUST verify from any root: `ReadStable` / `VerifyStable`, and `cem	unrecorded	-
+CEM-V1-063	docs/specs/cem-stable-v1.md	1420	`ReadStable` MUST refuse a bundle with a missing declared file	unrecorded	-
+CEM-V1-064	docs/specs/cem-stable-v1.md	1446	A stable export MUST refuse `--witness` with `invalid-arguments` before	unrecorded	-
+CEM-V1-065	docs/specs/cem-stable-v1.md	1069	`internal/attest.CEMStatementV2(name, map, target)` MUST accept only bytes that	unrecorded	-
+CEM-V1-066	docs/specs/cem-stable-v1.md	561	Every `cem-stable-verification/1` result MUST carry `verdictSha256` after	unrecorded	-
+CEM-V1-067	docs/specs/cem-stable-v1.md	2219	(accepted under the owner's standing auto-accept (2026-10-11); V1-1260) `cem	standing	2026-10-11; V1-1260
+CEM-V1-070	docs/specs/cem-stable-v1.md	1498	The witness compiler's CEM source (`internal/witness/stable.go`) MUST select the	unrecorded	-
+CEM-V1-071	docs/specs/cem-stable-v1.md	1499	A stable witness source without an artifact root MUST be `UNSUPPORTED` with no v	unrecorded	-
+CEM-V1-072	docs/specs/cem-stable-v1.md	1500	A report built over a stable source MUST take profile `corvint-witness-stable/0`	unrecorded	-
+CEM-V1-073	docs/specs/cem-stable-v1.md	1501	`witnesscollapse.CompileStable` MUST admit a stable map only through an `ACCEPT`	unrecorded	-
+CEM-V1-074	docs/specs/cem-stable-v1.md	1502	The 0.x `Compile` MUST keep refusing a stable map. `CompileStable` MUST refuse a	unrecorded	-
+CEM-V1-075	docs/specs/cem-stable-v1.md	1503	`doccorpus.StableCEMProjection` MUST project documentation claims through a stab	unrecorded	-
+CEM-V1-076	docs/specs/cem-stable-v1.md	1504	A wrong base, edited map bytes, a tampered artifact, a missing artifact root and	unrecorded	-
+CEM-V1-077	docs/specs/cem-stable-v1.md	1505	The console chain pane MUST admit `cem/1.0` in its closed profile registry only	unrecorded	-
+CEM-V1-078	docs/specs/cem-stable-v1.md	1506	Each criterion binding, runner receipt (with its execution authority, source bin	unrecorded	-
+CEM-V1-079	docs/specs/cem-stable-v1.md	1507	The registry stays closed: an unsupported profile, a near-stable spec, an unknow	unrecorded	-
+CEM-V1-080	docs/specs/cem-stable-v1.md	295	Support tiers are consumer-derived. The native (`internal/cem/verify`, `support.	unrecorded	-
+CEM-V1-081	docs/specs/cem-stable-v1.md	305	Anchor kinds and byte-level rules. `id`: an ASCII requirement ID	unrecorded	-
+CEM-V1-082	docs/specs/cem-stable-v1.md	324	The `citation` block and the shift null MUST be byte-identical across the native	unrecorded	-
+CEM-V1-083	docs/specs/cem-stable-v1.md	401	A `cem/1.0` criterion binding MUST take exactly one of two closed forms. The pla	unrecorded	-
+CEM-V1-084	docs/specs/cem-stable-v1.md	505	A runner receipt's `authentication` MUST take one of three closed forms: the sea	unrecorded	-
+CEM-V1-088	docs/specs/cem-stable-v1.md	2468	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) `held`	standing	2026-10-11; V1-1266
+CEM-V1-089	docs/specs/cem-stable-v1.md	2491	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) A row th	standing	2026-10-11; V1-1266
+CEM-V1-090	docs/specs/cem-stable-v1.md	2431	(accepted under the owner's standing auto-accept (2026-10-11); V1-1259) A	standing	2026-10-11; V1-1259
+CEM-V1-091	docs/specs/cem-stable-v1.md	244	A new top-level member of `cem-stable-verification/1` MUST be added only by	unrecorded	-
+CEM-V1-092	docs/specs/cem-stable-v1.md	364	The `cem-stable-verification/1` member `citation` MUST be the `CEM-V1-082` block	unrecorded	-
+CEM-V1-093	docs/specs/cem-stable-v1.md	598	A stable map MAY carry `provenance`, a closed object with exactly the required	unrecorded	-
+CEM-V1-094	docs/specs/cem-stable-v1.md	608	The producer-only stable map members are exactly this closed list:	unrecorded	-
+CEM-V1-095	docs/specs/cem-stable-v1.md	621	A stable map MAY carry `role`, a closed string enum of `change` (the meaning whe	unrecorded	-
+CEM-V1-096	docs/specs/cem-stable-v1.md	670	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-097	docs/specs/cem-stable-v1.md	676	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-098	docs/specs/cem-stable-v1.md	692	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-099	docs/specs/cem-stable-v1.md	698	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-100	docs/specs/cem-stable-v1.md	704	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-101	docs/specs/cem-stable-v1.md	707	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-102	docs/specs/cem-stable-v1.md	711	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-103	docs/specs/cem-stable-v1.md	720	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-104	docs/specs/cem-stable-v1.md	736	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-105	docs/specs/cem-stable-v1.md	758	(V1-1278: satisfied by the frozen V1-1277 evidence; the converter no longer ship	unrecorded	-
+CEM-V1-106	docs/specs/cem-stable-v1.md	810	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) `cem sta	standing	2026-10-11; V1-1281
+CEM-V1-107	docs/specs/cem-stable-v1.md	2361	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) Every st	standing	2026-10-11; V1-1333
+CEM-V1-108	docs/specs/cem-stable-v1.md	2367	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) `protoco	standing	2026-10-11; V1-1333
+CEM-V1-109	docs/specs/cem-stable-v1.md	2373	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The same	standing	2026-10-11; V1-1333
+CEM-V1-110	docs/specs/cem-stable-v1.md	2379	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The same	standing	2026-10-11; V1-1333
+CEM-V1-111	docs/specs/cem-stable-v1.md	2382	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The pack	standing	2026-10-11; V1-1333
+CEM-V1-112	docs/specs/cem-stable-v1.md	2391	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) For each	standing	2026-10-11; V1-1333
+CEM-V1-113	docs/specs/cem-stable-v1.md	2546	(accepted under the owner's standing auto-accept (2026-10-11); V1-1369) Every	standing	2026-10-11; V1-1369
+CEM-V1-114	docs/specs/cem-stable-v1.md	2735	(accepted under the owner's standing auto-accept (2026-10-11); V1-0414) `cem cit	standing	2026-10-11; V1-0414
+CEM-V1-115	docs/specs/cem-stable-v1.md	2657	(accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A	standing	2026-10-11; V1-1291
+CEM-V1-116	docs/specs/cem-stable-v1.md	2662	(accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A	standing	2026-10-11; V1-1291
+CEM-V1-117	docs/specs/cem-stable-v1.md	2667	(accepted under the owner's standing auto-accept (2026-10-11); V1-1306) When an	standing	2026-10-11; V1-1306
+CEM-V1-120	docs/specs/cem-stable-v1.md	1664	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity	unrecorded	-
+CEM-V1-121	docs/specs/cem-stable-v1.md	1667	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly	unrecorded	-
+CEM-V1-122	docs/specs/cem-stable-v1.md	1671	The stable result MUST carry:	unrecorded	-
+CEM-V1-123	docs/specs/cem-stable-v1.md	1680	The verifier binding MUST name the SHA-256 of the exact input map bytes, and the	unrecorded	-
+CEM-V1-124	docs/specs/cem-stable-v1.md	1685	The 0.x TCQ and frontier routes are unchanged. `parseArtifacts` keeps the	unrecorded	-
+CEM-V1-125	docs/specs/cem-stable-v1.md	1688	`frontierrepo.RecomputeStable` MUST:	unrecorded	-
+CEM-V1-126	docs/specs/cem-stable-v1.md	1697	No stable frontier document is produced. `frontier/0` binds an `lrf/0` digest, a	unrecorded	-
+CEM-V1-127	docs/specs/cem-stable-v1.md	1701	Each of the following MUST refuse, keeping the stable verifier's full result and	unrecorded	-
+CEM-V1-130	docs/specs/cem-stable-v1.md	1707	`extevidence.StableObligations` MUST emit `external-frontier-obligations-stable/	unrecorded	-
+CEM-V1-131	docs/specs/cem-stable-v1.md	1715	Hunk associations MUST be computed exactly as in the frozen sidecar, with the sa	unrecorded	-
+CEM-V1-132	docs/specs/cem-stable-v1.md	1718	A verifier refusal MUST return a `StableObligationsRefusal` that holds the	unrecorded	-
+CEM-V1-133	docs/specs/cem-stable-v1.md	1722	The map's declared criterion links MUST be listed in a separate `criteria` membe	unrecorded	-
+CEM-V1-134	docs/specs/cem-stable-v1.md	1725	The frozen sidecar MUST keep refusing `cem/1.0`, and the stable sidecar MUST ref	unrecorded	-
+CEM-V1-135	docs/specs/cem-stable-v1.md	1727	`corvint obligations` MUST select the stable sidecar only when all four of these	unrecorded	-
+CEM-V1-136	docs/specs/cem-stable-v1.md	1737	The criterion experiment companion MUST add the explicit input mode	unrecorded	-
+CEM-V1-137	docs/specs/cem-stable-v1.md	1741	Stable admission MUST:	unrecorded	-
+CEM-V1-138	docs/specs/cem-stable-v1.md	1750	Plan, run and verify MUST each re-admit the plan's map through the stable verifi	unrecorded	-
+CEM-V1-139	docs/specs/cem-stable-v1.md	1755	The two modes never cross:	unrecorded	-
+CEM-V1-140	docs/specs/cem-stable-v1.md	1542	`corvint cem prepare` MUST write `cem/1.0` by default. `--spec cem/0.2` keeps th	unrecorded	-
+CEM-V1-141	docs/specs/cem-stable-v1.md	1549	A `cem/1.0` prepare MUST write the canonical stable encoding of a producer map	unrecorded	-
+CEM-V1-142	docs/specs/cem-stable-v1.md	1563	`cem begin --spec cem/1.0` MUST write the canonical stable producer map of the	unrecorded	-
+CEM-V1-143	docs/specs/cem-stable-v1.md	1566	`cem cite`, `cem mark`, `cem cover` and `cem discriminate` over a stable produce	unrecorded	-
+CEM-V1-144	docs/specs/cem-stable-v1.md	1570	A structural `cem mark` on a stable producer map writes the claimed reason; the	unrecorded	-
+CEM-V1-145	docs/specs/cem-stable-v1.md	1573	`cem status` over a `cem/1.0` map MUST admit `--max-unknown` and	unrecorded	-
+CEM-V1-146	docs/specs/cem-stable-v1.md	1579	A stable prepare's `nextActions` MUST be the single `cem status` argv with the	unrecorded	-
+CEM-V1-147	docs/specs/cem-stable-v1.md	1582	The daily bind loop MUST cite, count, check and seal a `cem/1.0` map like a	unrecorded	-
+CEM-V1-148	docs/specs/cem-stable-v1.md	1588	`dogfood batch-check` MUST admit a sealed `cem/1.0` constituent when the verifie	unrecorded	-
+CEM-V1-149	docs/specs/cem-stable-v1.md	1593	`ocm prepare`, `ocm read` (status) and `ocm link` MUST admit a `cem/1.0` map onl	unrecorded	-
+CEM-V1-150	docs/specs/cem-stable-v1.md	1599	Local-completion sidecar-only reuse (`AllowCemSidecarOnlyReuse`) MUST keep	unrecorded	-
+CEM-V1-151	docs/specs/cem-stable-v1.md	1604	`dogfood finish` MUST read a `cem/1.0` change map: its `cem status` (and the	unrecorded	-
+CEM-V1-152	docs/specs/cem-stable-v1.md	1609	The aggregate verifier worker's closed argv grammar (`ALO-V0-018`) MUST admit th	unrecorded	-
+CEM-V1-160	docs/specs/cem-stable-v1.md	1818	`corvint witness --stable-artifact-root DIR` MUST pass the absolute artifact roo	unrecorded	-
+CEM-V1-161	docs/specs/cem-stable-v1.md	1822	The witness route MUST fail closed with exit 2, no stdout and the code	unrecorded	-
+CEM-V1-162	docs/specs/cem-stable-v1.md	1829	`corvint docs corpus cem-stable` MUST require `--artifact`, `--cem`,	unrecorded	-
+CEM-V1-163	docs/specs/cem-stable-v1.md	1834	A `cem-stable` refusal MUST exit 2 with no stdout and the code	unrecorded	-
+CEM-V1-164	docs/specs/cem-stable-v1.md	1837	`corvint-console -stable-artifact-root DIR` MUST select the chain pane's verifie	unrecorded	-
+CEM-V1-165	docs/specs/cem-stable-v1.md	1847	In verified mode, the pane MUST replace the chain with a refusal, drawing no cha	unrecorded	-
+CEM-V1-166	docs/specs/cem-stable-v1.md	1859	Without `-stable-artifact-root`, the display-only NOT_RUN pane of `CEM-V1-077` M	unrecorded	-
+CEM-V1-167	docs/specs/cem-stable-v1.md	1861	The protected local-authority consumer holds a Git object capsule and no	unrecorded	-
+CEM-V1-168	docs/specs/cem-stable-v1.md	1864	The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So	unrecorded	-
+CEM-V1-170	docs/specs/cem-stable-v1.md	820	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a ma	standing	2026-10-11; V1-1344
+CEM-V1-176	docs/specs/cem-stable-v1.md	2677	(accepted under the owner's standing auto-accept (2026-10-11); V1-1289) Both	standing	2026-10-11; V1-1289
+CEM-V1-177	docs/specs/cem-stable-v1.md	2686	(accepted under the owner's standing auto-accept (2026-10-11); V1-1289) The pack	standing	2026-10-11; V1-1289
+CEM-V1-180	docs/specs/cem-stable-v1.md	2284	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The	standing	2026-10-11; V1-1358
+CEM-V1-181	docs/specs/cem-stable-v1.md	2291	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On Linux	standing	2026-10-11; V1-1358
+CEM-V1-182	docs/specs/cem-stable-v1.md	2296	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The Linu	standing	2026-10-11; V1-1358
+CEM-V1-183	docs/specs/cem-stable-v1.md	2304	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) Linux	standing	2026-10-11; V1-1358
+CEM-V1-184	docs/specs/cem-stable-v1.md	2315	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On a	standing	2026-10-11; V1-1358
+CEM-V1-185	docs/specs/cem-stable-v1.md	2593	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The stab	standing	2026-10-11; V1-1377
+CEM-V1-186	docs/specs/cem-stable-v1.md	2601	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The	standing	2026-10-11; V1-1377
+CEM-V1-187	docs/specs/cem-stable-v1.md	2607	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) An	standing	2026-10-11; V1-1377
+CEM-V1-188	docs/specs/cem-stable-v1.md	2612	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The host	standing	2026-10-11; V1-1377
+CEM-V1-189	docs/specs/cem-stable-v1.md	2618	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) A test i	standing	2026-10-11; V1-1377
+CEM-V1-200	docs/specs/cem-stable-v1.md	919	`wire.ParseStable`, and so every stable read (`cem verify-stable`, a stable	unrecorded	-
+CEM-V1-201	docs/specs/cem-stable-v1.md	928	Every committed `.corvint/changes/<bind>.cem.json` MUST be accepted by	unrecorded	-
+CEM-V1-202	docs/specs/cem-stable-v1.md	939	`dogfood batch-check` and `dogfood change`'s sealed-CEM admission (`DCW-V0-039`	unrecorded	-
+CEM-V1-203	docs/specs/cem-stable-v1.md	946	A sealed `cem/0.1`, `cem/0.2` or `cem/0.3` map that the range adds and whose	unrecorded	-
+CEM-V1-204	docs/specs/cem-stable-v1.md	963	The converter (`internal/cem/convert`), `corvint cem convert`	unrecorded	-
+CEM-V1-205	docs/specs/cem-stable-v1.md	1006	A check whose plan sets `AllowCemSidecarOnlyReuse` and whose latest passing,	unrecorded	-
+CEM-V1-206	docs/specs/cem-stable-v1.md	1014	The verifier MUST receive the exact bytes read from	unrecorded	-
+CEM-V1-207	docs/specs/cem-stable-v1.md	1021	A refused reuse MUST leave the check unqualified (`selected-check-unverified`,	unrecorded	-
+CEM-V1-208	docs/specs/cem-stable-v1.md	1030	Without `AllowCemSidecarOnlyReuse`, a check observed on another target MUST stay	unrecorded	-
+CEM-V1-209	docs/specs/cem-stable-v1.md	1034	Each of `CEM-V1-205..208` MUST be traced to a named test in	unrecorded	-
+CEM-V1-210	docs/specs/cem-stable-v1.md	1921	Every consumer outside `internal/cem` (LRF, OCM, the stable universe, frontier	unrecorded	-
+CEM-V1-211	docs/specs/cem-stable-v1.md	1944	The frontier, LRF/OCM, dashboard, console and MCP projections MUST read the	unrecorded	-
+CEM-V1-212	docs/specs/cem-stable-v1.md	1948	A frozen conformance suite whose expectations depend on a 0.x map changes only	unrecorded	-
+CEM-V1-213	docs/specs/cem-stable-v1.md	1969	The daily loop's admission (`CEM-V1-202`) stays `cem/1.0`-only on every route a	unrecorded	-
+CEM-V1-214	docs/specs/cem-stable-v1.md	1974	A test that guards behavior `cem/1.0` keeps MUST be ported to a `cem/1.0` map	unrecorded	-
+CEM-V1-215	docs/specs/cem-stable-v1.md	2019	The product MUST ship one CEM wire, `cem/1.0`. No Go package outside the frozen	unrecorded	-
+CEM-V1-216	docs/specs/cem-stable-v1.md	2028	`cem begin` and `cem prepare` MUST accept only `--spec cem/1.0` (the default). A	unrecorded	-
+CEM-V1-217	docs/specs/cem-stable-v1.md	2032	The frozen 0.x projection routes MUST be retired, each with its stable successor	unrecorded	-
+CEM-V1-218	docs/specs/cem-stable-v1.md	2041	Only the `cem/v2` attestation predicate (`CEMStatementV2`, `CEM-V1-065`)	unrecorded	-
+CEM-V1-219	docs/specs/cem-stable-v1.md	2047	The core compatibility freeze and cli-parity-v0 MUST change only under decision	unrecorded	-
+CEM-V1-220	docs/specs/cem-stable-v1.md	2087	The `cem/0.x` protocol and conformance packets MUST be deleted:	unrecorded	-
+CEM-V1-221	docs/specs/cem-stable-v1.md	2092	`protocol/cem-1.0` MUST be self-contained. The 0.x normative text that `cem/1.0`	unrecorded	-
+CEM-V1-222	docs/specs/cem-stable-v1.md	2098	`interop/cem01-go` MUST verify `cem/1.0` only. The `cem/0.1` default `verify`	unrecorded	-
+CEM-V1-223	docs/specs/cem-stable-v1.md	2104	`examples/cem` except the 0.x-free `examples/cem/experiments/` companion demo, i	unrecorded	-
+CEM-V1-224	docs/specs/cem-stable-v1.md	2108	The Core remnants MUST name no retired wire: the dogfood loop passes	unrecorded	-
+CEM-V1-225	docs/specs/cem-stable-v1.md	2113	The `cem/0.2`, `cem/0.3`, 0.1 Go portability probe and 0.1 external interop spec	unrecorded	-
+CEM-V1-226	docs/specs/cem-stable-v1.md	2155	The packet MUST carry one shared tamper matrix at	unrecorded	-
+CEM-V1-227	docs/specs/cem-stable-v1.md	2162	The native verifier (`internal/cem/verify`, `Stable`) and the portable consumer	unrecorded	-
+CEM-V1-228	docs/specs/cem-stable-v1.md	2166	Each `EXPECTED.json` case MUST carry `name`, `tamper`, `description`, `map`,	unrecorded	-
+CEM-V1-229	docs/specs/cem-stable-v1.md	2176	Swapping evidence IDs between hunks, when every record stays a valid digest-boun	unrecorded	-
+CEM-V1-230	docs/specs/cem-stable-v1.md	853	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
+CEM-V1-231	docs/specs/cem-stable-v1.md	868	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
+CEM-V1-232	docs/specs/cem-stable-v1.md	875	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) The migr	standing	2026-10-11; V1-1277
+CEM-V1-240	docs/specs/cem-stable-v1.md	439	`corvint-cem-candidate assemble-stable --experimental --request R --out-dir D`	unrecorded	-
+CEM-V1-260	docs/specs/cem-stable-v1.md	2844	(accepted under the owner's standing auto-accept (2026-10-11); V1-1295) Drift	standing	2026-10-11; V1-1295
+CEM-V1-261	docs/specs/cem-stable-v1.md	2905	(accepted under the owner's standing auto-accept (2026-10-11); V1-1296)	standing	2026-10-11; V1-1296
+CEM-V1-270	docs/specs/cem-stable-v1.md	2776	(accepted under the owner's standing auto-accept (2026-10-11), 2026-10-16; V1-04	standing	2026-10-11; 2026-10-16; V1-0414
+CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	1271	(retired by V1-1278 S3) The default `verify` path refuses a strictly parsed JSON	unrecorded	-
+CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	1275	(retired by V1-1278 S3) `ci` reports such a map as verdict `unsupported-profile`	unrecorded	-
+CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	1278	(retired by V1-1278 S3) Only that exact case changes. A duplicate, non-string, d	unrecorded	-
+CEM-V1-PSR-004	docs/specs/cem-stable-v1.md	1282	(retired by V1-1278 S3) `examples/cem/verify-portable.sh` runs `verify-stable-ca	unrecorded	-
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench	unrecorded	-
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,	unrecorded	-
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and	unrecorded	-
@@ -1187,10 +1189,10 @@ CTW-V0-004	docs/specs/corvint-tasks-intent-worktree-v0.md	58	A linked worktree i
 CTW-V0-005	docs/specs/corvint-tasks-intent-worktree-v0.md	67	When the primary is not on the intent branch and no admitted linked worktree hol	unrecorded	-
 CTW-V0-006	docs/specs/corvint-tasks-intent-worktree-v0.md	76	When two or more admitted linked worktrees hold the intent branch, none is selec	unrecorded	-
 CTW-V0-007	docs/specs/corvint-tasks-intent-worktree-v0.md	79	Repair text is appended only to `INTENT_BRANCH_MISMATCH` and `INTENT_DIVERGED`	unrecorded	-
-CTW-V0-008	docs/specs/corvint-tasks-intent-worktree-v0.md	89	A writer's fixture session retains a linked intent root as a second pinned root.	unrecorded	-
-CTW-V0-009	docs/specs/corvint-tasks-intent-worktree-v0.md	97	When the primary's HEAD names the intent branch, or `CTW-V0-003` yields no hint,	unrecorded	-
-CTW-V0-010	docs/specs/corvint-tasks-intent-worktree-v0.md	101	The rule is cooperative routing among the operator's own checkouts, not a securi	unrecorded	-
-CTW-V0-011	docs/specs/corvint-tasks-intent-worktree-v0.md	107	Program and workflow runs, claim and lease Git observation, archive identity, an	unrecorded	-
+CTW-V0-008	docs/specs/corvint-tasks-intent-worktree-v0.md	91	A writer's fixture session retains a linked intent root as a second pinned root.	unrecorded	-
+CTW-V0-009	docs/specs/corvint-tasks-intent-worktree-v0.md	99	When the primary's HEAD names the intent branch, or `CTW-V0-003` yields no hint,	unrecorded	-
+CTW-V0-010	docs/specs/corvint-tasks-intent-worktree-v0.md	103	The rule is cooperative routing among the operator's own checkouts, not a securi	unrecorded	-
+CTW-V0-011	docs/specs/corvint-tasks-intent-worktree-v0.md	109	Program and workflow runs, claim and lease Git observation, archive identity, an	unrecorded	-
 CVI-V0-001	docs/specs/closed-vocabulary-intake-v0.md	27	Publish a versioned schema whose data fields are enums, literal repository paths	unrecorded	-
 CVI-V0-002	docs/specs/closed-vocabulary-intake-v0.md	31	Validate exact field names and presence, types, enum vocabulary, bounded identif	unrecorded	-
 CVI-V0-003	docs/specs/closed-vocabulary-intake-v0.md	35	Bind validation to explicit full base/head commit identities. Every behaviour an	unrecorded	-
@@ -1240,26 +1242,26 @@ CWT-V0-012	docs/specs/confidently-wrong-trial-v0.md	169	Unseen set generation. `
 CWT-V0-013	docs/specs/confidently-wrong-trial-v0.md	190	Retrieval-native metrics (decision 0034). Beside the agent's outcome, each	unrecorded	-
 CWT-V0-014	docs/specs/confidently-wrong-trial-v0.md	211	Invocation lifecycle (proposed). On Darwin and Linux, `runCommand`	unrecorded	-
 DCG-V0-001	docs/specs/documentation-citation-gate-v0.md	76	accepted, decision 0506. The gate MUST check every backticked citation in `docs/	unrecorded	-
-DCG-V0-002	docs/specs/documentation-citation-gate-v0.md	88	For every checked citation the gate MUST fail when the named file is not tracked	unrecorded	-
-DCG-V0-003	docs/specs/documentation-citation-gate-v0.md	93	The gate MUST additionally fail when a cited line is blank or contains only	unrecorded	-
-DCG-V0-004	docs/specs/documentation-citation-gate-v0.md	96	A bare continuation MUST resolve only to an anchor its own paragraph states: the	unrecorded	-
-DCG-V0-005	docs/specs/documentation-citation-gate-v0.md	100	Content inside a fenced code block MUST be exempt, and a Go standard-library pat	unrecorded	-
-DCG-V0-006	docs/specs/documentation-citation-gate-v0.md	102	A citation MAY carry a content anchor written as `@<hex>` appended to its line	unrecorded	-
-DCG-V0-007	docs/specs/documentation-citation-gate-v0.md	107	The anchor value MUST be the SHA-256 of the cited lines, each stripped of traili	unrecorded	-
-DCG-V0-008	docs/specs/documentation-citation-gate-v0.md	111	The anchored line set MUST be the span the citation reads: for `N-M` the inclusi	unrecorded	-
-DCG-V0-009	docs/specs/documentation-citation-gate-v0.md	113	A written anchor MUST compare equal when it is a prefix of the full digest, so t	unrecorded	-
-DCG-V0-010	docs/specs/documentation-citation-gate-v0.md	116	When a pinned citation's content no longer matches, the gate MUST fail and MUST	unrecorded	-
-DCG-V0-011	docs/specs/documentation-citation-gate-v0.md	120	The gate MUST offer `--hash <path:line[-line][,line]> ...`, which prints each	unrecorded	-
-DCG-V0-012	docs/specs/documentation-citation-gate-v0.md	124	The gate MUST be read-only over the repository on every path, including every	unrecorded	-
-DCG-V0-013	docs/specs/documentation-citation-gate-v0.md	126	Every path the gate reads MUST be resolved against the Git index and never the	unrecorded	-
-DCG-V0-014	docs/specs/documentation-citation-gate-v0.md	135	A citation from any scanned document into `docs/BUILD-LOG.md` or a one-level	unrecorded	-
-DCG-V0-015	docs/specs/documentation-citation-gate-v0.md	145	The gate MUST also check an extensionless path followed by `:N`, `:N-M`, or	unrecorded	-
-DCG-V0-016	docs/specs/documentation-citation-gate-v0.md	152	A backticked token whose prefix is an exact tracked path in the DCG-V0-001 or	unrecorded	-
-DCG-V0-017	docs/specs/documentation-citation-gate-v0.md	159	The gate MUST count every checked citation that carries no content anchor and MU	unrecorded	-
-DCG-V0-018	docs/specs/documentation-citation-gate-v0.md	165	`script/line-citation-legacy-documents.txt` MUST be the closed allowlist of scan	unrecorded	-
-DCG-V0-019	docs/specs/documentation-citation-gate-v0.md	179	A citation a citing document explicitly frames as historical — reviewed once aga	unrecorded	-
-DCG-V0-020	docs/specs/documentation-citation-gate-v0.md	185	`script/line-citation-drift-waivers.txt` MAY name one citation, as	unrecorded	-
-DCG-V0-021	docs/specs/documentation-citation-gate-v0.md	193	When a file the gate read from the index (a scanned document, a cited file, or o	unrecorded	-
+DCG-V0-002	docs/specs/documentation-citation-gate-v0.md	89	For every checked citation the gate MUST fail when the named file is not tracked	unrecorded	-
+DCG-V0-003	docs/specs/documentation-citation-gate-v0.md	94	The gate MUST additionally fail when a cited line is blank or contains only	unrecorded	-
+DCG-V0-004	docs/specs/documentation-citation-gate-v0.md	97	A bare continuation MUST resolve only to an anchor its own paragraph states: the	unrecorded	-
+DCG-V0-005	docs/specs/documentation-citation-gate-v0.md	101	Content inside a fenced code block MUST be exempt, and a Go standard-library pat	unrecorded	-
+DCG-V0-006	docs/specs/documentation-citation-gate-v0.md	103	A citation MAY carry a content anchor written as `@<hex>` appended to its line	unrecorded	-
+DCG-V0-007	docs/specs/documentation-citation-gate-v0.md	108	The anchor value MUST be the SHA-256 of the cited lines, each stripped of traili	unrecorded	-
+DCG-V0-008	docs/specs/documentation-citation-gate-v0.md	112	The anchored line set MUST be the span the citation reads: for `N-M` the inclusi	unrecorded	-
+DCG-V0-009	docs/specs/documentation-citation-gate-v0.md	114	A written anchor MUST compare equal when it is a prefix of the full digest, so t	unrecorded	-
+DCG-V0-010	docs/specs/documentation-citation-gate-v0.md	117	When a pinned citation's content no longer matches, the gate MUST fail and MUST	unrecorded	-
+DCG-V0-011	docs/specs/documentation-citation-gate-v0.md	121	The gate MUST offer `--hash <path:line[-line][,line]> ...`, which prints each	unrecorded	-
+DCG-V0-012	docs/specs/documentation-citation-gate-v0.md	125	The gate MUST be read-only over the repository on every path, including every	unrecorded	-
+DCG-V0-013	docs/specs/documentation-citation-gate-v0.md	127	Every path the gate reads MUST be resolved against the Git index and never the	unrecorded	-
+DCG-V0-014	docs/specs/documentation-citation-gate-v0.md	136	A citation from any scanned document into `docs/BUILD-LOG.md` or a one-level	unrecorded	-
+DCG-V0-015	docs/specs/documentation-citation-gate-v0.md	146	The gate MUST also check an extensionless path followed by `:N`, `:N-M`, or	unrecorded	-
+DCG-V0-016	docs/specs/documentation-citation-gate-v0.md	153	A backticked token whose prefix is an exact tracked path in the DCG-V0-001 or	unrecorded	-
+DCG-V0-017	docs/specs/documentation-citation-gate-v0.md	160	The gate MUST count every checked citation that carries no content anchor and MU	unrecorded	-
+DCG-V0-018	docs/specs/documentation-citation-gate-v0.md	166	`script/line-citation-legacy-documents.txt` MUST be the closed allowlist of scan	unrecorded	-
+DCG-V0-019	docs/specs/documentation-citation-gate-v0.md	180	A citation a citing document explicitly frames as historical — reviewed once aga	unrecorded	-
+DCG-V0-020	docs/specs/documentation-citation-gate-v0.md	186	`script/line-citation-drift-waivers.txt` MAY name one citation, as	unrecorded	-
+DCG-V0-021	docs/specs/documentation-citation-gate-v0.md	194	When a file the gate read from the index (a scanned document, a cited file, or o	unrecorded	-
 DCI-V0-001	docs/specs/documentation-ci-v0.md	33	The classifier MUST read a clean checkout at the full captured target SHA, requi	unrecorded	-
 DCI-V0-002	docs/specs/documentation-ci-v0.md	40	The closed path scope MUST be modified existing mode-100644 `README.md` and,	unrecorded	-
 DCI-V0-003	docs/specs/documentation-ci-v0.md	44	README fenced and indented code bytes MUST remain identical. The admitted Markdo	unrecorded	-
@@ -1405,28 +1407,28 @@ DCW-V0-044	docs/specs/daily-change-evidence-workflow-v0.md	479	(accepted 2026-10
 DCW-V0-045	docs/specs/daily-change-evidence-workflow-v0.md	493	(accepted 2026-10-11, decision 0520; V1-1207) `dogfood check`'s	owner	2026-10-11; decision 0520; V1-1207
 DCW-V0-046	docs/specs/daily-change-evidence-workflow-v0.md	504	(accepted under the owner's standing auto-accept (2026-10-11), decision 0523 P3;	standing	2026-10-11; decision 0523; V1-1258
 DCW-V0-047	docs/specs/daily-change-evidence-workflow-v0.md	544	(accepted under the owner's standing auto-accept (2026-10-11); V1-1279) A change	standing	2026-10-11; V1-1279
-DCW-V0-048	docs/specs/daily-change-evidence-workflow-v0.md	580	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) A change	standing	2026-10-11; V1-1281
-DCW-V0-049	docs/specs/daily-change-evidence-workflow-v0.md	604	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) When the	standing	2026-10-11; V1-1281
-DCW-V0-050	docs/specs/daily-change-evidence-workflow-v0.md	628	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) Each	standing	2026-10-11; V1-1277
-DCW-V0-051	docs/specs/daily-change-evidence-workflow-v0.md	660	(accepted under the owner's standing auto-accept (2026-10-11); V1-1330)	standing	2026-10-11; V1-1330
-DCW-V0-052	docs/specs/daily-change-evidence-workflow-v0.md	672	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336) For ever	standing	2026-10-11; V1-1336
-DCW-V0-053	docs/specs/daily-change-evidence-workflow-v0.md	695	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336) Each arm	standing	2026-10-11; V1-1336
-DCW-V0-054	docs/specs/daily-change-evidence-workflow-v0.md	706	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336) Each arm	standing	2026-10-11; V1-1336
-DCW-V0-055	docs/specs/daily-change-evidence-workflow-v0.md	710	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336) The summ	standing	2026-10-11; V1-1336
-DCW-V0-056	docs/specs/daily-change-evidence-workflow-v0.md	717	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336, V1-1337)	standing	2026-10-11; V1-1336; V1-1337
-DCW-V0-057	docs/specs/daily-change-evidence-workflow-v0.md	728	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) A change	standing	2026-10-11; V1-1344
-DCW-V0-058	docs/specs/daily-change-evidence-workflow-v0.md	742	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a	standing	2026-10-11; V1-1344
-DCW-V0-059	docs/specs/daily-change-evidence-workflow-v0.md	760	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344)	standing	2026-10-11; V1-1344
-DCW-V0-060	docs/specs/daily-change-evidence-workflow-v0.md	771	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348)	standing	2026-10-11; V1-1348
-DCW-V0-061	docs/specs/daily-change-evidence-workflow-v0.md	791	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348)	standing	2026-10-11; V1-1348
-DCW-V0-062	docs/specs/daily-change-evidence-workflow-v0.md	804	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348) After it	standing	2026-10-11; V1-1348
-DCW-V0-063	docs/specs/daily-change-evidence-workflow-v0.md	811	(accepted under the owner's standing auto-accept (2026-10-11); V1-1349, V1-1418)	standing	2026-10-11; V1-1349; V1-1418
-DCW-V0-064	docs/specs/daily-change-evidence-workflow-v0.md	829	(accepted under the owner's standing auto-accept (2026-10-11); V1-1354) Every Gi	standing	2026-10-11; V1-1354
-DCW-V0-065	docs/specs/daily-change-evidence-workflow-v0.md	839	(accepted under the owner's standing auto-accept (2026-10-11); V1-1341) The	standing	2026-10-11; V1-1341
-DCW-V0-066	docs/specs/daily-change-evidence-workflow-v0.md	846	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) When	standing	2026-10-11; V1-1397
-DCW-V0-067	docs/specs/daily-change-evidence-workflow-v0.md	857	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) When	standing	2026-10-11; V1-1397
-DCW-V0-068	docs/specs/daily-change-evidence-workflow-v0.md	867	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) A CEM	standing	2026-10-11; V1-1397
-DCW-V0-072	docs/specs/daily-change-evidence-workflow-v0.md	874	(accepted under the owner's standing auto-accept (2026-10-11); V1-1307, decision	standing	2026-10-11; V1-1307
+DCW-V0-048	docs/specs/daily-change-evidence-workflow-v0.md	586	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) A change	standing	2026-10-11; V1-1281
+DCW-V0-049	docs/specs/daily-change-evidence-workflow-v0.md	610	(accepted under the owner's standing auto-accept (2026-10-11); V1-1281) When the	standing	2026-10-11; V1-1281
+DCW-V0-050	docs/specs/daily-change-evidence-workflow-v0.md	634	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) Each	standing	2026-10-11; V1-1277
+DCW-V0-051	docs/specs/daily-change-evidence-workflow-v0.md	666	(accepted under the owner's standing auto-accept (2026-10-11); V1-1330)	standing	2026-10-11; V1-1330
+DCW-V0-052	docs/specs/daily-change-evidence-workflow-v0.md	678	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336) For ever	standing	2026-10-11; V1-1336
+DCW-V0-053	docs/specs/daily-change-evidence-workflow-v0.md	701	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336) Each arm	standing	2026-10-11; V1-1336
+DCW-V0-054	docs/specs/daily-change-evidence-workflow-v0.md	712	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336) Each arm	standing	2026-10-11; V1-1336
+DCW-V0-055	docs/specs/daily-change-evidence-workflow-v0.md	716	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336) The summ	standing	2026-10-11; V1-1336
+DCW-V0-056	docs/specs/daily-change-evidence-workflow-v0.md	723	(accepted under the owner's standing auto-accept (2026-10-11); V1-1336, V1-1337)	standing	2026-10-11; V1-1336; V1-1337
+DCW-V0-057	docs/specs/daily-change-evidence-workflow-v0.md	734	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) A change	standing	2026-10-11; V1-1344
+DCW-V0-058	docs/specs/daily-change-evidence-workflow-v0.md	748	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a	standing	2026-10-11; V1-1344
+DCW-V0-059	docs/specs/daily-change-evidence-workflow-v0.md	766	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344)	standing	2026-10-11; V1-1344
+DCW-V0-060	docs/specs/daily-change-evidence-workflow-v0.md	777	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348)	standing	2026-10-11; V1-1348
+DCW-V0-061	docs/specs/daily-change-evidence-workflow-v0.md	797	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348)	standing	2026-10-11; V1-1348
+DCW-V0-062	docs/specs/daily-change-evidence-workflow-v0.md	810	(accepted under the owner's standing auto-accept (2026-10-11); V1-1348) After it	standing	2026-10-11; V1-1348
+DCW-V0-063	docs/specs/daily-change-evidence-workflow-v0.md	817	(accepted under the owner's standing auto-accept (2026-10-11); V1-1349, V1-1418)	standing	2026-10-11; V1-1349; V1-1418
+DCW-V0-064	docs/specs/daily-change-evidence-workflow-v0.md	835	(accepted under the owner's standing auto-accept (2026-10-11); V1-1354) Every Gi	standing	2026-10-11; V1-1354
+DCW-V0-065	docs/specs/daily-change-evidence-workflow-v0.md	845	(accepted under the owner's standing auto-accept (2026-10-11); V1-1341) The	standing	2026-10-11; V1-1341
+DCW-V0-066	docs/specs/daily-change-evidence-workflow-v0.md	852	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) When	standing	2026-10-11; V1-1397
+DCW-V0-067	docs/specs/daily-change-evidence-workflow-v0.md	863	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) When	standing	2026-10-11; V1-1397
+DCW-V0-068	docs/specs/daily-change-evidence-workflow-v0.md	873	(accepted under the owner's standing auto-accept (2026-10-11); V1-1397) A CEM	standing	2026-10-11; V1-1397
+DCW-V0-072	docs/specs/daily-change-evidence-workflow-v0.md	880	(superseded by the V1-1307 amendment of `DCW-V0-047`, decision 0535; was accepte	owner	V1-1307; decision 0535
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked	unrecorded	-
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and	unrecorded	-
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map	unrecorded	-
@@ -2363,30 +2365,34 @@ LPCV-V0-053	docs/specs/live-proof-carrying-verification-v0.md	338	`corvint [--ro
 LPCV-V0-054	docs/specs/live-proof-carrying-verification-v0.md	356	a discovered document's freshness MUST be bound to the worktree as it is now,	unrecorded	-
 LPCV-V0-055	docs/specs/live-proof-carrying-verification-v0.md	373	producer retention (decision 0218) MUST be opt-in and bounded.	unrecorded	-
 LPCV-V0-056	docs/specs/live-proof-carrying-verification-v0.md	397	(accepted by decision 0448; V1-0976) discovery MUST say why it yields no	owner	decision 0448; V1-0976
-LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	637	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
-LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	649	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
-LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	659	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
-LPCV-V0-060	docs/specs/live-proof-carrying-verification-v0.md	670	(accepted (decision 0458; V1-1024; GitHub #682)) Faults are installed by a Corvi	owner	decision 0458; V1-1024; #682
-LPCV-V0-061	docs/specs/live-proof-carrying-verification-v0.md	678	(accepted (decision 0458; V1-1024; GitHub #682)) Network fault derivation. The w	owner	decision 0458; V1-1024; #682
-LPCV-V0-062	docs/specs/live-proof-carrying-verification-v0.md	699	(accepted (decision 0458; V1-1024; GitHub #682)) DOM fault derivation applies wh	owner	decision 0458; V1-1024; #682
-LPCV-V0-063	docs/specs/live-proof-carrying-verification-v0.md	711	(accepted (decision 0458; V1-1024; GitHub #682)) Single-step pass rule: each fau	owner	decision 0458; V1-1024; #682
-LPCV-V0-064	docs/specs/live-proof-carrying-verification-v0.md	733	(accepted (decision 0458; V1-1024; GitHub #682)) `--all-steps` performs the base	owner	decision 0458; V1-1024; #682
-LPCV-V0-065	docs/specs/live-proof-carrying-verification-v0.md	747	(accepted (decision 0458; V1-1024; GitHub #682)) negate emits one closed canonic	owner	decision 0458; V1-1024; #682
-LPCV-V0-066	docs/specs/live-proof-carrying-verification-v0.md	768	(accepted (decision 0458; V1-1024; GitHub #682)) The common `binding` records th	owner	decision 0458; V1-1024; #682
-LPCV-V0-067	docs/specs/live-proof-carrying-verification-v0.md	785	(accepted (decision 0458; V1-1024; GitHub #682)) Retention is atomic and confine	owner	decision 0458; V1-1024; #682
-LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	794	(accepted (decision 0458; V1-1024; GitHub #682)) This requirement covers project	owner	decision 0458; V1-1024; #682
-LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	812	(accepted (decision 0458; V1-1024; GitHub #682)) Safety. negate runs the user's	owner	decision 0458; V1-1024; #682
-LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	831	(accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnost	owner	decision 0458; V1-1024; #682
-LPCV-V0-071	docs/specs/live-proof-carrying-verification-v0.md	824	`corvint-js-test-provider --help`, `-h`, `-help` and `help` MUST exit 0 and prin	unrecorded	-
-LPCV-V0-072	docs/specs/live-proof-carrying-verification-v0.md	921	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) The opti	standing	2026-10-11; V1-1458
-LPCV-V0-073	docs/specs/live-proof-carrying-verification-v0.md	953	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) When an	standing	2026-10-11; V1-1458
-LPCV-V0-074	docs/specs/live-proof-carrying-verification-v0.md	967	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458)	standing	2026-10-11; V1-1458
-LPCV-V0-075	docs/specs/live-proof-carrying-verification-v0.md	972	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) A retain	standing	2026-10-11; V1-1458
+LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	638	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
+LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	650	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
+LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	660	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
+LPCV-V0-060	docs/specs/live-proof-carrying-verification-v0.md	671	(accepted (decision 0458; V1-1024; GitHub #682)) Faults are installed by a Corvi	owner	decision 0458; V1-1024; #682
+LPCV-V0-061	docs/specs/live-proof-carrying-verification-v0.md	679	(accepted (decision 0458; V1-1024; GitHub #682)) Network fault derivation. The w	owner	decision 0458; V1-1024; #682
+LPCV-V0-062	docs/specs/live-proof-carrying-verification-v0.md	700	(accepted (decision 0458; V1-1024; GitHub #682)) DOM fault derivation applies wh	owner	decision 0458; V1-1024; #682
+LPCV-V0-063	docs/specs/live-proof-carrying-verification-v0.md	712	(accepted (decision 0458; V1-1024; GitHub #682)) Single-step pass rule: each fau	owner	decision 0458; V1-1024; #682
+LPCV-V0-064	docs/specs/live-proof-carrying-verification-v0.md	734	(accepted (decision 0458; V1-1024; GitHub #682)) `--all-steps` performs the base	owner	decision 0458; V1-1024; #682
+LPCV-V0-065	docs/specs/live-proof-carrying-verification-v0.md	748	(accepted (decision 0458; V1-1024; GitHub #682)) negate emits one closed canonic	owner	decision 0458; V1-1024; #682
+LPCV-V0-066	docs/specs/live-proof-carrying-verification-v0.md	769	(accepted (decision 0458; V1-1024; GitHub #682)) The common `binding` records th	owner	decision 0458; V1-1024; #682
+LPCV-V0-067	docs/specs/live-proof-carrying-verification-v0.md	786	(accepted (decision 0458; V1-1024; GitHub #682)) Retention is atomic and confine	owner	decision 0458; V1-1024; #682
+LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	795	(accepted (decision 0458; V1-1024; GitHub #682)) This requirement covers project	owner	decision 0458; V1-1024; #682
+LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	813	(accepted (decision 0458; V1-1024; GitHub #682)) Safety. negate runs the user's	owner	decision 0458; V1-1024; #682
+LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	832	(accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnost	owner	decision 0458; V1-1024; #682
+LPCV-V0-071	docs/specs/live-proof-carrying-verification-v0.md	825	`corvint-js-test-provider --help`, `-h`, `-help` and `help` MUST exit 0 and prin	unrecorded	-
+LPCV-V0-072	docs/specs/live-proof-carrying-verification-v0.md	922	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) The opti	standing	2026-10-11; V1-1458
+LPCV-V0-073	docs/specs/live-proof-carrying-verification-v0.md	954	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) When an	standing	2026-10-11; V1-1458
+LPCV-V0-074	docs/specs/live-proof-carrying-verification-v0.md	968	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458)	standing	2026-10-11; V1-1458
+LPCV-V0-075	docs/specs/live-proof-carrying-verification-v0.md	973	(accepted under the owner's standing auto-accept (2026-10-11); V1-1458) A retain	standing	2026-10-11; V1-1458
+LPCV-V0-076	docs/specs/live-proof-carrying-verification-v0.md	987	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475) The	standing	2026-10-11; V1-1475
+LPCV-V0-077	docs/specs/live-proof-carrying-verification-v0.md	1006	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475) When ask	standing	2026-10-11; V1-1475
+LPCV-V0-078	docs/specs/live-proof-carrying-verification-v0.md	1016	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475; decision	standing	2026-10-11; V1-1475
+LPCV-V0-079	docs/specs/live-proof-carrying-verification-v0.md	1020	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475) A retain	standing	2026-10-11; V1-1475
 LPCVD-V0-001	docs/specs/live-proof-carrying-verification-v0.md	416	(accepted, decision 0518; V1-1140) Extend	owner	decision 0518; V1-1140
 LPCVD-V0-002	docs/specs/live-proof-carrying-verification-v0.md	426	(accepted, decision 0518; V1-1140) Extend the closed	owner	decision 0518; V1-1140
 LPCVD-V0-003	docs/specs/live-proof-carrying-verification-v0.md	449	(accepted, decision 0518; V1-1140) Discovery MUST expose	owner	decision 0518; V1-1140
 LPCVD-V0-004	docs/specs/live-proof-carrying-verification-v0.md	438	(accepted, decision 0518; V1-1140) When the selected	owner	decision 0518; V1-1140
-LPCVD-V0-005	docs/specs/live-proof-carrying-verification-v0.md	899	(accepted, decision 0519 (V1-1156)) A one-shot JS	owner	decision 0519; V1-1156
+LPCVD-V0-005	docs/specs/live-proof-carrying-verification-v0.md	900	(accepted, decision 0519 (V1-1156)) A one-shot JS	owner	decision 0519; V1-1156
 LQP-V0-001	docs/specs/lsp-quality-platform-v0.md	44	Each consumer MUST select an explicit, versioned profile and report the exact su	unrecorded	-
 LQP-V0-002	docs/specs/lsp-quality-platform-v0.md	45	Agent CLI and MCP MUST remain off by default for upstream semantic work and keep	unrecorded	-
 LQP-V0-003	docs/specs/lsp-quality-platform-v0.md	46	The shared engine MUST distinguish immutable Git identity `(repository/root, obj	unrecorded	-
@@ -2569,6 +2575,10 @@ NGI-V0-008	docs/specs/non-go-impact-v0.md	96	(accepted under the owner's standin
 NGI-V0-009	docs/specs/non-go-impact-v0.md	107	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) A call	standing	2026-10-11; V1-1365
 NGI-V0-010	docs/specs/non-go-impact-v0.md	117	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) Selectio	standing	2026-10-11; V1-1365
 NGI-V0-011	docs/specs/non-go-impact-v0.md	126	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365)	standing	2026-10-11; V1-1365
+NGI-V0-012	docs/specs/non-go-impact-v0.md	138	(accepted under the owner's standing auto-accept (2026-10-11); V1-1455) A	standing	2026-10-11; V1-1455
+NGI-V0-013	docs/specs/non-go-impact-v0.md	144	(accepted under the owner's standing auto-accept (2026-10-11); V1-1456) An entry	standing	2026-10-11; V1-1456
+NGI-V0-014	docs/specs/non-go-impact-v0.md	158	(accepted under the owner's standing auto-accept (2026-10-11); V1-1456) The	standing	2026-10-11; V1-1456
+NGI-V0-015	docs/specs/non-go-impact-v0.md	165	(accepted under the owner's standing auto-accept (2026-10-11); V1-1457) A call	standing	2026-10-11; V1-1457
 NJB-001	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	44	each family is one exact profile/target tuple and a standalone CLI package; no	unrecorded	-
 NJB-002	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	46	canonical one-LF JSON input/output is bounded before decode, base64 decode, fact	unrecorded	-
 NJB-003	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	54	facts are typed, ordered, and digest-bound by the bridge-owned 14-field evidence	unrecorded	-
@@ -2892,6 +2902,7 @@ PSR-V0-019	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	51	Sharing excludes th
 PSR-V0-020	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	52	The binding is visible in pure reads (PSR-V0-015, TM-V0-008). `pool status` give	unrecorded	-
 PSR-V0-021	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	53	The encoding is additive: pools.json entries gain the optional `shared` key only	unrecorded	-
 PSR-V0-022	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	54	(accepted under the owner's standing auto-accept (2026-10-11), V1-1406) A bounde	standing	2026-10-11; V1-1406
+PSR-V0-023	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	55	(owner delegated to the orchestrator (2026-10-16), decision 0536, V1-1492) Withi	unrecorded	-
 PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled disposable synthetic Git fixture in a new	unrecorded	-
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and	unrecorded	-
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use	unrecorded	-
@@ -3449,17 +3460,17 @@ TCP-V0-051	docs/specs/task-context-packet-v0.md	909	`context --task` accepts at 
 TCP-V0-052	docs/specs/task-context-packet-v0.md	915	CLI and the explicit MCP descendant use one shared attachment. Before and after	unrecorded	-
 TCP-V0-053	docs/specs/task-context-packet-v0.md	921	Required live qualification fails when gopls is missing. Compiled CLI and MCP	unrecorded	-
 TCP-V0-054	docs/specs/task-context-packet-v0.md	927	(experimental, V1-0482) When Go LSP enrichment has an explicit task subject,	unrecorded	-
-TCP-V0-055	docs/specs/task-context-packet-v0.md	949	(experimental, V1-0414) Before reservation, every reserved row (TCP-V0-008	unrecorded	-
-TCP-V0-056	docs/specs/task-context-packet-v0.md	962	(experimental, V1-0414) A row with any TCP-V0-055 or TCP-V0-057 warning is	unrecorded	-
-TCP-V0-057	docs/specs/task-context-packet-v0.md	973	(experimental, V1-0414) The packet's diff under review is the working tree	unrecorded	-
-TCP-V0-058	docs/specs/task-context-packet-v0.md	979	(experimental, V1-0414) The screen adds no input other than the pinned blob and	unrecorded	-
-TCP-V0-059	docs/specs/task-context-packet-v0.md	983	(proposed 2026-10-06 and amended the same day with the gate, V1-0859;	unrecorded	-
-TCP-V0-060	docs/specs/task-context-packet-v0.md	1016	(proposed 2026-10-06, V1-0431 criterion 1 and V1-0859; experimental) A lexical o	unrecorded	-
-TCP-V0-061	docs/specs/task-context-packet-v0.md	1024	(proposed 2026-10-06, V1-0859; experimental) When the walk produced lexical hits	unrecorded	-
-TCP-V0-062	docs/specs/task-context-packet-v0.md	1047	(proposed (V1-0993), 2026-10-07; experimental) When `--task` is absent, exactly	unrecorded	-
-TCP-V0-063	docs/specs/task-context-packet-v0.md	1058	(proposed 2026-10-08, V1-0859 and V1-0431; experimental) A lexical hit whose pat	unrecorded	-
-TCP-V0-064	docs/specs/task-context-packet-v0.md	1082	(accepted 2026-10-08, decision 0470; V1-0485; experimental) `TaskContext` observ	owner	2026-10-08; decision 0470; V1-0485
-TCP-V0-065	docs/specs/task-context-packet-v0.md	1093	(accepted, decision 0516 (V1-0315); experimental) A task-context	owner	decision 0516; V1-0315
+TCP-V0-055	docs/specs/task-context-packet-v0.md	951	(accepted 2026-10-16 under the owner's standing auto-accept (2026-10-11); V1-041	standing	2026-10-16; 2026-10-11; V1-0414
+TCP-V0-056	docs/specs/task-context-packet-v0.md	965	(accepted 2026-10-16 under the owner's standing auto-accept (2026-10-11); V1-041	standing	2026-10-16; 2026-10-11; V1-0414
+TCP-V0-057	docs/specs/task-context-packet-v0.md	977	(accepted 2026-10-16 under the owner's standing auto-accept (2026-10-11); V1-041	standing	2026-10-16; 2026-10-11; V1-0414
+TCP-V0-058	docs/specs/task-context-packet-v0.md	985	(accepted 2026-10-16 under the owner's standing auto-accept (2026-10-11); V1-041	standing	2026-10-16; 2026-10-11; V1-0414
+TCP-V0-059	docs/specs/task-context-packet-v0.md	990	(proposed 2026-10-06 and amended the same day with the gate, V1-0859;	unrecorded	-
+TCP-V0-060	docs/specs/task-context-packet-v0.md	1023	(proposed 2026-10-06, V1-0431 criterion 1 and V1-0859; experimental) A lexical o	unrecorded	-
+TCP-V0-061	docs/specs/task-context-packet-v0.md	1031	(proposed 2026-10-06, V1-0859; experimental) When the walk produced lexical hits	unrecorded	-
+TCP-V0-062	docs/specs/task-context-packet-v0.md	1054	(proposed (V1-0993), 2026-10-07; experimental) When `--task` is absent, exactly	unrecorded	-
+TCP-V0-063	docs/specs/task-context-packet-v0.md	1065	(proposed 2026-10-08, V1-0859 and V1-0431; experimental) A lexical hit whose pat	unrecorded	-
+TCP-V0-064	docs/specs/task-context-packet-v0.md	1089	(accepted 2026-10-08, decision 0470; V1-0485; experimental) `TaskContext` observ	owner	2026-10-08; decision 0470; V1-0485
+TCP-V0-065	docs/specs/task-context-packet-v0.md	1100	(accepted, decision 0516 (V1-0315); experimental) A task-context	owner	decision 0516; V1-0315
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its	unrecorded	-
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as	unrecorded	-
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul	unrecorded	-

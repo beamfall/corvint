@@ -25,7 +25,8 @@ const (
 )
 
 // RouteStubRecord is one attempt's producer record of every request stub registered through
-// page.route or context.route on the test's context fixture (LPCV-V0-072). A present record with
+// page.route, context.route, routeWebSocket or routeFromHAR on the contexts the attempt observed
+// (LPCV-V0-072, LPCV-V0-076). A present record with
 // no stubs means the producer ran and saw none; an absent record means nothing was produced and is
 // never read as zero hits.
 type RouteStubRecord struct {
@@ -33,9 +34,11 @@ type RouteStubRecord struct {
 }
 
 // RouteStub is one registered route pattern, how often its handler ran in the attempt and where
-// it was registered. File and Line are both omitted when the producer could not resolve the call.
+// it was registered. API is omitted for a plain route registration. File and Line are both omitted
+// when the producer could not resolve the call.
 type RouteStub struct {
 	Target  string `json:"target"`
+	API     string `json:"api,omitempty"`
 	Kind    string `json:"kind"`
 	Pattern string `json:"pattern"`
 	Hits    int    `json:"hits"`
@@ -46,6 +49,9 @@ type RouteStub struct {
 var (
 	routeStubTargets = map[string]bool{"page": true, "context": true}
 	routeStubKinds   = map[string]bool{"glob": true, "regexp": true, "predicate": true, "other": true}
+	// routeStubAPIs are the registration APIs a stub may name besides the default route
+	// (LPCV-V0-076).
+	routeStubAPIs = map[string]bool{"": true, "routeWebSocket": true, "routeFromHAR": true}
 )
 
 // ValidRouteStubRecord reports whether a record is inside the closed vocabulary and bounds.
@@ -54,7 +60,7 @@ func ValidRouteStubRecord(record RouteStubRecord) bool {
 		return false
 	}
 	for _, stub := range record.Stubs {
-		if !routeStubTargets[stub.Target] || !routeStubKinds[stub.Kind] || !routeStubText(stub.Pattern) || stub.Hits < 0 || stub.Hits > maxRouteStubHits {
+		if !routeStubTargets[stub.Target] || !routeStubAPIs[stub.API] || !routeStubKinds[stub.Kind] || !routeStubText(stub.Pattern) || stub.Hits < 0 || stub.Hits > maxRouteStubHits {
 			return false
 		}
 		if stub.File == "" && stub.Line == 0 {
@@ -98,17 +104,18 @@ var regexpEscapes = strings.NewReplacer(`\/`, "/", `\.`, ".", `\:`, ":", `\@`, "
 // and every stub must state its hit count, so a missing or null count is never read as zero hits.
 // It serves both the producer annotation and a retained receipt's routeStubs member.
 func (r *RouteStubRecord) UnmarshalJSON(data []byte) error {
-	if duplicateJSONMember(data) {
-		return errors.New("route-stub record has a duplicate member")
+	if irregularJSONMember(data) {
+		return errors.New("route-stub record has a duplicate or inexact member")
 	}
 	var wire struct {
 		Stubs []struct {
-			Target  string `json:"target"`
-			Kind    string `json:"kind"`
-			Pattern string `json:"pattern"`
-			Hits    *int   `json:"hits"`
-			File    string `json:"file"`
-			Line    int    `json:"line"`
+			Target  string          `json:"target"`
+			API     json.RawMessage `json:"api"`
+			Kind    string          `json:"kind"`
+			Pattern string          `json:"pattern"`
+			Hits    *int            `json:"hits"`
+			File    string          `json:"file"`
+			Line    int             `json:"line"`
 		} `json:"stubs"`
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
@@ -124,15 +131,27 @@ func (r *RouteStubRecord) UnmarshalJSON(data []byte) error {
 		if stub.Hits == nil {
 			return errors.New("route stub has no hit count")
 		}
-		record.Stubs[i] = RouteStub{Target: stub.Target, Kind: stub.Kind, Pattern: stub.Pattern, Hits: *stub.Hits, File: stub.File, Line: stub.Line}
+		api := ""
+		if stub.API != nil {
+			// A present api member must name an API: null decodes to "" and is refused with empty,
+			// never read as route.
+			if json.Unmarshal(stub.API, &api) != nil || api == "" {
+				return errors.New("route stub names no api")
+			}
+		}
+		record.Stubs[i] = RouteStub{Target: stub.Target, API: api, Kind: stub.Kind, Pattern: stub.Pattern, Hits: *stub.Hits, File: stub.File, Line: stub.Line}
 	}
 	*r = record
 	return nil
 }
 
-// duplicateJSONMember reports whether any object in data names a member twice, or data is not one
-// well-formed JSON value.
-func duplicateJSONMember(data []byte) bool {
+// routeStubMembers are the exact member names of a record. encoding/json matches names without
+// regard to case, so a case variant such as "API" would otherwise overwrite a refused "api".
+var routeStubMembers = map[string]bool{"stubs": true, "target": true, "api": true, "kind": true, "pattern": true, "hits": true, "file": true, "line": true}
+
+// irregularJSONMember reports whether any object in data names a member twice or by a name that is
+// not exactly a record member, or data is not one well-formed JSON value.
+func irregularJSONMember(data []byte) bool {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	var walk func() bool
 	walk = func() bool {
@@ -146,7 +165,7 @@ func duplicateJSONMember(data []byte) bool {
 			for decoder.More() {
 				key, err := decoder.Token()
 				name, ok := key.(string)
-				if err != nil || !ok || seen[name] {
+				if err != nil || !ok || seen[name] || !routeStubMembers[name] {
 					return true
 				}
 				seen[name] = true
