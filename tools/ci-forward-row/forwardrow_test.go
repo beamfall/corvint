@@ -936,6 +936,26 @@ func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
 			t.Fatalf("summary lacks %q:\n%s", want, s)
 		}
 	}
+	// A newer INFRA row replaces the same pull request's older complete row; an INFRA row between
+	// the window's rows is counted, one beyond the twentieth classified row is not.
+	var mixed []string
+	mixed = append(mixed, name("INFRA", 2, "1", "0"))
+	mixed = append(mixed, names[2:12]...)
+	mixed = append(mixed, name("INFRA", 70, "1", "0"))
+	mixed = append(mixed, names[12:]...)
+	mixed = append(mixed, name("INFRA", 71, "1", "0"))
+	s = bar(t, mixed)
+	for _, want := range []string{"Latest 20 row(s) of the epoch: 20 complete, 4 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE.",
+		"Hosted infrastructure failures (AFP-V0-052): 2 INFRA row(s)", ": NOT MET (20/20 complete, 4/5 failing)"} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("summary lacks %q:\n%s", want, s)
+		}
+	}
+	// A newer complete row replaces the same pull request's older INFRA row.
+	if s := bar(t, append(append([]string{}, names[1:]...), name("INFRA", 2, "1", "0"))); !strings.Contains(s, ": MET (20/20 complete, 5/5 failing)") ||
+		!strings.Contains(s, "(AFP-V0-052): 0 INFRA row(s)") {
+		t.Fatalf("summary:\n%s", s)
+	}
 	tripped := append([]string{name("MISS", 30, "1", "1"), name("MISS", 31, "1", "1")}, names[1:]...)
 	if s := bar(t, tripped); !strings.Contains(s, "NOT MET") || !strings.Contains(s, "TRIPPED") || !strings.Contains(s, "2 MISS") {
 		t.Fatalf("summary:\n%s", s)

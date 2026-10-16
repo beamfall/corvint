@@ -1451,7 +1451,8 @@ and container qualification; full fallback remains available.
   retained no outcomes artifact and stays `INCOMPLETE` on the collector's reason; hosted `INFRA`
   rows are `NOT_OBSERVED` until a hosted set-up failure recurs after the change.
   Falsifier: the queue-row fixture of run 38686348902 (shard 5 lost at `Set up job`, its real job
-  list) classifies `INCOMPLETE`, or a row with a second missing shard classifies `INFRA`.
+  list) classifies `INCOMPLETE`, or a row with a missing shard that no set-up failure names classifies
+  `INFRA`.
   Rollback: revert the `infra` reading in `collect.sh`, `classify.sh`, `row.jq` and `bar.jq` and
   decision 0537; earlier `INFRA` artifacts then match no bar name and are not counted.
 

@@ -59,6 +59,16 @@ Loads are the 1/5/15-minute averages of the shared 12-core host.
   also required the job to have exactly one step; that mutation survived because the conclusion test
   already decides it, so the length test was removed and a set-up-then-tests-failed case was added.
 
+## Review
+
+One Codex round (read-only) over the diff found no runtime correctness bug and two P3 findings, both
+fixed: the AFP-V0-052 falsifier called any second missing shard classified `INFRA` a failure, though
+two shards both lost at set-up are correctly `INFRA` (now: a missing shard that no set-up failure
+names); and the bar test covered only `INFRA` rows ahead of the window. The bar test now also covers an
+`INFRA` row between the window's rows, one beyond the twentieth classified row (not counted), and a
+newer `INFRA` or complete row replacing the same pull request's older row. Counting `INFRA` rows past
+the twentieth classified row fails it (load 51.1).
+
 ## Limits
 
 - A hosted `INFRA` row is `NOT_OBSERVED` until a set-up failure recurs on main after this change.
