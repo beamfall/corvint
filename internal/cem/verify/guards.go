@@ -207,6 +207,9 @@ func judgeGuards(total context.Context, tree string, hunks []guardHunk, rows []G
 		candidates[i] = candidate
 		rows[i].Candidates = candidate.tests
 	}
+	// A base read cut short by the total bound reads as an absent test, so
+	// no candidate is trusted only when naming finished within the bound.
+	named := total.Err() == nil
 	verdicts := make([]HunkRevertRow, len(candidates))
 	for i := range verdicts {
 		verdicts[i] = HunkRevertRow{Result: RevertNotRun, Failing: []string{}}
@@ -223,10 +226,10 @@ func judgeGuards(total context.Context, tree string, hunks []guardHunk, rows []G
 		case RevertSurvived:
 			row.Result = GuardUnguarded
 		default:
-			// A modification with no candidate would run nothing, so the
-			// spent budget is not why it guards nothing.
+			// A modification with no candidate would run nothing, so a
+			// budget spent after naming is not why it guards nothing.
 			row.Reason = verdict.Reason
-			if row.Reason == RevertNoNamedTest || candidates[i].kind == patch.KindModify && len(candidates[i].tests) == 0 {
+			if row.Reason == RevertNoNamedTest || named && candidates[i].kind == patch.KindModify && len(candidates[i].tests) == 0 {
 				row.Reason = GuardNoCandidate
 			}
 		}
@@ -234,22 +237,30 @@ func judgeGuards(total context.Context, tree string, hunks []guardHunk, rows []G
 }
 
 // changedLines returns the one-based target lines a hunk adds, plus the line
-// on each side of a pure deletion, so the declaration it edits is found.
+// on each side of a pure deletion, so the declaration it edits is found. A
+// replacement marks only its added lines, never an untouched neighbor.
 func changedLines(hunk *patch.Hunk) map[int64]bool {
 	changed := map[int64]bool{}
 	line := hunk.NewRange.Start
 	if hunk.NewRange.Count == 0 {
 		line++
 	}
-	for _, body := range hunk.Body {
-		switch body.Prefix {
-		case '+':
-			changed[line] = true
+	for i := 0; i < len(hunk.Body); {
+		if hunk.Body[i].Prefix != '+' && hunk.Body[i].Prefix != '-' {
 			line++
-		case '-':
+			i++
+			continue
+		}
+		// One run of consecutive removed and added lines.
+		added := false
+		for ; i < len(hunk.Body) && (hunk.Body[i].Prefix == '+' || hunk.Body[i].Prefix == '-'); i++ {
+			if hunk.Body[i].Prefix == '+' {
+				changed[line], added = true, true
+				line++
+			}
+		}
+		if !added {
 			changed[line-1], changed[line] = true, true
-		default:
-			line++
 		}
 	}
 	return changed
@@ -319,7 +330,9 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 	for _, decl := range parsed.Decls {
 		d := goDecl{
 			file: file, refs: map[string]bool{},
-			start: int64(fileSet.Position(decl.Pos()).Line), end: int64(fileSet.Position(decl.End()).Line),
+			// Physical lines: a //line directive must not move a declaration
+			// away from the patch lines that edit it.
+			start: int64(fileSet.PositionFor(decl.Pos(), false).Line), end: int64(fileSet.PositionFor(decl.End(), false).Line),
 		}
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
@@ -356,8 +369,9 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 
 // candidates names, sorted, the base tests of the package whose bodies mention
 // a declaration the changed lines of file touch, directly or through the
-// package's other declarations (test helpers included). Matching is by
-// identifier name, so it over-approximates; the revert run decides.
+// package's other declarations (test helpers and other tests included).
+// Matching is by identifier name, so it over-approximates; the revert run
+// decides.
 func (p *goPackage) candidates(file string, changed map[int64]bool) []string {
 	reached := map[string]bool{}
 	for _, d := range p.decls {
@@ -376,7 +390,7 @@ func (p *goPackage) candidates(file string, changed map[int64]bool) []string {
 	for grew := len(reached) > 0; grew; {
 		grew = false
 		for _, d := range p.decls {
-			if d.test || !mentions(d.refs, reached) {
+			if !mentions(d.refs, reached) {
 				continue
 			}
 			for _, name := range d.names {
@@ -458,7 +472,7 @@ func baseHeaderLines(base []byte, name string) (int64, int64, bool) {
 	for _, decl := range parsed.Decls {
 		function, ok := decl.(*ast.FuncDecl)
 		if ok && goTestDecl(function) && function.Name.Name == name {
-			return int64(fileSet.Position(function.Pos()).Line), int64(fileSet.Position(function.Type.Params.End()).Line), true
+			return int64(fileSet.PositionFor(function.Pos(), false).Line), int64(fileSet.PositionFor(function.Type.Params.End(), false).Line), true
 		}
 	}
 	return 0, 0, false

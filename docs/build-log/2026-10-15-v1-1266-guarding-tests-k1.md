@@ -130,6 +130,24 @@ Each mutation below was applied alone and failed its test, and the file was rest
 
 Load averages ran from 13 to 55 (shared host with other lanes).
 
+## Review (one Codex round)
+
+One read-only Codex round reviewed `883caa3d2..cef454576` and reported six P2 findings. Four were
+fixed in a follow-up change, which amends this lane's own unmerged `TCQ-V0-062` text to match. Two
+are recorded as limits.
+
+| # | Finding | Disposition | Mutation |
+| --- | --- | --- | --- |
+| 1 | A base read cut short by the total bound read as an absent test, and the M8 rule then reported `no-candidate-test` | Fixed: `no-candidate-test` overrides `total-limit` only when naming finished within the bound | M9 |
+| 2 | `//line` directives moved declaration and header lines | Fixed: physical lines (`PositionFor(pos, false)`) | M10a, M10b |
+| 3 | A replacement marked the untouched line before it, selecting a neighboring declaration's tests | Fixed: only a pure deletion marks its neighbors | M11 |
+| 4 | The closure stopped at tests, so a test calling a guarding test was not a candidate | Fixed: tests propagate the closure too | M12 |
+| 5 | A test header over the `cem cite` span bound prints a row `cem cite` refuses | Recorded limit: the bound lives in `workflow`, which imports `verify` | none |
+| 6 | A `TMPDIR` inside the repository places the export there | Recorded limit, shared with the accepted `--hunk-revert` consumer (`CEM-V1-089`), which this lane does not amend | none |
+
+Each mutation failed its `TestTCQV0062*` test in `internal/cem/verify` (new:
+`TestTCQV0062LineDirectivesKeepPhysicalLines`) and was restored; load 17 to 24.
+
 ## Residuals
 
 - **Help text.** `cmd/corvint/help.go` does not list `--guarding-tests`. That file is outside this
@@ -139,5 +157,7 @@ Load averages ran from 13 to 55 (shared host with other lanes).
   `cmd/corvint` is never a candidate.
 - **Candidate narrowing (K5).** One idea is to cap or rank candidates per package, so that a
   package with 394 tests does not spend the whole budget.
+- **Shared temporary location.** Codex finding 6 applies to `--hunk-revert` as well. A fix belongs
+  in one helper both use, under its own ticket.
 - **Header inconsistency.** The V1-1266 section of `cem-stable-v1.md` says `Status: proposed`,
   while its rows say accepted. That section is an accepted surface, so this lane did not edit it.
