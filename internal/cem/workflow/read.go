@@ -31,6 +31,9 @@ type ReadOptions struct {
 	// HunkRevert runs the opt-in go test hunk-revert falsifier after a
 	// cem/1.0 verify accepts and reports it beside the result (CEM-V1-088).
 	HunkRevert bool
+	// GuardingTests runs the opt-in producer guarding-test search after a
+	// cem/1.0 verify accepts and reports it beside the result (TCQ-V0-062).
+	GuardingTests bool
 }
 
 // ActionReportPreview renders the report without publishing it: the

@@ -98,12 +98,23 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	var result verify.StableResult
 	var exit int
 	var revert *verify.HunkRevert
+	var guards *verify.GuardingTests
 	if options.HunkRevert && action != "verify" {
 		return nil, stableRefusal{invalidArguments("%s %s does not accept --hunk-revert", wire.StableSpec, action)}
+	}
+	if options.GuardingTests && action != "verify" {
+		return nil, stableRefusal{invalidArguments("%s %s does not accept --guarding-tests", wire.StableSpec, action)}
+	}
+	// The producer search and the consumer falsifier are separate steps: one
+	// run never both suggests a test and credits it (TCQ-V0-062).
+	if options.GuardingTests && options.HunkRevert {
+		return nil, stableRefusal{invalidArguments("%s %s does not accept --guarding-tests with --hunk-revert", wire.StableSpec, action)}
 	}
 	switch {
 	case filepath.IsAbs(repository) && options.HunkRevert:
 		result, exit, revert = verify.StableWithHunkRevert(ctx, raw, stableOptions, verify.DefaultHunkRevertLimits)
+	case filepath.IsAbs(repository) && options.GuardingTests:
+		result, exit, guards = verify.StableWithGuardingTests(ctx, raw, stableOptions, verify.DefaultHunkRevertLimits)
 	case filepath.IsAbs(repository):
 		result, exit = verify.Stable(ctx, raw, stableOptions)
 	default:
@@ -125,6 +136,11 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	// unless the result accepted (CEM-V1-088).
 	if options.HunkRevert {
 		envelope["hunkRevert"] = revert
+	}
+	// The guarding-test search is producer guidance beside the result: it
+	// sets no support tier and is null unless the result accepted (TCQ-V0-062).
+	if options.GuardingTests {
+		envelope["guardingTests"] = guards
 	}
 	// A relative root or artifact root is refused, never resolved; the fix is
 	// named beside, never inside, the closed result (CEM-V1-117).
