@@ -1,7 +1,7 @@
-# Decision 0531 — cem/1.0 stable consumer residuals: drift charge, protocol pointers, missing objects, cem/0.1 patch digests and the refused base status digest
+# Decision 0532 — cem/1.0 stable consumer residuals: drift charge, protocol pointers, missing objects, cem/0.1 patch digests and the refused base status digest
 
 Date: 2026-10-15. Status: accepted under the owner's standing auto-accept (2026-10-11) for the new
-requirements `CEM-V1-240`, `CEM-V1-241` and `DCW-V0-069`; the in-task choices for V1-1297, V1-1299
+requirements `CEM-V1-250`, `CEM-V1-251` and `DCW-V0-072`; the in-task choices for V1-1297, V1-1299
 and V1-1307 were delegated to the lane by the orchestrator (owner delegation of 2026-10-05). No
 accepted requirement's behaviour changes. Three possible amendments are left to the owner below.
 
@@ -21,12 +21,12 @@ Five residuals from the cem/1.0 cutover (V1-1275..V1-1278) remained open:
 ## Decision
 
 1. V1-1295: the difference was the native drift stage reading each changed record's base blob a
-   second time. `CEM-V1-240` fixes the drift charge for both consumers (one target path lookup, and
+   second time. `CEM-V1-250` fixes the drift charge for both consumers (one target path lookup, and
    one target blob read only for a changed regular-file entry, searching the span bytes the evidence
    stage authenticated) and adds the shared case `protocol/cem-1.0/stable/drift-resource-limit/`,
    run at a seam-lowered limit of 113 operations.
    The partial drift list stays in an `UNSUPPORTED` result, as V1-1295 decided on 2026-10-14.
-2. V1-1296: `CEM-V1-241` makes `tools/cem-stable-regen --check` refuse a dangling digest-pinned
+2. V1-1296: `CEM-V1-251` makes `tools/cem-stable-regen --check` refuse a dangling digest-pinned
    pointer under `protocol/cem-1.0`. The three dangling pointers it finds (`parentPlan` in
    `stable/MIGRATION.json` and in the packet's inherited S0E copy, and
    `repair6Routing.sourceReview.path` in `repository-envelope-packet/INPUTS.json`) sit in sealed,
@@ -39,7 +39,7 @@ Five residuals from the cem/1.0 cutover (V1-1275..V1-1278) remained open:
 4. V1-1299: keep the `CEM-V1-104` recorded limit and add no `CEM-V1-101` code. The converter no
    longer ships (`CEM-V1-204`), so a new refusal code would be unreachable. `CEM-V1-104` cites this
    decision.
-5. V1-1307: keep the empty-output digest and document it. `DCW-V0-069` states that the base digest
+5. V1-1307: keep the empty-output digest and document it. `DCW-V0-072` states that the base digest
    is the digest of the base verifier's stdout whatever its exit status, so a refused read records
    `sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`, and that a successful
    `cem status` always writes its canonical line, so that digest never means a successful empty read.
@@ -68,4 +68,4 @@ skipped where stable process containment is not qualified.
 
 Revert the change that carries this decision, then regenerate `docs/specs/REQUIREMENTS.tsv`. The
 native drift re-read returns, V1-1295 reopens as a recorded difference, `--check` stops scanning
-protocol pointers and `DCW-V0-069` goes.
+protocol pointers and `DCW-V0-072` goes.

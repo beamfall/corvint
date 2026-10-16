@@ -7,12 +7,12 @@ import (
 	"testing"
 )
 
-// TestCEMV1241PointerProblems proves the dangling-pointer refusal on a
+// TestCEMV1251PointerProblems proves the dangling-pointer refusal on a
 // synthetic protocol tree: a sibling-digest pointer and a "../" path pointer
 // must resolve to a file with the pinned SHA-256, a CEM map's artifact paths
 // are not pointers, and a recorded dangling pointer is accepted only while it
 // still dangles.
-func TestCEMV1241PointerProblems(t *testing.T) {
+func TestCEMV1251PointerProblems(t *testing.T) {
 	write := func(t *testing.T, root, rel, body string) {
 		t.Helper()
 		p := filepath.Join(root, filepath.FromSlash(rel))
@@ -60,9 +60,9 @@ func TestCEMV1241PointerProblems(t *testing.T) {
 	}
 }
 
-// TestCEMV1241RepositoryPointersRecorded pins the repository's known dangling
-// pointers: every one is recorded (decision 0531) and nothing else dangles.
-func TestCEMV1241RepositoryPointersRecorded(t *testing.T) {
+// TestCEMV1251RepositoryPointersRecorded pins the repository's known dangling
+// pointers: every one is recorded (decision 0532) and nothing else dangles.
+func TestCEMV1251RepositoryPointersRecorded(t *testing.T) {
 	if problems := pointerProblems(repoRoot, recordedDanglingPointers); len(problems) != 0 {
 		t.Fatalf("protocol pointers: %v", problems)
 	}
@@ -71,10 +71,10 @@ func TestCEMV1241RepositoryPointersRecorded(t *testing.T) {
 	}
 }
 
-// TestCEMV1241PointerSymlinkRefused proves a pointer cannot reach a file
+// TestCEMV1251PointerSymlinkRefused proves a pointer cannot reach a file
 // outside the repository through a symbolic link that lies inside it, even
 // when the outside file has the pinned digest.
-func TestCEMV1241PointerSymlinkRefused(t *testing.T) {
+func TestCEMV1251PointerSymlinkRefused(t *testing.T) {
 	root := t.TempDir()
 	outside := filepath.Join(t.TempDir(), "plan.json")
 	plan := []byte("{}\n")
@@ -98,10 +98,10 @@ func TestCEMV1241PointerSymlinkRefused(t *testing.T) {
 	}
 }
 
-// TestCEMV1241CheckRunsPointerGate proves --check itself applies the pointer
+// TestCEMV1251CheckRunsPointerGate proves --check itself applies the pointer
 // scan: on a tree holding only a dangling protocol pointer, check reports it
 // among the problems of the otherwise missing packet.
-func TestCEMV1241CheckRunsPointerGate(t *testing.T) {
+func TestCEMV1251CheckRunsPointerGate(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "protocol", "cem-1.0", "s")
 	if err := os.MkdirAll(dir, 0o755); err != nil {

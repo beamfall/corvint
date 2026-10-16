@@ -11,13 +11,13 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 )
 
-// TestCEMV1240DriftResourceLimitNative runs the shared drift-resource-limit
-// case (CEM-V1-240) through the native verifier: the Git operation limit,
+// TestCEMV1250DriftResourceLimitNative runs the shared drift-resource-limit
+// case (CEM-V1-250) through the native verifier: the Git operation limit,
 // lowered to the case's operations value through the test seam, stops the
 // drift stage part way, and the UNSUPPORTED result keeps exactly the rows the
 // pinned per-record drift charge completes. interop/cem01-go asserts the same
 // files.
-func TestCEMV1240DriftResourceLimitNative(t *testing.T) {
+func TestCEMV1250DriftResourceLimitNative(t *testing.T) {
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("stable process containment is only supported on Darwin/Linux")
 	}

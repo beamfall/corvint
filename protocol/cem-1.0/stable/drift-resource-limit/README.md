@@ -1,4 +1,4 @@
-# Drift resource limit (CEM-V1-240)
+# Drift resource limit (CEM-V1-250)
 
 Status: like the rest of `protocol/cem-1.0/stable/`, implemented and run by both
 consumers; the technical contract is proposed and not promoted.
@@ -9,7 +9,7 @@ every stable consumer must write. The result is `UNSUPPORTED` at the `repository
 stage with code `unsupported-resource-limit`, and it keeps the drift rows completed
 before the refused operation. Which rows those are depends only on the per-operation
 charges before and during drift, in particular the per-record drift charge of
-`ALGORITHMS.md` item 12 (`CEM-V1-240`): one target path lookup per record, plus one
+`ALGORITHMS.md` item 12 (`CEM-V1-250`): one target path lookup per record, plus one
 target blob read for a changed regular-file entry, and no second read of a base
 blob. A consumer that charges differently stops at a different row and writes a
 different `drift` list and `verdictSha256`, which is how V1-1295 was found (68
@@ -27,7 +27,7 @@ read, operations 88 to 113 complete 13 records at two each, and operation 114,
 the fourteenth record's path lookup, is refused. A consumer that read each base
 blob again would complete 8 records. The native verifier
 (`internal/cem/verify`) and the portable consumer (`interop/cem01-go`) both run
-this directory; the tests are named `TestCEMV1240*` in both.
+this directory; the tests are named `TestCEMV1250*` in both.
 
 - `repository.recipe.json`: two flat commits, built exactly like
   `../neutral-criterion/repository.recipe.json`. The base `spec.txt` holds 340

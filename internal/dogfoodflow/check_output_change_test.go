@@ -272,13 +272,13 @@ func TestCheckDCWV0047DeclaredOCMStatus(t *testing.T) {
 	}
 }
 
-// TestCheckDCWV0069RefusedBaseStatusDigest covers V1-1307: under an admitted
+// TestCheckDCWV0072RefusedBaseStatusDigest covers V1-1307: under an admitted
 // declaration a base verifier that refuses the `cem status` read (it cannot
 // read a cem/1.0 map) writes no stdout, so the recorded base digest is the
 // SHA-256 of empty input whatever its exit status. A successful `cem status`
 // always writes its canonical line, so that digest names an absent output,
 // never a successful empty read.
-func TestCheckDCWV0069RefusedBaseStatusDigest(t *testing.T) {
+func TestCheckDCWV0072RefusedBaseStatusDigest(t *testing.T) {
 	const emptySHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 	treeStatus := `{"state":"ready-for-ci"}` + "\n"
 	runner := func(role string, run func(stdout, stderr io.Writer) int) Runner {
@@ -299,8 +299,8 @@ func TestCheckDCWV0069RefusedBaseStatusDigest(t *testing.T) {
 		return 0
 	})
 	var stdout, stderr bytes.Buffer
-	c := newCheck(context.Background(), "dogfood-check", CheckOptions{Root: t.TempDir(), BaseVerifier: base, TreeVerifier: tree, OutputChange: "DCW-V0-069"}, &stdout, &stderr)
-	c.outputChange = "DCW-V0-069"
+	c := newCheck(context.Background(), "dogfood-check", CheckOptions{Root: t.TempDir(), BaseVerifier: base, TreeVerifier: tree, OutputChange: "DCW-V0-072"}, &stdout, &stderr)
+	c.outputChange = "DCW-V0-072"
 	var agreed bool
 	code, err := boundary(c.ctx, func() int {
 		c.resolveVerifiers()
@@ -310,7 +310,7 @@ func TestCheckDCWV0069RefusedBaseStatusDigest(t *testing.T) {
 	if err != nil || code != 0 || !agreed {
 		t.Fatalf("exit=%d err=%v agreed=%v stderr=%q", code, err, agreed, stderr.String())
 	}
-	want := "base-independence=NOT_PROVED base=sha256:" + emptySHA256 + " tree=sha256:" + sha256Hex([]byte(treeStatus)) + " declared=DCW-V0-069"
+	want := "base-independence=NOT_PROVED base=sha256:" + emptySHA256 + " tree=sha256:" + sha256Hex([]byte(treeStatus)) + " declared=DCW-V0-072"
 	if got := c.baseIndependence(); got != want {
 		t.Fatalf("baseIndependence = %q; want %q", got, want)
 	}

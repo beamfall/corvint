@@ -2,12 +2,17 @@
 
 Date: 2026-10-15. Base: `253d6341f22242a1778876649708222a4a5bc33c` (origin/main).
 Tickets: V1-1295, V1-1296, V1-1297, V1-1299, V1-1307 (`docs/specs/cem-stable-v1.md`,
-`docs/specs/daily-change-evidence-workflow-v0.md`, decision 0531).
+`docs/specs/daily-change-evidence-workflow-v0.md`, decision 0532).
 
-New requirements `CEM-V1-240`, `CEM-V1-241` and `DCW-V0-069` are accepted under the owner's standing
+New requirements `CEM-V1-250`, `CEM-V1-251` and `DCW-V0-072` are accepted under the owner's standing
 auto-accept of 2026-10-11. The choices for V1-1297, V1-1299 and V1-1307 were delegated to the lane.
 No accepted requirement's behaviour changes; the three amendments that would are listed below as
 owner decisions.
+
+Numbering: the change first used `CEM-V1-240`, `CEM-V1-241`, `DCW-V0-069` and decision 0531. While it
+was open, origin/main took `CEM-V1-240` and decision 0531, and open PR #961 claims `CEM-V1-240` and
+`DCW-V0-069`, so the requirements here are `CEM-V1-250`, `CEM-V1-251` and `DCW-V0-072`, and the
+decision is 0532.
 
 ## V1-1295: the two consumers cut drift short at different rows
 
@@ -17,7 +22,7 @@ changed record's base blob again before reading the target blob, three logical o
 record. The portable consumer searched the span bytes the evidence stage had authenticated, two
 operations. Under the 1,024-operation limit the native verifier therefore stopped earlier.
 
-`CEM-V1-240` pins the portable charge: one target path lookup per record, one target blob read only
+`CEM-V1-250` pins the portable charge: one target path lookup per record, one target blob read only
 for a changed regular-file entry, and no base blob read. The native `checkDrift` now takes the spans
 `checkEvidence` returns, and a record whose authenticated span length differs from its declared span
 fails closed `evidence-unavailable`. `ALGORITHMS.md` item 12 states the charge.
@@ -45,7 +50,7 @@ evidence stage), one drift target tree read, and two per record after that. With
 
 ## V1-1296: dangling protocol pointer
 
-`CEM-V1-241` adds a pointer scan to `tools/cem-stable-regen --check`. A string member `K` with a
+`CEM-V1-251` adds a pointer scan to `tools/cem-stable-regen --check`. A string member `K` with a
 sibling `K`+`SHA256`/`Sha256`, or a `path` starting `../` beside `sha256`, under `protocol/cem-1.0`,
 must resolve inside the repository to a file with that digest. CEM maps are skipped. The scan found
 three dangling pointers, all in sealed, digest-pinned packet bytes that already mark them
@@ -59,24 +64,24 @@ They are recorded by exact text; a record that resolves, changes or disappears i
 Removing them rewrites sealed bytes and re-pins two manifests and `INPUTS.json`, so that is left to
 the owner. `--check` passes with the record and reports exactly three problems without it. A
 pointer target must be a regular file reached with no symbolic link on the way. Removing the gate
-call from `check` fails `TestCEMV1241CheckRunsPointerGate`; reading the target without the link
-check fails `TestCEMV1241PointerSymlinkRefused`.
+call from `check` fails `TestCEMV1251CheckRunsPointerGate`; reading the target without the link
+check fails `TestCEMV1251PointerSymlinkRefused`.
 
 ## V1-1297 and V1-1299: kept as recorded
 
 - V1-1297: a missing pinned object keeps `git-read-failed`. The sealed S0E cells `missing-base` and
   `shallow-missing` pin that code on both consumers. A distinct code needs an object-existence probe,
-  which changes the sealed operation ledgers. `CEM-V1-103` cites decision 0531.
+  which changes the sealed operation ledgers. `CEM-V1-103` cites decision 0532.
 - V1-1299: no `CEM-V1-101` refusal code. The converter was removed (`CEM-V1-204`), so the code would
-  be unreachable. The `CEM-V1-104` recorded limit stays and cites decision 0531.
+  be unreachable. The `CEM-V1-104` recorded limit stays and cites decision 0532.
 
 ## V1-1307: refused base `cem status` read
 
-`DCW-V0-069` documents the current output. The base digest is the digest of the base verifier's
+`DCW-V0-072` documents the current output. The base digest is the digest of the base verifier's
 stdout whatever its exit status, so a refused read records the empty-output digest `sha256:e3b0c442…`.
 A successful `cem status` always writes its canonical line, so that digest never stands for a
-successful empty read. `TestCheckDCWV0069RefusedBaseStatusDigest` pins the
-`base-independence=NOT_PROVED base=sha256:e3b0… tree=… declared=DCW-V0-069` line. Hashing stdout
+successful empty read. `TestCheckDCWV0072RefusedBaseStatusDigest` pins the
+`base-independence=NOT_PROVED base=sha256:e3b0… tree=… declared=DCW-V0-072` line. Hashing stdout
 and stderr together instead makes it fail.
 
 ## Owner decisions proposed (not applied)
@@ -104,12 +109,12 @@ One Codex round (`codex exec -s read-only`, range `a0b4c4108..ee1f9fa60`), two f
 - P2: the pointer scan checked containment lexically and then followed symbolic links, so an
   in-repository link to an outside file with the pinned digest would pass. Fixed: the target must
   be a regular file whose resolved path is the lexical one (`readContained`). Test
-  `TestCEMV1241PointerSymlinkRefused`; with the plain read restored it fails.
+  `TestCEMV1251PointerSymlinkRefused`; with the plain read restored it fails.
 - P3: the spec claimed that removing the gate failed both pointer tests, but they call
-  `pointerProblems` directly. Fixed with `TestCEMV1241CheckRunsPointerGate`, which runs `check` on a
-  tree with one dangling pointer; with the call removed from `check` it fails. The `CEM-V1-240`
+  `pointerProblems` directly. Fixed with `TestCEMV1251CheckRunsPointerGate`, which runs `check` on a
+  tree with one dangling pointer; with the call removed from `check` it fails. The `CEM-V1-250`
   failure modes also claimed the case catches a target blob read for an unchanged record; every
   record cites a changed blob, so the claim is narrowed and the gap is a residual.
 
 No findings on the authenticated-span reuse, the span-length refusal, the operation charges, the
-seam isolation or `DCW-V0-069`; Codex recomputed the case's manifest hashes, revisions and digests.
+seam isolation or `DCW-V0-072`; Codex recomputed the case's manifest hashes, revisions and digests.
