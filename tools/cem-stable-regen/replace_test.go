@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -165,6 +166,143 @@ func TestReplaceRefusals(t *testing.T) {
 	for name, b := range before {
 		if !bytes.Equal(b, after[name]) {
 			t.Fatalf("a refused re-emission wrote %s", name)
+		}
+	}
+}
+
+// TestReplaceCellOnly re-emits a value of one envelope cell no case matches
+// while every case value stays: FULL-RESULT-CASES.json, its predecessorSHA256
+// and the amendment index stay byte-identical (decision 0535).
+func TestReplaceCellOnly(t *testing.T) {
+	f := newReplaceFixture(t)
+	const cell = "missing-base"
+	captureFor(t, f.capture, frozenCases(t, f.root), func(int) any { return nil }, func(_ int, r map[string]any) { delete(r, "probe") })
+	var oldValue string
+	f.cells, _ = cellOverrides(t, f.root, filepath.Join(t.TempDir(), "cells.json"), func(id string) any {
+		if id == cell {
+			return map[string]any{"verdictSha256": f.newValue}
+		}
+		return map[string]any{}
+	}, "verdictSha256")
+	for _, c := range frozenCells(t, f.root, "verdictSha256") {
+		if c.ID == cell {
+			oldValue, _ = c.ExpectedResult["verdictSha256"].(string)
+		}
+	}
+	if oldValue == "" || !bytes.Contains(mustRead(t, f.cells), []byte(f.newValue)) {
+		t.Fatalf("cell %s is missing or matches a case", cell)
+	}
+	old, _ := json.Marshal(oldValue)
+	rec := record{Reason: "cell-only re-emission", Cases: map[string]map[string]string{}, Cells: map[string]map[string]string{cell: {"verdictSha256": digest(old)}}}
+	before := snapshot(t, f.root)
+	if code, out := f.run(t, record{Reason: "nothing", Cases: map[string]map[string]string{}, Cells: map[string]map[string]string{}}, "--cell-values", emptyCells(t, f.root)); code != 1 || !strings.Contains(out, "no value changes; nothing to re-emit") {
+		t.Fatalf("no change at all: exit %d\n%s", code, out)
+	}
+	code, out := f.run(t, rec)
+	if code != 0 {
+		t.Fatalf("cell-only replace: exit %d\n%s", code, out)
+	}
+	after := snapshot(t, f.root)
+	if code, out := runTool(t, "--root", f.root, "--check"); code != 0 {
+		t.Fatalf("check after cell-only replace: %s", out)
+	}
+	if !bytes.Equal(before[packetDir+"/"+casesName], after[packetDir+"/"+casesName]) {
+		t.Fatal("FULL-RESULT-CASES.json changed although no case value changed")
+	}
+	for _, rel := range []string{packetDir + "/" + inheritedCells, stableDir + "/" + cellsName} {
+		if n := bytes.Count(after[rel], []byte(f.newValue)); n != 1 {
+			t.Fatalf("%s carries the new value %d times, want 1", rel, n)
+		}
+	}
+	changes := string(after[packetDir+"/"+changesName])
+	section := changes[len(before[packetDir+"/"+changesName]):]
+	if !strings.Contains(section, "| cell | "+cell+" | verdictSha256 | "+digest(old)+" |") || strings.Contains(section, "| case | ") || strings.Contains(section, "| "+casesName+" | ") {
+		t.Fatalf("CHANGES.md section does not record exactly the cell change:\n%s", section)
+	}
+}
+
+func mustRead(t *testing.T, file string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+// emptyCells writes a cell override file that keeps every unmatched cell.
+func emptyCells(t *testing.T, root string) string {
+	t.Helper()
+	file, _ := cellOverrides(t, root, filepath.Join(t.TempDir(), "empty-cells.json"), func(string) any { return map[string]any{} }, "verdictSha256")
+	return file
+}
+
+// TestReplaceCellDisagreeingCases re-emits code and verdictSha256 of a cell
+// whose other keys equal those of cases that disagree on code: the value
+// cannot be derived, so the cell needs an explicit --cell-values entry
+// (decision 0535). Without one the re-emission is refused.
+func TestReplaceCellDisagreeingCases(t *testing.T) {
+	f := newReplaceFixture(t)
+	const cell = "missing-base"
+	members := []string{"code", "verdictSha256"}
+	cases := frozenCases(t, f.root)
+	captureFor(t, f.capture, cases, func(int) any { return nil }, func(_ int, r map[string]any) { delete(r, "probe") })
+	values := map[string]map[string]bool{}
+	for _, c := range cases {
+		key := verdictKey(t, c, members...)
+		if values[key] == nil {
+			values[key] = map[string]bool{}
+		}
+		v, _ := json.Marshal([]any{c.ExpectedResult["code"], c.ExpectedResult["verdictSha256"]})
+		values[key][string(v)] = true
+	}
+	partial, full := map[string]any{}, map[string]any{}
+	var oldCode, oldVerdict string
+	for _, c := range frozenCells(t, f.root, members...) {
+		switch n := len(values[c.key]); {
+		case n == 0:
+			partial[c.ID], full[c.ID] = map[string]any{}, map[string]any{}
+		case n > 1:
+			full[c.ID] = map[string]any{}
+		}
+		if c.ID == cell {
+			if len(values[c.key]) < 2 {
+				t.Fatalf("cell %s does not match disagreeing cases", cell)
+			}
+			oldCode, _ = c.ExpectedResult["code"].(string)
+			oldVerdict, _ = c.ExpectedResult["verdictSha256"].(string)
+			full[c.ID] = map[string]any{"code": "repository-object-unavailable", "verdictSha256": f.newValue}
+		}
+	}
+	dir := t.TempDir()
+	partialFile, fullFile := filepath.Join(dir, "partial.json"), filepath.Join(dir, "full.json")
+	writeJSON(t, partialFile, partial)
+	writeJSON(t, fullFile, full)
+	codeOld, _ := json.Marshal(oldCode)
+	verdictOld, _ := json.Marshal(oldVerdict)
+	rec := record{Reason: "missing object", Cases: map[string]map[string]string{}, Cells: map[string]map[string]string{cell: {"code": digest(codeOld), "verdictSha256": digest(verdictOld)}}}
+	before := snapshot(t, f.root)
+	if code, out := f.run(t, rec, "--member", "code,verdictSha256", "--cell-values", partialFile); code != 1 || !strings.Contains(out, "cases with its verdict disagree on \"code\"; it needs a --cell-values entry") {
+		t.Fatalf("disagreeing cases without an entry: exit %d\n%s", code, out)
+	}
+	if after := snapshot(t, f.root); !bytes.Equal(before[packetDir+"/manifest.json"], after[packetDir+"/manifest.json"]) {
+		t.Fatal("a refused re-emission wrote the packet")
+	}
+	code, out := f.run(t, rec, "--member", "code,verdictSha256", "--cell-values", fullFile)
+	if code != 0 {
+		t.Fatalf("replace: exit %d\n%s", code, out)
+	}
+	after := snapshot(t, f.root)
+	if code, out := runTool(t, "--root", f.root, "--check"); code != 0 {
+		t.Fatalf("check after replace: %s", out)
+	}
+	if !bytes.Equal(before[packetDir+"/"+casesName], after[packetDir+"/"+casesName]) {
+		t.Fatal("FULL-RESULT-CASES.json changed although no case value changed")
+	}
+	section := string(after[packetDir+"/"+changesName][len(before[packetDir+"/"+changesName]):])
+	for _, want := range []string{"| cell | " + cell + " | code | " + digest(codeOld) + " |", "| cell | " + cell + " | verdictSha256 | " + digest(verdictOld) + " |"} {
+		if !strings.Contains(section, want) {
+			t.Fatalf("CHANGES.md section lacks %q:\n%s", want, section)
 		}
 	}
 }
