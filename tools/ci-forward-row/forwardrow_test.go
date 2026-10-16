@@ -811,6 +811,26 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 		"ci-forward-INCOMPLETE-pr868-"+queueSHA+"-e1-f0" {
 		t.Fatalf("queue row whose named shard retained outcomes = %q\n%s", r.name, r.summary)
 	}
+	// A shard whose job set up and then failed (here its Go tests step) is not a hosted failure.
+	var listed doc
+	if err := json.Unmarshal(realJobs, &listed); err != nil {
+		t.Fatal(err)
+	}
+	for _, j := range listed["jobs"].([]any) {
+		if job := j.(doc); job["name"] == "go-product-shard (5)" {
+			steps := []any{doc{"name": "Set up job", "conclusion": "success"}, doc{"name": "Go tests (full until matching shadow qualification)", "conclusion": "failure"}}
+			job["steps"] = steps
+		}
+	}
+	if jobs, err = json.Marshal(listed); err != nil {
+		t.Fatal(err)
+	}
+	f = queueFixture(t)
+	delete(f.out, 5)
+	if r := collect(t, f, queueRun, "merge_group", queueBranch, "", full); r.name !=
+		"ci-forward-INCOMPLETE-pr868-"+queueSHA+"-e1-f0" || strings.Contains(r.summary, "infrastructure") {
+		t.Fatalf("queue row of a shard whose tests failed = %q\n%s", r.name, r.summary)
+	}
 	jobs = nil
 	empty := &fixture{sel: map[int]doc{}, out: map[int]doc{}, rawOut: map[int]string{}, event: "pull_request"}
 	if r := collect(t, empty, prRun, "pull_request", "claude/x", "868", nil); r.name != "" ||

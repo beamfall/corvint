@@ -126,7 +126,7 @@ fi
 if [ -n "$selection_run" ]; then
   fetch "$selection_run" 'corvint-test-shadow-*' "$dir/selection" || note "run $selection_run retained no corvint-test-shadow artifact"
 fi
-# AFP-V0-052: a go-product-shard job whose only step, "Set up job", failed never started a
+# AFP-V0-052: a go-product-shard job whose first step, "Set up job", failed never started a
 # step of its own: the hosted runner failed before the job ran. Its shard numbers go to the
 # classifier, which reads them as infrastructure only when they are exactly the missing shards.
 # An unreadable job list names none, so the row stays INCOMPLETE.
@@ -134,7 +134,7 @@ infra=""
 if [ -n "$outcomes_run" ]; then
   infra=$(gh api "repos/$REPO/actions/runs/$outcomes_run/jobs?filter=latest&per_page=100" --jq '.jobs[]
     | select((.name | test("^go-product-shard \\([0-9]+\\)$")) and .conclusion == "failure"
-             and (.steps | length) == 1 and .steps[0].name == "Set up job" and .steps[0].conclusion == "failure")
+             and .steps[0].name == "Set up job" and .steps[0].conclusion == "failure")
     | .name | capture("\\((?<n>[0-9]+)\\)$").n' 2> /dev/null) || {
     say "forward row: the jobs of run $outcomes_run are unreadable, so no hosted set-up failure is named"
     infra=""
