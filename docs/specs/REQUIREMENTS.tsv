@@ -85,7 +85,7 @@ AFP-V0-048	docs/specs/affected-plan-v0.md	1276	(accepted under the owner's stand
 AFP-V0-049	docs/specs/affected-plan-v0.md	1313	(accepted under the owner's standing auto-accept (2026-10-11); V1-1371)	standing	2026-10-11; V1-1371
 AFP-V0-050	docs/specs/affected-plan-v0.md	1346	(accepted under the owner's standing auto-accept (2026-10-11); V1-1298; (3)	standing	2026-10-11; V1-1298
 AFP-V0-051	docs/specs/affected-plan-v0.md	1395	(accepted under the owner's standing auto-accept (2026-10-11); V1-1351) A local	standing	2026-10-11; V1-1351
-AFP-V0-053	docs/specs/affected-plan-v0.md	1427	(proposed (ticket ci-shadow-historical-compat); owner acceptance pending, not	unrecorded	-
+AFP-V0-053	docs/specs/affected-plan-v0.md	1427	(accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat))	owner	2026-10-16
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data	unrecorded	-
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/	unrecorded	-
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and	unrecorded	-
@@ -706,11 +706,12 @@ CAL-V0-255	docs/specs/corvint-tasks-agent-leases-v0.md	6626	(accepted under the 
 CAL-V0-260	docs/specs/corvint-tasks-agent-leases-v0.md	6056	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `pause`,	standing	2026-10-11; V1-1353
 CAL-V0-261	docs/specs/corvint-tasks-agent-leases-v0.md	6069	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `health`	standing	2026-10-11; V1-1353
 CAL-V0-262	docs/specs/corvint-tasks-agent-leases-v0.md	6072	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) The verb	standing	2026-10-11; V1-1353
-CAL-V0-270	docs/specs/corvint-tasks-agent-leases-v0.md	7499	(accepted, decision 0538; V1-1508) A receipt MAY be	owner	decision 0538; V1-1508
-CAL-V0-271	docs/specs/corvint-tasks-agent-leases-v0.md	7511	(accepted, decision 0538; V1-1508) An elided receipt is	owner	decision 0538; V1-1508
-CAL-V0-272	docs/specs/corvint-tasks-agent-leases-v0.md	7524	(accepted, decision 0538; V1-1508)	owner	decision 0538; V1-1508
-CAL-V0-273	docs/specs/corvint-tasks-agent-leases-v0.md	7540	(accepted, decision 0538; V1-1508) `taskman-receipt/1`	owner	decision 0538; V1-1508
-CAL-V0-274	docs/specs/corvint-tasks-agent-leases-v0.md	7545	(accepted, decision 0538; V1-1508) An issue-shaped fixture	owner	decision 0538; V1-1508
+CAL-V0-270	docs/specs/corvint-tasks-agent-leases-v0.md	7550	(accepted, decision 0538; V1-1508) A receipt MAY be	owner	decision 0538; V1-1508
+CAL-V0-271	docs/specs/corvint-tasks-agent-leases-v0.md	7562	(accepted, decision 0538; V1-1508) An elided receipt is	owner	decision 0538; V1-1508
+CAL-V0-272	docs/specs/corvint-tasks-agent-leases-v0.md	7575	(accepted, decision 0538; V1-1508)	owner	decision 0538; V1-1508
+CAL-V0-273	docs/specs/corvint-tasks-agent-leases-v0.md	7591	(accepted, decision 0538; V1-1508) `taskman-receipt/1`	owner	decision 0538; V1-1508
+CAL-V0-274	docs/specs/corvint-tasks-agent-leases-v0.md	7596	(accepted, decision 0538; V1-1508) An issue-shaped fixture	owner	decision 0538; V1-1508
+CAL-V0-290	docs/specs/corvint-tasks-agent-leases-v0.md	6668	(accepted under the owner's standing auto-accept (2026-10-11), V1-1518) A role's	standing	2026-10-11; V1-1518
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha	unrecorded	-
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring	unrecorded	-
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla	unrecorded	-
