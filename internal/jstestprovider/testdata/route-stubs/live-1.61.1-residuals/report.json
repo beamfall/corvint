@@ -1,0 +1,297 @@
+{
+  "config": {
+    "argv": [
+      "/opt/homebrew/Cellar/node@22/22.23.3_2/bin/node",
+      "/private/tmp/claude-501/-Users-russelllewis-projects-corvint/b89960c8-2163-4353-8ea9-7b6117332c1b/scratchpad/agent-1475/repo/internal/jstestprovider/testdata/route-stubs/live-1.61.1-residuals/node_modules/playwright/cli.js",
+      "test",
+      "--config",
+      "playwright.config.cjs"
+    ],
+    "configFile": "/private/tmp/claude-501/-Users-russelllewis-projects-corvint/b89960c8-2163-4353-8ea9-7b6117332c1b/scratchpad/agent-1475/repo/internal/jstestprovider/testdata/route-stubs/live-1.61.1-residuals/playwright.config.cjs",
+    "rootDir": "/private/tmp/claude-501/-Users-russelllewis-projects-corvint/b89960c8-2163-4353-8ea9-7b6117332c1b/scratchpad/agent-1475/repo/internal/jstestprovider/testdata/route-stubs/live-1.61.1-residuals/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/private/tmp/claude-501/-Users-russelllewis-projects-corvint/b89960c8-2163-4353-8ea9-7b6117332c1b/scratchpad/agent-1475/repo/internal/jstestprovider/testdata/route-stubs/live-1.61.1-residuals/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "alpha",
+        "name": "alpha",
+        "testDir": "/private/tmp/claude-501/-Users-russelllewis-projects-corvint/b89960c8-2163-4353-8ea9-7b6117332c1b/scratchpad/agent-1475/repo/internal/jstestprovider/testdata/route-stubs/live-1.61.1-residuals/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "*.spec.cjs"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json",
+        {
+          "outputFile": "report.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": {
+      "command": "PORT=4880 node server.cjs",
+      "url": "http://127.0.0.1:4880/ready",
+      "reuseExistingServer": false
+    }
+  },
+  "suites": [
+    {
+      "title": "residuals.spec.cjs",
+      "file": "residuals.spec.cjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "browser.newContext stubs are recorded",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "corvint-route-stubs",
+                  "description": "{\"stubs\":[{\"target\":\"context\",\"kind\":\"glob\",\"pattern\":\"**/api/items\",\"hits\":1,\"file\":\"residuals.spec.cjs\",\"line\":10},{\"target\":\"page\",\"kind\":\"glob\",\"pattern\":\"**/api/never\",\"hits\":0,\"file\":\"residuals.spec.cjs\",\"line\":12}]}"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "alpha",
+              "projectName": "alpha",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 308,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T13:08:14.466Z",
+                  "annotations": [
+                    {
+                      "type": "corvint-route-stubs",
+                      "description": "{\"stubs\":[{\"target\":\"context\",\"kind\":\"glob\",\"pattern\":\"**/api/items\",\"hits\":1,\"file\":\"residuals.spec.cjs\",\"line\":10},{\"target\":\"page\",\"kind\":\"glob\",\"pattern\":\"**/api/never\",\"hits\":0,\"file\":\"residuals.spec.cjs\",\"line\":12}]}"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9bb8a25c8bf88ca2dfa5-50b6e4abbae7f36f5501",
+          "file": "residuals.spec.cjs",
+          "line": 8,
+          "column": 1
+        },
+        {
+          "title": "browser.newPage stubs are recorded",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "corvint-route-stubs",
+                  "description": "{\"stubs\":[{\"target\":\"page\",\"kind\":\"glob\",\"pattern\":\"**/api/itmes\",\"hits\":0,\"file\":\"residuals.spec.cjs\",\"line\":20}]}"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "alpha",
+              "projectName": "alpha",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 94,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T13:08:15.215Z",
+                  "annotations": [
+                    {
+                      "type": "corvint-route-stubs",
+                      "description": "{\"stubs\":[{\"target\":\"page\",\"kind\":\"glob\",\"pattern\":\"**/api/itmes\",\"hits\":0,\"file\":\"residuals.spec.cjs\",\"line\":20}]}"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9bb8a25c8bf88ca2dfa5-cb2fc933c5e0fca8b078",
+          "file": "residuals.spec.cjs",
+          "line": 18,
+          "column": 1
+        },
+        {
+          "title": "routeWebSocket stubs are recorded",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "corvint-route-stubs",
+                  "description": "{\"stubs\":[{\"target\":\"page\",\"api\":\"routeWebSocket\",\"kind\":\"glob\",\"pattern\":\"**/live\",\"hits\":1,\"file\":\"residuals.spec.cjs\",\"line\":27},{\"target\":\"page\",\"api\":\"routeWebSocket\",\"kind\":\"glob\",\"pattern\":\"**/never-socket\",\"hits\":0,\"file\":\"residuals.spec.cjs\",\"line\":28}]}"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "alpha",
+              "projectName": "alpha",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 122,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T13:08:15.318Z",
+                  "annotations": [
+                    {
+                      "type": "corvint-route-stubs",
+                      "description": "{\"stubs\":[{\"target\":\"page\",\"api\":\"routeWebSocket\",\"kind\":\"glob\",\"pattern\":\"**/live\",\"hits\":1,\"file\":\"residuals.spec.cjs\",\"line\":27},{\"target\":\"page\",\"api\":\"routeWebSocket\",\"kind\":\"glob\",\"pattern\":\"**/never-socket\",\"hits\":0,\"file\":\"residuals.spec.cjs\",\"line\":28}]}"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9bb8a25c8bf88ca2dfa5-cfccf3c9d3031bd6ddfc",
+          "file": "residuals.spec.cjs",
+          "line": 26,
+          "column": 1
+        },
+        {
+          "title": "routeFromHAR stubs are recorded",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "corvint-route-stubs",
+                  "description": "{\"stubs\":[{\"target\":\"page\",\"api\":\"routeFromHAR\",\"kind\":\"glob\",\"pattern\":\"**/api/items\",\"hits\":1,\"file\":\"residuals.spec.cjs\",\"line\":34},{\"target\":\"context\",\"api\":\"routeFromHAR\",\"kind\":\"glob\",\"pattern\":\"**/api/never\",\"hits\":0,\"file\":\"residuals.spec.cjs\",\"line\":35}]}"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "alpha",
+              "projectName": "alpha",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 105,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T13:08:15.456Z",
+                  "annotations": [
+                    {
+                      "type": "corvint-route-stubs",
+                      "description": "{\"stubs\":[{\"target\":\"page\",\"api\":\"routeFromHAR\",\"kind\":\"glob\",\"pattern\":\"**/api/items\",\"hits\":1,\"file\":\"residuals.spec.cjs\",\"line\":34},{\"target\":\"context\",\"api\":\"routeFromHAR\",\"kind\":\"glob\",\"pattern\":\"**/api/never\",\"hits\":0,\"file\":\"residuals.spec.cjs\",\"line\":35}]}"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9bb8a25c8bf88ca2dfa5-d76c8e832482f577211e",
+          "file": "residuals.spec.cjs",
+          "line": 33,
+          "column": 1
+        },
+        {
+          "title": "no browser fixture",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "alpha",
+              "projectName": "alpha",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T13:08:15.572Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "9bb8a25c8bf88ca2dfa5-fe9e0d66e6280034c7ad",
+          "file": "residuals.spec.cjs",
+          "line": 40,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-16T13:08:13.510Z",
+    "duration": 2157.474,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

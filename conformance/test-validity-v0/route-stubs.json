@@ -1,6 +1,6 @@
 {
   "version": "test-validity-v0",
-  "description": "Request-stub hit vectors (LPCV-V0-072 to LPCV-V0-075; V1-1458, GitHub #948). Each case's receipt is an unprofiled corvint-js-test-provider receipt; the Go projector (internal/testvaliditydoc) must emit exactly 'expected' as each test's routeStubs member, in test order, where null means the member is omitted. The TypeScript mirror projects axes only and does not read this file.",
+  "description": "Request-stub hit vectors (LPCV-V0-072 to LPCV-V0-077; V1-1458, GitHub #948; V1-1475). Each case's receipt is an unprofiled corvint-js-test-provider receipt; the Go projector (internal/testvaliditydoc) must emit exactly 'expected' as each test's routeStubs member, in test order, where null means the member is omitted. A case with routeStubsRequested true is projected with the member requested (corvint test-validity --route-stubs, LPCV-V0-077). The TypeScript mirror projects axes only and does not read this file.",
   "cases": [
     {
       "name": "hit",
@@ -81,6 +81,56 @@
         ]}
       ]},
       "expected": [{"state": "NOT_PRODUCED", "reason": "route-stub-record-invalid"}]
+    },
+    {
+      "name": "websocket-and-har",
+      "receipt": {"kind": "e2e", "tests": [
+        {"name": "created context, websocket and HAR stubs", "state": "passed", "attemptDetails": [
+          {"state": "passed", "retry": 0, "durationMs": 10, "routeStubs": {"stubs": [
+            {"target": "context", "kind": "glob", "pattern": "**/own", "hits": 1, "file": "own.spec.cjs", "line": 5},
+            {"target": "page", "api": "routeWebSocket", "kind": "glob", "pattern": "**/live", "hits": 0, "file": "own.spec.cjs", "line": 6},
+            {"target": "context", "api": "routeFromHAR", "kind": "glob", "pattern": "**/api/**", "hits": 0, "file": "own.spec.cjs", "line": 7},
+            {"target": "page", "api": "routeFromHAR", "kind": "glob", "pattern": "**/*", "hits": 4, "file": "own.spec.cjs", "line": 8}
+          ]}}
+        ]}
+      ]},
+      "expected": [{"state": "RECORDED", "findings": [
+        {"code": "stub-never-matched", "target": "page", "api": "routeWebSocket", "kind": "glob", "pattern": "**/live", "file": "own.spec.cjs", "line": 6},
+        {"code": "stub-never-matched", "target": "context", "api": "routeFromHAR", "kind": "glob", "pattern": "**/api/**", "file": "own.spec.cjs", "line": 7}
+      ]}]
+    },
+    {
+      "name": "api-invalid",
+      "receipt": {"kind": "e2e", "tests": [
+        {"name": "unknown api", "state": "passed", "attemptDetails": [
+          {"state": "passed", "retry": 0, "durationMs": 10, "routeStubs": {"stubs": [{"target": "page", "api": "routeFromHTTP", "kind": "glob", "pattern": "**/x", "hits": 0}]}}
+        ]}
+      ]},
+      "expected": [{"state": "NOT_PRODUCED", "reason": "route-stub-record-invalid"}]
+    },
+    {
+      "name": "producer-absent-requested",
+      "routeStubsRequested": true,
+      "receipt": {"kind": "e2e", "tests": [
+        {"name": "legacy", "state": "passed", "attemptDetails": [{"state": "passed", "retry": 0, "durationMs": 10}]},
+        {"name": "no attempt details", "state": "passed"}
+      ]},
+      "expected": [
+        {"state": "NOT_PRODUCED", "reason": "route-stub-producer-absent"},
+        {"state": "NOT_PRODUCED", "reason": "route-stub-producer-absent"}
+      ]
+    },
+    {
+      "name": "recorded-requested",
+      "routeStubsRequested": true,
+      "receipt": {"kind": "e2e", "tests": [
+        {"name": "recorded", "state": "passed", "attemptDetails": [{"state": "passed", "retry": 0, "durationMs": 10, "routeStubs": {"stubs": [{"target": "page", "kind": "glob", "pattern": "**/x", "hits": 1}]}}]},
+        {"name": "no browser fixture", "state": "passed", "attemptDetails": [{"state": "passed", "retry": 0, "durationMs": 1}]}
+      ]},
+      "expected": [
+        {"state": "RECORDED"},
+        {"state": "NOT_PRODUCED", "reason": "route-stub-record-absent"}
+      ]
     }
   ]
 }

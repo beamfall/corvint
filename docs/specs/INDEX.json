@@ -3,7 +3,7 @@
     "path": "docs/specs/core-compatibility-freeze-v1.md",
     "title": "Core Compatibility Freeze V1",
     "reqPrefix": "CCF-V1",
-    "intent": "accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943)",
+    "intent": "accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); CCF-V1-010 accepted under the owner's standing auto-accept of 2026-10-11 (V1-0285)",
     "delivery": "experimental",
     "claim": "The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.",
     "dependsOn": [
@@ -1900,8 +1900,8 @@
     "path": "docs/specs/live-proof-carrying-verification-v0.md",
     "title": "Live Proof-Carrying Verification V0",
     "reqPrefix": "LPCV-V0",
-    "intent": "accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948)",
-    "delivery": "not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..075 experimental (V1-1458)",
+    "intent": "accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534)",
+    "delivery": "not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475)",
     "claim": "Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.",
     "dependsOn": [
       "docs/specs/applied-intelligence-breakthroughs-v0.md",
