@@ -1,0 +1,86 @@
+{
+  "version": "test-validity-v0",
+  "description": "Request-stub hit vectors (LPCV-V0-072 to LPCV-V0-075; V1-1458, GitHub #948). Each case's receipt is an unprofiled corvint-js-test-provider receipt; the Go projector (internal/testvaliditydoc) must emit exactly 'expected' as each test's routeStubs member, in test order, where null means the member is omitted. The TypeScript mirror projects axes only and does not read this file.",
+  "cases": [
+    {
+      "name": "hit",
+      "receipt": {"kind": "e2e", "tests": [
+        {"name": "stub is hit", "state": "passed", "attemptDetails": [
+          {"state": "passed", "retry": 0, "durationMs": 10, "routeStubs": {"stubs": [{"target": "page", "kind": "glob", "pattern": "**/api/items", "hits": 1, "file": "stubs.spec.cjs", "line": 5}]}}
+        ]}
+      ]},
+      "expected": [{"state": "RECORDED"}]
+    },
+    {
+      "name": "zero-hit",
+      "receipt": {"kind": "e2e", "tests": [
+        {"name": "stub never matched but the test passes", "state": "passed", "attemptDetails": [
+          {"state": "passed", "retry": 0, "durationMs": 10, "routeStubs": {"stubs": [
+            {"target": "page", "kind": "glob", "pattern": "**/api/itmes", "hits": 0, "file": "stubs.spec.cjs", "line": 11},
+            {"target": "context", "kind": "regexp", "pattern": "/\\/api\\/v2\\//", "hits": 0, "file": "stubs.spec.cjs", "line": 12},
+            {"target": "page", "kind": "glob", "pattern": "**/api/items", "hits": 3, "file": "stubs.spec.cjs", "line": 13}
+          ]}}
+        ]}
+      ]},
+      "expected": [{"state": "RECORDED", "findings": [
+        {"code": "stub-never-matched", "target": "page", "kind": "glob", "pattern": "**/api/itmes", "file": "stubs.spec.cjs", "line": 11},
+        {"code": "stub-never-matched", "target": "context", "kind": "regexp", "pattern": "/\\/api\\/v2\\//", "file": "stubs.spec.cjs", "line": 12}
+      ]}]
+    },
+    {
+      "name": "record-absent",
+      "receipt": {"kind": "e2e", "tests": [
+        {"name": "recorded", "state": "passed", "attemptDetails": [{"state": "passed", "retry": 0, "durationMs": 10, "routeStubs": {"stubs": []}}]},
+        {"name": "no browser fixture", "state": "passed", "attemptDetails": [{"state": "passed", "retry": 0, "durationMs": 1}]},
+        {"name": "no attempt details", "state": "passed"}
+      ]},
+      "expected": [
+        {"state": "RECORDED"},
+        {"state": "NOT_PRODUCED", "reason": "route-stub-record-absent"},
+        {"state": "NOT_PRODUCED", "reason": "route-stub-record-absent"}
+      ]
+    },
+    {
+      "name": "receipt-without-producer",
+      "receipt": {"kind": "e2e", "tests": [
+        {"name": "legacy", "state": "passed", "attemptDetails": [{"state": "passed", "retry": 0, "durationMs": 10}]}
+      ]},
+      "expected": [null]
+    },
+    {
+      "name": "zero-hit-not-passed",
+      "receipt": {"kind": "e2e", "tests": [
+        {"name": "fails", "state": "failed", "failureMessage": "boom", "attemptDetails": [
+          {"state": "failed", "retry": 0, "durationMs": 10, "failureMessage": "boom", "routeStubs": {"stubs": [{"target": "page", "kind": "glob", "pattern": "**/never", "hits": 0}]}}
+        ]}
+      ]},
+      "expected": [{"state": "RECORDED", "reason": "test-not-passed"}]
+    },
+    {
+      "name": "last-attempt-decides",
+      "receipt": {"kind": "e2e", "tests": [
+        {"name": "flaky", "state": "flaky", "retries": 1, "attemptDetails": [
+          {"state": "failed", "retry": 0, "durationMs": 10, "failureMessage": "first", "routeStubs": {"stubs": [{"target": "page", "kind": "predicate", "pattern": "isImage", "hits": 2, "file": "a.spec.ts", "line": 4}]}},
+          {"state": "passed", "retry": 1, "durationMs": 10, "routeStubs": {"stubs": [{"target": "page", "kind": "predicate", "pattern": "isImage", "hits": 0, "file": "a.spec.ts", "line": 4}]}}
+        ]},
+        {"name": "earlier record only", "state": "flaky", "retries": 1, "attemptDetails": [
+          {"state": "failed", "retry": 0, "durationMs": 10, "failureMessage": "first", "routeStubs": {"stubs": [{"target": "page", "kind": "glob", "pattern": "**/x", "hits": 0}]}},
+          {"state": "passed", "retry": 1, "durationMs": 10}
+        ]}
+      ]},
+      "expected": [
+        {"state": "RECORDED", "findings": [{"code": "stub-never-matched", "target": "page", "kind": "predicate", "pattern": "isImage", "file": "a.spec.ts", "line": 4}]},
+        {"state": "NOT_PRODUCED", "reason": "route-stub-record-absent"}
+      ]
+    },
+    {
+      "name": "record-invalid",
+      "receipt": {"kind": "e2e", "tests": [
+        {"name": "invalid", "state": "passed", "attemptDetails": [
+          {"state": "passed", "retry": 0, "durationMs": 10, "routeStubs": {"stubs": [{"target": "frame", "kind": "glob", "pattern": "**/x", "hits": 0}]}}
+        ]}
+      ]},
+      "expected": [{"state": "NOT_PRODUCED", "reason": "route-stub-record-invalid"}]
+    }
+  ]
+}

@@ -48,6 +48,12 @@ type playwrightResult struct {
 	Error       *playwrightError       `json:"error"`
 	Errors      []playwrightError      `json:"errors"`
 	Attachments []playwrightAttachment `json:"attachments"`
+	Annotations []playwrightAnnotation `json:"annotations"`
+}
+
+type playwrightAnnotation struct {
+	Type        string `json:"type"`
+	Description string `json:"description"`
 }
 
 type playwrightError struct {
@@ -169,6 +175,7 @@ func playwrightAttemptDetail(r *playwrightResult) AttemptDetail {
 	for _, a := range r.Attachments {
 		detail.Artifacts = append(detail.Artifacts, FailureArtifact{Name: a.Name, Path: a.Path})
 	}
+	detail.RouteStubs = routeStubRecord(r.Annotations)
 	return detail
 }
 

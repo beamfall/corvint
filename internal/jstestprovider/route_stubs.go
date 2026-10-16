@@ -1,0 +1,129 @@
+package jstestprovider
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"io"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/secretscreen"
+)
+
+// RouteStubsAnnotation is the one per-attempt annotation the route-stubs.cjs producer publishes
+// (LPCV-V0-072). Its description is the closed JSON RouteStubRecord.
+const RouteStubsAnnotation = "corvint-route-stubs"
+
+// Route-stub record bounds. A record outside them is not a record.
+const (
+	MaxRouteStubs           = 64
+	maxRouteStubTextBytes   = 1024
+	maxRouteStubLine        = 10_000_000
+	maxRouteStubHits        = 1<<31 - 1
+	maxRouteStubDescription = 128 << 10
+)
+
+// RouteStubRecord is one attempt's producer record of every request stub registered through
+// page.route or context.route on the test's context fixture (LPCV-V0-072). A present record with
+// no stubs means the producer ran and saw none; an absent record means nothing was produced and is
+// never read as zero hits.
+type RouteStubRecord struct {
+	Stubs []RouteStub `json:"stubs"`
+}
+
+// RouteStub is one registered route pattern, how often its handler ran in the attempt and where
+// it was registered. File and Line are both omitted when the producer could not resolve the call.
+type RouteStub struct {
+	Target  string `json:"target"`
+	Kind    string `json:"kind"`
+	Pattern string `json:"pattern"`
+	Hits    int    `json:"hits"`
+	File    string `json:"file,omitempty"`
+	Line    int    `json:"line,omitempty"`
+}
+
+var (
+	routeStubTargets = map[string]bool{"page": true, "context": true}
+	routeStubKinds   = map[string]bool{"glob": true, "regexp": true, "predicate": true, "other": true}
+)
+
+// ValidRouteStubRecord reports whether a record is inside the closed vocabulary and bounds.
+func ValidRouteStubRecord(record RouteStubRecord) bool {
+	if record.Stubs == nil || len(record.Stubs) > MaxRouteStubs {
+		return false
+	}
+	for _, stub := range record.Stubs {
+		if !routeStubTargets[stub.Target] || !routeStubKinds[stub.Kind] || !routeStubText(stub.Pattern) || stub.Hits < 0 || stub.Hits > maxRouteStubHits {
+			return false
+		}
+		if stub.File == "" && stub.Line == 0 {
+			continue
+		}
+		if !routeStubText(stub.File) || stub.Line < 1 || stub.Line > maxRouteStubLine {
+			return false
+		}
+	}
+	return true
+}
+
+func routeStubText(value string) bool {
+	return value != "" && len(value) <= maxRouteStubTextBytes && utf8.ValidString(value) && !strings.ContainsRune(value, 0)
+}
+
+// ScreenRouteStubRecord applies the product secret screen to every pattern and registration path.
+func ScreenRouteStubRecord(record RouteStubRecord) RouteStubRecord {
+	stubs := make([]RouteStub, len(record.Stubs))
+	for i, stub := range record.Stubs {
+		stub.Pattern, _ = secretscreen.Screen(stub.Pattern)
+		stub.File, _ = secretscreen.Screen(stub.File)
+		stubs[i] = stub
+	}
+	return RouteStubRecord{Stubs: stubs}
+}
+
+// routeStubRecord reads the attempt's corvint-route-stubs annotation. Only exactly one closed,
+// in-bounds annotation is a record; none, a duplicate or a malformed one yields nil, so the
+// consumer reports NOT_PRODUCED rather than zero hits.
+func routeStubRecord(annotations []playwrightAnnotation) *RouteStubRecord {
+	var description *string
+	for i := range annotations {
+		if annotations[i].Type != RouteStubsAnnotation {
+			continue
+		}
+		if description != nil {
+			return nil
+		}
+		description = &annotations[i].Description
+	}
+	if description == nil || len(*description) > maxRouteStubDescription {
+		return nil
+	}
+	decoder := json.NewDecoder(bytes.NewReader([]byte(*description)))
+	decoder.DisallowUnknownFields()
+	var record RouteStubRecord
+	if decoder.Decode(&record) != nil {
+		return nil
+	}
+	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
+		return nil
+	}
+	if !ValidRouteStubRecord(record) {
+		return nil
+	}
+	screened := ScreenRouteStubRecord(record)
+	return &screened
+}
+
+// hasRouteStubs reports the unprofiled-only routeStubs member: an external profile gains a wire
+// field only through another profile revision.
+func hasRouteStubs(r Receipt) bool {
+	for _, test := range r.Tests {
+		for _, detail := range test.AttemptDetails {
+			if detail.RouteStubs != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
