@@ -23,6 +23,19 @@ import (
 const absentAgentReceipts = "dogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-absent\n" +
 	"dogfood-change: NOTE prechange-impact NOT_OBSERVED agent-receipt-absent\n"
 
+// dropGuardingNote removes the advisory guarding-tests NOTE (DCW-V0-069) that
+// dogfood change prints when the fixture's map holds a hunk that search would
+// select; these tests assert the other notes exactly.
+func dropGuardingNote(stderr string) string {
+	var kept strings.Builder
+	for _, line := range strings.SplitAfter(stderr, "\n") {
+		if !strings.HasPrefix(line, "dogfood-change: NOTE guarding-tests ") {
+			kept.WriteString(line)
+		}
+	}
+	return kept.String()
+}
+
 func portableDogfoodRepo(t *testing.T) (string, string) {
 	t.Helper()
 	root, err := filepath.EvalSymlinks(t.TempDir())
@@ -136,7 +149,7 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
 	bind := cemGit(t, root, "rev-parse", "HEAD")
 	code, stdout, stderr = run.exec(t, root, inputs, "dogfood", "change", base)
-	if code != 0 || stdout != "" || stderr != absentAgentReceipts {
+	if code != 0 || stdout != "" || dropGuardingNote(stderr) != absentAgentReceipts {
 		t.Fatalf("change exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base)
@@ -193,7 +206,7 @@ func TestDogfoodDCWV0046ReasonedUnknownChecksAndSeals(t *testing.T) {
 	cemGit(t, root, "add", ".corvint/change.cem.json")
 	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
 	bind := cemGit(t, root, "rev-parse", "HEAD")
-	if code, stdout, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 0 || stdout != "" || stderr != absentAgentReceipts {
+	if code, stdout, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 0 || stdout != "" || dropGuardingNote(stderr) != absentAgentReceipts {
 		t.Fatalf("change exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	code, stdout, stderr := run.exec(t, root, nil, "dogfood", "check", base)
@@ -263,7 +276,7 @@ func TestDogfoodDailyPathCompletesWithDeclaredNoIntent(t *testing.T) {
 		"\n  \"ocmStatus\": {\"state\": \"NOT_ASSESSED\", \"reason\": \"no-intent-declared\"}\n",
 		`"bootstrapUnknown": 0,`,
 	} {
-		if code != 0 || stdout != "" || stderr != absentAgentReceipts || !strings.Contains(string(report), want) {
+		if code != 0 || stdout != "" || dropGuardingNote(stderr) != absentAgentReceipts || !strings.Contains(string(report), want) {
 			t.Fatalf("change exit=%d stderr=%s want %s in report=%s", code, stderr, want, report)
 		}
 	}
@@ -390,7 +403,7 @@ func TestDogfoodChangeKeepsTheEncodingOfACommittedMapItCitesNothingInto(t *testi
 	cemGit(t, root, "commit", "-qam", "re-encode change evidence")
 	code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
 	kept, _ := os.ReadFile(mapPath)
-	if status := cemGit(t, root, "status", "--porcelain"); code != 0 || stderr != absentAgentReceipts || !bytes.Equal(kept, compact.Bytes()) || status != "" {
+	if status := cemGit(t, root, "status", "--porcelain"); code != 0 || dropGuardingNote(stderr) != absentAgentReceipts || !bytes.Equal(kept, compact.Bytes()) || status != "" {
 		t.Fatalf("rerun exit=%d stderr=%s status=%q map=%s", code, stderr, status, kept)
 	}
 	if code, stdout, stderr := run.exec(t, root, nil, "dogfood", "check", base); code != 0 || !strings.HasSuffix(stdout, "dogfood-check: PASS\n") {
@@ -601,7 +614,7 @@ func TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot(t *
 			code, stdout, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
 			report, _ := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
 			for _, want := range []string{`"complete": true`, `{"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "` + tc.reason + `"}`} {
-				if code != 0 || stdout != "" || stderr != note+absentAgentReceipts || !strings.Contains(string(report), want) {
+				if code != 0 || stdout != "" || dropGuardingNote(stderr) != note+absentAgentReceipts || !strings.Contains(string(report), want) {
 					t.Fatalf("change exit=%d stderr=%s want %s in report=%s", code, stderr, want, report)
 				}
 			}
