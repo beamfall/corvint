@@ -293,7 +293,9 @@ func TestUnreadableOrUnparsableNestedManifestKeepsTheFrontier_V1_0867(t *testing
 
 // TestNestedFrontierReadsTheSuppliedSource_V1_0867: the decision reads nested
 // manifests through the plugin's source, so an immutable tree decides it, not
-// whatever the worktree holds.
+// whatever the worktree holds. The tree admits bounded opens, as a Git
+// revision does: a plain fs.FS cannot, and UnitsSource now surfaces that
+// refusal instead of reading past it (V1-1416).
 func TestNestedFrontierReadsTheSuppliedSource_V1_0867(t *testing.T) {
 	tree := fstest.MapFS{
 		"go.mod":        {Data: []byte("module example.test/root\n")},
@@ -301,7 +303,7 @@ func TestNestedFrontierReadsTheSuppliedSource_V1_0867(t *testing.T) {
 		"nested/go.mod": {Data: []byte("module example.test/nested\n")},
 		"nested/n.go":   {Data: []byte("package nested\n")},
 	}
-	closed, err := golang.New().UnitsSource(affected.FSSource(tree))
+	closed, err := golang.New().UnitsSource(affected.FSSource(&budgetFS{files: tree, limit: 1 << 30}))
 	if err != nil {
 		t.Fatalf("units: %v", err)
 	}
@@ -309,7 +311,7 @@ func TestNestedFrontierReadsTheSuppliedSource_V1_0867(t *testing.T) {
 		t.Errorf("independent tree frontier = %v, want no %s", closed.Frontier, golang.FrontierNestedModule)
 	}
 	tree["nested/go.mod"] = &fstest.MapFile{Data: []byte("module example.test/nested\n\nrequire example.test/root v0.0.0\n")}
-	open, err := golang.New().UnitsSource(affected.FSSource(tree))
+	open, err := golang.New().UnitsSource(affected.FSSource(&budgetFS{files: tree, limit: 1 << 30}))
 	if err != nil {
 		t.Fatalf("units: %v", err)
 	}

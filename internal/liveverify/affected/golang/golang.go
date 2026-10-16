@@ -180,6 +180,12 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	resolve(units, imports, testImports, modulePaths(modules))
 	applyReadScopes(root, units, unitDirectories, frontier)
 	applyBinaryExecs(root, units, unitDirectories, owners, commands, frontier)
+	// A read this plugin tolerates (an unparsed file, an invalid declaration)
+	// may be an immutable source's fatal failure; surface it rather than a
+	// partial unit set (V1-1416, DLT-V0-002).
+	if err := root.Err(); err != nil {
+		return affected.Result{}, err
+	}
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
