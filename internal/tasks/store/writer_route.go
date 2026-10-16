@@ -152,12 +152,20 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 }
 
 // writerLeaseVerb reports whether the writer-checkpoint route serves the
-// request: every lease verb (CAL-V0-263, extending CAL-V0-116 and
-// CAL-V0-205), so no lease write runs the complete-history audit while a
-// usable writer checkpoint is retained. Every decline still prepares the
-// complete route, outside the preparation gate.
+// request: the liveness and claim writes that dominate queue traffic
+// (V1-0887), and pool confirm-safe, which otherwise ran the complete-history
+// audit under the preparation gate (CAL-V0-205, V1-1045). Every
+// other lease verb keeps the complete route, which prepares outside the
+// preparation gate (CAL-V0-263).
 func writerLeaseVerb(request transaction.Request) bool {
-	return request.Operation == transaction.Lease && request.Lease != nil
+	if request.Operation != transaction.Lease || request.Lease == nil {
+		return false
+	}
+	switch request.Lease.Verb {
+	case transaction.LeaseClaim, transaction.LeaseClaimNext, transaction.LeaseRenew, transaction.LeaseHeartbeat, transaction.LeaseRelease, transaction.LeasePoolSafe:
+		return true
+	}
+	return false
 }
 
 // writerRouteReady is the lock-free precheck of the writer-checkpoint route:

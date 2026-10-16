@@ -317,7 +317,9 @@ func (r *gateLoadRun) lease(verb string, req transaction.LeaseRequest) wire.Size
 func (r *gateLoadRun) call(verb string, req transaction.LeaseRequest) *Report {
 	r.calls++
 	s := gateLoadSample{Worker: r.worker, Verb: verb}
-	ctx := authority.WithLockObserver(context.Background(), func(d time.Duration) { s.LockHoldMS += ms(d) })
+	// The live clock the command line gives every writer (cli.writerContext), so a
+	// write that prepared across commits resamples recordedAt as the CLI does.
+	ctx := authority.WithLockObserver(WithClock(context.Background(), WallClock), func(d time.Duration) { s.LockHoldMS += ms(d) })
 	ctx = authority.WithPreparationObserver(ctx, func(o authority.PreparationObservation) {
 		s.GateEvents++
 		s.GateWaitMS += ms(o.Wait)
