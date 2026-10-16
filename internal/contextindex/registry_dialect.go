@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/projectprofile"
 )
 
 // The string-keyed registry dialect (NGI-V0-007 to NGI-V0-011) carries the
@@ -250,18 +252,36 @@ func registryImports(tokens []registryToken) map[string]registryBinding {
 	return bindings
 }
 
-// registryObject finds `export const|let|var NAME [: Type] = {` and returns
-// the object literal's opening and closing token indexes.
+// registryObject finds `export const|let|var NAME [: Type] = {`, or a
+// top-level `const NAME [: Type] = {` the file does not export (NGI-V0-014),
+// and returns the object literal's opening and closing token indexes.
 func registryObject(tokens []registryToken, export string) (int, int, bool) {
+	nesting := 0
 	for at := 0; at+3 < len(tokens); at++ {
-		if !isRegistryWord(tokens[at], "export") || (at > 0 && isRegistryPunct(tokens[at-1], ".")) {
+		if token := tokens[at]; token.kind == webPunct && strings.Contains("([{", token.text) {
+			nesting++
+		} else if token.kind == webPunct && strings.Contains(")]}", token.text) && nesting > 0 {
+			nesting--
+		}
+		if at > 0 && isRegistryPunct(tokens[at-1], ".") {
 			continue
 		}
-		keyword := tokens[at+1]
-		if !(isRegistryWord(keyword, "const") || isRegistryWord(keyword, "let") || isRegistryWord(keyword, "var")) || !isRegistryWord(tokens[at+2], export) {
+		// keyword is the index of const, let or var.
+		keyword := at + 1
+		switch {
+		case isRegistryWord(tokens[at], "export"):
+			if word := tokens[keyword]; !isRegistryWord(word, "const") && !isRegistryWord(word, "let") && !isRegistryWord(word, "var") {
+				continue
+			}
+		case nesting == 0 && isRegistryWord(tokens[at], "const") && (at == 0 || !isRegistryWord(tokens[at-1], "export")):
+			keyword = at
+		default:
 			continue
 		}
-		next := at + 3
+		if !isRegistryWord(tokens[keyword+1], export) {
+			continue
+		}
+		next := keyword + 2
 		if isRegistryPunct(tokens[next], ":") {
 			depth := 0
 			for next++; next < len(tokens); next++ {
@@ -291,10 +311,15 @@ func registryObject(tokens []registryToken, export string) (int, int, bool) {
 }
 
 // registryEntry is one resolved `key -> imported binding` edge of a registry.
+// A lazy entry (NGI-V0-013) names its module only by the specifier of a
+// require() or import() inside an arrow; target is that specifier resolved
+// by the reverse-import rule, without its suffix.
 type registryEntry struct {
 	key     string
 	line    int
 	binding registryBinding
+	lazy    bool
+	target  string
 }
 
 // registryFacts is one declared registry as read at the evaluated revision.
@@ -339,7 +364,11 @@ func parseRegistry(index *Index, declaration RegistryDeclaration) registryFacts 
 			break
 		}
 		if end > at {
-			if entry, ok := registryEntryOf(tokens[at:end], bindings); ok {
+			entry, ok := registryEntryOf(tokens[at:end], bindings)
+			if ok && entry.lazy {
+				entry.target, ok = registryLazyTarget(index, declaration.Path, entry.binding.specifier)
+			}
+			if ok {
 				facts.entries = append(facts.entries, entry)
 			} else {
 				facts.unresolved++
@@ -378,8 +407,78 @@ func registryEntryOf(property []registryToken, bindings map[string]registryBindi
 	if isRegistryPunct(value[0], ":") {
 		value = value[1:]
 	}
+	if binding, ok := registryLazyBinding(value); ok {
+		return registryEntry{key: key, line: first.line, binding: binding, lazy: true}, true
+	}
 	binding, ok := registryValueBinding(value, bindings)
 	return registryEntry{key: key, line: first.line, binding: binding}, ok
+}
+
+// registryLazyBinding reads a lazy loader value (NGI-V0-013): an arrow with
+// no parameters whose body is `new (require(S).X)(...)`, `require(S).X` or
+// `import(S).then(...)`, optionally followed by `as` or `satisfies`, where S
+// is a closed string literal. Any other arrow stays unresolved.
+func registryLazyBinding(value []registryToken) (registryBinding, bool) {
+	if len(value) < 4 || !isRegistryPunct(value[0], "(") || !isRegistryPunct(value[1], ")") ||
+		!isRegistryPunct(value[2], "=") || !isRegistryPunct(value[3], ">") {
+		return registryBinding{}, false
+	}
+	body := value[4:]
+	load := func(at int, keyword string) (string, int, bool) {
+		if at+3 >= len(body) || !isRegistryWord(body[at], keyword) || !isRegistryPunct(body[at+1], "(") || !isRegistryPunct(body[at+3], ")") {
+			return "", 0, false
+		}
+		specifier, ok := registryLiteral(body[at+2])
+		return specifier, at + 4, ok
+	}
+	member := func(at int) (string, bool) {
+		if at+1 >= len(body) || !isRegistryPunct(body[at], ".") || body[at+1].kind != webWord {
+			return "", false
+		}
+		return body[at+1].text, true
+	}
+	binding, at, ok := registryBinding{}, 0, false
+	if specifier, next, loaded := load(2, "require"); loaded && isRegistryWord(body[0], "new") && isRegistryPunct(body[1], "(") {
+		// new (require(S).X)(...)
+		name, named := member(next)
+		if ok = named && next+3 < len(body) && isRegistryPunct(body[next+2], ")") && isRegistryPunct(body[next+3], "("); ok {
+			binding, at = registryBinding{specifier, name}, registryClose(body, next+3)+1
+		}
+	} else if specifier, next, loaded := load(0, "require"); loaded {
+		// require(S).X
+		name, named := member(next)
+		binding, at, ok = registryBinding{specifier, name}, next+2, named
+	} else if specifier, next, loaded := load(0, "import"); loaded {
+		// import(S).then(...)
+		name, named := member(next)
+		if ok = named && name == "then" && next+2 < len(body) && isRegistryPunct(body[next+2], "("); ok {
+			binding, at = registryBinding{specifier, "*"}, registryClose(body, next+2)+1
+		}
+	}
+	if ok && at < len(body) && (isRegistryWord(body[at], "as") || isRegistryWord(body[at], "satisfies")) {
+		at = len(body)
+	}
+	return binding, ok && at == len(body)
+}
+
+// registryLazyTarget resolves a lazy entry's specifier from the registry file
+// by the reverse-import rule (a relative or profile-alias specifier) and
+// reports false unless it names an indexed JavaScript or TypeScript source; a
+// bare or unmatched specifier leaves the entry unresolved.
+func registryLazyTarget(index *Index, from, specifier string) (string, bool) {
+	profile := projectprofile.ByID(index.ProfileID)
+	if !webSpecifierAdmitted(specifier, profile) {
+		return "", false
+	}
+	target := webImportTarget(from, specifier, profile)
+	for suffix := range webSuffixes {
+		for _, candidate := range []string{target + suffix, strings.TrimRight(target, "/") + "/index" + suffix} {
+			if _, indexed := index.Sources[candidate]; indexed {
+				return target, true
+			}
+		}
+	}
+	return "", false
 }
 
 func registryValueBinding(value []registryToken, bindings map[string]registryBinding) (registryBinding, bool) {
@@ -453,6 +552,9 @@ func registryCallSites(index *Index, accessors map[string]bool) ([]registrySite,
 		for accessor := range accessors {
 			local[accessor] = accessor
 		}
+		// arguments maps a call site of this file whose first argument is a
+		// lone identifier to that argument's token index (NGI-V0-015).
+		arguments := map[int]int{}
 		for alias, binding := range registryImports(tokens) {
 			if accessors[binding.imported] {
 				local[alias] = binding.imported
@@ -487,10 +589,11 @@ func registryCallSites(index *Index, accessors map[string]bool) ([]registrySite,
 				continue
 			}
 			close := registryClose(tokens, open)
-			key, literal := "", false
+			key, literal, lone := "", false, false
 			if open+1 < close {
 				key, literal = registryLiteral(tokens[open+1])
-				literal = literal && (open+2 == close || isRegistryPunct(tokens[open+2], ","))
+				lone = open+2 == close || isRegistryPunct(tokens[open+2], ",")
+				literal = literal && lone
 			}
 			after := close + 1
 			declared := !member && !literal && after < len(tokens) && (isRegistryPunct(tokens[after], "{") || isRegistryPunct(tokens[after], ":")) &&
@@ -499,10 +602,80 @@ func registryCallSites(index *Index, accessors map[string]bool) ([]registrySite,
 				continue
 			}
 			site.key, site.literal = key, literal
+			if lone && tokens[open+1].kind == webWord {
+				arguments[len(sites)] = open + 1
+			}
 			sites = append(sites, site)
+		}
+		constants := registryConstants(tokens, arguments)
+		for at, argument := range arguments {
+			if key, bound := constants[tokens[argument].text]; bound {
+				sites[at].key, sites[at].literal = key, true
+			}
 		}
 	}
 	return sites, unavailable
+}
+
+// registryConstants reads the file's top-level `const NAME = LITERAL`
+// bindings (NGI-V0-015), LITERAL a closed registry literal optionally
+// followed by `as const` and ending the statement. A name is kept only when
+// every other occurrence of it outside a member access is a lone accessor
+// argument in arguments: any other occurrence may rebind or shadow it (a
+// parameter, a nested or repeated declaration, an import, an
+// assignment), so the name stays a non-literal key.
+func registryConstants(tokens []registryToken, arguments map[int]int) map[string]string {
+	if len(arguments) == 0 {
+		return nil
+	}
+	allowed := map[int]bool{}
+	for _, argument := range arguments {
+		allowed[argument] = true
+	}
+	constants, declared, nesting := map[string]string{}, map[string]int{}, 0
+	for at, token := range tokens {
+		// A sloppy-mode `with (object)` statement may resolve any name to a
+		// property of object, so no name of the file is closed.
+		if isRegistryWord(token, "with") && at+1 < len(tokens) && isRegistryPunct(tokens[at+1], "(") &&
+			(at == 0 || !isRegistryPunct(tokens[at-1], ".")) {
+			return nil
+		}
+		if token.kind == webPunct && strings.Contains("([{", token.text) {
+			nesting++
+		} else if token.kind == webPunct && strings.Contains(")]}", token.text) && nesting > 0 {
+			nesting--
+		}
+		if nesting != 0 || !isRegistryWord(token, "const") || (at > 0 && isRegistryPunct(tokens[at-1], ".")) ||
+			at+3 >= len(tokens) || tokens[at+1].kind != webWord || !isRegistryPunct(tokens[at+2], "=") {
+			continue
+		}
+		key, ok := registryLiteral(tokens[at+3])
+		end := at + 4
+		if end+1 < len(tokens) && isRegistryWord(tokens[end], "as") && isRegistryWord(tokens[end+1], "const") {
+			end += 2
+		}
+		if end < len(tokens) {
+			next := tokens[end]
+			continued := next.kind == webWord && (next.text == "in" || next.text == "instanceof" || next.text == "as" || next.text == "satisfies")
+			ok = ok && (isRegistryPunct(next, ";") || isRegistryPunct(next, ",") ||
+				next.kind == webWord && next.line > tokens[end-1].line && !continued)
+		}
+		name := tokens[at+1].text
+		if _, repeated := declared[name]; ok && !repeated {
+			constants[name], declared[name] = key, at+1
+		} else {
+			delete(constants, name)
+			declared[name] = -1
+		}
+	}
+	for at, token := range tokens {
+		position, named := declared[token.text]
+		if token.kind != webWord || !named || at == position || allowed[at] || (at > 0 && isRegistryPunct(tokens[at-1], ".")) {
+			continue
+		}
+		delete(constants, token.text)
+	}
+	return constants
 }
 
 // registryDialect is the declared registries and accessor call sites of one
@@ -577,6 +750,13 @@ func (dialect *registryDialect) impact(index *Index, changedPath string, importe
 		}
 		return callers[site.path]
 	}
+	// A lazy entry binds a JS/TS changed path the way rule (c) binds an
+	// importer to it: by the specifier's suffix-free target.
+	web := webSuffixes[strings.ToLower(pythonPathSuffix(changedPath))]
+	stem := pythonWithoutSuffix(changedPath)
+	bound := func(entry registryEntry) bool {
+		return entry.lazy && web && (entry.target == stem || strings.TrimRight(entry.target, "/")+"/index" == stem)
+	}
 	for _, registry := range dialect.registries {
 		declaration := registry.declaration
 		specifiers := map[string]bool{}
@@ -585,10 +765,16 @@ func (dialect *registryDialect) impact(index *Index, changedPath string, importe
 				specifiers[edge.imported] = true
 			}
 		}
+		lazy := false
+		for _, entry := range registry.entries {
+			lazy = lazy || bound(entry)
+		}
 		changedRegistry := changedPath == declaration.Path
-		// A registry whose export cannot be read may map any key to any
-		// path, so it applies to every changed path, widened.
-		if !changedRegistry && len(specifiers) == 0 && !registry.missing {
+		// A registry whose export cannot be read, or that holds an entry
+		// whose module is not closed, may map a key to any path, so it
+		// applies to every JS/TS changed path, widened (NGI-V0-012).
+		openEntry := registry.unresolved != 0 && (language == "javascript" || language == "typescript")
+		if !changedRegistry && len(specifiers) == 0 && !lazy && !registry.missing && !openEntry {
 			continue
 		}
 		accessors := map[string]bool{}
@@ -619,7 +805,7 @@ func (dialect *registryDialect) impact(index *Index, changedPath string, importe
 		}
 		entries := map[string][]registryEntry{}
 		for _, entry := range registry.entries {
-			if specifiers[entry.binding.specifier] {
+			if !entry.lazy && specifiers[entry.binding.specifier] || bound(entry) {
 				entries[entry.key] = append(entries[entry.key], entry)
 			}
 		}

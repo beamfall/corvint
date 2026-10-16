@@ -2553,6 +2553,10 @@ NGI-V0-008	docs/specs/non-go-impact-v0.md	96	(accepted under the owner's standin
 NGI-V0-009	docs/specs/non-go-impact-v0.md	107	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) A call	standing	2026-10-11; V1-1365
 NGI-V0-010	docs/specs/non-go-impact-v0.md	117	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) Selectio	standing	2026-10-11; V1-1365
 NGI-V0-011	docs/specs/non-go-impact-v0.md	126	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365)	standing	2026-10-11; V1-1365
+NGI-V0-012	docs/specs/non-go-impact-v0.md	138	(accepted under the owner's standing auto-accept (2026-10-11); V1-1455) A	standing	2026-10-11; V1-1455
+NGI-V0-013	docs/specs/non-go-impact-v0.md	144	(accepted under the owner's standing auto-accept (2026-10-11); V1-1456) An entry	standing	2026-10-11; V1-1456
+NGI-V0-014	docs/specs/non-go-impact-v0.md	153	(accepted under the owner's standing auto-accept (2026-10-11); V1-1456) The	standing	2026-10-11; V1-1456
+NGI-V0-015	docs/specs/non-go-impact-v0.md	158	(accepted under the owner's standing auto-accept (2026-10-11); V1-1457) A call	standing	2026-10-11; V1-1457
 NJB-001	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	44	each family is one exact profile/target tuple and a standalone CLI package; no	unrecorded	-
 NJB-002	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	46	canonical one-LF JSON input/output is bounded before decode, base64 decode, fact	unrecorded	-
 NJB-003	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	54	facts are typed, ordered, and digest-bound by the bridge-owned 14-field evidence	unrecorded	-

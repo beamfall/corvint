@@ -10,7 +10,7 @@ semantics; issue intent does not accept generated implementation detail.
 
 ## Agent digest
 - Claim: Ruby, JavaScript and TypeScript path/range impact binds syntax evidence and explicitly names unresolved dynamic dispatch.
-- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending. NGI-V0-007..011 (declared `string-key-registry/0` dialect: literal registry keys to the tests passing them) are accepted under the owner's standing auto-accept (2026-10-11; V1-1365) and implemented over synthetic repositories.
+- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending. NGI-V0-007..011 (declared `string-key-registry/0` dialect: literal registry keys to the tests passing them) are accepted under the owner's standing auto-accept (2026-10-11; V1-1365) and implemented over synthetic repositories. NGI-V0-012..015 (an unresolved entry widens every JS/TS path; lazy `require()`/`import()` entries; a non-exported top-level registry; a same-file top-level `const` key) are accepted under the same standing auto-accept (V1-1455, V1-1456, V1-1457).
 - Exists: Ruby/JS/TS versioned positional, committed-range and MCP admission; bounded structured unknowns; existing JS/TS import rules; a declared string-keyed registry dialect for syntax-profile path impact.
 - Blocked on: shared registry/CEM closeout, draft publication, integration and owner acceptance; no runtime-dispatch qualification.
 - Read next: Requirements; Trust and failure boundaries; Acceptance and traceability.
@@ -131,6 +131,40 @@ and range impact are unchanged.
   invalid declaration, and an unchanged default-profile receipt. The real CLI output on the
   fixture is retained in the build log.
 
+The following rows extend NGI-V0-008 and NGI-V0-009 with further recognised shapes; they do not
+change what any shape those rows already recognised selects, and every shape they do not name
+stays counted and widened under NGI-V0-010 (GitHub #945, #946, #947).
+
+- `NGI-V0-012`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1455) A
+  declared registry with any unresolved entry may map a key to a module no import edge reaches
+  (for example one loaded only by `require()`), so its `registry-key-unresolved` row and the
+  widening to every caller of its accessors MUST apply to every JavaScript or TypeScript changed
+  path, as an unresolved export already does, and not only to paths the registry imports. A
+  changed path in another language gets no registry row.
+- `NGI-V0-013`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1456) An entry
+  value that is an arrow with no parameters whose whole body is `new (require(S).X)(...)`,
+  `require(S).X` (including `.default`) or `import(S).then(...)`, optionally followed by `as` or
+  `satisfies`, with S a closed quoted string or substitution-free template, MUST give a key ->
+  module edge when S is a relative or profile-alias specifier that the existing reverse-import
+  rule (c) resolves, from the registry file, to an indexed JS/TS source (directly or as a
+  directory `index`). The edge binds a changed path exactly as rule (c) binds an importer to it.
+  A bare or unresolvable specifier, an arrow with parameters or a block body, a dynamic or
+  concatenated S, and any other body shape stay unresolved entries.
+- `NGI-V0-014`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1456) The
+  declared `export` identifier MAY also name a top-level `const NAME [: Type] = { ... }` the file
+  does not export (read through an accessor the file defines); no manifest field changes. A
+  `const` nested in a block, function or call, or a member access ending in NAME, is not the
+  registry, which then stays `registry-export-unresolved`.
+- `NGI-V0-015`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1457) A call
+  site's key is also literal when its first argument, followed by `,` or `)`, is an identifier
+  bound in the same file by a top-level `const NAME = L` (optionally `as const`) that ends the
+  statement, L being a closed quoted string or substitution-free template, and every other
+  occurrence of NAME in that file outside a member access is itself such a lone accessor
+  argument. Any other occurrence (an assignment, a parameter, catch or block binding, a nested
+  or repeated declaration, an import, another read), a type annotation, a `let` or `var`
+  binding, a template with a substitution, a concatenation, a binding continued past the literal,
+  and any file containing a `with (...)` statement keep the key non-literal.
+
 ## Trust and failure boundaries
 
 Core performs bounded local immutable reads; it adds no network, process provider,
@@ -155,7 +189,7 @@ for languages not admitted by this new range capability.
 | `dynamic-load-unresolved` | A load argument is dynamic, interpolated or concatenated. |
 | `bare-import-unresolved` | Bare JS/TS import specifiers resolve to no repository file or declared package, so reverse importers are not closed; `count` is the repository-wide specifier count (`GPK-V0-080`, proposed). |
 | `registry-declaration-invalid` | A manifest `registries` member does not decode or validate; `count` is the number of such manifests (`NGI-V0-007`). |
-| `registry-key-unresolved` | Entries of the declared registry `registry` have no literal key or imported-binding value; selection is widened (`NGI-V0-008`, `NGI-V0-010`). |
+| `registry-key-unresolved` | Entries of the declared registry `registry` have no literal key or imported-binding value; selection is widened (`NGI-V0-008`, `NGI-V0-010`) on every JS/TS changed path (`NGI-V0-012`); a lazy entry counts unless `NGI-V0-013` resolves it. |
 | `registry-export-unresolved` | The declared export of `registry` is not a readable object literal, so none of its keys are known; selection is widened (`NGI-V0-008`, `NGI-V0-010`). |
 | `accessor-key-nonliteral` | `count` calls of `accessor` pass a key that is not a literal; selection is widened to every caller (`NGI-V0-010`). |
 | `registry-caller-unavailable` | Sources naming a declared accessor could not be read or lexed completely (`NGI-V0-010`). |
@@ -180,6 +214,10 @@ and a validated declared identifier, never source text.
 | `NGI-V0-009` | `registryCallSites`, `registryDialect.impact`; wiring in `impact` | `TestRegistryDialectSelectsTestsPassingTheKey`, `TestRegistryDialectAliasedAccessorImport`, `TestRegistryDialectKeyCollisionAcrossRegistries` |
 | `NGI-V0-010` | `registryDialect.impact`; `extra` rows in `nonGoImpactUnknowns` | `TestRegistryDialectNonLiteralKeyWidens`, `TestRegistryDialectChangedRegistrySelectsEveryCaller`, `TestRegistryDialectUnresolvedRegistryWidens`, `TestRegistryDialectReexportedRegistryIsUnresolved` |
 | `NGI-V0-011` | `internal/contextindex/registry_dialect_test.go`, `internal/appmap/registries_test.go` | tests above; real CLI output in `../build-log/2026-10-14-v1-1365-string-keyed-registry.md` |
+| `NGI-V0-012` | `registryDialect.impact` (`openEntry`) | `TestRegistryDialectLazyRequireNeverFailsOpen`, `TestRegistryDialectUnresolvedEntryAppliesToEveryPath`; real CLI output in `../build-log/2026-10-15-registry-dialect-lazy-const.md` |
+| `NGI-V0-013` | `registryLazyBinding`, `registryLazyTarget`, `parseRegistry`; `bound` in `registryDialect.impact` | `TestRegistryDialectLazyEntriesResolve`, `TestRegistryDialectLazyEntriesStayClosed` |
+| `NGI-V0-014` | `registryObject` | `TestRegistryDialectNonExportedRegistry` |
+| `NGI-V0-015` | `registryCallSites`, `registryConstants` | `TestRegistryDialectConstAccessorKey`, `TestRegistryDialectConstAccessorKeyStaysNonLiteral`, `TestRegistryDialectNonLiteralKeyWidens`; real CLI output in `../build-log/2026-10-15-registry-dialect-lazy-const.md` |
 
 Names in this matrix identify evidence rather than implying passing execution.
 Observed execution and independent findings are retained in
