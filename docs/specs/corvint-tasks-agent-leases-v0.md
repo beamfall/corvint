@@ -6493,6 +6493,44 @@ Rollback: revert `reusableRun` and the reuse branch of `GateRun`
 `reusedFrom` result field and this amendment. A reused result already written remains a valid
 TCP-00 record that `complete` and the older audit accept; an older `gate run` executes every gate.
 
+### V1-1460 gate timeout bound
+
+Owner intent: the owner pre-approved raising the `full-gate` timeout on 2026-10-15, after `make gate`
+ended `TIMEOUT` twice at 7200 seconds on a host at load average about 64, but a policy could not
+declare more than 7200 seconds.
+
+- `CAL-V0-255`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1460) A policy
+  gate's `timeoutSeconds` MUST be 1..14400 (`wire.MaxGateTimeoutSecs`, 4 hours); 0 or above 14400
+  refuses `LIMIT_EXCEEDED` wherever the policy is decoded, including `policy update` and the journal
+  audit of a posted policy. `gate run` enforces the declared value with the same process-group kill
+  and `TIMEOUT` class as before. The bound relates to the other limits as follows, and none of them
+  changes: 14400 seconds is 240 minutes, inside `MaxLeaseMinutes` (1440), so one claim or renewal
+  can cover a whole gate run. `gate run` holds no writer lock and writes no heartbeat while the
+  command runs, and it records the result only under a live lease (CAL-V0-016). A holder whose lease
+  is shorter than the run therefore renews or heartbeats from another process, as before. The
+  detached `attempt run --timeout` bound (`MaxLeaseMinutes*60-130` seconds) is separate and still
+  larger. A gate that a supervised program runs is also cancelled by the program run's
+  `wallSeconds` deadline, which policy bounds by the stage wall (at most `MaxLaneWallMinutes`, 240),
+  whichever ends first. A dispatcher role that runs a gate needs
+  `wallSeconds` and `idleSeconds` above the gate timeout; that is operator configuration.
+
+Non-goals: changing any lease, heartbeat, wall, detach or output limit; changing a store's policy.
+The orchestrator raises `full-gate` through a policy update after a rebuilt binary is installed.
+
+Compatibility: no format change. A binary built before this change refuses a policy that declares a
+gate `timeoutSeconds` above 7200 with `LIMIT_EXCEEDED`. It also refuses a journal holding such a
+policy in its `receipt audit`, even after a later policy lowers the value, because that audit decodes every posted policy.
+Install the new binary on every host that reads the store before posting such a policy.
+
+Acceptance evidence: `TestCALV0255_GateTimeoutBoundIs14400` (`internal/tasks/intent`);
+`TestCALV0255_AuditAcceptsPostedGateTimeoutBound` (`internal/tasks/journal`);
+`docs/build-log/2026-10-16-v1-1460-gate-timeout-bound.md`.
+
+Rollback: first post a policy whose every gate declares `timeoutSeconds` within 1..7200, then revert
+`MaxGateTimeoutSecs` and this amendment. A store that has posted a policy above 7200 stays readable
+only by binaries carrying this bound, which is the recorded compatibility limit of rollback; no
+receipt or posted policy is rewritten to lift it.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -6959,6 +6997,7 @@ and removes the new configuration members.
 | CAL-V0-242 | `TestCALV0242_ModelRefusesAnUnqualifiedReuse` (`internal/tasks/store`) |
 | CAL-V0-243 | `TestCALV0243_ReceiptAuditBindsEveryReuse`, `TestCALV0243_ReuseRenamedAfterReturningToTheTree`, `TestCALV0243_RedoBindsAPendingReuse`, `TestCALV0240_ReusablePassSatisfiesAnotherAttemptAtTheTree` (`internal/tasks/store`) |
 | CAL-V0-250 | `TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference` (`internal/tasks/cli`); `docs/build-log/2026-10-15-v1-1384-1379-tasks-cli-refusals.md` |
+| CAL-V0-255 | `TestCALV0255_GateTimeoutBoundIs14400` (`internal/tasks/intent`); `TestCALV0255_AuditAcceptsPostedGateTimeoutBound` (`internal/tasks/journal`); `docs/build-log/2026-10-16-v1-1460-gate-timeout-bound.md` |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance
