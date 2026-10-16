@@ -76,6 +76,9 @@ type AttemptDetail struct {
 	FailureMessage string            `json:"failureMessage,omitempty"`
 	Anchor         *Anchor           `json:"anchor,omitempty"`
 	Artifacts      []FailureArtifact `json:"artifacts,omitempty"`
+	// RouteStubs is the attempt's request-stub record (LPCV-V0-072), unprofiled receipts only.
+	// Absent means not produced, never zero hits.
+	RouteStubs *RouteStubRecord `json:"routeStubs,omitempty"`
 }
 
 // BrowserStep is the bounded action trace retained by the redaction-capable
