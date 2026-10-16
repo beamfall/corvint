@@ -448,6 +448,13 @@ func driftItem(ctx context.Context, repository *gitauth.Repository, record wire.
 	return item, nil
 }
 
+// SpanOccurrences counts the overlapping occurrences of needle that
+// ClassifySpan matches, so a refusal can name the count it decided on.
+func SpanOccurrences(haystack, needle []byte) int {
+	count, _ := countOverlapping(haystack, needle)
+	return count
+}
+
 // countOverlapping counts matches resuming one byte after each match.
 func countOverlapping(haystack, needle []byte) (int, int64) {
 	count := 0

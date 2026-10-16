@@ -8,14 +8,20 @@ package gateselect
 
 import (
 	"bytes"
+	"context"
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -59,6 +65,21 @@ func (index *repositoryIndex) readScopes(root string) (map[string][]string, erro
 	if len(body) > maxReadScopeBytes {
 		return nil, fmt.Errorf("%s exceeds %d bytes", readScopesPath, maxReadScopeBytes)
 	}
+	scopes, err := parseReadScopes(body)
+	if err != nil {
+		return nil, err
+	}
+	for directory := range scopes {
+		if index.packages[directory] == nil {
+			return nil, fmt.Errorf("%s: package %q", readScopesPath, directory)
+		}
+	}
+	return scopes, nil
+}
+
+// parseReadScopes decodes one declaration body and checks its exact grammar,
+// without asking whether a declared directory holds a package.
+func parseReadScopes(body []byte) (map[string][]string, error) {
 	var declared readScopeFile
 	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
 		return nil, err
@@ -67,7 +88,7 @@ func (index *repositoryIndex) readScopes(root string) (map[string][]string, erro
 		return nil, fmt.Errorf("%s: profile must be %s with at most %d packages", readScopesPath, readScopesProfile, maxReadScopePackages)
 	}
 	for directory, entries := range declared.Packages {
-		if !validRelativePath(directory) || index.packages[directory] == nil || entries == nil || len(entries) > maxReadScopeEntries {
+		if !validRelativePath(directory) || entries == nil || len(entries) > maxReadScopeEntries {
 			return nil, fmt.Errorf("%s: package %q", readScopesPath, directory)
 		}
 		previous := ""
@@ -85,7 +106,13 @@ func (index *repositoryIndex) readScopes(root string) (map[string][]string, erro
 // directory: the declaration itself, a path in the package's subtree, or a
 // declared entry, a path in a declared subtree, or an ancestor of an entry.
 func inReadScope(directory string, scope []string, dirtyPath string) bool {
-	if dirtyPath == readScopesPath || dirtyPath == directory || strings.HasPrefix(dirtyPath, directory+"/") {
+	return dirtyPath == readScopesPath || inDeclaredScope(directory, scope, dirtyPath)
+}
+
+// inDeclaredScope is inReadScope without the declaration itself: the
+// package's subtree and its declared entries only.
+func inDeclaredScope(directory string, scope []string, dirtyPath string) bool {
+	if dirtyPath == directory || strings.HasPrefix(dirtyPath, directory+"/") {
 		return true
 	}
 	for _, entry := range scope {
@@ -115,4 +142,284 @@ func validRelativePath(value string) bool {
 		}
 	}
 	return true
+}
+
+// declaredBears reports whether dirtyPath bears on the package in directory
+// through the declaration, given the current declaration scopes and prior, the
+// declaration the plan was measured from (nil when unknown). With a known base
+// the declaration path bears only on a package whose key was added, whose
+// entries changed or whose key was removed, or whose subtree or declared
+// entries hold that path (AFP-V0-050, as the planner's
+// Graph.declarationChanged); with an unknown base, and for every other path,
+// the AFP-V0-023 rule applies.
+func declaredBears(directory string, scopes, prior map[string][]string, dirtyPath string) bool {
+	scope, declared := scopes[directory]
+	if dirtyPath != readScopesPath || prior == nil {
+		return declared && inReadScope(directory, scope, dirtyPath)
+	}
+	before, wasDeclared := prior[directory]
+	if !declared {
+		return wasDeclared
+	}
+	return !wasDeclared || !slices.Equal(before, scope) || inDeclaredScope(directory, scope, dirtyPath)
+}
+
+// The base declaration (AFP-V0-050) is read from Git objects with the git
+// executable, because this package stays on the standard library: the
+// tools/gate-ledger fixture compiles these files into a module with no other
+// dependency. Its checks mirror CommittedReadScopes in
+// internal/liveverify/affected/golang/readscopes.go.
+
+const (
+	maxBaseTreeBytes    = 64 << 20
+	maxWorkspaceBytes   = 4 << 20
+	baseGitDeadline     = 30 * time.Second
+	regularFileMode     = "100644"
+	executableFileMode  = "100755"
+	treeMode            = "040000"
+	workspaceManifest   = "go.work"
+	moduleManifestName  = "go.mod"
+	baseTreeEntryFields = 3
+)
+
+var fullObjectID = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
+
+// skippedDirectories mirrors affected.SkippedDirectories less the names the Go
+// plugin admits (build, dist, target): the observer's walk does not descend
+// them.
+var skippedDirectories = map[string]bool{
+	"node_modules": true, "vendor": true, "__pycache__": true, "venv": true, "site-packages": true,
+}
+
+type baseTreeEntry struct{ mode, object string }
+
+// baseReadScopes returns the declaration at the commit the plan was measured
+// from: the receipt's range.base, else its revision (HEAD). A commit holding no
+// declaration is an empty map. It is nil, unknown, for a --snapshot plan, when
+// the commit is not a full object id, when the tree, the declaration or go.work
+// cannot be read or is not a regular file, when the declaration is oversized or
+// invalid, or when it declares a directory that holds no observed Go package at
+// that commit.
+func baseReadScopes(plan Receipt, root string) map[string][]string {
+	commit := plan.Range.Base
+	if commit == "" {
+		commit = plan.Revision
+	}
+	if plan.Snapshot != nil || !fullObjectID.MatchString(commit) {
+		return nil
+	}
+	listing, err := baseGit(root, maxBaseTreeBytes, "ls-tree", "-r", "-t", "-z", "--full-tree", commit+"^{commit}")
+	if err != nil {
+		return nil
+	}
+	entries, ok := parseBaseTree(listing)
+	if !ok {
+		return nil
+	}
+	scopes := map[string][]string{}
+	if body, present, ok := baseBlob(root, entries, readScopesPath, maxReadScopeBytes); !ok {
+		return nil
+	} else if present {
+		if scopes, err = parseReadScopes(body); err != nil {
+			return nil
+		}
+	}
+	listed, ok := baseWorkspace(root, entries)
+	if !ok {
+		return nil
+	}
+	goDirectories := map[string]bool{}
+	for name, entry := range entries {
+		if regularMode(entry.mode) && strings.HasSuffix(name, ".go") {
+			goDirectories[path.Dir(name)] = true
+		}
+	}
+	for directory := range scopes {
+		if !walkedDirectory(directory) || !goDirectories[directory] {
+			return nil
+		}
+		owner, observed := baseOwner(entries, listed, directory)
+		if !observed || inTestdataComponent(relativeTo(directory, owner)) {
+			return nil
+		}
+	}
+	return scopes
+}
+
+// parseBaseTree reads `git ls-tree -r -t -z` records, `<mode> <type> <object>\t<path>`.
+// Trees are listed too, so an empty directory is an entry, not an absence.
+func parseBaseTree(listing []byte) (map[string]baseTreeEntry, bool) {
+	entries := map[string]baseTreeEntry{}
+	for _, record := range strings.Split(strings.TrimSuffix(string(listing), "\x00"), "\x00") {
+		if record == "" {
+			continue
+		}
+		header, name, found := strings.Cut(record, "\t")
+		fields := strings.Fields(header)
+		if _, duplicate := entries[name]; duplicate || !found || len(fields) != baseTreeEntryFields || len(entries) >= maxIndexEntries {
+			return nil, false
+		}
+		entries[name] = baseTreeEntry{mode: fields[0], object: fields[2]}
+	}
+	return entries, true
+}
+
+// baseBlob reads the regular file name from the base tree, bounded by limit.
+// An absent name is not present; a name that is not a regular file, or a
+// directory, is not ok.
+func baseBlob(root string, entries map[string]baseTreeEntry, name string, limit int64) (body []byte, present, ok bool) {
+	entry, found := entries[name]
+	if !found {
+		for other := range entries {
+			if strings.HasPrefix(other, name+"/") {
+				return nil, false, false
+			}
+		}
+		return nil, false, true
+	}
+	if !regularMode(entry.mode) || !fullObjectID.MatchString(entry.object) {
+		return nil, true, false
+	}
+	body, err := baseGit(root, limit, "cat-file", "blob", entry.object)
+	return body, true, err == nil
+}
+
+// baseWorkspace is workspaceDirectories over the base tree: the directories a
+// root go.work lists by its use grammar, or the root alone.
+func baseWorkspace(root string, entries map[string]baseTreeEntry) (map[string]bool, bool) {
+	body, present, ok := baseBlob(root, entries, workspaceManifest, maxWorkspaceBytes)
+	if !ok {
+		return nil, false
+	}
+	listed := map[string]bool{}
+	use := func(value string) {
+		cleaned := path.Clean(filepath.ToSlash(strings.Trim(value, "\"`")))
+		if cleaned == "." || validRelativePath(cleaned) {
+			listed[cleaned] = true
+		}
+	}
+	inBlock := false
+	for _, line := range strings.Split(string(body), "\n") {
+		if index := strings.Index(line, "//"); index >= 0 {
+			line = line[:index]
+		}
+		fields := strings.Fields(line)
+		switch {
+		case len(fields) == 0:
+		case inBlock && fields[0] == ")":
+			inBlock = false
+		case inBlock:
+			use(fields[0])
+		case fields[0] != "use" || len(fields) != 2:
+		case fields[1] == "(":
+			inBlock = true
+		default:
+			use(fields[1])
+		}
+	}
+	if !present || len(listed) == 0 {
+		listed["."] = true
+	}
+	return listed, true
+}
+
+// baseOwner is committedOwner over the base tree: the nearest listed module
+// at or above directory. A regular go.mod below a listed module's testdata is
+// fixture data and owns nothing; any other go.mod that is not listed, or that
+// is not a regular file, owns its subtree for a module the observer drops.
+func baseOwner(entries map[string]baseTreeEntry, listed map[string]bool, directory string) (string, bool) {
+	for {
+		if listed[directory] {
+			return directory, true
+		}
+		// A directory named go.mod is no manifest: the observer collects files.
+		if entry, found := entries[path.Join(directory, moduleManifestName)]; found && entry.mode != treeMode &&
+			(!regularMode(entry.mode) || !baseFixtureModule(listed, directory)) {
+			return "", false
+		}
+		if directory == "." {
+			return "", false
+		}
+		directory = path.Dir(directory)
+	}
+}
+
+// baseFixtureModule is fixtureOfObservedModule: directory lies below a
+// testdata directory of the nearest listed module above it.
+func baseFixtureModule(listed map[string]bool, directory string) bool {
+	for owner := path.Dir(directory); ; owner = path.Dir(owner) {
+		if listed[owner] {
+			return inTestdataComponent(relativeTo(directory, owner))
+		}
+		if owner == "." {
+			return false
+		}
+	}
+}
+
+// walkedDirectory reports whether the observer's walk descends into
+// directory: no component is hidden or skipped.
+func walkedDirectory(directory string) bool {
+	for _, name := range strings.Split(directory, "/") {
+		if strings.HasPrefix(name, ".") || skippedDirectories[name] {
+			return false
+		}
+	}
+	return true
+}
+
+func inTestdataComponent(relative string) bool {
+	return slices.Contains(strings.Split(relative, "/"), "testdata")
+}
+
+func relativeTo(directory, moduleDirectory string) string {
+	if moduleDirectory == "." {
+		return directory
+	}
+	if directory == moduleDirectory {
+		return "."
+	}
+	return strings.TrimPrefix(directory, moduleDirectory+"/")
+}
+
+func regularMode(mode string) bool { return mode == regularFileMode || mode == executableFileMode }
+
+// baseGit runs one read-only git plumbing command in root with the hermetic
+// configuration cmd/corvint uses (no system or global config, no replace
+// objects, no lazy fetch), bounded by limit bytes of output and a deadline.
+func baseGit(root string, limit int64, arguments ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), baseGitDeadline)
+	defer cancel()
+	prefix := []string{"--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "credential.helper=",
+		"-c", "submodule.recurse=false", "-c", "core.hooksPath=/dev/null", "-C", root}
+	command := exec.CommandContext(ctx, "git", append(prefix, arguments...)...)
+	command.Env = []string{
+		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
+		"GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1",
+		"GIT_NO_REPLACE_OBJECTS=1", "GIT_ALLOW_PROTOCOL=", "LANG=C", "LC_ALL=C",
+	}
+	if _, err := os.Lstat(filepath.Join(root, ".git")); err == nil {
+		command.Env = append(command.Env, "GIT_CEILING_DIRECTORIES="+filepath.Dir(root))
+	}
+	stdout, err := command.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := command.Start(); err != nil {
+		return nil, err
+	}
+	body, readErr := io.ReadAll(io.LimitReader(stdout, limit+1))
+	if int64(len(body)) > limit {
+		cancel()
+	}
+	waitErr := command.Wait()
+	switch {
+	case int64(len(body)) > limit:
+		return nil, fmt.Errorf("git %s output exceeds %d bytes", arguments[0], limit)
+	case readErr != nil:
+		return nil, readErr
+	case waitErr != nil:
+		return nil, waitErr
+	}
+	return body, nil
 }

@@ -7,7 +7,8 @@
 // `reader <pkg> <- <path>` for a package that encloses or names a dirty path;
 // `unresolved <pkg>: <reason>` for a package whose reads no literal bounds,
 // selected whenever any path is dirty; `declared <pkg> <- <path>` for a package
-// whose declared read scope holds a dirty path, AFP-V0-023), then one verdict
+// whose declared read scope holds a dirty path, AFP-V0-023, where an edit of the
+// declaration itself is measured against the plan's base, AFP-V0-050), then one verdict
 // as the last line:
 // `run <pkgs>`, `FALLBACK <reason>`, or `NOTHING <reason>`. A dirty path carrying
 // a control character falls back before any line echoes it, so the verdict
@@ -26,6 +27,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -46,6 +48,15 @@ type Receipt struct {
 			State    string   `json:"state"`
 		} `json:"go"`
 	} `json:"provider"`
+	// Range.Base, else Revision, is the commit the plan was measured from; a
+	// read-scope declaration edit is narrowed against its declaration
+	// (AFP-V0-050) unless the plan is a --snapshot plan, which keeps the
+	// AFP-V0-023 rule as the planner's --snapshot form does.
+	Snapshot map[string]any `json:"snapshot"`
+	Range    struct {
+		Base string `json:"base"`
+	} `json:"range"`
+	Revision string `json:"revision"`
 }
 
 var moduleLevelFrontiers = map[string]bool{
@@ -175,9 +186,20 @@ func selectPackages(plan Receipt, module, root string) []string {
 			add([]string{directory}, "unresolved", fmt.Sprintf(": %q", unresolved[directory]))
 		}
 	}
-	for _, directory := range sortedKeys(scopes) {
+	var prior map[string][]string
+	if slices.Contains(plan.Plan.Dirty, readScopesPath) {
+		prior = baseReadScopes(plan, root)
+	}
+	declared := map[string]bool{}
+	for directory := range scopes {
+		declared[directory] = true
+	}
+	for directory := range prior {
+		declared[directory] = index.packages[directory] != nil
+	}
+	for _, directory := range sortedKeys(declared) {
 		for _, dirty := range sortedUnique(plan.Plan.Dirty) {
-			if inReadScope(directory, scopes[directory], dirty) {
+			if declared[directory] && declaredBears(directory, scopes, prior, dirty) {
 				add([]string{directory}, "declared", " <- "+dirty)
 				break
 			}

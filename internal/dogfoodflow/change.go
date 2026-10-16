@@ -50,6 +50,7 @@ type change struct {
 	citationStageOwned   bool
 	citationCount        int
 	citationFailedRow    int
+	citeSpanUnaligned    bool // no hunk edits the refused span (DCW-V0-063)
 	linkObservedRows     int
 	citedOver            bool
 	intentPublishTmp     string
@@ -705,7 +706,9 @@ func (c *change) cite(plan []byte, citeOutput string) (string, string) {
 		errorFile := c.evidence + "/cem-cite.stderr"
 		if status := c.exec(args, part, errorFile); status != 0 {
 			c.citationFailedRow = index + 1
-			return "NOT_PRODUCED", failureReason(readFile(errorFile), status)
+			stderr := readFile(errorFile)
+			c.citeSpanUnaligned = bytes.Contains(stderr, []byte(citeSpanUnedited))
+			return "NOT_PRODUCED", failureReason(stderr, status)
 		}
 		// Intermediate receipts truthfully name the stage; only the last cite
 		// publishes the original map. Keep their raw stdout as private evidence.
@@ -1425,8 +1428,18 @@ var fixHints = []struct{ pattern, hint string }{
 
 const uncommittedHint = "the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change {base}"
 
+// citeSpanUnedited is the cem cite refusal phrase for a span whose base
+// lines no hunk edits but whose text recurs in the changed file.
+const citeSpanUnedited = "are edited by no hunk"
+
+// citeSpanUnalignedHint is the DCW-V0-063 fix line for that refusal.
+const citeSpanUnalignedHint = "plan row {row} cites BASE lines that no hunk edits (at most hunk context), which git's line alignment leaves unchanged, but their text occurs more than once in the changed file (another copy exists or the change adds one), and the stability check matches text, not line positions; cite a span whose text occurs once in the changed file, for example by widening it to a neighbouring distinct line (DCW-V0-063)"
+
 func (c *change) fixHint(row step) string {
 	value := row.name + ":" + row.reason
+	if value == "cem-cite:cite-span-not-stable" && c.citeSpanUnaligned {
+		return strings.ReplaceAll(citeSpanUnalignedHint, "{row}", strconv.Itoa(c.citationFailedRow))
+	}
 	for _, entry := range fixHints {
 		prefix, suffix, star := strings.Cut(entry.pattern, "*")
 		matched := value == entry.pattern
