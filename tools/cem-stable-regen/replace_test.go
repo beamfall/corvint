@@ -170,16 +170,16 @@ func TestReplaceRefusals(t *testing.T) {
 	}
 }
 
-// TestReplaceCellOnly re-emits a value of one envelope cell no case matches
-// while every case value stays: FULL-RESULT-CASES.json, its predecessorSHA256
-// and the amendment index stay byte-identical (decision 0535).
+// TestReplaceCellOnly re-emits a value of the first envelope cell no case
+// matches while every case value stays: FULL-RESULT-CASES.json, its
+// predecessorSHA256 and the amendment index stay byte-identical (decision 0535).
 func TestReplaceCellOnly(t *testing.T) {
 	f := newReplaceFixture(t)
-	const cell = "missing-base"
 	captureFor(t, f.capture, frozenCases(t, f.root), func(int) any { return nil }, func(_ int, r map[string]any) { delete(r, "probe") })
-	var oldValue string
+	var cell, oldValue string
 	f.cells, _ = cellOverrides(t, f.root, filepath.Join(t.TempDir(), "cells.json"), func(id string) any {
-		if id == cell {
+		if cell == "" {
+			cell = id
 			return map[string]any{"verdictSha256": f.newValue}
 		}
 		return map[string]any{}
@@ -243,7 +243,7 @@ func emptyCells(t *testing.T, root string) string {
 // (decision 0535). Without one the re-emission is refused.
 func TestReplaceCellDisagreeingCases(t *testing.T) {
 	f := newReplaceFixture(t)
-	const cell = "missing-base"
+	var cell string
 	members := []string{"code", "verdictSha256"}
 	cases := frozenCases(t, f.root)
 	captureFor(t, f.capture, cases, func(int) any { return nil }, func(_ int, r map[string]any) { delete(r, "probe") })
@@ -265,14 +265,19 @@ func TestReplaceCellDisagreeingCases(t *testing.T) {
 		case n > 1:
 			full[c.ID] = map[string]any{}
 		}
-		if c.ID == cell {
-			if len(values[c.key]) < 2 {
-				t.Fatalf("cell %s does not match disagreeing cases", cell)
-			}
+		if cell == "" && len(values[c.key]) > 1 {
+			cell = c.ID
 			oldCode, _ = c.ExpectedResult["code"].(string)
 			oldVerdict, _ = c.ExpectedResult["verdictSha256"].(string)
-			full[c.ID] = map[string]any{"code": "repository-object-unavailable", "verdictSha256": f.newValue}
+			newCode := "repository-object-unavailable"
+			if oldCode == newCode {
+				newCode = "git-read-failed"
+			}
+			full[c.ID] = map[string]any{"code": newCode, "verdictSha256": f.newValue}
 		}
+	}
+	if cell == "" {
+		t.Fatal("no cell matches cases that disagree on code")
 	}
 	dir := t.TempDir()
 	partialFile, fullFile := filepath.Join(dir, "partial.json"), filepath.Join(dir, "full.json")
