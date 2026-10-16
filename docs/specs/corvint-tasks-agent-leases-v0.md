@@ -3423,6 +3423,11 @@ can still cut off a holder that is alive but not sending heartbeats. A wrong loc
 classification, and an observation earlier than the signal stays CLOCK_BEFORE_HEARTBEAT. An older
 binary refuses a policy carrying the key.
 
+Note (2026-10-16, V1-1517): the first two sentences of this failure mode predate CAL-V0-123 and are
+superseded for handoffs; CAL-V0-123 makes a `holderLiveness`-only change, including a TTL change,
+handoff-compatible. `complete` still refuses `STALE_POLICY` for an attempt claimed under an earlier
+policy (`completionBlocker` in `internal/tasks/transaction/lease_gate.go`). The accepted text above is unchanged.
+
 Acceptance evidence: `TestCALV0120_PolicyHolderLivenessOptIn` (`internal/tasks/intent`);
 `TestCALV0120_HolderObservationUsesPolicyTTL`, `TestCALV0120_PolicyTTLDrivesHolderReads`,
 `TestCALV0121_StaleHolderCoordinatorHandoff` (`internal/tasks/cli`); the CAL-V0-048 tests still
