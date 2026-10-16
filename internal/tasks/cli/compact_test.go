@@ -410,3 +410,49 @@ func compactPage(t *testing.T, root string, args ...string) run {
 	}
 	return x
 }
+
+// TestCALV0310_FieldsUnknownKeyDiagnostic: an absent --fields key is still
+// refused MALFORMED, but the refusal names the key, lists the item's keys and
+// suggests the one-level-down path that exists, without aliasing it.
+func TestCALV0310_FieldsUnknownKeyDiagnostic(t *testing.T) {
+	t.Run("CAL-V0-310", func(t *testing.T) {
+		root, _ := leaseCLIStore(t, 1, time.Now().UTC().Add(-time.Minute))
+		_, ticketID := liveAttempt(t, root)
+		warn := func(x run) string { return strings.Join(x.res.Warnings, " ") }
+
+		full := compactOK(t, root, "ticket", "show", ticketID).res.Items[0]
+		x := compactRefused(t, root, "ticket", "show", ticketID, "--fields", "body")
+		w := warn(x)
+		if !strings.Contains(w, `field "body" is not in this read's items`) || !strings.Contains(w, `did you mean "record.body"?`) {
+			t.Fatalf("ticket show body refusal: %s", x.stdout)
+		}
+		if !strings.Contains(w, "its keys are "+strings.Join(slices.Sorted(slices.Values(full.Obj.Keys)), ", ")) {
+			t.Fatalf("ticket show refusal does not list the item's keys: %s", x.stdout)
+		}
+		if strings.Contains(warn(compactRefused(t, root, "ticket", "show", ticketID, "--fields", "nope")), "did you mean") {
+			t.Fatal("a key absent at every level gained a suggestion")
+		}
+		if w := warn(compactRefused(t, root, "ticket", "show", ticketID, "--fields", "record.nope")); !strings.Contains(w, "its sub-keys are ") || !strings.Contains(w, "body") {
+			t.Fatalf("absent sub-key refusal does not list the sub-keys: %s", w)
+		}
+
+		y := compactOK(t, root, "ticket", "show", ticketID, "--fields", "record.body,record.acceptanceCriteria")
+		if keysOf(y.res.Items[0]) != "record" || keysOf(field(y.res.Items[0], "record")) != "acceptanceCriteria,body" {
+			t.Fatalf("valid nested keys: %s", y.stdout)
+		}
+
+		q := compactOK(t, root, "queue", "status").res.Items[0]
+		w = warn(compactRefused(t, root, "queue", "status", "--fields", "headseq"))
+		if !strings.Contains(w, `field "headseq" is not in this read's items; its keys are `+strings.Join(slices.Sorted(slices.Values(q.Obj.Keys)), ", ")) {
+			t.Fatalf("queue status refusal: %s", w)
+		}
+		if w := warn(compactRefused(t, root, "queue", "status", "--fields", "holderStatus")); !strings.Contains(w, `did you mean "liveAttempts.holderStatus"?`) {
+			t.Fatalf("queue status array suggestion: %s", w)
+		}
+
+		h := atm(t, root, nil, "ticket", "show", "--help")
+		if !strings.Contains(string(h.stdout), "record.body") {
+			t.Fatalf("ticket show --help does not name the record. prefix: %s", h.stdout)
+		}
+	})
+}

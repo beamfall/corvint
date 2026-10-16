@@ -584,7 +584,9 @@ Agents should request `--summary` or `--fields KEY[.SUB],...` on `queue status`,
 JSON result into a transcript. `--summary` returns a fixed small shape per item; `--fields` keeps
 only the named item keys (one dotted level). Both keep the result envelope and run after the read,
 so they change nothing it observes. An unknown or malformed field refuses `MALFORMED` without
-partial output (CAL-V0-165 to CAL-V0-168). `queue status` omits the per-ticket `retries` array
+partial output (CAL-V0-165 to CAL-V0-168); the warning lists the item's keys and suggests a path
+one level down, so `ticket show --fields body` points to `record.body` (CAL-V0-310). On
+`ticket show` the body, acceptance criteria and title live under `record.`. `queue status` omits the per-ticket `retries` array
 unless `--retries` is given (CAL-V0-169). List items omit `record`, and COMPLETED or ARCHIVED items
 omit `blockers` and `unknowns`; an unknown shared by every listed ticket is reported once as a
 warning (CAL-V0-173). The default page size stays 100 items; narrow with filters and `--limit`.
