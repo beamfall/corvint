@@ -1308,7 +1308,14 @@ citation_hunks="unknown:script/h2.sh unknown:script/h1.sh ${nine_hunks#unknown:s
 citation_hunks=${citation_hunks% }
 run_citation_case swapped-ordinals "$citation_artifacts/nine.tsv" 1 0
 rg -q '"reason": "citation-plan-map-mismatch"' "$citation_case/report.json"
-rg -Fq 'now names another hunk than when this plan was first cited' "$citation_case/stderr"
+# DCW-V0-066: the fix line says the binding is stale and names the moved row and both ordinals,
+# in place of the generic mismatch line.
+rg -Fq '    fix: stale binding: ' "$citation_case/stderr"
+rg -q 'plan row 1 \(ordinal 1\) named hunk \S+, which the current map holds at ordinal 2;' "$citation_case/stderr"
+if rg -Fq 'the plan does not match the map prepared for HEAD' "$citation_case/stderr"; then
+  printf 'swapped-ordinals: generic citation-plan-map-mismatch fix line printed beside the stale-binding hint\n' >&2
+  exit 1
+fi
 # V1-0228: a map path is compared after JSON unescaping, so an escaped base-absent intent path
 # is still the permitted omission.
 printf '%s\n' docs/specs/intent-a.md 'docs/specs/new"intent.md' > "$citation_artifacts/escaped-intents.txt"

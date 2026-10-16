@@ -94,6 +94,8 @@ type flow struct {
 	target          string
 	anchorObserved  bool
 	anchorMergeBase string
+	// gitOutputLimit overrides maxGitOutputBytes when positive (tests only).
+	gitOutputLimit int
 }
 
 // boundary runs body, then cleanup, and converts an unwind into the result.
@@ -142,24 +144,78 @@ func (f *flow) say(format string, values ...any) {
 	_, _ = fmt.Fprintf(f.stderr, format, values...)
 }
 
+// maxGitOutputBytes caps the stdout every Git read of the flow keeps
+// (DCW-V0-064). A read whose output would exceed it keeps none of it: git
+// refuses the flow with gitOutputOverBound, and boundedGit returns the read
+// as unbounded so its caller records NOT_OBSERVED.
+const maxGitOutputBytes = 16 << 20
+
+// gitOutputOverBound is the refusal reason of a Git read over maxGitOutputBytes.
+const gitOutputOverBound = "git-output-over-bound"
+
 // git runs one Git read in the repository under Core's sanitized Git
 // environment, with no credential helper and no transport, and returns its
 // stdout and exit status; its stderr reaches the caller unless quiet. As in
 // Core's hardened reader, a repository-configured fsmonitor hook or untracked
-// cache never runs or writes.
+// cache never runs or writes. An output over maxGitOutputBytes refuses the
+// flow, so no caller reads a truncated or unbounded result.
 func (f *flow) git(quiet bool, args ...string) (string, int) {
 	f.checkpoint()
-	var stdout bytes.Buffer
+	output, status, bounded := f.readGit(f.gitCommand(quiet, args...))
+	if !bounded {
+		f.refuse(gitOutputOverBound)
+	}
+	return output, status
+}
+
+// boundedGit is the quiet git read whose overflow its caller reports itself
+// (NOT_OBSERVED) instead of refusing the flow.
+func (f *flow) boundedGit(args ...string) (string, int, bool) {
+	f.checkpoint()
+	return f.readGit(f.gitCommand(true, args...))
+}
+
+func (f *flow) gitCommand(quiet bool, args ...string) *exec.Cmd {
 	command := exec.CommandContext(f.ctx, "git", append([]string{"--no-optional-locks", "-C", f.root, "-c", "credential.helper=",
 		"-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false"}, args...)...)
 	command.Env = gokernel.SanitizedGitEnvironment()
-	command.Stdout = &stdout
 	if !quiet {
 		command.Stderr = f.stderr
 	}
+	return command
+}
+
+// readGit is the flow's one Git stdout reader: it keeps at most the flow's
+// output limit (maxGitOutputBytes unless a test lowers gitOutputLimit), and
+// on overflow stops reading, discards what it kept and reports false.
+func (f *flow) readGit(command *exec.Cmd) (string, int, bool) {
+	limit := f.gitOutputLimit
+	if limit <= 0 {
+		limit = maxGitOutputBytes
+	}
+	stdout := &cappedOutput{limit: limit}
+	command.Stdout = stdout
 	status := exitStatus(command.Run())
 	f.checkpoint()
-	return stdout.String(), status
+	if stdout.overflow {
+		return "", status, false
+	}
+	return stdout.text.String(), status, true
+}
+
+// cappedOutput keeps at most limit bytes and refuses the write that exceeds it.
+type cappedOutput struct {
+	text     strings.Builder
+	limit    int
+	overflow bool
+}
+
+func (output *cappedOutput) Write(data []byte) (int, error) {
+	if output.text.Len()+len(data) > output.limit {
+		output.overflow = true
+		return 0, errors.New("git output exceeds its bound")
+	}
+	return output.text.Write(data)
 }
 
 // gitValue is a Git command substitution whose failure exits 2.

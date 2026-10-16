@@ -906,7 +906,9 @@ from `DOGFOOD_VERIFY`, one command per line with blank lines skipped, or from th
 `DOGFOOD_VERIFY_FILE` (same shape; it takes precedence, and a missing file emits `local-outcome
 NOT_PRODUCED verify-file-unavailable`). Each line becomes one recorder `--verify`, so the recorder's
 512-character, shell-syntax-free grammar applies per command; a refused command names its first
-offending byte and the admitted set. The outcome comes from `DOGFOOD_OUTCOME`. The commands and
+offending byte and the admitted set. A command that needs quotes or regular-expression syntax, such
+as a split `-run '^Test[A-C]'` group, goes in a script committed with the change and is listed as
+`sh path/to/script.sh`; the refusal's fix line names this escape (`DCW-V0-065`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
 the outcome must both be non-empty, or the step records nothing and emits `local-outcome
 NOT_PRODUCED outcome-input-not-provided`. A successful classification with no
 admitted source emits `local-outcome NOT_PRODUCED no-source-paths`, writes no trace, and does not by
@@ -933,7 +935,7 @@ are shared. A different session must use its own worktree or wait for explicit c
 
 A linked Git worktree is a supported checkout for the loop; it is run at that worktree's top level
 like any other and does not refuse. The loop resolves its private evidence and session directory
-with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:105`), which for a linked
+with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:111`), which for a linked
 worktree (whose `.git` is a file) is that worktree's own directory under the main repository's
 `.git/worktrees/NAME`, so sessions and evidence stay per worktree.
 The `.corvint/` outputs live in the worktree root. Repository-wide Git state (objects, refs, and
