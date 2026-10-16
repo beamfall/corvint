@@ -27,6 +27,7 @@ type CompactReport struct {
 // candidate is one elidable liveness receipt not yet known to be superseded.
 type candidate struct {
 	name      string
+	seq       uint64
 	original  int
 	tombstone []byte
 }
@@ -46,6 +47,14 @@ var compactStage = func(string) {}
 // this binary, so an interrupted run leaves a valid journal and a rerun
 // continues. The closing complete audit proves the result.
 func CompactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool) (*CompactReport, error) {
+	return compactLiveness(ctx, repo, dryRun, snapshot.MaxElidedRun)
+}
+
+// compactLiveness keeps a superseded liveness receipt whole when the latest
+// whole record of its attempt is maxRun or more receipts before it, so every
+// tombstone has a whole record of its attempt fewer than maxRun receipts
+// back and a bounded backward reader such as doctor can restore it.
+func compactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool, maxRun uint64) (*CompactReport, error) {
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
 	if err != nil {
 		return nil, err
@@ -67,6 +76,9 @@ func CompactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool) 
 	}
 	restore := &snapshot.ReceiptRestorer{}
 	pending := map[string]candidate{}
+	// whole is the sequence number of the latest receipt that keeps each
+	// attempt's record whole.
+	whole := map[string]uint64{}
 	var saved int64
 	files := newReceiptFiles(repo)
 	defer files.close(true)
@@ -100,25 +112,37 @@ func CompactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool) 
 				continue
 			}
 			delete(pending, p.Path)
+			if c.seq-whole[p.Path] >= maxRun {
+				whole[p.Path] = c.seq
+				continue
+			}
 			if err := publishTombstone(repo, c, dryRun); err != nil {
 				return nil, err
 			}
 			report.Elided++
 			saved += int64(c.original - len(c.tombstone))
 		}
-		if elided || path == "" {
+		if elided {
 			continue
 		}
-		tombstone, ok, err := snapshot.ElideLiveness(original, base)
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			name, err := snapshot.ReceiptName(seq)
-			if err != nil {
+		ok := false
+		if path != "" {
+			var tombstone []byte
+			if tombstone, ok, err = snapshot.ElideLiveness(original, base); err != nil {
 				return nil, err
 			}
-			pending[path] = candidate{name: name, original: len(raw), tombstone: tombstone}
+			if ok {
+				name, err := snapshot.ReceiptName(seq)
+				if err != nil {
+					return nil, err
+				}
+				pending[path] = candidate{name: name, seq: seq, original: len(raw), tombstone: tombstone}
+			}
+		}
+		for _, p := range header.Post {
+			if p.Path != path || !ok {
+				whole[p.Path] = seq
+			}
 		}
 	}
 	report.BytesAfter = report.BytesBefore - saved

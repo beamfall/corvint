@@ -7506,7 +7506,8 @@ unchanged. A store that is never compacted keeps its bytes and behaviour.
 
   These receipts MUST NOT be elided: ownership or outcome receipts (claim, release, handoff,
   reap, widen, submit, gate, complete), ticket and administrative receipts, the head receipt, and
-  the latest receipt of each attempt.
+  the latest receipt of each attempt. A complete audit or archive verify that reaches the head
+  with an elided receipt still the latest post of its attempt MUST refuse it as `JOURNAL_FORKED`.
 - `CAL-V0-271`: (accepted, decision 0538; V1-1508) An elided receipt is
   `taskman-receipt/1`. It is the original receipt with that attempt post's `record` set to null,
   plus `receiptSha256` (the SHA-256 of the original bytes) and
@@ -7525,6 +7526,9 @@ unchanged. A store that is never compacted keeps its bytes and behaviour.
   runs it implicitly. Under the writer lock it MUST:
   - require a complete settled audit with no staging slot, and refuse `REDO_PENDING` otherwise;
   - remove both derived checkpoints;
+  - keep a superseded receipt whole when the latest whole record of its attempt is 1024 or more
+    receipts before it, so a reader that restores by reading backward, such as doctor, finds a
+    whole record within that bound;
   - prove each tombstone restores to its original bytes, then publish it by write, fsync and
     rename;
   - sync the receipts directory and close with a complete audit.
@@ -7554,21 +7558,26 @@ Non-goals:
 Failure modes:
 - A tombstone whose digest or liveness members were altered is refused as `JOURNAL_FORKED` by
   audit and verify.
+- A tombstone that is still the latest post of its attempt is refused as `JOURNAL_FORKED` by
+  audit, archive export and archive verify.
 - An interrupted compaction leaves a mix of originals and tombstones, which audits clean.
 - A compaction over a pending receipt is refused as `REDO_PENDING`.
 - An older binary refuses the elided store as `UNSUPPORTED_VERSION`. The operator rolls back.
 
-Rollback: run `archive export` before compacting. To roll back, restore that archive's
-`receipts/<name>` members over the state directory's `receipts/`, remove
-`<state directory>.checkpoint.json` and `<state directory>.writer-checkpoint`, then run the older
-binary. The originals carry the digests the chain already binds, so this rollback also holds
-after later writes. Reverting the code is safe only for a store that was never compacted, or
+Rollback: run `archive export` before every compaction and keep each export. A later export
+already holds the tombstones of earlier runs, so one export restores only the receipts the next
+run elided. To roll back, restore each elided receipt from the export taken just before the run
+that elided it: overlay the `receipts/<name>` members of every export, oldest first, over the
+state directory's `receipts/`, never replacing a `taskman-receipt/0` file with a
+`taskman-receipt/1` member. Then remove `<state directory>.checkpoint.json` and
+`<state directory>.writer-checkpoint` and run the older binary. The originals carry the digests
+the chain already binds, so this rollback also holds after later writes. Reverting the code is safe only for a store that was never compacted, or
 after this restore.
 
 | Requirement | Evidence |
 | --- | --- |
-| CAL-V0-270 | `TestCALV0270_ElisionScopeAndTamper` (`internal/tasks/store`) |
+| CAL-V0-270 | `TestCALV0270_ElisionScopeAndTamper`, `TestCALV0270_UnsupersededTombstoneRefused` (`internal/tasks/store`) |
 | CAL-V0-271 | `TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0270_ElisionScopeAndTamper` (`internal/tasks/store`); `TestCALV0272_ReceiptCompactCLI` (`internal/tasks/cli`) |
-| CAL-V0-272 | `TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing` (`internal/tasks/store`); `TestCALV0272_ReceiptCompactCLI` (`internal/tasks/cli`) |
+| CAL-V0-272 | `TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0272_CompactLivenessBoundsElidedRuns` (`internal/tasks/store`); `TestCALV0272_ReceiptCompactCLI` (`internal/tasks/cli`) |
 | CAL-V0-273 | `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`); the strict-decode check in `TestCALV0272_CompactLivenessKeepsAuditReplayAndFencing` |
 | CAL-V0-274 | `TestCALV0274_CompactLivenessIssueShape` (`internal/tasks/store`); `docs/build-log/2026-10-16-v1-1508-liveness-retention.md` |

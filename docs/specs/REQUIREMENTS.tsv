@@ -706,10 +706,10 @@ CAL-V0-260	docs/specs/corvint-tasks-agent-leases-v0.md	6056	(accepted under the 
 CAL-V0-261	docs/specs/corvint-tasks-agent-leases-v0.md	6069	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `health`	standing	2026-10-11; V1-1353
 CAL-V0-262	docs/specs/corvint-tasks-agent-leases-v0.md	6072	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) The verb	standing	2026-10-11; V1-1353
 CAL-V0-270	docs/specs/corvint-tasks-agent-leases-v0.md	7499	(accepted, decision 0538; V1-1508) A receipt MAY be	owner	decision 0538; V1-1508
-CAL-V0-271	docs/specs/corvint-tasks-agent-leases-v0.md	7510	(accepted, decision 0538; V1-1508) An elided receipt is	owner	decision 0538; V1-1508
-CAL-V0-272	docs/specs/corvint-tasks-agent-leases-v0.md	7523	(accepted, decision 0538; V1-1508)	owner	decision 0538; V1-1508
-CAL-V0-273	docs/specs/corvint-tasks-agent-leases-v0.md	7536	(accepted, decision 0538; V1-1508) `taskman-receipt/1`	owner	decision 0538; V1-1508
-CAL-V0-274	docs/specs/corvint-tasks-agent-leases-v0.md	7541	(accepted, decision 0538; V1-1508) An issue-shaped fixture	owner	decision 0538; V1-1508
+CAL-V0-271	docs/specs/corvint-tasks-agent-leases-v0.md	7511	(accepted, decision 0538; V1-1508) An elided receipt is	owner	decision 0538; V1-1508
+CAL-V0-272	docs/specs/corvint-tasks-agent-leases-v0.md	7524	(accepted, decision 0538; V1-1508)	owner	decision 0538; V1-1508
+CAL-V0-273	docs/specs/corvint-tasks-agent-leases-v0.md	7540	(accepted, decision 0538; V1-1508) `taskman-receipt/1`	owner	decision 0538; V1-1508
+CAL-V0-274	docs/specs/corvint-tasks-agent-leases-v0.md	7545	(accepted, decision 0538; V1-1508) An issue-shaped fixture	owner	decision 0538; V1-1508
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha	unrecorded	-
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring	unrecorded	-
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla	unrecorded	-

@@ -181,6 +181,13 @@ func (f *elidedForm) restore(rc *Receipt, base []byte) ([]byte, error) {
 	return raw, nil
 }
 
+// MaxElidedRun bounds how far back the latest whole record of an attempt may
+// lie before one of its elided receipts: liveness compaction keeps a
+// superseded receipt whole rather than exceed it (CAL-V0-272), so a reader
+// that restores by reading backward, such as doctor, needs at most this many
+// receipts.
+const MaxElidedRun = 1024
+
 // ReceiptRestorer replays retained receipts in sequence order from receipt
 // 1 and returns each one's original taskman-receipt/0 bytes: a
 // taskman-receipt/0 as read, a taskman-receipt/1 rebuilt from the latest
@@ -190,6 +197,9 @@ func (f *elidedForm) restore(rc *Receipt, base []byte) ([]byte, error) {
 // value is ready to use.
 type ReceiptRestorer struct {
 	bases map[string][]byte
+	// open maps each attempt path whose latest post so far is an elided
+	// receipt to that receipt's sequence number.
+	open map[string]uint64
 	// Elided counts the taskman-receipt/1 files restored so far.
 	Elided uint64
 }
@@ -201,7 +211,7 @@ func (r *ReceiptRestorer) Next(raw []byte) (*Receipt, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	original := raw
+	original, elidedPath := raw, ""
 	if profileOf(v) == ProfileElidedReceipt {
 		f, header, err := parseElided(v)
 		if err != nil {
@@ -214,13 +224,40 @@ func (r *ReceiptRestorer) Next(raw []byte) (*Receipt, []byte, error) {
 			return nil, nil, err
 		}
 		r.Elided++
+		elidedPath = f.path
 	}
 	rc, err := decodeReceiptValue(v, ProfileReceipt, "")
 	if err != nil {
 		return nil, nil, err
 	}
 	r.observe(rc)
+	if elidedPath != "" {
+		if r.open == nil {
+			r.open = map[string]uint64{}
+		}
+		r.open[elidedPath] = rc.Seq.Uint64()
+	}
 	return rc, original, nil
+}
+
+// Superseded refuses a walk that reached the head with an elided receipt
+// still the latest post of its attempt. CAL-V0-270 elides only superseded
+// receipts, so the head receipt and the latest record of every attempt are
+// always whole; a store that breaks this is JOURNAL_FORKED.
+func (r *ReceiptRestorer) Superseded() error {
+	if r == nil {
+		return nil
+	}
+	path, first := "", uint64(0)
+	for p, seq := range r.open {
+		if first == 0 || seq < first {
+			path, first = p, seq
+		}
+	}
+	if first == 0 {
+		return nil
+	}
+	return wire.Errorf(wire.CodeJournalForked, path, "elided receipt %d is the latest post of its attempt; only a superseded liveness receipt may be elided", first)
 }
 
 // Base returns the latest retained record of an attempt path, nil when none
@@ -232,6 +269,7 @@ func (r *ReceiptRestorer) observe(rc *Receipt) {
 		if !strings.HasPrefix(p.Path, "attempts/") {
 			continue
 		}
+		delete(r.open, p.Path)
 		if p.Record == nil || p.Record.Kind != wire.KindObject {
 			delete(r.bases, p.Path)
 			continue

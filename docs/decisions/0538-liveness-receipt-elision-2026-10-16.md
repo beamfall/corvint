@@ -27,7 +27,9 @@ The lane offered three options. The owner chose option 2, "elide in place", opt-
    `lastHeartbeatAt` and a lease with the same holder. A later receipt must post the same attempt.
    Ownership and outcome receipts are never elided: claim, release, handoff, reap, widen, submit,
    gate, complete, ticket and administrative receipts. The head receipt and the latest record of
-   every attempt are never elided either.
+   every attempt are never elided either, and audit and verify refuse a store where one is.
+   Compaction also keeps one whole receipt at least every 1024 receipts of an attempt, so a
+   bounded backward reader such as doctor can always restore a tombstone.
 3. **Format.** An elided receipt is `taskman-receipt/1`. It is the original receipt with that
    attempt post's `record` set to null, plus `receiptSha256` (the digest of the original bytes)
    and `elided` (the path, `lastHeartbeatAt` and `lease`). Older binaries refuse it as
@@ -39,10 +41,11 @@ The lane offered three options. The owner chose option 2, "elide in place", opt-
 5. **Opt-in only.** `corvint-tasks receipt compact [--dry-run]` is the only writer. Heartbeat and
    renew write paths, fencing, lease expiry and replay rules do not change. A store that is never
    compacted keeps exactly the bytes it had before.
-6. **Rollback.** Run `archive export` before compacting. To roll back, restore that archive's
-   `receipts/` members over the state directory's `receipts/`, remove the two derived checkpoints,
-   then run the older binary. The restored originals have the digests the chain already binds, so
-   this also works after later writes.
+6. **Rollback.** Run `archive export` before every compaction and keep each export. To roll back,
+   restore each elided receipt from the export taken just before the run that elided it (overlay
+   the exports' `receipts/` members oldest first, never replacing a `taskman-receipt/0` file with
+   a tombstone), remove the two derived checkpoints, then run the older binary. The restored
+   originals have the digests the chain already binds, so this also works after later writes.
 
 ## Consequences
 

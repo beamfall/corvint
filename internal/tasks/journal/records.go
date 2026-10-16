@@ -131,6 +131,9 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 			return result, err
 		}
 	}
+	if err := st.restore.Superseded(); err != nil {
+		return result, err
+	}
 	result.chain = st
 	canonical, genesisQueue := st.canonical, st.genesisQueue
 	result.StructuralConsistency = "CONSISTENT"

@@ -446,3 +446,181 @@ func TestCALV0270_ElisionScopeAndTamper(t *testing.T) {
 		t.Fatal("a malformed ancestor restored the record")
 	}
 }
+
+// TestCALV0270_UnsupersededTombstoneRefused (CAL-V0-270, CAL-V0-271): a
+// tombstone that restores exactly but is still the latest post of its
+// attempt is refused by the complete audit and by archive verify, so a
+// hand-elided latest record never passes as a valid compacted store.
+func TestCALV0270_UnsupersededTombstoneRefused(t *testing.T) {
+	t.Parallel()
+	s := newLeaseStore(t)
+	id := s.ticket(t, "latest")
+	other := s.ticket(t, "other")
+	c := s.lease(t, "claim-latest", claimOf(id, "src/"), 1, store.NoScopeDeriver)
+	hb := transaction.LeaseRequest{Verb: transaction.LeaseHeartbeat, AttemptID: c.AttemptID, Generation: c.Generation}
+	s.lease(t, "hb-a", hb, 2, store.NoScopeDeriver)
+	last := s.lease(t, "hb-b", hb, 3, store.NoScopeDeriver)
+	// A later receipt of another attempt keeps hb-b off the head.
+	s.lease(t, "claim-other", claimOf(other, "lib/"), 4, store.NoScopeDeriver)
+	export := compactAuditOK(t, s, "before")
+	files := receiptFiles(t, s)
+	latestName := filepath.Base(last.Receipt)
+	restore := &snapshot.ReceiptRestorer{}
+	var tomb []byte
+	for seq := uint64(1); ; seq++ {
+		name, err := snapshot.ReceiptName(seq)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if name == latestName {
+			var ok bool
+			tomb, ok, err = snapshot.ElideLiveness(files[name], restore.Base("attempts/"+c.AttemptID+".json"))
+			if err != nil || !ok {
+				t.Fatalf("latest heartbeat not elidable: %v %v", ok, err)
+			}
+			break
+		}
+		if _, _, err := restore.Next(files[name]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The tombstone itself restores; only its position is invalid.
+	if _, _, err := restore.Next(tomb); err != nil {
+		t.Fatalf("latest tombstone does not restore: %v", err)
+	}
+	if err := restore.Superseded(); err == nil || !strings.Contains(err.Error(), wire.CodeJournalForked) {
+		t.Fatalf("restorer accepted an unsuperseded tombstone: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(s.repo.StateDir, "receipts", latestName), tomb, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{journal.CheckpointPath(s.repo.StateDir), journal.WriterCheckpointPath(s.repo.StateDir)} {
+		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+	}
+	q, err := wire.ParseQueueID("queueId", fixture.QueueID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (journal.Reader{Source: journal.Native{StateDir: s.repo.StateDir, PrimaryWorktree: s.repo.PrimaryWorktree}, QueueID: q, PrimaryWorktree: s.repo.PrimaryWorktree}).Audit(); err == nil || !strings.Contains(err.Error(), wire.CodeJournalForked) || !strings.Contains(err.Error(), "latest post") {
+		t.Fatalf("complete audit accepted an elided latest record: %v", err)
+	}
+	// Export runs the same audit and refuses; archive verify refuses an
+	// archive of the same store, built from the earlier export with the
+	// tombstone in place of its original and the manifest entry to match.
+	if _, err := archive.Export(archive.ExportOptions{Repo: s.repo, Staging: t.TempDir(), Stdout: io.Discard}); err == nil || !strings.Contains(err.Error(), "latest post") {
+		t.Fatalf("archive export accepted an elided latest record: %v", err)
+	}
+	tampered := replaceArchiveMember(t, export, "receipts/"+latestName, tomb)
+	if _, err := archive.Verify(bytes.NewReader(tampered)); err == nil || !strings.Contains(err.Error(), wire.CodeJournalForked) || !strings.Contains(err.Error(), "latest post") {
+		t.Fatalf("archive verify accepted an elided latest record: %v", err)
+	}
+}
+
+// replaceArchiveMember rewrites an archive export stream with one member's
+// bytes replaced, its manifest entry updated to match and the members in
+// the manifest's canonical order.
+func replaceArchiveMember(t *testing.T, stream []byte, path string, data []byte) []byte {
+	t.Helper()
+	tr := tar.NewReader(bytes.NewReader(stream))
+	headers, members := map[string]*tar.Header{}, map[string][]byte{}
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := io.ReadAll(tr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		headers[hdr.Name], members[hdr.Name] = hdr, raw
+	}
+	m, err := archive.DecodeManifest(members[archive.ManifestName])
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range m.Files {
+		if m.Files[i].Path == path {
+			m.Files[i].Sha256 = wire.Sum(data)
+			m.Files[i].Bytes = wire.SizeOf(uint64(len(data)))
+		}
+	}
+	archive.SortFiles(m.Files)
+	members[archive.ManifestName], members[path] = m.Encode(), data
+	order := []string{archive.ManifestName}
+	for _, f := range m.Files {
+		order = append(order, f.Path)
+	}
+	var out bytes.Buffer
+	tw := tar.NewWriter(&out)
+	for _, name := range order {
+		hdr := headers[name]
+		hdr.Size = int64(len(members[name]))
+		if err := tw.WriteHeader(hdr); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tw.Write(members[name]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return out.Bytes()
+}
+
+// TestCALV0272_CompactLivenessBoundsElidedRuns (CAL-V0-272): compaction keeps
+// a superseded liveness receipt whole when the latest whole record of its
+// attempt is the run bound or more receipts back, so every tombstone can be
+// restored by a backward reader within that bound.
+func TestCALV0272_CompactLivenessBoundsElidedRuns(t *testing.T) {
+	t.Parallel()
+	s := newLeaseStore(t)
+	id := s.ticket(t, "runs")
+	c := s.lease(t, "claim-runs", claimOf(id, "src/"), 1, store.NoScopeDeriver)
+	hb := transaction.LeaseRequest{Verb: transaction.LeaseHeartbeat, AttemptID: c.AttemptID, Generation: c.Generation}
+	for i := 0; i < 12; i++ {
+		s.lease(t, "hb-"+strconv.Itoa(i), hb, 2+i, store.NoScopeDeriver)
+	}
+	const maxRun = 4
+	r, err := store.CompactLivenessRunForTest(context.Background(), s.repo, false, maxRun)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Heartbeats 4 and 8 after the claim stay whole; the last is never superseded.
+	if r.Elided != 9 {
+		t.Fatalf("elided %d, want 9", r.Elided)
+	}
+	compactAuditOK(t, s, "bounded")
+	files := receiptFiles(t, s)
+	path := "attempts/" + c.AttemptID + ".json"
+	last := uint64(0)
+	for seq := uint64(1); ; seq++ {
+		name, err := snapshot.ReceiptName(seq)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, ok := files[name]
+		if !ok {
+			break
+		}
+		rc, _, elided, err := snapshot.DecodeRetainedReceipt(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, p := range rc.Post {
+			if p.Path != path {
+				continue
+			}
+			if !elided {
+				last = seq
+			} else if last == 0 || seq-last >= maxRun {
+				t.Fatalf("%s: tombstone %d receipts after the latest whole record (bound %d)", name, seq-last, maxRun)
+			}
+		}
+	}
+}

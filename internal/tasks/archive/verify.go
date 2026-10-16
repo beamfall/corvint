@@ -304,6 +304,9 @@ func checkStore(m *Manifest, files map[string][]byte, res *VerifyResult) error {
 		d := wire.Sum(raw)
 		prev = &d
 	}
+	if err := restore.Superseded(); err != nil {
+		return err
+	}
 	if prev == nil || *prev != m.LastReceiptSha256 || *prev != *head.LastReceiptSha256 {
 		return wire.Errorf(wire.CodeJournalForked, "/lastReceiptSha256", "does not equal the digest of receipt %d and head.lastReceiptSha256", lastSeq)
 	}
