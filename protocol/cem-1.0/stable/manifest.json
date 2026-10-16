@@ -8,7 +8,7 @@
   "files": [
     {
       "path": "ALGORITHMS.md",
-      "sha256": "190b83a7569eaa1e7680a7c0f8d3352763e75a606a35b9bea0ebfad71a5d41d8",
+      "sha256": "5edf0930a9fcb887ebce4345cd31718f1677ca9736a1549524138465db6eb1b9",
       "bytes": 53428
     },
     {
@@ -168,7 +168,7 @@
     },
     {
       "path": "drift-resource-limit/README.md",
-      "sha256": "5726ed2414d4f5398d4af294cd6b0bb9cdb184a486957f7819f96baf94832f6c",
+      "sha256": "b55b9e88f1c35303580e196d2d9c31c81081167532abcd08e5730a6d1516da8d",
       "bytes": 2886
     },
     {

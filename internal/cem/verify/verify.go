@@ -395,7 +395,7 @@ func stripHorizontal(record []byte) []byte {
 // check on any stale, ambiguous, or deleted item. spans holds the base span
 // bytes checkEvidence authenticated: drift never re-reads a base blob, so each
 // item costs one target path lookup plus one target blob read only for a
-// changed regular-file entry (CEM-V1-250).
+// changed regular-file entry (CEM-V1-260).
 func checkDrift(ctx context.Context, repository *gitauth.Repository, document *wire.Map, spans map[string][]byte, target string, outcome *Outcome) error {
 	targetOID, err := repository.Resolve(ctx, target)
 	if err != nil {

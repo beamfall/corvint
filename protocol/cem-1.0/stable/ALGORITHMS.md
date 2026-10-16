@@ -197,7 +197,7 @@ and 0.2 specifications remain their historical identities; the text below is the
     one target blob read only for a 100644/100755 blob whose OID differs; the
     searched bytes are the span the evidence stage authenticated, and no base
     blob is read again. When the operation limit refuses an operation here, the
-    result keeps exactly the rows completed before it (CEM-V1-250).
+    result keeps exactly the rows completed before it (CEM-V1-260).
 
 ## CEM-V1-018 restated: 0.3 hunk vocabulary, structural reasons and witnesses
 

@@ -757,7 +757,7 @@ list in the result: the sealed S0E full-result cases `ledger-337-evidence` and
 `partial-drift-one-item-cancel` pin a partial list on `UNSUPPORTED` results (335 items on a
 resource limit, one on a timeout), so the row stays a recorded difference
 (`docs/build-log/2026-10-14-batch4-cem-parity.md`). V1-1295 (2026-10-15) traced the difference to
-the native drift stage re-reading each changed record's base blob; `CEM-V1-250` removes the re-read
+the native drift stage re-reading each changed record's base blob; `CEM-V1-260` removes the re-read
 and both consumers now write the same 102 rows and `verdictSha256` (decision 0532).
 
 Acceptance evidence:
@@ -2677,7 +2677,7 @@ beyond its prefix and is never part of `verdictSha256`; a relative path is still
 V1-1295 (partial drift on an `UNSUPPORTED` resource-limit result) and V1-1297 (a separate code for
 a missing pinned object) are not decided here; the build log
 `docs/build-log/2026-10-14-batch4-cem-parity.md` records why both stayed open. Decision 0532 later
-resolves V1-1295 with `CEM-V1-250` and keeps `git-read-failed` for V1-1297.
+resolves V1-1295 with `CEM-V1-260` and keeps `git-read-failed` for V1-1297.
 
 Failure modes: a caller that branched on `accept` `false` for a bad invocation now sees `null`;
 every in-repository caller (receipt bundle export, stable universe, Tasks gate verdict) already
@@ -2765,7 +2765,7 @@ re-binding from the stable manifest step; the manifest needs no change.
 
 ## Drift Git accounting parity (V1-1295, decision 0532, 2026-10-15)
 
-Status: `CEM-V1-250` accepted under the owner's standing auto-accept (2026-10-11); V1-1295.
+Status: `CEM-V1-260` accepted under the owner's standing auto-accept (2026-10-11); V1-1295.
 
 Intent: two stable consumers that read the same map at the same commits under the same 1,024
 logical Git operation limit write the same result, including a result the limit cuts short in the
@@ -2779,7 +2779,7 @@ span bytes the evidence stage had already authenticated (two). With the native r
 consumers write 102 rows and verdict
 `92747a603414f0d4a08dd4ce10df19afeec2d00bbec18e7a2d6eda16a4db2d10`, byte-identical results.
 
-- `CEM-V1-250`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1295) Drift
+- `CEM-V1-260`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1295) Drift
   (`protocol/cem-1.0/stable/ALGORITHMS.md` item 12) MUST charge, for each evidence record in
   evidence-ID order, one target path lookup, and one target blob read only when the target entry is
   a 100644 or 100755 blob whose OID differs from the record's `blobOid`. The span bytes it searches
@@ -2824,11 +2824,11 @@ case and its manifest entries go, and V1-1295 reopens as a recorded difference.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-250 | `TestCEMV1250DriftResourceLimitNative` (`internal/cem/verify`); `TestCEMV1250DriftResourceLimitPortable` (`interop/cem01-go`); `checkDrift`, `driftItem` in `internal/cem/verify/verify.go` | f0fda542: native 68 to 102 rows, byte-identical to portable; the public case: native and portable 13 rows, byte-identical; base re-read mutation 8 rows; build log `2026-10-15-cem-stable-consumer-residuals.md` |
+| CEM-V1-260 | `TestCEMV1260DriftResourceLimitNative` (`internal/cem/verify`); `TestCEMV1260DriftResourceLimitPortable` (`interop/cem01-go`); `checkDrift`, `driftItem` in `internal/cem/verify/verify.go` | f0fda542: native 68 to 102 rows, byte-identical to portable; the public case: native and portable 13 rows, byte-identical; base re-read mutation 8 rows; build log `2026-10-15-cem-stable-consumer-residuals.md` |
 
 ## Protocol pointer gate (V1-1296, decision 0532, 2026-10-15)
 
-Status: `CEM-V1-251` accepted under the owner's standing auto-accept (2026-10-11); V1-1296.
+Status: `CEM-V1-261` accepted under the owner's standing auto-accept (2026-10-11); V1-1296.
 
 Intent: a digest-pinned file pointer in the `protocol/cem-1.0` packet either resolves or is a
 recorded, explained exception. V1-1296 found `stable/MIGRATION.json` naming a missing
@@ -2838,7 +2838,7 @@ in sealed packet bytes, pinned by the stable manifest and the packet's input lis
 informative there. Removing them rewrites sealed bytes, so decision 0532 records them and leaves
 their removal to the owner.
 
-- `CEM-V1-251`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1296)
+- `CEM-V1-261`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1296)
   `tools/cem-stable-regen --check` MUST refuse a dangling protocol pointer. A pointer is a string
   member `K` of a JSON object under `protocol/cem-1.0` whose object also has a `K` + `SHA256` or
   `K` + `Sha256` string, or a `path` member starting `../` beside a `sha256` string; a document
@@ -2857,8 +2857,8 @@ dangling until the owner decides their removal (decision 0532).
 
 Acceptance evidence: `--check` passes on the repository with the three recorded pointers and
 reports exactly three problems without the record. Removing the gate call from `check` makes
-`TestCEMV1251CheckRunsPointerGate` fail, and reading the target without the symbolic-link check
-makes `TestCEMV1251PointerSymlinkRefused` fail. Build log
+`TestCEMV1261CheckRunsPointerGate` fail, and reading the target without the symbolic-link check
+makes `TestCEMV1261PointerSymlinkRefused` fail. Build log
 `docs/build-log/2026-10-15-cem-stable-consumer-residuals.md`.
 
 Rollback: revert the change commit; `--check` then ignores protocol pointers.
@@ -2867,4 +2867,4 @@ Rollback: revert the change commit; `--check` then ignores protocol pointers.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-251 | `TestCEMV1251PointerProblems`, `TestCEMV1251RepositoryPointersRecorded`, `TestCEMV1251PointerSymlinkRefused`, `TestCEMV1251CheckRunsPointerGate` (`tools/cem-stable-regen`); `pointerProblems` in `tools/cem-stable-regen/pointers.go` | Three recorded sealed pointers; build log `2026-10-15-cem-stable-consumer-residuals.md` |
+| CEM-V1-261 | `TestCEMV1261PointerProblems`, `TestCEMV1261RepositoryPointersRecorded`, `TestCEMV1261PointerSymlinkRefused`, `TestCEMV1261CheckRunsPointerGate` (`tools/cem-stable-regen`); `pointerProblems` in `tools/cem-stable-regen/pointers.go` | Three recorded sealed pointers; build log `2026-10-15-cem-stable-consumer-residuals.md` |

@@ -1030,8 +1030,8 @@ CEM-V1-230	docs/specs/cem-stable-v1.md	834	(accepted under the owner's standing 
 CEM-V1-231	docs/specs/cem-stable-v1.md	849	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) (V1-1278	standing	2026-10-11; V1-1277
 CEM-V1-232	docs/specs/cem-stable-v1.md	856	(accepted under the owner's standing auto-accept (2026-10-11); V1-1277) The migr	standing	2026-10-11; V1-1277
 CEM-V1-240	docs/specs/cem-stable-v1.md	430	`corvint-cem-candidate assemble-stable --experimental --request R --out-dir D`	unrecorded	-
-CEM-V1-250	docs/specs/cem-stable-v1.md	2782	(accepted under the owner's standing auto-accept (2026-10-11); V1-1295) Drift	standing	2026-10-11; V1-1295
-CEM-V1-251	docs/specs/cem-stable-v1.md	2841	(accepted under the owner's standing auto-accept (2026-10-11); V1-1296)	standing	2026-10-11; V1-1296
+CEM-V1-260	docs/specs/cem-stable-v1.md	2782	(accepted under the owner's standing auto-accept (2026-10-11); V1-1295) Drift	standing	2026-10-11; V1-1295
+CEM-V1-261	docs/specs/cem-stable-v1.md	2841	(accepted under the owner's standing auto-accept (2026-10-11); V1-1296)	standing	2026-10-11; V1-1296
 CEM-V1-PSR-001	docs/specs/cem-stable-v1.md	1252	(retired by V1-1278 S3) The default `verify` path refuses a strictly parsed JSON	unrecorded	-
 CEM-V1-PSR-002	docs/specs/cem-stable-v1.md	1256	(retired by V1-1278 S3) `ci` reports such a map as verdict `unsupported-profile`	unrecorded	-
 CEM-V1-PSR-003	docs/specs/cem-stable-v1.md	1259	(retired by V1-1278 S3) Only that exact case changes. A duplicate, non-string, d	unrecorded	-

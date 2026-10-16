@@ -1,6 +1,6 @@
 package main
 
-// CEM-V1-250 portable conformance: the shared drift-resource-limit case, with
+// CEM-V1-260 portable conformance: the shared drift-resource-limit case, with
 // the operation limit lowered to its operations value through the test hook,
 // stops the drift stage at that limit and returns the pinned
 // UNSUPPORTED result with exactly the pinned drift rows. internal/cem/verify
@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-func TestCEMV1250DriftResourceLimitPortable(t *testing.T) {
+func TestCEMV1260DriftResourceLimitPortable(t *testing.T) {
 	if !stableOwnerSupported() {
 		t.Skip("NOT_RUN: process containment is not qualified on " + runtime.GOOS)
 	}

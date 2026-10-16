@@ -40,7 +40,7 @@ type stableSeam struct {
 	fault gitauth.StableFault
 	// operations, when positive, replaces gitrun.DefaultOperations so a
 	// shared case can reach the operation limit with a small map
-	// (CEM-V1-250).
+	// (CEM-V1-260).
 	operations int
 }
 

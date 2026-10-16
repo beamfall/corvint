@@ -13,7 +13,7 @@ import (
 )
 
 // pointerRoot is the protocol tree whose digest-pinned file pointers must
-// resolve (CEM-V1-251).
+// resolve (CEM-V1-261).
 const pointerRoot = "protocol/cem-1.0"
 
 // recordedDanglingPointers are the digest-pinned pointers in sealed packet
@@ -35,7 +35,7 @@ type protocolPointer struct {
 	file, pointer, value, sha256 string
 }
 
-// pointerProblems refuses a dangling protocol pointer (CEM-V1-251). A pointer
+// pointerProblems refuses a dangling protocol pointer (CEM-V1-261). A pointer
 // is a string member K whose object also has a K+"SHA256" or K+"Sha256"
 // string, or a "path" member that leaves its file's directory ("../") beside
 // a "sha256" string. CEM map documents are wire data and are skipped. A

@@ -142,7 +142,7 @@ type stableHooks struct {
 	cause      func(t *stableTx) string
 	ledger     func(row stableLedgerRow)
 	// callLimit, when positive, replaces stableCallLimit so a shared case
-	// can reach the operation limit with a small map (CEM-V1-250).
+	// can reach the operation limit with a small map (CEM-V1-260).
 	callLimit int
 }
 
