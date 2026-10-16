@@ -168,28 +168,51 @@ func TestPSRSweepMismatchRetries(t *testing.T) {
 		t.Fatalf("injected retry not reached %q %v pool=%s", raw, e, psrEntryStates(p))
 	}
 }
+
+// V1-1497: the barrier test waits on synchronization, not wall-clock bounds.
+// It used a 2s bound for the sweep to reach verify and the fixture's 3s attempt
+// bound while verify was held, so at load 50-70 the sweep timed out in an
+// earlier observation or the held verify expired (11/20 failures). The sweep
+// now runs with the V1-1324 load-tolerant bounds, the test waits for either
+// the verify marker or the sweep's own bounded return, and the remaining waits
+// end at the test deadline. While the sweep owns the member in verify, manual
+// pool-safe and pool-cleanup must be refused by that owner (BLOCKED,
+// RESOURCE_COLLISION). The test used to accept any non-COMPLETED outcome, and
+// its fixture-time manual commands were refused by the clock check instead, so
+// the barrier itself was never reached; they now run at the wall clock.
 func TestPSRSweepOwnerBarrier(t *testing.T) {
 	marker := filepath.Join(t.TempDir(), "reached")
 	release := marker + ".release"
 	verify := "printf reached > " + marker + "; while [ ! -e " + release + " ]; do /bin/sleep 0.01; done; printf verified"
-	s, a := psrFixture(t, "printf reset", verify, "verified", "1", false)
-	done := make(chan error, 1)
-	go func() { _, e := psrRun(s, "barrier"); done <- e }()
-	deadline := time.Now().Add(2 * time.Second)
+	s, a := psrFixtureConfigured(t, "printf reset", verify, "verified", "1", false, psrLoadTolerant)
+	type sweepResult struct {
+		out *store.PoolSweepReport
+		err error
+	}
+	done := make(chan sweepResult, 1)
+	go func() { out, e := psrRunLoaded(s, "barrier"); done <- sweepResult{out, e} }()
+	bound := psrTestBound(t)
 	for {
 		if _, e := os.Stat(marker); e == nil {
 			break
 		}
-		if time.Now().After(deadline) {
-			t.Fatal("verify barrier not reached")
+		select {
+		case r := <-done:
+			t.Fatalf("sweep returned before the verify barrier: %+v %v pool=%s", r.out, r.err, psrEntryStates(psrPools(t, s)))
+		case <-bound:
+			t.Fatal("verify barrier not reached before the test deadline")
+		case <-time.After(10 * time.Millisecond):
 		}
-		time.Sleep(10 * time.Millisecond)
 	}
+	joined := false
 	t.Cleanup(func() {
 		os.WriteFile(release, nil, 0600)
+		if joined {
+			return
+		}
 		select {
 		case <-done:
-		case <-time.After(6 * time.Second):
+		case <-bound:
 			t.Error("sweep unjoined")
 		}
 	})
@@ -199,9 +222,19 @@ func TestPSRSweepOwnerBarrier(t *testing.T) {
 			request.Evidence = "manual"
 			request.Reason = "manual"
 		}
-		r := s.lease(t, "manual"+string(rune('a'+i)), request, 0, nil)
+		// The sweep committed its owner at the wall clock, so the manual
+		// command is recorded at the wall clock too: a fixture time behind the
+		// owner's receipt is refused as STORAGE_FAILED by the clock check
+		// before the barrier is consulted, which is not the barrier refusal.
+		r, e := store.Lease(context.Background(), s.repo, operator(), store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "manual" + string(rune('a'+i)), Root: s.root, Lease: request}, now(t))
+		if e != nil {
+			t.Fatalf("manual %s: %v", verb, e)
+		}
 		if r.Outcome.Outcome == mutation.OutcomeCompleted {
 			t.Fatalf("manual %s stole owner", verb)
+		}
+		if r.Outcome.Outcome != mutation.OutcomeBlocked || len(r.Outcome.Codes) != 1 || r.Outcome.Codes[0] != wire.CodeResourceCollision {
+			t.Fatalf("manual %s not refused by the sweep owner: %+v", verb, r.Outcome)
 		}
 	}
 	if p := psrPools(t, s); p.Entries[0].Sweep == nil || p.Entries[0].Sweep.Phase != "verify" {
@@ -211,17 +244,29 @@ func TestPSRSweepOwnerBarrier(t *testing.T) {
 		t.Fatal(e)
 	}
 	select {
-	case e := <-done:
-		if e != nil {
-			t.Fatal(e)
+	case r := <-done:
+		joined = true
+		if r.err != nil {
+			t.Fatal(r.err)
 		}
-		done <- nil
-	case <-time.After(5 * time.Second):
+	case <-bound:
 		t.Fatal("sweep hung")
 	}
 	if len(psrPools(t, s).Entries) != 0 {
-		t.Fatal("confirmation failed")
+		t.Fatalf("confirmation failed pool=%s", psrEntryStates(psrPools(t, s)))
 	}
+}
+
+// psrTestBound closes shortly before the test binary's -timeout so a hung
+// sweep fails this test with its own message; without a deadline it never
+// closes and the sweep's own bound applies.
+func psrTestBound(t *testing.T) <-chan time.Time {
+	t.Helper()
+	deadline, ok := t.Deadline()
+	if !ok {
+		return nil
+	}
+	return time.After(time.Until(deadline) * 9 / 10)
 }
 
 // PSR-V0-005: stderr cannot satisfy the stdout literal.
