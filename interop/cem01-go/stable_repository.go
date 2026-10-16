@@ -141,6 +141,9 @@ type stableHooks struct {
 	holdKeeper bool
 	cause      func(t *stableTx) string
 	ledger     func(row stableLedgerRow)
+	// callLimit, when positive, replaces stableCallLimit so a shared case
+	// can reach the operation limit with a small map (CEM-V1-260).
+	callLimit int
 }
 
 func (h *stableHooks) emit(name string) {
@@ -296,13 +299,17 @@ func (s *stableSession) transact(t *stableTx) (string, *cemError) {
 	s.calls++
 	t.Ordinal = s.calls
 	row := stableLedgerRow{Ordinal: t.Ordinal, Operation: t.Operation, Phase: t.Phase, InputKey: t.input}
-	if s.calls > stableCallLimit {
+	limit := stableCallLimit
+	if s.hooks != nil && s.hooks.callLimit > 0 {
+		limit = s.hooks.callLimit
+	}
+	if s.calls > limit {
 		row.ReservationOutcome = "refused-before-spawn"
 	}
 	if s.hooks != nil && s.hooks.ledger != nil {
 		s.hooks.ledger(row)
 	}
-	if s.calls > stableCallLimit {
+	if s.calls > limit {
 		return "repository", operational("unsupported-resource-limit")
 	}
 	if s.hooks != nil && s.hooks.limit != nil {
