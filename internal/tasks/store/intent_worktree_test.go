@@ -13,6 +13,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -353,5 +354,56 @@ func TestCTWV0002_RealGitWorktreeFilesWithoutSwitchingThePrimary(t *testing.T) {
 	id, _ := wire.ParseTicketID("ticketId", report.Ticket)
 	if !strings.Contains(string(out), "?? "+filepath.ToSlash(filepath.Join(intent.Dir, "tickets", id.Local+".json"))) {
 		t.Errorf("the linked worktree does not show the new ticket:\n%s", out)
+	}
+}
+
+// pendingRedoOffIntentBranch is a store holding a pending intent-writing
+// receipt with the primary moved to a feature branch and no linked intent
+// worktree, so settling that receipt refuses INTENT_BRANCH_MISMATCH.
+func pendingRedoOffIntentBranch(t *testing.T) (*intent.Repository, string) {
+	t.Helper()
+	base := pendingMutation(t)
+	fixture.Write(t, filepath.Join(base.CommonDir, "HEAD"), []byte("ref: refs/heads/feature\n"))
+	repo, err := intent.Resolve(base.PrimaryWorktree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `run "git -C '` + repo.PrimaryWorktree + `' worktree add '` + repo.PrimaryWorktree + `-main' 'main'", or switch the primary checkout to main, then retry from any checkout (CTW-V0-005)`
+	return repo, want
+}
+
+// TestCTWV0007_BarrierRedoRefusesWithTheFix is the V1-1059 barrier path: a
+// pause that must first settle an intent-writing receipt off the intent
+// branch refuses with the same repair text as Mutate, and writes nothing.
+func TestCTWV0007_BarrierRedoRefusesWithTheFix(t *testing.T) {
+	t.Parallel()
+	repo, want := pendingRedoOffIntentBranch(t)
+	before := untouched(t, repo, "")
+	report, err := store.Barrier(context.Background(), repo, operator(), barrierRequest(transaction.Pause, "pause"), now(t))
+	text := refusalText(t, report, err, wire.CodeIntentBranchMismatch)
+	if !strings.Contains(text, want) || !strings.HasSuffix(text, "primary intent branch differs; "+repo.IntentFix) {
+		t.Errorf("barrier refusal %q lacks the fix %q", text, want)
+	}
+	if untouched(t, repo, "") != before {
+		t.Fatal("refusal changed the repository")
+	}
+}
+
+// TestCTWV0007_ImportRedoRefusesWithTheFix is the V1-1059 redo path of a
+// writer outside the CTW-V0-007 list: import's redo refusal carries the fix.
+func TestCTWV0007_ImportRedoRefusesWithTheFix(t *testing.T) {
+	t.Parallel()
+	repo, want := pendingRedoOffIntentBranch(t)
+	before := untouched(t, repo, "")
+	out, err := store.Import(context.Background(), repo, operator(), fixture.QueueID, importExport(importItem("BF-1", "## BF-1\none\n", nil)), now(t))
+	if err != nil || len(out.Batches) != 1 {
+		t.Fatalf("import = %+v %v, want one refused batch", out, err)
+	}
+	text := refusalText(t, out.Batches[0], nil, wire.CodeIntentBranchMismatch)
+	if !strings.Contains(text, want) || !strings.HasSuffix(text, "primary intent branch differs; "+repo.IntentFix) {
+		t.Errorf("import redo refusal %q lacks the fix %q", text, want)
+	}
+	if untouched(t, repo, "") != before {
+		t.Fatal("refusal changed the repository")
 	}
 }

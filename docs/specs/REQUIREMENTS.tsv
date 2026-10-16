@@ -1185,10 +1185,10 @@ CTW-V0-004	docs/specs/corvint-tasks-intent-worktree-v0.md	58	A linked worktree i
 CTW-V0-005	docs/specs/corvint-tasks-intent-worktree-v0.md	67	When the primary is not on the intent branch and no admitted linked worktree hol	unrecorded	-
 CTW-V0-006	docs/specs/corvint-tasks-intent-worktree-v0.md	76	When two or more admitted linked worktrees hold the intent branch, none is selec	unrecorded	-
 CTW-V0-007	docs/specs/corvint-tasks-intent-worktree-v0.md	79	Repair text is appended only to `INTENT_BRANCH_MISMATCH` and `INTENT_DIVERGED`	unrecorded	-
-CTW-V0-008	docs/specs/corvint-tasks-intent-worktree-v0.md	89	A writer's fixture session retains a linked intent root as a second pinned root.	unrecorded	-
-CTW-V0-009	docs/specs/corvint-tasks-intent-worktree-v0.md	97	When the primary's HEAD names the intent branch, or `CTW-V0-003` yields no hint,	unrecorded	-
-CTW-V0-010	docs/specs/corvint-tasks-intent-worktree-v0.md	101	The rule is cooperative routing among the operator's own checkouts, not a securi	unrecorded	-
-CTW-V0-011	docs/specs/corvint-tasks-intent-worktree-v0.md	107	Program and workflow runs, claim and lease Git observation, archive identity, an	unrecorded	-
+CTW-V0-008	docs/specs/corvint-tasks-intent-worktree-v0.md	91	A writer's fixture session retains a linked intent root as a second pinned root.	unrecorded	-
+CTW-V0-009	docs/specs/corvint-tasks-intent-worktree-v0.md	99	When the primary's HEAD names the intent branch, or `CTW-V0-003` yields no hint,	unrecorded	-
+CTW-V0-010	docs/specs/corvint-tasks-intent-worktree-v0.md	103	The rule is cooperative routing among the operator's own checkouts, not a securi	unrecorded	-
+CTW-V0-011	docs/specs/corvint-tasks-intent-worktree-v0.md	109	Program and workflow runs, claim and lease Git observation, archive identity, an	unrecorded	-
 CVI-V0-001	docs/specs/closed-vocabulary-intake-v0.md	27	Publish a versioned schema whose data fields are enums, literal repository paths	unrecorded	-
 CVI-V0-002	docs/specs/closed-vocabulary-intake-v0.md	31	Validate exact field names and presence, types, enum vocabulary, bounded identif	unrecorded	-
 CVI-V0-003	docs/specs/closed-vocabulary-intake-v0.md	35	Bind validation to explicit full base/head commit identities. Every behaviour an	unrecorded	-

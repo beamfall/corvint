@@ -84,9 +84,11 @@ func importWith(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 	if head.QueueID.Raw != queueID {
 		return out, wire.Errorf(wire.CodeOutOfScope, "queueId", "request queue differs")
 	}
+	// Only the redo refusal carries the CTW-V0-007 repair text; import's own
+	// refusals keep theirs without it (V1-1059).
 	redone, err := redoPending(repo, session)
 	if err != nil {
-		return importRefused(out, "", err)
+		return importRefused(out, "", repo.WithIntentRepair(err))
 	}
 	out.Redone = redone
 	st, err := auditImport(repo, head)
