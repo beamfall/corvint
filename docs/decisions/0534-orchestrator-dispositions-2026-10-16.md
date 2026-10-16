@@ -67,7 +67,7 @@ change (`NOT_RUN`); the focused citation-gate test and the local doc gates were.
 
 ## Rollback
 
-Revert this decision and its index row. For V1-1480, also remove `RELEASE-NOTES-[^/]+` from
+Revert this decision and its index row. For V1-1480, also remove `RELEASE-NOTES-[^/]*` from
 `scanned_doc` in `script/check-line-citations.sh`, the spec amendment and evidence row in
 `docs/specs/documentation-citation-gate-v0.md`, and test case 23 from
 `script/check-line-citations_test.sh`, then regenerate `docs/specs/REQUIREMENTS.tsv`. For V1-1490,

@@ -8,7 +8,7 @@ gate items those dispositions settle: V1-1480 and V1-1490 option (a).
 
 ## V1-1480: release notes join the citation gate's document set
 
-`scanned_doc` in `script/check-line-citations.sh` now also matches `docs/RELEASE-NOTES-[^/]+.md`,
+`scanned_doc` in `script/check-line-citations.sh` now also matches `docs/RELEASE-NOTES-[^/]*.md`,
 and the spec's `DCG-V0-001` lists `docs/RELEASE-NOTES-*.md`. The one tracked release-notes file,
 `docs/RELEASE-NOTES-alpha.md`, holds a single citation, and it is pinned. The file is not on the
 legacy allowlist, so every future citation in release notes needs an anchor. The unpinned count is

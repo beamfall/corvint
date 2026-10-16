@@ -996,9 +996,10 @@ coordination query is never evidence of earlier chronology.
 The enrolled workflow ends at the bind commit (decision 0534, V1-1490 option (a)). Once `finish`
 reports satisfied there, the enrollment is complete; the later `make dogfood-seal` commit is outside
 it. After the seal, `status` can offer `verify` again, because the seal moved the bound CEM out of
-the shared path. Do not run that `verify`: it clears the satisfied record and leads to a `finish`
-that cannot succeed, and the only way out is `cancel`, which records non-success over a completion
-that succeeded. Leave the sealed worktree as it is, and begin the next enrollment with
+the shared path. Do not run that `verify`: it clears the satisfied record, and a `finish` cannot
+succeed while `HEAD` is the seal commit. Completion can then be rerun only from the bind commit
+(`git checkout --detach HEAD^`), and `cancel` would record non-success over a completion that
+succeeded. Leave the sealed worktree as it is, and begin the next enrollment with
 `corvint dogfood begin` in a fresh worktree or clone. Adding a sealed-terminal state would amend
 LCP-V0-002, 003 and 020, and decision 0534 does not adopt it.
 
