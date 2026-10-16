@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	json "encoding/json/v2"
+	"io"
 	"os"
 	"path"
 	"runtime"
@@ -39,11 +40,16 @@ func decodeBounded(data []byte, target any, limit int) error {
 	return nil
 }
 func hashValue(value any) (string, error) {
-	data, err := Encode(value)
+	h := sha256.New()
+	n, err := EncodeTo(h, value)
 	if err != nil {
 		return "", err
 	}
-	return Digest(data), nil
+	if n+1 > int64(encodingLimit(value)) {
+		return "", fail("output bound exceeded")
+	}
+	h.Write([]byte{'\n'})
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 func validPath(value string) bool { return LocalInputPathRule(value) == "" }
 
@@ -133,11 +139,14 @@ func ParseArtifact(data []byte) (*Artifact, error) {
 	if err := decodeBounded(data, &a, MaxCorpusBytes); err != nil {
 		return nil, err
 	}
-	canonical, err := Encode(a)
-	if err != nil {
+	c := encodingComparer{want: data}
+	if _, err := EncodeTo(&c, a); err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(data, canonical) {
+	if c.n+1 > int64(encodingLimit(a)) {
+		return nil, fail("output bound exceeded")
+	}
+	if !c.equal() {
 		return nil, fail("noncanonical artifact")
 	}
 	digest := a.SHA256
@@ -151,4 +160,71 @@ func ParseArtifact(data []byte) (*Artifact, error) {
 		return nil, fail("unsupported artifact schema")
 	}
 	return &a, nil
+}
+
+// EncodeTo streams the Encode bytes of value, without the trailing newline, to w and returns
+// how many it wrote. It applies no output bound. json.Marshal draws its output buffer from a
+// sync.Pool, so its growth cost depended on whether a GC cycle or a P migration had emptied the
+// pool (V1-1380); the streaming encoder only keeps a bounded 4 KiB working buffer. Wrapping w
+// also hides a *bytes.Buffer from jsontext, whose bytes.Buffer path regrows the buffer whenever
+// less than a quarter of its length is free and would defeat a pre-sized Grow.
+func EncodeTo(w io.Writer, value any) (int64, error) {
+	c := countingWriter{w: w}
+	err := json.MarshalWrite(&c, value, json.Deterministic(true))
+	return c.n, err
+}
+
+// EncodeSized returns exactly the Encode result, built in a buffer pre-sized to sizeHint bytes so
+// that its allocation follows the output size instead of encoder pool state (V1-1380).
+func EncodeSized(value any, sizeHint int) ([]byte, error) {
+	var out bytes.Buffer
+	out.Grow(max(sizeHint, 0))
+	n, err := EncodeTo(&out, value)
+	if err != nil {
+		return nil, err
+	}
+	if n+1 > int64(encodingLimit(value)) {
+		return nil, fail("output bound exceeded")
+	}
+	out.WriteByte('\n')
+	return out.Bytes(), nil
+}
+
+// EncodedEqual reports whether value encodes, with the trailing newline, to exactly want,
+// comparing while the encoder writes instead of building a second copy (V1-1380). It applies no
+// output bound; a match is exactly len(want) bytes long.
+func EncodedEqual(value any, want []byte) bool {
+	c := encodingComparer{want: want}
+	_, err := EncodeTo(&c, value)
+	return err == nil && c.equal()
+}
+
+type countingWriter struct {
+	w io.Writer
+	n int64
+}
+
+func (c *countingWriter) Write(p []byte) (int, error) {
+	n, err := c.w.Write(p)
+	c.n += int64(n)
+	return n, err
+}
+
+// encodingComparer keeps counting after a mismatch so that callers can still apply the output
+// bound to the full encoded length, as Encode did.
+type encodingComparer struct {
+	want   []byte
+	n      int64
+	differ bool
+}
+
+func (c *encodingComparer) Write(p []byte) (int, error) {
+	if !c.differ && (c.n+int64(len(p)) > int64(len(c.want)) || !bytes.Equal(p, c.want[c.n:c.n+int64(len(p))])) {
+		c.differ = true
+	}
+	c.n += int64(len(p))
+	return len(p), nil
+}
+func (c *encodingComparer) equal() bool {
+	return !c.differ && c.n+1 == int64(len(c.want)) && c.want[c.n] == '\n'
 }

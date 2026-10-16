@@ -1317,7 +1317,7 @@ DCP-V1-050	docs/specs/documentation-corpus-v1.md	383	A witness is produced only 
 DCP-V1-051	docs/specs/documentation-corpus-v1.md	397	Every other registered test stays unwitnessed with exactly one named reason and	unrecorded	-
 DCP-V1-052	docs/specs/documentation-corpus-v1.md	406	Missing or untrustworthy shared evidence yields uncertainty for every test, neve	unrecorded	-
 DCP-V1-053	docs/specs/documentation-corpus-v1.md	412	`corvint docs --help`, and the `docs corpus discover-playwright --help` and	unrecorded	-
-DCP-V1-054	docs/specs/documentation-corpus-v1.md	1069	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
+DCP-V1-054	docs/specs/documentation-corpus-v1.md	1078	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 DCP-V1-055	docs/specs/documentation-corpus-v1.md	426	`discover-playwright` applies the `TJAA-V0-021` grep/grepInvert omission rules o	unrecorded	-
 DCP-V1-056	docs/specs/documentation-corpus-v1.md	438	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #805)) `cor	standing	2026-10-11; #805
 DCP-V1-057	docs/specs/documentation-corpus-v1.md	456	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #805)) `cor	standing	2026-10-11; #805
@@ -1346,6 +1346,7 @@ DCP-V1-081	docs/specs/documentation-corpus-v1.md	718	`internal/doccorpus/behavio
 DCP-V1-082	docs/specs/documentation-corpus-v1.md	743	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #835)) An u	standing	2026-10-11; #835
 DCP-V1-083	docs/specs/documentation-corpus-v1.md	751	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #845; V1-1	standing	2026-10-11; #845; V1-1318
 DCP-V1-084	docs/specs/documentation-corpus-v1.md	762	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #845; V1-1	standing	2026-10-11; #845; V1-1318
+DCP-V1-085	docs/specs/documentation-corpus-v1.md	770	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1380)) The	standing	2026-10-11; V1-1380
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	27	Core MUST remain one native Go binary with no required account, network, daemon,	unrecorded	-
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	30	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,	unrecorded	-
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	33	Task orientation MUST locate governing intent and original revision-pinned evide	unrecorded	-
