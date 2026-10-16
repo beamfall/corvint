@@ -6688,12 +6688,14 @@ charged a no-progress cooldown that the events did not attribute to the failure.
 
   The per-tick CAL-V0-053 `alert` events are unchanged. The new ledger members MUST ship as
   `taskman-dispatch-state/5`, and the previous version is adopted:
-  - A drained `/4` ledger is adopted (CAL-V0-132).
+  - A `/4` ledger is adopted, with or without workers, as TOL-V0-021 adopted `/3`. A worker it
+    records carries no `workStateUnknown` mark until a later read sets it.
   - A `/4` ledger that carries a version 5 member refuses `UNSUPPORTED_VERSION`.
   - A health record whose `ok` disagrees with `failedTicks`, that is escalated while `ok`, or
     whose `since` is zero refuses at load.
 - `CAL-V0-271`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1510) The
-  optional `workState.escalateAfterTicks` (1..1440, default 3) sets the escalation point.
+  optional `workState.escalateAfterTicks` (1..1440, default 3) sets the escalation point. For
+  this and every other optional `workState` number below, an explicit 0 is read as absent.
   - When a failure episode reaches that many consecutive failed ticks, the dispatcher MUST emit
     exactly one `needs-owner` event with detail `provider: workState`, `health: FAILING` and
     `failedTicks`.
@@ -6716,7 +6718,8 @@ charged a no-progress cooldown that the events did not attribute to the failure.
   is no hold.
   - While the current failure episode has at least that many failed ticks, the dispatcher MUST
     launch no new worker.
-  - It MUST emit one `throttled` event, with detail `provider: workState`, when the hold begins.
+  - It MUST emit one `throttled` event, with detail `provider: workState`, when the hold begins,
+    including when a configuration reload starts it mid-episode.
   - Launches MUST resume on the first tick whose read succeeds.
   - Supervision, finish accounting, healing and running workers are unaffected.
 - `CAL-V0-274`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1510) A
@@ -6733,9 +6736,12 @@ charged a no-progress cooldown that the events did not attribute to the failure.
   (`NONE` for a `status-line` reader, which runs no command).
 - `CAL-V0-276`: (proposed; V1-1510, qualifies the CAL-V0-058 comparison against the previous
   observation) While the reader fails within `workState.staleAfterSeconds` (1..86400; absent means
-  one tick, `tickSeconds`) of the outage's `since`, the state-event baseline MUST keep each
-  ticket's last known work state instead of `UNKNOWN`, so a failed read emits no per-ticket
-  `state` event and a recovery to the same states emits none either.
+  one tick, `tickSeconds`) of the outage's `since`, the state-event baseline MUST keep, for each
+  ticket the read left `UNKNOWN`, its last known work state, plan and plan reason, so a failed
+  read emits no per-ticket `state` event and a recovery to the same states emits none either. The
+  plan is kept too, because a failed read also empties the CAL-V0-105 held set and replans the
+  window. A plan change from another cause on such a ticket is reported when the window ends or
+  the reader recovers.
   - The observation, launch, roster and finish decisions still see `UNKNOWN` (CAL-V0-053); only
     the event baseline holds the stale value.
   - `dispatch status` reports `stale` while the window holds and `staleAfterSeconds` (`NONE`
@@ -6782,7 +6788,8 @@ Acceptance evidence:
 - `TestCALV0270_DispatchStatusShowsFailingWorkStateAfterOneTick` and
   `TestCALV0270_DispatchStatusWorkState` (both in `internal/tasks/cli`).
 - `TestCALV0274_TimedOutReadIsNamedAndUnavailableOnce`,
-  `TestCALV0276_OneFailedReadEmitsNoPerTicketStateEvents` and
+  `TestCALV0276_OneFailedReadEmitsNoPerTicketStateEvents`,
+  `TestCALV0276_FailedReadKeepsHeldPlansInBaseline` and
   `TestCALV0280_TerminalTicketWorkStateEmitsNoStateEvent` (all in `internal/tasks/dispatch`).
 - `docs/build-log/2026-10-16-v1-1510-dispatch-workstate-health.md`.
 
@@ -7268,7 +7275,7 @@ and removes the new configuration members.
 | CAL-V0-273 | `TestCALV0273_LaunchHoldIsOptInAndLifts` (`internal/tasks/dispatch`); `TestCALV0270_DispatchStatusWorkState` (`internal/tasks/cli`) |
 | CAL-V0-274 | `TestCALV0274_TimedOutReadIsNamedAndUnavailableOnce`, `TestCALV0053_ReaderLocalTimeout` (`internal/tasks/dispatch`) |
 | CAL-V0-275 | `TestCALV0274_TimedOutReadIsNamedAndUnavailableOnce`, `TestCALV0270_ConfigAndLedgerBounds` (`internal/tasks/dispatch`); `TestCALV0270_DispatchStatusWorkState` (`internal/tasks/cli`) |
-| CAL-V0-276 | `TestCALV0276_OneFailedReadEmitsNoPerTicketStateEvents`, `TestCALV0270_ConfigAndLedgerBounds` (`internal/tasks/dispatch`); `TestCALV0270_DispatchStatusWorkState` (`internal/tasks/cli`) |
+| CAL-V0-276 | `TestCALV0276_OneFailedReadEmitsNoPerTicketStateEvents`, `TestCALV0276_FailedReadKeepsHeldPlansInBaseline`, `TestCALV0270_ConfigAndLedgerBounds` (`internal/tasks/dispatch`); `TestCALV0270_DispatchStatusWorkState` (`internal/tasks/cli`) |
 | CAL-V0-280 | `TestCALV0280_TerminalTicketWorkStateEmitsNoStateEvent` (`internal/tasks/dispatch`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 

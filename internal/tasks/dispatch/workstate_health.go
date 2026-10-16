@@ -80,6 +80,7 @@ func (d *Dispatcher) noteWorkState(alerts []string) {
 		}
 		d.emit(Event{Kind: "alert", Message: fmt.Sprintf("work state reader recovered after %d failed tick(s) since %s", h.FailedTicks, h.Since.UTC().Format(time.RFC3339)), Detail: map[string]string{"provider": "workState", "health": "RECOVERED", "failedTicks": strconv.Itoa(h.FailedTicks), "escalated": strconv.FormatBool(h.Escalated)}})
 		h.OK, h.Since, h.FailedTicks, h.Escalated = true, now, 0, false
+		d.holdAnnounced = false
 		return
 	}
 	msg := alerts[0]
@@ -100,9 +101,11 @@ func (d *Dispatcher) noteWorkState(alerts []string) {
 		h.Escalated = true
 		d.emit(Event{Kind: "needs-owner", Message: fmt.Sprintf("the work state reader failed on %d consecutive tick(s) since %s: %s. ticket work states are UNKNOWN until it recovers, and runs without progress meanwhile are recorded as such", h.FailedTicks, h.Since.UTC().Format(time.RFC3339), h.LastError), Detail: map[string]string{"provider": "workState", "health": "FAILING", "failedTicks": strconv.Itoa(h.FailedTicks)}})
 	}
-	if n := w.HoldLaunchesAfterTicks; n > 0 && h.FailedTicks == n {
-		d.emit(Event{Kind: "throttled", Message: fmt.Sprintf("new launches are held after %d consecutive tick(s) without a work state (workState.holdLaunchesAfterTicks); they resume when a read succeeds", n), Detail: map[string]string{"provider": "workState", "failedTicks": strconv.Itoa(h.FailedTicks)}})
+	held := WorkStateHoldsLaunches(d.Config, h)
+	if held && !d.holdAnnounced {
+		d.emit(Event{Kind: "throttled", Message: fmt.Sprintf("new launches are held after %d consecutive tick(s) without a work state (workState.holdLaunchesAfterTicks %d); they resume when a read succeeds", h.FailedTicks, w.HoldLaunchesAfterTicks), Detail: map[string]string{"provider": "workState", "failedTicks": strconv.Itoa(h.FailedTicks)}})
 	}
+	d.holdAnnounced = held
 }
 
 // WorkStateHoldsLaunches reports the CAL-V0-273 launch hold: the policy is

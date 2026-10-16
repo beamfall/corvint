@@ -130,6 +130,10 @@ type Dispatcher struct {
 	// whose failed work-state read was last counted, so a tick that reads
 	// more than once counts one failed tick (CAL-V0-270).
 	tickSeq, workStateTick uint64
+	// holdAnnounced records that the current CAL-V0-273 launch hold
+	// emitted its throttled event, so a reload that lowers the threshold
+	// mid-outage still announces the hold once.
+	holdAnnounced bool
 }
 
 // Open locks the program's state directory, loads the ledger and adopts
@@ -217,6 +221,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 	}
 	d.reconcileInfraRetry()
 	d.loadDetached()
+	d.holdAnnounced = WorkStateHoldsLaunches(d.Config, d.ledger.WorkState)
 	if err := d.ledger.save(dir); err != nil {
 		_ = d.lock.Close()
 		return nil, err
@@ -1709,15 +1714,16 @@ func (d *Dispatcher) diff(obs *Observation) {
 	now := &Seen{Tickets: map[string]string{}, Claims: map[string]string{}, Lanes: map[string]string{}}
 	stale := WorkStateStale(d.Config, d.ledger.WorkState, d.Now())
 	for _, t := range obs.Tickets {
-		state := t.State
+		state, plan, reason := t.State, t.Plan, t.PlanReason
 		// CAL-V0-276: within the window a failed read leaves the last known
-		// work state in the baseline, so one slow read emits no state event.
+		// work state, and the plan it held, in the baseline, so one slow
+		// read emits no state event.
 		if stale && state == StateUnknown && d.ledger.Seen != nil {
 			if was := strings.Split(d.ledger.Seen.Tickets[t.ID], "|"); len(was) == 4 {
-				state = was[1]
+				state, plan, reason = was[1], was[2], was[3]
 			}
 		}
-		now.Tickets[t.ID] = strings.Join([]string{t.Status, state, t.Plan, t.PlanReason}, "|")
+		now.Tickets[t.ID] = strings.Join([]string{t.Status, state, plan, reason}, "|")
 		if len(t.EscalationPending) > 0 {
 			if now.Escalations == nil {
 				now.Escalations = map[string][]string{}

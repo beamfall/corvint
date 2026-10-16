@@ -240,6 +240,27 @@ func TestCALV0273_LaunchHoldIsOptInAndLifts(t *testing.T) {
 			t.Fatalf("recovered tick: %v running %d", err, d.Running())
 		}
 	})
+	t.Run("enabled mid-outage", func(t *testing.T) {
+		d, _, _ := healthRig(t, "exit 0", nil)
+		d.Config.Backoff.ParkAfter = 100
+		for i := 0; i < 3; i++ {
+			if err := d.Tick(ctx); err != nil {
+				t.Fatal(err)
+			}
+			waitEnded(t, d)
+		}
+		// A reload that sets the hold below the episode's count holds at
+		// once and still announces it once.
+		d.Config.WorkState.HoldLaunchesAfterTicks = 2
+		for i := 0; i < 2; i++ {
+			if err := d.Tick(ctx); err != nil || d.Running() != 0 {
+				t.Fatalf("held tick %d: %v running %d", i, err, d.Running())
+			}
+		}
+		if n := len(workStateEvents(t, d, "throttled", "")); n != 1 {
+			t.Fatalf("throttled events %d", n)
+		}
+	})
 	t.Run("default off", func(t *testing.T) {
 		d, _, _ := healthRig(t, "exit 0", nil)
 		d.Config.Backoff.ParkAfter = 100
@@ -256,8 +277,9 @@ func TestCALV0273_LaunchHoldIsOptInAndLifts(t *testing.T) {
 }
 
 // TestCALV0270_ConfigAndLedgerBounds: thresholds outside 1..1440 refuse,
-// an inconsistent health record refuses at load, and a drained version 4
-// ledger is adopted while one carrying a version 5 member refuses.
+// an inconsistent health record refuses at load, and a version 4 ledger,
+// drained or with running workers, is adopted while one carrying a version
+// 5 member refuses.
 func TestCALV0270_ConfigAndLedgerBounds(t *testing.T) {
 	for name, f := range map[string]func(*WorkState){
 		"negative escalate": func(w *WorkState) { w.EscalateAfterTicks = -1 },
@@ -300,6 +322,15 @@ func TestCALV0270_ConfigAndLedgerBounds(t *testing.T) {
 	}
 	if l, err := load(drainedState4Profile, ``); err != nil || l.Profile != StateProfile || l.WorkState != nil {
 		t.Fatalf("drained /4 = %+v %v", l, err)
+	}
+	// As TOL-V0-021 adopted /3, a /4 ledger is adopted with its running
+	// workers, which carry no CAL-V0-272 mark until a later read sets it.
+	running := `{"profile":"` + drainedState4Profile + `","program":"prog","launchSeq":1,"eventSeq":0,"workers":[{"id":"w1","role":"dev","key":"ticket:a:q:t1","ticket":"t1","pid":4242,"leaderIdentity":"x","started":"2026-10-16T00:00:00Z"}],"backoff":{}}`
+	if err := os.WriteFile(filepath.Join(dir, "state.json"), []byte(running), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if l, err := LoadLedger(dir, "prog"); err != nil || l.Profile != StateProfile || len(l.Workers) != 1 || l.Workers[0].WorkStateUnknown {
+		t.Fatalf("/4 with a running worker = %+v %v", l, err)
 	}
 	if _, err := load(drainedState4Profile, `,"workState":{"ok":true,"since":"2026-10-16T00:00:00Z","failedTicks":0}`); wire.CodeOf(err) != wire.CodeUnsupportedVersion {
 		t.Fatalf("/4 carrying workState: %v", err)

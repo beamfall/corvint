@@ -4,7 +4,9 @@ package dispatch
 
 import (
 	"context"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -134,6 +136,46 @@ func TestCALV0276_OneFailedReadEmitsNoPerTicketStateEvents(t *testing.T) {
 			t.Fatalf("outage past staleAfterSeconds: %d state events", n)
 		}
 	})
+}
+
+// TestCALV0276_FailedReadKeepsHeldPlansInBaseline: a failed read also
+// drops the CAL-V0-105 held set, so the replanned window changes; inside
+// the window the baseline keeps each UNKNOWN ticket's last plan as well,
+// so the outage and its recovery still emit no state event.
+func TestCALV0276_FailedReadKeepsHeldPlansInBaseline(t *testing.T) {
+	c, ts := heldRig(t, map[string]string{})
+	source := filepath.Join(c.WorkRoot, "states.json")
+	c.WorkState = &WorkState{Kind: "command", Argv: []string{"/bin/cat", source}}
+	var replans []map[string]bool
+	d, err := Open("held", c, windowQueue(ts, &replans), io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = d.Close() })
+	clock := time.Now()
+	d.Now = func() time.Time { return clock }
+	states := []byte(`{"h1":"hold-lane","h2":"hold-dep","r1":"ready"}`)
+	if err := os.WriteFile(source, states, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tickOnce(t, d)
+	if err := os.Remove(source); err != nil {
+		t.Fatal(err)
+	}
+	clock = clock.Add(time.Second)
+	obs, err := d.observe(context.Background())
+	if err != nil || planOf(obs)["h1"] == (PlanView{"DEFERRED", "WORK_STATE_HELD"}) {
+		t.Fatalf("the fixture does not change the plan on a failed read: %v %v", err, planOf(obs))
+	}
+	tickOnce(t, d)
+	if err := os.WriteFile(source, states, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	clock = clock.Add(time.Second)
+	tickOnce(t, d)
+	if s := eventsOf(t, d, "state"); len(s) != 0 {
+		t.Fatalf("a failed read inside the window emitted state events %+v", s)
+	}
 }
 
 // TestCALV0280_TerminalTicketWorkStateEmitsNoStateEvent: a work-state

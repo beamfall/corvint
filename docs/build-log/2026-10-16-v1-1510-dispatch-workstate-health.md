@@ -20,8 +20,8 @@ of lane requirements (2026-10-11). IDs 263..265 are taken by open PR #985, so th
   - Status reports it as a `workState` object: `health` is `OK`, `FAILING` or `NOT_OBSERVED`,
     alongside the thresholds and `launchesHeld`.
   - The record and the worker mark below are new ledger members, so the ledger moves to
-    `taskman-dispatch-state/5` (CAL-V0-131). A drained `/4` ledger is adopted (CAL-V0-132), and
-    `/4` joins `adoptOnlyProfiles`.
+    `taskman-dispatch-state/5` (CAL-V0-131). A `/4` ledger is adopted, with or without workers, as
+    TOL-V0-021 adopted `/3`, and `/4` joins `adoptOnlyProfiles`.
 - CAL-V0-271 sets the escalation point with `workState.escalateAfterTicks` (1..1440, default 3).
   - Each failure episode emits one `needs-owner` event, and the first successful read emits one
     `alert` with `health: RECOVERED`.
@@ -128,6 +128,7 @@ The host had 12 cores, and the load averages shown below were taken during the r
   - M9: never marking the outage's first alert fails `TestCALV0274_…` ("unavailable events []").
   - M10: no stale baseline fails `TestCALV0276_…` ("one failed read emitted 2 state events").
   - M11: no terminal suppression fails `TestCALV0280_…`.
+  - M13 and M14 are under Independent review below.
   - M12: ignoring `timeoutSeconds` fails `TestCALV0274_…` (the run took 60 s instead of 1 s).
 - **Changed expectations.**
   - `TestCALV0053_ReaderFailureAndRealUnknownRemainObservable`:
@@ -159,6 +160,33 @@ The host had 12 cores, and the load averages shown below were taken during the r
   - The ledger schema pin for `/5`, whose hash is `c5b600f2…`.
   - The "next version" fixtures, moved to `/6`.
   - `adoptOnlyProfiles`, which now includes `/4`.
+
+## Independent review
+
+One Codex round (`codex exec -s read-only`) reviewed `4f1cd96e2..HEAD`. It found no path that feeds
+the stale baseline into a decision. It reported four findings, and all four were addressed before
+binding.
+
+1. **P2: plan churn.** A failed read also empties the CAL-V0-105 held set, so the replanned window
+   changed tickets' plan and reason and still emitted `state` events. The outage fixture had no
+   roles, so it missed this.
+   - Fixed: inside the window, the baseline keeps an `UNKNOWN` ticket's plan and reason as well.
+   - Test: `TestCALV0276_FailedReadKeepsHeldPlansInBaseline`.
+   - M13, keeping only the work state, fails it with `state` events on `h1`.
+2. **P2: `/4` with live workers.** A `/4` ledger with live workers is adopted, while the spec said
+   "drained".
+   - This follows the `/3` precedent of TOL-V0-021: version 5 only adds optional members, so a
+     running worker loses nothing.
+   - The CAL-V0-270 text now says so, and the bounds test pins it.
+3. **P2: hold enabled mid-outage.** A reload that enabled or lowered the hold mid-outage held
+   launches without a `throttled` event.
+   - Fixed: the event fires on the transition into the hold. A process flag is seeded at `Open`, so
+     a restart while held does not repeat it.
+   - Test: subtest `enabled mid-outage`. M14, announcing only when `failedTicks == threshold`,
+     fails it with 0 events.
+4. **P3: explicit 0.** An explicit 0 selects the default for the new numbers. Like the other
+   optional dispatcher numbers, the field does not keep presence. The spec now says that an
+   explicit 0 is read as absent, and the code is unchanged.
 
 ## Owner decisions
 
