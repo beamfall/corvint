@@ -16,7 +16,7 @@ trap 'rm -f "$check_out"' EXIT
 check_status=${PIPESTATUS[0]}
 (( check_status == 0 )) || exit "$check_status"
 independence=$(grep -E '^dogfood-check: (SUMMARY|NOTE) ' "$check_out" |
-  grep -oE 'base-independence=NOT_PROVED base=sha256:[0-9a-f]{64} tree=sha256:[0-9a-f]{64} declared=[A-Za-z0-9-]+' |
+  grep -oE 'base-independence=NOT_PROVED base=(sha256:[0-9a-f]{64}|NOT_PRODUCED base-refusal=[A-Za-z0-9_-]+) tree=sha256:[0-9a-f]{64} declared=[A-Za-z0-9-]+' |
   head -n 1)
 bind=$(git -C "$repo" rev-parse 'HEAD^{commit}') || exit 2
 if ! git -C "$repo" cat-file -e "$bind:.corvint/change.cem.json" 2>/dev/null; then

@@ -53,6 +53,7 @@ const (
 	stableOpBatch   byte = 3
 	stableOpDiff    byte = 4
 	stableOpBlob    byte = 5
+	stableOpExists  byte = 6
 )
 
 var stableEmptyTree = map[int]string{
@@ -74,7 +75,7 @@ var stableDiffArgs = []string{
 
 // stableGitArgv builds the only argv a keeper may execute for one protocol op.
 func stableGitArgv(op byte, fields []string) ([]string, bool) {
-	want := map[byte]int{stableOpResolve: 3, stableOpFormat: 2, stableOpBatch: 2, stableOpDiff: 5, stableOpBlob: 3}
+	want := map[byte]int{stableOpResolve: 3, stableOpFormat: 2, stableOpBatch: 2, stableOpDiff: 5, stableOpBlob: 3, stableOpExists: 3}
 	if want[op] == 0 || len(fields) != want[op] || !filepath.IsAbs(fields[0]) || !filepath.IsAbs(fields[1]) {
 		return nil, false
 	}
@@ -100,6 +101,8 @@ func stableGitArgv(op byte, fields []string) ([]string, bool) {
 		argv = append(argv, "--end-of-options", fields[3], fields[4], "--", ".", ":(exclude)"+sidecar03)
 	case stableOpBlob:
 		argv = append(argv, "cat-file", "blob", fields[2])
+	case stableOpExists:
+		argv = append(argv, "cat-file", "-e", fields[2])
 	}
 	return argv, true
 }
@@ -171,11 +174,16 @@ type stableTx struct {
 	consume func(w io.WriteCloser, r *bufio.Reader) error
 	out     []byte
 	held    bool
+	// nonzero records that the child's nonzero exit decided the failure.
+	nonzero bool
 }
 
 // stableFlags are the causes collected for arbitration after teardown.
 type stableFlags struct {
 	owner, deadline, parser, overflow, launch, nonzero, truncated bool
+	// exitOne records a normal child exit with status exactly 1, the only
+	// status by which `cat-file -e` reports an absent object.
+	exitOne bool
 }
 
 // stableCheckpointStage maps a transaction phase to its outer-cancellation stage.
@@ -255,6 +263,7 @@ func (s *stableSession) arbitrate(t *stableTx, f *stableFlags) *cemError {
 		}
 	}
 	canonical := t.Phase == "canonical"
+	t.nonzero = f.nonzero && !f.owner && !f.deadline && !f.parser && !f.overflow && !f.launch
 	switch {
 	case f.owner:
 		return operational("unsupported-process-containment")
@@ -270,7 +279,7 @@ func (s *stableSession) arbitrate(t *stableTx, f *stableFlags) *cemError {
 		return operational("git-diff-failed")
 	case f.launch:
 		return operational("git-read-failed")
-	case f.nonzero && t.Operation == "normal-blob":
+	case f.nonzero && t.Operation == "normal-blob", f.nonzero && f.exitOne && t.Operation == "object-existence-probe":
 		return operational("repository-object-unavailable")
 	case f.nonzero:
 		return operational("git-read-failed")
@@ -431,6 +440,16 @@ func stableBatchGet(w io.Writer, r *bufio.Reader, oid, kind string, oidLen int, 
 func (s *stableSession) resolve(phase, rev string) (string, string, *cemError) {
 	t := &stableTx{Operation: "resolve-commit", Phase: phase, input: map[string]any{"revision": rev}, op: stableOpResolve, fields: []string{rev}, limit: stableCommitLimit}
 	if stage, e := s.transact(t); e != nil {
+		if e.code == "git-read-failed" && t.nonzero {
+			// One charged `cat-file -e` probe names an object absent from the
+			// local store, lazy fetch disabled; a present object that Git
+			// cannot read as a commit keeps git-read-failed (V1-1297, decision
+			// 0535, CEM-V1-103), as the native consumer's Resolve does.
+			p := &stableTx{Operation: "object-existence-probe", Phase: phase, input: map[string]any{"oid": rev}, op: stableOpExists, fields: []string{rev}, limit: stableFormatLimit}
+			if pstage, pe := s.transact(p); pe != nil {
+				return "", pstage, pe
+			}
+		}
 		return "", stage, e
 	}
 	tree, ok := stableCommitTree(t.out, s.oidLen)

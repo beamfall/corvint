@@ -580,3 +580,68 @@ func TestBlobBudgetExactLimitAllowsChargedReread(t *testing.T) {
 		t.Fatalf("new OID admitted past the saturated budget: %v", err)
 	}
 }
+
+// TestResolveMissingPinnedObjectUnavailable covers V1-1297 (decision 0535,
+// CEM-V1-103): a pinned full object ID whose object is absent from the local
+// object store is repository-object-unavailable, while a present object that
+// Git cannot resolve to a commit, corrupt or of another type, stays
+// git-read-failed.
+func TestResolveMissingPinnedObjectUnavailable(t *testing.T) {
+	root, base, target := makeRepo(t)
+	blob := gitCmd(t, root, "rev-parse", target+":f.go")
+	loose := func(oid string) string { return filepath.Join(root, ".git", "objects", oid[:2], oid[2:]) }
+	if err := os.Remove(loose(base)); err != nil {
+		t.Fatal(err)
+	}
+	repository := open(t, root)
+	if _, err := repository.Resolve(context.Background(), base); cemcode.CodeOf(err) != cemcode.RepositoryObjectUnavailable {
+		t.Fatalf("missing base: %v", err)
+	}
+	if _, err := repository.Resolve(context.Background(), strings.Repeat("f", 40)); cemcode.CodeOf(err) != cemcode.RepositoryObjectUnavailable {
+		t.Fatalf("never-present object: %v", err)
+	}
+	if _, err := repository.Resolve(context.Background(), blob); cemcode.CodeOf(err) != cemcode.GitReadFailed {
+		t.Fatalf("present non-commit object: %v", err)
+	}
+	if _, err := repository.Resolve(context.Background(), "refs/heads/absent"); cemcode.CodeOf(err) != cemcode.GitReadFailed {
+		t.Fatalf("unresolved name: %v", err)
+	}
+	if err := os.Chmod(loose(target), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(loose(target), []byte("not a zlib stream\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := open(t, root).Resolve(context.Background(), target); cemcode.CodeOf(err) != cemcode.GitReadFailed {
+		t.Fatalf("corrupt target: %v", err)
+	}
+}
+
+// TestResolveProbeOnlyExitOneIsAbsent keeps git-read-failed when the existence
+// probe fails for a reason other than an absent object: in a SHA-256
+// repository a 40-hex revision is an abbreviation the probe cannot name, and
+// `cat-file -e` exits 128 rather than 1 (decision 0535, CEM-V1-103).
+func TestResolveProbeOnlyExitOneIsAbsent(t *testing.T) {
+	root := t.TempDir()
+	command := exec.Command("git", "init", "-q", "-b", "main", "--object-format=sha256")
+	command.Dir = root
+	if out, err := command.CombinedOutput(); err != nil {
+		t.Skipf("git lacks sha256 support: %v %s", err, out)
+	}
+	root, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitCmd(t, root, "config", "user.name", "t")
+	gitCmd(t, root, "config", "user.email", "t@example.invalid")
+	writeFile(t, root, "a.txt", "one\n")
+	gitCmd(t, root, "add", ".")
+	gitCmd(t, root, "commit", "-qm", "base")
+	repository := open(t, root)
+	if _, err := repository.Resolve(context.Background(), strings.Repeat("f", 40)); cemcode.CodeOf(err) != cemcode.GitReadFailed {
+		t.Fatalf("40-hex revision in a sha256 repository: %v", err)
+	}
+	if _, err := repository.Resolve(context.Background(), strings.Repeat("f", 64)); cemcode.CodeOf(err) != cemcode.RepositoryObjectUnavailable {
+		t.Fatalf("absent sha256 object: %v", err)
+	}
+}
