@@ -94,18 +94,18 @@ func (f *FanOut) UnmarshalJSON(data []byte) error {
 // grammar (internal/lrf requirementIDAtStart); boundaries are checked apart.
 var supportRequirementID = regexp.MustCompile(`^[A-Z][A-Z0-9-]{2,31}-[0-9]{3}`)
 
-// supportStopTerms is the lexical-relevance-floor-v0 stop list
-// (internal/lrf stopTerms), copied verbatim as a sorted literal so the portable
-// consumer mirrors it byte for byte.
+// supportStopTerms are the annotation stop terms (CEM-V1-081): the
+// lexical-relevance-floor-v0 stop list without the 21 terms that are a
+// keyword, reserved word, predeclared identifier or builtin in a common
+// language (V1-1335), so a short code line such as "return value - 1" is not
+// read as annotation. The portable consumer mirrors the list byte for byte.
 var supportStopTerms = func() map[string]bool {
 	words := []string{
 		"also", "been", "build", "change", "changed", "changes", "claim", "dist", "docs", "document",
-		"documentation", "error", "evidence", "false", "from", "generated", "have", "hunk", "include",
-		"into", "must", "only", "package", "packages", "print", "report", "reports", "requirement",
-		"requirements", "return", "self", "shall", "should", "sidecar", "source", "sources", "string",
-		"supported", "test", "testing", "tests", "that", "their", "then", "there", "these", "they",
-		"this", "those", "true", "unknown", "value", "vendor", "vendored", "when", "where", "which",
-		"while", "will", "with",
+		"documentation", "evidence", "generated", "have", "hunk", "must", "only", "packages", "report",
+		"reports", "requirement", "requirements", "shall", "should", "sidecar", "sources", "supported",
+		"testing", "tests", "that", "their", "there", "these", "they", "those", "vendor", "vendored",
+		"which", "will",
 	}
 	result := make(map[string]bool, len(words))
 	for _, word := range words {
@@ -193,7 +193,12 @@ func ComputeCitation(document *wire.Map, parsed *patch.Patch, spans map[string][
 	})
 	citation.DistinctEvidence = len(citation.EvidenceFanOut)
 
+	// Concentration needs a shared item: with maxFanOut below 2 no evidence
+	// is cited by two hunks and no hunk is concentrated (V1-1331).
 	for _, mapped := range supported {
+		if citation.MaxFanOut < 2 {
+			break
+		}
 		concentrated := true
 		for _, id := range basisSet(mapped.Basis) {
 			if len(citing[id]) != citation.MaxFanOut {

@@ -3308,7 +3308,7 @@
           ],
           "maxFanOut": 1,
           "samePathCitations": 0,
-          "concentratedHunks": 1,
+          "concentratedHunks": 0,
           "invariant": true,
           "specificity": 0
         },
@@ -3337,7 +3337,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "82c3df93d7bb6bea406be5f7fced8680abe22c8b41d090c343eadf0a7aa3a4e5"
+        "verdictSha256": "2657cf1a18b419b14e92ac450d28e116ab75f4449955ef4ca7247f22162c18c1"
       }
     },
     {
@@ -4881,7 +4881,7 @@
         ],
         "citation": {
           "annotationHunks": 1,
-          "concentratedHunks": 1,
+          "concentratedHunks": 0,
           "distinctEvidence": 1,
           "evidenceFanOut": [
             [
@@ -4941,7 +4941,7 @@
           "structuralQualification": "NOT_REQUIRED"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "138086cddc515e4c862d02e21becd08c9656c3432a55d9ed0ccfddc0cad0c33b"
+        "verdictSha256": "e7c90e110eabc4ab4742b867d13370ce72114c172644669f84058a4b5fcd761e"
       }
     },
     {
@@ -18737,7 +18737,7 @@
           ],
           "maxFanOut": 1,
           "samePathCitations": 0,
-          "concentratedHunks": 11,
+          "concentratedHunks": 0,
           "invariant": false,
           "specificity": 0
         },
@@ -18766,7 +18766,7 @@
           "structuralQualification": "EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS"
         },
         "repositoryEnvelope": "canonical-repository-bounded/1",
-        "verdictSha256": "4ab0f28ee30467a33227e8b193c473fd7163610f48b4989648f051fd000359df"
+        "verdictSha256": "8ff5162af2c43d028b75bf8a618dd0aa7c45fe23e0713d24388bf652cbab55fb"
       },
       "inputFixture": "sha1-ledger-336-evidence.json",
       "inputSHA256": "93ecb9d87d918897b20ca7a18e6dd572f7324460ec0d3dffd4814099e0e08330"
@@ -27011,5 +27011,5 @@
     }
   ],
   "comparison": "Every expectedResult is a complete closed23-key object; no runtime/envelope normalization. Synchronized proposed cases require reviewed test seams before measurement. No new runtime case has been evaluated in this draft.",
-  "predecessorSHA256": "f7f02ec13d77c90080c13160b1b5ab47a61baf3c9bde0fee5b14d439a257e4df"
+  "predecessorSHA256": "25d4155c2235c3034146093d0c844e0e448281429c74bad5f19abf215d672146"
 }
