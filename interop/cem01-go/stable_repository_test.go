@@ -1372,6 +1372,19 @@ func TestStableResolveMissingPinnedObjectUnavailable(t *testing.T) {
 			_, blob := s0eTreeEntry(t, r.files, "sha1", r.target, "app.txt")
 			return blob
 		}, "git-read-failed", []string{"resolve-commit", "object-existence-probe"}},
+		// A probe that exits other than 1 does not establish absence: an
+		// unsupported repository format version makes `cat-file -e` exit 128.
+		{"probe exit 128", func(_ *s0eRun, G string) string {
+			config, err := os.OpenFile(filepath.Join(G, "config"), os.O_APPEND|os.O_WRONLY, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer config.Close()
+			if _, err := config.WriteString("[core]\n\trepositoryformatversion = 9\n"); err != nil {
+				t.Fatal(err)
+			}
+			return s0eBase
+		}, "git-read-failed", []string{"resolve-commit", "object-existence-probe"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := newS0eRun(t)

@@ -284,17 +284,21 @@ func (r *Repository) Resolve(ctx context.Context, revision string) (string, erro
 
 // unresolvedRevision names why Git could not resolve a revision. A full
 // object ID whose object `cat-file -e` finds absent from the local object
-// store, lazy fetch being disabled, is repository-object-unavailable; any
-// other unresolved revision, a present but corrupt or non-commit object
-// included, is git-read-failed. Both messages are fixed and never echo the
-// caller's revision back (V1-1297, decision 0535, CEM-V1-103).
+// store (exit 1), lazy fetch being disabled, is repository-object-unavailable;
+// any other unresolved revision, a present but corrupt or non-commit object or
+// a probe that exits otherwise (128 for a name it cannot parse, such as a
+// 40-hex abbreviation in a SHA-256 repository) included, is git-read-failed.
+// Both messages are fixed and never echo the caller's revision back (V1-1297,
+// decision 0535, CEM-V1-103).
 func (r *Repository) unresolvedRevision(ctx context.Context, revision string) error {
 	if wire.IsGitOid(revision) {
 		if _, err := r.git(ctx, 64, "cat-file", "-e", revision); err != nil {
-			if cemcode.CodeOf(err) == cemcode.GitExitFailure {
+			if details, ok := cemcode.GitExitFailureDetails(err); ok && details.ExitCode == 1 {
 				return unavailable("pinned evidence is not present locally")
 			}
-			return err
+			if cemcode.CodeOf(err) != cemcode.GitExitFailure {
+				return err
+			}
 		}
 	}
 	return cemcode.New(cemcode.GitReadFailed, "Git could not resolve pinned evidence")

@@ -616,3 +616,32 @@ func TestResolveMissingPinnedObjectUnavailable(t *testing.T) {
 		t.Fatalf("corrupt target: %v", err)
 	}
 }
+
+// TestResolveProbeOnlyExitOneIsAbsent keeps git-read-failed when the existence
+// probe fails for a reason other than an absent object: in a SHA-256
+// repository a 40-hex revision is an abbreviation the probe cannot name, and
+// `cat-file -e` exits 128 rather than 1 (decision 0535, CEM-V1-103).
+func TestResolveProbeOnlyExitOneIsAbsent(t *testing.T) {
+	root := t.TempDir()
+	command := exec.Command("git", "init", "-q", "-b", "main", "--object-format=sha256")
+	command.Dir = root
+	if out, err := command.CombinedOutput(); err != nil {
+		t.Skipf("git lacks sha256 support: %v %s", err, out)
+	}
+	root, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitCmd(t, root, "config", "user.name", "t")
+	gitCmd(t, root, "config", "user.email", "t@example.invalid")
+	writeFile(t, root, "a.txt", "one\n")
+	gitCmd(t, root, "add", ".")
+	gitCmd(t, root, "commit", "-qm", "base")
+	repository := open(t, root)
+	if _, err := repository.Resolve(context.Background(), strings.Repeat("f", 40)); cemcode.CodeOf(err) != cemcode.GitReadFailed {
+		t.Fatalf("40-hex revision in a sha256 repository: %v", err)
+	}
+	if _, err := repository.Resolve(context.Background(), strings.Repeat("f", 64)); cemcode.CodeOf(err) != cemcode.RepositoryObjectUnavailable {
+		t.Fatalf("absent sha256 object: %v", err)
+	}
+}

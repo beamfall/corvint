@@ -721,10 +721,11 @@ behind `corvint cem convert`.
   V1-1297 (decision 0535, owner delegated to the orchestrator 2026-10-16, superseding the decision
   0532 hold): a pinned object that is absent locally MUST be `UNSUPPORTED` `repository`
   `repository-object-unavailable` on both consumers. When Git cannot resolve a pinned full object
-  ID, each consumer probes `git cat-file -e <oid>`: a nonzero probe is
-  `repository-object-unavailable`; a present but unreadable or non-commit object, a native name
-  that is not a full object ID (the portable consumer resolves only wire-validated object IDs), and
-  a probe that itself fails at the owner, deadline, parser or launch stay
+  ID, each consumer probes `git cat-file -e <oid>`: only a probe that exits normally with status 1
+  is `repository-object-unavailable`; a present but unreadable or non-commit object, a native name
+  that is not a full object ID (the portable consumer resolves only wire-validated object IDs), a
+  probe that exits with any other status or by a signal (128 for a repository Git cannot open or a
+  name it cannot parse), and a probe that itself fails at the owner, deadline, parser or launch stay
   `git-read-failed` or the probe's own code. The portable consumer charges the probe as an
   `object-existence-probe` ledger operation. The sealed S0E cells `missing-base`,
   `shallow-missing` and `missing-promisor` were re-emitted with that code and its verdict digest
@@ -786,7 +787,7 @@ Acceptance evidence:
 | CEM-V1-100 | `TestCEMV1100ConvertCorpusIdempotent`, `TestCEMV1100ConvertF0fda542` (`internal/cem/convert`) | All 603 committed maps converted twice to identical bytes and reconversion refuses `convert-source-is-stable`; the 877-hunk f0fda542 map converts. Since the V1-1277 migration the committed maps are `cem/1.0`, and the same test reconverts each migrated map's source blob to its committed bytes (`CEM-V1-230`) |
 | CEM-V1-101 | `TestCEMV1101ConvertRefusalCodes` (`internal/cem/convert`) | Each reachable converter code from its trigger with no output or provenance; malformed JSON keeps the reader's `invalid-json` |
 | CEM-V1-102 | `TestCEMV1102CEMConvertCommand` (`cmd/corvint`) | Golden output, exits 0/1/2, no overwrite of an existing output, `--in-place` with `--repository`, unnamed bind refused, argument and missing-map refusals |
-| CEM-V1-103 | `TestCEMV1103ConvertUnavailableObjects` (`internal/cem/convert`); `TestCEMV1104PortableConvertedFixtures` (`interop/cem01-go`) | Empty repository: binding UNAVAILABLE, output equals golden, both consumers UNSUPPORTED `git-read-failed` as the 0.2 source (frozen V1-1277 evidence). V1-1297 (decision 0535): `TestResolveMissingPinnedObjectUnavailable` (`internal/cem/gitauth`), `TestStableResolveMissingPinnedObjectUnavailable` and `TestStableCanonicalEnvelopeCells` (`interop/cem01-go`) on the re-emitted cells `missing-base`, `shallow-missing` and `missing-promisor`; `TestCEMV1066SealedVerdictDigests` re-derives their verdict digests |
+| CEM-V1-103 | `TestCEMV1103ConvertUnavailableObjects` (`internal/cem/convert`); `TestCEMV1104PortableConvertedFixtures` (`interop/cem01-go`) | Empty repository: binding UNAVAILABLE, output equals golden, both consumers UNSUPPORTED `git-read-failed` as the 0.2 source (frozen V1-1277 evidence). V1-1297 (decision 0535): `TestResolveMissingPinnedObjectUnavailable` and `TestResolveProbeOnlyExitOneIsAbsent` (`internal/cem/gitauth`), `TestStableResolveMissingPinnedObjectUnavailable` (including a probe exit 128) and `TestStableCanonicalEnvelopeCells` (`interop/cem01-go`) on the re-emitted cells `missing-base`, `shallow-missing` and `missing-promisor`; `TestCEMV1066SealedVerdictDigests` re-derives their verdict digests |
 | CEM-V1-104 | `TestCEMV1104ConvertParityCEM03`, `TestCEMV1104ConvertParityCEM01` (`internal/cem/convert`); `TestCEMV1104PortableConvertedFixtures` (`interop/cem01-go`); `TestCEMV1104ConvertParitySample`, `TestCEMV1104ConvertParityClassify` (`tools/cem-convert-parity`) | Full corpus run `docs/build-log/evidence/v1-1275/` (603 rows: 602 `identical`, 1 `pre-existing-refusal`, 0 `different`, 0 `NOT_OBSERVED`); build log `docs/build-log/2026-10-12-cem-convert.md`. Since V1-1277 the sample test runs with `--migrated` over the committed `cem/1.0` maps (`CEM-V1-230`) |
 | CEM-V1-105 | `TestCEMV1204StableDispatchNoLongerCapturesConvert` (`internal/cem/cli`) | V1-1278 S1 removed `internal/cem/convert`, `tools/cem-convert-parity`, `script/cem-migrate-maps.sh` and the `cem convert` action (`CEM-V1-204`) |
 

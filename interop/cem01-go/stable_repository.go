@@ -181,6 +181,9 @@ type stableTx struct {
 // stableFlags are the causes collected for arbitration after teardown.
 type stableFlags struct {
 	owner, deadline, parser, overflow, launch, nonzero, truncated bool
+	// exitOne records a normal child exit with status exactly 1, the only
+	// status by which `cat-file -e` reports an absent object.
+	exitOne bool
 }
 
 // stableCheckpointStage maps a transaction phase to its outer-cancellation stage.
@@ -276,7 +279,7 @@ func (s *stableSession) arbitrate(t *stableTx, f *stableFlags) *cemError {
 		return operational("git-diff-failed")
 	case f.launch:
 		return operational("git-read-failed")
-	case f.nonzero && (t.Operation == "normal-blob" || t.Operation == "object-existence-probe"):
+	case f.nonzero && t.Operation == "normal-blob", f.nonzero && f.exitOne && t.Operation == "object-existence-probe":
 		return operational("repository-object-unavailable")
 	case f.nonzero:
 		return operational("git-read-failed")

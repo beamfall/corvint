@@ -25,9 +25,9 @@ Decision 0532 left three choices to the owner and recorded a fourth limit:
    exception (`CEM-V1-261`), and that record fails if a pointer ever resolves or changes. No packet
    byte changes.
 2. V1-1297: accepted. When Git cannot resolve a pinned full object ID, both consumers probe
-   `git cat-file -e`. An absent object is `UNSUPPORTED` `repository`
-   `repository-object-unavailable`. A present object that is unreadable or not a commit stays
-   `git-read-failed`. Labelling an absent object `git-read-failed` claims a read failure that never
+   `git cat-file -e`. An absent object (probe exit status exactly 1) is `UNSUPPORTED`
+   `repository` `repository-object-unavailable`. A present object that is unreadable or not a
+   commit stays `git-read-failed`, and so does a probe that exits otherwise (for example 128). Labelling an absent object `git-read-failed` claims a read failure that never
    happened, which is invented certainty about the cause (product invariant 2).
    - `CEM-V1-103` is amended and supersedes the decision 0532 hold. The portable consumer charges
      the probe as an `object-existence-probe` ledger operation.
