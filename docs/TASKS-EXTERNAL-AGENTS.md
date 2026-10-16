@@ -664,16 +664,21 @@ Send `corvint-tasks attempt heartbeat --attempt ID --generation G --request-id F
 periodically while holding a work lease. Each fresh request records lastHeartbeatAt; replaying
 one does not refresh it. Claims initialize the signal and readmission resets it. The
 observation TTL is 600 seconds unless the policy sets `{"holderLiveness":{"heartbeatTTLSeconds":"N"}}`
-with N from 300 to 86400 (CAL-V0-120); reads report the effective value as `heartbeatTTLSeconds`.
-Heartbeat does not renew the work lease. `attempt show` and
+with N from 300 to 86400 (CAL-V0-120); reads and `policy show` report the effective value as
+`heartbeatTTLSeconds` (CAL-V0-278). Heartbeat does not renew the work lease. A successful
+current-generation renew records the same signal (CAL-V0-231), so a holder that renews more often
+than the TTL need not also heartbeat: a heartbeat in the same tick as a renew changes no status.
+Freshness follows the last signal, not the lease, so a lease longer than the TTL still needs a renew
+or heartbeat within each TTL (CAL-V0-277). `attempt show` and
 `queue status` report FRESH_HOLDER or STALE_HOLDER for a recorded signal with a live work lease,
 LEASE_EXPIRED or TERMINAL for those states, CLOCK_BEFORE_HEARTBEAT for a backwards observation,
 and NOT_OBSERVED for a legacy record without the signal. Stale means a missing recent signal;
 it does not establish process death, physical quiescence or permission to release a holder.
 A coordinator may use STALE_HOLDER to choose an evidence `release --reason HANDOFF` for that
 attempt (CAL-V0-121). The release keeps every ordinary fence and HANDOFF precondition, and nothing
-releases, reaps or hands off a stale holder automatically. A TTL change is a policy change and
-fences live evidence handoffs `STALE_POLICY`, so set it before claims.
+releases, reaps or hands off a stale holder automatically. A TTL-only policy change keeps live
+evidence handoffs compatible (CAL-V0-123), but `complete` of an attempt claimed under the earlier
+policy still refuses `STALE_POLICY`, so set it before claims.
 
 `ticket show`, full `plan preview` and `queue status --retries` expose current acceptance-revision
 charged debt, the current policy limit, remaining retry capacity and admission exhaustion.
