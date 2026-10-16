@@ -32,9 +32,10 @@ qualified only after it passes the frozen new corpus, and only after go1.24 and 
 parsers, scanners and formatters have been compared over that whole corpus plus
 version-sensitive syntax, comment, directive and formatting cases. Four gaps block this:
 
-1. **Corpus gap.** The committed-map corpus never exercises structural proof (above). Every run
-   reports `axes.structuralProof` and `runtime.structuralQualification` as `NOT_REQUIRED`. Running
-   all of it cannot qualify structural semantics.
+1. **Corpus gap.** No committed map has a `mechanical` hunk, so none requires structural proof.
+   Every completed sample result below reports `axes.structuralProof` and
+   `runtime.structuralQualification` as `NOT_REQUIRED`; an early refusal would leave the axis
+   `NOT_CHECKED` instead. Running the whole corpus cannot qualify structural semantics.
 2. **Toolchain gap.** go1.24 is absent and was not downloaded.
 3. **Frozen packet.** Lifting would rewrite `structuralQualification` in 54 frozen S0E
    expectations and in the tuple packet. That is not the additive member regeneration that
@@ -49,8 +50,9 @@ The scratch harness was not committed. It ran native `corvint cem verify-stable`
 the committed bytes. Otherwise it was T': the bind tree with only the sidecar replaced by those
 bytes, using fixed identity and dates (the V1-1275 method).
 
-Full corpus: 1,494 pairs per tuple. In 512 s with 8 jobs, 14 of them finished and 8 timed out at
-240 s. Load averages were 54 to 83 throughout. All 7 pairs where both consumers finished under
+Full corpus at run start: 747 native/portable pairs, so 1,494 verifier executions per tuple. In
+the last 512 s window with 8 jobs, 14 executions finished and 8 timed out at 240 s. Over all
+windows, 18 go1.27.2 executions finished (11 native, 7 portable) and 8 timed out. Load averages were 54 to 83 throughout. All 7 pairs where both consumers finished under
 go1.27.2 are byte-identical:
 
 | Bind | Target | Outcome | Sidecar | structuralProof / qualification | Result SHA-256 (native = portable) |
@@ -66,6 +68,13 @@ go1.27.2 are byte-identical:
 Under go1.27.1, `070fcd632953` gave native = portable at
 `b2f3aef247bec2a06c06760678e6e285f220c061db6895c8294c8b856269ada7`. It differs from go1.27.2 only
 in `runtime.goVersion`.
+
+Every execution, including the 8 timeouts (`NOT_RUN`), is retained one row per execution in
+`docs/build-log/evidence/v1-0614/runs.jsonl` (SHA-256
+`073a2235cf94da241a26e04a397a22ebba548bb5d73eb750ed17e2a14a0e68b8`): the target commit, exit,
+seconds, 1-minute load, result digest and the result's outcome, sidecar, structural axes, Go version
+and map digest. The T' commits and full result bytes stay in the scratch clone and are not
+retained, so the digests are author-reported observations.
 
 Four further maps finished natively only. Witness, identity and adversarial semantics have no
 per-map instances in this corpus; they live in the packets below. The portable legacy
@@ -96,4 +105,13 @@ S0E `structuralQualification` values.
 
 ## Rollback
 
-Delete this entry.
+Delete this entry and `docs/build-log/evidence/v1-0614/`.
+
+## Independent review (Codex, read-only, one round)
+
+Two P3 findings, both repaired here. First, the run size was mislabelled: the corpus has 747 pairs
+per tuple, which is 1,494 executions. Second, "every run reports `NOT_REQUIRED`" overstated the
+claim, because an early refusal leaves the axis `NOT_CHECKED`; the statement now covers only the
+completed sample. The reviewer confirmed the corpus, packet, tuple and go.mod-floor counts, and
+agreed that the label must stay and that an amendment is needed. It could not confirm the run
+digests from committed evidence, so the run rows above are now retained.
