@@ -373,36 +373,88 @@ func TestCoreRefusalsKeepTheFrozenEnvelope(t *testing.T) {
 		}, "invalid-session-key", ""},
 	}
 	covered := []string{}
+	previous := os.Getenv("CORVINT_CORE_N1_BINARY")
 	for _, test := range cases {
 		covered = append(covered, test.verb)
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			root := impactCLIRepository(t)
 			code, stdout, stderr := runCLI(t, test.arguments(root)...)
-			if code != 2 || stdout != "" {
-				t.Fatalf("exit %d stdout %q, want 2 and empty", code, stdout)
-			}
-			var envelope map[string]any
-			if err := json.Unmarshal([]byte(stderr), &envelope); err != nil || strings.Count(strings.TrimSpace(stderr), "\n") != 0 {
-				t.Fatalf("stderr is not one JSON line: %v\n%s", err, stderr)
-			}
-			if test.profile != "" {
-				if len(envelope) != 2 || envelope["code"] != test.code || envelope["profile"] != test.profile {
-					t.Fatalf("envelope %v, want exactly code %q and profile %q", envelope, test.code, test.profile)
-				}
-				return
-			}
-			if envelope["ok"] != false || envelope["error"] == nil {
-				t.Fatalf("envelope %v lacks ok=false and error", envelope)
-			}
-			got, present := envelope["code"]
-			if test.code == "" && present || test.code != "" && got != test.code {
-				t.Fatalf("code = %#v (present %v), want %q", got, present, test.code)
+			envelope := decodeCoreRefusal(t, code, stdout, stderr)
+			checkCoreRefusal(t, envelope, test.code, test.profile)
+			if previous != "" {
+				t.Run("N-1", func(t *testing.T) {
+					replayCoreRefusalN1(t, previous, test.arguments(impactCLIRepository(t)), envelope, test.profile)
+				})
 			}
 		})
 	}
 	if !slices.Equal(covered, frozenCoreVerbs) {
 		t.Errorf("refusal cases cover %v, want one per Core verb %v", covered, frozenCoreVerbs)
+	}
+}
+
+// decodeCoreRefusal checks the CCF-V1-004 refusal frame, exit 2 with empty stdout and one stderr
+// JSON line, and returns the decoded envelope.
+func decodeCoreRefusal(t *testing.T, exit int, stdout, stderr string) map[string]any {
+	t.Helper()
+	if exit != 2 || stdout != "" {
+		t.Fatalf("exit %d stdout %q, want 2 and empty", exit, stdout)
+	}
+	var envelope map[string]any
+	if err := json.Unmarshal([]byte(stderr), &envelope); err != nil || strings.Count(strings.TrimSpace(stderr), "\n") != 0 {
+		t.Fatalf("stderr is not one JSON line: %v\n%s", err, stderr)
+	}
+	return envelope
+}
+
+// checkCoreRefusal checks one envelope: exactly the frontier-error/0 document when profile is set,
+// otherwise ok=false with error and the wanted code, where an empty code means the codeless envelope.
+func checkCoreRefusal(t *testing.T, envelope map[string]any, code, profile string) {
+	t.Helper()
+	if profile != "" {
+		if len(envelope) != 2 || envelope["code"] != code || envelope["profile"] != profile {
+			t.Fatalf("envelope %v, want exactly code %q and profile %q", envelope, code, profile)
+		}
+		return
+	}
+	if envelope["ok"] != false || envelope["error"] == nil {
+		t.Fatalf("envelope %v lacks ok=false and error", envelope)
+	}
+	got, present := envelope["code"]
+	if code == "" && present || code != "" && got != code {
+		t.Fatalf("code = %#v (present %v), want %q", got, present, code)
+	}
+}
+
+// replayCoreRefusalN1 is the CCF-V1-010 N-1 refusal replay: the N-1 release binary runs the same
+// refusal over a fresh fixture. It must keep the CCF-V1-004 exit class, empty stdout and one-line
+// envelope; a code it emits must be the code emitted here (a codeless N-1 refusal may gain one, which
+// CCF-V1-004 makes compatible); and every envelope member it emits must still be emitted here with
+// the same JSON type.
+func replayCoreRefusalN1(t *testing.T, binary string, arguments []string, current map[string]any, profile string) {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	command := exec.Command(binary, arguments...)
+	command.Stdout, command.Stderr = &stdout, &stderr
+	var exited *exec.ExitError
+	if err := command.Run(); err != nil && !errors.As(err, &exited) {
+		t.Fatalf("N-1 binary %s did not run: %v", binary, err)
+	}
+	previous := decodeCoreRefusal(t, command.ProcessState.ExitCode(), stdout.String(), stderr.String())
+	code, _ := current["code"].(string)
+	if _, coded := previous["code"]; !coded && profile == "" {
+		code = "" // CCF-V1-004: adding code to a codeless refusal is compatible
+	}
+	checkCoreRefusal(t, previous, code, profile)
+	kinds := map[string]string{}
+	coreMemberKinds("$", current, kinds)
+	before := map[string]string{}
+	coreMemberKinds("$", previous, before)
+	for _, path := range slices.Sorted(maps.Keys(before)) {
+		if kind, kept := kinds[path]; !kept || kind != before[path] {
+			t.Errorf("N-1 refusal member %s (%s) is %q here: removed or retyped", path, before[path], kind)
+		}
 	}
 }
 

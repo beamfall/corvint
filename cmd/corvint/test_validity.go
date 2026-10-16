@@ -34,8 +34,9 @@ func parseTestValidityInvocation(arguments []string) (string, []string, bool) {
 }
 
 type testValidityOptions struct {
-	receipt  string
-	discover bool
+	receipt    string
+	discover   bool
+	routeStubs bool
 }
 
 func parseTestValidityOptions(arguments []string) (testValidityOptions, error) {
@@ -47,6 +48,13 @@ func parseTestValidityOptions(arguments []string) (testValidityOptions, error) {
 				return testValidityOptions{}, argumentError("--discover takes no value and may be given once")
 			}
 			options.discover = true
+			continue
+		}
+		if name == "--route-stubs" {
+			if inline || options.routeStubs {
+				return testValidityOptions{}, argumentError("--route-stubs takes no value and may be given once")
+			}
+			options.routeStubs = true
 			continue
 		}
 		if name != "--receipt" {
@@ -69,6 +77,9 @@ func parseTestValidityOptions(arguments []string) (testValidityOptions, error) {
 	}
 	if options.discover && options.receipt != "" {
 		return testValidityOptions{}, argumentError("--discover and --receipt are mutually exclusive")
+	}
+	if options.routeStubs && options.receipt == "" {
+		return testValidityOptions{}, argumentError("--route-stubs requires --receipt")
 	}
 	return options, nil
 }
@@ -93,7 +104,11 @@ func runTestValidity(root string, arguments []string, stdout, stderr io.Writer) 
 			emitError(stderr, readErr)
 			return 2
 		}
-		document = testvaliditydoc.JoinStepNegation(testvaliditydoc.Project(receipt), receipt, root)
+		project := testvaliditydoc.Project
+		if options.routeStubs {
+			project = testvaliditydoc.ProjectRouteStubs
+		}
+		document = testvaliditydoc.JoinStepNegation(project(receipt), receipt, root)
 	}
 	if options.discover {
 		discovered, discoverErr := discoverTestValidity(root)

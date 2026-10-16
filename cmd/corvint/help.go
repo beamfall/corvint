@@ -392,7 +392,7 @@ stdout.
 const testValidityHelp = `Project test-level results through the shared test-validity shape.
 
 Usage:
-  corvint [--root PATH] test-validity [--receipt FILE | --discover]
+  corvint [--root PATH] test-validity [--receipt FILE [--route-stubs] | --discover]
   corvint [--root PATH] test-validity negate --provider ABSOLUTE_FILE --spec S --test T
       [--project P] (--step TITLE | --all-steps) [--max-runs N] [--baseline-repeat N]
       [external-server provider options]
@@ -406,7 +406,10 @@ and a PASSED execution axis states no strength: strength stays NOT_MEASURED
 until a mutation run supplies a witness.
 
 Without --receipt there is no test-level evidence: tests is empty and every
-run axis is UNSUPPORTED with reason no-input-supplied. An unreadable, oversized,
+run axis is UNSUPPORTED with reason no-input-supplied. --route-stubs makes every
+JavaScript test carry routeStubs: a receipt with no route-stub producer record
+then states NOT_PRODUCED with reason route-stub-producer-absent, and a profiled
+receipt states route-stub-external-profile, instead of omitting the member. An unreadable, oversized,
 malformed or receipt-less FILE exits 2 with no stdout.
 
 --discover instead reads the newest completed provider document retained as a
