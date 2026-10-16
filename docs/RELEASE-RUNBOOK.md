@@ -119,7 +119,8 @@ output directories outside the checkout; the reproducibility script refuses one 
    frozen Core mode except the skips CCF-V1-007 names also runs under the previous release tag over a
    fresh fixture; it must exit alike and keep the CCF-V1-002 identifiers, every member it emits must
    still be emitted by this commit with the same JSON type, and every value it writes at a registered
-   path must still be registered here. It must end `ok`; retain its output. The
+   path must still be registered here. Each Core verb's pinned refusal also runs under that tag and
+   must keep its exit class, envelope members and code (CCF-V1-010). It must end `ok`; retain its output. The
    `core-n1-replay-v1.0.0-rc.1` and `core-n1-replay-v0.8.1` gates of
    `.github/workflows/release-gates.yml` run this replay against the documented baselines (decision
    0434 item 3 and the CCF-V1-007 text) at the dispatched `sha` and nightly on `main` (V1-1382);

@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `CCF-V1`
-Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943)
+Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); CCF-V1-010 accepted under the owner's standing auto-accept of 2026-10-11 (V1-0285)
 Delivery status: experimental
 Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), decision 0358, `AGENTS.md` invariants 1, 2, 4 and 8,
 `conformance/cli-parity-v0/manifest.json`, and the owning specs of each Core verb listed in CCF-V1-002.
 
 ## Agent digest
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
-- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); experimental delivery; the Core set is taken from accepted decision 0332
+- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); CCF-V1-010 accepted under the owner's standing auto-accept of 2026-10-11 (V1-0285); experimental delivery; the Core set is taken from accepted decision 0332
 - Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
 - Blocked on: pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
@@ -338,6 +338,22 @@ compatibility baseline; see the N-1 replay paragraph of CCF-V1-007 for how the r
   CCF-V1-008 `Command maturity:` section and the support boundary's local-only, read-only,
   self-observation-ledger and writer disclosures stay. Help invocations still read no stdin and
   inspect no repository. Root help bytes are not pinned by `conformance/cli-parity-v0`.
+- **CCF-V1-010:** (accepted under the owner's standing auto-accept of 2026-10-11; V1-0285, panel
+  blocker B6) N-1 refusal replay. `make core-n1-replay` also runs `TestCoreRefusalsKeepTheFrozenEnvelope`
+  with `CORVINT_CORE_N1_BINARY`, so each of its twelve refusal cases, one per Core verb, also runs
+  under the N-1 binary over a fresh fixture (`replayCoreRefusalN1`). The N-1 refusal MUST keep the
+  CCF-V1-004 frame: exit 2, empty stdout and one stderr JSON line. A `frontier` refusal MUST be the
+  same `frontier-error/0` document. Any other N-1 refusal MUST carry `ok=false` and `error`; a `code` it
+  carries MUST be the code this build emits, while a codeless N-1 refusal may gain one, which
+  CCF-V1-004 makes compatible. Every envelope member path the N-1 refusal emits, arrays spread, MUST
+  be emitted here with the same JSON type. With the CCF-V1-007 mode replay, which reaches nine verbs
+  because `cem`, `ocm` and `frontier` have no replayable success mode, the target reaches all twelve
+  Core verbs. `make core-n1-replay` builds the tag from local Git objects with `git archive`; the module
+  declares no dependencies at `v0.8.1`, `v1.0.0-rc.1` or `v1.0.0-rc.2`, so it runs with `GOPROXY=off`. The skipped `cem` and `ocm` success
+  modes stay skipped against every published tag: `v0.8.1`, `v1.0.0-rc.1` and `v1.0.0-rc.2` all
+  refuse the `cem/1.0` fixture (`cem` rejects `--artifacts`; `ocm` exits 1), observed 2026-10-16.
+  NOT_PRODUCED: a success-mode N-1 replay of `cem`, `ocm` and `frontier`, and any refusal other than
+  these twelve cases.
 
 ## Non-goals
 
@@ -357,6 +373,9 @@ compatibility baseline; see the N-1 replay paragraph of CCF-V1-007 for how the r
   frozen mode: `TestCoreVerbsEmitTheFrozenProfiles` fails through `observeCoreEnumerations`.
 - (accepted 2026-09-26, decision 0422; from decision 0398) The N-1 tag emits a frozen member, identifier or registered value that
   this build lost, retyped or dropped from the register: `make core-n1-replay` fails.
+- (CCF-V1-010) A Core verb's refusal under the N-1 tag leaves the CCF-V1-004 frame, carries a code
+  this build renamed or dropped, or emits an envelope member this build lost or retyped:
+  `make core-n1-replay` fails in `replayCoreRefusalN1`.
 - A refusal drops a code it gained under decision 0398: `TestRepositoryFailureEnvelopeCarriesItsCode`
   or `TestReadFailuresKeepTheFixedTextAndAddTheirCode` fails.
 - A Core verb classifies a non-root working directory or an unborn `HEAD` differently from its
@@ -401,6 +420,7 @@ compatibility baseline; see the N-1 replay paragraph of CCF-V1-007 for how the r
 | CCF-V1-007 (b) | `TestMigrateTracesDryRunMatchesPythonOracleBytes`, `TestMigrateTracesApplyMatchesPythonOracle`, `TestMigrateTracesPlanDigestMismatchWritesNothing`, `TestMigrationCandidateDriftCheckCoversWholePlan`, `TestMigrationQuarantineBindingDetectsReplacement`, `TestPythonOracleMigrationTransform`, `TestReadBoundsTraceReplayWithoutRefusingLargeRepositories`, `TestStoreReadRejectsWholeStoreViolations` |
 | CCF-V1-007 (c) | `TestProveObserveRejectsWhatIsNotAProof`, `TestProveObserveRecordsOnlyTheVerdictCounts`, `TestStatementIsByteStableAcrossCalls`, `TestPUBV0024InstalledCoreDiscoveryWorkflows` |
 | CCF-V1-007 (d), CCF-V1-006 enumerations | `TestCoreVerbsEmitTheFrozenProfiles` (every registered member it reaches, including the rows of the `prove` `packet`); (accepted 2026-09-26, decision 0422; from decision 0398) the same test under `make core-n1-replay` (`replayCoreModeN1`) for the N-1 replay, run against the documented baselines `v1.0.0-rc.1` and `v0.8.1` by the `core-n1-replay-*` gates of `.github/workflows/release-gates.yml` (V1-1382; a deliberately broken N-1 `dogfood status` claim fails the target locally, build log 2026-10-15-gate-tooling; hosted run NOT_RUN) |
+| CCF-V1-010 | `TestCoreRefusalsKeepTheFrozenEnvelope` under `make core-n1-replay` (`replayCoreRefusalN1`), run by the `core-n1-replay-*` gates of `.github/workflows/release-gates.yml`; three stand-in N-1 binaries (renamed code, exit 1, an extra member) each fail all twelve cases, build log 2026-10-16-v1-0285-n1-refusal-replay |
 | CCF-V1-008 | `TestRootHelpLabelsEveryVerbWithMaturityAndOwner`, `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb`, `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
 | CCF-V1-009 | `TestRootHelpIsACompactVerbIndex`, `TestRootHelpListsContextAndWorkCommands`, `TestSupportBoundaryDisclosesTheSelfObservationLedgerWrite`, `TestRootHelpMutationBoundary`, `TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin` |
 
@@ -422,6 +442,8 @@ reserved rows`, `impact path excluded sources` and `impact path non-utf8 source`
 N-1 skip and goldens; that restores the NOT_PRODUCED statement for those members.
 Reverting the V1-0285 skips deletes the four `cem`/`ocm` entries from `coreN1Skips`; `make core-n1-replay`
 against 0.8.1 then fails on those modes again. No stored state changes.
+Reverting CCF-V1-010 (V1-0285) deletes `replayCoreRefusalN1` and `TestCoreRefusalsKeepTheFrozenEnvelope`
+from the `core-n1-replay` run pattern; no stored state changes.
 Reverting CCF-V1-009 (V1-0945) restores the previous `rootHelp` text and its tests; root help is
 stdout text only, so no stored state changes.
 
