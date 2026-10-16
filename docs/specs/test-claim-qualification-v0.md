@@ -754,6 +754,41 @@ nothing to run.
   declaration, and a file that does not parse names none. A span that declares none, such as a
   helper, a comment that mentions a test or a subtest body, is reported `not-run` with reason
   `no-named-test`; no test is inferred from the file name, the rest of the file or the hunk.
+- `TCQ-V0-062`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The
+  producer MUST be able to find the guarding test it cites by observation, not by guess:
+  `cem verify --guarding-tests` adds the envelope member `guardingTests` (profile
+  `cem-guarding-tests/0`, runner `go-test`) beside the unchanged `stableVerification` result, null
+  unless the result is `ACCEPT`. It searches every hunk of non-test Go source that is not
+  `mechanical` and whose basis cites no `_test.go` span as `test-claim`. A hunk's candidates are
+  the top-level tests of the `TCQ-V0-061` shape declared at the base in the `_test.go` files of the
+  hunk's own directory whose target bodies mention, by identifier name, a top-level declaration
+  holding a line the hunk adds or deletes, or a declaration of that directory, test helpers
+  included, that transitively mentions one. The candidates run under the `CEM-V1-088`
+  revert-and-run classification in a disposable export of the target: a guard is a candidate the
+  search observed pass at the target and fail with only that hunk reverted, and the row is
+  `guarded`; `unguarded` when every eligible candidate still passes reverted; otherwise `not-run`
+  with its `CEM-V1-089` reason (a revert that breaks the build and a candidate that fails without
+  the revert guard nothing), or `no-candidate-test` when a modification hunk has no candidate,
+even after the total bound is spent. For a guarded row
+  whose first guard by name has base header lines, `func` through the parameter list, that the
+  frozen drift classifier keeps stable or relocated at the target, the member's `plan` carries one
+  citation-plan row `HUNK_ID<TAB>PATH_test.go<TAB>START:END<TAB>test-claim` naming those base
+  lines, which `cem cite` and the dogfood citation plan admit as written. The search writes
+  nothing: no map, witness, support tier or count changes, `held` still comes only from the
+  consumer's own `--hunk-revert` run (`CEM-V1-088`), and a printed row is guidance the producer may
+  cite or drop (`TCQ-V0-060`). `status` and `report` refuse the flag `invalid-arguments`, and
+  `verify` refuses it beside `--hunk-revert`, so one run never both suggests a test and credits it.
+
+Recorded limits of `TCQ-V0-062`: candidates match identifier names, so they over-approximate and
+the revert run decides; only tests in the hunk's own directory are candidates, so a test elsewhere
+that exercises the hunk (for example in `cmd/corvint`) is never found; tests added by the change
+are not candidates because `cem cite` needs base evidence. Only `go test` runs; no other runner is
+supported or qualified (an rc.3 limit). The bounds are the falsifier's (300 seconds per run, 1200
+seconds in total), and a package whose candidate run exceeds them is `not-run: timeout` or
+`total-limit`; the first real change measured spent the whole 1200 seconds on a package with
+394 candidates. Reverting one hunk of a change whose hunks depend on each other often breaks the
+build, and such a hunk is never guarded. The search executes the target's tests unconfined with the caller's privileges,
+exactly as `--hunk-revert` does.
 
 ## Canonical conditional-state table
 
@@ -847,7 +882,9 @@ that carries the member fails closed as `unknown-field` rather than being read a
 rolls back by removing `ErrSandboxUnavailable` and `launcherRefused`; the refusal then reads as
 `mutate: run ended without a verdict` again and no wire, state, or exit status changes. `TCQ-V0-060..061`
 roll back with the V1-1266 code commit: the `DOGFOOD.md` paragraph goes, and a plan that cites a
-guarding test stays an ordinary `test-claim` citation.
+guarding test stays an ordinary `test-claim` citation. `TCQ-V0-062` rolls back by removing the `--guarding-tests`
+flag, `internal/cem/verify/guards.go` and its `DOGFOOD.md` command; no committed map, seal, golden or
+public case depends on them, and a row already cited stays an ordinary `test-claim` citation.
 
 ## Traceability
 
@@ -877,6 +914,7 @@ non-authoritative and slated for separate removal.
 | `TCQ-V0-059` | `internal/liveverify/mutate/gotest.go` (`inconclusive`, `launcherRefused`, `ErrSandboxUnavailable`) | `TestInconclusiveNamesALauncherRefusalWithoutEchoingIt`, `TestRunReportsASandboxLauncherRefusalAsUnavailable`, `TestInconclusiveDoesNotExposeTestOutput`, `TestRunRefusesToJudgeARunWithoutAVerdict`; measured 2026-10-08 inside a deny-default outer `sandbox-exec` profile: `TestDiscriminateRecordsWitnessAndReportDowngrades` witness detail `mutation runner failed for pkg/calc/calc_test.go: mutate: sandbox unavailable: the host refused to apply the sandbox-exec profile` |
 | `TCQ-V0-060` | `docs/DOGFOOD.md` section 4 "Cite the guarding test" | `TestCEMV1088HeldOnlyFromConsumerReexecution` (a plan citing the guarding test's declaration line yields `held`) |
 | `TCQ-V0-061` | `declaredTests` and `revertCandidates` in `internal/cem/verify/hunkrevert.go` | `TestCEMV1088DeclaredTestsAreWhatGoTestRuns`, `TestCEMV1088ForgedWitnessNeverCounts` (a span declaring no test is `no-named-test`) |
+| `TCQ-V0-062` | `internal/cem/verify/guards.go`, `internal/cem/workflow/stable_read.go`, `internal/cem/cli/cli.go` | `TestTCQV0062GuardingTestsNameObservedGuards`, `TestTCQV0062FlagIsVerifyOnly` (`internal/cem/workflow`); `TestTCQV0062VerifyGuardingTestsIsOptIn` (`internal/cem/cli`); `TestTCQV0062CandidatesFollowThePackageClosure`, `TestTCQV0062CitationNeedsAStableBaseHeader`, `TestTCQV0062ChangedLinesFindTheEditedDeclaration`, `TestTCQV0062SpentBudgetKeepsNoCandidateReason` (`internal/cem/verify`): on an uncited prepared map the search guards the Clamp hunk with its one asserting test only, keeps a revert that breaks the build and a test failing without the revert `not-run`, prints the plan row `cem cite` admits, and the consumer then holds the hunk |
 
 The implementation and deterministic reference vectors are delivered as a candidate. The labelled
 corpus, reporter compatibility measurements, independent implementation, and ten-change dogfood

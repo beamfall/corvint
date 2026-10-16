@@ -3493,6 +3493,7 @@ TCQ-V0-058	docs/specs/test-claim-qualification-v0.md	704	the reviewer report app
 TCQ-V0-059	docs/specs/test-claim-qualification-v0.md	712	(accepted 2026-10-08, decision 0463; ticket V1-0651) a runner failure whose whol	owner	2026-10-08; decision 0463; V1-0651
 TCQ-V0-060	docs/specs/test-claim-qualification-v0.md	741	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
 TCQ-V0-061	docs/specs/test-claim-qualification-v0.md	748	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
+TCQ-V0-062	docs/specs/test-claim-qualification-v0.md	757	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
 TEA-V0-001	docs/specs/corvint-tasks-evidence-attachments-v0.md	38	`corvint-tasks ticket attach-evidence --target T --expected-revision N --payload	unrecorded	-
 TJAA-V0-001	docs/specs/typescript-javascript-affected-adapter-v0.md	31	`Owns` MUST claim exactly `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs`; it M	unrecorded	-
 TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normally file-addressable test MUST be one file unit. Its stable identity MUST	unrecorded	-
