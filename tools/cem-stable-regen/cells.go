@@ -49,14 +49,17 @@ type cellOutcome struct {
 	overrides  *document
 }
 
-// frozenKey identifies a verdict by its exit and every frozen key, without member.
-func frozenKey(src []byte, c *jnode, member string) (string, error) {
+// frozenKey identifies a verdict by its exit and every frozen key, without
+// the regenerated members.
+func frozenKey(src []byte, c *jnode, members ...string) (string, error) {
 	result, err := c.get("expectedResult").decode(src)
 	object, ok := result.(map[string]any)
 	if err != nil || !ok {
 		return "", errors.New("expectedResult is not an object")
 	}
-	delete(object, member)
+	for _, member := range members {
+		delete(object, member)
+	}
 	exit, err := strconv.Atoi(string(c.get("expectedExit").raw(src)))
 	if err != nil {
 		return "", errors.New("expectedExit is not an integer")
