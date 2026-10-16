@@ -46,11 +46,24 @@ lives under `record.`, and the `ticket show` usage said only `--fields KEY[.SUB]
   - `queue status --fields headseq` lists the queue status keys.
   - `holderStatus` suggests `liveAttempts.holderStatus`.
   - `ticket show --help` contains `record.body`.
+- `TestCALV0310_UnknownFieldMessageAcrossItems` (package-internal) pins the exact text over two
+  heterogeneous items: the sorted key union, two sorted suggestions (one through an array), the
+  sorted sub-key union, no suggestion for a two-segment key and the `retries` hint.
 - Base reproduction: with the base `compact.go` the test fails at its first assertion, on the
   bare warning above.
 - Mutation: renaming the suggestion text fails the test. Both runs restored the fixed file.
 - Projection and refusal regressions: `TestCALV0165`, `TestCALV0166` and the rest of the
   `internal/tasks/cli` package (see the PR for counts and gates).
+
+## Independent review
+
+One Codex round (read-only, `codex exec -s read-only`) over `38d4fef8..e47c21a3` found two Low
+items and no correctness, determinism or wire-contract defect:
+
+- The `retries` refusal returned early without the key list that CAL-V0-310 requires. Fixed: it now
+  uses the common diagnostic and appends the `--retries` hint.
+- The test covered one item and one suggestion only. Fixed by the package-internal
+  heterogeneous-items test above.
 
 Residual: the keys listed are those of the returned items, so an empty page still accepts any
 well-formed name (unchanged CAL-V0-166 failure mode).

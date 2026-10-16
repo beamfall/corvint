@@ -205,10 +205,11 @@ func checkCompactFields(items []wire.Value, fields []string) string {
 			}
 		}
 		if !present {
+			msg := unknownFieldMessage(items, key, nested)
 			if key == "retries" {
-				return "field \"retries\" is not in this item; queue status includes it only with --retries"
+				msg += "; queue status includes \"retries\" only with --retries"
 			}
-			return unknownFieldMessage(items, key, nested)
+			return msg
 		}
 		if nested && containers > 0 && !found {
 			msg := "field " + quoteField(f) + " is not in any element of " + quoteField(key)

@@ -6815,7 +6815,7 @@ exact projection and the CAL-V0-166 refusal, and make the refusal and help say w
   down, where `PARENT` is an item key whose object value, or an object element of whose array
   value, carries `KEY` (`ticket show --fields body` suggests `record.body`). A refused `KEY.SUB`
   whose key is present but whose sub-key no element carries MUST list that key's sub-keys. The
-  missing `retries` refusal keeps naming `--retries`. The detail travels in the existing
+  missing `retries` refusal lists the keys too and keeps naming `--retries`. The detail travels in the existing
   `warnings` member: the result code, outcome, empty items, snapshot and every other envelope
   member are unchanged, and no top-level alias is added, so a valid projection keeps its exact
   bytes. The `ticket show` usage MUST say that ticket fields such as `body` and
@@ -6834,7 +6834,9 @@ Acceptance evidence: `TestCALV0310_FieldsUnknownKeyDiagnostic` (`internal/tasks/
 no suggestion for a key absent at every level, lists `record` sub-keys for `record.nope`, projects
 `record.body,record.acceptanceCriteria`, refuses `queue status --fields headseq` with that item's
 keys, suggests `liveAttempts.holderStatus` through an array, and finds `record.body` in
-`ticket show --help`. At base 38d4fef8 the test fails on the bare `field "body" is not in this
+`ticket show --help`. `TestCALV0310_UnknownFieldMessageAcrossItems` pins the exact text over
+heterogeneous items: the sorted key union, two sorted suggestions through an object and an array,
+the sorted sub-key union and the `retries` hint. At base 38d4fef8 the test fails on the bare `field "body" is not in this
 read's items`. See `docs/build-log/2026-10-16-v1-1526-fields-unknown-key.md`.
 
 Rollback: revert the code and this amendment. No stored state, request, receipt, policy byte or
