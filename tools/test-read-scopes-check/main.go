@@ -31,9 +31,14 @@ import (
 var rootLocatorToken = "--show-" + "toplevel"
 
 const (
-	literalsPath    = ".corvint/test-read-scope-literals.json"
-	literalsProfile = "corvint-test-read-scope-literals/0"
-	maxLiterals     = 1 << 16
+	// changeEvidencePath is the shared change-evidence map, tracked only between
+	// a dogfood bind and its seal, which moves it (DCW-V0-027). Tests name it
+	// for the fixture repositories they write, and it is no stable repository
+	// path, so it never counts as tracked here.
+	changeEvidencePath = ".corvint/change.cem.json"
+	literalsPath       = ".corvint/test-read-scope-literals.json"
+	literalsProfile    = "corvint-test-read-scope-literals/0"
+	maxLiterals        = 1 << 16
 )
 
 // readLiterals reads the closed {profile, literals} record of literals the
@@ -73,9 +78,9 @@ type finding struct {
 	pkg, file, path string
 }
 
-// tracked lists the paths Git tracks under root and every directory above
-// them, compared exactly: a case-insensitive file system must not turn a
-// literal "makefile" into the tracked Makefile.
+// tracked lists the paths Git tracks under root, except changeEvidencePath,
+// and every directory above them, compared exactly: a case-insensitive file
+// system must not turn a literal "makefile" into the tracked Makefile.
 func tracked(root string) (map[string]bool, error) {
 	command := exec.Command("git", "-C", root, "ls-files", "-z")
 	command.Stderr = io.Discard
@@ -85,6 +90,9 @@ func tracked(root string) (map[string]bool, error) {
 	}
 	paths := map[string]bool{}
 	for _, name := range bytes.Split(bytes.TrimSuffix(out, []byte{0}), []byte{0}) {
+		if string(name) == changeEvidencePath {
+			continue
+		}
 		for value := string(name); value != "." && !paths[value]; value = path.Dir(value) {
 			paths[value] = true
 		}
@@ -120,27 +128,29 @@ func parentOnly(value string) bool {
 	return parent
 }
 
-// named resolves one AFP-V0-021 token of a test file in directory to the
-// tracked repository path of two or more components it names, if any. The
-// token resolves against the package directory, where `go test` runs it; a
-// token without `.` or `..` components also resolves against the repository
-// root when the package's tests locate it. A "/"-anchored token (an import path
+// named resolves one AFP-V0-021 token of a test file in directory to every
+// tracked repository path of two or more components it names. The token
+// resolves against the package directory, where `go test` runs it; a token
+// without `.` or `..` components also resolves against the repository root when
+// the package's tests locate it, and both are kept, since a match in the package
+// does not show which one the test reads. A "/"-anchored token (an import path
 // under the module, or an absolute path) names nothing here, and one that climbs
 // out of the repository is rule (d)'s.
-func named(paths map[string]bool, directory, value string, fromRoot bool) (string, bool) {
+func named(paths map[string]bool, directory, value string, fromRoot bool) []string {
 	if value == "" || strings.HasPrefix(value, "/") {
-		return "", false
+		return nil
 	}
 	candidates := []string{path.Join(directory, value)}
 	if fromRoot && !slices.ContainsFunc(strings.Split(value, "/"), func(component string) bool { return component == "." || component == ".." }) {
 		candidates = append(candidates, path.Clean(value))
 	}
+	var targets []string
 	for _, candidate := range candidates {
-		if strings.Contains(candidate, "/") && paths[candidate] {
-			return candidate, true
+		if strings.Contains(candidate, "/") && paths[candidate] && !slices.Contains(targets, candidate) {
+			targets = append(targets, candidate)
 		}
 	}
-	return "", false
+	return targets
 }
 
 // covered reports whether a confined test of directory may read target: it is
@@ -200,16 +210,17 @@ func check(root string) ([]finding, []string, error) {
 		for index, file := range unit.Tests {
 			seen := map[string]bool{}
 			for _, value := range tokens[index] {
-				target, ok := named(paths, directory, value, fromRoot)
-				if !ok || seen[target] || covered(directory, target, unit.ReadScope) {
-					continue
+				for _, target := range named(paths, directory, value, fromRoot) {
+					if seen[target] || covered(directory, target, unit.ReadScope) {
+						continue
+					}
+					seen[target] = true
+					if _, ok := recorded[directory][target]; ok {
+						used[directory+" "+target] = true
+						continue
+					}
+					findings = append(findings, finding{pkg: directory, file: file, path: target})
 				}
-				seen[target] = true
-				if _, ok := recorded[directory][target]; ok {
-					used[directory+" "+target] = true
-					continue
-				}
-				findings = append(findings, finding{pkg: directory, file: file, path: target})
 			}
 		}
 	}

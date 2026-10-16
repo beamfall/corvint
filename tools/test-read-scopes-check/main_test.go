@@ -25,9 +25,12 @@ func repository(t *testing.T, entries, literals string) string {
 		"Makefile":                              "gate:\n",
 		"protocol/cem-1.0/stable/manifest.json": "{}\n",
 		"protocol/cem-1.0/stable/tamper-matrix/case.json": "{}\n",
+		"testdata/case.json":                              "{}\n",
+		".corvint/change.cem.json":                        "{}\n",
+		"internal/cem/verify/testdata/case.json":          "{}\n",
 		"internal/cem/verify/v.go":                        "package verify\n",
 		"internal/cem/verify/root_test.go":                "package verify\n\nvar top = \"" + strings.Repeat(up, 3) + "\"\n\nvar parent = \"" + strings.TrimSuffix(up, "/") + "\"\n",
-		"internal/cem/verify/matrix_test.go":              "package verify\n\nvar matrix = top + \"protocol/cem-1.0/stable/tamper-matrix\"\n\nvar folded = \"makefile\"\n",
+		"internal/cem/verify/matrix_test.go":              "package verify\n\nvar matrix = top + \"protocol/cem-1.0/stable/tamper-matrix\"\n\nvar folded = \"makefile\"\n\nvar shadowed = \"testdata/case.json\"\n\nvar evidence = \".corvint/change.cem.json\"\n",
 		"fixtures/f/f.go":                                 "package f\n",
 		"fixtures/f/f_test.go":                            "package f\n\nvar fixture = \"protocol/cem-1.0/stable/manifest.json\"\n",
 		".corvint/test-read-scopes.json":                  `{"profile":"corvint-test-read-scopes/0","packages":{"fixtures/f":[],"internal/cem/verify":[` + entries + `]}}`,
@@ -54,6 +57,9 @@ func repository(t *testing.T, entries, literals string) string {
 
 func TestUndeclaredRepositoryLiteralFailsNamingPackageAndPath_V1_1351(t *testing.T) {
 	const matrix = `"protocol/cem-1.0/stable/tamper-matrix/"`
+	// The root testdata/case.json is named by a literal that also names the
+	// package's own testdata/case.json; every case but one declares it.
+	const shadow = `,"testdata/case.json"`
 	const head = `{"profile":"corvint-test-read-scope-literals/0","literals":`
 	recorded := head + `{"internal/cem/verify":{"protocol/cem-1.0/stable/tamper-matrix":"fixture"}}}`
 	for name, c := range map[string]struct {
@@ -61,13 +67,14 @@ func TestUndeclaredRepositoryLiteralFailsNamingPackageAndPath_V1_1351(t *testing
 		code              int
 		want              string
 	}{
-		"declared entry":      {matrix, "", 0, "test-read-scopes-check: ok"},
-		"declared parent":     {`"protocol/cem-1.0/stable/"`, "", 0, "test-read-scopes-check: ok"},
-		"declared file below": {`"protocol/cem-1.0/stable/tamper-matrix/case.json"`, "", 0, "test-read-scopes-check: ok"},
-		"entry removed":       {"", "", 1, "package internal/cem/verify: internal/cem/verify/matrix_test.go names protocol/cem-1.0/stable/tamper-matrix, outside its entries"},
-		"sibling only":        {`"protocol/cem-1.0/stable/manifest.json"`, "", 1, "names protocol/cem-1.0/stable/tamper-matrix"},
-		"recorded literal":    {"", recorded, 0, "test-read-scopes-check: ok"},
-		"stale record":        {matrix, recorded, 0, "records internal/cem/verify protocol/cem-1.0/stable/tamper-matrix, which no test file of the package names"},
+		"declared entry":      {matrix + shadow, "", 0, "test-read-scopes-check: ok"},
+		"declared parent":     {`"protocol/cem-1.0/stable/"` + shadow, "", 0, "test-read-scopes-check: ok"},
+		"declared file below": {`"protocol/cem-1.0/stable/tamper-matrix/case.json"` + shadow, "", 0, "test-read-scopes-check: ok"},
+		"entry removed":       {`"testdata/case.json"`, "", 1, "package internal/cem/verify: internal/cem/verify/matrix_test.go names protocol/cem-1.0/stable/tamper-matrix, outside its entries"},
+		"sibling only":        {`"protocol/cem-1.0/stable/manifest.json"` + shadow, "", 1, "names protocol/cem-1.0/stable/tamper-matrix"},
+		"root shadowed":       {matrix, "", 1, "internal/cem/verify/matrix_test.go names testdata/case.json, outside its entries"},
+		"recorded literal":    {`"testdata/case.json"`, recorded, 0, "test-read-scopes-check: ok"},
+		"stale record":        {matrix + shadow, recorded, 0, "records internal/cem/verify protocol/cem-1.0/stable/tamper-matrix, which no test file of the package names"},
 		"empty reason":        {"", head + `{"internal/cem/verify":{"protocol/cem-1.0/stable/tamper-matrix":" "}}}`, 2, "want exactly"},
 		"empty package":       {"", head + `{"internal/cem/verify":{}}}`, 2, "want exactly"},
 		"unknown member":      {"", head + `{},"extra":1}`, 2, "want exactly"},
@@ -80,8 +87,9 @@ func TestUndeclaredRepositoryLiteralFailsNamingPackageAndPath_V1_1351(t *testing
 			t.Errorf("%s: code=%d want %d; output %q lacks %q", name, code, c.code, output, c.want)
 		}
 		// fixtures/f does not reach the root, the climb to internal/cem is the
-		// root lookup, and a case-folded literal names no tracked path.
-		for _, never := range []string{"package fixtures/f", "names internal/cem,", "names Makefile"} {
+		// root lookup, a case-folded literal names no tracked path, and the
+		// change-evidence map is tracked only until its seal.
+		for _, never := range []string{"package fixtures/f", "names internal/cem,", "names Makefile", "names .corvint/change.cem.json"} {
 			if strings.Contains(output, never) {
 				t.Errorf("%s: output %q reports %q", name, output, never)
 			}
