@@ -321,50 +321,6 @@
    ],
    "app": "corvint-console",
    "assertion": [
-    "evidence.refusal-code"
-   ],
-   "changes": [],
-   "destructive": false,
-   "flow_id": "corvint-console",
-   "org": "",
-   "requires": [
-    "snapshot=stderr-refusal"
-   ],
-   "route": "/evidence",
-   "screen": "screen:corvint-console:evidence",
-   "setup": "snapshot:stderr-refusal",
-   "spec": "internal/console/console_test.go",
-   "user": "operator",
-   "variation_id": "con.evidence.stderr-refusal"
-  },
-  {
-   "action": [
-    "GET:/evidence"
-   ],
-   "app": "corvint-console",
-   "assertion": [
-    "evidence.failure"
-   ],
-   "changes": [],
-   "destructive": false,
-   "flow_id": "corvint-console",
-   "org": "",
-   "requires": [
-    "snapshot=error-without-code"
-   ],
-   "route": "/evidence",
-   "screen": "screen:corvint-console:evidence",
-   "setup": "snapshot:error-without-code",
-   "spec": "internal/console/console_test.go",
-   "user": "operator",
-   "variation_id": "con.evidence.error-without-code"
-  },
-  {
-   "action": [
-    "GET:/evidence"
-   ],
-   "app": "corvint-console",
-   "assertion": [
     "evidence.invalid-family"
    ],
    "changes": [],
@@ -383,22 +339,24 @@
   },
   {
    "action": [
-    "GET:/evidence"
+    "GET:/evidence@case=null-family",
+    "GET:/evidence@case=null-metric"
    ],
    "app": "corvint-console",
    "assertion": [
-    "evidence.invalid-family"
+    "evidence.invalid-family",
+    "evidence.no-metrics-panel"
    ],
    "changes": [],
    "destructive": false,
    "flow_id": "corvint-console",
    "org": "",
    "requires": [
-    "snapshot=null-family"
+    "snapshot=null-family+null-metric"
    ],
    "route": "/evidence",
    "screen": "screen:corvint-console:evidence",
-   "setup": "snapshot:null-family",
+   "setup": "snapshot:null-family+null-metric",
    "spec": "internal/console/console_test.go",
    "user": "operator",
    "variation_id": "con.evidence.null-family"
@@ -655,38 +613,18 @@
   },
   {
    "action": [
-    "GET:/roadmap@page=overflow"
-   ],
-   "app": "corvint-console",
-   "assertion": [
-    "roadmap.page-fallback"
-   ],
-   "changes": [],
-   "destructive": false,
-   "flow_id": "corvint-console",
-   "org": "",
-   "requires": [
-    "tool.roadmap=ok",
-    "tool.blockers=ok"
-   ],
-   "route": "/roadmap",
-   "screen": "screen:corvint-console:roadmap",
-   "setup": "stub:roadmap+blockers",
-   "spec": "internal/console/roadmap_test.go",
-   "user": "operator",
-   "variation_id": "rm.page-offset-overflow"
-  },
-  {
-   "action": [
     "GET:/roadmap@page=2",
     "GET:/",
-    "GET:/roadmap@page=2+refresh=off"
+    "GET:/roadmap@page=2+refresh=off",
+    "GET:/roadmap@server=refusal"
    ],
    "app": "corvint-console",
    "assertion": [
     "roadmap.recheck-meta",
-    "board.no-recheck",
-    "roadmap.refresh-off"
+    "board.no-refresh",
+    "roadmap.refresh-paused-resume",
+    "roadmap.refusal-recheck-active",
+    "roadmap.refusal-hard-stops"
    ],
    "changes": [],
    "destructive": false,
@@ -696,36 +634,15 @@
     "tool.roadmap=ok",
     "tool.blockers=ok",
     "tool.help=ok",
-    "tool.ticket-list=ok"
+    "tool.ticket-list=ok",
+    "tool.roadmap-second-server=refusal"
    ],
    "route": "/roadmap",
    "screen": "screen:corvint-console:roadmap",
-   "setup": "stub:roadmap+blockers+help+list",
+   "setup": "stub:roadmap+blockers+help+list+roadmap-refusal",
    "spec": "internal/console/roadmap_test.go",
    "user": "operator",
    "variation_id": "rm.safe-auto-recheck"
-  },
-  {
-   "action": [
-    "GET:/roadmap"
-   ],
-   "app": "corvint-console",
-   "assertion": [
-    "roadmap.refusal-no-recheck"
-   ],
-   "changes": [],
-   "destructive": false,
-   "flow_id": "corvint-console",
-   "org": "",
-   "requires": [
-    "tool.roadmap=refusal"
-   ],
-   "route": "/roadmap",
-   "screen": "screen:corvint-console:roadmap",
-   "setup": "stub:roadmap-refusal",
-   "spec": "internal/console/roadmap_test.go",
-   "user": "operator",
-   "variation_id": "rm.safe-auto-recheck.refusal"
   },
   {
    "action": [
@@ -798,7 +715,7 @@
   },
   {
    "action": [
-    "GET:/ticket@id=AT-1"
+    "GET:/ticket@id=ticket:acme:main:AT-1"
    ],
    "app": "corvint-console",
    "assertion": [
@@ -821,7 +738,7 @@
   {
    "action": [
     "GET:/roadmap",
-    "GET:/ticket@id=AT-1"
+    "GET:/ticket@id=ticket:acme:main:AT-1"
    ],
    "app": "corvint-console",
    "assertion": [
@@ -1063,9 +980,10 @@
   {
    "action": [
     "GET:/",
-    "GET:/ticket@id=AT-1",
-    "POST:/mutate@verb=refine",
-    "POST:/mutate@verb=create"
+    "GET:/ticket@id=ticket:acme:main:AT-1",
+    "POST:/mutate@verb=refine+title=Changed",
+    "POST:/mutate@verb=create+title=New",
+    "POST:/mutate@verb=refine+title="
    ],
    "app": "corvint-console",
    "assertion": [
@@ -1082,12 +1000,37 @@
     "tool.help=create-refine",
     "tool.ticket-show=ok"
    ],
-   "route": "/mutate",
-   "screen": "screen:corvint-console:mutate",
+   "route": "/",
+   "screen": "screen:corvint-console:board",
    "setup": "stub:help+list+show+queue",
    "spec": "internal/console/security_test.go",
    "user": "operator",
    "variation_id": "sec.structured-forms"
+  },
+  {
+   "action": [
+    "GET:/code@path=tracked.txt"
+   ],
+   "app": "corvint-console",
+   "assertion": [
+    "code.committed-blob",
+    "code.head-object",
+    "git.filter-not-run"
+   ],
+   "changes": [],
+   "destructive": false,
+   "flow_id": "corvint-console",
+   "org": "",
+   "requires": [
+    "repo=filter-trap",
+    "env.ambient-git=redirecting"
+   ],
+   "route": "/code",
+   "screen": "screen:corvint-console:code",
+   "setup": "repo:filter-trap+ambient-git",
+   "spec": "internal/console/security_test.go",
+   "user": "operator",
+   "variation_id": "sec.git-reads.no-filter-redirect"
   },
   {
    "action": [

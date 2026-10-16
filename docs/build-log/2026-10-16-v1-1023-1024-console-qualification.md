@@ -34,18 +34,21 @@ entry records it and pins it with a maintained test.
 The inventory is this repository's console tests at `a0b4c4108`: `internal/console/console_test.go`,
 `roadmap_test.go` and `security_test.go`.
 
-Selection rule: one variation for each subtest or table case that sends at least one HTTP request
-to a console `Server`. Pure unit subtests are excluded. Each variation records the following:
+Selection rule: one variation for each subtest, table case, or test without subtests that sends at
+least one HTTP request to a console `Server` (through `get`, `postMutate` or `ServeHTTP`). A unit that
+builds two servers is still one variation, and its setup names both fixtures. Units that call a
+reader directly (`Dashboard.Read`, `Taskman.ReadRoadmap`, `Worktree.Read`) are excluded. Each
+variation records the following:
 
 | Field | Value |
 | --- | --- |
 | `spec` | The test file. |
 | `app`, `flow_id` | `corvint-console`. |
-| `screen` | `screen:corvint-console:<route>`, taken from the first request. |
+| `screen`, `route` | `screen:corvint-console:<route>` and the route, both taken from the first request. |
 | `setup` | The stub, snapshot or repository fixture the subtest builds, for example `stub:help+list`, `snapshot:document`, `repo:corvint-head` or `stub:marker-tool`. |
 | `user` | `operator`. The nine `TestBrowserBoundaryBeforeTools` cases use `untrusted-browser`. |
 | `org` | `""`. |
-| `action` | Method and path. `?`, `&` and `#` become `@`, `+` and `@` to fit the identifier charset. |
+| `action` | Every request in order, as method and path. A form field or case name follows `#`. `?`, `&` and `#` become `@`, `+` and `@` to fit the identifier charset. |
 | `assertion` | The checked facts. |
 | `changes` | Present only where a request writes. |
 
@@ -56,34 +59,31 @@ Results from `corvint test-plan consolidate` (the CLI built from `a0b4c4108`, Co
 
 | Measure | Value |
 | --- | --- |
-| Input digest | `sha256:b32eeb43ba17b93cbe32a4b8c4744a9fdaf49048a8ba991c8c01dce45c2e9f7d` |
-| Table digest | `sha256:6315943581297a42c0e94898b8294e6c8309784ac1a026014b4e96d368ead086` |
-| Variations | 47 |
-| New tests | 33 |
-| Grouped | 20 |
-| Isolated | 27 (all `unique-context`) |
+| Input digest | `sha256:da5b6fd2e480fa68db4146edb6943fe29ed2b4ab0d4d254c56b8ef6dc91d28b5` |
+| Table digest | `sha256:be92a7dedcfa6abac41a2006db1d9c02b1b49184ed7990ceb8bbdf713a55c240` |
+| Variations | 44 |
+| New tests | 31 |
+| Grouped | 19 |
+| Isolated | 25 (all `unique-context`) |
 | Reused, duplicates, abstained | 0, 0, 0 |
-| Saving against `baseline_one_per_row` | 14 of 47 (29.8 %) |
+| Saving against `baseline_one_per_row` | 13 of 44 (29.5 %) |
 | Status | `COMPLETE` |
 | Anchors | `NOT_RUN` (no AMAP-V0 map of the console exists) |
-
-The existing structure has 47 subtests with 39 server setups, because the nine boundary cases share
-one server.
 
 Table excerpt:
 
 ```
-<!-- corvint test-consolidation-table/0 input=sha256:b32eeb43ba17b93cbe32a4b8c4744a9fdaf49048a8ba991c8c01dce45c2e9f7d tests=none maps=none revision=none anchors=NOT_RUN max-steps=8 status=COMPLETE -->
+<!-- corvint test-consolidation-table/0 input=sha256:da5b6fd2e480fa68db4146edb6943fe29ed2b4ab0d4d254c56b8ef6dc91d28b5 tests=none maps=none revision=none anchors=NOT_RUN max-steps=8 status=COMPLETE -->
 | test | spec | variation ids | isolated reason |
 | --- | --- | --- | --- |
 | T001 | internal/console/console_test.go | con.axis.invocation-boundary, con.boundary.standalone, con.render.columns | - |
 | T002 | internal/console/console_test.go | con.boundary.no-state | unique-context |
-| T030 | internal/console/security_test.go | sec.boundary.foreign-host, sec.boundary.foreign-origin, sec.boundary.null-origin, sec.boundary.write-read-route, sec.boundary.wrong-port | - |
-| T031 | internal/console/security_test.go | sec.boundary.missing-token, sec.boundary.oversized, sec.boundary.token-query-insufficient, sec.boundary.unreviewed | - |
+| T027 | internal/console/security_test.go | sec.boundary.foreign-host, sec.boundary.foreign-origin, sec.boundary.null-origin, sec.boundary.write-read-route, sec.boundary.wrong-port | - |
+| T028 | internal/console/security_test.go | sec.boundary.missing-token, sec.boundary.oversized, sec.boundary.token-query-insufficient, sec.boundary.unreviewed | - |
 ```
 
-The other multi-step groups are T008 (three evidence routes), T015 (two listing routes) and T022
-(three roadmap routes).
+The other multi-step groups are T008 (three evidence subtests), T013 (two backlog listing
+subtests) and T020 (two roadmap tests).
 
 Checks on the real CLI:
 
@@ -91,7 +91,8 @@ Checks on the real CLI:
   produced identical bytes.
 - `check` exit 0: the exact table, and the table inside Markdown.
 - `check` exit 1 with `test-plan-mismatch`: an edited reason, reordered rows, a moved variation, a
-  dropped row ("variation sec.structured-forms is missing"), and `--max-steps 2`.
+  dropped row ("variation sec.structured-forms is missing from the table"), `--max-steps 2`, and
+  the original table checked against the changed input below.
 - `check` exit 1 with `test-plan-header-missing`: a doubled header.
 - `check` exit 1 with `test-plan-incomplete`: an input with `changes` removed from
   `con.mutate.post-only`, which abstains with `missing-anchor`.
@@ -102,7 +103,7 @@ Findings:
 
 - Singletons dominate, because almost every subtest builds its own stub fixture.
 - A variation that spans several routes is placed only by its first screen.
-- The 29.8 % saving is above the 20 % kill line. However, this is the lane's own labelled set, not
+- The 29.5 % saving is above the 20 % kill line. However, this is the lane's own labelled set, not
   the adopter's 3,614-row set, and no grouped test was written or run. The promotion criteria are
   therefore not met.
 
@@ -110,10 +111,12 @@ Maintained evidence: `TestConsoleQualificationGolden` (`internal/testplan/qualif
 It asserts the counts and the `COMPLETE` status, pins the table digest, compares the table with
 `testdata/console-qualification.table`, and checks that the table passes `Check` against its own plan.
 
-- Mutation: dropping `Setup` from `contextOf` made the test fail with counts of 27 new tests, 29
-  grouped and 18 isolated. The change was then reverted.
-- Run: `go test -race -run TestConsoleQualificationGolden ./internal/testplan` passed. Load averages
-  were 62.28/62.55/61.30 before and 64.76/63.00/61.55 after.
+- Mutation: dropping `Setup` from `contextOf` made the test fail with 25 new tests, 28 grouped and
+  16 isolated instead of 31, 19 and 25. It also failed on the first fixture. The change was then
+  reverted.
+- Run: `go test -race -run TestConsoleQualificationGolden ./internal/testplan` passed on both
+  fixtures. Load averages were 62.74/61.69/62.68 before the corrected run and 71.13/63.73/63.38
+  after it.
 
 Baseline focused packages at `a0b4c4108`, all passing:
 
@@ -126,6 +129,25 @@ Baseline focused packages at `a0b4c4108`, all passing:
 | `internal/jstestprovider`, `-run Negat` | 4.2 s |
 
 Load averages were 58.74/56.90/58.22 at the start and 70.31/64.37/61.48 at the end.
+
+## Independent review
+
+One Codex round (read-only) reviewed the first commit and raised three findings against the
+fixture, all accepted and fixed:
+
+- P2: the inventory did not follow its rule. `con.evidence.stderr-refusal`,
+  `con.evidence.error-without-code` and `rm.page-offset-overflow` send no HTTP request, and
+  `TestBrowserGitReadsDoNotRunFiltersOrRedirect` was missing. The auto-recheck subtest had also been
+  split in two. All of these are fixed, and the selection rule above is now stated exactly.
+- P2: the refusal-page assertion was reversed. The source requires "Safe auto-recheck is active." on
+  the refusal page, and the assertion now says so.
+- P3: `sec.structured-forms` was placed on `/mutate`, although its first request is `GET /`, and it
+  omitted the final empty-title refine POST. It is now placed on the board screen and lists all five
+  requests.
+
+The first commit's figures (47 variations, 33 new tests, table digest `sha256:63159435...ad086`)
+are superseded by the corrected ones above. Every check scenario was rerun on the corrected input
+with the same outcomes.
 
 ## Not run
 

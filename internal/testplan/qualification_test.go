@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// TestConsoleQualificationGolden pins the V1-1023 real-repository qualification: 47 labelled
+// TestConsoleQualificationGolden pins the V1-1023 real-repository qualification: 44 labelled
 // HTTP-route variations taken from this repository's own console tests
 // (internal/console/{console,roadmap,security}_test.go at a0b4c4108) and the plan the planner
 // derives for them. The selection rule and the derivation are recorded in
@@ -26,7 +26,7 @@ func TestConsoleQualificationGolden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Counts{Variations: 47, NewTests: 33, Grouped: 20, Isolated: 27, BaselineOnePerRow: 47}
+	want := Counts{Variations: 44, NewTests: 31, Grouped: 19, Isolated: 25, BaselineOnePerRow: 44}
 	if p.Counts != want {
 		t.Fatalf("counts = %+v, want %+v", p.Counts, want)
 	}
@@ -35,7 +35,7 @@ func TestConsoleQualificationGolden(t *testing.T) {
 	}
 	table := p.Table()
 	sum := sha256.Sum256(table)
-	if got := "sha256:" + hex.EncodeToString(sum[:]); got != "sha256:6315943581297a42c0e94898b8294e6c8309784ac1a026014b4e96d368ead086" {
+	if got := "sha256:" + hex.EncodeToString(sum[:]); got != "sha256:be92a7dedcfa6abac41a2006db1d9c02b1b49184ed7990ceb8bbdf713a55c240" {
 		t.Fatalf("table digest = %s", got)
 	}
 	golden(t, "console-qualification.table", table)
