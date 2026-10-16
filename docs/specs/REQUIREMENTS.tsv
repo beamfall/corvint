@@ -348,24 +348,24 @@ ANL-V0-043	docs/specs/application-navigation-ledger-v0.md	296	(accepted under th
 ANL-V0-044	docs/specs/application-navigation-ledger-v0.md	303	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) The p	standing	2026-10-11; #814
 ANL-V0-045	docs/specs/application-navigation-ledger-v0.md	320	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) Its c	standing	2026-10-11; #814
 ANL-V0-046	docs/specs/application-navigation-ledger-v0.md	326	(accepted under the owner's standing auto-accept (2026-10-11); issue #814) The r	standing	2026-10-11; #814
-ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,	unrecorded	-
-ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use	unrecorded	-
-ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,	unrecorded	-
-ARTIFACT-GO-V0-004	docs/specs/release-artifact-integrity-v0.md	156	archive metadata is canonical rather than inherited. Regular-file modes are	unrecorded	-
-ARTIFACT-GO-V0-005	docs/specs/release-artifact-integrity-v0.md	162	every target binary MUST be built twice with separate cold caches, and each	unrecorded	-
-ARTIFACT-GO-V0-006	docs/specs/release-artifact-integrity-v0.md	166	verification MUST be offline and independent of the assembler. From archive	unrecorded	-
-ARTIFACT-GO-V0-007	docs/specs/release-artifact-integrity-v0.md	171	all build and candidate output stays outside the repository. Only after every	unrecorded	-
-ARTIFACT-GO-V0-008	docs/specs/release-artifact-integrity-v0.md	287	Archive checksums prove integrity only. This profile creates no signature,	unrecorded	-
-ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	293	The untracked-path allowance of decision 0142 MUST NOT apply to the loose	unrecorded	-
-ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	332	`script/release-checklist` MUST be deterministic and read-only. It prints	unrecorded	-
-ARTIFACT-RDY-V0-002	docs/specs/release-artifact-integrity-v0.md	355	native-runtime is owned by `GOC-V0-001`; native-performance is owned by	unrecorded	-
-ARTIFACT-RDY-V0-003	docs/specs/release-artifact-integrity-v0.md	363	a tag row reports only an exact release tag already pointing at the	unrecorded	-
-ARTIFACT-RDY-V0-004	docs/specs/release-artifact-integrity-v0.md	371	publication is `PASS` only with a repository-owner-approved receipt that	unrecorded	-
-ARTIFACT-RDY-V0-005	docs/specs/release-artifact-integrity-v0.md	375	promotion is `PASS` only with a repository-owner acceptance record naming	unrecorded	-
-ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	387	the receipt is the blob at `docs/releases/<tag>/publication-receipt.json`	unrecorded	-
-ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	399	the release revision is the receipt's `revision`, not `HEAD`. `PASS`	unrecorded	-
-ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	407	every attached digest MUST be witnessed locally by the private archive	unrecorded	-
-ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	416	the reader is read-only and offline. It invokes only local `git`, with the	unrecorded	-
+ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	153	the archive builder MUST consume the exact clean commit, target matrix,	unrecorded	-
+ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	158	one archive MUST be produced per manifest target. Darwin and Linux use	unrecorded	-
+ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	164	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,	unrecorded	-
+ARTIFACT-GO-V0-004	docs/specs/release-artifact-integrity-v0.md	168	archive metadata is canonical rather than inherited. Regular-file modes are	unrecorded	-
+ARTIFACT-GO-V0-005	docs/specs/release-artifact-integrity-v0.md	174	every target binary MUST be built twice with separate cold caches, and each	unrecorded	-
+ARTIFACT-GO-V0-006	docs/specs/release-artifact-integrity-v0.md	178	verification MUST be offline and independent of the assembler. From archive	unrecorded	-
+ARTIFACT-GO-V0-007	docs/specs/release-artifact-integrity-v0.md	183	all build and candidate output stays outside the repository. Only after every	unrecorded	-
+ARTIFACT-GO-V0-008	docs/specs/release-artifact-integrity-v0.md	299	Archive checksums prove integrity only. This profile creates no signature,	unrecorded	-
+ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	305	The untracked-path allowance of decision 0142 MUST NOT apply to the loose	unrecorded	-
+ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	344	`script/release-checklist` MUST be deterministic and read-only. It prints	unrecorded	-
+ARTIFACT-RDY-V0-002	docs/specs/release-artifact-integrity-v0.md	367	native-runtime is owned by `GOC-V0-001`; native-performance is owned by	unrecorded	-
+ARTIFACT-RDY-V0-003	docs/specs/release-artifact-integrity-v0.md	375	a tag row reports only an exact release tag already pointing at the	unrecorded	-
+ARTIFACT-RDY-V0-004	docs/specs/release-artifact-integrity-v0.md	383	publication is `PASS` only with a repository-owner-approved receipt that	unrecorded	-
+ARTIFACT-RDY-V0-005	docs/specs/release-artifact-integrity-v0.md	387	promotion is `PASS` only with a repository-owner acceptance record naming	unrecorded	-
+ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	399	the receipt is the blob at `docs/releases/<tag>/publication-receipt.json`	unrecorded	-
+ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	411	the release revision is the receipt's `revision`, not `HEAD`. `PASS`	unrecorded	-
+ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	419	every attached digest MUST be witnessed locally by the private archive	unrecorded	-
+ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	428	the reader is read-only and offline. It invokes only local `git`, with the	unrecorded	-
 ARTIFACT-V0-001	docs/specs/release-artifact-integrity-v0.md	42	(superseded 2026-09-12 by decision 0088; obligation now carried by	unrecorded	-
 ARTIFACT-V0-002	docs/specs/release-artifact-integrity-v0.md	52	(superseded 2026-09-12 by decision 0088; obligation now carried by	unrecorded	-
 ARTIFACT-V0-003	docs/specs/release-artifact-integrity-v0.md	65	(superseded 2026-09-12 by decision 0088; obligation now carried by	unrecorded	-
@@ -373,9 +373,9 @@ ARTIFACT-V0-004	docs/specs/release-artifact-integrity-v0.md	71	(superseded 2026-
 ARTIFACT-V0-005	docs/specs/release-artifact-integrity-v0.md	86	(superseded 2026-09-12 by decision 0088; obligation now carried by	unrecorded	-
 ARTIFACT-V0-006	docs/specs/release-artifact-integrity-v0.md	95	(superseded 2026-09-12 by decision 0088; obligation now carried by	unrecorded	-
 ARTIFACT-V0-007	docs/specs/release-artifact-integrity-v0.md	103	(superseded 2026-09-12 by decision 0088; obligation now carried by	unrecorded	-
-ARTIFACT-V0-008	docs/specs/release-artifact-integrity-v0.md	116	Pull-request CI MUST grant only `contents: read`, disable persisted checkout	unrecorded	-
-ARTIFACT-V0-009	docs/specs/release-artifact-integrity-v0.md	128	`docs/extraction-manifest.json` MUST NOT be represented as release-manifest	unrecorded	-
-ARTIFACT-V0-010	docs/specs/release-artifact-integrity-v0.md	133	(retired 2026-09-12 by decision 0088) Corvint MUST NOT build or publish an sdist	unrecorded	-
+ARTIFACT-V0-008	docs/specs/release-artifact-integrity-v0.md	116	Every CI workflow (`.github/workflows/*.yml`) MUST grant only `contents: read`	unrecorded	-
+ARTIFACT-V0-009	docs/specs/release-artifact-integrity-v0.md	140	`docs/extraction-manifest.json` MUST NOT be represented as release-manifest	unrecorded	-
+ARTIFACT-V0-010	docs/specs/release-artifact-integrity-v0.md	145	(retired 2026-09-12 by decision 0088) Corvint MUST NOT build or publish an sdist	unrecorded	-
 ASD-V0-001	docs/specs/corvint-self-development-v0.md	34	One shared repository-owned stage guide maps every inventoried family to an appl	unrecorded	-
 ASD-V0-002	docs/specs/corvint-self-development-v0.md	35	Both generic host skills use the shared guide only when repository-owned instruc	unrecorded	-
 ASD-V0-003	docs/specs/corvint-self-development-v0.md	36	A real source-change slice captures original task context, appropriate impact an	unrecorded	-

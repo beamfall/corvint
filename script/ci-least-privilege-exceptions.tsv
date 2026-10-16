@@ -1,0 +1,8 @@
+# ARTIFACT-V0-008 declared permission exceptions (V1-1469), read by script/check-ci-least-privilege.sh
+# from the Git index. Every other workflow-level or job-level `permissions:` block in
+# .github/workflows/*.yml must be exactly `contents: read`. One row per block, tab-separated:
+# workflow, block (`workflow` or `job:<id>`), the exact permission set as space-separated
+# scope:level tokens, and the reason. A row that matches no block fails the check.
+.github/workflows/release-gates.yml	job:nightly-failure-signal	actions:read contents:read issues:write	SOP-V0-013: comments on or opens the nightly-triage issue after a failed scheduled run on main; runs only .github/nightly-signal from the scheduled commit; pinned by TestSOPV0013WorkflowBinding
+.github/workflows/ci-control-plane.yml	workflow	contents:read pull-requests:read statuses:write	AFP-V0-016/026: workflow_run from the default branch posts the ci-control-plane status on the PR head or merge-queue commit; reads PR metadata only, never checks out PR code
+.github/workflows/ci-control-plane.yml	job:forward-rows	actions:read contents:read	AFP-V0-047: reads completed CI run artifacts to record forward rows; read-only, posts no status
