@@ -143,6 +143,16 @@ in `SDD-V0-009` are session-local safety, not new authority: a maintenance sessi
 turn generated prose into an accepted requirement, and every emitted claim still carries the
 SDD-V0-003 blob/SHA-256 citation back to immutable Git content.
 
+- `SDD-V0-011`: When `contextindex.BuildContext` refuses because its own Git deadline expired
+(the typed `*contextindex.Error` whose `Cause` is `context.DeadlineExceeded`) while the MCP
+caller's context is still live, `corvint.docs_draft` and `corvint.docs_consume` report the
+bounded code `repository-index-timeout` instead of `repository-unavailable`: the index ran out
+of time, the repository is not missing. The classification reads only the typed cause, never
+message text. A caller cancellation or expired caller deadline stays `cancelled`; every other
+Git read failure keeps `repository-unavailable` (`TestSDD011IndexDeadlineHasDistinctCode`).
+Rollback: remove the branch in `transportOrToolFailure`; the overrun reads as
+`repository-unavailable` again and no state is retained.
+
 ## CLI contract
 
 ```

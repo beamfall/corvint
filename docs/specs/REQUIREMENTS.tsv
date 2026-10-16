@@ -3176,6 +3176,7 @@ SDD-V0-007	docs/specs/source-documentation-draft-v0.md	101	An explicitly enabled
 SDD-V0-008	docs/specs/source-documentation-draft-v0.md	117	Eligibility is decided by comparing the draft's cited source identities — each	unrecorded	-
 SDD-V0-009	docs/specs/source-documentation-draft-v0.md	125	`--preview` computes and returns the proposed page bytes, a unified diff against	unrecorded	-
 SDD-V0-010	docs/specs/source-documentation-draft-v0.md	137	The session never runs unless `--enable` is given together with exactly one of	unrecorded	-
+SDD-V0-011	docs/specs/source-documentation-draft-v0.md	146	When `contextindex.BuildContext` refuses because its own Git deadline expired	unrecorded	-
 SEA-V0-001	docs/specs/source-evidence-axes-v0.md	168	The source MUST assign all six axes with a claim, exact scalar scope, witnesses,	unrecorded	-
 SEA-V0-002	docs/specs/source-evidence-axes-v0.md	170	The source MUST preserve the six independent vocabularies and initial assignment	unrecorded	-
 SEA-V0-003	docs/specs/source-evidence-axes-v0.md	172	The opted-in wrapper MUST bind the unchanged payload and captured producer/Git/i	unrecorded	-
