@@ -1,0 +1,32 @@
+{
+  "profile": "corvint-test-read-scope-literals/0",
+  "literals": {
+    "internal/analyzercap": {
+      "docs/specs/analyzer-candidate-profiles.md": "named inside an expected diagnostic message; the test reads no file"
+    },
+    "internal/gateselect": {
+      "docs/specs": "a selection fixture value matched against fixture paths; nothing is read",
+      "docs/specs/gate-ledger-v0.md": "a selection fixture path matched against fixture values; nothing is read"
+    },
+    "internal/localcompletion": {
+      "script/dogfood-check.sh": "an argv fixture classified as a command name; the script is never read"
+    },
+    "internal/observations": {
+      "docs/decisions/0015-impact-without-go-module-2026-09-01.md": "a decision reference copied into the expected report line; the file is never read"
+    },
+    "internal/playwrightminimize": {
+      "internal/jstestprovider/testdata/application-attestation": "read only by the live Docker qualification, which skips unless CORVINT_MINIMIZER_LIVE_QUALIFICATION=1 and never runs in the confined shard"
+    },
+    "internal/taskman": {
+      "docs/specs": "a scope-verdict fixture key; nothing is read",
+      "internal/tasks/store/lease_gate.go": "a scope-verdict fixture key; nothing is read"
+    },
+    "internal/tasks/store": {
+      "docs/build-log": "a claim scope key written into a temporary fixture repository"
+    },
+    "tools/gate-ledger": {
+      "internal/gateselect/select_test.go": "a file written into a temporary fixture repository",
+      "tools/gate-affected-select/main_test.go": "a file written into a temporary fixture repository"
+    }
+  }
+}

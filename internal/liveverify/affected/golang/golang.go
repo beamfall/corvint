@@ -374,6 +374,20 @@ func pathTokens(body []byte, modulePath string, aliases map[string]string, dotIm
 	}
 }
 
+// FilePathTokens is the AFP-V0-021 lexicon over one Go file, as
+// observeDirectory reads it: the path tokens of every string literal after the
+// file's import declarations, with an import path under modulePath rewritten to
+// a "/"-anchored directory. A file that does not parse or lex is an error.
+func FilePathTokens(name string, body []byte, modulePath string) ([]string, error) {
+	fileSet := token.NewFileSet()
+	file, err := parser.ParseFile(fileSet, name, body, parser.ImportsOnly)
+	if err != nil {
+		return nil, err
+	}
+	scan := pathTokens(body[importsEnd(fileSet, file):], modulePath, nil, nil)
+	return scan.tokens, scan.err
+}
+
 // rootAnchored rewrites an import path under the module to its directory
 // relative to the module's own directory, with a leading slash; the module path
 // itself is "/". Matching ignores the anchor, so a workspace module's paths

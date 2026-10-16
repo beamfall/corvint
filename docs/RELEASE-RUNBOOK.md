@@ -119,7 +119,10 @@ output directories outside the checkout; the reproducibility script refuses one 
    frozen Core mode except the skips CCF-V1-007 names also runs under the previous release tag over a
    fresh fixture; it must exit alike and keep the CCF-V1-002 identifiers, every member it emits must
    still be emitted by this commit with the same JSON type, and every value it writes at a registered
-   path must still be registered here. It must end `ok`; retain its output.
+   path must still be registered here. It must end `ok`; retain its output. The `core-n1-replay` gate
+   of `.github/workflows/release-gates.yml` runs this replay against the documented CCF-V1-007
+   baseline at the dispatched `sha` and nightly on `main` (V1-1382); cite that run's
+   `core-n1-replay-<release>-ubuntu-24.04` artifact, or run the command below for a different tag.
 
    ```sh
    bash -o pipefail -c 'make core-n1-replay CORE_N1_TAG=vW.V.U 2>&1 | tee "$1"' _ "/abs/release/X.Y.Z/core-n1-replay.txt"
