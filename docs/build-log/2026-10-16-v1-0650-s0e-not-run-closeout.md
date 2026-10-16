@@ -15,9 +15,13 @@ The packet survived the RC3 removal of cem/0.x. It lives at
 22 `go1.24.13-structural-refusal` are unchanged. The portable test `TestStableCanonicalFullResults` is in
 `interop/cem01-go/stable_repository_test.go` (sha256
 `a57110ea88fc19eb3779f8a5dfb28865a419a9ffdd11a0cf52c784263cc59e5b`); it still runs cases 21/22 only when
-`runtime.Version()` starts with `go1.24.` and skips them otherwise. The frozen tuple is now go1.27.2
-(`protocol/cem-1.0/structural-tuples/go1.27.2/TUPLE.json`), so "54 other cases" below were recorded
-against go1.27.1 and are not re-established by this entry.
+`runtime.Version()` starts with `go1.24.` and skips them otherwise. The frozen tuple `s0eFrozenTuple` is
+still go1.27.1; go1.27.2 is an additional admitted tuple
+(`protocol/cem-1.0/structural-tuples/go1.27.2/TUPLE.json`) whose binding the test validates, so the
+"54 other cases" below were recorded against go1.27.1 and are not re-established by this entry. Since
+source 1a355ea5 the expected results of cases 21/22 gained `citation` and `verdictSha256` (21 to 23
+fields); the recipes are unchanged, so the 2026-10-02 run does not establish today's complete expected
+objects.
 
 ## Retained evidence (2026-10-01..02)
 
@@ -29,8 +33,9 @@ Observed 2026-10-16: NOT retained. `find /private/tmp -maxdepth 4` finds only th
 `/private/tmp/cem10-codex-control/linux-availability-repair/go124-two-case-qualification/cache` (0 bytes)
 and `/private/tmp/cem10-build/stable-next/go124/cache`; none of the JSON/JSONL/log files exist, and no
 go1.24.13 toolchain exists on disk (`~/sdk`, `~/go/pkg/mod/golang.org`, `/usr/local/go` checked; only
-toolchains go1.26.4 to go1.27.2). The 2026-10-01..02 results therefore survive only as the ticket-body
-record (source 1a355ea551c2745d3fe9f229a36acc348cb205d8, tree 7d34fba6882a4b7cbbec1f0ef678ede962d8bc96;
+toolchains go1.26.4 to go1.27.2). The raw artifacts are gone; the results survive as the ticket-body
+record and, for the Linux 54-case pass and the Darwin go1.24.13 two-case pass, in
+`docs/build-log/2026-10-02-cem-linux-retirement-repair.md` (source 1a355ea551c2745d3fe9f229a36acc348cb205d8, tree 7d34fba6882a4b7cbbec1f0ef678ede962d8bc96;
 official Go 1.24.13 archive sha256 `f282d882c3353485e2fc6c634606d85caf36e855167d59b996dbeae19fa7629a`,
 76442495 bytes). Their digests are not recoverable and are not asserted here.
 
@@ -48,8 +53,9 @@ official Go 1.24.13 archive sha256 `f282d882c3353485e2fc6c634606d85caf36e855167d
 - AC1 (cases 21-22 under Go 1.24.13, result retained): SATISFIED historically, not re-observed. Darwin
   arm64 go1.24.13, source 1a355ea5, both RUN_REAL and PASS (exit 0 and exit 2, all 21 result fields
   compared) per the 2026-10-02 ticket record; the retained files are gone (above). Today: NOT_RUN.
-  Case definitions are unchanged on main, so the 2026-10-02 result remains the latest observation but
-  predates the go1.27.2 tuple migration and the RC3 cem/0.x removal. Re-execution needs an approved
+  Case recipes are unchanged on main but the expected objects gained two fields (above), so the
+  2026-10-02 result remains the latest observation but does not cover today's expected results, the
+  go1.27.2 tuple or the RC3 cem/0.x removal. Re-execution needs an approved
   go1.24.13 toolchain.
 - AC2 (stable lifecycle on Linux, or explicit exclusion): SATISFIED by 2026-10-02 Linux arm64 Go 1.27.1
   (git 2.47.3, kernel 6.8.0-117) 54/56 PASS with 21/22 NOT_RUN, zero failures, per the ticket record
@@ -59,7 +65,9 @@ official Go 1.24.13 archive sha256 `f282d882c3353485e2fc6c634606d85caf36e855167d
 - AC3 (remaining unexecuted results stay NOT_RUN): this entry. Explicit NOT_RUN exclusions: Linux amd64
   full 56-case matrix on the public packet; cross-device topology; escaped-session behaviour; cases
   21/22 on Linux; Go 1.24.13 on any platform other than Darwin arm64; full 56-case run on current main
-  under go1.27.2 (this host, load); portable standalone Linux.
+  under go1.27.2 (this host, load). Portable Linux arm64 is not wholly NOT_RUN: V1-1358
+  (`docs/build-log/2026-10-14-v1-1358-portable-linux-containment.md`) records its 54 applicable cases and
+  lifecycle tests passing; its own exclusions and environment failures stand.
 
 ## Residuals
 
