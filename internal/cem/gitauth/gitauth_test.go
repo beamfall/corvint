@@ -580,3 +580,39 @@ func TestBlobBudgetExactLimitAllowsChargedReread(t *testing.T) {
 		t.Fatalf("new OID admitted past the saturated budget: %v", err)
 	}
 }
+
+// TestResolveMissingPinnedObjectUnavailable covers V1-1297 (decision 0534,
+// CEM-V1-103): a pinned full object ID whose object is absent from the local
+// object store is repository-object-unavailable, while a present object that
+// Git cannot resolve to a commit, corrupt or of another type, stays
+// git-read-failed.
+func TestResolveMissingPinnedObjectUnavailable(t *testing.T) {
+	root, base, target := makeRepo(t)
+	blob := gitCmd(t, root, "rev-parse", target+":f.go")
+	loose := func(oid string) string { return filepath.Join(root, ".git", "objects", oid[:2], oid[2:]) }
+	if err := os.Remove(loose(base)); err != nil {
+		t.Fatal(err)
+	}
+	repository := open(t, root)
+	if _, err := repository.Resolve(context.Background(), base); cemcode.CodeOf(err) != cemcode.RepositoryObjectUnavailable {
+		t.Fatalf("missing base: %v", err)
+	}
+	if _, err := repository.Resolve(context.Background(), strings.Repeat("f", 40)); cemcode.CodeOf(err) != cemcode.RepositoryObjectUnavailable {
+		t.Fatalf("never-present object: %v", err)
+	}
+	if _, err := repository.Resolve(context.Background(), blob); cemcode.CodeOf(err) != cemcode.GitReadFailed {
+		t.Fatalf("present non-commit object: %v", err)
+	}
+	if _, err := repository.Resolve(context.Background(), "refs/heads/absent"); cemcode.CodeOf(err) != cemcode.GitReadFailed {
+		t.Fatalf("unresolved name: %v", err)
+	}
+	if err := os.Chmod(loose(target), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(loose(target), []byte("not a zlib stream\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := open(t, root).Resolve(context.Background(), target); cemcode.CodeOf(err) != cemcode.GitReadFailed {
+		t.Fatalf("corrupt target: %v", err)
+	}
+}
