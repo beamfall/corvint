@@ -77,8 +77,17 @@ Host load averages during the runs were 40 to 60 on 12 cores.
   `TestHiddenUnicodeClassesAreExactlyTheSpecSets` (`U+2061 = "", want "zero-width"`) and
   `TestTaskContextDowngradesAGoverningFileHidingAnInvisibleOperator`; restored, both pass.
 - Packages `internal/cem/workflow` (717 s), `internal/observations` and `internal/specindex`: ok.
-- Clean-repository byte identity: `cmd/corvint` `TestCoreVerbsEmitTheFrozenProfiles` passes with the
+- Clean-repository output: `cmd/corvint` `TestCoreVerbsEmitTheFrozenProfiles` passes with the
   `context_task`, `context_reserved_rows` and `context_downgraded_governing_row` goldens unchanged.
+  That test compares decoded JSON with value placeholders, so it shows structural compatibility
+  only. Raw bytes were compared directly: `-trimpath` builds of BASE and of this change each
+  indexed a copy of one clean five-file Git fixture (`AGENTS.md`, one spec, one Go package) and
+  compiled `context --task "change Greet per docs/specs/greet.md" --subject pkg/greet/greet.go`.
+  The two 3694-byte packets are byte-identical (`cmp`).
+- BASE against this change on the same fixture with a committed U+2062 in `AGENTS.md`, generated
+  at run time: BASE reports `governance` `reserved` and an empty `governance_refused`, so the file
+  passed as authority. This change reports `governance_refused` `[{path: AGENTS.md, trust:
+  repository-content, warnings: [hidden-unicode]}]`.
 - The edit to `authority_screen.go` is an analyzer input, so `TestAnalyzerSchemaInputs`
   (IDX-SNAP-V0-017) required bumping `analyzerSchemaID` from `corvint-analyzer/119` to
   `corvint-analyzer/120` and re-pinning its audited SHA-256. Opt-in analyzer packs built under
@@ -87,6 +96,15 @@ Host load averages during the runs were 40 to 60 on 12 cores.
   CGO off) of the two changed packages: pass.
 - Not run: `make gate` and the repository-wide `go test ./...` (the ticket's `full-gate` runs at
   closeout).
+
+## Review
+
+One Codex read-only round over BASE..HEAD found no correctness defect in the set, the tests or the
+spec restatement, and it resolved all 248 requirement locators. One low finding is fixed above: the
+golden test was claimed as byte identity, and raw bytes are now compared directly. One
+informational finding is out of scope: `integrations/testfixture/main.go:192` (U+2028, U+202E,
+U+200B) and `internal/tasks/ticket/ticket_test.go:100` (U+200E) carry literal invisible code points
+in Go string literals. Both predate this change, and neither is a governing file.
 
 ## Rollback
 
