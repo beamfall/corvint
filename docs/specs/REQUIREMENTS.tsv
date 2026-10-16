@@ -713,11 +713,11 @@ CAL-V0-271	docs/specs/corvint-tasks-agent-leases-v0.md	6786	(accepted under the 
 CAL-V0-272	docs/specs/corvint-tasks-agent-leases-v0.md	6797	(accepted under the owner's standing auto-accept (2026-10-11), V1-1510) A worker	standing	2026-10-11; V1-1510
 CAL-V0-273	docs/specs/corvint-tasks-agent-leases-v0.md	6806	(accepted under the owner's standing auto-accept (2026-10-11), V1-1510) The	standing	2026-10-11; V1-1510
 CAL-V0-274	docs/specs/corvint-tasks-agent-leases-v0.md	6815	(accepted under the owner's standing auto-accept (2026-10-11), V1-1510) A	standing	2026-10-11; V1-1510
-CAL-V0-275	docs/specs/corvint-tasks-agent-leases-v0.md	6823	(proposed; V1-1510, qualifies the fixed 60 s timeout of CAL-V0-053) The optional	unrecorded	-
-CAL-V0-276	docs/specs/corvint-tasks-agent-leases-v0.md	6827	(proposed; V1-1510, qualifies the CAL-V0-058 comparison against the previous	unrecorded	-
+CAL-V0-275	docs/specs/corvint-tasks-agent-leases-v0.md	6823	(accepted by the owner (2026-10-16; #993 'you choose'); V1-1510, qualifies the f	owner	2026-10-16; #993; V1-1510
+CAL-V0-276	docs/specs/corvint-tasks-agent-leases-v0.md	6827	(accepted by the owner (2026-10-16; #993 'you choose'); V1-1510, qualifies the C	owner	2026-10-16; #993; V1-1510
 CAL-V0-277	docs/specs/corvint-tasks-agent-leases-v0.md	6901	(accepted under the owner's standing auto-accept (2026-10-11), V1-1511) The verb	standing	2026-10-11; V1-1511
 CAL-V0-278	docs/specs/corvint-tasks-agent-leases-v0.md	6914	(accepted under the owner's standing auto-accept (2026-10-11), V1-1511) `policy	standing	2026-10-11; V1-1511
-CAL-V0-280	docs/specs/corvint-tasks-agent-leases-v0.md	6841	(proposed; V1-1510, qualifies the CAL-V0-058 comparison against the previous	unrecorded	-
+CAL-V0-280	docs/specs/corvint-tasks-agent-leases-v0.md	6841	(accepted by the owner (2026-10-16; #993 'you choose'); V1-1510, qualifies the C	owner	2026-10-16; #993; V1-1510
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha	unrecorded	-
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring	unrecorded	-
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla	unrecorded	-

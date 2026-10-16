@@ -50,16 +50,16 @@ A later comment on issue 984 asked for three more changes in the same reader:
   - The first alert of an outage carries `health: UNAVAILABLE` and `since`, which makes it the
     outage's one provider-level event. The existing CAL-V0-271 `RECOVERED` event closes the outage.
     The per-read CAL-V0-053 alerts stay.
-- CAL-V0-275 is **proposed**. It adds `workState.timeoutSeconds` (1..600, default 60), and
+- CAL-V0-275 is **accepted by the owner (2026-10-16; #993 'you choose')**. It adds `workState.timeoutSeconds` (1..600, default 60), and
   qualifies CAL-V0-053's fixed "60 s timeout".
-- CAL-V0-276 is **proposed**. It adds `workState.staleAfterSeconds` (1..86400, default one tick).
+- CAL-V0-276 is **accepted by the owner (2026-10-16; #993 'you choose')**. It adds `workState.staleAfterSeconds` (1..86400, default one tick).
   - Within that window of the outage's `since`, only the state-event baseline keeps each ticket's
     last known work state, so one failed read emits zero per-ticket `state` events.
   - The observation and every decision still see `UNKNOWN`. CAL-V0-053 says "never a guessed
     state", so the stale value is kept out of every decision.
   - Status reports `stale`, `timeoutSeconds` and `staleAfterSeconds`.
   - It qualifies CAL-V0-058, which says state changes compare against the previous observation.
-- CAL-V0-280 is **proposed**. A `COMPLETED` or `ARCHIVED` ticket emits no `state` event for a
+- CAL-V0-280 is **accepted by the owner (2026-10-16; #993 'you choose')**. A `COMPLETED` or `ARCHIVED` ticket emits no `state` event for a
   work-state-only change, and it also qualifies CAL-V0-058.
   - The comment asked that terminal tickets get no work state at all. The read is kept, because
     role `match.statuses` is not restricted, so a role may match a terminal status. Only the event
@@ -138,7 +138,7 @@ The host had 12 cores, and the load averages shown below were taken during the r
     - Recovery emits the state transition and the CAL-V0-271 recovery alert.
   - `TestCALV0053_ReaderLocalTimeout` now asserts `timed out after 60s` in the health record.
   - CAL-V0-053's text fixes neither event counts nor error text, so it is qualified only through
-    the proposed CAL-V0-275 and 276.
+    CAL-V0-275 and 276.
 - **Unrelated store failures.** The dependent-package run of `internal/tasks/store` failed 13 PSR
   and CAL-V0-089 tests at load about 70, with "context deadline exceeded" and "barrier not reached".
   `TestPSRHistoricalReplayDeadline` and `TestPSRSweepOwnerBarrier` fail the same way on BASE
@@ -192,7 +192,7 @@ binding.
 
 - Amend CAL-V0-057 to exempt marked runs from cooldown and park.
 - Amend TQD-V0-001 for `doctor` reporting.
-- Accept or decline the proposed CAL-V0-275, 276 and 280.
+- CAL-V0-275, 276 and 280: accepted by the owner (2026-10-16; #993 'you choose').
 - Optionally let decisions use the stale state, which would amend CAL-V0-053's "never a guessed
   state". This is not implemented.
 
