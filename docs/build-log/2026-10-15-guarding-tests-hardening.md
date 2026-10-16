@@ -86,6 +86,37 @@ Load averages were recorded with each run.
     - Removing the step call fails with "report lacks the guarding-tests row".
     - Removing the `failing()` exemption fails with "listed as a failure".
 
+## Independent review (one Codex round)
+
+- **P2, fixed: case aliases bypassed the `TMPDIR` refusal.**
+  - The first helper compared resolved path text. On a case-insensitive volume, `TMPDIR=/x/REPO`
+    names the repository `/x/repo` and was accepted.
+  - The helper now compares the file identity (`os.SameFile`) of the temporary directory and each
+    ancestor with the worktree and the Git common directory. This also stops a root on another
+    volume from being mistaken for an ancestor, which was Codex finding 3.
+  - `TestCEMV1240WorkspaceRefusesEverySpellingOfTheRepository` covers the worktree, a
+    subdirectory, the Git directory and a case alias, plus a directory outside that is used.
+  - Mutation: a text comparison of the resolved roots fails the case-alias row.
+- **P2, fixed: the NOTE command broke on repository paths with spaces.**
+  - The artifact root is now quoted as one POSIX shell word (`shellWord`), covered by
+    `TestShellWordQuotesOnlyWhenNeeded`.
+- **P3, recorded: the fixture sets only `TMPDIR`.** On Windows, `os.TempDir()` reads `TMP` and
+  `TEMP` instead. The finding is latent, because the stable verifier refuses non-Unix hosts before
+  it reaches the helper.
+
+## Dogfood
+
+- **Pass 0, without inputs.** The guarding-test row worked on this change: the run printed
+  `guarding-tests NOT_PRODUCED guarding-tests-not-run hunks=15` with the search command.
+- **Full binding.** The run with all four inputs (3 intent specs, a 44-row citation plan) did not
+  finish within the lane's 600 s foreground limit at load 56 to 73. It ran twice:
+  - The cite step bound all 44 hunks.
+  - Each `ocm-prepare` took about 5 minutes per intent spec.
+  - One `ocm-prepare` failed with `verification-timeout`.
+- **Not produced.** The bind, check and seal are `NOT_PRODUCED` here, with the reason "dogfood
+  change exceeds the lane's 600 s foreground limit under host load". They are left for the
+  orchestrator.
+
 ## Rollback
 
 Revert this change. The help entry, the NOTE and the observation allowlist entries are additive, and

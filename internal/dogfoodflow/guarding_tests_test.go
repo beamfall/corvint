@@ -115,3 +115,19 @@ func containsString(values []string, want string) bool {
 	}
 	return false
 }
+
+// TestShellWordQuotesOnlyWhenNeeded pins that the DCW-V0-069 NOTE command
+// stays one shell word per argument for any repository path.
+func TestShellWordQuotesOnlyWhenNeeded(t *testing.T) {
+	for value, want := range map[string]string{
+		"/work/repo":         "/work/repo",
+		"/work/my project":   "'/work/my project'",
+		"/work/it's":         `'/work/it'\''s'`,
+		"":                   "''",
+		"/work/$HOME;rm -rf": "'/work/$HOME;rm -rf'",
+	} {
+		if got := shellWord(value); got != want {
+			t.Fatalf("shellWord(%q) = %q, want %q", value, got, want)
+		}
+	}
+}

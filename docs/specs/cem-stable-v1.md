@@ -2409,8 +2409,9 @@ falsifier reports beside them, opt-in, under the fixed `go test` runner profile.
 - `CEM-V1-240`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1452) The
   disposable export of `--hunk-revert`, and of `cem verify --guarding-tests` (`TCQ-V0-062`), MUST
   be created by one shared helper under the system temporary directory, and that helper MUST
-  refuse a temporary directory that resolves, after symbolic links, to the repository's worktree
-  or Git common directory or below either: nothing is exported or run, and every row that would
+  refuse a temporary directory that is, or lies below, the repository's worktree or Git common
+  directory, decided by file identity of the directory and each ancestor so that a symbolic link,
+  a case alias on a case-insensitive volume or any other spelling counts: nothing is exported or run, and every row that would
   have run is `not-run` with reason `infrastructure`. A repository below the temporary directory,
   the ordinary layout, is unaffected.
 
@@ -2447,7 +2448,7 @@ the V1-1452 code commit: both flags again create the export wherever `TMPDIR` po
 | --- | --- | --- |
 | CEM-V1-088 | `TestCEMV1088HeldOnlyFromConsumerReexecution`, `TestCEMV1088ForgedWitnessNeverCounts`, `TestCEMV1088FlagIsVerifyOnly` (`internal/cem/workflow`); `TestCEMV1088VerifyHunkRevertIsOptIn` (`internal/cem/cli`); `TestCEMV1088JudgeRevertsOnlyInsideTheCopy`, `TestCEMV1088ReverseHunkAppliesExactlyOneHunk`, `TestCEMV1088GoTestProfileMatchesNative`, `TestCEMV1088ExportTreeReadsOnlyObjects`, `TestCEMV1088CopyWritesNeverFollowSymlinks`, `TestCEMV1088CountMovesOnlyAcceptedTiers` (`internal/cem/verify`) | Held only from a consumer-decoded failure; a forged `discriminates` witness on a weak test stays `survived`; the caller's tree including `.git` hashes identically before and after; the stable result is byte-identical with and without the flag |
 | CEM-V1-089 | `TestCEMV1088HeldOnlyFromConsumerReexecution` (`internal/cem/workflow`); `TestCEMV1089ClassifyRevert`, `TestCEMV1089DecodeGoTestJSON`, `TestCEMV1088JudgeRevertsOnlyInsideTheCopy` (`internal/cem/verify`) | Real `go test` runs: a revert that breaks compilation and a named test that fails without the revert are both `not-run`; a printed test failure in a passing package (the recorded go1.27.2 stream) is never `held`; timeout, total limit, mismatch, skip and infrastructure reasons pinned |
-| CEM-V1-240 | `TestCEMV1240HunkRevertRefusesRepositoryTMPDIR`, `TestCEMV1240GuardingTestsRefusesRepositoryTMPDIR` (`internal/cem/workflow`) | With `TMPDIR` set to an existing directory inside the worktree, every row of both flags is `not-run: infrastructure`, no plan row prints, and nothing is written there; without the refusal the same runs export into it and judge the rows |
+| CEM-V1-240 | `TestCEMV1240HunkRevertRefusesRepositoryTMPDIR`, `TestCEMV1240GuardingTestsRefusesRepositoryTMPDIR` (`internal/cem/workflow`); `TestCEMV1240WorkspaceRefusesEverySpellingOfTheRepository` (`internal/cem/verify`: worktree, subdirectory, Git directory and, where the volume is case-insensitive, a case alias are refused; a directory outside is used) | With `TMPDIR` set to an existing directory inside the worktree, every row of both flags is `not-run: infrastructure`, no plan row prints, and nothing is written there; without the refusal the same runs export into it and judge the rows |
 
 ## Normative nested result member order (V1-1369, 2026-10-14)
 

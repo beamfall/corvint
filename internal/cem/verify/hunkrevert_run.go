@@ -196,12 +196,28 @@ func disposableWorkspace(ctx context.Context, repository, prefix string) (string
 	if err != nil {
 		return "", fmt.Errorf("repository roots: %w", err)
 	}
+	var roots []os.FileInfo
 	for _, root := range []string{top, lines[1]} {
-		if resolved, err := filepath.EvalSymlinks(root); err == nil {
-			root = resolved
+		info, err := os.Stat(root)
+		if err != nil {
+			return "", fmt.Errorf("repository roots: %w", err)
 		}
-		if insideDirectory(root, temp) {
-			return "", fmt.Errorf("temporary directory %s lies inside the repository %s", temp, root)
+		roots = append(roots, info)
+	}
+	// Containment is decided by file identity along the temporary
+	// directory's ancestors, not by comparing path text, so a case alias on
+	// a case-insensitive volume or a second spelling of a root is refused
+	// too, and a root on another volume is never mistaken for an ancestor.
+	for directory := temp; ; directory = filepath.Dir(directory) {
+		if info, err := os.Stat(directory); err == nil {
+			for _, root := range roots {
+				if os.SameFile(root, info) {
+					return "", fmt.Errorf("temporary directory %s lies inside the repository at %s", temp, directory)
+				}
+			}
+		}
+		if filepath.Dir(directory) == directory {
+			break
 		}
 	}
 	return os.MkdirTemp(temp, prefix)

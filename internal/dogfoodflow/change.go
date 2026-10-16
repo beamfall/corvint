@@ -654,6 +654,15 @@ const (
 	guardingTestsNotRun   = "guarding-tests-not-run"
 )
 
+// shellWord quotes value as one POSIX shell word, so a NOTE command stays
+// copyable when the repository path holds spaces or quotes.
+func shellWord(value string) string {
+	if value != "" && strings.Trim(value, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_./-:@+=,") == "" {
+		return value
+	}
+	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
+}
+
 // guardingTestHunks counts the hunks cem verify --guarding-tests searches: not
 // mechanical, in non-test Go source, and citing no _test.go span as test-claim.
 func guardingTestHunks(data []byte) int {
@@ -1597,7 +1606,7 @@ func (c *change) reportFailures() int {
 	}
 	if c.guardHunks > 0 {
 		c.say("dogfood-change: NOTE %s NOT_PRODUCED %s hunks=%d: to cite an observed guarding test, run corvint cem verify --map .corvint/change.cem.json --expected-base %s --target %s --artifacts %s --guarding-tests and add its guardingTests.plan rows to the citation plan; it runs the change's tests unconfined for up to 1200 seconds (docs/DOGFOOD.md section 4)\n",
-			guardingTestsStepName, guardingTestsNotRun, c.guardHunks, c.base, c.target, stableArtifactRoot(c.root))
+			guardingTestsStepName, guardingTestsNotRun, c.guardHunks, c.base, c.target, shellWord(stableArtifactRoot(c.root)))
 	}
 	c.noteAgentReceipts()
 	if c.complete() {

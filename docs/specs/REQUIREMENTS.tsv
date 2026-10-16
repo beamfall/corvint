@@ -934,11 +934,11 @@ CEM-V1-109	docs/specs/cem-stable-v1.md	2280	(accepted under the owner's standing
 CEM-V1-110	docs/specs/cem-stable-v1.md	2286	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The same	standing	2026-10-11; V1-1333
 CEM-V1-111	docs/specs/cem-stable-v1.md	2289	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) The pack	standing	2026-10-11; V1-1333
 CEM-V1-112	docs/specs/cem-stable-v1.md	2298	(accepted under the owner's standing auto-accept (2026-10-11); V1-1333) For each	standing	2026-10-11; V1-1333
-CEM-V1-113	docs/specs/cem-stable-v1.md	2464	(accepted under the owner's standing auto-accept (2026-10-11); V1-1369) Every	standing	2026-10-11; V1-1369
-CEM-V1-114	docs/specs/cem-stable-v1.md	2651	(accepted under the owner's standing auto-accept (2026-10-11); V1-0414) `cem cit	standing	2026-10-11; V1-0414
-CEM-V1-115	docs/specs/cem-stable-v1.md	2575	(accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A	standing	2026-10-11; V1-1291
-CEM-V1-116	docs/specs/cem-stable-v1.md	2580	(accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A	standing	2026-10-11; V1-1291
-CEM-V1-117	docs/specs/cem-stable-v1.md	2585	(accepted under the owner's standing auto-accept (2026-10-11); V1-1306) When an	standing	2026-10-11; V1-1306
+CEM-V1-113	docs/specs/cem-stable-v1.md	2465	(accepted under the owner's standing auto-accept (2026-10-11); V1-1369) Every	standing	2026-10-11; V1-1369
+CEM-V1-114	docs/specs/cem-stable-v1.md	2652	(accepted under the owner's standing auto-accept (2026-10-11); V1-0414) `cem cit	standing	2026-10-11; V1-0414
+CEM-V1-115	docs/specs/cem-stable-v1.md	2576	(accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A	standing	2026-10-11; V1-1291
+CEM-V1-116	docs/specs/cem-stable-v1.md	2581	(accepted under the owner's standing auto-accept (2026-10-11); V1-1291) A	standing	2026-10-11; V1-1291
+CEM-V1-117	docs/specs/cem-stable-v1.md	2586	(accepted under the owner's standing auto-accept (2026-10-11); V1-1306) When an	standing	2026-10-11; V1-1306
 CEM-V1-120	docs/specs/cem-stable-v1.md	1571	`tcq.EvaluateStable` MUST emit a distinct profile `tcq-stable/0`, whose identity	unrecorded	-
 CEM-V1-121	docs/specs/cem-stable-v1.md	1574	The stable TCQ stage 3 MUST admit only a bounded object declaring exactly	unrecorded	-
 CEM-V1-122	docs/specs/cem-stable-v1.md	1578	The stable result MUST carry:	unrecorded	-
@@ -980,18 +980,18 @@ CEM-V1-166	docs/specs/cem-stable-v1.md	1766	Without `-stable-artifact-root`, the
 CEM-V1-167	docs/specs/cem-stable-v1.md	1768	The protected local-authority consumer holds a Git object capsule and no	unrecorded	-
 CEM-V1-168	docs/specs/cem-stable-v1.md	1771	The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So	unrecorded	-
 CEM-V1-170	docs/specs/cem-stable-v1.md	727	(accepted under the owner's standing auto-accept (2026-10-11); V1-1344) For a ma	standing	2026-10-11; V1-1344
-CEM-V1-176	docs/specs/cem-stable-v1.md	2595	(accepted under the owner's standing auto-accept (2026-10-11); V1-1289) Both	standing	2026-10-11; V1-1289
-CEM-V1-177	docs/specs/cem-stable-v1.md	2604	(accepted under the owner's standing auto-accept (2026-10-11); V1-1289) The pack	standing	2026-10-11; V1-1289
+CEM-V1-176	docs/specs/cem-stable-v1.md	2596	(accepted under the owner's standing auto-accept (2026-10-11); V1-1289) Both	standing	2026-10-11; V1-1289
+CEM-V1-177	docs/specs/cem-stable-v1.md	2605	(accepted under the owner's standing auto-accept (2026-10-11); V1-1289) The pack	standing	2026-10-11; V1-1289
 CEM-V1-180	docs/specs/cem-stable-v1.md	2191	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The	standing	2026-10-11; V1-1358
 CEM-V1-181	docs/specs/cem-stable-v1.md	2198	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On Linux	standing	2026-10-11; V1-1358
 CEM-V1-182	docs/specs/cem-stable-v1.md	2203	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The Linu	standing	2026-10-11; V1-1358
 CEM-V1-183	docs/specs/cem-stable-v1.md	2211	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) Linux	standing	2026-10-11; V1-1358
 CEM-V1-184	docs/specs/cem-stable-v1.md	2222	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On a	standing	2026-10-11; V1-1358
-CEM-V1-185	docs/specs/cem-stable-v1.md	2511	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The stab	standing	2026-10-11; V1-1377
-CEM-V1-186	docs/specs/cem-stable-v1.md	2519	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The	standing	2026-10-11; V1-1377
-CEM-V1-187	docs/specs/cem-stable-v1.md	2525	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) An	standing	2026-10-11; V1-1377
-CEM-V1-188	docs/specs/cem-stable-v1.md	2530	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The host	standing	2026-10-11; V1-1377
-CEM-V1-189	docs/specs/cem-stable-v1.md	2536	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) A test i	standing	2026-10-11; V1-1377
+CEM-V1-185	docs/specs/cem-stable-v1.md	2512	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The stab	standing	2026-10-11; V1-1377
+CEM-V1-186	docs/specs/cem-stable-v1.md	2520	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The	standing	2026-10-11; V1-1377
+CEM-V1-187	docs/specs/cem-stable-v1.md	2526	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) An	standing	2026-10-11; V1-1377
+CEM-V1-188	docs/specs/cem-stable-v1.md	2531	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The host	standing	2026-10-11; V1-1377
+CEM-V1-189	docs/specs/cem-stable-v1.md	2537	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) A test i	standing	2026-10-11; V1-1377
 CEM-V1-200	docs/specs/cem-stable-v1.md	826	`wire.ParseStable`, and so every stable read (`cem verify-stable`, a stable	unrecorded	-
 CEM-V1-201	docs/specs/cem-stable-v1.md	835	Every committed `.corvint/changes/<bind>.cem.json` MUST be accepted by	unrecorded	-
 CEM-V1-202	docs/specs/cem-stable-v1.md	846	`dogfood batch-check` and `dogfood change`'s sealed-CEM admission (`DCW-V0-039`	unrecorded	-
