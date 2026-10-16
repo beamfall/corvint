@@ -714,7 +714,8 @@ func validCEMPath(path string) bool {
 }
 
 // cemFailures closes CEM's registered codes onto the bridge's sanitized
-// failure set; an unlisted code is internal-error.
+// failure set; an unlisted code is internal-error. A Git read that ran out of
+// its own bound is the MCPV0-038 timeout code (decision 0533).
 var cemFailures = map[string]string{
 	cemcode.MapUnavailable: "cem-map-unavailable", cemcode.InvalidArguments: "cem-map-unsupported",
 	cemcode.InvalidJSON: "cem-map-invalid", cemcode.NotAnObject: "cem-map-invalid",
@@ -722,8 +723,8 @@ var cemFailures = map[string]string{
 	cemcode.UnsupportedSpec: "cem-map-invalid", cemcode.InvalidField: "cem-map-invalid",
 	cemcode.InvalidExcludedPath: "cem-map-invalid", cemcode.PathTraversal: "cem-map-invalid",
 	cemcode.GitReadFailed: "repository-unavailable", cemcode.GitDiffFailed: "repository-unavailable",
-	cemcode.GitDiffTimeout: "repository-unavailable", cemcode.GitStartFailed: "repository-unavailable",
-	cemcode.GitExitFailure: "repository-unavailable", cemcode.GitTimeout: "repository-unavailable",
+	cemcode.GitDiffTimeout: "repository-probe-timeout", cemcode.GitStartFailed: "repository-unavailable",
+	cemcode.GitExitFailure: "repository-unavailable", cemcode.GitTimeout: "repository-probe-timeout",
 	cemcode.GitOutputExceeded: "repository-unavailable", cemcode.GitBudgetExceeded: "repository-unavailable",
 	cemcode.RepositoryObjectUnavailable:     "repository-unavailable",
 	cemcode.UnsupportedObjectAlternates:     "repository-unavailable",
@@ -1088,8 +1089,8 @@ func normalizeFailure(ctx context.Context, err error) *Error {
 		return failure("cancelled")
 	}
 	code := errorCode(err)
-	if code == "repository-probe-timeout" { // MCPV0-038: a bounded probe overrun is not a missing repository
-		return &Error{Code: code, ReasonClass: reasonClass(err)}
+	if code == "repository-probe-timeout" || indexDeadline(err) { // MCPV0-038: a bounded overrun is not a missing repository
+		return &Error{Code: "repository-probe-timeout", ReasonClass: reasonClass(err)}
 	}
 	if strings.HasPrefix(code, "repository-") || code == "unsupported-git-object-format" || strings.HasPrefix(err.Error(), "Git ") {
 		return &Error{Code: "repository-unavailable", ReasonClass: reasonClass(err)}
@@ -1175,4 +1176,11 @@ func (registry *Registry) boundedPlanning(ctx context.Context, tool string, snap
 func (registry *Registry) SharesRoot(other *Registry) bool {
 	return registry != nil && other != nil && registry.rootIdentity != nil && other.rootIdentity != nil &&
 		os.SameFile(registry.rootIdentity, other.rootIdentity)
+}
+
+// indexDeadline reports the context index's own Git deadline refusal, which carries no code; only
+// its typed cause is read (MCPV0-038, decision 0533). The caller's own end is checked first.
+func indexDeadline(err error) bool {
+	var contextFailure *contextindex.Error
+	return errors.As(err, &contextFailure) && errors.Is(contextFailure.Cause, context.DeadlineExceeded)
 }

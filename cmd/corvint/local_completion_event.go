@@ -153,7 +153,7 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 	if err != nil {
 		// Underlying repository/artifact diagnostics can contain caller data. The
 		// native envelope uses a fixed error; explicit status retains its worklist.
-		emitError(stderr, dogfoodEventError("dogfood-event-unavailable"))
+		emitError(stderr, dogfoodEventError(dogfoodReadFailureCode(err)))
 		return 2
 	}
 	encoded, err := dogfoodEventBytes(result, options.budgetBytes)
@@ -586,4 +586,22 @@ func dogfoodInputFailureCode(ctx context.Context, missed *atomic.Bool) string {
 		return dogfoodExpiryCode(missed)
 	}
 	return "dogfood-event-input-unavailable"
+}
+
+// dogfoodReadFailureCode is the fixed code a failed event read reports (LCP-V0-008, LCP-V0-016,
+// decision 0533): a worktree that moved under the read is dogfood-event-worktree-churn, an
+// observed policy change keeps dogfood-event-policy-drift, and every other failure stays the
+// fixed dogfood-event-unavailable. Only the typed code is read, never message text.
+func dogfoodReadFailureCode(err error) string {
+	var failure *gokernel.Error
+	if !errors.As(err, &failure) {
+		return "dogfood-event-unavailable"
+	}
+	switch failure.Code {
+	case "repository-state-unstable", "dogfood-event-repository-drift", "dogfood-event-context-drift":
+		return "dogfood-event-worktree-churn"
+	case "dogfood-event-policy-drift":
+		return failure.Code
+	}
+	return "dogfood-event-unavailable"
 }
