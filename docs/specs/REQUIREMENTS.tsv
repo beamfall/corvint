@@ -3706,19 +3706,32 @@ TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-p
 TPN-V0-004	docs/specs/trusted-project-navigation-v0.md	43	Bind source, environment, fixed probe, snapshot, span, replacement, candidate co	unrecorded	-
 TPN-V0-005	docs/specs/trusted-project-navigation-v0.md	48	Return a deterministic bounded canonical artifact on stdout: `NAVIGATION_VALIDAT	unrecorded	-
 TPN-V0-006	docs/specs/trusted-project-navigation-v0.md	52	Use one 120-second deadline, bounded input/output and process groups on Darwin/L	unrecorded	-
-TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	39	`corvint-tasks doctor [--refresh] [--plugins DIR]` is a pure read under TM-V0-00	unrecorded	-
-TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	40	`summary` is `{lanes:{free,total}, runningSessions, completions24h, alerts}`. `l	unrecorded	-
-TQD-V0-003	docs/specs/corvint-tasks-doctor-v0.md	41	Each finding is `{kind, source, who, detail, remedy, firstSeen, ageSeconds, evid	unrecorded	-
-TQD-V0-004	docs/specs/corvint-tasks-doctor-v0.md	42	Journal-derived detectors read one bounded backward scan of receipts from the sn	unrecorded	-
-TQD-V0-005	docs/specs/corvint-tasks-doctor-v0.md	43	NO_PROGRESS_HANDOFF names a ticket whose newest three or more ended generations	unrecorded	-
-TQD-V0-006	docs/specs/corvint-tasks-doctor-v0.md	44	REPEAT_REFUSAL names a ticket and candidate tree refused three or more times in	unrecorded	-
-TQD-V0-007	docs/specs/corvint-tasks-doctor-v0.md	45	SLOW_LANE_RECOVERY names a pool member whose allocation entered CLEANING (a clea	unrecorded	-
-TQD-V0-008	docs/specs/corvint-tasks-doctor-v0.md	46	SETUP_ONLY_PROOF names a ticket COMPLETED within the window whose obligation led	unrecorded	-
-TQD-V0-009	docs/specs/corvint-tasks-doctor-v0.md	47	FALSE_IDLE names a live attempt whose holder status is STALE_HOLDER or LEASE_EXP	unrecorded	-
-TQD-V0-010	docs/specs/corvint-tasks-doctor-v0.md	48	Plugins run only when `--plugins DIR` names a directory. Discovery opens it with	unrecorded	-
-TQD-V0-011	docs/specs/corvint-tasks-doctor-v0.md	49	`doctor --refresh` writes the item, with profile `taskman-doctor-cache/0` and `r	unrecorded	-
-TQD-V0-012	docs/specs/corvint-tasks-doctor-v0.md	50	`doctor --line` reads only the cache, through the repository resolution walk to	unrecorded	-
-TQD-V0-013	docs/specs/corvint-tasks-doctor-v0.md	51	NO_PROGRESS_HANDOFF is not reported for a ticket whose current audited record ha	unrecorded	-
+TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	41	`corvint-tasks doctor [--refresh] [--plugins DIR] [--config FILE]` is a pure rea	unrecorded	-
+TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	42	`summary` is `{lanes:{free,total}, runningSessions, completions24h, alerts}`. `l	unrecorded	-
+TQD-V0-003	docs/specs/corvint-tasks-doctor-v0.md	43	Each finding is `{kind, source, who, detail, remedy, firstSeen, ageSeconds, evid	unrecorded	-
+TQD-V0-004	docs/specs/corvint-tasks-doctor-v0.md	44	Journal-derived detectors read one bounded backward scan of receipts from the sn	unrecorded	-
+TQD-V0-005	docs/specs/corvint-tasks-doctor-v0.md	45	NO_PROGRESS_HANDOFF names a ticket whose newest three or more ended generations	unrecorded	-
+TQD-V0-006	docs/specs/corvint-tasks-doctor-v0.md	46	REPEAT_REFUSAL names a ticket and candidate tree refused three or more times in	unrecorded	-
+TQD-V0-007	docs/specs/corvint-tasks-doctor-v0.md	47	SLOW_LANE_RECOVERY names a pool member whose allocation entered CLEANING (a clea	unrecorded	-
+TQD-V0-008	docs/specs/corvint-tasks-doctor-v0.md	48	SETUP_ONLY_PROOF names a ticket COMPLETED within the window whose obligation led	unrecorded	-
+TQD-V0-009	docs/specs/corvint-tasks-doctor-v0.md	49	FALSE_IDLE names a live attempt whose holder status is STALE_HOLDER or LEASE_EXP	unrecorded	-
+TQD-V0-010	docs/specs/corvint-tasks-doctor-v0.md	50	Plugins run only when `--plugins DIR` names a directory. Discovery opens it with	unrecorded	-
+TQD-V0-011	docs/specs/corvint-tasks-doctor-v0.md	51	`doctor --refresh` writes the item, with profile `taskman-doctor-cache/0` and `r	unrecorded	-
+TQD-V0-012	docs/specs/corvint-tasks-doctor-v0.md	52	`doctor --line` reads only the cache, through the repository resolution walk to	unrecorded	-
+TQD-V0-013	docs/specs/corvint-tasks-doctor-v0.md	53	NO_PROGRESS_HANDOFF is not reported for a ticket whose current audited record ha	unrecorded	-
+TQD-V0-020	docs/specs/corvint-tasks-doctor-v0.md	54	`--config FILE` names an operator file (relative to the working directory, at mo	unrecorded	-
+TQD-V0-021	docs/specs/corvint-tasks-doctor-v0.md	55	QUEUE_LOCK_HELD names this queue's `taskman.lock` or `taskman.prepare.lock` (in	unrecorded	-
+TQD-V0-022	docs/specs/corvint-tasks-doctor-v0.md	56	SLOW_QUEUE_COMMAND names (`who` `pid N`) each other `corvint-tasks` process with	unrecorded	-
+TQD-V0-023	docs/specs/corvint-tasks-doctor-v0.md	57	NO_COMPLETIONS names the queue when no completion has been recorded for at least	unrecorded	-
+TQD-V0-024	docs/specs/corvint-tasks-doctor-v0.md	58	FD_PRESSURE names `system` when the system file table's in-use handles are at le	unrecorded	-
+TQD-V0-026	docs/specs/corvint-tasks-doctor-v0.md	59	With `notify` configured, `doctor --refresh` runs the hook at most once per chan	unrecorded	-
+TQD-V0-027	docs/specs/corvint-tasks-doctor-v0.md	60	For each configured dispatcher, the doctor reads each worker directory's `stdout	unrecorded	-
+TQD-V0-028	docs/specs/corvint-tasks-doctor-v0.md	61	HOST_ERRORS names the worker id when the log holds at least `hostErrors` host er	unrecorded	-
+TQD-V0-029	docs/specs/corvint-tasks-doctor-v0.md	62	EARLY_REFUSAL names the worker id when at least `earlyRefusal` tool calls failed	unrecorded	-
+TQD-V0-030	docs/specs/corvint-tasks-doctor-v0.md	63	Host-session findings derive only from lines a known usage format recognises (`d	unrecorded	-
+TQD-V0-031	docs/specs/corvint-tasks-doctor-v0.md	64	For each configured dispatcher the item's `dispatchers` array (in configuration	unrecorded	-
+TQD-V0-032	docs/specs/corvint-tasks-doctor-v0.md	65	NO_PROGRESS_HANDOFF counts only generations claimed at the ticket's current acce	unrecorded	-
+TQD-V0-033	docs/specs/corvint-tasks-doctor-v0.md	66	One doctor scan reads the journal through one read session that pins the store's	unrecorded	-
 TRE-V0-001	docs/specs/test-runner-execution-v0.md	26	Adapters MUST declare explicit runner/runtime/report profiles. Fixed invocation	unrecorded	-
 TRE-V0-002	docs/specs/test-runner-execution-v0.md	29	Inputs MUST identify the source snapshot, selectors, configuration, executable/t	unrecorded	-
 TRE-V0-003	docs/specs/test-runner-execution-v0.md	32	A bounded invocation MAY declare BUILD, DISCOVER, TEST and DECODE phases, each u	unrecorded	-
