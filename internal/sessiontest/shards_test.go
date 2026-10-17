@@ -9,6 +9,16 @@ import (
 	"testing"
 )
 
+// readShardPlanFile reads a plan the test wrote as a regular file; the
+// product reads it through a bounded, non-blocking open (STR-V0-055).
+func readShardPlanFile(name string) (ShardPlan, error) {
+	raw, err := os.ReadFile(name)
+	if err != nil {
+		return ShardPlan{}, err
+	}
+	return DecodeShardPlan(name, raw)
+}
+
 // historyTableJSON is one retained full-run table in the
 // corvint-ci-package-costs/0 shape `ci-shard-costs refresh` writes.
 func historyTableJSON(revision byte, milliseconds map[string]int64) []byte {
@@ -212,7 +222,7 @@ func TestSTRV0054ReadShardPlan(t *testing.T) {
 		}
 		return path
 	}
-	read, err := ReadShardPlan(write("ok.json", string(encoded)))
+	read, err := readShardPlanFile(write("ok.json", string(encoded)))
 	if err != nil || read.PartitionDigest != plan.PartitionDigest {
 		t.Fatalf("round trip %v", err)
 	}
@@ -229,7 +239,7 @@ func TestSTRV0054ReadShardPlan(t *testing.T) {
 		if body == text {
 			t.Fatalf("%s: the mutation did not apply", name)
 		}
-		if _, err := ReadShardPlan(write(strings.ReplaceAll(name, " ", "-")+".json", body)); err == nil {
+		if _, err := readShardPlanFile(write(strings.ReplaceAll(name, " ", "-")+".json", body)); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
 	}
@@ -326,7 +336,7 @@ func TestSTRV0050NearBoundaryPlanRoundTrip(t *testing.T) {
 	if err := os.WriteFile(name, encoded, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	read, err := ReadShardPlan(name)
+	read, err := readShardPlanFile(name)
 	if err != nil {
 		t.Fatalf("the near-boundary plan does not read back: %v", err)
 	}

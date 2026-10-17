@@ -3,6 +3,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -14,6 +16,15 @@ import (
 
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
+
+// readTestShardPlan reads a plan through the product's --shard-plan read.
+func readTestShardPlan(name string) (sessiontest.ShardPlan, error) {
+	raw, err := readBoundedFile(name, sessiontest.MaxShardPlanBytes)
+	if err != nil {
+		return sessiontest.ShardPlan{}, err
+	}
+	return sessiontest.DecodeShardPlan(name, raw)
+}
 
 func writeShardsInput(t *testing.T, dir, name, body string) string {
 	t.Helper()
@@ -50,7 +61,7 @@ func TestSTRV0050CLIShardsPlan(t *testing.T) {
 	if err := os.WriteFile(planPath, []byte(stdout), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	plan, err := sessiontest.ReadShardPlan(planPath)
+	plan, err := readTestShardPlan(planPath)
 	if err != nil {
 		t.Fatalf("the printed plan does not read back: %v\n%s", err, stdout)
 	}
@@ -106,7 +117,7 @@ func TestSTRV0054CLIMeasuredShards(t *testing.T) {
 		t.Fatalf("shards %d %s", code, stderr)
 	}
 	planPath := writeShardsInput(t, dir, "plan.json", stdout)
-	plan, err := sessiontest.ReadShardPlan(planPath)
+	plan, err := readTestShardPlan(planPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,5 +228,55 @@ func TestSTRV0050ShardsInputReadIsBounded(t *testing.T) {
 		if data := testReadOptional(name); len(data) > sessiontest.MaxDocumentBytes {
 			t.Fatalf("read %d bytes, over the %d bound", len(data), sessiontest.MaxDocumentBytes)
 		}
+	}
+}
+
+// STR-V0-055: --shard-plan is read as the other shard inputs are. A FIFO no
+// writer opens is refused promptly with test-shard-plan-unreadable rather than
+// blocking the run; a symbolic link, a directory and a missing file are
+// refused alike; a regular plan still drives a measured dry run.
+func TestSTRV0055ShardPlanReadIsBounded(t *testing.T) {
+	root, _, _ := sessionFixture(t, "pass")
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD~1"))
+	dir := t.TempDir()
+	files := writeShardsInput(t, dir, "files.txt", "example.test/m/a\nexample.test/m/b\n")
+	code, stdout, stderr := runCLI(t, "test", "shards", "--count", "1", "--files", files)
+	if code != 0 {
+		t.Fatalf("shards %d %s", code, stderr)
+	}
+	planPath := writeShardsInput(t, dir, "plan.json", stdout)
+	fifo := filepath.Join(dir, "plan.fifo")
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "plan.link")
+	if err := os.Symlink(planPath, link); err != nil {
+		t.Fatal(err)
+	}
+	dryRun := func(plan string) []string {
+		return []string{"--root", root, "test", "--base", base, "--placement", "measured", "--shard-plan", plan, "--dry-run"}
+	}
+	type result struct {
+		code           int
+		stdout, stderr string
+	}
+	for _, refused := range []string{fifo, link, dir, filepath.Join(dir, "absent.json")} {
+		done := make(chan result, 1)
+		go func() {
+			var out, errOut bytes.Buffer
+			code := runContext(context.Background(), dryRun(refused), strings.NewReader(""), &out, &errOut)
+			done <- result{code, out.String(), errOut.String()}
+		}()
+		select {
+		case got := <-done:
+			if got.code != 2 || got.stdout != "" || !strings.Contains(got.stderr, "test-shard-plan-unreadable") {
+				t.Errorf("%s: code %d stdout %q stderr %q", refused, got.code, got.stdout, got.stderr)
+			}
+		case <-time.After(30 * time.Second):
+			t.Fatalf("%s: reading the shard plan blocked", refused)
+		}
+	}
+	if code, stdout, stderr := runCLI(t, dryRun(planPath)...); code != 0 || !strings.Contains(stdout, `"placement":"measured"`) {
+		t.Fatalf("regular plan %d %q %s", code, stderr, stdout)
 	}
 }

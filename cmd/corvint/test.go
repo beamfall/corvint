@@ -194,6 +194,23 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, err)
 		return 2
 	}
+	var shardPlan *sessiontest.ShardPlan
+	if options.shardPlan != "" {
+		// STR-V0-055: the plan is read as the other shard inputs are, before
+		// any git or runner work, so a FIFO or other non-regular file is
+		// refused at once without blocking.
+		raw, err := readBoundedFile(options.shardPlan, sessiontest.MaxShardPlanBytes)
+		if err != nil {
+			emitError(stderr, &gokernel.Error{Code: "test-shard-plan-unreadable", Message: "--shard-plan " + options.shardPlan + " is not a readable regular file of at most " + strconv.Itoa(sessiontest.MaxShardPlanBytes) + " bytes: " + err.Error()})
+			return 2
+		}
+		plan, err := sessiontest.DecodeShardPlan(options.shardPlan, raw)
+		if err != nil {
+			emitError(stderr, argumentError("--shard-plan "+options.shardPlan+" is not usable: "+err.Error()))
+			return 2
+		}
+		shardPlan = &plan
+	}
 	if root == "" {
 		root = "."
 	}
@@ -234,14 +251,7 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		return 2
 	}
 	input := testRunInput(ctx, root, options, source)
-	if options.shardPlan != "" {
-		plan, err := sessiontest.ReadShardPlan(options.shardPlan)
-		if err != nil {
-			emitError(stderr, argumentError("--shard-plan "+options.shardPlan+" is not usable: "+err.Error()))
-			return 2
-		}
-		input.ShardPlan = &plan
-	}
+	input.ShardPlan = shardPlan
 	manifest, err := sessiontest.Build(input)
 	if err != nil {
 		emitError(stderr, argumentError(err.Error()))

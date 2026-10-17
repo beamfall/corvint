@@ -302,13 +302,14 @@ func historyWeights(files []string, runs int, history []History, plan *ShardPlan
 	return weights, ""
 }
 
-// ReadShardPlan reads one canonical shard plan and checks that it is one
-// complete partition: count shards indexed in order, every file in exactly
-// one shard, within the unit bound, and the recorded digest recomputed
-// (STR-V0-054).
-func ReadShardPlan(name string) (ShardPlan, error) {
+// DecodeShardPlan decodes one canonical shard plan the caller read through a
+// bounded, non-blocking regular-file open (STR-V0-055) and checks that it is
+// one complete partition: count shards indexed in order, every file in
+// exactly one shard, within the unit bound, and the recorded digest
+// recomputed (STR-V0-054). name only labels errors.
+func DecodeShardPlan(name string, raw []byte) (ShardPlan, error) {
 	var plan ShardPlan
-	if err := decodeStrictBounded(name, ShardPlanProfile, MaxShardPlanBytes, &plan, func() string { return plan.Profile }); err != nil {
+	if err := decodeStrictBytes(name, ShardPlanProfile, MaxShardPlanBytes, raw, &plan, func() string { return plan.Profile }); err != nil {
 		return ShardPlan{}, err
 	}
 	if plan.Count < 1 || plan.Count > MaxShardPlanShards || len(plan.Shards) != plan.Count {
