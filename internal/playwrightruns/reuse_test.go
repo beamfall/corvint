@@ -1,8 +1,10 @@
 package playwrightruns
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -184,11 +186,22 @@ func TestReusableSummaryForm(t *testing.T) {
 		selection := reportJSON(t, "1.63.0", reuseDecl("app-1", "tests-1", "cfg-1", "blob-1"),
 			fxTest{file: "cart.spec.ts", title: "adds item", status: "expected", results: []fxResult{pass()}},
 			fxTest{file: "cart.spec.ts", title: "removes item", status: "expected", results: []fxResult{pass()}})
-		r := Reusable(mustParse(t, selection), runsOf(t, base(t)), nil)
+		other := cartRun(t, "1.63.0", reuseDecl("app-9", "tests-1", "cfg-1", "blob-1"), "expected", pass())
+		shard := mutate(t, other, func(doc map[string]any) {
+			doc["config"].(map[string]any)["shard"] = map[string]any{"current": 1, "total": 2}
+		})
+		r := Reusable(mustParse(t, selection), runsOf(t, base(t), shard), nil)
+		if len(r.Priors) == 0 || len(r.ShardSets) == 0 {
+			t.Fatalf("fixture lacks per-run rows: %+v", r)
+		}
 		eq(t, "summary", r.Summary, ReuseSummary{Selected: 2, Reusable: 1, MustRun: 1, ByReason: map[string]int{ReuseExactPass: 1, ReasonNoPriorResult: 1}, Freshness: "DISABLED"})
 		c := r.Compact()
-		if c.Form != FormSummary || c.Tests != nil || !reflect.DeepEqual(c.Summary, r.Summary) || r.Form != FormFull {
+		if c.Form != FormSummary || c.Tests != nil || c.Priors != nil || c.ShardSets != nil || !reflect.DeepEqual(c.Summary, r.Summary) || r.Form != FormFull {
 			t.Fatalf("compact %+v", c)
+		}
+		raw, err := json.Marshal(c)
+		if err != nil || strings.Contains(string(raw), `"priors"`) || strings.Contains(string(raw), `"shardSets"`) || strings.Contains(string(raw), `"tests"`) {
+			t.Fatalf("summary keeps rows: %s %v", raw, err)
 		}
 	})
 }
@@ -276,5 +289,28 @@ func TestRunFactsDeclaration(t *testing.T) {
 			doc["config"].(map[string]any)["metadata"].(map[string]any)["corvintRunCategory"] = 7
 		}))
 		eq(t, "malformed category keeps the revision", []any{odd.Category, odd.TestRevision}, []any{"", "tests-1"})
+	})
+}
+
+func TestIllTypedStartTimeIsAbsent(t *testing.T) {
+	t.Run("PWR-V0-033 PWR-V0-037 an ill-typed stats.startTime is absent, not a refused report", func(t *testing.T) {
+		for _, stats := range []any{map[string]any{"startTime": 123}, map[string]any{"startTime": nil}, "not-an-object", 7} {
+			raw := mutate(t, base(t), func(doc map[string]any) { doc["stats"] = stats })
+			run := mustParse(t, raw)
+			eq(t, "start time", run.HasStartTime, false)
+			r := Redundancy([]*Run{run}, nil)
+			eq(t, "excluded", r.Runs[0].Role+"/"+r.Runs[0].Reason, RunExcluded+"/"+ReasonStartMissing)
+			wantRow(t, reusable(t, raw, nil, base(t)), DecisionReusable, ReuseExactPass)
+			wantRow(t, reusable(t, base(t), nil, raw), DecisionReusable, ReuseExactPass)
+			got, want := Stability(runsOf(t, raw, raw), 2), Stability(runsOf(t, base(t), base(t)), 2)
+			if !reflect.DeepEqual(got.Tests, want.Tests) || !reflect.DeepEqual(got.Summary, want.Summary) {
+				t.Fatalf("stability regressed for %v: %+v", stats, got)
+			}
+			loaded := func(r *Run) []Loaded { return []Loaded{{Run: r}} }
+			cmp, ref := Compare(loaded(mustParse(t, base(t))), loaded(run)), Compare(loaded(mustParse(t, base(t))), loaded(mustParse(t, base(t))))
+			if cmp.Verdict != ref.Verdict || !reflect.DeepEqual(cmp.Tests, ref.Tests) {
+				t.Fatalf("compare regressed for %v: %+v", stats, cmp)
+			}
+		}
 	})
 }

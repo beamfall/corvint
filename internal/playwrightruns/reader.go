@@ -200,9 +200,24 @@ type jsonReport struct {
 	} `json:"config"`
 	Errors []json.RawMessage `json:"errors"`
 	Suites *[]jsonSuite      `json:"suites"`
-	Stats  *struct {
-		StartTime string `json:"startTime"`
-	} `json:"stats"`
+	// Stats is decoded leniently by statsStartTime: an ill-typed member is absent (PWR-V0-033).
+	Stats json.RawMessage `json:"stats"`
+}
+
+// statsStartTime is stats.startTime when stats is an object whose startTime is an RFC 3339 string.
+func statsStartTime(raw json.RawMessage) (time.Time, bool) {
+	var stats struct {
+		StartTime json.RawMessage `json:"startTime"`
+	}
+	var text string
+	if json.Unmarshal(raw, &stats) != nil || json.Unmarshal(stats.StartTime, &text) != nil {
+		return time.Time{}, false
+	}
+	at, err := time.Parse(time.RFC3339Nano, text)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return at.UTC(), true
 }
 
 type jsonSuite struct {
@@ -308,11 +323,7 @@ func Parse(raw []byte) (*Run, error) {
 	if doc.Config.RootDir != "" {
 		run.RootDir = slashPath(doc.Config.RootDir)
 	}
-	if doc.Stats != nil {
-		if at, err := time.Parse(time.RFC3339Nano, doc.Stats.StartTime); err == nil {
-			run.StartTime, run.HasStartTime = at.UTC(), true
-		}
-	}
+	run.StartTime, run.HasStartTime = statsStartTime(doc.Stats)
 	run.Shard = doc.Config.Shard
 	run.ConfiguredProjects = []string{}
 	configured := map[string]bool{}

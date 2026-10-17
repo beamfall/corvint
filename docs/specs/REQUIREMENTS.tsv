@@ -3067,10 +3067,10 @@ PWR-V0-033	docs/specs/playwright-run-evidence-v0.md	161	A retained result's fing
 PWR-V0-034	docs/specs/playwright-run-evidence-v0.md	169	`Reusable` MUST give every distinct selected test exactly one row, `REUSABLE` or	unrecorded	-
 PWR-V0-035	docs/specs/playwright-run-evidence-v0.md	176	A prior whose fingerprint differs from the selection in any input MUST NOT make	unrecorded	-
 PWR-V0-036	docs/specs/playwright-run-evidence-v0.md	180	With the freshness condition (`--fresh`), a prior that differs only in	unrecorded	-
-PWR-V0-037	docs/specs/playwright-run-evidence-v0.md	187	`Redundancy` MUST order logical runs by `stats.startTime`, exclude a run without	unrecorded	-
-PWR-V0-038	docs/specs/playwright-run-evidence-v0.md	194	The shared-code reach MUST be declared by the repository in	unrecorded	-
-PWR-V0-039	docs/specs/playwright-run-evidence-v0.md	200	`runs fresh` MUST read the paths changed between the OLD and NEW commits through	unrecorded	-
-PWR-V0-040	docs/specs/playwright-run-evidence-v0.md	206	`corvint runs reusable --selection R --prior R...`, `runs redundancy --runs R...	unrecorded	-
+PWR-V0-037	docs/specs/playwright-run-evidence-v0.md	188	`Redundancy` MUST order logical runs by `stats.startTime`, exclude a run without	unrecorded	-
+PWR-V0-038	docs/specs/playwright-run-evidence-v0.md	195	The shared-code reach MUST be declared by the repository in	unrecorded	-
+PWR-V0-039	docs/specs/playwright-run-evidence-v0.md	201	`runs fresh` MUST read the paths changed between the OLD and NEW commits through	unrecorded	-
+PWR-V0-040	docs/specs/playwright-run-evidence-v0.md	207	`corvint runs reusable --selection R --prior R...`, `runs redundancy --runs R...	unrecorded	-
 PWV-V0-001	docs/specs/pi-workflow-v0.md	36	Pi MUST preserve original native Core receipt objects, output and exit status, i	unrecorded	-
 PWV-V0-002	docs/specs/pi-workflow-v0.md	37	Core read tools MUST use closed operation and argument sets for query, context,	unrecorded	-
 PWV-V0-003	docs/specs/pi-workflow-v0.md	38	Each command MUST use bounded argv-only local execution, one owned POSIX process	unrecorded	-

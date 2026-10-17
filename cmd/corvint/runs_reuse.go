@@ -80,8 +80,8 @@ func testFileFreshness(ctx context.Context, root string, selection *playwrightru
 		}
 	}
 	return func(oldRevision, newRevision, testFile string) playwrightruns.FreshVerdict {
-		cited := path.Clean(path.Join(prefix, testFile))
-		if !located || !evidencereach.ValidPath(cited) {
+		cited := path.Join(prefix, testFile)
+		if !located || !locatableTestFile(testFile) || !evidencereach.ValidPath(cited) {
 			return playwrightruns.FreshVerdict{Verdict: evidencereach.Unresolved, Reason: reasonTestRootUnresolved}
 		}
 		res := reader.Check(ctx, oldRevision, newRevision, []string{cited})
@@ -91,6 +91,16 @@ func testFileFreshness(ctx context.Context, root string, selection *playwrightru
 		}
 		return playwrightruns.FreshVerdict{Verdict: res.Verdict, Reason: res.Reason, Paths: paths, Truncated: res.DecidingTruncated}
 	}
+}
+
+// locatableTestFile reports whether a report's rootDir-relative test file name may be joined to
+// the test root. It is checked before the join, so an absolute, escaping or volume-qualified name
+// (backslash forms arrive slash-normalized by the reader) is never laundered into the root.
+func locatableTestFile(name string) bool {
+	if len(name) >= 2 && name[1] == ':' {
+		return false
+	}
+	return evidencereach.ValidPath(name)
 }
 
 // repositoryRelative is dir as a slash path relative to the repository top level, "" for the top

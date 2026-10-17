@@ -39,4 +39,12 @@ Live qualification (this repository, binary built at `38f9525b9`):
 `make gate` and `go test ./...` (scoped lane). Residual: `corvint test` (STR-V0) receipts carry no
 per-unit fingerprint, so reuse covers Playwright reports only.
 
+Independent review repairs (PR #1051): (P1) a report test file name is now validated before it is
+joined to the test root, so an absolute, `..`-escaping or volume-qualified name (backslash forms
+arrive slash-normalized) is `TEST_ROOT_UNRESOLVED` instead of a false `FRESH_PASS` (PWR-V0-036);
+(P2) an ill-typed `stats` or `stats.startTime` is absent rather than refusing the report, so
+redundancy excludes it as `START_TIME_MISSING` and reuse, stability and compare are unchanged
+(PWR-V0-033, PWR-V0-037); (P3) `reusable --summary` also omits `priors` and `shardSets`
+(PWR-V0-040). Each repair has a test that fails without it.
+
 Rollback: revert the change; nothing is persisted.

@@ -174,17 +174,17 @@ type ReuseSummary struct {
 // ReuseReport is the `corvint runs reusable` document.
 type ReuseReport struct {
 	Profile   string       `json:"profile"`
-	Form      string       `json:"form"` // full | summary; the summary form omits tests
+	Form      string       `json:"form"` // full | summary; the summary form omits tests, priors and shardSets
 	Selection RunSummary   `json:"selection"`
-	Priors    []RunSummary `json:"priors"`
+	Priors    []RunSummary `json:"priors,omitempty"`
 	ShardSets []ShardSet   `json:"shardSets,omitempty"`
 	Tests     []ReuseEntry `json:"tests,omitempty"`
 	Summary   ReuseSummary `json:"summary"`
 }
 
-// Compact is the summary form: the report without its per-test rows.
+// Compact is the summary form: the report without its per-test and per-run rows (PWR-V0-040).
 func (r ReuseReport) Compact() ReuseReport {
-	r.Form, r.Tests = FormSummary, nil
+	r.Form, r.Tests, r.Priors, r.ShardSets = FormSummary, nil, nil, nil
 	return r
 }
 

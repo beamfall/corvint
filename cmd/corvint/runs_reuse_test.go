@@ -147,6 +147,23 @@ func TestRunsReusableCLI(t *testing.T) {
 			t.Fatalf("summary: %s", out)
 		}
 	})
+	t.Run("PWR-V0-036 an absolute, escaping or backslash test file is TEST_ROOT_UNRESOLVED", func(t *testing.T) {
+		for i, name := range []string{"/outside/cart.spec.ts", "../cart.spec.ts", "sub/../../cart.spec.ts", `..\cart.spec.ts`, `\outside\cart.spec.ts`, `C:\outside\cart.spec.ts`} {
+			rename := func(body string) string { return strings.ReplaceAll(body, `"cart.spec.ts"`, jsonString(name)) }
+			prior, sel := "odd-prior-"+string(rune('a'+i))+".json", "odd-sel-"+string(rune('a'+i))+".json"
+			writeRunsReports(t, repo, map[string]string{
+				prior: rename(runsReuseReport("passed", a, a, e2e, "")),
+				sel:   rename(runsReuseReport("passed", b, a, e2e, "")),
+			})
+			t.Cleanup(func() { _ = os.Remove(filepath.Join(repo, prior)); _ = os.Remove(filepath.Join(repo, sel)) })
+			_, out, _ := runsCLI(t, "--root", repo, "runs", "reusable", "--prior", prior, "--selection", sel, "--fresh")
+			var doc reuseDoc
+			decodeRuns(t, out, &doc)
+			if len(doc.Tests) != 1 || doc.Tests[0].Decision != "MUST_RUN" || doc.Tests[0].Detail != "TEST_ROOT_UNRESOLVED" {
+				t.Fatalf("%s: %s", name, out)
+			}
+		}
+	})
 	t.Run("PWR-V0-039 PWR-V0-040 runs fresh reads the declared reach", func(t *testing.T) {
 		var res struct {
 			Verdict  string `json:"verdict"`

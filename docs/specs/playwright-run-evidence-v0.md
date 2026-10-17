@@ -183,7 +183,8 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   a qualified pass. A `STALE` pair is `STALE` naming the fields and at most 16 deciding paths plus a
   truncated count; an unresolved pair is `FRESHNESS_UNRESOLVED` with the freshness reason, including
   `TEST_ROOT_UNRESOLVED` when the test file cannot be located through `testRootPath` or a `rootDir`
-  inside the repository. Freshness never overrides a blob, config, version or project change.
+  inside the repository, or when its report file name is absolute, volume-qualified or escapes the
+  root (checked before it is joined to the root). Freshness never overrides a blob, config, version or project change.
 - `PWR-V0-037`: `Redundancy` MUST order logical runs by `stats.startTime`, exclude a run without one
   (`START_TIME_MISSING`) or a refused shard set (`SHARD_SET_REFUSED`), and with `--since` keep earlier
   runs as `HISTORY` whose passes still count. For each counted executed test it MUST tally total
@@ -207,7 +208,7 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   [--since T]` and `runs fresh --old REV --new REV [--cite PATH,...]` MUST be read-only, refuse
   malformed arguments as `runs-invalid-arguments` and unreadable reports as
   `runs-report-unavailable` naming the option and position, offer `--summary` (counts and verdict
-  without rows or path lists), and be documented in `corvint runs` topic help.
+  without per-test or per-run rows, such as `priors` and `shardSets`, or path lists), and be documented in `corvint runs` topic help.
 
 ## Boundaries and failure modes
 
