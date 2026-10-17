@@ -7386,6 +7386,8 @@ The `SECRET_DETECTED` and `PROVENANCE_UNVERIFIED` detail codes (76 codes) are am
 | Dispatcher ledger version 3 (CAL-V0-185 stall counts) met by a version 2 build, or a ticket relaunched without a native status change | A rollback would drop the counts; a looping program would show no signal or be stopped by an advisory | The earlier build refuses UNSUPPORTED_VERSION; the count is reported and a typed `stalled` event fires once at the threshold, holding nothing (CAL-V0-185) |
 | Dispatcher stopped before its last tick reaped an ended worker, then upgraded from a version 2 build | The new build would refuse the ledger and the program would stay down until the old binary ran again | Every recorded worker proven gone by the version 2 reap check is adopted and reaped on the first tick; a worker live or unprovable refuses UNSUPPORTED_VERSION naming the old build and the clearing command (CAL-V0-187, proposed) |
 | Dispatcher tick ledger save fails (unwritable state directory, full disk, failed sync) | The tick would report success and publish state that `state.json` does not hold, so operators and the service boundary would read unpersisted accounting as saved | The tick fails `ErrLedgerUnsaved` with the original cause, `Run` raises a `tick failed` alert and keeps supervising from the in-memory ledger, and the next tick saves the current ledger; no older snapshot is restored (CAL-V0-194) |
+| Dispatcher context estimate unreadable, from an unrecognised host line, a subagent message or a Codex stream, or a context line hidden by a repeated member or lost to a log cut | A worker would be warned or stopped on an inferred or partial figure, or never told its context is large | The estimate is UNKNOWN or unchanged, shown with its age; UNKNOWN crosses no threshold and never stops a worker (CAL-V0-341, CAL-V0-342, CAL-V0-345, CAL-V0-347) |
+| Dispatcher context record damaged, unwritable, or the dispatcher restarts mid-session | A crossing would be reported on every tick or restart, or a hard stop would be lost before its hand-off | Crossings are recorded once in the worker's `context.json` before the event; a write failure alerts once and retries; the hard stop follows the estimate; an estimate read back after a restart acts only after a fresh line, and a worker already stopped is still handed off with reason `CONTEXT`, including through exit recovery and a detached-run deferral (CAL-V0-343, CAL-V0-345, CAL-V0-348) |
 
 ## Acceptance and rollback
 
@@ -7643,6 +7645,16 @@ and removes the new configuration members.
 | CAL-V0-278 | `TestCALV0278_PolicyShowEffectiveTTL` (`internal/tasks/cli`) |
 | CAL-V0-280 | `TestCALV0280_TerminalTicketWorkStateEmitsNoStateEvent` (`internal/tasks/dispatch`) |
 | CAL-V0-290 | `TestCALV0290_ShadowedRoleWarnsWithoutChangingOrder`, `TestCALV0290_ShadowCoverageIsConservative`, `TestCALV0290_ShadowNamesPreferredCover`, `TestCALV0290_ShadowWarningEvents` (`internal/tasks/dispatch`); `TestCALV0290_DispatchStatusReportsShadowedRoles` (`internal/tasks/cli`); `docs/build-log/2026-10-16-v1-1518-dispatch-role-priority.md` |
+| CAL-V0-340 | `TestCALV0340_ContextConfigIsExactAndBounded` (`internal/tasks/dispatch`); `docs/build-log/2026-10-17-v1-1549-dispatch-context-thresholds.md` |
+| CAL-V0-341 | `TestCALV0341_ContextEstimateFromRecognisedLinesOnly` (`internal/tasks/dispatch`) |
+| CAL-V0-342 | `TestCALV0342_DispatchStatusShowsContextEstimate` (`internal/tasks/cli`) |
+| CAL-V0-343 | `TestCALV0343_CrossingsRecordedOncePerSession` (`internal/tasks/dispatch`); `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`) |
+| CAL-V0-344 | `TestCALV0344_WorkerGetsContextFile` (`internal/tasks/dispatch`) |
+| CAL-V0-345 | `TestCALV0345_HardStopHandsOffWithReason`, `TestCALV0345_UnknownEstimateNeverStops`, `TestCALV0345_DeferredAndRecoveredHandoffsKeepContext` (`internal/tasks/dispatch`) |
+| CAL-V0-346 | `TestCALV0346_ThresholdsHotReload` (`internal/tasks/dispatch`) |
+| CAL-V0-347 | `TestCALV0347_HiddenOrLostContextLinesAreUnknown` (`internal/tasks/dispatch`) |
+| CAL-V0-348 | `TestCALV0348_ReloadedEstimateActsOnlyAfterAFreshLine` (`internal/tasks/dispatch`) |
+| CAL-V0-349 | `TestCALV0349_DispatchStatusShowsAppliedThresholds`, `TestCALV0342_DispatchStatusShowsContextEstimate` (`internal/tasks/cli`) |
 | CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
 
 ## Holder, retry and policy observation acceptance
