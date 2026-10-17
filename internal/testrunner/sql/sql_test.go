@@ -152,6 +152,10 @@ func TestFixedInvocations(t *testing.T) {
 			if !reflect.DeepEqual(v.OutcomeNeutralExitCodes, []int{0}) || v.Argv[len(v.Argv)-1] != "case.sql" {
 				t.Fatal(v)
 			}
+			// TRE-V0-076: a retired psql must not leave its server session running.
+			if v.Environment["PGOPTIONS"] != "-c client_connection_check_interval=1000" {
+				t.Fatalf("pgTAP session is not bound to client liveness: %q", v.Environment["PGOPTIONS"])
+			}
 		} else {
 			want := []string{"-verify", "-engine", "SQLite", "-connection", filepath.Join(r.ReportDir, "scratch.sqlite"), "case.slt"}
 			if !reflect.DeepEqual(v.Argv, want) || len(v.FailureExitCodes) != 255 {

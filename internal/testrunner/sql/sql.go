@@ -91,6 +91,11 @@ func Build(r tr.Request) (tr.Invocation, error) {
 		}
 		v.Argv = []string{"-X", "-A", "-t", "-q", "-w", "-h", c.SocketDirectory, "-p", strconv.Itoa(c.Port), "-U", c.User, "-d", c.Database, "-v", "ON_ERROR_STOP=1", "-f", r.Project}
 		v.Environment["PGCONNECT_TIMEOUT"] = "5"
+		// Retiring psql on timeout or interruption does not end its server
+		// session: a backend in pg_sleep or a long query kept running with its
+		// open transaction (V1-0594 live witness). The backend polls for the
+		// lost client and aborts (TRE-V0-076).
+		v.Environment["PGOPTIONS"] = "-c client_connection_check_interval=1000"
 		v.Environment["LC_ALL"] = "C"
 		// psql reports SQL execution status, not whether the TAP assertions passed.
 		v.OutcomeNeutralExitCodes = []int{0}
