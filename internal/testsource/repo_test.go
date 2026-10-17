@@ -1,0 +1,242 @@
+package testsource
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func gitTest(t *testing.T, root string, args ...string) string {
+	t.Helper()
+	c := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
+	c.Dir = root
+	c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+	out, err := c.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v: %s", args, err, out)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// commitFiles writes files (an empty text removes the file) and commits them.
+func commitFiles(t *testing.T, root string, files map[string]string) string {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
+		gitTest(t, root, "init", "-q")
+	}
+	for name, text := range files {
+		target := filepath.Join(root, filepath.FromSlash(name))
+		if text == "" {
+			if err := os.Remove(target); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(target, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	gitTest(t, root, "add", "-A")
+	gitTest(t, root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture")
+	return gitTest(t, root, "rev-parse", "HEAD")
+}
+
+const oldSpec = `import { test, expect } from '@playwright/test';
+
+test('legacy page', async ({ page }) => {
+  await page.goto('/legacy');
+  await page.waitForTimeout(1000);
+});
+`
+
+// TestLintChangedLinesOnly proves the default reports only findings on lines changed since the
+// base, --all-lines reports every finding, and only test and page-object files are read
+// (TSA-V0-012, TSA-V0-014).
+func TestLintChangedLinesOnly(t *testing.T) {
+	root := t.TempDir()
+	base := commitFiles(t, root, map[string]string{"e2e/legacy.spec.ts": oldSpec, "src/app.ts": "export const x = 1;\n"})
+	head := commitFiles(t, root, map[string]string{
+		"e2e/legacy.spec.ts": oldSpec + `
+test('new page', async ({ page }) => {
+  await page.goto('/new');
+});
+`,
+		"e2e/pages/login.ts": "export async function open(page) { await page.waitForTimeout(10); }\n",
+		"src/app.ts":         "export const x = 2; // page.waitForTimeout(5)\n",
+	})
+	repo := OpenRepo(context.Background(), root)
+	report, err := Lint(repo, LintOptions{Base: base, Revision: "HEAD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Revision != head || report.Base != base || report.Scope != "changed-lines" {
+		t.Fatalf("report header = %+v", report)
+	}
+	if strings.Join(report.Files, ",") != "e2e/legacy.spec.ts,e2e/pages/login.ts" {
+		t.Fatalf("files = %v", report.Files)
+	}
+	got := []string{}
+	for _, f := range report.Findings {
+		got = append(got, f.Path+":"+f.Rule)
+	}
+	if strings.Join(got, ",") != "e2e/pages/login.ts:fixed-wait,e2e/legacy.spec.ts:no-assertion" &&
+		strings.Join(got, ",") != "e2e/legacy.spec.ts:no-assertion,e2e/pages/login.ts:fixed-wait" {
+		t.Fatalf("changed-line findings = %v", got)
+	}
+	all, err := Lint(repo, LintOptions{Base: base, Revision: head, AllLines: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all.Findings) != 4 {
+		t.Fatalf("all-lines findings = %+v", all.Findings)
+	}
+	if _, err := Lint(repo, LintOptions{Base: "no-such-rev", Revision: head}); !hasCode(err, "tests-invalid-revision") {
+		t.Fatalf("bad base error = %v", err)
+	}
+}
+
+func hasCode(err error, code string) bool {
+	var typed *Error
+	return errors.As(err, &typed) && typed.Code == code
+}
+
+const (
+	cartA = `test.describe('cart', () => {
+  test('adds an item', async ({ page }) => {
+    await expect(page.getByTestId('count')).toHaveText('1');
+    await expect(page.getByTestId('total')).toHaveText('$5');
+    await expect(page).toHaveURL('/cart');
+  });
+});
+`
+	cartB = `test('basket gains an item', async ({ page }) => {
+  await expect(page.getByTestId('count'))
+    .toHaveText('1');
+  await expect(page.getByTestId('total')).toHaveText("$5");
+  await expect(page).toHaveURL('/cart');
+});
+test('unrelated', async ({ page }) => {
+  await expect(page).toHaveURL('/cart');
+  await expect(page.getByTestId('x')).toHaveText('y');
+});
+`
+)
+
+func duplicateOptions() DuplicatesOptions {
+	return DuplicatesOptions{Revision: "HEAD", Threshold: 0.5, MaxLineTests: 2}
+}
+
+// TestDuplicatesReport proves normalised assertion lines pair tests across files, a line held by
+// more tests than the cutoff is excluded, and the report says pairs are candidates
+// (TSA-V0-020, TSA-V0-023).
+func TestDuplicatesReport(t *testing.T) {
+	root := t.TempDir()
+	commitFiles(t, root, map[string]string{"e2e/a.spec.ts": cartA, "e2e/b.spec.ts": cartB,
+		"e2e/c.spec.ts": strings.ReplaceAll(cartA, "'cart'", "'cart copy'")})
+	report, err := Duplicates(OpenRepo(context.Background(), root), duplicateOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Note != CandidateNote || report.Tests != 4 {
+		t.Fatalf("report = %+v", report)
+	}
+	// toHaveURL('/cart') appears in four tests, above the cutoff of 2... and the count/total lines
+	// in three, so with cutoff 2 every line is excluded and nothing pairs.
+	if len(report.Unresolved) != 0 || report.ExcludedLines != 3 {
+		t.Fatalf("cutoff 2: unresolved=%+v excluded=%d", report.Unresolved, report.ExcludedLines)
+	}
+	options := duplicateOptions()
+	options.MaxLineTests = 3
+	report, err = Duplicates(OpenRepo(context.Background(), root), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Unresolved) != 3 || report.ExcludedLines != 1 {
+		t.Fatalf("cutoff 3: unresolved=%+v excluded=%d", report.Unresolved, report.ExcludedLines)
+	}
+	first := report.Unresolved[0]
+	if first.Score != 1 || len(first.SharedLines) != 2 || first.Test != "e2e/a.spec.ts :: cart > adds an item" ||
+		first.Other != "e2e/b.spec.ts :: basket gains an item" {
+		t.Fatalf("first pair = %+v", first)
+	}
+	if first.SharedLines[0] != `expect(page.getByTestId("count")).toHaveText("1")` {
+		t.Fatalf("normalised line = %q", first.SharedLines[0])
+	}
+	encoded, _ := json.Marshal(report)
+	again, _ := Duplicates(OpenRepo(context.Background(), root), options)
+	if encodedAgain, _ := json.Marshal(again); string(encoded) != string(encodedAgain) {
+		t.Fatal("duplicates report is not deterministic")
+	}
+}
+
+// TestDuplicatesGateAndDecisions proves gate mode considers only pairs with an added or changed
+// test, and that a reasoned distinct-from or an obligation-bearing covered-by resolves a pair
+// while a reasonless one does not (TSA-V0-021, TSA-V0-022).
+func TestDuplicatesGateAndDecisions(t *testing.T) {
+	root := t.TempDir()
+	third := strings.ReplaceAll(cartA, "'cart'", "'cart copy'")
+	base := commitFiles(t, root, map[string]string{"e2e/a.spec.ts": cartA, "e2e/c.spec.ts": third})
+	commitFiles(t, root, map[string]string{"e2e/b.spec.ts": cartB})
+	repo := OpenRepo(context.Background(), root)
+	options := duplicateOptions()
+	options.MaxLineTests = 3
+	options.Base, options.Gate = base, "V1-1592"
+	report, err := Duplicates(repo, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(report.ChangedTests, ",") != "e2e/b.spec.ts :: basket gains an item,e2e/b.spec.ts :: unrelated" {
+		t.Fatalf("changed tests = %v", report.ChangedTests)
+	}
+	if len(report.Unresolved) != 2 {
+		t.Fatalf("gate pairs = %+v", report.Unresolved)
+	}
+	for _, p := range report.Unresolved {
+		if !strings.HasPrefix(p.Test, "e2e/b.spec.ts") && !strings.HasPrefix(p.Other, "e2e/b.spec.ts") {
+			t.Fatalf("gate kept a pair without a changed test: %+v", p)
+		}
+	}
+	decisions := `{"schema":"corvint-test-duplicate-decisions/0","decisions":[
+ {"decision":"distinct-from","test":"e2e/b.spec.ts :: basket gains an item","other":"e2e/a.spec.ts :: cart > adds an item","reason":"b checks the guest basket, a the signed-in cart"},
+ {"decision":"distinct-from","test":"e2e/c.spec.ts :: cart copy > adds an item","other":"e2e/b.spec.ts :: basket gains an item"}
+]}`
+	commitFiles(t, root, map[string]string{DecisionsPath: decisions})
+	report, err = Duplicates(repo, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Resolved) != 1 || report.Resolved[0].Decision != "distinct-from" || len(report.Unresolved) != 1 {
+		t.Fatalf("after distinct-from: resolved=%+v unresolved=%+v", report.Resolved, report.Unresolved)
+	}
+	if len(report.IgnoredDecisions) != 1 || report.IgnoredDecisions[0].Problem != "missing-reason" {
+		t.Fatalf("ignored = %+v", report.IgnoredDecisions)
+	}
+	covered := strings.Replace(decisions, `"other":"e2e/b.spec.ts :: basket gains an item"}`,
+		`"other":"e2e/b.spec.ts :: basket gains an item","reason":"x"},
+ {"decision":"covered-by","test":"e2e/c.spec.ts :: cart copy > adds an item","other":"e2e/b.spec.ts :: basket gains an item","obligation":"CART-001"}`, 1)
+	covered = strings.Replace(covered, `"decision":"distinct-from","test":"e2e/c.spec.ts`, `"decision":"covered-by","test":"e2e/c.spec.ts`, 1)
+	commitFiles(t, root, map[string]string{DecisionsPath: covered})
+	report, err = Duplicates(repo, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Unresolved) != 0 || len(report.Resolved) != 2 {
+		t.Fatalf("after covered-by: resolved=%+v unresolved=%+v ignored=%+v", report.Resolved, report.Unresolved, report.IgnoredDecisions)
+	}
+	commitFiles(t, root, map[string]string{DecisionsPath: `{"schema":"corvint-test-duplicate-decisions/0","decisions":[],"extra":1}`})
+	if _, err := Duplicates(repo, options); !hasCode(err, "tests-decisions-invalid") {
+		t.Fatalf("malformed decisions error = %v", err)
+	}
+	options.Base = ""
+	if _, err := Duplicates(repo, options); !hasCode(err, "tests-invalid-option") {
+		t.Fatalf("gate without base error = %v", err)
+	}
+}

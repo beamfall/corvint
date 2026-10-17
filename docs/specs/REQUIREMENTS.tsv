@@ -3856,6 +3856,22 @@ TRJ-V0-009	docs/specs/trial-replay-journal-v0.md	145	The report MUST list every 
 TRJ-V0-010	docs/specs/trial-replay-journal-v0.md	150	Matching MUST be by key, never by position. With `--workers` above 1 the replay	unrecorded	-
 TRJ-V0-011	docs/specs/trial-replay-journal-v0.md	152	The key's `upstream` MUST list the `{key, record_sha256}` of every step whose ou	unrecorded	-
 TRJ-V0-012	docs/specs/trial-replay-journal-v0.md	156	The journal is private derived state of the trial tools. No `corvint` command, a	unrecorded	-
+TSA-V0-001	docs/specs/test-source-analysis-v0.md	56	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587
+TSA-V0-002	docs/specs/test-source-analysis-v0.md	65	(standing auto-accept, 2026-10-11; V1-1587) A registry declaration file and a hu	standing	2026-10-11; V1-1587
+TSA-V0-003	docs/specs/test-source-analysis-v0.md	69	(standing auto-accept, 2026-10-11; V1-1587) When the closure cannot be proved, t	standing	2026-10-11; V1-1587
+TSA-V0-004	docs/specs/test-source-analysis-v0.md	77	(standing auto-accept, 2026-10-11; V1-1587) A comment-only mention of an import	standing	2026-10-11; V1-1587
+TSA-V0-005	docs/specs/test-source-analysis-v0.md	79	(standing auto-accept, 2026-10-11; V1-1587) The JSON output (schema	standing	2026-10-11; V1-1587
+TSA-V0-010	docs/specs/test-source-analysis-v0.md	33	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
+TSA-V0-011	docs/specs/test-source-analysis-v0.md	50	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
+TSA-V0-012	docs/specs/test-source-analysis-v0.md	87	(standing auto-accept, 2026-10-11; V1-1589) `corvint tests lint --base REV [--re	standing	2026-10-11; V1-1589
+TSA-V0-013	docs/specs/test-source-analysis-v0.md	93	(standing auto-accept, 2026-10-11; V1-1589) The rule set MUST be closed, with st	standing	2026-10-11; V1-1589
+TSA-V0-014	docs/specs/test-source-analysis-v0.md	101	(standing auto-accept, 2026-10-11; V1-1589) Every rule MUST have a positive fixt	standing	2026-10-11; V1-1589
+TSA-V0-015	docs/specs/test-source-analysis-v0.md	103	(standing auto-accept, 2026-10-11; V1-1589) A comment `corvint-lint-allow RULE:	standing	2026-10-11; V1-1589
+TSA-V0-016	docs/specs/test-source-analysis-v0.md	107	(standing auto-accept, 2026-10-11; V1-1589) `--json` output (schema	standing	2026-10-11; V1-1589
+TSA-V0-020	docs/specs/test-source-analysis-v0.md	113	(standing auto-accept, 2026-10-11; V1-1592) `corvint tests duplicates [--ref REV	standing	2026-10-11; V1-1592
+TSA-V0-021	docs/specs/test-source-analysis-v0.md	123	(standing auto-accept, 2026-10-11; V1-1592) With `--gate TICKET --base REV` only	standing	2026-10-11; V1-1592
+TSA-V0-022	docs/specs/test-source-analysis-v0.md	128	(standing auto-accept, 2026-10-11; V1-1592) The project-owned, committed file	standing	2026-10-11; V1-1592
+TSA-V0-023	docs/specs/test-source-analysis-v0.md	135	(standing auto-accept, 2026-10-11; V1-1592) Every report MUST state that pairs a	standing	2026-10-11; V1-1592
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-
