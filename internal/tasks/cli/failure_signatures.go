@@ -14,7 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/Beamfall/corvint/internal/secretscreen"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -73,7 +73,7 @@ func (a *failureGuardArgs) check(cmd []string) (int, *wire.Result) {
 			strings.ContainsFunc(a.remediation, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
 			return 0, usage(cmd, "--remediation is 1.."+strconv.Itoa(maxRemediationBytes)+" bytes of single-line text naming the fix (a commit, ticket note or issue)")
 		}
-		if secretscreen.MatchString(a.remediation) {
+		if mutation.MatchesSecretScreen(a.remediation) {
 			return 0, errorResult(cmd, wire.Errorf(wire.CodeSecretDetected, "--remediation", "--remediation matches the secret screen; name the fix without the secret"))
 		}
 	}
