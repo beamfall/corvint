@@ -1108,3 +1108,102 @@ restores silent zero-test selection. Restoring one argument per selector in
 `catch2` makes its plans rebuild differently, so existing plans are refused.
 Narrowing Catch2 success exits back to {0} makes all-skipped runs incomplete
 again. Historical receipts still bind.
+
+## Dynamic qualification matrix 2026-10-17 (V1-0592)
+
+V1-0592 re-ran every dynamic profile's P (pass), F (assertion failure), S (skip), Z (zero tests),
+C (collection/setup/build error), R (native retry) and T (timeout and interrupt) cases through
+`corvint-test-runner plan`/`run` on macOS 26 arm64 (Rails in a network-disabled Linux arm64
+container). Each case directory under `/private/tmp/cem10-build/dynamic-2026-10-17/<profile>/<case>/`
+retains the request, plan, receipt, raw native report, phase stdout/stderr and `summary.json` with
+the version tuple; prefixed directories (`*-prefix`, `*-launchfail`, `*-noconnect`, ...) retain the
+pre-repair or environment-failure runs. W is a witness; W! is witnessed and fail-closed (reported
+incomplete, never a pass); NA means no native feature. Before: W 75, parser-only 7, none 61, NA 11.
+After: W 136 (4 W!), parser-only 0, none 7, NA 11.
+
+| Profile | Tuple | P F S | Z | C | R | T |
+| --- | --- | --- | --- | --- | --- | --- |
+| mocha | Mocha 12.0.3, Node 22.23.3 | W | W | W | W | W |
+| jasmine | Jasmine 7.0.0 / core 7.0.2 | W | W | W | NA | W |
+| node-test | Node 22.23.3 | W | W | W | NA | W |
+| jest | Jest 30.5.2 | W | W | W | W (plain retry W!) | W |
+| vitest | Vitest 5.0.3, Vite 8.3.4 | W | W | W | W! | W |
+| ava | AVA 8.0.1 | W | W | W | NA | W |
+| bun-test | Bun 1.3.11 | W | W | W | W! | W |
+| deno-test | Deno 2.9.7 | W | W | W | NA | W |
+| playwright | 1.63.0; Chromium 153.0.8010.12, Firefox 155.0, WebKit 26.6 | W | W | W | W | W |
+| cypress | 16.1.1 (Electron 41.7.0); Chrome for Testing 154.0.8037.59 | W | W | W | W | W |
+| webdriverio | 9.32.0; Chrome for Testing + ChromeDriver 154.0.8037.59 | W | W | W | W! | W |
+| testcafe | 3.7.6; remote chrome-headless-shell 153.0.8010.12 | W | W | W | W | W |
+| nightwatch | 3.16.0; Chrome for Testing + ChromeDriver 154.0.8037.59 | W | W | W | W | W |
+| detox | none | N | N | N | NA | N |
+| storybook-test-runner | 0.26.0, Storybook 10.6.1, Jest 30.5.2, Chromium 153.0.8010.12 | W | W | W | N | W |
+| storybook-vitest | Storybook 10.6.1, Vitest 5.0.3, Chromium 153.0.8010.12 | W | W | W | W! | W |
+| pytest | pytest 8.4.2, CPython 3.13.15 | W | W | W | NA | W |
+| unittest | CPython 3.13.15 and 3.9.6 | W | W | W | NA | W |
+| rspec | rspec-core 3.13.6, Ruby 2.6.10 | W | W | W | NA | W |
+| minitest | Minitest 5.11.3, Ruby 2.6.10 | W | W | W | NA | W |
+| test-unit | test-unit 3.2.9, Ruby 2.6.10 | W | W | W | NA | W |
+| rails-test | Rails 8.1.4, Ruby 3.4.11, Minitest 6.0.6 (Linux arm64 container) | W | W | W | NA | W |
+
+Every Z, C and T witness, the WebdriverIO and Nightwatch missing-shard runs, and every W! retry
+produced an incomplete receipt; none became a pass. Four adapter defects found by the actual runs
+are repaired:
+
+- `TRE-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For
+  `node-test`, Node's synthetic file-level test event (nesting 0 at 1:1, named after its file)
+  MUST NOT become a test. A passing one MUST record `no-tests` and a failing one
+  `collection-or-hook-error`; both MUST still reconcile against the native summary counts.
+- `TRE-V0-061`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For `ava`,
+  a TAP comment `# N test(s) remaining in <file>` MUST record `collection-or-hook-error`, so a
+  failing `before` hook that left declared tests unrun cannot yield a complete run.
+- `TRE-V0-062`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For
+  `bun-test`, a suite `line` attribute MUST be admitted, and a failing `(unnamed)` case without a
+  `line` (Bun's hook report) MUST be UNKNOWN with `setup-or-runtime-error`, reconciled as the
+  suite's declared failure, never a FAILED test.
+- `TRE-V0-063`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For
+  `storybook-test-runner`, the sole skipped `no-op` row of a file (the runner's placeholder for a
+  CSF file without stories) MUST be reconciled against the native counts but MUST NOT become a
+  test or retained retry information, so a run of only such files reports `no-tests`.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-060 | `dynamic/native.go` `parseNode`, `nodeFileEvent`; `TestNodeFileLevelEventsAreNotTests` | `node-test/zero-prefix` (complete PASSED before) and `collection-prefix` (complete FAILED before); `zero` and `collection` incomplete after |
+| TRE-V0-061 | `dynamic/native.go` `parseTAP`; `TestAVARemainingTestsAfterHookFailure` | `ava/hook-prefix` (complete FAILED before); `ava/hook` incomplete after |
+| TRE-V0-062 | `dynamic/native.go` `parseXML`, `dynamic/validation.go` `closedXML`; `TestBunNativeJUnitShapes` | `bun-test/mixed-prefix` (refused before), `hook-prefix`; `mixed` complete and `hook` incomplete after |
+| TRE-V0-063 | `dynamic/parse.go` `parseJest`; `TestStorybookRunnerEmptyCSFPlaceholderIsNotATest` | `storybook-test-runner/zero-prefix` (complete SKIPPED, exit 0, before); `zero` incomplete `no-tests` after |
+
+The fixtures are the raw reports of those runs, hash-pinned in
+`internal/testrunner/dynamic/testdata/qualification-0592/provenance.json` with their receipt hashes.
+
+Browser launch notes. The executor clears the environment, so task-local launchers
+(`/private/tmp/cem10-build/toolchains-2026-10-17/`, hashes in the build log) set the browser
+path: WebKit needs `DYLD_FRAMEWORK_PATH`, Cypress its cache and binary path, TestCafe a remote
+browser, and the legacy Storybook runner a static build served on `127.0.0.1:6107`. Tool
+dependencies are declared as executor tools (`cat` for ChromeDriver under Nightwatch, `mkfifo`
+for TestCafe's window helper). Nightwatch names its report after the session browser
+(`CHROME_154.0.8037.59__a.json`), so the shard manifest must name that file.
+
+Release blockers that remain, each with the missing piece:
+
+- Detox (all cases): no Detox CLI install, no Detox-instrumented iOS `.app` or Android APK, no
+  `applesimutils` (a Homebrew-tap install outside the user-space rule) and no booted simulator or
+  emulator. Execution stays NOT_OBSERVED.
+- TestCafe local browser CLI: macOS Screen Recording permission for the browser is not granted
+  (`UnableToAccessScreenRecordingAPIError`, `testcafe/local-screen-recording-blocked`); only the
+  remote-browser path is qualified. Chrome for Testing 154 `--headless=new` never followed the
+  remote `/browser/connect` redirect (`testcafe/remote-cft154-noconnect`), so the remote witness
+  uses chrome-headless-shell 153.0.8010.12.
+- storybook-test-runner R: the profile pins the runner config and admits no Jest
+  `test-runner-jest.config.js`; the runner has no native retry flag. The optional
+  `.storybook/test-runner` config remains BLOCKED as recorded under TRE-V0-044.
+- W! retries stay fail-closed: Vitest 5.0.3 and storybook-vitest JSON omit per-attempt history
+  (`retry-history-missing`); Bun 1.3.11 JUnit and the WebdriverIO 9.32.0 JSON reporter repeat a
+  retried test's identity (`ambiguous-test-identity`). A qualified retry needs a native report that
+  carries attempts.
+- Minitest reports an erroring test (`Minitest::UnexpectedError`) as UNKNOWN, which makes the whole
+  run unresolved (`minitest/mixed`); assertion failures are witnessed separately
+  (`minitest/mixed-noerror`).
+
+Rollback reverts the four parser changes and their tests and fixtures; the matrix stays as
+retained evidence. Plans and receipts are unchanged in shape.
