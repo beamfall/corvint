@@ -156,7 +156,17 @@ func terminatorAt(text string, i int) bool {
 // non-ASCII identifier character that is not a letter, digit or mark (a Unicode space splits the
 // name), or an HTML-like comment (`<!--`, `-->`). Line terminators are LF, CR, U+2028 and U+2029.
 
-func lexJS(text string) ([]token, string) {
+func lexJS(text string) ([]token, string) { return lexJSComments(text, nil) }
+
+// jsComment is one comment lexJSComments met: its first line and its text, delimiters included.
+type jsComment struct {
+	line int
+	text string
+}
+
+// lexJSComments is lexJS that also appends every comment to comments when it is not nil, so a
+// reader of annotations (TSA-V0-011) sees exactly the comments the token stream left out.
+func lexJSComments(text string, comments *[]jsComment) ([]token, string) {
 	toks := []token{}
 	code := []byte(text)
 	line := 1
@@ -190,6 +200,9 @@ func lexJS(text string) ([]token, string) {
 		case c == '/' && i+1 < len(text) && text[i+1] == '/':
 			j := lineEnd(text, i)
 			doubt = doubt || oddEnd(text, j)
+			if comments != nil {
+				*comments = append(*comments, jsComment{line: line, text: text[i:j]})
+			}
 			blank(i, j)
 			i = j
 		case c == '/' && i+1 < len(text) && text[i+1] == '*':
@@ -199,6 +212,9 @@ func lexJS(text string) ([]token, string) {
 				end = i + 2 + j + 2
 			} else {
 				doubt = true
+			}
+			if comments != nil {
+				*comments = append(*comments, jsComment{line: line, text: text[i:end]})
 			}
 			line += strings.Count(text[i:end], "\n")
 			blank(i, end)
