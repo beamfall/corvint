@@ -59,6 +59,10 @@ type WorkerUsage struct {
 	// reason was "stop".
 	Open    bool `json:"open,omitempty"`
 	Stopped bool `json:"stopped,omitempty"`
+	// ctxSeen, ctxKnown and ctxTokens carry this process's latest
+	// ATR-V0-031 context observation to noteContext; they are not recorded.
+	ctxSeen, ctxKnown bool
+	ctxTokens         uint64
 }
 
 func (u *WorkerUsage) validate() error {
@@ -120,6 +124,11 @@ func (u *WorkerUsage) line(b []byte) {
 		if t := bytes.TrimSpace(b); bytes.Contains(b, usageMarker[u.Format]) || t[0] == '{' && json.Valid(t) {
 			u.Malformed = true
 		}
+		// ATR-V0-031: an unreadable line that may be a context line leaves
+		// the estimate UNKNOWN.
+		if t := bytes.TrimSpace(b); bytes.Contains(b, contextMarker[u.Format]) || t[0] == '{' && json.Valid(t) {
+			u.observeContext(0, false)
+		}
 		return
 	}
 	var in, out uint64
@@ -150,6 +159,7 @@ func (u *WorkerUsage) line(b []byte) {
 		}
 		u.Open = false
 	case "claude-code":
+		u.claudeContext(b, head.Type)
 		if head.Type != "result" {
 			return
 		}
@@ -177,6 +187,12 @@ func (u *WorkerUsage) line(b []byte) {
 		switch {
 		case !ok && (kind == "step_finish" || bytes.Contains(b, usageMarker[u.Format])):
 			u.Malformed = true
+			u.observeContext(0, false)
+			return
+		case !ok && kind == "":
+			// ATR-V0-037: a repeated or case-folded member may hide an
+			// escaped step_finish type, so the line may be a context line.
+			u.observeContext(0, false)
 			return
 		case !ok:
 			return
@@ -190,6 +206,7 @@ func (u *WorkerUsage) line(b []byte) {
 			return
 		}
 		in, out = i, o
+		u.observeContext(i+o, i+o >= i)
 		u.Open, u.Stopped = false, part == "step-finish" && reason == "stop"
 	default:
 		return
@@ -231,6 +248,7 @@ func nullCodexCounter(b []byte) bool {
 func (u *WorkerUsage) scan(f *os.File, end int64, final bool) {
 	if end < u.Offset {
 		u.Lost, u.Skipping, u.Offset = true, true, 0
+		u.observeContext(0, false) // ATR-V0-037: lost bytes may hold a newer estimate
 	}
 	stop := min(end, u.Offset+maxUsageRead)
 	if stop <= u.Offset {
@@ -252,6 +270,7 @@ func (u *WorkerUsage) scan(f *os.File, end int64, final bool) {
 				// The line is already longer than the bound: skip to
 				// its end, which a later scan finds.
 				u.Malformed, u.Skipping = true, true
+				u.observeContext(0, false)
 			default:
 				return // an incomplete line waits for its newline
 			}
@@ -272,6 +291,7 @@ func (u *WorkerUsage) scan(f *os.File, end int64, final bool) {
 func (u *WorkerUsage) measured(b []byte) {
 	if len(b) > maxUsageLine {
 		u.Malformed = true
+		u.observeContext(0, false)
 		return
 	}
 	u.line(b)
@@ -284,6 +304,9 @@ func (u *WorkerUsage) measured(b []byte) {
 // one and is skipped, which keeps the counters a lower bound.
 func (u *WorkerUsage) cut() {
 	u.Lost, u.Skipping, u.Offset = true, true, 0
+	// ATR-V0-037: the lost bytes may hold a newer context observation, so
+	// the estimate is UNKNOWN until a line read after the cut replaces it.
+	u.observeContext(0, false)
 }
 
 // drainUsage is the final bounded read of an ended worker's stdout.log.

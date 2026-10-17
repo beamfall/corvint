@@ -142,6 +142,9 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if name == "pool status" {
 		o.Set("note", wire.String("Pure read, no lock, no probe and no writes: each configured member's state, current allocation, holder/attempt/generation, quarantine reason with its journal changedSeq, and the last health or cleanup outcome retained with the allocation. The journal records no wall-clock time, so since and observedAt are NOT_OBSERVED, as is any outcome pool state no longer retains. An unknown --pool or --member refuses MALFORMED."))
 	}
+	if name == "claim" || name == "pool acquire" {
+		o.Set("detach", wire.String(leaseDetachHelp))
+	}
 	if name == "pool acquire" {
 		o.Set("note", wire.String("Allocates one member to the named live external-agent attempt that holds none, for the attempt's own holder and stage, by the pooled-claim rules: priority yield, --exclude-member and --exclude-authors (review or integrate attempts only), health preparation, and a RESOURCE_COLLISION refusal when no eligible member is free. One allocation per generation: an attempt that returned one cannot acquire again. Generation-fenced; a request-id replay returns the original receipt's allocation (CAL-V0-198..200, CAL-V0-204)."))
 	}
@@ -256,7 +259,7 @@ var commandUsage = map[string]string{
 	"release list":            "corvint-tasks release list",
 	"release show":            "corvint-tasks release show RELEASE",
 	"release readiness":       "corvint-tasks release readiness RELEASE",
-	"claim":                   "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--repo ALIAS=ROOT]... [--timing] [--lock-wait SECONDS] [--role ROLE]",
+	"claim":                   "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--repo ALIAS=ROOT]... [--timing] [--lock-wait SECONDS] [--role ROLE] [--detach [--wait SECONDS]]; claim --attach --request-id ID [--holder LABEL] [--wait SECONDS]",
 	"renew":                   "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--timing] [--lock-wait SECONDS] [--role ROLE]",
 	"release":                 "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--handoff-to STAGE [--handoff-reason CODE]] [--lane-untouched] [--timing] [--lock-wait SECONDS] [--role ROLE]; release <create|update|candidate|record-gate|promote|list|show|readiness> --help",
 	"reap":                    "corvint-tasks reap --request-id ID [--attempt ID --generation G [--lease-expires-at T]] [--role ROLE]",
@@ -274,7 +277,7 @@ var commandUsage = map[string]string{
 	"pool cleanup":            "corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID [--role ROLE]",
 	"pool recover":            "corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID [--role ROLE]",
 	"pool confirm-safe":       "corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID [--lock-wait SECONDS] [--role ROLE]",
-	"pool acquire":            "corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--exclude-member ID]... [--exclude-authors[=all]] [--lock-wait SECONDS] [--role ROLE]",
+	"pool acquire":            "corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--exclude-member ID]... [--exclude-authors[=all]] [--lock-wait SECONDS] [--role ROLE] [--detach [--wait SECONDS]]; pool acquire --attach --request-id ID [--wait SECONDS]",
 	"pool release":            "corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID [--lock-wait SECONDS] [--role ROLE]",
 	"slots acquire":           "corvint-tasks slots acquire --attempt ID --generation G --slots ID --request-id ID [--count N | --exclusive] [--class LABEL] [--lock-wait SECONDS] [--role ROLE]",
 	"slots release":           "corvint-tasks slots release --attempt ID --generation G --slots ID --request-id ID [--lock-wait SECONDS] [--role ROLE]",

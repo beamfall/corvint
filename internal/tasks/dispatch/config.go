@@ -272,6 +272,9 @@ type Role struct {
 	// UsageFormat names the usage vocabulary of the role's worker standard
 	// output, or is empty when its token usage is not read (CAL-V0-157).
 	UsageFormat string `json:"usageFormat,omitempty"`
+	// Context is the optional ATR-V0-030 context thresholds; they apply
+	// from the applied configuration on every tick (ATR-V0-036).
+	Context *ContextLimits `json:"context,omitempty"`
 	// promptParts holds an array prompt until expandPrompts joins it.
 	promptParts []promptPart
 }
@@ -481,6 +484,9 @@ func DecodeConfig(raw []byte) (*Config, error) {
 	if c.StalledAfterSessions == nil && presentNull(raw, "stalledAfterSessions") {
 		return nil, fmt.Errorf("dispatch config: stalledAfterSessions is null; omit it to disable the advisory")
 	}
+	if roleContextNull(raw) {
+		return nil, fmt.Errorf("dispatch config: a role's context is null; omit it to set no thresholds")
+	}
 	if err := c.expandPrompts(); err != nil {
 		return nil, err
 	}
@@ -504,6 +510,27 @@ func presentNull(raw []byte, name string) bool {
 	for k, v := range members {
 		if strings.EqualFold(k, name) && bytes.Equal(bytes.TrimSpace(v), []byte("null")) {
 			return true
+		}
+	}
+	return false
+}
+
+// roleContextNull reports whether any role's ATR-V0-030 context member is a
+// JSON null, which would otherwise decode as no thresholds.
+func roleContextNull(raw []byte) bool {
+	var members map[string]json.RawMessage
+	if json.Unmarshal(raw, &members) != nil {
+		return false
+	}
+	for k, v := range members {
+		var roles []json.RawMessage
+		if !strings.EqualFold(k, "roles") || json.Unmarshal(v, &roles) != nil {
+			continue
+		}
+		for _, r := range roles {
+			if presentNull(r, "context") {
+				return true
+			}
 		}
 	}
 	return false
@@ -654,6 +681,9 @@ func (c *Config) validate() error {
 		}
 		if r.UsageFormat != "" && !contains(UsageFormats, r.UsageFormat) {
 			return fail("role %s usageFormat must be one of %s", r.Name, strings.Join(UsageFormats, ", "))
+		}
+		if err := r.validateContext(c.Heal); err != nil {
+			return fail("role %s %v", r.Name, err)
 		}
 		if b := r.Budget; b != nil {
 			if err := b.validate(); err != nil {
