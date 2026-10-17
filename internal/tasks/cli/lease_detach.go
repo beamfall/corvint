@@ -161,10 +161,15 @@ func leaseDetachArgvDigest(name string, rest []string) string {
 }
 
 // readLeaseDetachJSON decodes one closed record file of at most
-// maxLeaseDetachRecord bytes.
+// maxLeaseDetachRecord bytes. A request.json another build wrote under
+// another taskman-detached-lease version is UNSUPPORTED_VERSION (CAL-V0-131);
+// child.json carries no profile.
 func readLeaseDetachJSON(p string, into any) error {
 	raw, err := readBounded(p, maxLeaseDetachRecord)
 	if err != nil {
+		return err
+	}
+	if err := wire.RawProfileVersion("/profile", raw, leaseDetachProfile); err != nil {
 		return err
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))

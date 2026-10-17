@@ -323,3 +323,13 @@ func SetLeaseDetachChildStarting(hook func(io.Writer)) {
 
 // MaxLeaseDetachLog is the cap on what a detached child writes to child.log.
 const MaxLeaseDetachLog = maxLeaseDetachLog
+
+// LeaseDetachProfile is the CAL-V0-320 request.json profile.
+const LeaseDetachProfile = leaseDetachProfile
+
+// ReadLeaseDetachRequest decodes the detached request record at p
+// (CAL-V0-320, CAL-V0-131).
+func ReadLeaseDetachRequest(p string) error {
+	var rec leaseDetachRecord
+	return readLeaseDetachJSON(p, &rec)
+}

@@ -7472,7 +7472,8 @@ on the S19 request-id replay (CAL-V0-069) and the detached attempt runs (ATR-V0-
   `request.json` (`taskman-detached-lease/0`: command, request id, holder and an argv digest),
   `child.json` (pid, process identity, start and ceiling times), `result.json` (the child's
   result envelope), `child.log` and `child.1.log`, and the `lock` and `running` lock files. Each is written by temporary file, fsync and rename, and read bounded with
-  unknown members refused. `--detach`, `--attach` and `--wait` are refused `MALFORMED` before any
+  unknown members refused. `taskman-detached-lease/0` is in the CAL-V0-131 live format set, so a
+  `request.json` naming another version is refused `UNSUPPORTED_VERSION` before it is decoded. `--detach`, `--attach` and `--wait` are refused `MALFORMED` before any
   record or start when combined wrongly (both modes, a repeat, `--wait` without a mode, a wait
   outside whole seconds 0..600, `--attach` with any other flag or a positional, `--detach` without
   `--request-id`). On a host other than Darwin or Linux they are refused `UNSUPPORTED`.
