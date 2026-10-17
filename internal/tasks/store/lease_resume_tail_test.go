@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/journal"
@@ -120,43 +122,8 @@ func TestPSRV0113_ForgedHeartbeatTailNeverCommits(t *testing.T) {
 		{"heartbeat-frees-allocation", func(t *testing.T, f resumeFixture) {
 			replaceKeepingStamps(t, filepath.Join(f.repo.StateDir, "pools.json"), []byte(`"ALLOCATED"`), []byte(`"FREE"`))
 		}},
-		{"forged-receipt-kind", func(t *testing.T, f resumeFixture) {
-			name, _ := snapshot.ReceiptName(headSeqOf(t, f.repo))
-			p := filepath.Join(f.repo.StateDir, "receipts", name)
-			raw, err := os.ReadFile(p)
-			if err != nil {
-				t.Fatal(err)
-			}
-			rc, err := snapshot.DecodeReceipt(raw)
-			if err != nil {
-				t.Fatal(err)
-			}
-			forged := "MUTATION"
-			if rc.Kind == forged {
-				forged = "TRANSITION"
-			}
-			replaceKeepingStamps(t, p, []byte(`"kind":"`+rc.Kind+`"`), []byte(`"kind":"`+forged+`"`))
-		}},
-		{"forged-request-record", func(t *testing.T, f resumeFixture) {
-			path, err := snapshot.RequestPath("forged-heartbeat")
-			if err != nil {
-				t.Fatal(err)
-			}
-			p := filepath.Join(f.repo.StateDir, path)
-			raw, err := os.ReadFile(p)
-			if err != nil {
-				t.Fatal(err)
-			}
-			// A well-formed digest of another mutation.
-			key := []byte(`"mutationSha256":"`)
-			i := bytes.Index(raw, key) + len(key)
-			digit := raw[i : i+1]
-			swapped := []byte{'0'}
-			if digit[0] == '0' {
-				swapped[0] = '1'
-			}
-			replaceKeepingStamps(t, p, append(append([]byte{}, key...), digit...), append(append([]byte{}, key...), swapped...))
-		}},
+		{"forged-receipt-kind", forgeHeadReceiptKind},
+		{"forged-request-record", forgeHeartbeatRequest},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newResumeFixture(t)
@@ -183,6 +150,94 @@ func TestPSRV0113_ForgedHeartbeatTailNeverCommits(t *testing.T) {
 				t.Fatalf("head moved from %d to %d over a forged tail", tampered, got)
 			}
 			oracle := stagedWrite(f.acquire("forged-oracle"), nil)
+			sameDecision(t, run.writerRun, oracle)
+		})
+	}
+}
+
+// forgeHeadReceiptKind rewrites the head receipt's kind, keeping its stamps.
+func forgeHeadReceiptKind(t *testing.T, f resumeFixture) {
+	name, _ := snapshot.ReceiptName(headSeqOf(t, f.repo))
+	p := filepath.Join(f.repo.StateDir, "receipts", name)
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rc, err := snapshot.DecodeReceipt(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forged := "MUTATION"
+	if rc.Kind == forged {
+		forged = "TRANSITION"
+	}
+	replaceKeepingStamps(t, p, []byte(`"kind":"`+rc.Kind+`"`), []byte(`"kind":"`+forged+`"`))
+}
+
+// forgeHeartbeatRequest rewrites the "forged-heartbeat" request record to a
+// well-formed digest of another mutation, keeping its stamps.
+func forgeHeartbeatRequest(t *testing.T, f resumeFixture) {
+	path, err := snapshot.RequestPath("forged-heartbeat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(f.repo.StateDir, path)
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A well-formed digest of another mutation.
+	key := []byte(`"mutationSha256":"`)
+	i := bytes.Index(raw, key) + len(key)
+	digit := raw[i : i+1]
+	swapped := []byte{'0'}
+	if digit[0] == '0' {
+		swapped[0] = '1'
+	}
+	replaceKeepingStamps(t, p, append(append([]byte{}, key...), digit...), append(append([]byte{}, key...), swapped...))
+}
+
+// PSR-V0-116 (V1-1617): a tail receipt or tail request record rewritten
+// after the resumed audit walked it, under the writer lock and after
+// modelling, is caught by the resume recheck: the write declines, the head
+// stays, and the acquire ends with the complete route's own decision.
+func TestPSRV0116_TailRewrittenAfterAuditNeverCommits(t *testing.T) {
+	if !journal.ResumableAudits() {
+		t.Skip("platform reports no change time")
+	}
+	for _, tc := range []struct {
+		name   string
+		change func(t *testing.T, f resumeFixture)
+	}{
+		{"tail-receipt-kind", forgeHeadReceiptKind},
+		{"tail-request-record", forgeHeartbeatRequest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newResumeFixture(t)
+			others := f.otherClaims(t, 1)
+			var posted, tampered uint64
+			run := movingStaged(t, f, f.acquire("late-acquire"), 1, func(int) {
+				f.heartbeat(t, "forged-heartbeat", others[0])
+				posted = headSeqOf(t, f.repo)
+			}, func(stage string) {
+				if tampered == 0 && posted != 0 && strings.HasPrefix(stage, "fast.lease.model=") {
+					tc.change(t, f)
+					tampered = headSeqOf(t, f.repo)
+				}
+			})
+			if tampered == 0 {
+				t.Fatalf("the resumed write never reached fast.lease.model after the heartbeat: stages %v", run.stages)
+			}
+			if run.completed() || run.fast() || run.timing.Resumed != 0 {
+				t.Fatalf("acquire over a tail rewritten after its audit: %+v %v resumed %d stages %v", run.rep, run.err, run.timing.Resumed, run.stages)
+			}
+			if !slices.ContainsFunc(run.stages, func(s string) bool { return strings.Contains(s, "resume recheck") }) {
+				t.Fatalf("declined before the resume recheck: stages %v", run.stages)
+			}
+			if got := headSeqOf(t, f.repo); got != tampered {
+				t.Fatalf("head moved from %d to %d over a rewritten tail", tampered, got)
+			}
+			oracle := stagedWrite(f.acquire("late-oracle"), nil)
 			sameDecision(t, run.writerRun, oracle)
 		})
 	}

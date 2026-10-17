@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-110..115 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-110..115 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -241,8 +241,10 @@ calls without an unverified on-disk base. Route (b) is taken; (a) is declined by
   --wait N`, or repeat the same `--detach` (ATR-V0-020..024). The one detached child keeps its
   in-memory resume base across the client's calls, up to its 600-second ceiling (ATR-V0-023).
   Nothing about the audit or the base is persisted or shared between processes, so PSR-V0-051 is
-  unchanged. A call without `--detach`, or with a new request id, starts over. Detach is available
-  on Darwin and Linux only, the platforms that resume.
+  unchanged. A call without `--detach`, or with a new request id, starts over. Once the child keeps
+  a result, including its retryable result at the ceiling, that result answers the request id: a
+  repeated `--detach` returns it and starts nothing (ATR-V0-021, ATR-V0-022), and only a new request
+  id starts a fresh child. Detach is available on Darwin and Linux only, the platforms that resume.
 - `PSR-V0-112`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1617) The `PENDING`
   item of a detached `claim` or `pool acquire` (ATR-V0-024) MUST carry a `progress` member. It is
   `null` until the child has finished its first preparation round, or when the record does not read.
@@ -273,6 +275,13 @@ calls without an unverified on-disk base. Route (b) is taken; (a) is declined by
   A journal whose receipts `receipt compact` elided MUST still yield a PSR-V0-051 resume base. The
   prefix walk restores each elided receipt, and an acquire over that journal resumes after one
   complete audit, as it does over a journal without elided receipts.
+- `PSR-V0-116`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1617; review round 1)
+  The PSR-V0-056 recheck MUST also cover the tail the resumed walk read. Under the writer lock,
+  after modelling and before commit, it rereads every receipt after the base and every request file
+  the tail posted, and compares each with the bytes that walk consumed (length and SHA-256). A
+  difference, or a tail file the walk did not read, is a decline into that round's preparation. A
+  tail receipt or tail request record rewritten after the resumed audit, with its modification time
+  restored, therefore never commits.
 
 Issue 1063 (pool acquire CPU-bound for 38 minutes or more on a moving journal) is folded in. Its
 ask to start the acquire from a writer checkpoint, or to end the prefix walk at the checkpoint
@@ -291,13 +300,21 @@ CAL-V0-264; a writer-checkpoint start or checkpoint-bounded walk for pool acquir
 Failure modes:
 - A client that cuts each call and starts a new process without `--detach` still never resumes.
   At 47,000 receipts its first audit alone is extrapolated past 150 s.
-- A detached child that reaches its ceiling ends with its own retryable result. A later `--detach`
-  with the same arguments then starts a fresh child, which builds its base again (ATR-V0-021).
+- A detached child that reaches its ceiling ends with its own retryable result, which is kept
+  (ATR-V0-022). A later `--detach` with the same request id returns that kept result and starts
+  nothing (ATR-V0-021); the client continues with a new request id, which starts a fresh child that
+  builds its base again (PSR-V0-111). Only a child that exits without a result (`LOST`) is restarted
+  by the same `--detach`.
 - A stale or missing `progress.json` reports `null` or an older round; it never changes a result.
 
 Acceptance evidence:
 - `TestPSRV0113_ResumeDecidesNonHeartbeatTail` and `TestPSRV0113_ForgedHeartbeatTailNeverCommits`
   (4 cases), with `TestPSRV0112_LeaseProgressAfterEachRound`, in `internal/tasks/store`.
+- `TestPSRV0116_TailRewrittenAfterAuditNeverCommits` (2 cases) in `internal/tasks/store`, and the
+  `rewritten-tail-receipt` and `rewritten-tail-request` cases of
+  `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` in `internal/tasks/journal`; each fails without
+  the PSR-V0-116 recheck.
+- `TestPSRV0111_CeilingNeedsAFreshRequestID` in `internal/tasks/cli`.
 - `TestPSRV0112_PendingReportsProgress` and `TestPSRV0114_CompactHelpNotesWalkCost` in
   `internal/tasks/cli`; `TestPSRV0115_ResumeAfterCompaction` in `internal/tasks/store`.
 - The opt-in harness `TestPSRV0055_PoolAcquireLoad`, extended with three variables:
@@ -331,7 +348,7 @@ Capacity slots (PSR-V0-030..043; V1-1550, GitHub #1008): focused intent, snapsho
 
 Lease write resume (PSR-V0-050..057; V1-1560, GitHub #1010): the focused journal and store tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-050..057); Linux, quiet-host and 45,000-receipt qualification NOT_RUN.
 
-Bounded acquire calls (PSR-V0-110..115; V1-1617, issue 1010 follow-up, issue 1063): the focused store and CLI tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-110..115); 47,000-receipt, quiet-host and Linux qualification NOT_RUN.
+Bounded acquire calls (PSR-V0-110..116; V1-1617, issue 1010 follow-up, issue 1063): the focused store and CLI tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-110..116); 47,000-receipt, quiet-host and Linux qualification NOT_RUN.
 
 ## Non-goals and simpler baseline
 
@@ -393,13 +410,14 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-056 | `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`); `TestPSRV0056_ResumeRechecksBaseBeforeCommit` (`internal/tasks/store`) |
 | PSR-V0-057 | `TestPSRV0057_ResumeCheckCloseFailureIsCleanup`, `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`) |
 
-## Traceability (PSR-V0-110..115)
+## Traceability (PSR-V0-110..116)
 
 | Requirement | Evidence |
 | --- | --- |
 | PSR-V0-110 | `TestPSRV0113_ResumeDecidesNonHeartbeatTail`, `TestPSRV0113_ForgedHeartbeatTailNeverCommits` (`internal/tasks/store`) |
-| PSR-V0-111 | opt-in `TestPSRV0055_PoolAcquireLoad` with `CORVINT_TASKS_POOL_ACQUIRE_LOAD_CALL_MODE=detach` (`internal/tasks/store`); `docs/build-log/2026-10-17-v1-1617-acquire-bounded-calls.md` |
+| PSR-V0-111 | opt-in `TestPSRV0055_PoolAcquireLoad` with `CORVINT_TASKS_POOL_ACQUIRE_LOAD_CALL_MODE=detach` (`internal/tasks/store`); `TestPSRV0111_CeilingNeedsAFreshRequestID` (`internal/tasks/cli`); `docs/build-log/2026-10-17-v1-1617-acquire-bounded-calls.md` |
 | PSR-V0-112 | `TestPSRV0112_LeaseProgressAfterEachRound` (`internal/tasks/store`); `TestPSRV0112_PendingReportsProgress` (`internal/tasks/cli`) |
 | PSR-V0-113 | `TestPSRV0113_ResumeDecidesNonHeartbeatTail`, `TestPSRV0113_ForgedHeartbeatTailNeverCommits` (`internal/tasks/store`) |
 | PSR-V0-114 | `TestPSRV0114_CompactHelpNotesWalkCost` (`internal/tasks/cli`) |
 | PSR-V0-115 | `TestPSRV0115_ResumeAfterCompaction` (`internal/tasks/store`) |
+| PSR-V0-116 | `TestPSRV0116_TailRewrittenAfterAuditNeverCommits` (`internal/tasks/store`); `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`) |

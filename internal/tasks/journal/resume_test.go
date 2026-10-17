@@ -224,8 +224,9 @@ func TestPSRV0057_ResumeCheckCloseFailureIsCleanup(t *testing.T) {
 }
 
 // TestPSRV0056_RecheckResumeSeesChangeAfterAudit covers PSR-V0-056
-// (proposed): a base file changed, or a request shard made, after the
-// resumed audit passed is a decline at the recheck before commit, and a
+// (proposed): a base file changed, a request shard made, or a tail receipt
+// or tail request file rewritten (PSR-V0-116), after the resumed audit
+// passed is a decline at the recheck before commit, and a
 // failed close of the recheck's read lifetime is cleanup (PSR-V0-057).
 func TestPSRV0056_RecheckResumeSeesChangeAfterAudit(t *testing.T) {
 	second, _ := snapshot.ReceiptName(2)
@@ -239,6 +240,19 @@ func TestPSRV0056_RecheckResumeSeesChangeAfterAudit(t *testing.T) {
 		}},
 		{"stray-request-in-new-shard", func(t *testing.T, repo *fixture.Repo) {
 			fixture.Write(t, filepath.Join(repo.StateDir, "requests", "zz", "stray.json"), []byte("{}\n"))
+		}},
+		// PSR-V0-116 (proposed): the tail the resumed walk read is reread too.
+		{"rewritten-tail-receipt", func(t *testing.T, repo *fixture.Repo) {
+			h, err := snapshot.DecodeHead(read(t, filepath.Join(repo.StateDir, "head.json")))
+			if err != nil {
+				t.Fatal(err)
+			}
+			name, _ := snapshot.ReceiptName(h.LastSeq.Uint64())
+			rewriteKeepingStamps(t, filepath.Join(repo.StateDir, "receipts", name))
+		}},
+		{"rewritten-tail-request", func(t *testing.T, repo *fixture.Repo) {
+			path, _ := snapshot.RequestPath("tail-1")
+			rewriteKeepingStamps(t, filepath.Join(repo.StateDir, path))
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

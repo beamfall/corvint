@@ -50,6 +50,31 @@ func TestPSRV0112_PendingReportsProgress(t *testing.T) {
 	}
 }
 
+// TestPSRV0111_CeilingNeedsAFreshRequestID: once a detached child ends at
+// its ceiling, its kept result answers that request id, so repeating the
+// same --detach returns it and starts nothing; a new request id starts a
+// fresh child, which completes (PSR-V0-111, V1-1617; ATR-V0-021..023).
+func TestPSRV0111_CeilingNeedsAFreshRequestID(t *testing.T) {
+	root, repo, id := detachClaimStore(t)
+	t.Setenv("CORVINT_TEST_LEASE_DETACH_CEILING_MS", "1500")
+	held := holdPreparation(t, repo)
+	claim := []string{"claim", id, "--holder", "agent", "--request-id", "claim-ceiling", "--detach", "--wait", "60"}
+	first := cliRun(t, root, claim...)
+	if first.res.Outcome == wire.OutcomeOK || first.code == 75 {
+		t.Fatalf("ceiling: code %d %s", first.code, first.stdout)
+	}
+	if err := held.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if again := cliRun(t, root, claim...); !bytes.Equal(again.stdout, first.stdout) {
+		t.Fatalf("repeated --detach after the ceiling: %s, want the kept %s", again.stdout, first.stdout)
+	}
+	fresh := cliRun(t, root, "claim", id, "--holder", "agent", "--request-id", "claim-after-ceiling", "--detach", "--wait", "60")
+	if fresh.code != 0 || fresh.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("fresh request id after the ceiling: code %d %s", fresh.code, fresh.stdout)
+	}
+}
+
 // TestPSRV0114_CompactHelpNotesWalkCost: receipt compact help says a
 // complete audit restores each elided receipt, so compaction does not make
 // that walk cheaper (PSR-V0-114, V1-1617, GitHub #1063).

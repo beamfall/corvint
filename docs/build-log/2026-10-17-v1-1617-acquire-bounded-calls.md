@@ -2,7 +2,7 @@
 
 Date: 2026-10-17
 Ticket: V1-1617 (follow-up to GitHub issue beamfall/corvint#1010, which is closed)
-Requirements: PSR-V0-110..115 (`docs/specs/corvint-tasks-pool-safe-reuse-v0.md`, section "V1-1617
+Requirements: PSR-V0-110..116 (`docs/specs/corvint-tasks-pool-safe-reuse-v0.md`, section "V1-1617
 bounded acquire calls"). They are accepted under the owner's standing auto-accept of lane
 requirements (2026-10-11). The agent leases spec is at its 256-obligation bound, and nothing was
 added to it.
@@ -108,6 +108,37 @@ inference from reading the code:
 
 Confirming it needs a 47,000-receipt run with per-round stage timing, which is NOT_RUN here. The PR
 therefore carries `Refs #1063`, not `Closes`.
+
+## Review round 1
+
+One independent review round (Codex) on PR #1069 raised two findings. Both are fixed.
+
+- P1: the PSR-V0-056 recheck did not reread the tail.
+  - Under the writer lock and after modelling, `RecheckResume` checked:
+    - the base receipts;
+    - base request files;
+    - evidence and pinned files.
+  - It never reread receipts after the base. A tail-posted request file was accepted by its
+    canonical entry alone.
+  - A tail receipt or tail request record rewritten after the resumed audit, with its modification
+    time restored, was therefore committed over.
+  - `TestPSRV0116_TailRewrittenAfterAuditNeverCommits` reproduced this: the acquire committed
+    receipt 80.
+  - Fix (PSR-V0-116): the resumed walk keeps the length and SHA-256 of every file it consumed
+    (`Result.resumeRead`). The recheck rereads each tail receipt and each request file the tail
+    posted, and compares them with those values.
+  - The new store test and two new journal cases of
+    `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` fail without the fix and pass with it.
+  - The fast path still resumes: `TestPSRV0112_LeaseProgressAfterEachRound` and the PSR-V0-052..056
+    store tests pass.
+- P2: the spec's failure mode said a repeat `--detach` after the ceiling starts a fresh child. The
+  code (`internal/tasks/cli/lease_detach.go`) returns the kept result whenever `result.json`
+  exists, which ATR-V0-021 and ATR-V0-022 require.
+  - The code is correct, so the spec is fixed. The failure mode and PSR-V0-111 now say that the
+    kept result answers the request id and that only a new request id starts a fresh child.
+  - `TestPSRV0111_CeilingNeedsAFreshRequestID` checks both:
+    - a repeat after the ceiling returns the kept bytes;
+    - a new request id completes.
 
 ## Notes
 

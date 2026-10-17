@@ -210,9 +210,12 @@ func (r Reader) AuditForResume(base *ResumeBase, requestID string) (*Result, Phy
 // files as they are now. A caller that resumed holds the writer lock and runs
 // it after modelling, immediately before it commits, so no base file can
 // change between the check and the commit unseen (PSR-V0-056, proposed).
-// result is what AuditForResume returned. A difference is a decline. As in
-// an audit, a failed close of the check's own read lifetime is cleanup, which
-// terminates the command and is never a decline (PSR-V0-057, proposed).
+// result is what AuditForResume returned. The tail the resumed walk read,
+// every receipt after the base and every request file it posted, must also
+// still be the bytes that walk consumed (PSR-V0-116, proposed). A difference
+// is a decline. As in an audit, a failed close of the check's own read
+// lifetime is cleanup, which terminates the command and is never a decline
+// (PSR-V0-057, proposed).
 func (r Reader) RecheckResume(base *ResumeBase, result *Result) (decline, cleanup error) {
 	n, ok := r.Source.(Native)
 	if !ok || base == nil {
@@ -220,6 +223,9 @@ func (r Reader) RecheckResume(base *ResumeBase, result *Result) (decline, cleanu
 	}
 	s := newNativeRead(n)
 	decline = base.held(s, result, profileLimits)
+	if decline == nil {
+		decline = base.tailHeld(s, result)
+	}
 	if cleanup = s.close(); cleanup != nil {
 		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, "read lifetime", "%v; close: %v", decline, cleanup)
 	}
@@ -318,6 +324,50 @@ func (b *ResumeBase) held(s *nativeRead, result *Result, lim limits) error {
 		if err != nil || wire.Sum(raw) != *l.digest {
 			return errCheckpoint(p, "afterimage differs from latest canonical afterimage")
 		}
+	}
+	return nil
+}
+
+// tailHeld says every receipt after the base, and every request file the
+// walked tail posted, still has the bytes the resumed walk consumed. held
+// runs first, so result is a resumed walk at or past the base.
+func (b *ResumeBase) tailHeld(s *nativeRead, result *Result) error {
+	if result.resumeRead == nil {
+		return errCheckpoint("resume", "the resumed walk's reads are absent")
+	}
+	for seq := b.seq + 1; seq <= result.LastSeq.Uint64(); seq++ {
+		name, err := snapshot.ReceiptName(seq)
+		if err != nil {
+			return err
+		}
+		if err := tailSame(s, result.resumeRead, "receipts/"+name, wire.MaxReceiptFileBytes); err != nil {
+			return err
+		}
+	}
+	for _, p := range sortedPaths(result.chain.canonical) {
+		if l := result.chain.canonical[p]; !strings.HasPrefix(p, "requests/") || l.seq.Uint64() <= b.seq || l.digest == nil {
+			continue
+		}
+		bound, err := snapshot.PostBound(p)
+		if err != nil {
+			return err
+		}
+		if err := tailSame(s, result.resumeRead, p, bound); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// tailSame rereads tail file p and compares it to what the walk consumed.
+func tailSame(s *nativeRead, consumed map[string]PhysicalFile, p string, bound int) error {
+	was, ok := consumed[p]
+	if !ok {
+		return errCheckpoint(p, "tail file the resumed walk did not read")
+	}
+	raw, err := s.Read(p, bound)
+	if err != nil || len(raw) != was.Bytes || wire.Sum(raw) != was.Sha256 {
+		return errCheckpoint(p, "tail file changed since the resumed walk read it")
 	}
 	return nil
 }
