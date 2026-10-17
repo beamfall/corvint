@@ -8,9 +8,11 @@ import (
 	"io"
 )
 
+// maxRetainedEntries keeps twice the export entry bound, so verifyTarGz
+// admits the source archive of a full-size export (V1-1528).
 const (
 	maxRetainedArchiveBytes = 512 << 20
-	maxRetainedEntries      = 20_000
+	maxRetainedEntries      = 2 * maxExportEntries
 )
 
 func decodeTarGz(data []byte, maxEntries int, maxBytes int64) ([]ArchiveEntry, error) {

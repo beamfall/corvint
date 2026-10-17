@@ -83,14 +83,19 @@ func reviewInputs(repo *intent.Repository, env *mutation.Envelope, records map[s
 		if at <= seq+1 {
 			subject = append(subject, raw)
 		}
+		rc, digest, elided, err := snapshot.DecodeRetainedReceipt(raw)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		// An elided liveness receipt (CAL-V0-300) changes only its
+		// attempt's liveness members, so it posts no BUILT phase and no
+		// artifact link; its chain link is still checked.
 		if at > seq {
-			rc, err := snapshot.DecodeReceipt(raw)
-			if err != nil {
-				return nil, nil, nil, err
-			}
 			if rc.Prev == nil || *rc.Prev != previous {
 				return nil, nil, nil, wire.Errorf(wire.CodeJournalForked, receiptPath(at), "receipt does not chain to its predecessor")
 			}
+		}
+		if at > seq && !elided {
 			built, err := transaction.ExternalBuiltPosts(rc, blob)
 			if err != nil {
 				return nil, nil, nil, err
@@ -106,7 +111,7 @@ func reviewInputs(repo *intent.Repository, env *mutation.Envelope, records map[s
 				}
 			}
 		}
-		previous = wire.Sum(raw)
+		previous = digest
 	}
 	if head.LastReceiptSha256 == nil || previous != *head.LastReceiptSha256 {
 		return nil, nil, nil, wire.Errorf(wire.CodeJournalForked, "head.json", "receipt chain differs from the head")
@@ -186,12 +191,15 @@ func ReceiptBindingFold(repo *intent.Repository) func(*snapshot.Receipt, wire.Di
 }
 
 func foldReceipts(repo *intent.Repository, last uint64, pending []byte, step func(*snapshot.Receipt, wire.Digest) error) (err error) {
+	// The walk starts at receipt 1, so an elided liveness receipt is folded
+	// as its restored original (CAL-V0-301).
+	restore := &snapshot.ReceiptRestorer{}
 	fold := func(raw []byte) error {
-		rc, err := snapshot.DecodeReceipt(raw)
+		rc, original, err := restore.Next(raw)
 		if err != nil {
 			return err
 		}
-		return step(rc, wire.Sum(raw))
+		return step(rc, wire.Sum(original))
 	}
 	files := newReceiptFiles(repo)
 	defer func() {

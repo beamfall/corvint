@@ -187,11 +187,21 @@ func DecodeReceipt(data []byte) (*Receipt, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := v.Obj.Get("releaseId"); !ok {
-		v.Obj.Set("releaseId", wire.Null())
+	return decodeReceiptValue(v, ProfileReceipt, "")
+}
+
+// decodeReceiptValue decodes one parsed receipt of profile. elided names the
+// one attempt post whose record a taskman-receipt/1 omits (CAL-V0-303); it
+// is empty for a taskman-receipt/0, where every non-null post carries its
+// record or blob.
+func decodeReceiptValue(v wire.Value, profile, elided string) (*Receipt, error) {
+	if v.Kind == wire.KindObject && v.Obj != nil {
+		if _, ok := v.Obj.Get("releaseId"); !ok {
+			v.Obj.Set("releaseId", wire.Null())
+		}
 	}
 	r := wire.NewReader(v, "/")
-	if err := wire.ProfileVersion("/profile", v, ProfileReceipt); err != nil {
+	if err := wire.ProfileVersion("/profile", v, profile); err != nil {
 		return nil, err
 	}
 	r.Closed("profile", "seq", "prev", "kind", "requestId", "actor", "ticketId", "releaseId", "attemptId", "generation",
@@ -199,7 +209,7 @@ func DecodeReceipt(data []byte) (*Receipt, error) {
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
-	if err := wire.CheckProfile("/profile", r.Field("profile").String(), ProfileReceipt); err != nil {
+	if err := wire.CheckProfile("/profile", r.Field("profile").String(), profile); err != nil {
 		return nil, err
 	}
 	rc := &Receipt{}
@@ -249,7 +259,8 @@ func DecodeReceipt(data []byte) (*Receipt, error) {
 			pe.Record = &rv
 		}
 		pe.BlobSha256 = p.Field("blobSha256").DigestOrNull()
-		if p.Err() == nil && pe.Sha256 != nil && (pe.Record == nil) == (pe.BlobSha256 == nil) {
+		omitted := elided != "" && pe.Path == elided && pe.Sha256 != nil && pe.Record == nil && pe.BlobSha256 == nil
+		if p.Err() == nil && pe.Sha256 != nil && (pe.Record == nil) == (pe.BlobSha256 == nil) && !omitted {
 			p.Fail(wire.CodeMalformed, "exactly one of record and blobSha256 must be non-null")
 		}
 		rc.Post = append(rc.Post, pe)

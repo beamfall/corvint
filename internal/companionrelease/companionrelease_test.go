@@ -210,8 +210,9 @@ func TestListTreeEntriesRefusesCaseFoldCollisions(t *testing.T) {
 // answers rev-parse/ls-tree/cat-file by catting canned fixture files placed
 // under exportSource's own HOME (closedGitEnv sets HOME to the scratchParent
 // argument). That reaches exportSource's real bound checks (export.go:71 and
-// export.go:102) directly, without committing a 10,001-file or 128 MiB+ real
-// Git repository.
+// export.go:102) directly, without committing an over-bound real Git
+// repository. The byte-bound tests lower exportLimits.totalBytes through
+// withExportByteBound so they never allocate the 512 MiB production bound.
 
 const fakeGitScript = `#!/bin/sh
 case "$1" in
@@ -221,6 +222,15 @@ case "$1" in
   *) exit 1 ;;
 esac
 `
+
+// withExportByteBound lowers exportSource's byte bound to n for the test.
+// No test in this package runs in parallel, so the override is not raced.
+func withExportByteBound(t *testing.T, n int64) {
+	t.Helper()
+	saved := exportLimits
+	exportLimits.totalBytes = n
+	t.Cleanup(func() { exportLimits = saved })
+}
 
 func writeFakeGit(t *testing.T, home string) string {
 	t.Helper()
@@ -237,16 +247,19 @@ func writeFakeGit(t *testing.T, home string) string {
 // (export.go:278), whose sizes sum just past the bound. Both carry real sha1
 // digests so verifyBlobDigest accepts them before the byte-count check runs.
 // The margin over the bound is kept well under 1 MiB: runCapturedStdin caps
-// captured cat-file output at maxExportTotalBytes+1MiB (proc.go:53), so
+// captured cat-file output at the byte bound plus 1 MiB (proc.go:65), so
 // overshooting the bound by too much trips that raw output-size guard
-// instead of exportSource's own byte-count refusal.
+// instead of exportSource's own byte-count refusal. The bound is lowered to
+// 4 MiB (withExportByteBound); the refusal logic is the production one.
 func TestExportSourceRefusesTotalBytesBound(t *testing.T) {
+	withExportByteBound(t, 4<<20)
 	home := t.TempDir()
 	root := t.TempDir()
 	gitPath := writeFakeGit(t, home)
 
 	const overBoundBy = 500_000
-	sizes := []int{maxExportTotalBytes / 2, maxExportTotalBytes/2 + overBoundBy} // each under maxExportTotalBytes alone; sum is not
+	half := int(exportLimits.totalBytes / 2)
+	sizes := []int{half, half + overBoundBy} // each under the bound alone; sum is not
 	var lstree strings.Builder
 	var catfile bytes.Buffer
 	for i, size := range sizes {
@@ -378,6 +391,65 @@ func TestVerifyTarGzRefusesSecondGzipMember(t *testing.T) {
 	}
 	if err := verifyTarGz(single.Bytes(), entries); err == nil {
 		t.Fatal("bytes after the tar terminator: want refusal, got nil")
+	}
+}
+
+// TestVerifyTarGzAdmitsFullSizeExportArchive checks that the source archive
+// of an export at maxExportEntries verifies: verifyTarGz's entry bound must
+// not refuse what exportSource admits (V1-1528).
+func TestVerifyTarGzAdmitsFullSizeExportArchive(t *testing.T) {
+	entries := make([]ArchiveEntry, maxExportEntries)
+	for i := range entries {
+		entries[i] = ArchiveEntry{Path: fmt.Sprintf("d%d/f%d.go", i%97, i), Mode: 0o644}
+	}
+	archive, err := buildTarGz(entries)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if err := verifyTarGz(archive, entries); err != nil {
+		t.Fatalf("full-size export archive: want verified, got %v", err)
+	}
+	if _, err := decodeTarGz(archive, maxExportEntries, maxExportTotalBytes); err != nil {
+		t.Fatalf("full-size export archive at the export bounds: %v", err)
+	}
+}
+
+// TestRefuseCaseFoldCollisionsMatchesPairwiseEqualFold checks the linear
+// fold-key check against the pairwise strings.EqualFold definition it
+// replaced, over every pair and triple of a corpus that includes multi-byte
+// folds (Kelvin sign, long s), byte-length-changing folds and invalid UTF-8.
+func TestRefuseCaseFoldCollisionsMatchesPairwiseEqualFold(t *testing.T) {
+	pairwise := func(paths []string) bool {
+		dirPrefix := func(file, other string) bool {
+			return len(other) > len(file) && other[len(file)] == '/' && strings.EqualFold(file, other[:len(file)])
+		}
+		for i := range paths {
+			for j := i + 1; j < len(paths); j++ {
+				a, b := paths[i], paths[j]
+				if strings.EqualFold(a, b) || dirPrefix(a, b) || dirPrefix(b, a) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	corpus := []string{
+		"a", "A", "a/b", "A/b", "a/B", "b", "ab", "a.go", "A.go", "k", "K", "\u212a", "\u212a/x", "k/x",
+		"s", "\u017f", "S/t", "\u017f/t", "\xff", "\xfe", "\ufffd", "\xff/a", "\xc3/a", "x/\u212a/y", "x/k",
+		"\u0130", "i", "\u0131", "\u03a3", "\u03c3", "\u03c2", "\u03c2/z", "\u03a3",
+	}
+	for i, a := range corpus {
+		for j, b := range corpus {
+			if i == j {
+				continue
+			}
+			for _, paths := range [][]string{{a, b}, {a, b, corpus[(i+j)%len(corpus)]}} {
+				want := pairwise(paths)
+				if got := refuseCaseFoldCollisions(paths) != nil; got != want {
+					t.Fatalf("refuseCaseFoldCollisions(%q) refused=%v, pairwise EqualFold refused=%v", paths, got, want)
+				}
+			}
+		}
 	}
 }
 
@@ -1557,10 +1629,23 @@ func TestExportSourceAdmitsCountsAtTheirBounds(t *testing.T) {
 		}
 	})
 	t.Run("total-bytes", func(t *testing.T) {
-		gitPath, root, home := writeFixture(t, []int{maxExportTotalBytes / 2, maxExportTotalBytes / 2})
+		withExportByteBound(t, 4<<20)
+		half := int(exportLimits.totalBytes / 2)
+		gitPath, root, home := writeFixture(t, []int{half, half})
 		export, err := exportSource(context.Background(), gitPath, root, home)
-		if err != nil || export.TotalBytes != maxExportTotalBytes {
-			t.Fatalf("exactly %d bytes: want admitted, got total=%d, err=%v", maxExportTotalBytes, export.TotalBytes, err)
+		if err != nil || export.TotalBytes != exportLimits.totalBytes {
+			t.Fatalf("exactly %d bytes: want admitted, got total=%d, err=%v", exportLimits.totalBytes, export.TotalBytes, err)
+		}
+	})
+	t.Run("production-bounds", func(t *testing.T) {
+		if maxExportEntries != 50_000 || maxExportTotalBytes != 512<<20 {
+			t.Fatalf("export bounds = %d entries, %d bytes; PUB-V0-012 names 50,000 and 512 MiB", maxExportEntries, maxExportTotalBytes)
+		}
+		if exportLimits.entries != maxExportEntries || exportLimits.totalBytes != maxExportTotalBytes {
+			t.Fatalf("exportLimits = %+v, want the production bounds", exportLimits)
+		}
+		if maxRetainedEntries < maxExportEntries {
+			t.Fatalf("maxRetainedEntries %d is below the export entry bound %d", maxRetainedEntries, maxExportEntries)
 		}
 	})
 }

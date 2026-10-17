@@ -204,6 +204,7 @@ func selectedFailureAndFallback(t *testing.T) {
 	if err = validateRow(o.out, rowResult, pair{o.base, o.target}, id); err != nil {
 		t.Fatal(err)
 	}
+	frozenWithoutGit(t, ctx, o, id, rowResult)
 
 	var observed execution
 	executionPath := filepath.Join(o.out, "execution.json")
@@ -237,6 +238,41 @@ func selectedFailureAndFallback(t *testing.T) {
 	s = plan(ctx, o, id, true)
 	if !strings.Contains(s.Reason, "merge parents") {
 		t.Fatalf("topology mismatch admitted: %+v", s)
+	}
+}
+
+// frozenWithoutGit checks that corpora and rows frozen before Git joined the
+// identity, or under another Git, are never resumed or reused under the
+// current runtime (ticket ci-shadow-historical-compat).
+func frozenWithoutGit(t *testing.T, ctx context.Context, o options, id identity, observed row) {
+	t.Helper()
+	for name, mutate := range map[string]func(*identity){
+		"no Git field": func(v *identity) { v.Git = "" },
+		"other Git":    func(v *identity) { v.Git += " (other)" },
+	} {
+		old := id
+		mutate(&old)
+		c := corpus{Schema: schema, Identity: old}
+		for i := 0; i < 200; i++ {
+			c.Pairs = append(c.Pairs, pair{fmt.Sprintf("%040x", i+1), fmt.Sprintf("%040x", i+2)})
+		}
+		resume := o
+		resume.out, resume.row = t.TempDir(), 1
+		resume.corpus = filepath.Join(resume.out, "corpus.json")
+		if err := writeJSON(resume.corpus, c); err != nil {
+			t.Fatal(err)
+		}
+		if err := shadow(ctx, resume); err == nil || !strings.Contains(err.Error(), "identity mismatch") {
+			t.Fatalf("%s: corpus resumed under the current runtime: %v", name, err)
+		}
+		if _, err := os.Stat(shadowCheckout(resume)); !os.IsNotExist(err) {
+			t.Fatalf("%s: checkout created before the identity check: %v", name, err)
+		}
+		stale := observed
+		stale.Identity = old
+		if validateRow(o.out, stale, pair{o.base, o.target}, id) == nil {
+			t.Fatalf("%s: row reused under the current identity", name)
+		}
 	}
 }
 

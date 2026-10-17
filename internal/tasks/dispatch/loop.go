@@ -126,6 +126,14 @@ type Dispatcher struct {
 	detachedHeld map[string]bool
 	deferredNow  map[string]string
 	heldBy       map[string][]Attempt
+	// tickSeq numbers this run's full ticks and workStateTick is the tick
+	// whose failed work-state read was last counted, so a tick that reads
+	// more than once counts one failed tick (CAL-V0-270).
+	tickSeq, workStateTick uint64
+	// holdAnnounced records that the current CAL-V0-273 launch hold
+	// emitted its throttled event, so a reload that lowers the threshold
+	// mid-outage still announces the hold once.
+	holdAnnounced bool
 }
 
 // Open locks the program's state directory, loads the ledger and adopts
@@ -201,6 +209,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 		l.Pressure.Sample = PressureSample{}
 	}
 	d.emit(Event{Kind: "started", Message: fmt.Sprintf("dispatcher started for program %s with %d recorded worker(s)", program, len(l.Workers))})
+	d.warnRoleShadows()
 	if recovered != nil {
 		d.emit(Event{Kind: "reader-recovered", Message: fmt.Sprintf("reader run %s quarantine lifted: %s (%s); recorded in %s", recovered.Run, recovered.Reason, recovered.Evidence, readerRecoveryDir), Detail: map[string]string{"kind": recovered.Kind, "run": recovered.Run}})
 	}
@@ -213,6 +222,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 	}
 	d.reconcileInfraRetry()
 	d.loadDetached()
+	d.holdAnnounced = WorkStateHoldsLaunches(d.Config, d.ledger.WorkState)
 	if err := d.ledger.save(dir); err != nil {
 		_ = d.lock.Close()
 		return nil, err
@@ -351,6 +361,7 @@ var ErrLedgerUnsaved = errors.New("dispatcher ledger not saved")
 
 func (d *Dispatcher) tick(ctx context.Context) (err error) {
 	d.tickSaved = false
+	d.tickSeq++
 	if d.readerErr != nil {
 		return d.readerErr
 	}
@@ -447,9 +458,10 @@ func (d *Dispatcher) observe(ctx context.Context) (*Observation, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	for _, a := range alerts {
-		d.emit(Event{Kind: "alert", Message: a})
-	}
+	// CAL-V0-053 alerts, CAL-V0-270 and CAL-V0-274 reader health, and the
+	// CAL-V0-272 running workers whose ticket this read left UNKNOWN.
+	d.noteWorkState(alerts)
+	d.markWorkStateUnknown(obs)
 	// CAL-V0-105, CAL-V0-155: tickets the work state or a budget holds
 	// leave the selection window, replanned from the same snapshot, so they
 	// no longer starve the rest.
@@ -1157,6 +1169,10 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 			fp = w.Fingerprint
 		}
 		progress := granted[w.ID] || fp != w.Fingerprint
+		// CAL-V0-272: a run without progress whose work state was UNKNOWN
+		// at launch, during the run or at its end is still charged as
+		// CAL-V0-057 requires, and its events record the UNKNOWN state.
+		workUnknown := !progress && (w.WorkStateUnknown || workStateUnknown(obs, w.Key))
 		t := observed(obs, w.Key)
 		class := d.classify(t, w, progress)
 		summary := Summary(d.workerDir(w.ID))
@@ -1171,6 +1187,9 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		detail := map[string]string{"exitCode": code, "progress": strconv.FormatBool(progress), "session": class, "killReason": w.KillReason, "runSeconds": strconv.Itoa(int(now.Sub(w.Started).Seconds()))}
 		if run != "" {
 			detail["detachedRun"] = run
+		}
+		if workUnknown {
+			detail["workState"] = StateUnknown
 		}
 		d.finishUsage(w, detail)
 		stalled := d.countStall(t, w, detail)
@@ -1211,14 +1230,19 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		if b.ProgressDigest != "" && !unknown {
 			b.BaseFingerprint = baseFingerprint(obs, w.Key)
 		}
+		var charged map[string]string
+		note := ""
+		if workUnknown {
+			charged, note = map[string]string{"workState": StateUnknown}, "; its work state was UNKNOWN during the run"
+		}
 		if b.NoProgress >= d.Config.Backoff.ParkAfter {
 			b.Parked = true
-			d.emit(Event{Kind: "parked", Ticket: w.Ticket, Message: fmt.Sprintf("parked %s after %d run(s) without progress", d.keyText(w.Key), b.NoProgress)})
+			d.emit(Event{Kind: "parked", Ticket: w.Ticket, Message: fmt.Sprintf("parked %s after %d run(s) without progress%s", d.keyText(w.Key), b.NoProgress, note), Detail: charged})
 			d.emit(Event{Kind: "needs-owner", Ticket: w.Ticket, Message: fmt.Sprintf("%s is parked: %d dispatcher run(s) made no progress. It resumes when its state changes, or run `corvint-tasks dispatch unpark --program %s --config FILE --key %s`", d.keyText(w.Key), b.NoProgress, d.Program, w.Key)})
 			continue
 		}
 		b.CooldownUntil = now.Add(time.Duration(d.Config.Backoff.CooldownSeconds) * time.Second)
-		d.emit(Event{Kind: "cooldown", Ticket: w.Ticket, Message: fmt.Sprintf("%s cools down until %s after a run without progress (%d of %d before parking)", d.keyText(w.Key), b.CooldownUntil.UTC().Format(time.RFC3339), b.NoProgress, d.Config.Backoff.ParkAfter)})
+		d.emit(Event{Kind: "cooldown", Ticket: w.Ticket, Message: fmt.Sprintf("%s cools down until %s after a run without progress (%d of %d before parking)%s", d.keyText(w.Key), b.CooldownUntil.UTC().Format(time.RFC3339), b.NoProgress, d.Config.Backoff.ParkAfter, note), Detail: charged})
 	}
 	d.pruneInfra(obs)
 	d.pruneStall(obs)
@@ -1404,6 +1428,11 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	}
 	d.stampMemberAges(obs, now)
 	d.syncSpend(now)
+	// CAL-V0-273: the opt-in hold launches nothing while the work state
+	// has been unreadable for the configured number of ticks.
+	if WorkStateHoldsLaunches(d.Config, d.ledger.WorkState) {
+		return
+	}
 	budget, ok := d.pressureBudget(ctx, obs)
 	if !ok {
 		return
@@ -1552,7 +1581,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			d.emit(Event{Kind: "launch-failed", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("could not launch %s on %s: %v", a.Role, d.keyText(a.Key), err)})
 			continue
 		}
-		w := &Worker{ID: id, Role: a.Role, Host: role.Host, Slot: a.Slot, Key: a.Key, Ticket: a.Ticket, Pool: a.Pool, Member: a.Member, PID: pid, LeaderIdentity: identity, Members: []Proc{{PID: pid, Identity: identity}}, Started: now, LastActive: now, State: "RUNNING", Fingerprint: Fingerprint(obs, a.Key), Tier: a.Tier, Model: model, Effort: role.Effort}
+		w := &Worker{ID: id, Role: a.Role, Host: role.Host, Slot: a.Slot, Key: a.Key, Ticket: a.Ticket, Pool: a.Pool, Member: a.Member, PID: pid, LeaderIdentity: identity, Members: []Proc{{PID: pid, Identity: identity}}, Started: now, LastActive: now, State: "RUNNING", Fingerprint: Fingerprint(obs, a.Key), Tier: a.Tier, Model: model, Effort: role.Effort, WorkStateUnknown: workStateUnknown(obs, a.Key)}
 		if role.UsageFormat != "" {
 			w.Usage = &WorkerUsage{Format: role.UsageFormat}
 		}
@@ -1684,8 +1713,18 @@ func sameLoopEpisode(a, b LoopHold) bool {
 // observation. The first observation only records a baseline.
 func (d *Dispatcher) diff(obs *Observation) {
 	now := &Seen{Tickets: map[string]string{}, Claims: map[string]string{}, Lanes: map[string]string{}}
+	stale := WorkStateStale(d.Config, d.ledger.WorkState, d.Now())
 	for _, t := range obs.Tickets {
-		now.Tickets[t.ID] = strings.Join([]string{t.Status, t.State, t.Plan, t.PlanReason}, "|")
+		state, plan, reason := t.State, t.Plan, t.PlanReason
+		// CAL-V0-276: within the window a failed read leaves the last known
+		// work state, and the plan it held, in the baseline, so one slow
+		// read emits no state event.
+		if stale && state == StateUnknown && d.ledger.Seen != nil {
+			if was := strings.Split(d.ledger.Seen.Tickets[t.ID], "|"); len(was) == 4 {
+				state, plan, reason = was[1], was[2], was[3]
+			}
+		}
+		now.Tickets[t.ID] = strings.Join([]string{t.Status, state, plan, reason}, "|")
 		if len(t.EscalationPending) > 0 {
 			if now.Escalations == nil {
 				now.Escalations = map[string][]string{}
@@ -1735,6 +1774,9 @@ func (d *Dispatcher) diff(obs *Observation) {
 			continue
 		}
 		o, n := strings.Split(was, "|"), strings.Split(now.Tickets[id], "|")
+		if len(o) == 4 && len(n) == 4 && o[0] == n[0] && terminalStatus(n[0]) && o[2] == n[2] && o[3] == n[3] {
+			continue // CAL-V0-280: only a terminal ticket's work state changed
+		}
 		d.emit(Event{Kind: "state", Ticket: id, Message: fmt.Sprintf("%s changed: status %s→%s, work state %s→%s, plan %s→%s", d.local(obs, id), o[0], n[0], o[1], n[1], planText(o[2], o[3]), planText(n[2], n[3]))})
 		if n[3] == "RETRY_EXHAUSTED" && o[3] != n[3] {
 			d.emit(Event{Kind: "needs-owner", Ticket: id, Message: fmt.Sprintf("%s exhausted its retries; only the owner can re-admit it with `corvint-tasks ticket reopen` (CAL-V0-043)", d.local(obs, id))})

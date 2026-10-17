@@ -165,7 +165,13 @@ A `taskman-dispatch/0` config names `stateDir`, `workRoot`, `tickSeconds`, `glob
 `killGraceSeconds`, `hosts` (absolute argv with placeholders such as `{prompt}`, `{ticket}` and
 `{holder}`, plus optional env, `idleIgnore` and `activityPaths`), an optional `workState` reader,
 `roles` (match by labels/kinds/idGlob/states/statuses/planSelected/pool, or a quarantined pool
-`lane`; cap, priority, prompt, idle and wall seconds), `pinned`, `backoff` and `heal`. Text shared
+`lane`; cap, priority, prompt, idle and wall seconds), `pinned`, `backoff` and `heal`. A role's
+`priority` (0..1000) is an ascending sort key: when several roles match one ticket, the role with the
+LOWER value launches it, and equal values fall back to the earlier role in `roles` (CAL-V0-054). A
+role whose match a lower-valued enabled role provably covers is reported as shadowed: a `config`
+event with outcome `ROLE_SHADOWED` at start and after each applied reload, plus `roleShadows` and a
+result warning in `dispatch status`. The warning never refuses the config or changes launch order;
+the check is conservative, so an overlap it cannot prove is not reported (CAL-V0-290). Text shared
 by several roles can live once in a top-level `prompts` map; a role `prompt` may then be an array
 such as `[{"fragment": "rules"}, "Implement {ticketLocal}."]`, joined with no separator at load
 (CAL-V0-175..178, proposed). A fragment no role references is refused. A ticket that

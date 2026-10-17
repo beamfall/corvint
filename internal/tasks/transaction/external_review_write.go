@@ -77,7 +77,9 @@ func externalReviewSubject(in Input, st inputState, q *snapshot.ExternalReviewRe
 		if len(in.ExternalReviewSubject) != 2 {
 			return none, "subject receipt successor was not observed"
 		}
-		next, err := snapshot.DecodeReceipt(in.ExternalReviewSubject[1])
+		// The successor may be an elided liveness receipt (CAL-V0-300);
+		// only its sequence and link are read.
+		next, _, _, err := snapshot.DecodeRetainedReceipt(in.ExternalReviewSubject[1])
 		if err != nil || next.Seq.Uint64() != rc.Seq.Uint64()+1 || next.Prev == nil || *next.Prev != s.ReceiptSha256 {
 			return none, "subject receipt is not linked to the audited chain"
 		}

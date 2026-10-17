@@ -62,8 +62,8 @@ func runCapturedStdin(ctx context.Context, dir string, env []string, timeout tim
 		Stdin:           stdin,
 		Timeout:         timeout,
 		ShutdownTimeout: 5 * time.Second,
-		InputLimit:      maxExportTotalBytes + (1 << 20),
-		OutputLimit:     maxExportTotalBytes + (1 << 20),
+		InputLimit:      int(exportLimits.totalBytes) + (1 << 20),
+		OutputLimit:     int(exportLimits.totalBytes) + (1 << 20),
 	})
 	if observation.Err != nil {
 		return observation.Stdout, observation.Stderr, fmt.Errorf("%v: %w (stderr=%s)", argv, observation.Err, trimForError(observation.Stderr))

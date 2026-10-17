@@ -9,6 +9,9 @@ import (
 
 var ReconcileBeforeCommitForTest = reconcile
 
+// CompactLivenessRunForTest is CompactLiveness with its whole-record run bound.
+var CompactLivenessRunForTest = compactLiveness
+
 var BarrierWithFaultsForTest = barrier
 
 var PolicyUpdateBeforeCommitForTest = policyUpdate

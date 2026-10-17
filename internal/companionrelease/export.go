@@ -13,15 +13,27 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
-// Export bounds, per the reviewed bundle plan: bounded 128 MiB total across
-// at most 10,000 regular-file entries. These are refusals, not truncation —
-// exceeding either aborts the export rather than silently dropping entries.
+// Export bounds (PUB-V0-012): bounded 512 MiB total across at most 50,000
+// regular-file entries, raised from 128 MiB and 10,000 entries once the
+// repository passed 10,000 tree entries (V1-1528). These are refusals, not
+// truncation — exceeding either aborts the export rather than silently
+// dropping entries.
 const (
-	maxExportEntries    = 10_000
-	maxExportTotalBytes = 128 << 20
+	maxExportEntries    = 50_000
+	maxExportTotalBytes = 512 << 20
 )
+
+// exportLimits is the bound exportSource, parseBatchHeader and
+// runCapturedStdin enforce. It always holds maxExportEntries and
+// maxExportTotalBytes outside tests; a test lowers totalBytes to drive the
+// byte refusal without allocating the full bound.
+var exportLimits = struct {
+	entries    int
+	totalBytes int64
+}{maxExportEntries, maxExportTotalBytes}
 
 // SourceFile is one exported, hash-verified regular file from a single Git
 // commit tree.
@@ -120,8 +132,8 @@ func exportSource(ctx context.Context, gitPath, root, scratchParent string) (Exp
 	if err != nil {
 		return Export{}, err
 	}
-	if len(entries) > maxExportEntries {
-		return Export{}, fmt.Errorf("export entries %d exceed bound %d", len(entries), maxExportEntries)
+	if len(entries) > exportLimits.entries {
+		return Export{}, fmt.Errorf("export entries %d exceed bound %d", len(entries), exportLimits.entries)
 	}
 
 	forward, err := batchBlobs(git, entries, forwardOrder)
@@ -151,8 +163,8 @@ func exportSource(ctx context.Context, gitPath, root, scratchParent string) (Exp
 			return Export{}, fmt.Errorf("%s: %w", e.path, err)
 		}
 		total += int64(len(a))
-		if total > maxExportTotalBytes {
-			return Export{}, fmt.Errorf("export total bytes exceed bound %d", maxExportTotalBytes)
+		if total > exportLimits.totalBytes {
+			return Export{}, fmt.Errorf("export total bytes exceed bound %d", exportLimits.totalBytes)
 		}
 		files = append(files, SourceFile{Path: e.path, Mode: e.mode, OID: e.oid, Data: a})
 	}
@@ -251,32 +263,64 @@ func listTreeEntries(git func(time.Duration, []byte, ...string) ([]byte, error),
 // materializeExport, or extracting a shipped archive) collapses both onto
 // one file, so this must run before any byte from the set is written.
 //
-// This is an O(n^2) scan; exportSource's maxExportEntries bound (10,000)
-// caps the pair count, and EqualFold on short repository-relative paths is
-// cheap, so this stays well under the export's own subprocess timeouts.
+// It refuses exactly the pairs strings.EqualFold and a byte-aligned
+// directory-prefix EqualFold would, in time linear in the total path length:
+// each path is reduced to a fold key that maps every rune to the smallest
+// rune of its unicode.SimpleFold orbit, which is the equivalence EqualFold
+// tests rune by rune. (The pairwise O(n^2) scan it replaces took seconds at
+// the 50,000-entry export bound, V1-1528.)
 func refuseCaseFoldCollisions(paths []string) error {
-	for i := 0; i < len(paths); i++ {
-		for j := i + 1; j < len(paths); j++ {
-			a, b := paths[i], paths[j]
-			if strings.EqualFold(a, b) {
-				return fmt.Errorf("case-colliding export paths %q and %q", a, b)
-			}
-			if caseFoldedDirPrefix(a, b) || caseFoldedDirPrefix(b, a) {
-				return fmt.Errorf("export path %q case-folds equal to a directory prefix of %q", a, b)
+	type fileKey struct {
+		fold  string
+		bytes int
+	}
+	byFold := make(map[string]int, len(paths))
+	byFile := make(map[fileKey]int, len(paths))
+	folds := make([]string, len(paths))
+	slashes := make([][][2]int, len(paths))
+	for i, path := range paths {
+		folds[i], slashes[i] = caseFoldKey(path)
+		if j, ok := byFold[folds[i]]; ok {
+			return fmt.Errorf("case-colliding export paths %q and %q", paths[j], path)
+		}
+		byFold[folds[i]] = i
+		byFile[fileKey{folds[i], len(path)}] = i
+	}
+	for i, path := range paths {
+		for _, slash := range slashes[i] {
+			if j, ok := byFile[fileKey{folds[i][:slash[1]], slash[0]}]; ok {
+				return fmt.Errorf("export path %q case-folds equal to a directory prefix of %q", paths[j], path)
 			}
 		}
 	}
 	return nil
 }
 
-// caseFoldedDirPrefix reports whether file names, under Unicode simple case
-// folding, the same location as a leading directory segment of other — for
-// example file "A" and other "a/b.go".
-func caseFoldedDirPrefix(file, other string) bool {
-	if len(other) <= len(file) {
-		return false
+// caseFoldKey returns path's fold key and, for each '/' byte in path, its
+// byte offset in path and in the key. A '/' is always its own rune, so the
+// key of path[:offset] is the key's prefix up to the paired key offset.
+func caseFoldKey(path string) (string, [][2]int) {
+	var key strings.Builder
+	key.Grow(len(path))
+	var slashes [][2]int
+	for offset, r := range path {
+		if r == '/' {
+			slashes = append(slashes, [2]int{offset, key.Len()})
+		}
+		key.WriteRune(foldRune(r))
 	}
-	return other[len(file)] == '/' && strings.EqualFold(file, other[:len(file)])
+	return key.String(), slashes
+}
+
+// foldRune returns the smallest rune in r's unicode.SimpleFold orbit.
+func foldRune(r rune) rune {
+	least := r
+	for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
+		if f < least {
+			least = f
+		}
+	}
+	return least
 }
 
 func refuseUnsafePath(path string) error {
@@ -376,7 +420,7 @@ func parseBatchHeader(line string) (oid, kind string, size int64, err error) {
 		return "", "", 0, fmt.Errorf("malformed batch header oid %q", fields[0])
 	}
 	size, convErr := strconv.ParseInt(fields[2], 10, 64)
-	if convErr != nil || size < 0 || size > maxExportTotalBytes {
+	if convErr != nil || size < 0 || size > exportLimits.totalBytes {
 		return "", "", 0, fmt.Errorf("malformed or out-of-bound batch size %q", fields[2])
 	}
 	return fields[0], fields[1], size, nil

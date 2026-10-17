@@ -145,14 +145,18 @@ func IngestRunEvidence(format string, raw []byte, header RunHeader) (Ingested, e
 	if len(raw) > MaxBytes {
 		return Ingested{Incomplete: BoundBytes}, nil
 	}
+	var bound boundError
+	// The receipt is bounded before its identity is decoded (AFU-V1-037).
 	if format == FormatPlaywrightReceipt {
+		if errors.As(playwrightReceiptBounded(raw), &bound) {
+			return Ingested{Incomplete: string(bound)}, nil
+		}
 		receipt, err := jstestprovider.DecodeAttemptReceipt(raw)
 		if err != nil || receipt.Identity.RunnerVersion == "" || receipt.Identity.RunnerVersion != header.RunnerVersion {
 			return Ingested{}, errors.New("external-attempt-runner-identity-mismatch")
 		}
 	}
 	tests, err := adapter.parse(raw)
-	var bound boundError
 	if errors.As(err, &bound) {
 		return Ingested{Incomplete: string(bound)}, nil
 	}
@@ -257,7 +261,7 @@ func jsonDepthBounded(raw []byte) error {
 			return nil
 		}
 		if err != nil {
-			return errors.New("run report is not valid JSON")
+			return errRunJSON
 		}
 		switch tok {
 		case json.Delim('{'), json.Delim('['):
@@ -296,7 +300,7 @@ type playwrightError struct {
 
 // parsePlaywrightRun reads a Playwright JSON report: one test per spec and project, one attempt per result.
 func parsePlaywrightRun(raw []byte) ([]*runTest, error) {
-	if err := jsonDepthBounded(raw); err != nil {
+	if err := playwrightRunBounded(raw); err != nil {
 		return nil, err
 	}
 	var doc struct {

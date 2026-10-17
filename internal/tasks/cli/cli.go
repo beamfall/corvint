@@ -64,7 +64,7 @@ type Env struct {
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
 	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket export",
-	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "reconcile inspect", "reconcile intent",
+	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "cutover",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
@@ -279,11 +279,13 @@ func Run(env Env) int {
 		return emit(env.Stdout, usage([]string{"reconcile"}, "unknown reconcile verb"))
 	case "receipt":
 		if len(args) < 2 {
-			return emit(env.Stdout, usage([]string{"receipt"}, "receipt needs a verb: audit, show <seq>, replay <seq>"))
+			return emit(env.Stdout, usage([]string{"receipt"}, "receipt needs a verb: audit, compact [--dry-run], show <seq>, replay <seq>"))
 		}
 		switch args[1] {
 		case "audit":
 			return emit(env.Stdout, receiptAudit(env, args[2:]))
+		case "compact":
+			return emit(env.Stdout, receiptCompact(env, args[2:]))
 		case "show", "replay":
 			return emit(env.Stdout, notRun([]string{"receipt", args[1]}))
 		}
@@ -437,7 +439,7 @@ func LiveFormats() []string {
 		wire.CriterionCaptureProfile, wire.CriterionVerificationProfile, wire.CriterionCaptureResultProfile,
 		archive.Profile, journal.ProfileCheckpoint, journal.ProfileWriterCheckpoint, mutation.Profile, mutation.OutcomeProfile,
 		intent.ProfileImportMap, intent.ProfileQueue, intent.ProfilePolicy,
-		snapshot.ProfileHead, snapshot.ProfileBarrier, snapshot.ProfileReceipt, snapshot.ProfileInit,
+		snapshot.ProfileHead, snapshot.ProfileBarrier, snapshot.ProfileReceipt, snapshot.ProfileElidedReceipt, snapshot.ProfileInit,
 		snapshot.ProfileAttempt, snapshot.ProfileReservations, snapshot.ProfileRetryAccounting,
 		snapshot.ProfileGateResult, snapshot.ProfileManifest, snapshot.SupervisedProfile,
 		snapshot.ProfileExternalReviewRequest, snapshot.ProfileExternalReviewEvent,

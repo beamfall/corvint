@@ -31,6 +31,27 @@ type chain struct {
 	// elided is the writer checkpoint a ModeWriter walk resumed from: its
 	// request paths are retained history the tail must not repeat.
 	elided *WriterCheckpoint
+	// restore rebuilds elided liveness receipts (taskman-receipt/1,
+	// CAL-V0-301) on a complete walk from receipt 1. A walk resumed from a
+	// checkpoint has none: it refuses a tombstone as an unusable checkpoint so
+	// the caller falls back to the complete walk.
+	restore *snapshot.ReceiptRestorer
+}
+
+// decode decodes one receipt of the walk and returns it with its original
+// bytes, the bytes the chain, the head and every fold bind.
+func (st *chain) decode(name string, raw []byte) (*snapshot.Receipt, []byte, error) {
+	if st.restore != nil {
+		return st.restore.Next(raw)
+	}
+	rc, err := snapshot.DecodeReceipt(raw)
+	if err != nil {
+		if _, _, elided, herr := snapshot.DecodeRetainedReceipt(raw); herr == nil && elided {
+			return nil, nil, errCheckpoint(name, "an elided liveness receipt needs the complete walk from receipt 1")
+		}
+		return nil, nil, err
+	}
+	return rc, raw, nil
 }
 
 // statePath names the private mutable state SelectState retains.
@@ -104,11 +125,14 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 	if result.Pending && (r.divergentIntent != "" || (r.unpauseTickets && !r.pendingUnpause)) {
 		return result, wire.Errorf(wire.CodeRedoPending, "receipts", "this observation requires a settled journal")
 	}
-	st := &chain{canonical: map[string]latest{}}
+	st := &chain{canonical: map[string]latest{}, restore: &snapshot.ReceiptRestorer{}}
 	for i, name := range o.receipts {
 		if err := r.step(o, st, result, name, uint64(i+1), headSeq, selected, request, lim); err != nil {
 			return result, err
 		}
+	}
+	if err := st.restore.Superseded(); err != nil {
+		return result, err
 	}
 	result.chain = st
 	canonical, genesisQueue := st.canonical, st.genesisQueue
@@ -166,7 +190,7 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 	if err != nil {
 		return err
 	}
-	rc, err := snapshot.DecodeReceipt(raw)
+	rc, raw, err := st.decode(name, raw)
 	if err != nil {
 		return err
 	}

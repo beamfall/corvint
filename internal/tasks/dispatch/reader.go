@@ -371,7 +371,11 @@ func (d *Dispatcher) stateCommand(parent context.Context, dir string, argv []str
 	if !groupreap.OwnerAvailable() {
 		return nil, groupreap.ErrOwnerUnavailable
 	}
-	ctx, cancel := context.WithTimeout(parent, stateTimeout)
+	limit := stateTimeout
+	if w := d.Config.WorkState; w != nil {
+		limit = w.Timeout()
+	}
+	ctx, cancel := context.WithTimeout(parent, limit)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Dir, cmd.WaitDelay = dir, time.Second
@@ -420,6 +424,11 @@ func (d *Dispatcher) stateCommand(parent context.Context, dir string, argv []str
 	}
 	var states map[string]commandState
 	err = slot.result.WaitErr
+	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) && parent.Err() == nil {
+		// CAL-V0-274: the overrun killed the command; name the cause, not
+		// the signal.
+		err = fmt.Errorf("timed out after %ds", int(limit/time.Second))
+	}
 	if err == nil {
 		if out.over {
 			err = fmt.Errorf("output exceeds %d bytes", maxStateCommand)

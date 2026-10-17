@@ -254,9 +254,14 @@ func reapOne(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 }
 
 // replayedAttempt reads the attempt a replayed lease command named from its
-// original receipt.
+// original receipt. A replayed heartbeat or renew may name an elided
+// liveness receipt (CAL-V0-300), whose header is retained in full.
 func replayedAttempt(repo *intent.Repository, report *Report) error {
-	rc, err := readReceipt(repo, report.Outcome.ReceiptSeq.Uint64())
+	raw, err := readReceiptBytes(repo, report.Outcome.ReceiptSeq.Uint64())
+	if err != nil {
+		return err
+	}
+	rc, _, _, err := snapshot.DecodeRetainedReceipt(raw)
 	if err != nil {
 		return err
 	}
