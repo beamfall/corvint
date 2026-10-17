@@ -48,6 +48,13 @@ const (
 // attemptBeatInterval separates heartbeats while the command runs.
 var attemptBeatInterval = 240 * time.Second
 
+// runWriteBudget bounds each of the runner's store writes, and the outcome
+// write's retries together (ATR-V0-051); tests shorten it.
+var runWriteBudget = runWriteBound
+
+// runOutcomeBackoff separates retries of a retryable outcome write.
+const runOutcomeBackoff = 250 * time.Millisecond
+
 // Test-only fault injection; both are zero in production. attemptWriteFault,
 // when set, can fail a lease write of the named verb before it is attempted;
 // attemptGroupPrimitives replaces the owned group's host operations.
@@ -271,7 +278,7 @@ func (r *attemptRunner) leaseWrite(ctx context.Context, id, verb string, minutes
 }
 
 func bounded() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(writerContext(), runWriteBound)
+	return context.WithTimeout(writerContext(), runWriteBudget)
 }
 
 // refusal is the closed code of a lease write that did not complete, or ""
@@ -312,11 +319,18 @@ func (r *attemptRunner) prepare() (int, *wire.Result) {
 		}
 		return refuse(code, []string{why}, "the attempt's authority was refused before launch")
 	}
+	// A store write or read whose bounded context ended under writer
+	// contention is the retryable LOCK_TIMEOUT, never MALFORMED (ATR-V0-050).
+	failed := func(err error) (int, *wire.Result) {
+		res := errorResult(cmd, wire.ContextEnded(err, "attempt run"))
+		res.Warnings = append(res.Warnings, "the command was not started and no outcome was recorded")
+		return 1, res
+	}
 	ctx, cancel := bounded()
 	defer cancel()
 	report, err := r.leaseWrite(ctx, r.nextID(), transaction.LeaseHeartbeat, 0)
 	if err != nil {
-		return 1, errorResult(cmd, err)
+		return failed(err)
 	}
 	r.redone = report.Redone
 	if why := refusal(report); why != "" {
@@ -326,7 +340,7 @@ func (r *attemptRunner) prepare() (int, *wire.Result) {
 	need := r.timeout + runCleanupGrace + runCoverageMargin
 	a, err := store.AttemptRecord(ctx, r.repo, r.attemptID)
 	if err != nil {
-		return 1, errorResult(cmd, err)
+		return failed(err)
 	}
 	if !covers(a, r.generation, time.Now().Add(need)) {
 		minutes := uint64((need + time.Minute - 1) / time.Minute)
@@ -338,7 +352,7 @@ func (r *attemptRunner) prepare() (int, *wire.Result) {
 		}
 		report, err = r.leaseWrite(ctx, r.nextID(), transaction.LeaseRenew, minutes)
 		if err != nil {
-			return 1, errorResult(cmd, err)
+			return failed(err)
 		}
 		r.redone = r.redone || report.Redone
 		if why := refusal(report); why != "" {
@@ -346,7 +360,7 @@ func (r *attemptRunner) prepare() (int, *wire.Result) {
 		}
 		r.renewals++
 		if a, err = store.AttemptRecord(ctx, r.repo, r.attemptID); err != nil {
-			return 1, errorResult(cmd, err)
+			return failed(err)
 		}
 	}
 	if !covers(a, r.generation, time.Now().Add(r.timeout+runCleanupGrace)) {
@@ -544,9 +558,7 @@ func (r *attemptRunner) finish(out transaction.RunOutcome) int {
 	if err == nil {
 		digest = wire.String(string(wire.Sum(raw)))
 		var report *store.Report
-		ctx, cancel := bounded()
-		report, err = store.RecordRunOutcome(ctx, r.repo, r.actor, r.queueID, r.nextID(), r.attemptID, r.generation, raw, nowStamp())
-		cancel()
+		report, err = r.recordOutcome(raw)
 		if err == nil && report.Outcome.Outcome != mutation.OutcomeCompleted {
 			err = wire.Errorf(refusal(report), "run outcome", "the outcome receipt was refused: %s", report.Detail)
 		}
@@ -589,6 +601,23 @@ func (r *attemptRunner) finish(out transaction.RunOutcome) int {
 	}
 	res.Items = []wire.Value{wire.ObjectValue(item)}
 	return emitCode(r.env.Stdout, res, status)
+}
+
+// recordOutcome writes the outcome under one request id, retrying a
+// retryable write error within one write budget (ATR-V0-051). The same id
+// replays a write that committed before its reply was lost.
+func (r *attemptRunner) recordOutcome(raw []byte) (*store.Report, error) {
+	id, deadline := r.nextID(), time.Now().Add(runWriteBudget)
+	for {
+		ctx, cancel := context.WithDeadline(writerContext(), deadline)
+		report, err := store.RecordRunOutcome(ctx, r.repo, r.actor, r.queueID, id, r.attemptID, r.generation, raw, nowStamp())
+		cancel()
+		err = wire.ContextEnded(err, "run outcome")
+		if err == nil || !wire.RetryOf(wire.CodeOf(err)).Retryable || time.Now().Add(runOutcomeBackoff).After(deadline) {
+			return report, err
+		}
+		time.Sleep(runOutcomeBackoff)
+	}
 }
 
 // runStatus maps a recorded class to the runner's exit status; an

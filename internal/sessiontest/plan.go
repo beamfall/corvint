@@ -262,18 +262,27 @@ func (m *Manifest) placeGo(input Input, run []string) {
 }
 
 // placeMeasured puts every Go package of the run set, NARROWED or FULL,
-// whole on the shard the shard plan assigns it (STR-V0-054). A plan for
-// another shard count or one that omits a run-set package places nothing:
-// the run is INCOMPLETE rather than run on a guessed shard.
+// whole on the shard the shard plan assigns it (STR-V0-054), or, for a
+// package the plan carries as test slices, each slice on its planned shard
+// (STR-V0-057). A plan for another shard count or one that omits a run-set
+// package places nothing: the run is INCOMPLETE rather than run on a guessed
+// shard.
 func (m *Manifest) placeMeasured(plan ShardPlan, count int, run []string) {
 	if plan.Count != count {
 		m.Incomplete = append(m.Incomplete, fmt.Sprintf("go: the shard plan has %d shards, the run %d", plan.Count, count))
 		return
 	}
 	shardOf := map[string]int{}
+	slicesOf := map[string][]Unit{}
 	for _, shard := range plan.Shards {
 		for _, file := range shard.Files {
 			shardOf[file] = shard.Index
+		}
+		for _, slice := range shard.Slices {
+			slicesOf[slice.Package] = append(slicesOf[slice.Package], Unit{
+				Adapter: AdapterGo, Flag: slice.Flag, Pattern: slice.Pattern, Shard: shard.Index,
+				Slice: fmt.Sprintf("%d/%d", slice.Index, slice.Count), Unit: "go:" + slice.Package,
+			})
 		}
 	}
 	set := map[string]bool{}
@@ -283,7 +292,7 @@ func (m *Manifest) placeMeasured(plan ShardPlan, count int, run []string) {
 	packages := sortedKeys(set)
 	missing := []string{}
 	for _, pkg := range packages {
-		if _, ok := shardOf[pkg]; !ok {
+		if _, ok := shardOf[pkg]; !ok && len(slicesOf[pkg]) == 0 {
 			missing = append(missing, pkg)
 		}
 	}
@@ -292,6 +301,10 @@ func (m *Manifest) placeMeasured(plan ShardPlan, count int, run []string) {
 		return
 	}
 	for _, pkg := range packages {
+		if units, ok := slicesOf[pkg]; ok {
+			m.Units = append(m.Units, units...)
+			continue
+		}
 		m.Units = append(m.Units, Unit{Adapter: AdapterGo, Shard: shardOf[pkg], Slice: SliceWhole, Unit: "go:" + pkg})
 	}
 }

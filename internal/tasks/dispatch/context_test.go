@@ -3,6 +3,7 @@
 package dispatch
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -13,6 +14,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // claudeAssistant is a main-session Claude Code assistant event whose usage
@@ -663,5 +666,106 @@ func TestATRV0035_DeferredAndRecoveredHandoffsKeepContext(t *testing.T) {
 	}
 	if len(dd.deferredContext) != 0 {
 		t.Fatalf("deferred context kept after the hand-off: %v", dd.deferredContext)
+	}
+}
+
+func TestATRV0054_NewerContextRecordIsPreserved(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	c.Roles[0].UsageFormat = "claude-code"
+	c.Roles[0].Context = &ContextLimits{WarnTokens: 100, HandoffTokens: 200, HardTokens: 300}
+	d, err := Open("ctx", c, &fakeQueue{}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { d.Close() })
+	now := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
+	w := &Worker{ID: "w1", Role: "impl", Ticket: "ticket:a:q:t1", Usage: &WorkerUsage{Format: "claude-code"}}
+	if err := os.MkdirAll(d.workerDir(w.ID), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	newer := []byte(`{"profile":"taskman-dispatch-context/1","worker":"w1","future":true}` + "\n")
+	path := ContextRecordPath(d.dir, w.ID)
+	if err := os.WriteFile(path, newer, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadContextRecord(d.dir, w.ID); wire.CodeOf(err) != wire.CodeUnsupportedVersion {
+		t.Fatalf("newer record read as %v", err)
+	}
+	step := func(tokens uint64) bool {
+		w.Usage.observeContext(tokens, true)
+		now = now.Add(time.Second)
+		return d.noteContext(w, now)
+	}
+	// Every threshold is crossed; nothing is written, no crossing is
+	// reported, one alert names the record, and the hard stop still follows
+	// the estimate.
+	if step(150) || step(250) {
+		t.Fatal("a stop below hardTokens")
+	}
+	if !step(350) {
+		t.Fatal("the hard estimate did not decide a stop over a newer record")
+	}
+	if got, _ := os.ReadFile(path); !bytes.Equal(got, newer) {
+		t.Fatalf("the newer record was overwritten: %s", got)
+	}
+	if n := len(eventsOf(t, d, "context")); n != 0 {
+		t.Fatalf("%d crossings reported over a newer record", n)
+	}
+	alerts := eventsOf(t, d, "alert")
+	if len(alerts) != 1 || !strings.Contains(alerts[0].Message, "another build") {
+		t.Fatalf("alerts %+v", alerts)
+	}
+	// A restart alerts once more and still preserves the file.
+	d.contexts = nil
+	step(360)
+	if got, _ := os.ReadFile(path); !bytes.Equal(got, newer) {
+		t.Fatalf("the newer record was overwritten after a restart: %s", got)
+	}
+	if n := len(eventsOf(t, d, "alert")); n != 2 {
+		t.Fatalf("%d alerts after a restart", n)
+	}
+}
+
+func TestATRV0055_CorruptContextRecordIsReplacedAfterOneAlert(t *testing.T) {
+	for name, raw := range map[string]string{
+		"not JSON":      "{\n",
+		"truncated":     `{"profile":"taskman-dispatch-context/0","worker":"w1"`,
+		"no profile":    `{"worker":"w1"}` + "\n",
+		"non-canonical": `{"profile":"taskman-dispatch-context/0","worker":"w1","tokens":"010"}` + "\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := testConfig(t, "exit 0")
+			c.Roles[0].UsageFormat = "claude-code"
+			c.Roles[0].Context = &ContextLimits{WarnTokens: 100}
+			d, err := Open("ctx", c, &fakeQueue{}, io.Discard)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { d.Close() })
+			w := &Worker{ID: "w1", Role: "impl", Ticket: "ticket:a:q:t1", Usage: &WorkerUsage{Format: "claude-code"}}
+			if err := os.MkdirAll(d.workerDir(w.ID), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(ContextRecordPath(d.dir, w.ID), []byte(raw), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			now := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
+			for _, n := range []uint64{50, 150} {
+				w.Usage.observeContext(n, true)
+				now = now.Add(time.Second)
+				d.noteContext(w, now)
+			}
+			alerts := eventsOf(t, d, "alert")
+			if len(alerts) != 1 || !strings.Contains(alerts[0].Message, "unreadable") {
+				t.Fatalf("alerts %+v", alerts)
+			}
+			rec, err := ReadContextRecord(d.dir, w.ID)
+			if err != nil || rec.Tokens != "150" || rec.Level != ContextWarn {
+				t.Fatalf("replacement %+v %v", rec, err)
+			}
+			if n := len(eventsOf(t, d, "context")); n != 1 {
+				t.Fatalf("%d crossings after the replacement", n)
+			}
+		})
 	}
 }

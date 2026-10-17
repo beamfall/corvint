@@ -199,7 +199,14 @@ func doctorCommand(env Env, args []string) *wire.Result {
 		render := func(prev []byte) ([]byte, error) {
 			reported = findings
 			if cfg.notify == nil {
-				cache := doctorItem(rc, scan, reported, carry, doctorCacheProfile, doctorCacheBytes)
+				// A refresh without a hook keeps the recorded notify state,
+				// so a later configured refresh neither reruns the hook for
+				// a set it already ran for nor loses a recorded failure.
+				if !doctorHasNotify(prev) {
+					return wire.EncodeFile(doctorItem(rc, scan, reported, carry, doctorCacheProfile, doctorCacheBytes)), nil
+				}
+				cache := doctorItem(rc, scan, reported, carry, doctorCacheProfile, doctorCacheBytes-4096)
+				cache.Obj.Set("notify", doctorNotifyStateOf(prev).value())
 				return wire.EncodeFile(cache), nil
 			}
 			summary := wire.EncodeFile(doctorItem(rc, scan, findings, carry, doctorProfile, 0))
@@ -294,6 +301,8 @@ func doctorStoreFindings(rc *readCtx, scan *doctorScan, th doctorThresholds) ([]
 	out = append(out, doctorSlowLane(scan)...)
 	out = append(out, doctorSetupOnly(rc, scan)...)
 	out = append(out, doctorNoCompletions(rc, in, th, scan)...)
+	handoff := doctorHandoffCandidate(rc)
+	out = append(out, doctorSessionChurn(scan, func(id string) bool { ok, _ := handoff(id); return ok }, out)...)
 	return out, nil
 }
 
