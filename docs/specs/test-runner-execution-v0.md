@@ -87,8 +87,8 @@ refusal and first-use helper failure remain retained. Detox lacks a qualified ta
 legacy Storybook collection is blocked by the observed runtime incompatibility. Playwright now retains actual pinned Chrome DOM pass/fail/skip/retry/zero/collection cases;
 a timeout initially left its native detached browser group alive (V1-0608), with durable cleanup
 repair independently reviewed and locally qualified for native cooperating Playwright; TRE-V0-034 adds
-executor-owned retirement of escaped descendants for every profile. The prior no-browser fixture remains retained. Nightwatch's current fixture
-used `start_session:false`, so its browser execution remains NOT_OBSERVED. Other OS versions, retries, parameterized cases and lifecycle negatives remain open
+executor-owned retirement of escaped descendants for every profile. The prior no-browser fixture remains retained. Nightwatch 3.16.0 now has a real
+Chrome for Testing 154 session witness (see Dynamic qualification matrix 2026-10-17 (V1-0592)). Other OS versions, retries, parameterized cases and lifecycle negatives remain open
 where their adapter provenance says so.
 
 ### Boost.Test JUnit sink (experimental)
@@ -289,17 +289,17 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `aggregate-count-missing` | A SUITE_ONLY observation omits executedCount or skippedCount. | `internal/testrunner/validate.go:55@5e7e342a` |
 | `aggregate-state-conflict` | A SUITE_ONLY PASSED row has zero executed cases, or a SKIPPED row has a nonzero executed count. | `internal/testrunner/validate.go:62@2dd1d409` |
 | `ambiguous-expected-selector` | An expected native test identity is empty or repeated. | `internal/testrunner/validate.go:93@98f1f50a` |
-| `ambiguous-test-identity` | An observed native test identity is empty or repeated. | `internal/testrunner/validate.go:69@789f20a9` |
+| `ambiguous-test-identity` | An observed native test identity is empty or repeated, or a Node top-level event at 1:1 named after its file cannot be told apart from Node's file-level event. | `internal/testrunner/validate.go:69@789f20a9` |
 | `attempt-bound` | An observed test has more than MaxAttempts retained attempts. | `internal/testrunner/validate.go:82@6aa55fa4` |
-| `attempt-outcome-conflict` | Playwright result statuses contradict its expected/unexpected/flaky/skipped category, or retained attempts contradict the final state (including a flaky result without at least two attempts ending in pass). | `internal/testrunner/dynamic/native.go:394@21e82322`; `internal/testrunner/dynamic/native.go:398@21e82322`; `internal/testrunner/dynamic/native.go:402@21e82322`; `internal/testrunner/dynamic/native.go:406@21e82322`; `internal/testrunner/dynamic/validation.go:158@24bd514f` |
-| `attempt-sequence` | A Playwright result retry number differs from its zero-based result position. | `internal/testrunner/dynamic/native.go:364@93e0a03b` |
-| `case-error-conflict` | WDIO reports a native error for a nonfailed case, or Node reports a non-TODO pass event with an error. | `internal/testrunner/dynamic/native.go:166@7456805d`; `internal/testrunner/dynamic/browser.go:139@89d45ae9` |
-| `collection-or-hook-error` | A Jest/Vitest file reports failed status without a failed assertion row in that file. | `internal/testrunner/dynamic/parse.go:264@11da83fa` |
-| `collection-or-plan-error` | The AVA TAP plan count differs from the observed sequential outcome count. | `internal/testrunner/dynamic/native.go:298@e3eaf1ea` |
-| `conflicting-outcomes` | A TestCafe skipped case also has errors, or an XML skipped case also has failure/error elements. | `internal/testrunner/dynamic/native.go:75@4df23ffc`; `internal/testrunner/dynamic/browser.go:51@02fd57db` |
+| `attempt-outcome-conflict` | Playwright result statuses contradict its expected/unexpected/flaky/skipped category, or retained attempts contradict the final state (including a flaky result without at least two attempts ending in pass). | `internal/testrunner/dynamic/native.go:443@21e82322`; `internal/testrunner/dynamic/native.go:447@21e82322`; `internal/testrunner/dynamic/native.go:451@21e82322`; `internal/testrunner/dynamic/native.go:455@21e82322`; `internal/testrunner/dynamic/validation.go:158@24bd514f` |
+| `attempt-sequence` | A Playwright result retry number differs from its zero-based result position. | `internal/testrunner/dynamic/native.go:413@93e0a03b` |
+| `case-error-conflict` | WDIO reports a native error for a nonfailed case, or Node reports a non-TODO pass event with an error. | `internal/testrunner/dynamic/native.go:195@7456805d`; `internal/testrunner/dynamic/browser.go:139@89d45ae9` |
+| `collection-or-hook-error` | A Jest/Vitest file reports failed status without a failed assertion row in that file. | `internal/testrunner/dynamic/parse.go:272@11da83fa` |
+| `collection-or-plan-error` | The AVA TAP plan count differs from the observed sequential outcome count. | `internal/testrunner/dynamic/native.go:347@e3eaf1ea` |
+| `conflicting-outcomes` | A TestCafe skipped case also has errors, or an XML skipped case also has failure/error elements. | `internal/testrunner/dynamic/native.go:85@4df23ffc`; `internal/testrunner/dynamic/browser.go:51@02fd57db` |
 | `contradictory-exit` | A shared-boundary success exit accompanies an observed FAILED test. | `internal/testrunner/validate.go:122@8df4cef9` |
-| `count-mismatch` | A parsed native report total or category count disagrees with its observed rows, outcomes or attempts; the compared denominator is format-specific; or Node reports a negative skipped/todo count. | `internal/testrunner/dynamic/native.go:99@9a0a1c7f`; `internal/testrunner/dynamic/native.go:103@74f3bece`; `internal/testrunner/dynamic/native.go:200@b6957ba2`; `internal/testrunner/dynamic/native.go:226@ad1ded29`; `internal/testrunner/dynamic/native.go:424@0546fe58`; `internal/testrunner/dynamic/browser.go:57@312cf3e9`; `internal/testrunner/dynamic/browser.go:102@de598de5`; `internal/testrunner/dynamic/browser.go:159@6329112d`; `internal/testrunner/dynamic/browser.go:255@d7afa062`; `internal/testrunner/dynamic/parse.go:275@6144e481`; `internal/testrunner/dynamic/parse.go:282@9b100a65`; `internal/testrunner/dynamic/parse.go:335@c89d4e2d`; `internal/testrunner/dynamic/parse.go:355@5e2333a0`; `internal/testrunner/dynamic/parse.go:379@a3fc5178` |
-| `exception-conflict` | An RSpec example maps to PASSED while retaining an exception object. | `internal/testrunner/dynamic/parse.go:350@3ad339db` |
+| `count-mismatch` | A parsed native report total or category count disagrees with its observed rows, outcomes or attempts; the compared denominator is format-specific; or Node reports a negative skipped/todo count. | `internal/testrunner/dynamic/native.go:111@9a0a1c7f`; `internal/testrunner/dynamic/native.go:115@74f3bece`; `internal/testrunner/dynamic/native.go:230@b6957ba2`; `internal/testrunner/dynamic/native.go:259@ad1ded29`; `internal/testrunner/dynamic/native.go:473@0546fe58`; `internal/testrunner/dynamic/browser.go:57@312cf3e9`; `internal/testrunner/dynamic/browser.go:102@de598de5`; `internal/testrunner/dynamic/browser.go:159@6329112d`; `internal/testrunner/dynamic/browser.go:255@d7afa062`; `internal/testrunner/dynamic/parse.go:283@6144e481`; `internal/testrunner/dynamic/parse.go:290@9b100a65`; `internal/testrunner/dynamic/parse.go:343@c89d4e2d`; `internal/testrunner/dynamic/parse.go:363@5e2333a0`; `internal/testrunner/dynamic/parse.go:387@a3fc5178` |
+| `exception-conflict` | An RSpec example maps to PASSED while retaining an exception object. | `internal/testrunner/dynamic/parse.go:358@3ad339db` |
 | `exit-report-conflict` | A dynamic runner exits zero while a parsed test is FAILED, TIMED_OUT or INTERRUPTED. | `internal/testrunner/dynamic/parse.go:150@a9d4d7aa` |
 | `hook-error` | A WDIO hook has a native error or literal failed state. | `internal/testrunner/dynamic/browser.go:153@9b21db50` |
 | `hook-or-unmatched-result` | The Cypress/Mocha result-status identity count differs from the collected test-row count. | `internal/testrunner/dynamic/browser.go:105@7ff4ce18` |
@@ -317,44 +317,44 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `jasmine-suite-error` | A Jasmine suite is failed or retains failed expectations, such as a beforeAll or afterAll error. | `internal/testrunner/dynamic/jasmine.go:115@e24ba611` |
 | `jasmine-unknown-overall-status` | Jasmine's overallStatus is not passed, failed or incomplete. | `internal/testrunner/dynamic/jasmine.go:183@cacab051` |
 | `jasmine-unselected-file` | A Jasmine run with spec-file selectors reports a spec from a file outside their root-joined paths. | `internal/testrunner/dynamic/jasmine.go:143@cddb7713` |
-| `missing-attempt` | A non-skipped Playwright test has no results, or a test passed to retained-attempt validation has no attempts. | `internal/testrunner/dynamic/native.go:411@92208046`; `internal/testrunner/dynamic/validation.go:153@a1b5f038` |
-| `missing-count` | An XML suite containing direct testcase rows omits its tests count. | `internal/testrunner/dynamic/native.go:57@e722f2b9` |
-| `missing-name` | An XML testcase has an empty name. | `internal/testrunner/dynamic/native.go:72@e3950df9` |
-| `missing-native-id` | A Playwright spec has an empty native ID. | `internal/testrunner/dynamic/native.go:347@dceb991e` |
+| `missing-attempt` | A non-skipped Playwright test has no results, or a test passed to retained-attempt validation has no attempts. | `internal/testrunner/dynamic/native.go:460@92208046`; `internal/testrunner/dynamic/validation.go:153@a1b5f038` |
+| `missing-count` | An XML suite containing direct testcase rows omits its tests count. | `internal/testrunner/dynamic/native.go:60@e722f2b9` |
+| `missing-name` | An XML testcase has an empty name. | `internal/testrunner/dynamic/native.go:75@e3950df9` |
+| `missing-native-id` | A Playwright spec has an empty native ID. | `internal/testrunner/dynamic/native.go:396@dceb991e` |
 | `missing-report` | A non-AVA dynamic runner supplies no report files. | `internal/testrunner/dynamic/parse.go:60@9dbf26dd` |
 | `missing-selected-test` | An expected native test identity is absent from observed identities. | `internal/testrunner/validate.go:97@034a7064` |
-| `missing-summary` | The Node event stream ends without a final summary having an empty file field. | `internal/testrunner/dynamic/native.go:223@3d3dab29` |
+| `missing-summary` | The Node event stream ends without a final summary having an empty file field. | `internal/testrunner/dynamic/native.go:256@3d3dab29` |
 | `negative-count` | A Nightwatch completed test has a negative retries, failed or errors count. | `internal/testrunner/dynamic/browser.go:217@0993c5a5` |
 | `nightwatch-hook-error` | A Nightwatch completed section without a matching completed test reports errors, failures or literal fail status. | `internal/testrunner/dynamic/browser.go:197@7dccaec6` |
 | `nightwatch-runtime-error` | Nightwatch reports system error text, a nonzero error count or error messages; or lastError is not a decodable NightwatchAssertError supported by a retained failed attempt. | `internal/testrunner/dynamic/browser.go:192@558311a9`; `internal/testrunner/dynamic/browser.go:251@79465e5a` |
 | `nightwatch-test-error` | A Nightwatch completed test has a positive errors count. | `internal/testrunner/dynamic/browser.go:237@342f8ce7` |
 | `no-executed-inventory` | A SUITE_ONLY observation has both counts present and their sum is zero. | `internal/testrunner/validate.go:66@710cfe9e` |
-| `node-run-unsuccessful` | The final Node summary reports success=false without an observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:211@5e6d82cd` |
-| `node-runtime-error` | A Node test error has a failureType other than testCodeFailure, testTimeoutFailure or cancelledByParent. | `internal/testrunner/dynamic/native.go:176@40fd52ec` |
-| `node-suite-error` | A Node suite fail/error is not explained by subtestsFailed plus an already observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:149@7e3f3a32` |
-| `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:338@503ba44e` |
-| `playwright-global-error` | The Playwright report contains a top-level error entry. | `internal/testrunner/dynamic/native.go:334@7d964fc3` |
+| `node-run-unsuccessful` | The final Node summary reports success=false without an observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:241@5e6d82cd` |
+| `node-runtime-error` | A Node test error has a failureType other than testCodeFailure, testTimeoutFailure or cancelledByParent. | `internal/testrunner/dynamic/native.go:205@40fd52ec` |
+| `node-suite-error` | A Node suite fail/error is not explained by subtestsFailed plus an already observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:166@7e3f3a32` |
+| `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:346@503ba44e` |
+| `playwright-global-error` | The Playwright report contains a top-level error entry. | `internal/testrunner/dynamic/native.go:383@7d964fc3` |
 | `process-containment` | Escaped-descendant containment of an executor phase was incomplete: a retained escaped identity survived the bounded observation, or the structural proof could not be completed. | `internal/testrunner/execute_unix.go:239@aafefb4d` |
-| `retry-history-missing` | Nightwatch declares positive retries without the same number of retained prior attempts; or Jest/Vitest indicates multiple invocations or passing-with-failure-messages without reconstructable attempt history. | `internal/testrunner/dynamic/browser.go:224@f37527eb`; `internal/testrunner/dynamic/parse.go:254@7bb3fc94`; `internal/testrunner/dynamic/parse.go:254@7bb3fc94` |
+| `retry-history-missing` | Nightwatch declares positive retries without the same number of retained prior attempts; or Jest/Vitest indicates multiple invocations or passing-with-failure-messages without reconstructable attempt history. | `internal/testrunner/dynamic/browser.go:224@f37527eb`; `internal/testrunner/dynamic/parse.go:262@7bb3fc94`; `internal/testrunner/dynamic/parse.go:262@7bb3fc94` |
 | `runner-exit` | The shared boundary receives a negative exit code or one outside all admitted success/failure/outcome-neutral lists. | `internal/testrunner/validate.go:119@a90e3e46` |
-| `runner-unsuccessful` | Jest/Vitest reports success=false with assertion rows but no observed FAILED test. | `internal/testrunner/dynamic/parse.go:296@4b70a549` |
-| `runtime-error` | Jest/Vitest reports a positive runtime-error suite count. | `internal/testrunner/dynamic/parse.go:288@be9d02c7` |
+| `runner-unsuccessful` | Jest/Vitest reports success=false with assertion rows but no observed FAILED test. | `internal/testrunner/dynamic/parse.go:304@4b70a549` |
+| `runtime-error` | Jest/Vitest reports a positive runtime-error suite count. | `internal/testrunner/dynamic/parse.go:296@be9d02c7` |
 | `section-test-conflict` | Nightwatch completed-section and completed-test records map to different states for the same name. | `internal/testrunner/dynamic/browser.go:211@7936fd1f` |
 | `selector-without-tests` | A Mocha file selector names a file with no observed test, including a missing path Mocha only warns about. | `internal/testrunner/dynamic/mocha_selection.go:46@1584fa21` |
-| `setup-or-runtime-error` | An XML testcase contains one or more error elements. | `internal/testrunner/dynamic/native.go:69@b1ab2b72` |
-| `success-conflict` | Jest/Vitest declares success with a failed assertion, or Node declares success with failed/cancelled counts or existing observation problems. | `internal/testrunner/dynamic/native.go:203@f9a16178`; `internal/testrunner/dynamic/parse.go:279@04a1c2a9` |
-| `tap-bailout` | The AVA TAP stream contains a line beginning Bail out!. | `internal/testrunner/dynamic/native.go:250@b75d2c79` |
+| `setup-or-runtime-error` | An XML testcase contains one or more error elements. | `internal/testrunner/dynamic/native.go:72@b1ab2b72` |
+| `success-conflict` | Jest/Vitest declares success with a failed assertion, or Node declares success with failed/cancelled counts or existing observation problems. | `internal/testrunner/dynamic/native.go:233@f9a16178`; `internal/testrunner/dynamic/parse.go:287@04a1c2a9` |
+| `tap-bailout` | The AVA TAP stream contains a line beginning Bail out!. | `internal/testrunner/dynamic/native.go:293@b75d2c79` |
 | `test-bound` | Observed inventory exceeds MaxTests at the shared boundary. | `internal/testrunner/validate.go:41@e88d43a4` |
 | `unclassified-exit` | An admitted shared-boundary failure exit has no observed FAILED test. | `internal/testrunner/validate.go:125@94987f7f` |
 | `unexpected-observed-test` | A Mocha run with file selectors and expected identities observes a test outside them. | `internal/testrunner/dynamic/mocha_selection.go:41@4ac5bca8` |
 | `unexplained-exit` | A dynamic runner exits nonzero without failed/timed-out/interrupted tests or any previously recorded observation problem. | `internal/testrunner/dynamic/parse.go:147@67d7a680` |
-| `unknown-attempt-state` | A Playwright attempt status maps to UNKNOWN, or the shared boundary sees an attempt state outside its admitted state enumeration. | `internal/testrunner/validate.go:86@94ec202d`; `internal/testrunner/dynamic/native.go:376@4a8c35e3` |
-| `unknown-expected-status` | A Playwright test with results has an expectedStatus that maps to UNKNOWN. | `internal/testrunner/dynamic/native.go:383@07ce9705` |
+| `unknown-attempt-state` | A Playwright attempt status maps to UNKNOWN, or the shared boundary sees an attempt state outside its admitted state enumeration. | `internal/testrunner/validate.go:86@94ec202d`; `internal/testrunner/dynamic/native.go:425@4a8c35e3` |
+| `unknown-expected-status` | A Playwright test with results has an expectedStatus that maps to UNKNOWN. | `internal/testrunner/dynamic/native.go:432@07ce9705` |
 | `unknown-granularity` | A shared-boundary granularity is neither empty, CASE nor SUITE_ONLY. | `internal/testrunner/validate.go:47@50f6c9dd` |
-| `unknown-node-event-kind` | A Node pass/fail event is neither a suite nor a test in its details.type. | `internal/testrunner/dynamic/native.go:155@9933433d` |
+| `unknown-node-event-kind` | A Node pass/fail event is neither a suite nor a test in its details.type. | `internal/testrunner/dynamic/native.go:184@9933433d` |
 | `unknown-retry-information` | RetryInformation is not RETAINED, NOT_REPORTED or NOT_APPLICABLE. | `internal/testrunner/validate.go:128@b82d5be8` |
 | `unknown-state` | A dynamic parsed test has state UNKNOWN. | `internal/testrunner/dynamic/parse.go:137@53bac795` |
-| `unknown-suite-state` | A Jest/Vitest file status maps to UNKNOWN. | `internal/testrunner/dynamic/parse.go:267@045a51e8` |
+| `unknown-suite-state` | A Jest/Vitest file status maps to UNKNOWN. | `internal/testrunner/dynamic/parse.go:275@045a51e8` |
 | `unknown-test-state` | A shared-boundary test state is outside its admitted state enumeration. | `internal/testrunner/validate.go:73@8c1af2e1` |
 | `unresolved-test-state` | A shared-boundary test state is UNKNOWN, INTERRUPTED or TIMED_OUT. | `internal/testrunner/validate.go:79@80befa5b` |
 | `unselected-test-file` | A Mocha test with file selectors reports a native file outside their lexical root-joined paths. | `internal/testrunner/dynamic/mocha_selection.go:38@490b448f` |
@@ -1124,3 +1124,118 @@ restores silent zero-test selection. Restoring one argument per selector in
 `catch2` makes its plans rebuild differently, so existing plans are refused.
 Narrowing Catch2 success exits back to {0} makes all-skipped runs incomplete
 again. Historical receipts still bind.
+
+## Dynamic qualification matrix 2026-10-17 (V1-0592)
+
+V1-0592 re-ran every dynamic profile's P (pass), F (assertion failure), S (skip), Z (zero tests),
+C (collection/setup/build error), R (native retry) and T (timeout and interrupt) cases through
+`corvint-test-runner plan`/`run` on macOS 26 arm64 (Rails in a network-disabled Linux arm64
+container). Each case directory under `/private/tmp/cem10-build/dynamic-2026-10-17/<profile>/<case>/`
+retains the request, plan, receipt, raw native report, phase stdout/stderr and `summary.json` with
+the version tuple; prefixed directories (`*-prefix`, `*-launchfail`, `*-noconnect`, ...) retain the
+pre-repair or environment-failure runs. W is a witness; W! is witnessed and fail-closed (reported
+incomplete, never a pass); WF is witnessed as a complete FAILED run (the native runner attributes
+the error to a test); I is interrupt-only (the executor timeout is not witnessed); NA means no native
+feature. Before: W 75, parser-only 7, none 61, NA 11. After: W 135 (4 W!, 1 WF), I 1, parser-only 0,
+none 7, NA 11.
+
+| Profile | Tuple | P F S | Z | C | R | T |
+| --- | --- | --- | --- | --- | --- | --- |
+| mocha | Mocha 12.0.3, Node 22.23.3 | W | W | W | W | W |
+| jasmine | Jasmine 7.0.0 / core 7.0.2 | W | W | W | NA | W |
+| node-test | Node 22.23.3 | W | W | W | NA | W |
+| jest | Jest 30.5.2 | W | W | W | W (plain retry W!) | W |
+| vitest | Vitest 5.0.3, Vite 8.3.4 | W | W | W | W! | W |
+| ava | AVA 8.0.1 | W | W | W | NA | W |
+| bun-test | Bun 1.3.11 | W | W | W | W! | W |
+| deno-test | Deno 2.9.7 | W | W | W | NA | W |
+| playwright | 1.63.0; Chromium 153.0.8010.12, Firefox 155.0, WebKit 26.6 | W | W | W | W | W |
+| cypress | 16.1.1 (Electron 41.7.0); Chrome for Testing 154.0.8037.59 | W | W | W | W | W |
+| webdriverio | 9.32.0; Chrome for Testing + ChromeDriver 154.0.8037.59 | W | W | W | W! | W |
+| testcafe | 3.7.6; remote chrome-headless-shell 153.0.8010.12 | W | W | W | W | W |
+| nightwatch | 3.16.0; Chrome for Testing + ChromeDriver 154.0.8037.59 | W | W | W | W | W |
+| detox | none | N | N | N | NA | N |
+| storybook-test-runner | 0.26.0, Storybook 10.6.1, Jest 30.5.2, Chromium 153.0.8010.12 | W | W | WF | N | I |
+| storybook-vitest | Storybook 10.6.1, Vitest 5.0.3, Chromium 153.0.8010.12 | W | W | W | W! | W |
+| pytest | pytest 8.4.2, CPython 3.13.15 | W | W | W | NA | W |
+| unittest | CPython 3.13.15 and 3.9.6 | W | W | W | NA | W |
+| rspec | rspec-core 3.13.6, Ruby 2.6.10 | W | W | W | NA | W |
+| minitest | Minitest 5.11.3, Ruby 2.6.10 | W | W | W | NA | W |
+| test-unit | test-unit 3.2.9, Ruby 2.6.10 | W | W | W | NA | W |
+| rails-test | Rails 8.1.4, Ruby 3.4.11, Minitest 6.0.6 (Linux arm64 container) | W | W | W | NA | W |
+
+No Z, C or T witness became a pass. Every Z witness, every executor timeout and interrupt witness,
+the WebdriverIO and Nightwatch missing-shard runs and every W! retry produced an incomplete receipt.
+Three setup or collection witnesses are complete FAILED runs, because the native runner reports the
+error as a failed test: the Jest and RSpec `before`-hook failures (`jest/hook`, `rspec/hook`; their
+module-level collection witnesses `jest/collection` and `rspec/collection` are incomplete) and the
+Storybook module-load failure (`storybook-test-runner/collection`: the statically indexed story's
+`smoke-test` fails with "The story was missing", attempt failure kind UNKNOWN). That FAILED row is
+the runner's own verdict and is not a pass, but the receipt cannot tell a module-load error from a
+render failure. `storybook-test-runner/timeout` is also a complete FAILED run: Jest's pinned 15 s
+test timeout ended the hanging play function before the 60 s executor timeout
+(`timedOut: false`), so storybook-test-runner T is interrupt-only (`storybook-test-runner/interrupt`
+is incomplete). Four adapter defects found by the actual runs are repaired:
+
+- `TRE-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0592; amended by
+  the V1-0592 review follow-up) For `node-test`, a top-level test event at 1:1 named after its file
+  (Node's synthetic file-level event, or a real test with that name and position, which Node 22.23.3
+  reports with identical fields) MUST NOT become a test, a `no-tests` verdict or a
+  `collection-or-hook-error` verdict. It MUST record `ambiguous-test-identity`, leaving the run
+  incomplete, and MUST still reconcile against the native summary counts.
+- `TRE-V0-061`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For `ava`,
+  a TAP comment `# N test(s) remaining in <file>` MUST record `collection-or-hook-error`, so a
+  failing `before` hook that left declared tests unrun cannot yield a complete run.
+- `TRE-V0-062`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For
+  `bun-test`, a suite `line` attribute MUST be admitted, and a failing `(unnamed)` case without a
+  `line` (Bun's hook report) MUST be UNKNOWN with `setup-or-runtime-error`, reconciled as the
+  suite's declared failure, never a FAILED test.
+- `TRE-V0-063`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For
+  `storybook-test-runner`, the sole skipped `no-op` row of a file (the runner's placeholder for a
+  CSF file without stories) MUST be reconciled against the native counts but MUST NOT become a
+  test or retained retry information, so a run of only such files reports `no-tests`.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-060 | `dynamic/native.go` `parseNode`, `nodeFileEvent`; `TestNodeFileLevelEventsAreNotTests` | `node-test/zero-prefix` (complete PASSED before) and `collection-prefix` (complete FAILED before); `zero` and `collection` incomplete after; real collisions `filename-collision`, `filename-collision-fail`, `basename-collision` (dropped or misread before the amendment); `*-fixed` re-runs incomplete `ambiguous-test-identity`, `mixed-fixed` complete |
+| TRE-V0-061 | `dynamic/native.go` `parseTAP`; `TestAVARemainingTestsAfterHookFailure` | `ava/hook-prefix` (complete FAILED before); `ava/hook` incomplete after |
+| TRE-V0-062 | `dynamic/native.go` `parseXML`, `dynamic/validation.go` `closedXML`; `TestBunNativeJUnitShapes` | `bun-test/mixed-prefix` (refused before), `hook-prefix`; `mixed` complete and `hook` incomplete after |
+| TRE-V0-063 | `dynamic/parse.go` `parseJest`; `TestStorybookRunnerEmptyCSFPlaceholderIsNotATest` | `storybook-test-runner/zero-prefix` (complete SKIPPED, exit 0, before); `zero` incomplete `no-tests` after |
+
+The fixtures are the raw reports of those runs, hash-pinned in
+`internal/testrunner/dynamic/testdata/qualification-0592/provenance.json` with their receipt hashes.
+
+Browser launch notes. The executor clears the environment, so task-local launchers
+(`/private/tmp/cem10-build/toolchains-2026-10-17/`, hashes in the build log) set the browser
+path: WebKit needs `DYLD_FRAMEWORK_PATH`, Cypress its cache and binary path, TestCafe a remote
+browser, and the legacy Storybook runner a static build served on `127.0.0.1:6107`. Tool
+dependencies are declared as executor tools (`cat` for ChromeDriver under Nightwatch, `mkfifo`
+for TestCafe's window helper). Nightwatch names its report after the session browser
+(`CHROME_154.0.8037.59__a.json`), so the shard manifest must name that file.
+
+Release blockers that remain, each with the missing piece:
+
+- Detox (all cases): no Detox CLI install, no Detox-instrumented iOS `.app` or Android APK, no
+  `applesimutils` (a Homebrew-tap install outside the user-space rule) and no booted simulator or
+  emulator. Execution stays NOT_OBSERVED.
+- TestCafe local browser CLI: macOS Screen Recording permission for the browser is not granted
+  (`UnableToAccessScreenRecordingAPIError`, `testcafe/local-screen-recording-blocked`); only the
+  remote-browser path is qualified. Chrome for Testing 154 `--headless=new` never followed the
+  remote `/browser/connect` redirect (`testcafe/remote-cft154-noconnect`), so the remote witness
+  uses chrome-headless-shell 153.0.8010.12.
+- storybook-test-runner T: no executor-timeout witness (V1-1544). The pinned Jest config's 15 s test
+  timeout fires first and yields a complete FAILED run (`storybook-test-runner/timeout`); only the
+  interrupt path is qualified.
+- storybook-test-runner R: the profile pins the runner config and admits no Jest
+  `test-runner-jest.config.js`; the runner has no native retry flag. The optional
+  `.storybook/test-runner` config remains BLOCKED as recorded under TRE-V0-044.
+- W! retries stay fail-closed: Vitest 5.0.3 and storybook-vitest JSON omit per-attempt history
+  (`retry-history-missing`); Bun 1.3.11 JUnit and the WebdriverIO 9.32.0 JSON reporter repeat a
+  retried test's identity (`ambiguous-test-identity`). A qualified retry needs a native report that
+  carries attempts.
+- Minitest reports an erroring test (`Minitest::UnexpectedError`) as UNKNOWN, which makes the whole
+  run unresolved (`minitest/mixed`); assertion failures are witnessed separately
+  (`minitest/mixed-noerror`).
+
+Rollback reverts the four parser changes and their tests and fixtures; the matrix stays as
+retained evidence. Plans and receipts are unchanged in shape.
