@@ -1027,7 +1027,9 @@ was incomplete, never falsely complete.
 - `TRE-V0-046`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2` MUST pass its exact selectors as one quoted, comma-joined
   test-spec argument. Catch2 3.16.0 ORs the names in that argument and ANDs
   separate arguments. The existing refusal of wildcard, tag, exclusion,
-  escape, quote and option-like selectors is unchanged.
+  escape, quote and option-like selectors is unchanged, and a selector whose
+  prefix is `exclude:` (any case) MUST be refused too, because Catch2 3.16.0
+  interprets it as an exclusion even inside quotes.
 - `TRE-V0-047`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2` MUST accept native exit 4 (`AllTestsSkippedExitCode`) as
   success only when the report has at least one test and every test is
   `SKIPPED`. Exit 4 with any other report, and exit 4 for any other runner,
@@ -1036,7 +1038,7 @@ was incomplete, never falsely complete.
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
 | TRE-V0-045 | `native/native.go` `Build`; `TestBuildExactSelectorsAndFixedProfiles` | Failing before: `cases/cargo-doctest-pass` selected 0 of 1 doctests (`NO_TESTS`, incomplete). After: `cases/cargo-doctest-select-refused` is refused at plan |
-| TRE-V0-046 | `native/native.go` `Build`; `TestCatch2ExactSelectionAndAllSkippedExit` | Failing before: `cases/catch2-mixed` gave exit 2 with no tests. After: `cases/catch2-mixed-r2` gave exit 42, complete PASSED, FAILED and SKIPPED |
+| TRE-V0-046 | `native/native.go` `Build`; `TestCatch2ExactSelectionAndAllSkippedExit`, `TestCatch2RefusesExcludePrefix` | Failing before: `cases/catch2-mixed` gave exit 2 with no tests. After: `cases/catch2-mixed-r2` gave exit 42, complete PASSED, FAILED and SKIPPED |
 | TRE-V0-047 | `native/native.go` `Parse`; `TestCatch2ExactSelectionAndAllSkippedExit` | Failing before: `cases/catch2-skip` gave exit 4 and `EXIT_REPORT_CONTRADICTION`. After: `cases/catch2-skip-r2` gave exit 4, complete SKIPPED. A passed-only or empty report with exit 4 stays incomplete |
 
 Matrix. W means an actual shared-executor witness, P means parser-only and N
