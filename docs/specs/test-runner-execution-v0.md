@@ -1360,7 +1360,13 @@ binary that wrote it.
 - **bats**, **shellspec**: complete pass-fail-skip; `zero`, `build-error` and `timeout` are
   incomplete.
 - **sql-pgtap**, **sql-sqllogictest-sqlite**: separate pass, fail, skip and infrastructure
-  cases; `zero` and `build-error` are refused; `timeout` is `PROCESS_INCOMPLETE`. pgTAP
+  cases; `zero` is refused; `timeout` is `PROCESS_INCOMPLETE`. `build-error` differs by profile.
+  pgTAP (`runs/sql-pgtap/build-error/`, also `pre-0076/`): psql exit 3 on a syntax error is
+  incomplete with `SQL_PROCESS_ERROR`, `no-tests` and `runner-exit`. sqllogictest
+  (`runs/sql-sqllogictest-sqlite/build-error/`): the invalid statement is a failing query, not a
+  build error. The native runner exited 1 and the receipt is `complete: true` with one FAILED
+  `UNKNOWN` suite (`broken.slt:1: query failed`), no problems and no receipt error. It is not
+  refused; the profile has no build-error refusal (V1-1564). pgTAP
   `timeout` found the `TRE-V0-076` residual server session (`runs/sql-pgtap/pre-0076/`).
 - **appium-uiautomator2-wdio**: an Appium server on `127.0.0.1:4734`, owned by the
   qualification harness. `pass-fail-skip` reads the real `greeting` view (PASSED, FAILED,
@@ -1403,6 +1409,9 @@ Open residuals, retained and not fixed in this slice:
   and Gradle exceptions.
 - Kotest reports two errors for one failure, and the build-error case is refused rather than
   classified. Bats `timeout` reports a count mismatch instead of a plain timeout.
+- `sql-sqllogictest-sqlite` has no build-error refusal: a SQL statement the engine rejects is
+  recorded as a complete FAILED suite. Release blocker: no witness distinguishes a rejected
+  statement from an assertion mismatch, because the native report carries no such field.
 - `xcode-xctest` `zero` and `build-error` are refused because destination reports disagree.
 - Gradle and Maven write `build/` and `target/` into the fixture tree. Java ignores `TMPDIR`
   on macOS.
