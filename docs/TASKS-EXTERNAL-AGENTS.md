@@ -96,6 +96,11 @@ and may say UNKNOWN even when admission is possible. `claim --next` makes select
 reservation atomic. Explicit `claim TICKET --scope src/` can bound a requested scope; its
 safety remains the holder's responsibility, and submitted changes outside it refuse.
 
+`corvint-tasks plan batches [--max-group-size N] [--shared-path PATH]...` is a read-only proposal
+of integration batches: submitted or ready candidates with pairwise-disjoint changed paths (apart
+from shared paths), each join confirmed by a dry `git merge-tree` that adds no object or ref.
+Conflicts appear in `splits`; unresolvable candidates appear in `ungrouped` (NTP-V0-020..025).
+
 ## Finish the same attempt
 
 Retain the returned attempt ID and generation. Renew before the lease expires. All subsequent
