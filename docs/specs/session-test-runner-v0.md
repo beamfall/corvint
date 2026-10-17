@@ -276,8 +276,14 @@ STR-V0-009 fan-in through a third placement.
   the runs used, the per-file weights, the flagged unknown files, the fallback reason (empty when
   history decided), each shard's index, files in lexical order and summed weight, and its
   partition digest. `--files` lists the universe, whitespace-separated (for the Go adapter, one
-  package import path per entry): 1 to 4096 entries, no entry twice, no control character, at
-  most 1 MiB. N is 1 to 64 and K 1 to 64 (default 5), with at most 64 `--durations`. It is a
+  package import path per entry): 1 to 4096 entries, no entry twice, valid UTF-8 with no control
+  character, at most 1 MiB. N is 1 to 64 and K 1 to 64 (default 5); more than 64 `--durations`
+  is the STR-V0-053 fallback. Every input is read through its opened descriptor, only when it
+  is a regular file (a FIFO or other non-regular file is refused without blocking), and at
+  most 1 MiB of it. The encoded plan is bounded by what those inputs admit: 6 MiB (each name
+  escapes to at most twice its bytes and appears at most three times) plus 16 bytes per
+  appearance of each of the 4096 entries plus 64 KiB for the fixed members, 64 shard headers,
+  64 revisions and the fallback reason, so a plan from admitted inputs always encodes. It is a
   read command (invariant 4): it reads only its named inputs and writes only stdout and one
   stderr line, never the repository, the index, trace stores or the `.corvint/` ledgers. A usage
   error (bad count, K or list, unreadable list) exits 2 and prints no plan; a plan exits 0.
@@ -298,12 +304,15 @@ STR-V0-009 fan-in through a third placement.
   not admitted, or no listed file has a duration in the used runs, the plan SHALL be the complete
   round-robin (file `i` of the sorted list on shard `i mod N`) with no weights, history or unknown
   files, `fallback` naming the reason, and stderr `corvint-test: shards FALLBACK <reason>`. One bad
-  table discards the whole history rather than weighing from the rest.
+  table discards the whole history rather than weighing from the rest. Over 64 tables none is
+  read. A table's durations are checked in sorted key order, so the reason is the same on every
+  run, and the reason is cut to at most 1024 bytes of valid UTF-8.
 - `STR-V0-054`: `corvint test --placement measured --shard-plan PATH` (experimental, off by
   default) SHALL place every Go package of the run set, NARROWED or FULL, as one whole execution
   unit on the shard the plan assigns it; AFP-V0-041 test slices do not apply. The plan is read
-  strictly: canonical bytes of the profile, `count` shards indexed in order, no file twice, 1 to
-  4096 files, and a partition digest that recomputes, else exit 2. The manifest's
+  strictly: canonical bytes of the profile within the STR-V0-050 plan bound, `count` shards
+  indexed in order, no file twice, 1 to 4096 files, and a partition digest that recomputes,
+  else exit 2. The manifest's
   `partitionDigest` SHALL be the plan's, so the STR-V0-018 manifest digest, every receipt and the
   STR-V0-009 fan-in bind the plan, and `verify-shards` stays `INCOMPLETE` for a missing shard
   receipt. A plan whose count differs from the run's, or that omits a run-set package, places no
@@ -468,10 +477,10 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-017 | `internal/sessiontest/identity.go`, drift rechecks in `Execute` | TestSTRV0017Identify, TestSTRV0017RunnerDrift |
 | STR-V0-018 | `internal/sessiontest/manifest.go`, `--dry-run --manifest`, shard recompute match | TestSTRV0018ManifestStrictRoundTrip, TestSTRV0018CLIDryRunLaunchesNoRunner, TestSTRV0009CLIShardsAndVerify |
 | STR-V0-019 | `checkGoTestTimeouts` in `tools/test-commands-check/main.go`; `host-adapter-test` passes `-timeout $(GO_TEST_TIMEOUT)` (V1-1552) | `tools/test-commands-check/main_test.go` TestSTRV0019GateGoTestHasTimeout (repository pass; an unbounded gate-step `go test` refused; `-timeout=` passes) |
-| STR-V0-050 | `ListedFiles`, `PlanShards` in `internal/sessiontest/shards.go`; `runTestShards` in `cmd/corvint/test.go` | `internal/sessiontest/shards_test.go` TestSTRV0050ListedFiles; `cmd/corvint/session_test_shards_unix_test.go` TestSTRV0050CLIShardsPlan (deterministic stdout, plan reads back, input directory unchanged, seven usage refusals) |
+| STR-V0-050 | `ListedFiles`, `PlanShards` in `internal/sessiontest/shards.go`; `runTestShards` in `cmd/corvint/test.go` | `internal/sessiontest/shards_test.go` TestSTRV0050ListedFiles, TestSTRV0050NearBoundaryPlanRoundTrip (4096 escaping names at the 1 MiB list bound, 4095 unknown, 64 shards: encodes over 1 MiB within the plan bound and reads back byte-identically; non-UTF-8 refused); `cmd/corvint/session_test_shards_unix_test.go` TestSTRV0050CLIShardsPlan (deterministic stdout, plan reads back, input directory unchanged, seven usage refusals), TestSTRV0050ShardsInputReadIsBounded (FIFO refused without blocking; a file growing past the bound is never returned over it) |
 | STR-V0-051 | `readHistory`, `historyWeights`, `median` | TestSTRV0051MedianOfLastKRuns (K=2 and K=3 over three runs, a partially recorded file, an unknown file, K bounds), TestSTRV0050CLIShardsPlan |
 | STR-V0-052 | `PlanShards` placement, `ShardPartitionDigest` | TestSTRV0052LongestFirstExactlyOnceDeterministic (a worked longest-first example; 97 files on 1 to 16 shards placed once with equal bytes and digest on repeat) |
-| STR-V0-053 | `historyWeights` fallback reasons, round-robin branch of `PlanShards` | TestSTRV0053FallbackIsCompleteRoundRobin (thirteen history failures), TestSTRV0050CLIShardsPlan (absent and missing history) |
+| STR-V0-053 | `historyWeights` fallback reasons, round-robin branch of `PlanShards` | TestSTRV0053FallbackIsCompleteRoundRobin (thirteen history failures), TestSTRV0053FallbackReasonIsDeterministic (sixteen invalid durations give identical plan bytes over 50 runs; a long reason is cut), TestSTRV0053CLIShardsOverTableBound (65 tables: exit 0, FALLBACK), TestSTRV0050CLIShardsPlan (absent and missing history) |
 | STR-V0-054 | `ReadShardPlan`; `placeMeasured` and the measured partition digest in `Build`; `--placement measured --shard-plan` in `parseTestOptions` and `runTest` | TestSTRV0054ReadShardPlan (seven malformed plans), TestSTRV0054MeasuredPlacement (NARROWED, FULL, other count, omitted package, no plan); TestSTRV0054CLIMeasuredShards (two-shard run, `verify-shards` PASS and missing-shard `INCOMPLETE`, five usage refusals) |
 
 ## Open decisions

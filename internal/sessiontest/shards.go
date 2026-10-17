@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 const (
@@ -27,6 +28,16 @@ const (
 	MaxShardPlanShards = 64
 	// maxHistoryMilliseconds bounds one recorded duration: one day.
 	maxHistoryMilliseconds = 24 * 60 * 60 * 1000
+	// MaxFallbackBytes bounds the recorded fallback reason (STR-V0-053).
+	MaxFallbackBytes = 1024
+	// MaxShardPlanBytes bounds an encoded plan, derived from the admitted
+	// inputs (STR-V0-050): the listed names total at most MaxDocumentBytes
+	// of valid UTF-8 without control characters, so each escapes to at most
+	// twice its bytes, and a name appears at most three times (a shard, the
+	// weights, unknown); each appearance adds at most 16 bytes of quotes,
+	// separators and an 8-digit weight. 64 KiB covers the fixed members,
+	// 64 shard headers, 64 revisions and the bounded fallback reason.
+	MaxShardPlanBytes = 6*MaxDocumentBytes + 3*16*MaxUnits + 64<<10
 )
 
 // History is one supplied retained full-run table: its name for reports and
@@ -91,8 +102,8 @@ func ListedFiles(raw []byte) ([]string, error) {
 		if seen[file] {
 			return nil, fmt.Errorf("the file list names %s twice", file)
 		}
-		if strings.IndexFunc(file, unicode.IsControl) >= 0 {
-			return nil, fmt.Errorf("the file list entry %q has a control character", file)
+		if !utf8.ValidString(file) || strings.IndexFunc(file, unicode.IsControl) >= 0 {
+			return nil, fmt.Errorf("the file list entry %q is not valid UTF-8 or has a control character", file)
 		}
 		seen[file] = true
 	}
@@ -136,7 +147,13 @@ func readHistory(entry History) (historyTable, error) {
 	if len(table.Milliseconds) == 0 || len(table.Milliseconds) > MaxUnits {
 		return table, fmt.Errorf("%s records %d durations, want 1 to %d", entry.Name, len(table.Milliseconds), MaxUnits)
 	}
-	for file, milliseconds := range table.Milliseconds {
+	keys := make([]string, 0, len(table.Milliseconds))
+	for file := range table.Milliseconds {
+		keys = append(keys, file)
+	}
+	sort.Strings(keys)
+	for _, file := range keys {
+		milliseconds := table.Milliseconds[file]
 		if file == "" || strings.IndexFunc(file, unicode.IsSpace) >= 0 || milliseconds <= 0 || milliseconds > maxHistoryMilliseconds {
 			return table, fmt.Errorf("%s records an invalid duration for %q", entry.Name, file)
 		}
@@ -179,6 +196,7 @@ func PlanShards(files []string, count, runs int, history []History) (ShardPlan, 
 		shards[i] = PlannedShard{Files: []string{}, Index: i}
 	}
 	if fallback != "" {
+		fallback = boundFallback(fallback)
 		plan.Fallback, plan.History, plan.Unknown, plan.WeightMilliseconds = fallback, []string{}, []string{}, map[string]int64{}
 		for i, file := range files {
 			shards[i%count].Files = append(shards[i%count].Files, file)
@@ -213,6 +231,26 @@ func PlanShards(files []string, count, runs int, history []History) (ShardPlan, 
 	}
 	plan.PartitionDigest = digest
 	return plan, nil
+}
+
+// EncodeShardPlan is the canonical plan bytes, refused over
+// MaxShardPlanBytes (STR-V0-050).
+func EncodeShardPlan(plan ShardPlan) ([]byte, error) {
+	return encodeBounded(plan, MaxShardPlanBytes)
+}
+
+// boundFallback cuts a reason to MaxFallbackBytes of valid UTF-8, so a
+// long table name or key cannot grow the plan (STR-V0-053).
+func boundFallback(reason string) string {
+	reason = strings.ToValidUTF8(reason, "?")
+	if len(reason) <= MaxFallbackBytes {
+		return reason
+	}
+	cut := MaxFallbackBytes - len("...")
+	for cut > 0 && !utf8.RuneStart(reason[cut]) {
+		cut--
+	}
+	return reason[:cut] + "..."
 }
 
 // historyWeights is the STR-V0-051 weight of every listed file, or the
@@ -270,7 +308,7 @@ func historyWeights(files []string, runs int, history []History, plan *ShardPlan
 // (STR-V0-054).
 func ReadShardPlan(name string) (ShardPlan, error) {
 	var plan ShardPlan
-	if err := decodeStrict(name, ShardPlanProfile, &plan, func() string { return plan.Profile }); err != nil {
+	if err := decodeStrictBounded(name, ShardPlanProfile, MaxShardPlanBytes, &plan, func() string { return plan.Profile }); err != nil {
 		return ShardPlan{}, err
 	}
 	if plan.Count < 1 || plan.Count > MaxShardPlanShards || len(plan.Shards) != plan.Count {

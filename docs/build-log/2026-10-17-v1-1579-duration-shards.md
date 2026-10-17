@@ -87,3 +87,27 @@ Follow-on checks:
 - No wall-clock comparison against universe or balanced placement. Promotion needs balanced
   placement's local 20% bar.
 - No `make gate`. The focused package tests and doc-gates are recorded in the PR.
+
+## Independent-review repair
+
+The independent review of PR #1027 found four defects. Each fix has a test that failed with the fix
+reverted and passes with it:
+
+- Optional inputs (`--files`, `--durations`, the `.github/cishards` tables) were size-checked with
+  `Lstat` and then read with an unbounded `os.ReadFile`. They now go through `readBoundedFile`:
+  `O_NONBLOCK|O_NOFOLLOW` open, regular-file and same-file check on the descriptor, and a read
+  capped at the bound plus one byte. TestSTRV0050ShardsInputReadIsBounded read 2 MiB from a file
+  growing after its `Lstat` before the fix.
+- 65 `--durations` were a usage error (exit 2), contrary to STR-V0-053. They are now the reported
+  round-robin with exit 0, and none of the tables is read (TestSTRV0053CLIShardsOverTableBound).
+- The 1 MiB document cap could refuse a plan built from admitted inputs. STR-V0-050 now records a
+  plan bound derived from those inputs (`MaxShardPlanBytes`, about 6.2 MiB). To make that bound
+  hold, listed entries must be valid UTF-8 and the fallback reason is cut to 1024 bytes.
+  `ReadShardPlan` reads up to the same bound. TestSTRV0050NearBoundaryPlanRoundTrip uses 4096
+  escaping names at the 1 MiB list bound to build a plan over 1 MiB. The old code refused it.
+- Ranging over the duration map made the fallback reason nondeterministic. Keys are now checked
+  in sorted order. TestSTRV0053FallbackReasonIsDeterministic got different bytes across 50 runs
+  before the fix.
+
+The changes to the STR-V0-050, 053 and 054 text stay within the requirements the owner
+auto-accepted on 2026-10-11. No new requirement ID was needed.

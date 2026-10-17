@@ -5,8 +5,12 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
@@ -145,6 +149,73 @@ func TestSTRV0054CLIMeasuredShards(t *testing.T) {
 	} {
 		if code, stdout, stderr := runCLI(t, refused...); code != 2 || stdout != "" || stderr == "" {
 			t.Errorf("%v: code %d stdout %q stderr %q", refused, code, stdout, stderr)
+		}
+	}
+}
+
+// STR-V0-053: more than 64 duration tables is the reported complete
+// round-robin with exit 0, not a usage error; none of them is read.
+func TestSTRV0053CLIShardsOverTableBound(t *testing.T) {
+	dir := t.TempDir()
+	files := writeShardsInput(t, dir, "files.txt", "a\nb\nc\n")
+	args := []string{"test", "shards", "--count", "2", "--files", files}
+	for i := range sessiontest.MaxHistoryRuns + 1 {
+		args = append(args, "--durations", filepath.Join(dir, "absent-"+strconv.Itoa(i)+".json"))
+	}
+	code, stdout, stderr := runCLI(t, args...)
+	if code != 0 || stderr != "corvint-test: shards FALLBACK 65 duration tables exceed the 64 bound\n" ||
+		!strings.Contains(stdout, `"files":["a","c"]`) || !strings.Contains(stdout, `"fallback":"65 duration tables exceed the 64 bound"`) {
+		t.Fatalf("over the table bound %d %q %s", code, stderr, stdout)
+	}
+}
+
+// STR-V0-050: an optional input is read through its opened descriptor:
+// a FIFO is refused without blocking, and a regular file that grows past
+// the bound after it was checked is never returned over the bound.
+func TestSTRV0050ShardsInputReadIsBounded(t *testing.T) {
+	dir := t.TempDir()
+	fifo := filepath.Join(dir, "fifo")
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan []byte, 1)
+	go func() { done <- testReadOptional(fifo) }()
+	select {
+	case data := <-done:
+		if data != nil {
+			t.Fatalf("a FIFO was read: %q", data)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("reading a FIFO blocked")
+	}
+	if code, _, stderr := runCLI(t, "test", "shards", "--count", "1", "--files", fifo); code != 2 || !strings.Contains(stderr, "not a readable regular file") {
+		t.Fatalf("FIFO list %d %q", code, stderr)
+	}
+	name := filepath.Join(dir, "growing.json")
+	file, err := os.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	stop := make(chan struct{})
+	var wait sync.WaitGroup
+	wait.Add(1)
+	go func() {
+		defer wait.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			_ = file.Truncate(16)
+			_ = file.Truncate(2 * sessiontest.MaxDocumentBytes)
+		}
+	}()
+	defer func() { close(stop); wait.Wait() }()
+	for range 2000 {
+		if data := testReadOptional(name); len(data) > sessiontest.MaxDocumentBytes {
+			t.Fatalf("read %d bytes, over the %d bound", len(data), sessiontest.MaxDocumentBytes)
 		}
 	}
 }

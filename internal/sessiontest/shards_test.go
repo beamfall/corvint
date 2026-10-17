@@ -292,3 +292,84 @@ func TestSTRV0054MeasuredPlacement(t *testing.T) {
 		t.Fatal("measured placement without a plan was accepted")
 	}
 }
+
+// STR-V0-050: a plan built from inputs at the admitted bounds, with names
+// that escape to twice their bytes and nearly all of them unknown, encodes
+// within MaxShardPlanBytes and reads back byte-identically; a non-UTF-8
+// entry is refused at admission.
+func TestSTRV0050NearBoundaryPlanRoundTrip(t *testing.T) {
+	names := make([]string, MaxUnits)
+	for i := range names {
+		names[i] = fmt.Sprintf("%04x", i) + strings.Repeat(`\`, 251)
+	}
+	raw := []byte(strings.Join(names, "\n"))
+	if len(raw) > MaxDocumentBytes || len(raw) < MaxDocumentBytes-8 {
+		t.Fatalf("the list is %d bytes, not at the %d bound", len(raw), MaxDocumentBytes)
+	}
+	files, err := ListedFiles(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	history := []History{{Name: "run", Raw: historyTableJSON('7', map[string]int64{files[0]: maxHistoryMilliseconds})}}
+	plan, err := PlanShards(files, MaxShardPlanShards, MaxHistoryRuns, history)
+	if err != nil || plan.Fallback != "" || len(plan.Unknown) != MaxUnits-1 {
+		t.Fatalf("plan: %v fallback %q unknown %d", err, plan.Fallback, len(plan.Unknown))
+	}
+	encoded, err := EncodeShardPlan(plan)
+	if err != nil {
+		t.Fatalf("a plan from admitted inputs is refused: %v", err)
+	}
+	if len(encoded) <= MaxDocumentBytes {
+		t.Fatalf("the near-boundary plan is only %d bytes", len(encoded))
+	}
+	name := filepath.Join(t.TempDir(), "plan.json")
+	if err := os.WriteFile(name, encoded, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	read, err := ReadShardPlan(name)
+	if err != nil {
+		t.Fatalf("the near-boundary plan does not read back: %v", err)
+	}
+	again, err := EncodeShardPlan(read)
+	if err != nil || string(again) != string(encoded) {
+		t.Fatalf("round trip differs: %v", err)
+	}
+	if _, err := ListedFiles([]byte("a\n\xff\n")); err == nil {
+		t.Fatal("a non-UTF-8 entry was admitted")
+	}
+}
+
+// STR-V0-052, STR-V0-053: a table with several invalid durations falls back
+// with the same reason, plan bytes and digest on every run, and a reason
+// naming a long key stays within MaxFallbackBytes.
+func TestSTRV0053FallbackReasonIsDeterministic(t *testing.T) {
+	invalid := map[string]int64{}
+	for i := range 16 {
+		invalid[fmt.Sprintf("p%02d", i)] = -1
+	}
+	history := []History{{Name: "run", Raw: historyTableJSON('8', invalid)}}
+	var first []byte
+	for range 50 {
+		plan, err := PlanShards([]string{"p00", "p01"}, 2, DefaultHistoryRuns, history)
+		if err != nil {
+			t.Fatal(err)
+		}
+		encoded, err := EncodeShardPlan(plan)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if first == nil {
+			first = encoded
+			if !strings.Contains(plan.Fallback, `"p00"`) {
+				t.Fatalf("fallback %q does not name the first invalid key", plan.Fallback)
+			}
+		} else if string(encoded) != string(first) {
+			t.Fatalf("fallback output differs between runs:\n%s\n%s", first, encoded)
+		}
+	}
+	long := []History{{Name: strings.Repeat("n", 4*MaxFallbackBytes), Raw: nil}}
+	plan, err := PlanShards([]string{"a"}, 1, 1, long)
+	if err != nil || len(plan.Fallback) > MaxFallbackBytes || !strings.HasSuffix(plan.Fallback, "...") {
+		t.Fatalf("long fallback %d bytes: %v", len(plan.Fallback), err)
+	}
+}

@@ -434,12 +434,11 @@ func testFillPlan(input *sessiontest.Input, receipt affectedReceipt, graph *affe
 	return nil
 }
 
+// testReadOptional reads at most MaxDocumentBytes through the opened
+// descriptor of a regular file, never blocking on a FIFO; nil means absent,
+// not regular, changed while opened, unreadable or over the bound.
 func testReadOptional(name string) []byte {
-	info, err := os.Lstat(name)
-	if err != nil || !info.Mode().IsRegular() || info.Size() > sessiontest.MaxDocumentBytes {
-		return nil
-	}
-	data, err := os.ReadFile(name)
+	data, err := readBoundedFile(name, sessiontest.MaxDocumentBytes)
 	if err != nil {
 		return nil
 	}
@@ -666,7 +665,7 @@ func runTestShards(args []string, stdout, stderr io.Writer) int {
 	})
 	usage := fmt.Sprintf("usage: corvint test shards --count N (1 to %d) --files PATH [--durations PATH]... [--runs K (1 to %d)]", sessiontest.MaxShardPlanShards, sessiontest.MaxHistoryRuns)
 	if err := f.Parse(args); err != nil || f.NArg() != 0 || *files == "" || *count < 1 || *count > sessiontest.MaxShardPlanShards ||
-		*runs < 1 || *runs > sessiontest.MaxHistoryRuns || len(durations) > sessiontest.MaxHistoryRuns {
+		*runs < 1 || *runs > sessiontest.MaxHistoryRuns {
 		emitError(stderr, argumentError(usage))
 		return 2
 	}
@@ -681,15 +680,20 @@ func runTestShards(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	history := make([]sessiontest.History, 0, len(durations))
+	// Over MaxHistoryRuns tables is the STR-V0-053 fallback; none is read.
 	for _, name := range durations {
-		history = append(history, sessiontest.History{Name: name, Raw: testReadOptional(name)})
+		entry := sessiontest.History{Name: name}
+		if len(durations) <= sessiontest.MaxHistoryRuns {
+			entry.Raw = testReadOptional(name)
+		}
+		history = append(history, entry)
 	}
 	plan, err := sessiontest.PlanShards(listed, *count, *runs, history)
 	if err != nil {
 		emitError(stderr, argumentError(err.Error()))
 		return 2
 	}
-	encoded, err := sessiontest.Encode(plan)
+	encoded, err := sessiontest.EncodeShardPlan(plan)
 	if err != nil {
 		emitError(stderr, err)
 		return 2

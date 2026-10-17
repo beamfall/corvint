@@ -124,12 +124,16 @@ func Digest(v any) (string, error) {
 // Encode returns the canonical bytes of a manifest or receipt plus a newline,
 // refusing a document over MaxDocumentBytes.
 func Encode(v any) ([]byte, error) {
+	return encodeBounded(v, MaxDocumentBytes)
+}
+
+func encodeBounded(v any, limit int) ([]byte, error) {
 	encoded, err := gokernel.CanonicalJSON(v)
 	if err != nil {
 		return nil, err
 	}
-	if len(encoded)+1 > MaxDocumentBytes {
-		return nil, fmt.Errorf("document exceeds %d bytes", MaxDocumentBytes)
+	if len(encoded)+1 > limit {
+		return nil, fmt.Errorf("document exceeds %d bytes", limit)
 	}
 	return append(encoded, '\n'), nil
 }
@@ -138,17 +142,21 @@ func Encode(v any) ([]byte, error) {
 // no unknown members, nothing trailing, and byte-identical to its own
 // canonical encoding, so its digest has exactly one spelling.
 func decodeStrict(name, profile string, v any, profileOf func() string) error {
+	return decodeStrictBounded(name, profile, MaxDocumentBytes, v, profileOf)
+}
+
+func decodeStrictBounded(name, profile string, limit int, v any, profileOf func() string) error {
 	file, err := os.Open(name)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	raw, err := io.ReadAll(io.LimitReader(file, MaxDocumentBytes+1))
+	raw, err := io.ReadAll(io.LimitReader(file, int64(limit)+1))
 	if err != nil {
 		return err
 	}
-	if len(raw) > MaxDocumentBytes {
-		return fmt.Errorf("%s exceeds %d bytes", filepath.Base(name), MaxDocumentBytes)
+	if len(raw) > limit {
+		return fmt.Errorf("%s exceeds %d bytes", filepath.Base(name), limit)
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
@@ -161,7 +169,7 @@ func decodeStrict(name, profile string, v any, profileOf func() string) error {
 	if profileOf() != profile {
 		return fmt.Errorf("%s profile is %q, want %q", filepath.Base(name), profileOf(), profile)
 	}
-	canonical, err := Encode(v)
+	canonical, err := encodeBounded(v, limit)
 	if err != nil || !bytes.Equal(canonical, raw) {
 		return fmt.Errorf("%s is not canonical %s JSON", filepath.Base(name), profile)
 	}
