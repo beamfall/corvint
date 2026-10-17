@@ -3,6 +3,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -14,6 +16,15 @@ import (
 
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
+
+// readTestShardPlan reads a plan through the product's --shard-plan read.
+func readTestShardPlan(name string) (sessiontest.ShardPlan, error) {
+	raw, err := readBoundedFile(name, sessiontest.MaxShardPlanBytes)
+	if err != nil {
+		return sessiontest.ShardPlan{}, err
+	}
+	return sessiontest.DecodeShardPlan(name, raw)
+}
 
 func writeShardsInput(t *testing.T, dir, name, body string) string {
 	t.Helper()
@@ -50,7 +61,7 @@ func TestSTRV0050CLIShardsPlan(t *testing.T) {
 	if err := os.WriteFile(planPath, []byte(stdout), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	plan, err := sessiontest.ReadShardPlan(planPath)
+	plan, err := readTestShardPlan(planPath)
 	if err != nil {
 		t.Fatalf("the printed plan does not read back: %v\n%s", err, stdout)
 	}
@@ -68,7 +79,7 @@ func TestSTRV0050CLIShardsPlan(t *testing.T) {
 		t.Fatalf("fallback %d %q %s", code, stderr, stdout)
 	}
 	code, _, stderr = runCLI(t, "test", "shards", "--count", "2", "--files", files, "--durations", filepath.Join(dir, "absent.json"))
-	if code != 0 || !strings.HasPrefix(stderr, "corvint-test: shards FALLBACK invalid run durations: ") {
+	if code != 0 || !strings.HasPrefix(stderr, "corvint-test: shards FALLBACK test-shards-history-invalid: ") {
 		t.Fatalf("absent history %d %q", code, stderr)
 	}
 	duplicate := writeShardsInput(t, t.TempDir(), "dup.txt", "a\na\n")
@@ -106,7 +117,7 @@ func TestSTRV0054CLIMeasuredShards(t *testing.T) {
 		t.Fatalf("shards %d %s", code, stderr)
 	}
 	planPath := writeShardsInput(t, dir, "plan.json", stdout)
-	plan, err := sessiontest.ReadShardPlan(planPath)
+	plan, err := readTestShardPlan(planPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,6 +227,97 @@ func TestSTRV0050ShardsInputReadIsBounded(t *testing.T) {
 	for range 2000 {
 		if data := testReadOptional(name); len(data) > sessiontest.MaxDocumentBytes {
 			t.Fatalf("read %d bytes, over the %d bound", len(data), sessiontest.MaxDocumentBytes)
+		}
+	}
+}
+
+// STR-V0-055: --shard-plan is read as the other shard inputs are. A FIFO no
+// writer opens is refused promptly with test-shard-plan-unreadable rather than
+// blocking the run; a symbolic link, a directory and a missing file are
+// refused alike; a regular plan still drives a measured dry run.
+func TestSTRV0055ShardPlanReadIsBounded(t *testing.T) {
+	root, _, _ := sessionFixture(t, "pass")
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD~1"))
+	dir := t.TempDir()
+	files := writeShardsInput(t, dir, "files.txt", "example.test/m/a\nexample.test/m/b\n")
+	code, stdout, stderr := runCLI(t, "test", "shards", "--count", "1", "--files", files)
+	if code != 0 {
+		t.Fatalf("shards %d %s", code, stderr)
+	}
+	planPath := writeShardsInput(t, dir, "plan.json", stdout)
+	fifo := filepath.Join(dir, "plan.fifo")
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "plan.link")
+	if err := os.Symlink(planPath, link); err != nil {
+		t.Fatal(err)
+	}
+	dryRun := func(plan string) []string {
+		return []string{"--root", root, "test", "--base", base, "--placement", "measured", "--shard-plan", plan, "--dry-run"}
+	}
+	type result struct {
+		code           int
+		stdout, stderr string
+	}
+	for _, refused := range []string{fifo, link, dir, filepath.Join(dir, "absent.json")} {
+		done := make(chan result, 1)
+		go func() {
+			var out, errOut bytes.Buffer
+			code := runContext(context.Background(), dryRun(refused), strings.NewReader(""), &out, &errOut)
+			done <- result{code, out.String(), errOut.String()}
+		}()
+		select {
+		case got := <-done:
+			if got.code != 2 || got.stdout != "" || !strings.Contains(got.stderr, "test-shard-plan-unreadable") {
+				t.Errorf("%s: code %d stdout %q stderr %q", refused, got.code, got.stdout, got.stderr)
+			}
+		case <-time.After(30 * time.Second):
+			t.Fatalf("%s: reading the shard plan blocked", refused)
+		}
+	}
+	if code, stdout, stderr := runCLI(t, dryRun(planPath)...); code != 0 || !strings.Contains(stdout, `"placement":"measured"`) {
+		t.Fatalf("regular plan %d %q %s", code, stderr, stdout)
+	}
+}
+
+// STR-V0-057: with --test-slices and --split-allow a split package is placed
+// as its slices on distinct shards, stderr counts it, and the plan reads
+// back; one flag alone or an unreadable input exits 2, and unusable slice
+// files split nothing.
+func TestSTRV0057CLIShardsSlices(t *testing.T) {
+	dir := t.TempDir()
+	files := writeShardsInput(t, dir, "files.txt", "example.test/m/a\nexample.test/m/b\nexample.test/m/c\n")
+	history := writeShardsInput(t, dir, "run.json", shardsHistory("1", `"example.test/m/a": 9000, "example.test/m/b": 1000, "example.test/m/c": 1000`))
+	allow := writeShardsInput(t, dir, "allow.json", `{"packages":{"example.test/m/a":"fixture: tests are order-independent"},"profile":"corvint-ci-test-split-allow/0"}`)
+	slices := writeShardsInput(t, dir, "slices.json", `{"packages":{"example.test/m/a":{"named":[{"milliseconds":2000,"tests":["TestA1"]},{"milliseconds":2000,"tests":["TestA2"]}],"restMilliseconds":2000}},`+
+		`"profile":"corvint-ci-test-slices/0","source":{"goVersion":"go1.27.2","revision":"`+strings.Repeat("d", 40)+`","runURL":"https://github.com/beamfall/corvint/actions/runs/1"}}`)
+	base := []string{"test", "shards", "--count", "3", "--files", files, "--durations", history}
+	code, stdout, stderr := runCLITwice(t, append(base, "--test-slices", slices, "--split-allow", allow)...)
+	if code != 0 || stderr != "corvint-test: shards 3 files over 3 shards from 1 runs, 0 unknown, 1 sliced\n" {
+		t.Fatalf("sliced %d %q", code, stderr)
+	}
+	planPath := writeShardsInput(t, t.TempDir(), "plan.json", stdout)
+	plan, err := readTestShardPlan(planPath)
+	if err != nil {
+		t.Fatalf("the sliced plan does not read back: %v\n%s", err, stdout)
+	}
+	for i, shard := range plan.Shards {
+		if len(shard.Slices) != 1 || shard.Slices[0].Index != i || shard.WeightMilliseconds > 4000 {
+			t.Fatalf("shard %d %+v", i, shard)
+		}
+	}
+	code, stdout, stderr = runCLI(t, append(base, "--test-slices", history, "--split-allow", allow)...)
+	if code != 0 || stderr != "corvint-test: shards 3 files over 3 shards from 1 runs, 0 unknown\n" || strings.Contains(stdout, `"slices"`) {
+		t.Fatalf("unusable slices %d %q", code, stderr)
+	}
+	for _, refused := range [][]string{
+		append(append([]string{}, base...), "--test-slices", slices),
+		append(append([]string{}, base...), "--split-allow", allow),
+		append(append([]string{}, base...), "--test-slices", filepath.Join(dir, "absent.json"), "--split-allow", allow),
+	} {
+		if code, stdout, stderr := runCLI(t, refused...); code != 2 || stdout != "" || stderr == "" {
+			t.Errorf("%v: code %d stdout %q", refused, code, stdout)
 		}
 	}
 }
