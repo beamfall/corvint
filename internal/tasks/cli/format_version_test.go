@@ -214,6 +214,7 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 		transaction.RunOutcomeProfile:  plain(func(b []byte) error { _, e := transaction.DecodeRunOutcome(b); return e }),
 		"taskman-attempt-run-record/0": plain(cli.DecodeRunRecord),
 		"taskman-doctor-cache/0":       plain(cli.DecodeDoctorCache),
+		"taskman-doctor-config/0":      plain(cli.DecodeDoctorConfig),
 		dispatch.ConfigProfile:         plain(func(b []byte) error { _, e := dispatch.DecodeConfig(b); return e }),
 		dispatch.StateProfile: func(t *testing.T, p string) error {
 			dir := resolvedTempDir(t)

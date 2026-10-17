@@ -449,7 +449,9 @@ func (x *screenIndex) byURL(raw string) (string, string) {
 
 var urlScheme = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*://`)
 
-func (x *screenIndex) urlMatches(raw string) ([]string, string) {
+// urlPath is the application path a test URL names: authority, hash-routing prefix, query and
+// fragment removed. It is false when the result does not start with `/`.
+func (x *screenIndex) urlPath(raw string) (string, bool) {
 	u := raw
 	if loc := urlScheme.FindStringIndex(u); loc != nil {
 		// Only a leading scheme starts an authority; "://" inside a query or fragment is data.
@@ -472,7 +474,12 @@ func (x *screenIndex) urlMatches(raw string) ([]string, string) {
 	if i := strings.IndexAny(u, "?#"); i >= 0 {
 		u = u[:i]
 	}
-	if !strings.HasPrefix(u, "/") {
+	return u, strings.HasPrefix(u, "/")
+}
+
+func (x *screenIndex) urlMatches(raw string) ([]string, string) {
+	u, ok := x.urlPath(raw)
+	if !ok {
 		return nil, "non-literal-url"
 	}
 	segs := splitSegments(slashes.ReplaceAllString(u, "/"))

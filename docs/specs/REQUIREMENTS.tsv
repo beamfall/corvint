@@ -304,6 +304,16 @@ AMAP-V0-079	docs/specs/application-map-v0.md	571	When NAME in `createBrowserRout
 AMAP-V0-080	docs/specs/application-map-v0.md	586	`flows appmap entries` MUST accept an optional `--ledger FILE` naming an	unrecorded	-
 AMAP-V0-081	docs/specs/application-map-v0.md	594	With a ledger, each row's `proven_path` MUST be the shortest screen sequence fro	unrecorded	-
 AMAP-V0-082	docs/specs/application-map-v0.md	603	A path MUST NOT start at, end at or cross a screen whose entry verification is n	unrecorded	-
+AMAP-V0-090	docs/specs/application-map-v0.md	609	`flows appmap refs --map FILE --source DIR [--source DIR]... [--budget N | --ful	unrecorded	-
+AMAP-V0-091	docs/specs/application-map-v0.md	618	References MUST be read from dotted calls in the map's test files with the	unrecorded	-
+AMAP-V0-092	docs/specs/application-map-v0.md	630	A whole string literal argument MUST be an `exact` value. A template with a	unrecorded	-
+AMAP-V0-093	docs/specs/application-map-v0.md	641	A route reference MUST be checked against the map's resolved, non-abstract	unrecorded	-
+AMAP-V0-094	docs/specs/application-map-v0.md	649	Selector and endpoint names MUST be checked at name level only: an exact name is	unrecorded	-
+AMAP-V0-095	docs/specs/application-map-v0.md	658	Known false-positive classes MUST be labelled on the miss: `catch-all-route`	unrecorded	-
+AMAP-V0-096	docs/specs/application-map-v0.md	664	Each miss MUST report its `kind` (`route`, `selector`, `endpoint`), `value`,	unrecorded	-
+AMAP-V0-097	docs/specs/application-map-v0.md	672	The source corpus MUST stay within the AMAP-V0-015 test bounds (20000 files,	unrecorded	-
+AMAP-V0-098	docs/specs/application-map-v0.md	679	The command MUST exit 1 after writing the report when at least one unlabelled	unrecorded	-
+AMAP-V0-099	docs/specs/application-map-v0.md	682	A secret-shaped reference value (the `internal/secretscreen` writer matcher)	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -529,7 +539,7 @@ CAL-V0-013	docs/specs/corvint-tasks-agent-leases-v0.md	236	A ticket whose last a
 CAL-V0-014	docs/specs/corvint-tasks-agent-leases-v0.md	462	`corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00	unrecorded	-
 CAL-V0-015	docs/specs/corvint-tasks-agent-leases-v0.md	483	`submit --tree <oid>` MUST record the candidate tree and move `RUNNING` to `BUIL	unrecorded	-
 CAL-V0-016	docs/specs/corvint-tasks-agent-leases-v0.md	486	`gate run --gate <gateId> --worktree <path>` MUST refuse unless the worktree's	unrecorded	-
-CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	491	`complete --commit <oid>` MUST refuse unless the commit is reachable from the	unrecorded	-
+CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	491	(accepted, owner 2026-10-16, decision 0539; V1-1081) `complete --commit <oid>` M	owner	2026-10-16; decision 0539; V1-1081
 CAL-V0-018	docs/specs/corvint-tasks-agent-leases-v0.md	511	A first import MUST cost one full audit plus work proportional to the records it	unrecorded	-
 CAL-V0-019	docs/specs/corvint-tasks-agent-leases-v0.md	613	A named test suite MUST show, for `external-agent` attempts: two concurrent	unrecorded	-
 CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	618	`cutover --execution --decision <ref> --qualification <file>` MUST, under an	unrecorded	-
@@ -1674,9 +1684,9 @@ EEP-TR-008	docs/specs/external-evidence-provider-transports-v0.md	85	stderr MUST
 EEP-TR-009	docs/specs/external-evidence-provider-transports-v0.md	88	MCP MUST be selected only through the accepted bounded stdio profile in	unrecorded	-
 EEP-TR-010	docs/specs/external-evidence-provider-transports-v0.md	91	A remote (network) transport is NO-GO on the default local path (decision 0318).	unrecorded	-
 EEP-TR-011	docs/specs/external-evidence-provider-transports-v0.md	95	The optional authoring-kit checker MUST require and verify an exact lowercase	unrecorded	-
-EEP-TR-012	docs/specs/external-evidence-provider-transports-v0.md	102	A record on any transport MAY carry one optional top-level member `capabilities`	unrecorded	-
-EEP-TR-013	docs/specs/external-evidence-provider-transports-v0.md	110	When a list is declared, Core MUST check it against what the invocation requires	unrecorded	-
-EEP-TR-014	docs/specs/external-evidence-provider-transports-v0.md	119	A declared capability never widens what Core accepts: an unknown identifier in	unrecorded	-
+EEP-TR-012	docs/specs/external-evidence-provider-transports-v0.md	102	(accepted, owner 2026-10-17, decision 0539; V1-0102) A record on any transport M	owner	2026-10-17; decision 0539; V1-0102
+EEP-TR-013	docs/specs/external-evidence-provider-transports-v0.md	110	(accepted, owner 2026-10-17, decision 0539; V1-0102) When a list is declared, Co	owner	2026-10-17; decision 0539; V1-0102
+EEP-TR-014	docs/specs/external-evidence-provider-transports-v0.md	119	(accepted, owner 2026-10-17, decision 0539; V1-0102) A declared capability never	owner	2026-10-17; decision 0539; V1-0102
 EEP-V0-001	docs/specs/external-evidence-provider-v0.md	63	A provider record MUST be one JSON document whose top-level members are exactly	unrecorded	-
 EEP-V0-002	docs/specs/external-evidence-provider-v0.md	70	`corvint impact --provider FILE PATH...` selects a provider record; the option M	unrecorded	-
 EEP-V0-003	docs/specs/external-evidence-provider-v0.md	74	Provider output appears only under `context.external`. With the same paths, limi	unrecorded	-
@@ -2685,6 +2695,12 @@ NTP-V0-005	docs/specs/native-taskman-planning-v0.md	51	Collision sets MUST inclu
 NTP-V0-006	docs/specs/native-taskman-planning-v0.md	57	The plan MUST bind queueId, policySha256, headSeq, intentTreeSha256,	unrecorded	-
 NTP-V0-007	docs/specs/native-taskman-planning-v0.md	63	Deferral history MUST be explicitly observed, including a complete empty history	unrecorded	-
 NTP-V0-008	docs/specs/native-taskman-planning-v0.md	67	Existing command/WQO behavior MUST remain intact. The new command MUST mutate no	unrecorded	-
+NTP-V0-020	docs/specs/native-taskman-planning-v0.md	79	Candidates MUST be, for each OPEN or HELD ticket, its highest-generation attempt	unrecorded	-
+NTP-V0-021	docs/specs/native-taskman-planning-v0.md	84	Each candidate's changed paths MUST be the recursive, rename-free `diff-tree` fr	unrecorded	-
+NTP-V0-022	docs/specs/native-taskman-planning-v0.md	91	Every join MUST be confirmed by a dry chained three-way merge (`git merge-tree	unrecorded	-
+NTP-V0-023	docs/specs/native-taskman-planning-v0.md	107	`--max-group-size N` MUST bound every group, from 1 to 64, default 8; the item	unrecorded	-
+NTP-V0-024	docs/specs/native-taskman-planning-v0.md	109	A candidate whose base commit is absent or unresolvable, whose candidate tree or	unrecorded	-
+NTP-V0-025	docs/specs/native-taskman-planning-v0.md	115	The verb MUST follow the Tasks read contract: one lock-free snapshot-bracketed s	unrecorded	-
 OACS-V0-001	docs/specs/optional-artifact-check-scripts-v0.md	47	The offline-build entrypoint MUST require a nonempty first argument naming a	unrecorded	-
 OACS-V0-002	docs/specs/optional-artifact-check-scripts-v0.md	53	The offline-build entrypoint MUST refuse an exact dependency-list line equal to	unrecorded	-
 OACS-V0-003	docs/specs/optional-artifact-check-scripts-v0.md	59	After all three temporary allocations succeed, the offline-build entrypoint	unrecorded	-
@@ -3085,29 +3101,37 @@ PWP-V3-004	docs/specs/playwright-external-provider-v0.md	262	Every `/3` attempt 
 PWP-V3-005	docs/specs/playwright-external-provider-v0.md	263	The reporter emits `attemptDetails` only under `/3`; the provider validates the	unrecorded	-
 PWP-V3-006	docs/specs/playwright-external-provider-v0.md	264	`/3` is non-promotable until the changed reporter completes the live matrix of `	unrecorded	-
 PWP-V3-007	docs/specs/playwright-external-provider-v0.md	500	The `/3` exact project identity permits an explicitly observed empty project nam	unrecorded	-
-PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	31	One shared reader MUST read an explicit Playwright json-reporter file read-only	unrecorded	-
-PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	45	Runs pool only at identical identity inputs: the Playwright version plus the	unrecorded	-
-PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	52	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes	unrecorded	-
-PWR-V0-004	docs/specs/playwright-run-evidence-v0.md	61	An `INTERMITTENT` pool whose test is expected to fail (`expectedStatus` `failed`	unrecorded	-
-PWR-V0-005	docs/specs/playwright-run-evidence-v0.md	65	`corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-	unrecorded	-
-PWR-V0-006	docs/specs/playwright-run-evidence-v0.md	74	`Compare(baseline, candidate)` MUST match tests by the `PWR-V0-001` identity acr	unrecorded	-
-PWR-V0-007	docs/specs/playwright-run-evidence-v0.md	84	A failed assertion's origin MUST come only from its reported location: `TEST_FIL	unrecorded	-
-PWR-V0-008	docs/specs/playwright-run-evidence-v0.md	91	The overall verdict MUST be `INCOMPARABLE` with every applicable reason, in the	unrecorded	-
-PWR-V0-009	docs/specs/playwright-run-evidence-v0.md	101	Each admitted report MUST be listed per side with its position, SHA-256, Playwri	unrecorded	-
-PWR-V0-010	docs/specs/playwright-run-evidence-v0.md	105	`corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,	unrecorded	-
-PWR-V0-011	docs/specs/playwright-run-evidence-v0.md	111	The reader MUST read `config.projects[].repeatEach` and, for a project whose	unrecorded	-
-PWR-V0-012	docs/specs/playwright-run-evidence-v0.md	116	A test identity that occurs more than once in a logical run stays	unrecorded	-
-PWR-V0-013	docs/specs/playwright-run-evidence-v0.md	121	Stability output MUST add `repeatEach` to a run summary and `repeats[]` (the rep	unrecorded	-
-PWR-V0-014	docs/specs/playwright-run-evidence-v0.md	125	Compare MUST lay each test out over observation slots: per admitted logical run,	unrecorded	-
-PWR-V0-015	docs/specs/playwright-run-evidence-v0.md	129	Unsharded single-repeat inputs MUST produce stability and compare documents	unrecorded	-
-PWR-V0-016	docs/specs/playwright-run-evidence-v0.md	132	A report declaring `config.shard` MUST have `1 <= current <= total` (else	unrecorded	-
-PWR-V0-017	docs/specs/playwright-run-evidence-v0.md	138	A shard set is admitted only when shards 1..total are each present exactly once	unrecorded	-
-PWR-V0-018	docs/specs/playwright-run-evidence-v0.md	142	An admitted set is read as one run at its shared inputs: tests concatenated in s	unrecorded	-
-PWR-V0-019	docs/specs/playwright-run-evidence-v0.md	145	Stability MUST count an admitted set as one run, giving the same entries as one	unrecorded	-
-PWR-V0-020	docs/specs/playwright-run-evidence-v0.md	148	Compare MUST treat an admitted set as one report of its side. A refused set adds	unrecorded	-
-PWR-V0-021	docs/specs/playwright-run-evidence-v0.md	151	Sharding and repeat-each MUST compose: Playwright shards repeat instances, so a	unrecorded	-
-PWR-V0-022	docs/specs/playwright-run-evidence-v0.md	154	`merge-reports` JSON output (no `config.shard`, projects listed once per merged	unrecorded	-
-PWR-V0-023	docs/specs/playwright-run-evidence-v0.md	156	`corvint runs` topic help MUST document repeat observations, shard sets, the thr	unrecorded	-
+PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	33	One shared reader MUST read an explicit Playwright json-reporter file read-only	unrecorded	-
+PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	47	Runs pool only at identical identity inputs: the Playwright version plus the	unrecorded	-
+PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	54	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes	unrecorded	-
+PWR-V0-004	docs/specs/playwright-run-evidence-v0.md	63	An `INTERMITTENT` pool whose test is expected to fail (`expectedStatus` `failed`	unrecorded	-
+PWR-V0-005	docs/specs/playwright-run-evidence-v0.md	67	`corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-	unrecorded	-
+PWR-V0-006	docs/specs/playwright-run-evidence-v0.md	76	`Compare(baseline, candidate)` MUST match tests by the `PWR-V0-001` identity acr	unrecorded	-
+PWR-V0-007	docs/specs/playwright-run-evidence-v0.md	86	A failed assertion's origin MUST come only from its reported location: `TEST_FIL	unrecorded	-
+PWR-V0-008	docs/specs/playwright-run-evidence-v0.md	93	The overall verdict MUST be `INCOMPARABLE` with every applicable reason, in the	unrecorded	-
+PWR-V0-009	docs/specs/playwright-run-evidence-v0.md	103	Each admitted report MUST be listed per side with its position, SHA-256, Playwri	unrecorded	-
+PWR-V0-010	docs/specs/playwright-run-evidence-v0.md	107	`corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,	unrecorded	-
+PWR-V0-011	docs/specs/playwright-run-evidence-v0.md	113	The reader MUST read `config.projects[].repeatEach` and, for a project whose	unrecorded	-
+PWR-V0-012	docs/specs/playwright-run-evidence-v0.md	118	A test identity that occurs more than once in a logical run stays	unrecorded	-
+PWR-V0-013	docs/specs/playwright-run-evidence-v0.md	123	Stability output MUST add `repeatEach` to a run summary and `repeats[]` (the rep	unrecorded	-
+PWR-V0-014	docs/specs/playwright-run-evidence-v0.md	127	Compare MUST lay each test out over observation slots: per admitted logical run,	unrecorded	-
+PWR-V0-015	docs/specs/playwright-run-evidence-v0.md	131	Unsharded single-repeat inputs MUST produce stability and compare documents	unrecorded	-
+PWR-V0-016	docs/specs/playwright-run-evidence-v0.md	134	A report declaring `config.shard` MUST have `1 <= current <= total` (else	unrecorded	-
+PWR-V0-017	docs/specs/playwright-run-evidence-v0.md	140	A shard set is admitted only when shards 1..total are each present exactly once	unrecorded	-
+PWR-V0-018	docs/specs/playwright-run-evidence-v0.md	144	An admitted set is read as one run at its shared inputs: tests concatenated in s	unrecorded	-
+PWR-V0-019	docs/specs/playwright-run-evidence-v0.md	147	Stability MUST count an admitted set as one run, giving the same entries as one	unrecorded	-
+PWR-V0-020	docs/specs/playwright-run-evidence-v0.md	150	Compare MUST treat an admitted set as one report of its side. A refused set adds	unrecorded	-
+PWR-V0-021	docs/specs/playwright-run-evidence-v0.md	153	Sharding and repeat-each MUST compose: Playwright shards repeat instances, so a	unrecorded	-
+PWR-V0-022	docs/specs/playwright-run-evidence-v0.md	156	`merge-reports` JSON output (no `config.shard`, projects listed once per merged	unrecorded	-
+PWR-V0-023	docs/specs/playwright-run-evidence-v0.md	158	`corvint runs` topic help MUST document repeat observations, shard sets, the thr	unrecorded	-
+PWR-V0-033	docs/specs/playwright-run-evidence-v0.md	161	A retained result's fingerprint MUST be (Playwright version, declared	unrecorded	-
+PWR-V0-034	docs/specs/playwright-run-evidence-v0.md	169	`Reusable` MUST give every distinct selected test exactly one row, `REUSABLE` or	unrecorded	-
+PWR-V0-035	docs/specs/playwright-run-evidence-v0.md	176	A prior whose fingerprint differs from the selection in any input MUST NOT make	unrecorded	-
+PWR-V0-036	docs/specs/playwright-run-evidence-v0.md	180	With the freshness condition (`--fresh`), a prior that differs only in	unrecorded	-
+PWR-V0-037	docs/specs/playwright-run-evidence-v0.md	188	`Redundancy` MUST order logical runs by `stats.startTime`, exclude a run without	unrecorded	-
+PWR-V0-038	docs/specs/playwright-run-evidence-v0.md	195	The shared-code reach MUST be declared by the repository in	unrecorded	-
+PWR-V0-039	docs/specs/playwright-run-evidence-v0.md	201	`runs fresh` MUST read the paths changed between the OLD and NEW commits through	unrecorded	-
+PWR-V0-040	docs/specs/playwright-run-evidence-v0.md	207	`corvint runs reusable --selection R --prior R...`, `runs redundancy --runs R...	unrecorded	-
 PWV-V0-001	docs/specs/pi-workflow-v0.md	36	Pi MUST preserve original native Core receipt objects, output and exit status, i	unrecorded	-
 PWV-V0-002	docs/specs/pi-workflow-v0.md	37	Core read tools MUST use closed operation and argument sets for query, context,	unrecorded	-
 PWV-V0-003	docs/specs/pi-workflow-v0.md	38	Each command MUST use bounded argv-only local execution, one owned POSIX process	unrecorded	-
@@ -3444,6 +3468,11 @@ STR-V0-016	docs/specs/session-test-runner-v0.md	251	Adapters execute repository 
 STR-V0-017	docs/specs/session-test-runner-v0.md	254	The source identity SHALL bind the bytes that execute: the HEAD commit and tree,	unrecorded	-
 STR-V0-018	docs/specs/session-test-runner-v0.md	259	Before execution the command SHALL derive one canonical `corvint-test-manifest/0	unrecorded	-
 STR-V0-019	docs/specs/session-test-runner-v0.md	264	Every `go test` command that a `make gate` step recipe runs SHALL carry a	unrecorded	-
+STR-V0-050	docs/specs/session-test-runner-v0.md	274	`corvint test shards --count N --files PATH [--durations PATH]... [--runs K]` SH	unrecorded	-
+STR-V0-051	docs/specs/session-test-runner-v0.md	290	Each `--durations` file is one retained full run in the `corvint-ci-package-cost	unrecorded	-
+STR-V0-052	docs/specs/session-test-runner-v0.md	298	The plan SHALL take the files heaviest first (ties by name) and put each on the	unrecorded	-
+STR-V0-053	docs/specs/session-test-runner-v0.md	303	When no table is supplied, more than 64 are, any supplied table is unreadable or	unrecorded	-
+STR-V0-054	docs/specs/session-test-runner-v0.md	310	`corvint test --placement measured --shard-plan PATH` (experimental, off by	unrecorded	-
 TAT-V0-001	docs/specs/test-attack-v0.md	27	`prove --base FULL_SHA --mutate --attack-tests` MUST be an explicit opt-in. The	unrecorded	-
 TAT-V0-002	docs/specs/test-attack-v0.md	28	The attack MUST reuse the immutable range export and changed-line spans, evaluat	unrecorded	-
 TAT-V0-003	docs/specs/test-attack-v0.md	29	Every judged mutation row MUST expose an additive `attack` object with `mutants`	unrecorded	-
@@ -3700,19 +3729,32 @@ TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-p
 TPN-V0-004	docs/specs/trusted-project-navigation-v0.md	43	Bind source, environment, fixed probe, snapshot, span, replacement, candidate co	unrecorded	-
 TPN-V0-005	docs/specs/trusted-project-navigation-v0.md	48	Return a deterministic bounded canonical artifact on stdout: `NAVIGATION_VALIDAT	unrecorded	-
 TPN-V0-006	docs/specs/trusted-project-navigation-v0.md	52	Use one 120-second deadline, bounded input/output and process groups on Darwin/L	unrecorded	-
-TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	39	`corvint-tasks doctor [--refresh] [--plugins DIR]` is a pure read under TM-V0-00	unrecorded	-
-TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	40	`summary` is `{lanes:{free,total}, runningSessions, completions24h, alerts}`. `l	unrecorded	-
-TQD-V0-003	docs/specs/corvint-tasks-doctor-v0.md	41	Each finding is `{kind, source, who, detail, remedy, firstSeen, ageSeconds, evid	unrecorded	-
-TQD-V0-004	docs/specs/corvint-tasks-doctor-v0.md	42	Journal-derived detectors read one bounded backward scan of receipts from the sn	unrecorded	-
-TQD-V0-005	docs/specs/corvint-tasks-doctor-v0.md	43	NO_PROGRESS_HANDOFF names a ticket whose newest three or more ended generations	unrecorded	-
-TQD-V0-006	docs/specs/corvint-tasks-doctor-v0.md	44	REPEAT_REFUSAL names a ticket and candidate tree refused three or more times in	unrecorded	-
-TQD-V0-007	docs/specs/corvint-tasks-doctor-v0.md	45	SLOW_LANE_RECOVERY names a pool member whose allocation entered CLEANING (a clea	unrecorded	-
-TQD-V0-008	docs/specs/corvint-tasks-doctor-v0.md	46	SETUP_ONLY_PROOF names a ticket COMPLETED within the window whose obligation led	unrecorded	-
-TQD-V0-009	docs/specs/corvint-tasks-doctor-v0.md	47	FALSE_IDLE names a live attempt whose holder status is STALE_HOLDER or LEASE_EXP	unrecorded	-
-TQD-V0-010	docs/specs/corvint-tasks-doctor-v0.md	48	Plugins run only when `--plugins DIR` names a directory. Discovery opens it with	unrecorded	-
-TQD-V0-011	docs/specs/corvint-tasks-doctor-v0.md	49	`doctor --refresh` writes the item, with profile `taskman-doctor-cache/0` and `r	unrecorded	-
-TQD-V0-012	docs/specs/corvint-tasks-doctor-v0.md	50	`doctor --line` reads only the cache, through the repository resolution walk to	unrecorded	-
-TQD-V0-013	docs/specs/corvint-tasks-doctor-v0.md	51	NO_PROGRESS_HANDOFF is not reported for a ticket whose current audited record ha	unrecorded	-
+TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	41	`corvint-tasks doctor [--refresh] [--plugins DIR] [--config FILE]` is a pure rea	unrecorded	-
+TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	42	`summary` is `{lanes:{free,total}, runningSessions, completions24h, alerts}`. `l	unrecorded	-
+TQD-V0-003	docs/specs/corvint-tasks-doctor-v0.md	43	Each finding is `{kind, source, who, detail, remedy, firstSeen, ageSeconds, evid	unrecorded	-
+TQD-V0-004	docs/specs/corvint-tasks-doctor-v0.md	44	Journal-derived detectors read one bounded backward scan of receipts from the sn	unrecorded	-
+TQD-V0-005	docs/specs/corvint-tasks-doctor-v0.md	45	NO_PROGRESS_HANDOFF names a ticket whose newest three or more ended generations	unrecorded	-
+TQD-V0-006	docs/specs/corvint-tasks-doctor-v0.md	46	REPEAT_REFUSAL names a ticket and candidate tree refused three or more times in	unrecorded	-
+TQD-V0-007	docs/specs/corvint-tasks-doctor-v0.md	47	SLOW_LANE_RECOVERY names a pool member whose allocation entered CLEANING (a clea	unrecorded	-
+TQD-V0-008	docs/specs/corvint-tasks-doctor-v0.md	48	SETUP_ONLY_PROOF names a ticket COMPLETED within the window whose obligation led	unrecorded	-
+TQD-V0-009	docs/specs/corvint-tasks-doctor-v0.md	49	FALSE_IDLE names a live attempt whose holder status is STALE_HOLDER or LEASE_EXP	unrecorded	-
+TQD-V0-010	docs/specs/corvint-tasks-doctor-v0.md	50	Plugins run only when `--plugins DIR` names a directory. Discovery opens it with	unrecorded	-
+TQD-V0-011	docs/specs/corvint-tasks-doctor-v0.md	51	`doctor --refresh` writes the item, with profile `taskman-doctor-cache/0` and `r	unrecorded	-
+TQD-V0-012	docs/specs/corvint-tasks-doctor-v0.md	52	`doctor --line` reads only the cache, through the repository resolution walk to	unrecorded	-
+TQD-V0-013	docs/specs/corvint-tasks-doctor-v0.md	53	NO_PROGRESS_HANDOFF is not reported for a ticket whose current audited record ha	unrecorded	-
+TQD-V0-020	docs/specs/corvint-tasks-doctor-v0.md	54	`--config FILE` names an operator file (relative to the working directory, at mo	unrecorded	-
+TQD-V0-021	docs/specs/corvint-tasks-doctor-v0.md	55	QUEUE_LOCK_HELD names this queue's `taskman.lock` or `taskman.prepare.lock` (in	unrecorded	-
+TQD-V0-022	docs/specs/corvint-tasks-doctor-v0.md	56	SLOW_QUEUE_COMMAND names (`who` `pid N`) each other `corvint-tasks` process with	unrecorded	-
+TQD-V0-023	docs/specs/corvint-tasks-doctor-v0.md	57	NO_COMPLETIONS names the queue when no completion has been recorded for at least	unrecorded	-
+TQD-V0-024	docs/specs/corvint-tasks-doctor-v0.md	58	FD_PRESSURE names `system` when the system file table's in-use handles are at le	unrecorded	-
+TQD-V0-026	docs/specs/corvint-tasks-doctor-v0.md	59	With `notify` configured, `doctor --refresh` runs the hook at most once per chan	unrecorded	-
+TQD-V0-027	docs/specs/corvint-tasks-doctor-v0.md	60	For each configured dispatcher, the doctor reads each worker directory's `stdout	unrecorded	-
+TQD-V0-028	docs/specs/corvint-tasks-doctor-v0.md	61	HOST_ERRORS names the worker id when the log holds at least `hostErrors` host er	unrecorded	-
+TQD-V0-029	docs/specs/corvint-tasks-doctor-v0.md	62	EARLY_REFUSAL names the worker id when at least `earlyRefusal` tool calls failed	unrecorded	-
+TQD-V0-030	docs/specs/corvint-tasks-doctor-v0.md	63	Host-session findings derive only from lines a known usage format recognises (`d	unrecorded	-
+TQD-V0-031	docs/specs/corvint-tasks-doctor-v0.md	64	For each configured dispatcher the item's `dispatchers` array (in configuration	unrecorded	-
+TQD-V0-032	docs/specs/corvint-tasks-doctor-v0.md	65	NO_PROGRESS_HANDOFF counts only generations claimed at the ticket's current acce	unrecorded	-
+TQD-V0-033	docs/specs/corvint-tasks-doctor-v0.md	66	One doctor scan reads the journal through one read session that pins the store's	unrecorded	-
 TRE-V0-001	docs/specs/test-runner-execution-v0.md	26	Adapters MUST declare explicit runner/runtime/report profiles. Fixed invocation	unrecorded	-
 TRE-V0-002	docs/specs/test-runner-execution-v0.md	29	Inputs MUST identify the source snapshot, selectors, configuration, executable/t	unrecorded	-
 TRE-V0-003	docs/specs/test-runner-execution-v0.md	32	A bounded invocation MAY declare BUILD, DISCOVER, TEST and DECODE phases, each u	unrecorded	-
