@@ -364,6 +364,7 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 		o.Set("state", str(w.State))
 		o.Set("started", ts(w.Started))
 		o.Set("lastActive", ts(w.LastActive))
+		o.Set("context", dispatchWorkerContextValue(dir, w, now))
 		if w.Model != "" {
 			o.Set("tier", str(strconv.Itoa(w.Tier)))
 			o.Set("model", str(w.Model))
@@ -535,6 +536,40 @@ func dispatchWorkerUsageValue(u *dispatch.WorkerUsage) wire.Value {
 	o.Set("inputTokens", wire.String(in))
 	o.Set("outputTokens", wire.String(out))
 	o.Set("tokens", wire.String(total))
+	return wire.ObjectValue(o)
+}
+
+// dispatchWorkerContextValue is a running worker's ATR-V0-032 context
+// estimate, its age, the highest recorded crossing and the thresholds the
+// dispatcher last applied, all from its record: the configuration file may
+// be invalid or not yet reloaded (ATR-V0-039). An unread or unknown value is
+// UNKNOWN, never 0.
+func dispatchWorkerContextValue(dir string, w *dispatch.Worker, now time.Time) wire.Value {
+	unknown := dispatch.UsageUnknown
+	none := dispatch.ContextNone
+	tokens, at, age, level := unknown, unknown, unknown, none
+	warn, handoff, hard := none, none, none
+	if w.Usage != nil && (w.Usage.Format == "claude-code" || w.Usage.Format == "opencode") {
+		warn, handoff, hard = unknown, unknown, unknown
+		switch r, err := dispatch.ReadContextRecord(dir, w.ID); {
+		case err == nil:
+			tokens, at, level = r.Tokens, r.ObservedAt, r.Level
+			warn, handoff, hard = r.WarnTokens, r.HandoffTokens, r.HardTokens
+			if t, e := time.Parse(time.RFC3339, r.ObservedAt); e == nil {
+				age = strconv.FormatInt(max(0, int64(now.Sub(t)/time.Second)), 10)
+			}
+		case !errors.Is(err, fs.ErrNotExist):
+			level = unknown
+		}
+	}
+	o := wire.NewObject()
+	o.Set("tokens", wire.String(tokens))
+	o.Set("observedAt", wire.String(at))
+	o.Set("ageSeconds", wire.String(age))
+	o.Set("level", wire.String(level))
+	o.Set("warnTokens", wire.String(warn))
+	o.Set("handoffTokens", wire.String(handoff))
+	o.Set("hardTokens", wire.String(hard))
 	return wire.ObjectValue(o)
 }
 

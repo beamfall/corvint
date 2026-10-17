@@ -43,7 +43,7 @@ func testPreparedWriter(t *testing.T, recovery bool) {
 	if recovery {
 		p, err = prepareLeaseRecovery(repo)
 	} else {
-		p, err = prepareLease(ctx, repo, request, wire.Timestamp("2026-09-27T00:00:00Z"), nil)
+		p, err = prepareLease(ctx, repo, request, wire.Timestamp("2026-09-27T00:00:00Z"), nil, false)
 	}
 	if err != nil || p == nil || p.failure == nil {
 		t.Fatalf("failed read was not retained for locked recheck: %+v %v", p, err)

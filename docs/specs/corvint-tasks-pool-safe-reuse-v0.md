@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -78,6 +78,137 @@ lease reap path; there is no daemon, no member and no physical state. GitHub #10
 - `PSR-V0-042`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) Every `slots acquire|release` that is not refused records a lease receipt, including one that changes nothing (a release with no entry, or a poll that grants nothing): it posts only the request entry with outcome `COMPLETED`, so a retry of its request id replays it and never acts on a later state.
 - `PSR-V0-043`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) A replayed `slots acquire|release` result carries `slot` null: the current entry may belong to a later request or generation, so it is not reported as the original grant. A caller reads the current state with a fresh poll or `queue status`.
 
+### V1-1560 pool acquire under a moving journal (issue 1010)
+
+CAL-V0 IDs in this subsection are defined in `corvint-tasks-agent-leases-v0.md`.
+
+Human-owned input: GitHub [issue 1010](https://github.com/beamfall/corvint/issues/1010)
+(2026-10-17, native ticket V1-1560). On a journal of about 45,000 receipts, with a dispatcher
+committing every few seconds and 8 acquirers, `pool acquire` waited 10 to 40 minutes. Every one of
+its 16 rounds (CAL-V0-263) reran the complete audit from receipt 1, and any write during that audit
+made the round `SNAPSHOT_MOVED`, so the cost of a wait grew with retries and the writer rate. The
+owner declined extending the writer route to every lease verb (CAL-V0-264), because it drops the
+CAL-V0-116 detection of a rewritten prefix. Intent: a lease write that loses its round to a moving
+journal reuses its own settled audit from receipt 1 in the next round, so every acquire completes
+within a bound that does not depend on the writer rate or the number of retries. Integrity checks,
+refusals on tamper or corruption, receipts and ordering stay the same.
+
+- `PSR-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) A lease
+  write's preparation audit from receipt 1 MUST make one complete attempt that stops early once
+  `head.json` is no longer the file its capture observed (checked every 512 receipts or
+  projections). When that attempt is `SNAPSHOT_MOVED`, the audit MUST walk receipts 1..H for the
+  head H it captured, with the complete audit's validators, as the CAL-V0-265 refresh does. That
+  prefix walk MUST never decide a refusal for a lease. A walk that refuses on an unchanged
+  observation is `SNAPSHOT_MOVED` (prefix declined), and for the rest of the command the complete
+  audit decides, deriving any refusal itself. This applies only on a platform that reports a file
+  change time and at a head at or above the writer-checkpoint floor.
+- `PSR-V0-051`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) A resume
+  base MUST come only from a settled complete (`ModeFull`) or prefix (`ModePrefix`) audit from
+  receipt 1 that the same command ran, together with that audit's own physical observation. Tail,
+  writer and cached results never yield one. The base records the writer checkpoint the audit
+  derives and, for every receipt, request, evidence and pinned file the audit read, the file stamps
+  its capture observed, its change time and the digest of the bytes it read. Receipts 1..H, every
+  canonical afterimage at H and every listed request file MUST be among them, or there is no base.
+  A base lives only in that command's memory: it is never written, shared or reused by another
+  command or process.
+- `PSR-V0-052`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) A lease
+  write whose round ended `SNAPSHOT_MOVED` after it derived a resume base MUST, in later rounds,
+  first try the writer route under the preparation gate and writer lock, auditing only the tail
+  after the base (at most 256 receipts) for any lease verb. Before it commits, it MUST hold that:
+  - every base receipt is the same file, with the same mode, size, modification time and change
+    time;
+  - every base request, evidence and pinned file is likewise unchanged;
+  - a base file whose stamps were not yet settled when the base capture began is re-read and
+    matches its digest;
+  - every request file in every shard is a base file or one the tail posted, and no base request
+    is missing;
+  - every evidence and pinned afterimage the tail posted matches its canonical digest;
+  - the writer-checkpoint invalidation token read before the base audit is unchanged.
+  Any difference MUST decline the resume, write nothing and fall through to that round's ordinary
+  preparation. The receipt a resumed write commits is the one the complete route would commit.
+  Resumed writes advance the retained writer checkpoint under CAL-V0-117.
+- `PSR-V0-053`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) A tampered
+  prefix MUST never commit through a resume. Examples are a base receipt rewritten in place with its
+  modification time restored, or a stray or removed request file. The command keeps the refusal or
+  `SNAPSHOT_MOVED` that the complete route gives that journal, and CAL-V0-116 detection is unchanged
+  for every lease verb.
+- `PSR-V0-054`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) When the
+  change-guard registration, which visits every store file, is overtaken (`SNAPSHOT_MOVED`) in a
+  round that may resume, the preparation MUST still run the PSR-V0-050 audit, but only to derive a
+  resume base, and then end the round `SNAPSHOT_MOVED`. Without a guard it MUST never decide a
+  refusal, use the complete route or commit. A prefix walk declined there disables resume for the
+  command.
+- `PSR-V0-055`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) Bound. Once
+  a lease write has a resume base, each later round costs at most one bounded writer section: the
+  gate and lock wait, a tail of at most 256 receipts, and a listing of the receipts and request
+  shards. That cost is independent of the writer rate and of the number of rounds. A command
+  therefore runs at most:
+  - one early-stopped complete attempt and one prefix walk before its first resume, plus one more
+    preparation audit per declined resume;
+  - the CAL-V0-263 bounded sections.
+  CPU per waiting acquirer does not grow with retries. The documented acquire bound is under 2
+  minutes for 8 acquirers and a writer every 3 seconds, measured at 10,000 receipts on a loaded
+  12-CPU Darwin host (the opt-in load harness). Qualification at 45,000 receipts remains NOT_RUN,
+  and by linear extrapolation the prefix walk alone would take about 3 minutes at host load 60.
+  `Timing.Resumed` counts resumed rounds.
+- `PSR-V0-056`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560 review
+  amendment) No change guard watches a resumed write, so the PSR-V0-052 checks MUST hold up to the
+  commit, not only at the resumed audit. Under the writer lock, after modelling and after the head,
+  intent and branch rebind, a resumed write MUST run the PSR-V0-052 base checks again against the
+  files as they are then, with each request shard listed afresh. It MUST do this before it reports a
+  result, retains a checkpoint or publishes anything. As in PSR-V0-052, any difference declines the
+  resume.
+- `PSR-V0-057`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560 review
+  amendment) The base checks of PSR-V0-052 and PSR-V0-056 read through a read lifetime of their own.
+  A failed close of that lifetime, or of any file or directory read within it, is a cleanup failure,
+  as an audit's own is: `UNSUPPORTED_FILESYSTEM` (`read lifetime`), carried in the resumed audit's
+  physical observation. It MUST terminate the command, as CAL-V0-116 requires. It is never a
+  decline that falls back to preparation.
+
+Non-goals: the retryable result's retry count and audit duration (issue 1010 option, NOT_PRODUCED);
+exposing `Resumed` in the CLI; resuming on a platform without file change times; resuming past a
+tail of 256 receipts; a persisted or shared resume base; changing the CAL-V0-264 decision; a
+liveness-latency bound for heartbeat or renew.
+
+Failure modes: a resume declined because the base changed (any rewrite, a stray request, an
+invalidation-token change, a tail beyond 256) costs one more preparation audit in that round. A
+command whose prefix walk is declined, whose model reads an elided path, or whose request is a
+handoff-policy candidate keeps the complete route each round and can still fail `SNAPSHOT_MOVED`
+after 16 rounds (retryable), as under CAL-V0-263. The listings under the writer lock grow with the
+receipt and request-file count. Without change times (platforms other than Darwin and Linux) lease
+writes behave as before.
+
+Acceptance evidence:
+- `TestPSRV0050_PrefixFallback`, `TestPSRV0051_ResumeBaseOnlyFromSettledAudit` and
+  `TestPSRV0052_ResumeDeclinesOnChangedBase` (6 cases with settled and unsettled stamps) in
+  `internal/tasks/journal`.
+- `TestPSRV0052_PoolAcquireResumesUnderWriter`, `TestPSRV0052_WidenResumesUnderWriter`,
+  `TestPSRV0053_ResumeKeepsRewrittenPrefixDetection`, `TestPSRV0054_OvertakenGuardStillResumes` and
+  `TestPSRV0054_OvertakenGuardKeepsRewrittenPrefixDetection` in `internal/tasks/store`.
+- Review amendment (independent Codex review of PR #1018): `TestPSRV0056_ResumeRechecksBaseBeforeCommit`
+  (`internal/tasks/store`) rewrites receipt 2 at the resumed write's `fast.lease.observe` and
+  `fast.lease.model` stages. On the reviewed head c843d6aab the acquire committed over the rewritten
+  prefix, and after the change it keeps the complete route's decision. In `internal/tasks/journal`,
+  `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` covers a rewritten receipt, a stray request in a
+  new shard and a failed close. `TestPSRV0057_ResumeCheckCloseFailureIsCleanup` fails the close of
+  the base check's receipts listing. On c843d6aab that was an ordinary decline, and after the change
+  it is the audit's cleanup failure.
+  `TestPSRV0052_PoolAcquireResumesUnderWriter` fails on base cc487c92e: 16 complete audits and 16
+  rounds, then `SNAPSHOT_MOVED`. After the change it completes with one audit and one resumed round.
+- The opt-in harness `TestPSRV0055_PoolAcquireLoad` (`CORVINT_TASKS_POOL_ACQUIRE_LOAD=<report>`).
+  At 10,000 receipts, 8 acquirers and a writer every 3 seconds (12 CPUs, host load 53 to 68):
+  - base: 2 of 8 acquires completed (252 s and 288 s), 1 ended `SNAPSHOT_MOVED` after 16 rounds
+    (374 s), and 5 were unfinished at 420 s;
+  - after the change: 18 of 18 completed, all resumed, with at most 3 rounds, p50 42.9 s and
+    max 65.2 s.
+  See `docs/build-log/2026-10-17-v1-1560-pool-acquire-starvation.md`.
+- Linux, quiet-host and 45,000-receipt qualification remain NOT_RUN.
+
+Rollback: revert the resume route in `prepareLease`/`leaseWrite`, `observeWriter` and `leaseWriter`,
+the journal `PrefixFallback`/`ResumeBase`/`AuditForResume`/`RecheckResume`, their tests and this amendment. A
+resume base is in-memory only. No store format, receipt, checkpoint format or wire result changes,
+so stores written by either build are read by the other.
+
 ## Acceptance evidence
 
 Initial fixture must initialize and canonically roundtrip policy/pool state, claim/release exact allocation and show QUARANTINED before fault injection. Positive reset+verify and optional cleanup-first produce bounded observation/log evidence, delegated confirmation and FREE readback; subsequent claim has fresh allocation. Exact replay after env deletion/current config change/successor allocation returns original evidence without execution. Barrier tests afterreset/beforeconfirm refuse competing sweep, ordinary cleanup and manual confirmation. Retry max2, combined deadline, total budget, exit/stdout/stderr predicates, overflow/source drift/private env syntax/permissions/symlinks/races, receipt publication failure and request conflict controls retain quarantine. Blocked identity/group probes are bounded. Actual foreground subprocess INT/TERM retirement observes PID/start identities and descendant absence; killed-host explicit recovery refuses live/unknown runner and retains quarantine. Large pool projection, descriptor/count maxima, duplicated evidence digest and archive evidence retention must be checked. PSR-V0-011/012 (issue628) add policy-validation tests for the 1..3600 bound and the pinned cwd shape, an injected-clock health timeout at 3600, and pinned health/sweep fixtures that run in the external worktree and refuse mismatched revision, dirty tracked or untracked input, alias, subdirectory and non-worktree paths without executing; hook-driven tests show a revision swapped between HEAD and status and a directory swapped after the proof run nothing, and post-exit bounded probes keep the command's terminal class. Current integrated tests/runtimes are NOT_RUN at this source phase; Linux and physical external cleanup remain NOT_OBSERVED. The earlier broad source run failed on historical replay timing and the clock fixture; the repaired five-cell run and focused vet passed at their original source binding. Required next evidence is a fresh integrated binary plus all 58 mandatory PASS observations (21 PSR/repair, 27 CAL dispatcher/CLI, nine issue503 and the clock witness), scoped race/vet and docs/specindex checks. Historical repair PASS is not a current broad PASS. The original enrollment (BASE211916, key a2284577) is retained as NON_SUCCESS. The successor enrollment at that seal, with the original single intent and both original selected checks unchanged, its CEM/OCM, report review, seal, hosted landing and native completion remain pending; actual receipts must replace pending claims only after execution.
@@ -86,6 +217,8 @@ Shared allocations (PSR-V0-016..021; V1-0946, GitHub #653): focused CLI, transac
 
 Sweep prepare (PSR-V0-024..026; V1-1551, GitHub #1009): focused intent and store tests cover the policy shape, bound and safeReuse requirement; a prepare observed mid-run while the member is CLEANING under the owned sweep, chained after the passed verify, digest-only evidence with no output bytes, then FREE and an exact replay that does not rerun it; EXIT_NONZERO and shared-deadline TIMEOUT failures that stay QUARANTINED with the recorded reason and no retry; a lost prepare response whose replay stays pending without re-execution; and an ALL barrier that never launches prepare. Failure modes: a failed, timed-out, over-limit or source-changed prepare, a lost response and an ALL barrier each leave the member quarantined or owned, never free. Existing sweep tests run unchanged for members without prepare.
 Capacity slots (PSR-V0-030..043; V1-1550, GitHub #1008): focused intent, snapshot, store and CLI tests cover the policy and pools.json codecs with every refusal; grant, wait and free after an attempt ends and after a crashed holder's lease expires (reaped by the next poll, acceptance 1); an exclusive request granted under continuing shared demand (acceptance 2); priority wait order; a reserved class granted past a higher-priority unreserved waiter (acceptance 3); request-id replay and no-change polls (acceptance 4); and the `slot` result and `queue status` `slots` view as a pure read (acceptance 5). Concurrency between two slot writers relies on the existing store lock and was not separately stress-tested. An independent review found five defects before landing; each has a regression test that fails on the reviewed head 19f66b4e4: supervisor attach with held or waiting slots is refused (PSR-V0-039); an exclusive granted after a capacity cut takes the new capacity and a stale shared waiter neither is granted nor blocks a later one (PSR-V0-040); two alternating higher-priority exclusive requesters cannot starve a reserved-class waiter (PSR-V0-041); no-change release and poll requests replay (PSR-V0-042); and a replay carries no slot (PSR-V0-043). An older binary reading a store with slots is inferred from the closed decoders; no older binary was executed.
+
+Lease write resume (PSR-V0-050..057; V1-1560, GitHub #1010): the focused journal and store tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-050..057); Linux, quiet-host and 45,000-receipt qualification NOT_RUN.
 
 ## Non-goals and simpler baseline
 
@@ -133,3 +266,16 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-041 | `TestPSRV0041_ExclusiveDemandCannotStarveReservedClass` |
 | PSR-V0-042 | `TestPSRV0042_NoChangeRequestsReplay`, `TestPSRV0036_ReleaseAndRefusals` |
 | PSR-V0-043 | `TestPSRV0043_ReplayCarriesNoSlot`, `TestPSRV0037_AcquireIdempotentByRequestID`, `TestPSRV0038_CLISlotResultsAndQueueStatus` |
+
+## Traceability (PSR-V0-050..057)
+
+| Requirement | Evidence |
+| --- | --- |
+| PSR-V0-050 | `TestPSRV0050_PrefixFallback` (`internal/tasks/journal`); `TestPSRV0052_PoolAcquireResumesUnderWriter` (`internal/tasks/store`) |
+| PSR-V0-051 | `TestPSRV0051_ResumeBaseOnlyFromSettledAudit` (`internal/tasks/journal`) |
+| PSR-V0-052 | `TestPSRV0052_ResumeDeclinesOnChangedBase` (`internal/tasks/journal`); `TestPSRV0052_PoolAcquireResumesUnderWriter`, `TestPSRV0052_WidenResumesUnderWriter` (`internal/tasks/store`) |
+| PSR-V0-053 | `TestPSRV0053_ResumeKeepsRewrittenPrefixDetection`, `TestPSRV0054_OvertakenGuardKeepsRewrittenPrefixDetection` (`internal/tasks/store`) |
+| PSR-V0-054 | `TestPSRV0054_OvertakenGuardStillResumes`, `TestPSRV0054_OvertakenGuardKeepsRewrittenPrefixDetection` (`internal/tasks/store`) |
+| PSR-V0-055 | opt-in `TestPSRV0055_PoolAcquireLoad` (`internal/tasks/store`); `docs/build-log/2026-10-17-v1-1560-pool-acquire-starvation.md` |
+| PSR-V0-056 | `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`); `TestPSRV0056_ResumeRechecksBaseBeforeCommit` (`internal/tasks/store`) |
+| PSR-V0-057 | `TestPSRV0057_ResumeCheckCloseFailureIsCleanup`, `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`) |
