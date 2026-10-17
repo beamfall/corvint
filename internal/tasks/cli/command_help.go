@@ -151,6 +151,12 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if name == "pool release" {
 		o.Set("note", wire.String("Returns the attempt's exact current allocation early: the member is quarantined until pool cleanup and confirm-safe, exactly as when an attempt ends, and the attempt stays live with no allocation. A shared allocation is refused. Lane-untouched release is unavailable afterwards (CAL-V0-201, CAL-V0-202)."))
 	}
+	if name == "slots acquire" {
+		o.Set("note", wire.String("Takes --count (default 1) shared slots, or with --exclusive the whole capacity, of a policy-declared slots resource for the named live attempt's holder (PSR-V0-032..035). The entry is HELD when it fits, otherwise WAITING; waiters are granted in ticket priority then request order whenever any slot write settles the resource, so a waiter polls with a fresh request ID. An exclusive waiter stops later shared grants until it is granted; --class draws on that class's policy reservation, which no other class can take. A crashed or expired holder is reaped first and an ended or reaped attempt's slots free themselves; there is no member, cleanup or quarantine. A request-id replay returns the original receipt; the slot member is the current state (PSR-V0-037, PSR-V0-038)."))
+	}
+	if name == "slots release" {
+		o.Set("note", wire.String("Drops the attempt's held or waiting entry for --slots and grants waiters; nothing to drop leaves the store unchanged. Passes an admission barrier (PSR-V0-036)."))
+	}
 	if name == "dispatch" || name == "dispatch status" || name == "dispatch recover-reader" {
 		o.Set("readerRecovery", wire.String("A work-state reader whose containment was not proved leaves reader-lifecycle.json, and every dispatch start then refuses QUIESCENCE_UNPROVED; deleting the marker by hand proves nothing. reader-leader.json names the started reader leader's pid and start identity; recover-reader refuses QUIESCENCE_UNPROVED while that process still runs or its identity or record cannot be read, and an exited leader lifts nothing by itself. A reader-lifecycle.json.clearing left by an interrupted removal keeps the quarantine and is attested first. Two recoveries exist (CAL-V0-226..228): (1) a start after a host reboot, when the marker records this machine and an earlier boot, records a HOST_REBOOT attestation under reader-recoveries/ and clears it; a marker from an earlier build, or with no host identity, never qualifies. (2) After confirming the reader and its descendants exited, run `corvint-tasks dispatch recover-reader --program ID --config FILE --reason TEXT --evidence REF --request-id ID`: it refuses RESOURCE_COLLISION while a dispatcher holds the program lock, writes an OPERATOR attestation (reason, evidence reference, marker digest) and only then removes that exact marker. A replay of the request ID returns the record; reusing it for another marker refuses REQUEST_ID_CONFLICT. --reason is prose (1..4096 bytes); --evidence uses Identifier grammar (1..128 bytes). The attestation is the operator's claim, not a physical observation."))
 	}
@@ -269,6 +275,8 @@ var commandUsage = map[string]string{
 	"pool confirm-safe":       "corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID [--lock-wait SECONDS] [--role ROLE]",
 	"pool acquire":            "corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--exclude-member ID]... [--exclude-authors[=all]] [--lock-wait SECONDS] [--role ROLE] [--detach [--wait SECONDS]]; pool acquire --attach --request-id ID [--wait SECONDS]",
 	"pool release":            "corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID [--lock-wait SECONDS] [--role ROLE]",
+	"slots acquire":           "corvint-tasks slots acquire --attempt ID --generation G --slots ID --request-id ID [--count N | --exclusive] [--class LABEL] [--lock-wait SECONDS] [--role ROLE]",
+	"slots release":           "corvint-tasks slots release --attempt ID --generation G --slots ID --request-id ID [--lock-wait SECONDS] [--role ROLE]",
 	"lane-leader":             "corvint-tasks lane-leader --directory DIR --capsule FILE",
 	"pending":                 "corvint-tasks pending",
 	"program show":            "corvint-tasks program show",

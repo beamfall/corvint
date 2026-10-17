@@ -78,6 +78,7 @@ var ReadVerbs = []string{
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch recover-reader", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "doctor", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe", "pool acquire", "pool release",
+	"slots acquire", "slots release",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"ticket know-how add", "ticket know-how retract", "ticket know-how reconfirm", "ticket know-how list",
 	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan",
@@ -226,6 +227,12 @@ func Run(env Env) int {
 			return emit(env.Stdout, leaseCommand(env, "pool "+args[1], args[2:]))
 		}
 		return emit(env.Stdout, usage([]string{"pool"}, "unknown pool verb"))
+	case "slots":
+		// PSR-V0-032..037: shared-capacity slots of a declared resource.
+		if len(args) > 1 && (args[1] == "acquire" || args[1] == "release") {
+			return emit(env.Stdout, leaseCommand(env, "slots "+args[1], args[2:]))
+		}
+		return emit(env.Stdout, usage([]string{"slots"}, "unknown slots verb; slots acquire|release --help"))
 	case "attempt":
 		if len(args) > 1 && args[1] == "show" {
 			return emit(env.Stdout, compactRead([]string{"attempt", "show"}, args[2:], compactSpec{summary: attemptSummary}, func(a []string) *wire.Result { return attemptCommand(env, append([]string{"show"}, a...)) }))
@@ -1548,6 +1555,13 @@ func queueStatus(env Env, args []string) *wire.Result {
 				return e
 			}
 			o.Set("pools", occupancy)
+		}
+		if len(st.Policy.Slots) > 0 && !rc.journalAbsent {
+			occupancy, e := slotOccupancy(rc, observedAt)
+			if e != nil {
+				return e
+			}
+			o.Set("slots", occupancy)
 		}
 		attempts := map[string]*snapshot.Attempt{}
 		fallback := wire.Null()

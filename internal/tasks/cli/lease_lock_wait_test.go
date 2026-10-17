@@ -95,7 +95,7 @@ func TestCALV0111_LockWaitFlag(t *testing.T) {
 		{"reap", "--request-id", "reap-flag", "--lock-wait", "5"},
 	} {
 		x := atm(t, root, nil, args...)
-		if x.code == 0 || !hasCode(x.res, wire.CodeMalformed) || !strings.Contains(string(x.stdout), "--lock-wait belongs to release, attempt heartbeat, claim, renew, submit, pool acquire, pool confirm-safe and pool release") {
+		if x.code == 0 || !hasCode(x.res, wire.CodeMalformed) || !strings.Contains(string(x.stdout), "--lock-wait belongs to release, attempt heartbeat, claim, renew, submit, pool acquire, pool confirm-safe, pool release, slots acquire and slots release") {
 			t.Fatalf("%v: %s", args, x.stdout)
 		}
 	}

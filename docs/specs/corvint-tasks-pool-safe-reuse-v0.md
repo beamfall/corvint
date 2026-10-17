@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -57,136 +57,26 @@ Job: explicit foreground operator-defined reset and verification recover a quara
 - `PSR-V0-025`: Within an owned sweep attempt the phase order becomes cleanup (if declared), reset, verify, prepare, confirm: a passed verify advances to `prepare` instead of `confirm`, and a passed prepare (exit 0 with proved group cleanup and post-exit source/pin proof, as for reset) advances to `confirm`. Prepare runs only while the sweep owns the member (state CLEANING from the selected QUARANTINED allocation, never FREE or allocatable), on the same owned process runner and bounded 64 KiB capture, under the member's shared attempt deadline and the sweep's `--timeout-seconds` budget (its own `timeoutSeconds` never extends them), with the same pinned-cwd checks at admission and around execution and its declared env names loaded with the member's other phase inputs. Its observation is a `taskman-pool-sweep-observation/0` with phase `prepare` chained to the passed verify; output is digest-only: stdout/stderr digests are recorded and its log evidence is the empty log, which the writer requires. Delegated confirmation then requires the passed prepare observation as the owned witness. Under an ALL barrier prepare is a further phase command: it is never launched, and a sweep that passed verify ends QUARANTINED with the ALL-barrier reason.
 - `PSR-V0-026`: A prepare that does not pass (any class, including TIMEOUT at the shared deadline, OUTPUT_LIMIT, SOURCE_CHANGED or unproved cleanup) is terminal for the sweep: it is not retried even when `maxAttempts` remains, the member stays QUARANTINED with reason `CLASS; pool prepare failed`, its sweep owner is released only when group cleanup is proved, and the member is never freed. Same-request replay and reconciliation read the committed prepare receipt like any other phase receipt and never re-execute a completed prepare; a lost prepare response leaves the original pending while the sweep still owns the member. The per-member owned-step bound rises from 7 to 8 (two cleanup/reset/verify attempts, then prepare and confirm); without prepare no sweep reaches the eighth step.
 
-### V1-1560 pool acquire under a moving journal (issue 1010)
+### Capacity slots (V1-1550)
 
-CAL-V0 IDs in this subsection are defined in `corvint-tasks-agent-leases-v0.md`.
+A scarce stateless resource (an API budget, licence seats, a GPU count) needs shared capacity but none
+of a pool member's identity, cleanup or quarantine. Slots reuse the lease journal, pools.json and the
+lease reap path; there is no daemon, no member and no physical state. GitHub #1008.
 
-Human-owned input: GitHub [issue 1010](https://github.com/beamfall/corvint/issues/1010)
-(2026-10-17, native ticket V1-1560). On a journal of about 45,000 receipts, with a dispatcher
-committing every few seconds and 8 acquirers, `pool acquire` waited 10 to 40 minutes. Every one of
-its 16 rounds (CAL-V0-263) reran the complete audit from receipt 1, and any write during that audit
-made the round `SNAPSHOT_MOVED`, so the cost of a wait grew with retries and the writer rate. The
-owner declined extending the writer route to every lease verb (CAL-V0-264), because it drops the
-CAL-V0-116 detection of a rewritten prefix. Intent: a lease write that loses its round to a moving
-journal reuses its own settled audit from receipt 1 in the next round, so every acquire completes
-within a bound that does not depend on the writer rate or the number of retries. Integrity checks,
-refusals on tamper or corruption, receipts and ordering stay the same.
-
-- `PSR-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) A lease
-  write's preparation audit from receipt 1 MUST make one complete attempt that stops early once
-  `head.json` is no longer the file its capture observed (checked every 512 receipts or
-  projections). When that attempt is `SNAPSHOT_MOVED`, the audit MUST walk receipts 1..H for the
-  head H it captured, with the complete audit's validators, as the CAL-V0-265 refresh does. That
-  prefix walk MUST never decide a refusal for a lease. A walk that refuses on an unchanged
-  observation is `SNAPSHOT_MOVED` (prefix declined), and for the rest of the command the complete
-  audit decides, deriving any refusal itself. This applies only on a platform that reports a file
-  change time and at a head at or above the writer-checkpoint floor.
-- `PSR-V0-051`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) A resume
-  base MUST come only from a settled complete (`ModeFull`) or prefix (`ModePrefix`) audit from
-  receipt 1 that the same command ran, together with that audit's own physical observation. Tail,
-  writer and cached results never yield one. The base records the writer checkpoint the audit
-  derives and, for every receipt, request, evidence and pinned file the audit read, the file stamps
-  its capture observed, its change time and the digest of the bytes it read. Receipts 1..H, every
-  canonical afterimage at H and every listed request file MUST be among them, or there is no base.
-  A base lives only in that command's memory: it is never written, shared or reused by another
-  command or process.
-- `PSR-V0-052`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) A lease
-  write whose round ended `SNAPSHOT_MOVED` after it derived a resume base MUST, in later rounds,
-  first try the writer route under the preparation gate and writer lock, auditing only the tail
-  after the base (at most 256 receipts) for any lease verb. Before it commits, it MUST hold that:
-  - every base receipt is the same file, with the same mode, size, modification time and change
-    time;
-  - every base request, evidence and pinned file is likewise unchanged;
-  - a base file whose stamps were not yet settled when the base capture began is re-read and
-    matches its digest;
-  - every request file in every shard is a base file or one the tail posted, and no base request
-    is missing;
-  - every evidence and pinned afterimage the tail posted matches its canonical digest;
-  - the writer-checkpoint invalidation token read before the base audit is unchanged.
-  Any difference MUST decline the resume, write nothing and fall through to that round's ordinary
-  preparation. The receipt a resumed write commits is the one the complete route would commit.
-  Resumed writes advance the retained writer checkpoint under CAL-V0-117.
-- `PSR-V0-053`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) A tampered
-  prefix MUST never commit through a resume. Examples are a base receipt rewritten in place with its
-  modification time restored, or a stray or removed request file. The command keeps the refusal or
-  `SNAPSHOT_MOVED` that the complete route gives that journal, and CAL-V0-116 detection is unchanged
-  for every lease verb.
-- `PSR-V0-054`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) When the
-  change-guard registration, which visits every store file, is overtaken (`SNAPSHOT_MOVED`) in a
-  round that may resume, the preparation MUST still run the PSR-V0-050 audit, but only to derive a
-  resume base, and then end the round `SNAPSHOT_MOVED`. Without a guard it MUST never decide a
-  refusal, use the complete route or commit. A prefix walk declined there disables resume for the
-  command.
-- `PSR-V0-055`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) Bound. Once
-  a lease write has a resume base, each later round costs at most one bounded writer section: the
-  gate and lock wait, a tail of at most 256 receipts, and a listing of the receipts and request
-  shards. That cost is independent of the writer rate and of the number of rounds. A command
-  therefore runs at most:
-  - one early-stopped complete attempt and one prefix walk before its first resume, plus one more
-    preparation audit per declined resume;
-  - the CAL-V0-263 bounded sections.
-  CPU per waiting acquirer does not grow with retries. The documented acquire bound is under 2
-  minutes for 8 acquirers and a writer every 3 seconds, measured at 10,000 receipts on a loaded
-  12-CPU Darwin host (the opt-in load harness). Qualification at 45,000 receipts remains NOT_RUN,
-  and by linear extrapolation the prefix walk alone would take about 3 minutes at host load 60.
-  `Timing.Resumed` counts resumed rounds.
-- `PSR-V0-056`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560 review
-  amendment) No change guard watches a resumed write, so the PSR-V0-052 checks MUST hold up to the
-  commit, not only at the resumed audit. Under the writer lock, after modelling and after the head,
-  intent and branch rebind, a resumed write MUST run the PSR-V0-052 base checks again against the
-  files as they are then, with each request shard listed afresh. It MUST do this before it reports a
-  result, retains a checkpoint or publishes anything. As in PSR-V0-052, any difference declines the
-  resume.
-- `PSR-V0-057`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560 review
-  amendment) The base checks of PSR-V0-052 and PSR-V0-056 read through a read lifetime of their own.
-  A failed close of that lifetime, or of any file or directory read within it, is a cleanup failure,
-  as an audit's own is: `UNSUPPORTED_FILESYSTEM` (`read lifetime`), carried in the resumed audit's
-  physical observation. It MUST terminate the command, as CAL-V0-116 requires. It is never a
-  decline that falls back to preparation.
-
-Non-goals: the retryable result's retry count and audit duration (issue 1010 option, NOT_PRODUCED);
-exposing `Resumed` in the CLI; resuming on a platform without file change times; resuming past a
-tail of 256 receipts; a persisted or shared resume base; changing the CAL-V0-264 decision; a
-liveness-latency bound for heartbeat or renew.
-
-Failure modes: a resume declined because the base changed (any rewrite, a stray request, an
-invalidation-token change, a tail beyond 256) costs one more preparation audit in that round. A
-command whose prefix walk is declined, whose model reads an elided path, or whose request is a
-handoff-policy candidate keeps the complete route each round and can still fail `SNAPSHOT_MOVED`
-after 16 rounds (retryable), as under CAL-V0-263. The listings under the writer lock grow with the
-receipt and request-file count. Without change times (platforms other than Darwin and Linux) lease
-writes behave as before.
-
-Acceptance evidence:
-- `TestPSRV0050_PrefixFallback`, `TestPSRV0051_ResumeBaseOnlyFromSettledAudit` and
-  `TestPSRV0052_ResumeDeclinesOnChangedBase` (6 cases with settled and unsettled stamps) in
-  `internal/tasks/journal`.
-- `TestPSRV0052_PoolAcquireResumesUnderWriter`, `TestPSRV0052_WidenResumesUnderWriter`,
-  `TestPSRV0053_ResumeKeepsRewrittenPrefixDetection`, `TestPSRV0054_OvertakenGuardStillResumes` and
-  `TestPSRV0054_OvertakenGuardKeepsRewrittenPrefixDetection` in `internal/tasks/store`.
-- Review amendment (independent Codex review of PR #1018): `TestPSRV0056_ResumeRechecksBaseBeforeCommit`
-  (`internal/tasks/store`) rewrites receipt 2 at the resumed write's `fast.lease.observe` and
-  `fast.lease.model` stages. On the reviewed head c843d6aab the acquire committed over the rewritten
-  prefix, and after the change it keeps the complete route's decision. In `internal/tasks/journal`,
-  `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` covers a rewritten receipt, a stray request in a
-  new shard and a failed close. `TestPSRV0057_ResumeCheckCloseFailureIsCleanup` fails the close of
-  the base check's receipts listing. On c843d6aab that was an ordinary decline, and after the change
-  it is the audit's cleanup failure.
-  `TestPSRV0052_PoolAcquireResumesUnderWriter` fails on base cc487c92e: 16 complete audits and 16
-  rounds, then `SNAPSHOT_MOVED`. After the change it completes with one audit and one resumed round.
-- The opt-in harness `TestPSRV0055_PoolAcquireLoad` (`CORVINT_TASKS_POOL_ACQUIRE_LOAD=<report>`).
-  At 10,000 receipts, 8 acquirers and a writer every 3 seconds (12 CPUs, host load 53 to 68):
-  - base: 2 of 8 acquires completed (252 s and 288 s), 1 ended `SNAPSHOT_MOVED` after 16 rounds
-    (374 s), and 5 were unfinished at 420 s;
-  - after the change: 18 of 18 completed, all resumed, with at most 3 rounds, p50 42.9 s and
-    max 65.2 s.
-  See `docs/build-log/2026-10-17-v1-1560-pool-acquire-starvation.md`.
-- Linux, quiet-host and 45,000-receipt qualification remain NOT_RUN.
-
-Rollback: revert the resume route in `prepareLease`/`leaseWrite`, `observeWriter` and `leaseWriter`,
-the journal `PrefixFallback`/`ResumeBase`/`AuditForResume`/`RecheckResume`, their tests and this amendment. A
-resume base is in-memory only. No store format, receipt, checkpoint format or wire result changes,
-so stores written by either build are read by the other.
+- `PSR-V0-030`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) Optional policy `slots` declares 1..16 resources `{id, capacity[, reserved]}` with closed keys: `id` a unique label (`DUPLICATE_ID` otherwise), `capacity` 1..64, and `reserved` an object of 1..8 class labels each reserving 1..64 slots whose sum is at most `capacity`. An out-of-range count, class count or reserved sum refuses `LIMIT_EXCEEDED`; any other shape refuses `MALFORMED`. A policy without `slots` keeps identical bytes.
+- `PSR-V0-031`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) pools.json gains the optional `slots` array, written only when non-empty, of at most 512 entries `{slotsId, attemptId, generation, holder, count, exclusive, class, priority, seq, state}` in (slotsId, seq, attemptId) order with closed keys: a same-queue attempt, `count` 1..64, `priority` P0..P3, `seq` positive and at most the head sequence, `state` `HELD` or `WAITING`, a label or empty `class`, and one entry per (slotsId, attempt). Pool state without slots keeps identical bytes and digests.
+- `PSR-V0-032`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) `slots acquire --attempt ID --generation G --slots ID [--count N | --exclusive] [--class LABEL]` runs on a live attempt with a work lease, for its holder, generation-fenced like every attempt verb (`REVISION_CONFLICT` `FENCED`, recorded). It adds a `WAITING` entry with the next receipt sequence, the ticket's priority at that moment and `count` (default 1, or the full capacity when exclusive), then grants waiters and commits pools.json in one lease receipt. Only live entries count: an entry whose resource is no longer declared or whose attempt is no longer live at the entry's generation holds and waits for nothing and is pruned by the next slot write, so ending, releasing or reaping an attempt frees its slots without operator action. An acquire that finds an expired lease on another entry of the resource returns it for reaping (`BLOCKED` `ATTEMPT_LIVE` with `expired`); the store reaps it in its own receipt and retries, so a crashed holder's slots free on the next poll.
+- `PSR-V0-033`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) An exclusive entry is granted only when nothing of the resource is held and no exclusive waiter is ahead of it (amended by PSR-V0-041: no eligible exclusive waiter); while it is held nothing else is granted. A shared waiter is not granted while an exclusive waiter is ahead of it in wait order or was enqueued before it, so new shared grants stop behind an exclusive request and it is granted once the current holders release, whatever the shared arrival rate.
+- `PSR-V0-034`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) Waiters are considered in (priority, seq, attemptId) order, P0 first. A shared waiter is granted when its count fits what is available to its class; once one does not fit, a later waiter is granted only within its own class's unused reservation (no general overtaking).
+- `PSR-V0-035`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) For a shared request of class K (empty when unreserved), available = capacity - held - the sum over every other reserved class of max(0, reservation - held by that class). An unreserved or other-class waiter therefore never takes a class's unused reservation, whatever its priority, so a reserved class is never starved by an unreserved one. A class not reserved on the resource refuses `MALFORMED`; a count above capacity minus the other classes' reservations can never be granted and refuses `LIMIT_EXCEEDED`; an unknown resource refuses `MALFORMED`. `--exclusive` with `--count` or `--class`, or a missing `--slots`, refuses `MALFORMED` and a count outside 1..64 refuses `LIMIT_EXCEEDED`, both before any read of state.
+- `PSR-V0-036`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) `slots release --attempt ID --generation G --slots ID` drops the attempt's held or waiting entry and grants waiters in the same receipt; with no entry it is a no-change (amended by PSR-V0-042: recorded). An admission barrier refuses `slots acquire` `BLOCKED` `PAUSED` without a write and does not block `slots release`. A repeat acquire by an attempt that already has an entry with other count, exclusivity or class refuses `BLOCKED` `RESOURCE_COLLISION`. Both verbs accept the CAL-V0-111 `--lock-wait SECONDS` bound, extending the CAL-V0-216 verb set.
+- `PSR-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) Acquire and release are idempotent by request id: a retry replays the committed receipt without a write. A waiter polls with a fresh request id and the same parameters; that poll only grants waiters and is a no-change when nothing moves (amended by PSR-V0-042: recorded). Refusals other than the recorded FENCED write nothing. The lease request preimage gains `slots`, `slotCount`, `slotExclusive` and `slotClass` only when present, so every other request keeps identical preimage bytes.
+- `PSR-V0-038`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) Every `slots acquire|release` result carries `slot` `{slotsId, state, count, exclusive, class, position}` from a fresh audited read after the command (state `HELD`, `WAITING` with its 1-based wait position, or `NONE`; on a replay it is the current state, not the state at the original commit; amended by PSR-V0-043: a replay carries `slot` null), or null when the command failed before the read. `queue status`, when the policy declares slots and the journal is present, adds `slots`: per resource `slotsId`, `capacity`, `reserved`, `held`, `free`, `exclusiveHeld`, `holders` and `waiters` in wait order with `position` and `priority`, each naming attempt, generation, holder, count, exclusive, class and `leaseExpired`. Both are pure reads: no lock, no reap, no write.
+- `PSR-V0-039`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) An attempt with a live slot entry, held or waiting, cannot attach to a supervisor: ATTACH refuses `UNSUPPORTED` without a write, because a supervised attempt is never expired, reaped or slot-released and its slots would never free. Release the slots first. An entry of an older generation is dead and does not refuse.
+- `PSR-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) Grants follow the current policy. A waiter whose own acquire the current policy would refuse (its class is no longer reserved, or its count exceeds capacity minus the other classes' reservations) is neither granted nor blocks a later waiter, and stays visible until released; its poll refuses as a fresh acquire would. An exclusive grant takes the current capacity as its `count`, and an exclusive poll matches on exclusivity and class, not count. No grant raises `held` above the current capacity; holders granted under a larger capacity keep their grant until they release.
+- `PSR-V0-041`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) An exclusive waiter is eligible only when no reserved-class shared waiter was enqueued before it; the first eligible exclusive in wait order is granted when nothing is held. A reserved-class shared waiter is held back only by an exclusive waiter enqueued before it, whatever the priorities; an unreserved shared waiter is also held back by an exclusive waiter ahead of it in wait order. Exclusive and reserved-class requests are therefore served in enqueue order between themselves, so continuing exclusive demand cannot starve a reserved class (PSR-V0-035) and an exclusive request is still eventually granted (PSR-V0-033).
+- `PSR-V0-042`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) Every `slots acquire|release` that is not refused records a lease receipt, including one that changes nothing (a release with no entry, or a poll that grants nothing): it posts only the request entry with outcome `COMPLETED`, so a retry of its request id replays it and never acts on a later state.
+- `PSR-V0-043`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1550) A replayed `slots acquire|release` result carries `slot` null: the current entry may belong to a later request or generation, so it is not reported as the original grant. A caller reads the current state with a fresh poll or `queue status`.
 
 ## Acceptance evidence
 
@@ -195,18 +85,19 @@ Initial fixture must initialize and canonically roundtrip policy/pool state, cla
 Shared allocations (PSR-V0-016..021; V1-0946, GitHub #653): focused CLI, transaction, snapshot and store tests cover binding and exact replay, release in both orders with one quarantine, every refusal, lease expiry of the entry attempt and of a shared attempt, a crash at each publication of a share claim with redo or fresh retry, supervisor attach and lane-untouched refusal, the additive codec and its closed-decoder refusal, and the `pool status` and `attempt show` views as pure reads. An older binary reading a store with bindings is inferred from the closed decoders and the unknown-key refusal test; no older binary was executed. Dispatcher batching over shared allocations is not implemented.
 
 Sweep prepare (PSR-V0-024..026; V1-1551, GitHub #1009): focused intent and store tests cover the policy shape, bound and safeReuse requirement; a prepare observed mid-run while the member is CLEANING under the owned sweep, chained after the passed verify, digest-only evidence with no output bytes, then FREE and an exact replay that does not rerun it; EXIT_NONZERO and shared-deadline TIMEOUT failures that stay QUARANTINED with the recorded reason and no retry; a lost prepare response whose replay stays pending without re-execution; and an ALL barrier that never launches prepare. Failure modes: a failed, timed-out, over-limit or source-changed prepare, a lost response and an ALL barrier each leave the member quarantined or owned, never free. Existing sweep tests run unchanged for members without prepare.
+Capacity slots (PSR-V0-030..043; V1-1550, GitHub #1008): focused intent, snapshot, store and CLI tests cover the policy and pools.json codecs with every refusal; grant, wait and free after an attempt ends and after a crashed holder's lease expires (reaped by the next poll, acceptance 1); an exclusive request granted under continuing shared demand (acceptance 2); priority wait order; a reserved class granted past a higher-priority unreserved waiter (acceptance 3); request-id replay and no-change polls (acceptance 4); and the `slot` result and `queue status` `slots` view as a pure read (acceptance 5). Concurrency between two slot writers relies on the existing store lock and was not separately stress-tested. An independent review found five defects before landing; each has a regression test that fails on the reviewed head 19f66b4e4: supervisor attach with held or waiting slots is refused (PSR-V0-039); an exclusive granted after a capacity cut takes the new capacity and a stale shared waiter neither is granted nor blocks a later one (PSR-V0-040); two alternating higher-priority exclusive requesters cannot starve a reserved-class waiter (PSR-V0-041); no-change release and poll requests replay (PSR-V0-042); and a replay carries no slot (PSR-V0-043). An older binary reading a store with slots is inferred from the closed decoders; no older binary was executed.
 
 Lease write resume (PSR-V0-050..057; V1-1560, GitHub #1010): the focused journal and store tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-050..057); Linux, quiet-host and 45,000-receipt qualification NOT_RUN.
 
 ## Non-goals and simpler baseline
 
-Baseline remains explicit pool cleanup and operator confirm-safe. No physical ownership discovery, authenticated operator, debt change, live lane reset, #494 writer repair, daemon/service, new native journal framework, broad redaction framework or dispatcher redesign. No sweep deadline or dispatcher budget increase for long cleanup (PSR-V0-011), no fetching, checkout or creation of a pinned worktree, no trust in its contents beyond the revision proof, and no atomic proof of the pinned checkout, no exclusion of concurrent mutation by actors outside Tasks during or after the proof, and no descriptor-bound (fchdir) execution (PSR-V0-012). Escaped/detached processes and external services remain outside process-group qualification; captured logs may contain secrets. Shared allocations (PSR-V0-016..021) add no dispatcher batching, no cross-holder, cross-pool or cross-stage sharing, no supervised or lane-untouched sharing, no transfer between allocations, no configurable share bound and no claim-next share selection; the simpler baseline is one allocation per attempt, which remains the default.
+Baseline remains explicit pool cleanup and operator confirm-safe. No physical ownership discovery, authenticated operator, debt change, live lane reset, #494 writer repair, daemon/service, new native journal framework, broad redaction framework or dispatcher redesign. No sweep deadline or dispatcher budget increase for long cleanup (PSR-V0-011), no fetching, checkout or creation of a pinned worktree, no trust in its contents beyond the revision proof, and no atomic proof of the pinned checkout, no exclusion of concurrent mutation by actors outside Tasks during or after the proof, and no descriptor-bound (fchdir) execution (PSR-V0-012). Escaped/detached processes and external services remain outside process-group qualification; captured logs may contain secrets. Shared allocations (PSR-V0-016..021) add no dispatcher batching, no cross-holder, cross-pool or cross-stage sharing, no supervised or lane-untouched sharing, no transfer between allocations, no configurable share bound and no claim-next share selection; the simpler baseline is one allocation per attempt, which remains the default. Capacity slots (PSR-V0-030..043) add no daemon or timer, no push notification (a waiter polls with a fresh request id), no supervised-attempt or claim-time acquisition, no pool member, cleanup or quarantine, no per-holder quota, no re-ranking after enqueue (priority is the ticket priority at enqueue), no fairness among exclusive requests beyond wait order (a higher-priority exclusive can delay a lower one), no revocation of a grant made under a larger capacity, no automatic removal of a waiter the current policy can no longer grant, no replayed slot state, and no dispatcher integration; the simpler baseline remains a one-member pool per unit, which serializes and quarantines each use.
 
 Prepare (PSR-V0-024..026) is not a health probe, does not run outside `pool sweep` or the dispatcher's sweep, has no separate deadline, retry budget or output retention, and does not prove the prepared data is correct beyond its exit status.
 
 ## Compatibility and rollback
 
-Omitted safeReuse preserves old policy bytes/manual confirmation authority. Explicit new delegated operator profile amends CAL-V0-030 only for exact owned successful observation. Disable opt-in while preserving quarantine, pending runner ownership, receipts and private log evidence. No historical preimage rewrite, projection stripping or freeing by TTL. Older decoder rejection is recorded compatibility limit, including a pinned cwd object or a timeoutSeconds above 300. To roll back PSR-V0-011/012, free or clean every member whose occupied definition uses them (occupied definitions are immutable), then publish policy with `cwd:"REPOSITORY"` and timeoutSeconds within 1..300; source reversion of the decoder must follow that policy change. Reversion requires observed process retirement or explicit proved-orphan recovery; terminal shared spec/index/catalog updates record delivered evidence and remaining dispatcher/live/Linux limitations. To roll back PSR-V0-016..021, stop issuing `--share-allocation` and let every shared attempt end (or release them), which removes every `shared` list and leaves `sharedAllocation` only on terminal attempt records; then revert the source. A reverted or older binary still refuses a store whose retained attempt records carry `sharedAllocation`; that is a recorded compatibility limit of rollback once any share was admitted, and no historical receipt, record or preimage is rewritten to lift it.
+Omitted safeReuse preserves old policy bytes/manual confirmation authority. Explicit new delegated operator profile amends CAL-V0-030 only for exact owned successful observation. Disable opt-in while preserving quarantine, pending runner ownership, receipts and private log evidence. No historical preimage rewrite, projection stripping or freeing by TTL. Older decoder rejection is recorded compatibility limit, including a pinned cwd object or a timeoutSeconds above 300. To roll back PSR-V0-011/012, free or clean every member whose occupied definition uses them (occupied definitions are immutable), then publish policy with `cwd:"REPOSITORY"` and timeoutSeconds within 1..300; source reversion of the decoder must follow that policy change. Reversion requires observed process retirement or explicit proved-orphan recovery; terminal shared spec/index/catalog updates record delivered evidence and remaining dispatcher/live/Linux limitations. To roll back PSR-V0-016..021, stop issuing `--share-allocation` and let every shared attempt end (or release them), which removes every `shared` list and leaves `sharedAllocation` only on terminal attempt records; then revert the source. A reverted or older binary still refuses a store whose retained attempt records carry `sharedAllocation`; that is a recorded compatibility limit of rollback once any share was admitted, and no historical receipt, record or preimage is rewritten to lift it. To roll back PSR-V0-030..043, release every slot entry (or let the attempts end and run one slot write so pools.json drops the `slots` key), then publish policy without `slots`; source reversion follows. An older binary refuses a policy with `slots` or a pools.json with a `slots` key as `MALFORMED` (unknown key); that is a recorded compatibility limit while slots are declared or held. No receipt, record or preimage is rewritten.
 
 Prepare is additive: omitting it keeps every existing byte. Older decoders refuse a policy, owner or observation carrying `prepare`, which is the recorded compatibility boundary. Rollback removes `prepare` from the member configuration only after the member holds no allocation: a policy update that changes the definition of any occupied member (including a QUARANTINED one retained after a failed prepare) is refused with `occupied pool definition cannot change`. A member quarantined by a failed prepare must therefore first be freed under the unchanged policy, either by a further `pool sweep` (which runs `prepare` again) or by the ordinary `pool cleanup` followed by `pool confirm-safe`, neither of which runs `prepare`; only then publish the policy without `prepare`. No receipt or evidence is rewritten. No other supported way to free a quarantined allocation exists.
 
@@ -226,15 +117,21 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-025 | `TestPSRV0025PrepareRunsOwnedBeforeConfirm`, `TestPSRV0025PrepareNeverLaunchesUnderAll`, `TestPSRV0026PrepareFailureStaysQuarantined` |
 | PSR-V0-026 | `TestPSRV0026PrepareFailureStaysQuarantined`, `TestPSRV0026PendingReplayNeverRerunsPrepare` |
 
-## Traceability (PSR-V0-050..057)
+## Traceability (PSR-V0-030..043)
 
 | Requirement | Evidence |
 | --- | --- |
-| PSR-V0-050 | `TestPSRV0050_PrefixFallback` (`internal/tasks/journal`); `TestPSRV0052_PoolAcquireResumesUnderWriter` (`internal/tasks/store`) |
-| PSR-V0-051 | `TestPSRV0051_ResumeBaseOnlyFromSettledAudit` (`internal/tasks/journal`) |
-| PSR-V0-052 | `TestPSRV0052_ResumeDeclinesOnChangedBase` (`internal/tasks/journal`); `TestPSRV0052_PoolAcquireResumesUnderWriter`, `TestPSRV0052_WidenResumesUnderWriter` (`internal/tasks/store`) |
-| PSR-V0-053 | `TestPSRV0053_ResumeKeepsRewrittenPrefixDetection`, `TestPSRV0054_OvertakenGuardKeepsRewrittenPrefixDetection` (`internal/tasks/store`) |
-| PSR-V0-054 | `TestPSRV0054_OvertakenGuardStillResumes`, `TestPSRV0054_OvertakenGuardKeepsRewrittenPrefixDetection` (`internal/tasks/store`) |
-| PSR-V0-055 | opt-in `TestPSRV0055_PoolAcquireLoad` (`internal/tasks/store`); `docs/build-log/2026-10-17-v1-1560-pool-acquire-starvation.md` |
-| PSR-V0-056 | `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`); `TestPSRV0056_ResumeRechecksBaseBeforeCommit` (`internal/tasks/store`) |
-| PSR-V0-057 | `TestPSRV0057_ResumeCheckCloseFailureIsCleanup`, `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`) |
+| PSR-V0-030 | `TestPSRV0030_PolicyDeclaresSlots` |
+| PSR-V0-031 | `TestPSRV0031_SlotEntriesCodec` |
+| PSR-V0-032 | `TestPSRV0032_SlotsGrantWaitAndFreeWithoutOperator` |
+| PSR-V0-033 | `TestPSRV0033_ExclusiveEventuallyGrantedUnderSharedLoad`, `TestPSRV0041_ExclusiveDemandCannotStarveReservedClass` |
+| PSR-V0-034 | `TestPSRV0034_WaitersGrantedByPriorityThenRequestOrder` |
+| PSR-V0-035 | `TestPSRV0035_ReservedClassNeverStarved`, `TestPSRV0038_CLISlotResultsAndQueueStatus` |
+| PSR-V0-036 | `TestPSRV0036_ReleaseAndRefusals`, `TestPSRV0038_CLISlotResultsAndQueueStatus` (`--lock-wait`) |
+| PSR-V0-037 | `TestPSRV0037_AcquireIdempotentByRequestID` |
+| PSR-V0-038 | `TestPSRV0038_CLISlotResultsAndQueueStatus` |
+| PSR-V0-039 | `TestPSRV0039_SupervisorAttachRefusedWithSlots` |
+| PSR-V0-040 | `TestPSRV0040_GrantsFollowCurrentPolicy` |
+| PSR-V0-041 | `TestPSRV0041_ExclusiveDemandCannotStarveReservedClass` |
+| PSR-V0-042 | `TestPSRV0042_NoChangeRequestsReplay`, `TestPSRV0036_ReleaseAndRefusals` |
+| PSR-V0-043 | `TestPSRV0043_ReplayCarriesNoSlot`, `TestPSRV0037_AcquireIdempotentByRequestID`, `TestPSRV0038_CLISlotResultsAndQueueStatus` |

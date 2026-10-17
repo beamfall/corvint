@@ -45,6 +45,10 @@ type PoolEntry struct {
 type PoolState struct {
 	QueueID wire.QueueID
 	Entries []PoolEntry
+	// Slots are the capacity-slot holders and waiters (PSR-V0-031); the
+	// "slots" key is written only when non-empty, so legacy bytes stay
+	// identical.
+	Slots []SlotEntry
 }
 
 func ReadPoolAllocation(r *wire.Reader) *PoolAllocation {
@@ -74,7 +78,7 @@ func DecodePools(data []byte) (*PoolState, error) {
 	if e := r.Profile(ProfilePools); e != nil {
 		return nil, e
 	}
-	r.Closed("profile", "queueId", "entries")
+	r.Closed(wire.OptionalKeys(v, []string{"profile", "queueId", "entries"}, "slots")...)
 	r.Field("profile").Exact(ProfilePools)
 	p := &PoolState{QueueID: r.Field("queueId").QueueID(), Entries: []PoolEntry{}}
 	seen := map[string]bool{}
@@ -116,6 +120,9 @@ func DecodePools(data []byte) (*PoolState, error) {
 		}
 		p.Entries = append(p.Entries, en)
 	}
+	if r.Err() == nil && wire.Has(v, "slots") {
+		p.Slots = readSlotEntries(r.Field("slots"), p.QueueID)
+	}
 	return p, r.Err()
 }
 func (p *PoolState) Encode() ([]byte, error) {
@@ -139,7 +146,11 @@ func (p *PoolState) Encode() ([]byte, error) {
 		}
 		values = append(values, value)
 	}
-	raw := wire.EncodeFile(wire.ObjectValue(wire.NewObject().Set("profile", wire.String(ProfilePools)).Set("queueId", wire.String(p.QueueID.Raw)).Set("entries", wire.Array(values...))))
+	doc := wire.NewObject().Set("profile", wire.String(ProfilePools)).Set("queueId", wire.String(p.QueueID.Raw)).Set("entries", wire.Array(values...))
+	if len(p.Slots) > 0 {
+		doc.Set("slots", slotEntriesValue(p.Slots))
+	}
+	raw := wire.EncodeFile(wire.ObjectValue(doc))
 	_, err := DecodePools(raw)
 	return raw, err
 }
