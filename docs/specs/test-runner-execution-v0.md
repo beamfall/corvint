@@ -79,7 +79,7 @@ not resolve arbitrary Appium backends or behavioral qualification for shaders, H
 need an actual domain/application assertion harness, not syntax validation presented as tests.
 
 Cypress 16.1.1 and Rails 8.1.4 now have shared-executor runtime witnesses. MTP has separate
-xUnit/NUnit/MSTest profiles and actual pass/fail/skip/zero/setup receipts. SwiftPM 6.4 macOS serial
+xUnit/NUnit/MSTest profiles; 17 of the 18 native profiles have macOS arm64 shared-executor witnesses for every TRE-V0-009 case and Ginkgo v2 has none (Native qualification matrix 2026-10-17 (V1-0593)). SwiftPM 6.4 macOS serial
 XCTest and Robolectric 4.16.1/API35 also have shared-executor witnesses. These do not erase remaining
 limits: TestCafe's current common-executor remote-Chrome CLI witness is qualified in
 `/private/tmp/cem10-build/dynamic/testcafe-cli-proof/qualification.json`; its prior permission
@@ -1007,3 +1007,104 @@ exclude tags are not admitted.
 Rollback removes `storybookSkipTags` and the `--skipTags` append. A plan with a
 non-empty `Target` would then rebuild without the pair and be refused as not
 matching the profile; empty-`Target` plans are unchanged.
+
+## Native qualification matrix 2026-10-17 (V1-0593)
+
+This section records actual `TRE-V0-009` qualification of the 18 native
+profiles on one host tuple: macOS 26 (Darwin 25.6.0) arm64, Apple clang 21.0.0.
+Every witness ran through `corvint-test-runner plan` then `run --approve`, so it
+used the shared executor. Each case directory
+`/private/tmp/cem10-build/native-2026-10-17/cases/<case>/` keeps the request,
+plan, tools, receipt and summary (command, CLI and executable SHA-256). Its `r/`
+holds the raw native report and streams. `CLI-BUILDS.txt` names the CLI build
+behind each case. Three live failures led to these requirements. Each failure
+was incomplete, never falsely complete.
+
+- `TRE-V0-045`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `cargo-doctest` MUST refuse a selector containing Unicode
+  whitespace before a plan exists. Rustdoc splits `--test-args` on whitespace,
+  and every generated doctest name (`src/lib.rs - item (line N)`) contains
+  whitespace. Such a selector otherwise silently runs zero doctests.
+- `TRE-V0-046`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2` MUST pass its exact selectors as one quoted, comma-joined
+  test-spec argument. Catch2 3.16.0 ORs the names in that argument and ANDs
+  separate arguments. The existing refusal of wildcard, tag, exclusion,
+  escape, quote and option-like selectors is unchanged.
+- `TRE-V0-047`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2` MUST accept native exit 4 (`AllTestsSkippedExitCode`) as
+  success only when the report has at least one test and every test is
+  `SKIPPED`. Exit 4 with any other report, and exit 4 for any other runner,
+  stays an exit/report contradiction and is incomplete.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-045 | `native/native.go` `Build`; `TestBuildExactSelectorsAndFixedProfiles` | Failing before: `cases/cargo-doctest-pass` selected 0 of 1 doctests (`NO_TESTS`, incomplete). After: `cases/cargo-doctest-select-refused` is refused at plan |
+| TRE-V0-046 | `native/native.go` `Build`; `TestCatch2ExactSelectionAndAllSkippedExit` | Failing before: `cases/catch2-mixed` gave exit 2 with no tests. After: `cases/catch2-mixed-r2` gave exit 42, complete PASSED, FAILED and SKIPPED |
+| TRE-V0-047 | `native/native.go` `Parse`; `TestCatch2ExactSelectionAndAllSkippedExit` | Failing before: `cases/catch2-skip` gave exit 4 and `EXIT_REPORT_CONTRADICTION`. After: `cases/catch2-skip-r2` gave exit 4, complete SKIPPED. A passed-only or empty report with exit 4 stays incomplete |
+
+Matrix. W means an actual shared-executor witness, P means parser-only and N
+means none. Retry is not applicable to any native profile, so it is not a
+column. Nextest pins `retries=0`, Ginkgo pins `flake-attempts=1`, and no other
+native profile has a retry option. Nextest retry parsing stays P. Case names
+are the directory names under `cases/`.
+
+| Profile | Tuple | pass / fail / skip | zero | collection, build or infra | timeout and cleanup |
+| --- | --- | --- | --- | --- | --- |
+| go-test | go1.27.2 | W `go-pass`, `go-fail`, `go-skip`, `go-mixed` | W `go-zero-nomatch`, `go-zero-notestfiles` | W `go-buildfail` | W `go-timeout` |
+| cargo-test | Rust/Cargo 1.99.1 stable | W `cargo-test-pass`, `-mixed`, `-skip` | W `cargo-test-zero` | W `cargo-test-buildfail` | W `cargo-test-timeout` |
+| cargo-doctest | Rust/Cargo 1.99.1 | W `cargo-doctest-mixed` (pass, fail, `ignore`) | W `cargo-doctest-zero` | W `cargo-doctest-buildfail-lib` | W `cargo-doctest-timeout` |
+| cargo-integration | Rust/Cargo 1.99.1 | W `cargo-integration-pass`, `-mixed`, `-skip` | W `cargo-integration-zero` | W `cargo-integration-missingtarget` | W `cargo-integration-timeout` |
+| cargo-bin | Rust/Cargo 1.99.1 | W `cargo-bin-pass`, `-mixed`, `-skip` | W `cargo-bin-zero` | W `cargo-bin-missingtarget` | W `cargo-bin-timeout` |
+| nextest | cargo-nextest 0.9.146, Rust 1.99.1 | W `nextest-pass`, `nextest-mixed` | W `nextest-zero` | W `nextest-buildfail` | W `nextest-timeout` |
+| dotnet-vstest-{nunit,mstest,xunit} | SDK 9.0.316, runtime 9.0.18, Test SDK 17.14.1; NUnit 4.3.2 with adapter 5.0.0; MSTest 3.6.4; xunit 2.9.2 with runner 2.8.2 | W `vstest-<fw>-pass`, `-fail`, `-skip`, `-mixed` | W `vstest-<fw>-zero` | W `vstest-<fw>-collection`, `-infra` | W `vstest-<fw>-timeout` |
+| dotnet-mtp-{nunit,mstest,xunit} | runtime 9.0.18, MTP and TrxReport 2.4.1; NUnit 5.0.0 with adapter 6.3.0; MSTest.Sdk 4.4.1; xunit.v3.mtp-v2 4.0.1 | W `mtp-<fw>-pass`, `-fail`, `-skip`, `-mixed` | W `mtp-<fw>-zero` (exit 8) | W `mtp-<fw>-collection`, `-infra` | W `mtp-<fw>-timeout` |
+| ctest | CMake/CTest 4.4.4 | W `ctest-pass`, `-fail`, `-skip`, `-mixed` | W `ctest-zero`, `ctest-disabled-r2` | W `ctest-missing` | W `ctest-timeout` |
+| googletest | GoogleTest 1.18.0 | W `googletest-pass`, `-fail`, `-skip`, `-disabled`, `-mixed` | W `googletest-zero` | W `googletest-infra`, `-collection` | W `googletest-timeout` |
+| catch2 | Catch2 3.16.0 amalgamated | W `catch2-pass-r2`, `-fail-r2`, `-skip-r2`, `-hidden-r2`, `-mixed-r2` | W `catch2-zero-r2` | W `catch2-infra-r2`, `-collection-r2` | W `catch2-timeout-r2` |
+| cmocka-xml | CMocka 2.0.2 static | W `cmocka-mixed`, `-pass-only`, `-skip-only` | W `cmocka-zero`, `-wrong-target` | W `cmocka-test-setup`, `-test-teardown`, `-group-setup`, `-group-teardown` | W `cmocka-timeout` |
+| boost-test-junit | Boost 1.92.0 headers | W `boost-mixed`, `-pass`, `-selected-pass-r2`; opt-in `TestBoostTestLiveExecution` PASS | W `boost-zero` (exit 200, no report) | W `boost-infra`, `boost-exception` | W `boost-timeout` |
+| ginkgo-v2 | Ginkgo v2.33.0 source pins only | P (synthetic) | P | P | N |
+
+Totals cover 108 applicable cases, 18 profiles times six cases. Before this
+work there were 37 W, 30 P and 41 N. After it there are 102 W, 5 P and 1 N.
+Every zero-test, build, collection, infrastructure and timeout witness is
+incomplete, and its tests are `UNKNOWN` or absent. Every timeout fixture
+spawned a descendant `/bin/sleep` with a unique argument. After each serial
+batch, `pgrep` found none of them alive (`cleanup-check.txt`).
+
+Observed native behavior retained as fail-closed:
+- CTest exits 8 with "No tests were found" for a disabled-only selection.
+- MTP exits 8 for zero tests.
+- Catch2 exits 2 for a test spec that matches nothing.
+- Boost.Test exits 200 with no report for a selector that matches nothing.
+- Boost.Test lists filtered-out tests as skipped, so `ExpectedTests` must be
+  the full inventory (`boost-selected-pass` MISMATCH retained).
+- GoogleTest 1.18.0 reports a `SetUpTestSuite` failure as an unnamed testcase.
+  Parsing it fails with `native suite count mismatch` and stays incomplete.
+
+The `cases/` directory also holds MISMATCH runs whose expectation, not the
+adapter, was wrong: `ctest-disabled` and `boost-selected-pass`. Their
+corrected reruns are listed above.
+
+Toolchains not already on the host were installed in user space under
+`/private/tmp/cem10-build/toolchains-2026-10-17/`, with the owner's approval.
+Each was checksum-verified. The 2026-10-17 V1-0593 build log lists versions,
+URLs and checksums.
+
+Release blockers (TRE-V0-009 tuples not qualified):
+- Ginkgo v2 runtime. Missing: the Ginkgo v2.33.0 module and CLI. The session
+  permission classifier denied `go install github.com/onsi/ginkgo/v2/ginkgo@v2.33.0`.
+- Linux (amd64 and arm64) and Windows tuples for all 18 profiles. Missing: a
+  Linux or Windows host.
+- Other runtimes. Missing: .NET 8 and 10 runtimes, other MTP and adapter
+  versions, a nightly Rust toolchain and other compilers. Stable Cargo JSON is
+  still not inferred, and MTP support is not inferred from VSTest.
+- Publisher signatures. Missing: `gpg` to verify the Catch2 and CMocka `.asc`
+  files; only digests were verified. Five transitive NuGet packages fail
+  `dotnet nuget verify` with expired repository countersignatures
+  (NU3028/NU3037): microsoft.bcl.asyncinterfaces 6.0.0,
+  microsoft.win32.registry 5.0.0, system.diagnostics.diagnosticsource 5.0.0,
+  system.security.accesscontrol 5.0.0 and system.security.principal.windows 5.0.0.
+
+Rollback has three parts. Removing the cargo-doctest whitespace refusal
+restores silent zero-test selection. Restoring one argument per selector in
+`catch2` makes its plans rebuild differently, so existing plans are refused.
+Narrowing Catch2 success exits back to {0} makes all-skipped runs incomplete
+again. Historical receipts still bind.
