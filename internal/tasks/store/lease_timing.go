@@ -25,6 +25,9 @@ type LeaseTiming struct {
 	LockHold      time.Duration
 	JournalWrite  time.Duration // session, staged writes, links and redo, less Fsync
 	Fsync         time.Duration // file and directory sync calls under the lock
+	// Resumed counts writes served by resuming from the command's own audit
+	// from receipt 1 (CAL-V0-332, proposed). The CLI does not report it.
+	Resumed int
 }
 
 type leaseTimingKey struct{}

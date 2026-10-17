@@ -48,6 +48,40 @@ type preparedLease struct {
 	// writerToken the invalidation token read before that audit.
 	writer      *journal.WriterCheckpoint
 	writerToken writerToken
+	// base and baseObs are a settled audit from receipt 1 that a later round
+	// may resume from (CAL-V0-331, proposed); noResume is set when the
+	// prefix walk declined, so the command keeps the complete audit.
+	base     *journal.Result
+	baseObs  journal.PhysicalObservation
+	noResume bool
+}
+
+// leaseResume is a resume base and the invalidation token read before the
+// audit that derived it (CAL-V0-332, proposed). It lives for one command.
+type leaseResume struct {
+	base  *journal.ResumeBase
+	token writerToken
+}
+
+// resumeFrom returns the resume base of a round that ended SNAPSHOT_MOVED,
+// and records in noResume that the command must keep the complete audit:
+// the prefix walk declined, or no base could be derived from the audit.
+func (p *preparedLease) resumeFrom(noResume *bool) *leaseResume {
+	if p == nil {
+		return nil
+	}
+	if p.noResume {
+		*noResume = true
+	}
+	if *noResume || p.base == nil {
+		return nil
+	}
+	base, err := p.base.ResumeBase(p.baseObs)
+	if err != nil {
+		*noResume = true
+		return nil
+	}
+	return &leaseResume{base: base, token: p.writerToken}
 }
 
 func leaseKey(repo *intent.Repository, guard *authority.ChangeGuard, inv *transaction.Inventory, headRaw []byte) (leaseAuditKey, error) {
@@ -125,10 +159,26 @@ func leaseAuditObserved(repo *intent.Repository, guard *authority.ChangeGuard, i
 	return proof, nil, nil
 }
 
-func prepareLease(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, facts claimObserver) (prepared *preparedLease, err error) {
-	g, err := authority.WatchChanges(repo)
+// prepareLease audits the journal outside the writer lock and plans request.
+// resumable selects the bounded preparation audit (CAL-V0-330, proposed):
+// one complete attempt and, when the journal moved under it, the prefix walk
+// to the head it captured. A complete or prefix result is kept as the round's
+// resume base. A moved journal ends the round as SNAPSHOT_MOVED without the
+// second complete audit; a declined prefix walk and every other result keep
+// the complete audit below. A change guard overtaken while it registered
+// cannot serve the complete route, but a resumable round still runs the
+// bounded audit for its resume base (CAL-V0-334, proposed): the audit checks
+// its own captures and the resumed write needs no change guard, so a journal
+// that moves faster than the guard registers still makes progress.
+func prepareLease(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, facts claimObserver, resumable bool) (prepared *preparedLease, err error) {
+	hooks := hooksForInventory(ctx)
+	g, err := hooks.watch(repo)
+	guardMoved := false
 	if err != nil {
-		return nil, err
+		if !resumable || !journal.ResumableAudits() || wire.CodeOf(err) != wire.CodeSnapshotMoved {
+			return nil, err
+		}
+		g, guardMoved = nil, true
 	}
 	p := &preparedLease{guard: g}
 	timing, start, readEnd := leaseTimingOf(ctx), time.Now(), time.Time{}
@@ -142,7 +192,6 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 			prepared, err = p, nil
 		}
 	}()
-	hooks := hooksForInventory(ctx)
 	head, barrier, reservations, err := journalBytes(repo)
 	if err != nil {
 		return nil, err
@@ -150,6 +199,9 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 	p.head = head
 	var inv *transaction.Inventory
 	var supplied *journal.Result
+	if guardMoved && possibleLeaseAudit(repo, head) {
+		return p, wire.Errorf(wire.CodeSnapshotMoved, "change guard", "store changed while the guard registered")
+	}
 	if !possibleLeaseAudit(repo, head) {
 		decoded, decodeErr := snapshot.DecodeHead(head)
 		if decodeErr != nil {
@@ -158,12 +210,46 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		// The writer checkpoint this audit derives is bound to the
 		// invalidation token read before it (CAL-V0-117, proposed).
 		p.writerToken = writerInvalidation(repo)
-		proof, observation, auditErr := hooks.audit(journalReader(repo, decoded))
+		reader := journalReader(repo, decoded)
+		fallback := resumable && journal.ResumableAudits() && decoded.LastSeq.Uint64() >= writerCheckpointMin(repo)
+		if guardMoved && !fallback {
+			return p, wire.Errorf(wire.CodeSnapshotMoved, "change guard", "store changed while the guard registered")
+		}
+		reader.PrefixFallback = fallback
+		proof, observation, auditErr := hooks.audit(reader)
 		if observation.Cleanup != nil {
 			p.recordCleanup("journal audit close", observation.Cleanup)
 			return p, auditErr
 		}
+		if fallback {
+			switch {
+			case errors.Is(auditErr, journal.ErrPrefixDeclined):
+				// The complete audit below derives the refusal itself.
+				p.noResume = true
+				if guardMoved {
+					readEnd = time.Now()
+					return p, auditErr
+				}
+			case auditErr == nil && proof != nil && proof.Mode == journal.ModePrefix:
+				p.base, p.baseObs = proof, observation
+				readEnd = time.Now()
+				return p, wire.Errorf(wire.CodeSnapshotMoved, "receipts", "journal moved during the complete attempt; resuming from the audited prefix")
+			case wire.CodeOf(auditErr) == wire.CodeSnapshotMoved:
+				readEnd = time.Now()
+				return p, auditErr
+			case guardMoved:
+				// Only the guarded complete route below decides a refusal.
+				if auditErr == nil && proof != nil && proof.Mode == journal.ModeFull && !proof.Pending && !proof.StagingPresent && proof.IntentError == nil {
+					p.base, p.baseObs = proof, observation
+				}
+				readEnd = time.Now()
+				return p, wire.Errorf(wire.CodeSnapshotMoved, "change guard", "store changed while the guard registered; resuming from the audit")
+			}
+		}
 		if auditErr == nil && proof != nil && proof.Mode == journal.ModeFull && !proof.Pending && !proof.StagingPresent && proof.IntentError == nil && observation.Files != nil {
+			if fallback {
+				p.base, p.baseObs = proof, observation
+			}
 			inv, err, p.fatalCleanup = guardedLeaseInventory(repo, g, hooks, observation.Files)
 			if err != nil || len(p.fatalCleanup) > 0 {
 				return p, err
@@ -327,6 +413,42 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		}
 	}()
 	hooks := hooksForInventory(ctx)
+	// A round that ended SNAPSHOT_MOVED after a settled audit from receipt 1
+	// resumes from it in the next round (CAL-V0-332, proposed). A declined
+	// resume falls through to that round's preparation; a declined prefix
+	// walk keeps the complete audit for the rest of the command.
+	var resume *leaseResume
+	noResume := !journal.ResumableAudits()
+	// writerRoute runs leaseWriter under the preparation gate. done is set
+	// when the route served or failed the write.
+	writerRoute := func(from *leaseResume) (done bool, rep *Report, fast *journal.Result, err error) {
+		var handled, due bool
+		var routeErr error
+		ran, gateErr := underPreparation(ctx, repo, hooks, timing, func() {
+			handled, due, fast, routeErr = leaseWriter(ctx, repo, request, now, beforeCommit, facts, report, from)
+		})
+		if !ran {
+			return true, report, nil, gateErr
+		}
+		if handled {
+			if routeErr != nil {
+				report, _, routeErr = guardFailureAudit(report, request.RequestID, routeErr)
+				return true, report, nil, errors.Join(routeErr, gateErr)
+			}
+			if gateErr != nil {
+				return true, report, nil, gateErr
+			}
+			refresh = due
+			if from != nil {
+				timing.Resumed++
+			}
+			return true, report, fast, nil
+		}
+		if gateErr != nil {
+			return true, report, nil, gateErr
+		}
+		return false, report, nil, nil
+	}
 	for round := 0; round < 16; round++ {
 		if err := ctx.Err(); err != nil {
 			return report, nil, err
@@ -352,31 +474,20 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		// lock; every decline prepares the complete route below, outside the
 		// gate (CAL-V0-263).
 		if writerRouteReady(repo, request) {
-			var handled, due bool
-			var fast *journal.Result
-			var routeErr error
-			ran, gateErr := underPreparation(ctx, repo, hooks, timing, func() {
-				handled, due, fast, routeErr = leaseWriter(ctx, repo, request, now, beforeCommit, facts, report)
-			})
-			if !ran {
-				return report, nil, gateErr
-			}
-			if handled {
-				if routeErr != nil {
-					report, _, routeErr = guardFailureAudit(report, request.RequestID, routeErr)
-					return report, nil, errors.Join(routeErr, gateErr)
-				}
-				if gateErr != nil {
-					return report, nil, gateErr
-				}
-				refresh = due
-				return report, fast, nil
-			}
-			if gateErr != nil {
-				return report, nil, gateErr
+			if done, rep, fast, err := writerRoute(nil); done {
+				return rep, fast, err
 			}
 		}
-		p, err := prepareLease(ctx, repo, request, now, facts)
+		if resume != nil {
+			from := resume
+			resume = nil
+			if done, rep, fast, err := writerRoute(from); done {
+				return rep, fast, err
+			}
+			// A declined resume committed nothing; this round's
+			// preparation audit derives a fresh base or decides.
+		}
+		p, err := prepareLease(ctx, repo, request, now, facts, !noResume)
 		if p != nil && len(p.fatalCleanup) > 0 {
 			p.recordCleanup("change guard close", hooks.closeGuard(p.guard))
 			return report, nil, p.fatalError()
@@ -423,6 +534,7 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 			return report, nil, errors.Join(err, closeErr, gateErr)
 		}
 		if wire.CodeOf(err) == wire.CodeSnapshotMoved {
+			resume = p.resumeFrom(&noResume)
 			continue
 		}
 		if err != nil {

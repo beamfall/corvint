@@ -1,0 +1,187 @@
+//go:build darwin || linux
+
+package journal
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
+)
+
+// TestCALV0330_PrefixFallback covers CAL-V0-330 (proposed). On a journal
+// that holds still a PrefixFallback audit is the complete audit in one
+// attempt. When a writer appends during every capture, the complete attempt
+// moves once and the prefix walk settles at the head it captured, instead
+// of four complete attempts that all move. A prefix walk that refuses on an
+// unchanged observation is ErrPrefixDeclined, never a refusal, and the
+// complete audit decides that refusal.
+func TestCALV0330_PrefixFallback(t *testing.T) {
+	repo, r := refreshStore(t)
+	r.PrefixFallback = true
+	captures := 0
+	r.afterCapture = func() { captures++ }
+	quiet, _, err := r.AuditForWriteObserved()
+	if err != nil || quiet.Mode != ModeFull || captures != 1 {
+		t.Fatalf("quiescent fallback audit: mode %v captures %d err %v", quiet, captures, err)
+	}
+
+	captures = 0
+	r.afterCapture = func() {
+		captures++
+		appendRequest(t, repo, fmt.Sprintf("racing-%d", captures))
+	}
+	moving, obs, err := r.AuditForWriteObserved()
+	if err != nil || moving.Mode != ModePrefix || captures != 2 {
+		t.Fatalf("fallback under appends: %+v captures %d err %v", moving, captures, err)
+	}
+	if _, err := moving.ResumeBase(obs); err != nil {
+		t.Fatalf("prefix result yields no resume base: %v", err)
+	}
+
+	path, _ := snapshot.RequestPath("refresh-2")
+	fixture.Write(t, filepath.Join(repo.StateDir, path), []byte("{}\n"))
+	plain := r
+	plain.PrefixFallback, plain.afterCapture = false, nil
+	_, wantErr := plain.AuditForWrite()
+	if wantErr == nil || wire.CodeOf(wantErr) == wire.CodeSnapshotMoved {
+		t.Fatalf("complete audit over the fault: %v", wantErr)
+	}
+	once := false
+	r.afterCapture = func() {
+		if !once {
+			once = true
+			appendRequest(t, repo, "racing-once")
+		}
+	}
+	if _, _, err := r.AuditForWriteObserved(); !errors.Is(err, ErrPrefixDeclined) || wire.CodeOf(err) != wire.CodeSnapshotMoved {
+		t.Fatalf("prefix walk over the fault: %v, want ErrPrefixDeclined", err)
+	}
+	r.afterCapture = nil
+	if _, _, err := r.AuditForWriteObserved(); wire.CodeOf(err) != wire.CodeOf(wantErr) {
+		t.Fatalf("held fallback audit: %v, want the complete audit's %v", err, wantErr)
+	}
+}
+
+// resumeBase is a resume base from a settled complete audit of repo.
+func resumeBase(t *testing.T, r Reader) *ResumeBase {
+	t.Helper()
+	r.PrefixFallback = true
+	res, obs, err := r.AuditForWriteObserved()
+	if err != nil || res.Mode != ModeFull {
+		t.Fatalf("base audit: %+v %v", res, err)
+	}
+	base, err := res.ResumeBase(obs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return base
+}
+
+// TestCALV0331_ResumeBaseOnlyFromSettledAudit covers CAL-V0-331 (proposed):
+// a resume base comes only from a settled complete or prefix audit with its
+// own physical observation, never from a tail or writer audit.
+func TestCALV0331_ResumeBaseOnlyFromSettledAudit(t *testing.T) {
+	_, r := refreshStore(t)
+	base := resumeBase(t, r)
+	if base.Seq() != 8 || base.WriterCheckpoint() == nil || base.WriterCheckpoint().FullSeq != 8 {
+		t.Fatalf("base seq %d checkpoint %+v", base.Seq(), base.WriterCheckpoint())
+	}
+	writer, obs, err := r.AuditForResume(base, "")
+	if err != nil || writer.Mode != ModeWriter {
+		t.Fatalf("resumed audit: %+v %v", writer, err)
+	}
+	if _, err := writer.ResumeBase(obs); err == nil {
+		t.Fatal("a writer audit yielded a resume base")
+	}
+	full, _, err := r.AuditForWriteObserved()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := full.ResumeBase(PhysicalObservation{}); err == nil {
+		t.Fatal("a result without its observation yielded a resume base")
+	}
+	if _, _, err := r.AuditForResume(nil, ""); err == nil {
+		t.Fatal("an absent base resumed")
+	}
+}
+
+// TestCALV0332_ResumeDeclinesOnChangedBase covers CAL-V0-332 (proposed). A
+// resumed audit walks only the tail the writer appended after the base, and
+// declines whenever a base receipt, request, evidence blob or pinned file
+// differs from what the base audit read, a base request is gone, or a
+// request file appears that neither the base nor the tail accounts for. It
+// runs once with every base file settled (stamps decide) and once with none
+// settled (bytes are re-read).
+func TestCALV0332_ResumeDeclinesOnChangedBase(t *testing.T) {
+	request, _ := snapshot.RequestPath("refresh-2")
+	second, _ := snapshot.ReceiptName(2)
+	blob := "evidence/" + string(wire.Sum(fixture.Ticket("A").Encode()))
+	cases := []struct {
+		name   string
+		change func(t *testing.T, repo *fixture.Repo)
+		refuse bool // the complete audit refuses the changed journal
+	}{
+		{"untouched", func(*testing.T, *fixture.Repo) {}, false},
+		{"rewritten-receipt", func(t *testing.T, repo *fixture.Repo) {
+			rewriteKeepingStamps(t, filepath.Join(repo.StateDir, "receipts", second))
+		}, true},
+		{"rewritten-request", func(t *testing.T, repo *fixture.Repo) { rewriteKeepingStamps(t, filepath.Join(repo.StateDir, request)) }, true},
+		{"rewritten-blob", func(t *testing.T, repo *fixture.Repo) { rewriteKeepingStamps(t, filepath.Join(repo.StateDir, blob)) }, true},
+		{"removed-request", func(t *testing.T, repo *fixture.Repo) { remove(t, filepath.Join(repo.StateDir, request)) }, true},
+		{"stray-request", func(t *testing.T, repo *fixture.Repo) {
+			fixture.Write(t, filepath.Join(repo.StateDir, filepath.Dir(request), "stray.json"), []byte("{}\n"))
+		}, true},
+	}
+	for _, quiescence := range []time.Duration{0, time.Hour} {
+		for _, tc := range cases {
+			t.Run(fmt.Sprintf("%s/quiescence=%s", tc.name, quiescence), func(t *testing.T) {
+				saved := resumeQuiescence
+				resumeQuiescence = quiescence
+				t.Cleanup(func() { resumeQuiescence = saved })
+				repo, r := refreshStore(t)
+				base := resumeBase(t, r)
+				appendRequest(t, repo, "tail-1")
+				appendRequest(t, repo, "tail-2")
+				tc.change(t, repo)
+				res, _, err := r.AuditForResume(base, "")
+				if tc.name == "untouched" {
+					if err != nil || res.Mode != ModeWriter || res.LastSeq.Uint64() != base.Seq()+2 {
+						t.Fatalf("resumed audit over the tail: %+v %v", res, err)
+					}
+					return
+				}
+				if err == nil || res != nil {
+					t.Fatalf("resumed audit accepted a changed base: %+v", res)
+				}
+				if _, full := r.AuditForWrite(); tc.refuse && (full == nil || wire.CodeOf(full) == wire.CodeSnapshotMoved) {
+					t.Fatalf("complete audit over the change: %v", full)
+				}
+			})
+		}
+	}
+}
+
+// rewriteKeepingStamps flips one byte of p and restores its modification
+// time, so only the change time and the bytes record the rewrite.
+func rewriteKeepingStamps(t *testing.T, p string) {
+	t.Helper()
+	info, err := os.Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := read(t, p)
+	raw[len(raw)/2] ^= 1
+	if err := os.WriteFile(p, raw, info.Mode()); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(p, info.ModTime(), info.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+}

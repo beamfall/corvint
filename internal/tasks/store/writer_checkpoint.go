@@ -192,15 +192,36 @@ func (w *writerObservation) tail() uint64 {
 // route cannot serve this write, with nothing observed that the complete
 // route would not observe again; terminal is a failed native close, which no
 // route may retry past.
-func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation bool) (w *writerObservation, decline, terminal error) {
+//
+// With resume, the audit resumes from the lease command's own resume base
+// instead of the retained checkpoint (CAL-V0-332, proposed); the
+// invalidation token read before that base's audit must still be current.
+func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation bool, resume *leaseResume) (w *writerObservation, decline, terminal error) {
 	if headState == nil || headState.LastSeq.Uint64() < writerCheckpointMin(repo) {
 		return nil, errWriterRoute("head.json", "below the checkpoint threshold"), nil
 	}
-	wc, token := boundWriterCheckpoint(repo)
+	var wc *journal.WriterCheckpoint
+	var token writerToken
+	if resume != nil {
+		if !resume.token.ok || writerInvalidation(repo) != resume.token {
+			return nil, errWriterRoute("checkpoint", "invalidated since the resume base"), nil
+		}
+		wc, token = resume.base.WriterCheckpoint(), resume.token
+	} else {
+		wc, token = boundWriterCheckpoint(repo)
+	}
 	if wc == nil {
 		return nil, errWriterRoute("checkpoint", "absent, unusable or invalidated"), nil
 	}
-	proof, obs, err := journalReader(repo, headState).AuditForWriter(wc, requestID, forMutation)
+	reader := journalReader(repo, headState)
+	var proof *journal.Result
+	var obs journal.PhysicalObservation
+	var err error
+	if resume != nil {
+		proof, obs, err = reader.AuditForResume(resume.base, requestID)
+	} else {
+		proof, obs, err = reader.AuditForWriter(wc, requestID, forMutation)
+	}
 	if obs.Cleanup != nil {
 		return nil, nil, errors.Join(err, obs.Cleanup)
 	}
