@@ -2,17 +2,17 @@
 
 Owner: Russell Lewis
 Date: 2026-09-19
-Intent status: accepted fixture scope (decision 0322)
+Intent status: accepted fixture scope (decision 0322); NTP-V0-020..025 accepted under the owner's standing lane auto-accept (2026-10-11, V1-1580)
 Delivery status: experimental
 Authoritative inputs: decision 0322, `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/work-queue-observation-v0.md`, and the source-bound sibling task-store SPEC.
 
 ## Agent digest
 - Claim: Read-only native fixture priority-first planning with explicit incomplete coverage.
-- Status: accepted fixture scope (decision 0322)/experimental; GP and production promotion held.
-- Exists: native read adapter, pure planner and focused fixture/refusal tests; frozen pre-edit preregistration.
+- Status: accepted fixture scope (decision 0322); NTP-V0-020..025 accepted under the owner's standing lane auto-accept (2026-10-11, V1-1580)/experimental; GP and production promotion held.
+- Exists: native read adapter, pure planner and focused fixture/refusal tests; frozen pre-edit preregistration; read-only `corvint-tasks plan batches` (NTP-V0-020..025).
 - Blocked on: live reservations, admission, CONFIG_PIN and GP remain executor/promotion dependencies.
-- Read next: Requirements; Fixture input and receipt; Acceptance and rollback.
+- Read next: Requirements; Fixture input and receipt; Acceptance and rollback; Tasks plan batches.
 
 ## User and boundary
 
@@ -68,6 +68,56 @@ not asserted. Current source identities, not substitutes for those originals, ar
   source, intent, journal or reservation state. The receipt MUST label fixture observations,
   unauthenticated trusted-local execution and unavailable production qualification. GP stays NOT_RUN
   until all preregistered workloads/controls/witnesses and actual executor conditions qualify.
+
+### Tasks plan batches (V1-1580, issue 1023)
+
+The read-only `corvint-tasks plan batches [--max-group-size N] [--shared-path PATH]...` verb proposes
+integration batches of candidates whose changes do not collide. It is a proposal, never an admission,
+merge or integration authority, and it sits beside `plan preview` (`corvint-tasks-agent-leases-v0.md`
+CAL-V0-014), not inside the fixture planner above.
+
+- `NTP-V0-020`: Candidates MUST be, for each OPEN or HELD ticket, its highest-generation attempt in
+  phase BUILT, CHECKING, REVIEWING or READY_FOR_INTEGRATION that records a candidate tree or a branch.
+  They are processed in plan order: priority, numeric order, then ticket ID bytes. Running, terminal
+  or tree-less branch-less attempts and other ticket states are not candidates. More than 256
+  candidates refuse LIMIT_EXCEEDED rather than truncating.
+- `NTP-V0-021`: Each candidate's changed paths MUST be the recursive, rename-free `diff-tree` from its
+  recorded base commit's tree to its candidate tree (the recorded tree, else `refs/heads/<branch>`).
+  Two candidates collide when a non-shared path of either is equal to, or a directory prefix of, a
+  path of the other; an overlapping pair is exempt only when both of its paths are shared, in either
+  candidate order. `--shared-path` names an exact path, or a directory prefix when it ends in `/`;
+  shared paths are exempt from the disjointness test only. Groups are formed first-fit in candidate
+  order: a candidate joins the first group that has room, collides with no member and merges cleanly.
+- `NTP-V0-022`: Every join MUST be confirmed by a dry chained three-way merge (`git merge-tree
+  --write-tree` over the candidate's base) of the candidate onto the group's merged tree, which
+  starts at the intent branch tip. A conflict splits the candidate away: it is reported in `splits`
+  with the group and up to 16 conflicted paths, and it tries later groups, then a new group whose
+  first merge is onto the tip. Every candidate is first merged onto the tip itself, before any join;
+  one that conflicts there is ungrouped as STALE_TREE even when it would merge cleanly onto a group.
+  Only ref lookups read the repository's Git directory (`GIT_DIR`, no worktree). Every object read,
+  diff and merge runs in a throw-away bare repository view whose object directory is temporary and
+  whose only alternate is the repository's objects, so the repository's configuration, attributes,
+  hooks and index, and any merge driver or filter they name, never run. Each Git run has a deadline
+  that kills its process group, a bounded wait for inherited pipes and a 16 MiB output bound.
+  SIGINT or SIGTERM cancels the running Git, and the view is removed before the read refuses; only an
+  uncatchable kill can leave a `corvint-plan-batches-*` temporary directory, which holds no
+  repository state. The repository MUST gain no object and no ref, and no merged tree is reported.
+  Known limit: Git may refresh the mtime of an existing object that a merge recreates (its prune
+  grace clock); object content, count and refs are unchanged.
+- `NTP-V0-023`: `--max-group-size N` MUST bound every group, from 1 to 64, default 8; the item
+  reports the bound. Malformed, out-of-range, repeated or unknown flags refuse with usage.
+- `NTP-V0-024`: A candidate whose base commit is absent or unresolvable, whose candidate tree or
+  branch does not resolve, or whose changed-path diff fails on a missing tree object, MUST be
+  reported in `ungrouped` with ticket, attempt, MISSING_EVIDENCE and a bounded detail, and never
+  grouped or guessed. An intent branch that does not resolve refuses the whole read
+  MISSING_EVIDENCE; any other Git failure (including a diff failure with no missing object),
+  timeout, interrupt or output overflow refuses rather than degrading to a partial plan.
+- `NTP-V0-025`: The verb MUST follow the Tasks read contract: one lock-free snapshot-bracketed store
+  read (TM-V0-008), then Git observation; it writes no store, intent, journal, reservation, ref or
+  object state and its item carries `mutationAuthority:false`. `--help` answers without I/O. Non-goals:
+  no admission, reservation, claim, merge, push or integration; no semantic-independence claim (a
+  clean textual merge is not a passing build); no cross-repository candidates. Rollback removes the
+  verb, its help entry and these requirements; no store migration is needed.
 
 ## Fixture input and receipt
 
@@ -148,3 +198,9 @@ real-queue cutover remain in the executor handoff. No automatic task execution i
 | NTP-V0-006 | internal/taskman capacity/bindings | TestNTPV0006CapacityAndBindings |
 | NTP-V0-007 | internal/taskman fixture history | TestNTPV0007DeferralHistory |
 | NTP-V0-008 | cmd/corvint opt-in dispatch | TestNTPV0008CommandBoundary, TestNTPV0001AdapterCanonicalReadOnly; native fixture unchanged-state comparison |
+| NTP-V0-020 | internal/tasks/cli/plan_batches.go batchCandidates | TestNTPV0020_CandidatesAreLatestSubmittedOrReadyAttempts, TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb |
+| NTP-V0-021 | internal/tasks/cli/plan_batches.go resolveCandidate, batchDisjoint | TestNTPV0021_GroupsByDisjointChangedPaths, TestNTPV0021_SharedPathCollisionIsSymmetric |
+| NTP-V0-022 | internal/tasks/cli/plan_batches.go batchPlan, batchView, batchGit; plan_batches_unix.go | TestNTPV0022_DryChainedMergeSplitsConflicts, TestNTPV0022_DryMergeAddsNoObjectsOrRefs, TestNTPV0022_JoiningCandidateIsCheckedAgainstTip, TestNTPV0022_GitDeadlineKillsProcessGroup, TestNTPV0022_InterruptRemovesTemporaryDirectory |
+| NTP-V0-023 | internal/tasks/cli/plan_batches.go planBatches flags | TestNTPV0023_MaxGroupSizeBoundsGroups, TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb |
+| NTP-V0-024 | internal/tasks/cli/plan_batches.go resolveCandidate | TestNTPV0024_UnresolvableCandidateIsReportedUngrouped, TestNTPV0024_MissingNestedTreeIsUngrouped, TestNTPV0024_FatalDiffFailureRefuses, TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb |
+| NTP-V0-025 | internal/tasks/cli plan dispatch, ReadVerbs, command help, batchView | TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb, TestNTPV0025_RepositoryMergeDriverDoesNotRun, TestCALV0047_AllCommandHelpIsReadOnly |

@@ -531,6 +531,15 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 	if err != nil {
 		return nil, err
 	}
+	return DecodeLedger(raw, program)
+}
+
+// MaxLedgerBytes bounds a state.json read.
+const MaxLedgerBytes = maxLedger
+
+// DecodeLedger decodes and validates state.json bytes a caller read itself,
+// as LoadLedger does after its read.
+func DecodeLedger(raw []byte, program string) (*Ledger, error) {
 	var members map[string]json.RawMessage
 	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(&members); err != nil {
 		return nil, fmt.Errorf("dispatch state: %w", err)
