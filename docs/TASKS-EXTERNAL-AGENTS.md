@@ -711,8 +711,9 @@ debt, clean handoff preserves it and policy updates change the bound without era
 
 ## Diagnose a stuck queue
 
-`corvint-tasks doctor [--refresh] [--plugins DIR]` is an advisory pure read (proposed
-TQD-V0-001..012, GitHub #715). It scans at most 4096 receipts from the last 7 days and reports
+`corvint-tasks doctor [--refresh] [--plugins DIR] [--config FILE]` is an advisory pure read
+(TQD-V0-001..013, accepted in decisions 0481 and 0519, GitHub #715; TQD-V0-020..033, GitHub #1041,
+#1044 and #1047). It scans at most 4096 receipts from the last 7 days and reports
 `summary` (free and total pool lanes, running sessions, completions in 24 hours, alerts) and
 `findings`, each with `kind`, `source`, `who`, `detail`, `remedy`, `firstSeen`, `ageSeconds` and
 `evidenceSeqs`. Built-in kinds are NO_PROGRESS_HANDOFF (three trailing no-progress hand-offs on a
@@ -720,7 +721,32 @@ ticket that is not COMPLETED, ARCHIVED or HELD; TQD-V0-013, accepted in decision
 REPEAT_REFUSAL (one candidate tree returned or failed three times), SLOW_LANE_RECOVERY (an
 allocation entered cleanup three times), SETUP_ONLY_PROOF (a recent completion that witnessed no
 core obligation) and FALSE_IDLE (a stale or lease-expired holder whose detached run supervisor
-still has a live descendant). `scan.truncated` marks a partial scan.
+still has a live descendant). `scan.truncated` marks a partial scan. A reopened ticket starts a
+new NO_PROGRESS_HANDOFF streak (TQD-V0-032).
+
+The doctor also reads the host: QUEUE_LOCK_HELD names a queue lock file held by a `corvint-tasks`
+process for 60 s or more, with its pid, command and age (on darwin the longest-running opener and
+its process age); SLOW_QUEUE_COMMAND names another `corvint-tasks` command, other than the
+long-running verbs, that has had a queue lock file open for 60 s; NO_COMPLETIONS names the queue
+when nothing has completed for 2 hours while a ticket is ready and a lane is idle (an empty queue
+reports nothing); FD_PRESSURE reports the system file table at 80% or more. Each finding clears
+when the condition does.
+
+`--config FILE` names a `taskman-doctor-config/0` file that sets those thresholds
+(`lockHeldSeconds`, `slowCommandSeconds`, `noCompletionsSeconds`, `fdPressurePercent`,
+`sessionWindowSeconds`, `retryStorm`, `hostErrors`, `earlyRefusal`, as decimal strings), a
+`notify` hook and up to eight `dispatchers` (`{"programDir", "format"}`). For each dispatcher the
+item reports its work-state reader health and a failing reader is a WORK_STATE_FAILING finding;
+its workers' recent `stdout.log` files, read under the recorded usage format, yield
+HOST_RETRY_STORM (3 turn starts with no finished turn), HOST_ERRORS (3 host error events) and
+EARLY_REFUSAL (3 failed tool calls before the first success), each citing the log path and line
+range. Output in an unrecognised format yields nothing.
+
+The `notify` hook (`{"command": [ABSOLUTE_PATH, ...], "minIntervalSeconds": "N"}`) runs only
+during `--refresh`, once per change of the finding set and at most once per interval, with the
+refreshed doctor item on stdin and the plugin bounds below. A failing, timed-out or noisy hook
+becomes a NOTIFY_FAILED finding and never fails the doctor; the same finding set never notifies
+twice.
 
 `--plugins DIR` runs each executable file in DIR from the primary worktree with no stdin, a 10 s
 timeout and 64 KiB of stdout, in its own process group, which is killed once the plugin exits, so
@@ -739,6 +765,8 @@ valid but whose local journal is absent, `doctor` refuses MISSING_EVIDENCE.
 `corvint-tasks doctor --line` prints one plain-text status line from that cache, such as
 `lanes 1/2 free | sessions 3 | 24h 5 done | alerts 1`, with `| stale Nm` once the cache is
 15 minutes old; it takes no lock, reads no store or queue manifest and exits 1 when the cache is unavailable.
+`doctor --line` reads only the cache written by `--refresh` and never scans the journal, the host or
+any dispatcher (TQD-V0-012); refresh the cache on a schedule to keep the line current.
 Findings carry no authority: nothing claims, releases, reaps or holds because of them.
 
 ## Upgrade the binary with live attempts
