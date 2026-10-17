@@ -32,12 +32,22 @@ func TestAMAPV0098RefsCLI(t *testing.T) {
 		len(out) > 6144 || !strings.Contains(diag, "3 unlabelled reference misses") {
 		t.Fatalf("refs: %d %s %s", code, diag, out)
 	}
-	for _, args := range [][]string{{"--source", "src"}, {"--map", filename}, {"--map", filename, "--source", "../src"},
-		{"--map", filename, "--source", "src", "--budget", "1"}, {"--map", filename, "--source", "src", "--full", "--budget", "4096"},
-		{"--map", filename, "--source", "src", "extra"}} {
-		code, out, _ = runFlowsCLI(root, append([]string{"appmap", "refs"}, args...)...)
-		if code != 2 || out != "" {
-			t.Fatalf("admitted %v: %d %s", args, code, out)
+	for _, tc := range []struct {
+		code string
+		args []string
+	}{
+		{"invalid-arguments", []string{"--source", "src"}},
+		{"appmap-invalid-query", []string{"--map", filename}},
+		{"appmap-invalid-query", []string{"--map", filename, "--source", "../src"}},
+		{"appmap-invalid-query", []string{"--map", filename, "--source", "src", "--budget", "1"}},
+		{"appmap-invalid-query", []string{"--map", filename, "--source", "src", "--budget", "0"}},
+		{"appmap-invalid-query", []string{"--map", filename, "--source", "src", "--full", "--budget", "4096"}},
+		{"appmap-invalid-query", []string{"--map", filename, "--source", "src", "--full", "--budget", "0"}},
+		{"invalid-arguments", []string{"--map", filename, "--source", "src", "extra"}},
+	} {
+		code, out, diag = runFlowsCLI(root, append([]string{"appmap", "refs"}, tc.args...)...)
+		if code != 2 || out != "" || !strings.Contains(diag, tc.code) {
+			t.Fatalf("admitted %v: %d %s %s", tc.args, code, out, diag)
 		}
 	}
 	cmd := exec.Command("git", "status", "--porcelain", "--ignored")
